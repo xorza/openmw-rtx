@@ -19,7 +19,7 @@ namespace Rtx
     /// A texture's chain made again from its finest level, the one way the host makes one: **a box of the level above**
     /// (`Shaders::axisTaps`), in light where the format is display-encoded, with a colour weighed by its alpha where
     /// the alpha is coverage (`TextureEncoding::Colour`) and divided back. **A normal map in one encoding**
-    /// (`docs/rtx/architecture.md`, "A normal map is whole in BC7, in one encoding"): each level the direction of the
+    /// (`docs/architecture.md`, "A normal map is whole in BC7, in one encoding"): each level the direction of the
     /// mean of the finest unit normals it covers, its height beside it.
     ///
     /// One a thread: it keeps the decoded levels and its scratch between builds.
@@ -64,7 +64,7 @@ namespace Rtx
         /// Decodes the first level of `file`, a description `rebuilds` holds, and boxes `levels` levels in all from it,
         /// each half the one above and at least a texel, four bytes a texel, display-encoded where `file`'s format is.
         /// **A painted colour** reads every level it carries instead, up to `levels`, delit
-        /// (`docs/rtx/architecture.md`, "A painted colour is stored delit, keyed by use"), the levels past its own
+        /// (`docs/architecture.md`, "A painted colour is stored delit, keyed by use"), the levels past its own
         /// boxed from the last of them. Refills this one.
         void build(const TextureData& file, std::uint32_t levels);
 

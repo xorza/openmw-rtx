@@ -45,7 +45,7 @@ namespace Rtx
     ///
     /// **A frame draws on the full kernels until its own tuple is made**, as Godot's ubershaders and
     /// Dolphin's hybrid mode draw until the specialized shader is compiled
-    /// (`docs/rtx/architecture.md`, "Every driver draws its first frames on the full kernels"): the
+    /// (`docs/architecture.md`, "Every driver draws its first frames on the full kernels"): the
     /// full tuple takes about ten seconds cold, every tuple about a minute.
     enum class KernelSet : std::uint8_t
     {

@@ -1,5 +1,5 @@
 """Every download the driver pins, by version and SHA-256: the one file a bump edits, and what CI
-keys its cache of deps/ on, so a bump saves the cache afresh. Why each is pinned the way it is stays with
+keys its cache of out/deps/ on, so a bump saves the cache afresh. Why each is pinned the way it is stays with
 the code that fetches it, in `deps.py`."""
 
 from dataclasses import dataclass
@@ -107,7 +107,7 @@ PYYAML = Pin(
     "d76623373421df22fb4cf8817020cbb7ef15c725b9d5e45f17e189bfc384190f",
 )
 
-# The tools an AppImage is made with, by the name each is kept under in its folder of deps/
+# The tools an AppImage is made with, by the name each is kept under in its folder of out/deps/
 # (`deps.appimage_tools`).
 APPIMAGE_TOOLS = {
     "linuxdeploy": Pin(

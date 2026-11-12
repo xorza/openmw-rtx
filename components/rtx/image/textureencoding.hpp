@@ -18,7 +18,7 @@ namespace Rtx
     ///
     /// **A painted colour is one encoding with its own made chain**: Morrowind's textures were lit before they were
     /// saved, so the host divides the light painted into one out of each level (`ChainBuild::build`). One file bound
-    /// both ways is two textures, as an engine imports a source once for each use (`docs/rtx/architecture.md`, "A
+    /// both ways is two textures, as an engine imports a source once for each use (`docs/architecture.md`, "A
     /// painted colour is stored delit, keyed by use").
     ///
     /// **A normal map is an encoding of its own because of what is made beside it**, and not because of how it is

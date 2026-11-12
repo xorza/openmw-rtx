@@ -17,6 +17,7 @@ from pathlib import Path
 from omw.system import (
     CI,
     CXX_SOURCES,
+    OUT,
     ROOT,
     SYSTEMS,
     Refusal,
@@ -143,7 +144,7 @@ def _driver() -> list[str]:
     for platform in SYSTEMS:
         windows = "true" if platform == "win32" else "false"
         found += _ran([*mypy, "--python-version", "3.11", "--platform", platform, f"--always-{windows}", "WINDOWS",
-                       "-p", "omw"], env)
+                       "--cache-dir", str(OUT / "mypy"), "-p", "omw"], env)
     return found
 
 

@@ -240,9 +240,9 @@ the lines each item names, which the merge resolves by keeping the seam:
     one route every other collision object takes (`addObject`), which the suite `test_script_placed` holds.
 - `Resource::SceneManager::letGo` and `GenericResourceManager::removeFromCache`: the ray tracer's preparation has
   the loader's caches let go of a model or an image as the last job reading it ends, its template, its NIF file,
-  its image and the shared state no template uses (`docs/rtx/architecture.md`, "The preparation's memory is
+  its image and the shared state no template uses (`docs/architecture.md`, "The preparation's memory is
   dispatched"), where clearing them once a second held a second of walks.
-- The interface's fonts rasterized again while the game runs (`docs/rtx/architecture.md`, "A live
+- The interface's fonts rasterized again while the game runs (`docs/architecture.md`, "A live
   scale and font size"): `Gui::FontLoader` keeps the TrueType fonts it makes and rasterizes them in
   place (`FontLoader::fit`), each the one way, the load's included, so a code point a face lacks
   draws the font's stated substitute after the load as after a fit; each font file's bytes are held
@@ -311,8 +311,7 @@ the lines each item names, which the merge resolves by keeping the seam:
   used goes with them: OpenSceneGraph, MyGUI, Bullet and ICU built from source, every static link
   of them (`OSG_STATIC`, `MYGUI_STATIC`, `BULLET_STATIC`, `QT_STATIC`, `cmake/WholeArchive.cmake`),
   so each comes from the system on Linux and from vcpkg on Windows; and the FreeBSD, OpenBSD and
-  MinGW branches. Upstream's user manual (`docs/source`) keeps its macOS
-  and Android sections.
+  MinGW branches.
 - CMake 4.4 at least (`cmake_minimum_required`), and every check for an older one gone: `omw`
   builds with Kitware's 4.4.5 on every system, which GitHub's runners and Ubuntu do not carry. The
   cost is a conflict with an upstream change to the lines around the checks.
@@ -327,6 +326,11 @@ the lines each item names, which the merge resolves by keeping the seam:
   (upstream's merge requests; the fork's rules are `AGENTS.md`), and under `scripts/` the Teal
   declarations and preprocessed-size scripts only GitLab's pipeline ran, with `osg_stats.py` and
   `HOWTO-benchmark.md` for the rasterizer's OSG statistics, where `omw bench` measures the ray tracer.
+  And upstream's `docs/`: its user manual (`docs/source`), which the fork publishes nowhere and upstream's online
+  manual stands for, the Docker image and scripts that build it, the Doxygen API reference nothing built, and the
+  post-1.0 roadmap (`openmw-stage1.md`); and `manual/`, the LaTeX manual of OpenMW-CS, which the fork does not ship;
+  `docs/` holds the fork's own, and what the fork wrote in the manual, the
+  `[RTX]` settings and its changes to upstream's, is `docs/settings.md`.
   `upstream.yml` keeps them deleted. `.editorconfig` covers the ray tracer's shaders and the headers
   GLSL and C++ share (`.h`, `.rgen`), LF as `.gitattributes` holds C++, and loses the stages the tree has
   no file of.
@@ -353,8 +357,7 @@ the lines each item names, which the merge resolves by keeping the seam:
 - The top-level `CMakeLists.txt` split by responsibility: options and the install layout in
   `cmake/Options.cmake`, every `find_package` in `cmake/Dependencies.cmake`, the install rules in
   `cmake/Install.cmake`, the vendored libraries in `extern/CMakeLists.txt`, the resource files in
-  `files/CMakeLists.txt`, the Qt translations in `files/lang/CMakeLists.txt`, the Doxygen targets in
-  `docs/CMakeLists.txt`; the version from `project(VERSION)`. CPack and the NSIS installer go, with the
+  `files/CMakeLists.txt`, the Qt translations in `files/lang/CMakeLists.txt`; the version from `project(VERSION)`. CPack and the NSIS installer go, with the
   `vcredist` bundling, the Visual Studio generator's compiler override and the branches for compilers below
   the floor. The cost is a conflict with every upstream change to the root, which the merge places in the
   file that now holds it.
@@ -374,13 +377,12 @@ the lines each item names, which the merge resolves by keeping the seam:
 - `components/stereo/multiview.cpp`'s `sMultiview`, written twice and never read, gone: Clang 23's
   `-Wunused-but-set-global` stopped the build on it. The call that caches and logs whether multiview
   stands stays. The cost is a conflict with an upstream edit to `configureExtensions`.
-- One build in place of upstream's switches (`docs/rtx/build.md`): every configuration's flags in `cmake/Flags.cmake`,
+- One build in place of upstream's switches (`docs/build.md`): every configuration's flags in `cmake/Flags.cmake`,
   read through `CMAKE_USER_MAKE_RULES_OVERRIDE`, with line tables and frame pointers in Release too and a PDB on every
   MSVC link; warnings as errors by CMake's `CMAKE_COMPILE_WARNING_AS_ERROR` in place of `OPENMW_CXX_FLAGS` and
   `OPENMW_MSVC_WERROR`, and link-time optimisation by `CMAKE_INTERPROCEDURAL_OPTIMIZATION` in place of `OPENMW_LTO`.
   Gone with their branches: every program's switch (`OPENMW_BUILD_*`), as every flavour builds every program, the
-  tests and benchmarks behind CMake's own `BUILD_TESTING` and the Doxygen targets failing by name where Doxygen is
-  missing; plain Lua (`OPENMW_LUAJIT`; the sources' `NO_LUAJIT` branches stay, as upstream wrote them), the system's
+  tests and benchmarks behind CMake's own `BUILD_TESTING`; plain Lua (`OPENMW_LUAJIT`; the sources' `NO_LUAJIT` branches stay, as upstream wrote them), the system's
   TinyXML (`OPENMW_SYSTEM_TINYXML`, `cmake/FindTinyXML.cmake`), coverage, every precompiled header
   (`OPENMW_MSVC_PRECOMPILED_HEADERS`), since ccache caches through none, and the console option, the console fixed to
   Debug and RelWithDebInfo as its default had it. One portable install layout on every system, every file beside the
@@ -391,7 +393,7 @@ the lines each item names, which the merge resolves by keeping the seam:
   adds to each executable: the game's `openmw.exe.manifest` and its line in `openmw.rc` go, and the game gains the
   per-monitor DPI awareness and long paths the other programs had. The cost is a conflict with every upstream change
   to an option, a precompiled header list or a manifest line, which the merge drops.
-- Every third-party library from the vcpkg set, static (`vcpkg.json`, `docs/rtx/build.md`), in place of the system's
+- Every third-party library from the vcpkg set, static (`vcpkg.json`, `docs/build.md`), in place of the system's
   on Linux and upstream's prebuilt set on Windows, whose tags `CI/deps_versions.msvc.sh` held and which goes:
   `cmake/Dependencies.cmake` finds each package by its own CMake files or pkg-config's, with no version floors, and
   every fetched project is built from its pinned archive alone, never a system's (`FIND_PACKAGE_ARGS`). The finders
@@ -473,15 +475,15 @@ the lines each item names, which the merge resolves by keeping the seam:
 - `openmw-lib` an object library rather than a static one: under MSVC's link-time code generation its archive
   came to 3.6 GB of the 4 GB `lib.exe` writes (LNK1248), and the three programs that link it, the game, the
   harness and `openmw-tests`, take its objects directly. The cost is a conflict with an upstream edit to that line.
-- The launcher's and the wizard's look (`docs/rtx/look.md`): `Platform::Application` takes a `Platform::Look`,
+- The launcher's and the wizard's look (`docs/look.md`): `Platform::Application` takes a `Platform::Look`,
   and for `Graphite` dresses the program in the fork's palette and style and skips upstream's Windows dark
   mode, which the editor keeps; the launcher and the wizard no longer build upstream's Windows dark sheet in.
   The cost is a conflict with an upstream edit to the application's constructor or to those three calls.
-- The launcher's glyphs and error ink (`docs/rtx/look.md`): its toolbar's pages drawn from Lucide's icons in
+- The launcher's glyphs and error ink (`docs/look.md`): its toolbar's pages drawn from Lucide's icons in
   code rather than Oxygen's PNGs in `mainwindow.ui`, which leave the tree, its fallback icon theme always taken
   and redrawn from Lucide, and an invalid profile name in the look's error ink rather than `Qt::red`. The
   cost is a conflict with an upstream edit to those icons or to the two lines that colour a name.
 - The launcher's contains-data mark from Lucide through `Misc::ScalableIcon` rather than Oxygen's
   `openmw-plugin.png`, which leaves the tree, and the wizard's four icons redrawn from Lucide in place
-  (`docs/rtx/look.md`). The cost is a conflict with an upstream edit to that line or to those icons.
+  (`docs/look.md`). The cost is a conflict with an upstream edit to that line or to those icons.
 

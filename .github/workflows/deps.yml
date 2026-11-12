@@ -70,7 +70,7 @@ jobs:
       # moved rebuilds only the ports they reach; the newest alone is kept (`caches`).
       - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: deps/vcpkg-binary-cache
+          path: out/deps/vcpkg-binary-cache
           key: vcpkg-linux-${{ needs.digest.outputs.tag }}-${{ github.run_id }}
           restore-keys: vcpkg-linux-
       - run: source /opt/rh/gcc-toolset-15/enable && python3.12 omw deps-set
@@ -78,12 +78,12 @@ jobs:
       - if: always()
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: deps/vcpkg-binary-cache
+          path: out/deps/vcpkg-binary-cache
           key: vcpkg-linux-${{ needs.digest.outputs.tag }}-${{ github.run_id }}
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: set-linux
-          path: deps/sets/vcpkg-x64-linux-openmw.tar.gz.*
+          path: out/deps/sets/vcpkg-x64-linux-openmw.tar.gz.*
           compression-level: 0
 
   windows:
@@ -103,19 +103,19 @@ jobs:
           python-version: "3.11"
       - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: deps/vcpkg-binary-cache
+          path: out/deps/vcpkg-binary-cache
           key: vcpkg-windows-${{ needs.digest.outputs.tag }}-${{ github.run_id }}
           restore-keys: vcpkg-windows-
       - run: python omw deps-set
       - if: always()
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: deps/vcpkg-binary-cache
+          path: out/deps/vcpkg-binary-cache
           key: vcpkg-windows-${{ needs.digest.outputs.tag }}-${{ github.run_id }}
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: set-windows
-          path: deps/sets/vcpkg-x64-windows-openmw.tar.gz.*
+          path: out/deps/sets/vcpkg-x64-windows-openmw.tar.gz.*
           compression-level: 0
 
   # One binary cache a system and branch. Each run saves its own, as a key is written once: a run cut off saves

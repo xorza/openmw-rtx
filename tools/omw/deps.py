@@ -1,4 +1,4 @@
-"""What a build needs and no system package brings, fetched into deps/ at the versions `pins.py` names. Each tool
+"""What a build needs and no system package brings, fetched into out/deps/ at the versions `pins.py` names. Each tool
 stands in a folder named after its pins (`pinned_folder`), so a bump fetches anew and an unchanged pin fetches
 nothing."""
 
@@ -392,7 +392,7 @@ def vulkan_environment(env: dict[str, str]) -> None:
 
 
 def pinned_names() -> set[str]:
-    """Every name in deps/ that the pins give this system, through the functions that name each getter's folder,
+    """Every name in out/deps/ that the pins give this system, through the functions that name each getter's folder,
     so pruning cannot take what a getter fetched."""
     kept = [cmake_dir(), ninja_dir(), clang_format_dir(), gersemi_dir(), vcpkg_root_dir(), appimage_tools_dir(),
             llvm_dir(), VCPKG_BINARY_CACHE, VCPKG_DOWNLOADS, VCPKG_WORK, VCPKG_SETS,
@@ -413,7 +413,7 @@ def cached_tools() -> list[Path]:
 
 
 def prune() -> None:
-    """**What deps/ holds that no pin names, removed**: a version replaced, and a partial a stopped fetch left, so
+    """**What out/deps/ holds that no pin names, removed**: a version replaced, and a partial a stopped fetch left, so
     a cache restored from an older run sheds it."""
     if not DEPS.is_dir():
         return
@@ -429,7 +429,7 @@ def prune() -> None:
 
 def bootstrap() -> None:
     """The vcpkg set, its shader tools run once to prove it, so a tool left out or missing a library stops here by
-    name and not mid-configure; Windows' loader, the pinned CMake and Ninja, and deps/ pruned."""
+    name and not mid-configure; Windows' loader, the pinned CMake and Ninja, and out/deps/ pruned."""
     vcpkg = vcpkg_set()
     for tool, port in SHADER_TOOLS.items():
         found = vcpkg / "installed" / TRIPLET / "tools" / port / f"{tool}{EXE}"

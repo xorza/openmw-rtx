@@ -185,5 +185,5 @@ jobs:
         uses: $/.github/actions/logs
         with:
           name: logs-${{ matrix.name }}-${{ github.sha }}
-          build: build-${{ matrix.flavour }}
-          more: build-${{ matrix.flavour }}/integration_tests_output/**/*.cfg
+          build: out/${{ matrix.flavour }}
+          more: out/${{ matrix.flavour }}/integration_tests_output/**/*.cfg

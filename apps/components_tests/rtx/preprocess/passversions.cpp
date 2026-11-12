@@ -100,7 +100,7 @@ namespace Rtx
         /// **Every stored pass's version is held to what it computes**: each runs over fixed inputs,
         /// and the digest of what its codec files is recorded beside its `sVersion`. An output that
         /// moves while the version stays fails here, so a forgotten bump cannot hand a store's old
-        /// output to a new build (`docs/rtx/architecture.md`, "A pass's version is held by a test").
+        /// output to a new build (`docs/architecture.md`, "A pass's version is held by a test").
         /// **Where this fails, raise the pass's `sVersion` and record both again**: the store files
         /// every output of the new version apart from the old.
         TEST(RtxPassVersionsTest, everyStoredPassComputesWhatItsVersionRecords)

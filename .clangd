@@ -2,7 +2,7 @@
 # keeps configured, so tests, the editor and the tools all resolve. Its flags are the pinned Clang's, which
 # CI's builds take too. Warnings stay warnings: the editor's clangd may be newer than the pinned Clang 23.
 CompileFlags:
-  CompilationDatabase: build-debug
+  CompilationDatabase: out/debug
   Remove:
     - -Werror
   Add:

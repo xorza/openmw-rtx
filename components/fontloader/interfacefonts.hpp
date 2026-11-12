@@ -19,7 +19,7 @@ namespace Gui
 {
     /// **The interface's fonts and everything drawn with them, changed as one.** Rasterizing a font in place
     /// replaces its textures, and every text and book page has to take its font's texture again before the
-    /// next frame draws (`docs/rtx/research/2026-10-31-mygui-font-lifetimes.md`); `fit` is the one call that
+    /// next frame draws (`docs/research/2026-10-31-mygui-font-lifetimes.md`); `fit` is the one call that
     /// changes a font, so no caller can do the first without the second.
     ///
     /// The texts, lists and pages are three registries, refitted in that order: a list's refit may make

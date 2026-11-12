@@ -38,7 +38,7 @@ namespace Rtx
     ConvertedTexel convertTexel(const osg::Vec3f& diffuse, const osg::Vec3f& specular);
 
     /// A classic pair's base colour or metal-roughness map, made of the pair's diffuse and its classic
-    /// `_spec` (`docs/rtx/architecture.md`, "One specular layout, a classic map converted"): every
+    /// `_spec` (`docs/architecture.md`, "One specular layout, a classic map converted"): every
     /// texel of the job's own file converted with its partner's nearest texel (`convertTexel`), the
     /// diffuse delit first as a painted colour is (`ChainBuild`), and the roughness the exponent's
     /// (`roughnessOfExponent`), the occlusion one. The whole chain is made to a texel from the

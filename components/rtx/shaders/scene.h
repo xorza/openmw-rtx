@@ -40,7 +40,7 @@ namespace Rtx::Shaders
     /// How many slots the bindless array holds. A PBR pack gives a diffuse a normal and a specular
     /// slot beside it (about 3700 at the largest bench place), so twice that. **Not 16384**: the
     /// layers' kernel spilled 480 bytes a lane on a low-end AMD integrated GPU, against 192 at 8192
-    /// (`docs/rtx/research/2026-10-22-amd-integrated-spill-ceilings.md`).
+    /// (`docs/research/2026-10-22-amd-integrated-spill-ceilings.md`).
     const uint TEXTURE_SLOTS = 8192u;
 
     /// The one slot the scene never hands out: one texel of `UNTEXTURED_ALBEDO` with an alpha of one.

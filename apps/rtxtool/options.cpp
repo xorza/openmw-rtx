@@ -723,7 +723,7 @@ namespace RtxTool
             "a history and the smallest difference handed to it on one frame stays in its picture "
             "for the rest of the run, so that picture is reported beside the verdict and never as "
             "one. Under the filter the composed frame is the wavelet's, whose last bit is the "
-            "card's and not the tree's (`docs/rtx/architecture.md`): a difference there alone is "
+            "card's and not the tree's (`docs/architecture.md`): a difference there alone is "
             "reported beside the verdict, and `shot` holds that picture to within one level of "
             "255, as it holds every doll and map tile, which are denoised whatever the filter. "
             "What each of the denoiser's stages left is hashed beside it and reported, never a "

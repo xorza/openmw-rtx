@@ -125,7 +125,7 @@ https://github.com/xorza/openmw-rtx/actions/runs/41385212538 green.
 ## Decisions
 
 - **The sea's walk is a stage of its own, over the tiles where the eye met the sea** (`3dd8dc8363`,
-  `docs/rtx/architecture.md` "The sea's walk, a stage of its own", `research/2026-11-02-water-stage.md`).
+  `docs/architecture.md` "The sea's walk, a stage of its own", `research/2026-11-02-water-stage.md`).
   Spiked on `spike/water-stage` (local). Handheld frame −4.2 % ship, −3.8 % dawn; AMD iGPU −5.3 %, −7.0 %;
   desk and every interior inside the noise; no picture moved. The shape is the tree's own
   classify-and-dispatch (the media and the layers' tile lists, FidelityFX's reflections) and

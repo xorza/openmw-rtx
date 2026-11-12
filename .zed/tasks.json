@@ -1,4 +1,4 @@
-// Every task goes through `./omw [flavour]`, which owns the build directories, `build-<flavour>`,
+// Every task goes through `./omw [flavour]`, which owns the build directories, `out/<flavour>`,
 // and configures each through CMakePresets.json. A task that ran cmake itself would be a second
 // copy of all of it, and finds no cache while `omw` configures the directory afresh.
 [

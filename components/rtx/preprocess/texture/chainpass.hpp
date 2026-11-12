@@ -55,7 +55,7 @@ namespace Rtx
 
     /// A file's chain made again from its finest level (`ChainBuild`), as a pass: what the store keeps
     /// for every normal and data map, since the replacers' own chains are made with filters that are
-    /// wrong for a map (`docs/rtx/architecture.md`, "Every normal and data map's chain is rebuilt, and a
+    /// wrong for a map (`docs/architecture.md`, "Every normal and data map's chain is rebuilt, and a
     /// colour file keeps its own"), and for a file that carried none.
     ///
     /// **A file that carried no chain gets one down to a texel.** Morrowind ships a hundred and
@@ -65,13 +65,13 @@ namespace Rtx
     /// texture, whose last level is its mean to within what a ray can tell: a colour's own chain stands.
     ///
     /// **The whole chain in BC7 for every normal map**, and for a loose file and every chain the host
-    /// would make loose (`docs/rtx/architecture.md`, "A loose chain is whole in BC7"): a block file of
+    /// would make loose (`docs/architecture.md`, "A loose chain is whole in BC7"): a block file of
     /// one level up to `sLargestBc7ChainSide`, which BC7's error moves less than BC1's would, and a
     /// BC1 file of one level with a cut, whose coverage BC1 cannot hold. **Coarser levels in the file's
     /// own format** for every other block file; **nothing made** for a format `ChainBuild` does not
     /// rebuild, a block colour that carried its chain, and a BC1 file that carried a chain and has a cut.
     ///
-    /// **A painted colour's whole chain delit** (`docs/rtx/architecture.md`, "A painted colour is stored
+    /// **A painted colour's whole chain delit** (`docs/architecture.md`, "A painted colour is stored
     /// delit, keyed by use"): every level it carries, and the levels under a chainless one boxed from
     /// the delit finest, in the file's own format; in BC7 where it is loose, small and chainless, or
     /// holds a cut, whose one bit of alpha rgbcx's BC1 does not encode.

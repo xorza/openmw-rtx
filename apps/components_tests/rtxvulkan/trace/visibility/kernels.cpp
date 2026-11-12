@@ -139,7 +139,7 @@ namespace Rtx
         /// which carries every case, and the same without a dark map's alpha, which nearly every scene that has
         /// everything else runs. A kernel that spills runs at the speed of its scratch: the inline trace's, 800
         /// words a lane through 256 registers, drew an 80x45 frame of a low-end AMD integrated GPU in 650 ms
-        /// (`docs/rtx/research/2026-10-21-amd-integrated-stage-times.md`).
+        /// (`docs/research/2026-10-21-amd-integrated-stage-times.md`).
         ///
         /// - Each target driver's own ceilings, each one that only falls: AMD's own driver, RADV and NVIDIA,
         ///   each read by its own names (`CompiledUse`), since one compiler's count is no count of another's.
@@ -180,8 +180,8 @@ namespace Rtx
             // sea's walk, a stage of its own"); the water and media at what they hold since each walk resolves
             // its hit once ("A walk resolves the surface it ends on once"); the whole tuple's `media` at 224
             // since a read pairs an image with its sampler (`TEXTURE`), still four waves on an RDNA SIMD
-            // (`docs/rtx/research/2026-11-09-separate-samplers.md`); the landing at 144 since a sheet takes its
-            // span off the corners the hit carried (`docs/rtx/research/2026-11-09-sheet-span.md`).
+            // (`docs/research/2026-11-09-separate-samplers.md`); the landing at 144 since a sheet takes its
+            // span off the corners the hit carried (`docs/research/2026-11-09-sheet-span.md`).
             constexpr std::array<Ceiling, 6> sAmdWithoutDarkAlpha{ {
                 { "visibility", 0, 145, 2048 },
                 { "water", 0, 177, 2048 },
@@ -221,7 +221,7 @@ namespace Rtx
             } };
             // Measured on the handheld's integrated GPU under RADV. `visibility` at 144 and the landing under the
             // rule since a sheet takes its span off the corners the hit carried
-            // (`docs/rtx/research/2026-11-09-sheet-span.md`).
+            // (`docs/research/2026-11-09-sheet-span.md`).
             constexpr std::array<Ceiling, 5> sRadvWithoutDarkAlpha{ {
                 { "visibility", 0, 144, 2048 },
                 { "water", 0, 160, 2048 },

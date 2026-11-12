@@ -54,7 +54,7 @@ namespace RtxTool
     /// moved" names no table. A hash and not a picture, because six hundred frames is a few hundred megabytes.
     ///
     /// The composed frame of a denoised run is not to the bit either, and not because of the tree: the
-    /// card's own arithmetic under the wavelet is not (`docs/rtx/architecture.md`, the denoiser). A
+    /// card's own arithmetic under the wavelet is not (`docs/architecture.md`, the denoiser). A
     /// difference there alone is reported beside the verdict, and `shot` holds the picture to within a level.
     class FrameHashes
     {

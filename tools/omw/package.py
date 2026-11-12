@@ -1,6 +1,6 @@
-"""`omw archive [name]`: the release's archives out of the release build, into dist/, with their symbols, named after
-the name given or the commit: the game's and the tools'. On Linux an AppImage and a tarball, built on AlmaLinux 8 or
-in a container of it, and on Windows two portable folders."""
+"""`omw archive [name]`: the release's archives out of the release build, into out/dist/, with their symbols, named
+after the name given or the commit: the game's and the tools'. On Linux an AppImage and a tarball, built on AlmaLinux 8
+or in a container of it, and on Windows two portable folders."""
 
 import os
 import re
@@ -16,10 +16,12 @@ from pathlib import Path
 from omw import deps
 from omw.build import Build
 from omw.system import (
+    OUT,
     ROOT,
     SYSTEM,
     WINDOWS,
     Refusal,
+    build_dir,
     output,
     prepend_path,
     read_text,
@@ -28,7 +30,7 @@ from omw.system import (
     user_and_group,
 )
 
-DIST = ROOT / "dist"
+DIST = OUT / "dist"
 
 # **The system a Linux release and its dependency set are built on**: AlmaLinux 8, any point release, whose glibc
 # 2.28 an AppImage takes as the floor it runs on. A desk on another builds in a container of it
@@ -40,7 +42,7 @@ OS_RELEASE = Path("/etc/os-release")
 
 # What the container keeps between runs on the desk, so its files are the desk's own: its build, apart from the
 # desk's, and its compiler cache.
-CONTAINER_DIR = ROOT / "build-container"
+CONTAINER_DIR = OUT / "container"
 
 
 # The target that builds what an install carries and nothing else, and the components it installs as, one archive
@@ -140,7 +142,7 @@ def container_command(docker: str, command: list[str], user: str, flavour: str) 
             "--env", "OMW_LTO",
             "--volume", f"{ROOT}:{ROOT}",
             *(word for repository in _repository_beside() for word in ("--volume", f"{repository}:{repository}")),
-            "--volume", f"{CONTAINER_DIR / flavour}:{ROOT / f'build-{flavour}'}",
+            "--volume", f"{CONTAINER_DIR / flavour}:{build_dir(flavour)}",
             "--workdir", str(ROOT), RELEASE_IMAGE, *command]
 
 
@@ -172,7 +174,7 @@ def release_container(flavour: str) -> Container:
 
 
 def prepare_container(flavour: str) -> Container:
-    """`release_container`, with what `omw bootstrap` fetches into the deps/ the desk shares."""
+    """`release_container`, with what `omw bootstrap` fetches into the out/deps/ the desk shares."""
     container = release_container(flavour)
     run(container.command(["python3", "omw", "bootstrap"]))
     return container
@@ -298,7 +300,7 @@ def _archive_linux(build: Build, name: str) -> None:
     require("zsyncmake", "the update information wants a .zsync beside the image: zsync")
     appimage = deps.appimage_tools()
 
-    appdir = ROOT / "AppDir"
+    appdir = build.dir / "AppDir"
     shutil.rmtree(appdir, ignore_errors=True)
     install(build, "game", appdir / "usr" / "bin")
     _refuse_harness(appdir)
@@ -325,7 +327,7 @@ def _archive_linux(build: Build, name: str) -> None:
          "--icon-file", appdir / "usr" / "share" / "pixmaps" / "openmw.png"], env=env)
     LINUX_LIBRARIES.refuse_mismatch(appdir)
 
-    # From dist/, because appimagetool writes the .zsync into the working directory. The static runtime runs on
+    # From out/dist/, because appimagetool writes the .zsync into the working directory. The static runtime runs on
     # FUSE 2, FUSE 3 or none; AppStream validation is off, as upstream's metainfo carries warnings it refuses.
     env.update(LDAI_RUNTIME_FILE=str(appimage / "runtime-x86_64"), LDAI_NO_APPSTREAM="1",
                LDAI_UPDATE_INFORMATION=("gh-releases-zsync|xorza|openmw-rtx|latest|"
@@ -376,8 +378,8 @@ def _archive_windows(build: Build, name: str) -> None:
 
 def symbols(folder: Path, name: str) -> None:
     """**The release's symbols**: every program the archives installed from the build in `folder`, through
-    `dump_syms` into a Breakpad store zipped as `dist/openmw-<name>-<system>-symbols.zip`, which `omw crash` reads a
-    player's dump against. From the build's own binaries, since the archive's are stripped."""
+    `dump_syms` into a Breakpad store zipped as `out/dist/OpenMW-RTX-<version>-<system>-symbols.zip`, which
+    `omw crash` reads a player's dump against. From the build's own binaries, since the archive's are stripped."""
     dump_syms = deps.crash_tool("dump_syms")
     with tempfile.TemporaryDirectory() as store:
         for executable in installed_programs(folder):

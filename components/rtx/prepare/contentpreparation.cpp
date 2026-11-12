@@ -80,7 +80,7 @@ namespace Rtx
     {
         /// How long a chain of `image` read as `encoding` is estimated to take on one thread: its texels,
         /// the chain's a third past the finest's, at what one thread builds and encodes a second, from the
-        /// benches (`docs/rtx/research/2026-11-09-content-preparation-cost.md`): BC1 at rgbcx's level 10
+        /// benches (`docs/research/2026-11-09-content-preparation-cost.md`): BC1 at rgbcx's level 10
         /// 7.4 million texels a second and a painted colour's delight past it, BC7 in one mode 20.6 million
         /// and a normal map's build past it. An estimate orders a backfill and admits nothing.
         double estimatedSeconds(const osg::Image& image, const TextureEncoding encoding)

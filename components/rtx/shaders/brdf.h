@@ -332,7 +332,7 @@ namespace Rtx::Shaders
     /// **A factor on the mapped cosine, and not a share of it.** Chiang, Li and Burley's term ("Taming
     /// the Shadow Terminator", 2019) divides the base's cosine by the mapped one, so under a grazing
     /// sun the light fell to nought within a sliver of the mapped terminator and relief went flat, in
-    /// hard-edged patches (`docs/rtx/research/2026-11-07-bump-terminator.md`).
+    /// hard-edged patches (`docs/research/2026-11-07-bump-terminator.md`).
     ///
     /// One to the bit where the two normals are one, so a surface with no map keeps every light whole:
     /// `a` is then nought and the root is `c`.

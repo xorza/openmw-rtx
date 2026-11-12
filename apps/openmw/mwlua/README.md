@@ -2,12 +2,9 @@
 
 This folder contains the C++ implementation of the Lua scripting system.
 
-For user-facing documentation, see
-[Lua scripting](https://openmw.readthedocs.io/en/latest/reference/lua-scripting/index.html).
-The documentation is generated from
-[/docs/source/reference/lua-scripting](/docs/source/reference/lua-scripting).
-You can find instructions for generating the documentation at the
-root of the [docs folder](/docs/README.md).
+For user-facing documentation, see upstream's
+[Lua scripting](https://openmw.readthedocs.io/en/latest/reference/lua-scripting/index.html), which the fork's
+tree does not build.
 
 The Lua API reference is generated from the specifications in
 [/files/lua_api](/files/lua_api/). They are written in the

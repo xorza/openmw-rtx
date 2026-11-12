@@ -198,6 +198,9 @@ jobs:
                     cmake/CheckLuaCustomAllocator.cmake cmake/FindSphinx.cmake cmake/FindLuaJit.cmake
                     cmake/LibFindMacros.cmake cmake/COPYING-CMAKE-SCRIPTS CI/deps_versions.msvc.sh
                     components/misc/osgpluginchecker.cpp.in components/misc/osgpluginchecker.hpp
+                    docs/source/ docs/CMakeLists.txt docs/Dockerfile docs/Doxyfile.cmake docs/DoxyfilePages.cmake
+                    docs/README.md docs/build_docs.sh docs/mainpage.hpp.cmake docs/openmw-stage1.md
+                    docs/prepare_docker_image.sh docs/requirements.txt docs/tlconfig.lua manual/
                   )
                   # Forced, as a file upstream adds is staged.
                   git rm -r -f --ignore-unmatch -- "${kept_deleted[@]}"

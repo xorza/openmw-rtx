@@ -107,7 +107,7 @@ namespace Rtx
         /// **A normal's word reads back to its direction**, which a stored shape's normals rest on
         /// (`ShapePass::run`): decoded and packed again, a word names the direction it named, and a word
         /// the packing made packs back to itself. Every code was checked once, 2³⁰ of them
-        /// (`docs/rtx/research/2026-11-09-normal-word-round-trip.md`); here every 97th along each axis,
+        /// (`docs/research/2026-11-09-normal-word-round-trip.md`); here every 97th along each axis,
         /// and the square's four edges whole, where two codes name one direction.
         TEST(RtxTangentTest, aNormalsWordReadsBackToItsDirection)
         {

@@ -4,7 +4,7 @@
     "$comment": [
         "How the tree is configured, built and tested, as CMake, an IDE and `omw` read it. A visible preset is",
         "`<flavour>-<system>` and inherits the flavour, the system and `common`, in that order: the earlier one wins",
-        "a variable both set. Hidden presets are parts. Each flavour builds in `build-<flavour>`. Each visible",
+        "a variable both set. Hidden presets are parts. Each flavour builds in `out/<flavour>`. Each visible",
         "configure preset has a build preset and a workflow preset of its name, so `cmake --workflow --preset",
         "debug-linux` configures, builds and tests a clone without `omw`, which builds through the same presets.",
         "Version 10 is the first that takes a `$comment`."
@@ -58,7 +58,7 @@
             "name": "debug",
             "hidden": true,
             "$comment": "Every assert: the everyday build, and what CI builds and tests on every system.",
-            "binaryDir": "${sourceDir}/build-debug",
+            "binaryDir": "${sourceDir}/out/debug",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "RelWithDebInfo"
             }
@@ -71,7 +71,7 @@
                 "from and the archive is installed from. Link-time optimisation where OMW_LTO says `ON`, as a tagged",
                 "release does, and a desk that measures what ships."
             ],
-            "binaryDir": "${sourceDir}/build-release",
+            "binaryDir": "${sourceDir}/out/release",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
                 "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "$env{OMW_LTO}"
@@ -85,7 +85,7 @@
                 "Debug under AddressSanitizer and UndefinedBehaviorSanitizer, as upstream runs its tests. Linux",
                 "only: MSVC's sanitizer is unmeasured here. The options it needs are its test preset's."
             ],
-            "binaryDir": "${sourceDir}/build-asan",
+            "binaryDir": "${sourceDir}/out/asan",
             "cacheVariables": {
                 "OPENMW_SANITIZER": "address"
             }
@@ -99,7 +99,7 @@
                 "threads the ray tracer keeps, the cell reader, the workers and the harness's instruments. Linux only,",
                 "as asan is. The options it needs are its test preset's."
             ],
-            "binaryDir": "${sourceDir}/build-tsan",
+            "binaryDir": "${sourceDir}/out/tsan",
             "cacheVariables": {
                 "OPENMW_SANITIZER": "thread"
             }

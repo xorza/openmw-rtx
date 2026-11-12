@@ -85,11 +85,11 @@ class RemoteLineTest(unittest.TestCase):
 @unittest.skipIf(WINDOWS, "remote is Linux's")
 class RemoteScriptTest(unittest.TestCase):
     def test_the_run_is_the_harness_under_its_libraries_and_a_measured_one_holds_the_clock(self):
-        folder = Path("/home/me/tree/build-release")
+        folder = Path("/home/me/tree/out/release")
         script = remote_script(folder, "bench", ["--views=a b"], measured=True)
         lines = script.splitlines()
-        self.assertEqual(lines[1], "cd /home/me/tree/build-release")
-        self.assertIn("LD_LIBRARY_PATH=/home/me/tree/build-release/remote-lib", lines[2])
+        self.assertEqual(lines[1], "cd /home/me/tree/out/release")
+        self.assertIn("LD_LIBRARY_PATH=/home/me/tree/out/release/remote-lib", lines[2])
         self.assertIn("WAYLAND_DISPLAY=wayland-0 SDL_VIDEO_DRIVER=wayland", lines[3])
         self.assertIn("else export SDL_VIDEO_DRIVER=offscreen", lines[3])
         self.assertEqual(lines[-1], "./openmw-rtxtool bench '--views=a b'")

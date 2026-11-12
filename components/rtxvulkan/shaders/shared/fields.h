@@ -6,7 +6,7 @@
 
 // Where a pixel of the frame is stored: the trace and its denoiser keep the frame as two
 // checkerboard fields, each a dense half of the stored image, and one mapping says which pixel is
-// where (`docs/rtx/architecture.md`, "The frame stored as two dense half-images").
+// where (`docs/architecture.md`, "The frame stored as two dense half-images").
 // Quake II RTX's `flat_to_checker` and `checker_to_flat`, with the swap and an odd width spelt out.
 
 #ifdef RTX_HOST

@@ -55,7 +55,7 @@ namespace Gui
         /// Rasterizes each TrueType font whose size or resolution `fit` changes again, in place: its
         /// `IFont*` stays and its texture is replaced, so every text drawn with it has to take the
         /// font's texture again before the next frame draws
-        /// (`docs/rtx/research/2026-10-31-mygui-font-lifetimes.md`). Reads nothing from the VFS.
+        /// (`docs/research/2026-10-31-mygui-font-lifetimes.md`). Reads nothing from the VFS.
         /// Answers whether a font was rasterized.
         bool fit(const FontFit& fit);
 

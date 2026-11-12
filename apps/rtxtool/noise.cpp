@@ -251,7 +251,7 @@ namespace RtxTool
         // that asks what the first asked took the frame to the byte at the glow-lit chamber, and
         // the frame's mean to within 50 bytes of 8.3 million, each by one level, which no figure
         // of the report showed: the card's arithmetic under the wavelet
-        // (`docs/rtx/architecture.md`, the denoiser), which two runs differ by too. The places:
+        // (`docs/architecture.md`, the denoiser), which two runs differ by too. The places:
         // the reference, the bar, the bar's limit's draws, the frame, the frame's mean's draws.
         constexpr std::size_t stopsASide = 3 + 2 * sNoiseMeanDraws;
         static_assert(stopsASide * std::uint64_t{ sNoiseSampleStride } <= ~std::uint32_t{ 0 },

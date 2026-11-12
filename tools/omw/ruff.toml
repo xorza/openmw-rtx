@@ -1,6 +1,8 @@
 # The driver's lint, which `omw lint driver` and an editor both read.
 line-length = 120
 target-version = "py311"
+# Beside everything else the driver writes, wherever the linter runs from.
+cache-dir = "../../out/ruff"
 
 [lint]
 # pycodestyle, Pyflakes, pyupgrade, bugbear, simplify, comprehensions, misc idioms, performance, Ruff's own, and

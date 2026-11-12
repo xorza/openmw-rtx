@@ -50,7 +50,7 @@ namespace Rtx
     };
 
     /// Which job a free thread takes next, within a budget of memory where the system states one
-    /// (`docs/rtx/architecture.md`, "The preparation's memory is dispatched"): queued chains largest
+    /// (`docs/architecture.md`, "The preparation's memory is dispatched"): queued chains largest
     /// first, each on the thread whose kept scratch it grows least; a chain that fits nowhere reserves
     /// the time the running jobs free its room, and smaller ones start before it only where they end by
     /// then or fit beside it (EASY backfill); a chain past the whole budget runs alone.

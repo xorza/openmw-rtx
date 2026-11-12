@@ -23,7 +23,7 @@ namespace Rtx
     void appendRowRuns(std::span<const Index> rows, VkDeviceSize stride, std::vector<CopyRun>& into);
 
     /// The one way the host writes a host-written buffer (`BufferKind::HostWritten`): staged into
-    /// `batch`, with the copy recorded there (`docs/rtx/architecture.md`, "Host writes are staged").
+    /// `batch`, with the copy recorded there (`docs/architecture.md`, "Host writes are staged").
     ///
     /// **What a write is read by is recorded after `order`**: into `batch` itself, or into a
     /// recording `batch` is deferred ahead of (`Batch::defer`), which the pool submits first.

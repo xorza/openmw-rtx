@@ -1,4 +1,4 @@
-# The ray tracer's API-neutral core: one library a layer, in the order `docs/rtx/architecture.md` lists them,
+# The ray tracer's API-neutral core: one library a layer, in the order `docs/architecture.md` lists them,
 # each linking the one before it, so a file that reaches a later layer fails to link and not only
 # `RtxSourceTreeTest`. No graphics API is on these libraries' include path; the Vulkan backend is its own,
 # `components/rtxvulkan`. `shaders/` holds what C++ and GLSL share, headers alone.

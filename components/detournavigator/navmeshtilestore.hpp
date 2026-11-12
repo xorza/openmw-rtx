@@ -23,7 +23,7 @@ namespace DetourNavigator
     inline constexpr std::string_view sNavMeshTileStoreFolder = "navmesh";
 
     /// The tiles the navigator generates, kept across sessions in a content store under a key of what made
-    /// each, so every profile shares the tiles its content shares (`docs/rtx/architecture.md`, "The navigator's
+    /// each, so every profile shares the tiles its content shares (`docs/architecture.md`, "The navigator's
     /// tiles in the content store"). Nothing is held in memory: every ask is the store reader's, which reaches
     /// the disk, and 95 to 98 % of tiles are small enough that a store holding them would load them all.
     class NavMeshTileStore

@@ -13,7 +13,10 @@ from pathlib import Path
 from typing import IO, NoReturn
 
 ROOT = Path(__file__).resolve().parents[2]
-DEPS = ROOT / "deps"
+# Everything the driver writes, in one ignored folder: the build directories, the pinned tools and the dependency
+# set (`deps`), and the release archives (`dist`).
+OUT = ROOT / "out"
+DEPS = OUT / "deps"
 # The systems the driver builds on, by `sys.platform`, each with its half of a preset's name. Any other is refused
 # before any verb (`refuse_unsupported`), rather than taking Linux's SDK and presets.
 SYSTEMS = {"linux": "linux", "win32": "windows"}
@@ -29,14 +32,17 @@ CI = os.environ.get("CI", "").lower() in ("true", "1")
 # The tree's own C++, which the formatting and the file names are checked over: `extern/` is vendored.
 CXX_SOURCES = (":(exclude)extern/", "*.cpp", "*.hpp", "*.h")
 # The CMake files the tree formats: not those vendored under `extern/`, nor the vcpkg ports copied from their
-# registries, kept as written so a registry's next version compares line for line, nor the Doxygen templates
-# `docs/` names `.cmake`.
-CMAKE_SOURCES = ("*CMakeLists.txt", "*.cmake", ":(exclude)extern/*/*", ":(exclude)vcpkg/ports/*",
-                 ":(exclude)docs/*.cmake")
+# registries, kept as written so a registry's next version compares line for line.
+CMAKE_SOURCES = ("*CMakeLists.txt", "*.cmake", ":(exclude)extern/*/*", ":(exclude)vcpkg/ports/*")
 
 
 class Refusal(Exception):
     """A request refused, or a step that cannot go on, with the reason said to a person."""
+
+
+def build_dir(flavour: str) -> Path:
+    """Where `flavour` builds, as `CMakePresets.json`'s `binaryDir` names it."""
+    return OUT / flavour
 
 
 class Switches(argparse.ArgumentParser):

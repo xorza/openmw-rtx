@@ -133,7 +133,7 @@ namespace Rtx
 
     /// The most a classic `_spec` map's channels spread, on the mean: the Fullrest Repack's fourteen
     /// spread 0.004 to 0.042, and the PBR installs' 3400 metal-roughness maps 0.151 at the least, so a
-    /// bound between them (`docs/rtx/architecture.md`, "One specular layout, a classic map converted").
+    /// bound between them (`docs/architecture.md`, "One specular layout, a classic map converted").
     inline constexpr double sClassicSpreadMost = 0.1;
 
     /// What a `_spec` map's channels mean: classic where its texels' channels spread less than

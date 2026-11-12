@@ -4,7 +4,7 @@
 
 namespace Graphite
 {
-    /// palantir's widget recipes, drawn over Fusion (`docs/rtx/look.md`, "Fusion, the palette and a proxy
+    /// palantir's widget recipes, drawn over Fusion (`docs/look.md`, "Fusion, the palette and a proxy
     /// style; no style sheet"): flat fills on the palette's ladder, hairline edges, small radii, the
     /// accent for a focused edge, a check and the default button. What it does not draw, Fusion does, in
     /// the palette's colours.

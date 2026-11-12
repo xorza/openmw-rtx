@@ -9,7 +9,7 @@
 // what the bounce brought back written where its ray met nothing; where it met a surface, the pixel is
 // listed for the landing's stage (`landing.comp`), which visits it.
 //
-// **A stage, because the one kernel spilled** (`docs/rtx/architecture.md`, "A stage a kernel, in one fixed
+// **A stage, because the one kernel spilled** (`docs/architecture.md`, "A stage a kernel, in one fixed
 // order"): it carried every walk's record at once.
 //
 // **The trace's hit, resolved again with no traversal** (`storedSolidOf`): the surface the trace shaded, to

@@ -506,7 +506,7 @@ namespace Rtx
 
             // **A spill said where a player's log keeps it**: a kernel that spills runs at the speed of its
             // scratch memory, which took a frame on an integrated card from milliseconds to the better part
-            // of a second (`docs/rtx/research/2026-10-21-amd-integrated-stage-times.md`).
+            // of a second (`docs/research/2026-10-21-amd-integrated-stage-times.md`).
             const StatisticNames& names = mPhysicalDevice.getDriver().mStatistics;
             for (const VkPipelineExecutableStatisticKHR& statistic : statistics)
             {

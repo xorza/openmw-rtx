@@ -224,7 +224,7 @@ namespace MWRender
     {
         /// What the loading screen keeps beside the preparation, out of `Platform::availableMemory`: the
         /// store's queue of writes (64 MiB at most), the screen's own growth (51 MB on the Fullrest Repack),
-        /// and the rest for a compile still running (`docs/rtx/research/2026-11-09-content-preparation-cost.md`,
+        /// and the rest for a compile still running (`docs/research/2026-11-09-content-preparation-cost.md`,
         /// "The reserve"). Nothing after the preparation is reserved: it lets go of everything before the
         /// world loads.
         constexpr std::uint64_t sPreparationReserve = std::uint64_t{ 1 } << 30;

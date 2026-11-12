@@ -487,7 +487,7 @@ namespace Rtx
 
                     // **A normal map's block in one mode**, as DirectXTex's `TEX_COMPRESS_BC7_QUICK` narrows by mode: 5
                     // where it holds a height, 6 where it holds none. Five times the full search's speed
-                    // (`docs/rtx/architecture.md`, "A normal map is whole in BC7, in one encoding"). bc7enc tells the
+                    // (`docs/architecture.md`, "A normal map is whole in BC7, in one encoding"). bc7enc tells the
                     // kinds apart by the same test and asserts a mode it can take.
                     if (encoding == TextureEncoding::Normal)
                     {

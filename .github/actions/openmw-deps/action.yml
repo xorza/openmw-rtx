@@ -93,14 +93,14 @@ runs:
       if: inputs.cache-key != '' && inputs.cache == 'true' && github.ref == 'refs/heads/master'
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
-        path: build-*/_deps/*-tmp
+        path: out/*/_deps/*-tmp
         key: ${{ steps.fetched.outputs.key }}
 
     - name: FetchContent archives cache, restored
       if: inputs.cache-key != '' && inputs.cache == 'true' && github.ref != 'refs/heads/master'
       uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
-        path: build-*/_deps/*-tmp
+        path: out/*/_deps/*-tmp
         key: ${{ steps.fetched.outputs.key }}
 
     - name: The vcpkg set

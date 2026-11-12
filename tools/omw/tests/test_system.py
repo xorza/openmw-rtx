@@ -87,7 +87,7 @@ class SystemTest(unittest.TestCase):
             self.assertIn(platform, str(refused.exception))
 
     def test_a_relative_program_is_read_from_the_directory_it_runs_in(self):
-        build = Path("build-release")
+        build = Path("out/release")
         absolute = str(Path.cwd() / "openmw")
         for program, expected in (("./openmw-rtxtool", str(build.absolute() / "openmw-rtxtool")),
                                   ("bin/openmw", str(build.absolute() / "bin" / "openmw")),

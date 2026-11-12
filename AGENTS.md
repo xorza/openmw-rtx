@@ -46,7 +46,7 @@ What the tree, `--help` or a commit already answers does not belong here.
 ## Where the code lives
 
 **Vulkan behind an API-neutral core**, not a portability layer. A fact about Vulkan that leaks into
-the core is a bug whether or not a second backend ever arrives. `docs/rtx/architecture.md` is the
+the core is a bug whether or not a second backend ever arrives. `docs/architecture.md` is the
 shape as a reader meets it — the seam, the layers, who owns whom, the order a frame is computed in —
 and the headers hold the detail.
 
@@ -111,7 +111,7 @@ The user runs the harness through the Zed tasks in `.zed/tasks.json`: `./omw rel
   upscaler and the denoiser off, the second with the queue held behind the host, and must agree
   frame for frame. A pair that finds nothing has found nothing. Read a difference with
   `--exposure=1` and `--pictures`.
-- **The denoised frame is not bit-exact on every card** (`docs/rtx/architecture.md`): on a high-end
+- **The denoised frame is not bit-exact on every card** (`docs/architecture.md`): on a high-end
   NVIDIA laptop GPU under a busy queue, the first wavelet dispatch after a pipeline drain sometimes
   differs by an ulp on identical inputs. The card's, not a missing barrier. `repeat` runs unfiltered
   and cannot see it; a difference in the composed frame alone is the card's.
@@ -125,7 +125,7 @@ The user runs the harness through the Zed tasks in `.zed/tasks.json`: `./omw rel
   high-priority queue needs `CAP_SYS_NICE`).
 - An A/B reads medians and the p99, never a mean — the zones' from the record `--json` writes, since
   the `gpu` row is each zone's share of the mean.
-- Profiling: `./omw profile` for the CPU, into `build-release/perf/`: read the full text reports
+- Profiling: `./omw profile` for the CPU, into `out/release/perf/`: read the full text reports
   beside the summary (by library, by source line, the callers); `--offcpu` says where it waits. For
   the GPU, `./omw release exec nsys profile ./openmw-rtxtool bench ...`.
 

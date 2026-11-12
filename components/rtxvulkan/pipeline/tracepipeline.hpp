@@ -66,7 +66,7 @@ namespace Rtx
     /// query answers repeatably only inside a launch, which the card does not preempt
     /// mid-traversal (`fogscatter.rgen`). And no hit, miss or any-hit stage: AMD's Windows driver
     /// answers no ray query in a pipeline that also calls `traceRayEXT`
-    /// (`docs/rtx/research/2026-10-19-amd-windows-driver-faults.md`).
+    /// (`docs/research/2026-10-19-amd-windows-driver-faults.md`).
     template <class Constants>
     class TracePipeline : public TypedPipeline<Constants>
     {

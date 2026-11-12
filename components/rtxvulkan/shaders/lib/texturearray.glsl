@@ -31,7 +31,7 @@
 ///
 /// **Images and samplers apart, and not a combined image sampler per slot and per filter.** Through the
 /// combined footprint array, AMD's Windows driver hung the trace in the waterfall of a specular map's read
-/// (`docs/rtx/research/2026-10-22-amd-integrated-footprint-read-hang.md`), and the specular maps were read at
+/// (`docs/research/2026-10-22-amd-integrated-footprint-read-hang.md`), and the specular maps were read at
 /// their long axis's level to stand clear of it; read as a pair they pass along the footprint. A change of
 /// anisotropy also writes the eight samplers and not a descriptor for every slot.
 

@@ -391,7 +391,7 @@ namespace Rtx::Shaders
 
     /// The most steps a march through a relief takes (`reliefToward`): where its crossing is wider,
     /// the march reads a coarser level, so each step stays a texel of the level it reads. RTX Remix
-    /// caps its march at 64 and Tatarchuk's runs 8 to 50 (`docs/rtx/research/2026-11-08-parallax-
+    /// caps its march at 64 and Tatarchuk's runs 8 to 50 (`docs/research/2026-11-08-parallax-
     /// occlusion-techniques.md`).
     const float RELIEF_STEPS = 32.0f;
 

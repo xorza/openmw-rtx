@@ -67,7 +67,7 @@ class ReleaseBaseTest(unittest.TestCase):
 
     def test_the_container_runs_omw_on_the_tree_with_its_own_build_and_cache(self):
         tree = f"{ROOT}:{ROOT}"
-        build = f"{CONTAINER_DIR / 'release'}:{ROOT / 'build-release'}"
+        build = f"{CONTAINER_DIR / 'release'}:{ROOT / 'out' / 'release'}"
         beside = ROOT.parent / f"{ROOT.name}-repository" / ".git"
         for common, expected in ((ROOT / ".git", [tree, build]), (beside, [tree, f"{beside}:{beside}", build])):
             with self.subTest(common=common), patch("omw.package.output", return_value=f"{common}\n"):
@@ -90,7 +90,7 @@ class ArchiveTest(unittest.TestCase):
         self.addCleanup(shutil.rmtree, self.dist)
 
     def test_linux_packs_in_the_release_base_and_makes_the_symbols_outside_it(self):
-        build = Mock(dir=ROOT / "build-release")
+        build = Mock(dir=ROOT / "out" / "release")
         for in_container, packed, symbols in ((True, [], [call(CONTAINER_DIR / "release", "rtx-v1")]),
                                               (False, [call(build, "rtx-v1")], [])):
             with (self.subTest(in_container=in_container), patch("omw.package.WINDOWS", False),
@@ -113,7 +113,7 @@ class ArchiveTest(unittest.TestCase):
                 build.build.reset_mock()
 
     def test_windows_packs_and_makes_its_symbols_from_its_own_build(self):
-        build = Mock(dir=ROOT / "build-release")
+        build = Mock(dir=ROOT / "out" / "release")
         with (patch("omw.package.WINDOWS", True), patch("omw.package.needs_container") as needs,
               patch("omw.package._archive_windows") as windows, patch("omw.package.symbols") as symbol_store,
               patch("omw.package.DIST", self.dist)):
@@ -122,10 +122,10 @@ class ArchiveTest(unittest.TestCase):
         # What the install carries and nothing else: no test, benchmark or harness is linked for a release.
         self.assertEqual(build.build.call_args_list, [call(["openmw-installed"])])
         self.assertEqual(windows.call_args_list, [call(build, "rtx-v1")])
-        self.assertEqual(symbol_store.call_args_list, [call(ROOT / "build-release", "rtx-v1")])
+        self.assertEqual(symbol_store.call_args_list, [call(ROOT / "out" / "release", "rtx-v1")])
 
     def test_windows_installs_the_game_and_the_tools_each_into_a_folder_of_its_own(self):
-        build = Mock(dir=ROOT / "build-release")
+        build = Mock(dir=ROOT / "out" / "release")
 
         def install(_build, component: str, prefix: Path) -> None:
             for name in (f"{component}.exe", "openmw-wer.dll", "share/doc/README.md"):
@@ -149,7 +149,7 @@ class ArchiveTest(unittest.TestCase):
         self.assertEqual(archive_stem("rtx-v0.5.1", "tools"), "OpenMW-RTX-0.5.1-tools")
 
     def test_an_unnamed_archive_is_named_after_the_nearest_release_tag(self):
-        build = Mock(dir=ROOT / "build-release")
+        build = Mock(dir=ROOT / "out" / "release")
         with (patch("omw.package.WINDOWS", False), patch("omw.package.needs_container", return_value=False),
               patch("omw.package._archive_linux") as linux, patch("omw.package._archive_linux_tools") as tools,
               patch("omw.package.symbols"),

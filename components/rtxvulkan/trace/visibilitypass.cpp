@@ -197,7 +197,7 @@ namespace Rtx
         };
 
         /// The trace's stages in the order a frame runs them, a row at each stage's `Kernel`
-        /// (`docs/rtx/architecture.md`, "A stage a kernel, in one fixed order"), every one a dispatch and not a launch,
+        /// (`docs/architecture.md`, "A stage a kernel, in one fixed order"), every one a dispatch and not a launch,
         /// since every ray it casts is a ray query (`visibility.comp`). The trace over every pixel, which lists the
         /// tiles the shafts and layers stand in and those where the eye met the sea; the water's walk over those; the
         /// solid's direct light; the sun's shafts through the water, where `hasMedia`; the layers laid over that light;

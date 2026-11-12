@@ -5,7 +5,7 @@ set_directory_properties(
         EXCLUDE_FROM_ALL
             on
 )
-# Vendored code, whose warnings are its own (`docs/rtx/build.md`): off, whatever the tree's preset asks. No project
+# Vendored code, whose warnings are its own (`docs/build.md`): off, whatever the tree's preset asks. No project
 # here sets a warning level of its own, so MSVC's `/w` overrides none.
 if(MSVC)
     string(APPEND CMAKE_C_FLAGS " /w")

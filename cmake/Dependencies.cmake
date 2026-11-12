@@ -9,7 +9,7 @@ include(FetchContent)
 # Each project's own settings stay inside the block; Crashpad's folder leaves it, for
 # `components/crashcatcher/CMakeLists.txt`, which builds one of its files into every executable.
 block(SCOPE_FOR VARIABLES PROPAGATE CRASHPAD_SOURCE_DIR)
-    # A third party's warnings are its own (`docs/rtx/build.md`): off, by `-w` on Clang, which wins over
+    # A third party's warnings are its own (`docs/build.md`): off, by `-w` on Clang, which wins over
     # any `-W` a project adds after it. Each project sets its own MSVC level, which `/w` would override with a
     # D9025 a file, so MSVC turns off the one warning a project raises, on its target.
     if(NOT MSVC)

@@ -227,7 +227,7 @@ vec4 darkAt(GpuMaterial material, GpuMesh mesh, uvec3 corner, vec2 bary, Texture
 ///
 /// @param span what the triangle's vertex normals spread over (`sheetSpanOf`), taken where the caller held
 ///        them and not fetched again here: a second fetch inside the surface's resolve held the bounce and
-///        the landing a wave short on AMD's Windows driver (`docs/rtx/research/2026-11-09-sheet-span.md`).
+///        the landing a wave short on AMD's Windows driver (`docs/research/2026-11-09-sheet-span.md`).
 /// @param shading the normal the surface shows the ray, in world space and unit.
 vec3 sheetAt(GpuMaterial material, SheetSpan span, vec3 shading, vec3 direction, SurfaceCone cone, float coneWidth)
 {
@@ -465,7 +465,7 @@ SceneAnswer unansweredScene()
 
 /// **The one traversal loop**, which every query in this file runs through: AMD's Windows compiler writes a
 /// whole software traversal at every site that drives one, and a stage that held fifty of them did not
-/// compile in 52 GB (`docs/rtx/research/2026-10-19-amd-windows-trace-compile-memory.md`).
+/// compile in 52 GB (`docs/research/2026-10-19-amd-windows-trace-compile-memory.md`).
 ///
 /// **The candidate loop runs to completion.** It confirms every hit that lands on the material rather than in
 /// one of its holes and, where the request asks, walks past a translucent one keeping what it let through
@@ -721,7 +721,7 @@ float footprintOf(SceneQuery asked, SceneAnswer met)
 /// **Its corners off the scene's own vertices** (`trianglePositions`), the numbers its structure was built
 /// over, where a query's position fetch would read them: AMD's Windows driver fetches a committed triangle's
 /// corners wrong, another triangle's along the ray or a confirmed one's turned
-/// (`docs/rtx/research/2026-10-19-amd-windows-driver-faults.md`).
+/// (`docs/research/2026-10-19-amd-windows-driver-faults.md`).
 ///
 /// **Its transforms off the instance's row** (`GpuInstance::mToWorld`, `mToObject`), the top level's own and
 /// its inverse and not the query's: a stage resolves a hit the trace stored with no query at all

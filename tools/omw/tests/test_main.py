@@ -71,7 +71,7 @@ class ParseTest(unittest.TestCase):
             self.assertEqual(main(["bootstrap", "--cached-tools"]), 0)
         self.assertEqual(out.getvalue().splitlines(),
                          [folder.relative_to(ROOT).as_posix() for folder in deps.cached_tools()])
-        self.assertTrue(all(line.startswith("deps/") for line in out.getvalue().splitlines()))
+        self.assertTrue(all(line.startswith("out/deps/") for line in out.getvalue().splitlines()))
         err = io.StringIO()
         with contextlib.redirect_stderr(err):
             self.assertNotEqual(main(["bootstrap", "--tools"]), 0)

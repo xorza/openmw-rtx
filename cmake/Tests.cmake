@@ -3,7 +3,7 @@
 enable_testing()
 
 # The test binaries' own files at `-Og` on Clang, the code they test at the build's flags: their objects
-# build 30% faster for runs 10% slower (`docs/rtx/research/2026-11-11-test-binaries-at-og.md`). MSVC's
+# build 30% faster for runs 10% slower (`docs/research/2026-11-11-test-binaries-at-og.md`). MSVC's
 # are at the build's, as its `/Od` was not measured. Each test binary links it where it is defined.
 add_library(openmw-test-options INTERFACE)
 target_compile_options(openmw-test-options INTERFACE $<$<CXX_COMPILER_ID:Clang>:-Og>)

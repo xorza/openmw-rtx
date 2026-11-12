@@ -42,7 +42,7 @@ namespace Rtx
     };
 
     /// Files with their chains made again from their finest levels (`ChainPass`), on threads of their own
-    /// (`docs/rtx/architecture.md`, "A chain is built on a worker"): a slot draws its file as it stands
+    /// (`docs/architecture.md`, "A chain is built on a worker"): a slot draws its file as it stands
     /// until its image is made, and is then made again. A made image is held until it is first handed
     /// out, and watched after it, so the texture that holds it decides how long it stays. One for a
     /// process, shared by every thread that asks. Pinned: the threads reach every member.

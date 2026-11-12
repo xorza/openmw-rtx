@@ -61,7 +61,7 @@ namespace Rtx
         /// **No module starts a ray query at more places than its ceiling**, counted in every module the build ships
         /// once the optimizer has inlined it. AMD's Windows compiler writes a whole software traversal at each, and a
         /// stage that held fifty did not compile in 52 GB
-        /// (`docs/rtx/research/2026-10-19-amd-windows-trace-compile-memory.md`). Read here, a site too many fails on
+        /// (`docs/research/2026-10-19-amd-windows-trace-compile-memory.md`). Read here, a site too many fails on
         /// every runner and not only on an AMD card.
         ///
         /// **One a module, and the few small launches at what they hold**, which only falls: each compiles in

@@ -105,7 +105,7 @@ namespace Rtx
     ///
     /// **`sStored` says whether its outputs are kept** (`ContentStore`): false for a pass whose key
     /// costs more than its run, as a walk that stops at the first texel that answers does, since a
-    /// key reads every byte (`docs/rtx/research/2026-11-08-normal-map-chains.md`, "What the
+    /// key reads every byte (`docs/research/2026-11-08-normal-map-chains.md`, "What the
     /// preprocessor costs a start").
     template <class Pass>
     concept ContentPass = requires(

@@ -45,7 +45,7 @@ namespace RtxTool
 
     /// How far a picture the wavelet put together may stand from the same picture of another run of one
     /// build, out of 255: the card's arithmetic under the wavelet and not the tree's
-    /// (`docs/rtx/architecture.md`, the denoiser), measured to leave one half-float step in the filtered
+    /// (`docs/architecture.md`, the denoiser), measured to leave one half-float step in the filtered
     /// light and one level in the picture. A card that ever moves a picture further fails the run.
     inline constexpr std::uint32_t sDenoiserNoiseLevels = 1;
 

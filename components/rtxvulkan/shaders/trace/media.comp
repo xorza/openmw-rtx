@@ -45,7 +45,7 @@ void main()
         return;
 
     // A phase a loop, each keeping only its own walk's records live across its traversals
-    // (`docs/rtx/architecture.md`, "A stage's phases are loops of their own"): the eye's ray; the column under
+    // (`docs/architecture.md`, "A stage's phases are loops of their own"): the eye's ray; the column under
     // the water in front of it; the medium in front of that point (`tracePixel`); a water path's walk up to its
     // leg; and the leg's march, with no record of the walk's but the share its leg is weighed by.
     SkyPassageRun skyPassage = skyPassageRunOf(

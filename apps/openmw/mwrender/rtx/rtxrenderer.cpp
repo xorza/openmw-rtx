@@ -520,7 +520,7 @@ namespace MWRender
         // Content is prepared beside the kernels' compile, so play reads from the store what it would
         // otherwise compute (`Rtx::ContentPreparation`). Every CPU but the main thread's, which draws the
         // screen and sleeps: 64 s on 31 threads against 80 on 16
-        // (`docs/rtx/research/2026-11-09-content-preparation-cost.md`, "Threads").
+        // (`docs/research/2026-11-09-content-preparation-cost.md`, "Threads").
         std::vector<std::string> models = contentModels(store, getResources());
         std::vector<Rtx::PreparationLayer> layers = contentLayers(store, getResources());
         // How much content the session holds, which a report reads beside what it crashed on.
@@ -551,7 +551,7 @@ namespace MWRender
         {
             listener.setLabel("#{OMWEngine:PreparingContent}");
             // A cold start waits here up to minutes, 364 s on a large mod list, and a player told nothing
-            // takes it for a hang (`docs/rtx/research/2026-11-09-content-preparation-cost.md`).
+            // takes it for a hang (`docs/research/2026-11-09-content-preparation-cost.md`).
             listener.setNote("#{OMWEngine:PreparingContentNote}");
             listener.setProgressRange(progress.mCount);
 

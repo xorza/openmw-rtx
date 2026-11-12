@@ -610,7 +610,7 @@ struct PathEndSeen
 ///
 /// **Linear in what each ray lets through**, the gather being unsplit, so every term is worked out before
 /// anything is traced (`pathEndSeenOf`) and only the terms and the rays stay live through the traversals
-/// (`docs/rtx/architecture.md`, "A stage whose rays wait on no other's answer works out its light before the
+/// (`docs/architecture.md`, "A stage whose rays wait on no other's answer works out its light before the
 /// first one").
 ///
 /// **A pane is drawn at `AMBIENT_EXTERIOR_RATE`**, because the pane filter takes what it draws, as the glossy
@@ -1185,7 +1185,7 @@ vec3 bounceMissed(BounceRun run)
 /// **A room's fill whole, with no occlusion ray of its own**: the ray a landing would answer stands a wall
 /// further from the eye than anything it could show, and dropping it saved 0.1 to 0.3 ms a frame and took
 /// black pixels off the rooms the fill lights at no cost in noise
-/// (`docs/rtx/research/2026-11-05-room-ambient.md`).
+/// (`docs/research/2026-11-05-room-ambient.md`).
 ///
 /// **Its glow is counted here, because this is the only path it takes**: nothing gives a glowing surface a
 /// lamp of its own (`EMISSIVE_INTENSITY` says what measuring that showed), so a ray that lands on a mushroom

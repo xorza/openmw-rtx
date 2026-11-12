@@ -43,7 +43,7 @@ namespace Rtx
         /// There for the rooms whose record says their light in its sunlight, as `Akulakhan's Chamber`
         /// does, with an ambient a third of a usual room's: the landing's ambient alone left it 66% black.
         /// Small, since whole it was the flat light of a room with few lamps; at this share a room whose
-        /// sunlight is small hardly moves (`docs/rtx/research/2026-11-05-room-ambient.md`).
+        /// sunlight is small hardly moves (`docs/research/2026-11-05-room-ambient.md`).
         constexpr float sRoomSpreadBounced = 0.14f;
 
         /// How much of a room's recorded ambient and sunlight stands on the surface itself where no
@@ -56,7 +56,7 @@ namespace Rtx
         /// How much of a room's recorded ambient and sunlight lights the water in front of the eye. Seen
         /// directly, with no albedo in front of it. Set by eye: at the landing's share a flooded room with
         /// no lamp stood almost black, and at the whole record the water outshone walls that lost most of
-        /// their ambient (`docs/rtx/research/2026-11-05-room-ambient.md`).
+        /// their ambient (`docs/research/2026-11-05-room-ambient.md`).
         constexpr float sRoomWaterAmbient = 0.5f;
 
         /// A sun out of a weather's reading and however much of the disc the asker can see — the

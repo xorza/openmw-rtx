@@ -50,7 +50,7 @@ omw [flavour] <verb> [args]: one grammar for every build, on the desk and in CI,
                                suite at the revision its GitLab pipeline pins
   gate                         {gate}
   exec <command> [args]        a command in the build directory, under the flavour's environment
-  archive [name]               the release archive into dist/, with its symbols: the release flavour,
+  archive [name]               the release archive into out/dist/, with its symbols: the release flavour,
                                on Linux in an AlmaLinux 8 container where the system is another
   profile [args]               the harness's CPU side under perf: the release flavour
   remote <host> <verb> [args]  openmw-rtxtool's verb on another Linux machine over SSH: built where
@@ -67,7 +67,7 @@ omw [flavour] <verb> [args]: one grammar for every build, on the desk and in CI,
 
   crash <dump> [symbols]       a player's crash dump or package, every thread named and lined,
                                against the symbols of the build that wrote it: a -symbols.zip, the
-                               build folder, or the newest in dist/ that holds them; no flavour
+                               build folder, or the newest in out/dist/ that holds them; no flavour
   format [--check] [file...]   the pinned clang-format over the tree's C++ and gersemi over its CMake,
                                or the files named: rewrites them, or with --check changes nothing and
                                says what it would; no flavour
@@ -77,18 +77,18 @@ omw [flavour] <verb> [args]: one grammar for every build, on the desk and in CI,
                                those named: names, translations, driver, workflows; no flavour
   translations [--purge]       the Qt programs' .ts files regenerated from their sources, as the lint
                                checks them; --purge drops the strings no source has; no flavour
-  bootstrap [--cached-tools]   the pinned dependency set, Windows' Vulkan loader and CMake into deps/; with
-                               --cached-tools, the folders of the tools CI caches, one a line; no flavour
+  bootstrap [--cached-tools]   the pinned dependency set, Windows' Vulkan loader and CMake into out/deps/;
+                               with --cached-tools, the folders of the tools CI caches, one a line; no flavour
   deps-set [--digest]          the libraries vcpkg.json names, built static for this system and packed
-                               under deps/sets/, Linux's in AlmaLinux 8; with --digest, the set's name
+                               under out/deps/sets/, Linux's in AlmaLinux 8; with --digest, the set's name
   help                         this page; no flavour
 
   flavour   directory       what it is
-  debug     build-debug     -O2 -g1 with every assert: the everyday build, the default, CI's and the gate's
-  release   build-release   -O3 -DNDEBUG, line tables and frame pointers: the build a number is quoted from
+  debug     out/debug       -O2 -g1 with every assert: the everyday build, the default, CI's and the gate's
+  release   out/release     -O3 -DNDEBUG, line tables and frame pointers: the build a number is quoted from
                             and the archive is installed from, with link-time optimisation where OMW_LTO=ON
-  asan      build-asan      debug under AddressSanitizer and UndefinedBehaviorSanitizer; Linux only
-  tsan      build-tsan      debug under ThreadSanitizer; Linux only
+  asan      out/asan        debug under AddressSanitizer and UndefinedBehaviorSanitizer; Linux only
+  tsan      out/tsan        debug under ThreadSanitizer; Linux only
 """
 # The gate's steps, from the one place they are stated, wrapped to the column the verbs' words stand in.
 USAGE = USAGE.replace("{gate}", textwrap.fill(gate.SUMMARY + " — stops at the first failure", width=100,

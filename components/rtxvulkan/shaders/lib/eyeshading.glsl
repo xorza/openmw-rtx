@@ -3,7 +3,7 @@
 //
 // The kernel shades and not a closest-hit stage, because the trace is ray queries alone: AMD's Windows
 // driver answers no ray query in a pipeline that also calls `traceRayEXT`
-// (`docs/rtx/research/2026-10-19-amd-windows-driver-faults.md`).
+// (`docs/research/2026-10-19-amd-windows-driver-faults.md`).
 //
 // Water shades as water only where the frame has a sea (`HAS_SEA`): a scene can hold water the build was
 // told to ignore, which then shades as the solid or the pane it is.

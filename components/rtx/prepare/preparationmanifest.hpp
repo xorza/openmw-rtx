@@ -22,7 +22,7 @@ namespace Rtx
 
     /// What the preparations read, model by model: the files each model's walk read and a digest of
     /// their stamps, so a start where a model's files stand as they were walks it no more, as ccache's
-    /// direct mode trusts a file's stat for its manifest (`docs/rtx/architecture.md`, "The preparation
+    /// direct mode trusts a file's stat for its manifest (`docs/architecture.md`, "The preparation
     /// is incremental by each file's stamp; the lookup is by content"). Kept in one file beside the
     /// store, read whole at the start and written whole at the end, where anything moved; a file of
     /// another format or signature, or one that does not read, is an empty manifest.

@@ -2,7 +2,7 @@
 
 namespace Graphite
 {
-    /// The text's size, palantir's title step, in logical pixels (`docs/rtx/look.md`, "The system's family at
+    /// The text's size, palantir's title step, in logical pixels (`docs/look.md`, "The system's family at
     /// 16 px").
     inline constexpr int sBodyPixels = 16;
 

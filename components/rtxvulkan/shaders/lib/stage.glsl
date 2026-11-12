@@ -3,7 +3,7 @@
 
 // What the trace's stages share: the pixel an invocation stands for, the eye's and a shore's rays,
 // which a later stage casts again, and the record the trace hands on of them
-// (`docs/rtx/architecture.md`, "A stage a kernel, in one fixed order").
+// (`docs/architecture.md`, "A stage a kernel, in one fixed order").
 
 #include "shared/fields.h"
 #include "shared/traceconstants.h"
@@ -196,7 +196,7 @@ Surface storedHitOf(ivec2 stored, bool detailed, bool landing)
 /// it (`storeStageSolid`), with no traversal; no surface for a pixel whose record names none.
 ///
 /// **The hit stored and not the ray traced again**, as Falcor's visibility buffer keeps a hit for the
-/// passes after it (`docs/rtx/architecture.md`, "The surface a pixel is the hit the trace stored"): the
+/// passes after it (`docs/architecture.md`, "The surface a pixel is the hit the trace stored"): the
 /// eye's traversal again cost each stage as much as the whole trace kernel.
 Surface storedSolidOf(StageRecord record, ivec2 stored)
 {

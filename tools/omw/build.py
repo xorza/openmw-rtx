@@ -20,6 +20,7 @@ from omw.system import (
     SYSTEM,
     WINDOWS,
     Refusal,
+    build_dir,
     environment_key,
     exclusive,
     jobs,
@@ -155,7 +156,7 @@ class Build:
         if flavour in SANITIZED and WINDOWS:
             raise Refusal(f"{flavour} is Linux's here: MSVC's sanitizers have not been measured on this tree")
         self.flavour = flavour
-        self.dir = ROOT / f"build-{flavour}"
+        self.dir = build_dir(flavour)
         self.preset = f"{flavour}-{SYSTEM}"
         self._env: dict[str, str] | None = None
         self._configured = False

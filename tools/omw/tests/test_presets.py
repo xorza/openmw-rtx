@@ -4,8 +4,10 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from omw.build import FLAVOURS
+from omw.package import CONTAINER_DIR, DIST
 from omw.presets import CACHE_SEEDS, digest, test_environment
-from omw.system import WINDOWS, Refusal, environment_key
+from omw.system import DEPS, OUT, ROOT, WINDOWS, Refusal, build_dir, environment_key, read_text
 
 
 def presets_root(test: unittest.TestCase, content: dict) -> Path:
@@ -59,6 +61,19 @@ class TestEnvironmentTest(unittest.TestCase):
     def test_a_preset_that_is_not_there_is_refused(self):
         with self.assertRaises(Refusal):
             test_environment("missing", {}, presets_root(self, {"version": 10}))
+
+
+
+class BuildDirTest(unittest.TestCase):
+    def test_each_flavour_builds_where_its_preset_says_and_apart_from_what_else_the_driver_writes(self):
+        configure = json.loads(read_text(ROOT / "CMakePresets.json"))["configurePresets"]
+        presets = {preset["name"]: preset for preset in configure}
+        for flavour in FLAVOURS:
+            with self.subTest(flavour=flavour):
+                written = presets[flavour]["binaryDir"].replace("${sourceDir}", ROOT.as_posix())
+                self.assertEqual(Path(written), build_dir(flavour))
+                self.assertEqual(build_dir(flavour).parent, OUT)
+                self.assertNotIn(build_dir(flavour), (DEPS, DIST, CONTAINER_DIR))
 
 
 if __name__ == "__main__":

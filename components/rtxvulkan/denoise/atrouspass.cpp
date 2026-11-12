@@ -154,7 +154,7 @@ namespace Rtx
 
         // **One level where no bounce is traced**: what is left to filter is a flat ambient under one
         // occlusion ray, which the first level, the accumulator's feedback and its history fix, carries
-        // as well as all four (`docs/rtx/research/2026-11-05-room-ambient.md`).
+        // as well as all four (`docs/research/2026-11-05-room-ambient.md`).
         const std::uint32_t levels = frame.mSampled.mBounceRays == 0 ? 1u : Shaders::ATROUS_LEVELS;
 
         for (std::uint32_t pass = 0; pass < levels; ++pass)

@@ -8,7 +8,7 @@
 // The frame, composed.
 //
 // A compute dispatch of ray queries, and no ray tracing pipeline: AMD's Windows driver answers no ray query
-// in a pipeline that also calls `traceRayEXT` (`docs/rtx/architecture.md`, "The shaders"). What is here
+// in a pipeline that also calls `traceRayEXT` (`docs/architecture.md`, "The shaders"). What is here
 // belongs to the path rather than the surface: the layers, the water column, the air, the cloud shells and the
 // channels. Two stages of one module (`WATER_STAGE`): the trace over every pixel, which leaves a pixel whose
 // eye met the sea pending and lists its tile (`STAGE_LIST_WATER`), and the water's stage over those tiles.
@@ -67,7 +67,7 @@ TracedLists tracePixel(uvec2 pixel)
     // The eye's rays peeled down to the surface the pixel shows, in a loop that carries no answer: each turn
     // asks one ray and keeps what a layer let through, and the surface is shaded after the loop, once. Carried
     // around one loop with the shading, every record stood live across each traversal, which this kernel spilled
-    // (`docs/rtx/architecture.md`, "A stage's phases are loops of their own"). Bounded, so a walk that never
+    // (`docs/architecture.md`, "A stage's phases are loops of their own"). Bounded, so a walk that never
     // ends is cut short and counted (`FrameCounts::mWalksCut`) and shaded as a ray that met nothing.
     Peel peel = peelOf(pixel);
     float panesThrough = 1.0;

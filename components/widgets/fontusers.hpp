@@ -13,7 +13,7 @@ namespace Gui
     /// **Everything drawn with the interface's fonts, known by construction**: each user enters this
     /// as it is made and leaves as it is destroyed, so a refit after the fonts are rasterized again
     /// reaches every one. A font's texture is replaced by its rasterization, and a user a refit
-    /// missed keeps the destroyed one (`docs/rtx/research/2026-10-31-mygui-font-lifetimes.md`).
+    /// missed keeps the destroyed one (`docs/research/2026-10-31-mygui-font-lifetimes.md`).
     ///
     /// The texts are known through their factory: the fork's texts stand in MyGUI's sub-widget factories
     /// under MyGUI's names, `EditText` and `SimpleText` (`Users::Texts`), so every text any widget, skin,

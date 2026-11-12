@@ -434,7 +434,7 @@ namespace RtxTool
                 ++difference.mConfigurationDiffering;
 
             // **The composed frame of two denoised runs is the wavelet's, and the card's arithmetic
-            // under it is not to the bit** (`docs/rtx/architecture.md`). A difference there where
+            // under it is not to the bit** (`docs/architecture.md`). A difference there where
             // every other column agrees is that arithmetic; where another column moved too, the
             // composed frame is only following it and is named with the trace.
             const bool denoised = found->mDenoised && held.mDenoised;

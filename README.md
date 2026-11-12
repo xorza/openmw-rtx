@@ -106,16 +106,16 @@ What differs from upstream's build:
   libstdc++; on Windows MSVC from Visual Studio 2026. GCC is not supported as a compiler, and a configure
   refuses it.
 * **Pinned tools**: CMake, Ninja, clang-format and the dependency set are the driver's own, fetched into
-  `deps/` at the versions `tools/omw/pins.py` names, so every desk and CI build alike.
+  `out/deps/` at the versions `tools/omw/pins.py` names, so every desk and CI build alike.
 * **Flavours, not build types**: `debug`, `release`, `asan` and `tsan`, each a preset of
-  `CMakePresets.json` in a `build-<flavour>` folder. Warnings are errors in every one.
+  `CMakePresets.json` in `out/<flavour>`. Warnings are errors in every one.
 * **Releases**: link-time optimisation where `OMW_LTO=ON` (ThinLTO, and MSVC's `/GL`), and the Linux
   AppImage built on AlmaLinux 8, in a container of it on any other system.
 
-Details and the reasons behind them are in [the build](docs/rtx/build.md).
+Details and the reasons behind them are in [the build](docs/build.md).
 
 ```
-./omw bootstrap                          # the pinned dependency set and CMake, into deps/
+./omw bootstrap                          # the pinned dependency set and CMake, into out/deps/
 ./omw release build
 ./omw release setup <Morrowind folder>   # the openmw.cfg a fresh machine has none of
 ./omw release exec ./openmw
@@ -124,11 +124,11 @@ Details and the reasons behind them are in [the build](docs/rtx/build.md).
 `./omw help` lists the rest: the flavours, the tests, and the harness that checks and measures the
 renderer without a window.
 
-* [Architecture](docs/rtx/architecture.md) — the seam, the layers, who owns whom, the order a
+* [Architecture](docs/architecture.md) — the seam, the layers, who owns whom, the order a
   frame is computed in
-* [The launcher's look](docs/rtx/look.md) — the palette and the style the launcher and the wizard wear
-* [Settings](docs/source/reference/modding/settings/rtx.rst) — every `[RTX]` setting, and what the
-  ray tracer declines of upstream's
+* [The launcher's look](docs/look.md) — the palette and the style the launcher and the wizard wear
+* [Settings](docs/settings.md) — every `[RTX]` setting, the upstream settings the fork changes, and what
+  the ray tracer declines of upstream's
 
 When it crashes
 ---------------

@@ -354,7 +354,7 @@ namespace Rtx
         /// **A ray query inside a compute dispatch answered differently from run to run** — a candidate
         /// counted twice or not at all — while another process shared the card, and never inside a
         /// ray-tracing launch. So this asks of every `.comp` and what it includes whether it reaches
-        /// `rayQueryEXT`. **The trace's stages are dispatches all the same** (`docs/rtx/architecture.md`,
+        /// `rayQueryEXT`. **The trace's stages are dispatches all the same** (`docs/architecture.md`,
         /// "The shaders" and "Every stage is a compute dispatch"): what that costs in repeatability is
         /// measured with `./omw repeat` and not ruled out here.
         TEST(RtxSourceTreeTest, noComputeShaderTracesARay)

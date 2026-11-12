@@ -120,7 +120,6 @@ if(BUILD_TESTING)
     # After every folder that defines a test binary, as each test names one.
     include(cmake/Tests.cmake)
 endif()
-add_subdirectory(docs)
 
 include(cmake/Install.cmake)
 

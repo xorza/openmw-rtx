@@ -7,7 +7,7 @@
 // rays peeled again, each layer lit as the end of a path and charged the medium in front of it, and the
 // stacks laid over what the trace left of the surface behind them.
 //
-// A stage because the one kernel spilled (`docs/rtx/architecture.md`, "A stage a kernel, in one fixed
+// A stage because the one kernel spilled (`docs/architecture.md`, "A stage a kernel, in one fixed
 // order"). The trace's rays again, not its layers stored: the peel walks the trace's own steps (`Peel`), over
 // the tiles the trace listed alone (`STAGE_LIST_PANES`).
 
@@ -76,7 +76,7 @@ void main()
 
     // **One eye ray a turn of the peel, and each layer's light and medium in loops of their own**, as the
     // trace peels in straight code (`tracePixel`): one loop over every walk kept the union of their records
-    // live through every turn, which this stage spilled (`docs/rtx/architecture.md`, "A stage's phases are
+    // live through every turn, which this stage spilled (`docs/architecture.md`, "A stage's phases are
     // loops of their own").
     Peel peel = peelOf(pixel);
     bool cut = true;

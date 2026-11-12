@@ -113,7 +113,7 @@ class SourcesTest(unittest.TestCase):
         self.addCleanup(shutil.rmtree, root)
         names = ["CMakeLists.txt", "cmake/Flags.cmake", "apps/x/CMakeLists.txt", "extern/CMakeLists.txt",
                  "extern/oics/CMakeLists.txt", "vcpkg/triplets/x64-linux-openmw.cmake",
-                 "vcpkg/ports/uriparser/portfile.cmake", "docs/Doxyfile.cmake", "README.md"]
+                 "vcpkg/ports/uriparser/portfile.cmake", "README.md"]
         for name in names:
             (root / name).parent.mkdir(parents=True, exist_ok=True)
             (root / name).write_text("x\n")

@@ -63,12 +63,12 @@ jobs:
         run: python omw archive "$ARCHIVE_NAME"
 
       - name: Archive
-        # `dist` whole, so the folder keeps its name inside the zip GitHub wraps around the
+        # `out/dist` whole, so the folder keeps its name inside the zip GitHub wraps around the
         # artifact.
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: openmw-${{ env.ARCHIVE_NAME }}-${{ matrix.name }}
-          path: dist
+          path: out/dist
           if-no-files-found: error
           compression-level: ${{ matrix.compression }}
 

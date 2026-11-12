@@ -80,7 +80,7 @@ uint waterFieldOf(uvec2 pixel)
 
 /// What one field of a water pixel sees through the surface the eye met: **one path of the two**, the
 /// reflection or the refraction, whose surface replaces the water's as the pixel's, as Quake II RTX's
-/// `reflect_refract` replaces it (`docs/rtx/architecture.md`, "Every water pixel splits").
+/// `reflect_refract` replaces it (`docs/architecture.md`, "Every water pixel splits").
 ///
 /// **The shore's ground stands in the bed's path.** Over the last half metre of depth the surface fades out
 /// (`WATER_SHORE_FADE`) and the ground the dry pixel beside it shows through: the bed's path is bent by the

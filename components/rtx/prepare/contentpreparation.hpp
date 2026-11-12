@@ -115,13 +115,13 @@ namespace Rtx
         std::uint64_t mHeldMost = 0;
     };
 
-    /// The game's import step, run on its loading screen (`docs/rtx/architecture.md`, "The store is
+    /// The game's import step, run on its loading screen (`docs/architecture.md`, "The store is
     /// filled on the loading screen, in the game's own process"): every model the content names walked
     /// as the cell reader walks it, and every ground layer's maps read as the ground reader reads them,
     /// on threads of their own, so the store holds every pass and chain before play. A model or layer
     /// whose files stand as the last preparation found them is not read again (`PreparationManifest`).
     /// **A walk queues a chain job for each map it claims**; a dispatcher hands out walks and chains
-    /// within a memory budget (`docs/rtx/architecture.md`, "The preparation's memory is dispatched"),
+    /// within a memory budget (`docs/architecture.md`, "The preparation's memory is dispatched"),
     /// and the loader's caches let go of each file as the last job reading it ends.
     class ContentPreparation
     {

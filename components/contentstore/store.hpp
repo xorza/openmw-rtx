@@ -80,7 +80,7 @@ namespace ContentStore
     };
 
     /// What is derived from the content, kept on disk across sessions: one file per entry under its key, in 256
-    /// folders named by the key's first byte, as ccache and Bazel's disk cache keep theirs (`docs/rtx/architecture.md`,
+    /// folders named by the key's first byte, as ccache and Bazel's disk cache keep theirs (`docs/architecture.md`,
     /// "One file an entry, and every entry untrusted"). Every file is untrusted data: its own trailer states its
     /// kind, its version, its key and its payload's length and digest, and a file that does not match is a miss and
     /// is deleted. No cap, by the user's decision: an entry stays until its file is refused or deleted by hand; each

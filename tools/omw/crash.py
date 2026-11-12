@@ -219,7 +219,7 @@ def store_of(module: Module, source: Path, folder: Path) -> Path | None:
 
 
 def symbols_for(module: Module, named: Path | None, folder: Path) -> Path:
-    """The store `named` gives for `module`, or the newest of `dist/`'s that holds it, or a refusal that says whose
+    """The store `named` gives for `module`, or the newest of `out/dist/`'s that holds it, or a refusal that says whose
     symbols the dump needs."""
     if named is not None:
         store = store_of(module, named, folder)
@@ -231,8 +231,8 @@ def symbols_for(module: Module, named: Path | None, folder: Path) -> Path:
     for symbols in made:
         if (store := store_of(module, symbols, folder)) is not None:
             return store
-    raise Refusal(f"no -symbols.zip in dist/ holds {module}, the build that wrote the dump: name its release's "
-                  "-symbols.zip, or the build folder that made it (`omw crash <dump> build-release`)")
+    raise Refusal(f"no -symbols.zip in out/dist/ holds {module}, the build that wrote the dump: name its release's "
+                  "-symbols.zip, or the build folder that made it (`omw crash <dump> out/release`)")
 
 
 def read_crash(args: list[str]) -> int:

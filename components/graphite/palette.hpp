@@ -4,7 +4,7 @@
 #include <QRgb>
 
 /// The colours of the launcher's and the wizard's look, palantir's stock dark palette
-/// (`docs/rtx/look.md`, "The Qt programs wear palantir's dark palette").
+/// (`docs/look.md`, "The Qt programs wear palantir's dark palette").
 namespace Graphite
 {
     /// The semantic roster every colour of the look is drawn from, as palantir's `Palette` names it:
