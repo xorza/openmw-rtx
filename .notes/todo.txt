@@ -5,7 +5,7 @@
 - remove unnecessary builds from package like tests
 - shipped resources cleanup
 - docs cleanup
-- ship in release - openmw-rtx-spirv-pin, openmw-rtx-blue-noise, openmw-rtx-fog-noise and openmw-rtx-specular-albedo.
+- build tools as separate release archive
 
 - upstream proposals, each waiting for a yes:
   - crash notes in the game's own work (loading a save, a cell, a script)
