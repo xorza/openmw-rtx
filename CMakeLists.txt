@@ -31,6 +31,7 @@ endforeach()
 
 include(cmake/Options.cmake)
 include(cmake/Checks.cmake)
+include(cmake/Links.cmake)
 
 # The version the programs report: the release (`project`), the API revisions scripts and shaders check, and
 # the commit, which `components/version` reads at every build. A build is of a Git clone, as every build's

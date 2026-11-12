@@ -1,8 +1,11 @@
 # The game: everything but `main` in `openmw-lib`, which the harness and the tests link as the game links
 # it. The renderer seam, `MWRender::Renderer`, sits in `mwrender/`, the rasterizer beside it and the ray
 # tracer in `mwrender/rtx/`.
-
-add_library(openmw-lib STATIC)
+#
+# **Objects, not an archive** (GN's `source_set`): under MSVC's link-time code generation each object carries
+# its intermediate code, and the archive came to 3.6 GB of the 4 GB `lib.exe` writes (LNK1248). Each of the
+# three programs that link it takes every object, where an archive gave each only those it referenced.
+add_library(openmw-lib OBJECT)
 target_sources(openmw-lib PUBLIC FILE_SET HEADERS BASE_DIRS "${PROJECT_SOURCE_DIR}")
 
 target_sources(

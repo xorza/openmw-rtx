@@ -437,6 +437,9 @@ made only on the user's explicit yes, after which it is added here.
   written out in `files/`, its one caller, and `openmw_qt_platforms` beside Qt's `find_package`, so
   `cmake/OpenMWMacros.cmake` and `CMAKE_MODULE_PATH` go. The cost is a conflict with an upstream edit to an app's
   install line, the CS's executable, or those finds.
+- `openmw-lib` an object library rather than a static one: under MSVC's link-time code generation its archive
+  came to 3.6 GB of the 4 GB `lib.exe` writes (LNK1248), and the three programs that link it, the game, the
+  harness and `openmw-tests`, take its objects directly. The cost is a conflict with an upstream edit to that line.
 - The launcher's and the wizard's look (`docs/rtx/look.md`): `Platform::Application` takes a `Platform::Look`,
   and for `Graphite` dresses the program in the fork's palette and style and skips upstream's Windows dark
   mode, which the editor keeps; the launcher and the wizard no longer build upstream's Windows dark sheet in.

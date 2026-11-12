@@ -55,19 +55,6 @@
             }
         },
         {
-            "name": "one-link",
-            "hidden": true,
-            "$comment": [
-                "One link at a time, beside compiles at every core. A sanitized link of the game, the harness or",
-                "`openmw-tests` peaks at 4.5 GB of anonymous memory and 6.3 GB of mapped files under mold, and three",
-                "of them at once exhausted a 16 GB hosted runner, which then lost its connection to GitHub."
-            ],
-            "cacheVariables": {
-                "CMAKE_JOB_POOLS": "link=1",
-                "CMAKE_JOB_POOL_LINK": "link"
-            }
-        },
-        {
             "name": "debug",
             "hidden": true,
             "$comment": "Every assert: the everyday build, and what CI builds and tests on every system.",
@@ -93,7 +80,7 @@
         {
             "name": "asan",
             "hidden": true,
-            "inherits": [ "debug", "one-link" ],
+            "inherits": "debug",
             "$comment": [
                 "Debug under AddressSanitizer and UndefinedBehaviorSanitizer, as upstream runs its tests. Linux",
                 "only: MSVC's sanitizer is unmeasured here. The options it needs are its test preset's. Warnings",
@@ -110,7 +97,7 @@
         {
             "name": "tsan",
             "hidden": true,
-            "inherits": [ "debug", "one-link" ],
+            "inherits": "debug",
             "$comment": [
                 "Debug under ThreadSanitizer, which cannot share a build with AddressSanitizer: the races between the",
                 "threads the ray tracer keeps, the cell reader, the workers and the harness's instruments. Linux only,",

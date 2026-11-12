@@ -2,6 +2,8 @@
 - all IO serial?
 - artifacts - folder in folder
 - underwater shadows
+- full lto
+
 - upstream proposals, each waiting for a yes:
   - crash notes in the game's own work (loading a save, a cell, a script)
   - crash annotations of where the player was: worldspace, content counts
@@ -12,4 +14,3 @@
   - the model list derived from the records, a record-level answer in MWClass
   - idiom fixes in LowestPoints and SDLCursorManager
 - decide: the crash monitor as the game's parent
-

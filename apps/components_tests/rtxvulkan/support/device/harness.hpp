@@ -205,6 +205,13 @@ namespace Rtx::Testing
     class RendererTest : public ::testing::Test
     {
     protected:
+        /// On the renderer the binary shares (`getRenderer`).
+        RendererTest();
+
+        /// On `renderer`, a fixture's own that outlives every test of it, reset before each test to what
+        /// `made` says it was made with.
+        RendererTest(VulkanRenderer& renderer, RunProfile made);
+
         void SetUp() override;
 
         void TearDown() override;
@@ -218,10 +225,11 @@ namespace Rtx::Testing
         /// Reports what `renderer` raised since `forgetErrors`, each failure headed by `what`.
         void reportErrors(VulkanRenderer& renderer, std::string_view what);
 
-        VulkanRenderer& mRenderer = getRenderer();
-        RendererProbe mProbe{ mRenderer };
+        VulkanRenderer& mRenderer;
+        RendererProbe mProbe;
 
     private:
+        RunProfile mMade;
         std::vector<std::string> mErrors;
     };
 }

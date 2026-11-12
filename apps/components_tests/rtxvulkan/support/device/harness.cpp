@@ -9,6 +9,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <utility>
 
 #include <gtest/gtest.h>
 
@@ -326,6 +327,18 @@ namespace Rtx::Testing
         return getDevice().getPool();
     }
 
+    RendererTest::RendererTest()
+        : RendererTest(getRenderer(), describeRenderer(1, 1, true).mRun)
+    {
+    }
+
+    RendererTest::RendererTest(VulkanRenderer& renderer, RunProfile made)
+        : mRenderer(renderer)
+        , mProbe(renderer)
+        , mMade(std::move(made))
+    {
+    }
+
     void RendererTest::SetUp()
     {
         forgetErrors(mRenderer);
@@ -343,9 +356,8 @@ namespace Rtx::Testing
         // before it put one back leaks nothing into the rest of the shard. The fog's field is put
         // back by the one test that states another, under a guard, since a field told drains the
         // frames.
-        const RunProfile madeRun = describeRenderer(1, 1, true).mRun;
-        const RenderProfile& made = madeRun.mProfile;
-        mProbe.setReservedUpscales(madeRun.mReservedUpscales);
+        const RenderProfile& made = mMade.mProfile;
+        mProbe.setReservedUpscales(mMade.mReservedUpscales);
         mRenderer.setGamma(made.mGamma);
         mRenderer.setUpscale(made.mUpscale);
         mRenderer.setAnisotropy(made.mAnisotropy);

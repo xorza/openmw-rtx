@@ -13,8 +13,5 @@
 - **`openmw-lib.lib` stands near the size a COFF archive holds under MSVC's link-time code generation**: a release
   build on Windows makes it 3.6 GB with each target's PDB, of the 4 GB past which `lib.exe` stops on LNK1248.
 
-- **`RtxRayReconstructionFrameTest` runs past a second**: a validated renderer of its own with DLSS, its NGX
-  feature made twice, takes 1.0–1.2 s on a high-end NVIDIA laptop GPU.
-
 - **The test suites run past the 30 s and 1 s limits**: the GPU suite's shards take 84–86 s under `./omw test`, and
   about twenty of the fork's tests take 1–4 s each.
