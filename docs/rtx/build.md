@@ -143,6 +143,10 @@ How the tree is configured, built, formatted and shipped, as decisions. The CMak
 - **One compiler cache a worktree.** Refused for now: ccache's `base_dir` with `-ffile-prefix-map`, which would let
   a second worktree (an A/B's) reuse this one's objects, as it pays only when one builds and turns the debug
   information's and `__FILE__`'s paths relative, which a debugger and `perf annotate` then need a source path for.
+- **An archive builds what it installs and nothing else**: `omw archive` builds `openmw-installed`, which
+  `cmake/Install.cmake` makes of the programs it installs, so a release links none of the tests, the benchmarks or
+  the harness, each another link under link-time optimisation. Refused: `BUILD_TESTING` off for the archive, which
+  would configure the release's folder again, or need one of its own, and still build the harness.
 - **Linux's archive built in the release base, its symbols outside it.** `omw archive` builds and packs the AppImage
   in the AlmaLinux 8 container on a desk and on the release workflow's runner alike, and runs `dump_syms` on the
   container's build from the host, as Mozilla's Linux build of it asks glibc 2.34. The symbols are the installed

@@ -101,6 +101,9 @@ class ArchiveTest(unittest.TestCase):
                 self.assertEqual(run.call_count, 1 if in_container else 0)
                 if in_container:
                     container.return_value.command.assert_called_once_with(["python3", "omw", "archive", "rtx-v1"])
+                # The container's own run builds; here, what the install carries and nothing else.
+                self.assertEqual(build.build.call_args_list, [] if in_container else [call(["openmw-installed"])])
+                build.build.reset_mock()
 
     def test_windows_packs_and_makes_its_symbols_from_its_own_build(self):
         build = Mock(dir=ROOT / "build-release")
@@ -109,6 +112,8 @@ class ArchiveTest(unittest.TestCase):
               patch("omw.package.DIST", self.dist)):
             self.assertEqual(archive(build, ["rtx-v1"]), 0)
         needs.assert_not_called()
+        # What the install carries and nothing else: no test, benchmark or harness is linked for a release.
+        self.assertEqual(build.build.call_args_list, [call(["openmw-installed"])])
         self.assertEqual(windows.call_args_list, [call(build, "rtx-v1")])
         self.assertEqual(symbol_store.call_args_list, [call(ROOT / "build-release", "rtx-v1")])
 

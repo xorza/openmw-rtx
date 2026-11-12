@@ -18,6 +18,11 @@ set(programs
     niftest
 )
 install(TARGETS ${programs})
+# **What an install carries, built alone**: `omw archive` builds this and not `all`, so a release links none of the
+# tests, the benchmarks or the harness, each another link under link-time optimisation. The programs bring the rest
+# of the install, the shaders and the translations among it, as their own dependencies.
+add_custom_target(openmw-installed)
+add_dependencies(openmw-installed ${programs})
 if(MSVC)
     foreach(program IN LISTS programs)
         install(FILES "$<TARGET_PDB_FILE:${program}>" TYPE BIN CONFIGURATIONS RelWithDebInfo)

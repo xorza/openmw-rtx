@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from omw import deps
-from omw.build import DEFAULT_TARGETS, Build
+from omw.build import Build
 from omw.system import (
     ROOT,
     SYSTEM,
@@ -41,6 +41,9 @@ OS_RELEASE = Path("/etc/os-release")
 # desk's, and its compiler cache.
 CONTAINER_DIR = ROOT / "build-container"
 
+
+# The target that builds what an install carries and nothing else (`cmake/Install.cmake`).
+INSTALLED = "openmw-installed"
 
 # What the harness and the tests are and write under the build, which no install may carry, by name wherever they
 # land: the one list the packages check their install against.
@@ -218,7 +221,7 @@ def archive(build: Build, args: list[str]) -> int:
     name = args[0] if args else output(["git", "-C", ROOT, "describe", "--tags", "--match", "rtx-v*",
                                         "--always"]).strip()
     if WINDOWS:
-        build.build(list(DEFAULT_TARGETS))
+        build.build([INSTALLED])
         DIST.mkdir(exist_ok=True)
         _archive_windows(build, name)
         symbols(build.dir, name)
@@ -227,7 +230,7 @@ def archive(build: Build, args: list[str]) -> int:
         run(prepare_container("release").command(["python3", "omw", "archive", name]))
         symbols(CONTAINER_DIR / "release", name)
     else:
-        build.build(list(DEFAULT_TARGETS))
+        build.build([INSTALLED])
         DIST.mkdir(exist_ok=True)
         _archive_linux(build, name)
         print("no symbols: dump_syms asks a newer glibc than the release base's, so a host outside it makes them "
