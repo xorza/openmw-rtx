@@ -428,3 +428,8 @@ made only on the user's explicit yes, after which it is added here.
   and for `Graphite` dresses the program in the fork's palette and style and skips upstream's Windows dark
   mode, which the editor keeps; the launcher and the wizard no longer build upstream's Windows dark sheet in.
   The cost is a conflict with an upstream edit to the application's constructor or to those three calls.
+- The launcher's glyphs and error ink (`docs/rtx/look.md`): its toolbar's pages drawn from Lucide's icons in
+  code rather than Oxygen's PNGs in `mainwindow.ui`, which leave the tree, its fallback icon theme always taken
+  and redrawn from Lucide, and an invalid profile name in the look's error ink rather than `Qt::red`. The
+  cost is a conflict with an upstream edit to those icons or to the two lines that colour a name.
+

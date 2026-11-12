@@ -659,6 +659,9 @@ namespace Graphite
             // Disabled text is the disabled ink, never dithered or etched.
             case SH_DitherDisabledText:
             case SH_EtchDisabledText:
+            // A dialog's buttons are their words, as palantir's are: the platform's stock icons beside them
+            // are another look's.
+            case SH_DialogButtonBox_ButtonsHaveIcons:
                 return 0;
             default:
                 return QProxyStyle::styleHint(hint, option, widget, returnData);

@@ -58,6 +58,7 @@ target_link_libraries(
         SDL3::SDL3
         OpenAL::OpenAL
         openmw-components-qt
+        openmw-graphite
         Qt::Widgets
         Qt::Core
         Qt::Svg

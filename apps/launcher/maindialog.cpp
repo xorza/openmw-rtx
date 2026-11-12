@@ -2,6 +2,7 @@
 
 #include <QCloseEvent>
 #include <QDir>
+#include <QIcon>
 #include <QMessageBox>
 #include <QStringList>
 #include <QTime>
@@ -14,6 +15,7 @@
 #include <components/files/qtconfigpath.hpp>
 #include <components/files/qtconversion.hpp>
 #include <components/misc/helpviewer.hpp>
+#include <components/misc/scalableicon.hpp>
 #include <components/misc/utf8qtextstream.hpp>
 #include <components/settings/settings.hpp>
 #include <components/version/version.hpp>
@@ -104,8 +106,13 @@ bool Launcher::MainDialog::event(QEvent* event)
 
 void Launcher::MainDialog::createIcons()
 {
-    if (!QIcon::hasThemeIcon("document-new"))
-        QIcon::setThemeName("fallback");
+    // The launcher's own glyphs on every system, in the look's ink: a system's theme draws its icons for
+    // its own scheme, which is not the look's.
+    QIcon::setThemeName("fallback");
+    dataAction->setIcon(Misc::ScalableIcon::load(":/icons/pages/data.svg"));
+    graphicsAction->setIcon(Misc::ScalableIcon::load(":/icons/pages/display.svg"));
+    settingsAction->setIcon(Misc::ScalableIcon::load(":/icons/pages/settings.svg"));
+    importAction->setIcon(Misc::ScalableIcon::load(":/icons/pages/import.svg"));
 
     connect(dataAction, &QAction::triggered, this, &MainDialog::enableDataPage);
     connect(graphicsAction, &QAction::triggered, this, &MainDialog::enableGraphicsPage);

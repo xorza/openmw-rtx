@@ -1,11 +1,14 @@
 #include "textinputdialog.hpp"
 
 #include <QApplication>
+#include <QColor>
 #include <QDialogButtonBox>
 #include <QLabel>
 #include <QPushButton>
 #include <QVBoxLayout>
 #include <QValidator>
+
+#include <components/graphite/palette.hpp>
 
 Launcher::TextInputDialog::TextInputDialog(const QString& title, const QString& text, QWidget* parent)
     : QDialog(parent)
@@ -51,7 +54,7 @@ void Launcher::TextInputDialog::setOkButtonEnabled(bool enabled)
     okButton->setEnabled(enabled);
 
     QPalette palette;
-    palette.setColor(QPalette::Text, Qt::red);
+    palette.setColor(QPalette::Text, QColor::fromRgb(Graphite::errorInk(Graphite::sDark)));
 
     if (enabled)
     {

@@ -1,5 +1,8 @@
 #include <QApplication>
+#include <QColor>
 #include <QString>
+
+#include <components/graphite/palette.hpp>
 
 #include "profilescombobox.hpp"
 
@@ -42,7 +45,7 @@ void ProfilesComboBox::setEditEnabled(bool editable)
 void ProfilesComboBox::slotTextChanged(const QString& text)
 {
     QPalette palette;
-    palette.setColor(QPalette::Text, Qt::red);
+    palette.setColor(QPalette::Text, QColor::fromRgb(Graphite::errorInk(Graphite::sDark)));
 
     int index = findText(text);
 

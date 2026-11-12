@@ -42,6 +42,7 @@ install(
         "${PROJECT_SOURCE_DIR}/files/licenses/SDL3.txt"
         "${PROJECT_SOURCE_DIR}/files/licenses/rgbcx.txt"
         "${PROJECT_SOURCE_DIR}/files/licenses/bc7enc.txt"
+        "${PROJECT_SOURCE_DIR}/files/licenses/Lucide.txt"
     DESTINATION "${licenses}"
 )
 install(DIRECTORY "${PROJECT_SOURCE_DIR}/files/licenses/crashpad/" DESTINATION "${licenses}/crashpad")

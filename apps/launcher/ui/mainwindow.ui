@@ -105,10 +105,6 @@
    <property name="checkable">
     <bool>true</bool>
    </property>
-   <property name="icon">
-    <iconset resource="../../../files/launcher/launcher.qrc">
-     <normaloff>:/images/openmw-plugin.png</normaloff>:/images/openmw-plugin.png</iconset>
-   </property>
    <property name="text">
     <string>Data Files</string>
    </property>
@@ -126,10 +122,6 @@
    <property name="checkable">
     <bool>true</bool>
    </property>
-   <property name="icon">
-    <iconset resource="../../../files/launcher/launcher.qrc">
-     <normaloff>:/images/preferences-video.png</normaloff>:/images/preferences-video.png</iconset>
-   </property>
    <property name="text">
     <string>Display</string>
    </property>
@@ -141,10 +133,6 @@
    <property name="checkable">
     <bool>true</bool>
    </property>
-   <property name="icon">
-    <iconset resource="../../../files/launcher/launcher.qrc">
-     <normaloff>:/images/preferences.png</normaloff>:/images/preferences.png</iconset>
-   </property>
    <property name="text">
     <string>Settings</string>
    </property>
@@ -155,10 +143,6 @@
   <action name="importAction">
    <property name="checkable">
     <bool>true</bool>
-   </property>
-   <property name="icon">
-    <iconset resource="../../../files/launcher/launcher.qrc">
-     <normaloff>:/images/preferences-advanced.png</normaloff>:/images/preferences-advanced.png</iconset>
    </property>
    <property name="text">
     <string>Import</string>

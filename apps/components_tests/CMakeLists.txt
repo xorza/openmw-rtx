@@ -131,6 +131,7 @@ target_sources(
     components-tests
     PRIVATE
         graphite/colour.cpp
+        graphite/icons.cpp
         graphite/look.cpp
         graphite/offscreen.cpp
         graphite/palette.cpp

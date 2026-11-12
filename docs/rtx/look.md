@@ -33,4 +33,11 @@ and the tests in `apps/components_tests/graphite/` hold each to what it must cle
   style lays out its transient bars, without making them transient, which would overlay and hide them.
 - **Menus and tooltips are square**: palantir rounds its floating panels, but a rounded top-level window is a
   translucent one, which a desk without a compositor draws black around its corners.
+- **The launcher's glyphs are Lucide's line icons** (0.460.0, ISC, `files/licenses/Lucide.txt`), on every system
+  rather than the system's theme, which draws its icons for its own scheme: the toolbar's pages as templates
+  `Misc::ScalableIcon` recolours to the palette's text, and the fallback theme's five glyphs, which
+  `QIcon::fromTheme` draws as they are, in a copy of `mText` a test holds to the table. Refused: the fallback
+  glyphs left black, unreadable on the ground; Oxygen's PNGs beside line icons, two looks on one toolbar.
+- **A dialog's buttons are their words**: no stock icons beside them, the platform's look and not this one.
+- **An invalid name is the error ink**, where the launcher wrote it in `Qt::red`, 2.40:1 on a field.
 

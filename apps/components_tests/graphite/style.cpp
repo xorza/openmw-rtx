@@ -402,5 +402,13 @@ namespace Graphite
                 sGround)
                 << "a track behind the thumb";
         }
+
+        /// **A dialog's buttons are their words**, and disabled text is never dithered or etched.
+        TEST_F(GraphiteStyleTest, aDialogsButtonsCarryNoIcons)
+        {
+            EXPECT_EQ(mStyle.styleHint(QStyle::SH_DialogButtonBox_ButtonsHaveIcons, nullptr, nullptr, nullptr), 0);
+            EXPECT_EQ(mStyle.styleHint(QStyle::SH_DitherDisabledText, nullptr, nullptr, nullptr), 0);
+            EXPECT_EQ(mStyle.styleHint(QStyle::SH_EtchDisabledText, nullptr, nullptr, nullptr), 0);
+        }
     }
 }

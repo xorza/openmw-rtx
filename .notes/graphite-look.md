@@ -109,9 +109,6 @@ Sources:
 Each batch ends with its tests green and screenshots of every launcher page and every wizard page
 beside the last batch's, at 100 % and 200 % scale, on Linux and on Windows (192.168.0.8).
 
-5. **Icons.** Lucide's line icons for the toolbar's pages and the fallback glyphs, recoloured at load
-   and cached as pixmaps; the licence beside the others. The red invalid name reads `error`.
-   Upstream changes, recorded.
 6. **Packaging and review.** The AppImage and the Windows folder carry what the programs load; the
    Steam Deck in game mode, where Qt opens on X11 under gamescope; `./omw gate`.
 
