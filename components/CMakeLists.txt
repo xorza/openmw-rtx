@@ -233,6 +233,7 @@ target_sources(
                 detournavigator/bounds.hpp
                 detournavigator/cellgridbounds.hpp
                 detournavigator/changetype.hpp
+                detournavigator/clock.hpp
                 detournavigator/collisionshapetype.hpp
                 detournavigator/commulativeaabb.hpp
                 detournavigator/debug.hpp

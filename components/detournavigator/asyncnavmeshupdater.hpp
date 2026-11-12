@@ -3,6 +3,7 @@
 
 #include "agentbounds.hpp"
 #include "changetype.hpp"
+#include "clock.hpp"
 #include "guardednavmeshcacheitem.hpp"
 #include "navmeshcacheitem.hpp"
 #include "navmeshtilescache.hpp"
@@ -107,17 +108,15 @@ namespace DetourNavigator
             };
         }
 
-        bool hasJob(std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now()) const;
+        bool hasJob(std::chrono::steady_clock::time_point now) const;
 
         void clear();
 
-        void push(JobIt job, std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now());
+        void push(JobIt job, std::chrono::steady_clock::time_point now);
 
-        std::optional<JobIt> pop(
-            TilePosition playerTile, std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now());
+        std::optional<JobIt> pop(TilePosition playerTile, std::chrono::steady_clock::time_point now);
 
-        void update(TilePosition playerTile, int maxTiles,
-            std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now());
+        void update(TilePosition playerTile, int maxTiles, std::chrono::steady_clock::time_point now);
 
     private:
         std::vector<JobIt> mRemoving;
@@ -192,8 +191,10 @@ namespace DetourNavigator
     class AsyncNavMeshUpdater
     {
     public:
+        /// @param clock what a job's delay is timed by, which outlives the updater.
         AsyncNavMeshUpdater(const Settings& settings, TileCachedRecastMeshManager& recastMeshManager,
-            OffMeshConnectionsManager& offMeshConnectionsManager, std::unique_ptr<NavMeshTileStore>&& store);
+            OffMeshConnectionsManager& offMeshConnectionsManager, std::unique_ptr<NavMeshTileStore>&& store,
+            const Clock& clock = steadyClock());
         ~AsyncNavMeshUpdater();
 
         void post(const AgentBounds& agentBounds, const SharedNavMeshCacheItem& navMeshCacheItem,
@@ -214,6 +215,7 @@ namespace DetourNavigator
         std::reference_wrapper<const Settings> mSettings;
         std::reference_wrapper<TileCachedRecastMeshManager> mRecastMeshManager;
         std::reference_wrapper<OffMeshConnectionsManager> mOffMeshConnectionsManager;
+        std::reference_wrapper<const Clock> mClock;
         std::atomic_bool mShouldStop;
         mutable std::mutex mMutex;
         std::condition_variable mHasJob;

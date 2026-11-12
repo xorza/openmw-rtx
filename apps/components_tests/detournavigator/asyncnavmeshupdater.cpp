@@ -4,6 +4,7 @@
 #include <components/contentstore/key.hpp>
 #include <components/contentstore/store.hpp>
 #include <components/detournavigator/asyncnavmeshupdater.hpp>
+#include <components/detournavigator/clock.hpp>
 #include <components/detournavigator/makenavmesh.hpp>
 #include <components/detournavigator/navmeshtilestore.hpp>
 #include <components/detournavigator/preparednavmeshdata.hpp>
@@ -17,6 +18,8 @@
 
 #include <gtest/gtest.h>
 
+#include <atomic>
+#include <chrono>
 #include <filesystem>
 #include <limits>
 #include <map>
@@ -52,6 +55,20 @@ namespace
             std::make_shared<Resource::BulletShapeInstance>(bulletShape), shape, objectTransform);
         recastMeshManager.addObject(id, collisionShape, btTransform::getIdentity(), AreaType_ground, nullptr);
     }
+
+    /// A clock a test moves itself, read by the updater's workers as well as by the test.
+    class ManualClock final : public Clock
+    {
+    public:
+        std::chrono::steady_clock::time_point now() const override { return mNow.load(); }
+
+        void advance(std::chrono::steady_clock::duration by) { mNow.store(mNow.load() + by); }
+
+    private:
+        /// Past the epoch, which a job's process time holds where it is not delayed.
+        std::atomic<std::chrono::steady_clock::time_point> mNow{ std::chrono::steady_clock::time_point(
+            std::chrono::hours(1)) };
+    };
 
     struct DetourNavigatorAsyncNavMeshUpdaterTest : Test
     {
@@ -278,6 +295,9 @@ namespace
         EXPECT_EQ(navMeshCacheItem->lockConst()->getImpl().getTileRefAt(0, 0, 0), 0u);
     }
 
+    // Timed by a clock the test moves, so the tiles posted again stand within the interval of their last
+    // update however long the first batch took to build: on the wall clock, a slow runner under
+    // ThreadSanitizer built it for longer than the interval, and no tile was delayed.
     TEST_F(DetourNavigatorAsyncNavMeshUpdaterTest, repeated_tile_updates_should_be_delayed)
     {
         mRecastMeshManager.setWorldspace(mWorldspace, nullptr);
@@ -285,7 +305,8 @@ namespace
         mSettings.mMaxTilesNumber = 9;
         mSettings.mMinUpdateInterval = std::chrono::milliseconds(250);
 
-        AsyncNavMeshUpdater updater(mSettings, mRecastMeshManager, mOffMeshConnectionsManager, nullptr);
+        ManualClock clock;
+        AsyncNavMeshUpdater updater(mSettings, mRecastMeshManager, mOffMeshConnectionsManager, nullptr, clock);
         const auto navMeshCacheItem = std::make_shared<GuardedNavMeshCacheItem>(1, mSettings);
 
         std::map<TilePosition, ChangeType> changedTiles;
@@ -312,6 +333,7 @@ namespace
             EXPECT_EQ(stats.mWaiting.mDelayed, 49);
         }
 
+        clock.advance(mSettings.mMinUpdateInterval);
         updater.wait(WaitConditionType::allJobsDone, &mListener);
 
         {
@@ -319,6 +341,13 @@ namespace
             EXPECT_EQ(stats.mJobs, 0);
             EXPECT_EQ(stats.mWaiting.mDelayed, 0);
         }
+
+        // Posted again once the interval has passed since they were built, none is delayed.
+        clock.advance(mSettings.mMinUpdateInterval);
+        updater.post(mAgentBounds, navMeshCacheItem, mPlayerTile, mWorldspace, changedTiles);
+        EXPECT_EQ(updater.getStats().mWaiting.mDelayed, 0);
+        updater.wait(WaitConditionType::allJobsDone, &mListener);
+        EXPECT_EQ(updater.getStats().mJobs, 0);
     }
 
     TEST_F(DetourNavigatorAsyncNavMeshUpdaterTest, should_write_debug_recast_mesh)
@@ -461,13 +490,16 @@ namespace
 
     struct DetourNavigatorJobQueueTest : DetourNavigatorSpatialJobQueueTest
     {
+        /// The time a test asks the queue at where it states none of its own: every job's `mProcessTime`, so no
+        /// job is delayed.
+        const std::chrono::steady_clock::time_point mNow = mProcessTime;
     };
 
     TEST_F(DetourNavigatorJobQueueTest, pop_should_return_nullptr_from_empty)
     {
         JobQueue queue;
-        ASSERT_FALSE(queue.hasJob());
-        ASSERT_FALSE(queue.pop(mPlayerTile).has_value());
+        ASSERT_FALSE(queue.hasJob(mNow));
+        ASSERT_FALSE(queue.pop(mPlayerTile, mNow).has_value());
     }
 
     TEST_F(DetourNavigatorJobQueueTest, push_on_change_type_remove_should_add_to_removing)
@@ -479,7 +511,7 @@ namespace
             jobs.end(), mAgentBounds, mNavMeshCacheItem, mWorldspace, mChangedTile, ChangeType::remove, processTime);
 
         JobQueue queue;
-        queue.push(job);
+        queue.push(job, mNow);
 
         EXPECT_EQ(queue.getStats().mRemoving, 1);
     }
@@ -490,12 +522,14 @@ namespace
         JobQueue queue;
 
         queue.push(jobs.emplace(jobs.end(), mAgentBounds, mNavMeshCacheItem, mWorldspace, TilePosition(0, 0),
-            ChangeType::remove, mProcessTime));
+                       ChangeType::remove, mProcessTime),
+            mNow);
         queue.push(jobs.emplace(jobs.end(), mAgentBounds, mNavMeshCacheItem, mWorldspace, TilePosition(1, 0),
-            ChangeType::remove, mProcessTime));
+                       ChangeType::remove, mProcessTime),
+            mNow);
 
-        ASSERT_TRUE(queue.hasJob());
-        const auto job = queue.pop(mPlayerTile);
+        ASSERT_TRUE(queue.hasJob(mNow));
+        const auto job = queue.pop(mPlayerTile, mNow);
         ASSERT_TRUE(job.has_value());
         EXPECT_EQ((*job)->mChangedTile, TilePosition(1, 0));
     }
@@ -507,7 +541,7 @@ namespace
             jobs.end(), mAgentBounds, mNavMeshCacheItem, mWorldspace, mChangedTile, ChangeType::update, mProcessTime);
 
         JobQueue queue;
-        queue.push(job);
+        queue.push(job, mNow);
 
         EXPECT_EQ(queue.getStats().mUpdating, 1);
     }
@@ -518,12 +552,14 @@ namespace
 
         JobQueue queue;
         queue.push(jobs.emplace(jobs.end(), mAgentBounds, mNavMeshCacheItem, mWorldspace, TilePosition(0, 0),
-            ChangeType::update, mProcessTime));
+                       ChangeType::update, mProcessTime),
+            mNow);
         queue.push(jobs.emplace(jobs.end(), mAgentBounds, mNavMeshCacheItem, mWorldspace, TilePosition(1, 0),
-            ChangeType::update, mProcessTime));
+                       ChangeType::update, mProcessTime),
+            mNow);
 
-        ASSERT_TRUE(queue.hasJob());
-        const auto job = queue.pop(TilePosition(1, 0));
+        ASSERT_TRUE(queue.hasJob(mNow));
+        const auto job = queue.pop(TilePosition(1, 0), mNow);
         ASSERT_TRUE(job.has_value());
         EXPECT_EQ((*job)->mChangedTile, TilePosition(1, 0));
     }
@@ -637,14 +673,16 @@ namespace
         std::list<Job> jobs;
 
         JobQueue queue;
-        queue.push(jobs.emplace(
-            jobs.end(), mAgentBounds, mNavMeshCacheItem, mWorldspace, mChangedTile, ChangeType::update, mProcessTime));
+        queue.push(jobs.emplace(jobs.end(), mAgentBounds, mNavMeshCacheItem, mWorldspace, mChangedTile,
+                       ChangeType::update, mProcessTime),
+            mNow);
         queue.push(jobs.emplace(jobs.end(), mAgentBounds, mNavMeshCacheItem, mWorldspace, TilePosition(10, 10),
-            ChangeType::update, mProcessTime));
+                       ChangeType::update, mProcessTime),
+            mNow);
 
         ASSERT_EQ(queue.getStats().mUpdating, 2);
 
-        queue.update(TilePosition(10, 10), mMaxTiles);
+        queue.update(TilePosition(10, 10), mMaxTiles, mNow);
 
         EXPECT_EQ(queue.getStats().mUpdating, 1);
         EXPECT_EQ(queue.getStats().mRemoving, 1);
@@ -664,8 +702,8 @@ namespace
             ChangeType::update, processTime);
 
         JobQueue queue;
-        queue.push(removing);
-        queue.push(updating);
+        queue.push(removing, mNow);
+        queue.push(updating, mNow);
         queue.push(delayed, now);
 
         ASSERT_EQ(queue.getStats().mRemoving, 1);

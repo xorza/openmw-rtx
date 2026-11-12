@@ -200,6 +200,11 @@ made only on the user's explicit yes, after which it is added here.
     `min update interval ms` waited behind every farther tile, the whole navmesh after a new game on a slow
     machine, so a placed object stayed out of the mesh for half a minute. `JobQueue::pop` now ranks a due delayed
     job with the rest (`pop_should_return_ready_delayed_nearer_to_player_before_farther_updating`);
+  - the navmesh updater read the steady clock wherever it timed a delay, so
+    `repeated_tile_updates_should_be_delayed` raced the wall: posted again once the first batch was built, its tiles
+    stood within the update interval only where that batch built in less, and under ThreadSanitizer on a busy
+    runner none was delayed. The updater now takes the clock it times by (`DetourNavigator::Clock`, the steady
+    one unless a test hands its own), and the job queue takes the time it is asked at from its caller alone;
   - the launcher showed the language `launcher.cfg` named, or English where it named none, and wrote that
     language's encoding over the one `openmw.cfg` held at every Play: a Russian profile's first Play turned
     `win1251` into `win1252`, and the game drew its Cyrillic as Latin-1. The box now shows a language that
