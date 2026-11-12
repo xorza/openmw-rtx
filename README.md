@@ -87,8 +87,10 @@ most.
 Getting it
 ----------
 
-Each [release](https://github.com/xorza/openmw-rtx/releases) holds an AppImage for Linux and a
-portable folder, zipped, for Windows, with the launcher and the installation wizard inside.
+Each [release](https://github.com/xorza/openmw-rtx/releases) holds the game, with the launcher and the
+installation wizard, as an AppImage for Linux and a zipped portable folder for Windows; and beside it the tools
+(`bsatool`, `esmtool`, `niftest`, the save importer and the collision object tool) as a `.tar.gz` for Linux and a
+zip for Windows. The editor, OpenMW-CS, is upstream's to download.
 
 Building and running
 --------------------

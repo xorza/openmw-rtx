@@ -1,12 +1,13 @@
-"""`omw archive [name]`: the release archive out of the release build, into dist/, with its symbols: an AppImage on
-Linux, built on AlmaLinux 8 or in a container of it, and the portable folder on Windows, named after the name given
-or the commit."""
+"""`omw archive [name]`: the release's archives out of the release build, into dist/, with their symbols, named after
+the name given or the commit: the game's and the tools'. On Linux an AppImage and a tarball, built on AlmaLinux 8 or
+in a container of it, and on Windows two portable folders."""
 
 import os
 import re
 import shutil
 import subprocess
 import sys
+import tarfile
 import tempfile
 import zipfile
 from dataclasses import dataclass
@@ -42,8 +43,10 @@ OS_RELEASE = Path("/etc/os-release")
 CONTAINER_DIR = ROOT / "build-container"
 
 
-# The target that builds what an install carries and nothing else (`cmake/Install.cmake`).
+# The target that builds what an install carries and nothing else, and the components it installs as, one archive
+# each: the game's and the tools' (`cmake/Install.cmake`).
 INSTALLED = "openmw-installed"
+COMPONENTS = ("game", "tools")
 
 # What the harness and the tests are and write under the build, which no install may carry, by name wherever they
 # land: the one list the packages check their install against.
@@ -85,6 +88,9 @@ LINUX_HOST_LIBRARIES = ("libxkbcommon.so*", "libxkbcommon-x11.so*")
 LINUX_LOADER = "usr/lib/libvulkan.so.1"
 LINUX_LIBRARIES = ShippedLibraries("usr/lib/**/*.so*", (LINUX_LOADER,), (Path("/usr/lib64"), Path("/lib64")))
 WINDOWS_LIBRARIES = ShippedLibraries("*.dll", ("openmw-wer.dll",), ())
+# The tools' archive on Linux holds no shared library at all: they link every library in and leave the host only
+# what the AppImage's exclude list does.
+LINUX_TOOLS_LIBRARIES = ShippedLibraries("**/*.so*", (), ())
 
 
 # The newest glibc an AppImage may ask of its host: AlmaLinux 8's, the release base's.
@@ -194,12 +200,16 @@ def executables_in(folder: Path) -> list[Path]:
 
 
 def installed_programs(folder: Path) -> list[Path]:
-    """**The programs of the build in `folder` that its last install carried**, by the names its install manifest
-    lists: the ones a release ships, none of the tests or tools beside them."""
-    manifest = folder / "install_manifest.txt"
-    if not manifest.is_file():
-        raise Refusal(f"{folder} holds no install manifest: its programs are the ones an install carried")
-    names = {line.replace("\\", "/").rsplit("/", 1)[-1] for line in read_text(manifest).splitlines() if line}
+    """**The programs of the build in `folder` that its last install of every component carried**, by the names
+    each component's manifest lists (`install_manifest_<component>.txt`): the ones a release ships, none of the tests
+    or the harness beside them."""
+    names: set[str] = set()
+    for component in COMPONENTS:
+        manifest = folder / f"install_manifest_{component}.txt"
+        if not manifest.is_file():
+            raise Refusal(f"{folder} holds no install manifest of the {component} component: its programs are the "
+                          "ones an install carried")
+        names.update(line.replace("\\", "/").rsplit("/", 1)[-1] for line in read_text(manifest).splitlines() if line)
     programs = [program for program in executables_in(folder) if program.name in names]
     if not programs:
         raise Refusal(f"the install of {folder} carried none of its programs")
@@ -212,6 +222,31 @@ def prune_empty(folder: Path) -> None:
     for path in sorted((p for p in folder.rglob("*") if p.is_dir()), key=lambda p: len(p.parts), reverse=True):
         if not any(path.iterdir()):
             path.rmdir()
+
+
+def install(build: Build, component: str, prefix: Path) -> None:
+    """`component` of the build installed under `prefix`, its manifest beside the build's other component's."""
+    run(["cmake", "--install", build.dir, "--component", component, "--prefix", prefix], env=build.env,
+        stdout=subprocess.DEVNULL)
+
+
+def pack_tarball(folder: Path) -> Path:
+    """`folder` packed as `<folder>.tar.gz` beside it under its own name, every file's mode kept, so an executable
+    unpacks as one, and **owned by nobody in particular**, as `tar --owner=0 --group=0` makes one: the builder's user,
+    the container's, is no one on the host that unpacks it. The folder goes once the archive is whole."""
+
+    def unowned(member: tarfile.TarInfo) -> tarfile.TarInfo:
+        member.uid = member.gid = 0
+        member.uname = member.gname = ""
+        return member
+
+    packed = folder.with_name(folder.name + ".tar.gz")
+    partial = packed.with_name(packed.name + ".partial")
+    with tarfile.open(partial, "w:gz") as tarred:
+        tarred.add(folder, arcname=folder.name, filter=unowned)
+    partial.replace(packed)
+    shutil.rmtree(folder)
+    return packed
 
 
 def archive(build: Build, args: list[str]) -> int:
@@ -233,6 +268,7 @@ def archive(build: Build, args: list[str]) -> int:
         build.build([INSTALLED])
         DIST.mkdir(exist_ok=True)
         _archive_linux(build, name)
+        _archive_linux_tools(build, name)
         print("no symbols: dump_syms asks a newer glibc than the release base's, so a host outside it makes them "
               "from this build", file=sys.stderr)
     # A folder by what it holds, since its own size says nothing of that: the Windows archive is one.
@@ -248,14 +284,11 @@ def _archive_linux(build: Build, name: str) -> None:
     set's 1.4 Vulkan loader copied in where volk's `dlopen` finds it. **Stripped here by the host's `strip`**, since
     linuxdeploy's skips every binary whose rpath starts with `$` and reads no `.relr.dyn`."""
     require("zsyncmake", "the update information wants a .zsync beside the image: zsync")
-    strip = require("strip", "the executables carry the release build's debug information: binutils")
-    objdump = require("objdump", "the executables' glibc symbol versions are read off them: binutils")
-    tools = deps.appimage_tools()
+    appimage = deps.appimage_tools()
 
     appdir = ROOT / "AppDir"
     shutil.rmtree(appdir, ignore_errors=True)
-    run(["cmake", "--install", build.dir, "--prefix", appdir / "usr" / "bin"], env=build.env,
-        stdout=subprocess.DEVNULL)
+    install(build, "game", appdir / "usr" / "bin")
     _refuse_harness(appdir)
     (appdir / "usr" / "bin" / "share").rename(appdir / "usr" / "share")
     licenses = appdir / "usr" / "share" / "doc" / "OpenMW" / "licenses"
@@ -263,51 +296,74 @@ def _archive_linux(build: Build, name: str) -> None:
     (appdir / LINUX_LOADER).parent.mkdir(parents=True)
     shutil.copy2(deps.vcpkg_set() / "installed" / deps.TRIPLET / "lib" / "libvulkan.so.1", appdir / LINUX_LOADER)
 
-    installed = executables_in(appdir / "usr" / "bin")
-    asked = max(glibc_versions(output([objdump, "-T", *installed])), default=(0,))
-    if asked > GLIBC_FLOOR:
-        raise Refusal(f"the programs ask glibc {'.'.join(map(str, asked))}, newer than the release base's "
-                      f"{'.'.join(map(str, GLIBC_FLOOR))}: build the archive on AlmaLinux 8")
-    # Before linuxdeploy patches an rpath in; the build ID stays, which a dump is matched to its symbols by.
-    run([strip, *installed])
+    # Before linuxdeploy patches an rpath in.
+    installed = _ready_linux_programs(appdir / "usr" / "bin")
     executables: list[str | Path] = []
     for file in installed:
         executables += ["--executable", file]
 
     # The tools are AppImages themselves and a runner has no FUSE, so they extract and run.
     env = dict(build.env, APPIMAGE_EXTRACT_AND_RUN="1", NO_STRIP="1")
-    prepend_path(env, "PATH", tools)
+    prepend_path(env, "PATH", appimage)
     excluded: list[str] = []
     for pattern in LINUX_HOST_LIBRARIES:
         excluded += ["--exclude-library", pattern]
-    run([tools / "linuxdeploy", "--appdir", appdir, *executables, *excluded,
+    run([appimage / "linuxdeploy", "--appdir", appdir, *executables, *excluded,
          "--desktop-file", appdir / "usr" / "share" / "applications" / "org.openmw.launcher.desktop",
          "--icon-file", appdir / "usr" / "share" / "pixmaps" / "openmw.png"], env=env)
     LINUX_LIBRARIES.refuse_mismatch(appdir)
 
     # From dist/, because appimagetool writes the .zsync into the working directory. The static runtime runs on
     # FUSE 2, FUSE 3 or none; AppStream validation is off, as upstream's metainfo carries warnings it refuses.
-    env.update(LDAI_RUNTIME_FILE=str(tools / "runtime-x86_64"), LDAI_NO_APPSTREAM="1",
+    env.update(LDAI_RUNTIME_FILE=str(appimage / "runtime-x86_64"), LDAI_NO_APPSTREAM="1",
                LDAI_UPDATE_INFORMATION=("gh-releases-zsync|xorza|openmw-rtx|latest|"
                                         "openmw-rtx-v*-linux-x86_64.AppImage.zsync"),
                LDAI_OUTPUT=str(DIST / f"openmw-{name}-linux-x86_64.AppImage"))
-    run([tools / "linuxdeploy-plugin-appimage", "--appdir", appdir], env=env, cwd=DIST)
+    run([appimage / "linuxdeploy-plugin-appimage", "--appdir", appdir], env=env, cwd=DIST)
     shutil.rmtree(appdir)
 
 
-def _archive_windows(build: Build, name: str) -> None:
-    """**The portable folder, off the install rules upstream's installer is made of**, so a fork unpacks beside a
-    stock OpenMW rather than register itself where one would. The zip around it is made where it is handed out."""
-    folder = DIST / f"openmw-{name}-windows-x64"
+def _archive_linux_tools(build: Build, name: str) -> None:
+    """**The tools as a tarball**: console programs that link every library in, so a folder of them runs on any
+    host the AppImage does, with the configuration and the resources they read beside them."""
+    folder = DIST / f"openmw-{name}-linux-x86_64-tools"
     shutil.rmtree(folder, ignore_errors=True)
-    run(["cmake", "--install", build.dir, "--prefix", folder], env=build.env, stdout=subprocess.DEVNULL)
-    prune_empty(folder)
+    install(build, "tools", folder)
     _refuse_harness(folder)
-    WINDOWS_LIBRARIES.refuse_mismatch(folder)
+    _ready_linux_programs(folder)
+    LINUX_TOOLS_LIBRARIES.refuse_mismatch(folder)
+    pack_tarball(folder)
+
+
+def _ready_linux_programs(folder: Path) -> list[Path]:
+    """The programs directly in `folder`, held to the release base's glibc and stripped by the host's `strip`: the
+    build ID stays, which a dump is matched to its symbols by."""
+    strip = require("strip", "the executables carry the release build's debug information: binutils")
+    objdump = require("objdump", "the executables' glibc symbol versions are read off them: binutils")
+    installed = executables_in(folder)
+    asked = max(glibc_versions(output([objdump, "-T", *installed])), default=(0,))
+    if asked > GLIBC_FLOOR:
+        raise Refusal(f"the programs ask glibc {'.'.join(map(str, asked))}, newer than the release base's "
+                      f"{'.'.join(map(str, GLIBC_FLOOR))}: build the archive on AlmaLinux 8")
+    run([strip, *installed])
+    return installed
+
+
+def _archive_windows(build: Build, name: str) -> None:
+    """**The portable folders, the game's and the tools', off the install rules upstream's installer is made of**,
+    so a fork unpacks beside a stock OpenMW rather than register itself where one would. The zip around each is made
+    where it is handed out."""
+    for component in COMPONENTS:
+        folder = DIST / (f"openmw-{name}-windows-x64" + ("" if component == "game" else f"-{component}"))
+        shutil.rmtree(folder, ignore_errors=True)
+        install(build, component, folder)
+        prune_empty(folder)
+        _refuse_harness(folder)
+        WINDOWS_LIBRARIES.refuse_mismatch(folder)
 
 
 def symbols(folder: Path, name: str) -> None:
-    """**The release's symbols**: every program the archive installed from the build in `folder`, through
+    """**The release's symbols**: every program the archives installed from the build in `folder`, through
     `dump_syms` into a Breakpad store zipped as `dist/openmw-<name>-<system>-symbols.zip`, which `omw crash` reads a
     player's dump against. From the build's own binaries, since the archive's are stripped."""
     dump_syms = deps.crash_tool("dump_syms")

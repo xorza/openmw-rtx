@@ -1,56 +1,38 @@
 # What an install carries: the programs, the desktop files, the documents and licences, and the game's defaults and
 # resources. `omw archive` and CI install through it; no installer is built from it.
+#
+# **Two components, the two archives a release ships** (`cmake --install --component`): `game`, what a player runs,
+# and `tools`, the console programs a modder runs, each archive whole by itself. Refused: one archive, whose AppImage
+# reaches no program but the launcher.
 
-# The programs a player runs, each with its own PDB on MSVC in the configuration that installs one: RelWithDebInfo's,
-# as a release's symbols are published apart from its archive (`omw archive`), and not every binary's in the folder
-# the programs share with the tests and the harness.
-set(programs
+# The game's programs: the game, and what the launcher and the wizard start, the importer and the navmesh tool.
+set(game_programs
     openmw
     openmw-launcher
     openmw-wizard
-    openmw-cs
-    openmw-bulletobjecttool
-    openmw-essimporter
     openmw-iniimporter
     openmw-navmeshtool
+)
+# The tools: console programs, none of them Qt's, which a plain archive holds. **OpenMW-CS is built and not shipped**:
+# upstream's editor, which draws through the rasterizer, and whose Qt needs the libraries only the AppImage carries.
+set(tools_programs
+    openmw-bulletobjecttool
+    openmw-essimporter
     bsatool
     esmtool
     niftest
 )
-install(TARGETS ${programs})
 # **What an install carries, built alone**: `omw archive` builds this and not `all`, so a release links none of the
-# tests, the benchmarks or the harness, each another link under link-time optimisation. The programs bring the rest
-# of the install, the shaders and the translations among it, as their own dependencies.
+# tests, the benchmarks, the harness or the editor, each another link under link-time optimisation. The programs
+# bring the rest of the install, the shaders and the translations among it, as their own dependencies.
 add_custom_target(openmw-installed)
-add_dependencies(openmw-installed ${programs})
-if(MSVC)
-    foreach(program IN LISTS programs)
-        install(FILES "$<TARGET_PDB_FILE:${program}>" TYPE BIN CONFIGURATIONS RelWithDebInfo)
-    endforeach()
-endif()
+add_dependencies(openmw-installed ${game_programs} ${tools_programs})
 
 # The licences of what the fork compiles into the binaries, beside the GPL's own text: each asks for
 # its notice in every copy, binaries included, but SDL's zlib, which goes in so that no licence of
 # what is compiled in is missing. `files/licenses` holds each text as its source ships it, and
 # FidelityFX's stays with its headers.
 set(licenses "${CMAKE_INSTALL_DOCDIR}/licenses")
-install(
-    FILES
-        "${PROJECT_SOURCE_DIR}/extern/fidelityfx/LICENSE.txt"
-    DESTINATION "${licenses}"
-    RENAME "FidelityFX-SDK.txt"
-)
-install(
-    FILES
-        "${PROJECT_SOURCE_DIR}/files/licenses/VulkanMemoryAllocator.txt"
-        "${PROJECT_SOURCE_DIR}/files/licenses/volk.txt"
-        "${PROJECT_SOURCE_DIR}/files/licenses/SDL3.txt"
-        "${PROJECT_SOURCE_DIR}/files/licenses/rgbcx.txt"
-        "${PROJECT_SOURCE_DIR}/files/licenses/bc7enc.txt"
-        "${PROJECT_SOURCE_DIR}/files/licenses/Lucide.txt"
-    DESTINATION "${licenses}"
-)
-install(DIRECTORY "${PROJECT_SOURCE_DIR}/files/licenses/crashpad/" DESTINATION "${licenses}/crashpad")
 
 # The vcpkg set's, each port's own `copyright` as vcpkg installs it, under the port's name: every library the
 # programs link statically (`vcpkg.json`), whose licences ask for their notices in every copy, and the LGPL
@@ -60,39 +42,91 @@ file(GLOB vcpkg_copyrights "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/share
 if(NOT vcpkg_copyrights)
     message(FATAL_ERROR "The vcpkg set at ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET} holds no licence")
 endif()
-foreach(copyright IN LISTS vcpkg_copyrights)
-    cmake_path(GET copyright PARENT_PATH port)
-    cmake_path(GET port FILENAME port)
-    install(FILES "${copyright}" DESTINATION "${licenses}/vcpkg" RENAME "${port}.txt")
+
+# What each archive holds of its own and of what both do: its programs, each with its PDB on MSVC in the
+# configuration that installs one, RelWithDebInfo's, as a release's symbols are published apart from its archives;
+# the licences and the documents; and the configuration and the settings' defaults the tools read too, so the tools'
+# archive works wherever it is unpacked.
+foreach(component game tools)
+    install(TARGETS ${${component}_programs} COMPONENT ${component})
+    if(MSVC)
+        foreach(program IN LISTS ${component}_programs)
+            install(
+                FILES "$<TARGET_PDB_FILE:${program}>"
+                TYPE BIN
+                CONFIGURATIONS RelWithDebInfo
+                COMPONENT ${component}
+            )
+        endforeach()
+    endif()
+
+    install(
+        FILES
+            "${PROJECT_SOURCE_DIR}/extern/fidelityfx/LICENSE.txt"
+        DESTINATION "${licenses}"
+        RENAME "FidelityFX-SDK.txt"
+        COMPONENT ${component}
+    )
+    install(
+        FILES
+            "${PROJECT_SOURCE_DIR}/files/licenses/VulkanMemoryAllocator.txt"
+            "${PROJECT_SOURCE_DIR}/files/licenses/volk.txt"
+            "${PROJECT_SOURCE_DIR}/files/licenses/SDL3.txt"
+            "${PROJECT_SOURCE_DIR}/files/licenses/rgbcx.txt"
+            "${PROJECT_SOURCE_DIR}/files/licenses/bc7enc.txt"
+            "${PROJECT_SOURCE_DIR}/files/licenses/Lucide.txt"
+        DESTINATION "${licenses}"
+        COMPONENT ${component}
+    )
+    install(
+        DIRECTORY "${PROJECT_SOURCE_DIR}/files/licenses/crashpad/"
+        DESTINATION "${licenses}/crashpad"
+        COMPONENT ${component}
+    )
+    foreach(copyright IN LISTS vcpkg_copyrights)
+        cmake_path(GET copyright PARENT_PATH port)
+        cmake_path(GET port FILENAME port)
+        install(FILES "${copyright}" DESTINATION "${licenses}/vcpkg" RENAME "${port}.txt" COMPONENT ${component})
+    endforeach()
+
+    install(FILES "${PROJECT_SOURCE_DIR}/CHANGELOG.md" TYPE DOC COMPONENT ${component})
+    install(FILES "${PROJECT_SOURCE_DIR}/README.md" TYPE DOC COMPONENT ${component})
+    install(FILES "${PROJECT_SOURCE_DIR}/LICENSE" TYPE DOC RENAME "LICENSE.txt" COMPONENT ${component})
+    install(FILES "${PROJECT_SOURCE_DIR}/AUTHORS.md" TYPE DOC COMPONENT ${component})
+
+    install(FILES "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/defaults.bin" TYPE SYSCONF COMPONENT ${component})
+    install(FILES "${PROJECT_SOURCE_DIR}/files/openmw.cfg.local" TYPE SYSCONF RENAME "openmw.cfg" COMPONENT ${component})
 endforeach()
 
-install(FILES "${PROJECT_SOURCE_DIR}/CHANGELOG.md" TYPE DOC)
-install(FILES "${PROJECT_SOURCE_DIR}/README.md" TYPE DOC)
-install(FILES "${PROJECT_SOURCE_DIR}/LICENSE" TYPE DOC RENAME "LICENSE.txt")
-install(FILES "${PROJECT_SOURCE_DIR}/AUTHORS.md" TYPE DOC)
-
+# The resources the game reads whole, and of them the tools the virtual file system's, which
+# `openmw-bulletobjecttool` loads the content through.
+install(FILES "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/gamecontrollerdb.txt" TYPE SYSCONF COMPONENT game)
+install(DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources" TYPE DATA COMPONENT game)
 install(
-    FILES
-        "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/defaults.bin"
-        "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/defaults-cs.bin"
-        "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/gamecontrollerdb.txt"
-    TYPE SYSCONF
+    DIRECTORY
+        "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources/vfs"
+        "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources/vfs-mw"
+    DESTINATION "${CMAKE_INSTALL_DATADIR}/resources"
+    COMPONENT tools
 )
-install(FILES "${PROJECT_SOURCE_DIR}/files/openmw.cfg.local" TYPE SYSCONF RENAME "openmw.cfg")
-install(DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources" TYPE DATA)
 
 if(NOT WIN32)
     install(
         FILES
             "${PROJECT_BINARY_DIR}/org.openmw.launcher.desktop"
         DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/applications"
+        COMPONENT game
     )
     install(
         FILES
             "${PROJECT_SOURCE_DIR}/files/launcher/images/openmw.png"
         DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/pixmaps"
+        COMPONENT game
     )
-    install(FILES "${PROJECT_BINARY_DIR}/openmw.appdata.xml" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/metainfo")
-    install(FILES "${PROJECT_BINARY_DIR}/org.openmw.cs.desktop" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/applications")
-    install(FILES "${PROJECT_SOURCE_DIR}/files/opencs/openmw-cs.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/pixmaps")
+    install(
+        FILES
+            "${PROJECT_BINARY_DIR}/openmw.appdata.xml"
+        DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/metainfo"
+        COMPONENT game
+    )
 endif()

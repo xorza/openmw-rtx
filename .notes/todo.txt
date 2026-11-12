@@ -1,7 +1,5 @@
 - bake distant land into one mesh
 - all IO serial?
-- artifacts - folder in folder
 - underwater shadows
 - shipped resources cleanup
 - docs cleanup
-- build tools as separate release archive

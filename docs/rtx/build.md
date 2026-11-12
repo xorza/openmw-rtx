@@ -147,6 +147,13 @@ How the tree is configured, built, formatted and shipped, as decisions. The CMak
   `cmake/Install.cmake` makes of the programs it installs, so a release links none of the tests, the benchmarks or
   the harness, each another link under link-time optimisation. Refused: `BUILD_TESTING` off for the archive, which
   would configure the release's folder again, or need one of its own, and still build the harness.
+- **The game and its tools in two archives**, CMake's install components (`cmake --install --component`): the
+  game's, with the launcher, the wizard and the two programs they start, an AppImage on Linux and a folder on
+  Windows; and the tools', the console programs, a `.tar.gz` on Linux, which keeps an executable runnable on every
+  extractor, and a folder on Windows. Each archive works unpacked anywhere, the tools' with the configuration and
+  the virtual file system they read. **OpenMW-CS is built and not shipped**: upstream's editor draws through the
+  rasterizer, and its Qt needs the host libraries only the AppImage carries. Refused: one archive, whose AppImage
+  reaches no program but the launcher; the tools unpacked into the game's folder, which no AppImage can be.
 - **Linux's archive built in the release base, its symbols outside it.** `omw archive` builds and packs the AppImage
   in the AlmaLinux 8 container on a desk and on the release workflow's runner alike, and runs `dump_syms` on the
   container's build from the host, as Mozilla's Linux build of it asks glibc 2.34. The symbols are the installed

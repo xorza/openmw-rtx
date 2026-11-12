@@ -1,6 +1,7 @@
 import contextlib
 import io
 import shutil
+import tarfile
 import tempfile
 import unittest
 from pathlib import Path
@@ -10,8 +11,10 @@ from omw.package import (
     CONTAINER_DIR,
     GLIBC_FLOOR,
     LINUX_LIBRARIES,
+    LINUX_TOOLS_LIBRARIES,
     RELEASE_IMAGE,
     WINDOWS_LIBRARIES,
+    _archive_windows,
     ShippedLibraries,
     archive,
     container_command,
@@ -22,6 +25,7 @@ from omw.package import (
     needs_container,
     on_release_base,
     os_release,
+    pack_tarball,
     prune_empty,
 )
 from omw.system import ROOT, WINDOWS, Refusal
@@ -91,12 +95,14 @@ class ArchiveTest(unittest.TestCase):
             with (self.subTest(in_container=in_container), patch("omw.package.WINDOWS", False),
                   patch("omw.package.needs_container", return_value=in_container),
                   patch("omw.package.prepare_container") as container, patch("omw.package.run") as run,
-                  patch("omw.package._archive_linux") as linux, patch("omw.package.symbols") as symbol_store,
+                  patch("omw.package._archive_linux") as linux, patch("omw.package._archive_linux_tools") as tools,
+                  patch("omw.package.symbols") as symbol_store,
                   patch("omw.package.DIST", self.dist), contextlib.redirect_stderr(io.StringIO()) as said):
                 self.assertEqual(archive(build, ["rtx-v1"]), 0)
                 # Where it makes none, it says so.
                 self.assertEqual("no symbols:" in said.getvalue(), not in_container)
                 self.assertEqual(linux.call_args_list, packed)
+                self.assertEqual(tools.call_args_list, packed, "the tools' tarball beside the AppImage")
                 self.assertEqual(symbol_store.call_args_list, symbols)
                 self.assertEqual(run.call_count, 1 if in_container else 0)
                 if in_container:
@@ -117,15 +123,35 @@ class ArchiveTest(unittest.TestCase):
         self.assertEqual(windows.call_args_list, [call(build, "rtx-v1")])
         self.assertEqual(symbol_store.call_args_list, [call(ROOT / "build-release", "rtx-v1")])
 
+    def test_windows_installs_the_game_and_the_tools_each_into_a_folder_of_its_own(self):
+        build = Mock(dir=ROOT / "build-release")
+
+        def install(_build, component: str, prefix: Path) -> None:
+            for name in (f"{component}.exe", "openmw-wer.dll", "share/doc/README.md"):
+                (prefix / name).parent.mkdir(parents=True, exist_ok=True)
+                (prefix / name).write_text("x")
+            (prefix / "resources" / "empty").mkdir(parents=True)
+
+        with patch("omw.package.install", side_effect=install) as installed, patch("omw.package.DIST", self.dist):
+            _archive_windows(build, "rtx-v1")
+        self.assertEqual(installed.call_args_list,
+                         [call(build, "game", self.dist / "openmw-rtx-v1-windows-x64"),
+                          call(build, "tools", self.dist / "openmw-rtx-v1-windows-x64-tools")])
+        self.assertEqual(sorted(path.name for path in self.dist.iterdir()),
+                         ["openmw-rtx-v1-windows-x64", "openmw-rtx-v1-windows-x64-tools"])
+        self.assertFalse((self.dist / "openmw-rtx-v1-windows-x64-tools" / "resources").exists(), "an empty folder")
+
     def test_an_unnamed_archive_is_named_after_the_nearest_release_tag(self):
         build = Mock(dir=ROOT / "build-release")
         with (patch("omw.package.WINDOWS", False), patch("omw.package.needs_container", return_value=False),
-              patch("omw.package._archive_linux") as linux, patch("omw.package.symbols"),
+              patch("omw.package._archive_linux") as linux, patch("omw.package._archive_linux_tools") as tools,
+              patch("omw.package.symbols"),
               patch("omw.package.output", return_value="rtx-v0.4.5-61-g4672dda43b\n") as described,
               patch("omw.package.DIST", self.dist), contextlib.redirect_stderr(io.StringIO())):
             archive(build, [])
         self.assertEqual(described.call_args.args[0][-4:], ["--tags", "--match", "rtx-v*", "--always"])
         self.assertEqual(linux.call_args, call(build, "rtx-v0.4.5-61-g4672dda43b"))
+        self.assertEqual(tools.call_args, call(build, "rtx-v0.4.5-61-g4672dda43b"))
 
 
 class InstallTest(unittest.TestCase):
@@ -136,6 +162,34 @@ class InstallTest(unittest.TestCase):
     def touch(self, name: str) -> None:
         (self.root / name).parent.mkdir(parents=True, exist_ok=True)
         (self.root / name).write_text("")
+
+    def test_a_tarball_holds_its_folder_under_its_own_name_and_keeps_a_program_runnable(self):
+        folder = self.root / "openmw-rtx-v1-linux-x86_64-tools"
+        (folder / "resources" / "vfs").mkdir(parents=True)
+        (folder / "bsatool").write_text("#!/bin/sh\n")
+        (folder / "bsatool").chmod(0o755)
+        (folder / "openmw.cfg").write_text("resources=./resources\n")
+        (folder / "resources" / "vfs" / "builtin.omwscripts").write_text("")
+
+        packed = pack_tarball(folder)
+        self.assertEqual(packed, self.root / "openmw-rtx-v1-linux-x86_64-tools.tar.gz")
+        self.assertFalse(folder.exists(), "the folder goes once the archive is whole")
+        self.assertEqual(sorted(path.name for path in self.root.iterdir()), [packed.name])
+        with tarfile.open(packed) as tarred:
+            members = {member.name: member for member in tarred.getmembers()}
+        self.assertEqual(sorted(members), [
+            "openmw-rtx-v1-linux-x86_64-tools",
+            "openmw-rtx-v1-linux-x86_64-tools/bsatool",
+            "openmw-rtx-v1-linux-x86_64-tools/openmw.cfg",
+            "openmw-rtx-v1-linux-x86_64-tools/resources",
+            "openmw-rtx-v1-linux-x86_64-tools/resources/vfs",
+            "openmw-rtx-v1-linux-x86_64-tools/resources/vfs/builtin.omwscripts",
+        ])
+        self.assertEqual({(member.uid, member.gid, member.uname, member.gname) for member in members.values()},
+                         {(0, 0, "", "")}, "owned by nobody in particular")
+        if not WINDOWS:
+            self.assertEqual(members["openmw-rtx-v1-linux-x86_64-tools/bsatool"].mode & 0o777, 0o755)
+            self.assertEqual(members["openmw-rtx-v1-linux-x86_64-tools/openmw.cfg"].mode & 0o111, 0)
 
     def test_the_programs_are_the_system_s_executables_and_no_library_or_data_file(self):
         for name in ("openmw", "openmw.exe", "libosg.so.161", "openmw.cfg"):
@@ -152,13 +206,19 @@ class InstallTest(unittest.TestCase):
             self.touch(name)
             (self.root / name).chmod(0o755)
         self.touch("openmw.cfg")
-        # The manifest names what the install wrote under its prefix, a data file among them, in either
-        # system's separators.
-        self.touch("install_manifest.txt")
-        (self.root / "install_manifest.txt").write_text(
+        # Each component's manifest names what its install wrote under its prefix, a data file among them, in
+        # either system's separators; a component whose manifest is missing is no install of the release's.
+        (self.root / "install_manifest_game.txt").write_text(
             f"/prefix/usr/bin/{programs[0]}\nC:\\prefix\\openmw.cfg\n/prefix/usr/share/doc/README.md\n")
+        with self.assertRaisesRegex(Refusal, "no install manifest of the tools component"):
+            installed_programs(self.root)
+        (self.root / "install_manifest_tools.txt").write_text("/prefix/openmw.cfg\n")
         self.assertEqual([path.name for path in installed_programs(self.root)], [programs[0]])
-        (self.root / "install_manifest.txt").write_text("/prefix/usr/share/doc/README.md\n")
+        (self.root / "install_manifest_tools.txt").write_text(f"/tools/{programs[1]}\n")
+        self.assertEqual([path.name for path in installed_programs(self.root)], sorted(programs),
+                         "the tools' programs are the release's too")
+        for component in ("game", "tools"):
+            (self.root / f"install_manifest_{component}.txt").write_text("/prefix/usr/share/doc/README.md\n")
         with self.assertRaisesRegex(Refusal, "carried none of its programs"):
             installed_programs(self.root)
 
@@ -202,6 +262,15 @@ class InstallTest(unittest.TestCase):
         # A folder by that name is no library.
         (self.root / "elsewhere" / "libosg.so.161").mkdir(parents=True)
         self.assertEqual(linux.mismatch(self.root), ["usr/lib/libosg.so.161 beside them"])
+
+        # The tools' tarball holds no shared library at all.
+        tools = self.root / "tools"
+        (tools / "share" / "doc").mkdir(parents=True)
+        (tools / "bsatool").write_text("x")
+        self.assertEqual(LINUX_TOOLS_LIBRARIES.mismatch(tools), [])
+        (tools / "lib").mkdir()
+        (tools / "lib" / "libosg.so.161").write_text("x")
+        self.assertEqual(LINUX_TOOLS_LIBRARIES.mismatch(tools), ["lib/libosg.so.161 beside them"])
 
         (self.root / "openmw-wer.dll").mkdir()
         self.touch("Qt6Core.dll")

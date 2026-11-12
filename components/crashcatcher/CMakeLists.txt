@@ -126,7 +126,9 @@ if(WIN32)
     # program links the module, so the runtime dependency set never sees it, and Crashpad's own
     # rule sits under `extern/`, whose `EXCLUDE_FROM_ALL` keeps its install script out of the
     # package.
-    install(FILES $<TARGET_FILE:crashpad_wer> TYPE BIN)
+    foreach(component game tools)
+        install(FILES $<TARGET_FILE:crashpad_wer> TYPE BIN COMPONENT ${component})
+    endforeach()
     set_property(
         SOURCE
             crashpadclientwin32.cpp
