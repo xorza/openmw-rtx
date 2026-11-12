@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <array>
 #include <bit>
 #include <cstddef>
 #include <cstdint>
@@ -15,6 +16,7 @@
 #include <apps/components_tests/rtxvulkan/support/device/harness.hpp>
 #include <components/files/conversion.hpp>
 #include <components/rtx/common/error.hpp>
+#include <components/rtx/renderer/shaderset.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/graveyard.hpp>
@@ -23,6 +25,7 @@
 #include <components/rtxvulkan/device/notfinitecensus.hpp>
 #include <components/rtxvulkan/device/owned.hpp>
 #include <components/rtxvulkan/device/physicaldevice.hpp>
+#include <components/rtxvulkan/device/pipelinecache.hpp>
 #include <components/rtxvulkan/device/requirements.hpp>
 #include <components/rtxvulkan/device/result.hpp>
 
@@ -189,15 +192,16 @@ namespace Rtx
         /// **A module's census word is its place among the census set's modules, sorted by name**,
         /// whichever compile thread asked first, so a pipeline is the same to the driver's cache from run
         /// to run. `accumulate` sorts before `accumulateclamp`, `.` before `c`, and the `.spv` is no part
-        /// of the name. A module the directory does not hold is refused by name.
-        TEST_F(RtxDeviceTest, aModulesCensusWordIsItsPlaceInTheSortedDirectory)
+        /// of the name, here listed off the folder the set was read from. A module the set does not hold is
+        /// refused by name.
+        TEST_F(RtxDeviceTest, aModulesCensusWordIsItsPlaceInTheSortedSet)
         {
             const NotFiniteCensus* const census = getDevice().getCensus();
             ASSERT_NE(census, nullptr) << "the tests' device reads the census set";
 
             std::vector<std::string> modules;
             for (const std::filesystem::directory_entry& entry :
-                std::filesystem::directory_iterator(getDevice().getShaderDirectory()))
+                std::filesystem::directory_iterator(std::filesystem::path(OPENMW_RTX_CENSUS_SHADER_DIR)))
                 if (entry.path().extension() == ".spv")
                     modules.push_back(Files::pathToUnicodeString(entry.path().filename()));
             std::sort(modules.begin(), modules.end());
@@ -209,6 +213,25 @@ namespace Rtx
             EXPECT_EQ(census->kernelOf("accumulate.comp.spv") + 1, census->kernelOf("accumulateclamp.comp.spv"));
             EXPECT_EQ(census->kernelOf("accumulate.comp"), census->kernelOf("accumulate.comp.spv"));
             EXPECT_THROW(census->kernelOf("nothing.comp.spv"), InputError);
+        }
+
+        /// **A set out of name order, or naming a module twice, is refused where the device is made**: `find`
+        /// would miss a module the set holds, and the census would give two modules one word.
+        TEST_F(RtxDeviceTest, aShaderSetOutOfNameOrderOrNamingAModuleTwiceIsRefused)
+        {
+            constexpr std::array<std::uint32_t, 1> words{ 0x07230203 };
+            const std::array<std::array<ShaderModule, 2>, 2> refused{ {
+                { { { "b.spv", words }, { "a.spv", words } } },
+                { { { "a.spv", words }, { "a.spv", words } } },
+            } };
+            const Instance& instance = *mHarness.mInstance;
+            for (const std::array<ShaderModule, 2>& modules : refused)
+                Testing::expectDies(
+                    [&] {
+                        const Device device(instance, PhysicalDevice::select(instance.getHandle(), {}),
+                            ShaderSet{ .mModules = modules }, PipelineCacheSpec{}, DeviceReport{});
+                    },
+                    "a shader set out of name order, or naming a module twice");
         }
 
         TEST_F(RtxDeviceTest, everyRequiredFeatureIsActuallySupported)

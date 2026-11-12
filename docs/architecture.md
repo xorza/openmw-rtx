@@ -50,6 +50,11 @@ fused (`spirv/spirvpin.hpp`), so every compile of a module computes the same fra
 read are headers that compile as C++ and GLSL (`components/rtx/shaders/*.h`, `components/rtxvulkan/shaders/shared/*.h`),
 and each module's interface is held to the C++ beside it at load (`spirvinterface.hpp`).
 
+- **The game's shaders are compiled into it** (`Rtx::shippedVulkanShaders`, made by `openmw-rtx-spirv-embed`) as word
+  arrays, as ANGLE compiles its internal Vulkan shaders in, so no shader file is installed or read at a start. The
+  harness's census and with-source sets and the tests' stay folders in the build tree (`Rtx::ShaderFolder`). Refused:
+  `#embed`, which MSVC lacks; an assembler's `.incbin` beside Windows resources, two routes; the with-source sets
+  compiled in, 23 MB each to compile again at every shader edit.
 - **What a start would compute from no content is made by the build** and compiled in: the blue noise tile, the
   fog's field and the specular albedo's table, each by a tool running its maker (`openmw-rtx-tablemakers`), held to
   the maker by a test.

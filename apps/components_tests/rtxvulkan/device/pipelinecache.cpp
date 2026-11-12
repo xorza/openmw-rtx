@@ -20,6 +20,7 @@
 #include <apps/components_tests/rtx/support/death.hpp>
 #include <apps/components_tests/rtxvulkan/support/device/harness.hpp>
 #include <components/files/conversion.hpp>
+#include <components/misc/digestwords.hpp>
 #include <components/misc/result.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/owned.hpp>
@@ -111,7 +112,7 @@ namespace Rtx
             std::filesystem::file_time_type stamped;
             {
                 PipelineCache cache(getDevice().getHandle(), deviceProperties(),
-                    PipelineCacheSpec{ .mDirectory = cacheDirectory }, Testing::getShaderDirectory());
+                    PipelineCacheSpec{ .mDirectory = cacheDirectory }, getDevice().getShaders().mDigest);
                 ASSERT_NE(cache.getHandle(), VK_NULL_HANDLE) << "a cache was made";
                 ASSERT_TRUE(filesIn(cacheDirectory).empty()) << "nothing on the disk before a save";
 
@@ -227,7 +228,7 @@ namespace Rtx
             const VkPhysicalDeviceProperties& properties = deviceProperties();
             const auto made = [&] {
                 return PipelineCache(getDevice().getHandle(), properties,
-                    PipelineCacheSpec{ .mDirectory = cacheDirectory }, Testing::getShaderDirectory());
+                    PipelineCacheSpec{ .mDirectory = cacheDirectory }, getDevice().getShaders().mDigest);
             };
 
             {
@@ -290,26 +291,25 @@ namespace Rtx
         /// entry, so what keeps the directory from holding one file per driver and per edit for ever is that a run
         /// names exactly one file live and removes the rest.
         ///
-        /// **Two shader sets differing in one byte**, because a digest that ignored the contents would key both the
-        /// same and a changed shader would trace with the old one's code. **And a file that is not ours survives**,
-        /// because the cache directory is shared.
+        /// **Two shader sets whose digests differ in one bit**, because a name that ignored the digest would key both
+        /// the same and a changed shader would trace with the old one's code (`RtxShaderSetTest` holds the digest to
+        /// every byte). **And a file that is not ours survives**, because the cache directory is shared.
         TEST_F(RtxPipelineCacheTest, theNameCarriesTheShadersAndOtherCachesAreKeptToABound)
         {
             const std::filesystem::path scratch = TestingOpenMW::outputFilePath("cache-test");
             std::filesystem::remove_all(scratch);
 
             const std::filesystem::path cacheDirectory = scratch / "cache";
-            const std::filesystem::path edited = scratch / "edited";
-            std::filesystem::create_directories(edited);
-            std::filesystem::copy(Testing::getShaderDirectory(), edited, std::filesystem::copy_options::recursive);
+            const Misc::DigestWords shaders = getDevice().getShaders().mDigest;
+            const Misc::DigestWords edited{ shaders[0], shaders[1] ^ 1 };
 
-            const auto only = [&](const std::filesystem::path& shaders) {
+            const auto only = [&](const Misc::DigestWords& digest) {
                 const PipelineCache cache(getDevice().getHandle(), deviceProperties(),
-                    PipelineCacheSpec{ .mDirectory = cacheDirectory }, shaders);
+                    PipelineCacheSpec{ .mDirectory = cacheDirectory }, digest);
                 EXPECT_NE(cache.getHandle(), VK_NULL_HANDLE) << "a cache was made";
             };
 
-            only(Testing::getShaderDirectory());
+            only(shaders);
 
             std::vector<std::string> after = filesIn(cacheDirectory);
             ASSERT_EQ(after.size(), 1u) << "one run leaves one file";
@@ -319,17 +319,6 @@ namespace Rtx
             // A cache from a driver this machine no longer runs, and something that is not ours.
             std::ofstream(cacheDirectory / "rtx-some-other-driver.pipelinecache") << "stale";
             std::ofstream(cacheDirectory / "keep-me.txt") << "not a pipeline cache";
-
-            // One byte of one module, which is what a shader edit comes to.
-            const std::filesystem::path module = edited / "tone.comp.spv";
-            std::vector<char> bytes;
-            {
-                std::ifstream reading(module, std::ios::binary);
-                bytes.assign(std::istreambuf_iterator<char>(reading), std::istreambuf_iterator<char>());
-            }
-            ASSERT_FALSE(bytes.empty()) << "there is a module to edit";
-            bytes.back() = static_cast<char>(bytes.back() ^ 0xFF);
-            std::ofstream(module, std::ios::binary).write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
 
             only(edited);
 
@@ -364,7 +353,7 @@ namespace Rtx
             std::filesystem::last_write_time(
                 crashed, std::filesystem::file_time_type::clock::now() - std::chrono::hours(24 * 30));
 
-            only(Testing::getShaderDirectory());
+            only(shaders);
 
             after = filesIn(cacheDirectory);
             EXPECT_EQ(after.size(), 6u) << "this run's cache, the four kept beside it, and the file that is not ours";
@@ -379,8 +368,7 @@ namespace Rtx
             // **And no directory is no cache object**, `PipelineCacheSpec::mDirectory`: a
             // measuring process shares nothing between its compiles, not even an empty object the
             // driver would fill as they run.
-            const PipelineCache none(
-                getDevice().getHandle(), deviceProperties(), PipelineCacheSpec{}, Testing::getShaderDirectory());
+            const PipelineCache none(getDevice().getHandle(), deviceProperties(), PipelineCacheSpec{}, shaders);
             EXPECT_EQ(none.getHandle(), VK_NULL_HANDLE) << "a spec with no directory made a cache object";
             EXPECT_EQ(filesIn(cacheDirectory).size(), 6u) << "a spec with no directory touched the directory";
 

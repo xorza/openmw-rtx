@@ -42,10 +42,10 @@ namespace Rtx
         /// @param properties identifies the driver the cache was built by. Vulkan will reject a blob
         ///        that does not match, and the name carries it so that a driver update starts a new
         ///        cache instead of rejecting the old one on every run.
-        /// @param shaderDirectory the compiled shaders the pipelines are built from, digested into the
-        ///        file's name.
+        /// @param shaders the digest of the compiled shaders the pipelines are built from
+        ///        (`ShaderSet::mDigest`), which names the file.
         PipelineCache(VkDevice device, const VkPhysicalDeviceProperties& properties, const PipelineCacheSpec& spec,
-            const std::filesystem::path& shaderDirectory);
+            const Misc::DigestWords& shaders);
         ~PipelineCache();
 
         /// Null where the spec keeps no cache or the cache could not be created, which every

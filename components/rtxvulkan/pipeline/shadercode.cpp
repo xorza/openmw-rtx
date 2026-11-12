@@ -5,11 +5,12 @@
 #include <utility>
 
 #include <components/crashcatcher/crash.hpp>
+#include <components/rtx/common/error.hpp>
+#include <components/rtx/renderer/shaderset.hpp>
 #include <components/rtxvulkan/device/bindingtable.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/shaders/shared/counts.h>
 #include <components/rtxvulkan/shaders/shared/sets.h>
-#include <components/rtxvulkan/spirv/spirvfile.hpp>
 
 namespace Rtx
 {
@@ -201,11 +202,14 @@ namespace Rtx
 
     void ShaderCode::readModule(const std::string_view module)
     {
-        // Both read before the entry is made, so a module either refuses leaves none behind.
-        std::vector<std::uint32_t> words = readSpirv(mDevice.getShaderDirectory() / module);
-        ModuleInterface interface = readInterface(words);
+        const ShaderModule* const found = mDevice.getShaders().find(module);
+        if (found == nullptr)
+            throw InputError(std::format("no shader module {} in the device's shaders", module));
+
+        // Read before the entry is made, so a module that refuses leaves none behind.
+        ModuleInterface interface = readInterface(found->mWords);
         Read& read = mRead.emplace_back(
-            Read{ .mModule = std::string(module), .mWords = std::move(words), .mInterface = std::move(interface) });
+            Read{ .mModule = std::string(module), .mWords = found->mWords, .mInterface = std::move(interface) });
 
         read.mCreate = VkShaderModuleCreateInfo{
             .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
@@ -215,7 +219,7 @@ namespace Rtx
             .pCode = read.mWords.data(),
         };
         // Named through the stage, since there is no module object to name: a validation message
-        // about a stage then says which file it came from.
+        // about a stage then says which module it came from.
         read.mNamed = VkDebugUtilsObjectNameInfoEXT{
             .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
             .pNext = &read.mCreate,

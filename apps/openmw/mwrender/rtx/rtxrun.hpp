@@ -11,7 +11,7 @@
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/renderer/renderer.hpp>
-#include <components/rtx/renderer/shaderdirectory.hpp>
+#include <components/rtx/renderer/shaderset.hpp>
 #include <components/rtx/world/frameworld.hpp>
 
 #include "mirrorknobs.hpp"
@@ -54,10 +54,10 @@ namespace MWRender
         /// draw one picture; a run timing the streaming path says no (`Rtx::CellRing::setSettled`).
         std::optional<bool> mSettled{};
 
-        /// The shaders the renderer reads, where not the game's under the resources (`Rtx::shaderDirectory`):
-        /// the harness's sets, which count non-finite stores into the census and keep their source for a
-        /// profiler. Never a played session's: the driver's cache is keyed on the modules, and the game's
-        /// carry neither.
+        /// The shaders the renderer reads, where not the ones the game compiles in (`shippedShadersOf`): the
+        /// harness's sets, which count non-finite stores into the census and keep their source for a profiler,
+        /// and outlive the renderer. Never a played session's: the driver's cache is keyed on the modules, and
+        /// the game's carry neither.
         std::optional<Rtx::ShaderSet> mShaders{};
 
         /// Where the content store stands (`ContentStore::Store`), or nothing for none: a played session's

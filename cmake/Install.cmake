@@ -1,5 +1,7 @@
-# What an install carries: the programs, the desktop files, the documents and licences, and the game's defaults and
-# resources. `omw archive` and CI install through it; no installer is built from it.
+# What an install carries: the programs, their licences, the configuration and the settings' defaults, the
+# resources the programs read at run time, and the menu entry. Nothing else: no document for developers, no
+# resource only the rasterizer or OpenMW-CS reads. `omw archive` and CI install through it; no installer is built
+# from it.
 #
 # **Two components, the two archives a release ships** (`cmake --install --component`): `game`, what a player runs,
 # and `tools`, the console programs a modder runs, each archive whole by itself. Refused: one archive, whose AppImage
@@ -47,17 +49,11 @@ if(NOT vcpkg_copyrights)
     message(FATAL_ERROR "The vcpkg set at ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET} holds no licence")
 endif()
 
-# What each archive holds of its own and of what both do: its programs, each with its PDB on MSVC in the
-# configuration that installs one, RelWithDebInfo's, as a release's symbols are published apart from its archives;
-# the licences and the documents; and the configuration and the settings' defaults the tools read too, so the tools'
-# archive works wherever it is unpacked.
+# What each archive holds of its own and of what both do: its programs, their licences, and the configuration and
+# the settings' defaults the tools read too, so the tools' archive works wherever it is unpacked. No symbols: a
+# release publishes them apart (`omw archive`).
 foreach(component game tools)
     install(TARGETS ${${component}_programs} COMPONENT ${component})
-    if(MSVC)
-        foreach(program IN LISTS ${component}_programs)
-            install(FILES "$<TARGET_PDB_FILE:${program}>" TYPE BIN CONFIGURATIONS RelWithDebInfo COMPONENT ${component})
-        endforeach()
-    endif()
 
     install(
         FILES
@@ -89,10 +85,7 @@ foreach(component game tools)
         install(FILES "${copyright}" DESTINATION "${licenses}/vcpkg" RENAME "${port}.txt" COMPONENT ${component})
     endforeach()
 
-    install(FILES "${PROJECT_SOURCE_DIR}/CHANGELOG.md" TYPE DOC COMPONENT ${component})
-    install(FILES "${PROJECT_SOURCE_DIR}/README.md" TYPE DOC COMPONENT ${component})
     install(FILES "${PROJECT_SOURCE_DIR}/LICENSE" TYPE DOC RENAME "LICENSE.txt" COMPONENT ${component})
-    install(FILES "${PROJECT_SOURCE_DIR}/AUTHORS.md" TYPE DOC COMPONENT ${component})
 
     install(FILES "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/defaults.bin" TYPE SYSCONF COMPONENT ${component})
     install(
@@ -104,16 +97,48 @@ foreach(component game tools)
     )
 endforeach()
 
-# The resources the game reads whole, and of them the tools the virtual file system's, which
-# `openmw-bulletobjecttool` loads the content through.
+# **The resources by name, each one a program reads at run time** (`files/` stages more, for the rasterizer, the
+# editor and the tests). The virtual file system without what only the rasterizer reads: its post-processing
+# shaders, which no frame of the ray tracer's runs, and its water's normal map. The game's run-time folders whole,
+# and of them the tools' the virtual file system's, which `openmw-bulletobjecttool` loads the content through. The
+# ray tracer's shaders are compiled into the game (`Rtx::shippedVulkanShaders`). Refused: the folder whole minus
+# what is known unused, which would ship whatever folder upstream adds next.
+set(resources "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources")
+set(vfs_folders
+    "${resources}/vfs"
+    "${resources}/vfs-mw"
+)
+set(vfs_rasterized
+    REGEX
+    "/vfs/shaders$"
+    EXCLUDE
+    REGEX
+    "/vfs/textures/omw$"
+    EXCLUDE
+)
 install(FILES "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/gamecontrollerdb.txt" TYPE SYSCONF COMPONENT game)
-install(DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources" TYPE DATA COMPONENT game)
+foreach(component game tools)
+    install(
+        DIRECTORY
+            ${vfs_folders}
+        DESTINATION "${CMAKE_INSTALL_DATADIR}/resources"
+        COMPONENT ${component}
+        ${vfs_rasterized}
+    )
+endforeach()
 install(
     DIRECTORY
-        "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources/vfs"
-        "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources/vfs-mw"
+        "${resources}/lua_libs"
+        "${resources}/translations"
     DESTINATION "${CMAKE_INSTALL_DATADIR}/resources"
-    COMPONENT tools
+    COMPONENT game
+)
+install(
+    FILES
+        "${resources}/openmw.png"
+        "${resources}/version"
+    DESTINATION "${CMAKE_INSTALL_DATADIR}/resources"
+    COMPONENT game
 )
 
 if(NOT WIN32)
@@ -127,12 +152,6 @@ if(NOT WIN32)
         FILES
             "${PROJECT_SOURCE_DIR}/files/launcher/images/openmw.png"
         DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/pixmaps"
-        COMPONENT game
-    )
-    install(
-        FILES
-            "${PROJECT_BINARY_DIR}/openmw.appdata.xml"
-        DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/metainfo"
         COMPONENT game
     )
 endif()

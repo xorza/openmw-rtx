@@ -2,12 +2,12 @@
 
 #include <array>
 #include <cstdint>
-#include <filesystem>
 #include <string>
 #include <string_view>
 
 #include <vulkan/vulkan_core.h>
 
+#include <components/rtx/renderer/shaderset.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/shaders/shared/counts.h>
 
@@ -22,7 +22,7 @@ namespace Rtx
     /// stage is handed its word as a specialization constant: no pass binds it, writes it or is
     /// handed it.
     ///
-    /// **A module's word is its place among the shader directory's modules, sorted by name**, read
+    /// **A module's word is its place among the device's modules, sorted by name**, read
     /// once as the census is made: the same word every run of one build, so a pipeline is the same
     /// pipeline to the driver's cache, whichever compile hand made it first.
     ///
@@ -33,12 +33,12 @@ namespace Rtx
     public:
         static constexpr VkDeviceSize sBytes = sizeof(Shaders::Census);
 
-        /// @param shaderDirectory where every module a pipeline on `device` is made from stands.
-        NotFiniteCensus(const Device& device, const std::filesystem::path& shaderDirectory);
+        /// @param shaders every module a pipeline on `device` is made from.
+        NotFiniteCensus(const Device& device, const ShaderSet& shaders);
 
-        /// The word of a stage built from `module`, a file of the shader directory, which it is
-        /// specialized with (`SPEC_CENSUS_KERNEL`). Throws `InputError` for a module the directory
-        /// did not hold.
+        /// The word of a stage built from `module`, one of the device's shaders, which it is
+        /// specialized with (`SPEC_CENSUS_KERNEL`). Throws `InputError` for a module the set does
+        /// not hold.
         std::uint32_t kernelOf(std::string_view module) const;
 
         /// The census as the binding every layout of the device names takes it, for the next submit.
@@ -56,7 +56,7 @@ namespace Rtx
     private:
         Buffer mWords;
 
-        /// The directory's modules without their `.spv`, sorted: a module's word is its place.
+        /// The set's modules without their `.spv`, sorted: a module's word is its place.
         std::array<std::string, Shaders::CENSUS_KERNELS> mNames;
         std::uint32_t mNamed = 0;
     };

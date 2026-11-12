@@ -46,7 +46,6 @@
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
 #include <components/rtx/renderer/renderer.hpp>
-#include <components/rtx/renderer/shaderdirectory.hpp>
 #include <components/rtx/world/weather.hpp>
 #include <components/rtxvulkan/createrenderer.hpp>
 #include <components/settings/settings.hpp>
@@ -955,14 +954,14 @@ namespace RtxTool
 
             // **Before any verb makes a device, because the driver reads where its cache is once.**
             // A cache of the shaders this run reads and of nothing else (`DriverCache`).
-            const Rtx::ShaderSet shaders = shadersFor(read.mResources, found->mVerb, read.mShaderSource);
-            const DriverCache driverCache(harnessDirectory(), shaders.mDirectory);
+            const HarnessShaders shaders(found->mVerb, read.mShaderSource);
+            const DriverCache driverCache(harnessDirectory(), shaders.getName(), shaders.getSet().mDigest);
             driverCache.applyToDriver();
             driverCache.sweep();
 
             // Read once for the run, which every framed verb asks three or more of.
             const ShippedDefaults shipped(config);
-            return found->mRun(Command{ read, config, shaders, found->mVerb, shipped });
+            return found->mRun(Command{ read, config, shaders.getSet(), found->mVerb, shipped });
         }
 
         int run(int argc, char* argv[])

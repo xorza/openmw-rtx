@@ -1,6 +1,9 @@
 #pragma once
 
 #include <filesystem>
+#include <string_view>
+
+#include <components/misc/digestwords.hpp>
 
 namespace RtxTool
 {
@@ -9,7 +12,7 @@ namespace RtxTool
     ///
     /// Of its own, because the driver otherwise shares one cache with every program and prunes it at a size
     /// limit, so another program's shaders evict these. In the harness's folder (`RtxTool::harnessDirectory`)
-    /// so it goes with the build that made them. One per set of shaders, named by `digestShaders` of the
+    /// so it goes with the build that made them. One per set of shaders, named by the digest of the
     /// modules the renderer reads, because the driver never drops an entry: a directory kept across a
     /// build's shader edits grew past a gigabyte. A changed set is a new directory, and `sweep` removes the
     /// old one.
@@ -20,9 +23,9 @@ namespace RtxTool
     class DriverCache
     {
     public:
-        /// The cache of the modules in `shaders`, in `harness`, its directory made where there is
-        /// none.
-        DriverCache(const std::filesystem::path& harness, const std::filesystem::path& shaders);
+        /// The cache of the set of shaders called `name`, whose digest is `shaders`, in `harness`, its
+        /// directory made where there is none.
+        DriverCache(const std::filesystem::path& harness, std::string_view name, const Misc::DigestWords& shaders);
 
         const std::filesystem::path& getDirectory() const { return mDirectory; }
 

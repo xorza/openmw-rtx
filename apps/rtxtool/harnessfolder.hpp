@@ -1,8 +1,12 @@
 #pragma once
 
 #include <filesystem>
+#include <optional>
+#include <string>
+#include <string_view>
 
-#include <components/rtx/renderer/shaderdirectory.hpp>
+#include <components/rtx/renderer/shaderset.hpp>
+#include <components/rtxvulkan/spirv/shaderfolder.hpp>
 
 #include "verbs.hpp"
 
@@ -24,9 +28,31 @@ namespace RtxTool
     /// does.
     std::filesystem::path keysDirectory();
 
-    /// The shaders `verb` reads: the game's under `resources`, or one of the harness's other sets, the same
-    /// modules compiled again with their source in them where `source` asks (for a profiler), and with the
-    /// census for every verb but one that measures (`VerbPolicy::mMeasures`), whose figures are of the
-    /// game's kernels. `RTX_SPIRV_DIR` says why the source is a set apart.
-    Rtx::ShaderSet shadersFor(const std::filesystem::path& resources, Verbs verb, bool source);
+    /// The shaders `verb` reads, and what holds them: the ones the game compiles in, or one of the harness's
+    /// other sets, read from its folder — the same modules compiled again with their source in them where
+    /// `source` asks (for a profiler), and with the census for every verb but one that measures
+    /// (`VerbPolicy::mMeasures`), whose figures are of the game's kernels. `RTX_SPIRV_DIR` says why the source
+    /// is a set apart.
+    class HarnessShaders
+    {
+    public:
+        /// @throws Rtx::InputError where a folder's set cannot be read.
+        HarnessShaders(Verbs verb, bool source);
+
+        /// Pinned: a folder's set points into what this holds.
+        HarnessShaders(const HarnessShaders&) = delete;
+        HarnessShaders& operator=(const HarnessShaders&) = delete;
+        HarnessShaders(HarnessShaders&&) = delete;
+        HarnessShaders& operator=(HarnessShaders&&) = delete;
+        ~HarnessShaders() = default;
+
+        const Rtx::ShaderSet& getSet() const;
+
+        /// The set's name, which its driver cache is named after (`DriverCache`): its folder's.
+        std::string_view getName() const { return mName; }
+
+    private:
+        std::string mName;
+        std::optional<Rtx::ShaderFolder> mFolder;
+    };
 }

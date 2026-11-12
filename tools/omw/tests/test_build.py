@@ -157,8 +157,8 @@ class FolderTest(unittest.TestCase):
             build.folder("RTX_SPIRV_DIR")
 
         (build.dir / "omw-folders.json").write_text(
-            '{"RTX_SPIRV_DIR": "/checkout/build/resources/rtx/shaders", "RTX_TEST_OUTPUT_DIR": ""}')
-        self.assertEqual(build.folder("RTX_SPIRV_DIR"), Path("/checkout/build/resources/rtx/shaders"))
+            '{"RTX_SPIRV_DIR": "/checkout/build/rtxtool/shaders", "RTX_TEST_OUTPUT_DIR": ""}')
+        self.assertEqual(build.folder("RTX_SPIRV_DIR"), Path("/checkout/build/rtxtool/shaders"))
         for refused in ("RTX_TEST_OUTPUT_DIR", "RTX_SPIRV_SOURCE_DIR"):
             with self.subTest(name=refused), self.assertRaises(Refusal):
                 build.folder(refused)

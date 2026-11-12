@@ -201,6 +201,7 @@ jobs:
                     docs/source/ docs/CMakeLists.txt docs/Dockerfile docs/Doxyfile.cmake docs/DoxyfilePages.cmake
                     docs/README.md docs/build_docs.sh docs/mainpage.hpp.cmake docs/openmw-stage1.md
                     docs/prepare_docker_image.sh docs/requirements.txt docs/tlconfig.lua manual/
+                    files/openmw.appdata.xml
                   )
                   # Forced, as a file upstream adds is staged.
                   git rm -r -f --ignore-unmatch -- "${kept_deleted[@]}"

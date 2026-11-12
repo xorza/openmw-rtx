@@ -254,7 +254,6 @@ openmw_rtx_layer(
         renderer/nullrenderer.cpp
         renderer/scenetextures.cpp
         renderer/sceneuploader.cpp
-        renderer/shaderdirectory.cpp
     HEADERS
         renderer/channel.hpp
         renderer/denoiserimage.hpp
@@ -272,7 +271,7 @@ openmw_rtx_layer(
         renderer/sceneholder.hpp
         renderer/scenetextures.hpp
         renderer/sceneuploader.hpp
-        renderer/shaderdirectory.hpp
+        renderer/shaderset.hpp
         renderer/slot.hpp
         renderer/verticalsync.hpp
 )

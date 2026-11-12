@@ -77,18 +77,18 @@ add_subdirectory(files)
 
 add_subdirectory(components)
 
-# The ray tracer's resources, where `components` places the rest. Two shader sets, because the
-# driver keys its cache on the bytes: the renderers read modules without source, which an edited
-# comment leaves unchanged (`RtxTool::DriverCache`), and a profiler reads the same modules with it
-# (`--shader-source`).
-set(RTX_SPIRV_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources/rtx/shaders")
-
-# The harness's folder: its places, suites and scripts, the shaders with their source and the
-# driver's caches. In the build tree, because no install carries the harness. The harness and the
-# tests are built with each folder (`OPENMW_RTX_HARNESS_DIR` and its siblings), since the harness
-# only ever runs from the tree that built it, and the driver reads them from `omw-folders.json`
-# (`Build.folder`): this is the one place that names them.
+# The harness's folder: its places, suites and scripts, the shader sets and the driver's caches. In the
+# build tree, because no install carries the harness. The harness and the tests are built with each
+# folder (`OPENMW_RTX_HARNESS_DIR` and its siblings), since the harness only ever runs from the tree
+# that built it, and the driver reads them from `omw-folders.json` (`Build.folder`): this is the one
+# place that names them.
 set(RTX_HARNESS_DIR "${PROJECT_BINARY_DIR}/rtxtool")
+
+# Two shader sets, because the driver keys its cache on the bytes: the renderers read modules without
+# source, which an edited comment leaves unchanged (`RtxTool::DriverCache`), and a profiler reads the
+# same modules with it (`--shader-source`). The first is the one the game compiles in
+# (`Rtx::shippedVulkanShaders`), the probes the tests run beside it.
+set(RTX_SPIRV_DIR "${RTX_HARNESS_DIR}/shaders")
 set(RTX_SPIRV_SOURCE_DIR "${RTX_HARNESS_DIR}/shaders-source")
 
 # The same two sets compiled with the census (`lib/census.glsl`), which every harness run but a

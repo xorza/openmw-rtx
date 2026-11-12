@@ -349,12 +349,12 @@ namespace Rtx
         /// A kernel that cannot be made is thrown to every ask, the bounded one included, and not only the
         /// first: a caller that caught it once must not go on to record from a table with a hole in it. The
         /// constructor returns before any kernel is made, so it is the one call that does not throw. A device
-        /// of its own, whose shader directory holds nothing, because the modules are the device's to find.
+        /// of its own, whose shader set holds nothing, because the modules are the device's to find.
         TEST_F(RtxVisibilityKernelsTest, aKernelThatCannotBeMadeIsThrownToEveryAsk)
         {
             const Instance& instance = *mHarness.mInstance;
-            const Device empty(instance, PhysicalDevice::select(instance.getHandle(), {}),
-                ShaderSet{ .mDirectory = "no-such-directory" }, PipelineCacheSpec{}, DeviceReport{});
+            const Device empty(instance, PhysicalDevice::select(instance.getHandle(), {}), ShaderSet{},
+                PipelineCacheSpec{}, DeviceReport{});
             const SetLayout textures = TextureArray::describeLayout(empty);
             const SetLayout channels = GBuffer::describeLayout(empty);
             const SetLayout volume = FogVolume::describeLayout(empty);

@@ -13,6 +13,7 @@
 #include <apps/components_tests/rtx/support/death.hpp>
 #include <apps/components_tests/rtxvulkan/support/device/harness.hpp>
 #include <components/rtx/common/error.hpp>
+#include <components/rtxvulkan/createrenderer.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/device/instance.hpp>
@@ -53,7 +54,7 @@ namespace Rtx
         {
             const Instance& instance = *mHarness.mInstance;
             auto device = std::make_unique<Device>(instance, PhysicalDevice::select(instance.getHandle(), {}),
-                ShaderSet{ .mDirectory = Testing::getShaderDirectory() }, PipelineCacheSpec{},
+                shippedVulkanShaders(), PipelineCacheSpec{},
                 DeviceReport{ .mStatistics = PipelineStatistics::Captured });
 
             ValidationLog* log = instance.getValidationLog();

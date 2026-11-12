@@ -96,6 +96,10 @@ How the tree is configured, built, formatted and shipped, as decisions. The CMak
   `OpenMW-RTX-0.5.1-tools-windows-x64.zip`. Refused: a bare `OpenMW-`, which reads as upstream's.
 - **Linux's archives built in the release base, their symbols outside it**: `dump_syms` needs glibc 2.34, so it runs
   on the container's build from the host, over the installed programs alone.
+- **An archive carries what a program reads, by name** (`cmake/Install.cmake`): the programs, the licences, the
+  configuration and the resources read at run time, and on Linux the menu entry and icon the AppImage needs.
+  Nothing for developers, the rasterizer or the editor. Refused: the resources folder whole minus what is known
+  unused, which ships whatever upstream adds next; the AppStream metadata, which an AppImage does not need.
 - **One portable layout**, every file beside the programs. Refused: the system-install branch.
 
 ## Formatting

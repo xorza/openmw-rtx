@@ -1,7 +1,6 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
-#include <filesystem>
 #include <span>
 #include <string_view>
 #include <utility>
@@ -14,13 +13,13 @@
 #include <apps/components_tests/rtx/support/death.hpp>
 #include <apps/components_tests/rtxvulkan/support/device/harness.hpp>
 #include <components/rtx/common/error.hpp>
+#include <components/rtx/renderer/shaderset.hpp>
 #include <components/rtxvulkan/device/bindingtable.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/pipeline/shadercode.hpp>
 #include <components/rtxvulkan/shaders/shared/counts.h>
 #include <components/rtxvulkan/shaders/shared/sets.h>
-#include <components/rtxvulkan/spirv/spirvfile.hpp>
 #include <components/rtxvulkan/spirv/spirvinterface.hpp>
 
 namespace Rtx
@@ -83,7 +82,13 @@ namespace Rtx
 
         ModuleTables tablesOf(const Device& device, const char* module)
         {
-            const ModuleInterface interface = readInterface(readSpirv(device.getShaderDirectory() / module));
+            const ShaderModule* const found = device.getShaders().find(module);
+            if (found == nullptr)
+            {
+                ADD_FAILURE() << "no module " << module << " in the device's shaders";
+                return {};
+            }
+            const ModuleInterface interface = readInterface(found->mWords);
             const std::vector<ModuleBinding>& bindings = interface.mBindings;
 
             ModuleTables tables;
@@ -142,7 +147,10 @@ namespace Rtx
                 { std::pair{ scatter, "fogscatter.rgen.spv" }, std::pair{ visibility, "visibility.comp.spv" } })
             {
                 const VkShaderModuleCreateInfo& read = codeOf(device, stage);
-                EXPECT_EQ(read.codeSize, std::filesystem::file_size(device.getShaderDirectory() / file)) << file;
+                const ShaderModule* const module = device.getShaders().find(file);
+                ASSERT_NE(module, nullptr) << file;
+                EXPECT_EQ(read.codeSize, module->mWords.size() * sizeof(std::uint32_t)) << file;
+                EXPECT_EQ(read.pCode, module->mWords.data()) << file << ": the set's words, not a copy";
                 EXPECT_EQ(read.pCode[0], 0x07230203u) << file;
             }
 

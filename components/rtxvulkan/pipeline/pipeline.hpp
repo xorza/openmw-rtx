@@ -49,7 +49,7 @@ namespace Rtx
     class Specialization
     {
     public:
-        /// @param module the stage's file in the device's shader directory, which names its word of
+        /// @param module the stage's module among the device's shaders, which names its word of
         ///        the census.
         Specialization(const Device& device, std::string_view module, std::span<const std::uint32_t> words);
 

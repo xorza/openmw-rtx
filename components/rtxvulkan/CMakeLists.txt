@@ -45,9 +45,10 @@ if(NOT _openmw_spirv_fma)
 endif()
 unset(_openmw_spirv_fma)
 
-# The guard and the pinning every shader takes around the optimizer (`spirv/spirvpin.hpp`), and the
-# digest `omw kernels` names kernels by: a library the tests reach into, and tools the build runs.
-# They link nothing of the renderer's, which waits for the shaders, and stay out of every install.
+# The guard and the pinning every shader takes around the optimizer (`spirv/spirvpin.hpp`), the digest
+# `omw kernels` names kernels by, and a set of shaders read from a folder (`spirv/shaderfolder.hpp`): a
+# library the tests and the harness reach into, and tools the build runs. They link nothing of the
+# renderer's, which waits for the shaders, and stay out of every install.
 add_library(openmw-rtx-spirv STATIC)
 target_sources(
     openmw-rtx-spirv
@@ -56,6 +57,7 @@ target_sources(
         spirv/spirvfile.cpp
         spirv/spirvpin.cpp
         spirv/spirvdigest.cpp
+        spirv/shaderfolder.cpp
     PUBLIC
         FILE_SET HEADERS
             BASE_DIRS
@@ -65,6 +67,7 @@ target_sources(
                 spirv/spirvfile.hpp
                 spirv/spirvpin.hpp
                 spirv/spirvdigest.hpp
+                spirv/shaderfolder.hpp
 )
 # Public, because `spirvfile.hpp`'s one walk of a module's words names the opcodes in its interface.
 target_include_directories(openmw-rtx-spirv SYSTEM PUBLIC "${OPENMW_SPIRV_HEADERS}")
@@ -87,6 +90,20 @@ add_executable(openmw-rtx-spirv-digest spirv/spirvdigesttool.cpp)
 target_link_libraries(openmw-rtx-spirv-digest PRIVATE openmw-rtx-spirv)
 set_target_properties(
     openmw-rtx-spirv-digest
+    PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY
+            "${CMAKE_CURRENT_BINARY_DIR}"
+)
+add_executable(openmw-rtx-spirv-embed spirv/spirvembedtool.cpp)
+target_link_libraries(
+    openmw-rtx-spirv-embed
+    PRIVATE
+        openmw-rtx-spirv
+        openmw-platform-io
+        smhasher
+)
+set_target_properties(
+    openmw-rtx-spirv-embed
     PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY
             "${CMAKE_CURRENT_BINARY_DIR}"
@@ -168,6 +185,8 @@ set(RTX_SHADER_PROBES
     shaders/probes/unormmean.comp
     shaders/probes/unormround.comp
 )
+# What the game ships, before the probes join the list.
+set(RTX_SHIPPED_SHADERS ${RTX_SHADERS})
 if(BUILD_TESTING)
     list(APPEND RTX_SHADERS ${RTX_SHADER_PROBES})
 endif()
@@ -256,8 +275,7 @@ foreach(shader ${RTX_SHADERS})
     openmw_rtx_shader("${shader}" 1 "${RTX_SPIRV_CENSUS_SOURCE_DIR}" "${RTX_SPIRV_CENSUS_DIR}")
 endforeach()
 
-# A module no listed shader makes is removed: a directory's digest (`Rtx::digestShaders`) names the
-# driver's cache of it.
+# A module no listed shader makes is removed: a folder's set is every module in it (`Rtx::ShaderFolder`).
 foreach(
     directory
     "${RTX_SPIRV_DIR}"
@@ -335,6 +353,27 @@ set(RTX_SHADER_LIB
     shaders/upscale/fsrcallbacks.glsl
 )
 
+# **The game's shaders compiled into it** (`Rtx::shippedVulkanShaders`), without their source or the census:
+# no file to install, find or read at a start. The harness's other sets and the tests' stay folders
+# (`Rtx::ShaderFolder`), which only the tree that built them runs.
+set(RTX_SHIPPED_MODULES)
+foreach(shader ${RTX_SHIPPED_SHADERS})
+    cmake_path(GET shader FILENAME name)
+    list(APPEND RTX_SHIPPED_MODULES "${RTX_SPIRV_DIR}/${name}.spv")
+endforeach()
+set(RTX_SHIPPED_SOURCE "${CMAKE_CURRENT_BINARY_DIR}/rtxshippedshaders.cpp")
+add_custom_command(
+    OUTPUT
+        "${RTX_SHIPPED_SOURCE}"
+    COMMAND
+        openmw-rtx-spirv-embed "${RTX_SHIPPED_SOURCE}" ${RTX_SHIPPED_MODULES}
+    DEPENDS
+        ${RTX_SHIPPED_MODULES}
+        openmw-rtx-spirv-embed
+    COMMENT "Compiling the shipped shaders into the program"
+    VERBATIM
+)
+
 add_custom_target(
     openmw-rtx-vulkan-shaders
     ALL
@@ -349,6 +388,7 @@ add_library(openmw-rtx-vulkan STATIC)
 target_sources(
     openmw-rtx-vulkan
     PRIVATE
+        "${RTX_SHIPPED_SOURCE}"
         createrenderer.cpp
         device/buffermarkers.cpp
         device/commands.cpp

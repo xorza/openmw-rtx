@@ -13,7 +13,7 @@
 
 #include <volk.h>
 
-#include <components/rtx/renderer/shaderdirectory.hpp>
+#include <components/rtx/renderer/shaderset.hpp>
 
 #include "driverprofile.hpp"
 #include "owned.hpp"
@@ -190,10 +190,10 @@ namespace Rtx
         ///
         /// @param instance must outlive the device. Not held: a `VkDevice` does not reference its
         ///        instance, but every entry point reached through it does.
-        /// @param shaders the compiled shaders every pipeline on this device is built from, and what
-        ///        the pipeline cache is keyed on: one directory for both, so no pipeline loads a
-        ///        module the cache was not keyed on. Where they count, the device holds the census
-        ///        they count into (`getCensus`).
+        /// @param shaders the compiled shaders every pipeline on this device is built from, which must
+        ///        outlive it, and what the pipeline cache is keyed on: one set for both, so no pipeline
+        ///        loads a module the cache was not keyed on. Where they count, the device holds the
+        ///        census they count into (`getCensus`).
         /// @param cache where the pipeline cache is kept. An empty directory keeps none, and every
         ///        pipeline is compiled from source every run.
         /// @param report what the pipelines are made to say of themselves (`reportPipeline`).
@@ -245,7 +245,7 @@ namespace Rtx
         /// `PipelineCache::save`.
         void savePipelineCache();
 
-        const std::filesystem::path& getShaderDirectory() const { return mShaderDirectory; }
+        const ShaderSet& getShaders() const { return mShaders; }
 
         /// The census every pipeline made on the device counts its stores that were not finite into, or
         /// null where its shaders do not count. The device's, as the pool is: every layout binds it and
@@ -415,7 +415,7 @@ namespace Rtx
         bool mPresentWait = false;
         bool mWatchesSubmits = false;
 
-        std::filesystem::path mShaderDirectory;
+        ShaderSet mShaders;
         DeviceReport mReport;
 
         /// Where the pipelines' code goes, null where `mReport` asks for none.

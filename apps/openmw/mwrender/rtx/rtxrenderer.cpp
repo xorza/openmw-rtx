@@ -69,7 +69,7 @@
 #include <components/rtx/renderer/framespend.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/sceneuploader.hpp>
-#include <components/rtx/renderer/shaderdirectory.hpp>
+#include <components/rtx/renderer/shaderset.hpp>
 #include <components/rtx/renderer/verticalsync.hpp>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtx/world/frameworld.hpp>
@@ -148,8 +148,7 @@ namespace MWRender
         adopt(*camera, *frameStamp, *stats);
 
         Rtx::RendererOptions options;
-        options.mShaders
-            = setup.mShaders.value_or(Rtx::ShaderSet{ .mDirectory = Rtx::shaderDirectory(spec.mResourceDir) });
+        options.mShaders = setup.mShaders.value_or(shippedShadersOf(setup.mBackend));
 
         // A measured run keeps no pipeline cache of its own: a pipeline out of the blob starts on the compile's
         // first code and is swapped for the driver's second (`RtxTool::DriverCache`), and the object shared

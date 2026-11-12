@@ -1,7 +1,7 @@
 #pragma once
 
 #include <apps/rtxtool/model/benchrun.hpp>
-#include <components/rtx/renderer/shaderdirectory.hpp>
+#include <components/rtx/renderer/shaderset.hpp>
 
 #include "framed.hpp"
 #include "toolline.hpp"

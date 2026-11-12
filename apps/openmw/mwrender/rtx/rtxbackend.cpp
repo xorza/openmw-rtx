@@ -3,6 +3,7 @@
 #include <components/crashcatcher/crash.hpp>
 #include <components/rtx/renderer/nullrenderer.hpp>
 #include <components/rtx/renderer/renderer.hpp>
+#include <components/rtx/renderer/shaderset.hpp>
 #include <components/rtxvulkan/createrenderer.hpp>
 
 namespace MWRender
@@ -15,6 +16,19 @@ namespace MWRender
                 return Rtx::vulkanWindowFlags();
             case RtxBackend::Null:
                 return SDL_WindowFlags{ 0 };
+        }
+        Crash::fatal("a ray tracing backend past the two");
+    }
+
+    const Rtx::ShaderSet& shippedShadersOf(const RtxBackend backend)
+    {
+        static constexpr Rtx::ShaderSet sNone{};
+        switch (backend)
+        {
+            case RtxBackend::Vulkan:
+                return Rtx::shippedVulkanShaders();
+            case RtxBackend::Null:
+                return sNone;
         }
         Crash::fatal("a ray tracing backend past the two");
     }

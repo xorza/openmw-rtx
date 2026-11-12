@@ -328,8 +328,8 @@ def _archive_linux(build: Build, name: str) -> None:
     LINUX_LIBRARIES.refuse_mismatch(appdir)
 
     # From out/dist/, because appimagetool writes the .zsync into the working directory. The static runtime runs on
-    # FUSE 2, FUSE 3 or none; AppStream validation is off, as upstream's metainfo carries warnings it refuses.
-    env.update(LDAI_RUNTIME_FILE=str(appimage / "runtime-x86_64"), LDAI_NO_APPSTREAM="1",
+    # FUSE 2, FUSE 3 or none.
+    env.update(LDAI_RUNTIME_FILE=str(appimage / "runtime-x86_64"),
                LDAI_UPDATE_INFORMATION=("gh-releases-zsync|xorza|openmw-rtx|latest|"
                                         f"{PRODUCT}-*-linux-x86_64.AppImage.zsync"),
                LDAI_OUTPUT=str(DIST / f"{archive_stem(name)}-linux-x86_64.AppImage"))

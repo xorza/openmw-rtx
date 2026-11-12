@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cstdint>
-#include <filesystem>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -10,7 +9,7 @@
 #include <gtest/gtest.h>
 
 #include <components/rtx/renderer/renderer.hpp>
-#include <components/rtx/renderer/shaderdirectory.hpp>
+#include <components/rtx/renderer/shaderset.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/instance.hpp>
@@ -81,13 +80,11 @@ namespace Rtx::Testing
     /// going holds, since the two above live for the whole binary.
     std::unique_ptr<Harness> makeHarness(bool validation);
 
-    /// Where the build wrote the game's compiled shaders, which carry no census.
-    std::filesystem::path getShaderDirectory();
-
     /// The shaders every device and renderer of the suites reads: the census's, as every run of the
     /// harness but a measured one reads, so a kernel a test dispatches is the module `check` runs
-    /// and every store it makes is counted.
-    ShaderSet getCensusShaders();
+    /// and every store it makes is counted. With the probes, which only the tests run. Read once, for
+    /// the binary's whole run.
+    const ShaderSet& getCensusShaders();
 
     /// Where a device this suite makes keeps what it compiled, and what that cache is keyed on.
     ///

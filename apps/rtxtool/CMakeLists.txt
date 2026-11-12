@@ -105,6 +105,7 @@ target_link_libraries(
         Boost::program_options
         SDL3::SDL3
         openmw-rtx-vulkan
+        openmw-rtx-spirv
         openmw-components
 )
 
@@ -133,6 +134,7 @@ target_compile_definitions(
         OPENMW_RTX_VIEWS_FILE="${RTX_HARNESS_DIR}/${RTX_VIEWS_FILE}"
         OPENMW_RTX_SUITES_FILE="${RTX_HARNESS_DIR}/${RTX_SUITES_FILE}"
         OPENMW_RTX_KEYS_DIR="${RTX_HARNESS_DIR}/${RTX_KEYS_FOLDER}"
+        OPENMW_RTX_SPIRV_DIR="${RTX_SPIRV_DIR}"
         OPENMW_RTX_SPIRV_SOURCE_DIR="${RTX_SPIRV_SOURCE_DIR}"
         OPENMW_RTX_SPIRV_CENSUS_DIR="${RTX_SPIRV_CENSUS_DIR}"
         OPENMW_RTX_SPIRV_CENSUS_SOURCE_DIR="${RTX_SPIRV_CENSUS_SOURCE_DIR}"

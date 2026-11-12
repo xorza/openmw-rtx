@@ -11,6 +11,7 @@
 #include <utility>
 #include <vector>
 
+#include <components/crashcatcher/crash.hpp>
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/platform/gpu.hpp>
@@ -101,10 +102,15 @@ namespace Rtx
         : mPhysicalDevice(std::move(physicalDevice))
         , mInstance(instance.getHandle())
         , mWatchesSubmits(instance.watchesSubmits())
-        , mShaderDirectory(shaders.mDirectory)
+        , mShaders(shaders)
         , mReport(report)
     {
         const Crash::NoteScope noted("making the device");
+        // `ShaderSet::find` and the census's words both read the modules in name order, each name once.
+        Crash::contract(
+            std::ranges::adjacent_find(mShaders.mModules, std::ranges::greater_equal{}, &ShaderModule::mName)
+                == mShaders.mModules.end(),
+            "a shader set out of name order, or naming a module twice");
         if (!mReport.mCodeFolder.empty())
             mCode = std::make_unique<PipelineCodeFolder>(mReport.mCodeFolder);
 
@@ -289,7 +295,7 @@ namespace Rtx
         }
 
         mPipelineCache = std::make_unique<PipelineCache>(
-            mHandle.get(), mPhysicalDevice.getProperties().mProperties2.properties, cache, mShaderDirectory);
+            mHandle.get(), mPhysicalDevice.getProperties().mProperties2.properties, cache, mShaders.mDigest);
         mMemory = std::make_unique<MemoryAllocator>(*this, instance.getHandle(), mPhysicalDevice.getHandle(),
             mPhysicalDevice.getProperties().mMemory,
             MemoryExtensions{ .mBudget = has(DeviceOption::MemoryBudget),
@@ -304,7 +310,7 @@ namespace Rtx
             mMarkers = std::make_unique<BufferMarkers>(*this, markerWrite, has(DeviceOption::UncachedMarkers));
 
         if (shaders.mCensus)
-            mCensus = std::make_unique<NotFiniteCensus>(*this, mShaderDirectory);
+            mCensus = std::make_unique<NotFiniteCensus>(*this, mShaders);
 
         if (has(DeviceOption::PerformanceQuery))
             mZoneCounters = std::make_unique<ZoneCounters>(*this);

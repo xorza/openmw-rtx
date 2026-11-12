@@ -2,21 +2,19 @@
 # of its own. The ray tracer's core stands apart in `rtx/`, a library a layer, and MyGUI's backend on it
 # above the core.
 
-# What the version states, configured once but for the commit, its date and the latest tag, which `get-version`
+# What the version states, configured once but for the commit and the latest tag, which `get-version`
 # fills in at every build from Git (`cmake/GitVersion.cmake`): each file from its template, `<name>.in` in
 # `version_templates`, rewritten only where its text moved, so a build after no commit compiles nothing.
-foreach(field IN ITEMS OPENMW_VERSION_COMMITHASH OPENMW_VERSION_COMMITDATE OPENMW_VERSION_TAGHASH)
+foreach(field IN ITEMS OPENMW_VERSION_COMMITHASH OPENMW_VERSION_TAGHASH)
     set(${field} "@${field}@")
 endforeach()
 set(version_templates "${CMAKE_CURRENT_BINARY_DIR}/version-templates")
 configure_file(version/version.cpp.in "${version_templates}/version.cpp.in" @ONLY)
 configure_file("${PROJECT_SOURCE_DIR}/files/version.in" "${version_templates}/version.in" @ONLY)
-configure_file("${PROJECT_SOURCE_DIR}/files/openmw.appdata.xml" "${version_templates}/openmw.appdata.xml.in" @ONLY)
 set(version_cpp "${PROJECT_BINARY_DIR}/components/version/version.cpp")
 set(version_files
     "${version_cpp}"
     "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources/version"
-    "${PROJECT_BINARY_DIR}/openmw.appdata.xml"
 )
 add_custom_target(
     get-version
@@ -25,7 +23,6 @@ add_custom_target(
     DEPENDS
         "${version_templates}/version.cpp.in"
         "${version_templates}/version.in"
-        "${version_templates}/openmw.appdata.xml.in"
     COMMAND
         ${CMAKE_COMMAND} -DGIT_EXECUTABLE=${GIT_EXECUTABLE} -DSOURCE_DIR=${PROJECT_SOURCE_DIR}
         -DTEMPLATES=${version_templates} "-DFILES=${version_files}" -P ${PROJECT_SOURCE_DIR}/cmake/GitVersion.cmake

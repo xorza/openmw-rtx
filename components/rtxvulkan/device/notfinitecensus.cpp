@@ -3,11 +3,8 @@
 #include <algorithm>
 #include <cstring>
 #include <format>
-#include <system_error>
 
 #include <components/crashcatcher/crash.hpp>
-#include <components/files/conversion.hpp>
-#include <components/platform/folder.hpp>
 #include <components/rtx/common/error.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
@@ -27,7 +24,7 @@ namespace Rtx
         }
     }
 
-    NotFiniteCensus::NotFiniteCensus(const Device& device, const std::filesystem::path& shaderDirectory)
+    NotFiniteCensus::NotFiniteCensus(const Device& device, const ShaderSet& shaders)
         : mWords(Buffer::readBack(device, sBytes,
               VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
               "not-finite census"))
@@ -35,17 +32,10 @@ namespace Rtx
         // Nought before the first frame clears it: a module may count while the renderer loads.
         std::memset(mWords.map(), 0, sBytes);
 
-        // A directory that cannot be read names no module, and the first pipeline is refused by
-        // name in `kernelOf`, as `ShaderCode` refuses it where nothing counts.
-        for (const std::filesystem::directory_entry& entry :
-            Platform::listFolder(shaderDirectory).value_or(std::vector<std::filesystem::directory_entry>()))
+        for (const ShaderModule& module : shaders.mModules)
         {
-            const std::string file = Files::pathToUnicodeString(entry.path().filename());
-            if (!std::string_view(file).ends_with(sSpirv))
-                continue;
-
             Crash::contract(mNamed < Shaders::CENSUS_KERNELS, "more shader modules than the census tells apart");
-            mNames[mNamed++] = std::string(withoutSpirv(file));
+            mNames[mNamed++] = std::string(withoutSpirv(module.mName));
         }
 
         std::sort(mNames.begin(), mNames.begin() + mNamed);
@@ -57,7 +47,7 @@ namespace Rtx
         const auto end = mNames.begin() + mNamed;
         const auto found = std::lower_bound(mNames.begin(), end, name);
         if (found == end || *found != name)
-            throw InputError(std::format("no shader module {} in the shader directory", module));
+            throw InputError(std::format("no shader module {} in the device's shaders", module));
 
         return static_cast<std::uint32_t>(found - mNames.begin());
     }

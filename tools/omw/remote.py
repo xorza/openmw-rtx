@@ -22,7 +22,7 @@ from omw.package import (
 from omw.system import WINDOWS, Refusal, output, require, run, status
 
 # What the run reads from the build: the binary, the configuration and the defaults beside it, and
-# the folders of the resources, the shaders among them, and of the harness.
+# the folders of the resources and of the harness, its shader sets among them.
 SHIPPED = ("openmw-rtxtool", "openmw.cfg", "defaults.bin", "gamecontrollerdb.txt", "resources", "rtxtool")
 
 # The folder beside the binary the libraries it lacks go to, on the other machine.

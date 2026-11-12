@@ -23,7 +23,6 @@
 #include <components/platform/folder.hpp>
 #include <components/platform/wholefile.hpp>
 #include <components/rtx/common/mebibytes.hpp>
-#include <components/rtx/renderer/shaderdirectory.hpp>
 
 #include "result.hpp"
 
@@ -116,7 +115,7 @@ namespace Rtx
         /// The name is the key (driver, shaders), so a run reads only the file it can use and
         /// `sweep` bounds the rest.
         std::filesystem::path cachePath(const PipelineCacheSpec& spec, const VkPhysicalDeviceProperties& properties,
-            const std::filesystem::path& shaderDirectory)
+            const Misc::DigestWords& shaders)
         {
             if (spec.mDirectory.empty())
                 return {};
@@ -125,8 +124,6 @@ namespace Rtx
             std::filesystem::create_directories(spec.mDirectory, failed);
             if (failed)
                 return {};
-
-            const Misc::DigestWords shaders = digestShaders(shaderDirectory);
 
             std::array<std::uint8_t, sizeof(shaders)> digest{};
             std::memcpy(digest.data(), shaders.data(), digest.size());
@@ -204,10 +201,10 @@ namespace Rtx
     }
 
     PipelineCache::PipelineCache(VkDevice device, const VkPhysicalDeviceProperties& properties,
-        const PipelineCacheSpec& spec, const std::filesystem::path& shaderDirectory)
+        const PipelineCacheSpec& spec, const Misc::DigestWords& shaders)
         : mDevice(device)
         , mProperties(properties)
-        , mPath(cachePath(spec, properties, shaderDirectory))
+        , mPath(cachePath(spec, properties, shaders))
     {
         // A player whose driver chokes on the cache reads which file to delete.
         const Crash::NoteScope noted("loading the pipeline cache \"{}\"", Files::pathToUnicodeString(mPath));

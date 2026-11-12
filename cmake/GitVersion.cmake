@@ -1,4 +1,4 @@
-# Run at every build (`get-version` in `components/CMakeLists.txt`): the commit, its date and the latest tag
+# Run at every build (`get-version` in `components/CMakeLists.txt`): the commit and the latest tag
 # into each of `FILES`, from its template in `TEMPLATES`, `<name>.in`, which the configure left with everything
 # else filled in. `configure_file` writes a file only where its text moved. `SOURCE_DIR` is the clone.
 
@@ -7,14 +7,6 @@ execute_process(
         ${GIT_EXECUTABLE} rev-parse HEAD
     WORKING_DIRECTORY ${SOURCE_DIR}
     OUTPUT_VARIABLE OPENMW_VERSION_COMMITHASH
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-    COMMAND_ERROR_IS_FATAL ANY
-)
-execute_process(
-    COMMAND
-        ${GIT_EXECUTABLE} log -1 --format=%as
-    WORKING_DIRECTORY ${SOURCE_DIR}
-    OUTPUT_VARIABLE OPENMW_VERSION_COMMITDATE
     OUTPUT_STRIP_TRAILING_WHITESPACE
     COMMAND_ERROR_IS_FATAL ANY
 )

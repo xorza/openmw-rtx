@@ -79,7 +79,7 @@ target_sources(
         rtx/renderer/nullrenderer.cpp
         rtx/renderer/scenetextures.cpp
         rtx/renderer/sceneuploader.cpp
-        rtx/renderer/shaderdirectory.cpp
+        rtx/renderer/shaderset.cpp
         rtx/scene/compositequeue.cpp
         rtx/scene/instancerecord.cpp
         rtx/scene/lightgrid.cpp
@@ -159,6 +159,7 @@ target_sources(
         rtxvulkan/shaders/medium.cpp
         rtxvulkan/shaders/shadow.cpp
         rtxvulkan/shaders/sharedconstants.cpp
+        rtxvulkan/spirv/shaderfolder.cpp
         rtxvulkan/spirv/spirvdigest.cpp
         rtxvulkan/spirv/spirvfile.cpp
         rtxvulkan/spirv/spirvinterface.cpp

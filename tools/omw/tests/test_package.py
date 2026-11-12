@@ -230,7 +230,7 @@ class InstallTest(unittest.TestCase):
             installed_programs(self.root)
 
     def test_the_harness_files_are_named_wherever_they_land_and_the_games_are_not(self):
-        for name in ("openmw.exe", "openmw-rtxtool", "rtx-gpu-tests.exe", "resources/rtx/shaders/a.spv",
+        for name in ("openmw.exe", "openmw-rtxtool", "rtx-gpu-tests.exe", "resources/lua_libs/util.lua",
                      "resources/vfs/scripts/a.lua", "rtxtool/views.cfg", "rtxtool/vfs/rtxtool.omwscripts",
                      "resources/rtx/views.cfg", "resources/rtx/shaders-driver-cache/abc/entry",
                      "resources/rtx/shaders-census/a.spv", "test-output/crash-matrix/abort/log.txt"):

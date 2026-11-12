@@ -3,6 +3,7 @@
 #include <chrono>
 #include <cstdint>
 #include <exception>
+#include <filesystem>
 #include <format>
 #include <memory>
 #include <span>
@@ -28,6 +29,7 @@
 #include <components/rtxvulkan/device/notfinitecensus.hpp>
 #include <components/rtxvulkan/device/physicaldevice.hpp>
 #include <components/rtxvulkan/device/validation.hpp>
+#include <components/rtxvulkan/spirv/shaderfolder.hpp>
 #include <components/rtxvulkan/vulkanrenderer.hpp>
 
 namespace Rtx::Testing
@@ -215,14 +217,10 @@ namespace Rtx::Testing
         return cachedHarness(false);
     }
 
-    std::filesystem::path getShaderDirectory()
+    const ShaderSet& getCensusShaders()
     {
-        return std::filesystem::path(OPENMW_RTX_SHADER_DIR);
-    }
-
-    ShaderSet getCensusShaders()
-    {
-        return ShaderSet{ .mDirectory = std::filesystem::path(OPENMW_RTX_CENSUS_SHADER_DIR), .mCensus = true };
+        static const ShaderFolder sCensus(std::filesystem::path(OPENMW_RTX_CENSUS_SHADER_DIR), true);
+        return sCensus.getSet();
     }
 
     PipelineCacheSpec getPipelineCacheSpec()

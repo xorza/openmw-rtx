@@ -50,8 +50,8 @@ the lines each item names, which the merge resolves by keeping the seam:
   write, its stamp with it (`DebugOutputBase::write`): the monitor appends its summaries to the log
   from a process of its own, and one that landed between a stamp and its text split the line.
 - The fork's name, OpenMW RTX, where a player tells it from an installed upstream OpenMW: the launcher's and the
-  wizard's window titles, with each translation of them renamed in step, the menu entry's `Name` and the AppStream
-  `<name>`. The cost is a conflict with an upstream edit to those lines or those translations.
+  wizard's window titles, with each translation of them renamed in step, and the menu entry's `Name`. The cost is
+  a conflict with an upstream edit to those lines or those translations.
 - The fork's own `README.md`, `env/` (upstream's `CI/`, renamed for what it holds, the systems a build runs
   on) and workflows, and the root tooling: `CMakePresets.json`, `.clangd`, `.zed/`, `omw`, `omw.cmd`,
   `.claude/skills/`, `.gitattributes` and `.gitignore`.
@@ -410,8 +410,8 @@ the lines each item names, which the merge resolves by keeping the seam:
   `env/release-base.Dockerfile`. `upstream.yml` keeps the folder deleted, which drops an upstream edit to it at
   the merge.
 - Dead CMake gone: `cmake/escape_regex_control_characters.cmake`, which
-  nothing called; the commit date the root read with `git log` at every configure, which the AppStream
-  metadata's release date reads and `cmake/GitVersion.cmake` fills in at every build instead; the
+  nothing called; the commit date the root read with `git log` at every configure, which only the AppStream
+  metadata's release date read; the
   `OPENMW_RESOURCES_ROOT` guards atop `files/data`, `files/data-mw`, `files/shaders` and `files/lua_api`,
   which the root always sets first; the install components, which nothing installs by since CPack went; the
   empty `CMAKE_CXX_CLANG_TIDY` in `extern/`; and `mwmechanics/character.cpp`'s `-Wno-maybe-uninitialized`,
@@ -431,8 +431,7 @@ the lines each item names, which the merge resolves by keeping the seam:
 - The version filled once: a build is of a Git clone, which a configure
   without `.git` refuses, so `GIT_CHECKOUT` and the configure-time fallback with empty hashes go. The version
   files are configured once with everything but the commit, its date and the latest tag, and
-  `cmake/GitVersion.cmake` fills those three at every build, now into the AppStream metadata too, whose
-  release date had read a date taken at configure. The templates read `PROJECT_VERSION*`, so the
+  `cmake/GitVersion.cmake` fills the commit and the latest tag at every build. The templates read `PROJECT_VERSION*`, so the
   `OPENMW_VERSION_*` copies of it go. The cost is a conflict with an upstream edit to the version's templates
   or its target.
 - Each dependency found one way: libunshield by its header and archive, as
@@ -466,12 +465,20 @@ the lines each item names, which the merge resolves by keeping the seam:
   `cmake/Options.cmake` and the root; the build types narrowed to the two `cmake/Flags.cmake` defines,
   `RelWithDebInfo` and `Release`. The cost is a conflict with an upstream edit to those lines.
 - The build files in one layout: the installed programs named once in
-  `cmake/Install.cmake`, with their PDBs and `defaults-cs.bin`, in place of an `install(TARGETS)` in each app's
+  `cmake/Install.cmake`, in place of an `install(TARGETS)` in each app's
   folder; the CS's console as the game's, by `WIN32_EXECUTABLE` set to `$<CONFIG:Release>`, where upstream opens
   one in every configuration; the set's libraries without CMake targets imported by one function; `pack_resource_file`
   written out in `files/`, its one caller, and `openmw_qt_platforms` beside Qt's `find_package`, so
   `cmake/OpenMWMacros.cmake` and `CMAKE_MODULE_PATH` go. The cost is a conflict with an upstream edit to an app's
   install line, the CS's executable, or those finds.
+- What an archive carries, by name: the programs, `LICENSE` and the licences, the configuration, the settings'
+  defaults, the controller mappings, and the resource folders a program reads at run time, the virtual file
+  system without the post-processing shaders and the water's normal map only the rasterizer reads; the menu entry
+  and its icon on Linux. Gone from the install: `README.md`, `AUTHORS.md` and the changelog, the rasterizer's
+  `resources/shaders`, the modders' `resources/lua_api`, the editor's `defaultfilters`, the PDBs, which a release
+  publishes apart, and the AppStream metadata (`files/openmw.appdata.xml`), which an AppImage does not need, with
+  the commit date only its release date read. `upstream.yml` keeps the metadata deleted. The cost is a conflict
+  with an upstream edit to the install rules or the version's templates.
 - `openmw-lib` an object library rather than a static one: under MSVC's link-time code generation its archive
   came to 3.6 GB of the 4 GB `lib.exe` writes (LNK1248), and the three programs that link it, the game, the
   harness and `openmw-tests`, take its objects directly. The cost is a conflict with an upstream edit to that line.

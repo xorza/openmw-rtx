@@ -6,7 +6,6 @@
 #include <span>
 #include <string>
 #include <string_view>
-#include <vector>
 
 #include <volk.h>
 
@@ -48,20 +47,20 @@ namespace Rtx
     std::optional<std::string> inputDisagreement(
         std::span<const ModuleInput> inputs, std::span<const VkVertexInputAttributeDescription> attributes);
 
-    /// SPIR-V from the device's shader directory, read once a file however many stages name it,
-    /// and handed to each stage inline: `maintenance5` takes a stage's code in its `pNext`, so no
-    /// `VkShaderModule` is made. Kept by whoever makes the pipelines that share a file, only until
+    /// SPIR-V from the device's shaders, each module's interface read once however many stages name it,
+    /// and its words handed to each stage inline: `maintenance5` takes a stage's code in its `pNext`, so no
+    /// `VkShaderModule` is made. Kept by whoever makes the pipelines that share a module, only until
     /// they are made: the driver reads the words during the create call.
     ///
-    /// Every file is read where this is made, with its interface, so nothing after reads again.
-    /// Read-only once made, so the hands of a parallel compile share one.
+    /// Every module is read where this is made, so nothing after reads again. Read-only once made, so
+    /// the hands of a parallel compile share one.
     class ShaderCode
     {
     public:
-        /// Reads every one of `modules`, each checked for being the one the build wrote, because a
-        /// truncated `.spv` is otherwise a driver crash with no explanation.
+        /// Reads every one of `modules`, each checked for being a whole module, because a truncated
+        /// one is otherwise a driver crash with no explanation.
         ///
-        /// @throws InputError where a file cannot be read or is not a module.
+        /// @throws InputError where the device's shaders hold no such module or it is not a module.
         ShaderCode(const Device& device, std::span<const std::string_view> modules);
 
         ShaderCode(const ShaderCode&) = delete;
@@ -97,12 +96,12 @@ namespace Rtx
         /// What this read of `module`, which it must have.
         const Read& readOf(std::string_view module) const;
 
-        /// One file's words and the structures a stage chains, which point into the words and at
-        /// one another: a deque, so a later read moves none of them.
+        /// One module's words, the set's, and the structures a stage chains, which point into the
+        /// words and at one another: a deque, so a later read moves none of them.
         struct Read
         {
             std::string mModule;
-            std::vector<std::uint32_t> mWords;
+            std::span<const std::uint32_t> mWords;
             ModuleInterface mInterface;
             VkDebugUtilsObjectNameInfoEXT mNamed{};
             VkShaderModuleCreateInfo mCreate{};

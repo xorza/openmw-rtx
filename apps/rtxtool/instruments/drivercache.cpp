@@ -5,9 +5,9 @@
 #include <system_error>
 #include <vector>
 
+#include <components/files/conversion.hpp>
 #include <components/platform/folder.hpp>
 #include <components/platform/process.hpp>
-#include <components/rtx/renderer/shaderdirectory.hpp>
 
 #include "digest.hpp"
 
@@ -22,17 +22,16 @@ namespace RtxTool
         constexpr std::uint64_t sDriverCacheBytes = sDriverCacheGibibytes << 30;
 
         /// Where a shader set's caches go: in the harness's folder, named after the set.
-        std::filesystem::path cacheRootOf(const std::filesystem::path& harness, const std::filesystem::path& shaders)
+        std::filesystem::path cacheRootOf(const std::filesystem::path& harness, const std::string_view name)
         {
-            std::filesystem::path name = shaders.filename();
-            name += "-driver-cache";
-            return harness / name;
+            return harness / Files::pathFromUnicodeString(std::string(name) + "-driver-cache");
         }
     }
 
-    DriverCache::DriverCache(const std::filesystem::path& harness, const std::filesystem::path& shaders)
-        : mRoot(cacheRootOf(harness, shaders))
-        , mDirectory(mRoot / spellHash(Rtx::digestShaders(shaders)))
+    DriverCache::DriverCache(
+        const std::filesystem::path& harness, const std::string_view name, const Misc::DigestWords& shaders)
+        : mRoot(cacheRootOf(harness, name))
+        , mDirectory(mRoot / spellHash(shaders))
     {
         std::filesystem::create_directories(mDirectory);
     }

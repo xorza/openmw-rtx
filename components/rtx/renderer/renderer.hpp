@@ -33,7 +33,7 @@
 #include "guirenderer.hpp"
 #include "memoryreport.hpp"
 #include "picturerenderer.hpp"
-#include "shaderdirectory.hpp"
+#include "shaderset.hpp"
 #include "slot.hpp"
 #include "verticalsync.hpp"
 
@@ -178,7 +178,7 @@ namespace Rtx
 
     struct RendererOptions
     {
-        /// Where the build wrote the compiled shaders for whichever backend this is, and whether
+        /// The compiled shaders of whichever backend this is, which outlive the renderer, and whether
         /// they count their stores that were not finite — `FrameResult::mNotFinite`. The game's
         /// do not, and nor do a measured run's, whose figures are of the game's kernels.
         ShaderSet mShaders;

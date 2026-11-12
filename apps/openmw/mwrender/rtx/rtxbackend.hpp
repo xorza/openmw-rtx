@@ -13,6 +13,7 @@ namespace Rtx
 {
     class Renderer;
     struct RendererOptions;
+    struct ShaderSet;
 }
 
 namespace MWRender
@@ -36,6 +37,10 @@ namespace MWRender
     /// `Rtx::Unsupported` where no driver presents to one, or none for the null backend, which
     /// presents nothing. SDL's offscreen driver makes a window with none where there is no display.
     SDL_WindowFlags surfaceFlagsOf(RtxBackend backend);
+
+    /// The shaders `backend` is made with where a run brings none of its own: the ones the game compiles in,
+    /// or none for the null backend, which makes no pipeline.
+    const Rtx::ShaderSet& shippedShadersOf(RtxBackend backend);
 
     /// The backend itself, over the window `options` names.
     std::unique_ptr<Rtx::Renderer> createBackend(RtxBackend backend, const Rtx::RendererOptions& options);

@@ -1,5 +1,8 @@
 #include "harnessfolder.hpp"
 
+#include <components/files/conversion.hpp>
+#include <components/rtxvulkan/createrenderer.hpp>
+
 namespace RtxTool
 {
     std::filesystem::path harnessDirectory()
@@ -22,15 +25,20 @@ namespace RtxTool
         return std::filesystem::path(OPENMW_RTX_KEYS_DIR);
     }
 
-    Rtx::ShaderSet shadersFor(const std::filesystem::path& resources, const Verbs verb, const bool source)
+    HarnessShaders::HarnessShaders(const Verbs verb, const bool source)
     {
         const bool census = !policyOf(verb).mMeasures;
-        if (!source && !census)
-            return Rtx::ShaderSet{ .mDirectory = Rtx::shaderDirectory(resources) };
+        const std::filesystem::path folder(census
+                ? (source ? OPENMW_RTX_SPIRV_CENSUS_SOURCE_DIR : OPENMW_RTX_SPIRV_CENSUS_DIR)
+                : (source ? OPENMW_RTX_SPIRV_SOURCE_DIR : OPENMW_RTX_SPIRV_DIR));
+        mName = Files::pathToUnicodeString(folder.filename());
+        // The game's own where it is the game's set, so a measured run times the very modules it ships.
+        if (source || census)
+            mFolder.emplace(folder, census);
+    }
 
-        const char* const directory = census
-            ? (source ? OPENMW_RTX_SPIRV_CENSUS_SOURCE_DIR : OPENMW_RTX_SPIRV_CENSUS_DIR)
-            : OPENMW_RTX_SPIRV_SOURCE_DIR;
-        return Rtx::ShaderSet{ .mDirectory = std::filesystem::path(directory), .mCensus = census };
+    const Rtx::ShaderSet& HarnessShaders::getSet() const
+    {
+        return mFolder.has_value() ? mFolder->getSet() : Rtx::shippedVulkanShaders();
     }
 }

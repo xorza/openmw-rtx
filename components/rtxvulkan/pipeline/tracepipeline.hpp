@@ -78,7 +78,7 @@ namespace Rtx
         ///        will ever be handed.
         /// @param code where the stage's file was read, shared by the pipelines a pass makes of one
         ///        set of modules.
-        /// @param raygen the compiled SPIR-V the build wrote, by name in the device's shader directory.
+        /// @param raygen the compiled SPIR-V the build wrote, by name among the device's shaders.
         /// @param name what a capture calls the pipeline.
         TracePipeline(const Device& device, std::span<const VkDescriptorSetLayoutBinding> bindings,
             const SharedSetLayouts& shared, const ShaderCode& code, std::string_view raygen, std::string_view name,

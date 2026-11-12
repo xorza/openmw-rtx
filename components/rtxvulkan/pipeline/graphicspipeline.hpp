@@ -74,7 +74,7 @@ namespace Rtx
         /// modes are.
         VkPrimitiveTopology mTopology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
-        /// The stages' compiled SPIR-V, by name in the device's shader directory.
+        /// The stages' compiled SPIR-V, by name among the device's shaders.
         std::string_view mVertexModule;
         std::string_view mFragmentModule;
 

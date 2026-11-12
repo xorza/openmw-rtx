@@ -18,9 +18,10 @@
 #include <apps/rtxtool/model/blockfile.hpp>
 #include <apps/rtxtool/model/viewfile.hpp>
 #include <apps/rtxtool/verbs.hpp>
-#include <components/rtx/renderer/shaderdirectory.hpp>
+#include <components/rtx/renderer/shaderset.hpp>
 #include <components/rtx/world/frameworld.hpp>
 #include <components/rtx/world/weather.hpp>
+#include <components/rtxvulkan/createrenderer.hpp>
 #include <components/testing/util.hpp>
 
 namespace RtxTool
@@ -90,15 +91,14 @@ namespace RtxTool
         /// **The one way this pair can be wrong that nothing else catches**: a view renamed in `views.cfg`
         /// leaves `benches.cfg` naming something that no longer exists, found by the run somebody started
         /// and walked away from. **Read where the build put them**: the harness's folder, which holds its
-        /// scripts and the shaders with their source too, apart from the resources an install carries.
+        /// scripts and its shader sets, apart from the resources an install carries.
         TEST(RtxBenchSuiteTest, everySuiteNamesViewsThatExist)
         {
             const std::filesystem::path harness = harnessDirectory();
-            const std::filesystem::path resources
-                = std::filesystem::path(OPENMW_RTX_SHADER_DIR).parent_path().parent_path();
             EXPECT_TRUE(std::filesystem::is_regular_file(keysDirectory() / "rtxtool.omwscripts"));
-            // **A verb that measures reads the game's modules**, and every other counts: `bench` and
-            // `film` time the game's kernels, and the rest are where a NaN is found.
+            // **A verb that measures reads the modules the game compiles in**, and every other counts: `bench`
+            // and `film` time the game's kernels, and the rest are where a NaN is found. Each set is named after
+            // its folder in the harness's, which its driver cache is named after.
             const std::array<std::pair<Verbs, bool>, 8> counts{ { { Verbs::Info, true }, { Verbs::Scene, true },
                 { Verbs::Shot, true }, { Verbs::View, true }, { Verbs::Bench, false }, { Verbs::Check, true },
                 { Verbs::Film, false }, { Verbs::Noise, true } } };
@@ -108,16 +108,19 @@ namespace RtxTool
                 covered = covered | verb;
                 for (const bool source : { false, true })
                 {
-                    const Rtx::ShaderSet set = shadersFor(resources, verb, source);
-                    EXPECT_TRUE(std::filesystem::is_directory(set.mDirectory)) << set.mDirectory;
+                    const HarnessShaders shaders(verb, source);
+                    const Rtx::ShaderSet& set = shaders.getSet();
+                    EXPECT_FALSE(set.mModules.empty()) << shaders.getName();
                     EXPECT_EQ(set.mCensus, census) << verbName(verb);
-                    EXPECT_EQ(set.mDirectory.parent_path() == harness, source || census) << set.mDirectory;
+                    EXPECT_EQ(set.mModules.data() == Rtx::shippedVulkanShaders().mModules.data(), !source && !census)
+                        << shaders.getName();
+                    EXPECT_EQ(shaders.getName(),
+                        census ? (source ? "shaders-census-source" : "shaders-census")
+                               : (source ? "shaders-source" : "shaders"));
+                    EXPECT_TRUE(std::filesystem::is_directory(harness / shaders.getName())) << shaders.getName();
                 }
             }
             EXPECT_EQ(covered, Verbs::Every) << "a verb this table has no row for";
-            EXPECT_EQ(shadersFor(resources, Verbs::Bench, false).mDirectory, Rtx::shaderDirectory(resources));
-            const std::filesystem::path within = harness.lexically_relative(resources);
-            EXPECT_TRUE(within.empty() || *within.begin() == "..") << "the harness's folder inside the resources";
 
             const std::vector<RtxTool::Stop> views = loadViews(viewsFile());
             const std::vector<BenchSuite> suites = loadSuites(suitesFile());
