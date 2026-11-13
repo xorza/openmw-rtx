@@ -482,3 +482,46 @@ The benchmark's corpora, the digests the same, three runs:
 The corpora gain more than the made blocks, whose orderings come to the same endpoints less often. After, over
 the made blocks: the four-colour selector search 31%, an ordering's endpoints 19%, the three-colour block 12%.
 
+## Cold a third time, and what one core alone overstates
+
+The tree at `0011749652` and the tree at `2099a298be`, back to back for each content list, the recording of the
+new tree's runs alone:
+
+| content | preparation, before | after | its threads' CPU, before | after |
+|---|---|---|---|---|
+| vanilla | 3.16 s | 1.67 s | 45.6 s | 23.9 s |
+| Fullrest Repack | 329.1 s | 152.7 s | 4,895 s | 2,271 s |
+| PBR replacers | 77.7 s | 40.4 s | 1,145 s | 595 s |
+
+Every entry of the two stores the same byte for byte again, 19,401, 105,289 and 32,027 files, the manifest beside
+them aside; the Repack's two stores hold the same entries this time.
+
+Against the run of "Cold again", which was before every mode of BC7 and BC1's orderings: the Repack's CPU from
+2,515 s to 2,271 s. By the samples, BC7 from 263 s to 129 s, as its benchmark said, and delight 405 s and 410 s;
+but BC1 from 1,583 s to 1,462 s, 7.6% less, where the benchmark on one core said 21%.
+
+The orderings' gain is branches guessed wrong, and a core whose two hardware threads are both busy loses less to
+one: what one thread throws away, the other runs in. The made blocks of that section's first setting, the
+encoder before and after, a block:
+
+| | before | after | less |
+|---|---|---|---|
+| one thread on a core, the other idle | 1,028 ns | 865 ns | 15.9% |
+| both threads of the core encoding | 1,626 ns | 1,562 ns | 3.9% |
+
+The preparation runs a thread on every hardware thread it is given, so the second row is what a change of this
+kind is worth to it; the benchmark's one pinned core is the first. A change that removes instructions, as every
+mode of BC7's did, holds in both.
+
+Inclusive shares of the new runs' samples:
+
+| function | vanilla | Fullrest Repack | PBR replacers |
+|---|---|---|---|
+| `ChainPass::run`, every chain | 75.7% | 93.3% | 90.0% |
+| `ChainBuild::encode`, rgbcx's BC1 | 54.2% | 63.6% | 25.2% |
+| `ChainBuild::encodeBc7`, bc7enc | 3.0% | 5.6% | 39.3% |
+| `ChainBuild::build` | 18.3% | 24.2% | 24.7% |
+| of it, `ChainBuild::delight` | 13.4% | 17.8% | 4.4% |
+| of it, `ChainBuild::buildNormals` | — | — | 10.6% |
+| `ShapePass::run` | 9.8% | 3.3% | 0.9% |
+
