@@ -274,7 +274,8 @@ namespace Rtx
         const DenoisePasses::Request request{ .mSampled = what.mSampled,
             .mMapped = inputs.mSubject.mMapped,
             .mLamps = inputs.mSubject.mLamps,
-            .mReconstruction = what.mReconstruction };
+            .mReconstruction = what.mReconstruction,
+            .mExposure = what.mExposure };
         std::optional<Denoised> resolved;
         if (composesInCascade)
             mPasses.mDenoise.recordComposing(commands, *mDenoise, *mChannels, request, mComposed, what.mTimer);

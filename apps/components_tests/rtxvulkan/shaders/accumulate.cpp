@@ -80,6 +80,23 @@ namespace Rtx
             EXPECT_EQ(Shaders::ringHeldLuminance(5.0f, 0.0f, 0.0f, 0.0f), 5.0f);
         }
 
+        /// **A sample is held under forty times the white of the exposure the frame before was shown at**:
+        ///
+        /// - At an exposure of a half the ceiling is `40 / 0.5 = 80`: a sample of 160 keeps `80 / 160`, a half; one
+        ///   of 80 stands at the ceiling and keeps all of it, as do 40 and nought.
+        /// - At an exposure of two it is `40 / 2 = 20`, so the same 160 keeps `20 / 160`, an eighth.
+        /// - At an exposure of nought it is forty over `ACCUMULATE_FIREFLY_LEAST_EXPOSURE`, 4e7, and not infinite:
+        ///   a sample of 8e7 keeps a half.
+        TEST(RtxAccumulateClampTest, aSampleIsHeldUnderTheExposuresCeiling)
+        {
+            EXPECT_FLOAT_EQ(Shaders::heldSampleShare(160.0f, 0.5f), 0.5f);
+            EXPECT_EQ(Shaders::heldSampleShare(80.0f, 0.5f), 1.0f);
+            EXPECT_EQ(Shaders::heldSampleShare(40.0f, 0.5f), 1.0f);
+            EXPECT_EQ(Shaders::heldSampleShare(0.0f, 0.5f), 1.0f);
+            EXPECT_FLOAT_EQ(Shaders::heldSampleShare(160.0f, 2.0f), 0.125f);
+            EXPECT_FLOAT_EQ(Shaders::heldSampleShare(8.0e7f, 0.0f), 0.5f);
+        }
+
         /// **A short history's variance is the moments' around it, raised for the shortest**: moments
         /// of one and 1.25 are a variance of `1.25 - 1²`, a quarter, which a mean of one frame doubles
         /// (`4 / 2`), one of two raises by `4 / 3` to 0.3333, and one of three or more keeps (`4 / 4` is

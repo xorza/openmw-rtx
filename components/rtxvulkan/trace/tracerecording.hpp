@@ -7,6 +7,7 @@
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/shaders/visibility.h>
 
+#include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 
@@ -46,6 +47,10 @@ namespace Rtx
         /// what the trace makes of its bounce, and so whether the trace composes the frame itself.
         /// Borrowed, as `mSampled` is.
         const Reconstruction& mReconstruction;
+
+        /// What the frame before was shown at, one float (`DisplayChain::getFrameExposure`), or a picture's
+        /// one: what the denoiser holds a firefly's sample against (`ACCUMULATE_FIREFLY_CEILING`).
+        const Buffer& mExposure;
 
         /// How many frames the chain's running total holds, this one included, or nought where
         /// nothing is averaging (`FrameOptions::mAccumulate`).

@@ -68,7 +68,8 @@ namespace Rtx::Shaders
     const uint ACCUMULATE_BIND_HISTORY_FAST = 11;
     const uint ACCUMULATE_BIND_FAST_OUT = 12;
     const uint ACCUMULATE_BIND_MATCH_OUT = 13;
-    const uint ACCUMULATE_BINDINGS = 14;
+    const uint ACCUMULATE_BIND_EXPOSURE = 14;
+    const uint ACCUMULATE_BINDINGS = 15;
 
     /// Threads along each edge of the accumulator's workgroup, and of the clamp's.
     const uint ACCUMULATE_WORKGROUP = 8;
@@ -203,6 +204,11 @@ namespace Rtx::Shaders
     {
         HistoryConstants mHistory;
         uint mDualMotion;
+
+        /// One where a firefly's sample is held under `ACCUMULATE_FIREFLY_CEILING` over the exposure the frame
+        /// before was shown at, nought where the run asked for the A/B without it (`FilterSwitches::mAntiFirefly`):
+        /// a factor, so both runs take one path.
+        uint mFireflyHold;
     };
 
     /// The luminance a slow mean `lit` keeps under the fast means around it: no more than the mean of
@@ -218,6 +224,15 @@ namespace Rtx::Shaders
             return lit;
         const float mean = sum / count;
         return min(lit, mean + ACCUMULATE_RING_SPREAD * sqrt(max(squares / count - mean * mean, 0.0f)));
+    }
+
+    /// The share of a sample of the bounce of luminance `lit` the accumulator keeps on a frame after one shown at
+    /// `exposure`: all of it up to `ACCUMULATE_FIREFLY_CEILING` over the exposure, and no more past it, the colour
+    /// kept as it was.
+    RTX_SHADER float heldSampleShare(float lit, float exposure)
+    {
+        const float ceiling = ACCUMULATE_FIREFLY_CEILING / max(exposure, ACCUMULATE_FIREFLY_LEAST_EXPOSURE);
+        return lit > ceiling ? ceiling / lit : 1.0f;
     }
 
     /// The variance of a luminance whose first and second moments are `first` and `second`.
@@ -255,7 +270,7 @@ namespace Rtx::Shaders
     // reads them are different compilers.
 #ifdef RTX_HOST
     static_assert(sizeof(HistoryConstants) == 224, "HistoryConstants must be scalar-packed on every side");
-    static_assert(sizeof(AccumulateConstants) == 228, "AccumulateConstants must be scalar-packed on every side");
+    static_assert(sizeof(AccumulateConstants) == 232, "AccumulateConstants must be scalar-packed on every side");
     static_assert(
         sizeof(AccumulateClampConstants) == 160, "AccumulateClampConstants must be scalar-packed on every side");
     static_assert(ACCUMULATE_RING_REACH >= ACCUMULATE_CLAMP_REACH && ACCUMULATE_RING_HOLE < ACCUMULATE_RING_REACH,

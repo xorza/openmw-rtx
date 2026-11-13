@@ -1045,9 +1045,15 @@ namespace Rtx::Testing
             return camera;
         }
 
+        /// An exposure at which `ACCUMULATE_FIREFLY_CEILING` holds no bounce of `lanternOverAFloor`: forty
+        /// thousand, where the sheet's 400 brought back off the floor by a cosine draw stand at most `400 π`,
+        /// 1257, so what a test of the ring measures is the ring's.
+        constexpr float sUnheldExposure = 1.0e-3f;
+
         /// The composite of `renderer` after `frames` filtered frames from a cut, each its own draw from
-        /// `first` on, with the ring or without it.
-        void drawFromACut(VulkanRenderer& renderer, Shaders::VisibilityConstants camera, bool ring,
+        /// `first` on, shown at `exposure`, with the firefly hold (`FilterSwitches::mAntiFirefly`) or without
+        /// it.
+        void drawFromACut(VulkanRenderer& renderer, Shaders::VisibilityConstants camera, bool ring, float exposure,
             std::uint32_t frames, std::uint32_t first, std::vector<float>& read)
         {
             RendererProbe probe(renderer);
@@ -1058,7 +1064,7 @@ namespace Rtx::Testing
                     FrameOptions{ .mLoss = at == 0 ? HistoryLoss::Cut : HistoryLoss::None,
                         .mReconstruction = ReconstructionRequest{ .mDenoise = true,
                             .mFilters = { .mAntilag = false, .mAntiFirefly = ring } },
-                        .mExposure = FixedExposure{ 1.0f } });
+                        .mExposure = FixedExposure{ exposure } });
                 EXPECT_TRUE(renderer.finishFrame().has_value());
             }
             probe.readComposite(read);
@@ -1086,7 +1092,7 @@ namespace Rtx::Testing
                 std::uint32_t count = 0;
                 for (std::uint32_t draw = 0; draw < draws; ++draw)
                 {
-                    drawFromACut(mRenderer, camera, ring, fresh, 1000 + 100 * draw, read);
+                    drawFromACut(mRenderer, camera, ring, sUnheldExposure, fresh, 1000 + 100 * draw, read);
                     for (std::size_t at = 1; at < read.size(); at += 4)
                         count += read[at] > 4.0f * reference[at] ? 1u : 0u;
                 }
@@ -1104,6 +1110,11 @@ namespace Rtx::Testing
         /// a hundredth. The first eight frames, a quarter of a mean of 32, are `(31/32)^128` of that quarter 128
         /// frames later, under half a hundredth of the mean however much of their light the ring took.
         ///
+        /// **And the ceiling the exposure sets is what takes the lantern's light for good**: shown at one, where
+        /// the floor's mean stands near white and a bounce that finds the sheet near two hundred times it, the
+        /// ceiling at forty drops most of what the sheet throws, which no settling gives back. Measured: 0.212 of
+        /// the unheld mean.
+        ///
         /// On the unvalidated renderer (`getUnvalidatedRenderer`), because the claim needs all of its 320
         /// frames (at 112 the means stood 2.6% apart on a low-end AMD integrated GPU) and the layers hold each
         /// at three times its cost, past what a test may take; the ring's passes are validated by
@@ -1119,15 +1130,18 @@ namespace Rtx::Testing
             const Shaders::VisibilityConstants camera = overTheLantern(size);
 
             std::vector<float> read;
-            const auto meanOf = [&](bool ring) {
-                drawFromACut(renderer, camera, ring, settled, 5000, read);
+            const auto meanOf = [&](bool ring, float exposure) {
+                drawFromACut(renderer, camera, ring, exposure, settled, 5000, read);
                 double sum = 0.0;
                 for (std::size_t at = 1; at < read.size(); at += 4)
                     sum += static_cast<double>(read[at]);
                 return sum / static_cast<double>(size * size);
             };
-            const double unheld = meanOf(false);
-            EXPECT_NEAR(meanOf(true) / unheld, 1.0, 0.01) << "the ring kept a settled mean's light from it";
+            const double unheld = meanOf(false, 1.0f);
+            EXPECT_NEAR(meanOf(true, sUnheldExposure) / unheld, 1.0, 0.01)
+                << "the ring kept a settled mean's light from it";
+            const double capped = meanOf(true, 1.0f) / unheld;
+            EXPECT_LT(capped, 0.5) << "the ceiling at an exposure of one left the sheet " << capped << " of its light";
         }
 
         /// A fresh pixel is filtered the same under any light (`shortHistoryVariance`).

@@ -1,5 +1,6 @@
 #include "accumulatepass.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cassert>
 #include <cstddef>
@@ -18,8 +19,16 @@ namespace Rtx
     {
         /// Every binding is a storage image. The slow colour histories are read and not written, because
         /// the first wavelet level writes the history this reads next frame — SVGF's feedback.
-        constexpr std::array<VkDescriptorSetLayoutBinding, Shaders::ACCUMULATE_BINDINGS> sBindings
-            = computeBindings<Shaders::ACCUMULATE_BINDINGS>(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+        ///
+        /// And the exposure the frame before was shown at, a buffer, last.
+        constexpr std::array<VkDescriptorSetLayoutBinding, Shaders::ACCUMULATE_BINDINGS> sBindings = [] {
+            std::array<VkDescriptorSetLayoutBinding, Shaders::ACCUMULATE_BINDINGS> bindings{};
+            const auto images = computeBindings<Shaders::ACCUMULATE_BIND_EXPOSURE>(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+            std::copy(images.begin(), images.end(), bindings.begin());
+            bindings[Shaders::ACCUMULATE_BIND_EXPOSURE]
+                = computeBinding(Shaders::ACCUMULATE_BIND_EXPOSURE, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+            return bindings;
+        }();
 
         /// The surface, the fast blends and the frame's samples read, the slow means rewritten in
         /// place, and the fast means written.
@@ -88,10 +97,12 @@ namespace Rtx
         writes.image(Shaders::ACCUMULATE_BIND_HISTORY_FAST, images.mFast.describeStorage());
         writes.image(Shaders::ACCUMULATE_BIND_FAST_OUT, images.mFastBlended.describeStorage());
         writes.image(Shaders::ACCUMULATE_BIND_MATCH_OUT, images.mMatch.describeStorage());
+        writes.buffer(Shaders::ACCUMULATE_BIND_EXPOSURE, frame.mExposure.describe());
 
         const Shaders::AccumulateConstants constants{
             .mHistory = frame.history(images.mFresh),
             .mDualMotion = frame.mFilters.mDualMotion ? 1u : 0u,
+            .mFireflyHold = frame.mFilters.mAntiFirefly ? 1u : 0u,
         };
 
         dispatch(commands, pipeline, writes, constants,

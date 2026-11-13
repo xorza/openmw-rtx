@@ -6,6 +6,7 @@
 
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/shaders/visibility.h>
+#include <components/rtxvulkan/device/memory/buffer.hpp>
 
 #include "accumulatepass.hpp"
 #include "atrouspass.hpp"
@@ -53,6 +54,9 @@ namespace Rtx
             /// What puts the frame back together, of which this reads the accumulator's and the
             /// wavelet's switches.
             const Reconstruction& mReconstruction;
+
+            /// What the frame before was shown at (`TraceRecording::mExposure`).
+            const Buffer& mExposure;
         };
 
         /// Records every pass over `buffer`, which must have been handed over, and hands back where

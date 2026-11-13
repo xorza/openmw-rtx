@@ -120,6 +120,7 @@ namespace Rtx
             .mSampled = sampled,
             .mFilters = reconstruction.mFilters,
             .mWrittenBefore = step.mWrittenBefore,
+            .mExposure = request.mExposure,
         };
 
         // **Stage by stage, and every family's dispatch of a stage behind one barrier**: the accumulator,

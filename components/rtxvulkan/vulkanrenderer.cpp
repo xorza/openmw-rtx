@@ -853,6 +853,7 @@ namespace Rtx
                 .mAsked = BinCamera::of(camera),
                 .mSampled = sampled,
                 .mReconstruction = reconstruction,
+                .mExposure = mDisplay.getFrameExposure(),
                 .mAccumulate = options.mAccumulate,
                 .mPastLost = past.mReprojectionLost,
                 .mTimer = &timer,

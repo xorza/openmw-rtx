@@ -119,11 +119,12 @@ namespace Rtx
         /// which is the A/B.
         bool mDualMotion = true;
 
-        /// Whether the accumulator holds a short history of the bounce under the fast means around it
-        /// (`ACCUMULATE_RING_FRAMES`), so a bounce that found a small bright thing is not a blotch the
-        /// size of a leaf. Off unless a run names it on, which is the A/B: since a lamp's own model
-        /// lights nothing by the bounce, it holds no firefly the count can see, and it took a rare
-        /// bright bounce's light with it (the glow-lit chamber 1.90 against 2.60 without the ring).
+        /// Whether the accumulator holds each sample of the bounce under a ceiling the exposure sets
+        /// (`ACCUMULATE_FIREFLY_CEILING`), and a short history of it under the fast means around it
+        /// (`ACCUMULATE_RING_FRAMES`), so a bounce that found a small bright thing is not a speck or a
+        /// blotch the size of a leaf. Off unless a run names it on, which is the A/B: since a lamp's own
+        /// model lights nothing by the bounce, the ring holds no firefly the count can see, and it took a
+        /// rare bright bounce's light with it (the glow-lit chamber 1.90 against 2.60 without the ring).
         bool mAntiFirefly = false;
 
         bool operator==(const FilterSwitches& other) const = default;

@@ -146,6 +146,12 @@ namespace Rtx
         /// The two counts the eye's launch adds to, `SunGlarePass::getCounts`.
         const Buffer& getGlareCounts() const { return mSunGlare.getCounts(); }
 
+        /// What the frame before was shown at (`ExposurePass::getExposure`), which this frame's curve
+        /// writes over after the trace: what the denoiser holds a firefly's sample against. A picture's,
+        /// one, for a picture inside the interface.
+        const Buffer& getFrameExposure() const { return mExposure.getExposure(); }
+        const Buffer& getPictureExposure() const { return mExposure.getPictureExposure(); }
+
         /// Says the measured exposure and the glare's eased share are worthless, each until the next
         /// frame that eases it: the share eases on every frame, and the exposure only on a frame
         /// that measures. `FramePast::mEyeLost`, and the one route by which the eye hears it.

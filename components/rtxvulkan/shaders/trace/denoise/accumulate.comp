@@ -95,6 +95,13 @@ layout(set = SET_PASS, binding = ACCUMULATE_BIND_FAST_OUT, ACCUMULATE_FAST) unif
 /// no surface or no history, which no reader of it gathers from.
 layout(set = SET_PASS, binding = ACCUMULATE_BIND_MATCH_OUT, ACCUMULATE_MATCH) uniform writeonly uimage2D matchOut;
 
+/// What the frame before was shown at: what the display curve scaled its radiance by (`ExposurePass`), which this
+/// frame's curve writes over after the trace.
+layout(set = SET_PASS, binding = ACCUMULATE_BIND_EXPOSURE, scalar) readonly buffer Exposure
+{
+    float exposure;
+};
+
 layout(push_constant, scalar) uniform Push
 {
     AccumulateConstants frame;
@@ -191,8 +198,14 @@ void main()
         return;
 
     const ivec2 stored = storedAt(at, frame.mHistory.mEyes.mWorld.mWidth, fieldSwapOf(frame.mHistory.mFrame));
-    const vec3 sampled = imageLoad(indirect, stored).rgb;
-    const vec3 sampledFill = ACCUMULATE_HOLDS_FILL ? imageLoad(fill, stored).rgb : vec3(0.0);
+
+    // **A firefly's sample held under a ceiling the exposure sets** (`ACCUMULATE_FIREFLY_CEILING`): a bounce that
+    // found something far brighter than anything the frame shows is held to that, and what it carried past it is
+    // dropped. The fill is a share of the bounce, and keeps its share.
+    const vec3 traced = imageLoad(indirect, stored).rgb;
+    const float kept = frame.mFireflyHold != 0u ? heldSampleShare(dot(traced, LUMINANCE_WEIGHTS), exposure) : 1.0;
+    const vec3 sampled = traced * kept;
+    const vec3 sampledFill = ACCUMULATE_HOLDS_FILL ? imageLoad(fill, stored).rgb * kept : vec3(0.0);
     const vec2 seen = imageLoad(surfaceChannel, stored).xy;
     const vec3 normal = unpackSurfaceNormal(seen.x);
     const float away = surfaceDistance(seen.y);
@@ -294,7 +307,8 @@ void main()
         count = min(frames + 1.0, ACCUMULATE_FRAMES);
         const float alpha = historyAlpha(frames);
 
-        // **No outlier clamp on the sample.** A bounce is often a rare bright event: one that finds a
+        // **No outlier clamp on the sample by its deviations**, past the exposure's ceiling above, which the
+        // display sets and not the pixel's spread. A bounce is often a rare bright event: one that finds a
         // sunlit surface with probability `p` stands `sqrt((1 - p) / p)` deviations over the mean, so a
         // ceiling of `k` deviations cuts every such sample where `p < 1 / (1 + k²)`, whatever `k` is — at
         // four, 42% of the light of a two-per-cent event. Clamped at four, the still sail at Seyda Neen

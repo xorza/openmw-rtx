@@ -2,6 +2,7 @@
 
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/shaders/visibility.h>
+#include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/shaders/shared/accumulate.h>
 
 namespace Rtx
@@ -17,6 +18,9 @@ namespace Rtx
 
         /// The number of the frame the histories were written in (`TemporalTurns::Step`).
         std::uint32_t mWrittenBefore;
+
+        /// What the frame before was shown at, one float (`DisplayChain::getFrameExposure`).
+        const Buffer& mExposure;
 
         /// What every temporal filter's history is handed this frame, from the one place each
         /// field has: `fresh` where the history holds nothing to reuse.

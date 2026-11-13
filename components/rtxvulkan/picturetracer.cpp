@@ -128,6 +128,7 @@ namespace Rtx
                     .mAsked = BinCamera::of(camera),
                     .mSampled = sampled,
                     .mReconstruction = reconstruction,
+                    .mExposure = parts.mDisplay.getPictureExposure(),
                     .mPastLost = true,
                     .mTimer = &mZones,
                 });

@@ -1103,6 +1103,28 @@ namespace Rtx::Shaders
     /// bias at every length.
     const float ACCUMULATE_RING_FRAMES = 8.0f;
 
+    /// How bright a sample of the bounce may stand, in the frame's own white: its luminance times the exposure
+    /// the frame before was shown at (`heldSampleShare`). What a bounce carried past it is dropped. The bounce
+    /// stands before the albedo puts it back, so on the screen the ceiling is at most this.
+    ///
+    /// **What every shipping real-time path tracer does with a small bright thing a bounce finds rarely**: Unreal's
+    /// Lumen holds each ray to a multiple of the exposure (`r.Lumen.ScreenProbeGather.MaxRayIntensity`), NVIDIA's
+    /// Omniverse holds each sample to 3200 before the exposure it scales with
+    /// (`fireflyFilter:maxUnexposedIntensityPerSample`), Unreal's path tracer to `Max Path Intensity`, Blender's
+    /// Cycles to `Clamp Indirect`. Spreading what a held sample carried over the surface around it, which keeps
+    /// the light, left a test glow a hundred times a vanilla one boiling in blotches on every frame however wide
+    /// it spread, since a few rays a frame find it; dropping it costs the light such a glow throws past the
+    /// ceiling, and nothing a frame shows under it.
+    ///
+    /// **Forty times the frame's white**, Lumen's default, which holds a ray's light after pre-exposure. A
+    /// sample cut there carries more than forty times the white: were a bounce to find it on one ray in forty
+    /// or more, its surface would stand past white in the mean, where the curve has already rolled it in. What
+    /// is dropped is the light of a rarer find, which is the firefly.
+    const float ACCUMULATE_FIREFLY_CEILING = 40.0f;
+
+    /// The least exposure the ceiling is divided by: a frame shown at nought has no white to measure against.
+    const float ACCUMULATE_FIREFLY_LEAST_EXPOSURE = 1.0e-6f;
+
     /// How squarely two normals must agree before their pixels are the same surface, and the
     /// history at one may be carried to the other.
     ///

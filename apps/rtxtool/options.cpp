@@ -594,10 +594,11 @@ namespace RtxTool
             bpo::value<bool>()
                 ->default_value(byDefault.mSetup.mRun.mProfile.mReconstruction.mFilters.mAntiFirefly)
                 ->implicit_value(true),
-            std::format("hold the denoiser's mean of the bounce, where it holds {:g} frames or fewer, under "
-                        "the light around it, so a bounce that found a small bright thing on one leaf is not "
-                        "spread over the leaf. Off is the A/B",
-                Rtx::Shaders::ACCUMULATE_RING_FRAMES)
+            std::format("hold each sample of the bounce under {:g} times the frame's white, dropping what it carried "
+                        "past that, and the denoiser's mean of the bounce, where it holds {:g} frames or fewer, under "
+                        "the light around it, so a bounce that found a small bright thing is not a speck. Off is the "
+                        "A/B",
+                Rtx::Shaders::ACCUMULATE_FIREFLY_CEILING, Rtx::Shaders::ACCUMULATE_RING_FRAMES)
                 .c_str());
 
         option(sFramed, "level-epsilon", number(anyNumber<float>())->default_value(0.0f),
