@@ -2,6 +2,7 @@
 #include <rgbcx/rgbcx.h>
 #include <string.h>
 #include <math.h>
+#include <nmmintrin.h>
 #include <vector>
 
 namespace rgbcx
@@ -695,35 +696,6 @@ namespace rgbcx
 
 	struct vec3F { float c[3]; };
 
-	static inline void compute_least_squares_endpoints4_rgb(
-		vec3F* pXl, vec3F* pXh,
-		int total_r, int total_g, int total_b,
-		float iz00, float iz10, float iz11,
-		uint32_t s, const uint32_t r_sum[17], const uint32_t g_sum[17], const uint32_t b_sum[17])
-	{
-		const float iz01 = iz10;
-
-		const uint32_t f1 = g_unique_total_orders4[s][0];
-		const uint32_t f2 = g_unique_total_orders4[s][0] + g_unique_total_orders4[s][1];
-		const uint32_t f3 = g_unique_total_orders4[s][0] + g_unique_total_orders4[s][1] + g_unique_total_orders4[s][2];
-		uint32_t uq00_r = (r_sum[f2] - r_sum[f1]) + (r_sum[f3] - r_sum[f2]) * 2 + (r_sum[16] - r_sum[f3]) * 3;
-		uint32_t uq00_g = (g_sum[f2] - g_sum[f1]) + (g_sum[f3] - g_sum[f2]) * 2 + (g_sum[16] - g_sum[f3]) * 3;
-		uint32_t uq00_b = (b_sum[f2] - b_sum[f1]) + (b_sum[f3] - b_sum[f2]) * 2 + (b_sum[16] - b_sum[f3]) * 3;
-
-		float q10_r = (float)(total_r * 3 - uq00_r);
-		float q10_g = (float)(total_g * 3 - uq00_g);
-		float q10_b = (float)(total_b * 3 - uq00_b);
-
-		pXl->c[0] = iz00 * (float)uq00_r + iz01 * q10_r;
-		pXh->c[0] = iz10 * (float)uq00_r + iz11 * q10_r;
-
-		pXl->c[1] = iz00 * (float)uq00_g + iz01 * q10_g;
-		pXh->c[1] = iz10 * (float)uq00_g + iz11 * q10_g;
-
-		pXl->c[2] = iz00 * (float)uq00_b + iz01 * q10_b;
-		pXh->c[2] = iz10 * (float)uq00_b + iz11 * q10_b;
-	}
-
 	static inline bool compute_least_squares_endpoints4_rgb(const color32* pColors, const uint8_t* pSelectors, vec3F* pXl, vec3F* pXh, int total_r, int total_g, int total_b)
 	{
 		uint32_t uq00_r = 0, uq00_g = 0, uq00_b = 0;
@@ -770,35 +742,6 @@ namespace rgbcx
 		pXh->c[2] = iz10 * (float)uq00_b + iz11 * q10_b;
 
 		return true;
-	}
-
-	static inline void compute_least_squares_endpoints3_rgb(
-		vec3F* pXl, vec3F* pXh,
-		int total_r, int total_g, int total_b,
-		float iz00, float iz10, float iz11,
-		uint32_t s, const uint32_t r_sum[17], const uint32_t g_sum[17], const uint32_t b_sum[17])
-	{
-		const float iz01 = iz10;
-
-		// Compensates for BC1 3-color ordering, which is selector 0, 2, 1
-		const uint32_t f1 = g_unique_total_orders3[s][0];
-		const uint32_t f2 = g_unique_total_orders3[s][0] + g_unique_total_orders3[s][2];
-		uint32_t uq00_r = (r_sum[16] - r_sum[f2]) * 2 + (r_sum[f2] - r_sum[f1]);
-		uint32_t uq00_g = (g_sum[16] - g_sum[f2]) * 2 + (g_sum[f2] - g_sum[f1]);
-		uint32_t uq00_b = (b_sum[16] - b_sum[f2]) * 2 + (b_sum[f2] - b_sum[f1]);
-
-		float q10_r = (float)(total_r * 2 - uq00_r);
-		float q10_g = (float)(total_g * 2 - uq00_g);
-		float q10_b = (float)(total_b * 2 - uq00_b);
-
-		pXl->c[0] = iz00 * (float)uq00_r + iz01 * q10_r;
-		pXh->c[0] = iz10 * (float)uq00_r + iz11 * q10_r;
-
-		pXl->c[1] = iz00 * (float)uq00_g + iz01 * q10_g;
-		pXh->c[1] = iz10 * (float)uq00_g + iz11 * q10_g;
-
-		pXl->c[2] = iz00 * (float)uq00_b + iz01 * q10_b;
-		pXh->c[2] = iz10 * (float)uq00_b + iz11 * q10_b;
 	}
 
 	static inline bool compute_least_squares_endpoints3_rgb(bool use_black, const color32* pColors, const uint8_t* pSelectors, vec3F* pXl, vec3F* pXh)
@@ -997,8 +940,147 @@ namespace rgbcx
 		return total_err;
 	}
 
+	// A texel's red, green and blue, 32 bits a lane, the fourth nought.
+	static inline __m128i rgb32(const color32& c)
+	{
+		return _mm_and_si128(_mm_cvtepu8_epi32(_mm_cvtsi32_si128((int)c.m)), _mm_setr_epi32(-1, -1, -1, 0));
+	}
+
+	// The first three lanes of v.
+	static inline void rgb_of(__m128i v, int& r, int& g, int& b)
+	{
+		r = _mm_cvtsi128_si32(v);
+		g = _mm_extract_epi32(v, 1);
+		b = _mm_extract_epi32(v, 2);
+	}
+
+	// The order of sixteen keys no two of which are equal, as a sort would lay them: order[k] is where the k-th
+	// least stands. A key's place is how many are under it, counted four to a compare.
+	static inline void order16(const int keys[16], uint8_t order[16])
+	{
+		const __m128i k0 = _mm_loadu_si128((const __m128i*)keys), k1 = _mm_loadu_si128((const __m128i*)(keys + 4));
+		const __m128i k2 = _mm_loadu_si128((const __m128i*)(keys + 8)), k3 = _mm_loadu_si128((const __m128i*)(keys + 12));
+		for (uint32_t i = 0; i < 16; i++)
+		{
+			const __m128i key = _mm_set1_epi32(keys[i]);
+			const uint32_t under = (uint32_t)_mm_movemask_ps(_mm_castsi128_ps(_mm_cmpgt_epi32(key, k0)))
+				| ((uint32_t)_mm_movemask_ps(_mm_castsi128_ps(_mm_cmpgt_epi32(key, k1))) << 4)
+				| ((uint32_t)_mm_movemask_ps(_mm_castsi128_ps(_mm_cmpgt_epi32(key, k2))) << 8)
+				| ((uint32_t)_mm_movemask_ps(_mm_castsi128_ps(_mm_cmpgt_epi32(key, k3))) << 12);
+			order[_mm_popcnt_u32(under)] = (uint8_t)i;
+		}
+	}
+
+	// The texels summed in the order of their keys, red, green and blue a lane: sums[k] is the first k of them, and
+	// sums[16] all of them.
+	static inline void sum_in_order(const color32* pSrc_pixels, const int keys[16], __m128i sums[17])
+	{
+		uint8_t order[16];
+		order16(keys, order);
+
+		__m128i sum = _mm_setzero_si128();
+		for (uint32_t i = 0; i < 16; i++)
+		{
+			sums[i] = sum;
+			sum = _mm_add_epi32(sum, rgb32(pSrc_pixels[order[i]]));
+		}
+		sums[16] = sum;
+	}
+
+	// The least-squares endpoints of a four-color block whose texels, in the order `sum_in_order` summed them, take
+	// selector 0 for the first orders[0] of them, 1 for the next orders[1], and so on: red, green and blue a lane,
+	// each lane the sums, the products and the one addition the scalar fit made, in its order.
+	static inline void fit_endpoints4_rgb(__m128& xl, __m128& xh, const __m128i sums[17], const float factors[3], const uint8_t orders[4])
+	{
+		const uint32_t f1 = orders[0];
+		const uint32_t f2 = orders[0] + orders[1];
+		const uint32_t f3 = orders[0] + orders[1] + orders[2];
+		const __m128i twice = _mm_sub_epi32(sums[f3], sums[f2]), thrice = _mm_sub_epi32(sums[16], sums[f3]);
+		const __m128i uq00 = _mm_add_epi32(_mm_add_epi32(_mm_sub_epi32(sums[f2], sums[f1]), _mm_slli_epi32(twice, 1)), _mm_add_epi32(thrice, _mm_slli_epi32(thrice, 1)));
+		const __m128i q10 = _mm_sub_epi32(_mm_add_epi32(sums[16], _mm_slli_epi32(sums[16], 1)), uq00);
+
+		const __m128 uq00f = _mm_cvtepi32_ps(uq00), q10f = _mm_cvtepi32_ps(q10);
+		const __m128 iz00 = _mm_set1_ps(factors[0]), iz10 = _mm_set1_ps(factors[1]), iz11 = _mm_set1_ps(factors[2]);
+		xl = _mm_add_ps(_mm_mul_ps(iz00, uq00f), _mm_mul_ps(iz10, q10f));
+		xh = _mm_add_ps(_mm_mul_ps(iz10, uq00f), _mm_mul_ps(iz11, q10f));
+	}
+
+	// The same of a three-color block, whose selectors run 0, 2, 1 along the axis.
+	static inline void fit_endpoints3_rgb(__m128& xl, __m128& xh, const __m128i sums[17], const float factors[3], const uint8_t orders[3])
+	{
+		const uint32_t f1 = orders[0];
+		const uint32_t f2 = orders[0] + orders[2];
+		const __m128i uq00 = _mm_add_epi32(_mm_slli_epi32(_mm_sub_epi32(sums[16], sums[f2]), 1), _mm_sub_epi32(sums[f2], sums[f1]));
+		const __m128i q10 = _mm_sub_epi32(_mm_slli_epi32(sums[16], 1), uq00);
+
+		const __m128 uq00f = _mm_cvtepi32_ps(uq00), q10f = _mm_cvtepi32_ps(q10);
+		const __m128 iz00 = _mm_set1_ps(factors[0]), iz10 = _mm_set1_ps(factors[1]), iz11 = _mm_set1_ps(factors[2]);
+		xl = _mm_add_ps(_mm_mul_ps(iz00, uq00f), _mm_mul_ps(iz10, q10f));
+		xh = _mm_add_ps(_mm_mul_ps(iz10, uq00f), _mm_mul_ps(iz11, q10f));
+	}
+
+	// An endpoint's red, green and blue rounded to 5, 6 and 5 bits as precise_round_565 rounds each: cut off, held
+	// to its range, and one more where it stands past the midpoint of its step.
+	static inline __m128i round_565_rgb(__m128 x)
+	{
+		const __m128i most = _mm_setr_epi32(31, 63, 31, 0);
+		__m128i cut = _mm_cvttps_epi32(_mm_mul_ps(x, _mm_setr_ps(31.0f, 63.0f, 31.0f, 0.0f)));
+		cut = _mm_min_epi32(_mm_max_epi32(cut, _mm_setzero_si128()), most);
+		const __m128 midpoint = _mm_setr_ps(g_midpoint5[_mm_cvtsi128_si32(cut)], g_midpoint6[_mm_extract_epi32(cut, 1)], g_midpoint5[_mm_extract_epi32(cut, 2)], 0.0f);
+		return _mm_and_si128(_mm_sub_epi32(cut, _mm_castps_si128(_mm_cmpgt_ps(x, midpoint))), most);
+	}
+
+	// The endpoints one search over total orderings has tried, so it passes by a pair it meets again: the same
+	// endpoints give the same selectors and the same error, which was not under the best when they were tried and is
+	// not under a best that only falls. Two in three of a block's orderings round to endpoints tried before. Past its
+	// room it notes no more, and a pair it did not note is tried again, as before.
+	struct tried_endpoints
+	{
+		uint32_t m_total = 0;
+		uint32_t m_packed[33];
+
+		// Whether the pair was tried before, noting it where not.
+		bool test_and_note(int lr, int lg, int lb, int hr, int hg, int hb)
+		{
+			const uint32_t packed = (uint32_t)lr | ((uint32_t)lg << 5) | ((uint32_t)lb << 11) | ((uint32_t)hr << 16) | ((uint32_t)hg << 21) | ((uint32_t)hb << 27);
+			for (uint32_t i = 0; i < m_total; i++)
+				if (m_packed[i] == packed)
+					return true;
+			if (m_total < sizeof(m_packed) / sizeof(m_packed[0]))
+				m_packed[m_total++] = packed;
+			return false;
+		}
+	};
+
+	// The squared distance of four texels, widened to 16 bits a channel two a half with their alphas nought, from
+	// four colors laid the same way.
+	static inline __m128i sq_dist4(__m128i lo, __m128i hi, __m128i colors_lo, __m128i colors_hi)
+	{
+		const __m128i dlo = _mm_sub_epi16(colors_lo, lo);
+		const __m128i dhi = _mm_sub_epi16(colors_hi, hi);
+		return _mm_hadd_epi32(_mm_madd_epi16(dlo, dlo), _mm_madd_epi16(dhi, dhi));
+	}
+
+	static inline uint32_t hsum4(__m128i v)
+	{
+		v = _mm_add_epi32(v, _mm_srli_si128(v, 8));
+		v = _mm_add_epi32(v, _mm_srli_si128(v, 4));
+		return (uint32_t)_mm_cvtsi128_si32(v);
+	}
+
+	// One color in every 64-bit half, 16 bits a channel.
+	static inline __m128i splat_color16(uint32_t r, uint32_t g, uint32_t b)
+	{
+		return _mm_set1_epi64x((long long)((uint64_t)(uint16_t)r | ((uint64_t)(uint16_t)g << 16) | ((uint64_t)(uint16_t)b << 32)));
+	}
+
+	// Four texels at a time (SSE4.1, which the tree's x86-64-v2 has), each lane the scalar loop's arithmetic in its
+	// order, so the selectors and the error are its own to the bit. With no early exit: every caller keeps a result
+	// only where the whole block's error is under cur_err, and a sum the scalar loop left early is no less than it.
 	static inline uint32_t bc1_find_sels4_check2_err(const color32* pSrc_pixels, uint32_t lr, uint32_t lg, uint32_t lb, uint32_t hr, uint32_t hg, uint32_t hb, uint8_t sels[16], uint32_t cur_err)
 	{
+		(void)cur_err;
+
 		uint32_t block_r[4], block_g[4], block_b[4];
 		bc1_get_block_colors4(block_r, block_g, block_b, lr, lg, lb, hr, hg, hb);
 
@@ -1006,42 +1088,47 @@ namespace rgbcx
 
 		const float f = 4.0f / (float)(squarei(dr) + squarei(dg) + squarei(db) + .00000125f);
 
-		uint32_t total_err = 0;
+		const __m128i palette = _mm_setr_epi32(
+			(int)(block_r[0] | (block_g[0] << 8) | (block_b[0] << 16)), (int)(block_r[1] | (block_g[1] << 8) | (block_b[1] << 16)),
+			(int)(block_r[2] | (block_g[2] << 8) | (block_b[2] << 16)), (int)(block_r[3] | (block_g[3] << 8) | (block_b[3] << 16)));
+		const __m128i base = splat_color16(block_r[0], block_g[0], block_b[0]);
+		const __m128i axis = splat_color16((uint32_t)dr, (uint32_t)dg, (uint32_t)db);
+		const __m128 scale = _mm_set1_ps(f), half = _mm_set1_ps(.5f);
+		const __m128i one = _mm_set1_epi32(1), three = _mm_set1_epi32(3), rgb = _mm_set1_epi32(0x00FFFFFF);
+		const __m128i every_byte = _mm_setr_epi8(0, 0, 0, 0, 4, 4, 4, 4, 8, 8, 8, 8, 12, 12, 12, 12);
+		const __m128i channel = _mm_set1_epi32(0x03020100), entry = _mm_set1_epi8(4);
+		const __m128i first_bytes = _mm_setr_epi8(0, 4, 8, 12, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1);
 
-		for (uint32_t i = 0; i < 16; i++)
+		__m128i total_err = _mm_setzero_si128();
+
+		for (uint32_t i = 0; i < 16; i += 4)
 		{
-			const int r = pSrc_pixels[i].r;
-			const int g = pSrc_pixels[i].g;
-			const int b = pSrc_pixels[i].b;
+			const __m128i four = _mm_and_si128(_mm_loadu_si128((const __m128i*)(pSrc_pixels + i)), rgb);
+			const __m128i lo = _mm_cvtepu8_epi16(four), hi = _mm_cvtepu8_epi16(_mm_srli_si128(four, 8));
 
-			int sel = (int)((float)((r - (int)block_r[0]) * dr + (g - (int)block_g[0]) * dg + (b - (int)block_b[0]) * db) * f + .5f);
-			sel = clampi(sel, 1, 3);
+			const __m128i along = _mm_hadd_epi32(_mm_madd_epi16(_mm_sub_epi16(lo, base), axis), _mm_madd_epi16(_mm_sub_epi16(hi, base), axis));
+			__m128i sel = _mm_cvttps_epi32(_mm_add_ps(_mm_mul_ps(_mm_cvtepi32_ps(along), scale), half));
+			sel = _mm_min_epi32(_mm_max_epi32(sel, one), three);
 
-			uint32_t err0 = squarei((int)block_r[sel - 1] - (int)r) + squarei((int)block_g[sel - 1] - (int)g) + squarei((int)block_b[sel - 1] - (int)b);
-			uint32_t err1 = squarei((int)block_r[sel] - (int)r) + squarei((int)block_g[sel] - (int)g) + squarei((int)block_b[sel] - (int)b);
+			// Each texel's palette entry at its selector and at the one under it.
+			const __m128i at = _mm_add_epi8(_mm_shuffle_epi8(_mm_slli_epi32(sel, 2), every_byte), channel);
+			const __m128i colors1 = _mm_shuffle_epi8(palette, at), colors0 = _mm_shuffle_epi8(palette, _mm_sub_epi8(at, entry));
+			const __m128i err1 = sq_dist4(lo, hi, _mm_cvtepu8_epi16(colors1), _mm_cvtepu8_epi16(_mm_srli_si128(colors1, 8)));
+			const __m128i err0 = sq_dist4(lo, hi, _mm_cvtepu8_epi16(colors0), _mm_cvtepu8_epi16(_mm_srli_si128(colors0, 8)));
 
-			int best_sel = sel;
-			uint32_t best_err = err1;
-			if (err0 == err1)
-			{
-				// Prefer non-interpolation
-				if ((best_sel - 1) == 0)
-					best_sel = 0;
-			}
-			else if (err0 < best_err)
-			{
-				best_sel = sel - 1;
-				best_err = err0;
-			}
+			// The lower where it is nearer, and at a tie between the first two entries the first: prefer non-interpolation.
+			const __m128i under = _mm_sub_epi32(sel, one);
+			const __m128i nearer = _mm_cmplt_epi32(err0, err1);
+			const __m128i tied_at_first = _mm_and_si128(_mm_cmpeq_epi32(err0, err1), _mm_cmpeq_epi32(under, _mm_setzero_si128()));
+			const __m128i best_sel = _mm_blendv_epi8(_mm_andnot_si128(tied_at_first, sel), under, nearer);
 
-			total_err += best_err;
+			total_err = _mm_add_epi32(total_err, _mm_blendv_epi8(err1, err0, nearer));
 
-			if (total_err >= cur_err)
-				break;
-
-			sels[i] = (uint8_t)best_sel;
+			const int packed_sels = _mm_cvtsi128_si32(_mm_shuffle_epi8(best_sel, first_bytes));
+			memcpy(sels + i, &packed_sels, 4);
 		}
-		return total_err;
+
+		return hsum4(total_err);
 	}
 
 	static inline uint32_t bc1_find_sels4_fullerr(const color32* pSrc_pixels, uint32_t lr, uint32_t lg, uint32_t lb, uint32_t hr, uint32_t hg, uint32_t hb, uint8_t sels[16], uint32_t cur_err)
@@ -1147,45 +1234,51 @@ namespace rgbcx
 		}
 		else
 		{
-			for (uint32_t i = 0; i < 16; i++)
+			// Four texels at a time, as bc1_find_sels4_check2_err is and for its reasons: an entry replaces the best
+			// only where it is nearer, so the first of equals stands, as in the scalar loop this was.
+			(void)cur_err;
+
+			const __m128i rgb = _mm_set1_epi32(0x00FFFFFF);
+			const __m128i first_bytes = _mm_setr_epi8(0, 4, 8, 12, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1);
+			const __m128i color0 = splat_color16(block_r[0], block_g[0], block_b[0]);
+			const __m128i color1 = splat_color16(block_r[1], block_g[1], block_b[1]);
+			const __m128i color2 = splat_color16(block_r[2], block_g[2], block_b[2]);
+
+			__m128i total = _mm_setzero_si128();
+
+			for (uint32_t i = 0; i < 16; i += 4)
 			{
-				const int r = pSrc_pixels[i].r;
-				const int g = pSrc_pixels[i].g;
-				const int b = pSrc_pixels[i].b;
+				const __m128i four = _mm_and_si128(_mm_loadu_si128((const __m128i*)(pSrc_pixels + i)), rgb);
+				const __m128i lo = _mm_cvtepu8_epi16(four), hi = _mm_cvtepu8_epi16(_mm_srli_si128(four, 8));
 
-				uint32_t best_err = squarei((int)block_r[0] - (int)r) + squarei((int)block_g[0] - (int)g) + squarei((int)block_b[0] - (int)b);
-				uint32_t best_sel = 0;
+				__m128i best_err = sq_dist4(lo, hi, color0, color0);
+				__m128i best_sel = _mm_setzero_si128();
 
-				uint32_t err1 = squarei((int)block_r[1] - (int)r) + squarei((int)block_g[1] - (int)g) + squarei((int)block_b[1] - (int)b);
-				if (err1 < best_err)
-				{
-					best_err = err1;
-					best_sel = 1;
-				}
+				const __m128i err1 = sq_dist4(lo, hi, color1, color1);
+				const __m128i nearer1 = _mm_cmplt_epi32(err1, best_err);
+				best_err = _mm_blendv_epi8(best_err, err1, nearer1);
+				best_sel = _mm_blendv_epi8(best_sel, _mm_set1_epi32(1), nearer1);
 
-				uint32_t err2 = squarei((int)block_r[2] - (int)r) + squarei((int)block_g[2] - (int)g) + squarei((int)block_b[2] - (int)b);
-				if (err2 < best_err)
-				{
-					best_err = err2;
-					best_sel = 2;
-				}
+				const __m128i err2 = sq_dist4(lo, hi, color2, color2);
+				const __m128i nearer2 = _mm_cmplt_epi32(err2, best_err);
+				best_err = _mm_blendv_epi8(best_err, err2, nearer2);
+				best_sel = _mm_blendv_epi8(best_sel, _mm_set1_epi32(2), nearer2);
 
 				if (use_black)
 				{
-					uint32_t err3 = squarei(r) + squarei(g) + squarei(b);
-					if (err3 < best_err)
-					{
-						best_err = err3;
-						best_sel = 3;
-					}
+					const __m128i err3 = _mm_hadd_epi32(_mm_madd_epi16(lo, lo), _mm_madd_epi16(hi, hi));
+					const __m128i nearer3 = _mm_cmplt_epi32(err3, best_err);
+					best_err = _mm_blendv_epi8(best_err, err3, nearer3);
+					best_sel = _mm_blendv_epi8(best_sel, _mm_set1_epi32(3), nearer3);
 				}
 
-				total_err += best_err;
-				if (total_err >= cur_err)
-					return total_err;
+				total = _mm_add_epi32(total, best_err);
 
-				sels[i] = (uint8_t)best_sel;
+				const int packed_sels = _mm_cvtsi128_si32(_mm_shuffle_epi8(best_sel, first_bytes));
+				memcpy(sels + i, &packed_sels, 4);
 			}
+
+			total_err = hsum4(total);
 		}
 
 		return total_err;
@@ -1601,26 +1694,12 @@ namespace rgbcx
 				dots[i] = (d << 4) + i;
 			}
 
-			std::sort(dots, dots + 16);
+			__m128i sums[17];
+			sum_in_order(pSrc_pixels, dots, sums);
 
-			uint32_t r_sum[17], g_sum[17], b_sum[17];
-			uint32_t r = 0, g = 0, b = 0;
-			for (uint32_t i = 0; i < 16; i++)
-			{
-				const uint32_t p = dots[i] & 15;
-
-				r_sum[i] = r;
-				g_sum[i] = g;
-				b_sum[i] = b;
-
-				r += pSrc_pixels[p].r;
-				g += pSrc_pixels[p].g;
-				b += pSrc_pixels[p].b;
-			}
-
-			r_sum[16] = total_r;
-			g_sum[16] = total_g;
-			b_sum[16] = total_b;
+			// The best so far among them: its error is trial_err, which it would not be under.
+			tried_endpoints tried;
+			tried.test_and_note(lr, lg, lb, hr, hg, hb);
 
 			const uint32_t q_total = (flags & cEncodeBC1Exhaustive) ? NUM_UNIQUE_TOTAL_ORDERINGS3 : std::min(total_orderings_to_try, MAX_TOTAL_ORDERINGS3);
 			for (uint32_t q = 0; q < q_total; q++)
@@ -1629,7 +1708,6 @@ namespace rgbcx
 
 				int trial_lr, trial_lg, trial_lb, trial_hr, trial_hg, trial_hb;
 
-				vec3F xl, xh;
 
 				if ((s == TOTAL_ORDER_3_0_16) || (s == TOTAL_ORDER_3_1_16) || (s == TOTAL_ORDER_3_2_16))
 				{
@@ -1643,11 +1721,16 @@ namespace rgbcx
 				}
 				else
 				{
-					compute_least_squares_endpoints3_rgb(&xl, &xh, total_r, total_g, total_b,
-						g_selector_factors3[s][0], g_selector_factors3[s][1], g_selector_factors3[s][2], s, r_sum, g_sum, b_sum);
+					__m128 xl, xh;
+					fit_endpoints3_rgb(xl, xh, sums, g_selector_factors3[s], g_unique_total_orders3[s]);
 
-					precise_round_565(xl, xh, trial_hr, trial_hg, trial_hb, trial_lr, trial_lg, trial_lb);
+					// As precise_round_565 was called: the first of the pair is the high endpoint's.
+					rgb_of(round_565_rgb(xl), trial_hr, trial_hg, trial_hb);
+					rgb_of(round_565_rgb(xh), trial_lr, trial_lg, trial_lb);
 				}
+
+				if (tried.test_and_note(trial_lr, trial_lg, trial_lb, trial_hr, trial_hg, trial_hb))
+					continue;
 
 				uint8_t trial_sels2[16];
 				uint32_t trial_err2 = bc1_find_sels3_fullerr(false, pSrc_pixels, trial_lr, trial_lg, trial_lb, trial_hr, trial_hg, trial_hb, trial_sels2, UINT32_MAX, pForce_selectors);
@@ -2500,26 +2583,12 @@ namespace rgbcx
 					dots[i] = (d << 4) + i;
 				}
 
-				std::sort(dots, dots + 16);
+				__m128i sums[17];
+				sum_in_order(pSrc_pixels, dots, sums);
 
-				uint32_t r_sum[17], g_sum[17], b_sum[17];
-				uint32_t r = 0, g = 0, b = 0;
-				for (uint32_t i = 0; i < 16; i++)
-				{
-					const uint32_t p = dots[i] & 15;
-
-					r_sum[i] = r;
-					g_sum[i] = g;
-					b_sum[i] = b;
-
-					r += pSrc_pixels[p].r;
-					g += pSrc_pixels[p].g;
-					b += pSrc_pixels[p].b;
-				}
-
-				r_sum[16] = total_r;
-				g_sum[16] = total_g;
-				b_sum[16] = total_b;
+				// The best so far among them: its error is cur_err, which it would not be under.
+				tried_endpoints tried;
+				tried.test_and_note(lr, lg, lb, hr, hg, hb);
 
 				const uint32_t q_total = (flags & cEncodeBC1Exhaustive) ? NUM_UNIQUE_TOTAL_ORDERINGS4 : clampi(total_orderings_to_try, MIN_TOTAL_ORDERINGS, MAX_TOTAL_ORDERINGS4);
 				for (uint32_t q = 0; q < q_total; q++)
@@ -2528,7 +2597,6 @@ namespace rgbcx
 
 					int trial_lr, trial_lg, trial_lb, trial_hr, trial_hg, trial_hb;
 
-					vec3F xl, xh;
 
 					if ((s == TOTAL_ORDER_4_0_16) || (s == TOTAL_ORDER_4_1_16) || (s == TOTAL_ORDER_4_2_16) || (s == TOTAL_ORDER_4_3_16))
 					{
@@ -2542,11 +2610,16 @@ namespace rgbcx
 					}
 					else
 					{
-						compute_least_squares_endpoints4_rgb(&xl, &xh, total_r, total_g, total_b,
-							g_selector_factors4[s][0], g_selector_factors4[s][1], g_selector_factors4[s][2], s, r_sum, g_sum, b_sum);
+						__m128 xl, xh;
+						fit_endpoints4_rgb(xl, xh, sums, g_selector_factors4[s], g_unique_total_orders4[s]);
 
-						precise_round_565(xl, xh, trial_hr, trial_hg, trial_hb, trial_lr, trial_lg, trial_lb);
+						// As precise_round_565 was called: the first of the pair is the high endpoint's.
+						rgb_of(round_565_rgb(xl), trial_hr, trial_hg, trial_hb);
+						rgb_of(round_565_rgb(xh), trial_lr, trial_lg, trial_lb);
 					}
+
+					if (tried.test_and_note(trial_lr, trial_lg, trial_lb, trial_hr, trial_hg, trial_hb))
+						continue;
 
 					uint8_t trial_sels[16];
 

@@ -270,6 +270,9 @@ screen (`research/2026-11-08-normal-map-chains.md`).
 - **A coarser level is encoded on the host in the file's format** (BC1 to BC5), through rgbcx at level 10, approved by
   the user ([bc7enc_rdo](https://github.com/richgel999/bc7enc_rdo_devel/)); **a loose chain is whole in BC7**, by the
   user's decision. Refused: an encoder of our own; encoding on the device.
+- **rgbcx's BC1 search is made faster where it stands, and makes the same blocks**, by the user's decision: its
+  selector searches walk four texels at a time, an ordering's endpoints are fit a channel a lane and tried once, which
+  no store notices (`research/2026-11-13-preparation-cpu-by-codec.md`, `RtxChainBuildTest`).
 - **A painted colour is stored delit, keyed by use** (`TextureEncoding::Painted`), by the user's decisions: a diffuse
   with no metal-roughness map and an unauthored ground layer are divided by `ShadingMap`'s estimate at every level and
   encoded again in the file's format; a file used both ways is two slots. Refused: every colour delit, which flattens

@@ -139,3 +139,55 @@ the three-colour blocks:
 
 A one-colour block whose fit stands over the limit counts among the searched and costs the search nothing: no
 count was taken of how many of the searched are one colour.
+
+## The search made faster, the blocks the same
+
+Three changes to `extern/rgbcx/rgbcx.cpp`, each making the bytes it made before:
+
+- the two selector searches walk a block four texels at a time (SSE4.1), each lane the scalar loop's arithmetic in
+  its order, with no early exit: every caller keeps a result only where the block's whole error is under the best;
+- a search over total orderings passes by endpoints it has tried: of the 45.4 million orderings the corpus's
+  four-colour blocks try, 67.2% round to endpoints tried before in the same search, a third of those the best so
+  far;
+- the texels' order along the axis by counting in place of a sort, and each ordering's least-squares fit and its
+  rounding to 5:6:5 with red, green and blue a lane.
+
+`openmw_rtx_chain_encode_benchmark` on the Fullrest Repack's corpus, one core, the digest of the made chains
+`98d02ccb015d1514da0cc2e444d4b970` at every step:
+
+| step | `encodePaintedBc1` | texels a second | `makePaintedChain` |
+|---|---|---|---|
+| before | 5.28 to 5.30 s | 8.5 million | 6.74 to 6.76 s |
+| the selector searches four texels at a time | 3.10 s | 14.5 million | 4.57 s |
+| and endpoints tried once | 2.57 s | 17.6 million | 4.03 s |
+| and the fit, the rounding and the order | 2.19 to 2.23 s | 20.2 to 20.6 million | 3.66 to 3.75 s |
+
+The encoder alone 2.4 times as fast and the pass 1.8 times; the encoder is 60% of the pass from 78%. The made
+pictures' corpus: 90.5 to 34.2 ms, its digest the same.
+
+Held the same by:
+
+- `RtxChainBuildTest.aChainsBlocksAreTheOnesTheSearchMadeATexelAtATime`, whose three digests were recorded off the
+  encoder as it stood before;
+- the two selector searches against the scalar ones over 40 million blocks and endpoints drawn at random, half
+  under an error limit: the same selectors and error wherever the limit kept the result, and no result kept that the
+  scalar loop refused;
+- 400,000 made blocks through the encoder as it stood and as it stands: the same bytes.
+
+Cold, as at the top of this note, with the first two of the three changes; the Fullrest Repack twice:
+
+| content | preparation | its threads' CPU |
+|---|---|---|
+| vanilla | 3.05 s → 4.09 s | 44.9 s → 30.6 s |
+| PBR replacers | 78.0 s → 67.3 s | 1,156 s → 1,000 s |
+| Fullrest Repack | 331.0 s → 210.8 s, 327.2 s → 211.0 s | 4,934 s → 3,138 s, 4,874 s → 3,147 s |
+
+Vanilla's 19,401 files and the PBR replacers' 32,027 the same byte for byte in both stores, the manifest aside.
+The Fullrest Repack's second pair of stores held 105,292 and 105,289 files: nine small entries in the first alone,
+six in the second alone, and every other the same byte for byte, the manifest aside; the first pair differed by
+five files the other way and was deleted unread. An entry is filed under a digest of what it is made from, so a
+store holds an entry the other lacks where its run met a file the other's did not, whatever encoded it.
+
+The encoder's profile after the three, of the benchmark's samples: the selector searches 24%, and the rest of
+`encode_bc1` 52% with no line over 5%, the rounding's midpoint lookups and the already-tried check its largest.
+
