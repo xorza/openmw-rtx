@@ -455,9 +455,9 @@ namespace Rtx::Testing
         /// `RenderProfile::mDither` over the harness's, which dithers nothing.
         std::optional<bool> mDither{};
 
-        /// Seconds since the frame before, `FrameOptions::mSinceLast`, which a measured exposure
-        /// adapts over. Nought, so a frame moves no eye, unless a test settles one.
-        float mSinceLast = 0.0f;
+        /// How far the world's clock moved since the frame before, `FrameOptions::mWorldSinceLast`,
+        /// which a measured exposure adapts over. Nought, so a frame moves no eye, unless a test settles one.
+        float mWorldSinceLast = 0.0f;
 
         /// `RenderProfile::mAnisotropy` for the shot. One, so the level a cone names is the level
         /// read, which is what every test that measures a level off the mip ladder relies on.
@@ -568,7 +568,7 @@ namespace Rtx::Testing
                     sampled.mWaterTime = splitSeconds(waterSeconds);
                 mProbe.traceFrame(sampled,
                     FrameOptions{ .mAccumulate = shot.mFrames > 0 && shot.mAverage ? at + 1 : 0,
-                        .mSinceLast = shot.mSinceLast,
+                        .mWorldSinceLast = shot.mWorldSinceLast,
                         .mLoss = at == shot.mLossAt ? shot.mLoss : HistoryLoss::None,
                         .mReconstruction = ReconstructionRequest{ .mDenoise = shot.mFilter,
                             .mJitter = shot.mJitter,
@@ -640,7 +640,7 @@ namespace Rtx::Testing
             shot.mExposure = std::nullopt;
             shoot(scene, textures, camera, size, shot);
             shot.mSetScene = false;
-            shot.mSinceLast = 1000.0f;
+            shot.mWorldSinceLast = 1000.0f;
             shoot(scene, textures, camera, size, shot);
             mRenderer.readPixels(pixels);
 

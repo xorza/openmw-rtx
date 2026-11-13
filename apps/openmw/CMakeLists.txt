@@ -691,6 +691,7 @@ target_sources(
         mwrender/rtx/tracedgroundcover.cpp
         mwrender/rtx/tracedoverlay.cpp
         mwrender/rtx/tracedterrain.cpp
+        mwrender/rtx/traceclocks.cpp
         mwrender/rtx/tracedview.cpp
         mwrender/rtx/viewqueue.cpp
         mwrender/rtx/worldmirror.cpp
@@ -785,6 +786,7 @@ target_sources(
                 mwrender/rtx/tracedgroundcover.hpp
                 mwrender/rtx/tracedoverlay.hpp
                 mwrender/rtx/tracedterrain.hpp
+                mwrender/rtx/traceclocks.hpp
                 mwrender/rtx/tracedview.hpp
                 mwrender/rtx/viewqueue.hpp
                 mwrender/rtx/viewschedule.hpp

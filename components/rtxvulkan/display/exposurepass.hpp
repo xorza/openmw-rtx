@@ -29,7 +29,7 @@ namespace Rtx
         /// one in the whole image.
         ///
         /// @param frame the finished frame in linear radiance, in `VK_IMAGE_LAYOUT_GENERAL`.
-        /// @param elapsedSeconds since the previous frame.
+        /// @param elapsedSeconds how far the world's clock moved since the previous frame.
         /// @param reset where the eye starts on a frame with no previous exposure to move from — the
         ///        first frame, and any frame the renderer was told has no past — or nothing where it
         ///        moves from the exposure the frame before left.

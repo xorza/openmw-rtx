@@ -32,6 +32,7 @@ target_sources(
         mwrender/rtxwindow.cpp
         mwrender/searules.cpp
         mwrender/skystate.cpp
+        mwrender/traceclocks.cpp
         mwrender/tracedground.cpp
         mwrender/tracedgroundcover.cpp
         mwrender/tracedterrain.cpp

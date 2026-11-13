@@ -44,7 +44,8 @@ namespace Rtx
         /// What a measured eye's scale is offset by, `WorldOptions::mExposureBias`.
         float mExposureBias;
 
-        /// How long since the frame before, which the eye and the glare both ease over.
+        /// How far the world's clock moved since the frame before, which the eye and the glare both ease
+        /// over (`FrameOptions::mWorldSinceLast`).
         float mSeconds;
 
         /// The sun glare fader, laid over the sun's share, which eases at the query's own rate.

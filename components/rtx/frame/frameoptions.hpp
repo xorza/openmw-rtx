@@ -27,13 +27,22 @@ namespace Rtx
         std::uint32_t mAccumulate = 0;
 
         /// How long since the frame before this one was traced, in seconds of the host's clock
-        /// (`Misc::LoopClock::getNow`): what the eye adapts over, the glare fades over and the upscaler tunes
-        /// itself by. Nought is a frame with nothing before it, which adapts nothing.
+        /// (`Misc::LoopClock::getNow`): what the upscaler tunes itself by. Nought is a frame with nothing
+        /// before it.
         ///
         /// **The host's and never the wall read here**, so a measured run, whose clock counts frames, draws
-        /// the same pictures however fast it drew them; one rule in both modes, so frames nobody traced are
-        /// time the eye had.
+        /// the same pictures however fast it drew them; one rule in both modes.
         float mSinceLast = 0.0f;
+
+        /// How far the world's clock moved over the same span, in seconds: what the eye adapts over and the
+        /// glare fades over. Nought is a frame with nothing before it, or one the world stood paused for,
+        /// and either adapts nothing.
+        ///
+        /// **The world's and not the host's**, because the eye adapts to lights that flicker on the world's
+        /// clock: a paused world holds a flame at one instant of its flicker, and an eye still running
+        /// would settle on that instant through a whole dialogue and drift back after it. Frames nobody traced
+        /// are time the eye had, where the world moved through them.
+        float mWorldSinceLast = 0.0f;
 
         /// What this frame's past is worth, as the host tells it: the one route by which a loss
         /// reaches the histories, each of which reads its column of `FramePast`.

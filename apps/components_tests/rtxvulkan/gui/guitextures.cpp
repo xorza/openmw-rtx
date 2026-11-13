@@ -1170,14 +1170,15 @@ namespace Rtx
             dim.mSkyHorizon = bright.mSkyHorizon / 32.0f;
             dim.mSkyZenith = dim.mSkyHorizon;
 
-            // **A step, and the same one on both legs**: a measured exposure adapts by how long
-            // since the last frame, `FrameOptions::mSinceLast`, and a frame that states nought
-            // adapts nothing at all.
+            // **A step, and the same one on both legs**: a measured exposure adapts by how far the
+            // world's clock moved since the last frame, `FrameOptions::mWorldSinceLast`, and a frame
+            // that states nought adapts nothing at all.
             constexpr float sStep = 1.0f / 60.0f;
 
             const auto frame = [&](const Shaders::VisibilityConstants& camera, const ExposureRule exposure,
                                    const HistoryLoss loss = HistoryLoss::None) {
-                mProbe.traceFrame(camera, FrameOptions{ .mSinceLast = sStep, .mLoss = loss, .mExposure = exposure });
+                mProbe.traceFrame(
+                    camera, FrameOptions{ .mWorldSinceLast = sStep, .mLoss = loss, .mExposure = exposure });
                 mRenderer.readPixels(mPixels);
                 return mPixels;
             };

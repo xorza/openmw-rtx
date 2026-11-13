@@ -400,7 +400,8 @@ namespace Rtx::Testing
         /// factor of thirty-two apart and nothing else, so the histogram is the only thing that changed. Told
         /// it has no past, the eye holds a bright day's exposure (`EXPOSURE_DAY`); given a long frame, it
         /// arrives; told it has a past, it has barely moved a frame later; told no time passed, or held, it has
-        /// not moved.
+        /// not moved. Its time is the world's (`FrameOptions::mWorldSinceLast`): a long frame of the host's
+        /// alone moves it nowhere, and one of the world's alone settles it.
         ///
         /// Driven frame by frame rather than through `shoot`, which calls `setScene` every time and a new scene
         /// costs every history, the eye's too, which the middle frame must not lose.
@@ -434,21 +435,23 @@ namespace Rtx::Testing
                 return counted > 0 ? sum / static_cast<double>(counted) : 0.0;
             };
 
-            // The exposure measured rather than pinned, which is the whole subject, `since` after the
-            // last frame.
-            const auto shot = [&](const Shaders::VisibilityConstants& camera, const float since = 1.0f / 60.0f,
-                                  const HistoryLoss loss = HistoryLoss::None) {
-                mProbe.traceFrame(
-                    camera, FrameOptions{ .mSinceLast = since, .mLoss = loss, .mExposure = ExposureRule{} });
+            // The exposure measured rather than pinned, which is the whole subject, `world` seconds of the
+            // world's clock and `host` of the host's after the last frame.
+            const auto shot = [&](const Shaders::VisibilityConstants& camera, const float world = 1.0f / 60.0f,
+                                  const HistoryLoss loss = HistoryLoss::None, const float host = 1.0f / 60.0f) {
+                mProbe.traceFrame(camera,
+                    FrameOptions{
+                        .mSinceLast = host, .mWorldSinceLast = world, .mLoss = loss, .mExposure = ExposureRule{} });
                 mRenderer.readPixels(pixels);
                 return meanByte();
             };
 
             // Where the eye arrives on `camera`: a frame with no past, which holds a day, and the same
-            // frame again over a time it closes the whole gap in.
+            // frame again over a time of the world's it closes the whole gap in, which the host's clock
+            // stood still for.
             const auto settle = [&](const Shaders::VisibilityConstants& camera) {
                 shot(camera, 1.0f / 60.0f, HistoryLoss::Cut);
-                return shot(camera, 1000.0f);
+                return shot(camera, 1000.0f, HistoryLoss::None, 0.0f);
             };
 
             // Nothing to hit, so every pixel is the sky and the mean of the frame is the sky. The
@@ -469,9 +472,9 @@ namespace Rtx::Testing
             // so it has gone almost nowhere.
             const double justAfter = shot(dim);
 
-            // No time at all after that, and the eye has had none to move in: a frame that stood for
-            // nothing is no reset.
-            EXPECT_EQ(shot(dim, 0.0f), justAfter) << "the eye moved in no time";
+            // No time of the world's after that, and the eye has had none to move in, however long the
+            // host's frame took — a paused world's: a frame that stood for nothing is no reset.
+            EXPECT_EQ(shot(dim, 0.0f, HistoryLoss::None, 1000.0f), justAfter) << "the eye moved while the world stood";
 
             // And where it is headed: the eye settled on the dim sky.
             const double adapted = settle(dim);
@@ -487,7 +490,7 @@ namespace Rtx::Testing
             const auto held
                 = [&](const Shaders::VisibilityConstants& camera, const HistoryLoss loss = HistoryLoss::None) {
                       mProbe.traceFrame(camera,
-                          FrameOptions{ .mSinceLast = 1.0f / 60.0f, .mLoss = loss, .mExposure = HeldExposure{} });
+                          FrameOptions{ .mWorldSinceLast = 1.0f / 60.0f, .mLoss = loss, .mExposure = HeldExposure{} });
                       mRenderer.readPixels(pixels);
                       return meanByte();
                   };

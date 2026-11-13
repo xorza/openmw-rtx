@@ -39,6 +39,7 @@
 #include "rtxrun.hpp"
 #include "rtxwindow.hpp"
 #include "skyreader.hpp"
+#include "traceclocks.hpp"
 #include "viewqueue.hpp"
 #include "worldmirror.hpp"
 
@@ -467,9 +468,8 @@ namespace MWRender
         /// What the last frame spent, which the next frame's arrival closes (`Rtx::FrameSpend::closedBy`).
         Rtx::FrameSpend mBehind;
 
-        /// Where the host's clock stood at the last trace, nothing before the first: what
-        /// `Rtx::FrameOptions::mSinceLast` is measured from.
-        std::optional<double> mTracedAt;
+        /// What `Rtx::FrameOptions::mSinceLast` and `Rtx::FrameOptions::mWorldSinceLast` are measured from.
+        TraceClocks mTraceClocks;
 
         /// The run's word on whether the ground waits, where it says one — `RunSetup::mSettled` —
         /// which `configureResources` weighs against the frame clock's stated step.

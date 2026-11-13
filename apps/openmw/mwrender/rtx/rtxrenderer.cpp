@@ -1052,15 +1052,14 @@ namespace MWRender
             frame.mEye.closesAirAt(mMirror.getReach()));
         request.mSky = &mSky.getContent();
 
-        const double now = getLoopClock().getNow();
-        const float sinceLast = mTracedAt.has_value() ? static_cast<float>(now - *mTracedAt) : 0.0f;
-        mTracedAt = now;
+        const TracedSeconds elapsed = mTraceClocks.trace(getLoopClock().getNow(), frame.mWhen.getSimulationTime());
 
         // The schedule's and not the profile's: a warm-up is not averaged in, which a half-built cell would
         // spoil (`RtxRun::getAccumulated`). The backend reads its own profile.
         request.mOptions = Rtx::FrameOptions{
             .mAccumulate = mRun.getAccumulated(),
-            .mSinceLast = sinceLast,
+            .mSinceLast = elapsed.mHost,
+            .mWorldSinceLast = elapsed.mWorld,
             .mLoss = std::exchange(mLoss, Rtx::HistoryLoss::None),
             .mReconstruction = mRun.getReconstruction(),
             .mExposure = mRun.getExposure(),

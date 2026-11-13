@@ -25,7 +25,7 @@ namespace Rtx
 
         /// Eases the share toward what the trace counted, where `getShare` points.
         ///
-        /// @param elapsedSeconds since the previous frame.
+        /// @param elapsedSeconds how far the world's clock moved since the previous frame.
         /// @param reset true where there is no previous share to move from — the first frame, and
         ///        any frame the renderer was told has no past. What the rays found is taken outright.
         void record(VkCommandBuffer commands, float elapsedSeconds, bool reset, GpuTimer* timer) const;

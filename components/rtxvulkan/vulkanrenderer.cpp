@@ -941,7 +941,7 @@ namespace Rtx
                 .mFrame = FrameLook{
                     .mExposure = options.mExposure.value_or(mProfile.mExposure),
                     .mExposureBias = described.mExposureBias,
-                    .mSeconds = options.mSinceLast,
+                    .mSeconds = options.mWorldSinceLast,
                     .mGlare = described.mGlare,
                     .mInverseGamma = mInverseGamma,
                     .mNightEye = described.mNightEye,
