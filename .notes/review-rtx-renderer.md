@@ -120,6 +120,39 @@ How an item is marked:
 
 Whoever addresses an item deletes it. Each batch leaves the build and the tests green.
 
+## Batch 0 — The open decisions, each settled by its run
+
+No code lands here but a spike behind a switch. Each item ends in a decision written into the batch it names,
+and its figures in a dated note under `docs/research`. Run on a quiet desktop, one run at a time.
+
+- [ ] **Lamp halos in fog** (`shaders/lib/fog.glsl:587`) — lamps scatter isotropically (`INV_FOUR_PI`) where the
+  sun and the moons take the fitted Mie phase, so a lamp in fog has no halo toward the eye; Frostbite evaluates
+  the phase per light (https://www.slideshare.net/DICEStudio/physically-based-and-unified-volumetric-rendering-in-frostbite).
+  Spike a phase-weighted sum beside the phase-free one the puffs read, behind a switch. `./omw shot --map
+  --upscale=off --out=<dir>` without it and `--against=<dir>` with it, at a lamp seen through fog indoors and
+  one outdoors at night, then `./omw release noise --ab=<switch>` there and the `air` zone, since a peaked
+  phase is one more channel and may be noisier. A look: the pictures decide, and the choice goes to Batch 8.
+- [ ] **Precipitation in the sprite self-shadow** (`shaders/scene/spriteshade.comp:69-72`) — `spriteShadeWants`
+  admits falling snow to a self-shadow whose stated purpose is a smoke column's lit and shaded sides, and the
+  file's own figure under snow is 0.64 ms. Exclude `EMITTER_FALLS` behind a switch. `shot --against` at a
+  snow view and a rain view, and the `shade` zone's median and p99 under snow from `./omw release bench`. A
+  picture: if snow reads the same without it, it goes; the choice goes to Batch 8.
+- [ ] **The content store's layout** (`contentstore/store.cpp:519-537`) — the start sweep reads whole, and
+  digests, every file of 4 KiB or less to learn its kind, then drops the kinds held at any size, which the
+  preparation reads again. Two shapes: the kind in the path (`v<n>/<kind>/<xx>/<key>`), so an unranked kind is
+  not listed at all, which changes the format and empties every player's store once; or the 56-byte trailer
+  read first, no format change, the opens kept. Time the store thread's start under the large profile, warm and
+  with a cold page cache, with the count of files opened and bytes read by kind. The path only if the opens
+  themselves are what costs; the trailer if the reads are; neither if the start is under what a loading screen
+  hides. The choice goes to Batch 9.
+- [ ] **The host geometry mirror** (`rtx/scene/meshtable.hpp`) — `MeshTable` holds every vertex at 36 B and
+  every index at 4 B for as long as its mesh stands, and after arrival only a rebuild (`setScene` after a
+  resize or a mode change lets the world go) and the harness's digest read it. Freeing it trades RAM for a
+  read at the next rebuild, against the rule that what was read once stays in memory. Read
+  `getGeometryBytes()` at the three contents from a scene report, and count the rebuilds of a played session.
+  It is freed only if the bytes are large and the world can outlive a target rebuild, so nothing reads the
+  mirror again; otherwise it stands and its header says why. The choice goes to Batch 4.
+
 ## Batch 1 — Worker threads and the monitor
 
 Files: `components/misc/monitor.hpp`, `components/contentstore/store.cpp`, `components/rtx/prepare/contentpreparation.{hpp,cpp}`,
@@ -267,9 +300,9 @@ Files: `components/rtx/scene/*`, `components/rtx/common/{runs,slots}.*`, `compon
   `isLive`/`isPlaced`, `hold`/`drop` against `stand`/`release`, three shapes of news). One protocol on `HeldRows`.
 - [ ] `renderer/renderer.hpp:536` a nullable `mSky` asserted non-null (a reference parameter);
   `scene/scenedesc.hpp:182` `addEmitter` with seven parameters and two trailing bools (a struct).
-- [ ] **measure** the host geometry mirror kept for the session (36 B a vertex) and read only by a rebuild;
-  `sWorldRoom`'s `1<<18` placements against some 80k used; `GpuInstance::mMotion`, 48 of 160 B, the identity for
-  nearly every row. Bytes at the three contents first.
+- [ ] The host geometry mirror, as Batch 0 decided: freed after arrival, or its header saying why it stands.
+- [ ] **measure** `sWorldRoom`'s `1<<18` placements against some 80k used; `GpuInstance::mMotion`, 48 of 160 B,
+  the identity for nearly every row. Bytes at the three contents first.
 
 ## Batch 5 — The backend's scene, acceleration and textures
 
@@ -437,14 +470,13 @@ Files: `components/rtxvulkan/shaders/{trace,lib,scene}/*` (fog, sprite, water, r
   held by `repeat`. `repeat --pairs=10`, quiet and contended, with the fog passes as dispatches; the rule stands
   unless every pair agrees.
 - [ ] **measure** `scene/spriteshade.comp:274-293` two barriers a sprite across 1024 lanes (per-lane accumulation,
-  the same sums in the same order), and `:69-72` precipitation admitted to a self-shadow meant for smoke (a
-  picture, the user's call). `shade` under snow.
+  the same sums in the same order). `shade` under snow, after Batch 0 says whether snow is shaded at all.
 - [ ] **measure** `trace/media.comp:64,116,127` three traversals an earlier stage already traced (three floats
   beside the stage record); `trace/spritecomposite.rgen:181-193` every traced pixel visited for a few tiles;
   `trace/ripplestep.comp:81-82` every texel against every impulse; `trace/tracemedia.cpp:34` the sea synthesised
   inland; `lib/fog.glsl:107-122` field fetches in a room whose coverage is one.
-- [ ] `lib/fog.glsl:587` — lamps scatter isotropically where the sun takes the fitted phase. A look; the user's
-  call.
+- [ ] What Batch 0 decided of the lamps' phase and of precipitation in the self-shadow, each landed without its
+  switch or removed with it.
 
 ## Batch 9 — The content store and the preparation
 
@@ -458,9 +490,8 @@ Files: `components/contentstore/*`, `components/rtx/prepare/*`, `components/rtx/
 - [ ] Tests on the above: 47 sites construct a holding store; `contentstore/store.cpp:346-364` builds 128 MiB of
   payload to reach a 64 MiB bound; the full-queue drop, the drop while stopping, the resident cap and the stamp
   cap have no test. Small bounds, and the four paths.
-- [ ] **measure** `store.cpp:519-537` — the start sweep reads whole, and digests, every file of 4 KiB or less to
-  learn its kind, then drops the kinds held at any size, which the preparation reads again. The kind in the path,
-  or the 56-byte trailer read first. Time the store thread's start on the large profile.
+- [ ] `store.cpp:519-537` — the start sweep learns an entry's kind by reading it whole. The layout Batch 0
+  decided: the kind in the path, or the trailer read first.
 - [ ] `store.cpp:230-235,318-321,445-456` — every first hit queues a `utimensat`, though the time ranks only small
   entries of unheld kinds and nothing evicts. Stamp only what ranks.
 - [ ] `store.cpp:179-186` a `Task` with a kind tag and per-kind fields, stamps escaping the byte bound (a variant;
@@ -696,3 +727,10 @@ Files: `.clang-tidy`, and the sites it names.
   no caller that tells cases apart.
 - [ ] Hidden clocks in the core: `renderer/sceneuploader.cpp:66-162`, `preprocess/contentpreprocessor.cpp:23-57`,
   `prepare/contentpreparation.hpp:276`. A clock handed in.
+
+## Batch 16 — The prerelease tour
+
+Files: `apps/rtxtool/**`, `tools/omw/tour.py`, `.zed/tasks.json`. After Batch 12.
+
+- [ ] A `tour` verb that flies every land cell a content names and its most significant interiors and reports
+  each fault with its place: `.notes/proposal-tour.md` holds the design, its open decisions and its steps.
