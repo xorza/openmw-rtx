@@ -320,3 +320,35 @@ After, three runs: `buildNormalChain` 0.24 s, 186 million texels a second, and `
 were. What the build's samples hold after: the directions of four normals and their bytes 41%, the finest
 level's walk, its unit normals and its laying 25%, the box 16%, `ColourBlock::read` 8%, the alpha's decode 4%.
 
+## Cold again, with every change above
+
+The tree at `0011749652` and the tree at `11cfa7cd7a`, back to back for each content list, as the first table
+was run but for the recording, which is of the new tree's runs alone:
+
+| content | preparation, before | after | its threads' CPU, before | after |
+|---|---|---|---|---|
+| vanilla | 3.05 s | 1.68 s | 44.9 s | 24.5 s |
+| Fullrest Repack | 327.6 s | 168.9 s | 4,886 s | 2,515 s |
+| PBR replacers | 76.1 s | 41.0 s | 1,128 s | 605 s |
+
+Every entry of the two stores is the same byte for byte, 19,401 files of vanilla's, 32,027 of the replacers' and
+105,289 of the Repack's; the manifest beside them differs, which files a run's stamps and its order; and the
+Repack's base store holds three small entries the new one lacks, as its two cold stores did before
+(`.notes/ISSUES.md`).
+
+Inclusive shares of the new runs' samples, the load ahead of the preparation among them:
+
+| function | vanilla | Fullrest Repack | PBR replacers |
+|---|---|---|---|
+| `ChainPass::run`, every chain | 77.0% | 94.0% | 90.3% |
+| `ChainBuild::encode`, rgbcx's BC1 | 53.2% | 62.2% | 26.7% |
+| `ChainBuild::encodeBc7`, bc7enc | 6.6% | 10.3% | 38.8% |
+| of it, `estimate_partition`, every mode's alone | 3.8% | 5.7% | — |
+| `ChainBuild::build` | 16.9% | 21.6% | 24.0% |
+| of it, `ChainBuild::delight` | 12.1% | 15.9% | 4.2% |
+| of it, `ChainBuild::buildNormals` | — | — | 10.3% |
+| `ShapePass::run` | 9.3% | 3.0% | 0.9% |
+
+BC1 is still three fifths of the Repack's run. A chain of every mode in BC7, a colour's or a map of data's, is
+a tenth of it, and over half of that is `estimate_partition`, which nothing above touched.
+
