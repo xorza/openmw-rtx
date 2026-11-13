@@ -32,9 +32,8 @@ How an item is marked:
   records only", "one thread records", a hand-kept list of shader alignments, build flags "the same" at two sites,
   a free list "of tens of entries", source-tree rules that pass when they match nothing. Each becomes a type, an
   assert or a test.
-- **A rule outlived its cause.** One buffer a frame slot and a host wait for writes that are now queue-ordered
-  copies; ray-generation launches for a fault another flag fixed in the same commit; position fetch kept for
-  candidates after committed hits left it; casts and null guards written for a compiler the tree no longer accepts;
+- **A rule outlived its cause.** Position fetch kept for candidates after committed hits left it; comments that
+  describe mapped host writes over code that stages them; casts and null guards written for a compiler the tree no longer accepts;
   bands in a test for an order dependence a seed removed. Each rule names its cause where it stands, and is
   re-derived when the cause moves.
 - **Two routes to one result.** A triangle's corners, a texture slot with and without a hold, a freed slot pulled
@@ -135,8 +134,10 @@ Files: `components/misc/monitor.hpp`, `components/contentstore/store.cpp`, `comp
   `store.cpp:249,289,323,398`, `preparedimages.cpp:120` — a task is pushed in `under(...)` and announced by a
   later empty `give([] {})`. Between the two the queue holds work while `mIdle` is true, so a second writer's
   `await(fits)` answers "no worker" and drops its entry (`:379`), and `flush()` can return with a task queued.
-  `give` returns what its write returned, the push goes inside it, and the seven empty `give`s go. A test with two
-  writers and a small queue bound (Batch 9) holds it.
+  `give` returns what its write returned, the push goes inside it, and the seven empty `give`s go: what a waiter's
+  predicate reads is changed under the one lock hold that publishes it
+  (https://en.cppreference.com/w/cpp/thread/condition_variable). A test with two writers and a small queue bound
+  (Batch 9) holds it.
 - [ ] `contentpreparation.cpp:226-339`, `preparedimages.cpp`, `store.cpp` — three pools: two on `Monitor`, one on
   a raw mutex with a predicate-less wait (`:251`); `Hand` and stop-all-then-join-all written three times. One hands
   helper on `Monitor`, the stop through `condition_variable_any::wait(lock, stop_token, pred)`.
@@ -303,9 +304,14 @@ Files: `components/rtxvulkan/{scene,texture,trace}/*`, `components/rtxvulkan/dev
   A load hands back what it grew past a streamed arrival's mark. Read `getScratchBytes`/`getMeansBytes` after a
   load at the three contents.
 - [ ] **measure** `scene/sceneacceleration.cpp:570-579` — the top level is updated in place for any run of frames
-  that only move, with no bound on the chain; the recorded gain is from legs where cells keep arriving. Hold still
-  five to ten minutes in an interior with walking actors and A/B "always build": `tlas`, `trace`, `direct`,
-  `bounce`. Then a rota as the bodies have, or the record that the decay is nil.
+  that only move, with no bound on the chain; the recorded gain is from legs where cells keep arriving. NVIDIA:
+  "For TLAS, consider the PREFER_FAST_TRACE flag and perform only rebuilds", since a top level should be "as
+  high quality as possible regardless of the movement"
+  (https://developer.nvidia.com/blog/best-practices-for-using-nvidia-rtx-ray-tracing-updated/). Hold still five
+  to ten minutes in an interior with walking actors and A/B "always build": `tlas`, `trace`, `direct`,
+  `bounce`. A whole build was 3.45 ms on the handheld, so a rota is a spike the frame-time rule refuses: if the
+  decay is real, the bound is a build on a frame whose shape changes anyway, or after the moved share of
+  instances passes a mark; if it is nil, the header records that.
 - [ ] **measure** `scene/bottomlevelstore.cpp:157-160`, `traversal.glsl:272-277,498,722-744`,
   `device/requirements.cpp:32` — a candidate's corners come off the structure by position fetch, a committed
   hit's off the tables. One route removes `ALLOW_DATA_ACCESS` from every bottom level and a start requirement.
@@ -323,9 +329,20 @@ Files: `components/rtxvulkan/shaders/trace/{bounce,visibility}.comp`, `shaders/l
 - [ ] **bug (unguaranteed)** `trace/bounce.comp:44-66`, `trace/visibility.comp:433-443` — a lane is elected and its
   answer broadcast after non-uniform control flow, which core Vulkan does not promise reconverges; no module
   declares `subgroup_uniform_control_flow`. A split tangle gives lanes a slot base of nought and appends a tile
-  twice. Declare the extension and the attribute on the modules that elect, require the feature beside the
-  32-lane requirement, and hold it with a module check
-  (https://docs.vulkan.org/guide/latest/extensions/VK_KHR_shader_subgroup_uniform_control_flow.html).
+  twice. Two extensions give the guarantee, and Roadmap 2024 requires both
+  (https://docs.vulkan.org/spec/latest/appendices/roadmap.html):
+  `SubgroupUniformControlFlowKHR` reconverges a subgroup that was uniform on entering a structured loop or
+  selection and left by its merge block, which says nothing certain of an early return or a traversal loop
+  (https://github.khronos.org/SPIRV-Registry/extensions/KHR/SPV_KHR_subgroup_uniform_control_flow.html);
+  `MaximallyReconvergesKHR` reconverges "as soon as possible", by the control flow graph, as the source reads
+  (https://github.khronos.org/SPIRV-Registry/extensions/KHR/SPV_KHR_maximal_reconvergence.html). The mode is
+  one `OpExecutionMode` an entry point, so the pinning step, which already adds `SignedZeroInfNanPreserve`,
+  can add it to every module that uses a subgroup operation: the build's guarantee, as the float arithmetic is.
+  **Decided: `MaximallyReconvergesKHR`**, required at device creation beside the 32-lane requirement
+  (`VK_KHR_shader_maximal_reconvergence`), held by a module check, and `./omw kernels` names what moved.
+  Refused: uniform control flow, whose text does not cover what these stages do before they elect; lane 0
+  appending after a `barrier()` over a shared OR, a barrier a workgroup in two hot stages and another list
+  order.
 - [ ] `lib/lights.glsl:295-299` — `terminatorShare` is worked out for every lamp in tuples with no maps; the
   float-equality select cannot fold under the pin. `HAS_MAPS` in front. Pictures stay; `./omw kernels` names the
   vanilla tuples.
@@ -336,12 +353,21 @@ Files: `components/rtxvulkan/shaders/trace/{bounce,visibility}.comp`, `shaders/l
 - [ ] An exact mode for the harness: level-0 cutouts, a per-channel lamp estimate, no rates, unfiltered. It makes
   the three items below numbers.
 - [ ] **measure** `lib/traversal.glsl:363-385` — a bounce ray tests a cutout at its cone's level with the
-  rasterizer's coverage scale, so a leaf card is wholly solid or wholly absent to it. Meet by chance of the
-  filtered alpha, on rays that do not draw. Not hashed alpha, which was declined for the eye's edges: the user
-  decides whether this falls under it.
+  rasterizer's coverage scale (`1 + 0.25·lod`), so a leaf card is wholly solid or wholly absent to it. Two
+  forms: meet by chance of the filtered alpha, on rays that do not draw, whose expectation is the coverage
+  (Enderton et al. 2010, which `cutAt` cites); or coverage kept in the chain itself as the preparation builds
+  it, each level's alpha scaled until the share of texels passing the reference is the finest level's
+  (Castaño, https://www.ludicon.com/castano/blog/articles/computing-alpha-mipmaps/; DirectXTex's
+  `ScaleMipMapsAlphaForCoverage`), which replaces the runtime scale for every ray but still leaves a one-texel
+  level all or nothing. Neither is the declined hashed alpha: that was a cut fixed to the surface, and a draw
+  each frame is what `cutAt` already does for a soft edge.
 - [ ] **measure** `lib/shading.glsl:1327-1347` — a diffuse landing evaluates its GGX lobe at authored roughness
-  toward the bounce, guarded by the firefly ceiling alone (PBR content). Regularize at `PATH_INDIRECT`
-  (https://link.springer.com/content/pdf/10.1007/978-1-4842-4427-2_17.pdf).
+  toward the bounce, guarded by the firefly ceiling alone (PBR content). Regularize at `PATH_INDIRECT`: a
+  roughness floor after a rough bounce, as Cycles' Filter Glossy does
+  (https://docs.blender.org/manual/en/4.1/render/cycles/optimizations/reducing_noise.html), which keeps the
+  energy a clamp drops (https://link.springer.com/content/pdf/10.1007/978-1-4842-4427-2_17.pdf) and adds a
+  bias the floor's size sets (Weier et al. 2021,
+  https://diglib7.eg.org/bitstream/handle/10.1111/cgf14347/v40i4pp139-151.pdf).
 - [ ] **measure** `lib/shading.glsl:970-1049`, `lib/lights.glsl:392-406` — the lamps' one scalar fraction is biased
   where lamps differ in colour or occlusion, and with a lobe it multiplies the diffuse sum alone. Keep it or carry
   three channels, once the exact mode gives the size.
@@ -369,8 +395,11 @@ Files: `components/rtxvulkan/shaders/{texture,trace/denoise,upscale,display}/*`,
   `upscale/fsrupscaler.cpp:305-310` a constant commented "as the SDK clears it" that differs from the 3.1.4 host
   (say why, after re-reading the SDK file).
 - [ ] `docs/architecture.md:408` — three refusals for Ray Reconstruction cite a note that holds no row for them,
-  measured on content with no lobe. Record the trial, or run `noise --ab` under the PBR profile with a hit
-  distance and both matrices (https://github.com/NVIDIAGameWorks/Streamline/blob/main/docs/ProgrammingGuideDLSS_RR.md).
+  measured on content with no lobe. NVIDIA's guide lists specular motion vectors, or a specular hit distance
+  with the world-to-view and view-to-clip matrices, among the buffers Ray Reconstruction requires (4.1.8,
+  4.1.9), and the colour before transparency as optional
+  (https://github.com/NVIDIAGameWorks/Streamline/blob/main/docs/ProgrammingGuideDLSS_RR.md). Run `noise --ab`
+  under the PBR profile with a hit distance and both matrices, and record its rows in the note.
 - [ ] **measure** `shaders/upscale/fsrcallbacks.glsl:516-521` — the reprojection runs the reference Lanczos, at
   least 16 `sin` an output pixel, where the SDK's host binds a 128-entry table on 32-to-64-lane devices. Add the
   table, chosen by a subgroup-size capability; no vendored line changes. `./omw kernels` and the Upscale zone.
@@ -402,9 +431,11 @@ Files: `components/rtxvulkan/shaders/{trace,lib,scene}/*` (fog, sprite, water, r
 - [ ] **measure** `trace/fogscatter.rgen:101-111,169-181` — a froxel past every surface still fetches and casts.
   A per-column farthest depth from last frame's block, dilated, dropped on a cut. Count such froxels, then `air`
   and `noise --strafe --cut`.
-- [ ] **measure** the five ray-generation passes as compute dispatches (`sourcetree.cpp:352-390`): the rule and
-  `NO_DUPLICATE_ANY_HIT` landed in one commit, and the trace's own stages are exempt. `repeat --pairs=10`, quiet
-  and contended.
+- [ ] **measure** the five ray-generation passes as compute dispatches (`sourcetree.cpp:352-390`). The stated
+  cause is a dispatch preempted with a traversal in flight, "a candidate counted twice or not at all";
+  `NO_DUPLICATE_ANY_HIT` answers the first half and not the second, and the trace's own stages are dispatches
+  held by `repeat`. `repeat --pairs=10`, quiet and contended, with the fog passes as dispatches; the rule stands
+  unless every pair agrees.
 - [ ] **measure** `scene/spriteshade.comp:274-293` two barriers a sprite across 1024 lanes (per-lane accumulation,
   the same sums in the same order), and `:69-72` precipitation admitted to a self-shadow meant for smoke (a
   picture, the user's call). `shade` under snow.
@@ -457,13 +488,16 @@ Files: `components/contentstore/*`, `components/rtx/prepare/*`, `components/rtx/
 Files: `components/rtxvulkan/{gui,present,display,frame}/*`, `components/rtxvulkan/{vulkanrenderer,framering}.*`,
 `components/myguirtx/*`.
 
-- [ ] `gui/guidrawer.hpp:57,73`, `gui/guidrawer.cpp:40`, `framering.hpp:87` — a vertex buffer a frame slot and a
-  host `waitIdle` before each write, from when writes were mapped; the write is now a staged, queue-ordered copy,
-  and the comment still says "no staging copy". After an unshown present the slot is reused and the wait blocks
-  for a whole device frame. One buffer, no wait; the same for the debug vertices.
-- [ ] The same question for the scene's tables, which keep "a copy a frame slot" (80 + 32 MiB over four buffers,
-  each changed row staged twice): `docs/architecture.md:355` refuses "a shared device copy" with no reason beside
-  it. State the reason, or spike one copy and read whether anything uses the other as the frame before.
+- [ ] `gui/guidrawer.hpp:57` — the comment says "Host-visible device memory… no staging copy"; `prepare` stages.
+  Correct it.
+- [ ] **measure** `gui/guidrawer.cpp:40` — `prepare` waits on the host for the slot's last submit. After an
+  unshown present (`mDrawn` not bumped) the same slot is taken again, whose newest stamp is this frame's own
+  placement or trace, so the wait would last a device frame: every frame of a resize drag. Read the frame's
+  host wait under a drag; if it shows, the slot advances on every prepare.
+- [ ] `docs/architecture.md:355` — "a shared device copy (Unreal's GPUScene)" is refused with no reason beside
+  it. The reason is the landed proposal's: one copy changes every debt and makes each write wait out the frame
+  before it on the queue, and a frame reads the previous pose copy for motion. Say so there. The copy a frame
+  slot stands, for the scene's tables and the interface's vertices alike.
 - [ ] `myguirtx/texture.cpp:73,122` — a narrow texture's `mPixels` lives as long as the texture and is read only
   between `lock` and `unlock` (2 MiB a 1024² atlas). Allocate in `lock`, release in `unlock`.
 - [ ] **measure** `gui/guitextures.cpp` (`add`), `myguirtx/slottexture.cpp` (`fillWith`),
@@ -515,8 +549,6 @@ Files: `components/rtxvulkan/{device,pipeline,spirv}/**`.
 - [ ] **measure** `device/memory/memory.cpp:36,387` the 64 MiB block and 32 MiB dedicated threshold carry no
   reason (count dedicated allocations under the PBR stack); `spirv/spirvpin.cpp:642` per-result decorations where
   `SPV_KHR_float_controls2` offers a default.
-- [ ] `device/physicaldevice.cpp:426` — the first discrete card that qualifies; the player cannot name one. The
-  user's decision.
 
 ## Batch 12 — The harness
 
@@ -606,24 +638,30 @@ Files: `apps/components_tests/{rtx,rtxvulkan,myguirtx}/**`, `cmake/Tests.cmake`,
 
 Files: upstream's, and `.notes/UPSTREAM.md`. Every change here is a **propose**.
 
-- [ ] Changes with no entry in `.notes/UPSTREAM.md`, each to be recorded or reverted:
-  `mwrender/objectpaging.cpp:69,520-650,1136-1187` (the reference walk handed to the ray tracer, `RefKinds`,
-  `PagedCellRef`); `components/myguiplatform/*` and `mwgui/videowidget.cpp:54` (the GUI seam);
-  `mwrender/ripplesimulation.cpp:161,236` with `ripplerules.hpp`, `searules.hpp`;
-  `components/resource/scenemanager.{hpp,cpp}` (`ModelPrograms::Left`, which reads as a direction and means none);
-  `mwlua/postprocessingbindings.cpp:44-56,207-231`; `components/esm3/readerscache.cpp:35`;
-  `mwrender/groundcover.cpp:263`; `Q_MOC_INCLUDE` in 16 `apps/opencs` headers.
+- [ ] Changes with no entry in `.notes/UPSTREAM.md`. **Decided: these six are recorded**, each with its reason
+  and what it costs a merge: `mwrender/objectpaging.cpp:69,520-650,1136-1187` (the reference walk handed to the
+  ray tracer, `RefKinds`, `PagedCellRef`); `components/myguiplatform/*` and `mwgui/videowidget.cpp:54` (the GUI
+  seam); `mwrender/ripplesimulation.cpp:161,236` with `ripplerules.hpp`, `searules.hpp`;
+  `components/resource/scenemanager.{hpp,cpp}` (`ModelPrograms::Left`, which reads as a direction and means
+  none); `mwlua/postprocessingbindings.cpp:44-56,207-231`; `mwrender/groundcover.cpp:263` (`DensityCalculator`
+  in a header of its own).
+- [ ] **Decided: these two are reverted in a build under Clang and MSVC**, and whichever the build needs is
+  recorded with what it fixes: `components/esm3/readerscache.cpp:35` (the assignment hoisted out of the
+  switch's cases); `Q_MOC_INCLUDE` in 16 `apps/opencs` headers.
 - [ ] Stale entries: `UPSTREAM.md:174` "five path classes" (two were deleted); `:123` the checks live in
   `cmake/Checks.cmake`; `components/crashcatcher/crash.hpp:34,46` justify `contract` and `notNull` by a compiler
   the tree no longer accepts.
 - [ ] `cmake/Checks.cmake` — GCC left on 2026-11-12 and its `-Wdouble-promotion` with it; some 45 upstream files
   differ only by casts written for it, and 34 `Crash::notNull` sites in 25 files were written for its
-  flow-sensitive null check. Revert each warning-only hunk, build under Clang and MSVC, keep what fails.
+  flow-sensitive null check. **Decided**: revert each warning-only hunk, build under Clang and MSVC, keep what
+  a current check still asks for.
 - [ ] `cmake/Checks.cmake:92-93` — `-Wsuggest-override` and `-Wzero-as-null-pointer-constant` force edits in
-  OSG-derived files upstream keeps in OSG's style. Off per source there.
-- [ ] `mwrender/createrenderer.cpp:19`, `pingpongcanvas.cpp:54-65,222-228,396-410` — nothing requests the OpenGL
-  renderer and no test names a `Gl*` class, yet the fork writes rasterizer-only behaviour (the gamma resolve).
-  Revert it to upstream's text, or give `GlRenderer` one covering run.
+  OSG-derived files upstream keeps in OSG's style (some 18 files differ by nothing else). **Decided**: the two
+  flags off per source for those files, upstream's text restored there, and the checks entry in `UPSTREAM.md`
+  names the flags, the files left out and `cmake/Checks.cmake`.
+- [ ] `mwrender/pingpongcanvas.cpp:54-65,222-228,396-410` — the rasterizer's gamma resolve is recorded (the SDL3
+  port's entry) and runs in no build the game starts, as the rule that keeps the rasterizer unstarted intends.
+  It stands; no further rasterizer-only behaviour is written.
 - [ ] `mwlua/postprocessingbindings.cpp:207,227`, `mwgui/windowmanagerimp.cpp:2473-2481` — nine null tests of the
   post-processor where every sibling asks `support().declined…`. One question.
 - [ ] **measure** `mwscript/visibilitygates.cpp:426,459-463` — each watched global looked up by string twice a
@@ -643,14 +681,18 @@ Files: `.clang-tidy`, and the sites it names.
   `AGENTS.md` states are held by prose. Enable the checks that match them.
 - [ ] Some 46 classes delete their copies and leave the moves undeclared (`CommandPool`, `Presenter`, `Surface`,
   `FrameRing`, the resolvers, `CellRing`, `Device`, `Pipeline`, `Upscaler`, `myguirtx`'s). All five, held by
-  `cppcoreguidelines-special-member-functions`.
+  `cppcoreguidelines-special-member-functions` with `AllowMissingMoveFunctionsWhenCopyIsDeleted` left false:
+  the option is Google's reading, and the tree's rule is the Core Guidelines'
+  (https://clang.llvm.org/extra/clang-tidy/checks/cppcoreguidelines/special-member-functions.html).
 - [ ] Some 33 functional casts (`image/texels.cpp:108-115`, `environment/cloudmesh.cpp:137-162`,
   `renderer/frameimage.cpp:25-30`, `world/atmosphere.cpp:43`, `myguirtx/rendermanager.cpp:260-262`).
   `static_cast`.
 - [ ] `common/runs.hpp:145` a `unique_ptr<std::byte[]>(new …)` (`make_unique_for_overwrite`); `throw
   std::runtime_error` in `spirv` (30), `myguirtx` (6), `rtxwindow.cpp:36`, `rtxrenderer.cpp:213` beside
   `common/error.hpp`'s "four failures and no common base".
-- [ ] `Result<T, std::string>` in 126 places, where a caller cannot tell cases apart; `mirror/meshreader.hpp:102`
-  a `Result<bool, …>`; `environment/skysheet.hpp:23` a `Result` as a parameter. An enum of cases per reader.
+- [ ] `mirror/meshreader.hpp:102` a `Result<bool, std::string>` (a named three-state enum);
+  `environment/skysheet.hpp:23` a `Result` as a parameter (the caller unwraps). The 126 `Result<T, std::string>`
+  stand: every caller only logs, so the message is all the type offers, and an enum a reader would be churn for
+  no caller that tells cases apart.
 - [ ] Hidden clocks in the core: `renderer/sceneuploader.cpp:66-162`, `preprocess/contentpreprocessor.cpp:23-57`,
   `prepare/contentpreparation.hpp:276`. A clock handed in.
