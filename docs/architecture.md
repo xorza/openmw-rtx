@@ -273,7 +273,10 @@ screen (`research/2026-11-08-normal-map-chains.md`).
 - **rgbcx's BC1 search and bc7enc are made faster where they stand, and make the same blocks**, by the user's
   decision: the selector searches walk a block's texels in vectors, an ordering's endpoints are fit a channel a lane
   and tried once, and bc7enc's sums keep the order they were added in, which no store notices
-  (`research/2026-11-13-preparation-cpu-by-codec.md`, `RtxChainBuildTest`).
+  (`research/2026-11-13-preparation-cpu-by-codec.md`, `RtxChainBuildTest`). Refused, by the user's decision: a
+  painted block made with its file's own selectors where the fit stands within a limit, 6% to 12% of the Fullrest
+  Repack's preparation for blocks 0.02 to 0.05 dB worse, a view's worst pixel moved by up to 18 of 255, and every
+  store made again.
 - **A painted colour is stored delit, keyed by use** (`TextureEncoding::Painted`), by the user's decisions: a diffuse
   with no metal-roughness map and an unauthored ground layer are divided by `ShadingMap`'s estimate at every level and
   encoded again in the file's format; a file used both ways is two slots. Refused: every colour delit, which flattens
