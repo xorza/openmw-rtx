@@ -361,6 +361,9 @@ the lines each item names, which the merge resolves by keeping the seam:
 - The test binaries and benchmarks in the same form: files named in `target_sources` lists in place of
   `file(GLOB)` over names, links in the keyword form. The cost is a conflict with every upstream change to a
   test list, which the merge resolves by naming the file in its list.
+- The fork's benchmarks beside upstream's: `add_subdirectory(rtx)` in `apps/benchmarks/CMakeLists.txt`, for
+  `apps/benchmarks/rtx`, where Google Benchmark binaries live and CTest runs each one's dry run. The cost is a
+  conflict with an upstream benchmark added on the same line.
 - The top-level `CMakeLists.txt` split by responsibility: options and the install layout in
   `cmake/Options.cmake`, every `find_package` in `cmake/Dependencies.cmake`, the install rules in
   `cmake/Install.cmake`, the vendored libraries in `extern/CMakeLists.txt`, the resource files in

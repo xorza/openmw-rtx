@@ -81,6 +81,7 @@ foreach(
     ITEMS
         openmw_detournavigator_navmeshtilescache_benchmark
         openmw_esm_refid_benchmark
+        openmw_rtx_chain_encode_benchmark
         openmw_settings_access_benchmark
 )
     openmw_add_test(${benchmark} ${benchmark} ARGS --benchmark_dry_run)
