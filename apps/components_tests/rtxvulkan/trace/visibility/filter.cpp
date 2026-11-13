@@ -765,7 +765,7 @@ namespace Rtx::Testing
                                 .mExposure = FixedExposure{ 1.0f } });
 
                         // **Two frames in flight**, for the reason `RtxBounceTrailTest` gives: the
-                        // layers' work on one frame stands beside the device's on the one before.
+                        // host's work on one frame stands beside the device's on the one before.
                         mRenderer.collectFrame();
                     }
                     while (mRenderer.finishFrame().has_value())
@@ -1057,6 +1057,7 @@ namespace Rtx::Testing
             std::uint32_t frames, std::uint32_t first, std::vector<float>& read)
         {
             RendererProbe probe(renderer);
+            std::uint32_t reported = 0;
             for (std::uint32_t at = 0; at < frames; ++at)
             {
                 camera.mFrame = first + at;
@@ -1065,8 +1066,13 @@ namespace Rtx::Testing
                         .mReconstruction = ReconstructionRequest{ .mDenoise = true,
                             .mFilters = { .mAntilag = false, .mAntiFirefly = ring } },
                         .mExposure = FixedExposure{ exposure } });
-                EXPECT_TRUE(renderer.finishFrame().has_value());
+
+                // **Two frames in flight**, for the reason `RtxBounceTrailTest` gives.
+                reported += renderer.collectFrame().has_value() ? 1u : 0u;
             }
+            while (renderer.finishFrame().has_value())
+                ++reported;
+            EXPECT_EQ(reported, frames) << "a frame drawn and none given back";
             probe.readComposite(read);
         }
 
