@@ -116,7 +116,9 @@ The user runs the harness through the Zed tasks in `.zed/tasks.json`: `./omw rel
   differs by an ulp on identical inputs. The card's, not a missing barrier. `repeat` runs unfiltered
   and cannot see it; a difference in the composed frame alone is the card's.
 - Measure with `./omw release bench`, on a hot card, back to back, never with a sleep between runs,
-  after a throwaway warm-up leg; the first run after a shader change compiles the pipelines.
+  after a throwaway warm-up leg; the first run after a shader change compiles the pipelines. On a weak
+  machine, bench in a smaller window (`--size=960x540`), the same size on both sides of an A/B: at the
+  default size a run takes too long to repeat.
 - Measure on a quiet desktop: start the run in the background and end the turn. In the session's
   foreground it runs under the agent's own redraws, which the editor and the compositor draw, and
   every row moves. The report's `card` lines name another process's work, and `--frame-times=<dir>`
