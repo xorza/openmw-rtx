@@ -27,9 +27,20 @@ namespace ContentStore
     /// so an ask that reaches memory alone finds it. The start loads none of a kind held at any size: its owner
     /// reads the entries its content asks for, where a sweep that ranks files by their time alone would take the
     /// room of with another content's.
+    ///
+    /// **Its caps are the owner's**, as a cache library takes its capacity (RocksDB's `LRUCacheOptions::capacity`,
+    /// Caffeine's `maximumSize`): the store sizes its tables to them at its start, so a table never rehashes under the
+    /// lock the frame's thread asks, and a store of small caps starts in milliseconds.
     struct Holding
     {
         std::uint64_t mAtAnySize = 0;
+
+        /// The most bytes held in memory, each entry's payload and its node in the table, past which an entry is read
+        /// from its file again.
+        std::size_t mResidentBytesMost;
+
+        /// The most keys a session remembers stamping, past which a hit stamps nothing.
+        std::size_t mStampedMost;
     };
 
     /// What an owner files in a store, stated once as it opens it: the kinds its entries are, `[0,
@@ -105,14 +116,8 @@ namespace ContentStore
         /// holds entries, but a kind held at any size (`Holding::mAtAnySize`).
         static constexpr std::size_t sResidentMost = 4096;
 
-        /// The most bytes held in memory, each entry's payload and its node in the table, past which an entry is read
-        /// from its file again: the largest content measured, the Fullrest Repack, reaches 222 MiB of shapes on the
-        /// frame and a store's small entries came to 87 MiB; twice their sum, for the larger lists to come.
-        static constexpr std::size_t sResidentBytesMost = std::size_t{ 512 } << 20;
-
-        /// The most keys a session remembers stamping, past which a hit stamps nothing: ten times the
-        /// files a large content list's store holds, its writes included.
-        static constexpr std::size_t sStampedMost = std::size_t{ 1 } << 20;
+        /// What an entry of `payloadBytes` costs against `Holding::mResidentBytesMost`: its payload and its node.
+        static std::size_t residentBytesOf(std::size_t payloadBytes);
 
         /// The file format's version, in every trailer, and **the folder of the store's that holds its
         /// files** (`v2`): two builds of different formats on one machine keep apart, and neither deletes
@@ -201,11 +206,8 @@ namespace ContentStore
         bool readFile(const std::filesystem::path& path, const Key& key, std::uint32_t& kind, std::uint32_t& version,
             Misc::ByteBuffer& payload);
 
-        /// What an entry of `payloadBytes` costs `mResidentBytes`: its payload and its node.
-        static std::size_t residentBytesOf(std::size_t payloadBytes);
-
         /// Whether a hit on `key` stamps its file now: true the first time this session, which notes the
-        /// key, and false after it; false for a key met once `sStampedMost` keys are noted, since no
+        /// key, and false after it; false for a key met once `Holding::mStampedMost` keys are noted, since no
         /// more are remembered, and the time a stamp sets only ranks what a start loads. Under the lock.
         bool stampsOnce(const Key& key);
 

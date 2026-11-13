@@ -247,7 +247,7 @@ screen (`research/2026-11-08-normal-map-chains.md`).
   does not match is a miss and deleted; written to a temporary name and renamed. Refused: SQLite, by the user's
   decision; a pack file a pass; a sync before each rename, where the digest finds what a power loss left.
 - **One store, in a component of its own** (`components/contentstore`), which any owner may hold one of, with its kinds
-  and its residency stated by the owner (`ContentStore::Policy`).
+  and its residency stated by the owner, the caps the store sizes its tables to included (`ContentStore::Policy`).
 - **The navigator's tiles in a content store** (`DetourNavigator::NavMeshTileStore`), by the user's decision, in
   `<cache>/navmesh`, which every profile shares: a tile is keyed by everything Recast builds it from by value — the
   mesh's sorted triangles, the water, the heights, the settings, the agent and the tile — so whatever moves a triangle

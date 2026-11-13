@@ -195,9 +195,14 @@ namespace ContentStore
         : mDirectory(directory / ("v" + std::to_string(sFormat)))
         , mPolicy(policy)
     {
-        if (mPolicy.mHolding.has_value() && mPolicy.mKindCount < 64)
-            assert(mPolicy.mHolding->mAtAnySize >> mPolicy.mKindCount == 0
-                && "a kind held at any size that the policy does not have");
+        if (mPolicy.mHolding.has_value())
+        {
+            if (mPolicy.mKindCount < 64)
+                assert(mPolicy.mHolding->mAtAnySize >> mPolicy.mKindCount == 0
+                    && "a kind held at any size that the policy does not have");
+            assert(mPolicy.mHolding->mResidentBytesMost > 0 && "a store that holds entries in no room");
+            assert(mPolicy.mHolding->mStampedMost > 0 && "a store that holds entries and stamps none");
+        }
 
         std::error_code failed;
         std::filesystem::create_directories(mDirectory, failed);
@@ -423,7 +428,7 @@ namespace ContentStore
         const auto held = mResident.find(key);
         const std::size_t replaced = held != mResident.end() ? residentBytesOf(held->second.mPayload->size()) : 0;
         const std::size_t bytes = residentBytesOf(payload->size());
-        if (mResidentBytes - replaced + bytes > sResidentBytesMost)
+        if (mResidentBytes - replaced + bytes > mPolicy.mHolding->mResidentBytesMost)
             return;
 
         mResident.insert_or_assign(key, Resident{ kind, version, std::move(payload) });
@@ -450,7 +455,7 @@ namespace ContentStore
 
         // Past the bound a hit stamps nothing: each stamp is a task on the queue, and a key no longer
         // remembered would queue one at every hit.
-        if (mStamped.size() >= sStampedMost)
+        if (mStamped.size() >= mPolicy.mHolding->mStampedMost)
             return false;
         return mStamped.insert(key).second;
     }
@@ -506,11 +511,12 @@ namespace ContentStore
         // The tables sized once, here, at their bounds, off the frame: a table that grows rehashes under the lock,
         // on the frame's thread or while it waits on the lock, and a session adds keys that no file held at its
         // start. Each bound is exact: `stampsOnce` notes no more keys, and every resident entry costs at least its
-        // node. The cost is the buckets of both tables, some 80 MiB.
+        // node. The cost is the buckets of both tables, which the owner's caps state (`Holding`).
+        const Holding& holding = *mPolicy.mHolding;
         mMonitor.under([&] {
             mStats.mStale += swept.mStale;
-            mStamped.reserve(sStampedMost);
-            mResident.reserve(sResidentBytesMost / residentBytesOf(0));
+            mStamped.reserve(holding.mStampedMost);
+            mResident.reserve(holding.mResidentBytesMost / residentBytesOf(0));
         });
 
         // The small entries into memory, newest first, so an ask on the frame's thread finds a fact without waiting
@@ -525,7 +531,7 @@ namespace ContentStore
             // Not read where it could not be kept: a store that only grows would read every small
             // file at every start, past the bound, for nothing.
             const std::size_t costs = residentBytesOf(entry->mBytes - sizeof(EntryTrailer));
-            if (mMonitor.under([&] { return mResidentBytes + costs > sResidentBytesMost; }))
+            if (mMonitor.under([&] { return mResidentBytes + costs > holding.mResidentBytesMost; }))
                 continue;
 
             std::uint32_t kind = 0;

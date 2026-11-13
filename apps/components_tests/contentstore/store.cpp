@@ -34,7 +34,12 @@ namespace ContentStore
         constexpr std::uint32_t sFact = 0;
         constexpr std::uint32_t sMean = 1;
         constexpr std::uint32_t sShape = 2;
-        constexpr Policy sPolicy{ .mKindCount = 3, .mHolding = Holding{ .mAtAnySize = 1u << sShape } };
+
+        /// **Caps a test reaches, and no more**: the store sizes its tables to them at its start, which at the ray
+        /// tracer's caps took some 60 ms a store. Room for every entry a test here holds, a shape of 4097 bytes
+        /// the largest.
+        constexpr Holding sHolding{ .mAtAnySize = 1u << sShape, .mResidentBytesMost = 64 << 10, .mStampedMost = 64 };
+        constexpr Policy sPolicy{ .mKindCount = 3, .mHolding = sHolding };
 
         constexpr Key sKey{ { 0x0123456789abcdefull, 0xfedcba9876543210ull } };
         constexpr Key sOther{ { 0x1111111111111111ull, 0x2222222222222222ull } };
@@ -159,6 +164,61 @@ namespace ContentStore
             ASSERT_TRUE(store.read(shapeKey, sShape, 1, Reach::Memory, read));
             EXPECT_EQ(read, large);
             EXPECT_FALSE(store.read(meanKey, sMean, 1, Reach::Memory, read));
+        }
+
+        /// **A store holds no more than its owner's caps**, each one entry past where the other cap lets it:
+        ///
+        /// - room for two entries of 16 bytes, `2 × residentBytesOf(16)`, holds the first two of three written in
+        ///   memory and the third on the disk alone, and room for three holds all three;
+        /// - one key stamped a session leaves the second of two files read from the disk at the time it had, two days
+        ///   ago, and two keys stamp both. Entries of 5000 bytes, past `sResidentMost`, so the start loads none and
+        ///   every hit is a read's.
+        TEST(ContentStoreTest, aStoreHoldsNoMoreThanItsCaps)
+        {
+            const std::array<Key, 3> keys{ sKey, sOther, sThird };
+            for (const std::size_t entries : { std::size_t{ 2 }, std::size_t{ 3 } })
+            {
+                const Policy policy{ .mKindCount = 3,
+                    .mHolding
+                    = Holding{ .mResidentBytesMost = entries * Store::residentBytesOf(16), .mStampedMost = 64 } };
+                Store store(TestingOpenMW::currentTestDirPath() / ("held " + std::to_string(entries)), policy);
+                for (const Key& key : keys)
+                    store.write(key, sFact, 1, payloadOf(16, 1), Reach::Disk);
+
+                Misc::ByteBuffer read;
+                EXPECT_TRUE(store.read(sKey, sFact, 1, Reach::Memory, read)) << entries;
+                EXPECT_TRUE(store.read(sOther, sFact, 1, Reach::Memory, read)) << entries;
+                EXPECT_EQ(store.read(sThird, sFact, 1, Reach::Memory, read), entries == 3) << entries;
+                store.flush();
+                EXPECT_TRUE(store.read(sThird, sFact, 1, Reach::Disk, read)) << entries << ": the file stands";
+            }
+
+            for (const std::size_t stamped : { std::size_t{ 1 }, std::size_t{ 2 } })
+            {
+                const std::filesystem::path folder
+                    = TestingOpenMW::currentTestDirPath() / ("stamped " + std::to_string(stamped));
+                {
+                    Store store(folder, sPolicy);
+                    store.write(sKey, sFact, 3, payloadOf(sLarge, 1), Reach::Disk);
+                    store.write(sOther, sFact, 3, payloadOf(sLarge, 2), Reach::Disk);
+                }
+
+                const Policy policy{ .mKindCount = 3,
+                    .mHolding = Holding{ .mResidentBytesMost = sHolding.mResidentBytesMost, .mStampedMost = stamped } };
+                Store again(folder, policy);
+                again.flush();
+                const auto old = std::filesystem::file_time_type::clock::now() - std::chrono::hours(48);
+                std::filesystem::last_write_time(again.pathOf(sKey), old);
+                std::filesystem::last_write_time(again.pathOf(sOther), old);
+
+                Misc::ByteBuffer read;
+                ASSERT_TRUE(again.read(sKey, sFact, 3, Reach::Disk, read));
+                ASSERT_TRUE(again.read(sOther, sFact, 3, Reach::Disk, read));
+                again.flush();
+                EXPECT_EQ(again.getStats().mStamped, stamped);
+                EXPECT_GT(std::filesystem::last_write_time(again.pathOf(sKey)), old) << stamped;
+                EXPECT_EQ(std::filesystem::last_write_time(again.pathOf(sOther)) == old, stamped == 1) << stamped;
+            }
         }
 
         /// **Every file is untrusted**: a file shorter than its trailer, one whose magic, format, key,
@@ -394,7 +454,9 @@ namespace ContentStore
                 store.write(sKey, sShape, 1, payloadOf(16, 1), Reach::Disk);
             }
 
-            constexpr Policy twoKinds{ .mKindCount = 2, .mHolding = Holding{} };
+            constexpr Policy twoKinds{ .mKindCount = 2,
+                .mHolding
+                = Holding{ .mResidentBytesMost = sHolding.mResidentBytesMost, .mStampedMost = sHolding.mStampedMost } };
             Store fewer(folder, twoKinds);
             fewer.flush();
             Misc::ByteBuffer read;
