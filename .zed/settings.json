@@ -1,6 +1,4 @@
-// Local to this checkout (excluded in .git/info/exclude).
 {
-  // Zed's own exclusions ("...") and the caches the driver's lint leaves at the root.
   "file_scan_exclusions": ["...", "**/.mypy_cache", "**/.ruff_cache"],
   // Preambles in memory: on disk, clangd leaves one in /tmp for every file each time it is killed.
   "lsp": {
