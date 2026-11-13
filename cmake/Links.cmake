@@ -1,11 +1,13 @@
 # **How many programs link at once**: as many as the machine's memory holds of what one link of this build takes,
 # never fewer than one, as LLVM bounds its own (`LLVM_PARALLEL_LINK_JOBS`). Compiles keep every core; it is at a
 # build's end that its programs' links run together, and a 28 GB box with 16 threads linking every release program
-# at once swapped until it answered nothing. Each figure is the largest program's link measured alone — the game,
-# the harness, the tests or the CS — with a margin over it:
+# at once swapped until it answered nothing. Each figure is the most one program's link was measured to take — the
+# game, the harness, the tests or the CS — with a margin over it:
 #
-# - MSVC's `link.exe`: 7.2 GB private in release and 5.5 GB in debug, held at 8 GB, as the configuration is no
-#   question a configure asks (`docs/build.md`); under link-time code generation, 14.9 GB private, at 16 GB.
+# - MSVC's `link.exe`: 9.9 GB resident in release, where 7.2 GB private was measured before (three release links of
+#   `./omw gate` held 9.9, 9.5 and 6.5 GB together on 28 GB, 2026-11-13, and the run was stopped for memory), and
+#   5.5 GB in debug, held at 12 GB, as the configuration is no question a configure asks (`docs/build.md`); under
+#   link-time code generation, 14.9 GB private, at 16 GB.
 # - lld: 3.7 GB resident under ThinLTO, 2.9 GB of it anonymous, held at 5 GB; 1.4 GB otherwise, sanitized or not,
 #   0.36 GB of it anonymous, at 2 GB, where mold took 4.5 GB anonymous a sanitized link.
 cmake_host_system_information(RESULT openmw_memory_mib QUERY TOTAL_PHYSICAL_MEMORY)
@@ -13,7 +15,7 @@ if(MSVC)
     if(CMAKE_INTERPROCEDURAL_OPTIMIZATION)
         set(openmw_link_mib 16384)
     else()
-        set(openmw_link_mib 8192)
+        set(openmw_link_mib 12288)
     endif()
 elseif(CMAKE_INTERPROCEDURAL_OPTIMIZATION)
     set(openmw_link_mib 5120)

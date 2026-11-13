@@ -455,7 +455,9 @@ bounce (or `unbounced` in their place), then the composite. Every ray is a ray q
 - **A committed triangle's corners are read off the scene's vertices** (`committedHit`), since AMD's Windows driver
   fetches them wrong.
 - **No kernel spills past its ceiling** (`RtxVisibilityKernelsTest`): each driver's ceilings only fall, a register
-  ceiling rising only inside the waves it allowed (`research/2026-10-22-amd-integrated-spill-ceilings.md`).
+  ceiling rising only inside the waves it allowed (`research/2026-10-22-amd-integrated-spill-ceilings.md`). Measured
+  on the shipped modules, as a measured run of the harness reads them: the census's counting, which the test devices
+  carry, cost every AMD kernel up to five registers more and is no part of what the game runs.
 - **A stage a kernel, the channels between them**, as Quake II RTX traces its stages as passes: one kernel carrying
   every walk's record spilled 67 KB a lane (`research/2026-10-21-amd-integrated-stage-times.md`). Refused: a wavefront
   with queues, records in a buffer, every point's light stored.

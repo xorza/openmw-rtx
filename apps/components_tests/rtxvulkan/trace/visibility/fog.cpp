@@ -808,18 +808,28 @@ namespace Rtx::Testing
                 camera.mSkyZenith = osg::Vec3f();
                 camera.mAmbientFromSky = 0.0f;
 
+                // The frames the average leaves out read nothing, so they run a frame behind (`shoot`); the
+                // averaged ones go on from the same history, frame numbers and scene, each read back.
                 const std::uint32_t drawn = fogged ? frames : settled;
+                const bool lead = drawn > settled;
+                if (lead)
+                    shoot(scene, {}, camera, size,
+                        Shot{ .mFrames = drawn - settled,
+                            .mAverage = false,
+                            .mFirstFrame = frames - drawn,
+                            .mLoss = HistoryLoss::Cut });
                 std::vector<float> radiance;
                 shoot(scene, {}, camera, size,
-                    Shot{ .mFrames = drawn,
+                    Shot{ .mFrames = settled,
                         .mAverage = false,
-                        .mFirstFrame = frames - drawn,
-                        .mLoss = HistoryLoss::Cut,
+                        .mFirstFrame = frames - settled,
+                        .mLoss = lead ? HistoryLoss::None : HistoryLoss::Cut,
+                        .mSetScene = !lead,
                         .mEachFrame = [&](const Frame& each) { radiance.push_back(each.at(centre * 4)); } });
 
                 double total = 0.0;
-                for (std::uint32_t frame = drawn - settled; frame < drawn; ++frame)
-                    total += double{ radiance[frame] };
+                for (const float each : radiance)
+                    total += double{ each };
                 return total / double{ settled };
             };
 

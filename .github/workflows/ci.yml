@@ -47,12 +47,6 @@ jobs:
           persist-credentials: false
 
       # clang-format is the driver's pinned one, which `omw format` fetches.
-      - name: Qt's lupdate
-        # Retried, as a runner fails to resolve Ubuntu's mirrors now and then (run 43039314218).
-        run: |
-          sudo apt-get -o Acquire::Retries=5 update
-          sudo apt-get -o Acquire::Retries=5 install -y qt6-l10n-tools
-
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.11"
@@ -60,9 +54,6 @@ jobs:
       # Through the driver, which the gate runs too, so a tree the gate passes passes here.
       - name: File names
         run: python omw lint names
-
-      - name: Qt translations
-        run: LUPDATE=/usr/lib/qt6/bin/lupdate python omw lint translations
 
       - name: clang-format and gersemi
         run: python omw format --check
@@ -152,6 +143,11 @@ jobs:
       - name: Build
         # Unquoted, so no flags pass no argument.
         run: python omw "$FLAVOUR" build $BUILD_FLAGS
+
+      # With the vcpkg set's Qt, whose `lrelease` compiles these files: a leg that holds the set, once.
+      - name: Qt translations
+        if: matrix.name == 'linux-clang'
+        run: python omw lint translations
 
       - name: Test
         if: matrix.tested

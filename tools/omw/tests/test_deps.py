@@ -11,7 +11,7 @@ from unittest import mock
 from omw import deps, pins
 from omw.deps import pinned_folder
 from omw.pins import Pin
-from omw.system import DEPS
+from omw.system import DEPS, Refusal
 
 
 class PinnedFolderTest(unittest.TestCase):
@@ -119,6 +119,22 @@ class PruneTest(unittest.TestCase):
             self.assertEqual(sorted(path.name for path in folder.iterdir()), kept)
             deps.prune()
             self.assertEqual(sorted(path.name for path in folder.iterdir()), kept, "a second prune took more")
+
+
+class SetToolTest(unittest.TestCase):
+    def test_a_tool_is_the_one_its_port_installed_in_the_set_and_one_missing_names_the_set(self):
+        folder = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, folder)
+        installed = folder / "installed" / deps.TRIPLET / "tools" / "Qt6" / "bin"
+        installed.mkdir(parents=True)
+        (installed / f"lupdate{deps.EXE}").write_bytes(b"")
+        with mock.patch.object(deps, "vcpkg_set", return_value=folder):
+            self.assertEqual(deps.set_tool("Qt6/bin", "lupdate"), installed / f"lupdate{deps.EXE}")
+            # The port's folder is part of the answer: the same name under another port is not this tool.
+            with self.assertRaisesRegex(Refusal, "the vcpkg set at .* holds no lupdate"):
+                deps.set_tool("shaderc", "lupdate")
+            with self.assertRaisesRegex(Refusal, "holds no lrelease"):
+                deps.set_tool("Qt6/bin", "lrelease")
 
 
 class CompilerEnvironmentTest(unittest.TestCase):

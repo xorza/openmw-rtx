@@ -537,8 +537,11 @@ namespace Rtx
             return vkGetPipelineExecutableInternalRepresentationsKHR(mHandle.get(), &which, count, into);
         };
 
-        // Asked twice: once for the forms and the size of each, and again with room for their
-        // bodies, which the first answer is what sizes.
+        // Asked twice: once for the forms and the size of each, and again with room for the bodies of
+        // the text forms alone, which are all that is written. **A form not asked for keeps a null
+        // `pData`**, which the second call answers with its size and no body: AMD's Windows driver
+        // answers `VK_INCOMPLETE` for a ray tracing launch's two binary forms whatever room they are
+        // given (`docs/research/2026-11-13-amd-pipeline-code-forms.md`).
         std::vector<VkPipelineExecutableInternalRepresentationKHR> forms
             = enumerateVk<VkPipelineExecutableInternalRepresentationKHR>(*this,
                 "vkGetPipelineExecutableInternalRepresentationsKHR", represent,
@@ -553,11 +556,23 @@ namespace Rtx
         std::vector<std::string> bodies(forms.size());
         for (std::size_t form = 0; form < forms.size(); ++form)
         {
+            if (forms[form].isText == VK_FALSE)
+                continue;
             bodies[form].resize(forms[form].dataSize);
             forms[form].pData = bodies[form].data();
         }
         auto count = static_cast<std::uint32_t>(forms.size());
-        checkVk(*this, represent(&count, forms.data()), "vkGetPipelineExecutableInternalRepresentationsKHR");
+
+        // Still incomplete with the room the driver said its text needs is the driver's fault, and the
+        // code a diagnostic: left out with a warning, so the run that asked for it goes on.
+        const VkResult filled = represent(&count, forms.data());
+        if (filled == VK_INCOMPLETE)
+        {
+            Log(Debug::Warning) << "pipeline " << name << ": its driver answered VK_INCOMPLETE for its code with the "
+                                << "room it said the code needs, so its code is left out";
+            return;
+        }
+        checkVk(*this, filled, "vkGetPipelineExecutableInternalRepresentationsKHR");
 
         std::vector<PipelineCodeForm> text;
         for (std::size_t form = 0; form < forms.size(); ++form)

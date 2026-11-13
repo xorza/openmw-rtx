@@ -70,6 +70,13 @@ class LintTest(unittest.TestCase):
         # The tree's own workflows hold.
         self.assertEqual(lint._containers(lint.ROOT), [])
 
+    def test_lupdate_is_the_vcpkg_sets_and_nothing_on_the_path_or_in_the_environment(self):
+        with mock.patch.object(lint.deps, "set_tool", return_value=Path("set/lupdate")) as tool, \
+                mock.patch.dict(lint.os.environ, {"LUPDATE": "elsewhere/lupdate"}), \
+                mock.patch.object(lint, "on_path", return_value="path/lupdate"):
+            self.assertEqual(lint._lupdate(), str(Path("set/lupdate")))
+        tool.assert_called_once_with("Qt6/bin", "lupdate")
+
     def test_translations_regenerates_every_ts_file_and_purges_only_when_asked(self):
         with mock.patch.object(lint, "_lupdate", return_value="lupdate"), \
                 mock.patch.object(lint.subprocess, "run") as ran:

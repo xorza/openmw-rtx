@@ -361,6 +361,16 @@ SHADER_TOOLS = {"glslc": "shaderc", "spirv-val": "spirv-tools", "spirv-opt": "sp
                 "spirv-dis": "spirv-tools"}
 
 
+def set_tool(port: str, tool: str) -> Path:
+    """**A host program of the vcpkg set**, from the folder its port installs its tools in: the one the build runs,
+    at the version the set pins, and never another on the PATH."""
+    vcpkg = vcpkg_set()
+    found = vcpkg / "installed" / TRIPLET / "tools" / port / f"{tool}{EXE}"
+    if not found.is_file():
+        raise Refusal(f"the vcpkg set at {vcpkg} holds no {tool}")
+    return found
+
+
 def vulkan_loader_dir() -> Path:
     return pinned_folder("vulkan-loader", pins.VULKAN_LOADER_WINDOWS)
 
@@ -432,10 +442,7 @@ def bootstrap() -> None:
     name and not mid-configure; Windows' loader, the pinned CMake and Ninja, and out/deps/ pruned."""
     vcpkg = vcpkg_set()
     for tool, port in SHADER_TOOLS.items():
-        found = vcpkg / "installed" / TRIPLET / "tools" / port / f"{tool}{EXE}"
-        if not found.is_file():
-            raise Refusal(f"the vcpkg set at {vcpkg} holds no {tool}")
-        subprocess.run([found, "--version"], check=True, stdout=subprocess.DEVNULL)
+        subprocess.run([set_tool(port, tool), "--version"], check=True, stdout=subprocess.DEVNULL)
     print(f"vcpkg set: {vcpkg}")
     if WINDOWS:
         print(f"Vulkan loader: {vulkan_loader()}")

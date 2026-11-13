@@ -1,5 +1,6 @@
-"""`omw lint [check...]`: the checks CI's `checks` job runs besides the formatting, run by the gate through the same
-code: upstream's file names and Qt translations, the fork's lint of the driver and audit of the workflows.
+"""`omw lint [check...]`: the checks CI runs besides the formatting, run by the gate through the same code: upstream's
+file names and Qt translations, the fork's lint of the driver and audit of the workflows. CI's `checks` job runs all
+but the translations, which take the vcpkg set's Qt and so run in a leg that holds the set.
 
 **The pins are here and nowhere else**: the desk runs the pinned tool from the PATH and refuses another version; CI
 runs the pin through `pipx run`, which the desk never does unasked."""
@@ -14,6 +15,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
+from omw import deps
 from omw.system import (
     CI,
     CXX_SOURCES,
@@ -85,11 +87,9 @@ TRANSLATIONS = (
 
 
 def _lupdate() -> str:
-    """Qt's `lupdate`: where `LUPDATE` says, on the PATH, or where some distributions keep Qt 6's tools off it."""
-    for candidate in (os.environ.get("LUPDATE"), on_path("lupdate"), "/usr/lib/qt6/bin/lupdate"):
-        if candidate and Path(candidate).is_file():
-            return candidate
-    raise Refusal("Qt's lupdate is not on the PATH nor in /usr/lib/qt6/bin, and the translations check needs it")
+    """**Qt's `lupdate` of the vcpkg set**, the Qt whose `lrelease` the build compiles the same `.ts` files with
+    (`qt_add_lrelease`): another Qt's can write a file differently and flag one the build reads as it stands."""
+    return str(deps.set_tool("Qt6/bin", "lupdate"))
 
 
 def _regenerate(lupdate: str, sources: list[str], ts_files: list[Path], purge: bool) -> None:

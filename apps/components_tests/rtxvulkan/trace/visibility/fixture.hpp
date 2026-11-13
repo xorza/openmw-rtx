@@ -535,10 +535,22 @@ namespace Rtx::Testing
         {
             prepare(scene, textures, size, shot);
 
-            // One frame per sample, each waited out before the next, which orders them — and the
-            // renderer's own history barrier is what makes each sum visible to the next.
+            // **Each frame's result collected a frame behind**, as the game runs, so the card draws one frame
+            // while the host records the next: the queue orders them, and the renderer's own history barrier
+            // makes each sum visible to the next. A shot that reads every frame's pixels waits each one out.
             const std::uint32_t drawn = std::max(shot.mFrames, 1u);
             Frame frame;
+            // Every frame hits the same primary geometry, so the last one's count is the answer rather than a
+            // sum to be divided back down.
+            const auto collect = [&] {
+                const std::optional<FrameResult> finished = mRenderer.finishFrame();
+                if (!finished.has_value())
+                    throw std::runtime_error("the renderer drew a frame and gave none back");
+
+                frame.mHits = finished->mHits;
+                frame.mNotFinite.add(finished->mNotFinite);
+                EXPECT_EQ(finished->mWalksCut, 0u) << "pixels whose walk the trace cut short";
+            };
             for (std::uint32_t at = 0; at < drawn; ++at)
             {
                 Shaders::VisibilityConstants sampled = camera;
@@ -571,22 +583,21 @@ namespace Rtx::Testing
                         .mDebug = shot.mDebug },
                     WorldOptions{ .mGlare = shot.mGlare, .mNightEye = shot.mNightEye, .mWaterSeconds = waterSeconds });
 
-                // Every frame hits the same primary geometry, so the last one's count is the answer
-                // rather than a sum to be divided back down.
-                const std::optional<FrameResult> finished = mRenderer.finishFrame();
-                if (!finished.has_value())
-                    throw std::runtime_error("the renderer drew a frame and gave none back");
-
-                frame.mHits = finished->mHits;
-                frame.mNotFinite.add(finished->mNotFinite);
-                EXPECT_EQ(finished->mWalksCut, 0u) << "pixels whose walk the trace cut short";
-
-                if (shot.mEachFrame || at + 1 == drawn)
-                    readFrame(size, frame);
                 if (shot.mEachFrame)
+                {
+                    collect();
+                    readFrame(size, frame);
                     shot.mEachFrame(frame);
+                }
+                else if (at > 0)
+                    collect();
             }
 
+            if (!shot.mEachFrame)
+            {
+                collect();
+                readFrame(size, frame);
+            }
             return frame;
         }
 

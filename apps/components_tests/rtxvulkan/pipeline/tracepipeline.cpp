@@ -1,7 +1,11 @@
 #include <array>
 #include <cstdint>
 #include <cstring>
+#include <filesystem>
+#include <fstream>
+#include <iterator>
 #include <span>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -12,12 +16,16 @@
 #include <apps/components_tests/rtxvulkan/support/device/harness.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
+#include <components/rtxvulkan/device/instance.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
+#include <components/rtxvulkan/device/physicaldevice.hpp>
+#include <components/rtxvulkan/device/pipelinecache.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
 #include <components/rtxvulkan/pipeline/pipeline.hpp>
 #include <components/rtxvulkan/pipeline/shadercode.hpp>
 #include <components/rtxvulkan/pipeline/tracepipeline.hpp>
 #include <components/rtxvulkan/shaders/shared/probe.h>
+#include <components/testing/util.hpp>
 
 namespace Rtx
 {
@@ -100,6 +108,31 @@ namespace Rtx
                     EXPECT_EQ(at.mX, x) << "the invocation at " << x << ", " << y << " reported column " << at.mX;
                     EXPECT_EQ(at.mY, y) << "the invocation at " << x << ", " << y << " reported row " << at.mY;
                 }
+        }
+
+        /// **A launch's code is asked of its text forms alone**, and a form its driver will not give whole ends no
+        /// run (`Device::writeCode`): AMD's Windows driver answered `VK_INCOMPLETE` for a launch's binary forms
+        /// whatever room they were given, which ended a run asked for its pipelines' code. A device of its own,
+        /// writing its code to a folder; every file it writes stands under a form's heading.
+        TEST_F(RtxTracePipelineTest, aLaunchsCodeIsAskedOfItsTextFormsAlone)
+        {
+            const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "code";
+            std::filesystem::remove_all(folder);
+            const Instance& instance = *mHarness.mInstance;
+            const Device device(instance, PhysicalDevice::select(instance.getHandle(), {}), Testing::getCensusShaders(),
+                PipelineCacheSpec{}, DeviceReport{ .mCodeFolder = folder });
+
+            constexpr std::array<std::string_view, 1> modules{ "traceprobe.rgen.spv" };
+            const ShaderCode code(device, modules);
+            EXPECT_NO_THROW(
+                (TracePipeline<NoConstants>(device, sBindings, {}, code, "traceprobe.rgen.spv", "trace probe")));
+
+            for (const std::filesystem::directory_entry& entry : std::filesystem::directory_iterator(folder))
+            {
+                std::ifstream file(entry.path());
+                const std::string written(std::istreambuf_iterator<char>(file), {});
+                EXPECT_TRUE(written.starts_with("## ")) << entry.path() << " stands under no form's heading";
+            }
         }
     }
 }

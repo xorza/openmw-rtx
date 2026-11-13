@@ -746,8 +746,14 @@ namespace Rtx::Testing
         /// frame's whole light: each pixel's reservoir holds one, weighed against the other three, and its ray
         /// decides the bit. The light the bit multiplies is every lamp's summed, so on the open floor, where
         /// every bit is one, one frame is the reference. A square sixty units across, thirty over the floor,
-        /// casts four overlapping shadows of four colours, and there the bits are noisy. Measured against 256
+        /// casts four overlapping shadows of four colours, and there the bits are noisy. Measured against 128
         /// unfiltered frames, a raw frame and a denoised one after sixteen of history.
+        ///
+        /// **128, from the bound's margin**: the reference's own noise, `1 / sqrt(N)` of a raw frame's, adds in
+        /// quadrature to the error each frame is measured with, its draws being independent of theirs, so halving
+        /// 256 adds at most `sqrt(1/128 - 1/256)` = 0.063 of a raw frame's error to the filtered one's, in
+        /// quadrature. Measured at 128: 0.142, 0.167 and 0.148 of the raw error, channel by channel, a sixth under
+        /// the bound of 0.2 at the worst.
         TEST_F(RtxVisibilityTest, theLampsLightIsExactOnAnOpenFloorAndTheirShadowsComeOutQuieter)
         {
             constexpr std::uint32_t size = 64;
@@ -782,9 +788,9 @@ namespace Rtx::Testing
                     });
 
                 // The open floor's one frame is the reference, so a reference of four is as good as
-                // one of 256 and a quarter of a second shorter.
+                // one of 128 and shorter.
                 camera.mFrame = 0;
-                const Frame reference = shoot(scene, {}, camera, size, { .mFrames = blocked ? 256u : 4u });
+                const Frame reference = shoot(scene, {}, camera, size, { .mFrames = blocked ? 128u : 4u });
 
                 camera.mFrame = 1000;
                 const Frame raw = shoot(scene, {}, camera, size);
@@ -802,7 +808,7 @@ namespace Rtx::Testing
                     const float filteredError = filtered.errorFrom(reference, channel);
                     if (!blocked)
                     {
-                        // Measured at 1.0e-7, the rounding of a sum of 256 frames.
+                        // Measured at nought: the open floor's frames are its reference to the bit.
                         EXPECT_LT(rawError, 1e-6f) << "one frame of the open floor is not the reference";
                         EXPECT_LT(filteredError, 1e-6f) << "the denoised open floor is not the reference";
                         continue;
@@ -810,7 +816,7 @@ namespace Rtx::Testing
 
                     ASSERT_GT(rawError, 0.001f)
                         << "four shadows drawn one ray a pixel are noisy, or this proves nothing";
-                    // Measured at 0.125 to 0.142 of the raw error, channel by channel.
+                    // Measured at 0.142 to 0.167 of the raw error, channel by channel.
                     EXPECT_LT(filteredError, rawError * 0.2f) << "raw " << rawError << ", filtered " << filteredError;
 
                     // Measured within 0.13 to 1.0 per cent. **The ratio estimator's cost**: the bit a

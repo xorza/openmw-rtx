@@ -34,14 +34,19 @@ namespace Rtx
     {
         /// **Every tuple compiled once for the binary**, and read by every test that reads the
         /// specialized table: two tests that each made it compiled every tuple twice, 57 s between them.
-        /// On the unvalidated device, which lives for the binary as this does.
+        ///
+        /// **On a device of its own over the shipped shaders** (`getShippedShaders`), on the unvalidated
+        /// harness's instance: what the driver compiled is measured of what the game runs, and the census's
+        /// counting, which the harness's devices carry, is no part of a ceiling.
         struct SpecializedKernels
         {
-            explicit SpecializedKernels(const Device& device)
-                : mTextures(TextureArray::describeLayout(device))
-                , mChannels(GBuffer::describeLayout(device))
-                , mVolume(FogVolume::describeLayout(device))
-                , mPass(device, mTextures, mChannels, mVolume, false, true, UpscaleMasks::Written)
+            explicit SpecializedKernels(const Instance& instance)
+                : mDevice(instance, PhysicalDevice::select(instance.getHandle(), {}), Testing::getShippedShaders(),
+                      Testing::getPipelineCacheSpec(), DeviceReport{ .mStatistics = PipelineStatistics::Captured })
+                , mTextures(TextureArray::describeLayout(mDevice))
+                , mChannels(GBuffer::describeLayout(mDevice))
+                , mVolume(FogVolume::describeLayout(mDevice))
+                , mPass(mDevice, mTextures, mChannels, mVolume, false, true, UpscaleMasks::Written)
             {
                 mPass.listKernels(mKernels);
             }
@@ -51,6 +56,7 @@ namespace Rtx
             SpecializedKernels(SpecializedKernels&&) = delete;
             SpecializedKernels& operator=(SpecializedKernels&&) = delete;
 
+            Device mDevice;
             SetLayout mTextures;
             SetLayout mChannels;
             SetLayout mVolume;
@@ -61,11 +67,10 @@ namespace Rtx
         /// Let go of after the suite's last test, while the device it stands on is whole.
         Testing::Once<SpecializedKernels> sSpecialized;
 
-        const std::vector<VisibilityPass::NamedKernel>& specializedKernels()
+        const SpecializedKernels& specialized()
         {
-            return sSpecialized
-                .get([] { return std::make_unique<SpecializedKernels>(*Testing::getUnvalidatedHarness().mDevice); })
-                .mKernels;
+            return sSpecialized.get(
+                [] { return std::make_unique<SpecializedKernels>(*Testing::getUnvalidatedHarness().mInstance); });
         }
 
         /// The three layouts every kernel of the pass names, which the renderer would own.
@@ -178,7 +183,7 @@ namespace Rtx
 
             // Measured on a low-end AMD integrated GPU under AMD's Windows driver. `visibility` at 145 ("The
             // sea's walk, a stage of its own"); the water and media at what they hold since each walk resolves
-            // its hit once ("A walk resolves the surface it ends on once"); the whole tuple's `media` at 220
+            // its hit once ("A walk resolves the surface it ends on once"); the whole tuple's `media` at 216
             // since a read pairs an image with its sampler (`TEXTURE`), still four waves on an RDNA SIMD
             // (`docs/research/2026-11-09-separate-samplers.md`); the landing at 144 since a sheet takes its
             // span off the corners the hit carried (`docs/research/2026-11-09-sheet-span.md`); `panes` with
@@ -196,7 +201,7 @@ namespace Rtx
                 { "visibility", 0, 145, 2048 },
                 { "water", 0, 190, 2048 },
                 { "direct", 0, 144, 2048 },
-                { "media", 0, 220, 2048 },
+                { "media", 0, 216, 2048 },
                 { "panes", 0, 254, 2048 },
                 { "landing", 0, 144, 2048 },
                 { "bounce", 0, 144, 2048 },
@@ -254,7 +259,8 @@ namespace Rtx
             const auto measured = std::ranges::find(sDrivers, driver, &DriverCeilings::mDriver);
             ASSERT_NE(measured, sDrivers.end()) << "no ceilings measured for driver " << driver;
 
-            const std::vector<VisibilityPass::NamedKernel>& kernels = specializedKernels();
+            const SpecializedKernels& table = specialized();
+            const std::vector<VisibilityPass::NamedKernel>& kernels = table.mKernels;
 
             const std::uint32_t whole = VisibilityVariant{}.index();
             const std::uint32_t withoutDarkAlpha = VisibilityVariant{ .mDarkAlpha = false }.index();
@@ -280,7 +286,7 @@ namespace Rtx
                 }
 
                 const CompiledUse use
-                    = getDevice().compiledUseOf(kernel.mPipeline->getHandle(), kernel.mPipeline->getBindPoint());
+                    = table.mDevice.compiledUseOf(kernel.mPipeline->getHandle(), kernel.mPipeline->getBindPoint());
                 // A launch's stack is its scratch on RADV, a lane's stack a lane: held as its stack.
                 if (use.mScratchBytes.has_value() && !use.mStackBytes.has_value())
                 {
@@ -324,7 +330,7 @@ namespace Rtx
         /// constant, so no two of its tuples share one. Of the 324 stage pipelines listed, 80 are shared.
         TEST_F(RtxVisibilityKernelsTest, tuplesAStageReadsAlikeShareItsPipeline)
         {
-            const std::vector<VisibilityPass::NamedKernel>& kernels = specializedKernels();
+            const std::vector<VisibilityPass::NamedKernel>& kernels = specialized().mKernels;
             const auto of = [&](std::string_view name, VisibilityVariant tuple) {
                 const auto found = std::ranges::find_if(kernels, [&](const VisibilityPass::NamedKernel& kernel) {
                     return kernel.mName == name && kernel.mTuple == tuple.index();

@@ -86,6 +86,11 @@ namespace Rtx::Testing
     /// the binary's whole run.
     const ShaderSet& getCensusShaders();
 
+    /// The shaders the game ships and a measured run of the harness reads, with no census: what a test
+    /// of what the driver compiled measures, as the counting is the harness's alone. Read once, for the
+    /// binary's whole run.
+    const ShaderSet& getShippedShaders();
+
     /// Where a device this suite makes keeps what it compiled, and what that cache is keyed on.
     ///
     /// **The suite's own, in its build folder**, kept across runs so a run compiles what changed: the player's cache

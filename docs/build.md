@@ -84,6 +84,9 @@ How the tree is configured, built, formatted and shipped, as decisions. The CMak
 - **The driver owns the translations' source list**: `omw translations` regenerates the `.ts` files and
   `omw lint translations` checks them, as KDE's `Messages.sh` does; the build only compiles them. Refused:
   `qt_add_translations(SOURCE_TARGETS …)`, which needs a configured build and adds strings to upstream's files.
+  Both run the vcpkg set's `lupdate` (`deps.set_tool`), the Qt whose `lrelease` compiles the files, so CI checks them
+  where a leg holds the set. Refused: a system's or the PATH's `lupdate`, another Qt that can write a file
+  differently.
 
 ## Archives
 

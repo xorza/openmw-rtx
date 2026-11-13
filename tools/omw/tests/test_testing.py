@@ -1,7 +1,7 @@
 import unittest
 from pathlib import Path
 
-from omw.testing import ctest_arguments, durations
+from omw.testing import RUNS_ALONE, ctest_arguments, durations, least_alone
 
 ROOT = Path("/checkout")
 FORK = frozenset({"apps/components_tests/rtx/environment/fogbuilder.cpp",
@@ -11,6 +11,31 @@ FORK = frozenset({"apps/components_tests/rtx/environment/fogbuilder.cpp",
 
 def case(name: str, time: str, file: str) -> dict:
     return {"name": name, "time": time, "file": str(ROOT / file)}
+
+
+class LeastAloneTest(unittest.TestCase):
+    def runs(self, seconds: list[float]) -> tuple[float, int]:
+        taken = iter(seconds)
+        asked = 0
+
+        def run() -> float:
+            nonlocal asked
+            asked += 1
+            return next(taken)
+
+        least = least_alone(run, limit=2.0)
+        return least, asked
+
+    def test_the_least_of_up_to_three_runs_and_no_more_once_one_is_inside_the_limit(self):
+        self.assertEqual(RUNS_ALONE, 3)
+        # Inside at once: one run.
+        self.assertEqual(self.runs([1.4]), (1.4, 1))
+        # On the limit passes, as `timing` compares with `>`: one run.
+        self.assertEqual(self.runs([2.0]), (2.0, 1))
+        # A burst, then a quiet run: two runs, the quiet one counted.
+        self.assertEqual(self.runs([2.3, 1.7]), (1.7, 2))
+        # Over every time: three runs, the least of them, and never a fourth.
+        self.assertEqual(self.runs([2.3, 2.2, 2.4, 1.0]), (2.2, 3))
 
 
 class DurationsTest(unittest.TestCase):

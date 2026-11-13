@@ -979,8 +979,11 @@ namespace Rtx::Testing
                                 .mReconstruction = ReconstructionRequest{ .mDenoise = true,
                                     .mFilters = { .mAntilag = false, .mDualMotion = dual, .mAntiFirefly = false } },
                                 .mExposure = FixedExposure{ 1.0f } });
-                        EXPECT_TRUE(mRenderer.finishFrame().has_value());
+                        // A frame behind, as `shoot` collects them, and the last before its picture is read.
+                        if (at > 0)
+                            EXPECT_TRUE(mRenderer.finishFrame().has_value());
                     }
+                    EXPECT_TRUE(mRenderer.finishFrame().has_value());
                     mProbe.readComposite(read);
                     for (std::size_t pixel = 0; pixel < sums.size(); ++pixel)
                     {

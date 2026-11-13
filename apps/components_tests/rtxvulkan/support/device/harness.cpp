@@ -223,6 +223,12 @@ namespace Rtx::Testing
         return sCensus.getSet();
     }
 
+    const ShaderSet& getShippedShaders()
+    {
+        static const ShaderFolder sShipped(std::filesystem::path(OPENMW_RTX_SHADER_DIR), false);
+        return sShipped.getSet();
+    }
+
     PipelineCacheSpec getPipelineCacheSpec()
     {
         if (inDeathChild())
