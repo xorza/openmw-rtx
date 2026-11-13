@@ -524,6 +524,27 @@ namespace Rtx
                 rgbcx::encode_bc1(10, madeWithBlack.data() + block * 8, blockOf(finest, block).data(), true, true);
             EXPECT_EQ(digestOf(madeWithBlack), (Misc::DigestWords{ 0xb5eef7b6223cca60, 0xb5cb2ded72bfae34 }));
 
+            // And at the level that tries every ordering, which no chain is encoded at: the search makes the
+            // endpoints of thirty-two orderings at a time, and this level's are past that many. Over blocks no
+            // ordering fits whole, any sixteen colours and sixteen a few steps apart by turns, off an integer
+            // hash: a block decoded from BC1 is fit at the first try and no ordering is weighed.
+            Misc::ByteBuffer madeOfEveryOrdering(64 * 8);
+            for (std::uint32_t block = 0; block < 64; ++block)
+            {
+                std::array<std::uint8_t, 64> sixteen{};
+                for (std::uint32_t byte = 0; byte < 64; ++byte)
+                {
+                    std::uint32_t hash = (block * 64 + byte) * 0x9E3779B1u;
+                    hash ^= hash >> 15;
+                    hash *= 0x2C1B3C6Du;
+                    hash ^= hash >> 12;
+                    const std::uint32_t colour = block % 2 == 0 ? hash & 255u : 96u + block + (hash & 15u);
+                    sixteen[byte] = byte % 4 == 3 ? std::uint8_t{ 255 } : static_cast<std::uint8_t>(colour);
+                }
+                rgbcx::encode_bc1(18, madeOfEveryOrdering.data() + block * 8, sixteen.data(), true, true);
+            }
+            EXPECT_EQ(digestOf(madeOfEveryOrdering), (Misc::DigestWords{ 0xa430bd01b2b82b8b, 0xbdff5f35edcb5d2c }));
+
             // The same colours under an alpha of nought, as BC3 holds them: a block of four colours always.
             std::vector<std::uint8_t> withAlpha(256 * 16);
             for (std::size_t block = 0; block < 256; ++block)

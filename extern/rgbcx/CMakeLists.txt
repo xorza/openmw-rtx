@@ -5,8 +5,8 @@
 # blocks sooner (`RtxChainBuildTest`, docs/research/2026-11-13-preparation-cpu-by-codec.md) with the vector
 # instructions the tree's x86-64-v2 has:
 # - rgbcx.cpp's BC1 search: its two selector searches walk a block four texels at a time, and a search over total
-#   orderings orders the texels by counting, fits and rounds each ordering's endpoints a channel a lane, and passes by
-#   endpoints it has tried;
+#   orderings orders the texels by counting, fits and rounds every ordering's endpoints a channel a lane before any
+#   is searched, and searches each pair of them once;
 # - bc7enc.cpp: a cell's selectors are found sixteen pixels at once, in RGB(A) error and in YCbCr(A); its sums, its
 #   projection and its RGB least squares a lane a sum; mode 5's alphas sixteen at once; a partition's estimate both
 #   its subsets and all sixteen pixels at once, with no pixel gathered; and a block's fields are written into two

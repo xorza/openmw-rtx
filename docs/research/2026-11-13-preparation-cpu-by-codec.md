@@ -438,3 +438,47 @@ The encoder's samples after, over the Repack's corpus: `estimate_partition` 56%,
 `color_cell_compression` 9%, `find_optimal_solution` 7%. The estimate is still over half: seven thresholds
 compared against sixteen projections a partition, and its errors.
 
+## BC1's orderings, their endpoints before their searches
+
+`encodePaintedBc1` over the Repack's corpus as the tree stood at `f02873b972`, 2.69 s, its samples by what they
+are spent on: an ordering's endpoints 36% (their rounding to 5:6:5 13.4%, their fit 7.1%, the check for a pair
+tried before 5.7%, the loop's own lines 5.9%, the rounded lanes read out 3.6%), the four-colour selector search
+26%, the three-colour block's fit, search and least squares 14%, the first guess 5%, the texels' order 4%. A block
+is 954 ns, twenty orderings of four colours and eight of three.
+
+An ordering's fit and rounding wait on no other ordering's, but each stood behind a branch on whether the one
+before it had come to endpoints tried already, which two in three do and in no order a predictor learns. So the
+endpoints of every ordering are made first, thirty-two orderings at a time, with no branch among them; the pairs
+tried before are dropped in one pass, each pair weighed against the best so far and the pairs before it under a
+mask; and the pairs left are searched in the orderings' order, the first of the best kept as it was. Which pairs
+are passed by moves no byte: a pair searched twice comes to the same error, which is not under a best it was not
+under before.
+
+Counted on one core over the 400,000 made blocks of the first setting below, their making among the counts: 18
+branches guessed wrong a block before and 7 after, 953 branches and 735, 16,789 instructions and 17,230, and
+6,095 cycles and 5,262. So the gain is the guesses: more instructions, in fewer cycles.
+
+The same bytes as the vendored encoder over 1.42 million made blocks of ten kinds at nine settings, levels 5 to
+18, with three-colour blocks and without, with black's selector and without, and again with its asserts on.
+`RtxChainBuildTest` holds a digest more, recorded off the encoder as vendored: level 18, whose orderings are past
+thirty-two, over blocks no ordering fits whole. Time a block on one core:
+
+| setting | before | after |
+|---|---|---|
+| level 10 with three-colour blocks, as a chain is encoded | 1,028 ns | 868 ns |
+| level 10, four colours alone | 751 ns | 631 ns |
+| level 12 | 1,801 ns | 1,415 ns |
+| level 18, every ordering | 10,529 ns | 9,993 ns |
+
+The benchmark's corpora, the digests the same, three runs:
+
+| benchmark | before | after |
+|---|---|---|
+| `encodePaintedBc1`, the Repack's | 2.69 s | 2.13 s |
+| `makePaintedChain`, the Repack's | 3.47 s | 2.93 s |
+| `encodePaintedBc1`, the replacers' | 3.03 s | 2.45 s |
+| `makePaintedChain`, the replacers' | 3.88 s | 3.31 s |
+
+The corpora gain more than the made blocks, whose orderings come to the same endpoints less often. After, over
+the made blocks: the four-colour selector search 31%, an ordering's endpoints 19%, the three-colour block 12%.
+

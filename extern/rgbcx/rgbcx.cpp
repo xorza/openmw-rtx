@@ -946,14 +946,6 @@ namespace rgbcx
 		return _mm_and_si128(_mm_cvtepu8_epi32(_mm_cvtsi32_si128((int)c.m)), _mm_setr_epi32(-1, -1, -1, 0));
 	}
 
-	// The first three lanes of v.
-	static inline void rgb_of(__m128i v, int& r, int& g, int& b)
-	{
-		r = _mm_cvtsi128_si32(v);
-		g = _mm_extract_epi32(v, 1);
-		b = _mm_extract_epi32(v, 2);
-	}
-
 	// The order of sixteen keys no two of which are equal, as a sort would lay them: order[k] is where the k-th
 	// least stands. A key's place is how many are under it, counted four to a compare.
 	static inline void order16(const int keys[16], uint8_t order[16])
@@ -1030,27 +1022,61 @@ namespace rgbcx
 		return _mm_and_si128(_mm_sub_epi32(cut, _mm_castps_si128(_mm_cmpgt_ps(x, midpoint))), most);
 	}
 
-	// The endpoints one search over total orderings has tried, so it passes by a pair it meets again: the same
-	// endpoints give the same selectors and the same error, which was not under the best when they were tried and is
-	// not under a best that only falls. Two in three of a block's orderings round to endpoints tried before. Past its
-	// room it notes no more, and a pair it did not note is tried again, as before.
-	struct tried_endpoints
+	// A pair of endpoints in 32 bits, the low endpoint's 5, 6 and 5 from the bottom and the high one's over them.
+	static inline uint32_t pack_endpoints(int lr, int lg, int lb, int hr, int hg, int hb)
 	{
-		uint32_t m_total = 0;
-		uint32_t m_packed[33];
+		return (uint32_t)lr | ((uint32_t)lg << 5) | ((uint32_t)lb << 11) | ((uint32_t)hr << 16) | ((uint32_t)hg << 21) | ((uint32_t)hb << 27);
+	}
 
-		// Whether the pair was tried before, noting it where not.
-		bool test_and_note(int lr, int lg, int lb, int hr, int hg, int hb)
+	// The same of two endpoints as round_565_rgb leaves them, red, green and blue a lane.
+	static inline uint32_t pack_endpoints(__m128i low, __m128i high)
+	{
+		const __m128i place = _mm_setr_epi16(1, 1 << 5, 1 << 11, 0, 1, 1 << 5, 1 << 11, 0);
+		const __m128i halves = _mm_madd_epi16(_mm_packs_epi32(low, high), place);
+		const uint64_t both = (uint64_t)_mm_cvtsi128_si64(_mm_hadd_epi32(halves, halves));
+		return (uint32_t)both | ((uint32_t)(both >> 32) << 16);
+	}
+
+	static inline void unpack_endpoints(uint32_t packed, int& lr, int& lg, int& lb, int& hr, int& hg, int& hb)
+	{
+		lr = packed & 31; lg = (packed >> 5) & 63; lb = (packed >> 11) & 31;
+		hr = (packed >> 16) & 31; hg = (packed >> 21) & 63; hb = packed >> 27;
+	}
+
+	// The pairs of endpoints a search over total orderings has yet to try, of its next `count` orderings, thirty-two at
+	// most, in their order: each ordering's pair as `endpoints_of(q)` makes it, without the pair that is the best so
+	// far, `best`, and without a pair that stands earlier among them. The same endpoints give the same selectors and
+	// the same error, which is not under a best it was not under before, so which pairs are passed by moves no block.
+	//
+	// **Every ordering's endpoints are made before any is weighed against the rest, and none behind a branch**: an
+	// ordering's fit and rounding wait on no other's, and stood behind a branch on whether the one before it had come
+	// to endpoints tried already, which most do and in no order a predictor learns. So every pair is weighed against
+	// all of them, the ones after it masked off, and kept or not by a count and not a jump.
+	template <typename EndpointsOf>
+	static inline uint32_t untried_endpoints(uint32_t count, uint32_t best, const EndpointsOf& endpoints_of, uint32_t untried[32])
+	{
+		assert(count <= 32);
+		uint32_t pairs[32] = {};
+		for (uint32_t q = 0; q < count; q++)
+			pairs[q] = endpoints_of(q);
+
+		const __m128i places = _mm_setr_epi32(0, 1, 2, 3);
+		uint32_t kept = 0;
+		for (uint32_t q = 0; q < count; q++)
 		{
-			const uint32_t packed = (uint32_t)lr | ((uint32_t)lg << 5) | ((uint32_t)lb << 11) | ((uint32_t)hr << 16) | ((uint32_t)hg << 21) | ((uint32_t)hb << 27);
-			for (uint32_t i = 0; i < m_total; i++)
-				if (m_packed[i] == packed)
-					return true;
-			if (m_total < sizeof(m_packed) / sizeof(m_packed[0]))
-				m_packed[m_total++] = packed;
-			return false;
+			const __m128i pair = _mm_set1_epi32((int)pairs[q]);
+			const __m128i before = _mm_set1_epi32((int)q);
+			__m128i met = _mm_cmpeq_epi32(pair, _mm_set1_epi32((int)best));
+			for (uint32_t first = 0; first < count; first += 4)
+			{
+				const __m128i earlier = _mm_cmpgt_epi32(before, _mm_add_epi32(places, _mm_set1_epi32((int)first)));
+				met = _mm_or_si128(met, _mm_and_si128(earlier, _mm_cmpeq_epi32(pair, _mm_loadu_si128((const __m128i*)(pairs + first)))));
+			}
+			untried[kept] = pairs[q];
+			kept += _mm_testz_si128(met, met) ? 1 : 0;
 		}
-	};
+		return kept;
+	}
 
 	// The squared distance of four texels, widened to 16 bits a channel two a half with their alphas nought, from
 	// four colors laid the same way.
@@ -1697,60 +1723,52 @@ namespace rgbcx
 			__m128i sums[17];
 			sum_in_order(pSrc_pixels, dots, sums);
 
-			// The best so far among them: its error is trial_err, which it would not be under.
-			tried_endpoints tried;
-			tried.test_and_note(lr, lg, lb, hr, hg, hb);
+			const uint32_t one_selector = pack_endpoints(g_bc1_match5_half[avg_r].m_hi, g_bc1_match6_half[avg_g].m_hi, g_bc1_match5_half[avg_b].m_hi,
+				g_bc1_match5_half[avg_r].m_lo, g_bc1_match6_half[avg_g].m_lo, g_bc1_match5_half[avg_b].m_lo);
 
+			// Thirty-two orderings at a time, as encode_bc1's own are walked (untried_endpoints). The best so far is
+			// among the pairs tried: its error is trial_err, which it would not be under.
 			const uint32_t q_total = (flags & cEncodeBC1Exhaustive) ? NUM_UNIQUE_TOTAL_ORDERINGS3 : std::min(total_orderings_to_try, MAX_TOTAL_ORDERINGS3);
-			for (uint32_t q = 0; q < q_total; q++)
+			for (uint32_t first = 0; first < q_total; first += 32)
 			{
-				const uint32_t s = (flags & cEncodeBC1Exhaustive) ? q : g_best_total_orderings3[orig_total_order_index][q];
-
-				int trial_lr, trial_lg, trial_lb, trial_hr, trial_hg, trial_hb;
-
-
-				if ((s == TOTAL_ORDER_3_0_16) || (s == TOTAL_ORDER_3_1_16) || (s == TOTAL_ORDER_3_2_16))
+				uint32_t untried[32];
+				const uint32_t untried_total = untried_endpoints(std::min(q_total - first, 32u), pack_endpoints(lr, lg, lb, hr, hg, hb), [&](uint32_t q)
 				{
-					trial_lr = g_bc1_match5_half[avg_r].m_hi;
-					trial_lg = g_bc1_match6_half[avg_g].m_hi;
-					trial_lb = g_bc1_match5_half[avg_b].m_hi;
-
-					trial_hr = g_bc1_match5_half[avg_r].m_lo;
-					trial_hg = g_bc1_match6_half[avg_g].m_lo;
-					trial_hb = g_bc1_match5_half[avg_b].m_lo;
-				}
-				else
-				{
-					__m128 xl, xh;
-					fit_endpoints3_rgb(xl, xh, sums, g_selector_factors3[s], g_unique_total_orders3[s]);
+					const uint32_t s = (flags & cEncodeBC1Exhaustive) ? (first + q) : g_best_total_orderings3[orig_total_order_index][first + q];
 
 					// As precise_round_565 was called: the first of the pair is the high endpoint's.
-					rgb_of(round_565_rgb(xl), trial_hr, trial_hg, trial_hb);
-					rgb_of(round_565_rgb(xh), trial_lr, trial_lg, trial_lb);
-				}
+					__m128 xl, xh;
+					fit_endpoints3_rgb(xl, xh, sums, g_selector_factors3[s], g_unique_total_orders3[s]);
+					const uint32_t fit = pack_endpoints(round_565_rgb(xh), round_565_rgb(xl));
 
-				if (tried.test_and_note(trial_lr, trial_lg, trial_lb, trial_hr, trial_hg, trial_hb))
-					continue;
+					const bool is_one_selector = (s == TOTAL_ORDER_3_0_16) | (s == TOTAL_ORDER_3_1_16) | (s == TOTAL_ORDER_3_2_16);
+					return is_one_selector ? one_selector : fit;
+				}, untried);
 
-				uint8_t trial_sels2[16];
-				uint32_t trial_err2 = bc1_find_sels3_fullerr(false, pSrc_pixels, trial_lr, trial_lg, trial_lb, trial_hr, trial_hg, trial_hb, trial_sels2, UINT32_MAX, pForce_selectors);
-
-				if (trial_err2 < trial_err)
+				for (uint32_t i = 0; i < untried_total; i++)
 				{
-					trial_err = trial_err2;
+					int trial_lr, trial_lg, trial_lb, trial_hr, trial_hg, trial_hb;
+					unpack_endpoints(untried[i], trial_lr, trial_lg, trial_lb, trial_hr, trial_hg, trial_hb);
 
-					lr = trial_lr;
-					lg = trial_lg;
-					lb = trial_lb;
+					uint8_t trial_sels2[16];
+					uint32_t trial_err2 = bc1_find_sels3_fullerr(false, pSrc_pixels, trial_lr, trial_lg, trial_lb, trial_hr, trial_hg, trial_hb, trial_sels2, UINT32_MAX, pForce_selectors);
 
-					hr = trial_hr;
-					hg = trial_hg;
-					hb = trial_hb;
+					if (trial_err2 < trial_err)
+					{
+						trial_err = trial_err2;
 
-					memcpy(trial_sels, trial_sels2, sizeof(trial_sels));
+						lr = trial_lr;
+						lg = trial_lg;
+						lb = trial_lb;
+
+						hr = trial_hr;
+						hg = trial_hg;
+						hb = trial_hb;
+
+						memcpy(trial_sels, trial_sels2, sizeof(trial_sels));
+					}
 				}
-
-			} // s
+			}
 		}
 
 		if (trial_err < cur_err)
@@ -2586,61 +2604,54 @@ namespace rgbcx
 				__m128i sums[17];
 				sum_in_order(pSrc_pixels, dots, sums);
 
-				// The best so far among them: its error is cur_err, which it would not be under.
-				tried_endpoints tried;
-				tried.test_and_note(lr, lg, lb, hr, hg, hb);
+				// An ordering that gives every texel one selector fits no line: its endpoints are the block's mean's.
+				const uint32_t one_selector = pack_endpoints(g_bc1_match5_equals_1[avg_r].m_hi, g_bc1_match6_equals_1[avg_g].m_hi, g_bc1_match5_equals_1[avg_b].m_hi,
+					g_bc1_match5_equals_1[avg_r].m_lo, g_bc1_match6_equals_1[avg_g].m_lo, g_bc1_match5_equals_1[avg_b].m_lo);
 
+				// Thirty-two orderings at a time: their endpoints first (untried_endpoints), then the search of the pairs
+				// not tried before, in the orderings' order, so the first of the best is kept, as it was. The best so
+				// far is among the pairs tried: its error is cur_err, which it would not be under.
 				const uint32_t q_total = (flags & cEncodeBC1Exhaustive) ? NUM_UNIQUE_TOTAL_ORDERINGS4 : clampi(total_orderings_to_try, MIN_TOTAL_ORDERINGS, MAX_TOTAL_ORDERINGS4);
-				for (uint32_t q = 0; q < q_total; q++)
+				for (uint32_t first = 0; first < q_total; first += 32)
 				{
-					const uint32_t s = (flags & cEncodeBC1Exhaustive) ? q : g_best_total_orderings4[orig_total_order_index][q];
-
-					int trial_lr, trial_lg, trial_lb, trial_hr, trial_hg, trial_hb;
-
-
-					if ((s == TOTAL_ORDER_4_0_16) || (s == TOTAL_ORDER_4_1_16) || (s == TOTAL_ORDER_4_2_16) || (s == TOTAL_ORDER_4_3_16))
+					uint32_t untried[32];
+					const uint32_t untried_total = untried_endpoints(std::min(q_total - first, 32u), pack_endpoints(lr, lg, lb, hr, hg, hb), [&](uint32_t q)
 					{
-						trial_lr = g_bc1_match5_equals_1[avg_r].m_hi;
-						trial_lg = g_bc1_match6_equals_1[avg_g].m_hi;
-						trial_lb = g_bc1_match5_equals_1[avg_b].m_hi;
-
-						trial_hr = g_bc1_match5_equals_1[avg_r].m_lo;
-						trial_hg = g_bc1_match6_equals_1[avg_g].m_lo;
-						trial_hb = g_bc1_match5_equals_1[avg_b].m_lo;
-					}
-					else
-					{
-						__m128 xl, xh;
-						fit_endpoints4_rgb(xl, xh, sums, g_selector_factors4[s], g_unique_total_orders4[s]);
+						const uint32_t s = (flags & cEncodeBC1Exhaustive) ? (first + q) : g_best_total_orderings4[orig_total_order_index][first + q];
 
 						// As precise_round_565 was called: the first of the pair is the high endpoint's.
-						rgb_of(round_565_rgb(xl), trial_hr, trial_hg, trial_hb);
-						rgb_of(round_565_rgb(xh), trial_lr, trial_lg, trial_lb);
-					}
+						__m128 xl, xh;
+						fit_endpoints4_rgb(xl, xh, sums, g_selector_factors4[s], g_unique_total_orders4[s]);
+						const uint32_t fit = pack_endpoints(round_565_rgb(xh), round_565_rgb(xl));
 
-					if (tried.test_and_note(trial_lr, trial_lg, trial_lb, trial_hr, trial_hg, trial_hb))
-						continue;
+						const bool is_one_selector = (s == TOTAL_ORDER_4_0_16) | (s == TOTAL_ORDER_4_1_16) | (s == TOTAL_ORDER_4_2_16) | (s == TOTAL_ORDER_4_3_16);
+						return is_one_selector ? one_selector : fit;
+					}, untried);
 
-					uint8_t trial_sels[16];
-
-					uint32_t trial_err = bc1_find_sels4(flags, pSrc_pixels, trial_lr, trial_lg, trial_lb, trial_hr, trial_hg, trial_hb, trial_sels, cur_err, pForce_selectors);
-
-					if (trial_err < cur_err)
+					for (uint32_t i = 0; i < untried_total; i++)
 					{
-						cur_err = trial_err;
+						int trial_lr, trial_lg, trial_lb, trial_hr, trial_hg, trial_hb;
+						unpack_endpoints(untried[i], trial_lr, trial_lg, trial_lb, trial_hr, trial_hg, trial_hb);
 
-						lr = trial_lr;
-						lg = trial_lg;
-						lb = trial_lb;
+						uint8_t trial_sels[16];
+						uint32_t trial_err = bc1_find_sels4(flags, pSrc_pixels, trial_lr, trial_lg, trial_lb, trial_hr, trial_hg, trial_hb, trial_sels, cur_err, pForce_selectors);
 
-						hr = trial_hr;
-						hg = trial_hg;
-						hb = trial_hb;
+						if (trial_err < cur_err)
+						{
+							cur_err = trial_err;
 
-						memcpy(sels, trial_sels, 16);
+							lr = trial_lr;
+							lg = trial_lg;
+							lb = trial_lb;
+
+							hr = trial_hr;
+							hg = trial_hg;
+							hb = trial_hb;
+
+							memcpy(sels, trial_sels, 16);
+						}
 					}
-
-				} // s
+				}
 
 				if ((!cur_err) || (cur_err == orig_err))
 					break;
