@@ -57,12 +57,41 @@ namespace Rtx
             });
         }
 
-        /// The direction a decoded normal points, and straight up where it points none: a texel of
-        /// (0.5, 0.5, 0.5), or a box of normals that cancel.
-        osg::Vec3f unitNormal(const osg::Vec3f& decoded)
+        /// Four normals worked together, a component an array: **every step is written a lane at a time
+        /// over the four**, so a compiler works them as one vector, and a normal's square root and its
+        /// division do not wait their turn behind the normal before it, as they do one normal at a time.
+        struct FourNormals
         {
-            const float length = decoded.length();
-            return length > 0.0f ? decoded / length : osg::Vec3f(0.0f, 0.0f, 1.0f);
+            std::array<float, 4> mX{};
+            std::array<float, 4> mY{};
+            std::array<float, 4> mZ{};
+
+            osg::Vec3f at(std::size_t lane) const { return osg::Vec3f(mX[lane], mY[lane], mZ[lane]); }
+        };
+
+        /// The direction each of four decoded normals points, and straight up where one points none: a
+        /// texel of (0.5, 0.5, 0.5), or a box of normals that cancel.
+        FourNormals unitNormals(const FourNormals& decoded)
+        {
+            FourNormals unit;
+            for (std::size_t lane = 0; lane < 4; ++lane)
+            {
+                const float x = decoded.mX[lane];
+                const float y = decoded.mY[lane];
+                const float z = decoded.mZ[lane];
+                const float length = std::sqrt(x * x + y * y + z * z);
+
+                // Divided whether or not it points anywhere, and the quotient left unread where it points
+                // nowhere: a lane that branches is a lane worked alone.
+                const bool points = length > 0.0f;
+                const float across = x / length;
+                const float along = y / length;
+                const float up = z / length;
+                unit.mX[lane] = points ? across : 0.0f;
+                unit.mY[lane] = points ? along : 0.0f;
+                unit.mZ[lane] = points ? up : 1.0f;
+            }
+            return unit;
         }
 
         /// A unit normal's component as the byte `2 c − 1` decodes back to it.
@@ -70,6 +99,26 @@ namespace Rtx
         {
             return unitByte((component + 1.0f) * 0.5f);
         }
+
+        /// The three bytes of each of four texels of a normal map: the direction of its mean, a component
+        /// a byte.
+        std::array<std::array<std::byte, 3>, 4> layDirections(const FourNormals& means)
+        {
+            const FourNormals directions = unitNormals(means);
+            std::array<std::array<std::byte, 3>, 4> laid;
+            for (std::size_t lane = 0; lane < 4; ++lane)
+                laid[lane] = { quantiseNormal(directions.mX[lane]), quantiseNormal(directions.mY[lane]),
+                    quantiseNormal(directions.mZ[lane]) };
+            return laid;
+        }
+
+        /// What each byte decodes to, a byte over 255: a height as the box of the level under reads it.
+        constexpr std::array<float, 256> sUnitOfByte = [] {
+            std::array<float, 256> units{};
+            for (std::size_t byte = 0; byte < units.size(); ++byte)
+                units[byte] = static_cast<float>(byte) / 255.0f;
+            return units;
+        }();
 
         /// The sixteen texels of block `bx`, `by` of `level`, RGBA, the edge's texel standing in for a
         /// texel past a level smaller than a block, as a block-compressed file pads it.
@@ -105,10 +154,12 @@ namespace Rtx
             scratch.mAlpha += texelsOf(level);
         for (std::uint32_t level = 0; level < levels; ++level)
             scratch.mTexels += texelsOf(level) * sTexel;
-        scratch.mBand = std::size_t{ width } * 4 * sizeof(osg::Vec3f);
+        // A normal map is read through no band: its texels are laid as its blocks are read.
         if (encoding == TextureEncoding::Normal)
             for (std::uint32_t level = 0; level < levels; ++level)
-                scratch.mRing += std::size_t{ sRingRows } * std::max(width >> level, 1u) * sizeof(osg::Vec3f);
+                scratch.mRing += std::size_t{ sRingRows } * std::max(width >> level, 1u) * sizeof(osg::Vec4f);
+        else
+            scratch.mBand = std::size_t{ width } * 4 * sizeof(osg::Vec3f);
         if (encoding == TextureEncoding::Painted)
             scratch.mColumns = std::size_t{ width } * sizeof(PaintedAxis);
         return scratch;
@@ -119,7 +170,7 @@ namespace Rtx
         return Scratch{ .mAlpha = mAlpha.capacity(),
             .mTexels = mTexels.capacity(),
             .mBand = mBand.capacity() * sizeof(osg::Vec3f),
-            .mRing = mRing.capacity() * sizeof(osg::Vec3f),
+            .mRing = mRing.capacity() * sizeof(osg::Vec4f),
             .mColumns = mColumns.capacity() * sizeof(PaintedAxis) };
     }
 
@@ -165,10 +216,8 @@ namespace Rtx
         first.mCoarser = {};
         mAlpha.build(first);
 
-        // Each buffer grown to the size this build needs and no more, as `scratchOf` predicts it: a band
-        // of the finest level's four rows, reserved before the reader resizes it.
+        // Each buffer grown to the size this build needs and no more, as `scratchOf` predicts it.
         const MipLevel& top = first.mLevels.front();
-        mBand.reserve(std::size_t{ top.mWidth } * 4);
         mLevels.clear();
         std::size_t bytes = 0;
         for (std::uint32_t level = 0; level < levels; ++level)
@@ -190,6 +239,9 @@ namespace Rtx
             buildNormals(first);
             return;
         }
+
+        // A band of the finest level's four rows, reserved before the reader resizes it.
+        mBand.reserve(std::size_t{ top.mWidth } * 4);
 
         // The levels read through the readers that know every format: colour a band of blocks at a
         // time, as stored, and alpha a byte a texel.
@@ -320,45 +372,67 @@ namespace Rtx
         mRing.reserve(ringTexels);
         mRing.resize(ringTexels);
         mBoxed.assign(mLevels.size(), 0);
-        const auto meanAt = [&](std::size_t at, std::uint32_t x, std::uint32_t y) -> osg::Vec3f& {
-            return mRing[mRingAt[at] + std::size_t{ y % sRingRows } * mLevels[at].mWidth + x];
+        const auto ringRow = [&](std::size_t at, std::uint32_t y) {
+            return mRing.data() + mRingAt[at] + std::size_t{ y % sRingRows } * mLevels[at].mWidth;
         };
-        const auto ringAt = [&](std::uint32_t x, std::uint32_t y) -> osg::Vec3f& { return meanAt(0, x, y); };
 
-        // Each texel the direction of its mean, the height beside it.
-        const auto lay
-            = [&](const MipLevel& level, std::uint32_t x, std::uint32_t y, const osg::Vec3f& mean, float height) {
-                  const osg::Vec3f direction = unitNormal(mean);
-                  const std::size_t into = level.texelOffset(x, y, sTexel);
-                  for (int channel = 0; channel < 3; ++channel)
-                      mTexels[into + static_cast<std::size_t>(channel)] = quantiseNormal(direction[channel]);
-                  mTexels[into + 3] = unitByte(height);
-              };
+        // A row being laid, its means in the ring and its texels in the level: found once a row and not
+        // once a texel, since a level's bytes are written between, which a compiler must take to move
+        // everything a row is found from.
+        struct LaidRow
+        {
+            osg::Vec4f* mMeans = nullptr;
+            std::byte* mTexels = nullptr;
+        };
+        const auto rowOf = [&](std::size_t at, std::uint32_t y) {
+            return LaidRow{ .mMeans = ringRow(at, y),
+                .mTexels = mTexels.data() + mLevels[at].texelOffset(0, y, sTexel) };
+        };
+
+        // A texel laid: its mean in the ring, with the height its byte decodes to, and in the level the
+        // direction of that mean, `direction`, with the height beside it.
+        const auto lay = [](const LaidRow& row, std::uint32_t x, const osg::Vec3f& mean,
+                             const std::array<std::byte, 3>& direction, std::byte height) {
+            row.mMeans[x] = osg::Vec4f(mean, sUnitOfByte[std::to_integer<std::size_t>(height)]);
+            std::byte* const texel = row.mTexels + std::size_t{ x } * sTexel;
+            std::copy(direction.begin(), direction.end(), texel);
+            texel[3] = height;
+        };
 
         // **Each level the box of the unit normals under it, stored as its direction**: the means are
         // carried unnormalised, so a level is the mean of the finest texels it covers and not a mean of
-        // means each rounded to a byte and made unit again. The height beside them a plain box.
+        // means each rounded to a byte and made unit again. The height beside them a plain box of the
+        // bytes above. A tap is the ring's four values weighed at once, every one of the nine added in
+        // its turn, a weight of nought with them.
         const auto box = [&](std::size_t at, std::uint32_t y) {
             const MipLevel& level = mLevels[at];
             const MipLevel& above = mLevels[at - 1];
             const Shaders::AxisTaps down = Shaders::axisTaps(y, above.mHeight);
-            for (std::uint32_t x = 0; x < level.mWidth; ++x)
+            const std::array<const osg::Vec4f*, 3> rows{ ringRow(at - 1, std::min(down.mFirst, above.mHeight - 1)),
+                ringRow(at - 1, std::min(down.mFirst + 1, above.mHeight - 1)),
+                ringRow(at - 1, std::min(down.mFirst + 2, above.mHeight - 1)) };
+            const LaidRow under = rowOf(at, y);
+            for (std::uint32_t first = 0; first < level.mWidth; first += 4)
             {
-                const Shaders::AxisTaps across = Shaders::axisTaps(x, above.mWidth);
-                osg::Vec3f mean;
-                float height = 0.0f;
-                for (const std::uint32_t dy : { 0u, 1u, 2u })
-                    for (const std::uint32_t dx : { 0u, 1u, 2u })
-                    {
-                        const float weight = across.mWeights[dx] * down.mWeights[dy];
-                        const std::uint32_t sx = std::min(across.mFirst + dx, above.mWidth - 1);
-                        const std::uint32_t sy = std::min(down.mFirst + dy, above.mHeight - 1);
-                        mean += meanAt(at - 1, sx, sy) * weight;
-                        height += std::to_integer<std::uint8_t>(mTexels[above.texelOffset(sx, sy, sTexel) + 3]) / 255.0f
-                            * weight;
-                    }
-                meanAt(at, x, y) = mean;
-                lay(level, x, y, mean, height);
+                // Four texels' boxes, and their directions together: past the level's edge a mean of
+                // nought, whose direction is laid nowhere.
+                const std::uint32_t count = std::min(level.mWidth - first, 4u);
+                std::array<osg::Vec4f, 4> boxed;
+                FourNormals means;
+                for (std::uint32_t lane = 0; lane < count; ++lane)
+                {
+                    const Shaders::AxisTaps across = Shaders::axisTaps(first + lane, above.mWidth);
+                    for (const std::uint32_t dy : { 0u, 1u, 2u })
+                        for (const std::uint32_t dx : { 0u, 1u, 2u })
+                            boxed[lane] += rows[dy][std::min(across.mFirst + dx, above.mWidth - 1)]
+                                * (across.mWeights[dx] * down.mWeights[dy]);
+                    means.mX[lane] = boxed[lane].x();
+                    means.mY[lane] = boxed[lane].y();
+                    means.mZ[lane] = boxed[lane].z();
+                }
+                const std::array<std::array<std::byte, 3>, 4> directions = layDirections(means);
+                for (std::uint32_t lane = 0; lane < count; ++lane)
+                    lay(under, first + lane, means.at(lane), directions[lane], unitByte(boxed[lane].w()));
             }
         };
 
@@ -381,50 +455,87 @@ namespace Rtx
             }
         };
 
-        // The finest rows a band at a time, laid from the ring with their height.
-        const auto standRows = [&](std::uint32_t from, std::uint32_t to) {
-            for (std::uint32_t y = from; y < to; ++y)
-                for (std::uint32_t x = 0; x < top.mWidth; ++x)
-                    lay(top, x, y, ringAt(x, y), mAlpha.at(0, x, y) / 255.0f);
-            boxUnder(boxUnder, 0, to);
+        // **Every texel of the finest level its unit normal**, four decoded normals turned together: each
+        // one's unit normal and the direction that is laid as, which is the unit normal's own direction
+        // again. Its height is the file's alpha, the byte a height of that byte over 255 is laid as.
+        struct Turned
+        {
+            osg::Vec3f mUnit;
+            std::array<std::byte, 3> mDirection;
+        };
+        const auto turn = [](const FourNormals& decoded) {
+            const FourNormals units = unitNormals(decoded);
+            const std::array<std::array<std::byte, 3>, 4> directions = layDirections(units);
+            std::array<Turned, 4> turned;
+            for (std::size_t lane = 0; lane < 4; ++lane)
+                turned[lane] = Turned{ .mUnit = units.at(lane), .mDirection = directions[lane] };
+            return turned;
+        };
+        const auto layFinest = [&](const LaidRow& row, std::uint32_t x, std::uint32_t y, const Turned& turned) {
+            lay(row, x, turned.mUnit, turned.mDirection, std::byte{ mAlpha.at(0, x, y) });
         };
 
-        // **Every texel of the finest level its unit normal**: three channels decoded as `2 c − 1`, and a
-        // map of two its blue raised from the other two, as a sampler of the map would have.
+        // The rows of the finest level's band `band`, the level's last band fewer.
+        const auto bandOf = [&](std::uint32_t band) {
+            std::array<LaidRow, 4> rows;
+            for (std::uint32_t row = 0; row < bandRows(top, band); ++row)
+                rows[row] = rowOf(0, band * 4 + row);
+            return rows;
+        };
+
+        // Three channels decoded as `2 c − 1`, a block's palette turned and not its texels; and a map of
+        // two its blue raised from the other two, as a sampler of the map would have, a block's row
+        // turned at once.
         if (first.mFormat == TextureFormat::Bc5Unorm)
         {
             const TexelLayout layout = layoutOf(first.mFormat);
             for (std::uint32_t by = 0; by < (top.mHeight + 3) / 4; ++by)
             {
+                const std::array<LaidRow, 4> rows = bandOf(by);
                 for (std::uint32_t bx = 0; bx < (top.mWidth + 3) / 4; ++bx)
                 {
                     std::array<std::uint8_t, 64> block{};
                     rgbcx::unpack_bc5(first.mBytes.data() + top.blockOffset(bx, by, layout.mBytes), block.data());
                     for (std::uint32_t y = by * 4; y < std::min(by * 4 + 4, top.mHeight); ++y)
-                        for (std::uint32_t x = bx * 4; x < std::min(bx * 4 + 4, top.mWidth); ++x)
+                    {
+                        FourNormals decoded;
+                        for (std::size_t lane = 0; lane < 4; ++lane)
                         {
-                            const std::size_t at = (std::size_t{ y - by * 4 } * 4 + (x - bx * 4)) * sTexel;
+                            const std::size_t at = (std::size_t{ y - by * 4 } * 4 + lane) * sTexel;
                             const float across = block[at] / 255.0f * 2.0f - 1.0f;
                             const float along = block[at + 1] / 255.0f * 2.0f - 1.0f;
-                            const float up = std::sqrt(std::max(1.0f - across * across - along * along, 0.0f));
-                            ringAt(x, y) = unitNormal(osg::Vec3f(across, along, up));
+                            decoded.mX[lane] = across;
+                            decoded.mY[lane] = along;
+                            decoded.mZ[lane] = std::sqrt(std::max(1.0f - across * across - along * along, 0.0f));
                         }
+                        const std::array<Turned, 4> turned = turn(decoded);
+                        for (std::uint32_t x = bx * 4; x < std::min(bx * 4 + 4, top.mWidth); ++x)
+                            layFinest(rows[y - by * 4], x, y, turned[x - bx * 4]);
+                    }
                 }
-                standRows(by * 4, std::min(by * 4 + 4, top.mHeight));
+                boxUnder(boxUnder, 0, std::min(by * 4 + 4, top.mHeight));
             }
         }
         else
-            for (std::uint32_t row = 0; row < top.mHeight; row += 4)
+            for (std::uint32_t band = 0; band * 4 < top.mHeight; ++band)
             {
-                readTexelBand(first, top, row / 4, mBand);
-                const auto end = static_cast<std::uint32_t>(row + mBand.size() / top.mWidth);
-                for (std::uint32_t y = row; y < end; ++y)
-                    for (std::uint32_t x = 0; x < top.mWidth; ++x)
-                    {
-                        const osg::Vec3f& stored = mBand[std::size_t{ y - row } * top.mWidth + x];
-                        ringAt(x, y) = unitNormal(stored * 2.0f - osg::Vec3f(1.0f, 1.0f, 1.0f));
-                    }
-                standRows(row, end);
+                const std::array<LaidRow, 4> rows = bandOf(band);
+                walkBand(
+                    first, top, band,
+                    [&](const std::array<osg::Vec3f, 4>& stored) {
+                        FourNormals decoded;
+                        for (std::size_t lane = 0; lane < 4; ++lane)
+                        {
+                            decoded.mX[lane] = stored[lane].x() * 2.0f - 1.0f;
+                            decoded.mY[lane] = stored[lane].y() * 2.0f - 1.0f;
+                            decoded.mZ[lane] = stored[lane].z() * 2.0f - 1.0f;
+                        }
+                        return turn(decoded);
+                    },
+                    [&](std::uint32_t x, std::uint32_t row, const Turned& turned) {
+                        layFinest(rows[row], x, band * 4 + row, turned);
+                    });
+                boxUnder(boxUnder, 0, std::min(band * 4 + 4, top.mHeight));
             }
     }
 

@@ -88,15 +88,13 @@ namespace Rtx
     /// The byte nearest `value * 255`, held to nought and 255: `std::lround`'s answer for every finite
     /// value, a NaN nought, and no libm call, which no compiler inlines and a chain asks once a channel.
     /// In double, where the product and a half add exactly, so the cast rounds half away from nought as
-    /// `std::lround` does; asked as `>`, so a NaN never reaches the cast.
+    /// `std::lround` does. Held by two choices and no branch, so a loop of them is worked as a vector;
+    /// asked as `>` and `<`, neither of which holds of a NaN, so one never reaches the cast.
     inline std::byte unitByte(float value)
     {
         const double scaled = static_cast<double>(value * 255.0f) + 0.5;
-        if (!(scaled > 0.0))
-            return std::byte{ 0 };
-        if (scaled >= 255.0)
-            return std::byte{ 255 };
-        return static_cast<std::byte>(static_cast<int>(scaled));
+        const double held = scaled > 0.0 ? (scaled < 255.0 ? scaled : 255.0) : 0.0;
+        return static_cast<std::byte>(static_cast<int>(held));
     }
 
     /// `DisplayCurve::encodedByte`, for a caller outside a loop.

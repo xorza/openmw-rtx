@@ -2,6 +2,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <iterator>
 #include <random>
 #include <string_view>
 #include <tuple>
@@ -71,7 +72,10 @@ namespace Rtx
         /// band in light is each of them through `toLinear`, a palette turned once for its block. Every
         /// format a whole-level reader meets, at a size that leaves both a partial column and a
         /// partial band of blocks, and at a second level that does not start at nought: random bytes,
-        /// because a block's palette and its indices are any bytes at all.
+        /// because a block's palette and its indices are any bytes at all. A walk of a band turns once a
+        /// block, or once every four loose texels of a row, and places every texel once: a level 10
+        /// wide is three turns a band of blocks and three a loose row, and one 5 wide two, the last of a
+        /// loose row's beside two colours of nought and three.
         TEST(RtxTexelTest, aBandIsEveryTexelTexelAtReadsInRowOrder)
         {
             std::mt19937 random(7);
@@ -101,6 +105,25 @@ namespace Rtx
                         const std::uint32_t rows = std::min(level.mHeight - firstRow, 4u);
                         ASSERT_EQ(band.size(), std::size_t{ rows } * level.mWidth) << nameOf(format);
                         ASSERT_EQ(light.size(), band.size()) << nameOf(format);
+
+                        std::size_t turns = 0;
+                        std::vector<std::uint32_t> placed(band.size(), 0);
+                        walkBand(
+                            texture, level, firstRow / 4,
+                            [&](const std::array<osg::Vec3f, 4>& stored) {
+                                const std::uint32_t groups = (level.mWidth + 3) / 4;
+                                if (!layout.isBlocked() && turns % groups == groups - 1)
+                                    for (std::size_t past = level.mWidth % 4; past < 4; ++past)
+                                        EXPECT_EQ(stored[past], osg::Vec3f()) << nameOf(format) << " past a row";
+                                ++turns;
+                                return stored;
+                            },
+                            [&](std::uint32_t x, std::uint32_t row, const osg::Vec3f&) {
+                                ++placed[std::size_t{ row } * level.mWidth + x];
+                            });
+                        EXPECT_EQ(turns, std::size_t{ layout.isBlocked() ? 1u : rows } * ((level.mWidth + 3) / 4))
+                            << nameOf(format) << ", a level " << level.mWidth << " wide";
+                        EXPECT_EQ(std::ranges::count(placed, 1u), std::ssize(placed)) << nameOf(format);
                         for (std::uint32_t row = 0; row < rows; ++row)
                             for (std::uint32_t x = 0; x < level.mWidth; ++x)
                             {

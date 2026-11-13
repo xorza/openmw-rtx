@@ -69,7 +69,8 @@ namespace Rtx
 
         /// The byte `std::lround` held to the bytes gives, as a chain wrote it before: the same over every
         /// 257th float from −3 to 3 of either sign; a half rounded away from nought, `0.5 * 255 = 127.5`
-        /// to 128; the ends; and the values no texel holds, a NaN nought and the infinities held.
+        /// to 128; the ends; and the values no texel holds, a NaN nought and the infinities held. And
+        /// every byte over 255 is that byte again, which a normal map's height is laid by.
         TEST(RtxSrgbTest, aUnitIsTheByteLroundGives)
         {
             const auto lrounded
@@ -83,6 +84,9 @@ namespace Rtx
                     differ += unitByte(value) != lrounded(value) ? 1 : 0;
                 }
             EXPECT_EQ(differ, 0u);
+
+            for (std::uint32_t byte = 0; byte < 256; ++byte)
+                EXPECT_EQ(unitByte(static_cast<float>(byte) / 255.0f), static_cast<std::byte>(byte));
 
             EXPECT_EQ(unitByte(0.5f), std::byte{ 128 });
             EXPECT_EQ(unitByte(0.0f), std::byte{ 0 });

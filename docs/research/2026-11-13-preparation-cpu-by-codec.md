@@ -285,3 +285,38 @@ The encoder's samples after: `color_cell_compression` 32%, `evaluate_solution` 2
 `encode_bc7_block` 12%, `handle_alpha_block` 9%, `ChainBuild::encodeBc7` 4%; no line over 4.3%, the largest the
 division inside the principal axis's three power iterations. What is left is chains of float additions and
 divisions whose order the bytes depend on. The build is 43% of a normal map's pass now, 0.58 of 1.32 s.
+
+## A normal map's build, a palette at a time
+
+`buildNormalChain`, `ChainBuild::build` alone over the PBR replacers' normal maps: 0.58 s an iteration, 77.8
+million texels a second, 43% of the pass once bc7enc is as above. Its samples: the laying of a texel 47.5%, the
+box of a level and its rows 31.3%, the finest level's decode 11.1%, the band read 3.0%, `ColourBlock::read` 2.8%,
+the alpha's decode 1.5%. By line, `unitByte` 40%, its product widened to a double and held by two branches, and
+the square root and three divisions of a unit normal 23%.
+
+Every texel was made a unit normal, made one again where it was laid and rounded a channel at a time: sixteen
+times a block, whose texels choose among four colours. And one normal at a time waits for the one before it:
+the build's scalar square root keeps the rest of the register it writes, which the normal before wrote last, so
+a turn's two square roots and six divisions ran end to end and were still 35% of the samples at a quarter as many
+turns.
+
+The same arithmetic over the same numbers, in four steps, the corpus's digest and the Fullrest Repack's and the
+made maps' the same at each:
+
+| step | PBR replacers' maps | the made loose maps |
+|---|---|---|
+| as it stood | 577 ms | 2.31 ms |
+| a block's palette turned and not its texels (`walkBand`); a ring texel four values, its height with it, so a tap of the box is one of four; a height's byte read off a table and not divided nine times a texel | 370 to 420 ms | 3.5 to 3.7 ms |
+| four normals worked together, a lane each: a palette, four loose texels of a row, four texels of a boxed row | 331 ms | 2.06 ms |
+| `unitByte` held by two choices and no branch, so twelve of them are worked as vectors | 287 ms | 1.63 ms |
+| a row's place in the ring and in the level found once a row | 241 ms | 1.49 ms |
+
+The second row's two figures are one source built twice: the turn stood in line in one build and out of it in
+the other. A loose map has no palette, so at that step it was turned a texel at a time inside one loop and
+slower than before, which the third step mends.
+
+After, three runs: `buildNormalChain` 0.24 s, 186 million texels a second, and `makeNormalChain` 0.98 s, from
+2.13 s at the start of the section above; bc7enc is 76% of the pass. The painted colours' cases are where they
+were. What the build's samples hold after: the directions of four normals and their bytes 41%, the finest
+level's walk, its unit normals and its laying 25%, the box 16%, `ColourBlock::read` 8%, the alpha's decode 4%.
+

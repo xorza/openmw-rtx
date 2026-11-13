@@ -133,6 +133,9 @@ namespace Rtx
         /// 64-square BC1 of seven levels as a painted colour (every level of its own read), the same with one level
         /// as data (built to a texel), and as a colour with its chain (which stands and builds nothing); and a
         /// conversion either way within its own. Then a 16-square file after a 64-square one grows nothing.
+        /// A band is four rows of the finest level at twelve bytes a texel, `32 · 4 · 12 = 1536` and
+        /// `64 · 4 · 12 = 3072`, and a normal map reads through none: its ring is eight rows of each level at
+        /// sixteen bytes a texel, `8 · (32 + 16 + 8 + 4 + 2 + 1) · 16 = 8064`.
         TEST(RtxContentPreprocessorTest, aChainsScratchIsPredictedOffItsHeaderAndGrowsToNoMore)
         {
             struct Case
@@ -140,14 +143,16 @@ namespace Rtx
                 osg::ref_ptr<osg::Image> mImage;
                 TextureEncoding mEncoding;
                 std::size_t mTexels;
+                std::size_t mBand;
+                std::size_t mRing;
             };
             const std::vector<Case> cases{
-                { makeLoose(32, 16), TextureEncoding::Colour, 2732 },
-                { makeLoose(32, 16), TextureEncoding::Normal, 2732 },
-                { makeLoose(32, 16), TextureEncoding::Painted, 2732 },
-                { makeBc1(64, 64, 7), TextureEncoding::Painted, 21844 },
-                { makeBc1(64, 64, 1), TextureEncoding::Data, 21844 },
-                { makeBc1(64, 64, 7), TextureEncoding::Colour, 0 },
+                { makeLoose(32, 16), TextureEncoding::Colour, 2732, 1536, 0 },
+                { makeLoose(32, 16), TextureEncoding::Normal, 2732, 0, 8064 },
+                { makeLoose(32, 16), TextureEncoding::Painted, 2732, 1536, 0 },
+                { makeBc1(64, 64, 7), TextureEncoding::Painted, 21844, 3072, 0 },
+                { makeBc1(64, 64, 1), TextureEncoding::Data, 21844, 3072, 0 },
+                { makeBc1(64, 64, 7), TextureEncoding::Colour, 0, 0, 0 },
             };
             for (const Case& tried : cases)
             {
@@ -160,6 +165,8 @@ namespace Rtx
                 const auto encoding = static_cast<int>(tried.mEncoding);
                 EXPECT_TRUE(held.within(predicted)) << encoding;
                 EXPECT_EQ(predicted[ChainBuffer::Texels], tried.mTexels) << encoding;
+                EXPECT_EQ(predicted[ChainBuffer::Band], tried.mBand) << encoding;
+                EXPECT_EQ(predicted[ChainBuffer::Ring], tried.mRing) << encoding;
                 for (const ChainBuffer exact : { ChainBuffer::File, ChainBuffer::Alpha, ChainBuffer::Texels,
                          ChainBuffer::Band, ChainBuffer::Ring, ChainBuffer::Columns })
                     EXPECT_EQ(held[exact], predicted[exact]) << encoding << " " << static_cast<int>(exact);

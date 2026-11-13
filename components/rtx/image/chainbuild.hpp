@@ -6,6 +6,7 @@
 #include <vector>
 
 #include <osg/Vec3f>
+#include <osg/Vec4f>
 
 #include <components/misc/bytebuffer.hpp>
 
@@ -121,8 +122,9 @@ namespace Rtx
 
         /// A normal map's means, `sRingRows` rows of each level, the levels back to back from `mRingAt`:
         /// the finest's unit normals, and under it the unnormalised mean of the finest unit normals each
-        /// texel covers.
-        std::vector<osg::Vec3f> mRing;
+        /// texel covers; and in each one's fourth the height its texel's byte decodes to, so the box of
+        /// the level under reads a texel as one value of four.
+        std::vector<osg::Vec4f> mRing;
         std::vector<std::size_t> mRingAt;
 
         /// How many rows of each level a normal map's build has boxed.
