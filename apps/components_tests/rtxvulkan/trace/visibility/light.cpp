@@ -380,7 +380,7 @@ namespace Rtx::Testing
         /// under it is the whole sun's, to the bit, and the bit is open on as many of its draws as the pane
         /// lets through, with the drawn reach. Over 64 frames, n >= 64 draws of a half: the mean's deviation is
         /// `0.5 / sqrt(n)`, held at four of it.
-        TEST_F(RtxVisibilityTest, aTranslucentOccluderDimsTheSunRatherThanStoppingIt)
+        TEST_F(RtxSettlingTest, aTranslucentOccluderDimsTheSunRatherThanStoppingIt)
         {
             // Square in the sun's path to the middle of the wall, which is where the centre pixel
             // looks — so what this pane changes is the light arriving rather than the view of it.
@@ -2851,7 +2851,7 @@ namespace Rtx::Testing
         /// `1 * 0.125 * EMISSIVE_INTENSITY`, one, covering every direction the floor gathers from, so the
         /// floor comes to its albedo, a half, and to nothing where the sheet is a lamp's model. Looked at,
         /// the sheet is one either way: its glow is the eye's, and the floor it would bounce off is dark.
-        TEST_F(RtxVisibilityTest, aLampsOwnModelGlowsToTheEyeAndLightsNothingByTheBounce)
+        TEST_F(RtxSettlingTest, aLampsOwnModelGlowsToTheEyeAndLightsNothingByTheBounce)
         {
             constexpr std::uint32_t size = 32;
 

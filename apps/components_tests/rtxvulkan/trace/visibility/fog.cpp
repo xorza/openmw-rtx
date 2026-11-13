@@ -553,7 +553,7 @@ namespace Rtx::Testing
         /// answering for a stretch of eight slices swings by about half the lamp's whole term every frame, which
         /// the history takes to a tenth of the pixel. Three per cent stands between with room either side. The
         /// same estimator with the history off measures 5.9%, which is what the temporal half is worth here.
-        TEST_F(RtxVisibilityTest, theVolumeSettlesTheAirUnderALampRatherThanFlickeringBlockByBlock)
+        TEST_F(RtxSettlingTest, theVolumeSettlesTheAirUnderALampRatherThanFlickeringBlockByBlock)
         {
             using Fixture = LampInTheAir;
 
@@ -632,7 +632,7 @@ namespace Rtx::Testing
         /// low-end AMD integrated GPU). Cut where the jittered ray stopped, the pixel beside the posts stepped
         /// by 20% of itself and settled 12% darker than open air; cut where the middle ray stops, it is the open
         /// air's to 1.5 per cent and steps by 2.9%, the draws of the shadow rays the posts' edges stop.
-        TEST_F(RtxVisibilityTest, theLampLightBesideAnEdgeHoldsStillAndAsBrightAsOpenAir)
+        TEST_F(RtxSettlingTest, theLampLightBesideAnEdgeHoldsStillAndAsBrightAsOpenAir)
         {
             constexpr std::uint32_t size = framedInColumns(4);
             constexpr std::size_t centre = centreOf(size);
@@ -774,7 +774,7 @@ namespace Rtx::Testing
         /// from the closed form over a slice at the lamp's closest approach. Eight frames averaged after
         /// twenty-four: the froxels' history is the same on both paths so the ratio cancels it (within 0.09% of
         /// one at every depth), and the wall alone keeps no history so it draws only the frames it averages.
-        TEST_F(RtxVisibilityTest, theVolumeLightsTheAirUpToASurfaceWhereverInASliceItStands)
+        TEST_F(RtxSettlingTest, theVolumeLightsTheAirUpToASurfaceWhereverInASliceItStands)
         {
             using Fixture = LampInTheAir;
 

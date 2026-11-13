@@ -665,9 +665,9 @@ namespace Rtx::Testing
 
         /// The floor and the wall of `theHistoryFixTakesTheNoiseOffWhatTheEyeTurnsTo`, the eye that
         /// turns over them, and what a run of it reads off the strip it turns to. **A test traces only
-        /// the runs it reads**: a frame under the layers is milliseconds of the host's, and a run
-        /// is four draws of thirty-three of them.
-        class RtxHistoryFixTest : public RtxVisibilityTest
+        /// the runs it reads**: a frame is a millisecond of the host's, and a run is four draws of
+        /// thirty-three of them.
+        class RtxHistoryFixTest : public RtxSettlingTest
         {
         protected:
             static constexpr std::uint32_t sSize = 64;
@@ -918,7 +918,7 @@ namespace Rtx::Testing
         /// advanced after each hand-over, as `SceneUploader` does, or the bar's motion is its whole travel
         /// since it stood still. Measured: 0.0097 without the dual vector, 0.0022 with it, 0.0019 beside a bar
         /// that stood still.
-        TEST_F(RtxVisibilityTest, theFloorAMovingBarUncoversStartsWithTheHistoryBesideIt)
+        TEST_F(RtxSettlingTest, theFloorAMovingBarUncoversStartsWithTheHistoryBesideIt)
         {
             constexpr std::uint32_t size = 64;
             constexpr std::uint32_t still = 32;
@@ -1115,23 +1115,21 @@ namespace Rtx::Testing
         /// ceiling at forty drops most of what the sheet throws, which no settling gives back. Measured: 0.212 of
         /// the unheld mean.
         ///
-        /// On the unvalidated renderer (`getUnvalidatedRenderer`), because the claim needs all of its 320
-        /// frames (at 112 the means stood 2.6% apart on a low-end AMD integrated GPU) and the layers hold each
-        /// at three times its cost, past what a test may take; the ring's passes are validated by
-        /// `theRingHoldsAFreshFireflyToTheLightAroundIt`. Measured: settled means 0.7973 and 0.7928.
-        TEST_F(RtxVisibilityTest, theRingLeavesASettledMeanItsLight)
+        /// All 320 frames, since at 112 the means stood 2.6% apart on a low-end AMD integrated GPU; the ring's
+        /// passes are validated by `theRingHoldsAFreshFireflyToTheLightAroundIt`. Measured: settled means 0.7973
+        /// and 0.7928.
+        TEST_F(RtxSettlingTest, theRingLeavesASettledMeanItsLight)
         {
             constexpr std::uint32_t size = 64;
             constexpr std::uint32_t settled = 160;
 
-            VulkanRenderer& renderer = getUnvalidatedRenderer();
-            renderer.resize(size, size);
-            renderer.setScene(Rtx::SceneSlot::world(), lanternOverAFloor(), {});
+            mRenderer.resize(size, size);
+            mRenderer.setScene(Rtx::SceneSlot::world(), lanternOverAFloor(), {});
             const Shaders::VisibilityConstants camera = overTheLantern(size);
 
             std::vector<float> read;
             const auto meanOf = [&](bool ring, float exposure) {
-                drawFromACut(renderer, camera, ring, exposure, settled, 5000, read);
+                drawFromACut(mRenderer, camera, ring, exposure, settled, 5000, read);
                 double sum = 0.0;
                 for (std::size_t at = 1; at < read.size(); at += 4)
                     sum += static_cast<double>(read[at]);
@@ -1239,7 +1237,7 @@ namespace Rtx::Testing
         /// The alternating tilt is what a bumpy surface is, not a trick: the neighbours may not be averaged
         /// because they are genuinely lit differently, a cosine lobe tilted forty degrees sampling a different
         /// part of this sky.
-        TEST_F(RtxVisibilityTest, theHistoryCarriesWhereTheCascadeHasNoNeighboursToBorrow)
+        TEST_F(RtxSettlingTest, theHistoryCarriesWhereTheCascadeHasNoNeighboursToBorrow)
         {
             constexpr std::uint32_t size = 64;
             constexpr int cells = 16;

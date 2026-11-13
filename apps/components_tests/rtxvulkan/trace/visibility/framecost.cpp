@@ -49,7 +49,7 @@ namespace Rtx::Testing
         struct RtxFrameCostTest : DeviceTest
         {
             RtxFrameCostTest()
-                : DeviceTest(false)
+                : DeviceTest(Validation::Unvalidated)
             {
             }
         };

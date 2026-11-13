@@ -1201,7 +1201,7 @@ namespace Rtx::Testing
         /// sends, and on a ray that runs level one of them carries nearly all of it, so a frame is
         /// one draw at worst: `√(0.5 · 0.5 / 128) = 0.044` a pixel over a hundred and twenty-eight
         /// frames, and `0.0077` over the 33.
-        TEST_F(RtxVisibilityTest, aShaftsShadowIsTheShareOfTheWatersConeAnEdgeHides)
+        TEST_F(RtxSettlingTest, aShaftsShadowIsTheShareOfTheWatersConeAnEdgeHides)
         {
             constexpr std::uint32_t size = 33;
             constexpr std::uint32_t column = size / 2;

@@ -37,19 +37,19 @@ namespace Rtx::Testing
     namespace
     {
         /// Keyed on validation, which is the only axis any of these vary along.
-        Once<Harness>& harnessCache(bool validation)
+        Once<Harness>& harnessCache(Validation validation)
         {
             static Once<Harness> sValidated;
             static Once<Harness> sPlain;
-            return validation ? sValidated : sPlain;
+            return validation == Validation::Validated ? sValidated : sPlain;
         }
 
         /// Keyed on validation, the way the devices are and for the same reason.
-        Once<VulkanRenderer>& rendererCache(bool validation)
+        Once<VulkanRenderer>& rendererCache(Validation validation)
         {
             static Once<VulkanRenderer> sValidated;
             static Once<VulkanRenderer> sPlain;
-            return validation ? sValidated : sPlain;
+            return validation == Validation::Validated ? sValidated : sPlain;
         }
 
         /// What `device`'s census counted since a frame last took it, which it then holds no more:
@@ -80,7 +80,7 @@ namespace Rtx::Testing
         }
     }
 
-    std::unique_ptr<Harness> makeHarness(bool validation)
+    std::unique_ptr<Harness> makeHarness(Validation validation)
     {
         // Tests provoke errors deliberately and assert on them; aborting would take the suite down with the first one.
         // Synchronization validation is **the same switch `describeRenderer` sets, for the same reason**: a test that
@@ -88,7 +88,7 @@ namespace Rtx::Testing
         // nothing at all, and a suite validated one way through the renderer and another beside it answers a different
         // question in each file.
         const ValidationOptions options{
-            .mLevel = validation ? ValidationLevel::Sync : ValidationLevel::Off,
+            .mLevel = validation == Validation::Validated ? ValidationLevel::Sync : ValidationLevel::Off,
             .mAbortOnError = false,
         };
 
@@ -117,7 +117,7 @@ namespace Rtx::Testing
         /// **The flag reaches the cache and the build together**, so the two cannot come apart: a
         /// device built unvalidated and filed under the validated key would be handed to every test
         /// in the suite.
-        Harness& cachedHarness(bool validation)
+        Harness& cachedHarness(Validation validation)
         {
             return harnessCache(validation).get([validation] { return makeHarness(validation); });
         }
@@ -129,17 +129,17 @@ namespace Rtx::Testing
             return sMadeWith;
         }
 
-        std::unique_ptr<VulkanRenderer> buildRenderer(bool validation)
+        std::unique_ptr<VulkanRenderer> buildRenderer(Validation validation)
         {
             // Every test resizes to what it needs; one texel is only what the first target costs.
             auto renderer = std::make_unique<VulkanRenderer>(describeRenderer(1, 1, validation));
             awaitKernels(*renderer);
-            if (validation)
+            if (validation == Validation::Validated)
                 RendererProbe(*renderer).takeValidationErrors(rendererMadeWith());
             return renderer;
         }
 
-        VulkanRenderer& cachedRenderer(bool validation)
+        VulkanRenderer& cachedRenderer(Validation validation)
         {
             return rendererCache(validation).get([validation] { return buildRenderer(validation); });
         }
@@ -156,10 +156,11 @@ namespace Rtx::Testing
         /// raw device and a `Renderer`, each validated and unvalidated. Closing them here is the fix.
         ///
         /// **No device is a failed run, not an empty one**: a skip per test is honest per test and a green run of
-        /// nothing per suite, so the first thing this binary does is ask for the device. **The validated renderer is
-        /// built beside it, before any test is timed**: three and a half seconds of pipelines even out of a warm
-        /// driver cache would otherwise be charged to whichever test asked first, and one that cannot be built fails
-        /// the binary as a missing device does.
+        /// nothing per suite, so the first thing this binary does is ask for the device. **Both renderers are built
+        /// beside it, before any test is timed**: three and a half seconds of the validated one's pipelines even out of
+        /// a warm driver cache, and the unvalidated one's that every `RtxSettlingTest` draws through, would otherwise
+        /// be charged to whichever test asked first, and one that cannot be built fails the binary as a missing device
+        /// does.
         ///
         /// **Not in a death test's child**, which runs this again for one statement that aborts and needs the device
         /// at most: `inDeathChild` says how it knows.
@@ -182,10 +183,11 @@ namespace Rtx::Testing
                 try
                 {
                     getRenderer();
+                    getUnvalidatedRenderer();
                 }
                 catch (const std::exception& obstacle)
                 {
-                    FAIL() << "rtx-gpu-tests cannot make its renderer: " << obstacle.what();
+                    FAIL() << "rtx-gpu-tests cannot make its renderers: " << obstacle.what();
                 }
             }
 
@@ -193,9 +195,9 @@ namespace Rtx::Testing
             {
                 // The renderer before the raw devices, which is the order they were built in; neither
                 // depends on the other.
-                for (const bool validation : { true, false })
+                for (const Validation validation : { Validation::Validated, Validation::Unvalidated })
                     rendererCache(validation).release();
-                for (const bool validation : { true, false })
+                for (const Validation validation : { Validation::Validated, Validation::Unvalidated })
                     harnessCache(validation).release();
             }
         };
@@ -209,12 +211,12 @@ namespace Rtx::Testing
 
     Harness& getHarness()
     {
-        return cachedHarness(true);
+        return cachedHarness(Validation::Validated);
     }
 
     Harness& getUnvalidatedHarness()
     {
-        return cachedHarness(false);
+        return cachedHarness(Validation::Unvalidated);
     }
 
     const ShaderSet& getCensusShaders()
@@ -236,7 +238,7 @@ namespace Rtx::Testing
         return PipelineCacheSpec{ .mDirectory = std::filesystem::path(OPENMW_RTX_TEST_PIPELINE_CACHE_DIR) };
     }
 
-    RendererOptions describeRenderer(std::uint32_t width, std::uint32_t height, bool validation)
+    RendererOptions describeRenderer(std::uint32_t width, std::uint32_t height, Validation validation)
     {
         RendererOptions options;
         options.mShaders = getCensusShaders();
@@ -246,8 +248,10 @@ namespace Rtx::Testing
         // **Synchronization validation wherever the layers are, because a missing barrier is what
         // this suite is worst at seeing.** Every test here submits and waits, so the ordering a
         // frame relies on is supplied by the harness rather than by the code under test, and a
-        // hazard shows as nothing at all. It costs no measurable time in this suite.
-        options.mRun.mValidation.mLevel = validation ? ValidationLevel::Sync : ValidationLevel::Off;
+        // hazard shows as nothing at all. It costs as much as the core checks it runs beside
+        // (`getUnvalidatedRenderer` has the numbers).
+        options.mRun.mValidation.mLevel
+            = validation == Validation::Validated ? ValidationLevel::Sync : ValidationLevel::Off;
         // Tests provoke errors deliberately and assert on them; aborting would take the suite down
         // with the first one.
         options.mRun.mValidation.mAbortOnError = false;
@@ -273,7 +277,7 @@ namespace Rtx::Testing
 
     VulkanRenderer& getRenderer()
     {
-        return cachedRenderer(true);
+        return cachedRenderer(Validation::Validated);
     }
 
     const std::vector<std::string>& getRendererMadeWith()
@@ -283,11 +287,11 @@ namespace Rtx::Testing
 
     VulkanRenderer& getUnvalidatedRenderer()
     {
-        return cachedRenderer(false);
+        return cachedRenderer(Validation::Unvalidated);
     }
 
-    DeviceTest::DeviceTest(bool validation)
-        : mHarness(validation ? getHarness() : getUnvalidatedHarness())
+    DeviceTest::DeviceTest(Validation validation)
+        : mHarness(cachedHarness(validation))
     {
     }
 
@@ -321,8 +325,8 @@ namespace Rtx::Testing
         return getDevice().getPool();
     }
 
-    RendererTest::RendererTest()
-        : RendererTest(getRenderer(), describeRenderer(1, 1, true).mRun)
+    RendererTest::RendererTest(Validation validation)
+        : RendererTest(cachedRenderer(validation), describeRenderer(1, 1, validation).mRun)
     {
     }
 

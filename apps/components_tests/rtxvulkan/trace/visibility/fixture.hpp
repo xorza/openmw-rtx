@@ -502,6 +502,12 @@ namespace Rtx::Testing
     class RtxVisibilityTest : public Testing::RendererTest
     {
     protected:
+        /// On the renderer the binary shares, validated but for `RtxSettlingTest`'s.
+        explicit RtxVisibilityTest(Testing::Validation validation = Testing::Validation::Validated)
+            : RendererTest(validation)
+        {
+        }
+
         /// Hands `scene` over as the world, with `textures` at the slots it numbers them by, as
         /// `shoot` hands its own: for a test that reads the shown picture, which `shoot` does not.
         void setWorld(const SceneDesc& scene, std::span<const TextureData> textures)
@@ -803,5 +809,23 @@ namespace Rtx::Testing
         }
 
         std::vector<TextureData> mNumbered;
+    };
+
+    /// **A test whose claim is a statistic over many frames**: a history settled, a trail behind a moving
+    /// occluder, a mean that holds still from frame to frame, over dozens to hundreds of frames.
+    ///
+    /// **Unvalidated** (`getUnvalidatedRenderer`), as Dawn's end-to-end tests run at a validation level below full
+    /// for the layers' cost, **where the layers held such a test past a second**: they check how a frame is recorded,
+    /// which is the same at its fortieth frame as at its second, and cost a small frame two to three times its own.
+    /// The layers' checks of these frames are left to the suite's validated tests and to the gate's `check` and
+    /// `repeat`, which draw the real places with the layers loaded: a configuration only a settling test draws is
+    /// checked by neither.
+    class RtxSettlingTest : public RtxVisibilityTest
+    {
+    protected:
+        RtxSettlingTest()
+            : RtxVisibilityTest(Testing::Validation::Unvalidated)
+        {
+        }
     };
 }

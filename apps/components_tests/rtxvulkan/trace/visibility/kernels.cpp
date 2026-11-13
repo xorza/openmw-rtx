@@ -81,7 +81,7 @@ namespace Rtx
         {
         protected:
             RtxVisibilityKernelsTest()
-                : Testing::DeviceTest(false)
+                : Testing::DeviceTest(Testing::Validation::Unvalidated)
             {
             }
 

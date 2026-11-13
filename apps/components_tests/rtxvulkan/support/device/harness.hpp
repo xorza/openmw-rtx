@@ -58,6 +58,14 @@ namespace Rtx::Testing
         void release() { mValue.reset(); }
     };
 
+    /// Whether a device or a renderer of the suite loads the validation layers: every one does but those
+    /// `getUnvalidatedHarness` names.
+    enum class Validation
+    {
+        Validated,
+        Unvalidated,
+    };
+
     /// The device every test that drives Vulkan directly shares.
     ///
     /// **Always there by the time a test asks**: `DeviceEnvironment` asks first and fails the binary where there is
@@ -67,18 +75,17 @@ namespace Rtx::Testing
 
     /// The same, with no validation layers loaded.
     ///
-    /// **Two things in this suite run unvalidated, and each is measured rather than asserted.** `getAllocationCount`
-    /// replaces the global `operator new`, so it cannot tell a layer's allocation from the renderer's: with the layers
-    /// loaded, `RtxFrameCostTest` measures 32,352 to 49,152 allocations over its 32 frames against a budget of nought,
-    /// which is a deleted test and not a stricter one. And `RtxVisibilityKernelsTest` watches seven kernels compile,
-    /// which the layers held at 1.2 to 1.4 s against 0.03 without them. A settled mean's 320 frames
-    /// (`getUnvalidatedRenderer`) are the third. Everything else is validated, so this device is only built if
-    /// something asks.
+    /// **Three kinds of test in this suite run unvalidated.** `getAllocationCount` replaces the global `operator new`,
+    /// so it cannot tell a layer's allocation from the renderer's: with the layers loaded, `RtxFrameCostTest` measures
+    /// 32,352 to 49,152 allocations over its 32 frames against a budget of nought, which is a deleted test and not a
+    /// stricter one. `RtxVisibilityKernelsTest` watches seven kernels compile, which the layers held at 1.2 to 1.4 s
+    /// against 0.03 without them. And a statistic over many frames (`RtxSettlingTest`, through
+    /// `getUnvalidatedRenderer`). Everything else is validated, so this device is only built if something asks.
     Harness& getUnvalidatedHarness();
 
     /// A device of the caller's own, closed when it lets go: what a test about a device coming and
     /// going holds, since the two above live for the whole binary.
-    std::unique_ptr<Harness> makeHarness(bool validation);
+    std::unique_ptr<Harness> makeHarness(Validation validation);
 
     /// The shaders every device and renderer of the suites reads: the census's, as every run of the
     /// harness but a measured one reads, so a kernel a test dispatches is the module `check` runs
@@ -110,8 +117,9 @@ namespace Rtx::Testing
     /// The layers are two switches and a caller that remembered one of them would have a renderer half validated and
     /// no way to tell.
     ///
-    /// @param validation off only for `getUnvalidatedRenderer`, which says why.
-    RendererOptions describeRenderer(std::uint32_t width, std::uint32_t height, bool validation = true);
+    /// @param validation unvalidated only for `getUnvalidatedRenderer`, which says why.
+    RendererOptions describeRenderer(
+        std::uint32_t width, std::uint32_t height, Validation validation = Validation::Validated);
 
     /// Holds until every kernel `renderer` started making as it was made is made, and throws what
     /// making one threw. Before its validation errors are taken for the renderer's making: a kernel
@@ -136,14 +144,16 @@ namespace Rtx::Testing
     /// `Harness::mMadeWith` gives.
     const std::vector<std::string>& getRendererMadeWith();
 
-    /// The same, with no validation layers loaded, for the test that counts allocations and the one whose claim needs
-    /// more frames than the layers leave it time for.
+    /// The same, with no validation layers loaded, for the test that counts allocations and the tests whose claim is a
+    /// statistic over many frames (`RtxSettlingTest`).
     ///
     /// **A second renderer, for the reason `getUnvalidatedHarness` gives.** The layers allocate and
     /// `getAllocationCount` replaces the global `operator new`, so a frame measured through the shared renderer
-    /// reports hundreds of allocations that no change to this code could remove. And they cost a frame three times its
-    /// own on a low-end AMD integrated GPU, where `theRingLeavesASettledMeanItsLight`'s 320 frames took past what a
-    /// test may. Built only if something asks.
+    /// reports hundreds of allocations that no change to this code could remove. And they cost a small frame two to
+    /// three times its own: on a high-end NVIDIA laptop GPU the 273 pixel tests took 76 s with the layers and 30 s
+    /// without, `theClampShortensTheSkysTrail`'s 384 frames 1.84 s and 0.52, of which the synchronization checks were
+    /// 0.55 s and the core checks' state 0.55. Made before any test runs, by the environment that makes the device, as
+    /// `getRenderer`'s is.
     VulkanRenderer& getUnvalidatedRenderer();
 
     /// The base of a test that drives Vulkan directly.
@@ -157,7 +167,7 @@ namespace Rtx::Testing
         /// **Validated unless a derived fixture says otherwise**, which only a test that counts
         /// allocations or watches kernels the suite already checked wants: `getUnvalidatedHarness`
         /// says what the layers cost each.
-        explicit DeviceTest(bool validation = true);
+        explicit DeviceTest(Validation validation = Validation::Validated);
 
         void SetUp() override;
 
@@ -189,8 +199,9 @@ namespace Rtx::Testing
     class RendererTest : public ::testing::Test
     {
     protected:
-        /// On the renderer the binary shares (`getRenderer`).
-        RendererTest();
+        /// On the renderer the binary shares (`getRenderer`), or the one it shares unvalidated
+        /// (`getUnvalidatedRenderer`), which only a statistic over many frames asks for (`RtxSettlingTest`).
+        explicit RendererTest(Validation validation = Validation::Validated);
 
         /// On `renderer`, a fixture's own that outlives every test of it, reset before each test to what
         /// `made` says it was made with.

@@ -202,7 +202,7 @@ namespace Rtx::Testing
         /// holds seven slats and seven gaps. The mean is the half the slats leave, so a filter that dimmed the
         /// puff would not hold as still. The froxel's own seeing steps by 3.5% of the pixel and the averaged
         /// seeing by 2.1%; the bound stands between them.
-        TEST_F(RtxVisibilityTest, aPuffUnderASlattedShadeHoldsStillFromFrameToFrame)
+        TEST_F(RtxSettlingTest, aPuffUnderASlattedShadeHoldsStillFromFrameToFrame)
         {
             constexpr std::uint32_t size = 33;
             constexpr std::size_t centre = centreValueOf(size);
@@ -823,7 +823,7 @@ namespace Rtx::Testing
         /// read: those rays are level, so they meet neither sheet and cut the same chord in all three scenes.
         /// A cloud's shell in a frame with no sprite in it follows the same law, since the air asks what a
         /// point sees of the fill wherever a puff of either kind can read it (`mPuffsInFrame`).
-        TEST_F(RtxVisibilityTest, aRoomsFillReachesAPuffFromEverySideAndWhatIsNearTakesItAway)
+        TEST_F(RtxSettlingTest, aRoomsFillReachesAPuffFromEverySideAndWhatIsNearTakesItAway)
         {
             constexpr std::uint32_t size = 33;
             constexpr float reach = 140.0f;
@@ -903,7 +903,7 @@ namespace Rtx::Testing
         /// `40000 * (1 - 0.2^4)^2 / (200^2 + 1) = 40000 * 0.996801 / 40001 = 0.996776` and the matching fill
         /// is `0.996776 / pi = 0.317285`. The froxel averages the falloff over its stretch of the ray, which a
         /// puff 40 across holds to within a few per cent.
-        TEST_F(RtxVisibilityTest, aLampLightsAPuffAsItLightsACardAndAsTheFillDoes)
+        TEST_F(RtxSettlingTest, aLampLightsAPuffAsItLightsACardAndAsTheFillDoes)
         {
             constexpr std::uint32_t size = 33;
             constexpr float irradiance = 40000.0f * 0.996801f / 40001.0f;

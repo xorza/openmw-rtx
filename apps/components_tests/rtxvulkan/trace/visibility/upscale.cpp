@@ -88,7 +88,7 @@ namespace Rtx::Testing
         /// growing with the ratio. At 96 pixels ultra performance traces 32, and its luma
         /// pyramid has five levels where the pass declares six: what `Upscaler::record` binds in place
         /// of the sixth.
-        TEST_F(RtxVisibilityTest, aStillPictureHoldsStillThroughEveryUpscale)
+        TEST_F(RtxSettlingTest, aStillPictureHoldsStillThroughEveryUpscale)
         {
             constexpr std::uint32_t size = 96;
             constexpr std::uint32_t frames = 32;

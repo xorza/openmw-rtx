@@ -543,7 +543,7 @@ namespace Rtx::Testing
         /// bits. Drawn from the tile (`STREAM_SUN_DISC`) a pixel's error is arranged against its neighbours'
         /// and the box averages it away; hashed it is white and the box keeps a fifth of it. Asserted as the
         /// blue frame's error under three quarters of the white one's.
-        TEST_F(RtxVisibilityTest, aPenumbrasBitsAreDrawnBlueSoABlurTakesTheirNoise)
+        TEST_F(RtxSettlingTest, aPenumbrasBitsAreDrawnBlueSoABlurTakesTheirNoise)
         {
             constexpr std::uint32_t size = 64;
             Shaders::VisibilityConstants camera = overheadSun(size);
@@ -597,7 +597,7 @@ namespace Rtx::Testing
         /// pixel speckles it. Measured against a reference of 128 unfiltered frames, one frame's error and the
         /// denoised frame's after sixty-four frames of history, on a dry floor and on a flooded one seen
         /// through the water (whose sun is what the refraction found). Two tests on one body, each 193 frames.
-        class RtxPenumbraDenoiseTest : public RtxVisibilityTest
+        class RtxPenumbraDenoiseTest : public RtxSettlingTest
         {
         protected:
             /// @param kept the share of the raw frame's error the denoised one may keep.

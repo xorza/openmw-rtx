@@ -48,11 +48,11 @@ namespace Rtx::Testing
         /// actor darkens the ground at its feet. The bar moves 4 units a frame, about three quarters
         /// of a pixel, for 40 frames after 32 still ones, from two draws of the sampler; the profile is
         /// held against 48 still frames of the bar where the run left it. **Two draws and 48 frames**,
-        /// because a frame under the layers is milliseconds of the host's: one draw's lag stood within
-        /// 0.6 pixels of four draws' mean, and the still edge 0.18 pixels from 96 frames'. **The
+        /// because a frame is a millisecond of the host's: one draw's lag stood within 0.6 pixels of four
+        /// draws' mean, and the still edge 0.18 pixels from 96 frames'. **The
         /// placement table is advanced after each hand-over**, as `SceneUploader` does, or the bar's
         /// motion vector is its whole travel since it stood still.
-        class RtxBounceTrailTest : public RtxVisibilityTest
+        class RtxBounceTrailTest : public RtxSettlingTest
         {
         protected:
             Trail trailOf(Blocked blocked, bool antilag)
@@ -183,7 +183,7 @@ namespace Rtx::Testing
 
         /// A floor under a sky that lights it, with a bar standing still on it, for the two tests of
         /// what the clamp does to light that does not move and to light that changes everywhere.
-        class RtxBounceClampTest : public RtxVisibilityTest
+        class RtxBounceClampTest : public RtxSettlingTest
         {
         protected:
             static constexpr std::uint32_t sFloorSize = 64;

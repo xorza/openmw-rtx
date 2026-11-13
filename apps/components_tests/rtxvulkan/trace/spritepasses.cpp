@@ -1281,7 +1281,7 @@ namespace Rtx
         struct RtxSpriteShadeAllocationTest : Testing::DeviceTest
         {
             RtxSpriteShadeAllocationTest()
-                : Testing::DeviceTest(/*validation=*/false)
+                : Testing::DeviceTest(Testing::Validation::Unvalidated)
             {
             }
         };
