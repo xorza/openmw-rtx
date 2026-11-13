@@ -53,6 +53,10 @@ namespace RtxTool
         /// Says a hashed frame differed from its reference: the run's status unless it failed.
         void differ() { mDiffered = true; }
 
+        /// Says `stop` was passed over because the content does not hold what it names, `why`, and fails the run
+        /// where the stop says so (`WhenAbsent`).
+        void skip(const Stop& stop, std::string_view why);
+
         /// Counts one check and whether it held.
         void checked(bool held);
 

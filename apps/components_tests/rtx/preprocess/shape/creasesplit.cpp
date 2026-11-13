@@ -8,9 +8,11 @@
 
 #include <gtest/gtest.h>
 
+#include <osg/Quat>
 #include <osg/Vec3f>
 
 #include <components/contentstore/key.hpp>
+#include <components/contentstore/store.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
@@ -19,6 +21,8 @@
 #include <components/rtx/preprocess/shape/probetable.hpp>
 #include <components/rtx/preprocess/shape/shapefold.hpp>
 #include <components/rtx/preprocess/shape/shapepass.hpp>
+#include <components/rtx/shaders/tangent.h>
+#include <components/testing/util.hpp>
 
 namespace Rtx
 {
@@ -57,12 +61,12 @@ namespace Rtx
             return face;
         }
 
-        /// Whether `a` is the unit vector `b`: a normal the split recomputes is its piece's sum
-        /// normalised, which a square root leaves a few ulp off an axis; a millionth is well under
-        /// any angle a picture could show.
+        /// Whether `a` is the unit vector `b` as the pass hands a normal over, its word read back
+        /// (`ShapePass::run`): a normal the split recomputes is its piece's sum normalised, which a square root
+        /// leaves a few ulp off an axis; a millionth is well under any angle a picture could show.
         ::testing::AssertionResult sameDirection(const osg::Vec3f& a, const osg::Vec3f& b)
         {
-            if ((a - b).length() < 1e-6f)
+            if ((a - Shaders::unpackNormal(Shaders::packNormal(b))).length() < 1e-6f)
                 return ::testing::AssertionSuccess();
             return ::testing::AssertionFailure() << "(" << a.x() << ", " << a.y() << ", " << a.z() << ") is not ("
                                                  << b.x() << ", " << b.y() << ", " << b.z() << ")";
@@ -121,6 +125,38 @@ namespace Rtx
                     EXPECT_TRUE(sameDirection(shaped.mNormals[vertex], face))
                         << "triangle " << t << ", corner " << corner;
                 }
+            }
+        }
+
+        /// **A shape is one output with a store or without**: its normals are their words read back, the form a store
+        /// keeps them in, so a pass run with no store, one run into a store and one found there hand over the same
+        /// floats. The cube is turned off its axes, whose face normals a word would hold exactly.
+        TEST(RtxCreaseSplitTest, aShapeIsOneOutputWithAStoreOrWithout)
+        {
+            AveragedCube cube;
+            const osg::Quat turn(0.7, osg::Vec3d(1.0, 2.0, 3.0) / std::sqrt(14.0));
+            for (osg::Vec3f& position : cube.mPositions)
+                position = turn * position;
+            for (osg::Vec3f& normal : cube.mNormals)
+                normal = turn * normal;
+
+            ContentPreprocessor alone;
+            const Shaped plain = shape(alone, cube.mPositions, cube.mNormals, cube.mTriangles);
+            ASSERT_EQ(plain.mNormals.size(), 24u);
+            for (const osg::Vec3f& normal : plain.mNormals)
+                EXPECT_EQ(Shaders::unpackNormal(Shaders::packNormal(normal)), normal) << "a normal no word holds";
+
+            ContentStore::Store store(TestingOpenMW::currentTestDirPath() / "store", sContentStorePolicy);
+            ContentPreprocessor stored(&store, ContentStore::Reach::Disk);
+            const Shaped run = shape(stored, cube.mPositions, cube.mNormals, cube.mTriangles);
+            store.flush();
+            const Shaped found = shape(stored, cube.mPositions, cube.mNormals, cube.mTriangles);
+            EXPECT_EQ(stored.takeStats().at(ContentPassId::Shape).mHits, 1u) << "the second was found in the store";
+            for (const Shaped* other : { &run, &found })
+            {
+                EXPECT_EQ(other->mNormals, plain.mNormals);
+                EXPECT_EQ(other->mKept, plain.mKept);
+                EXPECT_EQ(other->mSources, plain.mSources);
             }
         }
 
@@ -211,8 +247,11 @@ namespace Rtx
             EXPECT_TRUE(sameDirection(shaped.mNormals[1], weighed));
             EXPECT_EQ(shaped.mNormals[2], up) << "a flat group keeps its normal";
             EXPECT_EQ(shaped.mNormals[3], up);
-            EXPECT_EQ(shaped.mNormals[4], bent) << "and so does the bevel's lower edge, bent as it is";
-            EXPECT_EQ(shaped.mNormals[5], bent);
+            // As its word reads back, the form the pass hands every normal over in: (0, −1, 0.2) / √1.04 is no word's.
+            const osg::Vec3f bentWord = Shaders::unpackNormal(Shaders::packNormal(bent));
+            EXPECT_NE(bentWord, bent);
+            EXPECT_EQ(shaped.mNormals[4], bentWord) << "and so does the bevel's lower edge, bent as it is";
+            EXPECT_EQ(shaped.mNormals[5], bentWord);
         }
 
         /// **What the content already split is not touched**, and neither is anything the pass is

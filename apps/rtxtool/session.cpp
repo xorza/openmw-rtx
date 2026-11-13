@@ -121,9 +121,15 @@ namespace RtxTool
             }
         }
 
+        // **A place the content does not hold is passed over, and the run goes on**: under `Morrowind.esm` alone a
+        // run of every view ended at Mournhold and drew none of the seven after it. Whether the run fails for it is
+        // the stop's (`WhenAbsent`).
         if (const Result<void, std::string> staged = mStager.stage(stop, mRequest); !staged.isOk())
         {
-            abandon(staged.error());
+            Log(Debug::Warning) << "Ray tracing session: stop " << (mAt + 1) << " of " << mRequest.mStops.size()
+                                << " passed over: " << staged.error();
+            mRecord.skip(stop, staged.error());
+            advance();
             return;
         }
 

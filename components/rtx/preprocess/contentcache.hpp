@@ -58,20 +58,14 @@ namespace Rtx
         bool stands(const ContentStore::Key& key) { return mStore->holds(key, mReach); }
 
         /// Keeps what `Pass` computed from the input filed under `key`: encoded into a payload of its
-        /// own, which the store's queue takes. Where the codec rounds (`sRounds`), `output` is read back
-        /// out of the payload first, so it is what a later hit hands over.
+        /// own, which the store's queue takes. Every codec is whole for what its pass hands over, so a
+        /// later hit hands over this very output.
         template <ContentPass Pass>
             requires StoredOutput<typename Pass::Output>
-        void keep(const ContentStore::Key& key, typename Pass::Output& output)
+        void keep(const ContentStore::Key& key, const typename Pass::Output& output)
         {
-            using Codec = ContentCodec<typename Pass::Output>;
             Misc::ByteBuffer payload;
-            Codec::encode(output, payload);
-            if constexpr (requires { Codec::sRounds; })
-            {
-                [[maybe_unused]] const bool read = Codec::decode(std::span<const std::byte>(payload), output);
-                assert(read && "an output its own codec cannot read back");
-            }
+            ContentCodec<typename Pass::Output>::encode(output, payload);
             mStore->write(key, storeKindOf(Pass::sPass), Pass::sVersion, std::move(payload), mReach);
         }
 

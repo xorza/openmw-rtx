@@ -791,24 +791,23 @@ namespace Rtx
             EXPECT_FALSE(ConversionPass::madeLayout(metal, ChainForm::Coarser).has_value());
         }
 
-        /// **A kept shape is handed back as the store reads it**: its normals become their words read
-        /// back (`ContentCodec<ShapePass::Output>::sRounds`), so a run and a later hit hand the mesh
-        /// table one output; (0.5, 0.25, −1) comes back unit, and the hit hands back those very floats.
-        TEST(RtxContentCacheTest, aKeptShapeIsHandedBackAsTheStoreReadsIt)
+        /// **A kept shape is handed back whole**: the pass hands over its normals as their words read back
+        /// (`ShapePass::run`), which the codec keeps exactly, so a run and a later hit hand the mesh table one
+        /// output. (0.5, 0.25, −1)'s word read back is unit and reads back to itself.
+        TEST(RtxContentCacheTest, aKeptShapeIsHandedBackWhole)
         {
             ContentStore::Store store(TestingOpenMW::currentTestDirPath() / "store", sContentStorePolicy);
             ContentCache cache(&store, ContentStore::Reach::Disk);
             const ShapePass::Input input{ .mPositions = sCard, .mTriangles = sDoubled, .mSplits = true };
             const ContentStore::Key key{ .mHash = { 1, 2 } };
 
-            std::vector<std::uint32_t> kept{ 0, 1, 2 };
-            std::vector<osg::Vec3f> normals(8, osg::Vec3f(0.5f, 0.25f, -1.0f));
-            std::vector<std::uint32_t> sources;
-            ShapePass::Output output{ .mKept = kept, .mNormals = normals, .mSources = sources };
-            cache.keep<ShapePass>(key, output);
             const osg::Vec3f rounded = Shaders::unpackNormal(Shaders::packNormal(osg::Vec3f(0.5f, 0.25f, -1.0f)));
-            EXPECT_EQ(normals[0], rounded);
             EXPECT_NEAR(rounded.length(), 1.0f, 1e-6f);
+            std::vector<std::uint32_t> kept{ 0, 1, 2 };
+            std::vector<osg::Vec3f> normals(8, rounded);
+            std::vector<std::uint32_t> sources;
+            const ShapePass::Output output{ .mKept = kept, .mNormals = normals, .mSources = sources };
+            cache.keep<ShapePass>(key, output);
 
             std::vector<std::uint32_t> foundKept;
             std::vector<osg::Vec3f> foundNormals;

@@ -180,17 +180,12 @@ namespace Rtx
     /// added vertices' sources, each a run.
     ///
     /// **Sixteen-bit indices where every vertex is under 65536**, and a normal four bytes and not twelve:
-    /// on the PBR profile's shapes, 69.3 MiB of payload came to 29.6. The normals come back as their words
-    /// read back, so a run's output is handed back so too (`sRounds`).
+    /// on the PBR profile's shapes, 69.3 MiB of payload came to 29.6. Whole, since the pass hands over its
+    /// normals as their words read back (`ShapePass::run`), which every word reads back to
+    /// (`aNormalsWordReadsBackToItsDirection`).
     template <>
     struct ContentCodec<ShapePass::Output>
     {
-        /// What a decode hands back is the encoded output rounded, and not the output itself: a kept
-        /// output is decoded back into its caller's, so a run and a later hit hand over one output
-        /// (`ContentCache::keep`), which every normal's word reads back to whole
-        /// (`aNormalsWordReadsBackToItsDirection`).
-        static constexpr bool sRounds = true;
-
         static void encode(const ShapePass::Output& shape, Misc::ByteBuffer& into)
         {
             const std::uint32_t most = std::max(shape.mKept.empty() ? 0u : std::ranges::max(shape.mKept),

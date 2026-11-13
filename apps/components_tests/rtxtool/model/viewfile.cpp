@@ -398,8 +398,14 @@ arms = iron longsword
             EXPECT_THROW(readViews("[all]\ncell = -2,-9\n"), std::runtime_error) << "a view called all";
             const std::vector<RtxTool::Stop> two = readViews(std::string(sShip) + "[dawn]\nlike = ship\n");
             EXPECT_THROW(RtxTool::chooseViews(two, {}), std::runtime_error) << "a list that names nothing";
-            EXPECT_EQ(RtxTool::chooseViews(two, { "all" }).size(), 2u);
-            EXPECT_EQ(RtxTool::chooseViews(two, { "dawn" }).size(), 1u);
+            const std::vector<RtxTool::Stop> every = RtxTool::chooseViews(two, { "all" });
+            ASSERT_EQ(every.size(), 2u);
+            for (const RtxTool::Stop& view : every)
+                EXPECT_EQ(view.mWhenAbsent, RtxTool::WhenAbsent::Skips)
+                    << view.mName << ": every view the content can show";
+            const std::vector<RtxTool::Stop> named = RtxTool::chooseViews(two, { "dawn" });
+            ASSERT_EQ(named.size(), 1u);
+            EXPECT_EQ(named[0].mWhenAbsent, RtxTool::WhenAbsent::Fails) << "a view somebody named";
             EXPECT_THROW(RtxTool::chooseViews(two, { "dawn", "ship", "dawn" }), std::runtime_error)
                 << "a view named twice, whose hashes the run would then refuse to read";
 

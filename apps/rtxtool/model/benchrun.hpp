@@ -421,6 +421,17 @@ namespace RtxTool
         bool walksTwice() const;
     };
 
+    /// What a stop whose place the content does not hold comes to (`Stager::stage`): it is passed over either way and
+    /// the run goes on, as a test runner goes on past a test whose premise is missing.
+    enum class WhenAbsent : std::uint8_t
+    {
+        /// The run fails at its end: somebody named the stop, so its absence is the content's fault or theirs.
+        Fails,
+
+        /// The run does not fail: the stop came of `--views=all`, which is every view the content can show.
+        Skips,
+    };
+
     /// One place a run visits, and everything that is true of it.
     struct Stop
     {
@@ -434,6 +445,7 @@ namespace RtxTool
         StopSky mSky{};
         Schedule mSchedule{};
         Actions mActions{};
+        WhenAbsent mWhenAbsent = WhenAbsent::Fails;
     };
 
     /// A whole run, as one description, filled by a launcher and read by the renderer.
@@ -586,8 +598,8 @@ namespace RtxTool
     /// What a launcher reads back once `Engine::go` has returned.
     struct SessionResult
     {
-        /// 1 where a stop could not be reached or something else failed the run; else
-        /// `sDifferedStatus` where a hashed frame differed from its reference; else nought.
+        /// 1 where a stop somebody named could not be reached (`WhenAbsent::Fails`) or something else failed the
+        /// run; else `sDifferedStatus` where a hashed frame differed from its reference; else nought.
         int mExitStatus = 0;
 
         std::vector<BenchPlace> mPlaces;

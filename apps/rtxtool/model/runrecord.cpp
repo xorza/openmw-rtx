@@ -99,6 +99,14 @@ namespace RtxTool
             fail();
     }
 
+    void RunRecord::skip(const Stop& stop, const std::string_view why)
+    {
+        mReport += std::format("\n{}: passed over, {}{}\n", stop.mName.empty() ? "unnamed" : stop.mName, why,
+            stop.mWhenAbsent == WhenAbsent::Fails ? "" : ", which a run of every view does not fail on");
+        if (stop.mWhenAbsent == WhenAbsent::Fails)
+            fail();
+    }
+
     SessionResult RunRecord::describe(const Stop* const left) const
     {
         SessionResult result;

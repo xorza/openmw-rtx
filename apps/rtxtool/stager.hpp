@@ -26,7 +26,8 @@ namespace RtxTool
     class Stager
     {
     public:
-        /// Stages `stop` of `request`, and says why not where it cannot be: a cell nothing is called. Ends with
+        /// Stages `stop` of `request`, and says why not where it cannot be: the content holds no cell or weapon of the
+        /// name the stop gives, which the session passes over (`WhenAbsent`). Ends with
         /// the navmesh built whole and the renderer's history let go of, so the first frame drawn
         /// after this is drawn at the stop and from nothing before it.
         Result<void, std::string> stage(const Stop& stop, const SessionRequest& request) const;

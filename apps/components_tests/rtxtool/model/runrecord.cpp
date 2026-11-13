@@ -47,6 +47,19 @@ namespace RtxTool
             EXPECT_EQ(checked.describe(nullptr).mExitStatus, 0);
             checked.checked(false);
             EXPECT_EQ(checked.describe(nullptr).mExitStatus, 1);
+
+            // **A stop passed over fails the run where somebody named it**, and not where it came of every view.
+            RunRecord passed;
+            passed.skip(Stop{ .mName = "mournhold-arrival", .mWhenAbsent = WhenAbsent::Skips },
+                R"(no interior is called "Mournhold, Royal Palace: Reception Area")");
+            EXPECT_EQ(passed.describe(nullptr).mExitStatus, 0);
+            EXPECT_EQ(passed.getReport(),
+                "\nmournhold-arrival: passed over, no interior is called \"Mournhold, Royal Palace: Reception Area\", "
+                "which a run of every view does not fail on\n");
+            passed.skip(Stop{ .mName = "mournhold-arrival" }, "no interior is called \"Mournhold\"");
+            EXPECT_EQ(passed.describe(nullptr).mExitStatus, 1) << "a named stop's absence fails the run";
+            EXPECT_TRUE(passed.getReport().ends_with(
+                "\nmournhold-arrival: passed over, no interior is called \"Mournhold\"\n"));
         }
 
         /// **The report opens with what the run stood under, and the record writes it whole**: the

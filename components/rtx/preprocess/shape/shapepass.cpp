@@ -5,6 +5,7 @@
 #include <functional>
 
 #include <components/contentstore/key.hpp>
+#include <components/rtx/shaders/tangent.h>
 
 namespace Rtx
 {
@@ -39,6 +40,12 @@ namespace Rtx
         CreaseSplit::Split split{ .mNormals = output.mNormals, .mSources = output.mSources };
         mSplit.split(input.mPositions, splits ? input.mNormals : std::span<const osg::Vec3f>(), output.mKept,
             input.mBeside, split);
+
+        // **The normals as the device's words read them back**, the form the store keeps them in
+        // (`ContentCodec<ShapePass::Output>`): a shape is one output whether a store holds it, it was run
+        // here, or no store stands at all, where `--content-cache=off` handed the mesh table the floats.
+        for (osg::Vec3f& normal : output.mNormals)
+            normal = Shaders::unpackNormal(Shaders::packNormal(normal));
     }
 
     bool ShapePass::fits(const Input& input, const Output& output)

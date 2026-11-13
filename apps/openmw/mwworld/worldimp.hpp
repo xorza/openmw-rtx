@@ -279,7 +279,7 @@ namespace MWWorld
 
         bool isCellQuasiExterior() const override;
 
-        const std::set<CellStore*, std::less<>>& getActiveCells() const override;
+        const std::vector<CellStore*>& getActiveCells() const override;
 
         ESM::RefId getCurrentWorldspace() const;
 

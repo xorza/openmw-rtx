@@ -52,8 +52,9 @@ namespace RtxTool
     /// unknown view with.
     const Stop& requireView(const std::vector<Stop>& views, std::string_view name);
 
-    /// The views `named` asks for, in the order it names them; every one where it names none or
-    /// "all". Throws naming a view that is not there. One place, because `bench` reaches it through
-    /// a suite and `shot` directly, and a run of one has to be reproducible with the other.
+    /// The views `named` asks for, in the order it names them; every one where it names "all", each of which the
+    /// content may lack and the run not fail (`WhenAbsent::Skips`). Throws naming a view that is not there. One place,
+    /// because `bench` reaches it through a suite and `shot` directly, and a run of one has to be reproducible with the
+    /// other.
     std::vector<Stop> chooseViews(const std::vector<Stop>& views, const std::vector<std::string>& named);
 }

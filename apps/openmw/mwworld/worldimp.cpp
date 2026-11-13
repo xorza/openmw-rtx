@@ -1,5 +1,6 @@
 #include "worldimp.hpp"
 
+#include <algorithm>
 #include <charconv>
 #include <vector>
 
@@ -740,7 +741,8 @@ namespace MWWorld
         {
             reference.getRefData().enable();
 
-            if (mWorldScene->getActiveCells().find(reference.getCell()) != mWorldScene->getActiveCells().end()
+            if (std::ranges::find(mWorldScene->getActiveCells(), reference.getCell())
+                    != mWorldScene->getActiveCells().end()
                 && reference.getCellRef().getCount())
                 mWorldScene->addObjectToScene(reference);
 
@@ -792,7 +794,7 @@ namespace MWWorld
                 mWorldScene->reloadTerrain();
         }
 
-        if (mWorldScene->getActiveCells().find(reference.getCell()) != mWorldScene->getActiveCells().end()
+        if (std::ranges::find(mWorldScene->getActiveCells(), reference.getCell()) != mWorldScene->getActiveCells().end()
             && reference.getCellRef().getCount())
         {
             mWorldScene->removeObjectFromScene(reference);
@@ -970,7 +972,8 @@ namespace MWWorld
             ptr.getCellRef().setCount(0);
 
             if (ptr.isInCell()
-                && mWorldScene->getActiveCells().find(ptr.getCell()) != mWorldScene->getActiveCells().end()
+                && std::ranges::find(mWorldScene->getActiveCells(), ptr.getCell())
+                    != mWorldScene->getActiveCells().end()
                 && ptr.getRefData().isEnabled())
             {
                 mWorldScene->removeObjectFromScene(ptr);
@@ -987,7 +990,7 @@ namespace MWWorld
         if (ptr.mRef->isDeleted())
         {
             ptr.getCellRef().setCount(1);
-            if (mWorldScene->getActiveCells().find(ptr.getCell()) != mWorldScene->getActiveCells().end()
+            if (std::ranges::find(mWorldScene->getActiveCells(), ptr.getCell()) != mWorldScene->getActiveCells().end()
                 && ptr.getRefData().isEnabled())
             {
                 mWorldScene->addObjectToScene(ptr);
@@ -1799,7 +1802,7 @@ namespace MWWorld
         return false;
     }
 
-    const std::set<CellStore*, std::less<>>& World::getActiveCells() const
+    const std::vector<CellStore*>& World::getActiveCells() const
     {
         return mWorldScene->getActiveCells();
     }

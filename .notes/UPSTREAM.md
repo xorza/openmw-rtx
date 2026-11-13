@@ -71,6 +71,11 @@ the lines each item names, which the merge resolves by keeping the seam:
   ships, which ask to be shipped with it.
 - `InstallRequiredSystemLibraries` in the Windows install: the fork ships a portable folder and not
   upstream's installer, which ran the C++ runtime's redistributable.
+- `MWWorld::Scene::CellStoreCollection` a `std::vector` in the order the cells loaded, and
+  `World::getActiveCells` with it, where a `std::set` of pointers ran in the order of their addresses:
+  a cell change unloaded its cells in another order each run, and everything an unload drives with them
+  (the physics, the navigator, the local scripts, the renderer's frees), so no two runs of one place could
+  be held to one another. A candidate to offer upstream.
 - The visibility gates (`MWScript::VisibilityGates` and the calls that feed them): without them the
   distance stands scripted stages the game keeps down.
 - The order in `~Engine`: the Lua worker joins first, and the world goes before the script manager.

@@ -286,7 +286,12 @@ namespace RtxTool
             throw std::runtime_error("nothing to visit: no view was named");
 
         if (named.size() == 1 && named.front() == "all")
-            return views;
+        {
+            std::vector<Stop> every = views;
+            for (Stop& view : every)
+                view.mWhenAbsent = WhenAbsent::Skips;
+            return every;
+        }
 
         std::vector<Stop> chosen;
         chosen.reserve(named.size());

@@ -1,5 +1,6 @@
 #include "scene.hpp"
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <limits>
@@ -363,7 +364,8 @@ namespace MWWorld
 
     void Scene::unloadCell(CellStore* cell, const DetourNavigator::UpdateGuard* navigatorUpdateGuard)
     {
-        if (mActiveCells.find(cell) == mActiveCells.end())
+        const auto active = std::ranges::find(mActiveCells, cell);
+        if (active == mActiveCells.end())
             return;
         Log(Debug::Info) << "Unloading cell " << cell->getCell()->getDescription();
 
@@ -422,7 +424,7 @@ namespace MWWorld
         mWorld.getLocalScripts().clearCell(cell);
 
         MWBase::Environment::get().getSoundManager()->stopSound(cell);
-        mActiveCells.erase(cell);
+        mActiveCells.erase(active);
         // Clean up any effects that may have been spawned while unloading all cells
         if (mActiveCells.empty())
             mRendering.notifyWorldSpaceChanged();
@@ -433,8 +435,8 @@ namespace MWWorld
     {
         using DetourNavigator::HeightfieldShape;
 
-        assert(mActiveCells.find(&cell) == mActiveCells.end());
-        mActiveCells.insert(&cell);
+        assert(std::ranges::find(mActiveCells, &cell) == mActiveCells.end());
+        mActiveCells.push_back(&cell);
 
         Log(Debug::Info) << "Loading cell " << cell.getCell()->getDescription();
 
@@ -537,11 +539,8 @@ namespace MWWorld
     void Scene::clear()
     {
         auto navigatorUpdateGuard = mNavigator.makeUpdateGuard();
-        for (auto iter = mActiveCells.begin(); iter != mActiveCells.end();)
-        {
-            auto* cell = *iter++;
-            unloadCell(cell, navigatorUpdateGuard.get());
-        }
+        while (!mActiveCells.empty())
+            unloadCell(mActiveCells.front(), navigatorUpdateGuard.get());
         navigatorUpdateGuard.reset();
         assert(mActiveCells.empty());
         mCurrentCell = nullptr;
@@ -626,9 +625,9 @@ namespace MWWorld
         const int playerCellX = playerCellIndex.mX;
         const int playerCellY = playerCellIndex.mY;
 
-        for (auto iter = mActiveCells.begin(); iter != mActiveCells.end();)
+        // Over a copy, as an unload takes the cell out of the list.
+        for (CellStore* cell : CellStoreCollection(mActiveCells))
         {
-            auto* cell = *iter++;
             if (cell->getCell()->isExterior() && cell->getCell()->getWorldSpace() == playerCellIndex.mWorldspace)
             {
                 const auto dx = std::abs(playerCellX - cell->getCell()->getGridX());
@@ -962,12 +961,8 @@ namespace MWWorld
         auto navigatorUpdateGuard = mNavigator.makeUpdateGuard();
 
         // unload
-        for (auto iter = mActiveCells.begin(); iter != mActiveCells.end();)
-        {
-            auto* cellToUnload = *iter++;
-            unloadCell(cellToUnload, navigatorUpdateGuard.get());
-        }
-        assert(mActiveCells.empty());
+        while (!mActiveCells.empty())
+            unloadCell(mActiveCells.front(), navigatorUpdateGuard.get());
 
         loadingListener->setProgressRange(cell.count());
 
@@ -1087,7 +1082,7 @@ namespace MWWorld
 
     bool Scene::isCellActive(const CellStore& cell)
     {
-        return mActiveCells.contains(&cell);
+        return std::ranges::find(mActiveCells, &cell) != mActiveCells.end();
     }
 
     class PreloadMeshItem : public SceneUtil::WorkItem

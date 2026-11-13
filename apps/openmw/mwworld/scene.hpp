@@ -80,7 +80,9 @@ namespace MWWorld
     class Scene
     {
     public:
-        using CellStoreCollection = std::set<CellStore*, std::less<>>;
+        /// In the order the cells loaded, so every walk over them — the unloads a cell change makes among them — runs
+        /// in one order from run to run, where a set of pointers runs in the order of their addresses.
+        using CellStoreCollection = std::vector<CellStore*>;
 
     private:
         struct ChangeCellGridRequest
