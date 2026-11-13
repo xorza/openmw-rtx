@@ -7,9 +7,10 @@
 # - rgbcx.cpp's BC1 search: its two selector searches walk a block four texels at a time, and a search over total
 #   orderings orders the texels by counting, fits and rounds each ordering's endpoints a channel a lane, and passes by
 #   endpoints it has tried;
-# - bc7enc.cpp: a cell's selectors in RGB(A) error are found sixteen pixels at once, its sums, its projection and its
-#   RGB least squares a lane a sum, mode 5's alphas sixteen at once, and a block's fields are written into two 64-bit
-#   halves. It holds the weights of an error to 128 each, which its own defaults are within and bc7enc.h says.
+# - bc7enc.cpp: a cell's selectors are found sixteen pixels at once, in RGB(A) error and in YCbCr(A); its sums, its
+#   projection and its RGB least squares a lane a sum; mode 5's alphas sixteen at once; a partition's estimate both
+#   its subsets and all sixteen pixels at once, with no pixel gathered; and a block's fields are written into two
+#   64-bit halves. It holds the weights of an error to 128 each, which its own defaults are within and bc7enc.h says.
 # MIT or public domain, at the end of each; the MIT texts ship as files/licenses/rgbcx.txt and, for bc7enc's later
 # copyright year, files/licenses/bc7enc.txt.
 add_library(rgbcx STATIC)

@@ -83,7 +83,7 @@ static const float g_bc7_weights4x[16 * 4] = { 0.000000f, 0.000000f, 1.000000f, 
 	0.635010f, 0.161865f, 0.041260f, 0.796875f, 0.738525f, 0.120850f, 0.019775f, 0.859375f, 0.878906f, 0.058594f, 0.003906f, 0.937500f, 1.000000f, 0.000000f, 0.000000f, 1.000000f };
 
 static const uint8_t g_bc7_partition1[16] = { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 };
-static const uint8_t g_bc7_partition2[64 * 16] =
+static constexpr uint8_t g_bc7_partition2[64 * 16] =
 {
 	0,0,1,1,0,0,1,1,0,0,1,1,0,0,1,1,		0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,		0,1,1,1,0,1,1,1,0,1,1,1,0,1,1,1,		0,0,0,1,0,0,1,1,0,0,1,1,0,1,1,1,		0,0,0,0,0,0,0,1,0,0,0,1,0,0,1,1,		0,0,1,1,0,1,1,1,0,1,1,1,1,1,1,1,		0,0,0,1,0,0,1,1,0,1,1,1,1,1,1,1,		0,0,0,0,0,0,0,1,0,0,1,1,0,1,1,1,
 	0,0,0,0,0,0,0,0,0,0,0,1,0,0,1,1,		0,0,1,1,0,1,1,1,1,1,1,1,1,1,1,1,		0,0,0,0,0,0,0,1,0,1,1,1,1,1,1,1,		0,0,0,0,0,0,0,0,0,0,0,1,0,1,1,1,		0,0,0,1,0,1,1,1,1,1,1,1,1,1,1,1,		0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,		0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,		0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,
@@ -94,6 +94,23 @@ static const uint8_t g_bc7_partition2[64 * 16] =
 	0,1,0,0,1,1,1,0,0,1,0,0,0,0,0,0,		0,0,1,0,0,1,1,1,0,0,1,0,0,0,0,0,		0,0,0,0,0,0,1,0,0,1,1,1,0,0,1,0,		0,0,0,0,0,1,0,0,1,1,1,0,0,1,0,0,		0,1,1,0,1,1,0,0,1,0,0,1,0,0,1,1,		0,0,1,1,0,1,1,0,1,1,0,0,1,0,0,1,		0,1,1,0,0,0,1,1,1,0,0,1,1,1,0,0,		0,0,1,1,1,0,0,1,1,1,0,0,0,1,1,0,
 	0,1,1,0,1,1,0,0,1,1,0,0,1,0,0,1,		0,1,1,0,0,0,1,1,0,0,1,1,1,0,0,1,		0,1,1,1,1,1,1,0,1,0,0,0,0,0,0,1,		0,0,0,1,1,0,0,0,1,1,1,0,0,1,1,1,		0,0,0,0,1,1,1,1,0,0,1,1,0,0,1,1,		0,0,1,1,0,0,1,1,1,1,1,1,0,0,0,0,		0,0,1,0,0,0,1,0,1,1,1,0,1,1,1,0,		0,1,0,0,0,1,0,0,0,1,1,1,0,1,1,1
 };
+
+// A two-subset partition as lanes: ones over each pixel of its second subset.
+struct partition_lanes
+{
+	alignas(16) int32_t m_second[64][16];
+};
+
+static constexpr partition_lanes make_partition_lanes()
+{
+	partition_lanes lanes{};
+	for (uint32_t partition = 0; partition < 64; partition++)
+		for (uint32_t i = 0; i < 16; i++)
+			lanes.m_second[partition][i] = g_bc7_partition2[partition * 16 + i] ? -1 : 0;
+	return lanes;
+}
+
+static constexpr partition_lanes g_bc7_partition2_lanes = make_partition_lanes();
 
 static const uint8_t g_bc7_partition3[64 * 16] =
 {
@@ -670,6 +687,183 @@ static inline uint32_t hsum_epi32(__m128i v)
 	return (uint32_t)_mm_cvtsi128_si32(v);
 }
 
+static inline uint64_t hsum_epi64(__m128i v)
+{
+	return (uint64_t)_mm_cvtsi128_si64(v) + (uint64_t)_mm_extract_epi64(v, 1);
+}
+
+// The luma, 109 R + 366 G + 37 B, of four colors widened to 16 bits a channel, two a half.
+static inline __m128i luma_of(__m128i lo, __m128i hi)
+{
+	const __m128i weights = _mm_setr_epi16(109, 366, 37, 0, 109, 366, 37, 0);
+	return _mm_hadd_epi32(_mm_madd_epi16(lo, weights), _mm_madd_epi16(hi, weights));
+}
+
+// The squares of 32-bit lanes that fit 16 signed bits.
+static inline __m128i square_epi32(__m128i v)
+{
+	v = _mm_and_si128(v, _mm_set1_epi32(0xFFFF));
+	return _mm_madd_epi16(v, v);
+}
+
+// Four pixels' luma and their two chroma differences, as an error in YCbCr takes them, 32 bits each.
+struct ycbcr
+{
+	__m128i m_l, m_cr, m_cb;
+};
+
+static inline ycbcr ycbcr_of(__m128i pixels)
+{
+	const __m128i byte = _mm_set1_epi32(0xFF);
+	ycbcr res;
+	res.m_l = luma_of(_mm_cvtepu8_epi16(pixels), _mm_unpackhi_epi8(pixels, _mm_setzero_si128()));
+	res.m_cr = _mm_sub_epi32(_mm_slli_epi32(_mm_and_si128(pixels, byte), 9), res.m_l);
+	res.m_cb = _mm_sub_epi32(_mm_slli_epi32(_mm_and_si128(_mm_srli_epi32(pixels, 16), byte), 9), res.m_l);
+	return res;
+}
+
+// A channel's palette, eight entries of 16 bits: its two ends, a pair of bytes in every lane, weighed by eight
+// selectors' pairs.
+static inline __m128i palette_of(__m128i ends, __m128i pairs)
+{
+	return _mm_srli_epi16(_mm_add_epi16(_mm_maddubs_epi16(ends, pairs), _mm_set1_epi16(32)), 6);
+}
+
+// Sixteen colors as pixels lie, four a vector, from their four channels of sixteen bytes each.
+static inline void interleave_rgba(__m128i r, __m128i g, __m128i b, __m128i a, __m128i pColors[4])
+{
+	const __m128i rg_lo = _mm_unpacklo_epi8(r, g), rg_hi = _mm_unpackhi_epi8(r, g);
+	const __m128i ba_lo = _mm_unpacklo_epi8(b, a), ba_hi = _mm_unpackhi_epi8(b, a);
+	pColors[0] = _mm_unpacklo_epi16(rg_lo, ba_lo);
+	pColors[1] = _mm_unpackhi_epi16(rg_lo, ba_lo);
+	pColors[2] = _mm_unpacklo_epi16(rg_hi, ba_hi);
+	pColors[3] = _mm_unpackhi_epi16(rg_hi, ba_hi);
+}
+
+// Four pixels' squared differences from four colors, each channel's weighed by its 16 bits of `weights` and the four
+// summed a pixel. A weight times a difference stays in 16 signed bits and the sum in 31, the weights of an error in
+// RGB(A) being 128 at most (bc7enc_compress_block).
+static inline __m128i weighted_distance(__m128i colors, __m128i pixels, __m128i weights)
+{
+	const __m128i d = _mm_or_si128(_mm_subs_epu8(colors, pixels), _mm_subs_epu8(pixels, colors));
+	const __m128i d_lo = _mm_cvtepu8_epi16(d);
+	const __m128i d_hi = _mm_unpackhi_epi8(d, _mm_setzero_si128());
+	return _mm_hadd_epi32(_mm_madd_epi16(d_lo, _mm_mullo_epi16(d_lo, weights)), _mm_madd_epi16(d_hi, _mm_mullo_epi16(d_hi, weights)));
+}
+
+// The weights of an error in RGB(A) as weighted_distance takes them, the alpha's nought where a cell holds none.
+static inline __m128i distance_weights(const uint32_t pWeights[4], bool has_alpha)
+{
+	const short wa = has_alpha ? (short)pWeights[3] : (short)0;
+	return _mm_setr_epi16((short)pWeights[0], (short)pWeights[1], (short)pWeights[2], wa, (short)pWeights[0], (short)pWeights[1], (short)pWeights[2], wa);
+}
+
+// A cell's pixels, four a vector, with pixels of nought past its last.
+static inline void load_cell_pixels(const color_cell_compressor_params *pParams, __m128i pPixels[4])
+{
+	const uint32_t num_pixels = pParams->m_num_pixels;
+	assert((num_pixels >= 1) && (num_pixels <= 16));
+
+	color_rgba padded[16];
+	const color_rgba *pSrc = pParams->m_pPixels;
+	if (num_pixels < 16)
+	{
+		memset(padded, 0, sizeof(padded));
+		memcpy(padded, pSrc, num_pixels * sizeof(color_rgba));
+		pSrc = padded;
+	}
+	for (uint32_t k = 0; k < 4; k++)
+		pPixels[k] = _mm_loadu_si128((const __m128i *)(pSrc + k * 4));
+}
+
+// The selectors of a cell's pixels between two endpoints in YCbCr(A) error, and their error summed: a pixel's selector
+// is the palette entry nearest it, the first of them on a tie, every entry tried. Sixteen pixels against an entry at
+// once, each value the one the walk made a pixel and an entry at a time, which made each entry's luma and chroma again
+// for every pixel.
+static uint64_t find_selectors_ycbcr(const color_rgba *pMin, const color_rgba *pMax, const color_cell_compressor_params *pParams, uint8_t *pSelectors)
+{
+	const uint32_t N = pParams->m_num_selector_weights;
+	const uint32_t num_pixels = pParams->m_num_pixels;
+	assert((N == 4) || (N == 8) || (N == 16));
+
+	const __m128i zero = _mm_setzero_si128();
+
+	// The palette's sixteen entries as pixels, and their luma, their two chroma differences and their alpha a lane
+	// each.
+	const weight_pairs *pPairs = (N == 16) ? &g_bc7_weight_pairs4 : ((N == 8) ? &g_bc7_weight_pairs3 : &g_bc7_weight_pairs2);
+	const __m128i pairs_lo = _mm_load_si128((const __m128i *)pPairs->m_lo);
+	const __m128i pairs_hi = _mm_load_si128((const __m128i *)pPairs->m_hi);
+	__m128i palette[4];
+	for (uint32_t c = 0; c < 4; c++)
+	{
+		const __m128i ends = _mm_set1_epi16((short)(pMin->m_c[c] | (pMax->m_c[c] << 8)));
+		palette[c] = _mm_packus_epi16(palette_of(ends, pairs_lo), palette_of(ends, pairs_hi));
+	}
+	__m128i entries[4];
+	interleave_rgba(palette[0], palette[1], palette[2], palette[3], entries);
+	alignas(16) int32_t entry_l[16], entry_cr[16], entry_cb[16], entry_a[16];
+	for (uint32_t k = 0; k < 4; k++)
+	{
+		const ycbcr entry = ycbcr_of(entries[k]);
+		_mm_store_si128((__m128i *)(entry_l + k * 4), entry.m_l);
+		_mm_store_si128((__m128i *)(entry_cr + k * 4), entry.m_cr);
+		_mm_store_si128((__m128i *)(entry_cb + k * 4), entry.m_cb);
+		_mm_store_si128((__m128i *)(entry_a + k * 4), _mm_srli_epi32(entries[k], 24));
+	}
+
+	__m128i pixels[4], pixel_a[4];
+	ycbcr pixel[4];
+	load_cell_pixels(pParams, pixels);
+	for (uint32_t k = 0; k < 4; k++)
+	{
+		pixel[k] = ycbcr_of(pixels[k]);
+		pixel_a[k] = _mm_srli_epi32(pixels[k], 24);
+	}
+
+	// A pixel's error stands in 31 bits, the weights being what bc7enc_compress_block holds them to.
+	const uint32_t *pW = pParams->m_weights;
+	const __m128i weight_l = _mm_set1_epi32((int)pW[0]), weight_cr = _mm_set1_epi32((int)pW[1]), weight_cb = _mm_set1_epi32((int)pW[2]);
+	const __m128i weight_a = _mm_set1_epi32(pParams->m_has_alpha ? (int)pW[3] : 0);
+	__m128i best[4], sels[4];
+	for (uint32_t j = 0; j < N; j++)
+	{
+		const __m128i l = _mm_set1_epi32(entry_l[j]), cr = _mm_set1_epi32(entry_cr[j]), cb = _mm_set1_epi32(entry_cb[j]), a = _mm_set1_epi32(entry_a[j]);
+		for (uint32_t k = 0; k < 4; k++)
+		{
+			const __m128i dl = _mm_srai_epi32(_mm_sub_epi32(l, pixel[k].m_l), 8);
+			const __m128i dcr = _mm_srai_epi32(_mm_sub_epi32(cr, pixel[k].m_cr), 8);
+			const __m128i dcb = _mm_srai_epi32(_mm_sub_epi32(cb, pixel[k].m_cb), 8);
+			const __m128i da = _mm_sub_epi32(a, pixel_a[k]);
+			const __m128i err = _mm_add_epi32(
+				_mm_add_epi32(_mm_mullo_epi32(square_epi32(dl), weight_l), _mm_mullo_epi32(square_epi32(dcr), weight_cr)),
+				_mm_add_epi32(_mm_mullo_epi32(square_epi32(dcb), weight_cb), _mm_mullo_epi32(square_epi32(da), weight_a)));
+			if (!j)
+			{
+				best[k] = err;
+				sels[k] = zero;
+			}
+			else
+			{
+				const __m128i nearer = _mm_cmpgt_epi32(best[k], err);
+				best[k] = _mm_min_epi32(best[k], err);
+				sels[k] = _mm_blendv_epi8(sels[k], _mm_set1_epi32((int)j), nearer);
+			}
+		}
+	}
+
+	uint8_t selectors[16];
+	_mm_storeu_si128((__m128i *)selectors, _mm_packus_epi16(_mm_packs_epi32(sels[0], sels[1]), _mm_packs_epi32(sels[2], sels[3])));
+	memcpy(pSelectors, selectors, num_pixels);
+
+	__m128i total = zero;
+	for (uint32_t k = 0; k < 4; k++)
+	{
+		const __m128i err = _mm_and_si128(best[k], _mm_loadu_si128((const __m128i *)(g_pixel_lanes + 16 - num_pixels + k * 4)));
+		total = _mm_add_epi64(_mm_add_epi64(total, _mm_cvtepu32_epi64(err)), _mm_cvtepu32_epi64(_mm_srli_si128(err, 8)));
+	}
+	return hsum_epi64(total);
+}
+
 // The selectors of a cell's pixels between two endpoints in RGB(A) error, and their error summed: a pixel's selector
 // is the one its projection on the endpoints' line lands on or the one under it, whichever interpolated color is the
 // nearer, the upper on a tie. Sixteen pixels at once, a cell of fewer padded, each value the one the search made a
@@ -679,28 +873,15 @@ static uint64_t find_selectors_rgba(const color_rgba *pMin, const color_rgba *pM
 	const uint32_t N = pParams->m_num_selector_weights;
 	const uint32_t num_pixels = pParams->m_num_pixels;
 	assert((N == 4) || (N == 8) || (N == 16));
-	assert((num_pixels >= 1) && (num_pixels <= 16));
-
-	color_rgba padded[16];
-	const color_rgba *pPixels = pParams->m_pPixels;
-	if (num_pixels < 16)
-	{
-		memset(padded, 0, sizeof(padded));
-		memcpy(padded, pPixels, num_pixels * sizeof(color_rgba));
-		pPixels = padded;
-	}
 
 	const weight_pairs *pPairs = (N == 16) ? &g_bc7_weight_pairs4 : ((N == 8) ? &g_bc7_weight_pairs3 : &g_bc7_weight_pairs2);
 	const __m128i pairs_lo = _mm_load_si128((const __m128i *)pPairs->m_lo);
 	const __m128i pairs_hi = _mm_load_si128((const __m128i *)pPairs->m_hi);
-	const __m128i round = _mm_set1_epi16(32);
 	__m128i palette[4];
 	for (uint32_t c = 0; c < 4; c++)
 	{
 		const __m128i ends = _mm_set1_epi16((short)(pMin->m_c[c] | (pMax->m_c[c] << 8)));
-		palette[c] = _mm_packus_epi16(
-			_mm_srli_epi16(_mm_add_epi16(_mm_maddubs_epi16(ends, pairs_lo), round), 6),
-			_mm_srli_epi16(_mm_add_epi16(_mm_maddubs_epi16(ends, pairs_hi), round), 6));
+		palette[c] = _mm_packus_epi16(palette_of(ends, pairs_lo), palette_of(ends, pairs_hi));
 	}
 
 	// A cell with no alpha projects and measures on three channels: the fourth's step and weight are nought.
@@ -717,9 +898,9 @@ static uint64_t find_selectors_rgba(const color_rgba *pMin, const color_rgba *pM
 	const __m128i sel_most = _mm_set1_epi32((int)N - 1);
 
 	__m128i pixels[4], sels[4];
+	load_cell_pixels(pParams, pixels);
 	for (uint32_t k = 0; k < 4; k++)
 	{
-		pixels[k] = _mm_loadu_si128((const __m128i *)(pPixels + k * 4));
 		const __m128i along_lo = _mm_madd_epi16(_mm_sub_epi16(_mm_cvtepu8_epi16(pixels[k]), low), step);
 		const __m128i along_hi = _mm_madd_epi16(_mm_sub_epi16(_mm_unpackhi_epi8(pixels[k], zero), low), step);
 		const __m128i sel = _mm_cvttps_epi32(_mm_add_ps(_mm_mul_ps(_mm_cvtepi32_ps(_mm_hadd_epi32(along_lo, along_hi)), scale), half));
@@ -728,41 +909,18 @@ static uint64_t find_selectors_rgba(const color_rgba *pMin, const color_rgba *pM
 	const __m128i sel = _mm_packus_epi16(_mm_packs_epi32(sels[0], sels[1]), _mm_packs_epi32(sels[2], sels[3]));
 	const __m128i sel_under = _mm_sub_epi8(sel, _mm_set1_epi8(1));
 
-	// Sixteen selectors' colors as the pixels lie, four of them a vector.
-	const auto colors_of = [&](__m128i selectors, __m128i pColors[4])
-	{
-		const __m128i r = _mm_shuffle_epi8(palette[0], selectors), g = _mm_shuffle_epi8(palette[1], selectors);
-		const __m128i b = _mm_shuffle_epi8(palette[2], selectors), a = _mm_shuffle_epi8(palette[3], selectors);
-		const __m128i rg_lo = _mm_unpacklo_epi8(r, g), rg_hi = _mm_unpackhi_epi8(r, g);
-		const __m128i ba_lo = _mm_unpacklo_epi8(b, a), ba_hi = _mm_unpackhi_epi8(b, a);
-		pColors[0] = _mm_unpacklo_epi16(rg_lo, ba_lo);
-		pColors[1] = _mm_unpackhi_epi16(rg_lo, ba_lo);
-		pColors[2] = _mm_unpacklo_epi16(rg_hi, ba_hi);
-		pColors[3] = _mm_unpackhi_epi16(rg_hi, ba_hi);
-	};
+	// A selector's color and the one under it's for each pixel.
 	__m128i colors[4], colors_under[4];
-	colors_of(sel, colors);
-	colors_of(sel_under, colors_under);
+	interleave_rgba(_mm_shuffle_epi8(palette[0], sel), _mm_shuffle_epi8(palette[1], sel), _mm_shuffle_epi8(palette[2], sel), _mm_shuffle_epi8(palette[3], sel), colors);
+	interleave_rgba(_mm_shuffle_epi8(palette[0], sel_under), _mm_shuffle_epi8(palette[1], sel_under), _mm_shuffle_epi8(palette[2], sel_under), _mm_shuffle_epi8(palette[3], sel_under), colors_under);
 
-	// A channel's weight times its difference stays in 16 signed bits and a cell's error in 32, the weights of an
-	// error in RGB(A) being 128 at most (bc7enc_compress_block).
-	const uint32_t *pW = pParams->m_weights;
-	const short wa = pParams->m_has_alpha ? (short)pW[3] : (short)0;
-	const __m128i weights = _mm_setr_epi16((short)pW[0], (short)pW[1], (short)pW[2], wa, (short)pW[0], (short)pW[1], (short)pW[2], wa);
-	const auto distance = [&](__m128i a, __m128i b)
-	{
-		const __m128i d = _mm_or_si128(_mm_subs_epu8(a, b), _mm_subs_epu8(b, a));
-		const __m128i d_lo = _mm_cvtepu8_epi16(d);
-		const __m128i d_hi = _mm_unpackhi_epi8(d, zero);
-		return _mm_hadd_epi32(_mm_madd_epi16(d_lo, _mm_mullo_epi16(d_lo, weights)), _mm_madd_epi16(d_hi, _mm_mullo_epi16(d_hi, weights)));
-	};
-
+	const __m128i weights = distance_weights(pParams->m_weights, pParams->m_has_alpha);
 	__m128i total = zero;
 	__m128i under[4];
 	for (uint32_t k = 0; k < 4; k++)
 	{
-		const __m128i err = distance(colors[k], pixels[k]);
-		const __m128i err_under = distance(colors_under[k], pixels[k]);
+		const __m128i err = weighted_distance(colors[k], pixels[k], weights);
+		const __m128i err_under = weighted_distance(colors_under[k], pixels[k], weights);
 		under[k] = _mm_cmpgt_epi32(err, err_under);
 		const __m128i lanes = _mm_loadu_si128((const __m128i *)(g_pixel_lanes + 16 - num_pixels + k * 4));
 		total = _mm_add_epi32(total, _mm_and_si128(_mm_min_epi32(err, err_under), lanes));
@@ -811,10 +969,11 @@ static uint64_t evaluate_solution(const color_rgba *pLow, const color_rgba *pHig
 
 	const uint32_t N = pParams->m_num_selector_weights;
 
-	// The palette of the two walks a pixel at a time; find_selectors_rgba makes its own.
-	color_rgba weightedColors[16];
-	if (pComp_params->m_force_selectors || pParams->m_perceptual)
+	uint64_t total_err = 0;
+
+	if (pComp_params->m_force_selectors)
 	{
+		color_rgba weightedColors[16];
 		weightedColors[0] = actualMinColor;
 		weightedColors[N - 1] = actualMaxColor;
 
@@ -822,12 +981,7 @@ static uint64_t evaluate_solution(const color_rgba *pLow, const color_rgba *pHig
 		for (uint32_t i = 1; i < (N - 1); i++)
 			for (uint32_t j = 0; j < nc; j++)
 				weightedColors[i].m_c[j] = (uint8_t)((actualMinColor.m_c[j] * (64 - pParams->m_pSelector_weights[i]) + actualMaxColor.m_c[j] * pParams->m_pSelector_weights[i] + 32) >> 6);
-	}
 
-	uint64_t total_err = 0;
-
-	if (pComp_params->m_force_selectors)
-	{
 		for (uint32_t i = 0; i < pParams->m_num_pixels; i++)
 		{
 			const uint32_t best_sel = pComp_params->m_selectors[i];
@@ -846,43 +1000,7 @@ static uint64_t evaluate_solution(const color_rgba *pLow, const color_rgba *pHig
 	else if (!pParams->m_perceptual)
 		total_err = find_selectors_rgba(&actualMinColor, &actualMaxColor, pParams, pResults->m_pSelectors_temp);
 	else
-	{
-		// TODO: This could be improved.
-		for (uint32_t i = 0; i < pParams->m_num_pixels; i++)
-		{
-			uint64_t best_err = UINT64_MAX;
-			uint32_t best_sel = 0;
-
-			if (pParams->m_has_alpha)
-			{
-				for (uint32_t j = 0; j < N; j++)
-				{
-					uint64_t err = compute_color_distance_rgba(&weightedColors[j], &pParams->m_pPixels[i], true, pParams->m_weights);
-					if (err < best_err)
-					{
-						best_err = err;
-						best_sel = j;
-					}
-				}
-			}
-			else
-			{
-				for (uint32_t j = 0; j < N; j++)
-				{
-					uint64_t err = compute_color_distance_rgb(&weightedColors[j], &pParams->m_pPixels[i], true, pParams->m_weights);
-					if (err < best_err)
-					{
-						best_err = err;
-						best_sel = j;
-					}
-				}
-			}
-
-			total_err += best_err;
-
-			pResults->m_pSelectors_temp[i] = (uint8_t)best_sel;
-		}
-	}
+		total_err = find_selectors_ycbcr(&actualMinColor, &actualMaxColor, pParams, pResults->m_pSelectors_temp);
 
 	if (total_err < pResults->m_best_overall_err)
 	{
@@ -1529,272 +1647,147 @@ static uint64_t color_cell_compression(uint32_t mode, const color_cell_compresso
 	return pResults->m_best_overall_err;
 }
 
-static uint64_t color_cell_compression_est_mode1(uint32_t num_pixels, const color_rgba *pPixels, bool perceptual, uint32_t pweights[4], uint64_t best_err_so_far)
+// A block's sixteen pixels as estimate_partition weighs them under every partition: four pixels a vector, and for an
+// error in YCbCr each pixel's luma and its two chroma differences, which no partition changes.
+struct partition_block
 {
-	// Find RGB bounds as an approximation of the block's principle axis
-	uint32_t lr = 255, lg = 255, lb = 255;
-	uint32_t hr = 0, hg = 0, hb = 0;
-	for (uint32_t i = 0; i < num_pixels; i++)
-	{
-		const color_rgba *pC = &pPixels[i];
-		if (pC->m_c[0] < lr) lr = pC->m_c[0];
-		if (pC->m_c[1] < lg) lg = pC->m_c[1];
-		if (pC->m_c[2] < lb) lb = pC->m_c[2];
-		if (pC->m_c[0] > hr) hr = pC->m_c[0];
-		if (pC->m_c[1] > hg) hg = pC->m_c[1];
-		if (pC->m_c[2] > hb) hb = pC->m_c[2];
-	}
-		
-	color_rgba lowColor; color_quad_u8_set(&lowColor, lr, lg, lb, 0);
-	color_rgba highColor; color_quad_u8_set(&highColor, hr, hg, hb, 0);
+	__m128i m_pixels[4];
+	ycbcr m_ycbcr[4];
+};
 
-	// Place endpoints at bbox diagonals and compute interpolated colors 
-	const uint32_t N = 8;
-	color_rgba weightedColors[8];
-
-	weightedColors[0] = lowColor;
-	weightedColors[N - 1] = highColor;
-	for (uint32_t i = 1; i < (N - 1); i++)
-	{
-		weightedColors[i].m_c[0] = (uint8_t)((lowColor.m_c[0] * (64 - g_bc7_weights3[i]) + highColor.m_c[0] * g_bc7_weights3[i] + 32) >> 6);
-		weightedColors[i].m_c[1] = (uint8_t)((lowColor.m_c[1] * (64 - g_bc7_weights3[i]) + highColor.m_c[1] * g_bc7_weights3[i] + 32) >> 6);
-		weightedColors[i].m_c[2] = (uint8_t)((lowColor.m_c[2] * (64 - g_bc7_weights3[i]) + highColor.m_c[2] * g_bc7_weights3[i] + 32) >> 6);
-	}
-
-	// Compute dots and thresholds
-	const int ar = highColor.m_c[0] - lowColor.m_c[0];
-	const int ag = highColor.m_c[1] - lowColor.m_c[1];
-	const int ab = highColor.m_c[2] - lowColor.m_c[2];
-
-	int dots[8];
-	for (uint32_t i = 0; i < N; i++)
-		dots[i] = weightedColors[i].m_c[0] * ar + weightedColors[i].m_c[1] * ag + weightedColors[i].m_c[2] * ab;
-
-	int thresh[8 - 1];
-	for (uint32_t i = 0; i < (N - 1); i++)
-		thresh[i] = (dots[i] + dots[i + 1] + 1) >> 1;
-
-	uint64_t total_err = 0;
-	if (perceptual)
-	{
-		// Transform block's interpolated colors to YCbCr
-		int l1[8], cr1[8], cb1[8];
-		for (int j = 0; j < 8; j++)
-		{
-			const color_rgba *pE1 = &weightedColors[j];
-			l1[j] = pE1->m_c[0] * 109 + pE1->m_c[1] * 366 + pE1->m_c[2] * 37;
-			cr1[j] = ((int)pE1->m_c[0] << 9) - l1[j];
-			cb1[j] = ((int)pE1->m_c[2] << 9) - l1[j];
-		}
-
-		for (uint32_t i = 0; i < num_pixels; i++)
-		{
-			const color_rgba *pC = &pPixels[i];
-
-			int d = ar * pC->m_c[0] + ag * pC->m_c[1] + ab * pC->m_c[2];
-
-			// Find approximate selector
-			uint32_t s = 0;
-			if (d >= thresh[6])
-				s = 7;
-			else if (d >= thresh[5])
-				s = 6;
-			else if (d >= thresh[4])
-				s = 5;
-			else if (d >= thresh[3])
-				s = 4;
-			else if (d >= thresh[2])
-				s = 3;
-			else if (d >= thresh[1])
-				s = 2;
-			else if (d >= thresh[0])
-				s = 1;
-
-			// Compute error
-			const int l2 = pC->m_c[0] * 109 + pC->m_c[1] * 366 + pC->m_c[2] * 37;
-			const int cr2 = ((int)pC->m_c[0] << 9) - l2;
-			const int cb2 = ((int)pC->m_c[2] << 9) - l2;
-
-			const int dl = (l1[s] - l2) >> 8;
-			const int dcr = (cr1[s] - cr2) >> 8;
-			const int dcb = (cb1[s] - cb2) >> 8;
-
-			int ie = (pweights[0] * dl * dl) + (pweights[1] * dcr * dcr) + (pweights[2] * dcb * dcb);
-
-			total_err += ie;
-			if (total_err > best_err_so_far)
-				break;
-		}
-	}
-	else
-	{
-		for (uint32_t i = 0; i < num_pixels; i++)
-		{
-			const color_rgba *pC = &pPixels[i];
-
-			int d = ar * pC->m_c[0] + ag * pC->m_c[1] + ab * pC->m_c[2];
-
-			// Find approximate selector
-			uint32_t s = 0;
-			if (d >= thresh[6])
-				s = 7;
-			else if (d >= thresh[5])
-				s = 6;
-			else if (d >= thresh[4])
-				s = 5;
-			else if (d >= thresh[3])
-				s = 4;
-			else if (d >= thresh[2])
-				s = 3;
-			else if (d >= thresh[1])
-				s = 2;
-			else if (d >= thresh[0])
-				s = 1;
-
-			// Compute error
-			const color_rgba *pE1 = &weightedColors[s];
-
-			int dr = (int)pE1->m_c[0] - (int)pC->m_c[0];
-			int dg = (int)pE1->m_c[1] - (int)pC->m_c[1];
-			int db = (int)pE1->m_c[2] - (int)pC->m_c[2];
-
-			total_err += pweights[0] * (dr * dr) + pweights[1] * (dg * dg) + pweights[2] * (db * db);
-			if (total_err > best_err_so_far)
-				break;
-		}
-	}
-
-	return total_err;
-}
-
-static uint64_t color_cell_compression_est_mode7(uint32_t num_pixels, const color_rgba * pPixels, bool perceptual, uint32_t pweights[4], uint64_t best_err_so_far)
+// What a partition's estimate comes to: each pixel's error in the block's order, and each subset's summed.
+struct partition_errors
 {
-	// Find RGB bounds as an approximation of the block's principle axis
-	uint32_t lr = 255, lg = 255, lb = 255, la = 255;
-	uint32_t hr = 0, hg = 0, hb = 0, ha = 0;
-	for (uint32_t i = 0; i < num_pixels; i++)
-	{
-		const color_rgba* pC = &pPixels[i];
-		if (pC->m_c[0] < lr) lr = pC->m_c[0];
-		if (pC->m_c[1] < lg) lg = pC->m_c[1];
-		if (pC->m_c[2] < lb) lb = pC->m_c[2];
-		if (pC->m_c[3] < la) la = pC->m_c[3];
+	alignas(16) int32_t m_pixel[16];
+	uint64_t m_subset[2];
+};
 
-		if (pC->m_c[0] > hr) hr = pC->m_c[0];
-		if (pC->m_c[1] > hg) hg = pC->m_c[1];
-		if (pC->m_c[2] > hb) hb = pC->m_c[2];
-		if (pC->m_c[3] > ha) ha = pC->m_c[3];
+// The estimate of one partition of two subsets, for mode 1 or 7: each subset's endpoints the corners of its pixels'
+// bounds, its palette between them, a pixel's selector the one its projection on the bounds' diagonal falls to, and
+// its error to that palette entry. Both subsets and all sixteen pixels at once, where the walk a subset at a time
+// gathered each subset's pixels and stopped a subset once it passed the best error so far; every pixel's error is
+// the one that walk made, and estimate_partition sums them as it stopped.
+static void estimate_partition_errors(const partition_block *pBlock, uint32_t partition, uint32_t mode, bool perceptual, const uint32_t pweights[4], partition_errors *pErrors)
+{
+	const bool has_alpha = (mode == 7);
+	const uint32_t N = has_alpha ? 4 : 8;
+	const weight_pairs *pPairs = has_alpha ? &g_bc7_weight_pairs2 : &g_bc7_weight_pairs3;
+	const __m128i pairs = _mm_load_si128((const __m128i *)pPairs->m_lo);
+	const __m128i zero = _mm_setzero_si128();
+	const __m128i ones = _mm_set1_epi32(-1);
+
+	__m128i second[4];
+	for (uint32_t k = 0; k < 4; k++)
+		second[k] = _mm_load_si128((const __m128i *)(g_bc7_partition2_lanes.m_second[partition] + k * 4));
+
+	// Each subset's bounds: the other subset's pixels stand at the far end of each, and so move neither.
+	__m128i lo[2] = { ones, ones }, hi[2] = { zero, zero };
+	for (uint32_t k = 0; k < 4; k++)
+	{
+		const __m128i px = pBlock->m_pixels[k];
+		lo[0] = _mm_min_epu8(lo[0], _mm_or_si128(px, second[k]));
+		hi[0] = _mm_max_epu8(hi[0], _mm_andnot_si128(second[k], px));
+		lo[1] = _mm_min_epu8(lo[1], _mm_or_si128(px, _mm_xor_si128(second[k], ones)));
+		hi[1] = _mm_max_epu8(hi[1], _mm_and_si128(px, second[k]));
 	}
 
-	color_rgba lowColor; color_quad_u8_set(&lowColor, lr, lg, lb, la);
-	color_rgba highColor; color_quad_u8_set(&highColor, hr, hg, hb, ha);
-
-	// Place endpoints at bbox diagonals and compute interpolated colors 
-	const uint32_t N = 4;
-	color_rgba weightedColors[4];
-
-	weightedColors[0] = lowColor;
-	weightedColors[N - 1] = highColor;
-	for (uint32_t i = 1; i < (N - 1); i++)
+	// A subset's palette a channel, 16 bits an entry, its dots on the bounds' diagonal and the thresholds between
+	// them. Mode 1 holds no alpha: its ends' are nought, as its weight is.
+	const __m128i channels = _mm_cvtsi32_si128(has_alpha ? -1 : 0x00FFFFFF);
+	const __m128i one = _mm_set1_epi32(1);
+	__m128i palette[2][4];
+	__m128i axis[2];
+	alignas(16) int32_t thresh[2][8];
+	for (uint32_t subset = 0; subset < 2; subset++)
 	{
-		weightedColors[i].m_c[0] = (uint8_t)((lowColor.m_c[0] * (64 - g_bc7_weights2[i]) + highColor.m_c[0] * g_bc7_weights2[i] + 32) >> 6);
-		weightedColors[i].m_c[1] = (uint8_t)((lowColor.m_c[1] * (64 - g_bc7_weights2[i]) + highColor.m_c[1] * g_bc7_weights2[i] + 32) >> 6);
-		weightedColors[i].m_c[2] = (uint8_t)((lowColor.m_c[2] * (64 - g_bc7_weights2[i]) + highColor.m_c[2] * g_bc7_weights2[i] + 32) >> 6);
-		weightedColors[i].m_c[3] = (uint8_t)((lowColor.m_c[3] * (64 - g_bc7_weights2[i]) + highColor.m_c[3] * g_bc7_weights2[i] + 32) >> 6);
+		__m128i l = lo[subset], h = hi[subset];
+		l = _mm_min_epu8(l, _mm_srli_si128(l, 8)); l = _mm_min_epu8(l, _mm_srli_si128(l, 4));
+		h = _mm_max_epu8(h, _mm_srli_si128(h, 8)); h = _mm_max_epu8(h, _mm_srli_si128(h, 4));
+		l = _mm_and_si128(l, channels);
+		h = _mm_and_si128(h, channels);
+
+		// A channel's two ends a pair of bytes, as maddubs weighs them, the pair in every lane.
+		const __m128i ends = _mm_unpacklo_epi8(l, h);
+		palette[subset][0] = palette_of(_mm_shuffle_epi8(ends, _mm_set1_epi16(0x0100)), pairs);
+		palette[subset][1] = palette_of(_mm_shuffle_epi8(ends, _mm_set1_epi16(0x0302)), pairs);
+		palette[subset][2] = palette_of(_mm_shuffle_epi8(ends, _mm_set1_epi16(0x0504)), pairs);
+		palette[subset][3] = palette_of(_mm_shuffle_epi8(ends, _mm_set1_epi16(0x0706)), pairs);
+
+		const __m128i step = _mm_sub_epi16(_mm_cvtepu8_epi16(h), _mm_cvtepu8_epi16(l));
+		axis[subset] = _mm_unpacklo_epi64(step, step);
+		const __m128i step_rg = _mm_shuffle_epi32(step, _MM_SHUFFLE(0, 0, 0, 0)), step_ba = _mm_shuffle_epi32(step, _MM_SHUFFLE(1, 1, 1, 1));
+		const __m128i dots_lo = _mm_add_epi32(
+			_mm_madd_epi16(_mm_unpacklo_epi16(palette[subset][0], palette[subset][1]), step_rg),
+			_mm_madd_epi16(_mm_unpacklo_epi16(palette[subset][2], palette[subset][3]), step_ba));
+		const __m128i dots_hi = _mm_add_epi32(
+			_mm_madd_epi16(_mm_unpackhi_epi16(palette[subset][0], palette[subset][1]), step_rg),
+			_mm_madd_epi16(_mm_unpackhi_epi16(palette[subset][2], palette[subset][3]), step_ba));
+		_mm_store_si128((__m128i *)thresh[subset], _mm_srai_epi32(_mm_add_epi32(_mm_add_epi32(dots_lo, _mm_alignr_epi8(dots_hi, dots_lo, 4)), one), 1));
+		_mm_store_si128((__m128i *)(thresh[subset] + 4), _mm_srai_epi32(_mm_add_epi32(_mm_add_epi32(dots_hi, _mm_srli_si128(dots_hi, 4)), one), 1));
 	}
 
-	// Compute dots and thresholds
-	const int ar = highColor.m_c[0] - lowColor.m_c[0];
-	const int ag = highColor.m_c[1] - lowColor.m_c[1];
-	const int ab = highColor.m_c[2] - lowColor.m_c[2];
-	const int aa = highColor.m_c[3] - lowColor.m_c[3];
-
-	int dots[4];
-	for (uint32_t i = 0; i < N; i++)
-		dots[i] = weightedColors[i].m_c[0] * ar + weightedColors[i].m_c[1] * ag + weightedColors[i].m_c[2] * ab + weightedColors[i].m_c[3] * aa;
-
-	int thresh[4 - 1];
-	for (uint32_t i = 0; i < (N - 1); i++)
-		thresh[i] = (dots[i] + dots[i + 1] + 1) >> 1;
-
-	uint64_t total_err = 0;
-	if (perceptual)
+	// A threshold in every lane, the first subset's and what the second's stands over it.
+	__m128i threshold[7], over[7];
+	for (uint32_t t = 0; t < N - 1; t++)
 	{
-		// Transform block's interpolated colors to YCbCr
-		int l1[4], cr1[4], cb1[4];
-		for (int j = 0; j < 4; j++)
+		threshold[t] = _mm_set1_epi32(thresh[0][t]);
+		over[t] = _mm_set1_epi32(thresh[1][t] - thresh[0][t]);
+	}
+
+	// A pixel's selector: the thresholds of its own subset its projection stands at or over, the dots rising
+	// with the palette, so the count is the walk down from the last threshold.
+	__m128i sels[4];
+	for (uint32_t k = 0; k < 4; k++)
+	{
+		const __m128i px = pBlock->m_pixels[k];
+		const __m128i axis_lo = _mm_blendv_epi8(axis[0], axis[1], _mm_unpacklo_epi32(second[k], second[k]));
+		const __m128i axis_hi = _mm_blendv_epi8(axis[0], axis[1], _mm_unpackhi_epi32(second[k], second[k]));
+		const __m128i d = _mm_hadd_epi32(_mm_madd_epi16(_mm_cvtepu8_epi16(px), axis_lo), _mm_madd_epi16(_mm_unpackhi_epi8(px, zero), axis_hi));
+		__m128i sel = _mm_set1_epi32((int)N - 1);
+		for (uint32_t t = 0; t < N - 1; t++)
+			sel = _mm_add_epi32(sel, _mm_cmpgt_epi32(_mm_add_epi32(threshold[t], _mm_and_si128(over[t], second[k])), d));
+		sels[k] = sel;
+	}
+
+	// The palette entry each pixel chose, as the pixels lie: a channel's two palettes one table, a subset's half
+	// of it picked by the selector's fourth bit.
+	const __m128i in_second = _mm_packs_epi16(_mm_packs_epi32(second[0], second[1]), _mm_packs_epi32(second[2], second[3]));
+	const __m128i chosen = _mm_or_si128(_mm_packus_epi16(_mm_packs_epi32(sels[0], sels[1]), _mm_packs_epi32(sels[2], sels[3])), _mm_and_si128(in_second, _mm_set1_epi8(8)));
+	__m128i colors[4];
+	interleave_rgba(
+		_mm_shuffle_epi8(_mm_packus_epi16(palette[0][0], palette[1][0]), chosen), _mm_shuffle_epi8(_mm_packus_epi16(palette[0][1], palette[1][1]), chosen),
+		_mm_shuffle_epi8(_mm_packus_epi16(palette[0][2], palette[1][2]), chosen), _mm_shuffle_epi8(_mm_packus_epi16(palette[0][3], palette[1][3]), chosen), colors);
+
+	// A pixel's error stands in 31 bits, the weights being what bc7enc_compress_block holds them to, and a pair of
+	// them in 32: the sums are of pairs, in 64.
+	const uint32_t alpha_weight = has_alpha ? pweights[3] : 0;
+	__m128i sum_all = zero, sum_second = zero;
+	for (uint32_t k = 0; k < 4; k++)
+	{
+		const __m128i px = pBlock->m_pixels[k];
+		__m128i err;
+		if (perceptual)
 		{
-			const color_rgba* pE1 = &weightedColors[j];
-			l1[j] = pE1->m_c[0] * 109 + pE1->m_c[1] * 366 + pE1->m_c[2] * 37;
-			cr1[j] = ((int)pE1->m_c[0] << 9) - l1[j];
-			cb1[j] = ((int)pE1->m_c[2] << 9) - l1[j];
+			const ycbcr color = ycbcr_of(colors[k]);
+			const __m128i dl = _mm_srai_epi32(_mm_sub_epi32(color.m_l, pBlock->m_ycbcr[k].m_l), 8);
+			const __m128i dcr = _mm_srai_epi32(_mm_sub_epi32(color.m_cr, pBlock->m_ycbcr[k].m_cr), 8);
+			const __m128i dcb = _mm_srai_epi32(_mm_sub_epi32(color.m_cb, pBlock->m_ycbcr[k].m_cb), 8);
+			const __m128i dca = _mm_sub_epi32(_mm_srli_epi32(px, 24), _mm_srli_epi32(colors[k], 24));
+			err = _mm_add_epi32(
+				_mm_add_epi32(_mm_mullo_epi32(square_epi32(dl), _mm_set1_epi32((int)pweights[0])), _mm_mullo_epi32(square_epi32(dcr), _mm_set1_epi32((int)pweights[1]))),
+				_mm_add_epi32(_mm_mullo_epi32(square_epi32(dcb), _mm_set1_epi32((int)pweights[2])), _mm_mullo_epi32(square_epi32(dca), _mm_set1_epi32((int)alpha_weight))));
 		}
+		else
+			err = weighted_distance(colors[k], px, distance_weights(pweights, has_alpha));
 
-		for (uint32_t i = 0; i < num_pixels; i++)
-		{
-			const color_rgba* pC = &pPixels[i];
-
-			int d = ar * pC->m_c[0] + ag * pC->m_c[1] + ab * pC->m_c[2] + aa * pC->m_c[3];
-
-			// Find approximate selector
-			uint32_t s = 0;
-			if (d >= thresh[2])
-				s = 3;
-			else if (d >= thresh[1])
-				s = 2;
-			else if (d >= thresh[0])
-				s = 1;
-
-			// Compute error
-			const int l2 = pC->m_c[0] * 109 + pC->m_c[1] * 366 + pC->m_c[2] * 37;
-			const int cr2 = ((int)pC->m_c[0] << 9) - l2;
-			const int cb2 = ((int)pC->m_c[2] << 9) - l2;
-
-			const int dl = (l1[s] - l2) >> 8;
-			const int dcr = (cr1[s] - cr2) >> 8;
-			const int dcb = (cb1[s] - cb2) >> 8;
-
-			const int dca = (int)pC->m_c[3] - (int)weightedColors[s].m_c[3];
-
-			int ie = (pweights[0] * dl * dl) + (pweights[1] * dcr * dcr) + (pweights[2] * dcb * dcb) + (pweights[3] * dca * dca);
-
-			total_err += ie;
-			if (total_err > best_err_so_far)
-				break;
-		}
-	}
-	else
-	{
-		for (uint32_t i = 0; i < num_pixels; i++)
-		{
-			const color_rgba* pC = &pPixels[i];
-
-			int d = ar * pC->m_c[0] + ag * pC->m_c[1] + ab * pC->m_c[2] + aa * pC->m_c[3];
-
-			// Find approximate selector
-			uint32_t s = 0;
-			if (d >= thresh[2])
-				s = 3;
-			else if (d >= thresh[1])
-				s = 2;
-			else if (d >= thresh[0])
-				s = 1;
-
-			// Compute error
-			const color_rgba* pE1 = &weightedColors[s];
-
-			int dr = (int)pE1->m_c[0] - (int)pC->m_c[0];
-			int dg = (int)pE1->m_c[1] - (int)pC->m_c[1];
-			int db = (int)pE1->m_c[2] - (int)pC->m_c[2];
-			int da = (int)pE1->m_c[3] - (int)pC->m_c[3];
-
-			total_err += pweights[0] * (dr * dr) + pweights[1] * (dg * dg) + pweights[2] * (db * db) + pweights[3] * (da * da);
-			if (total_err > best_err_so_far)
-				break;
-		}
+		_mm_store_si128((__m128i *)(pErrors->m_pixel + k * 4), err);
+		const __m128i paired = _mm_hadd_epi32(err, _mm_and_si128(err, second[k]));
+		sum_all = _mm_add_epi64(sum_all, _mm_cvtepu32_epi64(paired));
+		sum_second = _mm_add_epi64(sum_second, _mm_cvtepu32_epi64(_mm_srli_si128(paired, 8)));
 	}
 
-	return total_err;
+	pErrors->m_subset[1] = hsum_epi64(sum_second);
+	pErrors->m_subset[0] = hsum_epi64(sum_all) - pErrors->m_subset[1];
 }
 
 // This table contains bitmasks indicating which "key" partitions must be best ranked before this partition is worth evaluating.
@@ -1849,6 +1842,14 @@ static uint32_t estimate_partition(const color_rgba *pPixels, const bc7enc_compr
 	uint64_t best_err = UINT64_MAX;
 	uint32_t best_partition = 0;
 
+	partition_block block;
+	for (uint32_t k = 0; k < 4; k++)
+	{
+		block.m_pixels[k] = _mm_loadu_si128((const __m128i *)(pPixels + k * 4));
+		if (pComp_params->m_perceptual)
+			block.m_ycbcr[k] = ycbcr_of(block.m_pixels[k]);
+	}
+
 	// Partition order sorted by usage frequency across a large test corpus. Pattern 34 (checkerboard) must appear in slot 34.
 	// Using a sorted order allows the user to decrease the # of partitions to scan with minimal loss in quality.
 	static const uint8_t s_sorted_partition_order[64] =
@@ -1887,23 +1888,40 @@ static uint32_t estimate_partition(const color_rgba *pPixels, const bc7enc_compr
 			}
 		}
 
-		const uint8_t *pPartition = &g_bc7_partition2[partition * 16];
+		partition_errors errors;
+		estimate_partition_errors(&block, partition, mode, pComp_params->m_perceptual, pweights, &errors);
 
-		color_rgba subset_colors[2][16];
-		uint32_t subset_total_colors[2] = { 0, 0 };
-		for (uint32_t index = 0; index < 16; index++)
-			subset_colors[pPartition[index]][subset_total_colors[pPartition[index]]++] = pPixels[index];
-						
+		// A subset's error stopped where it passed the best so far, and the second was left unsummed where the first
+		// had reached it. Past the best a sum decides the same whole as stopped, but for a low frequency partition
+		// under a weight that is not one, which scales the stopped sum: there the pixels are walked as they were.
+		const bool weighed = (partition < 16) && (pComp_params->m_low_frequency_partition_weight != 1.0f);
 		uint64_t total_subset_err = 0;
-		for (uint32_t subset = 0; (subset < 2) && (total_subset_err < best_err); subset++)
+		if (weighed)
 		{
-			if (mode == 7)
-				total_subset_err += color_cell_compression_est_mode7(subset_total_colors[subset], &subset_colors[subset][0], pComp_params->m_perceptual, pweights, best_err);
-			else
-				total_subset_err += color_cell_compression_est_mode1(subset_total_colors[subset], &subset_colors[subset][0], pComp_params->m_perceptual, pweights, best_err);
+			const uint8_t *pPartition = &g_bc7_partition2[partition * 16];
+			for (uint32_t subset = 0; (subset < 2) && (total_subset_err < best_err); subset++)
+			{
+				uint64_t subset_err = 0;
+				for (uint32_t index = 0; index < 16; index++)
+				{
+					if (pPartition[index] != subset)
+						continue;
+					subset_err += (uint32_t)errors.m_pixel[index];
+					if (subset_err > best_err)
+						break;
+				}
+				total_subset_err += subset_err;
+			}
+		}
+		else
+		{
+			total_subset_err = errors.m_subset[0];
+			if (total_subset_err < best_err)
+				total_subset_err += errors.m_subset[1];
 		}
 
-		if (partition < 16)
+		// A weight of one leaves the sum as it is: no sum of sixteen pixels' errors is past what a double holds whole.
+		if (weighed)
 		{
 			total_subset_err = (uint64_t)((double)total_subset_err * pComp_params->m_low_frequency_partition_weight + .5f);
 		}

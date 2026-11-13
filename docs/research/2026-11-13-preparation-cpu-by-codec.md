@@ -391,3 +391,50 @@ Cold, 15 threads, one run each: the Repack's preparation 169.5 s and 2,526 s of 
 section above was 2,515 s. The replacers' is not told apart: three runs at no limit were 497, 528 and 608 s of CPU, and
 three at 96 were 580, 578 and 579.
 
+## Every mode of BC7
+
+A painted colour BC1 cannot hold again, one with a cut, or loose, or small with no chain, is made in BC7 with
+every mode bc7enc has tried a block: a tenth of the Fullrest Repack's cold run above, over half of it
+`estimate_partition`. The benchmark reads a third corpus for it, the files read as painted that the pass makes in
+BC7, four million texels of finest levels at most: 12 of the Repack's files, 13.41 million texels, digest
+`58ad2798d4d098f552f2812af8149303`, and of the PBR replacers' one file of 5.59 million, which is no corpus. On one
+core, three runs: `encodePaintedBc7` 3.67 s, 3.66 million texels a second, a sixteenth of a normal map's rate,
+and `makePaintedBc7Chain` 3.89 s; a root mean square of 0.63 of 255, 52.14 dB, over its colour and its cut.
+
+A block's two-subset partition is chosen by an estimate of each of up to 64: the block's pixels gathered into
+the partition's two subsets, and for each subset its bounds, a palette between their corners, and each pixel's
+selector by thresholds and its error, a pixel at a time, stopped once the subset passes the best estimate so far.
+Counted over the harness's blocks: 25 partitions tried a block and 41 subsets estimated, a subset 8.5 pixels of
+which 7.5 are reached before it stops, a quarter of the subsets stopped. So the stop saves an eighth of the
+pixels.
+
+bc7enc with a partition's two subsets and its sixteen pixels estimated at once, no pixel gathered: a subset's
+bounds are the least and greatest of the pixels under its mask, each pixel takes its own subset's axis,
+thresholds and palette by that mask, and a block's luma and chroma are made once and not once a partition. A
+subset's sum past the best so far decides as the stopped sum did, which was past it too; but a partition of low
+frequency under a weight that is not one has its stopped sum scaled, and there the pixels' errors are summed in
+the walk's order and stopped where it stopped. And the selector walk in YCbCr, which tried every palette entry
+against a pixel and made the entry's luma and chroma again each time, tries an entry against sixteen pixels.
+
+The same bytes over fifteen sets of parameters, 2.24 million made blocks, and again with its asserts on: the ten
+sets of the section above, and partitions of low frequency weighed 0.5, 0.75 and 1.5, sixteen partitions with
+the filter bank off, and every partition with it off. Time a block on one core:
+
+| set | as vendored | before this | after |
+|---|---|---|---|
+| a map of data, every mode | 4,954 ns | 4,325 ns | 1,755 ns |
+| a colour, every mode | 5,704 ns | 5,632 ns | 2,243 ns |
+| a colour, uber level 4 | 21,287 ns | 21,113 ns | 10,429 ns |
+
+The benchmark's corpora after, the digests the same:
+
+| benchmark | before | after |
+|---|---|---|
+| `encodePaintedBc7`, the Repack's | 3.67 s | 1.57 s |
+| `makePaintedBc7Chain`, the Repack's | 3.89 s | 1.80 s |
+| `encodePaintedBc7`, the replacers' one file | 0.86 s | 0.41 s |
+
+The encoder's samples after, over the Repack's corpus: `estimate_partition` 56%, `evaluate_solution` 23%,
+`color_cell_compression` 9%, `find_optimal_solution` 7%. The estimate is still over half: seven thresholds
+compared against sixteen projections a partition, and its errors.
+

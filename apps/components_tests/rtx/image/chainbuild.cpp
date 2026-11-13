@@ -640,6 +640,16 @@ namespace Rtx
             for (std::size_t block = 0; block < 256; ++block)
                 bc7enc_compress_block(madeWeighed.data() + block * 16, blockOf(finest, block).data(), &weighed);
             EXPECT_EQ(digestOf(madeWeighed), (Misc::DigestWords{ 0x0ad28dba59907587, 0xc67f3db05edc3eab }));
+
+            // And as a colour, in every mode, the partitions of low frequency weighed a half: a weight that is
+            // not one scales a partition's estimate where the walk a pixel at a time stopped summing it.
+            bc7enc_compress_block_params halved;
+            bc7enc_compress_block_params_init(&halved);
+            halved.m_low_frequency_partition_weight = 0.5f;
+            Misc::ByteBuffer madeHalved(256 * 16);
+            for (std::size_t block = 0; block < 256; ++block)
+                bc7enc_compress_block(madeHalved.data() + block * 16, blockOf(finest, block).data(), &halved);
+            EXPECT_EQ(digestOf(madeHalved), (Misc::DigestWords{ 0xd4407450af9c7a96, 0x6bdf3c26e2541c12 }));
         }
 
         /// What is made and what is not: a BC1 file with a hole in it holds a cut, and a file of one
