@@ -1,3 +1,119 @@
+# perf-rtx-renderer-2 — the maps tuples' registers, on the desk and the AMD integrated GPU
+
+Target: the ray tracer's kernels under vanilla, the Fullrest Repack and the PBR stack, on the desk (a high-end
+NVIDIA laptop GPU) and the laptop with a low-end AMD integrated GPU (AMD's Windows driver 26.8.1). Started from
+`0011749652`. **Stopped after the first batch was built**: nothing is kept, and what stands below is what was
+measured and what is left to judge. The branch holds this section alone.
+
+## Hosts
+
+- **Desk**: `openmw-rtxtool bench --size=1920x1080 --window=false --frames=600`, the default suite, run from
+  each worktree's build folder. Base against base, one run a side: frame within 2.6%, a GPU zone within 1.8%.
+  The release harness from nothing, with the compiler cache, 16.0 GiB peak in 238 s; `cand` after it 1.2 GiB.
+- **AMD iGPU**: native MSVC release, the harness alone, 13.5 GiB peak. `bench --size=1280x720 --window=false
+  --frames=200` (853x480 traced). Base against base, one run a side: frame within 0.8%, a GPU zone within
+  0.8%. A leg is 85 s on vanilla and 150 s on the Repack and the PBR stack.
+- **The AMD host's harness runs in the logged-on session alone**: over SSH `bench` and `shot` compile their
+  pipelines, log each one's registers and then fail to make a swapchain, `--window=false` or not. So a run
+  goes through the scheduled task, and a register count alone can be read off an SSH run's log.
+- **Variants a binary each**: a variant's shader files copied over `cand`'s, the harness built and its binary
+  kept under the variant's name, so one tree holds several and a leg names the one it runs.
+
+## Numbers at the start (`0011749652`)
+
+Desk, median ms at 1920x1080, two runs a side:
+
+| content | place | frame | p99 | bounce | landing | direct | trace | air | upscale | clamp | temporal | filter0 | shadow | water | media | panes |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| vanilla | ship | 5.98 | 6.62 | 0.39 | 0.57 | 0.52 | 0.54 | 0.25 | 0.45 | 0.40 | 0.22 | 0.33 | 0.23 | 0.09 | 0.10 | 0.07 |
+| vanilla | ship-dawn | 6.48 | 7.17 | 0.39 | 0.63 | 0.85 | 0.54 | 0.36 | 0.44 | 0.41 | 0.22 | 0.33 | 0.27 | 0.09 | — | 0.10 |
+| vanilla | guild | 5.22 | 5.66 | 0.37 | 0.53 | 0.52 | 0.35 | 0.14 | 0.45 | 0.41 | 0.24 | 0.35 | 0.23 | — | — | 0.12 |
+| M[FR] | ship | 7.47 | 8.49 | 0.62 | 0.65 | 0.61 | 0.66 | 0.30 | 0.45 | 0.43 | 0.25 | 0.34 | 0.25 | 0.14 | 0.11 | 0.09 |
+| M[FR] | ship-dawn | 7.91 | 8.99 | 0.62 | 0.73 | 0.97 | 0.64 | 0.42 | 0.44 | 0.44 | 0.25 | 0.34 | 0.28 | 0.14 | — | 0.10 |
+| M[FR] | guild | 6.45 | 7.24 | 0.72 | 0.96 | 0.69 | 0.48 | 0.30 | 0.43 | 0.42 | 0.26 | 0.35 | 0.21 | — | — | 0.14 |
+| PBR | ship | 6.93 | 8.08 | 0.66 | 0.72 | 0.71 | 0.62 | 0.26 | 0.46 | 0.48 | 0.33 | 0.36 | 0.23 | 0.13 | 0.11 | — |
+| PBR | ship-dawn | 7.38 | 8.32 | 0.63 | 0.85 | 1.08 | 0.61 | 0.37 | 0.46 | 0.48 | 0.32 | 0.33 | 0.26 | 0.13 | — | — |
+| PBR | guild | 6.32 | 7.32 | 0.57 | 0.79 | 0.74 | 0.47 | 0.15 | 0.46 | 0.51 | 0.38 | 0.37 | 0.23 | — | — | 0.14 |
+
+AMD iGPU, median ms at 1280x720, two runs a side:
+
+| content | place | frame | p99 | bounce | landing | direct | trace | air | upscale | clamp | temporal | filter0 | shadow | water | media | panes |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| vanilla | ship | 56.34 | 66.62 | 8.68 | 7.73 | 7.24 | 5.23 | 3.25 | 2.95 | 2.75 | 1.65 | 1.80 | 1.40 | 1.23 | 1.30 | 0.38 |
+| vanilla | ship-dawn | 67.21 | 75.06 | 8.97 | 9.32 | 14.21 | 5.83 | 5.59 | 2.92 | 2.82 | 1.65 | 1.80 | 1.63 | 1.27 | — | 0.44 |
+| vanilla | guild | 42.02 | 49.45 | 5.84 | 6.56 | 6.59 | 3.14 | 0.90 | 2.80 | 2.69 | 1.58 | 1.86 | 1.40 | — | — | 1.31 |
+| M[FR] | ship | 75.12 | 92.96 | 12.54 | 10.42 | 8.41 | 8.38 | 4.05 | 2.94 | 2.95 | 1.97 | 1.89 | 1.56 | 1.85 | 1.62 | 0.48 |
+| M[FR] | ship-dawn | 85.64 | 103.13 | 12.85 | 13.88 | 15.13 | 7.28 | 6.42 | 2.86 | 3.00 | 1.97 | 1.89 | 1.72 | 1.84 | — | 0.48 |
+| M[FR] | guild | 57.56 | 68.00 | 11.04 | 10.86 | 8.44 | 5.10 | 2.05 | 2.80 | 2.78 | 1.87 | 1.90 | 1.37 | — | — | 1.61 |
+| PBR | ship | 62.67 | 74.62 | 11.20 | 9.07 | 7.94 | 5.80 | 3.61 | 2.95 | 3.12 | 2.18 | 1.87 | 1.41 | 1.29 | 1.25 | — |
+| PBR | ship-dawn | 77.98 | 88.25 | 12.27 | 12.35 | 15.61 | 6.86 | 6.54 | 2.92 | 3.20 | 2.18 | 1.87 | 1.64 | 1.51 | — | — |
+| PBR | guild | 52.35 | 58.16 | 8.43 | 9.36 | 8.58 | 4.38 | 0.95 | 2.81 | 3.13 | 2.20 | 1.93 | 1.39 | — | — | 1.42 |
+
+**The direct stage since the lamps' two strata** (`1d7d4140ec`), against the last session's start on the AMD
+iGPU: 6.29 → 7.24 ms at the ship, 12.44 → 14.21 at dawn, 4.44 → 6.59 in the guild; its tuple with no sun
+96 → 110 registers and `sun moons sea` 112 → 125.
+
+## What the kernels hold
+
+Registers of the shipped modules for the tuple each content runs, AMD's first, then NVIDIA's with its shared
+memory in bytes after the plus:
+
+| stage | vanilla ship | vanilla guild | Repack ship | Repack guild | PBR ship | PBR guild |
+|---|---|---|---|---|---|---|
+| visibility | 128 / 96+2944 | 112 / 96+1408 | 128 / 128+0 | 128 / 96+3200 | 128 / 128+0 | 128 / 128+0 |
+| bounce | 96 / 80+640 | 96 / 80+640 | 128 / 122+0 | 128 / 120+0 | 128 / 120+0 | 128 / 114+0 |
+| landing | 125 / 96+3200 | 96 / 96+1152 | 128 / 128+384 | 128 / 128+384 | 128 / 127+0 | 128 / 126+0 |
+| direct | 112 / 96+4480 | 110 / 80+4224 | 128 / 96+4992 | 112 / 96+3968 | 128 / 128+1920 | 128 / 128+896 |
+| water | 161 / 128+896 | — | 177 / 128+2688 | — | 177 / 128+2688 | — |
+| panes | 234 / 168+4736 | 192 / 128+6272 | 243 / 128+6272 | 192 / 128+6272 | 243 / 128+6272 | 192 / 128+6272 |
+
+- **A tuple with maps costs the bounce on both cards, whatever the pixels wear.** Vanilla under the whole
+  tuple's kernels (`--variants=false`) on the desk, two runs a side: bounce +35.7%, +36.4%, +26.1% at the ship,
+  at dawn and in the guild; direct +14.5%, −0.6%, +23.0%; landing −8.6%, −11.9%, +20.6%; the frame +2.0%,
+  +2.2%, +6.8%. NVIDIA's bounce holds 80 to 93 registers and 30 to 35 kB of code without maps and 114 to 124
+  and 99 to 114 kB with them; AMD's 96 and 128, and 144 with a dark map's alpha beside them.
+- **Where the bounce's registers peak with maps** (AMD's code of `bounce sun moons maps`, the modules that
+  count, 9002 instructions against 3123 without maps): 121 live inside the ground stack's layer loop, 108 at
+  the hit's fetches ahead of it and 111 in the traversal's cutout test, against 89 at most without maps.
+- **What rides the stack's loop untouched there**, 54 registers written before it and read after it: the six
+  of the layers' frame, as noughts where the hit is no picture; the material's own texture point, its place
+  and four gradients; the stored ray's direction, three; three corner offsets for the vertex colours; the
+  turned normals and the plane; the pixel's two coordinates and its stored place; the record's first word and
+  its kind; five fields of the material's row; and four constants a branch's other side sets.
+- **The landing's kernel holds `resolve` twice**: `storedLandingOf` resolves the solid's images in one branch
+  and the landing's own in the other, a branch the dispatch takes one way, and AMD's code shows two layer
+  loops of 575 and 584 instructions. NVIDIA's landing is 132 kB a tuple at the mean, its bounce 82.
+- **The shadow filter's one-field modules still unroll their walk**: 93 to 95 registers on AMD where the
+  two-field ones hold 40 to 46, and 48 against 40 on NVIDIA.
+- **AMD's water stage stands a register over a step**: 161 in vanilla's tuples, 177 with maps.
+
+## Ideas
+
+| idea | evidence | verdict |
+|---|---|---|
+| The landing resolves once, off whichever images hold its hit (`spike/landing-one-resolve`, local) | two copies of `resolve` in its kernel, above | **not judged**. NVIDIA: its tuples with maps 128 registers and 384 bytes of shared memory → 96 and 3968 to 4736, its code 132 → 93 kB at the mean, and its zone **+17.4%, +18.0%** at the Repack's ship and dawn and **+14.4%, +14.6%** at the PBR stack's, the guilds −0.7% and −1.3%, vanilla inside its spread; one run a side, the second round cut. AMD: the variant is built there and not run. No picture checked |
+| With it, the material's own texture point made past the stack: the single map's branch under the path that is no stack | seven registers ride the loop, above; ground wears its layers' maps and none of its own (`CellPlacer::adoptGround`), which no assert holds yet | **not judged**. NVIDIA: every landing tuple at 80 or 96 registers, the eye's stage at 128 in 16 tuples of 47 from 24, the direct stage in 12 from 18, the bounce with maps 122 → 116 and with a relief 120 → 112; the guilds' landing **+10.9%** on the Repack and **+15.7%** on the PBR stack and their trace −7.8% and −5.8%; one run a side. AMD not built |
+| With both, the layers' frame made again past the stack in every tuple with maps | six registers ride the loop; refused alone last session, tried again for a step it might cross with the point | **not judged**. NVIDIA: the eye's stage at 128 in 12 tuples from 16; the Repack's zones where the row above left them; the PBR stack's leg cut. AMD not built |
+| **On NVIDIA fewer registers is no gain by itself**: its compiler trades them for shared memory | the two rows above: 96 registers with 4 kB of shared memory ran 11 to 18% longer than 128 with 384 bytes | a finding, not an idea: an NVIDIA kernel is judged by its time and its shared memory, and a change that frees registers there is measured before it is believed. Whether AMD's driver, which spills nothing here, takes the step to 112 is the open half |
+| The bounce's stage carries less through its ray: what it stores of the bounce stored before the traversal and read back after a miss, the record's words read again at the end | 19 registers ride its traversal with maps against 9 without: the lobe's modulation word, the weight, the position, six noughts of the escape | not tried |
+| The stack's loop reads the stored ray's direction, the pixel's coordinates and the record again past it | three, three and two registers of the 54 above | not tried |
+| The one-field shadow filters walk their taps in a loop the driver keeps | 93 to 95 registers against 40 to 46, above; the guild's shadow zone did not move last session where the exteriors' fell 3 to 7% | not tried |
+| The history clamp's fast means as three numbers, the luma saying whether a pixel holds one, as the bounce's clamp now does | `historyclamp.comp` keeps the fourth as a flag: 4096 bytes on AMD where three numbers a texel would hold 3584 | not tried |
+| The direct stage's second lamp ray | the zone's rise since the lamps' two strata, above: +48% in the guild on AMD | not tried: which of its registers and its second traversal the rise is has not been read off the driver's code |
+| The trace's stages over two lists of tiles, with a mapped solid and without | last session's row; the Repack's bounce stands at 128 registers for ten mapped instances where vanilla's holds 96 | not spiked |
+
+## Left standing
+
+- **Worktrees** `base`, `cand` and `spike` beside the repository under `openmw-perf/` on both hosts, `base` and
+  `cand` at `0011749652`; the desk's `cand` build folder also holds the three variants' binaries.
+- **`spike/landing-one-resolve`** (local, `ae67ebbfe4`): the first two rows' code. The third row is those plus
+  `layerFrameOf` called past the stack whatever `HAS_RELIEF` says.
+- **On the AMD host**: the driver's code for every pipeline under each content at the start, in
+  `omw-logs/rtx2/isa-start-{vanilla,mfr,pbr}/code`; the first variant's binary in `cand`'s build folder; the
+  scheduled task's `run.cmd` now starts `rtx2/job.sh`, its earlier text beside it as `run.cmd.before-rtx2`; and
+  the diff an earlier session left uncommitted in its `spike` tree, saved as
+  `omw-logs/spike-leftover-2026-11-13.patch`, the tree untouched.
+
 # perf-rtx-renderer — the kernels' registers and shared memory, on the AMD integrated GPU
 
 Target: the ray tracer's kernels — the trace's stages, the denoiser and the upscaler's passes — by the registers
