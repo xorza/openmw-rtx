@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <limits.h>
 #include <algorithm>
+#include <nmmintrin.h>
 
 // Helpers
 static inline int32_t clampi(int32_t value, int32_t low, int32_t high) { if (value < low) value = low; else if (value > high) value = high;	return value; }
@@ -14,7 +15,6 @@ static inline float saturate(float value) { return clampf(value, 0, 1.0f); }
 static inline uint8_t minimumub(uint8_t a, uint8_t b) { return (a < b) ? a : b; }
 static inline int32_t minimumi(int32_t a, int32_t b) { return (a < b) ? a : b; }
 static inline uint32_t minimumu(uint32_t a, uint32_t b) { return (a < b) ? a : b; }
-static inline float minimumf(float a, float b) { return (a < b) ? a : b; }
 static inline uint8_t maximumub(uint8_t a, uint8_t b) { return (a > b) ? a : b; }
 static inline uint32_t maximumu(uint32_t a, uint32_t b) { return (a > b) ? a : b; }
 static inline int32_t maximumi(int32_t a, int32_t b) { return (a > b) ? a : b; }
@@ -23,7 +23,6 @@ static inline int squarei(int i) { return i * i; }
 static inline float squaref(float i) { return i * i; }
 template <typename T0, typename T1> inline T0 lerp(T0 a, T0 b, T1 c) { return a + (b - a) * c; }
 
-static inline int32_t iabs32(int32_t v) { uint32_t msk = v >> 31; return (v ^ msk) - msk; }
 static inline void swapub(uint8_t* a, uint8_t* b) { uint8_t t = *a; *a = *b; *b = t; }
 static inline void swapu(uint32_t* a, uint32_t* b) { uint32_t t = *a; *a = *b; *b = t; }
 static inline void swapf(float* a, float* b) { float t = *a; *a = *b; *b = t; }
@@ -45,10 +44,37 @@ static inline vec4F vec4F_mul(const vec4F *pLHS, float s) { vec4F res; vec4F_set
 static inline vec4F *vec4F_normalize_in_place(vec4F *pV) { float s = pV->m_c[0] * pV->m_c[0] + pV->m_c[1] * pV->m_c[1] + pV->m_c[2] * pV->m_c[2] + pV->m_c[3] * pV->m_c[3]; if (s != 0.0f) { s = 1.0f / sqrtf(s); pV->m_c[0] *= s; pV->m_c[1] *= s; pV->m_c[2] *= s; pV->m_c[3] *= s; } return pV; }
 
 // Various BC7 tables
-static const uint32_t g_bc7_weights2[4] = { 0, 21, 43, 64 };
-static const uint32_t g_bc7_weights3[8] = { 0, 9, 18, 27, 37, 46, 55, 64 };
-static const uint32_t g_bc7_weights4[16] = { 0, 4, 9, 13, 17, 21, 26, 30, 34, 38, 43, 47, 51, 55, 60, 64 };
+static constexpr uint32_t g_bc7_weights2[4] = { 0, 21, 43, 64 };
+static constexpr uint32_t g_bc7_weights3[8] = { 0, 9, 18, 27, 37, 46, 55, 64 };
+static constexpr uint32_t g_bc7_weights4[16] = { 0, 4, 9, 13, 17, 21, 26, 30, 34, 38, 43, 47, 51, 55, 60, 64 };
 // Precomputed weight constants used during least fit determination. For each entry in g_bc7_weights[]: w * w, (1.0f - w) * w, (1.0f - w) * (1.0f - w), w
+// A selector's weights as maddubs takes them: the bytes (64 - w, w) of selectors 0 to 7 and of 8 to 15, nought past a
+// table's last selector.
+struct weight_pairs
+{
+	alignas(16) int8_t m_lo[16];
+	alignas(16) int8_t m_hi[16];
+};
+
+static constexpr weight_pairs make_weight_pairs(const uint32_t *pWeights, uint32_t n)
+{
+	weight_pairs pairs{};
+	for (uint32_t i = 0; i < n; i++)
+	{
+		int8_t *pPair = ((i < 8) ? pairs.m_lo : pairs.m_hi) + (i & 7) * 2;
+		pPair[0] = (int8_t)(64 - pWeights[i]);
+		pPair[1] = (int8_t)pWeights[i];
+	}
+	return pairs;
+}
+
+static constexpr weight_pairs g_bc7_weight_pairs2 = make_weight_pairs(g_bc7_weights2, 4);
+static constexpr weight_pairs g_bc7_weight_pairs3 = make_weight_pairs(g_bc7_weights3, 8);
+static constexpr weight_pairs g_bc7_weight_pairs4 = make_weight_pairs(g_bc7_weights4, 16);
+
+// Ones over the lanes of a cell's pixels and nought past them, read from the sixteenth less the cell's count.
+static const int32_t g_pixel_lanes[32] = { -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+
 static const float g_bc7_weights2x[4 * 4] = { 0.000000f, 0.000000f, 1.000000f, 0.000000f, 0.107666f, 0.220459f, 0.451416f, 0.328125f, 0.451416f, 0.220459f, 0.107666f, 0.671875f, 1.000000f, 0.000000f, 0.000000f, 1.000000f };
 static const float g_bc7_weights3x[8 * 4] = { 0.000000f, 0.000000f, 1.000000f, 0.000000f, 0.019775f, 0.120850f, 0.738525f, 0.140625f, 0.079102f, 0.202148f, 0.516602f, 0.281250f, 0.177979f, 0.243896f, 0.334229f, 0.421875f, 0.334229f, 0.243896f, 0.177979f, 0.578125f, 0.516602f, 0.202148f,
 	0.079102f, 0.718750f, 0.738525f, 0.120850f, 0.019775f, 0.859375f, 1.000000f, 0.000000f, 0.000000f, 1.000000f };
@@ -348,29 +374,25 @@ static void compute_least_squares_endpoints_rgba(uint32_t N, const uint8_t *pSel
 	}
 }
 
-static void compute_least_squares_endpoints_rgb(uint32_t N, const uint8_t *pSelectors, const vec4F *pSelector_weights, vec4F *pXl, vec4F *pXh, const color_rgba*pColors)
+// pColorsF is pColors as floats, a pixel a vector (color_cell_compression). Every sum is a lane, z00, z10 and z11 of
+// one vector and a channel of the others, and adds a pixel at a time: the sums a walk a channel at a time made.
+static void compute_least_squares_endpoints_rgb(uint32_t N, const uint8_t *pSelectors, const vec4F *pSelector_weights, vec4F *pXl, vec4F *pXh, const color_rgba*pColors, const __m128 *pColorsF)
 {
-	float z00 = 0.0f, z01 = 0.0f, z10 = 0.0f, z11 = 0.0f;
-	float q00_r = 0.0f, q10_r = 0.0f, t_r = 0.0f;
-	float q00_g = 0.0f, q10_g = 0.0f, t_g = 0.0f;
-	float q00_b = 0.0f, q10_b = 0.0f, t_b = 0.0f;
+	__m128 z = _mm_setzero_ps(), q00 = _mm_setzero_ps(), t = _mm_setzero_ps();
 	for (uint32_t i = 0; i < N; i++)
 	{
-		const uint32_t sel = pSelectors[i];
-		z00 += pSelector_weights[sel].m_c[0];
-		z10 += pSelector_weights[sel].m_c[1];
-		z11 += pSelector_weights[sel].m_c[2];
-		float w = pSelector_weights[sel].m_c[3];
-		q00_r += w * pColors[i].m_c[0]; t_r += pColors[i].m_c[0];
-		q00_g += w * pColors[i].m_c[1]; t_g += pColors[i].m_c[1];
-		q00_b += w * pColors[i].m_c[2]; t_b += pColors[i].m_c[2];
+		const __m128 weights = _mm_loadu_ps(pSelector_weights[pSelectors[i]].m_c);
+		z = _mm_add_ps(z, weights);
+		q00 = _mm_add_ps(q00, _mm_mul_ps(_mm_shuffle_ps(weights, weights, _MM_SHUFFLE(3, 3, 3, 3)), pColorsF[i]));
+		t = _mm_add_ps(t, pColorsF[i]);
 	}
 
-	q10_r = t_r - q00_r;
-	q10_g = t_g - q00_g;
-	q10_b = t_b - q00_b;
+	const __m128 q10 = _mm_sub_ps(t, q00);
 
-	z01 = z10;
+	vec4F sums;
+	_mm_storeu_ps(sums.m_c, z);
+	const float z00 = sums.m_c[0], z10 = sums.m_c[1], z11 = sums.m_c[2];
+	const float z01 = z10;
 
 	float det = z00 * z11 - z01 * z10;
 	if (det != 0.0f)
@@ -382,9 +404,8 @@ static void compute_least_squares_endpoints_rgb(uint32_t N, const uint8_t *pSele
 	iz10 = -z10 * det;
 	iz11 = z00 * det;
 
-	pXl->m_c[0] = (float)(iz00 * q00_r + iz01 * q10_r); pXh->m_c[0] = (float)(iz10 * q00_r + iz11 * q10_r);
-	pXl->m_c[1] = (float)(iz00 * q00_g + iz01 * q10_g); pXh->m_c[1] = (float)(iz10 * q00_g + iz11 * q10_g);
-	pXl->m_c[2] = (float)(iz00 * q00_b + iz01 * q10_b); pXh->m_c[2] = (float)(iz10 * q00_b + iz11 * q10_b);
+	_mm_storeu_ps(pXl->m_c, _mm_add_ps(_mm_mul_ps(_mm_set1_ps(iz00), q00), _mm_mul_ps(_mm_set1_ps(iz01), q10)));
+	_mm_storeu_ps(pXh->m_c, _mm_add_ps(_mm_mul_ps(_mm_set1_ps(iz10), q00), _mm_mul_ps(_mm_set1_ps(iz11), q10)));
 	pXl->m_c[3] = 255.0f; pXh->m_c[3] = 255.0f;
 
 	for (uint32_t c = 0; c < 3; c++)
@@ -642,6 +663,120 @@ static uint64_t pack_mode7_to_one_color(const color_cell_compressor_params* pPar
 	return total_err;
 }
 
+static inline uint32_t hsum_epi32(__m128i v)
+{
+	v = _mm_add_epi32(v, _mm_srli_si128(v, 8));
+	v = _mm_add_epi32(v, _mm_srli_si128(v, 4));
+	return (uint32_t)_mm_cvtsi128_si32(v);
+}
+
+// The selectors of a cell's pixels between two endpoints in RGB(A) error, and their error summed: a pixel's selector
+// is the one its projection on the endpoints' line lands on or the one under it, whichever interpolated color is the
+// nearer, the upper on a tie. Sixteen pixels at once, a cell of fewer padded, each value the one the search made a
+// pixel at a time: the palette a channel a table, sixteen selectors' colors a shuffle.
+static uint64_t find_selectors_rgba(const color_rgba *pMin, const color_rgba *pMax, const color_cell_compressor_params *pParams, uint8_t *pSelectors)
+{
+	const uint32_t N = pParams->m_num_selector_weights;
+	const uint32_t num_pixels = pParams->m_num_pixels;
+	assert((N == 4) || (N == 8) || (N == 16));
+	assert((num_pixels >= 1) && (num_pixels <= 16));
+
+	color_rgba padded[16];
+	const color_rgba *pPixels = pParams->m_pPixels;
+	if (num_pixels < 16)
+	{
+		memset(padded, 0, sizeof(padded));
+		memcpy(padded, pPixels, num_pixels * sizeof(color_rgba));
+		pPixels = padded;
+	}
+
+	const weight_pairs *pPairs = (N == 16) ? &g_bc7_weight_pairs4 : ((N == 8) ? &g_bc7_weight_pairs3 : &g_bc7_weight_pairs2);
+	const __m128i pairs_lo = _mm_load_si128((const __m128i *)pPairs->m_lo);
+	const __m128i pairs_hi = _mm_load_si128((const __m128i *)pPairs->m_hi);
+	const __m128i round = _mm_set1_epi16(32);
+	__m128i palette[4];
+	for (uint32_t c = 0; c < 4; c++)
+	{
+		const __m128i ends = _mm_set1_epi16((short)(pMin->m_c[c] | (pMax->m_c[c] << 8)));
+		palette[c] = _mm_packus_epi16(
+			_mm_srli_epi16(_mm_add_epi16(_mm_maddubs_epi16(ends, pairs_lo), round), 6),
+			_mm_srli_epi16(_mm_add_epi16(_mm_maddubs_epi16(ends, pairs_hi), round), 6));
+	}
+
+	// A cell with no alpha projects and measures on three channels: the fourth's step and weight are nought.
+	const int lr = pMin->m_c[0], lg = pMin->m_c[1], lb = pMin->m_c[2], la = pParams->m_has_alpha ? pMin->m_c[3] : 0;
+	const int dr = pMax->m_c[0] - lr, dg = pMax->m_c[1] - lg, db = pMax->m_c[2] - lb, da = pParams->m_has_alpha ? (pMax->m_c[3] - la) : 0;
+	const float f = N / (float)(squarei(dr) + squarei(dg) + squarei(db) + squarei(da) + .00000125f);
+
+	const __m128i zero = _mm_setzero_si128();
+	const __m128i low = _mm_setr_epi16((short)lr, (short)lg, (short)lb, (short)la, (short)lr, (short)lg, (short)lb, (short)la);
+	const __m128i step = _mm_setr_epi16((short)dr, (short)dg, (short)db, (short)da, (short)dr, (short)dg, (short)db, (short)da);
+	const __m128 scale = _mm_set1_ps(f);
+	const __m128 half = _mm_set1_ps(.5f);
+	const __m128i sel_least = _mm_set1_epi32(1);
+	const __m128i sel_most = _mm_set1_epi32((int)N - 1);
+
+	__m128i pixels[4], sels[4];
+	for (uint32_t k = 0; k < 4; k++)
+	{
+		pixels[k] = _mm_loadu_si128((const __m128i *)(pPixels + k * 4));
+		const __m128i along_lo = _mm_madd_epi16(_mm_sub_epi16(_mm_cvtepu8_epi16(pixels[k]), low), step);
+		const __m128i along_hi = _mm_madd_epi16(_mm_sub_epi16(_mm_unpackhi_epi8(pixels[k], zero), low), step);
+		const __m128i sel = _mm_cvttps_epi32(_mm_add_ps(_mm_mul_ps(_mm_cvtepi32_ps(_mm_hadd_epi32(along_lo, along_hi)), scale), half));
+		sels[k] = _mm_min_epi32(_mm_max_epi32(sel, sel_least), sel_most);
+	}
+	const __m128i sel = _mm_packus_epi16(_mm_packs_epi32(sels[0], sels[1]), _mm_packs_epi32(sels[2], sels[3]));
+	const __m128i sel_under = _mm_sub_epi8(sel, _mm_set1_epi8(1));
+
+	// Sixteen selectors' colors as the pixels lie, four of them a vector.
+	const auto colors_of = [&](__m128i selectors, __m128i pColors[4])
+	{
+		const __m128i r = _mm_shuffle_epi8(palette[0], selectors), g = _mm_shuffle_epi8(palette[1], selectors);
+		const __m128i b = _mm_shuffle_epi8(palette[2], selectors), a = _mm_shuffle_epi8(palette[3], selectors);
+		const __m128i rg_lo = _mm_unpacklo_epi8(r, g), rg_hi = _mm_unpackhi_epi8(r, g);
+		const __m128i ba_lo = _mm_unpacklo_epi8(b, a), ba_hi = _mm_unpackhi_epi8(b, a);
+		pColors[0] = _mm_unpacklo_epi16(rg_lo, ba_lo);
+		pColors[1] = _mm_unpackhi_epi16(rg_lo, ba_lo);
+		pColors[2] = _mm_unpacklo_epi16(rg_hi, ba_hi);
+		pColors[3] = _mm_unpackhi_epi16(rg_hi, ba_hi);
+	};
+	__m128i colors[4], colors_under[4];
+	colors_of(sel, colors);
+	colors_of(sel_under, colors_under);
+
+	// A channel's weight times its difference stays in 16 signed bits and a cell's error in 32, the weights of an
+	// error in RGB(A) being 128 at most (bc7enc_compress_block).
+	const uint32_t *pW = pParams->m_weights;
+	const short wa = pParams->m_has_alpha ? (short)pW[3] : (short)0;
+	const __m128i weights = _mm_setr_epi16((short)pW[0], (short)pW[1], (short)pW[2], wa, (short)pW[0], (short)pW[1], (short)pW[2], wa);
+	const auto distance = [&](__m128i a, __m128i b)
+	{
+		const __m128i d = _mm_or_si128(_mm_subs_epu8(a, b), _mm_subs_epu8(b, a));
+		const __m128i d_lo = _mm_cvtepu8_epi16(d);
+		const __m128i d_hi = _mm_unpackhi_epi8(d, zero);
+		return _mm_hadd_epi32(_mm_madd_epi16(d_lo, _mm_mullo_epi16(d_lo, weights)), _mm_madd_epi16(d_hi, _mm_mullo_epi16(d_hi, weights)));
+	};
+
+	__m128i total = zero;
+	__m128i under[4];
+	for (uint32_t k = 0; k < 4; k++)
+	{
+		const __m128i err = distance(colors[k], pixels[k]);
+		const __m128i err_under = distance(colors_under[k], pixels[k]);
+		under[k] = _mm_cmpgt_epi32(err, err_under);
+		const __m128i lanes = _mm_loadu_si128((const __m128i *)(g_pixel_lanes + 16 - num_pixels + k * 4));
+		total = _mm_add_epi32(total, _mm_and_si128(_mm_min_epi32(err, err_under), lanes));
+	}
+
+	// A lane that takes the selector under is all ones, which is one less a byte.
+	const __m128i best = _mm_add_epi8(sel, _mm_packs_epi16(_mm_packs_epi32(under[0], under[1]), _mm_packs_epi32(under[2], under[3])));
+	uint8_t selectors[16];
+	_mm_storeu_si128((__m128i *)selectors, best);
+	memcpy(pSelectors, selectors, num_pixels);
+
+	return hsum_epi32(total);
+}
+
 static uint64_t evaluate_solution(const color_rgba *pLow, const color_rgba *pHigh, const uint32_t pbits[2], const color_cell_compressor_params *pParams, color_cell_compressor_results *pResults,
 	const bc7enc_compress_block_params* pComp_params)
 {
@@ -676,22 +811,19 @@ static uint64_t evaluate_solution(const color_rgba *pLow, const color_rgba *pHig
 
 	const uint32_t N = pParams->m_num_selector_weights;
 
+	// The palette of the two walks a pixel at a time; find_selectors_rgba makes its own.
 	color_rgba weightedColors[16];
-	weightedColors[0] = actualMinColor;
-	weightedColors[N - 1] = actualMaxColor;
+	if (pComp_params->m_force_selectors || pParams->m_perceptual)
+	{
+		weightedColors[0] = actualMinColor;
+		weightedColors[N - 1] = actualMaxColor;
 
-	const uint32_t nc = pParams->m_has_alpha ? 4 : 3;
-	for (uint32_t i = 1; i < (N - 1); i++)
-		for (uint32_t j = 0; j < nc; j++)
-			weightedColors[i].m_c[j] = (uint8_t)((actualMinColor.m_c[j] * (64 - pParams->m_pSelector_weights[i]) + actualMaxColor.m_c[j] * pParams->m_pSelector_weights[i] + 32) >> 6);
+		const uint32_t nc = pParams->m_has_alpha ? 4 : 3;
+		for (uint32_t i = 1; i < (N - 1); i++)
+			for (uint32_t j = 0; j < nc; j++)
+				weightedColors[i].m_c[j] = (uint8_t)((actualMinColor.m_c[j] * (64 - pParams->m_pSelector_weights[i]) + actualMaxColor.m_c[j] * pParams->m_pSelector_weights[i] + 32) >> 6);
+	}
 
-	const int lr = actualMinColor.m_c[0];
-	const int lg = actualMinColor.m_c[1];
-	const int lb = actualMinColor.m_c[2];
-	const int dr = actualMaxColor.m_c[0] - lr;
-	const int dg = actualMaxColor.m_c[1] - lg;
-	const int db = actualMaxColor.m_c[2] - lb;
-	
 	uint64_t total_err = 0;
 
 	if (pComp_params->m_force_selectors)
@@ -712,69 +844,7 @@ static uint64_t evaluate_solution(const color_rgba *pLow, const color_rgba *pHig
 		}
 	}
 	else if (!pParams->m_perceptual)
-	{
-		if (pParams->m_has_alpha)
-		{
-			const int la = actualMinColor.m_c[3];
-			const int da = actualMaxColor.m_c[3] - la;
-
-			const float f = N / (float)(squarei(dr) + squarei(dg) + squarei(db) + squarei(da) + .00000125f);
-
-			for (uint32_t i = 0; i < pParams->m_num_pixels; i++)
-			{
-				const color_rgba *pC = &pParams->m_pPixels[i];
-				int r = pC->m_c[0];
-				int g = pC->m_c[1];
-				int b = pC->m_c[2];
-				int a = pC->m_c[3];
-
-				int best_sel = (int)((float)((r - lr) * dr + (g - lg) * dg + (b - lb) * db + (a - la) * da) * f + .5f);
-				best_sel = clampi(best_sel, 1, N - 1);
-
-				uint64_t err0 = compute_color_distance_rgba(&weightedColors[best_sel - 1], pC, false, pParams->m_weights);
-				uint64_t err1 = compute_color_distance_rgba(&weightedColors[best_sel], pC, false, pParams->m_weights);
-
-				if (err1 > err0)
-				{
-					err1 = err0;
-					--best_sel;
-				}
-				total_err += err1;
-
-				pResults->m_pSelectors_temp[i] = (uint8_t)best_sel;
-			}
-		}
-		else
-		{
-			const float f = N / (float)(squarei(dr) + squarei(dg) + squarei(db) + .00000125f);
-
-			for (uint32_t i = 0; i < pParams->m_num_pixels; i++)
-			{
-				const color_rgba *pC = &pParams->m_pPixels[i];
-				int r = pC->m_c[0];
-				int g = pC->m_c[1];
-				int b = pC->m_c[2];
-
-				int sel = (int)((float)((r - lr) * dr + (g - lg) * dg + (b - lb) * db) * f + .5f);
-				sel = clampi(sel, 1, N - 1);
-
-				uint64_t err0 = compute_color_distance_rgb(&weightedColors[sel - 1], pC, false, pParams->m_weights);
-				uint64_t err1 = compute_color_distance_rgb(&weightedColors[sel], pC, false, pParams->m_weights);
-
-				int best_sel = sel;
-				uint64_t best_err = err1;
-				if (err0 < best_err)
-				{
-					best_err = err0;
-					best_sel = sel - 1;
-				}
-
-				total_err += best_err;
-
-				pResults->m_pSelectors_temp[i] = (uint8_t)best_sel;
-			}
-		}
-	}
+		total_err = find_selectors_rgba(&actualMinColor, &actualMaxColor, pParams, pResults->m_pSelectors_temp);
 	else
 	{
 		// TODO: This could be improved.
@@ -1141,14 +1211,21 @@ static uint64_t color_cell_compression(uint32_t mode, const color_cell_compresso
 	}
 
 	// Compute partition's mean color and principle axis.
-	vec4F meanColor, axis;
-	vec4F_set_scalar(&meanColor, 0.0f);
-
-	for (uint32_t i = 0; i < pParams->m_num_pixels; i++)
+	// The cell's pixels as floats, a pixel a vector, and past the cell's last its first again, which moves no least or
+	// greatest. A sum below is a lane and adds a pixel at a time, so it is the sum a walk a channel at a time made.
+	__m128 colors[16];
+	for (uint32_t i = 0; i < 16; i++)
 	{
-		vec4F color = vec4F_from_color(&pParams->m_pPixels[i]);
-		meanColor = vec4F_add(&meanColor, &color);
+		int32_t pixel;
+		memcpy(&pixel, &pParams->m_pPixels[(i < pParams->m_num_pixels) ? i : 0], sizeof(pixel));
+		colors[i] = _mm_cvtepi32_ps(_mm_cvtepu8_epi32(_mm_cvtsi32_si128(pixel)));
 	}
+
+	vec4F meanColor, axis;
+	__m128 colorSum = _mm_setzero_ps();
+	for (uint32_t i = 0; i < pParams->m_num_pixels; i++)
+		colorSum = _mm_add_ps(colorSum, colors[i]);
+	_mm_storeu_ps(meanColor.m_c, colorSum);
 				
 	vec4F meanColorScaled = vec4F_mul(&meanColor, 1.0f / (float)(pParams->m_num_pixels));
 
@@ -1179,16 +1256,19 @@ static uint64_t color_cell_compression(uint32_t mode, const color_cell_compresso
 	else
 	{
 		// Use covar technique for RGB PCA, because it doesn't require per-pixel normalization.
-		float cov[6] = { 0, 0, 0, 0, 0, 0 };
-
+		// r*r, r*g, r*b and g*g a lane each of the first sum, g*b and b*b of the second.
+		__m128 cov0123 = _mm_setzero_ps(), cov45 = _mm_setzero_ps();
+		const __m128 mean = _mm_loadu_ps(meanColorScaled.m_c);
 		for (uint32_t i = 0; i < pParams->m_num_pixels; i++)
 		{
-			const color_rgba *pV = &pParams->m_pPixels[i];
-			float r = pV->m_c[0] - meanColorScaled.m_c[0];
-			float g = pV->m_c[1] - meanColorScaled.m_c[1];
-			float b = pV->m_c[2] - meanColorScaled.m_c[2];
-			cov[0] += r*r; cov[1] += r*g; cov[2] += r*b; cov[3] += g*g; cov[4] += g*b; cov[5] += b*b;
+			const __m128 d = _mm_sub_ps(colors[i], mean);
+			cov0123 = _mm_add_ps(cov0123, _mm_mul_ps(_mm_shuffle_ps(d, d, _MM_SHUFFLE(1, 0, 0, 0)), _mm_shuffle_ps(d, d, _MM_SHUFFLE(1, 2, 1, 0))));
+			cov45 = _mm_add_ps(cov45, _mm_mul_ps(_mm_shuffle_ps(d, d, _MM_SHUFFLE(2, 2, 2, 1)), _mm_shuffle_ps(d, d, _MM_SHUFFLE(2, 2, 2, 2))));
 		}
+
+		float cov[8];
+		_mm_storeu_ps(cov, cov0123);
+		_mm_storeu_ps(cov + 4, cov45);
 
 		float vfr = .9f, vfg = 1.0f, vfb = .7f;
 		for (uint32_t iter = 0; iter < 3; iter++)
@@ -1229,17 +1309,26 @@ static uint64_t color_cell_compression(uint32_t mode, const color_cell_compresso
 		vec4F_normalize_in_place(&axis);
 	}
 
-	float l = 1e+9f, h = -1e+9f;
-
-	for (uint32_t i = 0; i < pParams->m_num_pixels; i++)
+	// Four pixels' projections at once, a channel's products added in a pixel's own order. The least and the greatest
+	// are of the same numbers in another order, and so the same but for a zero's sign, which the mean it is added to
+	// drops.
+	float l, h;
 	{
-		vec4F color = vec4F_from_color(&pParams->m_pPixels[i]);
-
-		vec4F q = vec4F_sub(&color, &meanColorScaled);
-		float d = vec4F_dot(&q, &axis);
-
-		l = minimumf(l, d);
-		h = maximumf(h, d);
+		const __m128 mean = _mm_loadu_ps(meanColorScaled.m_c);
+		const __m128 axis0 = _mm_set1_ps(axis.m_c[0]), axis1 = _mm_set1_ps(axis.m_c[1]), axis2 = _mm_set1_ps(axis.m_c[2]), axis3 = _mm_set1_ps(axis.m_c[3]);
+		__m128 least = _mm_set1_ps(1e+9f), greatest = _mm_set1_ps(-1e+9f);
+		for (uint32_t i = 0; i < pParams->m_num_pixels; i += 4)
+		{
+			__m128 q0 = _mm_sub_ps(colors[i], mean), q1 = _mm_sub_ps(colors[i + 1], mean), q2 = _mm_sub_ps(colors[i + 2], mean), q3 = _mm_sub_ps(colors[i + 3], mean);
+			_MM_TRANSPOSE4_PS(q0, q1, q2, q3);
+			const __m128 d = _mm_add_ps(_mm_add_ps(_mm_add_ps(_mm_mul_ps(q0, axis0), _mm_mul_ps(q1, axis1)), _mm_mul_ps(q2, axis2)), _mm_mul_ps(q3, axis3));
+			least = _mm_min_ps(least, d);
+			greatest = _mm_max_ps(greatest, d);
+		}
+		least = _mm_min_ps(least, _mm_movehl_ps(least, least));
+		greatest = _mm_max_ps(greatest, _mm_movehl_ps(greatest, greatest));
+		l = _mm_cvtss_f32(_mm_min_ss(least, _mm_shuffle_ps(least, least, 1)));
+		h = _mm_cvtss_f32(_mm_max_ss(greatest, _mm_shuffle_ps(greatest, greatest, 1)));
 	}
 
 	l *= (1.0f / 255.0f);
@@ -1288,7 +1377,7 @@ static uint64_t color_cell_compression(uint32_t mode, const color_cell_compresso
 		if (pParams->m_has_alpha)
 			compute_least_squares_endpoints_rgba(pParams->m_num_pixels, pResults->m_pSelectors, pParams->m_pSelector_weightsx, &xl, &xh, pParams->m_pPixels);
 		else
-			compute_least_squares_endpoints_rgb(pParams->m_num_pixels, pResults->m_pSelectors, pParams->m_pSelector_weightsx, &xl, &xh, pParams->m_pPixels);
+			compute_least_squares_endpoints_rgb(pParams->m_num_pixels, pResults->m_pSelectors, pParams->m_pSelector_weightsx, &xl, &xh, pParams->m_pPixels, colors);
 
 		xl = vec4F_mul(&xl, (1.0f / 255.0f));
 		xh = vec4F_mul(&xh, (1.0f / 255.0f));
@@ -1329,7 +1418,7 @@ static uint64_t color_cell_compression(uint32_t mode, const color_cell_compresso
 		if (pParams->m_has_alpha)
 			compute_least_squares_endpoints_rgba(pParams->m_num_pixels, selectors_temp1, pParams->m_pSelector_weightsx, &xl, &xh, pParams->m_pPixels);
 		else
-			compute_least_squares_endpoints_rgb(pParams->m_num_pixels, selectors_temp1, pParams->m_pSelector_weightsx, &xl, &xh, pParams->m_pPixels);
+			compute_least_squares_endpoints_rgb(pParams->m_num_pixels, selectors_temp1, pParams->m_pSelector_weightsx, &xl, &xh, pParams->m_pPixels, colors);
 
 		xl = vec4F_mul(&xl, (1.0f / 255.0f));
 		xh = vec4F_mul(&xh, (1.0f / 255.0f));
@@ -1348,7 +1437,7 @@ static uint64_t color_cell_compression(uint32_t mode, const color_cell_compresso
 		if (pParams->m_has_alpha)
 			compute_least_squares_endpoints_rgba(pParams->m_num_pixels, selectors_temp1, pParams->m_pSelector_weightsx, &xl, &xh, pParams->m_pPixels);
 		else
-			compute_least_squares_endpoints_rgb(pParams->m_num_pixels, selectors_temp1, pParams->m_pSelector_weightsx, &xl, &xh, pParams->m_pPixels);
+			compute_least_squares_endpoints_rgb(pParams->m_num_pixels, selectors_temp1, pParams->m_pSelector_weightsx, &xl, &xh, pParams->m_pPixels, colors);
 
 		xl = vec4F_mul(&xl, (1.0f / 255.0f));
 		xh = vec4F_mul(&xh, (1.0f / 255.0f));
@@ -1369,7 +1458,7 @@ static uint64_t color_cell_compression(uint32_t mode, const color_cell_compresso
 		if (pParams->m_has_alpha)
 			compute_least_squares_endpoints_rgba(pParams->m_num_pixels, selectors_temp1, pParams->m_pSelector_weightsx, &xl, &xh, pParams->m_pPixels);
 		else
-			compute_least_squares_endpoints_rgb(pParams->m_num_pixels, selectors_temp1, pParams->m_pSelector_weightsx, &xl, &xh, pParams->m_pPixels);
+			compute_least_squares_endpoints_rgb(pParams->m_num_pixels, selectors_temp1, pParams->m_pSelector_weightsx, &xl, &xh, pParams->m_pPixels, colors);
 
 		xl = vec4F_mul(&xl, (1.0f / 255.0f));
 		xh = vec4F_mul(&xh, (1.0f / 255.0f));
@@ -1398,7 +1487,7 @@ static uint64_t color_cell_compression(uint32_t mode, const color_cell_compresso
 					if (pParams->m_has_alpha)
 						compute_least_squares_endpoints_rgba(pParams->m_num_pixels, selectors_temp1, pParams->m_pSelector_weightsx, &xl, &xh, pParams->m_pPixels);
 					else
-						compute_least_squares_endpoints_rgb(pParams->m_num_pixels, selectors_temp1, pParams->m_pSelector_weightsx, &xl, &xh, pParams->m_pPixels);
+						compute_least_squares_endpoints_rgb(pParams->m_num_pixels, selectors_temp1, pParams->m_pSelector_weightsx, &xl, &xh, pParams->m_pPixels, colors);
 
 					xl = vec4F_mul(&xl, (1.0f / 255.0f));
 					xh = vec4F_mul(&xh, (1.0f / 255.0f));
@@ -1837,19 +1926,47 @@ static uint32_t estimate_partition(const color_rgba *pPixels, const bc7enc_compr
 	return best_partition;
 }
 
-static void set_block_bits(uint8_t *pBytes, uint32_t val, uint32_t num_bits, uint32_t *pCur_ofs)
+// A block's 128 bits as two halves, the low first, which encode_bc7_block lays as the block's bytes: a field put at
+// once and not a byte of it at a time, into halves a register can hold.
+struct block_bits
 {
-	assert((num_bits <= 32) && (val < (1ULL << num_bits)));
-	while (num_bits)
+	uint64_t m_lo = 0;
+	uint64_t m_hi = 0;
+	uint32_t m_ofs = 0;
+
+	inline void put(uint64_t val, uint32_t num_bits)
 	{
-		const uint32_t n = minimumu(8 - (*pCur_ofs & 7), num_bits);
-		pBytes[*pCur_ofs >> 3] |= (uint8_t)(val << (*pCur_ofs & 7));
-		val >>= n;
-		num_bits -= n;
-		*pCur_ofs += n;
+		assert(num_bits <= 64);
+		assert((num_bits == 64) || (val < (1ULL << num_bits)));
+		assert(m_ofs + num_bits <= 128);
+		if (!num_bits)
+			return;
+
+		if (m_ofs < 64)
+		{
+			m_lo |= val << m_ofs;
+			if (m_ofs + num_bits > 64)
+				m_hi |= val >> (64 - m_ofs);
+		}
+		else
+			m_hi |= val << (m_ofs - 64);
+		m_ofs += num_bits;
 	}
-	assert(*pCur_ofs <= 128);
-}
+
+	// Sixteen selectors of num_bits each, an anchor's a bit shorter, its top bit being clear: anchors holds a bit a
+	// pixel, set where the pixel is a subset's anchor.
+	inline void put_selectors(const uint8_t *pSelectors, uint32_t num_bits, uint32_t anchors)
+	{
+		uint64_t packed = 0;
+		uint32_t packed_bits = 0;
+		for (uint32_t idx = 0; idx < 16; idx++)
+		{
+			packed |= (uint64_t)pSelectors[idx] << packed_bits;
+			packed_bits += num_bits - ((anchors >> idx) & 1);
+		}
+		put(packed, packed_bits);
+	}
+};
 
 struct bc7_optimization_results
 {
@@ -1897,7 +2014,7 @@ void encode_bc7_block(void* pBlock, const bc7_optimization_results* pResults)
 	uint32_t pbits[3][2];
 	memcpy(pbits, pResults->m_pbits, sizeof(pbits));
 
-	int anchor[3] = { -1, -1, -1 };
+	uint32_t anchors = 0;
 
 	for (uint32_t k = 0; k < total_subsets; k++)
 	{
@@ -1912,7 +2029,7 @@ void encode_bc7_block(void* pBlock, const bc7_optimization_results* pResults)
 				anchor_index = g_bc7_table_anchor_index_second_subset[pResults->m_partition];
 		}
 
-		anchor[k] = anchor_index;
+		anchors |= 1u << anchor_index;
 
 		const uint32_t color_index_bits = get_bc7_color_index_size(best_mode, pResults->m_index_selector);
 		const uint32_t num_color_indices = 1 << color_index_bits;
@@ -1965,28 +2082,25 @@ void encode_bc7_block(void* pBlock, const bc7_optimization_results* pResults)
 		}
 	}
 
-	uint8_t* pBlock_bytes = (uint8_t*)(pBlock);
-	memset(pBlock_bytes, 0, BC7ENC_BLOCK_SIZE);
-
-	uint32_t cur_bit_ofs = 0;
-	set_block_bits(pBlock_bytes, 1 << best_mode, best_mode + 1, &cur_bit_ofs);
+	block_bits bits;
+	bits.put(1 << best_mode, best_mode + 1);
 
 	if ((best_mode == 4) || (best_mode == 5))
-		set_block_bits(pBlock_bytes, pResults->m_rotation, 2, &cur_bit_ofs);
+		bits.put(pResults->m_rotation, 2);
 
 	if (best_mode == 4)
-		set_block_bits(pBlock_bytes, pResults->m_index_selector, 1, &cur_bit_ofs);
+		bits.put(pResults->m_index_selector, 1);
 
 	if (total_partitions > 1)
-		set_block_bits(pBlock_bytes, pResults->m_partition, (total_partitions == 64) ? 6 : 4, &cur_bit_ofs);
+		bits.put(pResults->m_partition, (total_partitions == 64) ? 6 : 4);
 
 	const uint32_t total_comps = (best_mode >= 4) ? 4 : 3;
 	for (uint32_t comp = 0; comp < total_comps; comp++)
 	{
 		for (uint32_t subset = 0; subset < total_subsets; subset++)
 		{
-			set_block_bits(pBlock_bytes, low[subset].m_c[comp], (comp == 3) ? g_bc7_alpha_precision_table[best_mode] : g_bc7_color_precision_table[best_mode], &cur_bit_ofs);
-			set_block_bits(pBlock_bytes, high[subset].m_c[comp], (comp == 3) ? g_bc7_alpha_precision_table[best_mode] : g_bc7_color_precision_table[best_mode], &cur_bit_ofs);
+			bits.put(low[subset].m_c[comp], (comp == 3) ? g_bc7_alpha_precision_table[best_mode] : g_bc7_color_precision_table[best_mode]);
+			bits.put(high[subset].m_c[comp], (comp == 3) ? g_bc7_alpha_precision_table[best_mode] : g_bc7_color_precision_table[best_mode]);
 		}
 	}
 
@@ -1994,46 +2108,32 @@ void encode_bc7_block(void* pBlock, const bc7_optimization_results* pResults)
 	{
 		for (uint32_t subset = 0; subset < total_subsets; subset++)
 		{
-			set_block_bits(pBlock_bytes, pbits[subset][0], 1, &cur_bit_ofs);
+			bits.put(pbits[subset][0], 1);
 			if (!g_bc7_mode_has_shared_p_bits[best_mode])
-				set_block_bits(pBlock_bytes, pbits[subset][1], 1, &cur_bit_ofs);
+				bits.put(pbits[subset][1], 1);
 		}
 	}
 
-	for (uint32_t y = 0; y < 4; y++)
-	{
-		for (uint32_t x = 0; x < 4; x++)
-		{
-			int idx = x + y * 4;
-
-			uint32_t n = pResults->m_index_selector ? get_bc7_alpha_index_size(best_mode, pResults->m_index_selector) : get_bc7_color_index_size(best_mode, pResults->m_index_selector);
-
-			if ((idx == anchor[0]) || (idx == anchor[1]) || (idx == anchor[2]))
-				n--;
-
-			set_block_bits(pBlock_bytes, pResults->m_index_selector ? alpha_selectors[idx] : color_selectors[idx], n, &cur_bit_ofs);
-		}
-	}
+	const uint32_t color_index_bits = get_bc7_color_index_size(best_mode, pResults->m_index_selector);
+	const uint32_t alpha_index_bits = get_bc7_alpha_index_size(best_mode, pResults->m_index_selector);
+	if (pResults->m_index_selector)
+		bits.put_selectors(alpha_selectors, alpha_index_bits, anchors);
+	else
+		bits.put_selectors(color_selectors, color_index_bits, anchors);
 
 	if (get_bc7_mode_has_seperate_alpha_selectors(best_mode))
 	{
-		for (uint32_t y = 0; y < 4; y++)
-		{
-			for (uint32_t x = 0; x < 4; x++)
-			{
-				int idx = x + y * 4;
-
-				uint32_t n = pResults->m_index_selector ? get_bc7_color_index_size(best_mode, pResults->m_index_selector) : get_bc7_alpha_index_size(best_mode, pResults->m_index_selector);
-
-				if ((idx == anchor[0]) || (idx == anchor[1]) || (idx == anchor[2]))
-					n--;
-
-				set_block_bits(pBlock_bytes, pResults->m_index_selector ? color_selectors[idx] : alpha_selectors[idx], n, &cur_bit_ofs);
-			}
-		}
+		if (pResults->m_index_selector)
+			bits.put_selectors(color_selectors, color_index_bits, anchors);
+		else
+			bits.put_selectors(alpha_selectors, alpha_index_bits, anchors);
 	}
 
-	assert(cur_bit_ofs == 128);
+	assert(bits.m_ofs == 128);
+
+	// The halves' bytes are the block's where the low byte is first, as on every processor the vector code above runs on.
+	const uint64_t halves[2] = { bits.m_lo, bits.m_hi };
+	memcpy(pBlock, halves, BC7ENC_BLOCK_SIZE);
 }
 
 static void handle_alpha_block_mode5(const color_rgba* pPixels, const bc7enc_compress_block_params* pComp_params, color_cell_compressor_params* pParams, uint32_t lo_a, uint32_t hi_a, bc7_optimization_results* pOpt_results5, uint64_t* pMode5_err, uint64_t* pMode5_alpha_err)
@@ -2075,6 +2175,10 @@ static void handle_alpha_block_mode5(const color_rgba* pPixels, const bc7enc_com
 	{
 		*pMode5_alpha_err = UINT64_MAX;
 
+		const __m128i alphas = _mm_packus_epi16(
+			_mm_packs_epi32(_mm_srli_epi32(_mm_loadu_si128((const __m128i *)(pParams->m_pPixels)), 24), _mm_srli_epi32(_mm_loadu_si128((const __m128i *)(pParams->m_pPixels + 4)), 24)),
+			_mm_packs_epi32(_mm_srli_epi32(_mm_loadu_si128((const __m128i *)(pParams->m_pPixels + 8)), 24), _mm_srli_epi32(_mm_loadu_si128((const __m128i *)(pParams->m_pPixels + 12)), 24)));
+
 		const uint32_t total_passes = (pComp_params->m_uber_level >= 1) ? 3 : 2;
 		for (uint32_t pass = 0; pass < total_passes; pass++)
 		{
@@ -2086,25 +2190,25 @@ static void handle_alpha_block_mode5(const color_rgba* pPixels, const bc7enc_com
 			vals[1] = (vals[0] * (64 - w_s1) + vals[3] * w_s1 + 32) >> 6;
 			vals[2] = (vals[0] * (64 - w_s2) + vals[3] * w_s2 + 32) >> 6;
 
-			uint8_t trial_alpha_selectors[16];
-
-			uint64_t trial_alpha_err = 0;
-			for (uint32_t i = 0; i < 16; i++)
+			// Sixteen alphas at once: the nearest of the four values, the first of them on a tie.
+			__m128i nearest = _mm_setzero_si128();
+			__m128i be = _mm_set1_epi8((char)vals[0]);
+			be = _mm_or_si128(_mm_subs_epu8(alphas, be), _mm_subs_epu8(be, alphas));
+			for (int s = 1; s < 4; s++)
 			{
-				const int32_t a = pParams->m_pPixels[i].m_c[3];
-
-				int s = 0;
-				int32_t be = iabs32(a - vals[0]);
-				int e = iabs32(a - vals[1]); if (e < be) { be = e; s = 1; }
-				e = iabs32(a - vals[2]); if (e < be) { be = e; s = 2; }
-				e = iabs32(a - vals[3]); if (e < be) { be = e; s = 3; }
-
-				trial_alpha_selectors[i] = (uint8_t)s;
-
-				uint32_t a_err = (uint32_t)(be * be) * pParams->m_weights[3];
-
-				trial_alpha_err += a_err;
+				const __m128i val = _mm_set1_epi8((char)vals[s]);
+				const __m128i e = _mm_or_si128(_mm_subs_epu8(alphas, val), _mm_subs_epu8(val, alphas));
+				const __m128i nearer = _mm_andnot_si128(_mm_cmpeq_epi8(e, be), _mm_cmpeq_epi8(_mm_min_epu8(e, be), e));
+				nearest = _mm_blendv_epi8(nearest, _mm_set1_epi8((char)s), nearer);
+				be = _mm_min_epu8(be, e);
 			}
+
+			uint8_t trial_alpha_selectors[16];
+			_mm_storeu_si128((__m128i *)trial_alpha_selectors, nearest);
+
+			const __m128i be_lo = _mm_cvtepu8_epi16(be);
+			const __m128i be_hi = _mm_unpackhi_epi8(be, _mm_setzero_si128());
+			const uint64_t trial_alpha_err = (uint64_t)hsum_epi32(_mm_add_epi32(_mm_madd_epi16(be_lo, be_lo), _mm_madd_epi16(be_hi, be_hi))) * pParams->m_weights[3];
 
 			if (trial_alpha_err < *pMode5_alpha_err)
 			{
@@ -2404,6 +2508,9 @@ bool bc7enc_compress_block(void *pBlock, const void *pPixelsRGBA, const bc7enc_c
 	assert(g_bc7_mode_1_optimal_endpoints[255][0].m_hi != 0);
 
 	const color_rgba *pPixels = (const color_rgba *)(pPixelsRGBA);
+
+	// What a lane of the selector walks holds (find_selectors_rgba), and a pixel's weighted error in 32 bits.
+	assert((pComp_params->m_weights[0] <= 128) && (pComp_params->m_weights[1] <= 128) && (pComp_params->m_weights[2] <= 128) && (pComp_params->m_weights[3] <= 128));
 
 	color_cell_compressor_params params;
 	if (pComp_params->m_perceptual)

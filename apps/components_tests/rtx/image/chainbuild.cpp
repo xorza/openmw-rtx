@@ -14,6 +14,7 @@
 #include <osg/Texture> // The S3TC and RGTC formats, which Windows's gl.h lacks.
 #include <osg/ref_ptr>
 
+#include <rgbcx/bc7enc.h>
 #include <rgbcx/rgbcx.h>
 
 #include <apps/components_tests/rtx/support/allocations.hpp>
@@ -474,6 +475,23 @@ namespace Rtx
             return blocks;
         }
 
+        /// Block `block` of a 64-square level's `texels`, its sixteen texels row after row.
+        std::array<std::uint8_t, 64> blockOf(std::span<const std::byte> texels, std::size_t block)
+        {
+            std::array<std::uint8_t, 64> sixteen{};
+            for (std::size_t row = 0; row < 4; ++row)
+                std::memcpy(
+                    sixteen.data() + row * 16, texels.data() + ((block / 16 * 4 + row) * 64 + block % 16 * 4) * 4, 16);
+            return sixteen;
+        }
+
+        Misc::DigestWords digestOf(const Misc::ByteBuffer& made)
+        {
+            Misc::HashState hash;
+            hash.add(std::span<const std::byte>(made));
+            return hash.getWords();
+        }
+
         /// **The encoder's blocks are held to the bit**: a chain boxed from blocks of every kind and encoded in
         /// BC1, from its finest level and with three-colour blocks, and as BC3's colour half, digests to what
         /// rgbcx made of it while its selector searches walked a block a texel at a time and tried every
@@ -482,11 +500,6 @@ namespace Rtx
         TEST(RtxChainBuildTest, aChainsBlocksAreTheOnesTheSearchMadeATexelAtATime)
         {
             const std::vector<std::uint8_t> blocks = paintBlocksOfEveryKind();
-            const auto digestOf = [](const Misc::ByteBuffer& made) {
-                Misc::HashState hash;
-                hash.add(std::span<const std::byte>(made));
-                return hash.getWords();
-            };
 
             const osg::ref_ptr<osg::Image> bc1 = makeChained(
                 GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, 64, { blocks.size() }, blocks);
@@ -508,13 +521,7 @@ namespace Rtx
             const std::span<const std::byte> finest = chain.getTexels(0);
             Misc::ByteBuffer madeWithBlack(256 * 8);
             for (std::size_t block = 0; block < 256; ++block)
-            {
-                std::array<std::uint8_t, 64> sixteen{};
-                for (std::size_t row = 0; row < 4; ++row)
-                    std::memcpy(sixteen.data() + row * 16,
-                        finest.data() + ((block / 16 * 4 + row) * 64 + block % 16 * 4) * 4, 16);
-                rgbcx::encode_bc1(10, madeWithBlack.data() + block * 8, sixteen.data(), true, true);
-            }
+                rgbcx::encode_bc1(10, madeWithBlack.data() + block * 8, blockOf(finest, block).data(), true, true);
             EXPECT_EQ(digestOf(madeWithBlack), (Misc::DigestWords{ 0xb5eef7b6223cca60, 0xb5cb2ded72bfae34 }));
 
             // The same colours under an alpha of nought, as BC3 holds them: a block of four colours always.
@@ -533,6 +540,106 @@ namespace Rtx
             chain.encode(alphaFile, 0, madeWithAlpha);
             ASSERT_EQ(madeWithAlpha.size(), std::size_t{ (256 + 64 + 16 + 4 + 1 + 1 + 1) * 16 });
             EXPECT_EQ(digestOf(madeWithAlpha), (Misc::DigestWords{ 0x24bcb92424c9e842, 0x318ae1fab5c85126 }));
+        }
+
+        /// `paintBlocksOfEveryKind` as BC3 holds it, under an alpha of every kind by turns, its endpoints and
+        /// selectors off an integer hash: any two alphas, one alpha, none, and two a few steps apart.
+        std::vector<std::uint8_t> paintBlocksOfEveryKindUnderAlpha()
+        {
+            const std::vector<std::uint8_t> colours = paintBlocksOfEveryKind();
+            std::vector<std::uint8_t> blocks(256 * 16);
+            for (std::uint32_t block = 0; block < 256; ++block)
+            {
+                std::uint64_t hash = (block + 1) * 0x9E3779B97F4A7C15ull;
+                hash ^= hash >> 29;
+                hash *= 0xBF58476D1CE4E5B9ull;
+                hash ^= hash >> 32;
+
+                const std::uint32_t kind = block % 4;
+                auto first = static_cast<std::uint8_t>(hash);
+                auto second = static_cast<std::uint8_t>(hash >> 8);
+                if (kind == 1)
+                    second = first;
+                if (kind == 2)
+                    first = second = 255;
+                if (kind == 3)
+                    second = static_cast<std::uint8_t>(first ^ (second & 7));
+
+                std::uint8_t* const laid = blocks.data() + std::size_t{ block } * 16;
+                laid[0] = first;
+                laid[1] = second;
+                for (std::size_t byte = 0; byte < 6; ++byte)
+                    laid[2 + byte] = kind == 2 ? std::uint8_t{ 0 } : static_cast<std::uint8_t>(hash >> (16 + 8 * byte));
+                std::memcpy(laid + 8, colours.data() + std::size_t{ block } * 8, 8);
+            }
+            return blocks;
+        }
+
+        /// **bc7enc's blocks are held to the bit**: a chain boxed from blocks of every kind, opaque and under an
+        /// alpha, and encoded in BC7 as a map of data, as a colour and as a normal map, digests to what bc7enc
+        /// made of it while it walked a cell a pixel and a channel at a time and wrote a block a byte at a time.
+        /// An encoder made faster makes the same block
+        /// (`docs/research/2026-11-13-preparation-cpu-by-codec.md`).
+        TEST(RtxChainBuildTest, aChainsBc7BlocksAreTheOnesTheEncoderMadeAPixelAtATime)
+        {
+            const std::vector<std::uint8_t> opaque = paintBlocksOfEveryKind();
+            const std::vector<std::uint8_t> underAlpha = paintBlocksOfEveryKindUnderAlpha();
+            struct Made
+            {
+                GLenum mFormat;
+                const std::vector<std::uint8_t>* mBlocks;
+                TextureEncoding mEncoding;
+                Misc::DigestWords mDigest;
+            };
+            const std::array<Made, 6> every{ {
+                { GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, &opaque, TextureEncoding::Data,
+                    { 0x1afebb9019f7aba5, 0xf6f8d43e4d0624e4 } },
+                { GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, &opaque, TextureEncoding::Colour,
+                    { 0x91ebb455e2c5051c, 0xe592d44c6b15f712 } },
+                { GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, &opaque, TextureEncoding::Normal,
+                    { 0x7c8440e9fbd5969e, 0xde0e80492268b1b5 } },
+                { GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, &underAlpha, TextureEncoding::Data,
+                    { 0x5a2afd11206550a7, 0x64d485d2e08bfecd } },
+                { GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, &underAlpha, TextureEncoding::Colour,
+                    { 0x8fff6bcacf89edf1, 0x0650fd17a3efa502 } },
+                { GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, &underAlpha, TextureEncoding::Normal,
+                    { 0x71fcf5a0bf6c6bae, 0x489f7e5b92e6aecf } },
+            } };
+
+            ChainBuild chain;
+            for (std::size_t at = 0; at < every.size(); ++at)
+            {
+                SCOPED_TRACE(at);
+                const Made& made = every[at];
+                const osg::ref_ptr<osg::Image> image
+                    = makeChained(made.mFormat, made.mFormat, 64, { made.mBlocks->size() }, *made.mBlocks);
+                std::vector<MipLevel> levels;
+                std::vector<std::byte> texels;
+                const TextureData file = describe(*image, made.mEncoding, levels, texels);
+                ASSERT_TRUE(ChainBuild::rebuilds(file));
+
+                chain.build(file, 7);
+                Misc::ByteBuffer blocks;
+                chain.encodeBc7(made.mEncoding, blocks);
+                ASSERT_EQ(blocks.size(), std::size_t{ (256 + 64 + 16 + 4 + 1 + 1 + 1) * 16 });
+                EXPECT_EQ(digestOf(blocks), made.mDigest);
+            }
+
+            // The last chain's finest level again in every mode with an error weighed 3, 5, 7 and 11 a channel,
+            // which no chain is encoded with and the selector search holds a lane's weight for.
+            bc7enc_compress_block_init();
+            bc7enc_compress_block_params weighed;
+            bc7enc_compress_block_params_init(&weighed);
+            bc7enc_compress_block_params_init_linear_weights(&weighed);
+            weighed.m_weights[0] = 3;
+            weighed.m_weights[1] = 5;
+            weighed.m_weights[2] = 7;
+            weighed.m_weights[3] = 11;
+            const std::span<const std::byte> finest = chain.getTexels(0);
+            Misc::ByteBuffer madeWeighed(256 * 16);
+            for (std::size_t block = 0; block < 256; ++block)
+                bc7enc_compress_block(madeWeighed.data() + block * 16, blockOf(finest, block).data(), &weighed);
+            EXPECT_EQ(digestOf(madeWeighed), (Misc::DigestWords{ 0x0ad28dba59907587, 0xc67f3db05edc3eab }));
         }
 
         /// What is made and what is not: a BC1 file with a hole in it holds a cut, and a file of one

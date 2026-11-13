@@ -218,3 +218,70 @@ What the build's samples hold after: `ChainBuild::delight` 46% with the encode's
 the division's wait is counted; `ChainBuild::build` 13%; `ShadingMap` 5%; `ColourBlock::read` 5%;
 `toLinear(osg::Vec3f)` 4%, the estimate's read of a block's two interpolated colours through `powf`.
 
+## A normal map's chain in BC7
+
+The benchmark reads a corpus a kind since: a folder's files named as normal maps (`_n`, `_nh`) are read as normal
+maps, whose chains the pass makes in BC7 a block in one mode, and the colours' corpus leaves the companion maps
+out, `_spec` with them. So the Fullrest Repack's colours are another draw, 63 files and 45.08 million texels,
+digest `b703d834d804669d1f211f7c46e4e214`: 0.77 s built, 2.68 s encoded, 3.45 s the pass.
+
+The PBR replacers' normal maps, by their headers: 2,762 BC1 `_n`, 1,269 BC3 `_nh`, 123 of four loose bytes, 4 BC3
+`_n` and 3 BC5; 5.45 thousand million texels at their finest levels, every one a format the build reads. The
+corpus drawn of them is 27 files, 44.74 million texels over every level, digest
+`0737a7a9e06ad6b30d2859f31f043be6`. On one core, three runs each:
+
+| benchmark | an iteration | texels a second |
+|---|---|---|
+| `buildNormalChain`, `ChainBuild::build` alone | 0.58 to 0.59 s | 77 million |
+| `encodeNormalBc7`, `ChainBuild::encodeBc7` alone | 1.55 s | 28.9 million |
+| `makeNormalChain`, `ChainPass::run` whole | 2.13 s | 21.0 million |
+
+A texel of a normal map is encoded in 0.57 of the time rgbcx's search takes one of the same folder's painted
+colours now (35 files, 49.73 million texels, 3.03 s). What the encoding loses, over a map's three channels and its height where it holds one: a root mean square of 3.13 of 255,
+38.23 dB, on the replacers' maps, and 5.03, 34.11 dB, on the Fullrest Repack's 45 (47.20 million texels, digest
+`33690e992e56c75f0302e70a8745a86c`).
+
+`perf record -e task-clock -F 1999` over `encodeNormalBc7`, the samples of the encoding alone:
+`evaluate_solution` 48.3%, `color_cell_compression` 17.1%, `encode_bc7_block` 13.0%, `handle_alpha_block` 7.6%,
+`find_optimal_solution` 6.6%, `compute_least_squares_endpoints_rgb` 4.5%, `ChainBuild::encodeBc7` 2.0%. By line:
+`evaluate_solution`'s walk of a cell a pixel at a time, a projection, two palette entries and two distances in
+64-bit sums, 30%; `set_block_bits`, a field written a byte at a time into the block, 7.5%; the rest sums of
+floats a channel at a time. A block is two calls of `evaluate_solution`, one off the cell's principal axis and one
+off the least squares of its selectors.
+
+### The encoder made faster, the blocks the same
+
+bc7enc with the vector instructions x86-64-v2 has, each step the same bytes over 1.12 million made blocks of
+twelve kinds under ten sets of parameters (a normal map's two modes, every mode in RGB(A) and in perceptual
+error, uber levels 1 and 4, other weights, mode 6's endpoints quantized, alpha forced), and over 3.36 million
+again at the end, with its asserts on and off. Time a block of the normal-map set on one core:
+
+| step | a block |
+|---|---|
+| as vendored | 516 to 527 ns |
+| a cell's selectors sixteen pixels at once: the palette a table a channel, a selector's colour a byte shuffle | 349 ns |
+| a block's fields into two 64-bit halves, its selectors packed into one field | 311 ns |
+| the cell's mean, covariance, projection and RGB least squares a lane a sum; mode 5's alphas sixteen at once | 257 to 264 ns |
+
+A sum of floats stays in the order it was added in, a lane a sum, since no reordering makes the same bytes; the
+projection's least and greatest are of the same numbers in another order, which differ by a zero's sign at most,
+and the mean they are added to drops it. The vector walk holds a weight's product in 16 signed bits, so the
+weights of an error are held to 128 each by an assert: bc7enc's own defaults are 128 at most, and the tree
+encodes with those and with one.
+
+The same corpus after, three runs:
+
+| benchmark | before | after |
+|---|---|---|
+| `encodeNormalBc7` | 1.55 s | 0.75 to 0.76 s, 59 to 60 million texels a second |
+| `makeNormalChain` | 2.13 s | 1.32 to 1.33 s |
+
+The digest the same, and the made pictures'. The Fullrest Repack's normal maps encode in 0.75 s. Every mode in
+RGB(A) error, a map of data's, goes from 4,866 to 4,187 ns a block in one run of the two, and a colour's, in
+perceptual error, from 5,609 to 5,451: its selector walk tries every palette entry and stays a pixel at a time.
+Either is sixteen to twenty times a normal map's block, and neither has a corpus here.
+
+The encoder's samples after: `color_cell_compression` 32%, `evaluate_solution` 27%, `find_optimal_solution` 13%,
+`encode_bc7_block` 12%, `handle_alpha_block` 9%, `ChainBuild::encodeBc7` 4%; no line over 4.3%, the largest the
+division inside the principal axis's three power iterations. What is left is chains of float additions and
+divisions whose order the bytes depend on. The build is 43% of a normal map's pass now, 0.58 of 1.32 s.

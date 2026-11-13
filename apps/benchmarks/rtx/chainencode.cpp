@@ -20,12 +20,14 @@
 
 #include <benchmark/benchmark.h>
 
+#include <osg/GL>
 #include <osg/Image>
 #include <osg/Texture> // The S3TC formats, which Windows's gl.h lacks.
 #include <osg/ref_ptr>
 #include <osgDB/Options>
 #include <osgDB/ReaderWriter>
 #include <osgDB/Registry>
+#include <rgbcx/bc7decomp.h>
 #include <rgbcx/rgbcx.h>
 
 #include <components/files/conversion.hpp>
@@ -42,15 +44,16 @@
 #include <components/rtx/preprocess/texture/chainpass.hpp>
 
 // What the loading screen's preparation spends most of its threads on: a painted colour's chain made again in
-// BC1, every level delit and encoded by rgbcx (`docs/research/2026-11-13-preparation-cpu-by-codec.md`).
+// BC1, every level delit and encoded by rgbcx, and a normal map's made in BC7 by bc7enc
+// (`docs/research/2026-11-13-preparation-cpu-by-codec.md`).
 //
-// **Over a corpus of BC1 files, each taken as the chain pass takes it**: the files of the folder
-// `OPENMW_RTX_BENCH_TEXTURES` names, sampled across it up to `sMostTexels`, or three pictures made here where it
-// names none, which is what CTest's dry run and a box with no content read. A number is quoted off a folder of
-// the content's own textures, whose mix of blocks the made pictures do not have.
+// **Over a corpus of each kind, each file taken as the chain pass takes it**: the files of the folder
+// `OPENMW_RTX_BENCH_TEXTURES` names, sampled across it up to `sMostTexels`, or pictures made here where it names
+// none, which is what CTest's dry run and a box with no content read. A number is quoted off a folder of the
+// content's own textures, whose mix of blocks the made pictures do not have.
 //
 // **The label is the corpus and a digest of every byte the pass made of it, and the counters what the encoding
-// lost of it**, so a change to the encoder that moves a byte shows beside the time it bought and the error it cost.
+// lost of it**, so a change to an encoder that moves a byte shows beside the time it bought and the error it cost.
 
 namespace Rtx
 {
@@ -61,36 +64,76 @@ namespace Rtx
         constexpr std::size_t sMostTexels = std::size_t{ 32 } << 20;
         constexpr std::size_t sMostFiles = 512;
 
-        /// A file read as a painted colour, with the chain the pass made of it and the build that stands
-        /// behind that chain. Pinned: its description spans the image and the levels it holds.
-        class PaintedChain
+        /// What a corpus's files are read as, which is the encoder their chains go through.
+        enum class ChainKind : std::uint8_t
+        {
+            /// A BC1 colour read as painted: its whole chain delit and made again in BC1, by rgbcx.
+            PaintedBc1,
+
+            /// A normal map: its whole chain made in BC7, a block in one mode, by bc7enc.
+            NormalBc7,
+        };
+
+        constexpr TextureEncoding encodingOf(ChainKind kind)
+        {
+            return kind == ChainKind::PaintedBc1 ? TextureEncoding::Painted : TextureEncoding::Normal;
+        }
+
+        /// The kind whose corpus a file of this name goes to, by the patterns the settings name a companion
+        /// map with where a player has set no other: a normal map (`_n`, `_nh`) to the normals', a specular
+        /// one (`_spec`) to neither, and every other file to the colours'.
+        std::optional<ChainKind> kindNamed(const std::filesystem::path& path)
+        {
+            const std::string stem = Misc::StringUtils::lowerCase(Files::pathToUnicodeString(path.stem()));
+            if (stem.ends_with("_n") || stem.ends_with("_nh"))
+                return ChainKind::NormalBc7;
+            if (stem.ends_with("_spec"))
+                return std::nullopt;
+            return ChainKind::PaintedBc1;
+        }
+
+        /// A file read as its kind, with the chain the pass made of it and the build that stands behind that
+        /// chain. Pinned: its description spans the image and the levels it holds.
+        class CorpusChain
         {
         public:
-            /// Describes `image` and, where it is a BC1 file, runs the chain pass over it: the pass decides
-            /// how a file's chain is made, so a corpus holds what a preparation would encode in BC1 and
-            /// nothing it would not, and no other format is encoded here to be left out.
-            explicit PaintedChain(osg::ref_ptr<const osg::Image> image)
-                : mImage(std::move(image))
+            /// Describes `image` and runs the chain pass over it: the pass decides how a file's chain is made,
+            /// so a corpus holds what a preparation would encode its kind's way and nothing it would not. A
+            /// painted colour in no BC1 format is left unread, so no other format is encoded to be left out.
+            CorpusChain(osg::ref_ptr<const osg::Image> image, ChainKind kind)
+                : mKind(kind)
+                , mImage(std::move(image))
             {
                 const Result<TextureData, std::string> described
-                    = describeImage(*mImage, TextureEncoding::Painted, mLevels, mTexels);
-                if (!described.isOk() || !isBc1(described.value().mFormat))
+                    = describeImage(*mImage, encodingOf(mKind), mLevels, mTexels);
+                if (!described.isOk() || (mKind == ChainKind::PaintedBc1 && !isBc1(described.value().mFormat)))
                     return;
 
                 mFile = described.value();
                 ChainPass pass(mBuilt);
-                pass.run(ChainPass::Input{ .mImage = *mImage, .mEncoding = TextureEncoding::Painted }, mMade);
+                pass.run(ChainPass::Input{ .mImage = *mImage, .mEncoding = encodingOf(mKind) }, mMade);
+
+                if (mKind == ChainKind::NormalBc7 && isMadeAsItsKind())
+                {
+                    const std::span<const std::byte> finest = mBuilt.getTexels(0);
+                    for (std::size_t texel = 0; texel < finest.size() / 4 && mChannels == 3; ++texel)
+                        if (finest[texel * 4 + 3] != std::byte{ 255 })
+                            mChannels = 4;
+                }
             }
 
-            PaintedChain(const PaintedChain&) = delete;
-            PaintedChain& operator=(const PaintedChain&) = delete;
-            PaintedChain(PaintedChain&&) = delete;
-            PaintedChain& operator=(PaintedChain&&) = delete;
-            ~PaintedChain() = default;
+            CorpusChain(const CorpusChain&) = delete;
+            CorpusChain& operator=(const CorpusChain&) = delete;
+            CorpusChain(CorpusChain&&) = delete;
+            CorpusChain& operator=(CorpusChain&&) = delete;
+            ~CorpusChain() = default;
 
-            /// Whether the pass made the file's whole chain in BC1: a painted colour's with no cut, which is
-            /// not small and chainless.
-            bool isMadeInBc1() const { return mMade.mForm == ChainForm::Own; }
+            /// Whether the pass made the file's whole chain its kind's way: a painted colour's in BC1, which
+            /// has no cut and is not small and chainless, and a normal map's in BC7.
+            bool isMadeAsItsKind() const
+            {
+                return mMade.mForm == (mKind == ChainKind::PaintedBc1 ? ChainForm::Own : ChainForm::Bc7);
+            }
 
             const osg::Image& getImage() const { return *mImage; }
 
@@ -106,27 +149,33 @@ namespace Rtx
                 return texels;
             }
 
-            /// The squares of what the made chain's red, green and blue decode to less the built texels they
-            /// were encoded from, summed over every level: what the encoding lost.
+            /// How many channels of a texel the chain holds, which its error is measured over: a colour's three,
+            /// and a normal map's three with its height where its finest level holds one, so a map with none
+            /// does not count a channel that nothing can be lost of.
+            std::size_t countChannels() const { return mChannels; }
+
+            /// The squares of what the made chain's channels decode to less the built texels they were encoded
+            /// from, summed over every level and each of `countChannels`: what the encoding lost.
             std::uint64_t measureSquaredError() const
             {
-                assert(isMadeInBc1() && "an error measured of a chain the pass did not make in BC1");
+                assert(isMadeAsItsKind() && "an error measured of a chain the pass made another way");
+                const TextureFormat made
+                    = ChainPass::madeLayout({ .mImage = *mImage, .mEncoding = encodingOf(mKind) }, mMade.mForm)
+                          ->mFormat;
                 std::uint64_t squares = 0;
                 std::vector<std::uint8_t> decoded;
                 std::size_t at = 0;
                 for (std::uint32_t level = 0; level < mBuilt.getLevelCount(); ++level)
                 {
                     const MipLevel& laid = mBuilt.getLevel(level);
-                    const std::size_t bytes = layoutOf(mFile->mFormat).levelBytes(laid.mWidth, laid.mHeight);
+                    const std::size_t bytes = layoutOf(made).levelBytes(laid.mWidth, laid.mHeight);
                     decoded.resize(std::size_t{ laid.mWidth } * laid.mHeight * 4);
-                    [[maybe_unused]] const bool read = decodeBlocks(
-                        mFile->mFormat, getMade().subspan(at, bytes), laid.mWidth, laid.mHeight, decoded);
-                    assert(read && "a made chain that does not decode as the file's format");
+                    decodeLevel(getMade().subspan(at, bytes), laid, decoded);
                     at += bytes;
 
                     const std::span<const std::byte> built = mBuilt.getTexels(level);
                     for (std::size_t texel = 0; texel < decoded.size() / 4; ++texel)
-                        for (std::size_t channel = 0; channel < 3; ++channel)
+                        for (std::size_t channel = 0; channel < mChannels; ++channel)
                         {
                             const int lost = int{ decoded[texel * 4 + channel] }
                                 - std::to_integer<int>(built[texel * 4 + channel]);
@@ -137,55 +186,93 @@ namespace Rtx
                 return squares;
             }
 
-            /// Builds the chain again in `into`, as the pass built it: its levels read, delit and boxed.
+            /// Builds the chain again in `into`, as the pass built it: its levels read and boxed, a painted
+            /// colour's delit.
             void build(ChainBuild& into) const
             {
-                assert(isMadeInBc1() && "a chain built that the pass did not make in BC1");
+                assert(isMadeAsItsKind() && "a chain built that the pass made another way");
                 into.build(*mFile, mBuilt.getLevelCount());
             }
 
-            /// Appends the built chain to `into` in BC1, as the pass encodes a painted colour's
-            /// (`ChainBuild::encode` from its finest level).
+            /// Appends the built chain to `into` as the pass encodes its kind's: a painted colour's in BC1 from
+            /// its finest level (`ChainBuild::encode`), a normal map's in BC7 (`ChainBuild::encodeBc7`).
             void encode(Misc::ByteBuffer& into) const
             {
-                assert(isMadeInBc1() && "a chain encoded that the pass did not make in BC1");
-                mBuilt.encode(*mFile, 0, into);
+                assert(isMadeAsItsKind() && "a chain encoded that the pass made another way");
+                if (mKind == ChainKind::PaintedBc1)
+                    mBuilt.encode(*mFile, 0, into);
+                else
+                    mBuilt.encodeBc7(encodingOf(mKind), into);
             }
 
         private:
+            /// One made level's blocks as RGBA8, rows tight, the blocks past its edge cut off.
+            void decodeLevel(
+                std::span<const std::byte> blocks, const MipLevel& laid, std::span<std::uint8_t> into) const
+            {
+                if (mKind == ChainKind::PaintedBc1)
+                {
+                    [[maybe_unused]] const bool read
+                        = decodeBlocks(mFile->mFormat, blocks, laid.mWidth, laid.mHeight, into);
+                    assert(read && "a made chain that does not decode as the file's format");
+                    return;
+                }
+
+                const std::uint32_t across = (laid.mWidth + 3) / 4;
+                for (std::size_t block = 0; block < blocks.size() / 16; ++block)
+                {
+                    std::array<bc7decomp::color_rgba, 16> sixteen{};
+                    [[maybe_unused]] const bool read
+                        = bc7decomp::unpack_bc7(blocks.data() + block * 16, sixteen.data());
+                    assert(read && "a made block that is no BC7 block");
+                    const auto bx = static_cast<std::uint32_t>(block % across) * 4;
+                    const auto by = static_cast<std::uint32_t>(block / across) * 4;
+                    for (std::uint32_t y = by; y < std::min(by + 4, laid.mHeight); ++y)
+                        for (std::uint32_t x = bx; x < std::min(bx + 4, laid.mWidth); ++x)
+                            std::memcpy(into.data() + (std::size_t{ y } * laid.mWidth + x) * 4,
+                                &sixteen[std::size_t{ y - by } * 4 + (x - bx)], 4);
+                }
+            }
+
+            ChainKind mKind;
             osg::ref_ptr<const osg::Image> mImage;
             std::vector<MipLevel> mLevels;
             std::vector<std::byte> mTexels;
             std::optional<TextureData> mFile;
             ChainBuild mBuilt;
             MadeChain mMade;
+            std::size_t mChannels = 3;
         };
 
-        /// The files a run encodes, and what names them in its label.
+        /// The files of one kind a run encodes, and what names them in its label.
         struct Corpus
         {
-            std::vector<std::unique_ptr<PaintedChain>> mChains;
+            ChainKind mKind;
+            std::vector<std::unique_ptr<CorpusChain>> mChains{};
 
             /// The texels of every level the pass encodes, and of the finest levels alone.
             std::size_t mTexels = 0;
             std::size_t mFinestTexels = 0;
 
-            /// What the encoding lost of them (`PaintedChain::measureSquaredError`).
+            /// What the encoding lost of them (`CorpusChain::measureSquaredError`), and how many values of a
+            /// channel that is over: each chain's texels times its channels.
             std::uint64_t mSquaredError = 0;
+            std::size_t mSamples = 0;
 
             /// Every byte the pass made of the files, in their order.
-            Misc::HashState mMade;
+            Misc::HashState mMade{};
 
-            /// Adds `image` where the pass makes its whole chain in BC1, and leaves it out where not.
+            /// Adds `image` where the pass makes its whole chain the corpus's way, and leaves it out where not.
             void add(osg::ref_ptr<const osg::Image> image)
             {
-                auto chain = std::make_unique<PaintedChain>(std::move(image));
-                if (!chain->isMadeInBc1())
+                auto chain = std::make_unique<CorpusChain>(std::move(image), mKind);
+                if (!chain->isMadeAsItsKind())
                     return;
 
                 mTexels += chain->countTexels();
                 mFinestTexels += chain->countTexels() - chain->countTexels(1);
                 mSquaredError += chain->measureSquaredError();
+                mSamples += chain->countTexels() * chain->countChannels();
                 mMade.add(chain->getMade());
                 mChains.push_back(std::move(chain));
             }
@@ -200,8 +287,7 @@ namespace Rtx
             /// square a channel, in bytes, and the same as a peak signal-to-noise ratio in decibels.
             void report(benchmark::State& state) const
             {
-                const double rmse
-                    = std::sqrt(static_cast<double>(mSquaredError) / (3.0 * static_cast<double>(mTexels)));
+                const double rmse = std::sqrt(static_cast<double>(mSquaredError) / static_cast<double>(mSamples));
                 state.SetItemsProcessed(state.iterations() * static_cast<std::int64_t>(mTexels));
                 state.counters["rmse"] = rmse;
                 state.counters["psnr"] = 20.0 * std::log10(255.0 / rmse);
@@ -209,10 +295,9 @@ namespace Rtx
             }
         };
 
-        /// The `.dds` files under `folder`, `sMostFiles` of them at most, spaced evenly over their sorted
-        /// paths and read as the game's loader reads one, until the corpus holds `sMostTexels`. Throws
-        /// `std::filesystem::filesystem_error` where the folder cannot be walked.
-        Corpus readCorpus(const std::filesystem::path& folder)
+        /// The `.dds` files under `folder`, their paths in order. Throws `std::filesystem::filesystem_error`
+        /// where the folder cannot be walked.
+        std::vector<std::filesystem::path> listTextures(const std::filesystem::path& folder)
         {
             std::vector<std::filesystem::path> paths;
             for (const std::filesystem::directory_entry& entry : std::filesystem::recursive_directory_iterator(
@@ -221,6 +306,17 @@ namespace Rtx
                     && Misc::StringUtils::lowerCase(Files::pathToUnicodeString(entry.path().extension())) == ".dds")
                     paths.push_back(entry.path());
             std::ranges::sort(paths);
+            return paths;
+        }
+
+        /// The files of `paths` named as `kind`'s (`kindNamed`), `sMostFiles` of them at most, spaced evenly
+        /// over their order and read as the game's loader reads one, until the corpus holds `sMostTexels`.
+        Corpus readCorpus(std::span<const std::filesystem::path> paths, ChainKind kind)
+        {
+            std::vector<const std::filesystem::path*> named;
+            for (const std::filesystem::path& path : paths)
+                if (kindNamed(path) == kind)
+                    named.push_back(&path);
 
             osgDB::ReaderWriter* const reader = osgDB::Registry::instance()->getReaderWriterForExtension("dds");
             assert(reader != nullptr && "the build links the reader of .dds files into every program");
@@ -231,14 +327,14 @@ namespace Rtx
             // **The sampled paths visited a golden step apart**, so a corpus that fills after a few files holds
             // files from across the folder and not its first names: the step is the count's golden section,
             // moved up to share no factor with it, so the walk meets every sampled path once.
-            Corpus corpus;
-            const std::size_t sampled = std::min(paths.size(), sMostFiles);
+            Corpus corpus{ .mKind = kind };
+            const std::size_t sampled = std::min(named.size(), sMostFiles);
             auto step = std::max<std::size_t>(static_cast<std::size_t>(static_cast<double>(sampled) * 0.6180339887), 1);
             while (std::gcd(step, sampled) != 1)
                 ++step;
             for (std::size_t visit = 0; visit < sampled && corpus.mFinestTexels < sMostTexels; ++visit)
             {
-                std::ifstream stream(paths[visit * step % sampled * paths.size() / sampled], std::ios::binary);
+                std::ifstream stream(*named[visit * step % sampled * named.size() / sampled], std::ios::binary);
                 // Not `const`: OpenSceneGraph hands a result's image out through a member that is not.
                 osgDB::ReaderWriter::ReadResult read = reader->readImage(stream, options.get());
                 if (read.validImage())
@@ -368,26 +464,61 @@ namespace Rtx
             return image;
         }
 
-        /// Three pictures made here: stone, wood and plaster, a square and two oblongs.
-        Corpus makeCorpus()
+        /// A normal map made here, `side` square and loose, one level: the slopes of a rolling height, with
+        /// that height in its alpha where `height` asks and opaque where not, so the one's blocks are encoded
+        /// in the mode that holds a height and the other's in the mode that holds none.
+        osg::ref_ptr<const osg::Image> makeNormalMap(std::uint32_t side, bool height, std::uint32_t seed)
         {
+            const auto heightAt = [&](std::uint32_t x, std::uint32_t y) {
+                return cloudAt(static_cast<float>(x % side) / 32.0f, static_cast<float>(y % side) / 32.0f, seed);
+            };
+            auto* const data = new unsigned char[std::size_t{ side } * side * 4];
+            for (std::uint32_t y = 0; y < side; ++y)
+                for (std::uint32_t x = 0; x < side; ++x)
+                {
+                    const float across = (heightAt(x + 1, y) - heightAt(x + side - 1, y)) * 8.0f;
+                    const float down = (heightAt(x, y + 1) - heightAt(x, y + side - 1)) * 8.0f;
+                    const float length = std::sqrt(across * across + down * down + 1.0f);
+                    const std::array<float, 4> texel{ -across / length * 0.5f + 0.5f, -down / length * 0.5f + 0.5f,
+                        1.0f / length * 0.5f + 0.5f, height ? heightAt(x, y) : 1.0f };
+                    for (std::size_t channel = 0; channel < 4; ++channel)
+                        data[(std::size_t{ y } * side + x) * 4 + channel]
+                            = static_cast<unsigned char>(std::lround(std::clamp(texel[channel], 0.0f, 1.0f) * 255.0f));
+                }
+
+            osg::ref_ptr<osg::Image> image = new osg::Image;
+            image->setImage(static_cast<int>(side), static_cast<int>(side), 1, GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE,
+                data, osg::Image::USE_NEW_DELETE);
+            return image;
+        }
+
+        /// The pictures made here for a kind: stone, wood and plaster, a square and two oblongs, for the
+        /// colours; and two normal maps, one with a height and one without.
+        Corpus makeCorpus(ChainKind kind)
+        {
+            Corpus corpus{ .mKind = kind };
+            if (kind == ChainKind::NormalBc7)
+            {
+                corpus.add(makeNormalMap(256, true, 4));
+                corpus.add(makeNormalMap(256, false, 5));
+                return corpus;
+            }
+
             // rgbcx's tables, for the pictures' own blocks: `ChainBuild` makes the same ones again by its own
             // flag, on this thread.
             rgbcx::init(rgbcx::bc1_approx_mode::cBC1Ideal);
-
-            Corpus corpus;
             corpus.add(makePicture(512, 512, Palette{ { 0.42f, 0.38f, 0.33f }, { 0.25f, 0.27f, 0.22f } }, 1));
             corpus.add(makePicture(256, 512, Palette{ { 0.45f, 0.30f, 0.18f }, { 0.22f, 0.14f, 0.08f } }, 2));
             corpus.add(makePicture(256, 128, Palette{ { 0.75f, 0.70f, 0.60f }, { 0.55f, 0.50f, 0.45f } }, 3));
             return corpus;
         }
 
-        /// The build alone: every file's levels read, delit and boxed, with no block encoded.
-        void buildPaintedChain(benchmark::State& state, const Corpus& corpus)
+        /// The build alone: every file's levels read and boxed, a painted colour's delit, with no block encoded.
+        void buildChains(benchmark::State& state, const Corpus& corpus)
         {
             ChainBuild build;
             for ([[maybe_unused]] auto _ : state)
-                for (const std::unique_ptr<PaintedChain>& chain : corpus.mChains)
+                for (const std::unique_ptr<CorpusChain>& chain : corpus.mChains)
                 {
                     chain->build(build);
                     benchmark::DoNotOptimize(build.getTexels(0).data());
@@ -395,13 +526,13 @@ namespace Rtx
             corpus.report(state);
         }
 
-        /// The encoder alone: every built chain of the corpus into BC1, which is the chain the pass made of
-        /// it, byte for byte.
-        void encodePaintedBc1(benchmark::State& state, const Corpus& corpus)
+        /// The encoder alone: every built chain of the corpus encoded, which is the chain the pass made of it,
+        /// byte for byte.
+        void encodeChains(benchmark::State& state, const Corpus& corpus)
         {
             Misc::ByteBuffer made;
             for ([[maybe_unused]] auto _ : state)
-                for (const std::unique_ptr<PaintedChain>& chain : corpus.mChains)
+                for (const std::unique_ptr<CorpusChain>& chain : corpus.mChains)
                 {
                     made.clear();
                     chain->encode(made);
@@ -412,27 +543,73 @@ namespace Rtx
         }
 
         /// What a preparation thread runs for a file: the pass whole, its read, its build and its encoding.
-        void makePaintedChain(benchmark::State& state, const Corpus& corpus)
+        void makeChains(benchmark::State& state, const Corpus& corpus)
         {
             ChainBuild build;
             ChainPass pass(build);
             MadeChain made;
             for ([[maybe_unused]] auto _ : state)
-                for (const std::unique_ptr<PaintedChain>& chain : corpus.mChains)
+                for (const std::unique_ptr<CorpusChain>& chain : corpus.mChains)
                 {
                     pass.run(
-                        ChainPass::Input{ .mImage = chain->getImage(), .mEncoding = TextureEncoding::Painted }, made);
+                        ChainPass::Input{ .mImage = chain->getImage(), .mEncoding = encodingOf(corpus.mKind) }, made);
                     benchmark::DoNotOptimize(made.mBytes.data());
                 }
             corpus.report(state);
         }
 
-        /// The corpus the run names: the folder's where `OPENMW_RTX_BENCH_TEXTURES` names one, the made
-        /// pictures where it names none.
-        Corpus standCorpus()
+        /// What a kind's three benchmarks are called: its build, its encoder and its pass.
+        struct KindNames
+        {
+            const char* mBuild;
+            const char* mEncode;
+            const char* mMake;
+        };
+
+        constexpr KindNames namesOf(ChainKind kind)
+        {
+            return kind == ChainKind::PaintedBc1
+                ? KindNames{ "buildPaintedChain", "encodePaintedBc1", "makePaintedChain" }
+                : KindNames{ "buildNormalChain", "encodeNormalBc7", "makeNormalChain" };
+        }
+
+        /// Registers a corpus's three benchmarks, which hold it by reference: the caller keeps it past the run.
+        void registerChains(const Corpus& corpus)
+        {
+            const KindNames names = namesOf(corpus.mKind);
+            benchmark::RegisterBenchmark(names.mBuild, [&corpus](benchmark::State& state) {
+                buildChains(state, corpus);
+            })->Unit(benchmark::kMillisecond);
+            benchmark::RegisterBenchmark(names.mEncode, [&corpus](benchmark::State& state) {
+                encodeChains(state, corpus);
+            })->Unit(benchmark::kMillisecond);
+            benchmark::RegisterBenchmark(names.mMake, [&corpus](benchmark::State& state) {
+                makeChains(state, corpus);
+            })->Unit(benchmark::kMillisecond);
+        }
+
+        /// The run's corpora, a kind each and in the kinds' order: the folder's where
+        /// `OPENMW_RTX_BENCH_TEXTURES` names one, the made pictures where it names none. And their benchmarks
+        /// run, a kind with no file having none; false where no kind has a file.
+        bool runChains()
         {
             const char* const folder = std::getenv("OPENMW_RTX_BENCH_TEXTURES");
-            return folder != nullptr ? readCorpus(folder) : makeCorpus();
+            const std::vector<std::filesystem::path> paths
+                = folder != nullptr ? listTextures(folder) : std::vector<std::filesystem::path>();
+            const auto stand
+                = [&](ChainKind kind) { return folder != nullptr ? readCorpus(paths, kind) : makeCorpus(kind); };
+            const std::array<Corpus, 2> corpora{ stand(ChainKind::PaintedBc1), stand(ChainKind::NormalBc7) };
+
+            bool any = false;
+            for (const Corpus& corpus : corpora)
+                if (!corpus.mChains.empty())
+                {
+                    registerChains(corpus);
+                    any = true;
+                }
+            if (any)
+                benchmark::RunSpecifiedBenchmarks();
+            return any;
         }
     }
 }
@@ -445,25 +622,13 @@ int main(int argc, char** argv)
 
     try
     {
-        const Rtx::Corpus corpus = Rtx::standCorpus();
-        if (corpus.mChains.empty())
+        if (!Rtx::runChains())
         {
-            std::fputs("no BC1 file under OPENMW_RTX_BENCH_TEXTURES makes a painted chain\n", stderr);
+            std::fputs(
+                "no file under OPENMW_RTX_BENCH_TEXTURES makes a painted chain in BC1 or a normal map's in BC7\n",
+                stderr);
             return 1;
         }
-
-        // The corpus is the run's, made once and lent to each benchmark, which the registry runs and lets go
-        // of inside this block.
-        benchmark::RegisterBenchmark("buildPaintedChain", [&corpus](benchmark::State& state) {
-            Rtx::buildPaintedChain(state, corpus);
-        })->Unit(benchmark::kMillisecond);
-        benchmark::RegisterBenchmark("encodePaintedBc1", [&corpus](benchmark::State& state) {
-            Rtx::encodePaintedBc1(state, corpus);
-        })->Unit(benchmark::kMillisecond);
-        benchmark::RegisterBenchmark("makePaintedChain", [&corpus](benchmark::State& state) {
-            Rtx::makePaintedChain(state, corpus);
-        })->Unit(benchmark::kMillisecond);
-        benchmark::RunSpecifiedBenchmarks();
         benchmark::Shutdown();
     }
     catch (const std::filesystem::filesystem_error& error)
