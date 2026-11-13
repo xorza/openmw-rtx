@@ -179,6 +179,37 @@ namespace RtxTool
             EXPECT_DOUBLE_EQ(FrameTimes{}.getLowRate(), 0.0);
         }
 
+        /// **The timings' table lines up under its longest name**: `preprocess ms`, thirteen characters, sets the
+        /// names' column at fourteen, and every row is the 2 + 14 + 9 + 5 × 10 = 75 characters of the headings.
+        TEST(RtxFrameTimesTest, theTimingsLineUpUnderTheLongestName)
+        {
+            std::array<FrameTimes, Rtx::sTimingCount> rows{};
+            rows[Rtx::indexOf(Rtx::Timing::Frame)] = FrameTimes{
+                .mMean = 4.73, .mMedian = 4.42, .mP95 = 6.86, .mP99 = 13.37, .mBest = 1.64, .mWorst = 17.75
+            };
+            rows[Rtx::indexOf(Rtx::Timing::Preprocess)]
+                = FrameTimes{ .mMean = 0.01, .mMedian = 0.0, .mP95 = 0.03, .mP99 = 0.06, .mBest = 0.0, .mWorst = 0.1 };
+
+            const std::string table = describeTimings(rows);
+            std::vector<std::string_view> lines;
+            for (std::size_t at = 0; at < table.size();)
+            {
+                const std::size_t end = table.find('\n', at);
+                ASSERT_NE(end, std::string::npos) << "every row ends its line";
+                lines.push_back(std::string_view(table).substr(at, end - at));
+                at = end + 1;
+            }
+
+            ASSERT_EQ(lines.size(), 1 + Rtx::sTimingCount) << "the headings and a row a timing";
+            EXPECT_EQ(lines[0], "                   median      mean       p95       p99      best     worst");
+            EXPECT_EQ(lines[1 + Rtx::indexOf(Rtx::Timing::Frame)],
+                "  frame ms           4.42      4.73      6.86     13.37      1.64     17.75");
+            EXPECT_EQ(lines[1 + Rtx::indexOf(Rtx::Timing::Preprocess)],
+                "  preprocess ms      0.00      0.01      0.03      0.06      0.00      0.10");
+            for (const std::string_view line : lines)
+                EXPECT_EQ(line.size(), 75u) << line;
+        }
+
         /// A zone is quoted by what it cost the run and not by what it cost a frame that ran it.
         ///
         /// **The row has to be summable**: a median of the frames a pass ran in printed `blas 7.51` above

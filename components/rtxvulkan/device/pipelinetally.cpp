@@ -34,15 +34,10 @@ namespace Rtx
                 break;
         }
 
-        if (!made.mStatistics.has_value())
-            return;
-
-        ++mSummary.mWithStatistics;
-        if (made.mStatistics->mExecutables == 0)
+        if (made.mExecutables == 0)
             ++mSummary.mWithoutExecutable;
-        if (made.mStatistics->mScratchBytes > 0)
-            mSummary.mSpills.push_back(
-                PipelineSpill{ .mName = std::string(made.mName), .mBytes = made.mStatistics->mScratchBytes });
+        if (made.mScratchBytes > 0)
+            mSummary.mSpills.push_back(PipelineSpill{ .mName = std::string(made.mName), .mBytes = made.mScratchBytes });
     }
 
     PipelineSummary PipelineTally::take(const std::chrono::steady_clock::time_point now)
@@ -70,8 +65,7 @@ namespace Rtx
             line += std::format("; {:.2f} s compiling, the slowest \"{}\" at {:.2f} ms", summary.mCompileMs / 1000.0,
                 summary.mSlowest->mName, summary.mSlowest->mMs);
         if (summary.mWithoutExecutable > 0)
-            line += std::format("; {} of the {} asked for statistics with no executable the driver reports",
-                summary.mWithoutExecutable, summary.mWithStatistics);
+            line += std::format("; {} with no executable the driver reports", summary.mWithoutExecutable);
         return line;
     }
 

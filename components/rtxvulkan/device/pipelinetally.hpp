@@ -30,23 +30,17 @@ namespace Rtx
         double mDurationMs = 0.0;
     };
 
-    /// What the driver's statistics say of a pipeline, where the device asks for them
-    /// (`PipelineStatistics::Captured`).
-    struct PipelineStatisticsSaid
+    /// One pipeline as the device reported it (`Device::reportPipeline`): what its making took, and what
+    /// the driver's statistics say of it.
+    struct PipelineMade
     {
+        std::string_view mName;
+        PipelineFeedback mFeedback;
         std::uint32_t mExecutables = 0;
 
         /// The most scratch memory a lane of any of its executables uses, in bytes
         /// (`CompiledUse::mScratchBytes`).
         std::uint64_t mScratchBytes = 0;
-    };
-
-    /// One pipeline as the device reported it (`Device::reportPipeline`).
-    struct PipelineMade
-    {
-        std::string_view mName;
-        PipelineFeedback mFeedback;
-        std::optional<PipelineStatisticsSaid> mStatistics;
     };
 
     struct PipelineSpill
@@ -72,9 +66,7 @@ namespace Rtx
         double mCompileMs = 0.0;
         std::optional<PipelineSlowest> mSlowest;
 
-        /// How many were made with statistics, and how many of those the driver made of no executable
-        /// it reports: NVIDIA's ray tracing pipelines.
-        std::uint32_t mWithStatistics = 0;
+        /// How many the driver made of no executable it reports: NVIDIA's ray tracing pipelines.
         std::uint32_t mWithoutExecutable = 0;
 
         /// Every pipeline whose lanes use scratch memory, the most first, then by name.

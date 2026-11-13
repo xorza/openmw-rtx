@@ -164,12 +164,12 @@ namespace Rtx
         bool mZoneCounters = false;
     };
 
-    /// What a renderer's frames report, chosen once as it is made: the four figures a report reads
+    /// What a renderer's frames report, chosen once as it is made: the three figures a report reads
     /// and nothing a player does ever reads, made together or not at all.
     enum class Reporting
     {
-        /// None of them: the counts' atomics, the zones' timestamps, the digest's pass and buffers
-        /// and the pipelines' statistics are never made.
+        /// None of them: the counts' atomics, the zones' timestamps and the digest's pass and buffers
+        /// are never made.
         Played,
 
         /// All of them.
@@ -649,7 +649,8 @@ namespace Rtx
         /// player does reaches the screen two refreshes later and not as many as the queue holds.
         virtual void awaitPresented() = 0;
 
-        /// Multi-line report: the device and what it can trace with.
+        /// Multi-line report, a newline between lines and none after the last: the device and what it can
+        /// trace with.
         virtual std::string describeDevice() const = 0;
 
         /// Which card the renderer runs on, for an instrument that reads that card's clock.

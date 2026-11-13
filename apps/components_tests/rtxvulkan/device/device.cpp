@@ -28,6 +28,7 @@
 #include <components/rtxvulkan/device/pipelinecache.hpp>
 #include <components/rtxvulkan/device/requirements.hpp>
 #include <components/rtxvulkan/device/result.hpp>
+#include <components/rtxvulkan/vulkanrenderer.hpp>
 
 namespace Rtx
 {
@@ -253,6 +254,13 @@ namespace Rtx
                 report.find(mHarness.mDevice->getPhysicalDevice().getProperties().mProperties2.properties.deviceName),
                 std::string::npos);
             EXPECT_NE(report.find("max primitive count"), std::string::npos);
+
+            // **The renderer's description holds it and ends with its own last line**, which the game's log writes
+            // under a heading and `info` ends itself: a newline after it was a blank line in every log.
+            const std::string description = Testing::getRenderer().describeDevice();
+            EXPECT_NE(description.find(report), std::string::npos);
+            EXPECT_TRUE(description.starts_with("loader:")) << description;
+            EXPECT_TRUE(description.ends_with("logical device and every required entry point: ok")) << description;
         }
     }
 }

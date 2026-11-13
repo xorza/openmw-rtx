@@ -103,9 +103,9 @@ namespace Rtx::Testing
         if (vkEnumeratePhysicalDevices(harness->mInstance->getHandle(), &count, nullptr) != VK_SUCCESS || count == 0)
             throw std::runtime_error("no Vulkan device is installed");
 
-        harness->mDevice = std::make_unique<Device>(*harness->mInstance,
-            PhysicalDevice::select(harness->mInstance->getHandle(), {}), getCensusShaders(), getPipelineCacheSpec(),
-            DeviceReport{ .mStatistics = PipelineStatistics::Captured, .mMarkers = true, .mCheckpoints = true });
+        harness->mDevice
+            = std::make_unique<Device>(*harness->mInstance, PhysicalDevice::select(harness->mInstance->getHandle(), {}),
+                getCensusShaders(), getPipelineCacheSpec(), DeviceReport{ .mMarkers = true, .mCheckpoints = true });
         if (ValidationLog* log = harness->mInstance->getValidationLog(); log != nullptr)
             log->takeErrorsOnThisThread(harness->mMadeWith);
 

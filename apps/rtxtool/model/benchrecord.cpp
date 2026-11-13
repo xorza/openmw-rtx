@@ -516,9 +516,7 @@ namespace RtxTool
 
         if (!measured)
             out += "  not a measurement: this command draws its frames to look at them, and times them as it goes\n";
-        out += describeHeadings();
-        for (const Rtx::Timing timing : Rtx::sTimings.values())
-            out += describeTimes(std::format("{} ms", Rtx::sTimings.name(timing)), place.mRows[indexOf(timing)]);
+        out += describeTimings(place.mRows);
 
         // The device's own account of the same frame, one figure each: six distributions would be a wall, and this
         // row answers which of them is the expensive one. Each figure is the zone's share of the average frame, so

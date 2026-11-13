@@ -488,8 +488,6 @@ namespace Rtx
         if (point == VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR)
             use.mStackBytes = vkGetRayTracingShaderGroupStackSizeKHR(
                 mHandle.get(), pipeline, 0, VK_SHADER_GROUP_SHADER_GENERAL_KHR);
-        if (mReport.mStatistics == PipelineStatistics::Skipped)
-            return use;
 
         const std::vector<VkPipelineExecutablePropertiesKHR> executables = executablePropertiesOf(pipeline);
         const StatisticNames& names = mPhysicalDevice.getDriver().mStatistics;
@@ -528,43 +526,38 @@ namespace Rtx
             }
         }
 
-        PipelineMade made{ .mName = name, .mFeedback = feedback, .mStatistics = std::nullopt };
-        if (mReport.mStatistics == PipelineStatistics::Captured || mCode != nullptr)
+        const std::vector<VkPipelineExecutablePropertiesKHR> executables = executablePropertiesOf(pipeline);
+        const auto count = static_cast<std::uint32_t>(executables.size());
+        const std::uint32_t copy = mCode != nullptr ? mCode->claim(name) : 0;
+
+        // Said rather than left as a missing part of the line: NVIDIA's compiler reports no executable for a
+        // ray tracing pipeline and no internal representation for any, so a reader could not otherwise tell it
+        // from a call nobody made. Nsight Graphics is where that is read.
+        if (count == 0 && listed)
+            line += "; the driver reports no executable";
+
+        const StatisticNames& names = mPhysicalDevice.getDriver().mStatistics;
+        CompiledUse use;
+        for (std::uint32_t executable = 0; executable < count; ++executable)
         {
-            const std::vector<VkPipelineExecutablePropertiesKHR> executables = executablePropertiesOf(pipeline);
-            const auto count = static_cast<std::uint32_t>(executables.size());
-            const std::uint32_t copy = mCode != nullptr ? mCode->claim(name) : 0;
+            if (mCode != nullptr)
+                writeCode(pipeline, name, copy, executable, count);
 
-            // Said rather than left as a missing part of the line: NVIDIA's compiler reports no executable
-            // for a ray tracing pipeline and no internal representation for any, so a reader could not
-            // otherwise tell it from a call nobody made. Nsight Graphics is where that is read.
-            if (count == 0 && listed)
-                line += "; the driver reports no executable";
-
-            const StatisticNames& names = mPhysicalDevice.getDriver().mStatistics;
-            CompiledUse use;
-            for (std::uint32_t executable = 0; executable < count; ++executable)
-            {
-                if (mCode != nullptr)
-                    writeCode(pipeline, name, copy, executable, count);
-                if (mReport.mStatistics == PipelineStatistics::Skipped)
-                    continue;
-
-                const std::vector<VkPipelineExecutableStatisticKHR> statistics = statisticsOf(pipeline, executable);
-                for (const VkPipelineExecutableStatisticKHR& statistic : statistics)
-                    readUse(use, statistic, names);
-                if (listed)
-                    line += std::format("; {}{}{}", count > 1 ? executables[executable].name : "",
-                        count > 1 ? ": " : "", describeStatistics(statistics, names));
-            }
-            if (mReport.mStatistics == PipelineStatistics::Captured)
-                made.mStatistics
-                    = PipelineStatisticsSaid{ .mExecutables = count, .mScratchBytes = use.mScratchBytes.value_or(0) };
+            const std::vector<VkPipelineExecutableStatisticKHR> statistics = statisticsOf(pipeline, executable);
+            for (const VkPipelineExecutableStatisticKHR& statistic : statistics)
+                readUse(use, statistic, names);
+            if (listed)
+                line += std::format("; {}{}{}", count > 1 ? executables[executable].name : "", count > 1 ? ": " : "",
+                    describeStatistics(statistics, names));
         }
 
         if (listed)
             Log(Debug::Debug) << line;
-        mPipelines->add(made, std::chrono::steady_clock::now());
+        mPipelines->add(PipelineMade{ .mName = name,
+                            .mFeedback = feedback,
+                            .mExecutables = count,
+                            .mScratchBytes = use.mScratchBytes.value_or(0) },
+            std::chrono::steady_clock::now());
     }
 
     void Device::logPipelineSummary(const std::string_view what)

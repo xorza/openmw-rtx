@@ -197,7 +197,7 @@ namespace MWRender
         mUpscale = setup.mRun.mProfile.mUpscale;
 
         // What `auto` came to is the device's description's `upscaler` line.
-        Log(Debug::Info) << "Ray tracing on " << mRenderer->describeDevice();
+        Log(Debug::Info) << "Ray tracing device\n" << mRenderer->describeDevice();
 
         // A driver that takes a crash signal for itself as it starts leaves the crash catcher blind to every
         // crash after it.

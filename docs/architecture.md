@@ -478,6 +478,10 @@ bounce (or `unbounced` in their place), then the composite. Every ray is a ray q
   ceiling rising only inside the waves it allowed (`research/2026-10-22-amd-integrated-spill-ceilings.md`). Measured
   on the shipped modules, as a measured run of the harness reads them: the census's counting, which the test devices
   carry, cost every AMD kernel up to five registers more and is no part of what the game runs.
+- **Every pipeline captures its statistics**, the game's as well as the harness's, so a player's log names a kernel
+  that spills (`Device::logPipelineSummary`): NVIDIA's driver kept its pipeline cache under the flag and compiled no
+  slower, and RADV keys its cache on it without skipping it (`research/2026-11-13-pipeline-statistics-cost.md`).
+  Refused: statistics only where a harness run reads them, which left a spill on a player's card unseen.
 - **A stage a kernel, the channels between them**, as Quake II RTX traces its stages as passes: one kernel carrying
   every walk's record spilled 67 KB a lane (`research/2026-10-21-amd-integrated-stage-times.md`). Refused: a wavefront
   with queues, records in a buffer, every point's light stored.

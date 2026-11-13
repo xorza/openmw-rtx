@@ -289,16 +289,23 @@ namespace RtxTool
         return mZones;
     }
 
-    std::string describeHeadings()
+    std::string describeTimings(const std::array<FrameTimes, Rtx::sTimingCount>& rows)
     {
-        return std::format(
-            "  {:<9}{:>9}{:>10}{:>10}{:>10}{:>10}{:>10}\n", "", "median", "mean", "p95", "p99", "best", "worst");
-    }
+        constexpr std::string_view sUnit = " ms";
+        std::size_t width = 0;
+        for (const Rtx::Timing timing : Rtx::sTimings.values())
+            width = std::max(width, Rtx::sTimings.name(timing).size() + sUnit.size());
 
-    std::string describeTimes(std::string_view heading, const FrameTimes& times)
-    {
-        return std::format("  {:<9}{:9.2f}{:10.2f}{:10.2f}{:10.2f}{:10.2f}{:10.2f}\n", heading, times.mMedian,
-            times.mMean, times.mP95, times.mP99, times.mBest, times.mWorst);
+        std::string table = std::format("  {:<{}}{:>9}{:>10}{:>10}{:>10}{:>10}{:>10}\n", "", width + 1, "median",
+            "mean", "p95", "p99", "best", "worst");
+        for (const Rtx::Timing timing : Rtx::sTimings.values())
+        {
+            const FrameTimes& times = rows[Rtx::indexOf(timing)];
+            table += std::format("  {:<{}}{:9.2f}{:10.2f}{:10.2f}{:10.2f}{:10.2f}{:10.2f}\n",
+                std::format("{}{}", Rtx::sTimings.name(timing), sUnit), width + 1, times.mMedian, times.mMean,
+                times.mP95, times.mP99, times.mBest, times.mWorst);
+        }
+        return table;
     }
 
     std::string describeZone(const GpuZone& zone)

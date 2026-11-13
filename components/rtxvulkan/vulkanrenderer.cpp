@@ -166,9 +166,7 @@ namespace Rtx
         , mSurface(options.mWindow != nullptr ? std::make_unique<Surface>(mInstance, options.mWindow) : nullptr)
         , mDevice(mInstance, PhysicalDevice::select(mInstance.getHandle(), presentsTo(mSurface.get())),
               options.mShaders, PipelineCacheSpec{ .mDirectory = options.mCacheDirectory },
-              DeviceReport{
-                  .mStatistics = measured(options) ? PipelineStatistics::Captured : PipelineStatistics::Skipped,
-                  .mCodeFolder = options.mRun.mPipelineCode,
+              DeviceReport{ .mCodeFolder = options.mRun.mPipelineCode,
                   .mCounters = options.mRun.mZoneCounters,
                   .mMarkers = options.mRun.mValidation.mMarkers,
                   .mCheckpoints = options.mRun.mValidation.mCheckpoints,
@@ -381,7 +379,7 @@ namespace Rtx
 
         // Reaching here proves the rest: a driver advertising an entry point it cannot dispatch fails
         // before this line rather than at the first frame that needed it.
-        report += "\nlogical device and every required entry point: ok\n";
+        report += "\nlogical device and every required entry point: ok";
 
         return report;
     }

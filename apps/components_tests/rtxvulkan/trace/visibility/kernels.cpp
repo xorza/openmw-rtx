@@ -42,7 +42,7 @@ namespace Rtx
         {
             explicit SpecializedKernels(const Instance& instance)
                 : mDevice(instance, PhysicalDevice::select(instance.getHandle(), {}), Testing::getShippedShaders(),
-                      Testing::getPipelineCacheSpec(), DeviceReport{ .mStatistics = PipelineStatistics::Captured })
+                      Testing::getPipelineCacheSpec(), DeviceReport{})
                 , mTextures(TextureArray::describeLayout(mDevice))
                 , mChannels(GBuffer::describeLayout(mDevice))
                 , mVolume(FogVolume::describeLayout(mDevice))

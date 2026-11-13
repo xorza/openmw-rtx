@@ -68,21 +68,10 @@ namespace Rtx
     struct PipelineCacheSpec;
     struct PipelineFeedback;
 
-    /// Whether a pipeline is made to say what the driver's compiler made of it — registers, spills,
-    /// shared memory — which only the harness's reports and the spill gate read. Asked for at
-    /// creation, since it cannot be asked for afterwards, and paid in every compile it is asked of.
-    enum class PipelineStatistics : std::uint8_t
-    {
-        Captured,
-        Skipped,
-    };
-
     /// What a device is made to say of the work on it: every pipeline of itself
     /// (`Device::reportPipeline`), and every zone of a frame what its counters read.
     struct DeviceReport
     {
-        PipelineStatistics mStatistics = PipelineStatistics::Skipped;
-
         /// Where the driver's own code of each pipeline is written as text, a file a pipeline
         /// (`PipelineCodeFolder`), or empty for none: the instructions a profiler's view shows, for
         /// a device no profiler there reads. Asked for at creation, as the statistics are, and
@@ -263,13 +252,12 @@ namespace Rtx
         /// for them or the driver offers none. The device's, because the profiling lock they hold is.
         const ZoneCounters* getZoneCounters() const { return mZoneCounters.get(); }
 
-        /// Whether pipelines are made to say what they are made of (`DeviceReport`), the flags
-        /// every create info starts from.
+        /// What pipelines are made to say of themselves, the flags every create info starts from: their
+        /// statistics always (`docs/architecture.md`, "Every pipeline captures its statistics"), their code
+        /// where `DeviceReport` asks.
         VkPipelineCreateFlags getPipelineFlags() const
         {
-            VkPipelineCreateFlags flags = 0;
-            if (mReport.mStatistics == PipelineStatistics::Captured)
-                flags |= VK_PIPELINE_CREATE_CAPTURE_STATISTICS_BIT_KHR;
+            VkPipelineCreateFlags flags = VK_PIPELINE_CREATE_CAPTURE_STATISTICS_BIT_KHR;
             if (!mReport.mCodeFolder.empty())
                 flags |= VK_PIPELINE_CREATE_CAPTURE_INTERNAL_REPRESENTATIONS_BIT_KHR;
             return flags;
@@ -277,7 +265,7 @@ namespace Rtx
 
         /// Counts `pipeline` towards the next `logPipelineSummary`, and logs at the debug level what its
         /// making took and what the driver's compiler made of it — registers a thread, spills, shared
-        /// memory a block — where the device captures it: an occupancy figure with no external profiler.
+        /// memory a block: an occupancy figure with no external profiler.
         /// Where the device is asked for its code, writes it (`writeCode`).
         void reportPipeline(VkPipeline pipeline, std::string_view name, const PipelineFeedback& feedback) const;
 

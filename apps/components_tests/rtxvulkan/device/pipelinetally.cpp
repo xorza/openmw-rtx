@@ -2,7 +2,6 @@
 #include <chrono>
 #include <cstdint>
 #include <cstring>
-#include <optional>
 #include <string_view>
 
 #include <gtest/gtest.h>
@@ -16,12 +15,13 @@ namespace Rtx
     {
         using std::chrono::milliseconds;
 
-        PipelineMade made(std::string_view name, PipelineSource source, double durationMs,
-            std::optional<PipelineStatisticsSaid> statistics)
+        PipelineMade made(std::string_view name, PipelineSource source, double durationMs, std::uint32_t executables,
+            std::uint64_t scratchBytes)
         {
             return PipelineMade{ .mName = name,
                 .mFeedback = PipelineFeedback{ .mSource = source, .mDurationMs = durationMs },
-                .mStatistics = statistics };
+                .mExecutables = executables,
+                .mScratchBytes = scratchBytes };
         }
 
         /// **A stretch of pipelines in a line, and its spills in another**: compiled, cached and unsaid
@@ -32,17 +32,12 @@ namespace Rtx
         {
             const std::chrono::steady_clock::time_point start{};
             PipelineTally tally(start);
-            tally.add(
-                made("a", PipelineSource::Compiled, 100.0, PipelineStatisticsSaid{ 1, 0 }), start + milliseconds(500));
-            tally.add(made("b", PipelineSource::Compiled, 250.5, PipelineStatisticsSaid{ 1, 32 }),
-                start + milliseconds(1500));
-            tally.add(
-                made("c", PipelineSource::Cached, 0.2, PipelineStatisticsSaid{ 0, 0 }), start + milliseconds(1000));
-            tally.add(made("d", PipelineSource::Unsaid, 0.0, std::nullopt), start + milliseconds(250));
-            tally.add(
-                made("e", PipelineSource::Cached, 0.3, PipelineStatisticsSaid{ 2, 112 }), start + milliseconds(1250));
-            tally.add(
-                made("f", PipelineSource::Compiled, 50.0, PipelineStatisticsSaid{ 1, 32 }), start + milliseconds(750));
+            tally.add(made("a", PipelineSource::Compiled, 100.0, 1, 0), start + milliseconds(500));
+            tally.add(made("b", PipelineSource::Compiled, 250.5, 1, 32), start + milliseconds(1500));
+            tally.add(made("c", PipelineSource::Cached, 0.2, 0, 0), start + milliseconds(1000));
+            tally.add(made("d", PipelineSource::Unsaid, 0.0, 1, 0), start + milliseconds(250));
+            tally.add(made("e", PipelineSource::Cached, 0.3, 2, 112), start + milliseconds(1250));
+            tally.add(made("f", PipelineSource::Compiled, 50.0, 1, 32), start + milliseconds(750));
 
             const PipelineSummary first = tally.take(start + milliseconds(2000));
             EXPECT_EQ(first.mMade, 6u);
@@ -52,22 +47,20 @@ namespace Rtx
             EXPECT_EQ(first.mCompileMs, 400.5);
             ASSERT_TRUE(first.mSlowest.has_value());
             EXPECT_EQ(first.mSlowest->mName, "b");
-            EXPECT_EQ(first.mWithStatistics, 5u) << "every one but d";
             EXPECT_EQ(first.mWithoutExecutable, 1u) << "c";
             EXPECT_EQ(first.mSpan.count(), 1.5) << "b, the last made, though added second";
 
             // 400.5 ms is 0.40 s; d is the one of 6 neither compiled nor cached.
             EXPECT_EQ(describePipelines(first),
                 "6 made over 1.50 s: 3 compiled and 2 found in the pipeline cache, 1 the driver gave no feedback "
-                "of; 0.40 s compiling, the slowest \"b\" at 250.50 ms; 1 of the 5 asked for statistics with no "
-                "executable the driver reports");
+                "of; 0.40 s compiling, the slowest \"b\" at 250.50 ms; 1 with no executable the driver reports");
             EXPECT_EQ(describeSpills(first),
                 "3 of 6 pipelines use scratch memory, bytes a lane: \"e\" 112, \"b\" 32, \"f\" 32");
 
             EXPECT_EQ(describePipelines(tally.take(start + milliseconds(2000))), "none made") << "taken whole";
 
             // 2750 ms against the 2000 the last take started the stretch at.
-            tally.add(made("g", PipelineSource::Cached, 0.1, std::nullopt), start + milliseconds(2750));
+            tally.add(made("g", PipelineSource::Cached, 0.1, 1, 0), start + milliseconds(2750));
             const PipelineSummary second = tally.take(start + milliseconds(3000));
             EXPECT_EQ(describePipelines(second), "1 made over 0.75 s: 0 compiled and 1 found in the pipeline cache");
             EXPECT_EQ(describeSpills(second), "") << "nothing spills, so nothing is warned of";

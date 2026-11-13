@@ -449,7 +449,7 @@ namespace RtxTool
                     .mHeight = 1,
                     .mRun = { .mValidation = validation },
                 });
-                Debug::getRawStdout() << renderer->describeDevice();
+                Debug::getRawStdout() << renderer->describeDevice() << '\n';
                 return 0;
             }
             catch (const Rtx::Unsupported& obstacle)

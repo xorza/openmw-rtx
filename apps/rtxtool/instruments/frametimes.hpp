@@ -257,11 +257,9 @@ namespace RtxTool
         std::vector<double> mColumn;
     };
 
-    /// The column headings the rows below line up under.
-    std::string describeHeadings();
-
-    /// One row of six figures under `heading`, in the order `describeHeadings` names them.
-    std::string describeTimes(std::string_view heading, const FrameTimes& times);
+    /// The host's timings as a table: a row of headings, then a row of six figures for each `Rtx::Timing`, the
+    /// names' column as wide as the longest name, as `describeCounters`'s is.
+    std::string describeTimings(const std::array<FrameTimes, Rtx::sTimingCount>& rows);
 
     /// One zone in a report: what it cost the average frame, and — where it did not run in every
     /// frame — what it cost when it did, on how many of them.
