@@ -163,11 +163,14 @@ struct GatherRun
 
     /// The lamp the reservoir held, the draw its ray takes on the source (`gatherLampAsk`), what the
     /// darkening lamps take off, and how far a penumbra on this surface stretches toward the held
-    /// lamp.
+    /// lamp. **Split, the lamps off the tile's list alone**, and the same of the lamps on it beside:
+    /// `weighLampStrata`. Unsplit, every lamp, and the listed reservoir weighs nothing.
     Reservoir mKept;
     vec2 mLampDraw;
     vec3 mDarkening;
     float mLampStretch;
+    Reservoir mListed;
+    float mListedStretch;
 
     float mFootprint;
 };
@@ -191,15 +194,28 @@ GatherRun gatherRunOf(uint key, uint lamps, uint path, bool split, bool blue)
     run.mLampDraw = vec2(0.0);
     run.mDarkening = vec3(0.0);
     run.mLampStretch = 1.0;
+    run.mListed = noLamps();
+    run.mListedStretch = 1.0;
     run.mFootprint = 0.0;
     return run;
 }
 
-/// What the start of a gather works out of `surface` and asks of its sky: everything but the two rays'
-/// answers.
+/// How far a penumbra on a surface facing `facing` at `position` stretches toward the lamp `kept` held, or one
+/// where it held none.
+float heldLampStretch(Reservoir kept, Facing facing, vec3 position)
+{
+    return kept.mWeight > 0.0
+        ? receiverStretch(planeCosine(facing, normalize(lightAt(kept.mLamp).mPosition - position)))
+        : 1.0;
+}
+
+/// What the start of a gather works out of `surface` and asks of its sky: everything but the rays' answers.
 ///
+/// @param list the lamps the tile saw last frame, which a split gather draws its listed lamp from: none for an
+///        unsplit one, and none where the tile has no list.
 /// @return whether the sky's ray was asked, `skyPassage` started for it.
-bool startGather(inout GatherRun run, inout SkyPassageRun skyPassage, Surface surface, Gloss gloss, uvec2 pixel)
+bool startGather(
+    inout GatherRun run, inout SkyPassageRun skyPassage, Surface surface, Gloss gloss, uvec2 pixel, LampList list)
 {
     const bool split = run.mSplit;
     const vec3 position = surface.mPosition;
@@ -223,6 +239,40 @@ bool startGather(inout GatherRun run, inout SkyPassageRun skyPassage, Surface su
     const vec2 sunDraw = run.mBlue ? unitPair(pixel, STREAM_SUN_DISC) : sunHashed;
     const float skyPick = run.mBlue ? randomAt(pixel, STREAM_SKY_PICK) : skyHashed;
     const vec2 lampDraw = run.mBlue ? unitPair(pixel, STREAM_LAMP_DISC) : lampHashed;
+
+    // **The lamps before the sky**, whose walk draws no number the sky's choice reads: the sky's terms and its
+    // passage are then made after the walk and not held through it.
+    //
+    // A lamp loses nothing to the water, where the sun and the sky both lose the column above the point: it is
+    // usually standing in the same water as what it lights, and the depth over the two of them is not between
+    // them.
+    //
+    // **With one lamp in the cell the sum is that lamp's weight** and the ratio is one.
+    //
+    // **The lobe takes the held lamp's own lobe, kept from the weighing**, and the reservoir's share: the
+    // estimate of the lobe over every lamp is then the one the diffuse half makes, with the lobe where the
+    // cosine was.
+    Reservoir kept = noLamps();
+    Reservoir listed = noLamps();
+    // **Every lamp at a split hit, a stratum each, whose unshadowed sums must be exact, and a fixed count of
+    // candidates everywhere else** (`VisibilityConstants::mLampCandidates`): a path's far end and a pane cost what
+    // a lamp-dense cell costs only where it is seen.
+    if (split)
+        weighLampStrata(listed, kept, state, position, facing, INV_PI, gloss, surface.mLampLit, list);
+    else
+        weighLamps(kept, state, position, facing, INV_PI, gloss, surface.mLampLit, frame.mLampCandidates);
+    kept.mFrom = leaving;
+    listed.mFrom = leaving;
+    run.mKept = kept;
+    run.mLampDraw = lampDraw;
+    run.mListed = listed;
+
+    // **The lamps that take light away take it off the lamps' exact sum and no further**, floored at nought
+    // as the rasterizer clamps its lighting: the sun, the sky and the bounce stay whole.
+    run.mDarkening = darkeningAt(
+        position, facing, INV_PI, surface.mLampLit && (kept.mWeight > 0.0 || listed.mWeight > 0.0));
+    run.mLampStretch = split ? heldLampStretch(kept, facing, position) : 1.0;
+    run.mListedStretch = heldLampStretch(listed, facing, position);
 
     // **The sky's sources are weighed and drawn the way the lamps are.** What each would deliver unshadowed is
     // its weight (its cosine and irradiance, all that can be known without tracing); one is drawn in
@@ -293,30 +343,6 @@ bool startGather(inout GatherRun run, inout SkyPassageRun skyPassage, Surface su
         }
     }
 
-    // A lamp loses nothing to the water, where the sun and the sky both lose the column above the point: it is
-    // usually standing in the same water as what it lights, and the depth over the two of them is not between
-    // them.
-    //
-    // **With one lamp in the cell the sum is that lamp's weight** and the ratio is one.
-    //
-    // **The lobe takes the held lamp's own lobe, kept from the weighing**, and the reservoir's share: the
-    // estimate of the lobe over every lamp is then the one the diffuse half makes, with the lobe where the
-    // cosine was.
-    Reservoir kept = noLamps();
-    // **Every lamp at a split hit, whose unshadowed sum must be exact, and a fixed count of candidates
-    // everywhere else** (`VisibilityConstants::mLampCandidates`): a path's far end and a pane cost what a
-    // lamp-dense cell costs only where it is seen.
-    weighLamps(kept, state, position, facing, INV_PI, gloss, surface.mLampLit, split ? 0u : frame.mLampCandidates);
-    kept.mFrom = leaving;
-    run.mKept = kept;
-    run.mLampDraw = lampDraw;
-
-    // **The lamps that take light away take it off the lamps' exact sum and no further**, floored at nought
-    // as the rasterizer clamps its lighting: the sun, the sky and the bounce stay whole.
-    run.mDarkening = darkeningAt(position, facing, INV_PI, surface.mLampLit && kept.mWeight > 0.0);
-    run.mLampStretch = split && kept.mWeight > 0.0
-        ? receiverStretch(planeCosine(facing, normalize(lightAt(kept.mLamp).mPosition - position)))
-        : 1.0;
     run.mFootprint = surface.mFootprint;
     return skyAsked;
 }
@@ -423,7 +449,7 @@ struct SplitLight
     /// Everything but the shadowed sources.
     vec3 mRest;
 
-    /// The sky's source and the lamps, each as though its rays got through, with its bit and its
+    /// The sky's source and the lamps, each as though its rays got through, with what of it got through and its
     /// penumbra. `noShadowed` where nothing split them off.
     Shadowed mSky;
     Shadowed mLamps;
@@ -681,7 +707,7 @@ PathEndLight pathEndLightOf(Surface surface, uvec2 pixel, uint lamps, uint indir
     const Gloss gloss = glossOf(surface);
     SkyPassageRun sky = skyPassageRunOf(
         frame.mSun, vec3(0.0), vec3(0.0), BentPath(0.0, vec3(0.0), 0.0, vec2(0.0)), vec2(0.0), false);
-    if (startGather(gather, sky, surface, gloss, pixel))
+    if (startGather(gather, sky, surface, gloss, pixel, noLampList()))
     {
         light.mRays.mSky = skyPassageFirstAsk(sky);
         light.mRays.mSkyOver = skyPassageOverAsk(sky);
@@ -921,6 +947,120 @@ SolidLook solidLookOf(Surface surface, Gloss gloss)
     return SolidLook(response, gloss.mGlossy ? surface.mRoughness : SPECULAR_NO_LOBE);
 }
 
+/// One stratum of the lamps as a solid the eye found takes it, before its ray is answered, **in as few numbers as a
+/// ray's answer needs**, since they stand through every traversal of the direct stage: how much the stratum's lamps
+/// add as though the held lamp's ray got through, as a luminance, which its ray is weighed by in the lamps'
+/// fraction (`shadowedLamps`); the held lamp's lobe per unit of `specularModulation`, its share in; what the
+/// penumbra is made of — the held lamp's radius stretched as a penumbra on this surface stretches toward it, its
+/// distance, and whether its bit is drawn among its stratum's lamps (`drawnAmong`); and the held lamp's row of the
+/// light table, `LAMP_LIST_NONE` where it held none, which the ray is asked of at its turn (`heldLampRay`).
+struct HeldLamps
+{
+    float mWeight;
+    vec3 mLobe;
+    float mStretchedRadius;
+    float mDistance;
+    bool mDrawn;
+    uint mRow;
+};
+
+/// The stratum `kept` weighed on `surface` and its `gloss`: its unshadowed light less its share of what the
+/// darkening lamps take off every lamp's (`darkening` of `unshadowed`, the strata's sum), and its held lamp's lobe,
+/// each under the relief's own shadow toward the held lamp, the light into `light`.
+HeldLamps heldLampsOf(Reservoir kept, float stretch, vec3 darkening, vec3 unshadowed, Surface surface, Gloss gloss,
+    out vec3 light)
+{
+    HeldLamps lamps;
+
+    // **The darkening off each stratum by its share of the exact sum**, as `pathEndLightOf` takes it off one
+    // lamp's estimate: the strata's lights then sum to the sum less the darkening, floored at nought, and a
+    // stratum that holds every lamp keeps its sum to the bit where nothing darkens.
+    light = surface.mAlbedo * kept.mUnshadowed * (1.0 - min(darkening / max(unshadowed, vec3(1e-30)), vec3(1.0)));
+    vec3 lobe = gloss.mGlossy ? kept.mSpecular * heldShare(kept) / specularModulation(gloss) : vec3(0.0);
+    lamps.mDrawn = drawnAmong(kept.mWeight, kept.mTotal);
+    lamps.mRow = kept.mWeight > 0.0 ? kept.mLamp : LAMP_LIST_NONE;
+
+    // The held lamp's row, read only where one was held: a picture no lamp lights may have no row.
+    lamps.mStretchedRadius = 0.0;
+    lamps.mDistance = 0.0;
+    if (kept.mWeight > 0.0)
+    {
+        const GpuLight lamp = lightAt(kept.mLamp);
+        lamps.mStretchedRadius = lamp.mSourceRadius * stretch;
+        lamps.mDistance = length(lamp.mPosition - kept.mFrom);
+
+        // **The relief's own shadow on the stratum's light** (`reliefLit`), whole and not drawn into a bit, so
+        // the shadow filter blurs no shadow the size of a texel: the held lamp's over every lamp of its stratum,
+        // as the ratio estimator weighs their light by its ray.
+        if (HAS_RELIEF && surface.mReliefSite.mMap != NO_TEXTURE)
+        {
+            const vec3 toLamp = lamp.mPosition - surface.mPosition;
+            const float relief = reliefLit(surface.mReliefSite, normalize(toLamp),
+                lamp.mSourceRadius / max(length(toLamp), lamp.mSourceRadius));
+            light *= relief;
+            lobe *= relief;
+        }
+    }
+    lamps.mWeight = dot(light, LUMINANCE_WEIGHTS);
+    lamps.mLobe = lobe;
+    return lamps;
+}
+
+/// The shadow ray of a stratum's held lamp, from `from` off the triangle `step` stands for, aimed by the eye's draw
+/// `draw` of the tile (`STREAM_LAMP_DISC`, `STREAM_LAMP_DISC_LISTED`, as `startGather` draws it): the nearest
+/// occluder's where its lamp carried all of its stratum's light, which the penumbra is made of. None where it held
+/// no lamp.
+RayAsk heldLampRay(HeldLamps lamps, vec3 from, vec3 step, vec2 draw)
+{
+    return lamps.mRow != LAMP_LIST_NONE ? lampRowAsk(lamps.mRow, from, step, draw, !lamps.mDrawn) : noRay();
+}
+
+/// A stratum's penumbra once its ray answered `passage`, in `footprint`s, as `seenSolidOf` counts each: the whole
+/// reach where its bit was drawn among its lamps or its ray crossed a translucent surface, and clear where it
+/// lights nothing.
+float strataPenumbra(HeldLamps lamps, Passage passage, float footprint)
+{
+    const float radius = lamps.mRow != LAMP_LIST_NONE
+        ? lampPenumbra(lamps.mStretchedRadius, lamps.mDistance, passage.mOccluder)
+        : SHADOW_PENUMBRA_CLEAR;
+    return lamps.mWeight > 0.0 ? penumbraIn(lamps.mDrawn || passage.mThrough < 1.0, radius, footprint)
+                               : SHADOW_PENUMBRA_CLEAR;
+}
+
+/// The wider of two penumbrae, clear where both are: the reach the shadow denoiser takes for a field whose value
+/// is made of both.
+float widerPenumbra(float one, float other)
+{
+    return one >= SHADOW_PENUMBRA_CLEAR ? other : (other >= SHADOW_PENUMBRA_CLEAR ? one : max(one, other));
+}
+
+/// The lamps' `light` once each stratum's ray answered, and what of it got through, **one fraction**: each
+/// stratum's ray's open half times what its translucent surfaces let through, by its stratum's share of the light.
+/// The ratio estimator a stratum, summed, which is an estimate of the same share of the same light whatever the list
+/// put in each stratum (`CHANNEL_LAMPED_SHARE`), and all of it where no lamp lights the surface.
+Shadowed shadowedLamps(
+    vec3 light, HeldLamps rest, Passage restPassage, HeldLamps listed, Passage listedPassage, float footprint)
+{
+    const float whole = rest.mWeight + listed.mWeight;
+    const float seen = rest.mWeight * (restPassage.mOpen * restPassage.mThrough)
+        + listed.mWeight * (listedPassage.mOpen * listedPassage.mThrough);
+    return Shadowed(light, whole > 0.0 ? min(seen / whole, 1.0) : 1.0,
+        widerPenumbra(strataPenumbra(rest, restPassage, footprint), strataPenumbra(listed, listedPassage, footprint)));
+}
+
+/// The row of the lamp a stratum's ray reached, as the lists' pass takes it (`STAGE_LAMPS_SEEN`), or `LAMP_LIST_NONE`
+/// where it held none or its ray was stopped.
+uint seenLampOf(HeldLamps lamps, Passage passage)
+{
+    return passage.mOpen > 0.0 ? lamps.mRow : LAMP_LIST_NONE;
+}
+
+/// What a stratum's held lamp's lobe reflects once its ray answered `passage`, per unit of `specularModulation`.
+vec3 lampLobe(HeldLamps lamps, Passage passage)
+{
+    return lamps.mLobe * (passage.mOpen * passage.mThrough);
+}
+
 /// What a solid the eye found sends back before its shadow rays are answered, and the rays: what
 /// `seenSolidOf` makes a `SeenSolid` of once they are (`direct.comp`).
 ///
@@ -936,142 +1076,110 @@ SolidLook solidLookOf(Surface surface, Gloss gloss)
 /// NRD has them.
 struct SolidLight
 {
-    /// The glow, `SplitLight::mRest`, and each shadowed source's light as though its ray got
+    /// The glow, `SplitLight::mRest`, and the sky's source's and the lamps' light as though their rays got
     /// through, `Shadowed::mLight`.
     vec3 mRest;
     vec3 mSky;
     vec3 mLamps;
 
-    /// What the lobe reflects of the held lamp before what its share and its ray let through, the
-    /// share, and what the lobe's light is divided by (`specularModulation`): nought where the
-    /// surface has no lobe. And the lobe's roughness, `SolidLook::mRoughness`.
-    vec3 mLampSpecular;
-    float mHeld;
-    vec3 mModulation;
+    /// The lamps off the tile's list and the lamps on it (`weighLampStrata`), each as `HeldLamps` holds it, and
+    /// where their rays leave from and the step off the triangle that stands on (`stepOf`).
+    HeldLamps mRestLamps;
+    HeldLamps mListedLamps;
+    vec3 mLeaving;
+    vec3 mStep;
+
+    /// The lobe's roughness, `SolidLook::mRoughness`.
     float mRoughness;
 
-    /// What each bit's penumbra is made of, as `seenSolidOf` makes it of its ray's occluder: the sky's
-    /// source and how far a penumbra on this surface stretches toward it; the held lamp's radius, distance
-    /// and stretch, and whether a lamp was held; whether each bit is drawn among its field's sources
-    /// (`drawnAmong`); and the surface's footprint they are counted in.
+    /// What the sky's bit's penumbra is made of, as `seenSolidOf` makes it of its ray's occluder: the sky's
+    /// source and how far a penumbra on this surface stretches toward it, and whether the bit is drawn among the
+    /// sky's sources (`drawnAmong`); and the surface's footprint every penumbra is counted in.
     SkySource mSkySource;
     float mSkyStretch;
     bool mSkyDrawn;
-    bool mLampHeld;
-    float mLampRadius;
-    float mLampDistance;
-    float mLampStretch;
-    bool mLampDrawn;
     float mFootprint;
 
-    /// The two draws that decide whether each bit passes what its ray's translucent surfaces let
-    /// through (`SEED_SHADOW_THROUGH`).
-    vec2 mPassing;
+    /// The draw that decides whether the sky's bit passes what its ray's translucent surfaces let through
+    /// (`SEED_SHADOW_THROUGH`). The lamps take what theirs let through as it is, into their fraction.
+    float mSkyPassing;
 
     /// The sky's passage, `SkyPassageRun`'s legs and whether it is bent, which joins them
-    /// (`joinedPassage`), and the held lamp's ray: any of them none, which `passageAnswered`
-    /// answers open.
+    /// (`joinedPassage`): either of them none, which `passageAnswered` answers open.
     RayAsk mSkyRay;
     RayAsk mSkyOverRay;
     bool mSkyBent;
     float mSkyPath;
-    RayAsk mLampRay;
 };
 
-/// `surface`'s light before its rays, the solid the eye found at `pixel`.
-SolidLight solidLightOf(Surface surface, uvec2 pixel)
+/// `surface`'s light before its rays, the solid the eye found at `pixel`, its lamps drawn in two strata by `list`.
+SolidLight solidLightOf(Surface surface, uvec2 pixel, LampList list)
 {
     // A path the eye sees, which no rate draws (`GatherRun::mPath`).
     GatherRun gather = gatherRunOf(pixelKey(pixel), SEED_LAMPS_EYE, PATH_SEEN, true, true);
     const Gloss gloss = glossOf(surface);
     SkyPassageRun sky = skyPassageRunOf(
         frame.mSun, vec3(0.0), vec3(0.0), BentPath(0.0, vec3(0.0), 0.0, vec2(0.0)), vec2(0.0), false);
-    const bool skyAsked = startGather(gather, sky, surface, gloss, pixel);
+    const bool skyAsked = startGather(gather, sky, surface, gloss, pixel, list);
 
     SolidLight light;
     light.mSkyRay = skyAsked ? skyPassageFirstAsk(sky) : noRay();
     light.mSkyOverRay = skyAsked ? skyPassageOverAsk(sky) : noRay();
     light.mSkyBent = skyAsked && skyPassageBent(sky);
     light.mSkyPath = sky.mBent.mPath;
-    light.mLampRay = gatherLampAsk(gather, surface);
 
-    // **Split, every lamp's light as though its ray got through, and the held lamp's bit**: Heitz et al.
-    // 2018's ratio estimator, the unshadowed light exact and only its visibility drawn.
-    const Reservoir kept = gather.mKept;
+    // **Split, every lamp's light as though its ray got through, and each stratum's held lamp's bit**: Heitz et
+    // al. 2018's ratio estimator a stratum, the unshadowed light exact and only its visibility drawn.
     light.mRest = litSurface(surface, vec3(0.0), vec3(0.0));
     light.mSky = surface.mAlbedo * gather.mSkyDiffuse + gather.mSkySpecular;
-    light.mLamps = surface.mAlbedo * max(kept.mUnshadowed - gather.mDarkening, vec3(0.0));
+    const vec3 unshadowed = gather.mKept.mUnshadowed + gather.mListed.mUnshadowed;
+    vec3 restLight;
+    vec3 listedLight;
+    light.mRestLamps = heldLampsOf(
+        gather.mKept, gather.mLampStretch, gather.mDarkening, unshadowed, surface, gloss, restLight);
+    light.mListedLamps = heldLampsOf(
+        gather.mListed, gather.mListedStretch, gather.mDarkening, unshadowed, surface, gloss, listedLight);
+    light.mLamps = restLight + listedLight;
+    light.mLeaving = gather.mKept.mFrom;
+    light.mStep = stepOf(surface);
 
-    light.mLampSpecular = gloss.mGlossy ? kept.mSpecular : vec3(0.0);
-    light.mHeld = heldShare(kept);
-    light.mModulation = specularModulation(gloss);
     light.mRoughness = solidLookOf(surface, gloss).mRoughness;
 
     light.mSkySource = gather.mSky;
     light.mSkyStretch = gather.mSkyStretch;
     light.mSkyDrawn = drawnAmong(gather.mSkyCarried, gather.mSkyWeight);
-    // The held lamp's row, read only where one was held: a picture no lamp lights may have no row.
-    light.mLampHeld = kept.mWeight > 0.0;
-    light.mLampRadius = 0.0;
-    light.mLampDistance = 0.0;
-    if (light.mLampHeld)
-    {
-        const GpuLight lamp = lightAt(kept.mLamp);
-        light.mLampRadius = lamp.mSourceRadius;
-        light.mLampDistance = length(lamp.mPosition - kept.mFrom);
-    }
-
-    light.mLampStretch = gather.mLampStretch;
-    light.mLampDrawn = drawnAmong(kept.mWeight, kept.mTotal);
     light.mFootprint = gather.mFootprint;
 
     uint passing = randomSeed(gather.mKey + SEED_SHADOW_THROUGH);
-    light.mPassing.x = randomNext(passing);
-    light.mPassing.y = randomNext(passing);
+    light.mSkyPassing = randomNext(passing);
 
-    // **The relief's own shadow on the sources' light** (`reliefLit`), whole and not drawn into a bit, so the
-    // shadow filter blurs no shadow the size of a texel: the sky's source, and the held lamp's over every lamp,
-    // as the ratio estimator weighs their light by its ray.
+    // **The relief's own shadow on the sky's source's light** (`reliefLit`), as `heldLampsOf` lays it on each
+    // stratum's.
     if (HAS_RELIEF && surface.mReliefSite.mMap != NO_TEXTURE)
-    {
         light.mSky *= reliefLit(surface.mReliefSite, gather.mSky.mDirection, gather.mSky.mLimb);
-        if (light.mLampHeld)
-        {
-            const vec3 toLamp = lightAt(kept.mLamp).mPosition - surface.mPosition;
-            const float lampRelief = reliefLit(surface.mReliefSite, normalize(toLamp),
-                light.mLampRadius / max(length(toLamp), light.mLampRadius));
-            light.mLamps *= lampRelief;
-            light.mLampSpecular *= lampRelief;
-        }
-    }
     return light;
 }
 
-/// What a solid sends back once its sky's passage answered `sky` and its lamp's ray `lamp`.
+/// What a solid sends back once its sky's passage answered `sky` and its strata's lamp rays `lamp` and `listed`.
 ///
-/// **What the translucent surfaces let through is drawn into each bit**, open where its ray got through and a
-/// draw falls under it: the bit's mean is then the open half times the through, and the shadow denoiser
-/// filters a pane's shadow as it filters a penumbra.
+/// **What the translucent surfaces let through is drawn into the sky's bit**, open where its ray got through and
+/// a draw falls under it: the bit's mean is then the open half times the through, and the shadow denoiser filters
+/// a pane's shadow as it filters a penumbra. The lamps' fraction takes it as it is (`shadowedLamps`).
 ///
 /// **Each penumbra in the surface's own footprints**, which the denoiser's reach is counted in, and the whole
 /// reach where the bit was drawn (its source carries less than all but the floor of its field's light), since
 /// that bit is noise however hard its shadow.
-SeenSolid seenSolidOf(SolidLight light, Passage sky, Passage lamp)
+SeenSolid seenSolidOf(SolidLight light, Passage sky, Passage lamp, Passage listed)
 {
-    const bool skyPassed = light.mPassing.x < sky.mThrough;
-    const bool lampPassed = light.mPassing.y < lamp.mThrough;
+    const bool skyPassed = light.mSkyPassing < sky.mThrough;
     const float skyRadius = skyPenumbra(light.mSkySource, sky.mOccluder) * light.mSkyStretch;
-    const float lampRadius = light.mLampHeld
-        ? lampPenumbra(light.mLampRadius, light.mLampDistance, lamp.mOccluder) * light.mLampStretch
-        : SHADOW_PENUMBRA_CLEAR;
 
     SeenSolid seen;
     seen.mLight = SplitLight(light.mRest,
         Shadowed(light.mSky, sky.mOpen * (skyPassed ? 1.0 : 0.0),
             penumbraIn(light.mSkyDrawn || sky.mThrough < 1.0, skyRadius, light.mFootprint)),
-        Shadowed(light.mLamps, lamp.mOpen * (lampPassed ? 1.0 : 0.0),
-            penumbraIn(light.mLampDrawn || lamp.mThrough < 1.0, lampRadius, light.mFootprint)));
-    seen.mSpecular = light.mLampSpecular * (light.mHeld * (lamp.mOpen * lamp.mThrough)) / light.mModulation;
+        shadowedLamps(light.mLamps, light.mRestLamps, lamp, light.mListedLamps, listed, light.mFootprint));
+    seen.mSpecular = lampLobe(light.mRestLamps, lamp) + lampLobe(light.mListedLamps, listed);
     seen.mRoughness = light.mRoughness;
     return seen;
 }

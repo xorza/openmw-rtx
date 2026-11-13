@@ -3,12 +3,17 @@
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
+#include <cstdint>
+#include <cstring>
 #include <optional>
 #include <utility>
 #include <vector>
 
 #include <components/rtx/environment/wavespectrum.hpp>
+#include <components/rtxvulkan/device/memory/barriers.hpp>
+#include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
+#include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/device/validation.hpp>
 #include <components/rtxvulkan/frame/gbuffer.hpp>
 #include <components/rtxvulkan/scene/devicescene.hpp>
@@ -82,6 +87,23 @@ namespace Rtx::Testing
         // One lookup and not a switch of eleven arms. A channel is its binding, and the buffer
         // is indexed by it.
         readFramed(mRenderer.mFrame.getChain().getChannels().get(channel), storedInFields(channel), values);
+    }
+
+    void RendererProbe::readLampLists(std::vector<std::uint32_t>& words)
+    {
+        assert(mRenderer.mFrame.getChain().isBuilt());
+
+        const Buffer& lists = mRenderer.mFrame.getChain().getChannels().getLampListsOut();
+        const Buffer landing
+            = Buffer::readBack(mRenderer.mDevice, lists.getSize(), VK_BUFFER_USAGE_TRANSFER_DST_BIT, "lamp lists read");
+        mRenderer.mDevice.getPool().submitAndWait([&](VkCommandBuffer commands) {
+            handOver(commands, Use::sBufferComputeWrite, Use::sBufferCopyRead);
+            lists.copyTo(commands, landing, lists.getSize());
+            landing.orderForHostRead(commands);
+        });
+
+        words.resize(lists.getSize() / sizeof(std::uint32_t));
+        std::memcpy(words.data(), landing.map(), words.size() * sizeof(std::uint32_t));
     }
 
     void RendererProbe::readComposite(std::vector<float>& values)

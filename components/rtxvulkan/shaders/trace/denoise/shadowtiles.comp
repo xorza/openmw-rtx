@@ -9,6 +9,10 @@
 // The shadow denoiser's temporal half: which tiles need filtering at all, and for those that do, this
 // frame's bit blended with what the same surface held before, clamped to what its neighbours say now. A port
 // of the SDK's algorithm: the 17x17 kernel over the bits gives each pixel its local mean and spread.
+//
+// **The lamps' field is a fraction and not a bit** (`CHANNEL_LAMPED_SHARE`), which the same kernel is taken
+// over: its mean, its square's mean and so its spread, and its tiles cleared where every value is nought or
+// every one is one (`SHADOW_FRACTION`). The SDK's bits are its case of values that are their own squares.
 
 #include "shared/accumulate.h"
 #include "gbuffer.h"
@@ -22,6 +26,9 @@
 #include "lib/surfacematch.glsl"
 
 layout(local_size_x = SHADOW_WORKGROUP, local_size_y = SHADOW_WORKGROUP) in;
+
+/// Whether the field's value at a pixel is its share (`share`) and not its rays' bit (`mask`).
+layout(constant_id = SHADOW_TILES_SPEC_FRACTION) const bool SHADOW_FRACTION = false;
 
 layout(set = SET_PASS, binding = SHADOW_TILES_BIND_SURFACE, GBUFFER_SURFACE) uniform readonly image2D surfaceChannel;
 layout(set = SET_PASS, binding = SHADOW_TILES_BIND_MOTION, GBUFFER_MOTION) uniform readonly image2D motion;
@@ -58,6 +65,10 @@ layout(set = SET_PASS, binding = SHADOW_TILES_BIND_PENUMBRA_TILES, SHADOW_PENUMB
 /// (`DenoisePasses::record`).
 layout(set = SET_PASS, binding = SHADOW_TILES_BIND_MATCH, ACCUMULATE_MATCH) uniform readonly uimage2D historyMatch;
 
+/// How much of the lamps' light got through at each pixel, `CHANNEL_LAMPED_SHARE`: the field's value where it is a
+/// fraction, and bound but never read where it is a bit.
+layout(set = SET_PASS, binding = SHADOW_TILES_BIND_SHARE, GBUFFER_LAMPED_SHARE) uniform readonly image2D share;
+
 layout(push_constant, scalar) uniform Push
 {
     ShadowTilesConstants temporal;
@@ -71,32 +82,55 @@ const uint SPAN = SHADOW_WORKGROUP + 2u * REACH;
 
 /// The square's bits, one row a word: bit `c` of row `r` is the pixel `c` columns and `r` rows from
 /// the square's corner. `receiving` is set where the shadowed sources light the pixel, which the mask
-/// says only of a pixel inside the frame, and `open` where it receives and its rays got through.
+/// says only of a pixel inside the frame, `open` where it receives and any of its light got through, and
+/// `whole` where it receives and all of it did: the mask's three words.
 shared uint gOpen[SPAN];
 shared uint gReceiving[SPAN];
+shared uint gWhole[SPAN];
+
+/// The square's values where they are fractions, each pixel's share where it receives and nought where not: read
+/// only for a tile the filter runs over, since the words clear the rest. **A row of one where the field is bits**,
+/// which never reads it, so the SDK's arrangement holds no more shared memory than it did.
+const uint SHARE_ROWS = SHADOW_FRACTION ? SPAN : 1u;
+shared float gShare[SHARE_ROWS][SPAN];
 
 /// The widest penumbra of this tile and the eight around it, which the square's apron reaches, as
 /// the bits of a float that is never below nought.
 shared uint gReach;
 
 /// Each column's horizontal kernel over every row of the square, which the vertical half then
-/// reads: the weight of the open pixels, and the weight of the pixels inside the frame.
+/// reads: the weight of the values, and of the pixels inside the frame.
 shared vec2 gRows[SHADOW_WORKGROUP][SPAN];
+
+/// The weight of the values' squares beside it, where the field is a fraction: a bit is its own square, whose
+/// moment is the values', so a field of bits keeps a row of one it never reads.
+const uint SQUARE_COLUMNS = SHADOW_FRACTION ? SHADOW_WORKGROUP : 1u;
+shared float gRowSquares[SQUARE_COLUMNS][SPAN];
+
+/// The value of the pixel at `column` of row `row` of the square: its share where the field is a fraction, its bit
+/// where not.
+float valueAt(uint row, uint column)
+{
+    return SHADOW_FRACTION ? gShare[min(row, SHARE_ROWS - 1u)][column]
+                           : (((gOpen[row] >> column) & 1u) != 0u ? 1.0 : 0.0);
+}
 
 /// The horizontal half of the kernel (`shadowLocalWeight`) over row `row` of the square, centred on column
 /// `column + REACH`: the SDK's `HorizontalNeighborhood`, off the shared row rather than off three tile words.
-/// Returns the weight of the open pixels and, beside it, of the receivers, which the SDK does not carry: it
-/// counts every pixel, a pixel off the frame as shadowed and one no source lights as its bit says.
-vec2 horizontalNeighbourhood(uint row, uint column)
+/// Returns the weight of the values and of their squares — one for a bit — and, beside them, of the receivers,
+/// which the SDK does not carry: it counts every pixel, a pixel off the frame as shadowed and one no source lights
+/// as its bit says.
+vec3 horizontalNeighbourhood(uint row, uint column)
 {
-    const uint open = gOpen[row] >> column;
     const uint receiving = gReceiving[row] >> column;
 
-    vec2 moment = vec2(0.0);
+    vec3 moment = vec3(0.0);
     for (int i = 0; i <= 2 * int(REACH); ++i)
     {
         const float weight = shadowLocalWeight(uint(abs(i - int(REACH))));
-        moment += vec2(((open >> uint(i)) & 1u) != 0u ? weight : 0.0,
+        const float value = valueAt(row, column + uint(i));
+        // A bit is its own square, which the moment of squares then takes from the moment of values.
+        moment += vec3(weight * value, SHADOW_FRACTION ? weight * value * value : 0.0,
             ((receiving >> uint(i)) & 1u) != 0u ? weight : 0.0);
     }
 
@@ -130,6 +164,7 @@ void main()
 
         uint open = 0u;
         uint receiving = 0u;
+        uint whole = 0u;
         if (y >= 0 && y < int(extent.y))
         {
             const uint shift = (uint(y) % SHADOW_MASK_HEIGHT) * SHADOW_MASK_WIDTH;
@@ -140,14 +175,16 @@ void main()
                 if (tile < 0 || tile >= tiles)
                     continue;
 
-                const uvec2 words = imageLoad(mask, ivec2(tile, y / int(SHADOW_MASK_HEIGHT))).rg;
+                const uvec3 words = imageLoad(mask, ivec2(tile, y / int(SHADOW_MASK_HEIGHT))).rgb;
                 open |= ((words.x >> shift) & 0xFFu) << (across * SHADOW_MASK_WIDTH);
                 receiving |= ((words.y >> shift) & 0xFFu) << (across * SHADOW_MASK_WIDTH);
+                whole |= ((words.z >> shift) & 0xFFu) << (across * SHADOW_MASK_WIDTH);
             }
         }
 
         gOpen[row] = open;
         gReceiving[row] = receiving;
+        gWhole[row] = whole;
     }
 
     barrier();
@@ -178,19 +215,29 @@ void main()
     bool allShadowed = true;
     for (uint row = 0u; row < SPAN; ++row)
     {
-        allLit = allLit && gOpen[row] == gReceiving[row];
+        allLit = allLit && gWhole[row] == gReceiving[row];
         allShadowed = allShadowed && gOpen[row] == 0u;
     }
 
-    if (noReceiver || allLit || allShadowed)
+    // **And a tile of fractions whose every value is exact**: no penumbra a pixel wide in it or around it and no
+    // value drawn among lamps (`SHADOW_PENUMBRA_DRAWN` widens the reach past one), so each share is what its rays
+    // found with nothing drawn, which a pixel then stands at whatever its history held — the blend below takes the
+    // pixel's own value under a reach of one. **Fractions alone**: a field of bits keeps the SDK's arrangement.
+    const bool exact = SHADOW_FRACTION && reach < 1.0;
+
+    if (noReceiver || allLit || allShadowed || exact)
     {
         // Every pixel's answer is exact, and the neighbours' filter levels may read it.
-        const float value = !noReceiver && allLit ? 1.0 : 0.0;
+        const float value = noReceiver ? 0.0
+            : allLit                   ? 1.0
+            : allShadowed              ? 0.0
+                                       : (receiver ? imageLoad(share, stored).r : 0.0);
         if (gl_LocalInvocationIndex == 0u)
             RTX_STORE_COUNTED(tiles, ivec2(gl_WorkGroupID.xy), vec4(1.0, reach, 0.0, 0.0))
         if (inFrame)
         {
-            // Nought or one, and moments of nought or one, which every rounding keeps.
+            // Its value, and moments of it with no spread: nought or one for every tile but an exact one,
+            // which every rounding keeps, and a share the unorm already holds.
             RTX_STORE_WORDS(reprojected, stored,
                 uvec4(packShadowWord(vec2(value, receiver ? 0.0 : SHADOW_NO_RECEIVER), UNORM16_NEAREST), 0u, 0u, 0u))
             RTX_STORE_WORDS(
@@ -202,23 +249,54 @@ void main()
     if (gl_LocalInvocationIndex == 0u)
         RTX_STORE_COUNTED(tiles, ivec2(gl_WorkGroupID.xy), vec4(0.0, reach, 0.0, 0.0))
 
+    // **A fraction a pixel, where the field is one**, read off its share where it receives: the square's every
+    // texel, nine a lane, once the words said the tile is filtered.
+    if (SHADOW_FRACTION)
+    {
+        for (uint i = gl_LocalInvocationIndex; i < SPAN * SPAN; i += SHADOW_WORKGROUP * SHADOW_WORKGROUP)
+        {
+            const uvec2 square = uvec2(i % SPAN, i / SPAN);
+            gShare[square.y][square.x] = ((gReceiving[square.y] >> square.x) & 1u) != 0u
+                ? imageLoad(share, storedAt(corner + ivec2(square), extent.x, fieldSwapOf(frame.mFrame))).r
+                : 0.0;
+        }
+
+        barrier();
+    }
+
     // The local mean of the bits, which with one sample a pixel is its variance as well: the
     // horizontal half at every row of the square, a lane a row a workgroup apart, then the vertical
     // half down the column.
     for (uint row = local.y; row < SPAN; row += SHADOW_WORKGROUP)
-        gRows[local.x][row] = horizontalNeighbourhood(row, local.x);
+    {
+        const vec3 moment = horizontalNeighbourhood(row, local.x);
+        gRows[local.x][row] = moment.xz;
+        if (SHADOW_FRACTION)
+            gRowSquares[min(local.x, SQUARE_COLUMNS - 1u)][row] = moment.y;
+    }
 
     barrier();
 
     if (!inFrame)
         return;
 
-    // The centre and the two ends first and the taps between after, the order the SDK sums in.
+    // The centre and the two ends first and the taps between after, the order the SDK sums in; and the squares'
+    // the same way, where the field is a fraction.
     const uint centre = local.y + REACH;
+    const uint squares = min(local.x, SQUARE_COLUMNS - 1u);
     vec2 kernel = gRows[local.x][centre] * shadowLocalWeight(0u)
         + (gRows[local.x][centre - REACH] + gRows[local.x][centre + REACH]) * shadowLocalWeight(REACH);
+    float squaresKernel = 0.0;
+    if (SHADOW_FRACTION)
+        squaresKernel = gRowSquares[squares][centre] * shadowLocalWeight(0u)
+            + (gRowSquares[squares][centre - REACH] + gRowSquares[squares][centre + REACH]) * shadowLocalWeight(REACH);
     for (uint i = 1u; i < REACH; ++i)
+    {
         kernel += (gRows[local.x][centre - i] + gRows[local.x][centre + i]) * shadowLocalWeight(i);
+        if (SHADOW_FRACTION)
+            squaresKernel
+                += (gRowSquares[squares][centre - i] + gRowSquares[squares][centre + i]) * shadowLocalWeight(i);
+    }
 
     vec3 momentsNow = vec3(0.0);
     float variance = SHADOW_NO_RECEIVER;
@@ -228,7 +306,7 @@ void main()
         // Where the pixel receives, the weight of the receivers is at least its own; where it does
         // not, what this comes to is selected away below.
         const float neighbourhood = kernel.x / kernel.y;
-        const float current = ((gOpen[square.y] >> square.x) & 1u) != 0u ? 1.0 : 0.0;
+        const float current = valueAt(square.y, square.x);
 
         const vec2 seen = imageLoad(surfaceChannel, stored).rg;
         const vec4 motionHere = imageLoad(motion, stored);
@@ -250,7 +328,8 @@ void main()
         momentsNow = updated.mMoments;
 
         // The bounds the history is clamped to: half a deviation either side of the local mean.
-        const float spatialVariance = max(neighbourhood - neighbourhood * neighbourhood, 0.0);
+        const float squared = SHADOW_FRACTION ? squaresKernel : kernel.x;
+        const float spatialVariance = max(squared / kernel.y - neighbourhood * neighbourhood, 0.0);
         const float deviation = sqrt(spatialVariance);
         const float low = neighbourhood - 0.5 * deviation;
         const float high = neighbourhood + 0.5 * deviation;

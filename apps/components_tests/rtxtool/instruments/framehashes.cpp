@@ -499,7 +499,7 @@ namespace RtxTool
             EXPECT_NE(header.find(",g-direct,"), std::string::npos) << header;
             EXPECT_NE(header.find(",g-puffs,g-shadowed,g-specular,g-pane,g-pane-albedo,g-pane-surface,g-pane-motion,"
                                   "g-upscale-masks,g-fill,g-ambient-albedo,g-lift,g-specular-albedo,g-lamped,"
-                                  "reconstruction,accumulate-moments,pane-mean,"),
+                                  "g-lamped-share,reconstruction,accumulate-moments,pane-mean,"),
                 std::string::npos)
                 << header;
             EXPECT_NE(header.find(",wavelet-blend,wavelet-fill-blend,positions,"), std::string::npos) << header;

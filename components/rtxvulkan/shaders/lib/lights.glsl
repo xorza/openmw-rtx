@@ -482,24 +482,56 @@ GpuLight shownLightAt(uint row)
     return held;
 }
 
+/// What the lamp at `row` of the table delivers to `from` with nothing in the way, and the weight it is drawn by: a
+/// surface's candidate (`surfaceCandidate`), or the air's where `facing` faces nothing.
+///
+/// **Inside a fill's ball the cosine to the centre is blended out**, by how deep the point stands, because the ball
+/// glows on every side of it there.
+///
+/// **And no test on the reach or the cosine.** A lamp out of reach carries no direction and no share, so its weight
+/// is nought, and `considerLamp` refuses a weight of nought; two branches inside a walk of up to `LAMPS_AT_A_POINT`
+/// saved one dot and one luminance apiece. The depth is selected and not divided for such a lamp, whose distance is
+/// nought over a source that may be a point.
+///
+/// @param facing the surface's, or a normal of nothing for a point in the air, which has no direction to face
+///        away from, so every lamp reaching it counts whole.
+/// @param scale what this asker's own share of a lamp is worth: `INV_PI` for a Lambert surface, `INV_FOUR_PI`
+///        times a step's weight for the air.
+/// @param gloss the surface's specular half, with its diffuse albedo, which weigh a lamp as `surfaceCandidate`
+///        says.
+LightCandidate lampCandidateAt(uint row, vec3 from, Facing facing, float scale, Gloss gloss)
+{
+    const GpuLight held = shownLightAt(row);
+    const Lamp lamp = lampAt(held, from);
+
+    const float faced = dot(facing.mNormal, facing.mNormal) > 0.0 ? litCosine(facing, lamp.mTowards) : 1.0;
+    const float depth = lamp.mReaching > 0.0
+        ? lightFill(held.mTraits) * clamp(1.0 - lamp.mDistance / held.mSourceRadius, 0.0, 1.0)
+        : 0.0;
+    const float cosine = mix(faced, 1.0, depth);
+    const vec3 unshadowed = held.mIntensity * (cosine * lamp.mReaching * scale);
+    return surfaceCandidate(unshadowed, dot(unshadowed, LUMINANCE_WEIGHTS), held.mIntensity * lamp.mReaching,
+        lamp.mTowards,
+        held.mSourceRadius > 0.0 ? held.mSourceRadius / max(lamp.mDistance, held.mSourceRadius) : 0.0, gloss, facing);
+}
+
+/// What a candidate adds to a reservoir's unshadowed sum: its diffuse half, less the share its own lobe took.
+vec3 unshadowedOf(LightCandidate candidate)
+{
+    return candidate.mRadiance * (1.0 - candidate.mFresnel);
+}
+
 /// Weighs every lamp reaching `from` into `kept`, or `candidates` of them drawn from the cell.
 ///
 /// **The surface's walk of the grid, about a point.** The air's — `lampsInAir` — walks the same grid along
 /// a ray, and the two feed one rule, `considerLamp`, so what unbiased means cannot come apart between them.
 ///
-/// @param facing the surface's, or a normal of nothing for a point in the air, which has no direction
-///        to face away from, so every lamp reaching it counts whole.
-/// @param scale what this asker's own share of a lamp is worth: `INV_PI` for a Lambert surface,
-///        `INV_FOUR_PI` times a step's weight for the air.
-/// @param gloss the surface's specular half, with its diffuse albedo, which weigh a lamp as
-///        `surfaceCandidate` says.
+/// @param facing,scale,gloss as `lampCandidateAt` takes them.
 /// @param lampLit whether the lamps light the surface at all — `Surface::mLampLit`.
 /// @param candidates how many lamps to draw where the cell holds more, and nought for every one.
 void weighLamps(inout Reservoir kept, inout uint state, vec3 from, Facing facing, float scale, Gloss gloss,
     bool lampLit, uint candidates)
 {
-    const bool sided = dot(facing.mNormal, facing.mNormal) > 0.0;
-
     // None, for a picture no lamp lights or a surface none lights: an empty run, selected, and the
     // loop is over.
     const uvec2 near = frame.mNoLamps != 0u || !lampLit ? uvec2(0u) : lampsWithin(lampsReaching(from));
@@ -514,35 +546,93 @@ void weighLamps(inout Reservoir kept, inout uint state, vec3 from, Facing facing
     {
         const uint i = near.x + (sampled ? min(uint(randomNext(state) * float(count)), count - 1u) : step);
         const uint row = lightListAt(i);
-        const GpuLight held = shownLightAt(row);
-        const Lamp lamp = lampAt(held, from);
+        const LightCandidate candidate = lampCandidateAt(row, from, facing, scale, gloss);
 
-        // **Inside a fill's ball the cosine to the centre is blended out**, by how deep the point stands,
-        // because the ball glows on every side of it there.
-        //
-        // **And no test on the reach or the cosine before the offer.** A lamp out of reach carries no
-        // direction and no share, so its weight below is nought, and `considerLamp` refuses a weight of
-        // nought; two branches inside a loop of up to `LAMPS_AT_A_POINT` saved one dot and one luminance
-        // apiece. The depth is selected and not divided for such a lamp, whose distance is nought over a
-        // source that may be a point.
-        const float faced = sided ? litCosine(facing, lamp.mTowards) : 1.0;
-        const float depth = lamp.mReaching > 0.0
-            ? lightFill(held.mTraits) * clamp(1.0 - lamp.mDistance / held.mSourceRadius, 0.0, 1.0)
-            : 0.0;
-        const float cosine = mix(faced, 1.0, depth);
-        const vec3 unshadowed = held.mIntensity * (cosine * lamp.mReaching * scale);
-        const LightCandidate candidate = surfaceCandidate(unshadowed, dot(unshadowed, LUMINANCE_WEIGHTS),
-            held.mIntensity * lamp.mReaching, lamp.mTowards,
-            held.mSourceRadius > 0.0 ? held.mSourceRadius / max(lamp.mDistance, held.mSourceRadius) : 0.0, gloss,
-            facing);
-
-        kept.mUnshadowed += candidate.mRadiance * (1.0 - candidate.mFresnel);
+        kept.mUnshadowed += unshadowedOf(candidate);
         considerLamp(kept, state, candidate, row);
     }
 
     const float spread = sampled ? float(count) / float(steps) : 1.0;
     kept.mTotal *= spread;
     kept.mUnshadowed *= spread;
+}
+
+/// The lamps a pixel's tile saw last frame, which its draw steers to: `LAMP_LIST_ROWS` rows of the light table two
+/// to a word, `LAMP_LIST_SLOT_NONE` past the last, or none.
+struct LampList
+{
+    uvec4 mRows;
+};
+
+LampList noLampList()
+{
+    return LampList(uvec4(LAMP_LIST_SLOT_NONE | (LAMP_LIST_SLOT_NONE << 16u)));
+}
+
+/// The list `pixel`'s draw steers by: the frame before's at the tile its surface stood in then, `moved` being where it
+/// stood less where it stands (`CHANNEL_MOTION`), picked among the four tiles nearest that place by their bilinear
+/// weights, an axis a draw (MegaLights' "stochastic bilinear visible light list lookup"), so a tile's edge is no
+/// seam where the draw changes lists. None where the frame before's lists stand for nothing here
+/// (`VisibilityConstants::mLampListsHeld`), or the place stood off the frame.
+LampList lampListOf(uvec2 pixel, vec2 moved)
+{
+    const uvec2 extent = uvec2(frame.mEyes.mWorld.mWidth, frame.mEyes.mWorld.mHeight);
+    const vec2 at = vec2(pixel) + 0.5 + frame.mEyes.mWorld.mJitter + moved;
+
+    // Asked as "inside", so a place that is not a number is outside, as `lightRunInCell` asks.
+    if (frame.mLampListsHeld == 0u || !all(greaterThanEqual(at, vec2(0.0))) || !all(lessThan(at, vec2(extent))))
+        return noLampList();
+
+    const uvec2 tiles = (extent + LAMP_LIST_TILE - 1u) / LAMP_LIST_TILE;
+    const vec2 tile = at / float(LAMP_LIST_TILE) - 0.5;
+    const vec2 low = floor(tile);
+
+    uint state = randomSeed(pixelKey(pixel) + SEED_LAMP_LIST_PICK);
+    const vec2 draw = vec2(randomNext(state), randomNext(state));
+    const ivec2 picked = clamp(ivec2(low) + ivec2(lessThan(draw, tile - low)), ivec2(0), ivec2(tiles) - 1);
+    const uint index = uint(picked.y) * tiles.x + uint(picked.x);
+    return LampList(lampListAt(index));
+}
+
+/// Whether the lamp at `row` is on `list`. A row no lamp of the table has never is, so a list a changed table left
+/// behind only steers the draw; and a row no slot can name never is either.
+bool listedIn(LampList list, uint row)
+{
+    return row < LAMP_LIST_SLOT_NONE
+        && (any(equal(list.mRows & LAMP_LIST_SLOT_NONE, uvec4(row))) || any(equal(list.mRows >> 16u, uvec4(row))));
+}
+
+/// Weighs every lamp reaching `from`, into `listed` where it is on `list` and into `rest` where it is not: **the
+/// lamps a pixel draws its two rays between, a stratum each** (`docs/architecture.md`, "The lamps' draw is two
+/// strata"). Every lamp is weighed once and offered to the one reservoir it belongs to, so each reservoir's sum is
+/// its stratum's exact unshadowed light, and what one draws is independent of the other's.
+///
+/// **Offered to both, at its weight in one and nought in the other**: `considerLamp` refuses a weight of nought
+/// before it draws, so a lamp steps the sequence once whichever stratum it is in, and the walk has one path. With
+/// no list every lamp is the rest's, and the rest is `weighLamps`' reservoir of every lamp to the bit.
+///
+/// @param facing,scale,gloss,lampLit as `weighLamps` takes them; every lamp, and never a fixed count, since each
+///        stratum's sum must be exact.
+void weighLampStrata(inout Reservoir listed, inout Reservoir rest, inout uint state, vec3 from, Facing facing,
+    float scale, Gloss gloss, bool lampLit, LampList list)
+{
+    const uvec2 near = frame.mNoLamps != 0u || !lampLit ? uvec2(0u) : lampsWithin(lampsReaching(from));
+    for (uint i = near.x; i < near.y; ++i)
+    {
+        const uint row = lightListAt(i);
+        const LightCandidate candidate = lampCandidateAt(row, from, facing, scale, gloss);
+        const float on = listedIn(list, row) ? 1.0 : 0.0;
+
+        LightCandidate onList = candidate;
+        onList.mWeight *= on;
+        LightCandidate offList = candidate;
+        offList.mWeight *= 1.0 - on;
+
+        listed.mUnshadowed += unshadowedOf(candidate) * on;
+        rest.mUnshadowed += unshadowedOf(candidate) * (1.0 - on);
+        considerLamp(listed, state, onList, row);
+        considerLamp(rest, state, offList, row);
+    }
 }
 
 /// What every lamp that takes light away takes from a surface's direct lamp term, per unit albedo: its
@@ -565,6 +655,30 @@ vec3 darkeningAt(vec3 from, Facing facing, float scale, bool lampLit)
     return taken;
 }
 
+/// The ray `lampAsk` asks, of the lamp at `row` of the table, leaving from `from`: for an asker that keeps the row
+/// and not the reservoir (`heldLampRay`).
+RayAsk lampRowAsk(uint row, vec3 from, vec3 step, vec2 draw, bool nearest)
+{
+    // Aimed from where the ray leaves and not from where the lamp was weighed, with no reach test:
+    // a caller that moved its origin after weighing — a lifted surface and the air both do — still
+    // aims at the lamp it held.
+    const GpuLight lamp = lightAt(row);
+    const vec3 offset = lamp.mPosition - from;
+    const float distance = length(offset);
+    if (!(distance > 0.0))
+        return noRay();
+
+    const vec3 axis = offset / distance;
+    const vec3 towards = coneDirection(axis, min(lamp.mSourceRadius / distance, 1.0), draw);
+
+    // How far along this direction the source stands beside it, which is where the ray is closest to
+    // the lamp and so where the clearance has to be measured from.
+    const float along = distance * dot(towards, axis);
+
+    return lampLightAsk(
+        leaveSurface(from, step, towards), towards, along - max(lamp.mClearance, SHADOW_BIAS), nearest);
+}
+
 /// What the world leaves of the lamp a reservoir held, in `Passage`'s two halves.
 ///
 /// **The one ray**, aimed somewhere on the lamp, stopping at its closest approach to it less the clearance
@@ -580,24 +694,7 @@ vec3 darkeningAt(vec3 from, Facing facing, float scale, bool lampLit)
 ///        point in the air.
 RayAsk lampAsk(Reservoir kept, vec3 step, vec2 draw, bool nearest)
 {
-    // Aimed from where the ray leaves and not from where the lamp was weighed, with no reach test:
-    // a caller that moved its origin after weighing — a lifted surface and the air both do — still
-    // aims at the lamp it held.
-    const GpuLight lamp = lightAt(kept.mLamp);
-    const vec3 offset = lamp.mPosition - kept.mFrom;
-    const float distance = length(offset);
-    if (!(distance > 0.0))
-        return noRay();
-
-    const vec3 axis = offset / distance;
-    const vec3 towards = coneDirection(axis, min(lamp.mSourceRadius / distance, 1.0), draw);
-
-    // How far along this direction the source stands beside it, which is where the ray is closest to
-    // the lamp and so where the clearance has to be measured from.
-    const float along = distance * dot(towards, axis);
-
-    return lampLightAsk(
-        leaveSurface(kept.mFrom, step, towards), towards, along - max(lamp.mClearance, SHADOW_BIAS), nearest);
+    return lampRowAsk(kept.mLamp, kept.mFrom, step, draw, nearest);
 }
 
 /// The tangent of a half angle given as its sine (`SkySource::mLimb`): a penumbra's radius over its

@@ -154,7 +154,7 @@ namespace Rtx
         /// the same on GCC and Clang, libstdc++ and libc++.
         TEST(RtxBlueNoiseTest, theTileIsTheSameOnEveryToolchain)
         {
-            ASSERT_EQ(Shaders::RANDOM_STREAMS, 12u) << "the pinned ranks are twelve channels a pixel";
+            ASSERT_EQ(Shaders::RANDOM_STREAMS, 14u) << "the pinned ranks are fourteen channels a pixel";
 
             const std::span<const float> values = sBlueNoise;
             const auto rankAt = [&](std::size_t pixel, std::uint32_t which) {
@@ -162,10 +162,10 @@ namespace Rtx
                     std::lround(values[pixel * Shaders::RANDOM_STREAMS + which] * static_cast<float>(sCount) - 0.5f));
             };
 
-            constexpr std::array<std::array<std::uint32_t, 12>, 3> pinned{ {
-                { 2482, 1759, 429, 2938, 2345, 2700, 2500, 2014, 262, 2884, 2238, 1636 },
-                { 3266, 3057, 3117, 697, 2832, 2169, 187, 920, 3918, 2065, 1313, 2816 },
-                { 2081, 2646, 2559, 3383, 2957, 4082, 3350, 547, 2428, 928, 984, 692 },
+            constexpr std::array<std::array<std::uint32_t, 14>, 3> pinned{ {
+                { 2482, 1759, 429, 2938, 2345, 2700, 2500, 2014, 262, 2884, 2238, 1636, 3908, 2579 },
+                { 3266, 3057, 3117, 697, 2832, 2169, 187, 920, 3918, 2065, 1313, 2816, 2614, 2084 },
+                { 2081, 2646, 2559, 3383, 2957, 4082, 3350, 547, 2428, 928, 984, 692, 1772, 492 },
             } };
             const std::array<std::size_t, 3> pixels{ 0, 1, sCount - 1 };
             for (std::size_t at = 0; at < pixels.size(); ++at)

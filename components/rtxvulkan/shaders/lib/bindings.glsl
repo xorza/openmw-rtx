@@ -99,6 +99,9 @@ layout(set = SET_CHANNELS, binding = CHANNEL_PUFFS, GBUFFER_LAYER) uniform image
 layout(set = SET_CHANNELS, binding = CHANNEL_SHADOWED) uniform image2D shadowed;
 layout(set = SET_CHANNELS, binding = CHANNEL_LAMPED) uniform image2D lamped;
 
+/// How much of the lamps' light got through, `CHANNEL_LAMPED_SHARE`.
+layout(set = SET_CHANNELS, binding = CHANNEL_LAMPED_SHARE, GBUFFER_LAMPED_SHARE) uniform image2D lampedShare;
+
 /// What the lobe reflects of the lamps and the bounce, times what the path took off it —
 /// `CHANNEL_SPECULAR`. No format, as radiance has none here.
 layout(set = SET_CHANNELS, binding = CHANNEL_SPECULAR) uniform image2D specular;
@@ -159,6 +162,10 @@ layout(set = SET_CHANNELS, binding = STAGE_RELIEF, GBUFFER_STAGE_RELIEF) uniform
 /// What the sun's shafts made of the eye's water column (`STAGE_SHAFTS`): `storeStageShafts` says what it
 /// holds.
 layout(set = SET_CHANNELS, binding = STAGE_SHAFTS, GBUFFER_STAGE_SHAFTS) uniform uimage2D stageShafts;
+
+/// The lamps each pixel's two lamp rays reached (`STAGE_LAMPS_SEEN`): the rest's in `r` and the listed one's in `g`,
+/// rows of the light table, or `LAMP_LIST_NONE`. What the lists' pass makes this frame's lists of.
+layout(set = SET_CHANNELS, binding = STAGE_LAMPS_SEEN, GBUFFER_STAGE_LAMPS_SEEN) uniform uimage2D stageLampsSeen;
 
 /// The tiles the later stages run over, which the trace appends, and the pixels the landing's stage runs
 /// over, which the bounce's appends (`STAGE_TILES`): each tile list's count in its indirect dispatch's `x`,
@@ -338,6 +345,17 @@ layout(buffer_reference, scalar, buffer_reference_align = TABLE_ALIGN_ROWS) read
     uint at[];
 };
 
+/// The lamp lists, `LAMP_LIST_WORDS` words a tile (`GpuTables::mLampLists`): the frame before's, read, and this
+/// frame's, which the lists' pass writes.
+layout(buffer_reference, scalar, buffer_reference_align = TABLE_ALIGN_ROWS) readonly buffer LampListTable
+{
+    uvec4 at[];
+};
+layout(buffer_reference, scalar, buffer_reference_align = TABLE_ALIGN_ROWS) writeonly buffer LampListTarget
+{
+    uint at[];
+};
+
 layout(buffer_reference, scalar, buffer_reference_align = TABLE_ALIGN_ROWS) readonly buffer BlueNoiseTable
 {
     float at[];
@@ -399,6 +417,18 @@ GpuLightCell lightCellAt(uint cell)
 uint lightListAt(uint slot)
 {
     return IndexList(frame.mTables.mLightList).at[slot];
+}
+
+/// The frame before's list at tile `tile`, row by row of tiles: its rows two to a word.
+uvec4 lampListAt(uint tile)
+{
+    return LampListTable(frame.mTables.mLampLists).at[tile];
+}
+
+/// Writes `word`, two slots of this frame's list, as word `at` of the list at tile `tile`.
+void storeLampListWord(uint tile, uint at, uint word)
+{
+    LampListTarget(frame.mTables.mLampListsOut).at[tile * LAMP_LIST_WORDS + at] = word;
 }
 
 /// The blue-noise tile, `RANDOM_STREAMS` channels interleaved per pixel. See `Rtx::BlueNoise`.

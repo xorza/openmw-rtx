@@ -34,7 +34,8 @@ namespace Rtx::Shaders
     const uint COMPOSITE_BIND_MOTION = 15;
     const uint COMPOSITE_BIND_STAGE_RECORD = 16;
     const uint COMPOSITE_BIND_UPSCALE_MASKS = 17;
-    const uint COMPOSITE_BINDINGS = 18;
+    const uint COMPOSITE_BIND_LAMPED_SHARE = 18;
+    const uint COMPOSITE_BINDINGS = 19;
 
     /// `CompositeConstants::mShadowed`'s bits: which of the shadow denoiser's fields ran.
     const uint COMPOSITE_SHADOWED_SKY = 1u;

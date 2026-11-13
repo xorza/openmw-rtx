@@ -6,9 +6,10 @@
 
 #include "gbuffer.h"
 
-/// What the light adds to the pixel as though its ray got through, the albedo and the lobe in; whether the
-/// ray did, one or nought, drawn open by what the translucent surfaces it crossed let through; and its
-/// penumbra in the pixel's footprints (`CHANNEL_SHADOWED`'s alpha).
+/// What the light adds to the pixel as though its ray got through, the albedo and the lobe in; how much of it got
+/// through — the sky's bit, one or nought, drawn open by what the translucent surfaces it crossed let through, and
+/// the lamps' fraction (`CHANNEL_LAMPED_SHARE`) — and its penumbra in the pixel's footprints (`CHANNEL_SHADOWED`'s
+/// alpha).
 struct Shadowed
 {
     vec3 mLight;

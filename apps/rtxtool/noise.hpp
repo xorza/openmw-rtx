@@ -112,8 +112,8 @@ namespace RtxTool
 
     /// One place's frame as `judgeNoise` measured it, which its line prints and `writeNoiseRecord`
     /// writes: the frame's noise against its own mean and the bar's against the bar's limit, each by
-    /// the mean and the 99th percentile, each one's bias against the reference, and the frame's
-    /// fireflies in a thousand pixels.
+    /// the mean and the 99th percentile, each one's bias against the reference, the frame's
+    /// fireflies in a thousand pixels, and its noisiest tile.
     struct NoiseFigures
     {
         std::string mPlace;
@@ -122,6 +122,7 @@ namespace RtxTool
         double mBias = 0.0;
         double mBarBias = 0.0;
         double mFireflies = 0.0;
+        TileNoise mWorstTile;
 
         /// Whether the frame is as clean as its bar, by the mean and at the 99th percentile.
         bool clean() const { return mNoise.mMean <= mBarNoise.mMean && mNoise.mP99 <= mBarNoise.mP99; }

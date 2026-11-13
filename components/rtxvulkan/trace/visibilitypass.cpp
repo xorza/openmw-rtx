@@ -104,7 +104,9 @@ namespace Rtx
                 && at(tables.mTextureTexels, Shaders::TABLE_ALIGN_ROWS)
                 && at(tables.mEmitterFrames, Shaders::TABLE_ALIGN_ROWS)
                 && at(tables.mSpriteTileList, Shaders::TABLE_ALIGN_ROWS)
-                && at(tables.mSpritePresence, Shaders::TABLE_ALIGN_ROWS);
+                && at(tables.mSpritePresence, Shaders::TABLE_ALIGN_ROWS)
+                && at(tables.mLampLists, Shaders::TABLE_ALIGN_ROWS)
+                && at(tables.mLampListsOut, Shaders::TABLE_ALIGN_ROWS);
         }
 
         /// Every stage on every binding, because one description of set zero serves the trace's
@@ -287,7 +289,7 @@ namespace Rtx
         // milliseconds: a hand takes up whatever is next, and a tuple taken last is the whole batch
         // waiting on one hand.
         constexpr std::array singles{ Kernel::Depth, Kernel::Integrate, Kernel::SpriteComposite, Kernel::SpriteShelter,
-            Kernel::SpriteEmitters };
+            Kernel::SpriteEmitters, Kernel::LampLists };
 
         // **The full tuple first, on every hand**, which every frame draws with until its own is made:
         // its constants are all true and the shaders' own tests answer the rest. Its froxels' launch
@@ -508,6 +510,10 @@ namespace Rtx
                 mKernels.mSpriteEmitters = std::make_unique<TracePipeline<NoConstants>>(mDevice, sBindings,
                     sharedSets(textureLayout), *mCode, "spriteemitters.rgen.spv", "sprite emitters", sWholeSky);
                 return;
+            case Kernel::LampLists:
+                mKernels.mLampLists = std::make_unique<ComputePipeline<NoConstants>>(
+                    mDevice, sBindings, sharedSets(textureLayout), "lamplists.comp.spv", "lamp lists", sWholeSky);
+                return;
         }
     }
 
@@ -546,6 +552,7 @@ namespace Rtx
         out.push_back(NamedKernel{ "sprite shelter", made.mSpriteShelter.get(), whole });
         out.push_back(NamedKernel{ "sprite emitters", made.mSpriteEmitters.get(), whole });
         out.push_back(NamedKernel{ "fog integrate", made.mIntegrate.get(), whole });
+        out.push_back(NamedKernel{ "lamp lists", made.mLampLists.get(), whole });
     }
 
     const VisibilityPass::Kernels& VisibilityPass::kernels() const
@@ -634,6 +641,7 @@ namespace Rtx
             case Kernel::SpriteComposite:
             case Kernel::SpriteShelter:
             case Kernel::SpriteEmitters:
+            case Kernel::LampLists:
                 break;
         }
         assert(false && "a kernel asked of that is no trace stage");
@@ -750,6 +758,14 @@ namespace Rtx
         described.mTables.mSpriteTileList = sprites.mTileList;
         described.mTables.mSpritePresence = sprites.mPresence;
         described.mPuffsInFrame = sprites.mPuffs ? 1u : 0u;
+
+        // And the camera's lamp lists, the frame before's and this one's, the first read only where they stand for
+        // this frame's tiles: written at this extent, by a frame a reprojection finds its way back to.
+        const GBuffer& channels = inputs.mChannels;
+        described.mTables.mLampLists = channels.getLampLists().addressFor();
+        described.mTables.mLampListsOut = channels.getLampListsOut().addressFor();
+        described.mLampListsHeld
+            = channels.holdsLampLists() && described.mPrevious.mForward != Shaders::vec3() ? 1u : 0u;
 
         // Nothing addressed here may be nothing, and every address must be what its reference
         // claims. A descriptor bound as a null handle cost this renderer a device with no message;
@@ -891,8 +907,24 @@ namespace Rtx
         };
 
         for (std::size_t at = 0; at < static_cast<std::size_t>(Kernel::Bounce); ++at)
-            if (runsStage(static_cast<Kernel>(at), variant))
-                recordStage(at, 0);
+        {
+            if (!runsStage(static_cast<Kernel>(at), variant))
+                continue;
+            recordStage(at, 0);
+
+            // **This frame's lamp lists behind the direct stage**, whose rays they are made of: a tile a
+            // workgroup, timed with the direct light whose draw they steer.
+            if (static_cast<Kernel>(at) == Kernel::Direct)
+            {
+                GBuffer::handToStage(commands);
+                const GpuZone timed(timer, commands, FrameZone::Direct);
+                const ComputePipeline<NoConstants>& lists = *kernels().mLampLists;
+                bind(commands, lists);
+                pushInputs(commands, lists, inputs);
+                vkCmdDispatch(commands, groupsFor(constants.mEyes.mWorld.mWidth, Shaders::LAMP_LIST_TILE),
+                    groupsFor(constants.mEyes.mWorld.mHeight, Shaders::LAMP_LIST_TILE), 1);
+            }
+        }
         for (std::uint32_t ray = 0; ray < constants.mBounceRays; ++ray)
         {
             recordStage(static_cast<std::size_t>(Kernel::Bounce), ray);

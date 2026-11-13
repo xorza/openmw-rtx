@@ -25,6 +25,7 @@
 #include <components/rtx/shaders/colour.h>
 #include <components/rtx/shaders/gbuffer.h>
 #include <components/rtx/shaders/look.h>
+#include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/sky.h>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtx/world/moon.hpp>
@@ -834,6 +835,104 @@ namespace Rtx::Testing
                     ASSERT_EQ(osg::Vec3f(lobe[value], lobe[value + 1], lobe[value + 2]), osg::Vec3f())
                         << "pixel " << value / 4 << " of a floor with no lobe";
             }
+        }
+
+        /// **The lamps' share is one fraction once the visible lamp is listed.** A floor under a roof two hundred
+        /// units up, lit by a lamp a hundred units over it and by another three hundred up, over the roof, which
+        /// stops its rays everywhere. On the first frame no tile has a list and every lamp is one stratum: a
+        /// pixel's share is its held lamp's bit, one where it drew the open lamp and nought where it drew the
+        /// stopped one, and the frame holds both. Once the open lamp's rays have listed it, the two are a stratum
+        /// each, and every lit pixel's share is the open lamp's light over both lamps', the same pixel by pixel as
+        /// the light with the stopped lamp out says (`shadowedLamps`): within the unorm's step and a half's rounding
+        /// of the light it is measured against.
+        ///
+        /// **Every frame's lists name the open lamp alone**, the table's first row, in every tile's first slot and
+        /// no lamp in the other seven: the stopped lamp's rays reach nothing, so no tile counts it.
+        TEST_F(RtxVisibilityTest, theLampsShareIsOneFractionOnceItsOpenLampIsListed)
+        {
+            constexpr std::uint32_t size = 64;
+            constexpr std::size_t pixels = std::size_t{ size } * size;
+
+            const auto sceneWith = [](bool stopped) {
+                SceneDesc scene;
+                addQuad(scene,
+                    std::array<osg::Vec3f, 4>{ osg::Vec3f(-4000.0f, -4000.0f, 0.0f),
+                        osg::Vec3f(4000.0f, -4000.0f, 0.0f), osg::Vec3f(4000.0f, 4000.0f, 0.0f),
+                        osg::Vec3f(-4000.0f, 4000.0f, 0.0f) },
+                    scene.addMaterial(Material{ .mDiffuseColour = osg::Vec3f(0.5f, 0.5f, 0.5f) }));
+                addQuad(scene, roofOver(-4000.0f, 4000.0f, 200.0f));
+                scene.addLight(Light{ .mPosition = osg::Vec3f(0.0f, 0.0f, 100.0f),
+                    .mIntensity = osg::Vec3f(20000.0f, 20000.0f, 20000.0f),
+                    .mReach = 3000.0f });
+                if (stopped)
+                    scene.addLight(Light{ .mPosition = osg::Vec3f(40.0f, 0.0f, 300.0f),
+                        .mIntensity = osg::Vec3f(60000.0f, 60000.0f, 60000.0f),
+                        .mReach = 3000.0f });
+                return scene;
+            };
+
+            Shaders::VisibilityConstants camera = Testing::makeCamera(
+                osg::Vec3f(0.0f, -1.0f, 150.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);
+            camera.mSkyHorizon = osg::Vec3f();
+            camera.mSkyZenith = osg::Vec3f();
+            camera.mSun.mIrradiance = osg::Vec3f();
+
+            std::vector<float> openAlone;
+            shoot(sceneWith(false), {}, camera, size);
+            mProbe.readChannel(Channel::Lamped, openAlone);
+            ASSERT_EQ(openAlone.size(), pixels * 4);
+
+            constexpr std::uint32_t tiles = (size / Shaders::LAMP_LIST_TILE) * (size / Shaders::LAMP_LIST_TILE);
+            constexpr std::uint32_t noSlots = Shaders::LAMP_LIST_SLOT_NONE | (Shaders::LAMP_LIST_SLOT_NONE << 16u);
+            std::vector<std::uint32_t> lists;
+
+            std::vector<float> light;
+            std::vector<float> share;
+            std::uint32_t frame = 0;
+            std::size_t open = 0;
+            std::size_t closed = 0;
+            std::size_t checked = 0;
+            shoot(sceneWith(true), {}, camera, size,
+                { .mFrames = 3, .mAverage = false, .mEachFrame = [&](const Frame&) {
+                     mProbe.readLampLists(lists);
+                     ASSERT_GE(lists.size(), std::size_t{ tiles } * Shaders::LAMP_LIST_WORDS);
+                     for (std::uint32_t tile = 0; tile < tiles; ++tile)
+                     {
+                         const std::size_t at = std::size_t{ tile } * Shaders::LAMP_LIST_WORDS;
+                         ASSERT_EQ(lists[at], 0u | (Shaders::LAMP_LIST_SLOT_NONE << 16u))
+                             << "the open lamp alone first, at tile " << tile << ", frame " << frame;
+                         for (std::uint32_t word = 1; word < Shaders::LAMP_LIST_WORDS; ++word)
+                             ASSERT_EQ(lists[at + word], noSlots) << "tile " << tile << ", frame " << frame;
+                     }
+
+                     mProbe.readChannel(Channel::Lamped, light);
+                     mProbe.readChannel(Channel::LampedShare, share);
+                     ASSERT_EQ(share.size(), pixels);
+                     for (std::size_t pixel = 0; pixel < pixels; ++pixel)
+                     {
+                         const float whole = osg::Vec3f(light[pixel * 4], light[pixel * 4 + 1], light[pixel * 4 + 2])
+                             * Shaders::LUMINANCE_WEIGHTS;
+                         if (!(whole > 0.0f))
+                             continue;
+                         if (frame == 0)
+                         {
+                             ASSERT_TRUE(share[pixel] == 0.0f || share[pixel] == 1.0f)
+                                 << "an unlisted frame's share is its bit, at pixel " << pixel;
+                             (share[pixel] == 1.0f ? open : closed) += 1;
+                             continue;
+                         }
+                         const float expected
+                             = osg::Vec3f(openAlone[pixel * 4], openAlone[pixel * 4 + 1], openAlone[pixel * 4 + 2])
+                             * Shaders::LUMINANCE_WEIGHTS / whole;
+                         ASSERT_NEAR(share[pixel], expected, 2e-3f) << "pixel " << pixel << ", frame " << frame;
+                         ++checked;
+                     }
+                     ++frame;
+                 } });
+            ASSERT_EQ(frame, 3u);
+            EXPECT_GT(open, 0u) << "no pixel of the first frame drew the open lamp";
+            EXPECT_GT(closed, 0u) << "no pixel of the first frame drew the stopped lamp";
+            EXPECT_GT(checked, pixels) << "too few lit pixels on the listed frames";
         }
 
         /// The sun's bit and a lamp's are kept apart, and neither is filtered into the other's light. A floor

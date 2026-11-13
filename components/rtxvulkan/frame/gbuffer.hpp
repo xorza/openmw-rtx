@@ -171,6 +171,19 @@ namespace Rtx
         /// indirect dispatch.
         const Buffer& getStageTiles() const { return mStageTiles; }
 
+        /// Turns the lamp lists for a frame `width` by `height`: the frame before's become what this one reads, and the
+        /// other is what it writes (`GpuTables::mLampLists`). Before the frame's block is written, which carries both
+        /// and whether the read ones hold anything (`holdsLampLists`).
+        void turnLampLists(std::uint32_t width, std::uint32_t height);
+
+        /// Whether the lists this frame reads were written by the frame before at this frame's extent: the tiles
+        /// they stand for are this frame's. False for the first frame a G-buffer traces.
+        bool holdsLampLists() const { return mLampListsHeld; }
+
+        /// The lists this frame reads, and the ones it writes.
+        const Buffer& getLampLists() const { return mLampLists[mLampListsNow ^ 1u]; }
+        const Buffer& getLampListsOut() const { return mLampLists[mLampListsNow]; }
+
         /// Orders a stage's writes against the next stage, which reads what it wrote and adds to
         /// some of it: a dispatch after a dispatch, every image left in `GENERAL`, and a tile list
         /// read as an indirect dispatch's arguments.
@@ -199,6 +212,15 @@ namespace Rtx
         /// The tile lists (`STAGE_TILES`), one copy and counted as the stage images are: every stage
         /// of a frame runs before the next frame's trace.
         Buffer mStageTiles;
+
+        /// The lamp lists, the one a frame reads and the one it writes by `mLampListsNow`, at the G-buffer's own
+        /// extent; the extent the last turn wrote them at, and whether the frame being recorded reads a frame's.
+        /// **Two and not one a frame in flight**: a frame reads what the one before it wrote, and the head barrier
+        /// `CommandPool::begin` records orders it after that frame's write.
+        std::array<Buffer, 2> mLampLists;
+        std::uint32_t mLampListsNow = 0;
+        VkExtent2D mLampListsExtent{};
+        bool mLampListsHeld = false;
 
         /// Which of a held channel's two images this frame writes, `mChannels`' or `mOthers`', and
         /// which set binds it: each frame's `begin` turns it.

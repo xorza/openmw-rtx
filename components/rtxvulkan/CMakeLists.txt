@@ -128,6 +128,7 @@ set(RTX_SHADERS
     shaders/trace/fogdepth.rgen
     shaders/trace/fogintegrate.comp
     shaders/trace/fogscatter.rgen
+    shaders/trace/lamplists.comp
     shaders/trace/landing.comp
     shaders/trace/media.comp
     shaders/trace/panes.comp

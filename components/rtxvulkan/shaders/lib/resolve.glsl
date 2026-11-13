@@ -16,7 +16,8 @@
 
 /// The picture at the pixel stored at `stored`: `directLight` with the bounce and its fill multiplied back by
 /// their albedos, each shadowed source by what got through (the shadow denoiser's answer where its field ran,
-/// `COMPOSITE_SHADOWED_*` in `shadowedFields`, else the ray's own bit), the lobe's light where a surface can
+/// `COMPOSITE_SHADOWED_*` in `shadowedFields`, else the sky's ray's own bit and the lamps' own share,
+/// `CHANNEL_LAMPED_SHARE`), the lobe's light where a surface can
 /// have one (`lobed`), and the layers'.
 vec3 resolvedLight(ivec2 stored, vec3 directLight, vec3 bounce, vec3 fillShare, uint shadowedFields, uint lobed)
 {
@@ -26,7 +27,7 @@ vec3 resolvedLight(ivec2 stored, vec3 directLight, vec3 bounce, vec3 fillShare, 
                                                                           : float(shadowOpen(sky.a));
     const float lampSeen = (shadowedFields & COMPOSITE_SHADOWED_LAMPS) != 0u
         ? uintBitsToFloat(imageLoad(lampShadow, stored).r)
-        : float(shadowOpen(lamps.a));
+        : imageLoad(lampedShare, stored).r;
     const vec3 lobe = lobed != 0u ? imageLoad(specular, stored).rgb * imageLoad(specularAlbedo, stored).rgb : vec3(0.0);
     return composedLight(directLight, imageLoad(albedo, stored).rgb, bounce, imageLoad(ambientAlbedo, stored).rgb,
         fillShare,

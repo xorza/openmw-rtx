@@ -212,6 +212,8 @@ namespace Rtx
                 writes.image(Shaders::ATROUS_COMPOSE_BIND_STAGE_RECORD, buffer.getStageRecord().describeStorage());
                 writes.image(
                     Shaders::ATROUS_COMPOSE_BIND_UPSCALE_MASKS, buffer.get(Channel::UpscaleMasks).describeStorage());
+                writes.image(
+                    Shaders::ATROUS_COMPOSE_BIND_LAMPED_SHARE, buffer.get(Channel::LampedShare).describeStorage());
             }
 
             level.mStep = 1u << pass;

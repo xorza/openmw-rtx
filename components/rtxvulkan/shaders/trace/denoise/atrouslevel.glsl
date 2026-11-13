@@ -115,6 +115,8 @@ layout(set = SET_PASS, binding = ATROUS_COMPOSE_BIND_AMBIENT_ALBEDO, GBUFFER_ALB
     uniform readonly image2D ambientAlbedo;
 layout(set = SET_PASS, binding = ATROUS_COMPOSE_BIND_SHADOWED) uniform readonly image2D shadowed;
 layout(set = SET_PASS, binding = ATROUS_COMPOSE_BIND_LAMPED) uniform readonly image2D lamped;
+layout(set = SET_PASS, binding = ATROUS_COMPOSE_BIND_LAMPED_SHARE, GBUFFER_LAMPED_SHARE)
+    uniform readonly image2D lampedShare;
 layout(set = SET_PASS, binding = ATROUS_COMPOSE_BIND_SHADOW, SHADOW_VISIBILITY) uniform readonly uimage2D shadow;
 layout(set = SET_PASS, binding = ATROUS_COMPOSE_BIND_LAMP_SHADOW, SHADOW_VISIBILITY) uniform readonly uimage2D lampShadow;
 layout(set = SET_PASS, binding = ATROUS_COMPOSE_BIND_SPECULAR) uniform readonly image2D specular;

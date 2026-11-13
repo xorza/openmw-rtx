@@ -33,6 +33,10 @@ layout(set = SET_PASS, binding = SHADOW_MASK_BIND_SURFACE, GBUFFER_SURFACE) unif
 
 layout(set = SET_PASS, binding = SHADOW_MASK_BIND_MASK, SHADOW_MASK) uniform writeonly uimage2D mask;
 
+/// How much of the lamps' light got through, `CHANNEL_LAMPED_SHARE`: what says where all of it did, for a field of
+/// fractions (`ShadowMaskConstants::mFraction`), and bound but read for nothing where the field is bits.
+layout(set = SET_PASS, binding = SHADOW_MASK_BIND_SHARE, GBUFFER_LAMPED_SHARE) uniform readonly image2D share;
+
 /// The widest penumbra in the workgroup.
 layout(set = SET_PASS, binding = SHADOW_MASK_BIND_PENUMBRA_TILES, SHADOW_PENUMBRA_TILES)
     uniform writeonly image2D penumbraTiles;
@@ -43,9 +47,10 @@ layout(push_constant, scalar) uniform Push
 };
 
 /// The two tiles one workgroup covers, the upper and the lower: the pixels that receive and whose
-/// rays got through, and the pixels that receive.
+/// rays got through, the pixels that receive, and the pixels that receive and all of whose light got through.
 shared uint gOpen[2];
 shared uint gReceiving[2];
+shared uint gWhole[2];
 
 /// The widest penumbra in the workgroup, as the bits of a float that is never below nought, which
 /// order as the float does.
@@ -60,6 +65,7 @@ void main()
     {
         gOpen[gl_LocalInvocationIndex] = 0u;
         gReceiving[gl_LocalInvocationIndex] = 0u;
+        gWhole[gl_LocalInvocationIndex] = 0u;
     }
     if (gl_LocalInvocationIndex == 0u)
         gWidest = 0u;
@@ -76,6 +82,8 @@ void main()
             atomicOr(gReceiving[local.y / SHADOW_MASK_HEIGHT], bit);
             if (shadowOpen(light.a))
                 atomicOr(gOpen[local.y / SHADOW_MASK_HEIGHT], bit);
+            if (frame.mFraction != 0u ? imageLoad(share, stored).r >= 1.0 : shadowOpen(light.a))
+                atomicOr(gWhole[local.y / SHADOW_MASK_HEIGHT], bit);
         }
 
         const float radius = shadowPenumbra(light.a);
@@ -92,6 +100,8 @@ void main()
     {
         const ivec2 tile = ivec2(gl_WorkGroupID.x, gl_WorkGroupID.y * 2u + gl_LocalInvocationIndex);
         if (tile.y * int(SHADOW_MASK_HEIGHT) < int(frame.mHeight))
-            RTX_STORE_WORDS(mask, tile, uvec4(gOpen[gl_LocalInvocationIndex], gReceiving[gl_LocalInvocationIndex], 0u, 0u))
+            RTX_STORE_WORDS(mask, tile,
+                uvec4(gOpen[gl_LocalInvocationIndex], gReceiving[gl_LocalInvocationIndex],
+                    gWhole[gl_LocalInvocationIndex], 0u))
     }
 }

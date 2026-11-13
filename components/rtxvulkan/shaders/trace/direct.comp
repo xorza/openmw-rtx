@@ -34,7 +34,8 @@ layout(local_size_x = TRACE_WORKGROUP_LANES) in;
 const uint DIRECT_SKY = 0u;
 const uint DIRECT_SKY_OVER = 1u;
 const uint DIRECT_LAMP = 2u;
-const uint DIRECT_RAYS = 3u;
+const uint DIRECT_LISTED_LAMP = 3u;
+const uint DIRECT_RAYS = 4u;
 
 void main()
 {
@@ -49,39 +50,53 @@ void main()
 
     // **The one writer of the shadowed sources and the lobe's light**, at every pixel: no shadowed
     // source and no lobe where no solid stands, which the trace wrote before this stage wrote them
-    // again over every solid.
+    // again over every solid. And of the lamps the pixel's rays reached, none there.
     Shadowed sky = noShadowed();
     Shadowed lamps = noShadowed();
     vec4 lobe = vec4(vec3(0.0), SPECULAR_NO_LOBE);
+    uvec2 seenLamps = uvec2(LAMP_LIST_NONE);
     if (record.mKind != STAGE_NO_SOLID)
     {
         // **The solid the trace found, resolved off the hit it stored** (`storedSolidOf`), and its
-        // light worked out whole but for what its rays answer (`solidLightOf`).
-        const SolidLight light = solidLightOf(storedSolidOf(record, stored), pixel);
+        // light worked out whole but for what its rays answer (`solidLightOf`): its lamps in two
+        // strata, by the list of the tile it stood in on the frame before (`lampListOf`).
+        const LampList list = lampListOf(pixel, imageLoad(motion, stored).xy);
+        const SolidLight light = solidLightOf(storedSolidOf(record, stored), pixel, list);
 
         Passage skyFirst = openPassage();
         Passage skyOver = openPassage();
         Passage lampPassage = openPassage();
+        Passage listedPassage = openPassage();
         [[dont_unroll]] for (uint turn = 0u; turn < DIRECT_RAYS; ++turn)
         {
-            RayAsk ask = light.mLampRay;
+            // **A lamp's ray asked at its turn**, of the row its stratum keeps and the tile's draw read again,
+            // and not held through the traversals before it: two asks of a whole query each spilled the stage
+            // past its registers.
+            RayAsk ask;
             if (turn == DIRECT_SKY)
                 ask = light.mSkyRay;
             else if (turn == DIRECT_SKY_OVER)
                 ask = light.mSkyOverRay;
+            else if (turn == DIRECT_LAMP)
+                ask = heldLampRay(light.mRestLamps, light.mLeaving, light.mStep, unitPair(pixel, STREAM_LAMP_DISC));
+            else
+                ask = heldLampRay(
+                    light.mListedLamps, light.mLeaving, light.mStep, unitPair(pixel, STREAM_LAMP_DISC_LISTED));
 
             const Passage passage = passageAnswered(answerAsked(ask));
             if (turn == DIRECT_SKY)
                 skyFirst = passage;
             else if (turn == DIRECT_SKY_OVER)
                 skyOver = passage;
-            else
+            else if (turn == DIRECT_LAMP)
                 lampPassage = passage;
+            else
+                listedPassage = passage;
         }
 
         const SeenSolid seen = seenSolidOf(light,
             light.mSkyBent ? joinedPassage(skyFirst, skyOver, light.mSkyPath, light.mSkySource.mLimb) : skyFirst,
-            lampPassage);
+            lampPassage, listedPassage);
 
         // **The solid's light under the layers**, by what the media and the path let through, as
         // the trace took the water's own light down (`visibility.comp`); **its shadowed sources and
@@ -96,12 +111,15 @@ void main()
         sky = dimmed(seen.mLight.mSky, transmittance);
         lamps = dimmed(seen.mLight.mLamps, transmittance);
         lobe = vec4(seen.mSpecular * transmittance, seen.mRoughness);
+        seenLamps = uvec2(seenLampOf(light.mRestLamps, lampPassage), seenLampOf(light.mListedLamps, listedPassage));
     }
 
     RTX_STORE_COUNTED(shadowed, channelAt(CHANNEL_SHADOWED, ivec2(pixel), width, swap),
         vec4(sky.mLight, packShadowAlpha(sky.mOpen > 0.0, sky.mPenumbra)))
     RTX_STORE_COUNTED(lamped, channelAt(CHANNEL_LAMPED, ivec2(pixel), width, swap),
         vec4(lamps.mLight, packShadowAlpha(lamps.mOpen > 0.0, lamps.mPenumbra)))
+    RTX_STORE_COUNTED(lampedShare, channelAt(CHANNEL_LAMPED_SHARE, ivec2(pixel), width, swap), vec4(lamps.mOpen))
+    RTX_STORE_WORDS(stageLampsSeen, stored, uvec4(seenLamps, 0u, 0u))
 
     // **The lobe's light only where a surface can have one**: the channel holds no lobe already
     // without the maps' code (`GBuffer::begin`).

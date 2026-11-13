@@ -68,12 +68,14 @@ class RecordTest(unittest.TestCase):
     def test_every_side_is_read_by_place_with_the_figures_the_table_shows(self):
         record = {"sides": [
             [{"place": "guild", "mean": 1.24, "p99": 12.35, "barMean": 3.59, "barP99": 27.0, "bias": 2.1,
-              "barBias": 1.41, "fireflies": 0.4, "clean": True}],
+              "barBias": 1.41, "fireflies": 0.4, "tileX": 0, "tileY": 180, "tileMean": 6.5, "tileBarMean": 3.0,
+              "clean": True}],
             [{"place": "guild", "mean": 0.49, "p99": 3.0, "barMean": 2.7, "barP99": 21.0, "bias": 1.57,
-              "barBias": 0.53, "fireflies": 0.0, "clean": False}],
+              "barBias": 0.53, "fireflies": 0.0, "tileX": 180, "tileY": 0, "tileMean": 1.25, "tileBarMean": 2.0,
+              "clean": False}],
         ]}
-        self.assertEqual(read_record(record), ({"guild": Figures(1.24, 12.35, 2.1, 0.4)},
-                                               {"guild": Figures(0.49, 3.0, 1.57, 0.0)}))
+        self.assertEqual(read_record(record), ({"guild": Figures(1.24, 12.35, 2.1, 0.4, 6.5)},
+                                               {"guild": Figures(0.49, 3.0, 1.57, 0.0, 1.25)}))
         self.assertEqual(read_record({"sides": [[]]}), ({},))
 
     def test_the_record_is_where_the_harness_writes_it(self):
@@ -86,13 +88,13 @@ class RecordTest(unittest.TestCase):
 class TableTest(unittest.TestCase):
     def test_every_column_is_as_wide_as_the_longer_label(self):
         sides = (Side("own", "--bounce-reuse=own"), Side("spatiotemporal", "--bounce-reuse=spatiotemporal"))
-        lines = table("still", sides, {"guild": Figures(0.69, 4, 1.8, 0.4)},
-                      {"guild": Figures(0.59, 4, 1.85, 0.1)}).splitlines()
+        lines = table("still", sides, {"guild": Figures(0.69, 4, 1.8, 0.4, 2.5)},
+                      {"guild": Figures(0.59, 4, 1.85, 0.1, 1.5)}).splitlines()
         # Each column's right edge, as the labels row sets it, is where every row's figure ends.
         heads = [match.end() for match in re.finditer(r"\S+", lines[2])]
         figures = [match.end() for match in re.finditer(r"\S+", lines[3])][1:]
         self.assertEqual(heads, figures)
-        self.assertEqual(lines[1].rstrip()[-17:], "fireflies in 1000")
+        self.assertEqual(lines[1].rstrip()[-10:], "worst tile")
         self.assertEqual(len(lines[1].rstrip()), len(lines[2]))
 
 
@@ -113,10 +115,12 @@ class _Harness:
         out = Path(next(arg for arg in args if arg.startswith("--out=")).removeprefix("--out="))
         out.mkdir(parents=True, exist_ok=True)
         sides = [[{"place": "some-place", "mean": 1.0, "p99": 9.0, "barMean": 2.0, "barP99": 20.0, "bias": 0.5,
-                   "barBias": 0.4, "fireflies": 0.25, "clean": False}]]
+                   "barBias": 0.4, "fireflies": 0.25, "tileX": 0, "tileY": 0, "tileMean": 3.0, "tileBarMean": 2.5,
+                   "clean": False}]]
         if self.versus:
             sides.append([{"place": "some-place", "mean": 0.8, "p99": 8.0, "barMean": 2.0, "barP99": 20.0,
-                           "bias": 0.6, "barBias": 0.4, "fireflies": 0.1, "clean": True}])
+                           "bias": 0.6, "barBias": 0.4, "fireflies": 0.1, "tileX": 0, "tileY": 0, "tileMean": 2.0,
+                           "tileBarMean": 2.5, "clean": True}])
         (out / RECORD).write_text(json.dumps({"sides": sides}))
         return subprocess.CompletedProcess([verb, *args], self.status)
 

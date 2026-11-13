@@ -33,6 +33,7 @@ namespace Rtx
         Lift = Shaders::CHANNEL_LIFT,
         SpecularAlbedo = Shaders::CHANNEL_SPECULAR_ALBEDO,
         Lamped = Shaders::CHANNEL_LAMPED,
+        LampedShare = Shaders::CHANNEL_LAMPED_SHARE,
     };
 
     inline constexpr std::uint32_t sChannelCount = Shaders::CHANNEL_COUNT;
@@ -65,6 +66,7 @@ namespace Rtx
         { Channel::Lift, "g-lift" },
         { Channel::SpecularAlbedo, "g-specular-albedo" },
         { Channel::Lamped, "g-lamped" },
+        { Channel::LampedShare, "g-lamped-share" },
     } } };
 
     /// Every channel in index order, for a walk that wants them all.

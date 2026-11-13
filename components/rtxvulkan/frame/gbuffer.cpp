@@ -4,14 +4,17 @@
 #include <array>
 #include <cassert>
 #include <cstddef>
+#include <cstdint>
 #include <optional>
 #include <string_view>
 #include <tuple>
 
 #include <components/crashcatcher/crash.hpp>
 #include <components/rtx/shaders/gbuffer.h>
+#include <components/rtx/shaders/scene.h>
 #include <components/rtxvulkan/device/bindingtable.hpp>
 #include <components/rtxvulkan/device/memory/barriers.hpp>
+#include <components/rtxvulkan/device/memory/bufferusage.hpp>
 #include <components/rtxvulkan/device/memory/formats.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
@@ -48,6 +51,9 @@ namespace Rtx
 
         /// A byte a channel, for the reason `gbuffer.h` gives.
         constexpr VkFormat sLift = toVulkanFormat(GBUFFER_LIFT);
+
+        /// A unorm the share of the lamps' light, for the reason `gbuffer.h` gives.
+        constexpr VkFormat sLampedShare = toVulkanFormat(GBUFFER_LAMPED_SHARE);
 
         /// `SAMPLED` on all of them: the cascade samples the surface and the puffs, an upscaler samples
         /// what it is handed, and the bit costs no memory, so every channel carries it.
@@ -91,6 +97,7 @@ namespace Rtx
                 every[indexOf(Channel::Lift)] = { sLift, sReadable };
                 every[indexOf(Channel::SpecularAlbedo)] = { sAlbedo, sReadable };
                 every[indexOf(Channel::Lamped)] = { VK_FORMAT_UNDEFINED, sReadable };
+                every[indexOf(Channel::LampedShare)] = { sLampedShare, sReadable };
 
                 return every;
             }();
@@ -195,6 +202,7 @@ namespace Rtx
                 StageRead::SeveralRays },
             { Shaders::STAGE_RELIEF, GBUFFER_STAGE_RELIEF, "stage relief" },
             { Shaders::STAGE_SHAFTS, GBUFFER_STAGE_SHAFTS, "stage shafts" },
+            { Shaders::STAGE_LAMPS_SEEN, GBUFFER_STAGE_LAMPS_SEEN, "stage lamps seen" },
         } };
 
         constexpr bool stagesInOrder()
@@ -240,6 +248,18 @@ namespace Rtx
         constexpr VkBufferUsageFlags sTileUsage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
             | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 
+        /// The bytes of a frame's lamp lists, `LAMP_LIST_WORDS` words a tile of a frame `width` by `height`.
+        VkDeviceSize lampListBytes(const std::uint32_t width, const std::uint32_t height)
+        {
+            return VkDeviceSize{ groupsFor(width, Shaders::LAMP_LIST_TILE) }
+            * groupsFor(height, Shaders::LAMP_LIST_TILE) * Shaders::LAMP_LIST_WORDS * sizeof(std::uint32_t);
+        }
+
+        /// What the lamp lists are made for: a table the trace reaches by its address, and a copy's source, which
+        /// costs no memory and lets a test read the lists back.
+        constexpr VkBufferUsageFlags sLampListUsage
+            = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | sTableUsage;
+
         /// Who reads a tile list: the stages, which append to it and read its tiles, and the indirect
         /// dispatch, which reads its head.
         constexpr BufferUse sTileReaders{ VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT
@@ -266,6 +286,10 @@ namespace Rtx
         const std::uint32_t height, const RadianceWidth radiance, const ChannelKeeping& keeping, const ArenaRun& stages)
         : mStageTiles(Buffer::make(MemoryUse::Frame, device, BufferKind::DeviceLocal, stageTilesBytes(width, height),
               sTileUsage, "stage tiles"))
+        , mLampLists{ Buffer::make(MemoryUse::Frame, device, BufferKind::DeviceLocal, lampListBytes(width, height),
+                          sLampListUsage, "lamp lists"),
+            Buffer::make(MemoryUse::Frame, device, BufferKind::DeviceLocal, lampListBytes(width, height),
+                sLampListUsage, "lamp lists") }
         , mSet(device, sBindings, layout.get(), keeping.keepsHeld() ? 2 : 1)
         , mKeeping(keeping)
     {
@@ -341,7 +365,8 @@ namespace Rtx
         for (const Channel channel : sEveryChannel)
             bytes += Image::bytesFor(device, descriptionOf(channel, width, height, radiance, keeping))
                 * (keeping.keepsHeld() && heldIndexOf(channel).has_value() ? 2 : 1);
-        return bytes + Buffer::bytesFor(device, stageTilesBytes(width, height), sTileUsage);
+        return bytes + Buffer::bytesFor(device, stageTilesBytes(width, height), sTileUsage)
+            + 2 * Buffer::bytesFor(device, lampListBytes(width, height), sLampListUsage);
     }
 
     const Image& GBuffer::get(const Channel channel) const
@@ -439,6 +464,14 @@ namespace Rtx
                 get(channel).clear(commands, Use::sUndefined, nothingOf(channel), Use::sComputeWrite);
                 mHoldsNothing[indexOf(channel)] = true;
             }
+    }
+
+    void GBuffer::turnLampLists(const std::uint32_t width, const std::uint32_t height)
+    {
+        assert(width <= getWidth() && height <= getHeight() && "lamp lists for a frame past the G-buffer's extent");
+        mLampListsNow ^= 1u;
+        mLampListsHeld = mLampListsExtent.width == width && mLampListsExtent.height == height;
+        mLampListsExtent = VkExtent2D{ width, height };
     }
 
     void GBuffer::handToStage(VkCommandBuffer commands)

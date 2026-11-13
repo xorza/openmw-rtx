@@ -95,17 +95,18 @@ namespace Rtx
         /// The kernels are counted as they land, the count never goes back, and it reaches the whole only once
         /// the compile is over. What a frame draws with is the full tuple's nine (the trace, the water's walk,
         /// its direct light, media, layers, bounce, the bounce's landing, the ambient's stage and the froxels'
-        /// launch) beside the 5 kernels no tuple changes (the air's two and the sprites' three); every other
-        /// tuple compiles behind them, a tuple a step, 47 of them: the 32 of the maps, the sky and a dark map's
-        /// alpha, and the 16 with the maps that march a relief beside them, but the full tuple, one of those.
+        /// launch) beside the 6 kernels no tuple changes (the air's two, the sprites' three and the lamp lists');
+        /// every other tuple compiles behind them, a tuple a step, 47 of them: the 32 of the maps, the sky and a
+        /// dark map's alpha, and the 16 with the maps that march a relief beside them, but the full tuple, one of
+        /// those.
         ///
         /// Only the full tuple is watched as it compiles, the rest read off the suite's renderer, which made
         /// every tuple before any test ran (`Testing::getRenderer` waits for `KernelSet::Every`): every kernel
-        /// made again under the layers would be seconds of this binary for an answer the 14 already give.
+        /// made again under the layers would be seconds of this binary for an answer the 15 already give.
         TEST_F(RtxVisibilityKernelsTest, theKernelsAreCountedAsTheyLandAndTheCountEndsWithTheCompile)
         {
             const VisibilityPass pass(getDevice(), mTextures, mChannels, mVolume, false, false, UpscaleMasks::Written);
-            constexpr std::uint32_t drawing = 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 5;
+            constexpr std::uint32_t drawing = 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 6;
 
             JobProgress progress = pass.awaitKernels(KernelSet::Drawing, std::chrono::milliseconds::zero());
             const Testing::WaitBound bound(Testing::sColdPatience);
@@ -212,21 +213,25 @@ namespace Rtx
             // selects its axis (`traversal.glsl`), the price of no NaN on a face along ±x, which 16 warps an SM
             // at 128 registers' shared memory holds all the same. `fog integrate` at 2304: its column depths, nine
             // floats a thread read at an index the tent's loop leaves unrolled, which the compiler keeps in shared
-            // memory and not a lane's local memory, `64 × 9 × 4` bytes a workgroup.
+            // memory and not a lane's local memory, `64 × 9 × 4` bytes a workgroup. `direct` at 768 bytes more
+            // since it traces a ray to each stratum of the lamps (`weighLampStrata`): asked at its turn and not
+            // held through the traversals, which had it at 5760; and `lamp lists` at its tile's tables, three
+            // words a lamp a tile's rays can reach and the list, `3 × 128 × 4 + 8 × 4` and the count.
             constexpr std::array<Ceiling, 5> sNvidiaWithoutDarkAlpha{ {
                 { "water", 0, 128, 3456 },
-                { "direct", 0, 128, 1408 },
+                { "direct", 0, 128, 2176 },
                 { "media", 0, 128, 5504 },
                 { "panes", 0, 168, 4992 },
                 { "landing", 0, 128, 640 },
             } };
-            constexpr std::array<Ceiling, 6> sNvidiaWhole{ {
+            constexpr std::array<Ceiling, 7> sNvidiaWhole{ {
                 { "water", 0, 128, 3456 },
-                { "direct", 0, 128, 1920 },
+                { "direct", 0, 128, 2688 },
                 { "media", 16, 128, 6272 },
                 { "panes", 0, 168, 5504 },
                 { "landing", 0, 128, 640 },
                 { "fog integrate", 0, 128, 2304 },
+                { "lamp lists", 0, 128, 1584 },
             } };
             // Measured on the handheld's integrated GPU under RADV. `visibility` at 144 and the landing under the
             // rule since a sheet takes its span off the corners the hit carried
@@ -270,7 +275,7 @@ namespace Rtx
                 return std::ranges::count_if(
                     kernels, [&](const VisibilityPass::NamedKernel& kernel) { return kernel.mTuple == tuple; });
             };
-            ASSERT_EQ(tupled(whole), 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 5);
+            ASSERT_EQ(tupled(whole), 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 6);
             ASSERT_EQ(tupled(withoutDarkAlpha), 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1);
 
             for (const VisibilityPass::NamedKernel& kernel : kernels)

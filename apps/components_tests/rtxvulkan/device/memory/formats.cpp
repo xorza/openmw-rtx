@@ -105,7 +105,7 @@ namespace Rtx
                 { VK_FORMAT_R8_UNORM, 1, TexelDecode::Unorm8 },
                 { VK_FORMAT_R8_UINT, 1, TexelDecode::Bytes },
                 { VK_FORMAT_R8G8_UNORM, 2, TexelDecode::Unorm8 },
-                { VK_FORMAT_R16_UNORM, 2, TexelDecode::Bytes },
+                { VK_FORMAT_R16_UNORM, 2, TexelDecode::Unorm16 },
                 { VK_FORMAT_R16_SFLOAT, 2, TexelDecode::Half },
                 { VK_FORMAT_R8G8B8A8_UNORM, 4, TexelDecode::Unorm8 },
                 { VK_FORMAT_R8G8B8A8_SRGB, 4, TexelDecode::Bytes },

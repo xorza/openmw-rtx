@@ -50,11 +50,13 @@ class Plan:
 @dataclass(frozen=True)
 class Figures:
     """One place's frame, as a leg's run measured it: its noise's mean and 99th percentile, its bias
-    against the converged reference, and its fireflies in a thousand pixels."""
+    against the converged reference, its fireflies in a thousand pixels, and the noise's mean on its noisiest
+    tile (`RtxTool::worstTile`)."""
     mean: float
     p99: float
     bias: float
     fireflies: float
+    tile: float
 
 
 def wants_ab(args: list[str]) -> bool:
@@ -108,7 +110,7 @@ def read_record(record: dict) -> tuple[dict[str, Figures], ...]:
     """Every side's places in a run's record (`RtxTool::writeNoiseRecord`), each by its place's name,
     the first side first."""
     return tuple({place["place"]: Figures(float(place["mean"]), float(place["p99"]), float(place["bias"]),
-                                          float(place["fireflies"])) for place in side}
+                                          float(place["fireflies"]), float(place["tileMean"])) for place in side}
                  for side in record.get("sides", []))
 
 
@@ -117,19 +119,20 @@ def table(leg: str, sides: tuple[Side, Side], first: dict[str, Figures], second:
     which the line names."""
     a, b = sides
     label = max(len(a.label), len(b.label))
-    mean, p99, bias, fly = max(label, 8), max(label, 5), max(label, 6), max(label, 9)
+    mean, p99, bias, fly, tile = max(label, 8), max(label, 5), max(label, 6), max(label, 9), max(label, 6)
     lines = [f"{leg}: {a.switch} against {b.switch}",
              (f"  {'':<28} {'noise mean':>{2 * mean + 1}} {'p99':>{2 * p99 + 1}} {'bias':>{2 * bias + 1}} "
-              f"{'fireflies in 1000':>{2 * fly + 1}}"),
+              f"{'fireflies in 1000':>{2 * fly + 1}} {'worst tile':>{2 * tile + 1}}"),
              (f"  {'':<28} {a.label:>{mean}} {b.label:>{mean}} {a.label:>{p99}} {b.label:>{p99}} {a.label:>{bias}} "
-              f"{b.label:>{bias}} {a.label:>{fly}} {b.label:>{fly}}")]
+              f"{b.label:>{bias}} {a.label:>{fly}} {b.label:>{fly}} {a.label:>{tile}} {b.label:>{tile}}")]
     for place in [*first, *(place for place in second if place not in first)]:
         x, y = first.get(place), second.get(place)
         if x is None or y is None:
             lines.append(f"  {place:<28} measured on one side only")
             continue
         lines.append(f"  {place:<28} {x.mean:>{mean}.2f} {y.mean:>{mean}.2f} {x.p99:>{p99}.2f} {y.p99:>{p99}.2f} "
-                     f"{x.bias:>{bias}.2f} {y.bias:>{bias}.2f} {x.fireflies:>{fly}.2f} {y.fireflies:>{fly}.2f}")
+                     f"{x.bias:>{bias}.2f} {y.bias:>{bias}.2f} {x.fireflies:>{fly}.2f} {y.fireflies:>{fly}.2f} "
+                     f"{x.tile:>{tile}.2f} {y.tile:>{tile}.2f}")
     return "\n".join(lines)
 
 

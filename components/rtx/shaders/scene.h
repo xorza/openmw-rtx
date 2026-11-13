@@ -93,7 +93,7 @@ namespace Rtx::Shaders
     /// apiece, so two draws are uncorrelated with each other as well as with the neighbours'. Shared
     /// because the tile is generated on the host with exactly this many masks. **Exactly the number
     /// drawn, not a round one**: a spare channel would have no honest step to advance by.
-    const uint RANDOM_STREAMS = 12;
+    const uint RANDOM_STREAMS = 14;
 
     /// Which channel of the tile each draw takes; a pair costs two, hence the gaps after the column
     /// and the bounce. **A channel apiece, not a salt on a shared one**: a fog offset and a bounce
@@ -111,10 +111,11 @@ namespace Rtx::Shaders
     /// the water's, and its own channel for the same reason.
     const uint STREAM_FOG_ALONG = 5u;
 
-    /// Where on the sky's disc and on the held lamp's sphere the eye's split hit aims its two shadow
-    /// rays, and which sky source it draws (`GatherRun`). **Blue, because the shadow denoiser filters
-    /// these rays' bits** (Heitz and Belcour 2019; NRD); deeper paths keep the hash, which a replay
-    /// of their far end needs.
+    /// Where on the sky's disc and on the held lamps' spheres the eye's split hit aims its shadow rays,
+    /// and which sky source it draws (`GatherRun`): the rest's lamp at `STREAM_LAMP_DISC`, and the
+    /// listed lamp's at `STREAM_LAMP_DISC_LISTED`. **Blue, because the shadow denoiser filters these
+    /// rays' bits** (Heitz and Belcour 2019; NRD); deeper paths keep the hash, which a replay of
+    /// their far end needs.
     const uint STREAM_SUN_DISC = 6u;
     const uint STREAM_LAMP_DISC = 8u;
     const uint STREAM_SKY_PICK = 10u;
@@ -123,6 +124,7 @@ namespace Rtx::Shaders
     /// leaves is spread where the eye sees least of it, and its own channel, so it follows none of
     /// the trace's draws at the same pixel.
     const uint STREAM_DITHER = 11u;
+    const uint STREAM_LAMP_DISC_LISTED = 12u;
 
     /// What `VisibilityConstants::mNoise` says the per-pixel draws come from: the tile, turned
     /// by an irrational step each frame, or a hashed counter seeded by the pixel, the frame and
@@ -601,6 +603,30 @@ namespace Rtx::Shaders
     {
         return (z * height + y) * width + x;
     }
+
+    /// The side of a tile of the lamp lists, in traced pixels: the lamps whose rays got through in a tile make its
+    /// list, which the next frame's pixels there steer their draw by (`weighLampStrata`). Unreal's MegaLights'
+    /// tile, eight pixels on a side. **A power of two by its exponent**, which `lamplists.comp` hashes a tile's
+    /// lamps into as many slots as its rays.
+    const uint LAMP_LIST_TILE_SHIFT = 3u;
+    const uint LAMP_LIST_TILE = 1u << LAMP_LIST_TILE_SHIFT;
+
+    /// How many lamps a tile's list holds at most: its pixels trace two lamp rays each, and a pixel's history
+    /// converges on fewer lamps than that; MegaLights bounds its lists by the samples a tile shades. **The ones
+    /// most of the tile's rays reached**, so a list is the tile's light and not its first lamps.
+    const uint LAMP_LIST_ROWS = 8u;
+
+    /// **A list's rows two to a word**, sixteen bits each, so a pixel walking its lamps holds a list in four
+    /// registers and not eight: the walk is where the direct stage holds the most. A row past
+    /// `LAMP_LIST_SLOT_NONE` is never listed, and stays among the rest, which costs it nothing but the steering.
+    const uint LAMP_LIST_WORDS = LAMP_LIST_ROWS / 2u;
+
+    /// A slot of a tile's list that names no lamp, and the first row no slot can name.
+    const uint LAMP_LIST_SLOT_NONE = 0xFFFFu;
+
+    /// A pixel's seen lamp where its ray reached none (`STAGE_LAMPS_SEEN`): above every row a light table has.
+    const uint LAMP_LIST_NONE = 0xFFFFFFFFu;
+
     /// Where every table a hit reads is, as one address apiece. **In the frame block rather than a
     /// descriptor each**: that is a storage-buffer binding per table pushed twice a frame, and a binding
     /// the pass forgets reads whatever the slot holds. An address is a 64-bit integer, so the struct
@@ -672,6 +698,13 @@ namespace Rtx::Shaders
         /// header read on every sample. The backend's texture array writes it a slot at a time, with
         /// the wrap over it (`TEXTURE_WRAP_SHIFT`) and `TEXTURE_STANDS_IN` over both.
         uint64 mTextureTexels;
+
+        /// The lamp lists, `LAMP_LIST_WORDS` words a tile of `LAMP_LIST_TILE` pixels, row by
+        /// row of tiles: the frame before's, which this frame's draw reads where `VisibilityConstants::mLampListsHeld`
+        /// says they hold anything, and this frame's, which the lists' pass writes after the direct stage
+        /// (`lamplists.comp`). The camera's and not the scene's, as the sprite bin's are.
+        uint64 mLampLists;
+        uint64 mLampListsOut;
     };
 
     /// A ground layer whose diffuse is an authored albedo with the perceptual roughness in its alpha
@@ -987,7 +1020,8 @@ namespace Rtx::Shaders
     static_assert(sizeof(GpuEmitter) == 40, "GpuEmitter must be scalar-packed on every side");
     static_assert(sizeof(GpuEmitterFrame) == 16, "GpuEmitterFrame must be scalar-packed on every side");
     static_assert(sizeof(GpuPresence) == 24, "GpuPresence must be scalar-packed on every side");
-    static_assert(sizeof(GpuTables) == 200, "GpuTables must be scalar-packed on every side");
+    static_assert(sizeof(GpuTables) == 216, "GpuTables must be scalar-packed on every side");
+    static_assert(LAMP_LIST_ROWS % 2u == 0u, "a lamp list's rows stand two to a word");
 
 #endif
 

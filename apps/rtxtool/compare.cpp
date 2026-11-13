@@ -147,6 +147,53 @@ namespace RtxTool
         };
     }
 
+    std::optional<TileNoise> worstTile(
+        const PngImage& frame, const PngImage& frameMean, const PngImage& bar, const PngImage& barLimit)
+    {
+        if (!comparable(frame, frameMean) || !comparable(frame, bar) || !comparable(frame, barLimit))
+            return std::nullopt;
+
+        const std::uint32_t side = (frame.mHeight + sNoiseTileRows - 1) / sNoiseTileRows;
+        const std::uint32_t columns = (frame.mWidth + side - 1) / side;
+        const std::uint32_t rows = (frame.mHeight + side - 1) / side;
+
+        // Each tile's two sums on the sixteen-bit scale, a tile a row of them.
+        struct Sums
+        {
+            std::uint64_t mNoise = 0;
+            std::uint64_t mBar = 0;
+            std::uint64_t mPixels = 0;
+        };
+        std::vector<Sums> tiles(std::size_t{ columns } * rows);
+        for (std::uint32_t y = 0; y < frame.mHeight; ++y)
+            for (std::uint32_t x = 0; x < frame.mWidth; ++x)
+            {
+                const std::size_t at = (std::size_t{ y } * frame.mWidth + x) * 4;
+                Sums& tile = tiles[std::size_t{ y / side } * columns + x / side];
+                tile.mNoise += worstChannel(frame, frameMean, at);
+                tile.mBar += worstChannel(bar, barLimit, at);
+                ++tile.mPixels;
+            }
+
+        constexpr auto perLevel = static_cast<double>(sSamplesPerLevel);
+        std::optional<TileNoise> worst;
+        for (std::uint32_t row = 0; row < rows; ++row)
+            for (std::uint32_t column = 0; column < columns; ++column)
+            {
+                const Sums& tile = tiles[std::size_t{ row } * columns + column];
+                const double pixels = static_cast<double>(tile.mPixels) * perLevel;
+                const TileNoise here{ .mX = column * side,
+                    .mY = row * side,
+                    .mSide = side,
+                    .mNoise = static_cast<double>(tile.mNoise) / pixels,
+                    .mBarNoise = static_cast<double>(tile.mBar) / pixels };
+                if (!worst.has_value() || here.mNoise > worst->mNoise)
+                    worst = here;
+            }
+
+        return worst;
+    }
+
     std::optional<double> fireflyShare(const PngImage& picture, const PngImage& reference)
     {
         if (!comparable(picture, reference))

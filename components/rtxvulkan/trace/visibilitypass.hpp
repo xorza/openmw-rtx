@@ -216,6 +216,7 @@ namespace Rtx
             SpriteComposite,
             SpriteShelter,
             SpriteEmitters,
+            LampLists,
         };
 
         /// One kernel to make: which of the pass's launches, and for the two tables, which tuple.
@@ -349,6 +350,10 @@ namespace Rtx
             /// The pass that integrates the columns, which takes no tuple at all: every question was
             /// answered by the pass that filled the froxels.
             std::unique_ptr<ComputePipeline<NoConstants>> mIntegrate;
+
+            /// The pass that makes this frame's lamp lists of the lamps the direct stage's rays reached
+            /// (`lamplists.comp`), which takes no tuple either: it reads rows and counts them.
+            std::unique_ptr<ComputePipeline<NoConstants>> mLampLists;
         };
 
         /// The kernels, once the compile is over: waits for it, and throws what it threw, every time

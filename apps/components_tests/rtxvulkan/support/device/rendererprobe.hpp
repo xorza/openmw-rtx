@@ -80,6 +80,10 @@ namespace Rtx::Testing
         /// to floats whatever the channel holds. The frame's, never a view scene's.
         void readChannel(Channel channel, std::vector<float>& values);
 
+        /// The lamp lists the last frame wrote (`GpuTables::mLampListsOut`) into `words`, `LAMP_LIST_WORDS` a tile,
+        /// row by row of tiles.
+        void readLampLists(std::vector<std::uint32_t>& words);
+
         /// The same for the composite's own output, which no channel holds: the frame a measurement
         /// is taken on, where `readPixels` gives the one a display would show. The trace's answer,
         /// whatever upscales it, and so without the puffs the display lays over it.

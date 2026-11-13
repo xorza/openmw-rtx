@@ -237,6 +237,7 @@ namespace Rtx
             && "a frame that stores the pane filter's tracks where the chain keeps them a texel wide, or the other "
                "way");
 
+        mChannels->turnLampLists(what.mSampled.mEyes.mWorld.mWidth, what.mSampled.mEyes.mWorld.mHeight);
         mPasses.mVisibility.writeFrame(commands, inputs, tables, what.mSampled);
 
         if (drawsSprites)

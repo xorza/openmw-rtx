@@ -487,7 +487,17 @@ bounce (or `unbounced` in their place), then the composite. Every ray is a ray q
 - **Work only where there is some**: `media` and `panes` dispatch indirectly over the tiles `visibility` lists
   (`StageTiles`), FidelityFX's classify and compact.
 - **Exact numbers over smaller ones**: no f16 arithmetic, no snorm16 normals.
-- **No reuse of direct light**: only the held lamp's visibility is noisy, which the shadow denoiser filters.
+- **No reuse of direct light**: only the held lamps' visibility is noisy, which the shadow denoiser filters. What
+  the frame before decides is which lamps each ray is drawn among, never the light.
+- **The lamps' draw is two strata, their visibility one fraction**: the lamps the pixel's tile's rays reached most often
+  the frame before (`lamplists.comp`), and the rest, a reservoir and a ray each (`weighLampStrata`), the list read at a
+  tile the reprojected place's bilinear weights pick, as Unreal's MegaLights guides its samples (Narkowicz and Costa
+  2025). Each stratum's ray is weighed by its share of the light into one fraction (`CHANNEL_LAMPED_SHARE`), Heitz et
+  al. 2018's ratio estimator a stratum, summed: it estimates the same share of the same light whatever a list holds, so
+  the shadow denoiser blends across lists, its temporal pass taking the fraction's moments over the SDK's kernel.
+  Refused: a bit field a stratum, whose meaning moved with the list and drew a ragged penumbra; one ray drawn between
+  the strata, its fraction up to five; ReSTIR's reuse with visibility, whose resampling costs and whose correlated
+  samples the denoiser does not want; more rays, whose noise falls as a root (`research/2026-11-13-lamp-strata.md`).
 - **8x4 invocations at 32 lanes** (`SubgroupSize::ThirtyTwo`), AMD's advice for ray queries on RDNA.
 - **First frames run the full kernels; the frame's own tuple compiles behind them and takes over**, as Godot's
   ubershaders and Dolphin's hybrid mode do (`TupleQueue`). Refused: every tuple ahead of the first frame, a minute and

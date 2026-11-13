@@ -104,6 +104,33 @@ namespace RtxTool
     /// on their extents.
     PictureError measureError(const PngImage& picture, const PngImage& reference);
 
+    /// How many tiles `worstTile` cuts a picture's height into: a tile's side is the height over this, rounded up,
+    /// so a frame's tiles stand at one share of it at every size. **Eight**, so a region a seventh of the frame wide
+    /// holds a tile whole: the census office's noisy band was that wide, and the frame's own mean, over the smooth
+    /// wall and the dark door frame beside it, called the frame as clean as its bar.
+    inline constexpr std::uint32_t sNoiseTileRows = 8;
+
+    /// The noisiest tile of a frame, `worstTile`'s answer: its corner and its side in pixels, and its noise and the
+    /// bar's in the same tile, each the mean of the tile's pixels' worst colour channel against their own picture's
+    /// limit, out of 255.
+    struct TileNoise
+    {
+        std::uint32_t mX = 0;
+        std::uint32_t mY = 0;
+        std::uint32_t mSide = 0;
+        double mNoise = 0.0;
+        double mBarNoise = 0.0;
+    };
+
+    /// The tile of `frame` whose mean noise against `frameMean` is the highest, with `bar`'s against `barLimit` in
+    /// the same tile, the tiles `sNoiseTileRows` to the height and the last row and column cut by the edge: noise
+    /// over a share of the frame, which the means over the whole of it dilute. **The frame's noisiest and not where
+    /// it stands furthest past its bar**: at the census office the bar's sixteen unfiltered frames stand at five
+    /// times the frame's noise over the band, and a tile held against them is never the band. Nothing where the
+    /// four are not one size.
+    std::optional<TileNoise> worstTile(
+        const PngImage& frame, const PngImage& frameMean, const PngImage& bar, const PngImage& barLimit);
+
     /// How far a picture stands from another after both are blurred by a Gaussian of `sigma`
     /// pixels, as the mean over the pixels of the worst colour channel, out of 255 — or nothing
     /// where either is empty or they disagree on their extents. Blurred as one signed difference,

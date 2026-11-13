@@ -17,7 +17,7 @@
 /// The bounce and the sun's disc share `R2` though one hit reads both, so the offset between their draws at
 /// a pixel never changes.
 const float STREAM_TURN[RANDOM_STREAMS] = float[](0.7548777, 0.5698403, 0.7548777, 0.5698403, 0.4142136, 0.6180340,
-    0.7548777, 0.5698403, 0.7320508, 0.6457513, 0.3166248, 0.1231056);
+    0.7548777, 0.5698403, 0.7320508, 0.6457513, 0.3166248, 0.1231056, 0.6055513, 0.7416574);
 
 /// Where `pixel`'s draw of `stream` stands in the tile, `RANDOM_STREAMS` channels a texel.
 uint tileIndex(uvec2 pixel, uint stream)

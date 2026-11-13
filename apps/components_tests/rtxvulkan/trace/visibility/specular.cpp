@@ -172,9 +172,12 @@ namespace Rtx::Testing
                 Shaders::VisibilityConstants after = darkCameraAt(osg::Vec3f(150.0f, -200.0f, 300.0f));
                 after.mFrame = 5000;
 
+                // The raw frame behind the same sixteen frames, so it reads the lamp lists the turned one read
+                // and draws its lamps alike (`weighLampStrata`).
                 shoot(floor.mScene, floor.mTextures, before, sSize, filteredRun(16, 3000, false));
                 Frame turned = shoot(floor.mScene, floor.mTextures, after, sSize,
                     { .mFilter = true, .mAntilag = false, .mSetScene = false });
+                shoot(floor.mScene, floor.mTextures, before, sSize, filteredRun(16, 3000, false));
                 Frame raw = shoot(floor.mScene, floor.mTextures, after, sSize, { .mSetScene = false });
                 return std::pair{ std::move(turned), std::move(raw) };
             };

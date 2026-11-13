@@ -480,6 +480,17 @@ namespace Rtx
 
                 return;
 
+            case TexelDecode::Unorm16:
+                values.resize(bytes.size() / sizeof(std::uint16_t));
+                for (std::size_t at = 0; at < values.size(); ++at)
+                {
+                    std::uint16_t unorm = 0;
+                    std::memcpy(&unorm, bytes.data() + at * sizeof(unorm), sizeof(unorm));
+                    values[at] = static_cast<float>(unorm) / 65535.0f;
+                }
+
+                return;
+
             case TexelDecode::Float:
                 values.resize(bytes.size() / sizeof(float));
                 std::memcpy(values.data(), bytes.data(), bytes.size());

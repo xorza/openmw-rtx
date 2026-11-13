@@ -41,6 +41,10 @@
 // seam of lamp light (at the mages' guild's planter one such pixel stood at 76 of 255 where 256 raw frames
 // hold 3).
 //
+// **A third where all of a receiver's light got through**: the first again for a field of bits, and where the
+// lamps' share is one for theirs (`CHANNEL_LAMPED_SHARE`), so a tile every receiver of which is whole is cleared
+// off the words, and only a tile the filter runs over reads its pixels' shares.
+//
 // **Two halves a tile for the classification**: one where the tile was cleared — every receiver in
 // it and around it lit alike, so its value is exact and nothing filters it — and nought where the
 // filter runs; and the tile's reach, the widest penumbra in pixels in it and the tiles around it,
@@ -54,7 +58,7 @@
 // as its bits in a word, where the variance beside it has no reader. The levels write through one
 // declaration of words with no format, so the one pipeline stores either.
 
-#define SHADOW_MASK STORAGE_RG32UI
+#define SHADOW_MASK STORAGE_RGBA32UI
 #define SHADOW_REPROJECTED STORAGE_R32UI
 #define SHADOW_VISIBILITY STORAGE_R32UI
 #define SHADOW_MOMENTS STORAGE_RG32UI
@@ -86,7 +90,8 @@ namespace Rtx::Shaders
     const uint SHADOW_MASK_BIND_SURFACE = 1;
     const uint SHADOW_MASK_BIND_MASK = 2;
     const uint SHADOW_MASK_BIND_PENUMBRA_TILES = 3;
-    const uint SHADOW_MASK_BINDINGS = 4;
+    const uint SHADOW_MASK_BIND_SHARE = 4;
+    const uint SHADOW_MASK_BINDINGS = 5;
 
     /// The three levels the spatial filter runs at: the level is the filter module's one
     /// specialization constant, and its taps stand `1 << level` pixels apart.
@@ -111,7 +116,14 @@ namespace Rtx::Shaders
     const uint SHADOW_TILES_BIND_MASK = 8;
     const uint SHADOW_TILES_BIND_PENUMBRA_TILES = 9;
     const uint SHADOW_TILES_BIND_MATCH = 10;
-    const uint SHADOW_TILES_BINDINGS = 11;
+    const uint SHADOW_TILES_BIND_SHARE = 11;
+    const uint SHADOW_TILES_BINDINGS = 12;
+
+    /// The temporal module's specialization constant, by `constant_id`: whether its field's value at a pixel
+    /// is a fraction (`CHANNEL_LAMPED_SHARE`, the lamps') and not its rays' bit (the sky's), which the
+    /// neighbourhood's moments and the tiles' clearing are then taken of.
+    const uint SHADOW_TILES_SPEC_FRACTION = 0u;
+    const uint SHADOW_TILES_SPEC_COUNT = 1u;
 
     /// Where `shadowfilter.comp` binds what it reads and writes in set 0, and how many there are:
     /// the surface, and each field's tiles, source and target, the sky's at the binding named and
@@ -133,12 +145,14 @@ namespace Rtx::Shaders
     const float SHADOW_MOMENT_FRAMES = 128.0f;
 
     /// What the mask pass reads that is not an image: the frame's extent, past which a bit is nought,
-    /// and its number, which says how its fields lie (`fieldSwapOf`).
+    /// its number, which says how its fields lie (`fieldSwapOf`), and one where the field's value is a
+    /// fraction (`CHANNEL_LAMPED_SHARE`), which says where all of a receiver's light got through.
     struct ShadowMaskConstants
     {
         uint mWidth;
         uint mHeight;
         uint mFrame;
+        uint mFraction;
     };
 
     /// Which field a pass runs over, which its rounding is seeded by: one draw shared by the two
@@ -221,7 +235,7 @@ namespace Rtx::Shaders
     // Pinned for the reason `scene.h` gives: the side that writes these bytes and the side that
     // reads them are different compilers.
 #ifdef RTX_HOST
-    static_assert(sizeof(ShadowMaskConstants) == 12, "ShadowMaskConstants must be scalar-packed on every side");
+    static_assert(sizeof(ShadowMaskConstants) == 16, "ShadowMaskConstants must be scalar-packed on every side");
     static_assert(sizeof(ShadowTilesConstants) == 228, "ShadowTilesConstants must be scalar-packed on every side");
     static_assert(sizeof(ShadowFilterConstants) == 156, "ShadowFilterConstants must be scalar-packed on every side");
 #endif

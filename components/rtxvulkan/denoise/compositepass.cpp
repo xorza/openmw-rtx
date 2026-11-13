@@ -99,6 +99,7 @@ namespace Rtx
         writes.image(Shaders::COMPOSITE_BIND_MOTION, buffer.get(Channel::Motion).describeStorage());
         writes.image(Shaders::COMPOSITE_BIND_STAGE_RECORD, buffer.getStageRecord().describeStorage());
         writes.image(Shaders::COMPOSITE_BIND_UPSCALE_MASKS, buffer.get(Channel::UpscaleMasks).describeStorage());
+        writes.image(Shaders::COMPOSITE_BIND_LAMPED_SHARE, buffer.get(Channel::LampedShare).describeStorage());
 
         dispatch(commands, mPipeline, writes, constants,
             Groups::covering(constants.mWidth, constants.mHeight, Shaders::COMPOSITE_WORKGROUP));

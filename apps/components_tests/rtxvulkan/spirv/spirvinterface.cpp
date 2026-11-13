@@ -134,8 +134,9 @@ namespace Rtx
             std::ranges::sort(binding);
 
             EXPECT_EQ(binding,
-                (std::vector<std::string>{ "bounce.comp.spv", "direct.comp.spv", "landing.comp.spv", "media.comp.spv",
-                    "panes.comp.spv", "unbounced.comp.spv", "visibility.comp.spv" }));
+                (std::vector<std::string>{ "bounce.comp.spv", "direct.comp.spv", "lamplists.comp.spv",
+                    "landing.comp.spv", "media.comp.spv", "panes.comp.spv", "unbounced.comp.spv",
+                    "visibility.comp.spv" }));
         }
 
         /// **The trace's own kinds read as theirs**: the scene's top-level structure, the bindless

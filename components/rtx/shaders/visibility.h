@@ -368,7 +368,12 @@ namespace Rtx::Shaders
         /// filtered by the upscaler: the chain keeps those channels a texel wide there (`ChannelKeeping`).
         /// A branch every lane of a dispatch takes alike, on two stores.
         uint mPaneTracks;
-        uint mPadding RTX_ZERO;
+
+        /// One where the lamp lists the frame before wrote stand for this frame's tiles
+        /// (`GpuTables::mLampLists`): the chain's channels wrote them at this extent, and the previous
+        /// basis is one a reprojection finds a tile through. Nought where there is no frame before, or
+        /// another camera's, which steers no draw.
+        uint mLampListsHeld;
 
         /// The share of a pixel's light under which a source is never drawn for its shadow bit —
         /// `SHADOW_DRAW_FLOOR` unless a run names another, `Rtx::Reconstruction::mShadowFloor`.
@@ -433,7 +438,7 @@ namespace Rtx::Shaders
     static_assert(offsetof(VisibilityConstants, mTables)
             == offsetof(VisibilityConstants, mPreviousJitter) + sizeof(VisibilityConstants::mPreviousJitter),
         "no implicit pad before GpuTables: name one, so a copy carries it and a comparison reads it");
-    static_assert(sizeof(VisibilityConstants) == 1664, "VisibilityConstants must be scalar-packed on every side");
+    static_assert(sizeof(VisibilityConstants) == 1680, "VisibilityConstants must be scalar-packed on every side");
     static_assert(sizeof(PuffConstants) == 152, "PuffConstants must be scalar-packed on every side");
 #endif
 

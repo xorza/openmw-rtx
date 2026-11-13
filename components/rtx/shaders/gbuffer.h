@@ -91,6 +91,15 @@
 // march of `WATER_SHAFT_STEPS` samples whose noise is far past a half's rounding.
 #define GBUFFER_STAGE_SHAFTS STORAGE_RG32UI
 
+// **And the lamps each pixel's two lamp rays reached**, two rows of the light table, which the lists' pass makes
+// this frame's lamp lists of (`lamplists.comp`).
+#define GBUFFER_STAGE_LAMPS_SEEN STORAGE_RG32UI
+
+// **The share of the lamps' light that got through, a fraction and not a bit** (`CHANNEL_LAMPED_SHARE`): a
+// sixteen-bit unorm, which holds one and nought exactly and a share's steps at 1/65535, past every share a pixel of
+// a frame can tell from its neighbour.
+#define GBUFFER_LAMPED_SHARE STORAGE_R16
+
 // Which binding of `SET_CHANNELS` each channel is, named so that the shader's layout qualifiers and
 // the C++ layout and writes cannot agree only for as long as nobody reorders a list.
 
@@ -247,14 +256,21 @@ namespace Rtx::Shaders
     /// what it averages, and a replacer's reflectance is detail the light behind it is not.
     const uint CHANNEL_SPECULAR_ALBEDO = 17;
 
-    /// What every lamp's diffuse half adds to what the eye sees as though their rays got through,
-    /// summed, and whether the held lamp's ray did: `CHANNEL_SHADOWED`'s record for the lamps, which
-    /// the shadow denoiser filters as a field of its own beside the sky's. The held lamp's bit is
-    /// Heitz et al. 2018's ratio estimator over the reservoir's draw (`GatherRun`).
+    /// What every lamp's diffuse half adds to what the eye sees as though their rays got through, summed, and in
+    /// `a` whether any of the light got through and the penumbra (`packShadowAlpha`): `CHANNEL_SHADOWED`'s record
+    /// for the lamps, which the shadow denoiser filters as a field of its own beside the sky's.
     const uint CHANNEL_LAMPED = 18;
 
+    /// How much of `CHANNEL_LAMPED`'s light got through, from nought to one: Heitz et al. 2018's ratio estimator
+    /// over two strata, the lamps on the tile's list and the rest, a ray each, each stratum's visibility weighed by
+    /// its share of the light (`weighLampStrata`). **One fraction and not a bit a stratum**: the fraction estimates
+    /// the same share of the same light whatever the list holds, so the shadow denoiser blends neighbours and
+    /// frames whose lists differ (`docs/architecture.md`, "The lamps' draw is two strata, their visibility one
+    /// fraction").
+    const uint CHANNEL_LAMPED_SHARE = 19;
+
     /// How many channels the set declares, which is the last of them and one more.
-    const uint CHANNEL_COUNT = 19;
+    const uint CHANNEL_COUNT = 20;
 
     /// Where the set binds what the trace hands its later stages, after the channels: the record of
     /// each pixel's solid (`StageRecord`), the throughput to it, the surface's lift, and the solid's
@@ -319,9 +335,13 @@ namespace Rtx::Shaders
     /// (`GBUFFER_STAGE_SHAFTS`), past the relief for the reason the relief stands past the lists.
     const uint STAGE_SHAFTS = CHANNEL_COUNT + 12u;
 
-    /// How many bindings the set holds: the channels, the stage images, the tile lists, the relief and
-    /// the shafts.
-    const uint CHANNEL_SET_BINDINGS = CHANNEL_COUNT + 13u;
+    /// The lamps each pixel's lamp rays reached, which the direct stage writes and the lists' pass reads
+    /// (`GBUFFER_STAGE_LAMPS_SEEN`).
+    const uint STAGE_LAMPS_SEEN = CHANNEL_COUNT + 13u;
+
+    /// How many bindings the set holds: the channels, the stage images, the tile lists, the relief, the
+    /// shafts and the lamps seen.
+    const uint CHANNEL_SET_BINDINGS = CHANNEL_COUNT + 14u;
 
     /// Whether `binding` of the set is a stage image: every binding past the channels but the tile
     /// lists, which are a buffer.

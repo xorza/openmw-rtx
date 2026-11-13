@@ -92,8 +92,9 @@ namespace RtxTool
             const std::optional<double> frameBias = blurredDifference(frameMean, reference, sNoiseBiasBlur);
             const std::optional<double> barBias = blurredDifference(barLimit, reference, sNoiseBiasBlur);
             const std::optional<double> fireflies = fireflyShare(single, reference);
+            const std::optional<TileNoise> tile = worstTile(single, frameMean, barMean, barLimit);
             if (frame.mMismatched || bar.mMismatched || !frameBias.has_value() || !barBias.has_value()
-                || !fireflies.has_value())
+                || !fireflies.has_value() || !tile.has_value())
             {
                 Debug::getRawStdout() << std::format("  {:<28} a picture is of another size than the others\n", place);
                 ++missing;
@@ -105,16 +106,18 @@ namespace RtxTool
                 .mBarNoise = bar,
                 .mBias = *frameBias,
                 .mBarBias = *barBias,
-                .mFireflies = *fireflies });
+                .mFireflies = *fireflies,
+                .mWorstTile = *tile });
             if (!figures.clean())
                 ++noisier;
 
             Debug::getRawStdout() << std::format(
                 "  {:<28} noise: frame mean {:.2f} p99 {:.2f}, {} averaged mean {:.2f} p99 {:.2f} — {}; "
-                "bias: frame {:.2f}, {} averaged {:.2f}; fireflies {:.2f} in a thousand\n",
+                "bias: frame {:.2f}, {} averaged {:.2f}; fireflies {:.2f} in a thousand; worst tile at {},{}: "
+                "frame mean {:.2f}, averaged {:.2f}\n",
                 place, frame.mMean, frame.mP99, barFrames, bar.mMean, bar.mP99,
                 figures.clean() ? "as clean" : "noisier", figures.mBias, barFrames, figures.mBarBias,
-                figures.mFireflies);
+                figures.mFireflies, tile->mX, tile->mY, tile->mNoise, tile->mBarNoise);
         }
 
         if (noisier == 0 && missing == 0)
@@ -143,11 +146,12 @@ namespace RtxTool
                 file << (at == 0 ? "\n    " : ",\n    ")
                      << std::format(R"({{"place": {}, "mean": {}, "p99": {}, "barMean": {}, )"
                                     R"("barP99": {}, "bias": {}, "barBias": {}, "fireflies": {}, )"
-                                    R"("clean": {}}})",
+                                    R"("tileX": {}, "tileY": {}, "tileMean": {}, "tileBarMean": {}, "clean": {}}})",
                             jsonString(place.mPlace), jsonNumber(place.mNoise.mMean), jsonNumber(place.mNoise.mP99),
                             jsonNumber(place.mBarNoise.mMean), jsonNumber(place.mBarNoise.mP99),
                             jsonNumber(place.mBias), jsonNumber(place.mBarBias), jsonNumber(place.mFireflies),
-                            place.clean());
+                            place.mWorstTile.mX, place.mWorstTile.mY, jsonNumber(place.mWorstTile.mNoise),
+                            jsonNumber(place.mWorstTile.mBarNoise), place.clean());
             }
             file << "\n  ]";
         }

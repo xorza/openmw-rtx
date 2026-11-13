@@ -14,11 +14,13 @@
 namespace Rtx
 {
     /// How a read of floats decodes a texel read back to the host: from halves, as floats, from
-    /// bytes each a fraction of 255, or not at all, for a format only a read of bytes takes.
+    /// bytes each a fraction of 255, from sixteen-bit words each a fraction of 65535, or not at all, for
+    /// a format only a read of bytes takes.
     enum class TexelDecode
     {
         Bytes,
         Unorm8,
+        Unorm16,
         Half,
         Float,
     };
@@ -62,7 +64,7 @@ namespace Rtx
         StorageFormatRow{ Shaders::StorageFormat::Rgba8, VK_FORMAT_R8G8B8A8_UNORM, { 4, TexelDecode::Unorm8 } },
         StorageFormatRow{ Shaders::StorageFormat::R8, VK_FORMAT_R8_UNORM, { 1, TexelDecode::Unorm8 } },
         StorageFormatRow{ Shaders::StorageFormat::Rg8, VK_FORMAT_R8G8_UNORM, { 2, TexelDecode::Unorm8 } },
-        StorageFormatRow{ Shaders::StorageFormat::R16, VK_FORMAT_R16_UNORM, { 2, TexelDecode::Bytes } },
+        StorageFormatRow{ Shaders::StorageFormat::R16, VK_FORMAT_R16_UNORM, { 2, TexelDecode::Unorm16 } },
         StorageFormatRow{ Shaders::StorageFormat::R16f, VK_FORMAT_R16_SFLOAT, { 2, TexelDecode::Half } },
         StorageFormatRow{ Shaders::StorageFormat::R32f, VK_FORMAT_R32_SFLOAT, { 4, TexelDecode::Float } },
         StorageFormatRow{ Shaders::StorageFormat::R32ui, VK_FORMAT_R32_UINT, { 4, TexelDecode::Bytes } },

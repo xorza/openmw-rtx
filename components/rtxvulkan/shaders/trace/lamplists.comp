@@ -1,0 +1,117 @@
+#version 460
+
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_shader_image_load_formatted : require
+
+// This frame's lamp lists, a workgroup a tile of `LAMP_LIST_TILE` pixels on a side: the lamps the tile's lamp rays
+// reached (`STAGE_LAMPS_SEEN`), the `LAMP_LIST_ROWS` most of them reached, which the next frame's pixels there draw
+// their listed lamp from (`weighLampStrata`). Unreal's MegaLights' visible light lists, built from the trace's own
+// answers, so they cost no ray.
+//
+// **Counted in a table of the tile's own, and ranked by count and then row**: which slot a lamp claims is the order
+// the lanes reached it in, which no two runs share, and the rank reads the table and not the slots, so a tile's list
+// is the same lamps in the same order on every run (`./omw repeat`).
+
+#include "scene.h"
+#include "shared/fields.h"
+
+#include "lib/bindings.glsl"
+#include "lib/pixels.glsl"
+
+layout(local_size_x = LAMP_LIST_TILE, local_size_y = LAMP_LIST_TILE) in;
+
+const uint LANES = LAMP_LIST_TILE * LAMP_LIST_TILE;
+
+/// What the tile's lanes can reach between them: two lamps a pixel, and so a slot for each with none to spare, so a
+/// lamp always finds one.
+const uint SEEN = 2u * LANES;
+
+/// How far Fibonacci hashing shifts a row's product down, so its top bits name one of the `SEEN` slots, which are
+/// two to the power of one more than twice the tile's side's exponent.
+const uint SEEN_SHIFT = 32u - (2u * LAMP_LIST_TILE_SHIFT + 1u);
+
+/// The tile's lamps, by a hash of their row and the next slot free after it: each slot's row, `LAMP_LIST_NONE` where
+/// it holds none, and how many of the tile's rays reached it; and which slots hold one, as they were claimed.
+shared uint gRows[SEEN];
+shared uint gCounts[SEEN];
+shared uint gClaimed[SEEN];
+shared uint gClaimedCount;
+
+/// This frame's list, a slot a lamp, as the ranks put them, which the first lanes pack two to a word.
+shared uint gList[LAMP_LIST_ROWS];
+
+/// Counts one ray that reached the lamp at `row`, or none where it reached `LAMP_LIST_NONE` or a row no slot can name
+/// (`LAMP_LIST_SLOT_NONE`), which stays among the rest.
+void countSeen(uint row)
+{
+    if (row >= LAMP_LIST_SLOT_NONE)
+        return;
+
+    uint slot = (row * 2654435761u) >> SEEN_SHIFT;
+    for (uint probe = 0u; probe < SEEN; ++probe)
+    {
+        const uint held = atomicCompSwap(gRows[slot], LAMP_LIST_NONE, row);
+        if (held == LAMP_LIST_NONE)
+            gClaimed[atomicAdd(gClaimedCount, 1u)] = slot;
+        if (held == LAMP_LIST_NONE || held == row)
+        {
+            atomicAdd(gCounts[slot], 1u);
+            return;
+        }
+        slot = (slot + 1u) % SEEN;
+    }
+}
+
+void main()
+{
+    const uint lane = gl_LocalInvocationIndex;
+    for (uint at = lane; at < SEEN; at += LANES)
+    {
+        gRows[at] = LAMP_LIST_NONE;
+        gCounts[at] = 0u;
+    }
+    if (lane == 0u)
+        gClaimedCount = 0u;
+    if (lane < LAMP_LIST_ROWS)
+        gList[lane] = LAMP_LIST_SLOT_NONE;
+
+    barrier();
+
+    const uvec2 extent = uvec2(frame.mEyes.mWorld.mWidth, frame.mEyes.mWorld.mHeight);
+    const uvec2 pixel = gl_GlobalInvocationID.xy;
+    if (!outsideOf(pixel, extent))
+    {
+        const uvec2 seen
+            = imageLoad(stageLampsSeen, storedAt(ivec2(pixel), extent.x, fieldSwapOf(frame.mFrame))).rg;
+        countSeen(seen.x);
+        countSeen(seen.y);
+    }
+
+    barrier();
+
+    // A lamp's place on the list is how many of the tile's lamps rank before it: more rays reached them, or as many
+    // and a lower row. Past the list's rows it is left off.
+    const uint claimed = gClaimedCount;
+    const uint tile = gl_WorkGroupID.y * ((extent.x + LAMP_LIST_TILE - 1u) / LAMP_LIST_TILE) + gl_WorkGroupID.x;
+    for (uint at = lane; at < claimed; at += LANES)
+    {
+        const uint row = gRows[gClaimed[at]];
+        const uint count = gCounts[gClaimed[at]];
+        uint rank = 0u;
+        for (uint other = 0u; other < claimed; ++other)
+        {
+            const uint otherRow = gRows[gClaimed[other]];
+            const uint otherCount = gCounts[gClaimed[other]];
+            rank += otherCount > count || (otherCount == count && otherRow < row) ? 1u : 0u;
+        }
+
+        if (rank < LAMP_LIST_ROWS)
+            gList[rank] = row;
+    }
+
+    barrier();
+
+    // Two slots a word, the slots no lamp took empty.
+    if (lane < LAMP_LIST_WORDS)
+        storeLampListWord(tile, lane, gList[2u * lane] | (gList[2u * lane + 1u] << 16u));
+}

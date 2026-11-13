@@ -5,6 +5,7 @@
 // their sequences apart: what a pass that binds none of the trace's tables draws with too, the
 // wavelet's tap offsets among them. `random.glsl` reads them with the frame the trace holds.
 
+#include "gbuffer.h"
 #include "scene.h"
 
 /// Which sequence a lamp reservoir draws on.
@@ -118,6 +119,10 @@ const uint SEED_FOG_SUNWARD_ROUNDING = SEED_FOG_SCATTER_ROUNDING + 1u;
 /// `SEED_LAMPS_BOUNCE` are two.
 const uint SEED_MORE_BOUNCE_RAYS = SEED_FOG_SUNWARD_ROUNDING + 1u;
 const uint MORE_BOUNCE_RAY_SEEDS = 5u;
+
+/// Past the bounce rays' blocks: which of the four tiles nearest a pixel's place on the frame before it reads the
+/// lamp list of (`lampListOf`).
+const uint SEED_LAMP_LIST_PICK = SEED_MORE_BOUNCE_RAYS + (MAX_BOUNCE_RAYS - 1u) * MORE_BOUNCE_RAY_SEEDS;
 
 /// The sequences bounce ray `ray` of the eye's surface draws from, counting the first as nought, and
 /// its landing's: the first keeps the seeds the one bounce always had.

@@ -42,6 +42,15 @@ namespace Rtx
                 device, sFilterBindings, {}, "shadowfilter.comp.spv", sFilterNames[level][fields - 1], specialization);
         }
 
+        /// The temporal pass, over a field of fractions where `fraction`.
+        ComputePipeline<Shaders::ShadowTilesConstants> makeTiles(const Device& device, const bool fraction)
+        {
+            std::array<std::uint32_t, Shaders::SHADOW_TILES_SPEC_COUNT> specialization{};
+            specialization[Shaders::SHADOW_TILES_SPEC_FRACTION] = fraction ? VK_TRUE : VK_FALSE;
+            return ComputePipeline<Shaders::ShadowTilesConstants>(device, sTilesBindings, {}, "shadowtiles.comp.spv",
+                fraction ? "shadow-tiles-fraction" : "shadow-tiles", specialization);
+        }
+
         std::array<ComputePipeline<Shaders::ShadowFilterConstants>, (1u << Shaders::SHADOW_FIELD_COUNT) - 1u>
         makeFilters(const Device& device, const std::uint32_t level)
         {
@@ -51,7 +60,8 @@ namespace Rtx
 
     ShadowPass::ShadowPass(const Device& device)
         : mMask(device, sMaskBindings, {}, "shadowmask.comp.spv", "shadow-mask")
-        , mTiles(device, sTilesBindings, {}, "shadowtiles.comp.spv", "shadow-tiles")
+        , mTiles(makeTiles(device, false))
+        , mFractionTiles(makeTiles(device, true))
         , mFilters{ makeFilters(device, 0), makeFilters(device, 1), makeFilters(device, 2) }
     {
     }
@@ -72,10 +82,13 @@ namespace Rtx
         writes.image(Shaders::SHADOW_MASK_BIND_SURFACE, buffer.get(Channel::Surface).describeStorage());
         writes.image(Shaders::SHADOW_MASK_BIND_MASK, images.mMask.describeStorage());
         writes.image(Shaders::SHADOW_MASK_BIND_PENUMBRA_TILES, images.mPenumbra.describeStorage());
+        writes.image(Shaders::SHADOW_MASK_BIND_SHARE, buffer.get(Channel::LampedShare).describeStorage());
 
         dispatch(commands, mMask, writes,
-            Shaders::ShadowMaskConstants{
-                .mWidth = camera.mWidth, .mHeight = camera.mHeight, .mFrame = frame.mSampled.mFrame },
+            Shaders::ShadowMaskConstants{ .mWidth = camera.mWidth,
+                .mHeight = camera.mHeight,
+                .mFrame = frame.mSampled.mFrame,
+                .mFraction = images.mField == ShadowField::Sky ? 0u : 1u },
             Groups::covering(
                 camera.mWidth, camera.mHeight, Shaders::SHADOW_MASK_WIDTH, 2 * Shaders::SHADOW_MASK_HEIGHT));
     }
@@ -85,7 +98,10 @@ namespace Rtx
     {
         const Shaders::Camera& camera = frame.mSampled.mEyes.mWorld;
 
-        DescriptorWrites writes(mTiles);
+        // The sky's value is its rays' bit, and the lamps' the share of their light (`CHANNEL_LAMPED_SHARE`).
+        const ComputePipeline<Shaders::ShadowTilesConstants>& tiles
+            = images.mField == ShadowField::Sky ? mTiles : mFractionTiles;
+        DescriptorWrites writes(tiles);
         writes.image(Shaders::SHADOW_TILES_BIND_SURFACE, buffer.get(Channel::Surface).describeStorage());
         writes.image(Shaders::SHADOW_TILES_BIND_MOTION, buffer.get(Channel::Motion).describeStorage());
         writes.image(Shaders::SHADOW_TILES_BIND_HELD_SURFACE, buffer.getHeld(Channel::Surface).describeStorage());
@@ -97,13 +113,14 @@ namespace Rtx
         writes.image(Shaders::SHADOW_TILES_BIND_MASK, images.mMask.describeStorage());
         writes.image(Shaders::SHADOW_TILES_BIND_PENUMBRA_TILES, images.mPenumbra.describeStorage());
         writes.image(Shaders::SHADOW_TILES_BIND_MATCH, images.mMatch.describeStorage());
+        writes.image(Shaders::SHADOW_TILES_BIND_SHARE, buffer.get(Channel::LampedShare).describeStorage());
 
         const Shaders::ShadowTilesConstants constants{
             .mHistory = frame.history(images.mFresh),
             .mField = static_cast<std::uint32_t>(images.mField),
         };
 
-        dispatch(commands, mTiles, writes, constants,
+        dispatch(commands, tiles, writes, constants,
             Groups::covering(camera.mWidth, camera.mHeight, Shaders::SHADOW_WORKGROUP));
     }
 

@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <fstream>
 #include <limits>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -351,6 +352,48 @@ namespace RtxTool
             return image;
         }
 
+        /// `base` levels everywhere and `base + raised` over the `width` by `height` block at `x`, `y`.
+        PngImage raisedBlock(PngImage image, std::uint8_t base, std::uint32_t x, std::uint32_t y, std::uint32_t width,
+            std::uint32_t height, std::uint8_t raised)
+        {
+            for (std::uint32_t row = y; row < y + height; ++row)
+                for (std::uint32_t column = x; column < x + width; ++column)
+                    for (std::size_t channel = 0; channel < 3; ++channel)
+                        image.mSamples[(std::size_t{ row } * image.mWidth + column) * 4 + channel]
+                            = static_cast<std::uint16_t>((base + raised) * sSamplesPerLevel);
+            return image;
+        }
+
+        /// **The worst tile is the frame's noisiest, whatever its bar stands at there.** A 4 by 15 picture is cut into
+        /// tiles 2 on a side (15 over `sNoiseTileRows`, rounded up): two across and eight down, the last a row high.
+        /// The frame stands 8 off its mean on the tile at (2, 6), where the bar stands at nought, and 9 off on the
+        /// tile at (0, 0), where the bar stands 9 off too: (0, 0) is the worst, at 9 beside the bar's 9, and not
+        /// (2, 6), which stands furthest past its bar. Raised to 10 on the two pixels of the row the edge cut, that
+        /// tile is the worst at their mean, 10, and not at a quarter of it. Pictures of two sizes have no tile to
+        /// compare.
+        TEST(RtxCompareTest, theWorstTileIsTheFramesNoisiest)
+        {
+            const PngImage mean = flat(4, 15, 100);
+            const PngImage frame = raisedBlock(raisedBlock(mean, 100, 2, 6, 2, 2, 8), 100, 0, 0, 2, 2, 9);
+            const PngImage bar = raisedBlock(mean, 100, 0, 0, 2, 2, 9);
+
+            const std::optional<TileNoise> worst = worstTile(frame, mean, bar, mean);
+            ASSERT_TRUE(worst.has_value());
+            EXPECT_EQ(worst->mX, 0u);
+            EXPECT_EQ(worst->mY, 0u);
+            EXPECT_EQ(worst->mSide, 2u);
+            EXPECT_DOUBLE_EQ(worst->mNoise, 9.0);
+            EXPECT_DOUBLE_EQ(worst->mBarNoise, 9.0);
+
+            const std::optional<TileNoise> edge = worstTile(raisedBlock(frame, 100, 0, 14, 2, 1, 10), mean, bar, mean);
+            ASSERT_TRUE(edge.has_value());
+            EXPECT_EQ(edge->mX, 0u);
+            EXPECT_EQ(edge->mY, 14u);
+            EXPECT_DOUBLE_EQ(edge->mNoise, 10.0) << "the cut tile's mean over its own pixels";
+
+            EXPECT_FALSE(worstTile(frame, mean, bar, flat(4, 14, 100)).has_value());
+        }
+
         /// **The exit status of `noise`, case by case**, over the five pictures a place writes. The
         /// frame stands from its mean by the error of `frame` against a flat 100; the bar from its
         /// limit by `bar` against the same. On a 10 by 10 picture:
@@ -437,20 +480,24 @@ namespace RtxTool
             // **The record holds each side's places as measured, the first side first**, and a name
             // that is no plain word stays one string.
             const std::filesystem::path record = root / sNoiseRecord;
-            const std::array sides{ std::vector<NoiseFigures>{ NoiseFigures{ .mPlace = "a\"b",
-                                        .mNoise = { .mMean = 1.0, .mP99 = 2.0 },
-                                        .mBarNoise = { .mMean = 1.5, .mP99 = 2.0 },
-                                        .mBias = 0.25,
-                                        .mBarBias = 0.125,
-                                        .mFireflies = 0.5 } },
-                std::vector<NoiseFigures>{} };
+            const std::array sides{
+                std::vector<NoiseFigures>{ NoiseFigures{ .mPlace = "a\"b",
+                    .mNoise = { .mMean = 1.0, .mP99 = 2.0 },
+                    .mBarNoise = { .mMean = 1.5, .mP99 = 2.0 },
+                    .mBias = 0.25,
+                    .mBarBias = 0.125,
+                    .mFireflies = 0.5,
+                    .mWorstTile = { .mX = 8, .mY = 16, .mSide = 8, .mNoise = 2.5, .mBarNoise = 1.25 } } },
+                std::vector<NoiseFigures>{}
+            };
             ASSERT_TRUE(writeNoiseRecord(record, sides).isOk());
             std::ostringstream read;
             read << std::ifstream(record).rdbuf();
             EXPECT_EQ(read.str(),
                 "{\"sides\": [\n  [\n    {\"place\": \"a\\\"b\", \"mean\": 1.0000, \"p99\": 2.0000, "
                 "\"barMean\": 1.5000, \"barP99\": 2.0000, \"bias\": 0.2500, \"barBias\": 0.1250, "
-                "\"fireflies\": 0.5000, \"clean\": true}\n  ],\n  [\n  ]\n]}\n");
+                "\"fireflies\": 0.5000, \"tileX\": 8, \"tileY\": 16, \"tileMean\": 2.5000, \"tileBarMean\": 1.2500, "
+                "\"clean\": true}\n  ],\n  [\n  ]\n]}\n");
             EXPECT_EQ(jsonNumber(std::numeric_limits<double>::quiet_NaN()), "null")
                 << "a figure of no samples, which JSON has no number for";
             EXPECT_EQ(jsonNumber(std::numeric_limits<double>::infinity()), "null");
