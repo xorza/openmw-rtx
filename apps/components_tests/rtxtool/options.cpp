@@ -1,4 +1,5 @@
 #include <array>
+#include <cstdint>
 #include <exception>
 #include <filesystem>
 #include <format>
@@ -29,6 +30,7 @@
 #include <components/files/configurationmanager.hpp>
 #include <components/files/conversion.hpp>
 #include <components/platform/process.hpp>
+#include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/renderer/renderer.hpp>
@@ -295,6 +297,44 @@ namespace RtxTool
         {
             EXPECT_EQ(defaultValidation(Rtx::ValidationLevel::Sync), "sync");
             EXPECT_EQ(defaultValidation(Rtx::ValidationLevel::Off), "off");
+        }
+
+        /// **`check` draws a frame of its own where the line names none, and no other command does.** 957x539, no
+        /// extent of which is a multiple of the 8 a workgroup is a side, nor of 638x359, what the default upscale
+        /// traces it at; a size the line names is the line's under `check` as under any.
+        TEST(RtxToolOptionsTest, checkDrawsItsOwnFrameWhereTheLineNamesNone)
+        {
+            const ToolOptions options = makeOptions(Rtx::ValidationLevel::Off);
+            const auto size = [&](const std::vector<std::string>& line, Verbs verb) {
+                const FrameSize read = lineOf(options, line, verb).mFrame.mSize;
+                return std::pair(read.mWidth, read.mHeight);
+            };
+
+            EXPECT_EQ(size({}, Verbs::Check), std::pair(957u, 539u));
+            EXPECT_EQ(size({ "--size=1920x1080" }, Verbs::Check), std::pair(1920u, 1080u));
+            for (const Verbs other :
+                { Verbs::Scene, Verbs::Shot, Verbs::View, Verbs::Bench, Verbs::Film, Verbs::Noise })
+                EXPECT_EQ(size({}, other), std::pair(1920u, 1080u)) << verbName(other);
+            EXPECT_EQ(size({ "--size=957x539" }, Verbs::Bench), std::pair(957u, 539u));
+
+            const Rtx::FrameExtents traced
+                = Rtx::extentsFor(sCheckFrame.mWidth, sCheckFrame.mHeight, sUpscaleByDefault);
+            EXPECT_EQ(std::pair(traced.mOutputWidth, traced.mOutputHeight), std::pair(957u, 539u));
+            EXPECT_EQ(std::pair(traced.mRenderWidth, traced.mRenderHeight), std::pair(638u, 359u));
+            for (const std::uint32_t extent :
+                { traced.mOutputWidth, traced.mOutputHeight, traced.mRenderWidth, traced.mRenderHeight })
+                EXPECT_NE(extent % 8u, 0u) << extent;
+        }
+
+        /// **`check` is the run that holds every kernel against its shaders**, which the GPU tests lean on since they
+        /// leave the layers' shader checks to it (`Testing::describeValidation`): its line asks for them, at the
+        /// level the build validates at, and it is no measuring command, whose layers `frameFrom` takes away.
+        TEST(RtxToolOptionsTest, checkKeepsTheLayersAndTheirShaderChecks)
+        {
+            const ToolLine line = lineOf(makeOptions(Rtx::ValidationLevel::Sync), {}, Verbs::Check);
+            EXPECT_EQ(line.mValidation.mLevel, Rtx::ValidationLevel::Sync);
+            EXPECT_EQ(line.mValidation.mShaders, Rtx::ShaderValidation::Checked);
+            EXPECT_FALSE(policyOf(Verbs::Check).mMeasures);
         }
 
         /// An option belonging to one command, given to another, is refused: every option is declared on one

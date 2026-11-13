@@ -66,6 +66,22 @@ namespace Rtx::Testing
         Unvalidated,
     };
 
+    /// How every instance of this binary validates: the layers' core and synchronization checks where `validation`
+    /// loads them, no stop at an error, since a test provokes errors and asserts on them, and **none of the layers'
+    /// shader checks**.
+    ///
+    /// **The shader checks are `check`'s**, which makes every kernel of these shaders under them in every gate. Here
+    /// they were 4.6 s of a process's 7.3 s start and 74 of the 103 CPU seconds a shard of two spent, which is what
+    /// kept a third process from being any faster: without them every test passes, a start takes 2.7 s and the
+    /// step's processes end in 35 s against 56 (`docs/research/2026-11-13-gate-step-times.md`, a low-end AMD
+    /// integrated GPU).
+    ///
+    /// **What it costs is the layers' own reading of a pipeline only a test makes**, from a test's own shader or
+    /// tuple: `spirv-val` over the module with its specialization constants put in, and what the module asks of the
+    /// device. Its bindings, its specialization words and its push block are held against the layout in every
+    /// process by the renderer itself (`ShaderCode::stage`), and the build runs `spirv-val` over every module.
+    ValidationOptions describeValidation(Validation validation);
+
     /// The device every test that drives Vulkan directly shares.
     ///
     /// **Always there by the time a test asks**: `DeviceEnvironment` asks first and fails the binary where there is

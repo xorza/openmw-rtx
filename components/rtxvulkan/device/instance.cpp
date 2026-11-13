@@ -62,6 +62,47 @@ namespace Rtx
         }
     }
 
+    LayerAsk askOfLayer(const ValidationOptions& options)
+    {
+        LayerAsk ask;
+
+        // **Synchronization validation and GPU-assisted validation are never loaded together**: the two
+        // took the device down in three runs of four. The first catches a missing barrier and is opt-in
+        // for its cost; the second instruments every shader and catches what a ray query does with its
+        // own arguments at about half the frame rate, and the layer asks not to be run beside the core
+        // checks, so neither is a default.
+        switch (options.mLevel)
+        {
+            case ValidationLevel::Off:
+            case ValidationLevel::On:
+                break;
+            case ValidationLevel::Sync:
+                ask.mEnabled = VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT;
+                // Without this, synchronization validation cannot see a compute shader's accesses at
+                // all: with the cascade's barriers taken out, five runs of a doll write five
+                // different pictures and the layer reports nothing until this is set.
+                ask.mSetting = "syncval_shader_accesses_heuristic";
+                break;
+            case ValidationLevel::Gpu:
+                ask.mEnabled = VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT;
+                // Hands reads past the end of a buffer to the hardware's robust buffer access rather than
+                // GPU-AV's instrumentation, which the layer itself warns is very slow with this many storage
+                // buffers — a window under it loses the device inside half a minute. The report is given up;
+                // everything else GPU-AV checks, a ray query's own arguments included, is kept. The scene's
+                // tables are pointers, which robustness does not reach, so a shot still takes twice as long.
+                ask.mSetting = "gpuav_force_on_robustness";
+                break;
+        }
+
+        // **The layer's shader checks**: `spirv-val` over each module with a pipeline's specialization constants put
+        // in, and the module against the pipeline. The layer keeps what it checked by a module's code alone, so every
+        // tuple of a kernel is checked again at every start, which is what a caller that leaves them out is spared.
+        if (options.mShaders == ShaderValidation::Skipped)
+            ask.mDisabled = VK_VALIDATION_FEATURE_DISABLE_SHADERS_EXT;
+
+        return ask;
+    }
+
     Instance::Instance(const ValidationOptions& options, const std::span<const char* const> surfaceExtensions,
         const std::span<const std::string> extraExtensions)
         : mWatchesSubmits(options.mWatchSubmits)
@@ -147,24 +188,17 @@ namespace Rtx
         // Chained into the create info so errors raised by vkCreateInstance and vkDestroyInstance
         // themselves are reported; the standalone messenger below covers everything in between.
         VkDebugUtilsMessengerCreateInfoEXT messengerInfo{};
-        std::vector<VkValidationFeatureEnableEXT> enabled;
         VkValidationFeaturesEXT validationFeatures{};
 
+        const LayerAsk ask = askOfLayer(options);
         const VkBool32 on = VK_TRUE;
-
-        // What the layer will not turn on by itself, gathered as each validation below asks for it.
-        std::vector<VkLayerSettingEXT> settings;
-
-        const auto turnOn = [&](const char* name) {
-            settings.push_back(VkLayerSettingEXT{
-                .pLayerName = sValidationLayer,
-                .pSettingName = name,
-                .type = VK_LAYER_SETTING_TYPE_BOOL32_EXT,
-                .valueCount = 1,
-                .pValues = &on,
-            });
+        const VkLayerSettingEXT setting{
+            .pLayerName = sValidationLayer,
+            .pSettingName = ask.mSetting,
+            .type = VK_LAYER_SETTING_TYPE_BOOL32_EXT,
+            .valueCount = 1,
+            .pValues = &on,
         };
-
         VkLayerSettingsCreateInfoEXT layerSettings{};
 
         const void* next = nullptr;
@@ -174,53 +208,26 @@ namespace Rtx
             messengerInfo = makeMessengerCreateInfo(*mValidationLog);
             next = &messengerInfo;
 
-            // **Synchronization validation and GPU-assisted validation are never loaded together**: the two
-            // took the device down in three runs of four. The first catches a missing barrier and is opt-in
-            // for its cost; the second instruments every shader and catches what a ray query does with its
-            // own arguments at about half the frame rate, and the layer asks not to be run beside the core
-            // checks, so neither is a default.
-            if (options.mLevel == ValidationLevel::Sync)
-            {
-                enabled.push_back(VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT);
-
-                // Without this, synchronization validation cannot see a compute shader's accesses at
-                // all: with the cascade's barriers taken out, five runs of a doll write five
-                // different pictures and the layer reports nothing until this is set.
-                turnOn("syncval_shader_accesses_heuristic");
-            }
-
-            if (options.mLevel == ValidationLevel::Gpu)
-            {
-                enabled.push_back(VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT);
-
-                // Hands reads past the end of a buffer to the hardware's robust buffer access rather than
-                // GPU-AV's instrumentation, which the layer itself warns is very slow with this many storage
-                // buffers — a window under it loses the device inside half a minute. The report is given up;
-                // everything else GPU-AV checks, a ray query's own arguments included, is kept. The scene's
-                // tables are pointers, which robustness does not reach, so a shot still takes twice as long.
-                turnOn("gpuav_force_on_robustness");
-            }
-
-            if (!enabled.empty())
+            if (ask.mEnabled.has_value() || ask.mDisabled.has_value())
             {
                 validationFeatures = VkValidationFeaturesEXT{
                     .sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT,
                     .pNext = &messengerInfo,
-                    .enabledValidationFeatureCount = static_cast<std::uint32_t>(enabled.size()),
-                    .pEnabledValidationFeatures = enabled.data(),
-                    .disabledValidationFeatureCount = 0,
-                    .pDisabledValidationFeatures = nullptr,
+                    .enabledValidationFeatureCount = ask.mEnabled.has_value() ? 1u : 0u,
+                    .pEnabledValidationFeatures = ask.mEnabled.has_value() ? &*ask.mEnabled : nullptr,
+                    .disabledValidationFeatureCount = ask.mDisabled.has_value() ? 1u : 0u,
+                    .pDisabledValidationFeatures = ask.mDisabled.has_value() ? &*ask.mDisabled : nullptr,
                 };
                 next = &validationFeatures;
             }
 
-            if (!settings.empty())
+            if (ask.mSetting != nullptr)
             {
                 layerSettings = VkLayerSettingsCreateInfoEXT{
                     .sType = VK_STRUCTURE_TYPE_LAYER_SETTINGS_CREATE_INFO_EXT,
                     .pNext = next,
-                    .settingCount = static_cast<std::uint32_t>(settings.size()),
-                    .pSettings = settings.data(),
+                    .settingCount = 1,
+                    .pSettings = &setting,
                 };
                 next = &layerSettings;
             }

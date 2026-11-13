@@ -144,114 +144,29 @@ How an item is marked:
 
 ## The gate's speed
 
-What `./omw gate` costs on the weak machine, a low-end AMD integrated GPU under Windows, and how to cut it
-without dropping a claim it makes: Batch 0, ahead of the review's batches because each of them ends in a gate.
-Every figure is from
-[`docs/research/2026-11-13-gate-step-times.md`](../docs/research/2026-11-13-gate-step-times.md), measured on
-that one machine between `e21fad4c21` and `9e66e68b8b`; nothing was measured on a high-end NVIDIA laptop GPU.
+Batch 0 has landed, and what it decided is said where it stands:
 
-**No whole gate has run on this machine at `9e66e68b8b`.** At `e21fad4c21` it stopped at `tests`, on two tests
-that `d0bb9081b3` has since fixed; the steps after `tests` were timed by themselves.
+- **The frame `check` and `repeat` draw, 957x539, and what a smaller and an odd one cost**:
+  `apps/rtxtool/framed.hpp` (`sCheckFrame`) and `tools/omw/repeat.py`. The line's own frame is resolved where the
+  line is read for its verb (`ToolOptions::read`), where a test reaches it, and not in `commandCheck`.
+- **The gate's order, and the release compile building the programs and no test binary**: `tools/omw/gate.py`
+  and `cmake/Tests.cmake` (`openmw_add_test`).
+- **The layers' shader checks left to `check`**: the GPU tests' `describeValidation`
+  (`apps/components_tests/rtxvulkan/support/device/harness.hpp`), over `Rtx::ShaderValidation` and
+  `askOfLayer` (`components/rtxvulkan/device/instance.cpp`). It costs less than this plan first said: the
+  renderer holds every module's bindings, specialization words and push block against its layout in every
+  process (`ShaderCode::stage`), so what the tests gave up is the layers' own `spirv-val` over a specialized
+  module and what the module asks of the device.
+- **The GPU binary in four shards and the host tests in two**: `cmake/Tests.cmake`. The host tests became the
+  step's bound once the GPU shards were faster, 40 s in one process.
 
-### Where the time goes
-
-| step | seconds | |
-|---|---|---|
-| format check, spellings, lint, the driver's tests | 12.8 | |
-| build, the listing check | 3.8 | nothing to build |
-| the release compile | 362.0 | two commits' worth: 277 objects, 28 links |
-| tests, their timing | 59.6 | the two GPU shards bound it at 57 to 58 s |
-| the integration tests | 67.2 | |
-| check | 178.7 | |
-| repeat | 194.1 | |
-
-516 s with nothing to compile, of which `check` and `repeat` are 373. A change to the renderer adds its debug
-build and the same objects again in the release compile.
-
-### The idea of a lower resolution
-
-- **It does not apply to the GPU tests.** `rtx-gpu-tests` already draws 16 to 65 pixels a side, mostly 32, 33
-  and 64 (`RtxVisibilityTest::shoot`'s `size`). What it pays for is the validation layers' shader checks, below.
-- **It applies to `check` and `repeat`, and halves both.** They draw 1920x1080 and are bound by the card:
-  119 ms of card zones in a 133 ms frame. At a quarter of the pixels `check` takes 89 to 93 s and `repeat` 85 to
-  86 s, with the same 59 checks asked, none failed, and the pair identical.
-
-### Root causes
-
-- **The world runs draw a picture no claim reads.** Fifteen of `check`'s sixteen claims are about what the
-  renderer was handed, the camera, the sky, the queue and the frames in flight; `finite` alone counts over pixels,
-  and `repeat` hashes them. What a place holds is the same at every size, to the tenth of a MiB.
-- **A world stands 420 frames before it is whole, in three processes a gate**, each a frame at full size:
-  `check`'s first stop and both of `repeat`'s runs (`MeasureWindow`, one cell a frame by `CellRing::adoptHanded`).
-- **The release compile builds the test binaries, which nothing runs in that flavour**: 138 of the sample's 277
-  objects and 59% of its compile seconds.
-- **Every validated process runs the layers' shader checks over pipelines `check` has them run over anyway.**
-  The checks are 4.6 s of a GPU test process's 7.3 s start and 44 of its 46 CPU seconds, and they go on through
-  its tests: 103 CPU seconds a shard against 29 without them. The kernels' tuples are specialization constants,
-  which the layer's cache of checked modules, keyed by a module's code, saves a third of and no more. `check`
-  makes every kernel of the same shader set under the same layers, 338 pipelines to the tests' 337, every gate.
-- **That CPU is why the GPU binary does not scale past two processes here**: four and six take as long as two
-  with the checks, and 33 and 30 s without them against 51 to 57.
-- **Every size the gate draws is whole workgroups.** The shaders' groups are 8 a side, and 1920x1080 and
-  1280x720 divide by 8 each way: no world run draws a partial group, and no chain that halves meets an odd
-  extent in its first three levels.
-- **The gate's order is not its costs' order**: the release compile, minutes on a change, runs ahead of a minute
-  of tests.
-
-### Decisions
-
-- **`check` and `repeat` each state a frame of their own, 957x539, where the line names none.** The size belongs to the
-  verb, as `check`'s hold already does (`sCheckHoldMs`, "where the line names no `--hold` of its own"), so
-  `./omw check` and the gate's are one run on every machine. Refused: a size chosen by the machine, which makes
-  what a green gate proved depend on where it ran; a size only the gate passes, which leaves two `check`s to tell
-  apart; a ninth of the pixels (640x360), which saves 28 s more of the 373 for under half the pixels again,
-  because the host bounds the frame from a quarter down (the ship's frame 56.7 ms against 44.4, the walk alone
-  23 ms).
-- **What the smaller frame costs is said where the size is stated**: `finite` and `repeat` see a quarter of the
-  pixels a frame, so an event one pixel in a million meets is met a quarter as often. No class of fault leaves:
-  the layers, the claims about the scene, the frames in flight and the processes' agreement do not read the size.
-  A full frame stays one switch away, `--size=1920x1080`.
-- **`tests` and `their timing` run ahead of the release compile.** `gate.py` states its order as the order of
-  cost, and on a change the compile is the dearer by minutes. A green gate takes as long; a red test says so
-  minutes sooner.
-- **The release compile builds the programs and no test binary.** A target a test runs leaves `all`
-  (`EXCLUDE_FROM_ALL`, set in `openmw_add_test`), and `omw build` still names the tests, as
-  `Build.build_default` already does. Refused: every program as now, 59% of the sample's release compile
-  seconds and two of its seven longest links for binaries no workflow builds in that flavour (`ci.yml`'s four
-  legs are debug, asan and tsan, and `rtx-release.yml` runs `omw archive`). The cost: a test source that warns
-  or fails to compile under `-DNDEBUG` alone is found by whoever next runs `./omw release test`. LLVM does the
-  same: its unit tests are out of `all` unless `LLVM_BUILD_TESTS` says otherwise, and the `UnitTests` target
-  builds them. No test target is installed, which is the one thing CMake warns an excluded target about.
-  Decided 2026-11-13.
-- **The gate's `repeat` stays at one pair.** Refused: two pairs at the smaller frame, a second comparison for
-  43 s a gate. `AGENTS.md` already asks for `--pairs=10` after touching anything a frame reads, which at a
-  quarter of the pixels takes less than four pairs do today. Decided 2026-11-13.
-- **The frame is odd on purpose: 957x539, traced at 638x359.** No extent of the shown or the traced frame is a
-  multiple of 8 and three of the four are odd, so every 8x8 pass draws a partial group and every chain that
-  halves meets an odd extent by its second level; a resized window gives a player such a frame. It costs what
-  the round one does: `check` 90.7 and 90.7 s against 92.7 and 91.4 s at 960x540, `repeat` 85.7 against
-  84.9 s, every check passing and both pairs identical. Khronos's OpenGL ES conformance run draws at 64x64 and
-  then again at 113x47, Dawn's mip-chain tests at 31x4, and this tree's GPU tests at 17, 33, 65 and 129.
-  Refused: 960x540, the size `AGENTS.md` names for a bench on a weak machine, of whose four extents only 540
-  is not a multiple of 8, so the traced frame stays whole groups as it is today. The cost: a size nobody
-  recognises in `--help` and on `check`'s pictures, and a fault it finds first shows as a red gate. Decided
-  2026-11-13.
-- **The layers' shader checks run in `check` alone.** The GPU test binary's devices and renderers ask for
-  every check but those (the layer's `check_shaders`, the spec's `VK_VALIDATION_FEATURE_DISABLE_SHADERS_EXT`),
-  which compare each pipeline with its shaders and run `spirv-val` over each specialized module; `check` keeps
-  them, over every kernel the renderer makes, and the build already runs `spirv-val` over every module. The
-  layer's own settings file calls them "CPU intensive during application start up", its presets take one area
-  of validation at a time, and Dawn's tests default to a `partial` backend validation with the costly parts
-  left to `full`. Refused: the checks kept on the tests' raw devices as well, no loss of coverage for a gain
-  nothing measured; everywhere as now, 4.6 s a start and 74 CPU seconds a shard. The cost: a pipeline only a
-  test makes, from a test's own shader or tuple, is no longer compared with its shader by the layers, and
-  `./omw test` by itself no longer runs the shader checks over the kernels; the gate does. All 499 GPU tests
-  pass without them. Decided 2026-11-13.
-- **The GPU binary runs in four shards once its processes stop checking shaders.** Measured with the step's
-  other suites beside them: 35.4 s against 55.6 s as now, and 31.8 s in six. Four, because six buys 3.6 s for two
-  more starts and devices, and `cmake/Tests.cmake` found a third process no gain on another card: the count is
-  measured there before it lands (Batch 0). Sharded by `GTEST_TOTAL_SHARDS`, which runs each test exactly once
-  across the shards, and not a test a process, since every process stands up two devices and two renderers.
+Its figures are in
+[`docs/research/2026-11-13-gate-step-times.md`](../docs/research/2026-11-13-gate-step-times.md), all of one
+machine, a low-end AMD integrated GPU under Windows: without the steps that compile the gate went from
+515 s to 301, and one line changed in the renderer's header costs its release compile 98 s
+where it cost 224. What is left of the gate's time is the host in a build with every assert, 1537 frames of
+`check` and 1800 of `repeat`, the walk 23 ms of a frame at the ship: the renderer's own cost and no part of
+this plan.
 
 ### Refused
 
@@ -271,8 +186,8 @@ build and the same objects again in the release compile.
 - **Two world runs side by side.** `AGENTS.md` shares the card between no two runs, and `check`'s `queue-held`
   and `frames-overlap` time the queue. Reopened only by a measurement of twenty clean gates run that way.
 - **CTest entries by suite in place of shards by index**, this review's first reading of `cmake/Tests.cmake`.
-  A suite is no unit to balance by, `RtxVisibilityTest` being 208 of the 499 tests, and the fixture it would
-  save every shard, the unvalidated renderer, takes 0.14 s.
+  A suite is no unit to balance by, `RtxVisibilityTest` being 208 of the 499 tests, and no suite of the GPU
+  binary spends more than 0.21 s outside its own cases.
 - **The prelude beside the build.** Thirteen seconds, and the gate would no longer stop at its cheapest failure.
 - **`check` on the release build.** Faster by the asserts it would lose.
 - **A shorter crossing, a shorter warm-up, fewer stops.** Each is a claim asked of less: `rooms-held` and
@@ -281,17 +196,6 @@ build and the same objects again in the release compile.
   wait on the wall.
 - **Frames ahead of a whole world closed untraced.** Under the smaller frame the host's walk bounds them, so
   the trace is not what they cost, and a history a measured frame reads would start elsewhere.
-
-### What Batch 0 comes to
-
-- **With nothing to compile, 516 s becomes some 300 s** on this machine: `check` 178.7 to 91, `repeat` 194.1 to
-  85, and the test step's 59.6 to some 37. The last is the step's processes timed side by side, not a `ctest`
-  run.
-- **The release compile loses its test objects**: 59% of the sample's compile seconds. Its wall without them
-  is not measured.
-- **What is left is the host in a build with every assert**: 1537 frames of `check` at a median 53 ms and
-  1800 of `repeat` at some 42, the walk 23 ms of a frame at the ship. That is the renderer's own cost and no
-  part of this plan.
 
 ### Sources
 
@@ -316,8 +220,7 @@ Whoever addresses an item deletes it. Each batch leaves the build and the tests 
 
 ## Order
 
-- **What every later batch pays for goes first.** Each batch ends in a gate, so the gate's speed is Batch 0,
-  and inside it the items stand by what each saves the gates after it.
+- **What every later batch pays for goes first.** Each batch ends in a gate, so the gate's speed is Batch 0.
 - **A decision ahead of the batch it decides.** Batch 1's spikes feed Batches 5, 7 and 12, and stand in that
   order.
 - **Defects ahead of structure.** Batch 2 holds every **bug**, whichever batch its files belong to: a defect
@@ -337,77 +240,15 @@ Whoever addresses an item deletes it. Each batch leaves the build and the tests 
 
 ## Batch 0 — The gate's speed
 
-Files: `tools/omw/{gate,repeat}.py`, `cmake/Tests.cmake`,
-`apps/rtxtool/{toolline.hpp,options.cpp,main.cpp,framed.hpp}`, `components/rtx/renderer/renderer.hpp`,
-`components/rtxvulkan/device/instance.cpp`,
-`apps/components_tests/rtxvulkan/support/device/harness.cpp`, their tests.
+Landed on `master` ahead of the review's branch (Branches). What is left of it:
 
-First, because every batch after it ends in a gate; inside it, in the order of what each item saves the gates
-that follow. No item touches upstream's files, and each figure
-goes to `docs/research/2026-11-13-gate-step-times.md`.
-
-- [ ] One `./omw gate` at the tip, timed whole: none has run on the weak machine since `e21fad4c21`, where it
-  stopped at `tests`, and the batch starts from a gate that passes and a time for all of it.
-- [ ] `cmake/Tests.cmake` (`openmw_add_test`) — the release compile builds `all`, and `all` holds the nine
-  targets the tests run: 59% of a sample's release compile seconds. The function sets `EXCLUDE_FROM_ALL` on its
-  target, with the reason beside it; `Build.build_default` names the test targets already, so `omw build`,
-  `omw test` and CI build what they built, and `_release_compile`'s comment says what it no longer compiles.
-  Held by: `ninja -t targets all` in `out/release` names no test binary and still names every program;
-  `./omw build` in a fresh debug folder builds all nine; `./omw release test components-tests` builds and runs;
-  CI's `cmake --install`, which brings `all` up to date, installs what it did.
-- [ ] `tools/omw/gate.py` (`STEPS`) — `tests` and `their timing` move ahead of `the release compile`. The help's
-  line follows from `SUMMARY`; `test_main.py` holds the two to each other already.
-- [ ] **measure** the release compile's wall for one renderer header touched, before and after the two items
-  above.
-- [ ] `apps/rtxtool/{toolline.hpp,options.cpp,main.cpp,framed.hpp}` — `check` draws its own frame, 957x539,
-  where the line names no `--size`. `ToolLine::Frame::mSize` becomes a
-  `Named<FrameSize>` as `mHold` is, and `commandCheck` takes the verb's frame where it is not named, beside the
-  hold. One constant beside `sCheckHoldMs`, whose comment carries the decision, its cost, and which groups and
-  chains the size is odd for; `--help`'s line for `--size` says what `check` draws.
-- [ ] `tools/omw/repeat.py` — `repeat` walks at the same size where the line names none: a default
-  beside `WALK` and `TAKEN`, not one of `TAKEN`, which the line may not name, so a difference is still read at
-  any size. The two constants are one fact in two programs: a test of the driver reads the harness's and holds
-  `repeat`'s to it, as `test_main.py` holds `HARNESS_VERBS` to `verbs.cpp`.
-- [ ] Tests of the two: `apps/components_tests/rtxtool/options.cpp`, `check` with no size names none and
-  `--size=1920x1080` is that, and `bench` with none is still 1920x1080; `tools/omw/tests/test_repeat.py`, the
-  line `repeat` builds carries the size once and a named one replaces it. What `commandCheck` makes of an
-  unnamed size is out of a test's reach until Batch 15 moves the plans into the library.
-- [ ] A known hit at the new size. `repeat` still says NOT repeatable for a fault it was written to catch: with
-  `4924c912f8`'s nearest-cell adoption put back to the first cell handed, in a scratch worktree, `./omw repeat
-  --pairs=3` differs. And `check` still fails: one barrier of the cascade taken out, the layers report it.
-  Neither change is kept. Then `./omw repeat --pairs=10` once.
-- [ ] `components/rtx/renderer/renderer.hpp` (`ValidationOptions`),
-  `components/rtxvulkan/device/instance.cpp`, the GPU tests' `support/device/harness.cpp` — whether the layers
-  check shaders is said by `ValidationOptions`: an `enum class` and not a flag, checked unless said otherwise,
-  beside `ValidationLevel` in the core and in its words, naming no layer and no API. `Instance` alone turns it
-  into `VK_VALIDATION_FEATURE_DISABLE_SHADERS_EXT`, where today it disables nothing. The one place that asks for
-  none is the GPU tests' support (`makeHarness` and `describeRenderer`), with the reason and where the checks
-  run instead.
-- [ ] `apps/components_tests/rtxtool/options.cpp` — a test holds `check` to the shader checks and to
-  the layers, since the tests now lean on it. And a known hit: in a scratch worktree a kernel's layout loses a
-  binding its shader reads, and `./omw check` reports the layers' error and fails. Not kept.
-- [ ] `cmake/Tests.cmake:56` — the GPU binary runs in four shards, split by test index as now, once its processes
-  stop checking shaders; the comment there is rewritten from the measurements: what a process pays to start,
-  why two were the most with the shader checks on, the figures for two, four and six. The review first read the
-  split by index as waste, the DLSS renderer, the kernels device and the unvalidated harness built in every
-  shard, and asked for entries by suite. Measured, the unvalidated renderer's 337 pipelines take 0.14 s, and a
-  suite is no unit to balance by: `RtxVisibilityTest` is 208 of the 499 tests and over half their time.
-  **measure** what the DLSS renderer and the kernels device cost a shard before either moves. The timing suites
-  (`stresspass.cpp:92-105`, `presenter.cpp:209`, `gputimer.cpp:169`) take a `RESOURCE_LOCK` only if one fails
-  beside its neighbours: none did in a dozen runs of two to eight processes.
-- [ ] **measure** `./omw test` on the weak machine after the two items above, and `components-tests`' own time
-  inside it: 37 s in one process beside two checked shards, 19.7 s alone. If it bounds the step it is registered
-  in shards as the GPU binary is; four took 7 to 12 s beside four GPU shards.
-- [ ] **measure** on a high-end NVIDIA laptop GPU, in one sitting: `check` and `repeat` at 1920x1080 and at the
-  new size, and two shards against four with the shader checks off. The size and the count are each one for
-  every machine: where the host already bounds the frame at 1920x1080 the note says the size bought that machine
-  nothing and cost it nothing, and the count is four unless it is slower there than two.
+- [ ] **measure** on a high-end NVIDIA laptop GPU, in one sitting: `check` and `repeat` at 1920x1080 and at
+  957x539; two shards of the GPU binary against four; and what the DLSS renderer costs a shard, which no AMD card
+  can say. The size and the count are each one for every machine: where the host already bounds the frame at
+  1920x1080 the note says the size bought that machine nothing and cost it nothing, and the count is four unless
+  it is slower there than two.
 - [ ] `AGENTS.md`, Verification — `repeat`'s line says the frame it walks at, and `./omw test`'s that the
   layers' shader checks are `check`'s. Proposed as wording.
-- [ ] The decisions of Part 1's section on the gate fold into their owners, and the section goes: the frame and
-  its cost into `framed.hpp` and `repeat.py`, the order and the release compile's reach into `gate.py`, the
-  excluded targets and the shard count into `cmake/Tests.cmake`, where the shader checks run into
-  `renderer.hpp` and the tests' `harness.cpp`.
 
 ## Batch 1 — The open decisions, each settled by its run
 
@@ -954,7 +795,7 @@ the plans that name them. The stop a content lacks is passed over since `3102293
   `view`". Delete; ask `!mPlayed`.
 - [ ] `main.cpp:464-833` — `scene`, `shot`, `bench`, `check`, `view` plan their stops in the game-linked
   executable, where no test reaches; `noise` and `film` plan in the library. A `plan<Verb>` each.
-  `planCheck` carries the verb's own frame beside its hold (Batch 0), where a test then reaches both.
+  `planCheck` carries the verb's hold, where a test then reaches it as it reaches the verb's frame.
 - [ ] `stopwriter.cpp:455-675` — sixteen checks judged in a static switch of the picture writer that uses none of
   its state; `reportScene` reads only the scene. `checks.cpp`, and `describeScene` in `instruments/`.
 - [ ] `model/benchrun.hpp:509,514` — pictures and extents return through raw out-pointers stored in the request.

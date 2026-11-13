@@ -173,9 +173,49 @@ The three test binaries are 138 of the 277 objects and 2354 of the 3979 compile 
 346 s, `openmw.exe` 40.3 s, `openmw-rtxtool.exe` 37.4 s, `openmw-tests.exe` 20.6 s and `components-tests.exe`
 18.6 s among them.
 
+## After Batch 0
+
+On the branch `gate-speed` over `8afbf89855`, the same machine: the gate's steps under a clock at the tip before
+the batch and again on the batch as reviewed.
+
+| step | before, s | after, s | |
+|---|---|---|---|
+| format check, spellings, lint, the driver's tests | 13.7 | 12.1 |  |
+| build | 128.1 | 2.9 | before, the two commits the tip had gained |
+| the listing check | 0.2 | 0.1 |  |
+| tests | 53.7 | 32.8 | two GPU shards and one host process, then four GPU shards and two host shards |
+| their timing | 7.5 | 0.2 | tests run again alone: 1, then 0 |
+| the release compile | 541.6 | 60.2 | 275 objects, then 5 |
+| the integration tests | 66.7 | 72.7 |  |
+| check | 180.9 | 96.9 | 1920x1080, then 957x539 |
+| repeat | 192.5 | 85.9 | the same |
+| the whole gate | 1184.8 | 363.9 |  |
+
+Without the two steps that compile, 515 s before and 301 s after.
+
+- **The release compile after one line added to `components/rtx/renderer/renderer.hpp`**, a declaration nothing
+  reads, so the compiler cache holds no object that includes it: 224.3 s before, 159 objects of which 109 were the
+  test binaries', and 8 links; 98.4 s after, 53 objects and 6 links. `all` then holds twelve programs in either
+  flavour and no target a test runs.
+- **The test step**: 53.7 s; 40.4 s with four GPU shards and the host tests in one process, which bounded it at
+  40.3 s; 34.3 s with the host tests in two, 22 to 24 s each under the GPU shards' 30 to 34 s.
+- **No suite of the GPU binary spends more than 0.21 s outside its own cases**, by the baseline run's reports, so
+  no fixture a suite owns is worth a process of its own on this card. The DLSS renderer's is no AMD card's to say.
+- **`repeat --pairs=10` at 957x539**: identical over every pair, 9 min 47 s with a rebuild of the harness.
+
+Known hits, each a fault put into the tree, run and taken out:
+
+- **A binding hidden from its stage**, the census's declared for the vertex stage alone: `check` stops on
+  `VUID-VkComputePipelineCreateInfo-layout-07988`. The GPU binary, without the layers' shader checks, fails the
+  same fault at the driver's compile of `skin`, `VK_ERROR_UNKNOWN`, with no word of the layers'.
+- **A barrier of the denoiser's cascade left out**: `check` at 957x539 stops on `SYNC-HAZARD-READ-AFTER-WRITE`.
+- **Every random draw of a stop seeded from the clock**: `repeat --pairs=3` at 957x539 finds all three pairs not
+  repeatable. The two faults `4924c912f8` fixed, each put back alone, the first cell handed adopted and the
+  scripts' draws left unseeded, left three pairs identical.
+
 ## Not measured
 
-- A high-end NVIDIA laptop GPU's figures for any of the above.
-- The shader checks left on for the raw devices alone and off for the renderers', which the environment cannot
-  say; `components-tests` in one process beside four GPU shards without the checks.
-- The release compile with nothing to build, and its wall without the test binaries.
+- A high-end NVIDIA laptop GPU's figures for any of the above, the shard count and the DLSS renderer's cost to a
+  shard among them.
+- The release compile with nothing to build.
+- Why the two faults `4924c912f8` fixed leave three pairs of `repeat` identical when put back alone.

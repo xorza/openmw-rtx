@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <span>
 #include <string>
 #include <string_view>
@@ -16,6 +17,24 @@
 namespace Rtx
 {
     struct ValidationOptions;
+
+    /// What a run's validation asks of the layer once it is loaded: at most one finer check with the one setting of
+    /// the layer's own it needs, the two finer checks never together, and at most one part of the core checks left
+    /// out.
+    struct LayerAsk
+    {
+        std::optional<VkValidationFeatureEnableEXT> mEnabled;
+
+        /// The layer's setting turned on beside `mEnabled`, or null where the level needs none.
+        const char* mSetting = nullptr;
+
+        std::optional<VkValidationFeatureDisableEXT> mDisabled;
+    };
+
+    /// What `options` asks of the layer: its level's finer check, and its shader checks off where
+    /// `ValidationOptions::mShaders` leaves them to another run. Read by an instance that loaded the layer and by
+    /// no other.
+    LayerAsk askOfLayer(const ValidationOptions& options);
 
     /// A `VkInstance` and, when validation is on, the messenger and the log behind it.
     class Instance

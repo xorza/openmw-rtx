@@ -97,6 +97,16 @@ class ParseTest(unittest.TestCase):
         said = " ".join(re.search(r"(?ms)^  gate +(.*?)\s+—\s+stops", USAGE).group(1).split())
         self.assertEqual(said, gate.SUMMARY)
 
+    def test_the_gate_runs_what_a_build_owes_in_the_order_of_its_cost(self):
+        steps = [name for name, _ in gate.STEPS]
+        self.assertEqual(len(steps), len(set(steps)), "a step named twice")
+        # Nothing ahead of the build it reads, the timing after the run whose reports it reads, and the tests
+        # ahead of the release compile, which a change makes the dearer by minutes.
+        for earlier, later in (("build", "the listing check"), ("build", "tests"), ("tests", "their timing"),
+                               ("their timing", "the release compile")):
+            with self.subTest(earlier=earlier, later=later):
+                self.assertLess(steps.index(earlier), steps.index(later))
+
     def test_the_harness_verbs_are_the_harness_own(self):
         text = read_text(ROOT / "apps" / "rtxtool" / "verbs.cpp")
         named = re.findall(r'std::pair\{ Verbs::\w+, std::string_view\("(\w+)"\) \}', text)

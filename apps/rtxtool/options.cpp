@@ -814,7 +814,9 @@ namespace RtxTool
         option(sFramed, "size",
             bpo::value<std::string>()->default_value(
                 std::format("{}x{}", byDefault.mWindow.mWidth, byDefault.mWindow.mHeight)),
-            "image size, as WIDTHxHEIGHT");
+            std::format("image size, as WIDTHxHEIGHT. `check` draws {}x{} where the line names none: no claim of its "
+                        "but `finite` reads a pixel, and no extent of that frame is whole workgroups",
+                sCheckFrame.mWidth, sCheckFrame.mHeight));
         option(sFramed, "fov", number(between(1.0f, 179.0f))->default_value(byDefault.mWindow.mFieldOfView),
             "vertical field of view, in degrees");
         option(sPlaces, "pos", bpo::value<std::string>()->default_value(""),
@@ -913,7 +915,7 @@ namespace RtxTool
         };
 
         ToolLine::Frame& frame = line.mFrame;
-        frame.mSize = parseSize(text("size"));
+        frame.mSize = verb == Verbs::Check && !named("size") ? sCheckFrame : parseSize(text("size"));
         frame.mFieldOfView = real("fov");
         frame.mDay = { variables["day"].as<int>(), named("day") };
         if (const Result<void, std::string_view> checked = checkDay(frame.mDay.mValue); !checked.isOk())

@@ -10,7 +10,7 @@ from pathlib import Path
 from unittest import mock
 
 from omw.build import Build
-from omw.repeat import DIFFERED_STATUS, repeat
+from omw.repeat import DIFFERED_STATUS, FRAME, repeat
 from omw.system import ROOT, Refusal, read_text, temporary_folder
 
 # A harness that passes and leaves a child holding its output for 0.3 s, as the crash monitor does.
@@ -42,6 +42,20 @@ class StatusHarness:
         code = 0 if self.runs == 0 else self.status
         self.runs += 1
         return subprocess.CompletedProcess(args, code, stdout=b"a report in other words\n")
+
+
+class RecordingHarness:
+    """A harness whose every run passes, and which keeps the line of each."""
+
+    def __init__(self) -> None:
+        self.lines: list[tuple] = []
+
+    def build_harness(self) -> None:
+        pass
+
+    def harness(self, verb: str, *args, **options) -> subprocess.CompletedProcess:
+        self.lines.append(args)
+        return subprocess.CompletedProcess(args, 0, stdout=b"identical\n")
 
 
 class RaisingHarness:
@@ -108,6 +122,29 @@ class RepeatTest(unittest.TestCase):
         self.assertIsNotNone(stated)
         self.assertEqual(int(stated.group(1)), DIFFERED_STATUS)
         self.assertNotIn(DIFFERED_STATUS, (0, 1), "a run that differed must not read as passed or as failed")
+
+    def test_the_frame_is_the_harness_check_s_own(self):
+        text = read_text(ROOT / "apps" / "rtxtool" / "framed.hpp")
+        stated = re.search(r"inline constexpr FrameSize sCheckFrame\{ \.mWidth = (\d+), \.mHeight = (\d+) \};", text)
+        self.assertIsNotNone(stated)
+        self.assertEqual(f"{stated.group(1)}x{stated.group(2)}", FRAME)
+
+    def test_every_run_walks_at_the_frame_unless_the_line_names_a_size(self):
+        # A size the line names replaces the frame and is not said beside it, which `bench` would refuse.
+        cases = [
+            ([], [f"--size={FRAME}"]),
+            (["--size=1920x1080"], ["--size=1920x1080"]),
+            (["--size", "640x360"], ["--size"]),
+        ]
+        for args, sizes in cases:
+            with self.subTest(args=args):
+                harness = RecordingHarness()
+                with contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(repeat(harness, ["--pairs=2", *args]), 0)
+                self.assertEqual(len(harness.lines), 3, "two pairs are three runs")
+                for line in harness.lines:
+                    named = [arg for arg in line if str(arg).split("=", 1)[0] == "--size"]
+                    self.assertEqual(named, sizes)
 
     def test_a_line_that_moves_the_walk_is_refused_before_anything_builds(self):
         walk = "repeat walks `one-cell-walk` for six seconds, always, and {} would move it"

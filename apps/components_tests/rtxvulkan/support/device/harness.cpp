@@ -80,19 +80,24 @@ namespace Rtx::Testing
         }
     }
 
-    std::unique_ptr<Harness> makeHarness(Validation validation)
+    ValidationOptions describeValidation(Validation validation)
     {
-        // Tests provoke errors deliberately and assert on them; aborting would take the suite down with the first one.
-        // Synchronization validation is **the same switch `describeRenderer` sets, for the same reason**: a test that
-        // drives Vulkan directly supplies its own ordering with a submit and a wait, so a missing barrier shows as
-        // nothing at all, and a suite validated one way through the renderer and another beside it answers a different
+        // **Synchronization validation wherever the layers are, because a missing barrier is what this suite is
+        // worst at seeing.** Every test here submits and waits, so the ordering a frame relies on is supplied by
+        // the harness rather than by the code under test, and a hazard shows as nothing at all. It costs as much as
+        // the core checks it runs beside (`getUnvalidatedRenderer` has the numbers). One answer for a device and a
+        // renderer: a suite validated one way through the renderer and another beside it answers a different
         // question in each file.
-        const ValidationOptions options{
+        return ValidationOptions{
             .mLevel = validation == Validation::Validated ? ValidationLevel::Sync : ValidationLevel::Off,
+            .mShaders = ShaderValidation::Skipped,
             .mAbortOnError = false,
         };
+    }
 
-        Result<std::unique_ptr<Instance>, std::string> instance = makeInstance(options);
+    std::unique_ptr<Harness> makeHarness(Validation validation)
+    {
+        Result<std::unique_ptr<Instance>, std::string> instance = makeInstance(describeValidation(validation));
         if (!instance.isOk())
             throw std::runtime_error(instance.error());
 
@@ -245,16 +250,7 @@ namespace Rtx::Testing
         options.mCacheDirectory = getPipelineCacheSpec().mDirectory;
         options.mWidth = width;
         options.mHeight = height;
-        // **Synchronization validation wherever the layers are, because a missing barrier is what
-        // this suite is worst at seeing.** Every test here submits and waits, so the ordering a
-        // frame relies on is supplied by the harness rather than by the code under test, and a
-        // hazard shows as nothing at all. It costs as much as the core checks it runs beside
-        // (`getUnvalidatedRenderer` has the numbers).
-        options.mRun.mValidation.mLevel
-            = validation == Validation::Validated ? ValidationLevel::Sync : ValidationLevel::Off;
-        // Tests provoke errors deliberately and assert on them; aborting would take the suite down
-        // with the first one.
-        options.mRun.mValidation.mAbortOnError = false;
+        options.mRun.mValidation = describeValidation(validation);
         // One, because a measured exposure makes every pixel depend on the whole frame's histogram,
         // and a test hand-computes a pixel. A test of the eye asks per frame (`FrameOptions`).
         options.mRun.mProfile.mExposure = FixedExposure{ 1.0f };

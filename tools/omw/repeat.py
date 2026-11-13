@@ -4,7 +4,12 @@ of one**, which start from the world the last left; **a walk, not a still**, whi
 upscaler and the denoiser off, so what is compared is what a reconstruction is fed.
 
 **A chain, every other run holding the queue behind the host**: each run is compared with the one before, so every
-comparison is a held phase against a free one, and `--pairs=N` is N comparisons over N + 1 runs."""
+comparison is a held phase against a free one, and `--pairs=N` is N comparisons over N + 1 runs.
+
+**At `check`'s frame, `FRAME`, where the line names no `--size`**: a quarter of 1920x1080's pixels, which halves the
+pair (194 s to 86 on a low-end AMD integrated GPU, `docs/research/2026-11-13-gate-step-times.md`), and odd on
+purpose (`RtxTool::sCheckFrame`). What it costs: a frame's hashes hold a quarter of the pixels, so a difference
+one pixel in a million shows is met a quarter as often; `--size=1920x1080` walks the whole frame."""
 
 import shutil
 import subprocess
@@ -22,6 +27,10 @@ DIFFERED_STATUS = 3
 # so each is refused here first.
 WALK = {"--views": "one-cell-walk", "--seconds": "6"}
 TAKEN = {"--window": "false", "--upscale": "off", "--filter": "false"}
+
+# **The frame every run walks at unless the line names another**: `RtxTool::sCheckFrame`, which a test holds this
+# to. A default and not one of `TAKEN`, so a difference is still read at any size.
+FRAME = "957x539"
 
 # What would walk another way than `WALK` says, and what each run sets for itself.
 WALK_SWITCHES = (*WALK, "--suite", "--frames")
@@ -56,7 +65,9 @@ def repeat(build: Build, args: list[str]) -> int:
 
     build.build_harness()
     with temporary_folder("omw-repeat-") as out:
-        bench = [f"{switch}={value}" for switch, value in (WALK | TAKEN).items()] + extra
+        sized = any(arg.split("=", 1)[0] == "--size" for arg in extra)
+        frame = [] if sized else [f"--size={FRAME}"]
+        bench = [f"{switch}={value}" for switch, value in (WALK | TAKEN).items()] + frame + extra
 
         def run(index: int) -> Ran:
             log = out / f"{index}.log"

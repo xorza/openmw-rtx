@@ -31,6 +31,21 @@ namespace RtxTool
     /// much slower for it.
     inline constexpr double sCheckHoldMs = 8.0;
 
+    /// The frame `check` draws where the line names no `--size` of its own, and the one `omw repeat` walks at.
+    ///
+    /// **A quarter of 1920x1080's pixels**, since none of `check`'s claims but `finite` reads a pixel and what a
+    /// place holds is the same at every size: 179 s became 91 on a low-end AMD integrated GPU, where the card bounds
+    /// the larger frame and the host this one (`docs/research/2026-11-13-gate-step-times.md`). What it costs:
+    /// `finite` and a pair's hashes see a quarter of the pixels a frame, so what one pixel in a million meets is met
+    /// a quarter as often.
+    ///
+    /// **And odd on purpose.** Traced at 638x359 under the default upscale, so no extent of the frame shown or
+    /// traced is a multiple of the 8 the workgroups are a side, and three of the four are odd: every 8x8 pass draws
+    /// a partial group and every chain that halves meets an odd extent by its second level, which 1920x1080 over
+    /// 1280x720 never did. It costs what 960x540 does. A resized window gives a player such a frame, and Khronos's
+    /// OpenGL ES conformance run draws at 64x64 and then at 113x47.
+    inline constexpr FrameSize sCheckFrame{ .mWidth = 957, .mHeight = 539 };
+
     /// What a frame is upscaled by when nobody names a mode. The one knob whose default is the
     /// harness's own and not `settings-default.cfg`'s. Quality rather than Performance, so a plain
     /// run is the renderer with everything on and not one that quietly quartered its pixels.

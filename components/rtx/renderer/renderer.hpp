@@ -92,11 +92,25 @@ namespace Rtx
     /// configuration file.
     inline constexpr bool sValidationByDefault = OPENMW_RTX_VALIDATION_BY_DEFAULT;
 
+    /// Whether the validation holds each pipeline against its shaders as the pipeline is made: the code itself, and
+    /// what it reads against what the pipeline hands it. A check of the shaders and of how a pipeline is described,
+    /// so the same for every process that makes the same pipelines, and one of them is enough to run it.
+    enum class ShaderValidation
+    {
+        Checked,
+
+        /// Left to another run that makes the same pipelines, which whoever asks for this names.
+        Skipped,
+    };
+
     /// Developer instrumentation. Nobody enables any of this in a run they care about the frame rate
     /// of, and a backend reads whichever of it its API offers.
     struct ValidationOptions
     {
         ValidationLevel mLevel = ValidationLevel::Off;
+
+        /// Checked wherever validation runs, unless a caller says which other run checks its shaders.
+        ShaderValidation mShaders = ShaderValidation::Checked;
 
         /// Stop the process on the first error. Off for a test suite, which provokes errors
         /// deliberately.

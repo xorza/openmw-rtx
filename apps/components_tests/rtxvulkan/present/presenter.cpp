@@ -76,8 +76,7 @@ namespace Rtx
                 ASSERT_NE(mVideo.mWindow, nullptr) << SDL_GetError();
 
                 mInstance = std::make_unique<Instance>(
-                    ValidationOptions{ .mLevel = ValidationLevel::Sync, .mAbortOnError = false },
-                    Surface::getInstanceExtensions());
+                    Testing::describeValidation(Testing::Validation::Validated), Surface::getInstanceExtensions());
                 mSurface = std::make_unique<Surface>(*mInstance, mVideo.mWindow);
                 mDevice = std::make_unique<Device>(*mInstance,
                     PhysicalDevice::select(mInstance->getHandle(),

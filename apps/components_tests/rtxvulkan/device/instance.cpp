@@ -1,11 +1,16 @@
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <memory>
+#include <optional>
 #include <span>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include <gtest/gtest.h>
+
+#include <volk.h>
 
 #include <apps/components_tests/rtxvulkan/support/testinstance.hpp>
 #include <components/misc/result.hpp>
@@ -40,6 +45,44 @@ namespace Rtx
             EXPECT_EQ(instance.getLayers().isHeard(), instance.hasDebugUtils());
             EXPECT_TRUE(std::none_of(inserted.begin(), inserted.end(),
                 [](const InsertedLayer& layer) { return layer.mName == "VK_LAYER_KHRONOS_validation"; }));
+        }
+
+        /// **What a run's validation asks of the layer, at every level and under either answer about the shaders.**
+        /// A finer level switches on its one check with the setting that check needs, and the core checks ask for
+        /// nothing. The shader checks go off where a caller leaves them to another run and nowhere else, at every
+        /// level: under the core checks alone they are all that is asked.
+        TEST(RtxInstanceTest, aLevelAsksItsOneCheckAndTheShaderChecksGoOnlyWhereACallerLeavesThemOut)
+        {
+            struct Row
+            {
+                ValidationLevel mLevel;
+                std::optional<VkValidationFeatureEnableEXT> mEnabled;
+                std::string_view mSetting;
+            };
+            const std::array rows{
+                Row{ ValidationLevel::Off, std::nullopt, "" },
+                Row{ ValidationLevel::On, std::nullopt, "" },
+                Row{ ValidationLevel::Sync, VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT,
+                    "syncval_shader_accesses_heuristic" },
+                Row{ ValidationLevel::Gpu, VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT, "gpuav_force_on_robustness" },
+            };
+
+            for (const Row& row : rows)
+            {
+                SCOPED_TRACE(sValidationNames.name(row.mLevel));
+
+                const LayerAsk checked = askOfLayer(ValidationOptions{ .mLevel = row.mLevel });
+                EXPECT_EQ(checked.mEnabled, row.mEnabled);
+                EXPECT_EQ(checked.mSetting == nullptr ? std::string_view() : std::string_view(checked.mSetting),
+                    row.mSetting);
+                EXPECT_EQ(checked.mDisabled, std::nullopt);
+
+                const LayerAsk skipped
+                    = askOfLayer(ValidationOptions{ .mLevel = row.mLevel, .mShaders = ShaderValidation::Skipped });
+                EXPECT_EQ(skipped.mEnabled, checked.mEnabled) << "the shaders' answer moves no finer check";
+                EXPECT_EQ(skipped.mSetting, checked.mSetting);
+                EXPECT_EQ(skipped.mDisabled, VK_VALIDATION_FEATURE_DISABLE_SHADERS_EXT);
+            }
         }
 
         void say(LoaderLayers& layers, const char* idName, const char* message)

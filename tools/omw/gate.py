@@ -25,13 +25,17 @@ def _build(build: Build) -> int:
 
 def _release_compile(build: Build) -> int:
     """The release build too, every program: without its asserts the optimizer warns on paths the debug build
-    never shows, and a tool only CI linked was a link error only CI found."""
+    never shows, and a tool only CI linked was a link error only CI found. **The programs and no test binary**:
+    a target a test runs is no part of `all` (`cmake/Tests.cmake`), since nothing runs one in this flavour and
+    they were 59% of a release compile's seconds (`docs/research/2026-11-13-gate-step-times.md`). A test source
+    that compiles under `-DNDEBUG` otherwise than in the debug flavour is found by `omw release test`."""
     Build("release").build(["all"])
     return 0
 
 
 # **The steps, in the order `gate` runs them**: each a name, which `omw help` prints, and what it runs on the
-# gate's build, nought where it passed.
+# gate's build, nought where it passed. **The tests ahead of the release compile**: a minute against the minutes a
+# change makes of the compile, so a red test says so before them.
 STEPS: tuple[tuple[str, Callable[[Build], int]], ...] = (
     ("format check", lambda build: formatting.format_tree(["--check"])),
     ("spellings", lambda build: spellings.check()),
@@ -39,9 +43,9 @@ STEPS: tuple[tuple[str, Callable[[Build], int]], ...] = (
     ("the driver's tests", lambda build: self_test()),
     ("build", _build),
     ("the listing check", listing.check),
-    ("the release compile", _release_compile),
     ("tests", lambda build: testing.test(build, [])),
     ("their timing", testing.timing),
+    ("the release compile", _release_compile),
     ("the integration tests", lambda build: integration.integration(build, [])),
     ("check", lambda build: build.harness("check").returncode),
     ("repeat", lambda build: repeat(build, ["--pairs=1"])),

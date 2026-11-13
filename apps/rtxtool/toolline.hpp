@@ -65,6 +65,7 @@ namespace RtxTool
         /// What frames the world, which `frameFrom` makes a `Framed` of.
         struct Frame
         {
+            /// `--size`, or where the line names none, `check`'s own frame under `check` (`sCheckFrame`).
             FrameSize mSize;
             float mFieldOfView = 0.0f;
             Named<int> mDay;
