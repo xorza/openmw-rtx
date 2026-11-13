@@ -137,6 +137,13 @@ namespace Rtx
                 return squares;
             }
 
+            /// Builds the chain again in `into`, as the pass built it: its levels read, delit and boxed.
+            void build(ChainBuild& into) const
+            {
+                assert(isMadeInBc1() && "a chain built that the pass did not make in BC1");
+                into.build(*mFile, mBuilt.getLevelCount());
+            }
+
             /// Appends the built chain to `into` in BC1, as the pass encodes a painted colour's
             /// (`ChainBuild::encode` from its finest level).
             void encode(Misc::ByteBuffer& into) const
@@ -375,6 +382,19 @@ namespace Rtx
             return corpus;
         }
 
+        /// The build alone: every file's levels read, delit and boxed, with no block encoded.
+        void buildPaintedChain(benchmark::State& state, const Corpus& corpus)
+        {
+            ChainBuild build;
+            for ([[maybe_unused]] auto _ : state)
+                for (const std::unique_ptr<PaintedChain>& chain : corpus.mChains)
+                {
+                    chain->build(build);
+                    benchmark::DoNotOptimize(build.getTexels(0).data());
+                }
+            corpus.report(state);
+        }
+
         /// The encoder alone: every built chain of the corpus into BC1, which is the chain the pass made of
         /// it, byte for byte.
         void encodePaintedBc1(benchmark::State& state, const Corpus& corpus)
@@ -434,6 +454,9 @@ int main(int argc, char** argv)
 
         // The corpus is the run's, made once and lent to each benchmark, which the registry runs and lets go
         // of inside this block.
+        benchmark::RegisterBenchmark("buildPaintedChain", [&corpus](benchmark::State& state) {
+            Rtx::buildPaintedChain(state, corpus);
+        })->Unit(benchmark::kMillisecond);
         benchmark::RegisterBenchmark("encodePaintedBc1", [&corpus](benchmark::State& state) {
             Rtx::encodePaintedBc1(state, corpus);
         })->Unit(benchmark::kMillisecond);

@@ -191,3 +191,30 @@ store holds an entry the other lacks where its run met a file the other's did no
 The encoder's profile after the three, of the benchmark's samples: the selector searches 24%, and the rest of
 `encode_bc1` 52% with no line over 5%, the rounding's midpoint lookups and the already-tried check its largest.
 
+## The build, its tables read inline
+
+`buildPaintedChain`, `ChainBuild::build` alone over the same corpus: its levels read, delit and boxed, 1.49 s an
+iteration, 30.3 million texels a second, which is 40% of the pass once the encoder is as above. Its samples, the
+corpus's making aside: `encodedByte` 26%, `delit` 23%, `paintedLight` 8%, `ChainBuild::build` 7%,
+`ChainBuild::delight` 6%, `toLinear` 4%, `ShadingMap` 3%, `ColourBlock::read` 2%. A texel of a painted level
+called eight functions of two other source files: the light's lookup, three decodes, the division and three
+encodes, the decode's and the encode's tables each behind a first-ask check. By line, the encode's search for its
+byte 12%, and in `delit` the greatest of three channels through `std::max`'s list, a call to `std::max_element`,
+10%.
+
+The same arithmetic with nothing between a texel and its tables (`DisplayCurve`, fetched once a loop), the
+light's lookup and the division in their header, the greatest of three as two comparisons, and the encoded byte
+one step past its bucket's start with no branch on the value, since no bucket holds two bytes' starts:
+
+| benchmark | before | after | runs |
+|---|---|---|---|
+| `buildPaintedChain` | 1.49 s | 0.78 s, 57.5 to 57.9 million texels a second | three |
+| `makePaintedChain` | 3.66 to 3.75 s | 2.99 to 3.01 s | three |
+
+The digest of the made chains the same, `98d02ccb015d1514da0cc2e444d4b970`, and the made pictures' the same. The
+pass whole from 6.75 s at the start of this note to 3.00 s; the encoder is 74% of it again.
+
+What the build's samples hold after: `ChainBuild::delight` 46% with the encode's two lines 24% of the run, where
+the division's wait is counted; `ChainBuild::build` 13%; `ShadingMap` 5%; `ColourBlock::read` 5%;
+`toLinear(osg::Vec3f)` 4%, the estimate's read of a block's two interpolated colours through `powf`.
+

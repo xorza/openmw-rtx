@@ -10,6 +10,8 @@
 
 #include <gtest/gtest.h>
 
+#include <osg/Vec3f>
+
 #include <apps/components_tests/rtx/support/statistics.hpp>
 #include <apps/components_tests/rtx/support/testtexture.hpp>
 #include <components/rtx/image/alphaimage.hpp>
@@ -345,6 +347,24 @@ namespace Rtx
             EXPECT_EQ(mid.mHigh, 5u);
             EXPECT_EQ(mid.mAcross, 0.0f);
             EXPECT_EQ(paintedLight(map, mid, repeats), 4.0f) << "the column's cell, whichever row";
+        }
+
+        /// **A colour is divided by its painted light, and brought down whole where a channel passes one**:
+        /// a factor of a half doubles each channel, exactly; a channel at one is left; and past one the
+        /// brightest channel, whichever of the three it is, comes to one and the others by its share, so
+        /// the colour's ratios stand.
+        TEST(RtxShadingMapTest, aDelitColourIsHeldAtOneByItsBrightestChannelAndKeepsItsRatios)
+        {
+            EXPECT_EQ(delit(osg::Vec3f(0.25f, 0.125f, 0.375f), 0.5f), osg::Vec3f(0.5f, 0.25f, 0.75f));
+            EXPECT_EQ(delit(osg::Vec3f(0.5f, 0.25f, 0.125f), 0.5f), osg::Vec3f(1.0f, 0.5f, 0.25f)) << "at one, left";
+
+            // Doubled to 2, 1 and 0.5 with the brightest first, second and third: halved back in each.
+            EXPECT_EQ(delit(osg::Vec3f(1.0f, 0.5f, 0.25f), 0.5f), osg::Vec3f(1.0f, 0.5f, 0.25f));
+            EXPECT_EQ(delit(osg::Vec3f(0.5f, 1.0f, 0.25f), 0.5f), osg::Vec3f(0.5f, 1.0f, 0.25f));
+            EXPECT_EQ(delit(osg::Vec3f(0.25f, 0.5f, 1.0f), 0.5f), osg::Vec3f(0.25f, 0.5f, 1.0f));
+
+            // A factor over one darkens and holds nothing: 0.5 over 2.
+            EXPECT_EQ(delit(osg::Vec3f(0.5f, 1.0f, 0.25f), 2.0f), osg::Vec3f(0.25f, 0.5f, 0.125f));
         }
     }
 }

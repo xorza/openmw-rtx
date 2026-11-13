@@ -6,6 +6,7 @@
 #include <cmath>
 #include <limits>
 #include <mutex>
+#include <span>
 
 #include <rgbcx/bc7enc.h>
 #include <rgbcx/rgbcx.h>
@@ -213,6 +214,7 @@ namespace Rtx
         if (file.mEncoding == TextureEncoding::Painted)
             delight(first);
 
+        const DisplayCurve& curve = DisplayCurve::get();
         const bool encoded = isSrgb(file.mFormat);
         const bool coverage = isColour(file.mEncoding);
         for (std::size_t at = read; at < mLevels.size(); ++at)
@@ -242,7 +244,7 @@ namespace Rtx
                             // Through the byte's table and not a `pow`, and alpha linear in every
                             // format, its byte's own share.
                             const auto channel = [&](std::size_t offset) {
-                                return encoded ? toLinear(stored(offset)) : stored(offset) / 255.0f;
+                                return encoded ? curve.toLinear(stored(offset)) : stored(offset) / 255.0f;
                             };
 
                             const osg::Vec3f texel(channel(0), channel(1), channel(2));
@@ -256,7 +258,7 @@ namespace Rtx
                     const std::size_t into = level.texelOffset(x, y, sTexel);
                     for (int channel = 0; channel < 3; ++channel)
                         mTexels[into + static_cast<std::size_t>(channel)]
-                            = encoded ? encodedByte(mean[channel]) : unitByte(mean[channel]);
+                            = encoded ? curve.encodedByte(mean[channel]) : unitByte(mean[channel]);
                     mTexels[into + 3] = unitByte(painted);
                 }
         }
@@ -270,6 +272,8 @@ namespace Rtx
         // every level read at its own texels' centres, in linear light.
         // Each column placed once a level and each row once, and the four cells lerped at every texel.
         const ShadingMap map(read, mAlpha);
+        const std::span<const float> painted = map.getValues();
+        const DisplayCurve& curve = DisplayCurve::get();
         for (std::size_t at = 0; at < read.mLevels.size(); ++at)
         {
             const MipLevel& level = mLevels[at];
@@ -283,15 +287,15 @@ namespace Rtx
                     = paintedAxis((static_cast<float>(y) + 0.5f) / level.mHeight, clampsT(read.mWrap));
                 for (std::uint32_t x = 0; x < level.mWidth; ++x)
                 {
-                    const float factor = paintedLight(map.getValues(), mColumns[x], row);
+                    const float factor = paintedLight(painted, mColumns[x], row);
                     const std::size_t into = level.texelOffset(x, y, sTexel);
                     osg::Vec3f light;
                     for (int channel = 0; channel < 3; ++channel)
-                        light[channel] = toLinear(
+                        light[channel] = curve.toLinear(
                             std::to_integer<std::uint8_t>(mTexels[into + static_cast<std::size_t>(channel)]));
                     const osg::Vec3f divided = Rtx::delit(light, factor);
                     for (int channel = 0; channel < 3; ++channel)
-                        mTexels[into + static_cast<std::size_t>(channel)] = encodedByte(divided[channel]);
+                        mTexels[into + static_cast<std::size_t>(channel)] = curve.encodedByte(divided[channel]);
                 }
             }
         }

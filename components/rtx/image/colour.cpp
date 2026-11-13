@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <bit>
+#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
@@ -11,73 +12,44 @@
 
 namespace Rtx
 {
-    namespace
+    DisplayCurve::DisplayCurve()
     {
-        /// The two hundred and fifty-six answers there are, worked out on the first ask so that no
-        /// order between translation units can put a reader before it.
-        const std::array<float, 256>& ofByte()
+        for (std::size_t at = 0; at < mLinear.size(); ++at)
+            mLinear[at] = Shaders::decodeSrgb(static_cast<float>(at) / 255.0f);
+
+        // **Bisected on the float's bits**, which order the non-negative floats as their values
+        // do, so each start is the exact least float whose byte is at least it: the encode is
+        // monotone, held to nought below and to 255 from one on.
+        const auto byteOf = [](std::uint32_t bits) {
+            return std::to_integer<std::uint32_t>(unitByte(toEncoded(std::bit_cast<float>(bits))));
+        };
+        mLeast[0] = -std::numeric_limits<float>::infinity();
+        mLeast[256] = std::numeric_limits<float>::infinity();
+        for (std::uint32_t byte = 1; byte < 256; ++byte)
         {
-            static const std::array<float, 256> sMade = [] {
-                std::array<float, 256> made{};
-                for (std::size_t at = 0; at < made.size(); ++at)
-                    made[at] = Shaders::decodeSrgb(static_cast<float>(at) / 255.0f);
-
-                return made;
-            }();
-
-            return sMade;
+            std::uint32_t low = 0;
+            std::uint32_t high = std::bit_cast<std::uint32_t>(1.0f);
+            while (low < high)
+            {
+                const std::uint32_t middle = low + (high - low) / 2;
+                if (byteOf(middle) >= byte)
+                    high = middle;
+                else
+                    low = middle + 1;
+            }
+            mLeast[byte] = std::bit_cast<float>(low);
         }
 
-        /// Where `encodedByte` reads each byte off: the least float that encodes to each byte, and the byte
-        /// each of `sBuckets` even steps of the unit range starts at, which no byte's span is narrower than.
-        /// Made on the first ask, as `ofByte` is.
-        struct EncodedStarts
+        std::uint32_t byte = 0;
+        for (std::size_t bucket = 0; bucket < sBuckets; ++bucket)
         {
-            static constexpr std::size_t sBuckets = 4096;
+            const float start = static_cast<float>(bucket) / sBuckets;
+            while (byte < 255 && start >= mLeast[byte + 1])
+                ++byte;
+            mBucket[bucket] = static_cast<std::uint8_t>(byte);
 
-            std::array<float, 256> mLeast;
-            std::array<std::uint8_t, sBuckets> mBucket;
-        };
-
-        const EncodedStarts& encodedStarts()
-        {
-            static const EncodedStarts sMade = [] {
-                EncodedStarts made{};
-                made.mLeast[0] = -std::numeric_limits<float>::infinity();
-
-                // **Bisected on the float's bits**, which order the non-negative floats as their values
-                // do, so each start is the exact least float whose byte is at least it: the encode is
-                // monotone, held to nought below and to 255 from one on.
-                const auto byteOf = [](std::uint32_t bits) {
-                    return std::to_integer<std::uint32_t>(unitByte(toEncoded(std::bit_cast<float>(bits))));
-                };
-                for (std::uint32_t byte = 1; byte < 256; ++byte)
-                {
-                    std::uint32_t low = 0;
-                    std::uint32_t high = std::bit_cast<std::uint32_t>(1.0f);
-                    while (low < high)
-                    {
-                        const std::uint32_t middle = low + (high - low) / 2;
-                        if (byteOf(middle) >= byte)
-                            high = middle;
-                        else
-                            low = middle + 1;
-                    }
-                    made.mLeast[byte] = std::bit_cast<float>(low);
-                }
-
-                std::uint32_t byte = 0;
-                for (std::size_t bucket = 0; bucket < EncodedStarts::sBuckets; ++bucket)
-                {
-                    const float start = static_cast<float>(bucket) / EncodedStarts::sBuckets;
-                    while (byte < 255 && start >= made.mLeast[byte + 1])
-                        ++byte;
-                    made.mBucket[bucket] = static_cast<std::uint8_t>(byte);
-                }
-                return made;
-            }();
-
-            return sMade;
+            // What `encodedByte`'s one step rests on: the byte after the next starts past this bucket.
+            assert(byte == 255 || mLeast[byte + 2] >= static_cast<float>(bucket + 1) / sBuckets);
         }
     }
 
@@ -90,7 +62,7 @@ namespace Rtx
         {
             const auto byte = static_cast<std::uint8_t>(encoded * 255.0f + 0.5f);
             if (static_cast<float>(byte) / 255.0f == encoded)
-                return ofByte()[byte];
+                return DisplayCurve::get().toLinear(byte);
         }
 
         return Shaders::decodeSrgb(encoded);
@@ -99,26 +71,6 @@ namespace Rtx
     float toEncoded(float linear)
     {
         return std::clamp(Shaders::encodeSrgb(linear), 0.0f, 1.0f);
-    }
-
-    std::byte encodedByte(const float linear)
-    {
-        // The bucket's start, then up past each byte's least float the value reaches: a step or two
-        // where the curve is steepest. Asked as `>`, so a NaN stays at nought, as the encode answers it.
-        const EncodedStarts& starts = encodedStarts();
-        const std::size_t bucket = linear > 0.0f
-            ? std::min(static_cast<std::size_t>(std::min(linear, 1.0f) * EncodedStarts::sBuckets),
-                  EncodedStarts::sBuckets - 1)
-            : 0;
-        std::uint32_t byte = starts.mBucket[bucket];
-        while (byte < 255 && linear >= starts.mLeast[byte + 1])
-            ++byte;
-        return static_cast<std::byte>(byte);
-    }
-
-    float toLinear(std::uint8_t encoded)
-    {
-        return ofByte()[encoded];
     }
 
     osg::Vec3f toLinear(const osg::Vec3f& encoded)

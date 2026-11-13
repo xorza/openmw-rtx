@@ -227,26 +227,8 @@ namespace Rtx
         return PaintedAxis{ .mLow = index(low), .mHigh = index(low + 1), .mAcross = placed - static_cast<float>(low) };
     }
 
-    float paintedLight(std::span<const float> map, const PaintedAxis& across, const PaintedAxis& down)
-    {
-        constexpr std::size_t extent = ShadingMap::sExtent;
-        assert(map.size() == extent * extent);
-
-        const auto cell = [&](std::uint32_t column, std::uint32_t row) { return map[row * extent + column]; };
-        const float top = std::lerp(cell(across.mLow, down.mLow), cell(across.mHigh, down.mLow), across.mAcross);
-        const float bottom = std::lerp(cell(across.mLow, down.mHigh), cell(across.mHigh, down.mHigh), across.mAcross);
-        return std::lerp(top, bottom, down.mAcross);
-    }
-
     float paintedLight(std::span<const float> map, float u, float v, const TextureWrap wrap)
     {
         return paintedLight(map, paintedAxis(u, clampsS(wrap)), paintedAxis(v, clampsT(wrap)));
-    }
-
-    osg::Vec3f delit(const osg::Vec3f& light, const float factor)
-    {
-        const osg::Vec3f divided = light / factor;
-        const float brightest = std::max({ divided.x(), divided.y(), divided.z() });
-        return brightest > 1.0f ? divided / brightest : divided;
     }
 }

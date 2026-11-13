@@ -1,6 +1,9 @@
 #pragma once
 
+#include <algorithm>
 #include <array>
+#include <cassert>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <span>
@@ -68,11 +71,21 @@ namespace Rtx
     /// every wall that repeats, **and held at the edge along one it clamps**, as the estimate's blur is.
     PaintedAxis paintedAxis(float at, bool clamps);
 
-    /// The map at a point placed along both axes, bilinear across it.
+    /// The map at a point placed along both axes, bilinear across it. Here and not in the source file: a
+    /// chain asks it once a texel (`ChainBuild::delight`).
     ///
     /// @param map `ShadingMap::sExtent` squared factors, which is what `ShadingMap::getValues`
     ///        holds.
-    float paintedLight(std::span<const float> map, const PaintedAxis& across, const PaintedAxis& down);
+    inline float paintedLight(std::span<const float> map, const PaintedAxis& across, const PaintedAxis& down)
+    {
+        constexpr std::size_t extent = ShadingMap::sExtent;
+        assert(map.size() == extent * extent);
+
+        const auto cell = [&](std::uint32_t column, std::uint32_t row) { return map[row * extent + column]; };
+        const float top = std::lerp(cell(across.mLow, down.mLow), cell(across.mHigh, down.mLow), across.mAcross);
+        const float bottom = std::lerp(cell(across.mLow, down.mHigh), cell(across.mHigh, down.mHigh), across.mAcross);
+        return std::lerp(top, bottom, down.mAcross);
+    }
 
     /// The map at `u`, `v`, addressed past its edges as a texture of `wrap` is: the two above.
     float paintedLight(std::span<const float> map, float u, float v, TextureWrap wrap);
@@ -81,5 +94,10 @@ namespace Rtx
     /// reflectance of one, brought down whole**, since a glint in a fold painted dark divides to past
     /// one and a surface that reflects more than reaches it makes light at every bounce, and the colour
     /// is kept by scaling all three.
-    osg::Vec3f delit(const osg::Vec3f& light, float factor);
+    inline osg::Vec3f delit(const osg::Vec3f& light, const float factor)
+    {
+        const osg::Vec3f divided = light / factor;
+        const float brightest = std::max(std::max(divided.x(), divided.y()), divided.z());
+        return brightest > 1.0f ? divided / brightest : divided;
+    }
 }

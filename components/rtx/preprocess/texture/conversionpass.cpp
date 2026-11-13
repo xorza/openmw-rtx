@@ -170,6 +170,7 @@ namespace Rtx
             }
 
             // **Every texel of the slot's own file, with its partner's nearest.**
+            const DisplayCurve& curve = DisplayCurve::get();
             const MipLevel& own = colour ? lit : shine;
             mConverted.reserve(std::size_t{ own.mWidth } * own.mHeight * 4);
             mConverted.assign(std::size_t{ own.mWidth } * own.mHeight * 4, std::byte{ 0 });
@@ -184,7 +185,8 @@ namespace Rtx
                     const std::size_t from = (std::size_t{ dy } * lit.mWidth + dx) * 4;
                     osg::Vec3f light;
                     for (int channel = 0; channel < 3; ++channel)
-                        light[channel] = toLinear(std::to_integer<std::uint8_t>(delit[from + std::size_t(channel)]));
+                        light[channel]
+                            = curve.toLinear(std::to_integer<std::uint8_t>(delit[from + std::size_t(channel)]));
                     const osg::Vec3f highlight = toLinear(mHighlights[std::size_t{ sy } * shine.mWidth + sx]);
                     const ConvertedTexel converted = convertTexel(light, highlight);
 
@@ -192,7 +194,7 @@ namespace Rtx
                     if (colour)
                     {
                         for (int channel = 0; channel < 3; ++channel)
-                            mConverted[into + std::size_t(channel)] = encodedByte(converted.mBase[channel]);
+                            mConverted[into + std::size_t(channel)] = curve.encodedByte(converted.mBase[channel]);
                         mConverted[into + 3] = delit[from + 3];
                     }
                     else
