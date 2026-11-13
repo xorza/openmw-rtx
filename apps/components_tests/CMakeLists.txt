@@ -11,6 +11,7 @@ target_sources(
         contentstore/key.cpp
         contentstore/store.cpp
         crashcatcher/crashhangwatch.cpp
+        crashcatcher/crashmonitorrequests.cpp
         crashcatcher/crashmonitor.cpp
         crashcatcher/crashnote.cpp
         crashcatcher/crashpackage.cpp

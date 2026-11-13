@@ -9,6 +9,7 @@ target_sources(
         crashhangwatch.cpp
         crashmonitorarguments.cpp
         crashmonitorlog.cpp
+        crashmonitorrequests.cpp
         crashpackage.cpp
         crashpage.cpp
         crashsummary.cpp
@@ -22,6 +23,7 @@ target_sources(
                 crashinstall.hpp
                 crashmonitorarguments.hpp
                 crashmonitorlog.hpp
+                crashmonitorrequests.hpp
                 crashpackage.hpp
                 crashpadclientsystem.hpp
                 crashpadmonitorsystem.hpp

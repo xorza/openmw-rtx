@@ -5,6 +5,7 @@
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
+#include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -44,6 +45,7 @@
 #include "crashhangwatch.hpp"
 #include "crashmonitorarguments.hpp"
 #include "crashmonitorlog.hpp"
+#include "crashmonitorrequests.hpp"
 #include "crashnote.hpp"
 #include "crashpackage.hpp"
 #include "crashpadmonitorsystem.hpp"
@@ -55,32 +57,6 @@ namespace Crash
 {
     namespace
     {
-        /// The game stood still for `mSeconds`, at the frame count `mStalledAt`, and the watch took a
-        /// dump of it, or `mDumped` says it could not.
-        struct AskToEnd
-        {
-            std::uint32_t mSeconds;
-            std::uint64_t mStalledAt;
-            bool mDumped;
-        };
-
-        /// Crashpad's handler returned `mResult`: the game is gone.
-        struct HandlerReturned
-        {
-            int mResult;
-        };
-
-        /// The game has been gone for `sLastResort` and Crashpad's handler has not returned: stuck,
-        /// as one reading a game that never let it attach is.
-        struct HandlerOverdue
-        {
-        };
-
-        /// **What the main thread is asked to do, in order.** It is the one thread that shows a dialog,
-        /// which stands for as long as the player takes over it, so neither Crashpad's handler nor the
-        /// watch waits on a click. The handler runs on a worker and the watch asks here.
-        using Request = std::variant<AskToEnd, HandlerReturned, HandlerOverdue>;
-
         /// What the game told the monitor on its command line, and what the monitor learnt since.
         struct MonitorState : MonitorArguments
         {
@@ -125,34 +101,7 @@ namespace Crash
             /// Whether the player's End ended the game: written and read on the main thread.
             bool mEnded = false;
 
-            std::mutex mRequestMutex;
-            std::condition_variable mRequestWake;
-            std::vector<Request> mRequests;
-
-            void post(const Request& request)
-            {
-                {
-                    const std::lock_guard lock(mRequestMutex);
-                    mRequests.push_back(request);
-                }
-                mRequestWake.notify_one();
-            }
-
-            /// The oldest request, waited for. **One that says the game is gone goes first**, and
-            /// every question still waiting with it: a box about a game already gone asks nothing.
-            Request take()
-            {
-                std::unique_lock lock(mRequestMutex);
-                mRequestWake.wait(lock, [&] { return !mRequests.empty(); });
-                const auto gone = std::ranges::find_if(
-                    mRequests, [](const Request& one) { return !std::holds_alternative<AskToEnd>(one); });
-                const Request first = gone != mRequests.end() ? *gone : mRequests.front();
-                if (gone != mRequests.end())
-                    mRequests.clear();
-                else
-                    mRequests.erase(mRequests.begin());
-                return first;
-            }
+            MonitorRequests mRequests;
         };
 
         /// Whether the watch has ended, which it does once the game is gone.
@@ -206,8 +155,8 @@ namespace Crash
                 return true;
             }
 
-            // Past a box that stood before this one, the game may have drawn again or gone.
-            if (watchEnded(monitor) || std::atomic_ref(monitor.mPage.get()->mFrames).load() != request.mStalledAt)
+            // Past a box that stood before this one, the game may have drawn again; one gone the caller asked.
+            if (std::atomic_ref(monitor.mPage.get()->mFrames).load() != request.mStalledAt)
                 return false;
 
             const std::string log = Files::pathToUnicodeString(monitor.mLog.path());
@@ -228,6 +177,13 @@ namespace Crash
             return SDL_ShowMessageBox(&box, &chosen) && chosen == 1;
         }
 
+        /// What became of a question the game ended before: whether the player was asked or not, End was
+        /// never answered, and nothing was ended.
+        void sayEndedFirst(MonitorState& monitor)
+        {
+            monitor.mLog.write({ "Hang: the game ended before End was answered, and nothing was ended" });
+        }
+
         /// Ends the game where it still stands where it stood when the player was asked: the box
         /// stands for as long as the player takes over it, and the game may have drawn again, or
         /// ended, in that time. Says in the log what it did.
@@ -246,7 +202,7 @@ namespace Crash
                     monitor.mEnded = true;
                     return;
                 case Monitor::Ending::Gone:
-                    monitor.mLog.write({ "Hang: the game ended before End was answered, and nothing was ended" });
+                    sayEndedFirst(monitor);
                     return;
                 case Monitor::Ending::Failed:
                     monitor.mLog.write({ "Hang: the monitor could not end the game" });
@@ -280,7 +236,7 @@ namespace Crash
                     goneAt = goneAt.value_or(now);
                     if (now - *goneAt < sLastResort)
                         continue;
-                    monitor.post(HandlerOverdue{});
+                    monitor.mRequests.post(HandlerOverdue{});
                     return;
                 }
 
@@ -311,7 +267,7 @@ namespace Crash
                     .mHeld = true });
 
                 if (!std::holds_alternative<AskNobody>(monitor.mAnswering))
-                    monitor.post(
+                    monitor.mRequests.post(
                         AskToEnd{ .mSeconds = found->mSeconds, .mStalledAt = found->mStalledAt, .mDumped = dumped });
             }
         }
@@ -557,7 +513,7 @@ namespace Crash
             crashpad::UserStreamDataSources sources;
             sources.push_back(std::move(owned));
 
-            // The handler on a worker and the questions on this thread, `Request` says why.
+            // The handler on a worker and the questions on this thread, `MonitorRequest` says why.
             std::thread watchdog([&] { watch(monitor, summary); });
             // The watch ends the moment the game is gone, so a question still standing then ends
             // nothing (`endIfStillStalled`).
@@ -570,14 +526,14 @@ namespace Crash
                     monitor.mWatchEnds = true;
                 }
                 monitor.mWatchWake.notify_one();
-                monitor.post(HandlerReturned{ returned });
+                monitor.mRequests.post(HandlerReturned{ returned });
             });
 
             int result = EXIT_FAILURE;
             bool overdue = false;
             for (;;)
             {
-                const Request request = monitor.take();
+                const MonitorRequest request = monitor.mRequests.take();
                 if (const HandlerReturned* const returned = std::get_if<HandlerReturned>(&request))
                 {
                     result = returned->mResult;
@@ -592,11 +548,24 @@ namespace Crash
                     break;
                 }
                 const AskToEnd& asked = std::get<AskToEnd>(request);
+                // Gone before its question was asked, which no box asks about.
+                if (watchEnded(monitor) || monitor.mGame.isGone())
+                {
+                    sayEndedFirst(monitor);
+                    continue;
+                }
                 if (askToEnd(monitor, asked))
                     endIfStillStalled(monitor, asked);
             }
 
             watchdog.join();
+
+            // **Every question a hang raised is said once**, in whichever order the game's end and the question
+            // reached this thread: a hang's dump outlasted the game on a loaded machine, the question came after
+            // the end, and the log said nothing of it.
+            for (std::size_t unasked = monitor.mRequests.takeUnasked(); unasked > 0; --unasked)
+                sayEndedFirst(monitor);
+
             // A handler stuck past the bound is left to the process's end, below.
             if (overdue)
                 handlerThread.detach();
