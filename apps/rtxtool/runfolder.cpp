@@ -35,34 +35,45 @@ namespace RtxTool
         return ownConfigDirectory(config) / "saves";
     }
 
-    void sweepEndedRuns(const std::filesystem::path& runs)
+    namespace
     {
+        /// Whether `entry` is the directory of a run still going: named `<time>-<process id>`, the whole of the
+        /// name, by a process that is running.
+        bool isLiveRun(const std::filesystem::directory_entry& entry)
+        {
+            std::error_code failed;
+            if (!entry.is_directory(failed))
+                return false;
+
+            const std::string name = Files::pathToUnicodeString(entry.path().filename());
+            const std::size_t dash = name.find('-');
+            if (dash == std::string::npos)
+                return false;
+
+            const std::string_view spelled = name;
+            const std::optional<std::uint64_t> started = wholeNumber<std::uint64_t>(spelled.substr(0, dash));
+            const std::optional<std::uint32_t> process = wholeNumber<std::uint32_t>(spelled.substr(dash + 1));
+            return started.has_value() && process.has_value() && Platform::Process::isRunning(*process);
+        }
+    }
+
+    void sweepAllButLiveRuns(const std::filesystem::path& runs)
+    {
+        // A relative folder would be the working directory's, which under `omw` is the build's own harness folder.
+        Crash::contract(runs.is_absolute(), "the runs' folder is not an absolute path");
+
         // Listed whole before anything goes, as `DriverCache::sweep` says why.
         const std::optional<std::vector<std::filesystem::directory_entry>> listed = Platform::listFolder(runs);
         if (!listed.has_value())
             return;
 
+        // **The folder is the tool's own, and everything in it but a live run is left over**: a name the sweep
+        // passed over stayed for good, as the runs a build named in hex did, and the files of the layout before
+        // runs had folders of their own.
         std::error_code failed;
         for (const std::filesystem::directory_entry& entry : *listed)
-        {
-            if (!entry.is_directory(failed))
-                continue;
-
-            // `<time>-<process id>`, and the whole of it: a name that is anything else is not a run's.
-            const std::string name = Files::pathToUnicodeString(entry.path().filename());
-            const std::size_t dash = name.find('-');
-            if (dash == std::string::npos || dash == 0)
-                continue;
-
-            const std::string_view spelled = name;
-            const std::optional<std::uint64_t> started = wholeNumber<std::uint64_t>(spelled.substr(0, dash));
-            const std::optional<std::uint32_t> process = wholeNumber<std::uint32_t>(spelled.substr(dash + 1));
-            if (!started.has_value() || !process.has_value())
-                continue;
-
-            if (!Platform::Process::isRunning(*process))
+            if (!isLiveRun(entry))
                 std::filesystem::remove_all(entry.path(), failed);
-        }
     }
 
     void adoptConfigDirectory(bpo::variables_map& variables, const std::filesystem::path& directory)

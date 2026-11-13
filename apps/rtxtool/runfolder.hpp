@@ -25,11 +25,11 @@ namespace RtxTool
     /// content list).
     std::filesystem::path ownSavesFolder(const Files::ConfigurationManager& config);
 
-    /// Removes the directory of every run in `runs` whose process has ended, and nothing else:
-    /// not a run still going, and nothing not named as `ownConfigDirectory` names one. At the next
-    /// run's start and not at a run's own end, so the log of the last run stays to be read until
-    /// another begins, and nothing is removed while its process still holds the log open.
-    void sweepEndedRuns(const std::filesystem::path& runs);
+    /// Removes everything in `runs`, the folder `ownConfigDirectory` makes its directories in, but the directory of
+    /// a run still going: an ended run's, and whatever an earlier layout of the folder left, file or directory. At
+    /// the next run's start and not at a run's own end, so the log of the last run stays to be read until another
+    /// begins, and nothing is removed while its process still holds the log open.
+    void sweepAllButLiveRuns(const std::filesystem::path& runs);
 
     /// Makes `directory` the last configuration directory of the run, and creates it. The last, because
     /// `Settings::Manager::load` reads that one as the user layer the engine writes back to. Before

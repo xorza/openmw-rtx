@@ -912,7 +912,7 @@ namespace RtxTool
             // Before the chain is walked, because this is the directory the engine writes into
             // (`ownConfigDirectory`); the log below lands there too.
             const std::filesystem::path own = ownConfigDirectory(config);
-            sweepEndedRuns(own.parent_path());
+            sweepAllButLiveRuns(own.parent_path());
             adoptConfigDirectory(variables, own);
 
             config.processPaths(variables, std::filesystem::current_path());

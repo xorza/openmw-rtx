@@ -18,6 +18,7 @@
 #include <boost/program_options/variables_map.hpp>
 #include <osg/Vec3f>
 
+#include <apps/components_tests/rtx/support/death.hpp>
 #include <apps/rtxtool/framed.hpp>
 #include <apps/rtxtool/model/film.hpp>
 #include <apps/rtxtool/model/maprules.hpp>
@@ -556,24 +557,34 @@ namespace RtxTool
                     .ends_with(std::format("-{}", Platform::Process::currentId())));
         }
 
-        /// **Only the directory of a run whose process has ended is swept**: process nought, which no
-        /// system hands out, has ended; this one has not; and a name that is not `<time>-<process
-        /// id>`, or a file, is not a run's whatever it says.
-        TEST(RtxOwnConfigTest, onlyTheDirectoryOfARunThatEndedIsSwept)
+        /// **Everything but a live run's directory is swept**: process nought, which no system hands
+        /// out, has ended, and this one has not. A name that is not `<time>-<process id>` whole — the hex
+        /// an earlier build named its runs in, a letter past the number, no time, no process — is left
+        /// over, and so is a file whatever its name, as the layout before runs had folders left them.
+        TEST(RtxOwnConfigTest, everythingButALiveRunsDirectoryIsSwept)
         {
             const std::filesystem::path runs = TestingOpenMW::currentTestDirPath();
             const std::string running = std::format("6-{}", Platform::Process::currentId());
-            for (const std::string& name : std::vector<std::string>{ "5-0", running, "notes", "7-12x", "-3", "8-" })
+            for (const std::string& name :
+                std::vector<std::string>{ "5-0", running, "18e6dd74d457d5e1-1e241e", "7-12x", "-3", "8-", "crashes" })
                 std::filesystem::create_directories(runs / name / "settings");
-            std::ofstream(runs / "9-0") << "a file";
+            std::ofstream(runs / "settings.cfg") << "a file";
+            std::ofstream(runs / std::format("9-{}", Platform::Process::currentId())) << "a file named as a live run";
 
-            sweepEndedRuns(runs);
+            sweepAllButLiveRuns(runs);
 
-            EXPECT_FALSE(std::filesystem::exists(runs / "5-0")) << "an ended run's directory stayed";
-            for (const std::string& name : std::vector<std::string>{ running, "notes", "7-12x", "-3", "8-", "9-0" })
-                EXPECT_TRUE(std::filesystem::exists(runs / name)) << name << " was swept";
+            EXPECT_TRUE(std::filesystem::exists(runs / running / "settings")) << "the live run was swept";
+            std::size_t left = 0;
+            for ([[maybe_unused]] const std::filesystem::directory_entry& entry :
+                std::filesystem::directory_iterator(runs))
+                ++left;
+            EXPECT_EQ(left, 1u) << "only the live run stays";
 
             std::filesystem::remove_all(runs);
+
+            // A relative folder is the working directory's, which is no folder of runs.
+            Rtx::Testing::expectDies(
+                [] { sweepAllButLiveRuns("rtxtool"); }, "the runs' folder is not an absolute path");
         }
     }
 }
