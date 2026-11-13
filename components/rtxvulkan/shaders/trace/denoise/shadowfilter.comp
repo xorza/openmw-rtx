@@ -192,39 +192,39 @@ bool filtersTile(uint field, ivec2 at, bool inFrame)
     return false;
 }
 
-/// One field's filter at the pixel `at`, the workgroup's square read: the level's mean and variance,
-/// or nought and `SHADOW_NO_RECEIVER` where the field's source lights nothing there.
-vec2 filtered(uint field, ivec2 centre, vec3 normal, vec3 position, float footprint)
+/// One field's filter at a pixel as its taps are added: the centre's input and deviation, and the sums.
+struct FieldSum
 {
-    if (!receives(field, centre))
-        return vec2(0.0, SHADOW_NO_RECEIVER);
+    vec2 mHere;
+    float mDeviation;
+    vec2 mSum;
+    float mWeights;
+};
 
+FieldSum fieldSumAt(uint field, ivec2 centre)
+{
     const vec2 here = inputAt(field, centre);
-    const float deviation = sqrt(max(filteredVariance(field, centre) + 1e-9, 0.0));
+    return FieldSum(here, sqrt(max(filteredVariance(field, centre) + 1e-9, 0.0)), here, 1.0);
+}
 
-    const int step = 1 << SHADOW_LEVEL;
-    float weightSum = 1.0;
-    vec2 sum = here;
-    for (int y = -1; y <= 1; ++y)
-        for (int x = -1; x <= 1; ++x)
-        {
-            if (x == 0 && y == 0)
-                continue;
+/// Adds `field`'s tap at `tap` to `sum`, by the kernel's weight there and how nearly the tap's surface is
+/// the centre's (`coplanarWeight`, `facingWeights`).
+void addTap(inout FieldSum sum, uint field, ivec2 tap, float kernel, float coplanar, float facing)
+{
+    const vec2 there = inputAt(field, tap);
+    const float tested = kernel * exp(-abs(sum.mHere.x - there.x) / sum.mDeviation) * coplanar * facing;
+    // Selected and not skipped, as the temporal pass selects what it stores
+    // (`shadowtiles.comp` names the measurement).
+    const float weight = there.y != SHADOW_NO_RECEIVER ? tested : 0.0;
 
-            const ivec2 tap = centre + ivec2(x, y) * step;
-            const vec2 there = inputAt(field, tap);
-            const float tested = kernelAt(x) * kernelAt(y) * exp(-abs(here.x - there.x) / deviation)
-                * coplanarWeight(normal, position, gPosition[tap.y][tap.x], footprint)
-                * facingWeights(normal, unpackSurfaceNormal(gNormal[tap.y][tap.x])).mFilter;
-            // Selected and not skipped, as the temporal pass selects what it stores
-            // (`shadowtiles.comp` names the measurement).
-            const float weight = there.y != SHADOW_NO_RECEIVER ? tested : 0.0;
+    sum.mSum += vec2(weight, weight * weight) * there;
+    sum.mWeights += weight;
+}
 
-            sum += vec2(weight, weight * weight) * there;
-            weightSum += weight;
-        }
-
-    return vec2(sum.x / weightSum, sum.y / (weightSum * weightSum));
+/// What a field's sums come to: the level's mean and variance.
+vec2 filteredOf(FieldSum sum)
+{
+    return vec2(sum.mSum.x / sum.mWeights, sum.mSum.y / (sum.mWeights * sum.mWeights));
 }
 
 void main()
@@ -251,16 +251,50 @@ void main()
         = imageLoad(surfaceChannel, storedAt(at, level.mEyes.mWorld.mWidth, fieldSwapOf(level.mFrame))).g;
     const float footprint = footprintAlong(eyeOfPixel(packed, level.mEyes), surfaceDistance(packed));
 
+    // **One walk of the taps for both fields**, each tap's surface weighed once: the fields read the same
+    // square of the same surface, and a walk a field decoded every tap's normal and weighed its plane twice.
+    // A field whose source lights nothing here stores nought and `SHADOW_NO_RECEIVER`, and a pixel no
+    // source lights walks no tap.
+    const bvec2 lit = bvec2(filtering[SHADOW_FIELD_SKY] && receives(SHADOW_FIELD_SKY, centre),
+        filtering[SHADOW_FIELD_LAMPS] && receives(SHADOW_FIELD_LAMPS, centre));
+    FieldSum sky = FieldSum(vec2(0.0), 1.0, vec2(0.0), 1.0);
+    FieldSum lamps = FieldSum(vec2(0.0), 1.0, vec2(0.0), 1.0);
+    if (any(lit))
+    {
+        if (filtering[SHADOW_FIELD_SKY])
+            sky = fieldSumAt(SHADOW_FIELD_SKY, centre);
+        if (filtering[SHADOW_FIELD_LAMPS])
+            lamps = fieldSumAt(SHADOW_FIELD_LAMPS, centre);
+
+        const int step = 1 << SHADOW_LEVEL;
+        for (int y = -1; y <= 1; ++y)
+            for (int x = -1; x <= 1; ++x)
+            {
+                if (x == 0 && y == 0)
+                    continue;
+
+                const ivec2 tap = centre + ivec2(x, y) * step;
+                const float kernel = kernelAt(x) * kernelAt(y);
+                const float coplanar = coplanarWeight(normal, position, gPosition[tap.y][tap.x], footprint);
+                const float facing = facingWeights(normal, unpackSurfaceNormal(gNormal[tap.y][tap.x])).mFilter;
+                if (filtering[SHADOW_FIELD_SKY])
+                    addTap(sky, SHADOW_FIELD_SKY, tap, kernel, coplanar, facing);
+                if (filtering[SHADOW_FIELD_LAMPS])
+                    addTap(lamps, SHADOW_FIELD_LAMPS, tap, kernel, coplanar, facing);
+            }
+    }
+
     if (filtering[SHADOW_FIELD_SKY])
     {
         uint rounding = seededKey(pixelKey(uvec2(at)) + SEED_SKY_SHADOW_HISTORY_ROUNDING, level.mFrame);
         storeFiltered(SHADOW_FIELD_SKY, at,
-            storedWord(filtered(SHADOW_FIELD_SKY, centre, normal, position, footprint), randomWord(rounding)));
+            storedWord(lit[SHADOW_FIELD_SKY] ? filteredOf(sky) : vec2(0.0, SHADOW_NO_RECEIVER), randomWord(rounding)));
     }
     if (filtering[SHADOW_FIELD_LAMPS])
     {
         uint rounding = seededKey(pixelKey(uvec2(at)) + SEED_LAMP_SHADOW_HISTORY_ROUNDING, level.mFrame);
         storeFiltered(SHADOW_FIELD_LAMPS, at,
-            storedWord(filtered(SHADOW_FIELD_LAMPS, centre, normal, position, footprint), randomWord(rounding)));
+            storedWord(
+                lit[SHADOW_FIELD_LAMPS] ? filteredOf(lamps) : vec2(0.0, SHADOW_NO_RECEIVER), randomWord(rounding)));
     }
 }

@@ -12,7 +12,10 @@
 #include <apps/rtxtool/instruments/cardwatch.hpp>
 #include <apps/rtxtool/instruments/gpuclock.hpp>
 #include <apps/rtxtool/model/benchrecord.hpp>
+#include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/renderer/framespend.hpp>
+#include <components/rtx/renderer/renderer.hpp>
+#include <components/rtx/scene/mesh.hpp>
 #include <components/testing/util.hpp>
 
 namespace RtxTool
@@ -199,13 +202,37 @@ namespace RtxTool
             EXPECT_NE(json.find(uncounted), std::string::npos) << json;
         }
 
-        /// **The record writes the place's memory and its content whole**: every heap the device
-        /// stated, each figure under its own name, the uses, and every
-        /// count of the mirror's content and its reader. Each a different number, so a field
-        /// written under another's name is told apart.
-        TEST(RtxBenchRecordTest, theRecordWritesThePlacesMemoryAndContentWhole)
+        /// **The record writes the place's scene, its memory and its content whole**: every count of
+        /// the scene's instances and what it holds, every heap the device stated, each figure under its
+        /// own name, the uses, and every count of the mirror's content and its reader. Each a different
+        /// number, so a field written under another's name is told apart.
+        TEST(RtxBenchRecordTest, theRecordWritesThePlacesSceneMemoryAndContentWhole)
         {
             BenchPlace place;
+            place.mScene = Rtx::SceneStats{ .mInstances = Rtx::InstanceCounts{ .mPlaced = 41,
+                                                .mCutout = 42,
+                                                .mWater = 43,
+                                                .mMedium = 44,
+                                                .mAdditive = 45,
+                                                .mFirstPerson = 46,
+                                                .mMapped = 47,
+                                                .mDarkAlpha = 48,
+                                                .mRelief = 49 },
+                .mInstanceSlots = 50,
+                .mStructureBytes = 51,
+                .mStructureLiveBytes = 52,
+                .mTableBytes = 53,
+                .mWorkBytes = 54,
+                .mCompactableBytes = 55,
+                .mCompactableNowBytes = 56,
+                .mRebuilt = 57,
+                .mTextureCount = 58,
+                .mTextureBytes = 59,
+                .mTextureBytesBySource = Rtx::TextureSourceBytes{ .mFiles = 60,
+                    .mSpriteBakes = 61,
+                    .mGroundComposites = 62,
+                    .mGroundGloss = 63 },
+                .mReducedTextureCount = 64 };
             place.mMemory.mHeapCount = 2;
             place.mMemory.mHeaps[0] = Rtx::HeapUse{
                 .mSize = 1, .mBudget = 2, .mHeld = 3, .mReserved = 4, .mLive = 5, .mBlocks = 6, .mDeviceLocal = true
@@ -243,6 +270,14 @@ namespace RtxTool
             const std::string json = read.str();
             std::filesystem::remove(path);
 
+            constexpr std::string_view scene
+                = R"("scene": {"instances": 41, "instanceSlots": 50, "cutoutInstances": 42, "waterInstances": 43, )"
+                  R"("mediumInstances": 44, "additiveInstances": 45, "firstPersonInstances": 46, )"
+                  R"("mappedInstances": 47, "darkAlphaInstances": 48, "reliefInstances": 49, "structureBytes": 51, )"
+                  R"("structureLiveBytes": 52, "compactableBytes": 55, "compactableNowBytes": 56, "rebuilt": 57, )"
+                  R"("tableBytes": 53, "workBytes": 54, "textureCount": 58, "textureBytes": 59, )"
+                  R"("reducedTextureCount": 64, "textureBytesBySource": {"files": 60, "spriteBakes": 61, )"
+                  R"("groundComposites": 62, "groundGloss": 63}})";
             constexpr std::string_view memory
                 = R"("memory": {"heaps": [{"size": 1, "budget": 2, "held": 3, "reserved": 4, "live": 5, "blocks": 6, )"
                   R"("deviceLocal": true}, {"size": 7, "budget": 0, "held": 0, "reserved": 0, "live": 0, )"
@@ -253,6 +288,7 @@ namespace RtxTool
                   R"("layerEnd": 25, "maskEnd": 26, "rigRunEnd": 27, "influenceEnd": 28, "offsetEnd": 29, )"
                   R"("poseEnd": 30, "bindVertexEnd": 31, "reader": {"lentModels": 32, "spareModels": 33, )"
                   R"("filedModels": 34, "lentBytes": 35, "spareBytes": 36, "filedBytes": 37}})";
+            EXPECT_NE(json.find(scene), std::string::npos) << json;
             EXPECT_NE(json.find(memory), std::string::npos) << json;
             EXPECT_NE(json.find(content), std::string::npos) << json;
         }

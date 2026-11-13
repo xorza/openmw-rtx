@@ -1149,6 +1149,30 @@ vec3 stepOf(Surface surface)
     return surface.mGeometric * surface.mRounding;
 }
 
+/// The frame a ground stack's layers share about the interpolated `normal`: the tangent the chunk's x, which
+/// is the world's, less its part along the normal, and the bitangent `cross(N, T)`. A heightfield's normal
+/// leans up, so x is never along it.
+///
+/// **Not `terrain.vert`'s frame**, whose bitangent is `cross(N, x)`, `sqrt(1 - Nx²)` long: on a slope
+/// down x a replacer's map tilted the normal 0.71 as far across the slope as along it at 45 degrees.
+///
+/// **Down y where x is the normal itself**, a face of ground along ±x, where x less its part along the
+/// normal is nought and its normalisation a NaN in every history that read it. The axis is selected before
+/// the one projection, which carried twice held 256 bytes more of the water's walk in shared memory on
+/// NVIDIA's.
+struct LayerFrame
+{
+    vec3 mTangent;
+    vec3 mBitangent;
+};
+
+LayerFrame layerFrameOf(vec3 normal)
+{
+    const vec3 across = abs(normal.x) < 1.0 ? vec3(1.0, 0.0, 0.0) : vec3(0.0, 1.0, 0.0);
+    const vec3 tangent = normalize(across - normal * dot(normal, across));
+    return LayerFrame(tangent, cross(normal, tangent));
+}
+
 /// What a hit is made of.
 ///
 /// **Everything a hit leads to and nothing the traversal already answered.** Every table this reads is keyed
@@ -1211,21 +1235,6 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed, uint relief
 
     const GpuMaterial material = materialAt(instance.mMaterial);
     surface.mGround = material.mLayerCount > 0u;
-
-    // **Fetched for every hit, and selected between without a branch.** A mesh that brought no colour holds
-    // white, so the load answers neutrally rather than needing a case, and the two weights below are one or
-    // nought (`MATERIAL_VERTEX_TINT` says why the mode does not survive the trip). Over half of Morrowind's
-    // shapes and every piece of ground carry a colour, so a branch would be taken by most of the frame anyway.
-    //
-    // **A model is tinted by its colours' hue and the ground by its colours whole**: the ground's are the
-    // level's painted shading and tint, which nothing traced stands in for.
-    const TriangleColour colours = triangleColour(corner, hit.mBary);
-    const vec3 vertexColour = surface.mGround ? colours.mColour : colours.mHue;
-    const float tinted = float((material.mFlags & MATERIAL_VERTEX_TINT) != 0u);
-    const float ambientTinted = float((material.mFlags & MATERIAL_VERTEX_AMBIENT) != 0u);
-    const float glowing = float((material.mFlags & MATERIAL_VERTEX_GLOW) != 0u);
-
-    surface.mEmissiveColour = mix(material.mEmissiveColour, colours.mColour, glowing);
 
     surface.mSheet = (mesh.mShape & MESH_SHEET) != 0u;
     surface.mTransmission = surface.mSheet && hasMask(material) ? SHEET_TRANSMISSION : 0.0;
@@ -1332,28 +1341,19 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed, uint relief
         // layers over each other with additive blending and one pass apiece.
         const vec2 chunkUv = acrossTriangle(uv[0], uv[1], uv[2], hit.mBary);
 
-        // The frame every layer shares: the tangent the chunk's x, which is the world's, less its part along N,
-        // and the bitangent `cross(N, T)`. A heightfield's normal leans up, so x is never along it.
-        //
-        // **Not `terrain.vert`'s frame**, whose bitangent is `cross(N, x)`, `sqrt(1 - Nx²)` long: on a slope
-        // down x a replacer's map tilted the normal 0.71 as far across the slope as along it at 45 degrees.
+        // The frame every layer shares (`layerFrameOf`), and the eye in it, which is all of it the layers'
+        // reads take.
         //
         // **Filled behind `HAS_MAPS` and not declared with it**: the optimizer the kernels are compared through
         // keeps arithmetic nothing reads, so a frame computed outside the branch would be in every vanilla
         // program and move its digest by a normalize.
-        vec3 layerTangent = vec3(0.0);
-        vec3 layerBitangent = vec3(0.0);
+        LayerFrame layers = LayerFrame(vec3(0.0), vec3(0.0));
         vec3 layerEye = vec3(0.0);
         if (HAS_MAPS && detailed)
         {
-            // **Down y where x is the normal itself**, a face of ground along ±x, where x less its
-            // part along the normal is nought and its normalisation a NaN in every history that read it.
-            // The axis is selected before the one projection, which carried twice held 256 bytes more
-            // of the water's walk in shared memory on NVIDIA's.
-            const vec3 across = abs(normal.x) < 1.0 ? vec3(1.0, 0.0, 0.0) : vec3(0.0, 1.0, 0.0);
-            layerTangent = normalize(across - normal * dot(normal, across));
-            layerBitangent = cross(normal, layerTangent);
-            layerEye = vec3(dot(layerTangent, -direction), dot(layerBitangent, -direction), dot(normal, -direction));
+            layers = layerFrameOf(normal);
+            layerEye
+                = vec3(dot(layers.mTangent, -direction), dot(layers.mBitangent, -direction), dot(normal, -direction));
         }
 
         // **The stack's relief marched once, through the heights its layers show summed** (`ReliefMaps`), and
@@ -1454,8 +1454,22 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed, uint relief
         // frame: summing before the frame is summing after it.
         if (HAS_MAPS && relief)
         {
+            // **The frame made again past the stack in a scene with a relief to march**, about the
+            // interpolated normal back out of the one the surface shows, which was turned and no more
+            // (`mSmooth`): the same numbers to the bit, and six registers the stack's reads do not hold, where
+            // the eye's stage peaks with a march in it (145 registers to 128 on a low-end AMD integrated GPU,
+            // its trace 14 to 16% shorter under a sky). **Carried where no relief is marched**: made again
+            // there, the bounce of a scene with maps and no relief ran 6.6 to 9.5% longer on the same card
+            // (`docs/research/2026-11-13-amd-integrated-register-tiers.md`).
+            vec3 along = normal;
+            if (HAS_RELIEF)
+            {
+                along = turned ? -surface.mSmooth : surface.mSmooth;
+                layers = layerFrameOf(along);
+            }
+
             // The plane where the sum points nowhere, as for a single map above.
-            const vec3 carried = layerTangent * painted.x + layerBitangent * painted.y + normal * painted.z;
+            const vec3 carried = layers.mTangent * painted.x + layers.mBitangent * painted.y + along * painted.z;
             const vec3 mapped = dot(carried, carried) > 0.0 ? normalize(carried) : surface.mGeometric;
 
             surface.mNormal = facingRay(turned ? -mapped : mapped, surface.mSmooth, direction);
@@ -1466,6 +1480,26 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed, uint relief
     }
     else
         albedo = sampleDiffuse(material.mDiffuse, point).rgb;
+
+    // **Fetched for every hit, and selected between without a branch.** A mesh that brought no colour holds
+    // white, so the load answers neutrally rather than needing a case, and the three weights below are one or
+    // nought (`MATERIAL_VERTEX_TINT` says why the mode does not survive the trip). Over half of Morrowind's
+    // shapes and every piece of ground carry a colour, so a branch would be taken by most of the frame anyway.
+    //
+    // **A model is tinted by its colours' hue and the ground by its colours whole**: the ground's are the
+    // level's painted shading and tint, which nothing traced stands in for.
+    //
+    // **Read here, past the stack and its maps, and not where the hit's other fetches are**: what is fetched
+    // ahead of the stack is held in registers through every layer's reads, where a stage's registers peak, and
+    // read ahead of it the colours held the eye's stage a tier of registers up in a scene with a relief
+    // (`docs/research/2026-11-13-amd-integrated-register-tiers.md`).
+    const TriangleColour colours = triangleColour(corner, hit.mBary);
+    const vec3 vertexColour = surface.mGround ? colours.mColour : colours.mHue;
+    const float tinted = float((material.mFlags & MATERIAL_VERTEX_TINT) != 0u);
+    const float ambientTinted = float((material.mFlags & MATERIAL_VERTEX_AMBIENT) != 0u);
+    const float glowing = float((material.mFlags & MATERIAL_VERTEX_GLOW) != 0u);
+
+    surface.mEmissiveColour = mix(material.mEmissiveColour, colours.mColour, glowing);
 
     // The vertex colour *replaces* the material's tint where the content asked for it, which is
     // what `glColorMaterial(GL_AMBIENT_AND_DIFFUSE)` does and what `getDiffuseColor` reads in the

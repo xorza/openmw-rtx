@@ -1,3 +1,134 @@
+# perf-rtx-renderer — the kernels' registers and shared memory, on the AMD integrated GPU
+
+Target: the ray tracer's kernels — the trace's stages, the denoiser and the upscaler's passes — by the registers
+and the shared memory each holds, on the laptop with a low-end AMD integrated GPU (AMD's Windows driver 26.8.1),
+the one host this session has, over three kinds of content: vanilla, the Fullrest Repack and the PBR stack.
+Started from `0c7e5fdf6f`, then from `84b3089826` once master gained the firefly ceiling.
+
+## Hosts
+
+- **AMD iGPU**: native MSVC release, the harness alone (`omw release build openmw-rtxtool`), in a Remote Desktop
+  session. `base` and `cand` under `../openmw-perf/`, each a build of its own, sharing `out/deps` by a junction.
+  `omw release bench --size=1280x720 --window=false --frames=200` (853x480 traced), the default suite, base and
+  cand interleaved after a throwaway leg; the profiles by `--replace=config --config=<profile>`.
+- **Build RAM peak**: 7.3 GiB of commit for the harness from nothing, alone, in 17 minutes (13.0 GiB with a
+  290-step build of the main tree and a harness run beside it). One build at a time.
+- **Noise** (base against base, two runs a side): a GPU zone's median within 0.1 to 1%, the frame within 0.3%
+  on vanilla and PBR and 2 to 4% on the Fullrest Repack, whose host rows move; a zone's p99 within 10%.
+- **The census costs registers**: `shot` and `--pipeline-code` run the modules that count, `bench` the shipped
+  ones, and a stage holds up to 17 registers fewer shipped (`direct` 96 against 103, the whole `bounce` 144
+  against 145). The shipped figures are the ones below unless a line says the census's.
+- **What a kernel holds** is the driver's own answer (`numUsedVgprs`, `ldsUsageSizeInBytes`,
+  `scratchMemUsageInBytes`), which a run's log prints a pipeline a line; its code is `--pipeline-code=<dir>`.
+  No kernel holds scratch on this driver, so the registers and the shared memory are what there is to lower.
+- **Liveness off the driver's code**: a script over the ISA text (labels, branches, a backward dataflow over the
+  vector registers) gives each kernel's most registers live, where, and what each loop carries untouched —
+  written before it, named nowhere in it, read after it — with the instruction that wrote each. Its count of
+  registers named is the driver's `numUsedVgprs` on every kernel.
+
+## What the driver's code says (`0c7e5fdf6f`)
+
+- **The compiler steps a kernel between tiers.** The trace's stages (32 lanes) land on 96, 112, 128 exactly, or
+  on 141 to 145, 177, 190 to 193 and 256, with 5 to 15 fewer live at the peak: a kernel whose peak passes about
+  126 goes to 145. An RDNA 2 SIMD holds 1024 registers a 32-lane wave in steps of 16 (Mesa's
+  `aco_ir.cpp`, `vgpr_alloc_granule`), so 128 is eight waves, 144 seven and 145 six, if AMD's driver
+  allocates as Mesa's does.
+- **The denoiser and the upscaler run 64-lane waves** (512 registers in steps of 8), the stages 32.
+- **A stage's registers peak in `resolve` and the gather, not at its rays.** `direct` holds 70 to 100 live at
+  its intersections and 96 to 134 in the ground stack's loop, the maps' reads and the lobe's arithmetic.
+- **What rides through the ground stack's loop untouched**: the vertex tint (4), the material's own texture
+  point (7), the layers' tangent and bitangent (6), the interpolated normal beside the turned one (3), and a
+  relief site's three axes (9); and through a stage's first traversal, the asks of the rays after it, about
+  ten registers a ray, half of them a `noRay`'s constants a select keeps.
+- **The driver unrolls a stage's rays**: `direct`'s three turns are three traversals in its code, whatever
+  `[[dont_unroll]]` asks.
+
+## Numbers at the start (`84b3089826`, 1280x720, 853x480 traced)
+
+Median ms, two runs a side.
+
+| content | place | frame | p99 | bounce | landing | direct | trace | air | upscale | clamp | temporal | filter0 | shadow | water | media | panes |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| vanilla | ship | 55.98 | 63.26 | 8.69 | 7.73 | 6.29 | 5.21 | 3.24 | 2.96 | 2.75 | 1.66 | 1.80 | 1.48 | 1.25 | 1.30 | 0.37 |
+| vanilla | ship-dawn | 65.01 | 76.20 | 8.95 | 9.30 | 12.44 | 5.78 | 5.57 | 2.93 | 2.83 | 1.65 | 1.79 | 1.75 | 1.26 | — | 0.43 |
+| vanilla | guild | 39.92 | 46.27 | 5.97 | 6.75 | 4.44 | 3.12 | 0.89 | 2.81 | 2.67 | 1.57 | 1.86 | 1.40 | — | — | 1.19 |
+| no bounce | ship | 40.41 | 50.66 | 4.78 | — | 6.25 | 5.19 | 3.23 | 2.95 | 2.40 | 1.57 | 1.71 | 1.49 | 1.24 | 1.30 | 0.37 |
+| no bounce | ship-dawn | 49.14 | 58.10 | 4.77 | — | 12.43 | 5.79 | 5.57 | 2.92 | 2.47 | 1.58 | 1.71 | 1.76 | 1.25 | — | 0.43 |
+| no bounce | guild | 26.41 | 32.89 | 2.20 | — | 4.43 | 3.12 | 0.89 | 2.80 | 2.28 | 1.51 | 1.95 | 1.40 | — | — | 1.18 |
+| M[FR] | ship | 74.78 | 96.41 | 12.59 | 10.45 | 7.82 | 8.44 | 4.04 | 2.94 | 2.97 | 1.95 | 1.89 | 1.63 | 1.83 | 1.62 | 0.47 |
+| M[FR] | ship-dawn | 84.87 | 103.69 | 12.89 | 13.82 | 13.87 | 7.33 | 6.40 | 2.86 | 3.03 | 1.95 | 1.88 | 1.83 | 1.83 | — | 0.45 |
+| M[FR] | guild | 54.23 | 66.74 | 11.10 | 10.85 | 5.73 | 5.04 | 2.04 | 2.79 | 2.74 | 1.86 | 1.89 | 1.36 | — | — | 1.59 |
+| PBR | ship | 62.67 | 70.95 | 11.26 | 9.14 | 7.19 | 6.79 | 3.57 | 2.97 | 3.12 | 2.17 | 1.86 | 1.47 | 1.26 | 1.23 | — |
+| PBR | ship-dawn | 78.22 | 88.41 | 12.27 | 12.35 | 14.74 | 8.13 | 6.47 | 2.94 | 3.20 | 2.18 | 1.87 | 1.76 | 1.43 | — | — |
+| PBR | guild | 49.85 | 57.27 | 8.37 | 9.31 | 6.35 | 4.72 | 0.94 | 2.82 | 3.11 | 2.18 | 1.92 | 1.39 | — | — | 1.43 |
+
+The tuples, by the record's counts: vanilla wears no map; the Repack 10 mapped instances at the ship and 6 in
+the guild, no relief; the PBR stack 66 556 mapped and 19 184 with a relief at the ship, 1058 and 783 in the guild;
+no dark alpha anywhere. So the Repack runs `sun sea maps`, `sun moons sea maps` and `maps`, and the PBR stack the
+same with `relief`.
+
+**What a tier is worth here**: vanilla under the whole tuple's kernels (`--variants=false`), which run the same
+rays through 144 registers where the frame's own tuples hold 96 to 128: bounce +42% at every place (96 to 144,
+ten waves to seven), trace +21 to +25%, direct +13 to +23%, landing +9 to +25%, the guild's panes +35%; the
+frame +12 to +17%. The Repack's and the PBR stack's bounce stand where that one does.
+
+## Tip against the start (`fc51943de9` → `1de3401475`, 2026-11-13)
+
+Median ms at 1280x720, two runs a side, interleaved; the start is the branch's start with the record's counts.
+
+| content | place | frame | trace | direct | clamp | filter0 | shadow |
+|---|---|---|---|---|---|---|---|
+| vanilla | ship | 55.81 → 55.34 (−0.8%) | 5.23 → 5.23 | 6.29 → 6.24 (−0.8%) | 2.75 → 2.59 (−6.1%) | 1.79 → 1.79 | 1.49 → 1.42 (−5.1%) |
+| vanilla | ship-dawn | 65.32 → 64.76 (−0.9%) | 5.79 → 5.80 | 12.45 → 12.30 (−1.2%) | 2.83 → 2.66 (−6.0%) | 1.78 → 1.79 | 1.76 → 1.65 (−6.6%) |
+| vanilla | guild | 40.08 → 39.87 (−0.5%) | 3.13 → 3.12 | 4.45 → 4.47 | 2.67 → 2.47 (−7.8%) | 1.86 → 1.86 | 1.40 → 1.40 |
+| no bounce | ship | 40.92 → 40.24 (−1.7%) | 5.20 → 5.22 | 6.25 → 6.19 (−0.9%) | 2.40 → 2.11 (−12.3%) | 1.72 → 1.64 (−4.7%) | 1.48 → 1.41 (−5.3%) |
+| no bounce | ship-dawn | 48.55 → 48.19 (−0.7%) | 5.78 → 5.79 | 12.43 → 12.29 (−1.1%) | 2.48 → 2.19 (−11.9%) | 1.71 → 1.64 (−4.2%) | 1.75 → 1.64 (−6.7%) |
+| no bounce | guild | 26.47 → 26.00 (−1.8%) | 3.13 → 3.12 | 4.42 → 4.46 | 2.28 → 1.96 (−13.9%) | 1.95 → 1.85 (−4.7%) | 1.38 → 1.40 |
+| M[FR] | ship | 73.46 → 72.87 (−0.8%) | 8.44 → 8.40 | 7.83 → 7.80 | 2.96 → 2.77 (−6.4%) | 1.88 → 1.89 | 1.64 → 1.58 (−3.4%) |
+| M[FR] | ship-dawn | 83.95 → 84.12 (+0.2%) | 7.28 → 7.27 | 13.92 → 13.95 | 3.02 → 2.83 (−6.3%) | 1.89 → 1.88 | 1.83 → 1.74 (−4.8%) |
+| M[FR] | guild | 55.53 → 54.98 (−1.0%) | 5.08 → 5.08 | 5.80 → 5.84 | 2.77 → 2.55 (−8.0%) | 1.90 → 1.89 | 1.38 → 1.38 |
+| PBR | ship | 62.53 → 62.18 (−0.6%) | 6.77 → 5.82 (−14.0%) | 7.19 → 7.17 | 3.12 → 2.95 (−5.4%) | 1.87 → 1.87 | 1.48 → 1.42 (−4.2%) |
+| PBR | ship-dawn | 78.43 → 76.95 (−1.9%) | 8.11 → 6.82 (−15.9%) | 14.80 → 14.81 | 3.20 → 3.02 (−5.6%) | 1.87 → 1.87 | 1.77 → 1.65 (−6.7%) |
+| PBR | guild | 49.63 → 48.52 (−2.2%) | 4.71 → 4.38 (−7.2%) | 6.25 → 6.14 (−1.7%) | 3.11 → 2.89 (−7.2%) | 1.92 → 1.92 | 1.40 → 1.39 |
+
+The frame's GPU zones together: vanilla −0.4 to −0.6%, with no bounce −1.3 to −1.4%, the Repack −0.4 to −0.5%, the
+PBR stack −1.7 to −1.9%. Its bounce and landing stand inside their spread on every content. What moved the other
+way: the PBR stack's water stage +3.0% and +4.0% (0.04 and 0.06 ms), and `panes` at the ship +3.5% on vanilla and
++4.0% on the Repack (0.01 and 0.02 ms).
+
+- **Pictures**: `shot --against` at 1280x720 with the map tiles, the upscaler off: every vanilla view the same,
+  and six views of the Repack and of the PBR stack the same. On a high-end NVIDIA laptop GPU the trace is the
+  same on every frame and no picture moved, and the shadow denoiser's images differ in the last place wherever
+  both fields filter (the research note's last section).
+- **`RtxVisibilityKernelsTest`**: its four pass on this card with AMD's `visibility` ceilings at the rule's 128.
+- **The gate did not finish on the AMD iGPU's host**: its format check, spellings, lint and driver tests passed,
+  and the session stopped it for memory in its release compile of every target. It ran clean on a high-end
+  NVIDIA laptop GPU, whose kernels hold their ceilings; RADV's are not measured.
+- **Commits**: `fc51943de9` the record's counts, `01f8050944` the research note, `2e35ad60be` the vertex
+  colours, `714569e43d` the relief's frame, `0ea98c9f7d` the shadow filter's walk, `c5319e33a1` the clamp's
+  ring, `1de3401475` the fill's tile.
+
+## Ideas
+
+Every figure is `docs/research/2026-11-13-amd-integrated-register-tiers.md`'s. Every kept change is the same
+arithmetic in the same order.
+
+| idea | evidence | verdict |
+|---|---|---|
+| The vertex colours fetched past the ground stack | read before the stack, four registers of them ride its loop untouched, where a stage's registers peak | **kept**: every `visibility … relief` 141 → 128 without the sea and 145 → 141 with it; the PBR stack's trace −8.1%, −8.7%, −6.2%; the Repack and vanilla inside their spread |
+| The layers' frame made again past the stack | its tangent and bitangent ride the loop, six registers, for one use after it | made again in every tuple, **refused**: every `visibility … relief` → 128 and the PBR stack's trace −13 to −17%, but the Repack's bounce +6.6 to +9.5%, its traversal loop 24 instructions longer at 125 registers from 128. **Kept made again where the scene has a relief alone**, with the colours above: PBR trace −14.0%, −15.9%, −7.2%, its water stage +3 to +4% (0.05 ms), the Repack's bounce −0.4 to −0.6% |
+| A relief site as its tangent, handedness and a flag, its other axes made again at the lights | nine registers of axes from the hit to the gather | **refused**: no kernel's registers moved and no zone's time |
+| Two independent statements of `resolve` swapped | whether any change to a module moves the driver's code | no kernel's registers moved and no zone's time: what the rows above measure is theirs |
+| No fill's tile in shared memory where the fill is the bounce whole, the wavelet's (`FILL_TILE`) | `atrous-wide-compose` declared the fill's 12×12 `vec3` and read none of it | **kept**: first level −4.0 to −4.8% with no bounce, over three rounds (8192 → 6656 bytes) |
+| The same in the clamp (`FILL_SPAN`) | the no-fill clamps likewise | alone the clamp **+3.2 to +5.1%** with no bounce (12288 → 10752 bytes, 93 → 70 registers); **kept with the split below**: −11.9 to −13.9% (9216 bytes) |
+| The clamp's fast means as the ring's luminance and the square's YCoCg | the ring reads the luminance alone, of 256 texels of 16 bytes | two reads a tap **refused**: the clamp +2.2 to +2.9% on every content. **Kept with the square's luma saying whether a pixel holds a surface, one read a tap**: −5.4 to −8.0% on every content (12288 → 11264 bytes, 85 → 81 registers) |
+| The shadow filter's two fields in one walk of the taps | the two-field module decoded each tap's normal and weighed its plane once a field | **kept**: shadow −3.2 to −7.0% under a sky on every content over five rounds, the guild inside its spread; the two-field modules 101–102 → 40–46 registers |
+| The trace's stages over two lists of tiles, those with a mapped solid and those without | the Repack runs every stage's `maps` tuple for ten mapped instances: its bounce 12.6 ms where vanilla's own tuple runs 8.7, and vanilla under the whole tuple +42% | not spiked: a list a stage and a record's bit as the water's and the layers' are, the lean tuple where no pixel of a tile wears a map; the eye's stage cannot be split, since it finds the surface. The gain is the Repack's alone, and a scene mapped throughout pays the second dispatch |
+| A stage's later rays' asks not carried through its first traversal | about ten registers a ray ride the first traversal, half of them a `noRay`'s constants a select keeps; a held lamp's direction, distance and radius can be made again off its row | not tried: the stages' peaks stand in `resolve`, so their tiers do not follow the traversal's count until those fall |
+| The material's own texture point made past the stack | seven registers ride the stack's loop for the dark, emissive and opacity reads after it | not tried: the single map's branch shifts the point before the stack, so it moves only with that branch |
+| `fsr accumulate` under 112 registers | 113 registers at 64 lanes, four waves to 120 and still four to 104 | not tried: the pass is AMD's own code, which the tree keeps as it came, and a wave more needs 96 |
+| The wavelet's first level's taps as a loop the driver does not unroll | 81 registers at 64 lanes, five waves, six at 80; its 25 taps are unrolled into 8568 instructions, 47 to 50 registers live between taps and 70 to 76 inside one, and the shadow filter's walk left unrolled runs at 40 | not tried: whether its registers or its 8192 bytes of shared tile set its waves is not measured, and `[[dont_unroll]]` did not hold the driver off a stage's rays |
+
 # perf-bounce-modes — the frame with no bounce, with one bounce ray and with three
 
 Target: the frame under `--indirect=false`, `--bounce-rays=1` and `--bounce-rays=3`, on the desk (a

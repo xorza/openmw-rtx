@@ -150,10 +150,16 @@ void storeComposed(ivec2 at, ivec2 stored, vec3 bounce, vec3 fillShare)
 const int TILE_REACH = 2;
 const uint TILE = ATROUS_WIDE ? ATROUS_WORKGROUP + 2u * uint(TILE_REACH) : 1u;
 
+/// The fill's tile: a texel where the fill is the bounce whole (`ATROUS_HOLDS_FILL`) and nothing reads it,
+/// since what a workgroup declares of shared memory is what lets another run beside it: the first level ran
+/// 4 to 5% shorter without it on a low-end AMD integrated GPU
+/// (`docs/research/2026-11-13-amd-integrated-register-tiers.md`).
+const uint FILL_TILE = ATROUS_HOLDS_FILL ? TILE : 1u;
+
 /// Each texel of the tile: the light and its deviation, the fill, the decoded normal, and the point
 /// in `xyz` with one in `w` where a surface stands there in the frame and nought where none does.
 shared vec4 gLight[TILE][TILE];
-shared vec3 gFill[TILE][TILE];
+shared vec3 gFill[FILL_TILE][FILL_TILE];
 shared vec3 gNormal[TILE][TILE];
 shared vec4 gPosition[TILE][TILE];
 

@@ -443,6 +443,12 @@ before's surfaces (`GBuffer::getHeld`).
   on every history, which doubled the bias; its excess spread back energy-conserving (Zirr et al. 2018). The price is
   the light of a glow found rarely, dropped for good.
 - **A history store selects each non-finite component to nought** (`finiteOrNought`), after the census counts it.
+- **A pass declares no shared tile it does not read, and the clamp's ring holds the fast means' luminance alone**
+  (`FILL_TILE`, `FILL_SPAN`, `gFastLit`): what a workgroup declares of shared memory is what lets another run beside
+  it (`research/2026-11-13-amd-integrated-register-tiers.md`). Refused: the luminance read beside the colour at every
+  tap of the clamp's square, 2 to 3% longer.
+- **The shadow filter walks its taps once for both fields**, each tap's normal decoded and its plane weighed once
+  (`shadowfilter.comp`; the same note).
 - **The denoised frame is not bit-exact on every card**: on a high-end NVIDIA laptop GPU under a busy queue, the first
   wavelet dispatch after a pipeline drain sometimes differs by a half-float step at a few texels. Everything before
   the wavelet stays exact; `FrameHashes` and `shot` allow for it (`sDenoiserNoiseLevels`; evidence in `8deca8c8f7`).
@@ -479,6 +485,11 @@ bounce (or `unbounced` in their place), then the composite. Every ray is a ray q
 - **The landing and the sea's walk are stages of their own over the pixels and tiles that need them**
   (`research/2026-10-21-nvidia-stage-costs.md`, `research/2026-11-02-water-stage.md`); a walk resolves the surface it
   ends on once, after it (`research/2026-11-09-walks-resolve-once.md`).
+- **What a hit fetches stands where it is read, past the ground stack's loop**, where a stage's registers peak: the
+  vertex colours, and in a scene with a relief the layers' frame, made again (`resolve`,
+  `research/2026-11-13-amd-integrated-register-tiers.md`). Refused: the frame made again in every tuple, which ran the
+  bounce of a scene with maps and no relief 6.6 to 9.5% longer; a relief site of five numbers for nine, which moved no
+  kernel.
 - **The surface a pixel is the hit the trace stored**, 48 bytes resolved again by later stages (`storedSolidOf`), as
   Falcor's visibility buffer. Refused: tracing the eye's ray again; the resolved surface stored, about 80 bytes.
 - **Every water pixel splits on two checkerboard fields**, one the mirror and one the bed, as Quake II RTX's
