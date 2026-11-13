@@ -1,28 +1,34 @@
 # The ray-traced renderer: the review's plan, and the prerelease tour
 
 Two pieces of work in one document. Parts 1 and 2 are a review of the renderer and of the diff against
-upstream: a refactoring, in batches. Part 3 is a new verb of the harness, `tour`, which flies a content's whole
-world before a release and reports what it met.
+upstream: a refactoring, in batches, with the gate's speed ahead of it, since every batch ends in a gate. Part 3
+is a new verb of the harness, `tour`, which flies a content's whole world before a release and reports what it
+met.
 
 Scope of the review: `components/{rtx,rtxvulkan,myguirtx,contentstore}`, `apps/openmw/mwrender/rtx`, the seam,
 `apps/{rtxtool,rtxbuild}`, their tests, and the diff `97722d48f9..HEAD` in upstream's folders. Read at
 `2a2dcd6078`. Nothing was built, run or measured for either part: every cost is derived from the code or quoted
 from `docs/research` and `.notes/PERF.md`, the tests were not timed, and the tour's cell counts were read from
-the content files.
+the content files. The gate's speed is the exception: Part 1's section on it and Batch 0 were measured, on a
+low-end AMD integrated GPU under Windows between `e21fad4c21` and `9e66e68b8b`.
 
 ## Branches
 
-- **The refactoring goes first, on its own branch.** Batches 0 to 15 go to `rtx-review`, in their order, and
+- **The gate's speed lands on `master` first.** Batch 0 goes on a short branch of its own, is merged, and
+  `rtx-review` is cut after it: the gate's speed changes nothing a picture reads, and every other line of work
+  pays the gate too. Refused: riding on `rtx-review`, which leaves `master` the slow gate for seventeen
+  batches. Decided 2026-11-13.
+- **The refactoring follows, on its own branch.** Batches 1 to 17 go to `rtx-review`, in their order, and
   no tour code goes there. It changes how the renderer is built and must leave every picture and figure where
-  it was.
+  it was, but for Batch 2's defects, which name what they move.
 - **The tour branches off the refactoring's branch, once the refactoring is done.** Part 3 goes to `rtx-tour`,
   cut from the tip of `rtx-review` and not from `master`, so it stands on the harness the refactoring left:
-  the stop that fails alone, the one `ExitStatus`, `Verb` and `VerbSet`, a `plan<Verb>` a verb. No refactoring
+  the one `ExitStatus`, `Verb` and `VerbSet`, a `plan<Verb>` a verb. No refactoring
   item goes there; one found while the tour is written goes back to `rtx-review`, and the tour's branch takes
   it from there. The tour adds a verb nothing else calls, and is reviewed, merged or dropped by itself.
-- **Each branch records its own upstream changes.** The refactoring's are Batch 14's; the tour's one, the
+- **Each branch records its own upstream changes.** The refactoring's are Batch 16's; the tour's one, the
   log's listener chained, is entered in `.notes/UPSTREAM.md` on the tour's branch with the change itself.
-- **A batch's measurements belong to its branch.** Batch 0's spikes and every **measure** item are the
+- **A batch's measurements belong to its branch.** Batch 1's spikes and every **measure** item are the
   refactoring's; the first tours and their figures are the tour's.
 
 How an item is marked:
@@ -109,7 +115,7 @@ How an item is marked:
   - `osg::observer_ptr` `mFile`/`mPartner` in `PreparedImages` — **replace** with a key by what names the image
     (`ChainIdentity`), which removes the observers and the `isGone` sweep. `mWatched` — kept.
   - `Misc::Monitor` in `CellSupply`, `PreparedImages`, `Store`, `HomeKey`, `CardWatch` — kept; `give` changes
-    (Batch 1).
+    (Batch 2).
   - `ContentPreparation::mMutex` and two condition variables — kept in shape, moved onto the shared helper.
   - `KeptStamps::mMutex`, `runInParallel`'s exception slot, `Graveyard::mLock`, `PipelineCodeFolder::mLock`,
     `ValidationLog::mMutex`, `VisibilityPass::mCanonicalMutex` — kept.
@@ -136,27 +142,278 @@ How an item is marked:
   one `ExitStatus`.
 - Shaders: `fogfield.glsl` beside `froxel.glsl`, `puff.glsl` for what both sprite walks share.
 
+## The gate's speed
+
+What `./omw gate` costs on the weak machine, a low-end AMD integrated GPU under Windows, and how to cut it
+without dropping a claim it makes: Batch 0, ahead of the review's batches because each of them ends in a gate.
+Every figure is from
+[`docs/research/2026-11-13-gate-step-times.md`](../docs/research/2026-11-13-gate-step-times.md), measured on
+that one machine between `e21fad4c21` and `9e66e68b8b`; nothing was measured on a high-end NVIDIA laptop GPU.
+
+**No whole gate has run on this machine at `9e66e68b8b`.** At `e21fad4c21` it stopped at `tests`, on two tests
+that `d0bb9081b3` has since fixed; the steps after `tests` were timed by themselves.
+
+### Where the time goes
+
+| step | seconds | |
+|---|---|---|
+| format check, spellings, lint, the driver's tests | 12.8 | |
+| build, the listing check | 3.8 | nothing to build |
+| the release compile | 362.0 | two commits' worth: 277 objects, 28 links |
+| tests, their timing | 59.6 | the two GPU shards bound it at 57 to 58 s |
+| the integration tests | 67.2 | |
+| check | 178.7 | |
+| repeat | 194.1 | |
+
+516 s with nothing to compile, of which `check` and `repeat` are 373. A change to the renderer adds its debug
+build and the same objects again in the release compile.
+
+### The idea of a lower resolution
+
+- **It does not apply to the GPU tests.** `rtx-gpu-tests` already draws 16 to 65 pixels a side, mostly 32, 33
+  and 64 (`RtxVisibilityTest::shoot`'s `size`). What it pays for is the validation layers' shader checks, below.
+- **It applies to `check` and `repeat`, and halves both.** They draw 1920x1080 and are bound by the card:
+  119 ms of card zones in a 133 ms frame. At a quarter of the pixels `check` takes 89 to 93 s and `repeat` 85 to
+  86 s, with the same 59 checks asked, none failed, and the pair identical.
+
+### Root causes
+
+- **The world runs draw a picture no claim reads.** Fifteen of `check`'s sixteen claims are about what the
+  renderer was handed, the camera, the sky, the queue and the frames in flight; `finite` alone counts over pixels,
+  and `repeat` hashes them. What a place holds is the same at every size, to the tenth of a MiB.
+- **A world stands 420 frames before it is whole, in three processes a gate**, each a frame at full size:
+  `check`'s first stop and both of `repeat`'s runs (`MeasureWindow`, one cell a frame by `CellRing::adoptHanded`).
+- **The release compile builds the test binaries, which nothing runs in that flavour**: 138 of the sample's 277
+  objects and 59% of its compile seconds.
+- **Every validated process runs the layers' shader checks over pipelines `check` has them run over anyway.**
+  The checks are 4.6 s of a GPU test process's 7.3 s start and 44 of its 46 CPU seconds, and they go on through
+  its tests: 103 CPU seconds a shard against 29 without them. The kernels' tuples are specialization constants,
+  which the layer's cache of checked modules, keyed by a module's code, saves a third of and no more. `check`
+  makes every kernel of the same shader set under the same layers, 338 pipelines to the tests' 337, every gate.
+- **That CPU is why the GPU binary does not scale past two processes here**: four and six take as long as two
+  with the checks, and 33 and 30 s without them against 51 to 57.
+- **Every size the gate draws is whole workgroups.** The shaders' groups are 8 a side, and 1920x1080 and
+  1280x720 divide by 8 each way: no world run draws a partial group, and no chain that halves meets an odd
+  extent in its first three levels.
+- **The gate's order is not its costs' order**: the release compile, minutes on a change, runs ahead of a minute
+  of tests.
+
+### Decisions
+
+- **`check` and `repeat` each state a frame of their own, 957x539, where the line names none.** The size belongs to the
+  verb, as `check`'s hold already does (`sCheckHoldMs`, "where the line names no `--hold` of its own"), so
+  `./omw check` and the gate's are one run on every machine. Refused: a size chosen by the machine, which makes
+  what a green gate proved depend on where it ran; a size only the gate passes, which leaves two `check`s to tell
+  apart; a ninth of the pixels (640x360), which saves 28 s more of the 373 for under half the pixels again,
+  because the host bounds the frame from a quarter down (the ship's frame 56.7 ms against 44.4, the walk alone
+  23 ms).
+- **What the smaller frame costs is said where the size is stated**: `finite` and `repeat` see a quarter of the
+  pixels a frame, so an event one pixel in a million meets is met a quarter as often. No class of fault leaves:
+  the layers, the claims about the scene, the frames in flight and the processes' agreement do not read the size.
+  A full frame stays one switch away, `--size=1920x1080`.
+- **`tests` and `their timing` run ahead of the release compile.** `gate.py` states its order as the order of
+  cost, and on a change the compile is the dearer by minutes. A green gate takes as long; a red test says so
+  minutes sooner.
+- **The release compile builds the programs and no test binary.** A target a test runs leaves `all`
+  (`EXCLUDE_FROM_ALL`, set in `openmw_add_test`), and `omw build` still names the tests, as
+  `Build.build_default` already does. Refused: every program as now, 59% of the sample's release compile
+  seconds and two of its seven longest links for binaries no workflow builds in that flavour (`ci.yml`'s four
+  legs are debug, asan and tsan, and `rtx-release.yml` runs `omw archive`). The cost: a test source that warns
+  or fails to compile under `-DNDEBUG` alone is found by whoever next runs `./omw release test`. LLVM does the
+  same: its unit tests are out of `all` unless `LLVM_BUILD_TESTS` says otherwise, and the `UnitTests` target
+  builds them. No test target is installed, which is the one thing CMake warns an excluded target about.
+  Decided 2026-11-13.
+- **The gate's `repeat` stays at one pair.** Refused: two pairs at the smaller frame, a second comparison for
+  43 s a gate. `AGENTS.md` already asks for `--pairs=10` after touching anything a frame reads, which at a
+  quarter of the pixels takes less than four pairs do today. Decided 2026-11-13.
+- **The frame is odd on purpose: 957x539, traced at 638x359.** No extent of the shown or the traced frame is a
+  multiple of 8 and three of the four are odd, so every 8x8 pass draws a partial group and every chain that
+  halves meets an odd extent by its second level; a resized window gives a player such a frame. It costs what
+  the round one does: `check` 90.7 and 90.7 s against 92.7 and 91.4 s at 960x540, `repeat` 85.7 against
+  84.9 s, every check passing and both pairs identical. Khronos's OpenGL ES conformance run draws at 64x64 and
+  then again at 113x47, Dawn's mip-chain tests at 31x4, and this tree's GPU tests at 17, 33, 65 and 129.
+  Refused: 960x540, the size `AGENTS.md` names for a bench on a weak machine, of whose four extents only 540
+  is not a multiple of 8, so the traced frame stays whole groups as it is today. The cost: a size nobody
+  recognises in `--help` and on `check`'s pictures, and a fault it finds first shows as a red gate. Decided
+  2026-11-13.
+- **The layers' shader checks run in `check` alone.** The GPU test binary's devices and renderers ask for
+  every check but those (the layer's `check_shaders`, the spec's `VK_VALIDATION_FEATURE_DISABLE_SHADERS_EXT`),
+  which compare each pipeline with its shaders and run `spirv-val` over each specialized module; `check` keeps
+  them, over every kernel the renderer makes, and the build already runs `spirv-val` over every module. The
+  layer's own settings file calls them "CPU intensive during application start up", its presets take one area
+  of validation at a time, and Dawn's tests default to a `partial` backend validation with the costly parts
+  left to `full`. Refused: the checks kept on the tests' raw devices as well, no loss of coverage for a gain
+  nothing measured; everywhere as now, 4.6 s a start and 74 CPU seconds a shard. The cost: a pipeline only a
+  test makes, from a test's own shader or tuple, is no longer compared with its shader by the layers, and
+  `./omw test` by itself no longer runs the shader checks over the kernels; the gate does. All 499 GPU tests
+  pass without them. Decided 2026-11-13.
+- **The GPU binary runs in four shards once its processes stop checking shaders.** Measured with the step's
+  other suites beside them: 35.4 s against 55.6 s as now, and 31.8 s in six. Four, because six buys 3.6 s for two
+  more starts and devices, and `cmake/Tests.cmake` found a third process no gain on another card: the count is
+  measured there before it lands (Batch 0). Sharded by `GTEST_TOTAL_SHARDS`, which runs each test exactly once
+  across the shards, and not a test a process, since every process stands up two devices and two renderers.
+
+### Refused
+
+- **Keeping a step's result while its inputs stand** (Bazel's test cache, or a stamp file Ninja tracks). The
+  four costly steps read what no build graph holds: the driver, the layers, the player's `openmw.cfg` and
+  content. Bazel reruns exactly such a test whatever the cache says (`--cache_test_results`, a test tagged
+  `external`), and a stale green is the worst answer a gate can give. The steps a cache could soundly keep sum to
+  thirteen seconds.
+- **The shader checks off in `check` as well.** Then nothing a gate runs compares a pipeline with its shader.
+- **A suite of the test binary that runs the shader checks once.** It computes what `check` computes, for 46 CPU
+  seconds beside the shards.
+- **The layer's cache of checked shaders made to cover the tuples.** It is keyed by a module's code and the
+  tuples are specializations of one module; that is the layer's design, not a setting.
+- **The release compile beside the device steps.** The one lever that would hide the compile whole, and this is
+  the machine it cannot be pulled on: a gate here was stopped for memory inside its release compile
+  (`.notes/PERF.md`), and `crash.matrix` has already failed once under a loaded gate (`.notes/ISSUES.md`).
+- **Two world runs side by side.** `AGENTS.md` shares the card between no two runs, and `check`'s `queue-held`
+  and `frames-overlap` time the queue. Reopened only by a measurement of twenty clean gates run that way.
+- **CTest entries by suite in place of shards by index**, this review's first reading of `cmake/Tests.cmake`.
+  A suite is no unit to balance by, `RtxVisibilityTest` being 208 of the 499 tests, and the fixture it would
+  save every shard, the unvalidated renderer, takes 0.14 s.
+- **The prelude beside the build.** Thirteen seconds, and the gate would no longer stop at its cheapest failure.
+- **`check` on the release build.** Faster by the asserts it would lose.
+- **A shorter crossing, a shorter warm-up, fewer stops.** Each is a claim asked of less: `rooms-held` and
+  `crossings-append` are about a long walk.
+- **The integration tests in parallel or at another size.** Upstream's script, at 640x480 already, and its tests
+  wait on the wall.
+- **Frames ahead of a whole world closed untraced.** Under the smaller frame the host's walk bounds them, so
+  the trace is not what they cost, and a history a measured frame reads would start elsewhere.
+
+### What Batch 0 comes to
+
+- **With nothing to compile, 516 s becomes some 300 s** on this machine: `check` 178.7 to 91, `repeat` 194.1 to
+  85, and the test step's 59.6 to some 37. The last is the step's processes timed side by side, not a `ctest`
+  run.
+- **The release compile loses its test objects**: 59% of the sample's compile seconds. Its wall without them
+  is not measured.
+- **What is left is the host in a build with every assert**: 1537 frames of `check` at a median 53 ms and
+  1800 of `repeat` at some 42, the walk 23 ms of a frame at the ship. That is the renderer's own cost and no
+  part of this plan.
+
+### Sources
+
+- Khronos, Vulkan-ValidationLayers, `layers/vk_layer_settings.txt`: `check_shaders` and `check_shaders_caching`,
+  <https://github.com/KhronosGroup/Vulkan-ValidationLayers/blob/main/layers/vk_layer_settings.txt>
+- Khronos, Vulkan-ValidationLayers, `docs/shader_validation.md`: when shaders are checked, what the cache keys
+  on, and that specialization constants are injected for the checks,
+  <https://github.com/KhronosGroup/Vulkan-ValidationLayers/blob/main/docs/shader_validation.md>
+- Khronos, VK-GL-CTS, `glcKhronosMustpassEs.hpp`: the conformance run's surfaces, 64x64 and 113x47,
+  <https://github.com/KhronosGroup/VK-GL-CTS/blob/main/external/openglcts/modules/runner/glcKhronosMustpassEs.hpp>
+- CMake, the `EXCLUDE_FROM_ALL` target property,
+  <https://cmake.org/cmake/help/latest/prop_tgt/EXCLUDE_FROM_ALL.html>
+- LLVM, "Building LLVM with CMake": `LLVM_BUILD_TESTS` and the `UnitTests` target,
+  <https://llvm.org/docs/CMake.html>
+- GoogleTest, "Distributing Test Functions to Multiple Machines",
+  <https://google.github.io/googletest/advanced.html>
+- Bazel, the user manual, `--cache_test_results`, <https://bazel.build/docs/user-manual>
+
 # Part 2. Plan
 
 Whoever addresses an item deletes it. Each batch leaves the build and the tests green.
 
-## Batch 0 — The open decisions, each settled by its run
+## Order
+
+- **What every later batch pays for goes first.** Each batch ends in a gate, so the gate's speed is Batch 0,
+  and inside it the items stand by what each saves the gates after it.
+- **A decision ahead of the batch it decides.** Batch 1's spikes feed Batches 5, 7 and 12, and stand in that
+  order.
+- **Defects ahead of structure.** Batch 2 holds every **bug**, whichever batch its files belong to: a defect
+  does not wait behind a refactoring, its fix is read alone, and the pictures the fixes move are moved once.
+- **The guards ahead of what they guard.** Batch 3 is the tests' own rules and support: a source-tree rule that
+  passes when it matches nothing holds nothing while files move, and a test double over `NullRenderer` meets
+  Batch 7's change of the interface once.
+- **Then bottom up, in the tree's own order**, so a batch builds on the final shape of what it includes: the
+  threads (4), the store and the preparation they serve (5), the mirror (6) and the scene's tables (7) in the
+  core; the device layer (8) under the backend's scene (9), its shaders (10 to 12) and its frame (13); the game
+  side (14) over both; the harness (15) over the game.
+- **The record last.** The diff against upstream (16) follows every batch that proposes a change to it, and
+  the conventions a tool holds (17) are fixed in what survived.
+- **Inside a batch**: what a reading settles, since it may be a defect; then structure; then the **measure**
+  items, so an optimisation is written once, against the owner the batch leaves. An item that leans on another
+  stands under it and says so.
+
+## Batch 0 — The gate's speed
+
+Files: `tools/omw/{gate,repeat}.py`, `cmake/Tests.cmake`,
+`apps/rtxtool/{toolline.hpp,options.cpp,main.cpp,framed.hpp}`, `components/rtx/renderer/renderer.hpp`,
+`components/rtxvulkan/device/instance.cpp`,
+`apps/components_tests/rtxvulkan/support/device/harness.cpp`, their tests.
+
+First, because every batch after it ends in a gate; inside it, in the order of what each item saves the gates
+that follow. No item touches upstream's files, and each figure
+goes to `docs/research/2026-11-13-gate-step-times.md`.
+
+- [ ] One `./omw gate` at the tip, timed whole: none has run on the weak machine since `e21fad4c21`, where it
+  stopped at `tests`, and the batch starts from a gate that passes and a time for all of it.
+- [ ] `cmake/Tests.cmake` (`openmw_add_test`) — the release compile builds `all`, and `all` holds the nine
+  targets the tests run: 59% of a sample's release compile seconds. The function sets `EXCLUDE_FROM_ALL` on its
+  target, with the reason beside it; `Build.build_default` names the test targets already, so `omw build`,
+  `omw test` and CI build what they built, and `_release_compile`'s comment says what it no longer compiles.
+  Held by: `ninja -t targets all` in `out/release` names no test binary and still names every program;
+  `./omw build` in a fresh debug folder builds all nine; `./omw release test components-tests` builds and runs;
+  CI's `cmake --install`, which brings `all` up to date, installs what it did.
+- [ ] `tools/omw/gate.py` (`STEPS`) — `tests` and `their timing` move ahead of `the release compile`. The help's
+  line follows from `SUMMARY`; `test_main.py` holds the two to each other already.
+- [ ] **measure** the release compile's wall for one renderer header touched, before and after the two items
+  above.
+- [ ] `apps/rtxtool/{toolline.hpp,options.cpp,main.cpp,framed.hpp}` — `check` draws its own frame, 957x539,
+  where the line names no `--size`. `ToolLine::Frame::mSize` becomes a
+  `Named<FrameSize>` as `mHold` is, and `commandCheck` takes the verb's frame where it is not named, beside the
+  hold. One constant beside `sCheckHoldMs`, whose comment carries the decision, its cost, and which groups and
+  chains the size is odd for; `--help`'s line for `--size` says what `check` draws.
+- [ ] `tools/omw/repeat.py` — `repeat` walks at the same size where the line names none: a default
+  beside `WALK` and `TAKEN`, not one of `TAKEN`, which the line may not name, so a difference is still read at
+  any size. The two constants are one fact in two programs: a test of the driver reads the harness's and holds
+  `repeat`'s to it, as `test_main.py` holds `HARNESS_VERBS` to `verbs.cpp`.
+- [ ] Tests of the two: `apps/components_tests/rtxtool/options.cpp`, `check` with no size names none and
+  `--size=1920x1080` is that, and `bench` with none is still 1920x1080; `tools/omw/tests/test_repeat.py`, the
+  line `repeat` builds carries the size once and a named one replaces it. What `commandCheck` makes of an
+  unnamed size is out of a test's reach until Batch 15 moves the plans into the library.
+- [ ] A known hit at the new size. `repeat` still says NOT repeatable for a fault it was written to catch: with
+  `4924c912f8`'s nearest-cell adoption put back to the first cell handed, in a scratch worktree, `./omw repeat
+  --pairs=3` differs. And `check` still fails: one barrier of the cascade taken out, the layers report it.
+  Neither change is kept. Then `./omw repeat --pairs=10` once.
+- [ ] `components/rtx/renderer/renderer.hpp` (`ValidationOptions`),
+  `components/rtxvulkan/device/instance.cpp`, the GPU tests' `support/device/harness.cpp` — whether the layers
+  check shaders is said by `ValidationOptions`: an `enum class` and not a flag, checked unless said otherwise,
+  beside `ValidationLevel` in the core and in its words, naming no layer and no API. `Instance` alone turns it
+  into `VK_VALIDATION_FEATURE_DISABLE_SHADERS_EXT`, where today it disables nothing. The one place that asks for
+  none is the GPU tests' support (`makeHarness` and `describeRenderer`), with the reason and where the checks
+  run instead.
+- [ ] `apps/components_tests/rtxtool/options.cpp` — a test holds `check` to the shader checks and to
+  the layers, since the tests now lean on it. And a known hit: in a scratch worktree a kernel's layout loses a
+  binding its shader reads, and `./omw check` reports the layers' error and fails. Not kept.
+- [ ] `cmake/Tests.cmake:56` — the GPU binary runs in four shards, split by test index as now, once its processes
+  stop checking shaders; the comment there is rewritten from the measurements: what a process pays to start,
+  why two were the most with the shader checks on, the figures for two, four and six. The review first read the
+  split by index as waste, the DLSS renderer, the kernels device and the unvalidated harness built in every
+  shard, and asked for entries by suite. Measured, the unvalidated renderer's 337 pipelines take 0.14 s, and a
+  suite is no unit to balance by: `RtxVisibilityTest` is 208 of the 499 tests and over half their time.
+  **measure** what the DLSS renderer and the kernels device cost a shard before either moves. The timing suites
+  (`stresspass.cpp:92-105`, `presenter.cpp:209`, `gputimer.cpp:169`) take a `RESOURCE_LOCK` only if one fails
+  beside its neighbours: none did in a dozen runs of two to eight processes.
+- [ ] **measure** `./omw test` on the weak machine after the two items above, and `components-tests`' own time
+  inside it: 37 s in one process beside two checked shards, 19.7 s alone. If it bounds the step it is registered
+  in shards as the GPU binary is; four took 7 to 12 s beside four GPU shards.
+- [ ] **measure** on a high-end NVIDIA laptop GPU, in one sitting: `check` and `repeat` at 1920x1080 and at the
+  new size, and two shards against four with the shader checks off. The size and the count are each one for
+  every machine: where the host already bounds the frame at 1920x1080 the note says the size bought that machine
+  nothing and cost it nothing, and the count is four unless it is slower there than two.
+- [ ] `AGENTS.md`, Verification — `repeat`'s line says the frame it walks at, and `./omw test`'s that the
+  layers' shader checks are `check`'s. Proposed as wording.
+- [ ] The decisions of Part 1's section on the gate fold into their owners, and the section goes: the frame and
+  its cost into `framed.hpp` and `repeat.py`, the order and the release compile's reach into `gate.py`, the
+  excluded targets and the shard count into `cmake/Tests.cmake`, where the shader checks run into
+  `renderer.hpp` and the tests' `harness.cpp`.
+
+## Batch 1 — The open decisions, each settled by its run
 
 No code lands here but a spike behind a switch. Each item ends in a decision written into the batch it names,
 and its figures in a dated note under `docs/research`. Run on a quiet desktop, one run at a time.
 
-- [ ] **Lamp halos in fog** (`shaders/lib/fog.glsl:587`) — lamps scatter isotropically (`INV_FOUR_PI`) where the
-  sun and the moons take the fitted Mie phase, so a lamp in fog has no halo toward the eye; Frostbite evaluates
-  the phase per light (https://www.slideshare.net/DICEStudio/physically-based-and-unified-volumetric-rendering-in-frostbite).
-  Spike a phase-weighted sum beside the phase-free one the puffs read, behind a switch. `./omw shot --map
-  --upscale=off --out=<dir>` without it and `--against=<dir>` with it, at a lamp seen through fog indoors and
-  one outdoors at night, then `./omw release noise --ab=<switch>` there and the `air` zone, since a peaked
-  phase is one more channel and may be noisier. A look: the pictures decide, and the choice goes to Batch 8.
-- [ ] **Precipitation in the sprite self-shadow** (`shaders/scene/spriteshade.comp:69-72`) — `spriteShadeWants`
-  admits falling snow to a self-shadow whose stated purpose is a smoke column's lit and shaded sides, and the
-  file's own figure under snow is 0.64 ms. Exclude `EMITTER_FALLS` behind a switch. `shot --against` at a
-  snow view and a rain view, and the `shade` zone's median and p99 under snow from `./omw release bench`. A
-  picture: if snow reads the same without it, it goes; the choice goes to Batch 8.
 - [ ] **The content store's layout** (`contentstore/store.cpp:519-537`) — the start sweep reads whole, and
   digests, every file of 4 KiB or less to learn its kind, then drops the kinds held at any size, which the
   preparation reads again. Two shapes: the kind in the path (`v<n>/<kind>/<xx>/<key>`), so an unranked kind is
@@ -164,20 +421,40 @@ and its figures in a dated note under `docs/research`. Run on a quiet desktop, o
   read first, no format change, the opens kept. Time the store thread's start under the large profile, warm and
   with a cold page cache, with the count of files opened and bytes read by kind. The path only if the opens
   themselves are what costs; the trailer if the reads are; neither if the start is under what a loading screen
-  hides. The choice goes to Batch 9.
+  hides. The choice goes to Batch 5.
 - [ ] **The host geometry mirror** (`rtx/scene/meshtable.hpp`) — `MeshTable` holds every vertex at 36 B and
   every index at 4 B for as long as its mesh stands, and after arrival only a rebuild (`setScene` after a
   resize or a mode change lets the world go) and the harness's digest read it. Freeing it trades RAM for a
   read at the next rebuild, against the rule that what was read once stays in memory. Read
   `getGeometryBytes()` at the three contents from a scene report, and count the rebuilds of a played session.
   It is freed only if the bytes are large and the world can outlive a target rebuild, so nothing reads the
-  mirror again; otherwise it stands and its header says why. The choice goes to Batch 4.
+  mirror again; otherwise it stands and its header says why. The choice goes to Batch 7.
+- [ ] **Lamp halos in fog** (`shaders/lib/fog.glsl:587`) — lamps scatter isotropically (`INV_FOUR_PI`) where the
+  sun and the moons take the fitted Mie phase, so a lamp in fog has no halo toward the eye; Frostbite evaluates
+  the phase per light (https://www.slideshare.net/DICEStudio/physically-based-and-unified-volumetric-rendering-in-frostbite).
+  Spike a phase-weighted sum beside the phase-free one the puffs read, behind a switch. `./omw shot --map
+  --upscale=off --out=<dir>` without it and `--against=<dir>` with it, at a lamp seen through fog indoors and
+  one outdoors at night, then `./omw release noise --ab=<switch>` there and the `air` zone, since a peaked
+  phase is one more channel and may be noisier. **Decided 2026-11-13: lamps take the medium's phase**, as the
+  sun and the moons do: one medium has one phase function, which Frostbite evaluates per light, Unreal's fog
+  holds as one fog-wide `Scattering Distribution` with an intensity a light
+  (https://dev.epicgames.com/documentation/en-us/unreal-engine/volumetric-fog-in-unreal-engine), and Assassin's
+  Creed 4 took as Henyey-Greenstein for its local lights. The spike measures the noise and the `air` zone
+  alone; a noisier frame is answered by its sampling or its filter and not by the isotropic sum. Lands in
+  Batch 12.
+- [ ] **Precipitation in the sprite self-shadow** (`shaders/scene/spriteshade.comp:69-72`) — `spriteShadeWants`
+  admits falling snow to a self-shadow whose stated purpose is a smoke column's lit and shaded sides, and the
+  file's own figure under snow is 0.64 ms. Exclude `EMITTER_FALLS` behind a switch. `shot --against` at a
+  snow view and a rain view, and the `shade` zone's median and p99 under snow from `./omw release bench`. A
+  picture: if snow reads the same without it, it goes; the choice goes to Batch 12.
 
-## Batch 1 — Worker threads and the monitor
+## Batch 2 — The defects
 
-Files: `components/misc/monitor.hpp`, `components/contentstore/store.cpp`, `components/rtx/prepare/contentpreparation.{hpp,cpp}`,
-`components/rtx/preprocess/preparedimages.{hpp,cpp}`, `components/rtx/common/parallel.hpp`,
-`components/rtxvulkan/trace/visibilitypass.cpp`, their tests.
+Files: named at each item.
+
+Every **bug** of the review, ahead of the batch its files stand in: the races first, then what no specification
+promises, then what is drawn wrong, then what is latent or cannot fail. Pictures move here, by the winding, the
+encoder and the clamp, and in no structural item after.
 
 - [ ] **bug** `prepare/contentpreparation.cpp:395` — `makeChain` indexes `mChains[chain]` with the lock released
   (`:310`) while another hand `push_back`s under it (`:285`). A deque's elements stay; its block map, which
@@ -190,7 +467,97 @@ Files: `components/misc/monitor.hpp`, `components/contentstore/store.cpp`, `comp
   `give` returns what its write returned, the push goes inside it, and the seven empty `give`s go: what a waiter's
   predicate reads is changed under the one lock hold that publishes it
   (https://en.cppreference.com/w/cpp/thread/condition_variable). A test with two writers and a small queue bound
-  (Batch 9) holds it.
+  holds it, so the queue's bound becomes a `Policy` field here, ahead of the store's other bounds (Batch 5).
+- [ ] **bug** `objectpaging.cpp:1169` (`ObjectStorage::getLight`) — `search` reads the store's dynamic map first
+  (`mwworld/store.cpp:123`) on the cell reader thread (`cells/cellreader.cpp:254`), while the main thread clears
+  it at every `World::clear`. `searchStatic`, as every sibling lookup there. Then hand `ObjectStorage` the store
+  at construction and expose static lookups only. **Decided 2026-11-13: fixed in place**, in the fork's own
+  lines of upstream's file, under the entry Batch 16 records for it. Refused: the lookups moved to a file of
+  the fork's own; the one word alone, which leaves the guarantee a convention.
+- [ ] **bug (unguaranteed)** `trace/bounce.comp:44-66`, `trace/visibility.comp:433-443` — a lane is elected and its
+  answer broadcast after non-uniform control flow, which core Vulkan does not promise reconverges; no module
+  declares `subgroup_uniform_control_flow`. A split tangle gives lanes a slot base of nought and appends a tile
+  twice. Two extensions give the guarantee, and Roadmap 2024 requires both
+  (https://docs.vulkan.org/spec/latest/appendices/roadmap.html):
+  `SubgroupUniformControlFlowKHR` reconverges a subgroup that was uniform on entering a structured loop or
+  selection and left by its merge block, which says nothing certain of an early return or a traversal loop
+  (https://github.khronos.org/SPIRV-Registry/extensions/KHR/SPV_KHR_subgroup_uniform_control_flow.html);
+  `MaximallyReconvergesKHR` reconverges "as soon as possible", by the control flow graph, as the source reads
+  (https://github.khronos.org/SPIRV-Registry/extensions/KHR/SPV_KHR_maximal_reconvergence.html). The mode is
+  one `OpExecutionMode` an entry point, so the pinning step, which already adds `SignedZeroInfNanPreserve`,
+  can add it to every module that uses a subgroup operation: the build's guarantee, as the float arithmetic is.
+  **Decided: `MaximallyReconvergesKHR`**, required at device creation beside the 32-lane requirement
+  (`VK_KHR_shader_maximal_reconvergence`), held by a module check, and `./omw kernels` names what moved.
+  Refused: uniform control flow, whose text does not cover what these stages do before they elect; lane 0
+  appending after a `barrier()` over a shared OR, a barrier a workgroup in two hot stages and another list
+  order.
+- [ ] **bug** `cells/templatewalk.cpp:181`, `cells/prepared.hpp:166`, `cells/held.hpp:38`, `cells/cellplacer.cpp:514`
+  — the ring never carries `MeshInstance::mClockwise` (set only at `sceneextractor.cpp:944`), so a static whose
+  model states clockwise winding stands flipped in the distance and flips as its cell loads. One maker of a
+  placement's chain-derived facts, shared by the walk and the reader; `Stood` holds it. A test with such a model
+  in both paths.
+- [ ] **bug** `shaders/texture/bc7encode.comp:309-320` — the power iteration starts from the box diagonal, not
+  "the widest channel's direction" its comment states. Where the deviations are orthogonal to the diagonal
+  (eight texels of (200,100,50) and eight of (100,200,50)), `covariance * axis` is nought and the block is stored
+  as its mean. Start from the covariance's column of the largest diagonal entry; a two-colour block in
+  `RtxBc7EncodePassTest`. Line 324 names a local `length`.
+- [ ] **bug (low)** `shaders/trace/denoise/accumulateclamp.comp:156-158` — the clamp's 5×5 mean reads raw samples
+  where the accumulator blends held ones (`heldSampleShare`), so one firefly sets the push's direction. The same
+  hold, or the held sample handed on.
+- [ ] `scene/bottomlevelstore.cpp:155,191-195` — **bug (latent)** a deforming mesh with no triangles is left
+  `mUpdatable` with no structure. Set it where the structure is made.
+- [ ] **bug** `rtxvulkan/device/memory/slottable.cpp:409-412`, `texture/texturearray.cpp:113-116` — "the other copy
+  waits for nothing" is asserted after the hold was released, so it cannot fail for its reason. Ask before
+  `releaseAfter`; drop the 200 ms sleeps for `Timeline::hasFinished`, as `readstamp.cpp` does.
+- [ ] `./omw shot --views=all --map --upscale=off --out=<dir>` and `./omw kernels > <file>` once the batch is in:
+  the pictures and the kernels every structural item after it is held to. A **measure** item that moves either
+  says so and takes them again.
+
+## Batch 3 — The tests
+
+Files: `apps/components_tests/{rtx,rtxvulkan,myguirtx}/**`, `cmake/Tests.cmake`, `components/testing/*`.
+
+Ahead of the batches whose files these tests hold (Order). The GPU binary's shards are Batch 0's.
+
+- [ ] `rtx/sourcetree.cpp:172-272,396-441` — ten of fourteen rules pass when their matcher matches nothing; four
+  allow-list entries are dead (`vkDestroyInstance`, `vkDestroyDevice`, the messenger, `owned.hpp`). Each rule
+  asserts its pattern and every allow-listed entry matched.
+- [ ] `rtx/sourcetree.cpp:473-481` — no rule holds `#pragma once`, preprocessor conditionals, or vendor identity;
+  `sFolderOrders` omits `myguirtx`, `contentstore`, `mwrender/rtx`, `rtxbuild`; the backend's reach into the core
+  past `renderer/` is unchecked (`trace/wavepass.hpp:10-11` includes `environment/`); `docs/architecture.md:151-164,315-327`
+  lists another order than the test. Rows in one rule table; the doc checked against it; the wave model to
+  `world/`.
+- [ ] `rtx/sourcetree.cpp` — fourteen tests each walk and read the tree, some ten thousand opens. One in-memory
+  tree in `SetUpTestSuite`, the include closure memoised.
+- [ ] Shared support: an `osg::Image` builder (some fifteen local ones over ten files); a `SubjectWalk` bundle
+  (22 hand-built triples); `BoneClock`, `Throwing`, fixed `FileStamps` copied; `allocationsIn(fn)` for 22
+  before/after pairs; `Testing::runProbe` for six copies of the probe-kernel scaffold; `CountingRenderer` over
+  `NullRenderer`, not a second implementation of 46 overrides.
+- [ ] `components/testing/util.hpp:31-58` — 43 `outputFilePath` calls and 48 manual removes beside
+  `currentTestDirPath()`, which `FreshTestDirs` empties. One route for the fork's tests.
+- [ ] Death tests re-execute the binary: 35 in the core's suites (eight in `scene/scenedesc.cpp:1795`), 21 in the
+  GPU binary, each child building the validated harness. One death a contract; no layers in a child.
+- [ ] `rtxvulkan/present/presenter.cpp:69-88` — an instance, a surface and a device with the suite's pipeline cache
+  per test, in a folder that compiles no pipeline. `SetUpTestSuite`, an empty cache spec.
+- [ ] `rtx/common/parallel.cpp:139`, `rtx/mirror/cells/cellring.cpp:1409,1950,1982,2019,2068` — six waits with no
+  `WaitBound`; `parallel.cpp:142-146`, `job.cpp:122-125` elapsed time as the oracle. Bounded, and proved by state.
+- [ ] `rtx/world/moon.cpp:72-75,136-141,412-429` — six bands for an order dependence the fallback seed removed.
+  Exact values.
+- [ ] `rtx/frame/bluenoise.cpp:43-66` — a naive 2D transform, 33.6 M `std::polar` calls in one test. A 64-entry
+  root table.
+- [ ] `rtx/world/fogbuilder.cpp:408,520-526` a test that asserts and mutates a global its subject cannot read;
+  `rtx/support/geometry.hpp:206,214` function-local static scratch shared by every user;
+  `support/device/harness.hpp:100` and three more comments with stale sizes and shard counts.
+- [ ] Gaps: no allocation guard in the host binary for `SceneUploader`, `FrameDescriber`, `CompositeQueue`;
+  `rtx/image/chainbuild.cpp:500-646` ten digests over whole chains that say only "differs"; the hosted harness
+  files (some 3.8k lines) built into the executable alone.
+
+## Batch 4 — Worker threads and the monitor
+
+Files: `components/misc/monitor.hpp`, `components/contentstore/store.cpp`, `components/rtx/prepare/contentpreparation.{hpp,cpp}`,
+`components/rtx/preprocess/preparedimages.{hpp,cpp}`, `components/rtx/common/parallel.hpp`,
+`components/rtxvulkan/trace/visibilitypass.cpp`, their tests.
+
 - [ ] `contentpreparation.cpp:226-339`, `preparedimages.cpp`, `store.cpp` — three pools: two on `Monitor`, one on
   a raw mutex with a predicate-less wait (`:251`); `Hand` and stop-all-then-join-all written three times. One hands
   helper on `Monitor`, the stop through `condition_variable_any::wait(lock, stop_token, pred)`.
@@ -209,58 +576,46 @@ Files: `components/misc/monitor.hpp`, `components/contentstore/store.cpp`, `comp
 - [ ] **measure** three pools each sized against the whole machine (prepare N−1, compile N, chains N/2 parked for
   the session). One budget split by their owner. Decide by the cold start's wall time with both running.
 
-## Batch 2 — The game side and the seam
+## Batch 5 — The content store and the preparation
 
-Files: `apps/openmw/mwrender/{objectpaging.cpp,renderer.{hpp,cpp},glrenderer.cpp}`, `apps/openmw/mwrender/rtx/*`,
-`apps/openmw/mwinput/rendererkeys.cpp`, `apps/openmw/engine.cpp`, `components/rtx/renderer/frameimage.cpp`.
+Files: `components/contentstore/*`, `components/rtx/prepare/*`, `components/rtx/preprocess/**`, `components/rtx/image/*`,
+`apps/components_tests/{contentstore,rtx/prepare,rtx/preprocess,rtx/image}`.
 
-- [ ] **bug** `objectpaging.cpp:1169` (`ObjectStorage::getLight`) — `search` reads the store's dynamic map first
-  (`mwworld/store.cpp:123`) on the cell reader thread (`cells/cellreader.cpp:254`), while the main thread clears
-  it at every `World::clear`. `searchStatic`, as every sibling lookup there. Then hand `ObjectStorage` the store
-  at construction and expose static lookups only.
-- [ ] **measure (read)** `rtx/tracedterrain.cpp:313-317` — a template drawable shared with reader threads is
-  const-cast and handed to the game's intersection visitor, whose pose hook runs a cull on it. Settle whether a
-  ring placement can hold a `MorphGeometry`; if so the carrier answers without the pose hook.
-- [ ] `renderer.hpp:20,23,112,448`, `renderer.cpp:333-361` — the seam names `DlssLibrary::Folders`,
-  `Rtx::UpscalerChoice`, `Rtx::Unsupported`. Start and failure wording move to `rtx/`; the spec carries neutral
-  paths.
-- [ ] `renderer.hpp:152`, `rendererkeys.cpp:22-41` — `Renderer` is a `GraphicsListener` and `RendererKeys` a
-  second one wrapping it; the direct route loses the F3/F4 message. `Renderer` stops inheriting it.
-- [ ] `renderer.hpp:285-314,383-407`, `renderer.cpp:115-238` — frame pacing, eight members and four fields, in the
-  interface's base. A `FramePacer` the engine owns, handed the renderer for `awaitPresented`.
-- [ ] `rtx/rtxrenderer.cpp:576-621,715-742`, `frameimage.cpp:50-94` — a freeze, screenshot or thumbnail reads the
-  frame into `mReadBack` (never freed, 33 MB at 4K) and copies it into a second full-size image; the thumbnail
-  averages column-outer over a row-major frame through a `vector<double>`. One buffer released after, rows outer;
-  the three members and four methods become one frame-reader part.
-- [ ] `rtx/rtxrenderer.cpp:768-774` — `notifyWorldspaceChanged` skips the stretch close `notifyCut` does. One
-  close. (**propose**: `worldimp.cpp:822` tells a rest as a worldspace change; a cut is what it is.)
-- [ ] `renderer.hpp:106`, `engine.cpp:695` — `RendererSpec::mResourceDir` is set and never read. Delete.
-- [ ] `rtx/tracedground.hpp:62` holds `WorldMirror&` for `getRing()` alone; `worldmirror.hpp:211-216` unpacks
-  `MirrorKnobs` into five members; `rtxrenderer.cpp:530-569` has the await-with-patience loop twice;
-  `renderer.hpp:184` takes `const CellStore*` it never tests. Hold what is used, one member, one helper, a
-  reference.
-- [ ] `mwgui/settingswindow.cpp:306,531` — upscaler labels read back by position, right only while the offered
-  list is a prefix. Looked up by choice.
-- [ ] `rtx/rtxrenderer.hpp:158-159` a doc comment with no declaration; `docs/architecture.md:107` the ripple heap
-  listed under the game side, where it lives in `rtxvulkan/trace/ripplepass.cpp`. Fix both.
-- [ ] **measure** `rtxrenderer.hpp:353` `sWorldViewsPerFrame = 3` on a crossing frame; `renderer.cpp:179-185` the
-  world's update traversal under a modal box. `--frame-times` on crossings and a nested frame.
+- [ ] `contentstore/store.hpp:98-115`, `store.cpp:506-514` — the queue, resident and stamp bounds are constants,
+  and a holding store reserves both tables at them ("some 80 MiB") in every session and every test. `Policy`
+  fields, with a count bound beside the byte bound. This also answers the open issue of
+  `ContentStoreTest.aFileThatDoesNotMatchIsAMissAndIsDeleted` at 1.20 s.
+- [ ] Tests on the above: 47 sites construct a holding store; `contentstore/store.cpp:346-364` builds 128 MiB of
+  payload to reach a 64 MiB bound; the full-queue drop, the drop while stopping, the resident cap and the stamp
+  cap have no test. Small bounds, and the four paths.
+- [ ] The open issue of two cold stores holding different entries: read `mKind` in the differing files' trailers,
+  diff the file list at "Prepared" against exit, read `dropped` and `missed`. Candidates: a shape keyed by
+  `mBeside` of a clone in play; the lost write Batch 2 fixes; a frame-thread write dropped at a full queue.
+- [ ] `store.cpp:519-537` — the start sweep learns an entry's kind by reading it whole. The layout Batch 1
+  decided: the kind in the path, or the trailer read first.
+- [ ] `store.cpp:230-235,318-321,445-456` — every first hit queues a `utimensat`, though the time ranks only small
+  entries of unheld kinds and nothing evicts. Stamp only what ranks.
+- [ ] `store.cpp:179-186` a `Task` with a kind tag and per-kind fields, stamps escaping the byte bound (a variant;
+  stamps coalesced); `store.cpp:419-431` `keepResident` refuses past its cap with no stat; `store.cpp:80-93`
+  `holds` reads through `ifstream` where every other read is `Platform`'s, under a doc that says "one `stat`".
+- [ ] `preprocess/texture/chainpass.cpp:62-198`, `conversionpass.cpp` — what a run makes of a header is derived
+  three times per pass, marked "As `run` builds". One plan struct.
+- [ ] `image/chainbuild.cpp:217,261,326,475,542-553` — alpha decoded whole, then copied into every texel's fourth
+  byte, later readers using the plane (17–22 MB a 4096 build, per thread). Decode in the band walk, read from the
+  texels.
+- [ ] `preprocess/contentcache.hpp:64-77` — `keep` copies the made chain into a fresh payload for a stored ask
+  nobody reads. `encode(MadeChain&&)`.
+- [ ] `image/chainbuild.cpp:235`, `alphaimage.cpp:180`, `conversionpass.cpp:176`, `imagedescription.cpp:348` —
+  `vector<std::byte>` filled then wholly overwritten, where `Misc::ByteBuffer` is the fork's buffer for it.
+- [ ] `prepare/contentpreparation.cpp:208-224` — the manifest's signature covers the passes and not the walk's own
+  rules, behind a hand-bumped number. A walk version held by a test that digests a fixed model's keys.
+- [ ] **measure** `prepare/preparationmanifest.cpp` `read` — a 9 MB manifest parsed at every start into a deque of
+  strings and three node maps. Flat tables over the read buffer.
 
-## Batch 3 — The mirror and the ring
+## Batch 6 — The mirror and the ring
 
 Files: `components/rtx/mirror/**`, `components/rtx/scene/meshtable.*`.
 
-- [ ] **bug** `cells/templatewalk.cpp:181`, `cells/prepared.hpp:166`, `cells/held.hpp:38`, `cells/cellplacer.cpp:514`
-  — the ring never carries `MeshInstance::mClockwise` (set only at `sceneextractor.cpp:944`), so a static whose
-  model states clockwise winding stands flipped in the distance and flips as its cell loads. One maker of a
-  placement's chain-derived facts, shared by the walk and the reader; `Stood` holds it. A test with such a model
-  in both paths.
-- [ ] **measure** `cells/cellplacer.cpp:382`, `cells/groundreader.cpp:119-120` — every landed cell adds its own
-  copy of the grid's 24,576 indices and 4,225 texcoords, identical for all. One shared run each. Count landed
-  cells held at the default reach first.
-- [ ] `cells/prepared.hpp:231-238` — a lent model keeps a float copy of its geometry that `adoptParts` reads once
-  (34.9 MiB vanilla, 83.5 MiB on the large profile, by the bench records). Free after first adoption; re-read from
-  the template in the rare second case. **measure** how often a model is adopted twice over a crossing.
 - [ ] `cells/cellplacer.cpp:436,463` — a `stable_sort` of 128 B placements, with its heap buffer, on the adoption
   frame. Sort `PreparedCell::mRefs` by radius on the reader thread.
 - [ ] `cells/cellplacer.hpp:306`, `.cpp:61-89,469` — `mMoved` gains an entry for every reference the game ever
@@ -271,45 +626,43 @@ Files: `components/rtx/mirror/**`, `components/rtx/scene/meshtable.*`.
   `streaming` suite.
 - [ ] `cells/templatewalk.hpp:66-100` — `TemplateWalk` owns the thread's `ThreadContent` and forwards eight of its
   methods. The thread's owner holds it and hands it at `read`.
+- [ ] `cells/cellreader.hpp:174` a `flat_map<RefId, Normalized>` that shifts strings at each insert
+  (`boost::unordered_flat_map`, as `CellHolds`); `meshreader.cpp:459` `gatherBeside` walks the model per drawable
+  (cache beside `mFacesOf`); `materialresolver.cpp:548` hashes a path the slot's facts already answer;
+  `cells/cellsupply.cpp:198` measures every pooled model after every cell (on ask);
+  `sceneextractor.cpp:376,347` asks `asSwitch()` and `jumps()` twice.
+- [ ] `cells/prepared.hpp:231-238` — a lent model keeps a float copy of its geometry that `adoptParts` reads once
+  (34.9 MiB vanilla, 83.5 MiB on the large profile, by the bench records). Free after first adoption; re-read from
+  the template in the rare second case. **measure** how often a model is adopted twice over a crossing.
+- [ ] **measure** `cells/cellplacer.cpp:382`, `cells/groundreader.cpp:119-120` — every landed cell adds its own
+  copy of the grid's 24,576 indices and 4,225 texcoords, identical for all. One shared run each. Count landed
+  cells held at the default reach first.
 - [ ] **measure** `sceneextractor.cpp:333-355`, `frozenroots.cpp:81-110` — a still frame polls every reference
   root: about ten cold lines each. Compare position, attitude and scale directly and compose only for walked
   roots; frozen faces as a run per cell root in child order. `./omw profile` by line at a still place under the
   large profile decides.
 - [ ] **measure** `cells/held.hpp:41,77-100` — `Stood::mTransform` (64 B a part) is derivable and stored again in
   the scene row. Count placements held per cell.
-- [ ] `cells/cellreader.hpp:174` a `flat_map<RefId, Normalized>` that shifts strings at each insert
-  (`boost::unordered_flat_map`, as `CellHolds`); `meshreader.cpp:459` `gatherBeside` walks the model per drawable
-  (cache beside `mFacesOf`); `materialresolver.cpp:548` hashes a path the slot's facts already answer;
-  `cells/cellsupply.cpp:198` measures every pooled model after every cell (on ask);
-  `sceneextractor.cpp:376,347` asks `asSwitch()` and `jumps()` twice.
 - [ ] **measure** `sceneextractor.cpp:360` a formatted crash note per walked root per frame;
   `sceneextractor.cpp:389-393` a lamp's root walked every frame for a light that does not move.
 
-## Batch 4 — The scene's tables
+## Batch 7 — The scene's tables
 
 Files: `components/rtx/scene/*`, `components/rtx/common/{runs,slots}.*`, `components/rtx/renderer/{renderer.hpp,nullrenderer.cpp}`,
 `components/rtxvulkan/scene/scenebuffers.cpp`, `components/rtxvulkan/vulkanrenderer.cpp`.
 
+- [ ] **measure (read)** `scene/placementtable.cpp:166-173` — `jump` returns before setting `mPrevious` when `move`
+  reports no change, so a slot moved by a walk that handed nothing over would report motion across a jump. Trace
+  whether a skipped hand-over can precede a jump notice; if so `jump` always sets `mPrevious`.
 - [ ] `scene/placementtable.cpp:219-230`, `scene/instancerecord.cpp:198-205` — `advance()` settles every touched
   slot, so a slot only placed, dropped or re-worn is recomputed (a double 4×4 inverse) and its 160 B row owed to
   both copies again a frame later; the frame after a `setScene` does it for every live slot. Settle only slots
   where `mPrevious != mTransform`; the settle pass then writes `mMotion` alone.
 - [ ] `scene/instancerecord.cpp:104,168` — a moving slot's matrix is inverted in `recordOf` and again in
   `moveRecord`. One inverse, handed on; water keeps its own.
-- [ ] **measure (read)** `scene/placementtable.cpp:166-173` — `jump` returns before setting `mPrevious` when `move`
-  reports no change, so a slot moved by a walk that handed nothing over would report motion across a jump. Trace
-  whether a skipped hand-over can precede a jump notice; if so `jump` always sets `mPrevious`.
 - [ ] `scene/instancerecord.hpp:35-122` — an `InstanceRecord` (about 176 B) kept for every slot, derived wholly
   from its row. After the two items above, scratch for changed slots. Confirm `placeCompacted` needs only the
   structure reference.
-- [ ] **measure** `scene/materialtable.hpp:49-51`, `scenebuffers.cpp:163`, `cells/groundreader.cpp:180` — blend
-  weights are bytes in the content and floats in the reader, the host run and a device table reserved at 32 MiB.
-  Bytes, four to a word. `./omw kernels` and a bench.
-- [ ] **measure** `scene/meshtable.hpp:144`, `scenebuffers.cpp:202,211-220` — a tangent word per vertex, zero for
-  every mesh with no normal map, on host and device. Runs of their own, as `mSecondRuns`. Read the vertex count
-  from a scene report.
-- [ ] **measure** `common/runs.cpp:23-70` — a linear best-fit scan and a `vector::erase/insert`, on "tens of
-  entries" nothing reads. Report `getHoleCount`'s high-water mark; past the hundreds, a segregated-fit allocator.
 - [ ] `renderer/renderer.hpp:575-598` — six pure virtuals, each one field of `RenderProfile`, both backends
   repeating the asserts. One `apply(const LiveSettings&)`.
 - [ ] `scene/texturetable.hpp:138-160` — `add`, `addSpriteLight`, `addGround` answer a live slot with no hold,
@@ -320,15 +673,55 @@ Files: `components/rtx/scene/*`, `components/rtx/common/{runs,slots}.*`, `compon
   `isLive`/`isPlaced`, `hold`/`drop` against `stand`/`release`, three shapes of news). One protocol on `HeldRows`.
 - [ ] `renderer/renderer.hpp:536` a nullable `mSky` asserted non-null (a reference parameter);
   `scene/scenedesc.hpp:182` `addEmitter` with seven parameters and two trailing bools (a struct).
-- [ ] The host geometry mirror, as Batch 0 decided: freed after arrival, or its header saying why it stands.
+- [ ] The host geometry mirror, as Batch 1 decided: freed after arrival, or its header saying why it stands.
+- [ ] **measure** `scene/materialtable.hpp:49-51`, `scenebuffers.cpp:163`, `cells/groundreader.cpp:180` — blend
+  weights are bytes in the content and floats in the reader, the host run and a device table reserved at 32 MiB.
+  Bytes, four to a word. `./omw kernels` and a bench.
+- [ ] **measure** `scene/meshtable.hpp:144`, `scenebuffers.cpp:202,211-220` — a tangent word per vertex, zero for
+  every mesh with no normal map, on host and device. Runs of their own, as `mSecondRuns`. Read the vertex count
+  from a scene report.
+- [ ] **measure** `common/runs.cpp:23-70` — a linear best-fit scan and a `vector::erase/insert`, on "tens of
+  entries" nothing reads. Report `getHoleCount`'s high-water mark; past the hundreds, a segregated-fit allocator.
 - [ ] **measure** `sWorldRoom`'s `1<<18` placements against some 80k used; `GpuInstance::mMotion`, 48 of 160 B,
   the identity for nearly every row. Bytes at the three contents first.
 
-## Batch 5 — The backend's scene, acceleration and textures
+## Batch 8 — The device layer
+
+Files: `components/rtxvulkan/{device,pipeline,spirv}/**`.
+
+- [ ] `device/commands.hpp:28-255` — `CommandPool` is also the staging allocator; the file holds five classes, and
+  `device/` and `device/memory/` include each other through it. `memory/staging` and `memory/batch`.
+- [ ] `device/commands.hpp:28`, `device/timeline.hpp:87`, `device/readstamp.hpp:66` — single-thread by a comment,
+  reached through a `const Device&` compile hands also hold. `OwnedBy`, checked in `take`, `begin`, `defer`,
+  `submit`, `waitFor`, `next`.
+- [ ] `device/device.cpp:349-592,635-748` — `Device` owns pipeline statistics and code capture, and fault and
+  marker description. `PipelineReport` and `FaultReport`.
+- [ ] `device/memory/buffer.cpp:48-51` — `sReferenceAlignment` restates seven `buffer_reference_align`s by hand.
+  One shared constant each is asserted against, or a check at `ShaderCode::stage`.
+- [ ] `device/pipelinecache.cpp:192-194,231` — the body copied out of the file buffer and digested, then digested
+  again in the constructor. `read` answers the buffer, the body's span and its digest.
+- [ ] `device/handles.hpp:118-160`, `pipeline/computepipeline.hpp:62-70` — a pipeline layout and set layout per
+  pipeline, some 430 pairs where about nine differ. Owned by the kernel row.
+- [ ] `spirv/spirvinterface.cpp:54,349` — facts keyed by id in an `unordered_map` though ids are dense, and every
+  function body walked though declarations end at the first `OpFunction`. A vector by the bound; stop there.
+- [ ] `pipeline/tracepipeline.cpp:122` a `const traceRays` that flips a `mutable` flag to upload on first launch
+  (upload when the kernel is adopted); `device/gputimer.cpp:92,121` queries reset two ways (both from the host);
+  `device/memory/barriers.hpp:75-77`, `pipeline/dispatch.hpp:203-205` a few KB value-initialised per pass.
+- [ ] **measure** `device/commands.cpp:544`, `device/result.hpp:47`, `vulkanrenderer.cpp:446-450` — a world build
+  stages every texture and flushes in one submit, behind a fixed 10 s wait that ends in `deviceFailed`. Flush at a
+  staged-byte budget. Staging's high-water mark and the submit's length at a PBR start on the weakest card.
+- [ ] **measure** `device/memory/memory.cpp:36,387` the 64 MiB block and 32 MiB dedicated threshold carry no
+  reason (count dedicated allocations under the PBR stack); `spirv/spirvpin.cpp:642` per-result decorations where
+  `SPV_KHR_float_controls2` offers a default.
+
+## Batch 9 — The backend's scene, acceleration and textures
 
 Files: `components/rtxvulkan/{scene,texture,trace}/*`, `components/rtxvulkan/device/requirements.cpp`,
 `components/rtxvulkan/shaders/lib/traversal.glsl`.
 
+- [ ] **measure (read)** `texture/texture.cpp:683-692,866-872` — `setAnisotropy` buries the old samplers and only
+  `sync`, inside `place`, pays the sets; a trace of a scene unplaced since would bind samplers the graveyard
+  destroys, guarded by a debug `assert`. Show whether such a frame exists; if so `setAnisotropy` pays.
 - [ ] `scene/bottomlevelstore.cpp:159-169` against `scene/sceneacceleration.cpp:288-290` — a deforming mesh's build
   flags are spelled twice, held together by "with the same flags". One `flagsOf(deforms)`.
 - [ ] `scene/bottomlevelstore.hpp:126-145`, `sceneacceleration.cpp:173-303` — the refit's state in the store's rows,
@@ -341,11 +734,6 @@ Files: `components/rtxvulkan/{scene,texture,trace}/*`, `components/rtxvulkan/dev
   (`dropTextures`), under two name pairs. One route, one pair.
 - [ ] `texture/texture.hpp:386-397`, `texture.cpp:297-341` — eight samplers, the neutral texel and the stand-in
   made per scene, though they depend on the device and the anisotropy. They live in `ScenePasses`.
-- [ ] **measure (read)** `texture/texture.cpp:683-692,866-872` — `setAnisotropy` buries the old samplers and only
-  `sync`, inside `place`, pays the sets; a trace of a scene unplaced since would bind samplers the graveyard
-  destroys, guarded by a debug `assert`. Show whether such a frame exists; if so `setAnisotropy` pays.
-- [ ] `scene/bottomlevelstore.cpp:155,191-195` — **bug (latent)** a deforming mesh with no triangles is left
-  `mUpdatable` with no structure. Set it where the structure is made.
 - [ ] `trace/tracemedia.hpp:66-72`, `trace/wavepass.hpp:42`, `FogTile::describe` — production API only a test probe
   calls; the game's `SeaState` is one value. Test reach-ins or constructor parameters.
 - [ ] `scene/sceneslots.cpp:65,87` two uncommented `const_cast`s; `texture/texture.hpp:342-355` three `mutable`
@@ -374,28 +762,11 @@ Files: `components/rtxvulkan/{scene,texture,trace}/*`, `components/rtxvulkan/dev
   place of inactive rows, with no recorded figure. Each by its zone at a crowd; the pack's header takes its number
   or the pass goes.
 
-## Batch 6 — Surface transport shaders
+## Batch 10 — Surface transport shaders
 
 Files: `components/rtxvulkan/shaders/trace/{bounce,visibility}.comp`, `shaders/lib/{traversal,shading,lights,peel}.glsl`,
 `components/rtxvulkan/device/requirements.cpp`, `components/rtxvulkan/frame/gbuffer.cpp`, `apps/rtxtool/noise.*`.
 
-- [ ] **bug (unguaranteed)** `trace/bounce.comp:44-66`, `trace/visibility.comp:433-443` — a lane is elected and its
-  answer broadcast after non-uniform control flow, which core Vulkan does not promise reconverges; no module
-  declares `subgroup_uniform_control_flow`. A split tangle gives lanes a slot base of nought and appends a tile
-  twice. Two extensions give the guarantee, and Roadmap 2024 requires both
-  (https://docs.vulkan.org/spec/latest/appendices/roadmap.html):
-  `SubgroupUniformControlFlowKHR` reconverges a subgroup that was uniform on entering a structured loop or
-  selection and left by its merge block, which says nothing certain of an early return or a traversal loop
-  (https://github.khronos.org/SPIRV-Registry/extensions/KHR/SPV_KHR_subgroup_uniform_control_flow.html);
-  `MaximallyReconvergesKHR` reconverges "as soon as possible", by the control flow graph, as the source reads
-  (https://github.khronos.org/SPIRV-Registry/extensions/KHR/SPV_KHR_maximal_reconvergence.html). The mode is
-  one `OpExecutionMode` an entry point, so the pinning step, which already adds `SignedZeroInfNanPreserve`,
-  can add it to every module that uses a subgroup operation: the build's guarantee, as the float arithmetic is.
-  **Decided: `MaximallyReconvergesKHR`**, required at device creation beside the 32-lane requirement
-  (`VK_KHR_shader_maximal_reconvergence`), held by a module check, and `./omw kernels` names what moved.
-  Refused: uniform control flow, whose text does not cover what these stages do before they elect; lane 0
-  appending after a `barrier()` over a shared OR, a barrier a workgroup in two hot stages and another list
-  order.
 - [ ] `lib/lights.glsl:295-299` — `terminatorShare` is worked out for every lamp in tuples with no maps; the
   float-equality select cannot fold under the pin. `HAS_MAPS` in front. Pictures stay; `./omw kernels` names the
   vanilla tuples.
@@ -427,19 +798,11 @@ Files: `components/rtxvulkan/shaders/trace/{bounce,visibility}.comp`, `shaders/l
 - [ ] **measure** spatiotemporal blue-noise masks for the 64² tile; uv and colour as one stream and normal and
   tangent as one; the histogram of lamps a cell under the large profile.
 
-## Batch 7 — Reconstruction and display
+## Batch 11 — Reconstruction and display
 
 Files: `components/rtxvulkan/shaders/{texture,trace/denoise,upscale,display}/*`, `components/rtxvulkan/{denoise,upscale,display}/*`,
 `docs/architecture.md`, `docs/research/2026-11-11-ray-reconstruction-against-super-resolution.md`.
 
-- [ ] **bug** `shaders/texture/bc7encode.comp:309-320` — the power iteration starts from the box diagonal, not
-  "the widest channel's direction" its comment states. Where the deviations are orthogonal to the diagonal
-  (eight texels of (200,100,50) and eight of (100,200,50)), `covariance * axis` is nought and the block is stored
-  as its mean. Start from the covariance's column of the largest diagonal entry; a two-colour block in
-  `RtxBc7EncodePassTest`. Line 324 names a local `length`.
-- [ ] **bug (low)** `shaders/trace/denoise/accumulateclamp.comp:156-158` — the clamp's 5×5 mean reads raw samples
-  where the accumulator blends held ones (`heldSampleShare`), so one firefly sets the push's direction. The same
-  hold, or the held sample handed on.
 - [ ] `upscale/upscaler.cpp:79-153` — nine methods branch on the variant's kind because `FsrUpscaler` lacks the
   operations. Each backend answers the same set; `std::visit` throughout.
 - [ ] `denoise/denoisepasses.hpp:80`, `denoise/atrouspass.hpp:77` — two public functions over a private one that
@@ -464,7 +827,7 @@ Files: `components/rtxvulkan/shaders/{texture,trace/denoise,upscale,display}/*`,
 - [ ] **measure** the glossy and pane means as one persistent image plus arena scratch; the shadow mask and
   temporal passes once for both fields; the bloom pyramid in `R11G11B10F`.
 
-## Batch 8 — Fog, sprites, water and sky
+## Batch 12 — Fog, sprites, water and sky
 
 Files: `components/rtxvulkan/shaders/{trace,lib,scene}/*` (fog, sprite, water, ripple, wave), `components/rtxvulkan/trace/*`,
 `components/rtx/world/fogbuilder.cpp`, `apps/components_tests/rtx/sourcetree.cpp`.
@@ -478,6 +841,8 @@ Files: `components/rtxvulkan/shaders/{trace,lib,scene}/*` (fog, sprite, water, r
 - [ ] `trace/fogdepth.rgen:43-49`, `trace/spritecomposite.rgen:65-66` "where the eye's view ends" at three sites
   (one function); `trace/spriteemitters.rgen:41-52` a texture's mean alpha worked out per emitter per frame (at
   arrival, with the sprite light bake).
+- [ ] What Batch 1 decided of the lamps' phase and of precipitation in the self-shadow, each landed without its
+  switch or removed with it.
 - [ ] **measure (content)** `lib/fog.glsl:128-131`, `world/fogbuilder.cpp:129-146` — a room's haze falls off from
   world z = 0 or the cell's water level, so a room authored high holds a fraction of the air of one at nought.
   Scan interior heights and shoot a high interior; then a base from the cell, or a room even in height.
@@ -490,140 +855,108 @@ Files: `components/rtxvulkan/shaders/{trace,lib,scene}/*` (fog, sprite, water, r
   held by `repeat`. `repeat --pairs=10`, quiet and contended, with the fog passes as dispatches; the rule stands
   unless every pair agrees.
 - [ ] **measure** `scene/spriteshade.comp:274-293` two barriers a sprite across 1024 lanes (per-lane accumulation,
-  the same sums in the same order). `shade` under snow, after Batch 0 says whether snow is shaded at all.
+  the same sums in the same order). `shade` under snow, after Batch 1 says whether snow is shaded at all.
 - [ ] **measure** `trace/media.comp:64,116,127` three traversals an earlier stage already traced (three floats
   beside the stage record); `trace/spritecomposite.rgen:181-193` every traced pixel visited for a few tiles;
   `trace/ripplestep.comp:81-82` every texel against every impulse; `trace/tracemedia.cpp:34` the sea synthesised
   inland; `lib/fog.glsl:107-122` field fetches in a room whose coverage is one.
-- [ ] What Batch 0 decided of the lamps' phase and of precipitation in the self-shadow, each landed without its
-  switch or removed with it.
 
-## Batch 9 — The content store and the preparation
-
-Files: `components/contentstore/*`, `components/rtx/prepare/*`, `components/rtx/preprocess/**`, `components/rtx/image/*`,
-`apps/components_tests/{contentstore,rtx/prepare,rtx/preprocess,rtx/image}`.
-
-- [ ] `contentstore/store.hpp:98-115`, `store.cpp:506-514` — the queue, resident and stamp bounds are constants,
-  and a holding store reserves both tables at them ("some 80 MiB") in every session and every test. `Policy`
-  fields, with a count bound beside the byte bound. This also answers the open issue of
-  `ContentStoreTest.aFileThatDoesNotMatchIsAMissAndIsDeleted` at 1.20 s.
-- [ ] Tests on the above: 47 sites construct a holding store; `contentstore/store.cpp:346-364` builds 128 MiB of
-  payload to reach a 64 MiB bound; the full-queue drop, the drop while stopping, the resident cap and the stamp
-  cap have no test. Small bounds, and the four paths.
-- [ ] `store.cpp:519-537` — the start sweep learns an entry's kind by reading it whole. The layout Batch 0
-  decided: the kind in the path, or the trailer read first.
-- [ ] `store.cpp:230-235,318-321,445-456` — every first hit queues a `utimensat`, though the time ranks only small
-  entries of unheld kinds and nothing evicts. Stamp only what ranks.
-- [ ] `store.cpp:179-186` a `Task` with a kind tag and per-kind fields, stamps escaping the byte bound (a variant;
-  stamps coalesced); `store.cpp:419-431` `keepResident` refuses past its cap with no stat; `store.cpp:80-93`
-  `holds` reads through `ifstream` where every other read is `Platform`'s, under a doc that says "one `stat`".
-- [ ] `preprocess/texture/chainpass.cpp:62-198`, `conversionpass.cpp` — what a run makes of a header is derived
-  three times per pass, marked "As `run` builds". One plan struct.
-- [ ] `image/chainbuild.cpp:217,261,326,475,542-553` — alpha decoded whole, then copied into every texel's fourth
-  byte, later readers using the plane (17–22 MB a 4096 build, per thread). Decode in the band walk, read from the
-  texels.
-- [ ] `preprocess/contentcache.hpp:64-77` — `keep` copies the made chain into a fresh payload for a stored ask
-  nobody reads. `encode(MadeChain&&)`.
-- [ ] `image/chainbuild.cpp:235`, `alphaimage.cpp:180`, `conversionpass.cpp:176`, `imagedescription.cpp:348` —
-  `vector<std::byte>` filled then wholly overwritten, where `Misc::ByteBuffer` is the fork's buffer for it.
-- [ ] `prepare/contentpreparation.cpp:208-224` — the manifest's signature covers the passes and not the walk's own
-  rules, behind a hand-bumped number. A walk version held by a test that digests a fixed model's keys.
-- [ ] The open issue of two cold stores holding different entries: read `mKind` in the differing files' trailers,
-  diff the file list at "Prepared" against exit, read `dropped` and `missed`. Candidates: a shape keyed by
-  `mBeside` of a clone in play; the lost write of Batch 1; a frame-thread write dropped at a full queue.
-- [ ] **measure** `prepare/preparationmanifest.cpp` `read` — a 9 MB manifest parsed at every start into a deque of
-  strings and three node maps. Flat tables over the read buffer.
-
-## Batch 10 — The frame, presentation and the interface
+## Batch 13 — The frame, presentation and the interface
 
 Files: `components/rtxvulkan/{gui,present,display,frame}/*`, `components/rtxvulkan/{vulkanrenderer,framering}.*`,
 `components/myguirtx/*`.
 
-- [ ] `gui/guidrawer.hpp:57` — the comment says "Host-visible device memory… no staging copy"; `prepare` stages.
-  Correct it.
 - [ ] **measure** `gui/guidrawer.cpp:40` — `prepare` waits on the host for the slot's last submit. After an
   unshown present (`mDrawn` not bumped) the same slot is taken again, whose newest stamp is this frame's own
   placement or trace, so the wait would last a device frame: every frame of a resize drag. Read the frame's
   host wait under a drag; if it shows, the slot advances on every prepare.
-- [ ] `docs/architecture.md:355` — "a shared device copy (Unreal's GPUScene)" is refused with no reason beside
-  it. The reason is the landed proposal's: one copy changes every debt and makes each write wait out the frame
-  before it on the queue, and a frame reads the previous pose copy for motion. Say so there. The copy a frame
-  slot stands, for the scene's tables and the interface's vertices alike.
-- [ ] `myguirtx/texture.cpp:73,122` — a narrow texture's `mPixels` lives as long as the texture and is read only
-  between `lock` and `unlock` (2 MiB a 1024² atlas). Allocate in `lock`, release in `unlock`.
-- [ ] **measure** `gui/guitextures.cpp` (`add`), `myguirtx/slottexture.cpp` (`fillWith`),
-  `myguirtx/rendermanager.cpp` (`getTexture`) — every file-backed interface texture is decoded to RGBA8, counted
-  essential and never dropped: 4 MiB a 1024² splash seen. Block formats kept, and residency by draw recency.
-  Count interface texture bytes after ten loads.
 - [ ] `vulkanrenderer.cpp:83-103,245-356` — `createTargets` does five jobs and `frameAt` is a second list of the
   same parts. A `FrameTargets` owner with `bytesAt` and `resize`.
-- [ ] Stale narration: `display/exposurepass.hpp:63`, `sunglarepass.hpp:49` ("host memory");
-  `trace/tracerecording.hpp:77`, `bloompass.hpp:25`, `frame/gbuffer.cpp:63` (a `readComposite` only a test probe
-  has); `frame/framestep.hpp:12`; `frame/gbuffer.cpp:35`; `gui/guipass.cpp:139` ("the four", of five);
-  `displaychain.cpp:107-113`.
+- [ ] `myguirtx/texture.cpp:73,122` — a narrow texture's `mPixels` lives as long as the texture and is read only
+  between `lock` and `unlock` (2 MiB a 1024² atlas). Allocate in `lock`, release in `unlock`.
 - [ ] `display/displaychain.cpp:115,138` the composed frame copied whole for a test's read (in place unless read
   back); `frame/gbuffer.hpp:201` a `vector` of fixed size its comment calls an array;
   `myguirtx/rendermanager.cpp:216-217` `resize` then `memcpy`; `myguirtx/texture.cpp:137-160` a switch inside the
   per-pixel loop.
-- [ ] **measure** `present/presenttarget.hpp` (`mShown`), `present/presenter.cpp` (`hand`) — after the curve every
-  output pixel is drawn into `mShown` and blitted to the swapchain. Draw into the swapchain image; a windowless
-  renderer then needs a second route, which decides it.
 - [ ] `present/swapchain.cpp:192` — recreation is destroy-then-create behind a drain, with
   `swapchain_maintenance1` enabled for its fences alone. `oldSwapchain` and a present-mode switch
   (https://docs.vulkan.org/samples/latest/samples/api/swapchain_recreation/README.html). Low at this frequency.
+- [ ] `gui/guidrawer.hpp:57` — the comment says "Host-visible device memory… no staging copy"; `prepare` stages.
+  Correct it.
+- [ ] `docs/architecture.md:355` — "a shared device copy (Unreal's GPUScene)" is refused with no reason beside
+  it. The reason is the landed proposal's: one copy changes every debt and makes each write wait out the frame
+  before it on the queue, and a frame reads the previous pose copy for motion. Say so there. The copy a frame
+  slot stands, for the scene's tables and the interface's vertices alike.
+- [ ] Stale narration: `display/exposurepass.hpp:63`, `sunglarepass.hpp:49` ("host memory");
+  `trace/tracerecording.hpp:77`, `bloompass.hpp:25`, `frame/gbuffer.cpp:63` (a `readComposite` only a test probe
+  has); `frame/framestep.hpp:12`; `frame/gbuffer.cpp:35`; `gui/guipass.cpp:139` ("the four", of five);
+  `displaychain.cpp:107-113`.
+- [ ] **measure** `gui/guitextures.cpp` (`add`), `myguirtx/slottexture.cpp` (`fillWith`),
+  `myguirtx/rendermanager.cpp` (`getTexture`) — every file-backed interface texture is decoded to RGBA8, counted
+  essential and never dropped: 4 MiB a 1024² splash seen. Block formats kept, and residency by draw recency.
+  Count interface texture bytes after ten loads.
+- [ ] **measure** `present/presenttarget.hpp` (`mShown`), `present/presenter.cpp` (`hand`) — after the curve every
+  output pixel is drawn into `mShown` and blitted to the swapchain. Draw into the swapchain image; a windowless
+  renderer then needs a second route, which decides it.
 
-## Batch 11 — The device layer
+## Batch 14 — The game side and the seam
 
-Files: `components/rtxvulkan/{device,pipeline,spirv}/**`.
+Files: `apps/openmw/mwrender/{objectpaging.cpp,renderer.{hpp,cpp},glrenderer.cpp}`, `apps/openmw/mwrender/rtx/*`,
+`apps/openmw/mwinput/rendererkeys.cpp`, `apps/openmw/engine.cpp`, `components/rtx/renderer/frameimage.cpp`.
 
-- [ ] **measure** `device/commands.cpp:544`, `device/result.hpp:47`, `vulkanrenderer.cpp:446-450` — a world build
-  stages every texture and flushes in one submit, behind a fixed 10 s wait that ends in `deviceFailed`. Flush at a
-  staged-byte budget. Staging's high-water mark and the submit's length at a PBR start on the weakest card.
-- [ ] `device/commands.hpp:28-255` — `CommandPool` is also the staging allocator; the file holds five classes, and
-  `device/` and `device/memory/` include each other through it. `memory/staging` and `memory/batch`.
-- [ ] `device/commands.hpp:28`, `device/timeline.hpp:87`, `device/readstamp.hpp:66` — single-thread by a comment,
-  reached through a `const Device&` compile hands also hold. `OwnedBy`, checked in `take`, `begin`, `defer`,
-  `submit`, `waitFor`, `next`.
-- [ ] `device/device.cpp:349-592,635-748` — `Device` owns pipeline statistics and code capture, and fault and
-  marker description. `PipelineReport` and `FaultReport`.
-- [ ] `device/memory/buffer.cpp:48-51` — `sReferenceAlignment` restates seven `buffer_reference_align`s by hand.
-  One shared constant each is asserted against, or a check at `ShaderCode::stage`.
-- [ ] `device/pipelinecache.cpp:192-194,231` — the body copied out of the file buffer and digested, then digested
-  again in the constructor. `read` answers the buffer, the body's span and its digest.
-- [ ] `device/handles.hpp:118-160`, `pipeline/computepipeline.hpp:62-70` — a pipeline layout and set layout per
-  pipeline, some 430 pairs where about nine differ. Owned by the kernel row.
-- [ ] `spirv/spirvinterface.cpp:54,349` — facts keyed by id in an `unordered_map` though ids are dense, and every
-  function body walked though declarations end at the first `OpFunction`. A vector by the bound; stop there.
-- [ ] `pipeline/tracepipeline.cpp:122` a `const traceRays` that flips a `mutable` flag to upload on first launch
-  (upload when the kernel is adopted); `device/gputimer.cpp:92,121` queries reset two ways (both from the host);
-  `device/memory/barriers.hpp:75-77`, `pipeline/dispatch.hpp:203-205` a few KB value-initialised per pass.
-- [ ] **measure** `device/memory/memory.cpp:36,387` the 64 MiB block and 32 MiB dedicated threshold carry no
-  reason (count dedicated allocations under the PBR stack); `spirv/spirvpin.cpp:642` per-result decorations where
-  `SPV_KHR_float_controls2` offers a default.
+- [ ] **measure (read)** `rtx/tracedterrain.cpp:313-317` — a template drawable shared with reader threads is
+  const-cast and handed to the game's intersection visitor, whose pose hook runs a cull on it. Settle whether a
+  ring placement can hold a `MorphGeometry`; if so the carrier answers without the pose hook.
+- [ ] `renderer.hpp:20,23,112,448`, `renderer.cpp:333-361` — the seam names `DlssLibrary::Folders`,
+  `Rtx::UpscalerChoice`, `Rtx::Unsupported`. Start and failure wording move to `rtx/`; the spec carries neutral
+  paths.
+- [ ] `renderer.hpp:152`, `rendererkeys.cpp:22-41` — `Renderer` is a `GraphicsListener` and `RendererKeys` a
+  second one wrapping it; the direct route loses the F3/F4 message. `Renderer` stops inheriting it.
+- [ ] `renderer.hpp:285-314,383-407`, `renderer.cpp:115-238` — frame pacing, eight members and four fields, in the
+  interface's base. A `FramePacer` the engine owns, handed the renderer for `awaitPresented`.
+- [ ] `rtx/rtxrenderer.cpp:576-621,715-742`, `frameimage.cpp:50-94` — a freeze, screenshot or thumbnail reads the
+  frame into `mReadBack` (never freed, 33 MB at 4K) and copies it into a second full-size image; the thumbnail
+  averages column-outer over a row-major frame through a `vector<double>`. One buffer released after, rows outer;
+  the three members and four methods become one frame-reader part.
+- [ ] `rtx/rtxrenderer.cpp:768-774` — `notifyWorldspaceChanged` skips the stretch close `notifyCut` does. One
+  close. **Decided 2026-11-13: a rest is told as a cut.** Upstream's `worldimp.cpp:826` tells a jump of time
+  as a worldspace change; it becomes a cut, recorded in `.notes/UPSTREAM.md`. `RenderingManager`'s notice of a
+  changed worldspace is also what clears the effect manager there (`renderingmanager.cpp:897`), so the rest
+  keeps that clear by a notice of its own that says both, and a test holds that an effect does not outlive a
+  rest. Refused: upstream's line left, the renderer dropping the eye's adaptation and the wake at every rest.
+- [ ] `renderer.hpp:106`, `engine.cpp:695` — `RendererSpec::mResourceDir` is set and never read. Delete.
+- [ ] `rtx/tracedground.hpp:62` holds `WorldMirror&` for `getRing()` alone; `worldmirror.hpp:211-216` unpacks
+  `MirrorKnobs` into five members; `rtxrenderer.cpp:530-569` has the await-with-patience loop twice;
+  `renderer.hpp:184` takes `const CellStore*` it never tests. Hold what is used, one member, one helper, a
+  reference.
+- [ ] `mwgui/settingswindow.cpp:306,531` — upscaler labels read back by position, right only while the offered
+  list is a prefix. Looked up by choice.
+- [ ] `rtx/rtxrenderer.hpp:158-159` a doc comment with no declaration; `docs/architecture.md:107` the ripple heap
+  listed under the game side, where it lives in `rtxvulkan/trace/ripplepass.cpp`. Fix both.
+- [ ] **measure** `rtxrenderer.hpp:353` `sWorldViewsPerFrame = 3` on a crossing frame; `renderer.cpp:179-185` the
+  world's update traversal under a modal box. `--frame-times` on crossings and a nested frame.
 
-## Batch 12 — The harness
+## Batch 15 — The harness
 
 Files: `apps/rtxtool/**`, `tools/omw/*.py`, `files/rtx/views.cfg`, `apps/components_tests/rtxtool/**`.
 
-The tour stands on four items here, which is one reason its branch is cut from this one's tip (Branches): the
-stop that cannot be staged, `Verb` and `VerbSet`, the one `ExitStatus`, and a `plan<Verb>` a verb.
+The tour stands on three items here, which is one reason its branch is cut from this one's tip (Branches):
+`Verb` and `VerbSet`, the one `ExitStatus`, and a `plan<Verb>` a verb. They lead the batch, the types ahead of
+the plans that name them. The stop a content lacks is passed over since `3102293fd6`.
 
-- [ ] **bug** `session.cpp:124-128`, `stager.cpp` (`Stager::stage`), `files/rtx/views.cfg:244` — a stop that cannot
-  be staged abandons the run, so `--views=all` on `Morrowind.esm` alone ends at `mournhold-arrival` (the open
-  issue). A view states the content it needs and `all` leaves it out, saying so.
-- [ ] `options.cpp:505` — the `--warmup` help text describes one machine's GPU clock. A role, not a machine.
+- [ ] `verbs.hpp:16-33` — `Verbs` is one command and a set of them; `policyOf` of a set dies at run time. `Verb`,
+  `VerbSet`, one `constexpr` table held complete by a `static_assert`.
+- [ ] `main.cpp:747-768`, `compare.cpp:330-345`, `tools/omw/noise.py:24` — exit 1 means failed, noisier, moved and
+  unknown verb alike. One `ExitStatus`, mirrored once in Python.
 - [ ] `main.cpp:127-287`, `hosted.cpp:75-96`, `model/runrecord.cpp:19-26` — `RunSetup` in four structs, edited in
   one after being copied to another. `sessionFor` consumes `Framed` into the request; the header reads from it.
 - [ ] `model/maprules.hpp` — an enum of one value carried as an `optional` through four structs, always "not
   `view`". Delete; ask `!mPlayed`.
 - [ ] `main.cpp:464-833` — `scene`, `shot`, `bench`, `check`, `view` plan their stops in the game-linked
   executable, where no test reaches; `noise` and `film` plan in the library. A `plan<Verb>` each.
+  `planCheck` carries the verb's own frame beside its hold (Batch 0), where a test then reaches both.
 - [ ] `stopwriter.cpp:455-675` — sixteen checks judged in a static switch of the picture writer that uses none of
   its state; `reportScene` reads only the scene. `checks.cpp`, and `describeScene` in `instruments/`.
-- [ ] `verbs.hpp:16-33` — `Verbs` is one command and a set of them; `policyOf` of a set dies at run time. `Verb`,
-  `VerbSet`, one `constexpr` table held complete by a `static_assert`.
-- [ ] `main.cpp:747-768`, `compare.cpp:330-345`, `tools/omw/noise.py:24` — exit 1 means failed, noisier, moved and
-  unknown verb alike. One `ExitStatus`, mirrored once in Python.
 - [ ] `model/benchrun.hpp:509,514` — pictures and extents return through raw out-pointers stored in the request.
   `runHosted` returns `SessionResult`, which owns them.
 - [ ] `measurer.cpp:267-306`, `stopwriter.cpp:90-104`, `homekey.cpp:86-118` — three routes write a PNG, two of
@@ -639,56 +972,14 @@ stop that cannot be staged, `Verb` and `VerbSet`, the one `ExitStatus`, and a `p
   stateless class held as a member; the key-edge idiom three times; `runfolder.cpp:27-32` a function-local static
   seeded from the clock; `model/viewfile.hpp:55`, `toolline.hpp:119` say an empty list means every view, and the
   code throws.
+- [ ] `options.cpp:505` — the `--warmup` help text describes one machine's GPU clock. A role, not a machine.
 - [ ] Tests: `loadViews`, `loadSuites` and `FrameHashes::read` take a path only, so some forty cases write, read
   and remove a temp file (a text core, as `readBlocks`); 26 refusals asserted by exception type alone (a table of
   input and exact words); `refusalOf` written seven times beside an unused `EXPECT_ERROR`.
 - [ ] **measure** a timing A/B verb over `bench --json`, interleaved legs, medians and p99 against the leg-to-leg
   spread; `instruments/frametimes.cpp:268-290` two decimals hide a zone under 5 µs.
 
-## Batch 13 — The tests
-
-Files: `apps/components_tests/{rtx,rtxvulkan,myguirtx}/**`, `cmake/Tests.cmake`, `components/testing/*`.
-
-- [ ] **bug** `rtxvulkan/device/memory/slottable.cpp:409-412`, `texture/texturearray.cpp:113-116` — "the other copy
-  waits for nothing" is asserted after the hold was released, so it cannot fail for its reason. Ask before
-  `releaseAfter`; drop the 200 ms sleeps for `Timeline::hasFinished`, as `readstamp.cpp` does.
-- [ ] `rtx/sourcetree.cpp:172-272,396-441` — ten of fourteen rules pass when their matcher matches nothing; four
-  allow-list entries are dead (`vkDestroyInstance`, `vkDestroyDevice`, the messenger, `owned.hpp`). Each rule
-  asserts its pattern and every allow-listed entry matched.
-- [ ] `rtx/sourcetree.cpp:473-481` — no rule holds `#pragma once`, preprocessor conditionals, or vendor identity;
-  `sFolderOrders` omits `myguirtx`, `contentstore`, `mwrender/rtx`, `rtxbuild`; the backend's reach into the core
-  past `renderer/` is unchecked (`trace/wavepass.hpp:10-11` includes `environment/`); `docs/architecture.md:151-164,315-327`
-  lists another order than the test. Rows in one rule table; the doc checked against it; the wave model to
-  `world/`.
-- [ ] `rtx/sourcetree.cpp` — fourteen tests each walk and read the tree, some ten thousand opens. One in-memory
-  tree in `SetUpTestSuite`, the include closure memoised.
-- [ ] `cmake/Tests.cmake:56` — two shards split by test index while fixtures are per suite, so the DLSS renderer,
-  the kernels device and the unvalidated harness are built in both. Entries by suite; the timing suites
-  (`stresspass.cpp:92-105`, `presenter.cpp:209`, `gputimer.cpp:169`) under a `RESOURCE_LOCK`.
-- [ ] `rtxvulkan/present/presenter.cpp:69-88` — an instance, a surface and a device with the suite's pipeline cache
-  per test, in a folder that compiles no pipeline. `SetUpTestSuite`, an empty cache spec.
-- [ ] `rtx/common/parallel.cpp:139`, `rtx/mirror/cells/cellring.cpp:1409,1950,1982,2019,2068` — six waits with no
-  `WaitBound`; `parallel.cpp:142-146`, `job.cpp:122-125` elapsed time as the oracle. Bounded, and proved by state.
-- [ ] `rtx/world/moon.cpp:72-75,136-141,412-429` — six bands for an order dependence the fallback seed removed.
-  Exact values.
-- [ ] `rtx/frame/bluenoise.cpp:43-66` — a naive 2D transform, 33.6 M `std::polar` calls in one test. A 64-entry
-  root table.
-- [ ] Shared support: an `osg::Image` builder (some fifteen local ones over ten files); a `SubjectWalk` bundle
-  (22 hand-built triples); `BoneClock`, `Throwing`, fixed `FileStamps` copied; `allocationsIn(fn)` for 22
-  before/after pairs; `Testing::runProbe` for six copies of the probe-kernel scaffold; `CountingRenderer` over
-  `NullRenderer`, not a second implementation of 46 overrides.
-- [ ] `components/testing/util.hpp:31-58` — 43 `outputFilePath` calls and 48 manual removes beside
-  `currentTestDirPath()`, which `FreshTestDirs` empties. One route for the fork's tests.
-- [ ] Death tests re-execute the binary: 35 in the core's suites (eight in `scene/scenedesc.cpp:1795`), 21 in the
-  GPU binary, each child building the validated harness. One death a contract; no layers in a child.
-- [ ] `rtx/world/fogbuilder.cpp:408,520-526` a test that asserts and mutates a global its subject cannot read;
-  `rtx/support/geometry.hpp:206,214` function-local static scratch shared by every user;
-  `support/device/harness.hpp:100` and three more comments with stale sizes and shard counts.
-- [ ] Gaps: no allocation guard in the host binary for `SceneUploader`, `FrameDescriber`, `CompositeQueue`;
-  `rtx/image/chainbuild.cpp:500-646` ten digests over whole chains that say only "differs"; the hosted harness
-  files (some 3.8k lines) built into the executable alone.
-
-## Batch 14 — The diff against upstream
+## Batch 16 — The diff against upstream
 
 Files: upstream's, and `.notes/UPSTREAM.md`. Every change here is a **propose**.
 
@@ -717,17 +1008,20 @@ Files: upstream's, and `.notes/UPSTREAM.md`. Every change here is a **propose**.
   port's entry) and runs in no build the game starts, as the rule that keeps the rasterizer unstarted intends.
   It stands; no further rasterizer-only behaviour is written.
 - [ ] `mwlua/postprocessingbindings.cpp:207,227`, `mwgui/windowmanagerimp.cpp:2473-2481` — nine null tests of the
-  post-processor where every sibling asks `support().declined…`. One question.
+  post-processor where every sibling asks `support().declined…`. One question. **Decided 2026-11-13**: the
+  seam's question, as `AGENTS.md` asks wherever the game would branch on its renderer.
 - [ ] **measure** `mwscript/visibilitygates.cpp:426,459-463` — each watched global looked up by string twice a
   frame. Resolved to its variant at `rewatch`. The watch count is in the "Visibility gates:" log line.
 - [ ] `components/sceneutil/optimizer.cpp:2064` — child-order dedup by `std::find` in a growing vector, quadratic
-  where upstream's set was not. A set beside the ordered vector.
+  where upstream's set was not. A set beside the ordered vector. **Decided 2026-11-13**: the set, inside the
+  hunk the fork already changed. Refused: a count of the groups first, a run for three lines.
 - [ ] `components/misc/strings/conversion.hpp:64-68,107-143` — `toFloatByStream` compiles into no shipped build.
-  A `static_assert` and the path deleted.
+  A `static_assert` and the path deleted. **Decided 2026-11-13**: deleted, in a file the fork has already
+  rewritten; a port to a library without it brings the path back.
 - [ ] A scan, as `RtxSourceTreeTest`, that lists upstream files differing from the base beyond layout and fails on
   one no entry names, so `UPSTREAM.md` is held to the diff.
 
-## Batch 15 — Conventions held by a tool
+## Batch 17 — Conventions held by a tool
 
 Files: `.clang-tidy`, and the sites it names.
 
@@ -776,6 +1070,8 @@ The tour is mostly a new arrangement of parts that exist, which is what keeps it
 - **What a frame cost and why**: `FrameSamples`, `Crossings`, `Arrivals` and its worst frames, `MemoryReport`.
 - **What the content could not give**: `Rtx::Refusals`, the store's `missed` and `dropped`.
 - **A place as text a command can stand at**: `describeBlock`, the block Home prints.
+- **A sky that crosses from one weather into another, and a clock that runs fast**: `SkyCrossing` and a
+  stop's `mTurnThrough`, which `bench --turn-weather` crosses in `sTurnSeconds`, and a film's `--clock`.
 
 What it lacks: a route made from the content, legs that follow one another without a cut, a fault tied to a
 place, and the log's warnings counted.
@@ -851,14 +1147,28 @@ place, and the log's warnings counted.
   its block and its picture (`HomeKey`), to go back to with `view`. Refused: real time by default, two to three
   times the wait and a gentler streaming test; a pause, a state to enter and leave where a mark and a `view`
   serve.
-- **Each leg stands under the next of a fixed turn of skies.** Noon and clear, dawn, a foggy night, a storm at
-  night: the conditions `[skies]` exists for, so a whole tour sees each over a quarter of the world. By the leg's
-  number, so two runs agree. Refused: the game's rolled weather, which no second run repeats; every sky over
-  every cell, four tours.
+- **The sky turns and the clock runs all through the flight**, decided 2026-11-13. A change of weather and of
+  hour is itself what a tour tests: an emitter made and freed on an ordinary frame, the lamps a
+  `NightDaySwitch` lights at dusk, the eye following the light, the moons' phases. One crossing follows
+  another with none standing between, `sTurnSeconds` each as `bench --turn-weather` crosses, through the ten
+  weathers in an order that holds every ordered pair of them once: an Euler circuit of the complete digraph on
+  the ten, ninety crossings and 360 s of world, which a vanilla tour's 380 s flies whole and the large list's
+  three times. The game's clock runs at twenty-four times its own speed, a film's `--clock`, a day in two
+  minutes of world: three days over vanilla, nine over the large list. Both are functions of the frames
+  flown and nothing else, worked out by `planTour`, so two runs agree, `--plan` prints each leg's first hour
+  and crossing, and `--from=<leg>` begins where that leg would have stood. Refused: the next of four fixed
+  skies a leg, this part's first decision, which stood under four skies and crossed none; the game's rolled
+  weather, which no second run repeats; a seeded draw, which covers the pairs probably where the circuit
+  covers them exactly; only the weathers the region under the eye rolls, which is what a player meets there
+  and leaves every pair a content's regions never roll to the mod that adds one. The cost: a sky no player
+  meets at a place, snow over the Ashlands, and a day faster than any played, so a finding names the
+  crossing and the hour it stood in and is stood at again under them.
 - **Every fault is a finding with a place.** One record: what kind, which leg and frame, the cell, the eye and
-  its look, the hour and the sky, and the detail (a module, a texture's name, a log line). The report is the
-  findings, the same kind and detail counted once with its first place, each printed as the block
-  `describeBlock` writes, so `view`, `shot` or `bench --cell --pos --look` stands there. Refused: a pass or
+  its look, the hour, the sky as it crossed (the weather left, the one gone to, how far), and the detail (a
+  module, a texture's name, a log line). The report is the findings, the same kind and detail counted once
+  with its first place, each printed as the block `describeBlock` writes, so `view`, `shot` or `bench --cell
+  --pos --look --hour --turn-weather` stands there under that crossing; a hitch within a crossing's swap of
+  precipitation, or at the hour the lamps light, says so and reads as the sky's. Refused: a pass or
   fail a leg, which says a row of forty cells failed; a log to read afterwards.
 - **A hitch is a frame over the budget that took one and a half times the frame before it.** A slow frame is
   over the budget, one frame of the step rate; a hitch is a slow frame that also stands out from its
@@ -873,8 +1183,9 @@ place, and the log's warnings counted.
 - **The tour ends by flying its first leg again.** What a soak is read by is whether the figures come back to
   where they began once the load is the same again (https://loadster.com/guides/endurance-testing/): the
   device's heaps, the content's memory and the leg's median, first pass against last. Growth is a cost finding.
-  One leg more, some thirty cells. Refused: a slope over the whole flight, which the content's own density
-  draws.
+  One leg more, some thirty cells, flown under the first leg's hours and crossings again, the turn and the
+  clock begun anew, so the two passes differ by the flight between them and not by the sky. Refused: a slope
+  over the whole flight, which the content's own density draws.
 - **The game's frames, without layers, under the counting shaders: a policy row of its own.** `VerbPolicy`
   ties the three together today: a verb that does not measure gets the counting set, the layers of a debugging
   build and the reference's radiance width, and a tour must trace what a player sees. So which shader set a
@@ -914,6 +1225,10 @@ place, and the log's warnings counted.
 
 - **The speed, and the sixty.** 12,000 a second and a share of sixty give the tables below. Half the speed or
   twice the rooms is a line's option; the defaults are what a person waits for, and the first tours set them.
+- **How fast the sky and the day turn.** Four seconds a crossing with no weather standing between, and a day
+  in two minutes, are a first setting: `--crossing`, `--weather-hold` and `--clock` are a line's options as a
+  film's are, a hold doubles the world a circuit takes, and the first tours say whether a weather must stand
+  for its own faults to show.
 - **A map of the flight.** The report as a picture: a square a cell, coloured by its median frame, marked
   where a finding stands, written beside the report through the PNG writer the harness has. A frame-rate heat
   map from a box run through the whole map is what one studio's tests draw
@@ -967,8 +1282,10 @@ and the first run with a measurement.
 ## The tour's shape
 
 - `model/tour.{hpp,cpp}` — `WorldMap` (land cells with their height bounds, interiors with their counts),
-  `TourPacing`, `TourPlan`, `planTour`, `describePlan`, `stopsFor`. No game header; tested with hand-made maps:
-  an empty map, one cell, two islands a sea apart, a row with a gap at the limit and one past it.
+  `TourPacing` (the speed, the clock's rate, the crossing), `TourPlan`, `planTour`, `describePlan`, `stopsFor`.
+  No game header; tested with hand-made maps: an empty map, one cell, two islands a sea apart, a row with a
+  gap at the limit and one past it; and the circuit of weathers, which holds each of the ninety ordered pairs
+  once and ends where it began.
 - `model/finding.{hpp,cpp}` — `Finding`, its kinds as an enum, the table that counts one kind and detail once,
   with its bound. Tested for the count, the first place and the overflow.
 - `worldmap.{hpp,cpp}` in the executable — the one place that reads the game's store into a `WorldMap`: the
@@ -994,7 +1311,10 @@ After the refactoring, on a branch cut from its tip. Whoever addresses an item d
   that a file of few rooms keeps its eight and one of fewer than eight gives all it has.
 - [ ] The window: `--window` and `--pace`, the title's note, Home's mark as a finding.
 - [ ] The closing leg, and the first pass against the last as a finding.
-- [ ] The turn of skies by leg.
+- [ ] The turning sky and the running clock: the circuit of weathers and the clock's rate in `TourPacing`, each
+  leg's first hour and crossing from the plan, the closing leg under the first leg's; a finding carries its
+  crossing and hour. Tests: a leg begins under the same hour and crossing whichever leg the run began from,
+  and two plans of one map agree frame for frame.
 - [ ] The log's warnings and errors, by the route decided above.
 - [ ] The report: findings as blocks, the table a leg, memory at the first leg and the last; the record a leg
   at a time; `--from`.
