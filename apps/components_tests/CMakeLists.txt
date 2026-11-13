@@ -81,7 +81,9 @@ target_sources(
         resource/testobjectcache.cpp
         resource/testresourcesystem.cpp
         rtx/support/allocations.cpp
+        sceneutil/attach.cpp
         sceneutil/osgacontroller.cpp
+        sceneutil/optimizer.cpp
         sceneutil/paintedtexture.cpp
         sceneutil/userdata.cpp
         sdlutil/sdlcursormanager.cpp

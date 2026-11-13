@@ -71,6 +71,14 @@ the lines each item names, which the merge resolves by keeping the seam:
   ships, which ask to be shipped with it.
 - `InstallRequiredSystemLibraries` in the Windows install: the fork ships a portable folder and not
   upstream's installer, which ran the C++ runtime's redistributable.
+- `SceneUtil::CopyRigVisitor` (`attach.cpp`) adds a skinned part's pieces to the skeleton in the order it
+  met them, where a `std::set` of pointers added them in address order: an equipped gauntlet's five pieces
+  stood in another order each run, and with them the ray tracer's scene layout under the PBR stack and the
+  Fullrest Repack, which `shot --against` reported as a scene that differed. A candidate to offer upstream.
+- The optimizer merges drawables (`LessGeometry`) and groups (`MergeGroupsVisitor`) whose states hold the same
+  (`LessStateContent`), not only those that share one state object: whether two equal states are one object is the shared state cache's history, which every
+  loading thread and every prune moves, so a model merged one way in one process and another in the next,
+  and two cold preparations wrote different stores.
 - `MWWorld::Scene::CellStoreCollection` a `std::vector` in the order the cells loaded, and
   `World::getActiveCells` with it, where a `std::set` of pointers ran in the order of their addresses:
   a cell change unloaded its cells in another order each run, and everything an unload drives with them

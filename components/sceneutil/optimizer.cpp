@@ -963,12 +963,25 @@ void Optimizer::RemoveRedundantNodesVisitor::removeRedundantNodes()
         if (osg::getBinding(rhs)<osg::getBinding(lhs)) return false;
 
 
+// States by what they hold and not by which object holds them, for every merge that asks whether two share
+// one: whether two equal states are one object is the shared state cache's history, which every loading thread
+// and every prune moves, so a model merged one way in one process and another way in the next.
+struct LessStateContent
+{
+    bool operator() (const osg::StateSet* lhs, const osg::StateSet* rhs) const
+    {
+        if (lhs == rhs) return false;
+        if (lhs == nullptr || rhs == nullptr) return lhs == nullptr;
+        return lhs->compare(*rhs, true) < 0;
+    }
+};
+
 struct LessGeometry
 {
     bool operator() (const osg::ref_ptr<osg::Geometry>& lhs,const osg::ref_ptr<osg::Geometry>& rhs) const
     {
-        if (lhs->getStateSet()<rhs->getStateSet()) return true;
-        if (rhs->getStateSet()<lhs->getStateSet()) return false;
+        if (LessStateContent()(lhs->getStateSet(), rhs->getStateSet())) return true;
+        if (LessStateContent()(rhs->getStateSet(), lhs->getStateSet())) return false;
 
         COMPARE_BINDING(lhs->getNormalArray(), rhs->getNormalArray())
         COMPARE_BINDING(lhs->getColorArray(), rhs->getColorArray())
@@ -2045,7 +2058,7 @@ void Optimizer::MergeGroupsVisitor::apply(osg::Group &group)
     {
         // Which group survives and the order its new children arrive in is the child order, not the address
         // order a std::set<osg::Group*> gave, which differed between processes.
-        typedef std::map<osg::StateSet*, std::size_t> GroupMap;
+        typedef std::map<osg::StateSet*, std::size_t, LessStateContent> GroupMap;
         GroupMap groupIndex;
         std::vector<std::vector<osg::Group*> > childOrder;
         for (unsigned int i=0; i<group.getNumChildren(); ++i)

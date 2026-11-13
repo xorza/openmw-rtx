@@ -1,6 +1,8 @@
 #include "attach.hpp"
 
+#include <algorithm>
 #include <stdexcept>
+#include <vector>
 
 #include <osg/FrontFace>
 #include <osg/Geometry>
@@ -53,7 +55,8 @@ namespace SceneUtil
                     break;
                 node = parent;
             }
-            mToCopy.emplace(node);
+            if (std::find(mToCopy.begin(), mToCopy.end(), node) == mToCopy.end())
+                mToCopy.emplace_back(node);
         }
 
         void doCopy(Resource::SceneManager* sceneManager)
@@ -76,7 +79,9 @@ namespace SceneUtil
             return false;
         }
 
-        using NodeSet = std::set<osg::ref_ptr<const osg::Node>>;
+        // In the order the visitor met them, so a part's pieces join the skeleton in one order every run, where a
+        // set of pointers added them in the order of their addresses.
+        using NodeSet = std::vector<osg::ref_ptr<const osg::Node>>;
         NodeSet mToCopy;
 
         osg::ref_ptr<osg::Group> mParent;
