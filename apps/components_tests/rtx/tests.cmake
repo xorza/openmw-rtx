@@ -141,6 +141,7 @@ target_sources(
         rtxvulkan/device/memory/uploads.cpp
         rtxvulkan/device/physicaldevice.cpp
         rtxvulkan/device/pipelinecode.cpp
+        rtxvulkan/device/pipelinetally.cpp
         rtxvulkan/device/requirements.cpp
         rtxvulkan/device/result.cpp
         rtxvulkan/device/retiring.cpp

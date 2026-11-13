@@ -406,6 +406,7 @@ target_sources(
         device/physicaldevice.cpp
         device/pipelinecache.cpp
         device/pipelinecode.cpp
+        device/pipelinetally.cpp
         device/requirements.cpp
         device/result.cpp
         device/timeline.cpp
@@ -519,6 +520,7 @@ target_sources(
                 device/physicaldevice.hpp
                 device/pipelinecache.hpp
                 device/pipelinecode.hpp
+                device/pipelinetally.hpp
                 device/readstamp.hpp
                 device/requirements.hpp
                 device/result.hpp

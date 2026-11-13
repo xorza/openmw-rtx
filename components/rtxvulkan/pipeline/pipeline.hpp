@@ -80,8 +80,8 @@ namespace Rtx
         /// What a create info's `pNext` points at: the feedback, and `next` after it.
         const void* chain(const void* next);
 
-        /// Names `pipeline` and reports it. Its compile time is reported only where the driver
-        /// compiled it: a pipeline the application's cache handed back took no compile at all.
+        /// Names `pipeline` and reports it with what the driver said of making it: compiled, or found
+        /// in the application's cache, and how long either took.
         void finish(VkPipeline pipeline) const;
 
     private:

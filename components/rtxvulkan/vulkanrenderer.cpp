@@ -748,6 +748,14 @@ namespace Rtx
             mDevice.savePipelineCache();
             mKernelsSaved = true;
         }
+
+        // What the wait was for, said where it ends: a start that stood seconds on its kernels, cold or
+        // past a cache that missed, reads why in the line.
+        if (!mKernelsSummarised && progress.isDone())
+        {
+            mDevice.logPipelineSummary("Pipelines by the time the start's kernels stood ready");
+            mKernelsSummarised = true;
+        }
         return progress;
     }
 

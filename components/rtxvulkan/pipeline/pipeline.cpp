@@ -2,10 +2,10 @@
 
 #include <cassert>
 #include <cstddef>
-#include <optional>
 
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/notfinitecensus.hpp>
+#include <components/rtxvulkan/device/pipelinetally.hpp>
 #include <components/rtxvulkan/shaders/shared/counts.h>
 
 namespace Rtx
@@ -59,14 +59,16 @@ namespace Rtx
 
     void PipelineCreation::finish(const VkPipeline pipeline) const
     {
-        constexpr VkPipelineCreationFeedbackFlags valid = VK_PIPELINE_CREATION_FEEDBACK_VALID_BIT;
-        constexpr VkPipelineCreationFeedbackFlags fromApplicationCache
-            = VK_PIPELINE_CREATION_FEEDBACK_APPLICATION_PIPELINE_CACHE_HIT_BIT;
-        std::optional<double> compileMs;
-        if ((mFeedback.flags & (valid | fromApplicationCache)) == valid)
-            compileMs = static_cast<double>(mFeedback.duration) / 1e6;
+        PipelineFeedback feedback;
+        if ((mFeedback.flags & VK_PIPELINE_CREATION_FEEDBACK_VALID_BIT) != 0)
+            feedback = PipelineFeedback{
+                .mSource = (mFeedback.flags & VK_PIPELINE_CREATION_FEEDBACK_APPLICATION_PIPELINE_CACHE_HIT_BIT) != 0
+                    ? PipelineSource::Cached
+                    : PipelineSource::Compiled,
+                .mDurationMs = static_cast<double>(mFeedback.duration) / 1e6,
+            };
 
         mDevice.setName(pipeline, mName);
-        mDevice.reportPipeline(pipeline, mName, compileMs);
+        mDevice.reportPipeline(pipeline, mName, feedback);
     }
 }

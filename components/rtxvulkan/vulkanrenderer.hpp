@@ -191,6 +191,10 @@ namespace Rtx
         /// Whether `awaitKernels` has seen the start's compile whole and saved the pipeline cache.
         bool mKernelsSaved = false;
 
+        /// Whether `awaitKernels` has seen the set it was asked for whole and logged the pipelines
+        /// made by then (`Device::logPipelineSummary`).
+        bool mKernelsSummarised = false;
+
         /// What the run decided once, read where each knob is used. `mUpscale` is a setting and not a frame
         /// option because `setUpscale` rebuilds every target; what a frame carries (the reconstruction
         /// request, the exposure, the sample) is read off its own blocks instead.

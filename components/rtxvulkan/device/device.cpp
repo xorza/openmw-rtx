@@ -2,10 +2,12 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <format>
+#include <span>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -26,6 +28,7 @@
 #include "notfinitecensus.hpp"
 #include "pipelinecache.hpp"
 #include "pipelinecode.hpp"
+#include "pipelinetally.hpp"
 #include "requirements.hpp"
 #include "result.hpp"
 #include "timeline.hpp"
@@ -35,6 +38,18 @@ namespace Rtx
 {
     namespace
     {
+        void logSummary(const std::string_view what, const PipelineSummary& summary)
+        {
+            Log(Debug::Info) << what << ": " << describePipelines(summary);
+
+            // **A spill is a warning**: a kernel that spills runs at the speed of its scratch memory, which
+            // took a frame on an integrated card from milliseconds to the better part of a second
+            // (`docs/research/2026-10-21-amd-integrated-stage-times.md`). One line for them all, the worst
+            // first.
+            if (const std::string spills = describeSpills(summary); !spills.empty())
+                Log(Debug::Warning) << what << ": " << spills;
+        }
+
         /// Which stage a checkpoint was reported for, for the handful a queue reports on and
         /// the number for the rest.
         std::string checkpointStageName(const VkPipelineStageFlagBits stage)
@@ -113,6 +128,7 @@ namespace Rtx
             "a shader set out of name order, or naming a module twice");
         if (!mReport.mCodeFolder.empty())
             mCode = std::make_unique<PipelineCodeFolder>(mReport.mCodeFolder);
+        mPipelines = std::make_unique<PipelineTally>(std::chrono::steady_clock::now());
 
         // **What else needs the device is asked before it exists**, since an extension cannot be enabled
         // after `vkCreateDevice`. **Only what the device offers is enabled**: an extension the driver
@@ -329,6 +345,10 @@ namespace Rtx
         // a lost device carries: the raw call answered with a number nobody read. The members
         // then go in the order they are declared for.
         tearDown("the device would not finish before it was destroyed", [&] { waitIdle(); });
+
+        // By now every compile on the device has ended: what makes pipelines is torn down before it.
+        if (const PipelineSummary rest = mPipelines->take(std::chrono::steady_clock::now()); rest.mMade > 0)
+            logSummary(mPipelinesSummarised ? "Pipelines later in the session" : "Pipelines of the session", rest);
     }
 
     MemoryAllocator& Device::getMemory() const
@@ -365,20 +385,78 @@ namespace Rtx
                     return 0;
             }
         }
+
+        /// Raises what `use` says by one statistic the driver reported under one of `names`.
+        void readUse(CompiledUse& use, const VkPipelineExecutableStatisticKHR& statistic, const StatisticNames& names)
+        {
+            const std::string_view name = statistic.name;
+            const std::uint64_t value = unsignedOf(statistic);
+            if (name == names.mScratch)
+                raise(use.mScratchBytes, value & names.mScratchBits);
+            else if (name == names.mRegisters)
+                raise(use.mRegisters, value);
+            else if (name == names.mShared)
+                raise(use.mSharedBytes, value);
+        }
     }
 
-    std::uint32_t Device::executablesOf(const VkPipeline pipeline) const
+    std::string describeStatistics(
+        const std::span<const VkPipelineExecutableStatisticKHR> statistics, const StatisticNames& names)
+    {
+        // Whatever the driver chose to say, and not a list this side picked: the names are the compiler's own,
+        // so a fixed set of fields would go empty on the next driver.
+        std::string line;
+        for (const VkPipelineExecutableStatisticKHR& statistic : statistics)
+        {
+            if (!line.empty())
+                line += ", ";
+            line += statistic.name;
+            line += ' ';
+            if (std::string_view(statistic.name) == names.mScratch)
+            {
+                line += std::to_string(unsignedOf(statistic) & names.mScratchBits);
+                continue;
+            }
+            switch (statistic.format)
+            {
+                case VK_PIPELINE_EXECUTABLE_STATISTIC_FORMAT_BOOL32_KHR:
+                    line += statistic.value.b32 != VK_FALSE ? "yes" : "no";
+                    break;
+                case VK_PIPELINE_EXECUTABLE_STATISTIC_FORMAT_INT64_KHR:
+                    line += std::to_string(statistic.value.i64);
+                    break;
+                case VK_PIPELINE_EXECUTABLE_STATISTIC_FORMAT_UINT64_KHR:
+                    line += std::to_string(statistic.value.u64);
+                    break;
+                case VK_PIPELINE_EXECUTABLE_STATISTIC_FORMAT_FLOAT64_KHR:
+                    line += std::to_string(statistic.value.f64);
+                    break;
+                default:
+                    line += '?';
+                    break;
+            }
+        }
+        return line;
+    }
+
+    std::vector<VkPipelineExecutablePropertiesKHR> Device::executablePropertiesOf(const VkPipeline pipeline) const
     {
         const VkPipelineInfoKHR asked{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_INFO_KHR,
             .pNext = nullptr,
             .pipeline = pipeline,
         };
-
-        std::uint32_t executables = 0;
-        checkVk(*this, vkGetPipelineExecutablePropertiesKHR(mHandle.get(), &asked, &executables, nullptr),
-            "vkGetPipelineExecutablePropertiesKHR");
-        return executables;
+        return enumerateVk<VkPipelineExecutablePropertiesKHR>(
+            *this, "vkGetPipelineExecutablePropertiesKHR",
+            [&](std::uint32_t* count, VkPipelineExecutablePropertiesKHR* into) {
+                return vkGetPipelineExecutablePropertiesKHR(mHandle.get(), &asked, count, into);
+            },
+            VkPipelineExecutablePropertiesKHR{ .sType = VK_STRUCTURE_TYPE_PIPELINE_EXECUTABLE_PROPERTIES_KHR,
+                .pNext = nullptr,
+                .stages = 0,
+                .name = {},
+                .description = {},
+                .subgroupSize = 0 });
     }
 
     std::vector<VkPipelineExecutableStatisticKHR> Device::statisticsOf(
@@ -413,115 +491,86 @@ namespace Rtx
         if (mReport.mStatistics == PipelineStatistics::Skipped)
             return use;
 
-        const VkPipelineInfoKHR asked{
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_INFO_KHR,
-            .pNext = nullptr,
-            .pipeline = pipeline,
-        };
-        const std::vector<VkPipelineExecutablePropertiesKHR> executables
-            = enumerateVk<VkPipelineExecutablePropertiesKHR>(
-                *this, "vkGetPipelineExecutablePropertiesKHR",
-                [&](std::uint32_t* count, VkPipelineExecutablePropertiesKHR* into) {
-                    return vkGetPipelineExecutablePropertiesKHR(mHandle.get(), &asked, count, into);
-                },
-                VkPipelineExecutablePropertiesKHR{ .sType = VK_STRUCTURE_TYPE_PIPELINE_EXECUTABLE_PROPERTIES_KHR,
-                    .pNext = nullptr,
-                    .stages = 0,
-                    .name = {},
-                    .description = {},
-                    .subgroupSize = 0 });
+        const std::vector<VkPipelineExecutablePropertiesKHR> executables = executablePropertiesOf(pipeline);
         const StatisticNames& names = mPhysicalDevice.getDriver().mStatistics;
         for (std::uint32_t executable = 0; executable < executables.size(); ++executable)
         {
             use.mSubgroupSize = std::max(use.mSubgroupSize.value_or(0), executables[executable].subgroupSize);
             for (const VkPipelineExecutableStatisticKHR& statistic : statisticsOf(pipeline, executable))
             {
-                const std::string_view name = statistic.name;
-                const std::uint64_t value = unsignedOf(statistic);
-                if (name == names.mScratch)
-                    raise(use.mScratchBytes, value & names.mScratchBits);
-                else if (name == names.mRegisters)
-                    raise(use.mRegisters, value);
-                else if (name == names.mShared)
-                    raise(use.mSharedBytes, value);
+                readUse(use, statistic, names);
             }
         }
         return use;
     }
 
-    void Device::reportPipeline(VkPipeline pipeline, std::string_view name, const std::optional<double> compileMs) const
+    void Device::reportPipeline(
+        const VkPipeline pipeline, const std::string_view name, const PipelineFeedback& feedback) const
     {
-        if (compileMs.has_value())
-            Log(Debug::Verbose) << "pipeline " << name << ": compiled in " << *compileMs << " ms";
-        if (mReport.mStatistics == PipelineStatistics::Skipped && mCode == nullptr)
-            return;
-
-        const std::uint32_t executables = executablesOf(pipeline);
-        const std::uint32_t copy = mCode != nullptr ? mCode->claim(name) : 0;
-
-        // Said once per pipeline rather than left as a missing line: NVIDIA's compiler reports no executable
-        // for a ray tracing pipeline and no internal representation for any, so a reader could not otherwise
-        // tell it from a call nobody made. Nsight Graphics is where that is read.
-        if (executables == 0)
+        // One line a pipeline, at the debug level and built only where it is shown: a start makes hundreds,
+        // which `logPipelineSummary` says in a line.
+        const bool listed = Log::sMinDebugLevel >= Debug::Debug;
+        std::string line;
+        if (listed)
         {
-            Log(Debug::Verbose) << "pipeline " << name << ": the driver reports no executable";
-            return;
+            switch (feedback.mSource)
+            {
+                case PipelineSource::Compiled:
+                    line = std::format("pipeline {}: compiled in {:.2f} ms", name, feedback.mDurationMs);
+                    break;
+                case PipelineSource::Cached:
+                    line = std::format(
+                        "pipeline {}: found in the pipeline cache in {:.2f} ms", name, feedback.mDurationMs);
+                    break;
+                case PipelineSource::Unsaid:
+                    line = std::format("pipeline {}: made", name);
+                    break;
+            }
         }
 
-        for (std::uint32_t executable = 0; executable < executables; ++executable)
+        PipelineMade made{ .mName = name, .mFeedback = feedback, .mStatistics = std::nullopt };
+        if (mReport.mStatistics == PipelineStatistics::Captured || mCode != nullptr)
         {
-            if (mCode != nullptr)
-                writeCode(pipeline, name, copy, executable, executables);
-            if (mReport.mStatistics == PipelineStatistics::Skipped)
-                continue;
+            const std::vector<VkPipelineExecutablePropertiesKHR> executables = executablePropertiesOf(pipeline);
+            const auto count = static_cast<std::uint32_t>(executables.size());
+            const std::uint32_t copy = mCode != nullptr ? mCode->claim(name) : 0;
 
-            const std::vector<VkPipelineExecutableStatisticKHR> statistics = statisticsOf(pipeline, executable);
+            // Said rather than left as a missing part of the line: NVIDIA's compiler reports no executable
+            // for a ray tracing pipeline and no internal representation for any, so a reader could not
+            // otherwise tell it from a call nobody made. Nsight Graphics is where that is read.
+            if (count == 0 && listed)
+                line += "; the driver reports no executable";
 
-            // Whatever the driver chose to say, and not a list this side picked: the names are the
-            // compiler's own, so a fixed set of fields would go empty on the next driver.
-            // `openmw-rtxtool` prints them verbatim.
-            std::string line;
-            for (const VkPipelineExecutableStatisticKHR& statistic : statistics)
-            {
-                if (!line.empty())
-                    line += ", ";
-                line += statistic.name;
-                line += ' ';
-
-                switch (statistic.format)
-                {
-                    case VK_PIPELINE_EXECUTABLE_STATISTIC_FORMAT_BOOL32_KHR:
-                        line += statistic.value.b32 != VK_FALSE ? "yes" : "no";
-                        break;
-                    case VK_PIPELINE_EXECUTABLE_STATISTIC_FORMAT_INT64_KHR:
-                        line += std::to_string(statistic.value.i64);
-                        break;
-                    case VK_PIPELINE_EXECUTABLE_STATISTIC_FORMAT_UINT64_KHR:
-                        line += std::to_string(statistic.value.u64);
-                        break;
-                    case VK_PIPELINE_EXECUTABLE_STATISTIC_FORMAT_FLOAT64_KHR:
-                        line += std::to_string(statistic.value.f64);
-                        break;
-                    default:
-                        line += '?';
-                        break;
-                }
-            }
-
-            Log(Debug::Verbose) << "pipeline " << name << ": " << line;
-
-            // **A spill said where a player's log keeps it**: a kernel that spills runs at the speed of its
-            // scratch memory, which took a frame on an integrated card from milliseconds to the better part
-            // of a second (`docs/research/2026-10-21-amd-integrated-stage-times.md`).
             const StatisticNames& names = mPhysicalDevice.getDriver().mStatistics;
-            for (const VkPipelineExecutableStatisticKHR& statistic : statistics)
+            CompiledUse use;
+            for (std::uint32_t executable = 0; executable < count; ++executable)
             {
-                const std::uint64_t scratch = unsignedOf(statistic) & names.mScratchBits;
-                if (!names.mScratch.empty() && std::string_view(statistic.name) == names.mScratch && scratch > 0)
-                    Log(Debug::Warning) << "pipeline " << name << " uses " << scratch
-                                        << " bytes of scratch memory a lane";
+                if (mCode != nullptr)
+                    writeCode(pipeline, name, copy, executable, count);
+                if (mReport.mStatistics == PipelineStatistics::Skipped)
+                    continue;
+
+                const std::vector<VkPipelineExecutableStatisticKHR> statistics = statisticsOf(pipeline, executable);
+                for (const VkPipelineExecutableStatisticKHR& statistic : statistics)
+                    readUse(use, statistic, names);
+                if (listed)
+                    line += std::format("; {}{}{}", count > 1 ? executables[executable].name : "",
+                        count > 1 ? ": " : "", describeStatistics(statistics, names));
             }
+            if (mReport.mStatistics == PipelineStatistics::Captured)
+                made.mStatistics
+                    = PipelineStatisticsSaid{ .mExecutables = count, .mScratchBytes = use.mScratchBytes.value_or(0) };
         }
+
+        if (listed)
+            Log(Debug::Debug) << line;
+        mPipelines->add(made, std::chrono::steady_clock::now());
+    }
+
+    void Device::logPipelineSummary(const std::string_view what)
+    {
+        logSummary(what, mPipelines->take(std::chrono::steady_clock::now()));
+        mPipelinesSummarised = true;
     }
 
     void Device::writeCode(const VkPipeline pipeline, const std::string_view name, const std::uint32_t copy,

@@ -63,8 +63,10 @@ namespace Rtx
     class Timeline;
     class PipelineCache;
     class PipelineCodeFolder;
+    class PipelineTally;
     class ZoneCounters;
     struct PipelineCacheSpec;
+    struct PipelineFeedback;
 
     /// Whether a pipeline is made to say what the driver's compiler made of it — registers, spills,
     /// shared memory — which only the harness's reports and the spill gate read. Asked for at
@@ -176,6 +178,11 @@ namespace Rtx
     std::string describeDeviceFault(std::string_view description,
         std::span<const VkDeviceFaultAddressInfoEXT> addresses, std::span<const VkDeviceFaultVendorInfoEXT> vendor);
 
+    /// One executable's statistics as a pipeline's log line says them: each under the driver's own name, in
+    /// the driver's order, the scratch figure masked to its bytes (`StatisticNames::mScratchBits`).
+    std::string describeStatistics(
+        std::span<const VkPipelineExecutableStatisticKHR> statistics, const StatisticNames& names);
+
     /// The line a lost device's report says of the last checkpoint `stage` passed, or that the host
     /// no longer names it: the frame's or the picture's it was set in.
     std::string describePassedStage(VkPipelineStageFlagBits stage, const Checkpoint* checkpoint);
@@ -268,11 +275,16 @@ namespace Rtx
             return flags;
         }
 
-        /// Logs what the driver's compiler made of `pipeline` — registers a thread, spills, shared memory a
-        /// block — where the device captures it, and its compile time: an occupancy figure with no external
-        /// profiler. Where the device is asked for its code, writes it (`writeCode`).
-        void reportPipeline(
-            VkPipeline pipeline, std::string_view name, std::optional<double> compileMs = std::nullopt) const;
+        /// Counts `pipeline` towards the next `logPipelineSummary`, and logs at the debug level what its
+        /// making took and what the driver's compiler made of it — registers a thread, spills, shared
+        /// memory a block — where the device captures it: an occupancy figure with no external profiler.
+        /// Where the device is asked for its code, writes it (`writeCode`).
+        void reportPipeline(VkPipeline pipeline, std::string_view name, const PipelineFeedback& feedback) const;
+
+        /// Logs what the pipelines made since the device was made, or since the last summary, came to
+        /// (`describePipelines`), and a warning naming every one of them that uses scratch memory,
+        /// under `what`. The device's teardown logs what came after the last.
+        void logPipelineSummary(std::string_view what);
 
         /// What the driver's compiler made `pipeline` use, the most of any of its executables, where
         /// the driver says: nothing of a figure no statistic of its name reports.
@@ -369,9 +381,9 @@ namespace Rtx
         /// buffers, let go of as far as the clock now reaches.
         void collect() const;
 
-        /// How many executables the driver made `pipeline` of, and what it says of one: the
-        /// statistics a pipeline was made to capture (`getPipelineFlags`).
-        std::uint32_t executablesOf(VkPipeline pipeline) const;
+        /// The executables the driver made `pipeline` of, and what it says of one: the statistics a
+        /// pipeline was made to capture (`getPipelineFlags`).
+        std::vector<VkPipelineExecutablePropertiesKHR> executablePropertiesOf(VkPipeline pipeline) const;
         std::vector<VkPipelineExecutableStatisticKHR> statisticsOf(VkPipeline pipeline, std::uint32_t executable) const;
 
         /// Writes the text forms the driver gives the executable `executable` of `pipeline`'s
@@ -420,6 +432,10 @@ namespace Rtx
 
         /// Where the pipelines' code goes, null where `mReport` asks for none.
         std::unique_ptr<PipelineCodeFolder> mCode;
+
+        /// What `reportPipeline` counted towards the next summary, from the device's making.
+        std::unique_ptr<PipelineTally> mPipelines;
+        bool mPipelinesSummarised = false;
 
         // Last, so that they are torn down first, and in this order: everything after the graveyard buries
         // into it as it goes, the graveyard ends what it holds against the clock and gives memory back to
