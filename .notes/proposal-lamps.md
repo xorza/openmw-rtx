@@ -1,16 +1,14 @@
 # Proposal: the lamps' noise
 
-The fault is in how a lamp is drawn, and is fixed where it is drawn.
+The fault is in how a lamp is drawn, and is fixed where it is drawn. The eye's split hit sums every lamp's unshadowed
+light exactly and multiplies it by one bit: whether the ray to the lamp the reservoir held, drawn in proportion to that
+light, got through (Heitz et al. 2018's ratio estimator, `CHANNEL_LAMPED`). Where the lamps that weigh most are stopped
+— a lamp behind a pillar, one in the next room whose reach crosses the wall — the bit is open on few pixels and each
+carries the whole sum: one pixel in 94 over the noisy band at the Census and Excise Office, one in 3.6 over the lit
+wall beside it (`docs/research/2026-11-13-lamp-shadow-rays-at-the-census-office.md`). A bit whose mean is 1% has a
+relative deviation of about ten per pixel per frame however it is filtered.
 
-The eye's split hit sums every lamp's unshadowed light exactly and multiplies it by one bit: whether
-  the ray to the lamp the reservoir held, drawn in proportion to that light, got through (Heitz et al. 2018's ratio
-  estimator, `CHANNEL_LAMPED`). Where the lamps that weigh most are stopped — a lamp behind a pillar, one in the next
-  room whose reach crosses the wall — the bit is open on few pixels and each carries the whole sum: one pixel in 94
-  over the noisy band at the Census and Excise Office, one in 3.6 over the lit wall beside it
-  (`docs/research/2026-11-13-lamp-shadow-rays-at-the-census-office.md`). A bit whose mean is 1% has a relative
-deviation of about ten per pixel per frame however it is filtered.
-## Decisions: the lamps
-
+## Decisions
 
 - **The held lamp is drawn from last frame's visible lamps, per 8×8 tile**, as Unreal's MegaLights guides its
   samples (Narkowicz and Costa, SIGGRAPH 2025 Advances, "Sample Guiding"): after the trace, the lamps whose rays got
@@ -72,7 +70,6 @@ deviation of about ten per pixel per frame however it is filtered.
   wherever the draw was among several lamps, as `seenSolidOf` gives it now.
 
 ## Costs
-
 
 - The lists: `ceil(width / 8) × ceil(height / 8)` tiles of 9 words, two frames of them: 4.1 MB at a 2560×1440
   trace, 1.0 MB at 1280×720.

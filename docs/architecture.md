@@ -435,6 +435,13 @@ before's surfaces (`GBuffer::getHeld`).
   one, as the rasterizer's `D × lit + A × ambient`.
 - The shadows: FidelityFX's Shadow Denoiser over the sky's source and the lamps apart, its reach the penumbra's (SIGMA).
 - The glossy light and the layers: temporal filters holding a slow mean (`historyclamp.comp`).
+- **A rare bright bounce is held to forty times the frame's white and the rest dropped**
+  (`ACCUMULATE_FIREFLY_CEILING`), the white the exposure the frame before was shown at, as Lumen's
+  `MaxRayIntensity` and Omniverse's per-sample firefly filter hold it. A glow no lamp stands for, a mod's or a
+  replacer's, lights only through the bounce rays that find it, and is never made a lamp. Refused, each still blotched
+  on every frame at the Mages Guild (`docs/research/2026-11-13-a-bright-emitter-in-the-mages-guild.md`): ReBLUR's ring
+  on every history, which doubled the bias; its excess spread back energy-conserving (Zirr et al. 2018). The price is
+  the light of a glow found rarely, dropped for good.
 - **A history store selects each non-finite component to nought** (`finiteOrNought`), after the census counts it.
 - **The denoised frame is not bit-exact on every card**: on a high-end NVIDIA laptop GPU under a busy queue, the first
   wavelet dispatch after a pipeline drain sometimes differs by a half-float step at a few texels. Everything before
