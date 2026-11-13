@@ -39,6 +39,13 @@ the lines each item names, which the merge resolves by keeping the seam:
 
 **The rest of the tree.**
 
+- `SceneUtil::registerSerializers` called by `Resource::SceneManager` as it is made, and without its
+  `skipGeometry` flag, by the user's decision: upstream's `SceneUtil::Material` wrapper was registered by the
+  editor alone, so the game read the error marker and every `.osgt` model naming the class without its material
+  (`InputStream::readObject(): Unsupported wrapper class SceneUtil::Material`); and the flag, kept by whichever
+  caller came first, swapped `osg::Geometry`'s wrapper for an empty one that every later read took. A
+  `showSceneGraph` dump now writes the geometry's data, and the editor's own call goes. The cost is a conflict with
+  an upstream edit to `registerSerializers`, `SceneManager`'s constructor or the editor's `RenderWidget`.
 - The `[RTX]` settings pages and their translations, and a settings window and a launcher that offer
   only what the ray tracer honours (`RtxSupportTest`): the rasterizer's pages and controls are
   removed with their strings, and the launcher's Distant Land is Distant Objects, `object paging`

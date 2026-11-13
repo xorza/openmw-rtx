@@ -51,6 +51,7 @@
 #include <components/sceneutil/lightmanager.hpp>
 #include <components/sceneutil/optimizer.hpp>
 #include <components/sceneutil/riggeometryosgaextension.hpp>
+#include <components/sceneutil/serialize.hpp>
 #include <components/sceneutil/templateref.hpp>
 #include <components/sceneutil/util.hpp>
 #include <components/sceneutil/visitor.hpp>
@@ -505,6 +506,8 @@ namespace Resource
         , mMaxAnisotropy(1.f)
         , mParticleSystemMask(~0u)
     {
+        // Before any model is read: an .osgt model, the error marker among them, names OpenMW's own classes.
+        SceneUtil::registerSerializers();
     }
 
     void SceneManager::recreateShaders(

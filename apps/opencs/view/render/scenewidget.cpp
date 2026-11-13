@@ -47,7 +47,6 @@
 #include <components/sceneutil/glextensions.hpp>
 #include <components/sceneutil/lightmanager.hpp>
 #include <components/sceneutil/material.hpp>
-#include <components/sceneutil/serialize.hpp>
 #include <components/sceneutil/stateupdater.hpp>
 #include <components/sceneutil/texmat.hpp>
 #include <components/shader/removedalphafunc.hpp>
@@ -117,8 +116,6 @@ namespace CSVRender
         : QWidget(parent, f)
         , mRootNode(nullptr)
     {
-        SceneUtil::registerSerializers(false);
-
         mView = new osgViewer::View;
 
         mWidget = new osgQOpenGLWidget(this);

@@ -241,17 +241,7 @@ namespace SceneUtil
         return new osgDB::ObjectWrapper(createInstanceFunc<osg::DummyObject>, classname, "osg::Object");
     }
 
-    class GeometrySerializer : public osgDB::ObjectWrapper
-    {
-    public:
-        GeometrySerializer()
-            : osgDB::ObjectWrapper(
-                  createInstanceFunc<osg::Drawable>, "osg::Geometry", "osg::Object osg::Drawable osg::Geometry")
-        {
-        }
-    };
-
-    void registerSerializers(bool skipGeometry)
+    void registerSerializers()
     {
         static bool done = false;
         if (!done)
@@ -269,14 +259,6 @@ namespace SceneUtil
             mgr->addWrapper(new AutoTransformSerializer);
             mgr->addWrapper(new TextureTypeSerializer);
             mgr->addWrapper(new MaterialSerializer);
-
-            if (skipGeometry)
-            {
-                // Don't serialize Geometry data as we are more interested in the overall structure rather than tons of
-                // vertex data that would make the file large and hard to read.
-                mgr->removeWrapper(mgr->findWrapper("osg::Geometry"));
-                mgr->addWrapper(new GeometrySerializer);
-            }
 
             // ignore the below for now to avoid warning spam
             const char* ignore[] = {
