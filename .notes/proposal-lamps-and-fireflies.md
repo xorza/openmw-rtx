@@ -99,10 +99,10 @@ renderer cannot see coming, from content it does not have, and is fixed where ev
   it: one ceiling at every brightness, as Blender's is, cuts a bright day's bounce or none of a dim room's. The frame
   before's, because this frame's exposure is measured from the picture the trace makes.
 
-- **The bias is the price, so the hold stays under the A/B switch until the suites judge it**: a surface lit mostly by
-  a glow the bounce finds rarely loses most of that light for good — 0.212 of its mean kept under the lantern sheet of
+- **On by default, the bias its price**, at the user's call: a surface lit mostly by a glow the bounce finds rarely
+  loses most of that light for good — 0.212 of its mean kept under the lantern sheet of
   `theRingLeavesASettledMeanItsLight`, shown at one. Whether the ring of short histories stays beside it under the one
-  switch is decided with the measurement.
+  switch is decided with the suites' measurement.
 
 ## Costs
 
@@ -130,8 +130,8 @@ judged by; the other two stand apart.
 
 ### 2. The fireflies
 
-- [ ] `./omw noise --versus=antifirefly=1` on the `bounce` suite and the firefly place, still, strafed and cut: the
-  bias the ceiling adds against the fireflies it takes, then on by default or not, and the ring kept beside it or not.
+- [ ] `./omw noise --ab=antifirefly` on the `bounce` suite and the firefly place, still, strafed and cut: the bias the
+  ceiling adds against the fireflies it takes, and the ring kept beside it or not.
 - [ ] The glossy filter's samples (`CHANNEL_SPECULAR`) under the same ceiling, if a lobe that finds a glow fireflies
   where the bounce no longer does.
 - [ ] `./omw repeat --pairs=10`, `./omw release bench`.

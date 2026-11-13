@@ -205,7 +205,7 @@ namespace RtxTool
             };
 
             Rtx::ReconstructionRequest filter;
-            filter.mFilters.mAntiFirefly = true;
+            filter.mFilters.mAntiFirefly = false;
             const NoisePlan filtered = against(filter);
             EXPECT_EQ(filtered.mStops.size(), 67u + 33u);
             EXPECT_FALSE(filtered.mOwnBar);

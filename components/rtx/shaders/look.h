@@ -1088,9 +1088,10 @@ namespace Rtx::Shaders
     /// everywhere a lamp lights, and more bias, most where paper lanterns glow: the yurt's glow is
     /// counted by the bounce beside their lamps (`landingLightOf`), and the reference counts it too.
     ///
-    /// **Off by default** (`ReconstructionRequest::mAntiFirefly`). On vanilla content the ring holds
-    /// no firefly the count sees, and in a room lit by what glows in it (`akulakhan-chamber`, its
-    /// lamps off) it took that light with it: the still frame's bias 2.60 with it and 1.90 without.
+    /// **On by default with the exposure's ceiling** (`ReconstructionRequest::mAntiFirefly`,
+    /// `ACCUMULATE_FIREFLY_CEILING`). On vanilla content the ring holds no firefly the count sees, and
+    /// in a room lit by what glows in it (`akulakhan-chamber`, its lamps off) it took that light with
+    /// it: the still frame's bias 2.60 with it and 1.90 without.
     ///
     /// **What it costs is the ring's square and not its sum.** Passing over the 81 taps where the
     /// history is long saved nothing: a pixel pays for the 16×16 tile its workgroup loads where the

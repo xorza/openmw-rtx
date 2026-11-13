@@ -87,8 +87,9 @@ namespace RtxTool
         TEST(RtxToolOptionsTest, theOtherSideChangesTheOneSwitchItNames)
         {
             const ToolOptions options = makeOptions(Rtx::ValidationLevel::Off);
-            const Rtx::ReconstructionRequest played
-                = lineOf(options, { "--antilag=false", "--lamp-candidates=4" }, Verbs::Noise).mFrame.mReconstruction;
+            const std::vector<std::string> playedLine{ "--antilag=false", "--lamp-candidates=4",
+                "--antifirefly=false" };
+            const Rtx::ReconstructionRequest played = lineOf(options, playedLine, Verbs::Noise).mFrame.mReconstruction;
             ASSERT_FALSE(played.mFilters.mAntilag);
             ASSERT_EQ(played.mSampling.mLampCandidates, 4u);
 
@@ -96,9 +97,9 @@ namespace RtxTool
             ringed.mFilters.mAntiFirefly = true;
             EXPECT_EQ(options.versus(played, "antifirefly=true"), ringed);
             EXPECT_EQ(options.versus(played, "antifirefly"), ringed) << "the implicit value";
-            const ToolLine::Noise noise
-                = lineOf(options, { "--antilag=false", "--lamp-candidates=4", "--versus=antifirefly" }, Verbs::Noise)
-                      .mNoise;
+            std::vector<std::string> versusLine = playedLine;
+            versusLine.emplace_back("--versus=antifirefly");
+            const ToolLine::Noise noise = lineOf(options, versusLine, Verbs::Noise).mNoise;
             EXPECT_EQ(noise.mAsked, "antifirefly");
             EXPECT_EQ(noise.mVersus, ringed) << "the line's own other side is over the line's own switches";
             EXPECT_EQ(lineOf(options, {}, Verbs::Noise).mNoise.mVersus, std::nullopt);
@@ -122,7 +123,7 @@ namespace RtxTool
                 { "antilag", "false" },
                 { "history-fix", "false" },
                 { "dual-motion", "false" },
-                { "antifirefly", "true" },
+                { "antifirefly", "false" },
             } };
             const Rtx::ReconstructionRequest plain = lineOf(options, {}, Verbs::Noise).mFrame.mReconstruction;
             EXPECT_EQ(plain, Rtx::ReconstructionRequest{});
