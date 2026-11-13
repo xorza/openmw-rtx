@@ -352,3 +352,42 @@ Inclusive shares of the new runs' samples, the load ahead of the preparation amo
 BC1 is still three fifths of the Repack's run. A chain of every mode in BC7, a colour's or a map of data's, is
 a tenth of it, and over half of that is `estimate_partition`, which nothing above touched.
 
+## The file's selectors kept, on the encoder as it stands
+
+The trial of "The file's selectors kept, its endpoints fit again" built as a spike on `11cfa7cd7a` and not
+kept in the tree: a painted BC1 block of a level its file carries is made with the file's selectors and
+endpoints fit by least squares, through rgbcx's own entry with the selectors forced, and stands where its
+squares over the block's 48 channels are at or under a limit; a block of one colour, a three-colour block of
+the file's and every block over the limit are searched as before. The limit off, the made chains are the ones
+above, digest for digest.
+
+The benchmark's two corpora on one core, three runs a case:
+
+| limit | Repack, `encodePaintedBc1` | signal to noise | PBR replacers | signal to noise |
+|---|---|---|---|---|
+| none | 2,693 ms | 43.796 dB | 3,032 ms | 43.908 dB |
+| 32 | 2,887 ms | 43.796 dB | 3,271 ms | 43.909 dB |
+| 64 | 2,694 ms | 43.793 dB | 3,024 ms | 43.905 dB |
+| 96 | 2,412 ms | 43.777 dB | 2,693 ms | 43.885 dB |
+| 128 | 2,096 ms | 43.747 dB | 2,299 ms | 43.848 dB |
+| 192 | 1,435 ms | 43.619 dB | 1,527 ms | 43.669 dB |
+
+The fit is paid on every block and lost on each that fails, so a limit of 32 is slower than the search alone and
+64 its equal; the search being 2.4 times what it was when the trial was run, a kept block saves that much less.
+The spike's fit runs rgbcx's first guess at a block's endpoints, which forced selectors do not need.
+
+A file's own loss against the search, in decibels: at 96 a median of 0.010 over the Repack's 63 files and 0.011
+over the replacers' 35, the worst 0.23 (a glove of 0.01 million texels), 0.17 and 0.13, and 0.10 of the
+replacers'; at 128 a median of 0.024 and 0.025, the worst 0.39 and 0.20; at 192 a median of 0.106 and 0.143, the
+worst 0.98 and 0.77.
+
+The views' pictures, vanilla, the upscaler off, against the pictures at no limit: of 58 compared, 55 moved at 96
+and 56 at 128. A view's worst pixel is 9 of 255 at the median and 18 at the most at 96 (`seyda-neen-boulder`,
+3.9% of its pixels moved), 10 and 18 at 128; a map's is 3 or under. The run at no limit stopped at 29 places
+(`.notes/ISSUES.md`), so 16 pictures had nothing to stand against.
+
+Cold, 15 threads, one run each: the Repack's preparation 169.5 s and 2,526 s of CPU at no limit, 159.9 s and
+2,385 s at 96, 149.1 s and 2,225 s at 128, which is 5.6% and 11.9% of its CPU; its run at no limit in the
+section above was 2,515 s. The replacers' is not told apart: three runs at no limit were 497, 528 and 608 s of CPU, and
+three at 96 were 580, 578 and 579.
+
