@@ -9,6 +9,8 @@
 
 namespace Rtx
 {
+    struct SceneStats;
+
     /// One of the device's memory heaps, and what this renderer has taken out of it.
     struct HeapUse
     {
@@ -72,4 +74,8 @@ namespace Rtx
     /// The report as the harness prints it, one line a heap and the uses' line under them where
     /// the renderer says, indented to sit under the place it belongs to.
     std::string describeMemory(const MemoryReport& report);
+
+    /// What the scene holds as one line says it: its instances, its structures and its textures. The harness
+    /// prints it after a place's cell, hour and weather, and the game's log at the session's end.
+    std::string describeSceneHeld(const SceneStats& scene);
 }

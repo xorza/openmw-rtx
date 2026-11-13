@@ -28,7 +28,8 @@ namespace RtxTool
             return;
 
         mAsked = false;
-        Debug::getRawStdout() << "# memory\n  scene  " << describeSceneHeld(context.mBackend.getSceneStats()) << '\n'
+        Debug::getRawStdout() << "# memory\n  scene  " << Rtx::describeSceneHeld(context.mBackend.getSceneStats())
+                              << '\n'
                               << Rtx::describeMemory(context.mBackend.getMemoryReport())
                               << describeHostHeld(context.mMirror.getContentMemory()) << std::flush;
     }

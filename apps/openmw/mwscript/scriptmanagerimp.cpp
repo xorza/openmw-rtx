@@ -3,10 +3,12 @@
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
+#include <cstdint>
 #include <exception>
 #include <optional>
 #include <sstream>
 #include <string_view>
+#include <vector>
 
 #include <components/debug/debuglog.hpp>
 
@@ -210,20 +212,20 @@ namespace MWScript
             return;
 
         std::size_t open = 0;
-        std::size_t undecided = 0;
+        std::vector<std::uint32_t> undecided;
         for (const GateChange& change : mGateChanges)
         {
             open += change.mState == Terrain::GateState::Open ? 1 : 0;
-            undecided += change.mState == Terrain::GateState::Undecided ? 1 : 0;
+            if (change.mState == Terrain::GateState::Undecided)
+                undecided.push_back(change.mGate);
             MWBase::Environment::get().getWorld()->setVisibilityGate(change.mGate, change.mState);
         }
 
         // A load or a step of the story, and never a frame's routine.
         Log(Debug::Verbose) << "Visibility gates: " << mGateChanges.size() << " changed, " << open << " open, "
-                            << undecided << " undecided, " << mGateChanges.size() - open - undecided << " closed";
-        for (const GateChange& change : mGateChanges)
-            if (change.mState == Terrain::GateState::Undecided)
-                Log(Debug::Verbose) << "Visibility gate undecided: " << mVisibilityGates.describe(change.mGate);
+                            << undecided.size() << " undecided, " << mGateChanges.size() - open - undecided.size()
+                            << " closed" << (undecided.empty() ? "" : "; undecided: ")
+                            << mVisibilityGates.describe(undecided);
     }
 
     std::pair<int, int> ScriptManager::compileAll()

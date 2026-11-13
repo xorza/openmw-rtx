@@ -25,10 +25,7 @@ namespace RtxTool
         mLastCell = frame.mCell;
         ++mSeen;
 
-        taken.mClosed = mPendingSpend;
-        taken.mClosed.at(Rtx::Timing::Frame) = frame.mSpend.at(Rtx::Timing::Frame);
-        taken.mClosed.at(Rtx::Timing::Update) = frame.mSpend.at(Rtx::Timing::Update);
-        taken.mClosed.at(Rtx::Timing::Sleep) = frame.mSpend.at(Rtx::Timing::Sleep);
+        taken.mClosed = mPendingSpend.closedBy(frame.mSpend);
         taken.mClosedArrived = mPendingArrived;
         taken.mClosedCrossing = mPendingCrossing;
         mPendingSpend = frame.mSpend;

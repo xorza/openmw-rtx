@@ -62,7 +62,6 @@ openmw_rtx_layer(
     common
     openmw-rtx-shaders
     SOURCES
-        common/frametimehistogram.cpp
         common/runs.cpp
         common/slots.cpp
     HEADERS
@@ -71,7 +70,6 @@ openmw_rtx_layer(
         common/clock.hpp
         common/error.hpp
         common/finite.hpp
-        common/frametimehistogram.hpp
         common/index.hpp
         common/job.hpp
         common/jobprogress.hpp
@@ -250,6 +248,8 @@ openmw_rtx_layer(
     SOURCES
         renderer/framedescriber.cpp
         renderer/frameimage.cpp
+        renderer/framespend.cpp
+        renderer/frametimehistogram.cpp
         renderer/memoryreport.cpp
         renderer/nullrenderer.cpp
         renderer/scenetextures.cpp
@@ -262,6 +262,7 @@ openmw_rtx_layer(
         renderer/frameimage.hpp
         renderer/framesinflight.hpp
         renderer/framespend.hpp
+        renderer/frametimehistogram.hpp
         renderer/framezone.hpp
         renderer/guirenderer.hpp
         renderer/memoryreport.hpp

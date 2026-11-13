@@ -3,6 +3,8 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <initializer_list>
+#include <string>
 #include <string_view>
 #include <utility>
 
@@ -86,5 +88,21 @@ namespace Rtx
 
         double& at(const Timing timing) { return mMs[indexOf(timing)]; }
         double at(const Timing timing) const { return mMs[indexOf(timing)]; }
+
+        /// What this frame came to once `arriving` opened: its own figures with the arriving frame's `Frame`,
+        /// `Update` and `Sleep`. `Frame` runs from one frame's opening to the next, so it holds the game's update
+        /// the next frame arrived through and this frame's work, which is the span a hitch is read in.
+        FrameSpend closedBy(const FrameSpend& arriving) const
+        {
+            FrameSpend closed = *this;
+            for (const Timing timing : { Timing::Frame, Timing::Update, Timing::Sleep })
+                closed.at(timing) = arriving.at(timing);
+            return closed;
+        }
     };
+
+    /// The three largest stretches `spend` is made of, largest first and a tie in `Timing`'s order, as "update 14.5
+    /// finish 2.2 walk 0.6": the figures that sum to the frame, and neither the frame itself nor a share of one of
+    /// them, since `Wait` is most of `Finish`, `Upload` most of `Place` and `Sleep` part of `Update`.
+    std::string describeStretches(const FrameSpend& spend);
 }

@@ -195,6 +195,9 @@ namespace Rtx
         /// made by then (`Device::logPipelineSummary`).
         bool mKernelsSummarised = false;
 
+        /// The frame `createTargets` last logged.
+        std::string mFrameLogged;
+
         /// What the run decided once, read where each knob is used. `mUpscale` is a setting and not a frame
         /// option because `setUpscale` rebuilds every target; what a frame carries (the reconstruction
         /// request, the exposure, the sample) is read off its own blocks instead.

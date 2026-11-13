@@ -460,7 +460,10 @@ namespace Rtx
                 return devices[*chosen].mDiscrete && !device.mDiscrete ? "passed over for a discrete device"
                                                                        : "passed over for one listed before it";
             }();
-            out += std::format("{}  {}: {} ({})", at == 0 ? "" : "\n", device.mName, verdict, device.mDetails);
+            out += std::format("{}  {}: {}", at == 0 ? "" : "\n", device.mName, verdict);
+            // The chosen device's details are its description's, which a renderer made on it logs whole.
+            if (chosen != at)
+                out += std::format(" ({})", device.mDetails);
         }
         return out;
     }

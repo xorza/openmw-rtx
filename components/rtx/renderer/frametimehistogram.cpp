@@ -7,10 +7,15 @@
 
 namespace Rtx
 {
-    void FrameTimeHistogram::add(const double ms)
+    void FrameTimeHistogram::add(const FrameSpend& frame)
     {
         ++mFrames;
-        mWorstMs = std::max(mWorstMs, ms);
+        const double ms = frame.at(Timing::Frame);
+        if (mWorstAt == 0 || ms > mWorst.at(Timing::Frame))
+        {
+            mWorst = frame;
+            mWorstAt = mFrames;
+        }
         const double bin = std::floor(std::max(ms, 0.0) * static_cast<double>(sBinsPerMs));
         if (bin >= static_cast<double>(sBins))
             ++mPastRange;
@@ -23,7 +28,8 @@ namespace Rtx
         mBins.fill(0);
         mPastRange = 0;
         mFrames = 0;
-        mWorstMs = 0.0;
+        mWorst = FrameSpend{};
+        mWorstAt = 0;
     }
 
     FrameTimeHistogram::Summary FrameTimeHistogram::summarise() const
@@ -33,6 +39,7 @@ namespace Rtx
 
         // The bin the `quantile`th frame by nearest rank fell in, as its upper edge, or the worst
         // where it fell past the range.
+        const double worstMs = mWorst.at(Timing::Frame);
         const auto rank = [&](const double quantile) {
             const auto place = std::max<std::uint64_t>(
                 static_cast<std::uint64_t>(std::ceil(quantile * static_cast<double>(mFrames))), 1);
@@ -42,9 +49,9 @@ namespace Rtx
                 counted += mBins[bin];
                 // Never past the worst, which a bin's upper edge is where the worst fell in it.
                 if (counted >= place)
-                    return std::min(static_cast<double>(bin + 1) / static_cast<double>(sBinsPerMs), mWorstMs);
+                    return std::min(static_cast<double>(bin + 1) / static_cast<double>(sBinsPerMs), worstMs);
             }
-            return mWorstMs;
+            return worstMs;
         };
 
         const double median = rank(0.5);
@@ -55,17 +62,21 @@ namespace Rtx
             if (static_cast<double>(bin) / static_cast<double>(sBinsPerMs) > 2.0 * median)
                 hitches += mBins[bin];
 
-        return Summary{
-            .mFrames = mFrames, .mMedianMs = median, .mP99Ms = rank(0.99), .mWorstMs = mWorstMs, .mHitches = hitches
-        };
+        return Summary{ .mFrames = mFrames,
+            .mMedianMs = median,
+            .mP99Ms = rank(0.99),
+            .mWorst = mWorst,
+            .mWorstAt = mWorstAt,
+            .mHitches = hitches };
     }
 
     std::string describe(const FrameTimeHistogram::Summary& summary)
     {
         if (summary.mFrames == 0)
             return "no frames";
-        return std::format("{} {}, median {:.1f} ms, p99 {:.1f} ms, worst {:.1f} ms, {} {}", summary.mFrames,
-            summary.mFrames == 1 ? "frame" : "frames", summary.mMedianMs, summary.mP99Ms, summary.mWorstMs,
-            summary.mHitches, summary.mHitches == 1 ? "hitch" : "hitches");
+        return std::format("{} {}, median {:.1f} ms, p99 {:.1f} ms, worst {:.1f} ms at frame {} ({}), {} {}",
+            summary.mFrames, summary.mFrames == 1 ? "frame" : "frames", summary.mMedianMs, summary.mP99Ms,
+            summary.mWorst.at(Timing::Frame), summary.mWorstAt, describeStretches(summary.mWorst), summary.mHitches,
+            summary.mHitches == 1 ? "hitch" : "hitches");
     }
 }

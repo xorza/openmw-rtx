@@ -398,14 +398,14 @@ namespace Rtx
             EXPECT_EQ(describeSurvey(laptop, 2),
                 "  Intel UHD: passed over for a discrete device (integrated)\n"
                 "  llvmpipe: refused, no ray tracing pipeline (software)\n"
-                "  RTX: chosen (discrete)\n"
+                "  RTX: chosen\n"
                 "  RTX 2: passed over for one listed before it (discrete)");
 
             const std::vector<SurveyedDevice> handheld{ software, integrated, integrated };
             ASSERT_EQ(chooseDevice(handheld), 1u);
             EXPECT_EQ(describeSurvey(handheld, 1),
                 "  llvmpipe: refused, no ray tracing pipeline (software)\n"
-                "  Intel UHD: chosen (integrated)\n"
+                "  Intel UHD: chosen\n"
                 "  Intel UHD: passed over for one listed before it (integrated)");
 
             const std::vector<SurveyedDevice> none{ software };

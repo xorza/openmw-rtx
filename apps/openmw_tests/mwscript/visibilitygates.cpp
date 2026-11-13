@@ -27,6 +27,7 @@
 #include <components/esm3/loadstat.hpp>
 #include <components/interpreter/program.hpp>
 #include <components/misc/strings/algorithm.hpp>
+#include <components/misc/strings/lower.hpp>
 #include <components/terrain/pagedcellref.hpp>
 
 #include "apps/openmw/mwscript/visibilitygates.hpp"
@@ -553,6 +554,13 @@ End
         gates.reset();
         gates.update(mReads, changes);
         EXPECT_EQ(changes.size(), 5u) << "a reset tells every gate again";
+
+        // A report names each script once, where it first appears, with what each of its gates decides. In
+        // lower case, since an id is spelled as whichever test made it first spelled it.
+        EXPECT_EQ(
+            Misc::StringUtils::lowerCase(gates.describe(std::vector<std::uint32_t>{ stage, plank, ghost, plankB })),
+            R"("strong1_construct" (its own); "thirsk" ("plank", "plank_b"); "ghostfencescript" (its own))");
+        EXPECT_EQ(gates.describe(std::vector<std::uint32_t>{}), "");
     }
 
     /// **A script that reads the hour runs again where its answer can change, and not on every

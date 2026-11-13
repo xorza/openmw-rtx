@@ -67,6 +67,7 @@
 #include <components/rtx/preprocess/preparedimages.hpp>
 #include <components/rtx/renderer/frameimage.hpp>
 #include <components/rtx/renderer/framespend.hpp>
+#include <components/rtx/renderer/memoryreport.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/sceneuploader.hpp>
 #include <components/rtx/renderer/shaderset.hpp>
@@ -238,6 +239,13 @@ namespace MWRender
         // Failures are counted and said once here, not each logged: a drop is a store that missed what it
         // would have kept.
         Log(Debug::Info) << "Frame times of the session: " << Rtx::describe(mSessionTimes.summarise());
+
+        // What the session came to, where the log otherwise holds the scene only as the first world built it.
+        Log(Debug::Info) << "Scene at the session's end: " << Rtx::describeSceneHeld(mRenderer->getSceneStats());
+        std::string memory = Rtx::describeMemory(mRenderer->getMemoryReport());
+        if (memory.ends_with('\n'))
+            memory.pop_back();
+        Log(Debug::Info) << "Video memory at the session's end\n" << memory;
 
         if (mContentStore != nullptr)
         {
@@ -791,10 +799,16 @@ namespace MWRender
         report.mSpend.at(Rtx::Timing::Update) = mTimer.sinceLeft(arrived);
         report.mSpend.at(Rtx::Timing::Sleep) = std::chrono::duration<double, std::milli>(getLastHold()).count();
         const std::optional<double> since = mTimer.enter(arrived);
+        if (since.has_value())
+            report.mSpend.at(Rtx::Timing::Frame) = *since;
+
+        // The span the arrival closes is the frame before's work with this frame's update, which is where a
+        // hitch is read: a cell's placement shows in the frame that placed it, not in the one after.
         if (since.has_value() && !frame.mPaused)
         {
-            mStretchTimes.add(*since);
-            mSessionTimes.add(*since);
+            const Rtx::FrameSpend closed = mBehind.closedBy(report.mSpend);
+            mStretchTimes.add(closed);
+            mSessionTimes.add(closed);
         }
 
         // The sky's own clock, stepped where the game stepped the dome's: every unpaused frame the
@@ -842,6 +856,7 @@ namespace MWRender
             mMirror.release(mPictureReleases);
             mPhase.step(Phase::Gui, Phase::Views);
             present();
+            mBehind = report.mSpend;
             return;
         }
 
@@ -885,6 +900,7 @@ namespace MWRender
         // or the run's hook after the trace.
         mPhase.step(Phase::Gui, Phase::Walking, Phase::Tracing, Phase::Run);
         present();
+        mBehind = report.mSpend;
     }
 
     void RtxRenderer::traceWorld(
@@ -1069,8 +1085,6 @@ namespace MWRender
         report.mSpend.at(Rtx::Timing::Present) = mTimer.takePresent();
 
         report.mWalked = mWalked;
-        if (since.has_value())
-            report.mSpend.at(Rtx::Timing::Frame) = *since;
 
         // Every traced frame, whether or not the device has answered for one yet, and the first
         // too, which a save or a skipped menu traces: the run counts the frames it traced, and

@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <format>
+#include <ranges>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -392,11 +394,28 @@ namespace MWScript
         }
     }
 
-    std::string VisibilityGates::describe(const std::uint32_t gate) const
+    std::string VisibilityGates::describe(const std::span<const std::uint32_t> gates) const
     {
-        const Gate& described = mGates[gate];
-        const std::string script = mScripts[described.mScript].mId.toDebugString();
-        return described.mName.empty() ? script : script + " naming " + described.mName.toDebugString();
+        std::string out;
+        for (std::size_t at = 0; at < gates.size(); ++at)
+        {
+            const std::uint32_t script = mGates[gates[at]].mScript;
+            const auto sameScript = [&](const std::uint32_t gate) { return mGates[gate].mScript == script; };
+            if (std::any_of(gates.begin(), gates.begin() + at, sameScript))
+                continue;
+
+            out += std::format("{}{} (", out.empty() ? "" : "; ", mScripts[script].mId.toDebugString());
+            bool first = true;
+            for (const std::uint32_t gate : gates | std::views::drop(at) | std::views::filter(sameScript))
+            {
+                const Gate& described = mGates[gate];
+                out += first ? "" : ", ";
+                out += described.mName.empty() ? "its own" : described.mName.toDebugString();
+                first = false;
+            }
+            out += ')';
+        }
+        return out;
     }
 
     void VisibilityGates::reset()

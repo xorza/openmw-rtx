@@ -261,17 +261,20 @@ namespace Rtx
         if (moves.mRenderExtent || moves.mOutputExtent)
             mDescriber.lose(FramePast::resized());
 
-        // **Logged each time the targets are made**: the mode alone, Native against Off, moves no extent,
-        // and a mode that keeps its extents keeps the chain and every history.
-        const std::string frame
+        // **Logged where the frame differs from the last one logged or anything is made again**: the mode
+        // alone, Native against Off, moves no extent, and a mode that keeps its extents keeps the chain and
+        // every history; a resize to the size the targets stand at says nothing new.
+        std::string frame
             = std::format("{}x{} shown, traced at {}x{} ({}, {:.1f}% a side), by {}, the light filtered by the {}",
                 output.width, output.height, render.width, render.height, sUpscaleNames.name(mProfile.mUpscale),
                 100.0 * render.width / output.width, sUpscalerNames.name(mUpscaler.getChoice()),
                 rendererFilters(mProfile.mUpscale, mUpscaler.getInput()) ? "renderer" : "upscaler");
-        Log(Debug::Info) << "Frame: " << frame << ", the trace chain " << (moves.mTrace ? "made again" : "kept")
-                         << ", the upscaler's targets " << (moves.mUpscaler ? "made again" : "kept");
+        if (frame != mFrameLogged || moves.mTrace || moves.mUpscaler)
+            Log(Debug::Info) << "Frame: " << frame << ", the trace chain " << (moves.mTrace ? "made again" : "kept")
+                             << ", the upscaler's targets " << (moves.mUpscaler ? "made again" : "kept");
         // What a report of a crash after this says the frame was.
         Crash::annotate("frame", frame);
+        mFrameLogged = std::move(frame);
 
         // **The targets a mode does not keep go before the new are made**, so a change of mode holds one
         // set and never two: content stops where one set fits (`MemoryUse::Frame`), leaving no room for a

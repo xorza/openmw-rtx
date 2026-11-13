@@ -6,6 +6,7 @@
 #include <gtest/gtest.h>
 
 #include <components/rtx/renderer/memoryreport.hpp>
+#include <components/rtx/renderer/renderer.hpp>
 
 namespace Rtx
 {
@@ -96,6 +97,34 @@ namespace Rtx
                 start = end + 1;
             }
             EXPECT_EQ(lines, 11u) << out;
+        }
+
+        /// **The scene in one line**, a mebibyte a tenth: what compaction would give back and the textures held
+        /// smaller only where there are any, since a nought of either would read as a saving or a cut of nothing.
+        TEST(RtxMemoryReportTest, theSceneHeldIsOneLine)
+        {
+            constexpr std::uint64_t sMiB = 1ull << 20;
+            SceneStats scene{ .mInstances = InstanceCounts{ .mPlaced = 40123, .mCutout = 12064 },
+                .mInstanceSlots = 87964,
+                .mStructureBytes = 178 * sMiB,
+                .mStructureLiveBytes = 168 * sMiB,
+                .mTableBytes = 274 * sMiB,
+                .mWorkBytes = 77 * sMiB,
+                .mTextureCount = 1144,
+                .mTextureBytes = 176 * sMiB,
+                .mTextureBytesBySource = TextureSourceBytes{
+                    .mFiles = 21 * sMiB, .mSpriteBakes = 1 * sMiB, .mGroundComposites = 154 * sMiB } };
+            EXPECT_EQ(describeSceneHeld(scene),
+                "40123 instances (12064 cutouts) in 87964 slots   168.0 MiB structures in 178.0 reserved, 274.0 MiB "
+                "tables, 77.0 MiB working   1144 textures, 176.0 MiB: files 21.0, bakes 1.0, ground 154.0, gloss 0.0");
+
+            scene.mCompactableBytes = 100 * sMiB;
+            scene.mCompactableNowBytes = 150 * sMiB;
+            scene.mReducedTextureCount = 3;
+            EXPECT_EQ(describeSceneHeld(scene),
+                "40123 instances (12064 cutouts) in 87964 slots   168.0 MiB structures in 178.0 reserved (150.0 of "
+                "them would compact to 100.0), 274.0 MiB tables, 77.0 MiB working   1144 textures, 176.0 MiB, 3 of "
+                "them held smaller: files 21.0, bakes 1.0, ground 154.0, gloss 0.0");
         }
     }
 }

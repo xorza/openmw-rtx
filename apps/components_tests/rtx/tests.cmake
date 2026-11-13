@@ -12,7 +12,6 @@ target_sources(
         myguirtx/texture.cpp
         platform/linuxtext.cpp
         rtx/common/error.cpp
-        rtx/common/frametimehistogram.cpp
         rtx/common/halffloat.cpp
         rtx/common/job.cpp
         rtx/common/namedenum.cpp
@@ -74,6 +73,7 @@ target_sources(
         rtx/preprocess/shape/shapefold.cpp
         rtx/renderer/framedescriber.cpp
         rtx/renderer/frameimage.cpp
+        rtx/renderer/frametimehistogram.cpp
         rtx/renderer/memoryreport.cpp
         rtx/renderer/notfinite.cpp
         rtx/renderer/nullrenderer.cpp

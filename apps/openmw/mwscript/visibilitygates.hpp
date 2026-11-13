@@ -82,9 +82,10 @@ namespace MWScript
         std::size_t getGateCount() const { return mGates.size(); }
         std::size_t getScriptCount() const { return mScripts.size(); }
 
-        /// The script a gate runs, and the name it decides where it is not the script's own
-        /// reference, for a report.
-        std::string describe(std::uint32_t gate) const;
+        /// The scripts `gates` run, for a report: each script once, where it first appears, with what each
+        /// of its gates decides — its own references or a name — as `"puzzlecanal" (its own, "puzzle canal
+        /// glow"); "menhirTelNaga" (its own)`.
+        std::string describe(std::span<const std::uint32_t> gates) const;
 
         /// Every gate evaluated again and told again, on the next `update`: a new game or a load.
         void reset();

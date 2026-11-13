@@ -194,25 +194,8 @@ namespace RtxTool
         /// brought, and the three largest spends in it — enough to say whose the frame was.
         std::string describeWorst(const WorstFrame& frame)
         {
-            // The stretches that sum to the frame, and not the frame itself nor a share of one
-            // of them: `Timing` says `Wait` is most of `Finish` and `Upload` most of `Place`, so
-            // a share beside its whole is one stretch printed twice.
-            constexpr std::array<Rtx::Timing, 7> sNotStretches{ Rtx::Timing::Frame, Rtx::Timing::Wait,
-                Rtx::Timing::Preprocess, Rtx::Timing::Bake, Rtx::Timing::Textures, Rtx::Timing::Upload,
-                Rtx::Timing::Sleep };
-            std::array<Rtx::Timing, Rtx::sTimingCount> spends = Rtx::sTimings.values();
-            const auto end = std::remove_if(spends.begin(), spends.end(), [&](const Rtx::Timing timing) {
-                return std::find(sNotStretches.begin(), sNotStretches.end(), timing) != sNotStretches.end();
-            });
-            constexpr std::size_t shown = 3;
-            std::partial_sort(spends.begin(), spends.begin() + shown, end,
-                [&](const Rtx::Timing a, const Rtx::Timing b) { return frame.mSpend.at(a) > frame.mSpend.at(b); });
-
-            std::string described;
-            for (std::size_t at = 0; at < shown; ++at)
-                described += std::format(" {} {:.1f}", Rtx::sTimings.name(spends[at]), frame.mSpend.at(spends[at]));
-
-            return std::format("{:.1f} ms ({} meshes:{})", frame.getFrameMs(), frame.mArrivedMeshes, described);
+            return std::format("{:.1f} ms ({} meshes: {})", frame.getFrameMs(), frame.mArrivedMeshes,
+                Rtx::describeStretches(frame.mSpend));
         }
 
         std::string asJson(const Crossings& crossings)
@@ -272,30 +255,6 @@ namespace RtxTool
     {
         const int minutes = minuteOfDay(hour);
         return std::format("{:02}:{:02}", minutes / 60, minutes % 60);
-    }
-
-    namespace
-    {
-        /// What compaction has left to give back, or nothing where there is none or the device would not say: left
-        /// out rather than printed as nought, which would read as a saving of everything.
-        std::string describeCompaction(const Rtx::SceneStats& scene)
-        {
-            if (scene.mCompactableBytes == 0 || scene.mCompactableNowBytes <= scene.mCompactableBytes)
-                return {};
-
-            return std::format(" ({:.1f} of them would compact to {:.1f})", Rtx::mebibytes(scene.mCompactableNowBytes),
-                Rtx::mebibytes(scene.mCompactableBytes));
-        }
-
-        /// How many textures stand smaller than their files, and nothing where none does: a place
-        /// drawn as its files are says nothing about it.
-        std::string describeReduced(const Rtx::SceneStats& scene)
-        {
-            if (scene.mReducedTextureCount == 0)
-                return {};
-
-            return std::format(", {} of them held smaller", scene.mReducedTextureCount);
-        }
     }
 
     namespace
@@ -406,22 +365,6 @@ namespace RtxTool
         return text;
     }
 
-    std::string describeSceneHeld(const Rtx::SceneStats& scene)
-    {
-        return std::format(
-            "{} instances ({} cutouts) in {} slots   {:.1f} MiB structures in {:.1f} reserved{}, {:.1f} MiB "
-            "tables, {:.1f} MiB working   {} textures, "
-            "{:.1f} MiB{}: files {:.1f}, bakes {:.1f}, ground {:.1f}, gloss {:.1f}",
-            scene.mInstances.mPlaced, scene.mInstances.mCutout, scene.mInstanceSlots,
-            Rtx::mebibytes(scene.mStructureLiveBytes), Rtx::mebibytes(scene.mStructureBytes), describeCompaction(scene),
-            Rtx::mebibytes(scene.mTableBytes), Rtx::mebibytes(scene.mWorkBytes), scene.mTextureCount,
-            Rtx::mebibytes(scene.mTextureBytes), describeReduced(scene),
-            Rtx::mebibytes(scene.mTextureBytesBySource.mFiles),
-            Rtx::mebibytes(scene.mTextureBytesBySource.mSpriteBakes),
-            Rtx::mebibytes(scene.mTextureBytesBySource.mGroundComposites),
-            Rtx::mebibytes(scene.mTextureBytesBySource.mGroundGloss));
-    }
-
     std::string describeHostHeld(const Rtx::ContentMemory& content)
     {
         // The host's side of the device's question: runs a freed mesh left as holes, which nothing moves to close,
@@ -497,7 +440,7 @@ namespace RtxTool
 
         if (!place.mCell.empty())
             out += std::format("  cell {} at {} in {}   {}\n", place.mCell, describeHour(place.mHour), place.mWeather,
-                describeSceneHeld(place.mScene));
+                Rtx::describeSceneHeld(place.mScene));
 
         // Under the scene's line, because it is the same fact from the device's side: the line above says what the
         // content came to, this what the card gave up for it, which a card with a small host-visible heap runs out

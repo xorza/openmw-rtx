@@ -17,7 +17,6 @@
 #include <apps/openmw/mwrender/renderer.hpp>
 #include <components/esm/refid.hpp>
 #include <components/rtx/common/cardaddress.hpp>
-#include <components/rtx/common/frametimehistogram.hpp>
 #include <components/rtx/common/stepped.hpp>
 #include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/frame/framepast.hpp>
@@ -25,6 +24,8 @@
 #include <components/rtx/mirror/drawableposer.hpp>
 #include <components/rtx/mirror/released.hpp>
 #include <components/rtx/renderer/frameimage.hpp>
+#include <components/rtx/renderer/framespend.hpp>
+#include <components/rtx/renderer/frametimehistogram.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/verticalsync.hpp>
 #include <components/sdlutil/vsyncmode.hpp>
@@ -462,6 +463,9 @@ namespace MWRender
         /// over the session: what the log says of how the session ran, at each cut and at its end.
         Rtx::FrameTimeHistogram mStretchTimes;
         Rtx::FrameTimeHistogram mSessionTimes;
+
+        /// What the last frame spent, which the next frame's arrival closes (`Rtx::FrameSpend::closedBy`).
+        Rtx::FrameSpend mBehind;
 
         /// Where the host's clock stood at the last trace, nothing before the first: what
         /// `Rtx::FrameOptions::mSinceLast` is measured from.

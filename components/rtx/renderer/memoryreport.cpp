@@ -2,8 +2,34 @@
 
 #include <format>
 
+#include "renderer.hpp"
+
 namespace Rtx
 {
+    namespace
+    {
+        /// What compaction has left to give back, or nothing where there is none or the device would not say: left
+        /// out rather than printed as nought, which would read as a saving of everything.
+        std::string describeCompaction(const SceneStats& scene)
+        {
+            if (scene.mCompactableBytes == 0 || scene.mCompactableNowBytes <= scene.mCompactableBytes)
+                return {};
+
+            return std::format(" ({:.1f} of them would compact to {:.1f})", mebibytes(scene.mCompactableNowBytes),
+                mebibytes(scene.mCompactableBytes));
+        }
+
+        /// How many textures stand smaller than their files, and nothing where none does: a place
+        /// drawn as its files are says nothing about it.
+        std::string describeReduced(const SceneStats& scene)
+        {
+            if (scene.mReducedTextureCount == 0)
+                return {};
+
+            return std::format(", {} of them held smaller", scene.mReducedTextureCount);
+        }
+    }
+
     std::string describeMemory(const MemoryReport& report)
     {
         std::string out;
@@ -38,5 +64,20 @@ namespace Rtx
                 mebibytes(uses.mTextureRoom));
 
         return out;
+    }
+
+    std::string describeSceneHeld(const SceneStats& scene)
+    {
+        return std::format(
+            "{} instances ({} cutouts) in {} slots   {:.1f} MiB structures in {:.1f} reserved{}, {:.1f} MiB "
+            "tables, {:.1f} MiB working   {} textures, "
+            "{:.1f} MiB{}: files {:.1f}, bakes {:.1f}, ground {:.1f}, gloss {:.1f}",
+            scene.mInstances.mPlaced, scene.mInstances.mCutout, scene.mInstanceSlots,
+            mebibytes(scene.mStructureLiveBytes), mebibytes(scene.mStructureBytes), describeCompaction(scene),
+            mebibytes(scene.mTableBytes), mebibytes(scene.mWorkBytes), scene.mTextureCount,
+            mebibytes(scene.mTextureBytes), describeReduced(scene), mebibytes(scene.mTextureBytesBySource.mFiles),
+            mebibytes(scene.mTextureBytesBySource.mSpriteBakes),
+            mebibytes(scene.mTextureBytesBySource.mGroundComposites),
+            mebibytes(scene.mTextureBytesBySource.mGroundGloss));
     }
 }

@@ -36,7 +36,8 @@ namespace Rtx
     std::optional<std::size_t> chooseDevice(std::span<const SurveyedDevice> devices);
 
     /// One line a device of `devices`, saying whether it is `chosen`, passed over for it, or refused
-    /// and why; no line break after the last, which a log and an error message each end as they do.
+    /// and why, with its details but for the chosen one's; no line break after the last, which a log and
+    /// an error message each end as they do.
     std::string describeSurvey(std::span<const SurveyedDevice> devices, std::optional<std::size_t> chosen);
 
     /// A physical device that qualified, what it reported about itself, and what this renderer
