@@ -207,24 +207,26 @@ namespace Rtx
                 { "bounce", 0, 144, 2048 },
             } };
             // Measured on a high-end NVIDIA laptop GPU, whose compiler holds a stage at 128 registers and keeps
-            // what does not fit in shared memory, and the whole tuple's `media` 32 bytes of local memory a lane,
+            // what does not fit in shared memory, and the whole tuple's `media` 16 bytes of local memory a lane,
             // under driver 615.78. The water at 3456 bytes of shared memory since a mapped ground's tangent
             // selects its axis (`traversal.glsl`), the price of no NaN on a face along ±x, which 16 warps an SM
-            // at 128 registers' shared memory holds all the same.
+            // at 128 registers' shared memory holds all the same. `fog integrate` at 2304: its column depths, nine
+            // floats a thread read at an index the tent's loop leaves unrolled, which the compiler keeps in shared
+            // memory and not a lane's local memory, `64 × 9 × 4` bytes a workgroup.
             constexpr std::array<Ceiling, 5> sNvidiaWithoutDarkAlpha{ {
                 { "water", 0, 128, 3456 },
-                { "direct", 0, 128, 1664 },
-                { "media", 0, 128, 6272 },
-                { "panes", 0, 168, 5760 },
-                { "landing", 0, 128, 896 },
+                { "direct", 0, 128, 1408 },
+                { "media", 0, 128, 5504 },
+                { "panes", 0, 168, 4992 },
+                { "landing", 0, 128, 640 },
             } };
             constexpr std::array<Ceiling, 6> sNvidiaWhole{ {
                 { "water", 0, 128, 3456 },
                 { "direct", 0, 128, 1920 },
-                { "media", 32, 128, 6272 },
-                { "panes", 0, 168, 6272 },
-                { "landing", 0, 128, 896 },
-                { "fog integrate", 0, 128, 1792 },
+                { "media", 16, 128, 6272 },
+                { "panes", 0, 168, 5504 },
+                { "landing", 0, 128, 640 },
+                { "fog integrate", 0, 128, 2304 },
             } };
             // Measured on the handheld's integrated GPU under RADV. `visibility` at 144 and the landing under the
             // rule since a sheet takes its span off the corners the hit carried
