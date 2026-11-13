@@ -34,6 +34,7 @@ namespace Rtx
         : mPipeline(device, sBindings, SharedSetLayouts{ .mTextures = &textures }, "groundcomposite.comp.spv",
               "ground composite")
         , mEncode(device)
+        , mMips(device)
         , mNoTarget(makeStandIn(
               device, toVulkanFormat(TEXTURE_WRITTEN_FORMAT), VK_IMAGE_USAGE_STORAGE_BIT, "no ground target"))
     {
@@ -80,7 +81,7 @@ namespace Rtx
 
         // The chains, box filtered in light through each image's own format, which is the filter
         // the sum was made for.
-        Image::buildMips(commands, std::span<const Image* const>(written.data(), count));
+        mMips.record(commands, std::span<const Image* const>(written.data(), count));
     }
 
     Result<Image, MemoryRefusal> GroundCompositePass::makeCanvas(

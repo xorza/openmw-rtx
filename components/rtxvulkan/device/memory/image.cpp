@@ -1,6 +1,5 @@
 #include "image.hpp"
 
-#include <algorithm>
 #include <array>
 #include <cassert>
 #include <cstddef>
@@ -336,69 +335,6 @@ namespace Rtx
         // a description of one is where a use of the handle names the image.
         nameForNext();
         return imageBarrier(mHandle.get(), base, count, from, to);
-    }
-
-    void Image::buildMips(VkCommandBuffer commands, const std::span<const Image* const> images)
-    {
-        // The written level becomes the first source; the rest hold whatever the last frame left,
-        // which every blit below overwrites whole. One command for every chain, so the queue drains
-        // the dispatches once.
-        std::uint32_t deepest = 1;
-        Barriers opened(commands);
-        for (const Image* image : images)
-        {
-            assert(!image->isEmpty() && "a chain built on an image nobody made");
-            assert((image->mUsage & VK_IMAGE_USAGE_TRANSFER_SRC_BIT) != 0 && "a chain reads the level above it");
-            assert((image->mUsage & VK_IMAGE_USAGE_TRANSFER_DST_BIT) != 0 && "a chain writes the level below it");
-            assert(image->mDepth == 1 && "a volume's chain is uploaded rather than blitted");
-
-            // **Every image down one path**, a chain of one level among them: its written level is
-            // ordered against the sampled read as every chain's is, where skipped it had no
-            // dependency between the dispatch's write and the trace's read at all.
-            deepest = std::max(deepest, image->mMipLevels);
-            opened.add(image->describeLevels(0, 1, Use::sComputeWrite, Use::sBlitRead));
-            if (image->mMipLevels > 1)
-                opened.add(image->describeLevels(1, image->mMipLevels - 1, Use::sUndefined, Use::sBlitWrite));
-        }
-        opened.flush();
-
-        for (std::uint32_t level = 1; level < deepest; ++level)
-        {
-            Barriers written(commands);
-            for (const Image* image : images)
-            {
-                if (level >= image->mMipLevels)
-                    continue;
-
-                // A level never falls below one texel, which is what makes the last of them the
-                // whole image's own mean.
-                const VkImageBlit region{
-                    .srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, level - 1, 0, 1 },
-                    .srcOffsets = { {},
-                        { static_cast<std::int32_t>(image->getWidthAt(level - 1)),
-                            static_cast<std::int32_t>(image->getHeightAt(level - 1)), 1 } },
-                    .dstSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, level, 0, 1 },
-                    .dstOffsets = { {},
-                        { static_cast<std::int32_t>(image->getWidthAt(level)),
-                            static_cast<std::int32_t>(image->getHeightAt(level)), 1 } },
-                };
-                vkCmdBlitImage(commands, image->mHandle.get(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                    image->mHandle.get(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region, VK_FILTER_LINEAR);
-
-                // What was just written is the next blit's source, which is the whole of the
-                // ordering: every level is written once and read once, by the step after it.
-                written.add(image->describeLevels(level, 1, Use::sBlitWrite, Use::sBlitRead));
-            }
-            written.flush();
-        }
-
-        // Into the scope every sampled image rests in (`Use::sShaderSample`). The chains built here
-        // — the wave and ripple tiles and a ground's composite — are sampled in launches, the
-        // trace's and the fog scatter's.
-        Barriers sampled(commands);
-        for (const Image* image : images)
-            sampled.add(image->describeLevels(0, image->mMipLevels, Use::sBlitRead, Use::sShaderSample));
-        sampled.flush();
     }
 
     VkDeviceSize Image::getReadBytes(const std::uint32_t level) const

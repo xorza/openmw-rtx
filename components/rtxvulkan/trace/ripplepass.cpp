@@ -55,6 +55,7 @@ namespace Rtx
         : mDevice(device)
         , mStepPipeline(device, sStepBindings, {}, "ripplestep.comp.spv", "ripple step")
         , mComposePipeline(device, sComposeBindings, {}, "ripplecompose.comp.spv", "ripple compose")
+        , mMips(device)
         , mSampler(makeBorderSampler(device, "ripples"))
         , mImpulses([&](const FrameSlot) {
             return Buffer::hostWritten(device, Shaders::RIPPLE_IMPULSES_MOST * sizeof(Shaders::GpuRippleImpulse),
@@ -296,6 +297,6 @@ namespace Rtx
 
         dispatch(commands, mComposePipeline, composes, NoConstants{}, sGroups);
 
-        Image::buildMips(commands, std::array<const Image*, 2>{ &mSurface, &mCurvature });
+        mMips.record(commands, std::array<const Image*, 2>{ &mSurface, &mCurvature });
     }
 }

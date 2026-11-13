@@ -508,6 +508,9 @@ bounce (or `unbounced` in their place), then the composite. Every ray is a ray q
   and a pixel whose surface is one in both reads across them (`HistoryFields`).
 - **Work only where there is some**: `media` and `panes` dispatch indirectly over the tiles `visibility` lists
   (`StageTiles`), FidelityFX's classify and compact.
+- **A chain under a written image is one dispatch** (`MipChainPass`): AMD's single-pass downsampler, as FSR's luma
+  pyramid runs it, each level a box over the four above in light. Refused: a blit a level, whose drains between
+  levels held the sea's `waves` zone at a p99 of 2.6 ms against 1.7 (`research/2026-11-13-mip-chains-in-one-pass.md`).
 - **Exact numbers over smaller ones**: no f16 arithmetic, no snorm16 normals.
 - **No reuse of direct light**: only the held lamps' visibility is noisy, which the shadow denoiser filters. What
   the frame before decides is which lamps each ray is drawn among, never the light.

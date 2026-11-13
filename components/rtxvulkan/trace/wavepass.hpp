@@ -15,6 +15,7 @@
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/pipeline/computepipeline.hpp>
 #include <components/rtxvulkan/shaders/shared/wavetransform.h>
+#include <components/rtxvulkan/texture/mipchainpass.hpp>
 
 namespace Rtx
 {
@@ -103,6 +104,7 @@ namespace Rtx
 
         ComputePipeline<Shaders::WaveRowsConstants> mRowsPipeline;
         ComputePipeline<Shaders::WaveColumnsConstants> mColumnsPipeline;
+        MipChainPass mMips;
 
         Sampler mSampler;
 

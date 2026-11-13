@@ -1,0 +1,173 @@
+#version 460
+
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_shader_image_load_formatted : require
+
+// A chain of halvings in one dispatch, by AMD's single-pass downsampler (`extern/fidelityfx/gpu/spd`, v1.1.4): each
+// workgroup halves a 64-texel tile six times in shared memory, and the last of them to finish halves what the tiles
+// left down to one texel. Where a blit a level drained the queue between levels, ten times under a 1024-texel side.
+//
+// Every level a box over the four texels above it, in light: a display-encoded image is decoded before the mean and
+// encoded after it, as a blit through its encoded format filters. The means stay in full floats from level to level
+// rather than rounding through the stored format at each, as SPD keeps them. The branches are a workgroup's whole:
+// how many levels a chain has, and whether a workgroup is the last.
+
+#define FFX_GPU 1
+#define FFX_GLSL 1
+#define FFX_HALF 0
+
+#include "colour.h"
+#include "shared/mipchain.h"
+#include "shared/sets.h"
+#include "lib/census.glsl"
+
+#include "ffx_core.h"
+
+layout(local_size_x = MIPCHAIN_WORKGROUP) in;
+
+layout(set = SET_PASS, binding = MIPCHAIN_BIND_SOURCE) uniform readonly image2D source;
+
+layout(set = SET_PASS, binding = MIPCHAIN_BIND_COUNTER, scalar) coherent buffer Counter
+{
+    uint counter;
+};
+
+// The sixth level written is read back by the last workgroup from what the others stored, so it is coherent.
+layout(set = SET_PASS, binding = MIPCHAIN_BIND_LEVEL_0 + 0) uniform writeonly image2D level0;
+layout(set = SET_PASS, binding = MIPCHAIN_BIND_LEVEL_0 + 1) uniform writeonly image2D level1;
+layout(set = SET_PASS, binding = MIPCHAIN_BIND_LEVEL_0 + 2) uniform writeonly image2D level2;
+layout(set = SET_PASS, binding = MIPCHAIN_BIND_LEVEL_0 + 3) uniform writeonly image2D level3;
+layout(set = SET_PASS, binding = MIPCHAIN_BIND_LEVEL_0 + 4) uniform writeonly image2D level4;
+layout(set = SET_PASS, binding = MIPCHAIN_BIND_LEVEL_0 + 5) coherent uniform image2D level5;
+layout(set = SET_PASS, binding = MIPCHAIN_BIND_LEVEL_0 + 6) uniform writeonly image2D level6;
+layout(set = SET_PASS, binding = MIPCHAIN_BIND_LEVEL_0 + 7) uniform writeonly image2D level7;
+layout(set = SET_PASS, binding = MIPCHAIN_BIND_LEVEL_0 + 8) uniform writeonly image2D level8;
+layout(set = SET_PASS, binding = MIPCHAIN_BIND_LEVEL_0 + 9) uniform writeonly image2D level9;
+layout(set = SET_PASS, binding = MIPCHAIN_BIND_LEVEL_0 + 10) uniform writeonly image2D level10;
+layout(set = SET_PASS, binding = MIPCHAIN_BIND_LEVEL_0 + 11) uniform writeonly image2D level11;
+
+layout(push_constant, scalar) uniform Push
+{
+    MipChainConstants chain;
+};
+
+shared uint spdCounter;
+shared vec4 spdIntermediate[16][16];
+
+/// What a stored texel holds in light.
+vec4 decoded(vec4 stored)
+{
+    return chain.mEncoded != 0u ? vec4(decodeSrgb(stored.rgb), stored.a) : stored;
+}
+
+/// What a mean in light is stored as.
+vec4 encoded(vec4 light)
+{
+    return chain.mEncoded != 0u ? vec4(encodeSrgb(light.rgb), light.a) : light;
+}
+
+/// The side of the level `written` levels below the first, the downsampler's `mip` plus one.
+int sideOf(uint written)
+{
+    return int(max(chain.mSide >> (written + 1u), 1u));
+}
+
+// A tile reaches past an image narrower than 64 texels: its loads are clamped to the image, and its stores past it
+// dropped. A square side halves exactly, so what a stored texel reads never comes from past the edge.
+FfxFloat32x4 SpdLoadSourceImage(FfxInt32x2 p, FfxUInt32 slice)
+{
+    return decoded(imageLoad(source, clamp(p, ivec2(0), ivec2(int(chain.mSide) - 1))));
+}
+
+FfxFloat32x4 SpdLoad(FfxInt32x2 p, FfxUInt32 slice)
+{
+    return decoded(imageLoad(level5, clamp(p, ivec2(0), ivec2(sideOf(5u) - 1))));
+}
+
+void SpdStore(FfxInt32x2 p, FfxFloat32x4 value, FfxUInt32 mip, FfxUInt32 slice)
+{
+    if (any(greaterThanEqual(p, ivec2(sideOf(mip)))))
+        return;
+
+    const vec4 stored = encoded(value);
+    switch (mip)
+    {
+        case 0u:
+            RTX_STORE_COUNTED(level0, p, stored)
+            break;
+        case 1u:
+            RTX_STORE_COUNTED(level1, p, stored)
+            break;
+        case 2u:
+            RTX_STORE_COUNTED(level2, p, stored)
+            break;
+        case 3u:
+            RTX_STORE_COUNTED(level3, p, stored)
+            break;
+        case 4u:
+            RTX_STORE_COUNTED(level4, p, stored)
+            break;
+        case 5u:
+            RTX_STORE_COUNTED(level5, p, stored)
+            break;
+        case 6u:
+            RTX_STORE_COUNTED(level6, p, stored)
+            break;
+        case 7u:
+            RTX_STORE_COUNTED(level7, p, stored)
+            break;
+        case 8u:
+            RTX_STORE_COUNTED(level8, p, stored)
+            break;
+        case 9u:
+            RTX_STORE_COUNTED(level9, p, stored)
+            break;
+        case 10u:
+            RTX_STORE_COUNTED(level10, p, stored)
+            break;
+        case 11u:
+            RTX_STORE_COUNTED(level11, p, stored)
+            break;
+    }
+}
+
+FfxFloat32x4 SpdLoadIntermediate(FfxUInt32 x, FfxUInt32 y)
+{
+    return spdIntermediate[x][y];
+}
+
+void SpdStoreIntermediate(FfxUInt32 x, FfxUInt32 y, FfxFloat32x4 value)
+{
+    spdIntermediate[x][y] = value;
+}
+
+FfxFloat32x4 SpdReduce4(FfxFloat32x4 v0, FfxFloat32x4 v1, FfxFloat32x4 v2, FfxFloat32x4 v3)
+{
+    return (v0 + v1 + v2 + v3) * 0.25;
+}
+
+// **Fenced on both sides of the count**, where SPD leans on `coherent` alone: the sixth level a workgroup stored is
+// made visible before it counts itself done, and every lane of the last one fences before it reads the others'.
+void SpdIncreaseAtomicCounter(FfxUInt32 slice)
+{
+    memoryBarrierImage();
+    spdCounter = atomicAdd(counter, 1u);
+}
+
+FfxUInt32 SpdGetAtomicCounter()
+{
+    memoryBarrierImage();
+    return spdCounter;
+}
+
+void SpdResetAtomicCounter(FfxUInt32 slice)
+{
+    counter = 0u;
+}
+
+#include "spd/ffx_spd.h"
+
+void main()
+{
+    SpdDownsample(gl_WorkGroupID.xy, gl_LocalInvocationIndex, chain.mLevels, chain.mWorkGroups, 0u);
+}

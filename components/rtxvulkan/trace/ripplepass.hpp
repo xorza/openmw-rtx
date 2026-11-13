@@ -20,6 +20,7 @@
 #include <components/rtxvulkan/pipeline/computepipeline.hpp>
 #include <components/rtxvulkan/pipeline/pipeline.hpp>
 #include <components/rtxvulkan/shaders/shared/ripple.h>
+#include <components/rtxvulkan/texture/mipchainpass.hpp>
 
 namespace Rtx
 {
@@ -104,6 +105,7 @@ namespace Rtx
 
         ComputePipeline<Shaders::RippleStepConstants> mStepPipeline;
         ComputePipeline<NoConstants> mComposePipeline;
+        MipChainPass mMips;
 
         Sampler mSampler;
 

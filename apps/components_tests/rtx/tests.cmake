@@ -308,6 +308,7 @@ target_sources(
         rtxvulkan/support/device/rendererprobe.cpp
         rtxvulkan/texture/bc7encodepass.cpp
         rtxvulkan/texture/groundcompositepass.cpp
+        rtxvulkan/texture/mipchainpass.cpp
         rtxvulkan/texture/normalspreadpass.cpp
         rtxvulkan/texture/spritelightpass.cpp
         rtxvulkan/texture/texturearray.cpp

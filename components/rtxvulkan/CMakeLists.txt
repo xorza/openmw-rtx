@@ -102,6 +102,7 @@ set(RTX_SHADERS
     shaders/scene/toplevelpack.comp
     shaders/texture/bc7encode.comp
     shaders/texture/groundcomposite.comp
+    shaders/texture/mipchain.comp
     shaders/texture/normalspread.comp
     shaders/texture/spritelight.comp
     shaders/trace/denoise/accumulate.comp
@@ -450,6 +451,7 @@ target_sources(
         texture/bc7encodepass.cpp
         texture/blockencode.cpp
         texture/groundcompositepass.cpp
+        texture/mipchainpass.cpp
         texture/normalspreadpass.cpp
         texture/spritelightpass.cpp
         texture/texture.cpp
@@ -588,6 +590,7 @@ target_sources(
                 shaders/shared/historyclamp.h
                 shaders/shared/line.h
                 shaders/shared/medium.h
+                shaders/shared/mipchain.h
                 shaders/shared/normalspread.h
                 shaders/shared/notfinitekeep.h
                 shaders/shared/pane.h
@@ -617,6 +620,7 @@ target_sources(
                 texture/blockchain.hpp
                 texture/blockencode.hpp
                 texture/groundcompositepass.hpp
+                texture/mipchainpass.hpp
                 texture/normalspreadpass.hpp
                 texture/spritelightpass.hpp
                 texture/texture.hpp

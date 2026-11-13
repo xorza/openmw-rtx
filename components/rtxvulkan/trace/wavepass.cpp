@@ -76,6 +76,7 @@ namespace Rtx
         : mDevice(device)
         , mRowsPipeline(device, sRowsBindings, {}, "waverows.comp.spv", "wave rows")
         , mColumnsPipeline(device, sColumnsBindings, {}, "wavecolumns.comp.spv", "wave columns")
+        , mMips(device)
         , mSampler(makeContentSampler(device, "wave"))
         , mTwiddles(uploadTwiddles(device))
     {
@@ -151,6 +152,7 @@ namespace Rtx
         // Every level is written whole below, so none needs what the last frame left in it. The
         // last frame's trace may still be sampling it, and the head barrier `CommandPool::begin`
         // recorded is what orders this buffer after that.
+        static_assert(2 * Shaders::WAVE_CASCADES <= Shaders::MIPCHAIN_CHAINS_MOST, "a tile's chains past the record's");
         std::array<const Image*, 2 * Shaders::WAVE_CASCADES> images{};
         for (std::size_t index = 0; index < Shaders::WAVE_CASCADES; ++index)
         {
@@ -202,6 +204,6 @@ namespace Rtx
             dispatch(commands, mColumnsPipeline, columns, unpacked, Groups{ .mX = grid });
         }
 
-        Image::buildMips(commands, images);
+        mMips.record(commands, images);
     }
 }

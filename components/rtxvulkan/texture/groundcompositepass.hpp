@@ -12,6 +12,7 @@
 #include <components/rtxvulkan/shaders/shared/ground.h>
 
 #include "bc7encodepass.hpp"
+#include "mipchainpass.hpp"
 
 namespace Rtx
 {
@@ -56,6 +57,7 @@ namespace Rtx
     private:
         ComputePipeline<Shaders::GroundCompositeConstants> mPipeline;
         Bc7EncodePass mEncode;
+        MipChainPass mMips;
 
         /// What an image the bake does not write is bound as, because a descriptor has to point
         /// somewhere: a chunk whose two images arrived apart is baked once for each.

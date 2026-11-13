@@ -36,7 +36,7 @@ namespace Rtx
         VkImageUsageFlags mUsage = 0;
 
         /// How many halvings the image holds, including the full one. Levels past the first hold
-        /// nothing until `Image::buildMips` fills them, and one is an image with no chain at all.
+        /// nothing until a `MipChainPass` fills them, and one is an image with no chain at all.
         std::uint32_t mMipLevels = 1;
 
         /// How many slices it holds. One is a 2D image, which is what everything a camera writes or
@@ -165,17 +165,6 @@ namespace Rtx
         void copyTo(VkCommandBuffer commands, VkImageLayout layout, const Image& into, VkImageLayout intoLayout,
             VkExtent2D extent) const;
 
-        /// Fills every level below the first of each of `images` by halving the one above it, in
-        /// `VK_FILTER_LINEAR` — a box filter, which is what a moment wants: a channel carrying a square
-        /// averages to a mean square. Takes and leaves each image in `VK_IMAGE_LAYOUT_GENERAL`, ordered
-        /// against a sampled read. Needs both transfer usage bits.
-        ///
-        /// **The chains in step, and one barrier a level for all of them.** A level waits on the level
-        /// above it in its own chain and on nothing else, so the same level of every chain is blitted and
-        /// the queue drained once: built one at a time, the sea's four chains drained it forty-four times
-        /// a frame over levels mostly a few texels wide.
-        static void buildMips(VkCommandBuffer commands, std::span<const Image* const> images);
-
         /// Copies one level to host memory, one texel's bytes per pixel, tightly packed, row by row,
         /// into `pixels`, which holds `getReadBytes(level)`. Lands in `landing`, a read-back buffer
         /// grown to hold the level and kept by the caller, so a read that repeats makes no buffer and
@@ -248,7 +237,7 @@ namespace Rtx
         std::uint32_t mDepth = 1;
         VkFormat mFormat = VK_FORMAT_UNDEFINED;
         /// The image barrier between two uses over a run of levels: every level where `addTransition`
-        /// moves the layout, and a run of them in `buildMips`.
+        /// moves the layout.
         VkImageMemoryBarrier2 describeLevels(
             std::uint32_t base, std::uint32_t count, const ImageUse& from, const ImageUse& to) const;
 
