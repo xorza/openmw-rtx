@@ -20,7 +20,7 @@ set_property(
             thread
 )
 # The two configurations `cmake/Flags.cmake` gives the tree's flags, a bare configure's the first; any other would
-# build without line tables, x86-64-v2 or the stack protector.
+# build without line tables, x86-64-v3 or the stack protector.
 set(openmw_build_types
     RelWithDebInfo
     Release

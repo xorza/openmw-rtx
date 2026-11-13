@@ -7,10 +7,11 @@
 #   gcc-toolset is in no folder it searches. libstdc++'s C++20 half keeps no ABI across majors, and the set's
 #   archives and the tree's objects share its templates. The GCC is `g++-15` where a system names it so, as Arch and
 #   Ubuntu do, and `g++` otherwise, which the release base's `PATH` makes gcc-toolset-15's.
-# - **No contraction** (`-ffp-contract=off`), so the arithmetic rounds as written, as x86-64-v2's lack of fused
-#   multiply-add means it to: Clang's default turns `a * b + c` into `llvm.fmuladd`, which the optimiser folds fused
-#   where its operands are constant and the processor then runs unfused, and `GroundReader::maskTransform` read one
-#   value in a test that folded it and another in the reader that ran it.
+# - **No contraction** (`-ffp-contract=off`), so the arithmetic rounds as written, on Linux as under MSVC
+#   (`vcpkg/flags.cmake`): Clang's default turns `a * b + c` into `llvm.fmuladd`, which x86-64-v3's fused
+#   multiply-add rounds once. Before the tree had the instruction the optimiser already folded one fused where its
+#   operands were constant, and `GroundReader::maskTransform` read one value in a test that folded it and another in
+#   the reader that ran it.
 set(openmw_gcc_major 15)
 find_program(
     openmw_gcc
