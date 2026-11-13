@@ -1,25 +1,14 @@
-# Proposal: the lamps' noise and the bounce's fireflies
+# Proposal: the lamps' noise
 
-Two faults. The lamps' is in how a lamp is drawn, and is fixed where it is drawn; the fireflies' is a sample the
-renderer cannot see coming, from content it does not have, and is fixed where every sample meets the denoiser.
+The fault is in how a lamp is drawn, and is fixed where it is drawn.
 
-- **The lamps.** The eye's split hit sums every lamp's unshadowed light exactly and multiplies it by one bit: whether
+The eye's split hit sums every lamp's unshadowed light exactly and multiplies it by one bit: whether
   the ray to the lamp the reservoir held, drawn in proportion to that light, got through (Heitz et al. 2018's ratio
   estimator, `CHANNEL_LAMPED`). Where the lamps that weigh most are stopped — a lamp behind a pillar, one in the next
   room whose reach crosses the wall — the bit is open on few pixels and each carries the whole sum: one pixel in 94
   over the noisy band at the Census and Excise Office, one in 3.6 over the lit wall beside it
   (`docs/research/2026-11-13-lamp-shadow-rays-at-the-census-office.md`). A bit whose mean is 1% has a relative
-  deviation of about ten per pixel per frame however it is filtered.
-- **The bounce's fireflies.** A glow has no lamp of its own and lights only through the bounce rays that land on it
-  (`EMISSIVE_INTENSITY`, `landingLightOf`); a small bright one is found by few of them, each carrying all of it. What
-  players report comes from content this tree does not have — a replacer's glow, a mod's emissive map — so the fix is
-  the denoiser's, which meets every such sample whatever made it, and a glow stays what it is. A test emitter placed
-  in the Balmora Mages Guild makes them: none at a vanilla material's full glow, 52.86 a thousand at ten
-  times it, 216.97 at a hundred, where the denoised frame is noisier than its 16 frames averaged. The denoiser's
-  firefly hold as built takes none of them, because they arrive in settled histories; held at every history, as
-  ReBLUR holds, it takes 94% of them and doubles the frame's bias, since what it holds down is the ball's own light
-  (`docs/research/2026-11-13-a-bright-emitter-in-the-mages-guild.md`).
-
+deviation of about ten per pixel per frame however it is filtered.
 ## Decisions: the lamps
 
 
@@ -82,28 +71,6 @@ renderer cannot see coming, from content it does not have, and is fixed where ev
   took the bit (the bit already reaches them as a mean once its history is blended). The reach stays the whole reach
   wherever the draw was among several lamps, as `seenSolidOf` gives it now.
 
-## Decisions: the fireflies
-
-- **Each sample of the bounce is held under forty times the frame's white, and what it carried past is dropped**
-  (`ACCUMULATE_FIREFLY_CEILING`), as every shipping real-time path tracer holds a rare bright sample: Unreal's Lumen
-  at a multiple of the exposure (`r.Lumen.ScreenProbeGather.MaxRayIntensity`, 40 by default), NVIDIA's Omniverse
-  per sample before the exposure (`fireflyFilter:maxUnexposedIntensityPerSample`), Unreal's path tracer
-  (`Max Path Intensity`) and Blender's Cycles (`Clamp Indirect`). Refused, each tried at the guild and judged by eye
-  still blotched on every frame: ReBLUR's ring on every history, which doubled the frame's bias; the ring's excess
-  spread back over the surface, energy-conserving (Zirr, Hanika and Dachsbacher 2018), at every reach tried, since a
-  few rays a frame find such a glow; and the excess dropped by the ring. Refused by the user: a lamp of its own for
-  every glow (next-event estimation on emissive geometry, as Quake II RTX and RTXDI do), which fixes the glows a lamp
-  is made for and not the samples a mod's content makes.
-
-- **The white is the exposure the frame before was shown at**, as Lumen's pre-exposure and Omniverse's scaling hold
-  it: one ceiling at every brightness, as Blender's is, cuts a bright day's bounce or none of a dim room's. The frame
-  before's, because this frame's exposure is measured from the picture the trace makes.
-
-- **On by default, the bias its price**, at the user's call: a surface lit mostly by a glow the bounce finds rarely
-  loses most of that light for good — 0.212 of its mean kept under the lantern sheet of
-  `theRingLeavesASettledMeanItsLight`, shown at one. Whether the ring of short histories stays beside it under the one
-  switch is decided with the suites' measurement.
-
 ## Costs
 
 
@@ -114,29 +81,19 @@ renderer cannot see coming, from content it does not have, and is fixed where ev
 - One pass after the trace to build the lists, and the second reservoir's weighing in `weighLamps`, which weighs
   the same lamps it weighs now.
 
-- The ceiling: the exposure's one float read by every accumulator thread, and a division a pixel.
-
 ## Plan
 
-Each batch leaves the build, the gate and `./omw noise` on its places green. The first is what the other two are
-judged by; the other two stand apart.
+Each batch leaves the build, the gate and `./omw noise` on its places green. The first is what the second is
+judged by.
 
 ### 1. The places and the measures
 
-- [ ] `census-office-wall` in `files/rtx/views.cfg`, and a `noise` suite that visits it beside a place where the
-  player's content fireflies: the places this proposal is judged by.
+- [ ] `census-office-wall` in `files/rtx/views.cfg`, and a `noise` suite that visits it: the place this proposal is
+  judged by.
 - [ ] `noise` reports each place's worst tiles beside the frame's figures: the office scored "as clean" or near it
   with its noise in a seventh of the frame.
 
-### 2. The fireflies
-
-- [ ] `./omw noise --ab=antifirefly` on the `bounce` suite and the firefly place, still, strafed and cut: the bias the
-  ceiling adds against the fireflies it takes, and the ring kept beside it or not.
-- [ ] The glossy filter's samples (`CHANNEL_SPECULAR`) under the same ceiling, if a lobe that finds a glow fireflies
-  where the bounce no longer does.
-- [ ] `./omw repeat --pairs=10`, `./omw release bench`.
-
-### 3. The lamps' draw
+### 2. The lamps' draw
 
 - [ ] The visible-lamp lists: a pass after the trace, 8×8 tiles, at most 8 rows, two frames kept, emptied when the
   light table is laid out again.
@@ -153,5 +110,3 @@ judged by; the other two stand apart.
 
 - `docs/architecture.md`, "No reuse of direct light": it stands for the light, which is still traced fresh each frame.
   What last frame decides is only which lamp this frame's ray goes to.
-- The accumulator's "No outlier clamp on the sample": it stands for a ceiling set by the pixel's own spread, and the
-  exposure's ceiling is the display's.
