@@ -33,6 +33,7 @@
 #include <components/misc/hashstate.hpp>
 #include <components/misc/result.hpp>
 #include <components/misc/strings/lower.hpp>
+#include <components/rtx/image/blockdecode.hpp>
 #include <components/rtx/image/chainbuild.hpp>
 #include <components/rtx/image/imagedescription.hpp>
 #include <components/rtx/image/texturedata.hpp>
@@ -48,8 +49,8 @@
 // names none, which is what CTest's dry run and a box with no content read. A number is quoted off a folder of
 // the content's own textures, whose mix of blocks the made pictures do not have.
 //
-// **The label is the corpus and a digest of every byte the pass made of it**, so a change to the encoder that
-// moves a byte shows beside the time it bought.
+// **The label is the corpus and a digest of every byte the pass made of it, and the counters what the encoding
+// lost of it**, so a change to the encoder that moves a byte shows beside the time it bought and the error it cost.
 
 namespace Rtx
 {
@@ -105,6 +106,37 @@ namespace Rtx
                 return texels;
             }
 
+            /// The squares of what the made chain's red, green and blue decode to less the built texels they
+            /// were encoded from, summed over every level: what the encoding lost.
+            std::uint64_t measureSquaredError() const
+            {
+                assert(isMadeInBc1() && "an error measured of a chain the pass did not make in BC1");
+                std::uint64_t squares = 0;
+                std::vector<std::uint8_t> decoded;
+                std::size_t at = 0;
+                for (std::uint32_t level = 0; level < mBuilt.getLevelCount(); ++level)
+                {
+                    const MipLevel& laid = mBuilt.getLevel(level);
+                    const std::size_t bytes = layoutOf(mFile->mFormat).levelBytes(laid.mWidth, laid.mHeight);
+                    decoded.resize(std::size_t{ laid.mWidth } * laid.mHeight * 4);
+                    [[maybe_unused]] const bool read = decodeBlocks(
+                        mFile->mFormat, getMade().subspan(at, bytes), laid.mWidth, laid.mHeight, decoded);
+                    assert(read && "a made chain that does not decode as the file's format");
+                    at += bytes;
+
+                    const std::span<const std::byte> built = mBuilt.getTexels(level);
+                    for (std::size_t texel = 0; texel < decoded.size() / 4; ++texel)
+                        for (std::size_t channel = 0; channel < 3; ++channel)
+                        {
+                            const int lost = int{ decoded[texel * 4 + channel] }
+                                - std::to_integer<int>(built[texel * 4 + channel]);
+                            squares += static_cast<std::uint64_t>(lost * lost);
+                        }
+                }
+                assert(at == getMade().size() && "a made chain laid as the built levels are not");
+                return squares;
+            }
+
             /// Appends the built chain to `into` in BC1, as the pass encodes a painted colour's
             /// (`ChainBuild::encode` from its finest level).
             void encode(Misc::ByteBuffer& into) const
@@ -131,6 +163,9 @@ namespace Rtx
             std::size_t mTexels = 0;
             std::size_t mFinestTexels = 0;
 
+            /// What the encoding lost of them (`PaintedChain::measureSquaredError`).
+            std::uint64_t mSquaredError = 0;
+
             /// Every byte the pass made of the files, in their order.
             Misc::HashState mMade;
 
@@ -143,6 +178,7 @@ namespace Rtx
 
                 mTexels += chain->countTexels();
                 mFinestTexels += chain->countTexels() - chain->countTexels(1);
+                mSquaredError += chain->measureSquaredError();
                 mMade.add(chain->getMade());
                 mChains.push_back(std::move(chain));
             }
@@ -151,6 +187,18 @@ namespace Rtx
             {
                 return std::format("{} files, {:.2f} Mtexel, made {:016x}{:016x}", mChains.size(),
                     static_cast<double>(mTexels) / 1.0e6, mMade.getWords()[0], mMade.getWords()[1]);
+            }
+
+            /// Writes the corpus beside a benchmark's time, and what its encoding lost: the root of the mean
+            /// square a channel, in bytes, and the same as a peak signal-to-noise ratio in decibels.
+            void report(benchmark::State& state) const
+            {
+                const double rmse
+                    = std::sqrt(static_cast<double>(mSquaredError) / (3.0 * static_cast<double>(mTexels)));
+                state.SetItemsProcessed(state.iterations() * static_cast<std::int64_t>(mTexels));
+                state.counters["rmse"] = rmse;
+                state.counters["psnr"] = 20.0 * std::log10(255.0 / rmse);
+                state.SetLabel(describe());
             }
         };
 
@@ -340,8 +388,7 @@ namespace Rtx
                     benchmark::DoNotOptimize(made.data());
                     assert(std::ranges::equal(made, chain->getMade()) && "the encoder alone made another chain");
                 }
-            state.SetItemsProcessed(state.iterations() * static_cast<std::int64_t>(corpus.mTexels));
-            state.SetLabel(corpus.describe());
+            corpus.report(state);
         }
 
         /// What a preparation thread runs for a file: the pass whole, its read, its build and its encoding.
@@ -357,8 +404,7 @@ namespace Rtx
                         ChainPass::Input{ .mImage = chain->getImage(), .mEncoding = TextureEncoding::Painted }, made);
                     benchmark::DoNotOptimize(made.mBytes.data());
                 }
-            state.SetItemsProcessed(state.iterations() * static_cast<std::int64_t>(corpus.mTexels));
-            state.SetLabel(corpus.describe());
+            corpus.report(state);
         }
 
         /// The corpus the run names: the folder's where `OPENMW_RTX_BENCH_TEXTURES` names one, the made
