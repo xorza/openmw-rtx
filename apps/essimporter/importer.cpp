@@ -229,7 +229,8 @@ namespace ESSImport
 
                         if (different)
                             std::cout << "\033[033m";
-                        std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)sub.mData[k] << " ";
+                        std::cout << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(sub.mData[k])
+                                  << " ";
                         if (different)
                             std::cout << "\033[0m";
                     }
@@ -244,7 +245,8 @@ namespace ESSImport
 
                         if (different)
                             std::cout << "\033[033m";
-                        std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)sub2.mData[k] << " ";
+                        std::cout << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(sub2.mData[k])
+                                  << " ";
                         if (different)
                             std::cout << "\033[0m";
                     }

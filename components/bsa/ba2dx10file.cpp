@@ -456,7 +456,7 @@ namespace Bsa
                 header.mFlags = header.mFlags | DDSD_LINEARSIZE;
                 header.mPixelFormat.mFlags = DDPF_FOURCC;
                 header.mPixelFormat.mFourCC = ESM::fourCC("DX10");
-                header.mDXGIFormat = int32_t(fileRecord.mDXGIFormat);
+                header.mDXGIFormat = static_cast<int32_t>(fileRecord.mDXGIFormat);
                 header.mPitchOrLinearSize = fileRecord.mWidth * fileRecord.mHeight / 2;
                 break;
             }
@@ -470,7 +470,7 @@ namespace Bsa
                 header.mFlags = header.mFlags | DDSD_LINEARSIZE;
                 header.mPixelFormat.mFlags = DDPF_FOURCC;
                 header.mPixelFormat.mFourCC = ESM::fourCC("DX10");
-                header.mDXGIFormat = int32_t(fileRecord.mDXGIFormat);
+                header.mDXGIFormat = static_cast<int32_t>(fileRecord.mDXGIFormat);
                 header.mPitchOrLinearSize = fileRecord.mWidth * fileRecord.mHeight;
                 break;
             }
@@ -483,7 +483,7 @@ namespace Bsa
                 header.mFlags = header.mFlags | DDSD_PITCH;
                 header.mPixelFormat.mFlags = DDPF_FOURCC;
                 header.mPixelFormat.mFourCC = ESM::fourCC("DX10");
-                header.mDXGIFormat = int32_t(fileRecord.mDXGIFormat);
+                header.mDXGIFormat = static_cast<int32_t>(fileRecord.mDXGIFormat);
                 header.mPitchOrLinearSize = fileRecord.mWidth * 4;
                 break;
             }
@@ -493,7 +493,7 @@ namespace Bsa
                 header.mFlags = header.mFlags | DDSD_PITCH;
                 header.mPixelFormat.mFlags = DDPF_FOURCC;
                 header.mPixelFormat.mFourCC = ESM::fourCC("DX10");
-                header.mDXGIFormat = int32_t(fileRecord.mDXGIFormat);
+                header.mDXGIFormat = static_cast<int32_t>(fileRecord.mDXGIFormat);
                 header.mPitchOrLinearSize = fileRecord.mWidth * 2;
                 break;
             }
@@ -504,7 +504,7 @@ namespace Bsa
                 header.mFlags = header.mFlags | DDSD_PITCH;
                 header.mPixelFormat.mFlags = DDPF_FOURCC;
                 header.mPixelFormat.mFourCC = ESM::fourCC("DX10");
-                header.mDXGIFormat = int32_t(fileRecord.mDXGIFormat);
+                header.mDXGIFormat = static_cast<int32_t>(fileRecord.mDXGIFormat);
                 header.mPitchOrLinearSize = fileRecord.mWidth;
                 break;
             }
@@ -614,7 +614,7 @@ namespace Bsa
         std::vector<char> inputBuffer(maxPackedChunkSize);
 
         uint32_t dds = ESM::fourCC("DDS ");
-        buff = (char*)std::memcpy(buff, &dds, sizeof(uint32_t)) + sizeof(uint32_t);
+        buff = static_cast<char*>(std::memcpy(buff, &dds, sizeof(uint32_t))) + sizeof(uint32_t);
         std::memcpy(buff, &header, headerSize);
 
         size_t offset = sizeof(uint32_t) + headerSize;

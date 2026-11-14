@@ -192,8 +192,7 @@ namespace Rtx
                 double squares = 0.0;
                 for (std::uint32_t index = 1; index <= count; ++index)
                 {
-                    const osg::Vec3f uvw(static_cast<float>(radicalInverse(index, 2)),
-                        static_cast<float>(radicalInverse(index, 3)), static_cast<float>(radicalInverse(index, 5)));
+                    const osg::Vec3f uvw(radicalInverse(index, 2), radicalInverse(index, 3), radicalInverse(index, 5));
                     const osg::Vec2f pair = sampleAt(noise, level, uvw);
                     for (const float value : { pair.x(), pair.y() })
                     {

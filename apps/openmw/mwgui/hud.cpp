@@ -224,8 +224,8 @@ namespace MWGui
 
             MyGUI::IntSize viewSize = MyGUI::RenderManager::getInstance().getViewSize();
             MyGUI::IntPoint cursorPosition = MyGUI::InputManager::getInstance().getMousePosition();
-            float mouseX = cursorPosition.left / float(viewSize.width);
-            float mouseY = cursorPosition.top / float(viewSize.height);
+            float mouseX = cursorPosition.left / static_cast<float>(viewSize.width);
+            float mouseY = cursorPosition.top / static_cast<float>(viewSize.height);
 
             MWBase::World* world = MWBase::Environment::get().getWorld();
 

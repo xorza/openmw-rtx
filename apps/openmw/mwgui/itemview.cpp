@@ -56,7 +56,8 @@ namespace MWGui
 
         mRows = std::max(maxHeight / 42, 1);
         mItemCount = static_cast<int>(dragArea->getChildCount());
-        bool showScrollbar = static_cast<int>(std::ceil(mItemCount / float(mRows))) > mScrollView->getWidth() / 42;
+        bool showScrollbar
+            = static_cast<int>(std::ceil(mItemCount / static_cast<float>(mRows))) > mScrollView->getWidth() / 42;
         if (showScrollbar)
         {
             maxHeight -= 18;

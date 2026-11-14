@@ -462,7 +462,7 @@ namespace MWRender
     {
         clearAnimSources();
         for (size_t i = 0; i < ESM::PRT_Count; i++)
-            removeIndividualPart((ESM::PartReferenceType)i);
+            removeIndividualPart(static_cast<ESM::PartReferenceType>(i));
 
         const MWWorld::ESMStore& store = *MWBase::Environment::get().getESMStore();
         const ESM::Race* race = store.get<ESM::Race>().find(mNpc->mRace);
@@ -757,7 +757,7 @@ namespace MWRender
         for (int i = 0; i < ESM::PRT_Count; i++)
         {
             if (mPartslots[i] == group)
-                removeIndividualPart((ESM::PartReferenceType)i);
+                removeIndividualPart(static_cast<ESM::PartReferenceType>(i));
         }
     }
 
@@ -909,7 +909,7 @@ namespace MWRender
                 addOrReplaceIndividualPart(static_cast<ESM::PartReferenceType>(part.mPart), group, priority,
                     Misc::ResourceHelpers::correctMeshPath(bodypart->mModel.getNormalized()), enchantedGlow, glowColor);
             else
-                reserveIndividualPart((ESM::PartReferenceType)part.mPart, group, priority);
+                reserveIndividualPart(static_cast<ESM::PartReferenceType>(part.mPart), group, priority);
         }
     }
 

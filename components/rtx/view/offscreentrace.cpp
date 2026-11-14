@@ -114,7 +114,7 @@ namespace Rtx
         // Posed here, because a subtree in no graph is reached by no traversal but this one: the camera
         // callback the game hangs on a doll's subtree, which finds the head to look at, runs in an update.
         Subject& subject = *mSubject;
-        subject.mPosedFrame = static_cast<unsigned int>(posing.getFrameNumber());
+        subject.mPosedFrame = posing.getFrameNumber();
 
         subject.mUpdate->reset();
 

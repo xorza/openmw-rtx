@@ -225,7 +225,7 @@ namespace MWGui
         mProgress = value;
         mProgressBar->setScrollPosition(0);
         mProgressBar->setTrackSize(
-            static_cast<int>(value / (float)(mProgressBar->getScrollRange()) * mProgressBar->getLineSize()));
+            static_cast<int>(value / static_cast<float>(mProgressBar->getScrollRange()) * mProgressBar->getLineSize()));
         draw();
     }
 
@@ -236,7 +236,7 @@ namespace MWGui
         value = std::min(value, mProgressBar->getScrollRange() - 1);
         mProgress = value;
         mProgressBar->setTrackSize(
-            static_cast<int>(value / (float)(mProgressBar->getScrollRange()) * mProgressBar->getLineSize()));
+            static_cast<int>(value / static_cast<float>(mProgressBar->getScrollRange()) * mProgressBar->getLineSize()));
         draw();
     }
 

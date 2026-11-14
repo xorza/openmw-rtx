@@ -311,7 +311,8 @@ namespace MWGui
                 MyGUI::IntSize tooltipSize = getToolTipViaPtr(mFocusObject.getCellRef().getCount(), true, checkOwned());
 
                 const int left = viewSize.width / 2 - tooltipSize.width / 2;
-                const int top = std::max(0, int(mFocusToolTipY * viewSize.height - tooltipSize.height - 20));
+                const int top
+                    = std::max(0, static_cast<int>(mFocusToolTipY * viewSize.height - tooltipSize.height - 20));
                 setCoord(left, top, tooltipSize.width, tooltipSize.height);
 
                 mDynamicToolTipBox->setVisible(true);
@@ -323,7 +324,7 @@ namespace MWGui
     {
         position += MyGUI::IntPoint(0, 32)
             - MyGUI::IntPoint(static_cast<int>(MyGUI::InputManager::getInstance().getMousePosition().left
-                                  / float(viewportSize.width) * size.width),
+                                  / static_cast<float>(viewportSize.width) * size.width),
                 0);
 
         if ((position.left + size.width) > viewportSize.width)

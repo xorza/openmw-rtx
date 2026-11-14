@@ -73,7 +73,7 @@ namespace MWRender
                 screenW = eyeRes.x();
                 screenH = eyeRes.y();
             }
-            double imageaspect = double(mWidth) / double(mHeight);
+            double imageaspect = static_cast<double>(mWidth) / static_cast<double>(mHeight);
             int leftPadding = std::max(0, static_cast<int>(screenW - screenH * imageaspect) / 2);
             int topPadding = std::max(0, static_cast<int>(screenH - screenW / imageaspect) / 2);
             int width = screenW - leftPadding * 2;

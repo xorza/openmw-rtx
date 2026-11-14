@@ -60,7 +60,7 @@ namespace MWSound
                 mInner->clear();
                 mInner->seekg(off, dir);
                 if (!*mInner)
-                    return std::streampos(std::streamoff(-1));
+                    return std::streampos(static_cast<std::streamoff>(-1));
                 mPos = mInner->tellg();
                 if (dir == std::ios_base::end)
                     mFileSize = std::max(mFileSize, mPos - off);
@@ -145,7 +145,7 @@ namespace MWSound
                 // Reject seeks past the end like the constrained streams the
                 // file is served from on a miss, so replays behave the same.
                 if (target < 0 || target > mBuffer->mFileSize)
-                    return std::streampos(std::streamoff(-1));
+                    return std::streampos(static_cast<std::streamoff>(-1));
                 mPos = target;
                 setg(nullptr, nullptr, nullptr);
                 return mPos;

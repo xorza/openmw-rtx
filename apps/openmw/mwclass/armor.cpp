@@ -104,7 +104,7 @@ namespace MWClass
         for (auto i : sMapping)
             if (i[0] == ref->mBase->mData.mType)
             {
-                slots.push_back(int(i[1]));
+                slots.push_back((i[1]));
                 break;
             }
 

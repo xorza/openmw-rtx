@@ -216,7 +216,7 @@ namespace MWBase
         ///< Is the given sound currently playing on the given object?
         ///  If you want to check if sound played with playSound is playing, use empty Ptr
 
-        virtual void pauseSounds(MWSound::BlockerType blocker, int types = int(Type::Mask)) = 0;
+        virtual void pauseSounds(MWSound::BlockerType blocker, int types = static_cast<int>(Type::Mask)) = 0;
         ///< Pauses all currently playing sounds, including music.
 
         virtual void resumeSounds(MWSound::BlockerType blocker) = 0;

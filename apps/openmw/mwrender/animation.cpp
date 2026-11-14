@@ -1129,7 +1129,8 @@ namespace MWRender
                     continue;
 
                 if (active == mStates.end()
-                    || active->second.mPriority[(BoneGroup)blendMask] < state->second.mPriority[(BoneGroup)blendMask])
+                    || active->second.mPriority[static_cast<BoneGroup>(blendMask)]
+                        < state->second.mPriority[static_cast<BoneGroup>(blendMask)])
                     active = state;
             }
 
@@ -1835,10 +1836,10 @@ namespace MWRender
     {
         for (const auto& mState : mStates)
         {
-            if (mState.second.mPriority.contains(int(MWMechanics::Priority_Hit))
-                || mState.second.mPriority.contains(int(MWMechanics::Priority_Weapon))
-                || mState.second.mPriority.contains(int(MWMechanics::Priority_Knockdown))
-                || mState.second.mPriority.contains(int(MWMechanics::Priority_Death)))
+            if (mState.second.mPriority.contains(static_cast<int>(MWMechanics::Priority_Hit))
+                || mState.second.mPriority.contains(static_cast<int>(MWMechanics::Priority_Weapon))
+                || mState.second.mPriority.contains(static_cast<int>(MWMechanics::Priority_Knockdown))
+                || mState.second.mPriority.contains(static_cast<int>(MWMechanics::Priority_Death)))
                 return false;
         }
         return true;

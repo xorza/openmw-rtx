@@ -546,7 +546,7 @@ namespace MWSound
             ALint queued;
             alGetSourcei(mSource, AL_BUFFERS_QUEUED, &queued);
             ALint inqueue = mBufferSize / mFrameSize * queued - offset;
-            d = (double)inqueue / (double)mSampleRate;
+            d = static_cast<double>(inqueue) / static_cast<double>(mSampleRate);
         }
 
         getALError();
@@ -626,10 +626,10 @@ namespace MWSound
 
         ALint queued;
         alGetSourcei(mSource, AL_BUFFERS_QUEUED, &queued);
-        if (!mIsFinished && (ALuint)queued < mBuffers.size())
+        if (!mIsFinished && static_cast<ALuint>(queued) < mBuffers.size())
         {
             std::vector<char> data(mBufferSize);
-            for (; !mIsFinished && (ALuint)queued < mBuffers.size(); ++queued)
+            for (; !mIsFinished && static_cast<ALuint>(queued) < mBuffers.size(); ++queued)
             {
                 size_t got = mDecoder->read(data.data(), data.size());
                 if (got < data.size())

@@ -716,7 +716,7 @@ namespace MWGui
         {
             mHistory->setSize(MyGUI::IntSize(mHistory->getWidth(), book->getSize().second));
             // Scroll range should be >= 2 to enable scrolling and prevent a crash
-            size_t range = std::max(book->getSize().second - viewHeight, size_t(2));
+            size_t range = std::max(book->getSize().second - viewHeight, static_cast<size_t>(2));
             mScrollBar->setScrollRange(range);
             mScrollBar->setScrollPosition(range - 1);
             mScrollBar->setTrackSize(

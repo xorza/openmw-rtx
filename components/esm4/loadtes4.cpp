@@ -46,7 +46,7 @@ void ESM4::Header::load(ESM4::Reader& reader)
                 if (!reader.getExact(mData.version) || !reader.getExact(mData.records)
                     || !reader.getExact(mData.nextObjectId))
                     throw std::runtime_error("TES4 HEDR data read error");
-                if ((size_t)subHdr.dataSize
+                if (static_cast<size_t>(subHdr.dataSize)
                     != sizeof(mData.version) + sizeof(mData.records) + sizeof(mData.nextObjectId))
                     throw std::runtime_error("TES4 HEDR data size mismatch");
                 break;

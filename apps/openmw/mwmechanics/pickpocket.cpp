@@ -24,7 +24,7 @@ namespace MWMechanics
         NpcStats& stats = ptr.getClass().getNpcStats(ptr);
         float agility = stats.getAttribute(ESM::Attribute::Agility).getModified();
         float luck = stats.getAttribute(ESM::Attribute::Luck).getModified();
-        auto sneak = static_cast<float>(ptr.getClass().getSkill(ptr, ESM::Skill::Sneak));
+        auto sneak = ptr.getClass().getSkill(ptr, ESM::Skill::Sneak);
         return (add + 0.2f * agility + 0.1f * luck + sneak) * stats.getFatigueTerm();
     }
 
@@ -35,7 +35,7 @@ namespace MWMechanics
 
         float t = 2 * x - y;
 
-        auto pcSneak = static_cast<float>(mThief.getClass().getSkill(mThief, ESM::Skill::Sneak));
+        auto pcSneak = mThief.getClass().getSkill(mThief, ESM::Skill::Sneak);
         int iPickMinChance = MWBase::Environment::get()
                                  .getESMStore()
                                  ->get<ESM::GameSetting>()
@@ -51,12 +51,12 @@ namespace MWMechanics
         int roll = Misc::Rng::roll0to99(prng);
         if (t < pcSneak / iPickMinChance)
         {
-            return (roll > int(pcSneak / iPickMinChance));
+            return (roll > static_cast<int>(pcSneak / iPickMinChance));
         }
         else
         {
-            t = std::min(float(iPickMaxChance), t);
-            return (roll > int(t));
+            t = std::min(static_cast<float>(iPickMaxChance), t);
+            return (roll > static_cast<int>(t));
         }
     }
 

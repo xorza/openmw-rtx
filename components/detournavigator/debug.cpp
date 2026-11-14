@@ -288,7 +288,7 @@ namespace DetourNavigator
         header.params = *navMesh.getParams();
 
         using const_char_ptr = const char*;
-        file.write(const_char_ptr(&header), sizeof(header));
+        file.write(reinterpret_cast<const_char_ptr>(&header), sizeof(header));
 
         for (int i = 0; i < navMesh.getMaxTiles(); ++i)
         {
@@ -300,8 +300,8 @@ namespace DetourNavigator
             tileHeader.tileRef = navMesh.getTileRef(tile);
             tileHeader.dataSize = tile->dataSize;
 
-            file.write(const_char_ptr(&tileHeader), sizeof(tileHeader));
-            file.write(const_char_ptr(tile->data), tile->dataSize);
+            file.write(reinterpret_cast<const_char_ptr>(&tileHeader), sizeof(tileHeader));
+            file.write(reinterpret_cast<const_char_ptr>(tile->data), tile->dataSize);
         }
     }
 }

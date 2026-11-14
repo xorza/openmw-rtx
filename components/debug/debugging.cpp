@@ -141,7 +141,7 @@ namespace Debug
                     (void)localtime_r(&time, &timeInfo);
 #endif
                     prefixSize = std::strftime(prefix + 1, sizeof(prefix) - 1, "%T", &timeInfo) + 1;
-                    char levelLetter = " EWIVD*"[int(level)];
+                    char levelLetter = " EWIVD*"[static_cast<int>(level)];
                     const auto ms
                         = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
                     prefixSize += snprintf(prefix + prefixSize, sizeof(prefix) - prefixSize, ".%03u %c] ",

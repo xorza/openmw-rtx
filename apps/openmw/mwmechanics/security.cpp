@@ -22,7 +22,7 @@ namespace MWMechanics
         CreatureStats& creatureStats = actor.getClass().getCreatureStats(actor);
         mAgility = creatureStats.getAttribute(ESM::Attribute::Agility).getModified();
         mLuck = creatureStats.getAttribute(ESM::Attribute::Luck).getModified();
-        mSecuritySkill = static_cast<float>(actor.getClass().getSkill(actor, ESM::Skill::Security));
+        mSecuritySkill = actor.getClass().getSkill(actor, ESM::Skill::Security);
         mFatigueTerm = creatureStats.getFatigueTerm();
     }
 

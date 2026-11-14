@@ -23,7 +23,7 @@ namespace DetourNavigator
 
     inline float getLength(const osg::Vec2i& value)
     {
-        return std::sqrt(float(osg::square(value.x()) + osg::square(value.y())));
+        return std::sqrt(static_cast<float>(osg::square(value.x()) + osg::square(value.y())));
     }
 
     inline float getDistance(const TilePosition& lhs, const TilePosition& rhs)

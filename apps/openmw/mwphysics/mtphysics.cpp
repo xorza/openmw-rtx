@@ -484,7 +484,7 @@ namespace MWPhysics
             // ensure that we do not simulate a frame ahead when doing delta time; this reduces stutter and latency
             // this causes interpolation to 100% use the most recent physics result when true delta time is happening
             // and we deliberately simulate up to exactly the timestamp that we want to render
-            actualDelta = timeAccum / float(numSteps + 1);
+            actualDelta = timeAccum / static_cast<float>(numSteps + 1);
             // actually: if this results in a per-step delta less than the target physics steptime, clamp it
             // this might reintroduce some stutter, but only comes into play in obscure cases
             // (because numSteps is originally based on mDefaultPhysicsDt, this won't cause us to overrun)

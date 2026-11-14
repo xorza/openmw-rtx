@@ -536,7 +536,7 @@ namespace CSMWorld
             auto& part = partRecord.get();
             if (part.mRace == id && part.mData.mType == ESM::BodyPart::MT_Skin && !ESM::isFirstPersonBodyPart(part))
             {
-                auto type = (ESM::BodyPart::MeshPart)part.mData.mPart;
+                auto type = static_cast<ESM::BodyPart::MeshPart>(part.mData.mPart);
                 bool female = part.mData.mFlags & ESM::BodyPart::BPF_Female;
                 if (female)
                     data->setFemalePart(type, part.mId);
@@ -592,7 +592,7 @@ namespace CSMWorld
             for (auto& part : list)
             {
                 ESM::RefId partId;
-                auto partType = (ESM::PartReferenceType)part.mPart;
+                auto partType = static_cast<ESM::PartReferenceType>(part.mPart);
 
                 if (data->isFemale())
                     partId = part.mFemale;

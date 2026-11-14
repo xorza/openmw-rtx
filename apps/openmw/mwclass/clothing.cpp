@@ -70,8 +70,8 @@ namespace MWClass
 
         if (ref->mBase->mData.mType == ESM::Clothing::Ring)
         {
-            slots.push_back(int(MWWorld::InventoryStore::Slot_LeftRing));
-            slots.push_back(int(MWWorld::InventoryStore::Slot_RightRing));
+            slots.push_back((MWWorld::InventoryStore::Slot_LeftRing));
+            slots.push_back((MWWorld::InventoryStore::Slot_RightRing));
         }
         else
         {
@@ -90,7 +90,7 @@ namespace MWClass
             for (auto i : sMapping)
                 if (i[0] == ref->mBase->mData.mType)
                 {
-                    slots.push_back(int(i[1]));
+                    slots.push_back((i[1]));
                     break;
                 }
         }

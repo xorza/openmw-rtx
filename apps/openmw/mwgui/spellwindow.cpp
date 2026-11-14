@@ -229,7 +229,7 @@ namespace MWGui
         MWWorld::InventoryStore& store = player.getClass().getInventoryStore(player);
         store.setSelectedEnchantItem(store.end());
         MWBase::Environment::get().getWindowManager()->setSelectedSpell(
-            spellId, int(MWMechanics::getSpellSuccessChance(spellId, player)));
+            spellId, static_cast<int>(MWMechanics::getSpellSuccessChance(spellId, player)));
 
         updateSpells();
     }

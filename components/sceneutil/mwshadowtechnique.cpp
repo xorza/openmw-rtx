@@ -1196,7 +1196,7 @@ void MWShadowTechnique::cull(osgUtil::CullVisitor& cv)
     {
         osg::ref_ptr<osg::Vec3Array> vertexArray = new osg::Vec3Array();
         for (osg::Vec3d &vertex : frustum.corners)
-            vertexArray->push_back((osg::Vec3)vertex);
+            vertexArray->push_back(osg::Vec3(vertex));
         _debugHud->setFrustumVertices(vertexArray, cv.getTraversalNumber());
     }
 
@@ -1438,8 +1438,8 @@ void MWShadowTechnique::cull(osgUtil::CullVisitor& cv)
                 // split system based on the original Parallel Split Shadow Maps paper.
                 double n = reducedNear;
                 double f = reducedFar;
-                auto i = double(sm_i);
-                auto m = double(numShadowMapsPerLight);
+                auto i = static_cast<double>(sm_i);
+                auto m = static_cast<double>(numShadowMapsPerLight);
                 if (sm_i == 0)
                     r_start = -1.0;
                 else
@@ -1687,10 +1687,10 @@ void MWShadowTechnique::createShaders()
     _shadowCastingStateSet->setMode(GL_POLYGON_OFFSET_FILL, osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
 
 
-    osg::ref_ptr<osg::Uniform> baseTextureSampler = new osg::Uniform("baseTexture",(int)_baseTextureUnit);
-    osg::ref_ptr<osg::Uniform> baseTextureUnit = new osg::Uniform("baseTextureUnit",(int)_baseTextureUnit);
+    osg::ref_ptr<osg::Uniform> baseTextureSampler = new osg::Uniform("baseTexture",static_cast<int>(_baseTextureUnit));
+    osg::ref_ptr<osg::Uniform> baseTextureUnit = new osg::Uniform("baseTextureUnit",static_cast<int>(_baseTextureUnit));
 
-    osg::ref_ptr<osg::Uniform> maxDistance = new osg::Uniform("maximumShadowMapDistance", (float)settings->getMaximumShadowMapDistance());
+    osg::ref_ptr<osg::Uniform> maxDistance = new osg::Uniform("maximumShadowMapDistance", static_cast<float>(settings->getMaximumShadowMapDistance()));
     osg::ref_ptr<osg::Uniform> fadeStart = new osg::Uniform("shadowFadeStart", (float)_shadowFadeStart);
 
     for (auto& perFrameUniformList : _uniforms)
@@ -1707,7 +1707,7 @@ void MWShadowTechnique::createShaders()
         {
             std::stringstream sstr;
             sstr<<"shadowTexture"<<sm_i;
-            osg::ref_ptr<osg::Uniform> shadowTextureSampler = new osg::Uniform(sstr.str().c_str(),(int)(settings->getBaseShadowTextureUnit()+sm_i));
+            osg::ref_ptr<osg::Uniform> shadowTextureSampler = new osg::Uniform(sstr.str().c_str(),static_cast<int>(settings->getBaseShadowTextureUnit()+sm_i));
             for (auto& perFrameUniformList : _uniforms)
                 perFrameUniformList.emplace_back(shadowTextureSampler.get());
         }
@@ -1742,7 +1742,7 @@ void MWShadowTechnique::createShaders()
     {
         osg::ref_ptr<osg::Image> image = new osg::Image;
         image->allocateImage( 1, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE );
-        *(osg::Vec4ub*)image->data() = osg::Vec4ub( 0xFF, 0xFF, 0xFF, 0xFF );
+        *reinterpret_cast<osg::Vec4ub*>(image->data()) = osg::Vec4ub( 0xFF, 0xFF, 0xFF, 0xFF );
 
         _fallbackBaseTexture = new osg::Texture2D(image.get());
         _fallbackBaseTexture->setWrap(osg::Texture2D::WRAP_S,osg::Texture2D::REPEAT);
@@ -2376,7 +2376,7 @@ struct ConvexHull
             center.z() = osg::minimum(center.z(), dbl_max);
         }
 
-        center /= double(intersections.size());
+        center /= static_cast<double>(intersections.size());
 
         typedef std::map<double, std::list<std::pair<osg::Vec3d, double>>> VertexMap;
         VertexMap vertexMap;

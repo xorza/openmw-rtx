@@ -645,7 +645,7 @@ namespace MWGui
         std::string_view valueType = getSettingValueType(scroller);
         if (valueType == "Float" || valueType == "Cell")
         {
-            float value = pos / float(scroller->getScrollRange() - 1);
+            float value = pos / static_cast<float>(scroller->getScrollRange() - 1);
 
             float min, max;
             getSettingMinMax(scroller, min, max);

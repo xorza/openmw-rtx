@@ -67,7 +67,7 @@ namespace SceneUtil
                 mIndex[i] = 0;
                 mUniformBuffers[i]
                     = new osg::Uniform(osg::Uniform::FLOAT_VEC4, "omw_PointLights", sMaxPPLightsArraySize);
-                mUniformCount[i] = new osg::Uniform("omw_PointLightsCount", static_cast<int>(0));
+                mUniformCount[i] = new osg::Uniform("omw_PointLightsCount", 0);
             }
         }
 

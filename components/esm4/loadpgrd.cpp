@@ -59,7 +59,7 @@ void ESM4::Pathgrid::load(ESM4::Reader& reader)
                 {
                     reader.get(mNodes.at(i));
 
-                    if (int(mNodes.at(i).z) % 2 == 0)
+                    if (static_cast<int>(mNodes.at(i).z) % 2 == 0)
                         mNodes.at(i).priority = 0;
                     else
                         mNodes.at(i).priority = 1;
@@ -75,7 +75,7 @@ void ESM4::Pathgrid::load(ESM4::Reader& reader)
                 {
                     for (std::size_t j = 0; j < mNodes[i].numLinks; ++j)
                     {
-                        link.startNode = std::int16_t(i);
+                        link.startNode = static_cast<std::int16_t>(i);
 
                         reader.get(link.endNode);
                         if (link.endNode == -1)

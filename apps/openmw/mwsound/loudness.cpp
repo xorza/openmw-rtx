@@ -29,11 +29,11 @@ namespace MWSound
                 // get sample on a scale from -1 to 1
                 float value = 0;
                 if (mSampleType == SampleType_UInt8)
-                    value = ((char)(mQueue[sample * advance] ^ 0x80)) / 128.f;
+                    value = (static_cast<char>(mQueue[sample * advance] ^ 0x80)) / 128.f;
                 else if (mSampleType == SampleType_Int16)
                 {
                     value = *reinterpret_cast<const int16_t*>(&mQueue[sample * advance]);
-                    value /= float(std::numeric_limits<int16_t>::max());
+                    value /= static_cast<float>(std::numeric_limits<int16_t>::max());
                 }
                 else if (mSampleType == SampleType_Float32)
                 {

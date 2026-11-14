@@ -46,7 +46,7 @@ namespace Rtx
         const Buffer& at(std::size_t block) const { return mBlocks[block]; }
 
         /// Gives a block back, read until the timeline has passed `readUntil`.
-        void give(std::size_t block, std::uint64_t readUntil) { mRetiring.hold(readUntil, std::size_t{ block }); }
+        void give(std::size_t block, std::uint64_t readUntil) { mRetiring.hold(readUntil, block); }
 
         /// Every block given back under a value at or below `finished` is free again.
         void releaseThrough(std::uint64_t finished);

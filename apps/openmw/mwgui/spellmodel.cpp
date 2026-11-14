@@ -96,7 +96,8 @@ namespace MWGui
             {
                 newSpell.mType = Spell::Type_Spell;
                 std::string cost = std::to_string(MWMechanics::calcSpellCost(*spell));
-                std::string chance = std::to_string(int(MWMechanics::getSpellSuccessChance(spell, mActor)));
+                std::string chance
+                    = std::to_string(static_cast<int>(MWMechanics::getSpellSuccessChance(spell, mActor)));
                 newSpell.mCostColumn = cost + "/" + chance;
             }
             else
@@ -156,7 +157,7 @@ namespace MWGui
                 int castCost = MWMechanics::getEffectiveEnchantmentCastCost(*enchant, mActor);
 
                 std::string cost = std::to_string(castCost);
-                int currentCharge = int(item.getCellRef().getEnchantmentCharge());
+                int currentCharge = static_cast<int>(item.getCellRef().getEnchantmentCharge());
                 if (currentCharge == -1)
                     currentCharge = MWMechanics::getEnchantmentCharge(*enchant);
                 std::string charge = std::to_string(currentCharge);

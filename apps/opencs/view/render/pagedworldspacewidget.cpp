@@ -524,8 +524,8 @@ void CSVRender::PagedWorldspaceWidget::addCellToSceneFromCamera(int offsetX, int
     osg::Vec3f eye, center, up;
     getCamera()->getViewMatrixAsLookAt(eye, center, up);
 
-    int cellX = (int)std::floor(center.x() / Constants::CellSizeInUnits) + offsetX;
-    int cellY = (int)std::floor(center.y() / Constants::CellSizeInUnits) + offsetY;
+    int cellX = static_cast<int>(std::floor(center.x() / Constants::CellSizeInUnits)) + offsetX;
+    int cellY = static_cast<int>(std::floor(center.y() / Constants::CellSizeInUnits)) + offsetY;
 
     CSMWorld::CellCoordinates cellCoordinates(cellX, cellY);
 

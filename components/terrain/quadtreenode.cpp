@@ -43,7 +43,7 @@ namespace Terrain
             { SW, SE, NW, NE }, // S
             { NE, NW, SE, SW } // W
         };
-        return (ChildDirection)lookupTable[dir2][dir];
+        return static_cast<ChildDirection>(lookupTable[dir2][dir]);
     }
 
     bool adjacent(ChildDirection dir, Direction dir2)
@@ -103,7 +103,7 @@ namespace Terrain
     void QuadTreeNode::initNeighbours()
     {
         for (int i = 0; i < 4; ++i)
-            mNeighbours[i] = searchNeighbour(this, (Direction)i);
+            mNeighbours[i] = searchNeighbour(this, static_cast<Direction>(i));
 
         for (unsigned int i = 0; i < getNumChildren(); ++i)
             getChild(i)->initNeighbours();

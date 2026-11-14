@@ -17,8 +17,8 @@ namespace SDLUtil
             {
                 osg::Vec4f clr = image->getColor(x, flip ? ((height - 1) - y) : y);
                 int bpp = SDL_BYTESPERPIXEL(surface->format);
-                Uint8* p = (Uint8*)surface->pixels + y * surface->pitch + x * bpp;
-                *(Uint32*)(p)
+                Uint8* p = static_cast<Uint8*>(surface->pixels) + y * surface->pitch + x * bpp;
+                *reinterpret_cast<Uint32*>(p)
                     = SDL_MapSurfaceRGBA(surface, static_cast<Uint8>(clr.r() * 255), static_cast<Uint8>(clr.g() * 255),
                         static_cast<Uint8>(clr.b() * 255), static_cast<Uint8>(clr.a() * 255));
             }

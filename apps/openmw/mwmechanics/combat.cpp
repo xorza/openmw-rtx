@@ -150,7 +150,7 @@ namespace MWMechanics
             // Reduce shield durability by incoming damage
             int shieldhealth = shield->getClass().getItemHealth(*shield);
 
-            shieldhealth -= std::min(shieldhealth, int(damage));
+            shieldhealth -= std::min(shieldhealth, static_cast<int>(damage));
             shield->getCellRef().setCharge(shieldhealth);
             if (shieldhealth == 0)
                 inv.unequipItem(*shield);
@@ -439,7 +439,7 @@ namespace MWMechanics
                                                     ->mValue.getFloat();
                 float x = std::max(1.f, fWeaponDamageMult * damage);
 
-                weaphealth -= std::min(int(x), weaphealth);
+                weaphealth -= std::min(static_cast<int>(x), weaphealth);
                 weapon.getCellRef().setCharge(weaphealth);
             }
 
@@ -481,7 +481,7 @@ namespace MWMechanics
         const MWWorld::ESMStore& store = *MWBase::Environment::get().getESMStore();
         static const float minstrike = store.get<ESM::GameSetting>().find("fMinHandToHandMult")->mValue.getFloat();
         static const float maxstrike = store.get<ESM::GameSetting>().find("fMaxHandToHandMult")->mValue.getFloat();
-        damage = static_cast<float>(attacker.getClass().getSkill(attacker, ESM::Skill::HandToHand));
+        damage = attacker.getClass().getSkill(attacker, ESM::Skill::HandToHand);
         damage *= minstrike + ((maxstrike - minstrike) * attackStrength);
 
         MWMechanics::CreatureStats& otherstats = victim.getClass().getCreatureStats(victim);

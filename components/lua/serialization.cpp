@@ -64,7 +64,7 @@ namespace LuaUtil
     static void appendString(BinaryData& out, std::string_view str)
     {
         if (str.size() < 32)
-            out.push_back(SHORT_STRING_FLAG | char(str.size()));
+            out.push_back(SHORT_STRING_FLAG | static_cast<char>(str.size()));
         else
         {
             appendType(out, SerializedType::LONG_STRING);
@@ -287,7 +287,7 @@ namespace LuaUtil
             case SerializedType::TABLE_START:
             {
                 lua_createtable(lua, 0, 0);
-                while (!binaryData.empty() && binaryData[0] != char(SerializedType::TABLE_END))
+                while (!binaryData.empty() && binaryData[0] != static_cast<char>(SerializedType::TABLE_END))
                 {
                     deserializeImpl(lua, binaryData, customSerializer, readOnly);
                     deserializeImpl(lua, binaryData, customSerializer, readOnly);

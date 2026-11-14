@@ -26,7 +26,7 @@ namespace MWPhysics
 
         const btVector3 motion
             = from - to; // FIXME: this is backwards; means ActorConvexCallback is doing dot product tests backwards too
-        ActorConvexCallback traceCallback(actor, motion, btScalar(0.0), world);
+        ActorConvexCallback traceCallback(actor, motion, static_cast<btScalar>(0.0), world);
         // Inherit the actor's collision group and mask
         traceCallback.m_collisionFilterGroup = actor->getBroadphaseHandle()->m_collisionFilterGroup;
         traceCallback.m_collisionFilterMask = actor->getBroadphaseHandle()->m_collisionFilterMask;

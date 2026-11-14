@@ -281,7 +281,7 @@ namespace MWSound
         bool getSoundPlaying(const MWWorld::ConstPtr& reference, VFS::Path::NormalizedView fileName) const override;
         ///< Is the given sound currently playing on the given object?
 
-        void pauseSounds(MWSound::BlockerType blocker, int types = int(Type::Mask)) override;
+        void pauseSounds(MWSound::BlockerType blocker, int types = static_cast<int>(Type::Mask)) override;
         ///< Pauses all currently playing sounds, including music.
 
         void resumeSounds(MWSound::BlockerType blocker) override;

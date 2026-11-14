@@ -124,7 +124,7 @@ static void generateCylinder(osg::Geometry& geom, float radius, float height, in
     // top disk
     for (int i = 0; i < subdiv; i++)
     {
-        float theta = (float(i) / float(subdiv)) * osg::PIf * 2.f;
+        float theta = (static_cast<float>(i) / static_cast<float>(subdiv)) * osg::PIf * 2.f;
         osg::Vec3 pos = sphereCoordToCartesian(theta, osg::PI_2f, 1.f);
         pos *= radius;
         pos.z() = height / 2.f;
@@ -150,7 +150,7 @@ static void generateCylinder(osg::Geometry& geom, float radius, float height, in
     auto beginBot = iVertex;
     for (int i = 0; i < subdiv; i++)
     {
-        float theta = float(i) / float(subdiv) * osg::PIf * 2.f;
+        float theta = static_cast<float>(i) / static_cast<float>(subdiv) * osg::PIf * 2.f;
         osg::Vec3 pos = sphereCoordToCartesian(theta, osg::PI_2f, 1.f);
         pos *= radius;
         pos.z() = -height / 2.f;
@@ -162,7 +162,7 @@ static void generateCylinder(osg::Geometry& geom, float radius, float height, in
     int beginSide = iVertex;
     for (int i = 0; i < subdiv; i++)
     {
-        float theta = float(i) / float(subdiv) * osg::PIf * 2.f;
+        float theta = static_cast<float>(i) / static_cast<float>(subdiv) * osg::PIf * 2.f;
         osg::Vec3 normal = sphereCoordToCartesian(theta, osg::PI_2f, 1.f);
         auto posTop = normal;
         posTop *= radius;
@@ -229,10 +229,10 @@ static void generateSphere(osg::Geometry& geom, float radius, int segments, int 
 
     for (int i = 0; i <= rings; ++i)
     {
-        float phi = (float(i) / float(rings)) * osg::PIf;
+        float phi = (static_cast<float>(i) / static_cast<float>(rings)) * osg::PIf;
         for (int j = 0; j < segments; ++j)
         {
-            float theta = (float(j) / float(segments)) * osg::PIf * 2.f;
+            float theta = (static_cast<float>(j) / static_cast<float>(segments)) * osg::PIf * 2.f;
             auto pos = sphereCoordToCartesian(theta, phi, radius);
             vertices->push_back(pos);
             pos.normalize();

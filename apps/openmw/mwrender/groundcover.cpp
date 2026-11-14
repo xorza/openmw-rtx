@@ -37,8 +37,9 @@ namespace MWRender
         // From OSG's CullVisitor.cpp
         inline value_type distance(const osg::Vec3& coord, const osg::Matrix& matrix)
         {
-            return -((value_type)coord[0] * (value_type)matrix(0, 2) + (value_type)coord[1] * (value_type)matrix(1, 2)
-                + (value_type)coord[2] * (value_type)matrix(2, 2) + matrix(3, 2));
+            return -(static_cast<value_type>(coord[0]) * static_cast<value_type>(matrix(0, 2))
+                + static_cast<value_type>(coord[1]) * static_cast<value_type>(matrix(1, 2))
+                + static_cast<value_type>(coord[2]) * static_cast<value_type>(matrix(2, 2)) + matrix(3, 2));
         }
 
         inline osg::Matrix computeInstanceMatrix(

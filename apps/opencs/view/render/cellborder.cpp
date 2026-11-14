@@ -126,5 +126,5 @@ size_t CSVRender::CellBorder::landIndex(int x, int y)
 
 float CSVRender::CellBorder::scaleToWorld(int value)
 {
-    return (CellSize + 128) * (float)value / ESM::Land::LAND_SIZE;
+    return (CellSize + 128) * static_cast<float>(value) / ESM::Land::LAND_SIZE;
 }

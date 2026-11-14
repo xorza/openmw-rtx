@@ -753,7 +753,7 @@ QVariant CSMWorld::MiscRefIdAdapter::getData(const RefIdColumn* column, const Re
         data.getRecord(RefIdData::LocalIndex(index, UniversalId::Type_Miscellaneous)));
 
     if (column == mKey)
-        return bool(record.get().mData.mFlags & ESM::Miscellaneous::Key);
+        return static_cast<bool>(record.get().mData.mFlags & ESM::Miscellaneous::Key);
 
     return InventoryRefIdAdapter<ESM::Miscellaneous>::getData(column, data, index);
 }

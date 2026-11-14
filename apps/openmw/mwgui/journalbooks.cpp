@@ -249,8 +249,9 @@ namespace MWGui
             buffer += " )";
 
             const MWGui::TextColours& textColours = MWBase::Environment::get().getWindowManager()->getTextColours();
-            BookTypesetter::Style* style = typesetter->createHotStyle(body, textColours.journalTopic,
-                textColours.journalTopicOver, textColours.journalTopicPressed, Utf8Stream::UnicodeChar(ch));
+            BookTypesetter::Style* style
+                = typesetter->createHotStyle(body, textColours.journalTopic, textColours.journalTopicOver,
+                    textColours.journalTopicPressed, static_cast<Utf8Stream::UnicodeChar>(ch));
 
             if (i == 13)
                 typesetter->sectionBreak();

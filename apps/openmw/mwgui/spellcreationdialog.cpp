@@ -716,23 +716,23 @@ namespace MWGui
         }
 
         mSpell.mEffects.populate(mEffects);
-        mSpell.mData.mCost = int(y);
+        mSpell.mData.mCost = static_cast<int>(y);
         mSpell.mData.mType = ESM::Spell::ST_Spell;
         mSpell.mData.mFlags = 0;
         mSpell.mRecordFlags = 0;
 
-        mMagickaCost->setCaption(MyGUI::utility::toString(int(y)));
+        mMagickaCost->setCaption(MyGUI::utility::toString(static_cast<int>(y)));
 
         float fSpellMakingValueMult = store.get<ESM::GameSetting>().find("fSpellMakingValueMult")->mValue.getFloat();
 
         int price = std::max(1, static_cast<int>(y * fSpellMakingValueMult));
         price = MWBase::Environment::get().getMechanicsManager()->getBarterOffer(mPtr, price, true);
 
-        mPriceLabel->setCaption(MyGUI::utility::toString(int(price)));
+        mPriceLabel->setCaption(MyGUI::utility::toString(price));
 
         float chance = MWMechanics::calcSpellBaseSuccessChance(&mSpell, MWMechanics::getPlayer(), nullptr);
 
-        int intChance = std::min(100, int(chance));
+        int intChance = std::min(100, static_cast<int>(chance));
         mSuccessChance->setCaption(MyGUI::utility::toString(intChance));
     }
 

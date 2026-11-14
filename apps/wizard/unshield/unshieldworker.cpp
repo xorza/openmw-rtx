@@ -811,7 +811,7 @@ bool Wizard::UnshieldWorker::extractFile(
     path.append(QString::fromUtf8(unshield_file_name(unshield, index)));
 
     // Calculate the percentage done
-    int progress = (((float)counter / (float)unshield_file_count(unshield)) * 100);
+    int progress = ((static_cast<float>(counter) / static_cast<float>(unshield_file_count(unshield))) * 100);
 
     if (getComponentDone(Wizard::Component_Morrowind))
         progress = progress + 100;

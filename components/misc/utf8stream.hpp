@@ -14,7 +14,7 @@ public:
     typedef unsigned char const* Point;
 
     // static const unicode_char sBadChar = 0xFFFFFFFF; gcc can't handle this
-    static UnicodeChar sBadChar() { return UnicodeChar(0xFFFFFFFF); }
+    static UnicodeChar sBadChar() { return static_cast<UnicodeChar>(0xFFFFFFFF); }
 
     Utf8Stream(Point begin, Point end)
         : mCur(begin)
@@ -98,7 +98,7 @@ public:
             if ((*cur & 0xC0) != 0x80) // check continuation mark
                 return std::make_pair(sBadChar(), cur);
 
-            chr = (chr << 6) | UnicodeChar((*cur++) & 0x3F);
+            chr = (chr << 6) | static_cast<UnicodeChar>((*cur++) & 0x3F);
         }
 
         return std::make_pair(chr, cur);

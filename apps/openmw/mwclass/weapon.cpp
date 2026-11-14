@@ -91,16 +91,16 @@ namespace MWClass
 
         if (weapClass == ESM::WeaponType::Ammo)
         {
-            slots.push_back(int(MWWorld::InventoryStore::Slot_Ammunition));
+            slots.push_back((MWWorld::InventoryStore::Slot_Ammunition));
             stack = true;
         }
         else if (weapClass == ESM::WeaponType::Thrown)
         {
-            slots.push_back(int(MWWorld::InventoryStore::Slot_CarriedRight));
+            slots.push_back((MWWorld::InventoryStore::Slot_CarriedRight));
             stack = true;
         }
         else
-            slots.push_back(int(MWWorld::InventoryStore::Slot_CarriedRight));
+            slots.push_back((MWWorld::InventoryStore::Slot_CarriedRight));
 
         return std::make_pair(slots, stack);
     }
@@ -180,8 +180,8 @@ namespace MWClass
             {
                 // Thrown weapons have 2x real damage applied
                 // as they're both the weapon and the ammo
-                text += "\n#{sAttack}: " + MWGui::ToolTips::toString(static_cast<int>(ref->mBase->mData.mChop[0] * 2))
-                    + " - " + MWGui::ToolTips::toString(static_cast<int>(ref->mBase->mData.mChop[1] * 2));
+                text += "\n#{sAttack}: " + MWGui::ToolTips::toString((ref->mBase->mData.mChop[0] * 2)) + " - "
+                    + MWGui::ToolTips::toString((ref->mBase->mData.mChop[1] * 2));
             }
             else if (weaponType->mWeaponClass == ESM::WeaponType::Melee)
             {

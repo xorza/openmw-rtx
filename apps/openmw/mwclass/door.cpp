@@ -363,7 +363,7 @@ namespace MWClass
 
         const DoorCustomData& customData = ptr.getRefData().getCustomData()->asDoorCustomData();
         ESM::DoorState& doorState = state.asDoorState();
-        doorState.mDoorState = int(customData.mDoorState);
+        doorState.mDoorState = static_cast<int>(customData.mDoorState);
     }
 
 }

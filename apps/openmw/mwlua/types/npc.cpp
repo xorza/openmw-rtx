@@ -221,8 +221,8 @@ namespace MWLua
         record["mwscript"] = sol::readonly_property([](const ESM::NPC& rec) -> ESM::RefId { return rec.mScript; });
         record["hair"]
             = sol::readonly_property([](const ESM::NPC& rec) -> std::string { return rec.mHair.serializeText(); });
-        record["baseDisposition"]
-            = sol::readonly_property([](const ESM::NPC& rec) -> int { return (int)rec.mNpdt.mDisposition; });
+        record["baseDisposition"] = sol::readonly_property(
+            [](const ESM::NPC& rec) -> int { return static_cast<int>(rec.mNpdt.mDisposition); });
         record["head"]
             = sol::readonly_property([](const ESM::NPC& rec) -> std::string { return rec.mHead.serializeText(); });
         record["primaryFaction"]

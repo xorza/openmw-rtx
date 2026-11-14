@@ -116,7 +116,7 @@ namespace MWClass
         std::vector<int> slots;
 
         if (ref->mBase->mData.mFlags & ESM::Light::Carry)
-            slots.push_back(int(MWWorld::InventoryStore::Slot_CarriedLeft));
+            slots.push_back((MWWorld::InventoryStore::Slot_CarriedLeft));
 
         return std::make_pair(slots, false);
     }

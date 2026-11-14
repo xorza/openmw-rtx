@@ -36,7 +36,7 @@ namespace Misc
             float sum = (mBudgetHistory[0] + mBudgetHistory[1] + mBudgetHistory[2] + mBudgetHistory[3]);
             unsigned int stepCountSum
                 = (mBudgetStepCount[0] + mBudgetStepCount[1] + mBudgetStepCount[2] + mBudgetStepCount[3]);
-            return sum / float(stepCountSum);
+            return sum / static_cast<float>(stepCountSum);
         }
     };
 

@@ -109,7 +109,7 @@ namespace Resource
             {
                 // Morrowind ignores the alpha channel of 16bpp TGA files even when the header says not to
                 unsigned char header[18];
-                stream->read((char*)header, 18);
+                stream->read(reinterpret_cast<char*>(header), 18);
                 if (stream->gcount() != 18)
                 {
                     Log(Debug::Error) << "Error loading " << path << ": couldn't read TGA header";

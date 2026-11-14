@@ -563,7 +563,7 @@ namespace
             esm.endRecord(typeName);
 
             saved++;
-            int perc = recordCount == 0 ? 100 : (int)((saved / (float)recordCount) * 100);
+            int perc = recordCount == 0 ? 100 : static_cast<int>((saved / static_cast<float>(recordCount)) * 100);
             if (perc % 10 == 0)
             {
                 std::cerr << "\r" << perc << "%";

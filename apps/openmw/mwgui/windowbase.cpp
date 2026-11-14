@@ -208,7 +208,7 @@ float BookWindowBase::adjustButton(std::string_view name)
     Gui::ImageButton* button;
     WindowBase::getWidget(button, name);
     MyGUI::IntSize requested = button->getRequestedSize();
-    float scale = float(requested.height) / button->getSize().height;
+    float scale = static_cast<float>(requested.height) / button->getSize().height;
     MyGUI::IntSize newSize(static_cast<int>(requested.width / scale), static_cast<int>(requested.height / scale));
     button->setSize(newSize);
 

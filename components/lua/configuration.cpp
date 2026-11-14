@@ -79,7 +79,7 @@ namespace LuaUtil
             if (inserted)
                 continue;
             ESM::LuaScriptCfg& oldScript = cfg.mScripts[it->second];
-            if (global != bool(oldScript.mFlags & ESM::LuaScriptCfg::sGlobal))
+            if (global != static_cast<bool>(oldScript.mFlags & ESM::LuaScriptCfg::sGlobal))
                 throw std::runtime_error(std::string("Flags mismatch for ") + script.mScriptPath.value());
             if (script.mFlags & ESM::LuaScriptCfg::sMerge)
             {

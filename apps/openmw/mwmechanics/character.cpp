@@ -288,7 +288,7 @@ namespace
 
         if (fallHeight >= fallDistanceMin)
         {
-            const auto acrobaticsSkill = static_cast<float>(ptr.getClass().getSkill(ptr, ESM::Skill::Acrobatics));
+            const auto acrobaticsSkill = ptr.getClass().getSkill(ptr, ESM::Skill::Acrobatics);
             const float jumpSpellBonus = ptr.getClass()
                                              .getCreatureStats(ptr)
                                              .getMagicEffects()

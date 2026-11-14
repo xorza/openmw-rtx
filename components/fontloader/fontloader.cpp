@@ -451,7 +451,7 @@ namespace Gui
             fail(stream, path, "File too small to be a valid font");
 
         GlyphInfo data[256];
-        stream.read((char*)data, sizeof(data));
+        stream.read(reinterpret_cast<char*>(data), sizeof(data));
         if (!stream.good())
             fail(stream, path, "File too small to be a valid font");
 

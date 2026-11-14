@@ -46,7 +46,7 @@ namespace
 
             const dtPolyDetail* pd = &tile->detailMeshes[i];
 
-            for (int j = 0, nj = (int)p->vertCount; j < nj; ++j)
+            for (int j = 0, nj = static_cast<int>(p->vertCount); j < nj; ++j)
             {
                 unsigned int c = col;
                 if (inner)
@@ -165,7 +165,7 @@ namespace
             const dtPolyDetail* pd = &tile->detailMeshes[i];
 
             unsigned int col;
-            if (query && query->isInClosedList(base | (dtPolyRef)i))
+            if (query && query->isInClosedList(base | static_cast<dtPolyRef>(i)))
                 col = duRGBA(255, 196, 0, alpha);
             else
             {
@@ -207,7 +207,7 @@ namespace
                     continue;
 
                 unsigned int col, col2;
-                if (query && query->isInClosedList(base | (dtPolyRef)i))
+                if (query && query->isInClosedList(base | static_cast<dtPolyRef>(i)))
                     col = duRGBA(255, 196, 0, 220);
                 else
                     col = duDarkenCol(duTransCol(dd->areaToCol(p->getArea()), 220));

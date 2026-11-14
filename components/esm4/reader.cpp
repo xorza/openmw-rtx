@@ -195,7 +195,7 @@ namespace ESM4
 
         // determine header size
         std::uint32_t subRecName = 0;
-        mStream->read((char*)&subRecName, sizeof(subRecName));
+        mStream->read(reinterpret_cast<char*>(&subRecName), sizeof(subRecName));
         if (subRecName == 0x52444548) // "HEDR"
             mCtx.recHeaderSize = sizeof(RecordHeader) - 4; // TES4 header size is 4 bytes smaller than TES5 header
         else
@@ -510,8 +510,8 @@ namespace ESM4
             mStream = std::move(mSavedStream);
         }
 
-        mStream->read((char*)&mCtx.recordHeader, mCtx.recHeaderSize);
-        auto bytesRead = (std::size_t)mStream->gcount();
+        mStream->read(reinterpret_cast<char*>(&mCtx.recordHeader), mCtx.recHeaderSize);
+        auto bytesRead = static_cast<std::size_t>(mStream->gcount());
 
         // keep track of data left to read from the file
         mCtx.fileRead += mCtx.recHeaderSize;
@@ -525,7 +525,8 @@ namespace ESM4
         //       N.B. the data must be fully read/skipped for this to work
         if (mCtx.recordHeader.record.typeId != REC_GRUP && !mCtx.groupStack.empty())
         {
-            mCtx.groupStack.back().second += (std::uint32_t)mCtx.recHeaderSize + mCtx.recordHeader.record.dataSize;
+            mCtx.groupStack.back().second
+                += static_cast<std::uint32_t>(mCtx.recHeaderSize) + mCtx.recordHeader.record.dataSize;
 
             // keep track of data left to read from the file
             mCtx.fileRead += mCtx.recordHeader.record.dataSize;
@@ -551,7 +552,7 @@ namespace ESM4
             if (position < 0 || recordSize > mFileSize - static_cast<std::size_t>(position))
                 throw std::runtime_error("Compressed record is larger than the remaining file");
             // zlib format theoretical maximum expansion
-            if (uncompressedSize > std::uint64_t(recordSize) * 1032)
+            if (uncompressedSize > static_cast<std::uint64_t>(recordSize) * 1032)
                 throw std::runtime_error("Compressed record has an invalid uncompressed size");
 
             std::vector<char> compressed(recordSize);
@@ -571,9 +572,9 @@ namespace ESM4
                 for (unsigned int i = 0; i < uncompressedSize; ++i)
                 {
                     if (data[i] > 64 && data[i] < 91)
-                        ss << (char)(data[i]) << " ";
+                        ss << data[i] << " ";
                     else
-                        ss << std::setfill('0') << std::setw(2) << std::hex << (int)(data[i]);
+                        ss << std::setfill('0') << std::setw(2) << std::hex << static_cast<int>(data[i]);
                     if ((i & 0x000f) == 0xf)
                         ss << "\n";
                     else if (i < uncompressedSize - 1)
@@ -611,7 +612,7 @@ namespace ESM4
             // this will only work if mCtx.subRecordHeader.dataSize was fully read or skipped
             // (i.e. it will only correct mCtx.subRecordHeader.dataSize being incorrect)
             // TODO: not tested
-            std::uint32_t overshoot = (std::uint32_t)mCtx.recordRead - mCtx.recordHeader.record.dataSize;
+            std::uint32_t overshoot = mCtx.recordRead - mCtx.recordHeader.record.dataSize;
 
             std::size_t pos = mStream->tellg();
             mStream->seekg(pos - overshoot);
@@ -655,7 +656,7 @@ namespace ESM4
                   << printLabel(mCtx.recordHeader.group.label, mCtx.recordHeader.group.type) << std::endl;
 #endif
         // empty group if the group size is same as the header size
-        if (mCtx.recordHeader.group.groupSize == (std::uint32_t)mCtx.recHeaderSize)
+        if (mCtx.recordHeader.group.groupSize == static_cast<std::uint32_t>(mCtx.recHeaderSize))
         {
 #ifdef DEBUG_GROUPSTACK
             std::cout << padding << "Ignoring record group " // FIXME: debugging only
@@ -673,7 +674,8 @@ namespace ESM4
         }
 
         // push group
-        mCtx.groupStack.push_back(std::make_pair(mCtx.recordHeader.group, (std::uint32_t)mCtx.recHeaderSize));
+        mCtx.groupStack.push_back(
+            std::make_pair(mCtx.recordHeader.group, static_cast<std::uint32_t>(mCtx.recHeaderSize)));
     }
 
     void Reader::exitGroupCheck()
@@ -758,7 +760,7 @@ namespace ESM4
                   << printLabel(mCtx.recordHeader.group.label, mCtx.recordHeader.group.type) << std::endl;
 #endif
         // subtract the size of header already read before skipping
-        std::uint32_t skipSize = mCtx.recordHeader.group.groupSize - (std::uint32_t)mCtx.recHeaderSize;
+        std::uint32_t skipSize = mCtx.recordHeader.group.groupSize - static_cast<std::uint32_t>(mCtx.recHeaderSize);
         mStream->ignore(skipSize);
 
         // keep track of data left to read from the file

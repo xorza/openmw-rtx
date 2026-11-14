@@ -67,17 +67,17 @@ namespace
         bool buying = (merchantOffer < 0);
         int a = std::abs(merchantOffer);
         int b = std::abs(playerOffer);
-        int d = (buying) ? int(100 * (a - b) / a) : int(100 * (b - a) / b);
+        int d = (buying) ? (100 * (a - b) / a) : (100 * (b - a) / b);
 
         int clampedDisposition = MWBase::Environment::get().getMechanicsManager()->getDerivedDisposition(merchant);
 
         const MWMechanics::CreatureStats& merchantStats = merchant.getClass().getCreatureStats(merchant);
         const MWMechanics::CreatureStats& playerStats = player.getClass().getCreatureStats(player);
 
-        auto a1 = static_cast<float>(player.getClass().getSkill(player, ESM::Skill::Mercantile));
+        auto a1 = player.getClass().getSkill(player, ESM::Skill::Mercantile);
         float b1 = 0.1f * playerStats.getAttribute(ESM::Attribute::Luck).getModified();
         float c1 = 0.2f * playerStats.getAttribute(ESM::Attribute::Personality).getModified();
-        auto d1 = static_cast<float>(merchant.getClass().getSkill(merchant, ESM::Skill::Mercantile));
+        auto d1 = merchant.getClass().getSkill(merchant, ESM::Skill::Mercantile);
         float e1 = 0.1f * merchantStats.getAttribute(ESM::Attribute::Luck).getModified();
         float f1 = 0.2f * merchantStats.getAttribute(ESM::Attribute::Personality).getModified();
 
@@ -85,7 +85,7 @@ namespace
         float pcTerm = (dispositionTerm + a1 + b1 + c1) * playerStats.getFatigueTerm();
         float npcTerm = (d1 + e1 + f1) * merchantStats.getFatigueTerm();
         float x = gmst.find("fBargainOfferMulti")->mValue.getFloat() * d
-            + gmst.find("fBargainOfferBase")->mValue.getFloat() + int(pcTerm - npcTerm);
+            + gmst.find("fBargainOfferBase")->mValue.getFloat() + static_cast<int>(pcTerm - npcTerm);
 
         auto& prng = MWBase::Environment::get().getWorld()->getPrng();
         int roll = Misc::Rng::rollDice(100, prng) + 1;

@@ -343,8 +343,8 @@ namespace Graphite
         QRectF toggleBox(const QRect& rect)
         {
             const QPointF centre = QRectF(rect).center();
-            return { centre.x() - sToggleSide / 2.0, centre.y() - sToggleSide / 2.0, qreal(sToggleSide),
-                qreal(sToggleSide) };
+            return { centre.x() - sToggleSide / 2.0, centre.y() - sToggleSide / 2.0, static_cast<qreal>(sToggleSide),
+                static_cast<qreal>(sToggleSide) };
         }
     }
 
@@ -548,7 +548,8 @@ namespace Graphite
                 // A bar with no range is busy, which Fusion animates.
                 if (bar == nullptr || bar->maximum <= bar->minimum)
                     break;
-                const qreal done = qreal(bar->progress - bar->minimum) / qreal(bar->maximum - bar->minimum);
+                const qreal done = static_cast<qreal>(bar->progress - bar->minimum)
+                    / static_cast<qreal>(bar->maximum - bar->minimum);
                 QRectF filled = option->rect;
                 const bool horizontal = has(*option, State_Horizontal);
                 const bool reversed = (bar->direction == Qt::RightToLeft) != bar->invertedAppearance;
@@ -816,8 +817,8 @@ namespace Graphite
         int thumbLength = length;
         if (bar->maximum != bar->minimum)
         {
-            const qint64 range = qint64(bar->maximum) - bar->minimum;
-            thumbLength = int(qint64(bar->pageStep) * length / (range + bar->pageStep));
+            const qint64 range = static_cast<qint64>(bar->maximum) - bar->minimum;
+            thumbLength = static_cast<int>(static_cast<qint64>(bar->pageStep) * length / (range + bar->pageStep));
             thumbLength = std::clamp(thumbLength, std::min(sScrollThumbLeast, length), length);
         }
         const int thumbStart = sliderPositionFromValue(

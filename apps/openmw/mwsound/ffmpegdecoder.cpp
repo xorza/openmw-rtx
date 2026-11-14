@@ -51,7 +51,7 @@ namespace MWSound
             std::istream& stream = *self.mDataStream;
             stream.clear();
             const std::streamoff pos = stream.tellg();
-            stream.read((char*)buf, bufSize);
+            stream.read(reinterpret_cast<char*>(buf), bufSize);
             std::streamsize count = stream.gcount();
             if (count == 0)
                 return AVERROR_EOF;
@@ -122,7 +122,7 @@ namespace MWSound
             /* Check if the packet belongs to this stream */
             if (streamIdx == mPacket.stream_index)
             {
-                if (mPacket.pts != (int64_t)AV_NOPTS_VALUE)
+                if (mPacket.pts != AV_NOPTS_VALUE)
                     mNextPts = av_q2d((*mStream)->time_base) * mPacket.pts;
                 return true;
             }
@@ -192,7 +192,7 @@ namespace MWSound
                 mFrameData = &mFrame->data[0];
 
         } while (!gotFrame);
-        mNextPts += (double)mFrame->nb_samples / mCodecCtx->sample_rate;
+        mNextPts += static_cast<double>(mFrame->nb_samples) / mCodecCtx->sample_rate;
 
         return true;
     }
@@ -223,7 +223,7 @@ namespace MWSound
 
             /* Copy the data to the app's buffer and increment */
             memcpy(data, mFrameData[0] + mFramePos, rem);
-            data = (char*)data + rem;
+            data = static_cast<char*>(data) + rem;
             dec += rem;
             mFramePos += rem;
         }
@@ -354,9 +354,10 @@ namespace MWSound
                 // its flag bit is 2.4's alone: 2.2 and 2.3 leave that bit
                 // undefined. Starting the window past the tag means the
                 // demuxer never reads it (cover art included).
-                const std::streamoff tagSize = (std::streamoff(header[6] & 0x7f) << 21)
-                    | (std::streamoff(header[7] & 0x7f) << 14) | (std::streamoff(header[8] & 0x7f) << 7)
-                    | std::streamoff(header[9] & 0x7f);
+                const std::streamoff tagSize = (static_cast<std::streamoff>(header[6] & 0x7f) << 21)
+                    | (static_cast<std::streamoff>(header[7] & 0x7f) << 14)
+                    | (static_cast<std::streamoff>(header[8] & 0x7f) << 7)
+                    | static_cast<std::streamoff>(header[9] & 0x7f);
                 const bool hasFooter = header[3] >= 4 && (header[5] & 0x10) != 0;
                 const std::streamoff base = 10 + tagSize + (hasFooter ? 10 : 0);
                 if (base < fileSize)
@@ -384,8 +385,8 @@ namespace MWSound
                     if (block[0] & 0x80)
                         break;
                     pos += 4
-                        + ((std::streamoff(block[1]) << 16) | (std::streamoff(block[2]) << 8)
-                            | std::streamoff(block[3]));
+                        + ((static_cast<std::streamoff>(block[1]) << 16) | (static_cast<std::streamoff>(block[2]) << 8)
+                            | static_cast<std::streamoff>(block[3]));
                     stream.seekg(pos);
                 }
             }

@@ -332,12 +332,13 @@ void StatelessUtf8Encoder::copyFromArrayLegacyEnc(
                       b3 = mTranslationArray[i * 6 + 3];
         if (b1 == ch && b2 == ch2 && (len != 3 || b3 == ch3))
         {
-            *(out++) = (char)i;
+            *(out++) = static_cast<char>(i);
             return;
         }
     }
 
-    Log(Debug::Info) << "Could not find glyph " << std::hex << (int)ch << " " << (int)ch2 << " " << (int)ch3;
+    Log(Debug::Info) << "Could not find glyph " << std::hex << static_cast<int>(ch) << " " << static_cast<int>(ch2)
+                     << " " << static_cast<int>(ch3);
 
     *(out++) = ch; // Could not find glyph, just put whatever
 }

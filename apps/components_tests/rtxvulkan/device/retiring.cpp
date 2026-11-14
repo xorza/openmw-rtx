@@ -39,7 +39,7 @@ namespace Rtx
             std::vector<int> let;
             for (int each = 0; each < 100; ++each)
             {
-                held.hold(static_cast<std::uint64_t>(each / 3), int{ each });
+                held.hold(static_cast<std::uint64_t>(each / 3), each);
                 if (each % 3 == 2 && each / 3 >= 2)
                     held.releaseThrough(static_cast<std::uint64_t>(each / 3 - 2), [&](int one) { let.push_back(one); });
             }

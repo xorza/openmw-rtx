@@ -213,9 +213,10 @@ namespace MWRender
 
     void GlobalMap::worldPosToImageSpace(float x, float z, float& imageX, float& imageY)
     {
-        imageX = (float(x / float(Constants::CellSizeInUnits) - mMinX) / (mMaxX - mMinX + 1)) * getWidth();
+        imageX = ((x / static_cast<float>(Constants::CellSizeInUnits) - mMinX) / (mMaxX - mMinX + 1)) * getWidth();
 
-        imageY = (1.f - float(z / float(Constants::CellSizeInUnits) - mMinY) / (mMaxY - mMinY + 1)) * getHeight();
+        imageY
+            = (1.f - (z / static_cast<float>(Constants::CellSizeInUnits) - mMinY) / (mMaxY - mMinY + 1)) * getHeight();
     }
 
     void GlobalMap::exploreCell(int cellX, int cellY, LocalMap& localMap)
@@ -322,7 +323,7 @@ namespace MWRender
 
         // Size of one cell in image space
         int cellImageSizeSrc = imageWidth / xLength;
-        if (int(imageHeight / yLength) != cellImageSizeSrc)
+        if ((imageHeight / yLength) != cellImageSizeSrc)
             throw std::runtime_error("cell size must be quadratic");
 
         // If cell bounds of the currently loaded content and the loaded savegame do not match,

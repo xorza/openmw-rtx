@@ -66,7 +66,7 @@ void ESM4::Road::load(ESM4::Reader& reader)
                 {
                     for (std::size_t j = 0; j < mNodes[i].numLinks; ++j)
                     {
-                        link.startNode = std::int16_t(i);
+                        link.startNode = static_cast<std::int16_t>(i);
 
                         reader.get(linkPt);
 
@@ -78,7 +78,7 @@ void ESM4::Road::load(ESM4::Reader& reader)
                                 continue;
                             else
                             {
-                                link.endNode = std::int16_t(k);
+                                link.endNode = static_cast<std::int16_t>(k);
                                 mLinks.push_back(link);
 
                                 found = true;

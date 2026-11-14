@@ -33,21 +33,21 @@ namespace
 
     TEST(ESMVariantTest, move_constructed_should_have_data)
     {
-        Variant a(int{ 42 });
+        Variant a(42);
         const Variant b(std::move(a));
         ASSERT_EQ(b.getInteger(), 42);
     }
 
     TEST(ESMVariantTest, copy_constructed_is_equal_to_source)
     {
-        const Variant a(int{ 42 });
+        const Variant a(42);
         const Variant b(a);
         ASSERT_EQ(a, b);
     }
 
     TEST(ESMVariantTest, copy_constructed_does_not_share_data_with_source)
     {
-        const Variant a(int{ 42 });
+        const Variant a(42);
         Variant b(a);
         b.setInteger(13);
         ASSERT_EQ(a.getInteger(), 42);
@@ -58,7 +58,7 @@ namespace
     {
         Variant b;
         {
-            Variant a(int{ 42 });
+            Variant a(42);
             b = std::move(a);
         }
         ASSERT_EQ(b.getInteger(), 42);
@@ -66,7 +66,7 @@ namespace
 
     TEST(ESMVariantTest, copy_assigned_is_equal_to_source)
     {
-        const Variant a(int{ 42 });
+        const Variant a(42);
         Variant b;
         b = a;
         ASSERT_EQ(a, b);
@@ -74,7 +74,7 @@ namespace
 
     TEST(ESMVariantTest, not_equal_is_negation_of_equal)
     {
-        const Variant a(int{ 42 });
+        const Variant a(42);
         Variant b;
         b = a;
         ASSERT_TRUE(!(a != b));
@@ -146,7 +146,7 @@ namespace
 
     TEST(ESMVariantGetIntegerTest, for_constructed_from_int_should_return_same_value)
     {
-        const Variant variant(int{ 42 });
+        const Variant variant(42);
         ASSERT_EQ(variant.getInteger(), 42);
     }
 
@@ -169,13 +169,13 @@ namespace
 
     TEST(ESMVariantGetFloatTest, for_constructed_from_int_should_return_casted_to_float)
     {
-        const Variant variant(int{ 42 });
+        const Variant variant(42);
         ASSERT_EQ(variant.getFloat(), 42);
     }
 
     TEST(ESMVariantGetFloatTest, for_constructed_from_float_should_return_same_value)
     {
-        const Variant variant(float{ 2.7f });
+        const Variant variant(2.7f);
         ASSERT_EQ(variant.getFloat(), 2.7f);
     }
 
@@ -192,7 +192,7 @@ namespace
 
     TEST(ESMVariantGetStringTest, for_constructed_from_int_should_throw_exception)
     {
-        const Variant variant(int{ 42 });
+        const Variant variant(42);
         ASSERT_THROW(variant.getString(), std::bad_variant_access);
     }
 
@@ -210,28 +210,28 @@ namespace
 
     TEST(ESMVariantSetTypeTest, for_unknown_should_reset_data)
     {
-        Variant variant(int{ 42 });
+        Variant variant(42);
         variant.setType(VT_Unknown);
         ASSERT_THROW(variant.getInteger(), std::runtime_error);
     }
 
     TEST(ESMVariantSetTypeTest, for_none_should_reset_data)
     {
-        Variant variant(int{ 42 });
+        Variant variant(42);
         variant.setType(VT_None);
         ASSERT_THROW(variant.getInteger(), std::runtime_error);
     }
 
     TEST(ESMVariantSetTypeTest, for_same_type_should_not_change_value)
     {
-        Variant variant(int{ 42 });
+        Variant variant(42);
         variant.setType(VT_Long);
         ASSERT_EQ(variant.getInteger(), 42);
     }
 
     TEST(ESMVariantSetTypeTest, for_float_replaced_by_int_should_cast_float_to_int)
     {
-        Variant variant(float{ 2.7f });
+        Variant variant(2.7f);
         variant.setType(VT_Int);
         ASSERT_EQ(variant.getInteger(), 2);
     }
@@ -252,28 +252,28 @@ namespace
 
     TEST(ESMVariantSetTypeTest, for_float_replaced_by_short_should_cast_data_to_int)
     {
-        Variant variant(float{ 2.7f });
+        Variant variant(2.7f);
         variant.setType(VT_Short);
         ASSERT_EQ(variant.getInteger(), 2);
     }
 
     TEST(ESMVariantSetTypeTest, for_float_replaced_by_long_should_cast_data_to_int)
     {
-        Variant variant(float{ 2.7f });
+        Variant variant(2.7f);
         variant.setType(VT_Long);
         ASSERT_EQ(variant.getInteger(), 2);
     }
 
     TEST(ESMVariantSetTypeTest, for_int_replaced_by_float_should_cast_data_to_float)
     {
-        Variant variant(int{ 42 });
+        Variant variant(42);
         variant.setType(VT_Float);
         ASSERT_EQ(variant.getFloat(), 42.0f);
     }
 
     TEST(ESMVariantSetTypeTest, for_int_replaced_by_string_should_set_default_initialized_data)
     {
-        Variant variant(int{ 42 });
+        Variant variant(42);
         variant.setType(VT_String);
         ASSERT_EQ(variant.getString(), "");
     }
@@ -293,7 +293,7 @@ namespace
 
     TEST(ESMVariantSetIntegerTest, for_default_int_should_change_value)
     {
-        Variant variant(int{ 13 });
+        Variant variant(13);
         variant.setInteger(42);
         ASSERT_EQ(variant.getInteger(), 42);
     }
@@ -316,7 +316,7 @@ namespace
 
     TEST(ESMVariantSetIntegerTest, for_float_should_change_value)
     {
-        Variant variant(float{ 2.7f });
+        Variant variant(2.7f);
         variant.setInteger(42);
         ASSERT_EQ(variant.getFloat(), 42.0f);
     }
@@ -342,7 +342,7 @@ namespace
 
     TEST(ESMVariantSetFloatTest, for_default_int_should_change_value)
     {
-        Variant variant(int{ 13 });
+        Variant variant(13);
         variant.setFloat(2.7f);
         ASSERT_EQ(variant.getInteger(), 2);
     }
@@ -365,7 +365,7 @@ namespace
 
     TEST(ESMVariantSetFloatTest, for_float_should_change_value)
     {
-        Variant variant(float{ 2.7f });
+        Variant variant(2.7f);
         variant.setFloat(3.14f);
         ASSERT_EQ(variant.getFloat(), 3.14f);
     }
@@ -391,7 +391,7 @@ namespace
 
     TEST(ESMVariantSetStringTest, for_default_int_should_throw_exception)
     {
-        Variant variant(int{ 13 });
+        Variant variant(13);
         ASSERT_THROW(variant.setString("foo"), std::bad_variant_access);
     }
 
@@ -411,7 +411,7 @@ namespace
 
     TEST(ESMVariantSetStringTest, for_float_should_throw_exception)
     {
-        Variant variant(float{ 2.7f });
+        Variant variant(2.7f);
         ASSERT_THROW(variant.setString("foo"), std::bad_variant_access);
     }
 
@@ -472,15 +472,15 @@ namespace
 
     const std::array deserializedParams = {
         WriteToESMTestCase{ Variant(), Variant::Format_Gmst, 340 },
-        WriteToESMTestCase{ Variant(int{ 42 }), Variant::Format_Global, 361 },
-        WriteToESMTestCase{ Variant(float{ 2.7f }), Variant::Format_Global, 361 },
-        WriteToESMTestCase{ Variant(float{ 2.7f }), Variant::Format_Info, 352 },
-        WriteToESMTestCase{ Variant(float{ 2.7f }), Variant::Format_Local, 352 },
+        WriteToESMTestCase{ Variant(42), Variant::Format_Global, 361 },
+        WriteToESMTestCase{ Variant(2.7f), Variant::Format_Global, 361 },
+        WriteToESMTestCase{ Variant(2.7f), Variant::Format_Info, 352 },
+        WriteToESMTestCase{ Variant(2.7f), Variant::Format_Local, 352 },
         WriteToESMTestCase{ makeVariant(VT_Short, 42), Variant::Format_Global, 361 },
         WriteToESMTestCase{ makeVariant(VT_Short, 42), Variant::Format_Local, 350 },
         WriteToESMTestCase{ makeVariant(VT_Int, 42), Variant::Format_Info, 352 },
         WriteToESMTestCase{ makeVariant(VT_Int, 42), Variant::Format_Local, 352 },
-        WriteToESMTestCase{ Variant(float{ 2.7f }), Variant::Format_Gmst, 352 },
+        WriteToESMTestCase{ Variant(2.7f), Variant::Format_Gmst, 352 },
         WriteToESMTestCase{ Variant(std::string("foo")), Variant::Format_Gmst, 351 },
         WriteToESMTestCase{ makeVariant(VT_Int, 42), Variant::Format_Gmst, 352 },
     };

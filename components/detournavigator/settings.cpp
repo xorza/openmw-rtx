@@ -39,8 +39,8 @@ namespace DetourNavigator
             const unsigned long tilesBits = polysAndTilesBits - polysBits;
 
             return NavMeshLimits{
-                .mMaxTiles = static_cast<int>(1 << tilesBits),
-                .mMaxPolys = static_cast<int>(1 << polysBits),
+                .mMaxTiles = (1 << tilesBits),
+                .mMaxPolys = (1 << polysBits),
             };
         }
 

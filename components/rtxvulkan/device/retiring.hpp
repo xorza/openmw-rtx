@@ -21,7 +21,7 @@ namespace Rtx
     public:
         /// Holds `what` until the submit stamped `until` is done. **Stamps never fall**: one that did
         /// would stand behind an entry a wait has not reached, and outlive what it held.
-        void hold(const std::uint64_t until, T&& what)
+        void hold(const std::uint64_t until, T what)
         {
             assert((mCount == 0 || at(mCount - 1).mUntil <= until) && "a stamp under one held before it");
             if (mCount == mHeld.size())

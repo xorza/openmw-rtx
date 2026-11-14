@@ -210,7 +210,7 @@ namespace MWGui
                     {
                         float fSleepRestMod
                             = world->getStore().get<ESM::GameSetting>().find("fSleepRestMod")->mValue.getFloat();
-                        int interruptAtHoursRemaining = int(fSleepRestMod * hoursToWait);
+                        int interruptAtHoursRemaining = static_cast<int>(fSleepRestMod * hoursToWait);
                         if (interruptAtHoursRemaining != 0)
                         {
                             mInterruptAt = hoursToWait - interruptAtHoursRemaining;

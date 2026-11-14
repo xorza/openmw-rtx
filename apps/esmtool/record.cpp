@@ -17,18 +17,19 @@ namespace
 
     void printAIPackage(const ESM::AIPackage& p)
     {
-        std::cout << std::format("  AI Type: {} (0x{:08X})\n", aiTypeLabel(p.mType), std::uint32_t(p.mType));
+        std::cout << std::format(
+            "  AI Type: {} (0x{:08X})\n", aiTypeLabel(p.mType), static_cast<std::uint32_t>(p.mType));
         if (p.mType == ESM::AI_Wander)
         {
             std::cout << "    Distance: " << p.mWander.mDistance << std::endl;
             std::cout << "    Duration: " << p.mWander.mDuration << std::endl;
-            std::cout << "    Time of Day: " << (int)p.mWander.mTimeOfDay << std::endl;
+            std::cout << "    Time of Day: " << static_cast<int>(p.mWander.mTimeOfDay) << std::endl;
             if (p.mWander.mShouldRepeat != 1)
                 std::cout << "    Should repeat: " << static_cast<bool>(p.mWander.mShouldRepeat != 0) << std::endl;
 
             std::cout << "    Idle: ";
             for (unsigned char i : p.mWander.mIdle)
-                std::cout << (int)i << " ";
+                std::cout << static_cast<int>(i) << " ";
             std::cout << std::endl;
         }
         else if (p.mType == ESM::AI_Travel)
@@ -52,7 +53,7 @@ namespace
         }
         else
         {
-            std::cout << std::format("    BadPackage: 0x{:08X}\n", std::uint32_t(p.mType));
+            std::cout << std::format("    BadPackage: 0x{:08X}\n", static_cast<std::uint32_t>(p.mType));
         }
 
         if (!p.mCellName.empty())
@@ -470,7 +471,8 @@ namespace EsmTool
         std::cout << "  Enchantment Points: " << mData.mData.mEnchant << std::endl;
         for (const ESM::PartReference& part : mData.mParts.mParts)
         {
-            std::cout << "  Body Part: " << bodyPartLabel(part.mPart) << " (" << (int)(part.mPart) << ")" << std::endl;
+            std::cout << "  Body Part: " << bodyPartLabel(part.mPart) << " (" << static_cast<int>(part.mPart) << ")"
+                      << std::endl;
             std::cout << "    Male Name: " << part.mMale << std::endl;
             if (!part.mFemale.empty())
                 std::cout << "    Female Name: " << part.mFemale << std::endl;
@@ -500,12 +502,12 @@ namespace EsmTool
     {
         std::cout << "  Race: " << mData.mRace << std::endl;
         std::cout << "  Model: " << mData.mModel.getOriginal() << std::endl;
-        std::cout << "  Type: " << meshTypeLabel(mData.mData.mType) << " (" << (int)mData.mData.mType << ")"
-                  << std::endl;
+        std::cout << "  Type: " << meshTypeLabel(mData.mData.mType) << " (" << static_cast<int>(mData.mData.mType)
+                  << ")" << std::endl;
         std::cout << "  Flags: " << bodyPartFlags(mData.mData.mFlags) << std::endl;
-        std::cout << "  Part: " << meshPartLabel(mData.mData.mPart) << " (" << (int)mData.mData.mPart << ")"
-                  << std::endl;
-        std::cout << "  Vampire: " << (int)mData.mData.mVampire << std::endl;
+        std::cout << "  Part: " << meshPartLabel(mData.mData.mPart) << " (" << static_cast<int>(mData.mData.mPart)
+                  << ")" << std::endl;
+        std::cout << "  Vampire: " << static_cast<int>(mData.mData.mVampire) << std::endl;
         std::cout << "  Deleted: " << mIsDeleted << std::endl;
     }
 
@@ -619,7 +621,8 @@ namespace EsmTool
         std::cout << "  Enchantment Points: " << mData.mData.mEnchant << std::endl;
         for (const ESM::PartReference& part : mData.mParts.mParts)
         {
-            std::cout << "  Body Part: " << bodyPartLabel(part.mPart) << " (" << (int)(part.mPart) << ")" << std::endl;
+            std::cout << "  Body Part: " << bodyPartLabel(part.mPart) << " (" << static_cast<int>(part.mPart) << ")"
+                      << std::endl;
             std::cout << "    Male Name: " << part.mMale << std::endl;
             if (!part.mFemale.empty())
                 std::cout << "    Female Name: " << part.mFemale << std::endl;
@@ -648,7 +651,7 @@ namespace EsmTool
         std::cout << "  Model: " << mData.mModel.getOriginal() << std::endl;
         if (!mData.mScript.empty())
             std::cout << "  Script: " << mData.mScript << std::endl;
-        std::cout << "  Flags: " << creatureFlags((int)mData.mFlags) << std::endl;
+        std::cout << "  Flags: " << creatureFlags(static_cast<int>(mData.mFlags)) << std::endl;
         std::cout << "  Blood Type: " << mData.mBloodType + 1 << std::endl;
         std::cout << "  Original: " << mData.mOriginal << std::endl;
         std::cout << "  Scale: " << mData.mScale << std::endl;
@@ -682,10 +685,10 @@ namespace EsmTool
         printTransport(mData.getTransport());
 
         std::cout << "  Artificial Intelligence: " << std::endl;
-        std::cout << "    AI Hello:" << (int)mData.mAiData.mHello << std::endl;
-        std::cout << "    AI Fight:" << (int)mData.mAiData.mFight << std::endl;
-        std::cout << "    AI Flee:" << (int)mData.mAiData.mFlee << std::endl;
-        std::cout << "    AI Alarm:" << (int)mData.mAiData.mAlarm << std::endl;
+        std::cout << "    AI Hello:" << static_cast<int>(mData.mAiData.mHello) << std::endl;
+        std::cout << "    AI Fight:" << static_cast<int>(mData.mAiData.mFight) << std::endl;
+        std::cout << "    AI Flee:" << static_cast<int>(mData.mAiData.mFlee) << std::endl;
+        std::cout << "    AI Alarm:" << static_cast<int>(mData.mAiData.mAlarm) << std::endl;
         std::cout << std::format("    AI Services:0x{:08X}\n", mData.mAiData.mServices);
 
         for (const ESM::AIPackage& package : mData.mAiPackage.mList)
@@ -697,7 +700,8 @@ namespace EsmTool
     void Record<ESM::Dialogue>::print()
     {
         std::cout << "  StringId: " << mData.mStringId << std::endl;
-        std::cout << "  Type: " << dialogTypeLabel(mData.mType) << " (" << (int)mData.mType << ")" << std::endl;
+        std::cout << "  Type: " << dialogTypeLabel(mData.mType) << " (" << static_cast<int>(mData.mType) << ")"
+                  << std::endl;
         std::cout << "  Deleted: " << mIsDeleted << std::endl;
         // Sadly, there are no DialInfos, because the loader dumps as it
         // loads, rather than loading and then dumping. :-( Anyone mind if
@@ -786,12 +790,12 @@ namespace EsmTool
         if (!mData.mFaction.empty())
             std::cout << "  NPC Faction: " << mData.mFaction << std::endl;
         if (mData.mData.mRank != -1)
-            std::cout << "  NPC Rank: " << (int)mData.mData.mRank << std::endl;
+            std::cout << "  NPC Rank: " << static_cast<int>(mData.mData.mRank) << std::endl;
         if (!mData.mPcFaction.empty())
             std::cout << "  PC Faction: " << mData.mPcFaction << std::endl;
         // CHANGE? non-standard capitalization mPCrank -> mPCRank (mPcRank?)
         if (mData.mData.mPCrank != -1)
-            std::cout << "  PC Rank: " << (int)mData.mData.mPCrank << std::endl;
+            std::cout << "  PC Rank: " << static_cast<int>(mData.mData.mPCrank) << std::endl;
         if (!mData.mCell.empty())
             std::cout << "  Cell: " << mData.mCell << std::endl;
         if (mData.mData.mDisposition > 0)
@@ -868,7 +872,7 @@ namespace EsmTool
     template <>
     void Record<ESM::CreatureLevList>::print()
     {
-        std::cout << "  Chance for None: " << (int)mData.mChanceNone << std::endl;
+        std::cout << "  Chance for None: " << static_cast<int>(mData.mChanceNone) << std::endl;
         std::cout << "  Flags: " << creatureListFlags(mData.mFlags) << std::endl;
         std::cout << "  Number of items: " << mData.mList.size() << std::endl;
         for (const ESM::LevelledListBase::LevelItem& item : mData.mList)
@@ -879,7 +883,7 @@ namespace EsmTool
     template <>
     void Record<ESM::ItemLevList>::print()
     {
-        std::cout << "  Chance for None: " << (int)mData.mChanceNone << std::endl;
+        std::cout << "  Chance for None: " << static_cast<int>(mData.mChanceNone) << std::endl;
         std::cout << "  Flags: " << itemListFlags(mData.mFlags) << std::endl;
         std::cout << "  Number of items: " << mData.mList.size() << std::endl;
         for (const ESM::LevelledListBase::LevelItem& item : mData.mList)
@@ -1024,32 +1028,32 @@ namespace EsmTool
             std::cout << "  Script: " << mData.mScript << std::endl;
         if (!mData.mFaction.empty())
             std::cout << "  Faction: " << mData.mFaction << std::endl;
-        std::cout << "  Flags: " << npcFlags((int)mData.mFlags) << std::endl;
+        std::cout << "  Flags: " << npcFlags(static_cast<int>(mData.mFlags)) << std::endl;
         if (mData.mBloodType != 0)
             std::cout << "  Blood Type: " << mData.mBloodType + 1 << std::endl;
 
         if (mData.mNpdtType == ESM::NPC::NPC_WITH_AUTOCALCULATED_STATS)
         {
             std::cout << "  Level: " << mData.mNpdt.mLevel << std::endl;
-            std::cout << "  Reputation: " << (int)mData.mNpdt.mReputation << std::endl;
-            std::cout << "  Disposition: " << (int)mData.mNpdt.mDisposition << std::endl;
-            std::cout << "  Rank: " << (int)mData.mNpdt.mRank << std::endl;
+            std::cout << "  Reputation: " << static_cast<int>(mData.mNpdt.mReputation) << std::endl;
+            std::cout << "  Disposition: " << static_cast<int>(mData.mNpdt.mDisposition) << std::endl;
+            std::cout << "  Rank: " << static_cast<int>(mData.mNpdt.mRank) << std::endl;
             std::cout << "  Gold: " << mData.mNpdt.mGold << std::endl;
         }
         else
         {
             std::cout << "  Level: " << mData.mNpdt.mLevel << std::endl;
-            std::cout << "  Reputation: " << (int)mData.mNpdt.mReputation << std::endl;
-            std::cout << "  Disposition: " << (int)mData.mNpdt.mDisposition << std::endl;
-            std::cout << "  Rank: " << (int)mData.mNpdt.mRank << std::endl;
+            std::cout << "  Reputation: " << static_cast<int>(mData.mNpdt.mReputation) << std::endl;
+            std::cout << "  Disposition: " << static_cast<int>(mData.mNpdt.mDisposition) << std::endl;
+            std::cout << "  Rank: " << static_cast<int>(mData.mNpdt.mRank) << std::endl;
 
             std::cout << "  Attributes:" << std::endl;
             for (const auto& [attribute, value] : mData.mNpdt.mAttributes)
-                std::cout << "    " << attribute << ": " << int(value) << std::endl;
+                std::cout << "    " << attribute << ": " << static_cast<int>(value) << std::endl;
 
             std::cout << "  Skills:" << std::endl;
             for (const auto& [skill, value] : mData.mNpdt.mSkills)
-                std::cout << "    " << skill << ": " << int(value) << std::endl;
+                std::cout << "    " << skill << ": " << static_cast<int>(value) << std::endl;
 
             std::cout << "  Health: " << mData.mNpdt.mHealth << std::endl;
             std::cout << "  Magicka: " << mData.mNpdt.mMana << std::endl;
@@ -1066,10 +1070,10 @@ namespace EsmTool
         printTransport(mData.getTransport());
 
         std::cout << "  Artificial Intelligence: " << std::endl;
-        std::cout << "    AI Hello:" << (int)mData.mAiData.mHello << std::endl;
-        std::cout << "    AI Fight:" << (int)mData.mAiData.mFight << std::endl;
-        std::cout << "    AI Flee:" << (int)mData.mAiData.mFlee << std::endl;
-        std::cout << "    AI Alarm:" << (int)mData.mAiData.mAlarm << std::endl;
+        std::cout << "    AI Hello:" << static_cast<int>(mData.mAiData.mHello) << std::endl;
+        std::cout << "    AI Fight:" << static_cast<int>(mData.mAiData.mFight) << std::endl;
+        std::cout << "    AI Flee:" << static_cast<int>(mData.mAiData.mFlee) << std::endl;
+        std::cout << "    AI Alarm:" << static_cast<int>(mData.mAiData.mAlarm) << std::endl;
         std::cout << std::format("    AI Services:0x{:08X}\n", mData.mAiData.mServices);
 
         for (const ESM::AIPackage& package : mData.mAiPackage.mList)
@@ -1094,8 +1098,8 @@ namespace EsmTool
         {
             std::cout << "  Point[" << i << "]:" << std::endl;
             std::cout << "    Coordinates: (" << point.mX << "," << point.mY << "," << point.mZ << ")" << std::endl;
-            std::cout << "    Auto-Generated: " << (int)point.mAutogenerated << std::endl;
-            std::cout << "    Connections: " << (int)point.mConnectionNum << std::endl;
+            std::cout << "    Auto-Generated: " << static_cast<int>(point.mAutogenerated) << std::endl;
+            std::cout << "    Connections: " << static_cast<int>(point.mConnectionNum) << std::endl;
             i++;
         }
 
@@ -1153,7 +1157,7 @@ namespace EsmTool
         if (!mData.mSleepList.empty())
             std::cout << "  Sleep List: " << mData.mSleepList << std::endl;
         for (const ESM::Region::SoundRef& soundref : mData.mSoundList)
-            std::cout << "  Sound: " << (int)soundref.mChance << " = " << soundref.mSound << std::endl;
+            std::cout << "  Sound: " << static_cast<int>(soundref.mChance) << " = " << soundref.mSound << std::endl;
     }
 
     template <>
@@ -1216,9 +1220,10 @@ namespace EsmTool
     void Record<ESM::Sound>::print()
     {
         std::cout << "  Sound: " << mData.mSound << std::endl;
-        std::cout << "  Volume: " << (int)mData.mData.mVolume << std::endl;
+        std::cout << "  Volume: " << static_cast<int>(mData.mData.mVolume) << std::endl;
         if (mData.mData.mMinRange != 0 && mData.mData.mMaxRange != 0)
-            std::cout << "  Range: " << (int)mData.mData.mMinRange << " - " << (int)mData.mData.mMaxRange << std::endl;
+            std::cout << "  Range: " << static_cast<int>(mData.mData.mMinRange) << " - "
+                      << static_cast<int>(mData.mData.mMaxRange) << std::endl;
         std::cout << "  Deleted: " << mIsDeleted << std::endl;
     }
 
@@ -1271,11 +1276,14 @@ namespace EsmTool
         std::cout << "  Reach: " << mData.mData.mReach << std::endl;
         std::cout << "  Enchantment Points: " << mData.mData.mEnchant << std::endl;
         if (mData.mData.mChop[0] != 0 && mData.mData.mChop[1] != 0)
-            std::cout << "  Chop: " << (int)mData.mData.mChop[0] << "-" << (int)mData.mData.mChop[1] << std::endl;
+            std::cout << "  Chop: " << static_cast<int>(mData.mData.mChop[0]) << "-"
+                      << static_cast<int>(mData.mData.mChop[1]) << std::endl;
         if (mData.mData.mSlash[0] != 0 && mData.mData.mSlash[1] != 0)
-            std::cout << "  Slash: " << (int)mData.mData.mSlash[0] << "-" << (int)mData.mData.mSlash[1] << std::endl;
+            std::cout << "  Slash: " << static_cast<int>(mData.mData.mSlash[0]) << "-"
+                      << static_cast<int>(mData.mData.mSlash[1]) << std::endl;
         if (mData.mData.mThrust[0] != 0 && mData.mData.mThrust[1] != 0)
-            std::cout << "  Thrust: " << (int)mData.mData.mThrust[0] << "-" << (int)mData.mData.mThrust[1] << std::endl;
+            std::cout << "  Thrust: " << static_cast<int>(mData.mData.mThrust[0]) << "-"
+                      << static_cast<int>(mData.mData.mThrust[1]) << std::endl;
         std::cout << "  Deleted: " << mIsDeleted << std::endl;
     }
 

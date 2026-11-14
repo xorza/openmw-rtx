@@ -51,7 +51,7 @@ namespace SceneUtil
             {
                 if (osg::StateSet* stateset = node.getStateSet())
                     mLowestUnusedTexUnit
-                        = std::max(mLowestUnusedTexUnit, int(stateset->getTextureAttributeList().size()));
+                        = std::max(mLowestUnusedTexUnit, static_cast<int>(stateset->getTextureAttributeList().size()));
 
                 traverse(node);
             }
@@ -177,7 +177,7 @@ namespace SceneUtil
 
     float makeOsgColorComponent(unsigned int value, unsigned int shift)
     {
-        return float((value >> shift) & 0xFFu) / 255.0f;
+        return static_cast<float>((value >> shift) & 0xFFu) / 255.0f;
     }
 
     bool hasUserDescription(const osg::Node* node, std::string_view pattern)

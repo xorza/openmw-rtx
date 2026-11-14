@@ -64,7 +64,7 @@ namespace MWSound
 
         double getAudioClock() override
         {
-            return (double)getSampleOffset() / (double)mAudioContext->sample_rate
+            return static_cast<double>(getSampleOffset()) / static_cast<double>(mAudioContext->sample_rate)
                 - MWBase::Environment::get().getSoundManager()->getTrackTimeDelay(mAudioTrack);
         }
 

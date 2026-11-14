@@ -833,7 +833,7 @@ namespace MWSound
         if (mOutput->isInitialized())
         {
             mPausedSoundTypes[blocker] = 0;
-            int types = int(Type::Mask);
+            int types = static_cast<int>(Type::Mask);
             for (int currentBlocker = 0; currentBlocker < BlockerType::MaxCount; currentBlocker++)
             {
                 if (currentBlocker != blocker)

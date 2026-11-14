@@ -452,7 +452,7 @@ namespace MWGui
 
             store.setSelectedEnchantItem(store.end());
             MWBase::Environment::get().getWindowManager()->setSelectedSpell(
-                spellId, int(MWMechanics::getSpellSuccessChance(spellId, player)));
+                spellId, static_cast<int>(MWMechanics::getSpellSuccessChance(spellId, player)));
             MWBase::Environment::get().getWorld()->getPlayer().setDrawState(MWMechanics::DrawState::Spell);
         }
         else if (key->type == ESM::QuickKeys::Type::HandToHand)

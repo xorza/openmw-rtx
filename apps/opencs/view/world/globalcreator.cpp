@@ -18,7 +18,7 @@ namespace CSVWorld
         auto* table = static_cast<CSMWorld::IdTable*>(getData().getTableModel(getCollectionId()));
 
         int index = table->findColumnIndex(CSMWorld::Columns::ColumnId_ValueType);
-        int type = (int)ESM::VT_Float;
+        int type = static_cast<int>(ESM::VT_Float);
 
         command.addValue(index, type);
     }

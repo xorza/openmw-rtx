@@ -733,7 +733,7 @@ namespace MWGui
         }
         else if (mCreationStage >= currentStage)
         {
-            MWBase::Environment::get().getWindowManager()->pushGuiMode((GuiMode)nextMode);
+            MWBase::Environment::get().getWindowManager()->pushGuiMode(static_cast<GuiMode>(nextMode));
         }
         else
         {

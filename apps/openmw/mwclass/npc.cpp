@@ -233,7 +233,7 @@ namespace
 
             npcStats.getSkill(skill.mId).setBase(
                 std::min(round_ieee_754(npcStats.getSkill(skill.mId).getBase() + 5 + raceBonus + specBonus
-                             + (int(level) - 1) * (majorMultiplier + specMultiplier)),
+                             + (static_cast<int>(level) - 1) * (majorMultiplier + specMultiplier)),
                     100.f)); // Must gracefully handle level 0
         }
 

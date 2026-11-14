@@ -99,7 +99,7 @@ namespace
 
             // North
             row = verts - 1;
-            outerStep = size_t(1) << (lodDeltas[Terrain::North] + lodLevel);
+            outerStep = static_cast<size_t>(1) << (lodDeltas[Terrain::North] + lodLevel);
             for (size_t col = 0; col < verts - 1; col += outerStep)
             {
                 indices->push_back(static_cast<IndexType>(verts * (col + outerStep) + row));
@@ -123,7 +123,7 @@ namespace
 
             // West
             size_t col = 0;
-            outerStep = size_t(1) << (lodDeltas[Terrain::West] + lodLevel);
+            outerStep = static_cast<size_t>(1) << (lodDeltas[Terrain::West] + lodLevel);
             for (row = 0; row < verts - 1; row += outerStep)
             {
                 indices->push_back(static_cast<IndexType>(verts * col + row + outerStep));
@@ -147,7 +147,7 @@ namespace
 
             // East
             col = verts - 1;
-            outerStep = size_t(1) << (lodDeltas[Terrain::East] + lodLevel);
+            outerStep = static_cast<size_t>(1) << (lodDeltas[Terrain::East] + lodLevel);
             for (row = 0; row < verts - 1; row += outerStep)
             {
                 indices->push_back(static_cast<IndexType>(verts * col + row));

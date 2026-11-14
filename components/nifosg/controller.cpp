@@ -566,9 +566,9 @@ namespace NifOsg
         {
             int curTexture = 0;
             if (mDelta != 0)
-                curTexture = int(getInputValue(nv) / mDelta) % mTextures.size();
+                curTexture = static_cast<int>(getInputValue(nv) / mDelta) % mTextures.size();
             else
-                curTexture = int(mData.interpKey(getInputValue(nv))) % mTextures.size();
+                curTexture = static_cast<int>(mData.interpKey(getInputValue(nv))) % mTextures.size();
             stateset->setTextureAttribute(mTexSlot, mTextures[curTexture]);
         }
     }

@@ -38,7 +38,7 @@ namespace Terrain
 
         normals->push_back(osg::Vec3(0.0f, -1.0f, 0.0f));
 
-        float borderStep = size / ((float)borderSegments);
+        float borderStep = size / (static_cast<float>(borderSegments));
 
         for (int i = 0; i <= 2 * borderSegments; ++i)
         {

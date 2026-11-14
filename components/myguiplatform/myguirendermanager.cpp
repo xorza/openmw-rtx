@@ -310,7 +310,7 @@ namespace MyGUIPlatform
             array->resize(mNeedVertexCount * sizeof(MyGUI::Vertex));
         }
 
-        return (MyGUI::Vertex*)&(*array)[0];
+        return reinterpret_cast<MyGUI::Vertex*>(&(*array)[0]);
     }
 
     void OSGVertexBuffer::unlock()
@@ -502,9 +502,9 @@ namespace MyGUIPlatform
         mInfo.maximumDepth = 1;
         mInfo.hOffset = 0;
         mInfo.vOffset = 0;
-        mInfo.aspectCoef = float(mViewSize.height) / float(mViewSize.width);
-        mInfo.pixScaleX = 1.0f / float(mViewSize.width);
-        mInfo.pixScaleY = 1.0f / float(mViewSize.height);
+        mInfo.aspectCoef = static_cast<float>(mViewSize.height) / static_cast<float>(mViewSize.width);
+        mInfo.pixScaleX = 1.0f / static_cast<float>(mViewSize.width);
+        mInfo.pixScaleY = 1.0f / static_cast<float>(mViewSize.height);
 
         onResizeView(mViewSize);
         mUpdate = true;

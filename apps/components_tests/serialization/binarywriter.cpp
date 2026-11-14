@@ -20,7 +20,7 @@ namespace
         std::vector<std::byte> result(4);
         BinaryWriter binaryWriter(result.data(), result.data() + result.size());
         const TestFormat<Mode::Write> format;
-        binaryWriter(format, std::uint32_t(42));
+        binaryWriter(format, static_cast<std::uint32_t>(42));
         EXPECT_THAT(result, ElementsAre(std::byte(42), std::byte(0), std::byte(0), std::byte(0)));
     }
 

@@ -446,7 +446,7 @@ namespace MWWorld
         Ptr player = getPlayer();
         InventoryStore& store = player.getClass().getInventoryStore(player);
         store.setSelectedEnchantItem(store.end());
-        int castChance = int(MWMechanics::getSpellSuccessChance(spellId, player));
+        int castChance = static_cast<int>(MWMechanics::getSpellSuccessChance(spellId, player));
         MWBase::Environment::get().getWindowManager()->setSelectedSpell(spellId, castChance);
         MWBase::Environment::get().getWindowManager()->updateSpellWindow();
     }

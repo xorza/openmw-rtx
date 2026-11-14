@@ -1757,7 +1757,7 @@ namespace MWGui
 
     void WindowManager::allow(GuiWindow wnd)
     {
-        mAllowed = (GuiWindow)(mAllowed | wnd);
+        mAllowed = static_cast<GuiWindow>(mAllowed | wnd);
 
         if (wnd & GW_Inventory)
         {
@@ -1787,19 +1787,19 @@ namespace MWGui
         if (Settings::SettingValue<bool>* const hidden = findHiddenSetting(wnd))
             hidden->set(!hidden->get());
 
-        mShown = (GuiWindow)(mShown ^ wnd);
+        mShown = static_cast<GuiWindow>(mShown ^ wnd);
         updateVisible();
     }
 
     void WindowManager::forceHide(GuiWindow wnd)
     {
-        mForceHidden = (GuiWindow)(mForceHidden | wnd);
+        mForceHidden = static_cast<GuiWindow>(mForceHidden | wnd);
         updateVisible();
     }
 
     void WindowManager::unsetForceHide(GuiWindow wnd)
     {
-        mForceHidden = (GuiWindow)(mForceHidden & ~wnd);
+        mForceHidden = static_cast<GuiWindow>(mForceHidden & ~wnd);
         updateVisible();
     }
 
@@ -1971,7 +1971,7 @@ namespace MWGui
         if (player.getClass().getNpcStats(player).isWerewolf())
         {
             setWerewolfOverlay(true);
-            forceHide((GuiWindow)(MWGui::GW_Inventory | MWGui::GW_Magic));
+            forceHide(static_cast<GuiWindow>(MWGui::GW_Inventory | MWGui::GW_Magic));
         }
     }
 
@@ -2343,19 +2343,19 @@ namespace MWGui
 
         mInventoryWindow->setPinned(Settings::windows().mInventoryPin);
         if (Settings::windows().mInventoryHidden)
-            mShown = (GuiWindow)(mShown ^ GW_Inventory);
+            mShown = static_cast<GuiWindow>(mShown ^ GW_Inventory);
 
         mMap->setPinned(Settings::windows().mMapPin);
         if (Settings::windows().mMapHidden)
-            mShown = (GuiWindow)(mShown ^ GW_Map);
+            mShown = static_cast<GuiWindow>(mShown ^ GW_Map);
 
         mSpellWindow->setPinned(Settings::windows().mSpellsPin);
         if (Settings::windows().mSpellsHidden)
-            mShown = (GuiWindow)(mShown ^ GW_Magic);
+            mShown = static_cast<GuiWindow>(mShown ^ GW_Magic);
 
         mStatsWindow->setPinned(Settings::windows().mStatsPin);
         if (Settings::windows().mStatsHidden)
-            mShown = (GuiWindow)(mShown ^ GW_Stats);
+            mShown = static_cast<GuiWindow>(mShown ^ GW_Stats);
     }
 
     void WindowManager::pinWindow(GuiWindow window)

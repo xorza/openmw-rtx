@@ -1846,7 +1846,7 @@ bool Optimizer::MergeGeometryVisitor::mergeGeometry(osg::Geometry& lhs, osg::Geo
                 unsigned int currentMaximum = 0;
                 for(unsigned char & eitr : *primitiveUByte)
                 {
-                    currentMaximum = osg::maximum(currentMaximum,(unsigned int)eitr);
+                    currentMaximum = osg::maximum(currentMaximum,static_cast<unsigned int>(eitr));
                 }
                 if ((base+currentMaximum)>=65536)
                 {
@@ -1881,7 +1881,7 @@ bool Optimizer::MergeGeometryVisitor::mergeGeometry(osg::Geometry& lhs, osg::Geo
                 unsigned int currentMaximum = 0;
                 for(unsigned short & eitr : *primitiveUShort)
                 {
-                    currentMaximum = osg::maximum(currentMaximum,(unsigned int)eitr);
+                    currentMaximum = osg::maximum(currentMaximum,static_cast<unsigned int>(eitr));
                 }
                 if ((base+currentMaximum)>=65536)
                 {

@@ -910,10 +910,10 @@ namespace MWGui
 
         MyGUI::IntPoint widgetPos = clickedPos - mEventBoxLocal->getAbsolutePosition();
         auto mapWidgetSize = getWidgetSize();
-        int x = int(widgetPos.left / float(mapWidgetSize)) + mGrid.left;
-        int y = mGrid.bottom - int(widgetPos.top / float(mapWidgetSize));
-        float nX = widgetPos.left / float(mapWidgetSize) - int(widgetPos.left / float(mapWidgetSize));
-        float nY = widgetPos.top / float(mapWidgetSize) - int(widgetPos.top / float(mapWidgetSize));
+        int x = static_cast<int>(widgetPos.left / mapWidgetSize) + mGrid.left;
+        int y = mGrid.bottom - static_cast<int>(widgetPos.top / mapWidgetSize);
+        float nX = widgetPos.left / mapWidgetSize - static_cast<int>(widgetPos.left / mapWidgetSize);
+        float nY = widgetPos.top / mapWidgetSize - static_cast<int>(widgetPos.top / mapWidgetSize);
 
         osg::Vec2f worldPos;
         if (!mActiveCell->isExterior())
@@ -945,16 +945,16 @@ namespace MWGui
         const float speedDiff = zoomOut ? 1.f / speed : speed;
 
         const float currentMinLocalMapZoom
-            = std::max({ (float(Settings::map().mGlobalMapCellSize) * 4.f) / float(localWidgetSize),
-                float(mLocalMap->getWidth()) / (localWidgetSize * (mGrid.width() + 1)),
-                float(mLocalMap->getHeight()) / (localWidgetSize * (mGrid.height() + 1)) });
+            = std::max({ (float(Settings::map().mGlobalMapCellSize) * 4.f) / static_cast<float>(localWidgetSize),
+                static_cast<float>(mLocalMap->getWidth()) / (localWidgetSize * (mGrid.width() + 1)),
+                static_cast<float>(mLocalMap->getHeight()) / (localWidgetSize * (mGrid.height() + 1)) });
 
         if (Settings::map().mGlobal)
         {
             const float currentGlobalZoom = mGlobalMapZoom;
-            const float currentMinGlobalMapZoom
-                = std::min(float(mGlobalMap->getWidth()) / float(mGlobalMapRender->getWidth()),
-                    float(mGlobalMap->getHeight()) / float(mGlobalMapRender->getHeight()));
+            const float currentMinGlobalMapZoom = std::min(
+                static_cast<float>(mGlobalMap->getWidth()) / static_cast<float>(mGlobalMapRender->getWidth()),
+                static_cast<float>(mGlobalMap->getHeight()) / static_cast<float>(mGlobalMapRender->getHeight()));
 
             mGlobalMapZoom *= speedDiff;
 
@@ -1139,7 +1139,7 @@ namespace MWGui
                 // agregated widget
                 marker.position = std::accumulate(elements.begin(), elements.end(), osg::Vec2f(0.f, 0.f),
                                       [](const auto& left, const auto& right) { return left + right.position; })
-                    / float(elements.size());
+                    / static_cast<float>(elements.size());
 
                 marker.widget->setCoord(
                     createMarkerCoords(marker.position.x(), marker.position.y(), static_cast<float>(elements.size())));

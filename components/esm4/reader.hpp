@@ -248,8 +248,8 @@ namespace ESM4
         // for arrays
         inline bool get(void* p, std::size_t size)
         {
-            mStream->read((char*)p, size);
-            return mStream->gcount() == (std::streamsize)size; // FIXME: try/catch block needed?
+            mStream->read(static_cast<char*>(p), size);
+            return mStream->gcount() == static_cast<std::streamsize>(size); // FIXME: try/catch block needed?
         }
 
         // NOTE: must be called before calling getRecordHeader()

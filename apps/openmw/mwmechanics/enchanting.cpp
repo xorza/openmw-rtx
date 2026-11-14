@@ -355,9 +355,9 @@ namespace MWMechanics
         const CreatureStats& stats = mEnchanter.getClass().getCreatureStats(mEnchanter);
         const MWWorld::Store<ESM::GameSetting>& gmst
             = MWBase::Environment::get().getESMStore()->get<ESM::GameSetting>();
-        const auto a = static_cast<float>(mEnchanter.getClass().getSkill(mEnchanter, ESM::Skill::Enchant));
-        const auto b = static_cast<float>(stats.getAttribute(ESM::Attribute::Intelligence).getModified());
-        const auto c = static_cast<float>(stats.getAttribute(ESM::Attribute::Luck).getModified());
+        const auto a = mEnchanter.getClass().getSkill(mEnchanter, ESM::Skill::Enchant);
+        const auto b = stats.getAttribute(ESM::Attribute::Intelligence).getModified();
+        const auto c = stats.getAttribute(ESM::Attribute::Luck).getModified();
         const float fEnchantmentChanceMult = gmst.find("fEnchantmentChanceMult")->mValue.getFloat();
         const float fEnchantmentConstantChanceMult = gmst.find("fEnchantmentConstantChanceMult")->mValue.getFloat();
 

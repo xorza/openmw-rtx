@@ -57,14 +57,14 @@ BSAFile::Hash getHash(const std::string& name)
 
     for (sum = off = i = 0; i < l; i++)
     {
-        sum ^= (((unsigned)(name[i])) << (off & 0x1F));
+        sum ^= ((static_cast<unsigned>(name[i])) << (off & 0x1F));
         off += 8;
     }
     hash.mLow = sum;
 
     for (sum = off = 0; i < name.size(); i++)
     {
-        temp = (((unsigned)(name[i])) << (off & 0x1F));
+        temp = ((static_cast<unsigned>(name[i])) << (off & 0x1F));
         sum ^= temp;
         n = temp & 0x1F;
         sum = std::rotr(sum, n); // binary "rotate right"

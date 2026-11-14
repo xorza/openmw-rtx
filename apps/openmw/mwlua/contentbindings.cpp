@@ -107,7 +107,7 @@ namespace MWLua
             storeT[sol::meta_function::ipairs] = lua["ipairsForArray"].template get<sol::function>();
             storeT[sol::meta_function::pairs] = [=](const Store& self) {
                 return sol::as_function(
-                    [&, index = std::size_t(0)](
+                    [&, index = static_cast<std::size_t>(0)](
                         sol::this_state state) mutable -> std::pair<std::optional<ESM::RefId>, LuaType> {
                         if (index >= self.mStore.getSize())
                             return { {}, mapper(nullptr, state) };

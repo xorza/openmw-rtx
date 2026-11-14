@@ -324,8 +324,8 @@ void CSVRender::TerrainTextureMode::editTerrainTextureGrid(const WorldspaceHitRe
     int cellY = cellCoordinatesPair.first.getY();
 
     // The coordinates of hit in mCellId
-    int xHitInCell(float(((hit.worldPos.x() - (cellX * cellSize)) * landTextureSize / cellSize) - 0.25));
-    int yHitInCell(float(((hit.worldPos.y() - (cellY * cellSize)) * landTextureSize / cellSize) + 0.25));
+    int xHitInCell(static_cast<float>(((hit.worldPos.x() - (cellX * cellSize)) * landTextureSize / cellSize) - 0.25));
+    int yHitInCell(static_cast<float>(((hit.worldPos.y() - (cellY * cellSize)) * landTextureSize / cellSize) + 0.25));
     if (xHitInCell < 0)
     {
         xHitInCell = xHitInCell + landTextureSize;

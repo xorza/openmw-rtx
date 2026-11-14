@@ -300,7 +300,7 @@ namespace MWMechanics
         {
             const ESM::RefId& spell = winMgr->getSelectedSpell();
             if (!spell.empty())
-                winMgr->setSelectedSpell(spell, int(MWMechanics::getSpellSuccessChance(spell, ptr)));
+                winMgr->setSelectedSpell(spell, static_cast<int>(MWMechanics::getSpellSuccessChance(spell, ptr)));
             else
                 winMgr->unsetSelectedSpell();
         }
@@ -585,7 +585,7 @@ namespace MWMechanics
         float npcTerm = (d + e + f) * sellerStats.getFatigueTerm();
         float buyTerm = 0.01f * (100 - 0.5f * (pcTerm - npcTerm));
         float sellTerm = 0.01f * (50 - 0.5f * (npcTerm - pcTerm));
-        int offerPrice = int(basePrice * (buying ? buyTerm : sellTerm));
+        int offerPrice = static_cast<int>(basePrice * (buying ? buyTerm : sellTerm));
         return std::max(1, offerPrice);
     }
 
@@ -663,10 +663,10 @@ namespace MWMechanics
 
                 const int flee = npcStats.getAiSetting(MWMechanics::AiSetting::Flee).getBase();
                 const int fight = npcStats.getAiSetting(MWMechanics::AiSetting::Fight).getBase();
-                npcStats.setAiSetting(
-                    MWMechanics::AiSetting::Flee, std::clamp(flee + int(std::max(iPerMinChange, s)), 0, 100));
-                npcStats.setAiSetting(
-                    MWMechanics::AiSetting::Fight, std::clamp(fight + int(std::min(-iPerMinChange, -s)), 0, 100));
+                npcStats.setAiSetting(MWMechanics::AiSetting::Flee,
+                    std::clamp(flee + static_cast<int>(std::max(iPerMinChange, s)), 0, 100));
+                npcStats.setAiSetting(MWMechanics::AiSetting::Fight,
+                    std::clamp(fight + static_cast<int>(std::min(-iPerMinChange, -s)), 0, 100));
             }
 
             float c = -std::abs(floor(r * fPerDieRollMult));
@@ -704,10 +704,10 @@ namespace MWMechanics
                 float s = c * fPerDieRollMult * fPerTempMult;
                 const int flee = npcStats.getAiSetting(AiSetting::Flee).getBase();
                 const int fight = npcStats.getAiSetting(AiSetting::Fight).getBase();
-                npcStats.setAiSetting(
-                    AiSetting::Flee, std::clamp(flee + std::min(-int(iPerMinChange), int(-s)), 0, 100));
-                npcStats.setAiSetting(
-                    AiSetting::Fight, std::clamp(fight + std::max(int(iPerMinChange), int(s)), 0, 100));
+                npcStats.setAiSetting(AiSetting::Flee,
+                    std::clamp(flee + std::min(-static_cast<int>(iPerMinChange), static_cast<int>(-s)), 0, 100));
+                npcStats.setAiSetting(AiSetting::Fight,
+                    std::clamp(fight + std::max(static_cast<int>(iPerMinChange), static_cast<int>(s)), 0, 100));
             }
             x = floor(-c * fPerDieRollMult);
 
@@ -725,21 +725,21 @@ namespace MWMechanics
 
         if (type == PT_Intimidate)
         {
-            tempChange = int(x);
+            tempChange = static_cast<int>(x);
             if (currentDisposition + tempChange > 100)
                 tempChange = 100 - currentDisposition;
             else if (currentDisposition + tempChange < 0)
                 tempChange = -currentDisposition;
-            permChange = success ? -int(tempChange / fPerTempMult) : int(y);
+            permChange = success ? -static_cast<int>(tempChange / fPerTempMult) : static_cast<int>(y);
         }
         else
         {
-            tempChange = int(x * fPerTempMult);
+            tempChange = static_cast<int>(x * fPerTempMult);
             if (currentDisposition + tempChange > 100)
                 tempChange = 100 - currentDisposition;
             else if (currentDisposition + tempChange < 0)
                 tempChange = -currentDisposition;
-            permChange = int(tempChange / fPerTempMult);
+            permChange = static_cast<int>(tempChange / fPerTempMult);
         }
     }
 
@@ -1615,7 +1615,7 @@ namespace MWMechanics
         {
             static float fSneakSkillMult = store.find("fSneakSkillMult")->mValue.getFloat();
             static float fSneakBootMult = store.find("fSneakBootMult")->mValue.getFloat();
-            auto sneak = static_cast<float>(ptr.getClass().getSkill(ptr, ESM::Skill::Sneak));
+            auto sneak = ptr.getClass().getSkill(ptr, ESM::Skill::Sneak);
             float agility = stats.getAttribute(ESM::Attribute::Agility).getModified();
             float luck = stats.getAttribute(ESM::Attribute::Luck).getModified();
             float bootWeight = 0;
