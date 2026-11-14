@@ -3,7 +3,7 @@
 - contribution rules
 - tidy ci
 - custom map notes plugin
-- tour in 800 600 with balanced upscaler
+- pragma once
 
 - all IO serial?
 
