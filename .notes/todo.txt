@@ -3,7 +3,6 @@
 - contribution rules
 - tidy ci
 - custom map notes plugin
-- pragma once
 - audit macros
 - #if OPENMW_FFMPEG_5_OR_GREATER
 - audit ifdefs remove legacy
