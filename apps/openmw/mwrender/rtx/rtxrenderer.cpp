@@ -523,14 +523,14 @@ namespace MWRender
         // From between two frames alone, which is a loading screen presenting: a frame presents
         // through its own exits, and a hook that presented from inside one presented it twice.
         mPhase.step(Phase::Gui, Phase::Between);
-        present();
+        present(PresentOf::Interface);
     }
 
     /// The frame the trace made, on the screen before the call that made it returns: no composite or
     /// interop, which is what takes an interop path's frame of latency out. Traced or not, the frame is
     /// presented: leaving the target as it is is fine, but a surface that stops being fed gets the window
     /// reported as unresponsive. The GUI then goes over the last frame traced, or black where none was.
-    void RtxRenderer::present()
+    void RtxRenderer::present(const PresentOf whose)
     {
         mPhase.expect(Phase::Gui);
         const Crash::NoteScope noted("drawing the interface and presenting");
@@ -546,11 +546,16 @@ namespace MWRender
             mRenderer->presentFrame();
 
         // Summed and not assigned: a loading screen presents through `renderGui` as often as it
-        // likes between two traces, and every one of those is inside the frame the next row is for.
+        // likes between two traces, and every one of those is inside the frame the next row is for. Only the
+        // world's present leaves the frame: the interface's are inside the gap, a share of its own stretch.
         const std::chrono::steady_clock::time_point ended = std::chrono::steady_clock::now();
-        mTimer.addPresent(Rtx::since(began, ended));
-
-        mTimer.leave(ended);
+        if (whose == PresentOf::World)
+        {
+            mTimer.addPresent(Rtx::since(began, ended));
+            mTimer.leave(ended);
+        }
+        else
+            mTimer.addInterfacePresent(ended - began);
         mPhase.step(Phase::Between, Phase::Gui);
     }
 
@@ -747,7 +752,7 @@ namespace MWRender
         mViews.leaveScene();
     }
 
-    void RtxRenderer::renderFrame(const SceneFrame& frame)
+    void RtxRenderer::drawFrame(const SceneFrame& frame, const AsideSpan& aside)
     {
         mPhase.step(Phase::Walking, Phase::Between);
 
@@ -756,13 +761,16 @@ namespace MWRender
 
         FrameReport report{ .mPaused = frame.mPaused };
 
-        // The game's update since this renderer last let go of the frame, which nothing else measures and is
-        // timed rather than profiled because most of it is a thread asleep. The whole frame is measured from
-        // one arrival here to the next, as a player feels it. Entered here and not at the trace, so a frame
-        // hidden, with nothing placed, or refused by `describeTrace` closes a span of its own instead of
-        // the first traced frame after it reporting the whole gap.
+        // The game's update since this renderer last let go of the world's frame, less what stood aside in it,
+        // which nothing else measures and is timed rather than profiled because most of it is a thread asleep. The
+        // whole frame is measured from one arrival here to the next, as a player feels it. Entered here and not at the
+        // trace, so a frame hidden, with nothing placed, or refused by `describeTrace` closes a span of its own instead
+        // of the first traced frame after it reporting the whole gap.
         const std::chrono::steady_clock::time_point arrived = std::chrono::steady_clock::now();
-        report.mSpend.at(Rtx::Timing::Update) = mTimer.sinceLeft(arrived);
+        const FrameTimer::Gap gap = mTimer.gapTo(arrived, aside);
+        report.mSpend.at(Rtx::Timing::Update) = gap.mUpdateMs;
+        report.mSpend.at(Rtx::Timing::Interface) = gap.mInterfaceMs;
+        report.mSpend.at(Rtx::Timing::Hidden) = gap.mHiddenMs;
         report.mSpend.at(Rtx::Timing::Sleep) = std::chrono::duration<double, std::milli>(getLastHold()).count();
         const std::optional<double> since = mTimer.enter(arrived);
         if (since.has_value())
@@ -821,7 +829,7 @@ namespace MWRender
             mViews.draw(0, getFrameStamp(), mMirror.getRing(), mPictureReleases);
             mMirror.release(mPictureReleases);
             mPhase.step(Phase::Gui, Phase::Views);
-            present();
+            present(PresentOf::World);
             mBehind = report.mSpend;
             return;
         }
@@ -865,7 +873,7 @@ namespace MWRender
         // The one exit that stamps the frame as left, reached from a walk that placed nothing, a refused eye
         // or the run's hook after the trace.
         mPhase.step(Phase::Gui, Phase::Walking, Phase::Tracing, Phase::Run);
-        present();
+        present(PresentOf::World);
         mBehind = report.mSpend;
     }
 

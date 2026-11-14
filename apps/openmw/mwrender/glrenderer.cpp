@@ -484,7 +484,7 @@ namespace MWRender
     // The world is already in the graph and the cull is what finds it, so nothing is left out when
     // there is none: this and `renderGui` are one traversal, and which of the two it was is a
     // question only a renderer that mirrors the graph has to answer.
-    void GlRenderer::renderFrame(const SceneFrame& frame)
+    void GlRenderer::drawFrame(const SceneFrame& frame, const AsideSpan& aside)
     {
         mViewer->renderingTraversals();
     }

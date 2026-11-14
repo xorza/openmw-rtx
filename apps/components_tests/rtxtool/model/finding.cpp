@@ -208,30 +208,62 @@ namespace RtxTool
             EXPECT_NE(text.find("cell = 0,1"), std::string::npos) << "the block to stand there again\n" << text;
         }
 
-        /// **The closing pass is growth where a figure came back past a tenth above the first's**: 1100 MiB against
-        /// 1000 is a tenth and no growth, 1101 is; and the same for the vertices and the median frame.
+        /// **The closing pass is growth where a figure of use came back past a tenth above the first's**: 1100
+        /// vertices against 1000 is a tenth and no growth, 1101 is; and the same for each figure. The room the
+        /// renderer holds for the flight's peak is no figure of it.
         TEST(RtxFindingTest, theClosingPassGrowsPastATenth)
         {
             constexpr std::uint64_t mebibyte = 1024 * 1024;
-            const SoakFigures first{ .mDeviceLive = 1000 * mebibyte, .mVerticesUsed = 1000, .mMedianMs = 6.0 };
+            const SoakFigures first{ .mVerticesUsed = 1000,
+                .mIndicesUsed = 3000,
+                .mInstances = 100,
+                .mStructureLiveBytes = 200 * mebibyte,
+                .mTextureBytes = 400 * mebibyte,
+                .mMedianMs = 6.0 };
             EXPECT_EQ(describeGrowth(first, first), std::nullopt);
-            EXPECT_EQ(describeGrowth(first, SoakFigures{ 1100 * mebibyte, 1100, 6.6 }), std::nullopt) << "a tenth";
-            EXPECT_EQ(describeGrowth(first, SoakFigures{ 1101 * mebibyte, 1000, 6.0 }),
-                "the first leg again came to 1101.0 MiB of live device memory against 1000.0, 1000 vertices in use "
-                "against 1000, and a 6.00 ms median frame against 6.00");
-            EXPECT_NE(describeGrowth(first, SoakFigures{ 1000 * mebibyte, 1101, 6.0 }), std::nullopt);
-            EXPECT_NE(describeGrowth(first, SoakFigures{ 1000 * mebibyte, 1000, 6.7 }), std::nullopt);
-            EXPECT_EQ(describeGrowth(first, SoakFigures{ 500 * mebibyte, 500, 3.0 }), std::nullopt) << "a shrink";
+            EXPECT_EQ(describeGrowth(first, SoakFigures{ 1100, 3300, 110, 220 * mebibyte, 440 * mebibyte, 6.6 }),
+                std::nullopt)
+                << "a tenth";
 
+            // Each figure past a tenth alone is growth: 1101 of 1000, 3301 of 3000, 111 of 100, 221 of 200 MiB,
+            // 441 of 400 MiB, 6.7 of 6.0.
+            const auto with = [&]<class Figure>(Figure SoakFigures::* figure, const Figure value) {
+                SoakFigures again = first;
+                again.*figure = value;
+                return describeGrowth(first, again);
+            };
+            EXPECT_EQ(with(&SoakFigures::mVerticesUsed, 1101u),
+                "the first leg again came to 1101 vertices in use against 1000, 3000 indices against 3000, 100 "
+                "instances against 100, 200.0 MiB of live structures against 200.0, 400.0 MiB of textures against "
+                "400.0, and a 6.00 ms median frame against 6.00");
+            EXPECT_NE(with(&SoakFigures::mIndicesUsed, 3301u), std::nullopt);
+            EXPECT_NE(with(&SoakFigures::mInstances, 111u), std::nullopt);
+            EXPECT_NE(with(&SoakFigures::mStructureLiveBytes, 221 * mebibyte), std::nullopt);
+            EXPECT_NE(with(&SoakFigures::mTextureBytes, 441 * mebibyte), std::nullopt);
+            EXPECT_NE(with(&SoakFigures::mMedianMs, 6.7), std::nullopt);
+            EXPECT_EQ(
+                describeGrowth(first, SoakFigures{ 500, 1500, 50, 100 * mebibyte, 200 * mebibyte, 3.0 }), std::nullopt)
+                << "a shrink";
+
+            // What the place has in use, and none of the room held for the flight's peak.
             BenchPlace place;
-            place.mMemory.mHeapCount = 2;
-            place.mMemory.mHeaps[0] = Rtx::HeapUse{ .mLive = 7, .mDeviceLocal = true };
-            place.mMemory.mHeaps[1] = Rtx::HeapUse{ .mLive = 100, .mDeviceLocal = false };
+            place.mMemory.mHeapCount = 1;
+            place.mMemory.mHeaps[0] = Rtx::HeapUse{ .mLive = 7 * mebibyte, .mDeviceLocal = true };
             place.mContent.mVerticesUsed = 42;
+            place.mContent.mVertexEnd = 4200;
+            place.mContent.mIndicesUsed = 126;
+            place.mScene.mInstances.mPlaced = 9;
+            place.mScene.mInstanceSlots = 900;
+            place.mScene.mStructureLiveBytes = 5;
+            place.mScene.mStructureBytes = 50;
+            place.mScene.mTextureBytes = 11;
             place.at(Rtx::Timing::Frame).mMedian = 5.5;
             const SoakFigures read = SoakFigures::of(place);
-            EXPECT_EQ(read.mDeviceLive, 7u) << "video memory alone";
             EXPECT_EQ(read.mVerticesUsed, 42u);
+            EXPECT_EQ(read.mIndicesUsed, 126u);
+            EXPECT_EQ(read.mInstances, 9u);
+            EXPECT_EQ(read.mStructureLiveBytes, 5u);
+            EXPECT_EQ(read.mTextureBytes, 11u);
             EXPECT_EQ(read.mMedianMs, 5.5);
         }
     }

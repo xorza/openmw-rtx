@@ -175,18 +175,25 @@ namespace MWRender
         return *mTraversalRoot;
     }
 
+    void Renderer::renderFrame(const SceneFrame& frame)
+    {
+        drawFrame(frame, mAside.takeAtWorldFrame());
+    }
+
     void Renderer::renderGuiFrame()
     {
         eventTraversal();
         updateTraversal();
         renderGui();
         advance(getFrameStamp().getSimulationTime());
+        mAside.endNested(std::chrono::steady_clock::now(), FramesAside::NestedEnd::Drawn);
     }
 
     void Renderer::skipGuiFrame()
     {
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
         advance(getFrameStamp().getSimulationTime());
+        mAside.endNested(std::chrono::steady_clock::now(), FramesAside::NestedEnd::Hidden);
     }
 
     void Renderer::renderLoadingFrame(const double targetFrameRate)
@@ -213,6 +220,7 @@ namespace MWRender
         assert(mClock != nullptr && "a frame before the host's clock was handed over");
 
         mClock->advance(secondsStood(awaitFrame()));
+        mAside.openLoop(std::chrono::steady_clock::now());
         return mClock->getStep();
     }
 
@@ -221,6 +229,7 @@ namespace MWRender
         assert(mClock != nullptr && "a frame before the host's clock was handed over");
 
         const std::chrono::steady_clock::duration stood = awaitFrame();
+        mAside.openNested(std::chrono::steady_clock::now());
 
         // **A clock that states its step counts the loop's frames and no others.** How many
         // loading frames a run draws is the wall's answer, and a clock stepped by them would age

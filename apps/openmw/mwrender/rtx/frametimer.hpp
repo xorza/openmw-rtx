@@ -6,12 +6,14 @@
 #include <optional>
 #include <string_view>
 
+#include <apps/openmw/mwrender/framesaside.hpp>
+
 namespace MWRender
 {
     /// Where one frame began and ended inside the ray tracer, what it presented, and what the
-    /// renderer says about its own speed. Stamps and not a report: `Rtx::Timing::Update` is the
-    /// gap between one frame leaving the renderer and the next arriving, and only the object that
-    /// stamps both ends can measure it.
+    /// renderer says about its own speed. Stamps and not a report: the gap between one frame of the
+    /// world leaving the renderer and the next arriving is `Rtx::Timing::Update` and what stood aside
+    /// in it, and only the object that stamps both ends can measure it.
     class FrameTimer
     {
     public:
@@ -19,16 +21,27 @@ namespace MWRender
         /// on the first. Every frame the renderer is handed opens one, traced or not.
         std::optional<double> enter(std::chrono::steady_clock::time_point now);
 
-        /// Stamps where the frame left the renderer. Every path out calls it, so what the next frame
+        /// Stamps where the world's frame left the renderer. Every path out of one calls it, so what the next frame
         /// measures is the game's own loop and never the renderer's tail.
         void leave(std::chrono::steady_clock::time_point now) { mLeft = now; }
 
-        /// How long the game spent between the last `leave` and `now`.
-        double sinceLeft(std::chrono::steady_clock::time_point now) const;
+        /// The gap between the world's last frame leaving and the next arriving at `now`, in milliseconds, split
+        /// into what stood `aside` — the interface's own frames less their presents, which `Present` holds, and
+        /// what stood hidden — and the game's update, which is the rest.
+        struct Gap
+        {
+            double mUpdateMs = 0.0;
+            double mInterfaceMs = 0.0;
+            double mHiddenMs = 0.0;
+        };
+        Gap gapTo(std::chrono::steady_clock::time_point now, const AsideSpan& aside);
 
-        /// Adds what one present cost. Summed, because a loading screen presents as often as it
-        /// likes inside one span.
+        /// Adds what the world's present cost.
         void addPresent(double ms) { mPresentMs += ms; }
+
+        /// Adds what one present of the interface's own frame cost: one of `Present`'s, and inside the
+        /// interface's span, which a loading screen presents as often as it likes inside.
+        void addInterfacePresent(std::chrono::steady_clock::duration took);
 
         /// What the presents since the last frame came to, and starts the sum again.
         double takePresent();
@@ -52,6 +65,7 @@ namespace MWRender
         std::optional<std::chrono::steady_clock::time_point> mEntered;
         std::chrono::steady_clock::time_point mLeft;
         double mPresentMs = 0.0;
+        std::chrono::steady_clock::duration mInterfacePresent{};
 
         /// The second being counted.
         double mSummedMs = 0.0;

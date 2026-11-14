@@ -1,6 +1,8 @@
 #include "frametimer.hpp"
 
 #include <algorithm>
+#include <cassert>
+#include <chrono>
 #include <cstddef>
 #include <format>
 #include <optional>
@@ -26,9 +28,26 @@ namespace MWRender
         return since;
     }
 
-    double FrameTimer::sinceLeft(const std::chrono::steady_clock::time_point now) const
+    void FrameTimer::addInterfacePresent(const std::chrono::steady_clock::duration took)
     {
-        return Rtx::since(mLeft, now);
+        mPresentMs += std::chrono::duration<double, std::milli>(took).count();
+        mInterfacePresent += took;
+    }
+
+    FrameTimer::Gap FrameTimer::gapTo(const std::chrono::steady_clock::time_point now, const AsideSpan& aside)
+    {
+        // In the clock's own ticks, so the three parts sum to the gap exactly. Both spans lie between the world's
+        // frame leaving and the next arriving, and the interface's presents inside its own span (`AsideSpan`).
+        const std::chrono::steady_clock::duration update = (now - mLeft) - aside.mInterface - aside.mHidden;
+        const std::chrono::steady_clock::duration interface = aside.mInterface
+            - std::exchange(mInterfacePresent, std::chrono::steady_clock::duration::zero());
+        assert(update >= std::chrono::steady_clock::duration::zero());
+        assert(interface >= std::chrono::steady_clock::duration::zero());
+
+        using Milliseconds = std::chrono::duration<double, std::milli>;
+        return Gap{ .mUpdateMs = Milliseconds(update).count(),
+            .mInterfaceMs = Milliseconds(interface).count(),
+            .mHiddenMs = Milliseconds(aside.mHidden).count() };
     }
 
     double FrameTimer::takePresent()

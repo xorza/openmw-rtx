@@ -18,8 +18,9 @@ namespace Rtx
     /// largest share. `Walk` is the world being mirrored, with `Preprocess` the share of it spent
     /// computing from content that arrived on it. `Place` is the renderer being told what moved,
     /// split into `Bake`, `Textures` and `Upload` because its worst frame is hundreds of times its
-    /// median. `Trace` and `Present` are the other two calls into the backend, and `Update` is the
-    /// rest of the loop, with `Sleep` the share of it the frame-rate limiter held the host for.
+    /// median. `Trace` and `Present` are the other two calls into the backend, `Interface` and `Hidden`
+    /// what the wall spent between two frames of the world on frames that drew none, and `Update` is
+    /// the rest of the loop, with `Sleep` the share of it the frame-rate limiter held the host for.
     /// `Frame` is the whole of it, from one trace's frame opening to the next. Timed rather than
     /// profiled, because most of what a call into the driver costs is inside the driver with no
     /// frame pointer to walk. Together they close the frame: `Frame` less the rest is under 0.05 ms
@@ -42,6 +43,15 @@ namespace Rtx
         Views,
         Present,
         Update,
+
+        /// The interface's own frames between two of the world's — a loading screen's, a blocking message
+        /// box's, a video's — from the first to the last, less their presents, which `Present` holds: the game
+        /// behind its own screens (`MWRender::AsideSpan`).
+        Interface,
+
+        /// The loop's frames the window stood hidden through, minimized or covered, which draw nothing and
+        /// cost nobody a frame: what a frame's judges take out of it.
+        Hidden,
 
         /// The host held before the frame's input, by the driver or by the limiter: a share of
         /// `Update`, which is the whole gap between two frames and has the hold inside it.
@@ -68,6 +78,8 @@ namespace Rtx
         std::pair{ Timing::Views, std::string_view("views") },
         std::pair{ Timing::Present, std::string_view("present") },
         std::pair{ Timing::Update, std::string_view("update") },
+        std::pair{ Timing::Interface, std::string_view("interface") },
+        std::pair{ Timing::Hidden, std::string_view("hidden") },
         std::pair{ Timing::Sleep, std::string_view("sleep") },
     } };
 
@@ -89,13 +101,24 @@ namespace Rtx
         double& at(const Timing timing) { return mMs[indexOf(timing)]; }
         double at(const Timing timing) const { return mMs[indexOf(timing)]; }
 
+        /// The frame as it stood on the screen: what stood `Hidden` taken out of `Frame` and out of the stretches,
+        /// since nobody saw it, so a frame's judges, its leading stretch among them, read only what was seen.
+        FrameSpend seen() const
+        {
+            FrameSpend seen = *this;
+            seen.at(Timing::Frame) -= at(Timing::Hidden);
+            seen.at(Timing::Hidden) = 0.0;
+            return seen;
+        }
+
         /// What this frame came to once `arriving` opened: its own figures with the arriving frame's `Frame`,
-        /// `Update` and `Sleep`. `Frame` runs from one frame's opening to the next, so it holds the game's update
-        /// the next frame arrived through and this frame's work, which is the span a hitch is read in.
+        /// `Update`, `Interface`, `Hidden` and `Sleep`. `Frame` runs from one frame's opening to the next, so it
+        /// holds the gap the next frame arrived through and this frame's work, which is the span a hitch is read in.
         FrameSpend closedBy(const FrameSpend& arriving) const
         {
             FrameSpend closed = *this;
-            for (const Timing timing : { Timing::Frame, Timing::Update, Timing::Sleep })
+            for (const Timing timing :
+                { Timing::Frame, Timing::Update, Timing::Interface, Timing::Hidden, Timing::Sleep })
                 closed.at(timing) = arriving.at(timing);
             return closed;
         }

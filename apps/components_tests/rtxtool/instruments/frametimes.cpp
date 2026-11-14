@@ -90,9 +90,10 @@ namespace RtxTool
             std::ifstream read(file);
             std::string text((std::istreambuf_iterator<char>(read)), std::istreambuf_iterator<char>());
             EXPECT_EQ(text,
-                "frame finish wait walk preprocess place bake textures upload trace views present update sleep\n"
-                "10.000 4.750 4.500 0.000 0.000 0.000 0.000 0.000 0.000 1.250 0.000 0.000 0.000 0.000\n"
-                "8.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 1.500 0.000 0.000 2.000 0.750\n");
+                "frame finish wait walk preprocess place bake textures upload trace views present update interface "
+                "hidden sleep\n"
+                "10.000 4.750 4.500 0.000 0.000 0.000 0.000 0.000 0.000 1.250 0.000 0.000 0.000 0.000 0.000 0.000\n"
+                "8.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 1.500 0.000 0.000 2.000 0.000 0.000 0.750\n");
 
             // A directory nobody made is named rather than written past.
             const std::filesystem::path nowhere

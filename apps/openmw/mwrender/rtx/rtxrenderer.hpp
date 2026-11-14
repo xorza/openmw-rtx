@@ -161,8 +161,6 @@ namespace MWRender
         void advance(double simulationTime) noexcept override;
         void updateTraversal() noexcept override;
 
-        void renderFrame(const SceneFrame& frame) override;
-
         void notifyCut() noexcept override;
 
         /// The wake goes with the worldspace's water: the backend's ripple field and the strikes
@@ -234,6 +232,8 @@ namespace MWRender
         double drawViews();
 
     protected:
+        void drawFrame(const SceneFrame& frame, const AsideSpan& aside) override;
+
         /// No GLSL is compiled here, so no model is given a program: the shader visitor is off, and
         /// a model's state is read as the loader left it.
         void configureResources(Resource::ResourceSystem& resources) noexcept override;
@@ -334,9 +334,17 @@ namespace MWRender
         /// Hands MyGUI's triangles to the renderer, where there is a GUI up at all.
         void drawGui();
 
+        /// Whose frame a present ends: the world's, which leaves the renderer and starts the game's update, or
+        /// one the interface draws of its own inside that update, a stretch of `Rtx::Timing::Interface`.
+        enum class PresentOf
+        {
+            World,
+            Interface,
+        };
+
         /// Draws the interface over the frame as it stands and presents it: the one end of a frame, from
         /// `Phase::Gui` back to `Phase::Between`.
-        void present();
+        void present(PresentOf whose);
 
         Rtx::Stepped<Phase> mPhase{ Phase::Between };
 

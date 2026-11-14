@@ -81,8 +81,8 @@ namespace Rtx
             EXPECT_EQ(times.summarise().mWorstAt, 1u) << "the first frame is the worst of one";
         }
 
-        /// **A frame closes when the next arrives**: its own work, with the arriving frame's whole span, update
-        /// and hold, since those are what the arrival measured.
+        /// **A frame closes when the next arrives**: its own work, with the arriving frame's whole span, update,
+        /// interface, hidden time and hold, since those are what the arrival measured.
         TEST(RtxFrameTimeHistogramTest, aFrameClosesWithTheArrivingFramesSpanUpdateAndHold)
         {
             FrameSpend behind;
@@ -90,17 +90,43 @@ namespace Rtx
             behind.at(Timing::Update) = 2.0;
             behind.at(Timing::Sleep) = 3.0;
             behind.at(Timing::Walk) = 4.0;
+            behind.at(Timing::Interface) = 5.0;
+            behind.at(Timing::Hidden) = 6.0;
             FrameSpend arriving;
             arriving.at(Timing::Frame) = 10.0;
             arriving.at(Timing::Update) = 20.0;
             arriving.at(Timing::Sleep) = 30.0;
             arriving.at(Timing::Walk) = 40.0;
+            arriving.at(Timing::Interface) = 50.0;
+            arriving.at(Timing::Hidden) = 60.0;
 
             const FrameSpend closed = behind.closedBy(arriving);
             EXPECT_EQ(closed.at(Timing::Frame), 10.0);
             EXPECT_EQ(closed.at(Timing::Update), 20.0);
             EXPECT_EQ(closed.at(Timing::Sleep), 30.0);
+            EXPECT_EQ(closed.at(Timing::Interface), 50.0);
+            EXPECT_EQ(closed.at(Timing::Hidden), 60.0);
             EXPECT_EQ(closed.at(Timing::Walk), 4.0) << "the work is the frame behind's";
+        }
+
+        /// **A frame as seen leaves out what stood hidden**, from its span and from its stretches, so what led it on
+        /// the screen leads: 100 ms of which 60 stood hidden and 40 were the update is 40 seen, led by the update,
+        /// where the whole frame is led by the hidden time. Every other figure stands.
+        TEST(RtxFrameTimeHistogramTest, aFrameAsSeenLeavesOutWhatStoodHidden)
+        {
+            FrameSpend spend = frameOf(100.0);
+            spend.at(Timing::Hidden) = 60.0;
+            spend.at(Timing::Update) = 40.0;
+            spend.at(Timing::Sleep) = 1.0;
+            EXPECT_EQ(leadingStretch(spend), Timing::Hidden);
+
+            const FrameSpend seen = spend.seen();
+            EXPECT_EQ(seen.at(Timing::Frame), 40.0);
+            EXPECT_EQ(seen.at(Timing::Hidden), 0.0);
+            EXPECT_EQ(seen.at(Timing::Update), 40.0);
+            EXPECT_EQ(seen.at(Timing::Sleep), 1.0);
+            EXPECT_EQ(leadingStretch(seen), Timing::Update);
+            EXPECT_EQ(frameOf(25.0).seen().at(Timing::Frame), 25.0) << "nothing hidden";
         }
     }
 }

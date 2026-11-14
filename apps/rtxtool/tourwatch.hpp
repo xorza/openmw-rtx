@@ -66,8 +66,8 @@ namespace RtxTool
 
         void add(FindingKind kind, std::string_view detail, StandingNote& note, double ms = 0.0);
 
-        /// Counts the hitch `span` is, by its leg and the stretch it spent most in, placed at the worst of them with
-        /// `loaded` the cells the game made active on it.
+        /// Counts the hitch `span` is, as it stood on the screen (`Rtx::FrameSpend::seen`), by its leg and the
+        /// stretch it spent most in, placed at the worst of them with `loaded` the cells the game made active on it.
         void addHitch(const ClosedSpan& span, std::size_t loaded, StandingNote& note);
 
         double mBudgetMs = 0.0;

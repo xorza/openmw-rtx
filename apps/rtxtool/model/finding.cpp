@@ -197,27 +197,34 @@ namespace RtxTool
 
     SoakFigures SoakFigures::of(const BenchPlace& place)
     {
-        SoakFigures figures{ .mVerticesUsed = place.mContent.mVerticesUsed,
+        return SoakFigures{ .mVerticesUsed = place.mContent.mVerticesUsed,
+            .mIndicesUsed = place.mContent.mIndicesUsed,
+            .mInstances = place.mScene.mInstances.mPlaced,
+            .mStructureLiveBytes = place.mScene.mStructureLiveBytes,
+            .mTextureBytes = place.mScene.mTextureBytes,
             .mMedianMs = place.at(Rtx::Timing::Frame).mMedian };
-        for (std::uint32_t heap = 0; heap < place.mMemory.mHeapCount; ++heap)
-            if (place.mMemory.mHeaps[heap].mDeviceLocal)
-                figures.mDeviceLive += place.mMemory.mHeaps[heap].mLive;
-        return figures;
     }
 
     std::optional<std::string> describeGrowth(const SoakFigures& first, const SoakFigures& again)
     {
         const auto grew = [](const double before, const double after) { return after > before * (1.0 + sGrowthShare); };
-        if (!grew(static_cast<double>(first.mDeviceLive), static_cast<double>(again.mDeviceLive))
-            && !grew(first.mVerticesUsed, again.mVerticesUsed) && !grew(first.mMedianMs, again.mMedianMs))
+        if (!grew(first.mVerticesUsed, again.mVerticesUsed) && !grew(first.mIndicesUsed, again.mIndicesUsed)
+            && !grew(first.mInstances, again.mInstances)
+            && !grew(static_cast<double>(first.mStructureLiveBytes), static_cast<double>(again.mStructureLiveBytes))
+            && !grew(static_cast<double>(first.mTextureBytes), static_cast<double>(again.mTextureBytes))
+            && !grew(first.mMedianMs, again.mMedianMs))
             return std::nullopt;
 
         constexpr double mebibyte = 1024.0 * 1024.0;
         return std::format(
-            "the first leg again came to {:.1f} MiB of live device memory against {:.1f}, {} vertices "
-            "in use against {}, and a {:.2f} ms median frame against {:.2f}",
-            static_cast<double>(again.mDeviceLive) / mebibyte, static_cast<double>(first.mDeviceLive) / mebibyte,
-            again.mVerticesUsed, first.mVerticesUsed, again.mMedianMs, first.mMedianMs);
+            "the first leg again came to {} vertices in use against {}, {} indices against {}, {} instances against "
+            "{}, {:.1f} MiB of live structures against {:.1f}, {:.1f} MiB of textures against {:.1f}, and a {:.2f} ms "
+            "median frame against {:.2f}",
+            again.mVerticesUsed, first.mVerticesUsed, again.mIndicesUsed, first.mIndicesUsed, again.mInstances,
+            first.mInstances, static_cast<double>(again.mStructureLiveBytes) / mebibyte,
+            static_cast<double>(first.mStructureLiveBytes) / mebibyte,
+            static_cast<double>(again.mTextureBytes) / mebibyte, static_cast<double>(first.mTextureBytes) / mebibyte,
+            again.mMedianMs, first.mMedianMs);
     }
 
     std::string describeFindings(const FindingTable& table)

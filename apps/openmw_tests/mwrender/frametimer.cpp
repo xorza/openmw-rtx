@@ -1,9 +1,11 @@
+#include <chrono>
 #include <cstddef>
 #include <string_view>
 
 #include <gtest/gtest.h>
 
 #include <apps/components_tests/rtx/support/allocations.hpp>
+#include <apps/openmw/mwrender/framesaside.hpp>
 #include <apps/openmw/mwrender/rtx/frametimer.hpp>
 
 namespace MWRender
@@ -73,6 +75,35 @@ namespace MWRender
             const std::string_view whole = timer.writeTitle("Thunderstorm, 14:32");
             EXPECT_EQ(whole, "OpenMW RTX - 10 fps, 100.0 ms, worst 100.0 ms - Thunderstorm, 14:32");
             EXPECT_EQ(whole.data()[whole.size()], '\0') << "ends in the nought a C string wants";
+        }
+
+        /// **The gap between two frames of the world is the update, the interface's own frames and what stood
+        /// hidden, summing to it exactly**: the interface's presents are `Present`'s and come out of its span, and
+        /// the next gap starts with none. Left at 100 ms and arriving at 180: 15 ms hidden and 40 of the
+        /// interface's, 6 of them presents, leave 180 − 100 − 40 − 15 = 25 of update and 40 − 6 = 34 of the
+        /// interface, 6 presented beside the world's own 2.
+        TEST(RtxFrameTimerTest, aGapIsTheUpdateTheInterfaceAndTheHiddenSummingToIt)
+        {
+            using std::chrono::milliseconds;
+            const std::chrono::steady_clock::time_point origin;
+            FrameTimer timer;
+            timer.addPresent(2.0);
+            timer.leave(origin + milliseconds(100));
+            timer.addInterfacePresent(milliseconds(4));
+            timer.addInterfacePresent(milliseconds(2));
+
+            const FrameTimer::Gap gap = timer.gapTo(
+                origin + milliseconds(180), AsideSpan{ .mInterface = milliseconds(40), .mHidden = milliseconds(15) });
+            EXPECT_EQ(gap.mUpdateMs, 25.0);
+            EXPECT_EQ(gap.mInterfaceMs, 34.0);
+            EXPECT_EQ(gap.mHiddenMs, 15.0);
+            EXPECT_EQ(timer.takePresent(), 8.0) << "the world's present and the interface's";
+
+            timer.leave(origin + milliseconds(200));
+            const FrameTimer::Gap plain = timer.gapTo(origin + milliseconds(210), AsideSpan{});
+            EXPECT_EQ(plain.mUpdateMs, 10.0);
+            EXPECT_EQ(plain.mInterfaceMs, 0.0) << "the last gap's interface presents were carried";
+            EXPECT_EQ(plain.mHiddenMs, 0.0);
         }
     }
 }

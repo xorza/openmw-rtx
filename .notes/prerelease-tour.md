@@ -297,9 +297,13 @@ On `rtx-tour`. Whoever addresses an item deletes it.
   for the world; under `--pace=real` a slow frame is the limiter's and no finding, and a hitch still is.
 - **A cell is covered by its column**: a leg flies a row, and the band's rows stand in the active grid together,
   so a cell counts as covered once a frame stood whole while the player stood in its column.
-- **Growth is a figure past a tenth above the first pass's**: the device's live memory, the content's vertices in
-  use, or the median frame. Past a run's noise on the median and the residency a texture's arrival moves, short
-  of a leak a soak is for (https://loadster.com/guides/endurance-testing/).
+- **Growth is a figure of use past a tenth above the first pass's**: the content's vertices and indices in use, the
+  instances placed, the structures' live bytes, the textures' bytes, or the median frame. Past a run's noise on
+  the median and the residency a texture's arrival moves, short of a leak a soak is for
+  (https://loadster.com/guides/endurance-testing/). Decided 2026-11-14: never the device's live memory, which holds
+  the room a table kept for the flight's peak, as a heap profiler tells memory in use from memory reserved; the
+  first M[FR] tour's closing leg came to 1670 MiB against 1469 at the same instances, textures and vertices.
+  Refused: the closing leg flown twice, whose two passes a slow leak a cell barely moves.
 - **A stop that flies a track is asked no stillness**: `camera-stands` and `frames-overlap` are left out of a
   track as of a route, since the eye ends where the track does and an arrival drains the ring. Found by the first
   trial, whose land legs failed both.
@@ -332,3 +336,9 @@ On `rtx-tour`. Whoever addresses an item deletes it.
 - **Faults and costs each have a bound of their own, and what passes it is counted by kind**: a cost never takes a
   fault's room, and a cost the line fails on fails dropped as held.
 - **A place says only what it knows**: a line logged on another thread names its leg and frame, and no hour or sky.
+- **What a frame stood aside for is named, and what stood hidden is no frame's cost**, decided 2026-11-14: the
+  interface's own frames between two of the world's are `interface` and the loop's frames the window stood hidden
+  through are `hidden` (`FramesAside`), so a frame's stretches close it and a loading screen is a hitch led by
+  `interface`; a hitch and a slow frame are judged, and a hitch keyed, on the frame as it stood on the screen
+  (`FrameSpend::seen`). The first M[FR] tour reported one frame of 586.7 s as the game's update, which nothing in it
+  could tell from a covered window.

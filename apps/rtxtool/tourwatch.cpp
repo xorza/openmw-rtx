@@ -144,7 +144,9 @@ namespace RtxTool
             return;
 
         ++mMeasured;
-        const double frameMs = measured->mSpend.at(Rtx::Timing::Frame);
+        // As it stood on the screen: a window covered for a minute is no frame of a minute.
+        const ClosedSpan seen{ .mSpend = measured->mSpend.seen(), .mArrived = measured->mArrived };
+        const double frameMs = seen.mSpend.at(Rtx::Timing::Frame);
         if (frameMs > mBudgetMs)
         {
             ++mSlow;
@@ -157,7 +159,7 @@ namespace RtxTool
             // **Whose it was, said**: `update` is the game's own work between two frames, and a frame the game made
             // cells active on is one it loaded them on.
             if (mLastMs > 0.0 && frameMs > sHitchRatio * mLastMs)
-                addHitch(*measured, loaded, note);
+                addHitch(seen, loaded, note);
         }
         mLastMs = frameMs;
     }

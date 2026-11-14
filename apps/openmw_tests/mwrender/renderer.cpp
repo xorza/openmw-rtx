@@ -23,6 +23,7 @@
 #include <osg/Vec2i>
 #include <osg/ref_ptr>
 
+#include <apps/openmw/mwrender/framesaside.hpp>
 #include <apps/openmw/mwrender/ground.hpp>
 #include <apps/openmw/mwrender/mapoverlay.hpp>
 #include <apps/openmw/mwrender/offscreenview.hpp>
@@ -92,7 +93,6 @@ namespace MWRender
             osg::ref_ptr<osg::Group> createSceneRoot() override { return new osg::Group; }
             void advance(double simulationTime) override { mAdvanced.push_back(simulationTime); }
             void updateTraversal() override {}
-            void renderFrame(const SceneFrame&) override {}
             std::unique_ptr<OffscreenView> createWorldView(const OffscreenViewSpec&) override { return nullptr; }
             std::unique_ptr<SubjectView> createSubjectView(const OffscreenViewSpec&) override { return nullptr; }
             std::unique_ptr<MapOverlay> createMapOverlay(const MapOverlaySpec&) override { return nullptr; }
@@ -111,6 +111,7 @@ namespace MWRender
             }
 
         protected:
+            void drawFrame(const SceneFrame&, const AsideSpan&) override {}
             void onAttachWorld(RenderingManager&, osg::Group&, SceneUtil::UnrefQueue&) override { ++mAttached; }
             void onDetachWorld() override { ++mDetached; }
             void adoptTraversalRoot(osg::Group&) override {}
@@ -276,9 +277,13 @@ namespace MWRender
             const osg::ref_ptr<osg::Stats> stats = new osg::Stats("renderer test");
             renderer.adopt(*camera, *stamp, *stats);
             stamp->setSimulationTime(12.5);
+            Misc::LoopClock wall;
+            renderer.setLoopClock(wall);
 
+            renderer.openNestedFrame();
             renderer.renderGuiFrame();
             EXPECT_EQ(renderer.mGuiDrawn, 1u);
+            renderer.openNestedFrame();
             renderer.skipGuiFrame();
             EXPECT_EQ(renderer.mGuiDrawn, 1u) << "a hidden window's frame drew the interface";
             EXPECT_EQ(renderer.mAdvanced, (std::vector<double>{ 12.5, 12.5 }));

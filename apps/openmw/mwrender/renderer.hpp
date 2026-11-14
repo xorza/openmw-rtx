@@ -25,6 +25,7 @@
 #include <components/settings/categories.hpp>
 #include <components/vfs/pathutil.hpp>
 
+#include "framesaside.hpp"
 #include "ground.hpp"
 #include "rendermode.hpp"
 #include "rendersupport.hpp"
@@ -343,8 +344,9 @@ namespace MWRender
         virtual void describeFrame(const SceneFrame& frame) {}
 
         /// The world, and the GUI over it. Once per frame, from the main loop, after the update
-        /// traversal, with the frame `describeFrame` was handed.
-        virtual void renderFrame(const SceneFrame& frame) = 0;
+        /// traversal, with the frame `describeFrame` was handed: drawn by `drawFrame`, with what the
+        /// wall spent aside since the last one.
+        void renderFrame(const SceneFrame& frame);
 
         /// The eye did not travel here: a change of worldspace, a teleport inside one, a time
         /// skip — the game's own, `World::advanceTime` past its frame's step, which a rest, a wait,
@@ -493,6 +495,11 @@ namespace MWRender
         /// or the camera the ray tracer walks from.
         virtual void adoptTraversalRoot(osg::Group& root) = 0;
 
+        /// `renderFrame`'s hook: the world and the GUI over it, and what the wall spent since the last one on frames
+        /// that drew no world, which a renderer timing its frames takes out of the game's update and the rest
+        /// ignore.
+        virtual void drawFrame(const SceneFrame& frame, const AsideSpan& aside) = 0;
+
         /// `prepareResources`'s hook, with the resource system already kept and the companion-map
         /// switches already set. The rasterizer sets how many textures a shader may sample and the
         /// switches its shader visitor reads; the ray tracer turns that visitor off, because it
@@ -553,6 +560,9 @@ namespace MWRender
         Resource::ResourceSystem* mResources = nullptr;
         Misc::LoopClock* mClock = nullptr;
         float mFrameRateLimit = 0.0f;
+
+        /// The frames that drew no world since the last that did, which `renderFrame` hands its hook.
+        FramesAside mAside;
 
         /// What `awaitFrame` sleeps in, made anew by `setFrameRateLimit`.
         Misc::FrameRateLimiter mLimiter{ std::chrono::steady_clock::duration::zero() };

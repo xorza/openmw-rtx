@@ -110,7 +110,6 @@ namespace MWRender
         void eventTraversal() override;
         void updateTraversal() override;
         void describeFrame(const SceneFrame& frame) override;
-        void renderFrame(const SceneFrame& frame) override;
 
         std::unique_ptr<Ground> createGround(const GroundSpec& spec) override;
         std::unique_ptr<OffscreenView> createWorldView(const OffscreenViewSpec& spec) override;
@@ -164,6 +163,7 @@ namespace MWRender
         void setMapOverlay(GlMapOverlay* overlay) { mMapOverlay = overlay; }
 
     protected:
+        void drawFrame(const SceneFrame& frame, const AsideSpan& aside) override;
         void configureResources(Resource::ResourceSystem& resources) override;
         void onAttachWorld(RenderingManager& world, osg::Group& worldRoot, SceneUtil::UnrefQueue& released) override;
         void onDetachWorld() override;

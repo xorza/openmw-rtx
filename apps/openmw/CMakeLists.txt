@@ -643,6 +643,7 @@ target_sources(
         mwrender/esm4npcanimation.cpp
         mwrender/fogmanager.cpp
         mwrender/framedescriber.cpp
+        mwrender/framesaside.cpp
         mwrender/glground.cpp
         mwrender/glmapoverlay.cpp
         mwrender/globalmap.cpp
@@ -729,6 +730,7 @@ target_sources(
                 mwrender/esm4npcanimation.hpp
                 mwrender/fogmanager.hpp
                 mwrender/framedescriber.hpp
+                mwrender/framesaside.hpp
                 mwrender/glground.hpp
                 mwrender/glmapoverlay.hpp
                 mwrender/globalmap.hpp
