@@ -146,6 +146,9 @@ the lines each item names, which the merge resolves by keeping the seam:
 - A post-processing technique's integer is held to `int`'s range before it is converted
   (`fx::Lexer::scanNumber`): a double past it converts to no int, which upstream's check read back after the
   conversion, and Clang, which builds the fork, folded that check away, so `18446744073709551615` parsed.
+- Base64 encodes a string shorter than one block (`extern/Base64`): its loop ran while `i < in_len - 2`, which
+  wrapped for an empty or one-byte string and read past it; `i + 2 < in_len` is the same bound without the wrap.
+  Approved 2026-11-14.
 - MurmurHash3 reads its blocks through bytes (`extern/smhasher`): it cast a key at any address to
   `const uint64_t*`, which Clang's undefined-behaviour check stopped on as a misaligned pointer.
 - `CSMWorldUniversalIdTest.shouldFailToConstructFromNoneWithInvalidType` builds its unknown type one past

@@ -57,6 +57,7 @@ target_sources(
         main.cpp
         misc/compression.cpp
         misc/frameclock.cpp
+        misc/base64.cpp
         misc/hashstate.cpp
         misc/monitor.cpp
         misc/presentation.cpp

@@ -21,6 +21,7 @@
 #include <apps/openmw/mwworld/cellstore.hpp>
 #include <apps/openmw/mwworld/datetimemanager.hpp>
 #include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/globals.hpp>
 #include <apps/openmw/mwworld/ptr.hpp>
 #include <apps/openmw/mwworld/timestamp.hpp>
 #include <apps/rtxtool/model/benchrun.hpp>
@@ -81,14 +82,21 @@ namespace RtxTool
 
             holdSky(pose.mWeather, pose.mNextWeather, pose.mCrossed);
 
-            // **Run forward to the track's hour and never set to it**, because only an advance keeps
-            // the day, the month and the days passed in step with the hour, which the moons read.
-            MWBase::World& world = *MWBase::Environment::get().getWorld();
-            const MWWorld::TimeStamp now = world.getTimeStamp();
-            const double behind = mClockFrom + pose.getHoursOn(mOwnTimeScale)
-                - (now.getDay() * 24.0 + static_cast<double>(now.getHour()));
-            if (behind > 0.0)
-                world.advanceTime(behind, true);
+            // **The world runs the clock to the track's hour, at the pace that reaches it on this frame**: the
+            // engine advances it a step after this, as a player's game runs under a script's `timescale`. An advance
+            // of the host's own beside the engine's held one was heard as a jump on every frame, and the renderer
+            // dropped its histories on each. Forward only, which keeps the day, the month and the days passed in
+            // step with the hour, as the moons read them. A stop that names its clock's pace has set it already
+            // (`StopSky::mClockTimes`), and the frames ahead of the measured ones hold it (`holdsGameClock`).
+            if (measured.has_value() && !stop.mSky.mClockTimes.has_value())
+            {
+                MWBase::World& world = *MWBase::Environment::get().getWorld();
+                const MWWorld::TimeStamp now = world.getTimeStamp();
+                const double behind
+                    = mClockFrom + pose.mHoursOn - (now.getDay() * 24.0 + static_cast<double>(now.getHour()));
+                world.setGlobalFloat(MWWorld::Globals::sTimeScale,
+                    static_cast<float>(std::max(0.0, behind) * 3600.0 / static_cast<double>(seconds)));
+            }
             return;
         }
 

@@ -397,10 +397,10 @@ namespace RtxTool
 
     bool Session::holdsGameClock() const
     {
-        if (mDone || !mStarted || !currentStop().mSchedule.mTrack.has_value())
-            return false;
-        // A clock the world runs is held only ahead of the measured frames, so every leg begins at its hour.
-        return !currentStop().mSky.mClockTimes.has_value() || !mMeasurer.getMeasuredIndex().has_value();
+        // A track's clock is the world's on the measured frames (`CameraDriver::step`), and held ahead of them, so a
+        // take begins at its hour however long the world took to stand.
+        return !mDone && mStarted && currentStop().mSchedule.mTrack.has_value()
+            && !mMeasurer.getMeasuredIndex().has_value();
     }
 
     void Session::frame(const MWRender::FrameContext& context, const MWRender::FrameReport& report)

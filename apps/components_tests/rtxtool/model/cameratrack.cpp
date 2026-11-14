@@ -227,36 +227,31 @@ namespace RtxTool
             EXPECT_EQ(end.mNextWeather, storm);
         }
 
-        /// **A sky run writes the clock and the weather over the keys', counted in frames of the film, and
-        /// leaves the camera alone.** Half an hour a frame; Cloudy, Rain and Snow, each standing two frames
-        /// and crossing in four, so a period is six. By hand: frame 4 is 2 hours on and two into the
-        /// crossing of Cloudy into Rain, `smoothstep(2 / 4) = 0.5`; frame 6 stands at Rain; frame 17 is
-        /// Snow crossing into Cloudy at `smoothstep(3 / 4)`, `0.5625 × 1.5 = 0.84375`. A take whose first
-        /// frame is the film's tenth leads its clock by half an hour and stands where the tenth does.
-        TEST(RtxCameraTrackTest, aSkyRunWritesTheClockAndTheWeatherOverTheKeys)
+        /// **A sky run writes the weather over the keys', counted in frames of the film, and leaves the camera and
+        /// the keys' hours alone.** Cloudy, Rain and Snow, each standing two frames and crossing in four, so a period
+        /// is six. By hand: frame 4 is two into the crossing of Cloudy into Rain, `smoothstep(2 / 4) = 0.5`; frame 6
+        /// stands at Rain; frame 17 is Snow crossing into Cloudy at `smoothstep(3 / 4)`, `0.5625 × 1.5 = 0.84375`. A
+        /// take whose first frame is the film's tenth stands where the tenth does.
+        TEST(RtxCameraTrackTest, aSkyRunWritesTheWeatherOverTheKeys)
         {
             constexpr Rtx::Weather cloudy = Rtx::Weather::Cloudy;
             constexpr Rtx::Weather rain = Rtx::Weather::Rain;
             constexpr Rtx::Weather snow = Rtx::Weather::Snow;
             const std::vector<TrackKey> keys{ keyAt(0, 0.0f, 0.0f, 12.0f, Rtx::Weather::Clear),
                 keyAt(10, 100.0f, 0.0f, 18.0f, rain) };
-            const SkyRun run{
-                .mClockPerFrame = 0.5, .mWeathers = { cloudy, rain, snow }, .mHoldFrames = 2, .mCrossingFrames = 4
-            };
+            const SkyRun run{ .mWeathers = { cloudy, rain, snow }, .mHoldFrames = 2, .mCrossingFrames = 4 };
             const CameraTrack track = trackOf(keys, {}, run);
 
             const TrackPose first = track.pose(0);
-            EXPECT_EQ(first.mClockOn, 0.0);
             EXPECT_EQ(first.mWeather, cloudy);
             EXPECT_EQ(first.mNextWeather, cloudy);
             EXPECT_EQ(first.mCrossed, 0.0f);
 
             const TrackPose crossing = track.pose(4);
-            EXPECT_EQ(crossing.mClockOn, 2.0);
+            EXPECT_EQ(crossing.mHoursOn, trackOf(keys).pose(4).mHoursOn) << "the keys' hours stand";
             EXPECT_EQ(crossing.mWeather, cloudy);
             EXPECT_EQ(crossing.mNextWeather, rain);
             EXPECT_FLOAT_EQ(crossing.mCrossed, 0.5f);
-            EXPECT_EQ(trackOf(keys).pose(4).mClockOn, std::nullopt) << "a clock the keys' track runs";
 
             EXPECT_EQ(track.pose(6).mWeather, rain);
             EXPECT_EQ(track.pose(6).mNextWeather, rain);
@@ -272,24 +267,9 @@ namespace RtxTool
             SkyRun later = run;
             later.mFirstFrame = 10;
             const TrackPose cut = trackOf(keys, {}, later).pose(0);
-            EXPECT_EQ(cut.mClockOn, 0.5);
             EXPECT_EQ(cut.mWeather, rain);
             EXPECT_EQ(cut.mNextWeather, snow);
             EXPECT_FLOAT_EQ(cut.mCrossed, 0.5f);
-
-            // Half a run is the keys' other half: the clock alone leaves the keys' weathers.
-            const CameraTrack clockOnly = trackOf(keys, {}, SkyRun{ .mClockPerFrame = 0.5 });
-            EXPECT_EQ(clockOnly.pose(5).mWeather, Rtx::Weather::Clear);
-            EXPECT_EQ(clockOnly.pose(5).mNextWeather, rain);
-            EXPECT_EQ(clockOnly.pose(5).mClockOn, 2.5);
-
-            // Hours where the session says how many seconds its own clock runs to one: 2.5 of them
-            // at a `timescale` of 30 are 2.5 × 30 / 3600 hours, and at 10 a third as many. The keys'
-            // own track stands at its hours whatever the scale.
-            EXPECT_DOUBLE_EQ(clockOnly.pose(5).getHoursOn(30.0f), 2.5 * 30.0 / 3600.0);
-            EXPECT_DOUBLE_EQ(clockOnly.pose(5).getHoursOn(10.0f), 2.5 * 10.0 / 3600.0);
-            EXPECT_DOUBLE_EQ(trackOf(keys).pose(5).getHoursOn(30.0f), trackOf(keys).pose(5).mHoursOn);
-            EXPECT_DOUBLE_EQ(trackOf(keys).pose(5).getHoursOn(10.0f), trackOf(keys).pose(5).mHoursOn);
         }
     }
 }

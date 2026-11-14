@@ -30,6 +30,9 @@ class PlanTest(unittest.TestCase):
                        Leg("strafe 150", ("--strafe=150",)), Leg("walk -80", ("--walk=-80",))),
                  out=Path("/tmp/ab"), rest=("--views=x",)))
 
+    def test_a_relative_out_is_made_absolute_for_the_harness_that_runs_from_the_build(self):
+        self.assertEqual(plan(["--ab=antifirefly", "--out=ab"]).out, Path.cwd() / "ab")
+
     def test_a_legs_log_keeps_the_whole_of_its_name(self):
         out = Path("/tmp/ab")
         self.assertEqual(leg_log(out / "walk1.5"), out / "walk1.5.log")

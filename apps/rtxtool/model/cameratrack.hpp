@@ -55,20 +55,6 @@ namespace RtxTool
         /// clock asked for a lesser hour runs forward to it the next day.
         double mHoursOn = 0.0;
 
-        /// Seconds the game's own clock has run since the take's first frame, where a `SkyRun`
-        /// sets the clock, which then stands over `mHoursOn`; nothing for the keys' hours. In the
-        /// game's own seconds and not hours, because how many hours those are is the session's
-        /// `timescale`, which the film is planned without.
-        std::optional<double> mClockOn;
-
-        /// Game hours since the take's first frame under a session whose own `timescale` is
-        /// `ownTimeScale`: the clock's seconds counted at it where a run set them, and the keys'
-        /// hours where it did not.
-        double getHoursOn(float ownTimeScale) const
-        {
-            return mClockOn.has_value() ? *mClockOn * static_cast<double>(ownTimeScale) / 3600.0 : mHoursOn;
-        }
-
         /// The weather the sky leaves, the one it goes to, and how far it has crossed, nought to one.
         /// The two are the same where no crossing runs.
         Rtx::Weather mWeather = Rtx::Weather::Clear;
@@ -76,16 +62,11 @@ namespace RtxTool
         float mCrossed = 0.0f;
     };
 
-    /// A sky that runs on its own through a film, whatever the keys name: the clock at a rate, and the weather
-    /// turned through a list, round and round; what a time-lapse is flown under. Either half left out is the keys'
-    /// own. Counted in frames of the film and not of the take, so a cut keeps the sky where it was: the clock takes
-    /// up where the take before left the world, and the turn where it left the list.
+    /// A sky that turns on its own through a film or a tour, whatever the keys name: the weather turned through a
+    /// list, round and round. Counted in frames of the run and not of the take, so a cut keeps the turn where it
+    /// was. A clock that runs on its own is the world's, at the `timescale` a stop sets (`StopSky::mClockTimes`).
     struct SkyRun
     {
-        /// Seconds of the game's own clock one frame of film stands for, or nothing for the hours
-        /// the keys name.
-        std::optional<double> mClockPerFrame;
-
         /// The weathers turned through, or none for the crossings the keys make.
         std::vector<Rtx::Weather> mWeathers{};
 
@@ -97,10 +78,7 @@ namespace RtxTool
         /// The film's frame the take's first frame is.
         std::uint32_t mFirstFrame = 0;
 
-        /// Writes the run's halves over `pose`, the take's `frame`th.
-        ///
-        /// **The clock of a take after the first leads it by a frame**: the world stands where the
-        /// last frame of the take before left it, which is a frame behind this take's first.
+        /// Writes the turn over `pose`, the take's `frame`th.
         void pose(std::uint32_t frame, TrackPose& into) const;
 
         /// The weather the turn stands at at the film's `frame`, or the pair it crosses between and

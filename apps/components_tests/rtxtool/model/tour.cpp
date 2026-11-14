@@ -275,7 +275,6 @@ namespace RtxTool
             EXPECT_EQ(fromLater.mWeather, fromWhole.mWeather);
             EXPECT_EQ(fromLater.mNextWeather, fromWhole.mNextWeather);
             EXPECT_EQ(fromLater.mCrossed, fromWhole.mCrossed);
-            EXPECT_EQ(fromLater.mClockOn, std::nullopt) << "the world runs the clock, and the track sets none";
             EXPECT_EQ(later[0].mSky.mClockTimes, 24.0f) << "at the pacing's rate";
 
             const std::vector<Stop> fromSecond = stopsFor(plan, 1);

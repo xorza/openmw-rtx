@@ -30,6 +30,7 @@
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtxvulkan/createrenderer.hpp>
+#include <components/settings/values.hpp>
 #include <components/testing/util.hpp>
 
 namespace RtxTool
@@ -318,6 +319,16 @@ namespace RtxTool
             EXPECT_EQ(toured.mUpscaler, Rtx::UpscalerChoice::Auto);
             EXPECT_EQ(toured.mDistantLandCells, 10.0f);
             EXPECT_EQ(toured.mViewingDistance, 81920.0f) << "ten cells of 8192";
+        }
+
+        /// **An empty defaults file is read as one that names nothing**, and a setting asked of it is refused by name.
+        TEST(RtxShippedDefaultsTest, anEmptyFileNamesNothing)
+        {
+            const std::filesystem::path file = TestingOpenMW::currentTestDirPath() / "empty-shipped.bin";
+            std::ofstream(file, std::ios::binary).flush();
+            const ShippedDefaults empty(file);
+            EXPECT_EQ(Rtx::Testing::refusalOf([&] { empty.get(Settings::video().mGamma); }),
+                "defaults.bin names no [Video] gamma");
         }
 
         /// **A scene walks every place twice**, and digests it unless `--find` searches it instead.

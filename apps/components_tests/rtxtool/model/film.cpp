@@ -635,8 +635,8 @@ namespace RtxTool
             EXPECT_EQ(flown.mPace, FilmPace::Distance);
 
             const SkyRun& second = plan.mTakes[1].mSky;
-            ASSERT_TRUE(second.mClockPerFrame.has_value());
-            EXPECT_NEAR(*second.mClockPerFrame, 51.2, 1e-5);
+            for (const TrackKey& key : plan.mTakes[0].mTrack)
+                EXPECT_EQ(key.mHour, plan.mTakes[0].mTrack.front().mHour) << "no key's hour pulls the world's clock";
             EXPECT_EQ(second.mHoldFrames, 10u);
             EXPECT_EQ(second.mCrossingFrames, 80u);
             EXPECT_EQ(second.mFirstFrame, plan.mTakes[1].mFirstFrame);
@@ -652,6 +652,10 @@ namespace RtxTool
             EXPECT_FALSE(stops[1].mSky.mDay.has_value()) << "the key's day set against the running clock";
             EXPECT_FALSE(stops[0].mSky.mWeather.has_value());
             EXPECT_FALSE(stops[1].mSky.mWeather.has_value());
+            EXPECT_EQ(stops[0].mSky.mClockTimes, 512.0f);
+            EXPECT_EQ(stops[1].mSky.mClockTimes, 512.0f);
+            EXPECT_EQ(stopsFor(planFilm(keys, pacingForTests()), "film/frames")[0].mSky.mClockTimes, std::nullopt)
+                << "the keys' own clock, without --clock";
 
             const std::string text = describePlan(plan);
             EXPECT_NE(text.find("the clock at ×512 of the game's own over the whole film, the hours below as the first "

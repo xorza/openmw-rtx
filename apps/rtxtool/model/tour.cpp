@@ -243,8 +243,7 @@ namespace RtxTool
     {
         // No clock of the track's own: the world runs it (`StopSky::mClockTimes`), and a clock the host set every
         // frame would be told to the renderer as a jump.
-        return SkyRun{ .mClockPerFrame = std::nullopt,
-            .mWeathers = mCircuit,
+        return SkyRun{ .mWeathers = mCircuit,
             .mHoldFrames = BenchSpan{ .mSeconds = mPacing.mWeatherHold }.getFrames(mPacing.mStep),
             .mCrossingFrames = mPacing.framesOf(mPacing.mCrossingSeconds),
             .mFirstFrame = first };

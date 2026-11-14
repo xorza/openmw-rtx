@@ -424,14 +424,12 @@ namespace RtxTool
         }
 
         /// The sky `pacing` runs on its own, for the take that begins at the film's `first` frame.
+        /// **No clock of the track's own**: a clock the pacing runs is the world's, at a `timescale` the stops set
+        /// (`StopSky::mClockTimes`), since a clock the host set every frame was told to the renderer as a jump on
+        /// every frame.
         SkyRun skyRunOf(const FilmPacing& pacing, const std::uint32_t first)
         {
-            std::optional<double> clock;
-            if (pacing.mClock.has_value())
-                clock = double{ *pacing.mClock } * double{ pacing.mStep };
-
-            return SkyRun{ .mClockPerFrame = clock,
-                .mWeathers = pacing.mTurn,
+            return SkyRun{ .mWeathers = pacing.mTurn,
                 .mHoldFrames = BenchSpan{ .mSeconds = pacing.mWeatherHold }.getFrames(pacing.mStep),
                 .mCrossingFrames = pacing.framesOf(pacing.mCrossingSeconds),
                 .mFirstFrame = first };
@@ -442,12 +440,12 @@ namespace RtxTool
         /// seconds the clock has run since, which the session's `timescale` turns into hours.
         std::string describeHourAt(const FilmPlan& plan, const std::uint32_t frame, const FilmKey& key)
         {
-            const SkyRun run = skyRunOf(plan.mPacing, 0);
-            if (!run.mClockPerFrame.has_value())
+            const std::optional<float>& clock = plan.mPacing.mClock;
+            if (!clock.has_value())
                 return describeHour(key.getHour());
 
             return std::format("{} +{:.0f} s", describeHour(plan.mKeys.front().getHour()),
-                static_cast<double>(frame) * *run.mClockPerFrame);
+                static_cast<double>(frame) * double{ *clock } * double{ plan.mPacing.mStep });
         }
 
         /// The weather the film stands under at its `frame`th, or the two it crosses between, where
@@ -724,6 +722,12 @@ namespace RtxTool
             take.mFirstFrame = first;
             take.mSky = skyRunOf(pacing, first);
 
+            // A clock the world runs is pulled by no key's hour: the take's keys all stand at its first's, so the
+            // camera driver runs it nowhere (`CameraDriver::step`).
+            if (pacing.mClock.has_value())
+                for (TrackKey& key : take.mTrack)
+                    key.mHour = take.mTrack.front().mHour;
+
             for (std::size_t key = take.mFirst; key < take.mEnd; ++key)
                 if (const std::optional<float> time = plan.mKeys[key].mAt; time.has_value())
                     Crash::contract(static_cast<double>(first)
@@ -826,10 +830,15 @@ namespace RtxTool
             // A clock that runs through the film is set once, at its first take, and every take after takes up where
             // the world stood at the last one's end: set again from a key it would jump back at every cut. A day set
             // by hand would also leave the month where it was.
-            if (number > 0 && plan.mPacing.mClock.has_value())
+            // The clock itself is the world's, at the `timescale` every take sets.
+            if (plan.mPacing.mClock.has_value())
             {
-                stop.mSky.mHour.reset();
-                stop.mSky.mDay.reset();
+                stop.mSky.mClockTimes = plan.mPacing.mClock;
+                if (number > 0)
+                {
+                    stop.mSky.mHour.reset();
+                    stop.mSky.mDay.reset();
+                }
             }
 
             // The turn holds the sky from the first frame, and a weather the stager settled under it

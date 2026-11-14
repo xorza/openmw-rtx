@@ -291,8 +291,8 @@ On `rtx-tour`. Whoever addresses an item deletes it.
 - **The tour's clock is the world's own, through its `timescale`** (`StopSky::mClockTimes`), held only ahead of a
   leg's measured frames. A clock the host set every frame was told to the renderer as a cut on every frame, the
   engine's held advance of nought overwriting the host's step (42,220 cuts in a vanilla tour, none now); `film
-  --clock` keeps that fault, whose fix is a sum of a frame's advances in `World`, upstream code waiting for a yes
-  (`.notes/ISSUES.md`).
+  --clock` runs its clock the same way, its keys' hours flattened so none pulls it. Refused: summing a frame's
+  advances in `World`, upstream code, where the fork's own run can leave the clock to the world.
 - **A hitch and a slow frame are judged on a leg's measured frames alone**, the frames ahead of them a cut's wait
   for the world; under `--pace=real` a slow frame is the limiter's and no finding, and a hitch still is.
 - **A cell is covered by its column**: a leg flies a row, and the band's rows stand in the active grid together,

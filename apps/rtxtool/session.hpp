@@ -81,9 +81,8 @@ namespace RtxTool
         /// game has a world to stand in.
         void beforeFrame() override;
 
-        /// Through every frame of a take, whose track states the hour (`CameraDriver::step`): a clock left running
-        /// would carry it past the track's, and the driver only ever runs the clock forward. A stop whose clock the
-        /// world runs (`StopSky::mClockTimes`) is held only ahead of its measured frames.
+        /// Through the frames of a take ahead of its measured ones: on those the world runs the clock, at the pace
+        /// the track's hours ask (`CameraDriver::step`) or the stop names (`StopSky::mClockTimes`).
         bool holdsGameClock() const override;
 
         /// None, in every verb: a run nobody plays has nobody to answer, and a box would stop the world as it stops

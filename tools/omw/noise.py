@@ -96,7 +96,9 @@ def plan(args: list[str]) -> Plan:
              for leg, distance in (("strafe", asked.strafe), ("walk", asked.walk)) if not _nought(distance)]
     if not legs:
         raise Refusal("no leg is left to run: name --still, --cut=N, or a distance that is not nought")
-    return Plan(sides_of(asked.ab), tuple(legs), asked.out, tuple(rest))
+    # Absolute, as each leg's `--out` names a folder in it and the harness runs from the build directory.
+    out = asked.out.resolve() if asked.out else None
+    return Plan(sides_of(asked.ab), tuple(legs), out, tuple(rest))
 
 
 def _nought(distance: str) -> bool:
