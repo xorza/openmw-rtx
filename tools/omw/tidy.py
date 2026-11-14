@@ -103,6 +103,17 @@ def findings(said: str) -> list[Finding]:
     return found
 
 
+# A path in exported fixes, which YAML quotes in single quotes, a quote inside doubled.
+_FIX_PATH = re.compile(r"(?P<key>FilePath:\s*)'(?P<path>(?:[^']|'')*)'")
+
+
+def plain_paths(fixes: str) -> str:
+    """Exported fixes with each path made plain. **A header's fix is one fix however its includers reached it**:
+    `clang-apply-replacements` merges a fix two sources made alike only where their paths are alike, and applied
+    `doc/../doc/manager.hpp`'s and `doc/manager.hpp`'s both, `override` twice on one line."""
+    return _FIX_PATH.sub(lambda match: f"{match['key']}'{os.path.normpath(match['path'])}'", fixes)
+
+
 def _run(clang_tidy: Path, build: Build, source: Source, fixes: Path | None) -> subprocess.CompletedProcess:
     """clang-tidy over `source`, its fixes written to `fixes` where it is named."""
     line: list[str | Path] = [clang_tidy, "--quiet", f"-p={build.dir}", source.file]
@@ -145,6 +156,9 @@ def tidy(build: Build, args: list[str]) -> int:
         with ThreadPoolExecutor(max_workers=jobs()) as pool:
             runs = list(pool.map(lambda source, into: _run(clang_tidy, build, source, into), sources, fixes))
         if fix:
+            for file in fixes:
+                if file is not None and file.is_file():
+                    file.write_text(plain_paths(file.read_text(encoding="utf-8")), encoding="utf-8")
             subprocess.run([deps.clang_apply_replacements(), scratch], cwd=ROOT, check=True)
 
     seen: dict[str, Finding] = {}

@@ -93,6 +93,22 @@ class FindingsTest(unittest.TestCase):
         self.assertEqual(tidy.findings("12 warnings generated.\n"), [], "a line before any diagnostic is none")
 
 
+class PlainPathsTest(unittest.TestCase):
+    def test_every_path_of_the_fixes_is_made_plain_and_nothing_else_moves(self):
+        fixes = (
+            "MainSourceFile:  '/a/apps/doc/manager.cpp'\n"
+            "Diagnostics:\n"
+            "  - DiagnosticMessage:\n"
+            "      FilePath:        '/a/apps/doc/../doc/manager.hpp'\n"
+            "      Replacements:\n"
+            "        - FilePath:        '/a/apps/x/../doc/it''s.hpp'\n"
+            "          ReplacementText: ' override'\n"
+        )
+        self.assertEqual(tidy.plain_paths(fixes), fixes.replace("/a/apps/doc/../doc/", "/a/apps/doc/")
+                         .replace("/a/apps/x/../doc/", "/a/apps/doc/"))
+        self.assertEqual(tidy.plain_paths("FilePath: '/a/b.hpp'\n"), "FilePath: '/a/b.hpp'\n")
+
+
 class FixTest(unittest.TestCase):
     def test_each_source_writes_its_fixes_to_a_file_of_its_own_though_their_objects_share_a_name(self):
         folder = Path(tempfile.mkdtemp())
