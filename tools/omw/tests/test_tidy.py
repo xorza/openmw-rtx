@@ -1,6 +1,7 @@
 import contextlib
 import io
 import json
+import os
 import shutil
 import subprocess
 import tempfile
@@ -13,6 +14,11 @@ from omw.system import ROOT
 from omw.tidy import Source
 
 BUILD = ROOT / "out" / "debug"
+
+
+def native(path: str) -> str:
+    """`path` as the system spells a plain path: `os.path.normpath` gives Windows its own separator."""
+    return path.replace("/", os.sep)
 
 
 def entry(file: Path, output: str) -> dict:
@@ -88,7 +94,7 @@ class FindingsTest(unittest.TestCase):
                          ("bugprone-narrowing-conversions", "cppcoreguidelines-narrowing-conv"))
         # One header reached through two includers' paths is one finding.
         through = tidy.findings("/a/x/../y/z.hpp:1:2: warning: w [c]\n/a/y/z.hpp:1:2: warning: w [c]\n")
-        self.assertEqual({finding.key for finding in through}, {"/a/y/z.hpp:1:2: warning: w [c]"})
+        self.assertEqual({finding.key for finding in through}, {native("/a/y/z.hpp") + ":1:2: warning: w [c]"})
         self.assertEqual(tidy.findings(""), [])
         self.assertEqual(tidy.findings("12 warnings generated.\n"), [], "a line before any diagnostic is none")
 
@@ -104,9 +110,10 @@ class PlainPathsTest(unittest.TestCase):
             "        - FilePath:        '/a/apps/x/../doc/it''s.hpp'\n"
             "          ReplacementText: ' override'\n"
         )
-        self.assertEqual(tidy.plain_paths(fixes), fixes.replace("/a/apps/doc/../doc/", "/a/apps/doc/")
-                         .replace("/a/apps/x/../doc/", "/a/apps/doc/"))
-        self.assertEqual(tidy.plain_paths("FilePath: '/a/b.hpp'\n"), "FilePath: '/a/b.hpp'\n")
+        self.assertEqual(tidy.plain_paths(fixes),
+                         fixes.replace("/a/apps/doc/../doc/manager.hpp", native("/a/apps/doc/manager.hpp"))
+                         .replace("/a/apps/x/../doc/it''s.hpp", native("/a/apps/doc/it''s.hpp")))
+        self.assertEqual(tidy.plain_paths("FilePath: '/a/b.hpp'\n"), f"FilePath: '{native('/a/b.hpp')}'\n")
 
 
 class FixTest(unittest.TestCase):
