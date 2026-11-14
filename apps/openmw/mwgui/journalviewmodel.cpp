@@ -29,7 +29,7 @@ namespace MWGui
 
         JournalViewModelImpl() { mKeywordSearchLoaded = false; }
 
-        virtual ~JournalViewModelImpl() = default;
+        ~JournalViewModelImpl() override = default;
 
         void load() override {}
 
@@ -78,7 +78,7 @@ namespace MWGui
             {
             }
 
-            virtual ~BaseEntry() = default;
+            ~BaseEntry() override = default;
 
             mutable bool mLoaded{ false };
             mutable std::string mText;

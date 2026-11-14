@@ -57,7 +57,7 @@ namespace MyGUIPlatform
     public:
         RenderManager(osgViewer::Viewer* viewer, osg::Group* sceneroot, Resource::ImageManager* imageManager,
             float scalingFactor);
-        virtual ~RenderManager();
+        ~RenderManager() override;
 
         void initialise() override;
         void shutdown() override;

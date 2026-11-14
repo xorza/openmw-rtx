@@ -111,7 +111,7 @@ namespace MWRender
         PostProcessor(RenderingManager& rendering, osgViewer::Viewer* viewer, osg::Group* rootNode,
             const VFS::Manager* vfs, SceneUtil::LightManager& lights, SkyManager& sky);
 
-        ~PostProcessor();
+        ~PostProcessor() override;
 
         void setupTransparentBin(const Water* water);
 

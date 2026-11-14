@@ -32,7 +32,7 @@ namespace MWInput
         MouseManager(
             BindingsManager* bindingsManager, SDLUtil::InputWrapper* inputWrapper, const MWRender::Renderer& renderer);
 
-        virtual ~MouseManager() = default;
+        ~MouseManager() override = default;
 
         void updateCursorMode();
         void update(float dt);

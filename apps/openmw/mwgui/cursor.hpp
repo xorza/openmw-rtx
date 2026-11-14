@@ -18,7 +18,7 @@ namespace MWGui
 
     public:
         ResourceImageSetPointerFix();
-        virtual ~ResourceImageSetPointerFix();
+        ~ResourceImageSetPointerFix() override;
 
         void deserialization(MyGUI::xml::ElementPtr node, MyGUI::Version version) override;
 

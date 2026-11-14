@@ -144,7 +144,7 @@ namespace MWSound
     public:
         explicit FFmpegDecoder(const VFS::Manager* vfs, HeadCache* headCache, bool recordHead);
 
-        virtual ~FFmpegDecoder();
+        ~FFmpegDecoder() override;
 
         friend class SoundManager;
         friend class WarmQueue;

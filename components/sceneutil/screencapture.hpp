@@ -44,7 +44,7 @@ namespace SceneUtil
         AsyncScreenCaptureOperation(std::shared_ptr<SceneUtil::WorkQueue> queue,
             osg::ref_ptr<osgViewer::ScreenCaptureHandler::CaptureOperation> impl);
 
-        ~AsyncScreenCaptureOperation();
+        ~AsyncScreenCaptureOperation() override;
 
         void stop();
 

@@ -225,7 +225,7 @@ namespace MWRender
     public:
         Sun(osg::Group* parentNode, Resource::SceneManager& sceneManager);
 
-        ~Sun();
+        ~Sun() override;
 
         void setColor(const osg::Vec4f& color);
         void adjustTransparency(const float ratio) override;
@@ -265,7 +265,7 @@ namespace MWRender
 
         Moon(osg::Group* parentNode, Resource::SceneManager& sceneManager, float scaleFactor, Type type);
 
-        ~Moon();
+        ~Moon() override;
 
         void adjustTransparency(const float ratio) override;
         void setState(const MoonState state);

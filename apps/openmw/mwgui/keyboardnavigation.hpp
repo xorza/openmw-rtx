@@ -11,7 +11,7 @@ namespace MWGui
     {
     public:
         KeyboardNavigation();
-        ~KeyboardNavigation();
+        ~KeyboardNavigation() override;
 
         /// @return Was the key handled by this class?
         bool injectKeyPress(MyGUI::KeyCode key, unsigned int text, bool repeat);

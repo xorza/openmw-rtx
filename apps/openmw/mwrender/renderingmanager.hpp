@@ -113,7 +113,7 @@ namespace MWRender
             Resource::ResourceSystem* resourceSystem, const std::shared_ptr<SceneUtil::WorkQueue>& workQueue,
             DetourNavigator::Navigator& navigator, const MWWorld::GroundcoverStore& groundcoverStore,
             SceneUtil::UnrefQueue& unrefQueue);
-        ~RenderingManager();
+        ~RenderingManager() override;
 
         osgUtil::IncrementalCompileOperation* getIncrementalCompileOperation();
 

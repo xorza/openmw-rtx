@@ -39,7 +39,7 @@ namespace CSVRender
         CellWater(CSMWorld::Data& data, osg::Group* cellNode, const std::string& id,
             const CSMWorld::CellCoordinates& cellCoords);
 
-        ~CellWater();
+        ~CellWater() override;
 
         void updateCellData(const CSMWorld::Record<CSMWorld::Cell>& cellRecord);
 

@@ -122,7 +122,7 @@ namespace MWRender
         NpcAnimation(const MWWorld::Ptr& ptr, osg::ref_ptr<osg::Group> parentNode,
             Resource::ResourceSystem* resourceSystem, bool disableSounds = false, ViewMode viewMode = VM_Normal,
             float firstPersonFieldOfView = 55.f);
-        virtual ~NpcAnimation();
+        ~NpcAnimation() override;
 
         void enableHeadAnimation(bool enable) override;
 

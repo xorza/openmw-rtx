@@ -37,7 +37,7 @@ namespace CSMDoc
         Operation(State type, bool finalAlways = false);
         /// \param finalAlways Execute last stage even if an error occurred during earlier stages.
 
-        virtual ~Operation();
+        ~Operation() override;
 
         void appendStage(Stage* stage);
         ///< The ownership of \a stage is transferred to *this.

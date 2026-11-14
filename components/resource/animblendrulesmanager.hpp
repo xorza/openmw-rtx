@@ -16,7 +16,7 @@ namespace Resource
     {
     public:
         explicit AnimBlendRulesManager(const VFS::Manager* vfs, double expiryDelay);
-        ~AnimBlendRulesManager() = default;
+        ~AnimBlendRulesManager() override = default;
 
         /// Retrieve a read-only keyframe resource by name (case-insensitive).
         /// @note Throws an exception if the resource is not found.

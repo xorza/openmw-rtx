@@ -48,7 +48,7 @@ namespace CSVDoc
     public:
         explicit FileDialog(QWidget* parent = nullptr);
 
-        ~FileDialog();
+        ~FileDialog() override;
 
         void showDialog(ContentAction action);
 

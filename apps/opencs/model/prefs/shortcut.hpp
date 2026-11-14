@@ -36,7 +36,7 @@ namespace CSMPrefs
         Shortcut(const std::string& name, const std::string& modName, QWidget* parent);
         Shortcut(const std::string& name, const std::string& modName, SecondaryMode secMode, QWidget* parent);
 
-        ~Shortcut();
+        ~Shortcut() override;
 
         bool isEnabled() const;
 

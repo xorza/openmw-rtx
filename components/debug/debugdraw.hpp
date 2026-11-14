@@ -87,7 +87,7 @@ namespace Debug
         osg::ref_ptr<osg::Geometry> mSphereGeometry;
         osg::ref_ptr<osg::Geometry> mWireCubeGeometry;
 
-        virtual void drawImplementation(osg::RenderInfo&) const override;
+        void drawImplementation(osg::RenderInfo&) const override;
     };
 
     struct DebugDrawer : public osg::Node

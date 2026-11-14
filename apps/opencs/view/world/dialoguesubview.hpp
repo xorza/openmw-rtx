@@ -117,7 +117,7 @@ namespace CSVWorld
             CSMWorld::CommandDispatcher& commandDispatcher, CSMDoc::Document& document,
             QAbstractItemModel* model = nullptr);
 
-        ~DialogueDelegateDispatcher();
+        ~DialogueDelegateDispatcher() override;
 
         CSVWorld::CommandDelegate* makeDelegate(CSMWorld::ColumnBase::Display display);
 
@@ -191,7 +191,7 @@ namespace CSVWorld
         EditWidget(QWidget* parent, int row, CSMWorld::IdTable* table, CSMWorld::CommandDispatcher& commandDispatcher,
             CSMDoc::Document& document, bool createAndDelete = false);
 
-        virtual ~EditWidget();
+        ~EditWidget() override;
 
         void remake(int row);
 

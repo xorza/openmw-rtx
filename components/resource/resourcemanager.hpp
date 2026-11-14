@@ -51,7 +51,7 @@ namespace Resource
         {
         }
 
-        virtual ~GenericResourceManager() = default;
+        ~GenericResourceManager() override = default;
 
         /// Clear cache entries that have not been referenced for longer than expiryDelay.
         void updateCache(double referenceTime) override { mCache->update(referenceTime, mExpiryDelay); }

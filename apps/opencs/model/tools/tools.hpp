@@ -63,7 +63,7 @@ namespace CSMTools
     public:
         Tools(CSMDoc::Document& document, ToUTF8::FromType encoding);
 
-        virtual ~Tools();
+        ~Tools() override;
 
         /// \param reportId If a valid VerificationResults ID, run verifier for the
         /// specified report instead of creating a new one.

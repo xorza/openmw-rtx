@@ -20,7 +20,7 @@ namespace MWRender
     {
     public:
         PingPongCull(PostProcessor* pp);
-        ~PingPongCull();
+        ~PingPongCull() override;
 
         void operator()(osg::Node* node, osgUtil::CullVisitor* nv);
 

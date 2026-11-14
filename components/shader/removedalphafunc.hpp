@@ -35,7 +35,7 @@ namespace Shader
         void apply(osg::State& state) const override {}
 
     protected:
-        virtual ~RemovedAlphaFunc() = default;
+        ~RemovedAlphaFunc() override = default;
 
         static std::array<osg::ref_ptr<RemovedAlphaFunc>, GL_ALWAYS - GL_NEVER + 1> sInstances;
     };

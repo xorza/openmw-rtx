@@ -1123,7 +1123,7 @@ namespace CSMWorld
         {
         }
 
-        virtual ~EffectsRefIdAdapter() = default;
+        ~EffectsRefIdAdapter() override = default;
 
         void addNestedRow(const RefIdColumn* column, RefIdData& data, int index, int position) const override
         {
@@ -1199,7 +1199,7 @@ namespace CSMWorld
         {
         }
 
-        virtual ~NestedInventoryRefIdAdapter() = default;
+        ~NestedInventoryRefIdAdapter() override = default;
 
         void addNestedRow(const RefIdColumn* column, RefIdData& data, int index, int position) const override
         {
@@ -1335,7 +1335,7 @@ namespace CSMWorld
         {
         }
 
-        virtual ~NestedSpellRefIdAdapter() = default;
+        ~NestedSpellRefIdAdapter() override = default;
 
         void addNestedRow(const RefIdColumn* column, RefIdData& data, int index, int position) const override
         {
@@ -1457,7 +1457,7 @@ namespace CSMWorld
         {
         }
 
-        virtual ~NestedTravelRefIdAdapter() = default;
+        ~NestedTravelRefIdAdapter() override = default;
 
         void addNestedRow(const RefIdColumn* column, RefIdData& data, int index, int position) const override
         {
@@ -1626,7 +1626,7 @@ namespace CSMWorld
         {
         }
 
-        virtual ~ActorAiRefIdAdapter() = default;
+        ~ActorAiRefIdAdapter() override = default;
 
         // FIXME: should check if the AI package type is already in the list and use a default
         //        that wasn't used already (in extreme case do not add anything at all?
@@ -1982,7 +1982,7 @@ namespace CSMWorld
         {
         }
 
-        virtual ~BodyPartRefIdAdapter() = default;
+        ~BodyPartRefIdAdapter() override = default;
 
         void addNestedRow(const RefIdColumn* column, RefIdData& data, int index, int position) const override
         {
@@ -2183,7 +2183,7 @@ namespace CSMWorld
         {
         }
 
-        virtual ~NestedListLevListRefIdAdapter() = default;
+        ~NestedListLevListRefIdAdapter() override = default;
 
         void addNestedRow(const RefIdColumn* column, RefIdData& data, int index, int position) const override
         {
@@ -2340,7 +2340,7 @@ namespace CSMWorld
         {
         }
 
-        virtual ~NestedLevListRefIdAdapter() = default;
+        ~NestedLevListRefIdAdapter() override = default;
 
         void addNestedRow(const RefIdColumn* column, RefIdData& data, int index, int position) const override
         {

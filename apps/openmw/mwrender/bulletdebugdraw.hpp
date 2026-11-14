@@ -54,7 +54,7 @@ namespace MWRender
 
     public:
         explicit DebugDrawer(osg::ref_ptr<osg::Group> parentNode);
-        ~DebugDrawer();
+        ~DebugDrawer() override;
 
         void clearLines() override;
 

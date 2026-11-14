@@ -29,7 +29,7 @@ namespace MWInput
     public:
         explicit SensorManager(SDL_Window* window);
 
-        virtual ~SensorManager();
+        ~SensorManager() override;
 
         void init();
 

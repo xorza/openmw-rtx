@@ -112,7 +112,7 @@ namespace MWRender
 
     public:
         RaceSelectionPreview(Renderer& renderer, Resource::ResourceSystem* resourceSystem);
-        virtual ~RaceSelectionPreview();
+        ~RaceSelectionPreview() override;
 
         void setAngle(float angleRadians);
 

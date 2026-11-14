@@ -69,7 +69,7 @@ namespace Resource
     public:
         explicit SceneManager(const VFS::Manager* vfs, Resource::ImageManager* imageManager,
             Resource::NifFileManager* nifFileManager, Resource::BgsmFileManager* bgsmFileManager, double expiryDelay);
-        ~SceneManager();
+        ~SceneManager() override;
 
         Shader::ShaderManager& getShaderManager();
 

@@ -49,7 +49,7 @@ namespace SceneUtil
         bool computeWorldToLocalMatrix(osg::Matrix& matrix, osg::NodeVisitor* nv) const override;
 
     protected:
-        virtual ~PositionAttitudeTransform() {}
+        ~PositionAttitudeTransform() override {}
 
         osg::Vec3f _position;
         osg::Quat _attitude;

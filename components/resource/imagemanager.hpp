@@ -23,7 +23,7 @@ namespace Resource
     {
     public:
         explicit ImageManager(const VFS::Manager* vfs, double expiryDelay);
-        ~ImageManager();
+        ~ImageManager() override;
 
         /// Create or retrieve an Image
         /// Returns the dummy image if the given image is not found.

@@ -121,7 +121,7 @@ namespace CSVRender
         };
 
         WorldspaceWidget(CSMDoc::Document& document, QWidget* parent = nullptr);
-        ~WorldspaceWidget() = default;
+        ~WorldspaceWidget() override = default;
 
         CSVWidget::SceneToolMode* makeNavigationSelector(CSVWidget::SceneToolbar* parent);
         ///< \attention The created tool is not added to the toolbar (via addTool). Doing that

@@ -28,7 +28,7 @@ namespace MWGui
 
         VideoWidget();
 
-        ~VideoWidget();
+        ~VideoWidget() override;
 
         /// Set the VFS (virtual file system) to find the videos on.
         void setVFS(const VFS::Manager* vfs);

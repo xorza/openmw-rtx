@@ -33,7 +33,7 @@ namespace Terrain
     {
     public:
         CompositeMapRenderer();
-        ~CompositeMapRenderer();
+        ~CompositeMapRenderer() override;
 
         void drawImplementation(osg::RenderInfo& renderInfo) const override;
 

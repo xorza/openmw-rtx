@@ -31,7 +31,7 @@ namespace Resource
         bool belongsToTorso(const std::string& name);
 
         void addKeyframeController(const std::string& name, const osg::Node& node);
-        virtual void apply(osg::Node& node) override;
+        void apply(osg::Node& node) override;
 
     private:
         SceneUtil::KeyframeHolder& mTarget;
@@ -53,7 +53,7 @@ namespace Resource
     public:
         explicit KeyframeManager(const VFS::Manager* vfs, SceneManager* sceneManager, double expiryDelay,
             const ToUTF8::StatelessUtf8Encoder* encoder);
-        ~KeyframeManager() = default;
+        ~KeyframeManager() override = default;
 
         /// Retrieve a read-only keyframe resource by name (case-insensitive).
         /// @note Throws an exception if the resource is not found.

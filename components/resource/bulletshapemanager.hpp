@@ -27,7 +27,7 @@ namespace Resource
     public:
         BulletShapeManager(
             const VFS::Manager* vfs, SceneManager* sceneMgr, NifFileManager* nifFileManager, double expiryDelay);
-        ~BulletShapeManager();
+        ~BulletShapeManager() override;
 
         /// @note May return a null pointer if the object has no shape.
         std::shared_ptr<const BulletShape> getShape(VFS::Path::NormalizedView name);

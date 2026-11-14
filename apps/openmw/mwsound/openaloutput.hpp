@@ -119,7 +119,7 @@ namespace MWSound
         void resumeActiveDevice() override;
 
         OpenALOutput(SoundManager& mgr);
-        virtual ~OpenALOutput();
+        ~OpenALOutput() override;
     };
 }
 

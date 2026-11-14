@@ -92,7 +92,7 @@ namespace MWGui
             void setStateSelected(bool selected);
 
         protected:
-            virtual ~MWSkill();
+            ~MWSkill() override;
 
             void initialiseOverride() override;
 
@@ -177,7 +177,7 @@ namespace MWGui
             void setStateSelected(bool selected);
 
         protected:
-            virtual ~MWSpell();
+            ~MWSpell() override;
 
             void initialiseOverride() override;
 
@@ -217,7 +217,7 @@ namespace MWGui
                 MyGUI::IntCoord& coord, bool center, int flags);
 
         protected:
-            virtual ~MWEffectList();
+            ~MWEffectList() override;
 
             void initialiseOverride() override;
 
@@ -243,7 +243,7 @@ namespace MWGui
             void setStateSelected(bool selected);
 
         protected:
-            virtual ~MWSpellEffect();
+            ~MWSpellEffect() override;
 
             void initialiseOverride() override;
 
@@ -272,7 +272,7 @@ namespace MWGui
             int getMax() const { return mMax; }
 
         protected:
-            virtual ~MWDynamicStat();
+            ~MWDynamicStat() override;
 
             void initialiseOverride() override;
 

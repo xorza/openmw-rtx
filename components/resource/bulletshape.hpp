@@ -94,7 +94,7 @@ namespace Resource
         {
         }
 
-        virtual ~TriangleMeshShape()
+        ~TriangleMeshShape() override
         {
             delete getTriangleInfoMap();
             delete m_meshInterface;

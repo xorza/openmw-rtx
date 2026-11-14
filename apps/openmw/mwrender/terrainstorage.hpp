@@ -19,7 +19,7 @@ namespace MWRender
         TerrainStorage(Resource::ResourceSystem* resourceSystem, std::string_view normalMapPattern = {},
             std::string_view normalHeightMapPattern = {}, bool autoUseNormalMaps = false,
             std::string_view specularMapPattern = {}, bool autoUseSpecularMaps = false);
-        ~TerrainStorage();
+        ~TerrainStorage() override;
 
         std::shared_ptr<const ESMTerrain::LandObject> getLand(ESM::ExteriorCellLocation cellLocation) override;
         const VFS::Path::Normalized* getLandTexture(std::uint16_t index, int plugin) override;

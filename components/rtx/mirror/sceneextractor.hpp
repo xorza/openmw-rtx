@@ -123,7 +123,7 @@ namespace Rtx
         /// Gives back every hold the maps took on the scene — every placement, every row, every
         /// texture — so a scene that outlives this holds nothing of it. The scene outlives it by
         /// the reference this keeps.
-        ~SceneExtractor();
+        ~SceneExtractor() override;
 
         /// Pinned: its resolvers and its keys hold references to its scene, its pass and one another.
         SceneExtractor(const SceneExtractor&) = delete;

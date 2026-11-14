@@ -40,7 +40,7 @@ namespace Terrain
     {
     public:
         QuadTreeNode(QuadTreeNode* parent, ChildDirection dir, float size, const osg::Vec2f& center);
-        virtual ~QuadTreeNode();
+        ~QuadTreeNode() override;
 
         inline QuadTreeNode* getParent() { return mParent; }
         inline QuadTreeNode* getChild(unsigned int i) { return static_cast<QuadTreeNode*>(Group::getChild(i)); }

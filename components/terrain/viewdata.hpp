@@ -30,7 +30,7 @@ namespace Terrain
     {
     public:
         ViewData();
-        ~ViewData();
+        ~ViewData() override;
 
         void add(QuadTreeNode* node);
 

@@ -73,7 +73,7 @@ namespace Crash
         SummarySource& operator=(const SummarySource&) = delete;
         SummarySource(SummarySource&&) = delete;
         SummarySource& operator=(SummarySource&&) = delete;
-        ~SummarySource() = default;
+        ~SummarySource() override = default;
 
         /// A crash's summary, which the session counts as its report.
         std::unique_ptr<crashpad::MinidumpUserExtensionStreamDataSource> ProduceStreamData(

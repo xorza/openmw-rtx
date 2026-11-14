@@ -14,7 +14,7 @@ namespace ContentSelectorModel
         ModelItem(ModelItem* parent = nullptr);
         // ModelItem(const ModelItem *parent = 0);
 
-        ~ModelItem();
+        ~ModelItem() override;
 
         ModelItem* parent() const;
         int row() const;

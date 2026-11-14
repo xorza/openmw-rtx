@@ -101,7 +101,7 @@ namespace Gui
     public:
         Box();
 
-        virtual ~Box() = default;
+        ~Box() override = default;
 
         void notifyChildrenSizeChanged();
 

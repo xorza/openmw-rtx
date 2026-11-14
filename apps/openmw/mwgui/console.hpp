@@ -43,7 +43,7 @@ namespace MWGui
         std::ofstream mCommandHistoryFile;
 
         Console(int w, int h, bool consoleOnlyScripts, Files::ConfigurationManager& cfgMgr);
-        ~Console();
+        ~Console() override;
 
         void onOpen() override;
 

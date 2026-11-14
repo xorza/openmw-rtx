@@ -56,7 +56,7 @@ namespace Launcher
     public:
         explicit DataFilesPage(const Files::ConfigurationManager& cfg, Config::GameSettings& gameSettings,
             Config::LauncherSettings& launcherSettings, MainDialog* parent = nullptr);
-        ~DataFilesPage();
+        ~DataFilesPage() override;
 
         QAbstractItemModel* profilesModel() const;
 

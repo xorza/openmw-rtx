@@ -17,7 +17,7 @@ namespace MWRender
     public:
         CreatureAnimation(
             const MWWorld::Ptr& ptr, const std::string& model, Resource::ResourceSystem* resourceSystem, bool animated);
-        virtual ~CreatureAnimation() {}
+        ~CreatureAnimation() override {}
     };
 
     // For creatures with weapons and shields
@@ -30,7 +30,7 @@ namespace MWRender
     public:
         CreatureWeaponAnimation(
             const MWWorld::Ptr& ptr, const std::string& model, Resource::ResourceSystem* resourceSystem, bool animated);
-        virtual ~CreatureWeaponAnimation() {}
+        ~CreatureWeaponAnimation() override {}
 
         void equipmentChanged() override { updateParts(); }
 

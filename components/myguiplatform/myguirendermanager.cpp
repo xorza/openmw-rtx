@@ -255,7 +255,7 @@ namespace MyGUIPlatform
 
     public:
         OSGVertexBuffer();
-        virtual ~OSGVertexBuffer() {}
+        ~OSGVertexBuffer() override {}
 
         void markUsed();
 

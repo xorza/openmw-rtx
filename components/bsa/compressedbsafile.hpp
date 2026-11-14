@@ -121,7 +121,7 @@ namespace Bsa
         using BSAFile::open;
 
         CompressedBSAFile() = default;
-        virtual ~CompressedBSAFile() = default;
+        ~CompressedBSAFile() override = default;
 
         /// Read header information from the input source
         void readHeader(std::istream& input) override;

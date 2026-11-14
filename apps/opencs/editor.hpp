@@ -78,7 +78,7 @@ namespace CS
 
     public:
         Editor(int argc, char** argv);
-        ~Editor();
+        ~Editor() override;
 
         bool makeIPCServer();
         void connectToIPCServer();

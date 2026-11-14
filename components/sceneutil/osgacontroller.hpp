@@ -29,7 +29,7 @@ namespace SceneUtil
 
         virtual void setAnimation(Resource::Animation* animation);
 
-        virtual void apply(osg::Node& node) override;
+        void apply(osg::Node& node) override;
 
     protected:
         Resource::Animation* mAnimation;

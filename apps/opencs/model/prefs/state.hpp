@@ -87,7 +87,7 @@ namespace CSMPrefs
 
         State(const State&) = delete;
 
-        ~State();
+        ~State() override;
 
         State& operator=(const State&) = delete;
 

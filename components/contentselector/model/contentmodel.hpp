@@ -26,7 +26,7 @@ namespace ContentSelectorModel
         Q_OBJECT
     public:
         explicit ContentModel(QObject* parent, QIcon& warningIcon, QIcon& errorIcon, bool showOMWScripts);
-        ~ContentModel();
+        ~ContentModel() override;
 
         void setEncoding(const QString& encoding);
 

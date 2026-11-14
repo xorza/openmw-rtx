@@ -181,7 +181,7 @@ namespace CSMWorld
     public:
         NestableColumn(int columnId, Display displayType, int flag);
 
-        ~NestableColumn();
+        ~NestableColumn() override;
 
         void addColumn(CSMWorld::NestableColumn* column);
 

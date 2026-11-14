@@ -64,7 +64,7 @@ namespace Debug
         virtual bool isValid() const;
 
     protected:
-        virtual ~DebugGroup() = default;
+        ~DebugGroup() override = default;
 
         virtual void push(osg::State& state) const;
 

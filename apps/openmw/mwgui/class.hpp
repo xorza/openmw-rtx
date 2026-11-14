@@ -162,7 +162,7 @@ namespace MWGui
     {
     public:
         SelectSpecializationDialog();
-        ~SelectSpecializationDialog();
+        ~SelectSpecializationDialog() override;
 
         bool exit() override;
 
@@ -230,7 +230,7 @@ namespace MWGui
     {
     public:
         SelectSkillDialog();
-        ~SelectSkillDialog();
+        ~SelectSkillDialog() override;
 
         bool exit() override;
 
@@ -267,7 +267,7 @@ namespace MWGui
     {
     public:
         DescriptionDialog();
-        ~DescriptionDialog();
+        ~DescriptionDialog() override;
 
         std::string getTextInput() const { return mTextEdit->getCaption(); }
         void setTextInput(const std::string& text) { mTextEdit->setCaption(text); }
@@ -289,7 +289,7 @@ namespace MWGui
     {
     public:
         CreateClassDialog();
-        virtual ~CreateClassDialog();
+        ~CreateClassDialog() override;
 
         bool exit() override { return false; }
 

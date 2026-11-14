@@ -133,7 +133,7 @@ namespace MWGui
             const std::shared_ptr<SceneUtil::WorkQueue>& workQueue, const std::filesystem::path& logpath,
             bool consoleOnlyScripts, Translation::Storage& translationDataStorage, ToUTF8::FromType encoding,
             bool exportFonts, const std::string& versionDescription, Files::ConfigurationManager& cfgMgr);
-        virtual ~WindowManager();
+        ~WindowManager() override;
 
         /// Set the ESMStore to use for retrieving of GUI-related strings.
         void setStore(const MWWorld::ESMStore& store);

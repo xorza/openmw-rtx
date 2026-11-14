@@ -42,7 +42,7 @@ namespace Terrain
         const char* libraryName() const override { return "Terrain"; }
 
         TerrainDrawable();
-        ~TerrainDrawable(); // has to be defined in the cpp file because we only forward declared some members.
+        ~TerrainDrawable() override; // has to be defined in the cpp file because we only forward declared some members.
         TerrainDrawable(const TerrainDrawable& copy, const osg::CopyOp& copyop);
 
         void accept(osg::NodeVisitor& nv) override;

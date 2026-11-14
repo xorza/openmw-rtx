@@ -54,7 +54,7 @@ namespace Bsa
         using BSAFile::open;
 
         BA2DX10File();
-        virtual ~BA2DX10File();
+        ~BA2DX10File() override;
 
         /// Read header information from the input source
         void readHeader(std::istream& stream) override;

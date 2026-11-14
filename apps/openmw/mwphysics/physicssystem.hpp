@@ -146,7 +146,7 @@ namespace MWPhysics
     {
     public:
         PhysicsSystem(Resource::ResourceSystem* resourceSystem, std::unique_ptr<btIDebugDraw> debugDrawer);
-        virtual ~PhysicsSystem();
+        ~PhysicsSystem() override;
 
         Resource::BulletShapeManager* getShapeManager();
 

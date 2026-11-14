@@ -262,7 +262,7 @@ namespace MWMechanics
 
     public:
         CharacterController(const MWWorld::Ptr& ptr, MWRender::Animation& anim);
-        virtual ~CharacterController();
+        ~CharacterController() override;
 
         CharacterController(const CharacterController&) = delete;
         CharacterController(CharacterController&&) = delete;

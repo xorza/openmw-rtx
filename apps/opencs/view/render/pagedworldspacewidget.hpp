@@ -108,7 +108,7 @@ namespace CSVRender
         /// no cells are displayed. The cells to be displayed will be specified later through
         /// hint system.
 
-        virtual ~PagedWorldspaceWidget();
+        ~PagedWorldspaceWidget() override;
 
         /// Decodes the the hint string to set of cell that are rendered.
         void useViewHint(const std::string& hint) override;

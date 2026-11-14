@@ -53,7 +53,7 @@ namespace Rtx
     class PictureRenderer : public SceneHolder
     {
     public:
-        virtual ~PictureRenderer() = default;
+        ~PictureRenderer() override = default;
 
         PictureRenderer(const PictureRenderer&) = delete;
         PictureRenderer& operator=(const PictureRenderer&) = delete;

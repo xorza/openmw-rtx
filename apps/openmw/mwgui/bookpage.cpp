@@ -203,7 +203,7 @@ namespace MWGui
             mSections[section].mLines[line].mRuns[run].mStyle->mNormalColour = colour;
         }
 
-        virtual ~TypesetBookImpl() = default;
+        ~TypesetBookImpl() override = default;
 
         Range addContent(std::string_view text)
         {
@@ -361,7 +361,7 @@ namespace MWGui
             mBook = std::make_shared<TypesetBookImpl>(fontSize);
         }
 
-        virtual ~Typesetter() = default;
+        ~Typesetter() override = default;
 
         Style* createStyle(const std::string& fontName, const MyGUI::Colour& fontColour, bool useBookFont) override
         {

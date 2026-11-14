@@ -19,7 +19,7 @@ namespace CSMDoc
     public:
         OperationHolder(QObject* parent, Operation* operation);
 
-        ~OperationHolder();
+        ~OperationHolder() override;
 
         bool isRunning() const;
 

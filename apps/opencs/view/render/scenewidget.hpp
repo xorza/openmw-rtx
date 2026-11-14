@@ -72,7 +72,7 @@ namespace CSVRender
     public:
         RenderWidget(std::shared_ptr<Resource::ResourceSystem> resourceSystem, QWidget* parent = nullptr,
             Qt::WindowFlags f = Qt::WindowFlags());
-        virtual ~RenderWidget();
+        ~RenderWidget() override;
 
         /// Initiates a request to redraw the view
         void flagAsModified();
@@ -108,7 +108,7 @@ namespace CSVRender
     public:
         SceneWidget(std::shared_ptr<Resource::ResourceSystem> resourceSystem, QWidget* parent = nullptr,
             Qt::WindowFlags f = Qt::WindowFlags(), bool retrieveInput = true);
-        virtual ~SceneWidget();
+        ~SceneWidget() override;
 
         CSVWidget::SceneToolMode* makeLightingSelector(CSVWidget::SceneToolbar* parent);
         ///< \attention The created tool is not added to the toolbar (via addTool). Doing that

@@ -20,7 +20,7 @@ namespace MWInput
             const std::filesystem::path& userControllerBindingsFile,
             const std::filesystem::path& controllerBindingsFile);
 
-        virtual ~ControllerManager() = default;
+        ~ControllerManager() override = default;
 
         void update(float dt);
 

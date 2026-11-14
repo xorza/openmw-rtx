@@ -56,12 +56,12 @@ namespace Stereo
         }
 
     protected:
-        virtual void setDefaults(osg::StateSet* stateset) override
+        void setDefaults(osg::StateSet* stateset) override
         {
             stateset->addUniform(new osg::Uniform("projectionMatrix", osg::Matrixf{}));
         }
 
-        virtual void apply(osg::StateSet* stateset, osg::NodeVisitor* /*nv*/) override {}
+        void apply(osg::StateSet* stateset, osg::NodeVisitor* /*nv*/) override {}
 
         void applyLeft(osg::StateSet* stateset, osgUtil::CullVisitor* nv) override
         {

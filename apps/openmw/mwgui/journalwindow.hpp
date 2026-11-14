@@ -25,7 +25,7 @@ namespace MWGui
             std::shared_ptr<JournalViewModel> model, bool questList, ToUTF8::FromType encoding);
 
         /// destroy this instance of the JournalWindow implementation
-        virtual ~JournalWindow() = default;
+        ~JournalWindow() override = default;
 
         /// show/hide the journal window
         void setVisible(bool newValue) override = 0;

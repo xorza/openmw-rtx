@@ -66,7 +66,7 @@ namespace MWInput
         {
         }
 
-        virtual ~BindingsListener() = default;
+        ~BindingsListener() override = default;
 
         void channelChanged(ICS::Channel* channel, float currentValue, float previousValue) override
         {

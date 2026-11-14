@@ -112,7 +112,7 @@ namespace MWBase
 
         WindowManager() {}
 
-        virtual ~WindowManager() = default;
+        ~WindowManager() override = default;
 
         /// @note This method will block until the video finishes playing
         /// (and will continually update the window while doing so)

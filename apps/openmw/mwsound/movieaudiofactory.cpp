@@ -88,7 +88,7 @@ namespace MWSound
         }
 
     public:
-        ~MovieAudioDecoder()
+        ~MovieAudioDecoder() override
         {
             if (mAudioTrack)
                 MWBase::Environment::get().getSoundManager()->stopTrack(mAudioTrack);

@@ -91,7 +91,7 @@ namespace MWGui
     {
     public:
         ProxyItemModel() = default;
-        virtual ~ProxyItemModel() = default;
+        ~ProxyItemModel() override = default;
 
         bool allowedToUseItems() const override;
 

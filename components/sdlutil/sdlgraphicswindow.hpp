@@ -22,7 +22,7 @@ namespace SDLUtil
 
         void init();
 
-        virtual ~GraphicsWindowSDL();
+        ~GraphicsWindowSDL() override;
 
     public:
         GraphicsWindowSDL(osg::GraphicsContext::Traits* traits, VSyncMode vsyncMode);

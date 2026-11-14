@@ -48,7 +48,7 @@ namespace MWGui
             /// the name of the NPC this portion of dialog was heard from.
             virtual std::string_view source() const = 0;
 
-            virtual ~TopicEntry() = default;
+            ~TopicEntry() override = default;
         };
 
         /// An interface to journal data.
@@ -58,7 +58,7 @@ namespace MWGui
             /// the in-game date this entry was added to the journal.
             virtual std::string_view timestamp() const = 0;
 
-            virtual ~JournalEntry() = default;
+            ~JournalEntry() override = default;
         };
 
         /// called prior to journal opening

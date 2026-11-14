@@ -71,7 +71,7 @@ namespace CSVWorld
         DataDisplayDelegate(const ValueList& values, const IconList& icons, CSMWorld::CommandDispatcher* dispatcher,
             CSMDoc::Document& document, const std::string& pageName, const std::string& settingName, QObject* parent);
 
-        ~DataDisplayDelegate() = default;
+        ~DataDisplayDelegate() override = default;
 
         void paint(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const override;
 

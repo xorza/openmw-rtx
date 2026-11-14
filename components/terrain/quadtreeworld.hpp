@@ -35,7 +35,7 @@ namespace Terrain
             int compMapResolution, float comMapLevel, float lodFactor, int vertexLodMod, float maxCompGeometrySize,
             bool debugChunks, ESM::RefId worldspace, double expiryDelay);
 
-        ~QuadTreeWorld();
+        ~QuadTreeWorld() override;
 
         void accept(osg::NodeVisitor& nv);
 

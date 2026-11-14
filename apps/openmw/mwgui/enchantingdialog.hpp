@@ -17,7 +17,7 @@ namespace MWGui
     {
     public:
         EnchantingDialog();
-        virtual ~EnchantingDialog() = default;
+        ~EnchantingDialog() override = default;
 
         void onOpen() override;
 

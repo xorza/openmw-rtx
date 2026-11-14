@@ -38,7 +38,7 @@ namespace MWGui
     public:
         ScreenFader(const std::string& texturePath, const std::string& layout = "openmw_screen_fader.layout",
             const MyGUI::FloatCoord& texCoordOverride = MyGUI::FloatCoord(0, 0, 1, 1));
-        ~ScreenFader();
+        ~ScreenFader() override;
 
         void onFrameStart(float dt);
 

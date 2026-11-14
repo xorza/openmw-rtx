@@ -24,7 +24,7 @@ namespace MyGUIPlatform
         {
         }
 
-        ~CustomLogListener() {}
+        ~CustomLogListener() override {}
 
         void open() override;
         void close() override;

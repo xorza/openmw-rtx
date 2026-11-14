@@ -21,7 +21,7 @@ namespace Resource
 
     public:
         NifFileManager(const VFS::Manager* vfs, const ToUTF8::StatelessUtf8Encoder* encoder);
-        ~NifFileManager();
+        ~NifFileManager() override;
 
         /// Retrieve a NIF file from the cache, or load it from the VFS if not cached yet.
         /// @note For performance reasons the NifFileManager does not handle case folding, needs

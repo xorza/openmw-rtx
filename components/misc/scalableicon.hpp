@@ -19,7 +19,7 @@ namespace Misc
 
         static void updateAllIcons();
 
-        virtual ~ScalableIcon();
+        ~ScalableIcon() override;
 
         static QIcon load(const QString& fileName);
 

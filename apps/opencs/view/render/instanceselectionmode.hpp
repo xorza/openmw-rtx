@@ -35,7 +35,7 @@ namespace CSVRender
         InstanceSelectionMode(
             CSVWidget::SceneToolbar* parent, WorldspaceWidget& worldspaceWidget, osg::Group* cellNode);
 
-        ~InstanceSelectionMode();
+        ~InstanceSelectionMode() override;
 
         /// Store the worldspace-coordinate when drag begins
         void setDragStart(const osg::Vec3d& dragStart);

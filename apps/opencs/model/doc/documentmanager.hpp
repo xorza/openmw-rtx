@@ -43,7 +43,7 @@ namespace CSMDoc
     public:
         DocumentManager(const Files::ConfigurationManager& configuration);
 
-        ~DocumentManager();
+        ~DocumentManager() override;
 
         void addDocument(
             const std::vector<std::filesystem::path>& files, const std::filesystem::path& savePath, bool isNew);

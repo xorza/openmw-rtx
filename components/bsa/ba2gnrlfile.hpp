@@ -42,7 +42,7 @@ namespace Bsa
         using BSAFile::open;
 
         BA2GNRLFile();
-        virtual ~BA2GNRLFile();
+        ~BA2GNRLFile() override;
 
         /// Read header information from the input source
         void readHeader(std::istream& input) override;

@@ -340,7 +340,7 @@ namespace MWWorld
     public:
         typedef typename Statics::iterator iterator;
 
-        virtual ~Store();
+        ~Store() override;
 
         size_t getSize() const override;
         iterator begin() const;

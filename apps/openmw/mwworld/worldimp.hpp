@@ -234,7 +234,7 @@ namespace MWWorld
         void init(Debug::Level maxRecastLogLevel, MWRender::Renderer& renderer, osg::ref_ptr<osg::Group> rootNode,
             const std::shared_ptr<SceneUtil::WorkQueue>& workQueue, SceneUtil::UnrefQueue& unrefQueue);
 
-        virtual ~World();
+        ~World() override;
 
         void setRandomSeed(uint32_t seed) override;
 

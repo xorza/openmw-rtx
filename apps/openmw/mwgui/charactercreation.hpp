@@ -30,7 +30,7 @@ namespace MWGui
     {
     public:
         CharacterCreation();
-        virtual ~CharacterCreation();
+        ~CharacterCreation() override;
 
         // Show a dialog
         void spawnDialog(const GuiMode id);

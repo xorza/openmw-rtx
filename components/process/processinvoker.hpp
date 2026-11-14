@@ -13,7 +13,7 @@ namespace Process
 
     public:
         ProcessInvoker(QObject* parent = nullptr);
-        ~ProcessInvoker();
+        ~ProcessInvoker() override;
 
         //        void setProcessName(const QString &name);
         //        void setProcessArguments(const QStringList &arguments);

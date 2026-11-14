@@ -34,7 +34,7 @@ namespace CSMDoc
     public:
         Runner(std::filesystem::path projectPath);
 
-        ~Runner();
+        ~Runner() override;
 
         /// \param delayed Flag as running but do not start the OpenMW process yet (the
         /// process must be started by another call of start with delayed==false)
