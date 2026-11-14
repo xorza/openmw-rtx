@@ -2,6 +2,7 @@
 - remove zhi dialong from rtxtool
 - contribution rules
 - tidy ci
+- custom map notes plugin
 
 - all IO serial?
 
