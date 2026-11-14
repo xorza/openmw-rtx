@@ -7,6 +7,8 @@
 - audit macros
 - #if OPENMW_FFMPEG_5_OR_GREATER
 - audit ifdefs remove legacy
+- tour in 800 600 with balanced upscaler
+- remove mfr messagebox
 
 - all IO serial?
 
