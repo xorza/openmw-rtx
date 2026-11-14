@@ -1,6 +1,5 @@
 # Open issues
 
-- `RtxPresenterTest.aLostSurfaceIsMadeAgainAndTheFramesGoOn` takes 1.02 s run alone in the debug build on the low-end AMD integrated GPU under Windows (the gate's timing step).
 - `std::string_view::data()` is handed to C APIs that read up to a terminator: `apps/openmw/mwrender/renderer.cpp:346` (`SDL_SetStringProperty`), `apps/openmw/mwrender/rtx/rtxrenderer.cpp:1057` (`RtxWindow::setTitle`), `components/crashcatcher/crashpadclient.cpp:63` (`crashpad::Annotation`).
 - `PreparationManifest`'s defaulted move constructor and move assignment (`components/rtx/prepare/preparationmanifest.hpp:67`) are not `noexcept`, as its `std::deque` member's move is not.
 - `std::lock_guard` in 22 places where the conventions name `std::scoped_lock`: `components/crashcatcher/` (`crashmonitorrequests.cpp`, `crashmonitorlog.cpp`, `crashpadmonitorposix.cpp`, `crashpadclient.cpp`, `crashpadsummarysource.cpp`, `crashpadmonitor.cpp`), `components/rtx/prepare/filestamps.cpp`, `components/rtx/prepare/contentpreparation.cpp:236,540`, `components/rtxvulkan/device/pipelinecode.cpp:54`.

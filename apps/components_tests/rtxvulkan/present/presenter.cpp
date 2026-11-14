@@ -1,6 +1,7 @@
 #include <chrono>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -58,13 +59,42 @@ namespace Rtx
             std::string mWhyNot;
         };
 
-        /// A device of its own, on an instance with the window system's extensions, which the shared harness's
-        /// headless instance has none of.
-        ///
-        /// **On the session's display, and skipped without one** (`TestPlatform::showsADesktop`): NVIDIA's driver
-        /// presents nothing to a `VK_EXT_headless_surface` surface, so SDL's offscreen video gives no swapchain to
-        /// test on every card. A window SDL refuses on a display it did start is a failure.
-        class RtxPresenterTest : public ::testing::Test
+        /// A device of its own on `window`, on an instance with the window system's extensions, which the shared
+        /// harness's headless instance has none of, and the window's surface for a presenter to take. Pinned: the
+        /// surface and the device hold the instance.
+        struct PresentingDevice
+        {
+            explicit PresentingDevice(SDL_Window* window)
+                : mInstance(std::make_unique<Instance>(
+                      Testing::describeValidation(Testing::Validation::Validated), Surface::getInstanceExtensions()))
+                , mSurface(std::make_unique<Surface>(*mInstance, window))
+                , mDevice(std::make_unique<Device>(*mInstance,
+                      PhysicalDevice::select(mInstance->getHandle(),
+                          [&](VkPhysicalDevice physical, std::uint32_t family) {
+                              return mSurface->supports(physical, family).value_or(false);
+                          }),
+                      Testing::getCensusShaders(), Testing::getPipelineCacheSpec(), DeviceReport{}))
+            {
+            }
+
+            PresentingDevice(const PresentingDevice&) = delete;
+            PresentingDevice& operator=(const PresentingDevice&) = delete;
+            PresentingDevice(PresentingDevice&&) = delete;
+            PresentingDevice& operator=(PresentingDevice&&) = delete;
+            ~PresentingDevice() = default;
+
+            std::unique_ptr<Instance> mInstance;
+            std::unique_ptr<Surface> mSurface;
+            std::unique_ptr<Device> mDevice;
+        };
+
+        /// A hidden window to present to, **on the session's display, and skipped without one**
+        /// (`TestPlatform::showsADesktop`): NVIDIA's driver presents nothing to a `VK_EXT_headless_surface` surface, so
+        /// SDL's offscreen video gives no swapchain to test on every card. A window SDL refuses on a display it did
+        /// start is a failure. The device is the test's own to make: a death test makes it inside its statement, as a
+        /// death test's child runs the test again from its start, which Windows cannot fork past, so a device made
+        /// ahead of the statement is made twice.
+        class RtxPresenterDeathTest : public ::testing::Test
         {
         protected:
             void SetUp() override
@@ -74,24 +104,29 @@ namespace Rtx
                 if (!Testing::TestPlatform::showsADesktop())
                     GTEST_SKIP() << "the session shows no desktop to present to: a service's, as SSH's is";
                 ASSERT_NE(mVideo.mWindow, nullptr) << SDL_GetError();
+            }
 
-                mInstance = std::make_unique<Instance>(
-                    Testing::describeValidation(Testing::Validation::Validated), Surface::getInstanceExtensions());
-                mSurface = std::make_unique<Surface>(*mInstance, mVideo.mWindow);
-                mDevice = std::make_unique<Device>(*mInstance,
-                    PhysicalDevice::select(mInstance->getHandle(),
-                        [&](VkPhysicalDevice physical, std::uint32_t family) {
-                            return mSurface->supports(physical, family).value_or(false);
-                        }),
-                    Testing::getCensusShaders(), Testing::getPipelineCacheSpec(), DeviceReport{});
+            HiddenWindow mVideo;
+        };
+
+        /// A presenting device on the hidden window, made ahead of the test.
+        class RtxPresenterTest : public RtxPresenterDeathTest
+        {
+        protected:
+            void SetUp() override
+            {
+                RtxPresenterDeathTest::SetUp();
+                if (IsSkipped() || HasFatalFailure())
+                    return;
+                mPresenting.emplace(mVideo.mWindow);
             }
 
             void TearDown() override
             {
-                if (mDevice == nullptr)
+                if (!mPresenting.has_value())
                     return;
-                mDevice->waitIdle();
-                if (ValidationLog* log = mInstance->getValidationLog(); log != nullptr)
+                mPresenting->mDevice->waitIdle();
+                if (ValidationLog* log = mPresenting->mInstance->getValidationLog(); log != nullptr)
                 {
                     std::vector<std::string> raised;
                     log->takeErrorsOnThisThread(raised);
@@ -100,22 +135,19 @@ namespace Rtx
                 }
             }
 
-            HiddenWindow mVideo;
-            std::unique_ptr<Instance> mInstance;
-            std::unique_ptr<Surface> mSurface;
-            std::unique_ptr<Device> mDevice;
+            std::optional<PresentingDevice> mPresenting;
         };
 
         /// **A lost surface is made again from the window, and the frames go on**: a present after the rebuild leaves
-        /// nothing to remake, and a loss after it is a loss like the first. One lost again before any present showed
-        /// on the new surface ends the process, where a rebuild each frame would hold the game in a stall. The handle
-        /// is not compared: a surface made after the old one went can take its address.
+        /// nothing to remake, and a loss after it is a loss like the first. The handle is not compared: a surface made
+        /// after the old one went can take its address.
         TEST_F(RtxPresenterTest, aLostSurfaceIsMadeAgainAndTheFramesGoOn)
         {
             const VkExtent2D extent{ 64, 32 };
             PresentTarget target;
-            target.resize(*mDevice, extent.width, extent.height);
-            Presenter presenter(*mDevice, std::move(mSurface), mVideo.mWindow, VerticalSync::Off);
+            target.resize(*mPresenting->mDevice, extent.width, extent.height);
+            Presenter presenter(
+                *mPresenting->mDevice, std::move(mPresenting->mSurface), mVideo.mWindow, VerticalSync::Off);
             const auto show
                 = [&] { presenter.present(target.getShown(), PresentTarget::sResting, [](VkCommandBuffer) {}); };
 
@@ -144,10 +176,21 @@ namespace Rtx
                 show();
                 EXPECT_FALSE(presenter.wantsResize(extent)) << "a present on the new surface was refused";
             }
+        }
 
-            presenter.surfaceLost();
-            presenter.rebuild(extent);
-            Testing::expectDies([&] { presenter.surfaceLost(); },
+        /// **A surface lost again before a frame showed on the one made after it ends the process**, where a rebuild
+        /// each frame would hold the game in a stall.
+        TEST_F(RtxPresenterDeathTest, aSurfaceLostAgainBeforeAFrameShowedEndsTheProcess)
+        {
+            Testing::expectDies(
+                [&] {
+                    PresentingDevice presenting(mVideo.mWindow);
+                    Presenter presenter(
+                        *presenting.mDevice, std::move(presenting.mSurface), mVideo.mWindow, VerticalSync::Off);
+                    presenter.surfaceLost();
+                    presenter.rebuild(VkExtent2D{ 64, 32 });
+                    presenter.surfaceLost();
+                },
                 "the window's surface was lost again before a frame was shown on the one made after it");
         }
 
@@ -159,8 +202,9 @@ namespace Rtx
             const VkExtent2D extent{ 64, 32 };
             const VkExtent2D wider{ 96, 32 };
             PresentTarget target;
-            target.resize(*mDevice, extent.width, extent.height);
-            Presenter presenter(*mDevice, std::move(mSurface), mVideo.mWindow, VerticalSync::Off);
+            target.resize(*mPresenting->mDevice, extent.width, extent.height);
+            Presenter presenter(
+                *mPresenting->mDevice, std::move(mPresenting->mSurface), mVideo.mWindow, VerticalSync::Off);
             presenter.present(target.getShown(), PresentTarget::sResting, [](VkCommandBuffer) {});
             EXPECT_FALSE(presenter.wantsResize(extent));
 
@@ -186,8 +230,9 @@ namespace Rtx
         {
             const VkExtent2D extent{ 64, 32 };
             PresentTarget target;
-            target.resize(*mDevice, extent.width, extent.height);
-            Presenter presenter(*mDevice, std::move(mSurface), mVideo.mWindow, VerticalSync::On);
+            target.resize(*mPresenting->mDevice, extent.width, extent.height);
+            Presenter presenter(
+                *mPresenting->mDevice, std::move(mPresenting->mSurface), mVideo.mWindow, VerticalSync::On);
 
             constexpr int frames = 4;
             const auto began = std::chrono::steady_clock::now();
