@@ -489,10 +489,16 @@ bounce (or `unbounced` in their place), then the composite. Every ray is a ray q
   module's count.
 - **A committed triangle's corners are read off the scene's vertices** (`committedHit`), since AMD's Windows driver
   fetches them wrong.
-- **No kernel spills past its ceiling** (`RtxVisibilityKernelsTest`): each driver's ceilings only fall, a register
-  ceiling rising only inside the waves it allowed (`research/2026-10-22-amd-integrated-spill-ceilings.md`). Measured
-  on the shipped modules, as a measured run of the harness reads them: the census's counting, which the test devices
-  carry, cost every AMD kernel up to five registers more and is no part of what the game runs.
+- **No kernel spills past its ceiling, in any tuple** (`RtxVisibilityKernelsTest`): each driver's ceilings only fall,
+  a register ceiling rising only inside the waves it allowed (`research/2026-10-22-amd-integrated-spill-ceilings.md`).
+  A row holds every tuple of its stage that agrees with the constants it names, the row naming the most winning, as
+  Mesa's CI keeps a driver's expected failures. Refused: a recorded figure a kernel and tuple, as Mesa's shader-db
+  compares two listings, which keeps no reason and goes stale on the drivers not at hand. Measured on the shipped
+  modules, as a measured run of the harness reads them: the census's counting, which the test devices carry, cost
+  every AMD kernel up to five registers more and is no part of what the game runs.
+- **NVIDIA's rows hold a stage's scratch at what it is**: its compiler keeps what the registers do not hold in shared
+  memory and only what is over in a lane's local memory, one spill in two places
+  (`research/2026-11-14-nvidia-register-spills.md`).
 - **Every pipeline captures its statistics**, the game's as well as the harness's, so a player's log names a kernel
   that spills (`Device::logPipelineSummary`): NVIDIA's driver kept its pipeline cache under the flag and compiled no
   slower, and RADV keys its cache on it without skipping it (`research/2026-11-13-pipeline-statistics-cost.md`).

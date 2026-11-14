@@ -1,9 +1,12 @@
 #include <algorithm>
 #include <array>
 #include <chrono>
+#include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <span>
+#include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
@@ -142,15 +145,19 @@ namespace Rtx
             EXPECT_EQ(every.mCount, drawing + 47u);
         }
 
-        /// No kernel spills past its ceiling, where the driver says (`PipelineReport::compiledUseOf`): the full tuple,
-        /// which carries every case, and the same without a dark map's alpha, which nearly every scene that has
-        /// everything else runs. A kernel that spills runs at the speed of its scratch: the inline trace's, 800
-        /// words a lane through 256 registers, drew an 80x45 frame of a low-end AMD integrated GPU in 650 ms
+        /// No kernel spills past its ceiling, where the driver says (`PipelineReport::compiledUseOf`), in any tuple
+        /// a frame runs. A kernel that spills runs at the speed of its scratch: the inline trace's, 800 words a
+        /// lane through 256 registers, drew an 80x45 frame of a low-end AMD integrated GPU in 650 ms
         /// (`docs/research/2026-10-21-amd-integrated-stage-times.md`).
         ///
         /// - Each target driver's own ceilings, each one that only falls: AMD's own driver, RADV and NVIDIA,
         ///   each read by its own names (`CompiledUse`), since one compiler's count is no count of another's.
         ///   A driver with none is a failure: the targets are those three.
+        /// - **A row holds every tuple of its stage that agrees with the constants it names, and of the rows
+        ///   that hold a tuple the one naming the most is its ceiling**, as Mesa's CI keeps a driver's list of
+        ///   expected failures: a ceiling's reason is a stage's, and a tuple is its stage with code taken out.
+        ///   Refused: a recorded figure a kernel and tuple, as Mesa's shader-db compares two listings, some 330
+        ///   lines a driver with no reason beside any, each stale on the two drivers not at hand.
         /// - No scratch and 128 registers at most, but where a kernel holds more, at what it holds: the
         ///   trace's stages, whose walks keep their records live through one loop ("The spill gate holds what
         ///   each kernel spills"). 128 registers run eight waves on an RDNA SIMD and 256 four, and a ray tracer
@@ -165,96 +172,131 @@ namespace Rtx
         ///   a launch's registers as a stub of three; its spills show in the stack.
         TEST_F(RtxVisibilityKernelsTest, noKernelSpillsPastItsCeiling)
         {
+            /// The tuples a row holds: those that agree with each constant it names, every tuple where it names
+            /// none.
+            struct TupleSet
+            {
+                std::optional<bool> mSun = std::nullopt;
+                std::optional<bool> mMoons = std::nullopt;
+                std::optional<bool> mSea = std::nullopt;
+                std::optional<bool> mMaps = std::nullopt;
+                std::optional<bool> mDarkAlpha = std::nullopt;
+                std::optional<bool> mRelief = std::nullopt;
+
+                bool holds(const VisibilityVariant& tuple) const
+                {
+                    const auto agrees = [](const std::optional<bool> named, const bool has) {
+                        return !named.has_value() || *named == has;
+                    };
+                    return agrees(mSun, tuple.mSun) && agrees(mMoons, tuple.mMoons) && agrees(mSea, tuple.mSea)
+                        && agrees(mMaps, tuple.mMaps) && agrees(mDarkAlpha, tuple.mDarkAlpha)
+                        && agrees(mRelief, tuple.mRelief);
+                }
+
+                std::ptrdiff_t named() const
+                {
+                    const std::array constants{ mSun, mMoons, mSea, mMaps, mDarkAlpha, mRelief };
+                    return std::ranges::count_if(
+                        constants, [](const std::optional<bool> constant) { return constant.has_value(); });
+                }
+            };
             struct Ceiling
             {
-                std::string_view mName;
                 std::uint64_t mScratch;
                 std::uint64_t mRegisters;
                 std::uint64_t mShared;
             };
+            struct Row
+            {
+                std::string_view mName;
+                TupleSet mTuples;
+                Ceiling mCeiling;
+            };
             struct DriverCeilings
             {
                 VkDriverId mDriver;
-                Ceiling mEveryOther;
-                std::span<const Ceiling> mWithoutDarkAlpha;
 
-                /// The whole tuple, which a scene with a see-through dark map runs and every other scene only
-                /// until its own tuple lands, at what that read costs it (`HAS_DARK_ALPHA`).
-                std::span<const Ceiling> mWhole;
+                /// What holds a kernel no row does.
+                Ceiling mRule;
+                std::span<const Row> mRows;
             };
 
-            // Measured on a low-end AMD integrated GPU under AMD's Windows driver. `visibility` under the rule
-            // since a hit's vertex colours and a relief's layers' frame stand past the ground stack
-            // (`docs/research/2026-11-13-amd-integrated-register-tiers.md`); the water and media at what they
-            // hold since each walk resolves its hit once ("A walk resolves the surface it ends on once"); the
-            // whole tuple's `media` at 216 since a read pairs an image with its sampler (`TEXTURE`), still four
-            // waves on an RDNA SIMD (`docs/research/2026-11-09-separate-samplers.md`); the landing at 144 since
-            // a sheet takes its span off the corners the hit carried
+            // Measured on a low-end AMD integrated GPU under AMD's Windows driver, in two tuples: the whole one,
+            // which the rows of a dark map's alpha are, and the same without that read (`HAS_DARK_ALPHA`), which
+            // the others are. Every other tuple is one of the two with code taken out, and is held at its figure.
+            // `visibility` under the rule since a hit's vertex colours and a relief's layers' frame stand past
+            // the ground stack (`docs/research/2026-11-13-amd-integrated-register-tiers.md`); the water and media
+            // at what they hold since each walk resolves its hit once ("A walk resolves the surface it ends on
+            // once"); `media` with a dark map's alpha at 216 since a read pairs an image with its sampler
+            // (`TEXTURE`), still four waves on an RDNA SIMD (`docs/research/2026-11-09-separate-samplers.md`);
+            // the landing at 144 since a sheet takes its span off the corners the hit carried
             // (`docs/research/2026-11-09-sheet-span.md`); `panes` with no scratch since a layer under the water
             // takes its column's shafts from `media` (`docs/research/2026-11-12-panes-column-ratio.md`).
-            constexpr std::array<Ceiling, 5> sAmdWithoutDarkAlpha{ {
-                { "water", 0, 177, 2048 },
-                { "direct", 0, 160, 2048 },
-                { "media", 0, 192, 2048 },
-                { "panes", 0, 248, 2048 },
-                { "landing", 0, 144, 2048 },
+            constexpr std::array<Row, 10> sAmd{ {
+                { "water", {}, { 0, 177, 2048 } },
+                { "water", { .mDarkAlpha = true }, { 0, 190, 2048 } },
+                { "direct", {}, { 0, 160, 2048 } },
+                { "direct", { .mDarkAlpha = true }, { 0, 144, 2048 } },
+                { "media", {}, { 0, 192, 2048 } },
+                { "media", { .mDarkAlpha = true }, { 0, 216, 2048 } },
+                { "panes", {}, { 0, 248, 2048 } },
+                { "panes", { .mDarkAlpha = true }, { 0, 254, 2048 } },
+                { "landing", {}, { 0, 144, 2048 } },
+                { "bounce", { .mDarkAlpha = true }, { 0, 144, 2048 } },
             } };
-            constexpr std::array<Ceiling, 6> sAmdWhole{ {
-                { "water", 0, 190, 2048 },
-                { "direct", 0, 144, 2048 },
-                { "media", 0, 216, 2048 },
-                { "panes", 0, 254, 2048 },
-                { "landing", 0, 144, 2048 },
-                { "bounce", 0, 144, 2048 },
+            // Measured on a high-end NVIDIA laptop GPU under driver 620.70.06, in every tuple. Its compiler keeps
+            // what a stage's registers do not hold in shared memory, up to a figure its register count sets —
+            // 4224 bytes a workgroup at 80 registers, 4992 at 96, 6272 at 128 — and what is over in a lane's
+            // local memory, its scratch: one spill in two places, which it takes over more registers
+            // (`docs/research/2026-11-14-nvidia-register-spills.md`). So a row holds a stage's scratch at what it
+            // is and not at none, and its registers at the count the compiler steps to, 96, 128 or 168. The maps
+            // decide that count in most stages, and a tuple without them holds fewer registers and more shared
+            // memory: here a tuple with code taken out is not held by the tuple it was taken from.
+            // `fog integrate` holds its column depths, floats a thread read at an index the tent's loop leaves
+            // unrolled, which the compiler keeps in shared memory and not a lane's local memory. `lamp lists`
+            // holds its tile's tables, three words a lamp a tile's rays can reach and the list,
+            // `3 × 128 × 4 + 8 × 4` and the count.
+            constexpr std::array<Row, 22> sNvidia{ {
+                { "visibility", {}, { 0, 128, 3712 } },
+                { "visibility", { .mMaps = false }, { 0, 96, 2944 } },
+                { "visibility", { .mSea = true, .mMaps = true }, { 0, 128, 0 } },
+                { "water", {}, { 0, 128, 2944 } },
+                { "water", { .mMaps = true }, { 0, 128, 2688 } },
+                { "direct", {}, { 48, 128, 4992 } },
+                { "direct", { .mMaps = false }, { 48, 96, 4992 } },
+                { "direct", { .mRelief = true }, { 0, 128, 2688 } },
+                { "direct", { .mDarkAlpha = false, .mRelief = true }, { 0, 128, 2176 } },
+                { "media", {}, { 16, 128, 6272 } },
+                { "media", { .mDarkAlpha = false }, { 0, 128, 5504 } },
+                { "panes", {}, { 112, 168, 6272 } },
+                { "panes", { .mSea = false }, { 96, 128, 6272 } },
+                { "panes", { .mSun = true, .mMoons = true, .mSea = true, .mMaps = true }, { 0, 168, 5504 } },
+                { "panes", { .mSun = true, .mMoons = true, .mSea = true, .mMaps = true, .mDarkAlpha = false },
+                    { 0, 168, 4992 } },
+                { "landing", { .mMaps = false }, { 0, 96, 3968 } },
+                { "landing", { .mMaps = true }, { 0, 128, 384 } },
+                { "landing", { .mMaps = true, .mRelief = true }, { 0, 128, 0 } },
+                { "bounce", { .mMaps = false }, { 0, 96, 384 } },
+                { "bounce", { .mMaps = true }, { 0, 128, 0 } },
+                { "fog integrate", {}, { 0, 128, 1792 } },
+                { "lamp lists", {}, { 0, 128, 1584 } },
             } };
-            // Measured on a high-end NVIDIA laptop GPU, whose compiler holds a stage at 128 registers and keeps
-            // what does not fit in shared memory, and the whole tuple's `media` 16 bytes of local memory a lane,
-            // under driver 615.78. The water at 3456 bytes of shared memory since a mapped ground's tangent
-            // selects its axis (`traversal.glsl`), the price of no NaN on a face along ±x, which 16 warps an SM
-            // at 128 registers' shared memory holds all the same. `fog integrate` at 2304: its column depths, nine
-            // floats a thread read at an index the tent's loop leaves unrolled, which the compiler keeps in shared
-            // memory and not a lane's local memory, `64 × 9 × 4` bytes a workgroup. `direct` at 768 bytes more
-            // since it traces a ray to each stratum of the lamps (`weighLampStrata`): asked at its turn and not
-            // held through the traversals, which had it at 5760; and `lamp lists` at its tile's tables, three
-            // words a lamp a tile's rays can reach and the list, `3 × 128 × 4 + 8 × 4` and the count.
-            constexpr std::array<Ceiling, 5> sNvidiaWithoutDarkAlpha{ {
-                { "water", 0, 128, 3456 },
-                { "direct", 0, 128, 2176 },
-                { "media", 0, 128, 5504 },
-                { "panes", 0, 168, 4992 },
-                { "landing", 0, 128, 640 },
+            // Measured on the handheld's integrated GPU under RADV, in the two tuples AMD's rows were.
+            // `visibility` at 144 and the landing under the rule since a sheet takes its span off the corners
+            // the hit carried (`docs/research/2026-11-09-sheet-span.md`).
+            constexpr std::array<Row, 6> sRadv{ {
+                { "visibility", {}, { 0, 144, 2048 } },
+                { "water", {}, { 0, 160, 2048 } },
+                { "direct", {}, { 0, 144, 2048 } },
+                { "media", {}, { 0, 176, 2048 } },
+                { "media", { .mDarkAlpha = true }, { 0, 192, 2048 } },
+                { "panes", {}, { 0, 256, 2048 } },
             } };
-            constexpr std::array<Ceiling, 7> sNvidiaWhole{ {
-                { "water", 0, 128, 3456 },
-                { "direct", 0, 128, 2688 },
-                { "media", 16, 128, 6272 },
-                { "panes", 0, 168, 5504 },
-                { "landing", 0, 128, 640 },
-                { "fog integrate", 0, 128, 2304 },
-                { "lamp lists", 0, 128, 1584 },
-            } };
-            // Measured on the handheld's integrated GPU under RADV. `visibility` at 144 and the landing under the
-            // rule since a sheet takes its span off the corners the hit carried
-            // (`docs/research/2026-11-09-sheet-span.md`).
-            constexpr std::array<Ceiling, 5> sRadvWithoutDarkAlpha{ {
-                { "visibility", 0, 144, 2048 },
-                { "water", 0, 160, 2048 },
-                { "direct", 0, 144, 2048 },
-                { "media", 0, 176, 2048 },
-                { "panes", 0, 256, 2048 },
-            } };
-            constexpr std::array<Ceiling, 5> sRadvWhole{ {
-                { "visibility", 0, 144, 2048 },
-                { "water", 0, 160, 2048 },
-                { "direct", 0, 144, 2048 },
-                { "media", 0, 192, 2048 },
-                { "panes", 0, 256, 2048 },
-            } };
-            const std::array sDrivers{ DriverCeilings{ VK_DRIVER_ID_AMD_PROPRIETARY, { "", 0, 128, 2048 },
-                                           sAmdWithoutDarkAlpha, sAmdWhole },
-                DriverCeilings{ VK_DRIVER_ID_MESA_RADV, { "", 0, 128, 2048 }, sRadvWithoutDarkAlpha, sRadvWhole },
-                DriverCeilings{
-                    VK_DRIVER_ID_NVIDIA_PROPRIETARY, { "", 0, 128, 0 }, sNvidiaWithoutDarkAlpha, sNvidiaWhole } };
+            const std::array sDrivers{
+                DriverCeilings{ VK_DRIVER_ID_AMD_PROPRIETARY, { 0, 128, 2048 }, sAmd },
+                DriverCeilings{ VK_DRIVER_ID_MESA_RADV, { 0, 128, 2048 }, sRadv },
+                DriverCeilings{ VK_DRIVER_ID_NVIDIA_PROPRIETARY, { 0, 128, 0 }, sNvidia },
+            };
             constexpr std::array<std::pair<std::string_view, std::uint64_t>, 4> sStacks{ {
                 { "fog scatter", 320 },
                 { "fog depth", 320 },
@@ -269,56 +311,117 @@ namespace Rtx
             const SpecializedKernels& table = specialized();
             const std::vector<VisibilityPass::NamedKernel>& kernels = table.mKernels;
 
-            const std::uint32_t whole = VisibilityVariant{}.index();
-            const std::uint32_t withoutDarkAlpha = VisibilityVariant{ .mDarkAlpha = false }.index();
-            const auto tupled = [&](const std::uint32_t tuple) {
-                return std::ranges::count_if(
-                    kernels, [&](const VisibilityPass::NamedKernel& kernel) { return kernel.mTuple == tuple; });
-            };
-            ASSERT_EQ(tupled(whole), 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 6);
-            ASSERT_EQ(tupled(withoutDarkAlpha), 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1);
-
+            // Each tuple by its index, which a listed kernel carries.
+            std::array<VisibilityVariant, VisibilityVariant::sCount> tuples{};
+            for (std::uint32_t bits = 0; bits < VisibilityVariant::sCount; ++bits)
+            {
+                const VisibilityVariant tuple{
+                    .mSun = (bits & 1u) != 0,
+                    .mMoons = (bits & 2u) != 0,
+                    .mSea = (bits & 4u) != 0,
+                    .mMaps = (bits & 8u) != 0,
+                    .mDarkAlpha = (bits & 16u) != 0,
+                    .mRelief = (bits & 32u) != 0,
+                };
+                tuples[tuple.index()] = tuple;
+            }
+            std::array<bool, VisibilityVariant::sCount> listed{};
+            std::uint32_t held = 0;
             for (const VisibilityPass::NamedKernel& kernel : kernels)
             {
-                if (kernel.mTuple != whole && kernel.mTuple != withoutDarkAlpha)
-                    continue;
+                if (!std::exchange(listed[kernel.mTuple], true))
+                    ++held;
+            }
+            ASSERT_EQ(held, VisibilityVariant::sMade) << "the tuples held";
+            ASSERT_EQ(std::ranges::count(kernels, VisibilityVariant{}.index(), &VisibilityPass::NamedKernel::mTuple),
+                1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 6);
 
-                Ceiling ceiling = measured->mEveryOther;
-                const std::span<const Ceiling> ceilings
-                    = kernel.mTuple == whole ? measured->mWhole : measured->mWithoutDarkAlpha;
-                for (const Ceiling& stated : ceilings)
+            // Named with its tuple's constants, but a kernel no tuple changes, which is listed once.
+            std::vector<std::string> names;
+            for (const VisibilityPass::NamedKernel& kernel : kernels)
+            {
+                const bool tupled = std::ranges::count(kernels, kernel.mName, &VisibilityPass::NamedKernel::mName) > 1;
+                names.push_back(tupled ? tuples[kernel.mTuple].describe(kernel.mName) : std::string(kernel.mName));
+            }
+
+            // **Every driver's rows are read against the listing, whichever driver runs**, since which row is a
+            // kernel's ceiling asks no device: a row that is no kernel's names a stage or a tuple nothing has,
+            // and two that hold a kernel and name as many constants leave its ceiling to their order.
+            std::vector<Ceiling> ceilings(kernels.size(), measured->mRule);
+            for (const DriverCeilings& stated : sDrivers)
+            {
+                std::vector<bool> used(stated.mRows.size(), false);
+                for (std::size_t at = 0; at < kernels.size(); ++at)
                 {
-                    if (kernel.mName == stated.mName)
-                        ceiling = stated;
+                    std::optional<std::size_t> ceiling;
+                    std::ptrdiff_t named = -1;
+                    int alike = 0;
+                    for (std::size_t row = 0; row < stated.mRows.size(); ++row)
+                    {
+                        const Row& candidate = stated.mRows[row];
+                        if (kernels[at].mName != candidate.mName
+                            || !candidate.mTuples.holds(tuples[kernels[at].mTuple]))
+                            continue;
+
+                        const std::ptrdiff_t count = candidate.mTuples.named();
+                        if (count == named)
+                            ++alike;
+                        if (count > named)
+                        {
+                            ceiling = row;
+                            named = count;
+                            alike = 1;
+                        }
+                    }
+                    EXPECT_LE(alike, 1) << "driver " << stated.mDriver << "'s rows that hold `" << names[at]
+                                        << "` and name as many constants";
+                    if (!ceiling.has_value())
+                        continue;
+
+                    used[*ceiling] = true;
+                    if (stated.mDriver == driver)
+                        ceilings[at] = stated.mRows[*ceiling].mCeiling;
                 }
+
+                for (std::size_t row = 0; row < used.size(); ++row)
+                {
+                    EXPECT_TRUE(used[row]) << "driver " << stated.mDriver << "'s row " << row << ", of `"
+                                           << stated.mRows[row].mName << "`, is no kernel's ceiling";
+                }
+            }
+
+            for (std::size_t at = 0; at < kernels.size(); ++at)
+            {
+                const VisibilityPass::NamedKernel& kernel = kernels[at];
+                const Ceiling& ceiling = ceilings[at];
+                const std::string& name = names[at];
 
                 const CompiledUse use = table.mDevice.getPipelineReport().compiledUseOf(
                     kernel.mPipeline->getHandle(), kernel.mPipeline->getBindPoint());
                 // A launch's stack is its scratch on RADV, a lane's stack a lane: held as its stack.
                 if (use.mScratchBytes.has_value() && !use.mStackBytes.has_value())
                 {
-                    EXPECT_LE(*use.mScratchBytes, ceiling.mScratch) << "the " << kernel.mName << " kernel's scratch";
+                    EXPECT_LE(*use.mScratchBytes, ceiling.mScratch) << "the scratch of `" << name << "`";
                 }
 
                 if (use.mStackBytes.has_value())
                 {
                     std::uint64_t stack = 0;
-                    for (const auto& [name, held] : sStacks)
+                    for (const auto& [launch, most] : sStacks)
                     {
-                        if (kernel.mName == name)
-                            stack = held;
+                        if (kernel.mName == launch)
+                            stack = most;
                     }
-                    EXPECT_LE(*use.mStackBytes, stack) << "the " << kernel.mName << " kernel's stack";
+                    EXPECT_LE(*use.mStackBytes, stack) << "the stack of `" << name << "`";
                 }
                 else if (use.mRegisters.has_value())
                 {
-                    EXPECT_LE(*use.mRegisters, ceiling.mRegisters) << "the " << kernel.mName << " kernel's registers";
+                    EXPECT_LE(*use.mRegisters, ceiling.mRegisters) << "the registers of `" << name << "`";
                 }
 
                 if (use.mSharedBytes.has_value())
                 {
-                    EXPECT_LE(*use.mSharedBytes, ceiling.mShared)
-                        << "the " << kernel.mName << " kernel's shared memory";
+                    EXPECT_LE(*use.mSharedBytes, ceiling.mShared) << "the shared memory of `" << name << "`";
                 }
 
                 const bool stage = kernel.mName == "visibility" || kernel.mName == "water" || kernel.mName == "direct"
@@ -326,7 +429,7 @@ namespace Rtx
                     || kernel.mName == "landing" || kernel.mName == "unbounced";
                 if (stage && use.mSubgroupSize.has_value())
                 {
-                    EXPECT_EQ(*use.mSubgroupSize, 32u) << "the " << kernel.mName << " kernel's lanes";
+                    EXPECT_EQ(*use.mSubgroupSize, 32u) << "the lanes of `" << name << "`";
                 }
             }
         }
