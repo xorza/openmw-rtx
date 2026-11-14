@@ -49,15 +49,18 @@ namespace osg
 
 namespace CSVRender
 {
-    class PathgridNodeCallback : public osg::NodeCallback
+    namespace
     {
-    public:
-        void operator()(osg::Node* node, osg::NodeVisitor* nv) override
+        class PathgridNodeCallback : public osg::NodeCallback
         {
-            auto* tag = static_cast<PathgridTag*>(node->getUserData());
-            tag->getPathgrid()->update();
-        }
-    };
+        public:
+            void operator()(osg::Node* node, osg::NodeVisitor* nv) override
+            {
+                auto* tag = static_cast<PathgridTag*>(node->getUserData());
+                tag->getPathgrid()->update();
+            }
+        };
+    }
 
     PathgridTag::PathgridTag(Pathgrid* pathgrid)
         : TagBase(Mask_Pathgrid)

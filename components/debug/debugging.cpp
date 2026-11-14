@@ -95,7 +95,11 @@ namespace Debug
     }
 #endif
 
-    static LogListener logListener;
+    namespace
+    {
+        LogListener logListener;
+    }
+
     void setLogListener(LogListener listener)
     {
         logListener = std::move(listener);

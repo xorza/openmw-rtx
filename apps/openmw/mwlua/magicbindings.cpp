@@ -42,58 +42,61 @@
 
 namespace MWLua
 {
-    template <typename Store>
-    struct ActorStore
+    namespace
     {
-        using Collection = typename Store::Collection;
-        using Iterator = typename Collection::const_iterator;
-
-        explicit ActorStore(const sol::object& actor)
-            : mActor(actor)
-            , mIterator()
-            , mIndex(0)
+        template <typename Store>
+        struct ActorStore
         {
-            if (!isActor())
-                throw std::runtime_error("Actor expected");
-            reset();
-        }
+            using Collection = typename Store::Collection;
+            using Iterator = typename Collection::const_iterator;
 
-        bool isActor() const { return !mActor.ptr().isEmpty() && mActor.ptr().getClass().isActor(); }
-
-        bool isLObject() const { return mActor.isLObject(); }
-
-        void reset()
-        {
-            mIndex = 0;
-            auto* store = getStore();
-            if (store)
-                mIterator = store->begin();
-        }
-
-        bool isEnd() const
-        {
-            auto* store = getStore();
-            if (store)
-                return mIterator == store->end();
-            return true;
-        }
-
-        void advance()
-        {
-            auto* store = getStore();
-            if (store)
+            explicit ActorStore(const sol::object& actor)
+                : mActor(actor)
+                , mIterator()
+                , mIndex(0)
             {
-                mIterator++;
-                mIndex++;
+                if (!isActor())
+                    throw std::runtime_error("Actor expected");
+                reset();
             }
-        }
 
-        Store* getStore() const;
+            bool isActor() const { return !mActor.ptr().isEmpty() && mActor.ptr().getClass().isActor(); }
 
-        ObjectVariant mActor;
-        Iterator mIterator;
-        int mIndex;
-    };
+            bool isLObject() const { return mActor.isLObject(); }
+
+            void reset()
+            {
+                mIndex = 0;
+                auto* store = getStore();
+                if (store)
+                    mIterator = store->begin();
+            }
+
+            bool isEnd() const
+            {
+                auto* store = getStore();
+                if (store)
+                    return mIterator == store->end();
+                return true;
+            }
+
+            void advance()
+            {
+                auto* store = getStore();
+                if (store)
+                {
+                    mIterator++;
+                    mIndex++;
+                }
+            }
+
+            Store* getStore() const;
+
+            ObjectVariant mActor;
+            Iterator mIterator;
+            int mIndex;
+        };
+    }
 
     template <>
     MWMechanics::Spells* ActorStore<MWMechanics::Spells>::getStore() const
@@ -122,16 +125,19 @@ namespace MWLua
         return &ptr.getClass().getCreatureStats(ptr).getActiveSpells();
     }
 
-    struct ActiveEffect
+    namespace
     {
-        MWMechanics::EffectKey key;
-        MWMechanics::EffectParam param;
-    };
-    struct ActiveSpell
-    {
-        ObjectVariant mActor;
-        MWMechanics::ActiveSpells::ActiveSpellParams mParams;
-    };
+        struct ActiveEffect
+        {
+            MWMechanics::EffectKey key;
+            MWMechanics::EffectParam param;
+        };
+        struct ActiveSpell
+        {
+            ObjectVariant mActor;
+            MWMechanics::ActiveSpells::ActiveSpellParams mParams;
+        };
+    }
 
     // class returned via 'types.Actor.spells(obj)' in Lua
     using ActorSpells = ActorStore<MWMechanics::Spells>;
@@ -156,51 +162,54 @@ namespace sol
 namespace MWLua
 {
 
-    /// The id of the record `object` holds, which `is` has said it does: sol answers null only for nil.
-    template <class Record>
-    static const ESM::RefId& idOf(const sol::object& object)
+    namespace
     {
-        return object.as<const Record*>()->mId;
-    }
-
-    static ESM::RefId toSpellId(const sol::object& spellOrId)
-    {
-        if (spellOrId.is<ESM::Spell>())
-            return idOf<ESM::Spell>(spellOrId);
-        else
-            return ESM::RefId::deserializeText(LuaUtil::cast<std::string_view>(spellOrId));
-    }
-    static ESM::RefId toRecordId(const sol::object& recordOrId)
-    {
-        if (recordOrId.is<ESM::Spell>())
-            return idOf<ESM::Spell>(recordOrId);
-        else if (recordOrId.is<ESM::Potion>())
-            return idOf<ESM::Potion>(recordOrId);
-        else if (recordOrId.is<ESM::Ingredient>())
-            return idOf<ESM::Ingredient>(recordOrId);
-        else if (recordOrId.is<ESM::Enchantment>())
-            return idOf<ESM::Enchantment>(recordOrId);
-        else if (recordOrId.is<ESM::Armor>())
-            return idOf<ESM::Armor>(recordOrId);
-        else if (recordOrId.is<ESM::Book>())
-            return idOf<ESM::Book>(recordOrId);
-        else if (recordOrId.is<ESM::Clothing>())
-            return idOf<ESM::Clothing>(recordOrId);
-        else if (recordOrId.is<ESM::Weapon>())
-            return idOf<ESM::Weapon>(recordOrId);
-        else
-            return ESM::RefId::deserializeText(LuaUtil::cast<std::string_view>(recordOrId));
-    }
-
-    static const ESM::Spell* toSpell(const sol::object& spellOrId)
-    {
-        if (spellOrId.is<ESM::Spell>())
-            return spellOrId.as<const ESM::Spell*>();
-        else
+        /// The id of the record `object` holds, which `is` has said it does: sol answers null only for nil.
+        template <class Record>
+        const ESM::RefId& idOf(const sol::object& object)
         {
-            auto& store = MWBase::Environment::get().getWorld()->getStore();
-            auto refId = ESM::RefId::deserializeText(LuaUtil::cast<std::string_view>(spellOrId));
-            return store.get<ESM::Spell>().find(refId);
+            return object.as<const Record*>()->mId;
+        }
+
+        ESM::RefId toSpellId(const sol::object& spellOrId)
+        {
+            if (spellOrId.is<ESM::Spell>())
+                return idOf<ESM::Spell>(spellOrId);
+            else
+                return ESM::RefId::deserializeText(LuaUtil::cast<std::string_view>(spellOrId));
+        }
+        ESM::RefId toRecordId(const sol::object& recordOrId)
+        {
+            if (recordOrId.is<ESM::Spell>())
+                return idOf<ESM::Spell>(recordOrId);
+            else if (recordOrId.is<ESM::Potion>())
+                return idOf<ESM::Potion>(recordOrId);
+            else if (recordOrId.is<ESM::Ingredient>())
+                return idOf<ESM::Ingredient>(recordOrId);
+            else if (recordOrId.is<ESM::Enchantment>())
+                return idOf<ESM::Enchantment>(recordOrId);
+            else if (recordOrId.is<ESM::Armor>())
+                return idOf<ESM::Armor>(recordOrId);
+            else if (recordOrId.is<ESM::Book>())
+                return idOf<ESM::Book>(recordOrId);
+            else if (recordOrId.is<ESM::Clothing>())
+                return idOf<ESM::Clothing>(recordOrId);
+            else if (recordOrId.is<ESM::Weapon>())
+                return idOf<ESM::Weapon>(recordOrId);
+            else
+                return ESM::RefId::deserializeText(LuaUtil::cast<std::string_view>(recordOrId));
+        }
+
+        const ESM::Spell* toSpell(const sol::object& spellOrId)
+        {
+            if (spellOrId.is<ESM::Spell>())
+                return spellOrId.as<const ESM::Spell*>();
+            else
+            {
+                auto& store = MWBase::Environment::get().getWorld()->getStore();
+                auto refId = ESM::RefId::deserializeText(LuaUtil::cast<std::string_view>(spellOrId));
+                return store.get<ESM::Spell>().find(refId);
+            }
         }
     }
 
@@ -439,80 +448,83 @@ namespace MWLua
         return LuaUtil::makeReadOnly(magicApi);
     }
 
-    // Override the effect's magnitude range and duration, keeping unspecified values.
-    static void applyEffectParams(ESM::ENAMstruct& effect, const sol::table& params)
+    namespace
     {
-        effect.mMagnMin = params.get_or<int32_t>("magnitudeMin", effect.mMagnMin);
-        effect.mMagnMax = params.get_or<int32_t>("magnitudeMax", effect.mMagnMax);
-        effect.mDuration = std::max(params.get_or<int32_t>("duration", effect.mDuration), 0);
-    }
-
-    static std::pair<std::string_view, std::vector<ESM::IndexedENAMstruct>> getNameAndMagicEffects(
-        ESM::RefId id, const sol::table& effects)
-    {
-        const MWWorld::ESMStore& esmStore = *MWBase::Environment::get().getESMStore();
-
-        auto getEffects = [&](const ESM::EffectList& effectList) {
-            std::vector<ESM::IndexedENAMstruct> enams;
-            for (const auto& [_, entry] : effects)
-            {
-                if (!entry.is<sol::table>())
-                {
-                    enams.push_back(effectList.mList.at(LuaUtil::cast<int32_t>(entry)));
-                    continue;
-                }
-                sol::table params = entry.as<sol::table>();
-                ESM::IndexedENAMstruct& enam
-                    = enams.emplace_back(effectList.mList.at(LuaUtil::cast<int32_t>(params["index"])));
-                applyEffectParams(enam.mData, params);
-            }
-            return enams;
-        };
-
-        auto getNameAndEffects = [&](auto* record) {
-            return std::pair<std::string_view, std::vector<ESM::IndexedENAMstruct>>(
-                record->mName, getEffects(record->mEffects));
-        };
-        auto getNameAndEffectsEnch = [&](auto* record) {
-            auto* enchantment = esmStore.get<ESM::Enchantment>().find(record->mEnchant);
-            return std::pair<std::string_view, std::vector<ESM::IndexedENAMstruct>>(
-                record->mName, getEffects(enchantment->mEffects));
-        };
-        switch (esmStore.find(id))
+        // Override the effect's magnitude range and duration, keeping unspecified values.
+        void applyEffectParams(ESM::ENAMstruct& effect, const sol::table& params)
         {
-            case ESM::REC_ALCH:
-                return getNameAndEffects(esmStore.get<ESM::Potion>().find(id));
-            case ESM::REC_INGR:
-            {
-                // Ingredient records do not specify magnitudes or durations.
-                const ESM::Ingredient* ingredient = esmStore.get<ESM::Ingredient>().find(id);
+            effect.mMagnMin = params.get_or<int32_t>("magnitudeMin", effect.mMagnMin);
+            effect.mMagnMax = params.get_or<int32_t>("magnitudeMax", effect.mMagnMax);
+            effect.mDuration = std::max(params.get_or<int32_t>("duration", effect.mDuration), 0);
+        }
+
+        std::pair<std::string_view, std::vector<ESM::IndexedENAMstruct>> getNameAndMagicEffects(
+            ESM::RefId id, const sol::table& effects)
+        {
+            const MWWorld::ESMStore& esmStore = *MWBase::Environment::get().getESMStore();
+
+            auto getEffects = [&](const ESM::EffectList& effectList) {
                 std::vector<ESM::IndexedENAMstruct> enams;
                 for (const auto& [_, entry] : effects)
                 {
                     if (!entry.is<sol::table>())
-                        throw std::runtime_error("Ingredient effects must be specified as tables");
+                    {
+                        enams.push_back(effectList.mList.at(LuaUtil::cast<int32_t>(entry)));
+                        continue;
+                    }
                     sol::table params = entry.as<sol::table>();
-                    int32_t index = LuaUtil::cast<int32_t>(params["index"]);
-                    auto effect = MWMechanics::getIngredientEffect(ingredient, index);
-                    if (!effect)
-                        throw std::runtime_error("Ingredient has no effect at index " + std::to_string(index));
-                    applyEffectParams(effect->mData, params);
-                    enams.push_back(*effect);
+                    ESM::IndexedENAMstruct& enam
+                        = enams.emplace_back(effectList.mList.at(LuaUtil::cast<int32_t>(params["index"])));
+                    applyEffectParams(enam.mData, params);
                 }
-                return { ingredient->mName, std::move(enams) };
+                return enams;
+            };
+
+            auto getNameAndEffects = [&](auto* record) {
+                return std::pair<std::string_view, std::vector<ESM::IndexedENAMstruct>>(
+                    record->mName, getEffects(record->mEffects));
+            };
+            auto getNameAndEffectsEnch = [&](auto* record) {
+                auto* enchantment = esmStore.get<ESM::Enchantment>().find(record->mEnchant);
+                return std::pair<std::string_view, std::vector<ESM::IndexedENAMstruct>>(
+                    record->mName, getEffects(enchantment->mEffects));
+            };
+            switch (esmStore.find(id))
+            {
+                case ESM::REC_ALCH:
+                    return getNameAndEffects(esmStore.get<ESM::Potion>().find(id));
+                case ESM::REC_INGR:
+                {
+                    // Ingredient records do not specify magnitudes or durations.
+                    const ESM::Ingredient* ingredient = esmStore.get<ESM::Ingredient>().find(id);
+                    std::vector<ESM::IndexedENAMstruct> enams;
+                    for (const auto& [_, entry] : effects)
+                    {
+                        if (!entry.is<sol::table>())
+                            throw std::runtime_error("Ingredient effects must be specified as tables");
+                        sol::table params = entry.as<sol::table>();
+                        int32_t index = LuaUtil::cast<int32_t>(params["index"]);
+                        auto effect = MWMechanics::getIngredientEffect(ingredient, index);
+                        if (!effect)
+                            throw std::runtime_error("Ingredient has no effect at index " + std::to_string(index));
+                        applyEffectParams(effect->mData, params);
+                        enams.push_back(*effect);
+                    }
+                    return { ingredient->mName, std::move(enams) };
+                }
+                case ESM::REC_ARMO:
+                    return getNameAndEffectsEnch(esmStore.get<ESM::Armor>().find(id));
+                case ESM::REC_BOOK:
+                    return getNameAndEffectsEnch(esmStore.get<ESM::Book>().find(id));
+                case ESM::REC_CLOT:
+                    return getNameAndEffectsEnch(esmStore.get<ESM::Clothing>().find(id));
+                case ESM::REC_WEAP:
+                    return getNameAndEffectsEnch(esmStore.get<ESM::Weapon>().find(id));
+                default:
+                    // esmStore.find doesn't find REC_SPELs
+                case ESM::REC_SPEL:
+                    return getNameAndEffects(esmStore.get<ESM::Spell>().find(id));
             }
-            case ESM::REC_ARMO:
-                return getNameAndEffectsEnch(esmStore.get<ESM::Armor>().find(id));
-            case ESM::REC_BOOK:
-                return getNameAndEffectsEnch(esmStore.get<ESM::Book>().find(id));
-            case ESM::REC_CLOT:
-                return getNameAndEffectsEnch(esmStore.get<ESM::Clothing>().find(id));
-            case ESM::REC_WEAP:
-                return getNameAndEffectsEnch(esmStore.get<ESM::Weapon>().find(id));
-            default:
-                // esmStore.find doesn't find REC_SPELs
-            case ESM::REC_SPEL:
-                return getNameAndEffects(esmStore.get<ESM::Spell>().find(id));
         }
     }
 

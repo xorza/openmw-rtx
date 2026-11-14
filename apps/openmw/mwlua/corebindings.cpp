@@ -32,27 +32,30 @@
 
 namespace MWLua
 {
-    static sol::table initContentFilesBindings(sol::state_view& lua)
+    namespace
     {
-        const std::vector<std::string>& contentList = MWBase::Environment::get().getWorld()->getContentFiles();
-        sol::table list(lua, sol::create);
-        for (size_t i = 0; i < contentList.size(); ++i)
-            list[LuaUtil::toLuaIndex(i)] = Misc::StringUtils::lowerCase(contentList[i]);
-        sol::table res(lua, sol::create);
-        res["list"] = LuaUtil::makeReadOnly(list);
-        res["indexOf"] = [&contentList](std::string_view contentFile) -> sol::optional<int64_t> {
+        sol::table initContentFilesBindings(sol::state_view& lua)
+        {
+            const std::vector<std::string>& contentList = MWBase::Environment::get().getWorld()->getContentFiles();
+            sol::table list(lua, sol::create);
             for (size_t i = 0; i < contentList.size(); ++i)
-                if (Misc::StringUtils::ciEqual(contentList[i], contentFile))
-                    return LuaUtil::toLuaIndex(static_cast<int64_t>(i));
-            return sol::nullopt;
-        };
-        res["has"] = [&contentList](std::string_view contentFile) -> bool {
-            for (const auto& entry : contentList)
-                if (Misc::StringUtils::ciEqual(entry, contentFile))
-                    return true;
-            return false;
-        };
-        return LuaUtil::makeReadOnly(res);
+                list[LuaUtil::toLuaIndex(i)] = Misc::StringUtils::lowerCase(contentList[i]);
+            sol::table res(lua, sol::create);
+            res["list"] = LuaUtil::makeReadOnly(list);
+            res["indexOf"] = [&contentList](std::string_view contentFile) -> sol::optional<int64_t> {
+                for (size_t i = 0; i < contentList.size(); ++i)
+                    if (Misc::StringUtils::ciEqual(contentList[i], contentFile))
+                        return LuaUtil::toLuaIndex(static_cast<int64_t>(i));
+                return sol::nullopt;
+            };
+            res["has"] = [&contentList](std::string_view contentFile) -> bool {
+                for (const auto& entry : contentList)
+                    if (Misc::StringUtils::ciEqual(entry, contentFile))
+                        return true;
+                return false;
+            };
+            return LuaUtil::makeReadOnly(res);
+        }
     }
 
     void addCoreTimeBindings(sol::table& api, const Context& context)

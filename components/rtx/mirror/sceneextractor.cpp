@@ -84,22 +84,21 @@ namespace Rtx
             return identityWith(identityWith(seed, 0x9e3779b97f4a7c15ull), static_cast<std::size_t>(id));
         }
 
-    }
-
-    /// Runs an `osg::Sequence`'s clock, and reaches nothing. A visitor of its own, because
-    /// `Sequence::traverse` moves its clock only for an update traversal in
-    /// `TRAVERSE_ACTIVE_CHILDREN`, and neither claim is true of the mirror.
-    struct SequenceClock : osg::NodeVisitor
-    {
-        SequenceClock()
-            : osg::NodeVisitor(UPDATE_VISITOR, TRAVERSE_ACTIVE_CHILDREN)
+        /// Runs an `osg::Sequence`'s clock, and reaches nothing. A visitor of its own, because
+        /// `Sequence::traverse` moves its clock only for an update traversal in
+        /// `TRAVERSE_ACTIVE_CHILDREN`, and neither claim is true of the mirror.
+        struct SequenceClock : osg::NodeVisitor
         {
-        }
+            SequenceClock()
+                : osg::NodeVisitor(UPDATE_VISITOR, TRAVERSE_ACTIVE_CHILDREN)
+            {
+            }
 
-        /// The frame the sequence settles on is walked by the mirror afterwards, not by this —
-        /// which is what keeps a flipbook's subtree from being reached twice a frame.
-        void apply(osg::Node&) override {}
-    };
+            /// The frame the sequence settles on is walked by the mirror afterwards, not by this —
+            /// which is what keeps a flipbook's subtree from being reached twice a frame.
+            void apply(osg::Node&) override {}
+        };
+    }
 
     class SceneExtractor::Traversal : public osg::NodeVisitor
     {

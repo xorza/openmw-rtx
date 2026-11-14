@@ -13,30 +13,33 @@
 namespace MWGui
 {
 
-    bool shouldAcceptKeyFocus(MyGUI::Widget* w)
+    namespace
     {
-        return w && !w->castType<MyGUI::Window>(false) && w->getInheritedEnabled() && w->getInheritedVisible()
-            && w->getVisible() && w->getEnabled();
-    }
-
-    /// Recursively get all child widgets that accept keyboard input
-    void getKeyFocusWidgets(MyGUI::Widget* parent, std::vector<MyGUI::Widget*>& results)
-    {
-        assert(parent != nullptr);
-
-        if (!parent->getVisible() || !parent->getEnabled())
-            return;
-
-        MyGUI::EnumeratorWidgetPtr enumerator = parent->getEnumerator();
-        while (enumerator.next())
+        bool shouldAcceptKeyFocus(MyGUI::Widget* w)
         {
-            MyGUI::Widget* w = enumerator.current();
-            if (!w->getVisible() || !w->getEnabled())
-                continue;
-            if (w->getNeedKeyFocus() && shouldAcceptKeyFocus(w))
-                results.push_back(w);
-            else
-                getKeyFocusWidgets(w, results);
+            return w && !w->castType<MyGUI::Window>(false) && w->getInheritedEnabled() && w->getInheritedVisible()
+                && w->getVisible() && w->getEnabled();
+        }
+
+        /// Recursively get all child widgets that accept keyboard input
+        void getKeyFocusWidgets(MyGUI::Widget* parent, std::vector<MyGUI::Widget*>& results)
+        {
+            assert(parent != nullptr);
+
+            if (!parent->getVisible() || !parent->getEnabled())
+                return;
+
+            MyGUI::EnumeratorWidgetPtr enumerator = parent->getEnumerator();
+            while (enumerator.next())
+            {
+                MyGUI::Widget* w = enumerator.current();
+                if (!w->getVisible() || !w->getEnabled())
+                    continue;
+                if (w->getNeedKeyFocus() && shouldAcceptKeyFocus(w))
+                    results.push_back(w);
+                else
+                    getKeyFocusWidgets(w, results);
+            }
         }
     }
 
@@ -93,11 +96,14 @@ namespace MWGui
             mCurrentFocus = nullptr;
     }
 
-    bool isRootParent(MyGUI::Widget* widget, MyGUI::Widget* root)
+    namespace
     {
-        while (widget && widget->getParent())
-            widget = widget->getParent();
-        return widget == root;
+        bool isRootParent(MyGUI::Widget* widget, MyGUI::Widget* root)
+        {
+            while (widget && widget->getParent())
+                widget = widget->getParent();
+            return widget == root;
+        }
     }
 
     void KeyboardNavigation::onFrame()
@@ -141,15 +147,18 @@ namespace MWGui
         mEnabled = enabled;
     }
 
-    enum Direction
+    namespace
     {
-        D_Left,
-        D_Up,
-        D_Right,
-        D_Down,
-        D_Next,
-        D_Prev
-    };
+        enum Direction
+        {
+            D_Left,
+            D_Up,
+            D_Right,
+            D_Down,
+            D_Next,
+            D_Prev
+        };
+    }
 
     bool KeyboardNavigation::injectKeyPress(MyGUI::KeyCode key, unsigned int text, bool repeat)
     {

@@ -242,30 +242,33 @@ namespace MWWorld
     {
     }
 
-    /// Rotates an osg::PositionAttitudeTransform over time.
-    class RotateCallback : public SceneUtil::NodeCallback<RotateCallback, osg::PositionAttitudeTransform*>
+    namespace
     {
-    public:
-        explicit RotateCallback(const osg::Vec3f& axis = osg::Vec3f(0, -1, 0), float rotateSpeed = osg::PI * 2)
-            : mAxis(axis)
-            , mRotateSpeed(rotateSpeed)
+        /// Rotates an osg::PositionAttitudeTransform over time.
+        class RotateCallback : public SceneUtil::NodeCallback<RotateCallback, osg::PositionAttitudeTransform*>
         {
-        }
+        public:
+            explicit RotateCallback(const osg::Vec3f& axis = osg::Vec3f(0, -1, 0), float rotateSpeed = osg::PI * 2)
+                : mAxis(axis)
+                , mRotateSpeed(rotateSpeed)
+            {
+            }
 
-        void operator()(osg::PositionAttitudeTransform* node, osg::NodeVisitor* nv)
-        {
-            double time = nv->getFrameStamp()->getSimulationTime();
+            void operator()(osg::PositionAttitudeTransform* node, osg::NodeVisitor* nv)
+            {
+                double time = nv->getFrameStamp()->getSimulationTime();
 
-            osg::Quat orient = osg::Quat(time * mRotateSpeed, mAxis);
-            node->setAttitude(orient);
+                osg::Quat orient = osg::Quat(time * mRotateSpeed, mAxis);
+                node->setAttitude(orient);
 
-            traverse(node, nv);
-        }
+                traverse(node, nv);
+            }
 
-    private:
-        osg::Vec3f mAxis;
-        float mRotateSpeed;
-    };
+        private:
+            osg::Vec3f mAxis;
+            float mRotateSpeed;
+        };
+    }
 
     void ProjectileManager::createModel(State& state, VFS::Path::NormalizedView model, const osg::Vec3f& pos,
         const osg::Quat& orient, bool rotate, bool createLight, osg::Vec4 lightDiffuseColor,

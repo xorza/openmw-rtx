@@ -10,7 +10,7 @@
 
 #include <gtest/gtest.h>
 
-namespace
+namespace DetourNavigatorTesting
 {
     template <class T>
     struct Wrapper
@@ -49,25 +49,25 @@ namespace testing
     }
 
     template <>
-    inline testing::Message& Message::operator<<(const Wrapper<osg::Vec3f>& value)
+    inline testing::Message& Message::operator<<(const DetourNavigatorTesting::Wrapper<osg::Vec3f>& value)
     {
         return (*this) << value.mValue;
     }
 
     template <>
-    inline testing::Message& Message::operator<<(const Wrapper<osg::Vec2i>& value)
+    inline testing::Message& Message::operator<<(const DetourNavigatorTesting::Wrapper<osg::Vec2i>& value)
     {
         return (*this) << value.mValue;
     }
 
     template <>
-    inline testing::Message& Message::operator<<(const Wrapper<float>& value)
+    inline testing::Message& Message::operator<<(const DetourNavigatorTesting::Wrapper<float>& value)
     {
         return (*this) << std::setprecision(std::numeric_limits<float>::max_exponent10) << value.mValue;
     }
 
     template <>
-    inline testing::Message& Message::operator<<(const Wrapper<int>& value)
+    inline testing::Message& Message::operator<<(const DetourNavigatorTesting::Wrapper<int>& value)
     {
         return (*this) << value.mValue;
     }
@@ -75,31 +75,31 @@ namespace testing
     template <>
     inline testing::Message& Message::operator<<(const std::deque<osg::Vec3f>& value)
     {
-        return writeRange(*this, value, 1);
+        return DetourNavigatorTesting::writeRange(*this, value, 1);
     }
 
     template <>
     inline testing::Message& Message::operator<<(const std::vector<osg::Vec3f>& value)
     {
-        return writeRange(*this, value, 1);
+        return DetourNavigatorTesting::writeRange(*this, value, 1);
     }
 
     template <>
     inline testing::Message& Message::operator<<(const std::vector<osg::Vec2i>& value)
     {
-        return writeRange(*this, value, 1);
+        return DetourNavigatorTesting::writeRange(*this, value, 1);
     }
 
     template <>
     inline testing::Message& Message::operator<<(const std::vector<float>& value)
     {
-        return writeRange(*this, value, 3);
+        return DetourNavigatorTesting::writeRange(*this, value, 3);
     }
 
     template <>
     inline testing::Message& Message::operator<<(const std::vector<int>& value)
     {
-        return writeRange(*this, value, 3);
+        return DetourNavigatorTesting::writeRange(*this, value, 3);
     }
 }
 

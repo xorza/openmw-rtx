@@ -24,28 +24,34 @@ namespace MWInput
     static const int sFakeDeviceId = 1; // As we only support one controller at a time, use a fake deviceID so we don't
                                         // lose bindings when switching controllers
 
-    void clearAllKeyBindings(ICS::InputControlSystem* inputBinder, ICS::Control* control)
+    namespace
     {
-        // right now we don't really need multiple bindings for the same action, so remove all others first
-        if (inputBinder->getKeyBinding(control, ICS::Control::INCREASE) != SDL_SCANCODE_UNKNOWN)
-            inputBinder->removeKeyBinding(inputBinder->getKeyBinding(control, ICS::Control::INCREASE));
-        if (inputBinder->getMouseButtonBinding(control, ICS::Control::INCREASE) != ICS_MAX_DEVICE_BUTTONS)
-            inputBinder->removeMouseButtonBinding(inputBinder->getMouseButtonBinding(control, ICS::Control::INCREASE));
-        if (inputBinder->getMouseWheelBinding(control, ICS::Control::INCREASE)
-            != ICS::InputControlSystem::MouseWheelClick::UNASSIGNED)
-            inputBinder->removeMouseWheelBinding(inputBinder->getMouseWheelBinding(control, ICS::Control::INCREASE));
-    }
+        void clearAllKeyBindings(ICS::InputControlSystem* inputBinder, ICS::Control* control)
+        {
+            // right now we don't really need multiple bindings for the same action, so remove all others first
+            if (inputBinder->getKeyBinding(control, ICS::Control::INCREASE) != SDL_SCANCODE_UNKNOWN)
+                inputBinder->removeKeyBinding(inputBinder->getKeyBinding(control, ICS::Control::INCREASE));
+            if (inputBinder->getMouseButtonBinding(control, ICS::Control::INCREASE) != ICS_MAX_DEVICE_BUTTONS)
+                inputBinder->removeMouseButtonBinding(
+                    inputBinder->getMouseButtonBinding(control, ICS::Control::INCREASE));
+            if (inputBinder->getMouseWheelBinding(control, ICS::Control::INCREASE)
+                != ICS::InputControlSystem::MouseWheelClick::UNASSIGNED)
+                inputBinder->removeMouseWheelBinding(
+                    inputBinder->getMouseWheelBinding(control, ICS::Control::INCREASE));
+        }
 
-    void clearAllControllerBindings(ICS::InputControlSystem* inputBinder, ICS::Control* control)
-    {
-        // right now we don't really need multiple bindings for the same action, so remove all others first
-        if (inputBinder->getJoystickAxisBinding(control, sFakeDeviceId, ICS::Control::INCREASE) != SDL_SCANCODE_UNKNOWN)
-            inputBinder->removeJoystickAxisBinding(
-                sFakeDeviceId, inputBinder->getJoystickAxisBinding(control, sFakeDeviceId, ICS::Control::INCREASE));
-        if (inputBinder->getJoystickButtonBinding(control, sFakeDeviceId, ICS::Control::INCREASE)
-            != ICS_MAX_DEVICE_BUTTONS)
-            inputBinder->removeJoystickButtonBinding(
-                sFakeDeviceId, inputBinder->getJoystickButtonBinding(control, sFakeDeviceId, ICS::Control::INCREASE));
+        void clearAllControllerBindings(ICS::InputControlSystem* inputBinder, ICS::Control* control)
+        {
+            // right now we don't really need multiple bindings for the same action, so remove all others first
+            if (inputBinder->getJoystickAxisBinding(control, sFakeDeviceId, ICS::Control::INCREASE)
+                != SDL_SCANCODE_UNKNOWN)
+                inputBinder->removeJoystickAxisBinding(
+                    sFakeDeviceId, inputBinder->getJoystickAxisBinding(control, sFakeDeviceId, ICS::Control::INCREASE));
+            if (inputBinder->getJoystickButtonBinding(control, sFakeDeviceId, ICS::Control::INCREASE)
+                != ICS_MAX_DEVICE_BUTTONS)
+                inputBinder->removeJoystickButtonBinding(sFakeDeviceId,
+                    inputBinder->getJoystickButtonBinding(control, sFakeDeviceId, ICS::Control::INCREASE));
+        }
     }
 
     class InputControlSystem : public ICS::InputControlSystem

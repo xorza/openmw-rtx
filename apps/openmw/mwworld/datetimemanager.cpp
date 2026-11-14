@@ -159,16 +159,19 @@ namespace MWWorld
         globalVariables[Globals::sYear].setInteger(mYear);
     }
 
-    static std::vector<std::string> getMonthNames()
+    namespace
     {
-        auto calendarL10n = MWBase::Environment::get().getL10nManager()->getContext("Calendar");
-        std::string prefix = "month";
-        std::vector<std::string> months;
-        int count = 12;
-        months.reserve(count);
-        for (int i = 1; i <= count; ++i)
-            months.push_back(calendarL10n->formatMessage(prefix + std::to_string(i), {}, {}));
-        return months;
+        std::vector<std::string> getMonthNames()
+        {
+            auto calendarL10n = MWBase::Environment::get().getL10nManager()->getContext("Calendar");
+            std::string prefix = "month";
+            std::vector<std::string> months;
+            int count = 12;
+            months.reserve(count);
+            for (int i = 1; i <= count; ++i)
+                months.push_back(calendarL10n->formatMessage(prefix + std::to_string(i), {}, {}));
+            return months;
+        }
     }
 
     std::string_view DateTimeManager::getMonthName(int month) const

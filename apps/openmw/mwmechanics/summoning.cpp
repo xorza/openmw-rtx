@@ -54,48 +54,51 @@ namespace MWMechanics
         return (std::find(summonEffects.begin(), summonEffects.end(), effectId) != summonEffects.end());
     }
 
-    static const std::map<ESM::RefId, ESM::RefId>& getSummonMap()
+    namespace
     {
-        static std::map<ESM::RefId, ESM::RefId> summonMap;
-
-        if (!summonMap.empty())
-            return summonMap;
-
-        const std::map<ESM::RefId, std::string_view> summonMapToGameSetting{
-            { ESM::MagicEffect::SummonAncestralGhost, "sMagicAncestralGhostID" },
-            { ESM::MagicEffect::SummonBonelord, "sMagicBonelordID" },
-            { ESM::MagicEffect::SummonBonewalker, "sMagicLeastBonewalkerID" },
-            { ESM::MagicEffect::SummonCenturionSphere, "sMagicCenturionSphereID" },
-            { ESM::MagicEffect::SummonClannfear, "sMagicClannfearID" },
-            { ESM::MagicEffect::SummonDaedroth, "sMagicDaedrothID" },
-            { ESM::MagicEffect::SummonDremora, "sMagicDremoraID" },
-            { ESM::MagicEffect::SummonFabricant, "sMagicFabricantID" },
-            { ESM::MagicEffect::SummonFlameAtronach, "sMagicFlameAtronachID" },
-            { ESM::MagicEffect::SummonFrostAtronach, "sMagicFrostAtronachID" },
-            { ESM::MagicEffect::SummonGoldenSaint, "sMagicGoldenSaintID" },
-            { ESM::MagicEffect::SummonGreaterBonewalker, "sMagicGreaterBonewalkerID" },
-            { ESM::MagicEffect::SummonHunger, "sMagicHungerID" },
-            { ESM::MagicEffect::SummonScamp, "sMagicScampID" },
-            { ESM::MagicEffect::SummonSkeletalMinion, "sMagicSkeletalMinionID" },
-            { ESM::MagicEffect::SummonStormAtronach, "sMagicStormAtronachID" },
-            { ESM::MagicEffect::SummonWingedTwilight, "sMagicWingedTwilightID" },
-            { ESM::MagicEffect::SummonWolf, "sMagicCreature01ID" },
-            { ESM::MagicEffect::SummonBear, "sMagicCreature02ID" },
-            { ESM::MagicEffect::SummonBonewolf, "sMagicCreature03ID" },
-            { ESM::MagicEffect::SummonCreature04, "sMagicCreature04ID" },
-            { ESM::MagicEffect::SummonCreature05, "sMagicCreature05ID" },
-        };
-
-        for (const auto& it : summonMapToGameSetting)
+        const std::map<ESM::RefId, ESM::RefId>& getSummonMap()
         {
-            const MWWorld::ESMStore& store = *MWBase::Environment::get().getESMStore();
-            const ESM::GameSetting* gmst = store.get<ESM::GameSetting>().search(it.second);
-            if (gmst)
-                summonMap[it.first] = ESM::RefId::stringRefId(gmst->mValue.getString());
-            else
-                Log(Debug::Error) << "Could not find summoned creature ID for effect " << it.first;
+            static std::map<ESM::RefId, ESM::RefId> summonMap;
+
+            if (!summonMap.empty())
+                return summonMap;
+
+            const std::map<ESM::RefId, std::string_view> summonMapToGameSetting{
+                { ESM::MagicEffect::SummonAncestralGhost, "sMagicAncestralGhostID" },
+                { ESM::MagicEffect::SummonBonelord, "sMagicBonelordID" },
+                { ESM::MagicEffect::SummonBonewalker, "sMagicLeastBonewalkerID" },
+                { ESM::MagicEffect::SummonCenturionSphere, "sMagicCenturionSphereID" },
+                { ESM::MagicEffect::SummonClannfear, "sMagicClannfearID" },
+                { ESM::MagicEffect::SummonDaedroth, "sMagicDaedrothID" },
+                { ESM::MagicEffect::SummonDremora, "sMagicDremoraID" },
+                { ESM::MagicEffect::SummonFabricant, "sMagicFabricantID" },
+                { ESM::MagicEffect::SummonFlameAtronach, "sMagicFlameAtronachID" },
+                { ESM::MagicEffect::SummonFrostAtronach, "sMagicFrostAtronachID" },
+                { ESM::MagicEffect::SummonGoldenSaint, "sMagicGoldenSaintID" },
+                { ESM::MagicEffect::SummonGreaterBonewalker, "sMagicGreaterBonewalkerID" },
+                { ESM::MagicEffect::SummonHunger, "sMagicHungerID" },
+                { ESM::MagicEffect::SummonScamp, "sMagicScampID" },
+                { ESM::MagicEffect::SummonSkeletalMinion, "sMagicSkeletalMinionID" },
+                { ESM::MagicEffect::SummonStormAtronach, "sMagicStormAtronachID" },
+                { ESM::MagicEffect::SummonWingedTwilight, "sMagicWingedTwilightID" },
+                { ESM::MagicEffect::SummonWolf, "sMagicCreature01ID" },
+                { ESM::MagicEffect::SummonBear, "sMagicCreature02ID" },
+                { ESM::MagicEffect::SummonBonewolf, "sMagicCreature03ID" },
+                { ESM::MagicEffect::SummonCreature04, "sMagicCreature04ID" },
+                { ESM::MagicEffect::SummonCreature05, "sMagicCreature05ID" },
+            };
+
+            for (const auto& it : summonMapToGameSetting)
+            {
+                const MWWorld::ESMStore& store = *MWBase::Environment::get().getESMStore();
+                const ESM::GameSetting* gmst = store.get<ESM::GameSetting>().search(it.second);
+                if (gmst)
+                    summonMap[it.first] = ESM::RefId::stringRefId(gmst->mValue.getString());
+                else
+                    Log(Debug::Error) << "Could not find summoned creature ID for effect " << it.first;
+            }
+            return summonMap;
         }
-        return summonMap;
     }
 
     ESM::RefId getSummonedCreature(ESM::RefId effectId)

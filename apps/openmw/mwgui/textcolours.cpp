@@ -6,9 +6,13 @@
 
 namespace MWGui
 {
-    MyGUI::Colour getTextColour(const std::string& type)
+    namespace
     {
-        return MyGUI::Colour::parse(MyGUI::LanguageManager::getInstance().replaceTags("#{fontcolour=" + type + "}"));
+        MyGUI::Colour getTextColour(const std::string& type)
+        {
+            return MyGUI::Colour::parse(
+                MyGUI::LanguageManager::getInstance().replaceTags("#{fontcolour=" + type + "}"));
+        }
     }
 
     void TextColours::loadColours()

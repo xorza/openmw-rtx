@@ -15,19 +15,22 @@ namespace Terrain
     {
     }
 
-    struct UpdateTextureFilteringFunctor
+    namespace
     {
-        explicit UpdateTextureFilteringFunctor(Resource::SceneManager* sceneMgr)
-            : mSceneManager(sceneMgr)
+        struct UpdateTextureFilteringFunctor
         {
-        }
-        Resource::SceneManager* mSceneManager;
+            explicit UpdateTextureFilteringFunctor(Resource::SceneManager* sceneMgr)
+                : mSceneManager(sceneMgr)
+            {
+            }
+            Resource::SceneManager* mSceneManager;
 
-        void operator()(std::string, osg::Object* obj)
-        {
-            mSceneManager->applyFilterSettings(static_cast<osg::Texture2D*>(obj));
-        }
-    };
+            void operator()(std::string, osg::Object* obj)
+            {
+                mSceneManager->applyFilterSettings(static_cast<osg::Texture2D*>(obj));
+            }
+        };
+    }
 
     void TextureManager::updateTextureFiltering()
     {

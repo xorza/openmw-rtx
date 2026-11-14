@@ -4,8 +4,12 @@
 
 namespace MWPhysics
 {
-    // Concurrent calls to contactPairTest (and by extension contactTest) are forbidden.
-    static std::mutex contactMutex;
+    namespace
+    {
+        // Concurrent calls to contactPairTest (and by extension contactTest) are forbidden.
+        std::mutex contactMutex;
+    }
+
     void ContactTestWrapper::contactTest(btCollisionWorld* collisionWorld, btCollisionObject* colObj,
         btCollisionWorld::ContactResultCallback& resultCallback)
     {

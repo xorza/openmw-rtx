@@ -48,25 +48,28 @@ void ContentSelectorView::ContentSelector::buildGameFileView()
     ui->gameFileView->setCurrentIndex(0);
 }
 
-class AddOnProxyModel : public QSortFilterProxyModel
+namespace
 {
-public:
-    explicit AddOnProxyModel(QObject* parent = nullptr)
-        : QSortFilterProxyModel(parent)
+    class AddOnProxyModel : public QSortFilterProxyModel
     {
-    }
+    public:
+        explicit AddOnProxyModel(QObject* parent = nullptr)
+            : QSortFilterProxyModel(parent)
+        {
+        }
 
-    bool filterAcceptsRow(int sourceRow, const QModelIndex& sourceParent) const override
-    {
-        static const QString contentTypeAddon
-            = QString::number(static_cast<int>(ContentSelectorModel::ContentType_Addon));
+        bool filterAcceptsRow(int sourceRow, const QModelIndex& sourceParent) const override
+        {
+            static const QString contentTypeAddon
+                = QString::number(static_cast<int>(ContentSelectorModel::ContentType_Addon));
 
-        QModelIndex nameIndex = sourceModel()->index(sourceRow, 0, sourceParent);
-        const QString userRole = sourceModel()->data(nameIndex, Qt::UserRole).toString();
+            QModelIndex nameIndex = sourceModel()->index(sourceRow, 0, sourceParent);
+            const QString userRole = sourceModel()->data(nameIndex, Qt::UserRole).toString();
 
-        return QSortFilterProxyModel::filterAcceptsRow(sourceRow, sourceParent) && userRole == contentTypeAddon;
-    }
-};
+            return QSortFilterProxyModel::filterAcceptsRow(sourceRow, sourceParent) && userRole == contentTypeAddon;
+        }
+    };
+}
 
 bool ContentSelectorView::ContentSelector::isGamefileSelected() const
 {

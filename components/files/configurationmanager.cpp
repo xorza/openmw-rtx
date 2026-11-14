@@ -48,16 +48,19 @@ namespace Files
 
     ConfigurationManager::~ConfigurationManager() = default;
 
-    static bool hasReplaceConfig(const bpo::variables_map& variables)
+    namespace
     {
-        if (variables["replace"].empty())
-            return false;
-        for (const std::string& var : variables["replace"].as<std::vector<std::string>>())
+        bool hasReplaceConfig(const bpo::variables_map& variables)
         {
-            if (var == "config")
-                return true;
+            if (variables["replace"].empty())
+                return false;
+            for (const std::string& var : variables["replace"].as<std::vector<std::string>>())
+            {
+                if (var == "config")
+                    return true;
+            }
+            return false;
         }
-        return false;
     }
 
     void ConfigurationManager::readConfiguration(

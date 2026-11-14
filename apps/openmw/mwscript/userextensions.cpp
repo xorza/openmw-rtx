@@ -16,41 +16,50 @@ namespace MWScript
     /// \attention Do not commit changes to this file to a git repository!
     namespace User
     {
-        class OpUser1 : public Interpreter::Opcode0
+        namespace
         {
-        public:
-            void execute(Interpreter::Runtime& runtime) override { runtime.getContext().report("user1: not in use"); }
-        };
-
-        class OpUser2 : public Interpreter::Opcode0
-        {
-        public:
-            void execute(Interpreter::Runtime& runtime) override { runtime.getContext().report("user2: not in use"); }
-        };
-
-        template <class R>
-        class OpUser3 : public Interpreter::Opcode0
-        {
-        public:
-            void execute(Interpreter::Runtime& runtime) override
+            class OpUser1 : public Interpreter::Opcode0
             {
-                //                    MWWorld::Ptr ptr = R()(runtime);
+            public:
+                void execute(Interpreter::Runtime& runtime) override
+                {
+                    runtime.getContext().report("user1: not in use");
+                }
+            };
 
-                runtime.getContext().report("user3: not in use");
-            }
-        };
-
-        template <class R>
-        class OpUser4 : public Interpreter::Opcode0
-        {
-        public:
-            void execute(Interpreter::Runtime& runtime) override
+            class OpUser2 : public Interpreter::Opcode0
             {
-                //                    MWWorld::Ptr ptr = R()(runtime);
+            public:
+                void execute(Interpreter::Runtime& runtime) override
+                {
+                    runtime.getContext().report("user2: not in use");
+                }
+            };
 
-                runtime.getContext().report("user4: not in use");
-            }
-        };
+            template <class R>
+            class OpUser3 : public Interpreter::Opcode0
+            {
+            public:
+                void execute(Interpreter::Runtime& runtime) override
+                {
+                    //                    MWWorld::Ptr ptr = R()(runtime);
+
+                    runtime.getContext().report("user3: not in use");
+                }
+            };
+
+            template <class R>
+            class OpUser4 : public Interpreter::Opcode0
+            {
+            public:
+                void execute(Interpreter::Runtime& runtime) override
+                {
+                    //                    MWWorld::Ptr ptr = R()(runtime);
+
+                    runtime.getContext().report("user4: not in use");
+                }
+            };
+        }
 
         void installOpcodes(Interpreter::Interpreter& interpreter)
         {

@@ -35,528 +35,533 @@ namespace MWScript
 {
     namespace Ai
     {
-        template <class R>
-        class OpAiActivate : public Interpreter::Opcode1
+        namespace
         {
-        public:
-            void execute(Interpreter::Runtime& runtime, unsigned int arg0) override
+            template <class R>
+            class OpAiActivate : public Interpreter::Opcode1
             {
-                MWWorld::Ptr ptr = R()(runtime);
-
-                ESM::RefId objectID = ESM::RefId::stringRefId(runtime.getStringLiteral(runtime[0].mInteger));
-                runtime.pop();
-
-                // The value of the reset argument doesn't actually matter
-                bool repeat = arg0;
-                for (unsigned int i = 0; i < arg0; ++i)
-                    runtime.pop();
-
-                if (!ptr.getClass().isActor() || ptr == MWMechanics::getPlayer())
-                    return;
-
-                MWMechanics::AiActivate activatePackage(objectID, repeat);
-                ptr.getClass().getCreatureStats(ptr).getAiSequence().stack(activatePackage, ptr);
-                Log(Debug::Info) << "AiActivate";
-            }
-        };
-
-        template <class R>
-        class OpAiTravel : public Interpreter::Opcode1
-        {
-        public:
-            void execute(Interpreter::Runtime& runtime, unsigned int arg0) override
-            {
-                MWWorld::Ptr ptr = R()(runtime);
-
-                Interpreter::Type_Float x = runtime[0].mFloat;
-                runtime.pop();
-
-                Interpreter::Type_Float y = runtime[0].mFloat;
-                runtime.pop();
-
-                Interpreter::Type_Float z = runtime[0].mFloat;
-                runtime.pop();
-
-                // The value of the reset argument doesn't actually matter
-                bool repeat = arg0;
-                for (unsigned int i = 0; i < arg0; ++i)
-                    runtime.pop();
-
-                if (!ptr.getClass().isActor() || ptr == MWMechanics::getPlayer())
-                    return;
-
-                MWMechanics::AiTravel travelPackage(x, y, z, repeat);
-                ptr.getClass().getCreatureStats(ptr).getAiSequence().stack(travelPackage, ptr);
-
-                Log(Debug::Info) << "AiTravel: " << x << ", " << y << ", " << z;
-            }
-        };
-
-        template <class R>
-        class OpAiEscort : public Interpreter::Opcode1
-        {
-        public:
-            void execute(Interpreter::Runtime& runtime, unsigned int arg0) override
-            {
-                MWWorld::Ptr ptr = R()(runtime);
-
-                ESM::RefId actorID = ESM::RefId::stringRefId(runtime.getStringLiteral(runtime[0].mInteger));
-                runtime.pop();
-
-                Interpreter::Type_Float duration = runtime[0].mFloat;
-                runtime.pop();
-
-                Interpreter::Type_Float x = runtime[0].mFloat;
-                runtime.pop();
-
-                Interpreter::Type_Float y = runtime[0].mFloat;
-                runtime.pop();
-
-                Interpreter::Type_Float z = runtime[0].mFloat;
-                runtime.pop();
-
-                // The value of the reset argument doesn't actually matter
-                bool repeat = arg0;
-                for (unsigned int i = 0; i < arg0; ++i)
-                    runtime.pop();
-
-                if (!ptr.getClass().isActor() || ptr == MWMechanics::getPlayer())
-                    return;
-
-                MWMechanics::AiEscort escortPackage(actorID, {}, static_cast<int>(duration), x, y, z, repeat);
-                ptr.getClass().getCreatureStats(ptr).getAiSequence().stack(escortPackage, ptr);
-
-                Log(Debug::Info) << "AiEscort: " << x << ", " << y << ", " << z << ", " << duration;
-            }
-        };
-
-        template <class R>
-        class OpAiEscortCell : public Interpreter::Opcode1
-        {
-        public:
-            void execute(Interpreter::Runtime& runtime, unsigned int arg0) override
-            {
-                MWWorld::Ptr ptr = R()(runtime);
-
-                ESM::RefId actorID = ESM::RefId::stringRefId(runtime.getStringLiteral(runtime[0].mInteger));
-                runtime.pop();
-
-                std::string_view cellID = runtime.getStringLiteral(runtime[0].mInteger);
-                runtime.pop();
-
-                Interpreter::Type_Float duration = runtime[0].mFloat;
-                runtime.pop();
-
-                Interpreter::Type_Float x = runtime[0].mFloat;
-                runtime.pop();
-
-                Interpreter::Type_Float y = runtime[0].mFloat;
-                runtime.pop();
-
-                Interpreter::Type_Float z = runtime[0].mFloat;
-                runtime.pop();
-
-                // The value of the reset argument doesn't actually matter
-                bool repeat = arg0;
-                for (unsigned int i = 0; i < arg0; ++i)
-                    runtime.pop();
-
-                if (!ptr.getClass().isActor() || ptr == MWMechanics::getPlayer())
-                    return;
-
-                if (cellID.empty())
-                    return;
-
-                if (!MWBase::Environment::get().getESMStore()->get<ESM::Cell>().search(cellID))
-                    return;
-
-                MWMechanics::AiEscort escortPackage(actorID, cellID, static_cast<int>(duration), x, y, z, repeat);
-                ptr.getClass().getCreatureStats(ptr).getAiSequence().stack(escortPackage, ptr);
-
-                Log(Debug::Info) << "AiEscort: " << x << ", " << y << ", " << z << ", " << duration;
-            }
-        };
-
-        template <class R>
-        class OpGetAiPackageDone : public Interpreter::Opcode0
-        {
-        public:
-            void execute(Interpreter::Runtime& runtime) override
-            {
-                MWWorld::Ptr ptr = R()(runtime);
-
-                bool done = false;
-                if (ptr.getClass().isActor())
-                    done = ptr.getClass().getCreatureStats(ptr).getAiSequence().isPackageDone();
-
-                runtime.push(done);
-            }
-        };
-
-        template <class R>
-        class OpAiWander : public Interpreter::Opcode1
-        {
-        public:
-            void execute(Interpreter::Runtime& runtime, unsigned int arg0) override
-            {
-                MWWorld::Ptr ptr = R()(runtime);
-
-                auto range = static_cast<Interpreter::Type_Integer>(runtime[0].mFloat);
-                runtime.pop();
-
-                auto duration = static_cast<Interpreter::Type_Integer>(runtime[0].mFloat);
-                runtime.pop();
-
-                auto time = static_cast<Interpreter::Type_Integer>(runtime[0].mFloat);
-                runtime.pop();
-
-                // Chance for Idle is unused
-                if (arg0)
+            public:
+                void execute(Interpreter::Runtime& runtime, unsigned int arg0) override
                 {
-                    --arg0;
+                    MWWorld::Ptr ptr = R()(runtime);
+
+                    ESM::RefId objectID = ESM::RefId::stringRefId(runtime.getStringLiteral(runtime[0].mInteger));
                     runtime.pop();
+
+                    // The value of the reset argument doesn't actually matter
+                    bool repeat = arg0;
+                    for (unsigned int i = 0; i < arg0; ++i)
+                        runtime.pop();
+
+                    if (!ptr.getClass().isActor() || ptr == MWMechanics::getPlayer())
+                        return;
+
+                    MWMechanics::AiActivate activatePackage(objectID, repeat);
+                    ptr.getClass().getCreatureStats(ptr).getAiSequence().stack(activatePackage, ptr);
+                    Log(Debug::Info) << "AiActivate";
                 }
+            };
 
-                std::vector<unsigned char> idleList;
-                bool repeat = false;
-
-                // Chances for Idle2-Idle9
-                for (int i = 2; i <= 9 && arg0; ++i)
+            template <class R>
+            class OpAiTravel : public Interpreter::Opcode1
+            {
+            public:
+                void execute(Interpreter::Runtime& runtime, unsigned int arg0) override
                 {
-                    if (!repeat)
-                        repeat = true;
-                    auto idleValue = static_cast<unsigned char>(std::clamp(runtime[0].mInteger, 0, 255));
-                    idleList.push_back(idleValue);
+                    MWWorld::Ptr ptr = R()(runtime);
+
+                    Interpreter::Type_Float x = runtime[0].mFloat;
                     runtime.pop();
-                    --arg0;
+
+                    Interpreter::Type_Float y = runtime[0].mFloat;
+                    runtime.pop();
+
+                    Interpreter::Type_Float z = runtime[0].mFloat;
+                    runtime.pop();
+
+                    // The value of the reset argument doesn't actually matter
+                    bool repeat = arg0;
+                    for (unsigned int i = 0; i < arg0; ++i)
+                        runtime.pop();
+
+                    if (!ptr.getClass().isActor() || ptr == MWMechanics::getPlayer())
+                        return;
+
+                    MWMechanics::AiTravel travelPackage(x, y, z, repeat);
+                    ptr.getClass().getCreatureStats(ptr).getAiSequence().stack(travelPackage, ptr);
+
+                    Log(Debug::Info) << "AiTravel: " << x << ", " << y << ", " << z;
                 }
+            };
 
-                if (arg0)
+            template <class R>
+            class OpAiEscort : public Interpreter::Opcode1
+            {
+            public:
+                void execute(Interpreter::Runtime& runtime, unsigned int arg0) override
                 {
-                    repeat = runtime[0].mInteger != 0;
+                    MWWorld::Ptr ptr = R()(runtime);
+
+                    ESM::RefId actorID = ESM::RefId::stringRefId(runtime.getStringLiteral(runtime[0].mInteger));
                     runtime.pop();
-                    --arg0;
+
+                    Interpreter::Type_Float duration = runtime[0].mFloat;
+                    runtime.pop();
+
+                    Interpreter::Type_Float x = runtime[0].mFloat;
+                    runtime.pop();
+
+                    Interpreter::Type_Float y = runtime[0].mFloat;
+                    runtime.pop();
+
+                    Interpreter::Type_Float z = runtime[0].mFloat;
+                    runtime.pop();
+
+                    // The value of the reset argument doesn't actually matter
+                    bool repeat = arg0;
+                    for (unsigned int i = 0; i < arg0; ++i)
+                        runtime.pop();
+
+                    if (!ptr.getClass().isActor() || ptr == MWMechanics::getPlayer())
+                        return;
+
+                    MWMechanics::AiEscort escortPackage(actorID, {}, static_cast<int>(duration), x, y, z, repeat);
+                    ptr.getClass().getCreatureStats(ptr).getAiSequence().stack(escortPackage, ptr);
+
+                    Log(Debug::Info) << "AiEscort: " << x << ", " << y << ", " << z << ", " << duration;
                 }
+            };
 
-                // discard additional arguments, because we have no idea what they mean.
-                for (unsigned int i = 0; i < arg0; ++i)
+            template <class R>
+            class OpAiEscortCell : public Interpreter::Opcode1
+            {
+            public:
+                void execute(Interpreter::Runtime& runtime, unsigned int arg0) override
+                {
+                    MWWorld::Ptr ptr = R()(runtime);
+
+                    ESM::RefId actorID = ESM::RefId::stringRefId(runtime.getStringLiteral(runtime[0].mInteger));
                     runtime.pop();
 
-                if (!ptr.getClass().isActor() || ptr == MWMechanics::getPlayer())
-                    return;
+                    std::string_view cellID = runtime.getStringLiteral(runtime[0].mInteger);
+                    runtime.pop();
 
-                MWMechanics::AiWander wanderPackage(range, duration, time, idleList, repeat);
-                ptr.getClass().getCreatureStats(ptr).getAiSequence().stack(wanderPackage, ptr);
-            }
-        };
+                    Interpreter::Type_Float duration = runtime[0].mFloat;
+                    runtime.pop();
 
-        template <class R>
-        class OpGetAiSetting : public Interpreter::Opcode0
-        {
-            MWMechanics::AiSetting mIndex;
+                    Interpreter::Type_Float x = runtime[0].mFloat;
+                    runtime.pop();
 
-        public:
-            explicit OpGetAiSetting(MWMechanics::AiSetting index)
-                : mIndex(index)
-            {
-            }
+                    Interpreter::Type_Float y = runtime[0].mFloat;
+                    runtime.pop();
 
-            void execute(Interpreter::Runtime& runtime) override
-            {
-                MWWorld::Ptr ptr = R()(runtime);
+                    Interpreter::Type_Float z = runtime[0].mFloat;
+                    runtime.pop();
 
-                Interpreter::Type_Integer value = 0;
-                if (ptr.getClass().isActor())
-                    value = ptr.getClass().getCreatureStats(ptr).getAiSetting(mIndex).getModified(false);
-                runtime.push(value);
-            }
-        };
-        template <class R>
-        class OpModAiSetting : public Interpreter::Opcode0
-        {
-            MWMechanics::AiSetting mIndex;
+                    // The value of the reset argument doesn't actually matter
+                    bool repeat = arg0;
+                    for (unsigned int i = 0; i < arg0; ++i)
+                        runtime.pop();
 
-        public:
-            explicit OpModAiSetting(MWMechanics::AiSetting index)
-                : mIndex(index)
-            {
-            }
+                    if (!ptr.getClass().isActor() || ptr == MWMechanics::getPlayer())
+                        return;
 
-            void execute(Interpreter::Runtime& runtime) override
-            {
-                MWWorld::Ptr ptr = R()(runtime);
-                Interpreter::Type_Integer value = runtime[0].mInteger;
-                runtime.pop();
+                    if (cellID.empty())
+                        return;
 
-                if (!ptr.getClass().isActor())
-                    return;
+                    if (!MWBase::Environment::get().getESMStore()->get<ESM::Cell>().search(cellID))
+                        return;
 
-                int modified = ptr.getClass().getCreatureStats(ptr).getAiSetting(mIndex).getBase() + value;
+                    MWMechanics::AiEscort escortPackage(actorID, cellID, static_cast<int>(duration), x, y, z, repeat);
+                    ptr.getClass().getCreatureStats(ptr).getAiSequence().stack(escortPackage, ptr);
 
-                ptr.getClass().getCreatureStats(ptr).setAiSetting(mIndex, modified);
-                ptr.getClass().setBaseAISetting(ptr.getCellRef().getRefId(), mIndex, modified);
-            }
-        };
-        template <class R>
-        class OpSetAiSetting : public Interpreter::Opcode0
-        {
-            MWMechanics::AiSetting mIndex;
-
-        public:
-            explicit OpSetAiSetting(MWMechanics::AiSetting index)
-                : mIndex(index)
-            {
-            }
-
-            void execute(Interpreter::Runtime& runtime) override
-            {
-                MWWorld::Ptr ptr = R()(runtime);
-                Interpreter::Type_Integer value = runtime[0].mInteger;
-                runtime.pop();
-                if (ptr.getClass().isActor())
-                {
-                    ptr.getClass().getCreatureStats(ptr).setAiSetting(mIndex, value);
-                    ptr.getClass().setBaseAISetting(ptr.getCellRef().getRefId(), mIndex, value);
+                    Log(Debug::Info) << "AiEscort: " << x << ", " << y << ", " << z << ", " << duration;
                 }
-            }
-        };
+            };
 
-        template <class R>
-        class OpAiFollow : public Interpreter::Opcode1
-        {
-        public:
-            void execute(Interpreter::Runtime& runtime, unsigned int arg0) override
+            template <class R>
+            class OpGetAiPackageDone : public Interpreter::Opcode0
             {
-                MWWorld::Ptr ptr = R()(runtime);
-
-                ESM::RefId actorID = ESM::RefId::stringRefId(runtime.getStringLiteral(runtime[0].mInteger));
-                runtime.pop();
-
-                Interpreter::Type_Float duration = runtime[0].mFloat;
-                runtime.pop();
-
-                Interpreter::Type_Float x = runtime[0].mFloat;
-                runtime.pop();
-
-                Interpreter::Type_Float y = runtime[0].mFloat;
-                runtime.pop();
-
-                Interpreter::Type_Float z = runtime[0].mFloat;
-                runtime.pop();
-
-                // The value of the reset argument doesn't actually matter
-                bool repeat = arg0;
-                for (unsigned int i = 0; i < arg0; ++i)
-                    runtime.pop();
-
-                if (!ptr.getClass().isActor() || ptr == MWMechanics::getPlayer())
-                    return;
-
-                MWMechanics::AiFollow followPackage(actorID, {}, duration, x, y, z, repeat);
-                ptr.getClass().getCreatureStats(ptr).getAiSequence().stack(followPackage, ptr);
-
-                Log(Debug::Info) << "AiFollow: " << actorID << ", " << x << ", " << y << ", " << z << ", " << duration;
-            }
-        };
-
-        template <class R>
-        class OpAiFollowCell : public Interpreter::Opcode1
-        {
-        public:
-            void execute(Interpreter::Runtime& runtime, unsigned int arg0) override
-            {
-                MWWorld::Ptr ptr = R()(runtime);
-
-                ESM::RefId actorID = ESM::RefId::stringRefId(runtime.getStringLiteral(runtime[0].mInteger));
-                runtime.pop();
-
-                std::string_view cellID = runtime.getStringLiteral(runtime[0].mInteger);
-                runtime.pop();
-
-                Interpreter::Type_Float duration = runtime[0].mFloat;
-                runtime.pop();
-
-                Interpreter::Type_Float x = runtime[0].mFloat;
-                runtime.pop();
-
-                Interpreter::Type_Float y = runtime[0].mFloat;
-                runtime.pop();
-
-                Interpreter::Type_Float z = runtime[0].mFloat;
-                runtime.pop();
-
-                // The value of the reset argument doesn't actually matter
-                bool repeat = arg0;
-                for (unsigned int i = 0; i < arg0; ++i)
-                    runtime.pop();
-
-                if (!ptr.getClass().isActor() || ptr == MWMechanics::getPlayer())
-                    return;
-
-                MWMechanics::AiFollow followPackage(actorID, cellID, duration, x, y, z, repeat);
-                ptr.getClass().getCreatureStats(ptr).getAiSequence().stack(followPackage, ptr);
-                Log(Debug::Info) << "AiFollow: " << actorID << ", " << x << ", " << y << ", " << z << ", " << duration;
-            }
-        };
-
-        template <class R>
-        class OpGetCurrentAIPackage : public Interpreter::Opcode0
-        {
-        public:
-            void execute(Interpreter::Runtime& runtime) override
-            {
-                MWWorld::Ptr ptr = R()(runtime);
-
-                Interpreter::Type_Integer value = -1;
-                if (ptr.getClass().isActor())
+            public:
+                void execute(Interpreter::Runtime& runtime) override
                 {
-                    const auto& stats = ptr.getClass().getCreatureStats(ptr);
-                    if (!stats.isDead() || !stats.isDeathAnimationFinished())
+                    MWWorld::Ptr ptr = R()(runtime);
+
+                    bool done = false;
+                    if (ptr.getClass().isActor())
+                        done = ptr.getClass().getCreatureStats(ptr).getAiSequence().isPackageDone();
+
+                    runtime.push(done);
+                }
+            };
+
+            template <class R>
+            class OpAiWander : public Interpreter::Opcode1
+            {
+            public:
+                void execute(Interpreter::Runtime& runtime, unsigned int arg0) override
+                {
+                    MWWorld::Ptr ptr = R()(runtime);
+
+                    auto range = static_cast<Interpreter::Type_Integer>(runtime[0].mFloat);
+                    runtime.pop();
+
+                    auto duration = static_cast<Interpreter::Type_Integer>(runtime[0].mFloat);
+                    runtime.pop();
+
+                    auto time = static_cast<Interpreter::Type_Integer>(runtime[0].mFloat);
+                    runtime.pop();
+
+                    // Chance for Idle is unused
+                    if (arg0)
                     {
-                        value = static_cast<Interpreter::Type_Integer>(stats.getAiSequence().getLastRunTypeId());
+                        --arg0;
+                        runtime.pop();
+                    }
+
+                    std::vector<unsigned char> idleList;
+                    bool repeat = false;
+
+                    // Chances for Idle2-Idle9
+                    for (int i = 2; i <= 9 && arg0; ++i)
+                    {
+                        if (!repeat)
+                            repeat = true;
+                        auto idleValue = static_cast<unsigned char>(std::clamp(runtime[0].mInteger, 0, 255));
+                        idleList.push_back(idleValue);
+                        runtime.pop();
+                        --arg0;
+                    }
+
+                    if (arg0)
+                    {
+                        repeat = runtime[0].mInteger != 0;
+                        runtime.pop();
+                        --arg0;
+                    }
+
+                    // discard additional arguments, because we have no idea what they mean.
+                    for (unsigned int i = 0; i < arg0; ++i)
+                        runtime.pop();
+
+                    if (!ptr.getClass().isActor() || ptr == MWMechanics::getPlayer())
+                        return;
+
+                    MWMechanics::AiWander wanderPackage(range, duration, time, idleList, repeat);
+                    ptr.getClass().getCreatureStats(ptr).getAiSequence().stack(wanderPackage, ptr);
+                }
+            };
+
+            template <class R>
+            class OpGetAiSetting : public Interpreter::Opcode0
+            {
+                MWMechanics::AiSetting mIndex;
+
+            public:
+                explicit OpGetAiSetting(MWMechanics::AiSetting index)
+                    : mIndex(index)
+                {
+                }
+
+                void execute(Interpreter::Runtime& runtime) override
+                {
+                    MWWorld::Ptr ptr = R()(runtime);
+
+                    Interpreter::Type_Integer value = 0;
+                    if (ptr.getClass().isActor())
+                        value = ptr.getClass().getCreatureStats(ptr).getAiSetting(mIndex).getModified(false);
+                    runtime.push(value);
+                }
+            };
+            template <class R>
+            class OpModAiSetting : public Interpreter::Opcode0
+            {
+                MWMechanics::AiSetting mIndex;
+
+            public:
+                explicit OpModAiSetting(MWMechanics::AiSetting index)
+                    : mIndex(index)
+                {
+                }
+
+                void execute(Interpreter::Runtime& runtime) override
+                {
+                    MWWorld::Ptr ptr = R()(runtime);
+                    Interpreter::Type_Integer value = runtime[0].mInteger;
+                    runtime.pop();
+
+                    if (!ptr.getClass().isActor())
+                        return;
+
+                    int modified = ptr.getClass().getCreatureStats(ptr).getAiSetting(mIndex).getBase() + value;
+
+                    ptr.getClass().getCreatureStats(ptr).setAiSetting(mIndex, modified);
+                    ptr.getClass().setBaseAISetting(ptr.getCellRef().getRefId(), mIndex, modified);
+                }
+            };
+            template <class R>
+            class OpSetAiSetting : public Interpreter::Opcode0
+            {
+                MWMechanics::AiSetting mIndex;
+
+            public:
+                explicit OpSetAiSetting(MWMechanics::AiSetting index)
+                    : mIndex(index)
+                {
+                }
+
+                void execute(Interpreter::Runtime& runtime) override
+                {
+                    MWWorld::Ptr ptr = R()(runtime);
+                    Interpreter::Type_Integer value = runtime[0].mInteger;
+                    runtime.pop();
+                    if (ptr.getClass().isActor())
+                    {
+                        ptr.getClass().getCreatureStats(ptr).setAiSetting(mIndex, value);
+                        ptr.getClass().setBaseAISetting(ptr.getCellRef().getRefId(), mIndex, value);
                     }
                 }
+            };
 
-                runtime.push(value);
-            }
-        };
-
-        template <class R>
-        class OpGetDetected : public Interpreter::Opcode0
-        {
-        public:
-            void execute(Interpreter::Runtime& runtime) override
+            template <class R>
+            class OpAiFollow : public Interpreter::Opcode1
             {
-                MWWorld::Ptr observer = R()(runtime, false); // required=false
-
-                ESM::RefId actorID = ESM::RefId::stringRefId(runtime.getStringLiteral(runtime[0].mInteger));
-                runtime.pop();
-
-                MWWorld::Ptr actor = MWBase::Environment::get().getWorld()->searchPtr(actorID, true, false);
-
-                Interpreter::Type_Integer value = 0;
-                if (!actor.isEmpty())
-                    value = MWBase::Environment::get().getMechanicsManager()->isActorDetected(actor, observer);
-
-                runtime.push(value);
-            }
-        };
-
-        template <class R>
-        class OpGetLineOfSight : public Interpreter::Opcode0
-        {
-        public:
-            void execute(Interpreter::Runtime& runtime) override
-            {
-
-                MWWorld::Ptr source = R()(runtime);
-
-                ESM::RefId actorID = ESM::RefId::stringRefId(runtime.getStringLiteral(runtime[0].mInteger));
-                runtime.pop();
-
-                MWWorld::Ptr dest = MWBase::Environment::get().getWorld()->searchPtr(actorID, true, false);
-                bool value = false;
-                if (!dest.isEmpty() && source.getClass().isActor() && dest.getClass().isActor())
+            public:
+                void execute(Interpreter::Runtime& runtime, unsigned int arg0) override
                 {
-                    value = MWBase::Environment::get().getWorld()->getLOS(source, dest);
+                    MWWorld::Ptr ptr = R()(runtime);
+
+                    ESM::RefId actorID = ESM::RefId::stringRefId(runtime.getStringLiteral(runtime[0].mInteger));
+                    runtime.pop();
+
+                    Interpreter::Type_Float duration = runtime[0].mFloat;
+                    runtime.pop();
+
+                    Interpreter::Type_Float x = runtime[0].mFloat;
+                    runtime.pop();
+
+                    Interpreter::Type_Float y = runtime[0].mFloat;
+                    runtime.pop();
+
+                    Interpreter::Type_Float z = runtime[0].mFloat;
+                    runtime.pop();
+
+                    // The value of the reset argument doesn't actually matter
+                    bool repeat = arg0;
+                    for (unsigned int i = 0; i < arg0; ++i)
+                        runtime.pop();
+
+                    if (!ptr.getClass().isActor() || ptr == MWMechanics::getPlayer())
+                        return;
+
+                    MWMechanics::AiFollow followPackage(actorID, {}, duration, x, y, z, repeat);
+                    ptr.getClass().getCreatureStats(ptr).getAiSequence().stack(followPackage, ptr);
+
+                    Log(Debug::Info) << "AiFollow: " << actorID << ", " << x << ", " << y << ", " << z << ", "
+                                     << duration;
                 }
-                runtime.push(value);
-            }
-        };
+            };
 
-        template <class R>
-        class OpGetTarget : public Interpreter::Opcode0
-        {
-        public:
-            void execute(Interpreter::Runtime& runtime) override
+            template <class R>
+            class OpAiFollowCell : public Interpreter::Opcode1
             {
-                MWWorld::Ptr actor = R()(runtime);
-                ESM::RefId testedTargetId = ESM::RefId::stringRefId(runtime.getStringLiteral(runtime[0].mInteger));
-                runtime.pop();
-
-                bool targetsAreEqual = false;
-                if (actor.getClass().isActor())
+            public:
+                void execute(Interpreter::Runtime& runtime, unsigned int arg0) override
                 {
-                    const MWMechanics::CreatureStats& creatureStats = actor.getClass().getCreatureStats(actor);
-                    MWWorld::Ptr targetPtr;
-                    if (creatureStats.getAiSequence().getCombatTarget(targetPtr))
-                    {
-                        if (!targetPtr.isEmpty() && targetPtr.getCellRef().getRefId() == testedTargetId)
-                            targetsAreEqual = true;
-                    }
-                    else if (testedTargetId == "Player") // Currently the player ID is hardcoded
-                    {
-                        MWBase::MechanicsManager* mechMgr = MWBase::Environment::get().getMechanicsManager();
-                        if (mechMgr->getGreetingState(actor) == MWMechanics::GreetingState::InProgress)
-                            targetsAreEqual = true;
-                    }
+                    MWWorld::Ptr ptr = R()(runtime);
+
+                    ESM::RefId actorID = ESM::RefId::stringRefId(runtime.getStringLiteral(runtime[0].mInteger));
+                    runtime.pop();
+
+                    std::string_view cellID = runtime.getStringLiteral(runtime[0].mInteger);
+                    runtime.pop();
+
+                    Interpreter::Type_Float duration = runtime[0].mFloat;
+                    runtime.pop();
+
+                    Interpreter::Type_Float x = runtime[0].mFloat;
+                    runtime.pop();
+
+                    Interpreter::Type_Float y = runtime[0].mFloat;
+                    runtime.pop();
+
+                    Interpreter::Type_Float z = runtime[0].mFloat;
+                    runtime.pop();
+
+                    // The value of the reset argument doesn't actually matter
+                    bool repeat = arg0;
+                    for (unsigned int i = 0; i < arg0; ++i)
+                        runtime.pop();
+
+                    if (!ptr.getClass().isActor() || ptr == MWMechanics::getPlayer())
+                        return;
+
+                    MWMechanics::AiFollow followPackage(actorID, cellID, duration, x, y, z, repeat);
+                    ptr.getClass().getCreatureStats(ptr).getAiSequence().stack(followPackage, ptr);
+                    Log(Debug::Info) << "AiFollow: " << actorID << ", " << x << ", " << y << ", " << z << ", "
+                                     << duration;
                 }
-                runtime.push(targetsAreEqual);
-            }
-        };
+            };
 
-        template <class R>
-        class OpStartCombat : public Interpreter::Opcode0
-        {
-        public:
-            void execute(Interpreter::Runtime& runtime) override
+            template <class R>
+            class OpGetCurrentAIPackage : public Interpreter::Opcode0
             {
-                MWWorld::Ptr actor = R()(runtime);
-                ESM::RefId targetID = ESM::RefId::stringRefId(runtime.getStringLiteral(runtime[0].mInteger));
-                runtime.pop();
+            public:
+                void execute(Interpreter::Runtime& runtime) override
+                {
+                    MWWorld::Ptr ptr = R()(runtime);
 
-                MWWorld::Ptr target = MWBase::Environment::get().getWorld()->searchPtr(targetID, true, false);
-                if (!target.isEmpty() && !target.getBase()->isDeleted()
-                    && !target.getClass().getCreatureStats(target).isDead())
-                    MWBase::Environment::get().getMechanicsManager()->startCombat(actor, target, nullptr);
-            }
-        };
+                    Interpreter::Type_Integer value = -1;
+                    if (ptr.getClass().isActor())
+                    {
+                        const auto& stats = ptr.getClass().getCreatureStats(ptr);
+                        if (!stats.isDead() || !stats.isDeathAnimationFinished())
+                        {
+                            value = static_cast<Interpreter::Type_Integer>(stats.getAiSequence().getLastRunTypeId());
+                        }
+                    }
 
-        template <class R>
-        class OpStopCombat : public Interpreter::Opcode0
-        {
-        public:
-            void execute(Interpreter::Runtime& runtime) override
+                    runtime.push(value);
+                }
+            };
+
+            template <class R>
+            class OpGetDetected : public Interpreter::Opcode0
             {
-                MWWorld::Ptr actor = R()(runtime);
-                if (!actor.getClass().isActor())
-                    return;
-                MWBase::Environment::get().getMechanicsManager()->stopCombat(actor);
-            }
-        };
+            public:
+                void execute(Interpreter::Runtime& runtime) override
+                {
+                    MWWorld::Ptr observer = R()(runtime, false); // required=false
 
-        class OpToggleAI : public Interpreter::Opcode0
-        {
-        public:
-            void execute(Interpreter::Runtime& runtime) override
+                    ESM::RefId actorID = ESM::RefId::stringRefId(runtime.getStringLiteral(runtime[0].mInteger));
+                    runtime.pop();
+
+                    MWWorld::Ptr actor = MWBase::Environment::get().getWorld()->searchPtr(actorID, true, false);
+
+                    Interpreter::Type_Integer value = 0;
+                    if (!actor.isEmpty())
+                        value = MWBase::Environment::get().getMechanicsManager()->isActorDetected(actor, observer);
+
+                    runtime.push(value);
+                }
+            };
+
+            template <class R>
+            class OpGetLineOfSight : public Interpreter::Opcode0
             {
-                bool enabled = MWBase::Environment::get().getMechanicsManager()->toggleAI();
+            public:
+                void execute(Interpreter::Runtime& runtime) override
+                {
 
-                runtime.getContext().report(enabled ? "AI -> On" : "AI -> Off");
-            }
-        };
+                    MWWorld::Ptr source = R()(runtime);
 
-        template <class R>
-        class OpFace : public Interpreter::Opcode0
-        {
-        public:
-            void execute(Interpreter::Runtime& runtime) override
+                    ESM::RefId actorID = ESM::RefId::stringRefId(runtime.getStringLiteral(runtime[0].mInteger));
+                    runtime.pop();
+
+                    MWWorld::Ptr dest = MWBase::Environment::get().getWorld()->searchPtr(actorID, true, false);
+                    bool value = false;
+                    if (!dest.isEmpty() && source.getClass().isActor() && dest.getClass().isActor())
+                    {
+                        value = MWBase::Environment::get().getWorld()->getLOS(source, dest);
+                    }
+                    runtime.push(value);
+                }
+            };
+
+            template <class R>
+            class OpGetTarget : public Interpreter::Opcode0
             {
-                MWWorld::Ptr actor = R()(runtime);
+            public:
+                void execute(Interpreter::Runtime& runtime) override
+                {
+                    MWWorld::Ptr actor = R()(runtime);
+                    ESM::RefId testedTargetId = ESM::RefId::stringRefId(runtime.getStringLiteral(runtime[0].mInteger));
+                    runtime.pop();
 
-                Interpreter::Type_Float x = runtime[0].mFloat;
-                runtime.pop();
+                    bool targetsAreEqual = false;
+                    if (actor.getClass().isActor())
+                    {
+                        const MWMechanics::CreatureStats& creatureStats = actor.getClass().getCreatureStats(actor);
+                        MWWorld::Ptr targetPtr;
+                        if (creatureStats.getAiSequence().getCombatTarget(targetPtr))
+                        {
+                            if (!targetPtr.isEmpty() && targetPtr.getCellRef().getRefId() == testedTargetId)
+                                targetsAreEqual = true;
+                        }
+                        else if (testedTargetId == "Player") // Currently the player ID is hardcoded
+                        {
+                            MWBase::MechanicsManager* mechMgr = MWBase::Environment::get().getMechanicsManager();
+                            if (mechMgr->getGreetingState(actor) == MWMechanics::GreetingState::InProgress)
+                                targetsAreEqual = true;
+                        }
+                    }
+                    runtime.push(targetsAreEqual);
+                }
+            };
 
-                Interpreter::Type_Float y = runtime[0].mFloat;
-                runtime.pop();
+            template <class R>
+            class OpStartCombat : public Interpreter::Opcode0
+            {
+            public:
+                void execute(Interpreter::Runtime& runtime) override
+                {
+                    MWWorld::Ptr actor = R()(runtime);
+                    ESM::RefId targetID = ESM::RefId::stringRefId(runtime.getStringLiteral(runtime[0].mInteger));
+                    runtime.pop();
 
-                if (!actor.getClass().isActor() || actor == MWMechanics::getPlayer())
-                    return;
+                    MWWorld::Ptr target = MWBase::Environment::get().getWorld()->searchPtr(targetID, true, false);
+                    if (!target.isEmpty() && !target.getBase()->isDeleted()
+                        && !target.getClass().getCreatureStats(target).isDead())
+                        MWBase::Environment::get().getMechanicsManager()->startCombat(actor, target, nullptr);
+                }
+            };
 
-                MWMechanics::AiFace facePackage(x, y);
-                actor.getClass().getCreatureStats(actor).getAiSequence().stack(facePackage, actor);
-            }
-        };
+            template <class R>
+            class OpStopCombat : public Interpreter::Opcode0
+            {
+            public:
+                void execute(Interpreter::Runtime& runtime) override
+                {
+                    MWWorld::Ptr actor = R()(runtime);
+                    if (!actor.getClass().isActor())
+                        return;
+                    MWBase::Environment::get().getMechanicsManager()->stopCombat(actor);
+                }
+            };
+
+            class OpToggleAI : public Interpreter::Opcode0
+            {
+            public:
+                void execute(Interpreter::Runtime& runtime) override
+                {
+                    bool enabled = MWBase::Environment::get().getMechanicsManager()->toggleAI();
+
+                    runtime.getContext().report(enabled ? "AI -> On" : "AI -> Off");
+                }
+            };
+
+            template <class R>
+            class OpFace : public Interpreter::Opcode0
+            {
+            public:
+                void execute(Interpreter::Runtime& runtime) override
+                {
+                    MWWorld::Ptr actor = R()(runtime);
+
+                    Interpreter::Type_Float x = runtime[0].mFloat;
+                    runtime.pop();
+
+                    Interpreter::Type_Float y = runtime[0].mFloat;
+                    runtime.pop();
+
+                    if (!actor.getClass().isActor() || actor == MWMechanics::getPlayer())
+                        return;
+
+                    MWMechanics::AiFace facePackage(x, y);
+                    actor.getClass().getCreatureStats(actor).getAiSequence().stack(facePackage, actor);
+                }
+            };
+        }
 
         void installOpcodes(Interpreter::Interpreter& interpreter)
         {

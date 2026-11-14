@@ -32,14 +32,17 @@ namespace
 
 using namespace Process;
 
-void cfgError(const QString& title, const QString& msg)
+namespace
 {
-    QMessageBox msgBox;
-    msgBox.setWindowTitle(title);
-    msgBox.setIcon(QMessageBox::Critical);
-    msgBox.setStandardButtons(QMessageBox::Ok);
-    msgBox.setText(msg);
-    msgBox.exec();
+    void cfgError(const QString& title, const QString& msg)
+    {
+        QMessageBox msgBox;
+        msgBox.setWindowTitle(title);
+        msgBox.setIcon(QMessageBox::Critical);
+        msgBox.setStandardButtons(QMessageBox::Ok);
+        msgBox.setText(msg);
+        msgBox.exec();
+    }
 }
 
 Launcher::MainDialog::MainDialog(const Files::ConfigurationManager& configurationManager, QWidget* parent)

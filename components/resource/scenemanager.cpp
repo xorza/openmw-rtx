@@ -206,291 +206,296 @@ namespace Resource
         }
     };
 
-    /// Set texture filtering settings on textures contained in a FlipController.
-    class SetFilterSettingsControllerVisitor : public SceneUtil::ControllerVisitor
+    namespace
     {
-    public:
-        SetFilterSettingsControllerVisitor(
-            osg::Texture::FilterMode minFilter, osg::Texture::FilterMode magFilter, float maxAnisotropy)
-            : mMinFilter(minFilter)
-            , mMagFilter(magFilter)
-            , mMaxAnisotropy(maxAnisotropy)
+        /// Set texture filtering settings on textures contained in a FlipController.
+        class SetFilterSettingsControllerVisitor : public SceneUtil::ControllerVisitor
         {
-        }
-
-        void visit(osg::Node& node, SceneUtil::Controller& ctrl) override
-        {
-            if (auto* flipctrl = dynamic_cast<NifOsg::FlipController*>(&ctrl))
+        public:
+            SetFilterSettingsControllerVisitor(
+                osg::Texture::FilterMode minFilter, osg::Texture::FilterMode magFilter, float maxAnisotropy)
+                : mMinFilter(minFilter)
+                , mMagFilter(magFilter)
+                , mMaxAnisotropy(maxAnisotropy)
             {
-                for (const osg::ref_ptr<osg::Texture2D>& tex : flipctrl->getTextures())
+            }
+
+            void visit(osg::Node& node, SceneUtil::Controller& ctrl) override
+            {
+                if (auto* flipctrl = dynamic_cast<NifOsg::FlipController*>(&ctrl))
+                {
+                    for (const osg::ref_ptr<osg::Texture2D>& tex : flipctrl->getTextures())
+                    {
+                        tex->setFilter(osg::Texture::MIN_FILTER, mMinFilter);
+                        tex->setFilter(osg::Texture::MAG_FILTER, mMagFilter);
+                        tex->setMaxAnisotropy(mMaxAnisotropy);
+                    }
+                }
+            }
+
+        private:
+            osg::Texture::FilterMode mMinFilter;
+            osg::Texture::FilterMode mMagFilter;
+            float mMaxAnisotropy;
+        };
+
+        /// Set texture filtering settings on textures contained in StateSets.
+        class SetFilterSettingsVisitor : public osg::NodeVisitor
+        {
+        public:
+            SetFilterSettingsVisitor(
+                osg::Texture::FilterMode minFilter, osg::Texture::FilterMode magFilter, float maxAnisotropy)
+                : osg::NodeVisitor(TRAVERSE_ALL_CHILDREN)
+                , mMinFilter(minFilter)
+                , mMagFilter(magFilter)
+                , mMaxAnisotropy(maxAnisotropy)
+            {
+            }
+
+            void apply(osg::Node& node) override
+            {
+                osg::StateSet* stateset = node.getStateSet();
+                if (stateset)
+                    applyStateSet(stateset);
+
+                traverse(node);
+            }
+
+            void applyStateSet(osg::StateSet* stateset)
+            {
+                const osg::StateSet::TextureAttributeList& texAttributes = stateset->getTextureAttributeList();
+                for (unsigned int unit = 0; unit < texAttributes.size(); ++unit)
+                {
+                    osg::StateAttribute* texture = stateset->getTextureAttribute(unit, osg::StateAttribute::TEXTURE);
+                    if (texture)
+                        applyStateAttribute(texture);
+                }
+            }
+
+            void applyStateAttribute(osg::StateAttribute* attr)
+            {
+                osg::Texture* tex = attr->asTexture();
+                if (tex)
                 {
                     tex->setFilter(osg::Texture::MIN_FILTER, mMinFilter);
                     tex->setFilter(osg::Texture::MAG_FILTER, mMagFilter);
                     tex->setMaxAnisotropy(mMaxAnisotropy);
                 }
             }
-        }
 
-    private:
-        osg::Texture::FilterMode mMinFilter;
-        osg::Texture::FilterMode mMagFilter;
-        float mMaxAnisotropy;
-    };
+        private:
+            osg::Texture::FilterMode mMinFilter;
+            osg::Texture::FilterMode mMagFilter;
+            float mMaxAnisotropy;
+        };
 
-    /// Set texture filtering settings on textures contained in StateSets.
-    class SetFilterSettingsVisitor : public osg::NodeVisitor
-    {
-    public:
-        SetFilterSettingsVisitor(
-            osg::Texture::FilterMode minFilter, osg::Texture::FilterMode magFilter, float maxAnisotropy)
-            : osg::NodeVisitor(TRAVERSE_ALL_CHILDREN)
-            , mMinFilter(minFilter)
-            , mMagFilter(magFilter)
-            , mMaxAnisotropy(maxAnisotropy)
+        // Check Collada extra descriptions
+        class ColladaDescriptionVisitor : public osg::NodeVisitor
         {
-        }
-
-        void apply(osg::Node& node) override
-        {
-            osg::StateSet* stateset = node.getStateSet();
-            if (stateset)
-                applyStateSet(stateset);
-
-            traverse(node);
-        }
-
-        void applyStateSet(osg::StateSet* stateset)
-        {
-            const osg::StateSet::TextureAttributeList& texAttributes = stateset->getTextureAttributeList();
-            for (unsigned int unit = 0; unit < texAttributes.size(); ++unit)
+        public:
+            ColladaDescriptionVisitor()
+                : osg::NodeVisitor(TRAVERSE_ALL_CHILDREN)
+                , mSkeleton(nullptr)
             {
-                osg::StateAttribute* texture = stateset->getTextureAttribute(unit, osg::StateAttribute::TEXTURE);
-                if (texture)
-                    applyStateAttribute(texture);
             }
-        }
 
-        void applyStateAttribute(osg::StateAttribute* attr)
-        {
-            osg::Texture* tex = attr->asTexture();
-            if (tex)
+            osg::AlphaFunc::ComparisonFunction getTestMode(std::string mode)
             {
-                tex->setFilter(osg::Texture::MIN_FILTER, mMinFilter);
-                tex->setFilter(osg::Texture::MAG_FILTER, mMagFilter);
-                tex->setMaxAnisotropy(mMaxAnisotropy);
-            }
-        }
+                if (mode == "ALWAYS")
+                    return osg::AlphaFunc::ALWAYS;
+                if (mode == "LESS")
+                    return osg::AlphaFunc::LESS;
+                if (mode == "EQUAL")
+                    return osg::AlphaFunc::EQUAL;
+                if (mode == "LEQUAL")
+                    return osg::AlphaFunc::LEQUAL;
+                if (mode == "GREATER")
+                    return osg::AlphaFunc::GREATER;
+                if (mode == "NOTEQUAL")
+                    return osg::AlphaFunc::NOTEQUAL;
+                if (mode == "GEQUAL")
+                    return osg::AlphaFunc::GEQUAL;
+                if (mode == "NEVER")
+                    return osg::AlphaFunc::NEVER;
 
-    private:
-        osg::Texture::FilterMode mMinFilter;
-        osg::Texture::FilterMode mMagFilter;
-        float mMaxAnisotropy;
-    };
-
-    // Check Collada extra descriptions
-    class ColladaDescriptionVisitor : public osg::NodeVisitor
-    {
-    public:
-        ColladaDescriptionVisitor()
-            : osg::NodeVisitor(TRAVERSE_ALL_CHILDREN)
-            , mSkeleton(nullptr)
-        {
-        }
-
-        osg::AlphaFunc::ComparisonFunction getTestMode(std::string mode)
-        {
-            if (mode == "ALWAYS")
-                return osg::AlphaFunc::ALWAYS;
-            if (mode == "LESS")
-                return osg::AlphaFunc::LESS;
-            if (mode == "EQUAL")
-                return osg::AlphaFunc::EQUAL;
-            if (mode == "LEQUAL")
+                Log(Debug::Warning) << "Unexpected alpha testing mode: " << mode;
                 return osg::AlphaFunc::LEQUAL;
-            if (mode == "GREATER")
-                return osg::AlphaFunc::GREATER;
-            if (mode == "NOTEQUAL")
-                return osg::AlphaFunc::NOTEQUAL;
-            if (mode == "GEQUAL")
-                return osg::AlphaFunc::GEQUAL;
-            if (mode == "NEVER")
-                return osg::AlphaFunc::NEVER;
-
-            Log(Debug::Warning) << "Unexpected alpha testing mode: " << mode;
-            return osg::AlphaFunc::LEQUAL;
-        }
-
-        void apply(osg::Node& node) override
-        {
-            if (osg::StateSet* stateset = node.getStateSet())
-            {
-                if (stateset->getRenderingHint() == osg::StateSet::TRANSPARENT_BIN)
-                {
-                    osg::ref_ptr<osg::Depth> depth = new SceneUtil::AutoDepth;
-                    depth->setWriteMask(false);
-
-                    stateset->setAttributeAndModes(depth, osg::StateAttribute::ON);
-                }
-                else if (stateset->getRenderingHint() == osg::StateSet::OPAQUE_BIN)
-                {
-                    osg::ref_ptr<osg::Depth> depth = new SceneUtil::AutoDepth;
-                    depth->setWriteMask(true);
-
-                    stateset->setAttributeAndModes(depth, osg::StateAttribute::ON);
-                }
-            }
-            /* Check if the <node> has <extra type="Node"> <technique profile="OpenSceneGraph"> <Descriptions>
-               <Description> correct format for OpenMW: <Description>alphatest mode value MaterialName</Description> e.g
-               <Description>alphatest GEQUAL 0.8 MyAlphaTestedMaterial</Description> */
-            std::vector<std::string> descriptions = node.getDescriptions();
-            for (const auto& description : descriptions)
-            {
-                mDescriptions.emplace_back(description);
             }
 
-            // Iterate each description, and see if the current node uses the specified material for alpha testing
-            if (node.getStateSet())
+            void apply(osg::Node& node) override
             {
-                for (const auto& description : mDescriptions)
+                if (osg::StateSet* stateset = node.getStateSet())
                 {
-                    std::vector<std::string> descriptionParts;
-                    std::istringstream descriptionStringStream(description);
-                    for (std::string part; std::getline(descriptionStringStream, part, ' ');)
+                    if (stateset->getRenderingHint() == osg::StateSet::TRANSPARENT_BIN)
                     {
-                        descriptionParts.emplace_back(part);
+                        osg::ref_ptr<osg::Depth> depth = new SceneUtil::AutoDepth;
+                        depth->setWriteMask(false);
+
+                        stateset->setAttributeAndModes(depth, osg::StateAttribute::ON);
                     }
-
-                    if (descriptionParts.size() > (3) && descriptionParts.at(3) == node.getStateSet()->getName())
+                    else if (stateset->getRenderingHint() == osg::StateSet::OPAQUE_BIN)
                     {
-                        if (descriptionParts.at(0) == "alphatest")
-                        {
-                            osg::AlphaFunc::ComparisonFunction mode = getTestMode(descriptionParts.at(1));
-                            osg::ref_ptr<osg::AlphaFunc> alphaFunc(new osg::AlphaFunc(
-                                mode, Misc::StringUtils::toNumeric<float>(descriptionParts.at(2), 0.0f)));
-                            node.getStateSet()->setAttributeAndModes(alphaFunc, osg::StateAttribute::ON);
-                        }
+                        osg::ref_ptr<osg::Depth> depth = new SceneUtil::AutoDepth;
+                        depth->setWriteMask(true);
+
+                        stateset->setAttributeAndModes(depth, osg::StateAttribute::ON);
                     }
+                }
+                /* Check if the <node> has <extra type="Node"> <technique profile="OpenSceneGraph"> <Descriptions>
+                   <Description> correct format for OpenMW: <Description>alphatest mode value MaterialName</Description>
+                   e.g <Description>alphatest GEQUAL 0.8 MyAlphaTestedMaterial</Description> */
+                std::vector<std::string> descriptions = node.getDescriptions();
+                for (const auto& description : descriptions)
+                {
+                    mDescriptions.emplace_back(description);
+                }
 
-                    if (descriptionParts.size() > (0) && descriptionParts.at(0) == "bodypart")
+                // Iterate each description, and see if the current node uses the specified material for alpha testing
+                if (node.getStateSet())
+                {
+                    for (const auto& description : mDescriptions)
                     {
-                        SceneUtil::FindByClassVisitor osgaRigFinder("RigGeometryHolder");
-                        node.accept(osgaRigFinder);
-                        for (osg::Node* foundRigNode : osgaRigFinder.mFoundNodes)
+                        std::vector<std::string> descriptionParts;
+                        std::istringstream descriptionStringStream(description);
+                        for (std::string part; std::getline(descriptionStringStream, part, ' ');)
                         {
-                            if (auto* rigGeometryHolder = dynamic_cast<SceneUtil::RigGeometryHolder*>(foundRigNode))
-                                mRigGeometryHolders.emplace_back(
-                                    osg::ref_ptr<SceneUtil::RigGeometryHolder>(rigGeometryHolder));
-                            else
-                                Log(Debug::Error) << "Converted RigGeometryHolder is of a wrong type.";
+                            descriptionParts.emplace_back(part);
                         }
 
-                        if (!mRigGeometryHolders.empty())
+                        if (descriptionParts.size() > (3) && descriptionParts.at(3) == node.getStateSet()->getName())
                         {
-                            osgAnimation::RigGeometry::FindNearestParentSkeleton skeletonFinder;
-                            mRigGeometryHolders[0]->accept(skeletonFinder);
-                            if (skeletonFinder._root.valid())
-                                mSkeleton = skeletonFinder._root;
+                            if (descriptionParts.at(0) == "alphatest")
+                            {
+                                osg::AlphaFunc::ComparisonFunction mode = getTestMode(descriptionParts.at(1));
+                                osg::ref_ptr<osg::AlphaFunc> alphaFunc(new osg::AlphaFunc(
+                                    mode, Misc::StringUtils::toNumeric<float>(descriptionParts.at(2), 0.0f)));
+                                node.getStateSet()->setAttributeAndModes(alphaFunc, osg::StateAttribute::ON);
+                            }
+                        }
+
+                        if (descriptionParts.size() > (0) && descriptionParts.at(0) == "bodypart")
+                        {
+                            SceneUtil::FindByClassVisitor osgaRigFinder("RigGeometryHolder");
+                            node.accept(osgaRigFinder);
+                            for (osg::Node* foundRigNode : osgaRigFinder.mFoundNodes)
+                            {
+                                if (auto* rigGeometryHolder = dynamic_cast<SceneUtil::RigGeometryHolder*>(foundRigNode))
+                                    mRigGeometryHolders.emplace_back(
+                                        osg::ref_ptr<SceneUtil::RigGeometryHolder>(rigGeometryHolder));
+                                else
+                                    Log(Debug::Error) << "Converted RigGeometryHolder is of a wrong type.";
+                            }
+
+                            if (!mRigGeometryHolders.empty())
+                            {
+                                osgAnimation::RigGeometry::FindNearestParentSkeleton skeletonFinder;
+                                mRigGeometryHolders[0]->accept(skeletonFinder);
+                                if (skeletonFinder._root.valid())
+                                    mSkeleton = skeletonFinder._root;
+                            }
                         }
                     }
                 }
+
+                traverse(node);
             }
 
-            traverse(node);
-        }
+        private:
+            std::vector<std::string> mDescriptions;
 
-    private:
-        std::vector<std::string> mDescriptions;
+        public:
+            osgAnimation::Skeleton*
+                mSkeleton; // pointer is valid only if the model is a bodypart, osg::ref_ptr<Skeleton>
+            std::vector<osg::ref_ptr<SceneUtil::RigGeometryHolder>> mRigGeometryHolders;
+        };
 
-    public:
-        osgAnimation::Skeleton* mSkeleton; // pointer is valid only if the model is a bodypart, osg::ref_ptr<Skeleton>
-        std::vector<osg::ref_ptr<SceneUtil::RigGeometryHolder>> mRigGeometryHolders;
-    };
-
-    class ReplaceAnimationUnderscoresVisitor : public osg::NodeVisitor
-    {
-    public:
-        ReplaceAnimationUnderscoresVisitor()
-            : osg::NodeVisitor(osg::NodeVisitor::TRAVERSE_ALL_CHILDREN)
+        class ReplaceAnimationUnderscoresVisitor : public osg::NodeVisitor
         {
-        }
-
-        void apply(osg::Node& node) override
-        {
-            // NOTE: MUST update the animation manager names first!
-            if (auto* animationManager = dynamic_cast<osgAnimation::BasicAnimationManager*>(node.getUpdateCallback()))
-                renameAnimationChannelTargets(*animationManager);
-
-            // Then, any applicable node names
-            if (auto* rigGeometry = dynamic_cast<osgAnimation::RigGeometry*>(&node))
+        public:
+            ReplaceAnimationUnderscoresVisitor()
+                : osg::NodeVisitor(osg::NodeVisitor::TRAVERSE_ALL_CHILDREN)
             {
-                renameNode(*rigGeometry);
-                updateVertexInfluenceMap(*rigGeometry);
-            }
-            else if (auto* matrixTransform = dynamic_cast<osg::MatrixTransform*>(&node))
-            {
-                renameNode(*matrixTransform);
-                renameUpdateCallbacks(*matrixTransform);
             }
 
-            traverse(node);
-        }
-
-    private:
-        inline void renameNode(osg::Node& node)
-        {
-            node.setName(Misc::StringUtils::underscoresToSpaces(node.getName()));
-        }
-
-        void renameUpdateCallbacks(osg::MatrixTransform& node)
-        {
-            osg::Callback* cb = node.getUpdateCallback();
-            while (cb)
+            void apply(osg::Node& node) override
             {
-                auto* animCb = dynamic_cast<osgAnimation::AnimationUpdateCallback<osg::NodeCallback>*>(cb);
-                if (animCb)
+                // NOTE: MUST update the animation manager names first!
+                if (auto* animationManager
+                    = dynamic_cast<osgAnimation::BasicAnimationManager*>(node.getUpdateCallback()))
+                    renameAnimationChannelTargets(*animationManager);
+
+                // Then, any applicable node names
+                if (auto* rigGeometry = dynamic_cast<osgAnimation::RigGeometry*>(&node))
                 {
-                    std::string newAnimCbName = Misc::StringUtils::underscoresToSpaces(animCb->getName());
-                    animCb->setName(newAnimCbName);
+                    renameNode(*rigGeometry);
+                    updateVertexInfluenceMap(*rigGeometry);
                 }
-                cb = cb->getNestedCallback();
-            }
-        }
-
-        void updateVertexInfluenceMap(osgAnimation::RigGeometry& rig)
-        {
-            osgAnimation::VertexInfluenceMap* vertexInfluenceMap = rig.getInfluenceMap();
-            if (!vertexInfluenceMap)
-                return;
-
-            std::vector<std::pair<std::string, std::string>> renameList;
-            for (const auto& [oldBoneName, _] : *vertexInfluenceMap)
-            {
-                const std::string newBoneName = Misc::StringUtils::underscoresToSpaces(oldBoneName);
-                if (newBoneName != oldBoneName)
-                    renameList.emplace_back(oldBoneName, newBoneName);
-            }
-
-            for (const auto& [oldName, newName] : renameList)
-            {
-                if (!vertexInfluenceMap->contains(newName))
-                    (*vertexInfluenceMap)[newName] = std::move((*vertexInfluenceMap)[oldName]);
-                vertexInfluenceMap->erase(oldName);
-            }
-        }
-
-        void renameAnimationChannelTargets(osgAnimation::BasicAnimationManager& animManager)
-        {
-            for (const osgAnimation::Animation* animation : animManager.getAnimationList())
-            {
-                if (animation)
+                else if (auto* matrixTransform = dynamic_cast<osg::MatrixTransform*>(&node))
                 {
-                    const osgAnimation::ChannelList& channels = animation->getChannels();
-                    for (osgAnimation::Channel* channel : channels)
-                        channel->setTargetName(Misc::StringUtils::underscoresToSpaces(channel->getTargetName()));
+                    renameNode(*matrixTransform);
+                    renameUpdateCallbacks(*matrixTransform);
+                }
+
+                traverse(node);
+            }
+
+        private:
+            inline void renameNode(osg::Node& node)
+            {
+                node.setName(Misc::StringUtils::underscoresToSpaces(node.getName()));
+            }
+
+            void renameUpdateCallbacks(osg::MatrixTransform& node)
+            {
+                osg::Callback* cb = node.getUpdateCallback();
+                while (cb)
+                {
+                    auto* animCb = dynamic_cast<osgAnimation::AnimationUpdateCallback<osg::NodeCallback>*>(cb);
+                    if (animCb)
+                    {
+                        std::string newAnimCbName = Misc::StringUtils::underscoresToSpaces(animCb->getName());
+                        animCb->setName(newAnimCbName);
+                    }
+                    cb = cb->getNestedCallback();
                 }
             }
-        }
-    };
+
+            void updateVertexInfluenceMap(osgAnimation::RigGeometry& rig)
+            {
+                osgAnimation::VertexInfluenceMap* vertexInfluenceMap = rig.getInfluenceMap();
+                if (!vertexInfluenceMap)
+                    return;
+
+                std::vector<std::pair<std::string, std::string>> renameList;
+                for (const auto& [oldBoneName, _] : *vertexInfluenceMap)
+                {
+                    const std::string newBoneName = Misc::StringUtils::underscoresToSpaces(oldBoneName);
+                    if (newBoneName != oldBoneName)
+                        renameList.emplace_back(oldBoneName, newBoneName);
+                }
+
+                for (const auto& [oldName, newName] : renameList)
+                {
+                    if (!vertexInfluenceMap->contains(newName))
+                        (*vertexInfluenceMap)[newName] = std::move((*vertexInfluenceMap)[oldName]);
+                    vertexInfluenceMap->erase(oldName);
+                }
+            }
+
+            void renameAnimationChannelTargets(osgAnimation::BasicAnimationManager& animManager)
+            {
+                for (const osgAnimation::Animation* animation : animManager.getAnimationList())
+                {
+                    if (animation)
+                    {
+                        const osgAnimation::ChannelList& channels = animation->getChannels();
+                        for (osgAnimation::Channel* channel : channels)
+                            channel->setTargetName(Misc::StringUtils::underscoresToSpaces(channel->getTargetName()));
+                    }
+                }
+            }
+        };
+    }
 
     SceneManager::SceneManager(const VFS::Manager* vfs, Resource::ImageManager* imageManager,
         Resource::NifFileManager* nifFileManager, Resource::BgsmFileManager* bgsmFileManager, double expiryDelay)
@@ -598,40 +603,41 @@ namespace Resource
             stateset->setAttributeAndModes(new osg::Disablei(GL_BLEND, 1));
     }
 
-    /// @brief Callback to read image files from the VFS.
-    class ImageReadCallback : public osgDB::ReadFileCallback
-    {
-    public:
-        explicit ImageReadCallback(Resource::ImageManager* imageMgr)
-            : mImageManager(imageMgr)
-        {
-        }
-
-        osgDB::ReaderWriter::ReadResult readImage(const std::string& filename, const osgDB::Options* options) override
-        {
-            auto filePath = Files::pathFromUnicodeString(filename);
-            if (filePath.is_absolute())
-                // It is a hack. Needed because either OSG or libcollada-dom tries to make an absolute path from
-                // our relative VFS path by adding current working directory.
-                filePath = std::filesystem::relative(filename, osgDB::getCurrentWorkingDirectory());
-            try
-            {
-                return osgDB::ReaderWriter::ReadResult(
-                    mImageManager->getImage(VFS::Path::toNormalized(Files::pathToUnicodeString(filePath))),
-                    osgDB::ReaderWriter::ReadResult::FILE_LOADED);
-            }
-            catch (std::exception& e)
-            {
-                return osgDB::ReaderWriter::ReadResult(e.what());
-            }
-        }
-
-    private:
-        Resource::ImageManager* mImageManager;
-    };
-
     namespace
     {
+        /// @brief Callback to read image files from the VFS.
+        class ImageReadCallback : public osgDB::ReadFileCallback
+        {
+        public:
+            explicit ImageReadCallback(Resource::ImageManager* imageMgr)
+                : mImageManager(imageMgr)
+            {
+            }
+
+            osgDB::ReaderWriter::ReadResult readImage(
+                const std::string& filename, const osgDB::Options* options) override
+            {
+                auto filePath = Files::pathFromUnicodeString(filename);
+                if (filePath.is_absolute())
+                    // It is a hack. Needed because either OSG or libcollada-dom tries to make an absolute path from
+                    // our relative VFS path by adding current working directory.
+                    filePath = std::filesystem::relative(filename, osgDB::getCurrentWorkingDirectory());
+                try
+                {
+                    return osgDB::ReaderWriter::ReadResult(
+                        mImageManager->getImage(VFS::Path::toNormalized(Files::pathToUnicodeString(filePath))),
+                        osgDB::ReaderWriter::ReadResult::FILE_LOADED);
+                }
+                catch (std::exception& e)
+                {
+                    return osgDB::ReaderWriter::ReadResult(e.what());
+                }
+            }
+
+        private:
+            Resource::ImageManager* mImageManager;
+        };
+
         osg::ref_ptr<osg::Node> loadNonNif(
             VFS::Path::NormalizedView normalizedFilename, std::istream& model, Resource::ImageManager* imageManager)
         {
@@ -832,118 +838,119 @@ namespace Resource
 
             return result;
         }
-    }
 
-    osg::ref_ptr<osg::Node> load(VFS::Path::NormalizedView normalizedFilename, const VFS::Manager* vfs,
-        Resource::ImageManager* imageManager, Resource::NifFileManager* nifFileManager,
-        Resource::BgsmFileManager* materialMgr)
-    {
-        const std::string_view ext = Misc::getFileExtension(normalizedFilename.value());
-        if (ext == "nif")
-            return NifOsg::Loader::load(*nifFileManager->get(normalizedFilename), imageManager, materialMgr);
-        else if (ext == "spt")
+        osg::ref_ptr<osg::Node> load(VFS::Path::NormalizedView normalizedFilename, const VFS::Manager* vfs,
+            Resource::ImageManager* imageManager, Resource::NifFileManager* nifFileManager,
+            Resource::BgsmFileManager* materialMgr)
         {
-            Log(Debug::Warning) << "Ignoring SpeedTree data file " << normalizedFilename;
-            return new osg::Node();
-        }
-        else
-            return loadNonNif(normalizedFilename, *vfs->get(normalizedFilename), imageManager);
-    }
-
-    class CanOptimizeCallback : public SceneUtil::Optimizer::IsOperationPermissibleForObjectCallback
-    {
-    public:
-        bool isReservedName(const std::string& name) const
-        {
-            if (name.empty())
-                return false;
-
-            static const std::vector<std::string> reservedNames = makeSortedReservedNames();
-
-            const auto it = Misc::partialBinarySearch(reservedNames.begin(), reservedNames.end(), name);
-            return it != reservedNames.end();
-        }
-
-        bool isOperationPermissibleForObjectImplementation(
-            const SceneUtil::Optimizer* optimizer, const osg::Drawable* node, unsigned int option) const override
-        {
-            if (option & SceneUtil::Optimizer::FLATTEN_STATIC_TRANSFORMS)
+            const std::string_view ext = Misc::getFileExtension(normalizedFilename.value());
+            if (ext == "nif")
+                return NifOsg::Loader::load(*nifFileManager->get(normalizedFilename), imageManager, materialMgr);
+            else if (ext == "spt")
             {
-                if (node->asGeometry() && node->className() == std::string("Geometry"))
-                    return true;
-                else
-                    return false; // ParticleSystem would have to convert space of all the processors, RigGeometry would
-                                  // have to convert bones... theoretically possible, but very complicated
+                Log(Debug::Warning) << "Ignoring SpeedTree data file " << normalizedFilename;
+                return new osg::Node();
             }
-            return (option & optimizer->getPermissibleOptimizationsForObject(node)) != 0;
+            else
+                return loadNonNif(normalizedFilename, *vfs->get(normalizedFilename), imageManager);
         }
 
-        bool isOperationPermissibleForObjectImplementation(
-            const SceneUtil::Optimizer* optimizer, const osg::Node* node, unsigned int option) const override
+        class CanOptimizeCallback : public SceneUtil::Optimizer::IsOperationPermissibleForObjectCallback
         {
-            if (node->getNumDescriptions() > 0)
-                return false;
-            if (node->getDataVariance() == osg::Object::DYNAMIC)
-                return false;
-            if (isReservedName(node->getName()))
-                return false;
+        public:
+            bool isReservedName(const std::string& name) const
+            {
+                if (name.empty())
+                    return false;
 
-            return (option & optimizer->getPermissibleOptimizationsForObject(node)) != 0;
-        }
-    };
+                static const std::vector<std::string> reservedNames = makeSortedReservedNames();
 
-    static bool canOptimize(std::string_view filename)
-    {
-        const std::string_view::size_type slashpos = filename.find_last_of('/');
-        if (slashpos != std::string_view::npos && slashpos + 1 < filename.size())
+                const auto it = Misc::partialBinarySearch(reservedNames.begin(), reservedNames.end(), name);
+                return it != reservedNames.end();
+            }
+
+            bool isOperationPermissibleForObjectImplementation(
+                const SceneUtil::Optimizer* optimizer, const osg::Drawable* node, unsigned int option) const override
+            {
+                if (option & SceneUtil::Optimizer::FLATTEN_STATIC_TRANSFORMS)
+                {
+                    if (node->asGeometry() && node->className() == std::string("Geometry"))
+                        return true;
+                    else
+                        // ParticleSystem would have to convert space of all the processors, RigGeometry would have to
+                        // convert bones... theoretically possible, but very complicated
+                        return false;
+                }
+                return (option & optimizer->getPermissibleOptimizationsForObject(node)) != 0;
+            }
+
+            bool isOperationPermissibleForObjectImplementation(
+                const SceneUtil::Optimizer* optimizer, const osg::Node* node, unsigned int option) const override
+            {
+                if (node->getNumDescriptions() > 0)
+                    return false;
+                if (node->getDataVariance() == osg::Object::DYNAMIC)
+                    return false;
+                if (isReservedName(node->getName()))
+                    return false;
+
+                return (option & optimizer->getPermissibleOptimizationsForObject(node)) != 0;
+            }
+        };
+
+        bool canOptimize(std::string_view filename)
         {
-            const std::string_view basename = filename.substr(slashpos + 1);
-            // xmesh.nif can not be optimized because there are keyframes added in post
-            if (!basename.empty() && basename[0] == 'x')
-                return false;
+            const std::string_view::size_type slashpos = filename.find_last_of('/');
+            if (slashpos != std::string_view::npos && slashpos + 1 < filename.size())
+            {
+                const std::string_view basename = filename.substr(slashpos + 1);
+                // xmesh.nif can not be optimized because there are keyframes added in post
+                if (!basename.empty() && basename[0] == 'x')
+                    return false;
 
-            // NPC skeleton files can not be optimized because of keyframes added in post
-            // (most of them are usually named like 'xbase_anim.nif' anyway, but not all of them :( )
-            if (basename.starts_with("base_anim") || basename.starts_with("skin"))
+                // NPC skeleton files can not be optimized because of keyframes added in post
+                // (most of them are usually named like 'xbase_anim.nif' anyway, but not all of them :( )
+                if (basename.starts_with("base_anim") || basename.starts_with("skin"))
+                    return false;
+            }
+
+            // For spell VFX, DummyXX nodes must remain intact. Not adding those to reservedNames to avoid being overly
+            // cautious - instead, decide on filename
+            if (filename.find("vfx_pattern") != std::string_view::npos)
                 return false;
+            return true;
         }
 
-        // For spell VFX, DummyXX nodes must remain intact. Not adding those to reservedNames to avoid being overly
-        // cautious - instead, decide on filename
-        if (filename.find("vfx_pattern") != std::string_view::npos)
-            return false;
-        return true;
-    }
-
-    unsigned int getOptimizationOptions()
-    {
-        using namespace SceneUtil;
-        const char* env = getenv("OPENMW_OPTIMIZE");
-        unsigned int options
-            = Optimizer::FLATTEN_STATIC_TRANSFORMS | Optimizer::REMOVE_REDUNDANT_NODES | Optimizer::MERGE_GEOMETRY;
-        if (env)
+        unsigned int getOptimizationOptions()
         {
-            std::string str(env);
+            using namespace SceneUtil;
+            const char* env = getenv("OPENMW_OPTIMIZE");
+            unsigned int options
+                = Optimizer::FLATTEN_STATIC_TRANSFORMS | Optimizer::REMOVE_REDUNDANT_NODES | Optimizer::MERGE_GEOMETRY;
+            if (env)
+            {
+                std::string str(env);
 
-            if (str.find("OFF") != std::string::npos || str.find('0') != std::string::npos)
-                options = 0;
+                if (str.find("OFF") != std::string::npos || str.find('0') != std::string::npos)
+                    options = 0;
 
-            if (str.find("~FLATTEN_STATIC_TRANSFORMS") != std::string::npos)
-                options ^= Optimizer::FLATTEN_STATIC_TRANSFORMS;
-            else if (str.find("FLATTEN_STATIC_TRANSFORMS") != std::string::npos)
-                options |= Optimizer::FLATTEN_STATIC_TRANSFORMS;
+                if (str.find("~FLATTEN_STATIC_TRANSFORMS") != std::string::npos)
+                    options ^= Optimizer::FLATTEN_STATIC_TRANSFORMS;
+                else if (str.find("FLATTEN_STATIC_TRANSFORMS") != std::string::npos)
+                    options |= Optimizer::FLATTEN_STATIC_TRANSFORMS;
 
-            if (str.find("~REMOVE_REDUNDANT_NODES") != std::string::npos)
-                options ^= Optimizer::REMOVE_REDUNDANT_NODES;
-            else if (str.find("REMOVE_REDUNDANT_NODES") != std::string::npos)
-                options |= Optimizer::REMOVE_REDUNDANT_NODES;
+                if (str.find("~REMOVE_REDUNDANT_NODES") != std::string::npos)
+                    options ^= Optimizer::REMOVE_REDUNDANT_NODES;
+                else if (str.find("REMOVE_REDUNDANT_NODES") != std::string::npos)
+                    options |= Optimizer::REMOVE_REDUNDANT_NODES;
 
-            if (str.find("~MERGE_GEOMETRY") != std::string::npos)
-                options ^= Optimizer::MERGE_GEOMETRY;
-            else if (str.find("MERGE_GEOMETRY") != std::string::npos)
-                options |= Optimizer::MERGE_GEOMETRY;
+                if (str.find("~MERGE_GEOMETRY") != std::string::npos)
+                    options ^= Optimizer::MERGE_GEOMETRY;
+                else if (str.find("MERGE_GEOMETRY") != std::string::npos)
+                    options |= Optimizer::MERGE_GEOMETRY;
+            }
+            return options;
         }
-        return options;
     }
 
     void SceneManager::shareState(osg::ref_ptr<osg::Node> node)

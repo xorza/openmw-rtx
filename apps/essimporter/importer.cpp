@@ -33,7 +33,6 @@
 
 namespace
 {
-
     void writeScreenshot(const ESM::Header& fileHeader, ESM::SavedGame& out)
     {
         if (fileHeader.mSCRS.size() != 128 * 128 * 4)
@@ -81,7 +80,6 @@ namespace
         std::string data = ostream.str();
         out.mScreenshot = std::vector<char>(data.begin(), data.end());
     }
-
 }
 
 namespace ESSImport
@@ -95,50 +93,53 @@ namespace ESSImport
     {
     }
 
-    struct File
+    namespace
     {
-        struct Subrecord
+        struct File
         {
-            std::string mName;
-            size_t mFileOffset;
-            std::vector<unsigned char> mData;
-        };
-
-        struct Record
-        {
-            std::string mName;
-            size_t mFileOffset;
-            std::vector<Subrecord> mSubrecords;
-        };
-
-        std::vector<Record> mRecords;
-    };
-
-    void read(const std::filesystem::path& filename, File& file)
-    {
-        ESM::ESMReader esm;
-        esm.open(filename);
-
-        while (esm.hasMoreRecs())
-        {
-            ESM::NAME n = esm.getRecName();
-            esm.getRecHeader();
-
-            File::Record rec;
-            rec.mName = n.toString();
-            rec.mFileOffset = esm.getFileOffset();
-            while (esm.hasMoreSubs())
+            struct Subrecord
             {
-                File::Subrecord sub;
-                esm.getSubName();
-                esm.getSubHeader();
-                sub.mFileOffset = esm.getFileOffset();
-                sub.mName = esm.retSubName().toString();
-                sub.mData.resize(esm.getSubSize());
-                esm.getExact(sub.mData.data(), sub.mData.size());
-                rec.mSubrecords.push_back(std::move(sub));
+                std::string mName;
+                size_t mFileOffset;
+                std::vector<unsigned char> mData;
+            };
+
+            struct Record
+            {
+                std::string mName;
+                size_t mFileOffset;
+                std::vector<Subrecord> mSubrecords;
+            };
+
+            std::vector<Record> mRecords;
+        };
+
+        void read(const std::filesystem::path& filename, File& file)
+        {
+            ESM::ESMReader esm;
+            esm.open(filename);
+
+            while (esm.hasMoreRecs())
+            {
+                ESM::NAME n = esm.getRecName();
+                esm.getRecHeader();
+
+                File::Record rec;
+                rec.mName = n.toString();
+                rec.mFileOffset = esm.getFileOffset();
+                while (esm.hasMoreSubs())
+                {
+                    File::Subrecord sub;
+                    esm.getSubName();
+                    esm.getSubHeader();
+                    sub.mFileOffset = esm.getFileOffset();
+                    sub.mName = esm.retSubName().toString();
+                    sub.mData.resize(esm.getSubSize());
+                    esm.getExact(sub.mData.data(), sub.mData.size());
+                    rec.mSubrecords.push_back(std::move(sub));
+                }
+                file.mRecords.push_back(std::move(rec));
             }
-            file.mRecords.push_back(std::move(rec));
         }
     }
 

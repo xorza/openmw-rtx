@@ -43,85 +43,88 @@ either expressed or implied, of the FreeBSD Project.
 namespace Debug
 {
 
-    void GL_APIENTRY debugCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length,
-        const GLchar* message, const void* userParam)
+    namespace
     {
+        void GL_APIENTRY debugCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length,
+            const GLchar* message, const void* userParam)
+        {
 #ifdef GL_DEBUG_OUTPUT
-        std::string srcStr;
-        switch (source)
-        {
-            case GL_DEBUG_SOURCE_API:
-                srcStr = "API";
-                break;
-            case GL_DEBUG_SOURCE_WINDOW_SYSTEM:
-                srcStr = "WINDOW_SYSTEM";
-                break;
-            case GL_DEBUG_SOURCE_SHADER_COMPILER:
-                srcStr = "SHADER_COMPILER";
-                break;
-            case GL_DEBUG_SOURCE_THIRD_PARTY:
-                srcStr = "THIRD_PARTY";
-                break;
-            case GL_DEBUG_SOURCE_APPLICATION:
-                srcStr = "APPLICATION";
-                break;
-            case GL_DEBUG_SOURCE_OTHER:
-                srcStr = "OTHER";
-                break;
-            default:
-                srcStr = "UNDEFINED";
-                break;
-        }
+            std::string srcStr;
+            switch (source)
+            {
+                case GL_DEBUG_SOURCE_API:
+                    srcStr = "API";
+                    break;
+                case GL_DEBUG_SOURCE_WINDOW_SYSTEM:
+                    srcStr = "WINDOW_SYSTEM";
+                    break;
+                case GL_DEBUG_SOURCE_SHADER_COMPILER:
+                    srcStr = "SHADER_COMPILER";
+                    break;
+                case GL_DEBUG_SOURCE_THIRD_PARTY:
+                    srcStr = "THIRD_PARTY";
+                    break;
+                case GL_DEBUG_SOURCE_APPLICATION:
+                    srcStr = "APPLICATION";
+                    break;
+                case GL_DEBUG_SOURCE_OTHER:
+                    srcStr = "OTHER";
+                    break;
+                default:
+                    srcStr = "UNDEFINED";
+                    break;
+            }
 
-        std::string typeStr;
+            std::string typeStr;
 
-        Level logSeverity = Warning;
-        switch (type)
-        {
-            case GL_DEBUG_TYPE_ERROR:
-                typeStr = "ERROR";
-                logSeverity = Error;
-                break;
-            case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR:
-                typeStr = "DEPRECATED_BEHAVIOR";
-                logSeverity = Warning;
-                break;
-            case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR:
-                typeStr = "UNDEFINED_BEHAVIOR";
-                logSeverity = Warning;
-                break;
-            case GL_DEBUG_TYPE_PORTABILITY:
-                typeStr = "PORTABILITY";
-                logSeverity = Debug;
-                break;
-            case GL_DEBUG_TYPE_PERFORMANCE:
-                typeStr = "PERFORMANCE";
-                logSeverity = Debug;
-                break;
-            case GL_DEBUG_TYPE_OTHER:
-                typeStr = "OTHER";
-                logSeverity = Debug;
-                break;
-            default:
-                typeStr = "UNDEFINED";
-                break;
-        }
+            Level logSeverity = Warning;
+            switch (type)
+            {
+                case GL_DEBUG_TYPE_ERROR:
+                    typeStr = "ERROR";
+                    logSeverity = Error;
+                    break;
+                case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR:
+                    typeStr = "DEPRECATED_BEHAVIOR";
+                    logSeverity = Warning;
+                    break;
+                case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR:
+                    typeStr = "UNDEFINED_BEHAVIOR";
+                    logSeverity = Warning;
+                    break;
+                case GL_DEBUG_TYPE_PORTABILITY:
+                    typeStr = "PORTABILITY";
+                    logSeverity = Debug;
+                    break;
+                case GL_DEBUG_TYPE_PERFORMANCE:
+                    typeStr = "PERFORMANCE";
+                    logSeverity = Debug;
+                    break;
+                case GL_DEBUG_TYPE_OTHER:
+                    typeStr = "OTHER";
+                    logSeverity = Debug;
+                    break;
+                default:
+                    typeStr = "UNDEFINED";
+                    break;
+            }
 
-        Log(logSeverity) << "OpenGL " << typeStr << " [" << srcStr << "]: " << message;
+            Log(logSeverity) << "OpenGL " << typeStr << " [" << srcStr << "]: " << message;
 #endif
+        }
+
+        class PushDebugGroup
+        {
+        public:
+            static std::unique_ptr<PushDebugGroup> sInstance;
+
+            void(GL_APIENTRY* glPushDebugGroup)(GLenum source, GLuint id, GLsizei length, const GLchar* message);
+
+            void(GL_APIENTRY* glPopDebugGroup)(void);
+
+            bool valid() { return glPushDebugGroup && glPopDebugGroup; }
+        };
     }
-
-    class PushDebugGroup
-    {
-    public:
-        static std::unique_ptr<PushDebugGroup> sInstance;
-
-        void(GL_APIENTRY* glPushDebugGroup)(GLenum source, GLuint id, GLsizei length, const GLchar* message);
-
-        void(GL_APIENTRY* glPopDebugGroup)(void);
-
-        bool valid() { return glPushDebugGroup && glPopDebugGroup; }
-    };
 
     std::unique_ptr<PushDebugGroup> PushDebugGroup::sInstance{ std::make_unique<PushDebugGroup>() };
 

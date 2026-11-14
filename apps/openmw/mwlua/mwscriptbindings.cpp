@@ -39,35 +39,36 @@ namespace MWLua
                 enabled ? "resumeLocalScript" : "pauseLocalScript");
             return true;
         }
+
+        struct MWScriptRef
+        {
+            ESM::RefId mId;
+            sol::optional<GObject> mObj;
+
+            MWScript::Locals& getLocals()
+            {
+                if (mObj)
+                    return mObj->ptr().getRefData().getLocals();
+                else
+                    return MWBase::Environment::get().getScriptManager()->getGlobalScripts().getLocals(mId);
+            }
+            bool isRunning() const
+            {
+                if (mObj.has_value()) // local script
+                {
+                    MWWorld::LocalScripts& localScripts = MWBase::Environment::get().getWorld()->getLocalScripts();
+                    return localScripts.isRunning(mId, mObj->ptr());
+                }
+
+                return MWBase::Environment::get().getScriptManager()->getGlobalScripts().isRunning(mId);
+            }
+        };
+        struct MWScriptVariables
+        {
+            MWScriptRef mRef;
+        };
     }
 
-    struct MWScriptRef
-    {
-        ESM::RefId mId;
-        sol::optional<GObject> mObj;
-
-        MWScript::Locals& getLocals()
-        {
-            if (mObj)
-                return mObj->ptr().getRefData().getLocals();
-            else
-                return MWBase::Environment::get().getScriptManager()->getGlobalScripts().getLocals(mId);
-        }
-        bool isRunning() const
-        {
-            if (mObj.has_value()) // local script
-            {
-                MWWorld::LocalScripts& localScripts = MWBase::Environment::get().getWorld()->getLocalScripts();
-                return localScripts.isRunning(mId, mObj->ptr());
-            }
-
-            return MWBase::Environment::get().getScriptManager()->getGlobalScripts().isRunning(mId);
-        }
-    };
-    struct MWScriptVariables
-    {
-        MWScriptRef mRef;
-    };
 }
 
 namespace sol
@@ -89,31 +90,34 @@ namespace sol
 namespace MWLua
 {
 
-    float getGlobalVariableValue(const std::string_view globalId)
+    namespace
     {
-        char varType = MWBase::Environment::get().getWorld()->getGlobalVariableType(globalId);
-        if (varType == 'f')
+        float getGlobalVariableValue(const std::string_view globalId)
         {
-            return MWBase::Environment::get().getWorld()->getGlobalFloat(globalId);
+            char varType = MWBase::Environment::get().getWorld()->getGlobalVariableType(globalId);
+            if (varType == 'f')
+            {
+                return MWBase::Environment::get().getWorld()->getGlobalFloat(globalId);
+            }
+            else if (varType == 's' || varType == 'l')
+            {
+                return static_cast<float>(MWBase::Environment::get().getWorld()->getGlobalInt(globalId));
+            }
+            return 0;
         }
-        else if (varType == 's' || varType == 'l')
-        {
-            return static_cast<float>(MWBase::Environment::get().getWorld()->getGlobalInt(globalId));
-        }
-        return 0;
-    }
 
-    void setGlobalVariableValue(const std::string_view globalId, float value)
-    {
-        const std::string name = Misc::StringUtils::lowerCase(globalId);
-        char varType = MWBase::Environment::get().getWorld()->getGlobalVariableType(name);
-        if (varType == 'f')
+        void setGlobalVariableValue(const std::string_view globalId, float value)
         {
-            MWBase::Environment::get().getWorld()->setGlobalFloat(name, value);
-        }
-        else if (varType == 's' || varType == 'l')
-        {
-            MWBase::Environment::get().getWorld()->setGlobalInt(name, static_cast<int>(value));
+            const std::string name = Misc::StringUtils::lowerCase(globalId);
+            char varType = MWBase::Environment::get().getWorld()->getGlobalVariableType(name);
+            if (varType == 'f')
+            {
+                MWBase::Environment::get().getWorld()->setGlobalFloat(name, value);
+            }
+            else if (varType == 's' || varType == 'l')
+            {
+                MWBase::Environment::get().getWorld()->setGlobalInt(name, static_cast<int>(value));
+            }
         }
     }
 

@@ -72,14 +72,17 @@ namespace MWLua
         return door;
     }
 
-    static const MWWorld::Ptr& doorPtr(const Object& o)
+    namespace
     {
-        return verifyType(ESM::REC_DOOR, o.ptr());
-    }
+        const MWWorld::Ptr& doorPtr(const Object& o)
+        {
+            return verifyType(ESM::REC_DOOR, o.ptr());
+        }
 
-    static const MWWorld::Ptr& door4Ptr(const Object& o)
-    {
-        return verifyType(ESM::REC_DOOR4, o.ptr());
+        const MWWorld::Ptr& door4Ptr(const Object& o)
+        {
+            return verifyType(ESM::REC_DOOR4, o.ptr());
+        }
     }
 
     void addMutableDoorType(sol::state_view& lua)

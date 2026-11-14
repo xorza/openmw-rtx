@@ -49,12 +49,15 @@ namespace MWRender
         }
     }
 
-    static void BoundUnion(float& minX, float& maxX, float& minY, float& maxY, float x, float y)
+    namespace
     {
-        minX = std::min(x, minX);
-        maxX = std::max(x, maxX);
-        minY = std::min(y, minY);
-        maxY = std::max(y, maxY);
+        void BoundUnion(float& minX, float& maxX, float& minY, float& maxY, float x, float y)
+        {
+            minX = std::min(x, minX);
+            maxX = std::max(x, maxX);
+            minY = std::min(y, minY);
+            maxY = std::max(y, maxY);
+        }
     }
 
     void TerrainStorage::getBounds(float& minX, float& maxX, float& minY, float& maxY, ESM::RefId worldspace)

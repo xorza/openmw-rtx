@@ -29,151 +29,156 @@ namespace MWLua
     using Equipment = std::map<int, EquipmentItem>;
     static constexpr int sAnySlot = -1;
 
-    static std::pair<MWWorld::ContainerStoreIterator, bool> findInInventory(
-        MWWorld::ContainerStore& store, const EquipmentItem& item, int slot, bool isInventoryStore)
+    namespace
     {
-        auto oldIt = slot != sAnySlot && isInventoryStore ? static_cast<MWWorld::InventoryStore&>(store).getSlot(slot)
-                                                          : store.end();
-        MWWorld::Ptr itemPtr;
-
-        if (std::holds_alternative<ObjectId>(item))
+        std::pair<MWWorld::ContainerStoreIterator, bool> findInInventory(
+            MWWorld::ContainerStore& store, const EquipmentItem& item, int slot, bool isInventoryStore)
         {
-            itemPtr = MWBase::Environment::get().getWorldModel()->getPtr(std::get<ObjectId>(item));
-            if (oldIt != store.end() && *oldIt == itemPtr)
-                return { oldIt, true }; // already equipped
-            if (itemPtr.isEmpty() || itemPtr.getCellRef().getCount() == 0 || itemPtr.getContainerStore() != &store)
+            auto oldIt = slot != sAnySlot && isInventoryStore
+                ? static_cast<MWWorld::InventoryStore&>(store).getSlot(slot)
+                : store.end();
+            MWWorld::Ptr itemPtr;
+
+            if (std::holds_alternative<ObjectId>(item))
             {
-                Log(Debug::Warning) << "Object" << std::get<ObjectId>(item).toString() << " is not in inventory";
-                return { store.end(), false };
+                itemPtr = MWBase::Environment::get().getWorldModel()->getPtr(std::get<ObjectId>(item));
+                if (oldIt != store.end() && *oldIt == itemPtr)
+                    return { oldIt, true }; // already equipped
+                if (itemPtr.isEmpty() || itemPtr.getCellRef().getCount() == 0 || itemPtr.getContainerStore() != &store)
+                {
+                    Log(Debug::Warning) << "Object" << std::get<ObjectId>(item).toString() << " is not in inventory";
+                    return { store.end(), false };
+                }
             }
+            else
+            {
+                const auto& stringId = std::get<std::string>(item);
+                ESM::RefId recordId = ESM::RefId::deserializeText(stringId);
+                if (oldIt != store.end() && oldIt->getCellRef().getRefId() == recordId)
+                    return { oldIt, true }; // already equipped
+                itemPtr = store.search(recordId);
+                if (itemPtr.isEmpty() || itemPtr.getCellRef().getCount() == 0)
+                {
+                    Log(Debug::Warning) << "There is no object with recordId='" << stringId << "' in inventory";
+                    return { store.end(), false };
+                }
+            }
+
+            // TODO: Refactor InventoryStore to accept Ptr and get rid of this linear search.
+            MWWorld::ContainerStoreIterator it = std::find(store.begin(), store.end(), itemPtr);
+            if (it == store.end()) // should never happen
+                throw std::logic_error("Item not found in container");
+
+            return { it, false };
         }
-        else
+
+        void setEquipment(const MWWorld::Ptr& actor, const Equipment& equipment)
         {
-            const auto& stringId = std::get<std::string>(item);
-            ESM::RefId recordId = ESM::RefId::deserializeText(stringId);
-            if (oldIt != store.end() && oldIt->getCellRef().getRefId() == recordId)
-                return { oldIt, true }; // already equipped
-            itemPtr = store.search(recordId);
-            if (itemPtr.isEmpty() || itemPtr.getCellRef().getCount() == 0)
+            bool isPlayer = actor == MWBase::Environment::get().getWorld()->getPlayerPtr();
+            MWWorld::InventoryStore& store = actor.getClass().getInventoryStore(actor);
+            std::array<bool, MWWorld::InventoryStore::Slots> usedSlots;
+            std::fill(usedSlots.begin(), usedSlots.end(), false);
+
+            auto tryEquipToSlot = [&store, &usedSlots, isPlayer](int slot, const EquipmentItem& item) -> bool {
+                auto [it, alreadyEquipped] = findInInventory(store, item, slot, true);
+                if (alreadyEquipped)
+                    return true;
+                if (it == store.end())
+                    return false;
+                MWWorld::Ptr itemPtr = *it;
+
+                auto [allowedSlots, _] = itemPtr.getClass().getEquipmentSlots(itemPtr);
+                bool requestedSlotIsAllowed
+                    = std::find(allowedSlots.begin(), allowedSlots.end(), slot) != allowedSlots.end();
+                if (!requestedSlotIsAllowed)
+                {
+                    auto firstAllowed
+                        = std::find_if(allowedSlots.begin(), allowedSlots.end(), [&](int s) { return !usedSlots[s]; });
+                    if (firstAllowed == allowedSlots.end())
+                    {
+                        Log(Debug::Warning) << "No suitable slot for " << itemPtr.toString();
+                        return false;
+                    }
+                    slot = *firstAllowed;
+                }
+
+                bool skipEquip = false;
+
+                if (isPlayer)
+                {
+                    const ESM::RefId& script = itemPtr.getClass().getScript(itemPtr);
+                    if (!script.empty())
+                    {
+                        MWScript::Locals& locals = itemPtr.getRefData().getLocals();
+                        locals.setVarByInt(script, "onpcequip", 1);
+                        skipEquip = locals.getIntVar(script, "pcskipequip") == 1;
+                    }
+                }
+
+                if (!skipEquip)
+                    store.equip(slot, it);
+
+                // return true if equipped to requested slot and false if slot was changed
+                return requestedSlotIsAllowed;
+            };
+
+            for (int slot = 0; slot < MWWorld::InventoryStore::Slots; ++slot)
             {
-                Log(Debug::Warning) << "There is no object with recordId='" << stringId << "' in inventory";
-                return { store.end(), false };
+                auto oldIt = store.getSlot(slot);
+                auto newIt = equipment.find(slot);
+                if (newIt == equipment.end())
+                {
+                    if (oldIt != store.end())
+                        store.unequipSlot(slot);
+                    continue;
+                }
+                if (tryEquipToSlot(slot, newIt->second))
+                    usedSlots[slot] = true;
             }
+            for (const auto& [slot, item] : equipment)
+                if (slot >= MWWorld::InventoryStore::Slots)
+                    tryEquipToSlot(sAnySlot, item);
         }
 
-        // TODO: Refactor InventoryStore to accept Ptr and get rid of this linear search.
-        MWWorld::ContainerStoreIterator it = std::find(store.begin(), store.end(), itemPtr);
-        if (it == store.end()) // should never happen
-            throw std::logic_error("Item not found in container");
+        void setSelectedEnchantedItem(const MWWorld::Ptr& actor, const EquipmentItem& item)
+        {
+            MWWorld::ContainerStore& contStore = actor.getClass().getContainerStore(actor);
+            // We're not passing in a specific slot, so ignore the already equipped return value
+            auto [it, _] = findInInventory(contStore, item, sAnySlot, actor.getClass().hasInventoryStore(actor));
+            if (it == contStore.end())
+                return;
+            if (!actor.getClass().hasInventoryStore(actor))
+            {
+                contStore.setSelectedEnchantItem(it);
+                return;
+            }
 
-        return { it, false };
-    }
-
-    static void setEquipment(const MWWorld::Ptr& actor, const Equipment& equipment)
-    {
-        bool isPlayer = actor == MWBase::Environment::get().getWorld()->getPlayerPtr();
-        MWWorld::InventoryStore& store = actor.getClass().getInventoryStore(actor);
-        std::array<bool, MWWorld::InventoryStore::Slots> usedSlots;
-        std::fill(usedSlots.begin(), usedSlots.end(), false);
-
-        auto tryEquipToSlot = [&store, &usedSlots, isPlayer](int slot, const EquipmentItem& item) -> bool {
-            auto [it, alreadyEquipped] = findInInventory(store, item, slot, true);
-            if (alreadyEquipped)
-                return true;
-            if (it == store.end())
-                return false;
+            MWWorld::InventoryStore& store = actor.getClass().getInventoryStore(actor);
             MWWorld::Ptr itemPtr = *it;
 
-            auto [allowedSlots, _] = itemPtr.getClass().getEquipmentSlots(itemPtr);
-            bool requestedSlotIsAllowed
-                = std::find(allowedSlots.begin(), allowedSlots.end(), slot) != allowedSlots.end();
-            if (!requestedSlotIsAllowed)
+            // Equip the item if applicable
+            auto slots = itemPtr.getClass().getEquipmentSlots(itemPtr);
+            if (!slots.first.empty())
             {
-                auto firstAllowed
-                    = std::find_if(allowedSlots.begin(), allowedSlots.end(), [&](int s) { return !usedSlots[s]; });
-                if (firstAllowed == allowedSlots.end())
+                bool alreadyEquipped = false;
+                for (auto slot : slots.first)
                 {
-                    Log(Debug::Warning) << "No suitable slot for " << itemPtr.toString();
-                    return false;
+                    if (store.getSlot(slot) == it)
+                        alreadyEquipped = true;
                 }
-                slot = *firstAllowed;
-            }
 
-            bool skipEquip = false;
-
-            if (isPlayer)
-            {
-                const ESM::RefId& script = itemPtr.getClass().getScript(itemPtr);
-                if (!script.empty())
+                if (!alreadyEquipped)
                 {
-                    MWScript::Locals& locals = itemPtr.getRefData().getLocals();
-                    locals.setVarByInt(script, "onpcequip", 1);
-                    skipEquip = locals.getIntVar(script, "pcskipequip") == 1;
+                    MWBase::Environment::get().getWindowManager()->useItem(itemPtr);
+                    // make sure that item was successfully equipped
+                    if (!store.isEquipped(itemPtr))
+                        return;
                 }
             }
-
-            if (!skipEquip)
-                store.equip(slot, it);
-
-            return requestedSlotIsAllowed; // return true if equipped to requested slot and false if slot was changed
-        };
-
-        for (int slot = 0; slot < MWWorld::InventoryStore::Slots; ++slot)
-        {
-            auto oldIt = store.getSlot(slot);
-            auto newIt = equipment.find(slot);
-            if (newIt == equipment.end())
-            {
-                if (oldIt != store.end())
-                    store.unequipSlot(slot);
-                continue;
-            }
-            if (tryEquipToSlot(slot, newIt->second))
-                usedSlots[slot] = true;
+            store.setSelectedEnchantItem(it);
+            // to reset WindowManager::mSelectedSpell immediately
+            MWBase::Environment::get().getWindowManager()->setSelectedEnchantItem(*it);
         }
-        for (const auto& [slot, item] : equipment)
-            if (slot >= MWWorld::InventoryStore::Slots)
-                tryEquipToSlot(sAnySlot, item);
-    }
-
-    static void setSelectedEnchantedItem(const MWWorld::Ptr& actor, const EquipmentItem& item)
-    {
-        MWWorld::ContainerStore& contStore = actor.getClass().getContainerStore(actor);
-        // We're not passing in a specific slot, so ignore the already equipped return value
-        auto [it, _] = findInInventory(contStore, item, sAnySlot, actor.getClass().hasInventoryStore(actor));
-        if (it == contStore.end())
-            return;
-        if (!actor.getClass().hasInventoryStore(actor))
-        {
-            contStore.setSelectedEnchantItem(it);
-            return;
-        }
-
-        MWWorld::InventoryStore& store = actor.getClass().getInventoryStore(actor);
-        MWWorld::Ptr itemPtr = *it;
-
-        // Equip the item if applicable
-        auto slots = itemPtr.getClass().getEquipmentSlots(itemPtr);
-        if (!slots.first.empty())
-        {
-            bool alreadyEquipped = false;
-            for (auto slot : slots.first)
-            {
-                if (store.getSlot(slot) == it)
-                    alreadyEquipped = true;
-            }
-
-            if (!alreadyEquipped)
-            {
-                MWBase::Environment::get().getWindowManager()->useItem(itemPtr);
-                // make sure that item was successfully equipped
-                if (!store.isEquipped(itemPtr))
-                    return;
-            }
-        }
-        store.setSelectedEnchantItem(it);
-        // to reset WindowManager::mSelectedSpell immediately
-        MWBase::Environment::get().getWindowManager()->setSelectedEnchantItem(*it);
     }
 
     void addActorBindings(sol::table actor, const Context& context)

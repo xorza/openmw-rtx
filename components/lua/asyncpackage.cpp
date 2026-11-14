@@ -18,11 +18,14 @@ namespace sol
 namespace LuaUtil
 {
 
-    struct TimerCallback
+    namespace
     {
-        AsyncPackageId mAsyncId;
-        std::string mName;
-    };
+        struct TimerCallback
+        {
+            AsyncPackageId mAsyncId;
+            std::string mName;
+        };
+    }
 
     Callback Callback::fromLua(const sol::table& t)
     {

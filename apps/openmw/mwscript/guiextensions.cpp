@@ -21,194 +21,197 @@ namespace MWScript
 {
     namespace Gui
     {
-        class OpEnableWindow : public Interpreter::Opcode0
+        namespace
         {
-            MWGui::GuiWindow mWindow;
-
-        public:
-            explicit OpEnableWindow(MWGui::GuiWindow window)
-                : mWindow(window)
+            class OpEnableWindow : public Interpreter::Opcode0
             {
-            }
+                MWGui::GuiWindow mWindow;
 
-            void execute(Interpreter::Runtime& runtime) override
-            {
-                MWBase::Environment::get().getWindowManager()->allow(mWindow);
-            }
-        };
-
-        class OpEnableRest : public Interpreter::Opcode0
-        {
-        public:
-            void execute(Interpreter::Runtime& runtime) override
-            {
-                MWBase::Environment::get().getWindowManager()->enableRest();
-            }
-        };
-
-        template <class R>
-        class OpShowRestMenu : public Interpreter::Opcode0
-        {
-        public:
-            void execute(Interpreter::Runtime& runtime) override
-            {
-                MWWorld::Ptr bed = R()(runtime, false);
-
-                if (bed.isEmpty()
-                    || !MWBase::Environment::get().getMechanicsManager()->sleepInBed(MWMechanics::getPlayer(), bed))
-                    MWBase::Environment::get().getWindowManager()->pushGuiMode(MWGui::GM_Rest, bed);
-            }
-        };
-
-        class OpShowDialogue : public Interpreter::Opcode0
-        {
-            MWGui::GuiMode mDialogue;
-
-        public:
-            explicit OpShowDialogue(MWGui::GuiMode dialogue)
-                : mDialogue(dialogue)
-            {
-            }
-
-            void execute(Interpreter::Runtime& runtime) override
-            {
-                MWBase::Environment::get().getWindowManager()->pushGuiMode(mDialogue);
-            }
-        };
-
-        class OpGetButtonPressed : public Interpreter::Opcode0
-        {
-        public:
-            void execute(Interpreter::Runtime& runtime) override
-            {
-                runtime.push(MWBase::Environment::get().getWindowManager()->readPressedButton());
-            }
-        };
-
-        class OpToggleFogOfWar : public Interpreter::Opcode0
-        {
-        public:
-            void execute(Interpreter::Runtime& runtime) override
-            {
-                runtime.getContext().report(MWBase::Environment::get().getWindowManager()->toggleFogOfWar()
-                        ? "Fog of war -> On"
-                        : "Fog of war -> Off");
-            }
-        };
-
-        class OpToggleFullHelp : public Interpreter::Opcode0
-        {
-        public:
-            void execute(Interpreter::Runtime& runtime) override
-            {
-                runtime.getContext().report(MWBase::Environment::get().getWindowManager()->toggleFullHelp()
-                        ? "Full help -> On"
-                        : "Full help -> Off");
-            }
-        };
-
-        class OpShowMap : public Interpreter::Opcode0
-        {
-        public:
-            void execute(Interpreter::Runtime& runtime) override
-            {
-                std::string_view cell = runtime.getStringLiteral(runtime[0].mInteger);
-                runtime.pop();
-
-                // In Morrowind, using an empty string either errors out (e.g. console) or kills the game
-                // so it should be reasonable to interrupt the script
-                if (cell.empty())
-                    throw std::runtime_error("ShowMap substring must not be empty");
-
-                // "Will match complete or partial cells, so ShowMap, "Vivec" will show cells Vivec and Vivec, Fred's
-                // House as well." http://www.uesp.net/wiki/Tes3Mod:ShowMap
-
-                const MWWorld::Store<ESM::Cell>& cells = MWBase::Environment::get().getESMStore()->get<ESM::Cell>();
-
-                MWBase::WindowManager* winMgr = MWBase::Environment::get().getWindowManager();
-
-                for (auto it = cells.extBegin(); it != cells.extEnd(); ++it)
+            public:
+                explicit OpEnableWindow(MWGui::GuiWindow window)
+                    : mWindow(window)
                 {
-                    const auto& cellName = it->mName;
-                    if (Misc::StringUtils::ciStartsWith(cellName, cell))
-                        winMgr->addVisitedLocation(cellName, it->getGridX(), it->getGridY());
                 }
-            }
-        };
 
-        class OpFillMap : public Interpreter::Opcode0
-        {
-        public:
-            void execute(Interpreter::Runtime& runtime) override
-            {
-                const MWWorld::Store<ESM::Cell>& cells = MWBase::Environment::get().getESMStore()->get<ESM::Cell>();
-
-                for (auto it = cells.extBegin(); it != cells.extEnd(); ++it)
+                void execute(Interpreter::Runtime& runtime) override
                 {
-                    const std::string& name = it->mName;
-                    if (!name.empty())
-                        MWBase::Environment::get().getWindowManager()->addVisitedLocation(
-                            name, it->getGridX(), it->getGridY());
+                    MWBase::Environment::get().getWindowManager()->allow(mWindow);
                 }
-            }
-        };
+            };
 
-        class OpMenuTest : public Interpreter::Opcode1
-        {
-        public:
-            void execute(Interpreter::Runtime& runtime, unsigned int arg0) override
+            class OpEnableRest : public Interpreter::Opcode0
             {
-                int arg = 0;
-                if (arg0 > 0)
+            public:
+                void execute(Interpreter::Runtime& runtime) override
                 {
-                    arg = runtime[0].mInteger;
+                    MWBase::Environment::get().getWindowManager()->enableRest();
+                }
+            };
+
+            template <class R>
+            class OpShowRestMenu : public Interpreter::Opcode0
+            {
+            public:
+                void execute(Interpreter::Runtime& runtime) override
+                {
+                    MWWorld::Ptr bed = R()(runtime, false);
+
+                    if (bed.isEmpty()
+                        || !MWBase::Environment::get().getMechanicsManager()->sleepInBed(MWMechanics::getPlayer(), bed))
+                        MWBase::Environment::get().getWindowManager()->pushGuiMode(MWGui::GM_Rest, bed);
+                }
+            };
+
+            class OpShowDialogue : public Interpreter::Opcode0
+            {
+                MWGui::GuiMode mDialogue;
+
+            public:
+                explicit OpShowDialogue(MWGui::GuiMode dialogue)
+                    : mDialogue(dialogue)
+                {
+                }
+
+                void execute(Interpreter::Runtime& runtime) override
+                {
+                    MWBase::Environment::get().getWindowManager()->pushGuiMode(mDialogue);
+                }
+            };
+
+            class OpGetButtonPressed : public Interpreter::Opcode0
+            {
+            public:
+                void execute(Interpreter::Runtime& runtime) override
+                {
+                    runtime.push(MWBase::Environment::get().getWindowManager()->readPressedButton());
+                }
+            };
+
+            class OpToggleFogOfWar : public Interpreter::Opcode0
+            {
+            public:
+                void execute(Interpreter::Runtime& runtime) override
+                {
+                    runtime.getContext().report(MWBase::Environment::get().getWindowManager()->toggleFogOfWar()
+                            ? "Fog of war -> On"
+                            : "Fog of war -> Off");
+                }
+            };
+
+            class OpToggleFullHelp : public Interpreter::Opcode0
+            {
+            public:
+                void execute(Interpreter::Runtime& runtime) override
+                {
+                    runtime.getContext().report(MWBase::Environment::get().getWindowManager()->toggleFullHelp()
+                            ? "Full help -> On"
+                            : "Full help -> Off");
+                }
+            };
+
+            class OpShowMap : public Interpreter::Opcode0
+            {
+            public:
+                void execute(Interpreter::Runtime& runtime) override
+                {
+                    std::string_view cell = runtime.getStringLiteral(runtime[0].mInteger);
                     runtime.pop();
-                }
 
-                if (arg == 0)
-                {
-                    MWGui::GuiMode modes[] = { MWGui::GM_Inventory, MWGui::GM_Container };
+                    // In Morrowind, using an empty string either errors out (e.g. console) or kills the game
+                    // so it should be reasonable to interrupt the script
+                    if (cell.empty())
+                        throw std::runtime_error("ShowMap substring must not be empty");
 
-                    for (auto& mode : modes)
+                    // "Will match complete or partial cells, so ShowMap, "Vivec" will show cells Vivec and Vivec,
+                    // Fred's House as well." http://www.uesp.net/wiki/Tes3Mod:ShowMap
+
+                    const MWWorld::Store<ESM::Cell>& cells = MWBase::Environment::get().getESMStore()->get<ESM::Cell>();
+
+                    MWBase::WindowManager* winMgr = MWBase::Environment::get().getWindowManager();
+
+                    for (auto it = cells.extBegin(); it != cells.extEnd(); ++it)
                     {
-                        if (MWBase::Environment::get().getWindowManager()->containsMode(mode))
-                            MWBase::Environment::get().getWindowManager()->removeGuiMode(mode);
+                        const auto& cellName = it->mName;
+                        if (Misc::StringUtils::ciStartsWith(cellName, cell))
+                            winMgr->addVisitedLocation(cellName, it->getGridX(), it->getGridY());
                     }
                 }
-                else
-                {
-                    MWGui::GuiWindow gw = MWGui::GW_None;
-                    if (arg == 3)
-                        gw = MWGui::GW_Stats;
-                    if (arg == 4)
-                        gw = MWGui::GW_Inventory;
-                    if (arg == 5)
-                        gw = MWGui::GW_Magic;
-                    if (arg == 6)
-                        gw = MWGui::GW_Map;
+            };
 
-                    MWBase::Environment::get().getWindowManager()->pinWindow(gw);
-                }
-            }
-        };
-
-        class OpToggleMenus : public Interpreter::Opcode0
-        {
-        public:
-            void execute(Interpreter::Runtime& runtime) override
+            class OpFillMap : public Interpreter::Opcode0
             {
-                bool state = MWBase::Environment::get().getWindowManager()->setHudVisibility(
-                    !MWBase::Environment::get().getWindowManager()->isHudVisible());
-                runtime.getContext().report(state ? "GUI -> On" : "GUI -> Off");
-
-                if (!state)
+            public:
+                void execute(Interpreter::Runtime& runtime) override
                 {
-                    while (MWBase::Environment::get().getWindowManager()->getMode()
-                        != MWGui::GM_None) // don't use isGuiMode, or we get an infinite loop for modal message boxes!
-                        MWBase::Environment::get().getWindowManager()->popGuiMode();
+                    const MWWorld::Store<ESM::Cell>& cells = MWBase::Environment::get().getESMStore()->get<ESM::Cell>();
+
+                    for (auto it = cells.extBegin(); it != cells.extEnd(); ++it)
+                    {
+                        const std::string& name = it->mName;
+                        if (!name.empty())
+                            MWBase::Environment::get().getWindowManager()->addVisitedLocation(
+                                name, it->getGridX(), it->getGridY());
+                    }
                 }
-            }
-        };
+            };
+
+            class OpMenuTest : public Interpreter::Opcode1
+            {
+            public:
+                void execute(Interpreter::Runtime& runtime, unsigned int arg0) override
+                {
+                    int arg = 0;
+                    if (arg0 > 0)
+                    {
+                        arg = runtime[0].mInteger;
+                        runtime.pop();
+                    }
+
+                    if (arg == 0)
+                    {
+                        MWGui::GuiMode modes[] = { MWGui::GM_Inventory, MWGui::GM_Container };
+
+                        for (auto& mode : modes)
+                        {
+                            if (MWBase::Environment::get().getWindowManager()->containsMode(mode))
+                                MWBase::Environment::get().getWindowManager()->removeGuiMode(mode);
+                        }
+                    }
+                    else
+                    {
+                        MWGui::GuiWindow gw = MWGui::GW_None;
+                        if (arg == 3)
+                            gw = MWGui::GW_Stats;
+                        if (arg == 4)
+                            gw = MWGui::GW_Inventory;
+                        if (arg == 5)
+                            gw = MWGui::GW_Magic;
+                        if (arg == 6)
+                            gw = MWGui::GW_Map;
+
+                        MWBase::Environment::get().getWindowManager()->pinWindow(gw);
+                    }
+                }
+            };
+
+            class OpToggleMenus : public Interpreter::Opcode0
+            {
+            public:
+                void execute(Interpreter::Runtime& runtime) override
+                {
+                    bool state = MWBase::Environment::get().getWindowManager()->setHudVisibility(
+                        !MWBase::Environment::get().getWindowManager()->isHudVisible());
+                    runtime.getContext().report(state ? "GUI -> On" : "GUI -> Off");
+
+                    if (!state)
+                    {
+                        // don't use isGuiMode, or we get an infinite loop for modal message boxes!
+                        while (MWBase::Environment::get().getWindowManager()->getMode() != MWGui::GM_None)
+                            MWBase::Environment::get().getWindowManager()->popGuiMode();
+                    }
+                }
+            };
+        }
 
         void installOpcodes(Interpreter::Interpreter& interpreter)
         {

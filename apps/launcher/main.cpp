@@ -14,49 +14,52 @@
 
 #include "maindialog.hpp"
 
-int runLauncher(int argc, char* argv[])
+namespace
 {
-    Platform::init();
-
-    boost::program_options::variables_map variables;
-    boost::program_options::options_description description;
-    Files::ConfigurationManager configurationManager;
-    configurationManager.addCommonOptions(description);
-    configurationManager.readConfiguration(variables, description, true);
-
-    Debug::setupLogging(configurationManager.getLogPath(), "Launcher");
-
-    try
+    int runLauncher(int argc, char* argv[])
     {
-        Platform::Application app(argc, argv, Platform::Look::Graphite);
+        Platform::init();
 
-        app.setDesktopFileName("org.openmw.launcher");
+        boost::program_options::variables_map variables;
+        boost::program_options::options_description description;
+        Files::ConfigurationManager configurationManager;
+        configurationManager.addCommonOptions(description);
+        configurationManager.readConfiguration(variables, description, true);
 
-        QString resourcesPath(".");
-        if (!variables["resources"].empty())
+        Debug::setupLogging(configurationManager.getLogPath(), "Launcher");
+
+        try
         {
-            resourcesPath = Files::pathToQString(variables["resources"].as<Files::MaybeQuotedPath>().u8string());
+            Platform::Application app(argc, argv, Platform::Look::Graphite);
+
+            app.setDesktopFileName("org.openmw.launcher");
+
+            QString resourcesPath(".");
+            if (!variables["resources"].empty())
+            {
+                resourcesPath = Files::pathToQString(variables["resources"].as<Files::MaybeQuotedPath>().u8string());
+            }
+
+            L10n::installQtTranslations(app, "launcher", resourcesPath);
+
+            Launcher::MainDialog mainWin(configurationManager);
+
+            Launcher::FirstRunDialogResult result = mainWin.showFirstRunDialog();
+            if (result == Launcher::FirstRunDialogResultFailure)
+                return 0;
+
+            if (result == Launcher::FirstRunDialogResultContinue)
+                mainWin.show();
+
+            int exitCode = app.exec();
+
+            return exitCode;
         }
-
-        L10n::installQtTranslations(app, "launcher", resourcesPath);
-
-        Launcher::MainDialog mainWin(configurationManager);
-
-        Launcher::FirstRunDialogResult result = mainWin.showFirstRunDialog();
-        if (result == Launcher::FirstRunDialogResultFailure)
+        catch (const std::exception& e)
+        {
+            Log(Debug::Error) << "Unexpected exception: " << e.what();
             return 0;
-
-        if (result == Launcher::FirstRunDialogResultContinue)
-            mainWin.show();
-
-        int exitCode = app.exec();
-
-        return exitCode;
-    }
-    catch (const std::exception& e)
-    {
-        Log(Debug::Error) << "Unexpected exception: " << e.what();
-        return 0;
+        }
     }
 }
 

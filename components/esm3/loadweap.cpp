@@ -103,13 +103,13 @@ namespace ESM
             dst.mThrust = src.mThrust;
             dst.mFlags = src.mFlags;
         }
-    }
 
-    template <Misc::SameAsWithoutCvref<EsmWPDTstruct> T>
-    void decompose(T&& v, const auto& f)
-    {
-        f(v.mWeight, v.mValue, v.mType, v.mHealth, v.mSpeed, v.mReach, v.mEnchant, v.mChop, v.mSlash, v.mThrust,
-            v.mFlags);
+        template <Misc::SameAsWithoutCvref<EsmWPDTstruct> T>
+        void decompose(T&& v, const auto& f)
+        {
+            f(v.mWeight, v.mValue, v.mType, v.mHealth, v.mSpeed, v.mReach, v.mEnchant, v.mChop, v.mSlash, v.mThrust,
+                v.mFlags);
+        }
     }
 
     RefId Weapon::indexToRefId(int index)

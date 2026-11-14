@@ -81,432 +81,440 @@ namespace MWScript
 {
     namespace Container
     {
-        template <class R>
-        class OpAddItem : public Interpreter::Opcode0
+        namespace
         {
-        public:
-            void execute(Interpreter::Runtime& runtime) override
+            template <class R>
+            class OpAddItem : public Interpreter::Opcode0
             {
-                MWWorld::Ptr ptr = R()(runtime);
-
-                ESM::RefId item = ESM::RefId::stringRefId(runtime.getStringLiteral(runtime[0].mInteger));
-                runtime.pop();
-
-                Interpreter::Type_Integer count = runtime[0].mInteger;
-                runtime.pop();
-
-                if (!MWBase::Environment::get().getESMStore()->find(item))
+            public:
+                void execute(Interpreter::Runtime& runtime) override
                 {
-                    runtime.getContext().report("Failed to add item '" + item.getRefIdString() + "': unknown ID");
-                    return;
-                }
+                    MWWorld::Ptr ptr = R()(runtime);
 
-                if (count < 0)
-                    count = static_cast<uint16_t>(count);
+                    ESM::RefId item = ESM::RefId::stringRefId(runtime.getStringLiteral(runtime[0].mInteger));
+                    runtime.pop();
 
-                // no-op
-                if (count == 0)
-                    return;
+                    Interpreter::Type_Integer count = runtime[0].mInteger;
+                    runtime.pop();
 
-                if (item == "gold_005" || item == "gold_010" || item == "gold_025" || item == "gold_100")
-                    item = MWWorld::ContainerStore::sGoldId;
-
-                // Check if "item" can be placed in a container
-                MWWorld::ManualRef manualRef(*MWBase::Environment::get().getESMStore(), item, 1);
-                MWWorld::Ptr itemPtr = manualRef.getPtr();
-                bool isLevelledList = itemPtr.getClass().getType() == ESM::ItemLevList::sRecordId;
-                if (!isLevelledList)
-                    MWWorld::ContainerStore::getType(itemPtr);
-
-                // Explicit calls to non-unique actors affect the base record
-                if (!R::implicit && ptr.getClass().isActor()
-                    && MWBase::Environment::get().getESMStore()->getRefCount(ptr.getCellRef().getRefId()) > 1)
-                {
-                    ptr.getClass().modifyBaseInventory(ptr.getCellRef().getRefId(), item, count);
-                    return;
-                }
-
-                // Calls to unresolved containers affect the base record
-                if (ptr.getClass().getType() == ESM::Container::sRecordId
-                    && (!ptr.getRefData().getCustomData() || !ptr.getClass().getContainerStore(ptr).isResolved()))
-                {
-                    ptr.getClass().modifyBaseInventory(ptr.getCellRef().getRefId(), item, count);
-                    const ESM::Container* baseRecord
-                        = MWBase::Environment::get().getESMStore()->get<ESM::Container>().find(
-                            ptr.getCellRef().getRefId());
-                    const auto& ptrs = MWBase::Environment::get().getWorld()->getAll(ptr.getCellRef().getRefId());
-                    for (const auto& container : ptrs)
+                    if (!MWBase::Environment::get().getESMStore()->find(item))
                     {
-                        // use the new base record
-                        container.get<ESM::Container>()->mBase = baseRecord;
-                        if (container.getRefData().getCustomData())
-                        {
-                            auto& store = container.getClass().getContainerStore(container);
-                            if (isLevelledList)
-                            {
-                                if (store.isResolved())
-                                {
-                                    addRandomToStore(itemPtr, count, store);
-                                }
-                            }
-                            else
-                                addToStore(itemPtr, count, store, store.isResolved());
-                        }
-                    }
-                    return;
-                }
-                MWWorld::ContainerStore& store = ptr.getClass().getContainerStore(ptr);
-                if (isLevelledList)
-                    addRandomToStore(itemPtr, count, store);
-                else
-                    addToStore(itemPtr, count, store);
-
-                // Spawn a messagebox (only for items added to player's inventory and if player is talking to someone)
-                if (ptr == MWBase::Environment::get().getWorld()->getPlayerPtr())
-                {
-                    // The two GMST entries below expand to strings informing the player of what, and how many of it has
-                    // been added to their inventory
-                    std::string msgBox;
-                    std::string_view itemName = itemPtr.getClass().getName(itemPtr);
-                    if (count == 1)
-                    {
-                        msgBox = MyGUI::LanguageManager::getInstance().replaceTags("#{sNotifyMessage60}");
-                        msgBox = ::Misc::StringUtils::format(msgBox, itemName);
-                    }
-                    else
-                    {
-                        msgBox = MyGUI::LanguageManager::getInstance().replaceTags("#{sNotifyMessage61}");
-                        msgBox = ::Misc::StringUtils::format(msgBox, count, itemName);
-                    }
-                    MWBase::Environment::get().getWindowManager()->messageBox(msgBox, MWGui::ShowInDialogueMode_Only);
-                }
-            }
-        };
-
-        template <class R>
-        class OpGetItemCount : public Interpreter::Opcode0
-        {
-        public:
-            void execute(Interpreter::Runtime& runtime) override
-            {
-                MWWorld::Ptr ptr = R()(runtime, false);
-
-                ESM::RefId item = ESM::RefId::stringRefId(runtime.getStringLiteral(runtime[0].mInteger));
-                runtime.pop();
-
-                if (ptr.isEmpty() || (ptr.getType() != ESM::Container::sRecordId && !ptr.getClass().isActor()))
-                {
-                    runtime.push(0);
-                    return;
-                }
-
-                if (item == "gold_005" || item == "gold_010" || item == "gold_025" || item == "gold_100")
-                    item = MWWorld::ContainerStore::sGoldId;
-
-                MWWorld::ContainerStore& store = ptr.getClass().getContainerStore(ptr);
-
-                runtime.push(store.count(item));
-            }
-        };
-
-        template <class R>
-        class OpRemoveItem : public Interpreter::Opcode0
-        {
-        public:
-            void execute(Interpreter::Runtime& runtime) override
-            {
-                MWWorld::Ptr ptr = R()(runtime);
-
-                ESM::RefId item = ESM::RefId::stringRefId(runtime.getStringLiteral(runtime[0].mInteger));
-                runtime.pop();
-
-                Interpreter::Type_Integer count = runtime[0].mInteger;
-                runtime.pop();
-
-                if (!MWBase::Environment::get().getESMStore()->find(item))
-                {
-                    runtime.getContext().report("Failed to remove item '" + item.getRefIdString() + "': unknown ID");
-                    return;
-                }
-
-                if (count < 0)
-                    count = static_cast<uint16_t>(count);
-
-                // no-op
-                if (count == 0)
-                    return;
-
-                if (item == "gold_005" || item == "gold_010" || item == "gold_025" || item == "gold_100")
-                    item = MWWorld::ContainerStore::sGoldId;
-
-                // Explicit calls to non-unique actors affect the base record
-                if (!R::implicit && ptr.getClass().isActor()
-                    && MWBase::Environment::get().getESMStore()->getRefCount(ptr.getCellRef().getRefId()) > 1)
-                {
-                    ptr.getClass().modifyBaseInventory(ptr.getCellRef().getRefId(), item, -count);
-                    return;
-                }
-                // Calls to unresolved containers affect the base record instead
-                else if (ptr.getClass().getType() == ESM::Container::sRecordId
-                    && (!ptr.getRefData().getCustomData() || !ptr.getClass().getContainerStore(ptr).isResolved()))
-                {
-                    ptr.getClass().modifyBaseInventory(ptr.getCellRef().getRefId(), item, -count);
-                    const ESM::Container* baseRecord
-                        = MWBase::Environment::get().getESMStore()->get<ESM::Container>().find(
-                            ptr.getCellRef().getRefId());
-                    const auto& ptrs = MWBase::Environment::get().getWorld()->getAll(ptr.getCellRef().getRefId());
-                    for (const auto& container : ptrs)
-                    {
-                        container.get<ESM::Container>()->mBase = baseRecord;
-                        if (container.getRefData().getCustomData())
-                        {
-                            auto& store = container.getClass().getContainerStore(container);
-                            // Note that unlike AddItem, RemoveItem only removes from unresolved containers
-                            if (!store.isResolved())
-                                store.remove(item, count, false, false);
-                        }
-                    }
-                    return;
-                }
-                MWWorld::ContainerStore& store = ptr.getClass().getContainerStore(ptr);
-
-                std::string_view itemName;
-                for (MWWorld::ConstContainerStoreIterator iter(store.cbegin()); iter != store.cend(); ++iter)
-                {
-                    if (iter->getCellRef().getRefId() == item)
-                    {
-                        itemName = iter->getClass().getName(*iter);
-                        break;
-                    }
-                }
-
-                int numRemoved = store.remove(item, count);
-
-                // Spawn a messagebox (only for items removed from player's inventory)
-                if ((numRemoved > 0) && (ptr == MWMechanics::getPlayer()))
-                {
-                    // The two GMST entries below expand to strings informing the player of what, and how many of it has
-                    // been removed from their inventory
-                    std::string msgBox;
-
-                    if (numRemoved > 1)
-                    {
-                        msgBox = MyGUI::LanguageManager::getInstance().replaceTags("#{sNotifyMessage63}");
-                        msgBox = ::Misc::StringUtils::format(msgBox, numRemoved, itemName);
-                    }
-                    else
-                    {
-                        msgBox = MyGUI::LanguageManager::getInstance().replaceTags("#{sNotifyMessage62}");
-                        msgBox = ::Misc::StringUtils::format(msgBox, itemName);
-                    }
-                    MWBase::Environment::get().getWindowManager()->messageBox(msgBox, MWGui::ShowInDialogueMode_Only);
-                }
-            }
-        };
-
-        template <class R>
-        class OpEquip : public Interpreter::Opcode0
-        {
-        public:
-            void execute(Interpreter::Runtime& runtime) override
-            {
-                MWWorld::Ptr ptr = R()(runtime);
-
-                ESM::RefId item = ESM::RefId::stringRefId(runtime.getStringLiteral(runtime[0].mInteger));
-                runtime.pop();
-
-                MWWorld::InventoryStore& invStore = ptr.getClass().getInventoryStore(ptr);
-                auto found = invStore.end();
-                const auto& store = *MWBase::Environment::get().getESMStore();
-
-                // With soul gems we prefer filled ones.
-                for (auto it = invStore.begin(); it != invStore.end(); ++it)
-                {
-                    if (it->getCellRef().getRefId() == item)
-                    {
-                        found = it;
-                        const ESM::RefId& soul = it->getCellRef().getSoul();
-                        if (!it->getClass().isSoulGem(*it)
-                            || (!soul.empty() && store.get<ESM::Creature>().search(soul)))
-                            break;
-                    }
-                }
-
-                if (found == invStore.end())
-                {
-                    MWWorld::ManualRef ref(store, item, 1);
-                    found = ptr.getClass().getContainerStore(ptr).add(ref.getPtr(), 1, false);
-                    Log(Debug::Warning) << "Implicitly adding one " << item << " to the inventory store of "
-                                        << ptr.getCellRef().getRefId()
-                                        << " to fulfill the requirements of Equip instruction";
-                }
-
-                if (ptr == MWMechanics::getPlayer())
-                    MWBase::Environment::get().getWindowManager()->useItem(*found, true);
-                else
-                {
-                    std::unique_ptr<MWWorld::Action> action = found->getClass().use(*found, true);
-                    action->execute(ptr, true);
-                }
-            }
-        };
-
-        template <class R>
-        class OpGetArmorType : public Interpreter::Opcode0
-        {
-        public:
-            void execute(Interpreter::Runtime& runtime) override
-            {
-                MWWorld::Ptr ptr = R()(runtime);
-
-                Interpreter::Type_Integer location = runtime[0].mInteger;
-                runtime.pop();
-
-                int slot = 0;
-                switch (location)
-                {
-                    case 0:
-                        slot = MWWorld::InventoryStore::Slot_Helmet;
-                        break;
-                    case 1:
-                        slot = MWWorld::InventoryStore::Slot_Cuirass;
-                        break;
-                    case 2:
-                        slot = MWWorld::InventoryStore::Slot_LeftPauldron;
-                        break;
-                    case 3:
-                        slot = MWWorld::InventoryStore::Slot_RightPauldron;
-                        break;
-                    case 4:
-                        slot = MWWorld::InventoryStore::Slot_Greaves;
-                        break;
-                    case 5:
-                        slot = MWWorld::InventoryStore::Slot_Boots;
-                        break;
-                    case 6:
-                        slot = MWWorld::InventoryStore::Slot_LeftGauntlet;
-                        break;
-                    case 7:
-                        slot = MWWorld::InventoryStore::Slot_RightGauntlet;
-                        break;
-                    case 8:
-                        slot = MWWorld::InventoryStore::Slot_CarriedLeft; // shield
-                        break;
-                    case 9:
-                        slot = MWWorld::InventoryStore::Slot_LeftGauntlet;
-                        break;
-                    case 10:
-                        slot = MWWorld::InventoryStore::Slot_RightGauntlet;
-                        break;
-                    default:
-                        throw std::runtime_error("armor index out of range");
-                }
-
-                const MWWorld::InventoryStore& invStore = ptr.getClass().getInventoryStore(ptr);
-                MWWorld::ConstContainerStoreIterator it = invStore.getSlot(slot);
-
-                if (it == invStore.end() || it->getType() != ESM::Armor::sRecordId)
-                {
-                    runtime.push(-1);
-                    return;
-                }
-
-                ESM::RefId skill = it->getClass().getEquipmentSkill(*it);
-                if (skill == ESM::Skill::HeavyArmor)
-                    runtime.push(2);
-                else if (skill == ESM::Skill::MediumArmor)
-                    runtime.push(1);
-                else if (skill == ESM::Skill::LightArmor)
-                    runtime.push(0);
-                else
-                    runtime.push(-1);
-            }
-        };
-
-        template <class R>
-        class OpHasItemEquipped : public Interpreter::Opcode0
-        {
-        public:
-            void execute(Interpreter::Runtime& runtime) override
-            {
-                MWWorld::Ptr ptr = R()(runtime);
-
-                ESM::RefId item = ESM::RefId::stringRefId(runtime.getStringLiteral(runtime[0].mInteger));
-                runtime.pop();
-
-                const MWWorld::InventoryStore& invStore = ptr.getClass().getInventoryStore(ptr);
-                for (int slot = 0; slot < MWWorld::InventoryStore::Slots; ++slot)
-                {
-                    MWWorld::ConstContainerStoreIterator it = invStore.getSlot(slot);
-                    if (it != invStore.end() && it->getCellRef().getRefId() == item)
-                    {
-                        runtime.push(1);
+                        runtime.getContext().report("Failed to add item '" + item.getRefIdString() + "': unknown ID");
                         return;
                     }
-                }
-                runtime.push(0);
-            }
-        };
 
-        template <class R>
-        class OpHasSoulGem : public Interpreter::Opcode0
-        {
-        public:
-            void execute(Interpreter::Runtime& runtime) override
-            {
-                MWWorld::Ptr ptr = R()(runtime);
+                    if (count < 0)
+                        count = static_cast<uint16_t>(count);
 
-                ESM::RefId name = ESM::RefId::stringRefId(runtime.getStringLiteral(runtime[0].mInteger));
-                runtime.pop();
+                    // no-op
+                    if (count == 0)
+                        return;
 
-                int count = 0;
-                const MWWorld::InventoryStore& invStore = ptr.getClass().getInventoryStore(ptr);
-                for (MWWorld::ConstContainerStoreIterator it
-                    = invStore.cbegin(MWWorld::ContainerStore::Type_Miscellaneous);
-                    it != invStore.cend(); ++it)
-                {
-                    if (it->getCellRef().getSoul() == name)
-                        count += it->getCellRef().getCount();
-                }
-                runtime.push(count);
-            }
-        };
+                    if (item == "gold_005" || item == "gold_010" || item == "gold_025" || item == "gold_100")
+                        item = MWWorld::ContainerStore::sGoldId;
 
-        template <class R>
-        class OpGetWeaponType : public Interpreter::Opcode0
-        {
-        public:
-            void execute(Interpreter::Runtime& runtime) override
-            {
-                MWWorld::Ptr ptr = R()(runtime);
+                    // Check if "item" can be placed in a container
+                    MWWorld::ManualRef manualRef(*MWBase::Environment::get().getESMStore(), item, 1);
+                    MWWorld::Ptr itemPtr = manualRef.getPtr();
+                    bool isLevelledList = itemPtr.getClass().getType() == ESM::ItemLevList::sRecordId;
+                    if (!isLevelledList)
+                        MWWorld::ContainerStore::getType(itemPtr);
 
-                const MWWorld::InventoryStore& invStore = ptr.getClass().getInventoryStore(ptr);
-                MWWorld::ConstContainerStoreIterator it = invStore.getSlot(MWWorld::InventoryStore::Slot_CarriedRight);
-                if (it == invStore.end())
-                {
-                    runtime.push(-1);
-                    return;
-                }
-                else if (it->getType() != ESM::Weapon::sRecordId)
-                {
-                    if (it->getType() == ESM::Lockpick::sRecordId)
+                    // Explicit calls to non-unique actors affect the base record
+                    if (!R::implicit && ptr.getClass().isActor()
+                        && MWBase::Environment::get().getESMStore()->getRefCount(ptr.getCellRef().getRefId()) > 1)
                     {
-                        runtime.push(-2);
+                        ptr.getClass().modifyBaseInventory(ptr.getCellRef().getRefId(), item, count);
+                        return;
                     }
-                    else if (it->getType() == ESM::Probe::sRecordId)
+
+                    // Calls to unresolved containers affect the base record
+                    if (ptr.getClass().getType() == ESM::Container::sRecordId
+                        && (!ptr.getRefData().getCustomData() || !ptr.getClass().getContainerStore(ptr).isResolved()))
                     {
-                        runtime.push(-3);
+                        ptr.getClass().modifyBaseInventory(ptr.getCellRef().getRefId(), item, count);
+                        const ESM::Container* baseRecord
+                            = MWBase::Environment::get().getESMStore()->get<ESM::Container>().find(
+                                ptr.getCellRef().getRefId());
+                        const auto& ptrs = MWBase::Environment::get().getWorld()->getAll(ptr.getCellRef().getRefId());
+                        for (const auto& container : ptrs)
+                        {
+                            // use the new base record
+                            container.get<ESM::Container>()->mBase = baseRecord;
+                            if (container.getRefData().getCustomData())
+                            {
+                                auto& store = container.getClass().getContainerStore(container);
+                                if (isLevelledList)
+                                {
+                                    if (store.isResolved())
+                                    {
+                                        addRandomToStore(itemPtr, count, store);
+                                    }
+                                }
+                                else
+                                    addToStore(itemPtr, count, store, store.isResolved());
+                            }
+                        }
+                        return;
                     }
+                    MWWorld::ContainerStore& store = ptr.getClass().getContainerStore(ptr);
+                    if (isLevelledList)
+                        addRandomToStore(itemPtr, count, store);
+                    else
+                        addToStore(itemPtr, count, store);
+
+                    // Spawn a messagebox (only for items added to player's inventory and if player is talking to
+                    // someone)
+                    if (ptr == MWBase::Environment::get().getWorld()->getPlayerPtr())
+                    {
+                        // The two GMST entries below expand to strings informing the player of what, and how many of it
+                        // has been added to their inventory
+                        std::string msgBox;
+                        std::string_view itemName = itemPtr.getClass().getName(itemPtr);
+                        if (count == 1)
+                        {
+                            msgBox = MyGUI::LanguageManager::getInstance().replaceTags("#{sNotifyMessage60}");
+                            msgBox = ::Misc::StringUtils::format(msgBox, itemName);
+                        }
+                        else
+                        {
+                            msgBox = MyGUI::LanguageManager::getInstance().replaceTags("#{sNotifyMessage61}");
+                            msgBox = ::Misc::StringUtils::format(msgBox, count, itemName);
+                        }
+                        MWBase::Environment::get().getWindowManager()->messageBox(
+                            msgBox, MWGui::ShowInDialogueMode_Only);
+                    }
+                }
+            };
+
+            template <class R>
+            class OpGetItemCount : public Interpreter::Opcode0
+            {
+            public:
+                void execute(Interpreter::Runtime& runtime) override
+                {
+                    MWWorld::Ptr ptr = R()(runtime, false);
+
+                    ESM::RefId item = ESM::RefId::stringRefId(runtime.getStringLiteral(runtime[0].mInteger));
+                    runtime.pop();
+
+                    if (ptr.isEmpty() || (ptr.getType() != ESM::Container::sRecordId && !ptr.getClass().isActor()))
+                    {
+                        runtime.push(0);
+                        return;
+                    }
+
+                    if (item == "gold_005" || item == "gold_010" || item == "gold_025" || item == "gold_100")
+                        item = MWWorld::ContainerStore::sGoldId;
+
+                    MWWorld::ContainerStore& store = ptr.getClass().getContainerStore(ptr);
+
+                    runtime.push(store.count(item));
+                }
+            };
+
+            template <class R>
+            class OpRemoveItem : public Interpreter::Opcode0
+            {
+            public:
+                void execute(Interpreter::Runtime& runtime) override
+                {
+                    MWWorld::Ptr ptr = R()(runtime);
+
+                    ESM::RefId item = ESM::RefId::stringRefId(runtime.getStringLiteral(runtime[0].mInteger));
+                    runtime.pop();
+
+                    Interpreter::Type_Integer count = runtime[0].mInteger;
+                    runtime.pop();
+
+                    if (!MWBase::Environment::get().getESMStore()->find(item))
+                    {
+                        runtime.getContext().report(
+                            "Failed to remove item '" + item.getRefIdString() + "': unknown ID");
+                        return;
+                    }
+
+                    if (count < 0)
+                        count = static_cast<uint16_t>(count);
+
+                    // no-op
+                    if (count == 0)
+                        return;
+
+                    if (item == "gold_005" || item == "gold_010" || item == "gold_025" || item == "gold_100")
+                        item = MWWorld::ContainerStore::sGoldId;
+
+                    // Explicit calls to non-unique actors affect the base record
+                    if (!R::implicit && ptr.getClass().isActor()
+                        && MWBase::Environment::get().getESMStore()->getRefCount(ptr.getCellRef().getRefId()) > 1)
+                    {
+                        ptr.getClass().modifyBaseInventory(ptr.getCellRef().getRefId(), item, -count);
+                        return;
+                    }
+                    // Calls to unresolved containers affect the base record instead
+                    else if (ptr.getClass().getType() == ESM::Container::sRecordId
+                        && (!ptr.getRefData().getCustomData() || !ptr.getClass().getContainerStore(ptr).isResolved()))
+                    {
+                        ptr.getClass().modifyBaseInventory(ptr.getCellRef().getRefId(), item, -count);
+                        const ESM::Container* baseRecord
+                            = MWBase::Environment::get().getESMStore()->get<ESM::Container>().find(
+                                ptr.getCellRef().getRefId());
+                        const auto& ptrs = MWBase::Environment::get().getWorld()->getAll(ptr.getCellRef().getRefId());
+                        for (const auto& container : ptrs)
+                        {
+                            container.get<ESM::Container>()->mBase = baseRecord;
+                            if (container.getRefData().getCustomData())
+                            {
+                                auto& store = container.getClass().getContainerStore(container);
+                                // Note that unlike AddItem, RemoveItem only removes from unresolved containers
+                                if (!store.isResolved())
+                                    store.remove(item, count, false, false);
+                            }
+                        }
+                        return;
+                    }
+                    MWWorld::ContainerStore& store = ptr.getClass().getContainerStore(ptr);
+
+                    std::string_view itemName;
+                    for (MWWorld::ConstContainerStoreIterator iter(store.cbegin()); iter != store.cend(); ++iter)
+                    {
+                        if (iter->getCellRef().getRefId() == item)
+                        {
+                            itemName = iter->getClass().getName(*iter);
+                            break;
+                        }
+                    }
+
+                    int numRemoved = store.remove(item, count);
+
+                    // Spawn a messagebox (only for items removed from player's inventory)
+                    if ((numRemoved > 0) && (ptr == MWMechanics::getPlayer()))
+                    {
+                        // The two GMST entries below expand to strings informing the player of what, and how many of it
+                        // has been removed from their inventory
+                        std::string msgBox;
+
+                        if (numRemoved > 1)
+                        {
+                            msgBox = MyGUI::LanguageManager::getInstance().replaceTags("#{sNotifyMessage63}");
+                            msgBox = ::Misc::StringUtils::format(msgBox, numRemoved, itemName);
+                        }
+                        else
+                        {
+                            msgBox = MyGUI::LanguageManager::getInstance().replaceTags("#{sNotifyMessage62}");
+                            msgBox = ::Misc::StringUtils::format(msgBox, itemName);
+                        }
+                        MWBase::Environment::get().getWindowManager()->messageBox(
+                            msgBox, MWGui::ShowInDialogueMode_Only);
+                    }
+                }
+            };
+
+            template <class R>
+            class OpEquip : public Interpreter::Opcode0
+            {
+            public:
+                void execute(Interpreter::Runtime& runtime) override
+                {
+                    MWWorld::Ptr ptr = R()(runtime);
+
+                    ESM::RefId item = ESM::RefId::stringRefId(runtime.getStringLiteral(runtime[0].mInteger));
+                    runtime.pop();
+
+                    MWWorld::InventoryStore& invStore = ptr.getClass().getInventoryStore(ptr);
+                    auto found = invStore.end();
+                    const auto& store = *MWBase::Environment::get().getESMStore();
+
+                    // With soul gems we prefer filled ones.
+                    for (auto it = invStore.begin(); it != invStore.end(); ++it)
+                    {
+                        if (it->getCellRef().getRefId() == item)
+                        {
+                            found = it;
+                            const ESM::RefId& soul = it->getCellRef().getSoul();
+                            if (!it->getClass().isSoulGem(*it)
+                                || (!soul.empty() && store.get<ESM::Creature>().search(soul)))
+                                break;
+                        }
+                    }
+
+                    if (found == invStore.end())
+                    {
+                        MWWorld::ManualRef ref(store, item, 1);
+                        found = ptr.getClass().getContainerStore(ptr).add(ref.getPtr(), 1, false);
+                        Log(Debug::Warning)
+                            << "Implicitly adding one " << item << " to the inventory store of "
+                            << ptr.getCellRef().getRefId() << " to fulfill the requirements of Equip instruction";
+                    }
+
+                    if (ptr == MWMechanics::getPlayer())
+                        MWBase::Environment::get().getWindowManager()->useItem(*found, true);
                     else
                     {
-                        runtime.push(-1);
+                        std::unique_ptr<MWWorld::Action> action = found->getClass().use(*found, true);
+                        action->execute(ptr, true);
                     }
-                    return;
                 }
+            };
 
-                runtime.push(ESM::Weapon::refIdToIndex(it->get<ESM::Weapon>()->mBase->mData.mType));
-            }
-        };
+            template <class R>
+            class OpGetArmorType : public Interpreter::Opcode0
+            {
+            public:
+                void execute(Interpreter::Runtime& runtime) override
+                {
+                    MWWorld::Ptr ptr = R()(runtime);
+
+                    Interpreter::Type_Integer location = runtime[0].mInteger;
+                    runtime.pop();
+
+                    int slot = 0;
+                    switch (location)
+                    {
+                        case 0:
+                            slot = MWWorld::InventoryStore::Slot_Helmet;
+                            break;
+                        case 1:
+                            slot = MWWorld::InventoryStore::Slot_Cuirass;
+                            break;
+                        case 2:
+                            slot = MWWorld::InventoryStore::Slot_LeftPauldron;
+                            break;
+                        case 3:
+                            slot = MWWorld::InventoryStore::Slot_RightPauldron;
+                            break;
+                        case 4:
+                            slot = MWWorld::InventoryStore::Slot_Greaves;
+                            break;
+                        case 5:
+                            slot = MWWorld::InventoryStore::Slot_Boots;
+                            break;
+                        case 6:
+                            slot = MWWorld::InventoryStore::Slot_LeftGauntlet;
+                            break;
+                        case 7:
+                            slot = MWWorld::InventoryStore::Slot_RightGauntlet;
+                            break;
+                        case 8:
+                            slot = MWWorld::InventoryStore::Slot_CarriedLeft; // shield
+                            break;
+                        case 9:
+                            slot = MWWorld::InventoryStore::Slot_LeftGauntlet;
+                            break;
+                        case 10:
+                            slot = MWWorld::InventoryStore::Slot_RightGauntlet;
+                            break;
+                        default:
+                            throw std::runtime_error("armor index out of range");
+                    }
+
+                    const MWWorld::InventoryStore& invStore = ptr.getClass().getInventoryStore(ptr);
+                    MWWorld::ConstContainerStoreIterator it = invStore.getSlot(slot);
+
+                    if (it == invStore.end() || it->getType() != ESM::Armor::sRecordId)
+                    {
+                        runtime.push(-1);
+                        return;
+                    }
+
+                    ESM::RefId skill = it->getClass().getEquipmentSkill(*it);
+                    if (skill == ESM::Skill::HeavyArmor)
+                        runtime.push(2);
+                    else if (skill == ESM::Skill::MediumArmor)
+                        runtime.push(1);
+                    else if (skill == ESM::Skill::LightArmor)
+                        runtime.push(0);
+                    else
+                        runtime.push(-1);
+                }
+            };
+
+            template <class R>
+            class OpHasItemEquipped : public Interpreter::Opcode0
+            {
+            public:
+                void execute(Interpreter::Runtime& runtime) override
+                {
+                    MWWorld::Ptr ptr = R()(runtime);
+
+                    ESM::RefId item = ESM::RefId::stringRefId(runtime.getStringLiteral(runtime[0].mInteger));
+                    runtime.pop();
+
+                    const MWWorld::InventoryStore& invStore = ptr.getClass().getInventoryStore(ptr);
+                    for (int slot = 0; slot < MWWorld::InventoryStore::Slots; ++slot)
+                    {
+                        MWWorld::ConstContainerStoreIterator it = invStore.getSlot(slot);
+                        if (it != invStore.end() && it->getCellRef().getRefId() == item)
+                        {
+                            runtime.push(1);
+                            return;
+                        }
+                    }
+                    runtime.push(0);
+                }
+            };
+
+            template <class R>
+            class OpHasSoulGem : public Interpreter::Opcode0
+            {
+            public:
+                void execute(Interpreter::Runtime& runtime) override
+                {
+                    MWWorld::Ptr ptr = R()(runtime);
+
+                    ESM::RefId name = ESM::RefId::stringRefId(runtime.getStringLiteral(runtime[0].mInteger));
+                    runtime.pop();
+
+                    int count = 0;
+                    const MWWorld::InventoryStore& invStore = ptr.getClass().getInventoryStore(ptr);
+                    for (MWWorld::ConstContainerStoreIterator it
+                        = invStore.cbegin(MWWorld::ContainerStore::Type_Miscellaneous);
+                        it != invStore.cend(); ++it)
+                    {
+                        if (it->getCellRef().getSoul() == name)
+                            count += it->getCellRef().getCount();
+                    }
+                    runtime.push(count);
+                }
+            };
+
+            template <class R>
+            class OpGetWeaponType : public Interpreter::Opcode0
+            {
+            public:
+                void execute(Interpreter::Runtime& runtime) override
+                {
+                    MWWorld::Ptr ptr = R()(runtime);
+
+                    const MWWorld::InventoryStore& invStore = ptr.getClass().getInventoryStore(ptr);
+                    MWWorld::ConstContainerStoreIterator it
+                        = invStore.getSlot(MWWorld::InventoryStore::Slot_CarriedRight);
+                    if (it == invStore.end())
+                    {
+                        runtime.push(-1);
+                        return;
+                    }
+                    else if (it->getType() != ESM::Weapon::sRecordId)
+                    {
+                        if (it->getType() == ESM::Lockpick::sRecordId)
+                        {
+                            runtime.push(-2);
+                        }
+                        else if (it->getType() == ESM::Probe::sRecordId)
+                        {
+                            runtime.push(-3);
+                        }
+                        else
+                        {
+                            runtime.push(-1);
+                        }
+                        return;
+                    }
+
+                    runtime.push(ESM::Weapon::refIdToIndex(it->get<ESM::Weapon>()->mBase->mData.mType));
+                }
+            };
+        }
 
         void installOpcodes(Interpreter::Interpreter& interpreter)
         {

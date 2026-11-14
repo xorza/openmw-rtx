@@ -90,7 +90,6 @@
 
 namespace
 {
-
     template <typename Record>
     struct RecordToState
     {
@@ -426,29 +425,33 @@ namespace MWWorld
         }
     }
 
-    static constexpr bool isESM4ActorRec(unsigned int rec)
+    namespace
     {
-        return rec == ESM::REC_NPC_4 || rec == ESM::REC_CREA4;
-    }
-
-    template <typename X, typename R>
-    static void loadImpl(const R& ref, const MWWorld::ESMStore& esmStore, auto& list, MWWorld::CellStore& cellStore)
-    {
-        const MWWorld::Store<X>& store = esmStore.get<X>();
-        const X* ptr = store.search(ref.mBaseObj);
-        if (!ptr)
+        constexpr bool isESM4ActorRec(unsigned int rec)
         {
-            Log(Debug::Warning) << "Warning: could not resolve cell reference " << ref.mId << " (dropping reference)";
-            return;
+            return rec == ESM::REC_NPC_4 || rec == ESM::REC_CREA4;
         }
-        LiveCellRef<X> liveCellRef(ref, ptr);
-        if (!isEnabled(ref, esmStore))
-            liveCellRef.mData.disable();
-        list.push_back(std::move(liveCellRef));
-        // Register at load so refs disabled here (enable-parent ESM4 REFRs) stay resolvable by FormId —
-        // scene insertion skips disabled objects. Idempotent; dereg is destruction-bound.
-        if (!list.back().isDeleted())
-            MWBase::Environment::get().getWorldModel()->registerPtr(MWWorld::Ptr(&list.back(), &cellStore));
+
+        template <typename X, typename R>
+        void loadImpl(const R& ref, const MWWorld::ESMStore& esmStore, auto& list, MWWorld::CellStore& cellStore)
+        {
+            const MWWorld::Store<X>& store = esmStore.get<X>();
+            const X* ptr = store.search(ref.mBaseObj);
+            if (!ptr)
+            {
+                Log(Debug::Warning) << "Warning: could not resolve cell reference " << ref.mId
+                                    << " (dropping reference)";
+                return;
+            }
+            LiveCellRef<X> liveCellRef(ref, ptr);
+            if (!isEnabled(ref, esmStore))
+                liveCellRef.mData.disable();
+            list.push_back(std::move(liveCellRef));
+            // Register at load so refs disabled here (enable-parent ESM4 REFRs) stay resolvable by FormId —
+            // scene insertion skips disabled objects. Idempotent; dereg is destruction-bound.
+            if (!list.back().isDeleted())
+                MWBase::Environment::get().getWorldModel()->registerPtr(MWWorld::Ptr(&list.back(), &cellStore));
+        }
     }
 
     template <typename X>
@@ -538,37 +541,40 @@ namespace MWWorld
         return MWWorld::Ptr(object.getBase(), cellToMoveTo);
     }
 
-    struct MergeVisitor
+    namespace
     {
-        MergeVisitor(std::vector<LiveCellRefBase*>& mergeTo,
-            const std::map<LiveCellRefBase*, MWWorld::CellStore*>& movedHere,
-            const std::map<LiveCellRefBase*, MWWorld::CellStore*>& movedToAnotherCell)
-            : mMergeTo(mergeTo)
-            , mMovedHere(movedHere)
-            , mMovedToAnotherCell(movedToAnotherCell)
+        struct MergeVisitor
         {
-        }
+            MergeVisitor(std::vector<LiveCellRefBase*>& mergeTo,
+                const std::map<LiveCellRefBase*, MWWorld::CellStore*>& movedHere,
+                const std::map<LiveCellRefBase*, MWWorld::CellStore*>& movedToAnotherCell)
+                : mMergeTo(mergeTo)
+                , mMovedHere(movedHere)
+                , mMovedToAnotherCell(movedToAnotherCell)
+            {
+            }
 
-        bool operator()(const MWWorld::Ptr& ptr)
-        {
-            if (mMovedToAnotherCell.contains(ptr.getBase()))
+            bool operator()(const MWWorld::Ptr& ptr)
+            {
+                if (mMovedToAnotherCell.contains(ptr.getBase()))
+                    return true;
+                mMergeTo.push_back(ptr.getBase());
                 return true;
-            mMergeTo.push_back(ptr.getBase());
-            return true;
-        }
+            }
 
-        void merge()
-        {
-            for (const auto& [base, _] : mMovedHere)
-                mMergeTo.push_back(base);
-        }
+            void merge()
+            {
+                for (const auto& [base, _] : mMovedHere)
+                    mMergeTo.push_back(base);
+            }
 
-    private:
-        std::vector<LiveCellRefBase*>& mMergeTo;
+        private:
+            std::vector<LiveCellRefBase*>& mMergeTo;
 
-        const std::map<LiveCellRefBase*, MWWorld::CellStore*>& mMovedHere;
-        const std::map<LiveCellRefBase*, MWWorld::CellStore*>& mMovedToAnotherCell;
-    };
+            const std::map<LiveCellRefBase*, MWWorld::CellStore*>& mMovedHere;
+            const std::map<LiveCellRefBase*, MWWorld::CellStore*>& mMovedToAnotherCell;
+        };
+    }
 
     void CellStore::requestMergedRefsUpdate()
     {
@@ -644,25 +650,28 @@ namespace MWWorld
         return searchConst(id).isEmpty();
     }
 
-    template <typename PtrType>
-    struct SearchVisitor
+    namespace
     {
-        PtrType mFound;
-        const ESM::RefId& mIdToFind;
-        explicit SearchVisitor(const ESM::RefId& id)
-            : mIdToFind(id)
+        template <typename PtrType>
+        struct SearchVisitor
         {
-        }
-        bool operator()(const PtrType& ptr)
-        {
-            if (ptr.getCellRef().getRefId() == mIdToFind)
+            PtrType mFound;
+            const ESM::RefId& mIdToFind;
+            explicit SearchVisitor(const ESM::RefId& id)
+                : mIdToFind(id)
             {
-                mFound = ptr;
-                return false;
             }
-            return true;
-        }
-    };
+            bool operator()(const PtrType& ptr)
+            {
+                if (ptr.getCellRef().getRefId() == mIdToFind)
+                {
+                    mFound = ptr;
+                    return false;
+                }
+                return true;
+            }
+        };
+    }
 
     Ptr CellStore::search(const ESM::RefId& id)
     {
@@ -678,28 +687,31 @@ namespace MWWorld
         return searchVisitor.mFound;
     }
 
-    class RefNumSearchVisitor
+    namespace
     {
-        ESM::RefNum mRefNum;
-
-    public:
-        explicit RefNumSearchVisitor(ESM::RefNum refNum)
-            : mRefNum(refNum)
+        class RefNumSearchVisitor
         {
-        }
+            ESM::RefNum mRefNum;
 
-        Ptr mFound;
-
-        bool operator()(const Ptr& ptr)
-        {
-            if (ptr.getCellRef().getRefNum() == mRefNum)
+        public:
+            explicit RefNumSearchVisitor(ESM::RefNum refNum)
+                : mRefNum(refNum)
             {
-                mFound = ptr;
-                return false;
             }
-            return true;
-        }
-    };
+
+            Ptr mFound;
+
+            bool operator()(const Ptr& ptr)
+            {
+                if (ptr.getCellRef().getRefNum() == mRefNum)
+                {
+                    mFound = ptr;
+                    return false;
+                }
+                return true;
+            }
+        };
+    }
 
     float CellStore::getWaterLevel() const
     {
@@ -796,22 +808,25 @@ namespace MWWorld
         }
     }
 
-    template <typename ReferenceInvocable>
-    static void visitCell4References(
-        const ESM4::Cell& cell, const ESMStore& esmStore, ESM::ReadersCache& readers, ReferenceInvocable&& invocable)
+    namespace
     {
-        for (const ESM4::Reference* ref : esmStore.get<ESM4::Reference>().getByCell(cell.mId))
-            invocable(*ref);
-    }
+        template <typename ReferenceInvocable>
+        void visitCell4References(const ESM4::Cell& cell, const ESMStore& esmStore, ESM::ReadersCache& readers,
+            ReferenceInvocable&& invocable)
+        {
+            for (const ESM4::Reference* ref : esmStore.get<ESM4::Reference>().getByCell(cell.mId))
+                invocable(*ref);
+        }
 
-    template <typename ReferenceInvocable>
-    static void visitCell4ActorReferences(
-        const ESM4::Cell& cell, const ESMStore& esmStore, ESM::ReadersCache& readers, ReferenceInvocable&& invocable)
-    {
-        for (const ESM4::ActorCharacter* ref : esmStore.get<ESM4::ActorCharacter>().getByCell(cell.mId))
-            invocable(*ref);
-        for (const ESM4::ActorCharacter* ref : esmStore.get<ESM4::ActorCreature>().getByCell(cell.mId))
-            invocable(*ref);
+        template <typename ReferenceInvocable>
+        void visitCell4ActorReferences(const ESM4::Cell& cell, const ESMStore& esmStore, ESM::ReadersCache& readers,
+            ReferenceInvocable&& invocable)
+        {
+            for (const ESM4::ActorCharacter* ref : esmStore.get<ESM4::ActorCharacter>().getByCell(cell.mId))
+                invocable(*ref);
+            for (const ESM4::ActorCharacter* ref : esmStore.get<ESM4::ActorCreature>().getByCell(cell.mId))
+                invocable(*ref);
+        }
     }
 
     void CellStore::listRefs(const ESM4::Cell& cell)
@@ -1144,16 +1159,19 @@ namespace MWWorld
         return mFogState.get();
     }
 
-    static void clearCorpse(const MWWorld::Ptr& ptr, const ESMStore& store)
+    namespace
     {
-        const MWMechanics::CreatureStats& creatureStats = ptr.getClass().getCreatureStats(ptr);
-        static const float fCorpseClearDelay
-            = store.get<ESM::GameSetting>().find("fCorpseClearDelay")->mValue.getFloat();
-        if (creatureStats.isDead() && creatureStats.isDeathAnimationFinished() && !ptr.getClass().isPersistent(ptr)
-            && creatureStats.getTimeOfDeath() + fCorpseClearDelay
-                <= MWBase::Environment::get().getWorld()->getTimeStamp())
+        void clearCorpse(const MWWorld::Ptr& ptr, const ESMStore& store)
         {
-            MWBase::Environment::get().getWorld()->deleteObject(ptr);
+            const MWMechanics::CreatureStats& creatureStats = ptr.getClass().getCreatureStats(ptr);
+            static const float fCorpseClearDelay
+                = store.get<ESM::GameSetting>().find("fCorpseClearDelay")->mValue.getFloat();
+            if (creatureStats.isDead() && creatureStats.isDeathAnimationFinished() && !ptr.getClass().isPersistent(ptr)
+                && creatureStats.getTimeOfDeath() + fCorpseClearDelay
+                    <= MWBase::Environment::get().getWorld()->getTimeStamp())
+            {
+                MWBase::Environment::get().getWorld()->deleteObject(ptr);
+            }
         }
     }
 

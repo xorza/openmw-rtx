@@ -57,7 +57,10 @@ namespace
 
 namespace SceneUtil
 {
-    static int sLightId = 0;
+    namespace
+    {
+        int sLightId = 0;
+    }
 
     void configureStateSetSunOverride(const Light* light, osg::StateSet* stateset, int mode)
     {
@@ -72,67 +75,70 @@ namespace SceneUtil
         stateset->getOrCreateUniform("sun.ambient", osg::Uniform::FLOAT_VEC4)->set(ambient);
     }
 
-    LightManager* findLightManager(const osg::NodePath& path)
+    namespace
     {
-        for (auto entry : path)
+        LightManager* findLightManager(const osg::NodePath& path)
         {
-            if (auto* lightManager = dynamic_cast<LightManager*>(entry))
-                return lightManager;
-        }
-        return nullptr;
-    }
-
-    // Set on a LightSource. Adds the light source to its light manager for the current frame.
-    // This allows us to keep track of the current lights in the scene graph without tying creation & destruction to the
-    // manager.
-    class CollectLightCallback : public NodeCallback<CollectLightCallback>
-    {
-    public:
-        CollectLightCallback()
-            : mLightManager(nullptr)
-        {
-        }
-
-        CollectLightCallback(const CollectLightCallback& copy, const osg::CopyOp& copyop)
-            : NodeCallback<CollectLightCallback>(copy, copyop)
-            , mLightManager(nullptr)
-        {
-        }
-
-        META_Object(SceneUtil, CollectLightCallback)
-
-        void operator()(osg::Node* node, osg::NodeVisitor* nv)
-        {
-            if (!mLightManager)
+            for (auto entry : path)
             {
-                mLightManager = findLightManager(nv->getNodePath());
+                if (auto* lightManager = dynamic_cast<LightManager*>(entry))
+                    return lightManager;
+            }
+            return nullptr;
+        }
 
-                if (!mLightManager)
-                    throw std::runtime_error("can't find parent LightManager");
+        // Set on a LightSource. Adds the light source to its light manager for the current frame.
+        // This allows us to keep track of the current lights in the scene graph without tying creation & destruction to
+        // the manager.
+        class CollectLightCallback : public NodeCallback<CollectLightCallback>
+        {
+        public:
+            CollectLightCallback()
+                : mLightManager(nullptr)
+            {
             }
 
-            mLightManager->addLight(
-                static_cast<LightSource*>(node), osg::computeLocalToWorld(nv->getNodePath()), nv->getTraversalNumber());
+            CollectLightCallback(const CollectLightCallback& copy, const osg::CopyOp& copyop)
+                : NodeCallback<CollectLightCallback>(copy, copyop)
+                , mLightManager(nullptr)
+            {
+            }
 
-            traverse(node, nv);
-        }
+            META_Object(SceneUtil, CollectLightCallback)
 
-    private:
-        LightManager* mLightManager;
-    };
+            void operator()(osg::Node* node, osg::NodeVisitor* nv)
+            {
+                if (!mLightManager)
+                {
+                    mLightManager = findLightManager(nv->getNodePath());
 
-    // Set on a LightManager. Clears the data from the previous frame.
-    class LightManagerUpdateCallback : public SceneUtil::NodeCallback<LightManagerUpdateCallback>
-    {
-    public:
-        void operator()(osg::Node* node, osg::NodeVisitor* nv)
+                    if (!mLightManager)
+                        throw std::runtime_error("can't find parent LightManager");
+                }
+
+                mLightManager->addLight(static_cast<LightSource*>(node), osg::computeLocalToWorld(nv->getNodePath()),
+                    nv->getTraversalNumber());
+
+                traverse(node, nv);
+            }
+
+        private:
+            LightManager* mLightManager;
+        };
+
+        // Set on a LightManager. Clears the data from the previous frame.
+        class LightManagerUpdateCallback : public SceneUtil::NodeCallback<LightManagerUpdateCallback>
         {
-            auto* lightManager = static_cast<LightManager*>(node);
-            lightManager->update(nv->getTraversalNumber());
+        public:
+            void operator()(osg::Node* node, osg::NodeVisitor* nv)
+            {
+                auto* lightManager = static_cast<LightManager*>(node);
+                lightManager->update(nv->getTraversalNumber());
 
-            traverse(node, nv);
-        }
-    };
+                traverse(node, nv);
+            }
+        };
+    }
 
     LightManagerCullCallback::LightManagerCullCallback(const LightSettings& settings)
         : mGridSizeX(settings.mClusteredGridSize.x())

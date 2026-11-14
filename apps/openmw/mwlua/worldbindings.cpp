@@ -43,9 +43,13 @@
 
 namespace MWLua
 {
-    struct CellsStore
+    namespace
     {
-    };
+        struct CellsStore
+        {
+        };
+    }
+
 }
 
 namespace sol
@@ -59,100 +63,105 @@ namespace sol
 namespace MWLua
 {
 
-    static void checkGameInitialized(LuaUtil::LuaState* lua)
+    namespace
     {
-        if (MWBase::Environment::get().getStateManager()->getState() == MWBase::StateManager::State_NoGame)
-            throw std::runtime_error(
-                "This function cannot be used until the game is fully initialized.\n" + lua->debugTraceback());
-    }
+        void checkGameInitialized(LuaUtil::LuaState* lua)
+        {
+            if (MWBase::Environment::get().getStateManager()->getState() == MWBase::StateManager::State_NoGame)
+                throw std::runtime_error(
+                    "This function cannot be used until the game is fully initialized.\n" + lua->debugTraceback());
+        }
 
-    static void addWorldTimeBindings(sol::table& api, const Context& context)
-    {
-        using Misc::FiniteFloat;
+        void addWorldTimeBindings(sol::table& api, const Context& context)
+        {
+            using Misc::FiniteFloat;
 
-        Misc::NotNullPtr<MWBase::World> world = MWBase::Environment::get().getWorld();
-        MWWorld::DateTimeManager* timeManager = world->getTimeManager();
+            Misc::NotNullPtr<MWBase::World> world = MWBase::Environment::get().getWorld();
+            MWWorld::DateTimeManager* timeManager = world->getTimeManager();
 
-        api["advanceTime"] = [context, world](const FiniteFloat hours) {
-            if (hours <= 0.0f)
-                throw std::runtime_error("Time may only be advanced forward");
+            api["advanceTime"] = [context, world](const FiniteFloat hours) {
+                if (hours <= 0.0f)
+                    throw std::runtime_error("Time may only be advanced forward");
 
-            context.mLuaManager->addAction([world, hours] {
-                world->advanceTime(hours);
-                MWBase::Environment::get().getMechanicsManager()->fastForwardAi();
-            });
-        };
+                context.mLuaManager->addAction([world, hours] {
+                    world->advanceTime(hours);
+                    MWBase::Environment::get().getMechanicsManager()->fastForwardAi();
+                });
+            };
 
-        api["setGameTimeScale"] = [timeManager](const FiniteFloat scale) { timeManager->setGameTimeScale(scale); };
-        api["setSimulationTimeScale"] = [context, timeManager](const FiniteFloat scale) {
-            context.mLuaManager->addAction([scale, timeManager] { timeManager->setSimulationTimeScale(scale); });
-        };
+            api["setGameTimeScale"] = [timeManager](const FiniteFloat scale) { timeManager->setGameTimeScale(scale); };
+            api["setSimulationTimeScale"] = [context, timeManager](const FiniteFloat scale) {
+                context.mLuaManager->addAction([scale, timeManager] { timeManager->setSimulationTimeScale(scale); });
+            };
 
-        api["pause"]
-            = [timeManager](sol::optional<std::string_view> tag) { timeManager->pause(tag.value_or("paused")); };
-        api["unpause"]
-            = [timeManager](sol::optional<std::string_view> tag) { timeManager->unpause(tag.value_or("paused")); };
-        api["getPausedTags"] = [timeManager](sol::this_state lua) {
-            sol::table res(lua, sol::create);
-            for (const std::string& tag : timeManager->getPausedTags())
-                res[tag] = tag;
-            return res;
-        };
-    }
+            api["pause"]
+                = [timeManager](sol::optional<std::string_view> tag) { timeManager->pause(tag.value_or("paused")); };
+            api["unpause"]
+                = [timeManager](sol::optional<std::string_view> tag) { timeManager->unpause(tag.value_or("paused")); };
+            api["getPausedTags"] = [timeManager](sol::this_state lua) {
+                sol::table res(lua, sol::create);
+                for (const std::string& tag : timeManager->getPausedTags())
+                    res[tag] = tag;
+                return res;
+            };
+        }
 
-    static void addCellGetters(sol::table& api, const Context& context)
-    {
-        api["getCellByName"] = [](std::string_view name) {
-            return GCell{ &MWBase::Environment::get().getWorldModel()->getCell(name, /*forceLoad=*/false) };
-        };
-        api["getCellById"] = [](std::string_view stringId) {
-            return GCell{ &MWBase::Environment::get().getWorldModel()->getCell(
-                ESM::RefId::deserializeText(stringId), /*forceLoad=*/false) };
-        };
-        api["getExteriorCell"] = [](int x, int y, sol::object cellOrName) {
-            ESM::RefId worldspace;
-            if (cellOrName.is<GCell>())
-                worldspace = cellOrName.as<GCell>().mStore->getCell()->getWorldSpace();
-            else if (cellOrName.is<std::string_view>() && !cellOrName.as<std::string_view>().empty())
-                worldspace = MWBase::Environment::get()
-                                 .getWorldModel()
-                                 ->getCell(cellOrName.as<std::string_view>())
-                                 .getCell()
-                                 ->getWorldSpace();
-            else
-                worldspace = ESM::Cell::sDefaultWorldspaceId;
-            return GCell{ &MWBase::Environment::get().getWorldModel()->getExterior(
-                ESM::ExteriorCellLocation(x, y, worldspace), /*forceLoad=*/false) };
-        };
-
-        const MWWorld::Store<ESM::Cell>* cells3Store = &MWBase::Environment::get().getESMStore()->get<ESM::Cell>();
-        const MWWorld::Store<ESM4::Cell>* cells4Store = &MWBase::Environment::get().getESMStore()->get<ESM4::Cell>();
-        auto view = context.sol();
-        sol::usertype<CellsStore> cells = view.new_usertype<CellsStore>("Cells");
-        cells[sol::meta_function::length]
-            = [cells3Store, cells4Store](const CellsStore&) { return cells3Store->getSize() + cells4Store->getSize(); };
-        cells[sol::meta_function::index]
-            = [cells3Store, cells4Store](const CellsStore&, size_t index) -> sol::optional<GCell> {
-            if (index > cells3Store->getSize() + cells4Store->getSize() || index == 0)
-                return sol::nullopt;
-
-            index--; // Translate from Lua's 1-based indexing.
-            if (index < cells3Store->getSize())
-            {
-                const ESM::Cell* cellRecord = cells3Store->at(index);
+        void addCellGetters(sol::table& api, const Context& context)
+        {
+            api["getCellByName"] = [](std::string_view name) {
+                return GCell{ &MWBase::Environment::get().getWorldModel()->getCell(name, /*forceLoad=*/false) };
+            };
+            api["getCellById"] = [](std::string_view stringId) {
                 return GCell{ &MWBase::Environment::get().getWorldModel()->getCell(
-                    cellRecord->mId, /*forceLoad=*/false) };
-            }
-            else
-            {
-                const ESM4::Cell* cellRecord = cells4Store->at(index - cells3Store->getSize());
-                return GCell{ &MWBase::Environment::get().getWorldModel()->getCell(
-                    cellRecord->mId, /*forceLoad=*/false) };
-            }
-        };
-        cells[sol::meta_function::pairs] = view["ipairsForArray"].template get<sol::function>();
-        cells[sol::meta_function::ipairs] = view["ipairsForArray"].template get<sol::function>();
-        api["cells"] = CellsStore{};
+                    ESM::RefId::deserializeText(stringId), /*forceLoad=*/false) };
+            };
+            api["getExteriorCell"] = [](int x, int y, sol::object cellOrName) {
+                ESM::RefId worldspace;
+                if (cellOrName.is<GCell>())
+                    worldspace = cellOrName.as<GCell>().mStore->getCell()->getWorldSpace();
+                else if (cellOrName.is<std::string_view>() && !cellOrName.as<std::string_view>().empty())
+                    worldspace = MWBase::Environment::get()
+                                     .getWorldModel()
+                                     ->getCell(cellOrName.as<std::string_view>())
+                                     .getCell()
+                                     ->getWorldSpace();
+                else
+                    worldspace = ESM::Cell::sDefaultWorldspaceId;
+                return GCell{ &MWBase::Environment::get().getWorldModel()->getExterior(
+                    ESM::ExteriorCellLocation(x, y, worldspace), /*forceLoad=*/false) };
+            };
+
+            const MWWorld::Store<ESM::Cell>* cells3Store = &MWBase::Environment::get().getESMStore()->get<ESM::Cell>();
+            const MWWorld::Store<ESM4::Cell>* cells4Store
+                = &MWBase::Environment::get().getESMStore()->get<ESM4::Cell>();
+            auto view = context.sol();
+            sol::usertype<CellsStore> cells = view.new_usertype<CellsStore>("Cells");
+            cells[sol::meta_function::length] = [cells3Store, cells4Store](const CellsStore&) {
+                return cells3Store->getSize() + cells4Store->getSize();
+            };
+            cells[sol::meta_function::index]
+                = [cells3Store, cells4Store](const CellsStore&, size_t index) -> sol::optional<GCell> {
+                if (index > cells3Store->getSize() + cells4Store->getSize() || index == 0)
+                    return sol::nullopt;
+
+                index--; // Translate from Lua's 1-based indexing.
+                if (index < cells3Store->getSize())
+                {
+                    const ESM::Cell* cellRecord = cells3Store->at(index);
+                    return GCell{ &MWBase::Environment::get().getWorldModel()->getCell(
+                        cellRecord->mId, /*forceLoad=*/false) };
+                }
+                else
+                {
+                    const ESM4::Cell* cellRecord = cells4Store->at(index - cells3Store->getSize());
+                    return GCell{ &MWBase::Environment::get().getWorldModel()->getCell(
+                        cellRecord->mId, /*forceLoad=*/false) };
+                }
+            };
+            cells[sol::meta_function::pairs] = view["ipairsForArray"].template get<sol::function>();
+            cells[sol::meta_function::ipairs] = view["ipairsForArray"].template get<sol::function>();
+            api["cells"] = CellsStore{};
+        }
     }
 
     sol::table initWorldPackage(const Context& context)

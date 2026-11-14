@@ -67,9 +67,12 @@ namespace
 namespace MWLua
 {
 
-    static const MWWorld::Ptr& containerPtr(const Object& o)
+    namespace
     {
-        return verifyType(ESM::REC_CONT, o.ptr());
+        const MWWorld::Ptr& containerPtr(const Object& o)
+        {
+            return verifyType(ESM::REC_CONT, o.ptr());
+        }
     }
 
     void addContainerBindings(sol::table container, const Context& context)

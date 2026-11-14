@@ -46,32 +46,35 @@ using namespace Bsa;
     throw std::runtime_error("BSA Error: " + msg + "\nArchive: " + Files::pathToUnicodeString(mFilepath));
 }
 
-// the getHash code is from bsapack from ghostwheel
-// the code is also the same as in
-// https://github.com/arviceblot/bsatool_rs/commit/67cb59ec3aaeedc0849222ea387f031c33e48c81
-BSAFile::Hash getHash(const std::string& name)
+namespace
 {
-    BSAFile::Hash hash;
-    unsigned l = (static_cast<unsigned>(name.size()) >> 1);
-    unsigned sum = 0, off = 0, temp = 0, i = 0, n = 0;
-
-    for (sum = off = i = 0; i < l; i++)
+    // the getHash code is from bsapack from ghostwheel
+    // the code is also the same as in
+    // https://github.com/arviceblot/bsatool_rs/commit/67cb59ec3aaeedc0849222ea387f031c33e48c81
+    BSAFile::Hash getHash(const std::string& name)
     {
-        sum ^= ((static_cast<unsigned>(name[i])) << (off & 0x1F));
-        off += 8;
-    }
-    hash.mLow = sum;
+        BSAFile::Hash hash;
+        unsigned l = (static_cast<unsigned>(name.size()) >> 1);
+        unsigned sum = 0, off = 0, temp = 0, i = 0, n = 0;
 
-    for (sum = off = 0; i < name.size(); i++)
-    {
-        temp = ((static_cast<unsigned>(name[i])) << (off & 0x1F));
-        sum ^= temp;
-        n = temp & 0x1F;
-        sum = std::rotr(sum, n); // binary "rotate right"
-        off += 8;
+        for (sum = off = i = 0; i < l; i++)
+        {
+            sum ^= ((static_cast<unsigned>(name[i])) << (off & 0x1F));
+            off += 8;
+        }
+        hash.mLow = sum;
+
+        for (sum = off = 0; i < name.size(); i++)
+        {
+            temp = ((static_cast<unsigned>(name[i])) << (off & 0x1F));
+            sum ^= temp;
+            n = temp & 0x1F;
+            sum = std::rotr(sum, n); // binary "rotate right"
+            off += 8;
+        }
+        hash.mHigh = sum;
+        return hash;
     }
-    hash.mHigh = sum;
-    return hash;
 }
 
 /// Read header information from the input source

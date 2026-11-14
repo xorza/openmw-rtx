@@ -98,16 +98,16 @@ namespace MWLua
                 f(asLocal(script));
             assert(scripts.size() == before && "active local scripts changed while iterating");
         }
-    }
 
-    static LuaUtil::LuaStateSettings createLuaStateSettings()
-    {
-        if (!Settings::lua().mLuaProfiler)
-            LuaUtil::LuaState::disableProfiler();
-        return { .mInstructionLimit = Settings::lua().mInstructionLimitPerCall,
-            .mMemoryLimit = Settings::lua().mMemoryLimit,
-            .mSmallAllocMaxSize = Settings::lua().mSmallAllocMaxSize,
-            .mLogMemoryUsage = Settings::lua().mLogMemoryUsage };
+        LuaUtil::LuaStateSettings createLuaStateSettings()
+        {
+            if (!Settings::lua().mLuaProfiler)
+                LuaUtil::LuaState::disableProfiler();
+            return { .mInstructionLimit = Settings::lua().mInstructionLimitPerCall,
+                .mMemoryLimit = Settings::lua().mMemoryLimit,
+                .mSmallAllocMaxSize = Settings::lua().mSmallAllocMaxSize,
+                .mLogMemoryUsage = Settings::lua().mLogMemoryUsage };
+        }
     }
 
     LuaManager::LuaManager(const VFS::Manager* vfs, const std::filesystem::path& libsDir)

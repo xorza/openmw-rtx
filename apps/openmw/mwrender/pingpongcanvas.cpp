@@ -88,24 +88,27 @@ namespace MWRender
         mEmptyUniformStacks.resize(maxSize);
     }
 
-    static void attachCloneOfTemplate(
-        osg::FrameBufferObject* fbo, osg::Camera::BufferComponent component, osg::Texture* tex)
+    namespace
     {
-        osg::ref_ptr<osg::Texture> clone = static_cast<osg::Texture*>(tex->clone(osg::CopyOp::SHALLOW_COPY));
-        fbo->setAttachment(component, Stereo::createMultiviewCompatibleAttachment(clone));
-    }
-
-    static void cacheEmptyUniformStacks(osg::State::UniformMap& uniformMap, osg::State::UniformMap& cache)
-    {
-        for (auto it = uniformMap.begin(); it != uniformMap.end();)
+        void attachCloneOfTemplate(
+            osg::FrameBufferObject* fbo, osg::Camera::BufferComponent component, osg::Texture* tex)
         {
-            if (!it->second.uniformVec.empty())
-            {
-                ++it;
-                continue;
-            }
+            osg::ref_ptr<osg::Texture> clone = static_cast<osg::Texture*>(tex->clone(osg::CopyOp::SHALLOW_COPY));
+            fbo->setAttachment(component, Stereo::createMultiviewCompatibleAttachment(clone));
+        }
 
-            cache.insert(uniformMap.extract(it++));
+        void cacheEmptyUniformStacks(osg::State::UniformMap& uniformMap, osg::State::UniformMap& cache)
+        {
+            for (auto it = uniformMap.begin(); it != uniformMap.end();)
+            {
+                if (!it->second.uniformVec.empty())
+                {
+                    ++it;
+                    continue;
+                }
+
+                cache.insert(uniformMap.extract(it++));
+            }
         }
     }
 

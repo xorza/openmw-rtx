@@ -13,27 +13,30 @@ namespace MWSound
 {
 
     class MovieAudioDecoder;
-    class MWSoundDecoderBridge final : public SoundDecoder
+    namespace
     {
-    public:
-        explicit MWSoundDecoderBridge(MWSound::MovieAudioDecoder* decoder)
-            : SoundDecoder(nullptr)
-            , mDecoder(decoder)
+        class MWSoundDecoderBridge final : public SoundDecoder
         {
-        }
+        public:
+            explicit MWSoundDecoderBridge(MWSound::MovieAudioDecoder* decoder)
+                : SoundDecoder(nullptr)
+                , mDecoder(decoder)
+            {
+            }
 
-    private:
-        MWSound::MovieAudioDecoder* mDecoder;
+        private:
+            MWSound::MovieAudioDecoder* mDecoder;
 
-        void open(VFS::Path::NormalizedView fname) override { throw std::runtime_error("Method not implemented"); }
+            void open(VFS::Path::NormalizedView fname) override { throw std::runtime_error("Method not implemented"); }
 
-        void close() override {}
+            void close() override {}
 
-        std::string getName() override;
-        void getInfo(int* samplerate, ChannelConfig* chans, SampleType* type) override;
-        size_t read(char* buffer, size_t bytes) override;
-        size_t getSampleOffset() override;
-    };
+            std::string getName() override;
+            void getInfo(int* samplerate, ChannelConfig* chans, SampleType* type) override;
+            size_t read(char* buffer, size_t bytes) override;
+            size_t getSampleOffset() override;
+        };
+    }
 
     class MovieAudioDecoder : public Video::MovieAudioDecoder
     {

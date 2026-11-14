@@ -60,13 +60,16 @@ namespace MWLua
         mMenuEvents.clear();
     }
 
-    template <typename Event>
-    static void saveEvent(ESM::ESMWriter& esm, ESM::RefNum dest, const Event& event)
+    namespace
     {
-        esm.writeHNString("LUAE", event.mEventName);
-        esm.writeFormId(dest, true);
-        if (!event.mEventData.empty())
-            saveLuaBinaryData(esm, event.mEventData);
+        template <typename Event>
+        void saveEvent(ESM::ESMWriter& esm, ESM::RefNum dest, const Event& event)
+        {
+            esm.writeHNString("LUAE", event.mEventName);
+            esm.writeFormId(dest, true);
+            if (!event.mEventData.empty())
+                saveLuaBinaryData(esm, event.mEventData);
+        }
     }
 
     void LuaEvents::load(lua_State* lua, ESM::ESMReader& esm, const std::map<int, int>& contentFileMapping,

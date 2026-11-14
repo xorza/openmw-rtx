@@ -418,39 +418,42 @@ void MWState::StateManager::loadGame(const std::filesystem::path& filepath)
     loadGame(character, filepath);
 }
 
-struct SaveFormatVersionError : public std::exception
+namespace
 {
-    using std::exception::exception;
-
-    SaveFormatVersionError(ESM::FormatVersion savegameFormat, const std::string& message)
-        : mSavegameFormat(savegameFormat)
-        , mErrorMessage(message)
+    struct SaveFormatVersionError : public std::exception
     {
-    }
+        using std::exception::exception;
 
-    const char* what() const noexcept override { return mErrorMessage.c_str(); }
-    ESM::FormatVersion getFormatVersion() const { return mSavegameFormat; }
+        SaveFormatVersionError(ESM::FormatVersion savegameFormat, const std::string& message)
+            : mSavegameFormat(savegameFormat)
+            , mErrorMessage(message)
+        {
+        }
 
-protected:
-    ESM::FormatVersion mSavegameFormat = ESM::DefaultFormatVersion;
-    std::string mErrorMessage;
-};
+        const char* what() const noexcept override { return mErrorMessage.c_str(); }
+        ESM::FormatVersion getFormatVersion() const { return mSavegameFormat; }
 
-struct SaveVersionTooOldError : SaveFormatVersionError
-{
-    explicit SaveVersionTooOldError(ESM::FormatVersion savegameFormat)
-        : SaveFormatVersionError(savegameFormat, "format version " + std::to_string(savegameFormat) + " is too old")
+    protected:
+        ESM::FormatVersion mSavegameFormat = ESM::DefaultFormatVersion;
+        std::string mErrorMessage;
+    };
+
+    struct SaveVersionTooOldError : SaveFormatVersionError
     {
-    }
-};
+        explicit SaveVersionTooOldError(ESM::FormatVersion savegameFormat)
+            : SaveFormatVersionError(savegameFormat, "format version " + std::to_string(savegameFormat) + " is too old")
+        {
+        }
+    };
 
-struct SaveVersionTooNewError : SaveFormatVersionError
-{
-    explicit SaveVersionTooNewError(ESM::FormatVersion savegameFormat)
-        : SaveFormatVersionError(savegameFormat, "format version " + std::to_string(savegameFormat) + " is too new")
+    struct SaveVersionTooNewError : SaveFormatVersionError
     {
-    }
-};
+        explicit SaveVersionTooNewError(ESM::FormatVersion savegameFormat)
+            : SaveFormatVersionError(savegameFormat, "format version " + std::to_string(savegameFormat) + " is too new")
+        {
+        }
+    };
+}
 
 void MWState::StateManager::loadGame(const Character* character, const std::filesystem::path& filepath)
 {

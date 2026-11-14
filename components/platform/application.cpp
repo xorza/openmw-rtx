@@ -13,26 +13,29 @@
 
 namespace Platform
 {
-    static void qtMessageHandler(QtMsgType type, const QMessageLogContext& context, const QString& msg)
+    namespace
     {
-        const Debug::Level level = [&] {
-            switch (type)
-            {
-                case QtDebugMsg:
-                    return Debug::Debug;
-                case QtInfoMsg:
-                    return Debug::Info;
-                case QtWarningMsg:
-                    return Debug::Warning;
-                case QtCriticalMsg:
-                case QtFatalMsg:
-                    return Debug::Error;
-                default:
-                    return Debug::Debug;
-            }
-        }();
+        void qtMessageHandler(QtMsgType type, const QMessageLogContext& context, const QString& msg)
+        {
+            const Debug::Level level = [&] {
+                switch (type)
+                {
+                    case QtDebugMsg:
+                        return Debug::Debug;
+                    case QtInfoMsg:
+                        return Debug::Info;
+                    case QtWarningMsg:
+                        return Debug::Warning;
+                    case QtCriticalMsg:
+                    case QtFatalMsg:
+                        return Debug::Error;
+                    default:
+                        return Debug::Debug;
+                }
+            }();
 
-        Log(level) << qUtf8Printable(qFormatLogMessage(type, context, msg));
+            Log(level) << qUtf8Printable(qFormatLogMessage(type, context, msg));
+        }
     }
 
     Application::Application(int& argc, char* argv[], const Look look)

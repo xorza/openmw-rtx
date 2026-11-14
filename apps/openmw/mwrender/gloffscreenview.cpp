@@ -93,62 +93,67 @@ namespace MWRender
         osg::ref_ptr<osg::Node> mSubgraph;
     };
 
-    // Upstream's, from characterpreview.cpp.
-    // Set up alpha blending mode to avoid issues caused by transparent objects writing onto the alpha value of the FBO
-    // This makes the RTT have premultiplied alpha, though, so the source blend factor must be GL_ONE when it's applied
-    class SetUpBlendVisitor : public osg::NodeVisitor
+    namespace
     {
-    public:
-        SetUpBlendVisitor()
-            : osg::NodeVisitor(TRAVERSE_ALL_CHILDREN)
+        // Upstream's, from characterpreview.cpp.
+        // Set up alpha blending mode to avoid issues caused by transparent objects writing onto the alpha value of the
+        // FBO This makes the RTT have premultiplied alpha, though, so the source blend factor must be GL_ONE when it's
+        // applied
+        class SetUpBlendVisitor : public osg::NodeVisitor
         {
-        }
-
-        void apply(osg::Node& node) override
-        {
-            if (osg::ref_ptr<osg::StateSet> stateset = node.getStateSet())
+        public:
+            SetUpBlendVisitor()
+                : osg::NodeVisitor(TRAVERSE_ALL_CHILDREN)
             {
-                osg::ref_ptr<osg::StateSet> newStateSet;
-                if (stateset->getAttribute(osg::StateAttribute::BLENDFUNC)
-                    || stateset->getBinNumber() == osg::StateSet::TRANSPARENT_BIN)
-                {
-                    auto* blendFunc
-                        = static_cast<osg::BlendFunc*>(stateset->getAttribute(osg::StateAttribute::BLENDFUNC));
-
-                    if (blendFunc)
-                    {
-                        newStateSet = new osg::StateSet(*stateset, osg::CopyOp::SHALLOW_COPY);
-                        node.setStateSet(newStateSet);
-                        osg::ref_ptr<osg::BlendFunc> newBlendFunc = new osg::BlendFunc(*blendFunc);
-                        newStateSet->setAttribute(newBlendFunc, osg::StateAttribute::ON);
-                        // I *think* (based on some by-hand maths) that the RGB and dest alpha factors are unchanged,
-                        // and only dest determines source alpha factor This has the benefit of being idempotent if we
-                        // assume nothing used glBlendFuncSeparate before we touched it
-                        if (blendFunc->getDestination() == osg::BlendFunc::ONE_MINUS_SRC_ALPHA)
-                            newBlendFunc->setSourceAlpha(osg::BlendFunc::ONE);
-                        else if (blendFunc->getDestination() == osg::BlendFunc::ONE)
-                            newBlendFunc->setSourceAlpha(osg::BlendFunc::ZERO);
-                        // Other setups barely exist in the wild and aren't worth supporting as they're not equippable
-                        // gear
-                        else
-                            Log(Debug::Info) << "Unable to adjust blend mode for character preview. Source factor 0x"
-                                             << std::hex << blendFunc->getSource() << ", destination factor 0x"
-                                             << blendFunc->getDestination() << std::dec;
-                    }
-                }
-                if (stateset->getMode(GL_BLEND) & osg::StateAttribute::ON)
-                {
-                    if (!newStateSet)
-                    {
-                        newStateSet = new osg::StateSet(*stateset, osg::CopyOp::SHALLOW_COPY);
-                        node.setStateSet(newStateSet);
-                    }
-                    newStateSet->setDefine("FORCE_OPAQUE", "0", osg::StateAttribute::ON);
-                }
             }
-            traverse(node);
-        }
-    };
+
+            void apply(osg::Node& node) override
+            {
+                if (osg::ref_ptr<osg::StateSet> stateset = node.getStateSet())
+                {
+                    osg::ref_ptr<osg::StateSet> newStateSet;
+                    if (stateset->getAttribute(osg::StateAttribute::BLENDFUNC)
+                        || stateset->getBinNumber() == osg::StateSet::TRANSPARENT_BIN)
+                    {
+                        auto* blendFunc
+                            = static_cast<osg::BlendFunc*>(stateset->getAttribute(osg::StateAttribute::BLENDFUNC));
+
+                        if (blendFunc)
+                        {
+                            newStateSet = new osg::StateSet(*stateset, osg::CopyOp::SHALLOW_COPY);
+                            node.setStateSet(newStateSet);
+                            osg::ref_ptr<osg::BlendFunc> newBlendFunc = new osg::BlendFunc(*blendFunc);
+                            newStateSet->setAttribute(newBlendFunc, osg::StateAttribute::ON);
+                            // I *think* (based on some by-hand maths) that the RGB and dest alpha factors are
+                            // unchanged, and only dest determines source alpha factor This has the benefit of being
+                            // idempotent if we assume nothing used glBlendFuncSeparate before we touched it
+                            if (blendFunc->getDestination() == osg::BlendFunc::ONE_MINUS_SRC_ALPHA)
+                                newBlendFunc->setSourceAlpha(osg::BlendFunc::ONE);
+                            else if (blendFunc->getDestination() == osg::BlendFunc::ONE)
+                                newBlendFunc->setSourceAlpha(osg::BlendFunc::ZERO);
+                            // Other setups barely exist in the wild and aren't worth supporting as they're not
+                            // equippable gear
+                            else
+                                Log(Debug::Info)
+                                    << "Unable to adjust blend mode for character preview. Source factor 0x" << std::hex
+                                    << blendFunc->getSource() << ", destination factor 0x"
+                                    << blendFunc->getDestination() << std::dec;
+                        }
+                    }
+                    if (stateset->getMode(GL_BLEND) & osg::StateAttribute::ON)
+                    {
+                        if (!newStateSet)
+                        {
+                            newStateSet = new osg::StateSet(*stateset, osg::CopyOp::SHALLOW_COPY);
+                            node.setStateSet(newStateSet);
+                        }
+                        newStateSet->setDefine("FORCE_OPAQUE", "0", osg::StateAttribute::ON);
+                    }
+                }
+                traverse(node);
+            }
+        };
+    }
 
     // Upstream's, from characterpreview.cpp. The size, the field of view, the clip planes, the cull
     // mask and the clear colour come out of the spec where upstream passed or hard-coded them; every
@@ -249,15 +254,15 @@ namespace MWRender
         const SceneUtil::FlatLight mSun;
     };
 
-    class CameraLocalUpdateCallback
-        : public SceneUtil::NodeCallback<CameraLocalUpdateCallback, LocalMapRenderToTexture*>
-    {
-    public:
-        void operator()(LocalMapRenderToTexture* node, osg::NodeVisitor* nv);
-    };
-
     namespace
     {
+        class CameraLocalUpdateCallback
+            : public SceneUtil::NodeCallback<CameraLocalUpdateCallback, LocalMapRenderToTexture*>
+        {
+        public:
+            void operator()(LocalMapRenderToTexture* node, osg::NodeVisitor* nv);
+        };
+
         // Upstream's, from CharacterPreview's constructor: the rig a subtree the game assembled is
         // lit by, with the sun's colour and direction out of the spec where upstream read fallbacks.
         osg::ref_ptr<SceneUtil::LightManager> buildDollLighting(

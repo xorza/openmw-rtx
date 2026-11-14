@@ -243,34 +243,37 @@ namespace MyGUIPlatform
         osg::ref_ptr<osg::Texture2D> mDummyTexture;
     };
 
-    class OSGVertexBuffer : public MyGUI::IVertexBuffer
+    namespace
     {
-        osg::ref_ptr<osg::VertexBufferObject> mBuffer[2];
-        osg::ref_ptr<osg::UByteArray> mVertexArray[2];
+        class OSGVertexBuffer : public MyGUI::IVertexBuffer
+        {
+            osg::ref_ptr<osg::VertexBufferObject> mBuffer[2];
+            osg::ref_ptr<osg::UByteArray> mVertexArray[2];
 
-        size_t mNeedVertexCount;
+            size_t mNeedVertexCount;
 
-        unsigned int mCurrentBuffer;
-        bool mUsed; // has the mCurrentBuffer been submitted to the rendering thread
+            unsigned int mCurrentBuffer;
+            bool mUsed; // has the mCurrentBuffer been submitted to the rendering thread
 
-        void destroy();
-        osg::UByteArray* create();
+            void destroy();
+            osg::UByteArray* create();
 
-    public:
-        OSGVertexBuffer();
-        ~OSGVertexBuffer() override {}
+        public:
+            OSGVertexBuffer();
+            ~OSGVertexBuffer() override {}
 
-        void markUsed();
+            void markUsed();
 
-        osg::Array* getVertexArray();
-        osg::VertexBufferObject* getVertexBuffer();
+            osg::Array* getVertexArray();
+            osg::VertexBufferObject* getVertexBuffer();
 
-        void setVertexCount(size_t count) override;
-        size_t getVertexCount() const override;
+            void setVertexCount(size_t count) override;
+            size_t getVertexCount() const override;
 
-        MyGUI::Vertex* lock() override;
-        void unlock() override;
-    };
+            MyGUI::Vertex* lock() override;
+            void unlock() override;
+        };
+    }
 
     OSGVertexBuffer::OSGVertexBuffer()
         : mNeedVertexCount(0)

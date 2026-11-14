@@ -13,11 +13,14 @@ namespace CSMWorld
 {
     namespace Columns
     {
-        struct ColumnDesc
+        namespace
         {
-            int mId;
-            const char* mName;
-        };
+            struct ColumnDesc
+            {
+                int mId;
+                const char* mName;
+            };
+        }
 
         const ColumnDesc sNames[] = {
             { ColumnId_Value, "Value" },

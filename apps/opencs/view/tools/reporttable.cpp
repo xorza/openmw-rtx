@@ -29,13 +29,17 @@
 
 namespace CSVTools
 {
-    class RichTextDelegate : public QStyledItemDelegate
+    namespace
     {
-    public:
-        explicit RichTextDelegate(QObject* parent = nullptr);
+        class RichTextDelegate : public QStyledItemDelegate
+        {
+        public:
+            explicit RichTextDelegate(QObject* parent = nullptr);
 
-        void paint(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const override;
-    };
+            void paint(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const override;
+        };
+    }
+
 }
 
 CSVTools::RichTextDelegate::RichTextDelegate(QObject* parent)

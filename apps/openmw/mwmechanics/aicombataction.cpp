@@ -23,28 +23,31 @@
 
 namespace MWMechanics
 {
-    float suggestCombatRange(int rangeTypes)
+    namespace
     {
-        static const float fCombatDistance = MWBase::Environment::get()
-                                                 .getESMStore()
-                                                 ->get<ESM::GameSetting>()
-                                                 .find("fCombatDistance")
-                                                 ->mValue.getFloat();
-        static float fHandToHandReach = MWBase::Environment::get()
-                                            .getESMStore()
-                                            ->get<ESM::GameSetting>()
-                                            .find("fHandToHandReach")
-                                            ->mValue.getFloat();
-
-        // This distance is a possible distance of melee attack
-        static float distance = fCombatDistance * std::max(2.f, fHandToHandReach);
-
-        if (rangeTypes & RangeTypes::Touch)
+        float suggestCombatRange(int rangeTypes)
         {
-            return fCombatDistance;
-        }
+            static const float fCombatDistance = MWBase::Environment::get()
+                                                     .getESMStore()
+                                                     ->get<ESM::GameSetting>()
+                                                     .find("fCombatDistance")
+                                                     ->mValue.getFloat();
+            static float fHandToHandReach = MWBase::Environment::get()
+                                                .getESMStore()
+                                                ->get<ESM::GameSetting>()
+                                                .find("fHandToHandReach")
+                                                ->mValue.getFloat();
 
-        return distance * 4;
+            // This distance is a possible distance of melee attack
+            static float distance = fCombatDistance * std::max(2.f, fHandToHandReach);
+
+            if (rangeTypes & RangeTypes::Touch)
+            {
+                return fCombatDistance;
+            }
+
+            return distance * 4;
+        }
     }
 
     void ActionSpell::prepare(const MWWorld::Ptr& actor)

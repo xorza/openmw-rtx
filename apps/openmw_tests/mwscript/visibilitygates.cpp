@@ -38,6 +38,8 @@
 
 namespace
 {
+    using namespace MWScriptTesting;
+
     using Terrain::GateState;
 
     // Vanilla Morrowind's own, word for word: a stage of the player's stronghold, and the

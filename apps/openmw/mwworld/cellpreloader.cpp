@@ -47,126 +47,126 @@ namespace MWWorld
             const auto predicate = [&](const PositionCellGrid& v) { return contains(container, v, tolerance); };
             return std::ranges::all_of(contained, predicate);
         }
-    }
 
-    struct ListModelsVisitor
-    {
-        bool operator()(const MWWorld::ConstPtr& ptr)
+        struct ListModelsVisitor
         {
-            ptr.getClass().getModelsToPreload(ptr, mOut);
-
-            return true;
-        }
-
-        std::vector<VFS::Path::NormalizedView>& mOut;
-    };
-
-    /// Worker thread item: preload models in a cell.
-    class PreloadItem : public SceneUtil::WorkItem
-    {
-    public:
-        /// Constructor to be called from the main thread.
-        explicit PreloadItem(MWWorld::CellStore* cell, Resource::SceneManager* sceneManager,
-            Resource::BulletShapeManager* bulletShapeManager, Resource::KeyframeManager* keyframeManager,
-            Terrain::World* terrain, MWRender::LandManager* landManager, bool preloadInstances)
-            : mIsExterior(cell->getCell()->isExterior())
-            , mCellLocation(cell->getCell()->getExteriorCellLocation())
-            , mCellId(cell->getCell()->getId())
-            , mSceneManager(sceneManager)
-            , mBulletShapeManager(bulletShapeManager)
-            , mKeyframeManager(keyframeManager)
-            , mTerrain(terrain)
-            , mLandManager(landManager)
-            , mPreloadInstances(preloadInstances)
-            , mAbort(false)
-        {
-            mTerrainView = mTerrain->createView();
-
-            ListModelsVisitor visitor{ mMeshes };
-            cell->forEachConst(visitor);
-        }
-
-        void abort() override { mAbort = true; }
-
-        /// Preload work to be called from the worker thread.
-        void doWork() override
-        {
-            if (mIsExterior)
+            bool operator()(const MWWorld::ConstPtr& ptr)
             {
-                try
-                {
-                    mTerrain->cacheCell(mTerrainView.get(), mCellLocation.mX, mCellLocation.mY);
-                    mPreloadedOwnedObjects.insert(mLandManager->getLand(mCellLocation));
-                }
-                catch (const std::exception& e)
-                {
-                    Log(Debug::Warning) << "Failed to cache terrain for exterior cell " << mCellLocation << ": "
-                                        << e.what();
-                }
+                ptr.getClass().getModelsToPreload(ptr, mOut);
+
+                return true;
             }
 
-            VFS::Path::Normalized mesh;
-            VFS::Path::Normalized kfname;
-            for (VFS::Path::NormalizedView path : mMeshes)
+            std::vector<VFS::Path::NormalizedView>& mOut;
+        };
+
+        /// Worker thread item: preload models in a cell.
+        class PreloadItem : public SceneUtil::WorkItem
+        {
+        public:
+            /// Constructor to be called from the main thread.
+            explicit PreloadItem(MWWorld::CellStore* cell, Resource::SceneManager* sceneManager,
+                Resource::BulletShapeManager* bulletShapeManager, Resource::KeyframeManager* keyframeManager,
+                Terrain::World* terrain, MWRender::LandManager* landManager, bool preloadInstances)
+                : mIsExterior(cell->getCell()->isExterior())
+                , mCellLocation(cell->getCell()->getExteriorCellLocation())
+                , mCellId(cell->getCell()->getId())
+                , mSceneManager(sceneManager)
+                , mBulletShapeManager(bulletShapeManager)
+                , mKeyframeManager(keyframeManager)
+                , mTerrain(terrain)
+                , mLandManager(landManager)
+                , mPreloadInstances(preloadInstances)
+                , mAbort(false)
             {
-                if (mAbort)
-                    break;
+                mTerrainView = mTerrain->createView();
 
-                try
+                ListModelsVisitor visitor{ mMeshes };
+                cell->forEachConst(visitor);
+            }
+
+            void abort() override { mAbort = true; }
+
+            /// Preload work to be called from the worker thread.
+            void doWork() override
+            {
+                if (mIsExterior)
                 {
-                    const VFS::Manager& vfs = *mSceneManager->getVFS();
-                    mesh = Misc::ResourceHelpers::correctMeshPath(path);
-                    mesh = Misc::ResourceHelpers::correctActorModelPath(mesh, &vfs);
-
-                    if (!vfs.exists(mesh))
-                        continue;
-
-                    constexpr VFS::Path::ExtensionView nif("nif");
-                    if (Misc::getFileName(mesh).starts_with('x') && mesh.extension() == nif)
+                    try
                     {
-                        kfname = mesh;
-                        constexpr VFS::Path::ExtensionView kf("kf");
-                        kfname.changeExtension(kf);
-                        if (vfs.exists(kfname))
-                            mPreloadedOwnedObjects.insert(mKeyframeManager->get(kfname));
+                        mTerrain->cacheCell(mTerrainView.get(), mCellLocation.mX, mCellLocation.mY);
+                        mPreloadedOwnedObjects.insert(mLandManager->getLand(mCellLocation));
                     }
-
-                    mPreloadedObjects.insert(mSceneManager->getTemplate(mesh));
-                    if (mPreloadInstances)
-                        mPreloadedOwnedObjects.insert(mBulletShapeManager->cacheInstance(mesh));
-                    else
-                        mPreloadedOwnedObjects.insert(mBulletShapeManager->getShape(mesh));
+                    catch (const std::exception& e)
+                    {
+                        Log(Debug::Warning)
+                            << "Failed to cache terrain for exterior cell " << mCellLocation << ": " << e.what();
+                    }
                 }
-                catch (const std::exception& e)
+
+                VFS::Path::Normalized mesh;
+                VFS::Path::Normalized kfname;
+                for (VFS::Path::NormalizedView path : mMeshes)
                 {
-                    Log(Debug::Warning) << "Failed to preload mesh \"" << path << "\" from cell " << mCellId << ": "
-                                        << e.what();
+                    if (mAbort)
+                        break;
+
+                    try
+                    {
+                        const VFS::Manager& vfs = *mSceneManager->getVFS();
+                        mesh = Misc::ResourceHelpers::correctMeshPath(path);
+                        mesh = Misc::ResourceHelpers::correctActorModelPath(mesh, &vfs);
+
+                        if (!vfs.exists(mesh))
+                            continue;
+
+                        constexpr VFS::Path::ExtensionView nif("nif");
+                        if (Misc::getFileName(mesh).starts_with('x') && mesh.extension() == nif)
+                        {
+                            kfname = mesh;
+                            constexpr VFS::Path::ExtensionView kf("kf");
+                            kfname.changeExtension(kf);
+                            if (vfs.exists(kfname))
+                                mPreloadedOwnedObjects.insert(mKeyframeManager->get(kfname));
+                        }
+
+                        mPreloadedObjects.insert(mSceneManager->getTemplate(mesh));
+                        if (mPreloadInstances)
+                            mPreloadedOwnedObjects.insert(mBulletShapeManager->cacheInstance(mesh));
+                        else
+                            mPreloadedOwnedObjects.insert(mBulletShapeManager->getShape(mesh));
+                    }
+                    catch (const std::exception& e)
+                    {
+                        Log(Debug::Warning)
+                            << "Failed to preload mesh \"" << path << "\" from cell " << mCellId << ": " << e.what();
+                    }
                 }
             }
-        }
 
-    private:
-        bool mIsExterior;
-        ESM::ExteriorCellLocation mCellLocation;
-        ESM::RefId mCellId;
-        std::vector<VFS::Path::NormalizedView> mMeshes;
-        Resource::SceneManager* mSceneManager;
-        Resource::BulletShapeManager* mBulletShapeManager;
-        Resource::KeyframeManager* mKeyframeManager;
-        Terrain::World* mTerrain;
-        MWRender::LandManager* mLandManager;
-        bool mPreloadInstances;
+        private:
+            bool mIsExterior;
+            ESM::ExteriorCellLocation mCellLocation;
+            ESM::RefId mCellId;
+            std::vector<VFS::Path::NormalizedView> mMeshes;
+            Resource::SceneManager* mSceneManager;
+            Resource::BulletShapeManager* mBulletShapeManager;
+            Resource::KeyframeManager* mKeyframeManager;
+            Terrain::World* mTerrain;
+            MWRender::LandManager* mLandManager;
+            bool mPreloadInstances;
 
-        std::atomic<bool> mAbort;
+            std::atomic<bool> mAbort;
 
-        std::unique_ptr<Terrain::View> mTerrainView;
+            std::unique_ptr<Terrain::View> mTerrainView;
 
-        // Keep the loaded objects alive for as long as this cell is preloaded. Two sets
-        // because the render-owned ones are still osg::Object; they merge once those move
-        // behind the render backend.
-        std::set<osg::ref_ptr<const osg::Object>> mPreloadedObjects;
-        std::set<std::shared_ptr<const void>> mPreloadedOwnedObjects;
-    };
+            // Keep the loaded objects alive for as long as this cell is preloaded. Two sets
+            // because the render-owned ones are still osg::Object; they merge once those move
+            // behind the render backend.
+            std::set<osg::ref_ptr<const osg::Object>> mPreloadedObjects;
+            std::set<std::shared_ptr<const void>> mPreloadedOwnedObjects;
+        };
+    }
 
     class TerrainPreloadItem : public SceneUtil::WorkItem
     {
@@ -203,22 +203,25 @@ namespace MWWorld
         Loading::Reporter mLoadingReporter;
     };
 
-    /// Worker thread item: update the resource system's cache, effectively deleting unused entries.
-    class UpdateCacheItem : public SceneUtil::WorkItem
+    namespace
     {
-    public:
-        UpdateCacheItem(Resource::ResourceSystem* resourceSystem, double referenceTime)
-            : mReferenceTime(referenceTime)
-            , mResourceSystem(resourceSystem)
+        /// Worker thread item: update the resource system's cache, effectively deleting unused entries.
+        class UpdateCacheItem : public SceneUtil::WorkItem
         {
-        }
+        public:
+            UpdateCacheItem(Resource::ResourceSystem* resourceSystem, double referenceTime)
+                : mReferenceTime(referenceTime)
+                , mResourceSystem(resourceSystem)
+            {
+            }
 
-        void doWork() override { mResourceSystem->updateCache(mReferenceTime); }
+            void doWork() override { mResourceSystem->updateCache(mReferenceTime); }
 
-    private:
-        double mReferenceTime;
-        Resource::ResourceSystem* mResourceSystem;
-    };
+        private:
+            double mReferenceTime;
+            Resource::ResourceSystem* mResourceSystem;
+        };
+    }
 
     CellPreloader::CellPreloader(Resource::ResourceSystem* resourceSystem,
         Resource::BulletShapeManager* bulletShapeManager, Terrain::World* terrain, MWRender::LandManager* landManager)

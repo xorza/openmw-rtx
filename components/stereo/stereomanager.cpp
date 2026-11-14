@@ -27,59 +27,62 @@
 
 namespace Stereo
 {
-    // Update stereo view/projection during update
-    class StereoUpdateCallback final : public osg::Callback
+    namespace
     {
-    public:
-        explicit StereoUpdateCallback(Manager* stereoView)
-            : mStereoView(stereoView)
+        // Update stereo view/projection during update
+        class StereoUpdateCallback final : public osg::Callback
         {
-        }
+        public:
+            explicit StereoUpdateCallback(Manager* stereoView)
+                : mStereoView(stereoView)
+            {
+            }
 
-        bool run(osg::Object* object, osg::Object* data) override
+            bool run(osg::Object* object, osg::Object* data) override
+            {
+                auto b = traverse(object, data);
+                mStereoView->update();
+                return b;
+            }
+
+            Manager* mStereoView;
+        };
+
+        // Update states during cull
+        class BruteForceStereoStatesetUpdateCallback final : public SceneUtil::StateSetUpdater
         {
-            auto b = traverse(object, data);
-            mStereoView->update();
-            return b;
-        }
+        public:
+            explicit BruteForceStereoStatesetUpdateCallback(Manager* manager)
+                : mManager(manager)
+            {
+            }
 
-        Manager* mStereoView;
-    };
+        protected:
+            void setDefaults(osg::StateSet* stateset) override
+            {
+                stateset->addUniform(new osg::Uniform("projectionMatrix", osg::Matrixf{}));
+            }
 
-    // Update states during cull
-    class BruteForceStereoStatesetUpdateCallback final : public SceneUtil::StateSetUpdater
-    {
-    public:
-        explicit BruteForceStereoStatesetUpdateCallback(Manager* manager)
-            : mManager(manager)
-        {
-        }
+            void apply(osg::StateSet* stateset, osg::NodeVisitor* /*nv*/) override {}
 
-    protected:
-        void setDefaults(osg::StateSet* stateset) override
-        {
-            stateset->addUniform(new osg::Uniform("projectionMatrix", osg::Matrixf{}));
-        }
+            void applyLeft(osg::StateSet* stateset, osgUtil::CullVisitor* nv) override
+            {
+                auto* uProjectionMatrix = stateset->getUniform("projectionMatrix");
+                if (uProjectionMatrix)
+                    uProjectionMatrix->set(mManager->computeEyeProjection(0, SceneUtil::AutoDepth::isReversed()));
+            }
 
-        void apply(osg::StateSet* stateset, osg::NodeVisitor* /*nv*/) override {}
+            void applyRight(osg::StateSet* stateset, osgUtil::CullVisitor* nv) override
+            {
+                auto* uProjectionMatrix = stateset->getUniform("projectionMatrix");
+                if (uProjectionMatrix)
+                    uProjectionMatrix->set(mManager->computeEyeProjection(1, SceneUtil::AutoDepth::isReversed()));
+            }
 
-        void applyLeft(osg::StateSet* stateset, osgUtil::CullVisitor* nv) override
-        {
-            auto* uProjectionMatrix = stateset->getUniform("projectionMatrix");
-            if (uProjectionMatrix)
-                uProjectionMatrix->set(mManager->computeEyeProjection(0, SceneUtil::AutoDepth::isReversed()));
-        }
-
-        void applyRight(osg::StateSet* stateset, osgUtil::CullVisitor* nv) override
-        {
-            auto* uProjectionMatrix = stateset->getUniform("projectionMatrix");
-            if (uProjectionMatrix)
-                uProjectionMatrix->set(mManager->computeEyeProjection(1, SceneUtil::AutoDepth::isReversed()));
-        }
-
-    private:
-        Manager* mManager;
-    };
+        private:
+            Manager* mManager;
+        };
+    }
 
     // Update states during cull
     class MultiviewStereoStatesetUpdateCallback : public SceneUtil::StateSetUpdater
@@ -105,9 +108,12 @@ namespace Stereo
         Manager* mManager;
     };
 
-    static bool sStereoEnabled = false;
+    namespace
+    {
+        bool sStereoEnabled = false;
 
-    static Manager* sInstance = nullptr;
+        Manager* sInstance = nullptr;
+    }
 
     Manager& Manager::instance()
     {

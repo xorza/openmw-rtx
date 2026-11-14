@@ -22,7 +22,7 @@
 
 #include <components/misc/strings/algorithm.hpp>
 
-namespace
+namespace MWScriptTesting
 {
     class TestCompilerContext : public Compiler::Context
     {

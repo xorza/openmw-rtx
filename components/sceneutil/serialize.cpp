@@ -43,202 +43,207 @@ namespace
 namespace SceneUtil
 {
 
-    template <class Cls>
-    static osg::Object* createInstanceFunc()
+    namespace
     {
-        return new Cls;
-    }
-
-    class PositionAttitudeTransformSerializer : public osgDB::ObjectWrapper
-    {
-    public:
-        PositionAttitudeTransformSerializer()
-            : osgDB::ObjectWrapper(createInstanceFunc<SceneUtil::PositionAttitudeTransform>,
-                  "SceneUtil::PositionAttitudeTransform",
-                  "osg::Object osg::Node osg::Group osg::Transform SceneUtil::PositionAttitudeTransform")
+        template <class Cls>
+        osg::Object* createInstanceFunc()
         {
-            addSerializer(new osgDB::PropByRefSerializer<SceneUtil::PositionAttitudeTransform, osg::Vec3f>("position",
-                              osg::Vec3f(), &SceneUtil::PositionAttitudeTransform::getPosition,
-                              &SceneUtil::PositionAttitudeTransform::setPosition),
-                osgDB::BaseSerializer::RW_VEC3F);
-            addSerializer(new osgDB::PropByRefSerializer<SceneUtil::PositionAttitudeTransform, osg::Quat>("attitude",
-                              osg::Quat(), &SceneUtil::PositionAttitudeTransform::getAttitude,
-                              &SceneUtil::PositionAttitudeTransform::setAttitude),
-                osgDB::BaseSerializer::RW_QUAT);
-            addSerializer(
-                new osgDB::PropByRefSerializer<SceneUtil::PositionAttitudeTransform, osg::Vec3f>("scale", osg::Vec3f(),
-                    &SceneUtil::PositionAttitudeTransform::getScale, &SceneUtil::PositionAttitudeTransform::setScale),
-                osgDB::BaseSerializer::RW_VEC3F);
+            return new Cls;
         }
-    };
 
-    class SkeletonSerializer : public osgDB::ObjectWrapper
-    {
-    public:
-        SkeletonSerializer()
-            : osgDB::ObjectWrapper(createInstanceFunc<SceneUtil::Skeleton>, "SceneUtil::Skeleton",
-                  "osg::Object osg::Node osg::Group SceneUtil::Skeleton")
+        class PositionAttitudeTransformSerializer : public osgDB::ObjectWrapper
         {
-        }
-    };
+        public:
+            PositionAttitudeTransformSerializer()
+                : osgDB::ObjectWrapper(createInstanceFunc<SceneUtil::PositionAttitudeTransform>,
+                      "SceneUtil::PositionAttitudeTransform",
+                      "osg::Object osg::Node osg::Group osg::Transform SceneUtil::PositionAttitudeTransform")
+            {
+                addSerializer(new osgDB::PropByRefSerializer<SceneUtil::PositionAttitudeTransform, osg::Vec3f>(
+                                  "position", osg::Vec3f(), &SceneUtil::PositionAttitudeTransform::getPosition,
+                                  &SceneUtil::PositionAttitudeTransform::setPosition),
+                    osgDB::BaseSerializer::RW_VEC3F);
+                addSerializer(new osgDB::PropByRefSerializer<SceneUtil::PositionAttitudeTransform, osg::Quat>(
+                                  "attitude", osg::Quat(), &SceneUtil::PositionAttitudeTransform::getAttitude,
+                                  &SceneUtil::PositionAttitudeTransform::setAttitude),
+                    osgDB::BaseSerializer::RW_QUAT);
+                addSerializer(new osgDB::PropByRefSerializer<SceneUtil::PositionAttitudeTransform, osg::Vec3f>("scale",
+                                  osg::Vec3f(), &SceneUtil::PositionAttitudeTransform::getScale,
+                                  &SceneUtil::PositionAttitudeTransform::setScale),
+                    osgDB::BaseSerializer::RW_VEC3F);
+            }
+        };
 
-    class RigGeometrySerializer : public osgDB::ObjectWrapper
-    {
-    public:
-        RigGeometrySerializer()
-            : osgDB::ObjectWrapper(createInstanceFunc<SceneUtil::RigGeometry>, "SceneUtil::RigGeometry",
-                  "osg::Object osg::Node osg::Drawable SceneUtil::RigGeometry")
+        class SkeletonSerializer : public osgDB::ObjectWrapper
         {
-        }
-    };
+        public:
+            SkeletonSerializer()
+                : osgDB::ObjectWrapper(createInstanceFunc<SceneUtil::Skeleton>, "SceneUtil::Skeleton",
+                      "osg::Object osg::Node osg::Group SceneUtil::Skeleton")
+            {
+            }
+        };
 
-    class RigGeometryHolderSerializer : public osgDB::ObjectWrapper
-    {
-    public:
-        RigGeometryHolderSerializer()
-            : osgDB::ObjectWrapper(createInstanceFunc<SceneUtil::RigGeometryHolder>, "SceneUtil::RigGeometryHolder",
-                  "osg::Object osg::Node osg::Drawable SceneUtil::RigGeometryHolder")
+        class RigGeometrySerializer : public osgDB::ObjectWrapper
         {
-        }
-    };
+        public:
+            RigGeometrySerializer()
+                : osgDB::ObjectWrapper(createInstanceFunc<SceneUtil::RigGeometry>, "SceneUtil::RigGeometry",
+                      "osg::Object osg::Node osg::Drawable SceneUtil::RigGeometry")
+            {
+            }
+        };
 
-    class OsgaRigGeometrySerializer : public osgDB::ObjectWrapper
-    {
-    public:
-        OsgaRigGeometrySerializer()
-            : osgDB::ObjectWrapper(createInstanceFunc<SceneUtil::OsgaRigGeometry>, "SceneUtil::OsgaRigGeometry",
-                  "osg::Object osg::Node osg::Geometry osgAnimation::RigGeometry SceneUtil::OsgaRigGeometry")
+        class RigGeometryHolderSerializer : public osgDB::ObjectWrapper
         {
-        }
-    };
+        public:
+            RigGeometryHolderSerializer()
+                : osgDB::ObjectWrapper(createInstanceFunc<SceneUtil::RigGeometryHolder>, "SceneUtil::RigGeometryHolder",
+                      "osg::Object osg::Node osg::Drawable SceneUtil::RigGeometryHolder")
+            {
+            }
+        };
 
-    class MorphGeometrySerializer : public osgDB::ObjectWrapper
-    {
-    public:
-        MorphGeometrySerializer()
-            : osgDB::ObjectWrapper(createInstanceFunc<SceneUtil::MorphGeometry>, "SceneUtil::MorphGeometry",
-                  "osg::Object osg::Node osg::Drawable SceneUtil::MorphGeometry")
+        class OsgaRigGeometrySerializer : public osgDB::ObjectWrapper
         {
-        }
-    };
+        public:
+            OsgaRigGeometrySerializer()
+                : osgDB::ObjectWrapper(createInstanceFunc<SceneUtil::OsgaRigGeometry>, "SceneUtil::OsgaRigGeometry",
+                      "osg::Object osg::Node osg::Geometry osgAnimation::RigGeometry SceneUtil::OsgaRigGeometry")
+            {
+            }
+        };
 
-    class LightManagerSerializer : public osgDB::ObjectWrapper
-    {
-    public:
-        LightManagerSerializer()
-            : osgDB::ObjectWrapper(createInstanceFunc<osg::Group>, "SceneUtil::LightManager",
-                  "osg::Object osg::Node osg::Group SceneUtil::LightManager")
+        class MorphGeometrySerializer : public osgDB::ObjectWrapper
         {
-        }
-    };
+        public:
+            MorphGeometrySerializer()
+                : osgDB::ObjectWrapper(createInstanceFunc<SceneUtil::MorphGeometry>, "SceneUtil::MorphGeometry",
+                      "osg::Object osg::Node osg::Drawable SceneUtil::MorphGeometry")
+            {
+            }
+        };
 
-    class CameraRelativeTransformSerializer : public osgDB::ObjectWrapper
-    {
-    public:
-        CameraRelativeTransformSerializer()
-            : osgDB::ObjectWrapper(createInstanceFunc<osg::Group>, "MWRender::CameraRelativeTransform",
-                  "osg::Object osg::Node osg::Group MWRender::CameraRelativeTransform")
+        class LightManagerSerializer : public osgDB::ObjectWrapper
         {
-        }
-    };
+        public:
+            LightManagerSerializer()
+                : osgDB::ObjectWrapper(createInstanceFunc<osg::Group>, "SceneUtil::LightManager",
+                      "osg::Object osg::Node osg::Group SceneUtil::LightManager")
+            {
+            }
+        };
 
-    class MatrixTransformSerializer : public osgDB::ObjectWrapper
-    {
-    public:
-        MatrixTransformSerializer()
-            : osgDB::ObjectWrapper(createInstanceFunc<NifOsg::MatrixTransform>, "NifOsg::MatrixTransform",
-                  "osg::Object osg::Node osg::Group osg::Transform osg::MatrixTransform NifOsg::MatrixTransform")
+        class CameraRelativeTransformSerializer : public osgDB::ObjectWrapper
         {
-        }
-    };
+        public:
+            CameraRelativeTransformSerializer()
+                : osgDB::ObjectWrapper(createInstanceFunc<osg::Group>, "MWRender::CameraRelativeTransform",
+                      "osg::Object osg::Node osg::Group MWRender::CameraRelativeTransform")
+            {
+            }
+        };
 
-    class AutoTransformSerializer : public osgDB::ObjectWrapper
-    {
-    public:
-        AutoTransformSerializer()
-            : osgDB::ObjectWrapper(createInstanceFunc<NifOsg::AutoTransform>, "NifOsg::AutoTransform",
-                  "osg::Object osg::Node osg::Group osg::Transform osg::MatrixTransform NifOsg::MatrixTransform "
-                  "NifOsg::AutoTransform")
+        class MatrixTransformSerializer : public osgDB::ObjectWrapper
         {
-            using ModeSerializer = osgDB::EnumSerializer<NifOsg::AutoTransform, NifOsg::AutoTransform::Mode, void>;
-            osg::ref_ptr<ModeSerializer> serializer
-                = new ModeSerializer("Mode", NifOsg::AutoTransform::Mode::RigidFaceCamera,
-                    &NifOsg::AutoTransform::getMode, &NifOsg::AutoTransform::setMode);
+        public:
+            MatrixTransformSerializer()
+                : osgDB::ObjectWrapper(createInstanceFunc<NifOsg::MatrixTransform>, "NifOsg::MatrixTransform",
+                      "osg::Object osg::Node osg::Group osg::Transform osg::MatrixTransform NifOsg::MatrixTransform")
+            {
+            }
+        };
 
-            serializer->add("AlwaysFaceCamera", NifOsg::AutoTransform::Mode::AlwaysFaceCamera);
-            serializer->add("RotateAboutUp", NifOsg::AutoTransform::Mode::RotateAboutUp);
-            serializer->add("RigidFaceCamera", NifOsg::AutoTransform::Mode::RigidFaceCamera);
-
-            addSerializer(serializer.get(), osgDB::BaseSerializer::RW_ENUM);
-        }
-    };
-
-    class TextureTypeSerializer : public osgDB::ObjectWrapper
-    {
-    public:
-        TextureTypeSerializer()
-            : osgDB::ObjectWrapper(createInstanceFunc<SceneUtil::TextureType>, "SceneUtil::TextureType",
-                  "osg::Object osg::StateAttribute SceneUtil::TextureType")
+        class AutoTransformSerializer : public osgDB::ObjectWrapper
         {
-        }
-    };
+        public:
+            AutoTransformSerializer()
+                : osgDB::ObjectWrapper(createInstanceFunc<NifOsg::AutoTransform>, "NifOsg::AutoTransform",
+                      "osg::Object osg::Node osg::Group osg::Transform osg::MatrixTransform NifOsg::MatrixTransform "
+                      "NifOsg::AutoTransform")
+            {
+                using ModeSerializer = osgDB::EnumSerializer<NifOsg::AutoTransform, NifOsg::AutoTransform::Mode, void>;
+                osg::ref_ptr<ModeSerializer> serializer
+                    = new ModeSerializer("Mode", NifOsg::AutoTransform::Mode::RigidFaceCamera,
+                        &NifOsg::AutoTransform::getMode, &NifOsg::AutoTransform::setMode);
 
-    class MaterialSerializer : public osgDB::ObjectWrapper
-    {
-    public:
-        MaterialSerializer()
-            : osgDB::ObjectWrapper(createInstanceFunc<SceneUtil::Material>, "SceneUtil::Material",
-                  "osg::Object osg::StateAttribute SceneUtil::Material")
+                serializer->add("AlwaysFaceCamera", NifOsg::AutoTransform::Mode::AlwaysFaceCamera);
+                serializer->add("RotateAboutUp", NifOsg::AutoTransform::Mode::RotateAboutUp);
+                serializer->add("RigidFaceCamera", NifOsg::AutoTransform::Mode::RigidFaceCamera);
+
+                addSerializer(serializer.get(), osgDB::BaseSerializer::RW_ENUM);
+            }
+        };
+
+        class TextureTypeSerializer : public osgDB::ObjectWrapper
         {
-            addSerializer(
-                new osgDB::UserSerializer<SceneUtil::Material>("Ambient", &checkAmbient, &readAmbient, &writeAmbient));
+        public:
+            TextureTypeSerializer()
+                : osgDB::ObjectWrapper(createInstanceFunc<SceneUtil::TextureType>, "SceneUtil::TextureType",
+                      "osg::Object osg::StateAttribute SceneUtil::TextureType")
+            {
+            }
+        };
 
-            addSerializer(
-                new osgDB::UserSerializer<SceneUtil::Material>("Diffuse", &checkDiffuse, &readDiffuse, &writeDiffuse));
+        class MaterialSerializer : public osgDB::ObjectWrapper
+        {
+        public:
+            MaterialSerializer()
+                : osgDB::ObjectWrapper(createInstanceFunc<SceneUtil::Material>, "SceneUtil::Material",
+                      "osg::Object osg::StateAttribute SceneUtil::Material")
+            {
+                addSerializer(new osgDB::UserSerializer<SceneUtil::Material>(
+                    "Ambient", &checkAmbient, &readAmbient, &writeAmbient));
 
-            addSerializer(new osgDB::UserSerializer<SceneUtil::Material>(
-                "Specular", &checkSpecular, &readSpecular, &writeSpecular));
+                addSerializer(new osgDB::UserSerializer<SceneUtil::Material>(
+                    "Diffuse", &checkDiffuse, &readDiffuse, &writeDiffuse));
 
-            addSerializer(new osgDB::UserSerializer<SceneUtil::Material>(
-                "Emission", &checkEmission, &readEmission, &writeEmission));
+                addSerializer(new osgDB::UserSerializer<SceneUtil::Material>(
+                    "Specular", &checkSpecular, &readSpecular, &writeSpecular));
 
-            addSerializer(new osgDB::PropByValSerializer<SceneUtil::Material, float>(
-                              "Shininess", 0.f, &SceneUtil::Material::getShininess, &SceneUtil::Material::setShininess),
-                osgDB::BaseSerializer::RW_FLOAT);
+                addSerializer(new osgDB::UserSerializer<SceneUtil::Material>(
+                    "Emission", &checkEmission, &readEmission, &writeEmission));
 
-            addSerializer(new osgDB::PropByValSerializer<SceneUtil::Material, float>("EmissiveMultiplier", 1.f,
-                              &SceneUtil::Material::getEmissiveMultiplier, &SceneUtil::Material::setEmissiveMultiplier),
-                osgDB::BaseSerializer::RW_FLOAT);
+                addSerializer(new osgDB::PropByValSerializer<SceneUtil::Material, float>("Shininess", 0.f,
+                                  &SceneUtil::Material::getShininess, &SceneUtil::Material::setShininess),
+                    osgDB::BaseSerializer::RW_FLOAT);
 
-            addSerializer(new osgDB::PropByValSerializer<SceneUtil::Material, float>("SpecularStrength", 1.f,
-                              &SceneUtil::Material::getSpecularStrength, &SceneUtil::Material::setSpecularStrength),
-                osgDB::BaseSerializer::RW_FLOAT);
+                addSerializer(
+                    new osgDB::PropByValSerializer<SceneUtil::Material, float>("EmissiveMultiplier", 1.f,
+                        &SceneUtil::Material::getEmissiveMultiplier, &SceneUtil::Material::setEmissiveMultiplier),
+                    osgDB::BaseSerializer::RW_FLOAT);
 
-            using ColorModeSerializer = osgDB::EnumSerializer<SceneUtil::Material, SceneUtil::VertexColorModes, void>;
+                addSerializer(new osgDB::PropByValSerializer<SceneUtil::Material, float>("SpecularStrength", 1.f,
+                                  &SceneUtil::Material::getSpecularStrength, &SceneUtil::Material::setSpecularStrength),
+                    osgDB::BaseSerializer::RW_FLOAT);
 
-            osg::ref_ptr<ColorModeSerializer> colorModeSerializer
-                = new ColorModeSerializer("VertexColorMode", SceneUtil::VertexColorModes::None,
-                    &SceneUtil::Material::getVertexColorMode, &SceneUtil::Material::setVertexColorMode);
+                using ColorModeSerializer
+                    = osgDB::EnumSerializer<SceneUtil::Material, SceneUtil::VertexColorModes, void>;
 
-            colorModeSerializer->add("None", SceneUtil::VertexColorModes::None);
+                osg::ref_ptr<ColorModeSerializer> colorModeSerializer
+                    = new ColorModeSerializer("VertexColorMode", SceneUtil::VertexColorModes::None,
+                        &SceneUtil::Material::getVertexColorMode, &SceneUtil::Material::setVertexColorMode);
 
-            colorModeSerializer->add("Emission", SceneUtil::VertexColorModes::Emission);
+                colorModeSerializer->add("None", SceneUtil::VertexColorModes::None);
 
-            colorModeSerializer->add("AmbientAndDiffuse", SceneUtil::VertexColorModes::AmbientAndDiffuse);
+                colorModeSerializer->add("Emission", SceneUtil::VertexColorModes::Emission);
 
-            colorModeSerializer->add("Ambient", SceneUtil::VertexColorModes::Ambient);
+                colorModeSerializer->add("AmbientAndDiffuse", SceneUtil::VertexColorModes::AmbientAndDiffuse);
 
-            colorModeSerializer->add("Diffuse", SceneUtil::VertexColorModes::Diffuse);
+                colorModeSerializer->add("Ambient", SceneUtil::VertexColorModes::Ambient);
 
-            colorModeSerializer->add("Specular", SceneUtil::VertexColorModes::Specular);
+                colorModeSerializer->add("Diffuse", SceneUtil::VertexColorModes::Diffuse);
 
-            addSerializer(colorModeSerializer);
+                colorModeSerializer->add("Specular", SceneUtil::VertexColorModes::Specular);
+
+                addSerializer(colorModeSerializer);
+            }
+        };
+
+        osgDB::ObjectWrapper* makeDummySerializer(const std::string& classname)
+        {
+            return new osgDB::ObjectWrapper(createInstanceFunc<osg::DummyObject>, classname, "osg::Object");
         }
-    };
-
-    osgDB::ObjectWrapper* makeDummySerializer(const std::string& classname)
-    {
-        return new osgDB::ObjectWrapper(createInstanceFunc<osg::DummyObject>, classname, "osg::Object");
     }
 
     void registerSerializers()

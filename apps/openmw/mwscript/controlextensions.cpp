@@ -23,160 +23,163 @@ namespace MWScript
 {
     namespace Control
     {
-        class OpSetControl : public Interpreter::Opcode0
+        namespace
         {
-            std::string_view mControl;
-            bool mEnable;
-
-        public:
-            OpSetControl(std::string_view control, bool enable)
-                : mControl(control)
-                , mEnable(enable)
+            class OpSetControl : public Interpreter::Opcode0
             {
-            }
+                std::string_view mControl;
+                bool mEnable;
 
-            void execute(Interpreter::Runtime& runtime) override
+            public:
+                OpSetControl(std::string_view control, bool enable)
+                    : mControl(control)
+                    , mEnable(enable)
+                {
+                }
+
+                void execute(Interpreter::Runtime& runtime) override
+                {
+                    MWBase::Environment::get().getInputManager()->toggleControlSwitch(mControl, mEnable);
+                }
+            };
+
+            class OpGetDisabled : public Interpreter::Opcode0
             {
-                MWBase::Environment::get().getInputManager()->toggleControlSwitch(mControl, mEnable);
-            }
-        };
+                std::string_view mControl;
 
-        class OpGetDisabled : public Interpreter::Opcode0
-        {
-            std::string_view mControl;
+            public:
+                explicit OpGetDisabled(std::string_view control)
+                    : mControl(control)
+                {
+                }
 
-        public:
-            explicit OpGetDisabled(std::string_view control)
-                : mControl(control)
+                void execute(Interpreter::Runtime& runtime) override
+                {
+                    runtime.push(!MWBase::Environment::get().getInputManager()->getControlSwitch(mControl));
+                }
+            };
+
+            class OpToggleCollision : public Interpreter::Opcode0
             {
-            }
+            public:
+                void execute(Interpreter::Runtime& runtime) override
+                {
+                    bool enabled = MWBase::Environment::get().getWorld()->toggleCollisionMode();
 
-            void execute(Interpreter::Runtime& runtime) override
+                    runtime.getContext().report(enabled ? "Collision -> On" : "Collision -> Off");
+                }
+            };
+
+            template <class R>
+            class OpClearMovementFlag : public Interpreter::Opcode0
             {
-                runtime.push(!MWBase::Environment::get().getInputManager()->getControlSwitch(mControl));
-            }
-        };
+                MWMechanics::CreatureStats::Flag mFlag;
 
-        class OpToggleCollision : public Interpreter::Opcode0
-        {
-        public:
-            void execute(Interpreter::Runtime& runtime) override
+            public:
+                explicit OpClearMovementFlag(MWMechanics::CreatureStats::Flag flag)
+                    : mFlag(flag)
+                {
+                }
+
+                void execute(Interpreter::Runtime& runtime) override
+                {
+                    MWWorld::Ptr ptr = R()(runtime);
+
+                    ptr.getClass().getCreatureStats(ptr).setMovementFlag(mFlag, false);
+                }
+            };
+
+            template <class R>
+            class OpSetMovementFlag : public Interpreter::Opcode0
             {
-                bool enabled = MWBase::Environment::get().getWorld()->toggleCollisionMode();
+                MWMechanics::CreatureStats::Flag mFlag;
 
-                runtime.getContext().report(enabled ? "Collision -> On" : "Collision -> Off");
-            }
-        };
+            public:
+                explicit OpSetMovementFlag(MWMechanics::CreatureStats::Flag flag)
+                    : mFlag(flag)
+                {
+                }
 
-        template <class R>
-        class OpClearMovementFlag : public Interpreter::Opcode0
-        {
-            MWMechanics::CreatureStats::Flag mFlag;
+                void execute(Interpreter::Runtime& runtime) override
+                {
+                    MWWorld::Ptr ptr = R()(runtime);
 
-        public:
-            explicit OpClearMovementFlag(MWMechanics::CreatureStats::Flag flag)
-                : mFlag(flag)
+                    ptr.getClass().getCreatureStats(ptr).setMovementFlag(mFlag, true);
+                }
+            };
+
+            template <class R>
+            class OpGetForceRun : public Interpreter::Opcode0
             {
-            }
+            public:
+                void execute(Interpreter::Runtime& runtime) override
+                {
+                    MWWorld::Ptr ptr = R()(runtime);
 
-            void execute(Interpreter::Runtime& runtime) override
+                    MWMechanics::CreatureStats& stats = ptr.getClass().getCreatureStats(ptr);
+                    runtime.push(stats.getMovementFlag(MWMechanics::CreatureStats::Flag_ForceRun));
+                }
+            };
+
+            template <class R>
+            class OpGetForceJump : public Interpreter::Opcode0
             {
-                MWWorld::Ptr ptr = R()(runtime);
+            public:
+                void execute(Interpreter::Runtime& runtime) override
+                {
+                    MWWorld::Ptr ptr = R()(runtime);
 
-                ptr.getClass().getCreatureStats(ptr).setMovementFlag(mFlag, false);
-            }
-        };
+                    MWMechanics::CreatureStats& stats = ptr.getClass().getCreatureStats(ptr);
+                    runtime.push(stats.getMovementFlag(MWMechanics::CreatureStats::Flag_ForceJump));
+                }
+            };
 
-        template <class R>
-        class OpSetMovementFlag : public Interpreter::Opcode0
-        {
-            MWMechanics::CreatureStats::Flag mFlag;
-
-        public:
-            explicit OpSetMovementFlag(MWMechanics::CreatureStats::Flag flag)
-                : mFlag(flag)
+            template <class R>
+            class OpGetForceMoveJump : public Interpreter::Opcode0
             {
-            }
+            public:
+                void execute(Interpreter::Runtime& runtime) override
+                {
+                    MWWorld::Ptr ptr = R()(runtime);
 
-            void execute(Interpreter::Runtime& runtime) override
+                    MWMechanics::CreatureStats& stats = ptr.getClass().getCreatureStats(ptr);
+                    runtime.push(stats.getMovementFlag(MWMechanics::CreatureStats::Flag_ForceMoveJump));
+                }
+            };
+
+            template <class R>
+            class OpGetForceSneak : public Interpreter::Opcode0
             {
-                MWWorld::Ptr ptr = R()(runtime);
+            public:
+                void execute(Interpreter::Runtime& runtime) override
+                {
+                    MWWorld::Ptr ptr = R()(runtime);
 
-                ptr.getClass().getCreatureStats(ptr).setMovementFlag(mFlag, true);
-            }
-        };
+                    MWMechanics::CreatureStats& stats = ptr.getClass().getCreatureStats(ptr);
+                    runtime.push(stats.getMovementFlag(MWMechanics::CreatureStats::Flag_ForceSneak));
+                }
+            };
 
-        template <class R>
-        class OpGetForceRun : public Interpreter::Opcode0
-        {
-        public:
-            void execute(Interpreter::Runtime& runtime) override
+            class OpGetPcRunning : public Interpreter::Opcode0
             {
-                MWWorld::Ptr ptr = R()(runtime);
+            public:
+                void execute(Interpreter::Runtime& runtime) override
+                {
+                    MWWorld::Ptr ptr = MWBase::Environment::get().getWorld()->getPlayerPtr();
+                    runtime.push(MWBase::Environment::get().getMechanicsManager()->isRunning(ptr));
+                }
+            };
 
-                MWMechanics::CreatureStats& stats = ptr.getClass().getCreatureStats(ptr);
-                runtime.push(stats.getMovementFlag(MWMechanics::CreatureStats::Flag_ForceRun));
-            }
-        };
-
-        template <class R>
-        class OpGetForceJump : public Interpreter::Opcode0
-        {
-        public:
-            void execute(Interpreter::Runtime& runtime) override
+            class OpGetPcSneaking : public Interpreter::Opcode0
             {
-                MWWorld::Ptr ptr = R()(runtime);
-
-                MWMechanics::CreatureStats& stats = ptr.getClass().getCreatureStats(ptr);
-                runtime.push(stats.getMovementFlag(MWMechanics::CreatureStats::Flag_ForceJump));
-            }
-        };
-
-        template <class R>
-        class OpGetForceMoveJump : public Interpreter::Opcode0
-        {
-        public:
-            void execute(Interpreter::Runtime& runtime) override
-            {
-                MWWorld::Ptr ptr = R()(runtime);
-
-                MWMechanics::CreatureStats& stats = ptr.getClass().getCreatureStats(ptr);
-                runtime.push(stats.getMovementFlag(MWMechanics::CreatureStats::Flag_ForceMoveJump));
-            }
-        };
-
-        template <class R>
-        class OpGetForceSneak : public Interpreter::Opcode0
-        {
-        public:
-            void execute(Interpreter::Runtime& runtime) override
-            {
-                MWWorld::Ptr ptr = R()(runtime);
-
-                MWMechanics::CreatureStats& stats = ptr.getClass().getCreatureStats(ptr);
-                runtime.push(stats.getMovementFlag(MWMechanics::CreatureStats::Flag_ForceSneak));
-            }
-        };
-
-        class OpGetPcRunning : public Interpreter::Opcode0
-        {
-        public:
-            void execute(Interpreter::Runtime& runtime) override
-            {
-                MWWorld::Ptr ptr = MWBase::Environment::get().getWorld()->getPlayerPtr();
-                runtime.push(MWBase::Environment::get().getMechanicsManager()->isRunning(ptr));
-            }
-        };
-
-        class OpGetPcSneaking : public Interpreter::Opcode0
-        {
-        public:
-            void execute(Interpreter::Runtime& runtime) override
-            {
-                MWWorld::Ptr ptr = MWBase::Environment::get().getWorld()->getPlayerPtr();
-                runtime.push(MWBase::Environment::get().getMechanicsManager()->isSneaking(ptr));
-            }
-        };
+            public:
+                void execute(Interpreter::Runtime& runtime) override
+                {
+                    MWWorld::Ptr ptr = MWBase::Environment::get().getWorld()->getPlayerPtr();
+                    runtime.push(MWBase::Environment::get().getMechanicsManager()->isSneaking(ptr));
+                }
+            };
+        }
 
         void installOpcodes(Interpreter::Interpreter& interpreter)
         {

@@ -10,11 +10,14 @@
 
 namespace SceneUtil
 {
-    // disable nonsense test against a worldsize bb what will always pass
-    class WaterBoundCallback : public osg::Drawable::ComputeBoundingBoxCallback
+    namespace
     {
-        osg::BoundingBox computeBound(const osg::Drawable&) const override { return osg::BoundingBox(); }
-    };
+        // disable nonsense test against a worldsize bb what will always pass
+        class WaterBoundCallback : public osg::Drawable::ComputeBoundingBoxCallback
+        {
+            osg::BoundingBox computeBound(const osg::Drawable&) const override { return osg::BoundingBox(); }
+        };
+    }
 
     osg::ref_ptr<osg::Geometry> createWaterGeometry(float size, int segments, float textureRepeats)
     {

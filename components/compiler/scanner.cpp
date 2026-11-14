@@ -268,24 +268,27 @@ namespace Compiler
         return true;
     }
 
-    static const char* sKeywords[] = {
-        "begin",
-        "end",
-        "short",
-        "long",
-        "float",
-        "if",
-        "endif",
-        "else",
-        "elseif",
-        "while",
-        "endwhile",
-        "return",
-        "messagebox",
-        "set",
-        "to",
-        nullptr,
-    };
+    namespace
+    {
+        const char* sKeywords[] = {
+            "begin",
+            "end",
+            "short",
+            "long",
+            "float",
+            "if",
+            "endif",
+            "else",
+            "elseif",
+            "while",
+            "endwhile",
+            "return",
+            "messagebox",
+            "set",
+            "to",
+            nullptr,
+        };
+    }
 
     bool Scanner::scanName(MultiChar& c, Parser& parser, bool& cont, std::string name)
     {

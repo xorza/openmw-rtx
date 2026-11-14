@@ -45,19 +45,22 @@
 
 namespace CSVRender
 {
-    class CellNodeContainer : public osg::Referenced
+    namespace
     {
-    public:
-        explicit CellNodeContainer(Cell* cell)
-            : mCell(cell)
+        class CellNodeContainer : public osg::Referenced
         {
-        }
+        public:
+            explicit CellNodeContainer(Cell* cell)
+                : mCell(cell)
+            {
+            }
 
-        Cell* getCell() { return mCell; }
+            Cell* getCell() { return mCell; }
 
-    private:
-        Cell* mCell;
-    };
+        private:
+            Cell* mCell;
+        };
+    }
 
     class CellNodeCallback : public osg::NodeCallback
     {

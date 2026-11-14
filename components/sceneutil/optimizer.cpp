@@ -160,6 +160,8 @@ void Optimizer::optimize(osg::Node* node, unsigned int options)
 // Flatten static transforms
 ////////////////////////////////////////////////////////////////////////////
 
+namespace
+{
 class CollectLowestTransformsVisitor : public BaseOptimizerVisitor
 {
     public:
@@ -367,6 +369,8 @@ class CollectLowestTransformsVisitor : public BaseOptimizerVisitor
         ObjectList      _currentObjectList;
 
 };
+}
+
 
 
 void CollectLowestTransformsVisitor::doTransform(osg::Object* obj,osg::Matrix& matrix)
@@ -615,6 +619,8 @@ void Optimizer::FlattenStaticTransformsVisitor::apply(osg::Node& node)
     traverse(node);
 }
 
+namespace
+{
 osg::Array* cloneArray(osg::Array* array, osg::VertexBufferObject*& vbo, const osg::Geometry* geom)
 {
     array = static_cast<osg::Array*>(array->clone(osg::CopyOp::DEEP_COPY_ALL));
@@ -622,6 +628,8 @@ osg::Array* cloneArray(osg::Array* array, osg::VertexBufferObject*& vbo, const o
     array->setVertexBufferObject(vbo);
     return array;
 }
+}
+
 
 void Optimizer::FlattenStaticTransformsVisitor::apply(osg::Geometry& geometry)
 {
@@ -1037,6 +1045,8 @@ struct LessGeometry
     }
 };
 
+namespace
+{
 struct LessGeometryViewPoint
 {
     osg::Vec3f _viewPoint;
@@ -1110,6 +1120,8 @@ bool isAbleToMerge(const osg::Geometry& g1, const osg::Geometry& g2)
     if (g1.getFogCoordArray() && g2.getNormalArray() && g1.getFogCoordArray()->getDataType()!=g2.getFogCoordArray()->getDataType()) return false;
     return true;
 }
+}
+
 
 
 bool Optimizer::MergeGeometryVisitor::pushStateSet(osg::StateSet *stateSet)
@@ -1158,6 +1170,8 @@ void Optimizer::MergeGeometryVisitor::apply(osg::Group &group)
         popStateSet();
 }
 
+namespace
+{
 osg::PrimitiveSet* clonePrimitive(osg::PrimitiveSet* ps, osg::ElementBufferObject*& ebo, const osg::Geometry* geom)
 {
     if (ps->referenceCount() <= 1)
@@ -1179,6 +1193,8 @@ bool containsSharedPrimitives(const osg::Geometry* geom)
         if (geom->getPrimitiveSet(i)->referenceCount() > 1) return true;
     return false;
 }
+}
+
 
     // clang-format on
 
@@ -1655,6 +1671,8 @@ bool Optimizer::MergeGeometryVisitor::mergeGroup(osg::Group& group)
     return false;
 }
 
+namespace
+{
 class MergeArrayVisitor : public osg::ArrayVisitor
 {
     protected:
@@ -1718,6 +1736,8 @@ class MergeArrayVisitor : public osg::ArrayVisitor
         void apply(osg::Vec3sArray& rhs) override { _merge(rhs); }
         void apply(osg::Vec4sArray& rhs) override { _merge(rhs); }
 };
+}
+
 
 bool Optimizer::MergeGeometryVisitor::mergeGeometry(osg::Geometry& lhs, osg::Geometry& rhs, const GeometryArraySizes& sizes)
 {

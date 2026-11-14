@@ -47,14 +47,17 @@
 #include "subviewfactoryimp.hpp"
 #include "viewmanager.hpp"
 
-QRect desktopRect()
+namespace
 {
-    QRegion virtualGeometry;
-    for (auto screen : QGuiApplication::screens())
+    QRect desktopRect()
     {
-        virtualGeometry += screen->geometry();
+        QRegion virtualGeometry;
+        for (auto screen : QGuiApplication::screens())
+        {
+            virtualGeometry += screen->geometry();
+        }
+        return virtualGeometry.boundingRect();
     }
-    return virtualGeometry.boundingRect();
 }
 
 void CSVDoc::View::closeEvent(QCloseEvent* event)
@@ -114,14 +117,12 @@ void CSVDoc::View::setupFileMenu()
 
 namespace
 {
-
     void updateUndoRedoAction(QAction* action, const std::string& settingsKey)
     {
         QKeySequence seq;
         CSMPrefs::State::get().getShortcutManager().getSequence(settingsKey, seq);
         action->setShortcut(seq);
     }
-
 }
 
 void CSVDoc::View::undoActionChanged()

@@ -19,22 +19,25 @@
 namespace Terrain
 {
 
-    struct UpdateTextureFilteringFunctor
+    namespace
     {
-        explicit UpdateTextureFilteringFunctor(Resource::SceneManager* sceneMgr)
-            : mSceneManager(sceneMgr)
+        struct UpdateTextureFilteringFunctor
         {
-        }
-        Resource::SceneManager* mSceneManager;
+            explicit UpdateTextureFilteringFunctor(Resource::SceneManager* sceneMgr)
+                : mSceneManager(sceneMgr)
+            {
+            }
+            Resource::SceneManager* mSceneManager;
 
-        void operator()(ChunkKey, osg::Object* obj)
-        {
-            auto* drawable = static_cast<TerrainDrawable*>(obj);
-            const CompositeMap* composite = drawable->getCompositeMap().get();
-            if (composite && composite->mTexture)
-                mSceneManager->applyFilterSettings(composite->mTexture);
-        }
-    };
+            void operator()(ChunkKey, osg::Object* obj)
+            {
+                auto* drawable = static_cast<TerrainDrawable*>(obj);
+                const CompositeMap* composite = drawable->getCompositeMap().get();
+                if (composite && composite->mTexture)
+                    mSceneManager->applyFilterSettings(composite->mTexture);
+            }
+        };
+    }
 
     ChunkManager::ChunkManager(Storage* storage, Resource::SceneManager* sceneMgr, TextureManager* textureManager,
         CompositeMapRenderer* renderer, ESM::RefId worldspace, double expiryDelay)

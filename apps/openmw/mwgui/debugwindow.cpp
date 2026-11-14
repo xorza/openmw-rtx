@@ -125,11 +125,14 @@ namespace MWGui
 #endif
     }
 
-    static std::vector<char> sLogCircularBuffer;
-    static std::mutex sBufferMutex;
-    static int64_t sLogStartIndex;
-    static int64_t sLogEndIndex;
-    static bool hasPrefix = false;
+    namespace
+    {
+        std::vector<char> sLogCircularBuffer;
+        std::mutex sBufferMutex;
+        int64_t sLogStartIndex;
+        int64_t sLogEndIndex;
+        bool hasPrefix = false;
+    }
 
     void DebugWindow::startLogRecording()
     {

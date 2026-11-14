@@ -54,40 +54,43 @@ namespace MWRender
         unsigned int mFrame;
     };
 
-    class ReadImageFromFramebufferCallback : public osg::Drawable::DrawCallback
+    namespace
     {
-    public:
-        ReadImageFromFramebufferCallback(osg::Image* image, int width, int height)
-            : mWidth(width)
-            , mHeight(height)
-            , mImage(image)
+        class ReadImageFromFramebufferCallback : public osg::Drawable::DrawCallback
         {
-        }
-        void drawImplementation(osg::RenderInfo& renderInfo, const osg::Drawable* /*drawable*/) const override
-        {
-            int screenW = static_cast<int>(renderInfo.getCurrentCamera()->getViewport()->width());
-            int screenH = static_cast<int>(renderInfo.getCurrentCamera()->getViewport()->height());
-            if (Stereo::getStereo())
+        public:
+            ReadImageFromFramebufferCallback(osg::Image* image, int width, int height)
+                : mWidth(width)
+                , mHeight(height)
+                , mImage(image)
             {
-                auto eyeRes = Stereo::Manager::instance().eyeResolution();
-                screenW = eyeRes.x();
-                screenH = eyeRes.y();
             }
-            double imageaspect = static_cast<double>(mWidth) / static_cast<double>(mHeight);
-            int leftPadding = std::max(0, static_cast<int>(screenW - screenH * imageaspect) / 2);
-            int topPadding = std::max(0, static_cast<int>(screenH - screenW / imageaspect) / 2);
-            int width = screenW - leftPadding * 2;
-            int height = screenH - topPadding * 2;
+            void drawImplementation(osg::RenderInfo& renderInfo, const osg::Drawable* /*drawable*/) const override
+            {
+                int screenW = static_cast<int>(renderInfo.getCurrentCamera()->getViewport()->width());
+                int screenH = static_cast<int>(renderInfo.getCurrentCamera()->getViewport()->height());
+                if (Stereo::getStereo())
+                {
+                    auto eyeRes = Stereo::Manager::instance().eyeResolution();
+                    screenW = eyeRes.x();
+                    screenH = eyeRes.y();
+                }
+                double imageaspect = static_cast<double>(mWidth) / static_cast<double>(mHeight);
+                int leftPadding = std::max(0, static_cast<int>(screenW - screenH * imageaspect) / 2);
+                int topPadding = std::max(0, static_cast<int>(screenH - screenW / imageaspect) / 2);
+                int width = screenW - leftPadding * 2;
+                int height = screenH - topPadding * 2;
 
-            mImage->readPixels(leftPadding, topPadding, width, height, GL_RGB, GL_UNSIGNED_BYTE);
-            mImage->scaleImage(mWidth, mHeight, 1);
-        }
+                mImage->readPixels(leftPadding, topPadding, width, height, GL_RGB, GL_UNSIGNED_BYTE);
+                mImage->scaleImage(mWidth, mHeight, 1);
+            }
 
-    private:
-        int mWidth;
-        int mHeight;
-        osg::ref_ptr<osg::Image> mImage;
-    };
+        private:
+            int mWidth;
+            int mHeight;
+            osg::ref_ptr<osg::Image> mImage;
+        };
+    }
 
     ScreenshotManager::ScreenshotManager(osgViewer::Viewer* viewer)
         : mViewer(viewer)

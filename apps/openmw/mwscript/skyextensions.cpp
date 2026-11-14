@@ -20,112 +20,117 @@ namespace MWScript
 {
     namespace Sky
     {
-        class OpToggleSky : public Interpreter::Opcode0
+        namespace
         {
-        public:
-            void execute(Interpreter::Runtime& runtime) override
+            class OpToggleSky : public Interpreter::Opcode0
             {
-                bool enabled = MWBase::Environment::get().getWorld()->toggleSky();
-
-                runtime.getContext().report(enabled ? "Sky -> On" : "Sky -> Off");
-            }
-        };
-
-        class OpTurnMoonWhite : public Interpreter::Opcode0
-        {
-        public:
-            void execute(Interpreter::Runtime& runtime) override
-            {
-                MWBase::Environment::get().getWorld()->setMoonColour(false);
-            }
-        };
-
-        class OpTurnMoonRed : public Interpreter::Opcode0
-        {
-        public:
-            void execute(Interpreter::Runtime& runtime) override
-            {
-                MWBase::Environment::get().getWorld()->setMoonColour(true);
-            }
-        };
-
-        class OpGetMasserPhase : public Interpreter::Opcode0
-        {
-        public:
-            void execute(Interpreter::Runtime& runtime) override
-            {
-                runtime.push(MWBase::Environment::get().getWorld()->getMasserPhase());
-            }
-        };
-
-        class OpGetSecundaPhase : public Interpreter::Opcode0
-        {
-        public:
-            void execute(Interpreter::Runtime& runtime) override
-            {
-                runtime.push(MWBase::Environment::get().getWorld()->getSecundaPhase());
-            }
-        };
-
-        class OpGetCurrentWeather : public Interpreter::Opcode0
-        {
-        public:
-            void execute(Interpreter::Runtime& runtime) override
-            {
-                runtime.push(MWBase::Environment::get().getWorld()->getCurrentWeatherScriptId());
-            }
-        };
-
-        class OpChangeWeather : public Interpreter::Opcode0
-        {
-        public:
-            void execute(Interpreter::Runtime& runtime) override
-            {
-                ESM::RefId region = ESM::RefId::stringRefId(runtime.getStringLiteral(runtime[0].mInteger));
-                runtime.pop();
-
-                Interpreter::Type_Integer id = runtime[0].mInteger;
-                runtime.pop();
-
-                const ESM::Region* reg = MWBase::Environment::get().getESMStore()->get<ESM::Region>().search(region);
-                if (reg)
-                    MWBase::Environment::get().getWorld()->changeWeather(region, ESM::Weather::indexToRefId(id));
-                else
-                    runtime.getContext().report("Warning: Region \"" + region.getRefIdString() + "\" was not found");
-            }
-        };
-
-        class OpModRegion : public Interpreter::Opcode1
-        {
-        public:
-            void execute(Interpreter::Runtime& runtime, unsigned int arg0) override
-            {
-                std::string_view region{ runtime.getStringLiteral(runtime[0].mInteger) };
-                runtime.pop();
-
-                std::map<ESM::RefId, uint8_t> chances;
-                for (int i = 0; i < ESM::Weather::Length; ++i)
+            public:
+                void execute(Interpreter::Runtime& runtime) override
                 {
-                    ESM::RefId id = ESM::Weather::indexToRefId(i);
-                    uint8_t chance = 0;
-                    if (arg0 > 0)
+                    bool enabled = MWBase::Environment::get().getWorld()->toggleSky();
+
+                    runtime.getContext().report(enabled ? "Sky -> On" : "Sky -> Off");
+                }
+            };
+
+            class OpTurnMoonWhite : public Interpreter::Opcode0
+            {
+            public:
+                void execute(Interpreter::Runtime& runtime) override
+                {
+                    MWBase::Environment::get().getWorld()->setMoonColour(false);
+                }
+            };
+
+            class OpTurnMoonRed : public Interpreter::Opcode0
+            {
+            public:
+                void execute(Interpreter::Runtime& runtime) override
+                {
+                    MWBase::Environment::get().getWorld()->setMoonColour(true);
+                }
+            };
+
+            class OpGetMasserPhase : public Interpreter::Opcode0
+            {
+            public:
+                void execute(Interpreter::Runtime& runtime) override
+                {
+                    runtime.push(MWBase::Environment::get().getWorld()->getMasserPhase());
+                }
+            };
+
+            class OpGetSecundaPhase : public Interpreter::Opcode0
+            {
+            public:
+                void execute(Interpreter::Runtime& runtime) override
+                {
+                    runtime.push(MWBase::Environment::get().getWorld()->getSecundaPhase());
+                }
+            };
+
+            class OpGetCurrentWeather : public Interpreter::Opcode0
+            {
+            public:
+                void execute(Interpreter::Runtime& runtime) override
+                {
+                    runtime.push(MWBase::Environment::get().getWorld()->getCurrentWeatherScriptId());
+                }
+            };
+
+            class OpChangeWeather : public Interpreter::Opcode0
+            {
+            public:
+                void execute(Interpreter::Runtime& runtime) override
+                {
+                    ESM::RefId region = ESM::RefId::stringRefId(runtime.getStringLiteral(runtime[0].mInteger));
+                    runtime.pop();
+
+                    Interpreter::Type_Integer id = runtime[0].mInteger;
+                    runtime.pop();
+
+                    const ESM::Region* reg
+                        = MWBase::Environment::get().getESMStore()->get<ESM::Region>().search(region);
+                    if (reg)
+                        MWBase::Environment::get().getWorld()->changeWeather(region, ESM::Weather::indexToRefId(id));
+                    else
+                        runtime.getContext().report(
+                            "Warning: Region \"" + region.getRefIdString() + "\" was not found");
+                }
+            };
+
+            class OpModRegion : public Interpreter::Opcode1
+            {
+            public:
+                void execute(Interpreter::Runtime& runtime, unsigned int arg0) override
+                {
+                    std::string_view region{ runtime.getStringLiteral(runtime[0].mInteger) };
+                    runtime.pop();
+
+                    std::map<ESM::RefId, uint8_t> chances;
+                    for (int i = 0; i < ESM::Weather::Length; ++i)
                     {
-                        chance = static_cast<uint8_t>(std::clamp(runtime[0].mInteger, 0, 100));
+                        ESM::RefId id = ESM::Weather::indexToRefId(i);
+                        uint8_t chance = 0;
+                        if (arg0 > 0)
+                        {
+                            chance = static_cast<uint8_t>(std::clamp(runtime[0].mInteger, 0, 100));
+                            runtime.pop();
+                            arg0--;
+                        }
+                        chances.emplace(id, chance);
+                    }
+                    // pop junk arguments
+                    while (arg0 > 0)
+                    {
                         runtime.pop();
                         arg0--;
                     }
-                    chances.emplace(id, chance);
-                }
-                // pop junk arguments
-                while (arg0 > 0)
-                {
-                    runtime.pop();
-                    arg0--;
-                }
 
-                MWBase::Environment::get().getWorld()->modRegion(ESM::RefId::stringRefId(region), chances);
-            }
-        };
+                    MWBase::Environment::get().getWorld()->modRegion(ESM::RefId::stringRefId(region), chances);
+                }
+            };
+        }
 
         void installOpcodes(Interpreter::Interpreter& interpreter)
         {

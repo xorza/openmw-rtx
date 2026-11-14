@@ -33,47 +33,50 @@ namespace Terrain
         }
     }
 
-    ChildDirection reflect(ChildDirection dir, Direction dir2)
+    namespace
     {
-        assert(dir != Root);
-        const int lookupTable[4][4] = {
-            // NW  NE  SW  SE
-            { SW, SE, NW, NE }, // N
-            { NE, NW, SE, SW }, // E
-            { SW, SE, NW, NE }, // S
-            { NE, NW, SE, SW } // W
-        };
-        return static_cast<ChildDirection>(lookupTable[dir2][dir]);
-    }
+        ChildDirection reflect(ChildDirection dir, Direction dir2)
+        {
+            assert(dir != Root);
+            const int lookupTable[4][4] = {
+                // NW  NE  SW  SE
+                { SW, SE, NW, NE }, // N
+                { NE, NW, SE, SW }, // E
+                { SW, SE, NW, NE }, // S
+                { NE, NW, SE, SW } // W
+            };
+            return static_cast<ChildDirection>(lookupTable[dir2][dir]);
+        }
 
-    bool adjacent(ChildDirection dir, Direction dir2)
-    {
-        assert(dir != Root);
-        const bool lookupTable[4][4] = {
-            // NW    NE    SW     SE
-            { true, true, false, false }, // N
-            { false, true, false, true }, // E
-            { false, false, true, true }, // S
-            { true, false, true, false } // W
-        };
-        return lookupTable[dir2][dir];
-    }
+        bool adjacent(ChildDirection dir, Direction dir2)
+        {
+            assert(dir != Root);
+            const bool lookupTable[4][4] = {
+                // NW    NE    SW     SE
+                { true, true, false, false }, // N
+                { false, true, false, true }, // E
+                { false, false, true, true }, // S
+                { true, false, true, false } // W
+            };
+            return lookupTable[dir2][dir];
+        }
 
-    QuadTreeNode* searchNeighbour(QuadTreeNode* currentNode, Direction dir)
-    {
-        if (currentNode->getDirection() == Root)
-            return nullptr; // Arrived at root node, the root node does not have neighbours
+        QuadTreeNode* searchNeighbour(QuadTreeNode* currentNode, Direction dir)
+        {
+            if (currentNode->getDirection() == Root)
+                return nullptr; // Arrived at root node, the root node does not have neighbours
 
-        QuadTreeNode* nextNode = nullptr;
-        if (adjacent(currentNode->getDirection(), dir))
-            nextNode = searchNeighbour(currentNode->getParent(), dir);
-        else
-            nextNode = currentNode->getParent();
+            QuadTreeNode* nextNode = nullptr;
+            if (adjacent(currentNode->getDirection(), dir))
+                nextNode = searchNeighbour(currentNode->getParent(), dir);
+            else
+                nextNode = currentNode->getParent();
 
-        if (nextNode && nextNode->getNumChildren())
-            return nextNode->getChild(reflect(currentNode->getDirection(), dir));
-        else
-            return nullptr;
+            if (nextNode && nextNode->getNumChildren())
+                return nextNode->getChild(reflect(currentNode->getDirection(), dir));
+            else
+                return nullptr;
+        }
     }
 
     QuadTreeNode::QuadTreeNode(QuadTreeNode* parent, ChildDirection direction, float size, const osg::Vec2f& center)

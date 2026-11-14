@@ -94,38 +94,41 @@
 
 namespace MWRender
 {
-    class PreloadCommonAssetsWorkItem : public SceneUtil::WorkItem
+    namespace
     {
-    public:
-        explicit PreloadCommonAssetsWorkItem(Resource::ResourceSystem* resourceSystem)
-            : mResourceSystem(resourceSystem)
+        class PreloadCommonAssetsWorkItem : public SceneUtil::WorkItem
         {
-        }
-
-        void doWork() override
-        {
-            try
+        public:
+            explicit PreloadCommonAssetsWorkItem(Resource::ResourceSystem* resourceSystem)
+                : mResourceSystem(resourceSystem)
             {
-                for (const VFS::Path::Normalized& v : mModels)
-                    mResourceSystem->getSceneManager()->getTemplate(v);
-                for (const VFS::Path::Normalized& v : mTextures)
-                    mResourceSystem->getImageManager()->getImage(v);
-                for (const VFS::Path::Normalized& v : mKeyframes)
-                    mResourceSystem->getKeyframeManager()->get(v);
             }
-            catch (const std::exception& e)
+
+            void doWork() override
             {
-                Log(Debug::Warning) << "Failed to preload common assets: " << e.what();
+                try
+                {
+                    for (const VFS::Path::Normalized& v : mModels)
+                        mResourceSystem->getSceneManager()->getTemplate(v);
+                    for (const VFS::Path::Normalized& v : mTextures)
+                        mResourceSystem->getImageManager()->getImage(v);
+                    for (const VFS::Path::Normalized& v : mKeyframes)
+                        mResourceSystem->getKeyframeManager()->get(v);
+                }
+                catch (const std::exception& e)
+                {
+                    Log(Debug::Warning) << "Failed to preload common assets: " << e.what();
+                }
             }
-        }
 
-        std::vector<VFS::Path::Normalized> mModels;
-        std::vector<VFS::Path::Normalized> mTextures;
-        std::vector<VFS::Path::Normalized> mKeyframes;
+            std::vector<VFS::Path::Normalized> mModels;
+            std::vector<VFS::Path::Normalized> mTextures;
+            std::vector<VFS::Path::Normalized> mKeyframes;
 
-    private:
-        Resource::ResourceSystem* mResourceSystem;
-    };
+        private:
+            Resource::ResourceSystem* mResourceSystem;
+        };
+    }
 
     RenderingManager::RenderingManager(Renderer& renderer, osg::ref_ptr<osg::Group> rootNode,
         Resource::ResourceSystem* resourceSystem, const std::shared_ptr<SceneUtil::WorkQueue>& workQueue,
@@ -667,88 +670,91 @@ namespace MWRender
         return osg::Vec2f(0.5f, 0.f);
     }
 
-    RenderingManager::RayResult getIntersectionResult(osgUtil::LineSegmentIntersector* intersector,
-        const osg::ref_ptr<osgUtil::IntersectionVisitor>& visitor, std::span<const MWWorld::Ptr> ignoreList = {})
+    namespace
     {
-        constexpr auto nonObjectWorldMask = Mask_Terrain | Mask_Water;
-        RenderingManager::RayResult result;
-        result.mHit = false;
-        result.mRatio = 0;
+        RenderingManager::RayResult getIntersectionResult(osgUtil::LineSegmentIntersector* intersector,
+            const osg::ref_ptr<osgUtil::IntersectionVisitor>& visitor, std::span<const MWWorld::Ptr> ignoreList = {})
+        {
+            constexpr auto nonObjectWorldMask = Mask_Terrain | Mask_Water;
+            RenderingManager::RayResult result;
+            result.mHit = false;
+            result.mRatio = 0;
 
-        if (!intersector->containsIntersections())
-            return result;
+            if (!intersector->containsIntersections())
+                return result;
 
-        auto test = [&](const osgUtil::LineSegmentIntersector::Intersection& intersection) {
-            const MWWorld::Ptr* hitPtr = nullptr;
-            std::vector<const RefnumMarker*> refnumMarkers;
-            bool hitNonObjectWorld = false;
-            for (osg::Node* node : intersection.nodePath)
-            {
-                const auto& nodeMask = node->getNodeMask();
-                if (!hitNonObjectWorld)
-                    hitNonObjectWorld = nodeMask & nonObjectWorldMask;
-
-                SceneUtil::forEachUserData<MWWorld::Ptr>(*node, [&](const MWWorld::Ptr& ptr) {
-                    if (std::find(ignoreList.begin(), ignoreList.end(), ptr) == ignoreList.end())
-                        hitPtr = &ptr;
-                });
-                SceneUtil::forEachUserData<RefnumMarker>(
-                    *node, [&](const RefnumMarker& marker) { refnumMarkers.push_back(&marker); });
-            }
-
-            if (hitPtr)
-                result.mHitObject = *hitPtr;
-
-            unsigned int vertexCounter = 0;
-            for (auto& refnumMarker : refnumMarkers)
-            {
-                unsigned int intersectionIndex = intersection.indexList.empty() ? 0 : intersection.indexList[0];
-                if (!refnumMarker->mNumVertices
-                    || (intersectionIndex >= vertexCounter
-                        && intersectionIndex < vertexCounter + refnumMarker->mNumVertices))
+            auto test = [&](const osgUtil::LineSegmentIntersector::Intersection& intersection) {
+                const MWWorld::Ptr* hitPtr = nullptr;
+                std::vector<const RefnumMarker*> refnumMarkers;
+                bool hitNonObjectWorld = false;
+                for (osg::Node* node : intersection.nodePath)
                 {
-                    auto it = std::find_if(
-                        ignoreList.begin(), ignoreList.end(), [target = refnumMarker->mRefnum](const auto& ptr) {
-                            return target == ptr.getCellRef().getRefNum();
-                        });
+                    const auto& nodeMask = node->getNodeMask();
+                    if (!hitNonObjectWorld)
+                        hitNonObjectWorld = nodeMask & nonObjectWorldMask;
 
-                    if (it == ignoreList.end())
+                    SceneUtil::forEachUserData<MWWorld::Ptr>(*node, [&](const MWWorld::Ptr& ptr) {
+                        if (std::find(ignoreList.begin(), ignoreList.end(), ptr) == ignoreList.end())
+                            hitPtr = &ptr;
+                    });
+                    SceneUtil::forEachUserData<RefnumMarker>(
+                        *node, [&](const RefnumMarker& marker) { refnumMarkers.push_back(&marker); });
+                }
+
+                if (hitPtr)
+                    result.mHitObject = *hitPtr;
+
+                unsigned int vertexCounter = 0;
+                for (auto& refnumMarker : refnumMarkers)
+                {
+                    unsigned int intersectionIndex = intersection.indexList.empty() ? 0 : intersection.indexList[0];
+                    if (!refnumMarker->mNumVertices
+                        || (intersectionIndex >= vertexCounter
+                            && intersectionIndex < vertexCounter + refnumMarker->mNumVertices))
                     {
-                        result.mHitRefnum = refnumMarker->mRefnum;
+                        auto it = std::find_if(
+                            ignoreList.begin(), ignoreList.end(), [target = refnumMarker->mRefnum](const auto& ptr) {
+                                return target == ptr.getCellRef().getRefNum();
+                            });
+
+                        if (it == ignoreList.end())
+                        {
+                            result.mHitRefnum = refnumMarker->mRefnum;
+                        }
+
+                        break;
                     }
-
-                    break;
+                    vertexCounter += refnumMarker->mNumVertices;
                 }
-                vertexCounter += refnumMarker->mNumVertices;
-            }
 
-            if (!result.mHitObject.isEmpty() || result.mHitRefnum.isSet() || hitNonObjectWorld)
-            {
-                result.mHit = true;
-                result.mHitPointWorld = intersection.getWorldIntersectPoint();
-                result.mHitNormalWorld = intersection.getWorldIntersectNormal();
-                result.mRatio = static_cast<float>(intersection.ratio);
-            }
-        };
-
-        if (ignoreList.empty() || intersector->getIntersectionLimit() != osgUtil::LineSegmentIntersector::NO_LIMIT)
-        {
-            test(intersector->getFirstIntersection());
-        }
-        else
-        {
-            for (const auto& intersection : intersector->getIntersections())
-            {
-                test(intersection);
-
-                if (result.mHit)
+                if (!result.mHitObject.isEmpty() || result.mHitRefnum.isSet() || hitNonObjectWorld)
                 {
-                    break;
+                    result.mHit = true;
+                    result.mHitPointWorld = intersection.getWorldIntersectPoint();
+                    result.mHitNormalWorld = intersection.getWorldIntersectNormal();
+                    result.mRatio = static_cast<float>(intersection.ratio);
+                }
+            };
+
+            if (ignoreList.empty() || intersector->getIntersectionLimit() != osgUtil::LineSegmentIntersector::NO_LIMIT)
+            {
+                test(intersector->getFirstIntersection());
+            }
+            else
+            {
+                for (const auto& intersection : intersector->getIntersections())
+                {
+                    test(intersection);
+
+                    if (result.mHit)
+                    {
+                        break;
+                    }
                 }
             }
-        }
 
-        return result;
+            return result;
+        }
     }
 
     class IntersectionVisitorWithIgnoreList : public osgUtil::IntersectionVisitor

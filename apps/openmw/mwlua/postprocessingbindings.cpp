@@ -88,57 +88,59 @@ namespace MWLua
                 .support()
                 .declinedSetting("Post Processing", "enabled");
         }
-    }
 
-    template <class T>
-    auto getSetter(const Context& context)
-    {
-        return [context](const Shader& shader, const std::string& name, const T& value) {
-            if (!shader.mShader)
-                return;
+        template <class T>
+        auto getSetter(const Context& context)
+        {
+            return [context](const Shader& shader, const std::string& name, const T& value) {
+                if (!shader.mShader)
+                    return;
 
-            context.mLuaManager->addAction(
-                [=] {
-                    MWBase::Environment::get().getWorld()->getPostProcessor()->setUniform(shader.mShader, name, value);
-                },
-                "SetUniformShaderAction");
-        };
-    }
+                context.mLuaManager->addAction(
+                    [=] {
+                        MWBase::Environment::get().getWorld()->getPostProcessor()->setUniform(
+                            shader.mShader, name, value);
+                    },
+                    "SetUniformShaderAction");
+            };
+        }
 
-    template <class T>
-    auto getArraySetter(const Context& context)
-    {
-        return [context](const Shader& shader, const std::string& name, const sol::table& table) {
-            if (!shader.mShader)
-                return;
+        template <class T>
+        auto getArraySetter(const Context& context)
+        {
+            return [context](const Shader& shader, const std::string& name, const sol::table& table) {
+                if (!shader.mShader)
+                    return;
 
-            auto targetSize
-                = MWBase::Environment::get().getWorld()->getPostProcessor()->getUniformSize(shader.mShader, name);
+                auto targetSize
+                    = MWBase::Environment::get().getWorld()->getPostProcessor()->getUniformSize(shader.mShader, name);
 
-            if (!targetSize.has_value())
-                throw std::runtime_error(std::format("Failed setting uniform array '{}'", name));
+                if (!targetSize.has_value())
+                    throw std::runtime_error(std::format("Failed setting uniform array '{}'", name));
 
-            if (*targetSize != table.size())
-                throw std::runtime_error(
-                    std::format("Mismatching uniform array size, got {} expected {}", table.size(), *targetSize));
+                if (*targetSize != table.size())
+                    throw std::runtime_error(
+                        std::format("Mismatching uniform array size, got {} expected {}", table.size(), *targetSize));
 
-            std::vector<T> values;
-            values.reserve(*targetSize);
+                std::vector<T> values;
+                values.reserve(*targetSize);
 
-            for (size_t i = 0; i < *targetSize; ++i)
-            {
-                sol::object obj = table[LuaUtil::toLuaIndex(i)];
-                if (!obj.is<T>())
-                    throw std::runtime_error("Invalid type for uniform array");
-                values.push_back(obj.as<T>());
-            }
+                for (size_t i = 0; i < *targetSize; ++i)
+                {
+                    sol::object obj = table[LuaUtil::toLuaIndex(i)];
+                    if (!obj.is<T>())
+                        throw std::runtime_error("Invalid type for uniform array");
+                    values.push_back(obj.as<T>());
+                }
 
-            context.mLuaManager->addAction(
-                [shader, name, values = std::move(values)] {
-                    MWBase::Environment::get().getWorld()->getPostProcessor()->setUniform(shader.mShader, name, values);
-                },
-                "SetUniformShaderAction");
-        };
+                context.mLuaManager->addAction(
+                    [shader, name, values = std::move(values)] {
+                        MWBase::Environment::get().getWorld()->getPostProcessor()->setUniform(
+                            shader.mShader, name, values);
+                    },
+                    "SetUniformShaderAction");
+            };
+        }
     }
 
     sol::table initPostprocessingPackage(const Context& context)

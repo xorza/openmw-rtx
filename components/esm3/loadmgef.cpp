@@ -731,14 +731,17 @@ namespace ESM
         MagicEffect::SummonCreature05,
     };
 
-    template <typename Collection, typename Comparator = std::less<typename Collection::value_type>>
-    static std::map<typename Collection::value_type, int, Comparator> initToIndexMap(
-        const Collection& data, Comparator comp = Comparator())
+    namespace
     {
-        std::map<typename Collection::value_type, int, Comparator> map(comp);
-        for (size_t i = 0; i < data.size(); ++i)
-            map[data[i]] = static_cast<int>(i);
-        return map;
+        template <typename Collection, typename Comparator = std::less<typename Collection::value_type>>
+        std::map<typename Collection::value_type, int, Comparator> initToIndexMap(
+            const Collection& data, Comparator comp = Comparator())
+        {
+            std::map<typename Collection::value_type, int, Comparator> map(comp);
+            for (size_t i = 0; i < data.size(); ++i)
+                map[data[i]] = static_cast<int>(i);
+            return map;
+        }
     }
 
     const std::map<std::string_view, int, Misc::StringUtils::CiComp> sGmstEffectIdToIndexMap

@@ -38,103 +38,113 @@ namespace Shader
      * Not all StateSet features have been added yet - we implement an equivalently-named method to each of the StateSet
      * methods called in createProgram, and implement new ones as they're needed.
      */
-    class AddedState : public osg::Object
+    namespace
     {
-    public:
-        AddedState() = default;
-        AddedState(const AddedState& rhs, const osg::CopyOp& copyOp)
-            : osg::Object(rhs, copyOp)
-            , mUniforms(rhs.mUniforms)
-            , mModes(rhs.mModes)
-            , mAttributes(rhs.mAttributes)
-        {
-        }
-
-        void addUniform(const std::string& name) { mUniforms.emplace(name); }
-        void setMode(osg::StateAttribute::GLMode mode) { mModes.emplace(mode); }
-        void setAttribute(osg::StateAttribute::TypeMemberPair typeMemberPair) { mAttributes.emplace(typeMemberPair); }
-
-        void setAttribute(const osg::StateAttribute* attribute) { mAttributes.emplace(attribute->getTypeMemberPair()); }
-        template <typename T>
-        void setAttribute(osg::ref_ptr<T> attribute)
-        {
-            setAttribute(attribute.get());
-        }
-
-        void setAttributeAndModes(const osg::StateAttribute* attribute)
-        {
-            setAttribute(attribute);
-            InterrogateModesHelper helper(this);
-            attribute->getModeUsage(helper);
-        }
-        template <typename T>
-        void setAttributeAndModes(osg::ref_ptr<T> attribute)
-        {
-            setAttributeAndModes(attribute.get());
-        }
-
-        void setTextureAttribute(int unit, osg::StateAttribute::TypeMemberPair typeMemberPair)
-        {
-            mTextureAttributes[unit].emplace(typeMemberPair);
-        }
-
-        void setTextureAttribute(unsigned int unit, const osg::StateAttribute* attribute)
-        {
-            mTextureAttributes[unit].emplace(attribute->getTypeMemberPair());
-        }
-        template <typename T>
-        void setTextureAttribute(unsigned int unit, osg::ref_ptr<T> attribute)
-        {
-            setTextureAttribute(unit, attribute.get());
-        }
-
-        bool hasUniform(const std::string& name) { return mUniforms.contains(name); }
-        bool hasMode(osg::StateAttribute::GLMode mode) { return mModes.contains(mode); }
-        bool hasAttribute(const osg::StateAttribute::TypeMemberPair& typeMemberPair)
-        {
-            return mAttributes.contains(typeMemberPair);
-        }
-        bool hasAttribute(osg::StateAttribute::Type type, unsigned int member)
-        {
-            return hasAttribute(osg::StateAttribute::TypeMemberPair(type, member));
-        }
-
-        const std::set<osg::StateAttribute::TypeMemberPair>& getAttributes() { return mAttributes; }
-        const std::unordered_map<unsigned int, std::set<osg::StateAttribute::TypeMemberPair>>& getTextureAttributes()
-        {
-            return mTextureAttributes;
-        }
-
-        bool empty()
-        {
-            return mUniforms.empty() && mModes.empty() && mAttributes.empty() && mTextureAttributes.empty();
-        }
-
-        META_Object(Shader, AddedState)
-
-    private:
-        class InterrogateModesHelper : public osg::StateAttribute::ModeUsage
+        class AddedState : public osg::Object
         {
         public:
-            explicit InterrogateModesHelper(AddedState* tracker)
-                : mTracker(tracker)
+            AddedState() = default;
+            AddedState(const AddedState& rhs, const osg::CopyOp& copyOp)
+                : osg::Object(rhs, copyOp)
+                , mUniforms(rhs.mUniforms)
+                , mModes(rhs.mModes)
+                , mAttributes(rhs.mAttributes)
             {
             }
-            void usesMode(osg::StateAttribute::GLMode mode) override { mTracker->setMode(mode); }
-            void usesTextureMode(osg::StateAttribute::GLMode mode) override {}
+
+            void addUniform(const std::string& name) { mUniforms.emplace(name); }
+            void setMode(osg::StateAttribute::GLMode mode) { mModes.emplace(mode); }
+            void setAttribute(osg::StateAttribute::TypeMemberPair typeMemberPair)
+            {
+                mAttributes.emplace(typeMemberPair);
+            }
+
+            void setAttribute(const osg::StateAttribute* attribute)
+            {
+                mAttributes.emplace(attribute->getTypeMemberPair());
+            }
+            template <typename T>
+            void setAttribute(osg::ref_ptr<T> attribute)
+            {
+                setAttribute(attribute.get());
+            }
+
+            void setAttributeAndModes(const osg::StateAttribute* attribute)
+            {
+                setAttribute(attribute);
+                InterrogateModesHelper helper(this);
+                attribute->getModeUsage(helper);
+            }
+            template <typename T>
+            void setAttributeAndModes(osg::ref_ptr<T> attribute)
+            {
+                setAttributeAndModes(attribute.get());
+            }
+
+            void setTextureAttribute(int unit, osg::StateAttribute::TypeMemberPair typeMemberPair)
+            {
+                mTextureAttributes[unit].emplace(typeMemberPair);
+            }
+
+            void setTextureAttribute(unsigned int unit, const osg::StateAttribute* attribute)
+            {
+                mTextureAttributes[unit].emplace(attribute->getTypeMemberPair());
+            }
+            template <typename T>
+            void setTextureAttribute(unsigned int unit, osg::ref_ptr<T> attribute)
+            {
+                setTextureAttribute(unit, attribute.get());
+            }
+
+            bool hasUniform(const std::string& name) { return mUniforms.contains(name); }
+            bool hasMode(osg::StateAttribute::GLMode mode) { return mModes.contains(mode); }
+            bool hasAttribute(const osg::StateAttribute::TypeMemberPair& typeMemberPair)
+            {
+                return mAttributes.contains(typeMemberPair);
+            }
+            bool hasAttribute(osg::StateAttribute::Type type, unsigned int member)
+            {
+                return hasAttribute(osg::StateAttribute::TypeMemberPair(type, member));
+            }
+
+            const std::set<osg::StateAttribute::TypeMemberPair>& getAttributes() { return mAttributes; }
+            const std::unordered_map<unsigned int, std::set<osg::StateAttribute::TypeMemberPair>>&
+            getTextureAttributes()
+            {
+                return mTextureAttributes;
+            }
+
+            bool empty()
+            {
+                return mUniforms.empty() && mModes.empty() && mAttributes.empty() && mTextureAttributes.empty();
+            }
+
+            META_Object(Shader, AddedState)
 
         private:
-            AddedState* mTracker;
+            class InterrogateModesHelper : public osg::StateAttribute::ModeUsage
+            {
+            public:
+                explicit InterrogateModesHelper(AddedState* tracker)
+                    : mTracker(tracker)
+                {
+                }
+                void usesMode(osg::StateAttribute::GLMode mode) override { mTracker->setMode(mode); }
+                void usesTextureMode(osg::StateAttribute::GLMode mode) override {}
+
+            private:
+                AddedState* mTracker;
+            };
+
+            using ModeSet = std::unordered_set<osg::StateAttribute::GLMode>;
+            using AttributeSet = std::set<osg::StateAttribute::TypeMemberPair>;
+
+            std::unordered_set<std::string> mUniforms;
+            ModeSet mModes;
+            AttributeSet mAttributes;
+            std::unordered_map<unsigned int, AttributeSet> mTextureAttributes;
         };
-
-        using ModeSet = std::unordered_set<osg::StateAttribute::GLMode>;
-        using AttributeSet = std::set<osg::StateAttribute::TypeMemberPair>;
-
-        std::unordered_set<std::string> mUniforms;
-        ModeSet mModes;
-        AttributeSet mAttributes;
-        std::unordered_map<unsigned int, AttributeSet> mTextureAttributes;
-    };
+    }
 
     ShaderVisitor::ShaderRequirements::ShaderRequirements()
         : mAlphaTestOverridden(false)
@@ -181,51 +191,54 @@ namespace Shader
             popRequirements();
     }
 
-    osg::UserDataContainer* getWritableUserDataContainer(osg::Object& object)
+    namespace
     {
-        if (!object.getUserDataContainer())
-            return object.getOrCreateUserDataContainer();
+        osg::UserDataContainer* getWritableUserDataContainer(osg::Object& object)
+        {
+            if (!object.getUserDataContainer())
+                return object.getOrCreateUserDataContainer();
 
-        osg::ref_ptr<osg::UserDataContainer> newUserData
-            = static_cast<osg::UserDataContainer*>(object.getUserDataContainer()->clone(osg::CopyOp::SHALLOW_COPY));
-        object.setUserDataContainer(newUserData);
-        return newUserData.get();
-    }
+            osg::ref_ptr<osg::UserDataContainer> newUserData
+                = static_cast<osg::UserDataContainer*>(object.getUserDataContainer()->clone(osg::CopyOp::SHALLOW_COPY));
+            object.setUserDataContainer(newUserData);
+            return newUserData.get();
+        }
 
-    osg::StateSet* getRemovedState(osg::StateSet& stateSet)
-    {
-        if (!stateSet.getUserDataContainer())
-            return nullptr;
+        osg::StateSet* getRemovedState(osg::StateSet& stateSet)
+        {
+            if (!stateSet.getUserDataContainer())
+                return nullptr;
 
-        return static_cast<osg::StateSet*>(stateSet.getUserDataContainer()->getUserObject("removedState"));
-    }
+            return static_cast<osg::StateSet*>(stateSet.getUserDataContainer()->getUserObject("removedState"));
+        }
 
-    void updateRemovedState(osg::UserDataContainer& userData, osg::StateSet* removedState)
-    {
-        unsigned int index = userData.getUserObjectIndex("removedState");
-        if (index < userData.getNumUserObjects())
-            userData.setUserObject(index, removedState);
-        else
-            userData.addUserObject(removedState);
-        removedState->setName("removedState");
-    }
+        void updateRemovedState(osg::UserDataContainer& userData, osg::StateSet* removedState)
+        {
+            unsigned int index = userData.getUserObjectIndex("removedState");
+            if (index < userData.getNumUserObjects())
+                userData.setUserObject(index, removedState);
+            else
+                userData.addUserObject(removedState);
+            removedState->setName("removedState");
+        }
 
-    AddedState* getAddedState(osg::StateSet& stateSet)
-    {
-        if (!stateSet.getUserDataContainer())
-            return nullptr;
+        AddedState* getAddedState(osg::StateSet& stateSet)
+        {
+            if (!stateSet.getUserDataContainer())
+                return nullptr;
 
-        return static_cast<AddedState*>(stateSet.getUserDataContainer()->getUserObject("addedState"));
-    }
+            return static_cast<AddedState*>(stateSet.getUserDataContainer()->getUserObject("addedState"));
+        }
 
-    void updateAddedState(osg::UserDataContainer& userData, AddedState* addedState)
-    {
-        unsigned int index = userData.getUserObjectIndex("addedState");
-        if (index < userData.getNumUserObjects())
-            userData.setUserObject(index, addedState);
-        else
-            userData.addUserObject(addedState);
-        addedState->setName("addedState");
+        void updateAddedState(osg::UserDataContainer& userData, AddedState* addedState)
+        {
+            unsigned int index = userData.getUserObjectIndex("addedState");
+            if (index < userData.getNumUserObjects())
+                userData.setUserObject(index, addedState);
+            else
+                userData.addUserObject(addedState);
+            addedState->setName("addedState");
+        }
     }
 
     void ShaderVisitor::applyStateSet(osg::ref_ptr<osg::StateSet> stateset, osg::Node& node)

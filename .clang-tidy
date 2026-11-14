@@ -53,7 +53,7 @@ Checks:
   # - cppcoreguidelines-pro-type-const-cast
   - google-explicit-constructor
   - google-global-names-in-headers
-  # - google-build-namespaces
+  - google-build-namespaces
   # - modernize-avoid-c-arrays
   # - modernize-avoid-c-style-cast
   - modernize-use-override

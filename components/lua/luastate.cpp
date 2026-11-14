@@ -21,38 +21,41 @@
 
 namespace LuaUtil
 {
-    static VFS::Path::Normalized packageNameToVfsPath(std::string_view packageName, const VFS::Manager& vfs)
+    namespace
     {
-        std::string pathValue(packageName);
-        std::replace(pathValue.begin(), pathValue.end(), '.', '/');
-        VFS::Path::Normalized pathWithInit(pathValue + "/init.lua");
-        pathValue.append(".lua");
-        VFS::Path::Normalized path(pathValue);
-        if (vfs.exists(path))
-            return path;
-        else if (vfs.exists(pathWithInit))
-            return pathWithInit;
-        else
-            throw std::runtime_error("module not found: " + std::string(packageName));
-    }
-
-    static std::filesystem::path packageNameToPath(
-        std::string_view packageName, const std::vector<std::filesystem::path>& searchDirs)
-    {
-        std::string path(packageName);
-        std::replace(path.begin(), path.end(), '.', '/');
-        std::string pathWithInit = path + "/init.lua";
-        path.append(".lua");
-        for (const auto& base : searchDirs)
+        VFS::Path::Normalized packageNameToVfsPath(std::string_view packageName, const VFS::Manager& vfs)
         {
-            std::filesystem::path p1 = base / path;
-            if (std::filesystem::exists(p1))
-                return p1;
-            std::filesystem::path p2 = base / pathWithInit;
-            if (std::filesystem::exists(p2))
-                return p2;
+            std::string pathValue(packageName);
+            std::replace(pathValue.begin(), pathValue.end(), '.', '/');
+            VFS::Path::Normalized pathWithInit(pathValue + "/init.lua");
+            pathValue.append(".lua");
+            VFS::Path::Normalized path(pathValue);
+            if (vfs.exists(path))
+                return path;
+            else if (vfs.exists(pathWithInit))
+                return pathWithInit;
+            else
+                throw std::runtime_error("module not found: " + std::string(packageName));
         }
-        throw std::runtime_error("module not found: " + std::string(packageName));
+
+        std::filesystem::path packageNameToPath(
+            std::string_view packageName, const std::vector<std::filesystem::path>& searchDirs)
+        {
+            std::string path(packageName);
+            std::replace(path.begin(), path.end(), '.', '/');
+            std::string pathWithInit = path + "/init.lua";
+            path.append(".lua");
+            for (const auto& base : searchDirs)
+            {
+                std::filesystem::path p1 = base / path;
+                if (std::filesystem::exists(p1))
+                    return p1;
+                std::filesystem::path p2 = base / pathWithInit;
+                if (std::filesystem::exists(p2))
+                    return p2;
+            }
+            throw std::runtime_error("module not found: " + std::string(packageName));
+        }
     }
 
     static const std::string safeFunctions[] = { "assert", "error", "ipairs", "next", "pairs", "pcall", "select",

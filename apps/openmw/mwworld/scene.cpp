@@ -1085,37 +1085,40 @@ namespace MWWorld
         return std::ranges::find(mActiveCells, &cell) != mActiveCells.end();
     }
 
-    class PreloadMeshItem : public SceneUtil::WorkItem
+    namespace
     {
-    public:
-        explicit PreloadMeshItem(VFS::Path::NormalizedView mesh, Resource::SceneManager* sceneManager)
-            : mMesh(mesh)
-            , mSceneManager(sceneManager)
+        class PreloadMeshItem : public SceneUtil::WorkItem
         {
-        }
-
-        void doWork() override
-        {
-            if (mAborted)
-                return;
-
-            try
+        public:
+            explicit PreloadMeshItem(VFS::Path::NormalizedView mesh, Resource::SceneManager* sceneManager)
+                : mMesh(mesh)
+                , mSceneManager(sceneManager)
             {
-                mSceneManager->getTemplate(mMesh);
             }
-            catch (const std::exception& e)
+
+            void doWork() override
             {
-                Log(Debug::Warning) << "Failed to get mesh template \"" << mMesh << "\" to preload: " << e.what();
+                if (mAborted)
+                    return;
+
+                try
+                {
+                    mSceneManager->getTemplate(mMesh);
+                }
+                catch (const std::exception& e)
+                {
+                    Log(Debug::Warning) << "Failed to get mesh template \"" << mMesh << "\" to preload: " << e.what();
+                }
             }
-        }
 
-        void abort() override { mAborted = true; }
+            void abort() override { mAborted = true; }
 
-    private:
-        VFS::Path::Normalized mMesh;
-        Resource::SceneManager* mSceneManager;
-        std::atomic_bool mAborted{ false };
-    };
+        private:
+            VFS::Path::Normalized mMesh;
+            Resource::SceneManager* mSceneManager;
+            std::atomic_bool mAborted{ false };
+        };
+    }
 
     void Scene::preload(const std::string& mesh, bool useAnim)
     {
@@ -1306,35 +1309,39 @@ namespace MWWorld
         mPreloader->setTerrainPreloadPositions({});
     }
 
-    struct ListFastTravelDestinationsVisitor
+    namespace
     {
-        ListFastTravelDestinationsVisitor(float preloadDist, const osg::Vec3f& playerPos)
-            : mPreloadDist(preloadDist)
-            , mPlayerPos(playerPos)
+        struct ListFastTravelDestinationsVisitor
         {
-        }
+            ListFastTravelDestinationsVisitor(float preloadDist, const osg::Vec3f& playerPos)
+                : mPreloadDist(preloadDist)
+                , mPlayerPos(playerPos)
+            {
+            }
 
-        bool operator()(const MWWorld::Ptr& ptr)
-        {
-            if ((ptr.getRefData().getPosition().asVec3() - mPlayerPos).length2() > mPreloadDist * mPreloadDist)
+            bool operator()(const MWWorld::Ptr& ptr)
+            {
+                if ((ptr.getRefData().getPosition().asVec3() - mPlayerPos).length2() > mPreloadDist * mPreloadDist)
+                    return true;
+
+                if (ptr.getClass().isNpc())
+                {
+                    const std::vector<ESM::Transport::Dest>& transport = ptr.get<ESM::NPC>()->mBase->mTransport.mList;
+                    mList.insert(mList.begin(), transport.begin(), transport.end());
+                }
+                else
+                {
+                    const std::vector<ESM::Transport::Dest>& transport
+                        = ptr.get<ESM::Creature>()->mBase->mTransport.mList;
+                    mList.insert(mList.begin(), transport.begin(), transport.end());
+                }
                 return true;
-
-            if (ptr.getClass().isNpc())
-            {
-                const std::vector<ESM::Transport::Dest>& transport = ptr.get<ESM::NPC>()->mBase->mTransport.mList;
-                mList.insert(mList.begin(), transport.begin(), transport.end());
             }
-            else
-            {
-                const std::vector<ESM::Transport::Dest>& transport = ptr.get<ESM::Creature>()->mBase->mTransport.mList;
-                mList.insert(mList.begin(), transport.begin(), transport.end());
-            }
-            return true;
-        }
-        float mPreloadDist;
-        osg::Vec3f mPlayerPos;
-        std::vector<ESM::Transport::Dest> mList;
-    };
+            float mPreloadDist;
+            osg::Vec3f mPlayerPos;
+            std::vector<ESM::Transport::Dest> mList;
+        };
+    }
 
     void Scene::preloadFastTravelDestinations(
         const osg::Vec3f& playerPos, std::vector<PositionCellGrid>& exteriorPositions)

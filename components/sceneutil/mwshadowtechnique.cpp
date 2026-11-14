@@ -38,7 +38,6 @@
 // NOLINTBEGIN(readability-identifier-naming)
 
 namespace {
-
 using namespace osgShadow;
 using namespace SceneUtil;
 
@@ -340,7 +339,6 @@ void VDSMCameraCullCallback::operator()(osg::Node* node, osg::NodeVisitor* nv)
 
     _projectionMatrix = cv->getProjectionMatrix();
 }
-
 } // namespace
 
 MWShadowTechnique::ComputeLightSpaceBounds::ComputeLightSpaceBounds() :
@@ -2071,6 +2069,8 @@ bool MWShadowTechnique::computeShadowCameraSettings(Frustum& frustum, LightData&
     return true;
 }
 
+namespace
+{
 struct ConvexHull
 {
     typedef std::vector<osg::Vec3d> Vertices;
@@ -2657,6 +2657,8 @@ struct RenderLeafBounds
     double min_y, max_y;
     double min_z, max_z;
 };
+}
+
 
 bool MWShadowTechnique::cropShadowCameraToMainFrustum(Frustum& frustum, osg::Camera* camera, double viewNear, double viewFar, std::vector<osg::Plane>& planeList)
 {
@@ -3292,6 +3294,8 @@ void MWShadowTechnique::releaseGLObjects(osg::State* state) const
         _debugHud->releaseGLObjects(state);
 }
 
+namespace
+{
 class DoubleBufferCallback : public osg::Callback
 {
 public:
@@ -3310,6 +3314,8 @@ public:
 protected:
     osg::NodeList mChildren;
 };
+}
+
 
 SceneUtil::MWShadowTechnique::DebugHUD::DebugHUD(int numberOfShadowMapsPerLight) : mDebugProgram(new osg::Program)
 {

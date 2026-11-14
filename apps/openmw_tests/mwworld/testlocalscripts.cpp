@@ -23,6 +23,8 @@ namespace MWWorld
 {
     namespace
     {
+        using namespace MWScriptTesting;
+
         class MWWorldLocalScriptsTest : public testing::Test
         {
         protected:

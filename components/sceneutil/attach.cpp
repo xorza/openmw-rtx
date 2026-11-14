@@ -22,74 +22,73 @@
 namespace SceneUtil
 {
 
-    class CopyRigVisitor : public osg::NodeVisitor
-    {
-    public:
-        CopyRigVisitor(osg::ref_ptr<osg::Group> parent, std::string_view filter)
-            : osg::NodeVisitor(TRAVERSE_ALL_CHILDREN)
-            , mParent(std::move(parent))
-            , mFilter(filter)
-        {
-        }
-
-        void apply(osg::MatrixTransform& node) override { traverse(node); }
-        void apply(osg::Node& node) override { traverse(node); }
-        void apply(osg::Group& node) override { traverse(node); }
-
-        void apply(osg::Drawable& drawable) override
-        {
-            if (!filterMatches(drawable.getName()))
-                return;
-
-            const osg::Node* node = &drawable;
-            bool isRig = dynamic_cast<const SceneUtil::RigGeometry*>(node) != nullptr;
-            if (!isRig)
-                isRig = dynamic_cast<const SceneUtil::RigGeometryHolder*>(node) != nullptr;
-            if (!isRig)
-                return;
-
-            for (auto it = getNodePath().rbegin() + 1; it != getNodePath().rend(); ++it)
-            {
-                const osg::Node* parent = *it;
-                if (!filterMatches(parent->getName()))
-                    break;
-                node = parent;
-            }
-            if (std::find(mToCopy.begin(), mToCopy.end(), node) == mToCopy.end())
-                mToCopy.emplace_back(node);
-        }
-
-        void doCopy(Resource::SceneManager* sceneManager)
-        {
-            for (const osg::ref_ptr<const osg::Node>& node : mToCopy)
-            {
-                mParent->addChild(sceneManager->getInstance(node));
-            }
-            mToCopy.clear();
-        }
-
-    private:
-        bool filterMatches(std::string_view name) const
-        {
-            if (Misc::StringUtils::ciStartsWith(name, mFilter))
-                return true;
-            constexpr std::string_view prefix = "tri ";
-            if (Misc::StringUtils::ciStartsWith(name, prefix))
-                return Misc::StringUtils::ciStartsWith(name.substr(prefix.size()), mFilter);
-            return false;
-        }
-
-        // In the order the visitor met them, so a part's pieces join the skeleton in one order every run, where a
-        // set of pointers added them in the order of their addresses.
-        using NodeSet = std::vector<osg::ref_ptr<const osg::Node>>;
-        NodeSet mToCopy;
-
-        osg::ref_ptr<osg::Group> mParent;
-        std::string_view mFilter;
-    };
-
     namespace
     {
+        class CopyRigVisitor : public osg::NodeVisitor
+        {
+        public:
+            CopyRigVisitor(osg::ref_ptr<osg::Group> parent, std::string_view filter)
+                : osg::NodeVisitor(TRAVERSE_ALL_CHILDREN)
+                , mParent(std::move(parent))
+                , mFilter(filter)
+            {
+            }
+
+            void apply(osg::MatrixTransform& node) override { traverse(node); }
+            void apply(osg::Node& node) override { traverse(node); }
+            void apply(osg::Group& node) override { traverse(node); }
+
+            void apply(osg::Drawable& drawable) override
+            {
+                if (!filterMatches(drawable.getName()))
+                    return;
+
+                const osg::Node* node = &drawable;
+                bool isRig = dynamic_cast<const SceneUtil::RigGeometry*>(node) != nullptr;
+                if (!isRig)
+                    isRig = dynamic_cast<const SceneUtil::RigGeometryHolder*>(node) != nullptr;
+                if (!isRig)
+                    return;
+
+                for (auto it = getNodePath().rbegin() + 1; it != getNodePath().rend(); ++it)
+                {
+                    const osg::Node* parent = *it;
+                    if (!filterMatches(parent->getName()))
+                        break;
+                    node = parent;
+                }
+                if (std::find(mToCopy.begin(), mToCopy.end(), node) == mToCopy.end())
+                    mToCopy.emplace_back(node);
+            }
+
+            void doCopy(Resource::SceneManager* sceneManager)
+            {
+                for (const osg::ref_ptr<const osg::Node>& node : mToCopy)
+                {
+                    mParent->addChild(sceneManager->getInstance(node));
+                }
+                mToCopy.clear();
+            }
+
+        private:
+            bool filterMatches(std::string_view name) const
+            {
+                if (Misc::StringUtils::ciStartsWith(name, mFilter))
+                    return true;
+                constexpr std::string_view prefix = "tri ";
+                if (Misc::StringUtils::ciStartsWith(name, prefix))
+                    return Misc::StringUtils::ciStartsWith(name.substr(prefix.size()), mFilter);
+                return false;
+            }
+
+            // In the order the visitor met them, so a part's pieces join the skeleton in one order every run, where a
+            // set of pointers added them in the order of their addresses.
+            using NodeSet = std::vector<osg::ref_ptr<const osg::Node>>;
+            NodeSet mToCopy;
+
+            osg::ref_ptr<osg::Group> mParent;
+            std::string_view mFilter;
+        };
 
         void mergeUserData(const osg::UserDataContainer* source, osg::Object* target)
         {

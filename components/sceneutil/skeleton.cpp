@@ -10,28 +10,31 @@
 namespace SceneUtil
 {
 
-    class InitBoneCacheVisitor : public osg::NodeVisitor
+    namespace
     {
-    public:
-        typedef std::vector<osg::MatrixTransform*> TransformPath;
-        explicit InitBoneCacheVisitor(std::unordered_map<std::string, TransformPath>& cache)
-            : osg::NodeVisitor(TRAVERSE_ALL_CHILDREN)
-            , mCache(cache)
+        class InitBoneCacheVisitor : public osg::NodeVisitor
         {
-        }
+        public:
+            typedef std::vector<osg::MatrixTransform*> TransformPath;
+            explicit InitBoneCacheVisitor(std::unordered_map<std::string, TransformPath>& cache)
+                : osg::NodeVisitor(TRAVERSE_ALL_CHILDREN)
+                , mCache(cache)
+            {
+            }
 
-        void apply(osg::MatrixTransform& node) override
-        {
-            mPath.push_back(&node);
-            mCache.emplace(Misc::StringUtils::lowerCase(node.getName()), mPath);
-            traverse(node);
-            mPath.pop_back();
-        }
+            void apply(osg::MatrixTransform& node) override
+            {
+                mPath.push_back(&node);
+                mCache.emplace(Misc::StringUtils::lowerCase(node.getName()), mPath);
+                traverse(node);
+                mPath.pop_back();
+            }
 
-    private:
-        TransformPath mPath;
-        std::unordered_map<std::string, TransformPath>& mCache;
-    };
+        private:
+            TransformPath mPath;
+            std::unordered_map<std::string, TransformPath>& mCache;
+        };
+    }
 
     Skeleton::Skeleton()
         : mBoneCacheInit(false)

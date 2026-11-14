@@ -49,55 +49,58 @@ namespace MWMechanics
             return true;
     }
 
-    struct GetNearbyDoorVisitor
+    namespace
     {
-        MWWorld::Ptr mResult;
-
-        GetNearbyDoorVisitor(const MWWorld::Ptr& actor, const float minDist)
-            : mPos(actor.getRefData().getPosition().asVec3())
-            , mDir(actor.getRefData().getBaseNode()->getAttitude() * osg::Vec3f(0, 1, 0))
-            , mMinDist(minDist)
+        struct GetNearbyDoorVisitor
         {
-            mPos.z() = 0;
-            mDir.normalize();
-        }
+            MWWorld::Ptr mResult;
 
-        bool operator()(const MWWorld::Ptr& ptr)
-        {
-            MWWorld::LiveCellRef<ESM::Door>& ref = *static_cast<MWWorld::LiveCellRef<ESM::Door>*>(ptr.getBase());
-            if (!ptr.getRefData().isEnabled() || ref.isDeleted())
-                return true;
+            GetNearbyDoorVisitor(const MWWorld::Ptr& actor, const float minDist)
+                : mPos(actor.getRefData().getPosition().asVec3())
+                , mDir(actor.getRefData().getBaseNode()->getAttitude() * osg::Vec3f(0, 1, 0))
+                , mMinDist(minDist)
+            {
+                mPos.z() = 0;
+                mDir.normalize();
+            }
 
-            if (ptr.getClass().getDoorState(ptr) != MWWorld::DoorState::Idle)
-                return true;
+            bool operator()(const MWWorld::Ptr& ptr)
+            {
+                MWWorld::LiveCellRef<ESM::Door>& ref = *static_cast<MWWorld::LiveCellRef<ESM::Door>*>(ptr.getBase());
+                if (!ptr.getRefData().isEnabled() || ref.isDeleted())
+                    return true;
 
-            const float doorRot = ref.mData.getPosition().rot[2] - ptr.getCellRef().getPosition().rot[2];
-            if (doorRot != 0)
-                return true;
+                if (ptr.getClass().getDoorState(ptr) != MWWorld::DoorState::Idle)
+                    return true;
 
-            osg::Vec3f doorPos(ref.mData.getPosition().asVec3());
-            doorPos.z() = 0;
+                const float doorRot = ref.mData.getPosition().rot[2] - ptr.getCellRef().getPosition().rot[2];
+                if (doorRot != 0)
+                    return true;
 
-            osg::Vec3f actorToDoor = doorPos - mPos;
-            // Door is not close enough
-            if (actorToDoor.length2() > mMinDist * mMinDist)
-                return true;
+                osg::Vec3f doorPos(ref.mData.getPosition().asVec3());
+                doorPos.z() = 0;
 
-            actorToDoor.normalize();
-            const float angle = std::acos(mDir * actorToDoor);
+                osg::Vec3f actorToDoor = doorPos - mPos;
+                // Door is not close enough
+                if (actorToDoor.length2() > mMinDist * mMinDist)
+                    return true;
 
-            // Allow 60 degrees angle between actor and door
-            if (angle < -osg::PI / 3 || angle > osg::PI / 3)
-                return true;
+                actorToDoor.normalize();
+                const float angle = std::acos(mDir * actorToDoor);
 
-            mResult = ptr;
-            return false; // found, stop searching
-        }
+                // Allow 60 degrees angle between actor and door
+                if (angle < -osg::PI / 3 || angle > osg::PI / 3)
+                    return true;
 
-    private:
-        osg::Vec3f mPos, mDir;
-        float mMinDist;
-    };
+                mResult = ptr;
+                return false; // found, stop searching
+            }
+
+        private:
+            osg::Vec3f mPos, mDir;
+            float mMinDist;
+        };
+    }
 
     const MWWorld::Ptr getNearbyDoor(const MWWorld::Ptr& actor, float minDist)
     {

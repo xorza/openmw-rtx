@@ -51,164 +51,168 @@ namespace MWRender
 
     // --------------------------------------------------------------------------------------------------------------------------------
 
-    /// @brief Allows to cull and clip meshes that are below a plane. Useful for reflection camera effects.
-    /// Also handles flipping of the plane when the eye point goes below it.
-    /// To use, simply create the scene as subgraph of this node, then do setPlane(const osg::Plane& plane);
-    class ClipCullNode : public osg::Group
+    namespace
     {
-        class PlaneCullCallback : public SceneUtil::NodeCallback<PlaneCullCallback, osg::Node*, osgUtil::CullVisitor*>
+        /// @brief Allows to cull and clip meshes that are below a plane. Useful for reflection camera effects.
+        /// Also handles flipping of the plane when the eye point goes below it.
+        /// To use, simply create the scene as subgraph of this node, then do setPlane(const osg::Plane& plane);
+        class ClipCullNode : public osg::Group
         {
-        public:
-            /// @param cullPlane The culling plane (in world space).
-            explicit PlaneCullCallback(const osg::Plane* cullPlane)
-                : mCullPlane(cullPlane)
+            class PlaneCullCallback
+                : public SceneUtil::NodeCallback<PlaneCullCallback, osg::Node*, osgUtil::CullVisitor*>
             {
-            }
-
-            void operator()(osg::Node* node, osgUtil::CullVisitor* cv)
-            {
-                osg::Polytope::PlaneList origPlaneList
-                    = cv->getProjectionCullingStack().back().getFrustum().getPlaneList();
-
-                osg::Plane plane = *mCullPlane;
-                plane.transform(*cv->getCurrentRenderStage()->getInitialViewMatrix());
-
-                osg::Vec3d eyePoint = cv->getEyePoint();
-                if (mCullPlane->intersect(osg::BoundingSphere(osg::Vec3d(0, 0, eyePoint.z()), 0)) > 0)
-                    plane.flip();
-
-                cv->getProjectionCullingStack().back().getFrustum().add(plane);
-
-                traverse(node, cv);
-
-                // undo
-                cv->getProjectionCullingStack().back().getFrustum().set(origPlaneList);
-            }
-
-        private:
-            const osg::Plane* mCullPlane;
-        };
-
-        class FlipCallback : public SceneUtil::NodeCallback<FlipCallback, osg::Node*, osgUtil::CullVisitor*>
-        {
-        public:
-            explicit FlipCallback(const osg::Plane* cullPlane)
-                : mCullPlane(cullPlane)
-            {
-            }
-
-            void operator()(osg::Node* node, osgUtil::CullVisitor* cv)
-            {
-                osg::Vec3d eyePoint = cv->getEyePoint();
-
-                auto* modelViewMatrix = new osg::RefMatrix(*cv->getModelViewMatrix());
-
-                // apply the height of the plane
-                // we can't apply this height in the addClipPlane() since the "flip the below graph" function would
-                // otherwise flip the height as well
-                modelViewMatrix->preMultTranslate(mCullPlane->getNormal() * ((*mCullPlane)[3] * -1));
-
-                // flip the below graph if the eye point is above the plane
-                if (mCullPlane->intersect(osg::BoundingSphere(osg::Vec3d(0, 0, eyePoint.z()), 0)) > 0)
+            public:
+                /// @param cullPlane The culling plane (in world space).
+                explicit PlaneCullCallback(const osg::Plane* cullPlane)
+                    : mCullPlane(cullPlane)
                 {
-                    modelViewMatrix->preMultScale(osg::Vec3(1, 1, -1));
                 }
 
-                // move the plane back along its normal a little bit to prevent bleeding at the water shore
-                const float fov = Settings::camera().mFieldOfView;
-                constexpr double clipFudgeMin = 2.5; // minimum offset of clip plane
-                constexpr double clipFudgeScale = -15000.0;
-                double clipFudge
-                    = std::abs(std::abs((*mCullPlane)[3]) - eyePoint.z()) * fov / clipFudgeScale - clipFudgeMin;
-                modelViewMatrix->preMultTranslate(mCullPlane->getNormal() * clipFudge);
+                void operator()(osg::Node* node, osgUtil::CullVisitor* cv)
+                {
+                    osg::Polytope::PlaneList origPlaneList
+                        = cv->getProjectionCullingStack().back().getFrustum().getPlaneList();
 
-                cv->pushModelViewMatrix(modelViewMatrix, osg::Transform::RELATIVE_RF);
-                traverse(node, cv);
-                cv->popModelViewMatrix();
+                    osg::Plane plane = *mCullPlane;
+                    plane.transform(*cv->getCurrentRenderStage()->getInitialViewMatrix());
+
+                    osg::Vec3d eyePoint = cv->getEyePoint();
+                    if (mCullPlane->intersect(osg::BoundingSphere(osg::Vec3d(0, 0, eyePoint.z()), 0)) > 0)
+                        plane.flip();
+
+                    cv->getProjectionCullingStack().back().getFrustum().add(plane);
+
+                    traverse(node, cv);
+
+                    // undo
+                    cv->getProjectionCullingStack().back().getFrustum().set(origPlaneList);
+                }
+
+            private:
+                const osg::Plane* mCullPlane;
+            };
+
+            class FlipCallback : public SceneUtil::NodeCallback<FlipCallback, osg::Node*, osgUtil::CullVisitor*>
+            {
+            public:
+                explicit FlipCallback(const osg::Plane* cullPlane)
+                    : mCullPlane(cullPlane)
+                {
+                }
+
+                void operator()(osg::Node* node, osgUtil::CullVisitor* cv)
+                {
+                    osg::Vec3d eyePoint = cv->getEyePoint();
+
+                    auto* modelViewMatrix = new osg::RefMatrix(*cv->getModelViewMatrix());
+
+                    // apply the height of the plane
+                    // we can't apply this height in the addClipPlane() since the "flip the below graph" function would
+                    // otherwise flip the height as well
+                    modelViewMatrix->preMultTranslate(mCullPlane->getNormal() * ((*mCullPlane)[3] * -1));
+
+                    // flip the below graph if the eye point is above the plane
+                    if (mCullPlane->intersect(osg::BoundingSphere(osg::Vec3d(0, 0, eyePoint.z()), 0)) > 0)
+                    {
+                        modelViewMatrix->preMultScale(osg::Vec3(1, 1, -1));
+                    }
+
+                    // move the plane back along its normal a little bit to prevent bleeding at the water shore
+                    const float fov = Settings::camera().mFieldOfView;
+                    constexpr double clipFudgeMin = 2.5; // minimum offset of clip plane
+                    constexpr double clipFudgeScale = -15000.0;
+                    double clipFudge
+                        = std::abs(std::abs((*mCullPlane)[3]) - eyePoint.z()) * fov / clipFudgeScale - clipFudgeMin;
+                    modelViewMatrix->preMultTranslate(mCullPlane->getNormal() * clipFudge);
+
+                    cv->pushModelViewMatrix(modelViewMatrix, osg::Transform::RELATIVE_RF);
+                    traverse(node, cv);
+                    cv->popModelViewMatrix();
+                }
+
+            private:
+                const osg::Plane* mCullPlane;
+            };
+
+        public:
+            ClipCullNode()
+            {
+                addCullCallback(new PlaneCullCallback(&mPlane));
+
+                mClipNodeTransform = new osg::Group;
+                mClipNodeTransform->addCullCallback(new FlipCallback(&mPlane));
+                osg::Group::addChild(mClipNodeTransform);
+
+                mClipNode = new osg::ClipNode;
+
+                mClipNodeTransform->addChild(mClipNode);
+            }
+
+            void setPlane(const osg::Plane& plane)
+            {
+                if (plane == mPlane)
+                    return;
+                mPlane = plane;
+
+                mClipNode->getClipPlaneList().clear();
+                mClipNode->addClipPlane(
+                    new osg::ClipPlane(0, osg::Plane(mPlane.getNormal(), 0))); // mPlane.d() applied in FlipCallback
+                mClipNode->setStateSetModes(*getOrCreateStateSet(), osg::StateAttribute::ON);
+                mClipNode->setCullingActive(false);
             }
 
         private:
-            const osg::Plane* mCullPlane;
+            osg::ref_ptr<osg::Group> mClipNodeTransform;
+            osg::ref_ptr<osg::ClipNode> mClipNode;
+
+            osg::Plane mPlane;
         };
 
-    public:
-        ClipCullNode()
+        /// This callback on the Camera has the effect of a RELATIVE_RF_INHERIT_VIEWPOINT transform mode (which does not
+        /// exist in OSG). We want to keep the View Point of the parent camera so we will not have to recreate LODs.
+        class InheritViewPointCallback
+            : public SceneUtil::NodeCallback<InheritViewPointCallback, osg::Node*, osgUtil::CullVisitor*>
         {
-            addCullCallback(new PlaneCullCallback(&mPlane));
+        public:
+            InheritViewPointCallback() {}
 
-            mClipNodeTransform = new osg::Group;
-            mClipNodeTransform->addCullCallback(new FlipCallback(&mPlane));
-            osg::Group::addChild(mClipNodeTransform);
-
-            mClipNode = new osg::ClipNode;
-
-            mClipNodeTransform->addChild(mClipNode);
-        }
-
-        void setPlane(const osg::Plane& plane)
-        {
-            if (plane == mPlane)
-                return;
-            mPlane = plane;
-
-            mClipNode->getClipPlaneList().clear();
-            mClipNode->addClipPlane(
-                new osg::ClipPlane(0, osg::Plane(mPlane.getNormal(), 0))); // mPlane.d() applied in FlipCallback
-            mClipNode->setStateSetModes(*getOrCreateStateSet(), osg::StateAttribute::ON);
-            mClipNode->setCullingActive(false);
-        }
-
-    private:
-        osg::ref_ptr<osg::Group> mClipNodeTransform;
-        osg::ref_ptr<osg::ClipNode> mClipNode;
-
-        osg::Plane mPlane;
-    };
-
-    /// This callback on the Camera has the effect of a RELATIVE_RF_INHERIT_VIEWPOINT transform mode (which does not
-    /// exist in OSG). We want to keep the View Point of the parent camera so we will not have to recreate LODs.
-    class InheritViewPointCallback
-        : public SceneUtil::NodeCallback<InheritViewPointCallback, osg::Node*, osgUtil::CullVisitor*>
-    {
-    public:
-        InheritViewPointCallback() {}
-
-        void operator()(osg::Node* node, osgUtil::CullVisitor* cv)
-        {
-            osg::ref_ptr<osg::RefMatrix> modelViewMatrix = new osg::RefMatrix(*cv->getModelViewMatrix());
-            cv->popModelViewMatrix();
-            cv->pushModelViewMatrix(modelViewMatrix, osg::Transform::ABSOLUTE_RF_INHERIT_VIEWPOINT);
-            traverse(node, cv);
-        }
-    };
-
-    /// Moves water mesh away from the camera slightly if the camera gets too close on the Z axis.
-    /// The offset works around graphics artifacts that occurred with the GL_DEPTH_CLAMP when the camera gets extremely
-    /// close to the mesh (seen on NVIDIA at least). Must be added as a Cull callback.
-    class FudgeCallback : public SceneUtil::NodeCallback<FudgeCallback, osg::Node*, osgUtil::CullVisitor*>
-    {
-    public:
-        void operator()(osg::Node* node, osgUtil::CullVisitor* cv)
-        {
-            const float fudge = 0.2f;
-            if (std::abs(cv->getEyeLocal().z()) < fudge)
+            void operator()(osg::Node* node, osgUtil::CullVisitor* cv)
             {
-                float diff = fudge - cv->getEyeLocal().z();
-                auto* modelViewMatrix = new osg::RefMatrix(*cv->getModelViewMatrix());
-
-                if (cv->getEyeLocal().z() >= 0)
-                    modelViewMatrix->preMultTranslate(osg::Vec3f(0, 0, -diff));
-                else
-                    modelViewMatrix->preMultTranslate(osg::Vec3f(0, 0, diff));
-
-                cv->pushModelViewMatrix(modelViewMatrix, osg::Transform::RELATIVE_RF);
-                traverse(node, cv);
+                osg::ref_ptr<osg::RefMatrix> modelViewMatrix = new osg::RefMatrix(*cv->getModelViewMatrix());
                 cv->popModelViewMatrix();
-            }
-            else
+                cv->pushModelViewMatrix(modelViewMatrix, osg::Transform::ABSOLUTE_RF_INHERIT_VIEWPOINT);
                 traverse(node, cv);
-        }
-    };
+            }
+        };
+
+        /// Moves water mesh away from the camera slightly if the camera gets too close on the Z axis.
+        /// The offset works around graphics artifacts that occurred with the GL_DEPTH_CLAMP when the camera gets
+        /// extremely close to the mesh (seen on NVIDIA at least). Must be added as a Cull callback.
+        class FudgeCallback : public SceneUtil::NodeCallback<FudgeCallback, osg::Node*, osgUtil::CullVisitor*>
+        {
+        public:
+            void operator()(osg::Node* node, osgUtil::CullVisitor* cv)
+            {
+                const float fudge = 0.2f;
+                if (std::abs(cv->getEyeLocal().z()) < fudge)
+                {
+                    float diff = fudge - cv->getEyeLocal().z();
+                    auto* modelViewMatrix = new osg::RefMatrix(*cv->getModelViewMatrix());
+
+                    if (cv->getEyeLocal().z() >= 0)
+                        modelViewMatrix->preMultTranslate(osg::Vec3f(0, 0, -diff));
+                    else
+                        modelViewMatrix->preMultTranslate(osg::Vec3f(0, 0, diff));
+
+                    cv->pushModelViewMatrix(modelViewMatrix, osg::Transform::RELATIVE_RF);
+                    traverse(node, cv);
+                    cv->popModelViewMatrix();
+                }
+                else
+                    traverse(node, cv);
+            }
+        };
+    }
 
     class RainSettingsUpdater : public SceneUtil::StateSetUpdater
     {
@@ -327,28 +331,31 @@ namespace MWRender
         bool mInterior;
     };
 
-    /// DepthClampCallback enables GL_DEPTH_CLAMP for the current draw, if supported.
-    class DepthClampCallback : public osg::Drawable::DrawCallback
+    namespace
     {
-    public:
-        void drawImplementation(osg::RenderInfo& renderInfo, const osg::Drawable* drawable) const override
+        /// DepthClampCallback enables GL_DEPTH_CLAMP for the current draw, if supported.
+        class DepthClampCallback : public osg::Drawable::DrawCallback
         {
-            static bool supported = osg::isGLExtensionOrVersionSupported(
-                renderInfo.getState()->getContextID(), "GL_ARB_depth_clamp", 3.3f);
-            if (!supported)
+        public:
+            void drawImplementation(osg::RenderInfo& renderInfo, const osg::Drawable* drawable) const override
             {
+                static bool supported = osg::isGLExtensionOrVersionSupported(
+                    renderInfo.getState()->getContextID(), "GL_ARB_depth_clamp", 3.3f);
+                if (!supported)
+                {
+                    drawable->drawImplementation(renderInfo);
+                    return;
+                }
+
+                glEnable(GL_DEPTH_CLAMP);
+
                 drawable->drawImplementation(renderInfo);
-                return;
+
+                // restore default
+                glDisable(GL_DEPTH_CLAMP);
             }
-
-            glEnable(GL_DEPTH_CLAMP);
-
-            drawable->drawImplementation(renderInfo);
-
-            // restore default
-            glDisable(GL_DEPTH_CLAMP);
-        }
-    };
+        };
+    }
 
     Water::Water(osg::Group* parent, osg::Group* sceneRoot, Resource::ResourceSystem* resourceSystem,
         osgUtil::IncrementalCompileOperation* ico)
@@ -515,77 +522,82 @@ namespace MWRender
         sceneManager->recreateShaders(node);
     }
 
-    class ShaderWaterStateSetUpdater : public SceneUtil::StateSetUpdater
+    namespace
     {
-    public:
-        ShaderWaterStateSetUpdater(Water* water, Resource::ResourceSystem* resourceSystem, Reflection* reflection,
-            Ripples* ripples, osg::ref_ptr<osg::Program> program, osg::ref_ptr<osg::Texture2D> normalMap)
-            : mWater(water)
-            , mReflection(reflection)
-            , mRipples(ripples)
-            , mProgram(std::move(program))
-            , mNormalMap(std::move(normalMap))
-            , mResourceSystem(resourceSystem)
-            , mOpaqueDepthTextureUnit(resourceSystem->getSceneManager()->getShaderManager().reserveGlobalTextureUnits(
-                  Shader::ShaderManager::Slot::OpaqueDepthTexture))
-            , mOpaqueColorTextureUnit(resourceSystem->getSceneManager()->getShaderManager().reserveGlobalTextureUnits(
-                  Shader::ShaderManager::Slot::OpaqueColorTexture))
+        class ShaderWaterStateSetUpdater : public SceneUtil::StateSetUpdater
         {
-        }
-
-        void setDefaults(osg::StateSet* stateset) override
-        {
-            stateset->addUniform(new osg::Uniform("normalMap", 0));
-            stateset->setTextureAttribute(0, mNormalMap, osg::StateAttribute::ON);
-            stateset->setMode(GL_CULL_FACE, osg::StateAttribute::OFF);
-            stateset->setAttributeAndModes(mProgram, osg::StateAttribute::ON);
-
-            stateset->addUniform(new osg::Uniform("reflectionMap", 1));
-            stateset->addUniform(new osg::Uniform("opaqueColorTex", mOpaqueColorTextureUnit));
-            stateset->addUniform(new osg::Uniform("opaqueDepthTex", mOpaqueDepthTextureUnit));
-            stateset->setMode(GL_BLEND, osg::StateAttribute::ON);
-            stateset->addUniform(new osg::Uniform("waterSurface", true));
-            stateset->setRenderBinDetails(MWRender::RenderBin_DepthSorted, "DepthSortedBin");
-            // LESS keeps water clamped to the far plane from drawing over the sky.
-            osg::ref_ptr<osg::Depth> depth = new SceneUtil::AutoDepth(osg::Depth::LESS);
-            depth->setWriteMask(false);
-            stateset->setAttributeAndModes(depth, osg::StateAttribute::ON);
-
-            if (mRipples)
+        public:
+            ShaderWaterStateSetUpdater(Water* water, Resource::ResourceSystem* resourceSystem, Reflection* reflection,
+                Ripples* ripples, osg::ref_ptr<osg::Program> program, osg::ref_ptr<osg::Texture2D> normalMap)
+                : mWater(water)
+                , mReflection(reflection)
+                , mRipples(ripples)
+                , mProgram(std::move(program))
+                , mNormalMap(std::move(normalMap))
+                , mResourceSystem(resourceSystem)
+                , mOpaqueDepthTextureUnit(
+                      resourceSystem->getSceneManager()->getShaderManager().reserveGlobalTextureUnits(
+                          Shader::ShaderManager::Slot::OpaqueDepthTexture))
+                , mOpaqueColorTextureUnit(
+                      resourceSystem->getSceneManager()->getShaderManager().reserveGlobalTextureUnits(
+                          Shader::ShaderManager::Slot::OpaqueColorTexture))
             {
-                stateset->addUniform(new osg::Uniform("rippleMap", 4));
             }
-            stateset->addUniform(new osg::Uniform("nodePosition", osg::Vec3f(mWater->getPosition())));
-        }
 
-        void apply(osg::StateSet* stateset, osg::NodeVisitor* nv) override
-        {
-            auto* cv = static_cast<osgUtil::CullVisitor*>(nv);
-            stateset->setTextureAttribute(1, mReflection->getColorTexture(cv), osg::StateAttribute::ON);
-            stateset->setTextureAttribute(mOpaqueColorTextureUnit,
-                mResourceSystem->getSceneManager()->getOpaqueColorTex(cv->getTraversalNumber()),
-                osg::StateAttribute::ON);
-            stateset->setTextureAttribute(mOpaqueDepthTextureUnit,
-                mResourceSystem->getSceneManager()->getOpaqueDepthTex(cv->getTraversalNumber()),
-                osg::StateAttribute::ON);
-
-            if (mRipples)
+            void setDefaults(osg::StateSet* stateset) override
             {
-                stateset->setTextureAttribute(4, mRipples->getColorTexture(), osg::StateAttribute::ON);
-            }
-            stateset->getUniform("nodePosition")->set(osg::Vec3f(mWater->getPosition()));
-        }
+                stateset->addUniform(new osg::Uniform("normalMap", 0));
+                stateset->setTextureAttribute(0, mNormalMap, osg::StateAttribute::ON);
+                stateset->setMode(GL_CULL_FACE, osg::StateAttribute::OFF);
+                stateset->setAttributeAndModes(mProgram, osg::StateAttribute::ON);
 
-    private:
-        Water* mWater;
-        Reflection* mReflection;
-        Ripples* mRipples;
-        osg::ref_ptr<osg::Program> mProgram;
-        osg::ref_ptr<osg::Texture2D> mNormalMap;
-        Resource::ResourceSystem* mResourceSystem;
-        int mOpaqueDepthTextureUnit;
-        int mOpaqueColorTextureUnit;
-    };
+                stateset->addUniform(new osg::Uniform("reflectionMap", 1));
+                stateset->addUniform(new osg::Uniform("opaqueColorTex", mOpaqueColorTextureUnit));
+                stateset->addUniform(new osg::Uniform("opaqueDepthTex", mOpaqueDepthTextureUnit));
+                stateset->setMode(GL_BLEND, osg::StateAttribute::ON);
+                stateset->addUniform(new osg::Uniform("waterSurface", true));
+                stateset->setRenderBinDetails(MWRender::RenderBin_DepthSorted, "DepthSortedBin");
+                // LESS keeps water clamped to the far plane from drawing over the sky.
+                osg::ref_ptr<osg::Depth> depth = new SceneUtil::AutoDepth(osg::Depth::LESS);
+                depth->setWriteMask(false);
+                stateset->setAttributeAndModes(depth, osg::StateAttribute::ON);
+
+                if (mRipples)
+                {
+                    stateset->addUniform(new osg::Uniform("rippleMap", 4));
+                }
+                stateset->addUniform(new osg::Uniform("nodePosition", osg::Vec3f(mWater->getPosition())));
+            }
+
+            void apply(osg::StateSet* stateset, osg::NodeVisitor* nv) override
+            {
+                auto* cv = static_cast<osgUtil::CullVisitor*>(nv);
+                stateset->setTextureAttribute(1, mReflection->getColorTexture(cv), osg::StateAttribute::ON);
+                stateset->setTextureAttribute(mOpaqueColorTextureUnit,
+                    mResourceSystem->getSceneManager()->getOpaqueColorTex(cv->getTraversalNumber()),
+                    osg::StateAttribute::ON);
+                stateset->setTextureAttribute(mOpaqueDepthTextureUnit,
+                    mResourceSystem->getSceneManager()->getOpaqueDepthTex(cv->getTraversalNumber()),
+                    osg::StateAttribute::ON);
+
+                if (mRipples)
+                {
+                    stateset->setTextureAttribute(4, mRipples->getColorTexture(), osg::StateAttribute::ON);
+                }
+                stateset->getUniform("nodePosition")->set(osg::Vec3f(mWater->getPosition()));
+            }
+
+        private:
+            Water* mWater;
+            Reflection* mReflection;
+            Ripples* mRipples;
+            osg::ref_ptr<osg::Program> mProgram;
+            osg::ref_ptr<osg::Texture2D> mNormalMap;
+            Resource::ResourceSystem* mResourceSystem;
+            int mOpaqueDepthTextureUnit;
+            int mOpaqueColorTextureUnit;
+        };
+    }
 
     void Water::createShaderWaterStateSet(osg::Node* node)
     {

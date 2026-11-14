@@ -576,27 +576,30 @@ namespace Shader
         return shaderIt->second;
     }
 
-    class SamplerProgram : public osg::Program
+    namespace
     {
-    public:
-        SamplerProgram() = default;
-        explicit SamplerProgram(const ShaderManager::SamplerBindingMap& samplers);
-        SamplerProgram(
-            const ShaderManager::SamplerBindingMap& samplers, const osg::Program& other, const osg::CopyOp& copyop);
-        SamplerProgram(const SamplerProgram& other, const osg::CopyOp& copyop = osg::CopyOp::SHALLOW_COPY);
+        class SamplerProgram : public osg::Program
+        {
+        public:
+            SamplerProgram() = default;
+            explicit SamplerProgram(const ShaderManager::SamplerBindingMap& samplers);
+            SamplerProgram(
+                const ShaderManager::SamplerBindingMap& samplers, const osg::Program& other, const osg::CopyOp& copyop);
+            SamplerProgram(const SamplerProgram& other, const osg::CopyOp& copyop = osg::CopyOp::SHALLOW_COPY);
 
-        META_Object(Shader, SamplerProgram)
+            META_Object(Shader, SamplerProgram)
 
-        bool hasSamplers(const ShaderManager::SamplerBindingMap& samplers) const;
+            bool hasSamplers(const ShaderManager::SamplerBindingMap& samplers) const;
 
-        void apply(osg::State& state) const override;
+            void apply(osg::State& state) const override;
 
-        void resizeGLObjectBuffers(unsigned int maxSize) override;
+            void resizeGLObjectBuffers(unsigned int maxSize) override;
 
-    private:
-        std::vector<osg::ref_ptr<osg::Uniform>> mSamplers;
-        mutable osg::buffered_value<const PerContextProgram*> mApplied;
-    };
+        private:
+            std::vector<osg::ref_ptr<osg::Uniform>> mSamplers;
+            mutable osg::buffered_value<const PerContextProgram*> mApplied;
+        };
+    }
 
     SamplerProgram::SamplerProgram(const ShaderManager::SamplerBindingMap& samplers)
     {

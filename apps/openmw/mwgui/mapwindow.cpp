@@ -36,7 +36,6 @@
 
 namespace
 {
-
     constexpr int cellSize = Constants::CellSizeInUnits;
     constexpr float speed = 1.08f; // the zoom speed, it should be greater than 1
 
@@ -83,30 +82,33 @@ namespace MWGui
         void onMouseSetFocus(MyGUI::Widget* /*oldWidget*/) override { setColour(mHoverColour); }
     };
 
-    MyGUI::IntRect createRect(const MyGUI::IntPoint& center, int radius)
+    namespace
     {
-        return { center.left - radius, center.top - radius, center.left + radius, center.top + radius };
-    }
+        MyGUI::IntRect createRect(const MyGUI::IntPoint& center, int radius)
+        {
+            return { center.left - radius, center.top - radius, center.left + radius, center.top + radius };
+        }
 
-    int getLocalViewingDistance(const MWRender::LocalMap& map)
-    {
-        if (!Settings::map().mAllowZooming)
-            return Constants::CellGridRadius;
-        const int viewingDistanceInCells = static_cast<int>(map.getGroundReach() / Constants::CellSizeInUnits);
-        return std::clamp(
-            viewingDistanceInCells, Constants::CellGridRadius, Settings::map().mMaxLocalViewingDistance.get());
-    }
+        int getLocalViewingDistance(const MWRender::LocalMap& map)
+        {
+            if (!Settings::map().mAllowZooming)
+                return Constants::CellGridRadius;
+            const int viewingDistanceInCells = static_cast<int>(map.getGroundReach() / Constants::CellSizeInUnits);
+            return std::clamp(
+                viewingDistanceInCells, Constants::CellGridRadius, Settings::map().mMaxLocalViewingDistance.get());
+        }
 
-    ESM::RefId getCellIdInWorldSpace(const MWWorld::Cell& cell, int x, int y)
-    {
-        if (cell.isExterior())
-            return ESM::Cell::generateIdForCell(true, {}, x, y);
-        return cell.getId();
-    }
+        ESM::RefId getCellIdInWorldSpace(const MWWorld::Cell& cell, int x, int y)
+        {
+            if (cell.isExterior())
+                return ESM::Cell::generateIdForCell(true, {}, x, y);
+            return cell.getId();
+        }
 
-    void setCanvasSize(MyGUI::ScrollView* scrollView, const MyGUI::IntRect& grid, int widgetSize)
-    {
-        scrollView->setCanvasSize(widgetSize * (grid.width() + 1), widgetSize * (grid.height() + 1));
+        void setCanvasSize(MyGUI::ScrollView* scrollView, const MyGUI::IntRect& grid, int widgetSize)
+        {
+            scrollView->setCanvasSize(widgetSize * (grid.width() + 1), widgetSize * (grid.height() + 1));
+        }
     }
 
     void CustomMarkerCollection::addMarker(const ESM::CustomMarker& marker, bool triggerEvent)
@@ -608,11 +610,14 @@ namespace MWGui
         updateRequiredMaps();
     }
 
-    bool widgetCropped(MyGUI::Widget* widget, MyGUI::Widget* cropTo)
+    namespace
     {
-        MyGUI::IntRect coord = widget->getAbsoluteRect();
-        MyGUI::IntRect croppedCoord = cropTo->getAbsoluteRect();
-        return !coord.intersect(croppedCoord);
+        bool widgetCropped(MyGUI::Widget* widget, MyGUI::Widget* cropTo)
+        {
+            MyGUI::IntRect coord = widget->getAbsoluteRect();
+            MyGUI::IntRect croppedCoord = cropTo->getAbsoluteRect();
+            return !coord.intersect(croppedCoord);
+        }
     }
 
     void LocalMapBase::updateRequiredMaps()

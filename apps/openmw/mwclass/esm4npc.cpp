@@ -17,47 +17,50 @@
 
 namespace MWClass
 {
-    template <class LevelledRecord, class TargetRecord>
-    static std::vector<const TargetRecord*> withBaseTemplates(
-        const TargetRecord* rec, int level = MWClass::ESM4Impl::sDefaultLevel)
+    namespace
     {
-        std::vector<const TargetRecord*> res{ rec };
-        while (true)
+        template <class LevelledRecord, class TargetRecord>
+        std::vector<const TargetRecord*> withBaseTemplates(
+            const TargetRecord* rec, int level = MWClass::ESM4Impl::sDefaultLevel)
         {
-            const TargetRecord* newRec
-                = MWClass::ESM4Impl::resolveLevelled<ESM4::LevelledNpc, ESM4::Npc>(rec->mBaseTemplate, level);
-            if (!newRec || newRec == rec)
-                return res;
-            res.push_back(rec = newRec);
-        }
-    }
-
-    static const ESM4::Npc* chooseTemplate(const std::vector<const ESM4::Npc*>& recs, uint16_t flag)
-    {
-        for (const auto* rec : recs)
-        {
-            switch (rec->mGameFormat)
+            std::vector<const TargetRecord*> res{ rec };
+            while (true)
             {
-                case ESM::GameFormat::TES4:
-                    return rec;
-                case ESM::GameFormat::FO3:
-                case ESM::GameFormat::FNV:
-                    if (!(rec->mBaseConfig.fo3.templateFlags & flag))
-                        return rec;
-                    break;
-                case ESM::GameFormat::TES5:
-                    if (!(rec->mBaseConfig.tes5.templateFlags & flag))
-                        return rec;
-                    break;
-                case ESM::GameFormat::FO4:
-                    if (!(rec->mBaseConfig.fo4.templateFlags & flag))
-                        return rec;
-                    break;
-                default:
-                    break; // Skip
+                const TargetRecord* newRec
+                    = MWClass::ESM4Impl::resolveLevelled<ESM4::LevelledNpc, ESM4::Npc>(rec->mBaseTemplate, level);
+                if (!newRec || newRec == rec)
+                    return res;
+                res.push_back(rec = newRec);
             }
         }
-        return nullptr;
+
+        const ESM4::Npc* chooseTemplate(const std::vector<const ESM4::Npc*>& recs, uint16_t flag)
+        {
+            for (const auto* rec : recs)
+            {
+                switch (rec->mGameFormat)
+                {
+                    case ESM::GameFormat::TES4:
+                        return rec;
+                    case ESM::GameFormat::FO3:
+                    case ESM::GameFormat::FNV:
+                        if (!(rec->mBaseConfig.fo3.templateFlags & flag))
+                            return rec;
+                        break;
+                    case ESM::GameFormat::TES5:
+                        if (!(rec->mBaseConfig.tes5.templateFlags & flag))
+                            return rec;
+                        break;
+                    case ESM::GameFormat::FO4:
+                        if (!(rec->mBaseConfig.fo4.templateFlags & flag))
+                            return rec;
+                        break;
+                    default:
+                        break; // Skip
+                }
+            }
+            return nullptr;
+        }
     }
 
     class ESM4NpcCustomData : public MWWorld::TypedCustomData<ESM4NpcCustomData>

@@ -6,7 +6,10 @@
 
 namespace Misc::Rng
 {
-    static Generator sGenerator;
+    namespace
+    {
+        Generator sGenerator;
+    }
 
     Generator& getGenerator()
     {

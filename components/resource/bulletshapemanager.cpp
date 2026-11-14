@@ -28,74 +28,78 @@
 namespace Resource
 {
 
-    struct GetTriangleFunctor
+    namespace
     {
-        GetTriangleFunctor()
-            : mTriMesh(nullptr)
+        struct GetTriangleFunctor
         {
-        }
+            GetTriangleFunctor()
+                : mTriMesh(nullptr)
+            {
+            }
 
-        void setTriMesh(btTriangleMesh* triMesh) { mTriMesh = triMesh; }
+            void setTriMesh(btTriangleMesh* triMesh) { mTriMesh = triMesh; }
 
-        void setMatrix(const osg::Matrixf& matrix) { mMatrix = matrix; }
+            void setMatrix(const osg::Matrixf& matrix) { mMatrix = matrix; }
 
-        void inline operator()(const osg::Vec3& v1, const osg::Vec3& v2, const osg::Vec3& v3,
-            bool /*temp*/ = false) // Note: unused temp argument left here for OSG versions less than 3.5.6
+            void inline operator()(const osg::Vec3& v1, const osg::Vec3& v2, const osg::Vec3& v3,
+                bool /*temp*/ = false) // Note: unused temp argument left here for OSG versions less than 3.5.6
+            {
+                if (mTriMesh)
+                    mTriMesh->addTriangle(Misc::Convert::toBullet(mMatrix.preMult(v1)),
+                        Misc::Convert::toBullet(mMatrix.preMult(v2)), Misc::Convert::toBullet(mMatrix.preMult(v3)));
+            }
+
+            btTriangleMesh* mTriMesh;
+            osg::Matrixf mMatrix;
+        };
+
+        /// Creates a BulletShape out of a Node hierarchy.
+        class NodeToShapeVisitor : public osg::NodeVisitor
         {
-            if (mTriMesh)
-                mTriMesh->addTriangle(Misc::Convert::toBullet(mMatrix.preMult(v1)),
-                    Misc::Convert::toBullet(mMatrix.preMult(v2)), Misc::Convert::toBullet(mMatrix.preMult(v3)));
-        }
+        public:
+            NodeToShapeVisitor()
+                : osg::NodeVisitor(TRAVERSE_ALL_CHILDREN)
+                , mTriangleMesh(nullptr)
+            {
+            }
 
-        btTriangleMesh* mTriMesh;
-        osg::Matrixf mMatrix;
-    };
+            void apply(osg::Drawable& drawable) override
+            {
+                if (!mTriangleMesh)
+                    mTriangleMesh = std::make_unique<btTriangleMesh>();
 
-    /// Creates a BulletShape out of a Node hierarchy.
-    class NodeToShapeVisitor : public osg::NodeVisitor
-    {
-    public:
-        NodeToShapeVisitor()
-            : osg::NodeVisitor(TRAVERSE_ALL_CHILDREN)
-            , mTriangleMesh(nullptr)
-        {
-        }
+                osg::Matrixf worldMat = osg::computeLocalToWorld(getNodePath());
+                osg::TriangleFunctor<GetTriangleFunctor> functor;
+                functor.setTriMesh(mTriangleMesh.get());
+                functor.setMatrix(worldMat);
+                drawable.accept(functor);
+            }
 
-        void apply(osg::Drawable& drawable) override
-        {
-            if (!mTriangleMesh)
-                mTriangleMesh = std::make_unique<btTriangleMesh>();
+            std::shared_ptr<BulletShape> getShape()
+            {
+                if (!mTriangleMesh || mTriangleMesh->getNumTriangles() == 0)
+                    return std::shared_ptr<BulletShape>();
 
-            osg::Matrixf worldMat = osg::computeLocalToWorld(getNodePath());
-            osg::TriangleFunctor<GetTriangleFunctor> functor;
-            functor.setTriMesh(mTriangleMesh.get());
-            functor.setMatrix(worldMat);
-            drawable.accept(functor);
-        }
+                auto shape = std::make_shared<BulletShape>();
 
-        std::shared_ptr<BulletShape> getShape()
-        {
-            if (!mTriangleMesh || mTriangleMesh->getNumTriangles() == 0)
-                return std::shared_ptr<BulletShape>();
+                auto triangleMeshShape = std::make_unique<TriangleMeshShape>(mTriangleMesh.release(), true);
+                btVector3 aabbMin = triangleMeshShape->getLocalAabbMin();
+                btVector3 aabbMax = triangleMeshShape->getLocalAabbMax();
+                shape->mCollisionBox.mExtents[0] = static_cast<float>(aabbMax[0] - aabbMin[0]) / 2.0f;
+                shape->mCollisionBox.mExtents[1] = static_cast<float>(aabbMax[1] - aabbMin[1]) / 2.0f;
+                shape->mCollisionBox.mExtents[2] = static_cast<float>(aabbMax[2] - aabbMin[2]) / 2.0f;
+                shape->mCollisionBox.mCenter = osg::Vec3f(static_cast<float>(aabbMax[0] + aabbMin[0]) / 2.0f,
+                    static_cast<float>(aabbMax[1] + aabbMin[1]) / 2.0f,
+                    static_cast<float>(aabbMax[2] + aabbMin[2]) / 2.0f);
+                shape->mCollisionShape.reset(triangleMeshShape.release());
 
-            auto shape = std::make_shared<BulletShape>();
+                return shape;
+            }
 
-            auto triangleMeshShape = std::make_unique<TriangleMeshShape>(mTriangleMesh.release(), true);
-            btVector3 aabbMin = triangleMeshShape->getLocalAabbMin();
-            btVector3 aabbMax = triangleMeshShape->getLocalAabbMax();
-            shape->mCollisionBox.mExtents[0] = static_cast<float>(aabbMax[0] - aabbMin[0]) / 2.0f;
-            shape->mCollisionBox.mExtents[1] = static_cast<float>(aabbMax[1] - aabbMin[1]) / 2.0f;
-            shape->mCollisionBox.mExtents[2] = static_cast<float>(aabbMax[2] - aabbMin[2]) / 2.0f;
-            shape->mCollisionBox.mCenter = osg::Vec3f(static_cast<float>(aabbMax[0] + aabbMin[0]) / 2.0f,
-                static_cast<float>(aabbMax[1] + aabbMin[1]) / 2.0f, static_cast<float>(aabbMax[2] + aabbMin[2]) / 2.0f);
-            shape->mCollisionShape.reset(triangleMeshShape.release());
-
-            return shape;
-        }
-
-    private:
-        std::unique_ptr<btTriangleMesh> mTriangleMesh;
-    };
+        private:
+            std::unique_ptr<btTriangleMesh> mTriangleMesh;
+        };
+    }
 
     BulletShapeManager::BulletShapeManager(
         const VFS::Manager* vfs, SceneManager* sceneMgr, NifFileManager* nifFileManager, double expiryDelay)

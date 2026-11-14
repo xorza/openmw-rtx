@@ -140,18 +140,21 @@ namespace Stereo
         }
     }
 
-    class Texture2DViewSubloadCallback : public osg::Texture2D::SubloadCallback
+    namespace
     {
-    public:
-        Texture2DViewSubloadCallback(osg::Texture2DArray* textureArray, int layer);
+        class Texture2DViewSubloadCallback : public osg::Texture2D::SubloadCallback
+        {
+        public:
+            Texture2DViewSubloadCallback(osg::Texture2DArray* textureArray, int layer);
 
-        void load(const osg::Texture2D& texture, osg::State& state) const override;
-        void subload(const osg::Texture2D& texture, osg::State& state) const override;
+            void load(const osg::Texture2D& texture, osg::State& state) const override;
+            void subload(const osg::Texture2D& texture, osg::State& state) const override;
 
-    private:
-        osg::ref_ptr<osg::Texture2DArray> mTextureArray;
-        int mLayer;
-    };
+        private:
+            osg::ref_ptr<osg::Texture2DArray> mTextureArray;
+            int mLayer;
+        };
+    }
 
     Texture2DViewSubloadCallback::Texture2DViewSubloadCallback(osg::Texture2DArray* textureArray, int layer)
         : mTextureArray(textureArray)
@@ -719,22 +722,25 @@ namespace Stereo
         return textureArray;
     }
 
-    osg::FrameBufferAttachment makeSingleLayerAttachmentFromMultilayerAttachment(
-        osg::FrameBufferAttachment attachment, int layer)
+    namespace
     {
-        osg::Texture* tex = attachment.getTexture();
+        osg::FrameBufferAttachment makeSingleLayerAttachmentFromMultilayerAttachment(
+            osg::FrameBufferAttachment attachment, int layer)
+        {
+            osg::Texture* tex = attachment.getTexture();
 
-        if (tex->getTextureTarget() == GL_TEXTURE_2D_ARRAY)
-            return osg::FrameBufferAttachment(static_cast<osg::Texture2DArray*>(tex), layer, 0);
+            if (tex->getTextureTarget() == GL_TEXTURE_2D_ARRAY)
+                return osg::FrameBufferAttachment(static_cast<osg::Texture2DArray*>(tex), layer, 0);
 
 #ifdef OSG_HAS_MULTIVIEW
-        if (tex->getTextureTarget() == GL_TEXTURE_2D_MULTISAMPLE_ARRAY)
-            return osg::FrameBufferAttachment(static_cast<osg::Texture2DMultisampleArray*>(tex), layer, 0);
+            if (tex->getTextureTarget() == GL_TEXTURE_2D_MULTISAMPLE_ARRAY)
+                return osg::FrameBufferAttachment(static_cast<osg::Texture2DMultisampleArray*>(tex), layer, 0);
 #endif
 
-        Log(Debug::Error) << "Attempted to extract a layer from an unlayered texture";
+            Log(Debug::Error) << "Attempted to extract a layer from an unlayered texture";
 
-        return osg::FrameBufferAttachment();
+            return osg::FrameBufferAttachment();
+        }
     }
 
     MultiviewFramebufferResolve::MultiviewFramebufferResolve(

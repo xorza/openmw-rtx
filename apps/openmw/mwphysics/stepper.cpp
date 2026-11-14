@@ -11,15 +11,18 @@
 
 namespace MWPhysics
 {
-    static bool canStepDown(const ActorTracer& stepper)
+    namespace
     {
-        if (!stepper.mHitObject)
-            return false;
-        static const float sMaxSlopeCos = std::cos(osg::DegreesToRadians(Constants::sMaxSlope));
-        if (stepper.mPlaneNormal.z() <= sMaxSlopeCos)
-            return false;
+        bool canStepDown(const ActorTracer& stepper)
+        {
+            if (!stepper.mHitObject)
+                return false;
+            static const float sMaxSlopeCos = std::cos(osg::DegreesToRadians(Constants::sMaxSlope));
+            if (stepper.mPlaneNormal.z() <= sMaxSlopeCos)
+                return false;
 
-        return stepper.mHitObject->getBroadphaseHandle()->m_collisionFilterGroup != CollisionType_Actor;
+            return stepper.mHitObject->getBroadphaseHandle()->m_collisionFilterGroup != CollisionType_Actor;
+        }
     }
 
     Stepper::Stepper(const btCollisionWorld* colWorld, const btCollisionObject* colObj)

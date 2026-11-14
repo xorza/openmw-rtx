@@ -4,13 +4,16 @@
 
 #include <gtest/gtest.h>
 
-struct KeywordSearchTest : public ::testing::Test
+namespace
 {
-protected:
-    void SetUp() override {}
+    struct KeywordSearchTest : public ::testing::Test
+    {
+    protected:
+        void SetUp() override {}
 
-    void TearDown() override {}
-};
+        void TearDown() override {}
+    };
+}
 
 TEST_F(KeywordSearchTest, keyword_test_conflict_resolution)
 {

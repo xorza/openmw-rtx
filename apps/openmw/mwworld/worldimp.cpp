@@ -143,51 +143,51 @@ namespace MWWorld
             const osg::Vec3f displacement = physicsActor->getPosition() - physicsActor->getPreviousPosition();
             return displacement / physics.getPhysicsDt();
         }
+
+        struct GameContentLoader : public ContentLoader
+        {
+            void addLoader(std::string&& extension, ContentLoader& loader)
+            {
+                mLoaders.emplace(std::move(extension), &loader);
+            }
+
+            void load(const std::filesystem::path& filepath, int& index, Loading::Listener* listener) override
+            {
+                const auto it
+                    = mLoaders.find(Misc::StringUtils::lowerCase(Files::pathToUnicodeString(filepath.extension())));
+                if (it != mLoaders.end())
+                {
+                    const auto filename = filepath.filename();
+                    Log(Debug::Info) << "Loading content file " << filename;
+                    if (listener != nullptr)
+                        listener->setLabel(MyGUI::TextIterator::toTagsString(Files::pathToUnicodeString(filename)));
+                    it->second->load(filepath, index, listener);
+                }
+                else
+                {
+                    std::string msg("Cannot load file: ");
+                    msg += Files::pathToUnicodeString(filepath);
+                    throw std::runtime_error(msg.c_str());
+                }
+            }
+
+        private:
+            std::map<std::string, ContentLoader*> mLoaders;
+        };
+
+        struct OMWScriptsLoader : public ContentLoader
+        {
+            ESMStore& mStore;
+            explicit OMWScriptsLoader(ESMStore& store)
+                : mStore(store)
+            {
+            }
+            void load(const std::filesystem::path& filepath, int& /*index*/, Loading::Listener* /*listener*/) override
+            {
+                mStore.addOMWScripts(filepath);
+            }
+        };
     }
-
-    struct GameContentLoader : public ContentLoader
-    {
-        void addLoader(std::string&& extension, ContentLoader& loader)
-        {
-            mLoaders.emplace(std::move(extension), &loader);
-        }
-
-        void load(const std::filesystem::path& filepath, int& index, Loading::Listener* listener) override
-        {
-            const auto it
-                = mLoaders.find(Misc::StringUtils::lowerCase(Files::pathToUnicodeString(filepath.extension())));
-            if (it != mLoaders.end())
-            {
-                const auto filename = filepath.filename();
-                Log(Debug::Info) << "Loading content file " << filename;
-                if (listener != nullptr)
-                    listener->setLabel(MyGUI::TextIterator::toTagsString(Files::pathToUnicodeString(filename)));
-                it->second->load(filepath, index, listener);
-            }
-            else
-            {
-                std::string msg("Cannot load file: ");
-                msg += Files::pathToUnicodeString(filepath);
-                throw std::runtime_error(msg.c_str());
-            }
-        }
-
-    private:
-        std::map<std::string, ContentLoader*> mLoaders;
-    };
-
-    struct OMWScriptsLoader : public ContentLoader
-    {
-        ESMStore& mStore;
-        explicit OMWScriptsLoader(ESMStore& store)
-            : mStore(store)
-        {
-        }
-        void load(const std::filesystem::path& filepath, int& /*index*/, Loading::Listener* /*listener*/) override
-        {
-            mStore.addOMWScripts(filepath);
-        }
-    };
 
     void World::adjustSky()
     {
@@ -667,27 +667,30 @@ namespace MWWorld
         throw std::runtime_error(error);
     }
 
-    struct FindContainerVisitor
+    namespace
     {
-        ConstPtr mContainedPtr;
-        Ptr mResult;
-
-        explicit FindContainerVisitor(const ConstPtr& containedPtr)
-            : mContainedPtr(containedPtr)
+        struct FindContainerVisitor
         {
-        }
+            ConstPtr mContainedPtr;
+            Ptr mResult;
 
-        bool operator()(const Ptr& ptr)
-        {
-            if (mContainedPtr.getContainerStore() == &ptr.getClass().getContainerStore(ptr))
+            explicit FindContainerVisitor(const ConstPtr& containedPtr)
+                : mContainedPtr(containedPtr)
             {
-                mResult = ptr;
-                return false;
             }
 
-            return true;
-        }
-    };
+            bool operator()(const Ptr& ptr)
+            {
+                if (mContainedPtr.getContainerStore() == &ptr.getClass().getContainerStore(ptr))
+                {
+                    mResult = ptr;
+                    return false;
+                }
+
+                return true;
+            }
+        };
+    }
 
     Ptr World::findContainer(const ConstPtr& ptr)
     {
@@ -1883,34 +1886,37 @@ namespace MWWorld
         return mWeatherManager->getRegionChances(regionid);
     }
 
-    struct GetDoorMarkerVisitor
+    namespace
     {
-        std::vector<World::DoorMarker>& mOut;
-
-        bool operator()(const MWWorld::Ptr& ptr)
+        struct GetDoorMarkerVisitor
         {
-            MWWorld::LiveCellRef<ESM::Door>& ref = *static_cast<MWWorld::LiveCellRef<ESM::Door>*>(ptr.getBase());
+            std::vector<World::DoorMarker>& mOut;
 
-            if (!ref.mData.isEnabled() || ref.isDeleted())
-                return true;
-
-            if (ref.mRef.getTeleport())
+            bool operator()(const MWWorld::Ptr& ptr)
             {
-                World::DoorMarker newMarker;
-                newMarker.name = MWClass::Door::getDestination(ref);
-                if (newMarker.name.empty())
+                MWWorld::LiveCellRef<ESM::Door>& ref = *static_cast<MWWorld::LiveCellRef<ESM::Door>*>(ptr.getBase());
+
+                if (!ref.mData.isEnabled() || ref.isDeleted())
                     return true;
-                newMarker.dest = ref.mRef.getDestCell();
 
-                ESM::Position pos = ref.mData.getPosition();
+                if (ref.mRef.getTeleport())
+                {
+                    World::DoorMarker newMarker;
+                    newMarker.name = MWClass::Door::getDestination(ref);
+                    if (newMarker.name.empty())
+                        return true;
+                    newMarker.dest = ref.mRef.getDestCell();
 
-                newMarker.x = pos.pos[0];
-                newMarker.y = pos.pos[1];
-                mOut.push_back(std::move(newMarker));
+                    ESM::Position pos = ref.mData.getPosition();
+
+                    newMarker.x = pos.pos[0];
+                    newMarker.y = pos.pos[1];
+                    mOut.push_back(std::move(newMarker));
+                }
+                return true;
             }
-            return true;
-        }
-    };
+        };
+    }
 
     void World::getDoorMarkers(CellStore& cell, std::vector<World::DoorMarker>& out)
     {
@@ -2529,32 +2535,35 @@ namespace MWWorld
         return Weather::defaultDirection();
     }
 
-    struct GetContainersOwnedByVisitor
+    namespace
     {
-        GetContainersOwnedByVisitor(const MWWorld::ConstPtr& owner, std::vector<MWWorld::Ptr>& out)
-            : mOwner(owner)
-            , mOut(out)
+        struct GetContainersOwnedByVisitor
         {
-        }
+            GetContainersOwnedByVisitor(const MWWorld::ConstPtr& owner, std::vector<MWWorld::Ptr>& out)
+                : mOwner(owner)
+                , mOut(out)
+            {
+            }
 
-        MWWorld::ConstPtr mOwner;
-        std::vector<MWWorld::Ptr>& mOut;
+            MWWorld::ConstPtr mOwner;
+            std::vector<MWWorld::Ptr>& mOut;
 
-        bool operator()(const MWWorld::Ptr& ptr)
-        {
-            if (ptr.mRef->isDeleted())
+            bool operator()(const MWWorld::Ptr& ptr)
+            {
+                if (ptr.mRef->isDeleted())
+                    return true;
+
+                // vanilla Morrowind does not allow to sell items from containers with zero capacity
+                if (ptr.getClass().getCapacity(ptr) <= 0.f)
+                    return true;
+
+                if (ptr.getCellRef().getOwner() == mOwner.getCellRef().getRefId())
+                    mOut.push_back(ptr);
+
                 return true;
-
-            // vanilla Morrowind does not allow to sell items from containers with zero capacity
-            if (ptr.getClass().getCapacity(ptr) <= 0.f)
-                return true;
-
-            if (ptr.getCellRef().getOwner() == mOwner.getCellRef().getRefId())
-                mOut.push_back(ptr);
-
-            return true;
-        }
-    };
+            }
+        };
+    }
 
     void World::getContainersOwnedBy(const MWWorld::ConstPtr& owner, std::vector<MWWorld::Ptr>& out)
     {
@@ -2615,69 +2624,73 @@ namespace MWWorld
             physicActor->enableCollisionBody(enable);
     }
 
-    static std::optional<ESM::Position> searchMarkerPosition(const CellStore& cellStore, std::string_view editorId)
+    namespace
     {
-        for (const MWWorld::LiveCellRef<ESM4::Static>& stat4 : cellStore.getReadOnlyEsm4Statics().mList)
+        std::optional<ESM::Position> searchMarkerPosition(const CellStore& cellStore, std::string_view editorId)
         {
-            if (Misc::StringUtils::lowerCase(stat4.mBase->mEditorId) == editorId)
-                return stat4.mRef.getPosition();
-        }
-        return std::nullopt;
-    }
-
-    static std::optional<ESM::Position> searchDoorDestInCell(const CellStore& cellStore)
-    {
-        ESM::RefId cellId = cellStore.getCell()->getId();
-        std::vector<const MWWorld::CellRef*> sortedDoors;
-        for (const MWWorld::LiveCellRef<ESM::Door>& door : cellStore.getReadOnlyDoors().mList)
-        {
-            if (!door.mRef.getTeleport())
-                continue;
-            sortedDoors.push_back(&door.mRef);
-        }
-        for (const MWWorld::LiveCellRef<ESM4::Door>& door : cellStore.getReadOnlyEsm4Doors().mList)
-        {
-            if (!door.mRef.getTeleport())
-                continue;
-            sortedDoors.push_back(&door.mRef);
-        }
-
-        // Sort teleporting doors alphabetically, first by ID, then by destination cell to make search consistent
-        std::sort(sortedDoors.begin(), sortedDoors.end(), [](const MWWorld::CellRef* lhs, const MWWorld::CellRef* rhs) {
-            if (lhs->getRefId() != rhs->getRefId())
-                return lhs->getRefId() < rhs->getRefId();
-
-            return lhs->getDestCell() < rhs->getDestCell();
-        });
-
-        WorldModel* worldModel = MWBase::Environment::get().getWorldModel();
-        for (const MWWorld::CellRef* door : sortedDoors)
-        {
-            const MWWorld::CellStore* source = worldModel->findCell(door->getDestCell());
-            if (source == nullptr)
-                continue;
-
-            // Find door leading to our current teleport door
-            // and use its destination to position inside cell.
-            // \note Using _any_ door pointed to the cell,
-            // not the one pointed to current door.
-            for (const MWWorld::LiveCellRef<ESM::Door>& destDoor : source->getReadOnlyDoors().mList)
+            for (const MWWorld::LiveCellRef<ESM4::Static>& stat4 : cellStore.getReadOnlyEsm4Statics().mList)
             {
-                if (cellId == destDoor.mRef.getDestCell())
+                if (Misc::StringUtils::lowerCase(stat4.mBase->mEditorId) == editorId)
+                    return stat4.mRef.getPosition();
+            }
+            return std::nullopt;
+        }
+
+        std::optional<ESM::Position> searchDoorDestInCell(const CellStore& cellStore)
+        {
+            ESM::RefId cellId = cellStore.getCell()->getId();
+            std::vector<const MWWorld::CellRef*> sortedDoors;
+            for (const MWWorld::LiveCellRef<ESM::Door>& door : cellStore.getReadOnlyDoors().mList)
+            {
+                if (!door.mRef.getTeleport())
+                    continue;
+                sortedDoors.push_back(&door.mRef);
+            }
+            for (const MWWorld::LiveCellRef<ESM4::Door>& door : cellStore.getReadOnlyEsm4Doors().mList)
+            {
+                if (!door.mRef.getTeleport())
+                    continue;
+                sortedDoors.push_back(&door.mRef);
+            }
+
+            // Sort teleporting doors alphabetically, first by ID, then by destination cell to make search consistent
+            std::sort(
+                sortedDoors.begin(), sortedDoors.end(), [](const MWWorld::CellRef* lhs, const MWWorld::CellRef* rhs) {
+                    if (lhs->getRefId() != rhs->getRefId())
+                        return lhs->getRefId() < rhs->getRefId();
+
+                    return lhs->getDestCell() < rhs->getDestCell();
+                });
+
+            WorldModel* worldModel = MWBase::Environment::get().getWorldModel();
+            for (const MWWorld::CellRef* door : sortedDoors)
+            {
+                const MWWorld::CellStore* source = worldModel->findCell(door->getDestCell());
+                if (source == nullptr)
+                    continue;
+
+                // Find door leading to our current teleport door
+                // and use its destination to position inside cell.
+                // \note Using _any_ door pointed to the cell,
+                // not the one pointed to current door.
+                for (const MWWorld::LiveCellRef<ESM::Door>& destDoor : source->getReadOnlyDoors().mList)
                 {
-                    ESM::Position doorDest = destDoor.mRef.getDoorDest();
-                    doorDest.rot[0] = doorDest.rot[1] = doorDest.rot[2] = 0;
-                    return doorDest;
+                    if (cellId == destDoor.mRef.getDestCell())
+                    {
+                        ESM::Position doorDest = destDoor.mRef.getDoorDest();
+                        doorDest.rot[0] = doorDest.rot[1] = doorDest.rot[2] = 0;
+                        return doorDest;
+                    }
+                }
+                for (const MWWorld::LiveCellRef<ESM4::Door>& destDoor : source->getReadOnlyEsm4Doors().mList)
+                {
+                    if (cellId == destDoor.mRef.getDestCell())
+                        return destDoor.mRef.getDoorDest();
                 }
             }
-            for (const MWWorld::LiveCellRef<ESM4::Door>& destDoor : source->getReadOnlyEsm4Doors().mList)
-            {
-                if (cellId == destDoor.mRef.getDestCell())
-                    return destDoor.mRef.getDoorDest();
-            }
-        }
 
-        return std::nullopt;
+            return std::nullopt;
+        }
     }
 
     ESM::RefId World::findInteriorPosition(std::string_view name, ESM::Position& pos)
@@ -3401,96 +3414,99 @@ namespace MWWorld
         mWeatherManager->update(duration, paused, time, isExterior);
     }
 
-    struct AddDetectedReferenceVisitor
+    namespace
     {
-        std::vector<Ptr>& mOut;
-        Ptr mDetector;
-        float mSquaredDist;
-        World::DetectionType mType;
-        const MWWorld::ESMStore& mStore;
-
-        bool operator()(const MWWorld::Ptr& ptr)
+        struct AddDetectedReferenceVisitor
         {
-            if ((ptr.getRefData().getPosition().asVec3() - mDetector.getRefData().getPosition().asVec3()).length2()
-                >= mSquaredDist)
-                return true;
+            std::vector<Ptr>& mOut;
+            Ptr mDetector;
+            float mSquaredDist;
+            World::DetectionType mType;
+            const MWWorld::ESMStore& mStore;
 
-            if (!ptr.getRefData().isEnabled() || ptr.mRef->isDeleted())
-                return true;
-
-            // Consider references inside containers as well (except if we are looking for a Creature, they cannot be in
-            // containers)
-            bool isContainer = ptr.getClass().getType() == ESM::Container::sRecordId;
-            if (mType != World::Detect_Creature && (ptr.getClass().isActor() || isContainer))
+            bool operator()(const MWWorld::Ptr& ptr)
             {
-                // but ignore containers without resolved content
-                if (isContainer && ptr.getRefData().getCustomData() == nullptr)
+                if ((ptr.getRefData().getPosition().asVec3() - mDetector.getRefData().getPosition().asVec3()).length2()
+                    >= mSquaredDist)
+                    return true;
+
+                if (!ptr.getRefData().isEnabled() || ptr.mRef->isDeleted())
+                    return true;
+
+                // Consider references inside containers as well (except if we are looking for a Creature, they cannot
+                // be in containers)
+                bool isContainer = ptr.getClass().getType() == ESM::Container::sRecordId;
+                if (mType != World::Detect_Creature && (ptr.getClass().isActor() || isContainer))
                 {
-                    for (const auto& containerItem : ptr.get<ESM::Container>()->mBase->mInventory.mList)
+                    // but ignore containers without resolved content
+                    if (isContainer && ptr.getRefData().getCustomData() == nullptr)
                     {
-                        if (containerItem.mCount)
+                        for (const auto& containerItem : ptr.get<ESM::Container>()->mBase->mInventory.mList)
                         {
-                            try
+                            if (containerItem.mCount)
                             {
-                                ManualRef ref(mStore, containerItem.mItem, containerItem.mCount);
-                                if (needToAdd(ref.getPtr(), mDetector))
+                                try
                                 {
-                                    mOut.push_back(ptr);
-                                    return true;
+                                    ManualRef ref(mStore, containerItem.mItem, containerItem.mCount);
+                                    if (needToAdd(ref.getPtr(), mDetector))
+                                    {
+                                        mOut.push_back(ptr);
+                                        return true;
+                                    }
+                                }
+                                catch (const std::exception& e)
+                                {
+                                    Log(Debug::Warning) << "Failed to process container item " << containerItem.mItem
+                                                        << ": " << e.what();
                                 }
                             }
-                            catch (const std::exception& e)
+                        }
+                        return true;
+                    }
+
+                    MWWorld::ContainerStore& store = ptr.getClass().getContainerStore(ptr);
+                    {
+                        for (MWWorld::ContainerStoreIterator it = store.begin(); it != store.end(); ++it)
+                        {
+                            if (needToAdd(*it, mDetector))
                             {
-                                Log(Debug::Warning)
-                                    << "Failed to process container item " << containerItem.mItem << ": " << e.what();
+                                mOut.push_back(ptr);
+                                return true;
                             }
                         }
                     }
-                    return true;
                 }
 
-                MWWorld::ContainerStore& store = ptr.getClass().getContainerStore(ptr);
-                {
-                    for (MWWorld::ContainerStoreIterator it = store.begin(); it != store.end(); ++it)
-                    {
-                        if (needToAdd(*it, mDetector))
-                        {
-                            mOut.push_back(ptr);
-                            return true;
-                        }
-                    }
-                }
+                if (needToAdd(ptr, mDetector))
+                    mOut.push_back(ptr);
+
+                return true;
             }
 
-            if (needToAdd(ptr, mDetector))
-                mOut.push_back(ptr);
-
-            return true;
-        }
-
-        bool needToAdd(const MWWorld::Ptr& ptr, const MWWorld::Ptr& detector)
-        {
-            if (mType == World::Detect_Creature)
+            bool needToAdd(const MWWorld::Ptr& ptr, const MWWorld::Ptr& detector)
             {
-                // If in werewolf form, this detects only NPCs, otherwise only creatures
-                if (detector.getClass().isNpc() && detector.getClass().getNpcStats(detector).isWerewolf())
+                if (mType == World::Detect_Creature)
                 {
-                    if (ptr.getClass().getType() != ESM::NPC::sRecordId)
+                    // If in werewolf form, this detects only NPCs, otherwise only creatures
+                    if (detector.getClass().isNpc() && detector.getClass().getNpcStats(detector).isWerewolf())
+                    {
+                        if (ptr.getClass().getType() != ESM::NPC::sRecordId)
+                            return false;
+                    }
+                    else if (ptr.getClass().getType() != ESM::Creature::sRecordId)
+                        return false;
+
+                    if (ptr.getClass().getCreatureStats(ptr).isDead())
                         return false;
                 }
-                else if (ptr.getClass().getType() != ESM::Creature::sRecordId)
+                if (mType == World::Detect_Key && !ptr.getClass().isKey(ptr))
                     return false;
-
-                if (ptr.getClass().getCreatureStats(ptr).isDead())
+                if (mType == World::Detect_Enchantment && ptr.getClass().getEnchantment(ptr).empty())
                     return false;
+                return true;
             }
-            if (mType == World::Detect_Key && !ptr.getClass().isKey(ptr))
-                return false;
-            if (mType == World::Detect_Enchantment && ptr.getClass().getEnchantment(ptr).empty())
-                return false;
-            return true;
-        }
-    };
+        };
+    }
 
     void World::listDetectedReferences(const Ptr& ptr, std::vector<Ptr>& out, DetectionType type)
     {
@@ -3703,25 +3719,28 @@ namespace MWWorld
         mRendering->removeEffect(effectId);
     }
 
-    struct ResetActorsVisitor
+    namespace
     {
-        World& mWorld;
-
-        bool operator()(const Ptr& ptr)
+        struct ResetActorsVisitor
         {
-            if (ptr.getClass().isActor() && ptr.getCellRef().hasContentFile())
-            {
-                if (ptr.getCell()->movedHere(ptr))
-                    return true;
+            World& mWorld;
 
-                const ESM::Position& origPos = ptr.getCellRef().getPosition();
-                mWorld.moveObject(ptr, origPos.asVec3());
-                mWorld.rotateObject(ptr, origPos.asRotationVec3());
-                ptr.getClass().adjustPosition(ptr, true);
+            bool operator()(const Ptr& ptr)
+            {
+                if (ptr.getClass().isActor() && ptr.getCellRef().hasContentFile())
+                {
+                    if (ptr.getCell()->movedHere(ptr))
+                        return true;
+
+                    const ESM::Position& origPos = ptr.getCellRef().getPosition();
+                    mWorld.moveObject(ptr, origPos.asVec3());
+                    mWorld.rotateObject(ptr, origPos.asRotationVec3());
+                    ptr.getClass().adjustPosition(ptr, true);
+                }
+                return true;
             }
-            return true;
-        }
-    };
+        };
+    }
 
     void World::resetActors()
     {

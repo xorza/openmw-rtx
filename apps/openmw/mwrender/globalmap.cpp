@@ -33,7 +33,6 @@
 
 namespace
 {
-
     std::vector<char> writePng(const osg::Image& overlayImage)
     {
         std::ostringstream ostream;
@@ -261,22 +260,25 @@ namespace MWRender
         map.mImageData = writePng(mOverlay->getImage());
     }
 
-    struct Box
+    namespace
     {
-        int mLeft, mTop, mRight, mBottom;
+        struct Box
+        {
+            int mLeft, mTop, mRight, mBottom;
 
-        Box(int left, int top, int right, int bottom)
-            : mLeft(left)
-            , mTop(top)
-            , mRight(right)
-            , mBottom(bottom)
-        {
-        }
-        bool operator==(const Box& other) const
-        {
-            return mLeft == other.mLeft && mTop == other.mTop && mRight == other.mRight && mBottom == other.mBottom;
-        }
-    };
+            Box(int left, int top, int right, int bottom)
+                : mLeft(left)
+                , mTop(top)
+                , mRight(right)
+                , mBottom(bottom)
+            {
+            }
+            bool operator==(const Box& other) const
+            {
+                return mLeft == other.mLeft && mTop == other.mTop && mRight == other.mRight && mBottom == other.mBottom;
+            }
+        };
+    }
 
     void GlobalMap::read(ESM::GlobalMap& map)
     {

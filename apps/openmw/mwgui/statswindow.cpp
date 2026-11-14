@@ -232,22 +232,25 @@ namespace MWGui
         }
     }
 
-    void setSkillProgress(MyGUI::Widget* w, float progress, ESM::RefId skillId)
+    namespace
     {
-        MWWorld::Ptr player = MWMechanics::getPlayer();
-        const MWWorld::ESMStore& esmStore = *MWBase::Environment::get().getESMStore();
+        void setSkillProgress(MyGUI::Widget* w, float progress, ESM::RefId skillId)
+        {
+            MWWorld::Ptr player = MWMechanics::getPlayer();
+            const MWWorld::ESMStore& esmStore = *MWBase::Environment::get().getESMStore();
 
-        float progressRequirement = player.getClass().getNpcStats(player).getSkillProgressRequirement(
-            skillId, *esmStore.get<ESM::Class>().find(player.get<ESM::NPC>()->mBase->mClass));
+            float progressRequirement = player.getClass().getNpcStats(player).getSkillProgressRequirement(
+                skillId, *esmStore.get<ESM::Class>().find(player.get<ESM::NPC>()->mBase->mClass));
 
-        // This is how vanilla MW displays the progress bar (I think). Note it's slightly inaccurate,
-        // due to the int casting in the skill levelup logic. Also the progress label could in rare cases
-        // reach 100% without the skill levelling up.
-        // Leaving the original display logic for now, for consistency with ess-imported savegames.
-        int progressPercent = static_cast<int>(progress / progressRequirement * 100.f + 0.5f);
+            // This is how vanilla MW displays the progress bar (I think). Note it's slightly inaccurate,
+            // due to the int casting in the skill levelup logic. Also the progress label could in rare cases
+            // reach 100% without the skill levelling up.
+            // Leaving the original display logic for now, for consistency with ess-imported savegames.
+            int progressPercent = static_cast<int>(progress / progressRequirement * 100.f + 0.5f);
 
-        w->setUserString("Caption_SkillProgressText", MyGUI::utility::toString(progressPercent) + "/100");
-        w->setUserString("RangePosition_SkillProgress", MyGUI::utility::toString(progressPercent));
+            w->setUserString("Caption_SkillProgressText", MyGUI::utility::toString(progressPercent) + "/100");
+            w->setUserString("RangePosition_SkillProgress", MyGUI::utility::toString(progressPercent));
+        }
     }
 
     void StatsWindow::setValue(ESM::RefId id, const MWMechanics::SkillValue& value)

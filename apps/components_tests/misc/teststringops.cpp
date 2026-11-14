@@ -14,22 +14,25 @@
 #include <type_traits>
 #include <utility>
 
-struct PartialBinarySearchTest : public ::testing::Test
+namespace
 {
-protected:
-    std::vector<std::string> mDataVec;
-    void SetUp() override
+    struct PartialBinarySearchTest : public ::testing::Test
     {
-        const char* data[] = { "Head", "Chest", "Tri Head", "Tri Chest", "Bip01", "Tri Bip01" };
-        mDataVec = std::vector<std::string>(data, data + sizeof(data) / sizeof(data[0]));
-        std::sort(mDataVec.begin(), mDataVec.end(), Misc::StringUtils::ciLess);
-    }
+    protected:
+        std::vector<std::string> mDataVec;
+        void SetUp() override
+        {
+            const char* data[] = { "Head", "Chest", "Tri Head", "Tri Chest", "Bip01", "Tri Bip01" };
+            mDataVec = std::vector<std::string>(data, data + sizeof(data) / sizeof(data[0]));
+            std::sort(mDataVec.begin(), mDataVec.end(), Misc::StringUtils::ciLess);
+        }
 
-    bool matches(const std::string& keyword)
-    {
-        return Misc::partialBinarySearch(mDataVec.begin(), mDataVec.end(), keyword) != mDataVec.end();
-    }
-};
+        bool matches(const std::string& keyword)
+        {
+            return Misc::partialBinarySearch(mDataVec.begin(), mDataVec.end(), keyword) != mDataVec.end();
+        }
+    };
+}
 
 TEST_F(PartialBinarySearchTest, partial_binary_search_test)
 {

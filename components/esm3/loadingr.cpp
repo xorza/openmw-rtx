@@ -49,18 +49,18 @@ namespace ESM
                 dst.mAttributes[i] = ESM::Attribute::indexToRefId(src.mAttributes[i]);
             }
         }
-    }
 
-    template <Misc::SameAsWithoutCvref<EsmIRDTstruct> T>
-    void decompose(T&& v, const auto& f)
-    {
-        f(v.mWeight, v.mValue, v.mEffectID, v.mSkills, v.mAttributes);
-    }
+        template <Misc::SameAsWithoutCvref<EsmIRDTstruct> T>
+        void decompose(T&& v, const auto& f)
+        {
+            f(v.mWeight, v.mValue, v.mEffectID, v.mSkills, v.mAttributes);
+        }
 
-    template <Misc::SameAsWithoutCvref<ValueAndWeight> T>
-    void decompose(T&& v, const auto& f)
-    {
-        f(v.mWeight, v.mValue);
+        template <Misc::SameAsWithoutCvref<ValueAndWeight> T>
+        void decompose(T&& v, const auto& f)
+        {
+            f(v.mWeight, v.mValue);
+        }
     }
 
     void Ingredient::load(ESMReader& esm, bool& isDeleted)

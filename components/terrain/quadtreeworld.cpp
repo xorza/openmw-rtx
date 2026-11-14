@@ -31,68 +31,73 @@ namespace
             ++targetlevel;
         return targetlevel;
     }
-
 }
 
 namespace Terrain
 {
 
-    class DefaultLodCallback : public LodCallback
+    namespace
     {
-    public:
-        DefaultLodCallback(float factor, float minSize, float viewDistance, const osg::Vec4i& grid, int cellSizeInUnits,
-            float distanceModifier = 0.f)
-            : mFactor(factor)
-            , mMinSize(minSize)
-            , mViewDistance(viewDistance)
-            , mActiveGrid(grid)
-            , mDistanceModifier(distanceModifier)
-            , mCellSizeInUnits(cellSizeInUnits)
+        class DefaultLodCallback : public LodCallback
         {
-        }
-
-        ReturnValue isSufficientDetail(QuadTreeNode* node, float dist) override
-        {
-            const osg::Vec2f& center = node->getCenter();
-            bool activeGrid = (center.x() > mActiveGrid.x() && center.y() > mActiveGrid.y()
-                && center.x() < mActiveGrid.z() && center.y() < mActiveGrid.w());
-
-            if (node->getSize() > 1)
+        public:
+            DefaultLodCallback(float factor, float minSize, float viewDistance, const osg::Vec4i& grid,
+                int cellSizeInUnits, float distanceModifier = 0.f)
+                : mFactor(factor)
+                , mMinSize(minSize)
+                , mViewDistance(viewDistance)
+                , mActiveGrid(grid)
+                , mDistanceModifier(distanceModifier)
+                , mCellSizeInUnits(cellSizeInUnits)
             {
-                float halfSize = node->getSize() / 2;
-                osg::Vec4i nodeBounds(static_cast<int>(center.x() - halfSize), static_cast<int>(center.y() - halfSize),
-                    static_cast<int>(center.x() + halfSize), static_cast<int>(center.y() + halfSize));
-                bool intersects = (std::max(nodeBounds.x(), mActiveGrid.x()) < std::min(nodeBounds.z(), mActiveGrid.z())
-                    && std::max(nodeBounds.y(), mActiveGrid.y()) < std::min(nodeBounds.w(), mActiveGrid.w()));
-                // to prevent making chunks who will cross the activegrid border
-                if (intersects)
-                    return Deeper;
             }
-            dist = std::max(0.f, dist + mDistanceModifier);
-            if (dist > mViewDistance && !activeGrid) // for Scene<->ObjectPaging sync the activegrid must remain loaded
-                return StopTraversal;
-            return getNativeLodLevel(node, mMinSize)
-                    <= convertDistanceToLodLevel(dist, mMinSize, mFactor, mCellSizeInUnits)
-                ? StopTraversalAndUse
-                : Deeper;
-        }
-        static unsigned int getNativeLodLevel(const QuadTreeNode* node, float minSize)
-        {
-            return Log2(static_cast<unsigned int>(node->getSize() / minSize));
-        }
-        static unsigned int convertDistanceToLodLevel(float dist, float minSize, float factor, int cellSize)
-        {
-            return Log2(static_cast<unsigned int>(dist / (cellSize * minSize * factor)));
-        }
 
-    private:
-        float mFactor;
-        float mMinSize;
-        float mViewDistance;
-        osg::Vec4i mActiveGrid;
-        float mDistanceModifier;
-        int mCellSizeInUnits;
-    };
+            ReturnValue isSufficientDetail(QuadTreeNode* node, float dist) override
+            {
+                const osg::Vec2f& center = node->getCenter();
+                bool activeGrid = (center.x() > mActiveGrid.x() && center.y() > mActiveGrid.y()
+                    && center.x() < mActiveGrid.z() && center.y() < mActiveGrid.w());
+
+                if (node->getSize() > 1)
+                {
+                    float halfSize = node->getSize() / 2;
+                    osg::Vec4i nodeBounds(static_cast<int>(center.x() - halfSize),
+                        static_cast<int>(center.y() - halfSize), static_cast<int>(center.x() + halfSize),
+                        static_cast<int>(center.y() + halfSize));
+                    bool intersects
+                        = (std::max(nodeBounds.x(), mActiveGrid.x()) < std::min(nodeBounds.z(), mActiveGrid.z())
+                            && std::max(nodeBounds.y(), mActiveGrid.y()) < std::min(nodeBounds.w(), mActiveGrid.w()));
+                    // to prevent making chunks who will cross the activegrid border
+                    if (intersects)
+                        return Deeper;
+                }
+                dist = std::max(0.f, dist + mDistanceModifier);
+                if (dist > mViewDistance
+                    && !activeGrid) // for Scene<->ObjectPaging sync the activegrid must remain loaded
+                    return StopTraversal;
+                return getNativeLodLevel(node, mMinSize)
+                        <= convertDistanceToLodLevel(dist, mMinSize, mFactor, mCellSizeInUnits)
+                    ? StopTraversalAndUse
+                    : Deeper;
+            }
+            static unsigned int getNativeLodLevel(const QuadTreeNode* node, float minSize)
+            {
+                return Log2(static_cast<unsigned int>(node->getSize() / minSize));
+            }
+            static unsigned int convertDistanceToLodLevel(float dist, float minSize, float factor, int cellSize)
+            {
+                return Log2(static_cast<unsigned int>(dist / (cellSize * minSize * factor)));
+            }
+
+        private:
+            float mFactor;
+            float mMinSize;
+            float mViewDistance;
+            osg::Vec4i mActiveGrid;
+            float mDistanceModifier;
+            int mCellSizeInUnits;
+        };
+    }
 
     class RootNode : public QuadTreeNode
     {
@@ -118,136 +123,140 @@ namespace Terrain
         QuadTreeWorld* mWorld;
     };
 
-    class QuadTreeBuilder
+    namespace
     {
-    public:
-        QuadTreeBuilder(Terrain::Storage* storage, float minSize, ESM::RefId worldspace)
-            : mStorage(storage)
-            , mMinX(0.f)
-            , mMaxX(0.f)
-            , mMinY(0.f)
-            , mMaxY(0.f)
-            , mMinSize(minSize)
-            , mWorldspace(worldspace)
+        class QuadTreeBuilder
         {
-        }
-
-        void build()
-        {
-            mStorage->getBounds(mMinX, mMaxX, mMinY, mMaxY, mWorldspace);
-
-            int origSizeX = static_cast<int>(mMaxX - mMinX);
-            int origSizeY = static_cast<int>(mMaxY - mMinY);
-
-            // Dividing a quad tree only works well for powers of two, so round up to the nearest one
-            int size = Misc::nextPowerOfTwo(std::max(origSizeX, origSizeY));
-
-            float centerX = (mMinX + mMaxX) / 2.f + (size - origSizeX) / 2.f;
-            float centerY = (mMinY + mMaxY) / 2.f + (size - origSizeY) / 2.f;
-
-            mRootNode = new RootNode(static_cast<float>(size), osg::Vec2f(centerX, centerY));
-            addChildren(mRootNode);
-
-            mRootNode->initNeighbours();
-            float cellWorldSize = mStorage->getCellWorldSize(mWorldspace);
-            mRootNode->setInitialBound(
-                osg::BoundingSphere(osg::BoundingBox(osg::Vec3(mMinX * cellWorldSize, mMinY * cellWorldSize, 0),
-                    osg::Vec3(mMaxX * cellWorldSize, mMaxY * cellWorldSize, 0))));
-        }
-
-        void addChildren(QuadTreeNode* parent)
-        {
-            float halfSize = parent->getSize() / 2.f;
-            osg::BoundingBox boundingBox;
-            for (unsigned int i = 0; i < 4; ++i)
+        public:
+            QuadTreeBuilder(Terrain::Storage* storage, float minSize, ESM::RefId worldspace)
+                : mStorage(storage)
+                , mMinX(0.f)
+                , mMaxX(0.f)
+                , mMinY(0.f)
+                , mMaxY(0.f)
+                , mMinSize(minSize)
+                , mWorldspace(worldspace)
             {
-                osg::ref_ptr<QuadTreeNode> child = addChild(parent, static_cast<ChildDirection>(i), halfSize);
-                if (child)
+            }
+
+            void build()
+            {
+                mStorage->getBounds(mMinX, mMaxX, mMinY, mMaxY, mWorldspace);
+
+                int origSizeX = static_cast<int>(mMaxX - mMinX);
+                int origSizeY = static_cast<int>(mMaxY - mMinY);
+
+                // Dividing a quad tree only works well for powers of two, so round up to the nearest one
+                int size = Misc::nextPowerOfTwo(std::max(origSizeX, origSizeY));
+
+                float centerX = (mMinX + mMaxX) / 2.f + (size - origSizeX) / 2.f;
+                float centerY = (mMinY + mMaxY) / 2.f + (size - origSizeY) / 2.f;
+
+                mRootNode = new RootNode(static_cast<float>(size), osg::Vec2f(centerX, centerY));
+                addChildren(mRootNode);
+
+                mRootNode->initNeighbours();
+                float cellWorldSize = mStorage->getCellWorldSize(mWorldspace);
+                mRootNode->setInitialBound(
+                    osg::BoundingSphere(osg::BoundingBox(osg::Vec3(mMinX * cellWorldSize, mMinY * cellWorldSize, 0),
+                        osg::Vec3(mMaxX * cellWorldSize, mMaxY * cellWorldSize, 0))));
+            }
+
+            void addChildren(QuadTreeNode* parent)
+            {
+                float halfSize = parent->getSize() / 2.f;
+                osg::BoundingBox boundingBox;
+                for (unsigned int i = 0; i < 4; ++i)
                 {
-                    boundingBox.expandBy(child->getBoundingBox());
-                    parent->addChildNode(child);
+                    osg::ref_ptr<QuadTreeNode> child = addChild(parent, static_cast<ChildDirection>(i), halfSize);
+                    if (child)
+                    {
+                        boundingBox.expandBy(child->getBoundingBox());
+                        parent->addChildNode(child);
+                    }
+                }
+
+                if (!boundingBox.valid())
+                    parent->removeChildren(0, 4);
+                else
+                    parent->setBoundingBox(boundingBox);
+            }
+
+            osg::ref_ptr<QuadTreeNode> addChild(QuadTreeNode* parent, ChildDirection direction, float size)
+            {
+                float halfSize = size / 2.f;
+                osg::Vec2f center;
+                switch (direction)
+                {
+                    case SW:
+                        center = parent->getCenter() + osg::Vec2f(-halfSize, -halfSize);
+                        break;
+                    case SE:
+                        center = parent->getCenter() + osg::Vec2f(halfSize, -halfSize);
+                        break;
+                    case NW:
+                        center = parent->getCenter() + osg::Vec2f(-halfSize, halfSize);
+                        break;
+                    case NE:
+                        center = parent->getCenter() + osg::Vec2f(halfSize, halfSize);
+                        break;
+                    default:
+                        break;
+                }
+
+                osg::ref_ptr<QuadTreeNode> node = new QuadTreeNode(parent, direction, size, center);
+
+                if (center.x() - halfSize > mMaxX || center.x() + halfSize < mMinX || center.y() - halfSize > mMaxY
+                    || center.y() + halfSize < mMinY)
+                // Out of bounds of the actual terrain - this will happen because
+                // we rounded the size up to the next power of two
+                {
+                    // Still create and return an empty node so as to not break the assumption that each QuadTreeNode
+                    // has either 4 or 0 children.
+                    return node;
+                }
+
+                // Do not add child nodes for default cells without data.
+                // size = 1 means that the single shape covers the whole cell.
+                if (node->getSize() == 1
+                    && !mStorage->hasData(ESM::ExteriorCellLocation(
+                        static_cast<int>(center.x() - 0.5f), static_cast<int>(center.y() - 0.5f), mWorldspace)))
+                    return node;
+
+                if (node->getSize() <= mMinSize)
+                {
+                    // We arrived at a leaf.
+                    // Since the tree is used for LOD level selection instead of culling, we do not need to load the
+                    // actual height data here.
+                    constexpr float minZ = -std::numeric_limits<float>::max();
+                    constexpr float maxZ = std::numeric_limits<float>::max();
+                    float cellWorldSize = mStorage->getCellWorldSize(mWorldspace);
+                    osg::BoundingBox boundingBox(osg::Vec3f((center.x() - halfSize) * cellWorldSize,
+                                                     (center.y() - halfSize) * cellWorldSize, minZ),
+                        osg::Vec3f(
+                            (center.x() + halfSize) * cellWorldSize, (center.y() + halfSize) * cellWorldSize, maxZ));
+                    node->setBoundingBox(boundingBox);
+                    return node;
+                }
+                else
+                {
+                    addChildren(node);
+                    return node;
                 }
             }
 
-            if (!boundingBox.valid())
-                parent->removeChildren(0, 4);
-            else
-                parent->setBoundingBox(boundingBox);
-        }
+            osg::ref_ptr<RootNode> getRootNode() { return mRootNode; }
 
-        osg::ref_ptr<QuadTreeNode> addChild(QuadTreeNode* parent, ChildDirection direction, float size)
-        {
-            float halfSize = size / 2.f;
-            osg::Vec2f center;
-            switch (direction)
-            {
-                case SW:
-                    center = parent->getCenter() + osg::Vec2f(-halfSize, -halfSize);
-                    break;
-                case SE:
-                    center = parent->getCenter() + osg::Vec2f(halfSize, -halfSize);
-                    break;
-                case NW:
-                    center = parent->getCenter() + osg::Vec2f(-halfSize, halfSize);
-                    break;
-                case NE:
-                    center = parent->getCenter() + osg::Vec2f(halfSize, halfSize);
-                    break;
-                default:
-                    break;
-            }
+        private:
+            Terrain::Storage* mStorage;
 
-            osg::ref_ptr<QuadTreeNode> node = new QuadTreeNode(parent, direction, size, center);
+            float mMinX, mMaxX, mMinY, mMaxY;
+            float mMinSize;
 
-            if (center.x() - halfSize > mMaxX || center.x() + halfSize < mMinX || center.y() - halfSize > mMaxY
-                || center.y() + halfSize < mMinY)
-            // Out of bounds of the actual terrain - this will happen because
-            // we rounded the size up to the next power of two
-            {
-                // Still create and return an empty node so as to not break the assumption that each QuadTreeNode has
-                // either 4 or 0 children.
-                return node;
-            }
-
-            // Do not add child nodes for default cells without data.
-            // size = 1 means that the single shape covers the whole cell.
-            if (node->getSize() == 1
-                && !mStorage->hasData(ESM::ExteriorCellLocation(
-                    static_cast<int>(center.x() - 0.5f), static_cast<int>(center.y() - 0.5f), mWorldspace)))
-                return node;
-
-            if (node->getSize() <= mMinSize)
-            {
-                // We arrived at a leaf.
-                // Since the tree is used for LOD level selection instead of culling, we do not need to load the actual
-                // height data here.
-                constexpr float minZ = -std::numeric_limits<float>::max();
-                constexpr float maxZ = std::numeric_limits<float>::max();
-                float cellWorldSize = mStorage->getCellWorldSize(mWorldspace);
-                osg::BoundingBox boundingBox(
-                    osg::Vec3f((center.x() - halfSize) * cellWorldSize, (center.y() - halfSize) * cellWorldSize, minZ),
-                    osg::Vec3f((center.x() + halfSize) * cellWorldSize, (center.y() + halfSize) * cellWorldSize, maxZ));
-                node->setBoundingBox(boundingBox);
-                return node;
-            }
-            else
-            {
-                addChildren(node);
-                return node;
-            }
-        }
-
-        osg::ref_ptr<RootNode> getRootNode() { return mRootNode; }
-
-    private:
-        Terrain::Storage* mStorage;
-
-        float mMinX, mMaxX, mMinY, mMaxY;
-        float mMinSize;
-
-        osg::ref_ptr<RootNode> mRootNode;
-        ESM::RefId mWorldspace;
-    };
+            osg::ref_ptr<RootNode> mRootNode;
+            ESM::RefId mWorldspace;
+        };
+    }
 
     class DebugChunkManager : public QuadTreeWorld::ChunkManager
     {
@@ -309,59 +318,62 @@ namespace Terrain
 
     QuadTreeWorld::~QuadTreeWorld() {}
 
-    /// get the level of vertex detail to render this node at, expressed relative to the native resolution of the vertex
-    /// data set, NOT relative to mMinSize as is the case with node LODs.
-    unsigned int getVertexLod(QuadTreeNode* node, int vertexLodMod)
+    namespace
     {
-        unsigned int vertexLod = DefaultLodCallback::getNativeLodLevel(node, 1);
-        if (vertexLodMod > 0)
+        /// get the level of vertex detail to render this node at, expressed relative to the native resolution of the
+        /// vertex data set, NOT relative to mMinSize as is the case with node LODs.
+        unsigned int getVertexLod(QuadTreeNode* node, int vertexLodMod)
         {
-            vertexLod = static_cast<unsigned int>(std::max(0, static_cast<int>(vertexLod) - vertexLodMod));
-        }
-        else if (vertexLodMod < 0)
-        {
-            float size = node->getSize();
-            // Stop to simplify at this level since with size = 1 the node already covers the whole cell and has
-            // getCellVertices() vertices.
-            while (size < 1)
+            unsigned int vertexLod = DefaultLodCallback::getNativeLodLevel(node, 1);
+            if (vertexLodMod > 0)
             {
-                size *= 2;
-                vertexLodMod = std::min(0, vertexLodMod + 1);
+                vertexLod = static_cast<unsigned int>(std::max(0, static_cast<int>(vertexLod) - vertexLodMod));
             }
-            vertexLod += std::abs(vertexLodMod);
-        }
-        return vertexLod;
-    }
-
-    /// get the flags to use for stitching in the index buffer so that chunks of different LOD connect seamlessly
-    unsigned int getLodFlags(QuadTreeNode* node, unsigned int ourVertexLod, int vertexLodMod, const ViewData* vd)
-    {
-        unsigned int lodFlags = 0;
-        for (unsigned int i = 0; i < 4; ++i)
-        {
-            QuadTreeNode* neighbour = node->getNeighbour(static_cast<Direction>(i));
-
-            // If the neighbour isn't currently rendering itself,
-            // go up until we find one. NOTE: We don't need to go down,
-            // because in that case neighbour's detail would be higher than
-            // our detail and the neighbour would handle stitching by itself.
-            while (neighbour && !vd->contains(neighbour))
-                neighbour = neighbour->getParent();
-            unsigned int lod = 0;
-            if (neighbour)
-                lod = getVertexLod(neighbour, vertexLodMod);
-
-            if (lod <= ourVertexLod) // We only need to worry about neighbours less detailed than we are -
-                lod = 0; // neighbours with more detail will do the stitching themselves
-            // Use 4 bits for each LOD delta
-            if (lod > 0)
+            else if (vertexLodMod < 0)
             {
-                lodFlags |= (lod - ourVertexLod) << (4 * i);
+                float size = node->getSize();
+                // Stop to simplify at this level since with size = 1 the node already covers the whole cell and has
+                // getCellVertices() vertices.
+                while (size < 1)
+                {
+                    size *= 2;
+                    vertexLodMod = std::min(0, vertexLodMod + 1);
+                }
+                vertexLod += std::abs(vertexLodMod);
             }
+            return vertexLod;
         }
-        // Use the remaining bits for our vertex LOD
-        lodFlags |= (ourVertexLod << (4 * 4));
-        return lodFlags;
+
+        /// get the flags to use for stitching in the index buffer so that chunks of different LOD connect seamlessly
+        unsigned int getLodFlags(QuadTreeNode* node, unsigned int ourVertexLod, int vertexLodMod, const ViewData* vd)
+        {
+            unsigned int lodFlags = 0;
+            for (unsigned int i = 0; i < 4; ++i)
+            {
+                QuadTreeNode* neighbour = node->getNeighbour(static_cast<Direction>(i));
+
+                // If the neighbour isn't currently rendering itself,
+                // go up until we find one. NOTE: We don't need to go down,
+                // because in that case neighbour's detail would be higher than
+                // our detail and the neighbour would handle stitching by itself.
+                while (neighbour && !vd->contains(neighbour))
+                    neighbour = neighbour->getParent();
+                unsigned int lod = 0;
+                if (neighbour)
+                    lod = getVertexLod(neighbour, vertexLodMod);
+
+                if (lod <= ourVertexLod) // We only need to worry about neighbours less detailed than we are -
+                    lod = 0; // neighbours with more detail will do the stitching themselves
+                // Use 4 bits for each LOD delta
+                if (lod > 0)
+                {
+                    lodFlags |= (lod - ourVertexLod) << (4 * i);
+                }
+            }
+            // Use the remaining bits for our vertex LOD
+            lodFlags |= (ourVertexLod << (4 * 4));
+            return lodFlags;
+        }
     }
 
     void QuadTreeWorld::loadRenderingNode(

@@ -6,48 +6,52 @@
 namespace MyGUIPlatform
 {
 
-    /// @brief the ProxyRenderTarget allows to adjust the pixel scale and offset for a "source" render target.
-    class ProxyRenderTarget : public MyGUI::IRenderTarget
+    namespace
     {
-    public:
-        /// @param target The target to render to.
-        /// @param viewSize The size of the underlying layer node to render.
-        /// @param hoffset The horizontal rendering offset, specified as an offset from the left screen edge in range
-        /// 0-1.
-        /// @param voffset The vertical rendering offset, specified as an offset from the top screen edge in range 0-1.
-        ProxyRenderTarget(MyGUI::IRenderTarget* target, MyGUI::IntSize viewSize, float hoffset, float voffset)
-            : mTarget(target)
-            , mViewSize(viewSize)
-            , mHOffset(hoffset)
-            , mVOffset(voffset)
+        /// @brief the ProxyRenderTarget allows to adjust the pixel scale and offset for a "source" render target.
+        class ProxyRenderTarget : public MyGUI::IRenderTarget
         {
-        }
+        public:
+            /// @param target The target to render to.
+            /// @param viewSize The size of the underlying layer node to render.
+            /// @param hoffset The horizontal rendering offset, specified as an offset from the left screen edge in
+            /// range 0-1.
+            /// @param voffset The vertical rendering offset, specified as an offset from the top screen edge in range
+            /// 0-1.
+            ProxyRenderTarget(MyGUI::IRenderTarget* target, MyGUI::IntSize viewSize, float hoffset, float voffset)
+                : mTarget(target)
+                , mViewSize(viewSize)
+                , mHOffset(hoffset)
+                , mVOffset(voffset)
+            {
+            }
 
-        void begin() override { mTarget->begin(); }
+            void begin() override { mTarget->begin(); }
 
-        void end() override { mTarget->end(); }
+            void end() override { mTarget->end(); }
 
-        void doRender(MyGUI::IVertexBuffer* buffer, MyGUI::ITexture* texture, size_t count) override
-        {
-            mTarget->doRender(buffer, texture, count);
-        }
+            void doRender(MyGUI::IVertexBuffer* buffer, MyGUI::ITexture* texture, size_t count) override
+            {
+                mTarget->doRender(buffer, texture, count);
+            }
 
-        const MyGUI::RenderTargetInfo& getInfo() const override
-        {
-            mInfo = mTarget->getInfo();
-            mInfo.hOffset = mHOffset;
-            mInfo.vOffset = mVOffset;
-            mInfo.pixScaleX = 1.f / mViewSize.width;
-            mInfo.pixScaleY = 1.f / mViewSize.height;
-            return mInfo;
-        }
+            const MyGUI::RenderTargetInfo& getInfo() const override
+            {
+                mInfo = mTarget->getInfo();
+                mInfo.hOffset = mHOffset;
+                mInfo.vOffset = mVOffset;
+                mInfo.pixScaleX = 1.f / mViewSize.width;
+                mInfo.pixScaleY = 1.f / mViewSize.height;
+                return mInfo;
+            }
 
-    private:
-        MyGUI::IRenderTarget* mTarget;
-        MyGUI::IntSize mViewSize;
-        float mHOffset, mVOffset;
-        mutable MyGUI::RenderTargetInfo mInfo;
-    };
+        private:
+            MyGUI::IRenderTarget* mTarget;
+            MyGUI::IntSize mViewSize;
+            float mHOffset, mVOffset;
+            mutable MyGUI::RenderTargetInfo mInfo;
+        };
+    }
 
     MyGUI::ILayerItem* ScalingLayer::getLayerItemByPoint(int left, int top) const
     {

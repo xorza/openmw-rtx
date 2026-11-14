@@ -31,6 +31,8 @@ namespace MWLua
 {
     namespace
     {
+        using namespace MWScriptTesting;
+
         class MWLuaMWScriptBindingsTest : public testing::Test
         {
         protected:

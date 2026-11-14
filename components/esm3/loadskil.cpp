@@ -63,12 +63,12 @@ namespace ESM
             for (std::size_t i = 0; i < std::size(dst.mUseValue); ++i)
                 dst.mUseValue[i] = src.mUseValue[i];
         }
-    }
 
-    template <Misc::SameAsWithoutCvref<EsmSKDTstruct> T>
-    void decompose(T&& v, const auto& f)
-    {
-        f(v.mAttribute, v.mSpecialization, v.mUseValue);
+        template <Misc::SameAsWithoutCvref<EsmSKDTstruct> T>
+        void decompose(T&& v, const auto& f)
+        {
+            f(v.mAttribute, v.mSpecialization, v.mUseValue);
+        }
     }
 
     void Skill::load(ESMReader& esm, bool& isDeleted)

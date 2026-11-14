@@ -456,46 +456,50 @@ namespace MWRender
         osg::ref_ptr<osg::Texture2D> mCircleTex;
     };
 
-    class CameraRelativeTransformCullCallback
-        : public SceneUtil::NodeCallback<CameraRelativeTransformCullCallback, osg::Node*, osgUtil::CullVisitor*>
+    namespace
     {
-    public:
-        void operator()(osg::Node* node, osgUtil::CullVisitor* cv)
+        class CameraRelativeTransformCullCallback
+            : public SceneUtil::NodeCallback<CameraRelativeTransformCullCallback, osg::Node*, osgUtil::CullVisitor*>
         {
-            // XXX have to remove unwanted culling plane of the water reflection camera
-
-            // Remove all planes that aren't from the standard frustum
-            unsigned int numPlanes = 4;
-            if (cv->getCullingMode() & osg::CullSettings::NEAR_PLANE_CULLING)
-                ++numPlanes;
-            if (cv->getCullingMode() & osg::CullSettings::FAR_PLANE_CULLING)
-                ++numPlanes;
-
-            unsigned int mask = 0x1;
-            unsigned int resultMask = cv->getProjectionCullingStack().back().getFrustum().getResultMask();
-            for (unsigned int i = 0; i < cv->getProjectionCullingStack().back().getFrustum().getPlaneList().size(); ++i)
+        public:
+            void operator()(osg::Node* node, osgUtil::CullVisitor* cv)
             {
-                if (i >= numPlanes)
+                // XXX have to remove unwanted culling plane of the water reflection camera
+
+                // Remove all planes that aren't from the standard frustum
+                unsigned int numPlanes = 4;
+                if (cv->getCullingMode() & osg::CullSettings::NEAR_PLANE_CULLING)
+                    ++numPlanes;
+                if (cv->getCullingMode() & osg::CullSettings::FAR_PLANE_CULLING)
+                    ++numPlanes;
+
+                unsigned int mask = 0x1;
+                unsigned int resultMask = cv->getProjectionCullingStack().back().getFrustum().getResultMask();
+                for (unsigned int i = 0; i < cv->getProjectionCullingStack().back().getFrustum().getPlaneList().size();
+                    ++i)
                 {
-                    // turn off this culling plane
-                    resultMask &= (~mask);
+                    if (i >= numPlanes)
+                    {
+                        // turn off this culling plane
+                        resultMask &= (~mask);
+                    }
+
+                    mask <<= 1;
                 }
 
-                mask <<= 1;
+                cv->getProjectionCullingStack().back().getFrustum().setResultMask(resultMask);
+                cv->getCurrentCullingSet().getFrustum().setResultMask(resultMask);
+
+                cv->getProjectionCullingStack().back().pushCurrentMask();
+                cv->getCurrentCullingSet().pushCurrentMask();
+
+                traverse(node, cv);
+
+                cv->getProjectionCullingStack().back().popCurrentMask();
+                cv->getCurrentCullingSet().popCurrentMask();
             }
-
-            cv->getProjectionCullingStack().back().getFrustum().setResultMask(resultMask);
-            cv->getCurrentCullingSet().getFrustum().setResultMask(resultMask);
-
-            cv->getProjectionCullingStack().back().pushCurrentMask();
-            cv->getCurrentCullingSet().pushCurrentMask();
-
-            traverse(node, cv);
-
-            cv->getProjectionCullingStack().back().popCurrentMask();
-            cv->getCurrentCullingSet().popCurrentMask();
-        }
-    };
+        };
+    }
 
     void AtmosphereUpdater::setEmissionColor(const osg::Vec4f& emissionColor)
     {
@@ -583,56 +587,59 @@ namespace MWRender
         stateset->getUniform("diffuseColor")->set(mEmissionColor);
     }
 
-    class SkyStereoStatesetUpdater : public SceneUtil::StateSetUpdater
+    namespace
     {
-    public:
-        SkyStereoStatesetUpdater() {}
-
-    protected:
-        void setDefaults(osg::StateSet* stateset) override
+        class SkyStereoStatesetUpdater : public SceneUtil::StateSetUpdater
         {
-            if (!Stereo::getMultiview())
-                stateset->addUniform(
-                    new osg::Uniform(osg::Uniform::FLOAT_MAT4, "projectionMatrix"), osg::StateAttribute::OVERRIDE);
-        }
+        public:
+            SkyStereoStatesetUpdater() {}
 
-        void apply(osg::StateSet* stateset, osg::NodeVisitor* /*nv*/) override
-        {
-            if (Stereo::getMultiview())
+        protected:
+            void setDefaults(osg::StateSet* stateset) override
             {
-                std::array<osg::Matrix, 2> projectionMatrices;
-                auto& sm = Stereo::Manager::instance();
-
-                for (int view : { 0, 1 })
-                {
-                    auto projectionMatrix = sm.computeEyeProjection(view, SceneUtil::AutoDepth::isReversed());
-                    auto viewOffsetMatrix = sm.computeEyeViewOffset(view);
-                    for (int col : { 0, 1, 2 })
-                        viewOffsetMatrix(3, col) = 0;
-
-                    projectionMatrices[view] = viewOffsetMatrix * projectionMatrix;
-                }
-
-                Stereo::setMultiviewMatrices(stateset, projectionMatrices);
+                if (!Stereo::getMultiview())
+                    stateset->addUniform(
+                        new osg::Uniform(osg::Uniform::FLOAT_MAT4, "projectionMatrix"), osg::StateAttribute::OVERRIDE);
             }
-        }
-        void applyLeft(osg::StateSet* stateset, osgUtil::CullVisitor* /*cv*/) override
-        {
-            auto& sm = Stereo::Manager::instance();
-            auto* projectionMatrixUniform = stateset->getUniform("projectionMatrix");
-            auto projectionMatrix = sm.computeEyeProjection(0, SceneUtil::AutoDepth::isReversed());
-            projectionMatrixUniform->set(projectionMatrix);
-        }
-        void applyRight(osg::StateSet* stateset, osgUtil::CullVisitor* /*cv*/) override
-        {
-            auto& sm = Stereo::Manager::instance();
-            auto* projectionMatrixUniform = stateset->getUniform("projectionMatrix");
-            auto projectionMatrix = sm.computeEyeProjection(1, SceneUtil::AutoDepth::isReversed());
-            projectionMatrixUniform->set(projectionMatrix);
-        }
 
-    private:
-    };
+            void apply(osg::StateSet* stateset, osg::NodeVisitor* /*nv*/) override
+            {
+                if (Stereo::getMultiview())
+                {
+                    std::array<osg::Matrix, 2> projectionMatrices;
+                    auto& sm = Stereo::Manager::instance();
+
+                    for (int view : { 0, 1 })
+                    {
+                        auto projectionMatrix = sm.computeEyeProjection(view, SceneUtil::AutoDepth::isReversed());
+                        auto viewOffsetMatrix = sm.computeEyeViewOffset(view);
+                        for (int col : { 0, 1, 2 })
+                            viewOffsetMatrix(3, col) = 0;
+
+                        projectionMatrices[view] = viewOffsetMatrix * projectionMatrix;
+                    }
+
+                    Stereo::setMultiviewMatrices(stateset, projectionMatrices);
+                }
+            }
+            void applyLeft(osg::StateSet* stateset, osgUtil::CullVisitor* /*cv*/) override
+            {
+                auto& sm = Stereo::Manager::instance();
+                auto* projectionMatrixUniform = stateset->getUniform("projectionMatrix");
+                auto projectionMatrix = sm.computeEyeProjection(0, SceneUtil::AutoDepth::isReversed());
+                projectionMatrixUniform->set(projectionMatrix);
+            }
+            void applyRight(osg::StateSet* stateset, osgUtil::CullVisitor* /*cv*/) override
+            {
+                auto& sm = Stereo::Manager::instance();
+                auto* projectionMatrixUniform = stateset->getUniform("projectionMatrix");
+                auto projectionMatrix = sm.computeEyeProjection(1, SceneUtil::AutoDepth::isReversed());
+                projectionMatrixUniform->set(projectionMatrix);
+            }
+
+        private:
+        };
+    }
 
     CameraRelativeTransform::CameraRelativeTransform()
     {

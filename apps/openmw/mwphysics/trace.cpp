@@ -12,29 +12,32 @@
 namespace MWPhysics
 {
 
-    ActorConvexCallback sweepHelper(const btCollisionObject* actor, const btVector3& from, const btVector3& to,
-        const btCollisionWorld* world, bool actorFilter)
+    namespace
     {
-        const btTransform& trans = actor->getWorldTransform();
-        btTransform transFrom(trans);
-        btTransform transTo(trans);
-        transFrom.setOrigin(from);
-        transTo.setOrigin(to);
+        ActorConvexCallback sweepHelper(const btCollisionObject* actor, const btVector3& from, const btVector3& to,
+            const btCollisionWorld* world, bool actorFilter)
+        {
+            const btTransform& trans = actor->getWorldTransform();
+            btTransform transFrom(trans);
+            btTransform transTo(trans);
+            transFrom.setOrigin(from);
+            transTo.setOrigin(to);
 
-        const btCollisionShape* shape = actor->getCollisionShape();
-        assert(shape->isConvex());
+            const btCollisionShape* shape = actor->getCollisionShape();
+            assert(shape->isConvex());
 
-        const btVector3 motion
-            = from - to; // FIXME: this is backwards; means ActorConvexCallback is doing dot product tests backwards too
-        ActorConvexCallback traceCallback(actor, motion, static_cast<btScalar>(0.0), world);
-        // Inherit the actor's collision group and mask
-        traceCallback.m_collisionFilterGroup = actor->getBroadphaseHandle()->m_collisionFilterGroup;
-        traceCallback.m_collisionFilterMask = actor->getBroadphaseHandle()->m_collisionFilterMask;
-        if (actorFilter)
-            traceCallback.m_collisionFilterMask &= ~CollisionType_Actor;
+            const btVector3 motion = from
+                - to; // FIXME: this is backwards; means ActorConvexCallback is doing dot product tests backwards too
+            ActorConvexCallback traceCallback(actor, motion, static_cast<btScalar>(0.0), world);
+            // Inherit the actor's collision group and mask
+            traceCallback.m_collisionFilterGroup = actor->getBroadphaseHandle()->m_collisionFilterGroup;
+            traceCallback.m_collisionFilterMask = actor->getBroadphaseHandle()->m_collisionFilterMask;
+            if (actorFilter)
+                traceCallback.m_collisionFilterMask &= ~CollisionType_Actor;
 
-        world->convexSweepTest(static_cast<const btConvexShape*>(shape), transFrom, transTo, traceCallback);
-        return traceCallback;
+            world->convexSweepTest(static_cast<const btConvexShape*>(shape), transFrom, transTo, traceCallback);
+            return traceCallback;
+        }
     }
 
     void ActorTracer::doTrace(const btCollisionObject* actor, const osg::Vec3f& start, const osg::Vec3f& end,

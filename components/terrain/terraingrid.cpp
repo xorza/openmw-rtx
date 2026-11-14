@@ -16,13 +16,16 @@
 namespace Terrain
 {
 
-    class MyView : public View
+    namespace
     {
-    public:
-        osg::ref_ptr<osg::Node> mLoaded;
+        class MyView : public View
+        {
+        public:
+            osg::ref_ptr<osg::Node> mLoaded;
 
-        void reset() override {}
-    };
+            void reset() override {}
+        };
+    }
 
     TerrainGrid::TerrainGrid(osg::Group* parent, osg::Group* compileRoot, Resource::ResourceSystem* resourceSystem,
         Storage* storage, unsigned int nodeMask, ESM::RefId worldspace, double expiryDelay, unsigned int preCompileMask,

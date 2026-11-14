@@ -292,17 +292,20 @@ namespace MWRender
             segment.initFogOfWar();
     }
 
-    static osg::Vec2f getNorthVector(const MWWorld::CellStore* cell)
+    namespace
     {
-        MWWorld::ConstPtr northmarker = cell->searchConst(ESM::RefId::stringRefId("northmarker"));
+        osg::Vec2f getNorthVector(const MWWorld::CellStore* cell)
+        {
+            MWWorld::ConstPtr northmarker = cell->searchConst(ESM::RefId::stringRefId("northmarker"));
 
-        if (northmarker.isEmpty())
-            return osg::Vec2f(0, 1);
+            if (northmarker.isEmpty())
+                return osg::Vec2f(0, 1);
 
-        osg::Quat orient(-northmarker.getRefData().getPosition().rot[2], osg::Vec3f(0, 0, 1));
-        osg::Vec3f dir = orient * osg::Vec3f(0, 1, 0);
-        osg::Vec2f d(dir.x(), dir.y());
-        return d;
+            osg::Quat orient(-northmarker.getRefData().getPosition().rot[2], osg::Vec3f(0, 0, 1));
+            osg::Vec3f dir = orient * osg::Vec3f(0, 1, 0);
+            osg::Vec2f d(dir.x(), dir.y());
+            return d;
+        }
     }
 
     void LocalMap::requestInteriorMap(const MWWorld::CellStore* cell)

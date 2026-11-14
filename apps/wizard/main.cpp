@@ -11,33 +11,36 @@
 
 #include "mainwizard.hpp"
 
-int runWizard(int argc, char* argv[])
+namespace
 {
-    boost::program_options::variables_map variables;
-    boost::program_options::options_description description;
-    Files::ConfigurationManager configurationManager;
-    configurationManager.addCommonOptions(description);
-    configurationManager.readConfiguration(variables, description, true);
-
-    Debug::setupLogging(configurationManager.getLogPath(), "Wizard");
-
-    Platform::Application app(argc, argv, Platform::Look::Graphite);
-
-    // Now we make sure the current dir is set to application path
-    QDir dir(QCoreApplication::applicationDirPath());
-
-    QString resourcesPath(".");
-    if (!variables["resources"].empty())
+    int runWizard(int argc, char* argv[])
     {
-        resourcesPath = Files::pathToQString(variables["resources"].as<Files::MaybeQuotedPath>().u8string());
+        boost::program_options::variables_map variables;
+        boost::program_options::options_description description;
+        Files::ConfigurationManager configurationManager;
+        configurationManager.addCommonOptions(description);
+        configurationManager.readConfiguration(variables, description, true);
+
+        Debug::setupLogging(configurationManager.getLogPath(), "Wizard");
+
+        Platform::Application app(argc, argv, Platform::Look::Graphite);
+
+        // Now we make sure the current dir is set to application path
+        QDir dir(QCoreApplication::applicationDirPath());
+
+        QString resourcesPath(".");
+        if (!variables["resources"].empty())
+        {
+            resourcesPath = Files::pathToQString(variables["resources"].as<Files::MaybeQuotedPath>().u8string());
+        }
+
+        L10n::installQtTranslations(app, "wizard", resourcesPath);
+
+        Wizard::MainWizard wizard(std::move(configurationManager));
+
+        wizard.show();
+        return app.exec();
     }
-
-    L10n::installQtTranslations(app, "wizard", resourcesPath);
-
-    Wizard::MainWizard wizard(std::move(configurationManager));
-
-    wizard.show();
-    return app.exec();
 }
 
 int main(int argc, char* argv[])

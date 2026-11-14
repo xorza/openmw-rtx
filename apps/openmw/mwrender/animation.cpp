@@ -1453,59 +1453,83 @@ namespace MWRender
             state->second.mLoopingEnabled = enabled;
     }
 
-    void loadBonesFromFile(
-        osg::ref_ptr<osg::Node>& baseNode, VFS::Path::NormalizedView model, Resource::ResourceSystem* resourceSystem)
+    namespace
     {
-        const osg::Node* node = resourceSystem->getSceneManager()->getTemplate(model).get();
-        osg::ref_ptr<osg::Node> sheathSkeleton(
-            const_cast<osg::Node*>(node)); // const-trickery required because there is no const version of NodeVisitor
-
-        GetExtendedBonesVisitor getBonesVisitor;
-        sheathSkeleton->accept(getBonesVisitor);
-        for (auto& nodePair : getBonesVisitor.mFoundBones)
+        void loadBonesFromFile(osg::ref_ptr<osg::Node>& baseNode, VFS::Path::NormalizedView model,
+            Resource::ResourceSystem* resourceSystem)
         {
-            SceneUtil::FindByNameVisitor findVisitor(nodePair.second->getName());
-            baseNode->accept(findVisitor);
+            const osg::Node* node = resourceSystem->getSceneManager()->getTemplate(model).get();
+            osg::ref_ptr<osg::Node> sheathSkeleton(const_cast<osg::Node*>(
+                node)); // const-trickery required because there is no const version of NodeVisitor
 
-            osg::Group* sheathParent = findVisitor.mFoundNode;
-            if (sheathParent)
+            GetExtendedBonesVisitor getBonesVisitor;
+            sheathSkeleton->accept(getBonesVisitor);
+            for (auto& nodePair : getBonesVisitor.mFoundBones)
             {
-                osg::Node* copy = static_cast<osg::Node*>(nodePair.first->clone(osg::CopyOp::DEEP_COPY_NODES));
-                sheathParent->addChild(copy);
+                SceneUtil::FindByNameVisitor findVisitor(nodePair.second->getName());
+                baseNode->accept(findVisitor);
+
+                osg::Group* sheathParent = findVisitor.mFoundNode;
+                if (sheathParent)
+                {
+                    osg::Node* copy = static_cast<osg::Node*>(nodePair.first->clone(osg::CopyOp::DEEP_COPY_NODES));
+                    sheathParent->addChild(copy);
+                }
             }
         }
-    }
 
-    void injectCustomBones(
-        osg::ref_ptr<osg::Node>& node, const std::string& model, Resource::ResourceSystem* resourceSystem)
-    {
-        if (model.empty())
-            return;
-
-        std::string animationPath = model;
-        if (animationPath.starts_with("meshes"))
+        void injectCustomBones(
+            osg::ref_ptr<osg::Node>& node, const std::string& model, Resource::ResourceSystem* resourceSystem)
         {
-            animationPath.replace(0, 6, "animations");
+            if (model.empty())
+                return;
+
+            std::string animationPath = model;
+            if (animationPath.starts_with("meshes"))
+            {
+                animationPath.replace(0, 6, "animations");
+            }
+            animationPath.replace(animationPath.size() - 4, 4, "/");
+
+            for (const VFS::Path::Normalized& name :
+                resourceSystem->getVFS()->getRecursiveDirectoryIterator(animationPath))
+            {
+                if (Misc::getFileExtension(name) == "nif")
+                    loadBonesFromFile(node, name, resourceSystem);
+            }
         }
-        animationPath.replace(animationPath.size() - 4, 4, "/");
 
-        for (const VFS::Path::Normalized& name : resourceSystem->getVFS()->getRecursiveDirectoryIterator(animationPath))
+        osg::ref_ptr<osg::Node> getModelInstance(Resource::ResourceSystem* resourceSystem, const std::string& model,
+            bool baseonly, bool inject, const std::string& defaultSkeleton)
         {
-            if (Misc::getFileExtension(name) == "nif")
-                loadBonesFromFile(node, name, resourceSystem);
-        }
-    }
+            Resource::SceneManager* sceneMgr = resourceSystem->getSceneManager();
+            if (baseonly)
+            {
+                typedef std::map<std::string, osg::ref_ptr<osg::Node>> Cache;
+                static Cache cache;
+                auto found = cache.find(model);
+                if (found == cache.end())
+                {
+                    osg::ref_ptr<osg::Node> created = sceneMgr->getInstance(VFS::Path::toNormalized(model));
 
-    osg::ref_ptr<osg::Node> getModelInstance(Resource::ResourceSystem* resourceSystem, const std::string& model,
-        bool baseonly, bool inject, const std::string& defaultSkeleton)
-    {
-        Resource::SceneManager* sceneMgr = resourceSystem->getSceneManager();
-        if (baseonly)
-        {
-            typedef std::map<std::string, osg::ref_ptr<osg::Node>> Cache;
-            static Cache cache;
-            auto found = cache.find(model);
-            if (found == cache.end())
+                    if (inject)
+                    {
+                        injectCustomBones(created, defaultSkeleton, resourceSystem);
+                        injectCustomBones(created, model, resourceSystem);
+                    }
+
+                    SceneUtil::CleanObjectRootVisitor removeDrawableVisitor;
+                    created->accept(removeDrawableVisitor);
+                    removeDrawableVisitor.remove();
+
+                    cache.insert(std::make_pair(model, created));
+
+                    return sceneMgr->getInstance(created);
+                }
+                else
+                    return sceneMgr->getInstance(found->second);
+            }
+            else
             {
                 osg::ref_ptr<osg::Node> created = sceneMgr->getInstance(VFS::Path::toNormalized(model));
 
@@ -1515,28 +1539,8 @@ namespace MWRender
                     injectCustomBones(created, model, resourceSystem);
                 }
 
-                SceneUtil::CleanObjectRootVisitor removeDrawableVisitor;
-                created->accept(removeDrawableVisitor);
-                removeDrawableVisitor.remove();
-
-                cache.insert(std::make_pair(model, created));
-
-                return sceneMgr->getInstance(created);
+                return created;
             }
-            else
-                return sceneMgr->getInstance(found->second);
-        }
-        else
-        {
-            osg::ref_ptr<osg::Node> created = sceneMgr->getInstance(VFS::Path::toNormalized(model));
-
-            if (inject)
-            {
-                injectCustomBones(created, defaultSkeleton, resourceSystem);
-                injectCustomBones(created, model, resourceSystem);
-            }
-
-            return created;
         }
     }
 

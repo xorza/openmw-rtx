@@ -114,9 +114,12 @@ namespace SceneUtil
 
     namespace Color
     {
-        GLenum sColorInternalFormat;
-        GLenum sColorSourceFormat;
-        GLenum sColorSourceType;
+        namespace
+        {
+            GLenum sColorInternalFormat;
+            GLenum sColorSourceFormat;
+            GLenum sColorSourceType;
+        }
 
         GLenum colorInternalFormat()
         {

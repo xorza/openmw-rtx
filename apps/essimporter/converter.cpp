@@ -17,7 +17,6 @@
 
 namespace
 {
-
     void convertCellRef(const ESSImport::CellRef& cellref, ESM::ObjectState& objstate)
     {
         objstate.mEnabled = cellref.mEnabled;
@@ -78,11 +77,14 @@ namespace
 namespace ESSImport
 {
 
-    struct MAPH
+    namespace
     {
-        uint32_t size;
-        uint32_t value;
-    };
+        struct MAPH
+        {
+            uint32_t size;
+            uint32_t value;
+        };
+    }
 
     void ConvertFMAP::read(ESM::ESMReader& esm)
     {

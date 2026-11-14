@@ -13,11 +13,14 @@
 
 namespace SceneUtil
 {
-    class CullCallback : public SceneUtil::NodeCallback<CullCallback, RTTNode*, osgUtil::CullVisitor*>
+    namespace
     {
-    public:
-        void operator()(RTTNode* node, osgUtil::CullVisitor* cv) { node->cull(cv); }
-    };
+        class CullCallback : public SceneUtil::NodeCallback<CullCallback, RTTNode*, osgUtil::CullVisitor*>
+        {
+        public:
+            void operator()(RTTNode* node, osgUtil::CullVisitor* cv) { node->cull(cv); }
+        };
+    }
 
     RTTNode::RTTNode(uint32_t textureWidth, uint32_t textureHeight, uint32_t samples, bool generateMipmaps,
         int renderOrderNum, StereoAwareness stereoAwareness, bool addMSAAIntermediateTarget)

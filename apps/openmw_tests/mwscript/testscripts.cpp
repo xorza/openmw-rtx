@@ -7,6 +7,8 @@
 
 namespace
 {
+    using namespace MWScriptTesting;
+
     struct MWScriptTest : public ::testing::Test
     {
         MWScriptTest()

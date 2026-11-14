@@ -401,25 +401,28 @@ namespace Gui
                                 << " contains multiple Resource entries, only first one will be used.";
     }
 
-    typedef struct
+    namespace
     {
-        float x;
-        float y;
-    } Point;
+        typedef struct
+        {
+            float x;
+            float y;
+        } Point;
 
-    typedef struct
-    {
-        float mUnknown; // appears unused, always 0
-        Point mTopLeft;
-        Point mTopRight;
-        Point mBottomLeft;
-        Point mBottomRight;
-        float mWidth;
-        float mHeight;
-        float mKerningLeft;
-        float mKerningRight;
-        float mAscent;
-    } GlyphInfo;
+        typedef struct
+        {
+            float mUnknown; // appears unused, always 0
+            Point mTopLeft;
+            Point mTopRight;
+            Point mBottomLeft;
+            Point mBottomRight;
+            float mWidth;
+            float mHeight;
+            float mKerningLeft;
+            float mKerningRight;
+            float mAscent;
+        } GlyphInfo;
+    }
 
     void FontLoader::loadBitmapFont(FontId fontId, const VFS::Path::Normalized& path, std::istream& stream)
     {

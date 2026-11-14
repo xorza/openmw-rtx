@@ -27,14 +27,14 @@
 
 namespace MWPhysics
 {
-    static bool isActor(const btCollisionObject* obj)
-    {
-        assert(obj);
-        return obj->getBroadphaseHandle()->m_collisionFilterGroup == CollisionType_Actor;
-    }
-
     namespace
     {
+        bool isActor(const btCollisionObject* obj)
+        {
+            assert(obj);
+            return obj->getBroadphaseHandle()->m_collisionFilterGroup == CollisionType_Actor;
+        }
+
         class ContactCollectionCallback : public btCollisionWorld::ContactResultCallback
         {
         public:
@@ -476,11 +476,14 @@ namespace MWPhysics
             = Misc::Convert::toOsg(projectile.mProjectile->isActive() ? btTo : resultCallback.m_hitPointWorld);
     }
 
-    btVector3 addMarginToDelta(btVector3 delta)
+    namespace
     {
-        if (delta.length2() == 0.0)
-            return delta;
-        return delta + delta.normalized() * sCollisionMargin;
+        btVector3 addMarginToDelta(btVector3 delta)
+        {
+            if (delta.length2() == 0.0)
+                return delta;
+            return delta + delta.normalized() * sCollisionMargin;
+        }
     }
 
     void MovementSolver::unstuck(ActorFrameData& actor, const btCollisionWorld* collisionWorld)

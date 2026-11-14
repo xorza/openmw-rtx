@@ -42,15 +42,18 @@ namespace
 
 namespace MWGui
 {
-    class ConsoleInterpreterContext : public MWScript::InterpreterContext
+    namespace
     {
-        Console& mConsole;
+        class ConsoleInterpreterContext : public MWScript::InterpreterContext
+        {
+            Console& mConsole;
 
-    public:
-        ConsoleInterpreterContext(Console& console, MWWorld::Ptr reference);
+        public:
+            ConsoleInterpreterContext(Console& console, MWWorld::Ptr reference);
 
-        void report(const std::string& message) override;
-    };
+            void report(const std::string& message) override;
+        };
+    }
 
     ConsoleInterpreterContext::ConsoleInterpreterContext(Console& console, MWWorld::Ptr reference)
         : MWScript::InterpreterContext(reference.isEmpty() ? nullptr : &reference.getRefData().getLocals(), reference)

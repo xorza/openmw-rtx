@@ -10,288 +10,298 @@
 #include <osg/Uniform>
 #include <osg/Vec3>
 
-static osg::Vec3 sphereCoordToCartesian(float theta, float phi, float r)
+namespace
 {
-    osg::Vec3 returnVec = osg::Vec3(0.0, 0.0, 0.0);
-    float phiToHorizontal = osg::PI_2f - phi;
-    returnVec.x() = std::cos(theta);
-    returnVec.y() = std::sin(theta);
-    returnVec.z() = std::sin(phiToHorizontal);
-
-    returnVec.x() *= std::cos(phiToHorizontal);
-    returnVec.y() *= std::cos(phiToHorizontal);
-    returnVec.x() *= r;
-    returnVec.z() *= r;
-
-    returnVec.y() *= r;
-    return returnVec;
-}
-
-static void generateWireCube(osg::Geometry& geom, float dim)
-{
-    osg::ref_ptr<osg::Vec3Array> vertices = new osg::Vec3Array;
-    osg::ref_ptr<osg::Vec3Array> normals = new osg::Vec3Array;
-
-    osg::Vec2i indexPos[] = { osg::Vec2i(0, 0), osg::Vec2i(1, 0), osg::Vec2i(1, 1), osg::Vec2i(0, 1) };
-
-    for (int i = 0; i < 4; i++)
+    osg::Vec3 sphereCoordToCartesian(float theta, float phi, float r)
     {
-        osg::Vec3 vert1 = osg::Vec3(indexPos[i].x() - 0.5f, indexPos[i].y() - 0.5f, 0.5f);
-        int next = (i + 1) % 4;
-        osg::Vec3 vert2 = osg::Vec3(indexPos[next].x() - 0.5f, indexPos[next].y() - 0.5f, 0.5f);
+        osg::Vec3 returnVec = osg::Vec3(0.0, 0.0, 0.0);
+        float phiToHorizontal = osg::PI_2f - phi;
+        returnVec.x() = std::cos(theta);
+        returnVec.y() = std::sin(theta);
+        returnVec.z() = std::sin(phiToHorizontal);
 
-        vertices->push_back(vert1 * dim);
-        vertices->push_back(vert2 * dim);
-        vert1.z() *= -1;
-        vert2.z() *= -1;
-        vertices->push_back(vert1 * dim);
-        vertices->push_back(vert2 * dim);
+        returnVec.x() *= std::cos(phiToHorizontal);
+        returnVec.y() *= std::cos(phiToHorizontal);
+        returnVec.x() *= r;
+        returnVec.z() *= r;
 
-        auto vert3 = vert1;
-        vert3.z() *= -1;
-        vertices->push_back(vert1 * dim);
-        vertices->push_back(vert3 * dim);
-    }
-    for (std::size_t i = 0; i < vertices->size(); i++)
-    {
-        normals->push_back(osg::Vec3(1., 1., 1.));
+        returnVec.y() *= r;
+        return returnVec;
     }
 
-    geom.setVertexArray(vertices);
-    geom.setNormalArray(normals, osg::Array::BIND_PER_VERTEX);
-    geom.addPrimitiveSet(new osg::DrawArrays(osg::PrimitiveSet::LINES, 0, static_cast<GLsizei>(vertices->size())));
-}
-
-static void generateCube(osg::Geometry& geom, float dim)
-{
-    osg::ref_ptr<osg::Vec3Array> vertices = new osg::Vec3Array;
-    osg::ref_ptr<osg::Vec3Array> normals = new osg::Vec3Array;
-    osg::ref_ptr<osg::DrawElementsUShort> indices = new osg::DrawElementsUShort(osg::DrawElementsUShort::TRIANGLES, 0);
-
-    for (GLushort iFace = 0; iFace < 6; iFace++)
+    void generateWireCube(osg::Geometry& geom, float dim)
     {
-        osg::Vec3f normale(0., 0., 0.);
-        osg::Vec3f u(0., 0., 0.);
-        osg::Vec3f v(0., 0., 0.);
-        GLushort axis = iFace / 2;
-        float floatDir = iFace % 2 == 0 ? -1.f : 1.f;
-        normale[axis] = floatDir;
-        u[(axis + 1) % 3] = 1.0;
-        v[(axis + 2) % 3] = 1.0;
+        osg::ref_ptr<osg::Vec3Array> vertices = new osg::Vec3Array;
+        osg::ref_ptr<osg::Vec3Array> normals = new osg::Vec3Array;
 
-        for (int iPoint = 0; iPoint < 4; iPoint++)
+        osg::Vec2i indexPos[] = { osg::Vec2i(0, 0), osg::Vec2i(1, 0), osg::Vec2i(1, 1), osg::Vec2i(0, 1) };
+
+        for (int i = 0; i < 4; i++)
         {
-            float iu = iPoint % 2 == 1
-                ? floatDir
-                : -floatDir; // This is to get the right triangle orientation when the normal changes*
-            float iv = iPoint / 2 == 1 ? 1.f : -1.f;
-            osg::Vec3f point = (u * iu) + (v * iv);
-            point = (point + normale);
-            point = point * (dim * 0.5f);
-            vertices->push_back(point);
-            normals->push_back(normale);
+            osg::Vec3 vert1 = osg::Vec3(indexPos[i].x() - 0.5f, indexPos[i].y() - 0.5f, 0.5f);
+            int next = (i + 1) % 4;
+            osg::Vec3 vert2 = osg::Vec3(indexPos[next].x() - 0.5f, indexPos[next].y() - 0.5f, 0.5f);
+
+            vertices->push_back(vert1 * dim);
+            vertices->push_back(vert2 * dim);
+            vert1.z() *= -1;
+            vert2.z() *= -1;
+            vertices->push_back(vert1 * dim);
+            vertices->push_back(vert2 * dim);
+
+            auto vert3 = vert1;
+            vert3.z() *= -1;
+            vertices->push_back(vert1 * dim);
+            vertices->push_back(vert3 * dim);
         }
-        GLushort startVertex(iFace * 4);
-        GLushort newFace1[]
-            = { startVertex, static_cast<GLushort>(startVertex + 1u), static_cast<GLushort>(startVertex + 2u) };
-        for (unsigned short i : newFace1)
+        for (std::size_t i = 0; i < vertices->size(); i++)
         {
-            indices->push_back(i);
+            normals->push_back(osg::Vec3(1., 1., 1.));
         }
-        GLushort newFace2[] = { static_cast<GLushort>(startVertex + 2u), static_cast<GLushort>(startVertex + 1u),
-            static_cast<GLushort>(startVertex + 3u) };
-        for (unsigned short i : newFace2)
+
+        geom.setVertexArray(vertices);
+        geom.setNormalArray(normals, osg::Array::BIND_PER_VERTEX);
+        geom.addPrimitiveSet(new osg::DrawArrays(osg::PrimitiveSet::LINES, 0, static_cast<GLsizei>(vertices->size())));
+    }
+
+    void generateCube(osg::Geometry& geom, float dim)
+    {
+        osg::ref_ptr<osg::Vec3Array> vertices = new osg::Vec3Array;
+        osg::ref_ptr<osg::Vec3Array> normals = new osg::Vec3Array;
+        osg::ref_ptr<osg::DrawElementsUShort> indices
+            = new osg::DrawElementsUShort(osg::DrawElementsUShort::TRIANGLES, 0);
+
+        for (GLushort iFace = 0; iFace < 6; iFace++)
         {
-            indices->push_back(i);
+            osg::Vec3f normale(0., 0., 0.);
+            osg::Vec3f u(0., 0., 0.);
+            osg::Vec3f v(0., 0., 0.);
+            GLushort axis = iFace / 2;
+            float floatDir = iFace % 2 == 0 ? -1.f : 1.f;
+            normale[axis] = floatDir;
+            u[(axis + 1) % 3] = 1.0;
+            v[(axis + 2) % 3] = 1.0;
+
+            for (int iPoint = 0; iPoint < 4; iPoint++)
+            {
+                float iu = iPoint % 2 == 1
+                    ? floatDir
+                    : -floatDir; // This is to get the right triangle orientation when the normal changes*
+                float iv = iPoint / 2 == 1 ? 1.f : -1.f;
+                osg::Vec3f point = (u * iu) + (v * iv);
+                point = (point + normale);
+                point = point * (dim * 0.5f);
+                vertices->push_back(point);
+                normals->push_back(normale);
+            }
+            GLushort startVertex(iFace * 4);
+            GLushort newFace1[]
+                = { startVertex, static_cast<GLushort>(startVertex + 1u), static_cast<GLushort>(startVertex + 2u) };
+            for (unsigned short i : newFace1)
+            {
+                indices->push_back(i);
+            }
+            GLushort newFace2[] = { static_cast<GLushort>(startVertex + 2u), static_cast<GLushort>(startVertex + 1u),
+                static_cast<GLushort>(startVertex + 3u) };
+            for (unsigned short i : newFace2)
+            {
+                indices->push_back(i);
+            }
         }
-    }
-    geom.setVertexArray(vertices);
-    geom.setNormalArray(normals, osg::Array::BIND_PER_VERTEX);
-    geom.addPrimitiveSet(indices);
-}
-
-static void generateCylinder(osg::Geometry& geom, float radius, float height, int subdiv)
-{
-    osg::ref_ptr<osg::Vec3Array> vertices = new osg::Vec3Array;
-    osg::ref_ptr<osg::Vec3Array> normals = new osg::Vec3Array;
-    osg::ref_ptr<osg::DrawElementsUShort> indices = new osg::DrawElementsUShort(osg::DrawElementsUShort::TRIANGLES, 0);
-    int vertexCount = subdiv * 4 + 2; // 2 discs + top and bottom + 2 center
-    indices->reserve(vertexCount);
-    int iVertex = 0;
-
-    int beginTop = iVertex;
-    auto topNormal = osg::Vec3(0., 0., 1.);
-    // top disk
-    for (int i = 0; i < subdiv; i++)
-    {
-        float theta = (static_cast<float>(i) / static_cast<float>(subdiv)) * osg::PIf * 2.f;
-        osg::Vec3 pos = sphereCoordToCartesian(theta, osg::PI_2f, 1.f);
-        pos *= radius;
-        pos.z() = height / 2.f;
-        vertices->push_back(pos);
-        normals->push_back(topNormal);
-        iVertex += 1;
-    }
-    auto centerTop = static_cast<GLushort>(iVertex);
-    // centerTop
-    {
-        vertices->push_back(osg::Vec3(0.f, 0.f, height / 2.f));
-        normals->push_back(topNormal);
-        iVertex += 1;
-    }
-    auto centerBot = static_cast<GLushort>(iVertex);
-    // centerBot
-    {
-        vertices->push_back(osg::Vec3(0.f, 0.f, -height / 2));
-        normals->push_back(-topNormal);
-        iVertex += 1;
-    }
-    // bottom disk
-    auto beginBot = iVertex;
-    for (int i = 0; i < subdiv; i++)
-    {
-        float theta = static_cast<float>(i) / static_cast<float>(subdiv) * osg::PIf * 2.f;
-        osg::Vec3 pos = sphereCoordToCartesian(theta, osg::PI_2f, 1.f);
-        pos *= radius;
-        pos.z() = -height / 2.f;
-        vertices->push_back(pos);
-        normals->push_back(-topNormal);
-        iVertex += 1;
-    }
-    // sides
-    int beginSide = iVertex;
-    for (int i = 0; i < subdiv; i++)
-    {
-        float theta = static_cast<float>(i) / static_cast<float>(subdiv) * osg::PIf * 2.f;
-        osg::Vec3 normal = sphereCoordToCartesian(theta, osg::PI_2f, 1.f);
-        auto posTop = normal;
-        posTop *= radius;
-        auto posBot = posTop;
-        posTop.z() = height / 2.f;
-        posBot.z() = -height / 2.f;
-        vertices->push_back(posTop);
-        normals->push_back(normal);
-        iVertex += 1;
-        vertices->push_back(posBot);
-        normals->push_back(normal);
-        iVertex += 1;
+        geom.setVertexArray(vertices);
+        geom.setNormalArray(normals, osg::Array::BIND_PER_VERTEX);
+        geom.addPrimitiveSet(indices);
     }
 
-    // create triangles sides
-    for (int i = 0; i < subdiv; i++)
+    void generateCylinder(osg::Geometry& geom, float radius, float height, int subdiv)
     {
-        auto nextVert = (i + 1) % subdiv;
-        auto v1 = static_cast<GLushort>(beginSide + 2 * i);
-        auto v2 = static_cast<GLushort>(beginSide + 2 * i + 1);
-        auto v3 = static_cast<GLushort>(beginSide + 2 * nextVert);
-        auto v4 = static_cast<GLushort>(beginSide + 2 * nextVert + 1);
-        indices->push_back(v1);
-        indices->push_back(v2);
-        indices->push_back(v4);
+        osg::ref_ptr<osg::Vec3Array> vertices = new osg::Vec3Array;
+        osg::ref_ptr<osg::Vec3Array> normals = new osg::Vec3Array;
+        osg::ref_ptr<osg::DrawElementsUShort> indices
+            = new osg::DrawElementsUShort(osg::DrawElementsUShort::TRIANGLES, 0);
+        int vertexCount = subdiv * 4 + 2; // 2 discs + top and bottom + 2 center
+        indices->reserve(vertexCount);
+        int iVertex = 0;
 
-        indices->push_back(v4);
-        indices->push_back(v3);
-        indices->push_back(v1);
-    }
-    for (int i = 0; i < subdiv; i++)
-    {
-        auto nextVert = (i + 1) % subdiv;
-        auto top1 = static_cast<GLushort>(beginTop + i);
-        auto top2 = static_cast<GLushort>(beginTop + nextVert);
-
-        auto bot1 = static_cast<GLushort>(beginBot + i);
-        auto bot2 = static_cast<GLushort>(beginBot + nextVert);
-
-        indices->push_back(top2);
-        indices->push_back(centerTop);
-        indices->push_back(top1);
-
-        indices->push_back(bot1);
-        indices->push_back(centerBot);
-        indices->push_back(bot2);
-    }
-
-    geom.setVertexArray(vertices);
-    geom.setNormalArray(normals, osg::Array::BIND_PER_VERTEX);
-    geom.addPrimitiveSet(indices);
-}
-
-static void generateSphere(osg::Geometry& geom, float radius, int segments, int rings)
-{
-    osg::ref_ptr<osg::Vec3Array> vertices = new osg::Vec3Array;
-    osg::ref_ptr<osg::Vec3Array> normals = new osg::Vec3Array;
-    osg::ref_ptr<osg::DrawElementsUShort> indices = new osg::DrawElementsUShort(osg::DrawElementsUShort::TRIANGLES, 0);
-    int vertexCount = segments * (rings + 1);
-    vertices->reserve(vertexCount);
-    normals->reserve(vertexCount);
-    int indexCount = segments * rings * 2 * 3;
-    indices->reserve(indexCount);
-
-    for (int i = 0; i <= rings; ++i)
-    {
-        float phi = (static_cast<float>(i) / static_cast<float>(rings)) * osg::PIf;
-        for (int j = 0; j < segments; ++j)
+        int beginTop = iVertex;
+        auto topNormal = osg::Vec3(0., 0., 1.);
+        // top disk
+        for (int i = 0; i < subdiv; i++)
         {
-            float theta = (static_cast<float>(j) / static_cast<float>(segments)) * osg::PIf * 2.f;
-            auto pos = sphereCoordToCartesian(theta, phi, radius);
+            float theta = (static_cast<float>(i) / static_cast<float>(subdiv)) * osg::PIf * 2.f;
+            osg::Vec3 pos = sphereCoordToCartesian(theta, osg::PI_2f, 1.f);
+            pos *= radius;
+            pos.z() = height / 2.f;
             vertices->push_back(pos);
-            pos.normalize();
-            normals->push_back(pos);
+            normals->push_back(topNormal);
+            iVertex += 1;
         }
-    }
-
-    for (int i = 0; i < rings; ++i)
-    {
-        int ringTopBase = i * segments;
-        int ringBottomBase = ringTopBase + segments;
-
-        for (int j = 0; j < segments; ++j)
+        auto centerTop = static_cast<GLushort>(iVertex);
+        // centerTop
         {
-            auto v1 = static_cast<GLushort>(ringTopBase + j);
-            auto v2 = static_cast<GLushort>(ringTopBase + (j + 1) % segments);
-            auto v3 = static_cast<GLushort>(ringBottomBase + j);
-            auto v4 = static_cast<GLushort>(ringBottomBase + (j + 1) % segments);
-
-            indices->push_back(v1);
-            indices->push_back(v4);
-            indices->push_back(v2);
-
-            indices->push_back(v4);
-            indices->push_back(v1);
-            indices->push_back(v3);
+            vertices->push_back(osg::Vec3(0.f, 0.f, height / 2.f));
+            normals->push_back(topNormal);
+            iVertex += 1;
         }
+        auto centerBot = static_cast<GLushort>(iVertex);
+        // centerBot
+        {
+            vertices->push_back(osg::Vec3(0.f, 0.f, -height / 2));
+            normals->push_back(-topNormal);
+            iVertex += 1;
+        }
+        // bottom disk
+        auto beginBot = iVertex;
+        for (int i = 0; i < subdiv; i++)
+        {
+            float theta = static_cast<float>(i) / static_cast<float>(subdiv) * osg::PIf * 2.f;
+            osg::Vec3 pos = sphereCoordToCartesian(theta, osg::PI_2f, 1.f);
+            pos *= radius;
+            pos.z() = -height / 2.f;
+            vertices->push_back(pos);
+            normals->push_back(-topNormal);
+            iVertex += 1;
+        }
+        // sides
+        int beginSide = iVertex;
+        for (int i = 0; i < subdiv; i++)
+        {
+            float theta = static_cast<float>(i) / static_cast<float>(subdiv) * osg::PIf * 2.f;
+            osg::Vec3 normal = sphereCoordToCartesian(theta, osg::PI_2f, 1.f);
+            auto posTop = normal;
+            posTop *= radius;
+            auto posBot = posTop;
+            posTop.z() = height / 2.f;
+            posBot.z() = -height / 2.f;
+            vertices->push_back(posTop);
+            normals->push_back(normal);
+            iVertex += 1;
+            vertices->push_back(posBot);
+            normals->push_back(normal);
+            iVertex += 1;
+        }
+
+        // create triangles sides
+        for (int i = 0; i < subdiv; i++)
+        {
+            auto nextVert = (i + 1) % subdiv;
+            auto v1 = static_cast<GLushort>(beginSide + 2 * i);
+            auto v2 = static_cast<GLushort>(beginSide + 2 * i + 1);
+            auto v3 = static_cast<GLushort>(beginSide + 2 * nextVert);
+            auto v4 = static_cast<GLushort>(beginSide + 2 * nextVert + 1);
+            indices->push_back(v1);
+            indices->push_back(v2);
+            indices->push_back(v4);
+
+            indices->push_back(v4);
+            indices->push_back(v3);
+            indices->push_back(v1);
+        }
+        for (int i = 0; i < subdiv; i++)
+        {
+            auto nextVert = (i + 1) % subdiv;
+            auto top1 = static_cast<GLushort>(beginTop + i);
+            auto top2 = static_cast<GLushort>(beginTop + nextVert);
+
+            auto bot1 = static_cast<GLushort>(beginBot + i);
+            auto bot2 = static_cast<GLushort>(beginBot + nextVert);
+
+            indices->push_back(top2);
+            indices->push_back(centerTop);
+            indices->push_back(top1);
+
+            indices->push_back(bot1);
+            indices->push_back(centerBot);
+            indices->push_back(bot2);
+        }
+
+        geom.setVertexArray(vertices);
+        geom.setNormalArray(normals, osg::Array::BIND_PER_VERTEX);
+        geom.addPrimitiveSet(indices);
     }
 
-    geom.setVertexArray(vertices);
-    geom.setNormalArray(normals, osg::Array::BIND_PER_VERTEX);
-    geom.addPrimitiveSet(indices);
-}
+    void generateSphere(osg::Geometry& geom, float radius, int segments, int rings)
+    {
+        osg::ref_ptr<osg::Vec3Array> vertices = new osg::Vec3Array;
+        osg::ref_ptr<osg::Vec3Array> normals = new osg::Vec3Array;
+        osg::ref_ptr<osg::DrawElementsUShort> indices
+            = new osg::DrawElementsUShort(osg::DrawElementsUShort::TRIANGLES, 0);
+        int vertexCount = segments * (rings + 1);
+        vertices->reserve(vertexCount);
+        normals->reserve(vertexCount);
+        int indexCount = segments * rings * 2 * 3;
+        indices->reserve(indexCount);
 
-static int getIndexBufferReadFromFrame(const unsigned int& nFrame)
-{
-    return nFrame % 2;
-}
+        for (int i = 0; i <= rings; ++i)
+        {
+            float phi = (static_cast<float>(i) / static_cast<float>(rings)) * osg::PIf;
+            for (int j = 0; j < segments; ++j)
+            {
+                float theta = (static_cast<float>(j) / static_cast<float>(segments)) * osg::PIf * 2.f;
+                auto pos = sphereCoordToCartesian(theta, phi, radius);
+                vertices->push_back(pos);
+                pos.normalize();
+                normals->push_back(pos);
+            }
+        }
 
-static int getIndexBufferWriteFromFrame(const unsigned int& nFrame)
-{
-    return (nFrame + 1) % 2;
+        for (int i = 0; i < rings; ++i)
+        {
+            int ringTopBase = i * segments;
+            int ringBottomBase = ringTopBase + segments;
+
+            for (int j = 0; j < segments; ++j)
+            {
+                auto v1 = static_cast<GLushort>(ringTopBase + j);
+                auto v2 = static_cast<GLushort>(ringTopBase + (j + 1) % segments);
+                auto v3 = static_cast<GLushort>(ringBottomBase + j);
+                auto v4 = static_cast<GLushort>(ringBottomBase + (j + 1) % segments);
+
+                indices->push_back(v1);
+                indices->push_back(v4);
+                indices->push_back(v2);
+
+                indices->push_back(v4);
+                indices->push_back(v1);
+                indices->push_back(v3);
+            }
+        }
+
+        geom.setVertexArray(vertices);
+        geom.setNormalArray(normals, osg::Array::BIND_PER_VERTEX);
+        geom.addPrimitiveSet(indices);
+    }
+
+    int getIndexBufferReadFromFrame(const unsigned int& nFrame)
+    {
+        return nFrame % 2;
+    }
+
+    int getIndexBufferWriteFromFrame(const unsigned int& nFrame)
+    {
+        return (nFrame + 1) % 2;
+    }
 }
 
 namespace Debug
 {
-    static void makeLineInstance(osg::Geometry& lines)
+    namespace
     {
-        auto vertices = new osg::Vec3Array;
-        auto color = new osg::Vec3Array;
-        lines.setDataVariance(osg::Object::STATIC);
-        lines.setUseVertexBufferObjects(true);
-        lines.setUseDisplayList(false);
-        lines.setCullingActive(false);
+        void makeLineInstance(osg::Geometry& lines)
+        {
+            auto vertices = new osg::Vec3Array;
+            auto color = new osg::Vec3Array;
+            lines.setDataVariance(osg::Object::STATIC);
+            lines.setUseVertexBufferObjects(true);
+            lines.setUseDisplayList(false);
+            lines.setCullingActive(false);
 
-        lines.setVertexArray(vertices);
-        lines.setNormalArray(color, osg::Array::BIND_PER_VERTEX);
+            lines.setVertexArray(vertices);
+            lines.setNormalArray(color, osg::Array::BIND_PER_VERTEX);
 
-        lines.addPrimitiveSet(new osg::DrawArrays(osg::PrimitiveSet::LINES, 0, static_cast<GLsizei>(vertices->size())));
+            lines.addPrimitiveSet(
+                new osg::DrawArrays(osg::PrimitiveSet::LINES, 0, static_cast<GLsizei>(vertices->size())));
+        }
     }
 
     DebugCustomDraw::DebugCustomDraw()

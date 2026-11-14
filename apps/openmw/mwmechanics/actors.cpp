@@ -61,7 +61,6 @@
 
 namespace
 {
-
     bool isConscious(const MWWorld::Ptr& ptr)
     {
         const MWMechanics::CreatureStats& stats = ptr.getClass().getCreatureStats(ptr);
@@ -234,7 +233,6 @@ namespace
     {
         ptr.getClass().getCreatureStats(ptr).getActiveSpells().unloadActor(ptr);
     }
-
 }
 
 namespace MWMechanics
@@ -986,162 +984,165 @@ namespace MWMechanics
         return it->second->getCharacterController().isSneaking();
     }
 
-    static void updateDrowning(const MWWorld::Ptr& ptr, float duration, bool isKnockedOut, bool isPlayer)
+    namespace
     {
-        const auto& actorClass = ptr.getClass();
-        NpcStats& stats = actorClass.getNpcStats(ptr);
-
-        // When npc stats are just initialized, mTimeToStartDrowning == -1 and we should get value from GMST
-        static const float fHoldBreathTime = MWBase::Environment::get()
-                                                 .getESMStore()
-                                                 ->get<ESM::GameSetting>()
-                                                 .find("fHoldBreathTime")
-                                                 ->mValue.getFloat();
-        if (stats.getTimeToStartDrowning() == -1.f)
-            stats.setTimeToStartDrowning(fHoldBreathTime);
-
-        if (!isPlayer && stats.getTimeToStartDrowning() < fHoldBreathTime / 2)
+        void updateDrowning(const MWWorld::Ptr& ptr, float duration, bool isKnockedOut, bool isPlayer)
         {
-            AiSequence& seq = actorClass.getCreatureStats(ptr).getAiSequence();
-            if (seq.getTypeId() != AiPackageTypeId::Breathe) // Only add it once
-                seq.stack(AiBreathe(), ptr);
-        }
+            const auto& actorClass = ptr.getClass();
+            NpcStats& stats = actorClass.getNpcStats(ptr);
 
-        const MWBase::World* const world = MWBase::Environment::get().getWorld();
-        const bool isUnderwater = world->isUnderwater(ptr.getCell(), ptr.getRefData().getPosition().asVec3());
-        const bool walkingOnWater = world->isWalkingOnWater(ptr);
-        const bool knockedOutUnderwater = isKnockedOut && (isUnderwater || walkingOnWater);
-        if ((world->isSubmerged(ptr) || knockedOutUnderwater)
-            && stats.getMagicEffects().getOrDefault(ESM::MagicEffect::WaterBreathing).getMagnitude() == 0)
-        {
-            float timeLeft = 0.0f;
-            if (knockedOutUnderwater)
-                stats.setTimeToStartDrowning(0);
-            else
+            // When npc stats are just initialized, mTimeToStartDrowning == -1 and we should get value from GMST
+            static const float fHoldBreathTime = MWBase::Environment::get()
+                                                     .getESMStore()
+                                                     ->get<ESM::GameSetting>()
+                                                     .find("fHoldBreathTime")
+                                                     ->mValue.getFloat();
+            if (stats.getTimeToStartDrowning() == -1.f)
+                stats.setTimeToStartDrowning(fHoldBreathTime);
+
+            if (!isPlayer && stats.getTimeToStartDrowning() < fHoldBreathTime / 2)
             {
-                timeLeft = stats.getTimeToStartDrowning() - duration;
-                timeLeft = std::max(timeLeft, 0.0f);
-                stats.setTimeToStartDrowning(timeLeft);
+                AiSequence& seq = actorClass.getCreatureStats(ptr).getAiSequence();
+                if (seq.getTypeId() != AiPackageTypeId::Breathe) // Only add it once
+                    seq.stack(AiBreathe(), ptr);
             }
 
-            const bool godmode = isPlayer && world->getGodModeState();
-
-            if (timeLeft == 0.0f && !godmode)
+            const MWBase::World* const world = MWBase::Environment::get().getWorld();
+            const bool isUnderwater = world->isUnderwater(ptr.getCell(), ptr.getRefData().getPosition().asVec3());
+            const bool walkingOnWater = world->isWalkingOnWater(ptr);
+            const bool knockedOutUnderwater = isKnockedOut && (isUnderwater || walkingOnWater);
+            if ((world->isSubmerged(ptr) || knockedOutUnderwater)
+                && stats.getMagicEffects().getOrDefault(ESM::MagicEffect::WaterBreathing).getMagnitude() == 0)
             {
-                // If drowning, apply 3 points of damage per second
-                static const float fSuffocationDamage
-                    = world->getStore().get<ESM::GameSetting>().find("fSuffocationDamage")->mValue.getFloat();
-                DynamicStat<float> health = stats.getHealth();
-                health.setCurrent(health.getCurrent() - fSuffocationDamage * duration);
-                stats.setHealth(health);
-
-                // Play a drowning sound
-                MWBase::SoundManager* sndmgr = MWBase::Environment::get().getSoundManager();
-                auto soundDrown = ESM::RefId::stringRefId("drown");
-                if (!sndmgr->getSoundPlaying(ptr, soundDrown))
-                    sndmgr->playSound3D(ptr, soundDrown, 1.0f, 1.0f);
-
-                if (isPlayer)
-                    MWBase::Environment::get().getWindowManager()->activateHitOverlay(false);
-            }
-        }
-        else
-            stats.setTimeToStartDrowning(fHoldBreathTime);
-    }
-
-    static void updateEquippedLight(const MWWorld::Ptr& ptr, float duration, bool mayEquip)
-    {
-        const bool isPlayer = (ptr == getPlayer());
-
-        const auto& actorClass = ptr.getClass();
-        auto& inventoryStore = actorClass.getInventoryStore(ptr);
-
-        auto heldIter = inventoryStore.getSlot(MWWorld::InventoryStore::Slot_CarriedLeft);
-
-        /**
-         * Automatically equip NPCs torches at night and unequip them at day
-         */
-        if (!isPlayer)
-        {
-            auto torchIter = std::find_if(std::begin(inventoryStore), std::end(inventoryStore), [&](auto entry) {
-                return entry.getType() == ESM::Light::sRecordId && entry.getClass().canBeEquipped(entry, ptr).first;
-            });
-            if (mayEquip)
-            {
-                if (torchIter != inventoryStore.end())
+                float timeLeft = 0.0f;
+                if (knockedOutUnderwater)
+                    stats.setTimeToStartDrowning(0);
+                else
                 {
-                    if (!actorClass.getCreatureStats(ptr).getAiSequence().isInCombat())
+                    timeLeft = stats.getTimeToStartDrowning() - duration;
+                    timeLeft = std::max(timeLeft, 0.0f);
+                    stats.setTimeToStartDrowning(timeLeft);
+                }
+
+                const bool godmode = isPlayer && world->getGodModeState();
+
+                if (timeLeft == 0.0f && !godmode)
+                {
+                    // If drowning, apply 3 points of damage per second
+                    static const float fSuffocationDamage
+                        = world->getStore().get<ESM::GameSetting>().find("fSuffocationDamage")->mValue.getFloat();
+                    DynamicStat<float> health = stats.getHealth();
+                    health.setCurrent(health.getCurrent() - fSuffocationDamage * duration);
+                    stats.setHealth(health);
+
+                    // Play a drowning sound
+                    MWBase::SoundManager* sndmgr = MWBase::Environment::get().getSoundManager();
+                    auto soundDrown = ESM::RefId::stringRefId("drown");
+                    if (!sndmgr->getSoundPlaying(ptr, soundDrown))
+                        sndmgr->playSound3D(ptr, soundDrown, 1.0f, 1.0f);
+
+                    if (isPlayer)
+                        MWBase::Environment::get().getWindowManager()->activateHitOverlay(false);
+                }
+            }
+            else
+                stats.setTimeToStartDrowning(fHoldBreathTime);
+        }
+
+        void updateEquippedLight(const MWWorld::Ptr& ptr, float duration, bool mayEquip)
+        {
+            const bool isPlayer = (ptr == getPlayer());
+
+            const auto& actorClass = ptr.getClass();
+            auto& inventoryStore = actorClass.getInventoryStore(ptr);
+
+            auto heldIter = inventoryStore.getSlot(MWWorld::InventoryStore::Slot_CarriedLeft);
+
+            /**
+             * Automatically equip NPCs torches at night and unequip them at day
+             */
+            if (!isPlayer)
+            {
+                auto torchIter = std::find_if(std::begin(inventoryStore), std::end(inventoryStore), [&](auto entry) {
+                    return entry.getType() == ESM::Light::sRecordId && entry.getClass().canBeEquipped(entry, ptr).first;
+                });
+                if (mayEquip)
+                {
+                    if (torchIter != inventoryStore.end())
                     {
-                        // For non-hostile NPCs, unequip whatever is in the left slot in favor of a light.
-                        if (heldIter != inventoryStore.end() && heldIter->getType() != ESM::Light::sRecordId)
-                            inventoryStore.unequipItem(*heldIter);
+                        if (!actorClass.getCreatureStats(ptr).getAiSequence().isInCombat())
+                        {
+                            // For non-hostile NPCs, unequip whatever is in the left slot in favor of a light.
+                            if (heldIter != inventoryStore.end() && heldIter->getType() != ESM::Light::sRecordId)
+                                inventoryStore.unequipItem(*heldIter);
+                        }
+                        else if (heldIter == inventoryStore.end() || heldIter->getType() == ESM::Light::sRecordId)
+                        {
+                            // For hostile NPCs, see if they have anything better to equip first
+                            auto shield = inventoryStore.getPreferredShield();
+                            if (shield != inventoryStore.end())
+                                inventoryStore.equip(MWWorld::InventoryStore::Slot_CarriedLeft, shield);
+                        }
+
+                        heldIter = inventoryStore.getSlot(MWWorld::InventoryStore::Slot_CarriedLeft);
+
+                        // If we have a torch and can equip it, then equip it now.
+                        if (heldIter == inventoryStore.end())
+                        {
+                            inventoryStore.equip(MWWorld::InventoryStore::Slot_CarriedLeft, torchIter);
+                        }
                     }
-                    else if (heldIter == inventoryStore.end() || heldIter->getType() == ESM::Light::sRecordId)
+                }
+                else
+                {
+                    if (heldIter != inventoryStore.end() && heldIter->getType() == ESM::Light::sRecordId)
                     {
-                        // For hostile NPCs, see if they have anything better to equip first
+                        // At day, unequip lights and auto equip shields
                         auto shield = inventoryStore.getPreferredShield();
                         if (shield != inventoryStore.end())
                             inventoryStore.equip(MWWorld::InventoryStore::Slot_CarriedLeft, shield);
-                    }
-
-                    heldIter = inventoryStore.getSlot(MWWorld::InventoryStore::Slot_CarriedLeft);
-
-                    // If we have a torch and can equip it, then equip it now.
-                    if (heldIter == inventoryStore.end())
-                    {
-                        inventoryStore.equip(MWWorld::InventoryStore::Slot_CarriedLeft, torchIter);
+                        else
+                            inventoryStore.unequipSlot(MWWorld::InventoryStore::Slot_CarriedLeft);
                     }
                 }
             }
-            else
+
+            heldIter = inventoryStore.getSlot(MWWorld::InventoryStore::Slot_CarriedLeft);
+
+            // If holding a light...
+            const auto world = MWBase::Environment::get().getWorld();
+            MWRender::Animation* anim = world->getAnimation(ptr);
+            if (heldIter.getType() == MWWorld::ContainerStore::Type_Light && anim && anim->getCarriedLeftShown())
             {
-                if (heldIter != inventoryStore.end() && heldIter->getType() == ESM::Light::sRecordId)
-                {
-                    // At day, unequip lights and auto equip shields
-                    auto shield = inventoryStore.getPreferredShield();
-                    if (shield != inventoryStore.end())
-                        inventoryStore.equip(MWWorld::InventoryStore::Slot_CarriedLeft, shield);
-                    else
-                        inventoryStore.unequipSlot(MWWorld::InventoryStore::Slot_CarriedLeft);
-                }
-            }
-        }
-
-        heldIter = inventoryStore.getSlot(MWWorld::InventoryStore::Slot_CarriedLeft);
-
-        // If holding a light...
-        const auto world = MWBase::Environment::get().getWorld();
-        MWRender::Animation* anim = world->getAnimation(ptr);
-        if (heldIter.getType() == MWWorld::ContainerStore::Type_Light && anim && anim->getCarriedLeftShown())
-        {
-            // Use time from the player's light
-            if (isPlayer)
-            {
-                float timeRemaining = heldIter->getClass().getRemainingUsageTime(*heldIter);
-
-                // -1 is infinite light source. Other negative values are treated as 0.
-                if (timeRemaining != -1.0f)
-                {
-                    timeRemaining -= duration;
-                    if (timeRemaining <= 0.f)
-                    {
-                        inventoryStore.remove(*heldIter, 1); // remove it
-                        return;
-                    }
-
-                    heldIter->getClass().setRemainingUsageTime(*heldIter, timeRemaining);
-                }
-            }
-
-            // Both NPC and player lights extinguish in water.
-            if (world->isSwimming(ptr))
-            {
-                inventoryStore.remove(*heldIter, 1); // remove it
-
-                // ...But, only the player makes a sound.
+                // Use time from the player's light
                 if (isPlayer)
-                    MWBase::Environment::get().getSoundManager()->playSound(
-                        ESM::RefId::stringRefId("torch out"), 1.0, 1.0, MWSound::Type::Sfx, MWSound::PlayMode::NoEnv);
+                {
+                    float timeRemaining = heldIter->getClass().getRemainingUsageTime(*heldIter);
+
+                    // -1 is infinite light source. Other negative values are treated as 0.
+                    if (timeRemaining != -1.0f)
+                    {
+                        timeRemaining -= duration;
+                        if (timeRemaining <= 0.f)
+                        {
+                            inventoryStore.remove(*heldIter, 1); // remove it
+                            return;
+                        }
+
+                        heldIter->getClass().setRemainingUsageTime(*heldIter, timeRemaining);
+                    }
+                }
+
+                // Both NPC and player lights extinguish in water.
+                if (world->isSwimming(ptr))
+                {
+                    inventoryStore.remove(*heldIter, 1); // remove it
+
+                    // ...But, only the player makes a sound.
+                    if (isPlayer)
+                        MWBase::Environment::get().getSoundManager()->playSound(ESM::RefId::stringRefId("torch out"),
+                            1.0, 1.0, MWSound::Type::Sfx, MWSound::PlayMode::NoEnv);
+                }
             }
         }
     }

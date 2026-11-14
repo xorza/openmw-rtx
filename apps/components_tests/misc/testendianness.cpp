@@ -3,9 +3,12 @@
 
 #include <cmath>
 
-struct EndiannessTest : public ::testing::Test
+namespace
 {
-};
+    struct EndiannessTest : public ::testing::Test
+    {
+    };
+}
 
 TEST_F(EndiannessTest, test_swap_endianness_inplace1)
 {

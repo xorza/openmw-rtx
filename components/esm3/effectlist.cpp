@@ -64,18 +64,18 @@ namespace ESM
             dst.mMagnMin = src.mMagnMin;
             dst.mMagnMax = src.mMagnMax;
         }
-    }
 
-    template <Misc::SameAsWithoutCvref<EsmENAMstruct> T>
-    void decompose(T&& v, const auto& f)
-    {
-        f(v.mEffectID, v.mSkill, v.mAttribute, v.mRange, v.mArea, v.mDuration, v.mMagnMin, v.mMagnMax);
-    }
+        template <Misc::SameAsWithoutCvref<EsmENAMstruct> T>
+        void decompose(T&& v, const auto& f)
+        {
+            f(v.mEffectID, v.mSkill, v.mAttribute, v.mRange, v.mArea, v.mDuration, v.mMagnMin, v.mMagnMax);
+        }
 
-    template <Misc::SameAsWithoutCvref<EffectParams> T>
-    void decompose(T&& v, const auto& f)
-    {
-        f(v.mRange, v.mArea, v.mDuration, v.mMagnMin, v.mMagnMax);
+        template <Misc::SameAsWithoutCvref<EffectParams> T>
+        void decompose(T&& v, const auto& f)
+        {
+            f(v.mRange, v.mArea, v.mDuration, v.mMagnMin, v.mMagnMax);
+        }
     }
 
     void EffectList::load(ESMReader& esm)

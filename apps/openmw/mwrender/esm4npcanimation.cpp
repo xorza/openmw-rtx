@@ -57,15 +57,18 @@ namespace MWRender
             Misc::ResourceHelpers::correctMeshPath(VFS::Path::Normalized(model)), mObjectRoot.get());
     }
 
-    template <class Record>
-    static std::string_view chooseTes4EquipmentModel(const Record* rec, bool isFemale)
+    namespace
     {
-        if (isFemale && !rec->mModelFemale.empty())
-            return rec->mModelFemale.getOriginal();
-        else if (!isFemale && !rec->mModelMale.empty())
-            return rec->mModelMale.getOriginal();
-        else
-            return rec->mModel.getOriginal();
+        template <class Record>
+        std::string_view chooseTes4EquipmentModel(const Record* rec, bool isFemale)
+        {
+            if (isFemale && !rec->mModelFemale.empty())
+                return rec->mModelFemale.getOriginal();
+            else if (!isFemale && !rec->mModelMale.empty())
+                return rec->mModelMale.getOriginal();
+            else
+                return rec->mModel.getOriginal();
+        }
     }
 
     void ESM4NpcAnimation::updatePartsTES4(const ESM4::Npc& traits)

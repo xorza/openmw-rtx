@@ -5,7 +5,10 @@
 #include <components/files/conversion.hpp>
 #include <components/misc/strings/conversion.hpp>
 
-static std::mutex sLock;
+namespace
+{
+    std::mutex sLock;
+}
 
 Debug::Level Log::sMinDebugLevel = Debug::All;
 bool Log::sWriteLevel = false;

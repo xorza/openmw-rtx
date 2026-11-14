@@ -46,11 +46,14 @@ std::string ESM::loadLuaBinaryData(ESMReader& esm)
     return data;
 }
 
-static bool readBool(ESM::ESMReader& esm)
+namespace
 {
-    char c = 0;
-    esm.getT<char>(c);
-    return c != 0;
+    bool readBool(ESM::ESMReader& esm)
+    {
+        char c = 0;
+        esm.getT<char>(c);
+        return c != 0;
+    }
 }
 
 void ESM::LuaScriptsCfg::load(ESMReader& esm)

@@ -18,82 +18,85 @@ namespace MWScript
 {
     namespace Animation
     {
-        template <class R>
-        class OpSkipAnim : public Interpreter::Opcode0
+        namespace
         {
-        public:
-            void execute(Interpreter::Runtime& runtime) override
+            template <class R>
+            class OpSkipAnim : public Interpreter::Opcode0
             {
-                MWWorld::Ptr ptr = R()(runtime);
-
-                MWBase::Environment::get().getMechanicsManager()->skipAnimation(ptr);
-            }
-        };
-
-        template <class R>
-        class OpPlayAnim : public Interpreter::Opcode1
-        {
-        public:
-            void execute(Interpreter::Runtime& runtime, unsigned int arg0) override
-            {
-                MWWorld::Ptr ptr = R()(runtime);
-
-                if (!ptr.getRefData().isEnabled())
-                    return;
-
-                std::string_view group = runtime.getStringLiteral(runtime[0].mInteger);
-                runtime.pop();
-
-                Interpreter::Type_Integer mode = 0;
-
-                if (arg0 == 1)
+            public:
+                void execute(Interpreter::Runtime& runtime) override
                 {
-                    mode = runtime[0].mInteger;
+                    MWWorld::Ptr ptr = R()(runtime);
+
+                    MWBase::Environment::get().getMechanicsManager()->skipAnimation(ptr);
+                }
+            };
+
+            template <class R>
+            class OpPlayAnim : public Interpreter::Opcode1
+            {
+            public:
+                void execute(Interpreter::Runtime& runtime, unsigned int arg0) override
+                {
+                    MWWorld::Ptr ptr = R()(runtime);
+
+                    if (!ptr.getRefData().isEnabled())
+                        return;
+
+                    std::string_view group = runtime.getStringLiteral(runtime[0].mInteger);
                     runtime.pop();
 
-                    if (mode < 0 || mode > 2)
-                        throw std::runtime_error("animation mode out of range");
+                    Interpreter::Type_Integer mode = 0;
+
+                    if (arg0 == 1)
+                    {
+                        mode = runtime[0].mInteger;
+                        runtime.pop();
+
+                        if (mode < 0 || mode > 2)
+                            throw std::runtime_error("animation mode out of range");
+                    }
+
+                    MWBase::Environment::get().getMechanicsManager()->playAnimationGroup(
+                        ptr, group, mode, std::numeric_limits<uint32_t>::max(), true);
                 }
+            };
 
-                MWBase::Environment::get().getMechanicsManager()->playAnimationGroup(
-                    ptr, group, mode, std::numeric_limits<uint32_t>::max(), true);
-            }
-        };
-
-        template <class R>
-        class OpLoopAnim : public Interpreter::Opcode1
-        {
-        public:
-            void execute(Interpreter::Runtime& runtime, unsigned int arg0) override
+            template <class R>
+            class OpLoopAnim : public Interpreter::Opcode1
             {
-                MWWorld::Ptr ptr = R()(runtime);
-
-                if (!ptr.getRefData().isEnabled())
-                    return;
-
-                std::string_view group = runtime.getStringLiteral(runtime[0].mInteger);
-                runtime.pop();
-
-                Interpreter::Type_Integer loops = runtime[0].mInteger;
-                runtime.pop();
-
-                if (loops < 0)
-                    throw std::runtime_error("number of animation loops must be non-negative");
-
-                Interpreter::Type_Integer mode = 0;
-
-                if (arg0 == 1)
+            public:
+                void execute(Interpreter::Runtime& runtime, unsigned int arg0) override
                 {
-                    mode = runtime[0].mInteger;
+                    MWWorld::Ptr ptr = R()(runtime);
+
+                    if (!ptr.getRefData().isEnabled())
+                        return;
+
+                    std::string_view group = runtime.getStringLiteral(runtime[0].mInteger);
                     runtime.pop();
 
-                    if (mode < 0 || mode > 2)
-                        throw std::runtime_error("animation mode out of range");
-                }
+                    Interpreter::Type_Integer loops = runtime[0].mInteger;
+                    runtime.pop();
 
-                MWBase::Environment::get().getMechanicsManager()->playAnimationGroup(ptr, group, mode, loops, true);
-            }
-        };
+                    if (loops < 0)
+                        throw std::runtime_error("number of animation loops must be non-negative");
+
+                    Interpreter::Type_Integer mode = 0;
+
+                    if (arg0 == 1)
+                    {
+                        mode = runtime[0].mInteger;
+                        runtime.pop();
+
+                        if (mode < 0 || mode > 2)
+                            throw std::runtime_error("animation mode out of range");
+                    }
+
+                    MWBase::Environment::get().getMechanicsManager()->playAnimationGroup(ptr, group, mode, loops, true);
+                }
+            };
+        }
 
         void installOpcodes(Interpreter::Interpreter& interpreter)
         {

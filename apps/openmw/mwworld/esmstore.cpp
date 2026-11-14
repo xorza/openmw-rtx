@@ -333,59 +333,62 @@ namespace MWWorld
         movePlayerRecord();
     }
 
-    static bool isCacheableRecord(int id)
+    namespace
     {
-        switch (id)
+        bool isCacheableRecord(int id)
         {
-            case ESM::REC_ACTI:
-            case ESM::REC_ALCH:
-            case ESM::REC_APPA:
-            case ESM::REC_ARMO:
-            case ESM::REC_BOOK:
-            case ESM::REC_CLOT:
-            case ESM::REC_CONT:
-            case ESM::REC_CREA:
-            case ESM::REC_DOOR:
-            case ESM::REC_INGR:
-            case ESM::REC_LEVC:
-            case ESM::REC_LEVI:
-            case ESM::REC_LIGH:
-            case ESM::REC_LOCK:
-            case ESM::REC_MISC:
-            case ESM::REC_NPC_:
-            case ESM::REC_PROB:
-            case ESM::REC_REPA:
-            case ESM::REC_STAT:
-            case ESM::REC_WEAP:
-            case ESM::REC_BODY:
-            case ESM::REC_ACTI4:
-            case ESM::REC_ALCH4:
-            case ESM::REC_AMMO4:
-            case ESM::REC_ARMO4:
-            case ESM::REC_BOOK4:
-            case ESM::REC_CONT4:
-            case ESM::REC_CREA4:
-            case ESM::REC_DOOR4:
-            case ESM::REC_FLOR4:
-            case ESM::REC_FURN4:
-            case ESM::REC_IMOD4:
-            case ESM::REC_INGR4:
-            case ESM::REC_LIGH4:
-            case ESM::REC_LVLI4:
-            case ESM::REC_LVLC4:
-            case ESM::REC_LVLN4:
-            case ESM::REC_MISC4:
-            case ESM::REC_MSTT4:
-            case ESM::REC_NPC_4:
-            case ESM::REC_SCOL4:
-            case ESM::REC_STAT4:
-            case ESM::REC_TERM4:
-            case ESM::REC_TREE4:
-            case ESM::REC_WEAP4:
-                return true;
-                break;
+            switch (id)
+            {
+                case ESM::REC_ACTI:
+                case ESM::REC_ALCH:
+                case ESM::REC_APPA:
+                case ESM::REC_ARMO:
+                case ESM::REC_BOOK:
+                case ESM::REC_CLOT:
+                case ESM::REC_CONT:
+                case ESM::REC_CREA:
+                case ESM::REC_DOOR:
+                case ESM::REC_INGR:
+                case ESM::REC_LEVC:
+                case ESM::REC_LEVI:
+                case ESM::REC_LIGH:
+                case ESM::REC_LOCK:
+                case ESM::REC_MISC:
+                case ESM::REC_NPC_:
+                case ESM::REC_PROB:
+                case ESM::REC_REPA:
+                case ESM::REC_STAT:
+                case ESM::REC_WEAP:
+                case ESM::REC_BODY:
+                case ESM::REC_ACTI4:
+                case ESM::REC_ALCH4:
+                case ESM::REC_AMMO4:
+                case ESM::REC_ARMO4:
+                case ESM::REC_BOOK4:
+                case ESM::REC_CONT4:
+                case ESM::REC_CREA4:
+                case ESM::REC_DOOR4:
+                case ESM::REC_FLOR4:
+                case ESM::REC_FURN4:
+                case ESM::REC_IMOD4:
+                case ESM::REC_INGR4:
+                case ESM::REC_LIGH4:
+                case ESM::REC_LVLI4:
+                case ESM::REC_LVLC4:
+                case ESM::REC_LVLN4:
+                case ESM::REC_MISC4:
+                case ESM::REC_MSTT4:
+                case ESM::REC_NPC_4:
+                case ESM::REC_SCOL4:
+                case ESM::REC_STAT4:
+                case ESM::REC_TERM4:
+                case ESM::REC_TREE4:
+                case ESM::REC_WEAP4:
+                    return true;
+                    break;
+            }
+            return false;
         }
-        return false;
     }
 
     void ESMStore::load(ESM::ESMReader& esm, Loading::Listener* listener, ESM::Dialogue*& dialogue)
