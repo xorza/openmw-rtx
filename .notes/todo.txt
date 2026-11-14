@@ -8,6 +8,7 @@
 - audit ifdefs remove legacy
 - tour in 800 600 with balanced upscaler
 - remove mfr messagebox
+- order includes canonically
 
 - all IO serial?
 
