@@ -1,27 +1,106 @@
+# The checks every source of apps/ and components/ is held to (`omw tidy`): the classes of bug clang-tidy finds,
+# and the rules AGENTS.md states where a check states them. A check that reports style alone, or whose findings
+# in this tree were mostly what the code means, is left out:
+# - `portability-avoid-pragma-once`: `#pragma once` is the fork's rule;
+# - the static analyzer: every finding it made on the fork's sources was one it could not follow (a span's size
+#   after an assert, a moved-from `shared_ptr`, a bound `std::find` keeps), and it is half a run's time;
+# - `bugprone-easily-swappable-parameters`, `-signed-bitwise`, `-implicit-widening-of-multiplication-result`,
+#   `-integer-division`, `-incorrect-roundings`: arithmetic the code means, a Vulkan flag or a clamped colour;
+# - `bugprone-unchecked-optional-access`: blind to `Crash::contract` and gtest's `ASSERT_TRUE`;
+# - `bugprone-branch-clone`, `-switch-missing-default-case`, `-unhandled-code-paths`: a record's cases that read
+#   alike, and switches over a value with no other case;
+# - `bugprone-derived-method-shadowing-base-method`: `MWWorld::Store`'s specializations hide on purpose;
+# - `bugprone-random-generator-seed`, `-multi-level-implicit-pointer-conversion`,
+#   `-crtp-constructor-accessibility`, `-throwing-static-initialization`, `-unhandled-exception-at-new`: a
+#   repeatable sequence, OpenAL's `memcpy` of a function pointer, and failures that end the process anyway;
+# - `performance-enum-size`, `-no-int-to-ptr`, `-avoid-endl`: an enum's width is its API's, a Vulkan handle is an
+#   integer, and `std::endl` is style.
 Checks: >
   -*,
+  bugprone-*,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-signed-bitwise,
+  -bugprone-implicit-widening-of-multiplication-result,
+  -bugprone-integer-division,
+  -bugprone-incorrect-roundings,
+  -bugprone-unchecked-optional-access,
+  -bugprone-branch-clone,
+  -bugprone-switch-missing-default-case,
+  -bugprone-unhandled-code-paths,
+  -bugprone-derived-method-shadowing-base-method,
+  -bugprone-random-generator-seed,
+  -bugprone-multi-level-implicit-pointer-conversion,
+  -bugprone-crtp-constructor-accessibility,
+  -bugprone-throwing-static-initialization,
+  -bugprone-unhandled-exception-at-new,
+  performance-*,
+  -performance-enum-size,
+  -performance-no-int-to-ptr,
+  -performance-avoid-endl,
   portability-*,
+  -portability-avoid-pragma-once,
   -portability-template-virtual-member-function,
-  clang-analyzer-*,
-  -clang-analyzer-optin.*,
-  -clang-analyzer-cplusplus.NewDeleteLeaks,
-  -clang-analyzer-cplusplus.NewDelete,
-  -clang-analyzer-core.CallAndMessage,
-  modernize-avoid-bind,
+  cppcoreguidelines-special-member-functions,
+  cppcoreguidelines-slicing,
+  cppcoreguidelines-noexcept-*,
+  cppcoreguidelines-rvalue-reference-param-not-moved,
+  cppcoreguidelines-no-malloc,
+  cppcoreguidelines-init-variables,
+  cppcoreguidelines-use-enum-class,
+  cppcoreguidelines-pro-type-reinterpret-cast,
+  cppcoreguidelines-pro-type-const-cast,
+  google-explicit-constructor,
+  google-global-names-in-headers,
+  google-build-namespaces,
+  modernize-avoid-c-arrays,
+  modernize-avoid-c-style-cast,
+  modernize-use-override,
+  modernize-use-integer-sign-comparison,
+  modernize-use-scoped-lock,
+  modernize-make-unique,
+  modernize-make-shared,
+  modernize-use-auto,
+  modernize-loop-convert,
+  modernize-use-starts-ends-with,
+  modernize-use-std-bit,
+  modernize-use-std-numbers,
+  misc-throw-by-value-catch-by-reference,
+  misc-use-anonymous-namespace,
+  misc-use-internal-linkage,
+  misc-unused-using-decls,
+  misc-unused-alias-decls,
+  misc-redundant-expression,
+  misc-definitions-in-headers,
+  misc-include-cleaner,
+  readability-container-contains,
+  readability-container-size-empty,
+  readability-container-data-pointer,
+  readability-redundant-string-cstr,
+  readability-redundant-casting,
+  readability-make-member-function-const,
+  readability-use-anyofallof,
+  readability-use-std-min-max,
+  readability-duplicate-include,
+  readability-misleading-indentation,
   readability-identifier-naming
 WarningsAsErrors: '*'
 HeaderFilterRegex: '(apps|components)/'
-ExcludeHeaderFilterRegex: '_autogen/'
+# Generated sources are their generator's, and the headers GLSL reads as well spell what GLSL can.
+ExcludeHeaderFilterRegex: '(_autogen/|/shaders/.*\.h$)'
 CheckOptions:
-- key: readability-identifier-naming.ConceptCase
-  value: CamelCase
-- key: readability-identifier-naming.EnumCase
-  value: CamelCase
-- key: readability-identifier-naming.LocalVariableCase
-  value: camelBack
-- key: readability-identifier-naming.NamespaceCase
-  value: CamelCase
-- key: readability-identifier-naming.NamespaceIgnoredRegexp
-  value: 'bpo|osg(DB|FX|Particle|Shadow|Viewer|Util)?'
-- key: readability-identifier-naming.ParameterCase
-  value: camelBack
+  # An allocation that fails ends the process wherever it is thrown.
+  bugprone-exception-escape.IgnoredExceptions: 'std::bad_alloc'
+  # A source may lean on its own header for what that header's interface needs (AGENTS.md), which the missing
+  # half of the check does not know; and OSG's GL header brings the GL macros through the system's.
+  misc-include-cleaner.MissingIncludes: false
+  misc-include-cleaner.IgnoreHeaders: 'osg/GL;GL/.*'
+  # What a source keeps to itself goes in an unnamed namespace, never `static`, which the fix would write.
+  misc-use-internal-linkage.FixMode: None
+  cppcoreguidelines-special-member-functions.AllowSoleDefaultDtor: true
+  cppcoreguidelines-special-member-functions.AllowImplicitlyDeletedCopyOrMove: true
+  readability-identifier-naming.ConceptCase: CamelCase
+  readability-identifier-naming.EnumCase: CamelCase
+  readability-identifier-naming.LocalVariableCase: camelBack
+  readability-identifier-naming.NamespaceCase: CamelCase
+  readability-identifier-naming.NamespaceIgnoredRegexp: 'bpo|osg(DB|FX|Particle|Shadow|Viewer|Util)?|crashpad'
+  readability-identifier-naming.ParameterCase: camelBack

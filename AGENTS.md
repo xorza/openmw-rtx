@@ -202,7 +202,8 @@ The common ground of the [C++ Core Guidelines](https://isocpp.github.io/CppCoreG
 (cited by rule), [Google's style guide](https://google.github.io/styleguide/cppguide.html) and
 [LLVM's](https://llvm.org/docs/CodingStandards.html). They are defaults: a case that needs another
 answer takes it with a comment saying why, and the conventions above win where the two meet. They
-hold for the code the fork writes; upstream's code is not brought in line with them (Rules).
+hold for the code the fork writes; upstream's code is brought in line with them only where `.clang-tidy` checks
+one (Rules, `.notes/UPSTREAM.md`).
 
 - **An object owns each resource** (R.1, R.3, R.11, CP.20). Memory, a handle, a file or a lock is
   released by a destructor, never by a call on each way out. No naked `new` or `delete`:

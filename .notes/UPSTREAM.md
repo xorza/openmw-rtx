@@ -559,3 +559,9 @@ the lines each item names, which the merge resolves by keeping the seam:
 - `DensityCalculator` in a header of its own (`groundcoverdensity.hpp`), which the ray tracer's groundcover
   reads: both renderers thin the grass by one rule. The cost is a conflict with an upstream edit to the class,
   which no longer stands in `groundcover.cpp`.
+- The tree held to `.clang-tidy` (`omw tidy`), by the user's decision: the classes of bug clang-tidy finds, and the
+  rules `AGENTS.md` states where a check states them, over upstream's code as over the fork's, each check's fixes
+  in a commit of its own. Upstream's own `.clang-tidy` is replaced; its naming stays at the kinds upstream enforces,
+  and checks of style alone stay out, as their fixes would touch most of upstream's files for no fault. The cost is
+  a conflict with an upstream edit to the lines the fixes touched, and upstream code a merge brings that the checks
+  refuse, which `omw tidy` names.
