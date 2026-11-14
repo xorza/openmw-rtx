@@ -221,9 +221,12 @@ namespace Rtx
                 std::span<const Row> mRows;
             };
 
-            // Measured on a low-end AMD integrated GPU under AMD's Windows driver, in two tuples: the whole one,
-            // which the rows of a dark map's alpha are, and the same without that read (`HAS_DARK_ALPHA`), which
-            // the others are. Every other tuple is one of the two with code taken out, and is held at its figure.
+            // Measured on a low-end AMD integrated GPU under AMD's Windows driver 26.8.1, in every tuple, none of
+            // which holds scratch. The rows were set in two: the whole one, which the rows of a dark map's alpha
+            // are, and the same without that read (`HAS_DARK_ALPHA`), which the others are; every other tuple is
+            // one of the two with code taken out and stands at or under its figure, but for `media` with a dark
+            // map's alpha and no moons, which takes 217 to the whole tuple's 216: the same 224 an RDNA 2 SIMD
+            // allocates in steps of 16, four waves (`docs/research/2026-11-13-amd-integrated-register-tiers.md`).
             // `visibility` under the rule since a hit's vertex colours and a relief's layers' frame stand past
             // the ground stack (`docs/research/2026-11-13-amd-integrated-register-tiers.md`); the water and media
             // at what they hold since each walk resolves its hit once ("A walk resolves the surface it ends on
@@ -232,13 +235,14 @@ namespace Rtx
             // the landing at 144 since a sheet takes its span off the corners the hit carried
             // (`docs/research/2026-11-09-sheet-span.md`); `panes` with no scratch since a layer under the water
             // takes its column's shafts from `media` (`docs/research/2026-11-12-panes-column-ratio.md`).
-            constexpr std::array<Row, 10> sAmd{ {
+            constexpr std::array<Row, 11> sAmd{ {
                 { "water", {}, { 0, 177, 2048 } },
                 { "water", { .mDarkAlpha = true }, { 0, 190, 2048 } },
                 { "direct", {}, { 0, 160, 2048 } },
                 { "direct", { .mDarkAlpha = true }, { 0, 144, 2048 } },
                 { "media", {}, { 0, 192, 2048 } },
                 { "media", { .mDarkAlpha = true }, { 0, 216, 2048 } },
+                { "media", { .mMoons = false, .mDarkAlpha = true }, { 0, 217, 2048 } },
                 { "panes", {}, { 0, 248, 2048 } },
                 { "panes", { .mDarkAlpha = true }, { 0, 254, 2048 } },
                 { "landing", {}, { 0, 144, 2048 } },

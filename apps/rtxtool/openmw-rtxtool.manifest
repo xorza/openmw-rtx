@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!-- Merged with the manifest every program has (`files/windows/openmw.manifest`). The harness is a console program
+     whose output is its report, so a shell waits for it and reads its exit status; "detached" keeps the console it
+     inherits and opens none where it inherits none, as from a scheduled task or Explorer, where its output is the
+     log's (https://learn.microsoft.com/windows/console/console-allocation-policy). Windows before 11 24H2 ignores
+     it and opens one as before. -->
+<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0" xmlns:asmv3="urn:schemas-microsoft-com:asm.v3">
+  <asmv3:application>
+    <asmv3:windowsSettings>
+      <consoleAllocationPolicy xmlns="http://schemas.microsoft.com/SMI/2024/WindowsSettings">detached</consoleAllocationPolicy>
+    </asmv3:windowsSettings>
+  </asmv3:application>
+</assembly>

@@ -197,3 +197,7 @@ target_link_libraries(
         openmw-rtxtool-lib
         openmw-lib
 )
+
+if(WIN32)
+    target_sources(openmw-rtxtool PRIVATE openmw-rtxtool.manifest)
+endif()

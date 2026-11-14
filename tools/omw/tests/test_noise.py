@@ -22,13 +22,15 @@ class PlanTest(unittest.TestCase):
                  out=None, rest=("--suite=bounce",)))
 
     def test_values_still_distances_and_the_out_are_the_drivers(self):
+        # Absolute on every system: on Windows `/tmp/ab` is relative to the drive, which `resolve` names.
+        out = Path(Path.cwd().anchor, "tmp", "ab")
         self.assertEqual(
-            plan(["--views=x", "--ab=bounce-reuse=own,temporal", "--still", "--walk=-80", "--out=/tmp/ab", "--cut=1",
+            plan(["--views=x", "--ab=bounce-reuse=own,temporal", "--still", "--walk=-80", f"--out={out}", "--cut=1",
                   "--cut=2"]),
             Plan(sides=(Side("own", "--bounce-reuse=own"), Side("temporal", "--bounce-reuse=temporal")),
                  legs=(Leg("still", ()), Leg("cut 1", ("--cut=1",)), Leg("cut 2", ("--cut=2",)),
                        Leg("strafe 150", ("--strafe=150",)), Leg("walk -80", ("--walk=-80",))),
-                 out=Path("/tmp/ab"), rest=("--views=x",)))
+                 out=out, rest=("--views=x",)))
 
     def test_a_relative_out_is_made_absolute_for_the_harness_that_runs_from_the_build(self):
         self.assertEqual(plan(["--ab=antifirefly", "--out=ab"]).out, Path.cwd() / "ab")
