@@ -2,12 +2,14 @@
 
 #include <cstdint>
 #include <filesystem>
+#include <functional>
 #include <optional>
 #include <span>
 #include <string>
 #include <string_view>
 #include <vector>
 
+#include <osg/Vec2i>
 #include <osg/Vec3f>
 
 #include <apps/openmw/mwrender/rtx/rtxrun.hpp>
@@ -23,6 +25,7 @@
 #include "benchspec.hpp"
 #include "cameratrack.hpp"
 #include "exitstatus.hpp"
+#include "findingkind.hpp"
 #include "pictureshelf.hpp"
 
 namespace RtxTool
@@ -247,6 +250,11 @@ namespace RtxTool
         /// transitions: what the renderer has to survive is an emitter freed on an ordinary frame.
         /// Asking for it stops the run being a benchmark.
         std::vector<Rtx::Weather> mTurnThrough{};
+
+        /// The game clock's speed over the stop's measured frames as a multiple of the game's own, run by the world
+        /// itself through its `timescale` as a player's game runs it, and held over the frames ahead of them; or
+        /// nothing for the clock the stop's track or the world keeps. A tour's.
+        std::optional<float> mClockTimes{};
     };
 
     /// Where a stop flies to, and how fast. A route is what puts a cell arriving into a
@@ -334,6 +342,11 @@ namespace RtxTool
         /// Whether the player keeps their own camera: a session somebody flies, `VerbPolicy::mPlayed`. A view's
         /// coordinates are where a camera stands and not where a body fits, so collision comes off with it.
         bool mFreeCamera = false;
+
+        /// Whether the stop's flight goes on from the stop before's last frame, so it restages nothing: no cell, no
+        /// eye and no sky set, and no warm-up, as the world, the histories and the camera stand where the last stop
+        /// left them. A tour's turn between two rows (`TourLeg::mContinues`).
+        bool mContinues = false;
     };
 
     /// What a stop writes, and when.
@@ -416,6 +429,20 @@ namespace RtxTool
         /// What this stop asserts. Empty for a stop that only draws.
         std::vector<Check> mChecks;
 
+        /// The exterior cells the stop must cover: each is covered once a frame stood whole while the player was in
+        /// its column, and one the flight outran is a finding (`FindingKind::Outrun`). A tour's land leg's.
+        std::vector<osg::Vec2i> mCovers;
+
+        /// Where the stop stands in a soak: the first pass, or the same flight flown again at the run's end, whose
+        /// figures are held against the first's (`FindingKind::Growth`). A tour's first land leg and its closing leg.
+        enum class Soak : std::uint8_t
+        {
+            None,
+            First,
+            Again,
+        };
+        Soak mSoak = Soak::None;
+
         /// Whether the graph is walked a second time: for the report, or for the check that asks
         /// what the walk added.
         bool walksTwice() const;
@@ -446,6 +473,17 @@ namespace RtxTool
         Schedule mSchedule{};
         Actions mActions{};
         WhenAbsent mWhenAbsent = WhenAbsent::Fails;
+    };
+
+    /// What a run does with a stop that fails as it runs: the world that never stood whole, a pause nobody closed.
+    enum class WhenAStopFails : std::uint8_t
+    {
+        /// The run ends there, failed: what it measured after would rest on a stop that broke.
+        EndsTheRun,
+
+        /// The stop is recorded as failed, the run fails at its end, and the next stop begins: a tour's leg, whose
+        /// next is a place of its own.
+        GoesOn,
     };
 
     /// A whole run, as one description, filled by a launcher and read by the renderer.
@@ -532,6 +570,30 @@ namespace RtxTool
 
         /// Where the game's saves go (`ownSavesFolder`), or empty for the player's own.
         std::filesystem::path mSaves;
+
+        /// Makes the run's stops where the world first stands, handed the world's own `timescale`, in place of
+        /// `mStops`: a tour's, whose route is the content that loaded (`planTour`). Asked once, before any stop
+        /// begins; none answered ends the run, passed.
+        std::function<std::vector<Stop>(float ownTimeScale)> mPlanWhereTheWorldStands;
+
+        /// Whether the run prints the stops it plans where the world stands and flies none (`tour --plan`), so
+        /// nothing measured is what it was asked and no failure.
+        bool mPlansOnly = false;
+
+        WhenAStopFails mWhenAStopFails = WhenAStopFails::EndsTheRun;
+
+        /// What a run that turns what it meets into findings fails on besides the faults (`FindingKind`), whether its
+        /// frames are held to the step, which makes a slow frame the limiter's and no finding, and where the findings
+        /// are written after every stop, so a run that dies says how far it came: a tour's.
+        struct Watching
+        {
+            std::vector<FindingKind> mFailOn;
+            bool mPaced = false;
+            std::filesystem::path mFindings;
+        };
+
+        /// Whether the run watches for findings (`TourWatch`), or nothing.
+        std::optional<Watching> mWatching;
 
         /// Which suite the stops came from, for the record's own header.
         std::string mSuite;

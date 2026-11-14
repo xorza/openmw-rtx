@@ -92,12 +92,14 @@ namespace RtxTool
         mReport += describePlace(mPlaces.back(), mHeader.mMeasures);
     }
 
-    void RunRecord::checked(const bool held)
+    void RunRecord::checked(const Check check, const bool held)
     {
         ++mChecked;
-        mFailed += held ? 0u : 1u;
-        if (!held)
-            fail();
+        if (held)
+            return;
+        ++mFailed;
+        mFailedChecks.push_back(check);
+        fail();
     }
 
     void RunRecord::skip(const Stop& stop, const std::string_view why)
@@ -106,6 +108,12 @@ namespace RtxTool
             stop.mWhenAbsent == WhenAbsent::Fails ? "" : ", which a run of every view does not fail on");
         if (stop.mWhenAbsent == WhenAbsent::Fails)
             fail();
+    }
+
+    void RunRecord::fail(const Stop& stop, const std::string_view why)
+    {
+        mReport += std::format("\n{}: failed, {}\n", stop.mName.empty() ? "unnamed" : stop.mName, why);
+        fail();
     }
 
     SessionResult RunRecord::conclude(const Stop* const left)
@@ -161,6 +169,12 @@ namespace RtxTool
             if (wrote(writeJson(request.mJson, mHeader, mPlaces)))
                 mReport += "wrote " + Files::pathToUnicodeString(request.mJson) + '\n';
         }
+    }
+
+    void RunRecord::save(const SessionRequest& request)
+    {
+        if (!request.mJson.empty())
+            wrote(writeJson(request.mJson, mHeader, mPlaces));
     }
 
     void RunRecord::abandon(const SessionRequest& request)

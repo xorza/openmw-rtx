@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
@@ -12,6 +13,7 @@
 #include <apps/openmw/mwrender/rtx/rtxrun.hpp>
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <apps/rtxtool/model/runrecord.hpp>
+#include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/world/frameworld.hpp>
@@ -24,6 +26,7 @@
 #include "stager.hpp"
 #include "standingnote.hpp"
 #include "stopwriter.hpp"
+#include "tourwatch.hpp"
 
 namespace MWRender
 {
@@ -55,6 +58,9 @@ namespace RtxTool
         Session(Session&&) = delete;
         Session& operator=(Session&&) = delete;
 
+        /// Gives the log back its listener, where the run heard it.
+        ~Session() override;
+
         /// The renderer this tool exists to drive, made with the run: the engine starts no renderer
         /// of its own and never sees the run.
         std::unique_ptr<MWRender::Renderer> createRenderer(const MWRender::RendererSpec& spec) override;
@@ -76,7 +82,8 @@ namespace RtxTool
         void beforeFrame() override;
 
         /// Through every frame of a take, whose track states the hour (`CameraDriver::step`): a clock left running
-        /// would carry it past the track's, and the driver only ever runs the clock forward.
+        /// would carry it past the track's, and the driver only ever runs the clock forward. A stop whose clock the
+        /// world runs (`StopSky::mClockTimes`) is held only ahead of its measured frames.
         bool holdsGameClock() const override;
 
         /// None, in every verb: a run nobody plays has nobody to answer, and a box would stop the world as it stops
@@ -88,7 +95,8 @@ namespace RtxTool
         /// Measures the frame, and asks the game to quit once the last stop is done.
         void frame(const MWRender::FrameContext& context, const MWRender::FrameReport& report) override;
 
-        std::string_view describeTitle() override { return mNote.describeTitle(mUpscaler); }
+        /// The note, and for a tour the leg and the findings so far before it.
+        std::string_view describeTitle() override;
 
         /// After `Engine::go` returns: a run meant to end on its own that ended before its last stop, a window
         /// closed or a script's quit, is abandoned there, so it fails, writes what it reached, and is compared,
@@ -106,6 +114,19 @@ namespace RtxTool
         /// Ends the run as a failure, saying why, and asks the game to quit. An exit status and not
         /// a throw, because a run that cannot go on has still measured whatever it reached.
         void abandon(std::string_view why);
+
+        /// Whether a tour is watched in a window: its Home marks, and its note is taken every frame for it.
+        bool watchesWindow() const;
+
+        /// The record and the findings so far, written after every leg, so a tour that dies says how far it came.
+        void writeSoFar();
+
+        /// Puts the findings in the record, and fails it where they fail the run: before the record is written.
+        void noteFindings();
+
+        /// A stop that cannot go on: the run ends there, or the stop is recorded as failed and the next begins
+        /// (`SessionRequest::mWhenAStopFails`).
+        void failStop(std::string_view why);
 
         /// Stages the stop `mAt` names and starts its camera, its note and its count.
         void beginStop();
@@ -135,6 +156,19 @@ namespace RtxTool
         /// The world's `timescale` when the first stop began: the game's own clock speed for the
         /// whole session (`CameraDriver::begin`).
         std::optional<float> mOwnTimeScale;
+
+        /// The extents the renderer traces and shows at, once it is made: what the stops a run plans where the world
+        /// stands are settled under (`SessionRequest::settleUnder`).
+        /// What a tour meets, where the request watches for findings (`SessionRequest::mWatching`).
+        std::optional<TourWatch> mWatch;
+
+        /// The tour's title, which the leg's name and the note are written into.
+        std::array<char, 160> mTitle{};
+
+        /// Whether the log's listener is this run's (`TourWatch::getLog`).
+        bool mListening = false;
+
+        std::optional<Rtx::FrameExtents> mTraced;
 
         /// Which stop is running, and whether it has been started.
         std::size_t mAt = 0;

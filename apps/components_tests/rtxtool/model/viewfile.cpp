@@ -108,6 +108,7 @@ namespace RtxTool
                 { Verb::Check, true },
                 { Verb::Film, false },
                 { Verb::Noise, true },
+                { Verb::Tour, true },
             } };
             for (std::size_t at = 0; at < counts.size(); ++at)
                 EXPECT_EQ(static_cast<std::size_t>(counts[at].first), at) << "a verb this table has no row for";

@@ -428,8 +428,8 @@ namespace Rtx
             // A role the trace declines is still a role — it said the surface is one — and is
             // kept nowhere, so no lock is worth taking for it.
             const std::optional<SurfaceMap> map = mapOf(*role);
-            if (!map.has_value())
-                material.markUnread(UnreadState::Role, true);
+            if (const std::optional<UnreadState> unread = unreadOf(*role))
+                material.markUnread(*unread, true);
             if (!map.has_value() || !locks.takesTexture(*role, pair->second))
                 continue;
 

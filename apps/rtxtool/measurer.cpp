@@ -79,7 +79,10 @@ namespace RtxTool
 
         const float step = worldStep(mRequest.mStep);
         mProgress.mWindow = MeasureWindow(stop.mSchedule.mSpec.getWarmup(step),
-            BenchSpan{ .mSeconds = sPauseSeconds }.getFrames(step), mRequest.mPlayed);
+            BenchSpan{ .mSeconds = sPauseSeconds }.getFrames(step), mRequest.mPlayed,
+            stop.mSchedule.mContinues ? WorldStands::Already : WorldStands::Awaited);
+        // A failure ended the run before a stop could follow it, where it still does (`WhenAStopFails`).
+        mFailure.clear();
         mProgress.mPlace.mView = stop.mName;
         mProgress.mPlace.mCell = stop.mStand.mCell.getSpelling();
         mProgress.mPlace.mNote = stop.mNote;

@@ -1,7 +1,7 @@
 #pragma once
 
-#include <cstdint>
 #include <filesystem>
+#include <functional>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -43,6 +43,14 @@ namespace RtxTool
     {
         WindowRequest mWindow;
         SessionRequest mRequest;
+
+        /// How the game streams cells in, where the run flies faster than a player and asks for a player's
+        /// streaming (`preloadFlownAt`); nothing for the shipped file's.
+        std::optional<CellPreload> mPreload{};
+
+        /// The physics worker threads, where the run takes the game's own threaded physics; nothing for the frame's
+        /// own thread, so a run is the same run twice (`applyHostedSettings`).
+        std::optional<int> mPhysicsThreads{};
     };
 
     /// Where a verb writes its pictures: `--out`, or a directory named for the verb.
@@ -110,6 +118,12 @@ namespace RtxTool
     /// `sCheckHoldMs` behind the host unless the line names its own hold, and every picture a stop can write at
     /// the first place, into `outOf`.
     HostedRun planCheck(const Command& command, Framed framed);
+
+    /// What `tour` runs: no stop until the world stands, where `readMap` reads what the content holds and the route
+    /// is planned from it (`planTour`) under the line's pacing, the world's own timescale and `[interiors]`'s rooms,
+    /// printed, and flown from `--from` on; or nothing flown under `--plan`. A leg that fails is recorded and the
+    /// next begins.
+    HostedRun planTourRun(const Command& command, Framed framed, std::function<WorldMap()> readMap);
 
     /// What a `shot` and a `bench --out` write their frames' hashes to, beside the pictures, and read a
     /// reference's from, in the directory `--against` names.

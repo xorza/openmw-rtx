@@ -32,11 +32,14 @@ target_sources(
         model/cameratrack.cpp
         model/cruise.cpp
         model/film.cpp
+        model/finding.cpp
+        model/logtally.cpp
         model/measurewindow.cpp
         model/pictureshelf.cpp
         model/runrecord.cpp
         model/skycrossing.cpp
         model/stopdescription.cpp
+        model/tour.cpp
         model/viewfile.cpp
         noise.cpp
         options.cpp
@@ -82,11 +85,15 @@ target_sources(
                 model/cruise.hpp
                 model/exitstatus.hpp
                 model/film.hpp
+                model/finding.hpp
+                model/findingkind.hpp
+                model/logtally.hpp
                 model/measurewindow.hpp
                 model/pictureshelf.hpp
                 model/runrecord.hpp
                 model/skycrossing.hpp
                 model/stopdescription.hpp
+                model/tour.hpp
                 model/viewfile.hpp
                 noise.hpp
                 numbervalue.hpp
@@ -164,6 +171,8 @@ target_sources(
         stager.cpp
         standingnote.cpp
         stopwriter.cpp
+        tourwatch.cpp
+        worldmap.cpp
     PRIVATE
         FILE_SET HEADERS
             BASE_DIRS
@@ -178,6 +187,8 @@ target_sources(
                 stager.hpp
                 standingnote.hpp
                 stopwriter.hpp
+                tourwatch.hpp
+                worldmap.hpp
 )
 
 target_link_libraries(

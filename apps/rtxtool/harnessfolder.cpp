@@ -27,7 +27,7 @@ namespace RtxTool
 
     HarnessShaders::HarnessShaders(const Verb verb, const bool source)
     {
-        const bool census = !policyOf(verb).mMeasures;
+        const bool census = policyOf(verb).mShaders == VerbShaders::Counting;
         const std::filesystem::path folder(census
                 ? (source ? OPENMW_RTX_SPIRV_CENSUS_SOURCE_DIR : OPENMW_RTX_SPIRV_CENSUS_DIR)
                 : (source ? OPENMW_RTX_SPIRV_SOURCE_DIR : OPENMW_RTX_SPIRV_DIR));

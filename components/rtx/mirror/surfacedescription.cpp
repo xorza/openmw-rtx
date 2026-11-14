@@ -36,8 +36,14 @@ namespace Rtx
     {
         switch (state)
         {
-            case UnreadState::Role:
-                return "a detail, decal, gloss or bump map is not read";
+            case UnreadState::DetailMap:
+                return "a detail map is not read";
+            case UnreadState::DecalMap:
+                return "a decal map is not read";
+            case UnreadState::GlossMap:
+                return "a gloss map is not read";
+            case UnreadState::BumpMap:
+                return "a bump map is not read";
             case UnreadState::BlendPair:
                 return "a blend other than the shipped four is drawn as the nearest of them";
             case UnreadState::BlendEquation:

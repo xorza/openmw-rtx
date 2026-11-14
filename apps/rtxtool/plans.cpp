@@ -1,9 +1,14 @@
 #include "plans.hpp"
 
 #include <algorithm>
+#include <cassert>
+#include <chrono>
 #include <cstdint>
 #include <filesystem>
+#include <format>
+#include <functional>
 #include <optional>
+#include <ostream>
 #include <span>
 #include <stdexcept>
 #include <string>
@@ -15,9 +20,13 @@
 
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <apps/rtxtool/model/benchspec.hpp>
+#include <apps/rtxtool/model/tour.hpp>
 #include <apps/rtxtool/model/viewfile.hpp>
+#include <components/debug/debugging.hpp>
 #include <components/files/conversion.hpp>
+#include <components/misc/constants.hpp>
 #include <components/rtx/frame/upscale.hpp>
+#include <components/settings/values.hpp>
 
 #include "harnessfolder.hpp"
 
@@ -403,6 +412,76 @@ namespace RtxTool
 
         HostedRun hosted = sessionFor(command, std::move(framed), std::move(stops));
         hosted.mRequest.mSuite = run.mSuite;
+        return hosted;
+    }
+
+    HostedRun planTourRun(const Command& command, Framed framed, std::function<WorldMap()> readMap)
+    {
+        const ToolLine::Tour& line = command.mLine.mTour;
+        TourPacing pacing = line.mPacing;
+        framed.mStep = pacing.mStep;
+        pacing.mDay = framed.mDay;
+        pacing.mGridRadius = Constants::CellGridRadius;
+
+        // The rooms a person named as mattering, the interiors of the suite that measures them.
+        const std::vector<BenchSuite> suites = loadSuites(suitesFile());
+        if (const BenchSuite* interiors = findSuite(suites, "interiors"))
+            for (const Stop& view : chooseViews(loadViews(viewsFile()), interiors->mViews))
+                if (!view.mStand.mCell.empty() && !view.mStand.mCell.isExterior())
+                    pacing.mNamedRooms.push_back(view.mStand.mCell.getSpelling());
+
+        framed.mSetup.mHeadless = !command.mLine.mBench.mWindow;
+        // The rate the step was made from and not one over the step, which rounds to 59.9999962.
+        assert(pacing.mStep == sStepSeconds && "a tour steps at the measured rate, which its limit is held to");
+        if (line.mPaced)
+            framed.mWindow.mFramerateLimit = sStepRate;
+
+        // What the tour writes, each after every leg: its record and its findings, and the pictures Home marks.
+        const std::filesystem::path out = outOf(command);
+        std::filesystem::create_directories(out);
+
+        const Rtx::RenderProfile profile = framed.mSetup.mRun.mProfile;
+        HostedRun hosted = sessionFor(command, std::move(framed), {});
+        // **The game as a player plays it** wherever a tour can be: its streaming at the flight's pace, its threaded
+        // physics, and its interface over the frame.
+        hosted.mPreload = preloadFlownAt(command.mShipped, pacing.mSpeed);
+        hosted.mPhysicsThreads = command.mShipped.get(Settings::physics().mAsyncNumThreads);
+        SessionRequest& request = hosted.mRequest;
+        request.mHud = true;
+        request.mSetup.mInterface = true;
+        request.mWhenAStopFails = WhenAStopFails::GoesOn;
+        request.mPlansOnly = line.mPlan;
+        request.mWatching = SessionRequest::Watching{
+            .mFailOn = line.mFailOn, .mPaced = line.mPaced, .mFindings = out / "findings.txt"
+        };
+        request.mJson = out / "tour.json";
+        request.mHomePictures = out / "marks";
+        request.mPlanWhereTheWorldStands = [pacing, line, profile, readMap = std::move(readMap),
+                                               policy = policyOf(command.mVerb)](const float ownTimeScale) mutable {
+            pacing.mTimeScale = ownTimeScale;
+            const auto reading = std::chrono::steady_clock::now();
+            const WorldMap map = readMap();
+            const std::chrono::duration<double> read = std::chrono::steady_clock::now() - reading;
+            const TourPlan plan = planTour(map, pacing);
+            Debug::getRawStdout() << describePlan(plan, line.mFrameMs)
+                                  << std::format("  the content's map read in {:.2f} s\n", read.count()) << std::flush;
+            if (line.mPlan)
+                return std::vector<Stop>{};
+            if (line.mFrom > plan.mLegs.size())
+                throw std::runtime_error(
+                    std::format("--from={} is past the tour's last leg, {}", line.mFrom, plan.mLegs.size()));
+
+            // Every claim a leg can answer, asked at its end.
+            std::vector<Stop> stops = stopsFor(plan, line.mFrom - 1);
+            for (Stop& stop : stops)
+            {
+                applyPolicy(policy, stop);
+                for (const Check check : everyCheck())
+                    if (canAsk(check, stop, profile))
+                        stop.mActions.mChecks.push_back(check);
+            }
+            return stops;
+        };
         return hosted;
     }
 }

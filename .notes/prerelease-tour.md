@@ -257,27 +257,67 @@ and the first run with a measurement.
 
 On `rtx-tour`. Whoever addresses an item deletes it.
 
-- [ ] `model/tour`: `WorldMap`, `planTour` for exteriors (rows, legs, heights, keys), `describePlan`; tests.
-- [ ] `worldmap`: the store read into a `WorldMap`; `Verb::Tour`, its row in `verbs.cpp` and its options, and
-  the tour's stops from its plan (`stopsFor`, beside the film's); `tour --plan` prints the plan and its cost at
-  the frame time the line names.
-- [ ] `Session`: stops taken where the world stands; a leg that continues a flight; a failed leg recorded.
-- [ ] `model/finding` and `tourwatch`: not-finite stores by module with the kept frame's place; slow frames and
-  hitches with `WorstFrame`'s spend; refusals; the checks a leg can answer, asked at its end; outrun cells.
-- [ ] The policy row: the shader set a field of its own, the tour's frames at the game's width with no layers.
-- [ ] Interiors: the counts and the files in the `WorldMap`, the share a file, the turn on the spot; a test
-  that a file of few rooms keeps its eight and one of fewer than eight gives all it has.
-- [ ] The window: `--window` and `--pace=real`, the title's note, Home's mark as a finding.
-- [ ] The closing leg, and the first pass against the last as a finding.
-- [ ] The turning sky and the running clock: the circuit of weathers and the clock's rate in `TourPacing`, each
-  leg's first hour and crossing from the plan, the closing leg under the first leg's; a finding carries its
-  crossing and hour; `--speed`, `--crossing`, `--weather-hold` and `--clock` on the line, as a film's are. Tests: a leg begins under the same hour and crossing whichever leg the run began from,
-  and two plans of one map agree frame for frame.
-- [ ] The log's warnings and errors, by the route decided above.
-- [ ] The report: findings as blocks, the table a leg, memory at the first leg and the last; the record a leg
-  at a time; `--from`; the exit status the faults set (`ExitStatus::Failed`) and `--fail-on=<kind>`.
-- [ ] `tools/omw/tour.py`, the tasks (the vanilla one naming both expansions), and a line in `AGENTS.md`'s
-  verification list saying when a tour is run.
 - [ ] The first tours of the three contents: whether a tour after a shader change waits for its pipelines
   read first, the speed, the share of sixty and the sky's pace set by what they show, their figures to
   `docs/research`, and this file folded away.
+
+## Changed
+
+- **The log's warnings and errors, through its listener replaced and not chained** — the tour sets
+  `Debug::setLogListener` where the world stands and gives it back when the run ends, so no upstream line
+  changes: the one listener it replaces is the debug window's, which a run nobody plays never shows. What the
+  start logs before the world stands is the start's and is not counted; a line said on another thread is placed
+  at its leg and frame, which name no eye.
+
+## Decisions
+
+- **A row's end is flown on into the next row where the turn is no longer than a row's spacing**, in both
+  directions; past it the next leg is a cut, as the sea between two runs of one row is. One reach for both, so a
+  run split by more than a row's spacing of sea is never flown over by the turn rule.
+- **A key at every edge between two columns, each over the highest ground of the two columns either side and
+  one past each**, so a leg of one cell has two keys and the spline between keys does not dip into a rise it was
+  not told of.
+- **A room's eye stands 162 units over where `coc` puts the feet**, the first-person lift `CameraDriver::settleBody`
+  measured at the pier; the turn is four quarter keys, as the facing's spline turns the short way between two.
+- **`--speed`, `--crossing`, `--clock` and `--weather-hold` are one option each for `film` and `tour`, with no
+  default on the line**: each verb takes its own where none is named (a film's 800 units a second, a tour's
+  12,000), and the help line states both. Refused: a second spelling a verb (`--tour-speed`), two routes to one
+  setting.
+- **The plan is made in the session where the world first stands** (`SessionRequest::mPlanWhereTheWorldStands`),
+  handed the world's own timescale, which turns the tour's clock into the hours each leg begins at; `--plan` is
+  the same run with no stop flown, and passes.
+- **A leg that fails is recorded and the run goes on** (`WhenAStopFails::GoesOn`), reusing the record's report and
+  status; the findings step turns it into a finding with its place.
+- **The tour's clock is the world's own, through its `timescale`** (`StopSky::mClockTimes`), held only ahead of a
+  leg's measured frames. A clock the host set every frame was told to the renderer as a cut on every frame, the
+  engine's held advance of nought overwriting the host's step (42,220 cuts in a vanilla tour, none now); `film
+  --clock` keeps that fault, whose fix is a sum of a frame's advances in `World`, upstream code waiting for a yes
+  (`.notes/ISSUES.md`).
+- **A hitch and a slow frame are judged on a leg's measured frames alone**, the frames ahead of them a cut's wait
+  for the world; under `--pace=real` a slow frame is the limiter's and no finding, and a hitch still is.
+- **A cell is covered by its column**: a leg flies a row, and the band's rows stand in the active grid together,
+  so a cell counts as covered once a frame stood whole while the player stood in its column.
+- **Growth is a figure past a tenth above the first pass's**: the device's live memory, the content's vertices in
+  use, or the median frame. Past a run's noise on the median and the residency a texture's arrival moves, short
+  of a leak a soak is for (https://loadster.com/guides/endurance-testing/).
+- **A stop that flies a track is asked no stillness**: `camera-stands` and `frames-overlap` are left out of a
+  track as of a route, since the eye ends where the track does and an arrival drains the ring. Found by the first
+  trial, whose land legs failed both.
+- **The tour writes `findings.txt` and `tour.json` after every leg into `--out`** (the verb's folder unless
+  named), and the pictures Home marks under `marks/`; `tools/omw/tour.py` runs several contents with
+  `--each=<label>:<args>`, a folder each.
+- **A tour flies the game as a player plays it wherever it can**: ten cells of vision, the shipped upscale mode and
+  upscaler (`auto`, DLSS where the card has it), the game's threaded physics and its HUD (`touredSettings`,
+  `planTourRun`). Refused: the harness's own quality FSR and single-threaded physics, which a measured run keeps
+  so a figure does not move with the card, and which no player runs.
+- **The game's preloading at the flight's pace** (`preloadFlownAt`): the shipped `preload distance` scaled by the
+  flight's speed over a running player's 337.5 units a second, from the vanilla movement GMSTs, so preloading
+  begins as many seconds ahead of a crossing; its one thread scaled the same, held to the ring's sixteen cells and
+  what the processor spares; and the cache the game itself asks for, 35. The vanilla tour's hitches went from
+  451, the game loading cells on the frame, to 75, the renderer's own update after an arrival.
+- **A tour draws 1024x768 where the line names no size** (`sTourFrame`), at the person's ask: its findings are the
+  content's faults, not its figures.
+- **Only rooms a door leads into**, from outside or from another room (`readWorldMap`): a content's test cells,
+  which nothing leads to and which have no lamps by design, failed `lights-placed` under the large mod list.
+- **A refused surface names the role it lost**: a detail, a decal, a gloss or a bump map, each its own
+  `UnreadState`, where one reason stood for four.

@@ -6,6 +6,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include <apps/rtxtool/instruments/framehashes.hpp>
@@ -58,8 +59,22 @@ namespace RtxTool
         /// where the stop says so (`WhenAbsent`).
         void skip(const Stop& stop, std::string_view why);
 
-        /// Counts one check and whether it held.
-        void checked(bool held);
+        /// `stop` failed as it ran, for `why`, and the run went on past it (`WhenAStopFails::GoesOn`): said, and the
+        /// run fails at its end.
+        void fail(const Stop& stop, std::string_view why);
+
+        /// Counts `check` and whether it held, keeping one that did not until `takeFailedChecks`.
+        void checked(Check check, bool held);
+
+        /// Writes the record as it stands where the request names one (`SessionRequest::mJson`), as a long run does
+        /// after every stop so one that dies says how far it came; says why where it could not be written.
+        void save(const SessionRequest& request);
+
+        /// The places recorded so far, the last the stop that just ended.
+        const std::vector<BenchPlace>& getPlaces() const { return mPlaces; }
+
+        /// The checks that failed since this was last asked, for a run that turns each into a finding of its own.
+        std::vector<Check> takeFailedChecks() { return std::exchange(mFailedChecks, {}); }
 
         /// The hashes this run took, and the ones it is being compared against.
         ///
@@ -122,6 +137,7 @@ namespace RtxTool
         /// How many checks the run asked and how many of them failed.
         std::uint32_t mChecked = 0;
         std::uint32_t mFailed = 0;
+        std::vector<Check> mFailedChecks;
 
         FrameHashes mHashes;
         FrameHashes mReference;

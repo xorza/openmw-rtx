@@ -109,7 +109,7 @@ class ParseTest(unittest.TestCase):
 
     def test_the_harness_verbs_are_the_harness_own(self):
         text = read_text(ROOT / "apps" / "rtxtool" / "verbs.cpp")
-        named = re.findall(r'\{ Verb::\w+, "(\w+)", VerbPolicy', text)
+        named = re.findall(r'\{ Verb::\w+, "(\w+)",\s+VerbPolicy', text)
         self.assertEqual(tuple(named), HARNESS_VERBS)
 
 

@@ -23,6 +23,7 @@ namespace RtxTool
         Check,
         Film,
         Noise,
+        Tour,
 
         Count,
     };
@@ -79,6 +80,17 @@ namespace RtxTool
     /// The commands in `set`, spelled the way a help line spells them: "`bench` and `check`".
     std::string describeVerbs(VerbSet set);
 
+    /// Which shaders a command's frames run.
+    enum class VerbShaders : std::uint8_t
+    {
+        /// The game's own, so a figure is of the kernels it ships.
+        Shipped,
+
+        /// The same modules compiled with the census of every store that was not finite (`Rtx::NotFinite`), which
+        /// names the module that wrote one, at a cost no figure of the game's carries.
+        Counting,
+    };
+
     /// What one command does with the places it runs at: one row a command, which the staging, the
     /// hold and the setup every command shares all read, so what `shot` does with a routed view is
     /// a fact of the table and not of whichever branch staged it.
@@ -103,6 +115,10 @@ namespace RtxTool
 
         /// Whether every measured frame is hashed, whatever the line asks.
         bool mHashes = false;
+
+        /// Which shaders the frames run: the counting set unless the command measures the game's figures, and a
+        /// tour's both ways, the game's frames traced with the census.
+        VerbShaders mShaders = VerbShaders::Counting;
 
         /// Whether somebody plays the session, so the interface is the game's — its menus, its
         /// console, a script's window — and `--hud` decides the bars alone. Everywhere else a

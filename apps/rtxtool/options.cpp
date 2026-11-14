@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <array>
-#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
@@ -26,6 +25,7 @@
 #include <apps/rtxtool/model/benchspec.hpp>
 #include <apps/rtxtool/model/blockfile.hpp>
 #include <apps/rtxtool/model/film.hpp>
+#include <apps/rtxtool/model/finding.hpp>
 #include <apps/rtxtool/model/skycrossing.hpp>
 #include <components/crashcatcher/crash.hpp>
 #include <components/fallback/validate.hpp>
@@ -43,7 +43,6 @@
 #include <components/rtx/world/frameworld.hpp>
 #include <components/rtx/world/weather.hpp>
 
-#include "compare.hpp"
 #include "framed.hpp"
 #include "noise.hpp"
 #include "numbervalue.hpp"
@@ -211,8 +210,9 @@ namespace RtxTool
         /// `info` is the one that does not: it reports on a device and draws nothing.
         constexpr VerbSet sFramed = VerbSet{ Verb::Info }.complement();
 
-        /// The commands that stand under one sky the line names. A film's keys each name their own.
-        constexpr VerbSet sOneSky = VerbSet{ Verb::Info, Verb::Film }.complement();
+        /// The commands that stand under one sky the line names. A film's keys each name their own, and a tour turns
+        /// through every weather on a clock of its own.
+        constexpr VerbSet sOneSky = VerbSet{ Verb::Info, Verb::Film, Verb::Tour }.complement();
 
         /// How long a place runs where nobody says. Twenty because ten left the CPU medians moving
         /// by more than the changes being measured.
@@ -542,9 +542,10 @@ namespace RtxTool
             "game, the store the game keeps under the user's cache directory, so a run reads what the "
             "game wrote; off, none, so every pass runs; or a directory of the run's own");
 
-        option({ Verb::Bench }, "window", bpo::value<bool>()->default_value(true)->implicit_value(true),
+        option({ Verb::Bench, Verb::Tour }, "window", bpo::value<bool>()->default_value(true)->implicit_value(true),
             "show the run while it happens. The swapchain is mailbox, so it does not "
-            "pace the loop; --window=false is one fewer thing between the trace and the number");
+            "pace the loop; --window=false is one fewer thing between the trace and the number. A tour's window "
+            "titles the leg, the cell and the findings so far, and Home marks where the watcher is looking");
 
         option(sFramed, "variants", bpo::value<bool>()->default_value(true)->implicit_value(true),
             "keep one launch per tuple of the frame's facts, the sun, the moons and the sea; "
@@ -736,7 +737,7 @@ namespace RtxTool
             "the frame and never where in it. A PNG a frame on the frame path, some sixty "
             "milliseconds each, so a run under this is further still from a benchmark");
 
-        option({ Verb::Shot, Verb::Bench, Verb::Check, Verb::Film, Verb::View, Verb::Noise }, "out",
+        option({ Verb::Shot, Verb::Bench, Verb::Check, Verb::Film, Verb::View, Verb::Noise, Verb::Tour }, "out",
             bpo::value<std::string>()->default_value(""),
             "the directory to write into: a `bench`'s `hashes.csv`, one row a frame — the picture, "
             "every image the trace wrote, what the frame handed the reconstruction, every image the "
@@ -746,7 +747,8 @@ namespace RtxTool
             "the device and a run under this or --against is no benchmark; and every picture, as "
             "<view>.png beside <view>-doll.png, "
             "<view>-map.png and <view>-textures.png, a film's frames/000000.png onwards and "
-            "<keys>.mp4, the picture of each Home press in a `view` as <view>-<n>.png, with the "
+            "<keys>.mp4, a tour's findings.txt and tour.json after every leg and the pictures its Home marks "
+            "under marks/, the picture of each Home press in a `view` as <view>-<n>.png, with the "
             "block Home prints inside it as the PNG's Description, or `noise`'s five pictures of a "
             "place as <view>.png beside <view>-mean.png, <view>-reference.png, <view>-averaged.png "
             "and <view>-averaged-limit.png: the verb's own name unless named");
@@ -759,16 +761,20 @@ namespace RtxTool
             "`at` (the second of the film it is reached at, which the flights since the key before "
             "with a time fill at one speed), `hold` (how long the camera rests on it) and `cut` (true "
             "to cut before it, false to fly to it however far)");
-        option({ Verb::Film }, "plan", bpo::bool_switch(),
-            "print the takes and the length of every segment, and why, then stop without drawing");
+        const TourPacing touring;
+        option({ Verb::Film, Verb::Tour }, "plan", bpo::bool_switch(),
+            "print what the run would fly, then stop without drawing: a film's takes and the length of every "
+            "segment and why, a tour's legs, rooms and frames, and the minutes they take at --frame-ms");
         option({ Verb::Film }, "fps", number(atLeast(0.0f, true))->default_value(sStepRate),
             "frames a second of film, which is also what the world steps by");
-        option({ Verb::Film }, "speed", number(atLeast(0.0f, true))->default_value(pacing.mSpeed),
-            std::format("world units a second the camera flies along its path through the keys, one speed "
-                        "from the first key to the last, in place of --length: {:.0f} metres a second is a "
-                        "drone and not a run. A turn, the clock or a crossing on a flight takes the flight's "
-                        "time, and --plan says where one asks for longer",
-                pacing.mSpeed / Constants::UnitsPerMeter));
+        option({ Verb::Film, Verb::Tour }, "speed", number(atLeast(0.0f, true)),
+            std::format("world units a second the camera flies at. A film's, {:g} unless named, along its path "
+                        "through the keys, one speed from the first key to the last, in place of --length: {:.0f} "
+                        "metres a second is a drone and not a run; a turn, the clock or a crossing on a flight "
+                        "takes the flight's time, and --plan says where one asks for longer. A tour's, {:g} unless "
+                        "named, the `streaming` suite's: a cell the flight outran is a finding, and a slower speed "
+                        "covers it",
+                pacing.mSpeed, pacing.mSpeed / Constants::UnitsPerMeter, touring.mSpeed));
         option({ Verb::Film }, "length", number(atLeast(0.0f, true)),
             std::format("the film's length in seconds: every flight after the last key with an `at` at "
                         "the one speed that fills it, which is the path's whole length over what is left once "
@@ -789,16 +795,40 @@ namespace RtxTool
         option({ Verb::Film }, "hour-seconds", number(atLeast(0.0f, true))->default_value(pacing.mHourSeconds),
             "seconds of film a game hour takes where two keys' hours differ: the time-lapse's pace. "
             "The clock runs forward only, so a key at an earlier hour is reached the next day");
-        option({ Verb::Film }, "crossing", number(atLeast(0.0f, true))->default_value(pacing.mCrossingSeconds),
-            "the least a crossing into another weather takes. The sky crosses over the whole of the "
-            "segment between two keys whatever it takes; under --turn-weather, each crossing takes this");
-        option({ Verb::Film }, "clock", number(atLeast(0.0f)),
-            "run the game clock at this many times the game's own speed over the whole film — the timescale the "
-            "session starts at, which the ×N the clock keys set in a window multiplies too — whatever hours the keys "
-            "after the first name: a time-lapse the camera flies through at its own pace, across cuts. The keys' "
-            "hours then set no segment's length, and --clock=0 holds the first key's hour");
-        option({ Verb::Film }, "weather-hold", number(atLeast(0.0f))->default_value(pacing.mWeatherHold),
-            "how long each weather of --turn-weather stands before it crosses into the next");
+        option({ Verb::Film, Verb::Tour }, "crossing", number(atLeast(0.0f, true)),
+            std::format("the least a crossing into another weather takes, {:g} s for a film and {:g} for a tour "
+                        "unless named. A film's sky crosses over the whole of the segment between two keys whatever "
+                        "it takes, and under --turn-weather each crossing takes this; a tour's circuit of every pair "
+                        "of weathers takes this a crossing",
+                pacing.mCrossingSeconds, touring.mCrossingSeconds));
+        option({ Verb::Film, Verb::Tour }, "clock", number(atLeast(0.0f)),
+            std::format("run the game clock at this many times the game's own speed — the timescale the session "
+                        "starts at, which the ×N the clock keys set in a window multiplies too. A film's over the "
+                        "whole film, whatever hours the keys after the first name: a time-lapse the camera flies "
+                        "through at its own pace, across cuts, the keys' hours then setting no segment's length, "
+                        "and --clock=0 holding the first key's hour. A tour's through every leg, {:g} unless named, "
+                        "a day in two minutes of world at the game's own timescale",
+                touring.mClock));
+        option({ Verb::Film, Verb::Tour }, "weather-hold", number(atLeast(0.0f)),
+            std::format("how long each weather of a film's --turn-weather, {:g} s unless named, or of a tour's "
+                        "circuit, {:g} unless named, stands before it crosses into the next",
+                pacing.mWeatherHold, touring.mWeatherHold));
+        option({ Verb::Tour }, "from", number(anyNumber<std::uint32_t>())->default_value(1),
+            "the leg a tour begins at, counted from one as --plan numbers them: the rest flown after a crash, each "
+            "leg under the hour and the sky the whole tour would have stood it under");
+        option({ Verb::Tour }, "rooms", number(anyNumber<std::uint32_t>())->default_value(touring.mRooms),
+            std::format("how many rooms a tour shares out among the content files by the rooms each adds, never "
+                        "under {} a file nor over what it has, each file's with the most references",
+                touring.mRoomsLeast));
+        option({ Verb::Tour }, "frame-ms", number(atLeast(0.0f, true))->default_value(7.0f),
+            "the frame time --plan works a tour's minutes out at");
+        option({ Verb::Tour }, "pace", bpo::value<std::string>()->default_value("card"),
+            "card flies a tour as fast as the card draws, the hardest the streaming is driven; real holds every frame "
+            "to the step, so the world's second is the wall's and a slow frame is the limiter's and no finding");
+        option({ Verb::Tour }, "fail-on", bpo::value<std::string>()->default_value(""),
+            "the costs that fail a tour beside its faults, comma separated: hitch, slow-frames, log-warning, growth. "
+            "A fault always fails it: a store not finite, a refusal, a failed check, an error in the log, an outrun "
+            "cell, a leg that failed");
         option({ Verb::Film }, "still", number(atLeast(0.0f, true))->default_value(pacing.mStillSeconds),
             "how long a key with no key either side of it stands, and a segment where nothing changes");
         option({ Verb::Film }, "cut-distance", number(atLeast(0.0f))->default_value(pacing.mCutDistance),
@@ -814,8 +844,9 @@ namespace RtxTool
             bpo::value<std::string>()->default_value(
                 std::format("{}x{}", byDefault.mWindow.mWidth, byDefault.mWindow.mHeight)),
             std::format("image size, as WIDTHxHEIGHT. `check` draws {}x{} where the line names none: no claim of its "
-                        "but `finite` reads a pixel, and no extent of that frame is whole workgroups",
-                sCheckFrame.mWidth, sCheckFrame.mHeight));
+                        "but `finite` reads a pixel, and no extent of that frame is whole workgroups. `tour` draws "
+                        "{}x{}: its findings are the content's faults, not its figures",
+                sCheckFrame.mWidth, sCheckFrame.mHeight, sTourFrame.mWidth, sTourFrame.mHeight));
         option(sFramed, "fov", number(between(1.0f, 179.0f))->default_value(byDefault.mWindow.mFieldOfView),
             "vertical field of view, in degrees");
         option(sPlaces, "pos", bpo::value<std::string>()->default_value(""),
@@ -914,7 +945,10 @@ namespace RtxTool
         };
 
         ToolLine::Frame& frame = line.mFrame;
-        frame.mSize = verb == Verb::Check && !named("size") ? sCheckFrame : parseSize(text("size"));
+        frame.mSize = named("size") ? parseSize(text("size"))
+            : verb == Verb::Check   ? sCheckFrame
+            : verb == Verb::Tour    ? sTourFrame
+                                    : parseSize(text("size"));
         frame.mFieldOfView = real("fov");
         frame.mDay = { variables["day"].as<int>(), named("day") };
         if (const Result<void, std::string_view> checked = checkDay(frame.mDay.mValue); !checked.isOk())
@@ -1028,7 +1062,8 @@ namespace RtxTool
         FilmPacing& pacing = film.mPacing;
         film.mPlan = on("plan");
         pacing.mStep = 1.0f / real("fps");
-        pacing.mSpeed = real("speed");
+        if (named("speed"))
+            pacing.mSpeed = real("speed");
         if (named("length"))
         {
             if (named("speed"))
@@ -1041,13 +1076,43 @@ namespace RtxTool
         pacing.mEase = real("ease");
         pacing.mPanSeconds = real("pan-seconds");
         pacing.mHourSeconds = real("hour-seconds");
-        pacing.mCrossingSeconds = real("crossing");
+        if (named("crossing"))
+            pacing.mCrossingSeconds = real("crossing");
         if (named("clock"))
             pacing.mClock = real("clock");
-        pacing.mWeatherHold = real("weather-hold");
+        if (named("weather-hold"))
+            pacing.mWeatherHold = real("weather-hold");
         pacing.mStillSeconds = real("still");
         pacing.mCutDistance = real("cut-distance");
         film.mEncode = on("encode");
+
+        ToolLine::Tour& tour = line.mTour;
+        TourPacing& touring = tour.mPacing;
+        tour.mPlan = film.mPlan;
+        if (named("speed"))
+            touring.mSpeed = real("speed");
+        if (named("crossing"))
+            touring.mCrossingSeconds = real("crossing");
+        if (named("clock"))
+            touring.mClock = real("clock");
+        if (named("weather-hold"))
+            touring.mWeatherHold = real("weather-hold");
+        touring.mRooms = count("rooms");
+        tour.mFrameMs = real("frame-ms");
+        if (count("from") == 0)
+            throw std::runtime_error("--from=0 names no leg: a tour's legs are counted from one");
+        tour.mFrom = count("from");
+        if (const std::string& pace = text("pace"); pace == "real")
+            tour.mPaced = true;
+        else if (pace != "card")
+            throw std::runtime_error(std::format("--pace={} is neither card nor real", pace));
+        for (const std::string& kind : splitNames(text("fail-on")))
+        {
+            const std::optional<FindingKind> found = findingNamed(kind);
+            if (!found.has_value())
+                throw std::runtime_error(std::format("--fail-on names no kind of finding called \"{}\"", kind));
+            tour.mFailOn.push_back(*found);
+        }
 
         ToolLine::Game& game = line.mGame;
         game.mContent = strings("content");

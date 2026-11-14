@@ -1,12 +1,10 @@
 #include <array>
 #include <cstdint>
-#include <exception>
 #include <filesystem>
 #include <format>
 #include <fstream>
 #include <optional>
 #include <set>
-#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -333,7 +331,8 @@ namespace RtxTool
             const ToolOptions options = makeOptions(Rtx::ValidationLevel::Off);
 
             EXPECT_EQ(options.complainAbout(parse(options, { "--views=balmora" }), Verb::View),
-                "`view` does not read --views, which belongs to every command but `info`, `view` and `film`.\n");
+                "`view` does not read --views, which belongs to every command but `info`, `view`, `film` and "
+                "`tour`.\n");
 
             EXPECT_EQ(options.complainAbout(parse(options, { "--views=balmora" }), Verb::Bench), "")
                 << "the command the option belongs to takes it";
@@ -346,9 +345,12 @@ namespace RtxTool
                 "`bench` does not read --view, which belongs to `scene`, `shot` and `view`.\n");
             EXPECT_EQ(options.complainAbout(parse(options, { "--view=balmora" }), Verb::Shot), "");
 
-            // A film's keys each name their own sky, so one sky on the line would be thrown away.
+            // A film's keys each name their own sky, and a tour turns through every weather on its own clock, so one
+            // sky on the line would be thrown away.
             EXPECT_EQ(options.complainAbout(parse(options, { "--hour=6" }), Verb::Film),
-                "`film` does not read --hour, which belongs to every command but `info` and `film`.\n");
+                "`film` does not read --hour, which belongs to every command but `info`, `film` and `tour`.\n");
+            EXPECT_EQ(options.complainAbout(parse(options, { "--weather=Rain" }), Verb::Tour),
+                "`tour` does not read --weather, which belongs to every command but `info`, `film` and `tour`.\n");
             EXPECT_EQ(options.complainAbout(parse(options, { "--keys=tour.keys" }), Verb::View), "")
                 << "a window writes the keys a film reads";
             EXPECT_EQ(options.complainAbout(parse(options, { "--keys=tour.keys", "--day=3" }), Verb::Film), "");
@@ -433,7 +435,7 @@ namespace RtxTool
             const auto lineFor
                 = [&](const std::string& name) { return options.mDescription.find(name, false).description(); };
 
-            EXPECT_TRUE(lineFor("views").starts_with("with every command but `info`, `view` and `film`, "))
+            EXPECT_TRUE(lineFor("views").starts_with("with every command but `info`, `view`, `film` and `tour`, "))
                 << lineFor("views");
             EXPECT_TRUE(lineFor("find").starts_with("with `scene`, ")) << lineFor("find");
             EXPECT_TRUE(lineFor("warmup").starts_with("with `bench`, ")) << "the clock is a bench's to wait for";
@@ -476,16 +478,18 @@ namespace RtxTool
             EXPECT_EQ(verbNamed("film"), Verb::Film);
             EXPECT_EQ(verbName(Verb::Noise), "noise");
             EXPECT_EQ(verbNamed("noise"), Verb::Noise);
+            EXPECT_EQ(verbName(Verb::Tour), "tour");
+            EXPECT_EQ(verbNamed("tour"), Verb::Tour);
             EXPECT_EQ(verbNamed("nonesuch"), std::nullopt);
             EXPECT_EQ(verbNamed(""), std::nullopt);
 
-            // Eight commands, each its own bit: a set holds exactly what it was given, and its complement the
+            // Nine commands, each its own bit: a set holds exactly what it was given, and its complement the
             // rest.
-            EXPECT_EQ(VerbSet::every().size(), 8u) << "the eight `--help` prints";
+            EXPECT_EQ(VerbSet::every().size(), 9u) << "the nine `--help` prints";
             EXPECT_EQ(VerbSet{}.size(), 0u);
             EXPECT_EQ(VerbSet::every().complement(), VerbSet{});
             EXPECT_EQ(VerbSet{}.complement(), VerbSet::every());
-            EXPECT_EQ(VerbSet{ Verb::Shot }.complement().size(), 7u);
+            EXPECT_EQ(VerbSet{ Verb::Shot }.complement().size(), 8u);
             EXPECT_FALSE(VerbSet{ Verb::Shot }.complement().contains(Verb::Shot));
             EXPECT_TRUE(VerbSet{ Verb::Shot }.complement().contains(Verb::Noise));
             EXPECT_TRUE((VerbSet{ Verb::Bench, Verb::Check }.contains(Verb::Check)));
@@ -500,35 +504,38 @@ namespace RtxTool
         }
 
         /// What each command does with a place is one row: which freeze the world, which fly a
-        /// route, which follow a track, which measure without the layers, which hash every frame and
-        /// which somebody plays. **Every command has one**, which the table's declaration holds: a command added to the
-        /// enum and forgotten there does not compile.
+        /// route, which follow a track, which measure without the layers, which hash every frame, which
+        /// somebody plays and which run the counting shaders. **Every command has one**, which the table's declaration
+        /// holds: a command added to the enum and forgotten there does not compile.
         TEST(RtxVerbsTest, everyCommandHasOneRowOfPolicy)
         {
             const auto row = [](Verb verb) {
                 const VerbPolicy& policy = policyOf(verb);
                 return std::array{ policy.mFreezes, policy.mFliesRoutes, policy.mFollowsTracks, policy.mMeasures,
-                    policy.mHashes, policy.mPlayed };
+                    policy.mHashes, policy.mPlayed, policy.mShaders == VerbShaders::Counting };
             };
 
-            //                                     freezes routes tracks measures hashes played
-            EXPECT_EQ(row(Verb::Info), (std::array{ false, false, false, false, false, false }));
-            EXPECT_EQ(row(Verb::Scene), (std::array{ true, false, false, false, false, false }));
-            EXPECT_EQ(row(Verb::Shot), (std::array{ true, true, false, false, true, false }));
-            EXPECT_EQ(row(Verb::View), (std::array{ false, false, false, false, false, true }))
+            //                                     freezes routes tracks measures hashes played counts
+            EXPECT_EQ(row(Verb::Info), (std::array{ false, false, false, false, false, false, true }));
+            EXPECT_EQ(row(Verb::Scene), (std::array{ true, false, false, false, false, false, true }));
+            EXPECT_EQ(row(Verb::Shot), (std::array{ true, true, false, false, true, false, true }));
+            EXPECT_EQ(row(Verb::View), (std::array{ false, false, false, false, false, true, true }))
                 << "a window takes no route and keeps the game's interface: somebody is flying it";
-            EXPECT_EQ(row(Verb::Bench), (std::array{ false, true, false, true, false, false }));
-            EXPECT_EQ(row(Verb::Check), (std::array{ true, true, false, false, false, false }));
-            EXPECT_EQ(row(Verb::Film), (std::array{ false, false, true, true, false, false }));
-            EXPECT_EQ(row(Verb::Noise), (std::array{ true, false, false, false, false, false }))
+            EXPECT_EQ(row(Verb::Bench), (std::array{ false, true, false, true, false, false, false }));
+            EXPECT_EQ(row(Verb::Check), (std::array{ true, true, false, false, false, false, true }));
+            EXPECT_EQ(row(Verb::Film), (std::array{ false, false, true, true, false, false, false }));
+            EXPECT_EQ(row(Verb::Noise), (std::array{ true, false, false, false, false, false, true }))
                 << "a reference is many frames of one frame, and a route would make them many";
+            EXPECT_EQ(row(Verb::Tour), (std::array{ false, false, true, true, false, false, true }))
+                << "the game's frames as a player sees them, without the layers, under the census";
 
             // Traced at the game's width where a player sees the frames — a window, a bench, a film —
             // and at the reference's wherever a picture may be summed.
-            for (const Verb verb :
-                { Verb::Info, Verb::Scene, Verb::Shot, Verb::View, Verb::Bench, Verb::Check, Verb::Film, Verb::Noise })
+            for (const Verb verb : { Verb::Info, Verb::Scene, Verb::Shot, Verb::View, Verb::Bench, Verb::Check,
+                     Verb::Film, Verb::Noise, Verb::Tour })
             {
-                const bool shown = verb == Verb::View || verb == Verb::Bench || verb == Verb::Film;
+                const bool shown
+                    = verb == Verb::View || verb == Verb::Bench || verb == Verb::Film || verb == Verb::Tour;
                 EXPECT_EQ(
                     policyOf(verb).radianceWidth(), shown ? Rtx::RadianceWidth::Shown : Rtx::RadianceWidth::Summed)
                     << verbName(verb);

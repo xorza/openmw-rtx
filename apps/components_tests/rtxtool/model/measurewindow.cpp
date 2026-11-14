@@ -69,6 +69,23 @@ namespace RtxTool
             EXPECT_EQ(window.getMeasuredIndex(), 2u);
         }
 
+        /// **A flight that goes on from the stop before is measured from its first frame**, whole or not: its world is
+        /// the one that stop flew through (`WorldStands::Already`). Awaited, the same frames open nothing until one
+        /// stands whole.
+        TEST(RtxMeasureWindowTest, aWorldStandingAlreadyIsMeasuredFromItsFirstFrame)
+        {
+            MeasureWindow going(0, 30, false, WorldStands::Already);
+            EXPECT_EQ(going.getMeasuredIndex(), 0u);
+            const MeasureWindow::Taken first = going.take(standing(5));
+            EXPECT_TRUE(first.mOpened);
+            EXPECT_EQ(first.mOutcome, Outcome::Measured);
+            EXPECT_EQ(going.getMeasuredFrom(), 0u);
+            EXPECT_EQ(going.take(standing(3)).mOutcome, Outcome::Measured);
+
+            MeasureWindow awaited(0, 30, false);
+            EXPECT_EQ(takeAll(awaited, { standing(5), standing(3) }), std::vector<Outcome>(2, Outcome::Ahead));
+        }
+
         /// A world whole on its first frame, with no warm-up, is measured from its second.
         TEST(RtxMeasureWindowTest, aWorldWholeAtOnceIsMeasuredFromTheNextFrame)
         {

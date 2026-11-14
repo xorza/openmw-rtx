@@ -128,6 +128,9 @@ The user runs the harness through the Zed tasks in `.zed/tasks.json`: `./omw rel
   high-priority queue needs `CAP_SYS_NICE`).
 - An A/B reads medians and the p99, never a mean — the zones' from the record `--json` writes, since
   the `gpu` row is each zone's share of the mean.
+- `./omw release tour` before a release, once a content (the Zed tasks name the three): it flies every land
+  cell and the largest rooms, and fails on a fault met anywhere, each named with the block that stands there
+  again. `--plan` says what it will fly and how long first; `--from=<leg>` flies the rest after a crash.
 - Profiling: `./omw profile` for the CPU, into `out/release/perf/`: read the full text reports
   beside the summary (by library, by source line, the callers); `--offcpu` says where it waits. For
   the GPU, `./omw release exec nsys profile ./openmw-rtxtool bench ...`.

@@ -1,13 +1,17 @@
 #include "framed.hpp"
 
+#include <algorithm>
+#include <cmath>
 #include <format>
 #include <optional>
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <type_traits>
 
 #include <components/files/configurationmanager.hpp>
+#include <components/misc/constants.hpp>
 #include <components/misc/strings/algorithm.hpp>
 #include <components/misc/strings/conversion.hpp>
 #include <components/sdlutil/vsyncmode.hpp>
@@ -29,16 +33,20 @@ namespace RtxTool
         parser.loadSettingsFile(file, mShipped, true, false);
     }
 
+    const std::string& ShippedDefaults::getText(const Settings::BaseSettingValue& setting) const
+    {
+        const auto found = mShipped.find(Settings::CategorySetting(setting.mCategory, setting.mName));
+        if (found == mShipped.end())
+            throw std::runtime_error(std::format("defaults.bin names no [{}] {}", setting.mCategory, setting.mName));
+        return found->second;
+    }
+
     template <class T>
     T ShippedDefaults::get(const Settings::SettingValue<T>& setting) const
     {
         const std::string_view category = setting.mCategory;
         const std::string_view name = setting.mName;
-        const auto found = mShipped.find(Settings::CategorySetting(category, name));
-        if (found == mShipped.end())
-            throw std::runtime_error(std::format("defaults.bin names no [{}] {}", category, name));
-
-        const std::string& text = found->second;
+        const std::string& text = getText(setting);
         if constexpr (std::is_same_v<T, std::string>)
             return text;
         else if constexpr (std::is_same_v<T, bool>)
@@ -78,6 +86,46 @@ namespace RtxTool
             .mGamma = shipped.get(Settings::video().mGamma),
             .mLitEnvironmentMaps = shipped.get(Settings::shaders().mApplyLightingToEnvironmentMaps),
         };
+    }
+
+    MWRender::RtxSettingValues touredSettings(const ShippedDefaults& shipped, MWRender::RtxSettingValues measured)
+    {
+        measured.mUpscale = Rtx::sUpscaleNames.require(shipped.getText(Settings::rtx().mUpscale), "an upscale mode");
+        measured.mUpscaler = Rtx::sUpscalerNames.require(shipped.getText(Settings::rtx().mUpscaler), "an upscaler");
+        measured.mDistantLandCells = sTourCells;
+        measured.mViewingDistance = sTourCells * static_cast<float>(Constants::CellSizeInUnits);
+        return measured;
+    }
+
+    void CellPreload::writeSettings() const
+    {
+        Settings::CellsCategory& cells = Settings::cells();
+        cells.mPreloadDistance.set(mDistance);
+        cells.mPreloadNumThreads.set(mThreads);
+        cells.mPreloadCellCacheMin.set(mCacheMin);
+        cells.mPreloadCellCacheMax.set(mCacheMax);
+    }
+
+    CellPreload preloadFlownAt(const ShippedDefaults& shipped, const float speed)
+    {
+        const Settings::CellsCategory& cells = Settings::cells();
+        const float faster = speed / sPlayerRunSpeed;
+        const int threads
+            = static_cast<int>(std::ceil(static_cast<float>(shipped.get(cells.mPreloadNumThreads)) * faster));
+        // No more than the ring around the active grid holds cells, (2r + 3)² - (2r + 1)², which is the most the
+        // preloader has to load at once on a flight, nor than the processor spares beside the frame's thread.
+        constexpr int sRing = (2 * Constants::CellGridRadius + 3) * (2 * Constants::CellGridRadius + 3)
+            - (2 * Constants::CellGridRadius + 1) * (2 * Constants::CellGridRadius + 1);
+        const int processors = std::max(1, static_cast<int>(std::thread::hardware_concurrency()) - 1);
+        // What the preloader may hold at once: the active grid and the ring around it, (2r + 3)², and a teleport's
+        // destination with its surroundings, (2r + 1)², and the cell the teleport leaves; 35 at a radius of one,
+        // what the game itself asks for when a tour's teleport finds less.
+        constexpr int sCacheTheGameAsksFor = (2 * Constants::CellGridRadius + 3) * (2 * Constants::CellGridRadius + 3)
+            + (2 * Constants::CellGridRadius + 1) * (2 * Constants::CellGridRadius + 1) + 1;
+        return CellPreload{ .mDistance = shipped.get(cells.mPreloadDistance) * faster,
+            .mThreads = std::clamp(threads, 1, std::min(sRing, processors)),
+            .mCacheMin = std::max(shipped.get(cells.mPreloadCellCacheMin), sCacheTheGameAsksFor),
+            .mCacheMax = std::max(shipped.get(cells.mPreloadCellCacheMax), sCacheTheGameAsksFor) };
     }
 
     MWRender::RtxSettingValues overLine(const ToolLine::Frame& line, MWRender::RtxSettingValues source)

@@ -24,6 +24,7 @@ from omw import (
     remote,
     repeat,
     testing,
+    tour,
 )
 from omw.build import FLAVOURS, Build
 from omw.system import CI, ROOT, Refusal, refuse_unsupported, status
@@ -58,13 +59,16 @@ omw [flavour] <verb> [args]: one grammar for every build, on the desk and in CI,
                                a release is, copied to this tree's path there with the libraries it
                                lacks, run headless, and the files the line names brought back; a
                                bench or noise run holds a SteamOS GPU clock at its top
-  info, scene, shot, view, bench, check, film, noise [args]
+  info, scene, shot, view, bench, check, film, noise, tour [args]
                                openmw-rtxtool's own verbs, from the build directory
   noise --ab=<switch>[=<a>,<b>] [--still] [--cut=N] [noise args]
                                one switch's A/B: the strafe and the walk legs, both sides in one
                                run a leg, the still leg with `--still`, a leg N frames after a cut
                                for each `--cut=N`, a distance of 0 leaving its leg out, and the
                                figures side by side
+  tour --each=<label>:<args> [--each=...] [--out=<dir>] [tour args]
+                               a tour of each content one after another, a folder a content
+                               under --out, and one table with the worst status
   bench --ab=<switch>[=<a>,<b>] [--legs=N] [bench args]
                                one switch's timing A/B: a warm-up leg, then N legs a side in turn
                                (5 unless named), each zone's and host row's median and p99 over
@@ -102,7 +106,7 @@ USAGE = USAGE.replace("{gate}", textwrap.fill(gate.SUMMARY + " — stops at the 
 
 # The harness's own verbs, `sNames` in `apps/rtxtool/verbs.cpp`, which a test holds this to: a word
 # that is none of these and none of the driver's is refused before anything is configured or built.
-HARNESS_VERBS = ("info", "scene", "shot", "view", "bench", "check", "film", "noise")
+HARNESS_VERBS = ("info", "scene", "shot", "view", "bench", "check", "film", "noise", "tour")
 
 
 def _harness(build: Build, verb: str, args: list[str]) -> int:
@@ -235,6 +239,8 @@ def dispatch(line: Line) -> int:
         return noise.ab(build, line.args)
     if line.verb == "bench" and noise.wants_ab(line.args):
         return benchab.ab(build, line.args)
+    if line.verb == "tour" and tour.wants_each(line.args):
+        return tour.run(build, line.args)
     return _harness(build, line.verb, line.args)
 
 

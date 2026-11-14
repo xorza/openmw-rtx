@@ -1,5 +1,7 @@
 #include "session.hpp"
 
+#include <algorithm>
+#include <cstddef>
 #include <exception>
 #include <format>
 #include <memory>
@@ -16,8 +18,11 @@
 #include <apps/openmw/mwrender/rtx/rtxrenderer.hpp>
 #include <apps/openmw/mwworld/globals.hpp>
 #include <apps/openmw/mwworld/ptr.hpp>
+#include <apps/rtxtool/instruments/reportfile.hpp>
+#include <apps/rtxtool/model/finding.hpp>
 #include <apps/rtxtool/model/stopdescription.hpp>
 #include <components/crashcatcher/crash.hpp>
+#include <components/debug/debugging.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/misc/result.hpp>
 
@@ -35,8 +40,16 @@ namespace RtxTool
         mRecord.reserve(mRequest.mStops.size());
         mRecord.begin(mRequest);
 
-        if (mRequest.mStops.empty())
+        if (mRequest.mStops.empty() && !mRequest.mPlanWhereTheWorldStands)
             mDone = true;
+        if (mRequest.mWatching.has_value())
+            mWatch.emplace(worldStep(mRequest.mStep), mRequest.mWatching->mPaced);
+    }
+
+    Session::~Session()
+    {
+        if (mListening)
+            Debug::setLogListener({});
     }
 
     std::unique_ptr<MWRender::Renderer> Session::createRenderer(const MWRender::RendererSpec& spec)
@@ -50,6 +63,7 @@ namespace RtxTool
             throw std::runtime_error("the run cannot be traced: " + *refused);
         // And the stops' lengths, where one is what the run's frames hold, at the extents the renderer made.
         mRequest.settleUnder(renderer->getExtents());
+        mTraced = renderer->getExtents();
         mRecord.noteTraced(renderer->getExtents());
         mMeasurer.reserve();
         mMeasurer.watchCard(renderer->getCardAddress());
@@ -77,6 +91,7 @@ namespace RtxTool
         // run reached, which writes what was measured and fails the run.
         Log(Debug::Error) << "Ray tracing session: the game ended during stop " << (mAt + 1) << " of "
                           << mRequest.mStops.size() << ", before the run's last";
+        noteFindings();
         mRecord.abandon(mRequest);
         mDone = true;
     }
@@ -86,9 +101,49 @@ namespace RtxTool
         return mRecord.conclude(mNote.getLeft());
     }
 
+    bool Session::watchesWindow() const
+    {
+        return mWatch.has_value() && !mRequest.mSetup.mHeadless;
+    }
+
+    std::string_view Session::describeTitle()
+    {
+        const std::string_view note = mNote.describeTitle(mUpscaler);
+        if (!mWatch.has_value() || mDone || !mStarted)
+            return note;
+
+        const auto [end, length] = std::format_to_n(mTitle.data(), mTitle.size(), "{} - {} findings - {}",
+            currentStop().mName, mWatch->getTable().getFindings().size(), note);
+        return std::string_view(mTitle.data(), std::min(static_cast<std::size_t>(length), mTitle.size()));
+    }
+
+    void Session::writeSoFar()
+    {
+        const SessionRequest::Watching& watching = *mRequest.mWatching;
+        mWatch->drainLog();
+        std::string text = describeFindings(mWatch->getTable());
+        text
+            += std::format("\nflown through {}, stop {} of {}\n", currentStop().mName, mAt + 1, mRequest.mStops.size());
+        if (const Result<void, std::string> written = writeReport(watching.mFindings, text); !written.isOk())
+            Log(Debug::Warning) << "Ray tracing session: " << written.error();
+        mRecord.save(mRequest);
+    }
+
+    void Session::noteFindings()
+    {
+        if (!mWatch.has_value())
+            return;
+        mWatch->drainLog();
+        const FindingTable& table = mWatch->getTable();
+        mRecord.note(describeFindings(table));
+        if (table.statusUnder(mRequest.mWatching->mFailOn) != ExitStatus::Passed)
+            mRecord.fail();
+    }
+
     void Session::abandon(const std::string_view why)
     {
         Log(Debug::Error) << "Ray tracing session: " << why;
+        noteFindings();
         mRecord.abandon(mRequest);
         mDone = true;
         MWBase::Environment::get().getStateManager()->requestQuit();
@@ -105,8 +160,6 @@ namespace RtxTool
 
     void Session::beginStop()
     {
-        const Stop& stop = currentStop();
-
         // Before the first stop is staged, because staging moves the clock: the game's own speed is
         // what the world's `timescale` stood at when the session began.
         if (!mOwnTimeScale.has_value())
@@ -122,10 +175,45 @@ namespace RtxTool
             }
         }
 
+        // **The stops a tour plans where the world stands**, once, the timescale read: none ends the run, as a
+        // tour's `--plan` does once the plan is printed.
+        if (mRequest.mPlanWhereTheWorldStands)
+        {
+            mRequest.mStops = std::exchange(mRequest.mPlanWhereTheWorldStands, {})(*mOwnTimeScale);
+            // Nothing to fly ends the run here: a plan asked for was printed, and an empty content fails at the
+            // run's end as any run that measured nothing does (`SessionRequest::mPlansOnly`).
+            if (mRequest.mStops.empty())
+            {
+                mDone = true;
+                MWBase::Environment::get().getStateManager()->requestQuit();
+                return;
+            }
+            if (mTraced.has_value())
+                mRequest.settleUnder(*mTraced);
+            mRecord.begin(mRequest);
+            mRecord.reserve(mRequest.mStops.size());
+            mMeasurer.reserve();
+
+            // **The log heard from where the world stands**, in place of the debug window's listener, which a run
+            // nobody plays never shows: what the start said before is the start's and stands at no place.
+            if (mWatch.has_value())
+            {
+                Debug::setLogListener([this](const Debug::Level level, std::string_view, const std::string_view text) {
+                    mWatch->getLog().hear(level, text);
+                });
+                mListening = true;
+            }
+        }
+
+        const Stop& stop = currentStop();
+
         // **A place the content does not hold is passed over, and the run goes on**: under `Morrowind.esm` alone a
         // run of every view ended at Mournhold and drew none of the seven after it. Whether the run fails for it is
-        // the stop's (`WhenAbsent`).
-        if (const Result<void, std::string> staged = Staging::stage(stop, mRequest); !staged.isOk())
+        // the stop's (`WhenAbsent`). A flight that goes on from the stop before is staged by nothing: its world,
+        // its sky and its camera are where that stop left them.
+        if (const Result<void, std::string> staged
+            = stop.mSchedule.mContinues ? Result<void, std::string>{} : Staging::stage(stop, mRequest);
+            !staged.isOk())
         {
             Log(Debug::Warning) << "Ray tracing session: stop " << (mAt + 1) << " of " << mRequest.mStops.size()
                                 << " passed over: " << staged.error();
@@ -134,9 +222,17 @@ namespace RtxTool
             return;
         }
 
+        // The world's own clock at the stop's pace, which the engine then advances a frame's step at a time, as a
+        // player's game does under a script's `timescale`.
+        if (stop.mSky.mClockTimes.has_value())
+            MWBase::Environment::get().getWorld()->setGlobalFloat(
+                MWWorld::Globals::sTimeScale, *mOwnTimeScale * *stop.mSky.mClockTimes);
+
         mCamera.begin(stop, *mOwnTimeScale);
         mNote.begin(stop);
         mMeasurer.begin(stop);
+        if (mWatch.has_value())
+            mWatch->begin(stop);
 
         mStarted = true;
 
@@ -271,12 +367,20 @@ namespace RtxTool
         // Both calls, and neither is the other's spare: the stager resets because a teleport is a discontinuity and
         // its frames are drawn on a screen; this because those frames are not measured, and a measured run may not
         // depend on them.
-        if (mMeasurer.getSeen() == 0)
+        if (mMeasurer.getSeen() == 0 && !currentStop().mSchedule.mContinues)
             Staging::forgetHistory();
 
         // Where somebody plays the run, and nowhere else: a key pressed in a measured window would move what the
         // measurement records nothing of. And not while a menu or the console has the keys: the three read the
         // keyboard's state and not the game's input, so text typed in the console turned the sky.
+        // A tour's window marks where its watcher looks, and its keys move nothing else.
+        if (watchesWindow())
+        {
+            const bool asked = mHome.wantsPicture();
+            mHome.listen();
+            if (!asked && mHome.wantsPicture())
+                mWatch->mark(mNote);
+        }
         if (mRequest.mPlayed && !MWBase::Environment::get().getWindowManager()->isGuiMode())
         {
             mHome.listen();
@@ -293,7 +397,10 @@ namespace RtxTool
 
     bool Session::holdsGameClock() const
     {
-        return !mDone && mStarted && currentStop().mSchedule.mTrack.has_value();
+        if (mDone || !mStarted || !currentStop().mSchedule.mTrack.has_value())
+            return false;
+        // A clock the world runs is held only ahead of the measured frames, so every leg begins at its hour.
+        return !currentStop().mSky.mClockTimes.has_value() || !mMeasurer.getMeasuredIndex().has_value();
     }
 
     void Session::frame(const MWRender::FrameContext& context, const MWRender::FrameReport& report)
@@ -314,6 +421,11 @@ namespace RtxTool
             mHome.answer(mNote.getLeft(), report, context.mBackend.getExtents());
             mMemoryKey.answer(context);
         }
+        else if (watchesWindow())
+        {
+            mNote.take(report.mAir);
+            mHome.answer(mNote.getLeft(), report, context.mBackend.getExtents());
+        }
 
         if (mProbe.has_value())
         {
@@ -323,12 +435,15 @@ namespace RtxTool
             return;
         }
 
+        if (mWatch.has_value())
+            mWatch->frame(context, report, mNote, mMeasurer.getMeasuredIndex().has_value());
+
         switch (mMeasurer.frame(currentStop(), context, report, mCamera.hasArrived()))
         {
             case Measurer::Verdict::Going:
                 return;
             case Measurer::Verdict::Failed:
-                abandon(mMeasurer.getFailure());
+                failStop(mMeasurer.getFailure());
                 return;
             case Measurer::Verdict::Ended:
                 endStop(context, report);
@@ -346,10 +461,15 @@ namespace RtxTool
 
         mRecord.add(
             mMeasurer.finish(stop, context, report, route.has_value() ? mCamera.getTravelled(*route) : 1.0f, mWriter));
+        if (mWatch.has_value())
+        {
+            mWatch->endLeg(stop, mRecord.getPlaces().back(), mRecord.takeFailedChecks(), mNote);
+            writeSoFar();
+        }
 
         if (!mMeasurer.getFailure().empty())
         {
-            abandon(mMeasurer.getFailure());
+            failStop(mMeasurer.getFailure());
             return;
         }
 
@@ -359,6 +479,27 @@ namespace RtxTool
         if (mProbe.has_value())
             return;
 
+        advance();
+    }
+
+    void Session::failStop(const std::string_view why)
+    {
+        if (mRequest.mWhenAStopFails == WhenAStopFails::EndsTheRun)
+        {
+            abandon(why);
+            return;
+        }
+
+        // Said at the level of news and not of an error, which a run that hears the log would count a second time
+        // beside the failure it records (`TourWatch::failLeg`).
+        Log(Debug::Info) << "Ray tracing session: stop " << (mAt + 1) << " of " << mRequest.mStops.size()
+                         << " failed, and the run goes on: " << why;
+        if (mWatch.has_value())
+        {
+            mWatch->failLeg(currentStop(), why, mNote);
+            writeSoFar();
+        }
+        mRecord.fail(currentStop(), why);
         advance();
     }
 
@@ -376,6 +517,7 @@ namespace RtxTool
     void Session::finish()
     {
         mDone = true;
+        noteFindings();
         mRecord.finish(mRequest);
 
         // The way the quit key ends a session, and not `exit`: tearing the process down where it stood would leave

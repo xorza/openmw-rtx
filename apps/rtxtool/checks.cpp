@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <cassert>
-#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <format>
@@ -69,15 +68,19 @@ namespace RtxTool
                     }
 
                     const Rtx::ExtractionStats& again = *report.mWalked.mAgain;
+                    const Rtx::ExtractionStats& first = report.mWalked.mFound;
                     // **What it resolved or passed frozen**: a second walk over a world that stood still
-                    // passes every reference that froze, and resolves only what did not.
+                    // passes every reference that froze, and resolves only what did not. A graph the first walk
+                    // met nothing in, as over open sea, has nothing for the second to meet, which holds: a tour's
+                    // leg ending past the last land of its row stood there and failed for it.
+                    const bool met = first.mMeshesAdded + first.mMeshesReused + first.mPassedFrozen > 0;
                     found = std::format(
                         "{} meshes and {} materials added by the second walk, {} drawables resolved, "
-                        "{} passed frozen, {} stood again",
+                        "{} passed frozen, {} stood again; the first walk met {}",
                         again.mMeshesAdded, again.mMaterialsAdded, again.mMeshesReused, again.mPassedFrozen,
-                        again.mRestood);
+                        again.mRestood, met ? "drawables" : "none");
                     return again.mMeshesAdded == 0 && again.mMaterialsAdded == 0
-                        && again.mMeshesReused + again.mPassedFrozen > 0 && again.mRestood == 0;
+                        && (again.mMeshesReused + again.mPassedFrozen > 0 || !met) && again.mRestood == 0;
                 }
 
                 case Check::SurfacesDescribed:
@@ -340,7 +343,7 @@ namespace RtxTool
             std::string found;
             const bool held = checkHolds(context, report, check, facts, found);
 
-            record.checked(held);
+            record.checked(check, held);
             record.note(std::format("  {:<20} {:<4} {}\n", checkName(check), held ? "ok" : "FAIL", found));
         }
     }

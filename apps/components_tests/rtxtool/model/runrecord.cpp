@@ -104,10 +104,14 @@ namespace RtxTool
             EXPECT_EQ(bothAfter.conclude(nullptr).mExitStatus, ExitStatus::Failed) << "whichever came first";
 
             RunRecord checked;
-            checked.checked(true);
+            checked.checked(Check::Finite, true);
             EXPECT_EQ(checked.conclude(nullptr).mExitStatus, ExitStatus::Passed);
-            checked.checked(false);
+            EXPECT_TRUE(checked.takeFailedChecks().empty());
+            checked.checked(Check::GroundStands, false);
+            checked.checked(Check::Finite, false);
             EXPECT_EQ(checked.conclude(nullptr).mExitStatus, ExitStatus::Failed);
+            EXPECT_EQ(checked.takeFailedChecks(), (std::vector<Check>{ Check::GroundStands, Check::Finite }));
+            EXPECT_TRUE(checked.takeFailedChecks().empty()) << "taken once";
 
             // **A stop passed over fails the run where somebody named it**, and not where it came of every view.
             RunRecord passed;

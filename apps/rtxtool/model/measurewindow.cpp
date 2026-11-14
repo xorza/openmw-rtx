@@ -1,12 +1,17 @@
 #include "measurewindow.hpp"
 
+#include <cassert>
+
 namespace RtxTool
 {
-    MeasureWindow::MeasureWindow(const std::uint32_t warmup, const std::uint32_t pauseLimit, const bool played)
+    MeasureWindow::MeasureWindow(
+        const std::uint32_t warmup, const std::uint32_t pauseLimit, const bool played, const WorldStands stands)
         : mWarmup(warmup)
         , mPauseLimit(pauseLimit)
         , mPlayed(played)
+        , mWhole(stands == WorldStands::Already)
     {
+        assert((stands == WorldStands::Awaited || warmup == 0) && "a world standing already warmed up before");
     }
 
     MeasureWindow::Taken MeasureWindow::take(const WindowFrame& frame)

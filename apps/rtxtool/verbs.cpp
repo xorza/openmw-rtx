@@ -27,16 +27,19 @@ namespace RtxTool
         /// statement: a command renamed here is renamed in both. `view` flies nothing and freezes nothing, and keeps
         /// the game's interface, because somebody is flying it; `check` and `shot` fly a route unfrozen and stand
         /// still elsewhere; `bench` measures what moves; `noise` stands still, because a reference is many frames of
-        /// one frame.
+        /// one frame; `tour` flies a living world's frames as a player sees them, under the census.
         constexpr std::array<VerbRow, static_cast<std::size_t>(Verb::Count)> sRows{ {
             { Verb::Info, "info", VerbPolicy{} },
             { Verb::Scene, "scene", VerbPolicy{ .mFreezes = true } },
             { Verb::Shot, "shot", VerbPolicy{ .mFreezes = true, .mFliesRoutes = true, .mHashes = true } },
             { Verb::View, "view", VerbPolicy{ .mPlayed = true } },
-            { Verb::Bench, "bench", VerbPolicy{ .mFliesRoutes = true, .mMeasures = true } },
+            { Verb::Bench, "bench",
+                VerbPolicy{ .mFliesRoutes = true, .mMeasures = true, .mShaders = VerbShaders::Shipped } },
             { Verb::Check, "check", VerbPolicy{ .mFreezes = true, .mFliesRoutes = true } },
-            { Verb::Film, "film", VerbPolicy{ .mFollowsTracks = true, .mMeasures = true } },
+            { Verb::Film, "film",
+                VerbPolicy{ .mFollowsTracks = true, .mMeasures = true, .mShaders = VerbShaders::Shipped } },
             { Verb::Noise, "noise", VerbPolicy{ .mFreezes = true } },
+            { Verb::Tour, "tour", VerbPolicy{ .mFollowsTracks = true, .mMeasures = true } },
         } };
 
         /// The names, checked where they are declared: each command once, in enum order, no spelling shared.

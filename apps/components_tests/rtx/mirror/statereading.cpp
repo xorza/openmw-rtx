@@ -506,7 +506,18 @@ namespace Rtx
             osg::ref_ptr<osg::Texture2D> detail = new osg::Texture2D(new osg::Image);
             detailed->setTextureAttributeAndModes(0, detail);
             detailed->setTextureAttribute(0, new SceneUtil::TextureType("detailMap"));
-            EXPECT_EQ(unreadOf(*detailed), bit(UnreadState::Role));
+            EXPECT_EQ(unreadOf(*detailed), bit(UnreadState::DetailMap));
+
+            // Each role the trace reads no map for is refused as its own, so a mod's surface says which it lost.
+            osg::ref_ptr<osg::StateSet> layered = new osg::StateSet;
+            for (const auto& [unit, name] :
+                std::vector<std::pair<unsigned, const char*>>{ { 0, "decalMap" }, { 1, "glossMap" }, { 2, "bumpMap" } })
+            {
+                layered->setTextureAttributeAndModes(unit, new osg::Texture2D(new osg::Image));
+                layered->setTextureAttribute(unit, new SceneUtil::TextureType(name));
+            }
+            EXPECT_EQ(unreadOf(*layered),
+                bit(UnreadState::DecalMap) | bit(UnreadState::GlossMap) | bit(UnreadState::BumpMap));
 
             // Folded: a parent's lines, and a child that fills again.
             osg::ref_ptr<osg::StateSet> filled = new osg::StateSet;

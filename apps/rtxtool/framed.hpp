@@ -3,7 +3,6 @@
 #include <cstdint>
 #include <filesystem>
 #include <optional>
-#include <string_view>
 
 #include <apps/openmw/mwrender/rtx/rtxrun.hpp>
 #include <apps/openmw/mwrender/rtx/rtxsettings.hpp>
@@ -44,6 +43,10 @@ namespace RtxTool
     /// 1280x720 never did. It costs what 960x540 does. A resized window gives a player such a frame, and Khronos's
     /// OpenGL ES conformance run draws at 64x64 and then at 113x47.
     inline constexpr FrameSize sCheckFrame{ .mWidth = 957, .mHeight = 539 };
+
+    /// What `tour` draws where the line names no size: a small frame, since a tour is the content's faults and not
+    /// its figures, and every frame drawn sooner is the streaming driven harder.
+    inline constexpr FrameSize sTourFrame{ .mWidth = 1024, .mHeight = 768 };
 
     /// What a frame is upscaled by when nobody names a mode. The one knob whose default is the
     /// harness's own and not `settings-default.cfg`'s. Quality rather than Performance, so a plain
@@ -122,6 +125,10 @@ namespace RtxTool
         template <class T>
         T get(const Settings::SettingValue<T>& setting) const;
 
+        /// What the file says of `setting` as text, for a setting of a type the file spells by name, as an enum.
+        /// Throws naming the setting where the file names none.
+        const std::string& getText(const Settings::BaseSettingValue& setting) const;
+
     private:
         Settings::CategorySettingValueMap mShipped;
     };
@@ -131,6 +138,38 @@ namespace RtxTool
     /// the harness's own defaults (`sUpscaleByDefault`, FSR, the request's), so a picture does not change
     /// with the card it was measured on.
     MWRender::RtxSettingValues measuredSettings(const ShippedDefaults& shipped, const ToolLine::Frame& line);
+
+    /// How many cells a tour sees: the cell ring's reach and the camera's viewing distance both, so every path that
+    /// asks how far a frame sees answers ten cells.
+    inline constexpr float sTourCells = 10.0f;
+
+    /// A tour's settings: `measured`, seeing `sTourCells` cells, and upscaled as the game ships upscaling, its mode
+    /// and its choice of upscaler (`auto`, DLSS where the card has it), where a measured run takes the harness's own
+    /// so a picture does not move with the card: a tour flies what a player plays.
+    MWRender::RtxSettingValues touredSettings(const ShippedDefaults& shipped, MWRender::RtxSettingValues measured);
+
+    /// How the game streams cells in ahead of the player, as `[Cells]` states it, written before the engine reads it.
+    struct CellPreload
+    {
+        float mDistance = 0.0f;
+        int mThreads = 0;
+        int mCacheMin = 0;
+        int mCacheMax = 0;
+
+        void writeSettings() const;
+    };
+
+    /// A player's running speed, units a second, under the vanilla GMSTs a new character runs at: a walk of
+    /// `fMinWalkSpeed + (fMaxWalkSpeed - fMinWalkSpeed) · Speed/100` = 100 + 100 · 0.5 = 150 at a Speed of 50, run
+    /// at `fBaseRunMultiplier + fAthleticsRunBonus · Athletics/100` = 1.75 + 0.5 times it.
+    inline constexpr float sPlayerRunSpeed = 150.0f * 2.25f;
+
+    /// The game's preloading for a flight at `speed` units a second, made to work as it does for a running player:
+    /// the shipped `preload distance` scaled by the flight's speed over a player's, so it begins as many seconds
+    /// ahead of a crossing; the cache the game itself asks for when the ring and the cells around a teleport do not
+    /// fit (35); and as many threads as the shipped file's single one would need to keep pace, at most the ring's
+    /// sixteen cells and the processor's own less the frame's.
+    CellPreload preloadFlownAt(const ShippedDefaults& shipped, float speed);
 
     /// **The one rule for what a run's line names**: each setting the line names is the line's,
     /// and every other is `source`'s — the player's registry for a window they watch, which is the

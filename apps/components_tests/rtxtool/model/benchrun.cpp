@@ -14,6 +14,8 @@
 #include <apps/openmw/mwrender/rtx/rtxrun.hpp>
 #include <apps/rtxtool/model/benchrecord.hpp>
 #include <apps/rtxtool/model/benchrun.hpp>
+#include <apps/rtxtool/model/camerapath.hpp>
+#include <apps/rtxtool/model/cameratrack.hpp>
 #include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
@@ -193,6 +195,15 @@ namespace RtxTool
             EXPECT_TRUE(canAsk(Check::GatesAgree, still, unheld)) << "a place holds gated cells or holds none";
             EXPECT_TRUE(canAsk(Check::RoomsHeld, still, unheld)) << "every walk fills the mirror's maps";
             EXPECT_FALSE(canAsk(Check::SkyNamed, still, unheld)) << "no weather named, the world's own stands";
+
+            // A take's flight leaves the camera where its track ends, with cells arriving under it.
+            Stop tracked = still;
+            const std::vector<TrackKey> keys{ TrackKey{ .mFrame = 0.0, .mEye = osg::Vec3f(1, 2, 3), .mRests = true },
+                TrackKey{ .mFrame = 10.0, .mEye = osg::Vec3f(100, 2, 3), .mRests = true } };
+            tracked.mSchedule.mTrack.emplace(keys, CameraPath(keys));
+            EXPECT_FALSE(canAsk(Check::CameraStands, tracked, unheld)) << "the eye ends where the track does";
+            EXPECT_FALSE(canAsk(Check::FramesOverlap, tracked, unheld)) << "an arrival drains the ring";
+            EXPECT_TRUE(canAsk(Check::Finite, tracked, unheld));
 
             Stop stormy = still;
             stormy.mSky.mWeather = Rtx::Weather::Thunderstorm;

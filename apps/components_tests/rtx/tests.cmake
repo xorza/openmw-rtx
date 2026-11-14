@@ -121,10 +121,13 @@ target_sources(
         rtxtool/model/cameratrack.cpp
         rtxtool/model/cruise.cpp
         rtxtool/model/film.cpp
+        rtxtool/model/finding.cpp
+        rtxtool/model/logtally.cpp
         rtxtool/model/measurewindow.cpp
         rtxtool/model/runrecord.cpp
         rtxtool/model/skycrossing.cpp
         rtxtool/model/stopdescription.cpp
+        rtxtool/model/tour.cpp
         rtxtool/model/viewfile.cpp
         rtxtool/noise.cpp
         rtxtool/numbervalue.cpp

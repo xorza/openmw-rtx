@@ -33,8 +33,9 @@ namespace Rtx
     /// refusal, once for each texture a surface names, and draws the rest of the surface.
     enum class UnreadState : std::uint32_t
     {
-        /// A detail, decal, gloss or bump map, which no shipped file binds.
-        Role = 1u << 0,
+        /// A detail map, which no shipped file binds, and each of the three roles after it apart, so a refusal says
+        /// which map a mod's surface lost.
+        DetailMap = 1u << 0,
 
         /// A blend other than the four the shipped files state.
         BlendPair = 1u << 1,
@@ -58,11 +59,16 @@ namespace Rtx
 
         /// An attribute or a mode this reader has no rule for.
         Unknown = 1u << 10,
+
+        DecalMap = 1u << 11,
+        GlossMap = 1u << 12,
+        BumpMap = 1u << 13,
     };
 
-    inline constexpr std::array sUnreadStates{ UnreadState::Role, UnreadState::BlendPair, UnreadState::BlendEquation,
-        UnreadState::CulledFront, UnreadState::PolygonMode, UnreadState::Fog, UnreadState::Stencil,
-        UnreadState::ColourMask, UnreadState::FlatShading, UnreadState::TextureState, UnreadState::Unknown };
+    inline constexpr std::array sUnreadStates{ UnreadState::DetailMap, UnreadState::DecalMap, UnreadState::GlossMap,
+        UnreadState::BumpMap, UnreadState::BlendPair, UnreadState::BlendEquation, UnreadState::CulledFront,
+        UnreadState::PolygonMode, UnreadState::Fog, UnreadState::Stencil, UnreadState::ColourMask,
+        UnreadState::FlatShading, UnreadState::TextureState, UnreadState::Unknown };
 
     /// Why the trace draws a surface that states `state` otherwise: the reason its refusal gives.
     std::string_view whyUnread(UnreadState state);
@@ -160,6 +166,31 @@ namespace Rtx
 
     /// One texture as a surface uses it: the image, and how it is addressed past its edges.
     ///
+
+    /// What a role the trace reads no map for is refused as (`mapOf`'s nothing), or nothing for a role it reads.
+    constexpr std::optional<UnreadState> unreadOf(const TextureRole role)
+    {
+        switch (role)
+        {
+            case TextureRole::Detail:
+                return UnreadState::DetailMap;
+            case TextureRole::Decal:
+                return UnreadState::DecalMap;
+            case TextureRole::Gloss:
+                return UnreadState::GlossMap;
+            case TextureRole::Bump:
+                return UnreadState::BumpMap;
+            case TextureRole::Diffuse:
+            case TextureRole::Normal:
+            case TextureRole::NormalHeight:
+            case TextureRole::Emissive:
+            case TextureRole::Specular:
+            case TextureRole::Dark:
+            case TextureRole::Environment:
+                return std::nullopt;
+        }
+        return std::nullopt;
+    }
     /// **The image and not an `osg::Texture2D`**, for the reason `SurfaceDescription::mTextures` gives; **and the wrap
     /// beside it**, because that is the one piece of sampler state the content decides per texture: a `NiSourceTexture`
     /// states a clamp, and a renderer that read the image alone repeated every banner's edge.

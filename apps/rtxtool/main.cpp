@@ -62,6 +62,7 @@
 #include "runfolder.hpp"
 #include "toolline.hpp"
 #include "verbs.hpp"
+#include "worldmap.hpp"
 
 namespace RtxTool
 {
@@ -116,8 +117,12 @@ namespace RtxTool
             // The settings the ray tracer reads, from one source and through the game's one derivation: the line's
             // where it names them, else the player's for a window or the shipped defaults' for a measured run
             // (`overLine`).
-            const MWRender::RtxSettingValues values = overLine(
-                line, watched ? MWRender::RtxSettingValues::fromRegistry() : measuredSettings(command.mShipped, line));
+            const MWRender::RtxSettingValues values = overLine(line, [&] {
+                if (watched)
+                    return MWRender::RtxSettingValues::fromRegistry();
+                const MWRender::RtxSettingValues measured = measuredSettings(command.mShipped, line);
+                return command.mVerb == Verb::Tour ? touredSettings(command.mShipped, measured) : measured;
+            }());
 
             // The world reads the groundcover files only where `[Groundcover] enabled` says
             // (`World::loadGroundcoverFiles`), so the run's answer is written where the world reads
@@ -453,6 +458,13 @@ namespace RtxTool
             return ExitStatus::Passed;
         }
 
+        /// A tour of the content that loaded: its route planned where the world stands, printed, and flown leg by
+        /// leg, or nothing flown under `--plan`.
+        ExitStatus commandTour(const Command& command)
+        {
+            return runHosted(command, planTourRun(command, frameFrom(command), readWorldMap)).mExitStatus;
+        }
+
         /// One command: the line `--help` prints for it, and what it does. Identified by enum and not by name, because
         /// `verbs.hpp` holds the names and an option says which commands read it in the same terms, so a command whose
         /// options nothing reaches cannot drift in.
@@ -479,6 +491,10 @@ namespace RtxTool
             CommandRow{ Verb::Noise,
                 "how noisy the frame is against 16 frames averaged, and how biased, at every place of a suite",
                 commandNoise },
+            CommandRow{ Verb::Tour,
+                "fly over every land cell the content names and through its largest rooms, and report every fault met "
+                "where it was met",
+                commandTour },
         };
 
         static_assert(

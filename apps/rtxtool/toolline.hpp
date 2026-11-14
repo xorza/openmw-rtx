@@ -12,6 +12,8 @@
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <apps/rtxtool/model/benchspec.hpp>
 #include <apps/rtxtool/model/film.hpp>
+#include <apps/rtxtool/model/findingkind.hpp>
+#include <apps/rtxtool/model/tour.hpp>
 #include <components/fallback/validate.hpp>
 #include <components/files/multidircollection.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
@@ -64,7 +66,8 @@ namespace RtxTool
         /// What frames the world, which `frameFrom` makes a `Framed` of.
         struct Frame
         {
-            /// `--size`, or where the line names none, `check`'s own frame under `check` (`sCheckFrame`).
+            /// `--size`, or where the line names none, `check`'s own frame under `check` (`sCheckFrame`) and `tour`'s
+            /// under `tour` (`sTourFrame`).
             FrameSize mSize;
             float mFieldOfView = 0.0f;
             Named<int> mDay;
@@ -199,6 +202,24 @@ namespace RtxTool
             bool mEncode = false;
         };
 
+        /// What a tour is asked, as the line names it: its pacing, where the timescale and the grid's radius are the
+        /// world's and set where the world stands; the leg it begins at, counted from one; and the frame time its
+        /// plan's cost is worked out at.
+        struct Tour
+        {
+            bool mPlan = false;
+            TourPacing mPacing;
+            std::size_t mFrom = 1;
+            float mFrameMs = 7.0f;
+
+            /// The costs that fail the run beside the faults (`--fail-on`).
+            std::vector<FindingKind> mFailOn;
+
+            /// Whether the frames are held to the step, the world's second the wall's (`--pace=real`), or flown as
+            /// fast as the card draws them.
+            bool mPaced = false;
+        };
+
         /// What the hosted game is started with, as `apps/openmw/main.cpp` reads it.
         struct Game
         {
@@ -234,6 +255,7 @@ namespace RtxTool
         Shot mShot;
         Noise mNoise;
         Film mFilm;
+        Tour mTour;
         Game mGame;
     };
 }

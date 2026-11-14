@@ -45,19 +45,18 @@ namespace RtxTool
             return stop.mSchedule.mRoute.has_value();
         }
 
-        /// A route arrives at cells, and an arrival that rebuilds the scene, or places it twice in
-        /// one frame, drains the ring.
+        /// A route or a track arrives at cells, and an arrival that rebuilds the scene, or places it twice in one
+        /// frame, drains the ring.
         constexpr bool unrouted(const Stop& stop, const Rtx::RenderProfile&)
         {
-            return !stop.mSchedule.mRoute.has_value();
+            return !stop.mSchedule.mRoute.has_value() && !stop.mSchedule.mTrack.has_value();
         }
 
-        /// **Asked of a stop that stands still.** A route leaves the camera wherever it flew to and
-        /// `Stand` names only where it set off from, so the two legitimately differ by the whole
-        /// length of the route.
-        constexpr bool standingStill(const Stop& stop, const Rtx::RenderProfile&)
+        /// **Asked of a stop that stands still.** A route or a track leaves the camera wherever it flew to and
+        /// `Stand` names only where it set off from, so the two legitimately differ by the whole flight.
+        constexpr bool standingStill(const Stop& stop, const Rtx::RenderProfile& profile)
         {
-            return stop.mStand.mEye.has_value() && !stop.mSchedule.mFreeCamera && !stop.mSchedule.mRoute.has_value();
+            return stop.mStand.mEye.has_value() && !stop.mSchedule.mFreeCamera && unrouted(stop, profile);
         }
 
         /// A stop that names its weather and turns none: one that turns stands under each weather of

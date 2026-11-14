@@ -37,20 +37,23 @@ namespace RtxTool
         };
 
         /// Everything a hosted run writes into the settings before the engine reads them: the
-        /// window it is presented in.
+        /// window it is presented in, and the cells' preloading and the physics' threads where the run asks for the
+        /// game's own.
         ///
         /// These are settings and not a second command line, because both binaries have to reach one engine
         /// configured one way. What the trace and the mirror are configured by travels in the `RunSetup`
         /// (`SessionRequest::mSetup`) and never through the registry, which is the player's.
-        void applyHostedSettings(const WindowRequest& window)
+        void applyHostedSettings(const HostedRun& run)
         {
-            window.writeSettings();
+            run.mWindow.writeSettings();
+            if (run.mPreload.has_value())
+                run.mPreload->writeSettings();
 
             // Physics on the frame's own thread, so a run is the same run twice: a physics worker refreshes the
             // AI's line-of-sight cache after each step (`PhysicsTaskScheduler::refreshLOSCache`) while the AI
             // reads it, and whether a refresh landed before a read is the worker's timing, which sends an actor
             // that saw or did not see its target elsewhere.
-            Settings::physics().mAsyncNumThreads.set(0);
+            Settings::physics().mAsyncNumThreads.set(run.mPhysicsThreads.value_or(0));
         }
 
         /// **The shipped file's names for the content's companion maps**, which
@@ -80,7 +83,6 @@ namespace RtxTool
         const ToolLine::Game& game = line.mGame;
         Files::ConfigurationManager& config = command.mConfig;
         const std::filesystem::path& resources = line.mResources;
-        const WindowRequest& window = run.mWindow;
         SessionRequest& request = run.mRequest;
 
         std::ostream& out = Debug::getRawStdout();
@@ -93,14 +95,14 @@ namespace RtxTool
             return failedBeforeItRan();
         }
 
-        applyHostedSettings(window);
+        applyHostedSettings(run);
         request.mSaves = ownSavesFolder(command.mOwnDirectory);
         if (!request.mPlayed)
             applyShippedMapNames(command.mShipped);
 
         // **Whether the run was meant to end on its own**, which is what says an empty report is a
         // failure. A window somebody closes has finished no stop and owes no numbers.
-        const bool scheduled = request.mQuitAtEnd;
+        const bool scheduled = request.mQuitAtEnd && !request.mPlansOnly;
 
         // Taken before the request is handed to the session that owns it from here on.
         const bool played = request.mPlayed;

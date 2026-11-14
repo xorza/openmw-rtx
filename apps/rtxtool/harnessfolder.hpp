@@ -30,9 +30,8 @@ namespace RtxTool
 
     /// The shaders `verb` reads, and what holds them: the ones the game compiles in, or one of the harness's
     /// other sets, read from its folder — the same modules compiled again with their source in them where
-    /// `source` asks (for a profiler), and with the census for every verb but one that measures
-    /// (`VerbPolicy::mMeasures`), whose figures are of the game's kernels. `RTX_SPIRV_DIR` says why the source
-    /// is a set apart.
+    /// `source` asks (for a profiler), and with the census where the verb's row asks for it (`VerbPolicy::mShaders`).
+    /// `RTX_SPIRV_DIR` says why the source is a set apart.
     class HarnessShaders
     {
     public:
