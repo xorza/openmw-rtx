@@ -131,6 +131,7 @@ namespace MWWorld
         }
 
         SharedIterator& operator=(const SharedIterator&) = default;
+        ~SharedIterator() = default;
 
         SharedIterator& operator++()
         {
@@ -203,6 +204,8 @@ namespace MWWorld
     public:
         TypedDynamicStore();
         TypedDynamicStore(const TypedDynamicStore<T, Id>& orig);
+        ~TypedDynamicStore() override = default;
+        TypedDynamicStore& operator=(const TypedDynamicStore&) = delete;
 
         typedef SharedIterator<T> iterator;
 

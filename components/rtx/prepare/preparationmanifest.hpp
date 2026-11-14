@@ -65,7 +65,8 @@ namespace Rtx
         PreparationManifest(const PreparationManifest&) = delete;
         PreparationManifest& operator=(const PreparationManifest&) = delete;
         PreparationManifest(PreparationManifest&&) noexcept = default;
-        PreparationManifest& operator=(PreparationManifest&&) = default;
+        PreparationManifest& operator=(PreparationManifest&&) noexcept = default;
+        ~PreparationManifest() = default;
 
         /// The manifest at `path`, made under `signature` — what the preparation computes and how, so
         /// a pass whose version moved walks every model again — or an empty one.

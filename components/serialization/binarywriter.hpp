@@ -30,6 +30,8 @@ namespace Serialization
         }
 
         BinaryWriter(const BinaryWriter&) = delete;
+        ~BinaryWriter() = default;
+        BinaryWriter& operator=(const BinaryWriter&) = delete;
 
         template <class Format, class T>
         void operator()(Format&& format, const T& value)

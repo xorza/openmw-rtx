@@ -79,8 +79,6 @@ namespace Rtx
 
             PresentingDevice(const PresentingDevice&) = delete;
             PresentingDevice& operator=(const PresentingDevice&) = delete;
-            PresentingDevice(PresentingDevice&&) = delete;
-            PresentingDevice& operator=(PresentingDevice&&) = delete;
             ~PresentingDevice() = default;
 
             std::unique_ptr<Instance> mInstance;

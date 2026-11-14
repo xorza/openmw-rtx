@@ -72,8 +72,6 @@ namespace Rtx
 
         DlssUpscaler(const DlssUpscaler&) = delete;
         DlssUpscaler& operator=(const DlssUpscaler&) = delete;
-        DlssUpscaler(DlssUpscaler&&) = delete;
-        DlssUpscaler& operator=(DlssUpscaler&&) = delete;
 
         /// The extents `mode` traces at for an output of `width` by `height`: NGX's optimal settings where it
         /// upscales, as the feature is made for, since Ray Reconstruction takes no extent but the one it gives

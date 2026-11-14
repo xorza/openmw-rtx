@@ -37,6 +37,7 @@ namespace ESM
         Land& operator=(const Land& land);
 
         Land& operator=(Land&& land) = default;
+        ~Land() = default;
 
         // Only first four bits seem to be used, don't know what they mean.
         std::uint32_t mFlags = 0;

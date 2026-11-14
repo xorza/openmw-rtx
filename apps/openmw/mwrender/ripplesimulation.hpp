@@ -44,6 +44,8 @@ namespace MWRender
     public:
         RippleSimulation(osg::Group* parent, Resource::ResourceSystem* resourceSystem);
         ~RippleSimulation();
+        RippleSimulation(const RippleSimulation&) = delete;
+        RippleSimulation& operator=(const RippleSimulation&) = delete;
 
         /// @param dt Time since the last frame
         void update(float dt);

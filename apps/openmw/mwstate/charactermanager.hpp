@@ -18,16 +18,13 @@ namespace MWState
         std::string mGame;
 
     private:
-        CharacterManager(const CharacterManager&);
-        ///< Not implemented
-
-        CharacterManager& operator=(const CharacterManager&);
-        ///< Not implemented
-
         std::list<Character>::iterator findCharacter(const MWState::Character* character);
 
     public:
         CharacterManager(std::filesystem::path saves, const std::vector<std::string>& contentFiles);
+        ~CharacterManager() = default;
+        CharacterManager(const CharacterManager&) = delete;
+        CharacterManager& operator=(const CharacterManager&) = delete;
 
         Character* getCurrentCharacter();
         ///< @note May return null

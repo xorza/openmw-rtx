@@ -34,6 +34,8 @@ namespace SDLUtil
 
         SDLCursorManager();
         virtual ~SDLCursorManager();
+        SDLCursorManager(const SDLCursorManager&) = delete;
+        SDLCursorManager& operator=(const SDLCursorManager&) = delete;
 
         /// \brief sets whether to actively manage cursors or not
         virtual void setEnabled(bool enabled);

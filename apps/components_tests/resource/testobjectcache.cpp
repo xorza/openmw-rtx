@@ -40,6 +40,8 @@ namespace Resource
                 : osg::Object(other, copyOp)
             {
             }
+            ~Object() override = default;
+            Object& operator=(const Object&) = delete;
 
             META_Object(ResourceTest, Object)
         };

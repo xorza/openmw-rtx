@@ -161,6 +161,7 @@ namespace ESM
             AiSequence() {}
             AiSequence(const AiSequence&) = delete;
             AiSequence& operator=(const AiSequence&) = delete;
+            ~AiSequence() = default;
 
             void load(ESMReader& esm);
             void save(ESMWriter& esm) const;

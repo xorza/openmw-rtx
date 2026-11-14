@@ -51,6 +51,7 @@ namespace Debug
         explicit DebugGroup(const std::string& message, GLuint id = 0);
 
         DebugGroup(const DebugGroup& debugGroup, const osg::CopyOp& copyop = osg::CopyOp::SHALLOW_COPY);
+        DebugGroup& operator=(const DebugGroup&) = delete;
 
         META_StateAttribute(Debug, DebugGroup, osg::StateAttribute::Type(101))
 

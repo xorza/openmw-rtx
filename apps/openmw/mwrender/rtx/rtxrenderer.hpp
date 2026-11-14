@@ -114,8 +114,6 @@ namespace MWRender
         /// poser at state inside its mirror.
         RtxRenderer(const RtxRenderer&) = delete;
         RtxRenderer& operator=(const RtxRenderer&) = delete;
-        RtxRenderer(RtxRenderer&&) = delete;
-        RtxRenderer& operator=(RtxRenderer&&) = delete;
 
         /// Which card the backend runs on, for the harness's card watch.
         Rtx::CardAddress getCardAddress() const;

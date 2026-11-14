@@ -18,7 +18,7 @@ namespace MWWorld
     class CustomData
     {
     public:
-        virtual ~CustomData() {}
+        virtual ~CustomData() = default;
 
         virtual std::unique_ptr<CustomData> clone() const = 0;
 

@@ -74,7 +74,7 @@ class Optimizer
     public:
 
         Optimizer() : _mergeAlphaBlending(false), _sharedStateManager(nullptr), _sharedStateMutex(nullptr) {}
-        virtual ~Optimizer() {}
+        virtual ~Optimizer() = default;
 
         enum OptimizationOptions
         {

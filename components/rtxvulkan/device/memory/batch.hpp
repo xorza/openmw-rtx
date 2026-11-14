@@ -69,8 +69,6 @@ namespace Rtx
 
         Batch(const Batch&) = delete;
         Batch& operator=(const Batch&) = delete;
-        Batch(Batch&&) = delete;
-        Batch& operator=(Batch&&) = delete;
 
         /// Throws away anything still recorded. A destructor is not where a submit belongs: it
         /// runs during unwinding too, and a constructor that fails half way leaves a recording

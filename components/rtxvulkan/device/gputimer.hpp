@@ -113,9 +113,7 @@ namespace Rtx
         }
 
         GpuZone(const GpuZone&) = delete;
-        GpuZone(GpuZone&&) = delete;
         GpuZone& operator=(const GpuZone&) = delete;
-        GpuZone& operator=(GpuZone&&) = delete;
 
     private:
         GpuTimer* const mTimer;

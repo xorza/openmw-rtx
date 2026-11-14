@@ -65,8 +65,6 @@ namespace Rtx
 
         FaultReport(const FaultReport&) = delete;
         FaultReport& operator=(const FaultReport&) = delete;
-        FaultReport(FaultReport&&) = delete;
-        FaultReport& operator=(FaultReport&&) = delete;
 
         /// Marks the queue's progress with `checkpoint`, which the queue reports as the last one each stage passed
         /// if the device is lost: NVIDIA's checkpoints or AMD's buffer markers, whichever the driver offers, where

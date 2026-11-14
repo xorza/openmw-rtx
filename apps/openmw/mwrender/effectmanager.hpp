@@ -31,6 +31,7 @@ namespace MWRender
         EffectManager(osg::ref_ptr<osg::Group> parent, Resource::ResourceSystem* resourceSystem);
         EffectManager(const EffectManager&) = delete;
         ~EffectManager();
+        EffectManager& operator=(const EffectManager&) = delete;
 
         /// Add an effect. When it's finished playing, it will be removed automatically.
         void addEffect(VFS::Path::NormalizedView model, std::string_view textureOverride,

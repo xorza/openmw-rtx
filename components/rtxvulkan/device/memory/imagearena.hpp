@@ -75,6 +75,7 @@ namespace Rtx
         /// resources nothing uses after: the graveyard ends both after the same submit.
         ImageArena(ImageArena&& other) noexcept = default;
         ImageArena& operator=(ImageArena&& other) noexcept = default;
+        ~ImageArena() = default;
 
         /// What an arena of `declared` takes of the device's memory: the allocation's size.
         static VkDeviceSize bytesFor(const Device& device, std::span<const ArenaImage> declared);

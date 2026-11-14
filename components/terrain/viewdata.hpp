@@ -30,6 +30,8 @@ namespace Terrain
     public:
         ViewData();
         ~ViewData() override;
+        ViewData(const ViewData&) = delete;
+        ViewData& operator=(const ViewData&) = delete;
 
         void add(QuadTreeNode* node);
 

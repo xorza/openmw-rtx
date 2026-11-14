@@ -35,6 +35,8 @@ namespace SceneUtil
             , mLight(copy.mLight)
         {
         }
+        ~LampBody() override = default;
+        LampBody& operator=(const LampBody&) = delete;
 
         META_Object(SceneUtil, LampBody)
 

@@ -34,6 +34,8 @@ namespace SceneUtil
             , mKey(copy.mKey)
         {
         }
+        ~EmbeddedImage() override = default;
+        EmbeddedImage& operator=(const EmbeddedImage&) = delete;
 
         META_Object(SceneUtil, EmbeddedImage)
 

@@ -78,11 +78,19 @@ namespace Rtx
             SceneDesc& mScene;
             std::vector<TextureHold>& mHolds;
 
+            Given(SceneDesc& scene, std::vector<TextureHold>& holds)
+                : mScene(scene)
+                , mHolds(holds)
+            {
+            }
+
             ~Given()
             {
                 for (TextureHold& hold : mHolds)
                     mScene.drop(std::move(hold));
             }
+            Given(const Given&) = delete;
+            Given& operator=(const Given&) = delete;
         };
 
         /// **A patch is read where the graph places it and wears the sheet its path binds**, as the

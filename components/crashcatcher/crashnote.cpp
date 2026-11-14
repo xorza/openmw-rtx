@@ -74,8 +74,6 @@ namespace Crash
             Claim() = default;
             Claim(const Claim&) = delete;
             Claim& operator=(const Claim&) = delete;
-            Claim(Claim&&) = delete;
-            Claim& operator=(Claim&&) = delete;
 
             ~Claim()
             {

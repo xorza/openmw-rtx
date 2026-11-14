@@ -8,6 +8,6 @@ namespace MWRender
     {
     public:
         virtual MWRender::Objects& getObjects() = 0;
-        virtual ~RenderingInterface() {}
+        virtual ~RenderingInterface() = default;
     };
 }

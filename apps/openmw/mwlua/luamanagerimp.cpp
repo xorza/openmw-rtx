@@ -61,6 +61,8 @@ namespace MWLua
             }
 
             ~BoolScopeGuard() { mValue = false; }
+            BoolScopeGuard(const BoolScopeGuard&) = delete;
+            BoolScopeGuard& operator=(const BoolScopeGuard&) = delete;
         };
 
         LocalScripts* asLocal(const LuaUtil::ScriptsContainerWeakPtr& ptr)

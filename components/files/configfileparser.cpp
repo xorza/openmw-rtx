@@ -55,7 +55,7 @@ namespace Files
             explicit common_config_file_iterator(
                 const std::set<std::string>& allowed_options, bool allow_unregistered = false);
 
-            virtual ~common_config_file_iterator() {}
+            virtual ~common_config_file_iterator() = default;
 
         public: // Method required by eof_iterator
             void get();

@@ -218,8 +218,6 @@ namespace Rtx
 
             Session(const Session&) = delete;
             Session& operator=(const Session&) = delete;
-            Session(Session&&) = delete;
-            Session& operator=(Session&&) = delete;
 
         private:
             const Ngx::Api& mApi;
@@ -244,8 +242,6 @@ namespace Rtx
 
             ParameterMap(const ParameterMap&) = delete;
             ParameterMap& operator=(const ParameterMap&) = delete;
-            ParameterMap(ParameterMap&&) = delete;
-            ParameterMap& operator=(ParameterMap&&) = delete;
 
             Ngx::Parameter& get() const { return *mMap; }
 
@@ -284,8 +280,6 @@ namespace Rtx
 
             Feature(const Feature&) = delete;
             Feature& operator=(const Feature&) = delete;
-            Feature(Feature&&) = delete;
-            Feature& operator=(Feature&&) = delete;
 
             const Ngx::Handle* get() const { return mHandle; }
 
@@ -353,8 +347,6 @@ namespace Rtx
 
         Context(const Context&) = delete;
         Context& operator=(const Context&) = delete;
-        Context(Context&&) = delete;
-        Context& operator=(Context&&) = delete;
         ~Context() = default;
 
         const Ngx::Api& mApi;

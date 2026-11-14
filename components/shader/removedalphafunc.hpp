@@ -28,6 +28,7 @@ namespace Shader
             : osg::AlphaFunc(raf, copyop)
         {
         }
+        RemovedAlphaFunc& operator=(const RemovedAlphaFunc&) = delete;
 
         META_StateAttribute(Shader, RemovedAlphaFunc, ALPHAFUNC)
 

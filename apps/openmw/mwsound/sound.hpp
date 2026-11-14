@@ -45,10 +45,6 @@ namespace MWSound
 
     class SoundBase
     {
-        SoundBase& operator=(const SoundBase&) = delete;
-        SoundBase(const SoundBase&) = delete;
-        SoundBase(SoundBase&&) = delete;
-
         SoundParams mParams;
 
     protected:
@@ -174,25 +170,26 @@ namespace MWSound
         }
 
         SoundBase() = default;
+        ~SoundBase() = default;
+        SoundBase(const SoundBase&) = delete;
+        SoundBase& operator=(const SoundBase&) = delete;
     };
 
     class Sound : public SoundBase
     {
-        Sound& operator=(const Sound&) = delete;
-        Sound(const Sound&) = delete;
-        Sound(Sound&&) = delete;
-
     public:
         Sound() = default;
+        ~Sound() = default;
+        Sound(const Sound&) = delete;
+        Sound& operator=(const Sound&) = delete;
     };
 
     class Stream : public SoundBase
     {
-        Stream& operator=(const Stream&) = delete;
-        Stream(const Stream&) = delete;
-        Stream(Stream&&) = delete;
-
     public:
         Stream() = default;
+        ~Stream() = default;
+        Stream(const Stream&) = delete;
+        Stream& operator=(const Stream&) = delete;
     };
 }

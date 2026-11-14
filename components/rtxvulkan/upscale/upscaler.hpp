@@ -76,8 +76,6 @@ namespace Rtx
 
         Upscaler(const Upscaler&) = delete;
         Upscaler& operator=(const Upscaler&) = delete;
-        Upscaler(Upscaler&&) = delete;
-        Upscaler& operator=(Upscaler&&) = delete;
         ~Upscaler() = default;
 
         /// What the choice came to.

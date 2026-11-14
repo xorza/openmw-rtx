@@ -334,7 +334,7 @@ namespace Nif
         /// Does post-processing, after the entire tree is loaded
         virtual void post(Reader& nif) {}
 
-        virtual ~Record() {}
+        virtual ~Record() = default;
     };
 
 } // Namespace

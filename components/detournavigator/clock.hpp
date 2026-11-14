@@ -15,8 +15,6 @@ namespace DetourNavigator
 
         Clock(const Clock&) = delete;
         Clock& operator=(const Clock&) = delete;
-        Clock(Clock&&) = delete;
-        Clock& operator=(Clock&&) = delete;
 
         virtual std::chrono::steady_clock::time_point now() const = 0;
     };

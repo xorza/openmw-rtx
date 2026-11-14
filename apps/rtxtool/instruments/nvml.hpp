@@ -26,8 +26,6 @@ namespace RtxTool
         explicit Nvml(const Rtx::PciAddress& card);
         Nvml(const Nvml&) = delete;
         Nvml& operator=(const Nvml&) = delete;
-        Nvml(Nvml&&) = delete;
-        Nvml& operator=(Nvml&&) = delete;
         ~Nvml() = default;
 
         bool isOpen() const { return mDevice != nullptr; }

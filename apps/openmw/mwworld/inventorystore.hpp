@@ -89,6 +89,7 @@ namespace MWWorld
 
         InventoryStore& operator=(const InventoryStore& store);
         InventoryStore& operator=(InventoryStore&& store) noexcept;
+        ~InventoryStore() override = default;
 
         std::unique_ptr<ContainerStore> clone() override
         {

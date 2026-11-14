@@ -70,8 +70,6 @@ namespace Rtx
 
             ImageCreate(const ImageCreate&) = delete;
             ImageCreate& operator=(const ImageCreate&) = delete;
-            ImageCreate(ImageCreate&&) = delete;
-            ImageCreate& operator=(ImageCreate&&) = delete;
             ~ImageCreate() = default;
 
             const VkImageCreateInfo& get() const { return mCreate; }

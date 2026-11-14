@@ -566,6 +566,10 @@ the lines each item names, which the merge resolves by keeping the seam:
   and checks of style alone stay out, as their fixes would touch most of upstream's files for no fault. The cost is
   a conflict with an upstream edit to the lines the fixes touched, and upstream code a merge brings that the checks
   refuse, which `omw tidy` names.
+- `Misc::ScalableIcon`'s copy, which `clone` makes, registered as the original is, by the user's decision to hold
+  the tree to `cppcoreguidelines-special-member-functions`: its implicit copy left a clone out of the set
+  `updateAllIcons` repaints on a theme change. The cost is a conflict with an upstream edit to the class's
+  constructors.
 - Every header of `apps/` and `components/` guarded by `#pragma once`, upstream's 1,400 include guards among them,
   by the user's decision: one spelling of a guard across the tree, as `AGENTS.md` writes the fork's, which
   `omw lint pragmas` holds and CI's checks job runs. The headers GLSL reads as well keep their guards, for the

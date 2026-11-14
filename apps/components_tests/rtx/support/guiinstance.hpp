@@ -78,8 +78,6 @@ namespace Rtx::Testing
 
         GuiInstance(const GuiInstance&) = delete;
         GuiInstance& operator=(const GuiInstance&) = delete;
-        GuiInstance(GuiInstance&&) = delete;
-        GuiInstance& operator=(GuiInstance&&) = delete;
 
         CountingRenderer& getRenderer() { return mRenderer; }
         Gui::InterfaceFonts& getFonts() { return *mFonts; }

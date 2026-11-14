@@ -66,8 +66,6 @@ namespace Rtx
 
         ShaderCode(const ShaderCode&) = delete;
         ShaderCode& operator=(const ShaderCode&) = delete;
-        ShaderCode(ShaderCode&&) = delete;
-        ShaderCode& operator=(ShaderCode&&) = delete;
         ~ShaderCode() = default;
 
         /// What the `pNext` of a stage that runs `module`, one this read, points at, valid while

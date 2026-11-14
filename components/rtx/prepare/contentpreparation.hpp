@@ -136,8 +136,6 @@ namespace Rtx
 
         ContentPreparation(const ContentPreparation&) = delete;
         ContentPreparation& operator=(const ContentPreparation&) = delete;
-        ContentPreparation(ContentPreparation&&) = delete;
-        ContentPreparation& operator=(ContentPreparation&&) = delete;
 
         /// How many of the models and layers are done, read or found as they were, once they are all
         /// done or `patience` passed: a waiter that sleeps between the workers' reports, as

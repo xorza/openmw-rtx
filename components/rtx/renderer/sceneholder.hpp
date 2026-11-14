@@ -38,8 +38,6 @@ namespace Rtx
 
         SceneHolder(const SceneHolder&) = delete;
         SceneHolder& operator=(const SceneHolder&) = delete;
-        SceneHolder(SceneHolder&&) = delete;
-        SceneHolder& operator=(SceneHolder&&) = delete;
 
         /// Builds everything a scene needs, replacing whatever was there, and places it. `textures`
         /// are decoded already, each naming the slot it stands in (`TextureData::mSlot`), and must

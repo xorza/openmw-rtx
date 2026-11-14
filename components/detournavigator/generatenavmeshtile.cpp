@@ -26,11 +26,19 @@ namespace DetourNavigator
             ESM::RefId mWorldspace;
             std::shared_ptr<NavMeshTileConsumer> mConsumer;
 
+            Provide(ESM::RefId worldspace, std::shared_ptr<NavMeshTileConsumer> consumer)
+                : mWorldspace(worldspace)
+                , mConsumer(std::move(consumer))
+            {
+            }
+
             ~Provide() noexcept
             {
                 if (mConsumer != nullptr)
                     mConsumer->provide(mWorldspace);
             }
+            Provide(const Provide&) = delete;
+            Provide& operator=(const Provide&) = delete;
         };
 
         void reportPolyCount(NavMeshTileConsumer& consumer, const NavMeshData& tileData)

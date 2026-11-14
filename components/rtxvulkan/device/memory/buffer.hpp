@@ -112,6 +112,7 @@ namespace Rtx
 
         /// Buries what this held, as its members do as they go, then takes `other` as the move does.
         Buffer& operator=(Buffer&& other) noexcept;
+        ~Buffer() = default;
 
         VkBuffer getHandle() const { return mHandle.get(); }
         VkDeviceSize getSize() const { return mSize; }

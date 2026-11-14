@@ -71,8 +71,6 @@ namespace Crash
 
         SummarySource(const SummarySource&) = delete;
         SummarySource& operator=(const SummarySource&) = delete;
-        SummarySource(SummarySource&&) = delete;
-        SummarySource& operator=(SummarySource&&) = delete;
         ~SummarySource() override = default;
 
         /// A crash's summary, which the session counts as its report.

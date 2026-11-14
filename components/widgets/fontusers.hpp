@@ -78,8 +78,6 @@ namespace Gui
 
         FontUsers(const FontUsers&) = delete;
         FontUsers& operator=(const FontUsers&) = delete;
-        FontUsers(FontUsers&&) = delete;
-        FontUsers& operator=(FontUsers&&) = delete;
 
         /// Every user drops, then every user is refitted at `textHeight`: after a font is rasterized
         /// again or set at another size, and before the next frame draws. No user of this registry

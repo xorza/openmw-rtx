@@ -57,8 +57,7 @@ namespace Rtx
 
             SpecializedKernels(const SpecializedKernels&) = delete;
             SpecializedKernels& operator=(const SpecializedKernels&) = delete;
-            SpecializedKernels(SpecializedKernels&&) = delete;
-            SpecializedKernels& operator=(SpecializedKernels&&) = delete;
+            ~SpecializedKernels() = default;
 
             Device mDevice;
             SetLayout mTextures;

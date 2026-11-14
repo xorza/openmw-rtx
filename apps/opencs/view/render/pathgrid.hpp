@@ -56,6 +56,8 @@ namespace CSVRender
             const CSMWorld::CellCoordinates& coordinates);
 
         ~Pathgrid();
+        Pathgrid(const Pathgrid&) = delete;
+        Pathgrid& operator=(const Pathgrid&) = delete;
 
         const CSMWorld::CellCoordinates& getCoordinates() const;
         const std::string& getId() const;

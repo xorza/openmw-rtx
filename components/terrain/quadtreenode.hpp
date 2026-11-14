@@ -20,7 +20,7 @@ namespace Terrain
     class LodCallback
     {
     public:
-        virtual ~LodCallback() {}
+        virtual ~LodCallback() = default;
 
         enum ReturnValue
         {
@@ -40,6 +40,8 @@ namespace Terrain
     public:
         QuadTreeNode(QuadTreeNode* parent, ChildDirection dir, float size, const osg::Vec2f& center);
         ~QuadTreeNode() override;
+        QuadTreeNode(const QuadTreeNode&) = delete;
+        QuadTreeNode& operator=(const QuadTreeNode&) = delete;
 
         inline QuadTreeNode* getParent() { return mParent; }
         // Hides the base's member on purpose: it is called through the derived type.

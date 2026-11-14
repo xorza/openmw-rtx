@@ -12,10 +12,6 @@ namespace Compiler
         std::string mContext;
 
         friend class ContextOverride;
-        // not implemented
-
-        StreamErrorHandler(const StreamErrorHandler&);
-        StreamErrorHandler& operator=(const StreamErrorHandler&);
 
         void report(const std::string& message, const TokenLoc& loc, Type type) override;
         ///< Report error to the user.
@@ -30,6 +26,9 @@ namespace Compiler
 
         StreamErrorHandler();
         ///< constructor
+        ~StreamErrorHandler() override = default;
+        StreamErrorHandler(const StreamErrorHandler&) = delete;
+        StreamErrorHandler& operator=(const StreamErrorHandler&) = delete;
     };
 
     class ContextOverride

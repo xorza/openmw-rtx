@@ -34,8 +34,6 @@ namespace Crash
 
         MonitorLog(const MonitorLog&) = delete;
         MonitorLog& operator=(const MonitorLog&) = delete;
-        MonitorLog(MonitorLog&&) = delete;
-        MonitorLog& operator=(MonitorLog&&) = delete;
 
         /// Queues `lines` as one entry, written in one write so that a line the game logs meanwhile
         /// lands before them or after them and never between two of them.

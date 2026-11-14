@@ -26,6 +26,8 @@ namespace MWRender
     public:
         ActorsPaths(const osg::ref_ptr<osg::Group>& root, bool enabled);
         ~ActorsPaths();
+        ActorsPaths(const ActorsPaths&) = delete;
+        ActorsPaths& operator=(const ActorsPaths&) = delete;
 
         bool toggle();
 

@@ -20,6 +20,8 @@ namespace MyGUIPlatform
 
         AdditiveLayer();
         ~AdditiveLayer() override;
+        AdditiveLayer(const AdditiveLayer&) = delete;
+        AdditiveLayer& operator=(const AdditiveLayer&) = delete;
 
         void renderToTarget(MyGUI::IRenderTarget* target, bool update) override;
 

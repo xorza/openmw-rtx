@@ -16,6 +16,7 @@ namespace ESM
             Value(Value&&) = default;
             Value& operator=(const Value&) = delete;
             Value& operator=(Value&&) = default;
+            ~Value() = default;
         };
 
         TEST(Esm3InfoOrderTest, insertInfoShouldNotCopyValue)

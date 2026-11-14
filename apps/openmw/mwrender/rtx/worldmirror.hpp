@@ -82,8 +82,6 @@ namespace MWRender
         /// Pinned: its extractor holds its scene and its walk, and its ring its extractor.
         WorldMirror(const WorldMirror&) = delete;
         WorldMirror& operator=(const WorldMirror&) = delete;
-        WorldMirror(WorldMirror&&) = delete;
-        WorldMirror& operator=(WorldMirror&&) = delete;
 
         /// The resource system the cell ring's models and the hand-over's pictures are loaded through, and
         /// the queue what the mirror lets go of joins. Told once, where the world is attached; only the image

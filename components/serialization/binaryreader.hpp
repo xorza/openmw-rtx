@@ -30,6 +30,8 @@ namespace Serialization
         }
 
         BinaryReader(const BinaryReader&) = delete;
+        ~BinaryReader() = default;
+        BinaryReader& operator=(const BinaryReader&) = delete;
 
         template <class Format, class T>
         void operator()(Format&& format, T& value)

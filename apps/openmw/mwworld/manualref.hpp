@@ -23,6 +23,7 @@ namespace MWWorld
 
         ManualRef(ManualRef&&) noexcept = default;
         ManualRef& operator=(ManualRef&&) noexcept = default;
+        ~ManualRef() = default;
 
         const Ptr& getPtr() const { return mPtr; }
     };

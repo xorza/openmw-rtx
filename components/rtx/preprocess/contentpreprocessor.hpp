@@ -53,8 +53,7 @@ namespace Rtx
 
         ContentPreprocessor(const ContentPreprocessor&) = delete;
         ContentPreprocessor& operator=(const ContentPreprocessor&) = delete;
-        ContentPreprocessor(ContentPreprocessor&&) = delete;
-        ContentPreprocessor& operator=(ContentPreprocessor&&) = delete;
+        ~ContentPreprocessor() = default;
 
         /// `ShapePass`: what a drawable's triangles come to, and its normals where they split.
         void shape(const ShapePass::Input& input, ShapePass::Output& output);

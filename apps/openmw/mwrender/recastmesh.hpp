@@ -24,6 +24,8 @@ namespace MWRender
     public:
         RecastMesh(const osg::ref_ptr<osg::Group>& root, bool enabled);
         ~RecastMesh();
+        RecastMesh(const RecastMesh&) = delete;
+        RecastMesh& operator=(const RecastMesh&) = delete;
 
         bool toggle();
 

@@ -44,6 +44,8 @@ namespace EsmLoader
         EsmData(EsmData&&) = default;
 
         ~EsmData();
+        EsmData& operator=(const EsmData&) = delete;
+        EsmData& operator=(EsmData&&) = default;
     };
 
     VFS::Path::NormalizedView getModel(const EsmData& content, const ESM::RefId& refId, ESM::RecNameInts type);

@@ -19,6 +19,8 @@ namespace SceneUtil
             const osgAnimation::RigGeometry& copy, const osg::CopyOp& copyop = osg::CopyOp::SHALLOW_COPY);
 
         OsgaRigGeometry(const OsgaRigGeometry& copy, const osg::CopyOp& copyop = osg::CopyOp::SHALLOW_COPY);
+        ~OsgaRigGeometry() override = default;
+        OsgaRigGeometry& operator=(const OsgaRigGeometry&) = delete;
 
         META_Object(SceneUtil, OsgaRigGeometry)
 

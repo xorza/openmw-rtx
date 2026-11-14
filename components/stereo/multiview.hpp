@@ -147,6 +147,8 @@ namespace Stereo
     {
         explicit InitialFrustumCallback(osg::Camera* camera);
         virtual ~InitialFrustumCallback();
+        InitialFrustumCallback(const InitialFrustumCallback&) = delete;
+        InitialFrustumCallback& operator=(const InitialFrustumCallback&) = delete;
 
         virtual void setInitialFrustum(
             osg::CullStack& cullStack, osg::BoundingBoxd& bb, bool& nearCulling, bool& farCulling) const = 0;

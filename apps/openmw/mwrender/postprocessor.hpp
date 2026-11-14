@@ -111,6 +111,8 @@ namespace MWRender
             const VFS::Manager* vfs, SceneUtil::LightManager& lights, SkyManager& sky);
 
         ~PostProcessor() override;
+        PostProcessor(const PostProcessor&) = delete;
+        PostProcessor& operator=(const PostProcessor&) = delete;
 
         void setupTransparentBin(const Water* water);
 

@@ -33,6 +33,8 @@ namespace SceneUtil
             unsigned int outdoorShadowCastingMask, unsigned int indoorShadowCastingMask, unsigned int worldMask,
             const Settings::ShadowsCategory& settings, Shader::ShaderManager& shaderManager);
         ~ShadowManager();
+        ShadowManager(const ShadowManager&) = delete;
+        ShadowManager& operator=(const ShadowManager&) = delete;
 
         void setupShadowSettings(const Settings::ShadowsCategory& settings, Shader::ShaderManager& shaderManager);
         void setOutdoorShadowCastingMask(unsigned int mask);

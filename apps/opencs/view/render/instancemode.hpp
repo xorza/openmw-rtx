@@ -137,6 +137,8 @@ namespace CSVRender
     public:
         explicit DropObjectHeightHandler(WorldspaceWidget* worldspacewidget);
         ~DropObjectHeightHandler();
+        DropObjectHeightHandler(const DropObjectHeightHandler&) = delete;
+        DropObjectHeightHandler& operator=(const DropObjectHeightHandler&) = delete;
         std::vector<float> mObjectHeights;
 
     private:

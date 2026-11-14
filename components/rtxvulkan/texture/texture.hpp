@@ -89,6 +89,7 @@ namespace Rtx
 
         Texture(Texture&&) noexcept = default;
         Texture& operator=(Texture&&) noexcept = default;
+        ~Texture() = default;
 
         /// Whether the slot holds no texture.
         bool isEmpty() const { return mImage.isEmpty(); }

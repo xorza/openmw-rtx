@@ -136,6 +136,7 @@ namespace MWScript
 
         VisibilityRun(const VisibilityRun&) = delete;
         VisibilityRun& operator=(const VisibilityRun&) = delete;
+        ~VisibilityRun() = default;
 
         /// Runs `script` over a reference the content files stand, from every local at nought and
         /// frame after frame, until a frame leaves the run as it found it; appends to `inputs` every

@@ -143,7 +143,7 @@ namespace MWGui
             virtual int pageSplit();
 
         protected:
-            virtual ~GraphicElement() {}
+            virtual ~GraphicElement() = default;
             MyGUI::Widget* mParent;
             Paginator& mPaginator;
             BlockStyle mBlockStyle;

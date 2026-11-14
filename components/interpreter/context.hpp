@@ -10,7 +10,7 @@ namespace Interpreter
     class Context
     {
     public:
-        virtual ~Context() {}
+        virtual ~Context() = default;
 
         virtual ESM::RefId getTarget() const = 0;
 

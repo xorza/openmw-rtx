@@ -181,8 +181,6 @@ namespace Rtx
 
             CorpusChain(const CorpusChain&) = delete;
             CorpusChain& operator=(const CorpusChain&) = delete;
-            CorpusChain(CorpusChain&&) = delete;
-            CorpusChain& operator=(CorpusChain&&) = delete;
             ~CorpusChain() = default;
 
             /// Whether the pass made the file's whole chain its kind's way: a painted colour's in BC1, which

@@ -17,6 +17,8 @@ namespace NifOsg
         explicit AutoTransform(Mode mode = Mode::RigidFaceCamera);
         explicit AutoTransform(const Nif::NiTransform& transform, Mode mode = Mode::RigidFaceCamera);
         AutoTransform(const AutoTransform& copy, const osg::CopyOp& copyop = osg::CopyOp::SHALLOW_COPY);
+        ~AutoTransform() override = default;
+        AutoTransform& operator=(const AutoTransform&) = delete;
 
         META_Node(NifOsg, AutoTransform)
 

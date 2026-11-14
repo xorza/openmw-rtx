@@ -47,6 +47,7 @@ namespace Rtx::Testing
         TestTexture& operator=(TestTexture&&) noexcept = default;
         TestTexture(const TestTexture&) = delete;
         TestTexture& operator=(const TestTexture&) = delete;
+        ~TestTexture() = default;
 
         /// Describes what a painter wrote, over the levels it pushed.
         ///

@@ -151,6 +151,11 @@ namespace RtxTool
             mKernelCounted = countKernel;
             return true;
         }
+
+    public:
+        Events() = default;
+        Events(const Events&) = delete;
+        Events& operator=(const Events&) = delete;
     };
 
     ThreadCounters::ThreadCounters()

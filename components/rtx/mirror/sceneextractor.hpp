@@ -128,8 +128,6 @@ namespace Rtx
         /// Pinned: its resolvers and its keys hold references to its scene, its pass and one another.
         SceneExtractor(const SceneExtractor&) = delete;
         SceneExtractor& operator=(const SceneExtractor&) = delete;
-        SceneExtractor(SceneExtractor&&) = delete;
-        SceneExtractor& operator=(SceneExtractor&&) = delete;
 
         /// Which nodes the walks may descend into, as an `osg` traversal mask: what keeps the mirror out of subtrees
         /// the ray tracer answers for itself, such as the sky's mask, without knowing what a sky is, and out of what
@@ -290,8 +288,6 @@ namespace Rtx
 
             WalkGuard(const WalkGuard&) = delete;
             WalkGuard& operator=(const WalkGuard&) = delete;
-            WalkGuard(WalkGuard&&) = delete;
-            WalkGuard& operator=(WalkGuard&&) = delete;
 
         private:
             MirrorPass& mPass;

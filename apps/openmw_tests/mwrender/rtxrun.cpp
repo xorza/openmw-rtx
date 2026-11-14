@@ -30,8 +30,6 @@ namespace MWRender
 
             EnvironmentFor(const EnvironmentFor&) = delete;
             EnvironmentFor& operator=(const EnvironmentFor&) = delete;
-            EnvironmentFor(EnvironmentFor&&) = delete;
-            EnvironmentFor& operator=(EnvironmentFor&&) = delete;
 
         private:
             const char* mName;

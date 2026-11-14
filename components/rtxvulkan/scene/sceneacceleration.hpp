@@ -58,8 +58,6 @@ namespace Rtx
         /// Pinned: the top-level build keeps a pointer to its geometry, a member beside it.
         SceneAcceleration(const SceneAcceleration&) = delete;
         SceneAcceleration& operator=(const SceneAcceleration&) = delete;
-        SceneAcceleration(SceneAcceleration&&) = delete;
-        SceneAcceleration& operator=(SceneAcceleration&&) = delete;
         ~SceneAcceleration() = default;
 
         /// Builds every mesh's structure, writes every row, and builds the top level, in one submit

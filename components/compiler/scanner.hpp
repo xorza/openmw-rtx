@@ -247,11 +247,6 @@ namespace Compiler
         };
 
     private:
-        // not implemented
-
-        Scanner(const Scanner&);
-        Scanner& operator=(const Scanner&);
-
         bool get(MultiChar& c);
 
         void putback(MultiChar& c);
@@ -274,6 +269,9 @@ namespace Compiler
     public:
         Scanner(ErrorHandler& errorHandler, std::istream& inputStream, const Extensions* extensions = nullptr);
         ///< constructor
+        ~Scanner() = default;
+        Scanner(const Scanner&) = delete;
+        Scanner& operator=(const Scanner&) = delete;
 
         void scan(Parser& parser);
         ///< Scan a token and deliver it to the parser.

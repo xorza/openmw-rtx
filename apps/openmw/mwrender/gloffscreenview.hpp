@@ -51,6 +51,8 @@ namespace MWRender
     {
     public:
         ~GlOffscreenView() override;
+        GlOffscreenView(const GlOffscreenView&) = delete;
+        GlOffscreenView& operator=(const GlOffscreenView&) = delete;
 
         void keepCopy() override;
         const osg::Image* getCopy() override;

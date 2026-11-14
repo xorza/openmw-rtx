@@ -23,8 +23,6 @@ namespace Rtx
         /// Pinned: the set points into what this holds.
         ShaderFolder(const ShaderFolder&) = delete;
         ShaderFolder& operator=(const ShaderFolder&) = delete;
-        ShaderFolder(ShaderFolder&&) = delete;
-        ShaderFolder& operator=(ShaderFolder&&) = delete;
         ~ShaderFolder() = default;
 
         const ShaderSet& getSet() const { return mSet; }

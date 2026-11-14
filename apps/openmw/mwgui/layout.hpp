@@ -33,6 +33,8 @@ namespace MWGui
                 Log(Debug::Error) << "Error in the destructor: " << e.what();
             }
         }
+        Layout(const Layout&) = delete;
+        Layout& operator=(const Layout&) = delete;
 
         MyGUI::Widget* getWidget(std::string_view name) const;
 

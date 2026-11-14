@@ -589,6 +589,8 @@ namespace Shader
             SamplerProgram(
                 const ShaderManager::SamplerBindingMap& samplers, const osg::Program& other, const osg::CopyOp& copyop);
             SamplerProgram(const SamplerProgram& other, const osg::CopyOp& copyop = osg::CopyOp::SHALLOW_COPY);
+            ~SamplerProgram() override = default;
+            SamplerProgram& operator=(const SamplerProgram&) = delete;
 
             META_Object(Shader, SamplerProgram)
 

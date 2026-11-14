@@ -40,8 +40,8 @@ namespace MWLua
     public:
         LuaManager(const VFS::Manager* vfs, const std::filesystem::path& libsDir);
         LuaManager(const LuaManager&) = delete;
-        LuaManager(LuaManager&&) = delete;
         ~LuaManager() override;
+        LuaManager& operator=(const LuaManager&) = delete;
 
         // Called by engine.cpp as part of content file loading
         void initPreLoad();

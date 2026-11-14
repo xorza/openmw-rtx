@@ -9,7 +9,7 @@ namespace Terrain
     class View
     {
     public:
-        virtual ~View() {}
+        virtual ~View() = default;
 
         /// Reset internal structure so that the next addition to the view will override the previous frame's contents.
         virtual void reset() = 0;

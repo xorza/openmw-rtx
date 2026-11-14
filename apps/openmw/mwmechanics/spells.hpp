@@ -57,6 +57,8 @@ namespace MWMechanics
         Spells(Spells&& spells) noexcept;
 
         ~Spells();
+        Spells& operator=(const Spells&) = delete;
+        Spells& operator=(Spells&&) = delete;
 
         static bool hasCorprusEffect(const ESM::Spell* spell);
 

@@ -54,6 +54,8 @@ namespace MWWorld
         {
         }
         ~ResolutionListener();
+        ResolutionListener(const ResolutionListener&) = delete;
+        ResolutionListener& operator=(const ResolutionListener&) = delete;
     };
 
     class ResolutionHandle
@@ -206,6 +208,7 @@ namespace MWWorld
         ContainerStoreIteratorBase operator++(int);
         ContainerStoreIteratorBase& operator=(const ContainerStoreIteratorBase& rhs);
         ContainerStoreIteratorBase(const ContainerStoreIteratorBase& rhs) = default;
+        ~ContainerStoreIteratorBase() = default;
 
         int getType() const;
         const ContainerStore* getContainerStore() const;

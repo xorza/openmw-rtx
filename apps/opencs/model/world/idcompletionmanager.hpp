@@ -20,16 +20,15 @@ namespace CSMWorld
 
         std::map<ColumnBase::Display, std::shared_ptr<QCompleter>> mCompleters;
 
-        // Don't allow copying
-        IdCompletionManager(const IdCompletionManager&);
-        IdCompletionManager& operator=(const IdCompletionManager&);
-
         void generateCompleters(Data& data);
 
     public:
         static std::vector<ColumnBase::Display> getDisplayTypes();
 
         explicit IdCompletionManager(Data& data);
+        ~IdCompletionManager() = default;
+        IdCompletionManager(const IdCompletionManager&) = delete;
+        IdCompletionManager& operator=(const IdCompletionManager&) = delete;
 
         bool hasCompleterFor(ColumnBase::Display display) const;
         std::shared_ptr<QCompleter> getCompleter(ColumnBase::Display display);

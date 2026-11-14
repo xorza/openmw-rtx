@@ -40,6 +40,8 @@ namespace MWRender
         explicit NavMesh(const osg::ref_ptr<osg::Group>& root, const std::shared_ptr<SceneUtil::WorkQueue>& workQueue,
             bool enabled, Settings::NavMeshRenderMode mode);
         ~NavMesh();
+        NavMesh(const NavMesh&) = delete;
+        NavMesh& operator=(const NavMesh&) = delete;
 
         bool toggle();
 

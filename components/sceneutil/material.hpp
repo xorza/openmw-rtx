@@ -42,6 +42,8 @@ namespace SceneUtil
         explicit Material(const MaterialConfig& config = MaterialConfig{});
 
         Material(const Material& other, const osg::CopyOp& copyop = osg::CopyOp::SHALLOW_COPY);
+        ~Material() override = default;
+        Material& operator=(const Material&) = delete;
 
         META_StateAttribute(SceneUtil, Material, osg::StateAttribute::MATERIAL)
 

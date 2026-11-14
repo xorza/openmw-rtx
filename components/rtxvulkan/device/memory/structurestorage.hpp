@@ -61,8 +61,6 @@ namespace Rtx
         /// Pinned: every structure placed here keeps a pointer to it, to give its room back.
         StructureStorage(const StructureStorage&) = delete;
         StructureStorage& operator=(const StructureStorage&) = delete;
-        StructureStorage(StructureStorage&&) = delete;
-        StructureStorage& operator=(StructureStorage&&) = delete;
         ~StructureStorage() = default;
 
         /// Room for a structure of `bytes`, taken from the first block that has it, or why the

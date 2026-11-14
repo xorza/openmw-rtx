@@ -11,6 +11,8 @@ namespace MWGui
     public:
         KeyboardNavigation();
         ~KeyboardNavigation() override;
+        KeyboardNavigation(const KeyboardNavigation&) = delete;
+        KeyboardNavigation& operator=(const KeyboardNavigation&) = delete;
 
         /// @return Was the key handled by this class?
         bool injectKeyPress(MyGUI::KeyCode key, unsigned int text, bool repeat);

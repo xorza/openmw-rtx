@@ -30,6 +30,8 @@ namespace MWGui
     public:
         LoadingScreen(Resource::ResourceSystem* resourceSystem, MWRender::Renderer& renderer);
         ~LoadingScreen() override;
+        LoadingScreen(const LoadingScreen&) = delete;
+        LoadingScreen& operator=(const LoadingScreen&) = delete;
 
         /// Overridden from Loading::Listener, see the Loading::Listener documentation for usage details
         void setLabel(const std::string& label, bool important) override;

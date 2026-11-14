@@ -50,6 +50,7 @@ namespace Gui
 
         FontLoader(const FontLoader&) = delete;
         FontLoader& operator=(const FontLoader&) = delete;
+        ~FontLoader() = default;
 
         /// Rasterizes each TrueType font whose size or resolution `fit` changes again, in place: its
         /// `IFont*` stays and its texture is replaced, so every text drawn with it has to take the

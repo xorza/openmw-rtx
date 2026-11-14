@@ -282,6 +282,7 @@ namespace MWWorld
         WeatherStore() = default;
         WeatherStore(const WeatherStore&) = delete;
         WeatherStore& operator=(const WeatherStore&) = delete;
+        ~WeatherStore() = default;
 
         void reset();
 

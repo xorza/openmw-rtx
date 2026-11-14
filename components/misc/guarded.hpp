@@ -68,6 +68,9 @@ namespace Misc
             , mValue(std::move(other.lock().get()))
         {
         }
+        ~ScopeGuarded() = default;
+        ScopeGuarded& operator=(const ScopeGuarded&) = delete;
+        ScopeGuarded& operator=(ScopeGuarded&&) = delete;
 
         Locked<T> lock() { return Locked<T>(mMutex, mValue); }
 

@@ -55,8 +55,6 @@ namespace RtxTool
         /// answers to it, by reference.
         Session(const Session&) = delete;
         Session& operator=(const Session&) = delete;
-        Session(Session&&) = delete;
-        Session& operator=(Session&&) = delete;
 
         /// Gives the log back its listener, where the run heard it.
         ~Session() override;

@@ -49,6 +49,8 @@ namespace MWRender
     public:
         explicit Pathgrid(osg::ref_ptr<osg::Group> root);
         ~Pathgrid();
+        Pathgrid(const Pathgrid&) = delete;
+        Pathgrid& operator=(const Pathgrid&) = delete;
         bool toggleRenderMode(int mode);
 
         void addCell(const MWWorld::CellStore* store);

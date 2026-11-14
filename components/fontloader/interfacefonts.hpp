@@ -36,6 +36,7 @@ namespace Gui
 
         InterfaceFonts(const InterfaceFonts&) = delete;
         InterfaceFonts& operator=(const InterfaceFonts&) = delete;
+        ~InterfaceFonts() = default;
 
         /// Rasterizes each font `fit` moves again, and has every text take its font and the text
         /// height again and every widget sized to its text size itself again, then every list

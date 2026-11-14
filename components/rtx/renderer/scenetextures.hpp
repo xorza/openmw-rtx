@@ -35,8 +35,7 @@ namespace Rtx
 
         SceneTextures(const SceneTextures&) = delete;
         SceneTextures& operator=(const SceneTextures&) = delete;
-        SceneTextures(SceneTextures&&) = delete;
-        SceneTextures& operator=(SceneTextures&&) = delete;
+        ~SceneTextures() = default;
 
         /// Resolves and describes every texture `scene` still names, in table order, for a backend
         /// building an array from nothing. The free slots are not among them. A texture that cannot

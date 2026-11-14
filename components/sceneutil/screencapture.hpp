@@ -44,6 +44,8 @@ namespace SceneUtil
             osg::ref_ptr<osgViewer::ScreenCaptureHandler::CaptureOperation> impl);
 
         ~AsyncScreenCaptureOperation() override;
+        AsyncScreenCaptureOperation(const AsyncScreenCaptureOperation&) = delete;
+        AsyncScreenCaptureOperation& operator=(const AsyncScreenCaptureOperation&) = delete;
 
         void stop();
 

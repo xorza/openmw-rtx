@@ -99,8 +99,6 @@ namespace Rtx
 
         MeshReader(const MeshReader&) = delete;
         MeshReader& operator=(const MeshReader&) = delete;
-        MeshReader(MeshReader&&) = delete;
-        MeshReader& operator=(MeshReader&&) = delete;
 
         /// Reads `read` into `into`, shaped by `content`, this thread's, answering whether the drawable held a triangle
         /// to read (`MeshRead`), and an error for a face this cannot build, saying why: lines and points, a morph's

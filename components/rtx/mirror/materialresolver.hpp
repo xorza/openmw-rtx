@@ -103,8 +103,6 @@ namespace Rtx
 
         MaterialResolver(const MaterialResolver&) = delete;
         MaterialResolver& operator=(const MaterialResolver&) = delete;
-        MaterialResolver(MaterialResolver&&) = delete;
-        MaterialResolver& operator=(MaterialResolver&&) = delete;
 
         /// The material slot for the chain of state sets in force at a drawable.
         Resolved resolve(std::span<const Shading> shading);

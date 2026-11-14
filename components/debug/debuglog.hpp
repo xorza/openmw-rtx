@@ -24,6 +24,8 @@ public:
 
     explicit Log(Debug::Level level);
     ~Log();
+    Log(const Log&) = delete;
+    Log& operator=(const Log&) = delete;
 
     template <typename T>
     Log& operator<<(const T& rhs)

@@ -105,6 +105,9 @@ namespace Bsa
          */
 
         virtual ~BSAFile() { close(); }
+        BSAFile() = default;
+        BSAFile(const BSAFile&) = delete;
+        BSAFile& operator=(const BSAFile&) = delete;
 
         /// Open an archive file.
         void open(const std::filesystem::path& file);

@@ -41,6 +41,8 @@ namespace MyGUIPlatform
         OSGTexture(const std::string& name, Resource::ImageManager* imageManager);
         explicit OSGTexture(osg::Texture2D* texture, osg::StateSet* injectState = nullptr);
         ~OSGTexture() override;
+        OSGTexture(const OSGTexture&) = default;
+        OSGTexture& operator=(const OSGTexture&) = default;
 
         osg::StateSet* getInjectState() { return mInjectState; }
 

@@ -44,6 +44,7 @@ namespace Interpreter
 
         Interpreter(const Interpreter&) = delete;
         Interpreter& operator=(const Interpreter&) = delete;
+        ~Interpreter() = default;
 
         template <typename T, typename... TArgs>
         void installSegment0(int code, TArgs&&... args)

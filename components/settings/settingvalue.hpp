@@ -281,6 +281,7 @@ namespace Settings
         BaseSettingValue& operator=(const BaseSettingValue& other) = delete;
 
         BaseSettingValue& operator=(BaseSettingValue&& other) = delete;
+        ~BaseSettingValue() = default;
 
     private:
         Index& mIndex;
@@ -370,6 +371,7 @@ namespace Settings
         SettingValue& operator=(const SettingValue& other) = delete;
 
         SettingValue& operator=(SettingValue&& other) = delete;
+        ~SettingValue() = default;
 
         const T& get() const { return mValue; }
 

@@ -13,7 +13,7 @@ namespace LuaUtil
     class UserdataSerializer
     {
     public:
-        virtual ~UserdataSerializer() {}
+        virtual ~UserdataSerializer() = default;
 
         // Appends serialized sol::userdata to the end of BinaryData.
         // Returns false if this type of userdata is not supported by this serializer.

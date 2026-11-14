@@ -40,8 +40,9 @@ namespace Settings
         };
 
         ShaderManager() = default;
-        ShaderManager(ShaderManager const&) = delete;
-        void operator=(ShaderManager const&) = delete;
+        ~ShaderManager() = default;
+        ShaderManager(const ShaderManager&) = delete;
+        ShaderManager& operator=(const ShaderManager&) = delete;
 
         static ShaderManager& get()
         {

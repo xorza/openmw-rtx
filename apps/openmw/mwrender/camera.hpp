@@ -36,6 +36,8 @@ namespace MWRender
 
         explicit Camera(osg::Camera* camera);
         ~Camera();
+        Camera(const Camera&) = delete;
+        Camera& operator=(const Camera&) = delete;
 
         /// Attach camera to object
         void attachTo(const MWWorld::Ptr& ptr);

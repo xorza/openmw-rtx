@@ -138,8 +138,6 @@ namespace Rtx
         /// Pinned: every resource holds it by reference, and its allocator its physical device's heaps.
         Device(const Device&) = delete;
         Device& operator=(const Device&) = delete;
-        Device(Device&&) = delete;
-        Device& operator=(Device&&) = delete;
 
         VkDevice getHandle() const { return mHandle.get(); }
         VkQueue getQueue() const { return mQueue; }

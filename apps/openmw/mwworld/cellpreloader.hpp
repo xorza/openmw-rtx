@@ -46,6 +46,8 @@ namespace MWWorld
         CellPreloader(Resource::ResourceSystem* resourceSystem, Resource::BulletShapeManager* bulletShapeManager,
             Terrain::World* terrain, MWRender::LandManager* landManager);
         ~CellPreloader();
+        CellPreloader(const CellPreloader&) = delete;
+        CellPreloader& operator=(const CellPreloader&) = delete;
 
         /// Ask a background thread to preload rendering meshes and collision shapes for objects in this cell.
         /// @note The cell itself must be in State_Loaded or State_Preloaded.

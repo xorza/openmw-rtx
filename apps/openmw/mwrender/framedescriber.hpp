@@ -75,6 +75,7 @@ namespace MWRender
         FrameDescriber() = default;
         FrameDescriber(const FrameDescriber&) = delete;
         FrameDescriber& operator=(const FrameDescriber&) = delete;
+        ~FrameDescriber() = default;
 
         WaterState& getWater() { return mWater; }
         const WaterState& getWater() const { return mWater; }

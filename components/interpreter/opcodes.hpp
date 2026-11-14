@@ -10,7 +10,7 @@ namespace Interpreter
     public:
         virtual void execute(Runtime& runtime) = 0;
 
-        virtual ~Opcode0() {}
+        virtual ~Opcode0() = default;
     };
 
     /// opcode for 1 argument
@@ -19,7 +19,7 @@ namespace Interpreter
     public:
         virtual void execute(Runtime& runtime, unsigned int arg0) = 0;
 
-        virtual ~Opcode1() {}
+        virtual ~Opcode1() = default;
     };
 
 }

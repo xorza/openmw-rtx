@@ -19,6 +19,9 @@ namespace Misc
         static void updateAllIcons();
 
         ~ScalableIcon() override;
+        /// A clone, registered as the original is, so that `updateAllIcons` reaches it too.
+        ScalableIcon(const ScalableIcon& other);
+        ScalableIcon& operator=(const ScalableIcon&) = delete;
 
         static QIcon load(const QString& fileName);
 

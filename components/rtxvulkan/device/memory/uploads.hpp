@@ -40,8 +40,6 @@ namespace Rtx
 
         Uploads(const Uploads&) = delete;
         Uploads& operator=(const Uploads&) = delete;
-        Uploads(Uploads&&) = delete;
-        Uploads& operator=(Uploads&&) = delete;
 
         /// Writes `data` at `offset` bytes into `into`. Nothing at all for nothing.
         template <class T>

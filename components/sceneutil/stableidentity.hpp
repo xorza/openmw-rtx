@@ -34,6 +34,8 @@ namespace SceneUtil
             , mId(copy.mId)
         {
         }
+        ~StableIdentity() override = default;
+        StableIdentity& operator=(const StableIdentity&) = delete;
 
         META_Object(SceneUtil, StableIdentity)
 

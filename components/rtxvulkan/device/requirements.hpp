@@ -43,8 +43,6 @@ namespace Rtx
 
         DeviceFeatures(const DeviceFeatures&) = delete;
         DeviceFeatures& operator=(const DeviceFeatures&) = delete;
-        DeviceFeatures(DeviceFeatures&&) = delete;
-        DeviceFeatures& operator=(DeviceFeatures&&) = delete;
         ~DeviceFeatures() = default;
 
         VkPhysicalDeviceFeatures2 mFeatures2{};
@@ -87,8 +85,6 @@ namespace Rtx
 
         DeviceProperties(const DeviceProperties&) = delete;
         DeviceProperties& operator=(const DeviceProperties&) = delete;
-        DeviceProperties(DeviceProperties&&) = delete;
-        DeviceProperties& operator=(DeviceProperties&&) = delete;
         ~DeviceProperties() = default;
 
         VkPhysicalDeviceProperties2 mProperties2{};
@@ -211,8 +207,6 @@ namespace Rtx
         OptionalFeatures();
         OptionalFeatures(const OptionalFeatures&) = delete;
         OptionalFeatures& operator=(const OptionalFeatures&) = delete;
-        OptionalFeatures(OptionalFeatures&&) = delete;
-        OptionalFeatures& operator=(OptionalFeatures&&) = delete;
         ~OptionalFeatures() = default;
 
         VkPhysicalDeviceFaultFeaturesEXT mFault{};

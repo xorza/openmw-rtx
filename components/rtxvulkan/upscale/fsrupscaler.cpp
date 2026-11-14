@@ -432,8 +432,6 @@ namespace Rtx
 
         Targets(const Targets&) = delete;
         Targets& operator=(const Targets&) = delete;
-        Targets(Targets&&) = delete;
-        Targets& operator=(Targets&&) = delete;
         ~Targets() = default;
 
         /// Every image of its own the constructor made, which is what the first record lays out and

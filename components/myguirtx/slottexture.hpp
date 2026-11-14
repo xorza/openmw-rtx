@@ -27,8 +27,6 @@ namespace MyGUIRtx
 
         SlotTexture(const SlotTexture&) = delete;
         SlotTexture& operator=(const SlotTexture&) = delete;
-        SlotTexture(SlotTexture&&) = delete;
-        SlotTexture& operator=(SlotTexture&&) = delete;
 
         const std::string& getName() const override { return mName; }
 

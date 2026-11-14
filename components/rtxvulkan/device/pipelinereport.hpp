@@ -73,8 +73,6 @@ namespace Rtx
 
         PipelineReport(const PipelineReport&) = delete;
         PipelineReport& operator=(const PipelineReport&) = delete;
-        PipelineReport(PipelineReport&&) = delete;
-        PipelineReport& operator=(PipelineReport&&) = delete;
 
         /// The flags every create info starts from: their statistics always (`docs/architecture.md`, "Every
         /// pipeline captures its statistics"), their code where the run asks.

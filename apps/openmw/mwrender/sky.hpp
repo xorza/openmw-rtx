@@ -141,6 +141,8 @@ namespace MWRender
     public:
         Precipitation(osg::Group* parentNode, osg::Camera* camera, Resource::SceneManager* sceneManager);
         ~Precipitation();
+        Precipitation(const Precipitation&) = delete;
+        Precipitation& operator=(const Precipitation&) = delete;
 
         void update();
 

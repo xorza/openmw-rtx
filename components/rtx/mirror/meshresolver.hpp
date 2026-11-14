@@ -61,8 +61,6 @@ namespace Rtx
 
         MeshResolver(const MeshResolver&) = delete;
         MeshResolver& operator=(const MeshResolver&) = delete;
-        MeshResolver(MeshResolver&&) = delete;
-        MeshResolver& operator=(MeshResolver&&) = delete;
 
         /// The mesh index for one drawable, adding it or posing it as its kind requires.
         ///

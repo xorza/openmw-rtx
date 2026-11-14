@@ -70,6 +70,7 @@ namespace MWSound
         SoundBufferPool(const SoundBufferPool&) = delete;
 
         ~SoundBufferPool();
+        SoundBufferPool& operator=(const SoundBufferPool&) = delete;
 
         /// Lookup a soundId for its sound data (resource name, local volume,
         /// minRange, and maxRange)

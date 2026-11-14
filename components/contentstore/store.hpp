@@ -142,8 +142,6 @@ namespace ContentStore
 
         Store(const Store&) = delete;
         Store& operator=(const Store&) = delete;
-        Store(Store&&) = delete;
-        Store& operator=(Store&&) = delete;
 
         /// The entry `key` filed as `kind` at `version`, into `payload`, answering whether a whole
         /// one was there within `reach`. A refused file is deleted.

@@ -72,8 +72,6 @@ namespace Rtx
         /// Pinned: its passes hold references to its device and to one another.
         VulkanRenderer(const VulkanRenderer&) = delete;
         VulkanRenderer& operator=(const VulkanRenderer&) = delete;
-        VulkanRenderer(VulkanRenderer&&) = delete;
-        VulkanRenderer& operator=(VulkanRenderer&&) = delete;
 
         std::string describeDevice() const override;
         CardAddress getCardAddress() const override;

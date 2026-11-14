@@ -264,7 +264,7 @@ namespace MWMechanics
         ~CharacterController() override;
 
         CharacterController(const CharacterController&) = delete;
-        CharacterController(CharacterController&&) = delete;
+        CharacterController& operator=(const CharacterController&) = delete;
 
         void detachAnimation();
 

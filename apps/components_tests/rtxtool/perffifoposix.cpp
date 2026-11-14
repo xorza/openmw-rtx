@@ -51,6 +51,8 @@ namespace RtxTool
                     ::close(mHandle);
                 std::filesystem::remove(mPath);
             }
+            Reader(const Reader&) = delete;
+            Reader& operator=(const Reader&) = delete;
 
             const std::filesystem::path& getPath() const { return mPath; }
 

@@ -16,6 +16,8 @@ namespace SceneUtil
             : StateAttribute(copy, copyop)
         {
         }
+        ~TextureType() override = default;
+        TextureType& operator=(const TextureType&) = delete;
 
         static const osg::StateAttribute::Type AttributeType = static_cast<osg::StateAttribute::Type>(69);
         META_StateAttribute(SceneUtil, TextureType, AttributeType)

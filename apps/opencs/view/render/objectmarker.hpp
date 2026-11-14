@@ -57,6 +57,7 @@ namespace CSVRender
         ObjectMarker(ObjectMarker&&) = delete;
         ObjectMarker& operator=(const ObjectMarker&) = delete;
         ObjectMarker& operator=(ObjectMarker&&) = delete;
+        ~ObjectMarker() = default;
 
         void toggleVisibility();
 

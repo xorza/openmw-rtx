@@ -43,7 +43,7 @@ namespace SDLUtil
     class MouseListener
     {
     public:
-        virtual ~MouseListener() {}
+        virtual ~MouseListener() = default;
         virtual void mouseMoved(const MouseMotionEvent& arg) = 0;
         virtual void mousePressed(const SDL_MouseButtonEvent& arg, Uint8 id) = 0;
         virtual void mouseReleased(const SDL_MouseButtonEvent& arg, Uint8 id) = 0;
@@ -53,7 +53,7 @@ namespace SDLUtil
     class SensorListener
     {
     public:
-        virtual ~SensorListener() {}
+        virtual ~SensorListener() = default;
         virtual void sensorUpdated(const SDL_SensorEvent& arg) = 0;
         virtual void displayOrientationChanged() = 0;
     };
@@ -61,7 +61,7 @@ namespace SDLUtil
     class KeyListener
     {
     public:
-        virtual ~KeyListener() {}
+        virtual ~KeyListener() = default;
         virtual void textInput(const SDL_TextInputEvent& arg) {}
         virtual void keyPressed(const SDL_KeyboardEvent& arg) = 0;
         virtual void keyReleased(const SDL_KeyboardEvent& arg) = 0;
@@ -70,7 +70,7 @@ namespace SDLUtil
     class ControllerListener
     {
     public:
-        virtual ~ControllerListener() {}
+        virtual ~ControllerListener() = default;
 
         virtual void buttonPressed(int deviceID, const SDL_GamepadButtonEvent& evt) = 0;
         virtual void buttonReleased(int deviceID, const SDL_GamepadButtonEvent& evt) = 0;
@@ -88,7 +88,7 @@ namespace SDLUtil
     class WindowListener
     {
     public:
-        virtual ~WindowListener() {}
+        virtual ~WindowListener() = default;
 
         /** @remarks The window's visibility changed */
         virtual void windowVisibilityChange(bool visible) {}

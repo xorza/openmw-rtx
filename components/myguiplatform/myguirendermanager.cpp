@@ -201,6 +201,8 @@ namespace MyGUIPlatform
             , mDummyTexture(copy.mDummyTexture)
         {
         }
+        ~Drawable() override = default;
+        Drawable& operator=(const Drawable&) = delete;
 
         // Defines the necessary information for a draw call
         struct Batch
@@ -260,7 +262,7 @@ namespace MyGUIPlatform
 
         public:
             OSGVertexBuffer();
-            ~OSGVertexBuffer() override {}
+            ~OSGVertexBuffer() override = default;
 
             void markUsed();
 

@@ -41,8 +41,6 @@ namespace RtxTool
         /// Pinned: a folder's set points into what this holds.
         HarnessShaders(const HarnessShaders&) = delete;
         HarnessShaders& operator=(const HarnessShaders&) = delete;
-        HarnessShaders(HarnessShaders&&) = delete;
-        HarnessShaders& operator=(HarnessShaders&&) = delete;
         ~HarnessShaders() = default;
 
         const Rtx::ShaderSet& getSet() const;

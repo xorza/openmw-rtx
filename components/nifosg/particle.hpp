@@ -81,6 +81,7 @@ namespace NifOsg
         ParticleShooter(const ParticleShooter& copy, const osg::CopyOp& copyop = osg::CopyOp::SHALLOW_COPY);
 
         ParticleShooter& operator=(const ParticleShooter&) = delete;
+        ~ParticleShooter() override = default;
 
         META_Object(NifOsg, ParticleShooter)
 
@@ -144,6 +145,7 @@ namespace NifOsg
         GrowFadeAffector(const GrowFadeAffector& copy, const osg::CopyOp& copyop = osg::CopyOp::SHALLOW_COPY);
 
         GrowFadeAffector& operator=(const GrowFadeAffector&) = delete;
+        ~GrowFadeAffector() override = default;
 
         META_Object(NifOsg, GrowFadeAffector)
 
@@ -165,6 +167,7 @@ namespace NifOsg
         ParticleColorAffector(const ParticleColorAffector& copy, const osg::CopyOp& copyop = osg::CopyOp::SHALLOW_COPY);
 
         ParticleColorAffector& operator=(const ParticleColorAffector&) = delete;
+        ~ParticleColorAffector() override = default;
 
         META_Object(NifOsg, ParticleColorAffector)
 
@@ -182,6 +185,7 @@ namespace NifOsg
         GravityAffector(const GravityAffector& copy, const osg::CopyOp& copyop = osg::CopyOp::SHALLOW_COPY);
 
         GravityAffector& operator=(const GravityAffector&) = delete;
+        ~GravityAffector() override = default;
 
         META_Object(NifOsg, GravityAffector)
 
@@ -206,6 +210,7 @@ namespace NifOsg
         ParticleBomb(const ParticleBomb& copy, const osg::CopyOp& copyop = osg::CopyOp::SHALLOW_COPY);
 
         ParticleBomb& operator=(const ParticleBomb&) = delete;
+        ~ParticleBomb() override = default;
 
         META_Object(NifOsg, ParticleBomb)
 

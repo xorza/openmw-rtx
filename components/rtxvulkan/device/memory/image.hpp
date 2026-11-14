@@ -89,6 +89,7 @@ namespace Rtx
         /// with the move. The assignment buries what this held in the order the destruction does.
         Image(Image&& other) noexcept;
         Image& operator=(Image&& other) noexcept;
+        ~Image() = default;
 
         VkImage getHandle() const { return mHandle.get(); }
 

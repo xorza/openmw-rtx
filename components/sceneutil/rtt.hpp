@@ -60,6 +60,8 @@ namespace SceneUtil
         RTTNode(uint32_t textureWidth, uint32_t textureHeight, uint32_t samples, bool generateMipmaps,
             int renderOrderNum, StereoAwareness stereoAwareness, bool addMSAAIntermediateTarget);
         ~RTTNode() override;
+        RTTNode(const RTTNode&) = delete;
+        RTTNode& operator=(const RTTNode&) = delete;
 
         osg::Texture* getColorTexture(osgUtil::CullVisitor* cv);
 

@@ -181,6 +181,8 @@ namespace CSMWorld
         NestableColumn(int columnId, Display displayType, int flag);
 
         ~NestableColumn() override;
+        NestableColumn(const NestableColumn&) = delete;
+        NestableColumn& operator=(const NestableColumn&) = delete;
 
         void addColumn(CSMWorld::NestableColumn* column);
 

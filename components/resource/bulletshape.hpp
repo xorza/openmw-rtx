@@ -62,6 +62,8 @@ namespace Resource
         BulletShape() = default;
         // Note this is always a shallow copy and the copy will not autodelete underlying vertex data
         BulletShape(const BulletShape& other);
+        ~BulletShape() = default;
+        BulletShape& operator=(const BulletShape&) = delete;
 
         void setLocalScaling(const btVector3& scale);
 
@@ -98,6 +100,8 @@ namespace Resource
             delete getTriangleInfoMap();
             delete m_meshInterface;
         }
+        TriangleMeshShape(const TriangleMeshShape&) = delete;
+        TriangleMeshShape& operator=(const TriangleMeshShape&) = delete;
     };
 
     // btScaledBvhTriangleMeshShape that auto-deletes the child shape
@@ -109,6 +113,8 @@ namespace Resource
         }
 
         ~ScaledTriangleMeshShape() override { delete getChildShape(); }
+        ScaledTriangleMeshShape(const ScaledTriangleMeshShape&) = delete;
+        ScaledTriangleMeshShape& operator=(const ScaledTriangleMeshShape&) = delete;
     };
 
 }

@@ -22,6 +22,9 @@ namespace SceneUtil
                         ref->removeObserver(this);
                 }
             }
+            GLExtensionsObserver() = default;
+            GLExtensionsObserver(const GLExtensionsObserver&) = delete;
+            GLExtensionsObserver& operator=(const GLExtensionsObserver&) = delete;
 
             void objectDeleted(void* referenced) override
             {

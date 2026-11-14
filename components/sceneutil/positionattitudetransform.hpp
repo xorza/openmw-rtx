@@ -20,6 +20,7 @@ namespace SceneUtil
             , _scale(pat._scale)
         {
         }
+        PositionAttitudeTransform& operator=(const PositionAttitudeTransform&) = delete;
 
         META_Node(SceneUtil, PositionAttitudeTransform)
 

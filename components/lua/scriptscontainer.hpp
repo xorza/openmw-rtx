@@ -101,8 +101,8 @@ namespace LuaUtil
             LuaState* lua, std::string_view namePrefix, ScriptTracker* tracker = nullptr, bool load = true);
 
         ScriptsContainer(const ScriptsContainer&) = delete;
-        ScriptsContainer(ScriptsContainer&&) = delete;
         virtual ~ScriptsContainer();
+        ScriptsContainer& operator=(const ScriptsContainer&) = delete;
 
         // `conf` specifies the list of scripts that should be autostarted in this container; the script
         // names themselves are stored in ScriptsConfiguration.
@@ -273,6 +273,9 @@ namespace LuaUtil
             int64_t mStatsFrame = 0; // frame mStats was last brought up to date
 
             ~Script();
+            Script() = default;
+            Script(const Script&) = delete;
+            Script& operator=(const Script&) = delete;
         };
         struct Timer
         {

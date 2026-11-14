@@ -34,6 +34,9 @@ namespace RtxTool
         struct FramesEnd
         {
             ~FramesEnd() { Crash::setHangLimit(std::chrono::seconds(0)); }
+            FramesEnd() = default;
+            FramesEnd(const FramesEnd&) = delete;
+            FramesEnd& operator=(const FramesEnd&) = delete;
         };
 
         /// Everything a hosted run writes into the settings before the engine reads them: the

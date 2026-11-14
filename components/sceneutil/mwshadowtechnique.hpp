@@ -45,6 +45,7 @@ namespace SceneUtil {
         MWShadowTechnique();
 
         MWShadowTechnique(const MWShadowTechnique& vdsm, const osg::CopyOp& copyop = osg::CopyOp::SHALLOW_COPY);
+        MWShadowTechnique& operator=(const MWShadowTechnique&) = delete;
 
         META_Object(SceneUtil, MWShadowTechnique)
 
@@ -228,7 +229,7 @@ namespace SceneUtil {
 
         protected:
             friend class MWShadowTechnique;
-            ~ViewDependentData() override {}
+            ~ViewDependentData() override = default;
 
             MWShadowTechnique*          _viewDependentShadowMap;
 

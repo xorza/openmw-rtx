@@ -87,6 +87,7 @@ namespace Rtx
         /// from either would append the other's arrivals onto its own tables.
         SceneDesc(const SceneDesc&) = delete;
         SceneDesc& operator=(const SceneDesc&) = delete;
+        ~SceneDesc() = default;
 
         /// Which description this is, for a backend that holds a slot built from one: never
         /// nought, never handed out twice in a process, and carried by a move, which leaves the
@@ -312,6 +313,7 @@ namespace Rtx
                     mValue = std::exchange(other.mValue, next());
                 return *this;
             }
+            ~Identity() = default;
 
             /// The next value no description has held.
             static std::uint64_t next() noexcept;

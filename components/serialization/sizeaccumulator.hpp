@@ -11,6 +11,8 @@ namespace Serialization
         SizeAccumulator() = default;
 
         SizeAccumulator(const SizeAccumulator&) = delete;
+        ~SizeAccumulator() = default;
+        SizeAccumulator& operator=(const SizeAccumulator&) = delete;
 
         std::size_t value() const { return mValue; }
 

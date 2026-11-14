@@ -1282,7 +1282,13 @@ namespace Rtx::Testing
             struct Restored
             {
                 RendererProbe& mProbe;
+                explicit Restored(RendererProbe& probe)
+                    : mProbe(probe)
+                {
+                }
                 ~Restored() { mProbe.setFogField(sFogNoise); }
+                Restored(const Restored&) = delete;
+                Restored& operator=(const Restored&) = delete;
             } restored{ mProbe };
 
             const osg::Vec3f towards(0.6f, 0.0f, 0.8f);

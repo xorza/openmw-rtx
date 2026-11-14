@@ -130,6 +130,9 @@ namespace CSMWorld
         using ActorDataPtr = std::shared_ptr<ActorData>;
 
         explicit ActorAdapter(Data& data);
+        ~ActorAdapter() override = default;
+        ActorAdapter(const ActorAdapter&) = delete;
+        ActorAdapter& operator=(const ActorAdapter&) = delete;
 
         /// Obtains the shared data for a given actor
         ActorDataPtr getActorData(const ESM::RefId& refId);
@@ -156,9 +159,6 @@ namespace CSMWorld
         void handleBodyPartsRemoved(const QModelIndex&, int, int);
 
     private:
-        ActorAdapter(const ActorAdapter&) = delete;
-        ActorAdapter& operator=(const ActorAdapter&) = delete;
-
         QModelIndex getHighestIndex(QModelIndex) const;
 
         RaceDataPtr getRaceData(const ESM::RefId& raceId);

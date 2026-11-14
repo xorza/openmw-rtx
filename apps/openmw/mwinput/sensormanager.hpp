@@ -29,6 +29,8 @@ namespace MWInput
         explicit SensorManager(SDL_Window* window);
 
         ~SensorManager() override;
+        SensorManager(const SensorManager&) = delete;
+        SensorManager& operator=(const SensorManager&) = delete;
 
         void init();
 

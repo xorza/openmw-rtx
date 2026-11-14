@@ -41,14 +41,16 @@ namespace LuaUtil
     {
         sol::state_view mSol;
 
-        LuaView(const LuaView&) = delete;
-
         explicit LuaView(lua_State* state)
             : mSol(state)
         {
         }
 
     public:
+        ~LuaView() = default;
+        LuaView(const LuaView&) = delete;
+        LuaView& operator=(const LuaView&) = delete;
+
         template <class Function>
         friend int invokeProtectedCall(lua_State*, Function&&);
         // Returns underlying sol::state.
@@ -124,7 +126,8 @@ namespace LuaUtil
         explicit LuaState(const VFS::Manager* vfs, const ScriptsConfiguration* conf,
             const LuaStateSettings& settings = LuaStateSettings{});
         LuaState(const LuaState&) = delete;
-        LuaState(LuaState&&) = delete;
+        ~LuaState() = default;
+        LuaState& operator=(const LuaState&) = delete;
 
         template <class Lambda>
         void protectedCall(Lambda&& f) const

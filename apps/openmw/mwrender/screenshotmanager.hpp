@@ -13,6 +13,8 @@ namespace MWRender
     public:
         explicit ScreenshotManager(osgViewer::Viewer* viewer);
         ~ScreenshotManager();
+        ScreenshotManager(const ScreenshotManager&) = delete;
+        ScreenshotManager& operator=(const ScreenshotManager&) = delete;
 
         void screenshot(osg::Image* image, int w, int h);
 

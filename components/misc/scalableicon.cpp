@@ -24,6 +24,14 @@ namespace Misc
         ScalableIconInstances->insert(this);
     }
 
+    ScalableIcon::ScalableIcon(const ScalableIcon& other)
+        : QIconEngine(other)
+        , mTemplate(other.mTemplate)
+        , mContent(other.mContent)
+    {
+        ScalableIconInstances->insert(this);
+    }
+
     ScalableIcon::~ScalableIcon()
     {
         if (!ScalableIconInstances.isDestroyed())

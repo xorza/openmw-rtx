@@ -39,8 +39,6 @@ namespace Rtx
 
         FsrUpscaler(const FsrUpscaler&) = delete;
         FsrUpscaler& operator=(const FsrUpscaler&) = delete;
-        FsrUpscaler(FsrUpscaler&&) = delete;
-        FsrUpscaler& operator=(FsrUpscaler&&) = delete;
 
         /// The extents `mode` traces at for an output of `width` by `height`: `Rtx::extentsFor`'s ratios, which FSR's
         /// arithmetic follows from.

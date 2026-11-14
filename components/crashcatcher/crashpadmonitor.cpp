@@ -468,8 +468,6 @@ namespace Crash
 
             CrashpadLogged(const CrashpadLogged&) = delete;
             CrashpadLogged& operator=(const CrashpadLogged&) = delete;
-            CrashpadLogged(CrashpadLogged&&) = delete;
-            CrashpadLogged& operator=(CrashpadLogged&&) = delete;
         };
 
         /// The monitor's last line on the session: how the game ended and how many reports it left.

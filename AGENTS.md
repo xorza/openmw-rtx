@@ -212,8 +212,11 @@ one (Rules, `.notes/UPSTREAM.md`).
 - **`std::unique_ptr` is the owner by default** (R.20, R.21): `std::shared_ptr` only where ownership
   is truly shared, and made with `std::make_shared`.
 - **The rule of zero** (C.20, C.21, C.66, C.37): a class whose members manage themselves declares no
-  copy, move or destructor. One that declares or deletes any of the five does all five, and its
-  moves and destructor are `noexcept`.
+  copy, move or destructor. One that declares its destructor or a copy declares all three, one that
+  declares a move declares both, and its moves and destructor are `noexcept`. A class that is not
+  copied deletes its two copies in the public section and declares no move, which leaves it unmoved
+  too (C.81, Hinnant's table): a deleted move is still chosen for an rvalue, and refuses the copy a
+  copyable class would fall back on.
 - **A parameter says how it is used** (F.7, F.15–F.18, R.30). In: a cheap type by value, anything
   else by `const&`. In-out: by reference. Kept: by value and moved into place. A function that only
   uses an object takes `T&` or `T*`, and a smart pointer only when it changes the object's lifetime.

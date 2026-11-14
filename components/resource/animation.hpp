@@ -21,7 +21,7 @@ namespace Resource
         }
 
         Animation(const Animation&, const osg::CopyOp&);
-        ~Animation() override {}
+        ~Animation() override = default;
 
         void addChannel(osg::ref_ptr<osgAnimation::Channel> pChannel);
 

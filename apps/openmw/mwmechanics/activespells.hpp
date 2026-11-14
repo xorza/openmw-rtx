@@ -114,6 +114,8 @@ namespace MWMechanics
 
             explicit IterationGuard(ActiveSpells& spells);
             ~IterationGuard();
+            IterationGuard(const IterationGuard&) = delete;
+            IterationGuard& operator=(const IterationGuard&) = delete;
         };
         struct UpdateContext;
 

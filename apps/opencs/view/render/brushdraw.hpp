@@ -18,6 +18,8 @@ namespace CSVRender
     public:
         explicit BrushDraw(osg::ref_ptr<osg::Group> parentNode, bool textureMode = false);
         ~BrushDraw();
+        BrushDraw(const BrushDraw&) = delete;
+        BrushDraw& operator=(const BrushDraw&) = delete;
 
         void update(osg::Vec3d point, int brushSize, CSVWidget::BrushShape toolShape);
         void hide();

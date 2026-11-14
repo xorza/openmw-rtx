@@ -10,7 +10,7 @@ namespace SceneUtil
     class ControllerSource
     {
     public:
-        virtual ~ControllerSource() {}
+        virtual ~ControllerSource() = default;
         virtual float getValue(osg::NodeVisitor* nv) = 0;
     };
 
@@ -39,7 +39,7 @@ namespace SceneUtil
     {
     public:
         Controller();
-        virtual ~Controller() {}
+        virtual ~Controller() = default;
 
         virtual void remapTargets(const CopyOp& copyop) {}
 

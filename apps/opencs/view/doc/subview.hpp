@@ -18,10 +18,6 @@ namespace CSVDoc
 
         CSMWorld::UniversalId mUniversalId;
 
-        // not implemented
-        SubView(const SubView&);
-        SubView& operator=(SubView&);
-
     protected:
         void setUniversalId(const CSMWorld::UniversalId& id);
 
@@ -29,6 +25,9 @@ namespace CSVDoc
 
     public:
         explicit SubView(const CSMWorld::UniversalId& id);
+        ~SubView() override = default;
+        SubView(const SubView&) = delete;
+        SubView& operator=(const SubView&) = delete;
 
         CSMWorld::UniversalId getUniversalId() const;
 

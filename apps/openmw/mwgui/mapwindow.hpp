@@ -78,6 +78,8 @@ namespace MWGui
     public:
         LocalMapBase(CustomMarkerCollection& markers, MWRender::LocalMap* localMapRender, bool fogOfWarEnabled);
         virtual ~LocalMapBase();
+        LocalMapBase(const LocalMapBase&) = delete;
+        LocalMapBase& operator=(const LocalMapBase&) = delete;
         void init(MyGUI::ScrollView* widget, MyGUI::ImageBox* compass, int cellDistance = Constants::CellGridRadius);
 
         void setActiveCell(const MWWorld::Cell& cell);

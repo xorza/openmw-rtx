@@ -17,12 +17,11 @@ namespace CSVDoc
         QVBoxLayout* mLayout;
         std::vector<Operation*> mOperations;
 
-        // not implemented
-        Operations(const Operations&);
-        Operations& operator=(const Operations&);
-
     public:
         Operations();
+        ~Operations() override = default;
+        Operations(const Operations&) = delete;
+        Operations& operator=(const Operations&) = delete;
 
         void setProgress(int current, int max, int type, int threads);
         ///< Implicitly starts the operation, if it is not running already.

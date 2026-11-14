@@ -39,8 +39,6 @@ namespace Rtx
 
         TextureArrival(const TextureArrival&) = delete;
         TextureArrival& operator=(const TextureArrival&) = delete;
-        TextureArrival(TextureArrival&&) = delete;
-        TextureArrival& operator=(TextureArrival&&) = delete;
         ~TextureArrival() = default;
 
         /// Copies `staged`, which the caller staged through the batch the run is recorded into, into

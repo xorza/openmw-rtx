@@ -101,7 +101,5 @@ namespace Crash
 
         HangPause(const HangPause&) = delete;
         HangPause& operator=(const HangPause&) = delete;
-        HangPause(HangPause&&) = delete;
-        HangPause& operator=(HangPause&&) = delete;
     };
 }

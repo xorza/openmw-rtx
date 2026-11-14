@@ -271,6 +271,8 @@ namespace CSMWorld
         NestedTableStoring(const IdTree& model, const std::string& id, int parentColumn);
 
         ~NestedTableStoring();
+        NestedTableStoring(const NestedTableStoring&) = delete;
+        NestedTableStoring& operator=(const NestedTableStoring&) = delete;
 
     protected:
         const NestedTableWrapperBase& getOld() const;

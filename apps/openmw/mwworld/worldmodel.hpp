@@ -43,6 +43,7 @@ namespace MWWorld
 
         WorldModel(const WorldModel&) = delete;
         WorldModel& operator=(const WorldModel&) = delete;
+        ~WorldModel() = default;
 
         void clear();
 

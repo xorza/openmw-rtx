@@ -33,7 +33,7 @@ Checks:
   - 'portability-*'
   - '-portability-avoid-pragma-once'
   - '-portability-template-virtual-member-function'
-  # - cppcoreguidelines-special-member-functions
+  - cppcoreguidelines-special-member-functions
   - 'cppcoreguidelines-noexcept-*'
   - cppcoreguidelines-init-variables
   # - cppcoreguidelines-use-enum-class
@@ -97,8 +97,12 @@ CheckOptions:
   cppcoreguidelines-init-variables.MathHeader: '<cmath>'
   # Only a literal that is the constant to a float's precision: 0.435 is not log10(e), however near.
   modernize-use-std-numbers.DiffThreshold: '0.000001'
+  # A class that declares its destructor or a copy declares all three; one that declares a move, both. Its moves
+  # may stay undeclared: a class with deleted copies is then not movable either, and a copyable one copies an rvalue
+  # (Hinnant's table; Chromium's C++ Dos and Don'ts), which a deleted move would refuse.
   cppcoreguidelines-special-member-functions.AllowSoleDefaultDtor: true
   cppcoreguidelines-special-member-functions.AllowImplicitlyDeletedCopyOrMove: true
+  cppcoreguidelines-special-member-functions.AllowMissingMoveFunctions: true
   readability-identifier-naming.ConceptCase: CamelCase
   readability-identifier-naming.EnumCase: CamelCase
   readability-identifier-naming.LocalVariableCase: camelBack

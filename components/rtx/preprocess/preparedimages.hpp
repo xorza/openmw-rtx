@@ -69,8 +69,6 @@ namespace Rtx
 
         PreparedImages(const PreparedImages&) = delete;
         PreparedImages& operator=(const PreparedImages&) = delete;
-        PreparedImages(PreparedImages&&) = delete;
-        PreparedImages& operator=(PreparedImages&&) = delete;
 
         /// `file`, read as `encoding` by a slot that addresses it as `wrap`, with its chain made again:
         /// made, or queued and pending, or nothing made of it. `prepares(encoding)` holds. Never waits.
