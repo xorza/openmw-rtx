@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
+#include <numbers>
 #include <vector>
 
 #include <gtest/gtest.h>

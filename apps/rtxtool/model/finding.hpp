@@ -56,7 +56,7 @@ namespace RtxTool
         std::string mLeg;
         std::uint32_t mFrame = 0;
         Stop mStood{};
-        std::optional<FindingSky> mSky;
+        std::optional<FindingSky> mSky{};
     };
 
     /// One finding: its kind, what it is, where it is placed (`placedOf`) and what it came to there where the

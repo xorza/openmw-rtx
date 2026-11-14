@@ -26,8 +26,9 @@ namespace SceneUtil
         mType = type;
     }
 
-    void LightController::operator()(SceneUtil::LightSource* node, osg::NodeVisitor* nv)
+    void LightController::operator()(osg::Node* lightNode, osg::NodeVisitor* nv)
     {
+        auto* node = static_cast<SceneUtil::LightSource*>(lightNode);
         double time = nv->getFrameStamp()->getSimulationTime();
         if (mStartTime == 0)
             mStartTime = time;

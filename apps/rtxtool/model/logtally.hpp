@@ -37,8 +37,8 @@ namespace RtxTool
         struct Line
         {
             bool mError = false;
-            std::string mText;
-            std::string mLeg;
+            std::string mText{};
+            std::string mLeg{};
             std::uint32_t mFrame = 0;
             std::uint32_t mCount = 0;
         };

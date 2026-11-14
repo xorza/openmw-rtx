@@ -26,7 +26,7 @@ namespace Fx
 
             osg::ref_ptr<osg::UniformBufferBinding> ubb
                 = new osg::UniformBufferBinding(static_cast<int>(Resource::SceneManager::UBOBinding::PostProcessor),
-                    data, 0, static_cast<GLsizeiptr>(mData.getGPUSize()));
+                    data, 0, static_cast<std::ptrdiff_t>(mData.getGPUSize()));
 
             stateset->setAttributeAndModes(ubb, osg::StateAttribute::ON);
         }

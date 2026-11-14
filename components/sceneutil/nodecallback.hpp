@@ -2,12 +2,8 @@
 #define SCENEUTIL_NODECALLBACK_H
 
 #include <osg/Callback>
-
-namespace osg
-{
-    class Node;
-    class NodeVisitor;
-}
+#include <osg/Node>
+#include <osg/NodeVisitor>
 
 namespace SceneUtil
 {

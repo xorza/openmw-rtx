@@ -14,6 +14,7 @@
 #include <components/nif/nifkey.hpp>
 #include <components/sceneutil/keyframe.hpp>
 #include <components/sceneutil/material.hpp>
+#include <components/sceneutil/morphgeometry.hpp>
 #include <components/sceneutil/nodecallback.hpp>
 #include <components/sceneutil/statesetupdater.hpp>
 
@@ -22,7 +23,6 @@
 namespace SceneUtil
 {
     class CopyOp;
-    class MorphGeometry;
     class Material;
 }
 
