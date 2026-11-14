@@ -877,7 +877,7 @@ namespace Rtx
         {
             constexpr VFS::Path::NormalizedView path("textures/tx_read.dds");
 
-            osg::ref_ptr<osg::Image> image = Testing::makeImage(std::string(path.value()), 4, 4);
+            osg::ref_ptr<osg::Image> image = Testing::makeImage(path.value(), 4, 4);
             std::fill_n(image->data(), image->getTotalSizeInBytes(), static_cast<unsigned char>(128));
 
             Rtx::SceneDesc scene;
@@ -1003,12 +1003,11 @@ namespace Rtx
         TEST(RtxSceneTexturesTest, aWholeChainMadeInBc7IsDescribedAsItWasMade)
         {
             constexpr VFS::Path::NormalizedView path("textures/tx_read.dds");
-            osg::ref_ptr<osg::Image> image = Testing::makeImage(std::string(path.value()), 4, 4);
+            osg::ref_ptr<osg::Image> image = Testing::makeImage(path.value(), 4, 4);
             std::fill_n(image->data(), image->getTotalSizeInBytes(), static_cast<unsigned char>(128));
 
             constexpr VFS::Path::NormalizedView widenedPath("textures/tx_rgb.dds");
-            osg::ref_ptr<osg::Image> widened
-                = Testing::makeImage(std::string(widenedPath.value()), 2, 2, GL_RGB, GL_UNSIGNED_BYTE);
+            osg::ref_ptr<osg::Image> widened = Testing::makeImage(widenedPath.value(), 2, 2, GL_RGB, GL_UNSIGNED_BYTE);
             for (std::size_t texel = 0; texel < 4; ++texel)
             {
                 widened->data()[texel * 3 + 0] = 255;

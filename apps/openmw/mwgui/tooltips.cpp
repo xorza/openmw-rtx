@@ -869,7 +869,7 @@ namespace MWGui
                 if (isFirst)
                     isFirst = false;
                 else
-                    specText += "\n";
+                    specText += '\n';
 
                 specText += MyGUI::TextIterator::toTagsString(skill.mName);
             }

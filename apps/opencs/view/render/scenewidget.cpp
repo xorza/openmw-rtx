@@ -551,7 +551,7 @@ namespace CSVRender
             osg::MatrixList worldMats = mSelectionMarkerNode->getWorldMatrices();
             if (!worldMats.empty())
             {
-                osg::Matrixd markerWorldMat = worldMats[0];
+                const osg::Matrixd& markerWorldMat = worldMats[0];
 
                 osg::Vec3f eye, _;
                 mView->getCamera()->getViewMatrix().getLookAt(eye, _, _);

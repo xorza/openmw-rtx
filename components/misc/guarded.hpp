@@ -64,7 +64,7 @@ namespace Misc
         {
         }
 
-        ScopeGuarded(ScopeGuarded&& other)
+        ScopeGuarded(ScopeGuarded&& other) noexcept
             : mMutex()
             , mValue(std::move(other.lock().get()))
         {

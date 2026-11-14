@@ -178,7 +178,7 @@ namespace
         sol::table resTable = LuaUtil::deserialize(lua, serialized);
         sol::table resReadonlyTable = LuaUtil::deserialize(lua, serialized, nullptr, true);
 
-        for (auto t : { resTable, resReadonlyTable })
+        for (const auto& t : { resTable, resReadonlyTable })
         {
             EXPECT_EQ(t.get<int>("aa"), 1);
             EXPECT_EQ(t.get<bool>("ab"), true);

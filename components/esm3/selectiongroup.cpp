@@ -29,7 +29,7 @@ namespace ESM
     void SelectionGroup::save(ESMWriter& esm, bool isDeleted) const
     {
         esm.writeHNCRefId("SELC", mId);
-        for (std::string id : selectedInstances)
+        for (const std::string& id : selectedInstances)
             esm.writeHNCString("SELI", id);
     }
 

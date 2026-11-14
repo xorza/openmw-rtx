@@ -1311,7 +1311,7 @@ void CSVRender::InstanceMode::deleteSelectedInstances()
     QUndoStack& undoStack = document.getUndoStack();
 
     CSMWorld::CommandMacro macro(undoStack, "Delete Instances");
-    for (osg::ref_ptr<TagBase> tag : selection)
+    for (const osg::ref_ptr<TagBase>& tag : selection)
         if (auto* objectTag = dynamic_cast<CSVRender::ObjectTag*>(tag.get()))
             macro.push(new CSMWorld::DeleteCommand(referencesTable, objectTag->mObject->getReferenceId()));
 
@@ -1330,7 +1330,7 @@ void CSVRender::InstanceMode::cloneSelectedInstances()
     QUndoStack& undoStack = document.getUndoStack();
 
     CSMWorld::CommandMacro macro(undoStack, "Clone Instances");
-    for (osg::ref_ptr<TagBase> tag : selection)
+    for (const osg::ref_ptr<TagBase>& tag : selection)
         if (auto* objectTag = dynamic_cast<CSVRender::ObjectTag*>(tag.get()))
         {
             macro.push(new CSMWorld::CloneCommand(referencesTable, objectTag->mObject->getReferenceId(),
@@ -1367,7 +1367,7 @@ float CSVRender::InstanceMode::calculateDropHeight(CSVRender::Object* object, fl
     auto it = intersector->getIntersections().begin();
     if (it != intersector->getIntersections().end())
     {
-        osgUtil::LineSegmentIntersector::Intersection intersection = *it;
+        const osgUtil::LineSegmentIntersector::Intersection& intersection = *it;
         float collisionLevel = intersection.getWorldIntersectPoint().z();
         return point.z() - collisionLevel + objectHeight;
     }
@@ -1389,7 +1389,7 @@ void CSVRender::InstanceMode::dropToCollision()
     DropObjectHeightHandler dropObjectDataHandler(&getWorldspaceWidget());
 
     int counter = 0;
-    for (osg::ref_ptr<TagBase> tag : selection)
+    for (const osg::ref_ptr<TagBase>& tag : selection)
         if (auto* objectTag = dynamic_cast<CSVRender::ObjectTag*>(tag.get()))
         {
             float objectHeight = dropObjectDataHandler.mObjectHeights[counter++];
@@ -1403,7 +1403,7 @@ CSVRender::DropObjectHeightHandler::DropObjectHeightHandler(WorldspaceWidget* wo
     : mWorldspaceWidget(worldspacewidget)
 {
     std::vector<osg::ref_ptr<TagBase>> selection = mWorldspaceWidget->getSelection(Mask_Reference);
-    for (osg::ref_ptr<TagBase> tag : selection)
+    for (const osg::ref_ptr<TagBase>& tag : selection)
     {
         if (auto* objectTag = dynamic_cast<CSVRender::ObjectTag*>(tag.get()))
         {
@@ -1430,7 +1430,7 @@ CSVRender::DropObjectHeightHandler::~DropObjectHeightHandler()
 {
     std::vector<osg::ref_ptr<TagBase>> selection = mWorldspaceWidget->getSelection(Mask_Reference);
     int counter = 0;
-    for (osg::ref_ptr<TagBase> tag : selection)
+    for (const osg::ref_ptr<TagBase>& tag : selection)
     {
         if (auto* objectTag = dynamic_cast<CSVRender::ObjectTag*>(tag.get()))
         {

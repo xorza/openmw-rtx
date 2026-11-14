@@ -20,7 +20,7 @@ namespace SceneUtil
         {
             std::string group;
             std::string key;
-            size_t delimiterInd = full.find(":");
+            size_t delimiterInd = full.find(':');
 
             Misc::StringUtils::lowerCaseInPlace(full);
 
@@ -121,8 +121,8 @@ namespace SceneUtil
     {
         // A wildcard only supported in the beginning or the end of the rule string in hopes that this will be more
         // performant. And most likely this kind of support is enough.
-        return ruleStr == "*" || str == ruleStr || (ruleStr.starts_with("*") && str.ends_with(ruleStr.substr(1)))
-            || (ruleStr.ends_with("*") && str.starts_with(ruleStr.substr(0, ruleStr.length() - 1)));
+        return ruleStr == "*" || str == ruleStr || (ruleStr.starts_with('*') && str.ends_with(ruleStr.substr(1)))
+            || (ruleStr.ends_with('*') && str.starts_with(ruleStr.substr(0, ruleStr.length() - 1)));
     }
 
     std::optional<BlendRule> AnimBlendRules::findBlendingRule(

@@ -465,6 +465,7 @@ namespace Rtx
             EXPECT_NE(of("visibility", VisibilityVariant{ .mSun = false }), of("visibility", full));
 
             std::vector<const Pipeline*> distinct;
+            distinct.reserve(kernels.size());
             for (const VisibilityPass::NamedKernel& kernel : kernels)
                 distinct.push_back(kernel.mPipeline);
             std::ranges::sort(distinct);

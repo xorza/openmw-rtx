@@ -93,7 +93,7 @@ namespace LuaUi
 
         WidgetExtension* pluckElementRoot(const sol::object& child, uint64_t depth)
         {
-            std::shared_ptr<Element> element = child.as<std::shared_ptr<Element>>();
+            const std::shared_ptr<Element>& element = child.as<std::shared_ptr<Element>>();
             if (element->mState == Element::Destroyed || element->mState == Element::Destroy)
                 throw std::logic_error("Using a destroyed element as a layout child");
             // child Element was created in the same frame and its action hasn't been processed yet

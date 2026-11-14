@@ -434,6 +434,7 @@ namespace RtxTool
             std::vector<NoiseFigures> measured;
             const auto judge = [&](const std::vector<std::string>& names) {
                 std::vector<NoiseSide> places;
+                places.reserve(names.size());
                 for (const std::string& name : names)
                     places.push_back(NoiseSide{ .mPlace = name, .mFrame = name, .mBar = name, .mReference = name });
                 measured.clear();

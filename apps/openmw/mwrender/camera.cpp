@@ -1,5 +1,6 @@
 #include "camera.hpp"
 
+#include <cmath>
 #include <osg/Camera>
 
 #include <components/misc/mathutil.hpp>
@@ -101,8 +102,8 @@ namespace MWRender
     osg::Vec3d Camera::getFocalPointOffset() const
     {
         osg::Vec3d offset;
-        offset.x() = mFocalPointCurrentOffset.x() * cos(mYaw);
-        offset.y() = mFocalPointCurrentOffset.x() * sin(mYaw);
+        offset.x() = mFocalPointCurrentOffset.x() * std::cos(mYaw);
+        offset.y() = mFocalPointCurrentOffset.x() * std::sin(mYaw);
         offset.z() = mFocalPointCurrentOffset.y();
         return offset;
     }

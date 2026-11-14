@@ -377,7 +377,7 @@ namespace Rtx::Testing
         TEST_F(RtxSceneExtractorTest, aPanesDarkMapCountsWhereItsAlphaFallsBelowSolid)
         {
             const auto imageOf = [](std::string_view file, std::array<std::uint8_t, 4> alphas) {
-                osg::ref_ptr<osg::Image> image = Testing::makeImage(std::string(file), 2, 2);
+                osg::ref_ptr<osg::Image> image = Testing::makeImage(file, 2, 2);
                 for (std::size_t texel = 0; texel < alphas.size(); ++texel)
                     image->data()[texel * 4 + 3] = alphas[texel];
                 return image;

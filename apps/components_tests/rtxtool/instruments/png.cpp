@@ -50,6 +50,7 @@ namespace RtxTool
             EXPECT_EQ(read.value().mWidth, 2u);
             EXPECT_EQ(read.value().mHeight, 1u);
             std::vector<std::uint16_t> widened;
+            widened.reserve(pixels.size());
             for (const std::uint8_t level : pixels)
                 widened.push_back(static_cast<std::uint16_t>(level * sSamplesPerLevel));
             EXPECT_EQ(read.value().mSamples, widened);

@@ -108,7 +108,7 @@ namespace MWWorld
             result += mRef->getTypeDescription();
             result += ", ";
             result += mRef->mRef.getRefId().toDebugString();
-            result += ")";
+            result += ')';
             return result;
         }
 

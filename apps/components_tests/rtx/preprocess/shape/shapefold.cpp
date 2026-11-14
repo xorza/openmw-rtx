@@ -355,6 +355,7 @@ namespace Rtx
             for (const std::size_t corners : { std::size_t{ 3 }, std::size_t{ 5 }, std::size_t{ 12 } })
             {
                 std::vector<osg::Vec3f> positions;
+                positions.reserve(corners);
                 for (std::size_t at = 0; at < corners; ++at)
                     positions.push_back(osg::Vec3f(static_cast<float>(at % 3), static_cast<float>(at / 3), 0.0f));
 

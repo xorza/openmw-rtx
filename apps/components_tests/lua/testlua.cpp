@@ -160,6 +160,7 @@ return {
         sol::table script = mLua.runInNewSandbox(VFS::Path::Normalized(testsPath));
         const auto draws = [&] {
             std::vector<int> drawn;
+            drawn.reserve(3);
             for (int i = 0; i < 3; ++i)
                 drawn.push_back(LuaUtil::call(script["draw"]).get<int>());
             return drawn;

@@ -3,6 +3,7 @@
 
 #include <array>
 
+#include <cmath>
 #include <components/misc/rng.hpp>
 #include <components/settings/values.hpp>
 
@@ -346,7 +347,7 @@ namespace MWMechanics
         attackTerm += mageffects.getOrDefault(ESM::MagicEffect::FortifyAttack).getMagnitude()
             - mageffects.getOrDefault(ESM::MagicEffect::Blind).getMagnitude();
 
-        return round(attackTerm - defenseTerm);
+        return std::round(attackTerm - defenseTerm);
     }
 
     void applyElementalShields(const MWWorld::Ptr& attacker, const MWWorld::Ptr& victim)
@@ -377,7 +378,7 @@ namespace MWMechanics
             float fatigueMax = attackerStats.getFatigue().getModified();
             float fatigueCurrent = attackerStats.getFatigue().getCurrent();
 
-            float normalisedFatigue = floor(fatigueMax) == 0 ? 1 : std::max(0.0f, (fatigueCurrent / fatigueMax));
+            float normalisedFatigue = std::floor(fatigueMax) == 0 ? 1 : std::max(0.0f, (fatigueCurrent / fatigueMax));
 
             saveTerm *= 1.25f * normalisedFatigue;
 

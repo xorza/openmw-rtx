@@ -31,6 +31,7 @@ namespace RtxTool
         std::vector<MeasureWindow::Outcome> takeAll(MeasureWindow& window, const std::vector<WindowFrame>& frames)
         {
             std::vector<MeasureWindow::Outcome> outcomes;
+            outcomes.reserve(frames.size());
             for (const WindowFrame& frame : frames)
                 outcomes.push_back(window.take(frame).mOutcome);
             return outcomes;

@@ -258,7 +258,7 @@ namespace MWGui
         for (const std::string& buttonId : buttons)
         {
             auto* button = mButtonsWidget->createWidget<MyGUI::Button>(
-                MyGUI::WidgetStyle::Child, std::string("MW_Button"), dummyCoord, MyGUI::Align::Default);
+                MyGUI::WidgetStyle::Child, "MW_Button", dummyCoord, MyGUI::Align::Default);
             button->setCaptionWithReplacing(buttonId);
 
             button->eventMouseButtonClick += MyGUI::newDelegate(this, &InteractiveMessageBox::mousePressed);

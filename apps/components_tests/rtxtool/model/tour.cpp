@@ -149,6 +149,7 @@ namespace RtxTool
             const TourLeg& leg = plan.mLegs[0];
             ASSERT_EQ(leg.mTrack.size(), 9u);
             std::vector<float> heights;
+            heights.reserve(leg.mTrack.size());
             for (const TrackKey& key : leg.mTrack)
                 heights.push_back(key.mEye.z());
             EXPECT_EQ(heights, (std::vector<float>{ 2048, 2048, 5048, 5048, 5048, 5048, 2048, 2048, 2048 }));

@@ -3,6 +3,7 @@
 #include <MyGUI_TextIterator.h>
 #include <MyGUI_UString.h>
 
+#include <cmath>
 #include <components/esm3/loadarmo.hpp>
 #include <components/esm3/loadgmst.hpp>
 #include <components/esm3/loadnpc.hpp>
@@ -169,7 +170,7 @@ namespace MWClass
         const MWWorld::Store<ESM::GameSetting>& gmst
             = MWBase::Environment::get().getESMStore()->get<ESM::GameSetting>();
 
-        float iWeight = floor(gmst.find(typeGmst)->mValue.getFloat());
+        float iWeight = std::floor(gmst.find(typeGmst)->mValue.getFloat());
 
         float epsilon = 0.0005f;
 

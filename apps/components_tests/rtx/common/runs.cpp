@@ -331,6 +331,7 @@ namespace Rtx
             ASSERT_EQ(values.size(), 7u) << "as far as the runs reach and no further";
 
             std::vector<std::uint32_t> flat;
+            flat.reserve(values.size());
             for (std::uint32_t at = 0; at < values.size(); ++at)
                 flat.push_back(values[at]);
             EXPECT_EQ(flat, (std::vector<std::uint32_t>{ 10, 11, 12, 0, 20, 21, 22 }));

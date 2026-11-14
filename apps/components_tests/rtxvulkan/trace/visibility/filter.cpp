@@ -1399,6 +1399,7 @@ namespace Rtx::Testing
             camera.mSkyZenith = osg::Vec3f();
 
             std::vector<std::vector<float>> frames;
+            frames.reserve(draws);
             for (std::uint32_t draw = 0; draw < draws; ++draw)
                 frames.push_back(shoot(scene, {}, camera, size, filteredRun(1, 500 + 37 * draw)).mRadiance);
 

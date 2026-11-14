@@ -184,7 +184,7 @@ MWWorld::ContainerStore::ContainerStore(const MWWorld::ContainerStore& store)
     }
 }
 
-MWWorld::ContainerStore::ContainerStore(MWWorld::ContainerStore&& store)
+MWWorld::ContainerStore::ContainerStore(MWWorld::ContainerStore&& store) noexcept
     : mListener(store.mListener)
     , mSelectedEnchantItem(end())
     , mCachedWeight(store.mCachedWeight)
@@ -230,7 +230,7 @@ MWWorld::ContainerStore& MWWorld::ContainerStore::operator=(const ContainerStore
     return *this;
 }
 
-MWWorld::ContainerStore& MWWorld::ContainerStore::operator=(ContainerStore&& store)
+MWWorld::ContainerStore& MWWorld::ContainerStore::operator=(ContainerStore&& store) noexcept
 {
     const std::ptrdiff_t distance = store.index(store.mSelectedEnchantItem);
     mListener = store.mListener;

@@ -102,6 +102,7 @@ namespace
             std::latch noting(Crash::sNoteThreads);
             std::latch read(1);
             std::vector<std::thread> threads;
+            threads.reserve(Crash::sNoteThreads);
             for (std::size_t i = 0; i < Crash::sNoteThreads; ++i)
                 threads.emplace_back([&, i] {
                     const Crash::NoteScope mine("thread \"{}\"", std::to_string(i));

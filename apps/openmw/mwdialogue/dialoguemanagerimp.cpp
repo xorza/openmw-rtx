@@ -108,6 +108,7 @@ namespace MWDialogue
 
         std::vector<KeywordSearch::Match> matches = getKeywordSearch().parseHyperText(text, mTranslationDataStorage);
 
+        topicIdList.reserve(matches.size());
         for (const auto& match : matches)
             topicIdList.push_back(ESM::RefId::stringRefId(match.mTopicId));
 

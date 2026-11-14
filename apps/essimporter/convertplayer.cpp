@@ -13,7 +13,7 @@ namespace ESSImport
         bool& firstPersonCam, bool& teleportingEnabled, bool& levitationEnabled, ESM::ControlsState& controls)
     {
         out.mObject.mPosition.rot[0]
-            = -atan2(pcdt.mPNAM.mVerticalRotation.mData[2][1], pcdt.mPNAM.mVerticalRotation.mData[2][2]);
+            = -std::atan2(pcdt.mPNAM.mVerticalRotation.mData[2][1], pcdt.mPNAM.mVerticalRotation.mData[2][2]);
 
         out.mBirthsign = ESM::RefId::stringRefId(pcdt.mBirthsign);
         out.mObject.mNpcStats.mBounty = pcdt.mBounty;

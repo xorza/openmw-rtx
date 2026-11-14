@@ -1,5 +1,6 @@
 #include "spellutil.hpp"
 
+#include <cmath>
 #include <limits>
 
 #include <components/esm3/loadalch.hpp>
@@ -206,9 +207,9 @@ namespace MWMechanics
         if (!(magicEffect->mData.mFlags & ESM::MagicEffect::NoMagnitude))
         {
             if (!(magicEffect->mData.mFlags & ESM::MagicEffect::NoDuration))
-                magnitude = floor((0.05f * y) / (0.1f * magicEffect->mData.mBaseCost));
+                magnitude = std::floor((0.05f * y) / (0.1f * magicEffect->mData.mBaseCost));
             else
-                magnitude = floor(y / (0.1f * magicEffect->mData.mBaseCost));
+                magnitude = std::floor(y / (0.1f * magicEffect->mData.mBaseCost));
             magnitude = std::max(1.f, magnitude);
         }
         else

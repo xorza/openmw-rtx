@@ -55,7 +55,7 @@ namespace MWMechanics
 
         Spells(const Spells&);
 
-        Spells(Spells&& spells);
+        Spells(Spells&& spells) noexcept;
 
         ~Spells();
 

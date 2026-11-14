@@ -2,6 +2,7 @@
 
 #include <cassert>
 
+#include <cmath>
 #include <components/misc/framestats.hpp>
 #include <components/misc/rng.hpp>
 
@@ -642,7 +643,7 @@ namespace MWMechanics
         {
             target1 = std::max(iPerMinChance, target1);
             success = (roll <= target1);
-            float c = floor(fPerDieRollMult * (target1 - roll));
+            float c = std::floor(fPerDieRollMult * (target1 - roll));
             x = success ? std::max(iPerMinChange, c) : c;
         }
         else if (type == PT_Intimidate)
@@ -653,13 +654,13 @@ namespace MWMechanics
 
             float r;
             if (roll != target2)
-                r = floor(target2 - roll);
+                r = std::floor(target2 - roll);
             else
                 r = 1;
 
             if (roll <= target2)
             {
-                float s = floor(r * fPerDieRollMult * fPerTempMult);
+                float s = std::floor(r * fPerDieRollMult * fPerTempMult);
 
                 const int flee = npcStats.getAiSetting(MWMechanics::AiSetting::Flee).getBase();
                 const int fight = npcStats.getAiSetting(MWMechanics::AiSetting::Fight).getBase();
@@ -669,7 +670,7 @@ namespace MWMechanics
                     std::clamp(fight + static_cast<int>(std::min(-iPerMinChange, -s)), 0, 100));
             }
 
-            float c = -std::abs(floor(r * fPerDieRollMult));
+            float c = -std::abs(std::floor(r * fPerDieRollMult));
             if (success)
             {
                 if (std::abs(c) < iPerMinChange)
@@ -682,13 +683,13 @@ namespace MWMechanics
                 }
                 else
                 {
-                    x = -floor(c * fPerTempMult);
+                    x = -std::floor(c * fPerTempMult);
                     y = c;
                 }
             }
             else
             {
-                x = floor(c * fPerTempMult);
+                x = std::floor(c * fPerTempMult);
                 y = c;
             }
         }
@@ -697,7 +698,7 @@ namespace MWMechanics
             target1 = std::max(iPerMinChance, target1);
             success = (roll <= target1);
 
-            float c = std::abs(floor(target1 - roll));
+            float c = std::abs(std::floor(target1 - roll));
 
             if (success)
             {
@@ -709,7 +710,7 @@ namespace MWMechanics
                 npcStats.setAiSetting(AiSetting::Fight,
                     std::clamp(fight + std::max(static_cast<int>(iPerMinChange), static_cast<int>(s)), 0, 100));
             }
-            x = floor(-c * fPerDieRollMult);
+            x = std::floor(-c * fPerDieRollMult);
 
             if (success && std::abs(x) < iPerMinChange)
                 x = -iPerMinChange;
@@ -718,7 +719,7 @@ namespace MWMechanics
         {
             target3 = std::max(iPerMinChance, target3);
             success = (roll <= target3);
-            float c = floor((target3 - roll) * fPerDieRollMult);
+            float c = std::floor((target3 - roll) * fPerDieRollMult);
 
             x = success ? std::max(iPerMinChange, c) : c;
         }

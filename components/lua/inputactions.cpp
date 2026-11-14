@@ -188,7 +188,7 @@ namespace LuaUtil
                 message += key;
                 message += "\" with type \"";
                 message += typeName(info.mType);
-                message += "\"";
+                message += '\"';
                 throw std::logic_error(message);
             }
             return mValues[id];

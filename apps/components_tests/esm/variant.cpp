@@ -41,7 +41,7 @@ namespace
     TEST(ESMVariantTest, copy_constructed_is_equal_to_source)
     {
         const Variant a(42);
-        const Variant b(a);
+        const Variant& b(a);
         ASSERT_EQ(a, b);
     }
 
@@ -464,7 +464,7 @@ namespace
 
     TEST_P(ESMVariantToESMTest, deserialized_is_equal_to_serialized)
     {
-        const auto param = GetParam();
+        const auto& param = GetParam();
         ESM::Variant result;
         writeAndRead(param.mVariant, param.mFormat, param.mDataSize, result);
         ASSERT_EQ(param.mVariant, result);
@@ -493,7 +493,7 @@ namespace
 
     TEST_P(ESMVariantWriteToESMFailTest, write_is_not_supported)
     {
-        const auto param = GetParam();
+        const auto& param = GetParam();
         std::ostringstream out;
         ESMWriter writer;
         writer.save(out);

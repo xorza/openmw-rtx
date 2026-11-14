@@ -275,7 +275,7 @@ namespace Settings
 
         BaseSettingValue(const BaseSettingValue& other) = delete;
 
-        BaseSettingValue(BaseSettingValue&& other);
+        BaseSettingValue(BaseSettingValue&& other) noexcept;
 
         BaseSettingValue& operator=(const BaseSettingValue& other) = delete;
 
@@ -323,7 +323,7 @@ namespace Settings
         mIndex.insert(this);
     }
 
-    inline BaseSettingValue::BaseSettingValue(BaseSettingValue&& other)
+    inline BaseSettingValue::BaseSettingValue(BaseSettingValue&& other) noexcept
         : mType(other.mType)
         , mCategory(other.mCategory)
         , mName(other.mName)
@@ -353,7 +353,7 @@ namespace Settings
         {
         }
 
-        SettingValue(SettingValue&& other)
+        SettingValue(SettingValue&& other) noexcept
             : BaseSettingValue(std::move(other))
             , mSanitizer(std::move(other.mSanitizer))
             , mDefaultValue(std::move(other.mValue))

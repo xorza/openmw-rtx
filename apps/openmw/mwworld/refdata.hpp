@@ -83,7 +83,7 @@ namespace MWWorld
         /// perform these operations).
 
         RefData(const RefData& refData);
-        RefData(RefData&& other);
+        RefData(RefData&& other) noexcept;
 
         ~RefData();
 
@@ -92,7 +92,7 @@ namespace MWWorld
         /// perform this operations).
 
         RefData& operator=(const RefData& refData);
-        RefData& operator=(RefData&& other);
+        RefData& operator=(RefData&& other) noexcept;
 
         /// Return base node (can be a null pointer).
         SceneUtil::PositionAttitudeTransform* getBaseNode();

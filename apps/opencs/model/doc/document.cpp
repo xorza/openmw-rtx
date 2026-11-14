@@ -492,6 +492,7 @@ void CSMDoc::Document::startRunning(const std::string& profile, const std::strin
 {
     std::vector<std::filesystem::path> contentFiles;
 
+    contentFiles.reserve(mContentFiles.size());
     for (const auto& mContentFile : mContentFiles)
     {
         contentFiles.emplace_back(mContentFile.filename());

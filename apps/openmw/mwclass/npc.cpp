@@ -3,6 +3,7 @@
 #include <MyGUI_TextIterator.h>
 #include <MyGUI_UString.h>
 
+#include <cmath>
 #include <format>
 #include <memory>
 #include <stdexcept>
@@ -172,7 +173,8 @@ namespace
             != npcClass->mData.mAttribute.end())
             multiplier += 1;
 
-        creatureStats.setHealth(floor(0.5f * (strength + endurance)) + multiplier * (creatureStats.getLevel() - 1));
+        creatureStats.setHealth(
+            std::floor(0.5f * (strength + endurance)) + multiplier * (creatureStats.getLevel() - 1));
     }
 
     /**
@@ -981,7 +983,7 @@ namespace MWClass
         {
             info.caption += " (";
             info.caption += MyGUI::TextIterator::toTagsString(ref->mBase->mName);
-            info.caption += ")";
+            info.caption += ')';
         }
 
         if (fullHelp)

@@ -35,6 +35,7 @@ namespace RtxBuild
         {
             words.insert(words.begin(), "openmw-rtx-build");
             std::vector<char*> line;
+            line.reserve(words.size());
             for (std::string& word : words)
                 line.push_back(word.data());
             std::ostringstream errors;

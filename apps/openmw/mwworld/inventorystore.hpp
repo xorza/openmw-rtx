@@ -86,10 +86,10 @@ namespace MWWorld
     public:
         InventoryStore();
         InventoryStore(const InventoryStore& store);
-        InventoryStore(InventoryStore&& store);
+        InventoryStore(InventoryStore&& store) noexcept;
 
         InventoryStore& operator=(const InventoryStore& store);
-        InventoryStore& operator=(InventoryStore&& store);
+        InventoryStore& operator=(InventoryStore&& store) noexcept;
 
         std::unique_ptr<ContainerStore> clone() override
         {

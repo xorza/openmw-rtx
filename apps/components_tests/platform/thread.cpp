@@ -99,6 +99,7 @@ namespace Platform
             std::atomic<int> stopped{ 0 };
             std::atomic<int> waitedOut{ 0 };
             std::vector<std::jthread> hands;
+            hands.reserve(3);
             for (int at = 0; at < 3; ++at)
                 hands.push_back(startThread("hand", [&](const std::stop_token& stop) {
                     while (!stop.stop_requested())

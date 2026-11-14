@@ -755,6 +755,7 @@ namespace Rtx
                     const std::vector<std::uint32_t> vector = split(operandAt(instruction, 3));
                     perComponent(type(), result(), [&](std::uint32_t row, std::uint32_t into) {
                         std::vector<std::uint32_t> elements;
+                        elements.reserve(shape.mCount);
                         for (std::uint32_t column = 0; column < shape.mCount; ++column)
                             elements.push_back(
                                 make(spv::OpCompositeExtract, scalarOf(shape.mPart), { matrix, column, row }));
@@ -790,6 +791,7 @@ namespace Rtx
                         for (std::uint32_t row = 0; row < typeNamed(product.mPart).mCount; ++row)
                         {
                             std::vector<std::uint32_t> elements;
+                            elements.reserve(leftShape.mCount);
                             for (std::uint32_t inner = 0; inner < leftShape.mCount; ++inner)
                                 elements.push_back(
                                     make(spv::OpCompositeExtract, scalarOf(leftShape.mPart), { left, inner, row }));
@@ -923,6 +925,7 @@ namespace Rtx
                     const std::vector<std::uint32_t> left = split(argument(0));
                     const std::vector<std::uint32_t> right = split(argument(1));
                     std::vector<std::uint32_t> apart;
+                    apart.reserve(left.size());
                     for (std::size_t at = 0; at < left.size(); ++at)
                         apart.push_back(make(spv::OpFSub, scalar, { left[at], right[at] }));
                     if (apart.size() == 1)
@@ -1295,6 +1298,7 @@ namespace Rtx
                 return floatConstant(type, std::bit_cast<float>(bits.front()));
 
             std::vector<std::uint32_t> components;
+            components.reserve(bits.size());
             for (const std::uint32_t component : bits)
                 components.push_back(floatConstant(shape.mPart, std::bit_cast<float>(component)));
             const auto found = mComposites.find(std::pair(type, components));
@@ -1485,6 +1489,7 @@ namespace Rtx
                 throw Rtx::InputError(std::format("%{} is read as a float vector and is not one", value));
 
             std::vector<std::uint32_t> parts;
+            parts.reserve(shape.mCount);
             for (std::uint32_t at = 0; at < shape.mCount; ++at)
                 parts.push_back(make(spv::OpCompositeExtract, shape.mPart, { value, at }));
             return parts;
@@ -1521,6 +1526,7 @@ namespace Rtx
             }
 
             std::vector<std::uint32_t> parts;
+            parts.reserve(shape.mCount);
             for (std::uint32_t at = 0; at < shape.mCount; ++at)
                 parts.push_back(component(at, fresh()));
             emit(spv::OpCompositeConstruct, type, result, parts);

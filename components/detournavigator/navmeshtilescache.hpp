@@ -87,7 +87,7 @@ namespace DetourNavigator
 
             Value(const Value& other) = delete;
 
-            Value(Value&& other)
+            Value(Value&& other) noexcept
                 : mOwner(other.mOwner)
                 , mIterator(other.mIterator)
             {
@@ -102,7 +102,7 @@ namespace DetourNavigator
 
             Value& operator=(const Value& other) = delete;
 
-            Value& operator=(Value&& other)
+            Value& operator=(Value&& other) noexcept
             {
                 if (mOwner)
                     mOwner->releaseItem(mIterator);

@@ -832,7 +832,7 @@ bool MWState::StateManager::confirmLoading(const std::vector<std::string_view>& 
         for (size_t i = 0; i < cappedSize - 1; ++i)
         {
             message += missingFiles[i];
-            message += "\n";
+            message += '\n';
         }
 
         message += "...";

@@ -241,6 +241,7 @@ namespace RtxTool
             // Two land legs, the share's one room and the room the suite names, and the first leg again.
             const std::vector<Stop> stops = request.mPlanWhereTheWorldStands(30.0f);
             std::vector<std::string> names;
+            names.reserve(stops.size());
             for (const Stop& stop : stops)
                 names.push_back(stop.mName);
             EXPECT_EQ(names,

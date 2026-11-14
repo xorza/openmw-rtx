@@ -460,7 +460,7 @@ namespace MWGui
         }
 
         mOffset = 0;
-        for (auto technique : processor->getTechniques())
+        for (const auto& technique : processor->getTechniques())
         {
             if (!technique->getHidden())
             {

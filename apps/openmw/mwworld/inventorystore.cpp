@@ -97,7 +97,7 @@ MWWorld::InventoryStore::InventoryStore(const MWWorld::InventoryStore& store)
     copySlots(store);
 }
 
-MWWorld::InventoryStore::InventoryStore(MWWorld::InventoryStore&& store)
+MWWorld::InventoryStore::InventoryStore(MWWorld::InventoryStore&& store) noexcept
 {
     *this = std::move(store);
 }
@@ -115,7 +115,7 @@ MWWorld::InventoryStore& MWWorld::InventoryStore::operator=(const InventoryStore
     return *this;
 }
 
-MWWorld::InventoryStore& MWWorld::InventoryStore::operator=(InventoryStore&& store)
+MWWorld::InventoryStore& MWWorld::InventoryStore::operator=(InventoryStore&& store) noexcept
 {
     mInventoryListener = store.mInventoryListener;
     mUpdatesEnabled = store.mUpdatesEnabled;

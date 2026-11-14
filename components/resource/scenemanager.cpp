@@ -734,7 +734,7 @@ namespace Resource
                     if (auto* group = dynamic_cast<osg::Group*>(node))
                     {
                         group->removeChildren(0, group->getNumChildren());
-                        for (osg::ref_ptr<SceneUtil::RigGeometryHolder> newRiggeometryHolder :
+                        for (const osg::ref_ptr<SceneUtil::RigGeometryHolder>& newRiggeometryHolder :
                             colladaDescriptionVisitor.mRigGeometryHolders)
                         {
                             osg::ref_ptr<osg::MatrixTransform> backToOriginTrans = new osg::MatrixTransform();

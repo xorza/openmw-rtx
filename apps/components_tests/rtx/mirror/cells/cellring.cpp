@@ -2109,6 +2109,7 @@ namespace Rtx::Testing
             supply.take(read, grass);
 
             std::vector<osg::Vec2i> cells;
+            cells.reserve(read.size());
             for (const PreparedCell* cell : read)
                 cells.push_back(cell->mCell);
             EXPECT_EQ(cells, (std::vector<osg::Vec2i>{ a, b, c })) << "each cell once, in the order asked";

@@ -141,7 +141,7 @@ namespace
 
     TEST(MiscStringUtilsCiEqualTest, string_with_different_length_should_not_be_equal)
     {
-        EXPECT_FALSE(ciEqual(std::string("a"), std::string("aa")));
+        EXPECT_FALSE(ciEqual("a", "aa"));
     }
 
     TEST(MiscStringsCiStartsWith, empty_string_should_start_with_empty_prefix)

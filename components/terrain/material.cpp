@@ -220,7 +220,7 @@ namespace Terrain
 
             if (!blendmaps.empty())
             {
-                osg::ref_ptr<osg::Texture2D> blendmap = blendmaps.at(blendmapIndex++);
+                const osg::ref_ptr<osg::Texture2D>& blendmap = blendmaps.at(blendmapIndex++);
 
                 stateset->setTextureAttribute(1, blendmap.get());
                 if (!esm4terrain)

@@ -321,10 +321,10 @@ namespace MWWorld
     public:
         ContainerStore();
         ContainerStore(const ContainerStore& store);
-        ContainerStore(ContainerStore&& store);
+        ContainerStore(ContainerStore&& store) noexcept;
 
         ContainerStore& operator=(const ContainerStore&);
-        ContainerStore& operator=(ContainerStore&&);
+        ContainerStore& operator=(ContainerStore&&) noexcept;
 
         virtual ~ContainerStore() = default;
 

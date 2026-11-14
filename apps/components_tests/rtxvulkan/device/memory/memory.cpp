@@ -211,10 +211,12 @@ namespace Rtx
             const VkDeviceSize granularity
                 = device.getPhysicalDevice().getProperties().mProperties2.properties.limits.bufferImageGranularity;
             std::vector<Bound> packed;
+            packed.reserve(64);
             for (int at = 0; at < 64; ++at)
                 packed.push_back(bind(device, sSmall, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT));
 
             std::vector<std::pair<VkDeviceMemory, VkDeviceSize>> places;
+            places.reserve(packed.size());
             for (const Bound& bound : packed)
                 places.emplace_back(bound.mMemory.getHandle(), bound.mMemory.getOffset());
             std::sort(places.begin(), places.end());
@@ -350,6 +352,7 @@ namespace Rtx
             constexpr VkDeviceSize alone = 96 * 1024 * 1024;
 
             std::vector<Bound> held;
+            held.reserve(3);
             for (int at = 0; at < 3; ++at)
                 held.push_back(bind(getDevice(), alone, staging));
 

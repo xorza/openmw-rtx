@@ -479,6 +479,7 @@ End
                 refs.push_back(Terrain::PagedCellRef{ .mRefId = ESM::RefId::stringRefId(record) });
             gates.mark(refs);
             std::vector<std::uint32_t> marked;
+            marked.reserve(refs.size());
             for (const Terrain::PagedCellRef& ref : refs)
                 marked.push_back(ref.mGate);
             return marked;

@@ -2762,6 +2762,7 @@ namespace MWGui
     std::vector<std::string_view> WindowManager::getAllWindowIds() const
     {
         std::vector<std::string_view> res;
+        res.reserve(mLuaIdToWindow.size());
         for (const auto& [id, _] : mLuaIdToWindow)
             res.push_back(id);
         return res;

@@ -237,6 +237,7 @@ namespace CrashTests
                 constexpr int sCrowd = 70;
                 std::latch crowded(sCrowd);
                 std::vector<std::jthread> crowd;
+                crowd.reserve(sCrowd);
                 for (int i = 0; i < sCrowd; ++i)
                     crowd.push_back(Platform::startThread("crash-tests", [&crowded, i] {
                         const Crash::NoteScope note("crowding the table as thread {}", i);
@@ -440,7 +441,7 @@ namespace CrashTests
             // A summary line is stamped as the log's are; the part after the stamp is what it says.
             std::vector<std::string> said;
             for (const std::string& line : lines)
-                if (const std::size_t at = line.find("] "); line.starts_with("[") && at != std::string::npos)
+                if (const std::size_t at = line.find("] "); line.starts_with('[') && at != std::string::npos)
                     said.push_back(line.substr(at + 2));
                 else
                     said.push_back(line);

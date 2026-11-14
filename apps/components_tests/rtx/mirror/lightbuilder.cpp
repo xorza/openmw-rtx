@@ -171,6 +171,7 @@ namespace Rtx
             const std::vector<double> scrambled = { 4.5, 0.25, 91.0, 4.5, 0.25, 17.75, 91.0 };
 
             std::vector<float> first;
+            first.reserve(scrambled.size());
             for (const double seconds : scrambled)
                 first.push_back(lamp.at(seconds));
 
@@ -188,6 +189,7 @@ namespace Rtx
         TEST(RtxLightBuilderTest, lampsBuiltTogetherStillFlickerApart)
         {
             std::vector<float> lit;
+            lit.reserve(64);
             for (int id = 0; id < 64; ++id)
                 lit.push_back(Lamp{ SceneUtil::LightController::LT_PulseSlow, id }.at(0.0));
 

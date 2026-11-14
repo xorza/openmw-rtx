@@ -126,7 +126,7 @@ namespace MWRender
 
             listener.setLabel(std::string(label));
             if (!note.empty())
-                listener.setNote(std::string(note));
+                listener.setNote(note);
             listener.setProgressRange(progress.mCount);
 
             constexpr std::chrono::milliseconds patience{ 8 };

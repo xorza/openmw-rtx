@@ -185,7 +185,7 @@ namespace CSMWorld
 
     QVariant PathgridEdgeListAdapter::getData(const Record<Pathgrid>& record, int subRowIndex, int subColIndex) const
     {
-        Pathgrid pathgrid = record.get();
+        const Pathgrid& pathgrid = record.get();
 
         if (subRowIndex < 0 || std::cmp_greater_equal(subRowIndex, pathgrid.mEdges.size()))
             throw std::runtime_error("index out of range");
@@ -505,7 +505,7 @@ namespace CSMWorld
 
     QVariant InfoListAdapter::getData(const Record<Info>& record, int subRowIndex, int subColIndex) const
     {
-        Info info = record.get();
+        const Info& info = record.get();
 
         if (subColIndex == 0)
             return QString(info.mResultScript.c_str());
@@ -726,7 +726,7 @@ namespace CSMWorld
 
     QVariant RaceAttributeAdapter::getData(const Record<ESM::Race>& record, int subRowIndex, int subColIndex) const
     {
-        ESM::Race race = record.get();
+        const ESM::Race& race = record.get();
         ESM::RefId attribute = ESM::Attribute::indexToRefId(subRowIndex);
         if (attribute.empty())
             throw std::runtime_error("index out of range");
@@ -809,7 +809,7 @@ namespace CSMWorld
 
     QVariant RaceSkillsBonusAdapter::getData(const Record<ESM::Race>& record, int subRowIndex, int subColIndex) const
     {
-        ESM::Race race = record.get();
+        const ESM::Race& race = record.get();
 
         if (subRowIndex < 0 || static_cast<size_t>(subRowIndex) >= race.mData.mBonus.size())
             throw std::runtime_error("index out of range");
@@ -880,7 +880,7 @@ namespace CSMWorld
 
     QVariant CellListAdapter::getData(const Record<CSMWorld::Cell>& record, int subRowIndex, int subColIndex) const
     {
-        CSMWorld::Cell cell = record.get();
+        const CSMWorld::Cell& cell = record.get();
 
         bool isInterior = (cell.mData.mFlags & ESM::Cell::Interior) != 0;
         bool behaveLikeExterior = (cell.mData.mFlags & ESM::Cell::QuasiEx) != 0;

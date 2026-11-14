@@ -665,6 +665,7 @@ namespace Rtx::Testing
                 scene.addRipple(RippleImpulse{ .mAt = osg::Vec2f(0.0f, 0.0f), .mSize = 12.0f });
                 const Frame frame = shoot(scene, {}, camera, size, run);
                 std::vector<float> green;
+                green.reserve(std::size_t{ size } * size);
                 for (std::size_t i = 0; i < std::size_t{ size } * size; ++i)
                     green.push_back(frame.at(i * 4 + 1));
                 return green;

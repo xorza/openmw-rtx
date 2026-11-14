@@ -24,6 +24,7 @@ namespace Rtx
             ASSERT_EQ(queue.getItemCount(), 6u);
 
             std::vector<std::uint32_t> claimed;
+            claimed.reserve(queue.getItemCount());
             for (std::uint32_t turn = 0; turn < queue.getItemCount(); ++turn)
                 claimed.push_back(queue.claim(5));
             EXPECT_EQ(claimed, (std::vector<std::uint32_t>{ 0, 1, 2, 3, 4, 5 }));

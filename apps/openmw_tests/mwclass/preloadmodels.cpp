@@ -23,6 +23,7 @@ namespace MWClass
         std::vector<std::string> namesOf(const std::vector<VFS::Path::NormalizedView>& models)
         {
             std::vector<std::string> names;
+            names.reserve(models.size());
             for (const VFS::Path::NormalizedView model : models)
                 names.emplace_back(model.value());
             return names;

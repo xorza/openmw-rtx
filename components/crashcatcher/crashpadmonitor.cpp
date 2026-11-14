@@ -285,6 +285,7 @@ namespace Crash
                 Platform::localTime(std::time(nullptr)).value_or(std::tm{}));
 
             std::vector<std::string> lines;
+            lines.reserve(package.mMissing.size());
             for (const std::filesystem::path& missing : package.mMissing)
                 lines.push_back("Crash package: " + Files::pathToUnicodeString(missing)
                     + " is not on disk, and the package goes without it");

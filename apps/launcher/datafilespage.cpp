@@ -172,7 +172,7 @@ Launcher::DataFilesPage::DataFilesPage(const Files::ConfigurationManager& cfg, C
         { "German", tr("German") }, { "Italian", tr("Italian") }, { "Polish", tr("Polish") },
         { "Russian", tr("Russian") }, { "Spanish", tr("Spanish") } };
 
-    for (auto lang : languages)
+    for (const auto& lang : languages)
     {
         mSelector->languageBox()->addItem(lang.second, lang.first);
     }

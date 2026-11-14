@@ -56,6 +56,7 @@ namespace Gui
             const std::size_t before = gui.getFonts().getTexts().size();
 
             std::vector<MyGUI::TextBox*> texts;
+            texts.reserve(3);
             for (int at = 0; at < 3; ++at)
                 texts.push_back(makeText("DefaultFont", 10 + 40 * at));
             EXPECT_EQ(gui.getFonts().getTexts().size(), before + 3);

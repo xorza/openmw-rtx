@@ -64,7 +64,7 @@ namespace Rtx
         /// keeps where they stand and a copy would leave the copy's index viewing the original's.
         PreparationManifest(const PreparationManifest&) = delete;
         PreparationManifest& operator=(const PreparationManifest&) = delete;
-        PreparationManifest(PreparationManifest&&) = default;
+        PreparationManifest(PreparationManifest&&) noexcept = default;
         PreparationManifest& operator=(PreparationManifest&&) = default;
 
         /// The manifest at `path`, made under `signature` — what the preparation computes and how, so

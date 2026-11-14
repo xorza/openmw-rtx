@@ -1229,6 +1229,7 @@ namespace Rtx::Testing
                     scene, {}, camera, size, { .mSea = SeaState{ .mSignificantHeight = 0.0f }, .mFrames = frames });
 
                 std::vector<double> green;
+                green.reserve(size);
                 for (std::uint32_t row = 0; row < size; ++row)
                     green.push_back(double{ frame.at((std::size_t{ row } * size + column) * 4 + 1) });
                 return green;

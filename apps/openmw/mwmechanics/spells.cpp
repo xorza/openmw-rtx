@@ -38,7 +38,7 @@ namespace MWMechanics
             mSpellList->addListener(this);
     }
 
-    Spells::Spells(Spells&& spells)
+    Spells::Spells(Spells&& spells) noexcept
         : mSpellList(std::move(spells.mSpellList))
         , mSpells(std::move(spells.mSpells))
         , mSelectedSpell(std::move(spells.mSelectedSpell))

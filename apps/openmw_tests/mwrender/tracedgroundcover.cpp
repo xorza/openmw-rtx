@@ -138,6 +138,7 @@ namespace MWRender
                 groundcover.collect(cell, refs);
 
                 std::vector<std::uint32_t> numbers;
+                numbers.reserve(refs.size());
                 for (const Terrain::PagedCellRef& ref : refs)
                     numbers.push_back(ref.mRefNum.mIndex);
                 return numbers;

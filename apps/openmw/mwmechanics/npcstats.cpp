@@ -1,6 +1,7 @@
 #include "npcstats.hpp"
 
 #include <cassert>
+#include <cmath>
 #include <format>
 
 #include <components/esm3/loadclas.hpp>
@@ -251,7 +252,7 @@ void MWMechanics::NpcStats::updateHealth()
     const float endurance = getAttribute(ESM::Attribute::Endurance).getBase();
     const float strength = getAttribute(ESM::Attribute::Strength).getBase();
 
-    setHealth(floor(0.5f * (strength + endurance)));
+    setHealth(std::floor(0.5f * (strength + endurance)));
 }
 
 int MWMechanics::NpcStats::getLevelupAttributeMultiplier(ESM::RefId attribute) const

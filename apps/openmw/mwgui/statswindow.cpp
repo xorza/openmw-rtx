@@ -652,7 +652,7 @@ namespace MWGui
                             }
                         }
 
-                        text += "\n";
+                        text += '\n';
 
                         if (rankData.mPrimarySkill > 0)
                             text += "\n#{sNeedOneSkill} " + MyGUI::utility::toString(rankData.mPrimarySkill);

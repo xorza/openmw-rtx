@@ -40,7 +40,7 @@ namespace LuaUi
             error += field;
             error += "\" has an invalid value \"";
             error += LuaUtil::toString(opt);
-            error += "\"";
+            error += '\"';
             throw std::logic_error(error);
         }
         if (!opt.is<LuaT>())

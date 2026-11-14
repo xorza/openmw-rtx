@@ -357,6 +357,7 @@ namespace
         std::ofstream(notes).put('x');
 
         std::vector<std::filesystem::path> written;
+        written.reserve(12);
         for (int minute = 0; minute < 12; ++minute)
             written.push_back(
                 Crash::writeSessionPackage(reports, "OpenMW", {}, dumps, localOf(2026, 9, 27, 14, minute, 0)).mZip);

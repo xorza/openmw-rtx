@@ -136,6 +136,7 @@ namespace RtxTool
             const Result<PngImage, std::string> first = readPng(pictures / "pier-1.png");
             ASSERT_TRUE(first.isOk()) << first.error();
             std::vector<std::uint16_t> widened;
+            widened.reserve(sPixels.size());
             for (const std::uint8_t level : sPixels)
                 widened.push_back(static_cast<std::uint16_t>(level * sSamplesPerLevel));
             EXPECT_EQ(first.value().mSamples, widened);

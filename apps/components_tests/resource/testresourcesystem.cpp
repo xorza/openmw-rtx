@@ -48,6 +48,7 @@ namespace
         constexpr VFS::Path::NormalizedView noSuchPath("meshes/whatever.nif");
         std::vector<std::thread> threads;
 
+        threads.reserve(50);
         for (int i = 0; i < 50; ++i)
         {
             threads.emplace_back([=]() { sceneManager->getInstance(noSuchPath); });
