@@ -7,6 +7,8 @@
 #include <string_view>
 #include <utility>
 
+#include <components/misc/cstringview.hpp>
+
 namespace Crash
 {
     /// How many bytes a note holds, its terminating nought included. A longer one is cut short.
@@ -84,8 +86,6 @@ namespace Crash
 
         NoteScope(const NoteScope&) = delete;
         NoteScope& operator=(const NoteScope&) = delete;
-        NoteScope(NoteScope&&) = delete;
-        NoteScope& operator=(NoteScope&&) = delete;
 
     private:
         void begin(std::string_view text);
@@ -109,8 +109,9 @@ namespace Crash
     /// dump carries them.
     std::span<const std::byte> noteTable();
 
-    /// The name of the annotation the table travels as, which the monitor and `omw crash` read it by.
-    inline constexpr std::string_view sNotesAnnotation = "openmw-notes";
+    /// The name of the annotation the table travels as, which the monitor and `omw crash` read it by, as the C
+    /// string Crashpad names an annotation with.
+    inline constexpr Misc::CStringView sNotesAnnotation = "openmw-notes";
 
     /// Reads a copy of `noteTable()`'s bytes, taken while no thread of the process that wrote them
     /// runs, with `thread`'s note first: the one that faulted, or for a hang the one that draws. A

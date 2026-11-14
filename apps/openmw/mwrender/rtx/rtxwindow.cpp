@@ -98,11 +98,11 @@ namespace MWRender
         camera.setViewport(0, 0, static_cast<int>(extents.mOutputWidth), static_cast<int>(extents.mOutputHeight));
     }
 
-    void RtxWindow::setTitle(const char* title)
+    void RtxWindow::setTitle(const Misc::CStringView title)
     {
         if ((SDL_GetWindowFlags(mWindow.get()) & SDL_WINDOW_HIDDEN) != 0)
             return;
 
-        SDL_SetWindowTitle(mWindow.get(), title);
+        SDL_SetWindowTitle(mWindow.get(), title.c_str());
     }
 }

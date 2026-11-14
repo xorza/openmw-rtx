@@ -17,6 +17,7 @@
 #include <osg/Vec3f>
 #include <osg/ref_ptr>
 
+#include <components/misc/cstringview.hpp>
 #include <components/misc/frameratelimiter.hpp>
 #include <components/misc/presentation.hpp>
 #include <components/rtx/frame/upscale.hpp>
@@ -157,8 +158,6 @@ namespace MWRender
 
         Renderer(const Renderer&) = delete;
         Renderer& operator=(const Renderer&) = delete;
-        Renderer(Renderer&&) = delete;
-        Renderer& operator=(Renderer&&) = delete;
 
         /// The events of one frame are about to be read (`SDLUtil::GraphicsListener::beginEvents`).
         virtual void beginEvents() {}
@@ -603,8 +602,8 @@ namespace MWRender
     std::string_view nameOf(RendererKind kind);
 
     /// The game window's title, which the ray tracer's frame timer writes its figures after: the fork's name, apart
-    /// from an upstream OpenMW's. A literal, so `data()` ends where the title does.
-    inline constexpr std::string_view sWindowTitle = "OpenMW RTX";
+    /// from an upstream OpenMW's, as the C string a window takes.
+    inline constexpr Misc::CStringView sWindowTitle = "OpenMW RTX";
 
     /// The game's own choice. A host with a renderer of its own — the harness, with its run —
     /// makes it itself, as the engine's host (`OMW::EngineHost::createRenderer`).

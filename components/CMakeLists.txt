@@ -967,6 +967,7 @@ target_sources(
                 misc/constants.hpp
                 misc/convert.hpp
                 misc/coordinateconverter.hpp
+                misc/cstringview.hpp
                 misc/digestwords.hpp
                 misc/display.hpp
                 misc/endianness.hpp

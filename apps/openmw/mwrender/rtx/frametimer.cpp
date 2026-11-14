@@ -5,6 +5,7 @@
 #include <chrono>
 #include <cstddef>
 #include <format>
+#include <iterator>
 #include <optional>
 #include <utility>
 
@@ -74,21 +75,20 @@ namespace MWRender
         return true;
     }
 
-    std::string_view FrameTimer::writeTitle(const std::string_view note)
+    Misc::CStringView FrameTimer::writeTitle(const std::string_view note)
     {
-        char* out = mTitle.data();
-        const auto room = [&] { return static_cast<std::size_t>(mTitle.data() + mTitle.size() - 1 - out); };
+        // Within the room the string was made with, so a title never allocates.
+        const auto room = [&] { return static_cast<std::ptrdiff_t>(sTitleLengthMost - mTitle.size()); };
+        mTitle.clear();
 
-        out = std::format_to_n(out, static_cast<std::ptrdiff_t>(room()), "{}", sWindowTitle).out;
+        std::format_to_n(std::back_inserter(mTitle), room(), "{}", std::string_view(sWindowTitle));
         if (mSecondMeanMs > 0.0)
-            out = std::format_to_n(out, static_cast<std::ptrdiff_t>(room()),
-                " - {:.0f} fps, {:.1f} ms, worst {:.1f} ms", sSecondMs / mSecondMeanMs, mSecondMeanMs, mSecondWorstMs)
-                      .out;
+            std::format_to_n(std::back_inserter(mTitle), room(), " - {:.0f} fps, {:.1f} ms, worst {:.1f} ms",
+                sSecondMs / mSecondMeanMs, mSecondMeanMs, mSecondWorstMs);
 
         if (!note.empty())
-            out = std::format_to_n(out, static_cast<std::ptrdiff_t>(room()), " - {}", note).out;
+            std::format_to_n(std::back_inserter(mTitle), room(), " - {}", note);
 
-        *out = '\0';
-        return std::string_view(mTitle.data(), static_cast<std::size_t>(out - mTitle.data()));
+        return mTitle;
     }
 }

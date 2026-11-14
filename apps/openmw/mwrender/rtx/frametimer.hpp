@@ -1,10 +1,13 @@
 #pragma once
 
-#include <array>
 #include <chrono>
+#include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <string>
 #include <string_view>
+
+#include <components/misc/cstringview.hpp>
 
 #include <apps/openmw/mwrender/framesaside.hpp>
 
@@ -55,11 +58,14 @@ namespace MWRender
         /// one frame in sixty is the spike a frame path is not allowed to carry.
         bool addFrame(double frameMs);
 
-        /// The window title for the second that ran out. Never allocates: the text is written into
-        /// this object's own bytes, and ends in a nought a C string wants.
+        /// The longest title, past which a note is cut short: more than a window's bar shows.
+        static constexpr std::size_t sTitleLengthMost = 127;
+
+        /// The window title for the second that ran out, as the C string a window takes. Never allocates:
+        /// the text is written into this object's own string, made with room for `sTitleLengthMost`.
         ///
         /// @param note what the run says of where it stands, after the rest, or empty for nothing.
-        std::string_view writeTitle(std::string_view note);
+        Misc::CStringView writeTitle(std::string_view note);
 
     private:
         std::optional<std::chrono::steady_clock::time_point> mEntered;
@@ -76,7 +82,11 @@ namespace MWRender
         double mSecondMeanMs = 0.0;
         double mSecondWorstMs = 0.0;
 
-        /// What the window's title is written from, once a second and never allocated.
-        std::array<char, 128> mTitle{};
+        /// What the window's title is written into, once a second.
+        std::string mTitle = [] {
+            std::string title;
+            title.reserve(sTitleLengthMost);
+            return title;
+        }();
     };
 }

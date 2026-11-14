@@ -7,6 +7,7 @@
 #include <SDL3/SDL_video.h>
 #include <osg/Vec2i>
 
+#include <components/misc/cstringview.hpp>
 #include <components/misc/presentation.hpp>
 
 namespace osg
@@ -57,7 +58,7 @@ namespace MWRender
         void apply(Rtx::Renderer& renderer, osg::Camera& camera, const Misc::Presentation& presentation);
 
         /// Writes the title, where somebody can see it: a hidden window keeps whatever it had.
-        void setTitle(const char* title);
+        void setTitle(Misc::CStringView title);
 
     private:
         std::unique_ptr<SDL_Window, void (*)(SDL_Window*)> mWindow{ nullptr, SDL_DestroyWindow };

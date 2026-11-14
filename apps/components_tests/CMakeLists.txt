@@ -56,6 +56,7 @@ target_sources(
         lua/testyaml.cpp
         main.cpp
         misc/compression.cpp
+        misc/cstringview.cpp
         misc/frameclock.cpp
         misc/base64.cpp
         misc/hashstate.cpp

@@ -60,9 +60,7 @@ namespace Crash
 
             /// The note table, as an annotation every dump carries. Crashpad's interface takes a
             /// pointer it may write through; it reads the bytes only, and from the monitor.
-            // A view of a literal, terminated as every literal is.
-            // NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage)
-            crashpad::Annotation mNotes{ crashpad::Annotation::UserDefinedType(1), sNotesAnnotation.data(),
+            crashpad::Annotation mNotes{ crashpad::Annotation::UserDefinedType(1), sNotesAnnotation.c_str(),
                 const_cast<std::byte*>(noteTable().data()) };
 
             /// The page this process shares with its monitor, from the moment the monitor answered on

@@ -1068,8 +1068,6 @@ namespace MWRender
         // Once a second, which is how often `FrameTimer::addFrame` closes one — and the window is
         // asked then whether anybody can see it, rather than a copy of that being kept here.
         if (since.has_value() && mTimer.addFrame(*since))
-            // The timer's buffer, which it ends with a terminator.
-            // NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage)
-            mWindow.setTitle(mTimer.writeTitle(mRun.describeTitle()).data());
+            mWindow.setTitle(mTimer.writeTitle(mRun.describeTitle()));
     }
 }
