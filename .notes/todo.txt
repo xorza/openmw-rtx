@@ -4,6 +4,7 @@
 - tidy ci
 - custom map notes plugin
 - pragma once
+- audit macros
 
 - all IO serial?
 
