@@ -48,8 +48,6 @@ namespace ESM
     class ESMWriter;
     struct Position;
     struct Cell;
-    struct Class;
-    struct Container;
     struct Creature;
     struct Potion;
     struct Spell;
@@ -62,7 +60,6 @@ namespace ESM
     struct EffectList;
     struct CreatureLevList;
     struct ItemLevList;
-    struct TimeStamp;
     class RefId;
     struct ExteriorCellLocation;
     enum class GameFormat;

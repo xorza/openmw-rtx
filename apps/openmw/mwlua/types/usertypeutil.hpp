@@ -92,6 +92,8 @@ namespace MWLua::Types
         using Record = T;
         constexpr static bool isMutable = false;
 
+        // Hands back the record it was given, which its callers hold.
+        // NOLINTNEXTLINE(bugprone-return-const-ref-from-parameter)
         static const Record& asRecord(const T& rec) { return rec; }
         static Record& asRecord(T& rec) { return rec; }
     };

@@ -166,7 +166,8 @@ void MWWorld::WorldModel::clear()
     mInteriors.clear();
     mExteriors.clear();
     mCells.clear();
-    std::fill(mIdCache.begin(), mIdCache.end(), std::make_pair(ESM::RefId(), (MWWorld::CellStore*)nullptr));
+    std::fill(
+        mIdCache.begin(), mIdCache.end(), std::make_pair(ESM::RefId(), static_cast<MWWorld::CellStore*>(nullptr)));
     mIdCacheIndex = 0;
 }
 

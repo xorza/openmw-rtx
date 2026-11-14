@@ -72,7 +72,6 @@ namespace SceneUtil
 namespace DetourNavigator
 {
     struct Navigator;
-    struct Settings;
     struct AgentBounds;
 }
 

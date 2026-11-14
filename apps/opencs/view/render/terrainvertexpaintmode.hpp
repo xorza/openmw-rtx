@@ -44,7 +44,6 @@ namespace CSVRender
 {
     class WorldspaceWidget;
     struct WorldspaceHitResult;
-    class SceneToolbar;
 
     /// \brief EditMode for handling terrain vertex colour painting
     class TerrainVertexPaintMode : public EditMode

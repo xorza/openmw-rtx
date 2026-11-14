@@ -105,7 +105,7 @@ namespace MWSound
         else
             return -1;
 
-        return std::streamoff(stream.tellg()) - self.mStreamBase;
+        return static_cast<std::streamoff>(stream.tellg()) - self.mStreamBase;
     }
 
     /* Used by getAV*Data to search for more compressed data, and buffer it in the

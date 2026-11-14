@@ -1211,7 +1211,7 @@ namespace CSMWorld
 
             ESM::ContItem newRow = ESM::ContItem();
 
-            if (position >= (int)list.size())
+            if (std::cmp_greater_equal(position, list.size()))
                 list.push_back(newRow);
             else
                 list.insert(list.begin() + position, newRow);
@@ -1347,7 +1347,7 @@ namespace CSMWorld
 
             ESM::RefId newString;
 
-            if (position >= (int)list.size())
+            if (std::cmp_greater_equal(position, list.size()))
                 list.push_back(newString);
             else
                 list.insert(list.begin() + position, newString);
@@ -1478,7 +1478,7 @@ namespace CSMWorld
             newRow.mPos = newPos;
             newRow.mCellName.clear();
 
-            if (position >= (int)list.size())
+            if (std::cmp_greater_equal(position, list.size()))
                 list.push_back(std::move(newRow));
             else
                 list.insert(list.begin() + position, newRow);
@@ -1648,7 +1648,7 @@ namespace CSMWorld
             newRow.mWander.mShouldRepeat = 1;
             newRow.mCellName.clear();
 
-            if (position >= (int)list.size())
+            if (std::cmp_greater_equal(position, list.size()))
                 list.push_back(std::move(newRow));
             else
                 list.insert(list.begin() + position, newRow);
@@ -1997,7 +1997,7 @@ namespace CSMWorld
             newPart.mMale = ESM::RefId();
             newPart.mFemale = ESM::RefId();
 
-            if (position >= (int)list.size())
+            if (std::cmp_greater_equal(position, list.size()))
                 list.push_back(newPart);
             else
                 list.insert(list.begin() + position, newPart);
@@ -2354,7 +2354,7 @@ namespace CSMWorld
             newItem.mId = ESM::RefId();
             newItem.mLevel = 0;
 
-            if (position >= (int)list.size())
+            if (std::cmp_greater_equal(position, list.size()))
                 list.push_back(newItem);
             else
                 list.insert(list.begin() + position, newItem);

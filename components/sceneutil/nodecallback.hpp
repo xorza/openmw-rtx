@@ -24,7 +24,8 @@ namespace SceneUtil
 
         bool run(osg::Object* object, osg::Object* data) override
         {
-            static_cast<Derived*>(this)->operator()((NodeType)object, (VisitorType)data->asNodeVisitor());
+            static_cast<Derived*>(this)->operator()(
+                static_cast<NodeType>(object), static_cast<VisitorType>(data->asNodeVisitor()));
             return true;
         }
 

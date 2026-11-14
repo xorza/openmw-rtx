@@ -679,7 +679,7 @@ namespace MWGui
         {
             auto link = std::make_unique<Choice>(choice.second);
             link->eventChoiceActivated += MyGUI::newDelegate(this, &DialogueWindow::onChoiceActivated);
-            auto interactiveId = TypesetBook::InteractiveId(link.get());
+            auto interactiveId = reinterpret_cast<TypesetBook::InteractiveId>(link.get());
             mLinks.push_back(std::move(link));
 
             typesetter->lineBreak();
@@ -694,7 +694,7 @@ namespace MWGui
         {
             auto link = std::make_unique<Goodbye>();
             link->eventActivated += MyGUI::newDelegate(this, &DialogueWindow::onGoodbyeActivated);
-            auto interactiveId = TypesetBook::InteractiveId(link.get());
+            auto interactiveId = reinterpret_cast<TypesetBook::InteractiveId>(link.get());
             mLinks.push_back(std::move(link));
             const std::string& goodbye = MWBase::Environment::get()
                                              .getESMStore()

@@ -13,6 +13,7 @@
 #include <osg/Group>
 #include <osg/NodeVisitor>
 #include <osg/observer_ptr>
+#include <osgUtil/CullVisitor>
 
 #include <components/misc/constants.hpp>
 #include <components/resource/resourcesystem.hpp>

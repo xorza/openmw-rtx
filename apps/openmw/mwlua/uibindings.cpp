@@ -233,6 +233,8 @@ namespace MWLua
 
                 // A layer node may be absent or disappear between a UI update and this query. Preserve these Elements
                 // rather than omitting them, but their render order is no longer available
+                // Elements whose layer node is gone, whose render order is lost already.
+                // NOLINTNEXTLINE(bugprone-nondeterministic-pointer-iteration-order)
                 for (auto& [_, elements] : elementsByLayerNode)
                     for (std::shared_ptr<LuaUi::Element>& element : elements)
                         res[index++] = std::move(element);

@@ -6,9 +6,7 @@
 
 namespace Nif
 {
-    struct File;
     struct Record;
-    struct Stream;
 
     // An extra data record. All the extra data connected to an object form a linked list.
     struct Extra : public Record

@@ -348,7 +348,7 @@ namespace Rtx
                 .mSubjectMask = sEveryNode };
             const auto holdsChain = [&](const Testing::CountingRenderer& renderer) {
                 return std::ranges::any_of(renderer.mDescribedSecondTexels,
-                    [&](const Testing::Texel& texel) { return bool(Testing::isNear(texel, box, 2)); });
+                    [&](const Testing::Texel& texel) { return static_cast<bool>(Testing::isNear(texel, box, 2)); });
             };
 
             Testing::CountingRenderer renderer;

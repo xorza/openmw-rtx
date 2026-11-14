@@ -71,6 +71,8 @@ namespace LuaUi
         };
         Element::forEach(false, collectRoot);
         Element::forEach(true, collectRoot);
+        // Each root updates its own tree, in any order.
+        // NOLINTNEXTLINE(bugprone-nondeterministic-pointer-iteration-order)
         for (WidgetExtension* root : roots)
             root->updateCoord();
     }

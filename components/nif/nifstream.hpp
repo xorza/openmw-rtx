@@ -43,7 +43,7 @@ namespace Nif
         static_assert(
             std::is_arithmetic_v<T> || std::is_same_v<T, Misc::float16_t>, "Buffer element type is not arithmetic");
         static_assert(!std::is_same_v<T, bool>, "Buffer element type is boolean");
-        pIStream->read((char*)dest, numInstances * sizeof(T));
+        pIStream->read(reinterpret_cast<char*>(dest), numInstances * sizeof(T));
         if (pIStream->fail())
             throw std::runtime_error(std::format("Failed to read typed ({}) dynamic buffer of {} instances: {}",
                 typeid(T).name(), numInstances, std::generic_category().message(errno)));
@@ -64,7 +64,7 @@ namespace Nif
         static_assert(
             std::is_arithmetic_v<T> || std::is_same_v<T, Misc::float16_t>, "Buffer element type is not arithmetic");
         static_assert(!std::is_same_v<T, bool>, "Buffer element type is boolean");
-        pIStream->read((char*)dest, numInstances * sizeof(T));
+        pIStream->read(reinterpret_cast<char*>(dest), numInstances * sizeof(T));
         if (pIStream->fail())
             throw std::runtime_error(std::format("Failed to read typed ({}) dynamic buffer of {} instances: {}",
                 typeid(T).name(), numInstances, std::generic_category().message(errno)));

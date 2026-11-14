@@ -51,7 +51,6 @@ namespace CSVRender
     class TerrainSelection;
     class WorldspaceWidget;
     struct WorldspaceHitResult;
-    class SceneToolbar;
 
     /// \brief EditMode for handling the terrain shape editing
     class TerrainShapeMode : public EditMode

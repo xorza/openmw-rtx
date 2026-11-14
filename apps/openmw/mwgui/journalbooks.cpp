@@ -35,7 +35,7 @@ namespace
             const MWGui::TextColours& textColours = MWBase::Environment::get().getWindowManager()->getTextColours();
             if (topic)
                 style = mTypesetter->createHotStyle(mBodyStyle, textColours.journalLink, textColours.journalLinkOver,
-                    textColours.journalLinkPressed, MWGui::TypesetBook::InteractiveId(topic));
+                    textColours.journalLinkPressed, reinterpret_cast<MWGui::TypesetBook::InteractiveId>(topic));
 
             mTypesetter->write(style, begin, end);
         }

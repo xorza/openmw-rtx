@@ -144,6 +144,8 @@ namespace MWLua
             msg.append(ptr.toString());
             throw std::runtime_error(msg);
         }
+        // Hands back the object it checked, which its callers hold.
+        // NOLINTNEXTLINE(bugprone-return-const-ref-from-parameter)
         return ptr;
     }
 

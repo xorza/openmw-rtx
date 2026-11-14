@@ -950,8 +950,8 @@ namespace MWGui
         const bool zoomIn = !zoomOut;
         const float speedDiff = zoomOut ? 1.f / speed : speed;
 
-        const float currentMinLocalMapZoom
-            = std::max({ (float(Settings::map().mGlobalMapCellSize) * 4.f) / static_cast<float>(localWidgetSize),
+        const float currentMinLocalMapZoom = std::max(
+            { (static_cast<float>(Settings::map().mGlobalMapCellSize) * 4.f) / static_cast<float>(localWidgetSize),
                 static_cast<float>(mLocalMap->getWidth()) / (localWidgetSize * (mGrid.width() + 1)),
                 static_cast<float>(mLocalMap->getHeight()) / (localWidgetSize * (mGrid.height() + 1)) });
 

@@ -4,7 +4,6 @@
 namespace MWRender
 {
     class Objects;
-    class Actors;
 
     class RenderingInterface
     {

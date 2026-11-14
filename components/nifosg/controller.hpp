@@ -4,8 +4,10 @@
 #include <set>
 #include <type_traits>
 
+#include <osg/MatrixTransform>
 #include <osg/Texture2D>
 #include <osg/observer_ptr>
+#include <osgParticle/ParticleProcessor>
 
 #include <components/nif/controller.hpp>
 #include <components/nif/data.hpp>
@@ -15,15 +17,7 @@
 #include <components/sceneutil/nodecallback.hpp>
 #include <components/sceneutil/statesetupdater.hpp>
 
-namespace osg
-{
-    class MatrixTransform;
-}
-
-namespace osgParticle
-{
-    class ParticleProcessor;
-}
+#include "matrixtransform.hpp"
 
 namespace SceneUtil
 {
@@ -34,9 +28,6 @@ namespace SceneUtil
 
 namespace NifOsg
 {
-
-    class MatrixTransform;
-
     // interpolation of keyframes
     template <typename MapT>
     class ValueInterpolator

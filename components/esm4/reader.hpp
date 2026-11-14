@@ -232,7 +232,7 @@ namespace ESM4
         template <typename T>
         inline void get(T& t)
         {
-            mStream->read((char*)&t, sizeof(T));
+            mStream->read(reinterpret_cast<char*>(&t), sizeof(T));
         }
 
         // Use getFormId instead
@@ -241,7 +241,7 @@ namespace ESM4
         template <typename T>
         bool getExact(T& t)
         {
-            mStream->read((char*)&t, sizeof(T));
+            mStream->read(reinterpret_cast<char*>(&t), sizeof(T));
             return mStream->gcount() == sizeof(T); // FIXME: try/catch block needed?
         }
 

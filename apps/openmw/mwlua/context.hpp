@@ -71,6 +71,8 @@ namespace MWLua
                 sol::table table = lua[first];
                 LuaUtil::setDeepField(table, value, str...);
             }
+            // Hands back the value it was given, which its callers hold.
+            // NOLINTNEXTLINE(bugprone-return-const-ref-from-parameter)
             return value;
         }
 

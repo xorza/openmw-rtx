@@ -23,6 +23,15 @@
 # - `bugprone-inc-dec-in-conditions`: a loop's step inside its condition, the idiom and not a slip;
 # - `bugprone-invalid-enum-default-initialization`: Vulkan's structures and flag sets zeroed before their fields
 #   are set, the API's own idiom;
+# - `bugprone-suspicious-stringview-data-usage`: it flags every `data()` handed on with its size beside it, as
+#   `from_chars` and `memcpy` take it; the views handed to an API that reads to a terminator are in the issue log;
+# - `bugprone-parent-virtual-call`: overrides that call past their parent's override on purpose, as the terrain's
+#   quad tree past the grid's;
+# - `bugprone-misplaced-widening-cast`: an index computed in `int` from signed steps and widened once it is whole;
+# - `cppcoreguidelines-slicing`: a base copied on purpose, a Lua self as the object it is, a store's base in its
+#   copy;
+# - `cppcoreguidelines-rvalue-reference-param-not-moved`: rvalue overloads beside their `const&` twins, and the holds
+#   a `drop` consumes by taking them;
 # - `cppcoreguidelines-no-malloc`: every `malloc` here is an allocator's own, Lua's, Recast's and the tests' count;
 # - `readability-make-member-function-const`: it makes `const` what changes state through a pointer it holds, a
 #   widget's `setText` among them, and once a pair whose overloads then differed in their return type alone.
@@ -49,6 +58,9 @@ Checks:
   - '-bugprone-float-loop-counter'
   - '-bugprone-inc-dec-in-conditions'
   - '-bugprone-invalid-enum-default-initialization'
+  - '-bugprone-suspicious-stringview-data-usage'
+  - '-bugprone-parent-virtual-call'
+  - '-bugprone-misplaced-widening-cast'
   - 'performance-*'
   - '-performance-enum-size'
   - '-performance-no-int-to-ptr'
@@ -57,9 +69,7 @@ Checks:
   - '-portability-avoid-pragma-once'
   - '-portability-template-virtual-member-function'
   # - cppcoreguidelines-special-member-functions
-  # - cppcoreguidelines-slicing
   - 'cppcoreguidelines-noexcept-*'
-  # - cppcoreguidelines-rvalue-reference-param-not-moved
   - cppcoreguidelines-init-variables
   # - cppcoreguidelines-use-enum-class
   # - cppcoreguidelines-pro-type-reinterpret-cast
@@ -68,7 +78,7 @@ Checks:
   - google-global-names-in-headers
   - google-build-namespaces
   # - modernize-avoid-c-arrays
-  # - modernize-avoid-c-style-cast
+  - modernize-avoid-c-style-cast
   - modernize-use-override
   - modernize-use-integer-sign-comparison
   - modernize-use-scoped-lock
@@ -99,13 +109,7 @@ Checks:
   - readability-identifier-naming
   # Not yet applied, each until its fixes land: the checks commented out above, and these of the families above.
   - '-bugprone-narrowing-conversions'
-  - '-bugprone-suspicious-stringview-data-usage'
-  - '-bugprone-forward-declaration-namespace'
-  - '-bugprone-misplaced-widening-cast'
   - '-bugprone-assignment-in-if-condition'
-  - '-bugprone-parent-virtual-call'
-  - '-bugprone-return-const-ref-from-parameter'
-  - '-bugprone-nondeterministic-pointer-iteration-order'
   - '-bugprone-assignment-in-selection-statement'
   - '-bugprone-undefined-memory-manipulation'
   - '-performance-unnecessary-value-param'

@@ -361,7 +361,7 @@ void CSVWorld::CommandDelegate::setEditorData(QWidget* editor, const QModelIndex
     if (!n.isEmpty())
     {
         if (!variant.isValid())
-            variant = QVariant(editor->property(n.constData()).metaType(), (const void*)nullptr);
+            variant = QVariant(editor->property(n.constData()).metaType(), static_cast<const void*>(nullptr));
         editor->setProperty(n.constData(), variant);
     }
 }

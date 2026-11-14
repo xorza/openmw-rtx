@@ -27,7 +27,6 @@
 
 namespace ESM
 {
-    struct Light;
     struct MagicEffect;
 }
 
