@@ -172,6 +172,8 @@ namespace Rtx
         {
             Log(Debug::Error) << "Rtx: " << failure << ": " << raised;
         }
+        // Logging the failure failed, and there is nothing left to tell it with.
+        // NOLINTNEXTLINE(bugprone-empty-catch)
         catch (...)
         {
         }

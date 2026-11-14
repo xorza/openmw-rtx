@@ -372,6 +372,8 @@ namespace Resource
             std::string key(128, 'a');
             osg::ref_ptr<Object> value(new Object);
             cache.addEntryToObjectCache(std::move(key), value);
+            // The test reads the moved-from object, whose state is what it checks.
+            // NOLINTNEXTLINE(bugprone-use-after-move)
             EXPECT_EQ(key, "");
             EXPECT_EQ(cache.getRefFromObjectCache(std::string(128, 'a')), value);
         }

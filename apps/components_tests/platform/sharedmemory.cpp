@@ -24,6 +24,8 @@ namespace
 
         target = std::move(source);
         EXPECT_EQ(target.data(), taken);
+        // The test reads the moved-from object, whose state is what it checks.
+        // NOLINTNEXTLINE(bugprone-use-after-move)
         EXPECT_EQ(source.data(), nullptr);
         EXPECT_EQ(Platform::SharedMemory::open(first, 64).data(), nullptr) << "the memory given up is still there";
     }

@@ -101,10 +101,8 @@ namespace CSMWorld
     void RefIdDataContainer<RecordT>::insertRecord(std::unique_ptr<RecordBase> record)
     {
         assert(record != nullptr);
-        // convert base pointer to record type pointer
-        std::unique_ptr<Record<RecordT>> typedRecord(&dynamic_cast<Record<RecordT>&>(*record));
-        record.release();
-        mContainer.push_back(std::move(typedRecord));
+        assert(dynamic_cast<Record<RecordT>*>(record.get()) != nullptr && "a record of another type");
+        mContainer.push_back(std::unique_ptr<Record<RecordT>>(static_cast<Record<RecordT>*>(record.release())));
     }
 
     template <typename RecordT>

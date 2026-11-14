@@ -21,21 +21,27 @@ Q_DECLARE_METATYPE(std::string)
 class QEvent;
 class QObject;
 
-void setQSurfaceFormat()
+namespace
 {
-    osg::DisplaySettings* ds = osg::DisplaySettings::instance().get();
-    QSurfaceFormat format = QSurfaceFormat::defaultFormat();
-    format.setVersion(2, 1);
-    format.setRenderableType(QSurfaceFormat::OpenGL);
-    format.setDepthBufferSize(24);
-    format.setSamples(ds->getMultiSamples());
-    format.setStencilBufferSize(ds->getMinimumNumStencilBits());
-    format.setSwapBehavior(QSurfaceFormat::DoubleBuffer);
-    format.setAlphaBufferSize(ds->getMinimumNumAlphaBits());
-    QSurfaceFormat::setDefaultFormat(format);
+    void setQSurfaceFormat()
+    {
+        osg::DisplaySettings* ds = osg::DisplaySettings::instance().get();
+        QSurfaceFormat format = QSurfaceFormat::defaultFormat();
+        format.setVersion(2, 1);
+        format.setRenderableType(QSurfaceFormat::OpenGL);
+        format.setDepthBufferSize(24);
+        format.setSamples(ds->getMultiSamples());
+        format.setStencilBufferSize(ds->getMinimumNumStencilBits());
+        format.setSwapBehavior(QSurfaceFormat::DoubleBuffer);
+        format.setAlphaBufferSize(ds->getMinimumNumAlphaBits());
+        QSurfaceFormat::setDefaultFormat(format);
+    }
 }
 
-int runApplication(int argc, char* argv[])
+// Qt's Q_INIT_RESOURCE declares its function in the caller's namespace, where an unnamed one would hide the
+// definition the resource compiler gives the global one.
+// NOLINTNEXTLINE(misc-use-anonymous-namespace)
+static int runApplication(int argc, char* argv[])
 {
     Platform::init();
 

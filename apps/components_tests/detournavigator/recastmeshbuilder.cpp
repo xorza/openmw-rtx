@@ -20,28 +20,31 @@
 
 namespace DetourNavigator
 {
-    static inline bool operator==(const Water& lhs, const Water& rhs)
+    // Found by argument-dependent lookup, which an unnamed namespace would hide.
+    // NOLINTBEGIN(misc-use-anonymous-namespace)
+    static bool operator==(const Water& lhs, const Water& rhs)
     {
         const auto tie = [](const Water& v) { return std::tie(v.mCellSize, v.mLevel); };
         return tie(lhs) == tie(rhs);
     }
 
-    static inline bool operator==(const CellWater& lhs, const CellWater& rhs)
+    static bool operator==(const CellWater& lhs, const CellWater& rhs)
     {
         const auto tie = [](const CellWater& v) { return std::tie(v.mCellPosition, v.mWater); };
         return tie(lhs) == tie(rhs);
     }
 
-    static inline bool operator==(const Heightfield& lhs, const Heightfield& rhs)
+    static bool operator==(const Heightfield& lhs, const Heightfield& rhs)
     {
         return makeTuple(lhs) == makeTuple(rhs);
     }
 
-    static inline bool operator==(const FlatHeightfield& lhs, const FlatHeightfield& rhs)
+    static bool operator==(const FlatHeightfield& lhs, const FlatHeightfield& rhs)
     {
         const auto tie = [](const FlatHeightfield& v) { return std::tie(v.mCellPosition, v.mCellSize, v.mHeight); };
         return tie(lhs) == tie(rhs);
     }
+    // NOLINTEND(misc-use-anonymous-namespace)
 }
 
 namespace

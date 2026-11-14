@@ -56,7 +56,7 @@ namespace
 
     TEST(Utf8EncoderTest, getUtf8ShouldLookUpUntilZero)
     {
-        const std::string input("a\0b");
+        const std::string input("a\0b", 3);
         Utf8Encoder encoder(FromType::CP437);
         const std::string_view result = encoder.getUtf8(input);
         EXPECT_EQ(result, "a");
@@ -108,7 +108,7 @@ namespace
 
     TEST(Utf8EncoderTest, getLegacyEncShouldLookUpUntilZero)
     {
-        const std::string input("a\0b");
+        const std::string input("a\0b", 3);
         Utf8Encoder encoder(FromType::CP437);
         const std::string_view result = encoder.getLegacyEnc(input);
         EXPECT_EQ(result, "a");

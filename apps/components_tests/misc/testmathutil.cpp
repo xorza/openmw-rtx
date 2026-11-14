@@ -8,10 +8,13 @@
 #include <iomanip>
 #include <limits>
 
-MATCHER_P2(Vec3fEq, other, precision, "")
+namespace
 {
-    return std::abs(arg.x() - other.x()) < precision && std::abs(arg.y() - other.y()) < precision
-        && std::abs(arg.z() - other.z()) < precision;
+    MATCHER_P2(Vec3fEq, other, precision, "")
+    {
+        return std::abs(arg.x() - other.x()) < precision && std::abs(arg.y() - other.y()) < precision
+            && std::abs(arg.z() - other.z()) < precision;
+    }
 }
 
 namespace testing

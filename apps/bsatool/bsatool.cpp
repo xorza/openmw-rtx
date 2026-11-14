@@ -14,13 +14,13 @@
 #include <components/misc/strings/algorithm.hpp>
 #include <components/misc/strings/conversion.hpp>
 
-#define BSATOOL_VERSION 1.1
-
 // Create local aliases for brevity
 namespace bpo = boost::program_options;
 
 namespace
 {
+    constexpr std::string_view sVersion = "1.1";
+
     struct Arguments
     {
         std::string mode;
@@ -95,7 +95,7 @@ Allowed options)");
         }
         if (variables.contains("version"))
         {
-            std::cout << "BSATool version " << BSATOOL_VERSION << std::endl;
+            std::cout << "BSATool version " << sVersion << std::endl;
             return false;
         }
         if (!variables.contains("mode"))

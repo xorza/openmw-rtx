@@ -225,7 +225,7 @@ void StatelessUtf8Encoder::copyFromArray(unsigned char ch, char*& out) const
     }
 
     const signed char* in = &mTranslationArray[ch * 6];
-    int len = *(in++);
+    const int len = static_cast<unsigned char>(*(in++));
     memcpy(out, in, len);
     out += len;
 }

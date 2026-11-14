@@ -42,6 +42,8 @@ std::vector<std::string> Launcher::enumerateOpenALDevicesHrtf()
         {
             LPALCGETSTRINGISOFT alcGetStringiSOFT = nullptr;
             void* funcPtr = alcGetProcAddress(device, "alcGetStringiSOFT");
+            // An object pointer becomes a function pointer, which no cast spells portably.
+            // NOLINTNEXTLINE(bugprone-bitwise-pointer-cast)
             memcpy(&alcGetStringiSOFT, &funcPtr, sizeof(funcPtr));
             ALCint numHrtf = 0;
             alcGetIntegerv(device, ALC_NUM_HRTF_SPECIFIERS_SOFT, 1, &numHrtf);

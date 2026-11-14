@@ -7,11 +7,14 @@
 
 namespace ESM
 {
+    // Found by argument-dependent lookup, which an unnamed namespace would hide.
+    // NOLINTBEGIN(misc-use-anonymous-namespace)
     template <Misc::SameAsWithoutCvref<Spell::SPDTstruct> T>
-    void decompose(T&& v, const auto& f)
+    static void decompose(T&& v, const auto& f)
     {
         f(v.mType, v.mCost, v.mFlags);
     }
+    // NOLINTEND(misc-use-anonymous-namespace)
 
     void Spell::load(ESMReader& esm, bool& isDeleted)
     {

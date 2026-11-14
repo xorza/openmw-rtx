@@ -6,6 +6,7 @@
 #include <condition_variable>
 #include <cstring>
 #include <memory>
+#include <source_location>
 #include <string_view>
 #include <thread>
 #include <utility>
@@ -46,29 +47,30 @@ namespace
 
     const float sLoudnessFPS = 20.0f; // loudness values per second of audio
 
-    ALCenum checkALCError(ALCdevice* device, const char* func, int line)
+    ALCenum getALCError(ALCdevice* device, const std::source_location at = std::source_location::current())
     {
         ALCenum err = alcGetError(device);
         if (err != ALC_NO_ERROR)
-            Log(Debug::Error) << "ALC error " << alcGetString(device, err) << " (" << err << ") @ " << func << ":"
-                              << line;
+            Log(Debug::Error) << "ALC error " << alcGetString(device, err) << " (" << err << ") @ "
+                              << at.function_name() << ":" << at.line();
         return err;
     }
-#define getALCError(d) checkALCError((d), __FUNCTION__, __LINE__)
 
-    ALenum checkALError(const char* func, int line)
+    ALenum getALError(const std::source_location at = std::source_location::current())
     {
         ALenum err = alGetError();
         if (err != AL_NO_ERROR)
-            Log(Debug::Error) << "AL error " << alGetString(err) << " (" << err << ") @ " << func << ":" << line;
+            Log(Debug::Error) << "AL error " << alGetString(err) << " (" << err << ") @ " << at.function_name() << ":"
+                              << at.line();
         return err;
     }
-#define getALError() checkALError(__FUNCTION__, __LINE__)
 
     // Helper to get an OpenAL extension function
     template <typename T, typename R>
     void convertPointer(T& dest, R src)
     {
+        // An object pointer becomes a function pointer, which no cast spells portably.
+        // NOLINTNEXTLINE(bugprone-bitwise-pointer-cast)
         memcpy(&dest, &src, sizeof(src));
     }
 
@@ -192,80 +194,47 @@ namespace
 namespace MWSound
 {
 
-    static ALenum getALFormat(ChannelConfig chans, SampleType type)
+    namespace
     {
-        struct FormatEntry
+        ALenum getALFormat(ChannelConfig chans, SampleType type)
         {
-            ALenum format;
-            ChannelConfig chans;
-            SampleType type;
-        };
-        struct FormatEntryExt
-        {
-            const char name[32];
-            ChannelConfig chans;
-            SampleType type;
-        };
-        static const std::array<FormatEntry, 4> fmtlist{ {
-            { AL_FORMAT_MONO16, ChannelConfig_Mono, SampleType_Int16 },
-            { AL_FORMAT_MONO8, ChannelConfig_Mono, SampleType_UInt8 },
-            { AL_FORMAT_STEREO16, ChannelConfig_Stereo, SampleType_Int16 },
-            { AL_FORMAT_STEREO8, ChannelConfig_Stereo, SampleType_UInt8 },
-        } };
-
-        for (auto& fmt : fmtlist)
-        {
-            if (fmt.chans == chans && fmt.type == type)
-                return fmt.format;
-        }
-
-        if (alIsExtensionPresent("AL_EXT_MCFORMATS"))
-        {
-            static const std::array<FormatEntryExt, 6> mcfmtlist{ {
-                { "AL_FORMAT_QUAD16", ChannelConfig_Quad, SampleType_Int16 },
-                { "AL_FORMAT_QUAD8", ChannelConfig_Quad, SampleType_UInt8 },
-                { "AL_FORMAT_51CHN16", ChannelConfig_5point1, SampleType_Int16 },
-                { "AL_FORMAT_51CHN8", ChannelConfig_5point1, SampleType_UInt8 },
-                { "AL_FORMAT_71CHN16", ChannelConfig_7point1, SampleType_Int16 },
-                { "AL_FORMAT_71CHN8", ChannelConfig_7point1, SampleType_UInt8 },
+            struct FormatEntry
+            {
+                ALenum format;
+                ChannelConfig chans;
+                SampleType type;
+            };
+            struct FormatEntryExt
+            {
+                const char name[32];
+                ChannelConfig chans;
+                SampleType type;
+            };
+            static const std::array<FormatEntry, 4> fmtlist{ {
+                { AL_FORMAT_MONO16, ChannelConfig_Mono, SampleType_Int16 },
+                { AL_FORMAT_MONO8, ChannelConfig_Mono, SampleType_UInt8 },
+                { AL_FORMAT_STEREO16, ChannelConfig_Stereo, SampleType_Int16 },
+                { AL_FORMAT_STEREO8, ChannelConfig_Stereo, SampleType_UInt8 },
             } };
 
-            for (auto& fmt : mcfmtlist)
+            for (auto& fmt : fmtlist)
             {
                 if (fmt.chans == chans && fmt.type == type)
-                {
-                    ALenum format = alGetEnumValue(fmt.name);
-                    if (format != 0 && format != -1)
-                        return format;
-                }
-            }
-        }
-        if (alIsExtensionPresent("AL_EXT_FLOAT32"))
-        {
-            static const std::array<FormatEntryExt, 2> fltfmtlist{ {
-                { "AL_FORMAT_MONO_FLOAT32", ChannelConfig_Mono, SampleType_Float32 },
-                { "AL_FORMAT_STEREO_FLOAT32", ChannelConfig_Stereo, SampleType_Float32 },
-            } };
-
-            for (auto& fmt : fltfmtlist)
-            {
-                if (fmt.chans == chans && fmt.type == type)
-                {
-                    ALenum format = alGetEnumValue(fmt.name);
-                    if (format != 0 && format != -1)
-                        return format;
-                }
+                    return fmt.format;
             }
 
             if (alIsExtensionPresent("AL_EXT_MCFORMATS"))
             {
-                static const std::array<FormatEntryExt, 3> fltmcfmtlist{ {
-                    { "AL_FORMAT_QUAD32", ChannelConfig_Quad, SampleType_Float32 },
-                    { "AL_FORMAT_51CHN32", ChannelConfig_5point1, SampleType_Float32 },
-                    { "AL_FORMAT_71CHN32", ChannelConfig_7point1, SampleType_Float32 },
+                static const std::array<FormatEntryExt, 6> mcfmtlist{ {
+                    { "AL_FORMAT_QUAD16", ChannelConfig_Quad, SampleType_Int16 },
+                    { "AL_FORMAT_QUAD8", ChannelConfig_Quad, SampleType_UInt8 },
+                    { "AL_FORMAT_51CHN16", ChannelConfig_5point1, SampleType_Int16 },
+                    { "AL_FORMAT_51CHN8", ChannelConfig_5point1, SampleType_UInt8 },
+                    { "AL_FORMAT_71CHN16", ChannelConfig_7point1, SampleType_Int16 },
+                    { "AL_FORMAT_71CHN8", ChannelConfig_7point1, SampleType_UInt8 },
                 } };
 
-                for (auto& fmt : fltmcfmtlist)
+                for (auto& fmt : mcfmtlist)
                 {
                     if (fmt.chans == chans && fmt.type == type)
                     {
@@ -275,58 +244,95 @@ namespace MWSound
                     }
                 }
             }
+            if (alIsExtensionPresent("AL_EXT_FLOAT32"))
+            {
+                static const std::array<FormatEntryExt, 2> fltfmtlist{ {
+                    { "AL_FORMAT_MONO_FLOAT32", ChannelConfig_Mono, SampleType_Float32 },
+                    { "AL_FORMAT_STEREO_FLOAT32", ChannelConfig_Stereo, SampleType_Float32 },
+                } };
+
+                for (auto& fmt : fltfmtlist)
+                {
+                    if (fmt.chans == chans && fmt.type == type)
+                    {
+                        ALenum format = alGetEnumValue(fmt.name);
+                        if (format != 0 && format != -1)
+                            return format;
+                    }
+                }
+
+                if (alIsExtensionPresent("AL_EXT_MCFORMATS"))
+                {
+                    static const std::array<FormatEntryExt, 3> fltmcfmtlist{ {
+                        { "AL_FORMAT_QUAD32", ChannelConfig_Quad, SampleType_Float32 },
+                        { "AL_FORMAT_51CHN32", ChannelConfig_5point1, SampleType_Float32 },
+                        { "AL_FORMAT_71CHN32", ChannelConfig_7point1, SampleType_Float32 },
+                    } };
+
+                    for (auto& fmt : fltmcfmtlist)
+                    {
+                        if (fmt.chans == chans && fmt.type == type)
+                        {
+                            ALenum format = alGetEnumValue(fmt.name);
+                            if (format != 0 && format != -1)
+                                return format;
+                        }
+                    }
+                }
+            }
+
+            Log(Debug::Warning) << "Unsupported sound format (" << getChannelConfigName(chans) << ", "
+                                << getSampleTypeName(type) << ")";
+            return AL_NONE;
         }
 
-        Log(Debug::Warning) << "Unsupported sound format (" << getChannelConfigName(chans) << ", "
-                            << getSampleTypeName(type) << ")";
-        return AL_NONE;
+        //
+        // A streaming OpenAL sound.
+        //
+        class OpenAL_SoundStream
+        {
+            static const ALfloat sBufferLength;
+
+        private:
+            ALuint mSource;
+
+            std::array<ALuint, 6> mBuffers;
+            ALint mCurrentBufIdx;
+
+            ALenum mFormat;
+            ALsizei mSampleRate;
+            ALuint mBufferSize;
+            ALuint mFrameSize;
+            ALint mSilence;
+
+            DecoderPtr mDecoder;
+
+            std::unique_ptr<Sound_Loudness> mLoudnessAnalyzer;
+
+            std::atomic<bool> mIsFinished;
+
+            OpenAL_SoundStream(const OpenAL_SoundStream& rhs);
+            OpenAL_SoundStream& operator=(const OpenAL_SoundStream& rhs);
+
+            friend class MWSound::OpenALOutput;
+
+        public:
+            OpenAL_SoundStream(ALuint src, DecoderPtr decoder);
+            ~OpenAL_SoundStream();
+
+            bool init(bool getLoudnessData = false);
+
+            bool isPlaying();
+            double getStreamDelay() const;
+            float getStreamOffset() const;
+
+            float getCurrentLoudness() const;
+
+            bool process();
+            ALint refillQueue();
+        };
     }
 
-    //
-    // A streaming OpenAL sound.
-    //
-    class OpenAL_SoundStream
-    {
-        static const ALfloat sBufferLength;
-
-    private:
-        ALuint mSource;
-
-        std::array<ALuint, 6> mBuffers;
-        ALint mCurrentBufIdx;
-
-        ALenum mFormat;
-        ALsizei mSampleRate;
-        ALuint mBufferSize;
-        ALuint mFrameSize;
-        ALint mSilence;
-
-        DecoderPtr mDecoder;
-
-        std::unique_ptr<Sound_Loudness> mLoudnessAnalyzer;
-
-        std::atomic<bool> mIsFinished;
-
-        OpenAL_SoundStream(const OpenAL_SoundStream& rhs);
-        OpenAL_SoundStream& operator=(const OpenAL_SoundStream& rhs);
-
-        friend class OpenALOutput;
-
-    public:
-        OpenAL_SoundStream(ALuint src, DecoderPtr decoder);
-        ~OpenAL_SoundStream();
-
-        bool init(bool getLoudnessData = false);
-
-        bool isPlaying();
-        double getStreamDelay() const;
-        float getStreamOffset() const;
-
-        float getCurrentLoudness() const;
-
-        bool process();
-        ALint refillQueue();
-    };
     const ALfloat OpenAL_SoundStream::sBufferLength = 0.125f;
 
     //

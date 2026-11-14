@@ -8,24 +8,27 @@
 
 namespace ESSImport
 {
+    // Found by argument-dependent lookup, which an unnamed namespace would hide.
+    // NOLINTBEGIN(misc-use-anonymous-namespace)
     template <Misc::SameAsWithoutCvref<ACDT> T>
-    void decompose(T&& v, const auto& f)
+    static void decompose(T&& v, const auto& f)
     {
         f(v.mUnknown, v.mFlags, v.mBreathMeter, v.mUnknown2, v.mDynamic, v.mUnknown3, v.mAttributes, v.mMagicEffects,
             v.mUnknown4, v.mGoldPool, v.mCountDown, v.mUnknown5);
     }
 
     template <Misc::SameAsWithoutCvref<ACSC> T>
-    void decompose(T&& v, const auto& f)
+    static void decompose(T&& v, const auto& f)
     {
         f(v.mUnknown1, v.mFlags, v.mUnknown2, v.mCorpseClearCountdown, v.mUnknown3);
     }
 
     template <Misc::SameAsWithoutCvref<ANIS> T>
-    void decompose(T&& v, const auto& f)
+    static void decompose(T&& v, const auto& f)
     {
         f(v.mGroupIndex, v.mUnknown, v.mTime);
     }
+    // NOLINTEND(misc-use-anonymous-namespace)
 
     void CellRef::load(ESM::ESMReader& esm)
     {

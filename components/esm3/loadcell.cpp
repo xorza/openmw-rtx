@@ -43,17 +43,20 @@ namespace ESM
 {
     const StringRefId Cell::sDefaultWorldspaceId("sys::default");
 
+    // Found by argument-dependent lookup, which an unnamed namespace would hide.
+    // NOLINTBEGIN(misc-use-anonymous-namespace)
     template <Misc::SameAsWithoutCvref<Cell::DATAstruct> T>
-    void decompose(T&& v, const auto& f)
+    static void decompose(T&& v, const auto& f)
     {
         f(v.mFlags, v.mX, v.mY);
     }
 
     template <Misc::SameAsWithoutCvref<Cell::AMBIstruct> T>
-    void decompose(T&& v, const auto& f)
+    static void decompose(T&& v, const auto& f)
     {
         f(v.mAmbient, v.mSunlight, v.mFog, v.mFogDensity);
     }
+    // NOLINTEND(misc-use-anonymous-namespace)
 
     // Some overloaded compare operators.
     bool operator==(const MovedCellRef& ref, const RefNum& refNum)

@@ -117,6 +117,8 @@ void CSVWorld::ScriptHighlighter::highlightBlock(const QString& text)
     {
         scanner.scan(*this);
     }
+    // A script that does not parse is highlighted as far as it scanned.
+    // NOLINTNEXTLINE(bugprone-empty-catch)
     catch (...)
     {
     } // ignore syntax errors

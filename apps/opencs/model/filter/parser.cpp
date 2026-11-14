@@ -119,7 +119,9 @@ namespace CSMFilter
         return mType != Type_None;
     }
 
-    bool operator==(const Token& left, const Token& right)
+    // Found by argument-dependent lookup, which an unnamed namespace would hide.
+    // NOLINTBEGIN(misc-use-anonymous-namespace)
+    static bool operator==(const Token& left, const Token& right)
     {
         if (left.mType != right.mType)
             return false;
@@ -135,6 +137,7 @@ namespace CSMFilter
                 return true;
         }
     }
+    // NOLINTEND(misc-use-anonymous-namespace)
 }
 
 CSMFilter::Token CSMFilter::Parser::getStringToken()

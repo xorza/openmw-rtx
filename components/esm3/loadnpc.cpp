@@ -85,8 +85,10 @@ namespace ESM
         }
     }
 
+    // Found by argument-dependent lookup, which an unnamed namespace would hide.
+    // NOLINTBEGIN(misc-use-anonymous-namespace)
     template <Misc::SameAsWithoutCvref<EsmNPDTstruct52> T>
-    void decompose(T&& v, const auto& f)
+    static void decompose(T&& v, const auto& f)
     {
         char padding1 = 0;
         char padding2 = 0;
@@ -95,17 +97,18 @@ namespace ESM
     }
 
     template <Misc::SameAsWithoutCvref<NPDTstruct12> T>
-    void decompose(T&& v, const auto& f)
+    static void decompose(T&& v, const auto& f)
     {
         char padding[] = { 0, 0, 0 };
         f(v.mStruct.mLevel, v.mStruct.mDisposition, v.mStruct.mReputation, v.mStruct.mRank, padding, v.mStruct.mGold);
     }
 
     template <Misc::SameAsWithoutCvref<NPC::NPDTstruct52> T>
-    void decompose(T&& v, const auto& f)
+    static void decompose(T&& v, const auto& f)
     {
         f(v.mLevel, v.mHealth, v.mMana, v.mFatigue, v.mDisposition, v.mReputation, v.mRank, v.mGold);
     }
+    // NOLINTEND(misc-use-anonymous-namespace)
 
     void NPC::load(ESMReader& esm, bool& isDeleted)
     {

@@ -87,18 +87,24 @@ namespace RtxTool
             const std::string& text = bpo::validators::get_single_string(tokens);
             const std::optional<T> read = wholeNumber<T>(text);
             if (!read.has_value() || !mRange.holds(*read))
-            {
-                bpo::validation_error error(bpo::validation_error::invalid_option_value);
-                error.set_substitute("value", text);
-                error.m_error_template
-                    = "the argument ('%value%') for option '%canonical_option%' is not a number " + mRange.describe();
-                throw error;
-            }
+                // Boost's error, whose copy may throw as Boost wrote it.
+                // NOLINTNEXTLINE(bugprone-exception-copy-constructor-throws)
+                throw notANumber(text);
 
             value = *read;
         }
 
     private:
+        boost::program_options::validation_error notANumber(const std::string& text) const
+        {
+            namespace bpo = boost::program_options;
+            bpo::validation_error error(bpo::validation_error::invalid_option_value);
+            error.set_substitute("value", text);
+            error.m_error_template
+                = "the argument ('%value%') for option '%canonical_option%' is not a number " + mRange.describe();
+            return error;
+        }
+
         NumberRange<T> mRange;
     };
 

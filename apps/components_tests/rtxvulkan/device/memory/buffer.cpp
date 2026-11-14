@@ -148,6 +148,8 @@ namespace Rtx
             EXPECT_EQ(second.getKind(), BufferKind::ReadBack);
             EXPECT_EQ(second.getDeviceAddress(), address);
             EXPECT_EQ(second.getNamedUntil(), named);
+            // The test reads the moved-from object, whose state is what it checks.
+            // NOLINTNEXTLINE(bugprone-use-after-move)
             EXPECT_TRUE(first.isEmpty());
             EXPECT_EQ(first.getSize(), 0u);
             EXPECT_EQ(first.getKind(), BufferKind::DeviceLocal);
@@ -158,6 +160,8 @@ namespace Rtx
             third = std::move(second);
             EXPECT_EQ(third.getDeviceAddress(), address);
             EXPECT_EQ(third.getNamedUntil(), named);
+            // The test reads the moved-from object, whose state is what it checks.
+            // NOLINTNEXTLINE(bugprone-use-after-move)
             EXPECT_TRUE(second.isEmpty());
             EXPECT_EQ(second.getSize(), 0u);
             EXPECT_EQ(second.getDeviceAddress(), 0u);

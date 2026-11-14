@@ -68,19 +68,22 @@ namespace ESM
         }
     }
 
+    // Found by argument-dependent lookup, which an unnamed namespace would hide.
+    // NOLINTBEGIN(misc-use-anonymous-namespace)
     template <Misc::SameAsWithoutCvref<EsmNPDTstruct> T>
-    void decompose(T&& v, const auto& f)
+    static void decompose(T&& v, const auto& f)
     {
         f(v.mType, v.mLevel, v.mAttributes, v.mHealth, v.mMana, v.mFatigue, v.mSoul, v.mCombat, v.mMagic, v.mStealth,
             v.mAttack, v.mGold);
     }
 
     template <Misc::SameAsWithoutCvref<Creature::NPDTstruct> T>
-    void decompose(T&& v, const auto& f)
+    static void decompose(T&& v, const auto& f)
     {
         f(v.mType, v.mLevel, v.mHealth, v.mMana, v.mFatigue, v.mSoul, v.mCombat, v.mMagic, v.mStealth, v.mAttack,
             v.mGold);
     }
+    // NOLINTEND(misc-use-anonymous-namespace)
 
     void Creature::load(ESMReader& esm, bool& isDeleted)
     {

@@ -16,10 +16,13 @@
 
 namespace CSMWorld
 {
-    inline std::ostream& operator<<(std::ostream& stream, const Record<Info>* value)
+    // Found by argument-dependent lookup, which an unnamed namespace would hide.
+    // NOLINTBEGIN(misc-use-anonymous-namespace)
+    static std::ostream& operator<<(std::ostream& stream, const Record<Info>* value)
     {
         return stream << "&Record{.mState=" << value->mState << ", .mId=" << value->get().mId << "}";
     }
+    // NOLINTEND(misc-use-anonymous-namespace)
 
     namespace
     {

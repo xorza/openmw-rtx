@@ -1,3 +1,5 @@
+#include "texmat.hpp"
+
 #include <format>
 
 #include <osg/Matrixf>

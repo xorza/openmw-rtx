@@ -369,6 +369,8 @@ namespace ESMTerrain
         }
     }
 
+    // Found by argument-dependent lookup, which an unnamed namespace would hide.
+    // NOLINTBEGIN(misc-use-anonymous-namespace)
     static bool operator==(const CellSample& l, const CellSample& r)
     {
         return tie(l) == tie(r);
@@ -380,6 +382,7 @@ namespace ESMTerrain
                       << ", .mSrcRow = " << v.mSrcRow << ", .mSrcCol = " << v.mSrcCol << ", .mDstRow = " << v.mDstRow
                       << ", .mDstCol = " << v.mDstCol << "}";
     }
+    // NOLINTEND(misc-use-anonymous-namespace)
 
     namespace
     {

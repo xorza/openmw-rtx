@@ -70,6 +70,8 @@ namespace Rtx
             static_assert(std::is_trivially_copyable_v<Row>);
             assert(at < mRows.size() && "a row past the end of the table; grow it first");
 
+            // A row is written again only where its bytes, which the upload copies, moved.
+            // NOLINTNEXTLINE(bugprone-suspicious-memory-comparison)
             if (std::memcmp(&mRows[at], &row, sizeof(Row)) != 0)
                 write(at) = row;
         }

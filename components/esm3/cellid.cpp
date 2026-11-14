@@ -7,11 +7,14 @@
 
 namespace ESM
 {
+    // Found by argument-dependent lookup, which an unnamed namespace would hide.
+    // NOLINTBEGIN(misc-use-anonymous-namespace)
     template <Misc::SameAsWithoutCvref<CellId::CellIndex> T>
-    void decompose(T&& v, const auto& f)
+    static void decompose(T&& v, const auto& f)
     {
         f(v.mX, v.mY);
     }
+    // NOLINTEND(misc-use-anonymous-namespace)
 
     void CellId::load(ESMReader& esm)
     {
@@ -30,38 +33,41 @@ namespace ESM
             esm.writeNamedComposite("CIDX", mIndex);
     }
 
-    struct VisitCellRefId
+    namespace
     {
-        CellId operator()(const ESM::EmptyRefId)
+        struct VisitCellRefId
         {
-            CellId out;
-            out.mPaged = true;
-            out.mIndex = {};
-            return out;
-        }
+            CellId operator()(const ESM::EmptyRefId)
+            {
+                CellId out;
+                out.mPaged = true;
+                out.mIndex = {};
+                return out;
+            }
 
-        CellId operator()(const ESM::StringRefId& id)
-        {
-            CellId out;
-            out.mPaged = false;
-            out.mWorldspace = id.getValue();
-            out.mIndex = { 0, 0 };
-            return out;
-        }
-        CellId operator()(const ESM::ESM3ExteriorCellRefId& id)
-        {
-            CellId out;
-            out.mPaged = true;
-            out.mIndex = { id.getX(), id.getY() };
-            return out;
-        }
+            CellId operator()(const ESM::StringRefId& id)
+            {
+                CellId out;
+                out.mPaged = false;
+                out.mWorldspace = id.getValue();
+                out.mIndex = { 0, 0 };
+                return out;
+            }
+            CellId operator()(const ESM::ESM3ExteriorCellRefId& id)
+            {
+                CellId out;
+                out.mPaged = true;
+                out.mIndex = { id.getX(), id.getY() };
+                return out;
+            }
 
-        template <typename T>
-        CellId operator()(const T& id)
-        {
-            throw std::runtime_error("cannot extract CellId from this Id type");
-        }
-    };
+            template <typename T>
+            CellId operator()(const T& id)
+            {
+                throw std::runtime_error("cannot extract CellId from this Id type");
+            }
+        };
+    }
 
     CellId CellId::extractFromRefId(const ESM::RefId& id)
     {

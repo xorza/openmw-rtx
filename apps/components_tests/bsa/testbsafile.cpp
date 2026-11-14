@@ -117,6 +117,8 @@ namespace Bsa
             if (buffer == nullptr)
                 throw std::bad_alloc();
 
+            // A buffer of bytes, not a string.
+            // NOLINTNEXTLINE(bugprone-not-null-terminated-result)
             std::memcpy(buffer.get(), data.data(), data.size());
 
             return Buffer{ .mData = std::move(buffer), .mCapacity = capacity };

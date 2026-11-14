@@ -17,6 +17,8 @@ namespace Nif
         pointer.
     */
     template <class X>
+    // The state is the debug build's check of which member is set, not a tag every build reads.
+    // NOLINTNEXTLINE(bugprone-tagged-union-member-count)
     class RecordPtrT
     {
 #ifndef NDEBUG

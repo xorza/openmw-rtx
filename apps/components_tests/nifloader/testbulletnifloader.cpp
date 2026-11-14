@@ -87,6 +87,8 @@ namespace
     };
 }
 
+// Found by argument-dependent lookup, which an unnamed namespace would hide.
+// NOLINTBEGIN(misc-use-anonymous-namespace)
 static std::ostream& operator<<(std::ostream& stream, const btVector3& value)
 {
     return stream << "btVector3 {" << std::setprecision(std::numeric_limits<float>::max_exponent10) << value.getX()
@@ -192,6 +194,8 @@ static std::ostream& operator<<(std::ostream& stream, const btCollisionShape* va
 
 namespace std
 {
+    // gtest prints a standard type through an operator argument-dependent lookup finds in std.
+    // NOLINTNEXTLINE(bugprone-std-namespace-modification)
     static std::ostream& operator<<(std::ostream& stream, const map<int, int>& value)
     {
         stream << "std::map<int, int> {";
@@ -290,6 +294,7 @@ static bool operator==(const btCollisionShape& lhs, const btCollisionShape& rhs)
     }
     return false;
 }
+// NOLINTEND(misc-use-anonymous-namespace)
 
 namespace
 {

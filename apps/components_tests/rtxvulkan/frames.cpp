@@ -1029,6 +1029,8 @@ namespace Rtx
                 expected.mFrame = 7;
                 WorldOptions options;
                 describeWorld(request.mWorld, sky, drift, expected, options);
+                // The constants the frame uploads, compared byte for byte as the GPU reads them.
+                // NOLINTNEXTLINE(bugprone-suspicious-memory-comparison)
                 EXPECT_EQ(std::memcmp(&traced.mConstants, &expected, sizeof(expected)), 0) << "at " << seconds << " s";
                 EXPECT_EQ(traced.mCarried, drift.get()) << "at " << seconds << " s";
             }

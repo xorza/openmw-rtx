@@ -28,17 +28,20 @@ namespace ESM
             values.mFemale = value;
     }
 
+    // Found by argument-dependent lookup, which an unnamed namespace would hide.
+    // NOLINTBEGIN(misc-use-anonymous-namespace)
     template <Misc::SameAsWithoutCvref<Race::AttributeValues> T>
-    void decompose(T&& v, const auto& f)
+    static void decompose(T&& v, const auto& f)
     {
         f(v.mMale, v.mFemale);
     }
 
     template <Misc::SameAsWithoutCvref<Race::RADTstruct> T>
-    void decompose(T&& v, const auto& f)
+    static void decompose(T&& v, const auto& f)
     {
         f(v.mMaleHeight, v.mFemaleHeight, v.mMaleWeight, v.mFemaleWeight, v.mFlags);
     }
+    // NOLINTEND(misc-use-anonymous-namespace)
 
     void Race::RADTstruct::load(ESMReader& esm)
     {

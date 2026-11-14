@@ -467,11 +467,14 @@ namespace MWWorld
             loadImpl<X>(ref, esmStore, mList, cellStore);
     }
 
+    // Found by argument-dependent lookup, which an unnamed namespace would hide.
+    // NOLINTBEGIN(misc-use-anonymous-namespace)
     template <typename X>
-    bool operator==(const LiveCellRef<X>& ref, int pRefnum)
+    static bool operator==(const LiveCellRef<X>& ref, int pRefnum)
     {
         return (ref.mRef.mRefnum == pRefnum);
     }
+    // NOLINTEND(misc-use-anonymous-namespace)
 
     Ptr CellStore::getCurrentPtr(LiveCellRefBase* ref)
     {

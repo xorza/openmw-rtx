@@ -156,12 +156,16 @@ namespace Rtx
                 EXPECT_EQ(renderer.mViewScenes, 1u);
 
                 ViewScene moved(std::move(taken));
+                // The test reads the moved-from object, whose state is what it checks.
+                // NOLINTNEXTLINE(bugprone-use-after-move)
                 EXPECT_FALSE(taken.holds()) << "a moved-from handle still holds the slot";
                 EXPECT_EQ(moved.get(), SceneSlot::view(0));
 
                 ViewScene assigned;
                 EXPECT_FALSE(assigned.holds());
                 assigned = std::move(moved);
+                // The test reads the moved-from object, whose state is what it checks.
+                // NOLINTNEXTLINE(bugprone-use-after-move)
                 EXPECT_FALSE(moved.holds());
                 EXPECT_EQ(assigned.get(), SceneSlot::view(0));
                 EXPECT_TRUE(renderer.mViewDropped.empty()) << "a move dropped the slot";

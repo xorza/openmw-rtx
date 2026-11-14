@@ -509,7 +509,7 @@ namespace ESSImport
     public:
         void read(ESM::ESMReader& esm) override
         {
-            std::string id = esm.getHNString("NAME");
+            esm.getHNString("NAME");
             QUES quest;
             quest.load(esm);
         }

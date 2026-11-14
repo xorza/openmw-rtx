@@ -242,6 +242,8 @@ namespace MWScript
                             break;
                     }
                 }
+                // A local whose type changed keeps its default.
+                // NOLINTNEXTLINE(bugprone-empty-catch)
                 catch (...)
                 {
                     // ignore type changes

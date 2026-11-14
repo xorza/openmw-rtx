@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cerrno>
+#include <charconv>
 #include <csignal>
 #include <cstdint>
 #include <cstdlib>
@@ -101,7 +102,10 @@ namespace Crash::Client
             std::string text;
             if (!Platform::readWhole("/proc/sys/kernel/yama/ptrace_scope", text, 64).isOk())
                 return std::nullopt;
-            return std::atoi(text.c_str());
+            int scope = 0;
+            if (std::from_chars(text.data(), text.data() + text.size(), scope).ec != std::errc{})
+                return std::nullopt;
+            return scope;
         }
     }
 

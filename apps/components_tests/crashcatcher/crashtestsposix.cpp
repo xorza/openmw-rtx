@@ -1,5 +1,6 @@
 #include "crashtestssystem.hpp"
 
+#include <charconv>
 #include <chrono>
 #include <csignal>
 #include <cstdlib>
@@ -241,8 +242,10 @@ namespace CrashTests
             const std::size_t at = log.find(named);
             if (at == std::string::npos)
                 return 3;
-            const pid_t monitor = std::atoi(log.c_str() + at + named.size());
-            if (monitor <= 0 || kill(monitor, SIGKILL) != 0)
+            pid_t monitor = 0;
+            const char* const digits = log.data() + at + named.size();
+            if (std::from_chars(digits, log.data() + log.size(), monitor).ec != std::errc{} || monitor <= 0
+                || kill(monitor, SIGKILL) != 0)
                 return 3;
             const auto running = [&] {
                 const std::string stat = contentsOf("/proc/" + std::to_string(monitor) + "/stat");

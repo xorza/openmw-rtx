@@ -7,11 +7,14 @@
 
 namespace ESM
 {
+    // Found by argument-dependent lookup, which an unnamed namespace would hide.
+    // NOLINTBEGIN(misc-use-anonymous-namespace)
     template <Misc::SameAsWithoutCvref<Apparatus::AADTstruct> T>
-    void decompose(T&& v, const auto& f)
+    static void decompose(T&& v, const auto& f)
     {
         f(v.mType, v.mQuality, v.mWeight, v.mValue);
     }
+    // NOLINTEND(misc-use-anonymous-namespace)
 
     void Apparatus::load(ESMReader& esm, bool& isDeleted)
     {

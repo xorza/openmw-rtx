@@ -5,31 +5,34 @@
 
 namespace ESM
 {
+    // Found by argument-dependent lookup, which an unnamed namespace would hide.
+    // NOLINTBEGIN(misc-use-anonymous-namespace)
     template <Misc::SameAsWithoutCvref<AIWander> T>
-    void decompose(T&& v, const auto& f)
+    static void decompose(T&& v, const auto& f)
     {
         f(v.mDistance, v.mDuration, v.mTimeOfDay, v.mIdle, v.mShouldRepeat);
     }
 
     template <Misc::SameAsWithoutCvref<AITravel> T>
-    void decompose(T&& v, const auto& f)
+    static void decompose(T&& v, const auto& f)
     {
         char padding[3] = { 0, 0, 0 };
         f(v.mX, v.mY, v.mZ, v.mShouldRepeat, padding);
     }
 
     template <Misc::SameAsWithoutCvref<AITarget> T>
-    void decompose(T&& v, const auto& f)
+    static void decompose(T&& v, const auto& f)
     {
         char padding = 0;
         f(v.mX, v.mY, v.mZ, v.mDuration, v.mId.mData, v.mShouldRepeat, padding);
     }
 
     template <Misc::SameAsWithoutCvref<AIActivate> T>
-    void decompose(T&& v, const auto& f)
+    static void decompose(T&& v, const auto& f)
     {
         f(v.mName.mData, v.mShouldRepeat);
     }
+    // NOLINTEND(misc-use-anonymous-namespace)
 
     void AIData::blank()
     {

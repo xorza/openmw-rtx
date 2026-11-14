@@ -80,6 +80,8 @@ namespace Rtx
             {
                 VkAccelerationStructureInstanceKHR row;
                 std::memcpy(&row, written + at * rowBytes, sizeof(row));
+                // The rows the pass packs, compared byte for byte as the GPU reads them.
+                // NOLINTNEXTLINE(bugprone-suspicious-memory-comparison)
                 EXPECT_EQ(std::memcmp(&row, &rows[placed[at]], sizeof(row)), 0)
                     << "packed row " << at << " is not slot " << placed[at] << "'s";
             }

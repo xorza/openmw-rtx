@@ -195,6 +195,8 @@ namespace Platform::Process
 
     CommandEnd runShell(const std::string& line)
     {
+        // Runs the command line its caller built.
+        // NOLINTNEXTLINE(bugprone-command-processor)
         const int status = std::system(line.c_str());
 
         // No shell at all: what a shell answers for a command it could not run.

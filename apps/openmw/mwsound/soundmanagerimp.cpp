@@ -133,10 +133,13 @@ namespace MWSound
     }
 
     // For combining PlayMode and Type flags
-    inline int operator|(PlayMode a, Type b)
+    // Found by argument-dependent lookup, which an unnamed namespace would hide.
+    // NOLINTBEGIN(misc-use-anonymous-namespace)
+    static int operator|(PlayMode a, Type b)
     {
         return static_cast<int>(a) | static_cast<int>(b);
     }
+    // NOLINTEND(misc-use-anonymous-namespace)
 
     SoundManager::SoundManager(const VFS::Manager* vfs, bool useSound)
         : mVFS(vfs)

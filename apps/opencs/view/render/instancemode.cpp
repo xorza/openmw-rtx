@@ -818,7 +818,7 @@ void CSVRender::InstanceMode::drag(const QPoint& pos, int diffX, int diffY, doub
         }
 
         rotation = osg::Quat(angle, axis);
-        if (rotation != rotation)
+        if (rotation.asVec4().isNaN())
             rotation = osg::Quat(); // NaN flush
     }
     else if (mDragMode == DragMode_Scale || mDragMode == DragMode_Scale_Snap)

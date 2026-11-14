@@ -47,12 +47,16 @@ namespace Rtx
             EXPECT_EQ(second.getHeight(), 4u);
             EXPECT_EQ(second.getFormat(), VK_FORMAT_R8G8B8A8_UNORM);
             EXPECT_EQ(second.getMipLevels(), 2u);
+            // The test reads the moved-from object, whose state is what it checks.
+            // NOLINTNEXTLINE(bugprone-use-after-move)
             expectHusk(first, "moved by construction");
 
             Image third;
             third = std::move(second);
             EXPECT_EQ(third.getHandle(), handle);
             EXPECT_EQ(third.getWidth(), 8u);
+            // The test reads the moved-from object, whose state is what it checks.
+            // NOLINTNEXTLINE(bugprone-use-after-move)
             expectHusk(second, "moved by assignment");
         }
     }

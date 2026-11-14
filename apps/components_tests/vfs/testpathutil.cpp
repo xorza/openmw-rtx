@@ -172,6 +172,8 @@ namespace VFS::Path
         {
             Normalized value("Foo\\Bar/baz");
             EXPECT_EQ(std::move(value).value(), "foo/bar/baz");
+            // The test reads the moved-from object, whose state is what it checks.
+            // NOLINTNEXTLINE(bugprone-use-after-move)
             EXPECT_EQ(value.value(), "");
         }
 

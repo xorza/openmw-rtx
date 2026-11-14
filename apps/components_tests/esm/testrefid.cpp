@@ -10,9 +10,12 @@
 #include <map>
 #include <string>
 
-MATCHER(IsPrint, "")
+namespace
 {
-    return std::isprint(arg) != 0;
+    MATCHER(IsPrint, "")
+    {
+        return std::isprint(arg) != 0;
+    }
 }
 
 namespace ESM

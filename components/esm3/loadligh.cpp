@@ -7,11 +7,14 @@
 
 namespace ESM
 {
+    // Found by argument-dependent lookup, which an unnamed namespace would hide.
+    // NOLINTBEGIN(misc-use-anonymous-namespace)
     template <Misc::SameAsWithoutCvref<Light::LHDTstruct> T>
-    void decompose(T&& v, const auto& f)
+    static void decompose(T&& v, const auto& f)
     {
         f(v.mWeight, v.mValue, v.mTime, v.mRadius, v.mColor, v.mFlags);
     }
+    // NOLINTEND(misc-use-anonymous-namespace)
 
     void Light::load(ESMReader& esm, bool& isDeleted)
     {

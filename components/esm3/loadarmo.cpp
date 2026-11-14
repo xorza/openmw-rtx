@@ -7,11 +7,14 @@
 
 namespace ESM
 {
+    // Found by argument-dependent lookup, which an unnamed namespace would hide.
+    // NOLINTBEGIN(misc-use-anonymous-namespace)
     template <Misc::SameAsWithoutCvref<Armor::AODTstruct> T>
-    void decompose(T&& v, const auto& f)
+    static void decompose(T&& v, const auto& f)
     {
         f(v.mType, v.mWeight, v.mValue, v.mHealth, v.mEnchant, v.mArmor);
     }
+    // NOLINTEND(misc-use-anonymous-namespace)
 
     void PartReferenceList::add(ESMReader& esm)
     {

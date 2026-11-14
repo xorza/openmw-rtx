@@ -112,6 +112,8 @@ TEST_F(EndiannessTest, test_swap_endianness_inplace_float)
 
     Misc::swapEndiannessInplace(number);
 
+    // The bytes are what the swap must give exactly.
+    // NOLINTNEXTLINE(bugprone-suspicious-memory-comparison)
     EXPECT_TRUE(!memcmp(&number, &expected, sizeof(expected)));
 }
 
@@ -125,5 +127,7 @@ TEST_F(EndiannessTest, test_swap_endianness_inplace_double)
 
     Misc::swapEndiannessInplace(number);
 
+    // The bytes are what the swap must give exactly.
+    // NOLINTNEXTLINE(bugprone-suspicious-memory-comparison)
     EXPECT_TRUE(!memcmp(&number, &expected, sizeof(expected)));
 }

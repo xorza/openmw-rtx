@@ -31,11 +31,15 @@ namespace
             one = std::move(two);
             EXPECT_EQ(sClosed, std::vector<int>{ 1 });
             EXPECT_EQ(one.get(), 2);
+            // The test reads the moved-from object, whose state is what it checks.
+            // NOLINTNEXTLINE(bugprone-use-after-move)
             EXPECT_FALSE(two.isOpen());
 
             Hold moved(std::move(one));
             EXPECT_EQ(sClosed, std::vector<int>{ 1 }) << "a move closed something";
             EXPECT_EQ(moved.get(), 2);
+            // The test reads the moved-from object, whose state is what it checks.
+            // NOLINTNEXTLINE(bugprone-use-after-move)
             EXPECT_FALSE(one.isOpen());
 
             moved.reset();

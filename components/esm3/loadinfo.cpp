@@ -7,12 +7,15 @@
 
 namespace ESM
 {
+    // Found by argument-dependent lookup, which an unnamed namespace would hide.
+    // NOLINTBEGIN(misc-use-anonymous-namespace)
     template <Misc::SameAsWithoutCvref<DialInfo::DATAstruct> T>
-    void decompose(T&& v, const auto& f)
+    static void decompose(T&& v, const auto& f)
     {
         char padding = 0;
         f(v.mType, v.mDisposition, v.mRank, v.mGender, v.mPCrank, padding);
     }
+    // NOLINTEND(misc-use-anonymous-namespace)
 
     void DialInfo::load(ESMReader& esm, bool& isDeleted)
     {

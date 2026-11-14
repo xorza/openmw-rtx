@@ -1,3 +1,5 @@
+#include "sdlinit.hpp"
+
 #include <signal.h>
 
 #include <SDL3/SDL.h>

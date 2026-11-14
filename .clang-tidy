@@ -15,6 +15,15 @@
 #   repeatable sequence, OpenAL's `memcpy` of a function pointer, and failures that end the process anyway;
 # - `performance-enum-size`, `-no-int-to-ptr`, `-avoid-endl`: an enum's width is its API's, a Vulkan handle is an
 #   integer, and `std::endl` is style.
+# - `bugprone-exception-escape`: destructors and `noexcept` functions that join a thread or lock a mutex, and the
+#   test binaries' `main`, whose failure ends the process as an escaped exception would;
+# - `bugprone-std-exception-baseclass`: tests that throw a plain value to prove a catch-all, and `NamedEnum`'s
+#   compile-time checks, which throw a literal to fail the build;
+# - `bugprone-float-loop-counter`: the tests' sweeps over hours and distances, whose bounds absorb the drift;
+# - `bugprone-inc-dec-in-conditions`: a loop's step inside its condition, the idiom and not a slip;
+# - `bugprone-invalid-enum-default-initialization`: Vulkan's structures and flag sets zeroed before their fields
+#   are set, the API's own idiom;
+# - `cppcoreguidelines-no-malloc`: every `malloc` here is an allocator's own, Lua's, Recast's and the tests' count;
 # - `readability-make-member-function-const`: it makes `const` what changes state through a pointer it holds, a
 #   widget's `setText` among them, and once a pair whose overloads then differed in their return type alone.
 Checks:
@@ -35,6 +44,11 @@ Checks:
   - '-bugprone-crtp-constructor-accessibility'
   - '-bugprone-throwing-static-initialization'
   - '-bugprone-unhandled-exception-at-new'
+  - '-bugprone-exception-escape'
+  - '-bugprone-std-exception-baseclass'
+  - '-bugprone-float-loop-counter'
+  - '-bugprone-inc-dec-in-conditions'
+  - '-bugprone-invalid-enum-default-initialization'
   - 'performance-*'
   - '-performance-enum-size'
   - '-performance-no-int-to-ptr'
@@ -46,7 +60,6 @@ Checks:
   # - cppcoreguidelines-slicing
   - 'cppcoreguidelines-noexcept-*'
   # - cppcoreguidelines-rvalue-reference-param-not-moved
-  # - cppcoreguidelines-no-malloc
   - cppcoreguidelines-init-variables
   # - cppcoreguidelines-use-enum-class
   # - cppcoreguidelines-pro-type-reinterpret-cast
@@ -66,12 +79,12 @@ Checks:
   - modernize-use-starts-ends-with
   - modernize-use-std-bit
   - modernize-use-std-numbers
-  # - misc-throw-by-value-catch-by-reference
-  # - misc-use-anonymous-namespace
-  # - misc-use-internal-linkage
+  - misc-throw-by-value-catch-by-reference
+  - misc-use-anonymous-namespace
+  - misc-use-internal-linkage
   - misc-unused-using-decls
   - misc-unused-alias-decls
-  # - misc-redundant-expression
+  - misc-redundant-expression
   - misc-definitions-in-headers
   # - misc-include-cleaner
   - readability-container-contains
@@ -86,36 +99,15 @@ Checks:
   - readability-identifier-naming
   # Not yet applied, each until its fixes land: the checks commented out above, and these of the families above.
   - '-bugprone-narrowing-conversions'
-  - '-bugprone-exception-escape'
   - '-bugprone-suspicious-stringview-data-usage'
-  - '-bugprone-use-after-move'
   - '-bugprone-forward-declaration-namespace'
-  - '-bugprone-std-exception-baseclass'
-  - '-bugprone-float-loop-counter'
   - '-bugprone-misplaced-widening-cast'
   - '-bugprone-assignment-in-if-condition'
-  - '-bugprone-empty-catch'
-  - '-bugprone-invalid-enum-default-initialization'
   - '-bugprone-parent-virtual-call'
-  - '-bugprone-signed-char-misuse'
-  - '-bugprone-suspicious-memory-comparison'
-  - '-bugprone-inc-dec-in-conditions'
   - '-bugprone-return-const-ref-from-parameter'
-  - '-bugprone-unchecked-string-to-number-conversion'
-  - '-bugprone-tagged-union-member-count'
-  - '-bugprone-string-literal-with-embedded-nul'
-  - '-bugprone-bitwise-pointer-cast'
-  - '-bugprone-unused-local-non-trivial-variable'
   - '-bugprone-nondeterministic-pointer-iteration-order'
-  - '-bugprone-non-zero-enum-to-bool-conversion'
-  - '-bugprone-not-null-terminated-result'
-  - '-bugprone-std-namespace-modification'
-  - '-bugprone-exception-copy-constructor-throws'
-  - '-bugprone-unused-return-value'
   - '-bugprone-assignment-in-selection-statement'
-  - '-bugprone-unhandled-self-assignment'
   - '-bugprone-undefined-memory-manipulation'
-  - '-bugprone-command-processor'
   - '-performance-unnecessary-value-param'
   - '-performance-move-const-arg'
   - '-performance-inefficient-string-concatenation'
@@ -128,8 +120,8 @@ HeaderFilterRegex: '(apps|components)/'
 # Generated sources are their generator's, and the headers GLSL reads as well spell what GLSL can.
 ExcludeHeaderFilterRegex: '(_autogen/|/shaders/.*\.h$)'
 CheckOptions:
-  # An allocation that fails ends the process wherever it is thrown.
-  bugprone-exception-escape.IgnoredExceptions: 'std::bad_alloc'
+  # A script that does not compile has reported why to the error handler before it throws.
+  bugprone-empty-catch.AllowEmptyCatchForExceptions: 'Compiler::SourceException'
   # A source may lean on its own header for what that header's interface needs (AGENTS.md), which the missing
   # half of the check does not know; and OSG's GL header brings the GL macros through the system's.
   misc-include-cleaner.MissingIncludes: false

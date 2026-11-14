@@ -13,6 +13,8 @@
 
 namespace Misc
 {
+    // Qt's macro declares the holder `static`, which it alone spells.
+    // NOLINTNEXTLINE(misc-use-anonymous-namespace)
     Q_GLOBAL_STATIC(QSet<ScalableIcon*>, ScalableIconInstances)
 
     ScalableIcon::ScalableIcon(const QByteArray& svgContent)

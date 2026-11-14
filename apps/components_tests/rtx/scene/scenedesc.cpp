@@ -78,6 +78,8 @@ namespace Rtx
 
             SceneDesc moved(std::move(first));
             EXPECT_EQ(moved.getIdentity(), carried);
+            // The test reads the moved-from object, whose state is what it checks.
+            // NOLINTNEXTLINE(bugprone-use-after-move)
             EXPECT_NE(first.getIdentity(), carried) << "the source kept the identity it handed over";
             EXPECT_GT(first.getIdentity(), carried) << "the source took an identity held before";
 
@@ -86,6 +88,8 @@ namespace Rtx
             const std::uint64_t source = first.getIdentity();
             target = std::move(first);
             EXPECT_EQ(target.getIdentity(), source);
+            // The test reads the moved-from object, whose state is what it checks.
+            // NOLINTNEXTLINE(bugprone-use-after-move)
             EXPECT_NE(first.getIdentity(), source);
             EXPECT_GT(first.getIdentity(), replaced) << "the source took an identity held before";
         }
@@ -1782,6 +1786,8 @@ namespace Rtx
 
             scene.drop(std::move(meshHold));
             scene.drop(std::move(materialHold));
+            // The test reads the moved-from object, whose state is what it checks.
+            // NOLINTNEXTLINE(bugprone-use-after-move)
             scene.drop(std::move(materialHold));
             EXPECT_EQ(scene.materials().getHolds(material), 1u) << "a hold given back twice took another holder's";
             EXPECT_TRUE(scene.meshes().isLive(mesh)) << "a mesh freed under the placement standing on it";

@@ -8,7 +8,9 @@
 #include <stdexcept>
 #include <tuple>
 
-inline bool operator==(const dtMeshHeader& lhs, const dtMeshHeader& rhs) noexcept
+// Found by argument-dependent lookup, which an unnamed namespace would hide.
+// NOLINTBEGIN(misc-use-anonymous-namespace)
+static bool operator==(const dtMeshHeader& lhs, const dtMeshHeader& rhs) noexcept
 {
     const auto makeTuple = [](const dtMeshHeader& v) {
         using DetourNavigator::ArrayRef;
@@ -19,7 +21,7 @@ inline bool operator==(const dtMeshHeader& lhs, const dtMeshHeader& rhs) noexcep
     return makeTuple(lhs) == makeTuple(rhs);
 }
 
-inline bool operator==(const dtPoly& lhs, const dtPoly& rhs) noexcept
+static bool operator==(const dtPoly& lhs, const dtPoly& rhs) noexcept
 {
     const auto makeTuple = [](const dtPoly& v) {
         using DetourNavigator::ArrayRef;
@@ -28,14 +30,14 @@ inline bool operator==(const dtPoly& lhs, const dtPoly& rhs) noexcept
     return makeTuple(lhs) == makeTuple(rhs);
 }
 
-inline bool operator==(const dtPolyDetail& lhs, const dtPolyDetail& rhs) noexcept
+static bool operator==(const dtPolyDetail& lhs, const dtPolyDetail& rhs) noexcept
 {
     const auto makeTuple
         = [](const dtPolyDetail& v) { return std::tuple(v.vertBase, v.triBase, v.vertCount, v.triCount); };
     return makeTuple(lhs) == makeTuple(rhs);
 }
 
-inline bool operator==(const dtBVNode& lhs, const dtBVNode& rhs) noexcept
+static bool operator==(const dtBVNode& lhs, const dtBVNode& rhs) noexcept
 {
     const auto makeTuple = [](const dtBVNode& v) {
         using DetourNavigator::ArrayRef;
@@ -44,7 +46,7 @@ inline bool operator==(const dtBVNode& lhs, const dtBVNode& rhs) noexcept
     return makeTuple(lhs) == makeTuple(rhs);
 }
 
-inline bool operator==(const dtOffMeshConnection& lhs, const dtOffMeshConnection& rhs) noexcept
+static bool operator==(const dtOffMeshConnection& lhs, const dtOffMeshConnection& rhs) noexcept
 {
     const auto makeTuple = [](const dtOffMeshConnection& v) {
         using DetourNavigator::ArrayRef;
@@ -52,6 +54,7 @@ inline bool operator==(const dtOffMeshConnection& lhs, const dtOffMeshConnection
     };
     return makeTuple(lhs) == makeTuple(rhs);
 }
+// NOLINTEND(misc-use-anonymous-namespace)
 
 namespace DetourNavigator
 {

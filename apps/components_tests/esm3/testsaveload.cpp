@@ -59,42 +59,45 @@ namespace ESM
         }
     }
 
-    inline bool operator==(const ESM::ContItem& lhs, const ESM::ContItem& rhs)
+    // Found by argument-dependent lookup, which an unnamed namespace would hide.
+    // NOLINTBEGIN(misc-use-anonymous-namespace)
+    static bool operator==(const ESM::ContItem& lhs, const ESM::ContItem& rhs)
     {
         return tie(lhs) == tie(rhs);
     }
 
-    inline std::ostream& operator<<(std::ostream& stream, const ESM::ContItem& value)
+    static std::ostream& operator<<(std::ostream& stream, const ESM::ContItem& value)
     {
         return stream << "ESM::ContItem {.mCount = " << value.mCount << ", .mItem = '" << value.mItem << "'}";
     }
 
-    inline bool operator==(const ESM::Region::SoundRef& lhs, const ESM::Region::SoundRef& rhs)
+    static bool operator==(const ESM::Region::SoundRef& lhs, const ESM::Region::SoundRef& rhs)
     {
         return tie(lhs) == tie(rhs);
     }
 
-    inline std::ostream& operator<<(std::ostream& stream, const ESM::Region::SoundRef& value)
+    static std::ostream& operator<<(std::ostream& stream, const ESM::Region::SoundRef& value)
     {
         return stream << "ESM::Region::SoundRef {.mSound = '" << value.mSound
                       << "', .mChance = " << static_cast<unsigned int>(value.mChance) << "}";
     }
 
-    inline bool operator==(const ESM::QuickKeys::QuickKey& lhs, const ESM::QuickKeys::QuickKey& rhs)
+    static bool operator==(const ESM::QuickKeys::QuickKey& lhs, const ESM::QuickKeys::QuickKey& rhs)
     {
         return tie(lhs) == tie(rhs);
     }
 
-    inline std::ostream& operator<<(std::ostream& stream, const ESM::QuickKeys::QuickKey& value)
+    static std::ostream& operator<<(std::ostream& stream, const ESM::QuickKeys::QuickKey& value)
     {
         return stream << "ESM::QuickKeys::QuickKey {.mType = '" << static_cast<std::uint32_t>(value.mType)
                       << "', .mId = " << value.mId << "}";
     }
 
-    inline bool operator==(const ESM::Path& lhs, const ESM::Path& rhs)
+    static bool operator==(const ESM::Path& lhs, const ESM::Path& rhs)
     {
         return lhs.getOriginal() == rhs.getOriginal();
     }
+    // NOLINTEND(misc-use-anonymous-namespace)
 
     namespace
     {

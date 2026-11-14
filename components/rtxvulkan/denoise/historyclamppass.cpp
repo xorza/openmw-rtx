@@ -14,6 +14,8 @@ namespace Rtx
         constexpr std::array<VkDescriptorSetLayoutBinding, Shaders::HISTORY_CLAMP_BINDINGS> sBindings
             = computeBindings<Shaders::HISTORY_CLAMP_BINDINGS>(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
 
+        // The shaders' constants, equal by design, held equal.
+        // NOLINTNEXTLINE(misc-redundant-expression)
         static_assert(SPECULAR_MEAN == HISTORY_CLAMP_MEAN && PANE_MEAN == HISTORY_CLAMP_MEAN,
             "a filter's slow mean in another format than the clamp holds it in");
     }

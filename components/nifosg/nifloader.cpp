@@ -1237,13 +1237,11 @@ namespace NifOsg
                         // inherit wrap settings from the target slot
                         auto* inherit = dynamic_cast<osg::Texture2D*>(
                             stateset->getTextureAttribute(0, osg::StateAttribute::TEXTURE));
-                        osg::Texture2D::WrapMode wrapS = osg::Texture2D::REPEAT;
-                        osg::Texture2D::WrapMode wrapT = osg::Texture2D::REPEAT;
-                        if (inherit)
-                        {
-                            wrapS = inherit->getWrap(osg::Texture2D::WRAP_S);
-                            wrapT = inherit->getWrap(osg::Texture2D::WRAP_T);
-                        }
+                        // Whether each axis repeats, which `attachNiSourceTexture` takes in place of a wrap mode.
+                        const bool wrapS
+                            = inherit == nullptr || inherit->getWrap(osg::Texture2D::WRAP_S) == osg::Texture2D::REPEAT;
+                        const bool wrapT
+                            = inherit == nullptr || inherit->getWrap(osg::Texture2D::WRAP_T) == osg::Texture2D::REPEAT;
 
                         const unsigned int uvSet = 0;
                         std::vector<unsigned int> boundTextures; // Dummy list for attachTexture

@@ -237,7 +237,6 @@ void CSVRender::TerrainTextureMode::drag(const QPoint& pos, int diffX, int diffY
     if (mDragMode == InteractionType_PrimaryEdit)
     {
         WorldspaceHitResult hit = getWorldspaceWidget().mousePick(pos, getWorldspaceWidget().getInteractionMask());
-        std::string cellId = getWorldspaceWidget().getCellId(hit.worldPos);
         CSMDoc::Document& document = getWorldspaceWidget().getDocument();
 
         CSMWorld::IdCollection<ESM::LandTexture>& landtexturesCollection = document.getData().getLandTextures();

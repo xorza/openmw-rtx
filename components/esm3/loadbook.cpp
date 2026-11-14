@@ -35,17 +35,20 @@ namespace ESM
         }
     }
 
+    // Found by argument-dependent lookup, which an unnamed namespace would hide.
+    // NOLINTBEGIN(misc-use-anonymous-namespace)
     template <Misc::SameAsWithoutCvref<EsmBKDTstruct> T>
-    void decompose(T&& v, const auto& f)
+    static void decompose(T&& v, const auto& f)
     {
         f(v.mWeight, v.mValue, v.mIsScroll, v.mSkillId, v.mEnchant);
     }
 
     template <Misc::SameAsWithoutCvref<Book::BKDTstruct> T>
-    void decompose(T&& v, const auto& f)
+    static void decompose(T&& v, const auto& f)
     {
         f(v.mWeight, v.mValue, v.mIsScroll, v.mEnchant);
     }
+    // NOLINTEND(misc-use-anonymous-namespace)
 
     void Book::load(ESMReader& esm, bool& isDeleted)
     {

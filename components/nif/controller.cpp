@@ -740,7 +740,9 @@ namespace Nif
             {
                 mInterpCount = nif->get<uint8_t>();
                 mSingleIndex = nif->get<uint8_t>();
+                // NOLINTNEXTLINE(bugprone-signed-char-misuse): the priority is a signed byte, widened with its sign
                 mHighPriority = nif->get<int8_t>();
+                // NOLINTNEXTLINE(bugprone-signed-char-misuse): the priority is a signed byte, widened with its sign
                 mNextHighPriority = nif->get<int8_t>();
                 nif->read(mSingleTime);
                 nif->read(mHighWeightsSum);
@@ -763,7 +765,9 @@ namespace Nif
             mSingleIndex = nif->get<uint8_t>();
             mSingleInterpolator.read(nif);
             nif->read(mSingleTime);
+            // NOLINTNEXTLINE(bugprone-signed-char-misuse): the priority is a signed byte, widened with its sign
             mHighPriority = nif->get<int8_t>();
+            // NOLINTNEXTLINE(bugprone-signed-char-misuse): the priority is a signed byte, widened with its sign
             mNextHighPriority = nif->get<int8_t>();
             return;
         }
@@ -800,6 +804,7 @@ namespace Nif
         nif->read(mWeight);
         nif->read(mNormalizedWeight);
         if (nif->getVersion() >= NIFStream::generateVersion(10, 1, 0, 110))
+            // NOLINTNEXTLINE(bugprone-signed-char-misuse): the priority is a signed byte, widened with its sign
             mPriority = nif->get<int8_t>();
         else
             nif->read(mPriority);

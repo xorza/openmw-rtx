@@ -56,18 +56,21 @@ namespace ESM
         }
     }
 
+    // Found by argument-dependent lookup, which an unnamed namespace would hide.
+    // NOLINTBEGIN(misc-use-anonymous-namespace)
     template <Misc::SameAsWithoutCvref<EsmCLDTstruct> T>
-    void decompose(T&& v, const auto& f)
+    static void decompose(T&& v, const auto& f)
     {
         char padding[] = { 0, 0, 0 };
         f(v.mAttribute, v.mSpecialization, v.mSkills, v.mIsPlayable, padding, v.mServices);
     }
 
     template <Misc::SameAsWithoutCvref<Class::CLDTstruct> T>
-    void decompose(T&& v, const auto& f)
+    static void decompose(T&& v, const auto& f)
     {
         f(v.mSpecialization, v.mIsPlayable, v.mServices);
     }
+    // NOLINTEND(misc-use-anonymous-namespace)
 
     ESM::RefId& Class::CLDTstruct::getSkill(int index, bool major)
     {

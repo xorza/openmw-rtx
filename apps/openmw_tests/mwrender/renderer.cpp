@@ -357,6 +357,8 @@ namespace MWRender
             {
                 WorldAttachment first = renderer.attachWorld(unbuilt.mWorld, *root, queue);
                 WorldAttachment moved = std::move(first);
+                // The test reads the moved-from object, whose state is what it checks.
+                // NOLINTNEXTLINE(bugprone-use-after-move)
                 first.reset();
                 EXPECT_EQ(renderer.mDetached, 1u) << "the moved-from attachment";
                 moved.reset();

@@ -157,6 +157,9 @@ namespace MWWorld
 
     RefData& RefData::operator=(const RefData& refData)
     {
+        if (this == &refData)
+            return *this;
+
         try
         {
             cleanup();
@@ -177,6 +180,8 @@ namespace MWWorld
         {
             cleanup();
         }
+        // A destructor lets nothing out, and cleanup has nothing left to report.
+        // NOLINTNEXTLINE(bugprone-empty-catch)
         catch (...)
         {
         }

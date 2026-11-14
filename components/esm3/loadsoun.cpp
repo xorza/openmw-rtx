@@ -7,11 +7,14 @@
 
 namespace ESM
 {
+    // Found by argument-dependent lookup, which an unnamed namespace would hide.
+    // NOLINTBEGIN(misc-use-anonymous-namespace)
     template <Misc::SameAsWithoutCvref<SOUNstruct> T>
-    void decompose(T&& v, const auto& f)
+    static void decompose(T&& v, const auto& f)
     {
         f(v.mVolume, v.mMinRange, v.mMaxRange);
     }
+    // NOLINTEND(misc-use-anonymous-namespace)
 
     void Sound::load(ESMReader& esm, bool& isDeleted)
     {

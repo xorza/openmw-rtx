@@ -936,6 +936,8 @@ void Optimizer::RemoveRedundantNodesVisitor::removeRedundantNodes()
         if (osg::getBinding(rhs)<osg::getBinding(lhs)) return false;
 
 
+namespace
+{
 // States by what they hold and not by which object holds them, for every merge that asks whether two share
 // one: whether two equal states are one object is the shared state cache's history, which every loading thread
 // and every prune moves, so a model merged one way in one process and another way in the next.
@@ -1045,8 +1047,6 @@ struct LessGeometry
     }
 };
 
-namespace
-{
 struct LessGeometryViewPoint
 {
     osg::Vec3f _viewPoint;
