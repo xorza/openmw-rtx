@@ -134,7 +134,7 @@ namespace ESM
                 case fourCC("ANAM"):
                 {
                     ESM::RefId faction = esm.getRefId();
-                    int32_t reaction;
+                    int32_t reaction = 0;
                     esm.getHNT(reaction, "INTV");
                     // Prefer the lowest reaction in case a faction is listed multiple times
                     auto it = mReactions.find(faction);

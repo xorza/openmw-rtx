@@ -137,7 +137,7 @@ namespace Nif
                 if (isBs202)
                 {
                     nif->read(mHasTextureIndices);
-                    uint32_t numSubtextureOffsets;
+                    uint32_t numSubtextureOffsets = 0;
                     if (nif->getBethVersion() <= NIFFile::BethVersion::BETHVER_FO3)
                         numSubtextureOffsets = nif->get<uint8_t>();
                     else

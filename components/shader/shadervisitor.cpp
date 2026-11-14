@@ -274,7 +274,7 @@ namespace Shader
                             }
                             else if (texName == "diffuseMap")
                             {
-                                int applyMode;
+                                int applyMode = 0;
                                 // Oblivion parallax
                                 if (node.getUserValue("applyMode", applyMode) && applyMode == 4)
                                 {

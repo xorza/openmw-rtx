@@ -101,8 +101,8 @@ void ESM4::ArmorAddon::load(ESM4::Reader& reader)
             case ESM::fourCC("DNAM"):
                 if (subHdr.dataSize == 12)
                 {
-                    std::uint16_t unknownInt16;
-                    std::uint8_t unknownInt8;
+                    std::uint16_t unknownInt16 = 0;
+                    std::uint8_t unknownInt8 = 0;
                     reader.get(mMalePriority);
                     reader.get(mFemalePriority);
                     reader.get(mWeightSliderMale);

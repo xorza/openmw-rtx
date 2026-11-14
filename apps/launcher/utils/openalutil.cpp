@@ -12,7 +12,7 @@
 std::vector<std::string> Launcher::enumerateOpenALDevices()
 {
     std::vector<std::string> devlist;
-    const ALCchar* devnames;
+    const ALCchar* devnames = nullptr;
 
     if (alcIsExtensionPresent(nullptr, "ALC_ENUMERATE_ALL_EXT"))
     {
@@ -43,7 +43,7 @@ std::vector<std::string> Launcher::enumerateOpenALDevicesHrtf()
             LPALCGETSTRINGISOFT alcGetStringiSOFT = nullptr;
             void* funcPtr = alcGetProcAddress(device, "alcGetStringiSOFT");
             memcpy(&alcGetStringiSOFT, &funcPtr, sizeof(funcPtr));
-            ALCint numHrtf;
+            ALCint numHrtf = 0;
             alcGetIntegerv(device, ALC_NUM_HRTF_SPECIFIERS_SOFT, 1, &numHrtf);
             ret.reserve(numHrtf);
             for (ALCint i = 0; i < numHrtf; ++i)

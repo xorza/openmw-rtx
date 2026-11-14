@@ -137,7 +137,7 @@ namespace MWGui
         if (Settings::gui().mControllerMenus)
         {
             // Show L1 and R1 buttons next to tabs
-            MyGUI::ImageBox* image;
+            MyGUI::ImageBox* image = nullptr;
             getWidget(image, "BtnL1Image");
             image->setVisible(true);
             image->setUserString("Hidden", "false");
@@ -1131,7 +1131,7 @@ namespace MWGui
         }
 
         // Show L1 and R1 buttons next to tabs
-        MyGUI::Widget* image;
+        MyGUI::Widget* image = nullptr;
         getWidget(image, "BtnL1Image");
         image->setVisible(active);
 

@@ -476,7 +476,7 @@ namespace NifOsg
 
         if (useGeometryEmitter || !mTargets.empty())
         {
-            int recordIndex;
+            int recordIndex = 0;
 
             if (useGeometryEmitter)
             {
@@ -589,7 +589,7 @@ namespace NifOsg
 
     void FindGroupByRecordIndex::applyNode(osg::Node& searchNode)
     {
-        unsigned int recordIndex;
+        unsigned int recordIndex = 0;
         if (searchNode.getUserValue("recordIndex", recordIndex) && mRecordIndex == recordIndex)
         {
             osg::Group* group = searchNode.asGroup();

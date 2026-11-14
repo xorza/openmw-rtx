@@ -533,8 +533,8 @@ namespace MWDialogue
 
     void DialogueManager::persuade(int type, ResponseCallback* callback)
     {
-        bool success;
-        int temp, perm;
+        bool success = false;
+        int temp = 0, perm = 0;
         MWBase::Environment::get().getMechanicsManager()->getPersuasionDispositionChange(
             mActor, MWBase::MechanicsManager::PersuasionType(type), success, temp, perm);
         updateOriginalDisposition();

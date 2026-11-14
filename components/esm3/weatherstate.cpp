@@ -33,13 +33,13 @@ namespace ESM
         esm.getHNT(mTransitionFactor, transitionFactorRecord);
         if (esm.getFormatVersion() <= ESM::MaxWeatherIndexFormatVersion)
         {
-            int currentWeather;
+            int currentWeather = 0;
             esm.getHNT(currentWeather, currentWeatherRecord);
             mCurrentWeather = ESM::Weather::indexToRefId(currentWeather);
-            int nextWeather;
+            int nextWeather = 0;
             esm.getHNT(nextWeather, nextWeatherRecord);
             mNextWeather = ESM::Weather::indexToRefId(nextWeather);
-            int queuedWeather;
+            int queuedWeather = 0;
             esm.getHNT(queuedWeather, queuedWeatherRecord);
             mQueuedWeather = ESM::Weather::indexToRefId(queuedWeather);
         }
@@ -56,13 +56,13 @@ namespace ESM
             RegionWeatherState region;
             if (esm.getFormatVersion() <= ESM::MaxWeatherIndexFormatVersion)
             {
-                int weatherId;
+                int weatherId = 0;
                 esm.getHNT(weatherId, regionWeatherRecord);
                 region.mWeather = Weather::indexToRefId(weatherId);
                 int index = 0;
                 while (esm.isNextSub(regionChanceRecord))
                 {
-                    uint8_t chance;
+                    uint8_t chance = 0;
                     esm.getHT(chance);
                     ESM::RefId id = Weather::indexToRefId(index++);
                     region.mChances.emplace(id, chance);
@@ -74,7 +74,7 @@ namespace ESM
                 while (esm.isNextSub(regionChanceRecord))
                 {
                     esm.getSubHeader();
-                    uint8_t chance;
+                    uint8_t chance = 0;
                     esm.getT(chance);
                     ESM::RefId id = esm.getRefId(esm.getSubSize() - sizeof(chance));
                     region.mChances.emplace(id, chance);

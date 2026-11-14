@@ -56,7 +56,7 @@ namespace MWGui
         MWWorld::Ptr player = MWMechanics::getPlayer();
         bool showTakeButton = scroll.getContainerStore() != &player.getClass().getContainerStore(player);
 
-        const std::string* text;
+        const std::string* text = nullptr;
         if (scroll.getType() == ESM::REC_BOOK)
             text = &scroll.get<ESM::Book>()->mBase->mText;
         else

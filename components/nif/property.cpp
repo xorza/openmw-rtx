@@ -31,7 +31,7 @@ namespace Nif
         }
         else
         {
-            uint16_t flags;
+            uint16_t flags = 0;
             nif->read(flags);
             mClamp = flags & 0xF;
             mFilter = (flags >> 4) & 0xF;

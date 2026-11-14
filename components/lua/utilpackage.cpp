@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <iomanip>
 #include <limits>
 #include <sstream>
@@ -300,8 +301,8 @@ namespace LuaUtil
             osg::Quat rotation;
             osg::Quat so;
             m.mM.decompose(trans, rotation, scale, so);
-            osg::Quat::value_type rotationAngle;
-            osg::Quat::value_type soAngle;
+            osg::Quat::value_type rotationAngle = NAN;
+            osg::Quat::value_type soAngle = NAN;
             osg::Vec3f rotationAxis;
             osg::Vec3f soAxis;
             rotation.getRotate(rotationAngle, rotationAxis);
@@ -354,7 +355,7 @@ namespace LuaUtil
                     return res;
                 });
         transQType[sol::meta_function::to_string] = [](const TransformQ& q) {
-            osg::Quat::value_type angle;
+            osg::Quat::value_type angle = NAN;
             osg::Vec3f axis;
             q.mQ.getRotate(angle, axis);
             std::stringstream ss;

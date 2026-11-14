@@ -68,7 +68,7 @@ void ESM4::HeadPart::load(ESM4::Reader& reader)
                 break;
             case ESM::fourCC("NAM0"): // TES5
             {
-                std::uint32_t value;
+                std::uint32_t value = 0;
                 reader.get(value);
                 type = value;
                 break;

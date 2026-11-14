@@ -177,25 +177,23 @@ namespace
             if (msgCopy.empty())
                 return;
 
-            Debug::Level level;
-            switch (severity)
-            {
-                case osg::ALWAYS:
-                case osg::FATAL:
-                    level = Debug::Error;
-                    break;
-                case osg::WARN:
-                case osg::NOTICE:
-                    level = Debug::Warning;
-                    break;
-                case osg::INFO:
-                    level = Debug::Info;
-                    break;
-                case osg::DEBUG_INFO:
-                case osg::DEBUG_FP:
-                default:
-                    level = Debug::Debug;
-            }
+            const Debug::Level level = [&] {
+                switch (severity)
+                {
+                    case osg::ALWAYS:
+                    case osg::FATAL:
+                        return Debug::Error;
+                    case osg::WARN:
+                    case osg::NOTICE:
+                        return Debug::Warning;
+                    case osg::INFO:
+                        return Debug::Info;
+                    case osg::DEBUG_INFO:
+                    case osg::DEBUG_FP:
+                    default:
+                        return Debug::Debug;
+                }
+            }();
             std::string_view s(msgCopy);
             if (s.size() < 1024)
                 Log(level) << (s.back() == '\n' ? s.substr(0, s.size() - 1) : s);

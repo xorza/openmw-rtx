@@ -28,7 +28,7 @@ namespace ESSImport
         if (subSize == mwseSize)
         {
             // MWSE can store the mod index and form ID in two separate 4-byte values
-            uint32_t modIndex, formId;
+            uint32_t modIndex = 0, formId = 0;
             esm.getT(modIndex);
             esm.getT(formId);
             mRefNum.mIndex = formId;
@@ -37,7 +37,7 @@ namespace ESSImport
         else
         {
             // Vanilla stores the mod index and form ID in a single 4-byte value
-            ESM::FormId32 refNum;
+            ESM::FormId32 refNum = 0;
             esm.getT(refNum);
             mRefNum = ESM::RefNum::fromUint32(refNum);
         }

@@ -530,7 +530,7 @@ namespace Nif
     {
         NiTimeController::read(nif);
 
-        uint32_t numKeys;
+        uint32_t numKeys = 0;
         nif->read(numKeys);
         // Is this possible?
         if (numKeys != 0)
@@ -653,7 +653,7 @@ namespace Nif
         // Unknown
         if (nif->getVersion() <= NIFStream::generateVersion(10, 1, 0, 0))
         {
-            uint8_t numExtraBytes;
+            uint8_t numExtraBytes = 0;
             nif->read(numExtraBytes);
             nif->skip(7);
             nif->skip(numExtraBytes);

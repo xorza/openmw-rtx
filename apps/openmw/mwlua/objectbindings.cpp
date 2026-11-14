@@ -65,7 +65,7 @@ namespace MWLua
         MWWorld::CellStore* findCell(const sol::object& cellOrName, const osg::Vec3f& pos)
         {
             MWWorld::WorldModel* wm = MWBase::Environment::get().getWorldModel();
-            MWWorld::CellStore* cell;
+            MWWorld::CellStore* cell = nullptr;
             if (cellOrName.is<GCell>())
                 cell = cellOrName.as<const GCell&>().mStore;
             else

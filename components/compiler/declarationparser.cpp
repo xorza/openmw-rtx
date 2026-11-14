@@ -76,7 +76,7 @@ bool Compiler::DeclarationParser::parseKeyword(int keyword, const TokenLoc& loc,
         {
             std::string argumentType;
             bool hasExplicit = false;
-            char returnType;
+            char returnType = 0;
             if (extensions->isFunction(keyword, returnType, argumentType, hasExplicit))
                 getErrorHandler().warning("Local variable declaration shadows a function", loc);
         }

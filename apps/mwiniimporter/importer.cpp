@@ -14,7 +14,7 @@ namespace
     // from configfileparser.cpp
     std::string trim_ws(const std::string& s)
     {
-        std::string::size_type n, n2;
+        std::string::size_type n = 0, n2 = 0;
         n = s.find_first_not_of(" \t\r\n");
         if (n == std::string::npos)
             return std::string();

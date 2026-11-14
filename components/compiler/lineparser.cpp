@@ -287,7 +287,7 @@ namespace Compiler
                     return true;
                 }
 
-                char returnType;
+                char returnType = 0;
                 if (extensions->isFunction(keyword, returnType, argumentType, hasExplicit))
                 {
                     if (!hasExplicit && mState == ExplicitState)

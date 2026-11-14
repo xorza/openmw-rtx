@@ -123,7 +123,7 @@ namespace Misc::StringUtils
      */
     inline std::string& replaceAll(std::string& str, std::string_view what, std::string_view with)
     {
-        std::size_t found;
+        std::size_t found = 0;
         std::size_t offset = 0;
         while ((found = str.find(what, offset)) != std::string::npos)
         {
@@ -134,7 +134,7 @@ namespace Misc::StringUtils
     }
     inline std::u8string& replaceAll(std::u8string& str, std::u8string_view what, std::u8string_view with)
     {
-        std::size_t found;
+        std::size_t found = 0;
         std::size_t offset = 0;
         while ((found = str.find(what, offset)) != std::u8string::npos)
         {

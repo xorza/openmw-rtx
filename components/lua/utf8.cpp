@@ -1,5 +1,6 @@
 #include "utf8.hpp"
 
+#include <cmath>
 #include <format>
 #include <utility>
 
@@ -16,7 +17,7 @@ namespace
 
     inline std::int64_t getInteger(const sol::stack_proxy arg, const size_t n, std::string_view name)
     {
-        double integer;
+        double integer = NAN;
         if (!arg.is<double>())
             throw std::runtime_error(std::format("bad argument #{} to '{}' (number expected, got {})", n, name,
                 sol::type_name(arg.lua_state(), arg.get_type())));
@@ -210,7 +211,7 @@ namespace LuaUtf8
         utf8["offset"]
             = [](std::string_view s, const int64_t n, const sol::variadic_args args) -> sol::optional<int64_t> {
             size_t len = s.size();
-            int64_t iv;
+            int64_t iv = 0;
 
             if (isNilOrNone(args[0]))
             {

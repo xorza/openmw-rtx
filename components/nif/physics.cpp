@@ -62,7 +62,7 @@ namespace Nif
 
     void hkpMoppCode::read(NIFStream* nif)
     {
-        uint32_t dataSize;
+        uint32_t dataSize = 0;
         nif->read(dataSize);
         if (nif->getVersion() >= NIFStream::generateVersion(10, 1, 0, 0))
             nif->read(mOffset);
@@ -591,7 +591,7 @@ namespace Nif
     void hkPackedNiTriStripsData::read(NIFStream* nif)
     {
         nif->readVectorOfRecords<uint32_t>(mTriangles);
-        uint32_t numVertices;
+        uint32_t numVertices = 0;
         nif->read(numVertices);
         bool compressed = false;
         if (nif->getVersion() >= NIFFile::NIFVersion::VER_BGS)

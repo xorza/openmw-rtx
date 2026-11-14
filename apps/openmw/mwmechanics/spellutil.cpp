@@ -108,7 +108,7 @@ namespace MWMechanics
 
     int getEffectiveEnchantmentCastCost(const ESM::Enchantment& enchantment, const MWWorld::Ptr& actor)
     {
-        float castCost;
+        float castCost = NAN;
         if (enchantment.mData.mFlags & ESM::Enchantment::Autocalc)
             castCost = getTotalCost(enchantment.mEffects, EffectCostMethod::GameEnchantment);
         else

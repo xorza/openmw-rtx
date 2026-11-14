@@ -26,6 +26,7 @@
 */
 #include "loadrace.hpp"
 
+#include <cmath>
 #include <cstring>
 #include <format>
 #include <optional>
@@ -131,8 +132,8 @@ void ESM4::Race::load(ESM4::Reader& reader)
 #else
                 if (subHdr.dataSize == 36) // TES4/FO3/FNV
                 {
-                    std::uint8_t skill;
-                    std::uint8_t bonus;
+                    std::uint8_t skill = 0;
+                    std::uint8_t bonus = 0;
                     for (unsigned int i = 0; i < 8; ++i)
                     {
                         reader.get(skill);
@@ -147,15 +148,15 @@ void ESM4::Race::load(ESM4::Reader& reader)
                 }
                 else if (subHdr.dataSize == 128 || subHdr.dataSize == 164) // TES5
                 {
-                    std::uint8_t skill;
-                    std::uint8_t bonus;
+                    std::uint8_t skill = 0;
+                    std::uint8_t bonus = 0;
                     for (unsigned int i = 0; i < 7; ++i)
                     {
                         reader.get(skill);
                         reader.get(bonus);
                         mSkillBonus[static_cast<SkillIndex>(skill)] = bonus;
                     }
-                    std::uint16_t unknown;
+                    std::uint16_t unknown = 0;
                     reader.get(unknown);
 
                     reader.get(mHeightMale);
@@ -165,7 +166,7 @@ void ESM4::Race::load(ESM4::Reader& reader)
                     reader.get(mRaceFlags);
 
                     // FIXME
-                    float dummy;
+                    float dummy = NAN;
                     reader.get(dummy); // starting health
                     reader.get(dummy); // starting magicka
                     reader.get(dummy); // starting stamina
@@ -174,7 +175,7 @@ void ESM4::Race::load(ESM4::Reader& reader)
                     reader.get(dummy); // accleration rate
                     reader.get(dummy); // decleration rate
 
-                    uint32_t dummy2;
+                    uint32_t dummy2 = 0;
                     reader.get(dummy2); // size
                     reader.get(dummy2); // head biped object
                     reader.get(dummy2); // hair biped object
@@ -506,7 +507,7 @@ void ESM4::Race::load(ESM4::Reader& reader)
             case ESM::fourCC("XNAM"):
             {
                 ESM::FormId race;
-                std::int32_t adjustment;
+                std::int32_t adjustment = 0;
                 reader.getFormId(race);
                 reader.get(adjustment);
                 mDisposition[race] = adjustment;
@@ -524,7 +525,7 @@ void ESM4::Race::load(ESM4::Reader& reader)
                 {
                     // equipment type flags meant to be uint32 ???  GLOB reference? shows up in
                     // SCRO in sript records and CTDA in INFO records
-                    uint32_t dummy;
+                    uint32_t dummy = 0;
                     reader.get(dummy);
                 }
                 else

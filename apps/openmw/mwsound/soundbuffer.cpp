@@ -114,7 +114,7 @@ namespace MWSound
                 insertSound(sound.mId, sound);
         }
 
-        SoundBuffer* sfx;
+        SoundBuffer* sfx = nullptr;
         const auto it = mBufferNameMap.find(soundId);
         if (it != mBufferNameMap.end())
             sfx = it->second;
@@ -131,7 +131,7 @@ namespace MWSound
 
     SoundBuffer* SoundBufferPool::load(VFS::Path::NormalizedView fileName)
     {
-        SoundBuffer* sfx;
+        SoundBuffer* sfx = nullptr;
         const auto it = mBufferFileNameMap.find(fileName);
         if (it != mBufferFileNameMap.end())
             sfx = it->second;

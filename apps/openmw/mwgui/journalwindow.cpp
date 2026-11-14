@@ -73,7 +73,7 @@ namespace
         template <typename T>
         T* getWidget(std::string_view name)
         {
-            T* widget;
+            T* widget = nullptr;
             WindowBase::getWidget(widget, name);
             return widget;
         }
@@ -401,8 +401,8 @@ namespace
         void updateShowingPages()
         {
             std::shared_ptr<MWGui::TypesetBook> book;
-            size_t page;
-            size_t relPages;
+            size_t page = 0;
+            size_t relPages = 0;
 
             if (!mStates.empty())
             {

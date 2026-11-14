@@ -53,7 +53,7 @@ BSAFile::Hash getHash(const std::string& name)
 {
     BSAFile::Hash hash;
     unsigned l = (static_cast<unsigned>(name.size()) >> 1);
-    unsigned sum, off, temp, i, n;
+    unsigned sum = 0, off = 0, temp = 0, i = 0, n = 0;
 
     for (sum = off = i = 0; i < l; i++)
     {
@@ -116,8 +116,8 @@ void BSAFile::readHeader(std::istream& input)
         fail("File too small to be a valid BSA archive");
 
     // Get essential header numbers
-    std::streamsize dirsize;
-    std::streamsize filenum;
+    std::streamsize dirsize = 0;
+    std::streamsize filenum = 0;
     {
         // First 12 bytes
         uint32_t head[3];

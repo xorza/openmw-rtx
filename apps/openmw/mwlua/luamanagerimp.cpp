@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <chrono>
+#include <cmath>
 #include <filesystem>
 #include <functional>
 
@@ -883,7 +884,7 @@ namespace MWLua
         if (type != ESM::REC_LUAM)
             throw std::runtime_error("ESM::REC_LUAM is expected");
 
-        double simulationTime;
+        double simulationTime = NAN;
         reader.getHNT(simulationTime, "LUAW");
         MWBase::Environment::get().getWorld()->getTimeManager()->setSimulationTime(simulationTime);
         ESM::FormId lastGenerated = reader.getFormId(true);

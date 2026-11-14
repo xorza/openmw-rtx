@@ -67,7 +67,7 @@ void ESM4::ActorCharacter::load(ESM4::Reader& reader)
                     case 12:
                     {
                         reader.getFormId(mOwner);
-                        std::uint32_t dummy;
+                        std::uint32_t dummy = 0;
                         reader.get(dummy); // Unknown
                         reader.get(dummy); // No crime flag, FO4
                         break;

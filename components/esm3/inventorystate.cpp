@@ -3,6 +3,7 @@
 #include "esmreader.hpp"
 #include "esmwriter.hpp"
 
+#include <cmath>
 #include <components/misc/strings/algorithm.hpp>
 
 namespace ESM
@@ -55,7 +56,7 @@ namespace ESM
         {
             // Get its name
             ESM::RefId id = esm.getRefId();
-            int32_t count;
+            int32_t count = 0;
             // Then get its count
             esm.getHNT(count, "COUN");
             std::string parentGroup = esm.getHNString("LGRP");
@@ -69,7 +70,7 @@ namespace ESM
             std::vector<std::pair<float, float>> params;
             while (esm.isNextSub("RAND"))
             {
-                float rand, multiplier;
+                float rand = NAN, multiplier = NAN;
                 esm.getHT(rand);
                 esm.getHNT(multiplier, "MULT");
                 params.emplace_back(rand, multiplier);
@@ -80,9 +81,9 @@ namespace ESM
         while (esm.isNextSub("EQUI"))
         {
             esm.getSubHeader();
-            int32_t equipIndex;
+            int32_t equipIndex = 0;
             esm.getT(equipIndex);
-            int32_t slot;
+            int32_t slot = 0;
             esm.getT(slot);
             mEquipmentSlots[equipIndex] = slot;
         }
@@ -94,9 +95,9 @@ namespace ESM
             esm.getT(slotsCount);
             for (; slotsCount > 0; --slotsCount)
             {
-                int32_t equipIndex;
+                int32_t equipIndex = 0;
                 esm.getT(equipIndex);
-                int32_t slot;
+                int32_t slot = 0;
                 esm.getT(slot);
                 mEquipmentSlots[equipIndex] = slot;
             }

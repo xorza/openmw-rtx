@@ -678,7 +678,7 @@ void MWState::StateManager::loadGame(const Character* character, const std::file
     }
     catch (const SaveVersionTooOldError& e)
     {
-        const char* release;
+        const char* release = nullptr;
         // Report the last version still capable of reading this save
         if (e.getFormatVersion() < ESM::OpenMW0_49MinSaveGameFormatVersion)
             release = "OpenMW 0.48.0";

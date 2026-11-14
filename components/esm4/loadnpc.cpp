@@ -230,7 +230,7 @@ void ESM4::Npc::load(ESM4::Reader& reader)
             }
             case ESM::fourCC("COCT"): // TES5
             {
-                std::uint32_t count;
+                std::uint32_t count = 0;
                 reader.get(count);
 
                 break;

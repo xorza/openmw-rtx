@@ -480,7 +480,7 @@ namespace ESM4
         if (!hasLocalizedStrings())
             return (void)getZString(str);
 
-        std::uint32_t stringId; // FormId
+        std::uint32_t stringId = 0; // FormId
         get(stringId);
         if (stringId) // TES5 FoxRace, BOOK
             getLocalizedStringImpl(FormId::fromUint32(stringId), str);
@@ -624,7 +624,7 @@ namespace ESM4
         // Would need to redesign the loader to support that, so skip over both subrecords.
         if (result && mCtx.subRecordHeader.typeId == ESM::fourCC("XXXX"))
         {
-            std::uint32_t extDataSize;
+            std::uint32_t extDataSize = 0;
             get(extDataSize);
             if (!getSubRecordHeader())
                 return false;
@@ -821,7 +821,7 @@ namespace ESM4
 
     bool Reader::getFormId(FormId& id)
     {
-        FormId32 v;
+        FormId32 v = 0;
         if (!getExact(v))
             return false;
         id = FormId::fromUint32(v);
@@ -887,7 +887,7 @@ namespace ESM4
             {
                 if (hasNull)
                 {
-                    char ch;
+                    char ch = 0;
                     stream.read(&ch, 1); // read the null terminator
                     if (ch != '\0')
                         throw std::runtime_error("ESM4::Reader::getString string is not terminated with a null");

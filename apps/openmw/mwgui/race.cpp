@@ -63,7 +63,7 @@ namespace MWGui
         mHeadRotate->eventScrollChangePosition += MyGUI::newDelegate(this, &RaceDialog::onHeadRotate);
 
         // Set up next/previous buttons
-        MyGUI::Button *prevButton, *nextButton;
+        MyGUI::Button *prevButton = nullptr, *nextButton = nullptr;
 
         setText("GenderChoiceT",
             MWBase::Environment::get().getWindowManager()->getGameSettingString("sRaceMenu2", "Change Sex"));
@@ -126,7 +126,7 @@ namespace MWGui
 
     void RaceDialog::setNextButtonShow(bool shown)
     {
-        MyGUI::Button* okButton;
+        MyGUI::Button* okButton = nullptr;
         getWidget(okButton, "OKButton");
 
         if (shown)
@@ -419,7 +419,7 @@ namespace MWGui
         if (mCurrentRaceId.empty())
             return;
 
-        Widgets::MWSkillPtr skillWidget;
+        Widgets::MWSkillPtr skillWidget = nullptr;
         const int lineHeight = MWBase::Environment::get().getWindowManager()->getFontSize() + 2;
         MyGUI::IntCoord coord1(0, 0, mSkillList->getWidth(), 18);
 

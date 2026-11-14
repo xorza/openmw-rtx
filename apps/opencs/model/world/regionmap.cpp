@@ -70,7 +70,7 @@ CSMWorld::CellCoordinates CSMWorld::RegionMap::getIndex(const Cell& cell) const
 {
     std::istringstream stream(cell.mId.getRefIdString());
 
-    char ignore;
+    char ignore = 0;
     int x = 0;
     int y = 0;
     stream >> ignore >> x >> y;

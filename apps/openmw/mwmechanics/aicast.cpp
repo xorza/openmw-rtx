@@ -19,7 +19,7 @@ namespace MWMechanics
         float getInitialDistance(const ESM::RefId& spellId)
         {
             ActionSpell action = ActionSpell(spellId);
-            bool isRanged;
+            bool isRanged = false;
             return action.getCombatRange(isRanged);
         }
     }

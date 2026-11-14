@@ -1,5 +1,6 @@
 #include "cellwater.hpp"
 
+#include <cmath>
 #include <memory>
 #include <string_view>
 
@@ -156,9 +157,9 @@ namespace CSVRender
         if (mDeleted || !mHasWater)
             return;
 
-        float size;
-        int segments;
-        float textureRepeats;
+        float size = NAN;
+        int segments = 0;
+        float textureRepeats = NAN;
 
         if (mExterior)
         {

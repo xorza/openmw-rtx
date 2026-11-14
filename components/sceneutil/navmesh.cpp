@@ -164,7 +164,7 @@ namespace
 
             const dtPolyDetail* pd = &tile->detailMeshes[i];
 
-            unsigned int col;
+            unsigned int col = 0;
             if (query && query->isInClosedList(base | static_cast<dtPolyRef>(i)))
                 col = duRGBA(255, 196, 0, alpha);
             else
@@ -206,7 +206,7 @@ namespace
                 if (p->getType() != DT_POLYTYPE_OFFMESH_CONNECTION) // Skip regular polys.
                     continue;
 
-                unsigned int col, col2;
+                unsigned int col = 0, col2 = 0;
                 if (query && query->isInClosedList(base | static_cast<dtPolyRef>(i)))
                     col = duRGBA(255, 196, 0, 220);
                 else

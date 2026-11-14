@@ -83,7 +83,7 @@ void ESM4::Header::load(ESM4::Reader& reader)
                 mOverrides.resize(subHdr.dataSize / sizeof(ESM::FormId32));
                 for (ESM::FormId& mOverride : mOverrides)
                 {
-                    uint32_t v;
+                    uint32_t v = 0;
                     if (!reader.getExact(v))
                         throw std::runtime_error("TES4 ONAM data read error");
                     mOverride = ESM::FormId::fromUint32(v);

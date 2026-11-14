@@ -1,5 +1,6 @@
 #include "autocalcspell.hpp"
 
+#include <cmath>
 #include <limits>
 
 #include <components/esm/attr.hpp>
@@ -71,7 +72,7 @@ namespace MWMechanics
                 continue;
 
             ESM::RefId school;
-            float skillTerm;
+            float skillTerm = NAN;
             calcWeakestSchool(&spell, actorSkills, school, skillTerm);
             if (school.empty())
                 continue;

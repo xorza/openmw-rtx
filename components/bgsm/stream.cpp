@@ -31,7 +31,7 @@ namespace Bgsm
     template <>
     void BGSMStream::read<std::string>(std::string& str)
     {
-        std::uint32_t length;
+        std::uint32_t length = 0;
         read(length);
         // Prevent potential memory allocation freezes; strings this long are not expected in BGSM
         if (length > 1024)

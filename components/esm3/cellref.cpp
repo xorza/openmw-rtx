@@ -283,7 +283,7 @@ namespace ESM
     {
         CellRef cellRef;
         loadIdImpl<false>(esm, wideRefNum, cellRef);
-        bool isDeleted;
+        bool isDeleted = false;
         loadDataImpl<false>(esm, isDeleted, cellRef);
     }
 

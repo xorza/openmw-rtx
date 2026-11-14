@@ -1,5 +1,6 @@
 #include "importcrec.hpp"
 
+#include <cmath>
 #include <components/esm3/esmreader.hpp>
 
 namespace ESSImport
@@ -11,7 +12,7 @@ namespace ESSImport
 
         // equivalent of ESM::Creature XSCL? probably don't have to convert this,
         // since the value can't be changed
-        float scale;
+        float scale = NAN;
         esm.getHNOT(scale, "XSCL");
 
         while (esm.isNextSub("AI_W") || esm.isNextSub("AI_E") || esm.isNextSub("AI_T") || esm.isNextSub("AI_F")

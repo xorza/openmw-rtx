@@ -259,7 +259,7 @@ namespace MWGui
                 else if (type == "Layout")
                 {
                     // tooltip defined in the layout
-                    MyGUI::Widget* tooltip;
+                    MyGUI::Widget* tooltip = nullptr;
                     getWidget(tooltip, focus->getUserString("ToolTipLayout"));
 
                     tooltip->setVisible(true);
@@ -282,7 +282,7 @@ namespace MWGui
                             key.erase(key.begin(), key.begin() + caretPos + 1);
                         }
 
-                        MyGUI::Widget* w;
+                        MyGUI::Widget* w = nullptr;
                         getWidget(w, widgetName);
                         if (type == "Property")
                             w->setProperty(key, userStringPair.second);

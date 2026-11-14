@@ -9,7 +9,7 @@ namespace
         if (i < m.size() && m[i] >= '0' && m[i] <= '9')
         {
             const char* start = m.data() + i;
-            int parsed;
+            int parsed = 0;
             auto [ptr, ec] = std::from_chars(start, m.data() + m.size(), parsed);
             i += ptr - start;
             if (ec == std::errc())

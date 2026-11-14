@@ -244,7 +244,7 @@ namespace LuaUtil
         binaryData = binaryData.substr(1);
         if (type & (CUSTOM_COMPACT_FLAG | CUSTOM_FULL_FLAG))
         {
-            size_t typeNameSize, dataSize;
+            size_t typeNameSize = 0, dataSize = 0;
             if (type & CUSTOM_COMPACT_FLAG)
             { // Compact form: 0b1SSSSTTT. SSSS = dataSize, TTT = (typeName size - 1).
                 typeNameSize = (type & 7) + 1;

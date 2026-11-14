@@ -47,7 +47,7 @@ namespace ESM
         {
             for (auto& bonus : mBonus)
             {
-                int32_t skill;
+                int32_t skill = 0;
                 esm.getT(skill);
                 bonus.mSkill = ESM::Skill::indexToRefId(skill);
                 esm.getT(bonus.mBonus);

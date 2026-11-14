@@ -1,6 +1,7 @@
 #ifndef COMPONENTS_TERRAIN_STORAGE_H
 #define COMPONENTS_TERRAIN_STORAGE_H
 
+#include <cmath>
 #include <vector>
 
 #include <osg/Array>
@@ -35,7 +36,7 @@ namespace Terrain
         /// May be overriden for a faster implementation
         virtual bool hasData(ESM::ExteriorCellLocation cellLocation)
         {
-            float dummy;
+            float dummy = NAN;
             return getMinMaxHeights(1.f, osg::Vec2f(cellLocation.mX + 0.5f, cellLocation.mY + 0.5f),
                 cellLocation.mWorldspace, dummy, dummy);
         }

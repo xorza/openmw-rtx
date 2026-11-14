@@ -1,6 +1,7 @@
 #include "lightmanager.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <cstring>
 
 #include <osgUtil/CullVisitor>
@@ -213,7 +214,7 @@ namespace SceneUtil
                 // When reverse-z is enabled ensure we pass in the "unreversed" projection matrix.
                 // This just makes all the maths constant and easier to deal with in general.
                 // We also work with a projection matrix with a far plane detached from the current camera.
-                double fovy, aspectRatio, near, _;
+                double fovy = NAN, aspectRatio = NAN, near = NAN, _ = NAN;
                 cache.mProjection[frameId].getPerspective(fovy, aspectRatio, near, _);
 
                 const osg::Matrixd projection = osg::Matrixd::perspective(fovy, aspectRatio, near, clusterFar);

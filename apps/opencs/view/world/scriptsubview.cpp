@@ -213,7 +213,7 @@ void CSVWorld::ScriptSubView::useHint(const std::string& hint)
         return;
 
     int line = 0, column = 0;
-    char c;
+    char c = 0;
     std::istringstream stream(hint.c_str() + 1);
     switch (hint[0])
     {
@@ -223,7 +223,7 @@ void CSVWorld::ScriptSubView::useHint(const std::string& hint)
             QModelIndex index = mModel->getModelIndex(getUniversalId().getId(), mColumn);
             QString source = mModel->data(index).toString();
             int stringSize = static_cast<int>(source.length());
-            int pos, dummy;
+            int pos = 0, dummy = 0;
             if (!(stream >> c >> dummy >> pos))
                 return;
 

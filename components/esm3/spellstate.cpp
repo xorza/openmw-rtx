@@ -1,5 +1,7 @@
 #include "spellstate.hpp"
 
+#include <cmath>
+
 #include "esmreader.hpp"
 #include "esmwriter.hpp"
 
@@ -17,10 +19,10 @@ namespace ESM
                 SpellParams state;
                 while (esm.isNextSub("INDX"))
                 {
-                    int32_t index;
+                    int32_t index = 0;
                     esm.getHT(index);
 
-                    float magnitude;
+                    float magnitude = NAN;
                     esm.getHNT(magnitude, "RAND");
 
                     state.mEffectRands[index] = magnitude;
@@ -28,7 +30,7 @@ namespace ESM
 
                 while (esm.isNextSub("PURG"))
                 {
-                    int32_t index;
+                    int32_t index = 0;
                     esm.getHT(index);
                     state.mPurgedEffects.insert(index);
                 }

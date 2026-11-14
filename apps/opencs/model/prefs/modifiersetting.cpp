@@ -56,7 +56,7 @@ namespace CSMPrefs
         {
             const std::string& shortcut = getValue();
 
-            int modifier;
+            int modifier = 0;
             State::get().getShortcutManager().convertFromString(shortcut, modifier);
             State::get().getShortcutManager().setModifier(getKey(), modifier);
             resetState();

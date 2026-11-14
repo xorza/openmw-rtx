@@ -275,8 +275,8 @@ void CSMTools::Search::replace(CSMDoc::Document& document, CSMWorld::IdTableBase
 {
     std::istringstream stream(messageHint.c_str());
 
-    char hint, ignore;
-    int columnId, pos, length;
+    char hint = 0, ignore = 0;
+    int columnId = 0, pos = 0, length = 0;
 
     if (stream >> hint >> ignore >> columnId >> pos >> length)
     {

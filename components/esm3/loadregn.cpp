@@ -88,7 +88,7 @@ namespace ESM
                     }
                     else
                     {
-                        uint8_t chance;
+                        uint8_t chance = 0;
                         esm.getT(chance);
                         ESM::RefId weather = esm.getRefId(esm.getSubSize() - sizeof(chance));
                         mData.mProbabilities[weather] = chance;

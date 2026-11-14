@@ -48,7 +48,7 @@ std::string ESM::loadLuaBinaryData(ESMReader& esm)
 
 static bool readBool(ESM::ESMReader& esm)
 {
-    char c;
+    char c = 0;
     esm.getT<char>(c);
     return c != 0;
 }

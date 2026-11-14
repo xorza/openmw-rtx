@@ -57,10 +57,12 @@ void ESM4::AcousticSpace::load(ESM4::Reader& reader)
                 reader.get(mIsInterior);
                 break;
             case ESM::fourCC("XTRI"):
-                std::uint8_t isInterior;
+            {
+                std::uint8_t isInterior = 0;
                 reader.get(isInterior);
                 mIsInterior = isInterior;
                 break;
+            }
             case ESM::fourCC("WNAM"):
             {
                 // usually 0 for FNV (maybe # of close Actors for Walla to trigger) (4 bytes)

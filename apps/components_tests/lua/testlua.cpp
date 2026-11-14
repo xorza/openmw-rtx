@@ -333,7 +333,7 @@ return {
                 lua_gc(mLua.unsafeState(), LUA_GCCOLLECT, 0);
             return mLua.getTotalMemoryUsage();
         };
-        int64_t memWithScript;
+        int64_t memWithScript = 0;
         const VFS::Path::Normalized path("requireBig.lua");
         {
             sol::object s = mLua.runInNewSandbox(path);

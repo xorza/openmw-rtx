@@ -41,7 +41,7 @@ namespace
             if (strip.size() < 3)
                 continue;
 
-            unsigned short a;
+            unsigned short a = 0;
             unsigned short b = strip[0];
             unsigned short c = strip[1];
             for (size_t i = 2; i < strip.size(); i++)
@@ -516,7 +516,7 @@ namespace Nif
     void NiDefaultAVObjectPalette::read(NIFStream* nif)
     {
         mScene.read(nif);
-        uint32_t numObjects;
+        uint32_t numObjects = 0;
         nif->read(numObjects);
         for (uint32_t i = 0; i < numObjects; i++)
             mObjects[nif->getSizedString()].read(nif);
@@ -574,7 +574,7 @@ namespace Nif
         mAlphaProperty.read(nif);
         mVertDesc.read(nif);
 
-        size_t numTriangleIndices;
+        size_t numTriangleIndices = 0;
         if (nif->getBethVersion() >= NIFFile::BethVersion::BETHVER_FO4)
             numTriangleIndices = nif->get<uint32_t>() * 3;
         else
@@ -654,7 +654,7 @@ namespace Nif
 
     void BSSubIndexTriShape::SubSegmentData::read(NIFStream* nif)
     {
-        uint32_t numArrayIndices;
+        uint32_t numArrayIndices = 0;
         nif->read(numArrayIndices);
         const auto numRecords = nif->get<uint32_t>();
         nif->readVector(mArrayIndices, numArrayIndices);
@@ -684,7 +684,7 @@ namespace Nif
 
     void BSVertexDesc::read(NIFStream* nif)
     {
-        uint64_t data;
+        uint64_t data = 0;
         nif->read(data);
         mVertexDataSize = (data & 0xF) >> 0x00;
         mDynamicVertexSize = (data & 0xF0) >> 0x04;

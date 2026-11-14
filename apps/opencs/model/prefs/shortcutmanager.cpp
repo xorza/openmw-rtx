@@ -310,7 +310,7 @@ namespace CSMPrefs
                 QString settingName = toolTip.mid(startIndex, count);
 
                 QKeySequence sequence;
-                int modifier;
+                int modifier = 0;
 
                 if (getSequence(settingName.toUtf8().data(), sequence))
                 {

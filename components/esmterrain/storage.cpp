@@ -432,7 +432,7 @@ namespace ESMTerrain
             const ESM::LandData* ldata = land->getData(0);
             if (!ldata)
                 return;
-            int quad;
+            int quad = 0;
             if (sample.mSrcRow == 0)
                 quad = sample.mSrcCol == 0 ? 0 : 2;
             else

@@ -1050,7 +1050,7 @@ namespace MWWorld
 
         while (reader.isNextSub("OBJE"))
         {
-            unsigned int unused;
+            unsigned int unused = 0;
             reader.getHT(unused);
 
             // load the RefID first so we know what type of object it is

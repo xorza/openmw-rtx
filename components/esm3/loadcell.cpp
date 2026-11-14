@@ -1,5 +1,6 @@
 #include "loadcell.hpp"
 
+#include <cmath>
 #include <limits>
 #include <list>
 #include <string>
@@ -138,13 +139,16 @@ namespace ESM
             switch (esm.retSubName().toInt())
             {
                 case fourCC("INTV"):
-                    int32_t waterl;
+                {
+                    int32_t waterl = 0;
                     esm.getHT(waterl);
                     mHasWaterHeightSub = true;
                     mWater = static_cast<float>(waterl);
                     break;
+                }
                 case fourCC("WHGT"):
-                    float waterLevel;
+                {
+                    float waterLevel = NAN;
                     esm.getHT(waterLevel);
                     mHasWaterHeightSub = true;
                     if (!std::isfinite(waterLevel))
@@ -157,6 +161,7 @@ namespace ESM
                     else
                         mWater = waterLevel;
                     break;
+                }
                 case fourCC("AMBI"):
                     esm.getSubComposite(mAmbi);
                     mHasAmbi = true;
@@ -266,7 +271,7 @@ namespace ESM
             CellRef skippedCellRef;
             if (!esm.peekNextSub("FRMR"))
                 return false;
-            bool skippedDeleted;
+            bool skippedDeleted = false;
             skippedCellRef.load(esm, skippedDeleted);
         }
 

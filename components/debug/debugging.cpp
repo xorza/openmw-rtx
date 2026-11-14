@@ -129,7 +129,7 @@ namespace Debug
                 }
 
                 char prefix[32];
-                std::size_t prefixSize;
+                std::size_t prefixSize = 0;
                 {
                     prefix[0] = '[';
                     const auto now = std::chrono::system_clock::now();

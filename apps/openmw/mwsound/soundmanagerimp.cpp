@@ -258,7 +258,7 @@ namespace MWSound
         static float minDistance = std::max(fAudioVoiceDefaultMinDistance * fAudioMinDistanceMult, 1.0f);
         static float maxDistance = std::max(fAudioVoiceDefaultMaxDistance * fAudioMaxDistanceMult, minDistance);
 
-        bool played;
+        bool played = false;
         float basevol = volumeFromType(Type::Voice);
         StreamPtr sound = getStreamRef();
         if (playlocal)
@@ -572,7 +572,7 @@ namespace MWSound
         const osg::Vec3f objpos(ptr.getRefData().getPosition().asVec3());
         const float squaredDist = (mListenerPos - objpos).length2();
 
-        bool played;
+        bool played = false;
         SoundPtr sound = getSoundRef();
         if (!(mode & PlayMode::NoPlayerLocal) && ptr == MWMechanics::getPlayer())
         {
@@ -987,9 +987,7 @@ namespace MWSound
         const MWWorld::Cell* curcell = player.getCell()->getCell();
         const auto update = mWaterSoundUpdater.update(player, *world);
 
-        WaterSoundAction action;
-        SoundBuffer* sfx;
-        std::tie(action, sfx) = getWaterSoundAction(update, curcell);
+        const auto [action, sfx] = getWaterSoundAction(update, curcell);
 
         switch (action)
         {
@@ -1328,7 +1326,7 @@ namespace MWSound
     void SoundDecoder::readAll(std::vector<char>& output)
     {
         size_t total = output.size();
-        size_t got;
+        size_t got = 0;
 
         output.resize(total + 32768);
         while ((got = read(&output[total], output.size() - total)) > 0)

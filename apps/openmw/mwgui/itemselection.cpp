@@ -19,11 +19,11 @@ namespace MWGui
         getWidget(mItemView, "ItemView");
         mItemView->eventItemClicked += MyGUI::newDelegate(this, &ItemSelectionDialog::onSelectedItem);
 
-        MyGUI::TextBox* l;
+        MyGUI::TextBox* l = nullptr;
         getWidget(l, "Label");
         l->setCaptionWithReplacing(label);
 
-        MyGUI::Button* cancelButton;
+        MyGUI::Button* cancelButton = nullptr;
         getWidget(cancelButton, "CancelButton");
         cancelButton->eventMouseButtonClick += MyGUI::newDelegate(this, &ItemSelectionDialog::onCancelButtonClicked);
 

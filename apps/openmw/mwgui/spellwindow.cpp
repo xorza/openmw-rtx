@@ -42,7 +42,7 @@ namespace MWGui
     {
         mSpellIcons = std::make_unique<SpellIcons>();
 
-        MyGUI::Widget* deleteButton;
+        MyGUI::Widget* deleteButton = nullptr;
         getWidget(deleteButton, "DeleteSpellButton");
 
         getWidget(mSpellView, "SpellView");
@@ -264,7 +264,7 @@ namespace MWGui
         if (itemCount == 0)
             return;
 
-        SpellModel::ModelIndex nextIndex;
+        SpellModel::ModelIndex nextIndex = 0;
         SpellModel::ModelIndex currentIndex = mSpellView->getModel()->getSelectedIndex();
 
         // If we have a selected index, search for a valid selection in the target direction

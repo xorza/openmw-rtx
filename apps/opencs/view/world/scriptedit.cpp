@@ -406,7 +406,7 @@ void CSVWorld::ScriptEdit::uncommentSelection()
             continue;
 
         // get first nonspace character in line
-        qsizetype index;
+        qsizetype index = 0;
         for (index = 0; index != line.size(); ++index)
         {
             if (!line[index].isSpace())

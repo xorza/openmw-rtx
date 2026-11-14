@@ -173,7 +173,7 @@ namespace MWRender
                 && (leafIndex == leaves.size()
                     || straddlingLeaves[straddlingIndex]->_depth >= leaves[leafIndex]->_depth);
 
-            osgUtil::RenderLeaf* leaf;
+            osgUtil::RenderLeaf* leaf = nullptr;
             if (drawStraddling)
                 leaf = straddlingLeaves[straddlingIndex++];
             else

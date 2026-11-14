@@ -65,7 +65,7 @@ namespace LuaUtil
 
     void LuaState::countHook(lua_State* state, lua_Debug* /*ar*/)
     {
-        LuaState* self;
+        LuaState* self = nullptr;
         (void)lua_getallocf(state, reinterpret_cast<void**>(&self));
         if (self->mActiveScriptIdStack.empty())
             return;

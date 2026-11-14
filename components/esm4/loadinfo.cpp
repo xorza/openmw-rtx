@@ -147,7 +147,7 @@ void ESM4::DialogInfo::load(ESM4::Reader& reader)
             }
             case ESM::fourCC("SCRV"):
             {
-                std::uint32_t index;
+                std::uint32_t index = 0;
                 reader.get(index);
 
                 mScript.localRefVarIndex.push_back(index);

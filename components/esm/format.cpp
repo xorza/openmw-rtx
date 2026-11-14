@@ -36,7 +36,7 @@ namespace ESM
     {
         if (value.size() != sizeof(std::uint32_t))
             throw std::logic_error("Invalid format value: " + std::string(value));
-        std::uint32_t format;
+        std::uint32_t format = 0;
         std::memcpy(&format, value.data(), sizeof(std::uint32_t));
         return toFormat(format);
     }

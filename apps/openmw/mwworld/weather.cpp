@@ -2,6 +2,7 @@
 
 #include <cassert>
 
+#include <cmath>
 #include <components/esm/stringrefid.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/resource/resourcesystem.hpp>
@@ -871,7 +872,7 @@ namespace MWWorld
             const float dayDuration = adjustedNightStart - mSunriseTime;
             const float nightDuration = 24.f - dayDuration;
 
-            float orbit;
+            float orbit = NAN;
             if (!isNight)
             {
                 float t = (adjustedHour - mSunriseTime) / dayDuration;

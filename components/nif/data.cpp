@@ -177,7 +177,7 @@ namespace Nif
     {
         NiTriBasedGeomData::read(nif);
 
-        uint32_t numIndices;
+        uint32_t numIndices = 0;
         nif->read(numIndices);
         if (nif->getVersion() > NIFFile::NIFVersion::VER_OB_OLD && !nif->get<bool>())
             numIndices = 0;
@@ -189,7 +189,7 @@ namespace Nif
     {
         NiTriBasedGeomData::read(nif);
 
-        uint16_t numStrips;
+        uint16_t numStrips = 0;
         nif->read(numStrips);
         std::vector<uint16_t> lengths;
         nif->readVector(lengths, numStrips);
@@ -464,7 +464,7 @@ namespace Nif
 
     void NiSkinPartition::Partition::read(NIFStream* nif)
     {
-        uint16_t numVertices, numTriangles, numBones, numStrips, bonesPerVertex;
+        uint16_t numVertices = 0, numTriangles = 0, numBones = 0, numStrips = 0, bonesPerVertex = 0;
         nif->read(numVertices);
         nif->read(numTriangles);
         nif->read(numBones);

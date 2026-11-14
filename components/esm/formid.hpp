@@ -52,7 +52,7 @@ namespace std
         size_t operator()(const ESM::FormId& formId) const
         {
             static_assert(sizeof(ESM::FormId) == sizeof(uint64_t));
-            uint64_t s;
+            uint64_t s = 0;
             memcpy(&s, &formId, sizeof(ESM::FormId));
             return hash<uint64_t>()(s);
         }

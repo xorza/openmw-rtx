@@ -48,7 +48,7 @@ namespace MWGui
         getWidget(mEnemyHealth, "EnemyHealth");
         mHealthManaStaminaBaseLeft = mHealthFrame->getLeft();
 
-        MyGUI::Widget *healthFrame, *magickaFrame, *fatigueFrame;
+        MyGUI::Widget *healthFrame = nullptr, *magickaFrame = nullptr, *fatigueFrame = nullptr;
         getWidget(healthFrame, "HealthFrame");
         getWidget(magickaFrame, "MagickaFrame");
         getWidget(fatigueFrame, "FatigueFrame");
@@ -123,7 +123,7 @@ namespace MWGui
         if (id != "FBar")
             current = std::max(0, current);
 
-        MyGUI::Widget* w;
+        MyGUI::Widget* w = nullptr;
         std::string valStr = MyGUI::utility::toString(current) + " / " + MyGUI::utility::toString(modified);
         if (id == "HBar")
         {

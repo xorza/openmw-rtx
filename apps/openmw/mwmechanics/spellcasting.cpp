@@ -61,7 +61,7 @@ namespace MWMechanics
                           // a projectile enchantment or ExplodeSpell
 
             // Spawn the explosion orb effect
-            const ESM::Static* areaStatic;
+            const ESM::Static* areaStatic = nullptr;
             if (!effect->mArea.empty())
                 areaStatic = world->getStore().get<ESM::Static>().find(effect->mArea);
             else
@@ -437,7 +437,7 @@ namespace MWMechanics
         {
             const auto effect = store.get<ESM::MagicEffect>().find(effectData.mData.mEffectID);
 
-            const ESM::Static* castStatic;
+            const ESM::Static* castStatic = nullptr;
 
             if (!effect->mCasting.empty())
                 castStatic = store.get<ESM::Static>().find(effect->mCasting);
@@ -516,7 +516,7 @@ namespace MWMechanics
         }
 
         // Add VFX
-        const ESM::Static* castStatic;
+        const ESM::Static* castStatic = nullptr;
         if (!magicEffect.mHit.empty())
             castStatic = store->get<ESM::Static>().find(magicEffect.mHit);
         else

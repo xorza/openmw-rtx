@@ -205,7 +205,7 @@ BookWindowBase::BookWindowBase(std::string_view parLayout)
 
 float BookWindowBase::adjustButton(std::string_view name)
 {
-    Gui::ImageButton* button;
+    Gui::ImageButton* button = nullptr;
     WindowBase::getWidget(button, name);
     MyGUI::IntSize requested = button->getRequestedSize();
     float scale = static_cast<float>(requested.height) / button->getSize().height;

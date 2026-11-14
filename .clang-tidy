@@ -47,7 +47,7 @@ Checks:
   - 'cppcoreguidelines-noexcept-*'
   # - cppcoreguidelines-rvalue-reference-param-not-moved
   # - cppcoreguidelines-no-malloc
-  # - cppcoreguidelines-init-variables
+  - cppcoreguidelines-init-variables
   # - cppcoreguidelines-use-enum-class
   # - cppcoreguidelines-pro-type-reinterpret-cast
   # - cppcoreguidelines-pro-type-const-cast

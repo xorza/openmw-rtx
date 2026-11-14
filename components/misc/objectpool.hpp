@@ -60,7 +60,7 @@ namespace Misc
 
         ObjectPtr<T> get()
         {
-            T* object;
+            T* object = nullptr;
 
             if (!mUnused.empty())
             {

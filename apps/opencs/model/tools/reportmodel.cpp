@@ -88,8 +88,8 @@ QVariant CSMTools::ReportModel::data(const QModelIndex& index, int role) const
 
         std::istringstream stream(mRows.at(index.row()).mHint);
 
-        char type, ignore;
-        int fieldIndex;
+        char type = 0, ignore = 0;
+        int fieldIndex = 0;
 
         if ((stream >> type >> ignore >> fieldIndex) && (type == 'r' || type == 'R'))
         {

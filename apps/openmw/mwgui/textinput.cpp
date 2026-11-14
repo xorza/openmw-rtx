@@ -21,7 +21,7 @@ namespace MWGui
         getWidget(mTextEdit, "TextEdit");
         mTextEdit->eventEditSelectAccept += newDelegate(this, &TextInputDialog::onTextAccepted);
 
-        MyGUI::Button* okButton;
+        MyGUI::Button* okButton = nullptr;
         getWidget(okButton, "OKButton");
         okButton->eventMouseButtonClick += MyGUI::newDelegate(this, &TextInputDialog::onOkClicked);
 
@@ -33,7 +33,7 @@ namespace MWGui
 
     void TextInputDialog::setNextButtonShow(bool shown)
     {
-        MyGUI::Button* okButton;
+        MyGUI::Button* okButton = nullptr;
         getWidget(okButton, "OKButton");
 
         if (shown)

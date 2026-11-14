@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cmath>
 #include <components/debug/debuglog.hpp>
 
 #include <components/sceneutil/positionattitudetransform.hpp>
@@ -88,7 +89,7 @@ namespace MWScript
                     return;
                 }
 
-                float distance;
+                float distance = NAN;
                 // If the objects are in different worldspaces, return a large value (just like vanilla)
                 if (!to.isInCell() || !from.isInCell()
                     || to.getCell()->getCell()->getWorldSpace() != from.getCell()->getCell()->getWorldSpace())

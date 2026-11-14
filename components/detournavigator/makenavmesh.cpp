@@ -604,8 +604,8 @@ namespace DetourNavigator
         params.tileY = tile.y();
         params.tileLayer = 0;
 
-        unsigned char* navMeshData;
-        int navMeshDataSize;
+        unsigned char* navMeshData = nullptr;
+        int navMeshDataSize = 0;
 
         if (!dtCreateNavMeshData(&params, &navMeshData, &navMeshDataSize))
             throw NavigatorException("Failed to create navmesh tile data");

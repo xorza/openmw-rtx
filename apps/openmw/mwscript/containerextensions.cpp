@@ -362,7 +362,7 @@ namespace MWScript
                 Interpreter::Type_Integer location = runtime[0].mInteger;
                 runtime.pop();
 
-                int slot;
+                int slot = 0;
                 switch (location)
                 {
                     case 0:

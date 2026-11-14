@@ -135,7 +135,7 @@ namespace ESM
                         while (esm.isNextSub("ATTR"))
                         {
                             esm.getSubHeader();
-                            int32_t value;
+                            int32_t value = 0;
                             esm.getT(value);
                             ESM::RefId attribute = esm.getRefId(esm.getSubSize() - sizeof(value));
                             mData.mAttributes.emplace(attribute, value);
@@ -145,12 +145,14 @@ namespace ESM
                     break;
                 }
                 case fourCC("FLAG"):
-                    int flags;
+                {
+                    int flags = 0;
                     esm.getHT(flags);
                     mFlags = flags & 0xFF;
                     mBloodType = ((flags >> 8) & 0xFF) >> 2;
                     hasFlags = true;
                     break;
+                }
                 case fourCC("XSCL"):
                     esm.getHT(mScale);
                     break;
@@ -180,11 +182,13 @@ namespace ESM
                     isDeleted = true;
                     break;
                 case fourCC("INDX"):
+                {
                     // seems to occur only in .ESS files, unsure of purpose
-                    int index;
+                    int index = 0;
                     esm.getHT(index);
                     Log(Debug::Warning) << "Creature::load: Unhandled INDX " << index;
                     break;
+                }
                 default:
                     esm.fail("Unknown subrecord");
                     break;

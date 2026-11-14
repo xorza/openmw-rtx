@@ -101,7 +101,7 @@ void ESM4::Cell::load(ESM4::Reader& reader)
                 //        0x2 - Force Hide Land Quad 2
                 //        0x4 - Force Hide Land Quad 3
                 //        0x8 - Force Hide Land Quad 4
-                uint32_t flags;
+                uint32_t flags = 0;
                 reader.get(mX);
                 reader.get(mY);
                 if (subHdr.dataSize == 12)
@@ -154,7 +154,7 @@ void ESM4::Cell::load(ESM4::Reader& reader)
                     case 12:
                     {
                         reader.getFormId(mOwner);
-                        std::uint32_t dummy;
+                        std::uint32_t dummy = 0;
                         reader.get(dummy); // Unknown
                         reader.get(dummy); // No crime flag, FO4
                         break;

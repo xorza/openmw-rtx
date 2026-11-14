@@ -606,10 +606,10 @@ namespace MWMechanics
         MWWorld::Ptr playerPtr = getPlayer();
         const MWMechanics::NpcStats& playerStats = playerPtr.getClass().getNpcStats(playerPtr);
 
-        float npcRating1, npcRating2, npcRating3;
+        float npcRating1 = NAN, npcRating2 = NAN, npcRating3 = NAN;
         getPersuasionRatings(npcStats, npcRating1, npcRating2, npcRating3, false);
 
-        float playerRating1, playerRating2, playerRating3;
+        float playerRating1 = NAN, playerRating2 = NAN, playerRating3 = NAN;
         getPersuasionRatings(playerStats, playerRating1, playerRating2, playerRating3, true);
 
         const int currentDisposition = getDerivedDisposition(npc);
@@ -618,7 +618,7 @@ namespace MWMechanics
         float target1 = d * (playerRating1 - npcRating1 + 50);
         float target2 = d * (playerRating2 - npcRating2 + 50);
 
-        float bribeMod;
+        float bribeMod = NAN;
         if (type == PT_Bribe10)
             bribeMod = gmst.find("fBribe10Mod")->mValue.getFloat();
         else if (type == PT_Bribe100)
@@ -652,7 +652,7 @@ namespace MWMechanics
 
             success = (roll <= target2);
 
-            float r;
+            float r = NAN;
             if (roll != target2)
                 r = std::floor(target2 - roll);
             else
@@ -1235,8 +1235,8 @@ namespace MWMechanics
             victim.getClass().getCreatureStats(victim).notifyMurder();
 
         // Bounty and disposition penalty for each type of crime
-        int bounty;
-        float disp, dispVictim;
+        int bounty = 0;
+        float disp = NAN, dispVictim = NAN;
         if (type == OT_Trespassing || type == OT_SleepingInOwnedBed)
         {
             bounty = store.find("iCrimeTresspass")->mValue.getInteger();

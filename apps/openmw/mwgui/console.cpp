@@ -666,7 +666,7 @@ namespace MWGui
             }
             else
             {
-                size_t pos;
+                size_t pos = 0;
                 if ((((pos = tmp.rfind(' ')) != std::string::npos)) && (pos > tmp.rfind('"')))
                 {
                     tmp.erase(0, tmp.rfind(' ') + 1);
@@ -681,7 +681,7 @@ namespace MWGui
         /* No quotation marks. Are there spaces?*/
         else
         {
-            size_t rpos;
+            size_t rpos = 0;
             if ((rpos = tmp.rfind(' ')) != std::string::npos)
             {
                 if (rpos == 0)

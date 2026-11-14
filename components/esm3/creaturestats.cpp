@@ -127,12 +127,12 @@ namespace ESM
         {
             while (esm.isNextSub("SUMM"))
             {
-                int32_t magicEffect;
+                int32_t magicEffect = 0;
                 esm.getHT(magicEffect);
                 ESM::RefId source = esm.getHNORefId("SOUR");
                 int32_t effectIndex = -1;
                 esm.getHNOT(effectIndex, "EIND");
-                int32_t actorId;
+                int32_t actorId = 0;
                 esm.getHNT(actorId, "ACID");
                 mSummonedCreatureMap[SummonKey(ESM::MagicEffect::indexToRefId(magicEffect), source, effectIndex)]
                     = actorId;
@@ -147,7 +147,7 @@ namespace ESM
                 RefId effectId;
                 if (esm.getFormatVersion() <= MaxSerializeEffectRefIdFormatVersion)
                 {
-                    int32_t magicEffect;
+                    int32_t magicEffect = 0;
                     esm.getHT(magicEffect);
                     effectId = ESM::MagicEffect::indexToRefId(magicEffect);
                 }
@@ -164,7 +164,7 @@ namespace ESM
 
         while (esm.isNextSub("GRAV"))
         {
-            int32_t actorId;
+            int32_t actorId = 0;
             esm.getHT(actorId);
             mSummonGraveyard.push_back(actorId);
         }

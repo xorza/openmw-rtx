@@ -28,7 +28,7 @@ namespace Misc
 
     std::vector<std::byte> decompress(const std::vector<std::byte>& data)
     {
-        std::size_t originalSize;
+        std::size_t originalSize = 0;
         std::memcpy(&originalSize, data.data(), sizeof(originalSize));
         std::vector<std::byte> result(originalSize);
         const int size = LZ4_decompress_safe(reinterpret_cast<const char*>(data.data()) + sizeof(originalSize),

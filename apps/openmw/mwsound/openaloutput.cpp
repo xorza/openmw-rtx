@@ -2,6 +2,7 @@
 #include <array>
 #include <atomic>
 #include <chrono>
+#include <cmath>
 #include <condition_variable>
 #include <cstring>
 #include <memory>
@@ -483,8 +484,8 @@ namespace MWSound
         if (err != AL_NO_ERROR)
             return false;
 
-        ChannelConfig chans;
-        SampleType type;
+        ChannelConfig chans{};
+        SampleType type{};
 
         try
         {
@@ -523,7 +524,7 @@ namespace MWSound
 
     bool OpenAL_SoundStream::isPlaying()
     {
-        ALint state;
+        ALint state = 0;
 
         alGetSourcei(mSource, AL_SOURCE_STATE, &state);
         getALError();
@@ -537,13 +538,13 @@ namespace MWSound
     {
         ALint state = AL_STOPPED;
         double d = 0.0;
-        ALint offset;
+        ALint offset = 0;
 
         alGetSourcei(mSource, AL_SAMPLE_OFFSET, &offset);
         alGetSourcei(mSource, AL_SOURCE_STATE, &state);
         if (state == AL_PLAYING || state == AL_PAUSED)
         {
-            ALint queued;
+            ALint queued = 0;
             alGetSourcei(mSource, AL_BUFFERS_QUEUED, &queued);
             ALint inqueue = mBufferSize / mFrameSize * queued - offset;
             d = static_cast<double>(inqueue) / static_cast<double>(mSampleRate);
@@ -556,14 +557,14 @@ namespace MWSound
     float OpenAL_SoundStream::getStreamOffset() const
     {
         ALint state = AL_STOPPED;
-        ALint offset;
-        float t;
+        ALint offset = 0;
+        float t = NAN;
 
         alGetSourcei(mSource, AL_SAMPLE_OFFSET, &offset);
         alGetSourcei(mSource, AL_SOURCE_STATE, &state);
         if (state == AL_PLAYING || state == AL_PAUSED)
         {
-            ALint queued;
+            ALint queued = 0;
             alGetSourcei(mSource, AL_BUFFERS_QUEUED, &queued);
             ALint inqueue = mBufferSize / mFrameSize * queued - offset;
             t = (mDecoder->getSampleOffset() - inqueue) / static_cast<float>(mSampleRate);
@@ -594,7 +595,7 @@ namespace MWSound
         {
             if (refillQueue() > 0)
             {
-                ALint state;
+                ALint state = 0;
                 alGetSourcei(mSource, AL_SOURCE_STATE, &state);
                 if (state != AL_PLAYING && state != AL_PAUSED)
                 {
@@ -615,16 +616,16 @@ namespace MWSound
 
     ALint OpenAL_SoundStream::refillQueue()
     {
-        ALint processed;
+        ALint processed = 0;
         alGetSourcei(mSource, AL_BUFFERS_PROCESSED, &processed);
         while (processed > 0)
         {
-            ALuint buf;
+            ALuint buf = 0;
             alSourceUnqueueBuffers(mSource, 1, &buf);
             --processed;
         }
 
-        ALint queued;
+        ALint queued = 0;
         alGetSourcei(mSource, AL_BUFFERS_QUEUED, &queued);
         if (!mIsFinished && static_cast<ALuint>(queued) < mBuffers.size())
         {
@@ -659,7 +660,7 @@ namespace MWSound
     std::vector<std::string> OpenALOutput::enumerate()
     {
         std::vector<std::string> devlist;
-        const ALCchar* devnames;
+        const ALCchar* devnames = nullptr;
 
         if (alcIsExtensionPresent(nullptr, "ALC_ENUMERATE_ALL_EXT"))
             devnames = alcGetString(nullptr, ALC_ALL_DEVICES_SPECIFIER);
@@ -752,7 +753,7 @@ namespace MWSound
             if (!hrtfname.empty())
             {
                 ALCint index = -1;
-                ALCint numHrtf;
+                ALCint numHrtf = 0;
                 alcGetIntegerv(mDevice, ALC_NUM_HRTF_SPECIFIERS_SOFT, 1, &numHrtf);
                 for (ALCint i = 0; i < numHrtf; ++i)
                 {
@@ -820,7 +821,7 @@ namespace MWSound
             Log(Debug::Warning) << "HRTF status unavailable";
         else
         {
-            ALCint hrtfState;
+            ALCint hrtfState = 0;
             alcGetIntegerv(mDevice, ALC_HRTF_SOFT, 1, &hrtfState);
             if (!hrtfState)
                 Log(Debug::Info) << "HRTF disabled";
@@ -833,7 +834,7 @@ namespace MWSound
 
         AL.SOFT_source_spatialize = alIsExtensionPresent("AL_SOFT_source_spatialize");
 
-        ALCuint maxtotal;
+        ALCuint maxtotal = 0;
         ALCint maxmono = 0, maxstereo = 0;
         alcGetIntegerv(mDevice, ALC_MONO_SOURCES, 1, &maxmono);
         alcGetIntegerv(mDevice, ALC_STEREO_SOURCES, 1, &maxstereo);
@@ -1018,7 +1019,7 @@ namespace MWSound
         LPALCGETSTRINGISOFT alcGetStringiSOFT = nullptr;
         getALCFunc(alcGetStringiSOFT, mDevice, "alcGetStringiSOFT");
 
-        ALCint numHrtf;
+        ALCint numHrtf = 0;
         alcGetIntegerv(mDevice, ALC_NUM_HRTF_SPECIFIERS_SOFT, 1, &numHrtf);
         ret.reserve(numHrtf);
         for (ALCint i = 0; i < numHrtf; ++i)
@@ -1043,8 +1044,8 @@ namespace MWSound
             DecoderPtr decoder = mManager.getDecoder();
             decoder->open(Misc::ResourceHelpers::correctSoundPath(fname, *decoder->mResourceMgr));
 
-            ChannelConfig chans;
-            SampleType type;
+            ChannelConfig chans{};
+            SampleType type{};
             decoder->getInfo(&srate, &chans, &type);
             format = getALFormat(chans, type);
             if (format)
@@ -1063,7 +1064,7 @@ namespace MWSound
             data.assign(8000, -128);
         }
 
-        ALint size;
+        ALint size = 0;
         ALuint buf = 0;
         alGenBuffers(1, &buf);
         alBufferData(buf, format, data.data(), static_cast<ALsizei>(data.size()), srate);
@@ -1092,7 +1093,7 @@ namespace MWSound
                 continue;
 
             ALuint source = GET_PTRID((*iter)->mHandle);
-            ALint srcbuf;
+            ALint srcbuf = 0;
             alGetSourcei(source, AL_BUFFER, &srcbuf);
             if (std::cmp_equal(srcbuf, buffer))
             {
@@ -1203,7 +1204,7 @@ namespace MWSound
 
     bool OpenALOutput::playSound(Sound* sound, Sound_Handle data, float offset)
     {
-        ALuint source;
+        ALuint source = 0;
 
         if (mFreeSources.empty())
         {
@@ -1242,7 +1243,7 @@ namespace MWSound
 
     bool OpenALOutput::playSound3D(Sound* sound, Sound_Handle data, float offset)
     {
-        ALuint source;
+        ALuint source = 0;
 
         if (mFreeSources.empty())
         {

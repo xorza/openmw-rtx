@@ -45,7 +45,7 @@ void ESM4::Navigation::IslandInfo::load(ESM4::Reader& reader)
 {
     loadBounds(reader);
 
-    std::uint32_t count;
+    std::uint32_t count = 0;
     reader.get(count); // countTriangle;
     if (count)
     {
@@ -92,8 +92,8 @@ void ESM4::Navigation::NavMeshInfo::loadFO3(ESM4::Reader& reader)
         IslandInfo island;
         island.loadBounds(reader);
 
-        std::uint16_t vertexCount;
-        std::uint16_t triangleCount;
+        std::uint16_t vertexCount = 0;
+        std::uint16_t triangleCount = 0;
         reader.get(vertexCount);
         reader.get(triangleCount);
         island.verticies.resize(vertexCount);
@@ -111,7 +111,7 @@ void ESM4::Navigation::NavMeshInfo::loadFO3(ESM4::Reader& reader)
 
 void ESM4::Navigation::NavMeshInfo::loadTES5(ESM4::Reader& reader)
 {
-    std::uint32_t count;
+    std::uint32_t count = 0;
 
     reader.getFormId(formId);
     reader.get(flags);
@@ -164,7 +164,7 @@ void ESM4::Navigation::NavMeshInfo::loadTES5(ESM4::Reader& reader)
         }
     }
 
-    unsigned char island;
+    unsigned char island = 0;
     reader.get(island);
     if (island)
     {
@@ -222,7 +222,7 @@ void ESM4::Navigation::load(ESM4::Reader& reader)
             }
             case ESM::fourCC("NVPP"):
             {
-                std::uint32_t count;
+                std::uint32_t count = 0;
                 reader.get(count);
                 mPreferredPaths.resize(count);
                 for (std::vector<ESM::FormId>& path : mPreferredPaths)
@@ -237,7 +237,7 @@ void ESM4::Navigation::load(ESM4::Reader& reader)
                 for (std::uint32_t i = 0; i < count; ++i)
                 {
                     ESM::FormId node;
-                    std::uint32_t index;
+                    std::uint32_t index = 0;
                     reader.getFormId(node);
                     reader.get(index);
                     mPathIndexMap.emplace(node, index);
@@ -246,7 +246,7 @@ void ESM4::Navigation::load(ESM4::Reader& reader)
             }
             case ESM::fourCC("NVER"):
             {
-                std::uint32_t version; // always the same? (0x0c)
+                std::uint32_t version = 0; // always the same? (0x0c)
                 reader.get(version); // TODO: store this or use it for merging?
                 // std::cout << "NAVI version " << std::dec << version << std::endl;
                 break;

@@ -110,19 +110,19 @@ namespace MWGui
 
     void PersuasionDialog::onPersuade(MyGUI::Widget* sender)
     {
-        MWBase::MechanicsManager::PersuasionType type;
-        if (sender == mAdmireButton)
-            type = MWBase::MechanicsManager::PT_Admire;
-        else if (sender == mIntimidateButton)
-            type = MWBase::MechanicsManager::PT_Intimidate;
-        else if (sender == mTauntButton)
-            type = MWBase::MechanicsManager::PT_Taunt;
-        else if (sender == mBribe10Button)
-            type = MWBase::MechanicsManager::PT_Bribe10;
-        else if (sender == mBribe100Button)
-            type = MWBase::MechanicsManager::PT_Bribe100;
-        else /*if (sender == mBribe1000Button)*/
-            type = MWBase::MechanicsManager::PT_Bribe1000;
+        const MWBase::MechanicsManager::PersuasionType type = [&] {
+            if (sender == mAdmireButton)
+                return MWBase::MechanicsManager::PT_Admire;
+            if (sender == mIntimidateButton)
+                return MWBase::MechanicsManager::PT_Intimidate;
+            if (sender == mTauntButton)
+                return MWBase::MechanicsManager::PT_Taunt;
+            if (sender == mBribe10Button)
+                return MWBase::MechanicsManager::PT_Bribe10;
+            if (sender == mBribe100Button)
+                return MWBase::MechanicsManager::PT_Bribe100;
+            return MWBase::MechanicsManager::PT_Bribe1000;
+        }();
 
         MWBase::Environment::get().getDialogueManager()->persuade(type, mCallback.get());
         mCallback->updateTopics();

@@ -67,7 +67,7 @@ namespace DetourNavigator
 
         osg::Vec3f nearestNavMeshPos;
         const osg::Vec3f endPolyHalfExtents = toNavMeshCoordinates(settings.mRecast, searchAreaHalfExtents);
-        dtPolyRef polyRef;
+        dtPolyRef polyRef = 0;
         if (const dtStatus status = navMeshQuery.findNearestPoly(
                 navMeshPosition.ptr(), endPolyHalfExtents.ptr(), &queryFilter, &polyRef, nearestNavMeshPos.ptr());
             dtStatusFailed(status) || polyRef == 0)

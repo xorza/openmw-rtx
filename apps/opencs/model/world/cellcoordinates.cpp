@@ -70,8 +70,8 @@ std::pair<CSMWorld::CellCoordinates, bool> CSMWorld::CellCoordinates::fromId(con
     // no worldspace for now, needs to be changed for 1.1
     if (isExteriorCell(id))
     {
-        int x, y;
-        char ignore;
+        int x = 0, y = 0;
+        char ignore = 0;
 
         std::istringstream stream(id);
         if (stream >> ignore >> x >> y)

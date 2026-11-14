@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <sstream>
 #include <stdexcept>
 #include <vector>
@@ -211,7 +212,7 @@ CSMFilter::Token CSMFilter::Parser::getNumberToken()
         return Token(Token::Type_None);
     }
 
-    float value;
+    float value = NAN;
     std::istringstream stream(string.c_str());
     stream >> value;
 

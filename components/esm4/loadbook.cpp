@@ -65,7 +65,7 @@ void ESM4::Book::load(ESM4::Reader& reader)
                     {
                         reader.get(mData.flags);
                         reader.get(mData.type);
-                        std::uint16_t dummy;
+                        std::uint16_t dummy = 0;
                         reader.get(dummy);
                         reader.get(mData.teaches);
                         reader.get(mData.value);

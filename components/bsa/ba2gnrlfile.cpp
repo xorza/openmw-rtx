@@ -43,19 +43,19 @@ namespace Bsa
         mFiles.reserve(fileCount);
         for (uint32_t i = 0; i < fileCount; ++i)
         {
-            uint32_t nameHash, extHash, dirHash;
+            uint32_t nameHash = 0, extHash = 0, dirHash = 0;
             in.read(reinterpret_cast<char*>(&nameHash), sizeof(uint32_t));
             in.read(reinterpret_cast<char*>(&extHash), sizeof(uint32_t));
             in.read(reinterpret_cast<char*>(&dirHash), sizeof(uint32_t));
 
             FileRecord file;
-            uint32_t unknown;
+            uint32_t unknown = 0;
             in.read(reinterpret_cast<char*>(&unknown), sizeof(uint32_t));
             in.read(reinterpret_cast<char*>(&file.mOffset), sizeof(int64_t));
             in.read(reinterpret_cast<char*>(&file.mPackedSize), sizeof(uint32_t));
             in.read(reinterpret_cast<char*>(&file.mSize), sizeof(uint32_t));
 
-            uint32_t baadfood;
+            uint32_t baadfood = 0;
             in.read(reinterpret_cast<char*>(&baadfood), sizeof(uint32_t));
             if (baadfood != 0xBAADF00D)
                 fail("Corrupted BSA");
@@ -80,8 +80,8 @@ namespace Bsa
             fail("File too small to be a valid BSA archive");
 
         // Get essential header numbers
-        uint32_t type, fileCount;
-        uint64_t fileTableOffset;
+        uint32_t type = 0, fileCount = 0;
+        uint64_t fileTableOffset = 0;
         {
             uint32_t header[4];
             input.read(reinterpret_cast<char*>(header), 16);
@@ -97,9 +97,11 @@ namespace Bsa
                 case BA2Version::Fallout4NextGen_v8:
                     break;
                 case BA2Version::StarfieldGeneral:
-                    uint64_t dummy;
+                {
+                    uint64_t dummy = 0;
                     input.read(reinterpret_cast<char*>(&dummy), 8);
                     break;
+                }
                 default:
                     fail("Unrecognized general BA2 version");
             }
@@ -118,7 +120,7 @@ namespace Bsa
         for (uint32_t i = 0; i < fileCount; ++i)
         {
             std::vector<char> fileName;
-            uint16_t fileNameSize;
+            uint16_t fileNameSize = 0;
             input.read(reinterpret_cast<char*>(&fileNameSize), sizeof(uint16_t));
             fileName.resize(fileNameSize + 1);
             input.read(fileName.data(), fileNameSize);

@@ -21,6 +21,7 @@
 
 #include <array>
 
+#include <cmath>
 #include <components/esm/records.hpp>
 #include <components/misc/mathutil.hpp>
 #include <components/misc/resourcehelpers.hpp>
@@ -553,7 +554,7 @@ namespace MWMechanics
             if (!mAnimation || !mAnimation->hasAnimation("containerclose"))
                 return;
 
-            float complete, startPoint = 0.f;
+            float complete = NAN, startPoint = 0.f;
             bool animPlaying = mAnimation->getInfo("containeropen", &complete);
             if (animPlaying)
                 startPoint = 1.f - complete;
@@ -1417,7 +1418,7 @@ namespace MWMechanics
                 }
             }
 
-            float complete;
+            float complete = NAN;
             bool animPlaying = mAnimation->getInfo(mCurrentWeapon, &complete);
             if (!animPlaying || complete >= 1.0f)
             {
@@ -1934,8 +1935,8 @@ namespace MWMechanics
         }
         else
         {
-            float complete;
-            uint32_t loopcount;
+            float complete = NAN;
+            uint32_t loopcount = 0;
             mAnimation->getInfo(mAnimQueue.front().mGroup, &complete, nullptr, &loopcount);
             mAnimQueue.front().mLoopCount = loopcount;
             mAnimQueue.front().mTime = complete;
@@ -2042,7 +2043,7 @@ namespace MWMechanics
                 float speedDelta = movementSettings.mSpeedFactor - mSmoothedSpeed.length();
                 float deltaLen = delta.length();
 
-                float maxDelta;
+                float maxDelta = NAN;
                 if (isFirstPersonPlayer)
                     maxDelta = 1;
                 else if (std::abs(speedDelta) < deltaLen / 2)
@@ -2560,8 +2561,8 @@ namespace MWMechanics
 
             if (iter == mAnimQueue.begin() && mAnimation)
             {
-                float complete;
-                uint32_t loopcount;
+                float complete = NAN;
+                uint32_t loopcount = 0;
                 mAnimation->getInfo(anim.mGroup, &complete, nullptr, &loopcount);
                 anim.mTime = complete;
                 anim.mLoopCount = loopcount;

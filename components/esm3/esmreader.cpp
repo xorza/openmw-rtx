@@ -203,7 +203,7 @@ namespace ESM
         {
             // Skip the following zero byte
             mCtx.leftRec--;
-            char c;
+            char c = 0;
             getT(c);
             return std::string_view();
         }
@@ -505,7 +505,7 @@ namespace ESM
             }
             case RefIdType::ESM3ExteriorCell:
             {
-                int32_t x, y;
+                int32_t x = 0, y = 0;
                 getT(x);
                 getT(y);
                 return RefId::esm3ExteriorCell(x, y);

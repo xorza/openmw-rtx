@@ -12,6 +12,7 @@
 #include <MyGUI_TextIterator.h>
 #include <MyGUI_Window.h>
 
+#include <cmath>
 #include <components/esm3/esmwriter.hpp>
 #include <components/esm3/globalmap.hpp>
 #include <components/settings/values.hpp>
@@ -257,7 +258,7 @@ namespace MWGui
     {
         osg::Vec2i cellIndex;
         // normalized cell coordinates
-        float nX, nY;
+        float nX = NAN, nY = NAN;
 
         if (mActiveCell->isExterior())
         {
@@ -692,7 +693,7 @@ namespace MWGui
                 destNotes.push_back(iter->second.mNote);
 
             MarkerWidget* markerWidget = nullptr;
-            MarkerUserData* data;
+            MarkerUserData* data = nullptr;
             if (mDoorMarkersToRecycle.empty())
             {
                 markerWidget = createDoorMarker(marker.name, marker.x, marker.y);
@@ -1076,7 +1077,7 @@ namespace MWGui
 
     MyGUI::IntCoord MapWindow::createMarkerCoords(float x, float y, float agregatedWeight) const
     {
-        float worldX, worldY;
+        float worldX = NAN, worldY = NAN;
         worldPosToGlobalMapImageSpace(
             (x + 0.5f) * Constants::CellSizeInUnits, (y + 0.5f) * Constants::CellSizeInUnits, worldX, worldY);
 
@@ -1307,7 +1308,7 @@ namespace MWGui
 
     void MapWindow::setGlobalMapPlayerPosition(float worldX, float worldY)
     {
-        float x, y;
+        float x = NAN, y = NAN;
         worldPosToGlobalMapImageSpace(worldX, worldY, x, y);
         mPlayerArrowGlobal->setPosition(MyGUI::IntPoint(static_cast<int>(x - 16), static_cast<int>(y - 16)));
     }

@@ -45,12 +45,11 @@ CSVWorld::SceneSubView::SceneSubView(const CSMWorld::UniversalId& id, CSMDoc::Do
     mLayout->setContentsMargins(QMargins(0, 0, 0, 0));
 
     CSVRender::WorldspaceWidget* worldspaceWidget = nullptr;
-    WidgetType whatWidget;
+    const bool paged = Misc::StringUtils::ciEqual(id.getId(), ESM::Cell::sDefaultWorldspaceId.getValue());
+    const WidgetType whatWidget = paged ? widget_Paged : widget_Unpaged;
 
-    if (Misc::StringUtils::ciEqual(id.getId(), ESM::Cell::sDefaultWorldspaceId.getValue()))
+    if (paged)
     {
-        whatWidget = widget_Paged;
-
         auto* newWidget = new CSVRender::PagedWorldspaceWidget(this, document);
 
         worldspaceWidget = newWidget;
@@ -59,8 +58,6 @@ CSVWorld::SceneSubView::SceneSubView(const CSMWorld::UniversalId& id, CSMDoc::Do
     }
     else
     {
-        whatWidget = widget_Unpaged;
-
         auto* newWidget = new CSVRender::UnpagedWorldspaceWidget(id.getId(), document, this);
 
         worldspaceWidget = newWidget;

@@ -170,9 +170,9 @@ namespace MWGui
                 if (valueType == "Float" || valueType == "Cell")
                 {
                     // TODO: ScrollBar isn't meant for this. should probably use a dedicated FloatSlider widget
-                    float min, max;
+                    float min = NAN, max = NAN;
                     getSettingMinMax(scroll, min, max);
-                    float value;
+                    float value = NAN;
 
                     if (valueType == "Cell")
                     {
@@ -194,7 +194,7 @@ namespace MWGui
                 }
                 else if (valueType == "Integer")
                 {
-                    int min, max;
+                    int min = 0, max = 0;
                     getSettingMinMax(scroll, min, max);
                     const int value = Settings::get<int>(getSettingCategory(current), getSettingName(current));
                     argNames.emplace_back("value");
@@ -238,7 +238,7 @@ namespace MWGui
         auto labelWidgetName = scroller->getUserString("SettingLabelWidget");
         if (!labelWidgetName.empty())
         {
-            MyGUI::TextBox* textBox;
+            MyGUI::TextBox* textBox = nullptr;
             getWidget(textBox, labelWidgetName);
             return textBox;
         }
@@ -254,7 +254,7 @@ namespace MWGui
         , mCfgMgr(cfgMgr)
     {
         // One cell to a step, over the range the setting's own category states
-        MyGUI::ScrollBar* distantLand;
+        MyGUI::ScrollBar* distantLand = nullptr;
         getWidget(distantLand, "RayTracingDistantLandSlider");
         constexpr float fewestCells = Settings::RTXCategory::sMinDistantLandCellsInMenu;
         constexpr float mostCells = Settings::RTXCategory::sMaxDistantLandCells;
@@ -562,7 +562,7 @@ namespace MWGui
     {
         const std::string on = MWBase::Environment::get().getL10nManager()->getMessage("Interface", "On");
         const std::string off = MWBase::Environment::get().getL10nManager()->getMessage("Interface", "Off");
-        bool newState;
+        bool newState = false;
         if (sender->castType<MyGUI::Button>()->getCaption() == on)
         {
             sender->castType<MyGUI::Button>()->setCaption(MyGUI::UString(off));
@@ -647,7 +647,7 @@ namespace MWGui
         {
             float value = pos / static_cast<float>(scroller->getScrollRange() - 1);
 
-            float min, max;
+            float min = NAN, max = NAN;
             getSettingMinMax(scroller, min, max);
             value = min + (max - min) * value;
 
@@ -666,7 +666,7 @@ namespace MWGui
         }
         else if (valueType == "Integer")
         {
-            int min, max;
+            int min = 0, max = 0;
             getSettingMinMax(scroller, min, max);
             const int value = min + static_cast<int>(pos);
             if (write)

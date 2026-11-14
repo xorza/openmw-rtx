@@ -1,5 +1,7 @@
 #include "player.hpp"
 
+#include <cmath>
+
 #include "esmreader.hpp"
 #include "esmwriter.hpp"
 
@@ -91,7 +93,7 @@ namespace ESM
             while (esm.isNextSub("WWAT"))
             {
                 esm.getSubHeader();
-                float value;
+                float value = NAN;
                 esm.getT(value);
                 ESM::RefId attribute = esm.getRefId(esm.getSubSize() - sizeof(value));
                 mSaveAttributes[attribute] = value;
@@ -99,7 +101,7 @@ namespace ESM
             while (esm.isNextSub("WWSK"))
             {
                 esm.getSubHeader();
-                float value;
+                float value = NAN;
                 esm.getT(value);
                 ESM::RefId skill = esm.getRefId(esm.getSubSize() - sizeof(value));
                 mSaveSkills[skill] = value;

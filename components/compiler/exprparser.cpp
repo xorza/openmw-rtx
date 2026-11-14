@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <iterator>
 #include <sstream>
 #include <stack>
@@ -334,7 +335,7 @@ namespace Compiler
             // This is terrible, but of course we must have this for legacy content.
             // Convert the string to a number even if it's impossible and use it as a number literal.
             // Can't use stof/atof or to_string out of locale concerns.
-            float number;
+            float number = NAN;
             std::stringstream stream(name2);
             stream >> number;
             stream.str(std::string());
@@ -357,7 +358,7 @@ namespace Compiler
     {
         if (const Extensions* extensions = getContext().getExtensions())
         {
-            char returnType; // ignored
+            char returnType = 0; // ignored
             std::string argumentType; // ignored
             bool hasExplicit = false; // ignored
             bool isInstruction = extensions->isInstruction(keyword, argumentType, hasExplicit);
@@ -395,7 +396,7 @@ namespace Compiler
                 // check for custom extensions
                 if (const Extensions* extensions = getContext().getExtensions())
                 {
-                    char returnType;
+                    char returnType = 0;
                     std::string argumentType;
 
                     bool hasExplicit = true;
@@ -433,7 +434,7 @@ namespace Compiler
             {
                 start();
 
-                char returnType;
+                char returnType = 0;
                 std::string argumentType;
 
                 bool hasExplicit = false;

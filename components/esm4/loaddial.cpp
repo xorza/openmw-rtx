@@ -58,7 +58,7 @@ void ESM4::Dialogue::load(ESM4::Reader& reader)
             {
                 if (subHdr.dataSize == 4) // TES5
                 {
-                    std::uint8_t dummy;
+                    std::uint8_t dummy = 0;
                     reader.get(dummy);
                     if (dummy != 0)
                         mDoAllBeforeRepeat = true;

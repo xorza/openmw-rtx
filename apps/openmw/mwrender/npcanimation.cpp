@@ -1,5 +1,6 @@
 #include "npcanimation.hpp"
 
+#include <cmath>
 #include <osg/Depth>
 #include <osg/MatrixTransform>
 
@@ -383,7 +384,7 @@ namespace MWRender
         void operator()(osg::Node* node, osg::NodeVisitor* nv) override
         {
             auto* cv = static_cast<osgUtil::CullVisitor*>(nv);
-            float fov, aspect, zNear, zFar;
+            float fov = NAN, aspect = NAN, zNear = NAN, zFar = NAN;
             if (cv->getProjectionMatrix()->getPerspective(fov, aspect, zNear, zFar)
                 && static_cast<double>(std::abs(fov - mFov)) > 0.001)
             {

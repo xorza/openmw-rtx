@@ -1,5 +1,6 @@
 #include "importcellref.hpp"
 
+#include <cmath>
 #include <components/esm3/esmreader.hpp>
 #include <components/misc/concepts.hpp>
 
@@ -130,7 +131,7 @@ namespace ESSImport
             // timestamp = 24 * (365 * year + cumulativeDays[month] + day)
             // unfortunately cumulativeDays[month] is not clearly defined,
             // in the (non-MCP) vanilla version the first month was missing, but MCP added it.
-            double timestamp;
+            double timestamp = NAN;
             esm.getT(timestamp);
         }
 
@@ -150,7 +151,7 @@ namespace ESSImport
         {
             // occurs on levelled creature spawner references
             // probably some identifier for the creature that has been spawned?
-            unsigned char lvcr;
+            unsigned char lvcr = 0;
             esm.getHT(lvcr);
             // std::cout << "LVCR: " << (int)lvcr << std::endl;
         }
@@ -167,7 +168,7 @@ namespace ESSImport
         mDeleted = 0;
         if (esm.isNextSub("DELE"))
         {
-            uint32_t deleted;
+            uint32_t deleted = 0;
             esm.getHT(deleted);
             mDeleted = ((deleted >> 24) & 0x2) != 0; // the other 3 bytes seem to be uninitialized garbage
         }

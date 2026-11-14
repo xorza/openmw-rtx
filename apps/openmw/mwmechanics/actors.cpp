@@ -2334,7 +2334,7 @@ namespace MWMechanics
             while (reader.isNextSub("ID__"))
             {
                 ESM::RefId id = reader.getRefId();
-                int count;
+                int count = 0;
                 reader.getHNT(count, "COUN");
                 if (MWBase::Environment::get().getESMStore()->find(id))
                     mDeathCount[id] = count;

@@ -414,7 +414,9 @@ namespace Fx
         constexpr bool is1D = std::is_same_v<Lexer::Sampler_1D, T>;
         constexpr bool is3D = std::is_same_v<Lexer::Sampler_3D, T>;
 
-        Types::SamplerType type;
+        constexpr Types::SamplerType type = is1D ? Types::SamplerType::Texture_1D
+            : is3D                               ? Types::SamplerType::Texture_3D
+                                                 : Types::SamplerType::Texture_2D;
 
         while (!isNext<Lexer::Close_bracket>() && !isNext<Lexer::Eof>())
         {
@@ -448,20 +450,11 @@ namespace Fx
                 const osg::ref_ptr<osg::Image> image
                     = mImageManager.getImage(VFS::Path::Normalized(std::get<Lexer::String>(mToken).mValue), is3D);
                 if constexpr (is1D)
-                {
-                    type = Types::SamplerType::Texture_1D;
                     sampler = new osg::Texture1D(image);
-                }
                 else if constexpr (is3D)
-                {
-                    type = Types::SamplerType::Texture_3D;
                     sampler = new osg::Texture3D(image);
-                }
                 else
-                {
-                    type = Types::SamplerType::Texture_2D;
                     sampler = new osg::Texture2D(image);
-                }
             }
             else
                 error(std::format("unexpected key '{}'", key));

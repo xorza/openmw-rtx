@@ -78,7 +78,7 @@ namespace ESM
         std::uint32_t toInt() const noexcept
         {
             static_assert(capacity == sizeof(std::uint32_t));
-            std::uint32_t value;
+            std::uint32_t value = 0;
             std::memcpy(&value, mData, capacity);
             return value;
         }

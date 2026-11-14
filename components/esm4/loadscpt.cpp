@@ -136,7 +136,7 @@ void ESM4::Script::load(ESM4::Reader& reader)
                 break;
             case ESM::fourCC("SCRV"):
             {
-                std::uint32_t index;
+                std::uint32_t index = 0;
                 reader.get(index);
                 mScript.localRefVarIndex.push_back(index);
                 break;

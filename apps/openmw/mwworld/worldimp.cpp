@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <charconv>
+#include <cmath>
 #include <vector>
 
 #include <osg/Group>
@@ -920,7 +921,7 @@ namespace MWWorld
         if (MWBase::Environment::get().getStateManager()->getState() == MWBase::StateManager::State_NoGame)
             return {};
 
-        float maxDistance;
+        float maxDistance = NAN;
         const bool inGui = MWBase::Environment::get().getWindowManager()->isGuiMode();
         if (inGui)
         {
@@ -1749,7 +1750,7 @@ namespace MWWorld
 
         if (MWBase::Environment::get().getWindowManager()->isGuiMode())
         {
-            float x, y;
+            float x = NAN, y = NAN;
             MWBase::Environment::get().getWindowManager()->getMousePosition(x, y);
             rayToObject = mRendering->castCameraToViewportRay(x, y, maxDistance, ignorePlayer, false, ignoreTerrain);
         }
@@ -2738,7 +2739,7 @@ namespace MWWorld
             size_t comma = nameId.find(',');
             if (comma != std::string::npos)
             {
-                int x, y;
+                int x = 0, y = 0;
                 std::from_chars_result xResult = std::from_chars(nameId.data(), nameId.data() + comma, x);
                 std::from_chars_result yResult
                     = std::from_chars(nameId.data() + comma + 1, nameId.data() + nameId.size(), y);

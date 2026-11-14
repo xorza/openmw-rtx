@@ -108,7 +108,7 @@ namespace SDLUtil
 
         // Update traits with what we've actually been given
         // Use intermediate to avoid signed/unsigned mismatch
-        int intermediateLocation;
+        int intermediateLocation = 0;
         SDL_GL_GetAttribute(SDL_GL_RED_SIZE, &intermediateLocation);
         _traits->red = intermediateLocation;
         SDL_GL_GetAttribute(SDL_GL_GREEN_SIZE, &intermediateLocation);

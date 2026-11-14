@@ -21,7 +21,7 @@ namespace MWMechanics
     {
         const std::vector<ESM::LevelledListBase::LevelItem>& items = levItem->mList;
 
-        int playerLevel;
+        int playerLevel = 0;
         if (level.has_value())
             playerLevel = *level;
         else

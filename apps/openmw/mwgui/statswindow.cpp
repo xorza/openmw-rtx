@@ -149,7 +149,7 @@ namespace MWGui
 
     void StatsWindow::setBar(const std::string& name, const std::string& tname, int val, int max)
     {
-        MyGUI::ProgressBar* pt;
+        MyGUI::ProgressBar* pt = nullptr;
         getWidget(pt, name);
 
         std::stringstream out;
@@ -193,7 +193,7 @@ namespace MWGui
         setBar(std::string(id), std::string(id) + "T", current, modified);
 
         // health, magicka, fatigue tooltip
-        MyGUI::Widget* w;
+        MyGUI::Widget* w = nullptr;
         std::string valStr = MyGUI::utility::toString(current) + " / " + MyGUI::utility::toString(modified);
         if (id == "HBar")
         {
@@ -354,7 +354,7 @@ namespace MWGui
         std::string detailText = detail.str();
 
         // level progress
-        MyGUI::Widget* levelWidget;
+        MyGUI::Widget* levelWidget = nullptr;
         for (int i = 0; i < 2; ++i)
         {
             int max = store->get<ESM::GameSetting>().find("iLevelUpTotal")->mValue.getInteger();
@@ -437,7 +437,7 @@ namespace MWGui
     std::pair<MyGUI::TextBox*, MyGUI::TextBox*> StatsWindow::addValueItem(std::string_view text,
         const std::string& value, const std::string& state, MyGUI::IntCoord& coord1, MyGUI::IntCoord& coord2)
     {
-        MyGUI::TextBox *skillNameWidget, *skillValueWidget;
+        MyGUI::TextBox *skillNameWidget = nullptr, *skillValueWidget = nullptr;
 
         skillNameWidget = mSkillView->createWidget<MyGUI::TextBox>(
             "SandText", coord1, MyGUI::Align::Left | MyGUI::Align::Top | MyGUI::Align::HStretch);
@@ -468,7 +468,7 @@ namespace MWGui
 
     MyGUI::Widget* StatsWindow::addItem(const std::string& text, MyGUI::IntCoord& coord1, MyGUI::IntCoord& coord2)
     {
-        MyGUI::TextBox* skillNameWidget;
+        MyGUI::TextBox* skillNameWidget = nullptr;
 
         skillNameWidget = mSkillView->createWidget<MyGUI::TextBox>("SandText", coord1, MyGUI::Align::Default);
 
@@ -568,14 +568,14 @@ namespace MWGui
         // race tooltip
         const ESM::Race* playerRace = store.get<ESM::Race>().find(player->mRace);
 
-        MyGUI::Widget* raceWidget;
+        MyGUI::Widget* raceWidget = nullptr;
         getWidget(raceWidget, "RaceText");
         ToolTips::createRaceToolTip(raceWidget, playerRace);
         getWidget(raceWidget, "Race_str");
         ToolTips::createRaceToolTip(raceWidget, playerRace);
 
         // class tooltip
-        MyGUI::Widget* classWidget;
+        MyGUI::Widget* classWidget = nullptr;
 
         const ESM::Class* playerClass = store.get<ESM::Class>().find(player->mClass);
 

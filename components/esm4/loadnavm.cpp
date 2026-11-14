@@ -39,7 +39,7 @@ void ESM4::NavMesh::NVNMstruct::load(ESM4::Reader& reader)
     // std::cout << "start: divisor " << std::dec << divisor << ", segments " << triSegments.size() << //std::endl;
     //"this 0x" << this << std::endl; // FIXME
 
-    std::uint32_t count;
+    std::uint32_t count = 0;
 
     reader.get(version);
     reader.get(crc);

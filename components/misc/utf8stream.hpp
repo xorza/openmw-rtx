@@ -75,8 +75,8 @@ public:
             return std::make_pair(chr, cur);
         }
 
-        std::size_t octets;
-        UnicodeChar chr;
+        std::size_t octets = 0;
+        UnicodeChar chr = 0;
 
         std::tie(octets, chr) = getOctetCount(*cur++);
 
@@ -171,7 +171,7 @@ public:
 
     static std::pair<std::size_t, UnicodeChar> getOctetCount(unsigned char octet)
     {
-        std::size_t octets;
+        std::size_t octets = 0;
 
         unsigned char mark = 0xC0;
         unsigned char mask = 0xE0;

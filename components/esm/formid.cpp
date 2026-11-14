@@ -9,7 +9,7 @@ std::string ESM::FormId::toString(std::string_view prefix) const
     res.resize(prefix.length() + 20);
     std::memcpy(res.data(), prefix.data(), prefix.size());
     char* buf = res.data() + prefix.size();
-    uint64_t value;
+    uint64_t value = 0;
     if (hasContentFile())
     {
         if ((mIndex & 0xff000000) != 0)

@@ -1207,7 +1207,7 @@ namespace MWWorld
 
         int halfGridSizePlusOne = mHalfGridSize + 1;
 
-        int cellX, cellY;
+        int cellX = 0, cellY = 0;
         cellX = mCurrentGridCenter.x();
         cellY = mCurrentGridCenter.y();
         ESM::RefId extWorldspace = mWorld.getCurrentWorldspace();

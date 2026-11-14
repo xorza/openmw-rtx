@@ -89,7 +89,7 @@ namespace MWGui::Widgets
         assignWidget(mSkillNameWidget, "StatName");
         assignWidget(mSkillValueWidget, "StatValue");
 
-        MyGUI::Button* button;
+        MyGUI::Button* button = nullptr;
         assignWidget(button, "StatNameButton");
         if (button)
         {
@@ -173,7 +173,7 @@ namespace MWGui::Widgets
         assignWidget(mAttributeNameWidget, "StatName");
         assignWidget(mAttributeValueWidget, "StatValue");
 
-        MyGUI::Button* button;
+        MyGUI::Button* button = nullptr;
         assignWidget(button, "StatNameButton");
         if (button)
         {

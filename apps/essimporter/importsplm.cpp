@@ -35,7 +35,7 @@ namespace ESSImport
                 spell.mActiveEffects.push_back(effect);
             }
 
-            unsigned char xnam; // sentinel
+            unsigned char xnam = 0; // sentinel
             esm.getHNT(xnam, "XNAM");
 
             mActiveSpells.push_back(std::move(spell));

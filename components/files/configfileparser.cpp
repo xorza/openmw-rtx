@@ -137,7 +137,7 @@ namespace Files
 
         std::string trim_ws(const std::string& s)
         {
-            std::string::size_type n, n2;
+            std::string::size_type n = 0, n2 = 0;
             n = s.find_first_not_of(" \t\r\n");
             if (n == std::string::npos)
                 return std::string();
@@ -151,7 +151,7 @@ namespace Files
         void common_config_file_iterator::get()
         {
             std::string s;
-            std::string::size_type n;
+            std::string::size_type n = 0;
             bool found = false;
 
             while (this->getline(s))

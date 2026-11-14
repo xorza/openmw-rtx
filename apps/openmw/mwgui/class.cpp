@@ -160,7 +160,7 @@ namespace MWGui
 
     void PickClassDialog::setNextButtonShow(bool shown)
     {
-        MyGUI::Button* okButton;
+        MyGUI::Button* okButton = nullptr;
         getWidget(okButton, "OKButton");
 
         if (shown)
@@ -417,7 +417,7 @@ namespace MWGui
         this->mButtons.clear();
 
         // TODO: The buttons should be generated from a template in the layout file, ie. cloning an existing widget
-        MyGUI::Button* button;
+        MyGUI::Button* button = nullptr;
         MyGUI::IntCoord coord = MyGUI::IntCoord(0, 0, mButtonBar->getWidth(), 10);
         for (const std::string& text : buttons)
         {
@@ -567,17 +567,17 @@ namespace MWGui
         // Make sure the edit box has focus
         MWBase::Environment::get().getWindowManager()->setKeyFocusWidget(mEditName);
 
-        MyGUI::Button* descriptionButton;
+        MyGUI::Button* descriptionButton = nullptr;
         getWidget(descriptionButton, "DescriptionButton");
         descriptionButton->eventMouseButtonClick += MyGUI::newDelegate(this, &CreateClassDialog::onDescriptionClicked);
         mButtons.push_back(descriptionButton);
 
-        MyGUI::Button* backButton;
+        MyGUI::Button* backButton = nullptr;
         getWidget(backButton, "BackButton");
         backButton->eventMouseButtonClick += MyGUI::newDelegate(this, &CreateClassDialog::onBackClicked);
         mButtons.push_back(backButton);
 
-        MyGUI::Button* okButton;
+        MyGUI::Button* okButton = nullptr;
         getWidget(okButton, "OKButton");
         okButton->eventMouseButtonClick += MyGUI::newDelegate(this, &CreateClassDialog::onOkClicked);
         mButtons.push_back(okButton);
@@ -672,7 +672,7 @@ namespace MWGui
 
     void CreateClassDialog::setNextButtonShow(bool shown)
     {
-        MyGUI::Button* okButton;
+        MyGUI::Button* okButton = nullptr;
         getWidget(okButton, "OKButton");
 
         if (shown)
@@ -879,7 +879,7 @@ namespace MWGui
         ToolTips::createSpecializationToolTip(mSpecialization1, magic, ESM::Class::Magic);
         ToolTips::createSpecializationToolTip(mSpecialization2, stealth, ESM::Class::Stealth);
 
-        MyGUI::Button* cancelButton;
+        MyGUI::Button* cancelButton = nullptr;
         getWidget(cancelButton, "CancelButton");
         cancelButton->eventMouseButtonClick += MyGUI::newDelegate(this, &SelectSpecializationDialog::onCancelClicked);
 
@@ -936,7 +936,7 @@ namespace MWGui
         center();
 
         const auto& store = MWBase::Environment::get().getWorld()->getStore().get<ESM::Attribute>();
-        MyGUI::ScrollView* attributes;
+        MyGUI::ScrollView* attributes = nullptr;
         getWidget(attributes, "Attributes");
         MyGUI::IntCoord coord{ 0, 0, attributes->getWidth(), 18 };
         for (const ESM::Attribute& attribute : store)
@@ -955,7 +955,7 @@ namespace MWGui
         attributes->setVisibleVScroll(true);
         attributes->setViewOffset(MyGUI::IntPoint());
 
-        MyGUI::Button* cancelButton;
+        MyGUI::Button* cancelButton = nullptr;
         getWidget(cancelButton, "CancelButton");
         cancelButton->eventMouseButtonClick += MyGUI::newDelegate(this, &SelectAttributeDialog::onCancelClicked);
 
@@ -1055,7 +1055,7 @@ namespace MWGui
             widget->setViewOffset(MyGUI::IntPoint());
         }
 
-        MyGUI::Button* cancelButton;
+        MyGUI::Button* cancelButton = nullptr;
         getWidget(cancelButton, "CancelButton");
         cancelButton->eventMouseButtonClick += MyGUI::newDelegate(this, &SelectSkillDialog::onCancelClicked);
 
@@ -1169,7 +1169,7 @@ namespace MWGui
 
         getWidget(mTextEdit, "TextEdit");
 
-        MyGUI::Button* okButton;
+        MyGUI::Button* okButton = nullptr;
         getWidget(okButton, "OKButton");
         okButton->eventMouseButtonClick += MyGUI::newDelegate(this, &DescriptionDialog::onOkClicked);
         okButton->setCaption(

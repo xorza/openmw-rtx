@@ -117,7 +117,7 @@ namespace Resource
                     return mWarningImage;
                 }
                 int type = header[2];
-                int depth;
+                int depth = 0;
                 if (type == 1 || type == 9)
                     depth = header[7];
                 else

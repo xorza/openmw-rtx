@@ -25,7 +25,7 @@ namespace ESM
             RefId effectId;
             if (esm.getFormatVersion() <= MaxSerializeEffectRefIdFormatVersion)
             {
-                int32_t id;
+                int32_t id = 0;
                 esm.getHT(id);
                 effectId = ESM::MagicEffect::indexToRefId(id);
             }

@@ -1,6 +1,8 @@
 #include "components/misc/endianness.hpp"
 #include <gtest/gtest.h>
 
+#include <cmath>
+
 struct EndiannessTest : public ::testing::Test
 {
 };
@@ -102,7 +104,7 @@ TEST_F(EndiannessTest, test_swap_endianness_inplace_float)
     const uint32_t original = 0x4023d70a;
     const uint32_t expected = 0x0ad72340;
 
-    float number;
+    float number = NAN;
     memcpy(&number, &original, sizeof(original));
 
     Misc::swapEndiannessInplace(number);
@@ -115,7 +117,7 @@ TEST_F(EndiannessTest, test_swap_endianness_inplace_double)
     const uint64_t original = 0x040047ae147ae147ul;
     const uint64_t expected = 0x47e17a14ae470004ul;
 
-    double number;
+    double number = NAN;
     memcpy(&number, &original, sizeof(original));
 
     Misc::swapEndiannessInplace(number);

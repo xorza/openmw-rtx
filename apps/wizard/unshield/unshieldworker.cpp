@@ -840,7 +840,7 @@ bool Wizard::UnshieldWorker::extractCab(const QString& cabFile, const QString& d
 
     QByteArray array(cabFile.toUtf8());
 
-    Unshield* unshield;
+    Unshield* unshield = nullptr;
     unshield = unshield_open(array.constData());
 
     if (!unshield)
@@ -973,7 +973,7 @@ bool Wizard::UnshieldWorker::findInCab(const QString& fileName, const QString& c
 {
     QByteArray array(cabFile.toUtf8());
 
-    Unshield* unshield;
+    Unshield* unshield = nullptr;
     unshield = unshield_open(array.constData());
 
     if (!unshield)
@@ -1011,7 +1011,7 @@ size_t Wizard::UnshieldWorker::getMorrowindBsaFileSize(const QString& cabFile)
     QString fileName = QString("Morrowind.bsa");
     QByteArray array(cabFile.toUtf8());
 
-    Unshield* unshield;
+    Unshield* unshield = nullptr;
     unshield = unshield_open(array.constData());
 
     if (!unshield)

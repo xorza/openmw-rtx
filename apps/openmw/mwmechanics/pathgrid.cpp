@@ -67,7 +67,7 @@ namespace MWMechanics
             mSCCPoint[v].second = mSCCIndex; // lowlink
             mSCCIndex++;
             mSCCStack.push_back(v);
-            size_t w;
+            size_t w = 0;
 
             for (const auto& edge : mGraph[v].edges)
             {

@@ -102,7 +102,7 @@ namespace ESM
                         rawConnections.reserve(rawConnNum);
                         for (size_t i = 0; i < rawConnNum; ++i)
                         {
-                            uint32_t currentValue;
+                            uint32_t currentValue = 0;
                             esm.getT(currentValue);
                             rawConnections.push_back(currentValue);
                         }

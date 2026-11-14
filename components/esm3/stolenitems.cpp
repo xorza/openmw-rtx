@@ -33,7 +33,7 @@ namespace ESM
             {
                 const bool isFaction = (esm.retSubName() == "FNAM");
                 ESM::RefId owner = esm.getRefId();
-                int count;
+                int count = 0;
                 esm.getHNT(count, "COUN");
                 ownerMap.emplace(std::make_pair(std::move(owner), isFaction), count);
             }

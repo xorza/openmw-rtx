@@ -1,6 +1,7 @@
 #include "nifloader.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <mutex>
 #include <string_view>
 
@@ -1825,7 +1826,7 @@ namespace NifOsg
                 }
                 bits |= frac16 << 13;
 
-                float result;
+                float result = NAN;
                 std::memcpy(&result, &bits, sizeof(float));
                 return result;
             };

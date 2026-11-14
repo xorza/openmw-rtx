@@ -605,15 +605,15 @@ void CSVRender::PagedWorldspaceWidget::useViewHint(const std::string& hint)
         if (hint[0] == 'c')
         {
             // syntax: c:#x1 y1; #x2 y2 (number of coordinate pairs can be 0 or larger)
-            char ignore;
+            char ignore = 0;
 
             std::istringstream stream(hint.c_str());
             if (stream >> ignore)
             {
-                char ignore1; // : or ;
-                char ignore2; // #
+                char ignore1 = 0; // : or ;
+                char ignore2 = 0; // #
                 // Current coordinate
-                int x, y;
+                int x = 0, y = 0;
 
                 // Loop through all the coordinates to add them to selection
                 while (stream >> ignore1 >> ignore2 >> x >> y)
@@ -626,12 +626,12 @@ void CSVRender::PagedWorldspaceWidget::useViewHint(const std::string& hint)
         else if (hint[0] == 'r')
         {
             // syntax r:ref#number (e.g. r:ref#100)
-            char ignore;
+            char ignore = 0;
 
             std::istringstream stream(hint.c_str());
             if (stream >> ignore) // ignore r
             {
-                char ignore1; // : or ;
+                char ignore1 = 0; // : or ;
 
                 std::string refCode; // ref#number (e.g. ref#100)
 
@@ -650,7 +650,7 @@ void CSVRender::PagedWorldspaceWidget::useViewHint(const std::string& hint)
                 if (streamCellCoord >> ignore) // ignore #
                 {
                     // Current coordinate
-                    int x, y;
+                    int x = 0, y = 0;
 
                     // Loop through all the coordinates to add them to selection
                     while (streamCellCoord >> x >> y)
@@ -684,8 +684,8 @@ const CSMWorld::CellSelection& CSVRender::PagedWorldspaceWidget::getCellSelectio
 std::pair<int, int> CSVRender::PagedWorldspaceWidget::getCoordinatesFromId(const std::string& record) const
 {
     std::istringstream stream(record.c_str());
-    char ignore;
-    int x, y;
+    char ignore = 0;
+    int x = 0, y = 0;
     stream >> ignore >> x >> y;
     return std::make_pair(x, y);
 }

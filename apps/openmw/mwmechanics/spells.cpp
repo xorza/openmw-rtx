@@ -308,7 +308,7 @@ namespace MWMechanics
 
     bool Spells::setSpells(ESM::RefId actorId, bool autoCalc)
     {
-        bool result;
+        bool result = false;
         std::tie(mSpellList, result) = MWBase::Environment::get().getESMStore()->getSpellList(actorId, autoCalc);
         mSpellList->addListener(this);
         addAllToInstance(mSpellList->getSpells());

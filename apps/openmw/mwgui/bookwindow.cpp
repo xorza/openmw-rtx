@@ -98,7 +98,7 @@ namespace MWGui
         clearPages();
         mCurrentPage = 0;
 
-        const std::string* text;
+        const std::string* text = nullptr;
         if (book.getType() == ESM::REC_BOOK)
             text = &book.get<ESM::Book>()->mBase->mText;
         else
@@ -180,7 +180,7 @@ namespace MWGui
         if (mPages.empty())
             return;
 
-        MyGUI::Widget* paper;
+        MyGUI::Widget* paper = nullptr;
 
         paper = mLeftPage->getChildAt(0);
         paper->setCoord(paper->getPosition().left, -mPages[mCurrentPage * 2].first, paper->getWidth(),

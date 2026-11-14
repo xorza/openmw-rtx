@@ -141,7 +141,7 @@ void ESM4::Creature::load(ESM4::Reader& reader)
 
                 if (subHdr.dataSize != 4)
                     throw std::runtime_error("CREA NIFT datasize error");
-                std::uint32_t nift;
+                std::uint32_t nift = 0;
                 reader.get(nift);
                 if (nift)
                     Log(Debug::Verbose) << "CREA NIFT " << mId << ", non-zero " << nift;

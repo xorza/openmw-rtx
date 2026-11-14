@@ -103,7 +103,7 @@ namespace CSMWorld
             ASSERT_TRUE(reader.hasMoreRecs());
             ASSERT_EQ(reader.getRecName().toInt(), ESM::REC_DIAL);
             reader.getRecHeader();
-            bool isDeleted;
+            bool isDeleted = false;
             ESM::Dialogue dialogue;
             dialogue.load(reader, isDeleted);
 

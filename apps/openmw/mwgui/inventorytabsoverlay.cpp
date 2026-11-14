@@ -13,7 +13,7 @@ namespace MWGui
     InventoryTabsOverlay::InventoryTabsOverlay()
         : WindowBase("openmw_inventory_tabs.layout")
     {
-        MyGUI::Button* tab;
+        MyGUI::Button* tab = nullptr;
         constexpr std::string_view kTabIds[] = { "TabMap", "TabInventory", "TabSpells", "TabStats" };
 
         for (const std::string_view id : kTabIds)
@@ -23,7 +23,7 @@ namespace MWGui
             mTabs.push_back(tab);
         }
 
-        MyGUI::ImageBox* image;
+        MyGUI::ImageBox* image = nullptr;
         getWidget(image, "BtnL2Image");
         image->setImageTexture(
             MWBase::Environment::get().getInputManager()->getControllerAxisIcon(SDL_GAMEPAD_AXIS_LEFT_TRIGGER));

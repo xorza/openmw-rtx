@@ -45,7 +45,7 @@ namespace Files
             return traits_type::eof();
 
         // new file position, relative to mOrigin
-        size_t newPos;
+        size_t newPos = 0;
         switch (whence)
         {
             case std::ios_base::beg:

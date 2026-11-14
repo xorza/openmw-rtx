@@ -28,21 +28,21 @@ namespace Bsa
         mFiles.reserve(fileCount);
         for (uint32_t i = 0; i < fileCount; ++i)
         {
-            uint32_t nameHash, extHash, dirHash;
+            uint32_t nameHash = 0, extHash = 0, dirHash = 0;
             in.read(reinterpret_cast<char*>(&nameHash), sizeof(uint32_t));
             in.read(reinterpret_cast<char*>(&extHash), sizeof(uint32_t));
             in.read(reinterpret_cast<char*>(&dirHash), sizeof(uint32_t));
 
             FileRecord file;
-            uint8_t unknown;
+            uint8_t unknown = 0;
             in.read(reinterpret_cast<char*>(&unknown), sizeof(uint8_t));
 
-            uint8_t nbChunks;
+            uint8_t nbChunks = 0;
             in.read(reinterpret_cast<char*>(&nbChunks), sizeof(uint8_t));
 
             file.mTextureChunks.resize(nbChunks);
 
-            uint16_t chunkHeaderSize;
+            uint16_t chunkHeaderSize = 0;
             in.read(reinterpret_cast<char*>(&chunkHeaderSize), sizeof(uint16_t));
             if (chunkHeaderSize != 24)
                 fail("Corrupted BSA");
@@ -59,7 +59,7 @@ namespace Bsa
                 in.read(reinterpret_cast<char*>(&texture.mSize), sizeof(uint32_t));
                 in.read(reinterpret_cast<char*>(&texture.mStartMip), sizeof(uint16_t));
                 in.read(reinterpret_cast<char*>(&texture.mEndMip), sizeof(uint16_t));
-                uint32_t baadfood;
+                uint32_t baadfood = 0;
                 in.read(reinterpret_cast<char*>(&baadfood), sizeof(uint32_t));
                 if (baadfood != 0xBAADF00D)
                     fail("Corrupted BSA");
@@ -83,8 +83,8 @@ namespace Bsa
             fail("File too small to be a valid BSA archive");
 
         // Get essential header numbers
-        uint32_t type, fileCount;
-        uint64_t fileTableOffset;
+        uint32_t type = 0, fileCount = 0;
+        uint64_t fileTableOffset = 0;
         {
             uint32_t header[4];
             input.read(reinterpret_cast<char*>(header), 16);
@@ -100,13 +100,15 @@ namespace Bsa
                 case BA2Version::Fallout4NextGen_v8:
                     break;
                 case BA2Version::StarfieldDDS:
-                    uint64_t dummy;
+                {
+                    uint64_t dummy = 0;
                     input.read(reinterpret_cast<char*>(&dummy), 8);
-                    uint32_t compressionMethod;
+                    uint32_t compressionMethod = 0;
                     input.read(reinterpret_cast<char*>(&compressionMethod), 4);
                     if (compressionMethod == 3)
                         fail("Unsupported LZ4-compressed DDS BA2");
                     break;
+                }
                 default:
                     fail("Unrecognized DDS BA2 version");
             }
@@ -125,7 +127,7 @@ namespace Bsa
         for (uint32_t i = 0; i < fileCount; ++i)
         {
             std::vector<char> fileName;
-            uint16_t fileNameSize;
+            uint16_t fileNameSize = 0;
             input.read(reinterpret_cast<char*>(&fileNameSize), sizeof(uint16_t));
             fileName.resize(fileNameSize + 1);
             input.read(fileName.data(), fileNameSize);

@@ -85,7 +85,7 @@ namespace ESM
             while (esm.isNextSub("INCR"))
             {
                 esm.getSubHeader();
-                int32_t value;
+                int32_t value = 0;
                 esm.getT(value);
                 ESM::RefId attribute = esm.getRefId(esm.getSubSize() - sizeof(value));
                 mSkillIncrease[attribute] = value;

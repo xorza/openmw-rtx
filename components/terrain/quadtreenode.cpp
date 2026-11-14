@@ -64,7 +64,7 @@ namespace Terrain
         if (currentNode->getDirection() == Root)
             return nullptr; // Arrived at root node, the root node does not have neighbours
 
-        QuadTreeNode* nextNode;
+        QuadTreeNode* nextNode = nullptr;
         if (adjacent(currentNode->getDirection(), dir))
             nextNode = searchNeighbour(currentNode->getParent(), dir);
         else

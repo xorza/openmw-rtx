@@ -129,7 +129,7 @@ namespace ESM
                 {
                     if (format <= MaxActiveSpellTypeVersion)
                     {
-                        Compatibility::ActiveSpells::EffectType type;
+                        Compatibility::ActiveSpells::EffectType type{};
                         esm.getHNT(type, "TYPE");
                         switch (type)
                         {
@@ -174,7 +174,7 @@ namespace ESM
                     ActiveEffect effect;
                     if (format <= MaxSerializeEffectRefIdFormatVersion)
                     {
-                        int32_t effectId;
+                        int32_t effectId = 0;
                         esm.getHT(effectId);
                         effect.mEffectId = ESM::MagicEffect::indexToRefId(effectId);
                     }

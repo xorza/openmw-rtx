@@ -67,7 +67,7 @@ int CSVRender::InstanceMode::getSubModeFromId(const std::string& id) const
 
 osg::Vec3f CSVRender::InstanceMode::quatToEuler(const osg::Quat& rot) const
 {
-    float x, y, z;
+    float x = NAN, y = NAN, z = NAN;
     float test = 2 * (rot.w() * rot.y() + rot.x() * rot.z());
 
     if (std::abs(test) >= 1.f)
@@ -256,7 +256,7 @@ void CSVRender::InstanceMode::getSelectionGroup(const int group)
 
 void CSVRender::InstanceMode::setDragAxis(const char axis)
 {
-    int newDragAxis;
+    int newDragAxis = 0;
 
     const std::vector<osg::ref_ptr<TagBase>> selection = getWorldspaceWidget().getSelection(Mask_Reference);
 
@@ -758,7 +758,7 @@ void CSVRender::InstanceMode::drag(const QPoint& pos, int diffX, int diffY, doub
         osg::Vec3f eye, centre, up;
         getWorldspaceWidget().getCamera()->getViewMatrix().getLookAt(eye, centre, up);
 
-        float angle;
+        float angle = NAN;
         osg::Vec3f axis;
 
         if (mDragAxis == -1)

@@ -3,6 +3,7 @@
 #include <MyGUI_TextIterator.h>
 #include <MyGUI_UString.h>
 
+#include <cmath>
 #include <components/esm3/creaturestate.hpp>
 #include <components/esm3/loadclas.hpp>
 #include <components/esm3/loadcrea.hpp>
@@ -294,7 +295,7 @@ namespace MWClass
         }
 
         MWWorld::LiveCellRef<ESM::Creature>* ref = ptr.get<ESM::Creature>();
-        int min, max;
+        int min = 0, max = 0;
         switch (type)
         {
             case 0:
@@ -503,7 +504,7 @@ namespace MWClass
         const MWMechanics::MagicEffects& mageffects = stats.getMagicEffects();
         const float normalizedEncumbrance = getNormalizedEncumbrance(ptr);
 
-        float moveSpeed;
+        float moveSpeed = NAN;
 
         if (normalizedEncumbrance > 1.0f)
             moveSpeed = 0.0f;

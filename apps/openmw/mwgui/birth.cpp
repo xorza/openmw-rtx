@@ -71,7 +71,7 @@ namespace MWGui
 
     void BirthDialog::setNextButtonShow(bool shown)
     {
-        MyGUI::Button* okButton;
+        MyGUI::Button* okButton = nullptr;
         getWidget(okButton, "OKButton");
 
         if (shown)
@@ -203,7 +203,7 @@ namespace MWGui
         if (mCurrentBirthId.empty())
             return;
 
-        Widgets::MWSpellPtr spellWidget;
+        Widgets::MWSpellPtr spellWidget = nullptr;
         const int lineHeight = MWBase::Environment::get().getWindowManager()->getFontSize() + 2;
         MyGUI::IntCoord coord(0, 0, mSpellArea->getWidth(), lineHeight);
 

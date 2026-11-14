@@ -226,7 +226,7 @@ namespace MWLua
                 return;
             if (newDrawState == MWMechanics::DrawState::Spell)
             {
-                bool hasSelectedSpell;
+                bool hasSelectedSpell = false;
                 if (self.ptr() == MWBase::Environment::get().getWorld()->getPlayerPtr())
                     // For the player selecting spell in UI doesn't change selected spell in CreatureStats (was
                     // implemented this way to prevent changing spell during casting, probably should be refactored), so

@@ -226,7 +226,7 @@ namespace MWLua
         api["isIdle"] = [input]() { return input->isIdle(); };
         api["isActionPressed"] = [input](int action) { return input->actionIsActive(action); };
         api["isKeyPressed"] = [](SDL_Scancode code) -> bool {
-            int maxCode;
+            int maxCode = 0;
             const auto* state = SDL_GetKeyboardState(&maxCode);
             if (code >= 0 && code < maxCode)
                 return state[code] != 0;

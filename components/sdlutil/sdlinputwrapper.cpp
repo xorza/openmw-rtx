@@ -319,7 +319,7 @@ namespace SDLUtil
                 if (w == 0 && h == 0)
                     return;
 
-                int x, y;
+                int x = 0, y = 0;
                 SDL_GetWindowPosition(mSDLWindow, &x, &y);
                 mGraphics.windowResized(x, y, w, h);
 

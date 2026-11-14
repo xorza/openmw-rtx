@@ -329,7 +329,7 @@ void CSMDoc::WriteCellCollectionStage::writeReferences(const std::deque<int>& re
                 // Need to fill mTarget with the ref's new position.
                 std::istringstream istream(stream.str().c_str());
 
-                char ignore;
+                char ignore = 0;
                 istream >> ignore >> moved.mTarget[0] >> moved.mTarget[1];
 
                 writer.writeFormId(refRecord.mRefNum, false, "MVRF");
@@ -397,7 +397,7 @@ void CSMDoc::WriteCellCollectionStage::perform(int stage, Messages& messages)
             cellRecord.mData.mFlags &= ~ESM::Cell::Interior;
 
             std::istringstream stream(cellRecord.mId.getRefIdString().c_str());
-            char ignore;
+            char ignore = 0;
             stream >> ignore >> cellRecord.mData.mX >> cellRecord.mData.mY;
         }
 
@@ -437,7 +437,7 @@ void CSMDoc::WritePathgridCollectionStage::perform(int stage, Messages& messages
         if (record.mId.startsWith("#"))
         {
             std::istringstream stream(record.mId.getRefIdString());
-            char ignore;
+            char ignore = 0;
             stream >> ignore >> record.mData.mX >> record.mData.mY;
         }
         else

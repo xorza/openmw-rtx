@@ -344,7 +344,7 @@ bool ContentSelectorModel::ContentModel::dropMimeData(
     std::vector<EsmFile*> toMove;
     while (!stream.atEnd())
     {
-        int sourceRow;
+        int sourceRow = 0;
         stream >> sourceRow;
         toMove.emplace_back(mFiles.at(sourceRow));
     }

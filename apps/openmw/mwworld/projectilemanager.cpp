@@ -119,7 +119,7 @@ namespace
         VFS::Path::NormalizedView& texture, std::string& sourceName, const ESM::RefId& id)
     {
         const MWWorld::ESMStore& esmStore = *MWBase::Environment::get().getESMStore();
-        const ESM::EffectList* effects;
+        const ESM::EffectList* effects = nullptr;
         if (const ESM::Spell* spell = esmStore.get<ESM::Spell>().search(id)) // check if it's a spell
         {
             sourceName = spell->mName;

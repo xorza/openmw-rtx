@@ -522,7 +522,7 @@ CSMPrefs::ModifierSetting& CSMPrefs::State::declareModifier(
         throw std::logic_error("no category for setting");
 
     // Setup with actual data
-    int modifier;
+    int modifier = 0;
 
     getShortcutManager().convertFromString(value.get(), modifier);
     getShortcutManager().setModifier(value.mName, modifier);

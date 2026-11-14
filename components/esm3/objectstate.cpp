@@ -16,7 +16,7 @@ namespace ESM
         mVersion = esm.getFormatVersion();
         mActorIdConverter = esm.mActorIdConverter;
 
-        bool isDeleted;
+        bool isDeleted = false;
         mRef.loadData(esm, isDeleted);
 
         mHasLocals = 0;

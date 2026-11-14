@@ -1,5 +1,6 @@
 #include "bindingsmanager.hpp"
 
+#include <cmath>
 #include <filesystem>
 
 #include <MyGUI_EditBox.h>
@@ -298,7 +299,7 @@ namespace MWInput
 
         for (int i = 0; i < A_Last; ++i)
         {
-            ICS::Control* control;
+            ICS::Control* control = nullptr;
             bool controlExists = mInputBinder->getChannel(i)->getControlsCount() != 0;
             if (!controlExists)
             {
@@ -382,11 +383,11 @@ namespace MWInput
 
         for (int i = 0; i < A_Last; i++)
         {
-            ICS::Control* control;
+            ICS::Control* control = nullptr;
             bool controlExists = mInputBinder->getChannel(i)->getControlsCount() != 0;
             if (!controlExists)
             {
-                float initial;
+                float initial = NAN;
                 if (!defaultAxisBindings.contains(i))
                     initial = 0.0f;
                 else

@@ -344,7 +344,7 @@ namespace Shader
         for (const std::string& element : listElements)
         {
             std::string contentInstance(content);
-            size_t foundIterator;
+            size_t foundIterator = 0;
             while ((foundIterator = contentInstance.find(iteratorName)) != std::string::npos)
                 contentInstance.replace(foundIterator, iteratorName.length(), element);
             replacement += contentInstance;

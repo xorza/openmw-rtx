@@ -29,7 +29,7 @@ namespace ESSImport
                 bool newStack = esm.isNextSub("XIDX");
                 if (newStack)
                 {
-                    uint32_t idx;
+                    uint32_t idx = 0;
                     esm.getHT(idx);
                     separateStacks = true;
                     item.mCount = 1;
@@ -61,7 +61,7 @@ namespace ESSImport
             // this is currently not handled properly.
 
             esm.getSubHeader();
-            int32_t itemIndex; // index of the item in the NPCO list
+            int32_t itemIndex = 0; // index of the item in the NPCO list
             esm.getT(itemIndex);
 
             if (itemIndex < 0 || std::cmp_greater_equal(itemIndex, mItems.size()))
@@ -69,7 +69,7 @@ namespace ESSImport
 
             // appears to be a relative index for only the *possible* slots this item can be equipped in,
             // i.e. 0 most of the time
-            int32_t slotIndex;
+            int32_t slotIndex = 0;
             esm.getT(slotIndex);
 
             mItems[itemIndex].mRelativeEquipmentSlot = slotIndex;

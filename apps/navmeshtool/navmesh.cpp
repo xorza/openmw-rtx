@@ -203,7 +203,7 @@ namespace NavMeshTool
 
         void report(ESM::RefId worldspace)
         {
-            std::size_t provided;
+            std::size_t provided = 0;
             {
                 // Predicate lock prevents missed wake-ups.
                 const std::scoped_lock lock(mProvidedMutex);

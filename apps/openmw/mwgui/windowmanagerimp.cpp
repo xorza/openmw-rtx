@@ -850,8 +850,8 @@ namespace MWGui
         osg::Quat playerOrientation(-player.getRefData().getPosition().rot[2], osg::Vec3(0, 0, 1));
 
         osg::Vec3f playerdirection;
-        int x, y;
-        float u, v;
+        int x = 0, y = 0;
+        float u = NAN, v = NAN;
         mLocalMapRender->updatePlayer(playerPosition, playerOrientation, u, v, x, y, playerdirection);
 
         if (!player.getCell()->isExterior())

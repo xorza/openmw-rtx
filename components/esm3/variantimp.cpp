@@ -68,7 +68,7 @@ namespace ESM
 
         if (format == Variant::Format_Global)
         {
-            float value;
+            float value = NAN;
             esm.getHNT(value, "FLTV");
 
             if (type == VT_Short)
@@ -94,7 +94,7 @@ namespace ESM
         {
             if (type == VT_Short)
             {
-                int16_t value;
+                int16_t value = 0;
                 esm.getHT(value);
                 out = value;
             }

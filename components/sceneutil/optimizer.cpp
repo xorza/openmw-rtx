@@ -959,7 +959,7 @@ struct LessGeometry
 
         // therefore lhs->getNumTexCoordArrays()==rhs->getNumTexCoordArrays()
 
-        unsigned int i;
+        unsigned int i = 0;
         for(i=0;i<lhs->getNumTexCoordArrays();++i)
         {
             if (rhs->getTexCoordArray(i))
@@ -1264,7 +1264,7 @@ bool Optimizer::MergeGeometryVisitor::mergeGroup(osg::Group& group)
         MergeList geometryDuplicates;
         Nodes standardChildren;
 
-        unsigned int i;
+        unsigned int i = 0;
         for(i=0;i<group.getNumChildren();++i)
         {
             osg::Node* child = group.getChild(i);
@@ -1435,7 +1435,7 @@ bool Optimizer::MergeGeometryVisitor::mergeGroup(osg::Group& group)
 
 
     // convert all polygon primitives which has 3 indices into TRIANGLES, 4 indices into QUADS.
-    unsigned int i;
+    unsigned int i = 0;
     for(i=0;i<group.getNumChildren();++i)
     {
         osg::Drawable* drawable = group.getChild(i)->asDrawable();
@@ -1804,7 +1804,7 @@ bool Optimizer::MergeGeometryVisitor::mergeGeometry(osg::Geometry& lhs, osg::Geo
     }
 
 
-    unsigned int unit;
+    unsigned int unit = 0;
     for(unit=0;unit<lhs.getNumTexCoordArrays();++unit)
     {
         if (!lhs.getTexCoordArray(unit)) continue;

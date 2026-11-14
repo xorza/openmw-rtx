@@ -20,6 +20,7 @@
 #include "mwshadowtechnique.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <osgShadow/ShadowedScene>
 #include <osg/CullFace>
 #include <osg/Geometry>
@@ -302,7 +303,7 @@ void VDSMCameraCullCallback::operator()(osg::Node* node, osg::NodeVisitor* nv)
 
         OSG_INFO<<"RTT Projection matrix "<<projection<<std::endl;
 
-        osg::Matrix::value_type left, right, bottom, top, zNear, zFar;
+        osg::Matrix::value_type left = NAN, right = NAN, bottom = NAN, top = NAN, zNear = NAN, zFar = NAN;
         // The projection's own type, which is double whatever precision the build's OSG keeps an osg::Matrix in.
         osg::Matrixd::value_type epsilon = 1e-6;
         if (std::abs(projection(0,3))<epsilon  && std::abs(projection(1,3))<epsilon  && std::abs(projection(2,3))<epsilon )
@@ -1118,7 +1119,7 @@ void MWShadowTechnique::cull(osgUtil::CullVisitor& cv)
 
     if (cachedNearFarMode==osg::CullSettings::DO_NOT_COMPUTE_NEAR_FAR)
     {
-        double left, right, top, bottom;
+        double left = NAN, right = NAN, top = NAN, bottom = NAN;
         if (orthographicViewFrustum)
         {
             viewProjectionMatrix.getOrtho(left, right, bottom, top, minZNear, maxZFar);
@@ -1201,7 +1202,7 @@ void MWShadowTechnique::cull(osgUtil::CullVisitor& cv)
         _debugHud->setFrustumVertices(vertexArray, cv.getTraversalNumber());
     }
 
-    double reducedNear, reducedFar;
+    double reducedNear = NAN, reducedFar = NAN;
     if (cv.getComputeNearFarMode() != osg::CullSettings::DO_NOT_COMPUTE_NEAR_FAR)
     {
         reducedNear = osg::maximum<double>(cv.getCalculatedNearPlane(), minZNear);
@@ -1434,7 +1435,7 @@ void MWShadowTechnique::cull(osgUtil::CullVisitor& cv)
                 double r_start = (sm_i==0) ? -1.0 : splitPoint;
                 double r_end = (sm_i+1==numShadowMapsPerLight) ? 1.0 : splitPoint;
 #else
-                double r_start, r_end;
+                double r_start = NAN, r_end = NAN;
 
                 // split system based on the original Parallel Split Shadow Maps paper.
                 double n = reducedNear;
@@ -2390,7 +2391,7 @@ struct ConvexHull
             // OSG_NOTICE<<"angle = "<<osg::RadiansToDegrees(angle)<<", h="<<h<<" v= "<<v<<std::endl;
 
             // We need to make sure all intersections are added to the list in the right order, even if they're so far away that their angles work out the same.
-            double sortValue;
+            double sortValue = NAN;
             if (angle < osg::DegreesToRadians(-135.0) || angle > osg::DegreesToRadians(135.0))
                 sortValue = -h;
             else if (angle < osg::DegreesToRadians(-45.0))
@@ -2458,7 +2459,7 @@ struct ConvexHull
     {
         double m = dbl_max;
         osg::Vec3d delta;
-        double ratio;
+        double ratio = NAN;
         for (const auto& edge : _edges)
         {
             delta = edge.first - eye;
@@ -2476,7 +2477,7 @@ struct ConvexHull
     {
         double m = -dbl_max;
         osg::Vec3d delta;
-        double ratio;
+        double ratio = NAN;
         for (const auto& edge : _edges)
         {
             delta = edge.first - eye;
@@ -2595,7 +2596,7 @@ struct RenderLeafBounds
         {
             osg::Vec3d delta = ls-eye_ls;
 
-            double x_ratio, z_ratio;
+            double x_ratio = NAN, z_ratio = NAN;
             if (delta.y()>n)
             {
                 x_ratio = delta.x()/delta.y();

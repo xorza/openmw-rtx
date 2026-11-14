@@ -292,7 +292,7 @@ namespace Fx
 
         Token Lexer::scanNumber()
         {
-            double buffer;
+            double buffer = NAN;
             char* endPtr = nullptr;
             buffer = std::strtod(mHead, &endPtr);
             if (endPtr == nullptr || endPtr == mHead)

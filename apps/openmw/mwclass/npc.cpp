@@ -91,7 +91,7 @@ namespace
 
     bool isEven(double d)
     {
-        double intPart;
+        double intPart = NAN;
         std::modf(d / 2.0, &intPart);
         return 2.0 * intPart == d;
     }
@@ -598,7 +598,7 @@ namespace MWClass
             return;
         }
 
-        bool healthdmg;
+        bool healthdmg = false;
         if (!weapon.isEmpty())
         {
             const unsigned char* attack = nullptr;
@@ -870,7 +870,7 @@ namespace MWClass
         const float normalizedEncumbrance = getNormalizedEncumbrance(ptr);
         const bool running = MWBase::Environment::get().getMechanicsManager()->isRunning(ptr);
 
-        float moveSpeed;
+        float moveSpeed = NAN;
         if (normalizedEncumbrance > 1.0f)
             moveSpeed = 0.0f;
         else if (mageffects.getOrDefault(ESM::MagicEffect::Levitate).getMagnitude() > 0 && world->isLevitationEnabled())

@@ -2,6 +2,7 @@
 
 #include <algorithm>
 
+#include <cmath>
 #include <osg/Matrixf>
 
 #include <components/debug/debuglog.hpp>
@@ -974,7 +975,7 @@ namespace MWMechanics
 
     void AiWander::writeState(ESM::AiSequence::AiSequence& sequence) const
     {
-        float remainingDuration;
+        float remainingDuration = NAN;
         if (mRemainingDuration > 0 && mRemainingDuration < 24)
             remainingDuration = mRemainingDuration;
         else

@@ -49,7 +49,7 @@ namespace MWGui
 
     void Layout::setText(std::string_view name, std::string_view caption)
     {
-        MyGUI::Widget* pt;
+        MyGUI::Widget* pt = nullptr;
         getWidget(pt, name);
         static_cast<MyGUI::TextBox*>(pt)->setCaption(MyGUI::UString(caption));
     }

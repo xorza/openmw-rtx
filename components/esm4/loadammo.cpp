@@ -62,7 +62,7 @@ void ESM4::Ammunition::load(ESM4::Reader& reader)
                         else
                         {
                             reader.get(mData.mWeight);
-                            std::uint16_t damageInt;
+                            std::uint16_t damageInt = 0;
                             reader.get(damageInt);
                             mData.mDamage = static_cast<float>(damageInt);
                         }

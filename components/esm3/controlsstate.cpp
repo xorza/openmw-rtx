@@ -19,7 +19,7 @@ namespace ESM
 
     void ControlsState::load(ESMReader& esm)
     {
-        int flags;
+        int flags = 0;
         esm.getHNT(flags, "CFLG");
 
         mViewSwitchDisabled = flags & ViewSwitchDisabled;

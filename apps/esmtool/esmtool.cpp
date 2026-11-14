@@ -370,7 +370,7 @@ namespace
             while (esm.hasMoreRecs())
             {
                 const ESM::NAME n = esm.getRecName();
-                uint32_t flags;
+                uint32_t flags = 0;
                 esm.getRecHeader(flags);
 
                 auto record = EsmTool::RecordBase::create(n);

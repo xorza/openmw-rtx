@@ -77,7 +77,7 @@ namespace ESM
             while (esm.isNextSub(name))
             {
                 esm.getSubHeader();
-                unsigned char value;
+                unsigned char value = 0;
                 esm.getT(value);
                 ESM::RefId stat = esm.getRefId(esm.getSubSize() - sizeof(value));
                 stats.emplace(stat, value);
@@ -192,12 +192,14 @@ namespace ESM
                     break;
                 }
                 case fourCC("FLAG"):
+                {
                     hasFlags = true;
-                    int32_t flags;
+                    int32_t flags = 0;
                     esm.getHT(flags);
                     mFlags = flags & 0xFF;
                     mBloodType = ((flags >> 8) & 0xFF) >> 2;
                     break;
+                }
                 case fourCC("NPCS"):
                     mSpells.add(esm);
                     break;

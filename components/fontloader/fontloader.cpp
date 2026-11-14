@@ -82,8 +82,8 @@ namespace
         if (utf8.empty())
             return 0;
         size_t i = 0;
-        unsigned long unicode;
-        size_t numbytes;
+        unsigned long unicode = 0;
+        size_t numbytes = 0;
         unsigned char ch = utf8[i++];
         if (ch <= 0x7F)
         {
@@ -425,12 +425,12 @@ namespace Gui
     {
         Log(Debug::Info) << "Loading bitmap font file " << path;
 
-        float fontSize;
+        float fontSize = NAN;
         stream.read(reinterpret_cast<char*>(&fontSize), sizeof(fontSize));
         if (!stream.good())
             fail(stream, path, "File too small to be a valid font");
 
-        int one;
+        int one = 0;
         stream.read(reinterpret_cast<char*>(&one), sizeof(one));
         if (!stream.good())
             fail(stream, path, "File too small to be a valid font");
@@ -464,10 +464,10 @@ namespace Gui
 
         Files::IStreamPtr bitmapFile = mVFS->get(bitmapPath);
 
-        int width;
+        int width = 0;
         bitmapFile->read(reinterpret_cast<char*>(&width), sizeof(int));
 
-        int height;
+        int height = 0;
         bitmapFile->read(reinterpret_cast<char*>(&height), sizeof(int));
 
         if (!bitmapFile->good())

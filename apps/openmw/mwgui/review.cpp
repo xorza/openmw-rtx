@@ -42,7 +42,7 @@ namespace MWGui
         center();
 
         // Setup static stats
-        MyGUI::Button* button;
+        MyGUI::Button* button = nullptr;
         getWidget(mNameWidget, "NameText");
         getWidget(button, "NameButton");
         adjustButtonSize(button);
@@ -110,12 +110,12 @@ namespace MWGui
             mSkillWidgetMap.emplace(skill.mId, static_cast<MyGUI::TextBox*>(nullptr));
         }
 
-        MyGUI::Button* backButton;
+        MyGUI::Button* backButton = nullptr;
         getWidget(backButton, "BackButton");
         backButton->eventMouseButtonClick += MyGUI::newDelegate(this, &ReviewDialog::onBackClicked);
         mButtons.push_back(backButton);
 
-        MyGUI::Button* okButton;
+        MyGUI::Button* okButton = nullptr;
         getWidget(okButton, "OKButton");
         okButton->eventMouseButtonClick += MyGUI::newDelegate(this, &ReviewDialog::onOkClicked);
         mButtons.push_back(okButton);
@@ -300,8 +300,8 @@ namespace MWGui
     MyGUI::TextBox* ReviewDialog::addValueItem(std::string_view text, const std::string& value,
         const std::string& state, MyGUI::IntCoord& coord1, MyGUI::IntCoord& coord2)
     {
-        MyGUI::TextBox* skillNameWidget;
-        MyGUI::TextBox* skillValueWidget;
+        MyGUI::TextBox* skillNameWidget = nullptr;
+        MyGUI::TextBox* skillValueWidget = nullptr;
 
         skillNameWidget = mSkillView->createWidget<MyGUI::TextBox>("SandText", coord1, MyGUI::Align::Default);
         skillNameWidget->setCaption(MyGUI::UString(text));
@@ -324,7 +324,7 @@ namespace MWGui
 
     void ReviewDialog::addItem(const std::string& text, MyGUI::IntCoord& coord1, MyGUI::IntCoord& coord2)
     {
-        MyGUI::TextBox* skillNameWidget;
+        MyGUI::TextBox* skillNameWidget = nullptr;
 
         skillNameWidget = mSkillView->createWidget<MyGUI::TextBox>(
             "SandText", coord1 + MyGUI::IntSize(coord2.width, 0), MyGUI::Align::Default);

@@ -26,6 +26,7 @@
 */
 #include "loadrefr.hpp"
 
+#include <cmath>
 #include <stdexcept>
 
 #include "reader.hpp"
@@ -75,7 +76,7 @@ void ESM4::Reference::load(ESM4::Reader& reader)
                     case 12:
                     {
                         reader.getFormId(mOwner);
-                        std::uint32_t dummy;
+                        std::uint32_t dummy = 0;
                         reader.get(dummy); // Unknown
                         reader.get(dummy); // No crime flag, FO4
                         break;
@@ -130,14 +131,14 @@ void ESM4::Reference::load(ESM4::Reader& reader)
                 // 1 or 4 bytes
                 if (subHdr.dataSize == 1)
                 {
-                    uint8_t data;
+                    uint8_t data = 0;
                     reader.get(data);
                     // std::cout << "REFR XSED " << std::hex << (int)data << std::endl;
                     break;
                 }
                 else if (subHdr.dataSize == 4)
                 {
-                    uint32_t data;
+                    uint32_t data = 0;
                     reader.get(data);
                     // std::cout << "REFR XSED " << std::hex << (int)data << std::endl;
                     break;
@@ -152,7 +153,7 @@ void ESM4::Reference::load(ESM4::Reader& reader)
                 // 12 bytes
                 if (subHdr.dataSize == 12)
                 {
-                    float data, data2, data3;
+                    float data = NAN, data2 = NAN, data3 = NAN;
                     reader.get(data);
                     reader.get(data2);
                     reader.get(data3);
@@ -172,7 +173,7 @@ void ESM4::Reference::load(ESM4::Reader& reader)
             {
                 if (subHdr.dataSize == 4)
                 {
-                    uint32_t data;
+                    uint32_t data = 0;
                     reader.get(data);
                     // std::cout << "REFR XACT " << std::hex << (int)data << std::endl;
                     break;
@@ -248,7 +249,7 @@ void ESM4::Reference::load(ESM4::Reader& reader)
             case ESM::fourCC("XLOC"):
             {
                 mIsLocked = true;
-                std::int8_t dummy; // FIXME: very poor code
+                std::int8_t dummy = 0; // FIXME: very poor code
 
                 reader.get(mLockLevel);
                 reader.get(dummy);

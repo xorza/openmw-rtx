@@ -143,7 +143,7 @@ namespace DetourNavigator
 
         osg::Vec3f endNavMeshPos;
         const osg::Vec3f endPolyHalfExtents = polyHalfExtents + osg::Vec3f(endTolerance, endTolerance, endTolerance);
-        dtPolyRef endRef;
+        dtPolyRef endRef = 0;
         if (const dtStatus status = navMeshQuery.findNearestPoly(
                 end.ptr(), endPolyHalfExtents.ptr(), &queryFilter, &endRef, endNavMeshPos.ptr());
             dtStatusFailed(status) || endRef == 0)
@@ -159,7 +159,7 @@ namespace DetourNavigator
         {
             const osg::Vec3f checkpointPos = checkpoints[i];
             osg::Vec3f checkpointNavMeshPos;
-            dtPolyRef checkpointRef;
+            dtPolyRef checkpointRef = 0;
             if (const dtStatus status = navMeshQuery.findNearestPoly(checkpointPos.ptr(), polyHalfExtents.ptr(),
                     &queryFilter, &checkpointRef, checkpointNavMeshPos.ptr());
                 dtStatusFailed(status) || checkpointRef == 0)

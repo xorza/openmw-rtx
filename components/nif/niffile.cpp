@@ -649,7 +649,7 @@ namespace Nif
 
         if (hasStringTable)
         {
-            std::uint32_t stringNum, maxStringLength;
+            std::uint32_t stringNum = 0, maxStringLength = 0;
             nif.read(stringNum);
             nif.read(maxStringLength);
             nif.getSizedStrings(mStrings, stringNum);
@@ -702,7 +702,7 @@ namespace Nif
         std::uint32_t doesNotPointWarnings = 0;
         for (std::size_t i = 0; i < rootsCount; i++)
         {
-            std::int32_t idx;
+            std::int32_t idx = 0;
             nif.read(idx);
             if (idx >= 0 && static_cast<std::size_t>(idx) < mRecords.size())
             {

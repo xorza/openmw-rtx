@@ -22,7 +22,7 @@ namespace DetourNavigator
         template <class T, class Random>
         inline auto generateValue(T& value, Random& random) -> std::enable_if_t<sizeof(T) == 1>
         {
-            unsigned short v;
+            unsigned short v = 0;
             generateValue(v, random);
             value = static_cast<T>(v % 256);
         }
@@ -30,7 +30,7 @@ namespace DetourNavigator
         template <class Random>
         inline void generateValue(unsigned char& value, Random& random)
         {
-            unsigned short v;
+            unsigned short v = 0;
             generateValue(v, random);
             value = static_cast<unsigned char>(v % 256);
         }

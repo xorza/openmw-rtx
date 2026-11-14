@@ -1,5 +1,6 @@
 #include "pathfinding.hpp"
 
+#include <cmath>
 #include <iterator>
 #include <limits>
 
@@ -342,7 +343,7 @@ namespace MWMechanics
 
         if (mPath.size() == 1)
         {
-            float distSqr;
+            float distSqr = NAN;
             if ((updateFlags & UpdateFlag_CanMoveByZ) != 0)
                 distSqr = (mPath.front() - position).length2();
             else

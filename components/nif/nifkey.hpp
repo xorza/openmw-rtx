@@ -3,6 +3,7 @@
 #ifndef OPENMW_COMPONENTS_NIF_NIFKEY_HPP
 #define OPENMW_COMPONENTS_NIF_NIFKEY_HPP
 
+#include <cmath>
 #include <utility>
 #include <vector>
 
@@ -152,9 +153,9 @@ namespace Nif
 
         static void readTCBKey(NIFStream& nif, TCBKey<T>& value)
         {
-            float tension;
-            float continuity;
-            float bias;
+            float tension = NAN;
+            float continuity = NAN;
+            float bias = NAN;
 
             nif.read(value.mTime);
             value.mValue = (nif.*getValue)();
