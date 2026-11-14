@@ -1,6 +1,7 @@
 - remove visibility limit
 - remove zhi dialong from rtxtool
 - contribution rules
+- tidy ci
 
 - all IO serial?
 
