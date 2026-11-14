@@ -140,9 +140,12 @@ namespace Rtx
         // translation is where the eye stands.
         ViewBasis basis{
             .mOrigin = osg::Vec3f(world.getTrans()),
-            .mForward = -osg::Vec3f(world(2, 0), world(2, 1), world(2, 2)),
-            .mRight = osg::Vec3f(world(0, 0), world(0, 1), world(0, 2)),
-            .mUp = osg::Vec3f(world(1, 0), world(1, 1), world(1, 2)),
+            .mForward = -osg::Vec3f(
+                static_cast<float>(world(2, 0)), static_cast<float>(world(2, 1)), static_cast<float>(world(2, 2))),
+            .mRight = osg::Vec3f(
+                static_cast<float>(world(0, 0)), static_cast<float>(world(0, 1)), static_cast<float>(world(0, 2))),
+            .mUp = osg::Vec3f(
+                static_cast<float>(world(1, 0)), static_cast<float>(world(1, 1)), static_cast<float>(world(1, 2))),
         };
 
         // **Not `<= 0`, which NaN passes.** `osg::Matrixd::invert` inverts a singular view — an eye

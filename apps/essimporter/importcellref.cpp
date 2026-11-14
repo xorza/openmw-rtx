@@ -37,7 +37,7 @@ namespace ESSImport
         esm.getHNT(mRefNum.mIndex, "FRMR");
 
         // this is required since openmw supports more than 255 content files
-        int pluginIndex = (mRefNum.mIndex & 0xff000000) >> 24;
+        int pluginIndex = static_cast<int>((mRefNum.mIndex & 0xff000000) >> 24);
         mRefNum.mContentFile = pluginIndex - 1;
         mRefNum.mIndex &= 0x00ffffff;
 

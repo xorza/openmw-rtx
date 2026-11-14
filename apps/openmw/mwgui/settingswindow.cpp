@@ -190,7 +190,8 @@ namespace MWGui
                     value = std::clamp(value, min, max);
                     value = (value - min) / (max - min);
 
-                    scroll->setScrollPosition(static_cast<size_t>(std::round(value * (scroll->getScrollRange() - 1))));
+                    scroll->setScrollPosition(
+                        static_cast<size_t>(std::round(value * static_cast<float>((scroll->getScrollRange() - 1)))));
                 }
                 else if (valueType == "Integer")
                 {
@@ -645,7 +646,7 @@ namespace MWGui
         std::string_view valueType = getSettingValueType(scroller);
         if (valueType == "Float" || valueType == "Cell")
         {
-            float value = pos / static_cast<float>(scroller->getScrollRange() - 1);
+            float value = static_cast<float>(pos) / static_cast<float>(scroller->getScrollRange() - 1);
 
             float min = NAN, max = NAN;
             getSettingMinMax(scroller, min, max);
@@ -894,11 +895,12 @@ namespace MWGui
 
     void SettingsWindow::onInputTabMouseWheel(MyGUI::Widget* /*sender*/, int rel)
     {
-        if (mControlsBox->getViewOffset().top + rel * 0.3f > 0)
+        if (static_cast<float>(mControlsBox->getViewOffset().top) + static_cast<float>(rel) * 0.3f > 0)
             mControlsBox->setViewOffset(MyGUI::IntPoint(0, 0));
         else
-            mControlsBox->setViewOffset(
-                MyGUI::IntPoint(0, static_cast<int>(mControlsBox->getViewOffset().top + rel * 0.3f)));
+            mControlsBox->setViewOffset(MyGUI::IntPoint(0,
+                static_cast<int>(
+                    static_cast<float>(mControlsBox->getViewOffset().top) + static_cast<float>(rel) * 0.3f)));
     }
 
     void SettingsWindow::onResetDefaultBindings(MyGUI::Widget* /*sender*/)

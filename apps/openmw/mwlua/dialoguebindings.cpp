@@ -72,7 +72,7 @@ namespace
                 {
                     return nullptr;
                 }
-                return store.at(LuaUtil::fromLuaIndex(index));
+                return store.at(LuaUtil::fromLuaIndex(static_cast<std::int64_t>(index)));
             },
             [](const StoreT& store, std::string_view id) -> const ESM::Dialogue* {
                 return store.search(ESM::RefId::deserializeText(id));
@@ -134,7 +134,7 @@ namespace
                 return nullptr;
             }
             ESM::Dialogue::InfoContainer::const_iterator iter{ dialogueRecord.mInfo.cbegin() };
-            std::advance(iter, LuaUtil::fromLuaIndex(index));
+            std::advance(iter, LuaUtil::fromLuaIndex(static_cast<std::int64_t>(index)));
             return &(*iter);
         };
         recordInfosBindingsClass[sol::meta_function::ipairs] = lua["ipairsForArray"].template get<sol::function>();

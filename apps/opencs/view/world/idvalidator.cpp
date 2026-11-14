@@ -44,7 +44,7 @@ QValidator::State CSVWorld::IdValidator::validate(QString& input, int& pos) cons
         }
         else
         {
-            int index = input.indexOf(":");
+            int index = static_cast<int>(input.indexOf(":"));
 
             if (index != -1)
             {

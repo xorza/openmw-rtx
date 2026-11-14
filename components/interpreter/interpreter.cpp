@@ -30,7 +30,7 @@ namespace Interpreter
             auto it = segment.find(opcode);
             if (it == segment.end())
             {
-                abortUnknownCode(seg, opcode);
+                abortUnknownCode(static_cast<int>(seg), opcode);
             }
             return it->second;
         }
@@ -50,7 +50,7 @@ namespace Interpreter
         {
             case 0:
             {
-                const int opcode = code >> 24;
+                const int opcode = static_cast<int>(code >> 24);
                 const unsigned int arg0 = code & 0xffffff;
 
                 return getDispatcher(mSegment0, 0, opcode)->execute(mRuntime, arg0);
@@ -58,7 +58,7 @@ namespace Interpreter
 
             case 2:
             {
-                const int opcode = (code >> 20) & 0x3ff;
+                const int opcode = static_cast<int>((code >> 20) & 0x3ff);
                 const unsigned int arg0 = code & 0xfffff;
 
                 return getDispatcher(mSegment2, 2, opcode)->execute(mRuntime, arg0);
@@ -71,7 +71,7 @@ namespace Interpreter
         {
             case 0x30:
             {
-                const int opcode = (code >> 8) & 0x3ffff;
+                const int opcode = static_cast<int>((code >> 8) & 0x3ffff);
                 const unsigned int arg0 = code & 0xff;
 
                 return getDispatcher(mSegment3, 3, opcode)->execute(mRuntime, arg0);
@@ -79,7 +79,7 @@ namespace Interpreter
 
             case 0x32:
             {
-                const int opcode = code & 0x3ffffff;
+                const int opcode = static_cast<int>(code & 0x3ffffff);
 
                 return getDispatcher(mSegment5, 5, opcode)->execute(mRuntime);
             }

@@ -44,7 +44,7 @@ namespace ESM
                 case fourCC("DATA"):
                 {
                     esm.getSubHeader();
-                    int size = esm.getSubSize();
+                    int size = static_cast<int>(esm.getSubSize());
                     if (size == 1)
                     {
                         esm.getT(mType);

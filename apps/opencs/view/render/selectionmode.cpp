@@ -77,16 +77,16 @@ namespace CSVRender
 
     void SelectionMode::selectAll()
     {
-        getWorldspaceWidget().selectAll(mInteractionMask);
+        getWorldspaceWidget().selectAll(static_cast<int>(mInteractionMask));
     }
 
     void SelectionMode::clearSelection()
     {
-        getWorldspaceWidget().clearSelection(mInteractionMask);
+        getWorldspaceWidget().clearSelection(static_cast<int>(mInteractionMask));
     }
 
     void SelectionMode::invertSelection()
     {
-        getWorldspaceWidget().invertSelection(mInteractionMask);
+        getWorldspaceWidget().invertSelection(static_cast<int>(mInteractionMask));
     }
 }

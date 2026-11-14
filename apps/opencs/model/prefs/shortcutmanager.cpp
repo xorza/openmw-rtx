@@ -119,7 +119,7 @@ namespace CSMPrefs
 
         for (int i = 0; i < sequence.count(); ++i)
         {
-            int mods = sequence[i].keyboardModifiers();
+            int mods = static_cast<int>(sequence[i].keyboardModifiers());
             int key = sequence[i].key();
 
             if (key)
@@ -290,8 +290,8 @@ namespace CSMPrefs
         QStringList substrings;
 
         int prevIndex = 0;
-        int startIndex = toolTip.indexOf(sequenceStart);
-        int endIndex = (startIndex != -1) ? toolTip.indexOf(sequenceEnd, startIndex) : -1;
+        int startIndex = static_cast<int>(toolTip.indexOf(sequenceStart));
+        int endIndex = (startIndex != -1) ? static_cast<int>(toolTip.indexOf(sequenceEnd, startIndex)) : -1;
 
         // Process every valid shortcut escape sequence
         while (startIndex != -1 && endIndex != -1)
@@ -326,8 +326,8 @@ namespace CSMPrefs
                 prevIndex = endIndex + 1; // '}' character
             }
 
-            startIndex = toolTip.indexOf(sequenceStart, endIndex);
-            endIndex = (startIndex != -1) ? toolTip.indexOf(sequenceEnd, startIndex) : -1;
+            startIndex = static_cast<int>(toolTip.indexOf(sequenceStart, endIndex));
+            endIndex = (startIndex != -1) ? static_cast<int>(toolTip.indexOf(sequenceEnd, startIndex)) : -1;
         }
 
         if (prevIndex < toolTip.size())

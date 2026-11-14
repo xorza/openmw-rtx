@@ -25,7 +25,7 @@ namespace
     //
     float manhattan(const ESM::Pathgrid::Point& a, const ESM::Pathgrid::Point& b)
     {
-        return 300.0f * (abs(a.mX - b.mX) + abs(a.mY - b.mY) + abs(a.mZ - b.mZ));
+        return 300.0f * static_cast<float>((abs(a.mX - b.mX) + abs(a.mY - b.mY) + abs(a.mZ - b.mZ)));
     }
 
     // Choose a heuristics - Note that these may not be the best for directed

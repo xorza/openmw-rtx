@@ -472,7 +472,7 @@ void Launcher::SettingsPage::saveSettings()
         saveSettingBool(*playerMovementIgnoresAnimationCheckBox, Settings::game().mPlayerMovementIgnoresAnimation);
 
         saveSettingBool(*objectPagingCheckBox, Settings::terrain().mObjectPaging);
-        Settings::terrain().mObjectPagingMinSize.set(objectPagingMinSizeComboBox->value());
+        Settings::terrain().mObjectPagingMinSize.set(static_cast<float>(objectPagingMinSizeComboBox->value()));
         saveSettingBool(*nightDaySwitchesCheckBox, Settings::game().mDayNightSwitches);
     }
 
@@ -498,7 +498,7 @@ void Launcher::SettingsPage::saveSettings()
         const bool cCameraListener = cameraListenerCheckBox->checkState() != Qt::Unchecked;
         Settings::sound().mCameraListener.set(cCameraListener);
 
-        Settings::sound().mDopplerFactor.set(dopplerSpinBox->value());
+        Settings::sound().mDopplerFactor.set(static_cast<float>(dopplerSpinBox->value()));
     }
 
     // Interface Changes
@@ -514,7 +514,7 @@ void Launcher::SettingsPage::saveSettings()
         saveSettingBool(*controllerMenuTooltipsCheckBox, Settings::gui().mControllerTooltips);
         saveSettingBool(*useZoomOnMapCheckBox, Settings::map().mAllowZooming);
         saveSettingBool(*graphicHerbalismCheckBox, Settings::game().mGraphicHerbalism);
-        Settings::gui().mScalingFactor.set(scalingSpinBox->value());
+        Settings::gui().mScalingFactor.set(static_cast<float>(scalingSpinBox->value()));
         Settings::gui().mFontSize.set(fontSizeSpinBox->value());
     }
 

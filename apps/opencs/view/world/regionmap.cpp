@@ -40,7 +40,7 @@ void CSVWorld::RegionMap::contextMenuEvent(QContextMenuEvent* event)
     if (!getMissingRegionCells().empty())
         menu.addAction(mSelectRegionsAction);
 
-    int selectedNonExistentCells = getSelectedCells(false, true).size();
+    int selectedNonExistentCells = static_cast<int>(getSelectedCells(false, true).size());
 
     if (selectedNonExistentCells > 0)
     {

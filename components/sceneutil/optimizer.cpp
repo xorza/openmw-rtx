@@ -579,7 +579,7 @@ bool CollectLowestTransformsVisitor::removeTransforms(osg::Node* nodeWeCannotRem
                     group->addChild(transform->getChild(i));
                 }
 
-                for(int i2=transform->getNumParents()-1;i2>=0;--i2)
+                for(int i2=static_cast<int>(transform->getNumParents()-1);i2>=0;--i2)
                 {
                     transform->getParent(i2)->replaceChild(transform.get(),group.get());
                 }
@@ -1875,7 +1875,7 @@ bool Optimizer::MergeGeometryVisitor::mergeGeometry(osg::Geometry& lhs, osg::Geo
                     if (!ebo) ebo = new osg::ElementBufferObject;
                     new_primitive->setElementBufferObject(ebo);
                     std::copy(primitiveUByte->begin(),primitiveUByte->end(),std::back_inserter(*new_primitive));
-                    new_primitive->offsetIndices(base);
+                    new_primitive->offsetIndices(static_cast<int>(base));
                     (*primItr) = new_primitive;
                 } else if ((base+currentMaximum)>=256)
                 {
@@ -1884,13 +1884,13 @@ bool Optimizer::MergeGeometryVisitor::mergeGeometry(osg::Geometry& lhs, osg::Geo
                     if (!ebo) ebo = new osg::ElementBufferObject;
                     new_primitive->setElementBufferObject(ebo);
                     std::copy(primitiveUByte->begin(),primitiveUByte->end(),std::back_inserter(*new_primitive));
-                    new_primitive->offsetIndices(base);
+                    new_primitive->offsetIndices(static_cast<int>(base));
                     (*primItr) = new_primitive;
                 }
                 else
                 {
                     (*primItr) = clonePrimitive(primitive, ebo, &lhs);
-                    (*primItr)->offsetIndices(base);
+                    (*primItr)->offsetIndices(static_cast<int>(base));
                 }
             }
             break;
@@ -1910,13 +1910,13 @@ bool Optimizer::MergeGeometryVisitor::mergeGeometry(osg::Geometry& lhs, osg::Geo
                     if (!ebo) ebo = new osg::ElementBufferObject;
                     new_primitive->setElementBufferObject(ebo);
                     std::copy(primitiveUShort->begin(),primitiveUShort->end(),std::back_inserter(*new_primitive));
-                    new_primitive->offsetIndices(base);
+                    new_primitive->offsetIndices(static_cast<int>(base));
                     (*primItr) = new_primitive;
                 }
                 else
                 {
                     (*primItr) = clonePrimitive(primitive, ebo, &lhs);
-                    (*primItr)->offsetIndices(base);
+                    (*primItr)->offsetIndices(static_cast<int>(base));
                 }
             }
             break;
@@ -1926,7 +1926,7 @@ bool Optimizer::MergeGeometryVisitor::mergeGeometry(osg::Geometry& lhs, osg::Geo
         case(osg::PrimitiveSet::DrawElementsUIntPrimitiveType):
         default:
             (*primItr) = clonePrimitive(primitive, ebo, &lhs);
-            (*primItr)->offsetIndices(base);
+            (*primItr)->offsetIndices(static_cast<int>(base));
             break;
         }
     }

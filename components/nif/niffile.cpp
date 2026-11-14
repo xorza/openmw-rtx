@@ -539,10 +539,10 @@ namespace Nif
 
     std::string Reader::versionToString(std::uint32_t version)
     {
-        int major = (version >> 24) & 0xFF;
-        int minor = (version >> 16) & 0xFF;
-        int patch = (version >> 8) & 0xFF;
-        int rev = version & 0xFF;
+        int major = static_cast<int>((version >> 24) & 0xFF);
+        int minor = static_cast<int>((version >> 16) & 0xFF);
+        int patch = static_cast<int>((version >> 8) & 0xFF);
+        int rev = static_cast<int>(version & 0xFF);
 
         std::stringstream stream;
         stream << major << "." << minor << "." << patch << "." << rev;

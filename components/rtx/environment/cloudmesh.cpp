@@ -200,7 +200,7 @@ namespace Rtx
                 const float radius = std::hypot(placed[i].x(), placed[i].y());
                 const std::size_t band = alphas[i] >= 1.0f ? 0u : alphas[i] > 0.0f ? 1u : 2u;
 
-                reach[band] = std::max(reach[band], radius);
+                reach[static_cast<int>(band)] = std::max(reach[static_cast<int>(band)], radius);
             }
 
             // A band nobody painted reaches no further than the one inside it, which collapses its

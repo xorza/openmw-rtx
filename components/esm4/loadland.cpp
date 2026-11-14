@@ -163,7 +163,7 @@ void ESM4::Land::load(ESM4::Reader& reader)
                 if (layer.texture.quadrant >= 4)
                     throw std::runtime_error("ESM4::LAND additional texture quadrant index error");
 
-                currentAddQuad = layer.texture.quadrant;
+                currentAddQuad = static_cast<std::int8_t>(layer.texture.quadrant);
                 break;
             }
             case ESM::fourCC("VTXT"):

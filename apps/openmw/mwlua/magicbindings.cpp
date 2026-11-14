@@ -641,7 +641,7 @@ namespace MWLua
             [](const ActorSpells& spells, size_t index) -> const ESM::Spell* {
                 if (auto* store = spells.getStore())
                     if (index <= store->count() && index > 0)
-                        return store->at(LuaUtil::fromLuaIndex(index));
+                        return store->at(LuaUtil::fromLuaIndex(static_cast<std::int64_t>(index)));
                 return nullptr;
             },
             [spellStore](const ActorSpells& spells, std::string_view spellId) -> const ESM::Spell* {

@@ -61,7 +61,7 @@ namespace ESM
          *
          *************************************************************************/
 
-        int getVer() const { return mHeader.mData.version.ui; }
+        int getVer() const { return static_cast<int>(mHeader.mData.version.ui); }
         int getRecordCount() const { return mHeader.mData.records; }
         float esmVersionF() const { return (mHeader.mData.version.f); }
         const std::string& getAuthor() const { return mHeader.mData.author; }
@@ -347,9 +347,9 @@ namespace ESM
         {
             char buffer[4096];
             if (bytes > std::size(buffer))
-                mEsm->seekg(getFileOffset() + bytes);
+                mEsm->seekg(static_cast<std::streamoff>(getFileOffset() + bytes));
             else
-                mEsm->read(buffer, bytes);
+                mEsm->read(buffer, static_cast<std::streamsize>(bytes));
         }
 
         /// Used for error handling

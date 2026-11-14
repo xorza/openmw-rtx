@@ -74,7 +74,7 @@ namespace CSVRender
 
     void InstanceSelectionMode::dragEnded(const osg::Vec3d& dragEndPoint, DragMode dragMode)
     {
-        float dragDistance = (mDragStart - dragEndPoint).length();
+        float dragDistance = static_cast<float>((mDragStart - dragEndPoint).length());
         if (mBaseNode)
             mParentNode->removeChild(mBaseNode);
         if (getCurrentId() == "cube-centre")
@@ -96,7 +96,7 @@ namespace CSVRender
 
     void InstanceSelectionMode::drawSelectionCubeCentre(const osg::Vec3f& mousePlanePoint)
     {
-        float dragDistance = (mDragStart - mousePlanePoint).length();
+        float dragDistance = static_cast<float>((mDragStart - mousePlanePoint).length());
         drawSelectionCube(mDragStart, dragDistance);
     }
 
@@ -116,14 +116,18 @@ namespace CSVRender
 
         auto* vertices = new osg::Vec3Array;
         vertices->push_back(osg::Vec3f(0.0f, 0.0f, 0.0f));
-        vertices->push_back(osg::Vec3f(0.0f, 0.0f, pointB[2] - pointA[2]));
-        vertices->push_back(osg::Vec3f(0.0f, pointB[1] - pointA[1], 0.0f));
-        vertices->push_back(osg::Vec3f(0.0f, pointB[1] - pointA[1], pointB[2] - pointA[2]));
+        vertices->push_back(osg::Vec3f(0.0f, 0.0f, static_cast<float>(pointB[2] - pointA[2])));
+        vertices->push_back(osg::Vec3f(0.0f, static_cast<float>(pointB[1] - pointA[1]), 0.0f));
+        vertices->push_back(
+            osg::Vec3f(0.0f, static_cast<float>(pointB[1] - pointA[1]), static_cast<float>(pointB[2] - pointA[2])));
 
-        vertices->push_back(osg::Vec3f(pointB[0] - pointA[0], 0.0f, 0.0f));
-        vertices->push_back(osg::Vec3f(pointB[0] - pointA[0], 0.0f, pointB[2] - pointA[2]));
-        vertices->push_back(osg::Vec3f(pointB[0] - pointA[0], pointB[1] - pointA[1], 0.0f));
-        vertices->push_back(osg::Vec3f(pointB[0] - pointA[0], pointB[1] - pointA[1], pointB[2] - pointA[2]));
+        vertices->push_back(osg::Vec3f(static_cast<float>(pointB[0] - pointA[0]), 0.0f, 0.0f));
+        vertices->push_back(
+            osg::Vec3f(static_cast<float>(pointB[0] - pointA[0]), 0.0f, static_cast<float>(pointB[2] - pointA[2])));
+        vertices->push_back(
+            osg::Vec3f(static_cast<float>(pointB[0] - pointA[0]), static_cast<float>(pointB[1] - pointA[1]), 0.0f));
+        vertices->push_back(osg::Vec3f(static_cast<float>(pointB[0] - pointA[0]),
+            static_cast<float>(pointB[1] - pointA[1]), static_cast<float>(pointB[2] - pointA[2])));
 
         geometry->setVertexArray(vertices);
 
@@ -302,7 +306,7 @@ namespace CSVRender
 
     void InstanceSelectionMode::drawSelectionSphere(const osg::Vec3f& mousePlanePoint)
     {
-        float dragDistance = (mDragStart - mousePlanePoint).length();
+        float dragDistance = static_cast<float>((mDragStart - mousePlanePoint).length());
         drawSelectionSphere(mDragStart, dragDistance);
     }
 
@@ -338,20 +342,20 @@ namespace CSVRender
 
             for (int j = 0; j < resolution; ++j)
             {
-                float vertexX = static_cast<double>(thisRadius)
-                    * sin(static_cast<double>(j * reciprocalResolution) * osg::PI * 2);
-                float vertexY = i * radiusPerResolution * 2 - radius;
-                float vertexZ = static_cast<double>(thisRadius)
-                    * cos(static_cast<double>(j * reciprocalResolution) * osg::PI * 2);
+                auto vertexX = static_cast<float>(static_cast<double>(thisRadius)
+                    * sin(static_cast<double>(static_cast<float>(j) * reciprocalResolution) * osg::PI * 2));
+                float vertexY = static_cast<float>(i) * radiusPerResolution * 2 - radius;
+                auto vertexZ = static_cast<float>(static_cast<double>(thisRadius)
+                    * cos(static_cast<double>(static_cast<float>(j) * reciprocalResolution) * osg::PI * 2));
                 float heightPercentage = (vertexZ + radius) / (radius * 2);
                 vertices->push_back(osg::Vec3f(vertexX, vertexY, vertexZ));
                 colours->push_back(osg::Vec4f(heightPercentage, heightPercentage, heightPercentage, 0.3f));
 
-                float vertexNextRowX = static_cast<double>(thisRadius2)
-                    * sin(static_cast<double>(j * reciprocalResolution) * osg::PI * 2);
-                float vertexNextRowY = (i + 1) * radiusPerResolution * 2 - radius;
-                float vertexNextRowZ = static_cast<double>(thisRadius2)
-                    * cos(static_cast<double>(j * reciprocalResolution) * osg::PI * 2);
+                auto vertexNextRowX = static_cast<float>(static_cast<double>(thisRadius2)
+                    * sin(static_cast<double>(static_cast<float>(j) * reciprocalResolution) * osg::PI * 2));
+                float vertexNextRowY = static_cast<float>((i + 1)) * radiusPerResolution * 2 - radius;
+                auto vertexNextRowZ = static_cast<float>(static_cast<double>(thisRadius2)
+                    * cos(static_cast<double>(static_cast<float>(j) * reciprocalResolution) * osg::PI * 2));
                 float heightPercentageNextRow = (vertexZ + radius) / (radius * 2);
                 vertices->push_back(osg::Vec3f(vertexNextRowX, vertexNextRowY, vertexNextRowZ));
                 colours->push_back(

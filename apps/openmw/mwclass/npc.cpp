@@ -153,8 +153,8 @@ namespace
                 modifierSum += add;
             }
             creatureStats.setAttribute(attribute.mId,
-                std::min(
-                    round_ieee_754(creatureStats.getAttribute(attribute.mId).getBase() + (level - 1) * modifierSum),
+                std::min(round_ieee_754(creatureStats.getAttribute(attribute.mId).getBase()
+                             + static_cast<float>((level - 1)) * modifierSum),
                     100.f));
         }
 
@@ -173,8 +173,8 @@ namespace
             != npcClass->mData.mAttribute.end())
             multiplier += 1;
 
-        creatureStats.setHealth(
-            std::floor(0.5f * (strength + endurance)) + multiplier * (creatureStats.getLevel() - 1));
+        creatureStats.setHealth(std::floor(0.5f * (strength + endurance))
+            + static_cast<float>(multiplier * (creatureStats.getLevel() - 1)));
     }
 
     /**
@@ -234,8 +234,9 @@ namespace
             }
 
             npcStats.getSkill(skill.mId).setBase(
-                std::min(round_ieee_754(npcStats.getSkill(skill.mId).getBase() + 5 + raceBonus + specBonus
-                             + (static_cast<int>(level) - 1) * (majorMultiplier + specMultiplier)),
+                std::min(round_ieee_754(npcStats.getSkill(skill.mId).getBase() + 5 + static_cast<float>(raceBonus)
+                             + static_cast<float>(specBonus)
+                             + static_cast<float>((static_cast<int>(level) - 1)) * (majorMultiplier + specMultiplier)),
                     100.f)); // Must gracefully handle level 0
         }
 
@@ -560,7 +561,7 @@ namespace MWClass
 
         float hitchance = MWMechanics::getHitChance(ptr, victim, static_cast<int>(getSkill(ptr, weapskill)));
 
-        return Misc::Rng::roll0to99(world->getPrng()) < hitchance;
+        return static_cast<float>(Misc::Rng::roll0to99(world->getPrng())) < hitchance;
     }
 
     void Npc::hit(const MWWorld::Ptr& ptr, float attackStrength, float attackWindUp, int type,
@@ -610,7 +611,7 @@ namespace MWClass
                 attack = weapon.get<ESM::Weapon>()->mBase->mData.mThrust.data();
             if (attack)
             {
-                damage = attack[0] + ((attack[1] - attack[0]) * attackStrength);
+                damage = static_cast<float>(attack[0]) + (static_cast<float>((attack[1] - attack[0])) * attackStrength);
             }
             MWMechanics::adjustWeaponDamage(damage, weapon, ptr);
             MWMechanics::reduceWeaponCondition(damage, true, weapon, ptr);

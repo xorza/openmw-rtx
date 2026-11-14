@@ -816,7 +816,7 @@ namespace LuaUtil
                 Script& script = it->second;
                 script.mStats.mAvgInstructionCount = decayedInstructionCount(script);
                 script.mStatsFrame = mStatsFrame;
-                script.mStats.mAvgInstructionCount += instructionCount * instructionCountAvgCoef;
+                script.mStats.mAvgInstructionCount += static_cast<float>(instructionCount) * instructionCountAvgCoef;
             }
         }
     }

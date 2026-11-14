@@ -305,7 +305,8 @@ namespace Rtx
                 const std::size_t ours = layout.levelBytes(across, down);
                 const auto theirs = [&](std::uint32_t slices) -> std::size_t {
                     return osg::Image::computeImageSizeInBytes(static_cast<int>(across), static_cast<int>(down),
-                        static_cast<int>(slices), image.getPixelFormat(), image.getDataType(), image.getPacking());
+                        static_cast<int>(slices), image.getPixelFormat(), image.getDataType(),
+                        static_cast<int>(image.getPacking()));
                 };
 
                 if (image.getMipmapOffset(level) != laid || ours != theirs(1))

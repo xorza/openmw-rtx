@@ -245,10 +245,10 @@ namespace MWRender
             {
                 osg::ref_ptr<osg::Vec2Array> texcoords = new osg::Vec2Array;
 
-                float x1 = x / static_cast<float>(mWidth);
-                float x2 = (x + width) / static_cast<float>(mWidth);
-                float y1 = y / static_cast<float>(mHeight);
-                float y2 = (y + height) / static_cast<float>(mHeight);
+                float x1 = static_cast<float>(x) / static_cast<float>(mWidth);
+                float x2 = static_cast<float>((x + width)) / static_cast<float>(mWidth);
+                float y1 = static_cast<float>(y) / static_cast<float>(mHeight);
+                float y2 = static_cast<float>((y + height)) / static_cast<float>(mHeight);
                 texcoords->push_back(osg::Vec2f(x1, y1));
                 texcoords->push_back(osg::Vec2f(x1, y2));
                 texcoords->push_back(osg::Vec2f(x2, y2));

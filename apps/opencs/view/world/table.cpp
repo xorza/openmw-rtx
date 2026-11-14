@@ -842,7 +842,7 @@ void CSVWorld::Table::tableSizeUpdate()
 
 void CSVWorld::Table::selectionSizeUpdate()
 {
-    emit selectionSizeChanged(selectionModel()->selectedRows().size());
+    emit selectionSizeChanged(static_cast<int>(selectionModel()->selectedRows().size()));
 }
 
 void CSVWorld::Table::requestFocus(const std::string& id)

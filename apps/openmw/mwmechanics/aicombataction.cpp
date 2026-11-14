@@ -469,7 +469,7 @@ namespace MWMechanics
         static const float fAIFleeFleeMult = gmst.find("fAIFleeFleeMult")->mValue.getFloat();
 
         float healthPercentage = stats.getHealth().getRatio(false);
-        float rating = (1.0f - healthPercentage) * fAIFleeHealthMult + flee * fAIFleeFleeMult;
+        float rating = (1.0f - healthPercentage) * fAIFleeHealthMult + static_cast<float>(flee) * fAIFleeFleeMult;
 
         static const int iWereWolfLevelToAttack = gmst.find("iWereWolfLevelToAttack")->mValue.getInteger();
 

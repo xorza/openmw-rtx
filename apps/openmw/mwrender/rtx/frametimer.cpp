@@ -60,14 +60,14 @@ namespace MWRender
         char* out = mTitle.data();
         const auto room = [&] { return static_cast<std::size_t>(mTitle.data() + mTitle.size() - 1 - out); };
 
-        out = std::format_to_n(out, room(), "{}", sWindowTitle).out;
+        out = std::format_to_n(out, static_cast<std::ptrdiff_t>(room()), "{}", sWindowTitle).out;
         if (mSecondMeanMs > 0.0)
-            out = std::format_to_n(out, room(), " - {:.0f} fps, {:.1f} ms, worst {:.1f} ms", sSecondMs / mSecondMeanMs,
-                mSecondMeanMs, mSecondWorstMs)
+            out = std::format_to_n(out, static_cast<std::ptrdiff_t>(room()),
+                " - {:.0f} fps, {:.1f} ms, worst {:.1f} ms", sSecondMs / mSecondMeanMs, mSecondMeanMs, mSecondWorstMs)
                       .out;
 
         if (!note.empty())
-            out = std::format_to_n(out, room(), " - {}", note).out;
+            out = std::format_to_n(out, static_cast<std::ptrdiff_t>(room()), " - {}", note).out;
 
         *out = '\0';
         return std::string_view(mTitle.data(), static_cast<std::size_t>(out - mTitle.data()));

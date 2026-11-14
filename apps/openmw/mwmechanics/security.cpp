@@ -50,7 +50,7 @@ namespace MWMechanics
 
         float x = 0.2f * mAgility + 0.1f * mLuck + mSecuritySkill;
         x *= pickQuality * mFatigueTerm;
-        x += fPickLockMult * lockStrength;
+        x += fPickLockMult * static_cast<float>(lockStrength);
 
         MWBase::Environment::get().getMechanicsManager()->unlockAttempted(mActor, lock);
 
@@ -60,7 +60,7 @@ namespace MWMechanics
         else
         {
             auto& prng = MWBase::Environment::get().getWorld()->getPrng();
-            if (Misc::Rng::roll0to99(prng) <= x)
+            if (static_cast<float>(Misc::Rng::roll0to99(prng)) <= x)
             {
                 lock.getCellRef().unlock();
                 resultMessage = "#{sLockSuccess}";
@@ -99,7 +99,7 @@ namespace MWMechanics
                                   ->mValue.getFloat();
 
         float x = 0.2f * mAgility + 0.1f * mLuck + mSecuritySkill;
-        x += fTrapCostMult * trapSpellPoints;
+        x += fTrapCostMult * static_cast<float>(trapSpellPoints);
         x *= probeQuality * mFatigueTerm;
 
         MWBase::Environment::get().getMechanicsManager()->unlockAttempted(mActor, trap);
@@ -110,7 +110,7 @@ namespace MWMechanics
         else
         {
             auto& prng = MWBase::Environment::get().getWorld()->getPrng();
-            if (Misc::Rng::roll0to99(prng) <= x)
+            if (static_cast<float>(Misc::Rng::roll0to99(prng)) <= x)
             {
                 trap.getCellRef().setTrap(ESM::RefId());
 

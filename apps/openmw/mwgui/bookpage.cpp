@@ -23,7 +23,7 @@ namespace
         const MyGUI::GlyphInfo* gi = font->getGlyphInfo(ch);
         if (!gi)
             return {};
-        const float scale = font->getDefaultHeight() / static_cast<float>(fontSize);
+        const float scale = static_cast<float>(font->getDefaultHeight()) / static_cast<float>(fontSize);
         MyGUI::GlyphInfo info = *gi;
         info.bearingX /= scale;
         info.bearingY /= scale;
@@ -601,7 +601,7 @@ namespace MWGui
                     continue;
                 }
 
-                if (ucsBreakingSpace(stream.peek()) && !mPartialWord.empty())
+                if (ucsBreakingSpace(static_cast<int>(stream.peek())) && !mPartialWord.empty())
                     add_partial_text();
 
                 int wordWidth = 0;
@@ -609,7 +609,8 @@ namespace MWGui
 
                 Utf8Stream::Point lead = stream.current();
 
-                while (!stream.eof() && !ucsLineBreak(stream.peek()) && ucsBreakingSpace(stream.peek()))
+                while (
+                    !stream.eof() && !ucsLineBreak(stream.peek()) && ucsBreakingSpace(static_cast<int>(stream.peek())))
                 {
                     std::optional<MyGUI::GlyphInfo> info = getGlyphInfo(style->mFont, stream.peek(), mBook->mFontSize);
                     if (info)
@@ -619,7 +620,8 @@ namespace MWGui
 
                 Utf8Stream::Point origin = stream.current();
 
-                while (!stream.eof() && !ucsLineBreak(stream.peek()) && !ucsBreakingSpace(stream.peek()))
+                while (
+                    !stream.eof() && !ucsLineBreak(stream.peek()) && !ucsBreakingSpace(static_cast<int>(stream.peek())))
                 {
                     std::optional<MyGUI::GlyphInfo> info = getGlyphInfo(style->mFont, stream.peek(), mBook->mFontSize);
                     if (info)
@@ -885,7 +887,7 @@ namespace MWGui
                 if (mRenderXform.clip(vr, tr))
                     quad(vr, tr);
 
-                mCursor.left += static_cast<int>(info->bearingX + info->advance);
+                mCursor.left += static_cast<float>(static_cast<int>(info->bearingX + info->advance));
             }
 
             void emitSpace(MyGUI::Char ch)
@@ -893,7 +895,7 @@ namespace MWGui
                 std::optional<MyGUI::GlyphInfo> info = getGlyphInfo(mFont, ch, mFontSize);
 
                 if (info)
-                    mCursor.left += static_cast<int>(info->bearingX + info->advance);
+                    mCursor.left += static_cast<float>(static_cast<int>(info->bearingX + info->advance));
             }
 
         private:

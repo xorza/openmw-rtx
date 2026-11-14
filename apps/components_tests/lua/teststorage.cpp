@@ -140,7 +140,7 @@ namespace
             {
                 std::ofstream fout(tmpFile, std::ios::binary);
                 const std::string serialized = LuaUtil::serialize(sol::make_object(lua.lua_state(), 1.0));
-                fout.write(serialized.data(), serialized.size());
+                fout.write(serialized.data(), static_cast<std::streamsize>(serialized.size()));
             }
 
             EXPECT_NO_THROW(storage.load(lua, tmpFile));

@@ -33,8 +33,9 @@ namespace Rtx
     inline osg::Vec3f looseColourAt(const TextureData& texture, const std::size_t at)
     {
         assert(layoutOf(texture.mFormat).mBytes == 4 && "a loose texel read as four bytes that is not");
-        const auto channel
-            = [&](std::size_t offset) { return std::to_integer<std::uint32_t>(texture.mBytes[at + offset]) / 255.0f; };
+        const auto channel = [&](std::size_t offset) {
+            return static_cast<float>(std::to_integer<std::uint32_t>(texture.mBytes[at + offset])) / 255.0f;
+        };
 
         // The two loose spellings differ only in which end the three colours are stated from.
         if (isBgr(texture.mFormat))

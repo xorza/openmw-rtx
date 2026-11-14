@@ -14,7 +14,7 @@ namespace MWSound
         if (mQueue.empty())
             return;
 
-        int samplesPerSegment = static_cast<int>(mSampleRate / mSamplesPerSec);
+        int samplesPerSegment = static_cast<int>(static_cast<float>(mSampleRate) / mSamplesPerSec);
         std::size_t numSamples = bytesToFrames(mQueue.size(), mChannelConfig, mSampleType);
         std::size_t advance = framesToBytes(1, mChannelConfig, mSampleType);
 
@@ -29,7 +29,7 @@ namespace MWSound
                 // get sample on a scale from -1 to 1
                 float value = 0;
                 if (mSampleType == SampleType_UInt8)
-                    value = (static_cast<char>(mQueue[sample * advance] ^ 0x80)) / 128.f;
+                    value = static_cast<float>((static_cast<char>(mQueue[sample * advance] ^ 0x80))) / 128.f;
                 else if (mSampleType == SampleType_Int16)
                 {
                     value = *reinterpret_cast<const int16_t*>(&mQueue[sample * advance]);
@@ -48,12 +48,12 @@ namespace MWSound
 
             float rms = 0; // root mean square
             if (samplesAdded > 0)
-                rms = std::sqrt(sum / samplesAdded);
+                rms = std::sqrt(sum / static_cast<float>(samplesAdded));
             mSamples.push_back(rms);
             ++segment;
         }
 
-        mQueue.erase(mQueue.begin(), mQueue.begin() + sample * advance);
+        mQueue.erase(mQueue.begin(), mQueue.begin() + static_cast<std::ptrdiff_t>(sample * advance));
     }
 
     float Sound_Loudness::getLoudnessAtTime(float sec) const

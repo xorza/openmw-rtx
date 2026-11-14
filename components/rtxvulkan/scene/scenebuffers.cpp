@@ -441,11 +441,11 @@ namespace Rtx
                 const Shaders::GpuLightCell& held = lightCells[cell];
                 for (std::uint32_t key = 0; key < 2; ++key)
                 {
-                    const VkDeviceSize at = VkDeviceSize{ held.mFirst[key] } * sizeof(std::uint32_t);
+                    const VkDeviceSize at = VkDeviceSize{ held.mFirst[static_cast<int>(key)] } * sizeof(std::uint32_t);
                     appendRun(mListRuns,
                         CopyRun{ .mFrom = at,
                             .mTo = at,
-                            .mSize = VkDeviceSize{ held.mCount[key] } * sizeof(std::uint32_t) });
+                            .mSize = VkDeviceSize{ held.mCount[static_cast<int>(key)] } * sizeof(std::uint32_t) });
                 }
             }
             uploads.writeRuns(tables.mLightCells.get(), std::as_bytes(lightCells), mCellRuns);

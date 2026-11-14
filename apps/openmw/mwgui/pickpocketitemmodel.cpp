@@ -33,7 +33,7 @@ namespace MWGui
             auto& prng = MWBase::Environment::get().getWorld()->getPrng();
             for (size_t i = 0; i < mSourceModel->getItemCount(); ++i)
             {
-                if (Misc::Rng::roll0to99(prng) > chance)
+                if (static_cast<float>(Misc::Rng::roll0to99(prng)) > chance)
                     mHiddenItems.push_back(mSourceModel->getItem(static_cast<ModelIndex>(i)));
             }
         }

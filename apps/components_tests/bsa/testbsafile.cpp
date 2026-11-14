@@ -63,10 +63,11 @@ namespace Bsa
 
             if (!value.mOffsets.empty())
                 stream.write(reinterpret_cast<const char*>(value.mOffsets.data()),
-                    value.mOffsets.size() * sizeof(std::uint32_t));
+                    static_cast<std::streamsize>(value.mOffsets.size() * sizeof(std::uint32_t)));
 
             if (!value.mStringBuffer.empty())
-                stream.write(reinterpret_cast<const char*>(value.mStringBuffer.data()), value.mStringBuffer.size());
+                stream.write(reinterpret_cast<const char*>(value.mStringBuffer.data()),
+                    static_cast<std::streamsize>(value.mStringBuffer.size()));
 
             for (const BSAFile::Hash& hash : value.mHashes)
                 stream.write(reinterpret_cast<const char*>(&hash), sizeof(BSAFile::Hash));
@@ -74,7 +75,8 @@ namespace Bsa
             const std::size_t chunkSize = 4096;
             std::vector<char> chunk(chunkSize);
             for (std::size_t i = 0; i < value.mTailSize; i += chunkSize)
-                stream.write(reinterpret_cast<const char*>(chunk.data()), std::min(chunk.size(), value.mTailSize - i));
+                stream.write(reinterpret_cast<const char*>(chunk.data()),
+                    static_cast<std::streamsize>(std::min(chunk.size(), value.mTailSize - i)));
         }
 
         std::filesystem::path makeOutputPath()

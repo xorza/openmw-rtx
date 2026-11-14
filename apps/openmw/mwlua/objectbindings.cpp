@@ -173,7 +173,7 @@ namespace MWLua
             listT[sol::meta_function::length] = [](const ListT& list) { return list.mIds->size(); };
             listT[sol::meta_function::index] = [](const ListT& list, size_t index) -> sol::optional<ObjectT> {
                 if (index > 0 && index <= list.mIds->size())
-                    return ObjectT((*list.mIds)[LuaUtil::fromLuaIndex(index)]);
+                    return ObjectT((*list.mIds)[LuaUtil::fromLuaIndex(static_cast<std::int64_t>(index))]);
                 else
                     return sol::nullopt;
             };

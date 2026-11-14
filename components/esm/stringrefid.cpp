@@ -93,7 +93,7 @@ namespace ESM
             if (Utf8Stream::isAscii(*ptr))
             {
                 if (std::isprint(*ptr) && *ptr != '\t' && *ptr != '\n' && *ptr != '\r')
-                    result.push_back(*ptr);
+                    result.push_back(static_cast<char>(*ptr));
                 else
                     addHex(*ptr, result);
                 ++ptr;

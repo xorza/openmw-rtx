@@ -190,7 +190,7 @@ namespace MWRender
             camera->setClearColor(mClearColour);
             camera->setClearMask(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
             camera->setProjectionMatrixAsPerspective(fovYDegrees, mAspectRatio, znear, zfar);
-            camera->setViewport(0, 0, width(), height());
+            camera->setViewport(0, 0, static_cast<int>(width()), static_cast<int>(height()));
             camera->setRenderOrder(osg::Camera::PRE_RENDER);
             camera->setCullMask(mMask);
             camera->setComputeNearFarMode(osg::Camera::DO_NOT_COMPUTE_NEAR_FAR);

@@ -839,8 +839,8 @@ namespace MWWorld
             for (float hour : appearanceTimes)
             {
                 TimeStamp before, after;
-                before += (24.0f * day + hour - 1.5f / 60.0f);
-                after += (24.0f * day + hour + 1.5f / 60.0f);
+                before += (24.0f * static_cast<float>(day) + hour - 1.5f / 60.0f);
+                after += (24.0f * static_cast<float>(day) + hour + 1.5f / 60.0f);
 
                 EXPECT_LE(moon.calculateState(before).mMoonAlpha, 0.0f) << "day " << day;
                 EXPECT_GT(moon.calculateState(after).mMoonAlpha, 0.0f) << "day " << day;
@@ -1277,7 +1277,7 @@ namespace MWWorld
             for (int minute = 0; minute < 24 * 60; ++minute)
             {
                 TimeStamp time;
-                time += (24.0f * 3 + minute / 60.0f);
+                time += (24.0f * 3 + static_cast<float>(minute) / 60.0f);
                 EXPECT_LE(moon.calculateState(time).mMoonAlpha, 0.0f) << "minute " << minute;
             }
         }
@@ -1336,7 +1336,7 @@ namespace MWWorld
             for (int minute = 0; minute < 24 * 60; ++minute)
             {
                 TimeStamp time;
-                time += (24.0f * 3 + minute / 60.0f);
+                time += (24.0f * 3 + static_cast<float>(minute) / 60.0f);
                 EXPECT_GT(moon.calculateState(time).mMoonAlpha, 0.0f) << "minute " << minute;
             }
         }

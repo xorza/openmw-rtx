@@ -134,7 +134,7 @@ namespace Rtx
         {
             osg::Vec3d normal;
             for (std::size_t axis = 0; axis < 3; ++axis)
-                normal[axis] = 2.0 * texels[at * 4 + axis] / 255.0 - 1.0;
+                normal[static_cast<int>(axis)] = 2.0 * texels[at * 4 + axis] / 255.0 - 1.0;
             normal.normalize();
             return normal;
         }

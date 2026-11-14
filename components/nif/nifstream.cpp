@@ -59,7 +59,7 @@ namespace Nif
     {
         checkStreamSize(length);
         std::string str(length, '\0');
-        mStream->read(str.data(), length);
+        mStream->read(str.data(), static_cast<std::streamsize>(length));
         if (mStream->fail())
             throw std::runtime_error(std::format(
                 "Failed to read sized string of {} chars: {}", length, std::generic_category().message(errno)));
@@ -94,7 +94,7 @@ namespace Nif
         size_t size = get<uint32_t>();
         checkStreamSize(size);
         std::string str(size, '\0');
-        mStream->read(str.data(), size);
+        mStream->read(str.data(), static_cast<std::streamsize>(size));
         if (mStream->fail())
             throw std::runtime_error(std::format(
                 "Failed to read string palette of {} chars: {}", size, std::generic_category().message(errno)));

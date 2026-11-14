@@ -218,7 +218,7 @@ namespace LuaUtil
             sol::table table(lua, sol::create);
             const auto vertices = b.vertices();
             for (size_t i = 0; i < vertices.size(); ++i)
-                table[toLuaIndex(i)] = vertices[i];
+                table[toLuaIndex(static_cast<std::int64_t>(i))] = vertices[i];
             return table;
         });
         boxType[sol::meta_function::equal_to] = [](const Box& a, const Box& b) { return a == b; };
@@ -266,8 +266,10 @@ namespace LuaUtil
             if (rgba.size() == 3)
                 rgba.push_back("255");
 
-            return Misc::Color(MyGUI::utility::parseInt(rgba[0]) / 255.f, MyGUI::utility::parseInt(rgba[1]) / 255.f,
-                MyGUI::utility::parseInt(rgba[2]) / 255.f, MyGUI::utility::parseInt(rgba[3]) / 255.f);
+            return Misc::Color(static_cast<float>(MyGUI::utility::parseInt(rgba[0])) / 255.f,
+                static_cast<float>(MyGUI::utility::parseInt(rgba[1])) / 255.f,
+                static_cast<float>(MyGUI::utility::parseInt(rgba[2])) / 255.f,
+                static_cast<float>(MyGUI::utility::parseInt(rgba[3])) / 255.f);
         };
         util["color"] = LuaUtil::makeReadOnly(color);
 

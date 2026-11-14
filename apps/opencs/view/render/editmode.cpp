@@ -38,7 +38,7 @@ unsigned int CSVRender::EditMode::getInteractionMask() const
 void CSVRender::EditMode::activate(CSVWidget::SceneToolbar* toolbar)
 {
     mWorldspaceWidget->setInteractionMask(mMask);
-    mWorldspaceWidget->clearSelection(~mMask);
+    mWorldspaceWidget->clearSelection(static_cast<int>(~mMask));
 }
 
 void CSVRender::EditMode::setEditLock(bool locked) {}

@@ -210,12 +210,12 @@ namespace MWInput
 
     bool BindingsManager::isLeftOrRightButton(int action, bool joystick) const
     {
-        int mouseBinding
-            = mInputBinder->getMouseButtonBinding(mInputBinder->getControl(action), ICS::Control::INCREASE);
+        int mouseBinding = static_cast<int>(
+            mInputBinder->getMouseButtonBinding(mInputBinder->getControl(action), ICS::Control::INCREASE));
         if (mouseBinding != ICS_MAX_DEVICE_BUTTONS)
             return true;
-        int buttonBinding = mInputBinder->getJoystickButtonBinding(
-            mInputBinder->getControl(action), sFakeDeviceId, ICS::Control::INCREASE);
+        int buttonBinding = static_cast<int>(mInputBinder->getJoystickButtonBinding(
+            mInputBinder->getControl(action), sFakeDeviceId, ICS::Control::INCREASE));
         if (joystick && (buttonBinding == 0 || buttonBinding == 1))
             return true;
         return false;
@@ -571,7 +571,7 @@ namespace MWInput
         else if (mInputBinder->getJoystickButtonBinding(c, sFakeDeviceId, ICS::Control::INCREASE)
             != ICS_MAX_DEVICE_BUTTONS)
             return SDLUtil::sdlControllerButtonToString(
-                mInputBinder->getJoystickButtonBinding(c, sFakeDeviceId, ICS::Control::INCREASE));
+                static_cast<int>(mInputBinder->getJoystickButtonBinding(c, sFakeDeviceId, ICS::Control::INCREASE)));
         else
             return "#{Interface:None}";
     }

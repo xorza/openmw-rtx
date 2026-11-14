@@ -155,7 +155,7 @@ namespace MWRender
     void HeadAnimationTime::resetBlinkTimer()
     {
         auto& prng = MWBase::Environment::get().getWorld()->getPrng();
-        mBlinkTimer = -(2.0f + Misc::Rng::rollDice(6, prng));
+        mBlinkTimer = -(2.0f + static_cast<float>(Misc::Rng::rollDice(6, prng)));
     }
 
     void HeadAnimationTime::update(float dt)
@@ -669,9 +669,9 @@ namespace MWRender
         if (mPartPriorities[ESM::PRT_Shield] < 1)
         {
             MWWorld::ConstContainerStoreIterator store = inv.getSlot(MWWorld::InventoryStore::Slot_CarriedLeft);
-            MWWorld::ConstPtr part;
-            if (store != inv.end() && (part = *store).getType() == ESM::Light::sRecordId)
+            if (store != inv.end() && store->getType() == ESM::Light::sRecordId)
             {
+                const MWWorld::ConstPtr part = *store;
                 const ESM::Light* light = part.get<ESM::Light>()->mBase;
                 addOrReplaceIndividualPart(ESM::PRT_Shield, MWWorld::InventoryStore::Slot_CarriedLeft, 1,
                     Misc::ResourceHelpers::correctMeshPath(light->mModel.getNormalized()), false, nullptr, true);

@@ -370,16 +370,19 @@ namespace MWGui
             // By default, assume that all menu buttons textures should have 64 height.
             // If they have a different resolution, scale them.
             MyGUI::IntSize requested = button->getRequestedSize();
-            float scale = requested.height / 64.f;
+            float scale = static_cast<float>(requested.height) / 64.f;
 
             button->setImageCoord(MyGUI::IntCoord(0, 0, requested.width, requested.height));
             // Trim off some of the excessive padding
             // TODO: perhaps do this within ImageButton?
             int height = requested.height;
-            button->setImageTile(MyGUI::IntSize(requested.width, static_cast<int>(requested.height - 16 * scale)));
-            button->setCoord(static_cast<int>((maxwidth - requested.width / scale) / 2), curH,
-                static_cast<int>(requested.width / scale), static_cast<int>(height / scale - 16));
-            curH += static_cast<int>(height / scale - 16);
+            button->setImageTile(
+                MyGUI::IntSize(requested.width, static_cast<int>(static_cast<float>(requested.height) - 16 * scale)));
+            button->setCoord(
+                static_cast<int>((static_cast<float>(maxwidth) - static_cast<float>(requested.width) / scale) / 2),
+                curH, static_cast<int>(static_cast<float>(requested.width) / scale),
+                static_cast<int>(static_cast<float>(height) / scale - 16));
+            curH += static_cast<int>(static_cast<float>(height) / scale - 16);
         }
 
         if (state == MWBase::StateManager::State_NoGame)

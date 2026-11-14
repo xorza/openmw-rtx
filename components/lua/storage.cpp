@@ -299,7 +299,7 @@ namespace LuaUtil
         std::string serializedData = serialize(data);
         Log(Debug::Info) << "Saving Lua storage \"" << path << "\" (" << serializedData.size() << " bytes)";
         std::ofstream fout(path, std::fstream::binary);
-        fout.write(serializedData.data(), serializedData.size());
+        fout.write(serializedData.data(), static_cast<std::streamsize>(serializedData.size()));
         fout.close();
     }
 

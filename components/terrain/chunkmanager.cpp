@@ -110,8 +110,8 @@ namespace Terrain
     osg::ref_ptr<osg::Texture2D> ChunkManager::createCompositeMapRTT()
     {
         osg::ref_ptr<osg::Texture2D> texture = new osg::Texture2D;
-        texture->setTextureWidth(mCompositeMapSize);
-        texture->setTextureHeight(mCompositeMapSize);
+        texture->setTextureWidth(static_cast<int>(mCompositeMapSize));
+        texture->setTextureHeight(static_cast<int>(mCompositeMapSize));
         texture->setInternalFormat(GL_RGB);
         texture->setWrap(osg::Texture::WRAP_S, osg::Texture::CLAMP_TO_EDGE);
         texture->setWrap(osg::Texture::WRAP_T, osg::Texture::CLAMP_TO_EDGE);
@@ -254,8 +254,9 @@ namespace Terrain
         if (chunkSize <= 1.f)
             geometry->setLightListCallback(new SceneUtil::LightListCallback);
 
-        auto numVerts
-            = static_cast<unsigned>((mStorage->getCellVertices(mWorldspace) - 1) * chunkSize / (1 << lod) + 1);
+        auto numVerts = static_cast<unsigned>(static_cast<float>((mStorage->getCellVertices(mWorldspace) - 1))
+                * chunkSize / static_cast<float>((1 << lod))
+            + 1);
 
         geometry->addPrimitiveSet(mBufferCache.getIndexBuffer(numVerts, lodFlags));
 
@@ -304,7 +305,8 @@ namespace Terrain
             }
         }
 
-        geometry->setupWaterBoundingBox(-1, chunkSize * mStorage->getCellWorldSize(mWorldspace) / numVerts);
+        geometry->setupWaterBoundingBox(
+            -1, chunkSize * mStorage->getCellWorldSize(mWorldspace) / static_cast<float>(numVerts));
 
         if (!templateGeometry && compile && mSceneManager->getIncrementalCompileOperation())
         {

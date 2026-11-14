@@ -622,7 +622,8 @@ namespace MWLua
                 const size_t length = table.size();
                 skill.mData.mUseValue.fill(0.f);
                 for (size_t i = 0; i < skill.mData.mUseValue.size() && i < length; ++i)
-                    skill.mData.mUseValue[i] = table.get<Misc::FiniteFloat>(LuaUtil::toLuaIndex(i));
+                    skill.mData.mUseValue[i]
+                        = table.get<Misc::FiniteFloat>(LuaUtil::toLuaIndex(static_cast<std::int64_t>(i)));
             }
         }
 

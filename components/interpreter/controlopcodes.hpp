@@ -48,7 +48,7 @@ namespace Interpreter
             if (arg0 == 0)
                 throw std::logic_error("infinite loop");
 
-            runtime.setPC(runtime.getPC() + arg0 - 1);
+            runtime.setPC(static_cast<int>(runtime.getPC() + arg0 - 1));
         }
     };
 
@@ -60,7 +60,7 @@ namespace Interpreter
             if (arg0 == 0)
                 throw std::logic_error("infinite loop");
 
-            runtime.setPC(runtime.getPC() - arg0 - 1);
+            runtime.setPC(static_cast<int>(runtime.getPC() - arg0 - 1));
         }
     };
 }

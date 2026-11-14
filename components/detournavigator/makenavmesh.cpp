@@ -152,9 +152,10 @@ namespace DetourNavigator
             const int size = settings.mTileSize + settings.mBorderSize * 2;
             const int width = size;
             const int height = size;
-            const float halfBoundsSize = size * settings.mCellSize * 0.5f;
+            const float halfBoundsSize = static_cast<float>(size) * settings.mCellSize * 0.5f;
             const osg::Vec2f shift
-                = osg::Vec2f(tilePosition.x() + 0.5f, tilePosition.y() + 0.5f) * getTileSize(settings);
+                = osg::Vec2f(static_cast<float>(tilePosition.x()) + 0.5f, static_cast<float>(tilePosition.y()) + 0.5f)
+                * getTileSize(settings);
             const osg::Vec3f bmin(shift.x() - halfBoundsSize, minZ, shift.y() - halfBoundsSize);
             const osg::Vec3f bmax(shift.x() + halfBoundsSize, maxZ, shift.y() + halfBoundsSize);
 
@@ -617,8 +618,8 @@ namespace DetourNavigator
     {
         dtNavMeshParams params;
         std::fill_n(params.orig, 3, 0.0f);
-        params.tileWidth = settings.mRecast.mTileSize * settings.mRecast.mCellSize;
-        params.tileHeight = settings.mRecast.mTileSize * settings.mRecast.mCellSize;
+        params.tileWidth = static_cast<float>(settings.mRecast.mTileSize) * settings.mRecast.mCellSize;
+        params.tileHeight = static_cast<float>(settings.mRecast.mTileSize) * settings.mRecast.mCellSize;
         params.maxTiles = settings.mMaxTilesNumber;
         params.maxPolys = settings.mDetour.mMaxPolys;
 

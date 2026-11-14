@@ -103,7 +103,7 @@ namespace MWLua
         record["weight"] = sol::readonly_property([](const ESM::Clothing& rec) -> float { return rec.mData.mWeight; });
         record["value"] = sol::readonly_property([](const ESM::Clothing& rec) -> int { return rec.mData.mValue; });
         record["type"] = sol::readonly_property([](const ESM::Clothing& rec) -> int { return rec.mData.mType; });
-        record["enchantCapacity"]
-            = sol::readonly_property([](const ESM::Clothing& rec) -> float { return rec.mData.mEnchant * 0.1f; });
+        record["enchantCapacity"] = sol::readonly_property(
+            [](const ESM::Clothing& rec) -> float { return static_cast<float>(rec.mData.mEnchant) * 0.1f; });
     }
 }

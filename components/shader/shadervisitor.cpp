@@ -279,10 +279,10 @@ namespace Shader
 
                         if (!texName.empty())
                         {
-                            mRequirements.back().mTextures[unit] = texName;
+                            mRequirements.back().mTextures[static_cast<int>(unit)] = texName;
                             if (texName == "normalMap")
                             {
-                                mRequirements.back().mTexStageRequiringTangents = unit;
+                                mRequirements.back().mTexStageRequiringTangents = static_cast<int>(unit);
                                 normalMap = texture;
                             }
                             else if (texName == "diffuseMap")
@@ -292,7 +292,7 @@ namespace Shader
                                 if (node.getUserValue("applyMode", applyMode) && applyMode == 4)
                                 {
                                     mRequirements.back().mDiffuseHeight = true;
-                                    mRequirements.back().mTexStageRequiringTangents = unit;
+                                    mRequirements.back().mTexStageRequiringTangents = static_cast<int>(unit);
                                 }
                                 diffuseMap = texture;
                             }
@@ -465,8 +465,8 @@ namespace Shader
         defineMap["alphaFunc"] = std::to_string(reqs.mAlphaFunc);
         defineMap["additiveBlending"] = reqs.mAdditiveBlending ? "1" : "0";
 
-        osg::ref_ptr<osg::StateSet> removedState;
-        if ((removedState = getRemovedState(*writableStateSet)) && !mAllowedToModifyStateSets)
+        osg::ref_ptr<osg::StateSet> removedState = getRemovedState(*writableStateSet);
+        if (removedState && !mAllowedToModifyStateSets)
             removedState = new osg::StateSet(*removedState, osg::CopyOp::SHALLOW_COPY);
         if (!removedState)
             removedState = new osg::StateSet();

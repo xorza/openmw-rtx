@@ -50,8 +50,8 @@ namespace CSVRender
         , mHasWater(false)
     {
         mWaterTransform = new osg::PositionAttitudeTransform();
-        mWaterTransform->setPosition(osg::Vec3f(
-            cellCoords.getX() * CellSize + CellSize / 2.f, cellCoords.getY() * CellSize + CellSize / 2.f, 0));
+        mWaterTransform->setPosition(osg::Vec3f(static_cast<float>(cellCoords.getX() * CellSize) + CellSize / 2.f,
+            static_cast<float>(cellCoords.getY() * CellSize) + CellSize / 2.f, 0));
 
         mWaterTransform->setNodeMask(Mask_Water);
         mParentNode->addChild(mWaterTransform);

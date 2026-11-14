@@ -157,9 +157,10 @@ namespace RtxTool
         const int percent = static_cast<int>(note.mCrossed * 100.0f);
 
         const auto [end, length] = note.mArriving.empty()
-            ? std::format_to_n(room.data(), room.size(), "{}, {:02}:{:02}", note.mWeather, minutes / 60, minutes % 60)
-            : std::format_to_n(room.data(), room.size(), "{} → {} {}%, {:02}:{:02}", note.mWeather, note.mArriving,
-                  percent, minutes / 60, minutes % 60);
+            ? std::format_to_n(room.data(), static_cast<std::ptrdiff_t>(room.size()), "{}, {:02}:{:02}", note.mWeather,
+                  minutes / 60, minutes % 60)
+            : std::format_to_n(room.data(), static_cast<std::ptrdiff_t>(room.size()), "{} → {} {}%, {:02}:{:02}",
+                  note.mWeather, note.mArriving, percent, minutes / 60, minutes % 60);
 
         assert(static_cast<std::size_t>(length) <= room.size() && "the sky note outgrew its room");
         return std::string_view(room.data(), std::min(static_cast<std::size_t>(length), room.size()));

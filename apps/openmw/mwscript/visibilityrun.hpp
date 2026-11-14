@@ -39,7 +39,7 @@ namespace MWScript
         /// A global's value whatever its type, exactly: a double holds a long whole.
         double getGlobal(std::string_view name) const
         {
-            return getGlobalType(name) == 'f' ? getGlobalFloat(name) : getGlobalInt(name);
+            return getGlobalType(name) == 'f' ? getGlobalFloat(name) : static_cast<float>(getGlobalInt(name));
         }
     };
 

@@ -30,8 +30,9 @@ namespace Gui
                 else if (str[i] != ' ')
                     ret[j] += str[i];
             }
-            MyGUI::Colour col(MyGUI::utility::parseInt(ret[0]) / 255.f, MyGUI::utility::parseInt(ret[1]) / 255.f,
-                MyGUI::utility::parseInt(ret[2]) / 255.f);
+            MyGUI::Colour col(static_cast<float>(MyGUI::utility::parseInt(ret[0])) / 255.f,
+                static_cast<float>(MyGUI::utility::parseInt(ret[1])) / 255.f,
+                static_cast<float>(MyGUI::utility::parseInt(ret[2])) / 255.f);
             out = col.print();
             return true;
         }

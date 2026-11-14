@@ -43,7 +43,7 @@ namespace
         {
             price *= item.getClass().getItemNormalizedHealth(item);
         }
-        return static_cast<int>(price * count);
+        return static_cast<int>(price * static_cast<float>(count));
     }
 
     bool haggle(const MWWorld::Ptr& player, const MWWorld::Ptr& merchant, int playerOffer, int merchantOffer)
@@ -81,18 +81,20 @@ namespace
         float e1 = 0.1f * merchantStats.getAttribute(ESM::Attribute::Luck).getModified();
         float f1 = 0.2f * merchantStats.getAttribute(ESM::Attribute::Personality).getModified();
 
-        float dispositionTerm = gmst.find("fDispositionMod")->mValue.getFloat() * (clampedDisposition - 50);
+        float dispositionTerm
+            = gmst.find("fDispositionMod")->mValue.getFloat() * static_cast<float>((clampedDisposition - 50));
         float pcTerm = (dispositionTerm + a1 + b1 + c1) * playerStats.getFatigueTerm();
         float npcTerm = (d1 + e1 + f1) * merchantStats.getFatigueTerm();
-        float x = gmst.find("fBargainOfferMulti")->mValue.getFloat() * d
-            + gmst.find("fBargainOfferBase")->mValue.getFloat() + static_cast<int>(pcTerm - npcTerm);
+        float x = gmst.find("fBargainOfferMulti")->mValue.getFloat() * static_cast<float>(d)
+            + gmst.find("fBargainOfferBase")->mValue.getFloat()
+            + static_cast<float>(static_cast<int>(pcTerm - npcTerm));
 
         auto& prng = MWBase::Environment::get().getWorld()->getPrng();
         int roll = Misc::Rng::rollDice(100, prng) + 1;
 
         // reject if roll fails
         // (or if player tries to buy things and get money)
-        if (roll > x || (merchantOffer < 0 && 0 < playerOffer))
+        if (static_cast<float>(roll) > x || (merchantOffer < 0 && 0 < playerOffer))
         {
             return false;
         }
@@ -104,11 +106,13 @@ namespace
 
         if (!buying && (finalPrice > initialMerchantOffer))
         {
-            skillGain = std::floor(100.f * (finalPrice - initialMerchantOffer) / finalPrice);
+            skillGain = std::floor(
+                100.f * static_cast<float>((finalPrice - initialMerchantOffer)) / static_cast<float>(finalPrice));
         }
         else if (buying && (finalPrice < initialMerchantOffer))
         {
-            skillGain = std::floor(100.f * (initialMerchantOffer - finalPrice) / initialMerchantOffer);
+            skillGain = std::floor(100.f * static_cast<float>((initialMerchantOffer - finalPrice))
+                / static_cast<float>(initialMerchantOffer));
         }
         player.getClass().skillUsageSucceeded(
             player, ESM::Skill::Mercantile, ESM::Skill::Mercantile_Success, skillGain);
@@ -621,8 +625,8 @@ namespace MWGui
         for (const ItemStack& itemStack : playerBorrowed)
         {
             const int basePrice = getEffectiveValue(itemStack.mBase, static_cast<int>(itemStack.mCount));
-            const int cap
-                = static_cast<int>(std::max(1.f, 0.75f * basePrice)); // Minimum buying price -- 75% of the base
+            const int cap = static_cast<int>(
+                std::max(1.f, 0.75f * static_cast<float>(basePrice))); // Minimum buying price -- 75% of the base
             const int buyingPrice
                 = MWBase::Environment::get().getMechanicsManager()->getBarterOffer(mPtr, basePrice, true);
             merchantOffer -= std::max(cap, buyingPrice);
@@ -632,8 +636,8 @@ namespace MWGui
         for (const ItemStack& itemStack : merchantBorrowed)
         {
             const int basePrice = getEffectiveValue(itemStack.mBase, static_cast<int>(itemStack.mCount));
-            const int cap
-                = static_cast<int>(std::max(1.f, 0.75f * basePrice)); // Maximum selling price -- 75% of the base
+            const int cap = static_cast<int>(
+                std::max(1.f, 0.75f * static_cast<float>(basePrice))); // Maximum selling price -- 75% of the base
             const int sellingPrice
                 = MWBase::Environment::get().getMechanicsManager()->getBarterOffer(mPtr, basePrice, false);
             merchantOffer += mPtr.getClass().isNpc() ? std::min(cap, sellingPrice) : sellingPrice;

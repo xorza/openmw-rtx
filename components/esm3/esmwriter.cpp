@@ -337,7 +337,7 @@ namespace ESM
                 record.size += static_cast<uint32_t>(size);
         }
 
-        mStream->write(data, size);
+        mStream->write(data, static_cast<std::streamsize>(size));
     }
 
     void ESMWriter::writeFormId(const FormId& formId, bool wide, NAME tag)

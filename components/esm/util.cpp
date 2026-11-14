@@ -12,8 +12,8 @@ osg::Vec2f ESM::indexToPosition(const ESM::ExteriorCellLocation& cellIndex, bool
 
     if (centre)
     {
-        x += cellSize / 2;
-        y += cellSize / 2;
+        x += static_cast<float>(cellSize / 2);
+        y += static_cast<float>(cellSize / 2);
     }
 
     return osg::Vec2f(x, y);

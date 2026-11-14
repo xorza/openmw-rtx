@@ -72,7 +72,8 @@ void MWState::Character::addSlot(const ESM::SavedGame& profile)
     while (!description.eof())
     {
         auto c = description.consume();
-        if (c <= 0x7F && std::isalnum(c)) // Ignore multibyte characters and non alphanumeric characters
+        if (c <= 0x7F
+            && std::isalnum(static_cast<int>(c))) // Ignore multibyte characters and non alphanumeric characters
             stream << static_cast<char>(c);
         else
             stream << '_';

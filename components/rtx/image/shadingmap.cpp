@@ -58,7 +58,7 @@ namespace Rtx
                 if (across >= alpha.getWidth() || down >= alpha.getHeight())
                     continue;
 
-                const float weight = alpha.at(0, across, down) / 255.0f;
+                const float weight = static_cast<float>(alpha.at(0, across, down)) / 255.0f;
                 total.mSum += palette[block.indexAt(texel)] * weight;
                 total.mWeight += weight;
             }
@@ -99,7 +99,7 @@ namespace Rtx
             for (std::uint32_t y = 0; y < height; ++y)
                 for (std::uint32_t x = 0; x < width; ++x)
                 {
-                    const float weight = alpha.at(0, x, y) / 255.0f;
+                    const float weight = static_cast<float>(alpha.at(0, x, y)) / 255.0f;
                     sink(x, y,
                         TexelSum{
                             linearOf(looseColourAt(texture, level.texelOffset(x, y, layout.mBytes)), srgb) * weight,

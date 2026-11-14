@@ -54,7 +54,7 @@ namespace MWGui
         const MWWorld::ESMStore& store = *MWBase::Environment::get().getESMStore();
 
         int price = std::max(1,
-            static_cast<int>(MWMechanics::calcSpellCost(spell)
+            static_cast<int>(static_cast<float>(MWMechanics::calcSpellCost(spell))
                 * store.get<ESM::GameSetting>().find("fSpellValueMult")->mValue.getFloat()));
         price = MWBase::Environment::get().getMechanicsManager()->getBarterOffer(mPtr, price, true);
 
@@ -224,8 +224,9 @@ namespace MWGui
         if (mSpellsView->getViewOffset().top + rel * 0.3 > 0)
             mSpellsView->setViewOffset(MyGUI::IntPoint(0, 0));
         else
-            mSpellsView->setViewOffset(
-                MyGUI::IntPoint(0, static_cast<int>(mSpellsView->getViewOffset().top + rel * 0.3f)));
+            mSpellsView->setViewOffset(MyGUI::IntPoint(0,
+                static_cast<int>(
+                    static_cast<float>(mSpellsView->getViewOffset().top) + static_cast<float>(rel) * 0.3f)));
     }
 
     bool SpellBuyingWindow::onControllerButtonEvent(const SDL_GamepadButtonEvent& arg)

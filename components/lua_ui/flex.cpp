@@ -112,18 +112,18 @@ namespace LuaUi
                 const float stretch = std::clamp(w->externalValue("stretch", 0.0f), 0.0f, 1.0f);
                 if (widgetGrowFactor > 0)
                 {
-                    const int pixelsToExpandBy = std::clamp(
-                        static_cast<int>(
-                            std::round((widgetGrowFactor / totalPrimaryGrow) * totalPrimaryAxisSizeRemaining)),
-                        0, primaryAxisSizeRemaining);
+                    const int pixelsToExpandBy
+                        = std::clamp(static_cast<int>(std::round((widgetGrowFactor / totalPrimaryGrow)
+                                         * static_cast<float>(totalPrimaryAxisSizeRemaining))),
+                            0, primaryAxisSizeRemaining);
                     primary(widgetSize) += pixelsToExpandBy;
                     primaryAxisSizeRemaining -= pixelsToExpandBy;
                 }
 
                 const int stretchTargetSecondary = mWrap ? secondaryAxisSize : secondary(flexSize);
                 secondary(widgetSize) = std::max(secondary(widgetSize),
-                    std::clamp(
-                        static_cast<int>(std::round(stretch * stretchTargetSecondary)), 0, stretchTargetSecondary));
+                    std::clamp(static_cast<int>(std::round(stretch * static_cast<float>(stretchTargetSecondary))), 0,
+                        stretchTargetSecondary));
 
                 primary(widgetPosition) = currentPrimaryAxisPosition;
                 currentPrimaryAxisPosition += primary(widgetSize) + mGap;

@@ -224,8 +224,8 @@ namespace MWGui
         value = std::min(value, mProgressBar->getScrollRange() - 1);
         mProgress = value;
         mProgressBar->setScrollPosition(0);
-        mProgressBar->setTrackSize(
-            static_cast<int>(value / static_cast<float>(mProgressBar->getScrollRange()) * mProgressBar->getLineSize()));
+        mProgressBar->setTrackSize(static_cast<int>(static_cast<float>(value)
+            / static_cast<float>(mProgressBar->getScrollRange()) * static_cast<float>(mProgressBar->getLineSize())));
         draw();
     }
 
@@ -235,8 +235,8 @@ namespace MWGui
         size_t value = mProgress + increase;
         value = std::min(value, mProgressBar->getScrollRange() - 1);
         mProgress = value;
-        mProgressBar->setTrackSize(
-            static_cast<int>(value / static_cast<float>(mProgressBar->getScrollRange()) * mProgressBar->getLineSize()));
+        mProgressBar->setTrackSize(static_cast<int>(static_cast<float>(value)
+            / static_cast<float>(mProgressBar->getScrollRange()) * static_cast<float>(mProgressBar->getLineSize())));
         draw();
     }
 
@@ -255,7 +255,8 @@ namespace MWGui
         {
             // bump the delay by the current progress - i.e. if during the initial delay the loading
             // has almost finished, no point showing the loading screen now
-            diff -= static_cast<double>(mProgress / static_cast<float>(mProgressBar->getScrollRange()) * 100.f);
+            diff -= static_cast<double>(
+                static_cast<float>(mProgress) / static_cast<float>(mProgressBar->getScrollRange()) * 100.f);
         }
 
         if (!mShowWallpaper && diff < static_cast<double>(initialDelay * 1000))

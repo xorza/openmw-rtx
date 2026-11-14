@@ -99,7 +99,7 @@ namespace MWWorld
         }
         else
         {
-            return getItemHealth(ptr) / static_cast<float>(getItemMaxHealth(ptr));
+            return static_cast<float>(getItemHealth(ptr)) / static_cast<float>(getItemMaxHealth(ptr));
         }
     }
 
@@ -548,9 +548,9 @@ namespace MWWorld
         if (!magicEffect)
             return result;
 
-        result.x() = magicEffect->mData.mRed / 255.f;
-        result.y() = magicEffect->mData.mGreen / 255.f;
-        result.z() = magicEffect->mData.mBlue / 255.f;
+        result.x() = static_cast<float>(magicEffect->mData.mRed) / 255.f;
+        result.y() = static_cast<float>(magicEffect->mData.mGreen) / 255.f;
+        result.z() = static_cast<float>(magicEffect->mData.mBlue) / 255.f;
         return result;
     }
 

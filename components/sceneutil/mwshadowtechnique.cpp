@@ -865,7 +865,7 @@ void MWShadowTechnique::disableShadows(bool setDummyState)
 
 void SceneUtil::MWShadowTechnique::enableDebugHUD()
 {
-    _debugHud = new DebugHUD(getShadowedScene()->getShadowSettings()->getNumShadowMapsPerLight());
+    _debugHud = new DebugHUD(static_cast<int>(getShadowedScene()->getShadowSettings()->getNumShadowMapsPerLight()));
 }
 
 void SceneUtil::MWShadowTechnique::disableDebugHUD()
@@ -1059,8 +1059,8 @@ void MWShadowTechnique::cull(osgUtil::CullVisitor& cv)
             osg::ref_ptr<osg::StateSet> dummyState = new osg::StateSet();
 
             ShadowSettings* settings = getShadowedScene()->getShadowSettings();
-            int baseUnit = settings->getBaseShadowTextureUnit();
-            int endUnit = baseUnit + settings->getNumShadowMapsPerLight();
+            int baseUnit = static_cast<int>(settings->getBaseShadowTextureUnit());
+            int endUnit = static_cast<int>(baseUnit + settings->getNumShadowMapsPerLight());
             for (int i = baseUnit; i < endUnit; ++i)
             {
                 dummyState->setTextureAttribute(i, _fallbackShadowMapTexture, osg::StateAttribute::ON);
@@ -2439,8 +2439,8 @@ struct ConvexHull
         double m = sDoubleMost;
         for(const auto& edge : _edges)
         {
-            m = std::min(edge.first[index], m);
-            m = std::min(edge.second[index], m);
+            m = std::min(edge.first[static_cast<int>(index)], m);
+            m = std::min(edge.second[static_cast<int>(index)], m);
         }
         return m;
     }
@@ -2450,8 +2450,8 @@ struct ConvexHull
         double m = -sDoubleMost;
         for (const auto& edge : _edges)
         {
-            m = std::max(edge.first[index], m);
-            m = std::max(edge.second[index], m);
+            m = std::max(edge.first[static_cast<int>(index)], m);
+            m = std::max(edge.second[static_cast<int>(index)], m);
         }
         return m;
     }
@@ -2464,11 +2464,11 @@ struct ConvexHull
         for (const auto& edge : _edges)
         {
             delta = edge.first - eye;
-            ratio = delta[index] / delta[1];
+            ratio = delta[static_cast<int>(index)] / delta[1];
             m = std::min(ratio, m);
 
             delta = edge.second - eye;
-            ratio = delta[index] / delta[1];
+            ratio = delta[static_cast<int>(index)] / delta[1];
             m = std::min(ratio, m);
         }
         return m;
@@ -2482,11 +2482,11 @@ struct ConvexHull
         for (const auto& edge : _edges)
         {
             delta = edge.first - eye;
-            ratio = delta[index] / delta[1];
+            ratio = delta[static_cast<int>(index)] / delta[1];
             m = std::max(ratio, m);
 
             delta = edge.second - eye;
-            ratio = delta[index] / delta[1];
+            ratio = delta[static_cast<int>(index)] / delta[1];
             m = std::max(ratio, m);
         }
         return m;

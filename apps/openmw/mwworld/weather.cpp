@@ -131,7 +131,7 @@ namespace MWWorld
         auto& prng = MWBase::Environment::get().getWorld()->getPrng();
         unsigned int distance = Misc::Rng::rollDice(4, prng);
         // Flash brightness appears additive, since if multiple strikes occur, it takes longer for it to decay to 0.
-        mFlashBrightness += 1 - (distance * 0.25f);
+        mFlashBrightness += 1 - (static_cast<float>(distance) * 0.25f);
         MWBase::Environment::get().getSoundManager()->playSound(mThunderSoundID[distance], 1.0, 1.0);
     }
 
@@ -378,7 +378,7 @@ namespace MWWorld
         // Skip enough increments that the rise hour maintains a 24-day cycle.
         float skippedIncrements = (sDaysPerCycle - std::abs(sDaysPerCycle / mDailyIncrement))
             * std::floor(static_cast<float>(gameDay + sStartIncrements - 1) / sDaysPerCycle);
-        float riseHour = mDailyIncrement * (gameDay + sStartIncrements - 1 - skippedIncrements);
+        float riseHour = mDailyIncrement * (static_cast<float>(gameDay + sStartIncrements - 1) - skippedIncrements);
 
         // We need to wrap the moon's rise hour between about 0,24 or -24,0 depending on daily increment.
         riseHour = std::fmod(riseHour, 24.0f);

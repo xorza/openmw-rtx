@@ -165,7 +165,8 @@ namespace
                 throw std::runtime_error("cannot specify more than 4 thunder sound ids");
             for (size_t i = 0; i < length; ++i)
             {
-                const ESM::RefId id = ESM::RefId::deserializeText(table.get<std::string_view>(LuaUtil::toLuaIndex(i)));
+                const ESM::RefId id = ESM::RefId::deserializeText(
+                    table.get<std::string_view>(LuaUtil::toLuaIndex(static_cast<std::int64_t>(i))));
                 weather.mThunderSoundID[i] = id;
             }
         }

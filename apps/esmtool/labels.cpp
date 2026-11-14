@@ -459,7 +459,7 @@ std::string bodyPartFlags(int flags)
         properties += "Female ";
     if (flags & ESM::BodyPart::BPF_NotPlayable)
         properties += "NotPlayable ";
-    int unused = (0xFFFFFFFF ^ (ESM::BodyPart::BPF_Female | ESM::BodyPart::BPF_NotPlayable));
+    int unused = static_cast<int>((0xFFFFFFFF ^ (ESM::BodyPart::BPF_Female | ESM::BodyPart::BPF_NotPlayable)));
     if (flags & unused)
         properties += "Invalid ";
     properties += std::format("(0x{:08X})", flags);
@@ -482,7 +482,7 @@ std::string cellFlags(int flags)
     // This used value is not in the ESM component.
     if (flags & 0x00000040)
         properties += "Unknown ";
-    int unused = (0xFFFFFFFF
+    int unused = static_cast<int>(0xFFFFFFFF
         ^ (ESM::Cell::HasWater | ESM::Cell::Interior | ESM::Cell::NoSleep | ESM::Cell::QuasiEx | 0x00000040));
     if (flags & unused)
         properties += "Invalid ";
@@ -501,7 +501,8 @@ std::string containerFlags(int flags)
         properties += "Organic ";
     if (flags & ESM::Container::Respawn)
         properties += "Respawn ";
-    int unused = (0xFFFFFFFF ^ (ESM::Container::Unknown | ESM::Container::Organic | ESM::Container::Respawn));
+    int unused = static_cast<int>(
+        (0xFFFFFFFF ^ (ESM::Container::Unknown | ESM::Container::Organic | ESM::Container::Respawn)));
     if (flags & unused)
         properties += "Invalid ";
     properties += std::format("(0x{:08X})", flags);
@@ -529,7 +530,7 @@ std::string creatureFlags(int flags)
         properties += "Weapon ";
     if (flags & ESM::Creature::Essential)
         properties += "Essential ";
-    int unused = (0xFFFFFFFF
+    int unused = static_cast<int>(0xFFFFFFFF
         ^ (ESM::Creature::Base | ESM::Creature::Walks | ESM::Creature::Swims | ESM::Creature::Flies
             | ESM::Creature::Bipedal | ESM::Creature::Respawn | ESM::Creature::Weapon | ESM::Creature::Essential));
     if (flags & unused)
@@ -573,7 +574,8 @@ std::string landFlags(std::uint32_t flags)
         properties += "Colors ";
     if (flags & ESM::Land::Flag_Textures)
         properties += "Textures ";
-    int unused = 0xFFFFFFFF ^ (ESM::Land::Flag_HeightsNormals | ESM::Land::Flag_Colors | ESM::Land::Flag_Textures);
+    int unused = static_cast<int>(
+        0xFFFFFFFF ^ (ESM::Land::Flag_HeightsNormals | ESM::Land::Flag_Colors | ESM::Land::Flag_Textures));
     if (flags & unused)
         properties += "Invalid ";
     properties += std::format("(0x{:08X})", flags);
@@ -589,7 +591,7 @@ std::string itemListFlags(int flags)
         properties += "AllLevels ";
     if (flags & ESM::ItemLevList::Each)
         properties += "Each ";
-    int unused = (0xFFFFFFFF ^ (ESM::ItemLevList::AllLevels | ESM::ItemLevList::Each));
+    int unused = static_cast<int>((0xFFFFFFFF ^ (ESM::ItemLevList::AllLevels | ESM::ItemLevList::Each)));
     if (flags & unused)
         properties += "Invalid ";
     properties += std::format("(0x{:08X})", flags);
@@ -603,7 +605,7 @@ std::string creatureListFlags(int flags)
         properties += "[None] ";
     if (flags & ESM::CreatureLevList::AllLevels)
         properties += "AllLevels ";
-    int unused = (0xFFFFFFFF ^ ESM::CreatureLevList::AllLevels);
+    int unused = static_cast<int>((0xFFFFFFFF ^ ESM::CreatureLevList::AllLevels));
     if (flags & unused)
         properties += "Invalid ";
     properties += std::format("(0x{:08X})", flags);
@@ -633,7 +635,7 @@ std::string lightFlags(int flags)
         properties += "Negative ";
     if (flags & ESM::Light::OffDefault)
         properties += "OffDefault ";
-    int unused = (0xFFFFFFFF
+    int unused = static_cast<int>(0xFFFFFFFF
         ^ (ESM::Light::Dynamic | ESM::Light::Fire | ESM::Light::Carry | ESM::Light::Flicker | ESM::Light::FlickerSlow
             | ESM::Light::Pulse | ESM::Light::PulseSlow | ESM::Light::Negative | ESM::Light::OffDefault));
     if (flags & unused)
@@ -725,7 +727,7 @@ std::string raceFlags(int flags)
         properties += "Playable ";
     if (flags & ESM::Race::Beast)
         properties += "Beast ";
-    int unused = (0xFFFFFFFF ^ (ESM::Race::Playable | ESM::Race::Beast));
+    int unused = static_cast<int>((0xFFFFFFFF ^ (ESM::Race::Playable | ESM::Race::Beast)));
     if (flags & unused)
         properties += "Invalid ";
     properties += std::format("(0x{:08X})", flags);
@@ -743,7 +745,8 @@ std::string spellFlags(int flags)
         properties += "PCStart ";
     if (flags & ESM::Spell::F_Always)
         properties += "Always ";
-    int unused = (0xFFFFFFFF ^ (ESM::Spell::F_Autocalc | ESM::Spell::F_PCStart | ESM::Spell::F_Always));
+    int unused
+        = static_cast<int>((0xFFFFFFFF ^ (ESM::Spell::F_Autocalc | ESM::Spell::F_PCStart | ESM::Spell::F_Always)));
     if (flags & unused)
         properties += "Invalid ";
     properties += std::format("(0x{:08X})", flags);
@@ -762,7 +765,7 @@ std::string weaponFlags(int flags)
         properties += "Magical ";
     if (flags & ESM::Weapon::Silver)
         properties += "Silver ";
-    int unused = (0xFFFFFFFF ^ (ESM::Weapon::Magical | ESM::Weapon::Silver));
+    int unused = static_cast<int>((0xFFFFFFFF ^ (ESM::Weapon::Magical | ESM::Weapon::Silver)));
     if (flags & unused)
         properties += "Invalid ";
     properties += std::format("(0x{:08X})", flags);

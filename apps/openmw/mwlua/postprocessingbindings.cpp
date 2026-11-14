@@ -127,7 +127,7 @@ namespace MWLua
 
                 for (size_t i = 0; i < *targetSize; ++i)
                 {
-                    sol::object obj = table[LuaUtil::toLuaIndex(i)];
+                    sol::object obj = table[LuaUtil::toLuaIndex(static_cast<std::int64_t>(i))];
                     if (!obj.is<T>())
                         throw std::runtime_error("Invalid type for uniform array");
                     values.push_back(obj.as<T>());

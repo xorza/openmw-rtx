@@ -205,8 +205,8 @@ namespace MWRender
         if (mExtentX <= 0 || mExtentY <= 0)
             return -1;
 
-        const float projX = (posX / static_cast<float>(mExtentX)) * 2 - 1;
-        const float projY = (posY / static_cast<float>(mExtentY)) * 2 - 1;
+        const float projX = (static_cast<float>(posX) / static_cast<float>(mExtentX)) * 2 - 1;
+        const float projY = (static_cast<float>(posY) / static_cast<float>(mExtentY)) * 2 - 1;
 
         osg::NodePath hit;
         if (!mView->pick(projX, projY, hit))

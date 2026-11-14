@@ -38,7 +38,7 @@ namespace DetourNavigator
 
         float getHeightfieldScale(int cellSize, std::size_t dataSize)
         {
-            return static_cast<float>(cellSize) / (dataSize - 1);
+            return static_cast<float>(cellSize) / static_cast<float>((dataSize - 1));
         }
 
         bool isNan(const RecastMeshTriangle& triangle)
@@ -128,7 +128,8 @@ namespace DetourNavigator
         const osg::Vec2f localShift
             = osg::Vec2f(static_cast<float>(aabbShift.x()), static_cast<float>(aabbShift.y())) + tileShift;
         const auto cellSize = static_cast<float>(heightfield.mCellSize);
-        const osg::Vec3f cellShift(heightfield.mCellPosition.x() * cellSize, heightfield.mCellPosition.y() * cellSize,
+        const osg::Vec3f cellShift(static_cast<float>(heightfield.mCellPosition.x()) * cellSize,
+            static_cast<float>(heightfield.mCellPosition.y()) * cellSize,
             (heightfield.mMinHeight + heightfield.mMaxHeight) * 0.5f);
         return makeMesh(std::move(triangles), cellShift + osg::Vec3f(localShift.x(), localShift.y(), 0));
     }
@@ -230,7 +231,8 @@ namespace DetourNavigator
             BulletHelpers::getHeightfieldShift(cellPosition.x(), cellPosition.y(), cellSize, minHeight, maxHeight));
         const float stepSize = getHeightfieldScale(cellSize, size);
         const int halfCellSize = cellSize / 2;
-        const auto local = [&](float v, float offset) { return (v - offset + halfCellSize) / stepSize; };
+        const auto local
+            = [&](float v, float offset) { return (v - offset + static_cast<float>(halfCellSize)) / stepSize; };
         const auto index
             = [&](float v, int add) { return std::clamp<int>(static_cast<int>(v) + add, 0, static_cast<int>(size)); };
         const std::size_t minX = index(std::round(local(intersection->mMin.x(), shift.x())), -1);

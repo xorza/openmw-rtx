@@ -226,9 +226,8 @@ namespace CSVRender
             Cell* cell = getWorldspaceWidget().getCell(hit.worldPos);
             if (cell && cell->getPathgrid())
             {
-                PathgridTag* tag = nullptr;
-                if (hit.tag && (tag = dynamic_cast<PathgridTag*>(hit.tag.get()))
-                    && tag->getPathgrid()->getId() == mEdgeId)
+                auto* tag = hit.tag ? dynamic_cast<PathgridTag*>(hit.tag.get()) : nullptr;
+                if (tag != nullptr && tag->getPathgrid()->getId() == mEdgeId)
                 {
                     unsigned short node = SceneUtil::getPathgridNode(hit.index0);
                     cell->getPathgrid()->setDragEndpoint(node);

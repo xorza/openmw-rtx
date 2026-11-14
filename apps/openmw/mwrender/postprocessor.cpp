@@ -477,14 +477,15 @@ namespace MWRender
         textures[Tex_Distortion]->setSourceFormat(GL_RGB);
         textures[Tex_Distortion]->setInternalFormat(GL_RGB);
 
-        Stereo::setMultiviewCompatibleTextureSize(textures[Tex_Distortion], static_cast<int>(width * DistortionRatio),
-            static_cast<int>(height * DistortionRatio));
+        Stereo::setMultiviewCompatibleTextureSize(textures[Tex_Distortion],
+            static_cast<int>(static_cast<float>(width) * DistortionRatio),
+            static_cast<int>(static_cast<float>(height) * DistortionRatio));
         textures[Tex_Distortion]->dirtyTextureObject();
 
         auto setupDepth = [](osg::Texture* tex) {
             tex->setSourceFormat(GL_DEPTH_STENCIL_EXT);
             tex->setSourceType(SceneUtil::AutoDepth::depthSourceType());
-            tex->setInternalFormat(SceneUtil::AutoDepth::depthInternalFormat());
+            tex->setInternalFormat(static_cast<GLint>(SceneUtil::AutoDepth::depthInternalFormat()));
             tex->setFilter(osg::Texture2D::MIN_FILTER, osg::Texture::NEAREST);
             tex->setFilter(osg::Texture2D::MAG_FILTER, osg::Texture::NEAREST);
         };
@@ -737,7 +738,7 @@ namespace MWRender
 
         size_t pos = std::min(location.value_or(mTechniques.size()) + mInternalTechniques.size(), mTechniques.size());
 
-        mTechniques.insert(mTechniques.begin() + pos, technique);
+        mTechniques.insert(mTechniques.begin() + static_cast<std::ptrdiff_t>(pos), technique);
         dirtyTechniques(Settings::ShaderManager::get().getMode() == Settings::ShaderManager::Mode::Debug);
 
         return Status_Toggled;

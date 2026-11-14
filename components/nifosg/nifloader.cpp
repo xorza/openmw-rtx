@@ -155,7 +155,7 @@ namespace
     {
         if (const auto* ninode = dynamic_cast<const Nif::NiNode*>(node))
         {
-            outIndices.push_back(ninode->mRecordIndex);
+            outIndices.push_back(static_cast<int>(ninode->mRecordIndex));
             for (const auto& child : ninode->mChildren)
                 if (!child.empty())
                     getAllNiNodes(child.getPtr(), outIndices);
@@ -604,11 +604,11 @@ namespace NifOsg
                 if (!niFltAnimationNode->mChildren.empty())
                 {
                     if (niFltAnimationNode->swing())
-                        sequenceNode->setDefaultTime(
-                            niFltAnimationNode->mDuration / (niFltAnimationNode->mChildren.size() * 2));
+                        sequenceNode->setDefaultTime(niFltAnimationNode->mDuration
+                            / static_cast<float>((niFltAnimationNode->mChildren.size() * 2)));
                     else
                         sequenceNode->setDefaultTime(
-                            niFltAnimationNode->mDuration / niFltAnimationNode->mChildren.size());
+                            niFltAnimationNode->mDuration / static_cast<float>(niFltAnimationNode->mChildren.size()));
                 }
                 return sequenceNode;
             }
@@ -809,7 +809,7 @@ namespace NifOsg
 
                 if (nifNode->mRecordType == Nif::RC_NiBSAnimationNode
                     || nifNode->mRecordType == Nif::RC_NiBSParticleNode)
-                    args.mAnimFlags = nifNode->mFlags;
+                    args.mAnimFlags = static_cast<int>(nifNode->mFlags);
 
                 if (nifNode->mRecordType == Nif::RC_NiSortAdjustNode)
                 {
@@ -1409,8 +1409,8 @@ namespace NifOsg
                 else if (partctrl->mLifetime == 0 && partctrl->mLifetimeVariation == 0)
                     counter->setNumberOfParticlesPerSecondToCreate(0);
                 else
-                    counter->setNumberOfParticlesPerSecondToCreate(
-                        partctrl->mParticles.size() / (partctrl->mLifetime + partctrl->mLifetimeVariation / 2));
+                    counter->setNumberOfParticlesPerSecondToCreate(static_cast<float>(partctrl->mParticles.size())
+                        / (partctrl->mLifetime + partctrl->mLifetimeVariation / 2));
 
                 emitter->setCounter(counter);
 
@@ -1823,7 +1823,7 @@ namespace NifOsg
                 // Some input geometry may not be used as is so it needs to be converted.
                 // Normals, tangents and bitangents use a special normal map-like format not equivalent to snorm8 or
                 // unorm8
-                auto normbyteToFloat = [](uint8_t value) { return value / 255.f * 2.f - 1.f; };
+                auto normbyteToFloat = [](uint8_t value) { return static_cast<float>(value) / 255.f * 2.f - 1.f; };
                 // Vertices and UV sets may be half-precision.
                 // OSG doesn't have a way to pass half-precision data at the moment.
                 auto halfToFloat = [](uint16_t value) {
@@ -2125,8 +2125,8 @@ namespace NifOsg
                 {
                     const Nif::NiPixelData::Mipmap& mip = pixelData->mMipmaps[i];
 
-                    size_t mipSize = osg::Image::computeImageSizeInBytes(
-                        mip.mWidth, mip.mHeight, 1, pixelformat, GL_UNSIGNED_BYTE, packing);
+                    size_t mipSize = osg::Image::computeImageSizeInBytes(static_cast<int>(mip.mWidth),
+                        static_cast<int>(mip.mHeight), 1, pixelformat, GL_UNSIGNED_BYTE, packing);
                     if (mipSize + mip.mOffset > pixelData->mData.size())
                     {
                         Log(Debug::Info) << "Internal texture's mipmap data out of bounds, ignoring texture";
@@ -2137,8 +2137,8 @@ namespace NifOsg
                         mipmapOffsets.push_back(mip.mOffset);
                     else
                     {
-                        width = mip.mWidth;
-                        height = mip.mHeight;
+                        width = static_cast<int>(mip.mWidth);
+                        height = static_cast<int>(mip.mHeight);
                     }
                 }
 
@@ -2162,8 +2162,8 @@ namespace NifOsg
                     {
                         auto* data = new unsigned char[pixels.size()];
                         memcpy(data, pixels.data(), pixels.size());
-                        image->setImage(width, height, 1, pixelformat, pixelformat, GL_UNSIGNED_BYTE, data,
-                            osg::Image::USE_NEW_DELETE, packing);
+                        image->setImage(width, height, 1, static_cast<GLint>(pixelformat), pixelformat,
+                            GL_UNSIGNED_BYTE, data, osg::Image::USE_NEW_DELETE, packing);
                         break;
                     }
                     case NiPixelFormat::Format::Palette:
@@ -2188,8 +2188,8 @@ namespace NifOsg
                         }
                         for (unsigned int& offset : mipmapOffsets)
                             offset *= numChannels;
-                        image->setImage(width, height, 1, pixelformat, pixelformat, GL_UNSIGNED_BYTE, data,
-                            osg::Image::USE_NEW_DELETE, packing);
+                        image->setImage(width, height, 1, static_cast<GLint>(pixelformat), pixelformat,
+                            GL_UNSIGNED_BYTE, data, osg::Image::USE_NEW_DELETE, packing);
                         break;
                     }
                     default:
@@ -2387,7 +2387,8 @@ namespace NifOsg
             {
                 if (enabled)
                 {
-                    osg::ref_ptr<osg::AlphaFunc> alphaFunc(new osg::AlphaFunc(function, threshold / 255.f));
+                    osg::ref_ptr<osg::AlphaFunc> alphaFunc(
+                        new osg::AlphaFunc(function, static_cast<float>(threshold) / 255.f));
                     alphaFunc = shareAttribute(alphaFunc);
                     node.getOrCreateStateSet()->setAttributeAndModes(alphaFunc, osg::StateAttribute::ON);
                 }
@@ -2440,8 +2441,8 @@ namespace NifOsg
                 mat->setAlpha(shaderMat->mTransparency);
                 handleAlphaTesting(
                     shaderMat->mAlphaTest, osg::AlphaFunc::GREATER, shaderMat->mAlphaTestThreshold, node);
-                handleAlphaBlending(shaderMat->mAlphaBlend, shaderMat->mSourceBlendMode,
-                    shaderMat->mDestinationBlendMode, true, hasSortAlpha, node);
+                handleAlphaBlending(shaderMat->mAlphaBlend, static_cast<int>(shaderMat->mSourceBlendMode),
+                    static_cast<int>(shaderMat->mDestinationBlendMode), true, hasSortAlpha, node);
                 handleDecal(shaderMat->mDecal, hasSortAlpha, node);
                 if (shaderMat->mShaderType == Bgsm::ShaderType::Lighting)
                 {
@@ -2585,7 +2586,7 @@ namespace NifOsg
                             mHasStencilProperty = true;
                             osg::ref_ptr<osg::Stencil> stencil = new osg::Stencil;
                             stencil->setFunction(getStencilFunction(stencilprop->mTestFunction),
-                                stencilprop->mStencilRef, stencilprop->mStencilMask);
+                                static_cast<int>(stencilprop->mStencilRef), stencilprop->mStencilMask);
                             stencil->setStencilFailOperation(getStencilOperation(stencilprop->mFailAction));
                             stencil->setStencilPassAndDepthFailOperation(
                                 getStencilOperation(stencilprop->mZFailAction));

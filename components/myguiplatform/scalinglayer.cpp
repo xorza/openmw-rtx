@@ -40,8 +40,8 @@ namespace MyGUIPlatform
                 mInfo = mTarget->getInfo();
                 mInfo.hOffset = mHOffset;
                 mInfo.vOffset = mVOffset;
-                mInfo.pixScaleX = 1.f / mViewSize.width;
-                mInfo.pixScaleY = 1.f / mViewSize.height;
+                mInfo.pixScaleX = 1.f / static_cast<float>(mViewSize.width);
+                mInfo.pixScaleY = 1.f / static_cast<float>(mViewSize.height);
                 return mInfo;
             }
 
@@ -71,8 +71,8 @@ namespace MyGUIPlatform
         left -= globalViewSize.width / 2;
         top -= globalViewSize.height / 2;
 
-        left = static_cast<int>(left / scale);
-        top = static_cast<int>(top / scale);
+        left = static_cast<int>(static_cast<float>(left) / scale);
+        top = static_cast<int>(static_cast<float>(top) / scale);
 
         left += mViewSize.width / 2;
         top += mViewSize.height / 2;
@@ -88,8 +88,8 @@ namespace MyGUIPlatform
         auto w = static_cast<float>(viewSize.width);
         auto h = static_cast<float>(viewSize.height);
 
-        float heightScale = (h / layerViewSize.height);
-        float widthScale = (w / layerViewSize.width);
+        float heightScale = (h / static_cast<float>(layerViewSize.height));
+        float widthScale = (w / static_cast<float>(layerViewSize.width));
         return std::min(widthScale, heightScale);
     }
 
@@ -104,13 +104,15 @@ namespace MyGUIPlatform
         MyGUI::IntSize globalViewSize = MyGUI::RenderManager::getInstance().getViewSize();
         MyGUI::IntSize viewSize = globalViewSize;
         float scale = getScaleFactor(mViewSize);
-        viewSize.width = static_cast<int>(viewSize.width / scale);
-        viewSize.height = static_cast<int>(viewSize.height / scale);
+        viewSize.width = static_cast<int>(static_cast<float>(viewSize.width) / scale);
+        viewSize.height = static_cast<int>(static_cast<float>(viewSize.height) / scale);
 
-        float hoffset = (globalViewSize.width - mViewSize.width * getScaleFactor(mViewSize)) / 2.f
-            / static_cast<float>(globalViewSize.width);
-        float voffset = (globalViewSize.height - mViewSize.height * getScaleFactor(mViewSize)) / 2.f
-            / static_cast<float>(globalViewSize.height);
+        float hoffset = (static_cast<float>(globalViewSize.width)
+                            - static_cast<float>(mViewSize.width) * getScaleFactor(mViewSize))
+            / 2.f / static_cast<float>(globalViewSize.width);
+        float voffset = (static_cast<float>(globalViewSize.height)
+                            - static_cast<float>(mViewSize.height) * getScaleFactor(mViewSize))
+            / 2.f / static_cast<float>(globalViewSize.height);
 
         ProxyRenderTarget proxy(target, viewSize, hoffset, voffset);
 

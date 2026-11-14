@@ -181,12 +181,12 @@ namespace Terrain
     osg::ref_ptr<osg::Vec2Array> BufferCache::getUVBuffer(unsigned int numVerts)
     {
         std::scoped_lock lock(mUvBufferMutex);
-        if (mUvBufferMap.contains(numVerts))
+        if (mUvBufferMap.contains(static_cast<int>(numVerts)))
         {
-            return mUvBufferMap[numVerts];
+            return mUvBufferMap[static_cast<int>(numVerts)];
         }
 
-        int vertexCount = numVerts * numVerts;
+        int vertexCount = static_cast<int>(numVerts * numVerts);
 
         osg::ref_ptr<osg::Vec2Array> uvs(new osg::Vec2Array(osg::Array::BIND_PER_VERTEX));
         uvs->reserve(vertexCount);
@@ -195,8 +195,8 @@ namespace Terrain
         {
             for (unsigned int row = 0; row < numVerts; ++row)
             {
-                const float u = col / static_cast<float>(numVerts - 1);
-                const float v = row / static_cast<float>(numVerts - 1);
+                const float u = static_cast<float>(col) / static_cast<float>(numVerts - 1);
+                const float v = static_cast<float>(row) / static_cast<float>(numVerts - 1);
                 uvs->push_back(osg::Vec2f(u, v));
             }
         }
@@ -204,7 +204,7 @@ namespace Terrain
         // Assign a VBO here to enable state sharing between different Geometries.
         uvs->setVertexBufferObject(new osg::VertexBufferObject);
 
-        mUvBufferMap[numVerts] = uvs;
+        mUvBufferMap[static_cast<int>(numVerts)] = uvs;
         return uvs;
     }
 

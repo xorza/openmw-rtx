@@ -177,7 +177,7 @@ namespace MWPhysics
     void Object::addCollision(ScriptedCollisionType type)
     {
         std::unique_lock<std::mutex> lock(mPositionMutex);
-        mCollidedWith |= type;
+        mCollidedWith = static_cast<char>(mCollidedWith | type);
     }
 
     void Object::resetCollisions()

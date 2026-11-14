@@ -97,12 +97,14 @@ namespace ESSImport
         esm.getExact(data.data(), data.size());
 
         mGlobalMapImage = new osg::Image;
-        mGlobalMapImage->allocateImage(maph.size, maph.size, 1, GL_RGB, GL_UNSIGNED_BYTE);
+        mGlobalMapImage->allocateImage(
+            static_cast<int>(maph.size), static_cast<int>(maph.size), 1, GL_RGB, GL_UNSIGNED_BYTE);
         memcpy(mGlobalMapImage->data(), data.data(), data.size());
 
         // to match openmw size
         // FIXME: filtering?
-        mGlobalMapImage->scaleImage(maph.size * 2, maph.size * 2, 1, GL_UNSIGNED_BYTE);
+        mGlobalMapImage->scaleImage(
+            static_cast<int>(maph.size * 2), static_cast<int>(maph.size * 2), 1, GL_UNSIGNED_BYTE);
     }
 
     void ConvertFMAP::write(ESM::ESMWriter& esm) const
@@ -265,8 +267,8 @@ namespace ESSImport
             notepos[1] = Constants::CellSizeInUnits * notepos[1] / 32.f;
             if (cell.isExterior())
             {
-                notepos[0] += Constants::CellSizeInUnits * cell.mData.mX;
-                notepos[1] += Constants::CellSizeInUnits * cell.mData.mY;
+                notepos[0] += static_cast<float>(Constants::CellSizeInUnits * cell.mData.mX);
+                notepos[1] += static_cast<float>(Constants::CellSizeInUnits * cell.mData.mY);
             }
             // TODO: what encoding is this in?
             std::string note = esm.getHNString("MPNT");

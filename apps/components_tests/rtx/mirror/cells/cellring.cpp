@@ -1526,8 +1526,10 @@ namespace Rtx::Testing
         TEST_F(RtxCellRingTest, settledAWalkAdoptsTheNearestCellItWantsWhateverTheReaderHandedFirst)
         {
             const auto waits = [&](const osg::Vec2i& cell) {
-                return mRing.waitsUnder(osg::Vec2f(cell.x() * sCellSize, cell.y() * sCellSize),
-                    osg::Vec2f((cell.x() + 1) * sCellSize, (cell.y() + 1) * sCellSize));
+                return mRing.waitsUnder(
+                    osg::Vec2f(static_cast<float>(cell.x()) * sCellSize, static_cast<float>(cell.y()) * sCellSize),
+                    osg::Vec2f(static_cast<float>((cell.x() + 1)) * sCellSize,
+                        static_cast<float>((cell.y() + 1)) * sCellSize));
             };
             const auto waiting = [&] {
                 std::vector<osg::Vec2i> found;
@@ -1577,8 +1579,10 @@ namespace Rtx::Testing
         TEST_F(RtxCellRingTest, aBoxWaitsForTheGroundUnderItUntilItsCellIsHeld)
         {
             const auto square = [](const osg::Vec2i& cell) {
-                return std::pair(osg::Vec2f(cell.x() * sCellSize, cell.y() * sCellSize),
-                    osg::Vec2f((cell.x() + 1) * sCellSize, (cell.y() + 1) * sCellSize));
+                return std::pair(
+                    osg::Vec2f(static_cast<float>(cell.x()) * sCellSize, static_cast<float>(cell.y()) * sCellSize),
+                    osg::Vec2f(static_cast<float>((cell.x() + 1)) * sCellSize,
+                        static_cast<float>((cell.y() + 1)) * sCellSize));
             };
             const auto waits = [&](const osg::Vec2i& cell) {
                 const auto [low, high] = square(cell);

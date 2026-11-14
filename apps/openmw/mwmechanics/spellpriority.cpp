@@ -105,7 +105,7 @@ namespace
             if (spell->mData.mType != ESM::Spell::ST_Spell)
                 continue;
             int cost = MWMechanics::calcSpellCost(*spell);
-            if (cost > current.getCurrent() && cost < current.getModified())
+            if (static_cast<float>(cost) > current.getCurrent() && static_cast<float>(cost) < current.getModified())
                 return 2.f;
         }
         return 0.f;
@@ -195,7 +195,8 @@ namespace MWMechanics
 
             int castCost = getEffectiveEnchantmentCastCost(*enchantment, actor);
 
-            if (ptr.getCellRef().getEnchantmentCharge() != -1 && ptr.getCellRef().getEnchantmentCharge() < castCost)
+            if (ptr.getCellRef().getEnchantmentCharge() != -1
+                && ptr.getCellRef().getEnchantmentCharge() < static_cast<float>(castCost))
                 return 0.f;
 
             float rating = rateEffects(enchantment->mEffects, actor, enemy);
@@ -336,7 +337,7 @@ namespace MWMechanics
             if (burden > 0)
                 return 0.f;
 
-            if ((effect.mMagnMin + effect.mMagnMax) / 2.f > -burden)
+            if (static_cast<float>((effect.mMagnMin + effect.mMagnMax)) / 2.f > -burden)
                 rating *= 3;
             else
                 return 0.f;
@@ -352,7 +353,7 @@ namespace MWMechanics
             if (burden <= 0)
                 return 0.f;
 
-            if ((effect.mMagnMin + effect.mMagnMax) / 2.f >= burden)
+            if (static_cast<float>((effect.mMagnMin + effect.mMagnMax)) / 2.f >= burden)
                 rating *= 3;
             else
                 return 0.f;
@@ -383,7 +384,7 @@ namespace MWMechanics
                 const auto& store = actor.getClass().getInventoryStore(actor);
                 auto oneHanded = std::find_if(store.cbegin(MWWorld::ContainerStore::Type_Weapon), store.cend(),
                     [](const MWWorld::ConstPtr& weapon) {
-                        if (weapon.getClass().getItemHealth(weapon) <= 0.f)
+                        if (static_cast<float>(weapon.getClass().getItemHealth(weapon)) <= 0.f)
                             return false;
                         const ESM::RefId type = weapon.get<ESM::Weapon>()->mBase->mData.mType;
                         return !(MWMechanics::getWeaponType(type)->mFlags & ESM::WeaponType::TwoHanded);
@@ -422,8 +423,8 @@ namespace MWMechanics
                 const MWMechanics::CreatureStats& stats = actor.getClass().getCreatureStats(actor);
                 const DynamicStat<float>& current = stats.getDynamic(targetStat);
                 // NB: this currently assumes the hardcoded magic effect flags are used
-                const float magnitude = (effect.mMagnMin + effect.mMagnMax) / 2.f;
-                const float toHeal = magnitude * std::max(1, effect.mDuration);
+                const float magnitude = static_cast<float>((effect.mMagnMin + effect.mMagnMax)) / 2.f;
+                const float toHeal = magnitude * static_cast<float>(std::max(1, effect.mDuration));
                 const float damage = std::max(current.getModified() - current.getCurrent(), 0.f);
                 float priority = 0.f;
                 if (effect.mEffectID == ESM::MagicEffect::RestoreHealth)
@@ -475,14 +476,14 @@ namespace MWMechanics
             if (diff <= 0)
                 return 0.f;
 
-            rating *= (diff) / 5.f;
+            rating *= static_cast<float>((diff)) / 5.f;
         }
 
         // Prefer Cure effects over Dispel, because Dispel also removes positive effects
         else if (effect.mEffectID == ESM::MagicEffect::CureParalyzation)
-            return 1001.f * numEffectsToDispel(actor, ESM::MagicEffect::Paralyze);
+            return 1001.f * static_cast<float>(numEffectsToDispel(actor, ESM::MagicEffect::Paralyze));
         else if (effect.mEffectID == ESM::MagicEffect::CurePoison)
-            return 1001.f * numEffectsToDispel(actor, ESM::MagicEffect::Poison);
+            return 1001.f * static_cast<float>(numEffectsToDispel(actor, ESM::MagicEffect::Poison));
         else if (effect.mEffectID == ESM::MagicEffect::DisintegrateArmor)
         {
             if (enemy.isEmpty())

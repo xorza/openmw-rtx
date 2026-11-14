@@ -308,8 +308,9 @@ namespace VFS::Path
                 mValue += separator;
             const std::size_t offset = mValue.size();
             mValue += value;
-            const auto [begin, end] = normalizeFilenameInPlace(mValue.begin() + offset, mValue.end());
-            std::copy(begin, end, mValue.begin() + offset);
+            const auto [begin, end]
+                = normalizeFilenameInPlace(mValue.begin() + static_cast<std::ptrdiff_t>(offset), mValue.end());
+            std::copy(begin, end, mValue.begin() + static_cast<std::ptrdiff_t>(offset));
             mValue.resize(offset + (end - begin));
         }
 

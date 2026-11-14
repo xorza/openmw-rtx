@@ -51,9 +51,9 @@ namespace MWMechanics
 
         auto& prng = MWBase::Environment::get().getWorld()->getPrng();
         int roll = Misc::Rng::roll0to99(prng);
-        if (roll <= x)
+        if (static_cast<float>(roll) <= x)
         {
-            int y = static_cast<int>(fRepairAmountMult * toolQuality * roll);
+            int y = static_cast<int>(fRepairAmountMult * toolQuality * static_cast<float>(roll));
             y = std::max(1, y);
 
             // repair by 'y' points

@@ -115,8 +115,8 @@ namespace MWGui
         for (size_t i = 0; i < skills.size(); ++i)
         {
             const ESM::Skill* skill = skills[i].first;
-            int price = static_cast<int>(
-                pcStats.getSkill(skill->mId).getBase() * gmst.find("iTrainingMod")->mValue.getInteger());
+            int price = static_cast<int>(pcStats.getSkill(skill->mId).getBase()
+                * static_cast<float>(gmst.find("iTrainingMod")->mValue.getInteger()));
             price = std::max(1, price);
             price = MWBase::Environment::get().getMechanicsManager()->getBarterOffer(mPtr, price, true);
 
@@ -170,7 +170,7 @@ namespace MWGui
         const MWWorld::ESMStore& store = *MWBase::Environment::get().getESMStore();
 
         int price = static_cast<int>(pcStats.getSkill(skill->mId).getBase()
-            * store.get<ESM::GameSetting>().find("iTrainingMod")->mValue.getInteger());
+            * static_cast<float>(store.get<ESM::GameSetting>().find("iTrainingMod")->mValue.getInteger()));
         price = MWBase::Environment::get().getMechanicsManager()->getBarterOffer(mPtr, price, true);
 
         if (price > player.getClass().getContainerStore(player).count(MWWorld::ContainerStore::sGoldId))

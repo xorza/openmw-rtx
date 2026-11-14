@@ -113,7 +113,7 @@ namespace MWLua
             count = std::min(count, bytesLeft);
 
             std::string result(count, '\0');
-            if (file.mFilePtr->read(result.data(), count))
+            if (file.mFilePtr->read(result.data(), static_cast<std::streamsize>(count)))
             {
                 printLargeDataMessage(file, result.size());
                 return sol::make_object<std::string>(lua, result);
@@ -254,9 +254,9 @@ namespace MWLua
             size_t i = 0;
             for (i = 0; i < args.size() && success; i++)
             {
-                if (args[i].is<std::string_view>())
+                if (args[static_cast<std::ptrdiff_t>(i)].is<std::string_view>())
                 {
-                    auto format = args[i].as<std::string_view>();
+                    auto format = args[static_cast<std::ptrdiff_t>(i)].as<std::string_view>();
 
                     if (format == "*a" || format == "*all")
                     {
@@ -285,9 +285,9 @@ namespace MWLua
                     throw std::runtime_error("Error when handling '" + self.mFileName + "': bad argument #"
                         + std::to_string(i + 1) + " to 'read' (invalid format)");
                 }
-                else if (args[i].is<int>())
+                else if (args[static_cast<std::ptrdiff_t>(i)].is<int>())
                 {
-                    int number = args[i].as<int>();
+                    int number = args[static_cast<std::ptrdiff_t>(i)].as<int>();
                     auto result = readCharactersFromFile(lua, self, number);
                     values.push_back(result);
                     if (result == sol::nil)

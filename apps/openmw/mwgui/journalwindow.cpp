@@ -177,7 +177,7 @@ namespace
                 // english button has a 7 pixel wide strip of garbage on its right edge
                 nextButton->setSize(64 - 7, nextButton->getSize().height);
                 nextButton->setImageCoord(MyGUI::IntCoord(0, 0, static_cast<int>((64 - 7) * nextButtonScale),
-                    static_cast<int>(nextButton->getSize().height * nextButtonScale)));
+                    static_cast<int>(static_cast<float>(nextButton->getSize().height) * nextButtonScale)));
             }
 
             if (!questList)

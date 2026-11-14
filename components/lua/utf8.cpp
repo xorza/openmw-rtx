@@ -35,7 +35,7 @@ namespace
     inline void relativePosition(int64_t& pos, const size_t len)
     {
         if (pos < 0)
-            pos = std::max<int64_t>(0, pos + len + 1);
+            pos = std::max<int64_t>(0, static_cast<long>(pos + len + 1));
     }
 
     inline void codepointToUTF8(char32_t codepoint, std::string& str)
@@ -108,7 +108,8 @@ namespace
 
         std::pair<size_t, int64_t> res = std::make_pair(posByte.back(), codepoint);
 
-        posByte.push_back(posByte.back() + byteSize); /* the next character (if exists) starts at this byte */
+        posByte.push_back(
+            static_cast<long>(posByte.back() + byteSize)); /* the next character (if exists) starts at this byte */
 
         return res;
     }
@@ -127,7 +128,7 @@ namespace LuaUtf8
             std::string result{};
             for (size_t i = 0; i < args.size(); ++i)
             {
-                int64_t codepoint = getInteger(args[i], (i + 1), "char");
+                int64_t codepoint = getInteger(args[static_cast<std::ptrdiff_t>(i)], (i + 1), "char");
                 if (codepoint < 0 || std::cmp_greater(codepoint, MAXUNICODE))
                     throw std::runtime_error(std::format("bad argument #{} to 'char' (value out of range)", i + 1));
 
@@ -218,7 +219,7 @@ namespace LuaUtf8
                 if (n >= 0)
                     iv = 1;
                 else
-                    iv = s.size() + 1;
+                    iv = static_cast<int64_t>(s.size() + 1);
             }
             else
                 iv = getInteger(args[0], 3, "offset");

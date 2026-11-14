@@ -337,11 +337,11 @@ return {
         const VFS::Path::Normalized path("requireBig.lua");
         {
             sol::object s = mLua.runInNewSandbox(path);
-            memWithScript = getMem();
+            memWithScript = static_cast<int64_t>(getMem());
         }
         for (int i = 0; i < 100; ++i) // run many times to make small memory leaks visible
             mLua.runInNewSandbox(path);
-        int64_t memWithoutScript = getMem();
+        auto memWithoutScript = static_cast<int64_t>(getMem());
         // At this moment all instances of the script should be garbage-collected.
         EXPECT_LT(memWithoutScript, memWithScript);
     }

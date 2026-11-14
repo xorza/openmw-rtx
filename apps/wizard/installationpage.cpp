@@ -97,7 +97,7 @@ void Wizard::InstallationPage::initializePage()
     }
     else
     {
-        steps = installing.count();
+        steps = static_cast<int>(installing.count());
     }
 
     installProgressBar->setMinimum(0);

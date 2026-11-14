@@ -65,7 +65,7 @@ namespace Platform::File
         const auto nativeHandle = getNativeHandle(handle);
         const auto nativeSeekType = getNativeSeekType(type);
 
-        if (::lseek(nativeHandle, position, nativeSeekType) == -1)
+        if (::lseek(nativeHandle, static_cast<off_t>(position), nativeSeekType) == -1)
         {
             throw std::system_error(errno, std::generic_category(), "An lseek() call failed");
         }
@@ -98,7 +98,7 @@ namespace Platform::File
     {
         auto nativeHandle = getNativeHandle(handle);
 
-        int amount = ::read(nativeHandle, data, size);
+        int amount = static_cast<int>(::read(nativeHandle, data, size));
         if (amount == -1)
         {
             throw std::system_error(

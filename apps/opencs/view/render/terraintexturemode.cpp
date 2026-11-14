@@ -323,8 +323,10 @@ void CSVRender::TerrainTextureMode::editTerrainTextureGrid(const WorldspaceHitRe
     int cellY = cellCoordinatesPair.first.getY();
 
     // The coordinates of hit in mCellId
-    int xHitInCell(static_cast<float>(((hit.worldPos.x() - (cellX * cellSize)) * landTextureSize / cellSize) - 0.25));
-    int yHitInCell(static_cast<float>(((hit.worldPos.y() - (cellY * cellSize)) * landTextureSize / cellSize) + 0.25));
+    int xHitInCell(static_cast<int>(
+        static_cast<float>(((hit.worldPos.x() - (cellX * cellSize)) * landTextureSize / cellSize) - 0.25)));
+    int yHitInCell(static_cast<int>(
+        static_cast<float>(((hit.worldPos.y() - (cellY * cellSize)) * landTextureSize / cellSize) + 0.25)));
     if (xHitInCell < 0)
     {
         xHitInCell = xHitInCell + landTextureSize;
@@ -348,7 +350,7 @@ void CSVRender::TerrainTextureMode::editTerrainTextureGrid(const WorldspaceHitRe
     // All indices are offset by +1
     uint32_t brushInt = document.getData().getLandTextures().getRecord(mBrushTexture).get().mIndex + 1;
 
-    int r = static_cast<float>(mBrushSize) / 2;
+    int r = static_cast<int>(static_cast<float>(mBrushSize) / 2);
 
     if (mBrushShape == CSVWidget::BrushShape_Point)
     {
@@ -364,15 +366,15 @@ void CSVRender::TerrainTextureMode::editTerrainTextureGrid(const WorldspaceHitRe
 
     if (mBrushShape == CSVWidget::BrushShape_Square)
     {
-        int upperLeftCellX = cellX - std::floor(r / landTextureSize);
-        int upperLeftCellY = cellY - std::floor(r / landTextureSize);
+        int upperLeftCellX = static_cast<int>(cellX - std::floor(r / landTextureSize));
+        int upperLeftCellY = static_cast<int>(cellY - std::floor(r / landTextureSize));
         if (xHitInCell - (r % landTextureSize) < 0)
             upperLeftCellX--;
         if (yHitInCell - (r % landTextureSize) < 0)
             upperLeftCellY--;
 
-        int lowerrightCellX = cellX + std::floor(r / landTextureSize);
-        int lowerrightCellY = cellY + std::floor(r / landTextureSize);
+        int lowerrightCellX = static_cast<int>(cellX + std::floor(r / landTextureSize));
+        int lowerrightCellY = static_cast<int>(cellY + std::floor(r / landTextureSize));
         if (xHitInCell + (r % landTextureSize) > landTextureSize - 1)
             lowerrightCellX++;
         if (yHitInCell + (r % landTextureSize) > landTextureSize - 1)
@@ -425,15 +427,15 @@ void CSVRender::TerrainTextureMode::editTerrainTextureGrid(const WorldspaceHitRe
 
     if (mBrushShape == CSVWidget::BrushShape_Circle)
     {
-        int upperLeftCellX = cellX - std::floor(r / landTextureSize);
-        int upperLeftCellY = cellY - std::floor(r / landTextureSize);
+        int upperLeftCellX = static_cast<int>(cellX - std::floor(r / landTextureSize));
+        int upperLeftCellY = static_cast<int>(cellY - std::floor(r / landTextureSize));
         if (xHitInCell - (r % landTextureSize) < 0)
             upperLeftCellX--;
         if (yHitInCell - (r % landTextureSize) < 0)
             upperLeftCellY--;
 
-        int lowerrightCellX = cellX + std::floor(r / landTextureSize);
-        int lowerrightCellY = cellY + std::floor(r / landTextureSize);
+        int lowerrightCellX = static_cast<int>(cellX + std::floor(r / landTextureSize));
+        int lowerrightCellY = static_cast<int>(cellY + std::floor(r / landTextureSize));
         if (xHitInCell + (r % landTextureSize) > landTextureSize - 1)
             lowerrightCellX++;
         if (yHitInCell + (r % landTextureSize) > landTextureSize - 1)
@@ -456,7 +458,8 @@ void CSVRender::TerrainTextureMode::editTerrainTextureGrid(const WorldspaceHitRe
                             {
                                 int distanceX = abs(i - xHitInCell);
                                 int distanceY = abs(j - yHitInCell);
-                                float distance = std::round(sqrt(pow(distanceX, 2) + pow(distanceY, 2)));
+                                auto distance
+                                    = static_cast<float>(std::round(sqrt(pow(distanceX, 2) + pow(distanceY, 2))));
                                 float rf = static_cast<float>(mBrushSize) / 2;
                                 if (distance < rf)
                                     newTerrain[j * landTextureSize + i] = brushInt;
@@ -477,7 +480,8 @@ void CSVRender::TerrainTextureMode::editTerrainTextureGrid(const WorldspaceHitRe
                                     distanceX = abs(i - xHitInCell);
                                 if (jCell == cellY)
                                     distanceY = abs(j - yHitInCell);
-                                float distance = std::round(sqrt(pow(distanceX, 2) + pow(distanceY, 2)));
+                                auto distance
+                                    = static_cast<float>(std::round(sqrt(pow(distanceX, 2) + pow(distanceY, 2))));
                                 float rf = static_cast<float>(mBrushSize) / 2;
                                 if (distance < rf)
                                     newTerrain[j * landTextureSize + i] = brushInt;
@@ -506,8 +510,10 @@ void CSVRender::TerrainTextureMode::editTerrainTextureGrid(const WorldspaceHitRe
                 }
                 else
                 {
-                    int cellXDifference = std::floor(1.0f * (xHitInCell + value.first) / landTextureSize);
-                    int cellYDifference = std::floor(1.0f * (yHitInCell + value.second) / landTextureSize);
+                    int cellXDifference = std::floor(
+                        1.0f * static_cast<float>((xHitInCell + value.first)) / static_cast<float>(landTextureSize));
+                    int cellYDifference = std::floor(
+                        1.0f * static_cast<float>((yHitInCell + value.second)) / static_cast<float>(landTextureSize));
                     int xInOtherCell = xHitInCell + value.first - cellXDifference * landTextureSize;
                     int yInOtherCell = yHitInCell + value.second - cellYDifference * landTextureSize;
 
@@ -572,7 +578,7 @@ void CSVRender::TerrainTextureMode::selectTerrainTextures(
         {
             for (int j = -r; j <= r; j++)
             {
-                osg::Vec2f coords(i, j);
+                osg::Vec2f coords(static_cast<float>(i), static_cast<float>(j));
                 float rf = static_cast<float>(mBrushSize) / 2;
                 if (std::round(coords.length()) < rf)
                 {

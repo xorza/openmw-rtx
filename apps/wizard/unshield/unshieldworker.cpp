@@ -328,7 +328,7 @@ bool Wizard::UnshieldWorker::installFiles(
     if (!dir.exists())
         return false;
 
-    QStringList files(findFiles(fileName, path, flags));
+    QStringList files(findFiles(fileName, path, static_cast<int>(flags)));
 
     for (const QString& file : files)
     {
@@ -503,7 +503,7 @@ bool Wizard::UnshieldWorker::setupComponent(Component component)
                     // Check if we have correct archive, other archives have Morrowind.bsa too
                     if (tribunalFound == bloodmoonFound)
                     {
-                        qint64 actualFileSize = getMorrowindBsaFileSize(file);
+                        auto actualFileSize = static_cast<qint64>(getMorrowindBsaFileSize(file));
                         if (actualFileSize != mExpectedMorrowindBsaSize)
                         {
                             QReadLocker readLock(&mLock);
@@ -811,7 +811,8 @@ bool Wizard::UnshieldWorker::extractFile(
     path.append(QString::fromUtf8(unshield_file_name(unshield, index)));
 
     // Calculate the percentage done
-    int progress = ((static_cast<float>(counter) / static_cast<float>(unshield_file_count(unshield))) * 100);
+    int progress
+        = static_cast<int>(((static_cast<float>(counter) / static_cast<float>(unshield_file_count(unshield))) * 100));
 
     if (getComponentDone(Wizard::Component_Morrowind))
         progress = progress + 100;
@@ -866,13 +867,13 @@ bool Wizard::UnshieldWorker::extractCab(const QString& cabFile, const QString& d
                 return true;
             }
 
-            if (unshield_file_is_valid(unshield, j))
+            if (unshield_file_is_valid(unshield, static_cast<int>(j)))
             {
-                success = extractFile(unshield, destination, group->name, j, counter);
+                success = extractFile(unshield, destination, group->name, static_cast<int>(j), counter);
 
                 if (!success)
                 {
-                    QString name(QString::fromUtf8(unshield_file_name(unshield, j)));
+                    QString name(QString::fromUtf8(unshield_file_name(unshield, static_cast<int>(j))));
 
                     emit error(tr("Failed to extract %1.").arg(name),
                         tr("Complete path: %1").arg(destination + QDir::separator() + name));
@@ -990,9 +991,9 @@ bool Wizard::UnshieldWorker::findInCab(const QString& fileName, const QString& c
         for (size_t j = group->first_file; j <= group->last_file; ++j)
         {
 
-            if (unshield_file_is_valid(unshield, j))
+            if (unshield_file_is_valid(unshield, static_cast<int>(j)))
             {
-                QString current(QString::fromUtf8(unshield_file_name(unshield, j)));
+                QString current(QString::fromUtf8(unshield_file_name(unshield, static_cast<int>(j))));
                 if (current.toLower() == fileName.toLower())
                 {
                     unshield_close(unshield);
@@ -1028,12 +1029,12 @@ size_t Wizard::UnshieldWorker::getMorrowindBsaFileSize(const QString& cabFile)
         for (size_t j = group->first_file; j <= group->last_file; ++j)
         {
 
-            if (unshield_file_is_valid(unshield, j))
+            if (unshield_file_is_valid(unshield, static_cast<int>(j)))
             {
-                QString current(QString::fromUtf8(unshield_file_name(unshield, j)));
+                QString current(QString::fromUtf8(unshield_file_name(unshield, static_cast<int>(j))));
                 if (current.toLower() == fileName.toLower())
                 {
-                    size_t fileSize = unshield_file_size(unshield, j);
+                    size_t fileSize = unshield_file_size(unshield, static_cast<int>(j));
                     unshield_close(unshield);
                     return fileSize; // File is found!
                 }

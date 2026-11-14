@@ -70,19 +70,19 @@ namespace MWWorld
             params.mNextWorsening = ESM::TimeStamp();
             for (const auto& enam : spell->mEffects.mList)
             {
-                if (!oldParams.mPurgedEffects.contains(enam.mIndex))
+                if (!oldParams.mPurgedEffects.contains(static_cast<int>(enam.mIndex)))
                 {
                     ESM::ActiveEffect effect;
                     effect.mEffectId = enam.mData.mEffectID;
                     effect.mArg = MWMechanics::EffectKey(enam.mData).mArg;
                     effect.mDuration = -1;
                     effect.mTimeLeft = -1;
-                    effect.mEffectIndex = enam.mIndex;
-                    auto rand = oldParams.mEffectRands.find(enam.mIndex);
+                    effect.mEffectIndex = static_cast<int32_t>(enam.mIndex);
+                    auto rand = oldParams.mEffectRands.find(static_cast<int>(enam.mIndex));
                     if (rand != oldParams.mEffectRands.end())
                     {
-                        float magnitude
-                            = (enam.mData.mMagnMax - enam.mData.mMagnMin) * rand->second + enam.mData.mMagnMin;
+                        float magnitude = static_cast<float>((enam.mData.mMagnMax - enam.mData.mMagnMin)) * rand->second
+                            + static_cast<float>(enam.mData.mMagnMin);
                         effect.mMagnitude = magnitude;
                         effect.mMinMagnitude = magnitude;
                         effect.mMaxMagnitude = magnitude;
@@ -144,7 +144,8 @@ namespace MWWorld
             for (const auto& enam : enchantment->mEffects.mList)
             {
                 auto [random, multiplier] = oldMagnitudes[enam.mIndex];
-                float magnitude = (enam.mData.mMagnMax - enam.mData.mMagnMin) * random + enam.mData.mMagnMin;
+                float magnitude = static_cast<float>((enam.mData.mMagnMax - enam.mData.mMagnMin)) * random
+                    + static_cast<float>(enam.mData.mMagnMin);
                 magnitude *= multiplier;
                 if (magnitude <= 0)
                     continue;
@@ -156,7 +157,7 @@ namespace MWWorld
                 effect.mArg = MWMechanics::EffectKey(enam.mData).mArg;
                 effect.mDuration = -1;
                 effect.mTimeLeft = -1;
-                effect.mEffectIndex = enam.mIndex;
+                effect.mEffectIndex = static_cast<int32_t>(enam.mIndex);
                 // Prevent recalculation of resistances and don't reflect or absorb the effect
                 effect.mFlags = ESM::ActiveEffect::Flag_Ignore_Resistances | ESM::ActiveEffect::Flag_Ignore_Reflect
                     | ESM::ActiveEffect::Flag_Ignore_SpellAbsorption;

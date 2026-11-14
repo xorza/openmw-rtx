@@ -52,14 +52,14 @@ namespace Terrain
 
     void TerrainGrid::cacheCell(View* view, int x, int y)
     {
-        osg::Vec2f center(x + 0.5f, y + 0.5f);
+        osg::Vec2f center(static_cast<float>(x) + 0.5f, static_cast<float>(y) + 0.5f);
         static_cast<MyView*>(view)->mLoaded = buildTerrain(nullptr, 1.f, center);
     }
 
     osg::ref_ptr<osg::Node> TerrainGrid::buildTerrain(
         osg::Group* parent, float chunkSize, const osg::Vec2f& chunkCenter)
     {
-        if (chunkSize * mNumSplits > 1.f)
+        if (chunkSize * static_cast<float>(mNumSplits) > 1.f)
         {
             // keep splitting
             osg::ref_ptr<osg::Group> group(new osg::Group);
@@ -95,7 +95,7 @@ namespace Terrain
         if (mGrid.contains(std::make_pair(x, y)))
             return; // already loaded
 
-        osg::Vec2f center(x + 0.5f, y + 0.5f);
+        osg::Vec2f center(static_cast<float>(x) + 0.5f, static_cast<float>(y) + 0.5f);
         osg::ref_ptr<osg::Node> terrainNode = buildTerrain(nullptr, 1.f, center);
         if (!terrainNode)
             return; // no terrain defined

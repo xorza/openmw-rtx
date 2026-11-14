@@ -467,7 +467,7 @@ void CSVWorld::ScriptEdit::lineNumberAreaPaintEvent(QPaintEvent* event)
     if (textCursor().hasSelection())
     {
         QString str = textCursor().selection().toPlainText();
-        int offset = str.count("\n");
+        int offset = static_cast<int>(str.count("\n"));
         if (textCursor().position() < textCursor().anchor())
             endBlock += offset;
         else

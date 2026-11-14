@@ -104,12 +104,12 @@ namespace MWGui
         for (ItemStack& itemStack : mBorrowedToUs)
         {
             MWWorld::Ptr& item = itemStack.mBase;
-            encumbrance += item.getClass().getWeight(item) * itemStack.mCount;
+            encumbrance += item.getClass().getWeight(item) * static_cast<float>(itemStack.mCount);
         }
         for (ItemStack& itemStack : mBorrowedFromUs)
         {
             MWWorld::Ptr& item = itemStack.mBase;
-            encumbrance -= item.getClass().getWeight(item) * itemStack.mCount;
+            encumbrance -= item.getClass().getWeight(item) * static_cast<float>(itemStack.mCount);
         }
         encumbrance = std::max(0.f, encumbrance);
     }

@@ -74,10 +74,10 @@ namespace MWGui
                                         ->mValue.getFloat();
 
                 float p = static_cast<float>(std::max(1, basePrice));
-                float r = static_cast<float>(std::max(1, static_cast<int>(maxDurability / p)));
+                float r = static_cast<float>(std::max(1, static_cast<int>(static_cast<float>(maxDurability) / p)));
 
-                int x = static_cast<int>((maxDurability - durability) / r);
-                x = static_cast<int>(fRepairMult * x);
+                int x = static_cast<int>(static_cast<float>((maxDurability - durability)) / r);
+                x = static_cast<int>(fRepairMult * static_cast<float>(x));
                 x = std::max(1, x);
 
                 int price = MWBase::Environment::get().getMechanicsManager()->getBarterOffer(mActor, x, true);
@@ -131,10 +131,11 @@ namespace MWGui
 
     void MerchantRepair::onMouseWheel(MyGUI::Widget* /*sender*/, int rel)
     {
-        if (mList->getViewOffset().top + rel * 0.3f > 0)
+        if (static_cast<float>(mList->getViewOffset().top) + static_cast<float>(rel) * 0.3f > 0)
             mList->setViewOffset(MyGUI::IntPoint(0, 0));
         else
-            mList->setViewOffset(MyGUI::IntPoint(0, static_cast<int>(mList->getViewOffset().top + rel * 0.3f)));
+            mList->setViewOffset(MyGUI::IntPoint(
+                0, static_cast<int>(static_cast<float>(mList->getViewOffset().top) + static_cast<float>(rel) * 0.3f)));
     }
 
     void MerchantRepair::onOpen()

@@ -15,7 +15,7 @@ float scaleDamage(float damage, const MWWorld::Ptr& attacker, const MWWorld::Ptr
     static const float fDifficultyMult
         = MWBase::Environment::get().getESMStore()->get<ESM::GameSetting>().find("fDifficultyMult")->mValue.getFloat();
 
-    const float difficultyTerm = 0.01f * Settings::game().mDifficulty;
+    const float difficultyTerm = 0.01f * static_cast<float>(Settings::game().mDifficulty);
 
     float x = 0;
     if (victim == player)

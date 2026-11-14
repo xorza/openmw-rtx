@@ -108,10 +108,6 @@ Checks:
   - readability-misleading-indentation
   - readability-identifier-naming
   # Not yet applied, each until its fixes land: the checks commented out above, and these of the families above.
-  - '-bugprone-narrowing-conversions'
-  - '-bugprone-assignment-in-if-condition'
-  - '-bugprone-assignment-in-selection-statement'
-  - '-bugprone-undefined-memory-manipulation'
   - '-performance-unnecessary-value-param'
   - '-performance-move-const-arg'
   - '-performance-inefficient-string-concatenation'

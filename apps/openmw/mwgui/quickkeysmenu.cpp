@@ -289,7 +289,7 @@ namespace MWGui
         MyGUI::ITexture* texture
             = MyGUI::RenderManager::getInstance().getTexture("textures\\menu_icon_select_magic_magic.dds");
         if (texture)
-            scale = texture->getHeight() / 64.f;
+            scale = static_cast<float>(texture->getHeight()) / 64.f;
 
         mSelected->button->setFrame("textures\\menu_icon_select_magic_magic.dds",
             MyGUI::IntCoord(0, 0, static_cast<int>(44 * scale), static_cast<int>(44 * scale)));
@@ -330,7 +330,7 @@ namespace MWGui
         MyGUI::ITexture* texture
             = MyGUI::RenderManager::getInstance().getTexture("textures\\menu_icon_select_magic.dds");
         if (texture)
-            scale = texture->getHeight() / 64.f;
+            scale = static_cast<float>(texture->getHeight()) / 64.f;
 
         const int diameter = static_cast<int>(44 * scale);
         mSelected->button->setFrame("textures\\menu_icon_select_magic.dds", MyGUI::IntCoord(0, 0, diameter, diameter));

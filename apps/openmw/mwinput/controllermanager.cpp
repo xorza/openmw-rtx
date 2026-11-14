@@ -452,7 +452,7 @@ namespace MWInput
         SDL_Gamepad* cntrl = mBindingsManager->getControllerOrNull();
         constexpr float axisMaxAbsoluteValue = 32768;
         if (cntrl != nullptr)
-            return SDL_GetGamepadAxis(cntrl, axis) / axisMaxAbsoluteValue;
+            return static_cast<float>(SDL_GetGamepadAxis(cntrl, axis)) / axisMaxAbsoluteValue;
         return 0;
     }
 

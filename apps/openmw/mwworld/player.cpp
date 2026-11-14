@@ -500,7 +500,7 @@ namespace MWWorld
         windowMgr->setBlindness(std::clamp(blind, 0, 100));
 
         int nightEye = static_cast<int>(magicEffects.getOrDefault(ESM::MagicEffect::NightEye).getMagnitude());
-        rendering->setNightEyeFactor(std::min(1.f, (nightEye / 100.f)));
+        rendering->setNightEyeFactor(std::min(1.f, (static_cast<float>(nightEye) / 100.f)));
     }
 
 }

@@ -153,7 +153,8 @@ namespace Rtx
                         const Shaders::vec3 gathered = Shaders::gatheredAlong(direction, slant, path);
                         for (std::size_t channel = 0; channel < 3; ++channel)
                         {
-                            const auto extinction = static_cast<double>(Shaders::WATER_EXTINCTION[channel]);
+                            const auto extinction
+                                = static_cast<double>(Shaders::WATER_EXTINCTION[static_cast<int>(channel)]);
                             const double rising = 1.0 - static_cast<double>(slant) * static_cast<double>(direction[2]);
                             const double truth
                                 = integral([&](double t) { return extinction * std::exp(-extinction * rising * t); },

@@ -431,7 +431,7 @@ namespace Debug
         Identity log(logfile);
 
         for (const Record& v : globalBuffer)
-            log.write(v.mValue.data(), v.mValue.size(), v.mLevel);
+            log.write(v.mValue.data(), static_cast<std::streamsize>(v.mValue.size()), v.mLevel);
 
         globalBuffer.clear();
 

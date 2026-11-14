@@ -358,9 +358,10 @@ namespace MWRender
         ESM::ReadersCache readers;
         osg::Vec2i startCell = osg::Vec2i(static_cast<int>(std::floor(center.x() - size / 2.f)),
             static_cast<int>(std::floor(center.y() - size / 2.f)));
-        for (int cellX = startCell.x(); cellX < startCell.x() + size; ++cellX)
+        for (int cellX = startCell.x(); static_cast<float>(cellX) < static_cast<float>(startCell.x()) + size; ++cellX)
         {
-            for (int cellY = startCell.y(); cellY < startCell.y() + size; ++cellY)
+            for (int cellY = startCell.y(); static_cast<float>(cellY) < static_cast<float>(startCell.y()) + size;
+                ++cellY)
             {
                 ESM::Cell cell;
                 mGroundcoverStore.initCell(cell, cellX, cellY);

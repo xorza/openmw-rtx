@@ -286,8 +286,8 @@ namespace MWGui
         for (int i = 0; i < 32; ++i)
         {
             buffer = "( ";
-            buffer += ch[0];
-            buffer += ch[1];
+            buffer += static_cast<char>(ch[0]);
+            buffer += static_cast<char>(ch[1]);
             buffer += " )";
 
             Utf8Stream stream(ch, ch + 2);

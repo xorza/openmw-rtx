@@ -96,7 +96,8 @@ namespace RtxTool
         if (left == nullptr)
             return upscaler;
 
-        const auto [end, length] = std::format_to_n(mTitleNote.data(), mTitleNote.size(), "{} - ", upscaler);
+        const auto [end, length]
+            = std::format_to_n(mTitleNote.data(), static_cast<std::ptrdiff_t>(mTitleNote.size()), "{} - ", upscaler);
         assert(static_cast<std::size_t>(length) < mTitleNote.size() && "the upscaler outgrew the title's room");
         const std::string_view sky = writeSkyNote(std::span(end, mTitleNote.data() + mTitleNote.size()),
             SkyNote{ .mWeather = Rtx::nameOf(left->mSky.mWeather.value()),

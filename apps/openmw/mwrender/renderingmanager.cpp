@@ -1053,7 +1053,7 @@ namespace MWRender
         // Since our fog is not radial yet, we should take FOV in account, otherwise terrain near viewing distance may
         // disappear. Limit FOV here just for sure, otherwise viewing distance can be too high.
         float distanceMult = std::cos(osg::DegreesToRadians(std::min(fov, 140.f)) / 2.f);
-        mTerrain->setViewDistance(mViewDistance * (distanceMult ? 1.f / distanceMult : 1.f));
+        mTerrain->setViewDistance(mViewDistance * (static_cast<bool>(distanceMult) ? 1.f / distanceMult : 1.f));
     }
 
     void RenderingManager::updateTextureFiltering()
@@ -1093,7 +1093,8 @@ namespace MWRender
         });
 
         float distanceMult = std::cos(osg::DegreesToRadians(std::min(mFieldOfView, 140.f)) / 2.f);
-        newGround->getTerrain().setViewDistance(mViewDistance * (distanceMult ? 1.f / distanceMult : 1.f));
+        newGround->getTerrain().setViewDistance(
+            mViewDistance * (static_cast<bool>(distanceMult) ? 1.f / distanceMult : 1.f));
 
         return *mGrounds.emplace(worldspace, std::move(newGround)).first->second;
     }

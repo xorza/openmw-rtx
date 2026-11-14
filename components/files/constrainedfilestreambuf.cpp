@@ -69,7 +69,7 @@ namespace Files
         // Clear read pointers so underflow() gets called on the next read attempt.
         setg(nullptr, nullptr, nullptr);
 
-        return newPos;
+        return static_cast<std::streamoff>(newPos);
     }
 
     std::streambuf::pos_type ConstrainedFileStreamBuf::seekpos(pos_type pos, std::ios_base::openmode mode)

@@ -705,11 +705,11 @@ namespace MWMechanics
             const auto convertSummons = [converter = state.mActorIdConverter](auto& collection) {
                 for (ActiveSpellParams& params : collection)
                 {
-                    converter->convert(params.mCaster, params.mCaster.mIndex);
+                    converter->convert(params.mCaster, static_cast<int>(params.mCaster.mIndex));
                     for (ESM::ActiveEffect& effect : params.mEffects)
                     {
                         if (auto* refNum = std::get_if<ESM::RefNum>(&effect.mArg))
-                            converter->convert(*refNum, refNum->mIndex);
+                            converter->convert(*refNum, static_cast<int>(refNum->mIndex));
                     }
                 }
             };

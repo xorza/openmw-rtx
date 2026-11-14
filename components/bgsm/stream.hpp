@@ -47,7 +47,7 @@ namespace Bgsm
         {
         }
 
-        void skip(size_t size) { mStream->ignore(size); }
+        void skip(size_t size) { mStream->ignore(static_cast<std::streamsize>(size)); }
 
         /// Read into a single instance of type
         template <class T>

@@ -51,8 +51,8 @@ CSMWorld::CellCoordinates CSMWorld::CellSelection::getCentre() const
         y += entry.getY();
     }
 
-    x /= mCells.size();
-    y /= mCells.size();
+    x /= static_cast<double>(mCells.size());
+    y /= static_cast<double>(mCells.size());
 
     auto closest = begin();
     double distance = std::numeric_limits<double>::max();

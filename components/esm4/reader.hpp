@@ -248,7 +248,7 @@ namespace ESM4
         // for arrays
         inline bool get(void* p, std::size_t size)
         {
-            mStream->read(static_cast<char*>(p), size);
+            mStream->read(static_cast<char*>(p), static_cast<std::streamsize>(size));
             return mStream->gcount() == static_cast<std::streamsize>(size); // FIXME: try/catch block needed?
         }
 

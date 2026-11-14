@@ -594,7 +594,7 @@ namespace MWPhysics
         auto projectile = std::make_shared<Projectile>(caster, position, radius, mTaskScheduler.get(), this);
         mProjectiles.emplace(mProjectileId, std::move(projectile));
 
-        return mProjectileId;
+        return static_cast<int>(mProjectileId);
     }
 
     void PhysicsSystem::setCaster(int projectileId, const MWWorld::Ptr& caster)
@@ -661,7 +661,8 @@ namespace MWPhysics
             {
                 waterlevel = cell.getWaterLevel();
                 if (physicActor->getCollisionMode())
-                    waterCollision = effects.getOrDefault(ESM::MagicEffect::WaterWalking).getMagnitude();
+                    waterCollision
+                        = static_cast<bool>(effects.getOrDefault(ESM::MagicEffect::WaterWalking).getMagnitude());
             }
 
             physicActor->setCanWaterWalk(waterCollision);

@@ -59,7 +59,7 @@ namespace MWMechanics
             }
         }
 
-        const float chop = (weapon->mData.mChop[0] + weapon->mData.mChop[1]) / 2.f;
+        const float chop = static_cast<float>((weapon->mData.mChop[0] + weapon->mData.mChop[1])) / 2.f;
         // We need to account for the fact that thrown weapons have 2x real damage applied to the target
         // as they're both the weapon and the ammo of the hit
         if (weapclass == ESM::WeaponType::Thrown)
@@ -72,8 +72,8 @@ namespace MWMechanics
         }
         else
         {
-            const float slash = (weapon->mData.mSlash[0] + weapon->mData.mSlash[1]) / 2.f;
-            const float thrust = (weapon->mData.mThrust[0] + weapon->mData.mThrust[1]) / 2.f;
+            const float slash = static_cast<float>((weapon->mData.mSlash[0] + weapon->mData.mSlash[1])) / 2.f;
+            const float thrust = static_cast<float>((weapon->mData.mThrust[0] + weapon->mData.mThrust[1])) / 2.f;
             rating = (slash * slash + thrust * thrust + chop * chop) / (slash + thrust + chop);
         }
 
@@ -111,7 +111,7 @@ namespace MWMechanics
                 int castCost = getEffectiveEnchantmentCastCost(*enchantment, actor);
                 float charge = item.getCellRef().getEnchantmentCharge();
 
-                if (charge == -1 || charge >= castCost || weapclass == ESM::WeaponType::Thrown
+                if (charge == -1 || charge >= static_cast<float>(castCost) || weapclass == ESM::WeaponType::Thrown
                     || weapclass == ESM::WeaponType::Ammo)
                     rating += rateEffects(enchantment->mEffects, actor, enemy, false);
             }
@@ -200,9 +200,9 @@ namespace MWMechanics
                 chopMult = 0.f;
         }
 
-        float chopRating = (esmWeap->mData.mChop[1] + bonusDamage) * skillMult * chopMult;
-        float slashRating = esmWeap->mData.mSlash[1] * skillMult * fAIMeleeWeaponMult;
-        float thrustRating = esmWeap->mData.mThrust[1] * skillMult * fAIMeleeWeaponMult;
+        float chopRating = (static_cast<float>(esmWeap->mData.mChop[1]) + bonusDamage) * skillMult * chopMult;
+        float slashRating = static_cast<float>(esmWeap->mData.mSlash[1]) * skillMult * fAIMeleeWeaponMult;
+        float thrustRating = static_cast<float>(esmWeap->mData.mThrust[1]) * skillMult * fAIMeleeWeaponMult;
 
         return actor.getClass().getArmorRating(actor) * fAIMeleeArmorMult
             + std::max(std::max(chopRating, slashRating), thrustRating);

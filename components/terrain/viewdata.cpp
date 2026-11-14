@@ -167,7 +167,7 @@ namespace Terrain
             {
                 if (vd->getWorldUpdateRevision() != mWorldUpdateRevision)
                 {
-                    vd->setWorldUpdateRevision(mWorldUpdateRevision);
+                    vd->setWorldUpdateRevision(static_cast<int>(mWorldUpdateRevision));
                     vd->clear();
                 }
                 vd->setViewPoint(viewPoint);
@@ -192,14 +192,14 @@ namespace Terrain
             vd = &mViewVector.back();
         }
         mUsedViews.push_back(vd);
-        vd->setWorldUpdateRevision(mWorldUpdateRevision);
+        vd->setWorldUpdateRevision(static_cast<int>(mWorldUpdateRevision));
         return vd;
     }
 
     std::unique_ptr<ViewData> ViewDataMap::createIndependentView() const
     {
         auto vd = std::make_unique<ViewData>();
-        vd->setWorldUpdateRevision(mWorldUpdateRevision);
+        vd->setWorldUpdateRevision(static_cast<int>(mWorldUpdateRevision));
         return vd;
     }
 

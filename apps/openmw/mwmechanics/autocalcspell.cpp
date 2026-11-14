@@ -62,7 +62,7 @@ namespace MWMechanics
                 continue;
             static const int iAutoSpellTimesCanCast = gmst.find("iAutoSpellTimesCanCast")->mValue.getInteger();
             int spellCost = MWMechanics::calcSpellCost(spell);
-            if (baseMagicka < iAutoSpellTimesCanCast * spellCost)
+            if (baseMagicka < static_cast<float>(iAutoSpellTimesCanCast * spellCost))
                 continue;
 
             if (race && race->mPowers.exists(spell.mId))
@@ -165,7 +165,7 @@ namespace MWMechanics
                 && std::find(race->mPowers.mList.begin(), race->mPowers.mList.end(), spell.mId)
                     != race->mPowers.mList.end())
                 continue;
-            if (baseMagicka < spellCost)
+            if (baseMagicka < static_cast<float>(spellCost))
                 continue;
 
             static const float fAutoPCSpellChance
@@ -229,14 +229,15 @@ namespace MWMechanics
             if ((magicEffect->mData.mFlags & ESM::MagicEffect::TargetSkill))
             {
                 auto found = actorSkills.find(spellEffect.mData.mSkill);
-                if (found == actorSkills.end() || found->second.getBase() < iAutoSpellAttSkillMin)
+                if (found == actorSkills.end() || found->second.getBase() < static_cast<float>(iAutoSpellAttSkillMin))
                     return false;
             }
 
             if ((magicEffect->mData.mFlags & ESM::MagicEffect::TargetAttribute))
             {
                 auto found = actorAttributes.find(spellEffect.mData.mAttribute);
-                if (found == actorAttributes.end() || found->second.getBase() < iAutoSpellAttSkillMin)
+                if (found == actorAttributes.end()
+                    || found->second.getBase() < static_cast<float>(iAutoSpellAttSkillMin))
                     return false;
             }
         }
@@ -274,10 +275,10 @@ namespace MWMechanics
                                                      .find("fEffectCostMult")
                                                      ->mValue.getFloat();
 
-            float x = 0.5f * (std::max(1, minMagn) + std::max(1, maxMagn));
+            float x = 0.5f * static_cast<float>((std::max(1, minMagn) + std::max(1, maxMagn)));
             x *= 0.1f * magicEffect->mData.mBaseCost;
-            x *= 1 + duration;
-            x += 0.05f * std::max(1, effect.mData.mArea) * magicEffect->mData.mBaseCost;
+            x *= static_cast<float>(1 + duration);
+            x += 0.05f * static_cast<float>(std::max(1, effect.mData.mArea)) * magicEffect->mData.mBaseCost;
             x *= fEffectCostMult;
 
             if (effect.mData.mRange == ESM::RT_Target)
@@ -316,7 +317,7 @@ namespace MWMechanics
             calcWeakestSchool(
                 spell, actorSkills, effectiveSchool, skillTerm); // Note effectiveSchool is unused after this
 
-        float castChance = skillTerm - MWMechanics::calcSpellCost(*spell)
+        float castChance = skillTerm - static_cast<float>(MWMechanics::calcSpellCost(*spell))
             + 0.2f * actorAttributes.at(ESM::Attribute::Willpower).getBase()
             + 0.1f * actorAttributes.at(ESM::Attribute::Luck).getBase();
         return castChance;

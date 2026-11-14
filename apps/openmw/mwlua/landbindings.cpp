@@ -32,8 +32,8 @@ namespace
         int cellY = static_cast<int>(std::floor(correctedWorldPos.y() / cellSize));
 
         // Normalized position in the cell
-        float nX = (correctedWorldPos.x() - (cellX * cellSize)) / cellSize;
-        float nY = (correctedWorldPos.y() - (cellY * cellSize)) / cellSize;
+        float nX = (correctedWorldPos.x() - (static_cast<float>(cellX) * cellSize)) / cellSize;
+        float nY = (correctedWorldPos.y() - (static_cast<float>(cellY) * cellSize)) / cellSize;
 
         int startX = static_cast<int>(nX * ESM::Land::LAND_TEXTURE_SIZE);
         int startY = static_cast<int>(nY * ESM::Land::LAND_TEXTURE_SIZE);
@@ -91,14 +91,14 @@ namespace MWLua
                 return values;
 
             const int cellSize = ESM::getCellSize(worldspace);
-            const float offset = (cellSize / ESM::LandRecordData::sLandTextureSize) * 0.25f;
+            const float offset = static_cast<float>((cellSize / ESM::LandRecordData::sLandTextureSize)) * 0.25f;
             const osg::Vec3f correctedPos = pos + osg::Vec3f{ -offset, +offset, 0.0f };
 
             const ESM::Land* land = nullptr;
             const ESM::Land::LandData* landData = nullptr;
 
-            int cellX = static_cast<int>(std::floor(correctedPos.x() / cellSize));
-            int cellY = static_cast<int>(std::floor(correctedPos.y() / cellSize));
+            int cellX = static_cast<int>(std::floor(correctedPos.x() / static_cast<float>(cellSize)));
+            int cellY = static_cast<int>(std::floor(correctedPos.y() / static_cast<float>(cellSize)));
 
             land = landStore.search(cellX, cellY);
 

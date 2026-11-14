@@ -69,7 +69,8 @@ namespace MWLua
                         return sol::make_object(context.mLua->unsafeState(), ptr.getClass().getRemainingUsageTime(ptr));
                     else if (ptr.getClass().hasItemHealth(ptr))
                         return sol::make_object(context.mLua->unsafeState(),
-                            ptr.getClass().getItemHealth(ptr) + ptr.getCellRef().getChargeIntRemainder());
+                            static_cast<float>(ptr.getClass().getItemHealth(ptr))
+                                + ptr.getCellRef().getChargeIntRemainder());
                 }
                 else if (prop == "enchantmentCharge")
                 {

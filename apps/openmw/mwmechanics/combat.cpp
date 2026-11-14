@@ -242,7 +242,8 @@ namespace MWMechanics
 
             int skillValue = static_cast<int>(attacker.getClass().getSkill(attacker, weaponSkill));
 
-            if (Misc::Rng::roll0to99(world->getPrng()) >= getHitChance(attacker, victim, skillValue))
+            if (static_cast<float>(Misc::Rng::roll0to99(world->getPrng()))
+                >= getHitChance(attacker, victim, skillValue))
             {
                 MWBase::Environment::get().getLuaManager()->onHit(attacker, victim, weapon, projectile, 0,
                     attackStrength, attackWindUp, damage, false, hitPosition, false,
@@ -253,13 +254,15 @@ namespace MWMechanics
 
             {
                 const auto& attack = weapon.get<ESM::Weapon>()->mBase->mData.mChop;
-                damage = attack[0] + ((attack[1] - attack[0]) * attackStrength); // Bow/crossbow damage
+                damage = static_cast<float>(attack[0])
+                    + (static_cast<float>((attack[1] - attack[0])) * attackStrength); // Bow/crossbow damage
             }
             {
                 // Arrow/bolt damage
                 // NB in case of thrown weapons, we are applying the damage twice since projectile == weapon
                 const auto& attack = projectile.get<ESM::Weapon>()->mBase->mData.mChop;
-                damage += attack[0] + ((attack[1] - attack[0]) * attackStrength);
+                damage
+                    += static_cast<float>(attack[0]) + (static_cast<float>((attack[1] - attack[0])) * attackStrength);
             }
             adjustWeaponDamage(damage, weapon, attacker);
         }
@@ -341,7 +344,8 @@ namespace MWMechanics
                 fCombatInvisoMult
                     * victimStats.getMagicEffects().getOrDefault(ESM::MagicEffect::Invisibility).getMagnitude());
         }
-        float attackTerm = skillValue + (stats.getAttribute(ESM::Attribute::Agility).getModified() / 5.0f)
+        float attackTerm = static_cast<float>(skillValue)
+            + (stats.getAttribute(ESM::Attribute::Agility).getModified() / 5.0f)
             + (stats.getAttribute(ESM::Attribute::Luck).getModified() / 10.0f);
         attackTerm *= stats.getFatigueTerm();
         attackTerm += mageffects.getOrDefault(ESM::MagicEffect::FortifyAttack).getMagnitude()
@@ -367,7 +371,7 @@ namespace MWMechanics
                                   .getOrDefault(elementalShieldEffect)
                                   .getMagnitude();
 
-            if (!magnitude)
+            if (!static_cast<bool>(magnitude))
                 continue;
 
             CreatureStats& attackerStats = attacker.getClass().getCreatureStats(attacker);
@@ -382,7 +386,7 @@ namespace MWMechanics
 
             saveTerm *= 1.25f * normalisedFatigue;
 
-            float x = std::max(0.f, saveTerm - Misc::Rng::roll0to99(prng));
+            float x = std::max(0.f, saveTerm - static_cast<float>(Misc::Rng::roll0to99(prng)));
 
             ESM::RefId element = ESM::MagicEffect::FireDamage;
             if (elementalShieldEffect == ESM::MagicEffect::LightningShield)
@@ -593,7 +597,7 @@ namespace MWMechanics
                                                           .find("fFightDistanceMultiplier")
                                                           ->mValue.getFloat();
 
-        return (iFightDistanceBase - fFightDistanceMultiplier * d);
+        return (static_cast<float>(iFightDistanceBase) - fFightDistanceMultiplier * d);
     }
 
     float getAggroDistance(const MWWorld::Ptr& actor, const osg::Vec3f& lhs, const osg::Vec3f& rhs)

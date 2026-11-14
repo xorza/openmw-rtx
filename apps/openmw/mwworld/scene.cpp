@@ -564,7 +564,8 @@ namespace MWWorld
                 ESM::ExteriorCellLocation(currentGridCenter->x(), currentGridCenter->y(), worldspace), true);
             float distance = std::max(std::abs(center.x() - pos.x()), std::abs(center.y() - pos.y()));
             int cellSize = ESM::getCellSize(worldspace);
-            const float maxDistance = cellSize / 2 + mCellLoadingThreshold; // 1/2 cell size + threshold
+            const float maxDistance
+                = static_cast<float>(cellSize / 2) + mCellLoadingThreshold; // 1/2 cell size + threshold
             if (distance <= maxDistance)
                 return *currentGridCenter;
         }
@@ -752,7 +753,8 @@ namespace MWWorld
             CellStore& cell = mWorld.getWorldModel().getExterior(
                 ESM::ExteriorCellLocation(it->mData.mX, it->mData.mY, ESM::Cell::sDefaultWorldspaceId));
             const osg::Vec3f position
-                = osg::Vec3f(it->mData.mX + 0.5f, it->mData.mY + 0.5f, 0) * Constants::CellSizeInUnits;
+                = osg::Vec3f(static_cast<float>(it->mData.mX) + 0.5f, static_cast<float>(it->mData.mY) + 0.5f, 0)
+                * Constants::CellSizeInUnits;
             const osg::Vec2i cellPosition(it->mData.mX, it->mData.mY);
 
             const DetourNavigator::CellGridBounds cellGridBounds{
@@ -1232,7 +1234,7 @@ namespace MWWorld
                 dist = std::min(dist,
                     std::max(std::abs(thisCellCenter.x() - predictedPos.x()),
                         std::abs(thisCellCenter.y() - predictedPos.y())));
-                float loadDist = cellSize / 2 + cellSize - mCellLoadingThreshold + mPreloadDistance;
+                float loadDist = static_cast<float>(cellSize / 2 + cellSize) - mCellLoadingThreshold + mPreloadDistance;
 
                 if (dist < loadDist)
                     preloadCell(mWorld.getWorldModel().getExterior(cellIndex));

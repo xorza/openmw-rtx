@@ -162,7 +162,7 @@ namespace MWLua
                     rankData[i].blank();
                 }
                 else
-                    setFromTable(ranks[i], rankData[i], table[LuaUtil::toLuaIndex(i)]);
+                    setFromTable(ranks[i], rankData[i], table[LuaUtil::toLuaIndex(static_cast<std::int64_t>(i))]);
             }
         }
 
@@ -503,7 +503,7 @@ namespace MWLua
         auto rankT = lua.new_usertype<FactionRank>("ESM3_FactionRank");
         rankT[sol::meta_function::to_string] = [](const FactionRank& rec) -> std::string {
             return "ESM3_FactionRank[" + rec.mFactionId.toDebugString() + ", "
-                + std::to_string(LuaUtil::toLuaIndex(rec.mRankIndex)) + "]";
+                + std::to_string(LuaUtil::toLuaIndex(static_cast<std::int64_t>(rec.mRankIndex))) + "]";
         };
         rankT["name"]
             = sol::readonly_property([](const FactionRank& rec) -> std::string_view { return rec.mRankName; });

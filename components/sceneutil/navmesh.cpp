@@ -124,7 +124,7 @@ namespace
 
     int getRgbaComponent(float v, int base)
     {
-        return static_cast<int>(std::round(v * base));
+        return static_cast<int>(std::round(v * static_cast<float>(base)));
     }
 
     unsigned heatToColor(float heat, int alpha)
@@ -149,9 +149,9 @@ namespace
 
         dtPolyRef base = mesh.getPolyRefBase(tile);
 
-        int tileNum = mesh.decodePolyIdTile(base);
+        int tileNum = static_cast<int>(mesh.decodePolyIdTile(base));
         const unsigned alpha = tile->header->userId == 0 ? 64 : 128;
-        const unsigned int tileNumColor = duIntToCol(tileNum, alpha);
+        const unsigned int tileNumColor = duIntToCol(tileNum, static_cast<int>(alpha));
 
         dd->depthMask(false);
 
@@ -166,13 +166,13 @@ namespace
 
             unsigned int col = 0;
             if (query && query->isInClosedList(base | static_cast<dtPolyRef>(i)))
-                col = duRGBA(255, 196, 0, alpha);
+                col = duRGBA(255, 196, 0, static_cast<int>(alpha));
             else
             {
                 if (flags & NavMeshTileDrawFlagsColorTiles)
                     col = duTransCol(tileNumColor, alpha);
                 else if (flags & NavMeshTileDrawFlagsHeat)
-                    col = heatToColor(heat, alpha);
+                    col = heatToColor(heat, static_cast<int>(alpha));
                 else
                     col = duTransCol(dd->areaToCol(p->getArea()), alpha);
             }

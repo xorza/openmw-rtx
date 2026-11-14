@@ -61,9 +61,9 @@ namespace MWGui
             if (displayType == ESM::MagicEffect::MDT_TimesInt)
             {
                 std::stringstream formatter;
-                formatter << std::fixed << std::setprecision(1) << " " << (minMagnitude / 10.0f);
+                formatter << std::fixed << std::setprecision(1) << " " << (static_cast<float>(minMagnitude) / 10.0f);
                 if (minMagnitude != maxMagnitude)
-                    formatter << to << (maxMagnitude / 10.0f);
+                    formatter << to << (static_cast<float>(maxMagnitude) / 10.0f);
                 result += formatter.str();
             }
             else

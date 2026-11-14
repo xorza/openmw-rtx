@@ -45,8 +45,8 @@ namespace
         osg::Vec2f min(bounds.xMin(), bounds.yMin());
         osg::Vec2f max(bounds.xMax(), bounds.yMax());
         osg::Vec2f length = max - min;
-        const int segsX = static_cast<int>(std::ceil(length.x() / mapSize));
-        const int segsY = static_cast<int>(std::ceil(length.y() / mapSize));
+        const int segsX = static_cast<int>(std::ceil(length.x() / static_cast<float>(mapSize)));
+        const int segsY = static_cast<int>(std::ceil(length.y() / static_cast<float>(mapSize)));
         return { segsX, segsY };
     }
 }
@@ -82,8 +82,8 @@ namespace MWRender
 
     int LocalMap::mapResolution() const
     {
-        return static_cast<int>(
-            Settings::map().mLocalMapResolution * MWBase::Environment::get().getWindowManager()->getRasterScale());
+        return static_cast<int>(static_cast<float>(Settings::map().mLocalMapResolution)
+            * MWBase::Environment::get().getWindowManager()->getRasterScale());
     }
 
     LocalMap::~LocalMap() = default;
@@ -274,14 +274,15 @@ namespace MWRender
 
         std::optional<DepthRange> land;
         DepthRange heights;
-        if (mStorage.getMinMaxHeights(
-                1.f, osg::Vec2f(x + 0.5f, y + 0.5f), cell->getCell()->getWorldSpace(), heights.mMin, heights.mMax))
+        if (mStorage.getMinMaxHeights(1.f, osg::Vec2f(static_cast<float>(x) + 0.5f, static_cast<float>(y) + 0.5f),
+                cell->getCell()->getWorldSpace(), heights.mMin, heights.mMax))
             land = heights;
 
         const DepthRange range = mapDepthRange(mSceneRoot->getBound(), land);
 
-        draw(x, y, x * mMapWorldSize + mMapWorldSize / 2.f, y * mMapWorldSize + mMapWorldSize / 2.f,
-            osg::Vec3d(0, 1, 0), range);
+        draw(x, y, static_cast<float>(x * mMapWorldSize) + static_cast<float>(mMapWorldSize) / 2.f,
+            static_cast<float>(y * mMapWorldSize) + static_cast<float>(mMapWorldSize) / 2.f, osg::Vec3d(0, 1, 0),
+            range);
 
         if (segment.mFogOfWarImage != nullptr)
             return;
@@ -374,8 +375,8 @@ namespace MWRender
                 else if (fog->mBounds.mMinX > mBounds.xMin())
                 {
                     float diff = fog->mBounds.mMinX - mBounds.xMin();
-                    xOffset = static_cast<int>(std::ceil(diff / mMapWorldSize));
-                    mBounds.xMin() = fog->mBounds.mMinX - xOffset * mMapWorldSize;
+                    xOffset = static_cast<int>(std::ceil(diff / static_cast<float>(mMapWorldSize)));
+                    mBounds.xMin() = fog->mBounds.mMinX - static_cast<float>(xOffset * mMapWorldSize);
                 }
                 if (fog->mBounds.mMinY < mBounds.yMin())
                 {
@@ -384,8 +385,8 @@ namespace MWRender
                 else if (fog->mBounds.mMinY > mBounds.yMin())
                 {
                     float diff = fog->mBounds.mMinY - mBounds.yMin();
-                    yOffset = static_cast<int>(std::ceil(diff / mMapWorldSize));
-                    mBounds.yMin() = fog->mBounds.mMinY - yOffset * mMapWorldSize;
+                    yOffset = static_cast<int>(std::ceil(diff / static_cast<float>(mMapWorldSize)));
+                    mBounds.yMin() = fog->mBounds.mMinY - static_cast<float>(yOffset * mMapWorldSize);
                 }
                 mBounds.xMax() = std::max(fog->mBounds.mMaxX, mBounds.xMax());
                 mBounds.yMax() = std::max(fog->mBounds.mMaxY, mBounds.yMax());
@@ -410,7 +411,8 @@ namespace MWRender
             {
                 osg::Vec2f start
                     = min + osg::Vec2f(static_cast<float>(mMapWorldSize * x), static_cast<float>(mMapWorldSize * y));
-                osg::Vec2f newcenter = start + osg::Vec2f(mMapWorldSize / 2.f, mMapWorldSize / 2.f);
+                osg::Vec2f newcenter = start
+                    + osg::Vec2f(static_cast<float>(mMapWorldSize) / 2.f, static_cast<float>(mMapWorldSize) / 2.f);
 
                 osg::Vec2f a = newcenter - mCenter;
                 osg::Vec3f rotatedCenter = cameraOrient * (osg::Vec3f(a.x(), a.y(), 0));
@@ -449,17 +451,18 @@ namespace MWRender
 
         osg::Vec2f min(mBounds.xMin(), mBounds.yMin());
 
-        x = static_cast<int>(std::ceil((pos.x() - min.x()) / mMapWorldSize) - 1);
-        y = static_cast<int>(std::ceil((pos.y() - min.y()) / mMapWorldSize) - 1);
+        x = static_cast<int>(std::ceil((pos.x() - min.x()) / static_cast<float>(mMapWorldSize)) - 1);
+        y = static_cast<int>(std::ceil((pos.y() - min.y()) / static_cast<float>(mMapWorldSize)) - 1);
 
-        nX = (pos.x() - min.x() - mMapWorldSize * x) / mMapWorldSize;
-        nY = 1.0f - (pos.y() - min.y() - mMapWorldSize * y) / mMapWorldSize;
+        nX = (pos.x() - min.x() - static_cast<float>(mMapWorldSize * x)) / static_cast<float>(mMapWorldSize);
+        nY = 1.0f - (pos.y() - min.y() - static_cast<float>(mMapWorldSize * y)) / static_cast<float>(mMapWorldSize);
     }
 
     osg::Vec2f LocalMap::interiorMapToWorldPosition(float nX, float nY, int x, int y) const
     {
         osg::Vec2f min(mBounds.xMin(), mBounds.yMin());
-        osg::Vec2f pos(mMapWorldSize * (nX + x) + min.x(), mMapWorldSize * (1.0f - nY + y) + min.y());
+        osg::Vec2f pos(static_cast<float>(mMapWorldSize) * (nX + static_cast<float>(x)) + min.x(),
+            static_cast<float>(mMapWorldSize) * (1.0f - nY + static_cast<float>(y)) + min.y());
 
         pos = rotatePoint(pos, mCenter, -mAngle);
         return pos;
@@ -501,12 +504,13 @@ namespace MWRender
         {
             direction = orientation * osg::Vec3f(0, 1, 0);
 
-            x = static_cast<int>(std::ceil(pos.x() / mMapWorldSize) - 1);
-            y = static_cast<int>(std::ceil(pos.y() / mMapWorldSize) - 1);
+            x = static_cast<int>(std::ceil(pos.x() / static_cast<float>(mMapWorldSize)) - 1);
+            y = static_cast<int>(std::ceil(pos.y() / static_cast<float>(mMapWorldSize)) - 1);
 
             // convert from world coordinates to texture UV coordinates
-            u = std::abs((pos.x() - (mMapWorldSize * x)) / mMapWorldSize);
-            v = 1.0f - std::abs((pos.y() - (mMapWorldSize * y)) / mMapWorldSize);
+            u = std::abs((pos.x() - static_cast<float>((mMapWorldSize * x))) / static_cast<float>(mMapWorldSize));
+            v = 1.0f
+                - std::abs((pos.y() - static_cast<float>((mMapWorldSize * y))) / static_cast<float>(mMapWorldSize));
         }
 
         // explore radius (squared)
@@ -550,8 +554,10 @@ namespace MWRender
                 {
                     for (int texU = 0; texU < sFogOfWarResolution; ++texU)
                     {
-                        float sqrDist = square((texU + mx * (sFogOfWarResolution - 1)) - u * (sFogOfWarResolution - 1))
-                            + square((texV + my * (sFogOfWarResolution - 1)) - v * (sFogOfWarResolution - 1));
+                        float sqrDist = square(static_cast<float>((texU + mx * (sFogOfWarResolution - 1)))
+                                            - u * (sFogOfWarResolution - 1))
+                            + square(static_cast<float>((texV + my * (sFogOfWarResolution - 1)))
+                                - v * (sFogOfWarResolution - 1));
 
                         const std::uint8_t alpha = std::min<std::uint8_t>(*data >> 24,
                             static_cast<std::uint8_t>(std::clamp(sqrDist / sqrExploreRadius, 0.f, 1.f) * 255));

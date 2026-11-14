@@ -211,7 +211,7 @@ namespace ESM
         for (const RefId& id : mUsedIds)
             esm.writeHNRefId("USED", id);
 
-        if (mTimeToStartDrowning)
+        if (static_cast<bool>(mTimeToStartDrowning))
             esm.writeHNT("DRTI", mTimeToStartDrowning);
 
         if (mCrimeId != -1)

@@ -180,7 +180,8 @@ namespace Rtx
                             | VK_IMAGE_USAGE_TRANSFER_DST_BIT },
                     "test target");
                 const VkClearColorValue colour{ .float32
-                    = { bytes[0] / 255.0f, bytes[1] / 255.0f, bytes[2] / 255.0f, bytes[3] / 255.0f } };
+                    = { static_cast<float>(bytes[0]) / 255.0f, static_cast<float>(bytes[1]) / 255.0f,
+                        static_cast<float>(bytes[2]) / 255.0f, static_cast<float>(bytes[3]) / 255.0f } };
 
                 Recording world = ring.recordWorld(frame);
                 target.clear(world.get(), Use::sUndefined, colour, Use::sComputeWrite);

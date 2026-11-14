@@ -467,7 +467,7 @@ namespace Compiler
             }
             for (unsigned int i = 0; i < mNumButtons; ++i)
                 Generator::pushString(mCode, mLiterals, mPotentialButtons[i]);
-            Generator::message(mCode, mLiterals, mName, mNumButtons);
+            Generator::message(mCode, mLiterals, mName, static_cast<int>(mNumButtons));
             mPotentialButtons.clear();
             mNumButtons = 0;
             return false;

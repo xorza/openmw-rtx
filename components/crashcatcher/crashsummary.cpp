@@ -53,7 +53,9 @@ namespace Crash
             while (at < text.size())
             {
                 const std::size_t end = at + home.size();
-                if (end <= text.size() && std::equal(home.begin(), home.end(), text.begin() + at, samePathCharacter)
+                if (end <= text.size()
+                    && std::equal(
+                        home.begin(), home.end(), text.begin() + static_cast<std::ptrdiff_t>(at), samePathCharacter)
                     && (end == text.size() || !continuesName(text[end])))
                 {
                     named += '~';

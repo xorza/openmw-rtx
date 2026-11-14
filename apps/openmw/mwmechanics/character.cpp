@@ -2903,7 +2903,8 @@ namespace MWMechanics
                     .getCreatureStats(mPtr)
                     .getMagicEffects()
                     .getOrDefault(ESM::MagicEffect::Invisibility)
-                    .getModifier()) // Ignore base magnitude (see bug #3555).
+                    .getModifier()
+                != 0.f) // Ignore base magnitude (see bug #3555).
             {
                 if (mPtr == getPlayer())
                     alpha = 0.25f;
@@ -2915,7 +2916,7 @@ namespace MWMechanics
                                   .getMagicEffects()
                                   .getOrDefault(ESM::MagicEffect::Chameleon)
                                   .getMagnitude();
-            if (chameleon)
+            if (static_cast<bool>(chameleon))
             {
                 alpha *= std::clamp(1.f - chameleon / 100.f, 0.25f, 0.75f);
             }

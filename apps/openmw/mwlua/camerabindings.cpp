@@ -124,7 +124,7 @@ namespace MWLua
             osg::Vec3f vpCoords = pos * (camera->getViewMatrix() * camera->getProjectionMatrix() * windowMatrix);
 
             // Move 0,0 to top left to match viewportToWorldVector
-            vpCoords.y() = height - vpCoords.y();
+            vpCoords.y() = static_cast<float>(height) - vpCoords.y();
 
             // Set the z component to be distance from camera, in world space units
             vpCoords.z() = (pos - camera->getPosition()).length();

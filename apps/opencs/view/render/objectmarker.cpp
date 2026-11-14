@@ -78,7 +78,7 @@ namespace CSVRender
     ObjectMarker::ObjectMarker(WorldspaceWidget* worldspaceWidget, Resource::ResourceSystem* resourceSystem)
         : mWorldspaceWidget(worldspaceWidget)
         , mResourceSystem(resourceSystem)
-        , mMarkerScale(CSMPrefs::get()["Rendering"]["object-marker-scale"].toDouble())
+        , mMarkerScale(static_cast<float>(CSMPrefs::get()["Rendering"]["object-marker-scale"].toDouble()))
         , mSubMode(Object::Mode_None)
     {
         mBaseNode = new osg::PositionAttitudeTransform;

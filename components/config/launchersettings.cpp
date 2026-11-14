@@ -88,7 +88,7 @@ namespace Config
         bool parseProfilePart(
             const QString& key, const QString& value, std::map<QString, LauncherSettings::Profile>& profiles)
         {
-            const int separator = key.lastIndexOf('/');
+            const int separator = static_cast<int>(key.lastIndexOf('/'));
             if (separator == -1)
                 return false;
 
@@ -274,7 +274,7 @@ void Config::LauncherSettings::removeContentList(const QString& value)
     mProfiles.mValues.erase(value);
 
     mProfiles.mUnknown.removeIf([&](const QPair<QString, QString>& keyValue) {
-        const int separator = keyValue.first.lastIndexOf('/');
+        const int separator = static_cast<int>(keyValue.first.lastIndexOf('/'));
         return separator != -1 && keyValue.first.left(separator) == value;
     });
 }
@@ -282,7 +282,7 @@ void Config::LauncherSettings::removeContentList(const QString& value)
 QStringList Config::LauncherSettings::getContentLists()
 {
     QStringList result;
-    result.reserve(mProfiles.mValues.size());
+    result.reserve(static_cast<qsizetype>(mProfiles.mValues.size()));
     for (const auto& [k, v] : mProfiles.mValues)
         result.push_back(k);
     return result;

@@ -64,8 +64,8 @@ namespace Rtx::Testing
             const float sine = std::sin(zenith) / Shaders::WATER_IOR;
             const float refracted = std::sqrt(1.0f - sine * sine);
 
-            const float down = std::exp(-Shaders::WATER_EXTINCTION[channel] * depth / refracted);
-            const float up = std::exp(-Shaders::WATER_EXTINCTION[channel] * depth);
+            const float down = std::exp(-Shaders::WATER_EXTINCTION[static_cast<int>(channel)] * depth / refracted);
+            const float up = std::exp(-Shaders::WATER_EXTINCTION[static_cast<int>(channel)] * depth);
             const float bed = 0.5f * sSunOverWater * std::cos(zenith) * Shaders::INV_PI;
             const float grazing = std::pow(1.0f - std::cos(zenith), 5.0f);
             const float in = 1.0f - (Shaders::WATER_F0 + (1.0f - Shaders::WATER_F0) * grazing);
@@ -339,7 +339,7 @@ namespace Rtx::Testing
             EXPECT_EQ(bedded[0], 38) << "red, settled at what the water scatters";
             for (std::size_t channel = 0; channel < 3; ++channel)
             {
-                const float kept = std::exp(-2.0f * Shaders::WATER_EXTINCTION[channel] * depth);
+                const float kept = std::exp(-2.0f * Shaders::WATER_EXTINCTION[static_cast<int>(channel)] * depth);
                 EXPECT_NEAR(bedded[channel],
                     encodeSrgb(
                         Shaders::WATER_SCATTER_SHIPPED[channel] * 0.5f * (1.0f - kept) * (1.0f - Shaders::WATER_F0)),
@@ -647,9 +647,9 @@ namespace Rtx::Testing
             };
 
             const auto scattered = [&](float eye, std::size_t channel) {
-                const float o = Shaders::WATER_EXTINCTION[channel];
+                const float o = Shaders::WATER_EXTINCTION[static_cast<int>(channel)];
 
-                return encodeSrgb(Shaders::WATER_SCATTER_SHIPPED[channel] * 0.5f
+                return encodeSrgb(Shaders::WATER_SCATTER_SHIPPED[static_cast<int>(channel)] * 0.5f
                     * (1.0f - std::exp(-2.0f * o * stretch)) * std::exp(-o * eye));
             };
 
@@ -723,8 +723,8 @@ namespace Rtx::Testing
                     const std::size_t at = (std::size_t{ y } * size + x) * 4;
                     for (std::size_t channel = 0; channel < 3; ++channel)
                     {
-                        const float settled = Shaders::WATER_SCATTER_SHIPPED[channel] / g
-                            * std::exp(-Shaders::WATER_EXTINCTION[channel] * eye);
+                        const float settled = Shaders::WATER_SCATTER_SHIPPED[static_cast<int>(channel)] / g
+                            * std::exp(-Shaders::WATER_EXTINCTION[static_cast<int>(channel)] * eye);
                         ASSERT_NEAR(int{ frame.byte(at + channel) }, encodeSrgb(settled), 1)
                             << "channel " << channel << " at " << x << ", " << y;
                     }
@@ -1173,9 +1173,10 @@ namespace Rtx::Testing
             ASSERT_NEAR(phase, 0.0048718, 1e-7);
             for (std::size_t channel = 0; channel < 3; ++channel)
             {
-                const double o = Shaders::WATER_EXTINCTION[channel];
-                const double expected = double{ Shaders::WATER_SCATTER_SHIPPED[channel] } * double{ moonlight[channel] }
-                    * (1.0 - double{ Shaders::WATER_F0 }) * phase * std::exp(-o * double{ eye });
+                const double o = Shaders::WATER_EXTINCTION[static_cast<int>(channel)];
+                const double expected = double{ Shaders::WATER_SCATTER_SHIPPED[static_cast<int>(channel)] }
+                    * double{ moonlight[static_cast<int>(channel)] } * (1.0 - double{ Shaders::WATER_F0 }) * phase
+                    * std::exp(-o * double{ eye });
                 EXPECT_NEAR(double{ lit.at(centre + channel) }, expected, expected * 1e-3) << "channel " << channel;
                 EXPECT_EQ(dark.at(centre + channel), 0.0f) << "channel " << channel;
             }
@@ -1323,8 +1324,8 @@ namespace Rtx::Testing
 
             for (std::size_t channel = 0; channel < 3; ++channel)
             {
-                const float down = std::exp(-Shaders::WATER_EXTINCTION[channel] * depth);
-                const float out = std::exp(-Shaders::WATER_EXTINCTION[channel] * above);
+                const float down = std::exp(-Shaders::WATER_EXTINCTION[static_cast<int>(channel)] * depth);
+                const float out = std::exp(-Shaders::WATER_EXTINCTION[static_cast<int>(channel)] * above);
 
                 EXPECT_NEAR(frame.byte(centre + channel), int{ encodeSrgb(0.5f * sky * down * out) }, 1)
                     << "channel " << channel;

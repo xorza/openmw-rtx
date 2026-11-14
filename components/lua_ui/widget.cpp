@@ -415,8 +415,8 @@ namespace LuaUi
         {
             MyGUI::IntSize pSize = parentSize();
             newSize = mAbsoluteCoord.size();
-            newSize.width += static_cast<int>(mRelativeCoord.width * pSize.width);
-            newSize.height += static_cast<int>(mRelativeCoord.height * pSize.height);
+            newSize.width += static_cast<int>(mRelativeCoord.width * static_cast<float>(pSize.width));
+            newSize.height += static_cast<int>(mRelativeCoord.height * static_cast<float>(pSize.height));
         }
         newSize.width = std::clamp(newSize.width, -sExtCalcSizeWidthCap, sExtCalcSizeWidthCap);
         newSize.height = std::clamp(newSize.height, -sExtCalcSizeHeightCap, sExtCalcSizeHeightCap);
@@ -432,8 +432,10 @@ namespace LuaUi
         {
             MyGUI::IntSize pSize = parentSize();
             newPosition = mAbsoluteCoord.point();
-            newPosition.left += static_cast<int>(mRelativeCoord.left * pSize.width - mAnchor.width * size.width);
-            newPosition.top += static_cast<int>(mRelativeCoord.top * pSize.height - mAnchor.height * size.height);
+            newPosition.left += static_cast<int>(
+                mRelativeCoord.left * static_cast<float>(pSize.width) - mAnchor.width * static_cast<float>(size.width));
+            newPosition.top += static_cast<int>(mRelativeCoord.top * static_cast<float>(pSize.height)
+                - mAnchor.height * static_cast<float>(size.height));
         }
         newPosition.left = std::clamp(newPosition.left, -sExtCalcPositionLeftCap, sExtCalcPositionLeftCap);
         newPosition.top = std::clamp(newPosition.top, -sExtCalcPositionTopCap, sExtCalcPositionTopCap);

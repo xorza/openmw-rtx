@@ -29,8 +29,8 @@ namespace Terrain
         const int cellSize = ESM::getCellSize(worldspace);
         const int borderSegments = 40;
 
-        osg::Vec3 cellCorner = osg::Vec3(x * cellSize, y * cellSize, 0);
-        size *= cellSize;
+        osg::Vec3 cellCorner = osg::Vec3(x * static_cast<float>(cellSize), y * static_cast<float>(cellSize), 0);
+        size *= static_cast<float>(cellSize);
 
         osg::ref_ptr<osg::Vec3Array> vertices = new osg::Vec3Array;
         osg::ref_ptr<osg::Vec4Array> colors = new osg::Vec4Array;
@@ -42,8 +42,9 @@ namespace Terrain
 
         for (int i = 0; i <= 2 * borderSegments; ++i)
         {
-            osg::Vec3f pos = i < borderSegments ? osg::Vec3(i * borderStep, 0.0f, 0.0f)
-                                                : osg::Vec3(size, (i - borderSegments) * borderStep, 0.0f);
+            osg::Vec3f pos = i < borderSegments
+                ? osg::Vec3(static_cast<float>(i) * borderStep, 0.0f, 0.0f)
+                : osg::Vec3(size, static_cast<float>((i - borderSegments)) * borderStep, 0.0f);
 
             pos += cellCorner;
             pos += osg::Vec3f(0, 0, terrain->getHeightAt(pos, worldspace) + offset);

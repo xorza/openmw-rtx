@@ -94,13 +94,13 @@ namespace Gui
             float scale = 1.f;
             MyGUI::ITexture* texture = MyGUI::RenderManager::getInstance().getTexture(textureName);
             if (texture && getHeight() != 0)
-                scale = static_cast<float>(texture->getHeight()) / getHeight();
+                scale = static_cast<float>(texture->getHeight()) / static_cast<float>(getHeight());
 
-            const int width = static_cast<int>(std::round(mTextureRect.width * scale));
-            const int height = static_cast<int>(std::round(mTextureRect.height * scale));
+            const int width = static_cast<int>(std::round(static_cast<float>(mTextureRect.width) * scale));
+            const int height = static_cast<int>(std::round(static_cast<float>(mTextureRect.height) * scale));
             setImageTile(MyGUI::IntSize(width, height));
-            MyGUI::IntCoord scaledSize(static_cast<int>(std::round(mTextureRect.left * scale)),
-                static_cast<int>(std::round(mTextureRect.top * scale)), width, height);
+            MyGUI::IntCoord scaledSize(static_cast<int>(std::round(static_cast<float>(mTextureRect.left) * scale)),
+                static_cast<int>(std::round(static_cast<float>(mTextureRect.top) * scale)), width, height);
             setImageCoord(scaledSize);
         }
 

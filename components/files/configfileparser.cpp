@@ -172,7 +172,7 @@ namespace Files
                         if (*m_prefix.rbegin() != '.')
                             m_prefix += '.';
                     }
-                    else if ((n = s.find('=')) != std::string::npos)
+                    else if (n = s.find('='); n != std::string::npos)
                     {
 
                         std::string name = m_prefix + trim_ws(s.substr(0, n));

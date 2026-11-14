@@ -139,8 +139,8 @@ namespace Rtx::Testing
             constexpr float wall = 0.5f * sFoggySky;
             for (std::size_t channel = 0; channel < 3; ++channel)
             {
-                const auto expected
-                    = static_cast<int>(encodeSrgb(wall * transmittance + sHaze[channel] * (1.0f - transmittance)));
+                const auto expected = static_cast<int>(
+                    encodeSrgb(wall * transmittance + sHaze[static_cast<int>(channel)] * (1.0f - transmittance)));
 
                 EXPECT_NEAR(fogged[channel], expected, 1) << "channel " << channel;
             }
@@ -271,8 +271,8 @@ namespace Rtx::Testing
             const std::array<int, 3> high = look(-below, extinction);
             for (std::size_t channel = 0; channel < 3; ++channel)
             {
-                const auto expected = static_cast<int>(
-                    encodeSrgb(0.5f * sFoggySky * transmittance + sHaze[channel] * (1.0f - transmittance)));
+                const auto expected = static_cast<int>(encodeSrgb(
+                    0.5f * sFoggySky * transmittance + sHaze[static_cast<int>(channel)] * (1.0f - transmittance)));
 
                 EXPECT_NEAR(high[channel], expected, 1) << "channel " << channel << ", high over the layer";
             }
@@ -311,8 +311,8 @@ namespace Rtx::Testing
             const std::array<int, 3> up = lookSloping(osg::Vec3f(0.0f, -distance, 0.0f), osg::Vec3f(0.0f, 0.0f, climb));
             for (std::size_t channel = 0; channel < 3; ++channel)
             {
-                const auto expected
-                    = static_cast<int>(encodeSrgb(0.5f * sFoggySky * climbing + sHaze[channel] * (1.0f - climbing)));
+                const auto expected = static_cast<int>(
+                    encodeSrgb(0.5f * sFoggySky * climbing + sHaze[static_cast<int>(channel)] * (1.0f - climbing)));
 
                 EXPECT_NEAR(up[channel], expected, 1) << "channel " << channel << ", climbing out of the layer";
             }

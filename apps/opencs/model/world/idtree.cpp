@@ -222,8 +222,8 @@ std::pair<int, int> CSMWorld::IdTree::unfoldIndexAddress(unsigned int id) const
         throw std::runtime_error("Attempt to unfold index id of the top level data cell");
 
     --id;
-    int row = id / this->columnCount();
-    int column = id - row * this->columnCount();
+    int row = static_cast<int>(id / this->columnCount());
+    int column = static_cast<int>(id - row * this->columnCount());
     return std::make_pair(row, column);
 }
 

@@ -603,7 +603,8 @@ void MWState::StateManager::loadGame(const Character* character, const std::file
                     Log(Debug::Warning) << "Warning: Ignoring unknown record: " << n.toStringView();
                     reader.skipRecord();
             }
-            int progressPercent = static_cast<int>(static_cast<float>(reader.getFileOffset()) / total * 100);
+            int progressPercent
+                = static_cast<int>(static_cast<float>(reader.getFileOffset()) / static_cast<float>(total) * 100);
             if (progressPercent > currentPercent)
             {
                 listener.increaseProgress(progressPercent - currentPercent);

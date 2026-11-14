@@ -55,9 +55,9 @@ namespace
             / gmst.find("fPersonalityMod")->mValue.getFloat();
         float luckTerm
             = stats.getAttribute(ESM::Attribute::Luck).getModified() / gmst.find("fLuckMod")->mValue.getFloat();
-        float repTerm = stats.getReputation() * gmst.find("fReputationMod")->mValue.getFloat();
+        float repTerm = static_cast<float>(stats.getReputation()) * gmst.find("fReputationMod")->mValue.getFloat();
         float fatigueTerm = stats.getFatigueTerm();
-        float levelTerm = stats.getLevel() * gmst.find("fLevelMod")->mValue.getFloat();
+        float levelTerm = static_cast<float>(stats.getLevel()) * gmst.find("fLevelMod")->mValue.getFloat();
 
         rating1 = (repTerm + luckTerm + persTerm + stats.getSkill(ESM::Skill::Speechcraft).getModified()) * fatigueTerm;
 
@@ -152,7 +152,7 @@ namespace MWMechanics
                 if (bonusIt != race->mData.mBonus.end())
                     bonus = bonusIt->mBonus;
 
-                npcStats.getSkill(skill.mId).setBase(5.f + bonus);
+                npcStats.getSkill(skill.mId).setBase(5.f + static_cast<float>(bonus));
             }
 
             for (const ESM::RefId& power : race->mPowers.mList)
@@ -522,7 +522,8 @@ namespace MWMechanics
 
                 int itReaction
                     = MWBase::Environment::get().getDialogueManager()->getFactionReaction(npcFaction, itFaction);
-                if (playerFactionIt == playerStats.getFactionRanks().begin() || itReaction < reaction)
+                if (playerFactionIt == playerStats.getFactionRanks().begin()
+                    || static_cast<float>(itReaction) < reaction)
                 {
                     reaction = static_cast<float>(itReaction);
                     rank = playerFactionIt->second;
@@ -538,11 +539,11 @@ namespace MWMechanics
         static const float fDispFactionRankMult = gmst.find("fDispFactionRankMult")->mValue.getFloat();
         static const float fDispFactionRankBase = gmst.find("fDispFactionRankBase")->mValue.getFloat();
         static const float fDispFactionMod = gmst.find("fDispFactionMod")->mValue.getFloat();
-        x += (fDispFactionRankMult * rank + fDispFactionRankBase) * fDispFactionMod * reaction;
+        x += (fDispFactionRankMult * static_cast<float>(rank) + fDispFactionRankBase) * fDispFactionMod * reaction;
 
         static const float fDispCrimeMod = gmst.find("fDispCrimeMod")->mValue.getFloat();
         static const float fDispDiseaseMod = gmst.find("fDispDiseaseMod")->mValue.getFloat();
-        x -= fDispCrimeMod * playerStats.getBounty();
+        x -= fDispCrimeMod * static_cast<float>(playerStats.getBounty());
         if (playerStats.hasCommonDisease() || playerStats.hasBlightDisease())
             x += fDispDiseaseMod;
 
@@ -582,11 +583,11 @@ namespace MWMechanics
         float d = std::min(ptr.getClass().getSkill(ptr, ESM::Skill::Mercantile), 100.f);
         float e = std::min(0.1f * sellerStats.getAttribute(ESM::Attribute::Luck).getModified(), 10.f);
         float f = std::min(0.2f * sellerStats.getAttribute(ESM::Attribute::Personality).getModified(), 10.f);
-        float pcTerm = (clampedDisposition - 50 + a + b + c) * playerStats.getFatigueTerm();
+        float pcTerm = (static_cast<float>(clampedDisposition - 50) + a + b + c) * playerStats.getFatigueTerm();
         float npcTerm = (d + e + f) * sellerStats.getFatigueTerm();
         float buyTerm = 0.01f * (100 - 0.5f * (pcTerm - npcTerm));
         float sellTerm = 0.01f * (50 - 0.5f * (npcTerm - pcTerm));
-        int offerPrice = static_cast<int>(basePrice * (buying ? buyTerm : sellTerm));
+        int offerPrice = static_cast<int>(static_cast<float>(basePrice) * (buying ? buyTerm : sellTerm));
         return std::max(1, offerPrice);
     }
 
@@ -614,7 +615,7 @@ namespace MWMechanics
 
         const int currentDisposition = getDerivedDisposition(npc);
 
-        float d = 1 - 0.02f * abs(currentDisposition - 50);
+        float d = 1 - 0.02f * static_cast<float>(abs(currentDisposition - 50));
         float target1 = d * (playerRating1 - npcRating1 + 50);
         float target2 = d * (playerRating2 - npcRating2 + 50);
 
@@ -642,23 +643,23 @@ namespace MWMechanics
         if (type == PT_Admire)
         {
             target1 = std::max(iPerMinChance, target1);
-            success = (roll <= target1);
-            float c = std::floor(fPerDieRollMult * (target1 - roll));
+            success = (static_cast<float>(roll) <= target1);
+            float c = std::floor(fPerDieRollMult * (target1 - static_cast<float>(roll)));
             x = success ? std::max(iPerMinChange, c) : c;
         }
         else if (type == PT_Intimidate)
         {
             target2 = std::max(iPerMinChance, target2);
 
-            success = (roll <= target2);
+            success = (static_cast<float>(roll) <= target2);
 
             float r = NAN;
-            if (roll != target2)
-                r = std::floor(target2 - roll);
+            if (static_cast<float>(roll) != target2)
+                r = std::floor(target2 - static_cast<float>(roll));
             else
                 r = 1;
 
-            if (roll <= target2)
+            if (static_cast<float>(roll) <= target2)
             {
                 float s = std::floor(r * fPerDieRollMult * fPerTempMult);
 
@@ -696,9 +697,9 @@ namespace MWMechanics
         else if (type == PT_Taunt)
         {
             target1 = std::max(iPerMinChance, target1);
-            success = (roll <= target1);
+            success = (static_cast<float>(roll) <= target1);
 
-            float c = std::abs(std::floor(target1 - roll));
+            float c = std::abs(std::floor(target1 - static_cast<float>(roll)));
 
             if (success)
             {
@@ -718,8 +719,8 @@ namespace MWMechanics
         else // Bribe
         {
             target3 = std::max(iPerMinChance, target3);
-            success = (roll <= target3);
-            float c = std::floor((target3 - roll) * fPerDieRollMult);
+            success = (static_cast<float>(roll) <= target3);
+            float c = std::floor((target3 - static_cast<float>(roll)) * fPerDieRollMult);
 
             x = success ? std::max(iPerMinChange, c) : c;
         }
@@ -731,7 +732,8 @@ namespace MWMechanics
                 tempChange = 100 - currentDisposition;
             else if (currentDisposition + tempChange < 0)
                 tempChange = -currentDisposition;
-            permChange = success ? -static_cast<int>(tempChange / fPerTempMult) : static_cast<int>(y);
+            permChange
+                = success ? -static_cast<int>(static_cast<float>(tempChange) / fPerTempMult) : static_cast<int>(y);
         }
         else
         {
@@ -740,7 +742,7 @@ namespace MWMechanics
                 tempChange = 100 - currentDisposition;
             else if (currentDisposition + tempChange < 0)
                 tempChange = -currentDisposition;
-            permChange = static_cast<int>(tempChange / fPerTempMult);
+            permChange = static_cast<int>(static_cast<float>(tempChange) / fPerTempMult);
         }
     }
 
@@ -1260,9 +1262,9 @@ namespace MWMechanics
         }
         else if (type == OT_Theft)
         {
-            bounty = static_cast<int>(arg * store.find("fCrimeStealing")->mValue.getFloat());
+            bounty = static_cast<int>(static_cast<float>(arg) * store.find("fCrimeStealing")->mValue.getFloat());
             bounty = std::max(1, bounty); // Minimum bounty of 1, in case items with zero value are stolen
-            disp = dispVictim = store.find("fDispStealing")->mValue.getFloat() * arg;
+            disp = dispVictim = store.find("fDispStealing")->mValue.getFloat() * static_cast<float>(arg);
         }
         else
         {
@@ -1336,7 +1338,7 @@ namespace MWMechanics
             NpcStats& observerStats = actor.getClass().getNpcStats(actor);
 
             int alarm = observerStats.getAiSetting(AiSetting::Alarm).getBase();
-            float alarmTerm = 0.01f * alarm;
+            float alarmTerm = 0.01f * static_cast<float>(alarm);
 
             bool isActorVictim = actor == victim;
             float dispTerm = isActorVictim ? dispVictim : disp;
@@ -1431,11 +1433,11 @@ namespace MWMechanics
                 fightTerm *= alarmTerm;
 
                 const int observerFightRating = observerStats.getAiSetting(AiSetting::Fight).getBase();
-                if (observerFightRating + fightTerm > 100)
+                if (static_cast<float>(observerFightRating) + fightTerm > 100)
                     fightTerm = static_cast<float>(100 - observerFightRating);
                 fightTerm = std::max(0.f, fightTerm);
 
-                if (observerFightRating + fightTerm >= 100)
+                if (static_cast<float>(observerFightRating) + fightTerm >= 100)
                 {
                     if (dispositionModifier != 0 && applyOnlyIfHostile)
                     {
@@ -1669,9 +1671,9 @@ namespace MWMechanics
 
         float target = x - y;
         if (useCache)
-            return observerStats.getAwarenessRoll() >= target;
+            return static_cast<float>(observerStats.getAwarenessRoll()) >= target;
         auto& prng = MWBase::Environment::get().getWorld()->getPrng();
-        return Misc::Rng::roll0to99(prng) >= target;
+        return static_cast<float>(Misc::Rng::roll0to99(prng)) >= target;
     }
 
     void MechanicsManager::startCombat(

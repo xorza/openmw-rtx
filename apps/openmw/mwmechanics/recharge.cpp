@@ -60,12 +60,12 @@ namespace MWMechanics
             * stats.getFatigueTerm();
         auto& prng = MWBase::Environment::get().getWorld()->getPrng();
         int roll = Misc::Rng::roll0to99(prng);
-        if (roll < x)
+        if (static_cast<float>(roll) < x)
         {
             const ESM::RefId& soul = gem.getCellRef().getSoul();
             const ESM::Creature* creature = MWBase::Environment::get().getESMStore()->get<ESM::Creature>().find(soul);
 
-            float restored = creature->mData.mSoul * (roll / x);
+            float restored = static_cast<float>(creature->mData.mSoul) * (static_cast<float>(roll) / x);
 
             const ESM::Enchantment* enchantment
                 = MWBase::Environment::get().getESMStore()->get<ESM::Enchantment>().find(

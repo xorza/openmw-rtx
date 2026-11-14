@@ -419,7 +419,7 @@ namespace
                 {
                     if (save)
                         data->mRecords.push_back(std::move(record));
-                    ++data->mRecordStats[n.toInt()];
+                    ++data->mRecordStats[static_cast<int>(n.toInt())];
                 }
             }
         }
@@ -563,7 +563,9 @@ namespace
             esm.endRecord(typeName);
 
             saved++;
-            int perc = recordCount == 0 ? 100 : static_cast<int>((saved / static_cast<float>(recordCount)) * 100);
+            int perc = recordCount == 0
+                ? 100
+                : static_cast<int>((static_cast<float>(saved) / static_cast<float>(recordCount)) * 100);
             if (perc % 10 == 0)
             {
                 std::cerr << "\r" << perc << "%";

@@ -161,7 +161,8 @@ namespace MWGui
     void InventoryWindow::adjustPanes()
     {
         const float aspect = 0.5; // fixed aspect ratio for the avatar image
-        int leftPaneWidth = static_cast<int>((mMainWidget->getSize().height - 44 - mArmorRating->getHeight()) * aspect);
+        int leftPaneWidth = static_cast<int>(
+            static_cast<float>((mMainWidget->getSize().height - 44 - mArmorRating->getHeight())) * aspect);
         mLeftPane->setSize(leftPaneWidth, mMainWidget->getSize().height - 44);
         mRightPane->setCoord(mLeftPane->getPosition().left + leftPaneWidth + 4, mRightPane->getPosition().top,
             mMainWidget->getSize().width - 12 - leftPaneWidth - 15, mMainWidget->getSize().height - 44);
@@ -217,10 +218,10 @@ namespace MWGui
         const WindowRectSettingValues& rect = settings.mIsMaximized ? settings.mRegular : settings.mMaximized;
 
         MyGUI::IntSize viewSize = MyGUI::RenderManager::getInstance().getViewSize();
-        const int x = static_cast<int>(rect.mX * viewSize.width);
-        const int y = static_cast<int>(rect.mY * viewSize.height);
-        const int w = static_cast<int>(rect.mW * viewSize.width);
-        const int h = static_cast<int>(rect.mH * viewSize.height);
+        const int x = static_cast<int>(rect.mX * static_cast<float>(viewSize.width));
+        const int y = static_cast<int>(rect.mY * static_cast<float>(viewSize.height));
+        const int w = static_cast<int>(rect.mW * static_cast<float>(viewSize.width));
+        const int h = static_cast<int>(rect.mH * static_cast<float>(viewSize.height));
         auto* window = mMainWidget->castType<MyGUI::Window>();
         window->setCoord(x, y, w, h);
 
@@ -249,8 +250,10 @@ namespace MWGui
         const WindowRectSettingValues& rect = settings.mIsMaximized ? settings.mMaximized : settings.mRegular;
 
         MyGUI::IntSize viewSize = MyGUI::RenderManager::getInstance().getViewSize();
-        MyGUI::IntPoint pos(static_cast<int>(rect.mX * viewSize.width), static_cast<int>(rect.mY * viewSize.height));
-        MyGUI::IntSize size(static_cast<int>(rect.mW * viewSize.width), static_cast<int>(rect.mH * viewSize.height));
+        MyGUI::IntPoint pos(static_cast<int>(rect.mX * static_cast<float>(viewSize.width)),
+            static_cast<int>(rect.mY * static_cast<float>(viewSize.height)));
+        MyGUI::IntSize size(static_cast<int>(rect.mW * static_cast<float>(viewSize.width)),
+            static_cast<int>(rect.mH * static_cast<float>(viewSize.height)));
 
         bool needUpdate = (size.width != mMainWidget->getWidth() || size.height != mMainWidget->getHeight());
 
@@ -539,10 +542,10 @@ namespace MWGui
 
         MyGUI::IntSize viewSize = MyGUI::RenderManager::getInstance().getViewSize();
 
-        settings.mRegular.mX.set(sender->getPosition().left / static_cast<float>(viewSize.width));
-        settings.mRegular.mY.set(sender->getPosition().top / static_cast<float>(viewSize.height));
-        settings.mRegular.mW.set(sender->getSize().width / static_cast<float>(viewSize.width));
-        settings.mRegular.mH.set(sender->getSize().height / static_cast<float>(viewSize.height));
+        settings.mRegular.mX.set(static_cast<float>(sender->getPosition().left) / static_cast<float>(viewSize.width));
+        settings.mRegular.mY.set(static_cast<float>(sender->getPosition().top) / static_cast<float>(viewSize.height));
+        settings.mRegular.mW.set(static_cast<float>(sender->getSize().width) / static_cast<float>(viewSize.width));
+        settings.mRegular.mH.set(static_cast<float>(sender->getSize().height) / static_cast<float>(viewSize.height));
         settings.mIsMaximized.set(false);
 
         if (mMainWidget->getSize().width != mLastXSize || mMainWidget->getSize().height != mLastYSize)
@@ -570,8 +573,8 @@ namespace MWGui
     {
         const MyGUI::IntSize viewport = getPreviewViewportSize();
         mPreview->setViewport(viewport.width, viewport.height);
-        const float top = viewport.height / static_cast<float>(mPreview->getTextureHeight());
-        const float right = viewport.width / static_cast<float>(mPreview->getTextureWidth());
+        const float top = static_cast<float>(viewport.height) / static_cast<float>(mPreview->getTextureHeight());
+        const float right = static_cast<float>(viewport.width) / static_cast<float>(mPreview->getTextureWidth());
         // The widget is Y-down, the RTT image is Y-up, so this UV is inverted
         mAvatarImage->getSubWidgetMain()->_setUVSet(MyGUI::FloatRect(0.f, top, right, 0.f));
     }
@@ -980,19 +983,21 @@ namespace MWGui
         const MyGUI::IntSize previewWindowSize = mAvatarImage->getSize();
         const float scale = MWBase::Environment::get().getWindowManager()->getScalingFactor();
 
-        return MyGUI::IntSize(std::min(mPreview->getTextureWidth(), static_cast<int>(previewWindowSize.width * scale)),
-            std::min(mPreview->getTextureHeight(), static_cast<int>(previewWindowSize.height * scale)));
+        return MyGUI::IntSize(std::min(mPreview->getTextureWidth(),
+                                  static_cast<int>(static_cast<float>(previewWindowSize.width) * scale)),
+            std::min(
+                mPreview->getTextureHeight(), static_cast<int>(static_cast<float>(previewWindowSize.height) * scale)));
     }
 
     osg::Vec2i InventoryWindow::mapPreviewWindowToViewport(int x, int y) const
     {
         const MyGUI::IntSize previewWindowSize = mAvatarImage->getSize();
-        const float normalisedX = x / std::max(1.f, static_cast<float>(previewWindowSize.width));
-        const float normalisedY = y / std::max(1.f, static_cast<float>(previewWindowSize.height));
+        const float normalisedX = static_cast<float>(x) / std::max(1.f, static_cast<float>(previewWindowSize.width));
+        const float normalisedY = static_cast<float>(y) / std::max(1.f, static_cast<float>(previewWindowSize.height));
 
         const MyGUI::IntSize viewport = getPreviewViewportSize();
-        return osg::Vec2i(static_cast<int>(normalisedX * (viewport.width - 1)),
-            static_cast<int>((1 - normalisedY) * (viewport.height - 1)));
+        return osg::Vec2i(static_cast<int>(normalisedX * static_cast<float>((viewport.width - 1))),
+            static_cast<int>((1 - normalisedY) * static_cast<float>((viewport.height - 1))));
     }
 
     ControllerButtons* InventoryWindow::getControllerButtons()

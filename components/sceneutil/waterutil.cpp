@@ -26,14 +26,14 @@ namespace SceneUtil
 
         // some drivers don't like huge triangles, so we do some subdivisons
         // a paged solution would be even better
-        const float step = size / segments;
-        const float texCoordStep = textureRepeats / segments;
+        const float step = size / static_cast<float>(segments);
+        const float texCoordStep = textureRepeats / static_cast<float>(segments);
         for (int x = 0; x < segments; ++x)
         {
             for (int y = 0; y < segments; ++y)
             {
-                float x1 = -size / 2.f + x * step;
-                float y1 = -size / 2.f + y * step;
+                float x1 = -size / 2.f + static_cast<float>(x) * step;
+                float y1 = -size / 2.f + static_cast<float>(y) * step;
                 float x2 = x1 + step;
                 float y2 = y1 + step;
 
@@ -42,8 +42,8 @@ namespace SceneUtil
                 verts->push_back(osg::Vec3f(x2, y1, 0.f));
                 verts->push_back(osg::Vec3f(x2, y2, 0.f));
 
-                float u1 = x * texCoordStep;
-                float v1 = textureRepeats - y * texCoordStep;
+                float u1 = static_cast<float>(x) * texCoordStep;
+                float v1 = textureRepeats - static_cast<float>(y) * texCoordStep;
                 float u2 = u1 + texCoordStep;
                 float v2 = v1 - texCoordStep;
 

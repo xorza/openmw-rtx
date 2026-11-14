@@ -38,9 +38,11 @@ namespace
 
         for (int i = 0; i < 4; i++)
         {
-            osg::Vec3 vert1 = osg::Vec3(indexPos[i].x() - 0.5f, indexPos[i].y() - 0.5f, 0.5f);
+            osg::Vec3 vert1 = osg::Vec3(
+                static_cast<float>(indexPos[i].x()) - 0.5f, static_cast<float>(indexPos[i].y()) - 0.5f, 0.5f);
             int next = (i + 1) % 4;
-            osg::Vec3 vert2 = osg::Vec3(indexPos[next].x() - 0.5f, indexPos[next].y() - 0.5f, 0.5f);
+            osg::Vec3 vert2 = osg::Vec3(
+                static_cast<float>(indexPos[next].x()) - 0.5f, static_cast<float>(indexPos[next].y()) - 0.5f, 0.5f);
 
             vertices->push_back(vert1 * dim);
             vertices->push_back(vert2 * dim);
@@ -274,12 +276,12 @@ namespace
 
     int getIndexBufferReadFromFrame(const unsigned int& nFrame)
     {
-        return nFrame % 2;
+        return static_cast<int>(nFrame % 2);
     }
 
     int getIndexBufferWriteFromFrame(const unsigned int& nFrame)
     {
-        return (nFrame + 1) % 2;
+        return static_cast<int>((nFrame + 1) % 2);
     }
 }
 

@@ -84,8 +84,8 @@ namespace MWLua
                 for (size_t i = 0; i < size; ++i)
                 {
                     if (i < length)
-                        mapper(cls, i)
-                            = ESM::RefId::deserializeText(table.get<std::string_view>(LuaUtil::toLuaIndex(i)));
+                        mapper(cls, i) = ESM::RefId::deserializeText(
+                            table.get<std::string_view>(LuaUtil::toLuaIndex(static_cast<std::int64_t>(i))));
                     else
                         mapper(cls, i) = {};
                 }

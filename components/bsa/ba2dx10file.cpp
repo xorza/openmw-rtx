@@ -123,7 +123,7 @@ namespace Bsa
             fail("Unrecognized ba2 version type");
 
         // Read the string table
-        input.seekg(fileTableOffset);
+        input.seekg(static_cast<std::streamoff>(fileTableOffset));
         for (uint32_t i = 0; i < fileCount; ++i)
         {
             std::vector<char> fileName;

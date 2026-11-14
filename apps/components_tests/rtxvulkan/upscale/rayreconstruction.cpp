@@ -240,7 +240,8 @@ namespace Rtx
                 ASSERT_EQ(declared.size(), chained + DlssUpscaler::getSharedCount());
 
                 // The output alone, the first of the upscaler's: the guides are the rest.
-                const std::vector<ArenaImage> unguided(declared.begin(), declared.begin() + chained + 1);
+                const std::vector<ArenaImage> unguided(
+                    declared.begin(), declared.begin() + static_cast<std::ptrdiff_t>(chained) + 1);
                 EXPECT_EQ(ImageArena::bytesFor(device, declared), ImageArena::bytesFor(device, unguided))
                     << sUpscaleNames.name(mode);
             }

@@ -395,7 +395,7 @@ namespace MWGui
     {
         if (!mScrollBar->getVisible() || mScrollBar->getScrollRange() == 0)
             return;
-        const int step = static_cast<int>(0.3f * rel);
+        const int step = static_cast<int>(0.3f * static_cast<float>(rel));
         const int newPos = static_cast<int>(mScrollBar->getScrollPosition()) - step;
         const int maxPos = static_cast<int>(mScrollBar->getScrollRange()) - 1;
         mScrollBar->setScrollPosition(static_cast<size_t>(std::clamp(newPos, 0, maxPos)));
@@ -714,13 +714,13 @@ namespace MWGui
             updateHistory(true);
         else if (scrollbar)
         {
-            mHistory->setSize(MyGUI::IntSize(mHistory->getWidth(), book->getSize().second));
+            mHistory->setSize(MyGUI::IntSize(mHistory->getWidth(), static_cast<int>(book->getSize().second)));
             // Scroll range should be >= 2 to enable scrolling and prevent a crash
             size_t range = std::max(book->getSize().second - viewHeight, static_cast<size_t>(2));
             mScrollBar->setScrollRange(range);
             mScrollBar->setScrollPosition(range - 1);
-            mScrollBar->setTrackSize(
-                static_cast<int>(viewHeight / static_cast<float>(book->getSize().second) * mScrollBar->getLineSize()));
+            mScrollBar->setTrackSize(static_cast<int>(static_cast<float>(viewHeight)
+                / static_cast<float>(book->getSize().second) * static_cast<float>(mScrollBar->getLineSize())));
             onScrollbarMoved(mScrollBar, range - 1);
         }
         else

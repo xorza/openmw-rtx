@@ -60,7 +60,7 @@ int ContentSelectorModel::ContentModel::rowCount(const QModelIndex& parent) cons
     if (parent.isValid())
         return 0;
 
-    return mFiles.size();
+    return static_cast<int>(mFiles.size());
 }
 
 const ContentSelectorModel::EsmFile* ContentSelectorModel::ContentModel::item(int row) const
@@ -95,7 +95,7 @@ QModelIndex ContentSelectorModel::ContentModel::indexFromItem(const EsmFile* ite
     auto* const nonConstFilePtr = const_cast<EsmFile*>(item);
 
     if (item)
-        return index(mFiles.indexOf(nonConstFilePtr), 0);
+        return index(static_cast<int>(mFiles.indexOf(nonConstFilePtr)), 0);
 
     return QModelIndex();
 }
@@ -348,11 +348,11 @@ bool ContentSelectorModel::ContentModel::dropMimeData(
         stream >> sourceRow;
         toMove.emplace_back(mFiles.at(sourceRow));
     }
-    int minRow = mFiles.size();
+    int minRow = static_cast<int>(mFiles.size());
     int maxRow = 0;
     for (EsmFile* file : toMove)
     {
-        int from = mFiles.indexOf(file);
+        int from = static_cast<int>(mFiles.indexOf(file));
         int to = beginRow;
         if (from < beginRow)
             to--;
@@ -371,11 +371,11 @@ bool ContentSelectorModel::ContentModel::dropMimeData(
 
 void ContentSelectorModel::ContentModel::addFile(EsmFile* file)
 {
-    beginInsertRows(QModelIndex(), mFiles.count(), mFiles.count());
+    beginInsertRows(QModelIndex(), static_cast<int>(mFiles.count()), static_cast<int>(mFiles.count()));
     mFiles.append(file);
     endInsertRows();
 
-    QModelIndex idx = index(mFiles.size() - 2, 0, QModelIndex());
+    QModelIndex idx = index(static_cast<int>(mFiles.size() - 2), 0, QModelIndex());
 
     emit dataChanged(idx, idx);
 }
@@ -502,7 +502,7 @@ bool ContentSelectorModel::ContentModel::containsDataFiles(const QString& path)
 
 void ContentSelectorModel::ContentModel::clearFiles()
 {
-    const int filesCount = mFiles.count();
+    const int filesCount = static_cast<int>(mFiles.count());
 
     if (filesCount > 0)
     {
@@ -573,13 +573,13 @@ void ContentSelectorModel::ContentModel::sortFiles()
 
     // Dependency sort
     std::unordered_set<const EsmFile*> moved;
-    for (int i = mFiles.size() - 1; i > firstModifiable;)
+    for (int i = static_cast<int>(mFiles.size() - 1); i > firstModifiable;)
     {
         const auto file = mFiles.at(i);
         if (!moved.contains(file))
         {
             int index = -1;
-            for (int j = firstModifiable; j < i; ++j)
+            for (int j = static_cast<int>(firstModifiable); j < i; ++j)
             {
                 const EsmFile* addonFile = mFiles.at(j);
                 const QStringList& gameFiles = addonFile->gameFiles();

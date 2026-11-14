@@ -68,19 +68,21 @@ int CSVRender::InstanceMode::getSubModeFromId(const std::string& id) const
 osg::Vec3f CSVRender::InstanceMode::quatToEuler(const osg::Quat& rot) const
 {
     float x = NAN, y = NAN, z = NAN;
-    float test = 2 * (rot.w() * rot.y() + rot.x() * rot.z());
+    auto test = static_cast<float>(2 * (rot.w() * rot.y() + rot.x() * rot.z()));
 
     if (std::abs(test) >= 1.f)
     {
-        x = atan2(rot.x(), rot.w());
-        y = (test > 0) ? (osg::PI / 2) : (-osg::PI / 2);
+        x = static_cast<float>(atan2(rot.x(), rot.w()));
+        y = static_cast<float>((test > 0) ? (osg::PI / 2) : (-osg::PI / 2));
         z = 0;
     }
     else
     {
-        x = std::atan2(2 * (rot.w() * rot.x() - rot.y() * rot.z()), 1 - 2 * (rot.x() * rot.x() + rot.y() * rot.y()));
+        x = static_cast<float>(
+            std::atan2(2 * (rot.w() * rot.x() - rot.y() * rot.z()), 1 - 2 * (rot.x() * rot.x() + rot.y() * rot.y())));
         y = std::asin(std::clamp(test, -1.0f, 1.0f));
-        z = std::atan2(2 * (rot.w() * rot.z() - rot.x() * rot.y()), 1 - 2 * (rot.y() * rot.y() + rot.z() * rot.z()));
+        z = static_cast<float>(
+            std::atan2(2 * (rot.w() * rot.z() - rot.x() * rot.y()), 1 - 2 * (rot.y() * rot.y() + rot.z() * rot.z())));
     }
 
     return osg::Vec3f(-x, -y, -z);
@@ -99,7 +101,7 @@ float CSVRender::InstanceMode::roundFloatToMult(const float val, const double mu
 {
     if (mult == 0)
         return val;
-    return round(val / mult) * mult;
+    return static_cast<float>(round(val / mult) * mult);
 }
 
 osg::Vec3 CSVRender::InstanceMode::calculateSnapPositionRelativeToTarget(osg::Vec3 initalPosition,
@@ -145,7 +147,7 @@ osg::Vec3f CSVRender::InstanceMode::getSelectionCenter(const std::vector<osg::re
     }
 
     if (objectCount > 0)
-        center /= objectCount;
+        center /= static_cast<float>(objectCount);
 
     return center;
 }
@@ -177,14 +179,14 @@ osg::Vec3f CSVRender::InstanceMode::getMousePlaneCoords(const QPoint& point, con
 
     /* calculate viewport normalized coordinates
        note: is there a reason to use getCamera()->getViewport()->computeWindowMatrix() instead? */
-    const float scale = getWorldspaceWidget().devicePixelRatioF();
+    const auto scale = static_cast<float>(getWorldspaceWidget().devicePixelRatioF());
     const osg::Viewport* viewport = getWorldspaceWidget().getCamera()->getViewport();
-    float x = point.x() * scale / viewport->width();
-    float y = point.y() * scale / viewport->height();
+    auto x = static_cast<float>(static_cast<double>(point.x()) * scale / viewport->width());
+    auto y = static_cast<float>(static_cast<double>(point.y()) * scale / viewport->height());
     x = x * 2.0f - 1.0f;
     y = 1.0f - y * 2.0f;
 
-    osg::Vec3f mousePlanePoint = osg::Vec3f(x, y, dragStart.z()) * combined;
+    osg::Vec3f mousePlanePoint = osg::Vec3f(x, y, static_cast<float>(dragStart.z())) * combined;
 
     return mousePlanePoint;
 }
@@ -364,7 +366,7 @@ CSVRender::InstanceMode::InstanceMode(
         connect(new CSMPrefs::Shortcut(std::string("scene-axis-") + axis, worldspaceWidget),
             qOverload<>(&CSMPrefs::Shortcut::activated), this, [this, axis] {
                 this->setDragAxis(axis);
-                std::string axisStr(1, toupper(axis));
+                std::string axisStr(1, static_cast<char>(toupper(axis)));
                 switch (getSubMode())
                 {
                     case (Object::Mode_Move):
@@ -599,8 +601,8 @@ bool CSVRender::InstanceMode::primaryEditStartDrag(const QPoint& pos)
 
                 int widgetHeight = getWorldspaceWidget().height();
 
-                float dx = pos.x() - center.x();
-                float dy = (widgetHeight - pos.y()) - center.y();
+                float dx = static_cast<float>(pos.x()) - center.x();
+                float dy = static_cast<float>((widgetHeight - pos.y())) - center.y();
 
                 mUnitScaleDist = std::sqrt(dx * dx + dy * dy);
             }
@@ -680,8 +682,8 @@ bool CSVRender::InstanceMode::secondaryEditStartDrag(const QPoint& pos)
 
                 int widgetHeight = worldspaceWidget.height();
 
-                float dx = pos.x() - center.x();
-                float dy = (widgetHeight - pos.y()) - center.y();
+                float dx = static_cast<float>(pos.x()) - center.x();
+                float dy = static_cast<float>((widgetHeight - pos.y())) - center.y();
 
                 mUnitScaleDist = std::sqrt(dx * dx + dy * dy);
             }
@@ -764,15 +766,16 @@ void CSVRender::InstanceMode::drag(const QPoint& pos, int diffX, int diffY, doub
         if (mDragAxis == -1)
         {
             // Free rotate
-            float rotationFactor = CSMPrefs::get()["3D Scene Input"]["rotate-factor"].toDouble() * speedFactor;
+            float rotationFactor
+                = static_cast<float>(CSMPrefs::get()["3D Scene Input"]["rotate-factor"].toDouble() * speedFactor);
 
             osg::Quat cameraRotation = getWorldspaceWidget().getCamera()->getInverseViewMatrix().getRotate();
 
             osg::Vec3f camForward = centre - eye;
-            osg::Vec3f screenDir = cameraRotation * osg::Vec3f(diffX, diffY, 0);
+            osg::Vec3f screenDir = cameraRotation * osg::Vec3f(static_cast<float>(diffX), static_cast<float>(diffY), 0);
             screenDir.normalize();
 
-            angle = std::sqrt(diffX * diffX + diffY * diffY) * rotationFactor;
+            angle = static_cast<float>(std::sqrt(diffX * diffX + diffY * diffY) * rotationFactor);
             axis = screenDir ^ camForward;
         }
         else
@@ -797,11 +800,11 @@ void CSVRender::InstanceMode::drag(const QPoint& pos, int diffX, int diffY, doub
 
             int widgetHeight = getWorldspaceWidget().height();
 
-            float newX = pos.x() - screenCenter.x();
-            float newY = (widgetHeight - pos.y()) - screenCenter.y();
+            float newX = static_cast<float>(pos.x()) - screenCenter.x();
+            float newY = static_cast<float>((widgetHeight - pos.y())) - screenCenter.y();
 
-            float oldX = newX - diffX;
-            float oldY = newY - diffY; // diffY appears to already be flipped
+            float oldX = newX - static_cast<float>(diffX);
+            float oldY = newY - static_cast<float>(diffY); // diffY appears to already be flipped
 
             osg::Vec3f oldVec = osg::Vec3f(oldX, oldY, 0);
             if (oldVec.length2() != 0.0f)
@@ -812,7 +815,7 @@ void CSVRender::InstanceMode::drag(const QPoint& pos, int diffX, int diffY, doub
                 newVec.normalize();
 
             // Find angle and axis of rotation
-            angle = std::acos(std::clamp(oldVec * newVec, -1.0f, 1.0f)) * speedFactor;
+            angle = static_cast<float>(std::acos(std::clamp(oldVec * newVec, -1.0f, 1.0f)) * speedFactor);
             if (((oldVec ^ newVec) * camBack < 0) ^ (camBack.z() < 0))
                 angle *= -1;
         }
@@ -828,8 +831,8 @@ void CSVRender::InstanceMode::drag(const QPoint& pos, int diffX, int diffY, doub
         // Calculate scaling distance/rate
         int widgetHeight = getWorldspaceWidget().height();
 
-        float dx = pos.x() - center.x();
-        float dy = (widgetHeight - pos.y()) - center.y();
+        float dx = static_cast<float>(pos.x()) - center.x();
+        float dy = static_cast<float>((widgetHeight - pos.y())) - center.y();
 
         float dist = std::sqrt(dx * dx + dy * dy);
         float scale = dist / mUnitScaleDist;
@@ -1075,9 +1078,9 @@ void CSVRender::InstanceMode::dragCompleted(const QPoint& pos)
                     auto rotation = snapTargetPosition.rot;
                     if (rotation)
                     {
-                        xOffset = remainder(rotation[0], osg::DegreesToRadians(snap));
-                        yOffset = remainder(rotation[1], osg::DegreesToRadians(snap));
-                        zOffset = remainder(rotation[2], osg::DegreesToRadians(snap));
+                        xOffset = static_cast<float>(remainder(rotation[0], osg::DegreesToRadians(snap)));
+                        yOffset = static_cast<float>(remainder(rotation[1], osg::DegreesToRadians(snap)));
+                        zOffset = static_cast<float>(remainder(rotation[2], osg::DegreesToRadians(snap)));
                     }
                 }
 
@@ -1117,7 +1120,7 @@ void CSVRender::InstanceMode::dragWheel(int diff, double speedFactor)
 
         osg::Vec3f offset = centre - eye;
         offset.normalize();
-        offset *= diff * speedFactor;
+        offset *= static_cast<float>(diff * speedFactor);
 
         std::vector<osg::ref_ptr<TagBase>> selection = getWorldspaceWidget().getEdited(Mask_Reference);
         auto snapTarget
@@ -1140,7 +1143,8 @@ void CSVRender::InstanceMode::dragWheel(int diff, double speedFactor)
 
                     if (snapTarget)
                     {
-                        osg::Vec3 translation(snap, snap, snap);
+                        osg::Vec3 translation(
+                            static_cast<float>(snap), static_cast<float>(snap), static_cast<float>(snap));
 
                         auto snapTargetPosition = snapTarget->mObject->getPosition();
                         auto newPosition = calculateSnapPositionRelativeToTarget(preMovedObjectPosition,
@@ -1368,8 +1372,8 @@ float CSVRender::InstanceMode::calculateDropHeight(CSVRender::Object* object, fl
     if (it != intersector->getIntersections().end())
     {
         const osgUtil::LineSegmentIntersector::Intersection& intersection = *it;
-        float collisionLevel = intersection.getWorldIntersectPoint().z();
-        return point.z() - collisionLevel + objectHeight;
+        float collisionLevel = static_cast<float>(intersection.getWorldIntersectPoint().z());
+        return static_cast<float>(point.z() - collisionLevel + objectHeight);
     }
 
     return 0.0f;

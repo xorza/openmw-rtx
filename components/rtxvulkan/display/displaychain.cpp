@@ -245,7 +245,8 @@ namespace Rtx
         const std::span<std::byte> lent = look.mUploads.lend(look.mDebugVertices.get(), 0, count * sizeof(DebugVertex));
         const std::span<DebugVertex> written(reinterpret_cast<DebugVertex*>(lent.data()), count);
         std::copy(debug.mLines.begin(), debug.mLines.end(), written.begin());
-        std::copy(debug.mTriangles.begin(), debug.mTriangles.end(), written.begin() + debug.mLines.size());
+        std::copy(debug.mTriangles.begin(), debug.mTriangles.end(),
+            written.begin() + static_cast<std::ptrdiff_t>(debug.mLines.size()));
 
         // Drawn over what the curve wrote, and left where the curve left it, for the chain's last
         // transition to take it from.

@@ -208,15 +208,16 @@ float BookWindowBase::adjustButton(std::string_view name)
     Gui::ImageButton* button = nullptr;
     WindowBase::getWidget(button, name);
     MyGUI::IntSize requested = button->getRequestedSize();
-    float scale = static_cast<float>(requested.height) / button->getSize().height;
-    MyGUI::IntSize newSize(static_cast<int>(requested.width / scale), static_cast<int>(requested.height / scale));
+    float scale = static_cast<float>(requested.height) / static_cast<float>(button->getSize().height);
+    MyGUI::IntSize newSize(static_cast<int>(static_cast<float>(requested.width) / scale),
+        static_cast<int>(static_cast<float>(requested.height) / scale));
     button->setSize(newSize);
 
     if (button->getAlign().isRight())
     {
         MyGUI::IntSize diff = (button->getSize() - requested);
-        diff.width = static_cast<int>(diff.width / scale);
-        diff.height = static_cast<int>(diff.height / scale);
+        diff.width = static_cast<int>(static_cast<float>(diff.width) / scale);
+        diff.height = static_cast<int>(static_cast<float>(diff.height) / scale);
         button->setPosition(button->getPosition() + MyGUI::IntPoint(diff.width, 0));
     }
 

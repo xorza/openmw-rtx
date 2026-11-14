@@ -187,8 +187,8 @@ namespace MWGui
         {
             const MyGUI::IntSize viewSize = MyGUI::RenderManager::getInstance().getViewSize();
             const MyGUI::IntPoint cursorPosition = MyGUI::InputManager::getInstance().getMousePosition();
-            const float cursorX = cursorPosition.left / static_cast<float>(viewSize.width);
-            const float cursorY = cursorPosition.top / static_cast<float>(viewSize.height);
+            const float cursorX = static_cast<float>(cursorPosition.left) / static_cast<float>(viewSize.width);
+            const float cursorY = static_cast<float>(cursorPosition.top) / static_cast<float>(viewSize.height);
 
             // drop item into the gameworld
             WorldItemModel worldItemModel(cursorX, cursorY);
@@ -224,8 +224,8 @@ namespace MWGui
 
             MyGUI::IntSize viewSize = MyGUI::RenderManager::getInstance().getViewSize();
             MyGUI::IntPoint cursorPosition = MyGUI::InputManager::getInstance().getMousePosition();
-            float mouseX = cursorPosition.left / static_cast<float>(viewSize.width);
-            float mouseY = cursorPosition.top / static_cast<float>(viewSize.height);
+            float mouseX = static_cast<float>(cursorPosition.left) / static_cast<float>(viewSize.width);
+            float mouseY = static_cast<float>(cursorPosition.top) / static_cast<float>(viewSize.height);
 
             MWBase::World* world = MWBase::Environment::get().getWorld();
 

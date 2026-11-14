@@ -111,7 +111,8 @@ namespace MWLua
                 type["effects"] = sol::readonly_property([lua = lua.lua_state()](const T& rec) -> sol::table {
                     sol::table res(lua, sol::create);
                     for (size_t i = 0; i < rec.mEffects.mList.size(); ++i)
-                        res[LuaUtil::toLuaIndex(i)] = rec.mEffects.mList[i]; // ESM::IndexedENAMstruct (effect params)
+                        res[LuaUtil::toLuaIndex(static_cast<std::int64_t>(i))]
+                            = rec.mEffects.mList[i]; // ESM::IndexedENAMstruct (effect params)
                     return res;
                 });
             }
@@ -477,7 +478,7 @@ namespace MWLua
         out.mList.resize(numEffects);
         for (size_t i = 0; i < numEffects; ++i)
         {
-            out.mList[i] = tableToEnamStruct(effectsTable[LuaUtil::toLuaIndex(i)]);
+            out.mList[i] = tableToEnamStruct(effectsTable[LuaUtil::toLuaIndex(static_cast<std::int64_t>(i))]);
         }
         out.updateIndexes();
         return out;

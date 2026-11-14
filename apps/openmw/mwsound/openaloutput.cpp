@@ -525,7 +525,7 @@ namespace MWSound
         }
 
         mFrameSize = static_cast<ALuint>(framesToBytes(1, chans, type));
-        mBufferSize = static_cast<ALuint>(sBufferLength * mSampleRate);
+        mBufferSize = static_cast<ALuint>(sBufferLength * static_cast<ALfloat>(mSampleRate));
         mBufferSize *= mFrameSize;
 
         if (getLoudnessData)
@@ -559,7 +559,7 @@ namespace MWSound
         {
             ALint queued = 0;
             alGetSourcei(mSource, AL_BUFFERS_QUEUED, &queued);
-            ALint inqueue = mBufferSize / mFrameSize * queued - offset;
+            auto inqueue = static_cast<ALint>(mBufferSize / mFrameSize * queued - offset);
             d = static_cast<double>(inqueue) / static_cast<double>(mSampleRate);
         }
 
@@ -579,14 +579,14 @@ namespace MWSound
         {
             ALint queued = 0;
             alGetSourcei(mSource, AL_BUFFERS_QUEUED, &queued);
-            ALint inqueue = mBufferSize / mFrameSize * queued - offset;
-            t = (mDecoder->getSampleOffset() - inqueue) / static_cast<float>(mSampleRate);
+            auto inqueue = static_cast<ALint>(mBufferSize / mFrameSize * queued - offset);
+            t = static_cast<float>((mDecoder->getSampleOffset() - inqueue)) / static_cast<float>(mSampleRate);
         }
         else
         {
             /* Underrun, or not started yet. The decoder offset is where we'll play
              * next. */
-            t = mDecoder->getSampleOffset() / static_cast<float>(mSampleRate);
+            t = static_cast<float>(mDecoder->getSampleOffset()) / static_cast<float>(mSampleRate);
         }
 
         getALError();
@@ -649,7 +649,7 @@ namespace MWSound
                 if (got < data.size())
                 {
                     mIsFinished = true;
-                    std::fill(data.begin() + got, data.end(), mSilence);
+                    std::fill(data.begin() + static_cast<std::ptrdiff_t>(got), data.end(), mSilence);
                 }
                 if (got > 0)
                 {
@@ -659,7 +659,7 @@ namespace MWSound
                     ALuint bufid = mBuffers[mCurrentBufIdx];
                     alBufferData(bufid, mFormat, data.data(), static_cast<ALsizei>(data.size()), mSampleRate);
                     alSourceQueueBuffers(mSource, 1, &bufid);
-                    mCurrentBufIdx = (mCurrentBufIdx + 1) % mBuffers.size();
+                    mCurrentBufIdx = static_cast<ALint>((mCurrentBufIdx + 1) % mBuffers.size());
                 }
             }
         }
@@ -1135,14 +1135,15 @@ namespace MWSound
         if (useenv)
         {
             if (mWaterFilter)
-                alSourcei(source, AL_DIRECT_FILTER, (mListenerEnv == Env_Underwater) ? mWaterFilter : AL_FILTER_NULL);
+                alSourcei(source, AL_DIRECT_FILTER,
+                    static_cast<ALint>((mListenerEnv == Env_Underwater) ? mWaterFilter : AL_FILTER_NULL));
             else if (mListenerEnv == Env_Underwater)
             {
                 gain *= 0.9f;
                 pitch *= 0.7f;
             }
             if (mEffectSlot)
-                alSource3i(source, AL_AUXILIARY_SEND_FILTER, mEffectSlot, 0, AL_FILTER_NULL);
+                alSource3i(source, AL_AUXILIARY_SEND_FILTER, static_cast<ALint>(mEffectSlot), 0, AL_FILTER_NULL);
         }
         else
         {
@@ -1175,14 +1176,15 @@ namespace MWSound
         if (useenv)
         {
             if (mWaterFilter)
-                alSourcei(source, AL_DIRECT_FILTER, (mListenerEnv == Env_Underwater) ? mWaterFilter : AL_FILTER_NULL);
+                alSourcei(source, AL_DIRECT_FILTER,
+                    static_cast<ALint>((mListenerEnv == Env_Underwater) ? mWaterFilter : AL_FILTER_NULL));
             else if (mListenerEnv == Env_Underwater)
             {
                 gain *= 0.9f;
                 pitch *= 0.7f;
             }
             if (mEffectSlot)
-                alSource3i(source, AL_AUXILIARY_SEND_FILTER, mEffectSlot, 0, AL_FILTER_NULL);
+                alSource3i(source, AL_AUXILIARY_SEND_FILTER, static_cast<ALint>(mEffectSlot), 0, AL_FILTER_NULL);
         }
         else
         {
@@ -1228,7 +1230,7 @@ namespace MWSound
 
         initCommon2D(source, sound->getPosition(), sound->getRealVolume(), getTimeScaledPitch(sound),
             sound->getIsLooping(), sound->getUseEnv());
-        alSourcei(source, AL_BUFFER, getPtrId(data));
+        alSourcei(source, AL_BUFFER, static_cast<ALint>(getPtrId(data)));
         alSourcef(source, AL_SEC_OFFSET, offset);
         if (getALError() != AL_NO_ERROR)
         {
@@ -1268,7 +1270,7 @@ namespace MWSound
         initCommon3D(source, sound->getPosition(), sound->getVelocity(), sound->getMinDistance(),
             sound->getMaxDistance(), sound->getRealVolume(), getTimeScaledPitch(sound), sound->getIsLooping(),
             sound->getUseEnv());
-        alSourcei(source, AL_BUFFER, getPtrId(data));
+        alSourcei(source, AL_BUFFER, static_cast<ALint>(getPtrId(data)));
         alSourcef(source, AL_SEC_OFFSET, offset);
         if (getALError() != AL_NO_ERROR)
         {
@@ -1498,19 +1500,19 @@ namespace MWSound
                     for (Sound* sound : mActiveSounds)
                     {
                         if (sound->getUseEnv())
-                            alSourcei(getPtrId(sound->mHandle), AL_DIRECT_FILTER, filter);
+                            alSourcei(getPtrId(sound->mHandle), AL_DIRECT_FILTER, static_cast<ALint>(filter));
                     }
                     for (Stream* sound : mActiveStreams)
                     {
                         if (sound->getUseEnv())
                             alSourcei(reinterpret_cast<OpenAL_SoundStream*>(sound->mHandle)->mSource, AL_DIRECT_FILTER,
-                                filter);
+                                static_cast<ALint>(filter));
                     }
                 }
                 // Update the environment effect
                 if (mEffectSlot)
-                    alAuxiliaryEffectSloti(
-                        mEffectSlot, AL_EFFECTSLOT_EFFECT, (env == Env_Underwater) ? mWaterEffect : mDefaultEffect);
+                    alAuxiliaryEffectSloti(mEffectSlot, AL_EFFECTSLOT_EFFECT,
+                        static_cast<ALint>((env == Env_Underwater) ? mWaterEffect : mDefaultEffect));
             }
             getALError();
         }

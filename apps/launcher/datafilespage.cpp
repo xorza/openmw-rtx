@@ -138,7 +138,7 @@ namespace Launcher
             {
                 int progress = mCellsCount + static_cast<int>(message.mCount);
                 if (mExpectedMaxProgress < mMaxProgress)
-                    progress += static_cast<int>(std::round((mMaxProgress - mExpectedMaxProgress)
+                    progress += static_cast<int>(std::round(static_cast<float>((mMaxProgress - mExpectedMaxProgress))
                         * (static_cast<float>(progress) / static_cast<float>(mExpectedMaxProgress))));
                 return HandleNavMeshToolMessage{ mCellsCount, mExpectedMaxProgress, mMaxProgress,
                     std::max(mProgress, progress) };
@@ -1139,7 +1139,7 @@ void Launcher::DataFilesPage::readNavMeshToolStdout()
     QProcess& process = *mNavMeshToolInvoker->getProcess();
     QByteArray& logData = mNavMeshToolProgress.mLogData;
     logData.append(process.readAllStandardOutput());
-    const int lineEnd = logData.lastIndexOf('\n');
+    const int lineEnd = static_cast<int>(logData.lastIndexOf('\n'));
     if (lineEnd == -1)
         return;
     const int size = logData.size() >= lineEnd && logData[lineEnd - 1] == '\r' ? lineEnd - 1 : lineEnd;

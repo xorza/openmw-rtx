@@ -171,7 +171,7 @@ namespace Bsa
                         fail("Failed to read a filename: filename is too long");
                     mHeader.mFileNamesLength -= static_cast<std::uint32_t>(input.gcount());
                     file.mName.insert(file.mName.begin(), folder.mName.begin(), folder.mName.end());
-                    file.mName.insert(file.mName.begin() + folder.mName.size(), '\\');
+                    file.mName.insert(file.mName.begin() + static_cast<std::ptrdiff_t>(folder.mName.size()), '\\');
                 }
             }
         }
@@ -286,7 +286,7 @@ namespace Bsa
         if (compressed)
         {
             std::vector<char> buffer(size);
-            streamPtr->read(buffer.data(), size);
+            streamPtr->read(buffer.data(), static_cast<std::streamsize>(size));
 
             if (mHeader.mVersion != Version_SSE)
             {
@@ -321,7 +321,7 @@ namespace Bsa
         }
         else
         {
-            streamPtr->read(memoryStreamPtr->getRawData(), size);
+            streamPtr->read(memoryStreamPtr->getRawData(), static_cast<std::streamsize>(size));
         }
 
         return std::make_unique<Files::StreamWithBuffer<MemoryInputStream>>(std::move(memoryStreamPtr));

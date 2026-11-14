@@ -209,10 +209,14 @@ namespace MWRender
 
     void GlobalMap::worldPosToImageSpace(float x, float z, float& imageX, float& imageY)
     {
-        imageX = ((x / static_cast<float>(Constants::CellSizeInUnits) - mMinX) / (mMaxX - mMinX + 1)) * getWidth();
+        imageX = ((x / static_cast<float>(Constants::CellSizeInUnits) - static_cast<float>(mMinX))
+                     / static_cast<float>((mMaxX - mMinX + 1)))
+            * static_cast<float>(getWidth());
 
-        imageY
-            = (1.f - (z / static_cast<float>(Constants::CellSizeInUnits) - mMinY) / (mMaxY - mMinY + 1)) * getHeight();
+        imageY = (1.f
+                     - (z / static_cast<float>(Constants::CellSizeInUnits) - static_cast<float>(mMinY))
+                         / static_cast<float>((mMaxY - mMinY + 1)))
+            * static_cast<float>(getHeight());
     }
 
     void GlobalMap::exploreCell(int cellX, int cellY, LocalMap& localMap)

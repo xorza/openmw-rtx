@@ -95,13 +95,13 @@ namespace LuaUtil
             osize = 0;
         int64_t smallAllocDelta = 0, bigAllocDelta = 0;
         if (osize <= smallAllocSize)
-            smallAllocDelta -= osize;
+            smallAllocDelta -= static_cast<int64_t>(osize);
         else
-            bigAllocDelta -= osize;
+            bigAllocDelta -= static_cast<int64_t>(osize);
         if (nsize <= smallAllocSize)
-            smallAllocDelta += nsize;
+            smallAllocDelta += static_cast<int64_t>(nsize);
         else
-            bigAllocDelta += nsize;
+            bigAllocDelta += static_cast<int64_t>(nsize);
 
         if (bigAllocDelta > 0 && memoryLimit > 0 && self->mTotalMemoryUsage + nsize - osize > memoryLimit)
         {
@@ -140,7 +140,7 @@ namespace LuaUtil
             {
                 if (!self->mActiveScriptIdStack.empty())
                     id = self->mActiveScriptIdStack.back();
-                bigAllocDelta = nsize;
+                bigAllocDelta = static_cast<int64_t>(nsize);
             }
             if (id.mIndex >= 0)
             {

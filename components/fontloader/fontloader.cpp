@@ -649,10 +649,10 @@ namespace Gui
 
         for (unsigned i = 0; i < 256; i++)
         {
-            float x1 = data[i].mTopLeft.x * width;
-            float y1 = data[i].mTopLeft.y * height;
-            float w = data[i].mTopRight.x * width - x1;
-            float h = data[i].mBottomLeft.y * height - y1;
+            float x1 = data[i].mTopLeft.x * static_cast<float>(width);
+            float y1 = data[i].mTopLeft.y * static_cast<float>(height);
+            float w = data[i].mTopRight.x * static_cast<float>(width) - x1;
+            float h = data[i].mBottomLeft.y * static_cast<float>(height) - y1;
 
             ToUTF8::Utf8Encoder encoder(mEncoding);
             unsigned long unicodeVal = getUnicode(static_cast<unsigned char>(i), encoder, mEncoding);

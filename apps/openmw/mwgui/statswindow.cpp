@@ -117,7 +117,7 @@ namespace MWGui
             leftOffsetWidth = MyGUI::utility::parseInt(mLeftPane->getUserString("LeftOffsetWidth"));
 
         float rightPaneRatio = 1.f - leftPaneRatio;
-        int minLeftWidth = static_cast<int>(mMinFullWidth * leftPaneRatio);
+        int minLeftWidth = static_cast<int>(static_cast<float>(mMinFullWidth) * leftPaneRatio);
         int minLeftOffsetWidth = minLeftWidth + leftOffsetWidth;
 
         // if there's no space for right pane
@@ -135,9 +135,10 @@ namespace MWGui
         // if there's enough space for both panes
         else
         {
-            mLeftPane->setCoord(MyGUI::IntCoord(0, 0, static_cast<int>(leftPaneRatio * windowWidth), windowHeight));
-            mRightPane->setCoord(MyGUI::IntCoord(static_cast<int>(leftPaneRatio * windowWidth), 0,
-                static_cast<int>(rightPaneRatio * windowWidth), windowHeight));
+            mLeftPane->setCoord(
+                MyGUI::IntCoord(0, 0, static_cast<int>(leftPaneRatio * static_cast<float>(windowWidth)), windowHeight));
+            mRightPane->setCoord(MyGUI::IntCoord(static_cast<int>(leftPaneRatio * static_cast<float>(windowWidth)), 0,
+                static_cast<int>(rightPaneRatio * static_cast<float>(windowWidth)), windowHeight));
         }
 
         // Canvas size must be expressed with VScroll disabled, otherwise MyGUI would expand the scroll area when the

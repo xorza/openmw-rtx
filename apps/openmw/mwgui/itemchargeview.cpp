@@ -230,11 +230,12 @@ namespace MWGui
 
     void ItemChargeView::onMouseWheelMoved(MyGUI::Widget* /*sender*/, int rel)
     {
-        if (mScrollView->getViewOffset().top + rel * 0.3f > 0)
+        if (static_cast<float>(mScrollView->getViewOffset().top) + static_cast<float>(rel) * 0.3f > 0)
             mScrollView->setViewOffset(MyGUI::IntPoint(0, 0));
         else
-            mScrollView->setViewOffset(
-                MyGUI::IntPoint(0, static_cast<int>(mScrollView->getViewOffset().top + rel * 0.3f)));
+            mScrollView->setViewOffset(MyGUI::IntPoint(0,
+                static_cast<int>(
+                    static_cast<float>(mScrollView->getViewOffset().top) + static_cast<float>(rel) * 0.3f)));
     }
 
     void ItemChargeView::onControllerButton(const unsigned char button)

@@ -208,7 +208,7 @@ namespace MWSound
             return;
         std::vector<char> head(static_cast<std::size_t>(std::min(prefixEnd, fileSize)));
         fresh->seekg(0);
-        fresh->read(head.data(), head.size());
+        fresh->read(head.data(), static_cast<std::streamsize>(head.size()));
         if (fresh->gcount() != static_cast<std::streamsize>(head.size()))
             return;
 
@@ -222,7 +222,7 @@ namespace MWSound
             suffix.resize(static_cast<std::size_t>(fileSize - suffixStart));
             fresh->clear();
             fresh->seekg(suffixStart);
-            fresh->read(suffix.data(), suffix.size());
+            fresh->read(suffix.data(), static_cast<std::streamsize>(suffix.size()));
             if (fresh->gcount() != static_cast<std::streamsize>(suffix.size()))
                 return;
         }
@@ -264,7 +264,7 @@ namespace MWSound
             return false;
         std::vector<char> head(static_cast<std::size_t>(fileSize));
         stream->seekg(0);
-        stream->read(head.data(), head.size());
+        stream->read(head.data(), static_cast<std::streamsize>(head.size()));
         if (stream->gcount() != static_cast<std::streamsize>(head.size()))
             return false;
         insert(name, std::move(head), std::vector<char>(), fileSize, fileSize);

@@ -405,9 +405,9 @@ namespace MWRender
                 float mergeBenefit = 0;
                 for (auto pair : result.mStateSetCounter)
                 {
-                    mergeBenefit += mGlobalStateSetCounter[pair.first];
+                    mergeBenefit += static_cast<float>(mGlobalStateSetCounter[pair.first]);
                 }
-                mergeBenefit /= result.mStateSetCounter.size();
+                mergeBenefit /= static_cast<float>(result.mStateSetCounter.size());
                 return mergeBenefit;
             }
 
@@ -518,9 +518,11 @@ namespace MWRender
         void visitESM3References(float size, const osg::Vec2i& startCell, const StaticRecords& records,
             Terrain::RefKinds kinds, ESM::ReadersCache& readers, Sink& refs)
         {
-            for (int cellX = startCell.x(); cellX < startCell.x() + size; ++cellX)
+            for (int cellX = startCell.x(); static_cast<float>(cellX) < static_cast<float>(startCell.x()) + size;
+                ++cellX)
             {
-                for (int cellY = startCell.y(); cellY < startCell.y() + size; ++cellY)
+                for (int cellY = startCell.y(); static_cast<float>(cellY) < static_cast<float>(startCell.y()) + size;
+                    ++cellY)
                 {
                     const ESM::Cell* cell = records.searchExterior(cellX, cellY);
                     if (!cell)
@@ -594,9 +596,11 @@ namespace MWRender
             float size, const osg::Vec2i& startCell, ESM::RefId worldspace, Terrain::RefKinds kinds, Sink& refs)
         {
             const auto& store = MWBase::Environment::get().getWorld()->getStore();
-            for (int cellX = startCell.x(); cellX < startCell.x() + size; ++cellX)
+            for (int cellX = startCell.x(); static_cast<float>(cellX) < static_cast<float>(startCell.x()) + size;
+                ++cellX)
             {
-                for (int cellY = startCell.y(); cellY < startCell.y() + size; ++cellY)
+                for (int cellY = startCell.y(); static_cast<float>(cellY) < static_cast<float>(startCell.y()) + size;
+                    ++cellY)
                 {
                     const ESM4::Cell* cell
                         = store.get<ESM4::Cell>().searchExterior(ESM::ExteriorCellLocation(cellX, cellY, worldspace));
@@ -702,23 +706,23 @@ namespace MWRender
         constexpr auto copyMask = ~Mask_UpdateVisitor;
 
         const int cellSize = getCellSize(mWorldspace);
-        const float smallestDistanceToChunk = (size > 1 / 8.f) ? (size * cellSize) : 0.f;
+        const float smallestDistanceToChunk = (size > 1 / 8.f) ? (size * static_cast<float>(cellSize)) : 0.f;
         const float higherDistanceToChunk
-            = activeGrid ? ((size < 1) ? 5 : 3) * cellSize * size + 1 : smallestDistanceToChunk + 1;
+            = activeGrid ? static_cast<float>(((size < 1) ? 5 : 3) * cellSize) * size + 1 : smallestDistanceToChunk + 1;
         const LODRange lodDistances = activeGrid ? LODRange{ 0.f, std::numeric_limits<float>::max() }
                                                  : LODRange{ smallestDistanceToChunk, higherDistanceToChunk };
 
         AnalyzeVisitor analyzeVisitor(copyMask);
-        const float minSize = mMinSizeMergeFactor ? mMinSize * mMinSizeMergeFactor : mMinSize;
+        const float minSize = static_cast<bool>(mMinSizeMergeFactor) ? mMinSize * mMinSizeMergeFactor : mMinSize;
         for (const auto& [refNum, ref] : refs)
         {
             if (size < 1.f)
             {
                 const osg::Vec3f cellPos = ref.mPosition / static_cast<float>(cellSize);
-                if ((minBound.x() > floorMinBound.x() && cellPos.x() < minBound.x())
-                    || (minBound.y() > floorMinBound.y() && cellPos.y() < minBound.y())
-                    || (maxBound.x() < ceilMaxBound.x() && cellPos.x() >= maxBound.x())
-                    || (maxBound.y() < ceilMaxBound.y() && cellPos.y() >= maxBound.y()))
+                if ((minBound.x() > static_cast<float>(floorMinBound.x()) && cellPos.x() < minBound.x())
+                    || (minBound.y() > static_cast<float>(floorMinBound.y()) && cellPos.y() < minBound.y())
+                    || (maxBound.x() < static_cast<float>(ceilMaxBound.x()) && cellPos.x() >= maxBound.x())
+                    || (maxBound.y() < static_cast<float>(ceilMaxBound.y()) && cellPos.y() >= maxBound.y()))
                     continue;
             }
 
@@ -825,7 +829,7 @@ namespace MWRender
 
             const AnalyzeVisitor::Result& analyzeResult = pair.second.mAnalyzeResult;
 
-            const float mergeCost = analyzeResult.mNumVerts * size;
+            const float mergeCost = static_cast<float>(analyzeResult.mNumVerts) * size;
             const float mergeBenefit = analyzeVisitor.getMergeBenefit(analyzeResult) * mMergeFactor;
             const bool merge = mergeBenefit > mergeCost;
 
@@ -979,8 +983,8 @@ namespace MWRender
     {
         osg::Vec2f clampToCell(const osg::Vec3f& cellPos, const osg::Vec2i& cell)
         {
-            return osg::Vec2f(std::clamp(cellPos.x(), static_cast<float>(cell.x()), cell.x() + 1.f),
-                std::clamp(cellPos.y(), static_cast<float>(cell.y()), cell.y() + 1.f));
+            return osg::Vec2f(std::clamp(cellPos.x(), static_cast<float>(cell.x()), static_cast<float>(cell.x()) + 1.f),
+                std::clamp(cellPos.y(), static_cast<float>(cell.y()), static_cast<float>(cell.y()) + 1.f));
         }
 
         class CollectIntersecting
@@ -1102,8 +1106,10 @@ namespace MWRender
                 if (!std::get<2>(chunkId))
                     return;
                 const osg::Vec2f& center = std::get<0>(chunkId);
-                const bool activeGrid = (center.x() > mActiveGrid.x() || center.y() > mActiveGrid.y()
-                    || center.x() < mActiveGrid.z() || center.y() < mActiveGrid.w());
+                const bool activeGrid = (center.x() > static_cast<float>(mActiveGrid.x())
+                    || center.y() > static_cast<float>(mActiveGrid.y())
+                    || center.x() < static_cast<float>(mActiveGrid.z())
+                    || center.y() < static_cast<float>(mActiveGrid.w()));
                 if (!activeGrid)
                     return;
 

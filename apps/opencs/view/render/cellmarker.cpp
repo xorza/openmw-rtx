@@ -67,7 +67,7 @@ void CSVRender::CellMarker::positionMarker()
     // Move marker to center of cell.
     int x = (mCoordinates.getX() * cellSize) + (cellSize / 2);
     int y = (mCoordinates.getY() * cellSize) + (cellSize / 2);
-    mMarkerNode->setPosition(osg::Vec3f(x, y, markerHeight));
+    mMarkerNode->setPosition(osg::Vec3f(static_cast<float>(x), static_cast<float>(y), markerHeight));
 }
 
 CSVRender::CellMarker::CellMarker(

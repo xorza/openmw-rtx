@@ -226,8 +226,8 @@ namespace MWRender
 
     float OcclusionCallback::getVisibleRatio(osg::Camera* camera)
     {
-        int visible = mOcclusionQueryVisiblePixels->getQueryGeometry()->getNumPixels(camera);
-        int total = mOcclusionQueryTotalPixels->getQueryGeometry()->getNumPixels(camera);
+        int visible = static_cast<int>(mOcclusionQueryVisiblePixels->getQueryGeometry()->getNumPixels(camera));
+        int total = static_cast<int>(mOcclusionQueryTotalPixels->getQueryGeometry()->getNumPixels(camera));
 
         float visibleRatio = 0.f;
         if (total > 0)

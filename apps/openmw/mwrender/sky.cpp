@@ -439,7 +439,7 @@ namespace MWRender
         // (near 1-2). Since the rain is a regular geometry, it produces water ripples, also in theory it can be removed
         // if collides with something.
         osg::ref_ptr<RainCounter> counter = new RainCounter;
-        counter->setNumberOfParticlesPerSecondToCreate(mRainMaxRaindrops / mRainEntranceSpeed * 20);
+        counter->setNumberOfParticlesPerSecondToCreate(static_cast<float>(mRainMaxRaindrops) / mRainEntranceSpeed * 20);
         emitter->setCounter(counter);
         mCounter = counter;
 
@@ -595,7 +595,8 @@ namespace MWRender
             mPlacer->setYRange(-rainRange.y() / 2, rainRange.y() / 2);
             mPlacer->setZRange(-rainRange.z() / 2, rainRange.z() / 2);
 
-            mCounter->setNumberOfParticlesPerSecondToCreate(mRainMaxRaindrops / mRainEntranceSpeed * 20);
+            mCounter->setNumberOfParticlesPerSecondToCreate(
+                static_cast<float>(mRainMaxRaindrops) / mRainEntranceSpeed * 20);
             mOcclusionRange = rainRange;
         }
     }

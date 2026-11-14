@@ -70,7 +70,7 @@ namespace LuaUtil
         void appendString(BinaryData& out, std::string_view str)
         {
             if (str.size() < 32)
-                out.push_back(SHORT_STRING_FLAG | static_cast<char>(str.size()));
+                out.push_back(static_cast<char>(SHORT_STRING_FLAG | static_cast<char>(str.size())));
             else
             {
                 appendType(out, SerializedType::LONG_STRING);
@@ -91,12 +91,12 @@ namespace LuaUtil
         if (typeName.size() <= 8 && dataSize < 16)
         { // Compact form: 0b1SSSSTTT. SSSS = dataSize, TTT = (typeName size - 1).
             auto t = static_cast<unsigned char>(CUSTOM_COMPACT_FLAG | (dataSize << 3) | (typeName.size() - 1));
-            out.push_back(t);
+            out.push_back(static_cast<char>(t));
         }
         else
         { // Full form: 0b01TTTTTT + 32bit dataSize.
             auto t = static_cast<unsigned char>(CUSTOM_FULL_FLAG | (typeName.size() - 1));
-            out.push_back(t);
+            out.push_back(static_cast<char>(t));
             appendValue<uint32_t>(out, static_cast<uint32_t>(dataSize));
         }
         out.append(typeName.data(), typeName.size());

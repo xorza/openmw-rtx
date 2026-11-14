@@ -29,12 +29,12 @@ namespace Fx
                 int scaledHeight = height;
 
                 if (mWidthRatio)
-                    scaledWidth = static_cast<int>(width * mWidthRatio.value());
+                    scaledWidth = static_cast<int>(static_cast<float>(width) * mWidthRatio.value());
                 else if (mWidth)
                     scaledWidth = mWidth.value();
 
                 if (mHeightRatio > 0.f)
-                    scaledHeight = static_cast<int>(height * mHeightRatio.value());
+                    scaledHeight = static_cast<int>(static_cast<float>(height) * mHeightRatio.value());
                 else if (mHeight)
                     scaledHeight = mHeight.value();
 

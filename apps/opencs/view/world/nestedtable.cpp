@@ -108,7 +108,7 @@ void CSVWorld::NestedTable::removeRowActionTriggered()
         mDocument.getUndoStack(), selectionModel()->selectedRows().size() > 1 ? tr("Remove rows") : "");
 
     // Remove rows in reverse order
-    for (int i = selectionModel()->selectedRows().size() - 1; i >= 0; --i)
+    for (int i = static_cast<int>(selectionModel()->selectedRows().size() - 1); i >= 0; --i)
     {
         macro.push(new CSMWorld::DeleteNestedCommand(*(mModel->model()), mModel->getParentId(),
             selectionModel()->selectedRows()[i].row(), mModel->getParentColumn()));

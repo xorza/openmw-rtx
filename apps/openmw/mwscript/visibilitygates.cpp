@@ -401,7 +401,7 @@ namespace MWScript
         {
             const std::uint32_t script = mGates[gates[at]].mScript;
             const auto sameScript = [&](const std::uint32_t gate) { return mGates[gate].mScript == script; };
-            if (std::any_of(gates.begin(), gates.begin() + at, sameScript))
+            if (std::any_of(gates.begin(), gates.begin() + static_cast<std::ptrdiff_t>(at), sameScript))
                 continue;
 
             out += std::format("{}{} (", out.empty() ? "" : "; ", mScripts[script].mId.toDebugString());

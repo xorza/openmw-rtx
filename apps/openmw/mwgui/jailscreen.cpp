@@ -70,8 +70,8 @@ namespace MWGui
     void JailScreen::onJailProgressChanged(int cur, int /*total*/)
     {
         mProgressBar->setScrollPosition(0);
-        mProgressBar->setTrackSize(
-            static_cast<int>(cur / static_cast<float>(mProgressBar->getScrollRange()) * mProgressBar->getLineSize()));
+        mProgressBar->setTrackSize(static_cast<int>(static_cast<float>(cur)
+            / static_cast<float>(mProgressBar->getScrollRange()) * static_cast<float>(mProgressBar->getLineSize())));
     }
 
     void JailScreen::onJailFinished()

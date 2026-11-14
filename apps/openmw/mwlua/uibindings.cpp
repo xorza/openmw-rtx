@@ -258,7 +258,7 @@ namespace MWLua
                 if (index == LuaUi::Layer::count())
                     return sol::nullopt;
                 else
-                    return LuaUtil::toLuaIndex(index);
+                    return LuaUtil::toLuaIndex(static_cast<std::int64_t>(index));
             };
             layersTable["insertAfter"] = [context](std::string afterName, std::string name, const sol::object& opt) {
                 LuaUi::Layer::Options options;
@@ -291,7 +291,7 @@ namespace MWLua
             layersMeta[sol::meta_function::length] = []() { return LuaUi::Layer::count(); };
             layersMeta[sol::meta_function::index] = sol::overload(
                 [](const sol::object& self, size_t index) {
-                    index = LuaUtil::fromLuaIndex(index);
+                    index = LuaUtil::fromLuaIndex(static_cast<std::int64_t>(index));
                     return LuaUi::Layer(index);
                 },
                 [layersTable](

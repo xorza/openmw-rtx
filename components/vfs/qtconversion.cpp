@@ -6,12 +6,12 @@
 
 QString VFS::Path::normalizedToQString(NormalizedView path)
 {
-    return QString::fromUtf8(path.value().data(), path.value().size());
+    return QString::fromUtf8(path.value().data(), static_cast<qsizetype>(path.value().size()));
 }
 
 QString VFS::Path::normalizedToQString(Normalized&& path)
 {
-    return QString::fromUtf8(path.value().data(), path.value().size());
+    return QString::fromUtf8(path.value().data(), static_cast<qsizetype>(path.value().size()));
 }
 
 VFS::Path::Normalized VFS::Path::normalizedFromQString(QStringView path)

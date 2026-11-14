@@ -208,7 +208,8 @@ namespace MWMechanics
             if (mCastStyle == ESM::Enchantment::ConstantEffect)
                 duration = fEnchantmentConstantDurationMult;
 
-            cost += ((magMin + magMax) * duration + area) * baseCost * fEffectCostMult * 0.05f;
+            cost += (static_cast<float>((magMin + magMax)) * duration + static_cast<float>(area)) * baseCost
+                * fEffectCostMult * 0.05f;
 
             cost = std::max(1.f, cost);
 
@@ -235,7 +236,7 @@ namespace MWMechanics
         const MWWorld::Store<ESM::Enchantment>& enchantments
             = MWBase::Environment::get().getESMStore()->get<ESM::Enchantment>();
         MWWorld::Store<ESM::Enchantment>::iterator iter(enchantments.begin());
-        iter += (enchantments.getSize() - enchantments.getDynamicSize());
+        iter += static_cast<std::ptrdiff_t>((enchantments.getSize() - enchantments.getDynamicSize()));
         for (; iter != enchantments.end(); ++iter)
         {
             if (iter->mEffects.mList.size() != toFind.mEffects.mList.size())
@@ -300,7 +301,7 @@ namespace MWMechanics
                                    ->mValue.getFloat();
         int price = MWBase::Environment::get().getMechanicsManager()->getBarterOffer(
             mEnchanter, static_cast<int>(finalEffectCost * priceMultipler), true);
-        price *= static_cast<int>(count * getTypeMultiplier());
+        price *= static_cast<int>(static_cast<float>(count) * getTypeMultiplier());
         return std::max(1, price);
     }
 
@@ -325,7 +326,7 @@ namespace MWMechanics
 
         const MWWorld::ESMStore& store = *MWBase::Environment::get().getESMStore();
 
-        return static_cast<int>(mOldItemPtr.getClass().getEnchantmentPoints(mOldItemPtr)
+        return static_cast<int>(static_cast<float>(mOldItemPtr.getClass().getEnchantmentPoints(mOldItemPtr))
             * store.get<ESM::GameSetting>().find("fEnchantmentMult")->mValue.getFloat());
     }
     bool Enchanting::soulEmpty() const
@@ -361,7 +362,9 @@ namespace MWMechanics
         const float fEnchantmentChanceMult = gmst.find("fEnchantmentChanceMult")->mValue.getFloat();
         const float fEnchantmentConstantChanceMult = gmst.find("fEnchantmentConstantChanceMult")->mValue.getFloat();
 
-        float x = (a - getEnchantPoints() * fEnchantmentChanceMult * getTypeMultiplier() * getEnchantItemsCount()
+        float x = (a
+                      - getEnchantPoints() * fEnchantmentChanceMult * getTypeMultiplier()
+                          * static_cast<float>(getEnchantItemsCount())
                       + 0.2f * b + 0.1f * c)
             * stats.getFatigueTerm();
         if (mCastStyle == ESM::Enchantment::ConstantEffect)
@@ -381,8 +384,8 @@ namespace MWMechanics
             {
                 MWWorld::Ptr player = getPlayer();
                 count = player.getClass().getContainerStore(player).count(mOldItemPtr.getCellRef().getRefId());
-                count = std::clamp(
-                    static_cast<int>(getGemCharge() * Settings::game().mProjectilesEnchantMultiplier / enchantPoints),
+                count = std::clamp(static_cast<int>(static_cast<float>(getGemCharge())
+                                       * Settings::game().mProjectilesEnchantMultiplier / enchantPoints),
                     1, count);
             }
         }

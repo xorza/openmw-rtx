@@ -695,8 +695,10 @@ bool MWDialogue::Filter::hasFactionRankSkillRequirements(
 
     MWMechanics::CreatureStats& stats = actor.getClass().getCreatureStats(actor);
 
-    return stats.getAttribute(faction.mData.mAttribute[0]).getBase() >= faction.mData.mRankData[rank].mAttribute1
-        && stats.getAttribute(faction.mData.mAttribute[1]).getBase() >= faction.mData.mRankData[rank].mAttribute2;
+    return stats.getAttribute(faction.mData.mAttribute[0]).getBase()
+        >= static_cast<float>(faction.mData.mRankData[rank].mAttribute1)
+        && stats.getAttribute(faction.mData.mAttribute[1]).getBase()
+        >= static_cast<float>(faction.mData.mRankData[rank].mAttribute2);
 }
 
 bool MWDialogue::Filter::hasFactionRankReputationRequirements(

@@ -9,7 +9,7 @@
 void Misc::HelpViewer::openHelp(const char* url)
 {
     std::string_view docsUrl = Version::getDocumentationUrl();
-    QString link = QString::fromUtf8(docsUrl.data(), docsUrl.size());
+    QString link = QString::fromUtf8(docsUrl.data(), static_cast<qsizetype>(docsUrl.size()));
     link.append(url);
     QDesktopServices::openUrl(QUrl(link));
 }

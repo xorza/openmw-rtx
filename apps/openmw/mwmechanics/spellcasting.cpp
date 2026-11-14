@@ -255,7 +255,7 @@ namespace MWMechanics
                 item.getCellRef().setEnchantmentCharge(
                     static_cast<float>(MWMechanics::getEnchantmentCharge(*enchantment)));
 
-            if (item.getCellRef().getEnchantmentCharge() < castCost)
+            if (item.getCellRef().getEnchantmentCharge() < static_cast<float>(castCost))
             {
                 if (mCaster == getPlayer())
                 {
@@ -277,7 +277,8 @@ namespace MWMechanics
                 return false;
             }
             // Reduce charge
-            item.getCellRef().setEnchantmentCharge(item.getCellRef().getEnchantmentCharge() - castCost);
+            item.getCellRef().setEnchantmentCharge(
+                item.getCellRef().getEnchantmentCharge() - static_cast<float>(castCost));
         }
 
         if (type == ESM::Enchantment::WhenUsed)
@@ -349,7 +350,7 @@ namespace MWMechanics
                 // Check success
                 float successChance = getSpellSuccessChance(spell, mCaster, nullptr, true, false);
                 auto& prng = MWBase::Environment::get().getWorld()->getPrng();
-                if (Misc::Rng::roll0to99(prng) >= successChance)
+                if (static_cast<float>(Misc::Rng::roll0to99(prng)) >= successChance)
                 {
                     if (mCaster == getPlayer())
                         MWBase::Environment::get().getWindowManager()->messageBox("#{sMagicSkillFail}");

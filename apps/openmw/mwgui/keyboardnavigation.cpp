@@ -247,9 +247,9 @@ namespace MWGui
         std::ptrdiff_t index{ found - keyFocusList.begin() };
         index = forward ? (index + 1) : (index - 1);
         if (wrap)
-            index = (index + keyFocusList.size()) % keyFocusList.size();
+            index = static_cast<std::ptrdiff_t>((index + keyFocusList.size()) % keyFocusList.size());
         else
-            index = std::clamp<std::ptrdiff_t>(index, 0, keyFocusList.size() - 1);
+            index = std::clamp<std::ptrdiff_t>(index, 0, static_cast<long>(keyFocusList.size() - 1));
 
         MyGUI::Widget* next = keyFocusList[index];
         int vertdiff = next->getTop() - focus->getTop();

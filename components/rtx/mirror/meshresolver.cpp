@@ -516,7 +516,7 @@ namespace Rtx
                     [](const osg::Vec3f& offset) { return isFinite(offset); }))
                 return Err{ std::string("a target's offsets are not finite numbers") };
 
-            std::copy_n(read, count, mOffsetScratch.begin() + target * vertices);
+            std::copy_n(read, count, mOffsetScratch.begin() + static_cast<std::ptrdiff_t>(target * vertices));
         }
 
         return MorphSpec{ .mOffsets = mOffsetScratch, .mTargets = static_cast<Index>(targets.size()) };

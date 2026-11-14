@@ -113,7 +113,7 @@ std::int8_t ESM4::LevelledCreature::chanceNone() const
     if (mHasLvlCreaFlags)
         return mChanceNone;
     else
-        return (mChanceNone & 0x7f); // FIXME: 0x80 is just a guess
+        return static_cast<std::int8_t>((mChanceNone & 0x7f)); // FIXME: 0x80 is just a guess
 }
 
 // void ESM4::LevelledCreature::save(ESM4::Writer& writer) const

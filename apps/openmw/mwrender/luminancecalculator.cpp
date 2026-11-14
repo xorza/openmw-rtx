@@ -148,7 +148,8 @@ namespace MWRender
         mWidth = std::max(minSize, Misc::nextPowerOfTwo(w) / 2);
         mHeight = std::max(minSize, Misc::nextPowerOfTwo(h) / 2);
 
-        mScale = osg::Vec2f(w / static_cast<float>(mWidth), h / static_cast<float>(mHeight));
+        mScale = osg::Vec2f(
+            static_cast<float>(w) / static_cast<float>(mWidth), static_cast<float>(h) / static_cast<float>(mHeight));
 
         mCompiled = false;
     }

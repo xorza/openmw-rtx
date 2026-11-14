@@ -263,7 +263,7 @@ namespace ESM
         if (mMovementFlags)
             esm.writeHNT("MOVE", mMovementFlags);
 
-        if (mFallHeight)
+        if (static_cast<bool>(mFallHeight))
             esm.writeHNT("FALL", mFallHeight);
 
         if (!mLastHitObject.empty())

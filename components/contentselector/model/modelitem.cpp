@@ -40,14 +40,14 @@ int ContentSelectorModel::ModelItem::row() const
 
 int ContentSelectorModel::ModelItem::childCount() const
 {
-    return mChildItems.count();
+    return static_cast<int>(mChildItems.count());
 }
 
 int ContentSelectorModel::ModelItem::childRow(ModelItem* child) const
 {
     Q_ASSERT(child);
 
-    return mChildItems.indexOf(child);
+    return static_cast<int>(mChildItems.indexOf(child));
 }
 
 ContentSelectorModel::ModelItem* ContentSelectorModel::ModelItem::child(int row)

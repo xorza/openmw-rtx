@@ -322,7 +322,7 @@ namespace ESM
                 float rowOffset = vhgt.mHeightOffset;
                 for (unsigned y = 0; y < LandRecordData::sLandSize; y++)
                 {
-                    rowOffset += vhgt.mHeightData[y * LandRecordData::sLandSize];
+                    rowOffset += static_cast<float>(vhgt.mHeightData[y * LandRecordData::sLandSize]);
 
                     data.mHeights[y * LandRecordData::sLandSize] = rowOffset * Land::sHeightScale;
                     data.mMaxHeight = std::max(rowOffset * Land::sHeightScale, data.mMaxHeight);
@@ -331,7 +331,7 @@ namespace ESM
                     float colOffset = rowOffset;
                     for (unsigned x = 1; x < LandRecordData::sLandSize; x++)
                     {
-                        colOffset += vhgt.mHeightData[y * LandRecordData::sLandSize + x];
+                        colOffset += static_cast<float>(vhgt.mHeightData[y * LandRecordData::sLandSize + x]);
                         data.mHeights[x + y * LandRecordData::sLandSize] = colOffset * Land::sHeightScale;
 
                         data.mMaxHeight = std::max(colOffset * Land::sHeightScale, data.mMaxHeight);
@@ -365,8 +365,9 @@ namespace ESM
         {
             for (std::size_t col = 0; col < Land::sGlobalMapLodSizeSqrt; ++col)
             {
-                float height = heights[static_cast<std::size_t>(row * vertMult) * LandRecordData::sLandSize
-                    + static_cast<std::size_t>(col * vertMult)];
+                float height
+                    = heights[static_cast<std::size_t>(static_cast<float>(row) * vertMult) * LandRecordData::sLandSize
+                        + static_cast<std::size_t>(static_cast<float>(col) * vertMult)];
                 height /= height > 0 ? 128.f : 16.f;
                 height = std::clamp(height, min, max);
                 wnam[row * Land::sGlobalMapLodSizeSqrt + col] = static_cast<std::int8_t>(height);

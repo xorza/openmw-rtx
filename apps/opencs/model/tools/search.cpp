@@ -31,15 +31,15 @@ void CSMTools::Search::searchTextCell(const CSMWorld::IdTableBase* model, const 
     int pos = 0;
 
     Qt::CaseSensitivity caseSensitivity = mCase ? Qt::CaseSensitive : Qt::CaseInsensitive;
-    while ((pos = text.indexOf(search, pos, caseSensitivity)) != -1)
+    while ((pos = static_cast<int>(text.indexOf(search, pos, caseSensitivity))) != -1)
     {
         std::ostringstream hint;
         hint << (writable ? 'R' : 'r') << ": " << model->getColumnId(index.column()) << " " << pos << " "
              << search.length();
 
-        messages.add(id, formatDescription(text, pos, search.length()).toUtf8().data(), hint.str());
+        messages.add(id, formatDescription(text, pos, static_cast<int>(search.length())).toUtf8().data(), hint.str());
 
-        pos += search.length();
+        pos += static_cast<int>(search.length());
     }
 }
 
@@ -57,8 +57,8 @@ void CSMTools::Search::searchRegExCell(const CSMWorld::IdTableBase* model, const
     {
         QRegularExpressionMatch match = i.next();
 
-        int pos = match.capturedStart();
-        int length = match.capturedLength();
+        int pos = static_cast<int>(match.capturedStart());
+        int length = static_cast<int>(match.capturedLength());
 
         std::ostringstream hint;
         hint << (writable ? 'R' : 'r') << ": " << model->getColumnId(index.column()) << " " << pos << " " << length;

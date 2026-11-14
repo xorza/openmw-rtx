@@ -2978,9 +2978,9 @@ namespace Rtx::Testing
             for (std::size_t channel = 0; channel < 3; ++channel)
             {
                 const auto [mean, spread] = measure(first, channel);
-                const float range = zenith[channel] - horizon[channel];
-                const float byTheCosine = 0.5f * (horizon[channel] + range * 0.5f);
-                const float ifDrawnEvenly = 0.5f * (horizon[channel] + range * 0.376775f);
+                const float range = zenith[static_cast<int>(channel)] - horizon[static_cast<int>(channel)];
+                const float byTheCosine = 0.5f * (horizon[static_cast<int>(channel)] + range * 0.5f);
+                const float ifDrawnEvenly = 0.5f * (horizon[static_cast<int>(channel)] + range * 0.376775f);
 
                 // One sRGB step at a quarter brightness is 0.004 of linear — a 255th divided by the
                 // curve's slope there — and it swamps the sampling standard error, which over 4096
@@ -3037,7 +3037,7 @@ namespace Rtx::Testing
             for (std::size_t channel = 0; channel < 3; ++channel)
             {
                 const auto [mean, spread] = measure(converged, channel);
-                const float range = zenith[channel] - horizon[channel];
+                const float range = zenith[static_cast<int>(channel)] - horizon[static_cast<int>(channel)];
 
                 EXPECT_NEAR(mean, 0.5f * (horizon[channel] + range * 0.5f), 0.0002f)
                     << "channel " << channel << " keeps its mean when averaged";

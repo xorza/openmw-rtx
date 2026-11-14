@@ -44,7 +44,7 @@ namespace ESM
         mCtx = rc;
 
         // Make sure we seek to the right place
-        mEsm->seekg(mCtx.filePos);
+        mEsm->seekg(static_cast<std::streamoff>(mCtx.filePos));
     }
 
     void ESMReader::close()
@@ -124,7 +124,7 @@ namespace ESM
         mEsm = std::move(stream);
         mCtx.filename = name;
         mEsm->seekg(0, mEsm->end);
-        mCtx.leftFile = mFileSize = mEsm->tellg();
+        mCtx.leftFile = static_cast<std::streamsize>(mFileSize = mEsm->tellg());
         mEsm->seekg(0, mEsm->beg);
     }
 

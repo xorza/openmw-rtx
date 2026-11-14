@@ -317,19 +317,19 @@ void MWWorld::InventoryStore::autoEquipWeapon(TSlots& slots)
 
             if (iter->getClass().getEquipmentSkill(*iter) == weaponSkills[maxWeaponSkill])
             {
-                if (esmWeapon->mData.mChop[1] >= max)
+                if (static_cast<float>(esmWeapon->mData.mChop[1]) >= max)
                 {
                     max = esmWeapon->mData.mChop[1];
                     weapon = iter;
                 }
 
-                if (esmWeapon->mData.mSlash[1] >= max)
+                if (static_cast<float>(esmWeapon->mData.mSlash[1]) >= max)
                 {
                     max = esmWeapon->mData.mSlash[1];
                     weapon = iter;
                 }
 
-                if (esmWeapon->mData.mThrust[1] >= max)
+                if (static_cast<float>(esmWeapon->mData.mThrust[1]) >= max)
                 {
                     max = esmWeapon->mData.mThrust[1];
                     weapon = iter;

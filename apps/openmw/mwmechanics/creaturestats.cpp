@@ -609,7 +609,7 @@ namespace MWMechanics
         if (state.mAiSequence.mActorIdConverter)
         {
             for (auto& [_, refNum] : mSummonedCreatures)
-                state.mAiSequence.mActorIdConverter->convert(refNum, refNum.mIndex);
+                state.mAiSequence.mActorIdConverter->convert(refNum, static_cast<int>(refNum.mIndex));
             auto& graveyard = state.mAiSequence.mActorIdConverter->mGraveyard;
             graveyard.insert(graveyard.end(), state.mSummonGraveyard.begin(), state.mSummonGraveyard.end());
         }

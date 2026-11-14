@@ -81,7 +81,7 @@ namespace MWGui
         while (it != mMessageBoxes.end())
         {
             (*it)->update(static_cast<int>(height));
-            height += (*it)->getHeight();
+            height += static_cast<float>((*it)->getHeight());
             ++it;
         }
 
@@ -100,7 +100,7 @@ namespace MWGui
         auto box = std::make_unique<MessageBox>(*this, message);
         box->mCurrentTime = 0;
         auto realMessage = MyGUI::LanguageManager::getInstance().replaceTags({ message.data(), message.size() });
-        box->mMaxTime = realMessage.length() * mMessageBoxSpeed;
+        box->mMaxTime = static_cast<float>(realMessage.length()) * mMessageBoxSpeed;
 
         if (stat)
             mStaticMessageBox = box.get();

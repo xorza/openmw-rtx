@@ -97,7 +97,7 @@ namespace MWLua
             out.resize(numEffects);
             for (size_t i = 0; i < numEffects; ++i)
             {
-                out[i] = tableToLevelItem(itemTable[LuaUtil::toLuaIndex(i)]);
+                out[i] = tableToLevelItem(itemTable[LuaUtil::toLuaIndex(static_cast<std::int64_t>(i))]);
             }
             return out;
         }
@@ -149,7 +149,7 @@ namespace MWLua
                 record[items] = sol::readonly_property([lua = lua.lua_state()](const List& rec) -> sol::table {
                     sol::table res(lua, sol::create);
                     for (size_t i = 0; i < rec.mList.size(); ++i)
-                        res[LuaUtil::toLuaIndex(i)] = rec.mList[i];
+                        res[LuaUtil::toLuaIndex(static_cast<std::int64_t>(i))] = rec.mList[i];
                     return res;
                 });
 

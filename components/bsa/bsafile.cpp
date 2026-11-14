@@ -69,7 +69,7 @@ namespace
             temp = ((static_cast<unsigned>(name[i])) << (off & 0x1F));
             sum ^= temp;
             n = temp & 0x1F;
-            sum = std::rotr(sum, n); // binary "rotate right"
+            sum = std::rotr(sum, static_cast<int>(n)); // binary "rotate right"
             off += 8;
         }
         hash.mHigh = sum;
@@ -156,7 +156,7 @@ void BSAFile::readHeader(std::istream& input)
 
     // Read the string table
     mStringBuf.resize(dirsize - 12 * filenum);
-    input.read(mStringBuf.data(), mStringBuf.size());
+    input.read(mStringBuf.data(), static_cast<std::streamsize>(mStringBuf.size()));
 
     if (input.fail())
         fail(std::format("Failed to read string table: {}", std::generic_category().message(errno)));
@@ -254,10 +254,11 @@ void Bsa::BSAFile::writeHeader()
         offsets[2 * filenum + i] = f.mNameOffset;
         hashes[i] = f.mHash;
     }
-    output.write(reinterpret_cast<char*>(offsets.data()), sizeof(uint32_t) * offsets.size());
-    output.write(reinterpret_cast<char*>(mStringBuf.data()), mStringBuf.size());
-    output.seekp(fileDataOffset - 8 * mFiles.size(), std::ios_base::beg);
-    output.write(reinterpret_cast<char*>(hashes.data()), sizeof(Hash) * hashes.size());
+    output.write(
+        reinterpret_cast<char*>(offsets.data()), static_cast<std::streamsize>(sizeof(uint32_t) * offsets.size()));
+    output.write(reinterpret_cast<char*>(mStringBuf.data()), static_cast<std::streamsize>(mStringBuf.size()));
+    output.seekp(static_cast<std::streamoff>(fileDataOffset - 8 * mFiles.size()), std::ios_base::beg);
+    output.write(reinterpret_cast<char*>(hashes.data()), static_cast<std::streamsize>(sizeof(Hash) * hashes.size()));
 }
 
 /// Open an archive file.
@@ -325,7 +326,7 @@ void Bsa::BSAFile::addFile(const std::string& filename, std::istream& file)
             FileStruct& firstFile = mFiles.front();
             buffer.resize(firstFile.mFileSize);
 
-            stream.seekg(firstFile.mOffset, std::ios::beg);
+            stream.seekg(static_cast<std::streamoff>(firstFile.mOffset), std::ios::beg);
             stream.read(buffer.data(), firstFile.mFileSize);
 
             stream.seekp(0, std::ios::end);

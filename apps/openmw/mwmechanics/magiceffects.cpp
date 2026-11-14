@@ -19,7 +19,7 @@ namespace
     // Round value to prevent precision issues
     void truncate(float& value)
     {
-        value = static_cast<int>(value * 1024.f) / 1024.f;
+        value = static_cast<float>(static_cast<int>(value * 1024.f)) / 1024.f;
     }
 }
 
@@ -64,7 +64,7 @@ namespace MWMechanics
 
     float EffectParam::getMagnitude() const
     {
-        return mBase + mModifier;
+        return static_cast<float>(mBase) + mModifier;
     }
 
     void EffectParam::modifyBase(int diff)

@@ -252,8 +252,10 @@ namespace MWGui
     {
         // normalized cell coordinates
         auto mapWidgetSize = getWidgetSize();
-        return MyGUI::IntPoint(static_cast<int>(std::round((nX + cellX - mGrid.left) * mapWidgetSize)),
-            static_cast<int>(std::round((nY - cellY + mGrid.bottom) * mapWidgetSize)));
+        return MyGUI::IntPoint(static_cast<int>(std::round(
+                                   (nX + static_cast<float>(cellX) - static_cast<float>(mGrid.left)) * mapWidgetSize)),
+            static_cast<int>(
+                std::round((nY - static_cast<float>(cellY) + static_cast<float>(mGrid.bottom)) * mapWidgetSize)));
     }
 
     MyGUI::IntPoint LocalMapBase::getMarkerPosition(float worldX, float worldY, MarkerUserData& markerPos) const
@@ -268,9 +270,9 @@ namespace MWGui
             cellIndex.x() = cellPos.mX;
             cellIndex.y() = cellPos.mY;
 
-            nX = (worldX - cellSize * cellIndex.x()) / cellSize;
+            nX = (worldX - static_cast<float>(cellSize * cellIndex.x())) / cellSize;
             // Image space is -Y up, cells are Y up
-            nY = 1 - (worldY - cellSize * cellIndex.y()) / cellSize;
+            nY = 1 - (worldY - static_cast<float>(cellSize * cellIndex.y())) / cellSize;
         }
         else
             mLocalMapRender->worldToInteriorMapPosition({ worldX, worldY }, nX, nY, cellIndex.x(), cellIndex.y());
@@ -516,7 +518,7 @@ namespace MWGui
 
     float LocalMapBase::getWidgetSize() const
     {
-        return mLocalMapZoom * Settings::map().mLocalMapWidgetSize;
+        return mLocalMapZoom * static_cast<float>(Settings::map().mLocalMapWidgetSize);
     }
 
     void LocalMapBase::setPlayerPos(int cellX, int cellY, const float nx, const float ny)
@@ -529,7 +531,7 @@ namespace MWGui
 
             mCompass->setPosition(pos);
         }
-        osg::Vec2f curPos((cellX + nx) * cellSize, (cellY + 1 - ny) * cellSize);
+        osg::Vec2f curPos((static_cast<float>(cellX) + nx) * cellSize, (static_cast<float>(cellY + 1) - ny) * cellSize);
         if (static_cast<double>((curPos - mCurPos).length2()) > 0.001)
         {
             mCurPos = curPos;
@@ -916,10 +918,12 @@ namespace MWGui
 
         MyGUI::IntPoint widgetPos = clickedPos - mEventBoxLocal->getAbsolutePosition();
         auto mapWidgetSize = getWidgetSize();
-        int x = static_cast<int>(widgetPos.left / mapWidgetSize) + mGrid.left;
-        int y = mGrid.bottom - static_cast<int>(widgetPos.top / mapWidgetSize);
-        float nX = widgetPos.left / mapWidgetSize - static_cast<int>(widgetPos.left / mapWidgetSize);
-        float nY = widgetPos.top / mapWidgetSize - static_cast<int>(widgetPos.top / mapWidgetSize);
+        int x = static_cast<int>(static_cast<float>(widgetPos.left) / mapWidgetSize) + mGrid.left;
+        int y = mGrid.bottom - static_cast<int>(static_cast<float>(widgetPos.top) / mapWidgetSize);
+        float nX = static_cast<float>(widgetPos.left) / mapWidgetSize
+            - static_cast<float>(static_cast<int>(static_cast<float>(widgetPos.left) / mapWidgetSize));
+        float nY = static_cast<float>(widgetPos.top) / mapWidgetSize
+            - static_cast<float>(static_cast<int>(static_cast<float>(widgetPos.top) / mapWidgetSize));
 
         osg::Vec2f worldPos;
         if (!mActiveCell->isExterior())
@@ -928,8 +932,8 @@ namespace MWGui
         }
         else
         {
-            worldPos.x() = (x + nX) * cellSize;
-            worldPos.y() = (y + (1.0f - nY)) * cellSize;
+            worldPos.x() = (static_cast<float>(x) + nX) * cellSize;
+            worldPos.y() = (static_cast<float>(y) + (1.0f - nY)) * cellSize;
         }
 
         mEditingMarker.mWorldX = worldPos.x();
@@ -952,8 +956,9 @@ namespace MWGui
 
         const float currentMinLocalMapZoom = std::max(
             { (static_cast<float>(Settings::map().mGlobalMapCellSize) * 4.f) / static_cast<float>(localWidgetSize),
-                static_cast<float>(mLocalMap->getWidth()) / (localWidgetSize * (mGrid.width() + 1)),
-                static_cast<float>(mLocalMap->getHeight()) / (localWidgetSize * (mGrid.height() + 1)) });
+                static_cast<float>(mLocalMap->getWidth()) / static_cast<float>((localWidgetSize * (mGrid.width() + 1))),
+                static_cast<float>(mLocalMap->getHeight())
+                    / static_cast<float>((localWidgetSize * (mGrid.height() + 1))) });
 
         if (Settings::map().mGlobal)
         {
@@ -1007,8 +1012,10 @@ namespace MWGui
 
         Settings::map().mGlobal ? updateGlobalMap() : updateLocalMap();
 
-        map->setViewOffset(MyGUI::IntPoint(static_cast<int>(std::round(centerView.left * speedDiff) + cursor.left),
-            static_cast<int>(std::round(centerView.top * speedDiff) + cursor.top)));
+        map->setViewOffset(MyGUI::IntPoint(static_cast<int>(std::round(static_cast<float>(centerView.left) * speedDiff)
+                                               + static_cast<float>(cursor.left)),
+            static_cast<int>(
+                std::round(static_cast<float>(centerView.top) * speedDiff) + static_cast<float>(cursor.top))));
     }
 
     void MapWindow::updateGlobalMap()
@@ -1059,10 +1066,10 @@ namespace MWGui
             // Restore the window to pinned size.
             auto* window = mMainWidget->castType<MyGUI::Window>();
             MyGUI::IntSize viewSize = MyGUI::RenderManager::getInstance().getViewSize();
-            const int x = static_cast<int>(Settings::windows().mMapX * viewSize.width);
-            const int y = static_cast<int>(Settings::windows().mMapY * viewSize.height);
-            const int w = static_cast<int>(Settings::windows().mMapW * viewSize.width);
-            const int h = static_cast<int>(Settings::windows().mMapH * viewSize.height);
+            const int x = static_cast<int>(Settings::windows().mMapX * static_cast<float>(viewSize.width));
+            const int y = static_cast<int>(Settings::windows().mMapY * static_cast<float>(viewSize.height));
+            const int w = static_cast<int>(Settings::windows().mMapW * static_cast<float>(viewSize.width));
+            const int h = static_cast<int>(Settings::windows().mMapH * static_cast<float>(viewSize.height));
             window->setCoord(x, y, w, h);
         }
     }
@@ -1198,8 +1205,8 @@ namespace MWGui
 
     void MapWindow::resizeGlobalMap()
     {
-        int width = static_cast<int>(mGlobalMapRender->getWidth() * mGlobalMapZoom);
-        int height = static_cast<int>(mGlobalMapRender->getHeight() * mGlobalMapZoom);
+        int width = static_cast<int>(static_cast<float>(mGlobalMapRender->getWidth()) * mGlobalMapZoom);
+        int height = static_cast<int>(static_cast<float>(mGlobalMapRender->getHeight()) * mGlobalMapZoom);
         mGlobalMap->setCanvasSize(width, height);
         mGlobalMapImage->setSize(width, height);
     }
@@ -1307,7 +1314,8 @@ namespace MWGui
         MyGUI::IntSize viewsize = mGlobalMap->getSize();
         MyGUI::IntPoint pos = mPlayerArrowGlobal->getPosition() + MyGUI::IntPoint{ 16, 16 };
         MyGUI::IntPoint viewoffs(
-            static_cast<int>(viewsize.width * 0.5f - pos.left), static_cast<int>(viewsize.height * 0.5f - pos.top));
+            static_cast<int>(static_cast<float>(viewsize.width) * 0.5f - static_cast<float>(pos.left)),
+            static_cast<int>(static_cast<float>(viewsize.height) * 0.5f - static_cast<float>(pos.top)));
         mGlobalMap->setViewOffset(viewoffs);
     }
 

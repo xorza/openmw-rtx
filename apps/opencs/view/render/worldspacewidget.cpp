@@ -163,7 +163,7 @@ void CSVRender::WorldspaceWidget::settingChanged(const CSMPrefs::Setting* settin
     else if (*setting == "3D Scene Input/drag-shift-factor")
         mDragShiftFactor = setting->toDouble();
     else if (*setting == "Rendering/object-marker-scale")
-        mSelectionMarker->updateScale(setting->toDouble());
+        mSelectionMarker->updateScale(static_cast<float>(setting->toDouble()));
     else if (*setting == "Tooltips/scene-delay")
         mToolTipDelay = setting->toInt();
     else if (*setting == "Tooltips/scene")
@@ -416,8 +416,8 @@ std::tuple<osg::Vec3d, osg::Vec3d, osg::Vec3d> CSVRender::WorldspaceWidget::getS
     int pointX, int pointY) const
 {
     // (0,0) is considered the lower left corner of an OpenGL window
-    int x = pointX * devicePixelRatio();
-    int y = height() * devicePixelRatio() - pointY * devicePixelRatio();
+    int x = static_cast<int>(pointX * devicePixelRatio());
+    int y = static_cast<int>(height() * devicePixelRatio() - pointY * devicePixelRatio());
 
     // Convert from screen space to world space
     osg::Matrixd wpvMat;
@@ -717,8 +717,8 @@ void CSVRender::WorldspaceWidget::mouseMoveEvent(QMouseEvent* event)
 
         if (mDragging)
         {
-            mDragX = event->position().x();
-            mDragY = height() - event->position().y();
+            mDragX = static_cast<int>(event->position().x());
+            mDragY = static_cast<int>(height() - event->position().y());
         }
     }
     else

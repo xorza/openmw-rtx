@@ -71,7 +71,7 @@ namespace CSMPrefs
             if (keyEvent->isAutoRepeat())
                 return true;
 
-            int mod = keyEvent->modifiers();
+            int mod = static_cast<int>(keyEvent->modifiers());
             int key = keyEvent->key();
 
             return handleEvent(target, mod, key);
@@ -79,7 +79,7 @@ namespace CSMPrefs
         else if (event->type() == QEvent::MouseButtonPress)
         {
             auto* mouseEvent = static_cast<QMouseEvent*>(event);
-            int mod = mouseEvent->modifiers();
+            int mod = static_cast<int>(mouseEvent->modifiers());
             int button = mouseEvent->button();
 
             return handleEvent(target, mod, button);

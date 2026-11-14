@@ -627,8 +627,8 @@ namespace MWWorld
             mCells.erase(cell->mId);
         mDynamicInt.clear();
 
-        mSharedInt.erase(mSharedInt.begin() + mInt.size(), mSharedInt.end());
-        mSharedExt.erase(mSharedExt.begin() + mExt.size(), mSharedExt.end());
+        mSharedInt.erase(mSharedInt.begin() + static_cast<std::ptrdiff_t>(mInt.size()), mSharedInt.end());
+        mSharedExt.erase(mSharedExt.begin() + static_cast<std::ptrdiff_t>(mExt.size()), mSharedExt.end());
     }
     RecordId Store<ESM::Cell>::load(ESM::ESMReader& esm)
     {

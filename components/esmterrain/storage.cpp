@@ -127,11 +127,12 @@ namespace ESMTerrain
         std::shared_ptr<const LandObject> land = getLand(ESM::ExteriorCellLocation(cellX, cellY, worldspace));
         const ESM::LandData* data = land ? land->getData(ESM::Land::DATA_VHGT) : nullptr;
         const int landSize = ESM::getLandSize(worldspace);
-        int startRow = static_cast<int>((origin.x() - cellX) * landSize);
-        int startColumn = static_cast<int>((origin.y() - cellY) * landSize);
+        int startRow = static_cast<int>((origin.x() - static_cast<float>(cellX)) * static_cast<float>(landSize));
+        int startColumn = static_cast<int>((origin.y() - static_cast<float>(cellY)) * static_cast<float>(landSize));
 
-        int endRow = static_cast<int>(startRow + size * (landSize - 1) + 1);
-        int endColumn = static_cast<int>(startColumn + size * (landSize - 1) + 1);
+        int endRow = static_cast<int>(static_cast<float>(startRow) + size * static_cast<float>((landSize - 1)) + 1);
+        int endColumn
+            = static_cast<int>(static_cast<float>(startColumn) + size * static_cast<float>((landSize - 1)) + 1);
 
         if (data)
         {
@@ -249,7 +250,8 @@ namespace ESMTerrain
         // LOD level n means every 2^n-th vertex is kept
         const std::size_t sampleSize = std::size_t{ 1 } << lodLevel;
         const auto cellSize = static_cast<std::size_t>(ESM::getLandSize(worldspace));
-        const std::size_t numVerts = static_cast<std::size_t>(size * (cellSize - 1) / sampleSize) + 1;
+        const std::size_t numVerts
+            = static_cast<std::size_t>(size * static_cast<float>((cellSize - 1)) / static_cast<float>(sampleSize)) + 1;
 
         positions.resize(numVerts * numVerts);
         normals.resize(numVerts * numVerts);
@@ -310,9 +312,11 @@ namespace ESMTerrain
 
             const std::size_t vertIndex = vertX * numVerts + vertY;
 
-            positions[vertIndex]
-                = osg::Vec3f((vertX / static_cast<float>(numVerts - 1) - 0.5f) * size * landSizeInUnits,
-                    (vertY / static_cast<float>(numVerts - 1) - 0.5f) * size * landSizeInUnits, height);
+            positions[vertIndex] = osg::Vec3f((static_cast<float>(vertX) / static_cast<float>(numVerts - 1) - 0.5f)
+                    * size * static_cast<float>(landSizeInUnits),
+                (static_cast<float>(vertY) / static_cast<float>(numVerts - 1) - 0.5f) * size
+                    * static_cast<float>(landSizeInUnits),
+                height);
 
             const std::size_t srcArrayIndex = col * cellSize * 3 + row * 3;
 
@@ -355,9 +359,11 @@ namespace ESMTerrain
             colours[vertIndex] = color;
         };
 
-        const auto beginX = static_cast<std::size_t>((origin.x() - startCellX) * cellSize);
-        const auto beginY = static_cast<std::size_t>((origin.y() - startCellY) * cellSize);
-        const std::size_t distance = static_cast<std::size_t>(size * (cellSize - 1)) + 1;
+        const auto beginX
+            = static_cast<std::size_t>((origin.x() - static_cast<float>(startCellX)) * static_cast<float>(cellSize));
+        const auto beginY
+            = static_cast<std::size_t>((origin.y() - static_cast<float>(startCellY)) * static_cast<float>(cellSize));
+        const std::size_t distance = static_cast<std::size_t>(size * static_cast<float>((cellSize - 1))) + 1;
 
         sampleCellGrid(cellSize, sampleSize, beginX, beginY, distance, handleSample);
 
@@ -579,11 +585,11 @@ namespace ESMTerrain
         // Mostly lifted from Ogre::Terrain::getHeightAtTerrainPosition
 
         // Normalized position in the cell
-        float nX = (worldPos.x() - (cellX * cellSize)) / cellSize;
-        float nY = (worldPos.y() - (cellY * cellSize)) / cellSize;
+        float nX = (worldPos.x() - (static_cast<float>(cellX) * cellSize)) / cellSize;
+        float nY = (worldPos.y() - (static_cast<float>(cellY) * cellSize)) / cellSize;
 
         // get left / bottom points (rounded down)
-        float factor = landSize - 1.0f;
+        float factor = static_cast<float>(landSize) - 1.0f;
         float invFactor = 1.0f / factor;
 
         int startX = static_cast<int>(nX * factor);
@@ -595,10 +601,10 @@ namespace ESMTerrain
         endY = std::min(endY, landSize - 1);
 
         // now get points in terrain space (effectively rounding them to boundaries)
-        float startXTS = startX * invFactor;
-        float startYTS = startY * invFactor;
-        float endXTS = endX * invFactor;
-        float endYTS = endY * invFactor;
+        float startXTS = static_cast<float>(startX) * invFactor;
+        float startYTS = static_cast<float>(startY) * invFactor;
+        float endXTS = static_cast<float>(endX) * invFactor;
+        float endYTS = static_cast<float>(endY) * invFactor;
 
         // get parametric from start coord to next point
         float xParam = (nX - startXTS) * factor;

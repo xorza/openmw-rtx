@@ -428,8 +428,8 @@ namespace MWGui::Formatting
             unsigned int color = 0;
             std::from_chars(colorString.data(), colorString.data() + colorString.size(), color, 16);
 
-            mTextStyle.mColour
-                = MyGUI::Colour((color >> 16 & 0xFF) / 255.f, (color >> 8 & 0xFF) / 255.f, (color & 0xFF) / 255.f);
+            mTextStyle.mColour = MyGUI::Colour(static_cast<float>((color >> 16 & 0xFF)) / 255.f,
+                static_cast<float>((color >> 8 & 0xFF)) / 255.f, static_cast<float>((color & 0xFF)) / 255.f);
         }
         it = attr.find("face");
         if (it != attr.end())
@@ -506,7 +506,7 @@ namespace MWGui::Formatting
         unsigned int lastLine = (mPaginator.getStartTop() + mPaginator.getPageHeight() - mPaginator.getCurrentTop());
         if (lineHeight > 0)
             lastLine /= lineHeight;
-        int ret = mPaginator.getCurrentTop() + lastLine * lineHeight;
+        int ret = static_cast<int>(mPaginator.getCurrentTop() + lastLine * lineHeight);
 
         // first empty lines that would go to the next page should be ignored
         mPaginator.setIgnoreLeadingEmptyLines(true);

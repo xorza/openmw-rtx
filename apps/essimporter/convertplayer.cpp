@@ -31,7 +31,7 @@ namespace ESSImport
             out.mObject.mNpcStats.mSkillIncrease[ESM::Attribute::indexToRefId(i)] = pcdt.mPNAM.mSkillIncreases[i];
         for (int i = 0; i < ESM::Skill::Length; ++i)
             out.mObject.mNpcStats.mSkills[ESM::Skill::indexToRefId(i)].mProgress = pcdt.mPNAM.mSkillProgress[i];
-        out.mObject.mNpcStats.mLevelProgress = pcdt.mPNAM.mLevelProgress;
+        out.mObject.mNpcStats.mLevelProgress = static_cast<int32_t>(pcdt.mPNAM.mLevelProgress);
 
         if (pcdt.mPNAM.mPlayerFlags & PCDT::PlayerFlags_WeaponDrawn)
             out.mObject.mCreatureStats.mDrawState = 1;
@@ -75,8 +75,10 @@ namespace ESSImport
 
         if (pcdt.mHasENAM)
         {
-            out.mLastKnownExteriorPosition[0] = (pcdt.mENAM.mCellX + 0.5f) * Constants::CellSizeInUnits;
-            out.mLastKnownExteriorPosition[1] = (pcdt.mENAM.mCellY + 0.5f) * Constants::CellSizeInUnits;
+            out.mLastKnownExteriorPosition[0]
+                = (static_cast<float>(pcdt.mENAM.mCellX) + 0.5f) * Constants::CellSizeInUnits;
+            out.mLastKnownExteriorPosition[1]
+                = (static_cast<float>(pcdt.mENAM.mCellY) + 0.5f) * Constants::CellSizeInUnits;
             out.mLastKnownExteriorPosition[2] = 0.0f;
         }
     }

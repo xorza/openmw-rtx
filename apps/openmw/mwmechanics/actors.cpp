@@ -79,7 +79,7 @@ namespace
             {
                 if (((effect.mEffectId == ESM::MagicEffect::CommandHumanoid && isActorNpc)
                         || (effect.mEffectId == ESM::MagicEffect::CommandCreature && !isActorNpc))
-                    && effect.mMagnitude >= level)
+                    && effect.mMagnitude >= static_cast<float>(level))
                     return true;
             }
         }
@@ -166,7 +166,7 @@ namespace
     void soulTrap(const MWWorld::Ptr& creature)
     {
         const auto& stats = creature.getClass().getCreatureStats(creature);
-        if (!stats.getMagicEffects().getOrDefault(ESM::MagicEffect::Soultrap).getMagnitude())
+        if (!static_cast<bool>(stats.getMagicEffects().getOrDefault(ESM::MagicEffect::Soultrap).getMagnitude()))
             return;
         const int creatureSoulValue = creature.get<ESM::Creature>()->mBase->mData.mSoul;
         if (creatureSoulValue <= 0)
@@ -193,8 +193,9 @@ namespace
                 {
                     if (it->getClass().isSoulGem(*it))
                     {
-                        float thisGemCapacity = it->get<ESM::Miscellaneous>()->mBase->mData.mValue * fSoulgemMult;
-                        if (thisGemCapacity >= creatureSoulValue && thisGemCapacity < gemCapacity
+                        float thisGemCapacity
+                            = static_cast<float>(it->get<ESM::Miscellaneous>()->mBase->mData.mValue) * fSoulgemMult;
+                        if (thisGemCapacity >= static_cast<float>(creatureSoulValue) && thisGemCapacity < gemCapacity
                             && it->getCellRef().getSoul().empty())
                         {
                             gem = it;
@@ -555,7 +556,8 @@ namespace MWMechanics
         {
             greetingTimer++;
 
-            static const int greetDuration = static_cast<int>(iGreetDuration / sUpdateHelloInterval);
+            static const int greetDuration
+                = static_cast<int>(static_cast<float>(iGreetDuration) / sUpdateHelloInterval);
             if (greetingTimer <= greetDuration)
                 turnActorToFacePlayer(actor, actorState, dir);
             else
@@ -630,7 +632,7 @@ namespace MWMechanics
         const float sqrDist = (actor1Pos - actor2Pos).length2();
         const int actorsProcessingRange = Settings::game().mActorsProcessingRange;
 
-        if (sqrDist > actorsProcessingRange * actorsProcessingRange)
+        if (sqrDist > static_cast<float>(actorsProcessingRange * actorsProcessingRange))
             return;
 
         // If this is set to true, actor1 will start combat with actor2 if the awareness check at the end of the method
@@ -1255,7 +1257,7 @@ namespace MWMechanics
         const float dist
             = (player.getRefData().getPosition().asVec3() - ptr.getRefData().getPosition().asVec3()).length();
         const int actorsProcessingRange = Settings::game().mActorsProcessingRange;
-        if (dist > actorsProcessingRange)
+        if (dist > static_cast<float>(actorsProcessingRange))
         {
             ptr.getRefData().getBaseNode()->setNodeMask(0);
             return;
@@ -1265,7 +1267,7 @@ namespace MWMechanics
 
         // Fade away actors on large distance (>90% of actor's processing distance)
         float visibilityRatio = 1.0;
-        const float fadeStartDistance = actorsProcessingRange * 0.9f;
+        const float fadeStartDistance = static_cast<float>(actorsProcessingRange) * 0.9f;
         const auto fadeEndDistance = static_cast<float>(actorsProcessingRange);
         const float fadeRatio = (dist - fadeStartDistance) / (fadeEndDistance - fadeStartDistance);
         if (fadeRatio > 0)
@@ -1573,7 +1575,8 @@ namespace MWMechanics
 
                 const float distSqr = (playerPos - actor.getPtr().getRefData().getPosition().asVec3()).length2();
                 // AI processing is only done within given distance to the player.
-                const bool inProcessingRange = distSqr <= actorsProcessingRange * actorsProcessingRange;
+                const bool inProcessingRange
+                    = distSqr <= static_cast<float>(actorsProcessingRange * actorsProcessingRange);
 
                 // If dead or no longer in combat, no longer store any actors who attempted to hit us. Also remove for
                 // the player.
@@ -1698,7 +1701,7 @@ namespace MWMechanics
                     MWMechanics::AiSequence& seq = stats.getAiSequence();
                     alwaysActive = !seq.isEmpty() && seq.getActivePackage().alwaysActive();
                 }
-                const bool inRange = isPlayer || dist <= actorsProcessingRange || alwaysActive;
+                const bool inRange = isPlayer || dist <= static_cast<float>(actorsProcessingRange) || alwaysActive;
                 const int activeFlag = isPlayer ? 2 : 1; // Can be changed back to '2' to keep updating bounding boxes
                                                          // off screen (more accurate, but slower)
                 const int active = inRange ? activeFlag : 0;
@@ -1926,7 +1929,7 @@ namespace MWMechanics
 
             if ((!actor.getPtr().getRefData().getBaseNode())
                 || (playerPos - actor.getPtr().getRefData().getPosition().asVec3()).length2()
-                    > actorsProcessingRange * actorsProcessingRange)
+                    > static_cast<float>(actorsProcessingRange * actorsProcessingRange))
                 continue;
 
             // Get rid of effects pending removal so they are not applied when resting

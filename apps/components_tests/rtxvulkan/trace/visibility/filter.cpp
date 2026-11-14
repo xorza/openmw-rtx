@@ -286,7 +286,8 @@ namespace Rtx::Testing
                 return values;
             };
 
-            const std::vector<float> settledPixels = renderSequence(Shaders::ACCUMULATE_FRAMES);
+            const std::vector<float> settledPixels
+                = renderSequence(static_cast<std::uint32_t>(Shaders::ACCUMULATE_FRAMES));
             const float settled = errorAgainstReference(settledPixels);
 
             // The accumulator may not make this worse, which on this surface is the whole of what it can be
@@ -587,7 +588,7 @@ namespace Rtx::Testing
 
             // The same trace with a history behind it, at indices the sampler has not drawn yet so
             // the mean is over genuinely different draws.
-            for (std::uint32_t frame = 0; frame < Shaders::ACCUMULATE_FRAMES; ++frame)
+            for (std::uint32_t frame = 0; static_cast<float>(frame) < Shaders::ACCUMULATE_FRAMES; ++frame)
                 renderOne(frame + 100, true);
 
             renderOne(measured, true);
@@ -609,7 +610,7 @@ namespace Rtx::Testing
             // **And an unfiltered frame with no reset ends the history behind it all the same**: the
             // filtered frame after it reads none, rather than the one from the frame before it as if
             // it were the last frame's.
-            for (std::uint32_t frame = 0; frame < Shaders::ACCUMULATE_FRAMES; ++frame)
+            for (std::uint32_t frame = 0; static_cast<float>(frame) < Shaders::ACCUMULATE_FRAMES; ++frame)
                 renderOne(frame + 200, true);
             renderOne(measured + 2, false);
             renderOne(measured, true);
@@ -1323,14 +1324,15 @@ namespace Rtx::Testing
                 return std::sqrt(squares / static_cast<double>(counted));
             };
 
-            const std::vector<float> settledPixels = renderSequence(Shaders::ACCUMULATE_FRAMES);
+            const std::vector<float> settledPixels
+                = renderSequence(static_cast<std::uint32_t>(Shaders::ACCUMULATE_FRAMES));
             const double settled = errorAgainstReference(settledPixels);
 
             // The cascade alone over the same sixteen draws the history averaged, pooled as a root mean square:
             // one frame's error swings by four per cent with its draw, which put a single-frame ratio at the
             // mercy of the sampler's stream, where sixteen pooled swing by one per cent.
             double pooled = 0.0;
-            for (std::uint32_t frame = 0; frame < Shaders::ACCUMULATE_FRAMES; ++frame)
+            for (std::uint32_t frame = 0; static_cast<float>(frame) < Shaders::ACCUMULATE_FRAMES; ++frame)
             {
                 std::vector<float> one;
                 one = shoot(scene, {}, camera, size, filteredRun(1, frame)).mRadiance;

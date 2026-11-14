@@ -39,7 +39,7 @@ namespace MWLua
             const std::vector<std::string>& contentList = MWBase::Environment::get().getWorld()->getContentFiles();
             sol::table list(lua, sol::create);
             for (size_t i = 0; i < contentList.size(); ++i)
-                list[LuaUtil::toLuaIndex(i)] = Misc::StringUtils::lowerCase(contentList[i]);
+                list[LuaUtil::toLuaIndex(static_cast<std::int64_t>(i))] = Misc::StringUtils::lowerCase(contentList[i]);
             sol::table res(lua, sol::create);
             res["list"] = LuaUtil::makeReadOnly(list);
             res["indexOf"] = [&contentList](std::string_view contentFile) -> sol::optional<int64_t> {

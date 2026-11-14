@@ -1606,7 +1606,8 @@ namespace Rtx
                 || (op == spv::OpCapability && static_cast<spv::Capability>(operands[0]) == spv::CapabilityRayQueryKHR);
         });
 
-        std::vector<std::uint32_t> kept(module.begin(), module.begin() + std::min(module.size(), sSpirvHeaderWords));
+        std::vector<std::uint32_t> kept(
+            module.begin(), module.begin() + static_cast<std::ptrdiff_t>(std::min(module.size(), sSpirvHeaderWords)));
         kept.reserve(module.size());
         forEachInstruction(
             module, [&](const spv::Op op, const std::span<const std::uint32_t> operands, std::size_t at) {

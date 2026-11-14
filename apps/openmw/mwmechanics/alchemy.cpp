@@ -306,7 +306,7 @@ void MWMechanics::Alchemy::addPotion(const std::string& name)
             newRecord.mData.mWeight += iter->get<ESM::Ingredient>()->mBase->mData.mWeight;
 
     if (countIngredients() > 0)
-        newRecord.mData.mWeight /= countIngredients();
+        newRecord.mData.mWeight /= static_cast<float>(countIngredients());
 
     newRecord.mData.mValue = mValue;
     newRecord.mData.mFlags = 0;
@@ -580,7 +580,7 @@ MWMechanics::Alchemy::Result MWMechanics::Alchemy::createSingle()
         return Result_RandomFailure;
     }
     auto& prng = MWBase::Environment::get().getWorld()->getPrng();
-    if (getAlchemyFactor() < Misc::Rng::roll0to99(prng))
+    if (getAlchemyFactor() < static_cast<float>(Misc::Rng::roll0to99(prng)))
     {
         removeIngredients();
         return Result_RandomFailure;
@@ -619,7 +619,7 @@ std::vector<std::string> MWMechanics::Alchemy::effectsDescription(
     {
         const auto effectID = data.mEffectID[i];
 
-        if (alchemySkill < fWortChanceValue * static_cast<int>(i + 1))
+        if (alchemySkill < fWortChanceValue * static_cast<float>(static_cast<int>(i + 1)))
             break;
 
         if (!effectID.empty())

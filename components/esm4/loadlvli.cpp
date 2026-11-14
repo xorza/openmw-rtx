@@ -117,7 +117,7 @@ std::int8_t ESM4::LevelledItem::chanceNone() const
     if (mHasLvlItemFlags)
         return mChanceNone;
     else
-        return (mChanceNone & 0x7f); // FIXME: 0x80 is just a guess
+        return static_cast<std::int8_t>((mChanceNone & 0x7f)); // FIXME: 0x80 is just a guess
 }
 
 bool ESM4::LevelledItem::useAll() const

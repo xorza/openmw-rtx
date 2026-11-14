@@ -27,7 +27,7 @@ namespace Nif
 
         void writeString(std::string_view value, std::ostream& stream)
         {
-            stream.write(value.data(), value.size());
+            stream.write(value.data(), static_cast<std::streamsize>(value.size()));
         }
 
         void writeUInt8SizedString(std::string_view value, std::ostream& stream)

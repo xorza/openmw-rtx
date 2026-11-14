@@ -251,7 +251,7 @@ void CSVRender::TerrainVertexPaintMode::editVertexColourGrid(
 
     int colourColumn = landTable.findColumnIndex(CSMWorld::Columns::ColumnId_LandColoursIndex);
 
-    int r = std::max(static_cast<float>(mBrushSize) / 2.0f, 1.0f);
+    int r = static_cast<int>(std::max(static_cast<float>(mBrushSize) / 2.0f, 1.0f));
 
     if (mBrushShape == CSVWidget::BrushShape_Point)
     {
@@ -269,15 +269,15 @@ void CSVRender::TerrainVertexPaintMode::editVertexColourGrid(
     const bool isCircleBrush = mBrushShape == CSVWidget::BrushShape_Circle;
     if (isSquareBrush || isCircleBrush)
     {
-        int upperLeftCellX = cellX - std::floor(r / ESM::Land::LAND_SIZE);
-        int upperLeftCellY = cellY - std::floor(r / ESM::Land::LAND_SIZE);
+        int upperLeftCellX = static_cast<int>(cellX - std::floor(r / ESM::Land::LAND_SIZE));
+        int upperLeftCellY = static_cast<int>(cellY - std::floor(r / ESM::Land::LAND_SIZE));
         if (xHitInCell - (r % ESM::Land::LAND_SIZE) < 0)
             upperLeftCellX--;
         if (yHitInCell - (r % ESM::Land::LAND_SIZE) < 0)
             upperLeftCellY--;
 
-        int lowerrightCellX = cellX + std::floor(r / ESM::Land::LAND_SIZE);
-        int lowerrightCellY = cellY + std::floor(r / ESM::Land::LAND_SIZE);
+        int lowerrightCellX = static_cast<int>(cellX + std::floor(r / ESM::Land::LAND_SIZE));
+        int lowerrightCellY = static_cast<int>(cellY + std::floor(r / ESM::Land::LAND_SIZE));
         if (xHitInCell + (r % ESM::Land::LAND_SIZE) > ESM::Land::LAND_SIZE - 1)
             lowerrightCellX++;
         if (yHitInCell + (r % ESM::Land::LAND_SIZE) > ESM::Land::LAND_SIZE - 1)
@@ -298,20 +298,26 @@ void CSVRender::TerrainVertexPaintMode::editVertexColourGrid(
                         {
                             osg::Vec2f relativeCoords(0.0, 0.0);
                             if (iCell < cellX)
-                                relativeCoords.x() = xHitInCell + ESM::Land::LAND_SIZE * abs(iCell - cellX) - i;
+                                relativeCoords.x()
+                                    = static_cast<float>(xHitInCell + ESM::Land::LAND_SIZE * abs(iCell - cellX) - i);
                             else if (iCell > cellX)
-                                relativeCoords.x() = -xHitInCell + ESM::Land::LAND_SIZE * abs(iCell - cellX) + i;
+                                relativeCoords.x()
+                                    = static_cast<float>(-xHitInCell + ESM::Land::LAND_SIZE * abs(iCell - cellX) + i);
                             else
-                                relativeCoords.x() = abs(i - xHitInCell);
+                                relativeCoords.x() = static_cast<float>(abs(i - xHitInCell));
                             if (jCell < cellY)
-                                relativeCoords.y() = yHitInCell + ESM::Land::LAND_SIZE * abs(jCell - cellY) - j;
+                                relativeCoords.y()
+                                    = static_cast<float>(yHitInCell + ESM::Land::LAND_SIZE * abs(jCell - cellY) - j);
                             else if (jCell > cellY)
-                                relativeCoords.y() = -yHitInCell + ESM::Land::LAND_SIZE * abs(jCell - cellY) + j;
+                                relativeCoords.y()
+                                    = static_cast<float>(-yHitInCell + ESM::Land::LAND_SIZE * abs(jCell - cellY) + j);
                             else
-                                relativeCoords.y() = abs(j - yHitInCell);
-                            if (isSquareBrush && (relativeCoords.x() >= r || relativeCoords.y() >= r))
+                                relativeCoords.y() = static_cast<float>(abs(j - yHitInCell));
+                            if (isSquareBrush
+                                && (relativeCoords.x() >= static_cast<float>(r)
+                                    || relativeCoords.y() >= static_cast<float>(r)))
                                 continue;
-                            if (isCircleBrush && relativeCoords.length() >= r)
+                            if (isCircleBrush && relativeCoords.length() >= static_cast<float>(r))
                                 continue;
                             alterColour(newTerrain, i, j);
                         }

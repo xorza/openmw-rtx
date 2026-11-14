@@ -71,7 +71,7 @@ float CSVRender::BrushDraw::getIntersectionHeight(const osg::Vec3d& point)
             continue;
         }
 
-        return intersection.getWorldIntersectPoint().z();
+        return static_cast<float>(intersection.getWorldIntersectPoint().z());
     }
     return 0.0f;
 }
@@ -123,15 +123,15 @@ void CSVRender::BrushDraw::buildSquareGeometry(const float& radius, const osg::V
     if (resolution > 128) // limit accuracy for performance
     {
         resolution = 128;
-        resAdjustedLandSizeFactor = diameter / resolution;
+        resAdjustedLandSizeFactor = diameter / static_cast<float>(resolution);
     }
 
     osg::Vec4f lineColor(1.0f, 1.0f, 1.0f, 0.6f);
 
     for (int i = 0; i < resolution; i++)
     {
-        int step = i * resAdjustedLandSizeFactor;
-        int step2 = (i + 1) * resAdjustedLandSizeFactor;
+        int step = static_cast<int>(static_cast<float>(i) * resAdjustedLandSizeFactor);
+        int step2 = static_cast<int>(static_cast<float>(i + 1) * resAdjustedLandSizeFactor);
 
         osg::Vec3d upHorizontalLinePoint1(point.x() - reach + step, point.y() - reach,
             getIntersectionHeight(osg::Vec3d(point.x() - reach + step, point.y() - reach, point.z()))
@@ -194,7 +194,7 @@ void CSVRender::BrushDraw::buildCircleGeometry(const float& radius, const osg::V
 
     for (int i = 0; i < amountOfPoints + 2; i++)
     {
-        float angle(i * step);
+        float angle(static_cast<float>(i) * step);
         vertices->push_back(osg::Vec3d(point.x() + static_cast<double>(radius * cosf(angle)),
             point.y() + static_cast<double>(radius * sinf(angle)),
             getIntersectionHeight(osg::Vec3d(point.x() + static_cast<double>(radius * cosf(angle)),
@@ -225,7 +225,7 @@ void CSVRender::BrushDraw::update(osg::Vec3d point, int brushSize, CSVWidget::Br
 {
     if (mBrushDrawNode->containsNode(mGeometry))
         mBrushDrawNode->removeChild(mGeometry);
-    float radius = (mLandSizeFactor * brushSize) / 2;
+    float radius = (mLandSizeFactor * static_cast<float>(brushSize)) / 2;
     osg::Vec3d snapToGridPoint = point;
     if (mTextureMode)
     {

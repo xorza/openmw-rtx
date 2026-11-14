@@ -11,6 +11,7 @@
 #include <string>
 #include <string_view>
 #include <tuple>
+#include <type_traits>
 
 namespace Std140
 {
@@ -144,7 +145,12 @@ namespace Std140
             const auto copy = [&](const auto& v) {
                 static_assert(std::is_standard_layout_v<std::decay_t<decltype(v.mValue)>>);
                 constexpr std::size_t offset = getOffset<std::decay_t<decltype(v)>>();
-                std::memcpy(buffer.data() + offset, &v.mValue, sizeof(v.mValue));
+                using Value = std::decay_t<decltype(v.mValue)>;
+                // OSG's matrix declares a copy of its own, so its floats are copied from where they stand.
+                if constexpr (std::is_trivially_copyable_v<Value>)
+                    std::memcpy(buffer.data() + offset, &v.mValue, sizeof(v.mValue));
+                else
+                    std::memcpy(buffer.data() + offset, v.mValue.ptr(), sizeof(v.mValue));
             };
 
             std::apply([&](const auto&... v) { (copy(v), ...); }, mData);

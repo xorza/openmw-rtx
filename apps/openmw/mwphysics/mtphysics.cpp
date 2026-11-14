@@ -526,7 +526,7 @@ namespace MWPhysics
         }
 
         auto [numSteps, newDelta] = calculateStepConfig(timeAccum);
-        timeAccum -= numSteps * newDelta;
+        timeAccum -= static_cast<float>(numSteps) * newDelta;
 
         // init
         const Visitors::InitPosition vis{ mCollisionWorld };

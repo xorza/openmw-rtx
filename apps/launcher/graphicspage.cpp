@@ -461,7 +461,7 @@ void Launcher::GraphicsPage::saveSettings()
 
     if (framerateLimitCheckBox->checkState() != Qt::Unchecked)
     {
-        Settings::video().mFramerateLimit.set(framerateLimitSpinBox->value());
+        Settings::video().mFramerateLimit.set(static_cast<float>(framerateLimitSpinBox->value()));
     }
     else if (Settings::video().mFramerateLimit != 0)
     {
@@ -485,9 +485,9 @@ QRect Launcher::GraphicsPage::getMaximumResolution()
     {
         QRect res = screen->geometry();
         if (res.width() > max.width())
-            max.setWidth(res.width() * screen->devicePixelRatio());
+            max.setWidth(static_cast<int>(res.width() * screen->devicePixelRatio()));
         if (res.height() > max.height())
-            max.setHeight(res.height() * screen->devicePixelRatio());
+            max.setHeight(static_cast<int>(res.height() * screen->devicePixelRatio()));
     }
     return max;
 }

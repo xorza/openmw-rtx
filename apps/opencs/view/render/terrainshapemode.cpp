@@ -403,9 +403,9 @@ void CSVRender::TerrainShapeMode::applyTerrainEditChanges()
 
                 normal /= hyp;
 
-                landNormalsNew[(j * ESM::Land::LAND_SIZE + i) * 3 + 0] = normal.x();
-                landNormalsNew[(j * ESM::Land::LAND_SIZE + i) * 3 + 1] = normal.y();
-                landNormalsNew[(j * ESM::Land::LAND_SIZE + i) * 3 + 2] = normal.z();
+                landNormalsNew[(j * ESM::Land::LAND_SIZE + i) * 3 + 0] = static_cast<signed char>(normal.x());
+                landNormalsNew[(j * ESM::Land::LAND_SIZE + i) * 3 + 1] = static_cast<signed char>(normal.y());
+                landNormalsNew[(j * ESM::Land::LAND_SIZE + i) * 3 + 2] = static_cast<signed char>(normal.z());
             }
         }
         pushNormalsEditToCommand(landNormalsNew, document, landTable, cellId);
@@ -419,7 +419,7 @@ void CSVRender::TerrainShapeMode::applyTerrainEditChanges()
 
 float CSVRender::TerrainShapeMode::calculateBumpShape(float distance, int radius, float height)
 {
-    float distancePerRadius = distance / radius;
+    float distancePerRadius = distance / static_cast<float>(radius);
     return height
         - height
         * (3 * distancePerRadius * distancePerRadius - 2 * distancePerRadius * distancePerRadius * distancePerRadius);
@@ -444,14 +444,15 @@ void CSVRender::TerrainShapeMode::editTerrainShapeGrid(const std::pair<int, int>
         int x = CSMWorld::CellCoordinates::vertexGlobalToInCellCoords(vertexCoords.first);
         int y = CSMWorld::CellCoordinates::vertexGlobalToInCellCoords(vertexCoords.second);
         if (mShapeEditTool == ShapeEditTool_Drag)
-            alterHeight(cellCoords, x, y, mTotalDiffY);
+            alterHeight(cellCoords, x, y, static_cast<float>(mTotalDiffY));
         if (mShapeEditTool == ShapeEditTool_PaintToRaise || mShapeEditTool == ShapeEditTool_PaintToLower)
         {
-            alterHeight(cellCoords, x, y, mShapeEditToolStrength);
+            alterHeight(cellCoords, x, y, static_cast<float>(mShapeEditToolStrength));
             float smoothMultiplier
                 = static_cast<float>(CSMPrefs::get()["3D Scene Editing"]["landedit-post-smoothstrength"].toDouble());
             if (CSMPrefs::get()["3D Scene Editing"]["landedit-post-smoothpainting"].isTrue())
-                smoothHeight(cellCoords, x, y, mShapeEditToolStrength * smoothMultiplier);
+                smoothHeight(
+                    cellCoords, x, y, static_cast<int>(static_cast<float>(mShapeEditToolStrength) * smoothMultiplier));
         }
         if (mShapeEditTool == ShapeEditTool_Smooth)
             smoothHeight(cellCoords, x, y, mShapeEditToolStrength);
@@ -472,14 +473,15 @@ void CSVRender::TerrainShapeMode::editTerrainShapeGrid(const std::pair<int, int>
                 int x = CSMWorld::CellCoordinates::vertexGlobalToInCellCoords(i);
                 int y = CSMWorld::CellCoordinates::vertexGlobalToInCellCoords(j);
                 if (mShapeEditTool == ShapeEditTool_Drag)
-                    alterHeight(cellCoords, x, y, mTotalDiffY);
+                    alterHeight(cellCoords, x, y, static_cast<float>(mTotalDiffY));
                 if (mShapeEditTool == ShapeEditTool_PaintToRaise || mShapeEditTool == ShapeEditTool_PaintToLower)
                 {
-                    alterHeight(cellCoords, x, y, mShapeEditToolStrength);
+                    alterHeight(cellCoords, x, y, static_cast<float>(mShapeEditToolStrength));
                     float smoothMultiplier = static_cast<float>(
                         CSMPrefs::get()["3D Scene Editing"]["landedit-post-smoothstrength"].toDouble());
                     if (CSMPrefs::get()["3D Scene Editing"]["landedit-post-smoothpainting"].isTrue())
-                        smoothHeight(cellCoords, x, y, mShapeEditToolStrength * smoothMultiplier);
+                        smoothHeight(cellCoords, x, y,
+                            static_cast<int>(static_cast<float>(mShapeEditToolStrength) * smoothMultiplier));
                 }
                 if (mShapeEditTool == ShapeEditTool_Smooth)
                     smoothHeight(cellCoords, x, y, mShapeEditToolStrength);
@@ -503,15 +505,16 @@ void CSVRender::TerrainShapeMode::editTerrainShapeGrid(const std::pair<int, int>
                 int y = CSMWorld::CellCoordinates::vertexGlobalToInCellCoords(j);
                 int distanceX = abs(i - vertexCoords.first);
                 int distanceY = abs(j - vertexCoords.second);
-                float distance = sqrt(pow(distanceX, 2) + pow(distanceY, 2));
+                auto distance = static_cast<float>(sqrt(pow(distanceX, 2) + pow(distanceY, 2)));
                 float smoothedByDistance = 0.0f;
                 if (mShapeEditTool == ShapeEditTool_Drag)
-                    smoothedByDistance = calculateBumpShape(distance, r, mTotalDiffY);
+                    smoothedByDistance = calculateBumpShape(distance, r, static_cast<float>(mTotalDiffY));
                 if (mShapeEditTool == ShapeEditTool_PaintToRaise || mShapeEditTool == ShapeEditTool_PaintToLower)
-                    smoothedByDistance = calculateBumpShape(distance, r, r + mShapeEditToolStrength);
+                    smoothedByDistance
+                        = calculateBumpShape(distance, r, static_cast<float>(r + mShapeEditToolStrength));
 
                 // Using floating-point radius here to prevent selecting too few vertices.
-                if (distance <= mBrushSize / 2.0f)
+                if (distance <= static_cast<float>(mBrushSize) / 2.0f)
                 {
                     if (mShapeEditTool == ShapeEditTool_Drag)
                         alterHeight(cellCoords, x, y, smoothedByDistance);
@@ -521,7 +524,8 @@ void CSVRender::TerrainShapeMode::editTerrainShapeGrid(const std::pair<int, int>
                         float smoothMultiplier = static_cast<float>(
                             CSMPrefs::get()["3D Scene Editing"]["landedit-post-smoothstrength"].toDouble());
                         if (CSMPrefs::get()["3D Scene Editing"]["landedit-post-smoothpainting"].isTrue())
-                            smoothHeight(cellCoords, x, y, mShapeEditToolStrength * smoothMultiplier);
+                            smoothHeight(cellCoords, x, y,
+                                static_cast<int>(static_cast<float>(mShapeEditToolStrength) * smoothMultiplier));
                     }
                     if (mShapeEditTool == ShapeEditTool_Smooth)
                         smoothHeight(cellCoords, x, y, mShapeEditToolStrength);
@@ -545,14 +549,15 @@ void CSVRender::TerrainShapeMode::editTerrainShapeGrid(const std::pair<int, int>
                 int x = CSMWorld::CellCoordinates::vertexGlobalToInCellCoords(vertexCoords.first + value.first);
                 int y = CSMWorld::CellCoordinates::vertexGlobalToInCellCoords(vertexCoords.second + value.second);
                 if (mShapeEditTool == ShapeEditTool_Drag)
-                    alterHeight(cellCoords, x, y, mTotalDiffY);
+                    alterHeight(cellCoords, x, y, static_cast<float>(mTotalDiffY));
                 if (mShapeEditTool == ShapeEditTool_PaintToRaise || mShapeEditTool == ShapeEditTool_PaintToLower)
                 {
-                    alterHeight(cellCoords, x, y, mShapeEditToolStrength);
+                    alterHeight(cellCoords, x, y, static_cast<float>(mShapeEditToolStrength));
                     float smoothMultiplier = static_cast<float>(
                         CSMPrefs::get()["3D Scene Editing"]["landedit-post-smoothstrength"].toDouble());
                     if (CSMPrefs::get()["3D Scene Editing"]["landedit-post-smoothpainting"].isTrue())
-                        smoothHeight(cellCoords, x, y, mShapeEditToolStrength * smoothMultiplier);
+                        smoothHeight(cellCoords, x, y,
+                            static_cast<int>(static_cast<float>(mShapeEditToolStrength) * smoothMultiplier));
                 }
                 if (mShapeEditTool == ShapeEditTool_Smooth)
                     smoothHeight(cellCoords, x, y, mShapeEditToolStrength);
@@ -580,7 +585,7 @@ void CSVRender::TerrainShapeMode::setFlattenToolTargetHeight(const WorldspaceHit
     const auto landShapePointer = landTable.data(landTable.getModelIndex(cellId, landshapeColumn))
                                       .value<CSMWorld::LandHeightsColumn::DataType>();
 
-    mTargetHeight = landShapePointer[inCellY * ESM::Land::LAND_SIZE + inCellX];
+    mTargetHeight = static_cast<int>(landShapePointer[inCellY * ESM::Land::LAND_SIZE + inCellX]);
 }
 
 void CSVRender::TerrainShapeMode::alterHeight(
@@ -612,7 +617,7 @@ void CSVRender::TerrainShapeMode::alterHeight(
             osg::Vec3d eye, center, up;
             paged->getCamera()->getViewMatrixAsLookAt(eye, center, up);
             osg::Vec3d distance = eye - mEditingPos;
-            alteredHeight = alteredHeight * (distance.length() / 500);
+            alteredHeight = static_cast<float>(alteredHeight * (distance.length() / 500));
         }
         if (mShapeEditTool == ShapeEditTool_PaintToRaise)
             alteredHeight = *paged->getCellAlteredHeight(cellCoords, inCellX, inCellY) + alteredHeight;
@@ -878,12 +883,14 @@ void CSVRender::TerrainShapeMode::flattenHeight(
         }
     }
 
-    if (toolStrength > abs(thisHeight - targetHeight) && toolStrength > 8.0f)
-        toolStrength = abs(thisHeight - targetHeight); // Cut down excessive changes
-    if (thisHeight + thisAlteredHeight > targetHeight)
-        alterHeight(cellCoords, inCellX, inCellY, thisAlteredHeight - toolStrength);
-    if (thisHeight + thisAlteredHeight < targetHeight)
-        alterHeight(cellCoords, inCellX, inCellY, thisAlteredHeight + toolStrength);
+    if (static_cast<float>(toolStrength) > abs(thisHeight - static_cast<float>(targetHeight))
+        && static_cast<float>(toolStrength) > 8.0f)
+        toolStrength
+            = static_cast<int>(abs(thisHeight - static_cast<float>(targetHeight))); // Cut down excessive changes
+    if (thisHeight + thisAlteredHeight > static_cast<float>(targetHeight))
+        alterHeight(cellCoords, inCellX, inCellY, thisAlteredHeight - static_cast<float>(toolStrength));
+    if (thisHeight + thisAlteredHeight < static_cast<float>(targetHeight))
+        alterHeight(cellCoords, inCellX, inCellY, thisAlteredHeight + static_cast<float>(toolStrength));
 }
 
 void CSVRender::TerrainShapeMode::equalizeHeight(
@@ -906,7 +913,7 @@ void CSVRender::TerrainShapeMode::equalizeHeight(
         thisHeight = landShapePointer[inCellY * ESM::Land::LAND_SIZE + inCellX];
     }
 
-    alterHeight(cellCoords, inCellX, inCellY, targetHeight - thisHeight);
+    alterHeight(cellCoords, inCellX, inCellY, static_cast<float>(targetHeight) - thisHeight);
 }
 
 void CSVRender::TerrainShapeMode::updateKeyHeightValues(const CSMWorld::CellCoordinates& cellCoords, int inCellX,
@@ -1122,20 +1129,20 @@ bool CSVRender::TerrainShapeMode::limitAlteredHeights(const CSMWorld::CellCoordi
                         &downAlteredHeight);
 
                     // Check for height limits on x-axis
-                    if (leftHeight - thisHeight > limitHeightChange)
+                    if (leftHeight - thisHeight > static_cast<float>(limitHeightChange))
                         limitedAlteredHeightXAxis = std::make_unique<float>(
-                            leftHeight - limitHeightChange - (thisHeight - thisAlteredHeight));
-                    else if (leftHeight - thisHeight < -limitHeightChange)
+                            leftHeight - static_cast<float>(limitHeightChange) - (thisHeight - thisAlteredHeight));
+                    else if (leftHeight - thisHeight < static_cast<float>(-limitHeightChange))
                         limitedAlteredHeightXAxis = std::make_unique<float>(
-                            leftHeight + limitHeightChange - (thisHeight - thisAlteredHeight));
+                            leftHeight + static_cast<float>(limitHeightChange) - (thisHeight - thisAlteredHeight));
 
                     // Check for height limits on y-axis
-                    if (upHeight - thisHeight > limitHeightChange)
-                        limitedAlteredHeightYAxis
-                            = std::make_unique<float>(upHeight - limitHeightChange - (thisHeight - thisAlteredHeight));
-                    else if (upHeight - thisHeight < -limitHeightChange)
-                        limitedAlteredHeightYAxis
-                            = std::make_unique<float>(upHeight + limitHeightChange - (thisHeight - thisAlteredHeight));
+                    if (upHeight - thisHeight > static_cast<float>(limitHeightChange))
+                        limitedAlteredHeightYAxis = std::make_unique<float>(
+                            upHeight - static_cast<float>(limitHeightChange) - (thisHeight - thisAlteredHeight));
+                    else if (upHeight - thisHeight < static_cast<float>(-limitHeightChange))
+                        limitedAlteredHeightYAxis = std::make_unique<float>(
+                            upHeight + static_cast<float>(limitHeightChange) - (thisHeight - thisAlteredHeight));
 
                     // Limit altered height value based on x or y, whichever is the smallest
                     compareAndLimit(cellCoords, inCellX, inCellY, limitedAlteredHeightXAxis.get(),
@@ -1157,20 +1164,20 @@ bool CSVRender::TerrainShapeMode::limitAlteredHeights(const CSMWorld::CellCoordi
                         &downAlteredHeight);
 
                     // Check for height limits on x-axis
-                    if (rightHeight - thisHeight > limitHeightChange)
+                    if (rightHeight - thisHeight > static_cast<float>(limitHeightChange))
                         limitedAlteredHeightXAxis = std::make_unique<float>(
-                            rightHeight - limitHeightChange - (thisHeight - thisAlteredHeight));
-                    else if (rightHeight - thisHeight < -limitHeightChange)
+                            rightHeight - static_cast<float>(limitHeightChange) - (thisHeight - thisAlteredHeight));
+                    else if (rightHeight - thisHeight < static_cast<float>(-limitHeightChange))
                         limitedAlteredHeightXAxis = std::make_unique<float>(
-                            rightHeight + limitHeightChange - (thisHeight - thisAlteredHeight));
+                            rightHeight + static_cast<float>(limitHeightChange) - (thisHeight - thisAlteredHeight));
 
                     // Check for height limits on y-axis
-                    if (downHeight - thisHeight > limitHeightChange)
+                    if (downHeight - thisHeight > static_cast<float>(limitHeightChange))
                         limitedAlteredHeightYAxis = std::make_unique<float>(
-                            downHeight - limitHeightChange - (thisHeight - thisAlteredHeight));
-                    else if (downHeight - thisHeight < -limitHeightChange)
+                            downHeight - static_cast<float>(limitHeightChange) - (thisHeight - thisAlteredHeight));
+                    else if (downHeight - thisHeight < static_cast<float>(-limitHeightChange))
                         limitedAlteredHeightYAxis = std::make_unique<float>(
-                            downHeight + limitHeightChange - (thisHeight - thisAlteredHeight));
+                            downHeight + static_cast<float>(limitHeightChange) - (thisHeight - thisAlteredHeight));
 
                     // Limit altered height value based on x or y, whichever is the smallest
                     compareAndLimit(cellCoords, inCellX, inCellY, limitedAlteredHeightXAxis.get(),
@@ -1272,10 +1279,10 @@ void CSVRender::TerrainShapeMode::selectTerrainShapes(const std::pair<int, int>&
             {
                 int distanceX = abs(i - vertexCoords.first);
                 int distanceY = abs(j - vertexCoords.second);
-                float distance = sqrt(pow(distanceX, 2) + pow(distanceY, 2));
+                auto distance = static_cast<float>(sqrt(pow(distanceX, 2) + pow(distanceY, 2)));
 
                 // Using floating-point radius here to prevent selecting too few vertices.
-                if (distance <= mBrushSize / 2.0f)
+                if (distance <= static_cast<float>(mBrushSize) / 2.0f)
                     handleSelection(i, j, &selections);
             }
         }
@@ -1449,7 +1456,7 @@ void CSVRender::TerrainShapeMode::createNewLandData(const CSMWorld::CellCoordina
     }
     if (averageDivider > 0)
         defaultHeight = (leftCellSampleHeight + rightCellSampleHeight + upCellSampleHeight + downCellSampleHeight)
-            / averageDivider;
+            / static_cast<float>(averageDivider);
 
     for (int i = 0; i < ESM::Land::LAND_SIZE; ++i)
     {

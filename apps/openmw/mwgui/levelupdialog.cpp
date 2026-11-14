@@ -50,7 +50,8 @@ namespace MWGui
 
         {
             const auto& store = MWBase::Environment::get().getESMStore()->get<ESM::Attribute>();
-            mPerCol = static_cast<size_t>(std::ceil(store.getSize() / static_cast<float>(std::size(sColumnOffsets))));
+            mPerCol = static_cast<size_t>(
+                std::ceil(static_cast<float>(store.getSize()) / static_cast<float>(std::size(sColumnOffsets))));
             size_t i = 0;
             for (const ESM::Attribute& attribute : store)
             {
@@ -127,7 +128,7 @@ namespace MWGui
     void LevelupDialog::resetCoins()
     {
         constexpr int coinSpacing = 33;
-        int curX = mCoinBox->getWidth() / 2 - (coinSpacing * (mCoinCount - 1) + 16 * mCoinCount) / 2;
+        int curX = static_cast<int>(mCoinBox->getWidth() / 2 - (coinSpacing * (mCoinCount - 1) + 16 * mCoinCount) / 2);
         for (unsigned int i = 0; i < sMaxCoins; ++i)
         {
             MyGUI::ImageBox* image = mCoins[i];
@@ -251,7 +252,8 @@ namespace MWGui
             for (unsigned int i = 0; i < mCoinCount; ++i)
             {
                 MWMechanics::AttributeValue attribute = pcStats.getAttribute(mSpentAttributes[i]);
-                attribute.setBase(attribute.getBase() + pcStats.getLevelupAttributeMultiplier(mSpentAttributes[i]));
+                attribute.setBase(attribute.getBase()
+                    + static_cast<float>(pcStats.getLevelupAttributeMultiplier(mSpentAttributes[i])));
 
                 if (attribute.getBase() >= 100)
                     attribute.setBase(100);
@@ -290,9 +292,9 @@ namespace MWGui
         if (total == 0)
             return ret;
 
-        int combatFraction = static_cast<int>(static_cast<float>(combatIncreases) / total * 10.f);
-        int magicFraction = static_cast<int>(static_cast<float>(magicIncreases) / total * 10.f);
-        int stealthFraction = static_cast<int>(static_cast<float>(stealthIncreases) / total * 10.f);
+        int combatFraction = static_cast<int>(static_cast<float>(combatIncreases) / static_cast<float>(total) * 10.f);
+        int magicFraction = static_cast<int>(static_cast<float>(magicIncreases) / static_cast<float>(total) * 10.f);
+        int stealthFraction = static_cast<int>(static_cast<float>(stealthIncreases) / static_cast<float>(total) * 10.f);
 
         if (combatFraction > 7)
             ret = "warrior";

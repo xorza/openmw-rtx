@@ -94,12 +94,12 @@ namespace DetourNavigator
 
     inline float getRealTileSize(const RecastSettings& settings)
     {
-        return settings.mTileSize * settings.mCellSize / settings.mRecastScaleFactor;
+        return static_cast<float>(settings.mTileSize) * settings.mCellSize / settings.mRecastScaleFactor;
     }
 
     inline float getMaxNavmeshAreaRadius(const Settings& settings)
     {
-        return std::floor(std::sqrt(settings.mMaxTilesNumber / osg::PIf)) - 1;
+        return std::floor(std::sqrt(static_cast<float>(settings.mMaxTilesNumber) / osg::PIf)) - 1;
     }
 
     // Returns tile bounds in real coordinates

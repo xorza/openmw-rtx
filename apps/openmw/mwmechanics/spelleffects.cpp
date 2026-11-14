@@ -50,7 +50,8 @@ namespace
             return effect.mMinMagnitude;
         auto& prng = MWBase::Environment::get().getWorld()->getPrng();
         return effect.mMinMagnitude
-            + Misc::Rng::rollDice(static_cast<int>(effect.mMaxMagnitude - effect.mMinMagnitude + 1), prng);
+            + static_cast<float>(
+                Misc::Rng::rollDice(static_cast<int>(effect.mMaxMagnitude - effect.mMinMagnitude + 1), prng));
     }
 
     ESM::ActiveEffect::Flags modifyAiSetting(const MWWorld::Ptr& target, const ESM::ActiveEffect& effect,
@@ -60,7 +61,7 @@ namespace
             return ESM::ActiveEffect::Flag_Invalid;
         auto& creatureStats = target.getClass().getCreatureStats(target);
         auto stat = creatureStats.getAiSetting(setting);
-        stat.setModifier(static_cast<int>(stat.getModifier() + magnitude));
+        stat.setModifier(static_cast<int>(static_cast<float>(stat.getModifier()) + magnitude));
         creatureStats.setAiSetting(setting, stat);
         return ESM::ActiveEffect::Flag_Applied;
     }
@@ -316,7 +317,7 @@ namespace
         // Magicka is increased by the cost of the spell
         auto& stats = target.getClass().getCreatureStats(target);
         auto magicka = stats.getMagicka();
-        magicka.setCurrent(magicka.getCurrent() + spellCost);
+        magicka.setCurrent(magicka.getCurrent() + static_cast<float>(spellCost));
         stats.setMagicka(magicka);
     }
 
@@ -345,14 +346,14 @@ namespace
                             continue;
                         if (activeEffect.mEffectId == ESM::MagicEffect::Reflect)
                         {
-                            if (canReflect && Misc::Rng::roll0to99(prng) < activeEffect.mMagnitude)
+                            if (canReflect && static_cast<float>(Misc::Rng::roll0to99(prng)) < activeEffect.mMagnitude)
                             {
                                 return MWMechanics::MagicApplicationResult::Type::REFLECTED;
                             }
                         }
                         else if (activeEffect.mEffectId == ESM::MagicEffect::SpellAbsorption)
                         {
-                            if (canAbsorb && Misc::Rng::roll0to99(prng) < activeEffect.mMagnitude)
+                            if (canAbsorb && static_cast<float>(Misc::Rng::roll0to99(prng)) < activeEffect.mMagnitude)
                             {
                                 absorbSpell(spellParams, caster, target);
                                 return MWMechanics::MagicApplicationResult::Type::REMOVED;
@@ -467,7 +468,7 @@ namespace MWMechanics
                             if (spell && spell->mData.mType == ESM::Spell::ST_Spell)
                             {
                                 auto& prng = MWBase::Environment::get().getWorld()->getPrng();
-                                return Misc::Rng::roll0to99(prng) < magnitude;
+                                return static_cast<float>(Misc::Rng::roll0to99(prng)) < magnitude;
                             }
                         }
                         return false;
@@ -540,7 +541,7 @@ namespace MWMechanics
                 if (caster.isEmpty() || !caster.getClass().isActor() || target == getPlayer()
                     || (effect.mEffectId == ESM::MagicEffect::CommandCreature) == target.getClass().isNpc())
                     return ESM::ActiveEffect::Flag_Invalid;
-                else if (effect.mMagnitude >= target.getClass().getCreatureStats(target).getLevel())
+                else if (effect.mMagnitude >= static_cast<float>(target.getClass().getCreatureStats(target).getLevel()))
                 {
                     MWMechanics::AiFollow package(caster, true);
                     target.getClass().getCreatureStats(target).getAiSequence().stack(package, target);
@@ -584,7 +585,7 @@ namespace MWMechanics
                 {
                     auto& creatureStats = target.getClass().getCreatureStats(target);
                     Stat<int> stat = creatureStats.getAiSetting(AiSetting::Flee);
-                    stat.setModifier(static_cast<int>(stat.getModifier() + effect.mMagnitude));
+                    stat.setModifier(static_cast<int>(static_cast<float>(stat.getModifier()) + effect.mMagnitude));
                     creatureStats.setAiSetting(AiSetting::Flee, stat);
                 }
             }
@@ -1025,7 +1026,7 @@ namespace MWMechanics
             {
                 auto& creatureStats = target.getClass().getCreatureStats(target);
                 Stat<int> stat = creatureStats.getAiSetting(AiSetting::Flee);
-                stat.setModifier(static_cast<int>(stat.getModifier() - effect.mMagnitude));
+                stat.setModifier(static_cast<int>(static_cast<float>(stat.getModifier()) - effect.mMagnitude));
                 creatureStats.setAiSetting(AiSetting::Flee, stat);
             }
             else if (effect.mEffectId == ESM::MagicEffect::FrenzyCreature
@@ -1263,7 +1264,7 @@ namespace MWMechanics
                 effect.mTimeLeft -= dt;
                 return { MagicApplicationResult::Type::APPLIED, receivedMagicDamage, affectedHealth };
             }
-            else if (!dt)
+            else if (!static_cast<bool>(dt))
                 return { MagicApplicationResult::Type::APPLIED, receivedMagicDamage, affectedHealth };
         }
         if (effect.mEffectId == ESM::MagicEffect::Lock)
@@ -1329,7 +1330,7 @@ namespace MWMechanics
             // Morrowind.exe doesn't apply magic effects while the menu is open, we do because we like to see stats
             // updated instantly. We don't want to teleport instantly though. Nor do we want to force players to drink
             // invisibility potions in the "right" order
-            if (!dt
+            if (!static_cast<bool>(dt)
                 && (effect.mEffectId == ESM::MagicEffect::Recall
                     || effect.mEffectId == ESM::MagicEffect::DivineIntervention
                     || effect.mEffectId == ESM::MagicEffect::AlmsiviIntervention

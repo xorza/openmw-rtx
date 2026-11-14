@@ -49,9 +49,9 @@ namespace MWMechanics
 
         auto& prng = MWBase::Environment::get().getWorld()->getPrng();
         int roll = Misc::Rng::roll0to99(prng);
-        if (t < pcSneak / iPickMinChance)
+        if (t < pcSneak / static_cast<float>(iPickMinChance))
         {
-            return (roll > static_cast<int>(pcSneak / iPickMinChance));
+            return (roll > static_cast<int>(pcSneak / static_cast<float>(iPickMinChance)));
         }
         else
         {

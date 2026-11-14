@@ -34,7 +34,7 @@ namespace ESSImport
             attribute.mMod = 0.f;
             attribute.mCurrent = acdt.mAttributes[i][0];
         }
-        cStats.mGoldPool = acdt.mGoldPool;
+        cStats.mGoldPool = static_cast<int32_t>(acdt.mGoldPool);
         cStats.mTalkedTo = (acdt.mFlags & TalkedToPlayer) != 0;
         cStats.mAttacked = (acdt.mFlags & Attacked) != 0;
     }

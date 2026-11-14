@@ -76,10 +76,10 @@ namespace MWMechanics
             costMult = iAlchemyMod;
         }
 
-        float x = 0.5f * (minMagn + maxMagn);
+        float x = 0.5f * static_cast<float>((minMagn + maxMagn));
         x *= 0.1f * magicEffect->mData.mBaseCost;
-        x *= durationOffset + duration;
-        x += 0.05f * std::max(minArea, effect.mArea) * magicEffect->mData.mBaseCost;
+        x *= static_cast<float>(durationOffset + duration);
+        x += 0.05f * static_cast<float>(std::max(minArea, effect.mArea)) * magicEffect->mData.mBaseCost;
 
         return x * costMult;
     }
@@ -192,13 +192,13 @@ namespace MWMechanics
 
         auto& prng = MWBase::Environment::get().getWorld()->getPrng();
         int roll = Misc::Rng::roll0to99(prng);
-        if (roll > x)
+        if (static_cast<float>(roll) > x)
         {
             return std::nullopt;
         }
 
         float magnitude = 0;
-        float y = roll / std::min(x, 100.f);
+        float y = static_cast<float>(roll) / std::min(x, 100.f);
         y *= 0.25f * x;
         if (magicEffect->mData.mFlags & ESM::MagicEffect::NoDuration)
             effect.mDuration = 1;
@@ -239,8 +239,8 @@ namespace MWMechanics
                 x = std::max(1.f, x);
 
             x *= 0.1f * magicEffect->mData.mBaseCost;
-            x *= 0.5f * (effect.mData.mMagnMin + effect.mData.mMagnMax);
-            x += effect.mData.mArea * 0.05f * magicEffect->mData.mBaseCost;
+            x *= 0.5f * static_cast<float>((effect.mData.mMagnMin + effect.mData.mMagnMax));
+            x += static_cast<float>(effect.mData.mArea) * 0.05f * magicEffect->mData.mBaseCost;
             if (effect.mData.mRange == ESM::RT_Target)
                 x *= 1.5f;
             static const float fEffectCostMult = MWBase::Environment::get()
@@ -265,7 +265,8 @@ namespace MWMechanics
         float actorWillpower = stats.getAttribute(ESM::Attribute::Willpower).getModified();
         float actorLuck = stats.getAttribute(ESM::Attribute::Luck).getModified();
 
-        float castChance = (lowestSkill - calcSpellCost(*spell) + 0.2f * actorWillpower + 0.1f * actorLuck);
+        float castChance
+            = (lowestSkill - static_cast<float>(calcSpellCost(*spell)) + 0.2f * actorWillpower + 0.1f * actorLuck);
 
         return castChance;
     }
@@ -286,13 +287,14 @@ namespace MWMechanics
         if (godmode)
             return 100.f;
 
-        if (stats.getMagicEffects().getOrDefault(ESM::MagicEffect::Silence).getMagnitude())
+        if (static_cast<bool>(stats.getMagicEffects().getOrDefault(ESM::MagicEffect::Silence).getMagnitude()))
             return 0.f;
 
         if (spell->mData.mType != ESM::Spell::ST_Spell)
             return 100.f;
 
-        if (checkMagicka && calcSpellCost(*spell) > 0 && stats.getMagicka().getCurrent() < calcSpellCost(*spell))
+        if (checkMagicka && calcSpellCost(*spell) > 0
+            && stats.getMagicka().getCurrent() < static_cast<float>(calcSpellCost(*spell)))
             return 0.f;
 
         if (spell->mData.mFlags & ESM::Spell::F_Always)

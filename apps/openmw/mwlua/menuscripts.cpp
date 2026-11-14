@@ -108,7 +108,8 @@ namespace MWLua
                 slotInfo["timePlayed"] = slot.mProfile.mTimePlayed;
                 sol::table contentFiles(currentState, sol::create);
                 for (size_t i = 0; i < slot.mProfile.mContentFiles.size(); ++i)
-                    contentFiles[LuaUtil::toLuaIndex(i)] = Misc::StringUtils::lowerCase(slot.mProfile.mContentFiles[i]);
+                    contentFiles[LuaUtil::toLuaIndex(static_cast<std::int64_t>(i))]
+                        = Misc::StringUtils::lowerCase(slot.mProfile.mContentFiles[i]);
 
                 {
                     const auto systemTime = std::chrono::system_clock::now()

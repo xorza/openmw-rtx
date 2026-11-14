@@ -251,11 +251,12 @@ namespace MWGui
 
     void TravelWindow::onMouseWheel(MyGUI::Widget* /*sender*/, int rel)
     {
-        if (mDestinationsView->getViewOffset().top + rel * 0.3f > 0)
+        if (static_cast<float>(mDestinationsView->getViewOffset().top) + static_cast<float>(rel) * 0.3f > 0)
             mDestinationsView->setViewOffset(MyGUI::IntPoint(0, 0));
         else
-            mDestinationsView->setViewOffset(
-                MyGUI::IntPoint(0, static_cast<int>(mDestinationsView->getViewOffset().top + rel * 0.3f)));
+            mDestinationsView->setViewOffset(MyGUI::IntPoint(0,
+                static_cast<int>(
+                    static_cast<float>(mDestinationsView->getViewOffset().top) + static_cast<float>(rel) * 0.3f)));
     }
 
     bool TravelWindow::onControllerButtonEvent(const SDL_GamepadButtonEvent& arg)

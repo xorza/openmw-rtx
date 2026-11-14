@@ -354,7 +354,9 @@ QVariant CSMWorld::RegionMap::data(const QModelIndex& index, int role) const
             auto iter = mColours.find(cell->second.mRegion);
 
             if (iter != mColours.end())
-                return QBrush(QColor(iter->second & 0xff, (iter->second >> 8) & 0xff, (iter->second >> 16) & 0xff),
+                return QBrush(
+                    QColor(static_cast<int>(iter->second & 0xff), static_cast<int>((iter->second >> 8) & 0xff),
+                        static_cast<int>((iter->second >> 16) & 0xff)),
                     cell->second.mMaxLandHeight > 0 ? Qt::SolidPattern : Qt::CrossPattern);
 
             if (cell->second.mRegion.empty()) // no region

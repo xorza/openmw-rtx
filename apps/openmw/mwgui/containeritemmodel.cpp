@@ -242,7 +242,8 @@ namespace MWGui
 
         // Check the container capacity plus one increment so the expected total weight can
         // fit in the container with floating-point imprecision
-        float newEncumbrance = target.getClass().getEncumbrance(target) + (item.getClass().getWeight(item) * count);
+        float newEncumbrance
+            = target.getClass().getEncumbrance(target) + (item.getClass().getWeight(item) * static_cast<float>(count));
         if (std::nextafterf(capacity, std::numeric_limits<float>::max()) < newEncumbrance)
         {
             MWBase::Environment::get().getWindowManager()->messageBox("#{sContentsMessage3}");

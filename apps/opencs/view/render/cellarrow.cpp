@@ -116,7 +116,7 @@ void CSVRender::CellArrow::adjustTransform()
             break;
     };
 
-    mBaseNode->setPosition(osg::Vec3f(x, y, 0));
+    mBaseNode->setPosition(osg::Vec3f(static_cast<float>(x), static_cast<float>(y), 0));
 
     // orientation
     osg::Quat xr2(xr, osg::Vec3f(1, 0, 0));

@@ -108,7 +108,7 @@ namespace Nif
             return (major << 24) + (minor << 16) + (patch << 8) + rev;
         }
 
-        void skip(size_t size) { mStream->ignore(size); }
+        void skip(size_t size) { mStream->ignore(static_cast<std::streamsize>(size)); }
 
         /// Read into a single instance of type
         template <class T>

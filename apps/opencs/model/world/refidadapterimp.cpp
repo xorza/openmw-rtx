@@ -726,9 +726,9 @@ void CSMWorld::LightRefIdAdapter::setData(
         if (iter != mColumns.mFlags.end())
         {
             if (value.toInt() != 0)
-                light.mData.mFlags |= iter->second;
+                light.mData.mFlags |= static_cast<std::int32_t>(iter->second);
             else
-                light.mData.mFlags &= ~iter->second;
+                light.mData.mFlags &= ~static_cast<std::int32_t>(iter->second);
         }
         else
         {
@@ -1613,9 +1613,9 @@ void CSMWorld::WeaponRefIdAdapter::setData(
         if (iter != mColumns.mFlags.end())
         {
             if (value.toInt() != 0)
-                weapon.mData.mFlags |= iter->second;
+                weapon.mData.mFlags |= static_cast<std::int32_t>(iter->second);
             else
-                weapon.mData.mFlags &= ~iter->second;
+                weapon.mData.mFlags &= ~static_cast<std::int32_t>(iter->second);
         }
         else
         {

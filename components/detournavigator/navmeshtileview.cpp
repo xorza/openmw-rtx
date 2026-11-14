@@ -71,14 +71,14 @@ namespace DetourNavigator
         // Similar code to
         // https://github.com/recastnavigation/recastnavigation/blob/c5cbd53024c8a9d8d097a4371215e3342d2fdc87/Detour/Source/DetourNavMesh.cpp#L978-L996
         const int headerSize = dtAlign4(sizeof(dtMeshHeader));
-        const int vertsSize = dtAlign4(sizeof(float) * 3 * header->vertCount);
-        const int polysSize = dtAlign4(sizeof(dtPoly) * header->polyCount);
-        const int linksSize = dtAlign4(sizeof(dtLink) * (header->maxLinkCount));
-        const int detailMeshesSize = dtAlign4(sizeof(dtPolyDetail) * header->detailMeshCount);
-        const int detailVertsSize = dtAlign4(sizeof(float) * 3 * header->detailVertCount);
-        const int detailTrisSize = dtAlign4(sizeof(unsigned char) * 4 * header->detailTriCount);
-        const int bvtreeSize = dtAlign4(sizeof(dtBVNode) * header->bvNodeCount);
-        const int offMeshLinksSize = dtAlign4(sizeof(dtOffMeshConnection) * header->offMeshConCount);
+        const int vertsSize = dtAlign4(static_cast<int>(sizeof(float) * 3 * header->vertCount));
+        const int polysSize = dtAlign4(static_cast<int>(sizeof(dtPoly) * header->polyCount));
+        const int linksSize = dtAlign4(static_cast<int>(sizeof(dtLink) * (header->maxLinkCount)));
+        const int detailMeshesSize = dtAlign4(static_cast<int>(sizeof(dtPolyDetail) * header->detailMeshCount));
+        const int detailVertsSize = dtAlign4(static_cast<int>(sizeof(float) * 3 * header->detailVertCount));
+        const int detailTrisSize = dtAlign4(static_cast<int>(sizeof(unsigned char) * 4 * header->detailTriCount));
+        const int bvtreeSize = dtAlign4(static_cast<int>(sizeof(dtBVNode) * header->bvNodeCount));
+        const int offMeshLinksSize = dtAlign4(static_cast<int>(sizeof(dtOffMeshConnection) * header->offMeshConCount));
 
         const unsigned char* ptr = data + headerSize;
 

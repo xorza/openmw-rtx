@@ -65,7 +65,7 @@ namespace Misc
         {
             // everything between 21:9 and 22:9
             // is usually referred as 21:9
-            float ratio = static_cast<float>(xaspect) / yaspect;
+            float ratio = static_cast<float>(xaspect) / static_cast<float>(yaspect);
             if (ratio >= 21 / 9.f && ratio < 22 / 9.f)
             {
                 xaspect = 21;

@@ -112,8 +112,8 @@ namespace RtxTool
         if (!mWatch.has_value() || mDone || !mStarted)
             return note;
 
-        const auto [end, length] = std::format_to_n(mTitle.data(), mTitle.size(), "{} - {} findings - {}",
-            currentStop().mName, mWatch->getTable().getFindings().size(), note);
+        const auto [end, length] = std::format_to_n(mTitle.data(), static_cast<std::ptrdiff_t>(mTitle.size()),
+            "{} - {} findings - {}", currentStop().mName, mWatch->getTable().getFindings().size(), note);
         return std::string_view(mTitle.data(), std::min(static_cast<std::size_t>(length), mTitle.size()));
     }
 

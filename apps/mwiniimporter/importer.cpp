@@ -404,7 +404,8 @@ void MwIniImporter::merge(multistrmap& cfg, const multistrmap& ini) const
     multistrmap::const_iterator iniIt;
     for (const auto& entry : mMergeMap)
     {
-        if ((iniIt = ini.find(entry.second)) != ini.end())
+        iniIt = ini.find(entry.second);
+        if (iniIt != ini.end())
         {
             for (const auto& vc : iniIt->second)
             {
@@ -422,7 +423,8 @@ void MwIniImporter::mergeFallback(multistrmap& cfg, const multistrmap& ini) cons
     multistrmap::const_iterator iniIt;
     for (const auto& entry : mMergeFallback)
     {
-        if ((iniIt = ini.find(entry)) != ini.end())
+        iniIt = ini.find(entry);
+        if (iniIt != ini.end())
         {
             for (const auto& vc : iniIt->second)
             {
@@ -614,7 +616,7 @@ void MwIniImporter::importGameFiles(
             if (bloodmoonIndex < tribunalIndex)
                 tribunalIndex++;
             sortedFiles.insert(bloodmoonIter, *tribunalIter);
-            sortedFiles.erase(sortedFiles.begin() + tribunalIndex);
+            sortedFiles.erase(sortedFiles.begin() + static_cast<std::ptrdiff_t>(tribunalIndex));
         }
     }
 

@@ -59,7 +59,8 @@ namespace Rtx::Testing
             for (int y = 0; y < 32; ++y)
                 for (int x = 0; x < 32; ++x)
                 {
-                    const float r = std::sqrt((x - 15.5f) * (x - 15.5f) + (y - 15.5f) * (y - 15.5f));
+                    const float r = std::sqrt((static_cast<float>(x) - 15.5f) * (static_cast<float>(x) - 15.5f)
+                        + (static_cast<float>(y) - 15.5f) * (static_cast<float>(y) - 15.5f));
                     std::uint8_t* texel = &texels[(static_cast<std::size_t>(y) * 32 + static_cast<std::size_t>(x)) * 4];
                     texel[0] = texel[1] = texel[2] = 255;
                     texel[3] = r > 13.0f ? 0 : 255;

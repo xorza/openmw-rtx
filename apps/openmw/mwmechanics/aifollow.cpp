@@ -146,7 +146,7 @@ namespace MWMechanics
 
             if (storage.mTimer < 0)
             {
-                float activeRange = followDistance + 384.f;
+                float activeRange = static_cast<float>(followDistance) + 384.f;
                 if (targetDir.length2() < activeRange * activeRange
                     && MWBase::Environment::get().getWorld()->getLOS(actor, target))
                     mActive = true;
@@ -172,7 +172,8 @@ namespace MWMechanics
             }
 
             osg::Vec3f finalPos(mX, mY, mZ);
-            if ((actorPos - finalPos).length2() < followDistance * followDistance) // Close-ish to final position
+            if ((actorPos - finalPos).length2()
+                < static_cast<float>(followDistance * followDistance)) // Close-ish to final position
             {
                 if (actor.getCell()->isExterior()) // Outside?
                 {
@@ -193,11 +194,11 @@ namespace MWMechanics
         short baseFollowDistance = followDistance;
         short threshold = 30; // to avoid constant switching between moving/stopping
         if (storage.mMoving)
-            followDistance -= threshold;
+            followDistance = static_cast<short>(followDistance - threshold);
         else
-            followDistance += threshold;
+            followDistance = static_cast<short>(followDistance + threshold);
 
-        if (targetDir.length2() <= followDistance * followDistance)
+        if (targetDir.length2() <= static_cast<float>(followDistance * followDistance))
         {
             float faceAngleRadians = std::atan2(targetDir.x(), targetDir.y());
 

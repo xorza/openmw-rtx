@@ -32,9 +32,9 @@ namespace Rtx
         std::vector<std::uint32_t> runIn(const LightGrid& grid, std::uint32_t cell, std::uint32_t key)
         {
             const Shaders::GpuLightCell& held = grid.getCells()[cell];
-            const auto first = grid.getList().begin() + held.mFirst[key];
+            const auto first = grid.getList().begin() + held.mFirst[static_cast<int>(key)];
 
-            return std::vector<std::uint32_t>(first, first + held.mCount[key]);
+            return std::vector<std::uint32_t>(first, first + held.mCount[static_cast<int>(key)]);
         }
 
         std::vector<std::uint32_t> lampsIn(const LightGrid& grid, std::uint32_t x, std::uint32_t y, std::uint32_t z)

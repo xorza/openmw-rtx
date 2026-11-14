@@ -240,7 +240,7 @@ namespace ESM4
         mCtx.filePos = mStream->tellg();
         if (mCtx.filePos == std::streampos(-1))
             return mCtx;
-        mCtx.filePos -= mCtx.recHeaderSize; // update file position
+        mCtx.filePos -= static_cast<std::streamoff>(mCtx.recHeaderSize); // update file position
         return mCtx;
     }
 
@@ -510,7 +510,7 @@ namespace ESM4
             mStream = std::move(mSavedStream);
         }
 
-        mStream->read(reinterpret_cast<char*>(&mCtx.recordHeader), mCtx.recHeaderSize);
+        mStream->read(reinterpret_cast<char*>(&mCtx.recordHeader), static_cast<std::streamsize>(mCtx.recHeaderSize));
         auto bytesRead = static_cast<std::size_t>(mStream->gcount());
 
         // keep track of data left to read from the file
@@ -615,7 +615,7 @@ namespace ESM4
             std::uint32_t overshoot = mCtx.recordRead - mCtx.recordHeader.record.dataSize;
 
             std::size_t pos = mStream->tellg();
-            mStream->seekg(pos - overshoot);
+            mStream->seekg(static_cast<std::streamoff>(pos - overshoot));
 
             return false;
         }
@@ -696,7 +696,7 @@ namespace ESM4
             if (overshoot > 0)
             {
                 std::size_t pos = mStream->tellg();
-                mStream->seekg(pos - overshoot);
+                mStream->seekg(static_cast<std::streamoff>(pos - overshoot));
             }
 
             mCtx.groupStack.pop_back();
@@ -732,7 +732,7 @@ namespace ESM4
         if (pos > mCtx.groupStack.size() - 1)
             throw std::runtime_error("ESM4::Reader::grp - exceeded stack depth");
 
-        return (*(mCtx.groupStack.end() - pos - 1)).first;
+        return (*(mCtx.groupStack.end() - static_cast<std::ptrdiff_t>(pos) - 1)).first;
     }
 
     void Reader::skipGroupData()
@@ -807,9 +807,9 @@ namespace ESM4
     void Reader::adjustFormId(FormId& id) const
     {
         if (id.hasContentFile() && std::cmp_less(id.mContentFile, mCtx.parentFileIndices.size()))
-            id.mContentFile = mCtx.parentFileIndices[id.mContentFile];
+            id.mContentFile = static_cast<int32_t>(mCtx.parentFileIndices[id.mContentFile]);
         else
-            id.mContentFile = mCtx.modIndex;
+            id.mContentFile = static_cast<int32_t>(mCtx.modIndex);
     }
 
     void Reader::adjustFormId(FormId32& id) const
@@ -863,7 +863,7 @@ namespace ESM4
         if (mEncoder != nullptr)
         {
             std::string input(size, '\0');
-            stream.read(input.data(), size);
+            stream.read(input.data(), static_cast<std::streamsize>(size));
             if (stream.gcount() == static_cast<std::streamsize>(size))
             {
                 const std::string_view result
@@ -882,7 +882,7 @@ namespace ESM4
                 newSize -= 1; // don't read the null terminator yet
 
             str.resize(newSize); // assumed C++11
-            stream.read(str.data(), newSize);
+            stream.read(str.data(), static_cast<std::streamsize>(newSize));
             if (std::cmp_equal(stream.gcount(), newSize))
             {
                 if (hasNull)
@@ -912,7 +912,7 @@ namespace ESM4
     {
         const std::size_t size = mCtx.subRecordHeader.dataSize;
         std::string input(size, '\0');
-        mStream->read(input.data(), size);
+        mStream->read(input.data(), static_cast<std::streamsize>(size));
 
         if (mStream->gcount() != static_cast<std::streamsize>(size))
             return false;

@@ -103,7 +103,8 @@ namespace CSVRender
         const float coordScalar = ESM::Land::REAL_SIZE;
 
         mBaseNode = new osg::PositionAttitudeTransform();
-        mBaseNode->setPosition(osg::Vec3f(mCoords.getX() * coordScalar, mCoords.getY() * coordScalar, 0.f));
+        mBaseNode->setPosition(osg::Vec3f(
+            static_cast<float>(mCoords.getX()) * coordScalar, static_cast<float>(mCoords.getY()) * coordScalar, 0.f));
         mBaseNode->setUserData(mTag);
         mBaseNode->setUpdateCallback(new PathgridNodeCallback());
         mBaseNode->setNodeMask(Mask_Pathgrid);
@@ -229,8 +230,10 @@ namespace CSVRender
             const CSMWorld::Pathgrid::Point& pointA = source->mPoints[mDragOrigin];
             const CSMWorld::Pathgrid::Point& pointB = source->mPoints[node];
 
-            osg::Vec3f start = osg::Vec3f(pointA.mX, pointA.mY, pointA.mZ + SceneUtil::DiamondHalfHeight);
-            osg::Vec3f end = osg::Vec3f(pointB.mX, pointB.mY, pointB.mZ + SceneUtil::DiamondHalfHeight);
+            osg::Vec3f start = osg::Vec3f(static_cast<float>(pointA.mX), static_cast<float>(pointA.mY),
+                static_cast<float>(pointA.mZ) + SceneUtil::DiamondHalfHeight);
+            osg::Vec3f end = osg::Vec3f(static_cast<float>(pointB.mX), static_cast<float>(pointB.mY),
+                static_cast<float>(pointB.mZ) + SceneUtil::DiamondHalfHeight);
 
             createDragGeometry(start, end, true);
         }
@@ -243,7 +246,8 @@ namespace CSVRender
         {
             const CSMWorld::Pathgrid::Point& point = source->mPoints[mDragOrigin];
 
-            osg::Vec3f start = osg::Vec3f(point.mX, point.mY, point.mZ + SceneUtil::DiamondHalfHeight);
+            osg::Vec3f start = osg::Vec3f(static_cast<float>(point.mX), static_cast<float>(point.mY),
+                static_cast<float>(point.mZ) + SceneUtil::DiamondHalfHeight);
             osg::Vec3f end = pos - mBaseNode->getPosition();
             createDragGeometry(start, end, false);
         }
@@ -551,9 +555,9 @@ namespace CSVRender
 
                 for (unsigned short& it : mSelected)
                 {
-                    temp.mPoints[it].mX += mMoveOffset.x();
-                    temp.mPoints[it].mY += mMoveOffset.y();
-                    temp.mPoints[it].mZ += mMoveOffset.z();
+                    temp.mPoints[it].mX = static_cast<std::int32_t>(temp.mPoints[it].mX + mMoveOffset.x());
+                    temp.mPoints[it].mY = static_cast<std::int32_t>(temp.mPoints[it].mY + mMoveOffset.y());
+                    temp.mPoints[it].mZ = static_cast<std::int32_t>(temp.mPoints[it].mZ + mMoveOffset.z());
                 }
 
                 source = &temp;

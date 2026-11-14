@@ -609,7 +609,8 @@ namespace MWMechanics
             if (!package.get())
                 continue;
             if (hasTarget && sequence.mActorIdConverter)
-                sequence.mActorIdConverter->convert(package->mTargetActor, package->mTargetActor.mIndex);
+                sequence.mActorIdConverter->convert(
+                    package->mTargetActor, static_cast<int>(package->mTargetActor.mIndex));
 
             onPackageAdded(*package);
             mPackages.push_back(std::move(package));

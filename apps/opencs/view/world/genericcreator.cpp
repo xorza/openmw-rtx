@@ -127,7 +127,7 @@ void CSVWorld::GenericCreator::updateNamespace()
 
     mValidator->setNamespace(namespaceName);
 
-    int index = mId->text().indexOf("::");
+    int index = static_cast<int>(mId->text().indexOf("::"));
 
     if (index == -1)
     {
@@ -298,8 +298,8 @@ void CSVWorld::GenericCreator::focus()
 void CSVWorld::GenericCreator::setScope(unsigned int scope)
 {
     mScopes = scope;
-    int count = (mScopes & CSMWorld::Scope_Content) + (mScopes & CSMWorld::Scope_Project)
-        + (mScopes & CSMWorld::Scope_Session);
+    int count = static_cast<int>((mScopes & CSMWorld::Scope_Content) + (mScopes & CSMWorld::Scope_Project)
+        + (mScopes & CSMWorld::Scope_Session));
 
     // scope selector widget
     if (count > 1)

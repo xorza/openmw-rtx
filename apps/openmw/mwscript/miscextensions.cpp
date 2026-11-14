@@ -617,7 +617,7 @@ namespace MWScript
 
                     if (const auto k = ::Misc::StringUtils::toNumeric<long>(effectName);
                         k.has_value() && *k >= 0 && *k <= 32767)
-                        key = ESM::MagicEffect::indexToRefId(*k);
+                        key = ESM::MagicEffect::indexToRefId(static_cast<int>(*k));
                     else
                         key = ESM::MagicEffect::effectGmstIdToRefId(effectName);
 

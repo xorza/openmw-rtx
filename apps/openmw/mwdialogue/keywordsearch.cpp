@@ -59,7 +59,8 @@ namespace MWDialogue
                     std::string_view remainingText(it + 1, end);
                     std::string_view remainingKeyword = std::string_view(current->mKeyword).substr(it + 1 - i);
                     if (Misc::StringUtils::ciStartsWith(remainingText, remainingKeyword))
-                        matches.emplace_back(i, i + current->mKeyword.size(), current->mTopicId);
+                        matches.emplace_back(
+                            i, i + static_cast<std::ptrdiff_t>(current->mKeyword.size()), current->mTopicId);
                 }
             }
         }
@@ -153,14 +154,15 @@ namespace MWDialogue
             if (posBegin != std::string::npos && posEnd != std::string::npos)
             {
                 if (posBegin != iterationPos)
-                    highlightKeywords(text.begin() + iterationPos, text.begin() + posBegin, matches);
+                    highlightKeywords(text.begin() + static_cast<std::ptrdiff_t>(iterationPos),
+                        text.begin() + static_cast<std::ptrdiff_t>(posBegin), matches);
 
                 Match token;
                 token.mExplicit = true;
 
                 // This covers the entire link including the tags
-                token.mBeg = text.begin() + posBegin;
-                token.mEnd = text.begin() + posEnd + 1;
+                token.mBeg = text.begin() + static_cast<std::ptrdiff_t>(posBegin);
+                token.mEnd = text.begin() + static_cast<std::ptrdiff_t>(posEnd) + 1;
 
                 const std::string_view id(token.mBeg + 1, token.mEnd - 1);
                 token.mTopicId = removePseudoAsterisks(id);
@@ -174,7 +176,7 @@ namespace MWDialogue
             else
             {
                 if (iterationPos < text.size())
-                    highlightKeywords(text.begin() + iterationPos, text.end(), matches);
+                    highlightKeywords(text.begin() + static_cast<std::ptrdiff_t>(iterationPos), text.end(), matches);
                 break;
             }
         }

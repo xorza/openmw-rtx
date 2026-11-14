@@ -33,7 +33,8 @@ void CSVDoc::Operation::updateLabel(int threads)
 
         std::ostringstream stream;
 
-        if ((mStalling = (threads <= 0)))
+        mStalling = threads <= 0;
+        if (mStalling)
         {
             stream << name << " (waiting for a free worker thread)";
         }

@@ -43,7 +43,8 @@ namespace MWSound
             if (mSettings.mNearWaterPoints <= 1)
                 return (mSettings.mNearWaterOutdoorTolerance - dist) / mSettings.mNearWaterOutdoorTolerance;
 
-            const float step = mSettings.mNearWaterRadius * 2.0f / (mSettings.mNearWaterPoints - 1);
+            const float step = static_cast<float>(mSettings.mNearWaterRadius) * 2.0f
+                / static_cast<float>((mSettings.mNearWaterPoints - 1));
 
             int underwaterPoints = 0;
 
@@ -51,8 +52,10 @@ namespace MWSound
             {
                 for (int y = 0; y < mSettings.mNearWaterPoints; y++)
                 {
-                    const float terrainX = pos.x() - mSettings.mNearWaterRadius + x * step;
-                    const float terrainY = pos.y() - mSettings.mNearWaterRadius + y * step;
+                    const float terrainX
+                        = pos.x() - static_cast<float>(mSettings.mNearWaterRadius) + static_cast<float>(x) * step;
+                    const float terrainY
+                        = pos.y() - static_cast<float>(mSettings.mNearWaterRadius) + static_cast<float>(y) * step;
                     const float height = world.getTerrainHeightAt(
                         osg::Vec3f(terrainX, terrainY, 0.0f), cell.getCell()->getWorldSpace());
 
@@ -61,7 +64,8 @@ namespace MWSound
                 }
             }
 
-            return underwaterPoints * 2.0f / (mSettings.mNearWaterPoints * mSettings.mNearWaterPoints);
+            return static_cast<float>(underwaterPoints) * 2.0f
+                / static_cast<float>((mSettings.mNearWaterPoints * mSettings.mNearWaterPoints));
         }
 
         if (!cell.isExterior() && dist < mSettings.mNearWaterIndoorTolerance)

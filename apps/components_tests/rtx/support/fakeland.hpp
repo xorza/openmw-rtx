@@ -53,14 +53,17 @@ namespace Rtx::Testing
         /// The cells with a land record.
         std::vector<osg::Vec2i> mWithData;
 
-        static float heightAt(const int column, const int row) { return 8.0f * column + 16.0f * row; }
+        static float heightAt(const int column, const int row)
+        {
+            return 8.0f * static_cast<float>(column) + 16.0f * static_cast<float>(row);
+        }
 
         /// Where the storage puts vertex (`column`, `row`) of a cell, relative to its centre.
         static osg::Vec3f positionAt(const int column, const int row)
         {
             const auto side = static_cast<float>(sVerts - 1);
-            return osg::Vec3f(
-                (column / side - 0.5f) * sCellSize, (row / side - 0.5f) * sCellSize, heightAt(column, row));
+            return osg::Vec3f((static_cast<float>(column) / side - 0.5f) * sCellSize,
+                (static_cast<float>(row) / side - 0.5f) * sCellSize, heightAt(column, row));
         }
 
         /// The colour the storage puts on vertex (`column`, `row`), display-encoded as `VCLR` is.

@@ -434,10 +434,10 @@ namespace CSMWorld
                 float probability = 1.f;
                 for (size_t i = 0; i < index; ++i)
                 {
-                    const float p = std::min(soundList[i].mChance / 100.f, 1.f);
+                    const float p = std::min(static_cast<float>(soundList[i].mChance) / 100.f, 1.f);
                     probability *= 1.f - p;
                 }
-                probability *= std::min(soundRef.mChance / 100.f, 1.f) * 100.f;
+                probability *= std::min(static_cast<float>(soundRef.mChance) / 100.f, 1.f) * 100.f;
                 return QString("%1%").arg(probability, 0, 'f', 2);
             }
             default:
@@ -659,7 +659,7 @@ namespace CSMWorld
                         {
                             infoSelectWrapper.setValue(value.toInt());
                         }
-                        else if (value.toFloat(&conversionResult) && conversionResult)
+                        else if (static_cast<bool>(value.toFloat(&conversionResult)) && conversionResult)
                         {
                             infoSelectWrapper.setValue(value.toFloat());
                         }

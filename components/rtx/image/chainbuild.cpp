@@ -286,7 +286,8 @@ namespace Rtx
                     for (const std::uint32_t dy : { 0u, 1u, 2u })
                         for (const std::uint32_t dx : { 0u, 1u, 2u })
                         {
-                            const float weight = across.mWeights[dx] * down.mWeights[dy];
+                            const float weight
+                                = across.mWeights[static_cast<int>(dx)] * down.mWeights[static_cast<int>(dy)];
                             const std::uint32_t sx = std::min(across.mFirst + dx, above.mWidth - 1);
                             const std::uint32_t sy = std::min(down.mFirst + dy, above.mHeight - 1);
                             const std::size_t from = above.texelOffset(sx, sy, sTexel);
@@ -297,11 +298,12 @@ namespace Rtx
                             // Through the byte's table and not a `pow`, and alpha linear in every
                             // format, its byte's own share.
                             const auto channel = [&](std::size_t offset) {
-                                return encoded ? curve.toLinear(stored(offset)) : stored(offset) / 255.0f;
+                                return encoded ? curve.toLinear(stored(offset))
+                                               : static_cast<float>(stored(offset)) / 255.0f;
                             };
 
                             const osg::Vec3f texel(channel(0), channel(1), channel(2));
-                            const float alpha = stored(3) / 255.0f;
+                            const float alpha = static_cast<float>(stored(3)) / 255.0f;
                             even += texel * weight;
                             weighed += texel * (alpha * weight);
                             painted += alpha * weight;
@@ -333,11 +335,12 @@ namespace Rtx
             mColumns.clear();
             mColumns.reserve(level.mWidth);
             for (std::uint32_t x = 0; x < level.mWidth; ++x)
-                mColumns.push_back(paintedAxis((static_cast<float>(x) + 0.5f) / level.mWidth, clampsS(read.mWrap)));
+                mColumns.push_back(paintedAxis(
+                    (static_cast<float>(x) + 0.5f) / static_cast<float>(level.mWidth), clampsS(read.mWrap)));
             for (std::uint32_t y = 0; y < level.mHeight; ++y)
             {
-                const PaintedAxis row
-                    = paintedAxis((static_cast<float>(y) + 0.5f) / level.mHeight, clampsT(read.mWrap));
+                const PaintedAxis row = paintedAxis(
+                    (static_cast<float>(y) + 0.5f) / static_cast<float>(level.mHeight), clampsT(read.mWrap));
                 for (std::uint32_t x = 0; x < level.mWidth; ++x)
                 {
                     const float factor = paintedLight(painted, mColumns[x], row);
@@ -426,7 +429,7 @@ namespace Rtx
                     for (const std::uint32_t dy : { 0u, 1u, 2u })
                         for (const std::uint32_t dx : { 0u, 1u, 2u })
                             boxed[lane] += rows[dy][std::min(across.mFirst + dx, above.mWidth - 1)]
-                                * (across.mWeights[dx] * down.mWeights[dy]);
+                                * (across.mWeights[static_cast<int>(dx)] * down.mWeights[static_cast<int>(dy)]);
                     means.mX[lane] = boxed[lane].x();
                     means.mY[lane] = boxed[lane].y();
                     means.mZ[lane] = boxed[lane].z();
@@ -503,8 +506,8 @@ namespace Rtx
                         for (std::size_t lane = 0; lane < 4; ++lane)
                         {
                             const std::size_t at = (std::size_t{ y - by * 4 } * 4 + lane) * sTexel;
-                            const float across = block[at] / 255.0f * 2.0f - 1.0f;
-                            const float along = block[at + 1] / 255.0f * 2.0f - 1.0f;
+                            const float across = static_cast<float>(block[at]) / 255.0f * 2.0f - 1.0f;
+                            const float along = static_cast<float>(block[at + 1]) / 255.0f * 2.0f - 1.0f;
                             decoded.mX[lane] = across;
                             decoded.mY[lane] = along;
                             decoded.mZ[lane] = std::sqrt(std::max(1.0f - across * across - along * along, 0.0f));

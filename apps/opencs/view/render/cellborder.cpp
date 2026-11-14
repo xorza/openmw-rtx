@@ -35,7 +35,8 @@ CSVRender::CellBorder::CellBorder(osg::Group* cellNode, const CSMWorld::CellCoor
 
     mBaseNode = new osg::PositionAttitudeTransform();
     mBaseNode->setNodeMask(Mask_CellBorder);
-    mBaseNode->setPosition(osg::Vec3f(coords.getX() * CellSize, coords.getY() * CellSize, 10));
+    mBaseNode->setPosition(
+        osg::Vec3f(static_cast<float>(coords.getX() * CellSize), static_cast<float>(coords.getY() * CellSize), 10));
     mBaseNode->addChild(mBorderGeometry);
 
     mParentNode->addChild(mBaseNode);

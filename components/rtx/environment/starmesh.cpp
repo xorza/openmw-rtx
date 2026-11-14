@@ -190,7 +190,8 @@ namespace Rtx
                     // The median, because a dome closed with a cap the modeller unwrapped by hand has
                     // a handful of edges that agree with nothing; a mean would carry them.
                     const std::size_t middle = edges.mRates.size() / 2;
-                    std::nth_element(edges.mRates.begin(), edges.mRates.begin() + middle, edges.mRates.end());
+                    std::nth_element(edges.mRates.begin(), edges.mRates.begin() + static_cast<std::ptrdiff_t>(middle),
+                        edges.mRates.end());
                     layer.mUvRate = edges.mRates[middle];
                 }
 

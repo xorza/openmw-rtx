@@ -314,7 +314,8 @@ namespace MWGui
             }
 
             if (base.getCellRef().getEnchantmentCharge() == -1
-                || base.getCellRef().getEnchantmentCharge() >= MWMechanics::getEnchantmentCharge(*ench))
+                || base.getCellRef().getEnchantmentCharge()
+                    >= static_cast<float>(MWMechanics::getEnchantmentCharge(*ench)))
                 return false;
         }
 

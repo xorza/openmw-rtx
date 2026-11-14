@@ -25,7 +25,7 @@ namespace Misc::StringUtils
     /// that depends on global locale.
     inline constexpr char toLower(char c)
     {
-        return tolowermap[static_cast<unsigned char>(c)];
+        return static_cast<char>(tolowermap[static_cast<unsigned char>(c)]);
     }
     inline constexpr char8_t toLower(char8_t c)
     {

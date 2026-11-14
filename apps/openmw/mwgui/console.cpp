@@ -549,7 +549,8 @@ namespace MWGui
     {
         // Search text for regex match in given interval
         const std::regex pattern{ mCurrentSearchTerm };
-        std::sregex_iterator match{ (historyText.cbegin() + firstIndex), (historyText.cbegin() + lastIndex), pattern };
+        std::sregex_iterator match{ (historyText.cbegin() + static_cast<std::ptrdiff_t>(firstIndex)),
+            (historyText.cbegin() + static_cast<std::ptrdiff_t>(lastIndex)), pattern };
         const std::sregex_iterator end{};
 
         // If reverse search get last result in interval
@@ -669,8 +670,8 @@ namespace MWGui
             }
             else
             {
-                size_t pos = 0;
-                if ((((pos = tmp.rfind(' ')) != std::string::npos)) && (pos > tmp.rfind('"')))
+                const size_t pos = tmp.rfind(' ');
+                if (pos != std::string::npos && pos > tmp.rfind('"'))
                 {
                     tmp.erase(0, tmp.rfind(' ') + 1);
                 }
@@ -684,8 +685,8 @@ namespace MWGui
         /* No quotation marks. Are there spaces?*/
         else
         {
-            size_t rpos = 0;
-            if ((rpos = tmp.rfind(' ')) != std::string::npos)
+            size_t rpos = tmp.rfind(' ');
+            if (rpos != std::string::npos)
             {
                 if (rpos == 0)
                 {
@@ -699,7 +700,7 @@ namespace MWGui
         }
 
         /* Erase the input from the output string so we can easily append the completed form later. */
-        output.erase(output.end() - tmp.length(), output.end());
+        output.erase(output.end() - static_cast<std::ptrdiff_t>(tmp.length()), output.end());
 
         /* Is there still something in the input string? If not just display all commands and return the unchanged
          * input. */
@@ -764,7 +765,8 @@ namespace MWGui
         /* Check if all matching strings match further than input. If yes complete to this match. */
         size_t i = tmp.length();
 
-        for (auto iter = matches.front().begin() + tmp.length(); iter < matches.front().end(); ++iter, ++i)
+        for (auto iter = matches.front().begin() + static_cast<std::ptrdiff_t>(tmp.length());
+            iter < matches.front().end(); ++iter, ++i)
         {
             for (std::string& match : matches)
             {

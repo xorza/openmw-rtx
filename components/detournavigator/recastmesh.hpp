@@ -69,7 +69,8 @@ namespace DetourNavigator
 
     inline osg::Vec2f getWaterShift2d(const osg::Vec2i& cellPosition, int cellSize)
     {
-        return osg::Vec2f((cellPosition.x() + 0.5f) * cellSize, (cellPosition.y() + 0.5f) * cellSize);
+        return osg::Vec2f((static_cast<float>(cellPosition.x()) + 0.5f) * static_cast<float>(cellSize),
+            (static_cast<float>(cellPosition.y()) + 0.5f) * static_cast<float>(cellSize));
     }
 
     inline osg::Vec3f getWaterShift3d(const osg::Vec2i& cellPosition, int cellSize, float level)

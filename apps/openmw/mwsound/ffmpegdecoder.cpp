@@ -92,8 +92,8 @@ namespace MWSound
             size_t prev = stream.tellg();
             stream.seekg(0, std::ios_base::end);
             size_t size = stream.tellg();
-            stream.seekg(prev, std::ios_base::beg);
-            return size - self.mStreamBase;
+            stream.seekg(static_cast<std::streamoff>(prev), std::ios_base::beg);
+            return static_cast<int64_t>(size - self.mStreamBase);
         }
 
         if (whence == SEEK_SET)
@@ -123,7 +123,7 @@ namespace MWSound
             if (streamIdx == mPacket.stream_index)
             {
                 if (mPacket.pts != AV_NOPTS_VALUE)
-                    mNextPts = av_q2d((*mStream)->time_base) * mPacket.pts;
+                    mNextPts = av_q2d((*mStream)->time_base) * static_cast<double>(mPacket.pts);
                 return true;
             }
 

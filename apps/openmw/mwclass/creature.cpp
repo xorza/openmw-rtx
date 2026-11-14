@@ -253,7 +253,7 @@ namespace MWClass
         hitPosition = result.second;
 
         float hitchance = MWMechanics::getHitChance(ptr, victim, ptr.get<ESM::Creature>()->mBase->mData.mCombat);
-        return Misc::Rng::roll0to99(world->getPrng()) < hitchance;
+        return static_cast<float>(Misc::Rng::roll0to99(world->getPrng())) < hitchance;
     }
 
     void Creature::hit(const MWWorld::Ptr& ptr, float attackStrength, float attackWindUp, int type,
@@ -313,7 +313,7 @@ namespace MWClass
                 break;
         }
 
-        float damage = min + (max - min) * attackStrength;
+        float damage = static_cast<float>(min) + static_cast<float>((max - min)) * attackStrength;
         bool healthdmg = true;
         if (!weapon.isEmpty())
         {
@@ -326,7 +326,7 @@ namespace MWClass
                 attack = weapon.get<ESM::Weapon>()->mBase->mData.mThrust.data();
             if (attack)
             {
-                damage = attack[0] + ((attack[1] - attack[0]) * attackStrength);
+                damage = static_cast<float>(attack[0]) + (static_cast<float>((attack[1] - attack[0])) * attackStrength);
                 MWMechanics::adjustWeaponDamage(damage, weapon, ptr);
                 MWMechanics::reduceWeaponCondition(damage, true, weapon, ptr);
                 MWMechanics::resistNormalWeapon(victim, ptr, weapon, damage);

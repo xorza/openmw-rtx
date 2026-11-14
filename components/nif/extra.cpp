@@ -74,9 +74,9 @@ namespace Nif
     {
         Extra::read(nif);
 
-        float rotX = nif->get<uint16_t>() / 1000.f;
-        float rotY = nif->get<uint16_t>() / 1000.f;
-        float rotZ = nif->get<uint16_t>() / 1000.f;
+        float rotX = static_cast<float>(nif->get<uint16_t>()) / 1000.f;
+        float rotY = static_cast<float>(nif->get<uint16_t>()) / 1000.f;
+        float rotZ = static_cast<float>(nif->get<uint16_t>()) / 1000.f;
         mRotation = osg::Quat(rotX, osg::X_AXIS, rotY, osg::Y_AXIS, rotZ, osg::Z_AXIS);
         nif->read(mScale);
     }

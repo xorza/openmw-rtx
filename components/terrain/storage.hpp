@@ -37,7 +37,8 @@ namespace Terrain
         virtual bool hasData(ESM::ExteriorCellLocation cellLocation)
         {
             float dummy = NAN;
-            return getMinMaxHeights(1.f, osg::Vec2f(cellLocation.mX + 0.5f, cellLocation.mY + 0.5f),
+            return getMinMaxHeights(1.f,
+                osg::Vec2f(static_cast<float>(cellLocation.mX) + 0.5f, static_cast<float>(cellLocation.mY) + 0.5f),
                 cellLocation.mWorldspace, dummy, dummy);
         }
 

@@ -201,7 +201,7 @@ namespace MWGui
                 // Cache result to do not retrieve background texture every frame.
                 MyGUI::ITexture* texture = MyGUI::RenderManager::getInstance().getTexture(backgroundTex);
                 if (texture)
-                    scale = texture->getHeight() / 64.f;
+                    scale = static_cast<float>(texture->getHeight()) / 64.f;
 
                 mScales[backgroundTex] = scale;
             }

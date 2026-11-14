@@ -97,10 +97,11 @@ namespace MWGui
         {
             imageBox->setImageTexture(texturePath);
             const MyGUI::IntSize imageSize = imageBox->getImageSize();
-            imageBox->setImageCoord(MyGUI::IntCoord(static_cast<int>(texCoordOverride.left * imageSize.width),
-                static_cast<int>(texCoordOverride.top * imageSize.height),
-                static_cast<int>(texCoordOverride.width * imageSize.width),
-                static_cast<int>(texCoordOverride.height * imageSize.height)));
+            imageBox->setImageCoord(
+                MyGUI::IntCoord(static_cast<int>(texCoordOverride.left * static_cast<float>(imageSize.width)),
+                    static_cast<int>(texCoordOverride.top * static_cast<float>(imageSize.height)),
+                    static_cast<int>(texCoordOverride.width * static_cast<float>(imageSize.width)),
+                    static_cast<int>(texCoordOverride.height * static_cast<float>(imageSize.height))));
         }
     }
 
@@ -144,7 +145,7 @@ namespace MWGui
 
     void ScreenFader::fadeTo(const int percent, const float time, float delay)
     {
-        queue(time, percent / 100.f, delay);
+        queue(time, static_cast<float>(percent) / 100.f, delay);
     }
 
     void ScreenFader::clear()

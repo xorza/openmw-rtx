@@ -671,7 +671,7 @@ namespace MWGui
 
         mGenerateClassQuestionDialog = std::make_unique<InfoBoxDialog>();
 
-        const Step step = generateClassSteps(mGenerateClassStep);
+        const Step step = generateClassSteps(static_cast<int>(mGenerateClassStep));
         mGenerateClassResponses[0] = step.mResponses[0].mSpecialization;
         mGenerateClassResponses[1] = step.mResponses[1].mSpecialization;
         mGenerateClassResponses[2] = step.mResponses[2].mSpecialization;

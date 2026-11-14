@@ -94,9 +94,10 @@ namespace
         std::vector<AreaType> areaTypes;
         if (static_cast<double>(distribution(random)) < 0.939)
         {
-            generateVertices(std::back_inserter(vertices), static_cast<std::size_t>(triangles * 2.467), random);
+            generateVertices(
+                std::back_inserter(vertices), static_cast<std::size_t>(static_cast<double>(triangles) * 2.467), random);
             generateIndices(std::back_inserter(indices), static_cast<int>(vertices.size() / 3) - 1,
-                static_cast<std::size_t>(vertices.size() * 1.279), random);
+                static_cast<std::size_t>(static_cast<double>(vertices.size()) * 1.279), random);
             generateAreaTypes(std::back_inserter(areaTypes), indices.size() / 3, random);
         }
         return Mesh(std::move(indices), std::move(vertices), std::move(areaTypes));

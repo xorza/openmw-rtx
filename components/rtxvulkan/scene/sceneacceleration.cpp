@@ -49,8 +49,8 @@ namespace Rtx
             {
                 const std::size_t first = block * Shaders::TOP_LEVEL_PACK_WORKGROUP;
                 const std::size_t end = std::min<std::size_t>(first + Shaders::TOP_LEVEL_PACK_WORKGROUP, rows.size());
-                const auto counted = std::count_if(
-                    rows.begin() + first, rows.begin() + end, [](const VkAccelerationStructureInstanceKHR& row) {
+                const auto counted = std::count_if(rows.begin() + static_cast<std::ptrdiff_t>(first),
+                    rows.begin() + static_cast<std::ptrdiff_t>(end), [](const VkAccelerationStructureInstanceKHR& row) {
                         return row.accelerationStructureReference != 0;
                     });
                 if (std::cmp_not_equal(counted, placed[block]))

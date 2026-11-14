@@ -125,7 +125,7 @@ float CSMWorld::CellCoordinates::vertexGlobalToWorldCoords(int vertexGlobal)
 
 int CSMWorld::CellCoordinates::vertexGlobalToInCellCoords(int vertexGlobal)
 {
-    return static_cast<int>(vertexGlobal
+    return static_cast<int>(static_cast<float>(vertexGlobal)
         - std::floor(static_cast<float>(vertexGlobal) / (ESM::Land::LAND_SIZE - 1)) * (ESM::Land::LAND_SIZE - 1));
 }
 

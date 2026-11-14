@@ -383,15 +383,16 @@ namespace Resource
             return;
 
         mCamera->setViewport(0, 0, width, height);
-        if (std::abs(height * statsWidth) <= std::abs(width * statsHeight))
+        if (std::abs(static_cast<float>(height) * statsWidth) <= std::abs(static_cast<float>(width) * statsHeight))
         {
             mCamera->setProjectionMatrix(
-                osg::Matrix::ortho2D(statsWidth - width * statsHeight / height, statsWidth, 0.0, statsHeight));
+                osg::Matrix::ortho2D(statsWidth - static_cast<float>(width) * statsHeight / static_cast<float>(height),
+                    statsWidth, 0.0, statsHeight));
         }
         else
         {
-            mCamera->setProjectionMatrix(
-                osg::Matrix::ortho2D(0.0, statsWidth, statsHeight - height * statsWidth / width, statsHeight));
+            mCamera->setProjectionMatrix(osg::Matrix::ortho2D(0.0, statsWidth,
+                statsHeight - static_cast<float>(height) * statsWidth / static_cast<float>(width), statsHeight));
         }
     }
 
@@ -536,7 +537,7 @@ namespace Resource
         const auto longest = std::max_element(mStatNames.begin(), mStatNames.end(),
             [](const std::string& lhs, const std::string& rhs) { return lhs.size() < rhs.size(); });
         const std::size_t longestSize = longest->size();
-        const float statNamesWidth = longestSize * characterSize * 0.6f + 2 * backgroundMargin;
+        const float statNamesWidth = static_cast<float>(longestSize) * characterSize * 0.6f + 2 * backgroundMargin;
         const float statTextWidth = 7 * characterSize + 2 * backgroundMargin;
         const float statHeight = pageSize * characterSize + 2 * backgroundMargin;
         const float width = statNamesWidth + backgroundSpacing + statTextWidth;
@@ -564,7 +565,7 @@ namespace Resource
             std::ostringstream viewStr;
             viewStr.clear();
             viewStr.setf(std::ios::left, std::ios::adjustfield);
-            viewStr.width(longestSize);
+            viewStr.width(static_cast<std::streamsize>(longestSize));
             for (const std::string& statName : currentStatNames)
                 viewStr << statName << std::endl;
 

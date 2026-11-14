@@ -560,7 +560,7 @@ namespace ESSImport
             weather.mTimePassed = 0.0f;
             weather.mFastForward = false;
             weather.mWeatherUpdateTime = mGame.mGMDT.mTimeOfNextTransition - mContext->mHour;
-            weather.mTransitionFactor = 1 - (mGame.mGMDT.mWeatherTransition / 100.0f);
+            weather.mTransitionFactor = 1 - (static_cast<float>(mGame.mGMDT.mWeatherTransition) / 100.0f);
             weather.mCurrentWeather = validateWeatherID(mGame.mGMDT.mCurrentWeather);
             weather.mNextWeather = validateWeatherID(mGame.mGMDT.mNextWeather);
             weather.mQueuedWeather = {};

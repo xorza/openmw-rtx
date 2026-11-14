@@ -279,7 +279,7 @@ namespace MWGui
                         if (caretPos != std::string::npos)
                         {
                             type = first.substr(0, caretPos);
-                            key.erase(key.begin(), key.begin() + caretPos + 1);
+                            key.erase(key.begin(), key.begin() + static_cast<std::ptrdiff_t>(caretPos) + 1);
                         }
 
                         MyGUI::Widget* w = nullptr;
@@ -311,8 +311,9 @@ namespace MWGui
                 MyGUI::IntSize tooltipSize = getToolTipViaPtr(mFocusObject.getCellRef().getCount(), true, checkOwned());
 
                 const int left = viewSize.width / 2 - tooltipSize.width / 2;
-                const int top
-                    = std::max(0, static_cast<int>(mFocusToolTipY * viewSize.height - tooltipSize.height - 20));
+                const int top = std::max(0,
+                    static_cast<int>(mFocusToolTipY * static_cast<float>(viewSize.height)
+                        - static_cast<float>(tooltipSize.height) - 20));
                 setCoord(left, top, tooltipSize.width, tooltipSize.height);
 
                 mDynamicToolTipBox->setVisible(true);
@@ -323,8 +324,9 @@ namespace MWGui
     void ToolTips::position(MyGUI::IntPoint& position, MyGUI::IntSize size, MyGUI::IntSize viewportSize)
     {
         position += MyGUI::IntPoint(0, 32)
-            - MyGUI::IntPoint(static_cast<int>(MyGUI::InputManager::getInstance().getMousePosition().left
-                                  / static_cast<float>(viewportSize.width) * size.width),
+            - MyGUI::IntPoint(
+                static_cast<int>(static_cast<float>(MyGUI::InputManager::getInstance().getMousePosition().left)
+                    / static_cast<float>(viewportSize.width) * static_cast<float>(size.width)),
                 0);
 
         if ((position.left + size.width) > viewportSize.width)

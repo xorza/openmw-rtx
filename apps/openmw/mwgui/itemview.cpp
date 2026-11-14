@@ -56,8 +56,8 @@ namespace MWGui
 
         mRows = std::max(maxHeight / 42, 1);
         mItemCount = static_cast<int>(dragArea->getChildCount());
-        bool showScrollbar
-            = static_cast<int>(std::ceil(mItemCount / static_cast<float>(mRows))) > mScrollView->getWidth() / 42;
+        bool showScrollbar = static_cast<int>(std::ceil(static_cast<float>(mItemCount) / static_cast<float>(mRows)))
+            > mScrollView->getWidth() / 42;
         if (showScrollbar)
         {
             maxHeight -= 18;
@@ -163,11 +163,13 @@ namespace MWGui
 
     void ItemView::onMouseWheelMoved(MyGUI::Widget* /*sender*/, int rel)
     {
-        if (mScrollView->getViewOffset().left + rel * 0.3f > 0)
+        if (static_cast<float>(mScrollView->getViewOffset().left) + static_cast<float>(rel) * 0.3f > 0)
             mScrollView->setViewOffset(MyGUI::IntPoint(0, 0));
         else
             mScrollView->setViewOffset(
-                MyGUI::IntPoint(static_cast<int>(mScrollView->getViewOffset().left + rel * 0.3f), 0));
+                MyGUI::IntPoint(static_cast<int>(static_cast<float>(mScrollView->getViewOffset().left)
+                                    + static_cast<float>(rel) * 0.3f),
+                    0));
     }
 
     void ItemView::setSize(const MyGUI::IntSize& value)

@@ -137,7 +137,7 @@ namespace MWClass
             params.mEffectID = ref->mBase->mData.mEffectID[i];
             params.mAttribute = ref->mBase->mData.mAttributes[i];
             params.mSkill = ref->mBase->mData.mSkills[i];
-            params.mKnown = alchemySkill >= fWortChanceValue * (i + 1);
+            params.mKnown = alchemySkill >= fWortChanceValue * static_cast<float>((i + 1));
 
             list.push_back(params);
         }

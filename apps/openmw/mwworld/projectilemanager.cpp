@@ -167,7 +167,7 @@ namespace
         }
 
         if (count != 0)
-            speed /= count;
+            speed /= static_cast<float>(count);
 
         // the particle texture is only used if there is only one projectile
         if (projectileEffects.mList.size() == 1)
@@ -248,7 +248,8 @@ namespace MWWorld
         class RotateCallback : public SceneUtil::NodeCallback<RotateCallback, osg::PositionAttitudeTransform*>
         {
         public:
-            explicit RotateCallback(const osg::Vec3f& axis = osg::Vec3f(0, -1, 0), float rotateSpeed = osg::PI * 2)
+            explicit RotateCallback(
+                const osg::Vec3f& axis = osg::Vec3f(0, -1, 0), float rotateSpeed = static_cast<float>(osg::PI * 2))
                 : mAxis(axis)
                 , mRotateSpeed(rotateSpeed)
             {
@@ -878,9 +879,9 @@ namespace MWWorld
         if (reader.mActorIdConverter)
         {
             for (ProjectileState& projectile : mProjectiles)
-                reader.mActorIdConverter->convert(projectile.mCaster, projectile.mCaster.mIndex);
+                reader.mActorIdConverter->convert(projectile.mCaster, static_cast<int>(projectile.mCaster.mIndex));
             for (MagicBoltState& bolt : mMagicBolts)
-                reader.mActorIdConverter->convert(bolt.mCaster, bolt.mCaster.mIndex);
+                reader.mActorIdConverter->convert(bolt.mCaster, static_cast<int>(bolt.mCaster.mIndex));
         }
     }
 

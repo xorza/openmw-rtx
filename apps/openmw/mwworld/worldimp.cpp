@@ -1467,7 +1467,8 @@ namespace MWWorld
         float minRot = door.getCellRef().getPosition().rot[2];
         float maxRot = minRot + osg::DegreesToRadians(90.f);
 
-        float diff = duration * osg::DegreesToRadians(90.f) * (state == MWWorld::DoorState::Opening ? 1 : -1);
+        float diff = duration * osg::DegreesToRadians(90.f)
+            * static_cast<float>((state == MWWorld::DoorState::Opening ? 1 : -1));
         float targetRot = std::clamp(oldRot.z() + diff, minRot, maxRot);
         newRot.z() = targetRot;
         rotateObject(door, newRot, MWBase::RotationFlag_none);
@@ -2905,7 +2906,7 @@ namespace MWWorld
             // Check mana
             bool godmode = (isPlayer && mGodMode);
             MWMechanics::DynamicStat<float> magicka = stats.getMagicka();
-            if (spellCost > 0 && magicka.getCurrent() < spellCost && !godmode)
+            if (spellCost > 0 && magicka.getCurrent() < static_cast<float>(spellCost) && !godmode)
             {
                 message = "#{sMagicInsufficientSP}";
                 result = MWWorld::SpellCastState::InsufficientMagicka;
@@ -2922,7 +2923,7 @@ namespace MWWorld
             if (result == MWWorld::SpellCastState::Success && !godmode)
             {
                 // Reduce mana
-                magicka.setCurrent(magicka.getCurrent() - spellCost);
+                magicka.setCurrent(magicka.getCurrent() - static_cast<float>(spellCost));
                 stats.setMagicka(magicka);
 
                 // Reduce fatigue (note that in the vanilla game, both GMSTs are 0, and there's no fatigue loss)
@@ -2933,7 +2934,8 @@ namespace MWWorld
                 MWMechanics::DynamicStat<float> fatigue = stats.getFatigue();
                 const float normalizedEncumbrance = actor.getClass().getNormalizedEncumbrance(actor);
 
-                float fatigueLoss = spellCost * (fFatigueSpellBase + normalizedEncumbrance * fFatigueSpellMult);
+                float fatigueLoss
+                    = static_cast<float>(spellCost) * (fFatigueSpellBase + normalizedEncumbrance * fFatigueSpellMult);
                 fatigue.setCurrent(fatigue.getCurrent() - fatigueLoss);
                 stats.setFatigue(fatigue);
             }
@@ -3155,7 +3157,7 @@ namespace MWWorld
         {
             const MWWorld::Cell& cellVariant = *cell->getCell();
             uint32_t ambient = cellVariant.getMood().mAmbiantColor;
-            int ambientTotal = (ambient & 0xff) + ((ambient >> 8) & 0xff) + ((ambient >> 16) & 0xff);
+            int ambientTotal = static_cast<int>((ambient & 0xff) + ((ambient >> 8) & 0xff) + ((ambient >> 16) & 0xff));
             return !cell->getCell()->noSleep() && ambientTotal <= 201;
         }
     }
@@ -3519,7 +3521,7 @@ namespace MWWorld
         else if (type == World::Detect_Enchantment)
             dist = effects.getOrDefault(ESM::MagicEffect::DetectEnchantment).getMagnitude();
 
-        if (!dist)
+        if (!static_cast<bool>(dist))
             return;
 
         dist = feetToGameUnits(dist);
@@ -3560,8 +3562,8 @@ namespace MWWorld
         static float fCrimeGoldTurnInMult
             = mStore.get<ESM::GameSetting>().find("fCrimeGoldTurnInMult")->mValue.getFloat();
 
-        int discount = static_cast<int>(bounty * fCrimeGoldDiscountMult);
-        int turnIn = static_cast<int>(bounty * fCrimeGoldTurnInMult);
+        int discount = static_cast<int>(static_cast<float>(bounty) * fCrimeGoldDiscountMult);
+        int turnIn = static_cast<int>(static_cast<float>(bounty) * fCrimeGoldTurnInMult);
 
         if (bounty > 0)
         {

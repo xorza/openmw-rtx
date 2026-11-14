@@ -399,9 +399,10 @@ namespace MWGui::Widgets
                 std::string_view timesInt = windowManager->getGameSettingString("sXTimesINT", {});
                 std::stringstream formatter;
 
-                formatter << std::fixed << std::setprecision(1) << " " << (mEffectParams.mMagnMin / 10.0f);
+                formatter << std::fixed << std::setprecision(1) << " "
+                          << (static_cast<float>(mEffectParams.mMagnMin) / 10.0f);
                 if (mEffectParams.mMagnMin != mEffectParams.mMagnMax)
-                    formatter << to << (mEffectParams.mMagnMax / 10.0f);
+                    formatter << to << (static_cast<float>(mEffectParams.mMagnMax) / 10.0f);
                 formatter << timesInt;
 
                 spellLine += formatter.str();

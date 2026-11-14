@@ -514,7 +514,8 @@ namespace CSVRender
     void SceneWidget::mouseMoveEvent(QMouseEvent* event)
     {
         QPointF pos = event->position();
-        mCurrentCamControl->handleMouseMoveEvent(pos.x() - mPrevMouse.x(), pos.y() - mPrevMouse.y());
+        mCurrentCamControl->handleMouseMoveEvent(
+            static_cast<int>(pos.x() - mPrevMouse.x()), static_cast<int>(pos.y() - mPrevMouse.y()));
 
         mPrevMouse = pos;
     }
@@ -566,7 +567,7 @@ namespace CSVRender
                     mSelectionMarkerNode->setAttitude(current * osg::Quat(osg::PI, osg::Vec3f(0, 0, 1)));
                 }
 
-                float distance = (markerWorldMat.getTrans() - eye).length();
+                float distance = static_cast<float>((markerWorldMat.getTrans() - eye).length());
                 float scale = std::max(distance / 75.0f, 1.0f);
                 mSelectionMarkerNode->setScale(osg::Vec3(scale, scale, scale));
             }
@@ -647,8 +648,9 @@ namespace CSVRender
 
         if (CSMPrefs::get()["Rendering"]["camera-ortho"].isTrue())
         {
-            const float size = CSMPrefs::get()["Rendering"]["camera-ortho-size"].toInt();
-            const float aspect = overrideAspect >= 0.0 ? overrideAspect : (width() / static_cast<double>(height()));
+            const float size = static_cast<float>(CSMPrefs::get()["Rendering"]["camera-ortho-size"].toInt());
+            const auto aspect = static_cast<float>(
+                overrideAspect >= 0.0 ? overrideAspect : (width() / static_cast<double>(height())));
             const float halfH = size * 10.0f;
             const float halfW = halfH * aspect;
 
@@ -660,7 +662,7 @@ namespace CSVRender
                 static_cast<double>(width()) / static_cast<double>(height()), nearDist, farDist);
         }
 
-        mSharedUniformStateUpdater->setScreenRes(width(), height());
+        mSharedUniformStateUpdater->setScreenRes(static_cast<float>(width()), static_cast<float>(height()));
         mSharedUniformStateUpdater->setNear(nearDist);
         mSharedUniformStateUpdater->setFar(farDist);
         mPerViewUniformStateUpdater->setProjectionMatrix(mView->getCamera()->getProjectionMatrix());

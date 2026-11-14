@@ -107,8 +107,8 @@ namespace RtxTool
                 for (std::uint32_t x = 0; x < sThumbnail; ++x)
                 {
                     // Nearest neighbour, and the centre of the texel a thumbnail pixel covers.
-                    const float u = (x + 0.5f) / sThumbnail;
-                    const float v = (y + 0.5f) / sThumbnail;
+                    const float u = (static_cast<float>(x) + 0.5f) / sThumbnail;
+                    const float v = (static_cast<float>(y) + 0.5f) / sThumbnail;
                     const auto texelX = std::min(
                         static_cast<std::uint32_t>(u * static_cast<float>(texture.mWidth)), texture.mWidth - 1);
                     const auto texelY = std::min(

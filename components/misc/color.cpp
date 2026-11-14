@@ -35,7 +35,7 @@ namespace Misc
             auto [_, ec] = std::from_chars(sub.data(), sub.data() + sub.size(), v, 16);
             if (ec != std::errc())
                 throw std::logic_error(std::string("Invalid hex color: ") += hex);
-            col.mValue[i] = v / 255.0f;
+            col.mValue[i] = static_cast<float>(v) / 255.0f;
         }
         return col;
     }

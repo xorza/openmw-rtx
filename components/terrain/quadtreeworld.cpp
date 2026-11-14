@@ -55,8 +55,10 @@ namespace Terrain
             ReturnValue isSufficientDetail(QuadTreeNode* node, float dist) override
             {
                 const osg::Vec2f& center = node->getCenter();
-                bool activeGrid = (center.x() > mActiveGrid.x() && center.y() > mActiveGrid.y()
-                    && center.x() < mActiveGrid.z() && center.y() < mActiveGrid.w());
+                bool activeGrid = (center.x() > static_cast<float>(mActiveGrid.x())
+                    && center.y() > static_cast<float>(mActiveGrid.y())
+                    && center.x() < static_cast<float>(mActiveGrid.z())
+                    && center.y() < static_cast<float>(mActiveGrid.w()));
 
                 if (node->getSize() > 1)
                 {
@@ -86,7 +88,7 @@ namespace Terrain
             }
             static unsigned int convertDistanceToLodLevel(float dist, float minSize, float factor, int cellSize)
             {
-                return Log2(static_cast<unsigned int>(dist / (cellSize * minSize * factor)));
+                return Log2(static_cast<unsigned int>(dist / (static_cast<float>(cellSize) * minSize * factor)));
             }
 
         private:
@@ -149,8 +151,8 @@ namespace Terrain
                 // Dividing a quad tree only works well for powers of two, so round up to the nearest one
                 int size = Misc::nextPowerOfTwo(std::max(origSizeX, origSizeY));
 
-                float centerX = (mMinX + mMaxX) / 2.f + (size - origSizeX) / 2.f;
-                float centerY = (mMinY + mMaxY) / 2.f + (size - origSizeY) / 2.f;
+                float centerX = (mMinX + mMaxX) / 2.f + static_cast<float>((size - origSizeX)) / 2.f;
+                float centerY = (mMinY + mMaxY) / 2.f + static_cast<float>((size - origSizeY)) / 2.f;
 
                 mRootNode = new RootNode(static_cast<float>(size), osg::Vec2f(centerX, centerY));
                 addChildren(mRootNode);
@@ -274,7 +276,7 @@ namespace Terrain
         {
             osg::Vec3f center = { chunkCenter.x(), chunkCenter.y(), 0 };
             auto chunkBorder = CellBorder::createBorderGeometry(center.x() - size / 2.f, center.y() - size / 2.f, size,
-                mStorage, mSceneManager, mNodeMask, mWorldspace, 5.f, { 1, 0, 0, 0 });
+                mStorage, mSceneManager, static_cast<int>(mNodeMask), mWorldspace, 5.f, { 1, 0, 0, 0 });
             osg::ref_ptr<SceneUtil::PositionAttitudeTransform> pat = new SceneUtil::PositionAttitudeTransform;
             pat->setPosition(-center * static_cast<float>(ESM::getCellSize(mWorldspace)));
             pat->addChild(chunkBorder);
@@ -403,8 +405,9 @@ namespace Terrain
                 entry.mNode->getCenter().x() * cellWorldSize, entry.mNode->getCenter().y() * cellWorldSize, 0.f));
 
             const osg::Vec2f& center = entry.mNode->getCenter();
-            bool activeGrid = (center.x() > gridbounds.x() && center.y() > gridbounds.y() && center.x() < gridbounds.z()
-                && center.y() < gridbounds.w());
+            bool activeGrid = (center.x() > static_cast<float>(gridbounds.x())
+                && center.y() > static_cast<float>(gridbounds.y()) && center.x() < static_cast<float>(gridbounds.z())
+                && center.y() < static_cast<float>(gridbounds.w()));
 
             for (QuadTreeWorld::ChunkManager* m : mChunkManagers)
             {
@@ -610,7 +613,7 @@ namespace Terrain
     {
         mChunkManagers.push_back(m);
         mTerrainRoot->setNodeMask(mTerrainRoot->getNodeMask() | m->getNodeMask());
-        if (m->getViewDistance())
+        if (static_cast<bool>(m->getViewDistance()))
             m->setMaxLodLevel(
                 DefaultLodCallback::convertDistanceToLodLevel(m->getViewDistance() + mViewDataMap->getReuseDistance(),
                     mMinSize, mLodFactor, ESM::getCellSize(mWorldspace)));

@@ -131,7 +131,7 @@ namespace ESMTerrain
 
     inline int getBlendmapSize(float size, int textureSize)
     {
-        return static_cast<int>(textureSize * size) + 1;
+        return static_cast<int>(static_cast<float>(textureSize) * size) + 1;
     }
 
     inline std::pair<std::size_t, std::size_t> getBlendmapLocalRange(
@@ -157,8 +157,10 @@ namespace ESMTerrain
 
         int minCellX = static_cast<int>(std::floor(minX));
         const int minCellY = static_cast<int>(std::floor(minY));
-        int minRow = static_cast<int>((minX - minCellX) * (textureSize + 1)) - 1;
-        const int minCol = static_cast<int>((minY - minCellY) * (textureSize + 1));
+        int minRow
+            = static_cast<int>((minX - static_cast<float>(minCellX)) * static_cast<float>((textureSize + 1))) - 1;
+        const int minCol
+            = static_cast<int>((minY - static_cast<float>(minCellY)) * static_cast<float>((textureSize + 1)));
 
         if (minRow < 0)
         {
@@ -166,8 +168,8 @@ namespace ESMTerrain
             minRow += textureSize;
         }
 
-        const int maxRow = minRow + static_cast<int>(textureSize * size);
-        const int maxCol = minCol + static_cast<int>(textureSize * size);
+        const int maxRow = minRow + static_cast<int>(static_cast<float>(textureSize) * size);
+        const int maxCol = minCol + static_cast<int>(static_cast<float>(textureSize) * size);
         const int maxCellX = minCellX + maxRow / textureSize;
         const int maxCellY = minCellY + maxCol / textureSize;
 

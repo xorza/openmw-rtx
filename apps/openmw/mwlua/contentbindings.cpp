@@ -96,7 +96,7 @@ namespace MWLua
                 [=](const Store& self, size_t index, sol::this_state state) -> LuaType {
                     if (index == 0 || index > self.mStore.getSize())
                         return mapper(nullptr, state);
-                    const Record* rec = self.mStore.at(LuaUtil::fromLuaIndex(index));
+                    const Record* rec = self.mStore.at(LuaUtil::fromLuaIndex(static_cast<std::int64_t>(index)));
                     return mapper(rec, state);
                 },
                 [=](const Store& self, std::string_view id, sol::this_state state) -> LuaType {
@@ -220,7 +220,7 @@ namespace MWLua
                         global.mId = id;
                     }
                     auto intV = static_cast<int32_t>(value);
-                    if (intV == value && !preferFloat)
+                    if (static_cast<float>(intV) == value && !preferFloat)
                     {
                         global.mValue.setType(ESM::VT_Long);
                         global.mValue.setInteger(intV);
@@ -249,7 +249,8 @@ namespace MWLua
                 [](const Store& self, size_t index) -> std::optional<MutableRecord<T>> {
                     if (index == 0 || index > self.mStore.getSize())
                         return {};
-                    return MutableRecord<T>{ self.mStore, self.mStore.at(LuaUtil::fromLuaIndex(index))->mId };
+                    return MutableRecord<T>{ self.mStore,
+                        self.mStore.at(LuaUtil::fromLuaIndex(static_cast<std::int64_t>(index)))->mId };
                 },
                 [](const Store& self, std::string_view id) -> std::optional<MutableRecord<T>> {
                     const auto* record = self.mStore.search(ESM::RefId::deserializeText(id));

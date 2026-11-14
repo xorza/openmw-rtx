@@ -112,8 +112,9 @@ namespace MWInput
             MWBase::World* world = MWBase::Environment::get().getWorld();
 
             const float cameraSensitivity = Settings::input().mCameraSensitivity;
-            float x = arg.xrel * cameraSensitivity * (Settings::input().mInvertXAxis ? -1 : 1) / 256.f;
-            float y = arg.yrel * cameraSensitivity * (Settings::input().mInvertYAxis ? -1 : 1)
+            float x
+                = arg.xrel * cameraSensitivity * static_cast<float>((Settings::input().mInvertXAxis ? -1 : 1)) / 256.f;
+            float y = arg.yrel * cameraSensitivity * static_cast<float>((Settings::input().mInvertYAxis ? -1 : 1))
                 * Settings::input().mCameraYMultiplier / 256.f;
 
             float rot[3];
@@ -253,10 +254,11 @@ namespace MWInput
 
         const float cameraSensitivity = Settings::input().mCameraSensitivity;
         const float rot[3] = {
-            -yAxis * dt * 1000.0f * cameraSensitivity * (Settings::input().mInvertYAxis ? -1 : 1)
+            -yAxis * dt * 1000.0f * cameraSensitivity * static_cast<float>((Settings::input().mInvertYAxis ? -1 : 1))
                 * Settings::input().mCameraYMultiplier / 256.f,
             0.0f,
-            -xAxis * dt * 1000.0f * cameraSensitivity * (Settings::input().mInvertXAxis ? -1 : 1) / 256.f,
+            -xAxis * dt * 1000.0f * cameraSensitivity * static_cast<float>((Settings::input().mInvertXAxis ? -1 : 1))
+                / 256.f,
         };
 
         // Only actually turn player when we're not in vanity mode
@@ -319,8 +321,9 @@ namespace MWInput
 
     void MouseManager::warpMouseToWidget(MyGUI::Widget* widget)
     {
-        const osg::Vec2f target(static_cast<float>(widget->getAbsoluteCoord().left) + widget->getWidth() / 2.f,
-            static_cast<float>(widget->getAbsoluteCoord().top) + widget->getHeight() / 4.f);
+        const osg::Vec2f target(
+            static_cast<float>(widget->getAbsoluteCoord().left) + static_cast<float>(widget->getWidth()) / 2.f,
+            static_cast<float>(widget->getAbsoluteCoord().top) + static_cast<float>(widget->getHeight()) / 4.f);
         const osg::Vec2f cursor = cursorInInterface();
         if (std::abs(cursor.x() - target.x()) > 1 || std::abs(cursor.y() - target.y()) > 1)
         {

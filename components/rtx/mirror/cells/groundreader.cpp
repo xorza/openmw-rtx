@@ -39,7 +39,7 @@ namespace Rtx
                 {
                     const unsigned char* along = image.data(0, row);
                     for (int column = 0; column < image.s(); ++column)
-                        weights.push_back(along[column] * perByte);
+                        weights.push_back(static_cast<float>(along[column]) * perByte);
                 }
                 return;
             }

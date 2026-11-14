@@ -7,13 +7,13 @@
 QString Files::pathToQString(const std::filesystem::path& path)
 {
     const auto tmp = path.u8string();
-    return QString::fromUtf8(Misc::StringUtils::u8StringToString(tmp.data()), tmp.size());
+    return QString::fromUtf8(Misc::StringUtils::u8StringToString(tmp.data()), static_cast<qsizetype>(tmp.size()));
 }
 
 QString Files::pathToQString(std::filesystem::path&& path)
 {
     const auto tmp = path.u8string();
-    return QString::fromUtf8(Misc::StringUtils::u8StringToString(tmp.data()), tmp.size());
+    return QString::fromUtf8(Misc::StringUtils::u8StringToString(tmp.data()), static_cast<qsizetype>(tmp.size()));
 }
 
 std::filesystem::path Files::pathFromQString(QStringView path)

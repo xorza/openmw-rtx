@@ -84,7 +84,8 @@ namespace MWRender
             for (int x = 0; x < width; ++x)
             {
                 std::uint8_t sampled[4];
-                sampleBilinear(tile, (x + 0.5f) / width, (y + 0.5f) / height, sampled);
+                sampleBilinear(tile, (static_cast<float>(x) + 0.5f) / static_cast<float>(width),
+                    (static_cast<float>(y) + 0.5f) / static_cast<float>(height), sampled);
 
                 // One texel of the mask per pixel of the overlay
                 const unsigned int mask = alpha[static_cast<std::size_t>(destination.mX + x) * alphaBits / 8

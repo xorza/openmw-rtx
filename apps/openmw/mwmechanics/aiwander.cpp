@@ -130,7 +130,7 @@ namespace MWMechanics
                     if (std::abs(allowedPositions[j].x() - point.x()) <= 0.5
                         && std::abs(allowedPositions[j].y() - point.y()) <= 0.5)
                     {
-                        allowedPositions.erase(allowedPositions.begin() + j);
+                        allowedPositions.erase(allowedPositions.begin() + static_cast<std::ptrdiff_t>(j));
                         break;
                     }
                 }
@@ -311,7 +311,7 @@ namespace MWMechanics
             // Typically want to idle for a short time before the next wander
             if (Misc::Rng::rollDice(100, prng) >= 92 && storage.mState != AiWanderStorage::Wander_Walking)
             {
-                wanderNearStart(actor, storage, mDistance);
+                wanderNearStart(actor, storage, static_cast<int>(mDistance));
             }
 
             storage.mCanWanderAlongPathGrid = false;
@@ -323,7 +323,7 @@ namespace MWMechanics
             // Typically want to idle for a short time before the next wander
             if (Misc::Rng::rollDice(100, prng) >= 96)
             {
-                wanderNearStart(actor, storage, mDistance);
+                wanderNearStart(actor, storage, static_cast<int>(mDistance));
             }
             else
             {
@@ -400,7 +400,8 @@ namespace MWMechanics
         {
 
             // Determine a random location within radius of original position
-            const float wanderRadius = (0.2f + Misc::Rng::rollClosedProbability(prng) * 0.8f) * wanderDistance;
+            const float wanderRadius
+                = (0.2f + Misc::Rng::rollClosedProbability(prng) * 0.8f) * static_cast<float>(wanderDistance);
             if (!isWaterCreature && !isFlyingCreature)
             {
                 // findRandomPointAroundCircle uses wanderDistance as limit for random and not as exact distance
@@ -411,13 +412,14 @@ namespace MWMechanics
                 if (destination.has_value())
                 {
                     osg::Vec3f direction = *destination - mInitialActorPosition;
-                    if (direction.length() > wanderDistance)
+                    if (direction.length() > static_cast<float>(wanderDistance))
                     {
                         direction.normalize();
                         const osg::Vec3f adjustedDestination = mInitialActorPosition + direction * wanderRadius;
                         destination = DetourNavigator::raycast(
                             *navigator, agentBounds, currentPosition, adjustedDestination, navigatorFlags);
-                        if (destination.has_value() && (*destination - mInitialActorPosition).length() > wanderDistance)
+                        if (destination.has_value()
+                            && (*destination - mInitialActorPosition).length() > static_cast<float>(wanderDistance))
                             continue;
                     }
                 }
@@ -663,7 +665,8 @@ namespace MWMechanics
         // Choose a different position and delete this one from possible positions because it is uncreachable:
         if (path.empty())
         {
-            storage.mAllowedPositions.erase(storage.mAllowedPositions.begin() + randomAllowedPositionIndex);
+            storage.mAllowedPositions.erase(
+                storage.mAllowedPositions.begin() + static_cast<std::ptrdiff_t>(randomAllowedPositionIndex));
             return;
         }
 
@@ -683,7 +686,8 @@ namespace MWMechanics
 
         if (!mPathFinder.isPathConstructed())
         {
-            storage.mAllowedPositions.erase(storage.mAllowedPositions.begin() + randomAllowedPositionIndex);
+            storage.mAllowedPositions.erase(
+                storage.mAllowedPositions.begin() + static_cast<std::ptrdiff_t>(randomAllowedPositionIndex));
             return;
         }
 
@@ -692,7 +696,8 @@ namespace MWMechanics
         mUsePathgrid = true;
         // Remove this position as an option and add back the previously used position (stops NPC from picking the
         // same position):
-        storage.mAllowedPositions.erase(storage.mAllowedPositions.begin() + randomAllowedPositionIndex);
+        storage.mAllowedPositions.erase(
+            storage.mAllowedPositions.begin() + static_cast<std::ptrdiff_t>(randomAllowedPositionIndex));
         // check if mCurrentPosition was taken out of mAllowedPositions
         if (storage.mTrimCurrentPosition && storage.mAllowedPositions.size() > 1)
             storage.mTrimCurrentPosition = false;
@@ -758,7 +763,7 @@ namespace MWMechanics
         for (size_t i = 0; i < mIdle.size(); i++)
         {
             float roll = Misc::Rng::rollClosedProbability(world->getPrng()) * 100.f;
-            if (roll <= mIdle[i] && roll > maxRoll)
+            if (roll <= static_cast<float>(mIdle[i]) && roll > maxRoll)
             {
                 newIdle = static_cast<unsigned short>(GroupIndex_MinIdle + i);
                 maxRoll = roll;
@@ -816,7 +821,7 @@ namespace MWMechanics
                 for (int j = 1; j <= 3; j++)
                 {
                     // move for 5-15% towards random neighboring node
-                    dest = dest + dir * (j * 5 * length / 100.f);
+                    dest = dest + dir * (static_cast<float>(j * 5) * length / 100.f);
 
                     isOccupied = MWBase::Environment::get().getMechanicsManager()->isAnyActorInRange(
                         converter.toWorldVec3(dest), 60);
@@ -829,7 +834,7 @@ namespace MWMechanics
                     break;
 
                 // Will try an another neighboring node
-                points.erase(points.begin() + randomIndex);
+                points.erase(points.begin() + static_cast<std::ptrdiff_t>(randomIndex));
             }
 
             // there is no free space, nowhere to move
@@ -900,7 +905,7 @@ namespace MWMechanics
             for (size_t counter = 0; counter < pathgrid->mPoints.size(); counter++)
             {
                 const osg::Vec3f nodePos = Misc::Convert::makeOsgVec3f(pathgrid->mPoints[counter]);
-                if ((npcPos - nodePos).length2() <= mDistance * mDistance
+                if ((npcPos - nodePos).length2() <= static_cast<float>(mDistance * mDistance)
                     && getPathGridGraph(pathgrid).isPointConnected(closestPointIndex, counter))
                 {
                     storage.mAllowedPositions.push_back(
@@ -970,7 +975,7 @@ namespace MWMechanics
             }
         }
         storage.mCurrentPosition = storage.mAllowedPositions[index];
-        storage.mAllowedPositions.erase(storage.mAllowedPositions.begin() + index);
+        storage.mAllowedPositions.erase(storage.mAllowedPositions.begin() + static_cast<std::ptrdiff_t>(index));
     }
 
     void AiWander::writeState(ESM::AiSequence::AiSequence& sequence) const

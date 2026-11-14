@@ -155,7 +155,7 @@ namespace Rtx
             if (row.mWorn.mKind == MaterialKind::Water)
             {
                 const osg::Vec3f now = instance.mTransform.getTrans();
-                previous.setTrans(now.x(), now.y(), previous.getTrans().z());
+                previous.setTrans(now.x(), now.y(), static_cast<float>(previous.getTrans().z()));
                 if (previous == instance.mTransform)
                     return;
             }

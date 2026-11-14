@@ -563,7 +563,7 @@ void CSVRender::Cell::selectWithinDistance(const osg::Vec3d& point, float distan
         if (dragMode == DragMode_Select_Only)
             object.second->setSelected(false);
 
-        float distanceFromObject = (point - object.second->getPosition().asVec3()).length();
+        float distanceFromObject = static_cast<float>((point - object.second->getPosition().asVec3()).length());
         if (distanceFromObject < distance)
             handleSelectDrag(object.second, dragMode);
     }

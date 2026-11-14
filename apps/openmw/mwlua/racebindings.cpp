@@ -192,8 +192,8 @@ namespace MWLua
                 race.mPowers.mList.reserve(length);
                 for (size_t i = 0; i < length; ++i)
                 {
-                    const ESM::RefId spell
-                        = ESM::RefId::deserializeText(table.get<std::string_view>(LuaUtil::toLuaIndex(i)));
+                    const ESM::RefId spell = ESM::RefId::deserializeText(
+                        table.get<std::string_view>(LuaUtil::toLuaIndex(static_cast<std::int64_t>(i))));
                     if (!spell.empty())
                         race.mPowers.mList.push_back(spell);
                 }

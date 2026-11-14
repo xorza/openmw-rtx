@@ -24,8 +24,9 @@ namespace Fx
                 = new osg::BufferTemplate<UniformData::BufferType>();
             data->setBufferObject(ubo);
 
-            osg::ref_ptr<osg::UniformBufferBinding> ubb = new osg::UniformBufferBinding(
-                static_cast<int>(Resource::SceneManager::UBOBinding::PostProcessor), data, 0, mData.getGPUSize());
+            osg::ref_ptr<osg::UniformBufferBinding> ubb
+                = new osg::UniformBufferBinding(static_cast<int>(Resource::SceneManager::UBOBinding::PostProcessor),
+                    data, 0, static_cast<GLsizeiptr>(mData.getGPUSize()));
 
             stateset->setAttributeAndModes(ubb, osg::StateAttribute::ON);
         }

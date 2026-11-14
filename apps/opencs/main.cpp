@@ -31,9 +31,9 @@ namespace
         format.setRenderableType(QSurfaceFormat::OpenGL);
         format.setDepthBufferSize(24);
         format.setSamples(ds->getMultiSamples());
-        format.setStencilBufferSize(ds->getMinimumNumStencilBits());
+        format.setStencilBufferSize(static_cast<int>(ds->getMinimumNumStencilBits()));
         format.setSwapBehavior(QSurfaceFormat::DoubleBuffer);
-        format.setAlphaBufferSize(ds->getMinimumNumAlphaBits());
+        format.setAlphaBufferSize(static_cast<int>(ds->getMinimumNumAlphaBits()));
         QSurfaceFormat::setDefaultFormat(format);
     }
 }

@@ -206,11 +206,12 @@ namespace MWGui
                     int x = Misc::Rng::rollDice(hoursToWait, world->getPrng());
                     float fSleepRandMod
                         = world->getStore().get<ESM::GameSetting>().find("fSleepRandMod")->mValue.getFloat();
-                    if (x < fSleepRandMod * hoursToWait)
+                    if (static_cast<float>(x) < fSleepRandMod * static_cast<float>(hoursToWait))
                     {
                         float fSleepRestMod
                             = world->getStore().get<ESM::GameSetting>().find("fSleepRestMod")->mValue.getFloat();
-                        int interruptAtHoursRemaining = static_cast<int>(fSleepRestMod * hoursToWait);
+                        int interruptAtHoursRemaining
+                            = static_cast<int>(fSleepRestMod * static_cast<float>(hoursToWait));
                         if (interruptAtHoursRemaining != 0)
                         {
                             mInterruptAt = hoursToWait - interruptAtHoursRemaining;

@@ -248,7 +248,8 @@ namespace MWGui
 
     void RaceDialog::onHeadRotate(MyGUI::ScrollBar* scroll, size_t position)
     {
-        float angle = (static_cast<float>(position) / (scroll->getScrollRange() - 1) - 0.5f) * osg::PIf * 2;
+        float angle
+            = (static_cast<float>(position) / static_cast<float>((scroll->getScrollRange() - 1)) - 0.5f) * osg::PIf * 2;
         mPreview->setAngle(angle);
 
         mCurrentAngle = angle;

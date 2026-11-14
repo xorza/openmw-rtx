@@ -220,7 +220,7 @@ void StatelessUtf8Encoder::copyFromArray(unsigned char ch, char*& out) const
     // Optimize for ASCII values
     if (ch < 128)
     {
-        *(out++) = ch;
+        *(out++) = static_cast<char>(ch);
         return;
     }
 
@@ -285,7 +285,7 @@ void StatelessUtf8Encoder::copyFromArrayLegacyEnc(
     // Optimize for ASCII values
     if (ch < 128)
     {
-        *(out++) = ch;
+        *(out++) = static_cast<char>(ch);
         return;
     }
 
@@ -310,7 +310,7 @@ void StatelessUtf8Encoder::copyFromArrayLegacyEnc(
 
     if (len == 1) // There is no 1 length utf-8 glyph that is not 0x20 (empty space)
     {
-        *(out++) = ch;
+        *(out++) = static_cast<char>(ch);
         return;
     }
 
@@ -340,7 +340,7 @@ void StatelessUtf8Encoder::copyFromArrayLegacyEnc(
     Log(Debug::Info) << "Could not find glyph " << std::hex << static_cast<int>(ch) << " " << static_cast<int>(ch2)
                      << " " << static_cast<int>(ch3);
 
-    *(out++) = ch; // Could not find glyph, just put whatever
+    *(out++) = static_cast<char>(ch); // Could not find glyph, just put whatever
 }
 
 Utf8Encoder::Utf8Encoder(FromType sourceEncoding)

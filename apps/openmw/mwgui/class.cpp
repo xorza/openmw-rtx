@@ -129,7 +129,7 @@ namespace MWGui
 
         for (int i = 0; i < 5; i++)
         {
-            char theIndex = '0' + static_cast<char>(i);
+            char theIndex = static_cast<char>('0' + static_cast<char>(i));
             getWidget(mMajorSkill[i], std::string("MajorSkill").append(1, theIndex));
             getWidget(mMinorSkill[i], std::string("MinorSkill").append(1, theIndex));
         }
@@ -549,7 +549,7 @@ namespace MWGui
             "MinorSkillT", MWBase::Environment::get().getWindowManager()->getGameSettingString("sSkillClassMinor", {}));
         for (char i = 0; i < 5; i++)
         {
-            char theIndex = '0' + i;
+            char theIndex = static_cast<char>('0' + i);
             getWidget(mMajorSkill[i], std::string("MajorSkill").append(1, theIndex));
             getWidget(mMinorSkill[i], std::string("MinorSkill").append(1, theIndex));
             mSkills.push_back(mMajorSkill[i]);

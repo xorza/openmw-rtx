@@ -51,7 +51,7 @@ namespace
         }
 
         osg::ref_ptr<NifOsg::FlipController> controller(
-            new NifOsg::FlipController(0, 0.3f / rippleFrameCount, textures));
+            new NifOsg::FlipController(0, 0.3f / static_cast<float>(rippleFrameCount), textures));
         controller->setSource(std::make_shared<SceneUtil::FrameTimeSource>());
         node->addUpdateCallback(controller);
 

@@ -57,7 +57,8 @@ namespace Bsa
                 const auto folderNameSize = static_cast<std::uint8_t>(folder.mName.size() + 1);
 
                 stream.write(reinterpret_cast<const char*>(&folderNameSize), sizeof(folderNameSize));
-                stream.write(reinterpret_cast<const char*>(folder.mName.data()), folder.mName.size());
+                stream.write(reinterpret_cast<const char*>(folder.mName.data()),
+                    static_cast<std::streamsize>(folder.mName.size()));
                 stream.put('\0');
 
                 for (const FileRecord& file : folder.mFiles)
@@ -72,7 +73,8 @@ namespace Bsa
             {
                 for (const FileRecord& file : folder.mFiles)
                 {
-                    stream.write(reinterpret_cast<const char*>(file.mName.data()), file.mName.size());
+                    stream.write(reinterpret_cast<const char*>(file.mName.data()),
+                        static_cast<std::streamsize>(file.mName.size()));
                     stream.put('\0');
                 }
             }
