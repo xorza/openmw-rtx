@@ -385,9 +385,9 @@ namespace RtxTool
                 std::string(Rtx::sUpscaleNames.name(byDefault.mSetup.mRun.mProfile.mUpscale))),
             std::format("put the upscaler, FSR 3.1, between the trace and the picture: {}. --size is "
                         "what comes out, and what gets traced is --size over the mode's ratio. `{}` "
-                        "by default. `film` is always `{}`",
+                        "by default, `{}` under `tour`. `film` is always `{}`",
                 Rtx::sUpscaleNames.list(), Rtx::sUpscaleNames.name(sUpscaleByDefault),
-                Rtx::sUpscaleNames.name(sFilmUpscale)));
+                Rtx::sUpscaleNames.name(sTourUpscale), Rtx::sUpscaleNames.name(sFilmUpscale)));
 
         option(sFramed, "upscaler",
             bpo::value<std::string>()->default_value(

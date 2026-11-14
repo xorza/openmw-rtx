@@ -15,20 +15,31 @@ namespace Rtx
         /// read as no stretch.
         constexpr std::array sNotStretches{ Timing::Frame, Timing::Wait, Timing::Preprocess, Timing::Bake,
             Timing::Textures, Timing::Upload, Timing::Sleep };
+
+        constexpr std::size_t sShown = 3;
+
+        /// The stretches of `spend` with the `sShown` largest ahead, largest first and a tie in `Timing`'s order.
+        std::array<Timing, sTimingCount> rank(const FrameSpend& spend)
+        {
+            std::array<Timing, sTimingCount> stretches = sTimings.values();
+            const auto end = std::remove_if(stretches.begin(), stretches.end(),
+                [](const Timing timing) { return std::ranges::find(sNotStretches, timing) != sNotStretches.end(); });
+            assert(end - stretches.begin() >= static_cast<std::ptrdiff_t>(sShown) && "fewer stretches than are shown");
+            std::partial_sort(stretches.begin(), stretches.begin() + sShown, end, [&](const Timing a, const Timing b) {
+                return spend.at(a) != spend.at(b) ? spend.at(a) > spend.at(b) : indexOf(a) < indexOf(b);
+            });
+            return stretches;
+        }
+    }
+
+    Timing leadingStretch(const FrameSpend& spend)
+    {
+        return rank(spend)[0];
     }
 
     std::string describeStretches(const FrameSpend& spend)
     {
-        std::array<Timing, sTimingCount> stretches = sTimings.values();
-        const auto end = std::remove_if(stretches.begin(), stretches.end(),
-            [](const Timing timing) { return std::ranges::find(sNotStretches, timing) != sNotStretches.end(); });
-
-        constexpr std::size_t sShown = 3;
-        assert(end - stretches.begin() >= static_cast<std::ptrdiff_t>(sShown) && "fewer stretches than are shown");
-        std::partial_sort(stretches.begin(), stretches.begin() + sShown, end, [&](const Timing a, const Timing b) {
-            return spend.at(a) != spend.at(b) ? spend.at(a) > spend.at(b) : indexOf(a) < indexOf(b);
-        });
-
+        const std::array<Timing, sTimingCount> stretches = rank(spend);
         std::string described;
         for (std::size_t at = 0; at < sShown; ++at)
             described += std::format(

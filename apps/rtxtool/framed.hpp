@@ -46,7 +46,7 @@ namespace RtxTool
 
     /// What `tour` draws where the line names no size: a small frame, since a tour is the content's faults and not
     /// its figures, and every frame drawn sooner is the streaming driven harder.
-    inline constexpr FrameSize sTourFrame{ .mWidth = 1024, .mHeight = 768 };
+    inline constexpr FrameSize sTourFrame{ .mWidth = 800, .mHeight = 600 };
 
     /// What a frame is upscaled by when nobody names a mode. The one knob whose default is the
     /// harness's own and not `settings-default.cfg`'s. Quality rather than Performance, so a plain
@@ -57,6 +57,11 @@ namespace RtxTool
     /// the upscaler still reconstructing across frames, because a film is watched and never timed,
     /// and the one picture a person keeps is the best one the renderer draws.
     inline constexpr Rtx::Upscale sFilmUpscale = Rtx::Upscale::Native;
+
+    /// What a tour is upscaled by where its line names no mode: Balanced, whatever `settings-default.cfg` ships, so a
+    /// tour's frame costs what it did when the shipped mode moves; with `sTourFrame`, a small trace that drives the
+    /// streaming hardest.
+    inline constexpr Rtx::Upscale sTourUpscale = Rtx::Upscale::Balanced;
 
     /// Where a hosted run's frames are presented: what goes into the settings the engine makes its
     /// window from, and nothing the renderer is made with.
@@ -143,9 +148,9 @@ namespace RtxTool
     /// asks how far a frame sees answers ten cells.
     inline constexpr float sTourCells = 10.0f;
 
-    /// A tour's settings: `measured`, seeing `sTourCells` cells, and upscaled as the game ships upscaling, its mode
-    /// and its choice of upscaler (`auto`, DLSS where the card has it), where a measured run takes the harness's own
-    /// so a picture does not move with the card: a tour flies what a player plays.
+    /// A tour's settings: `measured`, seeing `sTourCells` cells, upscaled by `sTourUpscale` through the upscaler the
+    /// game ships (`auto`, DLSS where the card has it), where a measured run takes FSR so a picture does not move
+    /// with the card: a tour flies what a player plays.
     MWRender::RtxSettingValues touredSettings(const ShippedDefaults& shipped, MWRender::RtxSettingValues measured);
 
     /// How the game streams cells in ahead of the player, as `[Cells]` states it, written before the engine reads it.

@@ -105,4 +105,7 @@ namespace Rtx
     /// finish 2.2 walk 0.6": the figures that sum to the frame, and neither the frame itself nor a share of one of
     /// them, since `Wait` is most of `Finish`, `Upload` most of `Place` and `Sleep` part of `Update`.
     std::string describeStretches(const FrameSpend& spend);
+
+    /// The largest of the stretches `describeStretches` names: where most of the frame went.
+    Timing leadingStretch(const FrameSpend& spend);
 }

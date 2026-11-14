@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -13,6 +14,7 @@
 #include "benchrun.hpp"
 #include "exitstatus.hpp"
 #include "findingkind.hpp"
+#include "measurewindow.hpp"
 
 namespace RtxTool
 {
@@ -25,60 +27,106 @@ namespace RtxTool
     /// Whether `kind` fails the run on its own.
     bool isFault(FindingKind kind);
 
-    /// Where a finding was first met: the leg's stop, the leg's frame, the place as a stop that stands
-    /// there (`describeBlock`), and the sky as it crossed.
-    struct FindingPlace
+    /// Which of its meetings a finding of a kind is placed at.
+    enum class FindingPlaced : std::uint8_t
     {
-        std::string mLeg;
-        std::uint32_t mFrame = 0;
-        Stop mStood{};
+        /// The first: a fault or a line of the log, met where it began.
+        First,
+
+        /// The worst, by its figure: a hitch or a leg's slow frames, stood at again where it cost most.
+        Worst,
+    };
+
+    /// Where a finding of `kind` is placed.
+    FindingPlaced placedOf(FindingKind kind);
+
+    /// The sky a finding was met under, as it crossed from one weather to the next.
+    struct FindingSky
+    {
         Rtx::Weather mLeft = Rtx::Weather::Clear;
         Rtx::Weather mArriving = Rtx::Weather::Clear;
         float mCrossed = 0.0f;
     };
 
-    /// One finding: its kind, what it is, where it was first met, how often, and the worst figure it came with.
+    /// Where a finding was met: the leg's stop, the leg's frame, the place as a stop that stands there
+    /// (`describeBlock`) with its hour, and the sky. A line logged on another thread is placed at its leg and frame
+    /// alone, with no eye, hour or sky.
+    struct FindingPlace
+    {
+        std::string mLeg;
+        std::uint32_t mFrame = 0;
+        Stop mStood{};
+        std::optional<FindingSky> mSky;
+    };
+
+    /// One finding: its kind, what it is, where it is placed (`placedOf`) and what it came to there where the
+    /// detail does not say (a hitch's figures), how often, and the worst figure it came with.
     struct Finding
     {
         FindingKind mKind = FindingKind::Count;
         std::string mDetail;
-        FindingPlace mFirst;
+        FindingPlace mPlace;
+        std::string mNote;
         std::uint32_t mCount = 0;
         double mWorstMs = 0.0;
     };
 
-    /// The findings of a run, the same kind and detail counted once with its first place, at most `sMost` of them:
-    /// past it a finding is counted as dropped, so a content whose every frame finds something holds the run's
-    /// memory to a bound and still says how many.
+    /// What one meeting of a finding came to: its figure, how many times it is counted, and what it came to where
+    /// the finding is placed at it.
+    struct FindingMet
+    {
+        double mMs = 0.0;
+        std::uint32_t mTimes = 1;
+        std::string_view mNote{};
+    };
+
+    /// The findings of a run, the same kind and detail counted once at its place, at most `sMost` faults and
+    /// `sMost` costs and marks: past either a finding is counted as dropped, by kind, so a content whose every
+    /// frame finds something holds the run's memory to a bound and still says how many. A cost never takes a
+    /// fault's room, and a cost the line fails on fails the run dropped as it does held.
     class FindingTable
     {
     public:
         static constexpr std::size_t sMost = 2048;
 
-        /// Whether a finding of `kind` and `detail` is held already, which a caller asks before it takes a place.
-        bool holds(FindingKind kind, std::string_view detail) const;
+        /// Whether counting a finding of `kind` and `detail` with figure `ms` takes its place, which a caller asks
+        /// before it takes one: one not held with room for it, or one placed at its worst that `ms` is worse than.
+        bool takesPlace(FindingKind kind, std::string_view detail, double ms = 0.0) const;
 
-        /// Counts a finding of `kind` and `detail` `times` more, at `place` where it is the first, with `ms` its
-        /// figure.
-        void add(FindingKind kind, std::string_view detail, const FindingPlace& place, double ms = 0.0,
-            std::uint32_t times = 1);
+        /// Counts a finding of `kind` and `detail` `met.mTimes` more, at `place` and with `met.mNote` where it takes
+        /// its place, or as dropped where there is no room for it.
+        void add(FindingKind kind, std::string_view detail, const FindingPlace& place, const FindingMet& met = {});
 
-        /// Counts one more of a finding held already, its figure the worse of the two. A finding not held is a
-        /// contract broken: `holds` is asked first.
-        void again(FindingKind kind, std::string_view detail, double ms = 0.0);
+        /// Counts one more of a finding that does not take its place (`takesPlace`), its figure the worse of the
+        /// two: one held, or one dropped.
+        void count(FindingKind kind, std::string_view detail, double ms = 0.0);
 
         std::span<const Finding> getFindings() const { return mFindings; }
-        std::uint32_t getDropped() const { return mDropped; }
 
-        /// Failed where a fault was found or a cost `failOn` names, else passed.
+        /// How many findings of `kind` were met past the bound.
+        std::uint32_t getDropped(FindingKind kind) const { return mDropped[static_cast<std::size_t>(kind)]; }
+
+        /// Failed where a fault was found or a cost `failOn` names, held or dropped, else passed.
         ExitStatus statusUnder(std::span<const FindingKind> failOn) const;
 
     private:
+        const Finding* find(FindingKind kind, std::string_view detail) const;
         Finding* find(FindingKind kind, std::string_view detail);
+        bool hasRoom(FindingKind kind) const;
 
         std::vector<Finding> mFindings;
-        std::uint32_t mDropped = 0;
+        std::size_t mFaults = 0;
+        std::array<std::uint32_t, static_cast<std::size_t>(FindingKind::Count)> mDropped{};
     };
+
+    /// Refills `into` with the detail a hitch in `spend` of `leg` is counted under: the leg and the stretch it spent
+    /// most in (`Rtx::leadingStretch`), as "led by update on leg-3". Into a buffer kept, so a hitch counted again
+    /// builds no string.
+    void describeHitchKey(std::string& into, std::string_view leg, const Rtx::FrameSpend& spend);
+
+    /// What the hitch `span` came to, where it is placed: its frame after `lastMs`, the `loaded` cells the game made
+    /// active on it, the meshes that arrived and where the time went.
+    std::string describeHitch(const ClosedSpan& span, double lastMs, std::size_t loaded);
 
     /// What a soak's two passes are held to each other by: the device's live memory, the content's vertices in use,
     /// and the median frame.
@@ -100,7 +148,7 @@ namespace RtxTool
     std::optional<std::string> describeGrowth(const SoakFigures& first, const SoakFigures& again);
 
     /// The findings as a person reads them after a tour: the faults first, then the costs worst first, each kind
-    /// and detail once with how often and where it was first met, the block a `view`, a `shot` or a `bench` stands
-    /// at under it; and the count past the table's bound.
+    /// and detail once with how often and where it is placed, the block a `view`, a `shot` or a `bench` stands at
+    /// under it; and the counts past the table's bound, by kind.
     std::string describeFindings(const FindingTable& table);
 }

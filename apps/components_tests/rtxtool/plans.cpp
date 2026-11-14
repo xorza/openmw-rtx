@@ -218,7 +218,7 @@ namespace RtxTool
             EXPECT_TRUE(request.mStops.empty()) << "nothing to fly until the world stands";
             EXPECT_EQ(request.mWhenAStopFails, WhenAStopFails::GoesOn);
             EXPECT_EQ(request.mStep, sStepSeconds);
-            EXPECT_EQ(request.mSetup.mWindowPixels, osg::Vec2i(1024, 768)) << "the tour's own frame";
+            EXPECT_EQ(request.mSetup.mWindowPixels, osg::Vec2i(800, 600)) << "the tour's own frame";
 
             // A player's preloading at the flight's speed: 12000 over a running player's 337.5 is 35.6 times, so the
             // shipped 1000 units of warning become 35,556 and its one thread 36, held to the ring's 16 cells and to
@@ -233,8 +233,8 @@ namespace RtxTool
             EXPECT_EQ(run.mPhysicsThreads, 1) << "the game's threaded physics";
             EXPECT_TRUE(request.mHud) << "the interface over the frame, as a player sees it";
             EXPECT_TRUE(request.mSetup.mInterface);
-            EXPECT_EQ(mLine.mFrame.mSize.mWidth, 1024u) << "read off a line that names no size";
-            EXPECT_EQ(mLine.mFrame.mSize.mHeight, 768u);
+            EXPECT_EQ(mLine.mFrame.mSize.mWidth, 800u) << "read off a line that names no size";
+            EXPECT_EQ(mLine.mFrame.mSize.mHeight, 600u);
             EXPECT_TRUE(request.mMeasures);
             ASSERT_TRUE(request.mPlanWhereTheWorldStands);
 
@@ -307,9 +307,9 @@ namespace RtxTool
             EXPECT_FALSE(request.mPlansOnly);
         }
 
-        /// **A tour sees ten cells and upscales as the game ships upscaling**, where a measured run takes the harness's
-        /// own quality and FSR: a tour flies what a player plays.
-        TEST_F(RtxPlanTest, aTourSeesTenCellsAndUpscalesAsTheGameShips)
+        /// **A tour sees ten cells, upscales Balanced, and through the upscaler the game ships**, where a measured run
+        /// takes the harness's own quality and FSR: a tour flies what a player plays, in a small frame.
+        TEST_F(RtxPlanTest, aTourSeesTenCellsAndUpscalesBalancedThroughTheShippedUpscaler)
         {
             MWRender::RtxSettingValues measured;
             measured.mUpscale = Rtx::Upscale::Quality;

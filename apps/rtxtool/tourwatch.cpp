@@ -67,22 +67,37 @@ namespace RtxTool
         FindingPlace place{ .mLeg = mLeg, .mFrame = mFrame };
         if (const Stop* stood = note.getLeft())
             place.mStood = *stood;
-        place.mLeft = Rtx::weatherOfScriptId(world.getCurrentWeatherScriptId()).value_or(Rtx::Weather::Clear);
-        place.mArriving = Rtx::weatherOfScriptId(world.getNextWeatherScriptId()).value_or(place.mLeft);
-        place.mCrossed = 1.0f - world.getWeatherTransition();
+        FindingSky sky;
+        sky.mLeft = Rtx::weatherOfScriptId(world.getCurrentWeatherScriptId()).value_or(Rtx::Weather::Clear);
+        sky.mArriving = Rtx::weatherOfScriptId(world.getNextWeatherScriptId()).value_or(sky.mLeft);
+        sky.mCrossed = 1.0f - world.getWeatherTransition();
+        place.mSky = sky;
         return place;
     }
 
     void TourWatch::add(const FindingKind kind, const std::string_view detail, StandingNote& note, const double ms)
     {
-        if (mTable.holds(kind, detail))
-            mTable.again(kind, detail, ms);
+        if (mTable.takesPlace(kind, detail, ms))
+            mTable.add(kind, detail, placeOf(note), FindingMet{ .mMs = ms });
         else
-            mTable.add(kind, detail, placeOf(note), ms);
+            mTable.count(kind, detail, ms);
+    }
+
+    void TourWatch::addHitch(const ClosedSpan& span, const std::size_t loaded, StandingNote& note)
+    {
+        const double frameMs = span.mSpend.at(Rtx::Timing::Frame);
+        describeHitchKey(mHitch, mLeg, span.mSpend);
+        if (!mTable.takesPlace(FindingKind::Hitch, mHitch, frameMs))
+        {
+            mTable.count(FindingKind::Hitch, mHitch, frameMs);
+            return;
+        }
+        mTable.add(FindingKind::Hitch, mHitch, placeOf(note),
+            FindingMet{ .mMs = frameMs, .mNote = describeHitch(span, mLastMs, loaded) });
     }
 
     void TourWatch::frame(const MWRender::FrameContext& context, const MWRender::FrameReport& report,
-        StandingNote& note, const bool measured)
+        StandingNote& note, const std::optional<ClosedSpan>& measured)
     {
         ++mFrame;
         mAir = report.mAir;
@@ -125,11 +140,11 @@ namespace RtxTool
             }
         }
 
-        if (!measured)
+        if (!measured.has_value())
             return;
 
         ++mMeasured;
-        const double frameMs = report.mSpend.at(Rtx::Timing::Frame);
+        const double frameMs = measured->mSpend.at(Rtx::Timing::Frame);
         if (frameMs > mBudgetMs)
         {
             ++mSlow;
@@ -142,11 +157,7 @@ namespace RtxTool
             // **Whose it was, said**: `update` is the game's own work between two frames, and a frame the game made
             // cells active on is one it loaded them on.
             if (mLastMs > 0.0 && frameMs > sHitchRatio * mLastMs)
-                add(FindingKind::Hitch,
-                    std::format("{:.1f} ms after {:.1f}{}: {} meshes arrived, {}", frameMs, mLastMs,
-                        loaded > 0 ? std::format(", the game loading {} cells", loaded) : std::string(),
-                        report.mUpload.mArrivedMeshes, Rtx::describeStretches(report.mSpend)),
-                    note, frameMs);
+                addHitch(*measured, loaded, note);
         }
         mLastMs = frameMs;
     }
@@ -167,7 +178,7 @@ namespace RtxTool
         if (!mPaced && mSlow > 0 && mSlowWorst.has_value())
             mTable.add(FindingKind::SlowFrames,
                 std::format("{} of {} frames of {} over the {:.1f} ms budget", mSlow, mMeasured, mLeg, mBudgetMs),
-                *mSlowWorst, mSlowWorstMs);
+                *mSlowWorst, FindingMet{ .mMs = mSlowWorstMs });
 
         for (const osg::Vec2i& cell : stop.mActions.mCovers)
             if (std::ranges::find(mCovered, cell.x()) == mCovered.end())
@@ -184,6 +195,6 @@ namespace RtxTool
 
     void TourWatch::mark(StandingNote& note)
     {
-        mTable.add(FindingKind::Mark, std::format("marked on frame {} of {}", mFrame, mLeg), placeOf(note));
+        add(FindingKind::Mark, std::format("marked on frame {} of {}", mFrame, mLeg), note);
     }
 }

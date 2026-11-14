@@ -11,6 +11,8 @@
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <apps/rtxtool/model/exitstatus.hpp>
 #include <apps/rtxtool/model/finding.hpp>
+#include <apps/rtxtool/model/measurewindow.hpp>
+#include <components/rtx/renderer/framespend.hpp>
 #include <components/rtx/world/weather.hpp>
 
 namespace RtxTool
@@ -44,41 +46,107 @@ namespace RtxTool
         TEST(RtxFindingTest, aFindingIsCountedOnceWithItsFirstPlace)
         {
             FindingTable table;
-            EXPECT_FALSE(table.holds(FindingKind::NotFinite, "bounce"));
+            EXPECT_TRUE(table.takesPlace(FindingKind::NotFinite, "bounce"));
             table.add(FindingKind::NotFinite, "bounce", placeAt("leg-1", 10));
-            EXPECT_TRUE(table.holds(FindingKind::NotFinite, "bounce"));
-            EXPECT_FALSE(table.holds(FindingKind::NotFinite, "visibility"));
-            EXPECT_FALSE(table.holds(FindingKind::Refused, "bounce")) << "a kind apart";
-            table.add(FindingKind::NotFinite, "bounce", placeAt("leg-3", 20), 4.0);
-            table.again(FindingKind::NotFinite, "bounce", 2.0);
+            EXPECT_FALSE(table.takesPlace(FindingKind::NotFinite, "bounce", 9.0)) << "placed at its first";
+            EXPECT_TRUE(table.takesPlace(FindingKind::NotFinite, "visibility"));
+            EXPECT_TRUE(table.takesPlace(FindingKind::Refused, "bounce")) << "a kind apart";
+            table.add(FindingKind::NotFinite, "bounce", placeAt("leg-3", 20), FindingMet{ .mMs = 4.0 });
+            table.count(FindingKind::NotFinite, "bounce", 2.0);
             table.add(FindingKind::NotFinite, "visibility", placeAt("leg-2", 5));
 
             ASSERT_EQ(table.getFindings().size(), 2u);
             const Finding& bounce = table.getFindings()[0];
             EXPECT_EQ(bounce.mCount, 3u);
-            EXPECT_EQ(bounce.mFirst.mLeg, "leg-1");
-            EXPECT_EQ(bounce.mFirst.mFrame, 10u);
+            EXPECT_EQ(bounce.mPlace.mLeg, "leg-1");
+            EXPECT_EQ(bounce.mPlace.mFrame, 10u);
             EXPECT_EQ(bounce.mWorstMs, 4.0);
-            EXPECT_EQ(table.getDropped(), 0u);
+            EXPECT_EQ(table.getDropped(FindingKind::NotFinite), 0u);
         }
 
-        /// **Past its bound a finding is counted as dropped**, so the run's memory holds whatever the content does.
+        /// **A hitch is placed at its worst, with what it came to there**: a worse figure moves the place and the
+        /// note, a better one counts and moves nothing, and one as bad as the worst is not worse.
+        TEST(RtxFindingTest, aHitchIsPlacedAtItsWorst)
+        {
+            FindingTable table;
+            const std::string_view detail = "led by update on leg-1";
+            table.add(FindingKind::Hitch, detail, placeAt("leg-1", 10), FindingMet{ .mMs = 40.0, .mNote = "40" });
+            EXPECT_FALSE(table.takesPlace(FindingKind::Hitch, detail, 30.0));
+            EXPECT_FALSE(table.takesPlace(FindingKind::Hitch, detail, 40.0)) << "as bad is not worse";
+            EXPECT_TRUE(table.takesPlace(FindingKind::Hitch, detail, 41.0));
+            table.count(FindingKind::Hitch, detail, 30.0);
+            table.add(FindingKind::Hitch, detail, placeAt("leg-1", 30), FindingMet{ .mMs = 90.0, .mNote = "90" });
+
+            ASSERT_EQ(table.getFindings().size(), 1u);
+            const Finding& hitch = table.getFindings()[0];
+            EXPECT_EQ(hitch.mCount, 3u);
+            EXPECT_EQ(hitch.mPlace.mFrame, 30u);
+            EXPECT_EQ(hitch.mNote, "90");
+            EXPECT_EQ(hitch.mWorstMs, 90.0);
+        }
+
+        /// **A hitch is counted under its leg and the stretch it spent most in, and says what it came to**: the key
+        /// refills its buffer, a share of a stretch never leads, and the cells the game loaded are said only where
+        /// it loaded some.
+        TEST(RtxFindingTest, aHitchIsKeyedByItsLegAndItsLeadingStretch)
+        {
+            Rtx::FrameSpend spend;
+            spend.at(Rtx::Timing::Frame) = 77.4;
+            spend.at(Rtx::Timing::Update) = 52.4;
+            spend.at(Rtx::Timing::Finish) = 10.3;
+            spend.at(Rtx::Timing::Wait) = 10.0;
+            spend.at(Rtx::Timing::Walk) = 4.5;
+            spend.at(Rtx::Timing::Sleep) = 60.0;
+            std::string key = "left over";
+            describeHitchKey(key, "leg-93-closing--1,-15", spend);
+            EXPECT_EQ(key, "led by update on leg-93-closing--1,-15") << "Sleep is a share of Update, not a stretch";
+            spend.at(Rtx::Timing::Walk) = 60.0;
+            describeHitchKey(key, "leg-2", spend);
+            EXPECT_EQ(key, "led by walk on leg-2");
+
+            const ClosedSpan span{ .mSpend = spend, .mArrived = 3 };
+            EXPECT_EQ(describeHitch(span, 24.4, 0),
+                "77.4 ms after 24.4: 3 meshes arrived, walk 60.0 update 52.4 finish 10.3");
+            EXPECT_EQ(describeHitch(span, 24.4, 2),
+                "77.4 ms after 24.4, the game loading 2 cells: 3 meshes arrived, walk 60.0 update 52.4 finish 10.3");
+        }
+
+        /// **Past its bound a finding is counted as dropped, by kind**, so the run's memory holds whatever the content
+        /// does; a cost never takes a fault's room, and a fault dropped fails the run.
         TEST(RtxFindingTest, pastItsBoundAFindingIsCountedAsDropped)
         {
             FindingTable table;
             for (std::size_t at = 0; at < FindingTable::sMost + 3; ++at)
                 table.add(FindingKind::Hitch, std::to_string(at), placeAt("leg-1", 0));
             EXPECT_EQ(table.getFindings().size(), FindingTable::sMost);
-            EXPECT_EQ(table.getDropped(), 3u);
+            EXPECT_EQ(table.getDropped(FindingKind::Hitch), 3u);
+            EXPECT_FALSE(table.takesPlace(FindingKind::Hitch, "a hitch past the bound", 500.0));
+            table.count(FindingKind::Hitch, "a hitch past the bound", 500.0);
+            EXPECT_EQ(table.getDropped(FindingKind::Hitch), 4u);
             table.add(FindingKind::Hitch, "0", placeAt("leg-2", 0));
             EXPECT_EQ(table.getFindings()[0].mCount, 2u) << "one held is counted however full the table";
+            EXPECT_EQ(table.statusUnder({}), ExitStatus::Passed) << "costs alone";
+
+            EXPECT_TRUE(table.takesPlace(FindingKind::Refused, "a texture")) << "the costs took no fault's room";
+            table.add(FindingKind::Refused, "a texture", placeAt("leg-9", 0));
+            EXPECT_EQ(table.getFindings().size(), FindingTable::sMost + 1);
+
+            FindingTable faults;
+            for (std::size_t at = 0; at < FindingTable::sMost + 2; ++at)
+                faults.add(FindingKind::Refused, std::to_string(at), placeAt("leg-1", 0));
+            faults.add(FindingKind::NotFinite, "bounce", placeAt("leg-2", 0));
+            EXPECT_EQ(faults.getDropped(FindingKind::Refused), 2u);
+            EXPECT_EQ(faults.getDropped(FindingKind::NotFinite), 1u) << "dropped by its own kind";
+            EXPECT_EQ(faults.getDropped(FindingKind::LogError), 0u);
+            EXPECT_EQ(faults.getFindings().size(), FindingTable::sMost) << "nothing held for what was dropped";
+            EXPECT_TRUE(faults.takesPlace(FindingKind::Mark, "here")) << "the faults took no cost's room";
         }
 
         /// **A fault fails the run, a cost only where the line names it.**
         TEST(RtxFindingTest, aFaultFailsTheRunAndACostWhereNamed)
         {
             FindingTable costs;
-            costs.add(FindingKind::Hitch, "120 ms", placeAt("leg-1", 0), 120.0);
+            costs.add(FindingKind::Hitch, "120 ms", placeAt("leg-1", 0), FindingMet{ .mMs = 120.0 });
             costs.add(FindingKind::Mark, "here", placeAt("leg-1", 0));
             EXPECT_EQ(costs.statusUnder({}), ExitStatus::Passed);
             const std::vector<FindingKind> hitches{ FindingKind::Hitch };
@@ -88,10 +156,20 @@ namespace RtxTool
             fault.add(FindingKind::Outrun, "cell 3,1", placeAt("leg-1", 0));
             EXPECT_EQ(fault.statusUnder({}), ExitStatus::Failed);
             EXPECT_EQ(FindingTable{}.statusUnder({}), ExitStatus::Passed);
+
+            // A cost the line names fails where it was only counted past the bound.
+            FindingTable full;
+            for (std::size_t at = 0; at <= FindingTable::sMost; ++at)
+                full.add(FindingKind::Mark, std::to_string(at), placeAt("leg-1", 0));
+            full.add(FindingKind::Hitch, "past the bound", placeAt("leg-2", 0), FindingMet{ .mMs = 120.0 });
+            EXPECT_EQ(full.getDropped(FindingKind::Hitch), 1u);
+            EXPECT_EQ(full.statusUnder({}), ExitStatus::Passed);
+            EXPECT_EQ(full.statusUnder(hitches), ExitStatus::Failed);
         }
 
-        /// **The report puts the faults first and the costs worst first**, each once with its count and where it
-        /// was first met, under its hour and the sky as it crossed, and the block to stand there again.
+        /// **The report puts the faults first and the costs worst first**, each once with its count and where it is
+        /// placed, under its hour and the sky as it crossed where they are known, what it came to there, the block
+        /// to stand there again, and what fell past the bound by kind.
         TEST(RtxFindingTest, theReportPutsTheFaultsFirst)
         {
             FindingTable table;
@@ -101,25 +179,31 @@ namespace RtxTool
             hitch.mStood.mStand.mLook = osg::Vec3f(1, 3, 3);
             hitch.mStood.mSky.mHour = 18.5f;
             hitch.mStood.mSky.mDay = 2;
-            hitch.mLeft = Rtx::Weather::Rain;
-            hitch.mArriving = Rtx::Weather::Snow;
-            hitch.mCrossed = 0.25f;
-            table.add(FindingKind::Hitch, "30 ms", placeAt("leg-1", 1), 30.0);
-            table.add(FindingKind::Hitch, "90 ms", hitch, 90.0);
+            hitch.mSky = FindingSky{ .mLeft = Rtx::Weather::Rain, .mArriving = Rtx::Weather::Snow, .mCrossed = 0.25f };
+            table.add(FindingKind::Hitch, "led by walk on leg-1", placeAt("leg-1", 1), FindingMet{ .mMs = 30.0 });
+            table.add(FindingKind::Hitch, "led by update on leg-2-land-0,1", hitch,
+                FindingMet{ .mMs = 90.0, .mNote = "90.0 ms after 20.0: 3 meshes arrived, update 80.0" });
             table.add(FindingKind::LegFailed, "leg-3: stalled", placeAt("leg-3", 0));
+            for (std::size_t at = 0; at < FindingTable::sMost; ++at)
+                table.add(FindingKind::LogWarning, std::to_string(at), placeAt("leg-1", 0));
+            table.add(FindingKind::LogWarning, "past", placeAt("leg-1", 0));
 
             const std::string text = describeFindings(table);
-            const std::size_t fault = text.find("FAULT leg-failed: leg-3: stalled");
-            const std::size_t worse = text.find("cost  hitch: 90 ms, worst 90.0 ms");
-            const std::size_t better = text.find("cost  hitch: 30 ms, worst 30.0 ms");
+            const std::size_t fault = text.find("FAULT leg-failed: leg-3: stalled\n  first at leg-3 frame 0\n");
+            const std::size_t worse = text.find("cost  hitch: led by update on leg-2-land-0,1, worst 90.0 ms");
+            const std::size_t better = text.find("cost  hitch: led by walk on leg-1, worst 30.0 ms");
             ASSERT_NE(fault, std::string::npos) << text;
             ASSERT_NE(worse, std::string::npos) << text;
             ASSERT_NE(better, std::string::npos) << text;
             EXPECT_LT(fault, worse);
             EXPECT_LT(worse, better);
-            EXPECT_NE(text.find("tour findings: 1 faults, 2 costs and marks"), std::string::npos) << text;
             EXPECT_NE(
-                text.find("first at leg-2-land-0,1 frame 40, day 3 18:30 under Rain to Snow 25%"), std::string::npos)
+                text.find("tour findings: 1 faults, 2048 costs and marks, past the table's bound: 3 log-warning\n"),
+                std::string::npos)
+                << text;
+            EXPECT_NE(text.find("  worst at leg-2-land-0,1 frame 40, day 3 18:30 under Rain to Snow 25%\n"
+                                "  90.0 ms after 20.0: 3 meshes arrived, update 80.0\n"),
+                std::string::npos)
                 << text;
             EXPECT_NE(text.find("cell = 0,1"), std::string::npos) << "the block to stand there again\n" << text;
         }

@@ -306,8 +306,8 @@ On `rtx-tour`. Whoever addresses an item deletes it.
 - **The tour writes `findings.txt` and `tour.json` after every leg into `--out`** (the verb's folder unless
   named), and the pictures Home marks under `marks/`; `tools/omw/tour.py` runs several contents with
   `--each=<label>:<args>`, a folder each.
-- **A tour flies the game as a player plays it wherever it can**: ten cells of vision, the shipped upscale mode and
-  upscaler (`auto`, DLSS where the card has it), the game's threaded physics and its HUD (`touredSettings`,
+- **A tour flies the game as a player plays it wherever it can**: ten cells of vision, the shipped upscaler
+  (`auto`, DLSS where the card has it), the game's threaded physics and its HUD (`touredSettings`,
   `planTourRun`). Refused: the harness's own quality FSR and single-threaded physics, which a measured run keeps
   so a figure does not move with the card, and which no player runs.
 - **The game's preloading at the flight's pace** (`preloadFlownAt`): the shipped `preload distance` scaled by the
@@ -316,9 +316,19 @@ On `rtx-tour`. Whoever addresses an item deletes it.
   what the processor spares; and a cache of 50, the grid and its ring around where the player is and will be, past
   the 43 and 44 the game asked for under the first tours. The vanilla tour's hitches went from
   451, the game loading cells on the frame, to 75, the renderer's own update after an arrival.
-- **A tour draws 1024x768 where the line names no size** (`sTourFrame`), at the person's ask: its findings are the
-  content's faults, not its figures.
+- **A tour draws 800x600 upscaled Balanced where the line names neither** (`sTourFrame`, `sTourUpscale`), at the
+  person's ask: its findings are the content's faults, not its figures, and the mode stays Balanced if the shipped
+  one moves.
 - **Only rooms a door leads into**, from outside or from another room (`readWorldMap`): a content's test cells,
   which nothing leads to and which have no lamps by design, failed `lights-placed` under the large mod list.
 - **A refused surface names the role it lost**: a detail, a decal, a gloss or a bump map, each its own
   `UnreadState`, where one reason stood for four.
+- **A hitch is one finding a leg and the stretch it spent most in, placed at its worst**, with what that frame came
+  to (`describeHitchKey`, `FindingPlaced::Worst`), decided 2026-11-14: a hitch's own figures in its detail made
+  every hitch a finding of its own, and the first tours filled the table on land legs and reported no room. Read in
+  the span the frame's arrival closes (`ClosedSpan`), as `bench` reads its worst frames, so its stretches close its
+  time. Refused: a leg alone, which merges a walk's hitches with the game's; the cause alone, a place a run; every
+  hitch under a bound of its own, which still truncates.
+- **Faults and costs each have a bound of their own, and what passes it is counted by kind**: a cost never takes a
+  fault's room, and a cost the line fails on fails dropped as held.
+- **A place says only what it knows**: a line logged on another thread names its leg and frame, and no hour or sky.

@@ -37,6 +37,16 @@ namespace RtxTool
         Rtx::FrameSpend mSpend;
     };
 
+    /// The span a frame's arrival closes: the frame before's figures with this frame's `Frame`, `Update` and `Sleep`
+    /// (`Rtx::FrameSpend::closedBy`), and the meshes the frame before brought. `Timing::Frame` runs from the last
+    /// frame's opening to this one's, so it holds the game's update this frame arrived through and the renderer's
+    /// work of the frame before: the span a hitch is read in.
+    struct ClosedSpan
+    {
+        Rtx::FrameSpend mSpend;
+        std::uint32_t mArrived = 0;
+    };
+
     /// Whether a stop waits for its world to stand whole before its warm-up, or takes it as standing: a flight that
     /// goes on from the stop before (`Schedule::mContinues`), whose world is the one that stop flew through, is
     /// measured from its first frame, as a player's flight is not held up at a line nobody drew.
@@ -89,12 +99,8 @@ namespace RtxTool
             /// The measured frame's number, counted from one, where `mOutcome` is `Measured`.
             std::uint32_t mDrawn = 0;
 
-            /// This frame's wall time closes the span the frame before it worked in: `Timing::Frame` runs from the
-            /// last frame's opening to this one's, so it holds the game's update this frame arrived through and the
-            /// renderer's work of the frame before. The closed span is that frame's figures with this frame's
-            /// `Frame`, `Update` and `Sleep`, and the meshes it brought.
-            Rtx::FrameSpend mClosed;
-            std::uint32_t mClosedArrived = 0;
+            /// The span this frame's arrival closed.
+            ClosedSpan mClosed;
 
             /// The frame before stood in another cell than the one before it: a crossing, and whether its placement
             /// rebuilt the scene, which `mClosed` is the cost of. The move pulls the ring in and the read lands in

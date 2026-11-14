@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <span>
@@ -12,6 +13,7 @@
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <apps/rtxtool/model/finding.hpp>
 #include <apps/rtxtool/model/logtally.hpp>
+#include <apps/rtxtool/model/measurewindow.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/world/frameworld.hpp>
 
@@ -34,10 +36,12 @@ namespace RtxTool
         /// A leg begins.
         void begin(const Stop& stop);
 
-        /// The frame `report` describes, of the leg begun: `measured` once the leg's frames are counted, which a
-        /// hitch and a slow frame are judged on alone, as the frames ahead of them wait for the world.
+        /// The frame `report` describes, of the leg begun, and the span its arrival closed where the frame was
+        /// measured (`Measurer::getMeasuredSpan`): a hitch and a slow frame are judged on measured spans alone, as
+        /// the frames ahead of them wait for the world, and a hitch is read in the span, which holds the work of the
+        /// frame before with the game's update this one arrived through.
         void frame(const MWRender::FrameContext& context, const MWRender::FrameReport& report, StandingNote& note,
-            bool measured);
+            const std::optional<ClosedSpan>& measured);
 
         /// The leg ended, `place` what it came to and `failed` the claims it asked that did not hold: those, its slow
         /// frames, the cells it covers that no frame stood whole in, and the closing leg's growth past the first.
@@ -61,6 +65,10 @@ namespace RtxTool
         FindingPlace placeOf(StandingNote& note);
 
         void add(FindingKind kind, std::string_view detail, StandingNote& note, double ms = 0.0);
+
+        /// Counts the hitch `span` is, by its leg and the stretch it spent most in, placed at the worst of them with
+        /// `loaded` the cells the game made active on it.
+        void addHitch(const ClosedSpan& span, std::size_t loaded, StandingNote& note);
 
         double mBudgetMs = 0.0;
         bool mPaced = false;
@@ -95,6 +103,9 @@ namespace RtxTool
 
         /// The last air the frames reported, which a place taken at a leg's end stands under.
         Rtx::AirClock mAir{};
+
+        /// A hitch's detail, refilled for each hitch: a hitch that takes no place builds no string.
+        std::string mHitch;
 
         FindingTable mTable;
         LogTally mLog;

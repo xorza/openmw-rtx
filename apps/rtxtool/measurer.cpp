@@ -98,6 +98,7 @@ namespace RtxTool
         const double frameMs = report.mSpend.at(Rtx::Timing::Frame);
         const float step = worldStep(mRequest.mStep);
         const std::uint32_t measured = stop.mSchedule.mSpec.getMeasured(step);
+        mMeasuredSpan.reset();
 
         // Counted at the frame the run traced and never at the frame the device answered for it: a result comes back
         // one frame later or two, so counting results would put two runs of one build at different points of the
@@ -150,6 +151,7 @@ namespace RtxTool
         switch (taken.mOutcome)
         {
             case MeasureWindow::Outcome::Measured:
+                mMeasuredSpan = taken.mClosed;
                 break;
             case MeasureWindow::Outcome::Ahead:
                 return Verdict::Going;
@@ -170,8 +172,8 @@ namespace RtxTool
         if (stop.mSchedule.mSpec.mRun.isUntilClosed())
             return Verdict::Going;
 
-        mProgress.mSamples.add(taken.mClosed);
-        mProgress.mPlace.mArrivals.add(taken.mClosedArrived, taken.mClosed);
+        mProgress.mSamples.add(taken.mClosed.mSpend);
+        mProgress.mPlace.mArrivals.add(taken.mClosed.mArrived, taken.mClosed.mSpend);
         mProgress.mWallMs += frameMs;
 
         // A measured frame of a paused world is a frame of something else, and nothing in a report says so. A menu
@@ -184,7 +186,7 @@ namespace RtxTool
         // dropped known (`MeasureWindow::Taken::mClosedCrossing`). The whole frame goes in as the read, because the
         // game gives no split: the ring arrives on the loading threads.
         if (taken.mClosedCrossing.has_value())
-            mProgress.mPlace.mCrossings.add(*taken.mClosedCrossing, taken.mClosed.at(Rtx::Timing::Frame));
+            mProgress.mPlace.mCrossings.add(*taken.mClosedCrossing, taken.mClosed.mSpend.at(Rtx::Timing::Frame));
 
         const std::uint32_t drawn = taken.mDrawn;
 

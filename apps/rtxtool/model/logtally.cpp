@@ -24,7 +24,12 @@ namespace RtxTool
         }
         if (mLines.size() == sMost)
         {
-            ++mDropped;
+            Line& past = mPast[level == Debug::Error ? 0 : 1];
+            if (past.mCount++ == 0)
+            {
+                past.mLeg = mLeg;
+                past.mFrame = mFrame;
+            }
             return;
         }
         mLines.push_back(Line{ .mError = level == Debug::Error,
@@ -47,11 +52,14 @@ namespace RtxTool
         const std::scoped_lock lock(mMutex);
         for (const Line& line : mLines)
             table.add(line.mError ? FindingKind::LogError : FindingKind::LogWarning, line.mText,
-                FindingPlace{ .mLeg = line.mLeg, .mFrame = line.mFrame }, 0.0, line.mCount);
-        if (mDropped > 0)
-            table.add(
-                FindingKind::LogWarning, "lines past the log's table", FindingPlace{ .mLeg = mLeg }, 0.0, mDropped);
+                FindingPlace{ .mLeg = line.mLeg, .mFrame = line.mFrame }, FindingMet{ .mTimes = line.mCount });
+        for (Line& past : mPast)
+        {
+            if (past.mCount > 0)
+                table.add(past.mError ? FindingKind::LogError : FindingKind::LogWarning, "lines past the log's table",
+                    FindingPlace{ .mLeg = past.mLeg, .mFrame = past.mFrame }, FindingMet{ .mTimes = past.mCount });
+            past.mCount = 0;
+        }
         mLines.clear();
-        mDropped = 0;
     }
 }

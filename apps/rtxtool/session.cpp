@@ -435,10 +435,12 @@ namespace RtxTool
             return;
         }
 
+        // The watch after the measurer, which closes the span the frame before worked in: a hitch is read there.
+        const Measurer::Verdict verdict = mMeasurer.frame(currentStop(), context, report, mCamera.hasArrived());
         if (mWatch.has_value())
-            mWatch->frame(context, report, mNote, mMeasurer.getMeasuredIndex().has_value());
+            mWatch->frame(context, report, mNote, mMeasurer.getMeasuredSpan());
 
-        switch (mMeasurer.frame(currentStop(), context, report, mCamera.hasArrived()))
+        switch (verdict)
         {
             case Measurer::Verdict::Going:
                 return;

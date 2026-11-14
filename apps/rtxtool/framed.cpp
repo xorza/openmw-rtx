@@ -90,7 +90,7 @@ namespace RtxTool
 
     MWRender::RtxSettingValues touredSettings(const ShippedDefaults& shipped, MWRender::RtxSettingValues measured)
     {
-        measured.mUpscale = Rtx::sUpscaleNames.require(shipped.getText(Settings::rtx().mUpscale), "an upscale mode");
+        measured.mUpscale = sTourUpscale;
         measured.mUpscaler = Rtx::sUpscalerNames.require(shipped.getText(Settings::rtx().mUpscaler), "an upscaler");
         measured.mDistantLandCells = sTourCells;
         measured.mViewingDistance = sTourCells * static_cast<float>(Constants::CellSizeInUnits);

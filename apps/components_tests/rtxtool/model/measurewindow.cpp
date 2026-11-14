@@ -163,19 +163,19 @@ namespace RtxTool
             before.mSpend.at(Rtx::Timing::Update) = 1.0;
             before.mArrivedMeshes = 4;
             const MeasureWindow::Taken first = window.take(before);
-            EXPECT_EQ(first.mClosedArrived, 0u) << "nothing before the first frame";
+            EXPECT_EQ(first.mClosed.mArrived, 0u) << "nothing before the first frame";
 
             WindowFrame after = standing(0, 20.0);
             after.mSpend.at(Rtx::Timing::Walk) = 9.0;
             after.mSpend.at(Rtx::Timing::Update) = 2.0;
             after.mSpend.at(Rtx::Timing::Sleep) = 0.5;
             const MeasureWindow::Taken second = window.take(after);
-            EXPECT_EQ(second.mClosed.at(Rtx::Timing::Frame), 20.0);
-            EXPECT_EQ(second.mClosed.at(Rtx::Timing::Update), 2.0);
-            EXPECT_EQ(second.mClosed.at(Rtx::Timing::Sleep), 0.5);
-            EXPECT_EQ(second.mClosed.at(Rtx::Timing::Walk), 3.0) << "the frame before's walk";
-            EXPECT_EQ(second.mClosed.at(Rtx::Timing::Trace), 7.0) << "the frame before's trace";
-            EXPECT_EQ(second.mClosedArrived, 4u);
+            EXPECT_EQ(second.mClosed.mSpend.at(Rtx::Timing::Frame), 20.0);
+            EXPECT_EQ(second.mClosed.mSpend.at(Rtx::Timing::Update), 2.0);
+            EXPECT_EQ(second.mClosed.mSpend.at(Rtx::Timing::Sleep), 0.5);
+            EXPECT_EQ(second.mClosed.mSpend.at(Rtx::Timing::Walk), 3.0) << "the frame before's walk";
+            EXPECT_EQ(second.mClosed.mSpend.at(Rtx::Timing::Trace), 7.0) << "the frame before's trace";
+            EXPECT_EQ(second.mClosed.mArrived, 4u);
         }
 
         /// **A crossing is closed with the span of the frame that first stood in the new cell**, as
@@ -202,8 +202,8 @@ namespace RtxTool
             const MeasureWindow::Taken closed = at(&cells[1], 30.0, false);
             ASSERT_TRUE(closed.mClosedCrossing.has_value());
             EXPECT_TRUE(*closed.mClosedCrossing) << "the crossing's own placement rebuilt";
-            EXPECT_EQ(closed.mClosed.at(Rtx::Timing::Frame), 30.0) << "the wall the crossing's work stood in";
-            EXPECT_EQ(closed.mClosed.at(Rtx::Timing::Walk), 8.0) << "the crossing's own walk";
+            EXPECT_EQ(closed.mClosed.mSpend.at(Rtx::Timing::Frame), 30.0) << "the wall the crossing's work stood in";
+            EXPECT_EQ(closed.mClosed.mSpend.at(Rtx::Timing::Walk), 8.0) << "the crossing's own walk";
 
             EXPECT_FALSE(at(&cells[0], 10.0, false).mClosedCrossing.has_value());
             const MeasureWindow::Taken appended = at(&cells[0], 10.0, true);

@@ -49,6 +49,19 @@ namespace Rtx
             EXPECT_EQ(describe(summary),
                 "100 frames, median 16.7 ms, p99 40.1 ms, worst 300.0 ms at frame 50 (update 250.0 place 30.0 walk "
                 "15.0), 2 hitches");
+            EXPECT_EQ(leadingStretch(summary.mWorst), Timing::Update);
+
+            // The leading stretch is one `describeStretches` names: a share is none, however large. `Upload` 29 of
+            // `Place` 30 under an `Update` of 10, of which `Sleep` is 9, leads with `place`; with `Place` at 9 the
+            // update leads, `Sleep` and `Upload` past both.
+            FrameSpend shares = frameOf(40.0);
+            shares.at(Timing::Place) = 30.0;
+            shares.at(Timing::Upload) = 29.0;
+            shares.at(Timing::Update) = 10.0;
+            shares.at(Timing::Sleep) = 9.0;
+            EXPECT_EQ(leadingStretch(shares), Timing::Place);
+            shares.at(Timing::Place) = 9.0;
+            EXPECT_EQ(leadingStretch(shares), Timing::Update);
 
             // A frame just inside twice the median is no hitch: 33.3 ms against 33.4. And no quantile
             // reads past the worst, which its bin's edge would. Stretches that tie stand in `Timing`'s order.
@@ -60,6 +73,7 @@ namespace Rtx
             EXPECT_EQ(describe(even.summarise()),
                 "3 frames, median 16.7 ms, p99 33.3 ms, worst 33.3 ms at frame 3 (finish 0.0 walk 0.0 place 0.0), 0 "
                 "hitches");
+            EXPECT_EQ(leadingStretch(frameOf(33.3)), Timing::Finish) << "a tie stands in Timing's order";
 
             times.clear();
             EXPECT_EQ(times.summarise().mFrames, 0u);

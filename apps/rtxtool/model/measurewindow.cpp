@@ -30,8 +30,7 @@ namespace RtxTool
         mLastCell = frame.mCell;
         ++mSeen;
 
-        taken.mClosed = mPendingSpend.closedBy(frame.mSpend);
-        taken.mClosedArrived = mPendingArrived;
+        taken.mClosed = ClosedSpan{ .mSpend = mPendingSpend.closedBy(frame.mSpend), .mArrived = mPendingArrived };
         taken.mClosedCrossing = mPendingCrossing;
         mPendingSpend = frame.mSpend;
         mPendingArrived = frame.mArrivedMeshes;

@@ -102,6 +102,10 @@ namespace RtxTool
         /// Why the stop cannot go on, or empty.
         const std::string& getFailure() const { return mFailure; }
 
+        /// The span the last frame taken closed, where that frame was measured: what its figures are taken from,
+        /// and what a tour reads a hitch in.
+        const std::optional<ClosedSpan>& getMeasuredSpan() const { return mMeasuredSpan; }
+
     private:
         /// Takes in what the device answered for one frame of `stop`, under the number of the frame
         /// it answers for: the figures a frame has only once the device is done with it, and its
@@ -196,5 +200,6 @@ namespace RtxTool
 
         Progress mProgress;
         std::string mFailure;
+        std::optional<ClosedSpan> mMeasuredSpan;
     };
 }

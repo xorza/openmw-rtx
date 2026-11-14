@@ -5,11 +5,14 @@
 #include <cassert>
 #include <cstddef>
 #include <format>
+#include <iterator>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
+#include <components/rtx/renderer/framespend.hpp>
 #include <components/rtx/world/weather.hpp>
 
 #include "benchrecord.hpp"
@@ -24,20 +27,21 @@ namespace RtxTool
             FindingKind mKind;
             std::string_view mName;
             bool mFault;
+            FindingPlaced mPlaced;
         };
 
         constexpr std::array<KindRow, static_cast<std::size_t>(FindingKind::Count)> sKinds{ {
-            { FindingKind::NotFinite, "not-finite", true },
-            { FindingKind::Refused, "refused", true },
-            { FindingKind::CheckFailed, "check", true },
-            { FindingKind::LogError, "log-error", true },
-            { FindingKind::Outrun, "outrun", true },
-            { FindingKind::LegFailed, "leg-failed", true },
-            { FindingKind::Hitch, "hitch", false },
-            { FindingKind::SlowFrames, "slow-frames", false },
-            { FindingKind::LogWarning, "log-warning", false },
-            { FindingKind::Growth, "growth", false },
-            { FindingKind::Mark, "mark", false },
+            { FindingKind::NotFinite, "not-finite", true, FindingPlaced::First },
+            { FindingKind::Refused, "refused", true, FindingPlaced::First },
+            { FindingKind::CheckFailed, "check", true, FindingPlaced::First },
+            { FindingKind::LogError, "log-error", true, FindingPlaced::First },
+            { FindingKind::Outrun, "outrun", true, FindingPlaced::First },
+            { FindingKind::LegFailed, "leg-failed", true, FindingPlaced::First },
+            { FindingKind::Hitch, "hitch", false, FindingPlaced::Worst },
+            { FindingKind::SlowFrames, "slow-frames", false, FindingPlaced::Worst },
+            { FindingKind::LogWarning, "log-warning", false, FindingPlaced::First },
+            { FindingKind::Growth, "growth", false, FindingPlaced::First },
+            { FindingKind::Mark, "mark", false, FindingPlaced::First },
         } };
 
         static_assert(
@@ -55,12 +59,23 @@ namespace RtxTool
             return sKinds[static_cast<std::size_t>(kind)];
         }
 
-        std::string describeSky(const FindingPlace& place)
+        std::string describeSky(const FindingSky& sky)
         {
-            if (place.mLeft == place.mArriving)
-                return std::string(Rtx::nameOf(place.mLeft));
+            if (sky.mLeft == sky.mArriving)
+                return std::string(Rtx::nameOf(sky.mLeft));
             return std::format(
-                "{} to {} {:.0f}%", Rtx::nameOf(place.mLeft), Rtx::nameOf(place.mArriving), 100.0f * place.mCrossed);
+                "{} to {} {:.0f}%", Rtx::nameOf(sky.mLeft), Rtx::nameOf(sky.mArriving), 100.0f * sky.mCrossed);
+        }
+
+        /// Where `place` stands, as much of it as is known: the leg and its frame, the day and the hour, the sky.
+        std::string describePlace(const FindingPlace& place)
+        {
+            std::string text = std::format("{} frame {}", place.mLeg, place.mFrame);
+            if (const std::optional<float> hour = place.mStood.mSky.mHour)
+                text += std::format(", day {} {}", place.mStood.mSky.mDay.value_or(0) + 1, describeHour(*hour));
+            if (place.mSky.has_value())
+                text += std::format(" under {}", describeSky(*place.mSky));
+            return text;
         }
     }
 
@@ -82,51 +97,102 @@ namespace RtxTool
         return rowOf(kind).mFault;
     }
 
-    Finding* FindingTable::find(const FindingKind kind, const std::string_view detail)
+    FindingPlaced placedOf(const FindingKind kind)
+    {
+        return rowOf(kind).mPlaced;
+    }
+
+    const Finding* FindingTable::find(const FindingKind kind, const std::string_view detail) const
     {
         const auto found = std::ranges::find_if(
             mFindings, [&](const Finding& finding) { return finding.mKind == kind && finding.mDetail == detail; });
         return found == mFindings.end() ? nullptr : &*found;
     }
 
-    bool FindingTable::holds(const FindingKind kind, const std::string_view detail) const
+    Finding* FindingTable::find(const FindingKind kind, const std::string_view detail)
     {
-        return std::ranges::any_of(
-            mFindings, [&](const Finding& finding) { return finding.mKind == kind && finding.mDetail == detail; });
+        // The one search, for both: the table is this object's own, so what it finds may be changed.
+        return const_cast<Finding*>(std::as_const(*this).find(kind, detail));
     }
 
-    void FindingTable::add(const FindingKind kind, const std::string_view detail, const FindingPlace& place,
-        const double ms, const std::uint32_t times)
+    bool FindingTable::hasRoom(const FindingKind kind) const
+    {
+        const std::size_t held = isFault(kind) ? mFaults : mFindings.size() - mFaults;
+        return held < sMost;
+    }
+
+    bool FindingTable::takesPlace(const FindingKind kind, const std::string_view detail, const double ms) const
+    {
+        if (const Finding* held = find(kind, detail))
+            return placedOf(kind) == FindingPlaced::Worst && ms > held->mWorstMs;
+        return hasRoom(kind);
+    }
+
+    void FindingTable::add(
+        const FindingKind kind, const std::string_view detail, const FindingPlace& place, const FindingMet& met)
     {
         if (Finding* held = find(kind, detail))
         {
-            held->mCount += times;
+            held->mCount += met.mTimes;
+            if (placedOf(kind) == FindingPlaced::Worst && met.mMs > held->mWorstMs)
+            {
+                held->mPlace = place;
+                held->mNote = met.mNote;
+            }
+            held->mWorstMs = std::max(held->mWorstMs, met.mMs);
+            return;
+        }
+        if (!hasRoom(kind))
+        {
+            mDropped[static_cast<std::size_t>(kind)] += met.mTimes;
+            return;
+        }
+        mFaults += isFault(kind) ? 1 : 0;
+        mFindings.push_back(Finding{ .mKind = kind,
+            .mDetail = std::string(detail),
+            .mPlace = place,
+            .mNote = std::string(met.mNote),
+            .mCount = met.mTimes,
+            .mWorstMs = met.mMs });
+    }
+
+    void FindingTable::count(const FindingKind kind, const std::string_view detail, const double ms)
+    {
+        assert(!takesPlace(kind, detail, ms) && "a finding counted with no place where it takes one");
+        if (Finding* held = find(kind, detail))
+        {
+            ++held->mCount;
             held->mWorstMs = std::max(held->mWorstMs, ms);
             return;
         }
-        if (mFindings.size() == sMost)
-        {
-            mDropped += times;
-            return;
-        }
-        mFindings.push_back(
-            Finding{ .mKind = kind, .mDetail = std::string(detail), .mFirst = place, .mCount = times, .mWorstMs = ms });
-    }
-
-    void FindingTable::again(const FindingKind kind, const std::string_view detail, const double ms)
-    {
-        Finding* held = find(kind, detail);
-        assert(held != nullptr && "a finding counted again that was never found");
-        ++held->mCount;
-        held->mWorstMs = std::max(held->mWorstMs, ms);
+        ++mDropped[static_cast<std::size_t>(kind)];
     }
 
     ExitStatus FindingTable::statusUnder(const std::span<const FindingKind> failOn) const
     {
-        for (const Finding& finding : mFindings)
-            if (isFault(finding.mKind) || std::ranges::find(failOn, finding.mKind) != failOn.end())
+        for (const KindRow& row : sKinds)
+        {
+            const bool fails = row.mFault || std::ranges::find(failOn, row.mKind) != failOn.end();
+            const bool met = getDropped(row.mKind) > 0
+                || std::ranges::any_of(mFindings, [&](const Finding& finding) { return finding.mKind == row.mKind; });
+            if (fails && met)
                 return ExitStatus::Failed;
+        }
         return ExitStatus::Passed;
+    }
+
+    void describeHitchKey(std::string& into, const std::string_view leg, const Rtx::FrameSpend& spend)
+    {
+        into.clear();
+        std::format_to(
+            std::back_inserter(into), "led by {} on {}", Rtx::sTimings.name(Rtx::leadingStretch(spend)), leg);
+    }
+
+    std::string describeHitch(const ClosedSpan& span, const double lastMs, const std::size_t loaded)
+    {
+        return std::format("{:.1f} ms after {:.1f}{}: {} meshes arrived, {}", span.mSpend.at(Rtx::Timing::Frame),
+            lastMs, loaded > 0 ? std::format(", the game loading {} cells", loaded) : std::string(), span.mArrived,
+            Rtx::describeStretches(span.mSpend));
     }
 
     SoakFigures SoakFigures::of(const BenchPlace& place)
@@ -172,18 +238,24 @@ namespace RtxTool
         for (const Finding* finding : ordered)
             faults += isFault(finding->mKind) ? 1 : 0;
 
-        std::string text
-            = std::format("\ntour findings: {} faults, {} costs and marks{}\n", faults, ordered.size() - faults,
-                table.getDropped() > 0 ? std::format(", {} more past the table's bound", table.getDropped()) : "");
+        std::string dropped;
+        for (const KindRow& row : sKinds)
+            if (const std::uint32_t count = table.getDropped(row.mKind); count > 0)
+                dropped
+                    += std::format("{} {} {}", dropped.empty() ? ", past the table's bound:" : ",", count, row.mName);
+
+        std::string text = std::format(
+            "\ntour findings: {} faults, {} costs and marks{}\n", faults, ordered.size() - faults, dropped);
         for (const Finding* finding : ordered)
         {
-            const FindingPlace& place = finding->mFirst;
-            text += std::format("\n{} {}: {}{}{}\n  first at {} frame {}, day {} {} under {}\n",
-                isFault(finding->mKind) ? "FAULT" : "cost ", findingName(finding->mKind), finding->mDetail,
+            const FindingPlace& place = finding->mPlace;
+            text += std::format("\n{} {}: {}{}{}\n  {} at {}\n", isFault(finding->mKind) ? "FAULT" : "cost ",
+                findingName(finding->mKind), finding->mDetail,
                 finding->mCount > 1 ? std::format(", {} times", finding->mCount) : "",
-                finding->mWorstMs > 0.0 ? std::format(", worst {:.1f} ms", finding->mWorstMs) : "", place.mLeg,
-                place.mFrame, place.mStood.mSky.mDay.value_or(0) + 1,
-                describeHour(place.mStood.mSky.mHour.value_or(0.0f)), describeSky(place));
+                finding->mWorstMs > 0.0 ? std::format(", worst {:.1f} ms", finding->mWorstMs) : "",
+                placedOf(finding->mKind) == FindingPlaced::First ? "first" : "worst", describePlace(place));
+            if (!finding->mNote.empty())
+                text += std::format("  {}\n", finding->mNote);
             if (place.mStood.mStand.mEye.has_value())
                 text += describeBlock(place.mStood);
         }

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <mutex>
@@ -14,9 +15,10 @@
 namespace RtxTool
 {
     /// The log's warnings and errors as a tour hears them, from whichever thread logs: each distinct line counted once
-    /// with the leg and the frame it was first said on, at most `sMost` of them, and what the table found besides
-    /// counted as dropped. The frame's thread hands the lines over (`drainInto`), where a place is a leg and a frame:
-    /// a line said on another thread names no eye.
+    /// with the leg and the frame it was first said on, at most `sMost` of them, and the lines past the bound counted
+    /// as one of their level with where the first was said, so an error past the bound fails as one held does. The
+    /// frame's thread hands the lines over (`drainInto`), where a place is a leg and a frame: a line said on another
+    /// thread names no eye.
     class LogTally
     {
     public:
@@ -45,6 +47,8 @@ namespace RtxTool
         std::vector<Line> mLines;
         std::string mLeg;
         std::uint32_t mFrame = 0;
-        std::uint32_t mDropped = 0;
+
+        /// The lines past the bound, an error's and a warning's, each counted with where its first was said.
+        std::array<Line, 2> mPast{ Line{ .mError = true }, Line{ .mError = false } };
     };
 }
