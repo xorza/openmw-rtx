@@ -21,18 +21,18 @@ namespace MWDialogue
     {
         const ESM::Dialogue* dialogue = MWBase::Environment::get().getESMStore()->get<ESM::Dialogue>().find(topic);
 
-        for (const auto& iter : dialogue->mInfo)
-            if (iter.mId == mInfoId)
+        for (const auto& entry : dialogue->mInfo)
+            if (entry.mId == mInfoId)
             {
                 if (actor.isEmpty())
                 {
                     MWScript::InterpreterContext interpreterContext(nullptr, MWWorld::Ptr());
-                    mText = Interpreter::fixDefinesDialog(iter.mResponse, interpreterContext);
+                    mText = Interpreter::fixDefinesDialog(entry.mResponse, interpreterContext);
                 }
                 else
                 {
                     MWScript::InterpreterContext interpreterContext(&actor.getRefData().getLocals(), actor);
-                    mText = Interpreter::fixDefinesDialog(iter.mResponse, interpreterContext);
+                    mText = Interpreter::fixDefinesDialog(entry.mResponse, interpreterContext);
                 }
 
                 return;
@@ -87,10 +87,10 @@ namespace MWDialogue
     {
         const ESM::Dialogue* dialogue = MWBase::Environment::get().getESMStore()->get<ESM::Dialogue>().find(topic);
 
-        for (const auto& iter : dialogue->mInfo)
-            if (iter.mData.mJournalIndex == index)
+        for (const auto& entry : dialogue->mInfo)
+            if (entry.mData.mJournalIndex == index)
             {
-                return iter.mId;
+                return entry.mId;
             }
 
         throw std::runtime_error("unknown journal index for topic " + topic.toDebugString());

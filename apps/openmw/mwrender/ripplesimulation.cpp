@@ -208,11 +208,11 @@ namespace MWRender
 
     void RippleSimulation::updateEmitterPtr(const MWWorld::ConstPtr& old, const MWWorld::ConstPtr& ptr)
     {
-        for (auto& mEmitter : mEmitters)
+        for (auto& emitter : mEmitters)
         {
-            if (mEmitter.mPtr == old)
+            if (emitter.mPtr == old)
             {
-                mEmitter.mPtr = ptr;
+                emitter.mPtr = ptr;
                 return;
             }
         }

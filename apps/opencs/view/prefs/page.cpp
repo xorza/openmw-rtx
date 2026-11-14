@@ -17,8 +17,8 @@ CSVPrefs::Page::Page(CSMPrefs::Category& category, QWidget* parent)
     auto* widget = new QWidget(parent);
     mGrid = new QGridLayout(widget);
 
-    for (auto& iter : category)
-        addSetting(iter);
+    for (auto& entry : category)
+        addSetting(entry);
 
     setWidget(widget);
 }

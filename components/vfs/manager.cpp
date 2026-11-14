@@ -74,10 +74,10 @@ namespace VFS
 
     std::string Manager::getArchive(const Path::Normalized& name) const
     {
-        for (const auto& mArchive : std::views::reverse(mArchives))
+        for (const auto& archive : std::views::reverse(mArchives))
         {
-            if (mArchive->contains(name))
-                return mArchive->getDescription();
+            if (archive->contains(name))
+                return archive->getDescription();
         }
         return {};
     }

@@ -26,12 +26,12 @@ namespace SceneUtil
 
     void MorphGeometry::setSourceGeometry(osg::ref_ptr<osg::Geometry> sourceGeom)
     {
-        for (auto& i : mGeometry)
-            i = nullptr;
+        for (auto& entry : mGeometry)
+            entry = nullptr;
 
         mSourceGeometry = sourceGeom;
 
-        for (auto& i : mGeometry)
+        for (auto& entry : mGeometry)
         {
             // DO NOT COPY AND PASTE THIS CODE. Cloning osg::Geometry without also cloning its contained Arrays is
             // generally unsafe. In this specific case the operation is safe under the following two assumptions:
@@ -39,11 +39,11 @@ namespace SceneUtil
             // outlive the cloned geometry regardless. (ensured by the user-data ref below)
             // - Arrays that we add or replace in the cloned geometry must be explicitely forbidden from reusing
             // BufferObjects of the original geometry. (ensured by vbo below)
-            i = new osg::Geometry(*mSourceGeometry, osg::CopyOp::SHALLOW_COPY);
-            i->getOrCreateUserDataContainer()->addUserObject(mSourceGeometry.get());
+            entry = new osg::Geometry(*mSourceGeometry, osg::CopyOp::SHALLOW_COPY);
+            entry->getOrCreateUserDataContainer()->addUserObject(mSourceGeometry.get());
 
             const osg::Geometry& from = *mSourceGeometry;
-            osg::Geometry& to = *i;
+            osg::Geometry& to = *entry;
             to.setSupportsDisplayList(false);
             to.setUseVertexBufferObjects(true);
             to.setCullingActive(false); // make sure to disable culling since that's handled by this class

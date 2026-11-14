@@ -631,13 +631,13 @@ CSMWorld::RefIdCollection::RefIdCollection(const IdCollection<ESM::MagicEffect>&
 
 CSMWorld::RefIdCollection::~RefIdCollection()
 {
-    for (auto& mAdapter : mAdapters)
-        delete mAdapter.second;
+    for (auto& adapter : mAdapters)
+        delete adapter.second;
 
-    for (auto& mNestedAdapter : mNestedAdapters)
+    for (auto& nestedAdapter : mNestedAdapters)
     {
-        for (auto it((mNestedAdapter.second).begin()); it != (mNestedAdapter.second).end(); ++it)
-            delete it->second;
+        for (const auto& adapter : nestedAdapter.second)
+            delete adapter.second;
     }
 }
 
@@ -852,13 +852,13 @@ CSMWorld::NestedTableWrapperBase* CSMWorld::RefIdCollection::nestedTable(int row
 const CSMWorld::NestedRefIdAdapterBase& CSMWorld::RefIdCollection::getNestedAdapter(
     const CSMWorld::ColumnBase& column, UniversalId::Type type) const
 {
-    for (const auto& mNestedAdapter : mNestedAdapters)
+    for (const auto& nestedAdapter : mNestedAdapters)
     {
-        if ((mNestedAdapter.first) == &column)
+        if ((nestedAdapter.first) == &column)
         {
-            auto it = (mNestedAdapter.second).find(type);
+            auto it = (nestedAdapter.second).find(type);
 
-            if (it == (mNestedAdapter.second).end())
+            if (it == (nestedAdapter.second).end())
                 throw std::runtime_error("No such type in the nestedadapters");
 
             return *it->second;

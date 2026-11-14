@@ -83,11 +83,11 @@ namespace Fx
 
         void compile()
         {
-            for (auto& mPasse : std::views::reverse(mPasses))
+            for (auto& pass : std::views::reverse(mPasses))
             {
-                if (!mPasse.mRenderTarget)
+                if (!pass.mRenderTarget)
                 {
-                    mPasse.mResolve = true;
+                    pass.mResolve = true;
                     break;
                 }
             }

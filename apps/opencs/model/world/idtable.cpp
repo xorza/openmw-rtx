@@ -199,9 +199,9 @@ void CSMWorld::IdTable::addRecordWithData(
 
     mIdCollection->appendBlankRecord(refId, type);
 
-    for (const auto& iter : data)
+    for (const auto& entry : data)
     {
-        mIdCollection->setData(index, iter.first, iter.second);
+        mIdCollection->setData(index, entry.first, entry.second);
     }
 
     endInsertRows();

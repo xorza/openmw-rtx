@@ -397,10 +397,10 @@ namespace ESSImport
             faction.load(esm, isDeleted);
             const auto& id = faction.mId;
 
-            for (auto& mReaction : faction.mReactions)
+            for (auto& reaction : faction.mReactions)
             {
-                const auto& faction2 = mReaction.first;
-                mContext->mDialogueState.mChangedFactionReaction[id].insert(std::make_pair(faction2, mReaction.second));
+                const auto& faction2 = reaction.first;
+                mContext->mDialogueState.mChangedFactionReaction[id].insert(std::make_pair(faction2, reaction.second));
             }
         }
     };
@@ -431,10 +431,10 @@ namespace ESSImport
         void write(ESM::ESMWriter& esm) const override
         {
             ESM::StolenItems items;
-            for (const auto& mStolenItem : mStolenItems)
+            for (const auto& stolenItem : mStolenItems)
             {
                 std::map<std::pair<ESM::RefId, bool>, int> owners;
-                for (const auto& ownerIt : mStolenItem.second)
+                for (const auto& ownerIt : stolenItem.second)
                 {
                     owners.insert(std::make_pair(std::make_pair(ESM::RefId::stringRefId(ownerIt.first), ownerIt.second)
                         // Since OpenMW doesn't suffer from the owner contamination bug,
@@ -445,7 +445,7 @@ namespace ESSImport
                         std::numeric_limits<int>::max()));
                 }
 
-                items.mStolenItems.insert(std::make_pair(ESM::RefId::stringRefId(mStolenItem.first), owners));
+                items.mStolenItems.insert(std::make_pair(ESM::RefId::stringRefId(stolenItem.first), owners));
             }
 
             esm.startRecord(ESM::REC_STLN);
@@ -488,13 +488,13 @@ namespace ESSImport
         }
         void write(ESM::ESMWriter& esm) const override
         {
-            for (const auto& mDial : mDials)
+            for (const auto& dial : mDials)
             {
                 esm.startRecord(ESM::REC_QUES);
                 ESM::QuestState state;
                 state.mFinished = 0;
-                state.mState = mDial.second.mIndex;
-                state.mTopic = ESM::RefId::stringRefId(mDial.first);
+                state.mState = dial.second.mIndex;
+                state.mTopic = ESM::RefId::stringRefId(dial.first);
                 state.save(esm);
                 esm.endRecord(ESM::REC_QUES);
             }

@@ -328,9 +328,9 @@ namespace MWMechanics
 
     void MechanicsManager::processChangedSettings(const Settings::CategorySettingVector& changed)
     {
-        for (const auto& it : changed)
+        for (const auto& entry : changed)
         {
-            if (it.first == "Game" && it.second == "actors processing range")
+            if (entry.first == "Game" && entry.second == "actors processing range")
             {
                 int state = MWBase::Environment::get().getStateManager()->getState();
                 if (state != MWBase::StateManager::State_Running)

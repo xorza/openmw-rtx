@@ -33,9 +33,9 @@ namespace Files
 
     std::filesystem::path Collections::getPath(std::string_view file) const
     {
-        for (const auto& mDirectorie : std::views::reverse(mDirectories))
+        for (const auto& directory : std::views::reverse(mDirectories))
         {
-            for (const auto& iter2 : std::filesystem::directory_iterator(mDirectorie))
+            for (const auto& iter2 : std::filesystem::directory_iterator(directory))
             {
                 const auto& path = iter2.path();
                 const auto str = Files::pathToUnicodeString(path.filename());
@@ -50,9 +50,9 @@ namespace Files
 
     bool Collections::doesExist(std::string_view file) const
     {
-        for (const auto& mDirectorie : std::views::reverse(mDirectories))
+        for (const auto& directory : std::views::reverse(mDirectories))
         {
-            for (const auto& iter2 : std::filesystem::directory_iterator(mDirectorie))
+            for (const auto& iter2 : std::filesystem::directory_iterator(directory))
             {
                 const auto& path = iter2.path();
                 const auto str = Files::pathToUnicodeString(path.filename());

@@ -20,9 +20,9 @@ namespace MWDialogue
             throw std::runtime_error("topic does not match: " + mTopic.toDebugString());
 
         // bail out if we already have heard this
-        for (auto& mEntrie : mEntries)
+        for (auto& eachEntry : mEntries)
         {
-            if (mEntrie.mInfoId == entry.mInfoId)
+            if (eachEntry.mInfoId == entry.mInfoId)
                 return false;
         }
 

@@ -283,13 +283,13 @@ const ESM::Potion* MWMechanics::Alchemy::getRecord(const ESM::Potion& toFind) co
 
 void MWMechanics::Alchemy::removeIngredients()
 {
-    for (auto& mIngredient : mIngredients)
-        if (!mIngredient.isEmpty())
+    for (auto& ingredient : mIngredients)
+        if (!ingredient.isEmpty())
         {
-            mIngredient.getContainerStore()->remove(mIngredient, 1);
+            ingredient.getContainerStore()->remove(ingredient, 1);
 
-            if (mIngredient.getCellRef().getCount() < 1)
-                mIngredient = MWWorld::Ptr();
+            if (ingredient.getCellRef().getCount() < 1)
+                ingredient = MWWorld::Ptr();
         }
 
     updateEffects();
@@ -467,8 +467,8 @@ int MWMechanics::Alchemy::addIngredient(const MWWorld::Ptr& ingredient)
     if (slot == -1)
         return -1;
 
-    for (const auto& mIngredient : mIngredients)
-        if (!mIngredient.isEmpty() && ingredient.getCellRef().getRefId() == mIngredient.getCellRef().getRefId())
+    for (const auto& eachIngredient : mIngredients)
+        if (!eachIngredient.isEmpty() && ingredient.getCellRef().getRefId() == eachIngredient.getCellRef().getRefId())
             return -1;
 
     mIngredients[slot] = ingredient;

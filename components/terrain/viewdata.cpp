@@ -67,8 +67,8 @@ namespace Terrain
 
     void ViewData::clear()
     {
-        for (auto& mEntrie : mEntries)
-            mEntrie.set(nullptr);
+        for (auto& entry : mEntries)
+            entry.set(nullptr);
         mNumEntries = 0;
         mLastUsageTimeStamp = 0;
         mChanged = false;

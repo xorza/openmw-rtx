@@ -119,17 +119,17 @@ unsigned int CSVWidget::SceneToolToggle2::getSelectionMask() const
 {
     unsigned int selection = 0;
 
-    for (const auto& mButton : mButtons)
-        if (mButton.first->isChecked())
-            selection |= mButton.second.mMask;
+    for (const auto& button : mButtons)
+        if (button.first->isChecked())
+            selection |= button.second.mMask;
 
     return selection;
 }
 
 void CSVWidget::SceneToolToggle2::setSelectionMask(unsigned int selection)
 {
-    for (auto& mButton : mButtons)
-        mButton.first->setChecked(selection & mButton.second.mMask);
+    for (auto& button : mButtons)
+        button.first->setChecked(selection & button.second.mMask);
 
     adjustToolTip();
     adjustIcon();

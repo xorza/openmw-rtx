@@ -476,8 +476,8 @@ void CSVDoc::View::updateActions()
     bool editing = !(mDocument->getState() & CSMDoc::State_Locked);
     bool running = mDocument->getState() & CSMDoc::State_Running;
 
-    for (auto& mEditingAction : mEditingActions)
-        mEditingAction->setEnabled(editing);
+    for (auto& editingAction : mEditingActions)
+        editingAction->setEnabled(editing);
 
     mUndo->setEnabled(editing && mDocument->getUndoStack().canUndo());
     mRedo->setEnabled(editing && mDocument->getUndoStack().canRedo());
@@ -1114,9 +1114,9 @@ void CSVDoc::View::updateScrollbar()
         rect = this->rect();
 
     int newWidth = 0;
-    for (auto& mSubView : mSubViews)
+    for (auto& subView : mSubViews)
     {
-        newWidth += mSubView->width();
+        newWidth += subView->width();
     }
 
     int frameWidth = frameGeometry().width() - width();

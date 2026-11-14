@@ -392,16 +392,16 @@ MWWorld::Ptr MWWorld::WorldModel::getPtrByRefId(const ESM::RefId& name)
     // Then check cells that are already listed
     // Search in reverse, this is a workaround for an ambiguous chargen_plank reference in the vanilla game.
     // there is one at -22,16 and one at -2,-9, the latter should be used.
-    for (auto& mExterior : std::views::reverse(mExteriors))
+    for (auto& exterior : std::views::reverse(mExteriors))
     {
-        Ptr ptr = getPtrAndCache(name, *mExterior.second);
+        Ptr ptr = getPtrAndCache(name, *exterior.second);
         if (!ptr.isEmpty())
             return ptr;
     }
 
-    for (auto& mInterior : mInteriors)
+    for (auto& interior : mInteriors)
     {
-        Ptr ptr = getPtrAndCache(name, *mInterior.second);
+        Ptr ptr = getPtrAndCache(name, *interior.second);
         if (!ptr.isEmpty())
             return ptr;
     }

@@ -10,13 +10,13 @@
 
 CSVDoc::SubViewFactoryManager::~SubViewFactoryManager()
 {
-    for (auto& mSubViewFactorie : mSubViewFactories)
-        delete mSubViewFactorie.second;
+    for (auto& subViewFactory : mSubViewFactories)
+        delete subViewFactory.second;
 }
 
 void CSVDoc::SubViewFactoryManager::add(const CSMWorld::UniversalId::Type& id, SubViewFactoryBase* factory)
 {
-    assert(mSubViewFactories.find(id) == mSubViewFactories.end());
+    assert(!mSubViewFactories.contains(id));
 
     mSubViewFactories.insert(std::make_pair(id, factory));
 }

@@ -550,8 +550,8 @@ namespace MWRender
         , mPlayScriptedOnly(false)
         , mRequiresBoneMap(false)
     {
-        for (auto& i : mAnimationTimePtr)
-            i = std::make_shared<AnimationTime>();
+        for (auto& entry : mAnimationTimePtr)
+            entry = std::make_shared<AnimationTime>();
 
         mLightListCallback = new SceneUtil::LightListCallback;
     }
@@ -668,9 +668,9 @@ namespace MWRender
 
         const NodeMap& nodeMap = getNodeMap();
         const auto& controllerMap = animsrc->mKeyframes->mKeyframeControllers;
-        for (const auto& it : controllerMap)
+        for (const auto& entry : controllerMap)
         {
-            std::string bonename = Misc::StringUtils::lowerCase(it.first);
+            std::string bonename = Misc::StringUtils::lowerCase(entry.first);
             auto found = nodeMap.find(bonename);
             if (found == nodeMap.end())
             {
@@ -681,10 +681,11 @@ namespace MWRender
 
             osg::Node* node = found->second;
 
-            size_t blendMask = detectBlendMask(node, it.second->getName());
+            size_t blendMask = detectBlendMask(node, entry.second->getName());
 
             // clone the controller, because each Animation needs its own ControllerSource
-            osg::ref_ptr<SceneUtil::KeyframeController> cloned = osg::clone(it.second.get(), osg::CopyOp::SHALLOW_COPY);
+            osg::ref_ptr<SceneUtil::KeyframeController> cloned
+                = osg::clone(entry.second.get(), osg::CopyOp::SHALLOW_COPY);
             cloned->setSource(mAnimationTimePtr[blendMask]);
 
             animsrc->mControllerMap[blendMask].insert(std::make_pair(bonename, cloned));
@@ -710,9 +711,9 @@ namespace MWRender
                 found = nodeMap.find(name);
                 if (found == nodeMap.end())
                     continue;
-                for (const auto& it : controllerMap)
+                for (const auto& entry : controllerMap)
                 {
-                    if (Misc::StringUtils::ciEqual(it.first, name))
+                    if (Misc::StringUtils::ciEqual(entry.first, name))
                     {
                         mAccumRoot = found->second;
                         break;
@@ -761,8 +762,8 @@ namespace MWRender
     {
         mStates.clear();
 
-        for (auto& i : mAnimationTimePtr)
-            i->setTimePtr(std::shared_ptr<float>());
+        for (auto& entry : mAnimationTimePtr)
+            entry->setTimePtr(std::shared_ptr<float>());
 
         mAccumCtrl = nullptr;
 
@@ -815,9 +816,9 @@ namespace MWRender
 
     float Animation::getStartTime(const std::string& groupname) const
     {
-        for (const auto& mAnimSource : std::views::reverse(mAnimSources))
+        for (const auto& animSource : std::views::reverse(mAnimSources))
         {
-            const SceneUtil::TextKeyMap& keys = mAnimSource->getTextKeys();
+            const SceneUtil::TextKeyMap& keys = animSource->getTextKeys();
 
             const auto found = keys.findGroupStart(groupname);
             if (found != keys.end())
@@ -828,9 +829,9 @@ namespace MWRender
 
     float Animation::getTextKeyTime(std::string_view textKey) const
     {
-        for (const auto& mAnimSource : std::views::reverse(mAnimSources))
+        for (const auto& animSource : std::views::reverse(mAnimSources))
         {
-            const SceneUtil::TextKeyMap& keys = mAnimSource->getTextKeys();
+            const SceneUtil::TextKeyMap& keys = animSource->getTextKeys();
 
             for (const auto& key : keys)
             {
@@ -1105,13 +1106,13 @@ namespace MWRender
     void Animation::resetActiveGroups()
     {
         // remove all previous external controllers from the scene graph
-        for (auto& mActiveController : mActiveControllers)
+        for (auto& activeController : mActiveControllers)
         {
-            osg::Node* node = mActiveController.first;
-            node->removeUpdateCallback(mActiveController.second);
+            osg::Node* node = activeController.first;
+            node->removeUpdateCallback(activeController.second);
 
             // Should be no longer needed with OSG 3.4
-            mActiveController.second->setNestedCallback(nullptr);
+            activeController.second->setNestedCallback(nullptr);
         }
 
         mActiveControllers.clear();
@@ -1305,11 +1306,11 @@ namespace MWRender
                 const SceneUtil::TextKeyMap& keys2 = (*animiter)->getTextKeys();
 
                 const AnimSource::ControllerMap& ctrls2 = (*animiter)->mControllerMap[0];
-                for (const auto& it : ctrls2)
+                for (const auto& entry : ctrls2)
                 {
-                    if (Misc::StringUtils::ciEqual(it.first, mAccumRoot->getName()))
+                    if (Misc::StringUtils::ciEqual(entry.first, mAccumRoot->getName()))
                     {
-                        velocity = calcAnimVelocity(keys2, it.second, mAccumulate, groupname);
+                        velocity = calcAnimVelocity(keys2, entry.second, mAccumulate, groupname);
                         break;
                     }
                 }
@@ -1834,12 +1835,12 @@ namespace MWRender
 
     bool Animation::upperBodyReady() const
     {
-        for (const auto& mState : mStates)
+        for (const auto& state : mStates)
         {
-            if (mState.second.mPriority.contains(static_cast<int>(MWMechanics::Priority_Hit))
-                || mState.second.mPriority.contains(static_cast<int>(MWMechanics::Priority_Weapon))
-                || mState.second.mPriority.contains(static_cast<int>(MWMechanics::Priority_Knockdown))
-                || mState.second.mPriority.contains(static_cast<int>(MWMechanics::Priority_Death)))
+            if (state.second.mPriority.contains(static_cast<int>(MWMechanics::Priority_Hit))
+                || state.second.mPriority.contains(static_cast<int>(MWMechanics::Priority_Weapon))
+                || state.second.mPriority.contains(static_cast<int>(MWMechanics::Priority_Knockdown))
+                || state.second.mPriority.contains(static_cast<int>(MWMechanics::Priority_Death)))
                 return false;
         }
         return true;

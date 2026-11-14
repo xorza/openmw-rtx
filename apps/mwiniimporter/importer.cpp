@@ -402,14 +402,14 @@ MwIniImporter::multistrmap MwIniImporter::loadCfgFile(const std::filesystem::pat
 void MwIniImporter::merge(multistrmap& cfg, const multistrmap& ini) const
 {
     multistrmap::const_iterator iniIt;
-    for (const auto& it : mMergeMap)
+    for (const auto& entry : mMergeMap)
     {
-        if ((iniIt = ini.find(it.second)) != ini.end())
+        if ((iniIt = ini.find(entry.second)) != ini.end())
         {
             for (const auto& vc : iniIt->second)
             {
-                cfg.erase(it.first);
-                insertMultistrmap(cfg, it.first, vc);
+                cfg.erase(entry.first);
+                insertMultistrmap(cfg, entry.first, vc);
             }
         }
     }
@@ -420,13 +420,13 @@ void MwIniImporter::mergeFallback(multistrmap& cfg, const multistrmap& ini) cons
     cfg.erase("fallback");
 
     multistrmap::const_iterator iniIt;
-    for (const auto& it : mMergeFallback)
+    for (const auto& entry : mMergeFallback)
     {
-        if ((iniIt = ini.find(it)) != ini.end())
+        if ((iniIt = ini.find(entry)) != ini.end())
         {
             for (const auto& vc : iniIt->second)
             {
-                std::string value(it);
+                std::string value(entry);
                 std::replace(value.begin(), value.end(), ' ', '_');
                 std::replace(value.begin(), value.end(), ':', '_');
                 value.append(",").append(vc.substr(0, vc.length()));
@@ -625,11 +625,11 @@ void MwIniImporter::importGameFiles(
 void MwIniImporter::writeToFile(std::ostream& out, const multistrmap& cfg)
 {
 
-    for (const auto& it : cfg)
+    for (const auto& each : cfg)
     {
-        for (auto entry = it.second.begin(); entry != it.second.end(); ++entry)
+        for (auto entry = each.second.begin(); entry != each.second.end(); ++entry)
         {
-            out << (it.first) << "=" << (*entry) << std::endl;
+            out << (each.first) << "=" << (*entry) << std::endl;
         }
     }
 }

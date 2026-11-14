@@ -167,11 +167,11 @@ namespace ESM
         esm.writeHNOCRefId("BNAM", mSleepList);
 
         esm.writeHNT("CNAM", mMapColor);
-        for (const auto& it : mSoundList)
+        for (const auto& entry : mSoundList)
         {
             esm.startSubRecord("SNAM");
-            esm.writeMaybeFixedSizeRefId(it.mSound, 32);
-            esm.writeT(it.mChance);
+            esm.writeMaybeFixedSizeRefId(entry.mSound, 32);
+            esm.writeT(entry.mChance);
             esm.endRecord("SNAM");
         }
     }

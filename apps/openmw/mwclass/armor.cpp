@@ -102,10 +102,10 @@ namespace MWClass
             { ESM::Armor::LBracer, MWWorld::InventoryStore::Slot_LeftGauntlet },
             { ESM::Armor::RBracer, MWWorld::InventoryStore::Slot_RightGauntlet } };
 
-        for (auto i : sMapping)
-            if (i[0] == ref->mBase->mData.mType)
+        for (auto entry : sMapping)
+            if (entry[0] == ref->mBase->mData.mType)
             {
-                slots.push_back((i[1]));
+                slots.push_back((entry[1]));
                 break;
             }
 

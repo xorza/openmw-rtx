@@ -36,9 +36,9 @@ namespace MWDialogue
     {
         const ESM::Dialogue* dialogue = MWBase::Environment::get().getESMStore()->get<ESM::Dialogue>().find(mTopic);
 
-        for (const auto& iter : dialogue->mInfo)
-            if (iter.mQuestStatus == ESM::DialInfo::QS_Name)
-                return iter.mResponse;
+        for (const auto& entry : dialogue->mInfo)
+            if (entry.mQuestStatus == ESM::DialInfo::QS_Name)
+                return entry.mResponse;
 
         return {};
     }
@@ -85,8 +85,8 @@ namespace MWDialogue
             MWBase::Environment::get().getLuaManager()->questUpdated(mTopic, mIndex);
         }
 
-        for (const auto& mEntrie : mEntries)
-            if (mEntrie.mInfoId == entry.mInfoId)
+        for (const auto& eachEntry : mEntries)
+            if (eachEntry.mInfoId == entry.mInfoId)
                 return info->mQuestStatus == ESM::DialInfo::QS_Restart;
 
         mEntries.push_back(entry); // we want slicing here

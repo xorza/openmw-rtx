@@ -39,17 +39,17 @@ void CSVDoc::ViewManager::updateIndices()
 {
     std::map<CSMDoc::Document*, std::pair<int, int>> documents;
 
-    for (auto mView : mViews)
+    for (auto view : mViews)
     {
-        auto document = documents.find(mView->getDocument());
+        auto document = documents.find(view->getDocument());
 
         if (document == documents.end())
             document
                 = documents
-                      .insert(std::make_pair(mView->getDocument(), std::make_pair(0, countViews(mView->getDocument()))))
+                      .insert(std::make_pair(view->getDocument(), std::make_pair(0, countViews(view->getDocument()))))
                       .first;
 
-        mView->setIndex(document->second.first++, document->second.second);
+        view->setIndex(document->second.first++, document->second.second);
     }
 }
 
@@ -118,9 +118,9 @@ CSVDoc::ViewManager::ViewManager(CSMDoc::DocumentManager& documentManager)
         { CSMWorld::ColumnBase::Display_GenderNpc, CSMWorld::Columns::ColumnId_Gender, false },
     };
 
-    for (auto i : sMapping)
-        mDelegateFactories->add(
-            i.mDisplay, new CSVWorld::EnumDelegateFactory(CSMWorld::Columns::getEnums(i.mColumnId), i.mAllowNone));
+    for (auto entry : sMapping)
+        mDelegateFactories->add(entry.mDisplay,
+            new CSVWorld::EnumDelegateFactory(CSMWorld::Columns::getEnums(entry.mColumnId), entry.mAllowNone));
 
     connect(&mDocumentManager, &CSMDoc::DocumentManager::loadRequest, &mLoader, &Loader::add);
 
@@ -141,8 +141,8 @@ CSVDoc::ViewManager::~ViewManager()
 {
     delete mDelegateFactories;
 
-    for (auto& mView : mViews)
-        delete mView;
+    for (auto& view : mViews)
+        delete view;
 }
 
 CSVDoc::View* CSVDoc::ViewManager::addView(CSMDoc::Document* document)
@@ -187,8 +187,8 @@ int CSVDoc::ViewManager::countViews(const CSMDoc::Document* document) const
 {
     int count = 0;
 
-    for (auto mView : mViews)
-        if (mView->getDocument() == document)
+    for (auto view : mViews)
+        if (view->getDocument() == document)
             ++count;
 
     return count;
@@ -362,16 +362,16 @@ bool CSVDoc::ViewManager::showSaveInProgressMessageBox(CSVDoc::View* view)
 
 void CSVDoc::ViewManager::documentStateChanged(int state, CSMDoc::Document* document)
 {
-    for (auto mView : mViews)
-        if (mView->getDocument() == document)
-            mView->updateDocumentState();
+    for (auto view : mViews)
+        if (view->getDocument() == document)
+            view->updateDocumentState();
 }
 
 void CSVDoc::ViewManager::progress(int current, int max, int type, int threads, CSMDoc::Document* document)
 {
-    for (auto mView : mViews)
-        if (mView->getDocument() == document)
-            mView->updateProgress(current, max, type, threads);
+    for (auto view : mViews)
+        if (view->getDocument() == document)
+            view->updateProgress(current, max, type, threads);
 }
 
 void CSVDoc::ViewManager::onExitWarningHandler(int state, CSMDoc::Document* document)

@@ -1692,7 +1692,7 @@ void MWShadowTechnique::createShaders()
     osg::ref_ptr<osg::Uniform> baseTextureUnit = new osg::Uniform("baseTextureUnit",static_cast<int>(_baseTextureUnit));
 
     osg::ref_ptr<osg::Uniform> maxDistance = new osg::Uniform("maximumShadowMapDistance", static_cast<float>(settings->getMaximumShadowMapDistance()));
-    osg::ref_ptr<osg::Uniform> fadeStart = new osg::Uniform("shadowFadeStart", (float)_shadowFadeStart);
+    osg::ref_ptr<osg::Uniform> fadeStart = new osg::Uniform("shadowFadeStart", _shadowFadeStart);
 
     for (auto& perFrameUniformList : _uniforms)
     {

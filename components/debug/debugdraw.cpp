@@ -406,14 +406,14 @@ Debug::DebugDrawer::DebugDrawer(Shader::ShaderManager& shaderManager)
     wireCube->setUseVertexBufferObjects(true);
     generateWireCube(*wireCube, 1.);
 
-    for (auto& i : mCustomDebugDrawer)
+    for (auto& entry : mCustomDebugDrawer)
     {
-        i = new DebugCustomDraw();
-        i->setStateSet(stateset);
-        i->mWireCubeGeometry = wireCube;
-        i->mCubeGeometry = cubeGeometry;
-        i->mSphereGeometry = sphereGeom;
-        i->mCylinderGeometry = cylinderGeom;
+        entry = new DebugCustomDraw();
+        entry->setStateSet(stateset);
+        entry->mWireCubeGeometry = wireCube;
+        entry->mCubeGeometry = cubeGeometry;
+        entry->mSphereGeometry = sphereGeom;
+        entry->mCylinderGeometry = cylinderGeom;
     }
 }
 

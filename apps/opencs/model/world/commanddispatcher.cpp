@@ -38,9 +38,9 @@ std::vector<std::string> CSMWorld::CommandDispatcher::getDeletableRecords() cons
 
     int stateColumnIndex = model.findColumnIndex(Columns::ColumnId_Modification);
 
-    for (const auto& iter : mSelection)
+    for (const auto& entry : mSelection)
     {
-        int row = model.getModelIndex(iter, 0).row();
+        int row = model.getModelIndex(entry, 0).row();
 
         // check record state
         RecordBase::State state
@@ -60,7 +60,7 @@ std::vector<std::string> CSMWorld::CommandDispatcher::getDeletableRecords() cons
                 continue;
         }
 
-        result.push_back(iter);
+        result.push_back(entry);
     }
 
     return result;
@@ -79,9 +79,9 @@ std::vector<std::string> CSMWorld::CommandDispatcher::getRevertableRecords() con
 
     int stateColumnIndex = model.findColumnIndex(Columns::ColumnId_Modification);
 
-    for (const auto& iter : mSelection)
+    for (const auto& entry : mSelection)
     {
-        int row = model.getModelIndex(iter, 0).row();
+        int row = model.getModelIndex(entry, 0).row();
 
         // check record state
         RecordBase::State state
@@ -90,7 +90,7 @@ std::vector<std::string> CSMWorld::CommandDispatcher::getRevertableRecords() con
         if (state == RecordBase::State_BaseOnly)
             continue;
 
-        result.push_back(iter);
+        result.push_back(entry);
     }
 
     return result;
@@ -266,13 +266,13 @@ void CSMWorld::CommandDispatcher::executeExtendedDelete()
     CommandMacro macro(
         mDocument.getUndoStack(), mExtendedTypes.size() > 1 ? tr("Extended delete of multiple records") : "");
 
-    for (const auto& mExtendedType : mExtendedTypes)
+    for (const auto& extendedType : mExtendedTypes)
     {
-        if (mExtendedType == mId)
+        if (extendedType == mId)
             executeDelete();
-        else if (mExtendedType == UniversalId::Type_References)
+        else if (extendedType == UniversalId::Type_References)
         {
-            auto& model = dynamic_cast<IdTable&>(*mDocument.getData().getTableModel(mExtendedType));
+            auto& model = dynamic_cast<IdTable&>(*mDocument.getData().getTableModel(extendedType));
 
             const RefCollection& collection = mDocument.getData().getReferences();
 
@@ -299,13 +299,13 @@ void CSMWorld::CommandDispatcher::executeExtendedRevert()
     CommandMacro macro(
         mDocument.getUndoStack(), mExtendedTypes.size() > 1 ? tr("Extended revert of multiple records") : "");
 
-    for (const auto& mExtendedType : mExtendedTypes)
+    for (const auto& extendedType : mExtendedTypes)
     {
-        if (mExtendedType == mId)
+        if (extendedType == mId)
             executeRevert();
-        else if (mExtendedType == UniversalId::Type_References)
+        else if (extendedType == UniversalId::Type_References)
         {
-            auto& model = dynamic_cast<IdTable&>(*mDocument.getData().getTableModel(mExtendedType));
+            auto& model = dynamic_cast<IdTable&>(*mDocument.getData().getTableModel(extendedType));
 
             const RefCollection& collection = mDocument.getData().getReferences();
 

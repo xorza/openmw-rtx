@@ -333,8 +333,8 @@ namespace ESM
     {
         if (mCounting && !mRecords.empty())
         {
-            for (auto& mRecord : mRecords)
-                mRecord.size += static_cast<uint32_t>(size);
+            for (auto& record : mRecords)
+                record.size += static_cast<uint32_t>(size);
         }
 
         mStream->write(data, size);

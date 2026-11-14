@@ -514,10 +514,10 @@ namespace CSMWorld
     {
         std::vector<ESM::RefId> ids;
 
-        for (const auto& iter : mIndex)
+        for (const auto& entry : mIndex)
         {
-            if (listDeleted || !mRecords[iter.second]->isDeleted())
-                ids.push_back(getRecordId(mRecords[iter.second]->get()));
+            if (listDeleted || !mRecords[entry.second]->isDeleted())
+                ids.push_back(getRecordId(mRecords[entry.second]->get()));
         }
 
         return ids;

@@ -133,9 +133,9 @@ osg::Vec3f CSVRender::InstanceMode::getSelectionCenter(const std::vector<osg::re
     osg::Vec3f center = osg::Vec3f(0, 0, 0);
     int objectCount = 0;
 
-    for (const auto& iter : selection)
+    for (const auto& entry : selection)
     {
-        if (auto* objectTag = dynamic_cast<CSVRender::ObjectTag*>(iter.get()))
+        if (auto* objectTag = dynamic_cast<CSVRender::ObjectTag*>(entry.get()))
         {
             const ESM::Position& position = objectTag->mObject->getPosition();
             center += osg::Vec3f(position.pos[0], position.pos[1], position.pos[2]);
@@ -568,9 +568,9 @@ bool CSVRender::InstanceMode::primaryEditStartDrag(const QPoint& pos)
 
     mObjectsAtDragStart.clear();
 
-    for (auto& iter : selection)
+    for (auto& entry : selection)
     {
-        if (auto* objectTag = dynamic_cast<CSVRender::ObjectTag*>(iter.get()))
+        if (auto* objectTag = dynamic_cast<CSVRender::ObjectTag*>(entry.get()))
         {
             if (mSubModeId == "move")
             {
@@ -648,9 +648,9 @@ bool CSVRender::InstanceMode::secondaryEditStartDrag(const QPoint& pos)
 
     mObjectsAtDragStart.clear();
 
-    for (auto& iter : selection)
+    for (auto& entry : selection)
     {
-        if (auto* objectTag = dynamic_cast<CSVRender::ObjectTag*>(iter.get()))
+        if (auto* objectTag = dynamic_cast<CSVRender::ObjectTag*>(entry.get()))
         {
             if (mSubModeId == "move")
             {
@@ -1056,9 +1056,9 @@ void CSVRender::InstanceMode::dragCompleted(const QPoint& pos)
     CSMWorld::CommandMacro macro(undoStack, description);
 
     // Is this even supposed to be here?
-    for (auto& iter : selection)
+    for (auto& entry : selection)
     {
-        if (auto* objectTag = dynamic_cast<CSVRender::ObjectTag*>(iter.get()))
+        if (auto* objectTag = dynamic_cast<CSVRender::ObjectTag*>(entry.get()))
         {
             if (mDragMode == DragMode_Rotate_Snap)
             {

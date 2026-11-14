@@ -1073,12 +1073,12 @@ namespace MWWorld
             mRegions.clear();
             importRegions();
 
-            for (auto& mRegion : state.mRegions)
+            for (auto& region : state.mRegions)
             {
-                auto found = mRegions.find(mRegion.first);
+                auto found = mRegions.find(region.first);
                 if (found != mRegions.end())
                 {
-                    found->second = RegionWeather(mRegion.second);
+                    found->second = RegionWeather(region.second);
                 }
             }
             if (!mWeatherStore->search(mCurrentWeather))

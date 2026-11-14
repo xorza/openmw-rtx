@@ -34,8 +34,8 @@ namespace MWRender
     {
         mObjects.clear();
 
-        for (auto& mCellSceneNode : mCellSceneNodes)
-            mCellSceneNode.second->getParent(0)->removeChild(mCellSceneNode.second);
+        for (auto& cellSceneNode : mCellSceneNodes)
+            cellSceneNode.second->getParent(0)->removeChild(cellSceneNode.second);
         mCellSceneNodes.clear();
     }
 
@@ -57,7 +57,7 @@ namespace MWRender
 
     void Objects::insertBegin(const MWWorld::Ptr& ptr)
     {
-        assert(mObjects.find(ptr.mRef) == mObjects.end());
+        assert(!mObjects.contains(ptr.mRef));
 
         osg::ref_ptr<SceneUtil::PositionAttitudeTransform> insert(new SceneUtil::PositionAttitudeTransform);
         cellRootOf(ptr.getCell()).addChild(insert);

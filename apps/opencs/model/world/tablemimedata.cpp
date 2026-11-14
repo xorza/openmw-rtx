@@ -24,9 +24,9 @@ CSMWorld::TableMimeData::TableMimeData(const std::vector<CSMWorld::UniversalId>&
     , mDocument(document)
     , mTableOfDragStart(nullptr)
 {
-    for (auto& it : mUniversalId)
+    for (auto& entry : mUniversalId)
     {
-        mObjectsFormats << QString::fromUtf8(("tabledata/" + it.getTypeName()).c_str());
+        mObjectsFormats << QString::fromUtf8(("tabledata/" + entry.getTypeName()).c_str());
     }
 }
 
@@ -104,18 +104,18 @@ bool CSMWorld::TableMimeData::isReferencable(CSMWorld::UniversalId::Type type)
 bool CSMWorld::TableMimeData::holdsType(CSMWorld::UniversalId::Type type) const
 {
     bool referencable = (type == CSMWorld::UniversalId::Type_Referenceable);
-    for (const auto& it : mUniversalId)
+    for (const auto& entry : mUniversalId)
     {
         if (referencable)
         {
-            if (isReferencable(it.getType()))
+            if (isReferencable(entry.getType()))
             {
                 return true;
             }
         }
         else
         {
-            if (it.getType() == type)
+            if (entry.getType() == type)
             {
                 return true;
             }
@@ -128,18 +128,18 @@ bool CSMWorld::TableMimeData::holdsType(CSMWorld::UniversalId::Type type) const
 bool CSMWorld::TableMimeData::holdsType(CSMWorld::ColumnBase::Display type) const
 {
     bool referencable = (type == CSMWorld::ColumnBase::Display_Referenceable);
-    for (const auto& it : mUniversalId)
+    for (const auto& entry : mUniversalId)
     {
         if (referencable)
         {
-            if (isReferencable(it.getType()))
+            if (isReferencable(entry.getType()))
             {
                 return true;
             }
         }
         else
         {
-            if (it.getType() == convertEnums(type))
+            if (entry.getType() == convertEnums(type))
             {
                 return true;
             }
@@ -152,20 +152,20 @@ bool CSMWorld::TableMimeData::holdsType(CSMWorld::ColumnBase::Display type) cons
 CSMWorld::UniversalId CSMWorld::TableMimeData::returnMatching(CSMWorld::UniversalId::Type type) const
 {
     bool referencable = (type == CSMWorld::UniversalId::Type_Referenceable);
-    for (const auto& it : mUniversalId)
+    for (const auto& entry : mUniversalId)
     {
         if (referencable)
         {
-            if (isReferencable(it.getType()))
+            if (isReferencable(entry.getType()))
             {
-                return it;
+                return entry;
             }
         }
         else
         {
-            if (it.getType() == type)
+            if (entry.getType() == type)
             {
-                return it;
+                return entry;
             }
         }
     }
@@ -176,20 +176,20 @@ CSMWorld::UniversalId CSMWorld::TableMimeData::returnMatching(CSMWorld::Universa
 CSMWorld::UniversalId CSMWorld::TableMimeData::returnMatching(CSMWorld::ColumnBase::Display type) const
 {
     bool referencable = (type == CSMWorld::ColumnBase::Display_Referenceable);
-    for (const auto& it : mUniversalId)
+    for (const auto& entry : mUniversalId)
     {
         if (referencable)
         {
-            if (isReferencable(it.getType()))
+            if (isReferencable(entry.getType()))
             {
-                return it;
+                return entry;
             }
         }
         else
         {
-            if (it.getType() == convertEnums(type))
+            if (entry.getType() == convertEnums(type))
             {
-                return it;
+                return entry;
             }
         }
     }

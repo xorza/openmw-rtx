@@ -182,10 +182,10 @@ namespace ESM
 
         mData.save(esm);
 
-        for (const auto& mReaction : mReactions)
+        for (const auto& reaction : mReactions)
         {
-            esm.writeHNRefId("ANAM", mReaction.first);
-            esm.writeHNT("INTV", mReaction.second);
+            esm.writeHNRefId("ANAM", reaction.first);
+            esm.writeHNT("INTV", reaction.second);
         }
     }
 

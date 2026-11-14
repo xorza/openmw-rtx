@@ -248,6 +248,7 @@ namespace Debug
 
     int DebugGroup::compare(const StateAttribute& sa) const
     {
+        // NOLINTNEXTLINE(modernize-use-auto): OSG's macro declares the type it is handed, which `auto` cannot be.
         COMPARE_StateAttribute_Types(DebugGroup, sa);
 
         COMPARE_StateAttribute_Parameter(mSource);

@@ -132,7 +132,7 @@ namespace SceneUtil
         Misc::StringUtils::lowerCaseInPlace(fromKey);
         Misc::StringUtils::lowerCaseInPlace(toGroup);
         Misc::StringUtils::lowerCaseInPlace(toKey);
-        for (const auto& mRule : std::views::reverse(mRules))
+        for (const auto& rule : std::views::reverse(mRules))
         {
             bool fromMatch = false;
             bool toMatch = false;
@@ -140,20 +140,20 @@ namespace SceneUtil
             // Pseudocode:
             // If not a wildcard and found a wildcard
             // starts with substr(0,wildcard)
-            if (fitsRuleString(fromGroup, mRule.mFromGroup)
-                && (mRule.mFromKey.empty() || fitsRuleString(fromKey, mRule.mFromKey)))
+            if (fitsRuleString(fromGroup, rule.mFromGroup)
+                && (rule.mFromKey.empty() || fitsRuleString(fromKey, rule.mFromKey)))
             {
                 fromMatch = true;
             }
 
-            if ((fitsRuleString(toGroup, mRule.mToGroup) || (mRule.mToGroup == "$" && toGroup == fromGroup))
-                && (mRule.mToKey.empty() || fitsRuleString(toKey, mRule.mToKey)))
+            if ((fitsRuleString(toGroup, rule.mToGroup) || (rule.mToGroup == "$" && toGroup == fromGroup))
+                && (rule.mToKey.empty() || fitsRuleString(toKey, rule.mToKey)))
             {
                 toMatch = true;
             }
 
             if (fromMatch && toMatch)
-                return std::make_optional<BlendRule>(mRule);
+                return std::make_optional<BlendRule>(rule);
         }
 
         return std::nullopt;

@@ -115,11 +115,11 @@ namespace MWMechanics
 
     bool AiSequence::getCombatTargets(std::vector<MWWorld::Ptr>& targetActors) const
     {
-        for (const auto& mPackage : mPackages)
+        for (const auto& package : mPackages)
         {
-            if (mPackage->getTypeId() == MWMechanics::AiPackageTypeId::Combat)
+            if (package->getTypeId() == MWMechanics::AiPackageTypeId::Combat)
             {
-                const MWWorld::Ptr target = mPackage->getTarget();
+                const MWWorld::Ptr target = package->getTarget();
                 if (!target.isEmpty())
                     targetActors.push_back(target);
             }
@@ -161,11 +161,11 @@ namespace MWMechanics
         if (!isInCombat())
             return false;
 
-        for (const auto& mPackage : mPackages)
+        for (const auto& package : mPackages)
         {
-            if (mPackage->getTypeId() == AiPackageTypeId::Combat)
+            if (package->getTypeId() == AiPackageTypeId::Combat)
             {
-                MWWorld::Ptr target2 = mPackage->getTarget();
+                MWWorld::Ptr target2 = package->getTarget();
                 if (!target2.isEmpty() && target2.getClass().isNpc())
                     return true;
             }

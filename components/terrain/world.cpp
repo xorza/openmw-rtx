@@ -96,8 +96,8 @@ namespace Terrain
 
         if (visible)
         {
-            for (const auto& mLoadedCell : mLoadedCells)
-                mCellBorder->createCellBorderGeometry(mLoadedCell.first, mLoadedCell.second);
+            for (const auto& loadedCell : mLoadedCells)
+                mCellBorder->createCellBorderGeometry(loadedCell.first, loadedCell.second);
         }
         else
             mCellBorder->destroyCellBorderGeometry();

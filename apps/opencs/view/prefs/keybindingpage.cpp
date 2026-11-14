@@ -53,8 +53,8 @@ namespace CSVPrefs
         topLayout->setSizeConstraint(QLayout::SetMinAndMaxSize);
 
         // Add each option
-        for (auto& iter : category)
-            addSetting(iter);
+        for (auto& entry : category)
+            addSetting(entry);
 
         setWidgetResizable(true);
         setWidget(topWidget);

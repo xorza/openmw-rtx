@@ -69,8 +69,8 @@ CSVWorld::CommandDelegateFactoryCollection::~CommandDelegateFactoryCollection()
 {
     sThis = nullptr;
 
-    for (auto& mFactorie : mFactories)
-        delete mFactorie.second;
+    for (auto& factory : mFactories)
+        delete factory.second;
 }
 
 void CSVWorld::CommandDelegateFactoryCollection::add(

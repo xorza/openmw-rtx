@@ -52,6 +52,7 @@ namespace SceneUtil
 
     int Material::compare(const StateAttribute& sa) const
     {
+        // NOLINTNEXTLINE(modernize-use-auto): OSG's macro declares the type it is handed, which `auto` cannot be.
         COMPARE_StateAttribute_Types(Material, sa);
         COMPARE_StateAttribute_Parameter(mConfig.mDiffuse);
         COMPARE_StateAttribute_Parameter(mConfig.mAmbient);

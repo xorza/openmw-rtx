@@ -11,7 +11,6 @@
 #include <components/resource/bulletshape.hpp>
 #include <components/testing/util.hpp>
 
-#include <memory>
 #include <osg/io_utils>
 #include <osg/ref_ptr>
 

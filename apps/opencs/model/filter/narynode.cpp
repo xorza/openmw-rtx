@@ -25,9 +25,9 @@ std::vector<int> CSMFilter::NAryNode::getReferencedColumns() const
 {
     std::vector<int> columns;
 
-    for (const auto& mNode : mNodes)
+    for (const auto& node : mNodes)
     {
-        std::vector<int> columns2 = mNode->getReferencedColumns();
+        std::vector<int> columns2 = node->getReferencedColumns();
 
         columns.insert(columns.end(), columns2.begin(), columns2.end());
     }

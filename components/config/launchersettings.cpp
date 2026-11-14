@@ -224,12 +224,12 @@ namespace Config
         {
             writeSectionHeader(sProfilesSection, stream);
             writeKeyValue(sCurrentProfileKey, value.mCurrentProfile, stream);
-            for (const auto& mValue : std::views::reverse(value.mValues))
+            for (const auto& eachValue : std::views::reverse(value.mValues))
             {
-                writeKeyValues(mValue.first, sArchiveKey, mValue.second.mArchives, stream);
-                writeKeyValues(mValue.first, sDataKey, mValue.second.mData, stream);
-                writeKeyValues(mValue.first, sContentKey, mValue.second.mContent, stream);
-                writeKeyValues(mValue.first, sOrderKey, mValue.second.mUserFilesInOrder, stream);
+                writeKeyValues(eachValue.first, sArchiveKey, eachValue.second.mArchives, stream);
+                writeKeyValues(eachValue.first, sDataKey, eachValue.second.mData, stream);
+                writeKeyValues(eachValue.first, sContentKey, eachValue.second.mContent, stream);
+                writeKeyValues(eachValue.first, sOrderKey, eachValue.second.mUserFilesInOrder, stream);
             }
             writeUnknownKeys(value.mUnknown, stream);
         }

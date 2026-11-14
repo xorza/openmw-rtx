@@ -98,10 +98,10 @@ namespace ESM
         for (const ESM::RefId& spell : mSpells)
             esm.writeHNRefId("SPEL", spell);
 
-        for (const auto& mUsedPower : mUsedPowers)
+        for (const auto& usedPower : mUsedPowers)
         {
-            esm.writeHNRefId("USED", mUsedPower.first);
-            esm.writeHNT("TIME", mUsedPower.second);
+            esm.writeHNRefId("USED", usedPower.first);
+            esm.writeHNT("TIME", usedPower.second);
         }
 
         if (!mSelectedSpell.empty())

@@ -133,9 +133,9 @@ namespace Nif
         nif->read(mLinearVelocity);
         nif->read(mAngularVelocity);
         // A bit hacky, but this is the only instance where a 3x3 matrix has padding.
-        for (auto& mValue : mInertiaTensor.mValues)
+        for (auto& value : mInertiaTensor.mValues)
         {
-            nif->read(mValue, 3);
+            nif->read(value, 3);
             nif->skip(4); // Padding
         }
         nif->read(mCenter);

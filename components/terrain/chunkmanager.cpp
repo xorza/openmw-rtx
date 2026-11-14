@@ -170,16 +170,16 @@ namespace Terrain
 
         std::vector<TextureLayer> layers;
         {
-            for (auto& it : layerList)
+            for (auto& entry : layerList)
             {
                 TextureLayer textureLayer;
-                textureLayer.mParallax = it.mParallax;
-                textureLayer.mSpecular = it.mSpecular;
+                textureLayer.mParallax = entry.mParallax;
+                textureLayer.mSpecular = entry.mSpecular;
 
-                textureLayer.mDiffuseMap = mTextureManager->getTexture(it.mDiffuseMap);
+                textureLayer.mDiffuseMap = mTextureManager->getTexture(entry.mDiffuseMap);
 
-                if (!forCompositeMap && !it.mNormalMap.empty())
-                    textureLayer.mNormalMap = mTextureManager->getTexture(it.mNormalMap);
+                if (!forCompositeMap && !entry.mNormalMap.empty())
+                    textureLayer.mNormalMap = mTextureManager->getTexture(entry.mNormalMap);
 
                 layers.push_back(textureLayer);
             }

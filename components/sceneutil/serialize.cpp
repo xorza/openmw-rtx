@@ -301,9 +301,9 @@ namespace SceneUtil
                 "osgOQ::RetrieveQueriesCallback",
                 "osg::DummyObject",
             };
-            for (auto& i : ignore)
+            for (auto& entry : ignore)
             {
-                mgr->addWrapper(makeDummySerializer(i));
+                mgr->addWrapper(makeDummySerializer(entry));
             }
 
             done = true;

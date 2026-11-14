@@ -45,10 +45,10 @@ CSMWorld::CellCoordinates CSMWorld::CellSelection::getCentre() const
     double x = 0;
     double y = 0;
 
-    for (auto iter : *this)
+    for (auto entry : *this)
     {
-        x += iter.getX();
-        y += iter.getY();
+        x += entry.getX();
+        y += entry.getY();
     }
 
     x /= mCells.size();
@@ -78,8 +78,8 @@ void CSMWorld::CellSelection::move(int x, int y)
 {
     Container moved;
 
-    for (auto iter : *this)
-        moved.insert(iter.move(x, y));
+    for (auto entry : *this)
+        moved.insert(entry.move(x, y));
 
     mCells.swap(moved);
 }

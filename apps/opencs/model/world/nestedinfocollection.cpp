@@ -19,9 +19,9 @@ namespace CSMWorld
 {
     NestedInfoCollection::~NestedInfoCollection()
     {
-        for (auto& mAdapter : mAdapters)
+        for (auto& adapter : mAdapters)
         {
-            delete mAdapter.second;
+            delete adapter.second;
         }
     }
 

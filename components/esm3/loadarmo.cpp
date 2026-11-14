@@ -33,11 +33,11 @@ namespace ESM
 
     void PartReferenceList::save(ESMWriter& esm) const
     {
-        for (const auto& mPart : mParts)
+        for (const auto& part : mParts)
         {
-            esm.writeHNT("INDX", mPart.mPart);
-            esm.writeHNORefId("BNAM", mPart.mMale);
-            esm.writeHNORefId("CNAM", mPart.mFemale);
+            esm.writeHNT("INDX", part.mPart);
+            esm.writeHNORefId("BNAM", part.mMale);
+            esm.writeHNORefId("CNAM", part.mFemale);
         }
     }
 

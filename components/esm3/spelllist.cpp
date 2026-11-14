@@ -15,16 +15,16 @@ namespace ESM
 
     void SpellList::save(ESMWriter& esm) const
     {
-        for (auto it : mList)
+        for (auto entry : mList)
         {
-            esm.writeHNRefId("NPCS", it, 32);
+            esm.writeHNRefId("NPCS", entry, 32);
         }
     }
 
     bool SpellList::exists(const ESM::RefId& spell) const
     {
-        for (auto it : mList)
-            if (it == spell)
+        for (auto entry : mList)
+            if (entry == spell)
                 return true;
         return false;
     }

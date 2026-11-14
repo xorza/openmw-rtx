@@ -425,8 +425,8 @@ void MWMechanics::NpcStats::writeState(ESM::CreatureStats& state) const
 
 void MWMechanics::NpcStats::writeState(ESM::NpcStats& state) const
 {
-    for (const auto& iter : mFactionRank)
-        state.mFactions[iter.first].mRank = iter.second;
+    for (const auto& entry : mFactionRank)
+        state.mFactions[entry.first].mRank = entry.second;
 
     state.mDisposition = mDisposition;
     state.mCrimeDispositionModifier = mCrimeDispositionModifier;
@@ -440,11 +440,11 @@ void MWMechanics::NpcStats::writeState(ESM::NpcStats& state) const
 
     state.mBounty = mBounty;
 
-    for (auto iter : mExpelled)
-        state.mFactions[iter].mExpelled = true;
+    for (auto entry : mExpelled)
+        state.mFactions[entry].mExpelled = true;
 
-    for (const auto& iter : mFactionReputation)
-        state.mFactions[iter.first].mReputation = iter.second;
+    for (const auto& entry : mFactionReputation)
+        state.mFactions[entry.first].mReputation = entry.second;
 
     state.mReputation = mReputation;
     state.mWerewolfKills = mWerewolfKills;
@@ -468,17 +468,17 @@ void MWMechanics::NpcStats::readState(const ESM::NpcStats& state)
 {
     const MWWorld::ESMStore& store = *MWBase::Environment::get().getESMStore();
 
-    for (const auto& mFaction : state.mFactions)
-        if (store.get<ESM::Faction>().search(mFaction.first))
+    for (const auto& faction : state.mFactions)
+        if (store.get<ESM::Faction>().search(faction.first))
         {
-            if (mFaction.second.mExpelled)
-                mExpelled.insert(mFaction.first);
+            if (faction.second.mExpelled)
+                mExpelled.insert(faction.first);
 
-            if (mFaction.second.mRank >= 0)
-                mFactionRank[mFaction.first] = mFaction.second.mRank;
+            if (faction.second.mRank >= 0)
+                mFactionRank[faction.first] = faction.second.mRank;
 
-            if (mFaction.second.mReputation)
-                mFactionReputation[mFaction.first] = mFaction.second.mReputation;
+            if (faction.second.mReputation)
+                mFactionReputation[faction.first] = faction.second.mReputation;
         }
 
     mDisposition = state.mDisposition;
@@ -500,9 +500,9 @@ void MWMechanics::NpcStats::readState(const ESM::NpcStats& state)
     for (size_t i = 0; i < state.mSpecIncreases.size(); ++i)
         mSpecIncreases[i] = state.mSpecIncreases[i];
 
-    for (auto mUsedId : state.mUsedIds)
-        if (store.find(mUsedId))
-            mUsedIds.insert(mUsedId);
+    for (auto usedId : state.mUsedIds)
+        if (store.find(usedId))
+            mUsedIds.insert(usedId);
 
     mTimeToStartDrowning = state.mTimeToStartDrowning;
 }

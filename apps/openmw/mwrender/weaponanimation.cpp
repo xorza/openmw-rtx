@@ -192,8 +192,8 @@ namespace MWRender
 
     void WeaponAnimation::deleteControllers()
     {
-        for (auto& mSpineController : mSpineControllers)
-            mSpineController = nullptr;
+        for (auto& spineController : mSpineControllers)
+            spineController = nullptr;
     }
 
     void WeaponAnimation::configureControllers(float characterPitchRadians)
@@ -212,16 +212,16 @@ namespace MWRender
 
     void WeaponAnimation::setControllerRotate(const osg::Quat& rotate)
     {
-        for (const auto& mSpineController : mSpineControllers)
-            if (mSpineController)
-                mSpineController->setRotate(rotate);
+        for (const auto& spineController : mSpineControllers)
+            if (spineController)
+                spineController->setRotate(rotate);
     }
 
     void WeaponAnimation::setControllerEnabled(bool enabled)
     {
-        for (const auto& mSpineController : mSpineControllers)
-            if (mSpineController)
-                mSpineController->setEnabled(enabled);
+        for (const auto& spineController : mSpineControllers)
+            if (spineController)
+                spineController->setEnabled(enabled);
     }
 
 }

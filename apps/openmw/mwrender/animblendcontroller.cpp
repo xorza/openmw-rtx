@@ -239,7 +239,7 @@ namespace MWRender
         // Shouldn't happen, but potentially an edge case where a new bone was added
         // between gatherRecursiveBoneTransforms and this update
         // currently OpenMW will never do this
-        assert(mBlendBoneTransforms.find(bone) != mBlendBoneTransforms.end());
+        assert(mBlendBoneTransforms.contains(bone));
 
         // Every frame the osgAnimation controller updates this
         // so it is ok that we update it directly below

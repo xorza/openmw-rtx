@@ -31,10 +31,10 @@ CSVDoc::Operations::Operations()
 
 void CSVDoc::Operations::setProgress(int current, int max, int type, int threads)
 {
-    for (auto& mOperation : mOperations)
-        if (mOperation->getType() == type)
+    for (auto& eachOperation : mOperations)
+        if (eachOperation->getType() == type)
         {
-            mOperation->setProgress(current, max, threads);
+            eachOperation->setProgress(current, max, threads);
             return;
         }
 

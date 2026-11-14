@@ -87,10 +87,10 @@ namespace MWClass
                 { ESM::Clothing::Skirt, MWWorld::InventoryStore::Slot_Skirt },
                 { ESM::Clothing::Amulet, MWWorld::InventoryStore::Slot_Amulet } };
 
-            for (auto i : sMapping)
-                if (i[0] == ref->mBase->mData.mType)
+            for (auto entry : sMapping)
+                if (entry[0] == ref->mBase->mData.mType)
                 {
-                    slots.push_back((i[1]));
+                    slots.push_back((entry[1]));
                     break;
                 }
         }

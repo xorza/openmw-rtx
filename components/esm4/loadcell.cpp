@@ -133,9 +133,9 @@ void ESM4::Cell::load(ESM4::Reader& reader)
             case ESM::fourCC("XCLR"): // for exterior cells
             {
                 mRegions.resize(subHdr.dataSize / sizeof(ESM::FormId32));
-                for (auto& mRegion : mRegions)
+                for (auto& eachRegion : mRegions)
                 {
-                    reader.getFormId(mRegion);
+                    reader.getFormId(eachRegion);
 #if 0
                     std::string padding;
                     padding.insert(0, reader.stackSize()*2, ' ');

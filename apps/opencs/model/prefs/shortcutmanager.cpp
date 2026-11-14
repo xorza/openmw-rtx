@@ -278,10 +278,8 @@ namespace CSMPrefs
         }
 
         // Generate inverse map
-        for (auto it = mNames.begin(); it != mNames.end(); ++it)
-        {
-            mKeys.insert(std::make_pair(it->second, it->first));
-        }
+        for (const auto& [key, name] : mNames)
+            mKeys.insert(std::make_pair(name, key));
     }
 
     QString ShortcutManager::processToolTip(const QString& toolTip) const

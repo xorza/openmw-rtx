@@ -447,8 +447,8 @@ CSVWorld::Table::Table(const CSMWorld::UniversalId& id, bool createAndDelete, bo
 
 void CSVWorld::Table::setEditLock(bool locked)
 {
-    for (auto& mDelegate : mDelegates)
-        mDelegate->setEditLock(locked);
+    for (auto& delegate : mDelegates)
+        delegate->setEditLock(locked);
 
     DragRecordTable::setEditLock(locked);
     mDispatcher->setEditLock(locked);

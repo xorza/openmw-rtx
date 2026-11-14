@@ -42,8 +42,8 @@ CSMDoc::DocumentManager::~DocumentManager()
     mLoader.hasThingsToDo().wakeAll();
     mLoaderThread.wait();
 
-    for (auto& mDocument : mDocuments)
-        delete mDocument;
+    for (auto& document : mDocuments)
+        delete document;
 }
 
 bool CSMDoc::DocumentManager::isEmpty()

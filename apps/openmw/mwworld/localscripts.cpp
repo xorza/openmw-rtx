@@ -100,8 +100,8 @@ void MWWorld::LocalScripts::add(const ESM::RefId& scriptName, const Ptr& ptr)
         {
             ptr.getRefData().setLocals(*script);
 
-            for (auto& mScript : mScripts)
-                if (mScript.second == ptr)
+            for (auto& eachScript : mScripts)
+                if (eachScript.second == ptr)
                 {
                     Log(Debug::Warning) << "Error: tried to add local script twice for " << ptr.getCellRef().getRefId();
                     remove(ptr);

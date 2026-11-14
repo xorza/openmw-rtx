@@ -286,9 +286,9 @@ namespace MWWorld
                     return false;
             }
 
-            for (auto& it : mMovedHere)
+            for (auto& entry : mMovedHere)
             {
-                LiveCellRefBase* base = it.first;
+                LiveCellRefBase* base = entry.first;
                 if (dynamic_cast<LiveCellRef<T>*>(base))
                     if (!visitor(MWWorld::Ptr(base, this)))
                         return false;

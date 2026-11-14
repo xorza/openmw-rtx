@@ -21,10 +21,10 @@ namespace ESM
 
     void Locals::save(ESMWriter& esm) const
     {
-        for (const auto& mVariable : mVariables)
+        for (const auto& variable : mVariables)
         {
-            esm.writeHNString("LOCA", mVariable.first);
-            mVariable.second.write(esm, Variant::Format_Local);
+            esm.writeHNString("LOCA", variable.first);
+            variable.second.write(esm, Variant::Format_Local);
         }
     }
 

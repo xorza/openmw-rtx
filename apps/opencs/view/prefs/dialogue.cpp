@@ -35,9 +35,9 @@ void CSVPrefs::Dialogue::buildCategorySelector(QSplitter* main)
 
     int maxWidth = 1;
 
-    for (auto& iter : CSMPrefs::get())
+    for (auto& entry : CSMPrefs::get())
     {
-        QString label = QString::fromUtf8(iter.second.getKey().c_str());
+        QString label = QString::fromUtf8(entry.second.getKey().c_str());
 
         maxWidth = std::max(maxWidth, metrics.horizontalAdvance(label));
 

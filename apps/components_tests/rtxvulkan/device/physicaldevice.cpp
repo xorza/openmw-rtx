@@ -270,9 +270,9 @@ namespace Rtx
                     "reports Vulkan 1.3.0");
             }
             {
-                Card short_(&describeTuring);
-                short_.mExtensions.erase(short_.mExtensions.begin());
-                EXPECT_EQ(short_.profile().mObstacle,
+                Card lacking(&describeTuring);
+                lacking.mExtensions.erase(lacking.mExtensions.begin());
+                EXPECT_EQ(lacking.profile().mObstacle,
                     "missing extensions: " + std::string(getRequiredDeviceExtensions().front()));
             }
             {
@@ -284,10 +284,10 @@ namespace Rtx
                 EXPECT_EQ(foreign.profile().mObstacle, "");
             }
             {
-                Card short_(&describeTuring);
+                Card lacking(&describeTuring);
                 const RequiredFeature& first = getRequiredDeviceFeatures().front();
-                first.mField(short_.mFeatures) = VK_FALSE;
-                EXPECT_EQ(short_.profile().mObstacle, "missing features: " + std::string(first.mName));
+                first.mField(lacking.mFeatures) = VK_FALSE;
+                EXPECT_EQ(lacking.profile().mObstacle, "missing features: " + std::string(first.mName));
             }
             {
                 // Offered for linear tiling only, which is not where an image the trace samples

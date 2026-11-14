@@ -50,12 +50,12 @@ CSMWorld::RefIdData::RefIdData()
 
 CSMWorld::RefIdData::LocalIndex CSMWorld::RefIdData::globalToLocalIndex(int index) const
 {
-    for (auto mRecordContainer : mRecordContainers)
+    for (auto recordContainer : mRecordContainers)
     {
-        if (index < mRecordContainer.second->getSize())
-            return LocalIndex(index, mRecordContainer.first);
+        if (index < recordContainer.second->getSize())
+            return LocalIndex(index, recordContainer.first);
 
-        index -= mRecordContainer.second->getSize();
+        index -= recordContainer.second->getSize();
     }
 
     throw std::runtime_error("RefIdData index out of range");
@@ -206,11 +206,11 @@ int CSMWorld::RefIdData::getAppendIndex(UniversalId::Type type) const
 {
     int index = 0;
 
-    for (auto mRecordContainer : mRecordContainers)
+    for (auto recordContainer : mRecordContainers)
     {
-        index += mRecordContainer.second->getSize();
+        index += recordContainer.second->getSize();
 
-        if (type == mRecordContainer.first)
+        if (type == recordContainer.first)
             break;
     }
 
@@ -278,16 +278,16 @@ std::vector<ESM::RefId> CSMWorld::RefIdData::getIds(bool listDeleted) const
 {
     std::vector<ESM::RefId> ids;
 
-    for (const auto& iter : mIndex)
+    for (const auto& entry : mIndex)
     {
-        if (listDeleted || !getRecord(iter.second).isDeleted())
+        if (listDeleted || !getRecord(entry.second).isDeleted())
         {
-            auto container = mRecordContainers.find(iter.second.second);
+            auto container = mRecordContainers.find(entry.second.second);
 
             if (container == mRecordContainers.end())
                 throw std::logic_error("Invalid referenceable ID type");
 
-            ids.push_back(container->second->getId(iter.second.first));
+            ids.push_back(container->second->getId(entry.second.first));
         }
     }
 

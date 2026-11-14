@@ -196,9 +196,9 @@ namespace MWScript
 
         scripts.emplace_back(ESM::RefId::stringRefId("main"));
 
-        for (const auto& iter : mStore.get<ESM::StartScript>())
+        for (const auto& entry : mStore.get<ESM::StartScript>())
         {
-            scripts.push_back(iter.mId);
+            scripts.push_back(entry.mId);
         }
 
         // add scripts

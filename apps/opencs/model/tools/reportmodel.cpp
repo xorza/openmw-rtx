@@ -200,9 +200,8 @@ int CSMTools::ReportModel::countErrors() const
 {
     int count = 0;
 
-    for (const auto& mRow : mRows)
-        if (mRow.mSeverity == CSMDoc::Message::Severity_Error
-            || mRow.mSeverity == CSMDoc::Message::Severity_SeriousError)
+    for (const auto& row : mRows)
+        if (row.mSeverity == CSMDoc::Message::Severity_Error || row.mSeverity == CSMDoc::Message::Severity_SeriousError)
             ++count;
 
     return count;

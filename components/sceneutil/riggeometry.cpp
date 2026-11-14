@@ -29,12 +29,12 @@ namespace SceneUtil
 
     void RigGeometry::setSourceGeometry(osg::ref_ptr<osg::Geometry> sourceGeometry)
     {
-        for (auto& i : mGeometry)
-            i = nullptr;
+        for (auto& entry : mGeometry)
+            entry = nullptr;
 
         mSourceGeometry = sourceGeometry;
 
-        for (auto& i : mGeometry)
+        for (auto& entry : mGeometry)
         {
             const osg::Geometry& from = *sourceGeometry;
 
@@ -44,10 +44,10 @@ namespace SceneUtil
             // outlive the cloned geometry regardless. (ensured by mSourceGeometry)
             // - Arrays that we add or replace in the cloned geometry must be explicitely forbidden from reusing
             // BufferObjects of the original geometry. (ensured by vbo below)
-            i = new osg::Geometry(from, osg::CopyOp::SHALLOW_COPY);
-            i->getOrCreateUserDataContainer()->addUserObject(mSourceGeometry.get());
+            entry = new osg::Geometry(from, osg::CopyOp::SHALLOW_COPY);
+            entry->getOrCreateUserDataContainer()->addUserObject(mSourceGeometry.get());
 
-            osg::Geometry& to = *i;
+            osg::Geometry& to = *entry;
             to.setSupportsDisplayList(false);
             to.setUseVertexBufferObjects(true);
             to.setCullingActive(false); // make sure to disable culling since that's handled by this class
@@ -274,9 +274,9 @@ namespace SceneUtil
             for (unsigned int i = 0; i < getNumParents(); ++i)
                 getParent(i)->dirtyBound();
 
-            for (const auto& i : mGeometry)
+            for (const auto& entry : mGeometry)
             {
-                osg::Geometry& geom = *i;
+                osg::Geometry& geom = *entry;
                 static_cast<CopyBoundingBoxCallback*>(geom.getComputeBoundingBoxCallback())->boundingBox = _boundingBox;
                 static_cast<CopyBoundingSphereCallback*>(geom.getComputeBoundingSphereCallback())->boundingSphere
                     = _boundingSphere;

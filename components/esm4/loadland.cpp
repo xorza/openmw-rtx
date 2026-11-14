@@ -97,8 +97,8 @@ void ESM4::Land::load(ESM4::Reader& reader)
     assignDefaultTextures(*this);
 
     layer.texture.formId = 0;
-    for (auto& mTexture : mTextures)
-        mTexture.base.formId = 0;
+    for (auto& texture : mTextures)
+        texture.base.formId = 0;
 
     while (reader.getSubRecordHeader())
     {

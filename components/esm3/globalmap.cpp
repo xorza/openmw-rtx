@@ -33,11 +33,11 @@ namespace ESM
         esm.write(mImageData.data(), mImageData.size());
         esm.endRecord("DATA");
 
-        for (const auto& mMarker : mMarkers)
+        for (const auto& marker : mMarkers)
         {
             esm.startSubRecord("MRK_");
-            esm.writeT(mMarker.first);
-            esm.writeT(mMarker.second);
+            esm.writeT(marker.first);
+            esm.writeT(marker.second);
             esm.endRecord("MRK_");
         }
     }

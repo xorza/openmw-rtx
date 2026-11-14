@@ -434,10 +434,10 @@ namespace Shader
             defineMap[std::string(name)] = "0";
             defineMap[std::string(name) + std::string("UV")] = "0";
         }
-        for (const auto& mTexture : reqs.mTextures)
+        for (const auto& texture : reqs.mTextures)
         {
-            defineMap[mTexture.second] = "1";
-            defineMap[mTexture.second + std::string("UV")] = std::to_string(mTexture.first);
+            defineMap[texture.second] = "1";
+            defineMap[texture.second + std::string("UV")] = std::to_string(texture.first);
         }
 
         if (defineMap["diffuseMap"] == "0")

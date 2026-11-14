@@ -219,8 +219,8 @@ CSVRender::Cell::Cell(CSMDoc::Document& document, ObjectMarker* selectionMarker,
 
 CSVRender::Cell::~Cell()
 {
-    for (auto& mObject : mObjects)
-        delete mObject.second;
+    for (auto& object : mObjects)
+        delete object.second;
 
     mCellNode->getParent(0)->removeChild(mCellNode);
 }
@@ -234,8 +234,8 @@ bool CSVRender::Cell::referenceableDataChanged(const QModelIndex& topLeft, const
 {
     bool modified = false;
 
-    for (auto& mObject : mObjects)
-        if (mObject.second->referenceableDataChanged(topLeft, bottomRight))
+    for (auto& object : mObjects)
+        if (object.second->referenceableDataChanged(topLeft, bottomRight))
             modified = true;
 
     return modified;
@@ -248,8 +248,8 @@ bool CSVRender::Cell::referenceableAboutToBeRemoved(const QModelIndex& parent, i
 
     bool modified = false;
 
-    for (auto& mObject : mObjects)
-        if (mObject.second->referenceableAboutToBeRemoved(parent, start, end))
+    for (auto& object : mObjects)
+        if (object.second->referenceableAboutToBeRemoved(parent, start, end))
             modified = true;
 
     return modified;
@@ -658,9 +658,9 @@ std::vector<osg::ref_ptr<CSVRender::TagBase>> CSVRender::Cell::getSelection(unsi
     std::vector<osg::ref_ptr<TagBase>> result;
 
     if (elementMask & Mask_Reference)
-        for (const auto& mObject : mObjects)
-            if (mObject.second->getSelected())
-                result.push_back(mObject.second->getTag());
+        for (const auto& object : mObjects)
+            if (object.second->getSelected())
+                result.push_back(object.second->getTag());
     if (mPathgrid && elementMask & Mask_Pathgrid)
         if (mPathgrid->isSelected())
             result.emplace_back(mPathgrid->getTag());
@@ -673,9 +673,9 @@ std::vector<osg::ref_ptr<CSVRender::TagBase>> CSVRender::Cell::getEdited(unsigne
     std::vector<osg::ref_ptr<TagBase>> result;
 
     if (elementMask & Mask_Reference)
-        for (const auto& mObject : mObjects)
-            if (mObject.second->isEdited())
-                result.push_back(mObject.second->getTag());
+        for (const auto& object : mObjects)
+            if (object.second->isEdited())
+                result.push_back(object.second->getTag());
 
     return result;
 }

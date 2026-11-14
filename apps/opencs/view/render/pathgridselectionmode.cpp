@@ -51,9 +51,9 @@ namespace CSVRender
     {
         std::vector<osg::ref_ptr<TagBase>> selection = getWorldspaceWidget().getSelection(Mask_Pathgrid);
 
-        for (auto& it : selection)
+        for (auto& entry : selection)
         {
-            if (auto* tag = dynamic_cast<PathgridTag*>(it.get()))
+            if (auto* tag = dynamic_cast<PathgridTag*>(entry.get()))
             {
                 QUndoStack& undoStack = getWorldspaceWidget().getDocument().getUndoStack();
                 QString description = "Remove selected nodes";
@@ -68,9 +68,9 @@ namespace CSVRender
     {
         std::vector<osg::ref_ptr<TagBase>> selection = getWorldspaceWidget().getSelection(Mask_Pathgrid);
 
-        for (auto& it : selection)
+        for (auto& entry : selection)
         {
-            if (auto* tag = dynamic_cast<PathgridTag*>(it.get()))
+            if (auto* tag = dynamic_cast<PathgridTag*>(entry.get()))
             {
                 QUndoStack& undoStack = getWorldspaceWidget().getDocument().getUndoStack();
                 QString description = "Remove edges between selected nodes";

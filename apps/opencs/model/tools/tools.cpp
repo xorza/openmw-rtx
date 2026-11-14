@@ -163,8 +163,8 @@ CSMTools::Tools::~Tools()
     // for the thread to finish, and deletes the operation. The holders are
     // QObject children of Tools and are destroyed automatically.
 
-    for (auto& mReport : mReports)
-        delete mReport.second;
+    for (auto& report : mReports)
+        delete report.second;
 }
 
 CSMWorld::UniversalId CSMTools::Tools::runVerifier(const CSMWorld::UniversalId& reportId)

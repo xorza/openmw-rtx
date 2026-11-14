@@ -459,11 +459,11 @@ namespace MWWorld
             mUpdateCacheItem = nullptr;
         }
 
-        for (auto& mPreloadCell : mPreloadCells)
-            mPreloadCell.second.mWorkItem->abort();
+        for (auto& preloadCell : mPreloadCells)
+            preloadCell.second.mWorkItem->abort();
 
-        for (auto& mPreloadCell : mPreloadCells)
-            mPreloadCell.second.mWorkItem->waitTillDone();
+        for (auto& preloadCell : mPreloadCells)
+            preloadCell.second.mWorkItem->waitTillDone();
 
         mPreloadCells.clear();
     }

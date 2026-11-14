@@ -73,9 +73,9 @@ namespace SceneUtil
 
     LightManager* findLightManager(const osg::NodePath& path)
     {
-        for (auto i : path)
+        for (auto entry : path)
         {
-            if (auto* lightManager = dynamic_cast<LightManager*>(i))
+            if (auto* lightManager = dynamic_cast<LightManager*>(entry))
                 return lightManager;
         }
         return nullptr;

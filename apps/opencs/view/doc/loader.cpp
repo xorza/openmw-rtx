@@ -155,8 +155,8 @@ void CSVDoc::LoadingDocument::cancel()
 
 CSVDoc::Loader::~Loader()
 {
-    for (auto& mDocument : mDocuments)
-        delete mDocument.second;
+    for (auto& document : mDocuments)
+        delete document.second;
 }
 
 void CSVDoc::Loader::add(CSMDoc::Document* document)

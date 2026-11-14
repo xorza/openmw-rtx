@@ -173,14 +173,14 @@ void Settings::SettingsFileParser::saveSettingsFile(
             if (!currentCategory.empty())
             {
                 // Ensure that all options in the current category have been written.
-                for (auto& mit : written)
+                for (auto& entry : written)
                 {
-                    if (mit.second == false && mit.first.first == currentCategory)
+                    if (entry.second == false && entry.first.first == currentCategory)
                     {
-                        Log(Debug::Verbose) << "Added new setting: [" << currentCategory << "] " << mit.first.second
-                                            << " = " << settings.at(mit.first);
-                        ostream << mit.first.second << " = " << settings.at(mit.first) << std::endl;
-                        mit.second = true;
+                        Log(Debug::Verbose) << "Added new setting: [" << currentCategory << "] " << entry.first.second
+                                            << " = " << settings.at(entry.first);
+                        ostream << entry.first.second << " = " << settings.at(entry.first) << std::endl;
+                        entry.second = true;
                         changed = true;
                     }
                 }
@@ -270,14 +270,14 @@ void Settings::SettingsFileParser::saveSettingsFile(
 
     // Ensure that all options in the current category have been written.  We must complete
     // the current category at the end of the file before moving on to any new categories.
-    for (auto& mit : written)
+    for (auto& entry : written)
     {
-        if (mit.second == false && mit.first.first == currentCategory)
+        if (entry.second == false && entry.first.first == currentCategory)
         {
-            Log(Debug::Verbose) << "Added new setting: [" << mit.first.first << "] " << mit.first.second << " = "
-                                << settings.at(mit.first);
-            ostream << mit.first.second << " = " << settings.at(mit.first) << std::endl;
-            mit.second = true;
+            Log(Debug::Verbose) << "Added new setting: [" << entry.first.first << "] " << entry.first.second << " = "
+                                << settings.at(entry.first);
+            ostream << entry.first.second << " = " << settings.at(entry.first) << std::endl;
+            entry.second = true;
             changed = true;
         }
     }
@@ -310,23 +310,23 @@ void Settings::SettingsFileParser::saveSettingsFile(
     // It's possible that there are entirely new categories, or that the input file had
     // disappeared completely, so we need ensure that all settings are written to the file
     // regardless of those issues.
-    for (auto& mit : written)
+    for (auto& entry : written)
     {
         // If the setting hasn't been written yet.
-        if (mit.second == false)
+        if (entry.second == false)
         {
             // If the catgory has changed, write a new category header.
-            if (mit.first.first != currentCategory)
+            if (entry.first.first != currentCategory)
             {
-                currentCategory = mit.first.first;
-                Log(Debug::Verbose) << "Created new setting section: " << mit.first.first;
+                currentCategory = entry.first.first;
+                Log(Debug::Verbose) << "Created new setting section: " << entry.first.first;
                 ostream << std::endl;
                 ostream << "[" << currentCategory << "]" << std::endl;
             }
-            Log(Debug::Verbose) << "Added new setting: [" << mit.first.first << "] " << mit.first.second << " = "
-                                << settings.at(mit.first);
+            Log(Debug::Verbose) << "Added new setting: [" << entry.first.first << "] " << entry.first.second << " = "
+                                << settings.at(entry.first);
             // Then write the setting.  No need to mark it as written because we're done.
-            ostream << mit.first.second << " = " << settings.at(mit.first) << std::endl;
+            ostream << entry.first.second << " = " << settings.at(entry.first) << std::endl;
             changed = true;
         }
     }

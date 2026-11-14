@@ -66,10 +66,10 @@ namespace SceneUtil
 
     void RemoveVisitor::remove()
     {
-        for (auto& it : mToRemove)
+        for (auto& entry : mToRemove)
         {
-            if (!it.second->removeChild(it.first))
-                Log(Debug::Error) << "error removing " << it.first->getName();
+            if (!entry.second->removeChild(entry.first))
+                Log(Debug::Error) << "error removing " << entry.first->getName();
         }
     }
 

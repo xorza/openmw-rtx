@@ -1159,11 +1159,11 @@ namespace MWGui
                 mFocusItem = nullptr;
                 mItemActive = 0;
 
-                for (auto& mActiveTextFormat : mActiveTextFormats)
+                for (auto& activeTextFormat : mActiveTextFormats)
                 {
-                    if (mNode != nullptr && mActiveTextFormat.second != nullptr)
-                        mActiveTextFormat.second->destroyDrawItem(mNode);
-                    mActiveTextFormat.second.reset();
+                    if (mNode != nullptr && activeTextFormat.second != nullptr)
+                        activeTextFormat.second->destroyDrawItem(mNode);
+                    activeTextFormat.second.reset();
                 }
 
                 mActiveTextFormats.clear();
@@ -1197,8 +1197,8 @@ namespace MWGui
             else if (mBook && isPageDifferent(newPage))
             {
                 if (mNode != nullptr)
-                    for (auto& mActiveTextFormat : mActiveTextFormats)
-                        mNode->outOfDate(mActiveTextFormat.second->mRenderItem);
+                    for (auto& activeTextFormat : mActiveTextFormats)
+                        mNode->outOfDate(activeTextFormat.second->mRenderItem);
 
                 setPage(newPage);
 
@@ -1249,8 +1249,8 @@ namespace MWGui
             newBook->visitRuns(0, 0x7FFFFFFF, CreateActiveFormat(this));
 
             if (mNode != nullptr)
-                for (auto& mActiveTextFormat : mActiveTextFormats)
-                    mActiveTextFormat.second->createDrawItem(mNode);
+                for (auto& activeTextFormat : mActiveTextFormats)
+                    activeTextFormat.second->createDrawItem(mNode);
         }
 
         void setVisible(bool newVisible) override
@@ -1270,8 +1270,8 @@ namespace MWGui
 
             if (nullptr != mNode)
             {
-                for (auto& mActiveTextFormat : mActiveTextFormats)
-                    mNode->outOfDate(mActiveTextFormat.second->mRenderItem);
+                for (auto& activeTextFormat : mActiveTextFormats)
+                    mNode->outOfDate(activeTextFormat.second->mRenderItem);
             }
         }
 
@@ -1279,8 +1279,8 @@ namespace MWGui
         {
             mNode = node;
 
-            for (auto& mActiveTextFormat : mActiveTextFormats)
-                mActiveTextFormat.second->createDrawItem(node);
+            for (auto& activeTextFormat : mActiveTextFormats)
+                activeTextFormat.second->createDrawItem(node);
         }
 
         struct RenderRun
@@ -1357,8 +1357,8 @@ namespace MWGui
             _checkMargin();
 
             if (mNode != nullptr)
-                for (auto& mActiveTextFormat : mActiveTextFormats)
-                    mNode->outOfDate(mActiveTextFormat.second->mRenderItem);
+                for (auto& activeTextFormat : mActiveTextFormats)
+                    mNode->outOfDate(activeTextFormat.second->mRenderItem);
         }
 
         void _correctView() override
@@ -1366,14 +1366,14 @@ namespace MWGui
             _checkMargin();
 
             if (mNode != nullptr)
-                for (auto& mActiveTextFormat : mActiveTextFormats)
-                    mNode->outOfDate(mActiveTextFormat.second->mRenderItem);
+                for (auto& activeTextFormat : mActiveTextFormats)
+                    mNode->outOfDate(activeTextFormat.second->mRenderItem);
         }
 
         void destroyDrawItem() override
         {
-            for (auto& mActiveTextFormat : mActiveTextFormats)
-                mActiveTextFormat.second->destroyDrawItem(mNode);
+            for (auto& activeTextFormat : mActiveTextFormats)
+                activeTextFormat.second->destroyDrawItem(mNode);
 
             mNode = nullptr;
         }

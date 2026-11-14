@@ -214,19 +214,19 @@ namespace MWLua
             {
                 auto table = value.as<sol::lua_table>();
                 auto it = table.begin();
-                for (auto& mBonu : race.mData.mBonus)
+                for (auto& entry : race.mData.mBonus)
                 {
                     if (it != table.end())
                     {
                         const auto& [k, v] = *it;
                         const ESM::RefId skill = ESM::RefId::deserializeText(k.as<std::string_view>());
                         const int bonus = v.as<int>();
-                        mBonu.mSkill = skill;
-                        mBonu.mBonus = bonus;
+                        entry.mSkill = skill;
+                        entry.mBonus = bonus;
                         ++it;
                     }
                     else
-                        mBonu = {};
+                        entry = {};
                 }
                 if (it != table.end())
                     throw std::runtime_error(

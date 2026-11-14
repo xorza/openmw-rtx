@@ -552,11 +552,11 @@ bool MWWorld::InventoryStore::stacks(const ConstPtr& ptr1, const ConstPtr& ptr2)
         return false;
 
     // don't stack if either item is currently equipped
-    for (const auto& mSlot : mSlots)
+    for (const auto& slot : mSlots)
     {
-        if (mSlot != end() && (ptr1 == *mSlot || ptr2 == *mSlot))
+        if (slot != end() && (ptr1 == *slot || ptr2 == *slot))
         {
-            bool stackWhenEquipped = mSlot->getClass().getEquipmentSlots(*mSlot).second;
+            bool stackWhenEquipped = slot->getClass().getEquipmentSlots(*slot).second;
             if (!stackWhenEquipped)
                 return false;
         }

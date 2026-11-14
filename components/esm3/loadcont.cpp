@@ -19,11 +19,11 @@ namespace ESM
 
     void InventoryList::save(ESMWriter& esm) const
     {
-        for (const auto& it : mList)
+        for (const auto& entry : mList)
         {
             esm.startSubRecord("NPCO");
-            esm.writeT(it.mCount);
-            esm.writeMaybeFixedSizeRefId(it.mItem, 32);
+            esm.writeT(entry.mCount);
+            esm.writeMaybeFixedSizeRefId(entry.mItem, 32);
             esm.endRecord("NPCO");
         }
     }

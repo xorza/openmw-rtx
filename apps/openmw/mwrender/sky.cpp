@@ -689,9 +689,9 @@ namespace MWRender
 
                 const osg::Vec3 defaultWrapRange = osg::Vec3(1024, 1024, 800);
 
-                for (auto& mFoundNode : findPSVisitor.mFoundNodes)
+                for (auto& foundNode : findPSVisitor.mFoundNodes)
                 {
-                    auto* ps = static_cast<osgParticle::ParticleSystem*>(mFoundNode);
+                    auto* ps = static_cast<osgParticle::ParticleSystem*>(foundNode);
 
                     osg::ref_ptr<osgParticle::ModularProgram> program = new osgParticle::ModularProgram;
                     if (mParticleOcclusion)

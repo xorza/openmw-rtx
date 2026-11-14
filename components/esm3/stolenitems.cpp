@@ -8,16 +8,16 @@ namespace ESM
 
     void StolenItems::write(ESMWriter& esm) const
     {
-        for (const auto& mStolenItem : mStolenItems)
+        for (const auto& stolenItem : mStolenItems)
         {
-            esm.writeHNRefId("NAME", mStolenItem.first);
-            for (auto ownerIt = mStolenItem.second.begin(); ownerIt != mStolenItem.second.end(); ++ownerIt)
+            esm.writeHNRefId("NAME", stolenItem.first);
+            for (const auto& [owner, count] : stolenItem.second)
             {
-                if (ownerIt->first.second)
-                    esm.writeHNRefId("FNAM", ownerIt->first.first);
+                if (owner.second)
+                    esm.writeHNRefId("FNAM", owner.first);
                 else
-                    esm.writeHNRefId("ONAM", ownerIt->first.first);
-                esm.writeHNT("COUN", ownerIt->second);
+                    esm.writeHNRefId("ONAM", owner.first);
+                esm.writeHNT("COUN", count);
             }
         }
     }

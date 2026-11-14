@@ -54,13 +54,13 @@ namespace Rtx
 
                 const std::uint32_t sum
                     = Shaders::digestTexel(texel.mR, texel.mG, texel.mB, texel.mA, x, y, Shaders::DIGEST_SEED_SUM);
-                const std::uint32_t xor_
+                const std::uint32_t xorSeeded
                     = Shaders::digestTexel(texel.mR, texel.mG, texel.mB, texel.mA, x, y, Shaders::DIGEST_SEED_XOR);
 
                 lanes[0] += sum;
                 lanes[1] ^= sum;
-                lanes[2] += xor_;
-                lanes[3] ^= xor_;
+                lanes[2] += xorSeeded;
+                lanes[3] ^= xorSeeded;
             }
 
             return lanes;
@@ -76,12 +76,11 @@ namespace Rtx
         /// A pattern no two texels share and no row repeats, with signs and a nought in it.
         float valueAt(const std::uint32_t x, const std::uint32_t y, const std::uint32_t channel)
         {
-            const float signed_ = (x + y + channel) % 3 == 0 ? -1.0f : 1.0f;
+            const float sign = (x + y + channel) % 3 == 0 ? -1.0f : 1.0f;
             if ((x * 7 + y * 3 + channel) % 11 == 0)
                 return 0.0f;
 
-            return signed_
-                * (static_cast<float>(x) * 0.125f + static_cast<float>(y) * 3.5f + static_cast<float>(channel));
+            return sign * (static_cast<float>(x) * 0.125f + static_cast<float>(y) * 3.5f + static_cast<float>(channel));
         }
 
         /// What one record digested: every channel's lanes, the denoiser's words as

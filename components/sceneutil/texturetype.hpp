@@ -25,6 +25,7 @@ namespace SceneUtil
 
         int compare(const osg::StateAttribute& sa) const override
         {
+            // NOLINTNEXTLINE(modernize-use-auto): OSG's macro declares the type it is handed, which `auto` cannot be.
             COMPARE_StateAttribute_Types(TextureType, sa);
             COMPARE_StateAttribute_Parameter(_name);
             return 0;

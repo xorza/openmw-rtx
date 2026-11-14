@@ -72,8 +72,8 @@ namespace Resource
 
     void ResourceSystem::setExpiryDelay(double expiryDelay)
     {
-        for (auto& mResourceManager : mResourceManagers)
-            mResourceManager->setExpiryDelay(expiryDelay);
+        for (auto& resourceManager : mResourceManagers)
+            resourceManager->setExpiryDelay(expiryDelay);
 
         // NIF files aren't needed any more once the converted objects are cached in SceneManager / BulletShapeManager,
         // so no point in using an expiry delay
@@ -82,14 +82,14 @@ namespace Resource
 
     void ResourceSystem::updateCache(double referenceTime)
     {
-        for (auto& mResourceManager : mResourceManagers)
-            mResourceManager->updateCache(referenceTime);
+        for (auto& resourceManager : mResourceManagers)
+            resourceManager->updateCache(referenceTime);
     }
 
     void ResourceSystem::clearCache()
     {
-        for (auto& mResourceManager : mResourceManagers)
-            mResourceManager->clearCache();
+        for (auto& resourceManager : mResourceManagers)
+            resourceManager->clearCache();
     }
 
     void ResourceSystem::addResourceManager(BaseResourceManager* resourceMgr)
@@ -111,14 +111,14 @@ namespace Resource
 
     void ResourceSystem::reportStats(unsigned int frameNumber, osg::Stats* stats) const
     {
-        for (auto mResourceManager : mResourceManagers)
-            mResourceManager->reportStats(frameNumber, stats);
+        for (auto resourceManager : mResourceManagers)
+            resourceManager->reportStats(frameNumber, stats);
     }
 
     void ResourceSystem::releaseGLObjects(osg::State* state)
     {
-        for (auto& mResourceManager : mResourceManagers)
-            mResourceManager->releaseGLObjects(state);
+        for (auto& resourceManager : mResourceManagers)
+            resourceManager->releaseGLObjects(state);
     }
 
 }

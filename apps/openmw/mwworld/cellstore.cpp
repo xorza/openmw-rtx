@@ -1230,9 +1230,9 @@ namespace MWWorld
             if (MWBase::Environment::get().getWorld()->getTimeStamp() - mLastRespawn > 24 * 30 * iMonthsToRespawn)
             {
                 mLastRespawn = MWBase::Environment::get().getWorld()->getTimeStamp();
-                for (auto& it : get<ESM::Container>().mList)
+                for (auto& entry : get<ESM::Container>().mList)
                 {
-                    Ptr ptr = getCurrentPtr(&it);
+                    Ptr ptr = getCurrentPtr(&entry);
                     if (ptr.getRefData().hasCustomData())
                         ptr.getClass().respawn(ptr);
                 }

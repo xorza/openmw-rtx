@@ -1107,36 +1107,37 @@ namespace MWRender
         // Only perform a projection matrix update once if a relevant setting is changed.
         bool updateProjection = false;
 
-        for (const auto& it : changed)
+        for (const auto& entry : changed)
         {
-            if (it.first == "Camera" && it.second == "field of view")
+            if (entry.first == "Camera" && entry.second == "field of view")
             {
                 mFieldOfView = Settings::camera().mFieldOfView;
                 updateProjection = true;
             }
-            else if (it.first == "Video" && (it.second == "resolution x" || it.second == "resolution y"))
+            else if (entry.first == "Video" && (entry.second == "resolution x" || entry.second == "resolution y"))
             {
                 updateProjection = true;
             }
-            else if (it.first == "Camera" && it.second == "viewing distance")
+            else if (entry.first == "Camera" && entry.second == "viewing distance")
             {
                 setViewDistance(Settings::camera().mViewingDistance);
             }
-            else if (it.first == "General"
-                && (it.second == "texture filter" || it.second == "texture mipmap" || it.second == "anisotropy"))
+            else if (entry.first == "General"
+                && (entry.second == "texture filter" || entry.second == "texture mipmap"
+                    || entry.second == "anisotropy"))
             {
                 updateTextureFiltering();
             }
-            else if (it.first == "Shaders" && it.second == "minimum interior brightness")
+            else if (entry.first == "Shaders" && entry.second == "minimum interior brightness")
             {
                 if (MWMechanics::getPlayer().isInCell())
                     configureAmbient(*MWMechanics::getPlayer().getCell()->getCell());
             }
-            else if (it.first == "Shaders"
-                && (it.second == "classic falloff" || it.second == "light radius multiplier"
-                    || it.second == "maximum light distance" || it.second == "light fade start"
-                    || it.second == "max lights" || it.second == "clustered lighting"
-                    || it.second == "particle point lighting"))
+            else if (entry.first == "Shaders"
+                && (entry.second == "classic falloff" || entry.second == "light radius multiplier"
+                    || entry.second == "maximum light distance" || entry.second == "light fade start"
+                    || entry.second == "max lights" || entry.second == "clustered lighting"
+                    || entry.second == "particle point lighting"))
             {
                 if (MWMechanics::getPlayer().isInCell())
                     configureAmbient(*MWMechanics::getPlayer().getCell()->getCell());

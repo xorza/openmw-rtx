@@ -365,9 +365,9 @@ namespace MWGui
         mSaveList->removeAllItems();
         if (!mCurrentCharacter)
             return;
-        for (const auto& it : *mCurrentCharacter)
+        for (const auto& entry : *mCurrentCharacter)
         {
-            mSaveList->addItem(it.mProfile.mDescription);
+            mSaveList->addItem(entry.mProfile.mDescription);
         }
         // When loading, Auto-select the first save, if there is one
         if (mSaveList->getItemCount() && !mSaving)

@@ -182,8 +182,8 @@ namespace MWWorld
         }
     }
 
-    RefData::RefData(RefData&& other) = default;
-    RefData& RefData::operator=(RefData&& other) = default;
+    RefData::RefData(RefData&& other) noexcept = default;
+    RefData& RefData::operator=(RefData&& other) noexcept = default;
 
     void RefData::setBaseNode(osg::ref_ptr<SceneUtil::PositionAttitudeTransform> base)
     {

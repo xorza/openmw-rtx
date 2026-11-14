@@ -81,9 +81,9 @@ namespace SceneUtil
             sgNew = sgNew->_parent;
         } while (sgNew && sgNew != root);
 
-        for (auto& itr : std::views::reverse(returnPath))
+        for (auto& entry : std::views::reverse(returnPath))
         {
-            const osg::StateSet* ss = itr->getStateSet();
+            const osg::StateSet* ss = entry->getStateSet();
             if (!ss)
                 continue;
 
@@ -118,8 +118,8 @@ namespace SceneUtil
                     state.mImportantState = true;
             }
 
-            if (itr != sg && !state.interesting())
-                uninterestingCache.insert(itr);
+            if (entry != sg && !state.interesting())
+                uninterestingCache.insert(entry);
         }
 
         if (!state.needShadows())

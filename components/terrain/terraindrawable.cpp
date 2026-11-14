@@ -102,9 +102,9 @@ namespace Terrain
         if (stateset)
             cv->pushStateSet(stateset);
 
-        for (auto& mPasse : mPasses)
+        for (auto& pass : mPasses)
         {
-            cv->pushStateSet(mPasse);
+            cv->pushStateSet(pass);
             cv->addDrawableAndDepth(this, &matrix, depth);
             cv->popStateSet();
         }
@@ -150,9 +150,9 @@ namespace Terrain
 
     void TerrainDrawable::compileGLObjects(osg::RenderInfo& renderInfo) const
     {
-        for (const auto& mPasse : mPasses)
+        for (const auto& pass : mPasses)
         {
-            osg::StateSet* stateset = mPasse;
+            osg::StateSet* stateset = pass;
             stateset->compileGLObjects(*renderInfo.getState());
         }
 

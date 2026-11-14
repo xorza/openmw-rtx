@@ -702,9 +702,9 @@ namespace MWWorld
         mParent->removeChild(state.mNode);
         mPhysics->removeProjectile(state.mProjectileId);
         state.mToDelete = true;
-        for (auto& mSound : state.mSounds)
+        for (auto& sound : state.mSounds)
         {
-            MWBase::Environment::get().getSoundManager()->stopSound(mSound);
+            MWBase::Environment::get().getSoundManager()->stopSound(sound);
         }
     }
 

@@ -1089,13 +1089,13 @@ namespace Rtx
 
             constexpr std::size_t sLong = 1100;
             static_assert(sLong > 1024, "the long run is one stretch");
-            Column long_;
+            Column stretched;
             for (std::size_t i = 0; i < sLong; ++i)
-                long_.add(
+                stretched.add(
                     osg::Vec3f(15.0f - static_cast<float>(i) * (30.0f / sLong), 0.0f, 0.0f), 4.0f, 1.0f / 1024.0f);
-            long_.shade(mShading, sEast);
+            stretched.shade(mShading, sEast);
             for (std::size_t i = 0; i < sLong; ++i)
-                ASSERT_EQ(long_.mSprites[i].mSunLayers, static_cast<float>(i) / 1024.0f) << "sprite " << i;
+                ASSERT_EQ(stretched.mSprites[i].mSunLayers, static_cast<float>(i) / 1024.0f) << "sprite " << i;
         }
 
         /// A sprite beside the light's path to another is not in it.

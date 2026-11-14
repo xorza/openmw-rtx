@@ -275,7 +275,9 @@ namespace Settings
 
         BaseSettingValue(const BaseSettingValue& other) = delete;
 
-        BaseSettingValue(BaseSettingValue&& other) noexcept;
+        // Registers the moved-to value, which may allocate.
+        // NOLINTNEXTLINE(performance-noexcept-move-constructor,cppcoreguidelines-noexcept-move-operations)
+        BaseSettingValue(BaseSettingValue&& other);
 
         BaseSettingValue& operator=(const BaseSettingValue& other) = delete;
 
@@ -323,7 +325,8 @@ namespace Settings
         mIndex.insert(this);
     }
 
-    inline BaseSettingValue::BaseSettingValue(BaseSettingValue&& other) noexcept
+    // NOLINTNEXTLINE(performance-noexcept-move-constructor,cppcoreguidelines-noexcept-move-operations)
+    inline BaseSettingValue::BaseSettingValue(BaseSettingValue&& other)
         : mType(other.mType)
         , mCategory(other.mCategory)
         , mName(other.mName)
@@ -353,7 +356,9 @@ namespace Settings
         {
         }
 
-        SettingValue(SettingValue&& other) noexcept
+        // Reads the setting again, and throws where it is missing, which a test holds it to.
+        // NOLINTNEXTLINE(performance-noexcept-move-constructor,cppcoreguidelines-noexcept-move-operations)
+        SettingValue(SettingValue&& other)
             : BaseSettingValue(std::move(other))
             , mSanitizer(std::move(other.mSanitizer))
             , mDefaultValue(std::move(other.mValue))

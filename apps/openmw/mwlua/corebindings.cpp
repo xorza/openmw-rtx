@@ -47,8 +47,8 @@ namespace MWLua
             return sol::nullopt;
         };
         res["has"] = [&contentList](std::string_view contentFile) -> bool {
-            for (const auto& i : contentList)
-                if (Misc::StringUtils::ciEqual(i, contentFile))
+            for (const auto& entry : contentList)
+                if (Misc::StringUtils::ciEqual(entry, contentFile))
                     return true;
             return false;
         };
