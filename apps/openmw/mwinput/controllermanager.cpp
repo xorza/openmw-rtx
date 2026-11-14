@@ -153,7 +153,7 @@ namespace MWInput
                     mGamepadMousePressed = true;
                     if (MyGUI::InputManager::getInstance().getMouseFocusWidget())
                     {
-                        MyGUI::Button* b
+                        auto* b
                             = MyGUI::InputManager::getInstance().getMouseFocusWidget()->castType<MyGUI::Button>(false);
                         if (b && b->getEnabled())
                             MWBase::Environment::get().getWindowManager()->playSound(

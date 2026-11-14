@@ -25,7 +25,7 @@ namespace MWRender
 
         void operator()(osg::RenderInfo& renderInfo) const override
         {
-            std::lock_guard<std::mutex> lock(mMutex);
+            std::scoped_lock lock(mMutex);
             if (renderInfo.getState()->getFrameStamp()->getFrameNumber() >= mFrame && !mDone)
             {
                 mDone = true;
@@ -43,7 +43,7 @@ namespace MWRender
 
         void reset(unsigned int frame)
         {
-            std::lock_guard<std::mutex> lock(mMutex);
+            std::scoped_lock lock(mMutex);
             mDone = false;
             mFrame = frame;
         }

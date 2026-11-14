@@ -2,6 +2,7 @@
 #include "conversion.hpp"
 
 #include <components/misc/strings/algorithm.hpp>
+#include <ranges>
 
 namespace Files
 {
@@ -32,9 +33,9 @@ namespace Files
 
     std::filesystem::path Collections::getPath(std::string_view file) const
     {
-        for (auto iter = mDirectories.rbegin(); iter != mDirectories.rend(); iter++)
+        for (const auto& mDirectorie : std::views::reverse(mDirectories))
         {
-            for (const auto& iter2 : std::filesystem::directory_iterator(*iter))
+            for (const auto& iter2 : std::filesystem::directory_iterator(mDirectorie))
             {
                 const auto& path = iter2.path();
                 const auto str = Files::pathToUnicodeString(path.filename());
@@ -49,9 +50,9 @@ namespace Files
 
     bool Collections::doesExist(std::string_view file) const
     {
-        for (auto iter = mDirectories.rbegin(); iter != mDirectories.rend(); iter++)
+        for (const auto& mDirectorie : std::views::reverse(mDirectories))
         {
-            for (const auto& iter2 : std::filesystem::directory_iterator(*iter))
+            for (const auto& iter2 : std::filesystem::directory_iterator(mDirectorie))
             {
                 const auto& path = iter2.path();
                 const auto str = Files::pathToUnicodeString(path.filename());

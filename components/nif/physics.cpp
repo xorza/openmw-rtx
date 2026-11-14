@@ -133,9 +133,9 @@ namespace Nif
         nif->read(mLinearVelocity);
         nif->read(mAngularVelocity);
         // A bit hacky, but this is the only instance where a 3x3 matrix has padding.
-        for (int i = 0; i < 3; i++)
+        for (auto& mValue : mInertiaTensor.mValues)
         {
-            nif->read(mInertiaTensor.mValues[i], 3);
+            nif->read(mValue, 3);
             nif->skip(4); // Padding
         }
         nif->read(mCenter);
@@ -867,7 +867,7 @@ namespace Nif
 
     void bhkBallSocketConstraintChain::read(NIFStream* nif)
     {
-        uint32_t numPivots = nif->get<uint32_t>();
+        auto numPivots = nif->get<uint32_t>();
         if (numPivots % 2 != 0)
             throw Nif::Exception(
                 "Invalid number of constraints in bhkBallSocketConstraintChain", nif->getFile().getFilename());

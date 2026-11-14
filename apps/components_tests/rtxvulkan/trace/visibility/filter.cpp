@@ -777,7 +777,7 @@ namespace Rtx::Testing
                     mProbe.readComposite(mRead);
                     for (std::size_t pixel = 0; pixel < mSums.size(); ++pixel)
                     {
-                        const double value = static_cast<double>(mRead[pixel * 4 + 1]);
+                        const auto value = static_cast<double>(mRead[pixel * 4 + 1]);
                         mSums[pixel] += value;
                         mSquares[pixel] += value * value;
                     }
@@ -990,7 +990,7 @@ namespace Rtx::Testing
                     mProbe.readComposite(read);
                     for (std::size_t pixel = 0; pixel < sums.size(); ++pixel)
                     {
-                        const double value = static_cast<double>(read[pixel * 4 + 1]);
+                        const auto value = static_cast<double>(read[pixel * 4 + 1]);
                         sums[pixel] += value;
                         squares[pixel] += value * value;
                     }

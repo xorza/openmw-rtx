@@ -808,7 +808,7 @@ namespace MWWorld
         {
             // When we fast-forward time, we should recharge magic items
             // in all loaded cells, using game world time
-            float duration = static_cast<float>(hours * 3600);
+            auto duration = static_cast<float>(hours * 3600);
             const float timeScaleFactor = mTimeManager->getGameTimeScale();
             if (timeScaleFactor != 0.0f)
                 duration /= timeScaleFactor;
@@ -1268,7 +1268,7 @@ namespace MWWorld
             && !(ptr.getClass().isPersistent(ptr) && ptr.getClass().getCreatureStats(ptr).isDeathAnimationFinished());
         if (force || !ptr.getClass().isActor() || (!isFlying(ptr) && !swims && isActorCollisionEnabled(ptr)))
         {
-            float height = static_cast<float>(ESM::getCellSize(ptr.getCell()->getCell()->getWorldSpace()));
+            auto height = static_cast<float>(ESM::getCellSize(ptr.getCell()->getCell()->getWorldSpace()));
             osg::Vec3f traced = mPhysics->traceDown(ptr, pos, height);
             pos.z() = std::min(pos.z(), traced.z());
         }
@@ -1288,9 +1288,9 @@ namespace MWWorld
         int fallbackDirections[4] = { direction, (direction + 3) % 4, (direction + 2) % 4, (direction + 1) % 4 };
 
         osg::Vec3f targetPos = pos;
-        for (int i = 0; i < 4; ++i)
+        for (int fallbackDirection : fallbackDirections)
         {
-            direction = fallbackDirections[i];
+            direction = fallbackDirection;
             if (direction == 0)
                 targetPos = pos + (orientation * osg::Vec3f(0, 1, 0)) * distance;
             else if (direction == 1)
@@ -1305,7 +1305,7 @@ namespace MWWorld
                 break;
         }
         targetPos.z() += distance / 2.f; // move up a bit to get out from geometry, will snap down later
-        float height = static_cast<float>(ESM::getCellSize(actor.getCell()->getCell()->getWorldSpace()));
+        auto height = static_cast<float>(ESM::getCellSize(actor.getCell()->getCell()->getWorldSpace()));
         osg::Vec3f traced = mPhysics->traceDown(actor, targetPos, height);
         if (traced != pos)
         {
@@ -1348,9 +1348,9 @@ namespace MWWorld
 
         osg::Vec3f spawnPoint = pos;
 
-        for (int i = 0; i < 4; ++i)
+        for (int fallbackDirection : fallbackDirections)
         {
-            direction = fallbackDirections[i];
+            direction = fallbackDirection;
             if (direction == 0)
                 spawnPoint = pos + (orientation * osg::Vec3f(0, 1, 0)) * distance;
             else if (direction == 1)
@@ -2297,7 +2297,7 @@ namespace MWWorld
         MWWorld::Ptr player = getPlayerPtr();
 
         mRendering->renderPlayer(player);
-        MWRender::NpcAnimation* anim = static_cast<MWRender::NpcAnimation*>(mRendering->getAnimation(player));
+        auto* anim = static_cast<MWRender::NpcAnimation*>(mRendering->getAnimation(player));
         player.getClass().getInventoryStore(player).setInvListener(anim);
         player.getClass().getInventoryStore(player).setContListener(anim);
 

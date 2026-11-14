@@ -1,6 +1,7 @@
 #include "inventoryitemmodel.hpp"
 
 #include <sstream>
+#include <utility>
 
 #include "../mwmechanics/actorutil.hpp"
 #include "../mwmechanics/creaturestats.hpp"
@@ -86,7 +87,7 @@ namespace MWGui
             error << "Item '" << item.mBase.getCellRef().getRefId() << "' was not found in container store to remove";
             throw std::runtime_error(error.str());
         }
-        else if (removed < static_cast<int>(count))
+        else if (std::cmp_less(removed, count))
         {
             error << "Not enough items '" << item.mBase.getCellRef().getRefId() << "' in the stack to remove ("
                   << static_cast<int>(count) << " requested, " << removed << " found)";

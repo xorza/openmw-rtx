@@ -255,8 +255,8 @@ void CSVRender::TerrainVertexPaintMode::editVertexColourGrid(
 
     if (mBrushShape == CSVWidget::BrushShape_Point)
     {
-        CSMWorld::LandColoursColumn::DataType newTerrain = landTable.data(landTable.getModelIndex(cellId, colourColumn))
-                                                               .value<CSMWorld::LandColoursColumn::DataType>();
+        auto newTerrain = landTable.data(landTable.getModelIndex(cellId, colourColumn))
+                              .value<CSMWorld::LandColoursColumn::DataType>();
 
         if (allowLandColourEditing(cellId))
         {
@@ -290,9 +290,8 @@ void CSVRender::TerrainVertexPaintMode::editVertexColourGrid(
                 iteratedCellId = CSMWorld::CellCoordinates::generateId(iCell, jCell);
                 if (allowLandColourEditing(iteratedCellId))
                 {
-                    CSMWorld::LandColoursColumn::DataType newTerrain
-                        = landTable.data(landTable.getModelIndex(iteratedCellId, colourColumn))
-                              .value<CSMWorld::LandColoursColumn::DataType>();
+                    auto newTerrain = landTable.data(landTable.getModelIndex(iteratedCellId, colourColumn))
+                                          .value<CSMWorld::LandColoursColumn::DataType>();
                     for (int i = 0; i < ESM::Land::LAND_SIZE; i++)
                     {
                         for (int j = 0; j < ESM::Land::LAND_SIZE; j++)
@@ -378,8 +377,7 @@ bool CSVRender::TerrainVertexPaintMode::allowLandColourEditing(const std::string
             createCommand->addNestedValue(parentIndex, index, false);
             document.getUndoStack().push(createCommand.release());
 
-            if (CSVRender::PagedWorldspaceWidget* paged
-                = dynamic_cast<CSVRender::PagedWorldspaceWidget*>(&getWorldspaceWidget()))
+            if (auto* paged = dynamic_cast<CSVRender::PagedWorldspaceWidget*>(&getWorldspaceWidget()))
             {
                 CSMWorld::CellSelection selection = paged->getCellSelection();
                 selection.add(CSMWorld::CellCoordinates::fromId(cellId).first);
@@ -387,8 +385,7 @@ bool CSVRender::TerrainVertexPaintMode::allowLandColourEditing(const std::string
             }
         }
     }
-    else if (CSVRender::PagedWorldspaceWidget* paged
-        = dynamic_cast<CSVRender::PagedWorldspaceWidget*>(&getWorldspaceWidget()))
+    else if (auto* paged = dynamic_cast<CSVRender::PagedWorldspaceWidget*>(&getWorldspaceWidget()))
     {
         CSMWorld::CellSelection selection = paged->getCellSelection();
         if (!selection.has(CSMWorld::CellCoordinates::fromId(cellId).first))

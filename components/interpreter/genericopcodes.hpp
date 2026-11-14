@@ -18,7 +18,7 @@ namespace Interpreter
         void execute(Runtime& runtime) override
         {
             Type_Integer data = runtime[0].mInteger;
-            Type_Float floatValue = static_cast<Type_Float>(data);
+            auto floatValue = static_cast<Type_Float>(data);
             runtime[0].mFloat = floatValue;
         }
     };
@@ -29,7 +29,7 @@ namespace Interpreter
         void execute(Runtime& runtime) override
         {
             Type_Float data = runtime[0].mFloat;
-            Type_Integer integerValue = static_cast<Type_Integer>(data);
+            auto integerValue = static_cast<Type_Integer>(data);
             runtime[0].mInteger = integerValue;
         }
     };
@@ -62,7 +62,7 @@ namespace Interpreter
         void execute(Runtime& runtime) override
         {
             Type_Integer data = runtime[1].mInteger;
-            Type_Float floatValue = static_cast<Type_Float>(data);
+            auto floatValue = static_cast<Type_Float>(data);
             runtime[1].mFloat = floatValue;
         }
     };
@@ -73,7 +73,7 @@ namespace Interpreter
         void execute(Runtime& runtime) override
         {
             Type_Float data = runtime[1].mFloat;
-            Type_Integer integerValue = static_cast<Type_Integer>(data);
+            auto integerValue = static_cast<Type_Integer>(data);
             runtime[1].mInteger = integerValue;
         }
     };

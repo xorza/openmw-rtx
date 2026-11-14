@@ -30,6 +30,7 @@
 
 #include "reader.hpp"
 #include <components/esm/refid.hpp> // FIXME: for mEditorId workaround
+#include <utility>
 // #include "writer.hpp"
 
 void ESM4::Pathgrid::load(ESM4::Reader& reader)
@@ -50,7 +51,7 @@ void ESM4::Pathgrid::load(ESM4::Reader& reader)
             case ESM::fourCC("PGRP"):
             {
                 std::size_t numNodes = subHdr.dataSize / sizeof(PGRP);
-                if (numNodes != std::size_t(mData)) // keep gcc quiet
+                if (std::cmp_not_equal(numNodes, mData)) // keep gcc quiet
                     throw std::runtime_error("ESM4::PGRD::load numNodes mismatch");
 
                 mNodes.resize(numNodes);
@@ -70,7 +71,7 @@ void ESM4::Pathgrid::load(ESM4::Reader& reader)
             {
                 PGRR link;
 
-                for (std::size_t i = 0; i < std::size_t(mData); ++i) // keep gcc quiet
+                for (std::size_t i = 0; std::cmp_less(i, mData); ++i) // keep gcc quiet
                 {
                     for (std::size_t j = 0; j < mNodes[i].numLinks; ++j)
                     {

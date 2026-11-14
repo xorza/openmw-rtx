@@ -106,7 +106,7 @@ namespace Resource
             std::vector<ValueType> objectsToRemove;
             {
                 const double expiryTime = referenceTime - expiryDelay;
-                std::lock_guard<std::mutex> lock(mMutex);
+                std::scoped_lock lock(mMutex);
 
                 std::erase_if(mItems, [&](auto& v) {
                     Item& item = v.second;
@@ -136,7 +136,7 @@ namespace Resource
         /** Remove all objects in the cache regardless of having external references or expiry times.*/
         void clear()
         {
-            std::lock_guard<std::mutex> lock(mMutex);
+            std::scoped_lock lock(mMutex);
             mItems.clear();
         }
 
@@ -144,7 +144,7 @@ namespace Resource
         template <class K>
         void addEntryToObjectCache(K&& key, ValueType object, double timestamp = 0.0)
         {
-            std::lock_guard<std::mutex> lock(mMutex);
+            std::scoped_lock lock(mMutex);
             const auto it = mItems.find(key);
             if (it == mItems.end())
                 mItems.emplace_hint(it, std::forward<K>(key), Item{ std::move(object), timestamp });
@@ -155,7 +155,7 @@ namespace Resource
         /** Remove Object from cache.*/
         void removeFromObjectCache(const auto& key)
         {
-            std::lock_guard<std::mutex> lock(mMutex);
+            std::scoped_lock lock(mMutex);
             const auto itr = mItems.find(key);
             if (itr != mItems.end())
                 mItems.erase(itr);
@@ -164,7 +164,7 @@ namespace Resource
         /** Get a value from the object cache; a default-constructed one if absent. */
         ValueType getRefFromObjectCache(const auto& key)
         {
-            std::lock_guard<std::mutex> lock(mMutex);
+            std::scoped_lock lock(mMutex);
             if (Item* const item = find(key))
                 return item->mValue;
             return ValueType();
@@ -172,7 +172,7 @@ namespace Resource
 
         std::optional<ValueType> getRefFromObjectCacheOrNone(const auto& key)
         {
-            const std::lock_guard<std::mutex> lock(mMutex);
+            const std::scoped_lock lock(mMutex);
             if (Item* const item = find(key))
                 return item->mValue;
             return std::nullopt;
@@ -181,7 +181,7 @@ namespace Resource
         /** Check if an object is in the cache, and if it is, update its usage time stamp. */
         bool checkInObjectCache(const auto& key, double timeStamp)
         {
-            std::lock_guard<std::mutex> lock(mMutex);
+            std::scoped_lock lock(mMutex);
             if (Item* const item = find(key))
             {
                 item->mLastUsage = timeStamp;
@@ -196,7 +196,7 @@ namespace Resource
         void releaseGLObjects(osg::State* state)
             requires ReleasesGLObjects<ValueType>
         {
-            std::lock_guard<std::mutex> lock(mMutex);
+            std::scoped_lock lock(mMutex);
             for (const auto& [k, v] : mItems)
                 v.mValue->releaseGLObjects(state);
         }
@@ -206,10 +206,10 @@ namespace Resource
         void accept(osg::NodeVisitor& nv)
             requires HoldsOsgObject<ValueType>
         {
-            std::lock_guard<std::mutex> lock(mMutex);
+            std::scoped_lock lock(mMutex);
             for (const auto& [k, v] : mItems)
                 if (osg::Object* const object = v.mValue.get())
-                    if (osg::Node* const node = dynamic_cast<osg::Node*>(object))
+                    if (auto* const node = dynamic_cast<osg::Node*>(object))
                         node->accept(nv);
         }
 
@@ -217,7 +217,7 @@ namespace Resource
         template <class Functor>
         void call(Functor&& f)
         {
-            std::lock_guard<std::mutex> lock(mMutex);
+            std::scoped_lock lock(mMutex);
             for (const auto& [k, v] : mItems)
                 f(k, v.mValue.get());
         }
@@ -225,7 +225,7 @@ namespace Resource
         template <class K>
         std::optional<std::pair<KeyType, ValueType>> lowerBound(K&& key)
         {
-            const std::lock_guard<std::mutex> lock(mMutex);
+            const std::scoped_lock lock(mMutex);
             const auto it = mItems.lower_bound(std::forward<K>(key));
             if (it == mItems.end())
                 return std::nullopt;
@@ -234,7 +234,7 @@ namespace Resource
 
         CacheStats getStats() const
         {
-            const std::lock_guard<std::mutex> lock(mMutex);
+            const std::scoped_lock lock(mMutex);
             return CacheStats{
                 .mSize = mItems.size(),
                 .mGet = mGet,

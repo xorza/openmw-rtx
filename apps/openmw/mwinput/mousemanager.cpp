@@ -198,8 +198,7 @@ namespace MWInput
                 && guiMode;
             if (MyGUI::InputManager::getInstance().getMouseFocusWidget() != nullptr)
             {
-                MyGUI::Button* b
-                    = MyGUI::InputManager::getInstance().getMouseFocusWidget()->castType<MyGUI::Button>(false);
+                auto* b = MyGUI::InputManager::getInstance().getMouseFocusWidget()->castType<MyGUI::Button>(false);
                 if (b && b->getEnabled() && id == SDL_BUTTON_LEFT)
                 {
                     MWBase::Environment::get().getWindowManager()->playSound(ESM::RefId::stringRefId("Menu Click"));

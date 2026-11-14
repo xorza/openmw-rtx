@@ -58,6 +58,6 @@ CSMPrefs::Setting& CSMPrefs::Category::operator[](const std::string& key)
 
 void CSMPrefs::Category::update()
 {
-    for (Iterator iter = mSettings.begin(); iter != mSettings.end(); ++iter)
-        mParent->update(**iter);
+    for (auto& mSetting : mSettings)
+        mParent->update(*mSetting);
 }

@@ -621,7 +621,7 @@ namespace RtxTool
             FilmSpan& last = spans.back();
             // The film's frames, less its last, against the span's fixed frames and its last one.
             const std::int64_t room = std::int64_t{ pacing.framesOf(asked.mSeconds) } - 1 - std::int64_t{ last.mFrom };
-            const std::int64_t needs = static_cast<std::int64_t>(last.mFixed + last.mFlying);
+            const auto needs = static_cast<std::int64_t>(last.mFixed + last.mFlying);
             const FilmKey& opens = plan.mKeys[last.mFromKey];
             const std::string after = timed ? std::format(", {:.1f} s after key \"{}\" at {:g} s,", secondsOf(room + 1),
                                                   opens.mStop.mName, opens.mAt.value_or(0.0f))
@@ -716,9 +716,9 @@ namespace RtxTool
         }
 
         std::uint32_t first = 0;
-        for (std::size_t at = 0; at < drafts.size(); ++at)
+        for (auto& draft : drafts)
         {
-            FilmTake& take = plan.mTakes.emplace_back(finishTake(std::move(drafts[at]), pacing));
+            FilmTake& take = plan.mTakes.emplace_back(finishTake(std::move(draft), pacing));
             take.mFirstFrame = first;
             take.mSky = skyRunOf(pacing, first);
 

@@ -49,7 +49,7 @@ void CSVWidget::SceneToolMode::adjustToolTip(const ModeButton* activeMode)
 
 void CSVWidget::SceneToolMode::setButton(std::map<ModeButton*, std::string>::iterator iter)
 {
-    for (std::map<ModeButton*, std::string>::const_iterator iter2 = mButtons.begin(); iter2 != mButtons.end(); ++iter2)
+    for (auto iter2 = mButtons.begin(); iter2 != mButtons.end(); ++iter2)
         iter2->first->setChecked(iter2 == iter);
 
     setIcon(iter->first->icon());
@@ -96,7 +96,7 @@ void CSVWidget::SceneToolMode::showPanel(const QPoint& position)
 
 void CSVWidget::SceneToolMode::addButton(const std::string& icon, const std::string& id, const QString& tooltip)
 {
-    ModeButton* button = new ModeButton(Misc::ScalableIcon::load(icon.c_str()), tooltip, mPanel);
+    auto* button = new ModeButton(Misc::ScalableIcon::load(icon.c_str()), tooltip, mPanel);
     addButton(button, id);
 }
 
@@ -138,7 +138,7 @@ std::string CSVWidget::SceneToolMode::getCurrentId() const
 
 void CSVWidget::SceneToolMode::setButton(const std::string& id)
 {
-    for (std::map<ModeButton*, std::string>::iterator iter = mButtons.begin(); iter != mButtons.end(); ++iter)
+    for (auto iter = mButtons.begin(); iter != mButtons.end(); ++iter)
         if (iter->second == id)
         {
             setButton(iter);
@@ -158,7 +158,7 @@ bool CSVWidget::SceneToolMode::event(QEvent* event)
 
 void CSVWidget::SceneToolMode::selected()
 {
-    std::map<ModeButton*, std::string>::iterator iter = mButtons.find(dynamic_cast<ModeButton*>(sender()));
+    auto iter = mButtons.find(dynamic_cast<ModeButton*>(sender()));
 
     if (iter != mButtons.end())
     {

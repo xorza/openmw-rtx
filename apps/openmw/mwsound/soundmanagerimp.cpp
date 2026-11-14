@@ -380,7 +380,7 @@ namespace MWSound
 
     float SoundManager::getSaySoundLoudness(const MWWorld::ConstPtr& ptr) const
     {
-        SaySoundMap::const_iterator snditer = mActiveSaySounds.find(ptr.mRef);
+        auto snditer = mActiveSaySounds.find(ptr.mRef);
         if (snditer != mActiveSaySounds.end())
         {
             Stream* sound = snditer->second.mStream.get();
@@ -409,7 +409,7 @@ namespace MWSound
 
     bool SoundManager::sayDone(const MWWorld::ConstPtr& ptr) const
     {
-        SaySoundMap::const_iterator snditer = mActiveSaySounds.find(ptr.mRef);
+        auto snditer = mActiveSaySounds.find(ptr.mRef);
         if (snditer != mActiveSaySounds.end())
         {
             if (mOutput->isStreamPlaying(snditer->second.mStream.get()))
@@ -421,7 +421,7 @@ namespace MWSound
 
     bool SoundManager::sayActive(const MWWorld::ConstPtr& ptr) const
     {
-        SaySoundMap::const_iterator snditer = mSaySoundsQueue.find(ptr.mRef);
+        auto snditer = mSaySoundsQueue.find(ptr.mRef);
         if (snditer != mSaySoundsQueue.end())
         {
             if (mOutput->isStreamPlaying(snditer->second.mStream.get()))
@@ -442,7 +442,7 @@ namespace MWSound
 
     void SoundManager::stopSay(const MWWorld::ConstPtr& ptr)
     {
-        SaySoundMap::iterator snditer = mSaySoundsQueue.find(ptr.mRef);
+        auto snditer = mSaySoundsQueue.find(ptr.mRef);
         if (snditer != mSaySoundsQueue.end())
         {
             mOutput->finishStream(snditer->second.mStream.get());
@@ -481,7 +481,7 @@ namespace MWSound
     void SoundManager::stopTrack(Stream* stream)
     {
         mOutput->finishStream(stream);
-        TrackList::iterator iter = std::lower_bound(mActiveTracks.begin(), mActiveTracks.end(), stream,
+        auto iter = std::lower_bound(mActiveTracks.begin(), mActiveTracks.end(), stream,
             [](const StreamPtr& lhs, Stream* rhs) { return lhs.get() < rhs; });
         if (iter != mActiveTracks.end() && iter->get() == stream)
             mActiveTracks.erase(iter);
@@ -688,7 +688,7 @@ namespace MWSound
 
     void SoundManager::stopSound(SoundBuffer* sfx, const MWWorld::ConstPtr& ptr)
     {
-        SoundMap::iterator snditer = mActiveSounds.find(ptr.mRef);
+        auto snditer = mActiveSounds.find(ptr.mRef);
         if (snditer != mActiveSounds.end())
         {
             for (SoundBufferRefPair& snd : snditer->second.mList)
@@ -725,13 +725,13 @@ namespace MWSound
 
     void SoundManager::stopSound3D(const MWWorld::ConstPtr& ptr)
     {
-        SoundMap::iterator snditer = mActiveSounds.find(ptr.mRef);
+        auto snditer = mActiveSounds.find(ptr.mRef);
         if (snditer != mActiveSounds.end())
         {
             for (SoundBufferRefPair& snd : snditer->second.mList)
                 mOutput->finishSound(snd.first.get());
         }
-        SaySoundMap::iterator sayiter = mSaySoundsQueue.find(ptr.mRef);
+        auto sayiter = mSaySoundsQueue.find(ptr.mRef);
         if (sayiter != mSaySoundsQueue.end())
             mOutput->finishStream(sayiter->second.mStream.get());
         sayiter = mActiveSaySounds.find(ptr.mRef);
@@ -765,7 +765,7 @@ namespace MWSound
 
     void SoundManager::fadeOutSound3D(const MWWorld::ConstPtr& ptr, const ESM::RefId& soundId, float duration)
     {
-        SoundMap::iterator snditer = mActiveSounds.find(ptr.mRef);
+        auto snditer = mActiveSounds.find(ptr.mRef);
         if (snditer != mActiveSounds.end())
         {
             SoundBuffer* sfx = mSoundBuffers.lookup(soundId);
@@ -781,7 +781,7 @@ namespace MWSound
 
     bool SoundManager::getSoundPlaying(const MWWorld::ConstPtr& ptr, VFS::Path::NormalizedView fileName) const
     {
-        SoundMap::const_iterator snditer = mActiveSounds.find(ptr.mRef);
+        auto snditer = mActiveSounds.find(ptr.mRef);
         if (snditer != mActiveSounds.end())
         {
             SoundBuffer* const sfx = mSoundBuffers.lookup(fileName);
@@ -799,7 +799,7 @@ namespace MWSound
 
     bool SoundManager::getSoundPlaying(const MWWorld::ConstPtr& ptr, const ESM::RefId& soundId) const
     {
-        SoundMap::const_iterator snditer = mActiveSounds.find(ptr.mRef);
+        auto snditer = mActiveSounds.find(ptr.mRef);
         if (snditer != mActiveSounds.end())
         {
             SoundBuffer* sfx = mSoundBuffers.lookup(soundId);
@@ -1075,7 +1075,7 @@ namespace MWSound
     {
         // We update active say sounds map for specific actors here
         // because for vanilla compatibility we can't do it immediately.
-        SaySoundMap::iterator queuesayiter = mSaySoundsQueue.begin();
+        auto queuesayiter = mSaySoundsQueue.begin();
         while (queuesayiter != mSaySoundsQueue.end())
         {
             const auto dst = mActiveSaySounds.find(queuesayiter->first);
@@ -1107,11 +1107,11 @@ namespace MWSound
         updateMusic(duration);
 
         // Check if any sounds are finished playing, and trash them
-        SoundMap::iterator snditer = mActiveSounds.begin();
+        auto snditer = mActiveSounds.begin();
         while (snditer != mActiveSounds.end())
         {
             MWWorld::ConstPtr ptr = snditer->first;
-            SoundBufferRefPairList::iterator sndidx = snditer->second.mList.begin();
+            auto sndidx = snditer->second.mList.begin();
             while (sndidx != snditer->second.mList.end())
             {
                 Sound* sound = sndidx->first.get();
@@ -1152,7 +1152,7 @@ namespace MWSound
                 ++snditer;
         }
 
-        SaySoundMap::iterator sayiter = mActiveSaySounds.begin();
+        auto sayiter = mActiveSaySounds.begin();
         while (sayiter != mActiveSaySounds.end())
         {
             MWWorld::ConstPtr ptr = sayiter->first;
@@ -1183,7 +1183,7 @@ namespace MWSound
             }
         }
 
-        TrackList::iterator trkiter = mActiveTracks.begin();
+        auto trkiter = mActiveTracks.begin();
         while (trkiter != mActiveTracks.end())
         {
             Stream* sound = trkiter->get();
@@ -1312,7 +1312,7 @@ namespace MWSound
 
     void SoundManager::updatePtr(const MWWorld::ConstPtr& old, const MWWorld::ConstPtr& updated)
     {
-        SoundMap::iterator snditer = mActiveSounds.find(old.mRef);
+        auto snditer = mActiveSounds.find(old.mRef);
         if (snditer != mActiveSounds.end())
             snditer->second.mCell = updated.mCell;
 

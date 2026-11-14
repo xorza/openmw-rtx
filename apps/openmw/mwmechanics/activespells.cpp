@@ -519,7 +519,7 @@ namespace MWMechanics
 
     ActiveSpells::TIterator ActiveSpells::getActiveSpellById(const ESM::RefId& id)
     {
-        for (TIterator it = begin(); it != end(); it++)
+        for (auto it = begin(); it != end(); it++)
             if (it->getActiveSpellId() == id)
                 return it;
         return end();
@@ -708,7 +708,7 @@ namespace MWMechanics
                     converter->convert(params.mCaster, params.mCaster.mIndex);
                     for (ESM::ActiveEffect& effect : params.mEffects)
                     {
-                        if (ESM::RefNum* refNum = std::get_if<ESM::RefNum>(&effect.mArg))
+                        if (auto* refNum = std::get_if<ESM::RefNum>(&effect.mArg))
                             converter->convert(*refNum, refNum->mIndex);
                     }
                 }

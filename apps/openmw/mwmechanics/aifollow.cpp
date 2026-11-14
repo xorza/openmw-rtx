@@ -106,7 +106,7 @@ namespace MWMechanics
 
         actor.getClass().getCreatureStats(actor).setDrawState(DrawState::Nothing);
 
-        AiFollowStorage& storage = state.get<AiFollowStorage>();
+        auto& storage = state.get<AiFollowStorage>();
 
         bool& rotate = storage.mTurnActorToTarget;
         if (rotate)
@@ -137,7 +137,7 @@ namespace MWMechanics
         }
         floatingDistance += getHalfExtents(target) + 64;
         floatingDistance += getHalfExtents(actor) * 2;
-        short followDistance = static_cast<short>(floatingDistance);
+        auto followDistance = static_cast<short>(floatingDistance);
 
         // AiFollow requires the target to be in range and within sight for the initial activation
         if (!mActive)

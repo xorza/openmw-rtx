@@ -75,7 +75,7 @@ namespace MWGui
 
     void KeyboardNavigation::restoreFocus(int mode)
     {
-        std::map<int, MyGUI::Widget*>::const_iterator found = mKeyFocus.find(mode);
+        auto found = mKeyFocus.find(mode);
         if (found != mKeyFocus.end())
         {
             MyGUI::Widget* w = found->second;
@@ -224,7 +224,7 @@ namespace MWGui
         if (keyFocusList.empty())
             return false;
 
-        MyGUI::VectorWidgetPtr::iterator found = std::find(keyFocusList.begin(), keyFocusList.end(), focus);
+        auto found = std::find(keyFocusList.begin(), keyFocusList.end(), focus);
         if (found == keyFocusList.end())
         {
             if (isCycle)

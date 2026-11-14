@@ -421,7 +421,7 @@ namespace MWGui
 
         mSortModel->clearDragItems();
 
-        MWMechanics::Alchemy::TIngredientsIterator it = mAlchemy->beginIngredients();
+        auto it = mAlchemy->beginIngredients();
         for (int i = 0; i < 4; ++i)
         {
             ItemWidget* ingredient = mIngredients[i];
@@ -481,7 +481,7 @@ namespace MWGui
             MyGUI::Gui::getInstance().destroyWidget(mEffectsBox->getChildAt(0));
 
         MyGUI::IntCoord coord(0, 0, mEffectsBox->getWidth(), 24);
-        Widgets::MWEffectListPtr effectsWidget = mEffectsBox->createWidget<Widgets::MWEffectList>(
+        auto effectsWidget = mEffectsBox->createWidget<Widgets::MWEffectList>(
             "MW_StatName", coord, MyGUI::Align::Left | MyGUI::Align::Top);
 
         effectsWidget->setEffectList(list);
@@ -495,7 +495,7 @@ namespace MWGui
     {
         MyGUI::ControllerItem* item
             = MyGUI::ControllerManager::getInstance().createItem(MyGUI::ControllerRepeatClick::getClassTypeName());
-        MyGUI::ControllerRepeatClick* controller = static_cast<MyGUI::ControllerRepeatClick*>(item);
+        auto* controller = static_cast<MyGUI::ControllerRepeatClick*>(item);
         controller->eventRepeatClick += newDelegate(this, &AlchemyWindow::onRepeatClick);
         MyGUI::ControllerManager::getInstance().addItem(widget, controller);
     }

@@ -14,6 +14,7 @@
 #include <components/esm3/loadgmst.hpp>
 #include <components/esm3/loadmgef.hpp>
 #include <components/esm3/loadskil.hpp>
+#include <utility>
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/world.hpp"
@@ -282,13 +283,13 @@ const ESM::Potion* MWMechanics::Alchemy::getRecord(const ESM::Potion& toFind) co
 
 void MWMechanics::Alchemy::removeIngredients()
 {
-    for (TIngredientsContainer::iterator iter(mIngredients.begin()); iter != mIngredients.end(); ++iter)
-        if (!iter->isEmpty())
+    for (auto& mIngredient : mIngredients)
+        if (!mIngredient.isEmpty())
         {
-            iter->getContainerStore()->remove(*iter, 1);
+            mIngredient.getContainerStore()->remove(mIngredient, 1);
 
-            if (iter->getCellRef().getCount() < 1)
-                *iter = MWWorld::Ptr();
+            if (mIngredient.getCellRef().getCount() < 1)
+                mIngredient = MWWorld::Ptr();
         }
 
     updateEffects();
@@ -300,7 +301,7 @@ void MWMechanics::Alchemy::addPotion(const std::string& name)
 
     newRecord.mData.mWeight = 0;
 
-    for (TIngredientsIterator iter(beginIngredients()); iter != endIngredients(); ++iter)
+    for (auto iter(beginIngredients()); iter != endIngredients(); ++iter)
         if (!iter->isEmpty())
             newRecord.mData.mWeight += iter->get<ESM::Ingredient>()->mBase->mData.mWeight;
 
@@ -351,7 +352,7 @@ int MWMechanics::Alchemy::countIngredients() const
 {
     int ingredients = 0;
 
-    for (TIngredientsIterator iter(beginIngredients()); iter != endIngredients(); ++iter)
+    for (auto iter(beginIngredients()); iter != endIngredients(); ++iter)
         if (!iter->isEmpty())
             ++ingredients;
 
@@ -366,7 +367,7 @@ int MWMechanics::Alchemy::countPotionsToBrew() const
 
     int toBrew = -1;
 
-    for (TIngredientsIterator iter(beginIngredients()); iter != endIngredients(); ++iter)
+    for (auto iter(beginIngredients()); iter != endIngredients(); ++iter)
         if (!iter->isEmpty())
         {
             int count = iter->getCellRef().getCount();
@@ -401,7 +402,7 @@ void MWMechanics::Alchemy::setAlchemist(const MWWorld::Ptr& npc)
 
         int type = ref->mBase->mData.mType;
 
-        if (type < 0 || type >= static_cast<int>(mTools.size()))
+        if (type < 0 || std::cmp_greater_equal(type, mTools.size()))
             throw std::runtime_error("invalid apparatus type");
 
         if (prevTools[type] == *iter)
@@ -456,7 +457,7 @@ int MWMechanics::Alchemy::addIngredient(const MWWorld::Ptr& ingredient)
     // find a free slot
     int slot = -1;
 
-    for (int i = 0; i < static_cast<int>(mIngredients.size()); ++i)
+    for (int i = 0; std::cmp_less(i, mIngredients.size()); ++i)
         if (mIngredients[i].isEmpty())
         {
             slot = i;
@@ -466,8 +467,8 @@ int MWMechanics::Alchemy::addIngredient(const MWWorld::Ptr& ingredient)
     if (slot == -1)
         return -1;
 
-    for (TIngredientsIterator iter(mIngredients.begin()); iter != mIngredients.end(); ++iter)
-        if (!iter->isEmpty() && ingredient.getCellRef().getRefId() == iter->getCellRef().getRefId())
+    for (const auto& mIngredient : mIngredients)
+        if (!mIngredient.isEmpty() && ingredient.getCellRef().getRefId() == mIngredient.getCellRef().getRefId())
             return -1;
 
     mIngredients[slot] = ingredient;

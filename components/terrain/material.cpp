@@ -28,7 +28,7 @@ namespace
 
         const osg::ref_ptr<osg::Uniform>& get(const float blendmapScale)
         {
-            const std::lock_guard<std::mutex> lock(mMutex);
+            const std::scoped_lock lock(mMutex);
             auto texMat = mTexMatMap.find(blendmapScale);
             if (texMat == mTexMatMap.end())
             {
@@ -63,7 +63,7 @@ namespace
 
         const osg::ref_ptr<osg::Uniform>& get(const float layerTileSize)
         {
-            const std::lock_guard<std::mutex> lock(mMutex);
+            const std::scoped_lock lock(mMutex);
             auto texMat = mTexMatMap.find(layerTileSize);
             if (texMat == mTexMatMap.end())
             {
@@ -188,7 +188,7 @@ namespace Terrain
         std::vector<osg::ref_ptr<osg::StateSet>> passes;
 
         unsigned int blendmapIndex = 0;
-        for (std::vector<TextureLayer>::const_iterator it = layers.begin(); it != layers.end(); ++it)
+        for (auto it = layers.begin(); it != layers.end(); ++it)
         {
             bool firstLayer = (it == layers.begin());
 

@@ -61,9 +61,9 @@ void ESM4::Static::load(ESM4::Reader& reader)
 
                 // for TES4 these are just a sequence of bytes
                 mMODT.resize(subHdr.dataSize / sizeof(std::uint8_t));
-                for (std::vector<std::uint8_t>::iterator it = mMODT.begin(); it != mMODT.end(); ++it)
+                for (unsigned char& it : mMODT)
                 {
-                    reader.get(*it);
+                    reader.get(it);
 #if 0
                     std::string padding;
                     padding.insert(0, reader.stackSize()*2, ' ');

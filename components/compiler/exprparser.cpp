@@ -61,7 +61,7 @@ namespace Compiler
     {
         assert(!mOperands.empty());
         assert(index >= 0);
-        assert(index < static_cast<int>(mOperands.size()));
+        assert(std::cmp_less(index, mOperands.size()));
         return mOperands[mOperands.size() - 1 - index];
     }
 

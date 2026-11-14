@@ -86,7 +86,7 @@ namespace Crash
 
         Catcher& catcher()
         {
-            static Catcher* const kept = new Catcher;
+            static auto* const kept = new Catcher;
             return *kept;
         }
 
@@ -214,7 +214,7 @@ namespace Crash
         kept.mPage = std::move(page);
         kept.mHeartbeat.store(kept.mPage.get(), std::memory_order_release);
         {
-            const std::lock_guard lock(kept.mHangMutex);
+            const std::scoped_lock lock(kept.mHangMutex);
             showHangLimit(kept);
         }
 
@@ -257,7 +257,7 @@ namespace Crash
     void setHangLimit(std::chrono::seconds limit)
     {
         Catcher& kept = catcher();
-        const std::lock_guard lock(kept.mHangMutex);
+        const std::scoped_lock lock(kept.mHangMutex);
         kept.mHangLimit.set(
             static_cast<std::uint32_t>(std::clamp<std::chrono::seconds::rep>(limit.count(), 0, 0xFFFFFFFF)));
         showHangLimit(kept);
@@ -266,7 +266,7 @@ namespace Crash
     HangPause::HangPause()
     {
         Catcher& kept = catcher();
-        const std::lock_guard lock(kept.mHangMutex);
+        const std::scoped_lock lock(kept.mHangMutex);
         kept.mHangLimit.pause();
         showHangLimit(kept);
     }
@@ -274,7 +274,7 @@ namespace Crash
     HangPause::~HangPause()
     {
         Catcher& kept = catcher();
-        const std::lock_guard lock(kept.mHangMutex);
+        const std::scoped_lock lock(kept.mHangMutex);
         Crash::contract(kept.mHangLimit.resume(), "a hang pause ended that never began");
         showHangLimit(kept);
     }

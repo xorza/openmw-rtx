@@ -66,7 +66,7 @@ namespace Nif
             assert(mIndex == -2);
 
             // Store the index for later
-            const int32_t index = nif->get<int32_t>();
+            const auto index = nif->get<int32_t>();
             if (index < -1)
                 throw std::runtime_error(std::format("Invalid index: {}", index));
 

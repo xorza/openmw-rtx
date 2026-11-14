@@ -63,7 +63,7 @@ namespace RtxTool
     double Cruise::speedFor(const CruiseLeg& leg, const double time) const
     {
         Crash::contract(leg.mLength > 0.0 && time > 0.0, "a leg flown in no time or no length");
-        const double rests = static_cast<double>(leg.getRests());
+        const auto rests = static_cast<double>(leg.getRests());
         return time >= rests * mEase ? leg.mLength / (time - rests * mEase / 2.0) : 2.0 * leg.mLength / time;
     }
 
@@ -115,7 +115,7 @@ namespace RtxTool
 
     double Cruise::coveredAt(const CruiseLeg& leg, const double time, const double at) const
     {
-        const double rests = static_cast<double>(leg.getRests());
+        const auto rests = static_cast<double>(leg.getRests());
         const double ease = rests == 0.0 || mEase <= 0.0 ? 0.0 : time >= rests * mEase ? mEase : time / rests;
         return coveredBetween(leg.mLength, time, at, LegEnd{ .mEase = leg.mFromRest ? ease : 0.0 },
             LegEnd{ .mEase = leg.mToRest ? ease : 0.0 });

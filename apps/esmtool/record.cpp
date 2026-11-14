@@ -27,8 +27,8 @@ namespace
                 std::cout << "    Should repeat: " << static_cast<bool>(p.mWander.mShouldRepeat != 0) << std::endl;
 
             std::cout << "    Idle: ";
-            for (int i = 0; i != 8; i++)
-                std::cout << (int)p.mWander.mIdle[i] << " ";
+            for (unsigned char i : p.mWander.mIdle)
+                std::cout << (int)i << " ";
             std::cout << std::endl;
         }
         else if (p.mType == ESM::AI_Travel)

@@ -21,14 +21,14 @@ size_t MWGui::wrap(size_t index, size_t max, int delta)
         return 0;
     if (delta >= 0)
     {
-        unsigned absDelta = static_cast<unsigned>(delta);
+        auto absDelta = static_cast<unsigned>(delta);
         if (absDelta >= max)
             return 0;
         else if (index >= max - absDelta)
             return 0;
         return index + absDelta;
     }
-    size_t absDelta = static_cast<size_t>(-static_cast<ptrdiff_t>(delta));
+    auto absDelta = static_cast<size_t>(-static_cast<ptrdiff_t>(delta));
     index = std::min(index, max);
     if (index >= absDelta)
         return index - absDelta;
@@ -46,7 +46,7 @@ WindowBase::WindowBase(std::string_view parLayout)
 {
     mMainWidget->setVisible(false);
 
-    Window* window = mMainWidget->castType<Window>(false);
+    auto* window = mMainWidget->castType<Window>(false);
     if (!window)
         return;
 

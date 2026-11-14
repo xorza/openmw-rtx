@@ -690,7 +690,7 @@ namespace Stereo
 
     osg::Texture2D* MultiviewFramebuffer::createTexture(GLint sourceFormat, GLint sourceType, GLint internalFormat)
     {
-        osg::Texture2D* texture = new osg::Texture2D;
+        auto* texture = new osg::Texture2D;
         texture->setTextureSize(mWidth, mHeight);
         texture->setSourceFormat(sourceFormat);
         texture->setSourceType(sourceType);
@@ -706,7 +706,7 @@ namespace Stereo
     osg::Texture2DArray* MultiviewFramebuffer::createTextureArray(
         GLint sourceFormat, GLint sourceType, GLint internalFormat)
     {
-        osg::Texture2DArray* textureArray = new osg::Texture2DArray;
+        auto* textureArray = new osg::Texture2DArray;
         textureArray->setTextureSize(mWidth, mHeight, 2);
         textureArray->setSourceFormat(sourceFormat);
         textureArray->setSourceType(sourceType);

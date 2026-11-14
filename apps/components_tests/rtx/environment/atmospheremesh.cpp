@@ -73,7 +73,7 @@ namespace Rtx
             for (int band = 0; band < bands; ++band)
             {
                 const double up = (band + 0.5) / bands;
-                const float elevation = static_cast<float>(std::asin(up));
+                const auto elevation = static_cast<float>(std::asin(up));
                 summed += 2.0 * up
                     * double{ Shaders::skyShare(
                         read.mRamp, osg::Vec3f(std::cos(elevation), 0.0f, std::sin(elevation))) };

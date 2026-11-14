@@ -12,6 +12,7 @@
 
 #include <components/debug/debuglog.hpp>
 #include <components/files/qtconversion.hpp>
+#include <ranges>
 
 #include "gamesettings.hpp"
 
@@ -223,12 +224,12 @@ namespace Config
         {
             writeSectionHeader(sProfilesSection, stream);
             writeKeyValue(sCurrentProfileKey, value.mCurrentProfile, stream);
-            for (auto it = value.mValues.rbegin(); it != value.mValues.rend(); ++it)
+            for (const auto& mValue : std::views::reverse(value.mValues))
             {
-                writeKeyValues(it->first, sArchiveKey, it->second.mArchives, stream);
-                writeKeyValues(it->first, sDataKey, it->second.mData, stream);
-                writeKeyValues(it->first, sContentKey, it->second.mContent, stream);
-                writeKeyValues(it->first, sOrderKey, it->second.mUserFilesInOrder, stream);
+                writeKeyValues(mValue.first, sArchiveKey, mValue.second.mArchives, stream);
+                writeKeyValues(mValue.first, sDataKey, mValue.second.mData, stream);
+                writeKeyValues(mValue.first, sContentKey, mValue.second.mContent, stream);
+                writeKeyValues(mValue.first, sOrderKey, mValue.second.mUserFilesInOrder, stream);
             }
             writeUnknownKeys(value.mUnknown, stream);
         }

@@ -147,7 +147,7 @@ namespace Rtx
                 for (std::uint32_t level = 1; level < image.getMipLevels(); ++level)
                 {
                     const std::uint32_t side = image.getWidth() >> level;
-                    const float run = static_cast<float>(1u << level);
+                    const auto run = static_cast<float>(1u << level);
                     const std::vector<float> xs = halvesAt(image, level, across);
                     const std::vector<float> ys = halvesAt(image, level, 1 - across);
                     ASSERT_EQ(xs.size(), std::size_t{ side } * side) << name << " level " << level;

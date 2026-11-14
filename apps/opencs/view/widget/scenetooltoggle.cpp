@@ -146,7 +146,7 @@ void CSVWidget::SceneToolToggle::addButton(const std::string& icon, unsigned int
     if (mButtons.size() >= 9)
         throw std::runtime_error("Exceeded number of buttons in toggle type tool");
 
-    PushButton* button = new PushButton(
+    auto* button = new PushButton(
         QIcon(QPixmap(icon.c_str())), PushButton::Type_Toggle, tooltip.isEmpty() ? name : tooltip, mPanel);
 
     button->setSizePolicy(QSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed));
@@ -173,17 +173,17 @@ unsigned int CSVWidget::SceneToolToggle::getSelectionMask() const
 {
     unsigned int selection = 0;
 
-    for (std::map<PushButton*, ButtonDesc>::const_iterator iter(mButtons.begin()); iter != mButtons.end(); ++iter)
-        if (iter->first->isChecked())
-            selection |= iter->second.mMask;
+    for (const auto& mButton : mButtons)
+        if (mButton.first->isChecked())
+            selection |= mButton.second.mMask;
 
     return selection;
 }
 
 void CSVWidget::SceneToolToggle::setSelectionMask(unsigned int selection)
 {
-    for (std::map<PushButton*, ButtonDesc>::iterator iter(mButtons.begin()); iter != mButtons.end(); ++iter)
-        iter->first->setChecked(selection & iter->second.mMask);
+    for (auto& mButton : mButtons)
+        mButton.first->setChecked(selection & mButton.second.mMask);
 
     adjustToolTip();
     adjustIcon();
@@ -191,7 +191,7 @@ void CSVWidget::SceneToolToggle::setSelectionMask(unsigned int selection)
 
 void CSVWidget::SceneToolToggle::selected()
 {
-    std::map<PushButton*, ButtonDesc>::const_iterator iter = mButtons.find(dynamic_cast<PushButton*>(sender()));
+    auto iter = mButtons.find(dynamic_cast<PushButton*>(sender()));
 
     if (iter != mButtons.end())
     {

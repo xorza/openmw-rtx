@@ -1249,7 +1249,7 @@ namespace MWWorld
         const int cellY = cell.getCell()->getGridY();
 
         std::vector<std::pair<int, int>> cells;
-        const std::size_t gridSize = static_cast<std::size_t>(2 * mHalfGridSize + 1);
+        const auto gridSize = static_cast<std::size_t>(2 * mHalfGridSize + 1);
         cells.reserve(gridSize * gridSize);
 
         iterateOverCellsAround(cellX, cellY, mHalfGridSize, [&](int x, int y) { cells.emplace_back(x, y); });

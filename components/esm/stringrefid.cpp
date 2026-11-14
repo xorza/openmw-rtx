@@ -86,8 +86,8 @@ namespace ESM
         std::string result;
         result.reserve(2 + mValue->size());
         result.push_back('"');
-        const unsigned char* ptr = reinterpret_cast<const unsigned char*>(mValue->data());
-        const unsigned char* const end = reinterpret_cast<const unsigned char*>(mValue->data() + mValue->size());
+        const auto* ptr = reinterpret_cast<const unsigned char*>(mValue->data());
+        const auto* const end = reinterpret_cast<const unsigned char*>(mValue->data() + mValue->size());
         while (ptr != end)
         {
             if (Utf8Stream::isAscii(*ptr))

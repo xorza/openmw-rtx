@@ -101,10 +101,10 @@ namespace MWClass
             { ESM::Armor::LBracer, MWWorld::InventoryStore::Slot_LeftGauntlet },
             { ESM::Armor::RBracer, MWWorld::InventoryStore::Slot_RightGauntlet } };
 
-        for (int i = 0; i < size; ++i)
-            if (sMapping[i][0] == ref->mBase->mData.mType)
+        for (auto i : sMapping)
+            if (i[0] == ref->mBase->mData.mType)
             {
-                slots.push_back(int(sMapping[i][1]));
+                slots.push_back(int(i[1]));
                 break;
             }
 
@@ -367,20 +367,20 @@ namespace MWClass
             {
                 std::vector<ESM::PartReference> parts = ptr.get<ESM::Armor>()->mBase->mParts.mParts;
 
-                for (std::vector<ESM::PartReference>::iterator itr = parts.begin(); itr != parts.end(); ++itr)
+                for (auto& part : parts)
                 {
-                    if ((*itr).mPart == ESM::PRT_Head)
+                    if (part.mPart == ESM::PRT_Head)
                         return { 0, "#{sNotifyMessage13}" };
-                    if ((*itr).mPart == ESM::PRT_LFoot || (*itr).mPart == ESM::PRT_RFoot)
+                    if (part.mPart == ESM::PRT_LFoot || part.mPart == ESM::PRT_RFoot)
                         return { 0, "#{sNotifyMessage14}" };
                 }
             }
         }
 
-        for (std::vector<int>::const_iterator slot = slots.first.begin(); slot != slots.first.end(); ++slot)
+        for (int& slot : slots.first)
         {
             // If equipping a shield, check if there's a twohanded weapon conflicting with it
-            if (*slot == MWWorld::InventoryStore::Slot_CarriedLeft)
+            if (slot == MWWorld::InventoryStore::Slot_CarriedLeft)
             {
                 MWWorld::ConstContainerStoreIterator weapon
                     = invStore.getSlot(MWWorld::InventoryStore::Slot_CarriedRight);

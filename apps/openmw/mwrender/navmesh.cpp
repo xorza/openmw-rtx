@@ -100,7 +100,7 @@ namespace MWRender
             using DetourNavigator::TilePosition;
             using DetourNavigator::Version;
 
-            const std::lock_guard lock(mMutex);
+            const std::scoped_lock lock(mMutex);
             mStarted = true;
 
             if (mAborted.load(std::memory_order_acquire))

@@ -29,14 +29,14 @@ namespace ESM
 
     void AnimationState::save(ESMWriter& esm) const
     {
-        for (ScriptedAnimations::const_iterator iter = mScriptedAnims.begin(); iter != mScriptedAnims.end(); ++iter)
+        for (const auto& mScriptedAnim : mScriptedAnims)
         {
-            esm.writeHNString("ANIS", iter->mGroup);
-            if (iter->mTime > 0)
-                esm.writeHNT("TIME", iter->mTime);
-            if (iter->mAbsolute)
-                esm.writeHNT("ABST", iter->mAbsolute);
-            esm.writeHNT("COUN", iter->mLoopCount);
+            esm.writeHNString("ANIS", mScriptedAnim.mGroup);
+            if (mScriptedAnim.mTime > 0)
+                esm.writeHNT("TIME", mScriptedAnim.mTime);
+            if (mScriptedAnim.mAbsolute)
+                esm.writeHNT("ABST", mScriptedAnim.mAbsolute);
+            esm.writeHNT("COUN", mScriptedAnim.mLoopCount);
         }
     }
 }

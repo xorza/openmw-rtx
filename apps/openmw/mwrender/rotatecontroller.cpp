@@ -54,7 +54,7 @@ namespace MWRender
         node->setMatrix(matrix);
 
         // If we are linked to a bone we must call setMatrixInSkeletonSpace
-        osgAnimation::Bone* b = dynamic_cast<osgAnimation::Bone*>(node);
+        auto* b = dynamic_cast<osgAnimation::Bone*>(node);
         if (b)
         {
             osgAnimation::Bone* parent = b->getBoneParent();

@@ -107,7 +107,7 @@ namespace Terrain
 
     void TerrainGrid::unloadCell(int x, int y)
     {
-        CellBorder::CellGrid::iterator it = mGrid.find(std::make_pair(x, y));
+        auto it = mGrid.find(std::make_pair(x, y));
         if (it == mGrid.end())
             return;
 

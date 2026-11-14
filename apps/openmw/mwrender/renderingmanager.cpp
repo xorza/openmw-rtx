@@ -700,26 +700,26 @@ namespace MWRender
                 result.mHitObject = *hitPtr;
 
             unsigned int vertexCounter = 0;
-            for (unsigned int i = 0; i < refnumMarkers.size(); ++i)
+            for (auto& refnumMarker : refnumMarkers)
             {
                 unsigned int intersectionIndex = intersection.indexList.empty() ? 0 : intersection.indexList[0];
-                if (!refnumMarkers[i]->mNumVertices
+                if (!refnumMarker->mNumVertices
                     || (intersectionIndex >= vertexCounter
-                        && intersectionIndex < vertexCounter + refnumMarkers[i]->mNumVertices))
+                        && intersectionIndex < vertexCounter + refnumMarker->mNumVertices))
                 {
                     auto it = std::find_if(
-                        ignoreList.begin(), ignoreList.end(), [target = refnumMarkers[i]->mRefnum](const auto& ptr) {
+                        ignoreList.begin(), ignoreList.end(), [target = refnumMarker->mRefnum](const auto& ptr) {
                             return target == ptr.getCellRef().getRefNum();
                         });
 
                     if (it == ignoreList.end())
                     {
-                        result.mHitRefnum = refnumMarkers[i]->mRefnum;
+                        result.mHitRefnum = refnumMarker->mRefnum;
                     }
 
                     break;
                 }
-                vertexCounter += refnumMarkers[i]->mNumVertices;
+                vertexCounter += refnumMarker->mNumVertices;
             }
 
             if (!result.mHitObject.isEmpty() || result.mHitRefnum.isSet() || hitNonObjectWorld)
@@ -957,7 +957,7 @@ namespace MWRender
         // The container is kept and the Ptr written in place, because the node's user data slot is
         // the SceneUtil::StableIdentity a mirror knows the body by, and a container made afresh took
         // the stamp with it.
-        if (MWWorld::Ptr* held = SceneUtil::findUserData<MWWorld::Ptr>(*mPlayerNode))
+        if (auto* held = SceneUtil::findUserData<MWWorld::Ptr>(*mPlayerNode))
             *held = player;
         else
             SceneUtil::addUserData(*mPlayerNode, player);
@@ -1107,36 +1107,36 @@ namespace MWRender
         // Only perform a projection matrix update once if a relevant setting is changed.
         bool updateProjection = false;
 
-        for (Settings::CategorySettingVector::const_iterator it = changed.begin(); it != changed.end(); ++it)
+        for (const auto& it : changed)
         {
-            if (it->first == "Camera" && it->second == "field of view")
+            if (it.first == "Camera" && it.second == "field of view")
             {
                 mFieldOfView = Settings::camera().mFieldOfView;
                 updateProjection = true;
             }
-            else if (it->first == "Video" && (it->second == "resolution x" || it->second == "resolution y"))
+            else if (it.first == "Video" && (it.second == "resolution x" || it.second == "resolution y"))
             {
                 updateProjection = true;
             }
-            else if (it->first == "Camera" && it->second == "viewing distance")
+            else if (it.first == "Camera" && it.second == "viewing distance")
             {
                 setViewDistance(Settings::camera().mViewingDistance);
             }
-            else if (it->first == "General"
-                && (it->second == "texture filter" || it->second == "texture mipmap" || it->second == "anisotropy"))
+            else if (it.first == "General"
+                && (it.second == "texture filter" || it.second == "texture mipmap" || it.second == "anisotropy"))
             {
                 updateTextureFiltering();
             }
-            else if (it->first == "Shaders" && it->second == "minimum interior brightness")
+            else if (it.first == "Shaders" && it.second == "minimum interior brightness")
             {
                 if (MWMechanics::getPlayer().isInCell())
                     configureAmbient(*MWMechanics::getPlayer().getCell()->getCell());
             }
-            else if (it->first == "Shaders"
-                && (it->second == "classic falloff" || it->second == "light radius multiplier"
-                    || it->second == "maximum light distance" || it->second == "light fade start"
-                    || it->second == "max lights" || it->second == "clustered lighting"
-                    || it->second == "particle point lighting"))
+            else if (it.first == "Shaders"
+                && (it.second == "classic falloff" || it.second == "light radius multiplier"
+                    || it.second == "maximum light distance" || it.second == "light fade start"
+                    || it.second == "max lights" || it.second == "clustered lighting"
+                    || it.second == "particle point lighting"))
             {
                 if (MWMechanics::getPlayer().isInCell())
                     configureAmbient(*MWMechanics::getPlayer().getCell()->getCell());

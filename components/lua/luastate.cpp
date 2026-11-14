@@ -84,7 +84,7 @@ namespace LuaUtil
 
     void* LuaState::trackingAllocator(void* ud, void* ptr, size_t osize, size_t nsize)
     {
-        LuaState* self = static_cast<LuaState*>(ud);
+        auto* self = static_cast<LuaState*>(ud);
         const uint64_t smallAllocSize = self->mSettings.mSmallAllocMaxSize;
         const uint64_t memoryLimit = self->mSettings.mMemoryLimit;
 

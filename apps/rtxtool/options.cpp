@@ -77,7 +77,7 @@ namespace RtxTool
             { "jitter", [](const Value& value, Request& request) { request.mJitter = value.as<bool>(); } },
             { "noise",
                 [](const Value& value, Request& request) {
-                    const std::string& noise = value.as<std::string>();
+                    const auto& noise = value.as<std::string>();
                     request.mNoise
                         = noise == "auto" ? Request{}.mNoise : Rtx::sNoiseSourceNames.require(noise, "a noise source");
                 } },
@@ -98,7 +98,7 @@ namespace RtxTool
             { "relief", [](const Value& value, Request& request) { request.mSampling.mRelief = value.as<bool>(); } },
             { "soft-edge-dither",
                 [](const Value& value, Request& request) {
-                    const std::string& dither = value.as<std::string>();
+                    const auto& dither = value.as<std::string>();
                     if (dither != "auto" && dither != "true" && dither != "false")
                         throw std::runtime_error("--soft-edge-dither takes auto, true or false, not " + dither);
                     request.mSoftEdgeDither = dither == "auto" ? std::nullopt : std::optional(dither == "true");

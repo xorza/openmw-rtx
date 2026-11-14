@@ -17,7 +17,7 @@ namespace DetourNavigator
     NavMeshTilesCache::Value NavMeshTilesCache::get(
         const AgentBounds& agentBounds, const TilePosition& changedTile, const RecastMesh& recastMesh)
     {
-        const std::lock_guard<std::mutex> lock(mMutex);
+        const std::scoped_lock lock(mMutex);
 
         ++mGetCount;
 
@@ -38,7 +38,7 @@ namespace DetourNavigator
         const auto itemSize = sizeof(RecastMesh) + getSize(recastMesh)
             + (value == nullptr ? 0 : sizeof(PreparedNavMeshData) + getSize(*value));
 
-        const std::lock_guard<std::mutex> lock(mMutex);
+        const std::scoped_lock lock(mMutex);
 
         if (itemSize > mFreeNavMeshDataSize + (mMaxNavMeshDataSize - mUsedNavMeshDataSize))
             return Value();
@@ -74,7 +74,7 @@ namespace DetourNavigator
     {
         NavMeshTilesCacheStats result;
         {
-            const std::lock_guard<std::mutex> lock(mMutex);
+            const std::scoped_lock lock(mMutex);
             result.mNavMeshCacheSize = mUsedNavMeshDataSize;
             result.mUsedNavMeshTiles = mBusyItems.size();
             result.mCachedNavMeshTiles = mFreeItems.size();
@@ -113,7 +113,7 @@ namespace DetourNavigator
         if (--iterator->mUseCount > 0)
             return;
 
-        const std::lock_guard<std::mutex> lock(mMutex);
+        const std::scoped_lock lock(mMutex);
 
         mFreeItems.splice(mFreeItems.begin(), mBusyItems, iterator);
         mFreeNavMeshDataSize += iterator->mSize;

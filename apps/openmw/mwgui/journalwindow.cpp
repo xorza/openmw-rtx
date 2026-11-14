@@ -5,6 +5,7 @@
 #include <functional>
 #include <initializer_list>
 #include <memory>
+#include <ranges>
 #include <set>
 #include <stack>
 #include <string>
@@ -123,10 +124,10 @@ namespace
             adviseKeyPress(CloseBTN, &JournalWindowImpl::notifyKeyPress);
             adviseKeyPress(JournalBTN, &JournalWindowImpl::notifyKeyPress);
 
-            Gui::MWList* list = getWidget<Gui::MWList>(QuestsList);
+            auto* list = getWidget<Gui::MWList>(QuestsList);
             list->eventItemSelected += MyGUI::newDelegate(this, &JournalWindowImpl::notifyQuestClicked);
 
-            Gui::MWList* topicsList = getWidget<Gui::MWList>(TopicsList);
+            auto* topicsList = getWidget<Gui::MWList>(TopicsList);
             topicsList->eventItemSelected += MyGUI::newDelegate(this, &JournalWindowImpl::notifyTopicSelected);
 
             {
@@ -165,12 +166,12 @@ namespace
             adjustButton(CancelBTN);
             adjustButton(JournalBTN);
 
-            Gui::ImageButton* optionsButton = getWidget<Gui::ImageButton>(OptionsBTN);
-            Gui::ImageButton* showActiveButton = getWidget<Gui::ImageButton>(ShowActiveBTN);
-            Gui::ImageButton* showAllButton = getWidget<Gui::ImageButton>(ShowAllBTN);
-            Gui::ImageButton* questsButton = getWidget<Gui::ImageButton>(QuestsBTN);
+            auto* optionsButton = getWidget<Gui::ImageButton>(OptionsBTN);
+            auto* showActiveButton = getWidget<Gui::ImageButton>(ShowActiveBTN);
+            auto* showAllButton = getWidget<Gui::ImageButton>(ShowAllBTN);
+            auto* questsButton = getWidget<Gui::ImageButton>(QuestsBTN);
 
-            Gui::ImageButton* nextButton = getWidget<Gui::ImageButton>(NextPageBTN);
+            auto* nextButton = getWidget<Gui::ImageButton>(NextPageBTN);
             if (nextButton->getSize().width == 64)
             {
                 // english button has a 7 pixel wide strip of garbage on its right edge
@@ -183,7 +184,7 @@ namespace
             {
                 // If tribunal is not installed (-> no options button), we still want the Topics button available,
                 // so place it where the options button would have been
-                Gui::ImageButton* topicsButton = getWidget<Gui::ImageButton>(TopicsBTN);
+                auto* topicsButton = getWidget<Gui::ImageButton>(TopicsBTN);
                 topicsButton->detachFromWidget();
                 topicsButton->attachToWidget(optionsButton->getParent());
                 topicsButton->setPosition(optionsButton->getPosition());
@@ -366,13 +367,13 @@ namespace
             std::vector<DisplayState> states;
             for (; !mStates.empty(); mStates.pop())
                 states.push_back(std::move(mStates.top()));
-            for (auto state = states.rbegin(); state != states.rend(); ++state)
+            for (auto& state : std::views::reverse(states))
             {
-                state->mBook = state->mTypeset();
-                const size_t pages = state->mBook->pageCount();
-                if (state->mPage >= pages)
-                    state->mPage = pages == 0 ? 0 : (pages - 1) & ~size_t{ 1 };
-                mStates.push(std::move(*state));
+                state.mBook = state.mTypeset();
+                const size_t pages = state.mBook->pageCount();
+                if (state.mPage >= pages)
+                    state.mPage = pages == 0 ? 0 : (pages - 1) & ~size_t{ 1 };
+                mStates.push(std::move(state));
             }
 
             updateShowingPages();
@@ -415,8 +416,8 @@ namespace
                 relPages = 0;
             }
 
-            MyGUI::Widget* nextPageBtn = getWidget<MyGUI::Widget>(NextPageBTN);
-            MyGUI::Widget* prevPageBtn = getWidget<MyGUI::Widget>(PrevPageBTN);
+            auto* nextPageBtn = getWidget<MyGUI::Widget>(NextPageBTN);
+            auto* prevPageBtn = getWidget<MyGUI::Widget>(PrevPageBTN);
 
             MyGUI::Widget* focus = MyGUI::InputManager::getInstance().getKeyFocusWidget();
             bool nextPageVisible = relPages > 2;
@@ -565,7 +566,7 @@ namespace
 
             mTopicsMode = true;
 
-            Gui::MWList* list = getWidget<Gui::MWList>(TopicsList);
+            auto* list = getWidget<Gui::MWList>(TopicsList);
             list->clear();
 
             AddNamesToList add(list);
@@ -639,7 +640,7 @@ namespace
             setVisible(ShowAllBTN, !mAllQuests);
             setVisible(ShowActiveBTN, mAllQuests);
 
-            Gui::MWList* list = getWidget<Gui::MWList>(QuestsList);
+            auto* list = getWidget<Gui::MWList>(QuestsList);
             list->clear();
 
             AddNamesToList add(list);
@@ -812,14 +813,14 @@ namespace
                 if (mQuestMode)
                 {
                     // Choose a quest
-                    Gui::MWList* list = getWidget<Gui::MWList>(QuestsList);
+                    auto* list = getWidget<Gui::MWList>(QuestsList);
                     if (mSelectedQuest < list->getItemCount())
                         notifyQuestClicked(list->getItemNameAt(mSelectedQuest), 0);
                 }
                 else if (mTopicsMode)
                 {
                     // Choose a topic
-                    Gui::MWList* list = getWidget<Gui::MWList>(TopicsList);
+                    auto* list = getWidget<Gui::MWList>(TopicsList);
                     if (mSelectedQuest < list->getItemCount())
                         notifyTopicSelected(list->getItemNameAt(mSelectedQuest), 0);
                 }
@@ -981,9 +982,9 @@ namespace
                 mButtons[mSelectedQuest]->setTextColour(MWGui::journalHeaderColour);
 
                 // Scroll the list to keep the active item in view
-                Gui::MWList* list = getWidget<Gui::MWList>(mQuestMode ? QuestsList : TopicsList);
+                auto* list = getWidget<Gui::MWList>(mQuestMode ? QuestsList : TopicsList);
                 int offset = 0;
-                for (int i = 4; i < static_cast<int>(mSelectedQuest); i++)
+                for (int i = 4; std::cmp_less(i, mSelectedQuest); i++)
                     offset += mButtons[i]->getHeight();
                 list->setViewOffset(-offset);
             }

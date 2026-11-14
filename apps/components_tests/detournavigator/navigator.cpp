@@ -11,6 +11,7 @@
 #include <components/resource/bulletshape.hpp>
 #include <components/testing/util.hpp>
 
+#include <memory>
 #include <osg/io_utils>
 #include <osg/ref_ptr>
 
@@ -213,8 +214,8 @@ namespace
     TEST_F(DetourNavigatorNavigatorTest, add_object_should_change_navmesh)
     {
         mSettings.mWaitUntilMinDistanceToPlayer = 0;
-        mNavigator.reset(new NavigatorImpl(
-            mSettings, std::make_unique<NavMeshTileStore>(TestingOpenMW::currentTestDirPath() / "navmesh")));
+        mNavigator = std::make_unique<NavigatorImpl>(
+            mSettings, std::make_unique<NavMeshTileStore>(TestingOpenMW::currentTestDirPath() / "navmesh"));
 
         const HeightfieldSurface surface = makeSquareHeightfieldSurface(defaultHeightfieldData);
         const int cellSize = heightfieldTileSize * static_cast<int>(surface.mSize - 1);
@@ -631,8 +632,8 @@ namespace
     TEST_F(DetourNavigatorNavigatorTest, multiple_threads_should_lock_tiles)
     {
         mSettings.mAsyncNavMeshUpdaterThreads = 2;
-        mNavigator.reset(new NavigatorImpl(
-            mSettings, std::make_unique<NavMeshTileStore>(TestingOpenMW::currentTestDirPath() / "navmesh")));
+        mNavigator = std::make_unique<NavigatorImpl>(
+            mSettings, std::make_unique<NavMeshTileStore>(TestingOpenMW::currentTestDirPath() / "navmesh"));
 
         const HeightfieldSurface surface = makeSquareHeightfieldSurface(defaultHeightfieldData);
         const int cellSize = heightfieldTileSize * static_cast<int>(surface.mSize - 1);
@@ -887,7 +888,7 @@ namespace
 
     TEST_F(DetourNavigatorNavigatorTest, update_for_very_big_object_should_be_limited)
     {
-        const float size = static_cast<float>((1 << 22) - 1);
+        const auto size = static_cast<float>((1 << 22) - 1);
         CollisionShapeInstance bigBox(std::make_unique<btBoxShape>(btVector3(size, size, 1)));
         const std::optional<CellGridBounds> cellGridBounds = std::nullopt;
         const osg::Vec3f playerPosition(32, 1024, 0);
@@ -904,7 +905,7 @@ namespace
         std::thread thread([&] {
             auto guard = mNavigator->makeUpdateGuard();
             mNavigator->update(playerPosition, guard.get());
-            std::lock_guard lock(mutex);
+            std::scoped_lock lock(mutex);
             updated = true;
             updateFinished.notify_all();
         });
@@ -933,7 +934,7 @@ namespace
 
     TEST_F(DetourNavigatorNavigatorTest, update_should_be_limited_by_cell_grid_bounds)
     {
-        const float size = static_cast<float>((1 << 22) - 1);
+        const auto size = static_cast<float>((1 << 22) - 1);
         CollisionShapeInstance bigBox(std::make_unique<btBoxShape>(btVector3(size, size, 1)));
         const CellGridBounds cellGridBounds{
             .mCenter = osg::Vec2i(0, 0),
@@ -953,7 +954,7 @@ namespace
         std::thread thread([&] {
             auto guard = mNavigator->makeUpdateGuard();
             mNavigator->update(playerPosition, guard.get());
-            std::lock_guard lock(mutex);
+            std::scoped_lock lock(mutex);
             updated = true;
             updateFinished.notify_all();
         });

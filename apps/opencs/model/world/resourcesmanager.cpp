@@ -48,7 +48,7 @@ const VFS::Manager* CSMWorld::ResourcesManager::getVFS() const
 
 void CSMWorld::ResourcesManager::recreateResources()
 {
-    std::map<UniversalId::Type, Resources>::iterator it = mResources.begin();
+    auto it = mResources.begin();
     for (; it != mResources.end(); ++it)
     {
         if (it->first == UniversalId::Type_Mesh)
@@ -60,7 +60,7 @@ void CSMWorld::ResourcesManager::recreateResources()
 
 const CSMWorld::Resources& CSMWorld::ResourcesManager::get(UniversalId::Type type) const
 {
-    std::map<UniversalId::Type, Resources>::const_iterator iter = mResources.find(type);
+    auto iter = mResources.find(type);
 
     if (iter == mResources.end())
         throw std::logic_error("Unknown resource type");

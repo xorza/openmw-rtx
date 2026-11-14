@@ -56,12 +56,12 @@ CSVWorld::NestedTable::NestedTable(CSMDoc::Document& document, const CSMWorld::U
         {
             mAddNewRowAction = new QAction(tr("Add new row"), this);
             connect(mAddNewRowAction, &QAction::triggered, this, &NestedTable::addNewRowActionTriggered);
-            CSMPrefs::Shortcut* addRowShortcut = new CSMPrefs::Shortcut("table-add", this);
+            auto* addRowShortcut = new CSMPrefs::Shortcut("table-add", this);
             addRowShortcut->associateAction(mAddNewRowAction);
 
             mRemoveRowAction = new QAction(tr("Remove rows"), this);
             connect(mRemoveRowAction, &QAction::triggered, this, &NestedTable::removeRowActionTriggered);
-            CSMPrefs::Shortcut* removeRowShortcut = new CSMPrefs::Shortcut("table-remove", this);
+            auto* removeRowShortcut = new CSMPrefs::Shortcut("table-remove", this);
             removeRowShortcut->associateAction(mRemoveRowAction);
         }
 

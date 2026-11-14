@@ -139,7 +139,7 @@ namespace SceneUtil
                 }
             }
 
-            if (const osg::Vec4Array* tangents = dynamic_cast<const osg::Vec4Array*>(from.getTexCoordArray(7)))
+            if (const auto* tangents = dynamic_cast<const osg::Vec4Array*>(from.getTexCoordArray(7)))
             {
                 osg::ref_ptr<osg::Array> tangentArray
                     = static_cast<osg::Array*>(tangents->clone(osg::CopyOp::DEEP_COPY_ALL));
@@ -199,8 +199,7 @@ namespace SceneUtil
 
         if (geom->getSourceGeometry())
         {
-            osg::Drawable::UpdateCallback* up
-                = dynamic_cast<osg::Drawable::UpdateCallback*>(geom->getSourceGeometry()->getUpdateCallback());
+            auto* up = dynamic_cast<osg::Drawable::UpdateCallback*>(geom->getSourceGeometry()->getUpdateCallback());
             if (up)
             {
                 up->update(nv, geom->getSourceGeometry());
@@ -240,7 +239,7 @@ namespace SceneUtil
             // The cull visitor won't be applied to the node itself,
             // but we want to use its state to render the child geometry.
             osg::StateSet* stateset = getStateSet();
-            osgUtil::CullVisitor* cv = static_cast<osgUtil::CullVisitor*>(&nv);
+            auto* cv = static_cast<osgUtil::CullVisitor*>(&nv);
             if (stateset)
                 cv->pushStateSet(stateset);
 

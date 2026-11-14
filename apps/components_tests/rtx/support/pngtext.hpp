@@ -104,7 +104,7 @@ namespace Rtx::Testing
                 deflated += chunk.mData;
 
         std::string rows(bytes, '\0');
-        uLongf inflated = static_cast<uLongf>(bytes);
+        auto inflated = static_cast<uLongf>(bytes);
         EXPECT_EQ(uncompress(reinterpret_cast<Bytef*>(rows.data()), &inflated,
                       reinterpret_cast<const Bytef*>(deflated.data()), static_cast<uLong>(deflated.size())),
             Z_OK);

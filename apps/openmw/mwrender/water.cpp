@@ -101,7 +101,7 @@ namespace MWRender
             {
                 osg::Vec3d eyePoint = cv->getEyePoint();
 
-                osg::RefMatrix* modelViewMatrix = new osg::RefMatrix(*cv->getModelViewMatrix());
+                auto* modelViewMatrix = new osg::RefMatrix(*cv->getModelViewMatrix());
 
                 // apply the height of the plane
                 // we can't apply this height in the addClipPlane() since the "flip the below graph" function would
@@ -194,7 +194,7 @@ namespace MWRender
             if (std::abs(cv->getEyeLocal().z()) < fudge)
             {
                 float diff = fudge - cv->getEyeLocal().z();
-                osg::RefMatrix* modelViewMatrix = new osg::RefMatrix(*cv->getModelViewMatrix());
+                auto* modelViewMatrix = new osg::RefMatrix(*cv->getModelViewMatrix());
 
                 if (cv->getEyeLocal().z() >= 0)
                     modelViewMatrix->preMultTranslate(osg::Vec3f(0, 0, -diff));
@@ -560,7 +560,7 @@ namespace MWRender
 
         void apply(osg::StateSet* stateset, osg::NodeVisitor* nv) override
         {
-            osgUtil::CullVisitor* cv = static_cast<osgUtil::CullVisitor*>(nv);
+            auto* cv = static_cast<osgUtil::CullVisitor*>(nv);
             stateset->setTextureAttribute(1, mReflection->getColorTexture(cv), osg::StateAttribute::ON);
             stateset->setTextureAttribute(mOpaqueColorTextureUnit,
                 mResourceSystem->getSceneManager()->getOpaqueColorTex(cv->getTraversalNumber()),

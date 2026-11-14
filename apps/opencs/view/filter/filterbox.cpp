@@ -19,7 +19,7 @@
 CSVFilter::FilterBox::FilterBox(CSMWorld::Data& worldData, QWidget* parent)
     : QWidget(parent)
 {
-    QHBoxLayout* layout = new QHBoxLayout(this);
+    auto* layout = new QHBoxLayout(this);
 
     layout->setContentsMargins(0, 0, 0, 0);
 
@@ -41,7 +41,7 @@ void CSVFilter::FilterBox::setRecordFilter(const std::string& filter)
 
 void CSVFilter::FilterBox::dropEvent(QDropEvent* event)
 {
-    const CSMWorld::TableMimeData* mime = dynamic_cast<const CSMWorld::TableMimeData*>(event->mimeData());
+    const auto* mime = dynamic_cast<const CSMWorld::TableMimeData*>(event->mimeData());
     if (!mime) // May happen when non-records (e.g. plain text) are dragged and dropped
         return;
 

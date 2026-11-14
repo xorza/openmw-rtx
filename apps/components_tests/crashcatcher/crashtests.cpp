@@ -329,7 +329,7 @@ namespace CrashTests
                 return value;
             };
 
-            if (bytes.size() < 32 || bytes.compare(0, 4, "MDMP") != 0)
+            if (bytes.size() < 32 || !bytes.starts_with("MDMP"))
                 return std::nullopt;
 
             const std::uint32_t streams = word(8);
@@ -482,7 +482,7 @@ namespace CrashTests
             {
                 if (first == said.end())
                     return "no summary in the log";
-                if (first->find(mode.mHeadline) != 0)
+                if (!first->starts_with(mode.mHeadline))
                     return "the summary begins \"" + *first + "\", not \"" + std::string(mode.mHeadline) + "\"";
                 if (!mode.mRaised.empty()
                     && std::none_of(mode.mRaised.begin(), mode.mRaised.end(),

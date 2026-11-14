@@ -311,7 +311,7 @@ namespace RtxTool
                         { colour.mRedGreen, colour.mBlue }, scene.meshes().getTangents()[vertex] };
                 }
 
-                const std::size_t least
+                const auto least
                     = static_cast<std::size_t>(std::min_element(corners.begin(), corners.end()) - corners.begin());
 
                 Misc::HashState triangle;

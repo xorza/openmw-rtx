@@ -224,7 +224,7 @@ namespace MWRender
             TracedTerrain ground = making.make();
             osg::Group* const sceneRoot = making.mSceneRoot.get();
 
-            constexpr double cell = static_cast<double>(Rtx::Testing::FakeLand::sCellSize);
+            constexpr auto cell = static_cast<double>(Rtx::Testing::FakeLand::sCellSize);
             constexpr double middle = 0.5 * cell;
             EXPECT_FALSE(groundUnder(*sceneRoot, middle, middle).has_value()) << "ground before any cell was loaded";
 
@@ -284,7 +284,7 @@ namespace MWRender
 
             // The scene's bound is the one loaded grid's, half a cell's diagonal and the slope
             // over it, and not the land's: the traced map stands its eye at the top of it.
-            constexpr double cell = static_cast<double>(Rtx::Testing::FakeLand::sCellSize);
+            constexpr auto cell = static_cast<double>(Rtx::Testing::FakeLand::sCellSize);
             EXPECT_LT(static_cast<double>(making.mSceneRoot->getBound().radius()), cell);
 
             const osg::Vec3d from(1.0 * cell, 0.5 * cell + 10.0, 700.0);
@@ -337,7 +337,7 @@ namespace MWRender
                 making.mLand.mWithData.push_back(osg::Vec2i(x, 0));
             TracedTerrain ground = making.make();
 
-            constexpr double cell = static_cast<double>(Rtx::Testing::FakeLand::sCellSize);
+            constexpr auto cell = static_cast<double>(Rtx::Testing::FakeLand::sCellSize);
             osg::ref_ptr<osg::Geometry> quad = new osg::Geometry;
             osg::ref_ptr<osg::Vec3Array> corners = new osg::Vec3Array;
             for (const osg::Vec3f& corner : { osg::Vec3f(-100.0f, -100.0f, 0.0f), osg::Vec3f(100.0f, -100.0f, 0.0f),
@@ -409,7 +409,7 @@ namespace MWRender
                 making.mLand.mWithData.push_back(osg::Vec2i(x, 0));
             TracedTerrain ground = making.make();
 
-            constexpr double cell = static_cast<double>(Rtx::Testing::FakeLand::sCellSize);
+            constexpr auto cell = static_cast<double>(Rtx::Testing::FakeLand::sCellSize);
             osg::ref_ptr<osg::Geometry> source = new osg::Geometry;
             osg::ref_ptr<osg::Vec3Array> corners = new osg::Vec3Array;
             for (const osg::Vec3f& corner : { osg::Vec3f(-100.0f, -100.0f, 0.0f), osg::Vec3f(100.0f, -100.0f, 0.0f),

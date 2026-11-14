@@ -134,7 +134,7 @@ namespace SceneUtil
     {
         if (mWireframe)
         {
-            osg::PolygonMode* polygonmode = new osg::PolygonMode;
+            auto* polygonmode = new osg::PolygonMode;
             polygonmode->setMode(osg::PolygonMode::FRONT_AND_BACK, osg::PolygonMode::LINE);
             stateset->setAttributeAndModes(polygonmode, osg::StateAttribute::ON);
         }

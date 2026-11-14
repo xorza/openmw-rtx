@@ -30,7 +30,7 @@ CSVWidget::SceneToolbar::SceneToolbar(int buttonSize, QWidget* parent)
 
     setLayout(mLayout);
 
-    CSMPrefs::Shortcut* focusSceneShortcut = new CSMPrefs::Shortcut("scene-focus-toolbar", this);
+    auto* focusSceneShortcut = new CSMPrefs::Shortcut("scene-focus-toolbar", this);
     connect(focusSceneShortcut, qOverload<>(&CSMPrefs::Shortcut::activated), this, &SceneToolbar::focusSceneRequest);
 }
 

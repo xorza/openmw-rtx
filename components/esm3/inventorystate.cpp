@@ -125,7 +125,7 @@ namespace ESM
 
     void InventoryState::save(ESMWriter& esm) const
     {
-        uint32_t itemsCount = static_cast<uint32_t>(mItems.size());
+        auto itemsCount = static_cast<uint32_t>(mItems.size());
         if (itemsCount > 0)
         {
             esm.writeHNT("ICNT", itemsCount);
@@ -146,7 +146,7 @@ namespace ESM
             }
         }
 
-        uint32_t slotsCount = static_cast<uint32_t>(mEquipmentSlots.size());
+        auto slotsCount = static_cast<uint32_t>(mEquipmentSlots.size());
         if (slotsCount > 0)
         {
             esm.startSubRecord("EQIP");

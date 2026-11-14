@@ -338,7 +338,7 @@ namespace MWRender
         {
             osg::State* state = renderInfo.getState();
 
-            PostProcessor* postProcessor = static_cast<PostProcessor*>(renderInfo.getCurrentCamera()->getUserData());
+            auto* postProcessor = static_cast<PostProcessor*>(renderInfo.getCurrentCamera()->getUserData());
 
             state->applyAttribute(mDepth);
 
@@ -382,7 +382,7 @@ namespace MWRender
 
         void operator()(osg::Node* node, osg::NodeVisitor* nv) override
         {
-            osgUtil::CullVisitor* cv = static_cast<osgUtil::CullVisitor*>(nv);
+            auto* cv = static_cast<osgUtil::CullVisitor*>(nv);
             float fov, aspect, zNear, zFar;
             if (cv->getProjectionMatrix()->getPerspective(fov, aspect, zNear, zFar)
                 && static_cast<double>(std::abs(fov - mFov)) > 0.001)
@@ -637,9 +637,8 @@ namespace MWRender
                 ESM::PartReferenceType parts[] = { ESM::PRT_Groin, ESM::PRT_Skirt, ESM::PRT_RLeg, ESM::PRT_LLeg,
                     ESM::PRT_RUpperarm, ESM::PRT_LUpperarm, ESM::PRT_RKnee, ESM::PRT_LKnee, ESM::PRT_RForearm,
                     ESM::PRT_LForearm, ESM::PRT_Cuirass };
-                const size_t partsSize = sizeof(parts) / sizeof(parts[0]);
-                for (size_t p = 0; p < partsSize; ++p)
-                    reserveIndividualPart(parts[p], slotlist[i].mSlot, prio);
+                for (auto& part : parts)
+                    reserveIndividualPart(part, slotlist[i].mSlot, prio);
             }
             else if (slotlist[i].mSlot == MWWorld::InventoryStore::Slot_Skirt)
             {
@@ -791,7 +790,7 @@ namespace MWRender
                     if (weaponBonename != bonename)
                     {
                         const NodeMap& nodeMap = getNodeMap();
-                        NodeMap::const_iterator found = nodeMap.find(weaponBonename);
+                        auto found = nodeMap.find(weaponBonename);
                         if (found != nodeMap.end())
                             bonename = weaponBonename;
                     }
@@ -927,7 +926,7 @@ namespace MWRender
             // RotateController will accumulate rotations.
             if (mStates.size() > 0)
             {
-                NodeMap::iterator found = mNodeMap.find("bip01 neck");
+                auto found = mNodeMap.find("bip01 neck");
                 if (found != mNodeMap.end())
                 {
                     osg::MatrixTransform* node = found->second.get();
@@ -1170,7 +1169,7 @@ namespace MWRender
         if (firstPerson)
             flags |= flagFirstPerson;
 
-        RaceMapping::iterator found = sRaceMapping.find(std::make_pair(race, flags));
+        auto found = sRaceMapping.find(std::make_pair(race, flags));
         if (found != sRaceMapping.end())
             return found->second;
         else
@@ -1226,8 +1225,7 @@ namespace MWRender
                 if (firstPerson && isHand && !partFirstPerson)
                 {
                     // Allow 3rd person skins as a fallback for the arms if 1st person is missing
-                    BodyPartMapType::const_iterator bIt
-                        = sBodyPartMap.lower_bound(BodyPartMapType::key_type(bodypart.mData.mPart));
+                    auto bIt = sBodyPartMap.lower_bound(BodyPartMapType::key_type(bodypart.mData.mPart));
                     while (bIt != sBodyPartMap.end() && bIt->first == bodypart.mData.mPart)
                     {
                         // If we have no fallback bodypart now and bodypart is for same gender (1)
@@ -1255,8 +1253,7 @@ namespace MWRender
                 if (female && !isFemalePart(&bodypart))
                 {
                     // Allow male parts as fallback for females if female parts are missing
-                    BodyPartMapType::const_iterator bIt
-                        = sBodyPartMap.lower_bound(BodyPartMapType::key_type(bodypart.mData.mPart));
+                    auto bIt = sBodyPartMap.lower_bound(BodyPartMapType::key_type(bodypart.mData.mPart));
                     while (bIt != sBodyPartMap.end() && bIt->first == bodypart.mData.mPart)
                     {
                         // If we have no fallback bodypart now
@@ -1278,8 +1275,7 @@ namespace MWRender
                     continue;
 
                 // Use properly found bodypart, replacing fallbacks
-                BodyPartMapType::const_iterator bIt
-                    = sBodyPartMap.lower_bound(BodyPartMapType::key_type(bodypart.mData.mPart));
+                auto bIt = sBodyPartMap.lower_bound(BodyPartMapType::key_type(bodypart.mData.mPart));
                 while (bIt != sBodyPartMap.end() && bIt->first == bodypart.mData.mPart)
                 {
                     parts[bIt->second] = &bodypart;

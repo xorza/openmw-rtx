@@ -16,7 +16,7 @@ CSVDoc::AdjusterWidget::AdjusterWidget(QWidget* parent)
     , mValid(false)
     , mAction(ContentAction_Undefined)
 {
-    QHBoxLayout* layout = new QHBoxLayout(this);
+    auto* layout = new QHBoxLayout(this);
 
     mIcon = new QLabel(this);
 

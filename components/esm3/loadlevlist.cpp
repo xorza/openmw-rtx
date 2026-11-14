@@ -40,9 +40,8 @@ namespace ESM
                     // will be flawed in some way. For a proper fix the ESM format would have to be changed
                     // to actually track list changes instead of including the whole list for every file
                     // that does something with that list.
-                    for (size_t i = 0; i < mList.size(); i++)
+                    for (auto& li : mList)
                     {
-                        LevelItem& li = mList[i];
                         li.mId = esm.getHNRefId(recName);
                         esm.getHNT(li.mLevel, "INTV");
                     }

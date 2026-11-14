@@ -27,16 +27,16 @@ namespace ESM
 
     void DialogueState::save(ESMWriter& esm) const
     {
-        for (auto iter(mKnownTopics.begin()); iter != mKnownTopics.end(); ++iter)
+        for (auto mKnownTopic : mKnownTopics)
         {
-            esm.writeHNRefId("TOPI", *iter);
+            esm.writeHNRefId("TOPI", mKnownTopic);
         }
 
-        for (auto iter = mChangedFactionReaction.begin(); iter != mChangedFactionReaction.end(); ++iter)
+        for (const auto& iter : mChangedFactionReaction)
         {
-            esm.writeHNRefId("FACT", iter->first);
+            esm.writeHNRefId("FACT", iter.first);
 
-            for (auto reactIter = iter->second.begin(); reactIter != iter->second.end(); ++reactIter)
+            for (auto reactIter = iter.second.begin(); reactIter != iter.second.end(); ++reactIter)
             {
                 esm.writeHNRefId("REA2", reactIter->first);
                 esm.writeHNT("INTV", reactIter->second);

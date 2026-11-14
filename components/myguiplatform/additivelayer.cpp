@@ -21,7 +21,7 @@ namespace MyGUIPlatform
 
     void AdditiveLayer::renderToTarget(MyGUI::IRenderTarget* target, bool update)
     {
-        RenderManager& renderManager = static_cast<RenderManager&>(MyGUI::RenderManager::getInstance());
+        auto& renderManager = static_cast<RenderManager&>(MyGUI::RenderManager::getInstance());
 
         renderManager.setInjectState(mStateSet.get());
 

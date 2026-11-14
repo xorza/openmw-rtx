@@ -119,11 +119,11 @@ namespace MWWorld
     template <class T, class Id>
     const T* TypedDynamicStore<T, Id>::search(const Id& id) const
     {
-        typename Dynamic::const_iterator dit = mDynamic.find(id);
+        auto dit = mDynamic.find(id);
         if (dit != mDynamic.end())
             return &dit->second;
 
-        typename Static::const_iterator it = mStatic.find(id);
+        auto it = mStatic.find(id);
         if (it != mStatic.end())
             return &(it->second);
 
@@ -132,7 +132,7 @@ namespace MWWorld
     template <class T, class Id>
     const T* TypedDynamicStore<T, Id>::searchStatic(const Id& id) const
     {
-        typename Static::const_iterator it = mStatic.find(id);
+        auto it = mStatic.find(id);
         if (it != mStatic.end())
             return &(it->second);
 
@@ -142,7 +142,7 @@ namespace MWWorld
     template <class T, class Id>
     bool TypedDynamicStore<T, Id>::isDynamic(const Id& id) const
     {
-        typename Dynamic::const_iterator dit = mDynamic.find(id);
+        auto dit = mDynamic.find(id);
         return (dit != mDynamic.end());
     }
     template <class T, class Id>
@@ -246,7 +246,7 @@ namespace MWWorld
     void TypedDynamicStore<T, Id>::listIdentifier(std::vector<Id>& list) const
     {
         list.reserve(list.size() + getSize());
-        typename std::vector<T*>::const_iterator it = mShared.begin();
+        auto it = mShared.begin();
         for (; it != mShared.end(); ++it)
         {
             list.push_back((*it)->mId);
@@ -282,13 +282,13 @@ namespace MWWorld
     template <class T, class Id>
     bool TypedDynamicStore<T, Id>::eraseStatic(const Id& id)
     {
-        typename Static::iterator it = mStatic.find(id);
+        auto it = mStatic.find(id);
 
         if (it != mStatic.end())
         {
             // delete from the static part of mShared
-            typename std::vector<T*>::iterator sharedIter = mShared.begin();
-            typename std::vector<T*>::iterator end = sharedIter + mStatic.size();
+            auto sharedIter = mShared.begin();
+            auto end = sharedIter + mStatic.size();
 
             while (sharedIter != mShared.end() && sharedIter != end)
             {
@@ -507,14 +507,14 @@ namespace MWWorld
             if (!moved)
                 continue;
 
-            ESM::Cell* cellAlt = const_cast<ESM::Cell*>(searchOrCreate(cMRef.mTarget[0], cMRef.mTarget[1]));
+            auto* cellAlt = const_cast<ESM::Cell*>(searchOrCreate(cMRef.mTarget[0], cMRef.mTarget[1]));
 
             // Add data required to make reference appear in the correct cell.
             // We should not need to test for duplicates, as this part of the code is pre-cell merge.
             cell->mMovedRefs.push_back(cMRef);
 
             // But there may be duplicates here!
-            ESM::CellRefTracker::iterator iter = std::find_if(
+            auto iter = std::find_if(
                 cellAlt->mLeasedRefs.begin(), cellAlt->mLeasedRefs.end(), ESM::CellRefTrackerPredicate(ref.mRefNum));
             if (iter == cellAlt->mLeasedRefs.end())
                 cellAlt->mLeasedRefs.emplace_back(std::move(ref), deleted);
@@ -528,13 +528,13 @@ namespace MWWorld
     }
     const ESM::Cell* Store<ESM::Cell>::search(std::string_view name) const
     {
-        DynamicInt::const_iterator it = mInt.find(name);
+        auto it = mInt.find(name);
         if (it != mInt.end())
         {
             return it->second;
         }
 
-        DynamicInt::const_iterator dit = mDynamicInt.find(name);
+        auto dit = mDynamicInt.find(name);
         if (dit != mDynamicInt.end())
         {
             return dit->second;
@@ -545,11 +545,11 @@ namespace MWWorld
     const ESM::Cell* Store<ESM::Cell>::search(int x, int y) const
     {
         std::pair<int, int> key(x, y);
-        DynamicExt::const_iterator it = mExt.find(key);
+        auto it = mExt.find(key);
         if (it != mExt.end())
             return it->second;
 
-        DynamicExt::const_iterator dit = mDynamicExt.find(key);
+        auto dit = mDynamicExt.find(key);
         if (dit != mDynamicExt.end())
             return dit->second;
 
@@ -557,7 +557,7 @@ namespace MWWorld
     }
     const ESM::Cell* Store<ESM::Cell>::searchStatic(int x, int y) const
     {
-        DynamicExt::const_iterator it = mExt.find(std::make_pair(x, y));
+        auto it = mExt.find(std::make_pair(x, y));
         if (it != mExt.end())
             return (it->second);
         return nullptr;
@@ -565,11 +565,11 @@ namespace MWWorld
     const ESM::Cell* Store<ESM::Cell>::searchOrCreate(int x, int y)
     {
         std::pair<int, int> key(x, y);
-        DynamicExt::const_iterator it = mExt.find(key);
+        auto it = mExt.find(key);
         if (it != mExt.end())
             return (it->second);
 
-        DynamicExt::const_iterator dit = mDynamicExt.find(key);
+        auto dit = mDynamicExt.find(key);
         if (dit != mDynamicExt.end())
             return dit->second;
 
@@ -692,7 +692,7 @@ namespace MWWorld
                     {
                         if (movedRef.mTarget[0] != itOld->mTarget[0] || movedRef.mTarget[1] != itOld->mTarget[1])
                         {
-                            ESM::Cell* wipecell = const_cast<ESM::Cell*>(search(itOld->mTarget[0], itOld->mTarget[1]));
+                            auto* wipecell = const_cast<ESM::Cell*>(search(itOld->mTarget[0], itOld->mTarget[1]));
                             auto itLease = std::find_if(wipecell->mLeasedRefs.begin(), wipecell->mLeasedRefs.end(),
                                 ESM::CellRefTrackerPredicate(movedRef.mRefNum));
                             if (itLease != wipecell->mLeasedRefs.end())
@@ -765,14 +765,14 @@ namespace MWWorld
             std::pair<int, int> key(cell.getGridX(), cell.getGridY());
 
             // duplicate insertions are avoided by search(ESM::Cell &)
-            DynamicExt::iterator result = mDynamicExt.emplace(key, insertedCell).first;
+            auto result = mDynamicExt.emplace(key, insertedCell).first;
             mSharedExt.push_back(result->second);
             return result->second;
         }
         else
         {
             // duplicate insertions are avoided by search(ESM::Cell &)
-            DynamicInt::iterator result = mDynamicInt.emplace(cell.mName, insertedCell).first;
+            auto result = mDynamicInt.emplace(cell.mName, insertedCell).first;
             mSharedInt.push_back(result->second);
             return result->second;
         }
@@ -949,7 +949,7 @@ namespace MWWorld
 
     const ESM::Dialogue* Store<ESM::Dialogue>::search(const ESM::RefId& id) const
     {
-        typename Static::const_iterator it = mStatic.find(id);
+        auto it = mStatic.find(id);
         if (it != mStatic.end())
             return &(it->second);
 
@@ -991,7 +991,7 @@ namespace MWWorld
 
         dialogue.loadId(esm);
 
-        Static::iterator found = mStatic.find(dialogue.mId);
+        auto found = mStatic.find(dialogue.mId);
         if (found == mStatic.end())
         {
             dialogue.loadData(esm, isDeleted);

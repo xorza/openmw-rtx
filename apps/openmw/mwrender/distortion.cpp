@@ -12,7 +12,7 @@ namespace MWRender
         osg::State* state = renderInfo.getState();
         unsigned frameId = state->getFrameStamp()->getFrameNumber() % 2;
 
-        PostProcessor* postProcessor = dynamic_cast<PostProcessor*>(renderInfo.getCurrentCamera()->getUserData());
+        auto* postProcessor = dynamic_cast<PostProcessor*>(renderInfo.getCurrentCamera()->getUserData());
 
         if (!postProcessor || bin->getStage()->getFrameBufferObject() != postProcessor->getPrimaryFbo(frameId))
             return;

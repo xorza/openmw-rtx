@@ -62,8 +62,8 @@ const std::map<CSMWorld::ColumnBase::Display, CSMWorld::UniversalId::Type>
 std::vector<CSMWorld::ColumnBase::Display> CSMWorld::IdCompletionManager::getDisplayTypes()
 {
     std::vector<CSMWorld::ColumnBase::Display> types;
-    ModelTypeConstIterator current = sCompleterModelTypes.begin();
-    ModelTypeConstIterator end = sCompleterModelTypes.end();
+    auto current = sCompleterModelTypes.begin();
+    auto end = sCompleterModelTypes.end();
     for (; current != end; ++current)
     {
         types.push_back(current->first);
@@ -96,12 +96,12 @@ std::shared_ptr<QCompleter> CSMWorld::IdCompletionManager::getCompleter(CSMWorld
 
 void CSMWorld::IdCompletionManager::generateCompleters(CSMWorld::Data& data)
 {
-    ModelTypeConstIterator current = sCompleterModelTypes.begin();
-    ModelTypeConstIterator end = sCompleterModelTypes.end();
+    auto current = sCompleterModelTypes.begin();
+    auto end = sCompleterModelTypes.end();
     for (; current != end; ++current)
     {
         QAbstractItemModel* model = data.getTableModel(current->second);
-        CSMWorld::IdTableBase* table = dynamic_cast<CSMWorld::IdTableBase*>(model);
+        auto* table = dynamic_cast<CSMWorld::IdTableBase*>(model);
         if (table != nullptr)
         {
             int idColumn = table->searchColumnIndex(CSMWorld::Columns::ColumnId_Id);

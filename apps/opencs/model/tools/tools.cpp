@@ -163,8 +163,8 @@ CSMTools::Tools::~Tools()
     // for the thread to finish, and deletes the operation. The holders are
     // QObject children of Tools and are destroyed automatically.
 
-    for (std::map<int, ReportModel*>::iterator iter(mReports.begin()); iter != mReports.end(); ++iter)
-        delete iter->second;
+    for (auto& mReport : mReports)
+        delete mReport.second;
 }
 
 CSMWorld::UniversalId CSMTools::Tools::runVerifier(const CSMWorld::UniversalId& reportId)
@@ -264,7 +264,7 @@ CSMTools::ReportModel* CSMTools::Tools::getReport(const CSMWorld::UniversalId& i
 
 void CSMTools::Tools::verifierMessage(const CSMDoc::Message& message, int type)
 {
-    std::map<int, int>::iterator iter = mActiveReports.find(type);
+    auto iter = mActiveReports.find(type);
 
     if (iter != mActiveReports.end())
         mReports[iter->second]->add(message);

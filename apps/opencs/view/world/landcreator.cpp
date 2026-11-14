@@ -67,7 +67,7 @@ namespace CSVWorld
             = dynamic_cast<CSMWorld::IdTable&>(*getData().getTableModel(CSMWorld::UniversalId::Type_LandTextures));
         for (const CSMWorld::UniversalId& uid : ids)
         {
-            CSMWorld::TouchLandCommand* touchCmd = new CSMWorld::TouchLandCommand(lands, ltexs, uid.getId());
+            auto* touchCmd = new CSMWorld::TouchLandCommand(lands, ltexs, uid.getId());
             getUndoStack().push(touchCmd);
         }
 
@@ -112,8 +112,7 @@ namespace CSVWorld
             getUndoStack().beginMacro(("Clone " + id).c_str());
             getUndoStack().push(command.release());
 
-            CSMWorld::CopyLandTexturesCommand* ltexCopy
-                = new CSMWorld::CopyLandTexturesCommand(lands, ltexs, getClonedId(), getId());
+            auto* ltexCopy = new CSMWorld::CopyLandTexturesCommand(lands, ltexs, getClonedId(), getId());
             getUndoStack().push(ltexCopy);
 
             getUndoStack().endMacro();

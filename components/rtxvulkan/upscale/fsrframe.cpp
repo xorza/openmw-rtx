@@ -81,7 +81,7 @@ namespace Rtx
 
         // A change of the phase count walks the count a step a frame, as the SDK's lock logic wants.
         assert(frame.mJitterPhases > 0 && "an upscaled frame whose jitter has no period");
-        const float phases = static_cast<float>(frame.mJitterPhases);
+        const auto phases = static_cast<float>(frame.mJitterPhases);
         if (reset || at.mJitterPhases == 0.0f)
             at.mJitterPhases = phases;
         else if (phases > at.mJitterPhases)

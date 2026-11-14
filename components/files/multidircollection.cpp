@@ -28,7 +28,7 @@ namespace Files
 
                 const auto filename = Files::pathToUnicodeString(path.filename());
 
-                TIter result = mFiles.find(filename);
+                auto result = mFiles.find(filename);
 
                 if (result == mFiles.end())
                 {
@@ -50,7 +50,7 @@ namespace Files
 
     std::filesystem::path MultiDirCollection::getPath(std::string_view file) const
     {
-        TIter iter = mFiles.find(file);
+        auto iter = mFiles.find(file);
 
         if (iter == mFiles.end())
             throw std::runtime_error("file " + std::string(file) + " not found");

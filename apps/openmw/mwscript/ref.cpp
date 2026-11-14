@@ -20,7 +20,7 @@ MWWorld::Ptr MWScript::ExplicitRef::operator()(Interpreter::Runtime& runtime, bo
 
 MWWorld::Ptr MWScript::ImplicitRef::operator()(Interpreter::Runtime& runtime, bool required, bool activeOnly) const
 {
-    MWScript::InterpreterContext& context = static_cast<MWScript::InterpreterContext&>(runtime.getContext());
+    auto& context = static_cast<MWScript::InterpreterContext&>(runtime.getContext());
 
     return context.getReference(required);
 }

@@ -46,7 +46,7 @@ void CSVWidget::SceneToolRun::updatePanel()
 
     int i = 0;
 
-    for (std::set<std::string>::const_iterator iter(mProfiles.begin()); iter != mProfiles.end(); ++iter, ++i)
+    for (auto iter(mProfiles.begin()); iter != mProfiles.end(); ++iter, ++i)
     {
         mTable->setItem(i, 0, new QTableWidgetItem(QString::fromUtf8(iter->c_str())));
 
@@ -68,7 +68,7 @@ CSVWidget::SceneToolRun::SceneToolRun(
 
     mPanel = new QFrame(this, Qt::Popup);
 
-    QHBoxLayout* layout = new QHBoxLayout(mPanel);
+    auto* layout = new QHBoxLayout(mPanel);
 
     layout->setContentsMargins(QMargins(0, 0, 0, 0));
 
@@ -102,7 +102,7 @@ void CSVWidget::SceneToolRun::activate()
 
 void CSVWidget::SceneToolRun::removeProfile(const std::string& profile)
 {
-    std::set<std::string>::iterator iter = mProfiles.find(profile);
+    auto iter = mProfiles.find(profile);
 
     if (iter != mProfiles.end())
     {
@@ -125,7 +125,7 @@ void CSVWidget::SceneToolRun::removeProfile(const std::string& profile)
 
 void CSVWidget::SceneToolRun::addProfile(const std::string& profile)
 {
-    std::set<std::string>::iterator iter = mProfiles.find(profile);
+    auto iter = mProfiles.find(profile);
 
     if (iter == mProfiles.end())
     {
@@ -154,7 +154,7 @@ void CSVWidget::SceneToolRun::clicked(const QModelIndex& index)
     else if (index.column() == 1)
     {
         // remove profile from list
-        std::set<std::string>::iterator iter = mProfiles.begin();
+        auto iter = mProfiles.begin();
         std::advance(iter, index.row());
         removeProfile(*iter);
         updatePanel();

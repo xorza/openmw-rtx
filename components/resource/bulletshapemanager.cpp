@@ -64,7 +64,7 @@ namespace Resource
         void apply(osg::Drawable& drawable) override
         {
             if (!mTriangleMesh)
-                mTriangleMesh.reset(new btTriangleMesh);
+                mTriangleMesh = std::make_unique<btTriangleMesh>();
 
             osg::Matrixf worldMat = osg::computeLocalToWorld(getNodePath());
             osg::TriangleFunctor<GetTriangleFunctor> functor;

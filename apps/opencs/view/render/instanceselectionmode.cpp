@@ -114,7 +114,7 @@ namespace CSVRender
 
         osg::ref_ptr<osg::Geometry> geometry(new osg::Geometry);
 
-        osg::Vec3Array* vertices = new osg::Vec3Array;
+        auto* vertices = new osg::Vec3Array;
         vertices->push_back(osg::Vec3f(0.0f, 0.0f, 0.0f));
         vertices->push_back(osg::Vec3f(0.0f, 0.0f, pointB[2] - pointA[2]));
         vertices->push_back(osg::Vec3f(0.0f, pointB[1] - pointA[1], 0.0f));
@@ -127,7 +127,7 @@ namespace CSVRender
 
         geometry->setVertexArray(vertices);
 
-        osg::DrawElementsUShort* primitives = new osg::DrawElementsUShort(osg::PrimitiveSet::TRIANGLES, 0);
+        auto* primitives = new osg::DrawElementsUShort(osg::PrimitiveSet::TRIANGLES, 0);
 
         // top
         primitives->push_back(2);
@@ -182,7 +182,7 @@ namespace CSVRender
 
         geometry->addPrimitiveSet(primitives);
 
-        osg::Vec4Array* colours = new osg::Vec4Array;
+        auto* colours = new osg::Vec4Array;
 
         colours->push_back(osg::Vec4f(0.3f, 0.3f, 0.5f, 0.2f));
         colours->push_back(osg::Vec4f(0.9f, 0.9f, 1.0f, 0.2f));
@@ -212,7 +212,7 @@ namespace CSVRender
 
         osg::ref_ptr<osg::Geometry> geometry(new osg::Geometry);
 
-        osg::Vec3Array* vertices = new osg::Vec3Array;
+        auto* vertices = new osg::Vec3Array;
         for (int i = 0; i < 2; ++i)
         {
             float height = i ? -radius : radius;
@@ -224,7 +224,7 @@ namespace CSVRender
 
         geometry->setVertexArray(vertices);
 
-        osg::DrawElementsUShort* primitives = new osg::DrawElementsUShort(osg::PrimitiveSet::TRIANGLES, 0);
+        auto* primitives = new osg::DrawElementsUShort(osg::PrimitiveSet::TRIANGLES, 0);
 
         // top
         primitives->push_back(2);
@@ -279,7 +279,7 @@ namespace CSVRender
 
         geometry->addPrimitiveSet(primitives);
 
-        osg::Vec4Array* colours = new osg::Vec4Array;
+        auto* colours = new osg::Vec4Array;
 
         colours->push_back(osg::Vec4f(0.3f, 0.3f, 0.5f, 0.2f));
         colours->push_back(osg::Vec4f(0.9f, 0.9f, 1.0f, 0.2f));
@@ -315,13 +315,13 @@ namespace CSVRender
 
         osg::ref_ptr<osg::Geometry> geometry(new osg::Geometry);
 
-        osg::Vec3Array* vertices = new osg::Vec3Array;
+        auto* vertices = new osg::Vec3Array;
         constexpr int resolution = 32;
         float radiusPerResolution = radius / resolution;
         float reciprocalResolution = 1.0f / resolution;
         float doubleReciprocalRes = reciprocalResolution * 2;
 
-        osg::Vec4Array* colours = new osg::Vec4Array;
+        auto* colours = new osg::Vec4Array;
 
         for (int i = 0; i <= resolution; i += 2)
         {
@@ -361,7 +361,7 @@ namespace CSVRender
 
         geometry->setVertexArray(vertices);
 
-        osg::DrawElementsUShort* primitives = new osg::DrawElementsUShort(osg::PrimitiveSet::TRIANGLE_STRIP, 0);
+        auto* primitives = new osg::DrawElementsUShort(osg::PrimitiveSet::TRIANGLE_STRIP, 0);
 
         for (int i = 0; i < resolution; ++i)
         {
@@ -429,10 +429,10 @@ namespace CSVRender
         CSMWorld::IdTable& referencesTable = dynamic_cast<CSMWorld::IdTable&>(
             *getWorldspaceWidget().getDocument().getData().getTableModel(CSMWorld::UniversalId::Type_References));
 
-        for (std::vector<osg::ref_ptr<TagBase>>::iterator iter = selection.begin(); iter != selection.end(); ++iter)
+        for (auto& iter : selection)
         {
-            CSMWorld::DeleteCommand* command = new CSMWorld::DeleteCommand(
-                referencesTable, static_cast<ObjectTag*>(iter->get())->mObject->getReferenceId());
+            auto* command = new CSMWorld::DeleteCommand(
+                referencesTable, static_cast<ObjectTag*>(iter.get())->mObject->getReferenceId());
 
             getWorldspaceWidget().getDocument().getUndoStack().push(command);
         }

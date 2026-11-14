@@ -179,8 +179,7 @@ namespace MWMechanics
 
             if (reachedLimit)
             {
-                std::vector<ESM::RefId>::iterator it
-                    = std::find(selectedSpells.begin(), selectedSpells.end(), weakestSpell->mId);
+                auto it = std::find(selectedSpells.begin(), selectedSpells.end(), weakestSpell->mId);
                 if (it != selectedSpells.end())
                     selectedSpells.erase(it);
 

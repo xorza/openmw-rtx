@@ -145,8 +145,8 @@ namespace Resource
 
                 callback->addMergedAnimationTrack(std::move(mergedAnimationTrack));
 
-                float startTime = static_cast<float>(animation->getStartTime());
-                float stopTime = static_cast<float>(startTime + animation->getDuration());
+                auto startTime = static_cast<float>(animation->getStartTime());
+                auto stopTime = static_cast<float>(startTime + animation->getDuration());
 
                 SceneUtil::EmulatedAnimation emulatedAnimation;
                 emulatedAnimation.mStartTime = startTime;

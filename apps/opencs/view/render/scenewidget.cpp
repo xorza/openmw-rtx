@@ -72,7 +72,7 @@ namespace
 
         void apply(osg::Switch& switchNode) override
         {
-            constexpr unsigned noIndex = static_cast<unsigned>(-1);
+            constexpr auto noIndex = static_cast<unsigned>(-1);
 
             unsigned initialIndex = noIndex;
             if (!switchNode.getUserValue("initialIndex", initialIndex))
@@ -228,8 +228,7 @@ namespace CSVRender
 
     void RenderWidget::toggleRenderStats()
     {
-        osgViewer::GraphicsWindow* window
-            = static_cast<osgViewer::GraphicsWindow*>(mView->getCamera()->getGraphicsContext());
+        auto* window = static_cast<osgViewer::GraphicsWindow*>(mView->getCamera()->getGraphicsContext());
 
         window->getEventQueue()->keyPress(osgGA::GUIEventAdapter::KEY_S);
         window->getEventQueue()->keyRelease(osgGA::GUIEventAdapter::KEY_S);
@@ -292,11 +291,11 @@ namespace CSVRender
         connect(mRenderer, &CompositeOsgRenderer::simulationUpdated, this, &SceneWidget::update);
 
         // Shortcuts
-        CSMPrefs::Shortcut* focusToolbarShortcut = new CSMPrefs::Shortcut("scene-focus-toolbar", this);
+        auto* focusToolbarShortcut = new CSMPrefs::Shortcut("scene-focus-toolbar", this);
         connect(
             focusToolbarShortcut, qOverload<>(&CSMPrefs::Shortcut::activated), this, &SceneWidget::focusToolbarRequest);
 
-        CSMPrefs::Shortcut* renderStatsShortcut = new CSMPrefs::Shortcut("scene-render-stats", this);
+        auto* renderStatsShortcut = new CSMPrefs::Shortcut("scene-render-stats", this);
         connect(
             renderStatsShortcut, qOverload<>(&CSMPrefs::Shortcut::activated), this, &SceneWidget::toggleRenderStats);
     }
@@ -476,7 +475,7 @@ namespace CSVRender
 
     CSVWidget::SceneToolMode* SceneWidget::makeLightingSelector(CSVWidget::SceneToolbar* parent)
     {
-        CSVWidget::SceneToolMode* tool = new CSVWidget::SceneToolMode(parent, "Lighting Mode");
+        auto* tool = new CSVWidget::SceneToolMode(parent, "Lighting Mode");
 
         /// \todo replace icons
         tool->addButton(":scenetoolbar/day", "day",

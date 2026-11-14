@@ -1,6 +1,7 @@
 #include "reporttable.hpp"
 
 #include <algorithm>
+#include <ranges>
 #include <utility>
 
 #include <QAction>
@@ -105,7 +106,7 @@ void CSVTools::ReportTable::mouseDoubleClickEvent(QMouseEvent* event)
     selectionModel()->select(
         index, QItemSelectionModel::Clear | QItemSelectionModel::Select | QItemSelectionModel::Rows);
 
-    std::map<Qt::KeyboardModifiers, DoubleClickAction>::iterator iter = mDoubleClickActions.find(modifiers);
+    auto iter = mDoubleClickActions.find(modifiers);
 
     if (iter == mDoubleClickActions.end())
     {
@@ -173,19 +174,19 @@ CSVTools::ReportTable::ReportTable(CSMDoc::Document& document, const CSMWorld::U
     mShowAction = new QAction(tr("Show"), this);
     connect(mShowAction, &QAction::triggered, this, &ReportTable::showSelection);
     addAction(mShowAction);
-    CSMPrefs::Shortcut* showShortcut = new CSMPrefs::Shortcut("reporttable-show", this);
+    auto* showShortcut = new CSMPrefs::Shortcut("reporttable-show", this);
     showShortcut->associateAction(mShowAction);
 
     mRemoveAction = new QAction(tr("Remove from list"), this);
     connect(mRemoveAction, &QAction::triggered, this, &ReportTable::removeSelection);
     addAction(mRemoveAction);
-    CSMPrefs::Shortcut* removeShortcut = new CSMPrefs::Shortcut("reporttable-remove", this);
+    auto* removeShortcut = new CSMPrefs::Shortcut("reporttable-remove", this);
     removeShortcut->associateAction(mRemoveAction);
 
     mReplaceAction = new QAction(tr("Replace"), this);
     connect(mReplaceAction, &QAction::triggered, this, &ReportTable::replaceRequest);
     addAction(mReplaceAction);
-    CSMPrefs::Shortcut* replaceShortcut = new CSMPrefs::Shortcut("reporttable-replace", this);
+    auto* replaceShortcut = new CSMPrefs::Shortcut("reporttable-replace", this);
     replaceShortcut->associateAction(mReplaceAction);
 
     if (mRefreshState)
@@ -194,7 +195,7 @@ CSVTools::ReportTable::ReportTable(CSMDoc::Document& document, const CSMWorld::U
         mRefreshAction->setEnabled(!(mDocument.getState() & mRefreshState));
         connect(mRefreshAction, &QAction::triggered, this, &ReportTable::refreshRequest);
         addAction(mRefreshAction);
-        CSMPrefs::Shortcut* refreshShortcut = new CSMPrefs::Shortcut("reporttable-refresh", this);
+        auto* refreshShortcut = new CSMPrefs::Shortcut("reporttable-refresh", this);
         refreshShortcut->associateAction(mRefreshAction);
     }
 
@@ -237,12 +238,12 @@ std::vector<int> CSVTools::ReportTable::getReplaceIndices(bool selection) const
 
         std::sort(rows.begin(), rows.end());
 
-        for (std::vector<int>::const_iterator iter(rows.begin()); iter != rows.end(); ++iter)
+        for (int row : rows)
         {
-            QString hint = mModel->data(mModel->index(*iter, 2)).toString();
+            QString hint = mModel->data(mModel->index(row, 2)).toString();
 
             if (!hint.isEmpty() && hint[0] == 'R')
-                indices.push_back(*iter);
+                indices.push_back(row);
         }
     }
     else
@@ -326,8 +327,8 @@ void CSVTools::ReportTable::removeSelection()
 
     std::sort(rows.begin(), rows.end());
 
-    for (std::vector<int>::const_reverse_iterator iter(rows.rbegin()); iter != rows.rend(); ++iter)
-        mProxyModel->removeRows(*iter, 1);
+    for (int row : std::views::reverse(rows))
+        mProxyModel->removeRows(row, 1);
 
     selectionModel()->clear();
 }

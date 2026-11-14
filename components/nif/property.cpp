@@ -73,7 +73,7 @@ namespace Nif
         if (nif->getVersion() <= NIFStream::generateVersion(20, 1, 0, 1))
             mApplyMode = static_cast<ApplyMode>(nif->get<uint32_t>());
 
-        const uint32_t texturesSize = nif->get<uint32_t>();
+        const auto texturesSize = nif->get<uint32_t>();
 
         mTextures.reserve(texturesSize);
         for (size_t i = 0; i < texturesSize; i++)
@@ -91,7 +91,7 @@ namespace Nif
 
         if (nif->getVersion() >= NIFStream::generateVersion(10, 0, 1, 0))
         {
-            const uint32_t sharedTexturesSize = nif->get<uint32_t>();
+            const auto sharedTexturesSize = nif->get<uint32_t>();
             mShaderTextures.reserve(sharedTexturesSize);
             mShaderIds.reserve(sharedTexturesSize);
             for (size_t i = 0; i < sharedTexturesSize; i++)
@@ -353,7 +353,7 @@ namespace Nif
                     mTranslucency.read(nif);
                 if (nif->get<uint8_t>() != 0)
                 {
-                    const uint32_t size = nif->get<uint32_t>();
+                    const auto size = nif->get<uint32_t>();
                     mTextureArrays.reserve(size);
                     for (uint32_t i = 0; i < size; ++i)
                         nif->getSizedStrings(mTextureArrays.emplace_back(), nif->get<uint32_t>());
@@ -424,7 +424,7 @@ namespace Nif
         if (nif->getBethVersion() >= NIFFile::BethVersion::BETHVER_STF)
             nif->skip(4); // Unknown
 
-        uint32_t miscParams = nif->get<uint32_t>();
+        auto miscParams = nif->get<uint32_t>();
         mClamp = miscParams & 0xFF;
         mLightingInfluence = (miscParams >> 8) & 0xFF;
         mEnvMapMinLOD = (miscParams >> 16) & 0xFF;

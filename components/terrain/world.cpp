@@ -96,8 +96,8 @@ namespace Terrain
 
         if (visible)
         {
-            for (std::set<std::pair<int, int>>::iterator it = mLoadedCells.begin(); it != mLoadedCells.end(); ++it)
-                mCellBorder->createCellBorderGeometry(it->first, it->second);
+            for (const auto& mLoadedCell : mLoadedCells)
+                mCellBorder->createCellBorderGeometry(mLoadedCell.first, mLoadedCell.second);
         }
         else
             mCellBorder->destroyCellBorderGeometry();

@@ -239,7 +239,7 @@ namespace MWGui::Formatting
         mTextStyle = TextStyle();
         mBlockStyle = BlockStyle();
 
-        MyGUI::Widget* paper = parent->createWidget<MyGUI::Widget>("Widget",
+        auto* paper = parent->createWidget<MyGUI::Widget>("Widget",
             MyGUI::IntCoord(0, 0, pag.getPageWidth(), pag.getPageHeight()), MyGUI::Align::Left | MyGUI::Align::Top);
         paper->setNeedMouseFocus(false);
 
@@ -477,7 +477,7 @@ namespace MWGui::Formatting
         : GraphicElement(parent, pag, blockStyle)
         , mTextStyle(textStyle)
     {
-        Gui::EditBox* box = parent->createWidget<Gui::EditBox>("NormalText",
+        auto* box = parent->createWidget<Gui::EditBox>("NormalText",
             MyGUI::IntCoord(0, pag.getCurrentTop(), pag.getPageWidth(), 0), MyGUI::Align::Left | MyGUI::Align::Top,
             parent->getName() + MyGUI::utility::toString(parent->getChildCount()));
         box->setEditStatic(true);

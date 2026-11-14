@@ -182,7 +182,7 @@ namespace Bsa
         {
             std::vector<char> buffer(inputSize);
             streamPtr->read(buffer.data(), inputSize);
-            uLongf destSize = static_cast<uLongf>(fileRecord.mSize);
+            auto destSize = static_cast<uLongf>(fileRecord.mSize);
             int ec = ::uncompress(reinterpret_cast<Bytef*>(memoryStreamPtr->getRawData()), &destSize,
                 reinterpret_cast<Bytef*>(buffer.data()), static_cast<uLong>(buffer.size()));
 

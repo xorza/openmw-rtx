@@ -13,6 +13,7 @@
 #include <components/widgets/list.hpp>
 
 #include <components/esm3/loadgmst.hpp>
+#include <utility>
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/inputmanager.hpp"
@@ -542,7 +543,7 @@ namespace MWGui
     {
         const TextColours& textColours{ MWBase::Environment::get().getWindowManager()->getTextColours() };
 
-        if (prevFocus >= 0 && prevFocus < static_cast<int>(mButtons.size()))
+        if (prevFocus >= 0 && std::cmp_less(prevFocus, mButtons.size()))
         {
             MyGUI::TextBox* button = mButtons[prevFocus];
             if (button == mMagnitudeMinValue || button == mMagnitudeMaxValue || button == mDurationValue
@@ -556,7 +557,7 @@ namespace MWGui
             }
         }
 
-        if (newFocus >= 0 && newFocus < static_cast<int>(mButtons.size()))
+        if (newFocus >= 0 && std::cmp_less(newFocus, mButtons.size()))
         {
             MyGUI::TextBox* button = mButtons[newFocus];
             if (button == mMagnitudeMinValue || button == mMagnitudeMaxValue || button == mDurationValue
@@ -968,13 +969,13 @@ namespace MWGui
             params.mArea = effectInfo.mArea;
             params.mIsConstant = mConstantEffect;
 
-            MyGUI::Button* button = mUsedEffectsView->createWidget<MyGUI::Button>(
+            auto* button = mUsedEffectsView->createWidget<MyGUI::Button>(
                 {}, MyGUI::IntCoord(0, size.height, 0, 24), MyGUI::Align::Default);
             button->setUserData(i);
             button->eventMouseButtonClick += MyGUI::newDelegate(this, &SpellCreationDialog::onEditEffect);
             button->setNeedMouseFocus(true);
 
-            Widgets::MWSpellEffectPtr effect = button->createWidget<Widgets::MWSpellEffect>(
+            auto effect = button->createWidget<Widgets::MWSpellEffect>(
                 "MW_EffectImage", MyGUI::IntCoord(0, 0, 0, 24), MyGUI::Align::Default);
 
             effect->setNeedMouseFocus(false);

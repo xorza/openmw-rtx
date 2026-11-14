@@ -845,7 +845,7 @@ namespace MWRender
 
         oqn->setQueryGeometry(queryGeom.release());
 
-        osg::StateSet* queryStateSet = new osg::StateSet;
+        auto* queryStateSet = new osg::StateSet;
         if (queryVisible)
         {
             osg::ref_ptr<osg::Depth> depth = new SceneUtil::AutoDepth;
@@ -1138,7 +1138,7 @@ namespace MWRender
                 {
                     if (geometry.getColorArray())
                     {
-                        osg::Vec4Array* origColors = static_cast<osg::Vec4Array*>(geometry.getColorArray());
+                        auto* origColors = static_cast<osg::Vec4Array*>(geometry.getColorArray());
                         alpha = Sky::starVertexShown((*origColors)[i]) ? 1.f : 0.f;
                     }
                     else

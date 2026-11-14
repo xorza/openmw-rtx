@@ -7,7 +7,7 @@ namespace Crash
     void MonitorRequests::post(const MonitorRequest& request)
     {
         {
-            const std::lock_guard lock(mMutex);
+            const std::scoped_lock lock(mMutex);
             mRequests.push_back(request);
         }
         mWake.notify_one();
@@ -27,7 +27,7 @@ namespace Crash
 
     std::size_t MonitorRequests::takeUnasked()
     {
-        const std::lock_guard lock(mMutex);
+        const std::scoped_lock lock(mMutex);
         const auto unasked = static_cast<std::size_t>(std::ranges::count_if(
             mRequests, [](const MonitorRequest& one) { return std::holds_alternative<AskToEnd>(one); }));
         mRequests.clear();

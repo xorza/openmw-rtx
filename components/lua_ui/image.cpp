@@ -42,7 +42,7 @@ namespace LuaUi
     void LuaImage::updateProperties()
     {
         deleteAllItems();
-        TextureResource* resource = propertyValue<TextureResource*>("resource", nullptr);
+        auto* resource = propertyValue<TextureResource*>("resource", nullptr);
         MyGUI::IntCoord atlasCoord;
         if (resource)
         {

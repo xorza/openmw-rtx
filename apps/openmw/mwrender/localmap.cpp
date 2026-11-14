@@ -244,7 +244,7 @@ namespace MWRender
     std::shared_ptr<OffscreenView> LocalMap::getMapView(int x, int y)
     {
         auto& segments(mInterior ? mInteriorSegments : mExteriorSegments);
-        SegmentMap::iterator found = segments.find(std::make_pair(x, y));
+        auto found = segments.find(std::make_pair(x, y));
         if (found == segments.end())
             return nullptr;
 
@@ -259,7 +259,7 @@ namespace MWRender
     std::unique_ptr<MyGUI::ITexture> LocalMap::makeFogOfWarGuiTexture(int x, int y)
     {
         auto& segments(mInterior ? mInteriorSegments : mExteriorSegments);
-        SegmentMap::iterator found = segments.find(std::make_pair(x, y));
+        auto found = segments.find(std::make_pair(x, y));
         if (found == segments.end() || !found->second.mFogOfWarTexture)
             return nullptr;
         return MyGUIPlatform::shareTexture(*found->second.mFogOfWarTexture);
@@ -334,9 +334,8 @@ namespace MWRender
         for (int i = 0; i < 8; ++i)
             origCorners[i] = mBounds.corner(i);
 
-        for (int i = 0; i < 8; ++i)
+        for (auto corner : origCorners)
         {
-            osg::Vec3f corner = origCorners[i];
             osg::Vec2f corner2d(corner.x(), corner.y());
             corner2d = rotatePoint(corner2d, origCenter, mAngle);
             mBounds.expandBy(osg::Vec3f(corner2d.x(), corner2d.y(), 0));
@@ -542,7 +541,7 @@ namespace MWRender
                 if (!segment.mFogOfWarImage || !segment.mView)
                     continue;
 
-                std::uint32_t* data = reinterpret_cast<std::uint32_t*>(segment.mFogOfWarImage->data());
+                auto* data = reinterpret_cast<std::uint32_t*>(segment.mFogOfWarImage->data());
 
                 // The box round every texel that changed, which is what is sent up
                 SceneUtil::ImageRegion changed;
@@ -555,7 +554,7 @@ namespace MWRender
 
                         const std::uint8_t alpha = std::min<std::uint8_t>(*data >> 24,
                             static_cast<std::uint8_t>(std::clamp(sqrDist / sqrExploreRadius, 0.f, 1.f) * 255));
-                        std::uint32_t val = static_cast<std::uint32_t>(alpha << 24);
+                        auto val = static_cast<std::uint32_t>(alpha << 24);
                         if (*data != val)
                         {
                             *data = val;

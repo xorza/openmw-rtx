@@ -169,10 +169,10 @@ namespace MWScript
                 {
                     MWGui::GuiMode modes[] = { MWGui::GM_Inventory, MWGui::GM_Container };
 
-                    for (int i = 0; i < 2; ++i)
+                    for (auto& mode : modes)
                     {
-                        if (MWBase::Environment::get().getWindowManager()->containsMode(modes[i]))
-                            MWBase::Environment::get().getWindowManager()->removeGuiMode(modes[i]);
+                        if (MWBase::Environment::get().getWindowManager()->containsMode(mode))
+                            MWBase::Environment::get().getWindowManager()->removeGuiMode(mode);
                     }
                 }
                 else

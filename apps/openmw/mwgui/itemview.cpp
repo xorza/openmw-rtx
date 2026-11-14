@@ -8,6 +8,7 @@
 #include <MyGUI_ScrollView.h>
 
 #include <components/settings/values.hpp>
+#include <utility>
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/inputmanager.hpp"
@@ -109,17 +110,17 @@ namespace MWGui
 
         mModel->update();
 
-        MyGUI::Widget* dragArea = mScrollView->createWidget<MyGUI::Widget>(
+        auto* dragArea = mScrollView->createWidget<MyGUI::Widget>(
             {}, 0, 0, mScrollView->getWidth(), mScrollView->getHeight(), MyGUI::Align::Stretch);
         dragArea->setNeedMouseFocus(true);
         dragArea->eventMouseButtonClick += MyGUI::newDelegate(this, &ItemView::onSelectedBackground);
         dragArea->eventMouseWheel += MyGUI::newDelegate(this, &ItemView::onMouseWheelMoved);
 
-        for (ItemModel::ModelIndex i = 0; i < static_cast<int>(mModel->getItemCount()); ++i)
+        for (ItemModel::ModelIndex i = 0; std::cmp_less(i, mModel->getItemCount()); ++i)
         {
             const ItemStack& item = mModel->getItem(i);
 
-            ItemWidget* itemWidget = dragArea->createWidget<ItemWidget>(
+            auto* itemWidget = dragArea->createWidget<ItemWidget>(
                 "MW_ItemIcon", MyGUI::IntCoord(0, 0, 42, 42), MyGUI::Align::Default);
             itemWidget->setUserString("ToolTipType", "ItemModelIndex");
             itemWidget->setUserData(std::make_pair(i, mModel.get()));
@@ -270,14 +271,14 @@ namespace MWGui
 
         if (prevFocus >= 0 && prevFocus < mItemCount)
         {
-            ItemWidget* prev = static_cast<ItemWidget*>(dragArea->getChildAt(prevFocus));
+            auto* prev = static_cast<ItemWidget*>(dragArea->getChildAt(prevFocus));
             if (prev)
                 prev->setControllerFocus(false);
         }
 
         if (mControllerActiveWindow && newFocus >= 0 && newFocus < mItemCount)
         {
-            ItemWidget* focused = static_cast<ItemWidget*>(dragArea->getChildAt(newFocus));
+            auto* focused = static_cast<ItemWidget*>(dragArea->getChildAt(newFocus));
             if (focused)
             {
                 focused->setControllerFocus(true);

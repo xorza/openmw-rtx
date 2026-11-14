@@ -102,7 +102,7 @@ namespace Fx
                 }
                 else
                 {
-                    UType uvalue = mUniform->template getValue<UType>();
+                    auto uvalue = mUniform->template getValue<UType>();
                     uvalue[mIndex] = mValue;
                     mUniform->template setValue<UType>(uvalue);
                     range = mUniform->template getMax<UType>()[mIndex] - mUniform->template getMin<UType>()[mIndex];

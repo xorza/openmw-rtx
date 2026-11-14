@@ -8,6 +8,7 @@
 #include <array>
 #include <format>
 #include <stdexcept>
+#include <utility>
 
 namespace ESM
 {
@@ -113,7 +114,7 @@ namespace ESM
 
     RefId Weapon::indexToRefId(int index)
     {
-        if (index < 0 || index >= static_cast<int>(sWeaponTypeIds.size()))
+        if (index < 0 || std::cmp_greater_equal(index, sWeaponTypeIds.size()))
             return {};
         return sWeaponTypeIds[index];
     }

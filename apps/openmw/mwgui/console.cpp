@@ -230,7 +230,7 @@ namespace MWGui
         else
             print(mConsoleMode + " " + command + "\n");
 
-        if (!mConsoleMode.empty() || (command.size() >= 3 && std::string_view(command).substr(0, 3) == "lua"))
+        if (!mConsoleMode.empty() || (command.size() >= 3 && std::string_view(command).starts_with("lua")))
         {
             MWBase::Environment::get().getLuaManager()->handleConsoleCommand(mConsoleMode, command, mPtr);
             return;

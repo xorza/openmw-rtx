@@ -281,7 +281,7 @@ namespace MWSound
         // reads through it directly, and a zero-size buffer fails the open
         // (the probed path tolerates it, which hid this).
         constexpr int ioBufferSize = 8192;
-        unsigned char* ioBuffer = static_cast<unsigned char*>(av_malloc(ioBufferSize));
+        auto* ioBuffer = static_cast<unsigned char*>(av_malloc(ioBufferSize));
         if (ioBuffer == nullptr)
             throw std::runtime_error("Failed to allocate AVIO buffer");
         ioCtx.reset(avio_alloc_context(ioBuffer, ioBufferSize, 0, this, readPacket, writePacket, seek));

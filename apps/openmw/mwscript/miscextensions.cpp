@@ -47,6 +47,7 @@
 #include <components/files/conversion.hpp>
 #include <components/misc/strings/conversion.hpp>
 #include <components/vfs/manager.hpp>
+#include <utility>
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/luamanager.hpp"
@@ -111,9 +112,9 @@ namespace
     void removeFromLevList(ESM::LevelledListBase* list, const ESM::RefId& itemId, int level)
     {
         // level of -1 removes all items with that itemId
-        for (std::vector<ESM::LevelledListBase::LevelItem>::iterator it = list->mList.begin(); it != list->mList.end();)
+        for (auto it = list->mList.begin(); it != list->mList.end();)
         {
-            if (level != -1 && it->mLevel != level)
+            if (level != -1 && std::cmp_not_equal(it->mLevel, level))
             {
                 ++it;
                 continue;
@@ -335,7 +336,7 @@ namespace MWScript
         public:
             void execute(Interpreter::Runtime& runtime) override
             {
-                InterpreterContext& context = static_cast<InterpreterContext&>(runtime.getContext());
+                auto& context = static_cast<InterpreterContext&>(runtime.getContext());
 
                 MWWorld::Ptr ptr = R()(runtime);
 

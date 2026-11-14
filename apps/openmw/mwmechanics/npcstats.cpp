@@ -7,6 +7,7 @@
 #include <components/esm3/loadfact.hpp>
 #include <components/esm3/loadgmst.hpp>
 #include <components/esm3/npcstats.hpp>
+#include <utility>
 
 #include <MyGUI_TextIterator.h>
 
@@ -112,7 +113,7 @@ void MWMechanics::NpcStats::setFactionRank(const ESM::RefId& faction, int newRan
             mFactionRank.erase(it);
             mExpelled.erase(faction);
         }
-        else if (newRank < static_cast<int>(factionPtr->mData.mRankData.size()))
+        else if (std::cmp_less(newRank, factionPtr->mData.mRankData.size()))
             do
                 it->second = newRank;
             // Does the new rank exist?
@@ -357,7 +358,7 @@ bool MWMechanics::NpcStats::hasSkillsForRank(const ESM::RefId& factionId, int ra
 
     std::sort(skills.begin(), skills.end());
 
-    std::vector<int>::const_reverse_iterator iter = skills.rbegin();
+    auto iter = skills.rbegin();
 
     if (*iter < rankData.mPrimarySkill)
         return false;
@@ -423,8 +424,8 @@ void MWMechanics::NpcStats::writeState(ESM::CreatureStats& state) const
 
 void MWMechanics::NpcStats::writeState(ESM::NpcStats& state) const
 {
-    for (std::map<ESM::RefId, int>::const_iterator iter(mFactionRank.begin()); iter != mFactionRank.end(); ++iter)
-        state.mFactions[iter->first].mRank = iter->second;
+    for (const auto& iter : mFactionRank)
+        state.mFactions[iter.first].mRank = iter.second;
 
     state.mDisposition = mDisposition;
     state.mCrimeDispositionModifier = mCrimeDispositionModifier;
@@ -438,11 +439,11 @@ void MWMechanics::NpcStats::writeState(ESM::NpcStats& state) const
 
     state.mBounty = mBounty;
 
-    for (auto iter(mExpelled.begin()); iter != mExpelled.end(); ++iter)
-        state.mFactions[*iter].mExpelled = true;
+    for (auto iter : mExpelled)
+        state.mFactions[iter].mExpelled = true;
 
-    for (auto iter(mFactionReputation.begin()); iter != mFactionReputation.end(); ++iter)
-        state.mFactions[iter->first].mReputation = iter->second;
+    for (const auto& iter : mFactionReputation)
+        state.mFactions[iter.first].mReputation = iter.second;
 
     state.mReputation = mReputation;
     state.mWerewolfKills = mWerewolfKills;
@@ -466,17 +467,17 @@ void MWMechanics::NpcStats::readState(const ESM::NpcStats& state)
 {
     const MWWorld::ESMStore& store = *MWBase::Environment::get().getESMStore();
 
-    for (auto iter(state.mFactions.begin()); iter != state.mFactions.end(); ++iter)
-        if (store.get<ESM::Faction>().search(iter->first))
+    for (const auto& mFaction : state.mFactions)
+        if (store.get<ESM::Faction>().search(mFaction.first))
         {
-            if (iter->second.mExpelled)
-                mExpelled.insert(iter->first);
+            if (mFaction.second.mExpelled)
+                mExpelled.insert(mFaction.first);
 
-            if (iter->second.mRank >= 0)
-                mFactionRank[iter->first] = iter->second.mRank;
+            if (mFaction.second.mRank >= 0)
+                mFactionRank[mFaction.first] = mFaction.second.mRank;
 
-            if (iter->second.mReputation)
-                mFactionReputation[iter->first] = iter->second.mReputation;
+            if (mFaction.second.mReputation)
+                mFactionReputation[mFaction.first] = mFaction.second.mReputation;
         }
 
     mDisposition = state.mDisposition;
@@ -498,9 +499,9 @@ void MWMechanics::NpcStats::readState(const ESM::NpcStats& state)
     for (size_t i = 0; i < state.mSpecIncreases.size(); ++i)
         mSpecIncreases[i] = state.mSpecIncreases[i];
 
-    for (auto iter(state.mUsedIds.begin()); iter != state.mUsedIds.end(); ++iter)
-        if (store.find(*iter))
-            mUsedIds.insert(*iter);
+    for (auto mUsedId : state.mUsedIds)
+        if (store.find(mUsedId))
+            mUsedIds.insert(mUsedId);
 
     mTimeToStartDrowning = state.mTimeToStartDrowning;
 }

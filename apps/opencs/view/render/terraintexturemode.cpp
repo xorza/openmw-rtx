@@ -290,7 +290,7 @@ void CSVRender::TerrainTextureMode::dragWheel(int diff, double speedFactor) {}
 
 void CSVRender::TerrainTextureMode::handleDropEvent(QDropEvent* event)
 {
-    const CSMWorld::TableMimeData* mime = dynamic_cast<const CSMWorld::TableMimeData*>(event->mimeData());
+    const auto* mime = dynamic_cast<const CSMWorld::TableMimeData*>(event->mimeData());
 
     if (!mime) // May happen when non-records (e.g. plain text) are dragged and dropped
         return;
@@ -353,9 +353,8 @@ void CSVRender::TerrainTextureMode::editTerrainTextureGrid(const WorldspaceHitRe
 
     if (mBrushShape == CSVWidget::BrushShape_Point)
     {
-        CSMWorld::LandTexturesColumn::DataType newTerrain
-            = landTable.data(landTable.getModelIndex(mCellId, textureColumn))
-                  .value<CSMWorld::LandTexturesColumn::DataType>();
+        auto newTerrain = landTable.data(landTable.getModelIndex(mCellId, textureColumn))
+                              .value<CSMWorld::LandTexturesColumn::DataType>();
 
         if (allowLandTextureEditing(mCellId))
         {
@@ -387,9 +386,8 @@ void CSVRender::TerrainTextureMode::editTerrainTextureGrid(const WorldspaceHitRe
                 iteratedCellId = CSMWorld::CellCoordinates::generateId(iCell, jCell);
                 if (allowLandTextureEditing(iteratedCellId))
                 {
-                    CSMWorld::LandTexturesColumn::DataType newTerrain
-                        = landTable.data(landTable.getModelIndex(iteratedCellId, textureColumn))
-                              .value<CSMWorld::LandTexturesColumn::DataType>();
+                    auto newTerrain = landTable.data(landTable.getModelIndex(iteratedCellId, textureColumn))
+                                          .value<CSMWorld::LandTexturesColumn::DataType>();
                     for (int i = 0; i < landTextureSize; i++)
                     {
                         for (int j = 0; j < landTextureSize; j++)
@@ -449,9 +447,8 @@ void CSVRender::TerrainTextureMode::editTerrainTextureGrid(const WorldspaceHitRe
                 iteratedCellId = CSMWorld::CellCoordinates::generateId(iCell, jCell);
                 if (allowLandTextureEditing(iteratedCellId))
                 {
-                    CSMWorld::LandTexturesColumn::DataType newTerrain
-                        = landTable.data(landTable.getModelIndex(iteratedCellId, textureColumn))
-                              .value<CSMWorld::LandTexturesColumn::DataType>();
+                    auto newTerrain = landTable.data(landTable.getModelIndex(iteratedCellId, textureColumn))
+                                          .value<CSMWorld::LandTexturesColumn::DataType>();
                     for (int i = 0; i < landTextureSize; i++)
                     {
                         for (int j = 0; j < landTextureSize; j++)
@@ -496,9 +493,8 @@ void CSVRender::TerrainTextureMode::editTerrainTextureGrid(const WorldspaceHitRe
 
     if (mBrushShape == CSVWidget::BrushShape_Custom)
     {
-        CSMWorld::LandTexturesColumn::DataType newTerrain
-            = landTable.data(landTable.getModelIndex(mCellId, textureColumn))
-                  .value<CSMWorld::LandTexturesColumn::DataType>();
+        auto newTerrain = landTable.data(landTable.getModelIndex(mCellId, textureColumn))
+                              .value<CSMWorld::LandTexturesColumn::DataType>();
 
         if (allowLandTextureEditing(mCellId) && !mCustomBrushShape.empty())
         {
@@ -520,9 +516,8 @@ void CSVRender::TerrainTextureMode::editTerrainTextureGrid(const WorldspaceHitRe
                         = CSMWorld::CellCoordinates::generateId(cellX + cellXDifference, cellY + cellYDifference);
                     if (allowLandTextureEditing(cellId))
                     {
-                        CSMWorld::LandTexturesColumn::DataType newTerrainOtherCell
-                            = landTable.data(landTable.getModelIndex(cellId, textureColumn))
-                                  .value<CSMWorld::LandTexturesColumn::DataType>();
+                        auto newTerrainOtherCell = landTable.data(landTable.getModelIndex(cellId, textureColumn))
+                                                       .value<CSMWorld::LandTexturesColumn::DataType>();
                         newTerrainOtherCell[yInOtherCell * landTextureSize + xInOtherCell] = brushInt;
                         pushEditToCommand(newTerrainOtherCell, document, landTable, std::move(cellId));
                     }
@@ -535,8 +530,7 @@ void CSVRender::TerrainTextureMode::editTerrainTextureGrid(const WorldspaceHitRe
 
 bool CSVRender::TerrainTextureMode::isInCellSelection(int globalSelectionX, int globalSelectionY)
 {
-    if (CSVRender::PagedWorldspaceWidget* paged
-        = dynamic_cast<CSVRender::PagedWorldspaceWidget*>(&getWorldspaceWidget()))
+    if (auto* paged = dynamic_cast<CSVRender::PagedWorldspaceWidget*>(&getWorldspaceWidget()))
     {
         std::pair<int, int> textureCoords = std::make_pair(globalSelectionX, globalSelectionY);
         std::string cellId = CSMWorld::CellCoordinates::textureGlobalToCellId(textureCoords);
@@ -672,8 +666,7 @@ bool CSVRender::TerrainTextureMode::allowLandTextureEditing(const std::string& c
             createCommand->addNestedValue(parentIndex, index, false);
             document.getUndoStack().push(createCommand.release());
 
-            if (CSVRender::PagedWorldspaceWidget* paged
-                = dynamic_cast<CSVRender::PagedWorldspaceWidget*>(&getWorldspaceWidget()))
+            if (auto* paged = dynamic_cast<CSVRender::PagedWorldspaceWidget*>(&getWorldspaceWidget()))
             {
                 CSMWorld::CellSelection selection = paged->getCellSelection();
                 selection.add(CSMWorld::CellCoordinates::fromId(cellId).first);
@@ -681,8 +674,7 @@ bool CSVRender::TerrainTextureMode::allowLandTextureEditing(const std::string& c
             }
         }
     }
-    else if (CSVRender::PagedWorldspaceWidget* paged
-        = dynamic_cast<CSVRender::PagedWorldspaceWidget*>(&getWorldspaceWidget()))
+    else if (auto* paged = dynamic_cast<CSVRender::PagedWorldspaceWidget*>(&getWorldspaceWidget()))
     {
         CSMWorld::CellSelection selection = paged->getCellSelection();
         if (!selection.has(CSMWorld::CellCoordinates::fromId(cellId).first))

@@ -210,7 +210,7 @@ namespace ESM
 
         if (value.starts_with(formIdRefIdPrefix))
         {
-            uint64_t v = deserializeHexIntegral<uint64_t>(formIdRefIdPrefix.size(), value);
+            auto v = deserializeHexIntegral<uint64_t>(formIdRefIdPrefix.size(), value);
             uint32_t index = static_cast<uint32_t>(v) & 0xffffff;
             int contentFile = static_cast<int>(v >> 24);
             return ESM::FormId{ index, contentFile };
@@ -234,9 +234,8 @@ namespace ESM
             const std::size_t separator = value.find(':', esm3ExteriorCellRefIdPrefix.size() + 1);
             if (separator == std::string_view::npos)
                 throw std::runtime_error("Invalid ESM3ExteriorCellRefId format: coordinates separator is not found");
-            const std::int32_t x
-                = deserializeDecIntegral<std::int32_t>(esm3ExteriorCellRefIdPrefix.size(), separator, value);
-            const std::int32_t y = deserializeDecIntegral<std::int32_t>(separator + 1, value.size(), value);
+            const auto x = deserializeDecIntegral<std::int32_t>(esm3ExteriorCellRefIdPrefix.size(), separator, value);
+            const auto y = deserializeDecIntegral<std::int32_t>(separator + 1, value.size(), value);
             return ESM::ESM3ExteriorCellRefId(x, y);
         }
 

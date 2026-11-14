@@ -20,7 +20,7 @@ CSVWidget::ColorPickerPopup::ColorPickerPopup(QWidget* parent)
     mColorPicker->installEventFilter(this);
     connect(mColorPicker, &QColorDialog::currentColorChanged, this, &ColorPickerPopup::colorChanged);
 
-    QVBoxLayout* layout = new QVBoxLayout(this);
+    auto* layout = new QVBoxLayout(this);
     layout->addWidget(mColorPicker);
     layout->setAlignment(Qt::AlignTop | Qt::AlignLeft);
     layout->setContentsMargins(0, 0, 0, 0);
@@ -42,7 +42,7 @@ void CSVWidget::ColorPickerPopup::showPicker(const QPoint& position, const QColo
 
 void CSVWidget::ColorPickerPopup::mousePressEvent(QMouseEvent* event)
 {
-    QPushButton* button = qobject_cast<QPushButton*>(parentWidget());
+    auto* button = qobject_cast<QPushButton*>(parentWidget());
     if (button != nullptr)
     {
         QStyleOptionButton option;
@@ -64,7 +64,7 @@ bool CSVWidget::ColorPickerPopup::eventFilter(QObject* object, QEvent* event)
 {
     if (object == mColorPicker && event->type() == QEvent::KeyPress)
     {
-        QKeyEvent* keyEvent = static_cast<QKeyEvent*>(event);
+        auto* keyEvent = static_cast<QKeyEvent*>(event);
         // Prevent QColorDialog from closing when Escape is pressed.
         // Instead, hide the popup.
         if (keyEvent->key() == Qt::Key_Escape)

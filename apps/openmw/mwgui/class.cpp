@@ -296,8 +296,7 @@ namespace MWGui
         if (!currentClass)
             return;
 
-        ESM::Class::Specialization specialization
-            = static_cast<ESM::Class::Specialization>(currentClass->mData.mSpecialization);
+        auto specialization = static_cast<ESM::Class::Specialization>(currentClass->mData.mSpecialization);
 
         std::string_view specName = MWBase::Environment::get().getWindowManager()->getGameSettingString(
             ESM::Class::sGmstSpecializationIds[specialization], ESM::Class::sGmstSpecializationIds[specialization]);

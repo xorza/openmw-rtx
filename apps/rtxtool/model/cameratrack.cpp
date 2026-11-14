@@ -150,7 +150,7 @@ namespace RtxTool
 
     TrackPose CameraTrack::pose(const std::uint32_t frame) const
     {
-        const double at = static_cast<double>(frame);
+        const auto at = static_cast<double>(frame);
         const auto after = std::upper_bound(
             mKnots.begin(), mKnots.end(), at, [](double f, const Knot& knot) { return f < knot.mFrame; });
 

@@ -157,7 +157,7 @@ namespace SceneUtil
 
             if (findBoneOffset.mFoundNode)
             {
-                osg::MatrixTransform* boneOffset = dynamic_cast<osg::MatrixTransform*>(findBoneOffset.mFoundNode);
+                auto* boneOffset = dynamic_cast<osg::MatrixTransform*>(findBoneOffset.mFoundNode);
                 if (!boneOffset)
                     throw std::runtime_error("BoneOffset must be a MatrixTransform");
 

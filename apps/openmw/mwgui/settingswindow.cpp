@@ -163,7 +163,7 @@ namespace MWGui
             }
             if (type == sliderType)
             {
-                MyGUI::ScrollBar* scroll = current->castType<MyGUI::ScrollBar>();
+                auto* scroll = current->castType<MyGUI::ScrollBar>();
                 std::string_view valueType = getSettingValueType(current);
                 std::vector<icu::UnicodeString> argNames;
                 std::vector<icu::Formattable> args;
@@ -548,7 +548,7 @@ namespace MWGui
         if (pos == MyGUI::ITEM_NONE)
             return;
 
-        const Settings::WindowMode windowMode = static_cast<Settings::WindowMode>(sender->getIndexSelected());
+        const auto windowMode = static_cast<Settings::WindowMode>(sender->getIndexSelected());
         if (windowMode == Settings::WindowMode::Windowed)
             mWindowBorderButton->setEnabled(true);
         else
@@ -740,11 +740,11 @@ namespace MWGui
             else
                 binding = inputManager->getActionControllerBindingName(action);
 
-            Gui::SharedStateButton* leftText = mControlsBox->createWidget<Gui::SharedStateButton>(
+            auto* leftText = mControlsBox->createWidget<Gui::SharedStateButton>(
                 "SandTextButton", MyGUI::IntCoord(), MyGUI::Align::Default);
             leftText->setCaptionWithReplacing(desc);
 
-            Gui::SharedStateButton* rightText = mControlsBox->createWidget<Gui::SharedStateButton>(
+            auto* rightText = mControlsBox->createWidget<Gui::SharedStateButton>(
                 "SandTextButton", MyGUI::IntCoord(), MyGUI::Align::Default);
             rightText->setCaptionWithReplacing(binding);
             rightText->setTextAlign(MyGUI::Align::Right);

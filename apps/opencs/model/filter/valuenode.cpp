@@ -17,7 +17,7 @@ CSMFilter::ValueNode::ValueNode(int columnId, Type lowerType, Type upperType, do
 
 bool CSMFilter::ValueNode::test(const CSMWorld::IdTableBase& table, int row, const std::map<int, int>& columns) const
 {
-    const std::map<int, int>::const_iterator iter = columns.find(mColumnId);
+    const auto iter = columns.find(mColumnId);
 
     if (iter == columns.end())
         throw std::logic_error("invalid column in value node test");

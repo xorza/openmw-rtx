@@ -7,8 +7,8 @@ osg::Vec2f ESM::indexToPosition(const ESM::ExteriorCellLocation& cellIndex, bool
 {
     const int cellSize = ESM::getCellSize(cellIndex.mWorldspace);
 
-    float x = static_cast<float>(cellSize * cellIndex.mX);
-    float y = static_cast<float>(cellSize * cellIndex.mY);
+    auto x = static_cast<float>(cellSize * cellIndex.mX);
+    auto y = static_cast<float>(cellSize * cellIndex.mY);
 
     if (centre)
     {

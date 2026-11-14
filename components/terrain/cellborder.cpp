@@ -73,7 +73,7 @@ namespace Terrain
         material->updateStateSet(stateSet);
         stateSet->setAttribute(material);
 
-        osg::PolygonMode* polygonmode = new osg::PolygonMode;
+        auto* polygonmode = new osg::PolygonMode;
         polygonmode->setMode(osg::PolygonMode::FRONT_AND_BACK, osg::PolygonMode::LINE);
         stateSet->setAttributeAndModes(polygonmode, osg::StateAttribute::ON);
 
@@ -94,7 +94,7 @@ namespace Terrain
 
     void CellBorder::destroyCellBorderGeometry(int x, int y)
     {
-        CellGrid::iterator it = mCellBorderNodes.find(std::make_pair(x, y));
+        auto it = mCellBorderNodes.find(std::make_pair(x, y));
 
         if (it == mCellBorderNodes.end())
             return;

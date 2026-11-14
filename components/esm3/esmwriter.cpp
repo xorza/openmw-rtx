@@ -333,8 +333,8 @@ namespace ESM
     {
         if (mCounting && !mRecords.empty())
         {
-            for (std::list<RecordData>::iterator it = mRecords.begin(); it != mRecords.end(); ++it)
-                it->size += static_cast<uint32_t>(size);
+            for (auto& mRecord : mRecords)
+                mRecord.size += static_cast<uint32_t>(size);
         }
 
         mStream->write(data, size);

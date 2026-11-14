@@ -531,14 +531,14 @@ QVariant CSMWorld::CreatureRefIdAdapter::getData(const RefIdColumn* column, cons
         return record.get().mBloodType;
 
     {
-        std::map<const RefIdColumn*, unsigned int>::const_iterator iter = mColumns.mFlags.find(column);
+        auto iter = mColumns.mFlags.find(column);
 
         if (iter != mColumns.mFlags.end())
             return (record.get().mFlags & iter->second) != 0;
     }
 
     {
-        std::map<const RefIdColumn*, unsigned int>::const_iterator iter = mColumns.mServices.find(column);
+        auto iter = mColumns.mServices.find(column);
         if (iter != mColumns.mServices.end() && iter->second == ESM::NPC::Training)
             return QVariant();
     }
@@ -564,7 +564,7 @@ void CSMWorld::CreatureRefIdAdapter::setData(
         creature.mBloodType = value.toInt();
     else
     {
-        std::map<const RefIdColumn*, unsigned int>::const_iterator iter = mColumns.mFlags.find(column);
+        auto iter = mColumns.mFlags.find(column);
 
         if (iter != mColumns.mFlags.end())
         {
@@ -680,7 +680,7 @@ QVariant CSMWorld::LightRefIdAdapter::getData(const RefIdColumn* column, const R
         return 0;
     }
 
-    std::map<const RefIdColumn*, unsigned int>::const_iterator iter = mColumns.mFlags.find(column);
+    auto iter = mColumns.mFlags.find(column);
 
     if (iter != mColumns.mFlags.end())
         return (record.get().mData.mFlags & iter->second) != 0;
@@ -721,7 +721,7 @@ void CSMWorld::LightRefIdAdapter::setData(
     }
     else
     {
-        std::map<const RefIdColumn*, unsigned int>::const_iterator iter = mColumns.mFlags.find(column);
+        auto iter = mColumns.mFlags.find(column);
 
         if (iter != mColumns.mFlags.end())
         {
@@ -842,7 +842,7 @@ QVariant CSMWorld::NpcRefIdAdapter::getData(const RefIdColumn* column, const Ref
         return 0;
     }
 
-    std::map<const RefIdColumn*, unsigned int>::const_iterator iter = mColumns.mFlags.find(column);
+    auto iter = mColumns.mFlags.find(column);
 
     if (iter != mColumns.mFlags.end())
         return (record.get().mFlags & iter->second) != 0;
@@ -880,7 +880,7 @@ void CSMWorld::NpcRefIdAdapter::setData(
     }
     else
     {
-        std::map<const RefIdColumn*, unsigned int>::const_iterator iter = mColumns.mFlags.find(column);
+        auto iter = mColumns.mFlags.find(column);
 
         if (iter != mColumns.mFlags.end())
         {
@@ -1570,7 +1570,7 @@ QVariant CSMWorld::WeaponRefIdAdapter::getData(const RefIdColumn* column, const 
             return record.get().mData.mThrust[i];
     }
 
-    std::map<const RefIdColumn*, unsigned int>::const_iterator iter = mColumns.mFlags.find(column);
+    auto iter = mColumns.mFlags.find(column);
 
     if (iter != mColumns.mFlags.end())
         return (record.get().mData.mFlags & iter->second) != 0;
@@ -1608,7 +1608,7 @@ void CSMWorld::WeaponRefIdAdapter::setData(
         weapon.mData.mThrust[1] = value.toInt();
     else
     {
-        std::map<const RefIdColumn*, unsigned int>::const_iterator iter = mColumns.mFlags.find(column);
+        auto iter = mColumns.mFlags.find(column);
 
         if (iter != mColumns.mFlags.end())
         {

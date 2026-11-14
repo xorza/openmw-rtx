@@ -274,7 +274,7 @@ namespace MWGui
 
     void ReviewDialog::addSeparator(MyGUI::IntCoord& coord1, MyGUI::IntCoord& coord2)
     {
-        MyGUI::ImageBox* separator = mSkillView->createWidget<MyGUI::ImageBox>(
+        auto* separator = mSkillView->createWidget<MyGUI::ImageBox>(
             "MW_HLine", MyGUI::IntCoord(10, coord1.top, coord1.width + coord2.width - 4, 18), MyGUI::Align::Default);
         separator->eventMouseWheel += MyGUI::newDelegate(this, &ReviewDialog::onMouseWheel);
 
@@ -286,7 +286,7 @@ namespace MWGui
 
     void ReviewDialog::addGroup(std::string_view label, MyGUI::IntCoord& coord1, MyGUI::IntCoord& coord2)
     {
-        MyGUI::TextBox* groupWidget = mSkillView->createWidget<MyGUI::TextBox>("SandBrightText",
+        auto* groupWidget = mSkillView->createWidget<MyGUI::TextBox>("SandBrightText",
             MyGUI::IntCoord(0, coord1.top, coord1.width + coord2.width, coord1.height), MyGUI::Align::Default);
         groupWidget->eventMouseWheel += MyGUI::newDelegate(this, &ReviewDialog::onMouseWheel);
         groupWidget->setCaption(MyGUI::UString(label));
@@ -340,7 +340,7 @@ namespace MWGui
 
     void ReviewDialog::addItem(const ESM::Spell* spell, MyGUI::IntCoord& coord1, MyGUI::IntCoord& coord2)
     {
-        Widgets::MWSpellPtr widget = mSkillView->createWidget<Widgets::MWSpell>(
+        auto widget = mSkillView->createWidget<Widgets::MWSpell>(
             "MW_StatName", coord1 + MyGUI::IntSize(coord2.width, 0), MyGUI::Align::Default);
         widget->setSpellId(spell->mId);
         widget->setUserString("ToolTipType", "Spell");

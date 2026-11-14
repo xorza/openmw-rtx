@@ -127,7 +127,7 @@ namespace DetourNavigator
         const osg::Vec2f tileShift = osg::Vec2f(heightfield.mMinX, heightfield.mMinY) * scale;
         const osg::Vec2f localShift
             = osg::Vec2f(static_cast<float>(aabbShift.x()), static_cast<float>(aabbShift.y())) + tileShift;
-        const float cellSize = static_cast<float>(heightfield.mCellSize);
+        const auto cellSize = static_cast<float>(heightfield.mCellSize);
         const osg::Vec3f cellShift(heightfield.mCellPosition.x() * cellSize, heightfield.mCellPosition.y() * cellSize,
             (heightfield.mMinHeight + heightfield.mMaxHeight) * 0.5f);
         return makeMesh(std::move(triangles), cellShift + osg::Vec3f(localShift.x(), localShift.y(), 0));

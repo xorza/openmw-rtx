@@ -117,7 +117,7 @@ namespace MWPhysics
 
         assert(mShapeInstance->mCollisionShape->isCompound());
 
-        btCompoundShape* compound = static_cast<btCompoundShape*>(mShapeInstance->mCollisionShape.get());
+        auto* compound = static_cast<btCompoundShape*>(mShapeInstance->mCollisionShape.get());
         bool result = false;
         for (const auto& [recordIndex, shapeIndex] : mShapeInstance->mAnimatedShapes)
         {

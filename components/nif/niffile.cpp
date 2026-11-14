@@ -589,7 +589,7 @@ namespace Nif
         if (hasUserVersion)
             nif.read(mUserVersion);
 
-        const std::uint32_t recordsCount = nif.get<std::uint32_t>();
+        const auto recordsCount = nif.get<std::uint32_t>();
 
         mRecords.reserve(recordsCount);
 
@@ -696,7 +696,7 @@ namespace Nif
         }
 
         // Determine which records are roots
-        const std::uint32_t rootsCount = nif.get<uint32_t>();
+        const auto rootsCount = nif.get<uint32_t>();
         mRoots.reserve(rootsCount);
         constexpr std::uint32_t maxDoesNotPointWarnings = 10;
         std::uint32_t doesNotPointWarnings = 0;

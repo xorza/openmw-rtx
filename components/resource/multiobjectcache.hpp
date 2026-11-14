@@ -30,7 +30,7 @@ namespace Resource
         {
             std::vector<ValueType> objectsToRemove;
             {
-                std::lock_guard<std::mutex> lock(mObjectCacheMutex);
+                std::scoped_lock lock(mObjectCacheMutex);
 
                 auto oitr = mObjectCache.begin();
                 while (oitr != mObjectCache.end())
@@ -55,7 +55,7 @@ namespace Resource
         /** Remove all objects from the cache. */
         void clear()
         {
-            std::lock_guard<std::mutex> lock(mObjectCacheMutex);
+            std::scoped_lock lock(mObjectCacheMutex);
             mObjectCache.clear();
         }
 
@@ -66,14 +66,14 @@ namespace Resource
                 Log(Debug::Warning) << "Trying to add NULL object to cache for " << filename;
                 return;
             }
-            std::lock_guard<std::mutex> lock(mObjectCacheMutex);
+            std::scoped_lock lock(mObjectCacheMutex);
             mObjectCache.emplace(filename, std::move(object));
         }
 
         /** Take an object from cache. Return nullptr if no object found. */
         ValueType takeFromObjectCache(VFS::Path::NormalizedView fileName)
         {
-            std::lock_guard<std::mutex> lock(mObjectCacheMutex);
+            std::scoped_lock lock(mObjectCacheMutex);
             ++mGet;
             const auto it = mObjectCache.find(fileName);
             if (it != mObjectCache.end())
@@ -91,14 +91,14 @@ namespace Resource
         void releaseGLObjects(osg::State* state)
             requires ReleasesGLObjects<ValueType>
         {
-            std::lock_guard<std::mutex> lock(mObjectCacheMutex);
+            std::scoped_lock lock(mObjectCacheMutex);
             for (const auto& [key, value] : mObjectCache)
                 value->releaseGLObjects(state);
         }
 
         CacheStats getStats() const
         {
-            std::lock_guard<std::mutex> lock(mObjectCacheMutex);
+            std::scoped_lock lock(mObjectCacheMutex);
             return CacheStats{
                 .mSize = mObjectCache.size(),
                 .mGet = mGet,

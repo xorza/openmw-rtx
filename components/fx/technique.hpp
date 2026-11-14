@@ -3,6 +3,7 @@
 
 #include <filesystem>
 #include <memory>
+#include <ranges>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -82,11 +83,11 @@ namespace Fx
 
         void compile()
         {
-            for (auto rit = mPasses.rbegin(); rit != mPasses.rend(); ++rit)
+            for (auto& mPasse : std::views::reverse(mPasses))
             {
-                if (!rit->mRenderTarget)
+                if (!mPasse.mRenderTarget)
                 {
-                    rit->mResolve = true;
+                    mPasse.mResolve = true;
                     break;
                 }
             }

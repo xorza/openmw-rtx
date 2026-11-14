@@ -88,13 +88,13 @@ namespace Rtx
 
             void letGo(std::span<const std::string> paths) override
             {
-                const std::lock_guard lock(mLetGoMutex);
+                const std::scoped_lock lock(mLetGoMutex);
                 mLetGo.insert(paths.begin(), paths.end());
             }
 
             std::set<std::string> takeLetGo()
             {
-                const std::lock_guard lock(mLetGoMutex);
+                const std::scoped_lock lock(mLetGoMutex);
                 return std::exchange(mLetGo, {});
             }
 

@@ -69,9 +69,8 @@ CSVWorld::CommandDelegateFactoryCollection::~CommandDelegateFactoryCollection()
 {
     sThis = nullptr;
 
-    for (std::map<CSMWorld::ColumnBase::Display, CommandDelegateFactory*>::iterator iter(mFactories.begin());
-        iter != mFactories.end(); ++iter)
-        delete iter->second;
+    for (auto& mFactorie : mFactories)
+        delete mFactorie.second;
 }
 
 void CSVWorld::CommandDelegateFactoryCollection::add(
@@ -84,7 +83,7 @@ CSVWorld::CommandDelegate* CSVWorld::CommandDelegateFactoryCollection::makeDeleg
     CSMWorld::ColumnBase::Display display, CSMWorld::CommandDispatcher* dispatcher, CSMDoc::Document& document,
     QObject* parent) const
 {
-    std::map<CSMWorld::ColumnBase::Display, CommandDelegateFactory*>::const_iterator iter = mFactories.find(display);
+    auto iter = mFactories.find(display);
 
     if (iter != mFactories.end())
         return iter->second->makeDelegate(dispatcher, document, parent);
@@ -125,7 +124,7 @@ void CSVWorld::CommandDelegate::setModelDataImp(
     QVariant variant;
 
     // Color columns use a custom editor, so we need to fetch selected color from it.
-    CSVWidget::ColorEditor* colorEditor = qobject_cast<CSVWidget::ColorEditor*>(editor);
+    auto* colorEditor = qobject_cast<CSVWidget::ColorEditor*>(editor);
     if (colorEditor != nullptr)
     {
         variant = colorEditor->colorInt();
@@ -205,34 +204,34 @@ QWidget* CSVWorld::CommandDelegate::createEditor(QWidget* parent, const QStyleOp
         }
         case CSMWorld::ColumnBase::Display_Integer:
         {
-            DialogueSpinBox* sb = new DialogueSpinBox(parent);
+            auto* sb = new DialogueSpinBox(parent);
             sb->setRange(std::numeric_limits<int>::min(), std::numeric_limits<int>::max());
             return sb;
         }
 
         case CSMWorld::ColumnBase::Display_SignedInteger8:
         {
-            DialogueSpinBox* sb = new DialogueSpinBox(parent);
+            auto* sb = new DialogueSpinBox(parent);
             sb->setRange(std::numeric_limits<signed char>::min(), std::numeric_limits<signed char>::max());
             return sb;
         }
         case CSMWorld::ColumnBase::Display_SignedInteger16:
         {
-            DialogueSpinBox* sb = new DialogueSpinBox(parent);
+            auto* sb = new DialogueSpinBox(parent);
             sb->setRange(std::numeric_limits<short>::min(), std::numeric_limits<short>::max());
             return sb;
         }
 
         case CSMWorld::ColumnBase::Display_UnsignedInteger8:
         {
-            DialogueSpinBox* sb = new DialogueSpinBox(parent);
+            auto* sb = new DialogueSpinBox(parent);
             sb->setRange(0, std::numeric_limits<unsigned char>::max());
             return sb;
         }
 
         case CSMWorld::ColumnBase::Display_UnsignedInteger16:
         {
-            DialogueSpinBox* sb = new DialogueSpinBox(parent);
+            auto* sb = new DialogueSpinBox(parent);
             sb->setRange(0, std::numeric_limits<unsigned short>::max());
             return sb;
         }
@@ -243,7 +242,7 @@ QWidget* CSVWorld::CommandDelegate::createEditor(QWidget* parent, const QStyleOp
 
         case CSMWorld::ColumnBase::Display_Float:
         {
-            DialogueDoubleSpinBox* dsb = new DialogueDoubleSpinBox(parent);
+            auto* dsb = new DialogueDoubleSpinBox(parent);
             dsb->setRange(-std::numeric_limits<float>::max(), std::numeric_limits<float>::max());
             dsb->setSingleStep(0.01f);
             dsb->setDecimals(3);
@@ -252,7 +251,7 @@ QWidget* CSVWorld::CommandDelegate::createEditor(QWidget* parent, const QStyleOp
 
         case CSMWorld::ColumnBase::Display_Double:
         {
-            DialogueDoubleSpinBox* dsb = new DialogueDoubleSpinBox(parent);
+            auto* dsb = new DialogueDoubleSpinBox(parent);
             dsb->setRange(-std::numeric_limits<double>::max(), std::numeric_limits<double>::max());
             dsb->setSingleStep(0.01f);
             dsb->setDecimals(6);
@@ -263,7 +262,7 @@ QWidget* CSVWorld::CommandDelegate::createEditor(QWidget* parent, const QStyleOp
         case CSMWorld::ColumnBase::Display_LongString:
         case CSMWorld::ColumnBase::Display_LongString256:
         {
-            QPlainTextEdit* edit = new QPlainTextEdit(parent);
+            auto* edit = new QPlainTextEdit(parent);
             edit->setUndoRedoEnabled(false);
             return edit;
         }
@@ -284,7 +283,7 @@ QWidget* CSVWorld::CommandDelegate::createEditor(QWidget* parent, const QStyleOp
         case CSMWorld::ColumnBase::Display_String32:
         {
             // For other Display types (that represent record IDs) with drop support IdCompletionDelegate is used
-            CSVWidget::DropLineEdit* widget = new CSVWidget::DropLineEdit(display, parent);
+            auto* widget = new CSVWidget::DropLineEdit(display, parent);
             widget->setMaxLength(32);
             return widget;
         }
@@ -292,7 +291,7 @@ QWidget* CSVWorld::CommandDelegate::createEditor(QWidget* parent, const QStyleOp
         case CSMWorld::ColumnBase::Display_String64:
         {
             // For other Display types (that represent record IDs) with drop support IdCompletionDelegate is used
-            CSVWidget::DropLineEdit* widget = new CSVWidget::DropLineEdit(display, parent);
+            auto* widget = new CSVWidget::DropLineEdit(display, parent);
             widget->setMaxLength(64);
             return widget;
         }
@@ -331,7 +330,7 @@ void CSVWorld::CommandDelegate::setEditorData(QWidget* editor, const QModelIndex
                 return;
             }
         }
-        QPlainTextEdit* plainTextEdit = qobject_cast<QPlainTextEdit*>(editor);
+        auto* plainTextEdit = qobject_cast<QPlainTextEdit*>(editor);
         if (plainTextEdit) // for some reason it is easier to brake the loop here
         {
             if (plainTextEdit->toPlainText() == variant.toString())
@@ -342,7 +341,7 @@ void CSVWorld::CommandDelegate::setEditorData(QWidget* editor, const QModelIndex
     }
 
     // Color columns use a custom editor, so we need explicitly set a data for it
-    CSVWidget::ColorEditor* colorEditor = qobject_cast<CSVWidget::ColorEditor*>(editor);
+    auto* colorEditor = qobject_cast<CSVWidget::ColorEditor*>(editor);
     if (colorEditor != nullptr)
     {
         colorEditor->setColor(variant.toInt());

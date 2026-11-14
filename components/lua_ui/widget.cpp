@@ -331,7 +331,7 @@ namespace LuaUi
         mVisible = propertyValue("visible", true);
         mWidget->setVisible(mVisible);
         mWidget->setNeedMouseFocus(!propertyValue("ignorePointerEvents", false));
-        CursorResource* cursor = propertyValue<CursorResource*>("cursor", nullptr);
+        auto* cursor = propertyValue<CursorResource*>("cursor", nullptr);
         mHasCursor = cursor != nullptr;
         if (mHasCursor)
             setCursor(cursor->mName);
@@ -372,7 +372,7 @@ namespace LuaUi
     void WidgetExtension::refreshCursor()
     {
         MyGUI::Widget* focused = MyGUI::InputManager::getInstance().getMouseFocusWidget();
-        if (WidgetExtension* extension = dynamic_cast<WidgetExtension*>(focused))
+        if (auto* extension = dynamic_cast<WidgetExtension*>(focused))
             MyGUI::PointerManager::getInstance().setPointer(extension->mCursor);
     }
 

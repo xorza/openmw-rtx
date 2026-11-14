@@ -62,7 +62,7 @@ namespace MWRender
                 mLastRenderedFrame = nv->getTraversalNumber();
 
                 osg::ref_ptr<osg::FrameStamp> previousFramestamp = const_cast<osg::FrameStamp*>(nv->getFrameStamp());
-                osg::FrameStamp* fs = new osg::FrameStamp(*previousFramestamp);
+                auto* fs = new osg::FrameStamp(*previousFramestamp);
                 fs->setSimulationTime(0.0);
 
                 nv->setFrameStamp(fs);
@@ -112,7 +112,7 @@ namespace MWRender
                 if (stateset->getAttribute(osg::StateAttribute::BLENDFUNC)
                     || stateset->getBinNumber() == osg::StateSet::TRANSPARENT_BIN)
                 {
-                    osg::BlendFunc* blendFunc
+                    auto* blendFunc
                         = static_cast<osg::BlendFunc*>(stateset->getAttribute(osg::StateAttribute::BLENDFUNC));
 
                     if (blendFunc)
@@ -536,7 +536,7 @@ namespace MWRender
     {
         setNodeMask(Mask_RenderToTexture);
 
-        const SceneUtil::Orthographic& box = std::get<SceneUtil::Orthographic>(spec.mFraming.mProjection);
+        const auto& box = std::get<SceneUtil::Orthographic>(spec.mFraming.mProjection);
         const float near = spec.mFraming.mNear;
         const float far = spec.mFraming.mFar;
 

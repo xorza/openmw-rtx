@@ -316,7 +316,7 @@ namespace MWWorld
             projectileLight.setQuadraticAttenuation(0.f);
             projectileLight.setPosition(osg::Vec4(pos, 1.0));
 
-            SceneUtil::LightSource* projectileLightSource = new SceneUtil::LightSource;
+            auto* projectileLightSource = new SceneUtil::LightSource;
             projectileLightSource->setNodeMask(MWRender::Mask_Lighting);
             projectileLightSource->setRadius(66.f);
 
@@ -702,9 +702,9 @@ namespace MWWorld
         mParent->removeChild(state.mNode);
         mPhysics->removeProjectile(state.mProjectileId);
         state.mToDelete = true;
-        for (size_t soundIter = 0; soundIter != state.mSounds.size(); soundIter++)
+        for (auto& mSound : state.mSounds)
         {
-            MWBase::Environment::get().getSoundManager()->stopSound(state.mSounds.at(soundIter));
+            MWBase::Environment::get().getSoundManager()->stopSound(mSound);
         }
     }
 

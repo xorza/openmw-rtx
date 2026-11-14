@@ -155,14 +155,13 @@ void CSVDoc::LoadingDocument::cancel()
 
 CSVDoc::Loader::~Loader()
 {
-    for (std::map<CSMDoc::Document*, LoadingDocument*>::iterator iter(mDocuments.begin()); iter != mDocuments.end();
-        ++iter)
-        delete iter->second;
+    for (auto& mDocument : mDocuments)
+        delete mDocument.second;
 }
 
 void CSVDoc::Loader::add(CSMDoc::Document* document)
 {
-    LoadingDocument* loading = new LoadingDocument(document);
+    auto* loading = new LoadingDocument(document);
     mDocuments.insert(std::make_pair(document, loading));
 
     connect(loading, qOverload<CSMDoc::Document*>(&LoadingDocument::cancel), this, &Loader::cancel);
@@ -171,7 +170,7 @@ void CSVDoc::Loader::add(CSMDoc::Document* document)
 
 void CSVDoc::Loader::loadingStopped(CSMDoc::Document* document, bool completed, const std::string& error)
 {
-    std::map<CSMDoc::Document*, LoadingDocument*>::iterator iter = mDocuments.begin();
+    auto iter = mDocuments.begin();
 
     for (; iter != mDocuments.end(); ++iter)
         if (iter->first == document)
@@ -195,7 +194,7 @@ void CSVDoc::Loader::loadingStopped(CSMDoc::Document* document, bool completed, 
 
 void CSVDoc::Loader::nextStage(CSMDoc::Document* document, const std::string& name, int fileRecords)
 {
-    std::map<CSMDoc::Document*, LoadingDocument*>::iterator iter = mDocuments.find(document);
+    auto iter = mDocuments.find(document);
 
     if (iter != mDocuments.end())
         iter->second->nextStage(name, fileRecords);
@@ -203,7 +202,7 @@ void CSVDoc::Loader::nextStage(CSMDoc::Document* document, const std::string& na
 
 void CSVDoc::Loader::nextRecord(CSMDoc::Document* document, int records)
 {
-    std::map<CSMDoc::Document*, LoadingDocument*>::iterator iter = mDocuments.find(document);
+    auto iter = mDocuments.find(document);
 
     if (iter != mDocuments.end())
         iter->second->nextRecord(records);
@@ -211,7 +210,7 @@ void CSVDoc::Loader::nextRecord(CSMDoc::Document* document, int records)
 
 void CSVDoc::Loader::loadMessage(CSMDoc::Document* document, const std::string& message)
 {
-    std::map<CSMDoc::Document*, LoadingDocument*>::iterator iter = mDocuments.find(document);
+    auto iter = mDocuments.find(document);
 
     if (iter != mDocuments.end())
         iter->second->addMessage(message);

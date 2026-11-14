@@ -45,19 +45,19 @@ CSMWorld::CellCoordinates CSMWorld::CellSelection::getCentre() const
     double x = 0;
     double y = 0;
 
-    for (Iterator iter = begin(); iter != end(); ++iter)
+    for (auto iter : *this)
     {
-        x += iter->getX();
-        y += iter->getY();
+        x += iter.getX();
+        y += iter.getY();
     }
 
     x /= mCells.size();
     y /= mCells.size();
 
-    Iterator closest = begin();
+    auto closest = begin();
     double distance = std::numeric_limits<double>::max();
 
-    for (Iterator iter(begin()); iter != end(); ++iter)
+    for (auto iter(begin()); iter != end(); ++iter)
     {
         double deltaX = x - iter->getX();
         double deltaY = y - iter->getY();
@@ -78,8 +78,8 @@ void CSMWorld::CellSelection::move(int x, int y)
 {
     Container moved;
 
-    for (Iterator iter = begin(); iter != end(); ++iter)
-        moved.insert(iter->move(x, y));
+    for (auto iter : *this)
+        moved.insert(iter.move(x, y));
 
     mCells.swap(moved);
 }

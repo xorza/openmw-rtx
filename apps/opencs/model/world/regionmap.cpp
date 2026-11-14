@@ -123,7 +123,7 @@ void CSMWorld::RegionMap::buildMap()
 
 void CSMWorld::RegionMap::addCell(const CellCoordinates& index, const CellDescription& description)
 {
-    std::map<CellCoordinates, CellDescription>::iterator cell = mMap.find(index);
+    auto cell = mMap.find(index);
 
     if (cell != mMap.end())
     {
@@ -164,7 +164,7 @@ void CSMWorld::RegionMap::addCells(int start, int end)
 
 void CSMWorld::RegionMap::removeCell(const CellCoordinates& index)
 {
-    std::map<CellCoordinates, CellDescription>::iterator cell = mMap.find(index);
+    auto cell = mMap.find(index);
 
     if (cell != mMap.end())
     {
@@ -340,7 +340,7 @@ QVariant CSMWorld::RegionMap::data(const QModelIndex& index, int role) const
     {
         /// \todo GUI class in non-GUI code. Needs to be addressed eventually.
 
-        std::map<CellCoordinates, CellDescription>::const_iterator cell = mMap.find(getIndex(index));
+        auto cell = mMap.find(getIndex(index));
 
         if (cell != mMap.end())
         {
@@ -370,7 +370,7 @@ QVariant CSMWorld::RegionMap::data(const QModelIndex& index, int role) const
 
         stream << cellIndex;
 
-        std::map<CellCoordinates, CellDescription>::const_iterator cell = mMap.find(cellIndex);
+        auto cell = mMap.find(cellIndex);
 
         if (cell != mMap.end())
         {
@@ -402,7 +402,7 @@ QVariant CSMWorld::RegionMap::data(const QModelIndex& index, int role) const
     {
         CellCoordinates cellIndex = getIndex(index);
 
-        std::map<CellCoordinates, CellDescription>::const_iterator cell = mMap.find(cellIndex);
+        auto cell = mMap.find(cellIndex);
 
         if (cell != mMap.end() && !cell->second.mRegion.empty())
             return QString::fromUtf8(cell->second.mRegion.getRefIdString().c_str());

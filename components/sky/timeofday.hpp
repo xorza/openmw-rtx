@@ -38,7 +38,7 @@ namespace Sky
 
         WeatherSetting getSetting(const std::string& type) const
         {
-            std::map<std::string, WeatherSetting>::const_iterator it = mSunriseTransitions.find(type);
+            auto it = mSunriseTransitions.find(type);
             if (it != mSunriseTransitions.end())
             {
                 return it->second;

@@ -17,7 +17,7 @@ CSVDoc::Operations::Operations()
 {
     setFeatures(QDockWidget::NoDockWidgetFeatures);
 
-    QWidget* widgetContainer = new QWidget(this);
+    auto* widgetContainer = new QWidget(this);
     mLayout = new QVBoxLayout;
     mLayout->setContentsMargins(0, 0, 0, 0);
 
@@ -31,14 +31,14 @@ CSVDoc::Operations::Operations()
 
 void CSVDoc::Operations::setProgress(int current, int max, int type, int threads)
 {
-    for (std::vector<Operation*>::iterator iter(mOperations.begin()); iter != mOperations.end(); ++iter)
-        if ((*iter)->getType() == type)
+    for (auto& mOperation : mOperations)
+        if (mOperation->getType() == type)
         {
-            (*iter)->setProgress(current, max, threads);
+            mOperation->setProgress(current, max, threads);
             return;
         }
 
-    Operation* operation = new Operation(type, this);
+    auto* operation = new Operation(type, this);
     connect(operation, qOverload<int>(&Operation::abortOperation), this, &Operations::abortOperation);
 
     mLayout->addLayout(operation->getLayout());
@@ -53,7 +53,7 @@ void CSVDoc::Operations::setProgress(int current, int max, int type, int threads
 
 void CSVDoc::Operations::quitOperation(int type)
 {
-    for (std::vector<Operation*>::iterator iter(mOperations.begin()); iter != mOperations.end(); ++iter)
+    for (auto iter(mOperations.begin()); iter != mOperations.end(); ++iter)
         if ((*iter)->getType() == type)
         {
             mLayout->removeItem((*iter)->getLayout());

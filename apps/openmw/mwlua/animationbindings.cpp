@@ -59,7 +59,7 @@ namespace MWLua
             auto asTable = args.get<sol::optional<sol::table>>("priority");
             if (asTable)
             {
-                AnimationPriorities priorities = AnimationPriorities(Priority::Priority_Default);
+                auto priorities = AnimationPriorities(Priority::Priority_Default);
                 for (const auto& entry : asTable.value())
                 {
                     if (!entry.first.is<BoneGroup>() || !entry.second.is<Priority>())

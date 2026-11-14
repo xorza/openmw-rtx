@@ -58,7 +58,7 @@ namespace MWWorld
 
         TEST(TerrainPreloadTest, IgnoresDistantCamera)
         {
-            const float cellSize = static_cast<float>(ESM::getCellSize(ESM::Cell::sDefaultWorldspaceId));
+            const auto cellSize = static_cast<float>(ESM::getCellSize(ESM::Cell::sDefaultWorldspaceId));
             const osg::Vec3f camera = player + osg::Vec3f(cellSize, 0.f, 0.f);
             const std::vector<PositionCellGrid> positions
                 = terrainPreloadPositions(player, player, camera, true, grid, ESM::Cell::sDefaultWorldspaceId);

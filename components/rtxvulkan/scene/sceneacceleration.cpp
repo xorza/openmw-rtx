@@ -24,6 +24,7 @@
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
 #include <components/rtxvulkan/shaders/shared/toplevelpack.h>
 #include <components/rtxvulkan/shaders/shared/traceconstants.h>
+#include <utility>
 
 #include "placing.hpp"
 #include "toplevelpackpass.hpp"
@@ -52,7 +53,7 @@ namespace Rtx
                     rows.begin() + first, rows.begin() + end, [](const VkAccelerationStructureInstanceKHR& row) {
                         return row.accelerationStructureReference != 0;
                     });
-                if (static_cast<std::uint32_t>(counted) != placed[block])
+                if (std::cmp_not_equal(counted, placed[block]))
                     return false;
             }
             return true;

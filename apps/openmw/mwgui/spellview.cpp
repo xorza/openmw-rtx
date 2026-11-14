@@ -8,6 +8,7 @@
 #include <components/settings/values.hpp>
 #include <components/widgets/box.hpp>
 #include <components/widgets/sharedstatebutton.hpp>
+#include <utility>
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/inputmanager.hpp"
@@ -90,7 +91,7 @@ namespace MWGui
         while (mScrollView->getChildCount())
             MyGUI::Gui::getInstance().destroyWidget(mScrollView->getChildAt(0));
 
-        for (SpellModel::ModelIndex i = 0; i < int(mModel->getItemCount()); ++i)
+        for (SpellModel::ModelIndex i = 0; std::cmp_less(i, mModel->getItemCount()); ++i)
         {
             const Spell& spell = mModel->getItem(i);
             if (curType != spell.mType)
@@ -109,7 +110,7 @@ namespace MWGui
                 skin = spell.mActive ? "SpellTextEquippedController" : "SpellTextUnequippedController";
             const std::string captionSuffix = MWGui::ToolTips::getCountString(spell.mCount);
 
-            Gui::SharedStateButton* t = mScrollView->createWidget<Gui::SharedStateButton>(
+            auto* t = mScrollView->createWidget<Gui::SharedStateButton>(
                 skin, MyGUI::IntCoord(0, 0, 0, spellHeight), MyGUI::Align::Left | MyGUI::Align::Top);
             t->setNeedKeyFocus(true);
             t->setCaption(spell.mName + captionSuffix);
@@ -119,7 +120,7 @@ namespace MWGui
 
             if (!spell.mCostColumn.empty() && mShowCostColumn)
             {
-                Gui::SharedStateButton* costChance = mScrollView->createWidget<Gui::SharedStateButton>(
+                auto* costChance = mScrollView->createWidget<Gui::SharedStateButton>(
                     skin, MyGUI::IntCoord(0, 0, 0, spellHeight), MyGUI::Align::Left | MyGUI::Align::Top);
                 costChance->setCaption(spell.mCostColumn);
                 costChance->setTextAlign(MyGUI::Align::Right);
@@ -157,7 +158,7 @@ namespace MWGui
             SpellModel::ModelIndex spellIndex(line.mSpellIndex);
             if (spellIndex != NoSpellIndex)
             {
-                Gui::SharedStateButton* nameButton = reinterpret_cast<Gui::SharedStateButton*>(line.mLeftWidget);
+                auto* nameButton = reinterpret_cast<Gui::SharedStateButton*>(line.mLeftWidget);
 
                 // match model against line
                 // if don't match, then major change has happened, so do a full update
@@ -178,7 +179,7 @@ namespace MWGui
                 else
                 {
                     maxSpellIndexFound = spellIndex;
-                    Gui::SharedStateButton* costButton = reinterpret_cast<Gui::SharedStateButton*>(line.mRightWidget);
+                    auto* costButton = reinterpret_cast<Gui::SharedStateButton*>(line.mRightWidget);
                     if ((costButton != nullptr) && (costButton->getCaption() != spell.mCostColumn))
                     {
                         costButton->setCaption(spell.mCostColumn);
@@ -214,7 +215,7 @@ namespace MWGui
             if (line.mRightWidget)
             {
                 line.mRightWidget->setCoord(4, height, width - 8, lineHeight);
-                MyGUI::TextBox* second = line.mRightWidget->castType<MyGUI::TextBox>(false);
+                auto* second = line.mRightWidget->castType<MyGUI::TextBox>(false);
                 if (second)
                     line.mLeftWidget->setSize(width - 8 - second->getTextSize().width, lineHeight);
             }
@@ -239,7 +240,7 @@ namespace MWGui
     {
         if (mScrollView->getChildCount() > 0)
         {
-            MyGUI::ImageBox* separator = mScrollView->createWidget<MyGUI::ImageBox>(
+            auto* separator = mScrollView->createWidget<MyGUI::ImageBox>(
                 "MW_HLine", MyGUI::IntCoord(0, 0, mScrollView->getWidth(), 18), MyGUI::Align::Left | MyGUI::Align::Top);
             separator->setNeedMouseFocus(false);
             mLines.emplace_back(separator, static_cast<MyGUI::Widget*>(nullptr), NoSpellIndex);

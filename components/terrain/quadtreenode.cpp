@@ -83,8 +83,8 @@ namespace Terrain
         , mSize(size)
         , mCenter(center)
     {
-        for (unsigned int i = 0; i < 4; ++i)
-            mNeighbours[i] = nullptr;
+        for (auto& mNeighbour : mNeighbours)
+            mNeighbour = nullptr;
     }
 
     QuadTreeNode::~QuadTreeNode() {}

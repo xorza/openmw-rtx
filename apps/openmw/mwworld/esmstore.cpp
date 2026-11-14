@@ -44,7 +44,7 @@ namespace
         // TODO: we have many similar copies of this code.
         for (size_t i = 0; i < cell.mContextList.size(); i++)
         {
-            const std::size_t index = static_cast<std::size_t>(cell.mContextList[i].index);
+            const auto index = static_cast<std::size_t>(cell.mContextList[i].index);
             const ESM::ReadersCache::BusyItem reader = readers.get(index);
             cell.restore(*reader, i);
             ESM::CellRef ref;
@@ -269,7 +269,7 @@ namespace MWWorld
         {
             auto recordType = static_cast<ESM4::RecordTypes>(reader.hdr().record.typeId);
 
-            ESM::RecNameInts esm4RecName = static_cast<ESM::RecNameInts>(ESM::esm4Recname(recordType));
+            auto esm4RecName = static_cast<ESM::RecNameInts>(ESM::esm4Recname(recordType));
             if constexpr (HasRecordId<T>)
             {
                 if constexpr (ESM::isESM4Rec(T::sRecordId))
@@ -296,7 +296,7 @@ namespace MWWorld
 
     int ESMStore::find(const ESM::RefId& id) const
     {
-        IDMap::const_iterator it = mStoreImp->mIds.find(id);
+        auto it = mStoreImp->mIds.find(id);
         if (it == mStoreImp->mIds.end())
         {
             return 0;
@@ -306,7 +306,7 @@ namespace MWWorld
 
     int ESMStore::findStatic(const ESM::RefId& id) const
     {
-        IDMap::const_iterator it = mStoreImp->mStaticIds.find(id);
+        auto it = mStoreImp->mStaticIds.find(id);
         if (it == mStoreImp->mStaticIds.end())
         {
             return 0;
@@ -405,7 +405,7 @@ namespace MWWorld
             }
 
             // Look up the record type.
-            ESM::RecNameInts recName = static_cast<ESM::RecNameInts>(n.toInt());
+            auto recName = static_cast<ESM::RecNameInts>(n.toInt());
             const auto& it = mStoreImp->mRecNameToStore.find(recName);
 
             if (it == mStoreImp->mRecNameToStore.end())
@@ -510,7 +510,7 @@ namespace MWWorld
             }
             else
             {
-                const ESM::LuaScriptsCfg& addition = std::get<ESM::LuaScriptsCfg>(c);
+                const auto& addition = std::get<ESM::LuaScriptsCfg>(c);
                 cfg.mScripts.insert(cfg.mScripts.end(), addition.mScripts.begin(), addition.mScripts.end());
             }
         }
@@ -750,7 +750,7 @@ namespace MWWorld
 
     bool ESMStore::readRecord(ESM::ESMReader& reader, uint32_t typeId)
     {
-        ESM::RecNameInts type = static_cast<ESM::RecNameInts>(typeId);
+        auto type = static_cast<ESM::RecNameInts>(typeId);
         switch (type)
         {
             case ESM::REC_ALCH:

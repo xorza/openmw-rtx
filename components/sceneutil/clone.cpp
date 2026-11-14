@@ -26,13 +26,11 @@ namespace SceneUtil
 
     osg::Node* CopyOp::operator()(const osg::Node* node) const
     {
-        if (const osgParticle::ParticleProcessor* processor = dynamic_cast<const osgParticle::ParticleProcessor*>(node))
+        if (const auto* processor = dynamic_cast<const osgParticle::ParticleProcessor*>(node))
             return operator()(processor);
-        if (const osgParticle::ParticleSystemUpdater* updater
-            = dynamic_cast<const osgParticle::ParticleSystemUpdater*>(node))
+        if (const auto* updater = dynamic_cast<const osgParticle::ParticleSystemUpdater*>(node))
         {
-            osgParticle::ParticleSystemUpdater* cloned
-                = new osgParticle::ParticleSystemUpdater(*updater, osg::CopyOp::SHALLOW_COPY);
+            auto* cloned = new osgParticle::ParticleSystemUpdater(*updater, osg::CopyOp::SHALLOW_COPY);
             mUpdaterToOldPs[cloned] = updater->getParticleSystem(0);
             return cloned;
         }
@@ -57,7 +55,7 @@ namespace SceneUtil
 
     osg::Drawable* CopyOp::operator()(const osg::Drawable* drawable) const
     {
-        if (const osgParticle::ParticleSystem* partsys = dynamic_cast<const osgParticle::ParticleSystem*>(drawable))
+        if (const auto* partsys = dynamic_cast<const osgParticle::ParticleSystem*>(drawable))
             return operator()(partsys);
 
         if (dynamic_cast<const SceneUtil::RigGeometry*>(drawable)
@@ -91,7 +89,7 @@ namespace SceneUtil
 
     osgParticle::ParticleSystem* CopyOp::operator()(const osgParticle::ParticleSystem* partsys) const
     {
-        osgParticle::ParticleSystem* cloned = static_cast<osgParticle::ParticleSystem*>(partsys->clone(*this));
+        auto* cloned = static_cast<osgParticle::ParticleSystem*>(partsys->clone(*this));
 
         for (const auto& processorPsPair : mProcessorToOldPs)
         {

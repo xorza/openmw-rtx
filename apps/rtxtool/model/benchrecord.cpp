@@ -11,6 +11,7 @@
 #include <string>
 #include <string_view>
 #include <type_traits>
+#include <utility>
 #include <variant>
 
 #include <apps/openmw/mwrender/rtx/mirrorknobs.hpp>
@@ -351,7 +352,8 @@ namespace RtxTool
                     const std::int64_t x = left + column;
                     text += separator;
                     separator = " | ";
-                    if (x < 0 || y < 0 || x >= kept.mWidth || y >= kept.mHeight)
+                    if (x < 0 || y < 0 || std::cmp_greater_equal(x, kept.mWidth)
+                        || std::cmp_greater_equal(y, kept.mHeight))
                     {
                         text += '-';
                         continue;

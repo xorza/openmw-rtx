@@ -17,7 +17,7 @@ void CSVTools::SearchBox::updateSearchButtons()
         return;
     }
 
-    const CSMTools::Search::Type type = static_cast<CSMTools::Search::Type>(mMode.currentIndex());
+    const auto type = static_cast<CSMTools::Search::Type>(mMode.currentIndex());
     if (type == CSMTools::Search::Type_RecordState)
     {
         mSearch.setEnabled(true);
@@ -55,8 +55,8 @@ CSVTools::SearchBox::SearchBox(QWidget* parent)
         = CSMWorld::Columns::getEnums(CSMWorld::Columns::ColumnId_Modification);
     states.resize(states.size() - 1); // ignore erased state
 
-    for (std::vector<std::pair<int, std::string>>::const_iterator iter(states.begin()); iter != states.end(); ++iter)
-        mRecordState.addItem(QString::fromUtf8(iter->second.c_str()));
+    for (const auto& state : states)
+        mRecordState.addItem(QString::fromUtf8(state.second.c_str()));
 
     mMode.addItem(tr("Text"));
     mMode.addItem(tr("Text (RegEx)"));
@@ -126,7 +126,7 @@ void CSVTools::SearchBox::setSearchResultCount(int resultCount)
 
 CSMTools::Search CSVTools::SearchBox::getSearch() const
 {
-    CSMTools::Search::Type type = static_cast<CSMTools::Search::Type>(mMode.currentIndex());
+    auto type = static_cast<CSMTools::Search::Type>(mMode.currentIndex());
     bool caseSensitive = mCaseSensitive.isChecked();
 
     switch (type)
@@ -156,7 +156,7 @@ CSMTools::Search CSVTools::SearchBox::getSearch() const
 
 std::string CSVTools::SearchBox::getReplaceText() const
 {
-    CSMTools::Search::Type type = static_cast<CSMTools::Search::Type>(mMode.currentIndex());
+    auto type = static_cast<CSMTools::Search::Type>(mMode.currentIndex());
 
     switch (type)
     {

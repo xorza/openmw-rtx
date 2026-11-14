@@ -247,7 +247,7 @@ namespace Rtx::Testing
                         continue;
                     }
 
-                    const double stored = static_cast<double>(plain[i]);
+                    const auto stored = static_cast<double>(plain[i]);
                     const double low = std::max(0.0, (stored - 0.5) / 255.0);
                     const double high = std::min(1.0, (stored + 0.5) / 255.0);
                     ASSERT_GE(static_cast<double>(raised[i]), std::floor(255.0 * std::sqrt(low)))

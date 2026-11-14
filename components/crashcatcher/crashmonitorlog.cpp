@@ -39,7 +39,7 @@ namespace Crash
     MonitorLog::~MonitorLog()
     {
         {
-            const std::lock_guard lock(mMutex);
+            const std::scoped_lock lock(mMutex);
             mEnds = true;
         }
         mWake.notify_one();
@@ -54,7 +54,7 @@ namespace Crash
             block += at + line + '\n';
 
         {
-            const std::lock_guard lock(mMutex);
+            const std::scoped_lock lock(mMutex);
             if (mWaiting.size() >= sMostWaiting)
             {
                 ++mUnwritten;
@@ -87,7 +87,7 @@ namespace Crash
         const std::filesystem::path named = pathOf(mPage.getLogPath());
         if (!named.empty())
             return named;
-        const std::lock_guard lock(mMutex);
+        const std::scoped_lock lock(mMutex);
         return mFallback;
     }
 

@@ -26,12 +26,12 @@ namespace SceneUtil
 
     void MorphGeometry::setSourceGeometry(osg::ref_ptr<osg::Geometry> sourceGeom)
     {
-        for (unsigned int i = 0; i < 2; ++i)
-            mGeometry[i] = nullptr;
+        for (auto& i : mGeometry)
+            i = nullptr;
 
         mSourceGeometry = sourceGeom;
 
-        for (unsigned int i = 0; i < 2; ++i)
+        for (auto& i : mGeometry)
         {
             // DO NOT COPY AND PASTE THIS CODE. Cloning osg::Geometry without also cloning its contained Arrays is
             // generally unsafe. In this specific case the operation is safe under the following two assumptions:
@@ -39,11 +39,11 @@ namespace SceneUtil
             // outlive the cloned geometry regardless. (ensured by the user-data ref below)
             // - Arrays that we add or replace in the cloned geometry must be explicitely forbidden from reusing
             // BufferObjects of the original geometry. (ensured by vbo below)
-            mGeometry[i] = new osg::Geometry(*mSourceGeometry, osg::CopyOp::SHALLOW_COPY);
-            mGeometry[i]->getOrCreateUserDataContainer()->addUserObject(mSourceGeometry.get());
+            i = new osg::Geometry(*mSourceGeometry, osg::CopyOp::SHALLOW_COPY);
+            i->getOrCreateUserDataContainer()->addUserObject(mSourceGeometry.get());
 
             const osg::Geometry& from = *mSourceGeometry;
-            osg::Geometry& to = *mGeometry[i];
+            osg::Geometry& to = *i;
             to.setSupportsDisplayList(false);
             to.setUseVertexBufferObjects(true);
             to.setCullingActive(false); // make sure to disable culling since that's handled by this class
@@ -94,7 +94,7 @@ namespace SceneUtil
             // The cull visitor won't be applied to the node itself,
             // but we want to use its state to render the child geometry.
             osg::StateSet* stateset = getStateSet();
-            osgUtil::CullVisitor* cv = static_cast<osgUtil::CullVisitor*>(&nv);
+            auto* cv = static_cast<osgUtil::CullVisitor*>(&nv);
             if (stateset)
                 cv->pushStateSet(stateset);
 
@@ -134,7 +134,7 @@ namespace SceneUtil
         {
             mMorphedBoundingBox = true;
 
-            const osg::Vec3Array* sourceVerts = static_cast<const osg::Vec3Array*>(mSourceGeometry->getVertexArray());
+            const auto* sourceVerts = static_cast<const osg::Vec3Array*>(mSourceGeometry->getVertexArray());
             if (mMorphTargets.size() != 0)
                 sourceVerts = mMorphTargets[0].getOffsets();
             std::vector<osg::BoundingBox> vertBounds(sourceVerts->size());
@@ -144,8 +144,8 @@ namespace SceneUtil
             // its starting position.
 
             // Start with zero offsets which will happen when no morphs are applied.
-            for (unsigned int i = 0; i < vertBounds.size(); ++i)
-                vertBounds[i].set(osg::Vec3f(0, 0, 0), osg::Vec3f(0, 0, 0));
+            for (auto& vertBound : vertBounds)
+                vertBound.set(osg::Vec3f(0, 0, 0), osg::Vec3f(0, 0, 0));
 
             for (unsigned int i = 1; i < mMorphTargets.size(); ++i)
             {
@@ -185,7 +185,7 @@ namespace SceneUtil
         osg::Geometry& geom = *getGeometry(mLastFrameNumber);
 
         const osg::Vec3Array* positionSrc = mMorphTargets[0].getOffsets();
-        osg::Vec3Array* positionDst = static_cast<osg::Vec3Array*>(geom.getVertexArray());
+        auto* positionDst = static_cast<osg::Vec3Array*>(geom.getVertexArray());
         assert(positionSrc->size() == positionDst->size());
         for (unsigned int vertex = 0; vertex < positionSrc->size(); ++vertex)
             (*positionDst)[vertex] = (*positionSrc)[vertex];

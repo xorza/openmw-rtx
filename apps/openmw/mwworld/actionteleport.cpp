@@ -37,8 +37,8 @@ namespace MWWorld
             bool toExterior = MWBase::Environment::get().getWorldModel()->getCell(mCellId).isExterior();
             getFollowers(actor, followers, toExterior, true);
 
-            for (std::set<MWWorld::Ptr>::iterator it = followers.begin(); it != followers.end(); ++it)
-                teleport(*it);
+            for (const auto& follower : followers)
+                teleport(follower);
         }
 
         teleport(actor);
@@ -85,10 +85,8 @@ namespace MWWorld
         std::set<MWWorld::Ptr> followers;
         MWBase::Environment::get().getMechanicsManager()->getActorsFollowing(actor, followers);
 
-        for (std::set<MWWorld::Ptr>::iterator it = followers.begin(); it != followers.end(); ++it)
+        for (auto follower : followers)
         {
-            MWWorld::Ptr follower = *it;
-
             const ESM::RefId& script = follower.getClass().getScript(follower);
 
             if (!includeHostiles && follower.getClass().getCreatureStats(follower).getAiSequence().isInCombat(actor))

@@ -172,7 +172,7 @@ namespace DetourNavigator
             ObjectData* const dataPtr
                 = mObjects
                       .emplace_hint(it, id,
-                          std::unique_ptr<ObjectData>(new ObjectData{
+                          std::make_unique<ObjectData>(ObjectData{
                               .mObject = RecastMeshObject(shape, transform, areaType),
                               .mRange = range,
                               .mAabb = CommulativeAabb(revision, BulletHelpers::getAabb(shape.getShape(), transform)),
@@ -349,7 +349,7 @@ namespace DetourNavigator
         ESM::RefId worldspace, const TilePosition& tilePosition)
     {
         {
-            const std::lock_guard lock(mMutex);
+            const std::scoped_lock lock(mMutex);
             if (mWorldspace != worldspace)
                 return nullptr;
             if (!isInTilesPositionsRange(mRange, tilePosition))
@@ -361,7 +361,7 @@ namespace DetourNavigator
         auto result = makeMesh(tilePosition);
         if (result != nullptr)
         {
-            const std::lock_guard lock(mMutex);
+            const std::scoped_lock lock(mMutex);
             mCache.insert_or_assign(tilePosition,
                 CachedTile{
                     .mVersion = result->getVersion(),
@@ -374,7 +374,7 @@ namespace DetourNavigator
     std::shared_ptr<RecastMesh> TileCachedRecastMeshManager::getCachedMesh(
         ESM::RefId worldspace, const TilePosition& tilePosition) const
     {
-        const std::lock_guard lock(mMutex);
+        const std::scoped_lock lock(mMutex);
         if (mWorldspace != worldspace)
             return nullptr;
         if (!isInTilesPositionsRange(mRange, tilePosition))
@@ -389,7 +389,7 @@ namespace DetourNavigator
         ESM::RefId worldspace, const TilePosition& tilePosition) const
     {
         {
-            const std::lock_guard lock(mMutex);
+            const std::scoped_lock lock(mMutex);
             if (mWorldspace != worldspace)
                 return nullptr;
         }
@@ -399,7 +399,7 @@ namespace DetourNavigator
     void TileCachedRecastMeshManager::reportNavMeshChange(
         const TilePosition& tilePosition, Version recastMeshVersion, Version navMeshVersion)
     {
-        const std::lock_guard lock(mMutex);
+        const std::scoped_lock lock(mMutex);
         for (auto it = mObjectIndex.qbegin(makeIndexQuery(tilePosition)); it != mObjectIndex.qend(); ++it)
         {
             ObjectData& object = *it->second;
@@ -467,7 +467,7 @@ namespace DetourNavigator
 
     TileCachedRecastMeshManagerStats TileCachedRecastMeshManager::getStats() const
     {
-        const std::lock_guard lock(mMutex);
+        const std::scoped_lock lock(mMutex);
         return TileCachedRecastMeshManagerStats{
             .mTiles = mCache.size(),
             .mObjects = mObjects.size(),
@@ -523,7 +523,7 @@ namespace DetourNavigator
         Version version;
         bool hasInput = false;
         {
-            const std::lock_guard lock(mMutex);
+            const std::scoped_lock lock(mMutex);
             for (auto it = mWaterIndex.qbegin(makeIndexQuery(tilePosition)); it != mWaterIndex.qend(); ++it)
             {
                 const auto& [cellPosition, data] = *it->second;

@@ -20,7 +20,7 @@ CSVWorld::PreviewSubView::PreviewSubView(const CSMWorld::UniversalId& id, CSMDoc
     : SubView(id)
     , mTitle(id.toString().c_str())
 {
-    QHBoxLayout* layout = new QHBoxLayout;
+    auto* layout = new QHBoxLayout;
 
     if (document.getData().getReferenceables().searchId(ESM::RefId::stringRefId(id.getId())) == -1)
     {
@@ -39,7 +39,7 @@ CSVWorld::PreviewSubView::PreviewSubView(const CSMWorld::UniversalId& id, CSMDoc
 
     mScene->setExterior(true);
 
-    CSVWidget::SceneToolbar* toolbar = new CSVWidget::SceneToolbar(48 + 6, this);
+    auto* toolbar = new CSVWidget::SceneToolbar(48 + 6, this);
 
     CSVWidget::SceneToolMode* lightingTool = mScene->makeLightingSelector(toolbar);
     toolbar->addTool(lightingTool);
@@ -48,7 +48,7 @@ CSVWorld::PreviewSubView::PreviewSubView(const CSMWorld::UniversalId& id, CSMDoc
 
     layout->addWidget(mScene, 1);
 
-    QWidget* widget = new QWidget;
+    auto* widget = new QWidget;
 
     widget->setLayout(layout);
 

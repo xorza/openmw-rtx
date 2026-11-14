@@ -216,15 +216,15 @@ namespace MWGui
 
         std::vector<ESM::RefId> abilities, powers, spells;
 
-        std::vector<ESM::RefId>::const_iterator it = birth->mPowers.mList.begin();
-        std::vector<ESM::RefId>::const_iterator end = birth->mPowers.mList.end();
+        auto it = birth->mPowers.mList.begin();
+        auto end = birth->mPowers.mList.end();
         for (; it != end; ++it)
         {
             const ESM::RefId& spellId = *it;
             const ESM::Spell* spell = store.get<ESM::Spell>().search(spellId);
             if (!spell)
                 continue; // Skip spells which cannot be found
-            ESM::Spell::SpellType type = static_cast<ESM::Spell::SpellType>(spell->mData.mType);
+            auto type = static_cast<ESM::Spell::SpellType>(spell->mData.mType);
             if (type != ESM::Spell::ST_Spell && type != ESM::Spell::ST_Ability && type != ESM::Spell::ST_Power)
                 continue; // We only want spell, ability and powers.
 
@@ -248,7 +248,7 @@ namespace MWGui
         {
             if (!categories[category].spells.empty())
             {
-                MyGUI::TextBox* label
+                auto* label
                     = mSpellArea->createWidget<MyGUI::TextBox>("SandBrightText", coord, MyGUI::Align::Default, "Label");
                 label->setCaption(MyGUI::UString(MWBase::Environment::get().getWindowManager()->getGameSettingString(
                     categories[category].label, {})));

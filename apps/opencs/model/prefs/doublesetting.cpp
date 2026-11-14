@@ -57,7 +57,7 @@ CSMPrefs::DoubleSetting& CSMPrefs::DoubleSetting::setTooltip(const std::string& 
 
 CSMPrefs::SettingWidgets CSMPrefs::DoubleSetting::makeWidgets(QWidget* parent)
 {
-    QLabel* label = new QLabel(getLabel(), parent);
+    auto* label = new QLabel(getLabel(), parent);
 
     mWidget = new QDoubleSpinBox(parent);
     mWidget->setDecimals(mPrecision);

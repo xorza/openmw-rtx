@@ -114,7 +114,7 @@ namespace MWMechanics
         const MWWorld::Ptr& actor, CharacterController& characterController, AiState& state, float duration)
     {
         // Get or create temporary storage
-        AiCombatStorage& storage = state.get<AiCombatStorage>();
+        auto& storage = state.get<AiCombatStorage>();
 
         const MWWorld::Class& actorClass = actor.getClass();
         if (!actorClass.isActor())

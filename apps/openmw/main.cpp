@@ -103,9 +103,9 @@ bool parseOptions(int argc, char** argv, OMW::Engine& engine, Files::Configurati
 
     // fallback archives
     StringsVector archives = variables["fallback-archive"].as<StringsVector>();
-    for (StringsVector::const_iterator it = archives.begin(); it != archives.end(); ++it)
+    for (const auto& archive : archives)
     {
-        engine.addArchive(*it);
+        engine.addArchive(archive);
     }
 
     StringsVector content = variables["content"].as<StringsVector>();

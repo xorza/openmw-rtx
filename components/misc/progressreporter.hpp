@@ -28,7 +28,7 @@ namespace Misc
         {
             expected = std::max(expected, provided);
             const bool shouldReport = [&] {
-                const std::lock_guard lock(mMutex);
+                const std::scoped_lock lock(mMutex);
                 const auto now = std::chrono::steady_clock::now();
                 if (mNextReport > now || provided == expected)
                     return false;

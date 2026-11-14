@@ -63,11 +63,8 @@ float CSVRender::BrushDraw::getIntersectionHeight(const osg::Vec3d& point)
 
     mParentNode->accept(visitor);
 
-    for (osgUtil::LineSegmentIntersector::Intersections::iterator it = intersector->getIntersections().begin();
-        it != intersector->getIntersections().end(); ++it)
+    for (auto intersection : intersector->getIntersections())
     {
-        osgUtil::LineSegmentIntersector::Intersection intersection = *it;
-
         // reject back-facing polygons
         if (direction * intersection.getWorldIntersectNormal() > 0)
         {

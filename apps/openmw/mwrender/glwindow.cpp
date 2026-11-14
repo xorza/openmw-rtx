@@ -26,7 +26,7 @@ namespace MWRender
 
     GlWindow::GlWindow(const SDLUtil::VSyncMode vsync)
     {
-        unsigned antialiasing = static_cast<unsigned>(Settings::video().mAntialiasing);
+        auto antialiasing = static_cast<unsigned>(Settings::video().mAntialiasing);
 
         // Read when `openWindow` makes the window, so set before it.
         checkSDLError(SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8));

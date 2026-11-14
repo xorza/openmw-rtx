@@ -8,7 +8,7 @@ namespace MWGui
         : WindowBase(parLayout)
         , mPinned(false)
     {
-        Window* window = mMainWidget->castType<Window>();
+        auto* window = mMainWidget->castType<Window>();
         mPinButton = window->getSkinWidget("Button");
 
         mPinButton->eventMouseButtonPressed += MyGUI::newDelegate(this, &WindowPinnableBase::onPinButtonPressed);

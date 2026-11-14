@@ -50,7 +50,7 @@ CSMPrefs::IntSetting& CSMPrefs::IntSetting::setTooltip(const std::string& toolti
 
 CSMPrefs::SettingWidgets CSMPrefs::IntSetting::makeWidgets(QWidget* parent)
 {
-    QLabel* label = new QLabel(getLabel(), parent);
+    auto* label = new QLabel(getLabel(), parent);
 
     mWidget = new QSpinBox(parent);
     mWidget->setRange(mMin, mMax);

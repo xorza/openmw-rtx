@@ -16,7 +16,7 @@ namespace ESM
 
 ESM::RefId CSMWorld::RefIdData::getRecordId(const CSMWorld::RefIdData::LocalIndex& index) const
 {
-    std::map<UniversalId::Type, RefIdDataContainerBase*>::const_iterator found = mRecordContainers.find(index.second);
+    auto found = mRecordContainers.find(index.second);
 
     if (found == mRecordContainers.end())
         throw std::logic_error("invalid local index type");
@@ -50,13 +50,12 @@ CSMWorld::RefIdData::RefIdData()
 
 CSMWorld::RefIdData::LocalIndex CSMWorld::RefIdData::globalToLocalIndex(int index) const
 {
-    for (std::map<UniversalId::Type, RefIdDataContainerBase*>::const_iterator iter(mRecordContainers.begin());
-        iter != mRecordContainers.end(); ++iter)
+    for (auto mRecordContainer : mRecordContainers)
     {
-        if (index < iter->second->getSize())
-            return LocalIndex(index, iter->first);
+        if (index < mRecordContainer.second->getSize())
+            return LocalIndex(index, mRecordContainer.first);
 
-        index -= iter->second->getSize();
+        index -= mRecordContainer.second->getSize();
     }
 
     throw std::runtime_error("RefIdData index out of range");
@@ -64,15 +63,14 @@ CSMWorld::RefIdData::LocalIndex CSMWorld::RefIdData::globalToLocalIndex(int inde
 
 int CSMWorld::RefIdData::localToGlobalIndex(const LocalIndex& index) const
 {
-    std::map<UniversalId::Type, RefIdDataContainerBase*>::const_iterator end = mRecordContainers.find(index.second);
+    auto end = mRecordContainers.find(index.second);
 
     if (end == mRecordContainers.end())
         throw std::logic_error("invalid local index type");
 
     int globalIndex = index.first;
 
-    for (std::map<UniversalId::Type, RefIdDataContainerBase*>::const_iterator iter(mRecordContainers.begin());
-        iter != end; ++iter)
+    for (auto iter(mRecordContainers.begin()); iter != end; ++iter)
         globalIndex += iter->second->getSize();
 
     return globalIndex;
@@ -145,8 +143,7 @@ void CSMWorld::RefIdData::erase(int index, int count)
 {
     LocalIndex localIndex = globalToLocalIndex(index);
 
-    std::map<UniversalId::Type, RefIdDataContainerBase*>::const_iterator iter
-        = mRecordContainers.find(localIndex.second);
+    auto iter = mRecordContainers.find(localIndex.second);
 
     while (count > 0 && iter != mRecordContainers.end())
     {
@@ -175,7 +172,7 @@ void CSMWorld::RefIdData::erase(int index, int count)
 
 const CSMWorld::RecordBase& CSMWorld::RefIdData::getRecord(const LocalIndex& index) const
 {
-    std::map<UniversalId::Type, RefIdDataContainerBase*>::const_iterator iter = mRecordContainers.find(index.second);
+    auto iter = mRecordContainers.find(index.second);
 
     if (iter == mRecordContainers.end())
         throw std::logic_error("invalid local index type");
@@ -185,7 +182,7 @@ const CSMWorld::RecordBase& CSMWorld::RefIdData::getRecord(const LocalIndex& ind
 
 CSMWorld::RecordBase& CSMWorld::RefIdData::getRecord(const LocalIndex& index)
 {
-    std::map<UniversalId::Type, RefIdDataContainerBase*>::iterator iter = mRecordContainers.find(index.second);
+    auto iter = mRecordContainers.find(index.second);
 
     if (iter == mRecordContainers.end())
         throw std::logic_error("invalid local index type");
@@ -195,7 +192,7 @@ CSMWorld::RecordBase& CSMWorld::RefIdData::getRecord(const LocalIndex& index)
 
 void CSMWorld::RefIdData::appendRecord(UniversalId::Type type, const ESM::RefId& id, bool base)
 {
-    std::map<UniversalId::Type, RefIdDataContainerBase*>::iterator iter = mRecordContainers.find(type);
+    auto iter = mRecordContainers.find(type);
 
     if (iter == mRecordContainers.end())
         throw std::logic_error("invalid local index type");
@@ -209,12 +206,11 @@ int CSMWorld::RefIdData::getAppendIndex(UniversalId::Type type) const
 {
     int index = 0;
 
-    for (std::map<UniversalId::Type, RefIdDataContainerBase*>::const_iterator iter(mRecordContainers.begin());
-        iter != mRecordContainers.end(); ++iter)
+    for (auto mRecordContainer : mRecordContainers)
     {
-        index += iter->second->getSize();
+        index += mRecordContainer.second->getSize();
 
-        if (type == iter->first)
+        if (type == mRecordContainer.first)
             break;
     }
 
@@ -223,7 +219,7 @@ int CSMWorld::RefIdData::getAppendIndex(UniversalId::Type type) const
 
 void CSMWorld::RefIdData::load(ESM::ESMReader& reader, bool base, CSMWorld::UniversalId::Type type)
 {
-    std::map<UniversalId::Type, RefIdDataContainerBase*>::iterator found = mRecordContainers.find(type);
+    auto found = mRecordContainers.find(type);
 
     if (found == mRecordContainers.end())
         throw std::logic_error("Invalid Referenceable ID type");
@@ -245,7 +241,7 @@ void CSMWorld::RefIdData::load(ESM::ESMReader& reader, bool base, CSMWorld::Univ
 
 void CSMWorld::RefIdData::erase(const LocalIndex& index, int count)
 {
-    std::map<UniversalId::Type, RefIdDataContainerBase*>::iterator iter = mRecordContainers.find(index.second);
+    auto iter = mRecordContainers.find(index.second);
     if (iter == mRecordContainers.end())
         throw std::logic_error("invalid local index type");
 
@@ -282,17 +278,16 @@ std::vector<ESM::RefId> CSMWorld::RefIdData::getIds(bool listDeleted) const
 {
     std::vector<ESM::RefId> ids;
 
-    for (auto iter(mIndex.begin()); iter != mIndex.end(); ++iter)
+    for (const auto& iter : mIndex)
     {
-        if (listDeleted || !getRecord(iter->second).isDeleted())
+        if (listDeleted || !getRecord(iter.second).isDeleted())
         {
-            std::map<UniversalId::Type, RefIdDataContainerBase*>::const_iterator container
-                = mRecordContainers.find(iter->second.second);
+            auto container = mRecordContainers.find(iter.second.second);
 
             if (container == mRecordContainers.end())
                 throw std::logic_error("Invalid referenceable ID type");
 
-            ids.push_back(container->second->getId(iter->second.first));
+            ids.push_back(container->second->getId(iter.second.first));
         }
     }
 
@@ -303,8 +298,7 @@ void CSMWorld::RefIdData::save(int index, ESM::ESMWriter& writer) const
 {
     LocalIndex localIndex = globalToLocalIndex(index);
 
-    std::map<UniversalId::Type, RefIdDataContainerBase*>::const_iterator iter
-        = mRecordContainers.find(localIndex.second);
+    auto iter = mRecordContainers.find(localIndex.second);
 
     if (iter == mRecordContainers.end())
         throw std::logic_error("invalid local index type");
@@ -415,7 +409,7 @@ const CSMWorld::RefIdDataContainer<ESM::Static>& CSMWorld::RefIdData::getStatics
 void CSMWorld::RefIdData::insertRecord(
     std::unique_ptr<CSMWorld::RecordBase> record, CSMWorld::UniversalId::Type type, const ESM::RefId& id)
 {
-    std::map<UniversalId::Type, RefIdDataContainerBase*>::iterator iter = mRecordContainers.find(type);
+    auto iter = mRecordContainers.find(type);
 
     if (iter == mRecordContainers.end())
         throw std::logic_error("invalid local index type");

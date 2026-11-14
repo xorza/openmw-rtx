@@ -10,7 +10,7 @@ namespace MyGUIRtx
     {
         // The manager rather than the target, which for a scaled layer is a proxy that only adjusts
         // the pixel scale.
-        RenderManager& renderManager = static_cast<RenderManager&>(MyGUI::RenderManager::getInstance());
+        auto& renderManager = static_cast<RenderManager&>(MyGUI::RenderManager::getInstance());
 
         renderManager.setAdditiveBlend(true);
 

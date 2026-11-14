@@ -8,6 +8,7 @@
 #include <osg/NodeVisitor>
 #include <osg/Sequence>
 #include <osg/Switch>
+#include <utility>
 
 #include "nodekind.hpp"
 
@@ -76,7 +77,7 @@ namespace Rtx
             stepSequence(*frames);
 
             const int shown = frames->getValue();
-            if (shown >= 0 && shown < static_cast<int>(frames->getNumChildren()))
+            if (shown >= 0 && std::cmp_less(shown, frames->getNumChildren()))
             {
                 enterChild(static_cast<unsigned int>(shown));
                 frames->getChild(shown)->accept(visitor);

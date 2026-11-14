@@ -201,7 +201,7 @@ namespace Rtx
                     }
                     else
                     {
-                        const float exponent = static_cast<float>(mGloss.at(0, sx, sy));
+                        const auto exponent = static_cast<float>(mGloss.at(0, sx, sy));
                         mConverted[into + 0] = unitByte(converted.mMetal);
                         mConverted[into + 1] = unitByte(Shaders::roughnessOfExponent(exponent));
                         mConverted[into + 2] = std::byte{ 255 };

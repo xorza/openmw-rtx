@@ -34,8 +34,8 @@ namespace CSMPrefs
 
         QString text = QString::fromUtf8(State::get().getShortcutManager().convertToString(modifier).c_str());
 
-        QLabel* label = new QLabel(getLabel(), parent);
-        QPushButton* widget = new QPushButton(text, parent);
+        auto* label = new QLabel(getLabel(), parent);
+        auto* widget = new QPushButton(text, parent);
 
         widget->setCheckable(true);
         widget->installEventFilter(this);
@@ -67,7 +67,7 @@ namespace CSMPrefs
     {
         if (event->type() == QEvent::KeyPress)
         {
-            QKeyEvent* keyEvent = static_cast<QKeyEvent*>(event);
+            auto* keyEvent = static_cast<QKeyEvent*>(event);
             if (keyEvent->isAutoRepeat())
                 return true;
 
@@ -78,7 +78,7 @@ namespace CSMPrefs
         }
         else if (event->type() == QEvent::MouseButtonPress)
         {
-            QMouseEvent* mouseEvent = static_cast<QMouseEvent*>(event);
+            auto* mouseEvent = static_cast<QMouseEvent*>(event);
             int mod = mouseEvent->modifiers();
             int button = mouseEvent->button();
 
@@ -97,8 +97,6 @@ namespace CSMPrefs
         // For potential future exceptions
         const int blacklist[] = { 0 };
 
-        const size_t blacklistSize = std::size(blacklist);
-
         if (!mEditorActive)
         {
             if (value == Qt::RightButton)
@@ -114,9 +112,9 @@ namespace CSMPrefs
         }
 
         // Handle blacklist
-        for (size_t i = 0; i < blacklistSize; ++i)
+        for (int i : blacklist)
         {
-            if (value == blacklist[i])
+            if (value == i)
                 return true;
         }
 

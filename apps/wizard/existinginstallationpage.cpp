@@ -47,7 +47,7 @@ Wizard::ExistingInstallationPage::ExistingInstallationPage(QWidget* parent)
     connect(browseButton, &QPushButton::clicked, this, &ExistingInstallationPage::browseButtonClicked);
 
     // Add a placeholder item to the list of installations
-    QListWidgetItem* emptyItem = new QListWidgetItem(tr("No existing installations detected"), installationsList);
+    auto* emptyItem = new QListWidgetItem(tr("No existing installations detected"), installationsList);
     emptyItem->setFlags(Qt::NoItemFlags);
 
     connect(installationsList, &QListWidget::currentTextChanged, this, &ExistingInstallationPage::textChanged);
@@ -146,7 +146,7 @@ void Wizard::ExistingInstallationPage::browseButtonClicked()
         // Hide the default item
         installationsList->item(0)->setHidden(true);
 
-        QListWidgetItem* item = new QListWidgetItem(path, installationsList);
+        auto* item = new QListWidgetItem(path, installationsList);
         installationsList->setCurrentItem(item); // Select it too
     }
     else

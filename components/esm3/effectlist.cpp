@@ -30,7 +30,7 @@ namespace ESM
 
         void toBinary(const ENAMstruct& src, EsmENAMstruct& dst)
         {
-            int16_t index = static_cast<int16_t>(ESM::MagicEffect::refIdToIndex(src.mEffectID));
+            auto index = static_cast<int16_t>(ESM::MagicEffect::refIdToIndex(src.mEffectID));
             if (index < 0 || index >= ESM::MagicEffect::Length)
                 throw std::runtime_error(std::format("Cannot serialize effect {}", src.mEffectID.toDebugString()));
             dst.mEffectID = index;

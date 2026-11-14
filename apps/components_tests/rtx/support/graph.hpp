@@ -65,7 +65,7 @@ namespace Rtx::Testing
         texture->setWrap(osg::Texture::WRAP_S, osg::Texture::REPEAT);
         texture->setWrap(osg::Texture::WRAP_T, osg::Texture::REPEAT);
 
-        const unsigned int unit = static_cast<unsigned int>(state.getTextureAttributeList().size());
+        const auto unit = static_cast<unsigned int>(state.getTextureAttributeList().size());
         state.setTextureAttributeAndModes(unit, texture, osg::StateAttribute::ON);
         state.setTextureAttribute(
             unit, new SceneUtil::TextureType(std::string(sTextureRoleNames.name(role))), osg::StateAttribute::ON);

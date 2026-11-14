@@ -92,7 +92,7 @@ const ContentSelectorModel::EsmFile* ContentSelectorModel::ContentModel::item(co
 QModelIndex ContentSelectorModel::ContentModel::indexFromItem(const EsmFile* item) const
 {
     // workaround: non-const pointer cast for calls from outside contentmodel/contentselector
-    EsmFile* const nonConstFilePtr = const_cast<EsmFile*>(item);
+    auto* const nonConstFilePtr = const_cast<EsmFile*>(item);
 
     if (item)
         return index(mFiles.indexOf(nonConstFilePtr), 0);
@@ -305,7 +305,7 @@ QMimeData* ContentSelectorModel::ContentModel::mimeData(const QModelIndexList& i
         stream << index.row();
     }
 
-    QMimeData* mimeData = new QMimeData();
+    auto* mimeData = new QMimeData();
     mimeData->setData(mMimeType, encodedData);
 
     return mimeData;

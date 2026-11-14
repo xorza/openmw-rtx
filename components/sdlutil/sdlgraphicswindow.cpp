@@ -82,7 +82,7 @@ namespace SDLUtil
         if (!_traits.valid())
             return;
 
-        WindowData* inheritedWindowData = dynamic_cast<WindowData*>(_traits->inheritedWindowData.get());
+        auto* inheritedWindowData = dynamic_cast<WindowData*>(_traits->inheritedWindowData.get());
         mWindow = inheritedWindowData ? inheritedWindowData->mWindow : nullptr;
 
         mOwnsWindow = (mWindow == nullptr);

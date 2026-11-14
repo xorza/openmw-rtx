@@ -8,6 +8,7 @@
 #include <components/lua/utilpackage.hpp>
 #include <components/misc/convert.hpp>
 #include <components/misc/mathutil.hpp>
+#include <utility>
 
 #include "../mwworld/cellstore.hpp"
 #include "../mwworld/class.hpp"
@@ -283,7 +284,7 @@ namespace MWLua
             objectT["contentFile"] = sol::readonly_property([](const ObjectT& o) -> sol::optional<std::string> {
                 int contentFileIndex = o.id().mContentFile;
                 const std::vector<std::string>& contentList = MWBase::Environment::get().getWorld()->getContentFiles();
-                if (contentFileIndex < 0 || contentFileIndex >= static_cast<int>(contentList.size()))
+                if (contentFileIndex < 0 || std::cmp_greater_equal(contentFileIndex, contentList.size()))
                     return sol::nullopt;
                 return Misc::StringUtils::lowerCase(contentList[contentFileIndex]);
             });

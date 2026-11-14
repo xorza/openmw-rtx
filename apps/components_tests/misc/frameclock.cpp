@@ -20,7 +20,7 @@ namespace Misc
             // and the time is a sum of thousands of them. So what is expected is the widened float
             // and not the double a reader would write out.
             constexpr float sixtieth = 1.0f / 60.0f;
-            constexpr double widened = static_cast<double>(sixtieth);
+            constexpr auto widened = static_cast<double>(sixtieth);
 
             LoopClock clock(sixtieth);
             EXPECT_EQ(clock.getStep(), 0.0) << "nothing stands for anything before the first frame";

@@ -66,8 +66,8 @@ namespace Gui
             {
                 int maxLineWidth = 0;
                 const MyGUI::VectorLineInfo& lines = getSubWidgetText()->castType<MyGUI::EditText>()->getLineInfo();
-                for (unsigned int i = 0; i < lines.size(); ++i)
-                    maxLineWidth = std::max(maxLineWidth, lines[i].width);
+                for (const auto& line : lines)
+                    maxLineWidth = std::max(maxLineWidth, line.width);
 
                 textWidth = std::min(maxLineWidth, textWidth);
             }
@@ -191,7 +191,7 @@ namespace Gui
             if (hidden)
                 continue;
             hStretchedCount += hstretch;
-            AutoSizedWidget* aw = dynamic_cast<AutoSizedWidget*>(w);
+            auto* aw = dynamic_cast<AutoSizedWidget*>(w);
             if (aw)
             {
                 sizes[i] = std::make_pair(aw->getRequestedSize(), hstretch);
@@ -300,7 +300,7 @@ namespace Gui
             if (hidden)
                 continue;
 
-            AutoSizedWidget* w = dynamic_cast<AutoSizedWidget*>(getChildAt(i));
+            auto* w = dynamic_cast<AutoSizedWidget*>(getChildAt(i));
             if (w)
             {
                 MyGUI::IntSize requested = w->getRequestedSize();
@@ -344,7 +344,7 @@ namespace Gui
 
             bool vstretch = w->getUserString("VStretch") == "true";
             vStretchedCount += vstretch;
-            AutoSizedWidget* aw = dynamic_cast<AutoSizedWidget*>(w);
+            auto* aw = dynamic_cast<AutoSizedWidget*>(w);
             if (aw)
             {
                 sizes[i] = std::make_pair(aw->getRequestedSize(), vstretch);
@@ -450,7 +450,7 @@ namespace Gui
             if (hidden)
                 continue;
 
-            AutoSizedWidget* w = dynamic_cast<AutoSizedWidget*>(getChildAt(i));
+            auto* w = dynamic_cast<AutoSizedWidget*>(getChildAt(i));
             if (w)
             {
                 MyGUI::IntSize requested = w->getRequestedSize();

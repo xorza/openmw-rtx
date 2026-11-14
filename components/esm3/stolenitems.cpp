@@ -8,10 +8,10 @@ namespace ESM
 
     void StolenItems::write(ESMWriter& esm) const
     {
-        for (StolenItemsMap::const_iterator it = mStolenItems.begin(); it != mStolenItems.end(); ++it)
+        for (const auto& mStolenItem : mStolenItems)
         {
-            esm.writeHNRefId("NAME", it->first);
-            for (auto ownerIt = it->second.begin(); ownerIt != it->second.end(); ++ownerIt)
+            esm.writeHNRefId("NAME", mStolenItem.first);
+            for (auto ownerIt = mStolenItem.second.begin(); ownerIt != mStolenItem.second.end(); ++ownerIt)
             {
                 if (ownerIt->first.second)
                     esm.writeHNRefId("FNAM", ownerIt->first.first);

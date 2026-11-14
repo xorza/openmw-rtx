@@ -34,13 +34,13 @@ namespace Rtx
         // thread made them.
         if (handle == 0)
             return;
-        const std::lock_guard<std::mutex> lock(mLock);
+        const std::scoped_lock lock(mLock);
         mHeld.hold(mDevice.getTimeline().getNext(), Burial(BuriedHandle{ .mEnd = end, .mHandle = handle }));
     }
 
     void Graveyard::bury(DeviceMemory&& memory)
     {
-        const std::lock_guard<std::mutex> lock(mLock);
+        const std::scoped_lock lock(mLock);
         mHeld.hold(mDevice.getTimeline().getNext(), Burial(std::move(memory)));
     }
 
@@ -58,16 +58,16 @@ namespace Rtx
 
     std::size_t Graveyard::getHeldCount() const
     {
-        const std::lock_guard<std::mutex> lock(mLock);
+        const std::scoped_lock lock(mLock);
         return mHeld.size();
     }
 
     void Graveyard::freeThrough(const std::uint64_t finished)
     {
-        const std::lock_guard<std::mutex> lock(mLock);
+        const std::scoped_lock lock(mLock);
 
         mHeld.releaseThrough(finished, [&](Burial& burial) {
-            if (BuriedHandle* const buried = std::get_if<BuriedHandle>(&burial))
+            if (auto* const buried = std::get_if<BuriedHandle>(&burial))
                 buried->mEnd(mDevice, buried->mHandle);
             else
                 std::get<DeviceMemory>(burial).releaseNow();

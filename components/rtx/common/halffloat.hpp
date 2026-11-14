@@ -34,7 +34,7 @@ namespace Rtx
     /// infinity stays one, past the largest half becomes one, and a NaN stays a NaN.
     inline std::uint16_t toHalf(float value)
     {
-        const std::uint32_t bits = std::bit_cast<std::uint32_t>(value);
+        const auto bits = std::bit_cast<std::uint32_t>(value);
         const auto sign = static_cast<std::uint16_t>((bits >> 16) & 0x8000u);
         const std::uint32_t magnitude = bits & 0x7fffffffu;
 

@@ -10,6 +10,7 @@
 #include <components/esm3/esmwriter.hpp>
 #include <components/misc/strings/algorithm.hpp>
 #include <components/misc/strings/lower.hpp>
+#include <utility>
 
 namespace LuaUtil
 {
@@ -64,7 +65,7 @@ namespace LuaUtil
         // Find duplicates; only the last occurrence will be used (unless `sMerge` flag is used).
         // Search for duplicates is case insensitive.
         std::vector<bool> skip(cfg.mScripts.size(), false);
-        for (int i = 0; i < static_cast<int>(cfg.mScripts.size()); ++i)
+        for (int i = 0; std::cmp_less(i, cfg.mScripts.size()); ++i)
         {
             const ESM::LuaScriptCfg& script = cfg.mScripts[i];
             bool global = script.mFlags & ESM::LuaScriptCfg::sGlobal;
@@ -106,7 +107,7 @@ namespace LuaUtil
         mScriptsPerType.clear();
         mScriptsPerRecordId.clear();
         mScriptsPerRefNum.clear();
-        for (int i = 0; i < static_cast<int>(mScripts.size()); ++i)
+        for (int i = 0; std::cmp_less(i, mScripts.size()); ++i)
         {
             const ESM::LuaScriptCfg& s = mScripts[i];
             mPathToIndex[s.mScriptPath] = i; // Stored paths are case sensitive.

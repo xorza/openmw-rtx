@@ -4,6 +4,7 @@
 #include <components/esm3/loadmgef.hpp>
 #include <components/misc/rng.hpp>
 #include <components/settings/values.hpp>
+#include <utility>
 
 #include "../mwworld/class.hpp"
 #include "../mwworld/containerstore.hpp"
@@ -203,7 +204,7 @@ namespace MWMechanics
             int magMin = std::max(1, effect.mData.mMagnMin);
             int magMax = std::max(1, effect.mData.mMagnMax);
             int area = std::max(1, effect.mData.mArea);
-            float duration = static_cast<float>(effect.mData.mDuration);
+            auto duration = static_cast<float>(effect.mData.mDuration);
             if (mCastStyle == ESM::Enchantment::ConstantEffect)
                 duration = fEnchantmentConstantDurationMult;
 
@@ -250,7 +251,7 @@ namespace MWMechanics
 
             bool mismatch = false;
 
-            for (int i = 0; i < static_cast<int>(iter->mEffects.mList.size()); ++i)
+            for (int i = 0; std::cmp_less(i, iter->mEffects.mList.size()); ++i)
             {
                 if (iter->mEffects.mList[i] != toFind.mEffects.mList[i])
                 {
@@ -354,9 +355,9 @@ namespace MWMechanics
         const CreatureStats& stats = mEnchanter.getClass().getCreatureStats(mEnchanter);
         const MWWorld::Store<ESM::GameSetting>& gmst
             = MWBase::Environment::get().getESMStore()->get<ESM::GameSetting>();
-        const float a = static_cast<float>(mEnchanter.getClass().getSkill(mEnchanter, ESM::Skill::Enchant));
-        const float b = static_cast<float>(stats.getAttribute(ESM::Attribute::Intelligence).getModified());
-        const float c = static_cast<float>(stats.getAttribute(ESM::Attribute::Luck).getModified());
+        const auto a = static_cast<float>(mEnchanter.getClass().getSkill(mEnchanter, ESM::Skill::Enchant));
+        const auto b = static_cast<float>(stats.getAttribute(ESM::Attribute::Intelligence).getModified());
+        const auto c = static_cast<float>(stats.getAttribute(ESM::Attribute::Luck).getModified());
         const float fEnchantmentChanceMult = gmst.find("fEnchantmentChanceMult")->mValue.getFloat();
         const float fEnchantmentConstantChanceMult = gmst.find("fEnchantmentConstantChanceMult")->mValue.getFloat();
 

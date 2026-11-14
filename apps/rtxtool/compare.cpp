@@ -199,7 +199,7 @@ namespace RtxTool
         if (!comparable(picture, reference))
             return std::nullopt;
 
-        const double floor = static_cast<double>(Rtx::toLinear(sNoiseFireflyFloor));
+        const auto floor = static_cast<double>(Rtx::toLinear(sNoiseFireflyFloor));
         const std::size_t pixels = std::size_t{ picture.mWidth } * picture.mHeight;
         std::size_t fireflies = 0;
         for (std::size_t at = 0; at < pixels * 4; at += 4)

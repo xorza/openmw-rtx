@@ -10,6 +10,7 @@
 #include <fstream>
 #include <memory>
 #include <optional>
+#include <ranges>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -85,7 +86,7 @@ namespace ContentStore
             if (!file)
                 return std::nullopt;
             const std::streamoff bytes = file.tellg();
-            if (bytes < static_cast<std::streamoff>(sizeof(EntryTrailer)))
+            if (std::cmp_less(bytes, sizeof(EntryTrailer)))
                 return TailRead{ EntryTrailer{}, static_cast<std::uint64_t>(std::max<std::streamoff>(bytes, 0)) };
             TailRead read{ EntryTrailer{}, static_cast<std::uint64_t>(bytes) };
             file.seekg(bytes - static_cast<std::streamoff>(sizeof(EntryTrailer)));
@@ -530,14 +531,14 @@ namespace ContentStore
         // on the disk (`Reach::Memory`), and the bound keeps the newest. None of a kind held at any size
         // (`Holding`), whose owner reads its content's own; its kind is the file's, so it is read to be told apart.
         Misc::ByteBuffer payload;
-        for (auto entry = swept.mKept.rbegin(); entry != swept.mKept.rend(); ++entry)
+        for (const auto& entry : std::views::reverse(swept.mKept))
         {
-            if (entry->mBytes > sizeof(EntryTrailer) + sResidentMost)
+            if (entry.mBytes > sizeof(EntryTrailer) + sResidentMost)
                 continue;
 
             // Not read where it could not be kept: a store that only grows would read every small
             // file at every start, past the bound, for nothing.
-            const std::size_t costs = residentBytesOf(entry->mBytes - sizeof(EntryTrailer));
+            const std::size_t costs = residentBytesOf(entry.mBytes - sizeof(EntryTrailer));
             if (mMonitor.under([&] {
                     return mResidentBytes + costs > holding.mResidentBytesMost
                         || mResident.size() >= holding.mResidentCountMost;
@@ -546,10 +547,10 @@ namespace ContentStore
 
             std::uint32_t kind = 0;
             std::uint32_t version = 0;
-            if (!readFile(entry->mPath, entry->mKey, kind, version, payload) || isHeldAtAnySize(kind))
+            if (!readFile(entry.mPath, entry.mKey, kind, version, payload) || isHeldAtAnySize(kind))
                 continue;
             if (std::shared_ptr<const Misc::ByteBuffer> kept = residentCopy(kind, payload))
-                mMonitor.under([&] { keepResident(entry->mKey, kind, version, std::move(kept)); });
+                mMonitor.under([&] { keepResident(entry.mKey, kind, version, std::move(kept)); });
         }
     }
 

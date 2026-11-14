@@ -20,10 +20,10 @@ namespace CSMPrefs
     void ShortcutEventHandler::addShortcut(Shortcut* shortcut)
     {
         // Enforced by shortcut class
-        QWidget* widget = static_cast<QWidget*>(shortcut->parent());
+        auto* widget = static_cast<QWidget*>(shortcut->parent());
 
         // Check if widget setup is needed
-        ShortcutMap::iterator shortcutListIt = mWidgetShortcuts.find(widget);
+        auto shortcutListIt = mWidgetShortcuts.find(widget);
         if (shortcutListIt == mWidgetShortcuts.end())
         {
             // Create list
@@ -44,9 +44,9 @@ namespace CSMPrefs
     void ShortcutEventHandler::removeShortcut(Shortcut* shortcut)
     {
         // Enforced by shortcut class
-        QWidget* widget = static_cast<QWidget*>(shortcut->parent());
+        auto* widget = static_cast<QWidget*>(shortcut->parent());
 
-        ShortcutMap::iterator shortcutListIt = mWidgetShortcuts.find(widget);
+        auto shortcutListIt = mWidgetShortcuts.find(widget);
         if (shortcutListIt != mWidgetShortcuts.end())
         {
             shortcutListIt->second.erase(
@@ -60,45 +60,43 @@ namespace CSMPrefs
         // Process event
         if (event->type() == QEvent::KeyPress)
         {
-            QWidget* widget = static_cast<QWidget*>(watched);
-            QKeyEvent* keyEvent = static_cast<QKeyEvent*>(event);
+            auto* widget = static_cast<QWidget*>(watched);
+            auto* keyEvent = static_cast<QKeyEvent*>(event);
 
             if (!keyEvent->isAutoRepeat())
                 return activate(widget, keyEvent->keyCombination());
         }
         else if (event->type() == QEvent::KeyRelease)
         {
-            QWidget* widget = static_cast<QWidget*>(watched);
-            QKeyEvent* keyEvent = static_cast<QKeyEvent*>(event);
+            auto* widget = static_cast<QWidget*>(watched);
+            auto* keyEvent = static_cast<QKeyEvent*>(event);
 
             if (!keyEvent->isAutoRepeat())
                 return deactivate(widget, keyEvent->keyCombination());
         }
         else if (event->type() == QEvent::MouseButtonPress)
         {
-            QWidget* widget = static_cast<QWidget*>(watched);
-            QMouseEvent* mouseEvent = static_cast<QMouseEvent*>(event);
+            auto* widget = static_cast<QWidget*>(watched);
+            auto* mouseEvent = static_cast<QMouseEvent*>(event);
 
             return activate(widget, QKeyCombination(mouseEvent->modifiers(), Qt::Key(mouseEvent->button())));
         }
         else if (event->type() == QEvent::MouseButtonRelease)
         {
-            QWidget* widget = static_cast<QWidget*>(watched);
-            QMouseEvent* mouseEvent = static_cast<QMouseEvent*>(event);
+            auto* widget = static_cast<QWidget*>(watched);
+            auto* mouseEvent = static_cast<QMouseEvent*>(event);
 
             return deactivate(widget, QKeyCombination(mouseEvent->modifiers(), Qt::Key(mouseEvent->button())));
         }
         else if (event->type() == QEvent::FocusOut)
         {
-            QWidget* widget = static_cast<QWidget*>(watched);
-            ShortcutMap::iterator shortcutListIt = mWidgetShortcuts.find(widget);
+            auto* widget = static_cast<QWidget*>(watched);
+            auto shortcutListIt = mWidgetShortcuts.find(widget);
             assert(shortcutListIt != mWidgetShortcuts.end());
 
             // Deactivate in case events are missed
-            for (ShortcutList::iterator it = shortcutListIt->second.begin(); it != shortcutListIt->second.end(); ++it)
+            for (auto shortcut : shortcutListIt->second)
             {
-                Shortcut* shortcut = *it;
-
                 shortcut->setPosition(0);
                 shortcut->setModifierStatus(false);
 
@@ -116,7 +114,7 @@ namespace CSMPrefs
         }
         else if (event->type() == QEvent::FocusIn)
         {
-            QWidget* widget = static_cast<QWidget*>(watched);
+            auto* widget = static_cast<QWidget*>(watched);
             updateParent(widget);
         }
 
@@ -128,7 +126,7 @@ namespace CSMPrefs
         QWidget* parent = widget->parentWidget();
         while (parent)
         {
-            ShortcutMap::iterator parentIt = mWidgetShortcuts.find(parent);
+            auto parentIt = mWidgetShortcuts.find(parent);
             if (parentIt != mWidgetShortcuts.end())
             {
                 mChildParentRelations.insert(std::make_pair(widget, parent));
@@ -148,14 +146,12 @@ namespace CSMPrefs
 
         while (widget)
         {
-            ShortcutMap::iterator shortcutListIt = mWidgetShortcuts.find(widget);
+            auto shortcutListIt = mWidgetShortcuts.find(widget);
             assert(shortcutListIt != mWidgetShortcuts.end());
 
             // Find potential activations
-            for (ShortcutList::iterator it = shortcutListIt->second.begin(); it != shortcutListIt->second.end(); ++it)
+            for (auto shortcut : shortcutListIt->second)
             {
-                Shortcut* shortcut = *it;
-
                 if (!shortcut->isEnabled())
                     continue;
 
@@ -184,7 +180,7 @@ namespace CSMPrefs
             }
 
             // Move on to parent
-            WidgetMap::iterator widgetIt = mChildParentRelations.find(widget);
+            auto widgetIt = mChildParentRelations.find(widget);
             widget = (widgetIt != mChildParentRelations.end()) ? widgetIt->second : nullptr;
         }
 
@@ -219,13 +215,11 @@ namespace CSMPrefs
 
         while (widget)
         {
-            ShortcutMap::iterator shortcutListIt = mWidgetShortcuts.find(widget);
+            auto shortcutListIt = mWidgetShortcuts.find(widget);
             assert(shortcutListIt != mWidgetShortcuts.end());
 
-            for (ShortcutList::iterator it = shortcutListIt->second.begin(); it != shortcutListIt->second.end(); ++it)
+            for (auto shortcut : shortcutListIt->second)
             {
-                Shortcut* shortcut = *it;
-
                 if (checkModifier(keyCombination, shortcut, false))
                     used = true;
 
@@ -252,7 +246,7 @@ namespace CSMPrefs
             }
 
             // Move on to parent
-            WidgetMap::iterator widgetIt = mChildParentRelations.find(widget);
+            auto widgetIt = mChildParentRelations.find(widget);
             widget = (widgetIt != mChildParentRelations.end()) ? widgetIt->second : nullptr;
         }
 
@@ -324,7 +318,7 @@ namespace CSMPrefs
 
     void ShortcutEventHandler::widgetDestroyed()
     {
-        QWidget* widget = static_cast<QWidget*>(sender());
+        auto* widget = static_cast<QWidget*>(sender());
 
         mWidgetShortcuts.erase(widget);
         mChildParentRelations.erase(widget);

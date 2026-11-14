@@ -7,6 +7,7 @@
 #include <DetourDebugDraw.h>
 
 #include <osg/Group>
+#include <utility>
 
 namespace
 {
@@ -57,7 +58,7 @@ namespace
                         bool con = false;
                         for (unsigned int k = p->firstLink; k != DT_NULL_LINK; k = tile->links[k].next)
                         {
-                            if (tile->links[k].edge == j)
+                            if (std::cmp_equal(tile->links[k].edge, j))
                             {
                                 con = true;
                                 break;
@@ -82,7 +83,7 @@ namespace
 
                 // Draw detail mesh edges which align with the actual poly edge.
                 // This is really slow.
-                for (int k = 0; k < pd->triCount; ++k)
+                for (int k = 0; std::cmp_less(k, pd->triCount); ++k)
                 {
                     const unsigned char* t = &tile->detailTris[(pd->triBase + k) * 4];
                     const float* tv[3];
@@ -176,7 +177,7 @@ namespace
                     col = duTransCol(dd->areaToCol(p->getArea()), alpha);
             }
 
-            for (int j = 0; j < pd->triCount; ++j)
+            for (int j = 0; std::cmp_less(j, pd->triCount); ++j)
             {
                 const unsigned char* t = &tile->detailTris[(pd->triBase + j) * 4];
                 for (int k = 0; k < 3; ++k)

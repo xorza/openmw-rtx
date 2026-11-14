@@ -36,19 +36,19 @@ CSVTools::Merge::Merge(CSMDoc::DocumentManager& documentManager, QWidget* parent
 {
     setWindowTitle("Merge Content Files into a new Game File");
 
-    QVBoxLayout* mainLayout = new QVBoxLayout;
+    auto* mainLayout = new QVBoxLayout;
     setLayout(mainLayout);
 
-    QSplitter* splitter = new QSplitter(Qt::Horizontal, this);
+    auto* splitter = new QSplitter(Qt::Horizontal, this);
 
     mainLayout->addWidget(splitter, 1);
 
     // left panel (files to be merged)
-    QWidget* left = new QWidget(this);
+    auto* left = new QWidget(this);
     left->setContentsMargins(0, 0, 0, 0);
     splitter->addWidget(left);
 
-    QVBoxLayout* leftLayout = new QVBoxLayout;
+    auto* leftLayout = new QVBoxLayout;
     left->setLayout(leftLayout);
 
     leftLayout->addWidget(new QLabel("Files to be merged", this));
@@ -57,11 +57,11 @@ CSVTools::Merge::Merge(CSMDoc::DocumentManager& documentManager, QWidget* parent
     leftLayout->addWidget(mFiles, 1);
 
     // right panel (new game file)
-    QWidget* right = new QWidget(this);
+    auto* right = new QWidget(this);
     right->setContentsMargins(0, 0, 0, 0);
     splitter->addWidget(right);
 
-    QVBoxLayout* rightLayout = new QVBoxLayout;
+    auto* rightLayout = new QVBoxLayout;
     rightLayout->setAlignment(Qt::AlignTop);
     right->setLayout(rightLayout);
 
@@ -80,7 +80,7 @@ CSVTools::Merge::Merge(CSMDoc::DocumentManager& documentManager, QWidget* parent
     connect(mAdjuster, &CSVDoc::AdjusterWidget::stateChanged, this, &Merge::stateChanged);
 
     // buttons
-    QDialogButtonBox* buttons = new QDialogButtonBox(QDialogButtonBox::Cancel, Qt::Horizontal, this);
+    auto* buttons = new QDialogButtonBox(QDialogButtonBox::Cancel, Qt::Horizontal, this);
 
     connect(buttons->button(QDialogButtonBox::Cancel), &QPushButton::clicked, this, &Merge::cancel);
 
@@ -104,8 +104,8 @@ void CSVTools::Merge::configure(CSMDoc::Document* document)
 
     std::vector<std::filesystem::path> files = document->getContentFiles();
 
-    for (std::vector<std::filesystem::path>::const_iterator iter(files.begin()); iter != files.end(); ++iter)
-        mFiles->addItem(Files::pathToQString(iter->filename()));
+    for (const auto& file : files)
+        mFiles->addItem(Files::pathToQString(file.filename()));
 }
 
 void CSVTools::Merge::setLocalData(const std::filesystem::path& localData)

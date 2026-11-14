@@ -27,7 +27,7 @@ CSMPrefs::StringSetting& CSMPrefs::StringSetting::setTooltip(const std::string& 
 
 CSMPrefs::SettingWidgets CSMPrefs::StringSetting::makeWidgets(QWidget* parent)
 {
-    QLabel* label = new QLabel(getLabel(), parent);
+    auto* label = new QLabel(getLabel(), parent);
 
     mWidget = new QLineEdit(QString::fromStdString(getValue()), parent);
     mWidget->setMinimumWidth(300);

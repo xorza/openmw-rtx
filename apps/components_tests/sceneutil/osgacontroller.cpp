@@ -19,7 +19,7 @@ namespace
         osg::ref_ptr<Resource::Animation> mergedAnimationTrack = new Resource::Animation;
         mergedAnimationTrack->setName(name);
 
-        osgAnimation::MatrixKeyframeContainer* cbCntr = new osgAnimation::MatrixKeyframeContainer;
+        auto* cbCntr = new osgAnimation::MatrixKeyframeContainer;
         cbCntr->push_back(osgAnimation::MatrixKeyframe(startTime, startTransform));
         cbCntr->push_back(osgAnimation::MatrixKeyframe(endTime, endTransform));
 

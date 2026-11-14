@@ -120,7 +120,7 @@ CSVWorld::ScriptSubView::ScriptSubView(const CSMWorld::UniversalId& id, CSMDoc::
     sizes << 1 << 0;
     mMain->setSizes(sizes);
 
-    QWidget* widget = new QWidget(this);
+    auto* widget = new QWidget(this);
     widget->setLayout(&mLayout);
     setWidget(widget);
 

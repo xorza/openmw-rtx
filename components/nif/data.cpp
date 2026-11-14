@@ -41,7 +41,7 @@ namespace Nif
                 stream.read(value.mTransform);
                 stream.read(value.mBoundSphere);
 
-                const uint16_t numVertices = stream.get<uint16_t>();
+                const auto numVertices = stream.get<uint16_t>();
 
                 if (!mHasVertexWeights)
                     return;
@@ -295,10 +295,10 @@ namespace Nif
     {
         mPixelFormat.read(nif);
         mPalette.read(nif);
-        const uint32_t mipmapsCount = nif->get<uint32_t>();
+        const auto mipmapsCount = nif->get<uint32_t>();
         nif->read(mBytesPerPixel);
         nif->readVectorOfRecords(mipmapsCount, mMipmaps);
-        const uint32_t numPixels = nif->get<uint32_t>();
+        const auto numPixels = nif->get<uint32_t>();
         if (nif->getVersion() >= NIFStream::generateVersion(10, 4, 0, 2))
             nif->read(mNumFaces);
         nif->readVector(mData, numPixels * mNumFaces);
@@ -412,7 +412,7 @@ namespace Nif
     {
         nif->read(mTransform);
 
-        const uint32_t numBones = nif->get<uint32_t>();
+        const auto numBones = nif->get<uint32_t>();
         bool hasVertexWeights = true;
         if (nif->getVersion() >= NIFFile::NIFVersion::VER_MW)
         {
@@ -445,7 +445,7 @@ namespace Nif
 
     void NiSkinPartition::read(NIFStream* nif)
     {
-        const uint32_t numPartitions = nif->get<uint32_t>();
+        const auto numPartitions = nif->get<uint32_t>();
 
         if (nif->getBethVersion() == NIFFile::BethVersion::BETHVER_SSE)
         {
@@ -523,8 +523,8 @@ namespace Nif
 
     void NiMorphData::read(NIFStream* nif)
     {
-        const uint32_t numMorphs = nif->get<uint32_t>();
-        const uint32_t numVerts = nif->get<uint32_t>();
+        const auto numMorphs = nif->get<uint32_t>();
+        const auto numVerts = nif->get<uint32_t>();
         nif->read(mRelativeTargets);
 
         const ReadNiMorphDataMorphData readMorph{ .mNumVerts = numVerts };
@@ -556,10 +556,10 @@ namespace Nif
     {
         const bool useAlpha = nif->get<uint8_t>() != 0;
         const uint32_t alphaMask = useAlpha ? 0 : 0xFF000000;
-        const uint32_t numEntries = nif->get<uint32_t>();
+        const auto numEntries = nif->get<uint32_t>();
         for (uint32_t i = 0; i < numEntries; i++)
         {
-            const uint32_t color = nif->get<uint32_t>();
+            const auto color = nif->get<uint32_t>();
             // Indices past 255 are always unused
             if (i < 256)
                 mColors[i] = color | alphaMask;

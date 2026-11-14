@@ -690,7 +690,7 @@ namespace CSMWorld
         if (column == mActors.mAiPackages)
             return QVariant::fromValue(ColumnBase::TableEdit_Full);
 
-        std::map<const RefIdColumn*, unsigned int>::const_iterator iter = mActors.mServices.find(column);
+        auto iter = mActors.mServices.find(column);
 
         if (iter != mActors.mServices.end())
             return (record.get().mAiData.mServices & iter->second) != 0;
@@ -716,7 +716,7 @@ namespace CSMWorld
             record2.mAiData.mAlarm = std::min(100, value.toInt());
         else
         {
-            typename std::map<const RefIdColumn*, unsigned int>::const_iterator iter = mActors.mServices.find(column);
+            auto iter = mActors.mServices.find(column);
             if (iter != mActors.mServices.end())
             {
                 if (value.toInt() != 0)
@@ -1227,7 +1227,7 @@ namespace CSMWorld
 
             std::vector<ESM::ContItem>& list = container.mInventory.mList;
 
-            if (rowToRemove < 0 || rowToRemove >= static_cast<int>(list.size()))
+            if (rowToRemove < 0 || std::cmp_greater_equal(rowToRemove, list.size()))
                 throw std::runtime_error("index out of range");
 
             list.erase(list.begin() + rowToRemove);
@@ -1265,7 +1265,7 @@ namespace CSMWorld
 
             const std::vector<ESM::ContItem>& list = record.get().mInventory.mList;
 
-            if (subRowIndex < 0 || subRowIndex >= static_cast<int>(list.size()))
+            if (subRowIndex < 0 || std::cmp_greater_equal(subRowIndex, list.size()))
                 throw std::runtime_error("index out of range");
 
             const ESM::ContItem& content = list.at(subRowIndex);
@@ -1289,7 +1289,7 @@ namespace CSMWorld
             ESXRecordT container = record.get();
             std::vector<ESM::ContItem>& list = container.mInventory.mList;
 
-            if (subRowIndex < 0 || subRowIndex >= static_cast<int>(list.size()))
+            if (subRowIndex < 0 || std::cmp_greater_equal(subRowIndex, list.size()))
                 throw std::runtime_error("index out of range");
 
             switch (subColIndex)
@@ -1363,7 +1363,7 @@ namespace CSMWorld
 
             std::vector<ESM::RefId>& list = caster.mSpells.mList;
 
-            if (rowToRemove < 0 || rowToRemove >= static_cast<int>(list.size()))
+            if (rowToRemove < 0 || std::cmp_greater_equal(rowToRemove, list.size()))
                 throw std::runtime_error("index out of range");
 
             list.erase(list.begin() + rowToRemove);
@@ -1401,7 +1401,7 @@ namespace CSMWorld
 
             const std::vector<ESM::RefId>& list = record.get().mSpells.mList;
 
-            if (subRowIndex < 0 || subRowIndex >= static_cast<int>(list.size()))
+            if (subRowIndex < 0 || std::cmp_greater_equal(subRowIndex, list.size()))
                 throw std::runtime_error("index out of range");
 
             const ESM::RefId& content = list.at(subRowIndex);
@@ -1420,7 +1420,7 @@ namespace CSMWorld
             ESXRecordT caster = record.get();
             std::vector<ESM::RefId>& list = caster.mSpells.mList;
 
-            if (subRowIndex < 0 || subRowIndex >= static_cast<int>(list.size()))
+            if (subRowIndex < 0 || std::cmp_greater_equal(subRowIndex, list.size()))
                 throw std::runtime_error("index out of range");
 
             if (subColIndex == 0)
@@ -1494,7 +1494,7 @@ namespace CSMWorld
 
             std::vector<ESM::Transport::Dest>& list = traveller.mTransport.mList;
 
-            if (rowToRemove < 0 || rowToRemove >= static_cast<int>(list.size()))
+            if (rowToRemove < 0 || std::cmp_greater_equal(rowToRemove, list.size()))
                 throw std::runtime_error("index out of range");
 
             list.erase(list.begin() + rowToRemove);
@@ -1533,7 +1533,7 @@ namespace CSMWorld
 
             const std::vector<ESM::Transport::Dest>& list = record.get().mTransport.mList;
 
-            if (subRowIndex < 0 || subRowIndex >= static_cast<int>(list.size()))
+            if (subRowIndex < 0 || std::cmp_greater_equal(subRowIndex, list.size()))
                 throw std::runtime_error("index out of range");
 
             const ESM::Transport::Dest& content = list.at(subRowIndex);
@@ -1567,7 +1567,7 @@ namespace CSMWorld
             ESXRecordT traveller = record.get();
             std::vector<ESM::Transport::Dest>& list = traveller.mTransport.mList;
 
-            if (subRowIndex < 0 || subRowIndex >= static_cast<int>(list.size()))
+            if (subRowIndex < 0 || std::cmp_greater_equal(subRowIndex, list.size()))
                 throw std::runtime_error("index out of range");
 
             switch (subColIndex)
@@ -1643,8 +1643,8 @@ namespace CSMWorld
             newRow.mWander.mDistance = 0;
             newRow.mWander.mDuration = 0;
             newRow.mWander.mTimeOfDay = 0;
-            for (int i = 0; i < 8; ++i)
-                newRow.mWander.mIdle[i] = 0;
+            for (unsigned char& i : newRow.mWander.mIdle)
+                i = 0;
             newRow.mWander.mShouldRepeat = 1;
             newRow.mCellName.clear();
 
@@ -1664,7 +1664,7 @@ namespace CSMWorld
 
             std::vector<ESM::AIPackage>& list = actor.mAiPackage.mList;
 
-            if (rowToRemove < 0 || rowToRemove >= static_cast<int>(list.size()))
+            if (rowToRemove < 0 || std::cmp_greater_equal(rowToRemove, list.size()))
                 throw std::runtime_error("index out of range");
 
             list.erase(list.begin() + rowToRemove);
@@ -1703,7 +1703,7 @@ namespace CSMWorld
 
             const std::vector<ESM::AIPackage>& list = record.get().mAiPackage.mList;
 
-            if (subRowIndex < 0 || subRowIndex >= static_cast<int>(list.size()))
+            if (subRowIndex < 0 || std::cmp_greater_equal(subRowIndex, list.size()))
                 throw std::runtime_error("index out of range");
 
             const ESM::AIPackage& content = list.at(subRowIndex);
@@ -1816,7 +1816,7 @@ namespace CSMWorld
             ESXRecordT actor = record.get();
             std::vector<ESM::AIPackage>& list = actor.mAiPackage.mList;
 
-            if (subRowIndex < 0 || subRowIndex >= static_cast<int>(list.size()))
+            if (subRowIndex < 0 || std::cmp_greater_equal(subRowIndex, list.size()))
                 throw std::runtime_error("index out of range");
 
             ESM::AIPackage& content = list.at(subRowIndex);
@@ -2013,7 +2013,7 @@ namespace CSMWorld
 
             std::vector<ESM::PartReference>& list = apparel.mParts.mParts;
 
-            if (rowToRemove < 0 || rowToRemove >= static_cast<int>(list.size()))
+            if (rowToRemove < 0 || std::cmp_greater_equal(rowToRemove, list.size()))
                 throw std::runtime_error("index out of range");
 
             list.erase(list.begin() + rowToRemove);
@@ -2052,7 +2052,7 @@ namespace CSMWorld
 
             const std::vector<ESM::PartReference>& list = record.get().mParts.mParts;
 
-            if (subRowIndex < 0 || subRowIndex >= static_cast<int>(list.size()))
+            if (subRowIndex < 0 || std::cmp_greater_equal(subRowIndex, list.size()))
                 throw std::runtime_error("index out of range");
 
             const ESM::PartReference& content = list.at(subRowIndex);
@@ -2083,7 +2083,7 @@ namespace CSMWorld
             ESXRecordT apparel = record.get();
             std::vector<ESM::PartReference>& list = apparel.mParts.mParts;
 
-            if (subRowIndex < 0 || subRowIndex >= static_cast<int>(list.size()))
+            if (subRowIndex < 0 || std::cmp_greater_equal(subRowIndex, list.size()))
                 throw std::runtime_error("index out of range");
 
             switch (subColIndex)
@@ -2370,7 +2370,7 @@ namespace CSMWorld
 
             std::vector<ESM::LevelledListBase::LevelItem>& list = leveled.mList;
 
-            if (rowToRemove < 0 || rowToRemove >= static_cast<int>(list.size()))
+            if (rowToRemove < 0 || std::cmp_greater_equal(rowToRemove, list.size()))
                 throw std::runtime_error("index out of range");
 
             list.erase(list.begin() + rowToRemove);
@@ -2410,7 +2410,7 @@ namespace CSMWorld
 
             const std::vector<ESM::LevelledListBase::LevelItem>& list = record.get().mList;
 
-            if (subRowIndex < 0 || subRowIndex >= static_cast<int>(list.size()))
+            if (subRowIndex < 0 || std::cmp_greater_equal(subRowIndex, list.size()))
                 throw std::runtime_error("index out of range");
 
             const ESM::LevelledListBase::LevelItem& content = list.at(subRowIndex);
@@ -2434,7 +2434,7 @@ namespace CSMWorld
             ESXRecordT leveled = record.get();
             std::vector<ESM::LevelledListBase::LevelItem>& list = leveled.mList;
 
-            if (subRowIndex < 0 || subRowIndex >= static_cast<int>(list.size()))
+            if (subRowIndex < 0 || std::cmp_greater_equal(subRowIndex, list.size()))
                 throw std::runtime_error("index out of range");
 
             switch (subColIndex)

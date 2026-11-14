@@ -52,7 +52,7 @@ namespace CSMWorld
 
         ESM::Pathgrid::PointList& points = pathgrid.mPoints;
 
-        if (rowToRemove < 0 || rowToRemove >= static_cast<int>(points.size()))
+        if (rowToRemove < 0 || std::cmp_greater_equal(rowToRemove, points.size()))
             throw std::runtime_error("index out of range");
 
         // Do not remove dangling edges, does not work with current undo mechanism
@@ -160,7 +160,7 @@ namespace CSMWorld
 
         ESM::Pathgrid::EdgeList& edges = pathgrid.mEdges;
 
-        if (rowToRemove < 0 || rowToRemove >= static_cast<int>(edges.size()))
+        if (rowToRemove < 0 || std::cmp_greater_equal(rowToRemove, edges.size()))
             throw std::runtime_error("index out of range");
 
         edges.erase(edges.begin() + rowToRemove);
@@ -187,7 +187,7 @@ namespace CSMWorld
     {
         Pathgrid pathgrid = record.get();
 
-        if (subRowIndex < 0 || subRowIndex >= static_cast<int>(pathgrid.mEdges.size()))
+        if (subRowIndex < 0 || std::cmp_greater_equal(subRowIndex, pathgrid.mEdges.size()))
             throw std::runtime_error("index out of range");
 
         ESM::Pathgrid::Edge edge = pathgrid.mEdges[subRowIndex];
@@ -209,7 +209,7 @@ namespace CSMWorld
     {
         Pathgrid pathgrid = record.get();
 
-        if (subRowIndex < 0 || subRowIndex >= static_cast<int>(pathgrid.mEdges.size()))
+        if (subRowIndex < 0 || std::cmp_greater_equal(subRowIndex, pathgrid.mEdges.size()))
             throw std::runtime_error("index out of range");
 
         ESM::Pathgrid::Edge edge = pathgrid.mEdges[subRowIndex];
@@ -260,7 +260,7 @@ namespace CSMWorld
 
         std::map<ESM::RefId, int>& reactions = faction.mReactions;
 
-        if (rowToRemove < 0 || rowToRemove >= static_cast<int>(reactions.size()))
+        if (rowToRemove < 0 || std::cmp_greater_equal(rowToRemove, reactions.size()))
             throw std::runtime_error("index out of range");
 
         // FIXME: how to ensure that the map entries correspond to table indicies?
@@ -297,7 +297,7 @@ namespace CSMWorld
 
         std::map<ESM::RefId, int>& reactions = faction.mReactions;
 
-        if (subRowIndex < 0 || subRowIndex >= static_cast<int>(reactions.size()))
+        if (subRowIndex < 0 || std::cmp_greater_equal(subRowIndex, reactions.size()))
             throw std::runtime_error("index out of range");
 
         // FIXME: how to ensure that the map entries correspond to table indicies?
@@ -323,7 +323,7 @@ namespace CSMWorld
 
         std::map<ESM::RefId, int>& reactions = faction.mReactions;
 
-        if (subRowIndex < 0 || subRowIndex >= static_cast<int>(reactions.size()))
+        if (subRowIndex < 0 || std::cmp_greater_equal(subRowIndex, reactions.size()))
             throw std::runtime_error("index out of range");
 
         // FIXME: how to ensure that the map entries correspond to table indicies?
@@ -388,7 +388,7 @@ namespace CSMWorld
 
         std::vector<ESM::Region::SoundRef>& soundList = region.mSoundList;
 
-        if (rowToRemove < 0 || rowToRemove >= static_cast<int>(soundList.size()))
+        if (rowToRemove < 0 || std::cmp_greater_equal(rowToRemove, soundList.size()))
             throw std::runtime_error("index out of range");
 
         soundList.erase(soundList.begin() + rowToRemove);
@@ -418,7 +418,7 @@ namespace CSMWorld
 
         const std::vector<ESM::Region::SoundRef>& soundList = region.mSoundList;
 
-        const size_t index = static_cast<size_t>(subRowIndex);
+        const auto index = static_cast<size_t>(subRowIndex);
         if (subRowIndex < 0 || index >= soundList.size())
             throw std::runtime_error("index out of range");
 
@@ -452,7 +452,7 @@ namespace CSMWorld
 
         std::vector<ESM::Region::SoundRef>& soundList = region.mSoundList;
 
-        if (subRowIndex < 0 || subRowIndex >= static_cast<int>(soundList.size()))
+        if (subRowIndex < 0 || std::cmp_greater_equal(subRowIndex, soundList.size()))
             throw std::runtime_error("index out of range");
 
         ESM::Region::SoundRef soundRef = soundList[subRowIndex];
@@ -556,7 +556,7 @@ namespace CSMWorld
 
         auto& conditions = info.mSelects;
 
-        if (rowToRemove < 0 || rowToRemove >= static_cast<int>(conditions.size()))
+        if (rowToRemove < 0 || std::cmp_greater_equal(rowToRemove, conditions.size()))
             throw std::runtime_error("index out of range");
 
         conditions.erase(conditions.begin() + rowToRemove);
@@ -586,7 +586,7 @@ namespace CSMWorld
 
         auto& conditions = info.mSelects;
 
-        if (subRowIndex < 0 || subRowIndex >= static_cast<int>(conditions.size()))
+        if (subRowIndex < 0 || std::cmp_greater_equal(subRowIndex, conditions.size()))
             throw std::runtime_error("index out of range");
 
         ConstInfoSelectWrapper infoSelectWrapper(conditions[subRowIndex]);
@@ -624,7 +624,7 @@ namespace CSMWorld
 
         auto& conditions = info.mSelects;
 
-        if (subRowIndex < 0 || subRowIndex >= static_cast<int>(conditions.size()))
+        if (subRowIndex < 0 || std::cmp_greater_equal(subRowIndex, conditions.size()))
             throw std::runtime_error("index out of range");
 
         InfoSelectWrapper infoSelectWrapper(conditions[subRowIndex]);
@@ -1082,7 +1082,7 @@ namespace CSMWorld
         Record<ESM::Region>& record, const QVariant& value, int subRowIndex, int subColIndex) const
     {
         ESM::Region region = record.get();
-        uint8_t chance = static_cast<uint8_t>(value.toInt());
+        auto chance = static_cast<uint8_t>(value.toInt());
 
         if (subColIndex == 1)
         {

@@ -41,8 +41,7 @@ namespace osg
 
 void CSVRender::UnpagedWorldspaceWidget::update()
 {
-    const CSMWorld::Record<CSMWorld::Cell>& record
-        = dynamic_cast<const CSMWorld::Record<CSMWorld::Cell>&>(mCellsModel->getRecord(mCellId));
+    const auto& record = dynamic_cast<const CSMWorld::Record<CSMWorld::Cell>&>(mCellsModel->getRecord(mCellId));
 
     osg::Vec4f colour = SceneUtil::colourFromRGB(record.get().mAmbi.mAmbient);
 

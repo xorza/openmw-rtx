@@ -4,6 +4,7 @@
 #include <cassert>
 #include <cstddef>
 #include <cstring>
+#include <ranges>
 #include <span>
 #include <string>
 #include <string_view>
@@ -395,11 +396,11 @@ namespace Rtx
 
     const osg::Node* modelOf(const std::span<osg::Node* const> path)
     {
-        for (auto at = path.rbegin(); at != path.rend(); ++at)
+        for (auto at : std::views::reverse(path))
         {
-            const osg::UserDataContainer* data = (*at)->getUserDataContainer();
+            const osg::UserDataContainer* data = at->getUserDataContainer();
             if (data != nullptr && data->getUserObject(Misc::OsgUserValues::sFileHash) != nullptr)
-                return *at;
+                return at;
         }
 
         return nullptr;

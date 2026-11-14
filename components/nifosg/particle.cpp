@@ -269,7 +269,7 @@ namespace NifOsg
     void ParticleColorAffector::operate(osgParticle::Particle* particle, double /* dt */)
     {
         assert(particle->getLifeTime() > 0);
-        float time = static_cast<float>(particle->getAge() / particle->getLifeTime());
+        auto time = static_cast<float>(particle->getAge() / particle->getLifeTime());
         osg::Vec4f color = mData.interpKey(time);
         float alpha = color.a();
         color.a() = 1.0f;

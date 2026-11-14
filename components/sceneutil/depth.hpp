@@ -152,7 +152,7 @@ namespace SceneUtil
 
             if (stateSet)
             {
-                if (osg::Depth* depth = static_cast<osg::Depth*>(stateSet->getAttribute(osg::StateAttribute::DEPTH)))
+                if (auto* depth = static_cast<osg::Depth*>(stateSet->getAttribute(osg::StateAttribute::DEPTH)))
                     stateSet->setAttribute(new SceneUtil::AutoDepth(*depth));
             };
 

@@ -5,6 +5,7 @@
 #include <format>
 #include <limits>
 #include <optional>
+#include <ranges>
 #include <span>
 #include <string>
 #include <tuple>
@@ -115,8 +116,8 @@ namespace Rtx
 
             // Handed over backwards, so a walk that did nothing at all would fail this.
             SceneDesc scene;
-            for (auto light = ordered.rbegin(); light != ordered.rend(); ++light)
-                scene.addLight(*light);
+            for (const auto& light : std::views::reverse(ordered))
+                scene.addLight(light);
 
             scene.orderLights();
 

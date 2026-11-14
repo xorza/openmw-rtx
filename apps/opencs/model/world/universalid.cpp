@@ -367,7 +367,7 @@ const std::string& CSMWorld::UniversalId::getId() const
         return *result;
 
     if (const ESM::RefId* refId = std::get_if<ESM::RefId>(&mValue))
-        if (const ESM::StringRefId* result = refId->getIf<ESM::StringRefId>())
+        if (const auto* result = refId->getIf<ESM::StringRefId>())
             return result->getValue();
 
     throw std::logic_error("invalid access to ID of " + ::toString(getArgumentType()) + " UniversalId");

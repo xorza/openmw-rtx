@@ -324,8 +324,8 @@ namespace Rtx::Testing
             const auto sine = static_cast<double>(limb);
             const double radius = 100.0 * sine / std::sqrt(1.0 - sine * sine);
             const auto spread = static_cast<double>(camera.mEyes.mWorld.mSpreadAngle);
-            const float widest = static_cast<float>(radius / (spread * 300.0));
-            const float narrowest = static_cast<float>(radius / (spread * 360.0));
+            const auto widest = static_cast<float>(radius / (spread * 300.0));
+            const auto narrowest = static_cast<float>(radius / (spread * 360.0));
             ASSERT_LT(widest, 1.0f) << "a penumbra the denoiser does not count as hard proves nothing";
 
             std::size_t stopped = 0;
@@ -574,8 +574,7 @@ namespace Rtx::Testing
                         for (int dy = -2; dy <= 2; ++dy)
                             for (int dx = -2; dx <= 2; ++dx)
                             {
-                                const std::size_t at
-                                    = static_cast<std::size_t>((y + dy) * static_cast<int>(size) + x + dx);
+                                const auto at = static_cast<std::size_t>((y + dy) * static_cast<int>(size) + x + dx);
                                 box += static_cast<double>(Testing::shadowBit(bits[at * 4 + 3])) / 25.0;
                                 truth += mean[at] / 25.0;
                             }

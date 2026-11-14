@@ -373,7 +373,7 @@ namespace Gui
         sizeNode->addAttribute("key", "Size");
         sizeNode->addAttribute("value", std::to_string(mFit.mFontSize));
 
-        MyGUI::ResourceTrueTypeFont* font = static_cast<MyGUI::ResourceTrueTypeFont*>(
+        auto* font = static_cast<MyGUI::ResourceTrueTypeFont*>(
             MyGUI::FactoryManager::getInstance().createObject("Resource", "ResourceTrueTypeFont"));
         font->deserialization(resourceNode.current(), MyGUI::Version(3, 2, 0));
         font->setResourceName(fontId.mValue);
@@ -387,7 +387,7 @@ namespace Gui
         };
         resolutionNode->setAttribute("value", std::to_string(resolutionOf(bookFace, mFit)));
 
-        MyGUI::ResourceTrueTypeFont* bookFont = static_cast<MyGUI::ResourceTrueTypeFont*>(
+        auto* bookFont = static_cast<MyGUI::ResourceTrueTypeFont*>(
             MyGUI::FactoryManager::getInstance().createObject("Resource", "ResourceTrueTypeFont"));
         bookFont->deserialization(resourceNode.current(), MyGUI::Version(3, 2, 0));
         bookFont->setResourceName(std::format("Journalbook {}", fontId.mValue));
@@ -499,7 +499,7 @@ namespace Gui
 
         MyGUI::ITexture* texture = MyGUI::RenderManager::getInstance().createTexture(bitmapPath);
         texture->createManual(width, height, MyGUI::TextureUsage::Write, MyGUI::PixelFormat::R8G8B8A8);
-        unsigned char* texData = reinterpret_cast<unsigned char*>(texture->lock(MyGUI::TextureUsage::Write));
+        auto* texData = reinterpret_cast<unsigned char*>(texture->lock(MyGUI::TextureUsage::Write));
         memcpy(texData, textureData.data(), textureData.size());
         texture->unlock();
 
@@ -702,11 +702,11 @@ namespace Gui
         }
 
         // Register the font with MyGUI
-        MyGUI::ResourceManualFont* font = static_cast<MyGUI::ResourceManualFont*>(
+        auto* font = static_cast<MyGUI::ResourceManualFont*>(
             MyGUI::FactoryManager::getInstance().createObject("Resource", "ResourceManualFont"));
         font->deserialization(root, MyGUI::Version(3, 2, 0));
 
-        MyGUI::ResourceManualFont* bookFont = static_cast<MyGUI::ResourceManualFont*>(
+        auto* bookFont = static_cast<MyGUI::ResourceManualFont*>(
             MyGUI::FactoryManager::getInstance().createObject("Resource", "ResourceManualFont"));
         bookFont->deserialization(root, MyGUI::Version(3, 2, 0));
         bookFont->setResourceName(std::format("Journalbook {}", fontId.mValue));

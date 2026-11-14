@@ -200,7 +200,7 @@ namespace MWGui
 
     void PostProcessorHud::notifyKeyButtonPressed(MyGUI::Widget* sender, MyGUI::KeyCode key, MyGUI::Char ch)
     {
-        MyGUI::ListBox* list = static_cast<MyGUI::ListBox*>(sender);
+        auto* list = static_cast<MyGUI::ListBox*>(sender);
 
         if (list->getIndexSelected() == MyGUI::ITEM_NONE)
             return;
@@ -385,7 +385,7 @@ namespace MWGui
         {
             if (technique->getUniformMap().size() > 0)
             {
-                MyGUI::Button* resetButton
+                auto* resetButton
                     = mConfigArea->createWidget<MyGUI::Button>("MW_Button", { 0, 0, 0, 24 }, MyGUI::Align::Default);
                 resetButton->setCaptionWithReplacing("#{OMWShaders:ResetShader}");
                 resetButton->setTextAlign(MyGUI::Align::Center);
@@ -401,13 +401,13 @@ namespace MWGui
 
                 if (!uniform->mHeader.empty())
                 {
-                    Gui::AutoSizedTextBox* divider = mConfigArea->createWidget<Gui::AutoSizedTextBox>(
+                    auto* divider = mConfigArea->createWidget<Gui::AutoSizedTextBox>(
                         "MW_UniformGroup", { 0, 0, 0, 34 }, MyGUI::Align::Default);
                     divider->setNeedMouseFocus(false);
                     divider->setCaptionWithReplacing(uniform->mHeader);
                 }
 
-                Fx::Widgets::UniformBase* uwidget = mConfigArea->createWidget<Fx::Widgets::UniformBase>(
+                auto* uwidget = mConfigArea->createWidget<Fx::Widgets::UniformBase>(
                     "MW_UniformEdit", { 0, 0, 0, 22 }, MyGUI::Align::Default);
                 uwidget->init(uniform);
                 uwidget->getLabel()->eventMouseWheel += MyGUI::newDelegate(this, &PostProcessorHud::notifyMouseWheel);

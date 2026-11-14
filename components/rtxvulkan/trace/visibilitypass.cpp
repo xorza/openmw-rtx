@@ -464,20 +464,20 @@ namespace Rtx
                     catch (...)
                     {
                         {
-                            const std::lock_guard lock(mCanonicalMutex);
+                            const std::scoped_lock lock(mCanonicalMutex);
                             mCanonical[at][made] = Canonical::Failed;
                         }
                         mCanonicalMade.notify_all();
                         throw;
                     }
                     {
-                        const std::lock_guard lock(mCanonicalMutex);
+                        const std::scoped_lock lock(mCanonicalMutex);
                         mKernels.mMadeStages[at][made] = std::move(pipeline);
                         mCanonical[at][made] = Canonical::Made;
                     }
                     mCanonicalMade.notify_all();
                 }
-                const std::lock_guard lock(mCanonicalMutex);
+                const std::scoped_lock lock(mCanonicalMutex);
                 mKernels.mStages[at][variant.index()] = mKernels.mMadeStages[at][made].get();
                 return;
             }

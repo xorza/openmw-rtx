@@ -1275,7 +1275,7 @@ namespace Rtx
                     std::format("a rewrite needs a constant of the {}-bit float %{}, and only 32 bits are pinned",
                         typeNamed(type).mWidth, type));
 
-            const std::uint32_t bits = std::bit_cast<std::uint32_t>(value);
+            const auto bits = std::bit_cast<std::uint32_t>(value);
             const auto found = mConstants.find(std::pair(type, bits));
             if (found != mConstants.end())
                 return found->second;
@@ -1357,15 +1357,15 @@ namespace Rtx
             // infinity, and never a subnormal, which the device may flush, or a NaN, whose bits are
             // each machine's own.
             const auto foldable = [](std::uint32_t bits) {
-                const float value = std::bit_cast<float>(bits);
+                const auto value = std::bit_cast<float>(bits);
                 return std::fpclassify(value) != FP_SUBNORMAL && !std::isnan(value);
             };
 
             std::vector<std::uint32_t> bits;
             for (std::size_t at = 0; at < *count; ++at)
             {
-                const float a = std::bit_cast<float>((*left)[at]);
-                const float b = std::bit_cast<float>((*right)[at]);
+                const auto a = std::bit_cast<float>((*left)[at]);
+                const auto b = std::bit_cast<float>((*right)[at]);
                 const float made = op == spv::OpFAdd ? a + b
                     : op == spv::OpFSub              ? a - b
                     : op == spv::OpFDiv              ? a / b
@@ -1408,7 +1408,7 @@ namespace Rtx
                 std::vector<std::uint32_t> reciprocal;
                 for (const std::uint32_t bits : *divisor)
                 {
-                    const float value = std::bit_cast<float>(bits);
+                    const auto value = std::bit_cast<float>(bits);
                     const float inverse = 1.0f / value;
                     if (!std::isnormal(value) || !std::isnormal(inverse))
                         break;

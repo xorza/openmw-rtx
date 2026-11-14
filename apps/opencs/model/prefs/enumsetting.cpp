@@ -31,7 +31,7 @@ CSMPrefs::EnumSetting& CSMPrefs::EnumSetting::setTooltip(const std::string& tool
 
 CSMPrefs::SettingWidgets CSMPrefs::EnumSetting::makeWidgets(QWidget* parent)
 {
-    QLabel* label = new QLabel(getLabel(), parent);
+    auto* label = new QLabel(getLabel(), parent);
 
     mWidget = new QComboBox(parent);
 

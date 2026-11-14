@@ -227,9 +227,9 @@ void CSMTools::Search::configure(const CSMWorld::IdTableBase* model)
 
 void CSMTools::Search::searchRow(const CSMWorld::IdTableBase* model, int row, CSMDoc::Messages& messages) const
 {
-    for (std::set<int>::const_iterator iter(mColumns.begin()); iter != mColumns.end(); ++iter)
+    for (int mColumn : mColumns)
     {
-        QModelIndex index = model->index(row, *iter);
+        QModelIndex index = model->index(row, mColumn);
 
         CSMWorld::UniversalId::Type type
             = static_cast<CSMWorld::UniversalId::Type>(model->data(model->index(row, mTypeColumn)).toInt());
@@ -304,8 +304,8 @@ bool CSMTools::Search::verify(CSMDoc::Document& document, CSMWorld::IdTableBase*
 
     searchRow(model, row, messages);
 
-    for (CSMDoc::Messages::Iterator iter(messages.begin()); iter != messages.end(); ++iter)
-        if (iter->mHint == messageHint)
+    for (const auto& message : messages)
+        if (message.mHint == messageHint)
             return true;
 
     return false;

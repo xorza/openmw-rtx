@@ -51,7 +51,7 @@ namespace Rtx
 
     std::uint32_t PipelineCodeFolder::claim(const std::string_view pipeline)
     {
-        const std::lock_guard locked(mLock);
+        const std::scoped_lock locked(mLock);
         const auto found = mClaimed.find(pipeline);
         if (found == mClaimed.end())
         {

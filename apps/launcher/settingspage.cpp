@@ -135,7 +135,7 @@ Launcher::SettingsPage::SettingsPage(
     openFileActions.reserve(configDirectoryFiles.size());
     for (const auto& fileType : configDirectoryFiles)
     {
-        QAction* action = new QAction(tr("Open %1").arg(fileType.name), configsList);
+        auto* action = new QAction(tr("Open %1").arg(fileType.name), configsList);
         connect(action, &QAction::triggered, [this, role = fileType.itemDataRole]() {
             QVariant fileUrl = configsList->currentItem()->data(0, role);
             if (fileUrl.isValid())
@@ -398,7 +398,7 @@ void Launcher::SettingsPage::populateLoadedConfigs()
                 toolTipText = tr("Logs and settings changed through the launcher and in-game will be saved here.");
         }
 
-        QTreeWidgetItem* configItem = new QTreeWidgetItem(configsList);
+        auto* configItem = new QTreeWidgetItem(configsList);
         configItem->setText(0, configPath);
         configItem->setToolTip(0, Qt::convertFromPlainText(toolTipText));
         configItem->setExpanded(true);
@@ -413,7 +413,7 @@ void Launcher::SettingsPage::populateLoadedConfigs()
             if ((isMainUserConfig || fileType.showInAllConfigDirectories)
                 && std::filesystem::exists(path / fileType.name))
             {
-                QTreeWidgetItem* fileItem = new QTreeWidgetItem(configItem);
+                auto* fileItem = new QTreeWidgetItem(configItem);
                 fileItem->setText(0, fileType.name);
 
                 QUrl url = QUrl::fromLocalFile(Files::pathToQString(path / fileType.name));

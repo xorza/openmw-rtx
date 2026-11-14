@@ -604,7 +604,7 @@ namespace Rtx
             const auto worldHeld = [&] { return mRenderer.describeHeld(Rtx::SceneSlot::world()).mIdentity != 0; };
             const auto contentHeld = [&] {
                 std::array<VkDeviceSize, sMemoryUses> held{};
-                for (std::size_t use = static_cast<std::size_t>(MemoryUse::Essential); use < sMemoryUses; ++use)
+                for (auto use = static_cast<std::size_t>(MemoryUse::Essential); use < sMemoryUses; ++use)
                     held[use] = memory.getHeld(heap, static_cast<MemoryUse>(use));
                 return held;
             };

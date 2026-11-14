@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cassert>
 #include <optional>
+#include <ranges>
 #include <stdexcept>
 
 #include <components/debug/debuglog.hpp>
@@ -391,16 +392,16 @@ MWWorld::Ptr MWWorld::WorldModel::getPtrByRefId(const ESM::RefId& name)
     // Then check cells that are already listed
     // Search in reverse, this is a workaround for an ambiguous chargen_plank reference in the vanilla game.
     // there is one at -22,16 and one at -2,-9, the latter should be used.
-    for (auto iter = mExteriors.rbegin(); iter != mExteriors.rend(); ++iter)
+    for (auto& mExterior : std::views::reverse(mExteriors))
     {
-        Ptr ptr = getPtrAndCache(name, *iter->second);
+        Ptr ptr = getPtrAndCache(name, *mExterior.second);
         if (!ptr.isEmpty())
             return ptr;
     }
 
-    for (auto iter = mInteriors.begin(); iter != mInteriors.end(); ++iter)
+    for (auto& mInterior : mInteriors)
     {
-        Ptr ptr = getPtrAndCache(name, *iter->second);
+        Ptr ptr = getPtrAndCache(name, *mInterior.second);
         if (!ptr.isEmpty())
             return ptr;
     }

@@ -53,7 +53,7 @@ void CSMDoc::Loader::load()
     if (!mStart.has_value())
         mStart = std::chrono::steady_clock::now();
 
-    std::vector<std::pair<Document*, Stage>>::iterator iter = mDocuments.begin();
+    auto iter = mDocuments.begin();
 
     Document* document = iter->first;
 
@@ -83,11 +83,10 @@ void CSMDoc::Loader::load()
             CSMWorld::UniversalId log(CSMWorld::UniversalId::Type_LoadErrorLog, 0);
 
             { // silence a g++ warning
-                for (CSMDoc::Messages::Iterator messageIter(messages.begin()); messageIter != messages.end();
-                    ++messageIter)
+                for (const auto& message : messages)
                 {
-                    document->getReport(log)->add(*messageIter);
-                    emit loadMessage(document, messageIter->mMessage);
+                    document->getReport(log)->add(message);
+                    emit loadMessage(document, message.mMessage);
                 }
             }
 
@@ -151,7 +150,7 @@ void CSMDoc::Loader::loadDocument(CSMDoc::Document* document)
 
 void CSMDoc::Loader::abortLoading(CSMDoc::Document* document)
 {
-    for (std::vector<std::pair<Document*, Stage>>::iterator iter = mDocuments.begin(); iter != mDocuments.end(); ++iter)
+    for (auto iter = mDocuments.begin(); iter != mDocuments.end(); ++iter)
     {
         if (iter->first == document)
         {

@@ -87,10 +87,10 @@ namespace MWClass
                 { ESM::Clothing::Skirt, MWWorld::InventoryStore::Slot_Skirt },
                 { ESM::Clothing::Amulet, MWWorld::InventoryStore::Slot_Amulet } };
 
-            for (int i = 0; i < size; ++i)
-                if (sMapping[i][0] == ref->mBase->mData.mType)
+            for (auto i : sMapping)
+                if (i[0] == ref->mBase->mData.mType)
                 {
-                    slots.push_back(int(sMapping[i][1]));
+                    slots.push_back(int(i[1]));
                     break;
                 }
         }
@@ -215,11 +215,11 @@ namespace MWClass
             {
                 std::vector<ESM::PartReference> parts = ptr.get<ESM::Clothing>()->mBase->mParts.mParts;
 
-                for (std::vector<ESM::PartReference>::iterator itr = parts.begin(); itr != parts.end(); ++itr)
+                for (auto& part : parts)
                 {
-                    if ((*itr).mPart == ESM::PRT_Head)
+                    if (part.mPart == ESM::PRT_Head)
                         return { 0, "#{sNotifyMessage13}" };
-                    if ((*itr).mPart == ESM::PRT_LFoot || (*itr).mPart == ESM::PRT_RFoot)
+                    if (part.mPart == ESM::PRT_LFoot || part.mPart == ESM::PRT_RFoot)
                         return { 0, "#{sNotifyMessage15}" };
                 }
             }

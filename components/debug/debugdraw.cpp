@@ -94,15 +94,15 @@ static void generateCube(osg::Geometry& geom, float dim)
         GLushort startVertex(iFace * 4);
         GLushort newFace1[]
             = { startVertex, static_cast<GLushort>(startVertex + 1u), static_cast<GLushort>(startVertex + 2u) };
-        for (int i = 0; i < 3; i++)
+        for (unsigned short i : newFace1)
         {
-            indices->push_back(newFace1[i]);
+            indices->push_back(i);
         }
         GLushort newFace2[] = { static_cast<GLushort>(startVertex + 2u), static_cast<GLushort>(startVertex + 1u),
             static_cast<GLushort>(startVertex + 3u) };
-        for (int i = 0; i < 3; i++)
+        for (unsigned short i : newFace2)
         {
-            indices->push_back(newFace2[i]);
+            indices->push_back(i);
         }
     }
     geom.setVertexArray(vertices);
@@ -406,14 +406,14 @@ Debug::DebugDrawer::DebugDrawer(Shader::ShaderManager& shaderManager)
     wireCube->setUseVertexBufferObjects(true);
     generateWireCube(*wireCube, 1.);
 
-    for (std::size_t i = 0; i < mCustomDebugDrawer.size(); i++)
+    for (auto& i : mCustomDebugDrawer)
     {
-        mCustomDebugDrawer[i] = new DebugCustomDraw();
-        mCustomDebugDrawer[i]->setStateSet(stateset);
-        mCustomDebugDrawer[i]->mWireCubeGeometry = wireCube;
-        mCustomDebugDrawer[i]->mCubeGeometry = cubeGeometry;
-        mCustomDebugDrawer[i]->mSphereGeometry = sphereGeom;
-        mCustomDebugDrawer[i]->mCylinderGeometry = cylinderGeom;
+        i = new DebugCustomDraw();
+        i->setStateSet(stateset);
+        i->mWireCubeGeometry = wireCube;
+        i->mCubeGeometry = cubeGeometry;
+        i->mSphereGeometry = sphereGeom;
+        i->mCylinderGeometry = cylinderGeom;
     }
 }
 

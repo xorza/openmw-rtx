@@ -20,7 +20,7 @@ namespace MWDialogue
 {
     Quest& Journal::getOrStartQuest(const ESM::RefId& id)
     {
-        TQuestContainer::iterator iter = mQuests.find(id);
+        auto iter = mQuests.find(id);
 
         if (iter == mQuests.end())
             iter = mQuests.emplace(id, Quest(id)).first;
@@ -30,7 +30,7 @@ namespace MWDialogue
 
     Quest* Journal::getQuestOrNull(const ESM::RefId& id)
     {
-        TQuestContainer::iterator iter = mQuests.find(id);
+        auto iter = mQuests.find(id);
         if (iter == mQuests.end())
         {
             return nullptr;
@@ -41,7 +41,7 @@ namespace MWDialogue
 
     Topic& Journal::getTopic(const ESM::RefId& id)
     {
-        TTopicContainer::iterator iter = mTopics.find(id);
+        auto iter = mTopics.find(id);
 
         if (iter == mTopics.end())
         {
@@ -143,7 +143,7 @@ namespace MWDialogue
 
     int Journal::getJournalIndex(const ESM::RefId& id) const
     {
-        TQuestContainer::const_iterator iter = mQuests.find(id);
+        auto iter = mQuests.find(id);
 
         if (iter == mQuests.end())
             return 0;

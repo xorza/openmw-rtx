@@ -1,6 +1,7 @@
 #include "utf8.hpp"
 
 #include <format>
+#include <utility>
 
 namespace
 {
@@ -68,7 +69,7 @@ namespace
     std::pair<int64_t, int64_t> decodeNextUTF8Character(std::string_view s, std::vector<int64_t>& posByte)
     {
         const int64_t pos = posByte.back() - 1;
-        const unsigned char ch = static_cast<unsigned char>(s[pos]);
+        const auto ch = static_cast<unsigned char>(s[pos]);
         int64_t codepoint = -1;
         size_t byteSize = 0;
 
@@ -126,7 +127,7 @@ namespace LuaUtf8
             for (size_t i = 0; i < args.size(); ++i)
             {
                 int64_t codepoint = getInteger(args[i], (i + 1), "char");
-                if (codepoint < 0 || codepoint > MAXUNICODE)
+                if (codepoint < 0 || std::cmp_greater(codepoint, MAXUNICODE))
                     throw std::runtime_error(std::format("bad argument #{} to 'char' (value out of range)", i + 1));
 
                 codepointToUTF8(static_cast<char32_t>(codepoint), result);
@@ -137,7 +138,7 @@ namespace LuaUtf8
         utf8["codes"] = [](std::string_view s) {
             return sol::as_function(
                 [s, posByte = std::vector<int64_t>{ 1 }]() mutable -> sol::optional<std::pair<int64_t, int64_t>> {
-                    if (posByte.back() <= static_cast<int64_t>(s.size()))
+                    if (std::cmp_less_equal(posByte.back(), s.size()))
                     {
                         const auto pair = decodeNextUTF8Character(s, posByte);
                         if (pair.second == -1)
@@ -160,7 +161,7 @@ namespace LuaUtf8
 
             if (iv <= 0)
                 throw std::runtime_error("bad argument #2 to 'len' (initial position out of bounds)");
-            if (fv > static_cast<int64_t>(len))
+            if (std::cmp_greater(fv, len))
                 throw std::runtime_error("bad argument #3 to 'len' (final position out of bounds)");
 
             if (len == 0)
@@ -187,7 +188,7 @@ namespace LuaUtf8
 
             if (iv <= 0)
                 throw std::runtime_error("bad argument #2 to 'codepoint' (initial position out of bounds)");
-            if (fv > static_cast<int64_t>(len))
+            if (std::cmp_greater(fv, len))
                 throw std::runtime_error("bad argument #3 to 'codepoint' (final position out of bounds)");
 
             if (iv > fv)
@@ -228,7 +229,7 @@ namespace LuaUtf8
             if (iv > static_cast<int64_t>(len) + 1)
                 throw std::runtime_error("bad argument #3 to 'offset' (position out of bounds)");
 
-            while (posByte.back() <= static_cast<int64_t>(len))
+            while (std::cmp_less_equal(posByte.back(), len))
                 decodeNextUTF8Character(s, posByte);
 
             for (auto it = posByte.begin(); it != posByte.end(); ++it)

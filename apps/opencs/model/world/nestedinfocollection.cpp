@@ -19,10 +19,9 @@ namespace CSMWorld
 {
     NestedInfoCollection::~NestedInfoCollection()
     {
-        for (std::map<const ColumnBase*, NestedColumnAdapter<Info>*>::iterator iter(mAdapters.begin());
-            iter != mAdapters.end(); ++iter)
+        for (auto& mAdapter : mAdapters)
         {
-            delete (*iter).second;
+            delete mAdapter.second;
         }
     }
 
@@ -33,7 +32,7 @@ namespace CSMWorld
 
     const NestedColumnAdapter<Info>& NestedInfoCollection::getAdapter(const ColumnBase& column) const
     {
-        std::map<const ColumnBase*, NestedColumnAdapter<Info>*>::const_iterator iter = mAdapters.find(&column);
+        auto iter = mAdapters.find(&column);
 
         if (iter == mAdapters.end())
             throw std::logic_error("No such column in the nestedidadapter");

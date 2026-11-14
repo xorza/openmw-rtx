@@ -33,7 +33,7 @@ namespace Gui
     {
         MyGUI::TextBox* makeText(std::string_view font, int top)
         {
-            MyGUI::TextBox* const text = MyGUI::Gui::getInstance().createWidget<MyGUI::TextBox>(
+            auto* const text = MyGUI::Gui::getInstance().createWidget<MyGUI::TextBox>(
                 "SandText", MyGUI::IntCoord(10, top, 300, 30), MyGUI::Align::Default, "Windows");
             text->setFontName(font);
             text->setCaption("Abc");
@@ -136,7 +136,7 @@ namespace Gui
                 if (!makeable)
                     continue;
                 const std::string skin = resources.current().first;
-                MyGUI::TextBox* const box = MyGUI::Gui::getInstance().createWidget<MyGUI::TextBox>(
+                auto* const box = MyGUI::Gui::getInstance().createWidget<MyGUI::TextBox>(
                     skin, MyGUI::IntCoord(0, 0, 100, 20), MyGUI::Align::Default, "Windows");
                 if (MyGUI::ISubWidgetText* const text = box->getSubWidgetText())
                 {
@@ -158,7 +158,7 @@ namespace Gui
         {
             Rtx::Testing::GuiInstance gui;
             // In a parent, as every label stands: a widget with none is not sized to its text.
-            MyGUI::Widget* const row = MyGUI::Gui::getInstance().createWidget<MyGUI::Widget>(
+            auto* const row = MyGUI::Gui::getInstance().createWidget<MyGUI::Widget>(
                 "", MyGUI::IntCoord(0, 0, 600, 40), MyGUI::Align::Default, "Windows");
             auto* const label = row->createWidget<AutoSizedTextBox>(
                 "SandText", MyGUI::IntCoord(10, 10, 10, 10), MyGUI::Align::Default);

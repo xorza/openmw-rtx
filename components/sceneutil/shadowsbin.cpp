@@ -1,5 +1,6 @@
 #include "shadowsbin.hpp"
 
+#include <ranges>
 #include <unordered_set>
 
 #include <osg/AlphaFunc>
@@ -28,7 +29,7 @@ namespace
     inline void accumulateModeState(const osg::StateSet* ss, bool& currentValue, bool& isOverride, int mode)
     {
         const osg::StateSet::ModeList& l = ss->getModeList();
-        osg::StateSet::ModeList::const_iterator mf = l.find(mode);
+        auto mf = l.find(mode);
         if (mf == l.end())
             return;
         unsigned int flags = mf->second;
@@ -80,17 +81,16 @@ namespace SceneUtil
             sgNew = sgNew->_parent;
         } while (sgNew && sgNew != root);
 
-        for (auto itr = returnPath.rbegin(); itr != returnPath.rend(); ++itr)
+        for (auto& itr : std::views::reverse(returnPath))
         {
-            const osg::StateSet* ss = (*itr)->getStateSet();
+            const osg::StateSet* ss = itr->getStateSet();
             if (!ss)
                 continue;
 
             accumulateModeState(ss, state.mAlphaBlend, state.mAlphaBlendOverride, GL_BLEND);
 
             const osg::StateSet::AttributeList& attributes = ss->getAttributeList();
-            osg::StateSet::AttributeList::const_iterator found
-                = attributes.find(std::make_pair(osg::StateAttribute::MATERIAL, 0));
+            auto found = attributes.find(std::make_pair(osg::StateAttribute::MATERIAL, 0));
             if (found != attributes.end())
             {
                 const osg::StateSet::RefAttributePair& rap = found->second;
@@ -118,8 +118,8 @@ namespace SceneUtil
                     state.mImportantState = true;
             }
 
-            if ((*itr) != sg && !state.interesting())
-                uninterestingCache.insert(*itr);
+            if (itr != sg && !state.interesting())
+                uninterestingCache.insert(itr);
         }
 
         if (!state.needShadows())

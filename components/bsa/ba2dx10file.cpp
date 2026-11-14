@@ -626,7 +626,7 @@ namespace Bsa
             if (c.mPackedSize != 0)
             {
                 streamPtr->read(inputBuffer.data(), c.mPackedSize);
-                uLongf destSize = static_cast<uLongf>(c.mSize);
+                auto destSize = static_cast<uLongf>(c.mSize);
                 int ec = ::uncompress(reinterpret_cast<Bytef*>(memoryStreamPtr->getRawData() + offset), &destSize,
                     reinterpret_cast<Bytef*>(inputBuffer.data()), static_cast<uLong>(c.mPackedSize));
 

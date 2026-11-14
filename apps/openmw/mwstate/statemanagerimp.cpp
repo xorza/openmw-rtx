@@ -24,6 +24,7 @@
 #include <components/misc/algorithm.hpp>
 #include <components/platform/wholefile.hpp>
 #include <components/settings/values.hpp>
+#include <utility>
 
 #include "../mwbase/dialoguemanager.hpp"
 #include "../mwbase/environment.hpp"
@@ -86,9 +87,9 @@ std::map<int, int> MWState::StateManager::buildContentFileIndexMap(const ESM::ES
 
     std::map<int, int> map;
 
-    for (int iPrev = 0; iPrev < static_cast<int>(prev.size()); ++iPrev)
+    for (int iPrev = 0; std::cmp_less(iPrev, prev.size()); ++iPrev)
     {
-        for (int iCurrent = 0; iCurrent < static_cast<int>(current.size()); ++iCurrent)
+        for (int iCurrent = 0; std::cmp_less(iCurrent, current.size()); ++iCurrent)
             if (Misc::StringUtils::ciEqual(prev[iPrev].name, current[iCurrent]))
             {
                 map.insert(std::make_pair(iPrev, iCurrent));

@@ -27,23 +27,23 @@ namespace CSVPrefs
         , mPageSelector(nullptr)
     {
         // Need one widget for scroll area
-        QWidget* topWidget = new QWidget();
-        QVBoxLayout* topLayout = new QVBoxLayout(topWidget);
+        auto* topWidget = new QWidget();
+        auto* topLayout = new QVBoxLayout(topWidget);
 
         // Allows switching between "pages"
-        QWidget* stackedWidget = new QWidget();
+        auto* stackedWidget = new QWidget();
         mStackedLayout = new QStackedLayout(stackedWidget);
 
         mPageSelector = new QComboBox();
         connect(mPageSelector, qOverload<int>(&QComboBox::currentIndexChanged), mStackedLayout,
             &QStackedLayout::setCurrentIndex);
 
-        QFrame* lineSeparator = new QFrame(topWidget);
+        auto* lineSeparator = new QFrame(topWidget);
         lineSeparator->setFrameShape(QFrame::HLine);
         lineSeparator->setFrameShadow(QFrame::Sunken);
 
         // Reset key bindings button
-        QPushButton* resetButton = new QPushButton("Reset to Defaults", topWidget);
+        auto* resetButton = new QPushButton("Reset to Defaults", topWidget);
         connect(resetButton, &QPushButton::clicked, this, &KeyBindingPage::resetKeyBindings);
 
         topLayout->addWidget(mPageSelector);
@@ -53,8 +53,8 @@ namespace CSVPrefs
         topLayout->setSizeConstraint(QLayout::SetMinAndMaxSize);
 
         // Add each option
-        for (CSMPrefs::Category::Iterator iter = category.begin(); iter != category.end(); ++iter)
-            addSetting(*iter);
+        for (auto& iter : category)
+            addSetting(iter);
 
         setWidgetResizable(true);
         setWidget(topWidget);
@@ -84,7 +84,7 @@ namespace CSVPrefs
         else
         {
             // Create new page
-            QWidget* pageWidget = new QWidget();
+            auto* pageWidget = new QWidget();
             mPageLayout = new QGridLayout(pageWidget);
             mPageLayout->setSizeConstraint(QLayout::SetMinAndMaxSize);
 

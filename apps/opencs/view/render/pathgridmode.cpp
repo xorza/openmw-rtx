@@ -104,7 +104,7 @@ namespace CSVRender
     {
         if (hit.tag)
         {
-            if (PathgridTag* tag = dynamic_cast<PathgridTag*>(hit.tag.get()))
+            if (auto* tag = dynamic_cast<PathgridTag*>(hit.tag.get()))
             {
                 if (tag->getPathgrid()->isSelected())
                 {
@@ -126,7 +126,7 @@ namespace CSVRender
 
         if (hit.tag)
         {
-            if (PathgridTag* tag = dynamic_cast<PathgridTag*>(hit.tag.get()))
+            if (auto* tag = dynamic_cast<PathgridTag*>(hit.tag.get()))
             {
                 mLastId = tag->getPathgrid()->getId();
                 unsigned short node = SceneUtil::getPathgridNode(hit.index0);
@@ -139,7 +139,7 @@ namespace CSVRender
     {
         if (hit.tag)
         {
-            if (PathgridTag* tag = dynamic_cast<PathgridTag*>(hit.tag.get()))
+            if (auto* tag = dynamic_cast<PathgridTag*>(hit.tag.get()))
             {
                 if (tag->getPathgrid()->getId() != mLastId)
                 {
@@ -186,7 +186,7 @@ namespace CSVRender
         WorldspaceHitResult hit = getWorldspaceWidget().mousePick(pos, getWorldspaceWidget().getInteractionMask());
         if (hit.tag)
         {
-            if (PathgridTag* tag = dynamic_cast<PathgridTag*>(hit.tag.get()))
+            if (auto* tag = dynamic_cast<PathgridTag*>(hit.tag.get()))
             {
                 mDragMode = DragMode::Edge;
                 mEdgeId = tag->getPathgrid()->getId();
@@ -206,9 +206,9 @@ namespace CSVRender
         {
             std::vector<osg::ref_ptr<TagBase>> selection = getWorldspaceWidget().getSelection(Mask_Pathgrid);
 
-            for (std::vector<osg::ref_ptr<TagBase>>::iterator it = selection.begin(); it != selection.end(); ++it)
+            for (auto& it : selection)
             {
-                if (PathgridTag* tag = dynamic_cast<PathgridTag*>(it->get()))
+                if (auto* tag = dynamic_cast<PathgridTag*>(it.get()))
                 {
                     osg::Vec3d eye, center, up, offset;
                     getWorldspaceWidget().getCamera()->getViewMatrix().getLookAt(eye, center, up);
@@ -246,9 +246,9 @@ namespace CSVRender
         if (mDragMode == DragMode::Move)
         {
             std::vector<osg::ref_ptr<TagBase>> selection = getWorldspaceWidget().getSelection(Mask_Pathgrid);
-            for (std::vector<osg::ref_ptr<TagBase>>::iterator it = selection.begin(); it != selection.end(); ++it)
+            for (auto& it : selection)
             {
-                if (PathgridTag* tag = dynamic_cast<PathgridTag*>(it->get()))
+                if (auto* tag = dynamic_cast<PathgridTag*>(it.get()))
                 {
                     QUndoStack& undoStack = getWorldspaceWidget().getDocument().getUndoStack();
                     QString description = "Move pathgrid node(s)";
@@ -264,7 +264,7 @@ namespace CSVRender
 
             if (hit.tag)
             {
-                if (PathgridTag* tag = dynamic_cast<PathgridTag*>(hit.tag.get()))
+                if (auto* tag = dynamic_cast<PathgridTag*>(hit.tag.get()))
                 {
                     if (tag->getPathgrid()->getId() == mEdgeId)
                     {

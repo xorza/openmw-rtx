@@ -107,7 +107,7 @@ namespace SceneUtil
 
     osg::Texture2DArray* RTTNode::createTextureArray(GLint internalFormat)
     {
-        osg::Texture2DArray* textureArray = new osg::Texture2DArray;
+        auto* textureArray = new osg::Texture2DArray;
         textureArray->setTextureSize(mTextureWidth, mTextureHeight, 2);
         textureArray->setInternalFormat(internalFormat);
         GLenum sourceFormat = 0;
@@ -132,7 +132,7 @@ namespace SceneUtil
 
     osg::Texture2D* RTTNode::createTexture(GLint internalFormat)
     {
-        osg::Texture2D* texture = new osg::Texture2D;
+        auto* texture = new osg::Texture2D;
         texture->setTextureSize(mTextureWidth, mTextureHeight);
         texture->setInternalFormat(internalFormat);
         GLenum sourceFormat = 0;

@@ -176,7 +176,7 @@ namespace Rtx
                 "parallel", count, Hands::Half, std::stop_token{}, [] { return 0; },
                 [&](std::size_t) {
                     {
-                        const std::lock_guard<std::mutex> hold(held);
+                        const std::scoped_lock hold(held);
                         hands.insert(std::this_thread::get_id());
                     }
                     std::this_thread::sleep_for(std::chrono::milliseconds(1));

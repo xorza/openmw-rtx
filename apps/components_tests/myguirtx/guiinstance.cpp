@@ -19,7 +19,7 @@ namespace MyGUIRtx
         {
             Rtx::Testing::GuiInstance gui;
 
-            MyGUI::TextBox* const text = MyGUI::Gui::getInstance().createWidget<MyGUI::TextBox>(
+            auto* const text = MyGUI::Gui::getInstance().createWidget<MyGUI::TextBox>(
                 "SandText", MyGUI::IntCoord(10, 10, 200, 30), MyGUI::Align::Default, "Windows");
             text->setCaption("Abc");
 

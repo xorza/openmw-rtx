@@ -73,7 +73,7 @@ CSVWidget::VertexPaintBrushSizeControls::VertexPaintBrushSizeControls(const QStr
     mBrushSizeSpinBox->setRange(1, CSMPrefs::get()["3D Scene Editing"]["shapebrush-maximumsize"].toInt());
     mBrushSizeSpinBox->setSingleStep(1);
 
-    QHBoxLayout* layoutSliderSize = new QHBoxLayout;
+    auto* layoutSliderSize = new QHBoxLayout;
     layoutSliderSize->addWidget(mBrushSizeSlider);
     layoutSliderSize->addWidget(mBrushSizeSpinBox);
 
@@ -93,11 +93,11 @@ CSVWidget::VertexPaintBrushWindow::VertexPaintBrushWindow(CSMDoc::Document& docu
 
     mSizeSliders = new VertexPaintBrushSizeControls("Brush size", this);
 
-    QVBoxLayout* layoutMain = new QVBoxLayout;
+    auto* layoutMain = new QVBoxLayout;
     layoutMain->setSpacing(0);
     layoutMain->setContentsMargins(4, 0, 4, 4);
 
-    QHBoxLayout* layoutHorizontal = new QHBoxLayout;
+    auto* layoutHorizontal = new QHBoxLayout;
     layoutHorizontal->setSpacing(0);
     layoutHorizontal->setContentsMargins(QMargins(0, 0, 0, 0));
 
@@ -109,7 +109,7 @@ CSVWidget::VertexPaintBrushWindow::VertexPaintBrushWindow(CSMDoc::Document& docu
     mButtonSquare->setToolTip(toolTipSquare);
     mButtonCircle->setToolTip(toolTipCircle);
 
-    QButtonGroup* brushButtonGroup = new QButtonGroup(this);
+    auto* brushButtonGroup = new QButtonGroup(this);
     brushButtonGroup->addButton(mButtonPoint);
     brushButtonGroup->addButton(mButtonSquare);
     brushButtonGroup->addButton(mButtonCircle);
@@ -127,11 +127,11 @@ CSVWidget::VertexPaintBrushWindow::VertexPaintBrushWindow(CSMDoc::Document& docu
     mToolSelector->addItem(tr("Replace"));
     // TOOD: in the future could add types like smooth blend, multiply etc
 
-    QLabel* colorLabel = new QLabel(this);
+    auto* colorLabel = new QLabel(this);
     colorLabel->setText("Color:");
     mColorButtonWidget = new ColorButtonWidget(this);
 
-    QHBoxLayout* colorRowLayout = new QHBoxLayout;
+    auto* colorRowLayout = new QHBoxLayout;
     colorRowLayout->setContentsMargins(QMargins(0, 0, 0, 0));
     colorRowLayout->addWidget(colorLabel);
     colorRowLayout->addStretch();

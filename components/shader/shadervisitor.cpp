@@ -334,8 +334,7 @@ namespace Shader
         for (const auto* attributeMap :
             std::initializer_list<const osg::StateSet::AttributeList*>{ &attributes, &removedAttributes })
         {
-            for (osg::StateSet::AttributeList::const_iterator it = attributeMap->begin(); it != attributeMap->end();
-                ++it)
+            for (auto it = attributeMap->begin(); it != attributeMap->end(); ++it)
             {
                 if (addedState && attributeMap != &removedAttributes && addedState->hasAttribute(it->first))
                     continue;
@@ -354,7 +353,7 @@ namespace Shader
                         if (it->second.second & osg::StateAttribute::OVERRIDE)
                             mRequirements.back().mAlphaTestOverridden = true;
 
-                        const osg::AlphaFunc* alpha = static_cast<const osg::AlphaFunc*>(it->second.first.get());
+                        const auto* alpha = static_cast<const osg::AlphaFunc*>(it->second.first.get());
                         mRequirements.back().mAlphaFunc = alpha->getFunction();
                         mRequirements.back().mAlphaRef = alpha->getReferenceValue();
                     }
@@ -367,7 +366,7 @@ namespace Shader
                         if (it->second.second & osg::StateAttribute::OVERRIDE)
                             mRequirements.back().mBlendFuncOverridden = true;
 
-                        const osg::BlendFunc* blend = static_cast<const osg::BlendFunc*>(it->second.first.get());
+                        const auto* blend = static_cast<const osg::BlendFunc*>(it->second.first.get());
                         mRequirements.back().mAdditiveBlending = blend->getSource() == osg::BlendFunc::SRC_ALPHA
                             && blend->getDestination() == osg::BlendFunc::ONE;
                     }
@@ -435,11 +434,10 @@ namespace Shader
             defineMap[std::string(name)] = "0";
             defineMap[std::string(name) + std::string("UV")] = "0";
         }
-        for (std::map<int, std::string>::const_iterator texIt = reqs.mTextures.begin(); texIt != reqs.mTextures.end();
-            ++texIt)
+        for (const auto& mTexture : reqs.mTextures)
         {
-            defineMap[texIt->second] = "1";
-            defineMap[texIt->second + std::string("UV")] = std::to_string(texIt->first);
+            defineMap[mTexture.second] = "1";
+            defineMap[mTexture.second + std::string("UV")] = std::to_string(mTexture.first);
         }
 
         if (defineMap["diffuseMap"] == "0")

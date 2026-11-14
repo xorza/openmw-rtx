@@ -31,7 +31,7 @@ namespace MWGui
             const VFS::Manager& vfs = *MWBase::Environment::get().getResourceSystem()->getVFS();
 
             const MyGUI::IntCoord coord(0, 0, size, size);
-            MyGUI::ImageBox* widget = parent.createWidget<MyGUI::ImageBox>("ImageBox", coord, MyGUI::Align::Default);
+            auto* widget = parent.createWidget<MyGUI::ImageBox>("ImageBox", coord, MyGUI::Align::Default);
             widget->setImageTexture(Misc::ResourceHelpers::correctIconPath(VFS::Path::toNormalized(icon), vfs));
 
             ToolTipInfo tooltipInfo;

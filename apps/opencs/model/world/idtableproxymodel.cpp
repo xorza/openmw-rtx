@@ -8,6 +8,7 @@
 #include <compare>
 #include <string_view>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 #include <apps/opencs/model/filter/node.hpp>
@@ -22,7 +23,7 @@ namespace
 {
     std::string_view getEnumValue(const std::vector<std::pair<int, std::string>>& values, int index)
     {
-        if (index < 0 || index >= static_cast<int>(values.size()))
+        if (index < 0 || std::cmp_greater_equal(index, values.size()))
         {
             return {};
         }
@@ -38,9 +39,9 @@ void CSMWorld::IdTableProxyModel::updateColumnMap()
     if (mFilter)
     {
         std::vector<int> columns = mFilter->getReferencedColumns();
-        for (std::vector<int>::const_iterator iter(columns.begin()); iter != columns.end(); ++iter)
+        for (int column : columns)
             mColumnMap.insert(std::make_pair(
-                *iter, mSourceModel->searchColumnIndex(static_cast<CSMWorld::Columns::ColumnId>(*iter))));
+                column, mSourceModel->searchColumnIndex(static_cast<CSMWorld::Columns::ColumnId>(column))));
     }
 }
 
@@ -103,7 +104,7 @@ void CSMWorld::IdTableProxyModel::setFilter(const std::shared_ptr<CSMFilter::Nod
 bool CSMWorld::IdTableProxyModel::lessThan(const QModelIndex& left, const QModelIndex& right) const
 {
     Columns::ColumnId id = static_cast<Columns::ColumnId>(left.data(ColumnBase::Role_ColumnId).toInt());
-    EnumColumnCache::const_iterator valuesIt = mEnumColumnCache.find(id);
+    auto valuesIt = mEnumColumnCache.find(id);
     if (valuesIt == mEnumColumnCache.end())
     {
         if (Columns::hasEnums(id))

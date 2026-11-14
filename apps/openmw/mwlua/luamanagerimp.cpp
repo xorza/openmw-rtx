@@ -93,8 +93,8 @@ namespace MWLua
         void forEachActive(std::vector<LuaUtil::ScriptsContainerWeakPtr>& scripts, F&& f)
         {
             [[maybe_unused]] const std::size_t before = scripts.size();
-            for (std::size_t i = 0; i < scripts.size(); ++i)
-                f(asLocal(scripts[i]));
+            for (const auto& script : scripts)
+                f(asLocal(script));
             assert(scripts.size() == before && "active local scripts changed while iterating");
         }
     }
@@ -325,7 +325,7 @@ namespace MWLua
         {
             // For player run the onTeleported handler immediately,
             // so it can adjust camera position after teleporting.
-            PlayerScripts* playerScripts = dynamic_cast<PlayerScripts*>(mPlayer.getRefData().getLuaScripts());
+            auto* playerScripts = dynamic_cast<PlayerScripts*>(mPlayer.getRefData().getLuaScripts());
             if (playerScripts)
                 playerScripts->onTeleported();
         }
@@ -337,7 +337,7 @@ namespace MWLua
     {
         if (mPlayer.isEmpty())
             return; // The game is not started yet.
-        PlayerScripts* playerScripts = dynamic_cast<PlayerScripts*>(mPlayer.getRefData().getLuaScripts());
+        auto* playerScripts = dynamic_cast<PlayerScripts*>(mPlayer.getRefData().getLuaScripts());
         if (playerScripts)
         {
             playerScripts->onQuestUpdate(questId.serializeText(), stage);
@@ -519,7 +519,7 @@ namespace MWLua
             mDelayedUiModeChangedArg = argId;
             return;
         }
-        PlayerScripts* playerScripts = dynamic_cast<PlayerScripts*>(mPlayer.getRefData().getLuaScripts());
+        auto* playerScripts = dynamic_cast<PlayerScripts*>(mPlayer.getRefData().getLuaScripts());
         if (playerScripts)
             playerScripts->uiModeChanged(argId, false);
     }
@@ -528,7 +528,7 @@ namespace MWLua
     {
         if (!mPlayer.isEmpty())
         {
-            PlayerScripts* playerScripts = dynamic_cast<PlayerScripts*>(mPlayer.getRefData().getLuaScripts());
+            auto* playerScripts = dynamic_cast<PlayerScripts*>(mPlayer.getRefData().getLuaScripts());
             if (playerScripts)
                 playerScripts->onViewportResized(width, height);
         }
@@ -540,7 +540,7 @@ namespace MWLua
     {
         if (!mPlayer.isEmpty())
         {
-            PlayerScripts* playerScripts = dynamic_cast<PlayerScripts*>(mPlayer.getRefData().getLuaScripts());
+            auto* playerScripts = dynamic_cast<PlayerScripts*>(mPlayer.getRefData().getLuaScripts());
             if (playerScripts)
                 playerScripts->onFontSizeChanged(size);
         }

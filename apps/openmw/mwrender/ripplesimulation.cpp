@@ -196,7 +196,7 @@ namespace MWRender
 
     void RippleSimulation::removeEmitter(const MWWorld::ConstPtr& ptr)
     {
-        for (std::vector<Emitter>::iterator it = mEmitters.begin(); it != mEmitters.end(); ++it)
+        for (auto it = mEmitters.begin(); it != mEmitters.end(); ++it)
         {
             if (it->mPtr == ptr)
             {
@@ -208,11 +208,11 @@ namespace MWRender
 
     void RippleSimulation::updateEmitterPtr(const MWWorld::ConstPtr& old, const MWWorld::ConstPtr& ptr)
     {
-        for (std::vector<Emitter>::iterator it = mEmitters.begin(); it != mEmitters.end(); ++it)
+        for (auto& mEmitter : mEmitters)
         {
-            if (it->mPtr == old)
+            if (mEmitter.mPtr == old)
             {
-                it->mPtr = ptr;
+                mEmitter.mPtr = ptr;
                 return;
             }
         }
@@ -220,7 +220,7 @@ namespace MWRender
 
     void RippleSimulation::removeCell(const MWWorld::CellStore* store)
     {
-        for (std::vector<Emitter>::iterator it = mEmitters.begin(); it != mEmitters.end();)
+        for (auto it = mEmitters.begin(); it != mEmitters.end();)
         {
             if ((it->mPtr.isInCell() && it->mPtr.getCell() == store) && it->mPtr != MWMechanics::getPlayer())
             {

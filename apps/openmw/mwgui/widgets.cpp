@@ -212,8 +212,7 @@ namespace MWGui::Widgets
 
         for (const ESM::IndexedENAMstruct& effectInfo : spell->mEffects.mList)
         {
-            MWSpellEffectPtr effect
-                = creator->createWidget<MWSpellEffect>("MW_EffectImage", coord, MyGUI::Align::Default);
+            auto effect = creator->createWidget<MWSpellEffect>("MW_EffectImage", coord, MyGUI::Align::Default);
             SpellEffectParams params;
             params.mEffectID = effectInfo.mData.mEffectID;
             params.mSkill = effectInfo.mData.mSkill;

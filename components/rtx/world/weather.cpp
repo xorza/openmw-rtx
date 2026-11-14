@@ -4,6 +4,7 @@
 #include <components/esm/refid.hpp>
 #include <components/esm/stringrefid.hpp>
 #include <components/esm3/loadregn.hpp>
+#include <utility>
 
 namespace Rtx
 {
@@ -16,7 +17,7 @@ namespace Rtx
 
     std::optional<Weather> weatherOfScriptId(const int id)
     {
-        if (id < 0 || static_cast<std::size_t>(id) >= sWeatherCount)
+        if (id < 0 || std::cmp_greater_equal(id, sWeatherCount))
             return std::nullopt;
 
         return static_cast<Weather>(id);
@@ -28,7 +29,7 @@ namespace Rtx
 
         // The table's own interned spelling, which outlives every caller.
         const ESM::RefId id = ESM::Weather::indexToRefId(static_cast<int>(weather));
-        const ESM::StringRefId* const named = id.getIf<ESM::StringRefId>();
+        const auto* const named = id.getIf<ESM::StringRefId>();
         Crash::contract(named != nullptr, "a weather ESM::Weather does not name by a string");
         return named->getValue();
     }

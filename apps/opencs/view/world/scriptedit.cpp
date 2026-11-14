@@ -55,7 +55,7 @@ bool CSVWorld::ScriptEdit::event(QEvent* event)
     // ignore undo and redo shortcuts
     if (event->type() == QEvent::ShortcutOverride)
     {
-        QKeyEvent* keyEvent = static_cast<QKeyEvent*>(event);
+        auto* keyEvent = static_cast<QKeyEvent*>(event);
 
         if (keyEvent->matches(QKeySequence::Undo) || keyEvent->matches(QKeySequence::Redo))
             return true;
@@ -149,12 +149,12 @@ CSVWorld::ScriptEdit::ScriptEdit(const CSMDoc::Document& document, ScriptHighlig
 
     mCommentAction = new QAction(tr("Comment Selection"), this);
     connect(mCommentAction, &QAction::triggered, this, &ScriptEdit::commentSelection);
-    CSMPrefs::Shortcut* commentShortcut = new CSMPrefs::Shortcut("script-editor-comment", this);
+    auto* commentShortcut = new CSMPrefs::Shortcut("script-editor-comment", this);
     commentShortcut->associateAction(mCommentAction);
 
     mUncommentAction = new QAction(tr("Uncomment Selection"), this);
     connect(mUncommentAction, &QAction::triggered, this, &ScriptEdit::uncommentSelection);
-    CSMPrefs::Shortcut* uncommentShortcut = new CSMPrefs::Shortcut("script-editor-uncomment", this);
+    auto* uncommentShortcut = new CSMPrefs::Shortcut("script-editor-uncomment", this);
     uncommentShortcut->associateAction(mUncommentAction);
 
     mHighlighter = new ScriptHighlighter(document.getData(), mode, ScriptEdit::document());
@@ -198,7 +198,7 @@ bool CSVWorld::ScriptEdit::isChangeLocked() const
 
 void CSVWorld::ScriptEdit::dragEnterEvent(QDragEnterEvent* event)
 {
-    const CSMWorld::TableMimeData* mime = dynamic_cast<const CSMWorld::TableMimeData*>(event->mimeData());
+    const auto* mime = dynamic_cast<const CSMWorld::TableMimeData*>(event->mimeData());
     if (!mime)
         QPlainTextEdit::dragEnterEvent(event);
     else
@@ -210,7 +210,7 @@ void CSVWorld::ScriptEdit::dragEnterEvent(QDragEnterEvent* event)
 
 void CSVWorld::ScriptEdit::dragMoveEvent(QDragMoveEvent* event)
 {
-    const CSMWorld::TableMimeData* mime = dynamic_cast<const CSMWorld::TableMimeData*>(event->mimeData());
+    const auto* mime = dynamic_cast<const CSMWorld::TableMimeData*>(event->mimeData());
     if (!mime)
         QPlainTextEdit::dragMoveEvent(event);
     else
@@ -222,7 +222,7 @@ void CSVWorld::ScriptEdit::dragMoveEvent(QDragMoveEvent* event)
 
 void CSVWorld::ScriptEdit::dropEvent(QDropEvent* event)
 {
-    const CSMWorld::TableMimeData* mime = dynamic_cast<const CSMWorld::TableMimeData*>(event->mimeData());
+    const auto* mime = dynamic_cast<const CSMWorld::TableMimeData*>(event->mimeData());
     if (!mime) // May happen when non-records (e.g. plain text) are dragged and dropped
     {
         QPlainTextEdit::dropEvent(event);
@@ -235,17 +235,17 @@ void CSVWorld::ScriptEdit::dropEvent(QDropEvent* event)
     {
         std::vector<CSMWorld::UniversalId> records(mime->getData());
 
-        for (std::vector<CSMWorld::UniversalId>::iterator it = records.begin(); it != records.end(); ++it)
+        for (auto& record : records)
         {
-            if (mAllowedTypes.contains(it->getType()))
+            if (mAllowedTypes.contains(record.getType()))
             {
-                if (stringNeedsQuote(it->getId()))
+                if (stringNeedsQuote(record.getId()))
                 {
-                    insertPlainText(QString::fromUtf8(('"' + it->getId() + '"').c_str()));
+                    insertPlainText(QString::fromUtf8(('"' + record.getId() + '"').c_str()));
                 }
                 else
                 {
-                    insertPlainText(QString::fromUtf8(it->getId().c_str()));
+                    insertPlainText(QString::fromUtf8(record.getId().c_str()));
                 }
             }
         }

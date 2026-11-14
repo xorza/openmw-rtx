@@ -28,7 +28,7 @@ namespace CSMPrefs
     {
         std::pair<ShortcutMap::iterator, ShortcutMap::iterator> range = mShortcuts.equal_range(shortcut->getName());
 
-        for (ShortcutMap::iterator it = range.first; it != range.second;)
+        for (auto it = range.first; it != range.second;)
         {
             if (it->second == shortcut)
             {
@@ -45,7 +45,7 @@ namespace CSMPrefs
 
     bool ShortcutManager::getSequence(std::string_view name, QKeySequence& sequence) const
     {
-        SequenceMap::const_iterator item = mSequences.find(name);
+        auto item = mSequences.find(name);
         if (item != mSequences.end())
         {
             sequence = item->second;
@@ -59,7 +59,7 @@ namespace CSMPrefs
     void ShortcutManager::setSequence(std::string_view name, const QKeySequence& sequence)
     {
         // Add to map/modify
-        SequenceMap::iterator item = mSequences.find(name);
+        auto item = mSequences.find(name);
         if (item != mSequences.end())
         {
             item->second = sequence;
@@ -72,7 +72,7 @@ namespace CSMPrefs
         // Change active shortcuts
         std::pair<ShortcutMap::iterator, ShortcutMap::iterator> rangeS = mShortcuts.equal_range(name);
 
-        for (ShortcutMap::iterator it = rangeS.first; it != rangeS.second; ++it)
+        for (auto it = rangeS.first; it != rangeS.second; ++it)
         {
             it->second->setSequence(sequence);
         }
@@ -80,7 +80,7 @@ namespace CSMPrefs
 
     bool ShortcutManager::getModifier(std::string_view name, int& modifier) const
     {
-        ModifierMap::const_iterator item = mModifiers.find(name);
+        auto item = mModifiers.find(name);
         if (item != mModifiers.end())
         {
             modifier = item->second;
@@ -94,7 +94,7 @@ namespace CSMPrefs
     void ShortcutManager::setModifier(std::string_view name, int modifier)
     {
         // Add to map/modify
-        ModifierMap::iterator item = mModifiers.find(name);
+        auto item = mModifiers.find(name);
         if (item != mModifiers.end())
         {
             item->second = modifier;
@@ -107,7 +107,7 @@ namespace CSMPrefs
         // Change active shortcuts
         std::pair<ShortcutMap::iterator, ShortcutMap::iterator> rangeS = mShortcuts.equal_range(name);
 
-        for (ShortcutMap::iterator it = rangeS.first; it != rangeS.second; ++it)
+        for (auto it = rangeS.first; it != rangeS.second; ++it)
         {
             it->second->setModifier(modifier);
         }
@@ -124,7 +124,7 @@ namespace CSMPrefs
 
             if (key)
             {
-                NameMap::const_iterator searchResult = mNames.find(key);
+                auto searchResult = mNames.find(key);
                 if (searchResult != mNames.end())
                 {
                     if (mods && i == 0)
@@ -157,7 +157,7 @@ namespace CSMPrefs
 
     std::string ShortcutManager::convertToString(int modifier) const
     {
-        NameMap::const_iterator searchResult = mNames.find(modifier);
+        auto searchResult = mNames.find(modifier);
         if (searchResult != mNames.end())
         {
             return searchResult->second;
@@ -220,7 +220,7 @@ namespace CSMPrefs
             }
             else
             {
-                KeyMap::const_iterator searchResult = mKeys.find(name);
+                auto searchResult = mKeys.find(name);
                 if (searchResult != mKeys.end())
                 {
                     keys[keyPos] = mods | searchResult->second;
@@ -245,7 +245,7 @@ namespace CSMPrefs
         start = std::min(start, data.size());
 
         std::string_view name = data.substr(start);
-        KeyMap::const_iterator searchResult = mKeys.find(name);
+        auto searchResult = mKeys.find(name);
         if (searchResult != mKeys.end())
         {
             modifier = searchResult->second;
@@ -278,7 +278,7 @@ namespace CSMPrefs
         }
 
         // Generate inverse map
-        for (NameMap::const_iterator it = mNames.begin(); it != mNames.end(); ++it)
+        for (auto it = mNames.begin(); it != mNames.end(); ++it)
         {
             mKeys.insert(std::make_pair(it->second, it->first));
         }

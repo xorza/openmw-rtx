@@ -86,7 +86,7 @@ namespace MWRender
         }
         else
         {
-            MWWorld::Store<ESM::Land>::iterator it = esmStore.get<ESM::Land>().begin();
+            auto it = esmStore.get<ESM::Land>().begin();
             for (; it != esmStore.get<ESM::Land>().end(); ++it)
             {
                 BoundUnion(minX, maxX, minY, maxY, static_cast<float>(it->mX), static_cast<float>(it->mY));

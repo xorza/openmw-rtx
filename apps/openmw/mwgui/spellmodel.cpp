@@ -5,6 +5,7 @@
 
 #include <components/esm3/loadench.hpp>
 #include <components/esm3/loadmgef.hpp>
+#include <utility>
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/windowmanager.hpp"
@@ -177,7 +178,7 @@ namespace MWGui
     SpellModel::ModelIndex SpellModel::getSelectedIndex() const
     {
         ModelIndex selected = -1;
-        for (SpellModel::ModelIndex i = 0; i < int(getItemCount()); ++i)
+        for (SpellModel::ModelIndex i = 0; std::cmp_less(i, getItemCount()); ++i)
         {
             if (getItem(i).mSelected)
             {
@@ -190,7 +191,7 @@ namespace MWGui
 
     Spell SpellModel::getItem(ModelIndex index) const
     {
-        if (index < 0 || index >= int(mSpells.size()))
+        if (index < 0 || std::cmp_greater_equal(index, mSpells.size()))
             throw std::runtime_error("invalid spell index supplied");
         return mSpells[index];
     }

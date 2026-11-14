@@ -16,7 +16,7 @@ namespace MWMechanics
     bool smoothTurn(const MWWorld::Ptr& actor, float targetAngleRadians, int axis, float epsilonRadians)
     {
         MWMechanics::Movement& movement = actor.getClass().getMovementSettings(actor);
-        float diff
+        auto diff
             = static_cast<float>(Misc::normalizeAngle(targetAngleRadians - actor.getRefData().getPosition().rot[axis]));
         float absDiff = std::abs(diff);
 

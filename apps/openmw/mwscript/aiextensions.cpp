@@ -201,13 +201,13 @@ namespace MWScript
             {
                 MWWorld::Ptr ptr = R()(runtime);
 
-                Interpreter::Type_Integer range = static_cast<Interpreter::Type_Integer>(runtime[0].mFloat);
+                auto range = static_cast<Interpreter::Type_Integer>(runtime[0].mFloat);
                 runtime.pop();
 
-                Interpreter::Type_Integer duration = static_cast<Interpreter::Type_Integer>(runtime[0].mFloat);
+                auto duration = static_cast<Interpreter::Type_Integer>(runtime[0].mFloat);
                 runtime.pop();
 
-                Interpreter::Type_Integer time = static_cast<Interpreter::Type_Integer>(runtime[0].mFloat);
+                auto time = static_cast<Interpreter::Type_Integer>(runtime[0].mFloat);
                 runtime.pop();
 
                 // Chance for Idle is unused

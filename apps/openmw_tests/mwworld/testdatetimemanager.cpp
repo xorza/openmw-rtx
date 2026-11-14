@@ -17,7 +17,7 @@ namespace MWWorld
             constexpr double step = 1.0 / 7200.0;
 
             const float held = 23.9f;
-            const float stepped = static_cast<float>(static_cast<double>(held) + step);
+            const auto stepped = static_cast<float>(static_cast<double>(held) + step);
             EXPECT_FALSE(DateTimeManager::jumps(stepped, held, step)) << "a held hour cut every frame";
             EXPECT_FALSE(DateTimeManager::jumps(held, held, 0.0)) << "the same hour written again";
 

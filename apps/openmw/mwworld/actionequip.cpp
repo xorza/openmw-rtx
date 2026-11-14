@@ -64,7 +64,7 @@ namespace MWWorld
             throw std::runtime_error("ActionEquip can't find item " + object.getCellRef().getRefId().toDebugString());
 
         // equip the item in the first free slot
-        std::vector<int>::const_iterator slot = slots.first.begin();
+        auto slot = slots.first.begin();
         for (; slot != slots.first.end(); ++slot)
         {
             // if the item is equipped already, nothing to do

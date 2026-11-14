@@ -180,7 +180,7 @@ namespace Terrain
 
     osg::ref_ptr<osg::Vec2Array> BufferCache::getUVBuffer(unsigned int numVerts)
     {
-        std::lock_guard<std::mutex> lock(mUvBufferMutex);
+        std::scoped_lock lock(mUvBufferMutex);
         if (mUvBufferMap.find(numVerts) != mUvBufferMap.end())
         {
             return mUvBufferMap[numVerts];
@@ -211,7 +211,7 @@ namespace Terrain
     osg::ref_ptr<osg::DrawElements> BufferCache::getIndexBuffer(unsigned int numVerts, unsigned int flags)
     {
         std::pair<int, int> id = std::make_pair(numVerts, flags);
-        std::lock_guard<std::mutex> lock(mIndexBufferMutex);
+        std::scoped_lock lock(mIndexBufferMutex);
 
         if (mIndexBufferMap.find(id) != mIndexBufferMap.end())
         {
@@ -235,11 +235,11 @@ namespace Terrain
     void BufferCache::clearCache()
     {
         {
-            std::lock_guard<std::mutex> lock(mIndexBufferMutex);
+            std::scoped_lock lock(mIndexBufferMutex);
             mIndexBufferMap.clear();
         }
         {
-            std::lock_guard<std::mutex> lock(mUvBufferMutex);
+            std::scoped_lock lock(mUvBufferMutex);
             mUvBufferMap.clear();
         }
     }
@@ -247,12 +247,12 @@ namespace Terrain
     void BufferCache::releaseGLObjects(osg::State* state)
     {
         {
-            std::lock_guard<std::mutex> lock(mIndexBufferMutex);
+            std::scoped_lock lock(mIndexBufferMutex);
             for (const auto& [_, indexbuffer] : mIndexBufferMap)
                 indexbuffer->releaseGLObjects(state);
         }
         {
-            std::lock_guard<std::mutex> lock(mUvBufferMutex);
+            std::scoped_lock lock(mUvBufferMutex);
             for (const auto& [_, uvbuffer] : mUvBufferMap)
                 uvbuffer->releaseGLObjects(state);
         }

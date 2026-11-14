@@ -29,12 +29,12 @@ namespace SceneUtil
 
     void RigGeometry::setSourceGeometry(osg::ref_ptr<osg::Geometry> sourceGeometry)
     {
-        for (unsigned int i = 0; i < 2; ++i)
-            mGeometry[i] = nullptr;
+        for (auto& i : mGeometry)
+            i = nullptr;
 
         mSourceGeometry = sourceGeometry;
 
-        for (unsigned int i = 0; i < 2; ++i)
+        for (auto& i : mGeometry)
         {
             const osg::Geometry& from = *sourceGeometry;
 
@@ -44,10 +44,10 @@ namespace SceneUtil
             // outlive the cloned geometry regardless. (ensured by mSourceGeometry)
             // - Arrays that we add or replace in the cloned geometry must be explicitely forbidden from reusing
             // BufferObjects of the original geometry. (ensured by vbo below)
-            mGeometry[i] = new osg::Geometry(from, osg::CopyOp::SHALLOW_COPY);
-            mGeometry[i]->getOrCreateUserDataContainer()->addUserObject(mSourceGeometry.get());
+            i = new osg::Geometry(from, osg::CopyOp::SHALLOW_COPY);
+            i->getOrCreateUserDataContainer()->addUserObject(mSourceGeometry.get());
 
-            osg::Geometry& to = *mGeometry[i];
+            osg::Geometry& to = *i;
             to.setSupportsDisplayList(false);
             to.setUseVertexBufferObjects(true);
             to.setCullingActive(false); // make sure to disable culling since that's handled by this class
@@ -78,7 +78,7 @@ namespace SceneUtil
                 }
             }
 
-            if (const osg::Vec4Array* tangents = dynamic_cast<const osg::Vec4Array*>(from.getTexCoordArray(7)))
+            if (const auto* tangents = dynamic_cast<const osg::Vec4Array*>(from.getTexCoordArray(7)))
             {
                 mSourceTangents = tangents;
                 osg::ref_ptr<osg::Array> tangentArray
@@ -99,12 +99,12 @@ namespace SceneUtil
     bool RigGeometry::initFromParentSkeleton(osg::NodeVisitor* nv)
     {
         const osg::NodePath& path = nv->getNodePath();
-        for (osg::NodePath::const_reverse_iterator it = path.rbegin() + 1; it != path.rend(); ++it)
+        for (auto it = path.rbegin() + 1; it != path.rend(); ++it)
         {
             osg::Node* node = *it;
             if (node->asTransform())
                 continue;
-            if (Skeleton* skel = dynamic_cast<Skeleton*>(node))
+            if (auto* skel = dynamic_cast<Skeleton*>(node))
             {
                 mSkeleton = skel;
                 break;
@@ -164,13 +164,13 @@ namespace SceneUtil
         const osg::Vec3Array* normalSrc = static_cast<osg::Vec3Array*>(mSourceGeometry->getNormalArray());
         const osg::Vec4Array* tangentSrc = mSourceTangents;
 
-        osg::Vec3Array* positionDst = static_cast<osg::Vec3Array*>(geom.getVertexArray());
-        osg::Vec3Array* normalDst = static_cast<osg::Vec3Array*>(geom.getNormalArray());
-        osg::Vec4Array* tangentDst = static_cast<osg::Vec4Array*>(geom.getTexCoordArray(7));
+        auto* positionDst = static_cast<osg::Vec3Array*>(geom.getVertexArray());
+        auto* normalDst = static_cast<osg::Vec3Array*>(geom.getNormalArray());
+        auto* tangentDst = static_cast<osg::Vec4Array*>(geom.getTexCoordArray(7));
 
         std::vector<osg::Matrixf> boneMatrices(mNodes.size());
-        std::vector<Bone*>::const_iterator bone = mNodes.begin();
-        std::vector<BoneInfo>::const_iterator boneInfo = mData->mBones.begin();
+        auto bone = mNodes.begin();
+        auto boneInfo = mData->mBones.begin();
         for (osg::Matrixf& boneMat : boneMatrices)
         {
             if (*bone != nullptr)
@@ -274,9 +274,9 @@ namespace SceneUtil
             for (unsigned int i = 0; i < getNumParents(); ++i)
                 getParent(i)->dirtyBound();
 
-            for (unsigned int i = 0; i < 2; ++i)
+            for (const auto& i : mGeometry)
             {
-                osg::Geometry& geom = *mGeometry[i];
+                osg::Geometry& geom = *i;
                 static_cast<CopyBoundingBoxCallback*>(geom.getComputeBoundingBoxCallback())->boundingBox = _boundingBox;
                 static_cast<CopyBoundingSphereCallback*>(geom.getComputeBoundingSphereCallback())->boundingSphere
                     = _boundingSphere;
@@ -370,7 +370,7 @@ namespace SceneUtil
             // The cull visitor won't be applied to the node itself,
             // but we want to use its state to render the child geometry.
             osg::StateSet* stateset = getStateSet();
-            osgUtil::CullVisitor* cv = static_cast<osgUtil::CullVisitor*>(&nv);
+            auto* cv = static_cast<osgUtil::CullVisitor*>(&nv);
             if (stateset)
                 cv->pushStateSet(stateset);
 

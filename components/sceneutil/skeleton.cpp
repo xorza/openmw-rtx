@@ -61,7 +61,7 @@ namespace SceneUtil
             mBoneCacheInit = true;
         }
 
-        BoneCache::iterator found = mBoneCache.find(Misc::StringUtils::lowerCase(name));
+        auto found = mBoneCache.find(Misc::StringUtils::lowerCase(name));
         if (found == mBoneCache.end())
             return nullptr;
 

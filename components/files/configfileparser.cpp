@@ -96,9 +96,9 @@ namespace Files
             : allowed_options(allowed_options)
             , m_allow_unregistered(allow_unregistered)
         {
-            for (std::set<std::string>::const_iterator i = allowed_options.begin(); i != allowed_options.end(); ++i)
+            for (const auto& allowed_option : allowed_options)
             {
-                add_option(i->c_str());
+                add_option(allowed_option.c_str());
             }
         }
 
@@ -114,16 +114,16 @@ namespace Files
                 // lower_bound will return that element.
                 // If some element is prefix of 's', then lower_bound will
                 // return the next element.
-                std::set<std::string>::iterator i = allowed_prefixes.lower_bound(s);
+                auto i = allowed_prefixes.lower_bound(s);
                 if (i != allowed_prefixes.end())
                 {
-                    if (i->find(s) == 0)
+                    if (i->starts_with(s))
                         bad_prefixes = true;
                 }
                 if (i != allowed_prefixes.begin())
                 {
                     --i;
-                    if (s.find(*i) == 0)
+                    if (s.starts_with(*i))
                         bad_prefixes = true;
                 }
                 if (bad_prefixes)
@@ -204,14 +204,14 @@ namespace Files
 
         bool common_config_file_iterator::allowed_option(const std::string& s) const
         {
-            std::set<std::string>::const_iterator i = allowed_options.find(s);
+            auto i = allowed_options.find(s);
             if (i != allowed_options.end())
                 return true;
             // If s is "pa" where "p" is allowed prefix then
             // lower_bound should find the element after "p".
             // This depends on 'allowed_prefixes' invariant.
             i = allowed_prefixes.lower_bound(s);
-            if (i != allowed_prefixes.begin() && s.find(*--i) == 0)
+            if (i != allowed_prefixes.begin() && s.starts_with(*--i))
                 return true;
             return false;
         }
@@ -266,9 +266,9 @@ namespace Files
         std::set<std::string> allowed_options;
 
         const std::vector<boost::shared_ptr<bpo::option_description>>& options = desc.options();
-        for (unsigned i = 0; i < options.size(); ++i)
+        for (const auto& option : options)
         {
-            const bpo::option_description& d = *options[i];
+            const bpo::option_description& d = *option;
 
             if (d.long_name().empty())
                 boost::throw_exception(

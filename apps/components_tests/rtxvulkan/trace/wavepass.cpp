@@ -233,7 +233,7 @@ namespace Rtx
                                 }
 
                     const double taps = static_cast<double>(width) * width * inside * inside;
-                    const float measured = static_cast<float>(squares / taps);
+                    const auto measured = static_cast<float>(squares / taps);
                     const float wanted = carried.mWhole * carried.mResolved[cascade * Shaders::WAVE_LEVELS + level];
 
                     // A twentieth of the finest level, which is what a half-float chain leaves of a

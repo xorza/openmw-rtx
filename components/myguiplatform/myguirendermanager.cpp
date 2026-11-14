@@ -102,9 +102,8 @@ namespace MyGUIPlatform
 
             mReadFrom = (mReadFrom + 1) % sNumBuffers;
             const std::vector<Batch>& vec = mBatchVector[mReadFrom];
-            for (std::vector<Batch>::const_iterator it = vec.begin(); it != vec.end(); ++it)
+            for (const auto& batch : vec)
             {
-                const Batch& batch = *it;
                 osg::VertexBufferObject* vbo = batch.mVertexBuffer;
 
                 if (batch.mStateSet)
@@ -442,7 +441,7 @@ namespace MyGUIPlatform
         batch.mArray = static_cast<OSGVertexBuffer*>(buffer)->getVertexArray();
         static_cast<OSGVertexBuffer*>(buffer)->markUsed();
 
-        if (OSGTexture* osgtexture = static_cast<OSGTexture*>(texture))
+        if (auto* osgtexture = static_cast<OSGTexture*>(texture))
         {
             batch.mTexture = osgtexture->getTexture();
             if (batch.mTexture->getDataVariance() == osg::Object::DYNAMIC)

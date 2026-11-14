@@ -149,7 +149,7 @@ namespace MWGui
         {
             key->type = ESM::QuickKeys::Type::HandToHand;
 
-            MyGUI::ImageBox* image = key->button->createWidget<MyGUI::ImageBox>(
+            auto* image = key->button->createWidget<MyGUI::ImageBox>(
                 "ImageBox", MyGUI::IntCoord(14, 13, 32, 32), MyGUI::Align::Default);
 
             image->setImageTexture("icons\\k\\stealth_handtohand.dds");
@@ -161,7 +161,7 @@ namespace MWGui
             key->id = ESM::RefId();
             key->name.clear();
 
-            MyGUI::TextBox* textBox = key->button->createWidgetReal<MyGUI::TextBox>(
+            auto* textBox = key->button->createWidgetReal<MyGUI::TextBox>(
                 "SandText", MyGUI::FloatCoord(0, 0, 1, 1), MyGUI::Align::Default);
 
             textBox->setTextAlign(MyGUI::Align::Center);

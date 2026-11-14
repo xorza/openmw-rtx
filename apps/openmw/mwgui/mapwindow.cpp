@@ -119,7 +119,7 @@ namespace MWGui
     {
         std::pair<ContainerType::iterator, ContainerType::iterator> range = mMarkers.equal_range(marker.mCell);
 
-        for (ContainerType::iterator it = range.first; it != range.second; ++it)
+        for (auto it = range.first; it != range.second; ++it)
         {
             if (it->second == marker)
             {
@@ -135,7 +135,7 @@ namespace MWGui
     {
         std::pair<ContainerType::iterator, ContainerType::iterator> range = mMarkers.equal_range(marker.mCell);
 
-        for (ContainerType::iterator it = range.first; it != range.second; ++it)
+        for (auto it = range.first; it != range.second; ++it)
         {
             if (it->second == marker)
             {
@@ -192,11 +192,11 @@ namespace MWGui
     MWGui::LocalMapBase::MapEntry& LocalMapBase::addMapEntry()
     {
         const int mapWidgetSize = static_cast<int>(getWidgetSize());
-        MyGUI::ImageBox* map = mLocalMap->createWidget<MyGUI::ImageBox>(
+        auto* map = mLocalMap->createWidget<MyGUI::ImageBox>(
             "ImageBox", MyGUI::IntCoord(0, 0, mapWidgetSize, mapWidgetSize), MyGUI::Align::Top | MyGUI::Align::Left);
         map->setDepth(Local_MapLayer);
 
-        MyGUI::ImageBox* fog = mLocalMap->createWidget<MyGUI::ImageBox>(
+        auto* fog = mLocalMap->createWidget<MyGUI::ImageBox>(
             "ImageBox", MyGUI::IntCoord(0, 0, mapWidgetSize, mapWidgetSize), MyGUI::Align::Top | MyGUI::Align::Left);
         fog->setDepth(Local_FogLayer);
         fog->setColour(MyGUI::Colour(0, 0, 0));
@@ -291,7 +291,7 @@ namespace MWGui
     {
         MarkerUserData data(mLocalMapRender);
         data.caption = name;
-        MarkerWidget* markerWidget = mLocalMap->createWidget<MarkerWidget>(
+        auto* markerWidget = mLocalMap->createWidget<MarkerWidget>(
             "MarkerButton", getMarkerCoordinates(x, y, data, 8), MyGUI::Align::Default);
         markerWidget->setNormalColour(
             MyGUI::Colour::parse(MyGUI::LanguageManager::getInstance().replaceTags("#{fontcolour=normal}")));
@@ -339,7 +339,7 @@ namespace MWGui
             {
                 const ESM::CustomMarker& marker = it->second;
                 MarkerUserData markerPos(mLocalMapRender);
-                MarkerWidget* markerWidget = mLocalMap->createWidget<MarkerWidget>("CustomMarkerButton",
+                auto* markerWidget = mLocalMap->createWidget<MarkerWidget>("CustomMarkerButton",
                     getMarkerCoordinates(marker.mWorldX, marker.mWorldY, markerPos, 16), MyGUI::Align::Default);
                 markerWidget->setDepth(Local_MarkerAboveFogLayer);
                 markerWidget->setUserString("ToolTipType", "Layout");
@@ -542,7 +542,7 @@ namespace MWGui
         notifyPlayerUpdate();
 
         MyGUI::ISubWidget* main = mCompass->getSubWidgetMain();
-        MyGUI::RotatingSkin* rotatingSubskin = main->castType<MyGUI::RotatingSkin>();
+        auto* rotatingSubskin = main->castType<MyGUI::RotatingSkin>();
         rotatingSubskin->setCenter(MyGUI::IntPoint(16, 16));
         float angle = std::atan2(x, y);
         rotatingSubskin->setAngle(angle);
@@ -577,7 +577,7 @@ namespace MWGui
         {
             const ESM::Position& worldPos = ptr.getRefData().getPosition();
             MarkerUserData markerPos(mLocalMapRender);
-            MyGUI::ImageBox* markerWidget = mLocalMap->createWidget<MyGUI::ImageBox>("ImageBox",
+            auto* markerWidget = mLocalMap->createWidget<MyGUI::ImageBox>("ImageBox",
                 getMarkerCoordinates(worldPos.pos[0], worldPos.pos[1], markerPos, 8), MyGUI::Align::Default);
             markerWidget->setDepth(Local_MarkerAboveFogLayer);
             markerWidget->setImageTexture(markerTexture);
@@ -739,7 +739,7 @@ namespace MWGui
         if (markedCell && markedCell->getCell()->getWorldSpace() == mActiveCell->getWorldSpace())
         {
             MarkerUserData markerPos(mLocalMapRender);
-            MyGUI::ImageBox* markerWidget = mLocalMap->createWidget<MyGUI::ImageBox>("ImageBox",
+            auto* markerWidget = mLocalMap->createWidget<MyGUI::ImageBox>("ImageBox",
                 getMarkerCoordinates(markedPosition.pos[0], markedPosition.pos[1], markerPos, 8),
                 MyGUI::Align::Default);
             markerWidget->setDepth(Local_MarkerAboveFogLayer);
@@ -1051,7 +1051,7 @@ namespace MWGui
         if (Settings::gui().mControllerMenus && mode == MWGui::GM_None && pinned() && visible)
         {
             // Restore the window to pinned size.
-            MyGUI::Window* window = mMainWidget->castType<MyGUI::Window>();
+            auto* window = mMainWidget->castType<MyGUI::Window>();
             MyGUI::IntSize viewSize = MyGUI::RenderManager::getInstance().getViewSize();
             const int x = static_cast<int>(Settings::windows().mMapX * viewSize.width);
             const int y = static_cast<int>(Settings::windows().mMapY * viewSize.height);
@@ -1088,7 +1088,7 @@ namespace MWGui
 
     MyGUI::Widget* MapWindow::createMarker(const std::string& name, float x, float y, float agregatedWeight)
     {
-        MyGUI::Widget* markerWidget = mGlobalMap->createWidget<MyGUI::Widget>(
+        auto* markerWidget = mGlobalMap->createWidget<MyGUI::Widget>(
             "MarkerButton", createMarkerCoords(x, y, agregatedWeight), MyGUI::Align::Default);
         markerWidget->setVisible(markerWidget->getHeight() >= 6.0);
         markerWidget->setUserString("Caption_TextOneLine", "#{sCell=" + name + "}");
@@ -1164,7 +1164,7 @@ namespace MWGui
         ESM::RefId cellRefId = ESM::RefId::esm3ExteriorCell(x, y);
         CustomMarkerCollection::RangeType markers = mCustomMarkers.getMarkers(cellRefId);
         std::vector<std::string> destNotes;
-        for (CustomMarkerCollection::ContainerType::const_iterator it = markers.first; it != markers.second; ++it)
+        for (auto it = markers.first; it != markers.second; ++it)
             destNotes.push_back(it->second.mNote);
 
         if (!destNotes.empty())
@@ -1315,7 +1315,7 @@ namespace MWGui
     void MapWindow::setGlobalMapPlayerDir(const float x, const float y)
     {
         MyGUI::ISubWidget* main = mPlayerArrowGlobal->getSubWidgetMain();
-        MyGUI::RotatingSkin* rotatingSubskin = main->castType<MyGUI::RotatingSkin>();
+        auto* rotatingSubskin = main->castType<MyGUI::RotatingSkin>();
         rotatingSubskin->setCenter(MyGUI::IntPoint(16, 16));
         float angle = std::atan2(x, y);
         rotatingSubskin->setAngle(angle);
@@ -1474,7 +1474,7 @@ namespace MWGui
             int x = (viewSize.width - width) / 2;
             int y = (viewSize.height - height) / 2;
 
-            MyGUI::Window* window = mMainWidget->castType<MyGUI::Window>();
+            auto* window = mMainWidget->castType<MyGUI::Window>();
             window->setCoord(x, active ? y : viewSize.height + 1, width, height);
         }
 

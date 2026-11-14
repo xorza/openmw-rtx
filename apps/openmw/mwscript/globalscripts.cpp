@@ -196,22 +196,21 @@ namespace MWScript
 
         scripts.emplace_back(ESM::RefId::stringRefId("main"));
 
-        for (MWWorld::Store<ESM::StartScript>::iterator iter = mStore.get<ESM::StartScript>().begin();
-            iter != mStore.get<ESM::StartScript>().end(); ++iter)
+        for (const auto& iter : mStore.get<ESM::StartScript>())
         {
-            scripts.push_back(iter->mId);
+            scripts.push_back(iter.mId);
         }
 
         // add scripts
-        for (auto iter(scripts.begin()); iter != scripts.end(); ++iter)
+        for (auto& script : scripts)
         {
             try
             {
-                addScript(*iter);
+                addScript(script);
             }
             catch (const std::exception& exception)
             {
-                Log(Debug::Error) << "Failed to add start script " << *iter << " because an exception has "
+                Log(Debug::Error) << "Failed to add start script " << script << " because an exception has "
                                   << "been thrown: " << exception.what();
             }
         }

@@ -79,14 +79,14 @@ namespace SceneUtil
         osg::Callback* callback = node.getUpdateCallback();
         while (callback)
         {
-            if (Controller* ctrl = dynamic_cast<Controller*>(callback))
+            if (auto* ctrl = dynamic_cast<Controller*>(callback))
                 visit(node, *ctrl);
-            if (CompositeStateSetUpdater* composite = dynamic_cast<CompositeStateSetUpdater*>(callback))
+            if (auto* composite = dynamic_cast<CompositeStateSetUpdater*>(callback))
             {
                 for (size_t i = 0; i < composite->getNumControllers(); ++i)
                 {
                     StateSetUpdater* statesetcontroller = composite->getController(i);
-                    if (Controller* ctrl = dynamic_cast<Controller*>(statesetcontroller))
+                    if (auto* ctrl = dynamic_cast<Controller*>(statesetcontroller))
                         visit(node, *ctrl);
                 }
             }

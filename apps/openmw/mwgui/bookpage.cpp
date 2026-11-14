@@ -395,7 +395,7 @@ namespace MWGui
         Style* createHotStyle(Style* baseStyle, const MyGUI::Colour& normalColour, const MyGUI::Colour& hoverColour,
             const MyGUI::Colour& activeColour, InteractiveId id, bool unique) override
         {
-            StyleImpl* const baseStyleImpl = static_cast<StyleImpl*>(baseStyle);
+            auto* const baseStyleImpl = static_cast<StyleImpl*>(baseStyle);
 
             if (!unique)
                 for (StyleImpl& style : mBook->mStyles)
@@ -492,8 +492,8 @@ namespace MWGui
 
             add_partial_text();
 
-            std::vector<Alignment>::iterator sa = mSectionAlignment.begin();
-            for (Sections::iterator i = mBook->mSections.begin(); i != mBook->mSections.end(); ++i, ++sa)
+            auto sa = mSectionAlignment.begin();
+            for (auto i = mBook->mSections.begin(); i != mBook->mSections.end(); ++i, ++sa)
             {
                 // apply alignment to individual lines...
                 for (Line& line : i->mLines)
@@ -1048,7 +1048,7 @@ namespace MWGui
             {
                 MyGUI::IFont* const font = mBook->affectedFont(mFocusItem);
 
-                ActiveTextFormats::iterator i = mActiveTextFormats.find(font);
+                auto i = mActiveTextFormats.find(font);
 
                 if (mNode && i != mActiveTextFormats.end())
                     mNode->outOfDate(i->second->mRenderItem);
@@ -1165,11 +1165,11 @@ namespace MWGui
                 mFocusItem = nullptr;
                 mItemActive = 0;
 
-                for (ActiveTextFormats::iterator i = mActiveTextFormats.begin(); i != mActiveTextFormats.end(); ++i)
+                for (auto& mActiveTextFormat : mActiveTextFormats)
                 {
-                    if (mNode != nullptr && i->second != nullptr)
-                        i->second->destroyDrawItem(mNode);
-                    i->second.reset();
+                    if (mNode != nullptr && mActiveTextFormat.second != nullptr)
+                        mActiveTextFormat.second->destroyDrawItem(mNode);
+                    mActiveTextFormat.second.reset();
                 }
 
                 mActiveTextFormats.clear();
@@ -1203,8 +1203,8 @@ namespace MWGui
             else if (mBook && isPageDifferent(newPage))
             {
                 if (mNode != nullptr)
-                    for (ActiveTextFormats::iterator i = mActiveTextFormats.begin(); i != mActiveTextFormats.end(); ++i)
-                        mNode->outOfDate(i->second->mRenderItem);
+                    for (auto& mActiveTextFormat : mActiveTextFormats)
+                        mNode->outOfDate(mActiveTextFormat.second->mRenderItem);
 
                 setPage(newPage);
 
@@ -1235,7 +1235,7 @@ namespace MWGui
             {
                 MyGUI::IFont* const font = run.mStyle->mFont;
 
-                ActiveTextFormats::iterator j = mPageDisplay->mActiveTextFormats.find(font);
+                auto j = mPageDisplay->mActiveTextFormats.find(font);
 
                 if (j == mPageDisplay->mActiveTextFormats.end())
                 {
@@ -1255,8 +1255,8 @@ namespace MWGui
             newBook->visitRuns(0, 0x7FFFFFFF, CreateActiveFormat(this));
 
             if (mNode != nullptr)
-                for (ActiveTextFormats::iterator i = mActiveTextFormats.begin(); i != mActiveTextFormats.end(); ++i)
-                    i->second->createDrawItem(mNode);
+                for (auto& mActiveTextFormat : mActiveTextFormats)
+                    mActiveTextFormat.second->createDrawItem(mNode);
         }
 
         void setVisible(bool newVisible) override
@@ -1276,8 +1276,8 @@ namespace MWGui
 
             if (nullptr != mNode)
             {
-                for (ActiveTextFormats::iterator i = mActiveTextFormats.begin(); i != mActiveTextFormats.end(); ++i)
-                    mNode->outOfDate(i->second->mRenderItem);
+                for (auto& mActiveTextFormat : mActiveTextFormats)
+                    mNode->outOfDate(mActiveTextFormat.second->mRenderItem);
             }
         }
 
@@ -1285,8 +1285,8 @@ namespace MWGui
         {
             mNode = node;
 
-            for (ActiveTextFormats::iterator i = mActiveTextFormats.begin(); i != mActiveTextFormats.end(); ++i)
-                i->second->createDrawItem(node);
+            for (auto& mActiveTextFormat : mActiveTextFormats)
+                mActiveTextFormat.second->createDrawItem(node);
         }
 
         struct RenderRun
@@ -1363,8 +1363,8 @@ namespace MWGui
             _checkMargin();
 
             if (mNode != nullptr)
-                for (ActiveTextFormats::iterator i = mActiveTextFormats.begin(); i != mActiveTextFormats.end(); ++i)
-                    mNode->outOfDate(i->second->mRenderItem);
+                for (auto& mActiveTextFormat : mActiveTextFormats)
+                    mNode->outOfDate(mActiveTextFormat.second->mRenderItem);
         }
 
         void _correctView() override
@@ -1372,14 +1372,14 @@ namespace MWGui
             _checkMargin();
 
             if (mNode != nullptr)
-                for (ActiveTextFormats::iterator i = mActiveTextFormats.begin(); i != mActiveTextFormats.end(); ++i)
-                    mNode->outOfDate(i->second->mRenderItem);
+                for (auto& mActiveTextFormat : mActiveTextFormats)
+                    mNode->outOfDate(mActiveTextFormat.second->mRenderItem);
         }
 
         void destroyDrawItem() override
         {
-            for (ActiveTextFormats::iterator i = mActiveTextFormats.begin(); i != mActiveTextFormats.end(); ++i)
-                i->second->destroyDrawItem(mNode);
+            for (auto& mActiveTextFormat : mActiveTextFormats)
+                mActiveTextFormat.second->destroyDrawItem(mNode);
 
             mNode = nullptr;
         }

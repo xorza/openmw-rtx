@@ -256,7 +256,7 @@ namespace MWGui
 
         for (const std::string& buttonId : buttons)
         {
-            MyGUI::Button* button = mButtonsWidget->createWidget<MyGUI::Button>(
+            auto* button = mButtonsWidget->createWidget<MyGUI::Button>(
                 MyGUI::WidgetStyle::Child, std::string("MW_Button"), dummyCoord, MyGUI::Align::Default);
             button->setCaptionWithReplacing(buttonId);
 

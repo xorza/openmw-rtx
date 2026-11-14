@@ -190,7 +190,7 @@ namespace MWGui
 
         size_t selectedIndex = MyGUI::ITEM_NONE;
 
-        for (MWBase::StateManager::CharacterIterator it = mgr->characterBegin(); it != mgr->characterEnd(); ++it)
+        for (auto it = mgr->characterBegin(); it != mgr->characterEnd(); ++it)
         {
             if (it->begin() != it->end())
             {
@@ -365,9 +365,9 @@ namespace MWGui
         mSaveList->removeAllItems();
         if (!mCurrentCharacter)
             return;
-        for (MWState::Character::SlotIterator it = mCurrentCharacter->begin(); it != mCurrentCharacter->end(); ++it)
+        for (const auto& it : *mCurrentCharacter)
         {
-            mSaveList->addItem(it->mProfile.mDescription);
+            mSaveList->addItem(it.mProfile.mDescription);
         }
         // When loading, Auto-select the first save, if there is one
         if (mSaveList->getItemCount() && !mSaving)
@@ -419,8 +419,7 @@ namespace MWGui
 
         mCurrentSlot = nullptr;
         size_t i = 0;
-        for (MWState::Character::SlotIterator it = mCurrentCharacter->begin(); it != mCurrentCharacter->end();
-            ++it, ++i)
+        for (auto it = mCurrentCharacter->begin(); it != mCurrentCharacter->end(); ++it, ++i)
         {
             if (i == pos)
                 mCurrentSlot = &*it;

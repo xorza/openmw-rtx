@@ -155,9 +155,9 @@ namespace DetourNavigator
         if (it == mIndex.qend())
             return std::nullopt;
 
-        const UpdatingMap::iterator mapIt = it->second;
+        const auto mapIt = it->second;
         std::deque<JobIt>& tileJobs = mapIt->second;
-        JobIt result = tileJobs.front();
+        auto result = tileJobs.front();
         tileJobs.pop_front();
 
         --mSize;
@@ -181,7 +181,7 @@ namespace DetourNavigator
                 continue;
             }
 
-            for (JobIt job : it->second)
+            for (auto job : it->second)
             {
                 job->mChangeType = ChangeType::remove;
                 removing.push_back(job);
@@ -321,7 +321,7 @@ namespace DetourNavigator
                     return lastUpdate->second + mSettings.get().mMinUpdateInterval;
                 }();
 
-                const JobIt it = mJobs.emplace(
+                const auto it = mJobs.emplace(
                     mJobs.end(), agentBounds, navMeshCacheItem, worldspace, changedTile, changeType, processTime);
 
                 Log(Debug::Debug) << "Post job " << it->mId << " for agent=(" << it->mAgentBounds << ")"
@@ -431,7 +431,7 @@ namespace DetourNavigator
     {
         AsyncNavMeshUpdaterStats result;
         {
-            const std::lock_guard<std::mutex> lock(mMutex);
+            const std::scoped_lock lock(mMutex);
             result.mJobs = mJobs.size();
             result.mWaiting = mWaiting.getStats();
             result.mPushed = mPushed.size();
@@ -452,7 +452,7 @@ namespace DetourNavigator
         Misc::setCurrentThreadIdlePriority();
         while (!mShouldStop)
         {
-            if (JobIt job = getNextJob(); job != mJobs.end())
+            if (auto job = getNextJob(); job != mJobs.end())
             {
                 try
                 {
@@ -719,7 +719,7 @@ namespace DetourNavigator
         const TilePosition playerTile = *mPlayerTile.lockConst();
         const std::chrono::steady_clock::time_point now = mClock.get().now();
 
-        JobIt job = mJobs.end();
+        auto job = mJobs.end();
 
         if (const std::optional<JobIt> nextJob = mWaiting.pop(playerTile, now))
             job = *nextJob;
@@ -776,7 +776,7 @@ namespace DetourNavigator
     {
         const std::chrono::steady_clock::time_point now = mClock.get().now();
 
-        const std::lock_guard<std::mutex> lock(mMutex);
+        const std::scoped_lock lock(mMutex);
 
         for (auto it = mLastUpdates.begin(); it != mLastUpdates.end();)
         {
@@ -790,7 +790,7 @@ namespace DetourNavigator
     void AsyncNavMeshUpdater::enqueueJob(JobIt job)
     {
         Log(Debug::Debug) << "Enqueueing job " << job->mId << " by thread=" << std::this_thread::get_id();
-        const std::lock_guard lock(mMutex);
+        const std::scoped_lock lock(mMutex);
         mWaiting.push(job, mClock.get().now());
         mHasJob.notify_all();
     }
@@ -798,13 +798,13 @@ namespace DetourNavigator
     void AsyncNavMeshUpdater::removeJob(JobIt job)
     {
         Log(Debug::Debug) << "Removing job " << job->mId << " by thread=" << std::this_thread::get_id();
-        const std::lock_guard lock(mMutex);
+        const std::scoped_lock lock(mMutex);
         mJobs.erase(job);
     }
 
     void TileStoreJobQueue::push(JobIt job)
     {
-        const std::lock_guard lock(mMutex);
+        const std::scoped_lock lock(mMutex);
         mReading.push(job);
         mHasJob.notify_all();
     }
@@ -820,13 +820,13 @@ namespace DetourNavigator
 
     void TileStoreJobQueue::update(TilePosition playerTile)
     {
-        const std::lock_guard lock(mMutex);
+        const std::scoped_lock lock(mMutex);
         mPlayerTile = playerTile;
     }
 
     void TileStoreJobQueue::stop()
     {
-        const std::lock_guard lock(mMutex);
+        const std::scoped_lock lock(mMutex);
         mReading.clear();
         mShouldStop = true;
         mHasJob.notify_all();
@@ -834,7 +834,7 @@ namespace DetourNavigator
 
     std::size_t TileStoreJobQueue::size() const
     {
-        const std::lock_guard lock(mMutex);
+        const std::scoped_lock lock(mMutex);
         return mReading.size();
     }
 

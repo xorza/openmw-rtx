@@ -146,8 +146,8 @@ namespace MWRender
         globalDefines["skyBlending"] = skyBlending ? "1" : "0";
         globalDefines["particlePointLighting"] = Settings::shaders().mParticlePointLighting ? "1" : "0";
 
-        for (auto itr = lightDefines.begin(); itr != lightDefines.end(); itr++)
-            globalDefines[itr->first] = itr->second;
+        for (auto& lightDefine : lightDefines)
+            globalDefines[lightDefine.first] = lightDefine.second;
 
         // Refactor this at some point - most shaders don't care about these defines
         const float groundcoverDistance = Settings::groundcover().mRenderingDistance;
@@ -489,7 +489,7 @@ namespace MWRender
     {
         Resource::SceneManager& scene = *mResources.getSceneManager();
 
-        for (Settings::CategorySettingVector::const_iterator it = changed.begin(); it != changed.end(); ++it)
+        for (auto it = changed.begin(); it != changed.end(); ++it)
         {
             if (it->first == "Shaders"
                 && (it->second == "force per pixel lighting" || it->second == "classic falloff"

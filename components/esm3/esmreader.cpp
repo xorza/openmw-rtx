@@ -12,6 +12,7 @@
 #include <fstream>
 #include <sstream>
 #include <stdexcept>
+#include <utility>
 
 namespace ESM
 {
@@ -331,7 +332,7 @@ namespace ESM
 
     void ESMReader::getSubHeader()
     {
-        if (mCtx.leftRec < static_cast<std::streamsize>(sizeof(mCtx.leftSub)))
+        if (std::cmp_less(mCtx.leftRec, sizeof(mCtx.leftSub)))
             fail("End of record while reading sub-record header: " + std::to_string(mCtx.leftRec) + " < "
                 + std::to_string(sizeof(mCtx.leftSub)));
 
@@ -374,7 +375,7 @@ namespace ESM
 
     void ESMReader::getRecHeader(uint32_t& flags)
     {
-        if (mCtx.leftFile < static_cast<std::streamsize>(3 * sizeof(uint32_t)))
+        if (std::cmp_less(mCtx.leftFile, 3 * sizeof(uint32_t)))
             fail("End of file while reading record header");
 
         std::uint32_t leftRec = 0;

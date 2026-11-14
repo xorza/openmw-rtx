@@ -330,7 +330,7 @@ namespace MWGui
             int x = (viewSize.width - width) / 2;
             int y = (viewSize.height - height) / 2;
 
-            MyGUI::Window* window = mMainWidget->castType<MyGUI::Window>();
+            auto* window = mMainWidget->castType<MyGUI::Window>();
             window->setCoord(x, active ? y : viewSize.height + 1, width, height);
 
             MWBase::Environment::get().getWindowManager()->setControllerTooltipVisible(

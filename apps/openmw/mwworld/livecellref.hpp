@@ -102,7 +102,7 @@ namespace MWWorld
     template <class T>
     const LiveCellRef<T>* LiveCellRefBase::dynamicCast(const LiveCellRefBase* value)
     {
-        if (const LiveCellRef<T>* ref = dynamic_cast<const LiveCellRef<T>*>(value))
+        if (const auto* ref = dynamic_cast<const LiveCellRef<T>*>(value))
             return ref;
         throw std::runtime_error(
             makeDynamicCastErrorMessage(value, ESM::getRecNameString(T::sRecordId).toStringView()));
@@ -111,7 +111,7 @@ namespace MWWorld
     template <class T>
     LiveCellRef<T>* LiveCellRefBase::dynamicCast(LiveCellRefBase* value)
     {
-        if (LiveCellRef<T>* ref = dynamic_cast<LiveCellRef<T>*>(value))
+        if (auto* ref = dynamic_cast<LiveCellRef<T>*>(value))
             return ref;
         throw std::runtime_error(
             makeDynamicCastErrorMessage(value, ESM::getRecNameString(T::sRecordId).toStringView()));

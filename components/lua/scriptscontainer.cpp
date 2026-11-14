@@ -91,7 +91,7 @@ namespace LuaUtil
     bool ScriptsContainer::addScript(
         LuaView& view, int scriptId, std::optional<sol::function>& onInit, std::optional<sol::function>& onLoad)
     {
-        assert(scriptId >= 0 && scriptId < static_cast<int>(mLua.getConfiguration().size()));
+        assert(scriptId >= 0 && std::cmp_less(scriptId, mLua.getConfiguration().size()));
         if (hasScript(scriptId))
             return false; // already present
 
@@ -538,9 +538,9 @@ namespace LuaUtil
     ScriptsContainer::LoadedData& ScriptsContainer::ensureLoaded()
     {
         mRequiredLoading = true;
-        if (LoadedData* data = std::get_if<LoadedData>(&mData))
+        if (auto* data = std::get_if<LoadedData>(&mData))
             return *data;
-        UnloadedData& unloadedData = std::get<UnloadedData>(mData);
+        auto& unloadedData = std::get<UnloadedData>(mData);
         std::vector<ESM::LuaScript> savedScripts = std::move(unloadedData.mScripts);
         LoadedData& data = mData.emplace<LoadedData>();
 
@@ -633,7 +633,7 @@ namespace LuaUtil
 
     ScriptsContainer::UnloadedData& ScriptsContainer::ensureUnloaded(LuaView& view)
     {
-        if (UnloadedData* data = std::get_if<UnloadedData>(&mData))
+        if (auto* data = std::get_if<UnloadedData>(&mData))
             return *data;
         UnloadedData data;
         save(view, data);
@@ -748,7 +748,7 @@ namespace LuaUtil
             Script& script = getScript(t.mScriptId);
             if (t.mSerializable)
             {
-                const std::string& callbackName = std::get<std::string>(t.mCallback);
+                const auto& callbackName = std::get<std::string>(t.mCallback);
                 auto it = script.mRegisteredCallbacks.find(callbackName);
                 if (it == script.mRegisteredCallbacks.end())
                     throw std::logic_error("Callback '" + callbackName + "' doesn't exist");
@@ -808,7 +808,7 @@ namespace LuaUtil
 
     void ScriptsContainer::addInstructionCount(int scriptId, int64_t instructionCount)
     {
-        if (LoadedData* data = std::get_if<LoadedData>(&mData))
+        if (auto* data = std::get_if<LoadedData>(&mData))
         {
             auto it = data->mScripts.find(scriptId);
             if (it != data->mScripts.end())

@@ -67,8 +67,8 @@ namespace Terrain
 
     void ViewData::clear()
     {
-        for (unsigned int i = 0; i < mEntries.size(); ++i)
-            mEntries[i].set(nullptr);
+        for (auto& mEntrie : mEntries)
+            mEntrie.set(nullptr);
         mNumEntries = 0;
         mLastUsageTimeStamp = 0;
         mChanged = false;
@@ -129,7 +129,7 @@ namespace Terrain
     ViewData* ViewDataMap::getViewData(
         osg::Object* viewer, const osg::Vec3f& viewPoint, const osg::Vec4i& activeGrid, bool& needsUpdate)
     {
-        ViewerMap::const_iterator found = mViewers.find(viewer);
+        auto found = mViewers.find(viewer);
         ViewData* vd = nullptr;
         if (found == mViewers.end())
         {
@@ -205,14 +205,14 @@ namespace Terrain
 
     void ViewDataMap::clearUnusedViews(double referenceTime)
     {
-        for (ViewerMap::iterator it = mViewers.begin(); it != mViewers.end();)
+        for (auto it = mViewers.begin(); it != mViewers.end();)
         {
             if (it->second->getLastUsageTimeStamp() + mExpiryDelay < referenceTime)
                 mViewers.erase(it++);
             else
                 ++it;
         }
-        for (std::deque<ViewData*>::iterator it = mUsedViews.begin(); it != mUsedViews.end();)
+        for (auto it = mUsedViews.begin(); it != mUsedViews.end();)
         {
             if ((*it)->getLastUsageTimeStamp() + mExpiryDelay < referenceTime)
             {

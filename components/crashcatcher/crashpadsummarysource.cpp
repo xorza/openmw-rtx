@@ -143,20 +143,20 @@ namespace Crash
 
     void SessionReports::add(const crashpad::UUID& id, const ReportKind kind)
     {
-        const std::lock_guard lock(mMutex);
+        const std::scoped_lock lock(mMutex);
         mSession.mIds.push_back(id);
         mSession.mCrashed = mSession.mCrashed || kind == ReportKind::Crash;
     }
 
     void SessionReports::setLast(LastReport last)
     {
-        const std::lock_guard lock(mMutex);
+        const std::scoped_lock lock(mMutex);
         mSession.mLast = std::move(last);
     }
 
     SessionReports::Taken SessionReports::take()
     {
-        const std::lock_guard lock(mMutex);
+        const std::scoped_lock lock(mMutex);
         return std::move(mSession);
     }
 

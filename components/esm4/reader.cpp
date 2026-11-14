@@ -42,6 +42,7 @@
 #include <components/misc/strings/lower.hpp>
 #include <components/toutf8/toutf8.hpp>
 #include <components/vfs/manager.hpp>
+#include <utility>
 
 #include "grouptype.hpp"
 
@@ -510,7 +511,7 @@ namespace ESM4
         }
 
         mStream->read((char*)&mCtx.recordHeader, mCtx.recHeaderSize);
-        std::size_t bytesRead = (std::size_t)mStream->gcount();
+        auto bytesRead = (std::size_t)mStream->gcount();
 
         // keep track of data left to read from the file
         mCtx.fileRead += mCtx.recHeaderSize;
@@ -803,7 +804,7 @@ namespace ESM4
     //        (see https://www.uesp.net/wiki/Tes4Mod:Formid#ModIndex_Zero)
     void Reader::adjustFormId(FormId& id) const
     {
-        if (id.hasContentFile() && id.mContentFile < static_cast<int>(mCtx.parentFileIndices.size()))
+        if (id.hasContentFile() && std::cmp_less(id.mContentFile, mCtx.parentFileIndices.size()))
             id.mContentFile = mCtx.parentFileIndices[id.mContentFile];
         else
             id.mContentFile = mCtx.modIndex;
@@ -880,7 +881,7 @@ namespace ESM4
 
             str.resize(newSize); // assumed C++11
             stream.read(str.data(), newSize);
-            if (static_cast<std::size_t>(stream.gcount()) == newSize)
+            if (std::cmp_equal(stream.gcount(), newSize))
             {
                 if (hasNull)
                 {

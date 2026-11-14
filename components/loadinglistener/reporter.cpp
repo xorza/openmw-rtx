@@ -9,21 +9,21 @@ namespace Loading
 {
     void Reporter::addTotal(std::size_t value)
     {
-        const std::lock_guard lock(mMutex);
+        const std::scoped_lock lock(mMutex);
         mTotal += value;
         mUpdated.notify_all();
     }
 
     void Reporter::addProgress(std::size_t value)
     {
-        const std::lock_guard lock(mMutex);
+        const std::scoped_lock lock(mMutex);
         mProgress += value;
         mUpdated.notify_all();
     }
 
     void Reporter::complete()
     {
-        const std::lock_guard lock(mMutex);
+        const std::scoped_lock lock(mMutex);
         mDone = true;
         mUpdated.notify_all();
     }

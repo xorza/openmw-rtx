@@ -36,6 +36,7 @@
 #include <components/esm/fourcc.hpp>
 #include <components/files/constrainedfilestream.hpp>
 #include <components/files/utils.hpp>
+#include <utility>
 
 using namespace Bsa;
 
@@ -182,7 +183,7 @@ void BSAFile::readHeader(std::istream& input)
         if (fileSize + offset > fsize)
             fail(std::format("Archive contains offsets outside itself: {} + {} > {}", fileSize, offset, fsize));
 
-        if (offset > std::numeric_limits<uint32_t>::max())
+        if (std::cmp_greater(offset, std::numeric_limits<uint32_t>::max()))
             fail(std::format(
                 "Absolute file {} offset is too large: {} > {}", i, offset, std::numeric_limits<uint32_t>::max()));
 

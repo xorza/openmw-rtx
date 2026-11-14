@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <numbers>
 #include <span>
+#include <utility>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -111,8 +112,8 @@ namespace Rtx
             ASSERT_EQ(shaped.mSources.size(), 16u);
             ASSERT_EQ(shaped.mKept.size(), 36u);
 
-            for (std::size_t added = 0; added < shaped.mSources.size(); ++added)
-                EXPECT_LT(shaped.mSources[added], 8u) << "an added vertex copies one the cube had";
+            for (unsigned int mSource : shaped.mSources)
+                EXPECT_LT(mSource, 8u) << "an added vertex copies one the cube had";
 
             for (std::size_t t = 0; t < 12; ++t)
             {
@@ -183,7 +184,7 @@ namespace Rtx
                 }
 
                 std::vector<std::uint32_t> triangles;
-                for (std::uint32_t side = 0; side < static_cast<std::uint32_t>(sides); ++side)
+                for (std::uint32_t side = 0; std::cmp_less(side, sides); ++side)
                 {
                     const std::uint32_t low = 2 * side;
                     const std::uint32_t next = 2 * ((side + 1) % sides);
@@ -384,7 +385,7 @@ namespace Rtx
             std::vector<std::uint32_t> triangles{ 0, 1, 2, 0, 2, 3, 3, 2, 4, 3, 4, 5 };
 
             // The back: the same positions again, each triangle reversed on them.
-            const std::uint32_t back = static_cast<std::uint32_t>(positions.size());
+            const auto back = static_cast<std::uint32_t>(positions.size());
             for (std::uint32_t vertex = 0; vertex < back; ++vertex)
             {
                 positions.push_back(positions[vertex]);

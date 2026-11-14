@@ -175,7 +175,7 @@ namespace Rtx
 
         // The impulses in the new window's texels, those whose ring reaches a texel of it: a press
         // takes a texel only within twice its radius, where `pressed` keeps less than all.
-        const float grid = static_cast<float>(sGrid);
+        const auto grid = static_cast<float>(sGrid);
         const osg::Vec2f eyeAt = (eye - mOrigin) / Shaders::RIPPLE_TEXEL;
 
         // **Past what the buffer holds, the nearest the eye, and of two as near the one the game gave

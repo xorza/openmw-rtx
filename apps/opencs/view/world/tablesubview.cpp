@@ -35,7 +35,7 @@ CSVWorld::TableSubView::TableSubView(
     , mShowOptions(false)
     , mOptions(nullptr)
 {
-    QVBoxLayout* layout = new QVBoxLayout;
+    auto* layout = new QVBoxLayout;
 
     layout->addWidget(mBottom = new TableBottomBox(creatorFactory, document, id, this), 0);
 
@@ -43,13 +43,13 @@ CSVWorld::TableSubView::TableSubView(
 
     mFilterBox = new CSVFilter::FilterBox(document.getData(), this);
 
-    QHBoxLayout* hLayout = new QHBoxLayout;
+    auto* hLayout = new QHBoxLayout;
     hLayout->insertWidget(0, mFilterBox);
 
     mOptions = new QWidget;
 
-    QHBoxLayout* optHLayout = new QHBoxLayout;
-    QCheckBox* autoJump = new QCheckBox("Auto Jump");
+    auto* optHLayout = new QHBoxLayout;
+    auto* autoJump = new QCheckBox("Auto Jump");
     autoJump->setToolTip(
         "Whether to jump to the modified record."
         "\nCan be useful in finding the moved or modified"
@@ -66,13 +66,13 @@ CSVWorld::TableSubView::TableSubView(
     mOptions->resize(mOptions->width(), mFilterBox->height());
     mOptions->hide();
 
-    QPushButton* opt = new QPushButton();
+    auto* opt = new QPushButton();
     opt->setIcon(Misc::ScalableIcon::load(":startup/configure"));
     opt->setSizePolicy(QSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed));
     opt->setToolTip("Open additional options for this subview.");
     connect(opt, &QPushButton::clicked, this, &TableSubView::toggleOptions);
 
-    QVBoxLayout* buttonLayout = new QVBoxLayout; // work around margin issues
+    auto* buttonLayout = new QVBoxLayout; // work around margin issues
     buttonLayout->setContentsMargins(QMargins(0 /*left*/, 3 /*top*/, 3 /*right*/, 0 /*bottom*/));
     buttonLayout->insertWidget(0, opt, 0, Qt::AlignVCenter | Qt::AlignRight);
     hLayout->insertWidget(1, mOptions);
@@ -80,7 +80,7 @@ CSVWorld::TableSubView::TableSubView(
 
     layout->insertLayout(0, hLayout);
 
-    CSVDoc::SizeHintWidget* widget = new CSVDoc::SizeHintWidget;
+    auto* widget = new CSVDoc::SizeHintWidget;
 
     widget->setLayout(layout);
 
@@ -171,14 +171,14 @@ void CSVWorld::TableSubView::createFilterRequest(std::vector<CSMWorld::Universal
         CSMWorld::TableMimeData::convertEnums(CSMWorld::UniversalId::Type_Referenceable));
     bool hasRefIdDisplay = !refIdColumns.empty();
 
-    for (std::vector<CSMWorld::UniversalId>::iterator it(types.begin()); it != types.end(); ++it)
+    for (auto& it : types)
     {
-        CSMWorld::UniversalId::Type type = it->getType();
+        CSMWorld::UniversalId::Type type = it.getType();
         std::vector<std::string> col = mTable->getColumnsWithDisplay(CSMWorld::TableMimeData::convertEnums(type));
         if (!col.empty())
         {
             CSVFilter::FilterData filterData;
-            filterData.searchData = it->getId();
+            filterData.searchData = it.getId();
             filterData.columns = std::move(col);
             sourceFilter.emplace_back(filterData);
         }
@@ -186,7 +186,7 @@ void CSVWorld::TableSubView::createFilterRequest(std::vector<CSMWorld::Universal
         if (hasRefIdDisplay && CSMWorld::TableMimeData::isReferencable(type))
         {
             CSVFilter::FilterData filterData;
-            filterData.searchData = it->getId();
+            filterData.searchData = it.getId();
             filterData.columns = refIdColumns;
             sourceFilter.emplace_back(filterData);
         }
@@ -217,10 +217,9 @@ bool CSVWorld::TableSubView::eventFilter(QObject* object, QEvent* event)
 {
     if (event->type() == QEvent::Drop)
     {
-        if (QDropEvent* drop = dynamic_cast<QDropEvent*>(event))
+        if (auto* drop = dynamic_cast<QDropEvent*>(event))
         {
-            const CSMWorld::TableMimeData* tableMimeData
-                = dynamic_cast<const CSMWorld::TableMimeData*>(drop->mimeData());
+            const auto* tableMimeData = dynamic_cast<const CSMWorld::TableMimeData*>(drop->mimeData());
             if (!tableMimeData) // May happen when non-records (e.g. plain text) are dragged and dropped
                 return false;
 

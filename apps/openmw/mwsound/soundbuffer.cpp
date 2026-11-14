@@ -178,7 +178,7 @@ namespace MWSound
         static const AudioParams audioParams
             = makeAudioParams(MWBase::Environment::get().getESMStore()->get<ESM::GameSetting>());
 
-        float volume = static_cast<float>(std::pow(10.0, (sound.mData.mVolume / 255.0 * 3348.0 - 3348.0) / 2000.0));
+        auto volume = static_cast<float>(std::pow(10.0, (sound.mData.mVolume / 255.0 * 3348.0 - 3348.0) / 2000.0));
         float min = sound.mData.mMinRange;
         float max = sound.mData.mMaxRange;
         if (min == 0 && max == 0)

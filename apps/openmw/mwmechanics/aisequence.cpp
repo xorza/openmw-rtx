@@ -115,11 +115,11 @@ namespace MWMechanics
 
     bool AiSequence::getCombatTargets(std::vector<MWWorld::Ptr>& targetActors) const
     {
-        for (auto it = mPackages.begin(); it != mPackages.end(); ++it)
+        for (const auto& mPackage : mPackages)
         {
-            if ((*it)->getTypeId() == MWMechanics::AiPackageTypeId::Combat)
+            if (mPackage->getTypeId() == MWMechanics::AiPackageTypeId::Combat)
             {
-                const MWWorld::Ptr target = (*it)->getTarget();
+                const MWWorld::Ptr target = mPackage->getTarget();
                 if (!target.isEmpty())
                     targetActors.push_back(target);
             }
@@ -161,11 +161,11 @@ namespace MWMechanics
         if (!isInCombat())
             return false;
 
-        for (auto it = mPackages.begin(); it != mPackages.end(); ++it)
+        for (const auto& mPackage : mPackages)
         {
-            if ((*it)->getTypeId() == AiPackageTypeId::Combat)
+            if (mPackage->getTypeId() == AiPackageTypeId::Combat)
             {
-                MWWorld::Ptr target2 = (*it)->getTarget();
+                MWWorld::Ptr target2 = mPackage->getTarget();
                 if (!target2.isEmpty() && target2.getClass().isNpc())
                     return true;
             }
@@ -499,8 +499,8 @@ namespace MWMechanics
                 ESM::AIWander data = esmPackage.mWander;
                 std::vector<unsigned char> idles;
                 idles.reserve(8);
-                for (int i = 0; i < 8; ++i)
-                    idles.push_back(data.mIdle[i]);
+                for (unsigned char i : data.mIdle)
+                    idles.push_back(i);
                 package = std::make_unique<MWMechanics::AiWander>(
                     data.mDistance, data.mDuration, data.mTimeOfDay, idles, data.mShouldRepeat != 0);
             }
@@ -561,8 +561,7 @@ namespace MWMechanics
                 }
                 case ESM::AiSequence::Ai_Travel:
                 {
-                    const ESM::AiSequence::AiTravel& source
-                        = static_cast<const ESM::AiSequence::AiTravel&>(*container.mPackage);
+                    const auto& source = static_cast<const ESM::AiSequence::AiTravel&>(*container.mPackage);
                     if (source.mHidden)
                         package = std::make_unique<AiInternalTravel>(&source);
                     else

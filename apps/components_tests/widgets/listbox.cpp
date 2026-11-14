@@ -22,7 +22,7 @@ namespace Gui
         /// A list of `items` items, 200 high, with the shipped list skin.
         MyGUI::ListBox* makeList(std::string_view skin, std::size_t items)
         {
-            MyGUI::ListBox* const list = MyGUI::Gui::getInstance().createWidget<MyGUI::ListBox>(
+            auto* const list = MyGUI::Gui::getInstance().createWidget<MyGUI::ListBox>(
                 skin, MyGUI::IntCoord(10, 10, 300, 200), MyGUI::Align::Default, "Windows");
             for (std::size_t at = 0; at < items; ++at)
                 list->addItem("Item " + std::to_string(at));
@@ -73,7 +73,7 @@ namespace Gui
             MyGUI::ResourceManager::getInstance().load("openmw_stated_list.skin.xml");
 
             MyGUI::ListBox* const list = makeList("MW_List", 40);
-            ListBox* const fork = list->castType<ListBox>(false);
+            auto* const fork = list->castType<ListBox>(false);
             ASSERT_NE(fork, nullptr) << "MyGUI's own list stands in its factory";
             ListBox& stated = *makeList("StatedList", 40)->castType<ListBox>();
             ASSERT_EQ(list->getClientWidget()->getHeight(), 192);

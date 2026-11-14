@@ -25,7 +25,7 @@ namespace MWMechanics
         template <class Derived>
         Derived& get()
         {
-            Derived* result = dynamic_cast<Derived*>(mStorage.get());
+            auto* result = dynamic_cast<Derived*>(mStorage.get());
 
             if (result == nullptr)
             {
@@ -48,7 +48,7 @@ namespace MWMechanics
         template <class Derived>
         void copy(DerivedClassStorage& destination) const
         {
-            Derived* result = dynamic_cast<Derived*>(mStorage.get());
+            auto* result = dynamic_cast<Derived*>(mStorage.get());
             if (result != nullptr)
                 destination.store<Derived>(*result);
         }

@@ -65,7 +65,7 @@ CSVWorld::RecordButtonBar::RecordButtonBar(const CSMWorld::UniversalId& id, CSMW
     , mCommandDispatcher(commandDispatcher)
     , mLocked(false)
 {
-    QHBoxLayout* buttonsLayout = new QHBoxLayout;
+    auto* buttonsLayout = new QHBoxLayout;
     buttonsLayout->setContentsMargins(0, 0, 0, 0);
 
     // left section
@@ -84,7 +84,7 @@ CSVWorld::RecordButtonBar::RecordButtonBar(const CSMWorld::UniversalId& id, CSMW
     // optional buttons of the right section
     if (mTable.getFeatures() & CSMWorld::IdTable::Feature_Preview)
     {
-        QToolButton* previewButton = new QToolButton(this);
+        auto* previewButton = new QToolButton(this);
         previewButton->setIcon(Misc::ScalableIcon::load(":edit-preview"));
         previewButton->setToolTip("Open a preview of this record");
         buttonsLayout->addWidget(previewButton);
@@ -93,7 +93,7 @@ CSVWorld::RecordButtonBar::RecordButtonBar(const CSMWorld::UniversalId& id, CSMW
 
     if (mTable.getFeatures() & CSMWorld::IdTable::Feature_View)
     {
-        QToolButton* viewButton = new QToolButton(this);
+        auto* viewButton = new QToolButton(this);
         viewButton->setIcon(Misc::ScalableIcon::load(":cell"));
         viewButton->setToolTip("Open a scene view of the cell this record is located in");
         buttonsLayout->addWidget(viewButton);

@@ -255,8 +255,8 @@ namespace ESM
         mData.mHealth = mData.mMana = mData.mFatigue = 0;
         mData.mSoul = 0;
         mData.mCombat = mData.mMagic = mData.mStealth = 0;
-        for (int i = 0; i < 6; ++i)
-            mData.mAttack[i] = 0;
+        for (int& i : mData.mAttack)
+            i = 0;
         mData.mGold = 0;
         mBloodType = 0;
         mFlags = 0;

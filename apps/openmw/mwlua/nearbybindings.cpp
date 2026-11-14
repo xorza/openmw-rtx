@@ -17,6 +17,7 @@
 #include "luamanagerimp.hpp"
 #include "objectlists.hpp"
 
+#include <utility>
 #include <vector>
 
 namespace
@@ -277,7 +278,7 @@ namespace MWLua
                           {
                               const int index = k.as<int>();
                               const osg::Vec3f position = v.as<osg::Vec3f>();
-                              if (index != static_cast<int>(checkpoints.size() + 1))
+                              if (std::cmp_not_equal(index, checkpoints.size() + 1))
                                   throw std::runtime_error("checkpoints is not an array");
                               checkpoints.push_back(position);
                           }
@@ -365,7 +366,7 @@ namespace MWLua
             if (!searchAreaHalfExtents.has_value())
             {
                 const bool isEsm4 = MWBase::Environment::get().getWorldScene()->getCurrentCell()->getCell()->isEsm4();
-                const float halfExtents = static_cast<float>(isEsm4
+                const auto halfExtents = static_cast<float>(isEsm4
                         ? (1 + 2 * Constants::ESM4CellGridRadius) * Constants::ESM4CellSizeInUnits
                         : (1 + 2 * Constants::CellGridRadius) * Constants::CellSizeInUnits);
                 searchAreaHalfExtents = osg::Vec3f(halfExtents, halfExtents, halfExtents);

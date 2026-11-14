@@ -59,9 +59,9 @@ void ESM4::Region::load(ESM4::Reader& reader)
             case ESM::fourCC("RPLD"):
             {
                 mRPLD.resize(subHdr.dataSize / sizeof(std::uint32_t));
-                for (std::vector<std::uint32_t>::iterator it = mRPLD.begin(); it != mRPLD.end(); ++it)
+                for (unsigned int& it : mRPLD)
                 {
-                    reader.get(*it);
+                    reader.get(it);
 #if 0
                     std::string padding;
                     padding.insert(0, reader.stackSize()*2, ' ');

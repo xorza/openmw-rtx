@@ -124,7 +124,7 @@ namespace Graphite
         TEST_F(GraphiteStyleTest, theDefaultButtonIsFilledWithTheAccent)
         {
             const auto at = [&](QStyle::State state) {
-                QStyleOptionButton option = optionOf<QStyleOptionButton>(state);
+                auto option = optionOf<QStyleOptionButton>(state);
                 option.features = QStyleOptionButton::DefaultButton;
                 return primitive(QStyle::PE_PanelButtonCommand, option);
             };
@@ -164,7 +164,7 @@ namespace Graphite
         TEST_F(GraphiteStyleTest, aFieldsEdgeTurnsTheAccentsWhenFocused)
         {
             const auto at = [&](QStyle::State state, int lineWidth) {
-                QStyleOptionFrame option = optionOf<QStyleOptionFrame>(state);
+                auto option = optionOf<QStyleOptionFrame>(state);
                 option.lineWidth = lineWidth;
                 return primitive(QStyle::PE_PanelLineEdit, option);
             };
@@ -184,7 +184,7 @@ namespace Graphite
         {
             const QRect box(0, 0, 16, 16);
             const auto at = [&](QStyle::State state) {
-                QStyleOptionButton option = optionOf<QStyleOptionButton>(state, box);
+                auto option = optionOf<QStyleOptionButton>(state, box);
                 return rendered(
                     [&](QPainter& painter) {
                         mStyle.drawPrimitive(QStyle::PE_IndicatorCheckBox, &option, &painter, nullptr);
@@ -212,7 +212,7 @@ namespace Graphite
         TEST_F(GraphiteStyleTest, aComboBoxIsAButtonOrAFieldWithAChevron)
         {
             const auto at = [&](QStyle::State state, bool editable) {
-                QStyleOptionComboBox option = optionOf<QStyleOptionComboBox>(state);
+                auto option = optionOf<QStyleOptionComboBox>(state);
                 option.editable = editable;
                 option.subControls = QStyle::SC_All;
                 return rendered([&](QPainter& painter) {
@@ -225,7 +225,7 @@ namespace Graphite
                 << "a field does not answer the pointer";
             EXPECT_EQ(at(sEnabled | QStyle::State_HasFocus, true).pixel(sEdge), sDark.mBorderFocused);
 
-            QStyleOptionComboBox option = optionOf<QStyleOptionComboBox>(sEnabled);
+            auto option = optionOf<QStyleOptionComboBox>(sEnabled);
             const QRect arrow = mStyle.subControlRect(QStyle::CC_ComboBox, &option, QStyle::SC_ComboBoxArrow, nullptr);
             const QImage picked = at(sEnabled, false);
             // The chevron's tip, three pixels under the arrow's centre.
@@ -238,7 +238,7 @@ namespace Graphite
         {
             const auto at = [&](QStyle::State state, QStyle::SubControls active,
                                 QAbstractSpinBox::StepEnabled steps = QAbstractSpinBox::StepUpEnabled) {
-                QStyleOptionSpinBox option = optionOf<QStyleOptionSpinBox>(state);
+                auto option = optionOf<QStyleOptionSpinBox>(state);
                 option.subControls = QStyle::SC_SpinBoxUp | QStyle::SC_SpinBoxDown | QStyle::SC_SpinBoxFrame;
                 option.activeSubControls = active;
                 option.stepEnabled = steps;
@@ -246,7 +246,7 @@ namespace Graphite
                     mStyle.drawComplexControl(QStyle::CC_SpinBox, &option, &painter, nullptr);
                 });
             };
-            QStyleOptionSpinBox option = optionOf<QStyleOptionSpinBox>(sEnabled);
+            auto option = optionOf<QStyleOptionSpinBox>(sEnabled);
             const QRect up = mStyle.subControlRect(QStyle::CC_SpinBox, &option, QStyle::SC_SpinBoxUp, nullptr);
             // A corner of the up arrow its upward chevron leaves free.
             const QPoint upCorner = up.topLeft() + QPoint(3, 3);
@@ -272,7 +272,7 @@ namespace Graphite
         TEST_F(GraphiteStyleTest, aSelectedTabIsTheWindowsGroundWithTheAccentsCap)
         {
             const auto at = [&](QStyle::State state) {
-                QStyleOptionTab option = optionOf<QStyleOptionTab>(state);
+                auto option = optionOf<QStyleOptionTab>(state);
                 option.shape = QTabBar::RoundedNorth;
                 return rendered(
                     [&](QPainter& painter) {
@@ -298,7 +298,7 @@ namespace Graphite
         TEST_F(GraphiteStyleTest, thePanesAndFramesAreTheirGroundsBehindTheirEdges)
         {
             const auto at = [&](QStyle::PrimitiveElement element) {
-                const QStyleOption option = optionOf<QStyleOption>(sEnabled);
+                const auto option = optionOf<QStyleOption>(sEnabled);
                 return rendered([&](QPainter& painter) { mStyle.drawPrimitive(element, &option, &painter, nullptr); },
                     sWidth, sHeight, sGround);
             };
@@ -326,7 +326,7 @@ namespace Graphite
         {
             const auto at = [&](QStyle::State state,
                                 QStyleOptionViewItem::ViewItemPosition position = QStyleOptionViewItem::OnlyOne) {
-                QStyleOptionViewItem option = optionOf<QStyleOptionViewItem>(state);
+                auto option = optionOf<QStyleOptionViewItem>(state);
                 option.viewItemPosition = position;
                 return rendered(
                     [&](QPainter& painter) {
@@ -347,7 +347,7 @@ namespace Graphite
             EXPECT_EQ(at(sEnabled | QStyle::State_MouseOver).pixel(sMiddle), sDark.mElementMid);
             EXPECT_EQ(at(sEnabled).pixel(sMiddle), sGround);
 
-            QStyleOptionViewItem item = optionOf<QStyleOptionViewItem>(sEnabled);
+            auto item = optionOf<QStyleOptionViewItem>(sEnabled);
             const QSize fusion
                 = mStyle.baseStyle()->sizeFromContents(QStyle::CT_ItemViewItem, &item, QSize(40, 16), nullptr);
             EXPECT_EQ(
@@ -368,7 +368,7 @@ namespace Graphite
             EXPECT_EQ(mStyle.pixelMetric(QStyle::PM_FocusFrameHMargin, nullptr, &other),
                 mStyle.baseStyle()->pixelMetric(QStyle::PM_FocusFrameHMargin, nullptr, &other));
 
-            QStyleOptionViewItem item = optionOf<QStyleOptionViewItem>(sEnabled, QRect(0, 0, 200, sHeight));
+            auto item = optionOf<QStyleOptionViewItem>(sEnabled, QRect(0, 0, 200, sHeight));
             item.widget = &view;
             item.text = QStringLiteral("Morrowind.esm");
             item.features = QStyleOptionViewItem::HasDisplay;
@@ -385,7 +385,7 @@ namespace Graphite
         TEST_F(GraphiteStyleTest, aProgressBarIsFilledWithTheAccentAsFarAsItCame)
         {
             const auto at = [&](bool inverted) {
-                QStyleOptionProgressBar option = optionOf<QStyleOptionProgressBar>(sEnabled | QStyle::State_Horizontal);
+                auto option = optionOf<QStyleOptionProgressBar>(sEnabled | QStyle::State_Horizontal);
                 option.minimum = 0;
                 option.maximum = 10;
                 option.progress = 5;
@@ -412,7 +412,7 @@ namespace Graphite
         TEST_F(GraphiteStyleTest, aScrollBarIsAPillWithNoArrows)
         {
             EXPECT_EQ(mStyle.pixelMetric(QStyle::PM_ScrollBarExtent, nullptr, nullptr), 12);
-            QStyleOptionSlider option = optionOf<QStyleOptionSlider>(sEnabled, QRect(0, 0, 12, 100));
+            auto option = optionOf<QStyleOptionSlider>(sEnabled, QRect(0, 0, 12, 100));
             option.orientation = Qt::Vertical;
             option.minimum = 0;
             option.maximum = 100;
@@ -478,7 +478,7 @@ namespace Graphite
         /// hairline each side, 14 px over the font's height, and never under what Fusion asked.
         TEST_F(GraphiteStyleTest, aButtonAndTheFieldsBesideItAreOneRowsHeight)
         {
-            QStyleOptionButton option = optionOf<QStyleOptionButton>(sEnabled);
+            auto option = optionOf<QStyleOptionButton>(sEnabled);
             option.text = QStringLiteral("Launch");
             const int row = option.fontMetrics.height() + 14;
             for (const QStyle::ContentsType type :
@@ -510,7 +510,7 @@ namespace Graphite
             }
 
             // A tool button that shows only its icon is a row's square; one with its text keeps Fusion's size.
-            QStyleOptionToolButton tool = optionOf<QStyleOptionToolButton>(sEnabled);
+            auto tool = optionOf<QStyleOptionToolButton>(sEnabled);
             tool.toolButtonStyle = Qt::ToolButtonIconOnly;
             EXPECT_EQ(mStyle.sizeFromContents(QStyle::CT_ToolButton, &tool, QSize(16, 16), nullptr), QSize(row, row));
             const QSize wide
@@ -529,7 +529,7 @@ namespace Graphite
         {
             constexpr int tall = 60;
             const auto at = [&](const QString& title) {
-                QStyleOptionGroupBox group = optionOf<QStyleOptionGroupBox>(sEnabled, QRect(0, 0, sWidth, tall));
+                auto group = optionOf<QStyleOptionGroupBox>(sEnabled, QRect(0, 0, sWidth, tall));
                 group.text = title;
                 group.subControls = QStyle::SC_GroupBoxFrame | QStyle::SC_GroupBoxLabel;
                 return rendered(
@@ -575,7 +575,7 @@ namespace Graphite
         /// field with no frame lies in a spin box or a combo box, which placed it.
         TEST_F(GraphiteStyleTest, aFieldsTextStartsAtTheFieldsInset)
         {
-            QStyleOptionFrame framed = optionOf<QStyleOptionFrame>(sEnabled);
+            auto framed = optionOf<QStyleOptionFrame>(sEnabled);
             framed.lineWidth = 1;
             EXPECT_EQ(mStyle.subElementRect(QStyle::SE_LineEditContents, &framed, nullptr), QRect(6, 1, 68, 22));
             QStyleOptionFrame bare = framed;
@@ -585,7 +585,7 @@ namespace Graphite
 
             // A combo box's label, which adds 1 px, and its editor, which adds 2, both at 8, up to the chevron's
             // column at the far end: the chevron's 10 with 8 either side, `80 - 26 = 54`.
-            QStyleOptionComboBox combo = optionOf<QStyleOptionComboBox>(sEnabled);
+            auto combo = optionOf<QStyleOptionComboBox>(sEnabled);
             EXPECT_EQ(mStyle.subControlRect(QStyle::CC_ComboBox, &combo, QStyle::SC_ComboBoxArrow, nullptr),
                 QRect(54, 0, 26, sHeight));
             EXPECT_EQ(mStyle.subControlRect(QStyle::CC_ComboBox, &combo, QStyle::SC_ComboBoxEditField, nullptr),
@@ -603,7 +603,7 @@ namespace Graphite
         /// down, each half of a row; one that shows no arrows is the field alone.
         TEST_F(GraphiteStyleTest, aSpinBoxIsAFieldAndAColumnOfTwoArrows)
         {
-            QStyleOptionSpinBox option = optionOf<QStyleOptionSpinBox>(sEnabled);
+            auto option = optionOf<QStyleOptionSpinBox>(sEnabled);
             const auto rectOf = [&](QStyle::SubControl part) {
                 return mStyle.subControlRect(QStyle::CC_SpinBox, &option, part, nullptr);
             };
@@ -622,7 +622,7 @@ namespace Graphite
         {
             EXPECT_EQ(mStyle.pixelMetric(QStyle::PM_MenuVMargin, nullptr, nullptr), 4);
 
-            QStyleOptionMenuItem separator = optionOf<QStyleOptionMenuItem>(sEnabled);
+            auto separator = optionOf<QStyleOptionMenuItem>(sEnabled);
             separator.menuItemType = QStyleOptionMenuItem::Separator;
             const QImage drawn = rendered(
                 [&](QPainter& painter) { mStyle.drawControl(QStyle::CE_MenuItem, &separator, &painter, nullptr); },
@@ -640,8 +640,8 @@ namespace Graphite
         /// so the text Fusion sized them for still fits.
         TEST_F(GraphiteStyleTest, aComboAndASpinBoxGrowByWhatTheirInsetTakes)
         {
-            QStyleOptionComboBox combo = optionOf<QStyleOptionComboBox>(sEnabled);
-            QStyleOptionSpinBox spin = optionOf<QStyleOptionSpinBox>(sEnabled);
+            auto combo = optionOf<QStyleOptionComboBox>(sEnabled);
+            auto spin = optionOf<QStyleOptionSpinBox>(sEnabled);
             const QSize contents(100, 16);
             const auto grown = [&](QStyle::ContentsType type, auto option, QStyle::ComplexControl control,
                                    QStyle::SubControl field) {
@@ -668,7 +668,7 @@ namespace Graphite
             EXPECT_EQ(mStyle.pixelMetric(QStyle::PM_LayoutVerticalSpacing, nullptr, nullptr), 8);
 
             const auto ruled = [&](QFrame::Shape shape) {
-                QStyleOptionFrame option = optionOf<QStyleOptionFrame>(sEnabled);
+                auto option = optionOf<QStyleOptionFrame>(sEnabled);
                 option.frameShape = shape;
                 return rendered(
                     [&](QPainter& painter) { mStyle.drawControl(QStyle::CE_ShapedFrame, &option, &painter, nullptr); },

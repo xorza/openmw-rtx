@@ -9,7 +9,7 @@ bool CSVDoc::SubView::event(QEvent* event)
 {
     if (event->type() == QEvent::ShortcutOverride)
     {
-        QKeyEvent* keyEvent = static_cast<QKeyEvent*>(event);
+        auto* keyEvent = static_cast<QKeyEvent*>(event);
 
         if (keyEvent->key() == Qt::Key_W && keyEvent->modifiers() == (Qt::ShiftModifier | Qt::ControlModifier))
             emit closeRequest();

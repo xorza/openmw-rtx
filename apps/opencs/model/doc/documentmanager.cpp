@@ -42,8 +42,8 @@ CSMDoc::DocumentManager::~DocumentManager()
     mLoader.hasThingsToDo().wakeAll();
     mLoaderThread.wait();
 
-    for (std::vector<Document*>::iterator iter(mDocuments.begin()); iter != mDocuments.end(); ++iter)
-        delete *iter;
+    for (auto& mDocument : mDocuments)
+        delete mDocument;
 }
 
 bool CSMDoc::DocumentManager::isEmpty()
@@ -77,7 +77,7 @@ void CSMDoc::DocumentManager::insertDocument(CSMDoc::Document* document)
 
 void CSMDoc::DocumentManager::removeDocument(CSMDoc::Document* document)
 {
-    std::vector<Document*>::iterator iter = std::find(mDocuments.begin(), mDocuments.end(), document);
+    auto iter = std::find(mDocuments.begin(), mDocuments.end(), document);
 
     if (iter == mDocuments.end())
         throw std::runtime_error("removing invalid document");

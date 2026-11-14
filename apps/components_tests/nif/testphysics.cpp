@@ -159,7 +159,7 @@ namespace Nif
                 EXPECT_EQ(record->mRecordName, "bhkRagdollTemplate");
                 EXPECT_EQ(record->mRecordType, RC_bhkRagdollTemplate);
 
-                const bhkRagdollTemplate* const typed = dynamic_cast<const bhkRagdollTemplate*>(record);
+                const auto* const typed = dynamic_cast<const bhkRagdollTemplate*>(record);
                 ASSERT_NE(typed, nullptr);
                 EXPECT_EQ(typed->mName, "bhkRagdollTemplateName");
                 EXPECT_EQ(typed->mBones.size(), 1);
@@ -173,7 +173,7 @@ namespace Nif
                 EXPECT_EQ(record->mRecordName, "bhkRagdollTemplateData");
                 EXPECT_EQ(record->mRecordType, RC_bhkRagdollTemplateData);
 
-                const bhkRagdollTemplateData* const typed = dynamic_cast<const bhkRagdollTemplateData*>(record);
+                const auto* const typed = dynamic_cast<const bhkRagdollTemplateData*>(record);
                 ASSERT_NE(typed, nullptr);
                 EXPECT_EQ(typed->mName, "bhkRagdollTemplateDataName");
                 EXPECT_EQ(typed->mMass, mass);

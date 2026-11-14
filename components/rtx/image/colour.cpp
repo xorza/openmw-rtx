@@ -28,7 +28,7 @@ namespace Rtx
         for (std::uint32_t byte = 1; byte < 256; ++byte)
         {
             std::uint32_t low = 0;
-            std::uint32_t high = std::bit_cast<std::uint32_t>(1.0f);
+            auto high = std::bit_cast<std::uint32_t>(1.0f);
             while (low < high)
             {
                 const std::uint32_t middle = low + (high - low) / 2;

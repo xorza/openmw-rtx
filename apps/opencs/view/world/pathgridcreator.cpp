@@ -36,7 +36,7 @@ CSVWorld::PathgridCreator::PathgridCreator(CSMWorld::Data& worldData, QUndoStack
 {
     setManualEditing(false);
 
-    QLabel* label = new QLabel("Cell", this);
+    auto* label = new QLabel("Cell", this);
     insertBeforeButtons(label, false);
 
     // Add cell ID input with auto-completion.

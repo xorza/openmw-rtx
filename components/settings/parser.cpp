@@ -91,9 +91,9 @@ void Settings::SettingsFileParser::saveSettingsFile(
 
     // No options have been written to the file yet.
     CategorySettingStatusMap written;
-    for (auto it = settings.begin(); it != settings.end(); ++it)
+    for (const auto& setting : settings)
     {
-        written[it->first] = false;
+        written[setting.first] = false;
     }
 
     // Have we substantively changed the settings file?
@@ -173,14 +173,14 @@ void Settings::SettingsFileParser::saveSettingsFile(
             if (!currentCategory.empty())
             {
                 // Ensure that all options in the current category have been written.
-                for (CategorySettingStatusMap::iterator mit = written.begin(); mit != written.end(); ++mit)
+                for (auto& mit : written)
                 {
-                    if (mit->second == false && mit->first.first == currentCategory)
+                    if (mit.second == false && mit.first.first == currentCategory)
                     {
-                        Log(Debug::Verbose) << "Added new setting: [" << currentCategory << "] " << mit->first.second
-                                            << " = " << settings.at(mit->first);
-                        ostream << mit->first.second << " = " << settings.at(mit->first) << std::endl;
-                        mit->second = true;
+                        Log(Debug::Verbose) << "Added new setting: [" << currentCategory << "] " << mit.first.second
+                                            << " = " << settings.at(mit.first);
+                        ostream << mit.first.second << " = " << settings.at(mit.first) << std::endl;
+                        mit.second = true;
                         changed = true;
                     }
                 }
@@ -236,7 +236,7 @@ void Settings::SettingsFileParser::saveSettingsFile(
         // Construct the setting map key to determine whether the setting has already been
         // written to the file.
         CategorySetting key = std::make_pair(currentCategory, setting);
-        CategorySettingStatusMap::iterator finder = written.find(key);
+        auto finder = written.find(key);
 
         // Ideally, we'd absorb setting file changes at runtime by subscribing to filesystem
         // notifications, but alas, we do not do that yet.
@@ -270,14 +270,14 @@ void Settings::SettingsFileParser::saveSettingsFile(
 
     // Ensure that all options in the current category have been written.  We must complete
     // the current category at the end of the file before moving on to any new categories.
-    for (CategorySettingStatusMap::iterator mit = written.begin(); mit != written.end(); ++mit)
+    for (auto& mit : written)
     {
-        if (mit->second == false && mit->first.first == currentCategory)
+        if (mit.second == false && mit.first.first == currentCategory)
         {
-            Log(Debug::Verbose) << "Added new setting: [" << mit->first.first << "] " << mit->first.second << " = "
-                                << settings.at(mit->first);
-            ostream << mit->first.second << " = " << settings.at(mit->first) << std::endl;
-            mit->second = true;
+            Log(Debug::Verbose) << "Added new setting: [" << mit.first.first << "] " << mit.first.second << " = "
+                                << settings.at(mit.first);
+            ostream << mit.first.second << " = " << settings.at(mit.first) << std::endl;
+            mit.second = true;
             changed = true;
         }
     }
@@ -310,23 +310,23 @@ void Settings::SettingsFileParser::saveSettingsFile(
     // It's possible that there are entirely new categories, or that the input file had
     // disappeared completely, so we need ensure that all settings are written to the file
     // regardless of those issues.
-    for (CategorySettingStatusMap::iterator mit = written.begin(); mit != written.end(); ++mit)
+    for (auto& mit : written)
     {
         // If the setting hasn't been written yet.
-        if (mit->second == false)
+        if (mit.second == false)
         {
             // If the catgory has changed, write a new category header.
-            if (mit->first.first != currentCategory)
+            if (mit.first.first != currentCategory)
             {
-                currentCategory = mit->first.first;
-                Log(Debug::Verbose) << "Created new setting section: " << mit->first.first;
+                currentCategory = mit.first.first;
+                Log(Debug::Verbose) << "Created new setting section: " << mit.first.first;
                 ostream << std::endl;
                 ostream << "[" << currentCategory << "]" << std::endl;
             }
-            Log(Debug::Verbose) << "Added new setting: [" << mit->first.first << "] " << mit->first.second << " = "
-                                << settings.at(mit->first);
+            Log(Debug::Verbose) << "Added new setting: [" << mit.first.first << "] " << mit.first.second << " = "
+                                << settings.at(mit.first);
             // Then write the setting.  No need to mark it as written because we're done.
-            ostream << mit->first.second << " = " << settings.at(mit->first) << std::endl;
+            ostream << mit.first.second << " = " << settings.at(mit.first) << std::endl;
             changed = true;
         }
     }

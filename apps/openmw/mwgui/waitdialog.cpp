@@ -298,7 +298,7 @@ namespace MWGui
 
         mSleeping = canRest;
 
-        Gui::Box* box = dynamic_cast<Gui::Box*>(mMainWidget);
+        auto* box = dynamic_cast<Gui::Box*>(mMainWidget);
         if (box == nullptr)
             throw std::runtime_error("main widget must be a box");
         box->notifyChildrenSizeChanged();

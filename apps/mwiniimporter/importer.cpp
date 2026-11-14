@@ -402,14 +402,14 @@ MwIniImporter::multistrmap MwIniImporter::loadCfgFile(const std::filesystem::pat
 void MwIniImporter::merge(multistrmap& cfg, const multistrmap& ini) const
 {
     multistrmap::const_iterator iniIt;
-    for (strmap::const_iterator it = mMergeMap.begin(); it != mMergeMap.end(); ++it)
+    for (const auto& it : mMergeMap)
     {
-        if ((iniIt = ini.find(it->second)) != ini.end())
+        if ((iniIt = ini.find(it.second)) != ini.end())
         {
-            for (std::vector<std::string>::const_iterator vc = iniIt->second.begin(); vc != iniIt->second.end(); ++vc)
+            for (const auto& vc : iniIt->second)
             {
-                cfg.erase(it->first);
-                insertMultistrmap(cfg, it->first, *vc);
+                cfg.erase(it.first);
+                insertMultistrmap(cfg, it.first, vc);
             }
         }
     }
@@ -420,16 +420,16 @@ void MwIniImporter::mergeFallback(multistrmap& cfg, const multistrmap& ini) cons
     cfg.erase("fallback");
 
     multistrmap::const_iterator iniIt;
-    for (std::vector<std::string>::const_iterator it = mMergeFallback.begin(); it != mMergeFallback.end(); ++it)
+    for (const auto& it : mMergeFallback)
     {
-        if ((iniIt = ini.find(*it)) != ini.end())
+        if ((iniIt = ini.find(it)) != ini.end())
         {
-            for (std::vector<std::string>::const_iterator vc = iniIt->second.begin(); vc != iniIt->second.end(); ++vc)
+            for (const auto& vc : iniIt->second)
             {
-                std::string value(*it);
+                std::string value(it);
                 std::replace(value.begin(), value.end(), ' ', '_');
                 std::replace(value.begin(), value.end(), ':', '_');
-                value.append(",").append(vc->substr(0, vc->length()));
+                value.append(",").append(vc.substr(0, vc.length()));
                 insertMultistrmap(cfg, "fallback", value);
             }
         }
@@ -462,9 +462,9 @@ void MwIniImporter::importArchives(multistrmap& cfg, const multistrmap& ini) con
             break;
         }
 
-        for (std::vector<std::string>::const_iterator entry = it->second.begin(); entry != it->second.end(); ++entry)
+        for (const auto& entry : it->second)
         {
-            archives.push_back(*entry);
+            archives.push_back(entry);
         }
     }
 
@@ -475,9 +475,9 @@ void MwIniImporter::importArchives(multistrmap& cfg, const multistrmap& ini) con
     // does not appears in the ini file
     cfg["fallback-archive"].push_back("Morrowind.bsa");
 
-    for (auto iter = archives.begin(); iter != archives.end(); ++iter)
+    for (auto& archive : archives)
     {
-        cfg["fallback-archive"].push_back(*iter);
+        cfg["fallback-archive"].push_back(archive);
     }
 }
 
@@ -625,11 +625,11 @@ void MwIniImporter::importGameFiles(
 void MwIniImporter::writeToFile(std::ostream& out, const multistrmap& cfg)
 {
 
-    for (multistrmap::const_iterator it = cfg.begin(); it != cfg.end(); ++it)
+    for (const auto& it : cfg)
     {
-        for (auto entry = it->second.begin(); entry != it->second.end(); ++entry)
+        for (auto entry = it.second.begin(); entry != it.second.end(); ++entry)
         {
-            out << (it->first) << "=" << (*entry) << std::endl;
+            out << (it.first) << "=" << (*entry) << std::endl;
         }
     }
 }

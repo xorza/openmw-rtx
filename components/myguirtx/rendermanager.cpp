@@ -212,7 +212,7 @@ namespace MyGUIRtx
         if (vertices.empty())
             return;
 
-        const std::uint32_t first = static_cast<std::uint32_t>(mVertices.size());
+        const auto first = static_cast<std::uint32_t>(mVertices.size());
         // The same 24 bytes MyGUI writes, read as the renderer's own (`GuiVertex`): copied once, where a resize
         // wrote every vertex as nought ahead of the copy.
         for (const MyGUI::Vertex& vertex : vertices)

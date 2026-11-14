@@ -250,7 +250,7 @@ namespace ESMTerrain
 
         // LOD level n means every 2^n-th vertex is kept
         const std::size_t sampleSize = std::size_t{ 1 } << lodLevel;
-        const std::size_t cellSize = static_cast<std::size_t>(ESM::getLandSize(worldspace));
+        const auto cellSize = static_cast<std::size_t>(ESM::getLandSize(worldspace));
         const std::size_t numVerts = static_cast<std::size_t>(size * (cellSize - 1) / sampleSize) + 1;
 
         positions.resize(numVerts * numVerts);
@@ -357,8 +357,8 @@ namespace ESMTerrain
             colours[vertIndex] = color;
         };
 
-        const std::size_t beginX = static_cast<std::size_t>((origin.x() - startCellX) * cellSize);
-        const std::size_t beginY = static_cast<std::size_t>((origin.y() - startCellY) * cellSize);
+        const auto beginX = static_cast<std::size_t>((origin.x() - startCellX) * cellSize);
+        const auto beginY = static_cast<std::size_t>((origin.y() - startCellY) * cellSize);
         const std::size_t distance = static_cast<std::size_t>(size * (cellSize - 1)) + 1;
 
         sampleCellGrid(cellSize, sampleSize, beginX, beginY, distance, handleSample);
@@ -463,7 +463,7 @@ namespace ESMTerrain
                     {
                         continue;
                     }
-                    size_t index = static_cast<size_t>((starty + y) * blendmapSize + startx + x);
+                    auto index = static_cast<size_t>((starty + y) * blendmapSize + startx + x);
                     auto delta = static_cast<unsigned char>(std::clamp(static_cast<int>(v.opacity * 255.f), 0, 255));
                     baseBlendmap[index] -= std::min(baseBlendmap[index], delta);
                     layerBlendmap[index] = delta;
@@ -565,7 +565,7 @@ namespace ESMTerrain
 
     float Storage::getHeightAt(const osg::Vec3f& worldPos, ESM::RefId worldspace)
     {
-        const float cellSize = static_cast<float>(ESM::getCellSize(worldspace));
+        const auto cellSize = static_cast<float>(ESM::getCellSize(worldspace));
         int cellX = static_cast<int>(std::floor(worldPos.x() / cellSize));
         int cellY = static_cast<int>(std::floor(worldPos.y() / cellSize));
 
@@ -668,7 +668,7 @@ namespace ESMTerrain
 
     Terrain::LayerInfo Storage::getLayerInfo(VFS::Path::NormalizedView texture)
     {
-        std::lock_guard<std::mutex> lock(mLayerInfoMutex);
+        std::scoped_lock lock(mLayerInfoMutex);
 
         // Already have this cached?
         const auto it = mLayerInfoMap.find(texture);

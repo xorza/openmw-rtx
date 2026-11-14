@@ -38,7 +38,7 @@ CSVWorld::SceneSubView::SceneSubView(const CSMWorld::UniversalId& id, CSMDoc::Do
     , mDocument(document)
     , mToolbar(nullptr)
 {
-    QVBoxLayout* layout = new QVBoxLayout;
+    auto* layout = new QVBoxLayout;
 
     layout->addWidget(mBottom = new TableBottomBox(NullCreatorFactory(), document, id, this), 0);
 
@@ -51,7 +51,7 @@ CSVWorld::SceneSubView::SceneSubView(const CSMWorld::UniversalId& id, CSMDoc::Do
     {
         whatWidget = widget_Paged;
 
-        CSVRender::PagedWorldspaceWidget* newWidget = new CSVRender::PagedWorldspaceWidget(this, document);
+        auto* newWidget = new CSVRender::PagedWorldspaceWidget(this, document);
 
         worldspaceWidget = newWidget;
 
@@ -61,8 +61,7 @@ CSVWorld::SceneSubView::SceneSubView(const CSMWorld::UniversalId& id, CSMDoc::Do
     {
         whatWidget = widget_Unpaged;
 
-        CSVRender::UnpagedWorldspaceWidget* newWidget
-            = new CSVRender::UnpagedWorldspaceWidget(id.getId(), document, this);
+        auto* newWidget = new CSVRender::UnpagedWorldspaceWidget(id.getId(), document, this);
 
         worldspaceWidget = newWidget;
 
@@ -73,11 +72,11 @@ CSVWorld::SceneSubView::SceneSubView(const CSMWorld::UniversalId& id, CSMDoc::Do
 
     layout->insertLayout(0, mLayout, 1);
 
-    CSVFilter::FilterBox* filterBox = new CSVFilter::FilterBox(document.getData(), this);
+    auto* filterBox = new CSVFilter::FilterBox(document.getData(), this);
 
     layout->insertWidget(0, filterBox);
 
-    QWidget* widget = new QWidget;
+    auto* widget = new QWidget;
 
     widget->setLayout(layout);
 
@@ -110,7 +109,7 @@ void CSVWorld::SceneSubView::makeConnections(CSVRender::PagedWorldspaceWidget* w
 
 CSVWidget::SceneToolbar* CSVWorld::SceneSubView::makeToolbar(CSVRender::WorldspaceWidget* widget, WidgetType type)
 {
-    CSVWidget::SceneToolbar* toolbar = new CSVWidget::SceneToolbar(48 + 6, this);
+    auto* toolbar = new CSVWidget::SceneToolbar(48 + 6, this);
 
     CSVWidget::SceneToolMode* navigationTool = widget->makeNavigationSelector(toolbar);
     toolbar->addTool(navigationTool);

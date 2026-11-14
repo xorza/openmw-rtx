@@ -56,8 +56,8 @@ namespace Rtx
                         // In double and rounded once: two libraries' `exp` may differ in a double's last
                         // place, which a float `exp` cannot absorb at a tie, and a kernel an ulp apart
                         // breaks a tie the other way and yields another tile.
-                        const double squared = static_cast<double>(dx * dx + dy * dy);
-                        const double sigma = static_cast<double>(sSigma);
+                        const auto squared = static_cast<double>(dx * dx + dy * dy);
+                        const auto sigma = static_cast<double>(sSigma);
                         mKernel[static_cast<std::size_t>((dy + sRadius) * sSide + (dx + sRadius))]
                             = static_cast<float>(std::exp(-squared / (2.0 * sigma * sigma)));
                     }
@@ -173,7 +173,7 @@ namespace Rtx
             // pattern, so removing them in that order and numbering backwards puts the most isolated
             // one first.
             std::vector<std::uint32_t> rank(sCount, 0);
-            for (std::uint32_t r = static_cast<std::uint32_t>(sInitialOnes); r-- > 0;)
+            for (auto r = static_cast<std::uint32_t>(sInitialOnes); r-- > 0;)
             {
                 const std::size_t at = field.tightestCluster();
                 field.set(at, false);
@@ -182,7 +182,7 @@ namespace Rtx
 
             // And up, from the settled arrangement again, all the way to full.
             field.restore(settled, settledEnergy);
-            for (std::uint32_t r = static_cast<std::uint32_t>(sInitialOnes); r < sCount; ++r)
+            for (auto r = static_cast<std::uint32_t>(sInitialOnes); r < sCount; ++r)
             {
                 const std::size_t at = field.largestVoid();
                 field.set(at, true);

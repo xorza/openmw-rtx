@@ -54,7 +54,7 @@ namespace Bsa
 
             for (const NonSSEFolderRecord& folder : value.mFolders)
             {
-                const std::uint8_t folderNameSize = static_cast<std::uint8_t>(folder.mName.size() + 1);
+                const auto folderNameSize = static_cast<std::uint8_t>(folder.mName.size() + 1);
 
                 stream.write(reinterpret_cast<const char*>(&folderNameSize), sizeof(folderNameSize));
                 stream.write(reinterpret_cast<const char*>(folder.mName.data()), folder.mName.size());

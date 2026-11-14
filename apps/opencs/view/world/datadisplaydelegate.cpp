@@ -85,7 +85,7 @@ void CSVWorld::DataDisplayDelegate::buildPixmaps()
     if (!mPixmaps.empty())
         mPixmaps.clear();
 
-    IconList::iterator it = mIcons.begin();
+    auto it = mIcons.begin();
 
     while (it != mIcons.end())
     {

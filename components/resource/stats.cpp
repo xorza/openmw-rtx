@@ -257,7 +257,7 @@ namespace Resource
 
             void apply(osg::Drawable& node) override
             {
-                if (osgText::Text* text = dynamic_cast<osgText::Text*>(&node))
+                if (auto* text = dynamic_cast<osgText::Text*>(&node))
                 {
                     text->setFont(mFont);
                 }
@@ -347,7 +347,7 @@ namespace Resource
             {
                 if (ea.getKey() == statsHandlerKey)
                 {
-                    osgViewer::View* const view = dynamic_cast<osgViewer::View*>(&aa);
+                    auto* const view = dynamic_cast<osgViewer::View*>(&aa);
                     if (view == nullptr)
                         return false;
 
@@ -490,7 +490,7 @@ namespace Resource
 
                 // OSG hands a draw callback its drawable const and expects it to write the text all the same, as
                 // its own `StatsHandler` does.
-                osgText::Text* text = const_cast<osgText::Text*>(static_cast<const osgText::Text*>(drawable));
+                auto* text = const_cast<osgText::Text*>(static_cast<const osgText::Text*>(drawable));
 
                 std::ostringstream viewStr;
                 viewStr.setf(std::ios::left, std::ios::adjustfield);

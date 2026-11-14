@@ -723,7 +723,7 @@ namespace MWDialogue
 
     int DialogueManager::getFactionReaction(const ESM::RefId& faction1, const ESM::RefId& faction2) const
     {
-        ModFactionReactionMap::const_iterator map = mChangedFactionReaction.find(faction1);
+        auto map = mChangedFactionReaction.find(faction1);
         if (map != mChangedFactionReaction.end())
         {
             auto it = map->second.find(faction2);

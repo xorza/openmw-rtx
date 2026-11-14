@@ -9,7 +9,7 @@
 CSVDoc::RunLogSubView::RunLogSubView(const CSMWorld::UniversalId& id, CSMDoc::Document& document)
     : SubView(id)
 {
-    QTextEdit* edit = new QTextEdit(this);
+    auto* edit = new QTextEdit(this);
     edit->setDocument(document.getRunLog());
     edit->setReadOnly(true);
 

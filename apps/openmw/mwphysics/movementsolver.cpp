@@ -254,7 +254,7 @@ namespace MWPhysics
                     usedStepLogic = stepper.step(newPosition, velocity, remainingTime, seenGround, iterations == 0);
                 }
                 auto* ptrHolder = static_cast<PtrHolder*>(tracer.mHitObject->getUserPointer());
-                if (Object* hitObject = dynamic_cast<Object*>(ptrHolder))
+                if (auto* hitObject = dynamic_cast<Object*>(ptrHolder))
                 {
                     hitObject->addCollision(
                         actor.mIsPlayer ? ScriptedCollisionType_Player : ScriptedCollisionType_Actor);

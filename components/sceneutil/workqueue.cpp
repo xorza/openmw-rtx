@@ -47,7 +47,7 @@ namespace SceneUtil
     void WorkQueue::start(std::size_t workerThreads)
     {
         {
-            const std::lock_guard lock(mMutex);
+            const std::scoped_lock lock(mMutex);
             mIsReleased = false;
         }
         while (mThreads.size() < workerThreads)

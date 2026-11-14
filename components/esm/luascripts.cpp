@@ -6,6 +6,7 @@
 #include <components/lua/configuration.hpp>
 #include <components/lua/luastateptr.hpp>
 #include <components/lua/serialization.hpp>
+#include <utility>
 
 // List of all records, that are related to Lua.
 //
@@ -98,7 +99,7 @@ void ESM::LuaScriptsCfg::adjustRefNums(const ESMReader& esm)
     auto adjustRefNumFn = [&esm](int contentFile) -> int {
         if (contentFile == 0)
             return esm.getIndex();
-        else if (contentFile > 0 && contentFile <= static_cast<int>(esm.getParentFileIndices().size()))
+        else if (contentFile > 0 && std::cmp_less_equal(contentFile, esm.getParentFileIndices().size()))
             return esm.getParentFileIndices()[contentFile - 1];
         else
             throw std::runtime_error("Incorrect contentFile index");

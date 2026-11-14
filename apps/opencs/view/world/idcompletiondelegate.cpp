@@ -90,7 +90,7 @@ QWidget* CSVWorld::IdCompletionDelegate::createEditor(QWidget* parent, const QSt
     }
 
     CSMWorld::IdCompletionManager& completionManager = getDocument().getIdCompletionManager();
-    CSVWidget::DropLineEdit* editor = new CSVWidget::DropLineEdit(display, parent);
+    auto* editor = new CSVWidget::DropLineEdit(display, parent);
     editor->setCompleter(completionManager.getCompleter(display).get());
 
     // The savegame format limits the player faction string to 32 characters.

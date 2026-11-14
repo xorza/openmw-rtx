@@ -288,7 +288,7 @@ namespace
 
         if (fallHeight >= fallDistanceMin)
         {
-            const float acrobaticsSkill = static_cast<float>(ptr.getClass().getSkill(ptr, ESM::Skill::Acrobatics));
+            const auto acrobaticsSkill = static_cast<float>(ptr.getClass().getSkill(ptr, ESM::Skill::Acrobatics));
             const float jumpSpellBonus = ptr.getClass()
                                              .getCreatureStats(ptr)
                                              .getMagicEffects()
@@ -1008,7 +1008,7 @@ namespace MWMechanics
 
         MWBase::Environment::get().getLuaManager()->animationTextKey(mPtr, key->second);
 
-        if (evt.substr(0, 7) == "sound: ")
+        if (evt.starts_with("sound: "))
         {
             MWBase::SoundManager* sndMgr = MWBase::Environment::get().getSoundManager();
             sndMgr->playSound3D(mPtr, ESM::RefId::stringRefId(evt.substr(7)), 1.0f, 1.0f);
@@ -1016,7 +1016,7 @@ namespace MWMechanics
         }
 
         auto& charClass = mPtr.getClass();
-        if (evt.substr(0, 10) == "soundgen: ")
+        if (evt.starts_with("soundgen: "))
         {
             std::string_view soundgen = evt.substr(10);
 
@@ -1059,7 +1059,7 @@ namespace MWMechanics
             return;
         }
 
-        if (evt.substr(0, groupname.size()) != groupname || evt.substr(groupname.size(), 2) != ": ")
+        if (!evt.starts_with(groupname) || evt.substr(groupname.size(), 2) != ": ")
         {
             // Not ours, skip it
             return;
@@ -1109,7 +1109,7 @@ namespace MWMechanics
         }
         else if (isRandomAttackAnimation(groupname) && action == "start")
         {
-            std::multimap<float, std::string>::const_iterator hitKey = key;
+            auto hitKey = key;
 
             // Not all animations have a hit key defined. If there is none, the hit happens with the start key.
             bool hasHitKey = false;
@@ -2549,7 +2549,7 @@ namespace MWMechanics
         ESM::AnimationState& state = mPtr.getRefData().getAnimationState();
 
         state.mScriptedAnims.clear();
-        for (AnimationQueue::const_iterator iter = mAnimQueue.begin(); iter != mAnimQueue.end(); ++iter)
+        for (auto iter = mAnimQueue.begin(); iter != mAnimQueue.end(); ++iter)
         {
             // TODO: Probably want to presist lua animations too
             if (!iter->mScripted)

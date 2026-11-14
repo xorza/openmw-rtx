@@ -1,6 +1,7 @@
 #include "manager.hpp"
 
 #include <cassert>
+#include <ranges>
 #include <stdexcept>
 
 #include <components/files/conversion.hpp>
@@ -73,10 +74,10 @@ namespace VFS
 
     std::string Manager::getArchive(const Path::Normalized& name) const
     {
-        for (auto it = mArchives.rbegin(); it != mArchives.rend(); ++it)
+        for (const auto& mArchive : std::views::reverse(mArchives))
         {
-            if ((*it)->contains(name))
-                return (*it)->getDescription();
+            if (mArchive->contains(name))
+                return mArchive->getDescription();
         }
         return {};
     }

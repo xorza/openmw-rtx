@@ -54,7 +54,7 @@ namespace SceneUtil
         if (container == nullptr)
             return nullptr;
         for (unsigned int i = 0; i < container->getNumUserObjects(); ++i)
-            if (UserData<T>* data = dynamic_cast<UserData<T>*>(container->getUserObject(i)))
+            if (auto* data = dynamic_cast<UserData<T>*>(container->getUserObject(i)))
                 return &data->mValue;
         return nullptr;
     }
@@ -69,7 +69,7 @@ namespace SceneUtil
         if (container == nullptr)
             return;
         for (unsigned int i = 0; i < container->getNumUserObjects(); ++i)
-            if (UserData<T>* data = dynamic_cast<UserData<T>*>(container->getUserObject(i)))
+            if (auto* data = dynamic_cast<UserData<T>*>(container->getUserObject(i)))
                 f(data->mValue);
     }
 

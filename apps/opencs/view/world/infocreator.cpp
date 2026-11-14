@@ -53,9 +53,9 @@ std::string CSVWorld::InfoCreator::getId() const
 
 void CSVWorld::InfoCreator::configureCreateCommand(CSMWorld::CreateCommand& command) const
 {
-    CSMWorld::IdTable& table = dynamic_cast<CSMWorld::IdTable&>(*getData().getTableModel(getCollectionId()));
+    auto& table = dynamic_cast<CSMWorld::IdTable&>(*getData().getTableModel(getCollectionId()));
 
-    CSMWorld::CloneCommand* cloneCommand = dynamic_cast<CSMWorld::CloneCommand*>(&command);
+    auto* cloneCommand = dynamic_cast<CSMWorld::CloneCommand*>(&command);
     if (getCollectionId() == CSMWorld::UniversalId::Type_TopicInfos)
     {
         if (!cloneCommand)
@@ -94,7 +94,7 @@ CSVWorld::InfoCreator::InfoCreator(CSMWorld::Data& worldData, QUndoStack& undoSt
         labelText = "Journal";
     }
 
-    QLabel* label = new QLabel(labelText, this);
+    auto* label = new QLabel(labelText, this);
     insertBeforeButtons(label, false);
 
     // Add topic/journal ID input with auto-completion.
@@ -111,7 +111,7 @@ CSVWorld::InfoCreator::InfoCreator(CSMWorld::Data& worldData, QUndoStack& undoSt
 
 void CSVWorld::InfoCreator::cloneMode(const std::string& originId, const CSMWorld::UniversalId::Type type)
 {
-    CSMWorld::IdTable& infoTable = dynamic_cast<CSMWorld::IdTable&>(*getData().getTableModel(getCollectionId()));
+    auto& infoTable = dynamic_cast<CSMWorld::IdTable&>(*getData().getTableModel(getCollectionId()));
 
     int topicColumn = infoTable.findColumnIndex(getCollectionId().getType() == CSMWorld::UniversalId::Type_TopicInfos
             ? CSMWorld::Columns::ColumnId_Topic

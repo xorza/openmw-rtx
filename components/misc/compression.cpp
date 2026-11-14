@@ -6,6 +6,7 @@
 #include <cstring>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace Misc
@@ -35,7 +36,7 @@ namespace Misc
             static_cast<int>(result.size()));
         if (size < 0)
             throw std::runtime_error("Failed to decompress");
-        if (originalSize != static_cast<std::size_t>(size))
+        if (std::cmp_not_equal(originalSize, size))
             throw std::runtime_error("Size of decompressed data (" + std::to_string(size) + ") doesn't match stored ("
                 + std::to_string(originalSize) + ")");
         return result;

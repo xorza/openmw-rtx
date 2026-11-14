@@ -203,7 +203,7 @@ namespace LuaUi
             MyGUI::Widget* widget
                 = MyGUI::Gui::getInstancePtr()->createWidgetT(type, {}, {}, MyGUI::Align::Default, {}, name);
 
-            WidgetExtension* ext = dynamic_cast<WidgetExtension*>(widget);
+            auto* ext = dynamic_cast<WidgetExtension*>(widget);
             if (!ext)
                 throw std::runtime_error("Invalid widget!");
             ext->initialize(layout.lua_state(), widget, isRoot);

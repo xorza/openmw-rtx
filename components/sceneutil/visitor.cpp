@@ -66,10 +66,10 @@ namespace SceneUtil
 
     void RemoveVisitor::remove()
     {
-        for (RemoveVec::iterator it = mToRemove.begin(); it != mToRemove.end(); ++it)
+        for (auto& it : mToRemove)
         {
-            if (!it->second->removeChild(it->first))
-                Log(Debug::Error) << "error removing " << it->first->getName();
+            if (!it.second->removeChild(it.first))
+                Log(Debug::Error) << "error removing " << it.first->getName();
         }
     }
 
@@ -106,9 +106,9 @@ namespace SceneUtil
 
     void CleanObjectRootVisitor::applyDrawable(osg::Node& node)
     {
-        osg::NodePath::iterator parent = getNodePath().end() - 2;
+        auto parent = getNodePath().end() - 2;
         // We know that the parent is a Group because only Groups can have children.
-        osg::Group* parentGroup = static_cast<osg::Group*>(*parent);
+        auto* parentGroup = static_cast<osg::Group*>(*parent);
 
         // Try to prune nodes that would be empty after the removal
         if (parent != getNodePath().begin())

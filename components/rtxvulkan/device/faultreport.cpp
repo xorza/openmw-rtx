@@ -112,13 +112,13 @@ namespace Rtx
             return "\nthe queue passed no checkpoint";
 
         std::string report;
-        for (std::size_t at = 0; at < passed.size(); ++at)
+        for (const auto& at : passed)
         {
-            const auto* checkpoint = static_cast<const Checkpoint*>(passed[at].pCheckpointMarker);
+            const auto* checkpoint = static_cast<const Checkpoint*>(at.pCheckpointMarker);
             if (checkpoint == nullptr)
                 continue;
 
-            report += describePassedStage(passed[at].stage, checkpoint);
+            report += describePassedStage(at.stage, checkpoint);
         }
 
         return report;

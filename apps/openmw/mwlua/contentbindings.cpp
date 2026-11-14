@@ -160,8 +160,8 @@ namespace MWLua
                     else
                     {
                         const double value = LuaUtil::cast<double>(obj);
-                        const int32_t intV = static_cast<int32_t>(value);
-                        const float floatV = static_cast<float>(value);
+                        const auto intV = static_cast<int32_t>(value);
+                        const auto floatV = static_cast<float>(value);
                         if (intV == value && (!preferFloat || floatV != value))
                         {
                             gmst.mValue.setType(ESM::VT_Int);
@@ -219,7 +219,7 @@ namespace MWLua
                         global.blank();
                         global.mId = id;
                     }
-                    int32_t intV = static_cast<int32_t>(value);
+                    auto intV = static_cast<int32_t>(value);
                     if (intV == value && !preferFloat)
                     {
                         global.mValue.setType(ESM::VT_Long);

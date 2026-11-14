@@ -25,9 +25,9 @@ namespace CSMPrefs
         , mEditorActive(false)
         , mEditorPos(0)
     {
-        for (int i = 0; i < MaxKeys; ++i)
+        for (int& mEditorKey : mEditorKeys)
         {
-            mEditorKeys[i] = 0;
+            mEditorKey = 0;
         }
     }
 
@@ -38,8 +38,8 @@ namespace CSMPrefs
 
         QString text = QString::fromUtf8(State::get().getShortcutManager().convertToString(sequence).c_str());
 
-        QLabel* label = new QLabel(getLabel(), parent);
-        QPushButton* widget = new QPushButton(text, parent);
+        auto* label = new QLabel(getLabel(), parent);
+        auto* widget = new QPushButton(text, parent);
 
         widget->setCheckable(true);
         widget->installEventFilter(this);
@@ -71,7 +71,7 @@ namespace CSMPrefs
     {
         if (event->type() == QEvent::KeyPress)
         {
-            QKeyEvent* keyEvent = static_cast<QKeyEvent*>(event);
+            auto* keyEvent = static_cast<QKeyEvent*>(event);
             if (keyEvent->isAutoRepeat())
                 return true;
 
@@ -82,7 +82,7 @@ namespace CSMPrefs
         }
         else if (event->type() == QEvent::KeyRelease)
         {
-            QKeyEvent* keyEvent = static_cast<QKeyEvent*>(event);
+            auto* keyEvent = static_cast<QKeyEvent*>(event);
             if (keyEvent->isAutoRepeat())
                 return true;
 
@@ -93,7 +93,7 @@ namespace CSMPrefs
         }
         else if (event->type() == QEvent::MouseButtonPress)
         {
-            QMouseEvent* mouseEvent = static_cast<QMouseEvent*>(event);
+            auto* mouseEvent = static_cast<QMouseEvent*>(event);
             int mod = mouseEvent->modifiers();
             int key = mouseEvent->button();
 
@@ -101,7 +101,7 @@ namespace CSMPrefs
         }
         else if (event->type() == QEvent::MouseButtonRelease)
         {
-            QMouseEvent* mouseEvent = static_cast<QMouseEvent*>(event);
+            auto* mouseEvent = static_cast<QMouseEvent*>(event);
             int mod = mouseEvent->modifiers();
             int key = mouseEvent->button();
 
@@ -120,8 +120,6 @@ namespace CSMPrefs
         // Modifiers are handled differently
         const int blacklist[] = { Qt::Key_Shift, Qt::Key_Control, Qt::Key_Meta, Qt::Key_Alt, Qt::Key_AltGr };
 
-        const size_t blacklistSize = std::size(blacklist);
-
         if (!mEditorActive)
         {
             if (value == Qt::RightButton && !active)
@@ -137,9 +135,9 @@ namespace CSMPrefs
         }
 
         // Handle blacklist
-        for (size_t i = 0; i < blacklistSize; ++i)
+        for (int i : blacklist)
         {
-            if (value == blacklist[i])
+            if (value == i)
                 return true;
         }
 
@@ -180,9 +178,9 @@ namespace CSMPrefs
         mButton->setChecked(false);
         mEditorActive = false;
         mEditorPos = 0;
-        for (int i = 0; i < MaxKeys; ++i)
+        for (int& mEditorKey : mEditorKeys)
         {
-            mEditorKeys[i] = 0;
+            mEditorKey = 0;
         }
 
         // Button text

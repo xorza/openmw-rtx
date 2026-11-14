@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <components/esm/attr.hpp>
@@ -173,7 +174,7 @@ namespace CSMWorld
 
             std::vector<ESM::RefId>& spells = raceOrBthSgn.mPowers.mList;
 
-            if (rowToRemove < 0 || rowToRemove >= static_cast<int>(spells.size()))
+            if (rowToRemove < 0 || std::cmp_greater_equal(rowToRemove, spells.size()))
                 throw std::runtime_error("index out of range");
 
             spells.erase(spells.begin() + rowToRemove);
@@ -203,7 +204,7 @@ namespace CSMWorld
 
             std::vector<ESM::RefId>& spells = raceOrBthSgn.mPowers.mList;
 
-            if (subRowIndex < 0 || subRowIndex >= static_cast<int>(spells.size()))
+            if (subRowIndex < 0 || std::cmp_greater_equal(subRowIndex, spells.size()))
                 throw std::runtime_error("index out of range");
 
             ESM::RefId spell = spells[subRowIndex];
@@ -222,7 +223,7 @@ namespace CSMWorld
 
             std::vector<ESM::RefId>& spells = raceOrBthSgn.mPowers.mList;
 
-            if (subRowIndex < 0 || subRowIndex >= static_cast<int>(spells.size()))
+            if (subRowIndex < 0 || std::cmp_greater_equal(subRowIndex, spells.size()))
                 throw std::runtime_error("index out of range");
 
             ESM::RefId spell = spells[subRowIndex];
@@ -287,7 +288,7 @@ namespace CSMWorld
 
             std::vector<ESM::IndexedENAMstruct>& effectsList = magic.mEffects.mList;
 
-            if (rowToRemove < 0 || rowToRemove >= static_cast<int>(effectsList.size()))
+            if (rowToRemove < 0 || std::cmp_greater_equal(rowToRemove, effectsList.size()))
                 throw std::runtime_error("index out of range");
 
             effectsList.erase(effectsList.begin() + rowToRemove);
@@ -318,7 +319,7 @@ namespace CSMWorld
 
             std::vector<ESM::IndexedENAMstruct>& effectsList = magic.mEffects.mList;
 
-            if (subRowIndex < 0 || subRowIndex >= static_cast<int>(effectsList.size()))
+            if (subRowIndex < 0 || std::cmp_greater_equal(subRowIndex, effectsList.size()))
                 throw std::runtime_error("index out of range");
 
             ESM::ENAMstruct effect = effectsList[subRowIndex].mData;
@@ -371,7 +372,7 @@ namespace CSMWorld
 
             std::vector<ESM::IndexedENAMstruct>& effectsList = magic.mEffects.mList;
 
-            if (subRowIndex < 0 || subRowIndex >= static_cast<int>(effectsList.size()))
+            if (subRowIndex < 0 || std::cmp_greater_equal(subRowIndex, effectsList.size()))
                 throw std::runtime_error("index out of range");
 
             ESM::ENAMstruct effect = effectsList[subRowIndex].mData;

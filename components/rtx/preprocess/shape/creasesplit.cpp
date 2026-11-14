@@ -152,7 +152,7 @@ namespace Rtx
         const std::span<const osg::Vec3f> normals, const std::size_t ownVertices, std::vector<std::uint32_t>& triangles,
         Split& split)
     {
-        const std::uint32_t size = static_cast<std::uint32_t>(fan.size());
+        const auto size = static_cast<std::uint32_t>(fan.size());
         const auto own = [&](std::uint32_t at) { return fan[at] < mOwnCorners; };
         const auto vertexOf = [&](std::uint32_t at) { return mOriginal[fan[at]]; };
         const auto triangleOf = [&](std::uint32_t at) { return fan[at] / 3; };

@@ -487,7 +487,7 @@ CSMWorld::Data::Data(ToUTF8::FromType encoding, const Files::PathContainer& data
         ColumnBase::Flag_Table | ColumnBase::Flag_Dialogue, true));
 
     int meshTypeFlags = ColumnBase::Flag_Table | ColumnBase::Flag_Dialogue | ColumnBase::Flag_Dialogue_Refresh;
-    MeshTypeColumn<ESM::BodyPart>* meshTypeColumn = new MeshTypeColumn<ESM::BodyPart>(meshTypeFlags);
+    auto* meshTypeColumn = new MeshTypeColumn<ESM::BodyPart>(meshTypeFlags);
     mBodyParts.addColumn(meshTypeColumn);
     mBodyParts.addColumn(new ModelColumn<ESM::BodyPart>);
     mBodyParts.addColumn(new BodyPartRaceColumn(meshTypeColumn));
@@ -686,8 +686,8 @@ CSMWorld::Data::Data(ToUTF8::FromType encoding, const Files::PathContainer& data
 
 CSMWorld::Data::~Data()
 {
-    for (std::vector<QAbstractItemModel*>::iterator iter(mModels.begin()); iter != mModels.end(); ++iter)
-        delete *iter;
+    for (auto& mModel : mModels)
+        delete mModel;
 }
 
 std::shared_ptr<Resource::ResourceSystem> CSMWorld::Data::getResourceSystem()
@@ -1008,7 +1008,7 @@ void CSMWorld::Data::setMetaData(const MetaData& metaData)
 
 QAbstractItemModel* CSMWorld::Data::getTableModel(const CSMWorld::UniversalId& id)
 {
-    std::map<UniversalId::Type, QAbstractItemModel*>::iterator iter = mModelIndex.find(id.getType());
+    auto iter = mModelIndex.find(id.getType());
 
     if (iter == mModelIndex.end())
     {
@@ -1481,7 +1481,7 @@ void CSMWorld::Data::assetsChanged()
 
     for (size_t i = 0; i < numAssetTables; ++i)
     {
-        ResourceTable* table = static_cast<ResourceTable*>(getTableModel(assetTableIds[i]));
+        auto* table = static_cast<ResourceTable*>(getTableModel(assetTableIds[i]));
         table->beginReset();
     }
 
@@ -1490,7 +1490,7 @@ void CSMWorld::Data::assetsChanged()
 
     for (size_t i = 0; i < numAssetTables; ++i)
     {
-        ResourceTable* table = static_cast<ResourceTable*>(getTableModel(assetTableIds[i]));
+        auto* table = static_cast<ResourceTable*>(getTableModel(assetTableIds[i]));
         table->endReset();
     }
 

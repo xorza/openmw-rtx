@@ -330,7 +330,7 @@ int CSVRender::TerrainSelection::calculateLandHeight(int x, int y) // global ver
     CSMWorld::CellCoordinates coords(cellX, cellY);
 
     float landHeight = 0.f;
-    if (CSVRender::Cell* cell = dynamic_cast<CSVRender::Cell*>(mWorldspaceWidget->getCell(coords)))
+    if (auto* cell = dynamic_cast<CSVRender::Cell*>(mWorldspaceWidget->getCell(coords)))
     {
         landHeight = cell->getSumOfAlteredAndTrueHeight(cellX, cellY, localX, localY);
     }

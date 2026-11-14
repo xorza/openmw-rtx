@@ -33,11 +33,11 @@ namespace ESM
 
     void PartReferenceList::save(ESMWriter& esm) const
     {
-        for (std::vector<PartReference>::const_iterator it = mParts.begin(); it != mParts.end(); ++it)
+        for (const auto& mPart : mParts)
         {
-            esm.writeHNT("INDX", it->mPart);
-            esm.writeHNORefId("BNAM", it->mMale);
-            esm.writeHNORefId("CNAM", it->mFemale);
+            esm.writeHNT("INDX", mPart.mPart);
+            esm.writeHNORefId("BNAM", mPart.mMale);
+            esm.writeHNORefId("CNAM", mPart.mFemale);
         }
     }
 

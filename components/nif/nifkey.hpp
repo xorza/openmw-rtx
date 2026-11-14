@@ -77,7 +77,7 @@ namespace Nif
                 }
             }
 
-            const uint32_t count = nif->get<uint32_t>();
+            const auto count = nif->get<uint32_t>();
 
             if (count == 0 && !morph)
                 return;

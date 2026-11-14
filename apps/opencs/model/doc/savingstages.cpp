@@ -295,9 +295,9 @@ void CSMDoc::WriteCellCollectionStage::writeReferences(const std::deque<int>& re
 {
     ESM::ESMWriter& writer = mState.getWriter();
 
-    for (std::deque<int>::const_iterator iter(references.begin()); iter != references.end(); ++iter)
+    for (int reference : references)
     {
-        const CSMWorld::Record<CSMWorld::CellRef>& ref = mDocument.getData().getReferences().getRecord(*iter);
+        const CSMWorld::Record<CSMWorld::CellRef>& ref = mDocument.getData().getReferences().getRecord(reference);
 
         if (ref.isModified() || ref.mState == CSMWorld::RecordBase::State_Deleted)
         {
@@ -360,9 +360,10 @@ void CSMDoc::WriteCellCollectionStage::perform(int stage, Messages& messages)
 
         if (references != nullptr)
         {
-            for (std::deque<int>::const_iterator iter(references->begin()); iter != references->end(); ++iter)
+            for (int reference : *references)
             {
-                const CSMWorld::Record<CSMWorld::CellRef>& ref = mDocument.getData().getReferences().getRecord(*iter);
+                const CSMWorld::Record<CSMWorld::CellRef>& ref
+                    = mDocument.getData().getReferences().getRecord(reference);
 
                 CSMWorld::CellRef refRecord = ref.get();
 
@@ -373,9 +374,9 @@ void CSMDoc::WriteCellCollectionStage::perform(int stage, Messages& messages)
                     || localIndex.second == CSMWorld::UniversalId::Type_Npc;
 
                 if (isPersistent)
-                    persistentRefs.push_back(*iter);
+                    persistentRefs.push_back(reference);
                 else
-                    tempRefs.push_back(*iter);
+                    tempRefs.push_back(reference);
 
                 if (refRecord.mNew
                     || (!interior && ref.mState == CSMWorld::RecordBase::State_ModifiedOnly &&

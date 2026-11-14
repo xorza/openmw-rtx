@@ -279,7 +279,7 @@ namespace LuaUtil
                 return;
             case SerializedType::LONG_STRING:
             {
-                uint32_t size = getValue<uint32_t>(binaryData);
+                auto size = getValue<uint32_t>(binaryData);
                 sol::stack::push<std::string_view>(lua, binaryData.substr(0, size));
                 binaryData = binaryData.substr(size);
                 return;
@@ -304,16 +304,16 @@ namespace LuaUtil
                 throw std::runtime_error("Unexpected end of table during deserialization.");
             case SerializedType::VEC2:
             {
-                float x = static_cast<float>(getValue<double>(binaryData));
-                float y = static_cast<float>(getValue<double>(binaryData));
+                auto x = static_cast<float>(getValue<double>(binaryData));
+                auto y = static_cast<float>(getValue<double>(binaryData));
                 sol::stack::push<osg::Vec2f>(lua, osg::Vec2f(x, y));
                 return;
             }
             case SerializedType::VEC3:
             {
-                float x = static_cast<float>(getValue<double>(binaryData));
-                float y = static_cast<float>(getValue<double>(binaryData));
-                float z = static_cast<float>(getValue<double>(binaryData));
+                auto x = static_cast<float>(getValue<double>(binaryData));
+                auto y = static_cast<float>(getValue<double>(binaryData));
+                auto z = static_cast<float>(getValue<double>(binaryData));
                 sol::stack::push<osg::Vec3f>(lua, osg::Vec3f(x, y, z));
                 return;
             }
@@ -336,19 +336,19 @@ namespace LuaUtil
             }
             case SerializedType::VEC4:
             {
-                float x = static_cast<float>(getValue<double>(binaryData));
-                float y = static_cast<float>(getValue<double>(binaryData));
-                float z = static_cast<float>(getValue<double>(binaryData));
-                float w = static_cast<float>(getValue<double>(binaryData));
+                auto x = static_cast<float>(getValue<double>(binaryData));
+                auto y = static_cast<float>(getValue<double>(binaryData));
+                auto z = static_cast<float>(getValue<double>(binaryData));
+                auto w = static_cast<float>(getValue<double>(binaryData));
                 sol::stack::push<osg::Vec4f>(lua, osg::Vec4f(x, y, z, w));
                 return;
             }
             case SerializedType::COLOR:
             {
-                float r = getValue<float>(binaryData);
-                float g = getValue<float>(binaryData);
-                float b = getValue<float>(binaryData);
-                float a = getValue<float>(binaryData);
+                auto r = getValue<float>(binaryData);
+                auto g = getValue<float>(binaryData);
+                auto b = getValue<float>(binaryData);
+                auto a = getValue<float>(binaryData);
                 sol::stack::push<Misc::Color>(lua, Misc::Color(r, g, b, a));
                 return;
             }

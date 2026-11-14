@@ -19,7 +19,7 @@ namespace Resource
 
             if (shape->isCompound())
             {
-                const btCompoundShape* comp = static_cast<const btCompoundShape*>(shape);
+                const auto* comp = static_cast<const btCompoundShape*>(shape);
                 std::unique_ptr<btCompoundShape, DeleteCollisionShape> newShape(new btCompoundShape);
 
                 for (int i = 0, n = comp->getNumChildShapes(); i < n; ++i)
@@ -34,21 +34,21 @@ namespace Resource
 
             if (shape->getShapeType() == SCALED_TRIANGLE_MESH_SHAPE_PROXYTYPE)
             {
-                const btScaledBvhTriangleMeshShape* trishape = static_cast<const btScaledBvhTriangleMeshShape*>(shape);
+                const auto* trishape = static_cast<const btScaledBvhTriangleMeshShape*>(shape);
                 return CollisionShapePtr(new btScaledBvhTriangleMeshShape(
                     const_cast<btBvhTriangleMeshShape*>(trishape->getChildShape()), trishape->getLocalScaling()));
             }
 
             if (shape->getShapeType() == TRIANGLE_MESH_SHAPE_PROXYTYPE)
             {
-                const btBvhTriangleMeshShape* trishape = static_cast<const btBvhTriangleMeshShape*>(shape);
+                const auto* trishape = static_cast<const btBvhTriangleMeshShape*>(shape);
                 return CollisionShapePtr(new btScaledBvhTriangleMeshShape(
                     const_cast<btBvhTriangleMeshShape*>(trishape), btVector3(1.f, 1.f, 1.f)));
             }
 
             if (shape->getShapeType() == BOX_SHAPE_PROXYTYPE)
             {
-                const btBoxShape* boxshape = static_cast<const btBoxShape*>(shape);
+                const auto* boxshape = static_cast<const btBoxShape*>(shape);
                 return CollisionShapePtr(new btBoxShape(*boxshape));
             }
 
@@ -63,7 +63,7 @@ namespace Resource
         {
             if (shape->isCompound())
             {
-                btCompoundShape* compound = static_cast<btCompoundShape*>(shape);
+                auto* compound = static_cast<btCompoundShape*>(shape);
                 for (int i = 0, n = compound->getNumChildShapes(); i < n; i++)
                     if (btCollisionShape* child = compound->getChildShape(i))
                         deleteShape(child);

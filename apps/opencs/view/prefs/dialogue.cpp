@@ -23,7 +23,7 @@
 
 void CSVPrefs::Dialogue::buildCategorySelector(QSplitter* main)
 {
-    CSVPrefs::ContextMenuList* list = new CSVPrefs::ContextMenuList(main);
+    auto* list = new CSVPrefs::ContextMenuList(main);
     list->setMinimumWidth(50);
     list->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 
@@ -35,9 +35,9 @@ void CSVPrefs::Dialogue::buildCategorySelector(QSplitter* main)
 
     int maxWidth = 1;
 
-    for (CSMPrefs::State::Iterator iter = CSMPrefs::get().begin(); iter != CSMPrefs::get().end(); ++iter)
+    for (auto& iter : CSMPrefs::get())
     {
-        QString label = QString::fromUtf8(iter->second.getKey().c_str());
+        QString label = QString::fromUtf8(iter.second.getKey().c_str());
 
         maxWidth = std::max(maxWidth, metrics.horizontalAdvance(label));
 
@@ -76,7 +76,7 @@ CSVPrefs::Dialogue::Dialogue()
 
     resize(810, 680);
 
-    QSplitter* main = new QSplitter(this);
+    auto* main = new QSplitter(this);
 
     setCentralWidget(main);
     buildCategorySelector(main);
@@ -132,7 +132,7 @@ void CSVPrefs::Dialogue::selectionChanged(QListWidgetItem* current, QListWidgetI
 
         for (int i = 0; i < mContent->count(); ++i)
         {
-            PageBase& page = dynamic_cast<PageBase&>(*mContent->widget(i));
+            auto& page = dynamic_cast<PageBase&>(*mContent->widget(i));
 
             if (page.getCategory().getKey() == key)
             {

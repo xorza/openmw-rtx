@@ -102,9 +102,9 @@ namespace Terrain
         if (stateset)
             cv->pushStateSet(stateset);
 
-        for (PassVector::const_iterator it = mPasses.begin(); it != mPasses.end(); ++it)
+        for (auto& mPasse : mPasses)
         {
-            cv->pushStateSet(*it);
+            cv->pushStateSet(mPasse);
             cv->addDrawableAndDepth(this, &matrix, depth);
             cv->popStateSet();
         }
@@ -132,10 +132,9 @@ namespace Terrain
 
     void TerrainDrawable::setupWaterBoundingBox(float waterheight, float margin)
     {
-        osg::Vec3Array* vertices = static_cast<osg::Vec3Array*>(getVertexArray());
-        for (unsigned int i = 0; i < vertices->size(); ++i)
+        auto* vertices = static_cast<osg::Vec3Array*>(getVertexArray());
+        for (auto vertex : *vertices)
         {
-            const osg::Vec3f& vertex = (*vertices)[i];
             if (vertex.z() <= waterheight)
                 mWaterBoundingBox.expandBy(vertex);
         }
@@ -151,9 +150,9 @@ namespace Terrain
 
     void TerrainDrawable::compileGLObjects(osg::RenderInfo& renderInfo) const
     {
-        for (PassVector::const_iterator it = mPasses.begin(); it != mPasses.end(); ++it)
+        for (const auto& mPasse : mPasses)
         {
-            osg::StateSet* stateset = *it;
+            osg::StateSet* stateset = mPasse;
             stateset->compileGLObjects(*renderInfo.getState());
         }
 

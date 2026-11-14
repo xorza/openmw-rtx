@@ -4,6 +4,7 @@
 #include <cmath>
 
 #include <components/l10n/manager.hpp>
+#include <utility>
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/soundmanager.hpp"
@@ -180,7 +181,7 @@ namespace MWWorld
 
         if (month == -1)
             month = mMonth;
-        if (month < 0 || month >= static_cast<int>(months.size()))
+        if (month < 0 || std::cmp_greater_equal(month, months.size()))
             return {};
         else
             return months[month];

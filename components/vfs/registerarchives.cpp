@@ -18,18 +18,18 @@ namespace VFS
     {
         const Files::PathContainer& dataDirs = collections.getPaths();
 
-        for (std::vector<std::string>::const_iterator archive = archives.begin(); archive != archives.end(); ++archive)
+        for (const auto& archive : archives)
         {
-            if (collections.doesExist(*archive))
+            if (collections.doesExist(archive))
             {
                 // Last BSA has the highest priority
-                const auto archivePath = collections.getPath(*archive);
+                const auto archivePath = collections.getPath(archive);
                 Log(Debug::Info) << "Adding BSA archive " << archivePath;
                 vfs->addArchive(makeBsaArchive(archivePath, encoder));
             }
             else
             {
-                throw std::runtime_error("Archive '" + *archive + "' not found");
+                throw std::runtime_error("Archive '" + archive + "' not found");
             }
         }
 

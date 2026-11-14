@@ -73,9 +73,9 @@ namespace SceneUtil
 
     LightManager* findLightManager(const osg::NodePath& path)
     {
-        for (size_t i = 0; i < path.size(); ++i)
+        for (auto i : path)
         {
-            if (LightManager* lightManager = dynamic_cast<LightManager*>(path[i]))
+            if (auto* lightManager = dynamic_cast<LightManager*>(i))
                 return lightManager;
         }
         return nullptr;
@@ -126,7 +126,7 @@ namespace SceneUtil
     public:
         void operator()(osg::Node* node, osg::NodeVisitor* nv)
         {
-            LightManager* lightManager = static_cast<LightManager*>(node);
+            auto* lightManager = static_cast<LightManager*>(node);
             lightManager->update(nv->getTraversalNumber());
 
             traverse(node, nv);

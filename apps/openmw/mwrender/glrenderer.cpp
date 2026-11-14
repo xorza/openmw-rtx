@@ -549,7 +549,7 @@ namespace MWRender
         /// The next frame drawn is read off `source`, or off the window where null, `size` pixels.
         void arm(osg::ref_ptr<osg::FrameBufferObject> source, const osg::Vec2i& size)
         {
-            const std::lock_guard lock(mMutex);
+            const std::scoped_lock lock(mMutex);
             mSource = std::move(source);
             mSize = size;
             mArmed = true;
@@ -559,7 +559,7 @@ namespace MWRender
         {
             // Under the lock throughout, because the key can be pressed again while the draw thread
             // reads the frame the last press asked for.
-            const std::lock_guard lock(mMutex);
+            const std::scoped_lock lock(mMutex);
             if (!mArmed)
                 return;
             mArmed = false;
@@ -623,7 +623,7 @@ namespace MWRender
         {
             const int compMapResolution = Settings::terrain().mCompositeMapResolution;
             const int compMapPower = Settings::terrain().mCompositeMapLevel;
-            const float compMapLevel = static_cast<float>(std::pow(2, compMapPower));
+            const auto compMapLevel = static_cast<float>(std::pow(2, compMapPower));
             const int vertexLodMod = Settings::terrain().mVertexLodMod;
             const float maxCompGeometrySize = Settings::terrain().mMaxCompositeGeometrySize;
             const bool debugChunks = Settings::terrain().mDebugChunks;
@@ -1041,7 +1041,7 @@ namespace MWRender
         const float top = 1.f - 2.f * origin.y() / drawable.y();
         const float bottom = 1.f - 2.f * (origin.y() + shown.y()) / drawable.y();
 
-        osg::Vec3Array& corners = static_cast<osg::Vec3Array&>(*mPresentQuad->getVertexArray());
+        auto& corners = static_cast<osg::Vec3Array&>(*mPresentQuad->getVertexArray());
         corners[0].set(left, bottom, 0.f);
         corners[1].set(right, bottom, 0.f);
         corners[2].set(right, top, 0.f);

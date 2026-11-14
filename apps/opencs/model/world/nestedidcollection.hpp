@@ -67,8 +67,7 @@ namespace CSMWorld
     template <typename ESXRecordT>
     NestedIdCollection<ESXRecordT>::~NestedIdCollection()
     {
-        for (typename std::map<const ColumnBase*, NestedColumnAdapter<ESXRecordT>*>::iterator iter(mAdapters.begin());
-            iter != mAdapters.end(); ++iter)
+        for (auto iter(mAdapters.begin()); iter != mAdapters.end(); ++iter)
         {
             delete (*iter).second;
         }
@@ -84,8 +83,7 @@ namespace CSMWorld
     template <typename ESXRecordT>
     const NestedColumnAdapter<ESXRecordT>& NestedIdCollection<ESXRecordT>::getAdapter(const ColumnBase& column) const
     {
-        typename std::map<const ColumnBase*, NestedColumnAdapter<ESXRecordT>*>::const_iterator iter
-            = mAdapters.find(&column);
+        auto iter = mAdapters.find(&column);
 
         if (iter == mAdapters.end())
             throw std::logic_error("No such column in the nestedidadapter");

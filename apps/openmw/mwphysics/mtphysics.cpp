@@ -352,21 +352,21 @@ namespace MWPhysics
 
         void wakeUpWorkers()
         {
-            const std::lock_guard lock(mHasJobMutex);
+            const std::scoped_lock lock(mHasJobMutex);
             ++mFrameCounter;
             mHasJob.notify_all();
         }
 
         void stopWorkers()
         {
-            const std::lock_guard lock(mHasJobMutex);
+            const std::scoped_lock lock(mHasJobMutex);
             mShouldStop = true;
             mHasJob.notify_all();
         }
 
         void workIsDone()
         {
-            const std::lock_guard lock(mWorkersDoneMutex);
+            const std::scoped_lock lock(mWorkersDoneMutex);
             ++mWorkersFrameCounter;
             mWorkersDone.notify_all();
         }
@@ -451,7 +451,7 @@ namespace MWPhysics
     std::tuple<unsigned, float> PhysicsTaskScheduler::calculateStepConfig(float timeAccum) const
     {
         unsigned maxAllowedSteps = 2;
-        unsigned numSteps = static_cast<unsigned>(timeAccum / mDefaultPhysicsDt);
+        auto numSteps = static_cast<unsigned>(timeAccum / mDefaultPhysicsDt);
 
         // adjust maximum step count based on whether we're likely physics bottlenecked or not
         // if maxAllowedSteps ends up higher than numSteps, we will not invoke delta time

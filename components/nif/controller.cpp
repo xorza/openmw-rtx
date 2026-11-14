@@ -91,7 +91,7 @@ namespace Nif
             nif->read(mAccumRootName);
             mTextKeys.read(nif);
         }
-        const uint32_t size = nif->get<uint32_t>();
+        const auto size = nif->get<uint32_t>();
         if (nif->getVersion() >= NIFStream::generateVersion(10, 1, 0, 106))
             nif->read(mArrayGrowBy);
         nif->readVectorOfRecords(size, mControlledBlocks);
@@ -211,7 +211,7 @@ namespace Nif
             nif->read(mSpawnMultiplier);
             nif->read(mSpawnSpeedChaos);
             nif->read(mSpawnDirChaos);
-            const uint16_t numParticles = nif->get<uint16_t>();
+            const auto numParticles = nif->get<uint16_t>();
             nif->read(mNumValid);
             nif->readVectorOfRecords(numParticles, mParticles);
             nif->skip(4); // NiEmitterModifier link
@@ -413,7 +413,7 @@ namespace Nif
             return;
         }
 
-        const uint32_t numInterpolators = nif->get<uint32_t>();
+        const auto numInterpolators = nif->get<uint32_t>();
         mInterpolators.reserve(numInterpolators);
         mWeights.reserve(numInterpolators);
         for (size_t i = 0; i < numInterpolators; ++i)
@@ -495,7 +495,7 @@ namespace Nif
         NiTimeController::read(nif);
 
         nif->read(mLOD);
-        const uint32_t nodeGroupsCount = nif->get<uint32_t>();
+        const auto nodeGroupsCount = nif->get<uint32_t>();
         mNodeGroups.reserve(nodeGroupsCount);
         nif->read(mNumNodeGroups);
         for (uint32_t i = 0; i < nodeGroupsCount; ++i)
@@ -734,7 +734,7 @@ namespace Nif
         if (nif->getVersion() >= NIFStream::generateVersion(10, 1, 0, 112))
         {
             nif->read(mFlags);
-            const uint8_t numItems = nif->get<uint8_t>();
+            const auto numItems = nif->get<uint8_t>();
             nif->read(mWeightThreshold);
             if (!(mFlags & Flag_ManagerControlled))
             {
@@ -768,7 +768,7 @@ namespace Nif
             return;
         }
 
-        const uint16_t numItems = nif->get<uint16_t>();
+        const auto numItems = nif->get<uint16_t>();
         nif->read(mArrayGrowBy);
         nif->readVectorOfRecords(numItems, mItems);
         if (nif->get<bool>())

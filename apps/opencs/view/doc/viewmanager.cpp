@@ -39,17 +39,17 @@ void CSVDoc::ViewManager::updateIndices()
 {
     std::map<CSMDoc::Document*, std::pair<int, int>> documents;
 
-    for (std::vector<View*>::const_iterator iter(mViews.begin()); iter != mViews.end(); ++iter)
+    for (auto mView : mViews)
     {
-        std::map<CSMDoc::Document*, std::pair<int, int>>::iterator document = documents.find((*iter)->getDocument());
+        auto document = documents.find(mView->getDocument());
 
         if (document == documents.end())
-            document = documents
-                           .insert(std::make_pair(
-                               (*iter)->getDocument(), std::make_pair(0, countViews((*iter)->getDocument()))))
-                           .first;
+            document
+                = documents
+                      .insert(std::make_pair(mView->getDocument(), std::make_pair(0, countViews(mView->getDocument()))))
+                      .first;
 
-        (*iter)->setIndex(document->second.first++, document->second.second);
+        mView->setIndex(document->second.first++, document->second.second);
     }
 }
 
@@ -73,10 +73,9 @@ CSVDoc::ViewManager::ViewManager(CSMDoc::DocumentManager& documentManager)
     mDelegateFactories->add(CSMWorld::ColumnBase::Display_Colour, new CSVWorld::ColorDelegateFactory());
 
     std::vector<CSMWorld::ColumnBase::Display> idCompletionColumns = CSMWorld::IdCompletionManager::getDisplayTypes();
-    for (std::vector<CSMWorld::ColumnBase::Display>::const_iterator current = idCompletionColumns.begin();
-        current != idCompletionColumns.end(); ++current)
+    for (auto& idCompletionColumn : idCompletionColumns)
     {
-        mDelegateFactories->add(*current, new CSVWorld::IdCompletionDelegateFactory());
+        mDelegateFactories->add(idCompletionColumn, new CSVWorld::IdCompletionDelegateFactory());
     }
 
     struct Mapping
@@ -119,10 +118,9 @@ CSVDoc::ViewManager::ViewManager(CSMDoc::DocumentManager& documentManager)
         { CSMWorld::ColumnBase::Display_GenderNpc, CSMWorld::Columns::ColumnId_Gender, false },
     };
 
-    for (std::size_t i = 0; i < sizeof(sMapping) / sizeof(Mapping); ++i)
-        mDelegateFactories->add(sMapping[i].mDisplay,
-            new CSVWorld::EnumDelegateFactory(
-                CSMWorld::Columns::getEnums(sMapping[i].mColumnId), sMapping[i].mAllowNone));
+    for (auto i : sMapping)
+        mDelegateFactories->add(
+            i.mDisplay, new CSVWorld::EnumDelegateFactory(CSMWorld::Columns::getEnums(i.mColumnId), i.mAllowNone));
 
     connect(&mDocumentManager, &CSMDoc::DocumentManager::loadRequest, &mLoader, &Loader::add);
 
@@ -143,8 +141,8 @@ CSVDoc::ViewManager::~ViewManager()
 {
     delete mDelegateFactories;
 
-    for (std::vector<View*>::iterator iter(mViews.begin()); iter != mViews.end(); ++iter)
-        delete *iter;
+    for (auto& mView : mViews)
+        delete mView;
 }
 
 CSVDoc::View* CSVDoc::ViewManager::addView(CSMDoc::Document* document)
@@ -189,8 +187,8 @@ int CSVDoc::ViewManager::countViews(const CSMDoc::Document* document) const
 {
     int count = 0;
 
-    for (std::vector<View*>::const_iterator iter(mViews.begin()); iter != mViews.end(); ++iter)
-        if ((*iter)->getDocument() == document)
+    for (auto mView : mViews)
+        if (mView->getDocument() == document)
             ++count;
 
     return count;
@@ -198,7 +196,7 @@ int CSVDoc::ViewManager::countViews(const CSMDoc::Document* document) const
 
 bool CSVDoc::ViewManager::closeRequest(View* view)
 {
-    std::vector<View*>::iterator iter = std::find(mViews.begin(), mViews.end(), view);
+    auto iter = std::find(mViews.begin(), mViews.end(), view);
 
     bool continueWithClose = false;
 
@@ -223,7 +221,7 @@ bool CSVDoc::ViewManager::closeRequest(View* view)
 // NOTE: This method assumes that it is called only if the last document
 void CSVDoc::ViewManager::removeDocAndView(CSMDoc::Document* document)
 {
-    for (std::vector<View*>::iterator iter(mViews.begin()); iter != mViews.end(); ++iter)
+    for (auto iter(mViews.begin()); iter != mViews.end(); ++iter)
     {
         // the first match should also be the only match
         if ((*iter)->getDocument() == document)
@@ -364,16 +362,16 @@ bool CSVDoc::ViewManager::showSaveInProgressMessageBox(CSVDoc::View* view)
 
 void CSVDoc::ViewManager::documentStateChanged(int state, CSMDoc::Document* document)
 {
-    for (std::vector<View*>::const_iterator iter(mViews.begin()); iter != mViews.end(); ++iter)
-        if ((*iter)->getDocument() == document)
-            (*iter)->updateDocumentState();
+    for (auto mView : mViews)
+        if (mView->getDocument() == document)
+            mView->updateDocumentState();
 }
 
 void CSVDoc::ViewManager::progress(int current, int max, int type, int threads, CSMDoc::Document* document)
 {
-    for (std::vector<View*>::const_iterator iter(mViews.begin()); iter != mViews.end(); ++iter)
-        if ((*iter)->getDocument() == document)
-            (*iter)->updateProgress(current, max, type, threads);
+    for (auto mView : mViews)
+        if (mView->getDocument() == document)
+            mView->updateProgress(current, max, type, threads);
 }
 
 void CSVDoc::ViewManager::onExitWarningHandler(int state, CSMDoc::Document* document)
@@ -401,7 +399,7 @@ bool CSVDoc::ViewManager::removeDocument(CSVDoc::View* view)
         // don't bother closing views or updating indicies, but remove from mViews
         CSMDoc::Document* document = view->getDocument();
         std::vector<View*> remainingViews;
-        std::vector<View*>::const_iterator iter = mViews.begin();
+        auto iter = mViews.begin();
         for (; iter != mViews.end(); ++iter)
         {
             if (document == (*iter)->getDocument())

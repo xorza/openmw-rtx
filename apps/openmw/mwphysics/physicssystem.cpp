@@ -159,7 +159,7 @@ namespace MWPhysics
 
     void PhysicsSystem::markAsNonSolid(const MWWorld::ConstPtr& ptr)
     {
-        ObjectMap::iterator found = mObjects.find(ptr.mRef);
+        auto found = mObjects.find(ptr.mRef);
         if (found == mObjects.end())
             return;
 
@@ -176,7 +176,7 @@ namespace MWPhysics
         if (obj.isEmpty())
             return true; // assume standing on terrain (which is a non-object, so not collision tracked)
 
-        ObjectMap::const_iterator foundObj = mObjects.find(obj.mRef);
+        auto foundObj = mObjects.find(obj.mRef);
         if (foundObj == mObjects.end())
             return false;
 
@@ -240,7 +240,7 @@ namespace MWPhysics
         {
             result.mHitPos = Misc::Convert::toOsg(resultCallback.m_hitPointWorld);
             result.mHitNormal = Misc::Convert::toOsg(resultCallback.m_hitNormalWorld);
-            if (PtrHolder* ptrHolder = static_cast<PtrHolder*>(resultCallback.m_collisionObject->getUserPointer()))
+            if (auto* ptrHolder = static_cast<PtrHolder*>(resultCallback.m_collisionObject->getUserPointer()))
                 result.mHitObject = ptrHolder->getPtr();
         }
         return result;
@@ -371,7 +371,7 @@ namespace MWPhysics
 
     osg::Vec3f PhysicsSystem::traceDown(const MWWorld::Ptr& ptr, const osg::Vec3f& position, float maxHeight)
     {
-        ActorMap::iterator found = mActors.find(ptr.mRef);
+        auto found = mActors.find(ptr.mRef);
         if (found == mActors.end())
             return ptr.getRefData().getPosition().asVec3();
         return MovementSolver::traceDown(ptr, position, found->second.get(), mCollisionWorld.get(), maxHeight);
@@ -386,7 +386,7 @@ namespace MWPhysics
 
     void PhysicsSystem::removeHeightField(int x, int y)
     {
-        HeightFieldMap::iterator heightfield = mHeightFields.find(std::make_pair(x, y));
+        auto heightfield = mHeightFields.find(std::make_pair(x, y));
         if (heightfield != mHeightFields.end())
             mHeightFields.erase(heightfield);
     }
@@ -450,7 +450,7 @@ namespace MWPhysics
 
     void PhysicsSystem::removeProjectile(const int projectileId)
     {
-        ProjectileMap::iterator foundProjectile = mProjectiles.find(projectileId);
+        auto foundProjectile = mProjectiles.find(projectileId);
         if (foundProjectile != mProjectiles.end())
             mProjectiles.erase(foundProjectile);
     }
@@ -477,7 +477,7 @@ namespace MWPhysics
 
     Actor* PhysicsSystem::getActor(const MWWorld::Ptr& ptr)
     {
-        ActorMap::iterator found = mActors.find(ptr.mRef);
+        auto found = mActors.find(ptr.mRef);
         if (found != mActors.end())
             return found->second.get();
         return nullptr;
@@ -485,7 +485,7 @@ namespace MWPhysics
 
     const Actor* PhysicsSystem::getActor(const MWWorld::ConstPtr& ptr) const
     {
-        ActorMap::const_iterator found = mActors.find(ptr.mRef);
+        auto found = mActors.find(ptr.mRef);
         if (found != mActors.end())
             return found->second.get();
         return nullptr;
@@ -493,7 +493,7 @@ namespace MWPhysics
 
     const Object* PhysicsSystem::getObject(const MWWorld::ConstPtr& ptr) const
     {
-        ObjectMap::const_iterator found = mObjects.find(ptr.mRef);
+        auto found = mObjects.find(ptr.mRef);
         if (found != mObjects.end())
             return found->second.get();
         return nullptr;
@@ -501,7 +501,7 @@ namespace MWPhysics
 
     Projectile* PhysicsSystem::getProjectile(int projectileId) const
     {
-        ProjectileMap::const_iterator found = mProjectiles.find(projectileId);
+        auto found = mProjectiles.find(projectileId);
         if (found != mProjectiles.end())
             return found->second.get();
         return nullptr;
@@ -608,7 +608,7 @@ namespace MWPhysics
 
     bool PhysicsSystem::toggleCollisionMode()
     {
-        ActorMap::iterator found = mActors.find(MWMechanics::getPlayer().mRef);
+        auto found = mActors.find(MWMechanics::getPlayer().mRef);
         if (found != mActors.end())
         {
             bool cmode = found->second->getCollisionMode();
@@ -623,7 +623,7 @@ namespace MWPhysics
 
     void PhysicsSystem::queueObjectMovement(const MWWorld::Ptr& ptr, const osg::Vec3f& velocity)
     {
-        ActorMap::iterator found = mActors.find(ptr.mRef);
+        auto found = mActors.find(ptr.mRef);
         if (found != mActors.end())
             found->second->setVelocity(velocity);
     }
@@ -752,7 +752,7 @@ namespace MWPhysics
 
     void PhysicsSystem::updateAnimatedCollisionShape(const MWWorld::Ptr& object)
     {
-        ObjectMap::iterator found = mObjects.find(object.mRef);
+        auto found = mObjects.find(object.mRef);
         if (found != mObjects.end())
             if (found->second->animateCollisionShapes())
                 mTaskScheduler->updateSingleAabb(found->second);

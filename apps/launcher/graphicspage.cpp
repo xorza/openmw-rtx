@@ -40,6 +40,7 @@
 #include <span>
 #include <string_view>
 #include <system_error>
+#include <utility>
 
 namespace
 {
@@ -437,7 +438,7 @@ void Launcher::GraphicsPage::saveSettings()
             = Rtx::menuValue(Rtx::sUpscaleMenu, static_cast<std::size_t>(chosenIndex)))
             Settings::rtx().mUpscale.set(*chosen);
     if (const int chosenUpscaler = rayTracingUpscalerComboBox->currentIndex();
-        chosenUpscaler >= 0 && chosenUpscaler < static_cast<int>(mUpscalers.size()))
+        chosenUpscaler >= 0 && std::cmp_less(chosenUpscaler, mUpscalers.size()))
     {
         // A disabled entry can still be the model's current row after the library was removed;
         // writing `dlss` there would leave a configuration the game must refuse to start.

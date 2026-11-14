@@ -20,9 +20,9 @@ namespace MWDialogue
             throw std::runtime_error("topic does not match: " + mTopic.toDebugString());
 
         // bail out if we already have heard this
-        for (Topic::TEntryIter it = mEntries.begin(); it != mEntries.end(); ++it)
+        for (auto& mEntrie : mEntries)
         {
-            if (it->mInfoId == entry.mInfoId)
+            if (mEntrie.mInfoId == entry.mInfoId)
                 return false;
         }
 
@@ -57,7 +57,7 @@ namespace MWDialogue
 
     void Topic::removeLastAddedResponse(std::string_view actorName)
     {
-        for (std::vector<MWDialogue::Entry>::reverse_iterator it = mEntries.rbegin(); it != mEntries.rend(); ++it)
+        for (auto it = mEntries.rbegin(); it != mEntries.rend(); ++it)
         {
             if (it->mActorName == actorName)
             {

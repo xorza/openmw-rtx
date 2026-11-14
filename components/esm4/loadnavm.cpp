@@ -66,9 +66,9 @@ void ESM4::NavMesh::NVNMstruct::load(ESM4::Reader& reader)
     if (count)
     {
         verticies.resize(count);
-        for (std::vector<Vertex>::iterator it = verticies.begin(); it != verticies.end(); ++it)
+        for (auto& verticie : verticies)
         {
-            reader.get(*it);
+            reader.get(verticie);
 // FIXME: debugging only
 #if 0
             //if (reader.hdr().record.id == 0x2004ecc) // FIXME
@@ -81,9 +81,9 @@ void ESM4::NavMesh::NVNMstruct::load(ESM4::Reader& reader)
     if (count)
     {
         triangles.resize(count);
-        for (std::vector<Triangle>::iterator it = triangles.begin(); it != triangles.end(); ++it)
+        for (auto& triangle : triangles)
         {
-            reader.get(*it);
+            reader.get(triangle);
         }
     }
 
@@ -91,9 +91,9 @@ void ESM4::NavMesh::NVNMstruct::load(ESM4::Reader& reader)
     if (count)
     {
         extConns.resize(count);
-        for (std::vector<ExtConnection>::iterator it = extConns.begin(); it != extConns.end(); ++it)
+        for (auto& extConn : extConns)
         {
-            reader.get(*it);
+            reader.get(extConn);
 // FIXME: debugging only
 #if 0
             std::cout << "nvnm ext 0x" << std::hex << (*it).navMesh << std::endl;
@@ -105,9 +105,9 @@ void ESM4::NavMesh::NVNMstruct::load(ESM4::Reader& reader)
     if (count)
     {
         doorTriangles.resize(count);
-        for (std::vector<DoorTriangle>::iterator it = doorTriangles.begin(); it != doorTriangles.end(); ++it)
+        for (auto& doorTriangle : doorTriangles)
         {
-            reader.get(*it);
+            reader.get(doorTriangle);
         }
     }
 
@@ -115,9 +115,9 @@ void ESM4::NavMesh::NVNMstruct::load(ESM4::Reader& reader)
     if (count)
     {
         coverTriangles.resize(count);
-        for (std::vector<std::uint16_t>::iterator it = coverTriangles.begin(); it != coverTriangles.end(); ++it)
+        for (unsigned short& coverTriangle : coverTriangles)
         {
-            reader.get(*it);
+            reader.get(coverTriangle);
         }
     }
 
@@ -141,9 +141,9 @@ void ESM4::NavMesh::NVNMstruct::load(ESM4::Reader& reader)
 
         std::vector<std::uint16_t> indices;
         indices.resize(count);
-        for (std::vector<std::uint16_t>::iterator it = indices.begin(); it != indices.end(); ++it)
+        for (unsigned short& indice : indices)
         {
-            reader.get(*it);
+            reader.get(indice);
         }
         triSegments.push_back(std::move(indices));
     }

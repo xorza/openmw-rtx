@@ -230,7 +230,7 @@ namespace MWMechanics
 
         for (const ESM::IndexedENAMstruct& effect : spell->mEffects.mList)
         {
-            float x = static_cast<float>(effect.mData.mDuration);
+            auto x = static_cast<float>(effect.mData.mDuration);
             const auto magicEffect
                 = MWBase::Environment::get().getESMStore()->get<ESM::MagicEffect>().find(effect.mData.mEffectID);
 

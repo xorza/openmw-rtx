@@ -122,8 +122,8 @@ namespace SceneUtil
                 else if (dir.x() >= 0 && dir.y() < 0)
                     diamondIndex = 2;
 
-                unsigned fromIndex = static_cast<unsigned>(edge.mV0);
-                unsigned toIndex = static_cast<unsigned>(edge.mV1);
+                auto fromIndex = static_cast<unsigned>(edge.mV0);
+                auto toIndex = static_cast<unsigned>(edge.mV1);
 
                 lineIndices->setElement(
                     lineIndex++, fromIndex * DiamondTotalVertexCount + DiamondVertexCount + diamondIndex);

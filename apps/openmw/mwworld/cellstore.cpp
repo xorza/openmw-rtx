@@ -268,8 +268,7 @@ namespace
 
         if (state.mRef.mRefNum.hasContentFile())
         {
-            for (typename MWWorld::CellRefList<T>::List::iterator iter(collection.mList.begin());
-                iter != collection.mList.end(); ++iter)
+            for (auto iter(collection.mList.begin()); iter != collection.mList.end(); ++iter)
                 if (iter->mRef.getRefNum() == state.mRef.mRefNum && iter->mRef.getRefId() == state.mRef.mRefID)
                 {
                     // overwrite existing reference
@@ -408,7 +407,7 @@ namespace MWWorld
 
         if (const X* ptr = store.search(ref.mRefID))
         {
-            typename std::list<LiveRef>::iterator iter = std::find(mList.begin(), mList.end(), ref.mRefNum);
+            auto iter = std::find(mList.begin(), mList.end(), ref.mRefNum);
 
             LiveRef liveCellRef(ref, ptr);
 
@@ -473,7 +472,7 @@ namespace MWWorld
 
     Ptr CellStore::getCurrentPtr(LiveCellRefBase* ref)
     {
-        MovedRefTracker::iterator found = mMovedToAnotherCell.find(ref);
+        auto found = mMovedToAnotherCell.find(ref);
         if (found != mMovedToAnotherCell.end())
             return Ptr(ref, found->second);
         return Ptr(ref, this);
@@ -485,7 +484,7 @@ namespace MWWorld
             load();
 
         mHasState = true;
-        MovedRefTracker::iterator found = mMovedToAnotherCell.find(object.getBase());
+        auto found = mMovedToAnotherCell.find(object.getBase());
         if (found != mMovedToAnotherCell.end())
         {
             // A cell we had previously moved an object to is returning it to us.
@@ -511,7 +510,7 @@ namespace MWWorld
 
         MWBase::Environment::get().getWorldModel()->registerPtr(MWWorld::Ptr(object.getBase(), cellToMoveTo));
 
-        MovedRefTracker::iterator found = mMovedHere.find(object.getBase());
+        auto found = mMovedHere.find(object.getBase());
         if (found != mMovedHere.end())
         {
             // Special case - object didn't originate in this cell
@@ -756,7 +755,7 @@ namespace MWWorld
             try
             {
                 // Reopen the ESM reader and seek to the right position.
-                const std::size_t index = static_cast<std::size_t>(cell.mContextList[i].index);
+                const auto index = static_cast<std::size_t>(cell.mContextList[i].index);
                 const ESM::ReadersCache::BusyItem reader = mReaders.get(index);
                 cell.restore(*reader, i);
 
@@ -773,8 +772,7 @@ namespace MWWorld
                         continue;
 
                     // Don't list reference if it was moved to a different cell.
-                    ESM::MovedCellRefTracker::const_iterator iter
-                        = std::find(cell.mMovedRefs.begin(), cell.mMovedRefs.end(), ref.mRefNum);
+                    auto iter = std::find(cell.mMovedRefs.begin(), cell.mMovedRefs.end(), ref.mRefNum);
                     if (iter != cell.mMovedRefs.end())
                     {
                         continue;
@@ -840,7 +838,7 @@ namespace MWWorld
             try
             {
                 // Reopen the ESM reader and seek to the right position.
-                const std::size_t index = static_cast<std::size_t>(cell.mContextList[i].index);
+                const auto index = static_cast<std::size_t>(cell.mContextList[i].index);
                 const ESM::ReadersCache::BusyItem reader = mReaders.get(index);
                 cell.restore(*reader, i);
 
@@ -856,8 +854,7 @@ namespace MWWorld
                         continue;
 
                     // Don't load reference if it was moved to a different cell.
-                    ESM::MovedCellRefTracker::const_iterator iter
-                        = std::find(cell.mMovedRefs.begin(), cell.mMovedRefs.end(), ref.mRefNum);
+                    auto iter = std::find(cell.mMovedRefs.begin(), cell.mMovedRefs.end(), ref.mRefNum);
                     if (iter != cell.mMovedRefs.end())
                     {
                         continue;
@@ -875,7 +872,7 @@ namespace MWWorld
         // Load moved references, from separately tracked list.
         for (const auto& leasedRef : cell.mLeasedRefs)
         {
-            ESM::CellRef& ref = const_cast<ESM::CellRef&>(leasedRef.first);
+            auto& ref = const_cast<ESM::CellRef&>(leasedRef.first);
             bool deleted = leasedRef.second;
 
             loadRef(ref, deleted, refNumToID);
@@ -958,7 +955,7 @@ namespace MWWorld
             if (it->second != ref.mRefID)
             {
                 // refID was modified, make sure we don't end up with duplicated refs
-                ESM::RecNameInts foundType = static_cast<ESM::RecNameInts>(store.find(it->second));
+                auto foundType = static_cast<ESM::RecNameInts>(store.find(it->second));
                 if (foundType != 0)
                 {
                     Misc::tupleForEach(this->mCellStoreImp->mRefLists, [&ref, foundType](auto& x) {
@@ -968,7 +965,7 @@ namespace MWWorld
             }
         }
 
-        ESM::RecNameInts foundType = static_cast<ESM::RecNameInts>(store.find(ref.mRefID));
+        auto foundType = static_cast<ESM::RecNameInts>(store.find(ref.mRefID));
         bool handledType = false;
         if (foundType != 0)
         {
@@ -1233,10 +1230,9 @@ namespace MWWorld
             if (MWBase::Environment::get().getWorld()->getTimeStamp() - mLastRespawn > 24 * 30 * iMonthsToRespawn)
             {
                 mLastRespawn = MWBase::Environment::get().getWorld()->getTimeStamp();
-                for (CellRefList<ESM::Container>::List::iterator it(get<ESM::Container>().mList.begin());
-                    it != get<ESM::Container>().mList.end(); ++it)
+                for (auto& it : get<ESM::Container>().mList)
                 {
-                    Ptr ptr = getCurrentPtr(&*it);
+                    Ptr ptr = getCurrentPtr(&it);
                     if (ptr.getRefData().hasCustomData())
                         ptr.getClass().respawn(ptr);
                 }
@@ -1350,7 +1346,7 @@ namespace MWWorld
 
     CellStore* MWWorld::CellStore::getOriginCell(const Ptr& object) const
     {
-        MovedRefTracker::const_iterator found = mMovedHere.find(object.getBase());
+        auto found = mMovedHere.find(object.getBase());
         if (found != mMovedHere.end())
             return found->second;
 

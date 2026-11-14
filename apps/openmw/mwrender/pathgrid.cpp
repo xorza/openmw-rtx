@@ -143,7 +143,7 @@ namespace MWRender
     {
         if (store->getCell()->isExterior())
         {
-            ExteriorPathgridNodes::iterator it = mExteriorPathgridNodes.find(
+            auto it = mExteriorPathgridNodes.find(
                 std::make_pair(store->getCell()->getGridX(), store->getCell()->getGridY()));
             if (it != mExteriorPathgridNodes.end())
             {

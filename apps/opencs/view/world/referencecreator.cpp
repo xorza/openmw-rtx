@@ -37,7 +37,7 @@ CSVWorld::ReferenceCreator::ReferenceCreator(CSMWorld::Data& worldData, QUndoSta
     const CSMWorld::UniversalId& id, CSMWorld::IdCompletionManager& completionManager)
     : GenericCreator(worldData, undoStack, id)
 {
-    QLabel* label = new QLabel("Cell", this);
+    auto* label = new QLabel("Cell", this);
     insertBeforeButtons(label, false);
 
     // Add cell ID input with auto-completion.

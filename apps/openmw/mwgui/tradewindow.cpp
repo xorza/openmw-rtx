@@ -74,10 +74,10 @@ namespace
         const MWMechanics::CreatureStats& merchantStats = merchant.getClass().getCreatureStats(merchant);
         const MWMechanics::CreatureStats& playerStats = player.getClass().getCreatureStats(player);
 
-        float a1 = static_cast<float>(player.getClass().getSkill(player, ESM::Skill::Mercantile));
+        auto a1 = static_cast<float>(player.getClass().getSkill(player, ESM::Skill::Mercantile));
         float b1 = 0.1f * playerStats.getAttribute(ESM::Attribute::Luck).getModified();
         float c1 = 0.2f * playerStats.getAttribute(ESM::Attribute::Personality).getModified();
-        float d1 = static_cast<float>(merchant.getClass().getSkill(merchant, ESM::Skill::Mercantile));
+        auto d1 = static_cast<float>(merchant.getClass().getSkill(merchant, ESM::Skill::Mercantile));
         float e1 = 0.1f * merchantStats.getAttribute(ESM::Attribute::Luck).getModified();
         float f1 = 0.2f * merchantStats.getAttribute(ESM::Attribute::Personality).getModified();
 
@@ -505,7 +505,7 @@ namespace MWGui
     {
         MyGUI::ControllerItem* item
             = MyGUI::ControllerManager::getInstance().createItem(MyGUI::ControllerRepeatClick::getClassTypeName());
-        MyGUI::ControllerRepeatClick* controller = static_cast<MyGUI::ControllerRepeatClick*>(item);
+        auto* controller = static_cast<MyGUI::ControllerRepeatClick*>(item);
         controller->eventRepeatClick += newDelegate(this, &TradeWindow::onRepeatClick);
         MyGUI::ControllerManager::getInstance().addItem(widget, controller);
     }

@@ -12,9 +12,9 @@ namespace Gui
     void SharedStateButton::shutdownOverride()
     {
         ButtonGroup group = mSharedWith; // make a copy so that we don't nuke the vector during iteration
-        for (ButtonGroup::iterator it = group.begin(); it != group.end(); ++it)
+        for (auto& it : group)
         {
-            (*it)->shareStateWith(ButtonGroup());
+            it->shareStateWith(ButtonGroup());
         }
     }
 
@@ -62,9 +62,9 @@ namespace Gui
         Base::setStateSelected(value);
         updateButtonState();
 
-        for (ButtonGroup::iterator it = mSharedWith.begin(); it != mSharedWith.end(); ++it)
+        for (auto& it : mSharedWith)
         {
-            (*it)->MyGUI::Button::setStateSelected(getStateSelected());
+            it->MyGUI::Button::setStateSelected(getStateSelected());
         }
     }
 
@@ -73,9 +73,9 @@ namespace Gui
         bool ret = _setWidgetState(value);
         if (ret)
         {
-            for (ButtonGroup::iterator it = mSharedWith.begin(); it != mSharedWith.end(); ++it)
+            for (auto& it : mSharedWith)
             {
-                (*it)->_setWidgetState(value);
+                it->_setWidgetState(value);
             }
         }
         return ret;
@@ -118,7 +118,7 @@ namespace Gui
 
     void SharedStateButton::createButtonGroup(ButtonGroup& group)
     {
-        for (ButtonGroup::iterator it = group.begin(); it != group.end(); ++it)
+        for (auto it = group.begin(); it != group.end(); ++it)
         {
             (*it)->shareStateWith(group);
         }

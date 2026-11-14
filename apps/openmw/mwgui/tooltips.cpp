@@ -451,7 +451,7 @@ namespace MWGui
         const VFS::Path::Normalized realImage = Misc::ResourceHelpers::correctIconPath(
             VFS::Path::toNormalized(image), *MWBase::Environment::get().getResourceSystem()->getVFS());
 
-        Gui::EditBox* captionWidget = mDynamicToolTipBox->createWidget<Gui::EditBox>(
+        auto* captionWidget = mDynamicToolTipBox->createWidget<Gui::EditBox>(
             "NormalText", MyGUI::IntCoord(0, 0, 300, 300), MyGUI::Align::Left | MyGUI::Align::Top, "ToolTipCaption");
         captionWidget->setEditStatic(true);
         captionWidget->setNeedKeyFocus(false);
@@ -460,7 +460,7 @@ namespace MWGui
 
         int captionHeight = std::max(!caption.empty() ? captionSize.height : 0, imageSize);
 
-        Gui::EditBox* textWidget = mDynamicToolTipBox->createWidget<Gui::EditBox>("SandText",
+        auto* textWidget = mDynamicToolTipBox->createWidget<Gui::EditBox>("SandText",
             MyGUI::IntCoord(0, captionHeight + imageCaptionVPadding, 300, 300 - captionHeight - imageCaptionVPadding),
             MyGUI::Align::Stretch, "ToolTipText");
         textWidget->setEditStatic(true);
@@ -479,10 +479,10 @@ namespace MWGui
 
         for (const std::string& note : info.notes)
         {
-            MyGUI::ImageBox* icon = mDynamicToolTipBox->createWidget<MyGUI::ImageBox>("MarkerButton",
+            auto* icon = mDynamicToolTipBox->createWidget<MyGUI::ImageBox>("MarkerButton",
                 MyGUI::IntCoord(padding.left, totalSize.height + padding.top, 8, 8), MyGUI::Align::Default);
             icon->setColour(MyGUI::Colour(1.0f, 0.3f, 0.3f));
-            Gui::EditBox* edit = mDynamicToolTipBox->createWidget<Gui::EditBox>("SandText",
+            auto* edit = mDynamicToolTipBox->createWidget<Gui::EditBox>("SandText",
                 MyGUI::IntCoord(padding.left + 8 + 4, totalSize.height + padding.top, 300 - padding.left - 8 - 4,
                     300 - totalSize.height),
                 MyGUI::Align::Default);
@@ -500,13 +500,13 @@ namespace MWGui
 
         if (!info.effects.empty())
         {
-            MyGUI::Widget* effectArea = mDynamicToolTipBox->createWidget<MyGUI::Widget>({},
+            auto* effectArea = mDynamicToolTipBox->createWidget<MyGUI::Widget>({},
                 MyGUI::IntCoord(padding.left, totalSize.height, 300 - padding.left, 300 - totalSize.height),
                 MyGUI::Align::Stretch);
 
             MyGUI::IntCoord coord(0, 6, totalSize.width, 24);
 
-            Widgets::MWEffectListPtr effectsWidget
+            auto effectsWidget
                 = effectArea->createWidget<Widgets::MWEffectList>("MW_StatName", coord, MyGUI::Align::Default);
             effectsWidget->setEffectList(info.effects);
 
@@ -522,13 +522,13 @@ namespace MWGui
 
         if (enchant)
         {
-            MyGUI::Widget* enchantArea = mDynamicToolTipBox->createWidget<MyGUI::Widget>({},
+            auto* enchantArea = mDynamicToolTipBox->createWidget<MyGUI::Widget>({},
                 MyGUI::IntCoord(padding.left, totalSize.height, 300 - padding.left, 300 - totalSize.height),
                 MyGUI::Align::Stretch);
 
             MyGUI::IntCoord coord(0, 6, totalSize.width, 24);
 
-            Widgets::MWEffectListPtr enchantWidget
+            auto enchantWidget
                 = enchantArea->createWidget<Widgets::MWEffectList>("MW_StatName", coord, MyGUI::Align::Default);
             enchantWidget->setEffectList(Widgets::MWEffectList::effectListFromESM(&enchant->mEffects));
 
@@ -547,7 +547,7 @@ namespace MWGui
 
                 const int chargeWidth = 204;
 
-                MyGUI::TextBox* chargeText = enchantArea->createWidget<MyGUI::TextBox>(
+                auto* chargeText = enchantArea->createWidget<MyGUI::TextBox>(
                     "SandText", MyGUI::IntCoord(0, 0, 10, 18), MyGUI::Align::Default, "ToolTipEnchantChargeText");
                 chargeText->setCaptionWithReplacing("#{sCharges}");
 
@@ -570,7 +570,7 @@ namespace MWGui
                     chargeCoord = MyGUI::IntCoord(
                         (totalSize.width - chargeAndTextWidth) / 2 + chargeTextWidth, coord.top + 6, chargeWidth, 18);
                 }
-                Widgets::MWDynamicStatPtr chargeWidget = enchantArea->createWidget<Widgets::MWDynamicStat>(
+                auto chargeWidget = enchantArea->createWidget<Widgets::MWDynamicStat>(
                     "MW_ChargeBar", chargeCoord, MyGUI::Align::Default);
                 chargeWidget->setValue(charge, maxCharge);
                 totalSize.height += 24;
@@ -579,7 +579,7 @@ namespace MWGui
 
         if (!extra.empty())
         {
-            Gui::EditBox* extraWidget = mDynamicToolTipBox->createWidget<Gui::EditBox>("SandText",
+            auto* extraWidget = mDynamicToolTipBox->createWidget<Gui::EditBox>("SandText",
                 MyGUI::IntCoord(padding.left, totalSize.height + 12, 300 - padding.left, 300 - totalSize.height),
                 MyGUI::Align::Stretch, "ToolTipExtraText");
 
@@ -629,7 +629,7 @@ namespace MWGui
 
         if (!image.empty())
         {
-            MyGUI::ImageBox* imageWidget = mDynamicToolTipBox->createWidget<MyGUI::ImageBox>("ImageBox",
+            auto* imageWidget = mDynamicToolTipBox->createWidget<MyGUI::ImageBox>("ImageBox",
                 MyGUI::IntCoord(
                     (totalSize.width - captionSize.width - imageCaptionHPadding) / 2, 0, imageSize, imageSize),
                 MyGUI::Align::Left | MyGUI::Align::Top);
@@ -899,7 +899,7 @@ namespace MWGui
             const ESM::Spell* spell = store.get<ESM::Spell>().search(spellId);
             if (!spell)
                 continue; // Skip spells which cannot be found
-            ESM::Spell::SpellType type = static_cast<ESM::Spell::SpellType>(spell->mData.mType);
+            auto type = static_cast<ESM::Spell::SpellType>(spell->mData.mType);
             if (type != ESM::Spell::ST_Spell && type != ESM::Spell::ST_Ability && type != ESM::Spell::ST_Power)
                 continue; // We only want spell, ability and powers.
 

@@ -48,7 +48,7 @@ CSVWidget::ShapeBrushSizeControls::ShapeBrushSizeControls(const QString& title, 
     mBrushSizeSpinBox->setRange(1, CSMPrefs::get()["3D Scene Editing"]["shapebrush-maximumsize"].toInt());
     mBrushSizeSpinBox->setSingleStep(1);
 
-    QHBoxLayout* layoutSliderSize = new QHBoxLayout;
+    auto* layoutSliderSize = new QHBoxLayout;
     layoutSliderSize->addWidget(mBrushSizeSlider);
     layoutSliderSize->addWidget(mBrushSizeSpinBox);
 
@@ -69,11 +69,11 @@ CSVWidget::ShapeBrushWindow::ShapeBrushWindow(CSMDoc::Document& document, QWidge
 
     mSizeSliders = new ShapeBrushSizeControls("Brush size", this);
 
-    QVBoxLayout* layoutMain = new QVBoxLayout;
+    auto* layoutMain = new QVBoxLayout;
     layoutMain->setSpacing(0);
     layoutMain->setContentsMargins(4, 0, 4, 4);
 
-    QHBoxLayout* layoutHorizontal = new QHBoxLayout;
+    auto* layoutHorizontal = new QHBoxLayout;
     layoutHorizontal->setSpacing(0);
     layoutHorizontal->setContentsMargins(QMargins(0, 0, 0, 0));
 
@@ -87,7 +87,7 @@ CSVWidget::ShapeBrushWindow::ShapeBrushWindow(CSMDoc::Document& document, QWidge
     mButtonCircle->setToolTip(toolTipCircle);
     mButtonCustom->setToolTip(toolTipCustom);
 
-    QButtonGroup* brushButtonGroup = new QButtonGroup(this);
+    auto* brushButtonGroup = new QButtonGroup(this);
     brushButtonGroup->addButton(mButtonPoint);
     brushButtonGroup->addButton(mButtonSquare);
     brushButtonGroup->addButton(mButtonCircle);
@@ -111,7 +111,7 @@ CSVWidget::ShapeBrushWindow::ShapeBrushWindow(CSMDoc::Document& document, QWidge
     mToolSelector->addItem(tr("Flatten (paint)"));
     mToolSelector->addItem(tr("Equalize (paint)"));
 
-    QLabel* brushStrengthLabel = new QLabel(this);
+    auto* brushStrengthLabel = new QLabel(this);
     brushStrengthLabel->setText("Brush strength:");
 
     mToolStrengthSlider = new QSlider(Qt::Horizontal);
@@ -178,7 +178,7 @@ CSVWidget::SceneToolShapeBrush::SceneToolShapeBrush(
 
     mPanel = new QFrame(this, Qt::Popup);
 
-    QHBoxLayout* layout = new QHBoxLayout(mPanel);
+    auto* layout = new QHBoxLayout(mPanel);
 
     layout->setContentsMargins(QMargins(0, 0, 0, 0));
 

@@ -44,7 +44,7 @@ namespace MWRender
         mUseCompute = exts.glVersion >= minimumGLVersionRequiredForCompute
             && exts.glslLanguageVersion >= minimumGLVersionRequiredForCompute;
 
-        for (size_t i = 0; i < mState.size(); ++i)
+        for (auto& i : mState)
         {
             osg::ref_ptr<osg::StateSet> stateset = new osg::StateSet;
             // bindings are set in the compute shader
@@ -55,7 +55,7 @@ namespace MWRender
             stateset->addUniform(new osg::Uniform("positionCount", 0));
             stateset->addUniform(new osg::Uniform(osg::Uniform::Type::FLOAT_VEC3, "positions", 100));
             stateset->setAttributeAndModes(new osg::Viewport(0, 0, RipplesSurface::sRTTSize, RipplesSurface::sRTTSize));
-            mState[i].mStateset = stateset;
+            i.mStateset = stateset;
         }
 
         for (size_t i = 0; i < mTextures.size(); ++i)

@@ -1047,7 +1047,7 @@ namespace Rtx::Testing
             std::vector<Light> lamps;
             for (std::size_t at = 0; at < 12; ++at)
             {
-                const float colour = static_cast<float>(at % 3);
+                const auto colour = static_cast<float>(at % 3);
                 lamps.push_back(Light{ .mPosition = osg::Vec3f(-30.0f + 6.0f * static_cast<float>(at),
                                            -30.0f - 10.0f * static_cast<float>(at % 4), 0.0f),
                     .mIntensity = osg::Vec3f(colour == 0.0f ? 1000.0f : 200.0f, colour == 1.0f ? 1000.0f : 200.0f,
@@ -3140,7 +3140,7 @@ namespace Rtx::Testing
                 + 6.0 * fifth * squared * tail / 8.0 - 2.0 * fifth * squared * squared / 9.0;
             const double diffuse = scattering
                 * ((1.0 - double{ reflectance }) - 8.0 * (double{ edge } - double{ reflectance }) * integral);
-            const double specular
+            const auto specular
                 = static_cast<double>(Shaders::specularAlbedoOf(reflectance, edge, squareOn.x(), squareOn.y())
                     * Shaders::specularCompensation(reflectance, table.y()));
             const double chance = specular / (specular + scattering);

@@ -999,7 +999,7 @@ namespace MWGui
         if (mMessageBoxManager && mMessageBoxManager->isInteractiveMessageBox()
             && mCurrentModals.back() != mMessageBoxManager->getInteractiveMessageBox())
         {
-            std::vector<WindowModal*>::iterator found = std::find(
+            auto found = std::find(
                 mCurrentModals.begin(), mCurrentModals.end(), mMessageBoxManager->getInteractiveMessageBox());
             if (found != mCurrentModals.end())
             {
@@ -1590,7 +1590,7 @@ namespace MWGui
             return;
         }
 
-        std::vector<GuiMode>::iterator it = mGuiModes.begin();
+        auto it = mGuiModes.begin();
         while (it != mGuiModes.end())
         {
             if (*it == mode)
@@ -1987,7 +1987,7 @@ namespace MWGui
         bool capturesInput = false;
         if (widget)
         {
-            LuaUi::WidgetExtension* luaWidget = dynamic_cast<LuaUi::WidgetExtension*>(widget);
+            auto* luaWidget = dynamic_cast<LuaUi::WidgetExtension*>(widget);
             if (luaWidget)
                 capturesInput = luaWidget->isTextInput();
             else
@@ -2052,7 +2052,7 @@ namespace MWGui
 
         const WindowRectSettingValues& rect = settings.mIsMaximized ? settings.mMaximized : settings.mRegular;
 
-        MyGUI::Window* window = layout->mMainWidget->castType<MyGUI::Window>();
+        auto* window = layout->mMainWidget->castType<MyGUI::Window>();
         window->setPosition(
             MyGUI::IntPoint(static_cast<int>(rect.mX * viewSize.width), static_cast<int>(rect.mY * viewSize.height)));
         window->setSize(
@@ -2066,7 +2066,7 @@ namespace MWGui
 
     void WindowManager::toggleMaximized(Layout* layout)
     {
-        MyGUI::Window* window = layout->mMainWidget->castType<MyGUI::Window>();
+        auto* window = layout->mMainWidget->castType<MyGUI::Window>();
         const auto it = mTrackedWindows.find(window);
         if (it == mTrackedWindows.end())
             return;
@@ -2569,7 +2569,7 @@ namespace MWGui
         while (enumerator.next())
         {
             MyGUI::IResource* resource = enumerator.current().second;
-            ResourceImageSetPointerFix* imgSetPointer = resource->castType<ResourceImageSetPointerFix>(false);
+            auto* imgSetPointer = resource->castType<ResourceImageSetPointerFix>(false);
             if (!imgSetPointer)
                 continue;
 
@@ -2602,7 +2602,7 @@ namespace MWGui
         {
             MyGUI::ITexture* tex = MyGUI::RenderManager::getInstance().createTexture("white");
             tex->createManual(8, 8, MyGUI::TextureUsage::Write, MyGUI::PixelFormat::R8G8B8);
-            unsigned char* data = reinterpret_cast<unsigned char*>(tex->lock(MyGUI::TextureUsage::Write));
+            auto* data = reinterpret_cast<unsigned char*>(tex->lock(MyGUI::TextureUsage::Write));
             for (int x = 0; x < 8; ++x)
                 for (int y = 0; y < 8; ++y)
                 {
@@ -2616,7 +2616,7 @@ namespace MWGui
         {
             MyGUI::ITexture* tex = MyGUI::RenderManager::getInstance().createTexture("black");
             tex->createManual(8, 8, MyGUI::TextureUsage::Write, MyGUI::PixelFormat::R8G8B8);
-            unsigned char* data = reinterpret_cast<unsigned char*>(tex->lock(MyGUI::TextureUsage::Write));
+            auto* data = reinterpret_cast<unsigned char*>(tex->lock(MyGUI::TextureUsage::Write));
             for (int x = 0; x < 8; ++x)
                 for (int y = 0; y < 8; ++y)
                 {
@@ -2637,7 +2637,7 @@ namespace MWGui
     void WindowManager::setMenuTransparency(float value)
     {
         MyGUI::ITexture* tex = MyGUI::RenderManager::getInstance().getTexture("transparent");
-        unsigned char* data = reinterpret_cast<unsigned char*>(tex->lock(MyGUI::TextureUsage::Write));
+        auto* data = reinterpret_cast<unsigned char*>(tex->lock(MyGUI::TextureUsage::Write));
         for (int x = 0; x < 8; ++x)
             for (int y = 0; y < 8; ++y)
             {

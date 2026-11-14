@@ -162,7 +162,7 @@ namespace Rtx
             }
             else
             {
-                const MeasuredExposure& measured = std::get<MeasuredExposure>(look->mExposure);
+                const auto& measured = std::get<MeasuredExposure>(look->mExposure);
                 mExposure.record(commands, shown, look->mSeconds,
                     mExposureStale ? std::optional(measured.mStart) : std::nullopt, look->mExposureBias, timer);
                 mExposureStale = false;

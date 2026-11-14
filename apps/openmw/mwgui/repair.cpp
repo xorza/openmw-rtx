@@ -49,8 +49,7 @@ namespace MWGui
     {
         center();
 
-        SortFilterItemModel* model
-            = new SortFilterItemModel(std::make_unique<InventoryItemModel>(MWMechanics::getPlayer()));
+        auto* model = new SortFilterItemModel(std::make_unique<InventoryItemModel>(MWMechanics::getPlayer()));
         model->setFilter(SortFilterItemModel::Filter_OnlyRepairable);
         mRepairBox->setModel(model);
         mRepairBox->update();
@@ -102,7 +101,7 @@ namespace MWGui
 
         mRepairBox->update();
 
-        Gui::Box* box = dynamic_cast<Gui::Box*>(mMainWidget);
+        auto* box = dynamic_cast<Gui::Box*>(mMainWidget);
         if (box == nullptr)
             throw std::runtime_error("main widget must be a box");
 

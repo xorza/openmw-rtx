@@ -13,6 +13,7 @@
 #include <components/esm3/loadbody.hpp>
 #include <components/esm3/loadrace.hpp>
 #include <components/settings/values.hpp>
+#include <utility>
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/windowmanager.hpp"
@@ -332,7 +333,7 @@ namespace MWGui
                 continue;
             if (bodypart.mData.mPart != static_cast<ESM::BodyPart::MeshPart>(part))
                 continue;
-            if (mGenderIndex != (bodypart.mData.mFlags & ESM::BodyPart::BPF_Female))
+            if (std::cmp_not_equal(mGenderIndex, (bodypart.mData.mFlags & ESM::BodyPart::BPF_Female)))
                 continue;
             if (ESM::isFirstPersonBodyPart(bodypart))
                 continue;
@@ -462,7 +463,7 @@ namespace MWGui
         {
             if (!store.get<ESM::Spell>().search(spellpower))
                 continue;
-            Widgets::MWSpellPtr spellPowerWidget = mSpellPowerList->createWidget<Widgets::MWSpell>(
+            auto spellPowerWidget = mSpellPowerList->createWidget<Widgets::MWSpell>(
                 "MW_StatName", coord, MyGUI::Align::Default, std::string("SpellPower") + MyGUI::utility::toString(i));
             spellPowerWidget->setSpellId(spellpower);
             spellPowerWidget->setUserString("ToolTipType", "Spell");

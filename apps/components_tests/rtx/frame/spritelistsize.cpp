@@ -39,7 +39,7 @@ namespace Rtx
         TEST(RtxSpriteListSizeTest, theMarkFollowsTheFloorUntilAReportAndTheReportAfter)
         {
             constexpr std::uint32_t sSprites = 4096;
-            constexpr std::uint32_t sFloor
+            constexpr auto sFloor
                 = static_cast<std::uint32_t>(std::uint64_t{ sSprites } * sTiles / SpriteListSize::sFloorShare);
             static_assert(sFloor == 522240, "the floor is not what the case says it is");
 

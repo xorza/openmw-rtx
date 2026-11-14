@@ -90,7 +90,7 @@ int CSMWorld::Resources::searchId(std::string_view id) const
 
     std::replace(id2.begin(), id2.end(), '\\', '/');
 
-    std::map<std::string, int>::const_iterator iter = mIndex.find(id2);
+    auto iter = mIndex.find(id2);
 
     if (iter == mIndex.end())
         return -1;

@@ -370,7 +370,7 @@ namespace MWRender
                 std::map<ESM::RefNum, ESM::CellRef> refs;
                 for (size_t i = 0; i < cell.mContextList.size(); ++i)
                 {
-                    const std::size_t index = static_cast<std::size_t>(cell.mContextList[i].index);
+                    const auto index = static_cast<std::size_t>(cell.mContextList[i].index);
                     const ESM::ReadersCache::BusyItem reader = readers.get(index);
                     cell.restore(*reader, i);
                     ESM::CellRef ref;

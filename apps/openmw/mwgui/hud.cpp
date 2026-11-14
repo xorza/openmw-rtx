@@ -150,7 +150,7 @@ namespace MWGui
 
     void HUD::setDrowningTimeLeft(float time, float maxTime)
     {
-        size_t progress = static_cast<size_t>(time / maxTime * 200);
+        auto progress = static_cast<size_t>(time / maxTime * 200);
         mDrowning->setProgressPosition(progress);
 
         bool isDrowning = (progress == 0);

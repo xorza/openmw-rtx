@@ -26,7 +26,7 @@ namespace RtxTool
         /// The `quantile`th value of an already sorted `times`, by nearest rank.
         double rank(const std::vector<double>& times, double quantile)
         {
-            const std::size_t place = static_cast<std::size_t>(std::ceil(quantile * static_cast<double>(times.size())));
+            const auto place = static_cast<std::size_t>(std::ceil(quantile * static_cast<double>(times.size())));
 
             // `ceil` of a positive quantile is at least one, and the clamp above catches the other
             // end: a p99 of a run of ten is the tenth of ten rather than the eleventh.

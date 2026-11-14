@@ -97,8 +97,7 @@ namespace NifOsg
         {
             if (keyctrl->mInterpolator->mRecordType == Nif::RC_NiTransformInterpolator)
             {
-                const Nif::NiTransformInterpolator* interp
-                    = static_cast<const Nif::NiTransformInterpolator*>(keyctrl->mInterpolator.getPtr());
+                const auto* interp = static_cast<const Nif::NiTransformInterpolator*>(keyctrl->mInterpolator.getPtr());
                 const Nif::NiQuatTransform& defaultTransform = interp->mDefaultValue;
                 if (!interp->mData.empty())
                 {
@@ -265,8 +264,7 @@ namespace NifOsg
                 return;
             float input = getInputValue(nv);
             unsigned int i = 1;
-            for (std::vector<FloatInterpolator>::iterator it = mKeyFrames.begin() + 1; it != mKeyFrames.end();
-                ++it, ++i)
+            for (auto it = mKeyFrames.begin() + 1; it != mKeyFrames.end(); ++it, ++i)
             {
                 float val = 0;
                 if (!(*it).empty())
@@ -498,8 +496,7 @@ namespace NifOsg
         if (hasInput())
         {
             osg::Vec3f value = mData.interpKey(getInputValue(nv));
-            SceneUtil::Material* mat
-                = static_cast<SceneUtil::Material*>(stateset->getAttribute(osg::StateAttribute::MATERIAL));
+            auto* mat = static_cast<SceneUtil::Material*>(stateset->getAttribute(osg::StateAttribute::MATERIAL));
             using TargetColor = Nif::NiMaterialColorController::TargetColor;
             switch (mTargetColor)
             {

@@ -95,7 +95,7 @@ namespace MWGui
 
         for (const auto& [name, price, ptr] : items)
         {
-            MyGUI::Button* button = mList->createWidget<MyGUI::Button>(price <= playerGold
+            auto* button = mList->createWidget<MyGUI::Button>(price <= playerGold
                     ? "SandTextButton"
                     : "SandTextButtonDisabled", // can't use setEnabled since that removes tooltip
                 0, currentY, 0, lineHeight, MyGUI::Align::Default);

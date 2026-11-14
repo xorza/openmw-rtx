@@ -10,6 +10,7 @@
 #include <unistd.h>
 
 #include <components/files/conversion.hpp>
+#include <utility>
 
 namespace Platform::File
 {
@@ -83,7 +84,7 @@ namespace Platform::File
         auto nativeHandle = getNativeHandle(handle);
 
         size_t position = ::lseek(nativeHandle, 0, SEEK_CUR);
-        if (position == size_t(-1))
+        if (std::cmp_equal(position, -1))
         {
             throw std::system_error(errno, std::generic_category(), "An lseek() call failed");
         }

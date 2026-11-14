@@ -192,10 +192,10 @@ namespace Rtx
             /// Whether `sprite`'s rectangle, as the pass wrote it, holds `tile`.
             bool rectHolds(std::uint32_t sprite, std::size_t tile) const
             {
-                const std::uint32_t from = static_cast<std::uint32_t>(mRects[sprite]);
-                const std::uint32_t to = static_cast<std::uint32_t>(mRects[sprite] >> 32);
-                const std::uint32_t x = static_cast<std::uint32_t>(tile % mAcross);
-                const std::uint32_t y = static_cast<std::uint32_t>(tile / mAcross);
+                const auto from = static_cast<std::uint32_t>(mRects[sprite]);
+                const auto to = static_cast<std::uint32_t>(mRects[sprite] >> 32);
+                const auto x = static_cast<std::uint32_t>(tile % mAcross);
+                const auto y = static_cast<std::uint32_t>(tile / mAcross);
 
                 return x >= (from & 0xFFFFu) && x <= (to & 0xFFFFu) && y >= (from >> 16) && y <= (to >> 16);
             }

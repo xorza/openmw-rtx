@@ -410,7 +410,7 @@ void CSMPrefs::State::declare()
 
 void CSMPrefs::State::declareCategory(const std::string& key)
 {
-    std::map<std::string, Category>::iterator iter = mCategories.find(key);
+    auto iter = mCategories.find(key);
 
     if (iter != mCategories.end())
     {
@@ -427,8 +427,7 @@ CSMPrefs::IntSetting& CSMPrefs::State::declareInt(Settings::SettingValue<int>& v
     if (mCurrentCategory == mCategories.end())
         throw std::logic_error("no category for setting");
 
-    CSMPrefs::IntSetting* setting
-        = new CSMPrefs::IntSetting(&mCurrentCategory->second, &mMutex, value.mName, label, *mIndex);
+    auto* setting = new CSMPrefs::IntSetting(&mCurrentCategory->second, &mMutex, value.mName, label, *mIndex);
 
     mCurrentCategory->second.addSetting(setting);
 
@@ -440,8 +439,7 @@ CSMPrefs::DoubleSetting& CSMPrefs::State::declareDouble(Settings::SettingValue<d
     if (mCurrentCategory == mCategories.end())
         throw std::logic_error("no category for setting");
 
-    CSMPrefs::DoubleSetting* setting
-        = new CSMPrefs::DoubleSetting(&mCurrentCategory->second, &mMutex, value.mName, label, *mIndex);
+    auto* setting = new CSMPrefs::DoubleSetting(&mCurrentCategory->second, &mMutex, value.mName, label, *mIndex);
 
     mCurrentCategory->second.addSetting(setting);
 
@@ -453,8 +451,7 @@ CSMPrefs::BoolSetting& CSMPrefs::State::declareBool(Settings::SettingValue<bool>
     if (mCurrentCategory == mCategories.end())
         throw std::logic_error("no category for setting");
 
-    CSMPrefs::BoolSetting* setting
-        = new CSMPrefs::BoolSetting(&mCurrentCategory->second, &mMutex, value.mName, label, *mIndex);
+    auto* setting = new CSMPrefs::BoolSetting(&mCurrentCategory->second, &mMutex, value.mName, label, *mIndex);
 
     mCurrentCategory->second.addSetting(setting);
 
@@ -466,7 +463,7 @@ CSMPrefs::EnumSetting& CSMPrefs::State::declareEnum(EnumSettingValue& value, con
     if (mCurrentCategory == mCategories.end())
         throw std::logic_error("no category for setting");
 
-    CSMPrefs::EnumSetting* setting = new CSMPrefs::EnumSetting(
+    auto* setting = new CSMPrefs::EnumSetting(
         &mCurrentCategory->second, &mMutex, value.getValue().mName, label, value.getEnumValues(), *mIndex);
 
     mCurrentCategory->second.addSetting(setting);
@@ -480,8 +477,7 @@ CSMPrefs::ColourSetting& CSMPrefs::State::declareColour(
     if (mCurrentCategory == mCategories.end())
         throw std::logic_error("no category for setting");
 
-    CSMPrefs::ColourSetting* setting
-        = new CSMPrefs::ColourSetting(&mCurrentCategory->second, &mMutex, value.mName, label, *mIndex);
+    auto* setting = new CSMPrefs::ColourSetting(&mCurrentCategory->second, &mMutex, value.mName, label, *mIndex);
 
     mCurrentCategory->second.addSetting(setting);
 
@@ -500,8 +496,7 @@ CSMPrefs::ShortcutSetting& CSMPrefs::State::declareShortcut(
     getShortcutManager().convertFromString(value.get(), sequence);
     getShortcutManager().setSequence(value.mName, sequence);
 
-    CSMPrefs::ShortcutSetting* setting
-        = new CSMPrefs::ShortcutSetting(&mCurrentCategory->second, &mMutex, value.mName, label, *mIndex);
+    auto* setting = new CSMPrefs::ShortcutSetting(&mCurrentCategory->second, &mMutex, value.mName, label, *mIndex);
     mCurrentCategory->second.addSetting(setting);
 
     return *setting;
@@ -513,8 +508,7 @@ CSMPrefs::StringSetting& CSMPrefs::State::declareString(
     if (mCurrentCategory == mCategories.end())
         throw std::logic_error("no category for setting");
 
-    CSMPrefs::StringSetting* setting
-        = new CSMPrefs::StringSetting(&mCurrentCategory->second, &mMutex, value.mName, label, *mIndex);
+    auto* setting = new CSMPrefs::StringSetting(&mCurrentCategory->second, &mMutex, value.mName, label, *mIndex);
 
     mCurrentCategory->second.addSetting(setting);
 
@@ -533,8 +527,7 @@ CSMPrefs::ModifierSetting& CSMPrefs::State::declareModifier(
     getShortcutManager().convertFromString(value.get(), modifier);
     getShortcutManager().setModifier(value.mName, modifier);
 
-    CSMPrefs::ModifierSetting* setting
-        = new CSMPrefs::ModifierSetting(&mCurrentCategory->second, &mMutex, value.mName, label, *mIndex);
+    auto* setting = new CSMPrefs::ModifierSetting(&mCurrentCategory->second, &mMutex, value.mName, label, *mIndex);
     mCurrentCategory->second.addSetting(setting);
 
     return *setting;
@@ -592,7 +585,7 @@ CSMPrefs::ShortcutManager& CSMPrefs::State::getShortcutManager()
 
 CSMPrefs::Category& CSMPrefs::State::operator[](const std::string& key)
 {
-    Iterator iter = mCategories.find(key);
+    auto iter = mCategories.find(key);
 
     if (iter == mCategories.end())
         throw std::logic_error("Invalid user settings category: " + key);
@@ -615,7 +608,7 @@ CSMPrefs::State& CSMPrefs::State::get()
 
 void CSMPrefs::State::resetCategory(const std::string& category)
 {
-    Collection::iterator container = mCategories.find(category);
+    auto container = mCategories.find(category);
     if (container != mCategories.end())
     {
         for (Setting* setting : container->second)
@@ -628,9 +621,9 @@ void CSMPrefs::State::resetCategory(const std::string& category)
 
 void CSMPrefs::State::resetAll()
 {
-    for (Collection::iterator iter = mCategories.begin(); iter != mCategories.end(); ++iter)
+    for (auto& mCategorie : mCategories)
     {
-        resetCategory(iter->first);
+        resetCategory(mCategorie.first);
     }
 }
 

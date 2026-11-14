@@ -75,12 +75,12 @@ namespace Rtx
         {
             const auto lrounded
                 = [](float value) { return static_cast<std::byte>(std::clamp(std::lround(value * 255.0f), 0L, 255L)); };
-            const std::uint32_t most = std::bit_cast<std::uint32_t>(3.0f);
+            const auto most = std::bit_cast<std::uint32_t>(3.0f);
             std::uint32_t differ = 0;
             for (std::uint32_t bits = 0; bits <= most; bits += 257)
                 for (const std::uint32_t sign : { 0u, 0x80000000u })
                 {
-                    const float value = std::bit_cast<float>(bits | sign);
+                    const auto value = std::bit_cast<float>(bits | sign);
                     differ += unitByte(value) != lrounded(value) ? 1 : 0;
                 }
             EXPECT_EQ(differ, 0u);
@@ -105,7 +105,7 @@ namespace Rtx
             for (std::uint32_t byte = 1; byte < 256; ++byte)
             {
                 std::uint32_t low = 0;
-                std::uint32_t high = std::bit_cast<std::uint32_t>(1.0f);
+                auto high = std::bit_cast<std::uint32_t>(1.0f);
                 while (low < high)
                 {
                     const std::uint32_t middle = low + (high - low) / 2;
@@ -114,8 +114,8 @@ namespace Rtx
                     else
                         low = middle + 1;
                 }
-                const float first = std::bit_cast<float>(low);
-                const float before = std::bit_cast<float>(low - 1);
+                const auto first = std::bit_cast<float>(low);
+                const auto before = std::bit_cast<float>(low - 1);
                 EXPECT_EQ(encodedByte(first), static_cast<std::byte>(byte)) << byte;
                 EXPECT_EQ(encodedByte(before), curve(before)) << byte;
             }
@@ -123,7 +123,7 @@ namespace Rtx
             std::uint32_t differ = 0;
             for (std::uint32_t bits = 0; bits <= std::bit_cast<std::uint32_t>(1.5f); bits += 1021)
             {
-                const float linear = std::bit_cast<float>(bits);
+                const auto linear = std::bit_cast<float>(bits);
                 differ += encodedByte(linear) != curve(linear) ? 1 : 0;
             }
             EXPECT_EQ(differ, 0u);

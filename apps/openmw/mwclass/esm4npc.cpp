@@ -83,7 +83,7 @@ namespace MWClass
         // because they require a lot of work including levelled records resolving and it would be
         // stupid to not to cache the results. Maybe we should stop using ConstPtr at all
         // to avoid such workarounds.
-        MWWorld::RefData& refData = const_cast<MWWorld::RefData&>(ptr.getRefData());
+        auto& refData = const_cast<MWWorld::RefData&>(ptr.getRefData());
 
         if (auto* data = refData.getCustomData())
             return data->asESM4NpcCustomData();

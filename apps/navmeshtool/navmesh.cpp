@@ -111,7 +111,7 @@ namespace NavMeshTool
         void expect(ESM::RefId worldspace, std::size_t tiles, std::shared_ptr<RecastMeshProvider> provider)
         {
             {
-                const std::lock_guard lock(mProgressMutex);
+                const std::scoped_lock lock(mProgressMutex);
                 mProgress.emplace(
                     worldspace, WorldspaceProgress{ .mExpected = tiles, .mProvider = std::move(provider) });
             }
@@ -147,7 +147,7 @@ namespace NavMeshTool
                 return;
             // Predicate lock prevents missed cancellation wake-ups.
             {
-                const std::lock_guard lock(mProvidedMutex);
+                const std::scoped_lock lock(mProvidedMutex);
                 mProvidedChanged.notify_all();
             }
         }
@@ -206,13 +206,13 @@ namespace NavMeshTool
             std::size_t provided;
             {
                 // Predicate lock prevents missed wake-ups.
-                const std::lock_guard lock(mProvidedMutex);
+                const std::scoped_lock lock(mProvidedMutex);
                 provided = mProvided.fetch_add(1, std::memory_order_relaxed) + 1;
                 mProvidedChanged.notify_all();
             }
             mReporter(provided, mExpected);
             {
-                const std::lock_guard lock(mProgressMutex);
+                const std::scoped_lock lock(mProgressMutex);
                 const auto it = mProgress.find(worldspace);
                 Crash::contract(it != mProgress.end(), "progress on a worldspace no job was made for");
                 if (++it->second.mProvided == it->second.mExpected)

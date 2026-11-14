@@ -40,11 +40,11 @@ CSVWorld::ExtendedCommandConfigurator::ExtendedCommandConfigurator(
 
     mTypeGroup = new QGroupBox(this);
 
-    QGridLayout* groupLayout = new QGridLayout(mTypeGroup);
+    auto* groupLayout = new QGridLayout(mTypeGroup);
     groupLayout->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     mTypeGroup->setLayout(groupLayout);
 
-    QHBoxLayout* mainLayout = new QHBoxLayout(this);
+    auto* mainLayout = new QHBoxLayout(this);
     mainLayout->setSizeConstraint(QLayout::SetNoConstraint);
     mainLayout->setContentsMargins(0, 0, 0, 0);
     mainLayout->addWidget(mTypeGroup);
@@ -91,7 +91,7 @@ void CSVWorld::ExtendedCommandConfigurator::setupGroupLayout()
     }
 
     int groupWidth = mTypeGroup->geometry().width();
-    QGridLayout* layout = qobject_cast<QGridLayout*>(mTypeGroup->layout());
+    auto* layout = qobject_cast<QGridLayout*>(mTypeGroup->layout());
 
     // Find the optimal number of rows to place the checkboxes within the available space
     int divider = 1;
@@ -104,8 +104,8 @@ void CSVWorld::ExtendedCommandConfigurator::setupGroupLayout()
 
         int counter = 0;
         int itemsPerRow = mNumUsedCheckBoxes / divider;
-        CheckBoxMap::const_iterator current = mTypeCheckBoxes.begin();
-        CheckBoxMap::const_iterator end = mTypeCheckBoxes.end();
+        auto current = mTypeCheckBoxes.begin();
+        auto end = mTypeCheckBoxes.end();
         for (; current != end; ++current)
         {
             if (counter < mNumUsedCheckBoxes)
@@ -129,7 +129,7 @@ void CSVWorld::ExtendedCommandConfigurator::setupCheckBoxes(const std::vector<CS
     {
         for (int i = numTypes - numCheckBoxes; i > 0; --i)
         {
-            QCheckBox* checkBox = new QCheckBox(mTypeGroup);
+            auto* checkBox = new QCheckBox(mTypeGroup);
 #if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
             connect(checkBox, &QCheckBox::checkStateChanged, this, &ExtendedCommandConfigurator::checkBoxStateChanged);
 #else
@@ -141,8 +141,8 @@ void CSVWorld::ExtendedCommandConfigurator::setupCheckBoxes(const std::vector<CS
 
     // Set up the checkboxes
     int counter = 0;
-    CheckBoxMap::iterator current = mTypeCheckBoxes.begin();
-    CheckBoxMap::iterator end = mTypeCheckBoxes.end();
+    auto current = mTypeCheckBoxes.begin();
+    auto end = mTypeCheckBoxes.end();
     for (; current != end; ++current)
     {
         if (counter < numTypes)
@@ -165,8 +165,8 @@ void CSVWorld::ExtendedCommandConfigurator::lockWidgets(bool locked)
 {
     mPerformButton->setEnabled(!mEditLock && mNumChecked > 0);
 
-    CheckBoxMap::const_iterator current = mTypeCheckBoxes.begin();
-    CheckBoxMap::const_iterator end = mTypeCheckBoxes.end();
+    auto current = mTypeCheckBoxes.begin();
+    auto end = mTypeCheckBoxes.end();
     for (int i = 0; current != end && i < mNumUsedCheckBoxes; ++current, ++i)
     {
         current->first->setEnabled(!mEditLock);
@@ -177,8 +177,8 @@ void CSVWorld::ExtendedCommandConfigurator::performExtendedCommand()
 {
     std::vector<CSMWorld::UniversalId> types;
 
-    CheckBoxMap::const_iterator current = mTypeCheckBoxes.begin();
-    CheckBoxMap::const_iterator end = mTypeCheckBoxes.end();
+    auto current = mTypeCheckBoxes.begin();
+    auto end = mTypeCheckBoxes.end();
     for (; current != end; ++current)
     {
         if (current->first->isChecked())
@@ -219,7 +219,7 @@ void CSVWorld::ExtendedCommandConfigurator::checkBoxStateChanged(int state)
 void CSVWorld::ExtendedCommandConfigurator::dataIdListChanged()
 {
     bool idsRemoved = false;
-    for (int i = 0; i < static_cast<int>(mSelectedIds.size()); ++i)
+    for (int i = 0; std::cmp_less(i, mSelectedIds.size()); ++i)
     {
         if (!mData.hasId(mSelectedIds[i]))
         {

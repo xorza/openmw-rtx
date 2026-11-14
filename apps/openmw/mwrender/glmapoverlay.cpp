@@ -287,8 +287,8 @@ namespace MWRender
     {
         // Upstream's GlobalMap::read, where the save's size or region differs: a camera draws the
         // image onto the overlay on the next frame, filtered, and the result is copied back.
-        const float imageWidth = static_cast<float>(image->s());
-        const float imageHeight = static_cast<float>(image->t());
+        const auto imageWidth = static_cast<float>(image->s());
+        const auto imageHeight = static_cast<float>(image->t());
         const int top = mHeight - destination.mY - destination.mHeight;
         const float srcTop = (imageHeight - static_cast<float>(source.mY + source.mHeight)) / imageHeight;
         const float srcBottom = (imageHeight - static_cast<float>(source.mY)) / imageHeight;
@@ -324,7 +324,7 @@ namespace MWRender
 
     bool GlMapOverlay::copyResult(osg::Camera* camera, unsigned int frame)
     {
-        ImageDestMap::iterator it = mPendingImageDest.find(camera);
+        auto it = mPendingImageDest.find(camera);
         if (it == mPendingImageDest.end())
             return true;
         else
@@ -347,7 +347,7 @@ namespace MWRender
 
     void GlMapOverlay::markForRemoval(osg::Camera* camera)
     {
-        CameraVector::iterator found = std::find(mActiveCameras.begin(), mActiveCameras.end(), camera);
+        auto found = std::find(mActiveCameras.begin(), mActiveCameras.end(), camera);
         if (found == mActiveCameras.end())
         {
             Log(Debug::Error) << "Error: GlobalMap trying to remove an inactive camera";

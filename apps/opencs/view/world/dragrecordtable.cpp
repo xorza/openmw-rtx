@@ -26,10 +26,10 @@ void CSVWorld::DragRecordTable::startDragFromTable(const CSVWorld::DragRecordTab
         return;
     }
 
-    CSMWorld::TableMimeData* mime = new CSMWorld::TableMimeData(records, mDocument);
+    auto* mime = new CSMWorld::TableMimeData(records, mDocument);
     mime->setTableOfDragStart(&table);
     mime->setIndexAtDragStart(index);
-    QDrag* drag = new QDrag(this);
+    auto* drag = new QDrag(this);
     drag->setMimeData(mime);
     drag->setPixmap(Misc::ScalableIcon::load(mime->getIcon().c_str()).pixmap(QSize(16, 16)));
     drag->exec(Qt::CopyAction);

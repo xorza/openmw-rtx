@@ -34,8 +34,8 @@ namespace MWRender
     {
         mObjects.clear();
 
-        for (CellMap::iterator iter = mCellSceneNodes.begin(); iter != mCellSceneNodes.end(); ++iter)
-            iter->second->getParent(0)->removeChild(iter->second);
+        for (auto& mCellSceneNode : mCellSceneNodes)
+            mCellSceneNode.second->getParent(0)->removeChild(mCellSceneNode.second);
         mCellSceneNodes.clear();
     }
 
@@ -174,7 +174,7 @@ namespace MWRender
 
     void Objects::removeCell(const MWWorld::CellStore* store)
     {
-        for (PtrAnimationMap::iterator iter = mObjects.begin(); iter != mObjects.end();)
+        for (auto iter = mObjects.begin(); iter != mObjects.end();)
         {
             MWWorld::Ptr ptr = iter->second->getPtr();
             if (ptr.getCell() == store)
@@ -194,7 +194,7 @@ namespace MWRender
                 ++iter;
         }
 
-        CellMap::iterator cell = mCellSceneNodes.find(store);
+        auto cell = mCellSceneNodes.find(store);
         if (cell != mCellSceneNodes.end())
         {
             cell->second->getParent(0)->removeChild(cell->second);
@@ -212,21 +212,21 @@ namespace MWRender
 
         osg::Group* cellnode = &cellRootOf(newCell);
 
-        if (MWWorld::Ptr* ptr = SceneUtil::findUserData<MWWorld::Ptr>(*objectNode))
+        if (auto* ptr = SceneUtil::findUserData<MWWorld::Ptr>(*objectNode))
             *ptr = cur;
 
         if (objectNode->getNumParents())
             objectNode->getParent(0)->removeChild(objectNode);
         cellnode->addChild(objectNode);
 
-        PtrAnimationMap::iterator iter = mObjects.find(old.mRef);
+        auto iter = mObjects.find(old.mRef);
         if (iter != mObjects.end())
             iter->second->updatePtr(cur);
     }
 
     Animation* Objects::getAnimation(const MWWorld::Ptr& ptr)
     {
-        PtrAnimationMap::const_iterator iter = mObjects.find(ptr.mRef);
+        auto iter = mObjects.find(ptr.mRef);
         if (iter != mObjects.end())
             return iter->second.get();
 
@@ -235,7 +235,7 @@ namespace MWRender
 
     const Animation* Objects::getAnimation(const MWWorld::ConstPtr& ptr) const
     {
-        PtrAnimationMap::const_iterator iter = mObjects.find(ptr.mRef);
+        auto iter = mObjects.find(ptr.mRef);
         if (iter != mObjects.end())
             return iter->second.get();
 

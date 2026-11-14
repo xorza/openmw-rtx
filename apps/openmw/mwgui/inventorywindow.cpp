@@ -13,6 +13,7 @@
 #include <components/misc/strings/algorithm.hpp>
 
 #include <components/settings/values.hpp>
+#include <utility>
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/inputmanager.hpp"
@@ -220,7 +221,7 @@ namespace MWGui
         const int y = static_cast<int>(rect.mY * viewSize.height);
         const int w = static_cast<int>(rect.mW * viewSize.width);
         const int h = static_cast<int>(rect.mH * viewSize.height);
-        MyGUI::Window* window = mMainWidget->castType<MyGUI::Window>();
+        auto* window = mMainWidget->castType<MyGUI::Window>();
         window->setCoord(x, y, w, h);
 
         settings.mIsMaximized.set(!settings.mIsMaximized);
@@ -922,7 +923,7 @@ namespace MWGui
         if (model.getItemCount() == 0)
             return;
 
-        for (ItemModel::ModelIndex i = 0; i < int(model.getItemCount()); ++i)
+        for (ItemModel::ModelIndex i = 0; std::cmp_less(i, model.getItemCount()); ++i)
         {
             MWWorld::Ptr item = model.getItem(i).mBase;
             if (model.getItem(i).mType & ItemStack::Type_Equipped && isRightHandWeapon(item))
@@ -1122,7 +1123,7 @@ namespace MWGui
             int x = (viewSize.width - width) / 2;
             int y = (viewSize.height - height) / 2;
 
-            MyGUI::Window* window = mMainWidget->castType<MyGUI::Window>();
+            auto* window = mMainWidget->castType<MyGUI::Window>();
             window->setCoord(x, active ? y : viewSize.height + 1, width, height);
 
             adjustPanes();

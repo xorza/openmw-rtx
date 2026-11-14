@@ -48,6 +48,7 @@
 #include <components/sceneutil/visitor.hpp>
 
 #include <components/settings/values.hpp>
+#include <ranges>
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/luamanager.hpp"
@@ -86,7 +87,7 @@ namespace
 
         void apply(osg::Drawable& drw) override
         {
-            if (osgParticle::ParticleSystem* partsys = dynamic_cast<osgParticle::ParticleSystem*>(&drw))
+            if (auto* partsys = dynamic_cast<osgParticle::ParticleSystem*>(&drw))
                 mToRemove.emplace_back(partsys);
         }
 
@@ -258,7 +259,7 @@ namespace
             if (callback)
             {
                 // We should remove empty transformation nodes and finished callbacks here
-                MWRender::UpdateVfxCallback* vfxCallback = dynamic_cast<MWRender::UpdateVfxCallback*>(callback);
+                auto* vfxCallback = dynamic_cast<MWRender::UpdateVfxCallback*>(callback);
                 if (vfxCallback)
                 {
                     if (vfxCallback->mFinished)
@@ -299,7 +300,7 @@ namespace
             osg::Callback* callback = node.getUpdateCallback();
             if (callback)
             {
-                MWRender::UpdateVfxCallback* vfxCallback = dynamic_cast<MWRender::UpdateVfxCallback*>(callback);
+                auto* vfxCallback = dynamic_cast<MWRender::UpdateVfxCallback*>(callback);
                 if (vfxCallback)
                 {
                     bool toRemove = mEffectId == "" || vfxCallback->mParams.mEffectId == mEffectId;
@@ -340,7 +341,7 @@ namespace
             osg::Callback* callback = node.getUpdateCallback();
             if (callback)
             {
-                MWRender::UpdateVfxCallback* vfxCallback = dynamic_cast<MWRender::UpdateVfxCallback*>(callback);
+                auto* vfxCallback = dynamic_cast<MWRender::UpdateVfxCallback*>(callback);
                 if (vfxCallback)
                 {
                     if (mEffectId == "" || vfxCallback->mParams.mEffectId == mEffectId)
@@ -366,7 +367,7 @@ namespace
             // Wrapping in a custom callback object allows for nested callback chaining, otherwise it has link to self
             // issues we need to share the base BoneAnimBlendController as that contains blending information and is
             // guaranteed to update before
-            osgAnimation::Bone* bone = static_cast<osgAnimation::Bone*>(parent);
+            auto* bone = static_cast<osgAnimation::Bone*>(parent);
             osg::ref_ptr<osg::Callback> cb = new MWRender::BoneAnimBlendControllerWrapper(controller, bone);
 
             // Ensure there is no other AnimBlendController - this can happen when using
@@ -433,7 +434,7 @@ namespace MWRender
     protected:
         void setDefaults(osg::StateSet* stateset) override
         {
-            osg::BlendFunc* blendfunc(new osg::BlendFunc);
+            auto* blendfunc(new osg::BlendFunc);
             stateset->setAttributeAndModes(blendfunc, osg::StateAttribute::ON);
 
             stateset->setRenderingHint(osg::StateSet::TRANSPARENT_BIN);
@@ -549,8 +550,8 @@ namespace MWRender
         , mPlayScriptedOnly(false)
         , mRequiresBoneMap(false)
     {
-        for (size_t i = 0; i < sNumBlendMasks; i++)
-            mAnimationTimePtr[i] = std::make_shared<AnimationTime>();
+        for (auto& i : mAnimationTimePtr)
+            i = std::make_shared<AnimationTime>();
 
         mLightListCallback = new SceneUtil::LightListCallback;
     }
@@ -667,11 +668,10 @@ namespace MWRender
 
         const NodeMap& nodeMap = getNodeMap();
         const auto& controllerMap = animsrc->mKeyframes->mKeyframeControllers;
-        for (SceneUtil::KeyframeHolder::KeyframeControllerMap::const_iterator it = controllerMap.begin();
-            it != controllerMap.end(); ++it)
+        for (const auto& it : controllerMap)
         {
-            std::string bonename = Misc::StringUtils::lowerCase(it->first);
-            NodeMap::const_iterator found = nodeMap.find(bonename);
+            std::string bonename = Misc::StringUtils::lowerCase(it.first);
+            auto found = nodeMap.find(bonename);
             if (found == nodeMap.end())
             {
                 Log(Debug::Warning) << "Warning: addAnimSource: can't find bone '" + bonename << "' in " << baseModel
@@ -681,11 +681,10 @@ namespace MWRender
 
             osg::Node* node = found->second;
 
-            size_t blendMask = detectBlendMask(node, it->second->getName());
+            size_t blendMask = detectBlendMask(node, it.second->getName());
 
             // clone the controller, because each Animation needs its own ControllerSource
-            osg::ref_ptr<SceneUtil::KeyframeController> cloned
-                = osg::clone(it->second.get(), osg::CopyOp::SHALLOW_COPY);
+            osg::ref_ptr<SceneUtil::KeyframeController> cloned = osg::clone(it.second.get(), osg::CopyOp::SHALLOW_COPY);
             cloned->setSource(mAnimationTimePtr[blendMask]);
 
             animsrc->mControllerMap[blendMask].insert(std::make_pair(bonename, cloned));
@@ -705,16 +704,15 @@ namespace MWRender
         {
             // Priority matters! bip01 is preferred.
             static const std::initializer_list<std::string_view> accumRootNames = { "bip01", "root bone" };
-            NodeMap::const_iterator found = nodeMap.end();
+            auto found = nodeMap.end();
             for (const std::string_view& name : accumRootNames)
             {
                 found = nodeMap.find(name);
                 if (found == nodeMap.end())
                     continue;
-                for (SceneUtil::KeyframeHolder::KeyframeControllerMap::const_iterator it = controllerMap.begin();
-                    it != controllerMap.end(); ++it)
+                for (const auto& it : controllerMap)
                 {
-                    if (Misc::StringUtils::ciEqual(it->first, name))
+                    if (Misc::StringUtils::ciEqual(it.first, name))
                     {
                         mAccumRoot = found->second;
                         break;
@@ -763,8 +761,8 @@ namespace MWRender
     {
         mStates.clear();
 
-        for (size_t i = 0; i < sNumBlendMasks; i++)
-            mAnimationTimePtr[i]->setTimePtr(std::shared_ptr<float>());
+        for (auto& i : mAnimationTimePtr)
+            i->setTimePtr(std::shared_ptr<float>());
 
         mAccumCtrl = nullptr;
 
@@ -817,9 +815,9 @@ namespace MWRender
 
     float Animation::getStartTime(const std::string& groupname) const
     {
-        for (AnimSourceList::const_reverse_iterator iter(mAnimSources.rbegin()); iter != mAnimSources.rend(); ++iter)
+        for (const auto& mAnimSource : std::views::reverse(mAnimSources))
         {
-            const SceneUtil::TextKeyMap& keys = (*iter)->getTextKeys();
+            const SceneUtil::TextKeyMap& keys = mAnimSource->getTextKeys();
 
             const auto found = keys.findGroupStart(groupname);
             if (found != keys.end())
@@ -830,14 +828,14 @@ namespace MWRender
 
     float Animation::getTextKeyTime(std::string_view textKey) const
     {
-        for (AnimSourceList::const_reverse_iterator iter(mAnimSources.rbegin()); iter != mAnimSources.rend(); ++iter)
+        for (const auto& mAnimSource : std::views::reverse(mAnimSources))
         {
-            const SceneUtil::TextKeyMap& keys = (*iter)->getTextKeys();
+            const SceneUtil::TextKeyMap& keys = mAnimSource->getTextKeys();
 
-            for (auto iterKey = keys.begin(); iterKey != keys.end(); ++iterKey)
+            for (const auto& key : keys)
             {
-                if (iterKey->second.starts_with(textKey))
-                    return iterKey->first;
+                if (key.second.starts_with(textKey))
+                    return key.first;
             }
         }
 
@@ -888,13 +886,13 @@ namespace MWRender
             return;
         }
 
-        AnimStateMap::iterator foundstateiter = mStates.find(groupname);
+        auto foundstateiter = mStates.find(groupname);
         if (foundstateiter != mStates.end())
         {
             foundstateiter->second.mPriority = priority;
         }
 
-        AnimStateMap::iterator stateiter = mStates.begin();
+        auto stateiter = mStates.begin();
         while (stateiter != mStates.end())
         {
             if (stateiter->second.mPriority == priority && stateiter->first != groupname)
@@ -914,7 +912,7 @@ namespace MWRender
 
         /* Look in reverse; last-inserted source has priority. */
         AnimState state;
-        AnimSourceList::reverse_iterator iter(mAnimSources.rbegin());
+        auto iter(mAnimSources.rbegin());
         for (; iter != mAnimSources.rend(); ++iter)
         {
             const SceneUtil::TextKeyMap& textkeys = (*iter)->getTextKeys();
@@ -1107,13 +1105,13 @@ namespace MWRender
     void Animation::resetActiveGroups()
     {
         // remove all previous external controllers from the scene graph
-        for (auto it = mActiveControllers.begin(); it != mActiveControllers.end(); ++it)
+        for (auto& mActiveController : mActiveControllers)
         {
-            osg::Node* node = it->first;
-            node->removeUpdateCallback(it->second);
+            osg::Node* node = mActiveController.first;
+            node->removeUpdateCallback(mActiveController.second);
 
             // Should be no longer needed with OSG 3.4
-            it->second->setNestedCallback(nullptr);
+            mActiveController.second->setNestedCallback(nullptr);
         }
 
         mActiveControllers.clear();
@@ -1122,9 +1120,9 @@ namespace MWRender
 
         for (size_t blendMask = 0; blendMask < sNumBlendMasks; blendMask++)
         {
-            AnimStateMap::const_iterator active = mStates.end();
+            auto active = mStates.end();
 
-            AnimStateMap::const_iterator state = mStates.begin();
+            auto state = mStates.begin();
             for (; state != mStates.end(); ++state)
             {
                 if (!state->second.blendMaskContains(blendMask))
@@ -1145,7 +1143,7 @@ namespace MWRender
                 const AnimBlendStateData stateData
                     = { .mGroupname = active->second.mGroupname, .mStartKey = active->second.mStartKey };
 
-                for (AnimSource::ControllerMap::iterator it = animsrc->mControllerMap[blendMask].begin();
+                for (auto it = animsrc->mControllerMap[blendMask].begin();
                     it != animsrc->mControllerMap[blendMask].end(); ++it)
                 {
                     osg::ref_ptr<osg::Node> node = getNodeMap().at(
@@ -1193,14 +1191,14 @@ namespace MWRender
 
     void Animation::adjustSpeedMult(const std::string& groupname, float speedmult)
     {
-        AnimStateMap::iterator state(mStates.find(groupname));
+        auto state(mStates.find(groupname));
         if (state != mStates.end())
             state->second.mSpeedMult = speedmult;
     }
 
     bool Animation::isPlaying(std::string_view groupname) const
     {
-        AnimStateMap::const_iterator state(mStates.find(groupname));
+        auto state(mStates.find(groupname));
         if (state != mStates.end())
             return state->second.mPlaying;
         return false;
@@ -1208,7 +1206,7 @@ namespace MWRender
 
     bool Animation::getInfo(std::string_view groupname, float* complete, float* speedmult, uint32_t* loopcount) const
     {
-        AnimStateMap::const_iterator iter = mStates.find(groupname);
+        auto iter = mStates.find(groupname);
         if (iter == mStates.end())
         {
             if (complete)
@@ -1243,7 +1241,7 @@ namespace MWRender
 
     float Animation::getCurrentTime(std::string_view groupname) const
     {
-        AnimStateMap::const_iterator iter = mStates.find(groupname);
+        auto iter = mStates.find(groupname);
         if (iter == mStates.end())
             return -1.f;
 
@@ -1252,7 +1250,7 @@ namespace MWRender
 
     void Animation::disable(std::string_view groupname)
     {
-        AnimStateMap::iterator iter = mStates.find(groupname);
+        auto iter = mStates.find(groupname);
         if (iter != mStates.end())
         {
             animationEnded(iter->second);
@@ -1266,12 +1264,12 @@ namespace MWRender
         if (!mAccumRoot)
             return 0.0f;
 
-        std::map<std::string, float>::const_iterator found = mAnimVelocities.find(groupname);
+        auto found = mAnimVelocities.find(groupname);
         if (found != mAnimVelocities.end())
             return found->second;
 
         // Look in reverse; last-inserted source has priority.
-        AnimSourceList::const_reverse_iterator animsrc(mAnimSources.rbegin());
+        auto animsrc(mAnimSources.rbegin());
         for (; animsrc != mAnimSources.rend(); ++animsrc)
         {
             const SceneUtil::TextKeyMap& keys = (*animsrc)->getTextKeys();
@@ -1285,11 +1283,11 @@ namespace MWRender
         const SceneUtil::TextKeyMap& keys = (*animsrc)->getTextKeys();
 
         const AnimSource::ControllerMap& ctrls = (*animsrc)->mControllerMap[0];
-        for (AnimSource::ControllerMap::const_iterator it = ctrls.begin(); it != ctrls.end(); ++it)
+        for (const auto& ctrl : ctrls)
         {
-            if (Misc::StringUtils::ciEqual(it->first, mAccumRoot->getName()))
+            if (Misc::StringUtils::ciEqual(ctrl.first, mAccumRoot->getName()))
             {
-                velocity = calcAnimVelocity(keys, it->second, mAccumulate, groupname);
+                velocity = calcAnimVelocity(keys, ctrl.second, mAccumulate, groupname);
                 break;
             }
         }
@@ -1297,7 +1295,7 @@ namespace MWRender
         // If there's no velocity, keep looking
         if (!(velocity > 1.0f))
         {
-            AnimSourceList::const_reverse_iterator animiter = mAnimSources.rbegin();
+            auto animiter = mAnimSources.rbegin();
             while (*animiter != *animsrc)
                 ++animiter;
 
@@ -1306,11 +1304,11 @@ namespace MWRender
                 const SceneUtil::TextKeyMap& keys2 = (*animiter)->getTextKeys();
 
                 const AnimSource::ControllerMap& ctrls2 = (*animiter)->mControllerMap[0];
-                for (AnimSource::ControllerMap::const_iterator it = ctrls2.begin(); it != ctrls2.end(); ++it)
+                for (const auto& it : ctrls2)
                 {
-                    if (Misc::StringUtils::ciEqual(it->first, mAccumRoot->getName()))
+                    if (Misc::StringUtils::ciEqual(it.first, mAccumRoot->getName()))
                     {
-                        velocity = calcAnimVelocity(keys2, it->second, mAccumulate, groupname);
+                        velocity = calcAnimVelocity(keys2, it.second, mAccumulate, groupname);
                         break;
                     }
                 }
@@ -1332,7 +1330,7 @@ namespace MWRender
     osg::Vec3f Animation::runAnimation(float duration)
     {
         osg::Vec3f movement(0.f, 0.f, 0.f);
-        AnimStateMap::iterator stateiter = mStates.begin();
+        auto stateiter = mStates.begin();
         while (stateiter != mStates.end())
         {
             AnimState& state = stateiter->second;
@@ -1448,7 +1446,7 @@ namespace MWRender
 
     void Animation::setLoopingEnabled(std::string_view groupname, bool enabled)
     {
-        AnimStateMap::iterator state(mStates.find(groupname));
+        auto state(mStates.find(groupname));
         if (state != mStates.end())
             state->second.mLoopingEnabled = enabled;
     }
@@ -1483,7 +1481,7 @@ namespace MWRender
             return;
 
         std::string animationPath = model;
-        if (animationPath.find("meshes") == 0)
+        if (animationPath.starts_with("meshes"))
         {
             animationPath.replace(0, 6, "animations");
         }
@@ -1504,7 +1502,7 @@ namespace MWRender
         {
             typedef std::map<std::string, osg::ref_ptr<osg::Node>> Cache;
             static Cache cache;
-            Cache::iterator found = cache.find(model);
+            auto found = cache.find(model);
             if (found == cache.end())
             {
                 osg::ref_ptr<osg::Node> created = sceneMgr->getInstance(VFS::Path::toNormalized(model));
@@ -1703,11 +1701,8 @@ namespace MWRender
         FindVfxCallbacksVisitor visitor(effectId);
         mInsert->accept(visitor);
 
-        for (std::vector<UpdateVfxCallback*>::iterator it = visitor.mCallbacks.begin(); it != visitor.mCallbacks.end();
-            ++it)
+        for (auto callback : visitor.mCallbacks)
         {
-            UpdateVfxCallback* callback = *it;
-
             if (loop && !callback->mFinished && callback->mParams.mLoop && callback->mParams.mBoneName == bonename)
                 return;
         }
@@ -1719,7 +1714,7 @@ namespace MWRender
             parentNode = mInsert;
         else
         {
-            NodeMap::const_iterator found = getNodeMap().find(bonename);
+            auto found = getNodeMap().find(bonename);
             if (found == getNodeMap().end())
                 throw std::runtime_error("Can't find bone " + std::string{ bonename });
 
@@ -1813,11 +1808,8 @@ namespace MWRender
 
         std::vector<std::string_view> out;
 
-        for (std::vector<UpdateVfxCallback*>::iterator it = visitor.mCallbacks.begin(); it != visitor.mCallbacks.end();
-            ++it)
+        for (auto callback : visitor.mCallbacks)
         {
-            UpdateVfxCallback* callback = *it;
-
             if (callback->mParams.mLoop && !callback->mFinished)
                 out.push_back(callback->mParams.mEffectId);
         }
@@ -1841,12 +1833,12 @@ namespace MWRender
 
     bool Animation::upperBodyReady() const
     {
-        for (AnimStateMap::const_iterator stateiter = mStates.begin(); stateiter != mStates.end(); ++stateiter)
+        for (const auto& mState : mStates)
         {
-            if (stateiter->second.mPriority.contains(int(MWMechanics::Priority_Hit))
-                || stateiter->second.mPriority.contains(int(MWMechanics::Priority_Weapon))
-                || stateiter->second.mPriority.contains(int(MWMechanics::Priority_Knockdown))
-                || stateiter->second.mPriority.contains(int(MWMechanics::Priority_Death)))
+            if (mState.second.mPriority.contains(int(MWMechanics::Priority_Hit))
+                || mState.second.mPriority.contains(int(MWMechanics::Priority_Weapon))
+                || mState.second.mPriority.contains(int(MWMechanics::Priority_Knockdown))
+                || mState.second.mPriority.contains(int(MWMechanics::Priority_Death)))
                 return false;
         }
         return true;
@@ -1854,7 +1846,7 @@ namespace MWRender
 
     const osg::Node* Animation::getNode(std::string_view name) const
     {
-        NodeMap::const_iterator found = getNodeMap().find(name);
+        auto found = getNodeMap().find(name);
         if (found == getNodeMap().end())
             return nullptr;
         else

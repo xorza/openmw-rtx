@@ -28,7 +28,7 @@ CSMPrefs::ColourSetting& CSMPrefs::ColourSetting::setTooltip(const std::string& 
 
 CSMPrefs::SettingWidgets CSMPrefs::ColourSetting::makeWidgets(QWidget* parent)
 {
-    QLabel* label = new QLabel(getLabel(), parent);
+    auto* label = new QLabel(getLabel(), parent);
 
     mWidget = new CSVWidget::ColorEditor(toColor(), parent);
 
@@ -52,7 +52,7 @@ void CSMPrefs::ColourSetting::updateWidget()
 
 void CSMPrefs::ColourSetting::valueChanged()
 {
-    CSVWidget::ColorEditor& widget = dynamic_cast<CSVWidget::ColorEditor&>(*sender());
+    auto& widget = dynamic_cast<CSVWidget::ColorEditor&>(*sender());
     setValue(widget.color().name().toStdString());
     getParent()->getState()->update(*this);
 }

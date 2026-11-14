@@ -65,7 +65,7 @@ namespace CSVRender
         void operator()(osg::Node* node, osg::NodeVisitor* nv) override
         {
             traverse(node, nv);
-            CellNodeContainer* container = static_cast<CellNodeContainer*>(node->getUserData());
+            auto* container = static_cast<CellNodeContainer*>(node->getUserData());
             container->getCell()->updateLand();
         }
     };
@@ -73,7 +73,7 @@ namespace CSVRender
 
 bool CSVRender::Cell::removeObject(const std::string& id)
 {
-    std::map<std::string, Object*>::iterator iter = mObjects.find(Misc::StringUtils::lowerCase(id));
+    auto iter = mObjects.find(Misc::StringUtils::lowerCase(id));
 
     if (iter == mObjects.end())
         return false;
@@ -219,8 +219,8 @@ CSVRender::Cell::Cell(CSMDoc::Document& document, ObjectMarker* selectionMarker,
 
 CSVRender::Cell::~Cell()
 {
-    for (std::map<std::string, Object*>::iterator iter(mObjects.begin()); iter != mObjects.end(); ++iter)
-        delete iter->second;
+    for (auto& mObject : mObjects)
+        delete mObject.second;
 
     mCellNode->getParent(0)->removeChild(mCellNode);
 }
@@ -234,8 +234,8 @@ bool CSVRender::Cell::referenceableDataChanged(const QModelIndex& topLeft, const
 {
     bool modified = false;
 
-    for (std::map<std::string, Object*>::iterator iter(mObjects.begin()); iter != mObjects.end(); ++iter)
-        if (iter->second->referenceableDataChanged(topLeft, bottomRight))
+    for (auto& mObject : mObjects)
+        if (mObject.second->referenceableDataChanged(topLeft, bottomRight))
             modified = true;
 
     return modified;
@@ -248,8 +248,8 @@ bool CSVRender::Cell::referenceableAboutToBeRemoved(const QModelIndex& parent, i
 
     bool modified = false;
 
-    for (std::map<std::string, Object*>::iterator iter(mObjects.begin()); iter != mObjects.end(); ++iter)
-        if (iter->second->referenceableAboutToBeRemoved(parent, start, end))
+    for (auto& mObject : mObjects)
+        if (mObject.second->referenceableAboutToBeRemoved(parent, start, end))
             modified = true;
 
     return modified;
@@ -289,13 +289,13 @@ bool CSVRender::Cell::referenceDataChanged(const QModelIndex& topLeft, const QMo
     // perform update and remove where needed
     bool modified = false;
 
-    std::map<std::string, Object*>::iterator iter = mObjects.begin();
+    auto iter = mObjects.begin();
     while (iter != mObjects.end())
     {
         if (iter->second->referenceDataChanged(topLeft, bottomRight))
             modified = true;
 
-        std::map<std::string, bool>::iterator iter2 = ids.find(iter->first);
+        auto iter2 = ids.find(iter->first);
 
         if (iter2 != ids.end())
         {
@@ -314,11 +314,11 @@ bool CSVRender::Cell::referenceDataChanged(const QModelIndex& topLeft, const QMo
     }
 
     // add new objects
-    for (std::map<std::string, bool>::iterator mapIter(ids.begin()); mapIter != ids.end(); ++mapIter)
+    for (auto& id : ids)
     {
-        if (!mapIter->second)
+        if (!id.second)
         {
-            mObjects.insert(std::make_pair(mapIter->first, new Object(mData, mCellNode, mapIter->first, false)));
+            mObjects.insert(std::make_pair(id.first, new Object(mData, mCellNode, id.first, false)));
 
             modified = true;
         }
@@ -572,7 +572,7 @@ void CSVRender::Cell::setCellArrows(int mask)
 {
     for (int i = 0; i < 4; ++i)
     {
-        CellArrow::Direction direction = static_cast<CellArrow::Direction>(1 << i);
+        auto direction = static_cast<CellArrow::Direction>(1 << i);
 
         bool enable = mask & direction;
 
@@ -658,9 +658,9 @@ std::vector<osg::ref_ptr<CSVRender::TagBase>> CSVRender::Cell::getSelection(unsi
     std::vector<osg::ref_ptr<TagBase>> result;
 
     if (elementMask & Mask_Reference)
-        for (std::map<std::string, Object*>::const_iterator iter(mObjects.begin()); iter != mObjects.end(); ++iter)
-            if (iter->second->getSelected())
-                result.push_back(iter->second->getTag());
+        for (const auto& mObject : mObjects)
+            if (mObject.second->getSelected())
+                result.push_back(mObject.second->getTag());
     if (mPathgrid && elementMask & Mask_Pathgrid)
         if (mPathgrid->isSelected())
             result.emplace_back(mPathgrid->getTag());
@@ -673,9 +673,9 @@ std::vector<osg::ref_ptr<CSVRender::TagBase>> CSVRender::Cell::getEdited(unsigne
     std::vector<osg::ref_ptr<TagBase>> result;
 
     if (elementMask & Mask_Reference)
-        for (std::map<std::string, Object*>::const_iterator iter(mObjects.begin()); iter != mObjects.end(); ++iter)
-            if (iter->second->isEdited())
-                result.push_back(iter->second->getTag());
+        for (const auto& mObject : mObjects)
+            if (mObject.second->isEdited())
+                result.push_back(mObject.second->getTag());
 
     return result;
 }

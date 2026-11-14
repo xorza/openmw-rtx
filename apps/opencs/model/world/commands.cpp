@@ -195,7 +195,7 @@ CSMWorld::ModifyCommand::ModifyCommand(
     , mHasRecordState(false)
     , mOldRecordState(CSMWorld::RecordBase::State_BaseOnly)
 {
-    if (QAbstractProxyModel* proxy = dynamic_cast<QAbstractProxyModel*>(mModel))
+    if (auto* proxy = dynamic_cast<QAbstractProxyModel*>(mModel))
     {
         // Replace proxy with actual model
         mIndex = proxy->mapToSource(mIndex);
@@ -218,7 +218,7 @@ void CSMWorld::ModifyCommand::redo()
     }
 
     // Remember record state before the modification
-    if (CSMWorld::IdTable* table = dynamic_cast<IdTable*>(mModel))
+    if (auto* table = dynamic_cast<IdTable*>(mModel))
     {
         mHasRecordState = true;
         int stateColumnIndex = table->findColumnIndex(Columns::ColumnId_Modification);
@@ -251,8 +251,8 @@ void CSMWorld::CreateCommand::applyModifications()
     if (!mNestedValues.empty())
     {
         CSMWorld::IdTree* tree = &dynamic_cast<CSMWorld::IdTree&>(mModel);
-        std::map<int, std::pair<int, QVariant>>::const_iterator current = mNestedValues.begin();
-        std::map<int, std::pair<int, QVariant>>::const_iterator end = mNestedValues.end();
+        auto current = mNestedValues.begin();
+        auto end = mNestedValues.end();
         for (; current != end; ++current)
         {
             QModelIndex index = tree->index(0, current->second.first, tree->getNestedModelIndex(mId, current->first));

@@ -27,6 +27,7 @@
 #include <components/sceneutil/material.hpp>
 #include <components/sceneutil/texturetype.hpp>
 #include <components/sceneutil/util.hpp>
+#include <utility>
 
 #include "surfacedescription.hpp"
 
@@ -74,7 +75,7 @@ namespace Rtx
                     continue;
 
                 int bound = -1;
-                if (!candidate->get(bound) || bound != static_cast<int>(unit))
+                if (!candidate->get(bound) || std::cmp_not_equal(bound, unit))
                     continue;
 
                 if (const std::optional<TextureRole> role = sTextureRoleNames.named(name))

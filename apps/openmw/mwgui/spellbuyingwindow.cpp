@@ -65,7 +65,7 @@ namespace MWGui
 
         const int lineHeight = MWBase::Environment::get().getWindowManager()->getFontSize() + 2;
 
-        MyGUI::Button* toAdd = mSpellsView->createWidget<MyGUI::Button>(price <= playerGold
+        auto* toAdd = mSpellsView->createWidget<MyGUI::Button>(price <= playerGold
                 ? "SandTextButton"
                 : "SandTextButtonDisabled", // can't use setEnabled since that removes tooltip
             0, mCurrentY, 200, lineHeight, MyGUI::Align::Default);

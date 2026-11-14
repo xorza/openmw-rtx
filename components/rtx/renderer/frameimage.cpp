@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <utility>
 #include <vector>
 
 #include <osg/GL>
@@ -46,7 +47,7 @@ namespace Rtx
 
         const int wide = static_cast<int>(frame.mWidth);
         const int tall = static_cast<int>(frame.mHeight);
-        const std::size_t bytes = static_cast<std::size_t>(channels);
+        const auto bytes = static_cast<std::size_t>(channels);
 
         osg::ref_ptr<osg::Image> image = new osg::Image;
         image->allocateImage(width, height, 1, channels == Channels::Rgb ? GL_RGB : GL_RGBA, GL_UNSIGNED_BYTE);
@@ -65,7 +66,7 @@ namespace Rtx
                 if (channels == Channels::Rgba)
                     std::memcpy(into, from, static_cast<std::size_t>(wide) * 4);
                 else
-                    for (std::size_t x = 0; x < static_cast<std::size_t>(wide); ++x)
+                    for (std::size_t x = 0; std::cmp_less(x, wide); ++x)
                         std::memcpy(into + x * bytes, from + x * 4, bytes);
             }
 

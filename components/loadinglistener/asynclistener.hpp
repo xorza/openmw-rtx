@@ -19,20 +19,20 @@ namespace Loading
 
         void setLabel(const std::string& label, bool important) override
         {
-            std::lock_guard<std::mutex> guard(mMutex);
+            std::scoped_lock guard(mMutex);
             mLabelUpdate = label;
             mImportantLabel = important;
         }
 
         void setProgressRange(size_t range) override
         {
-            std::lock_guard<std::mutex> guard(mMutex);
+            std::scoped_lock guard(mMutex);
             mRangeUpdate = range;
         }
 
         void setProgress(size_t value) override
         {
-            std::lock_guard<std::mutex> guard(mMutex);
+            std::scoped_lock guard(mMutex);
             mProgressUpdate = value;
         }
 
@@ -40,7 +40,7 @@ namespace Loading
 
         void update()
         {
-            std::lock_guard<std::mutex> guard(mMutex);
+            std::scoped_lock guard(mMutex);
             if (mLabelUpdate)
                 mBaseListener.setLabel(*mLabelUpdate, mImportantLabel);
             if (mRangeUpdate)

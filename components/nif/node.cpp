@@ -7,6 +7,7 @@
 #include <components/misc/convert.hpp>
 #include <components/misc/strings/algorithm.hpp>
 #include <components/resource/bulletshape.hpp>
+#include <ranges>
 
 #include "data.hpp"
 #include "exception.hpp"
@@ -209,9 +210,8 @@ namespace Nif
     const NiNode* NiNode::findRootCollisionNode(bool recursive) const
     {
         // Yes, this search needs to be reversed
-        for (auto it = mChildren.crbegin(); it != mChildren.crend(); ++it)
+        for (auto child : std::views::reverse(mChildren))
         {
-            const NiAVObjectPtr& child = *it;
             if (child.empty())
                 continue;
 
@@ -220,7 +220,7 @@ namespace Nif
 
             if (recursive)
             {
-                const NiNode* childNode = dynamic_cast<const NiNode*>(child.getPtr());
+                const auto* childNode = dynamic_cast<const NiNode*>(child.getPtr());
                 if (!childNode)
                     continue;
                 if (const NiNode* found = childNode->findRootCollisionNode(recursive))
@@ -656,7 +656,7 @@ namespace Nif
     {
         uint32_t numArrayIndices;
         nif->read(numArrayIndices);
-        const uint32_t numRecords = nif->get<uint32_t>();
+        const auto numRecords = nif->get<uint32_t>();
         nif->readVector(mArrayIndices, numArrayIndices);
         nif->readVectorOfRecords(numRecords, mDataRecords);
         mSSFFile = nif->getSizedString(nif->get<uint16_t>());
@@ -665,7 +665,7 @@ namespace Nif
     void BSSubIndexTriShape::Segmentation::read(NIFStream* nif)
     {
         nif->read(mNumPrimitives);
-        const uint32_t numSegments = nif->get<uint32_t>();
+        const auto numSegments = nif->get<uint32_t>();
         nif->read(mNumTotalSegments);
         nif->readVectorOfRecords(numSegments, mSegments);
         if (numSegments < mNumTotalSegments)
@@ -785,7 +785,7 @@ namespace Nif
     void BSShaderTextureArray::read(NIFStream* nif)
     {
         nif->skip(1); // Unknown
-        const uint32_t numArrays = nif->get<uint32_t>();
+        const auto numArrays = nif->get<uint32_t>();
         mTextureArrays.reserve(numArrays);
         for (uint32_t i = 0; i < numArrays; ++i)
             nif->getSizedStrings(mTextureArrays.emplace_back(), nif->get<uint32_t>());

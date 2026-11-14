@@ -38,7 +38,7 @@ namespace MWLua
         if (!mThread)
             return;
         {
-            std::lock_guard<std::mutex> lk(mMutex);
+            std::scoped_lock lk(mMutex);
             mUpdateRequest = UpdateRequest{ .mStatsEpoch = statsEpoch, .mFrameNumber = frameNumber, .mStats = &stats };
         }
         mCV.notify_one();
@@ -66,7 +66,7 @@ namespace MWLua
             return;
         }
         {
-            std::lock_guard<std::mutex> lk(mMutex);
+            std::scoped_lock lk(mMutex);
             mGcRequest = true;
         }
         mCV.notify_one();
@@ -86,7 +86,7 @@ namespace MWLua
         if (mThread)
         {
             {
-                std::lock_guard<std::mutex> lk(mMutex);
+                std::scoped_lock lk(mMutex);
                 mJoinRequest = true;
             }
             mCV.notify_one();

@@ -133,9 +133,9 @@ osg::Vec3f CSVRender::InstanceMode::getSelectionCenter(const std::vector<osg::re
     osg::Vec3f center = osg::Vec3f(0, 0, 0);
     int objectCount = 0;
 
-    for (std::vector<osg::ref_ptr<TagBase>>::const_iterator iter(selection.begin()); iter != selection.end(); ++iter)
+    for (const auto& iter : selection)
     {
-        if (CSVRender::ObjectTag* objectTag = dynamic_cast<CSVRender::ObjectTag*>(iter->get()))
+        if (auto* objectTag = dynamic_cast<CSVRender::ObjectTag*>(iter.get()))
         {
             const ESM::Position& position = objectTag->mObject->getPosition();
             center += osg::Vec3f(position.pos[0], position.pos[1], position.pos[2]);
@@ -206,7 +206,7 @@ void CSVRender::InstanceMode::saveSelectionGroup(const int group)
     else
         groupName += "-" + getWorldspaceWidget().getCellId(osg::Vec3f(0, 0, 0));
 
-    CSMWorld::CreateCommand* newGroup = new CSMWorld::CreateCommand(*mSelectionGroups, groupName);
+    auto* newGroup = new CSMWorld::CreateCommand(*mSelectionGroups, groupName);
 
     newGroup->setType(CSMWorld::UniversalId::Type_SelectionGroup);
 
@@ -286,7 +286,7 @@ void CSVRender::InstanceMode::setDragAxis(const char axis)
         mObjectsAtDragStart.clear();
 
         for (const auto& object : selection)
-            if (CSVRender::ObjectTag* objectTag = dynamic_cast<CSVRender::ObjectTag*>(object.get()))
+            if (auto* objectTag = dynamic_cast<CSVRender::ObjectTag*>(object.get()))
             {
                 const osg::Vec3f thisPoint = objectTag->mObject->getPosition().asVec3();
                 mDragStart = thisPoint;
@@ -332,10 +332,10 @@ CSVRender::InstanceMode::InstanceMode(
 
     connect(this, &InstanceMode::requestFocus, worldspaceWidget, &WorldspaceWidget::requestFocus);
 
-    CSMPrefs::Shortcut* deleteShortcut = new CSMPrefs::Shortcut("scene-delete", worldspaceWidget);
+    auto* deleteShortcut = new CSMPrefs::Shortcut("scene-delete", worldspaceWidget);
     connect(deleteShortcut, qOverload<>(&CSMPrefs::Shortcut::activated), this, &InstanceMode::deleteSelectedInstances);
 
-    CSMPrefs::Shortcut* duplicateShortcut = new CSMPrefs::Shortcut("scene-duplicate", worldspaceWidget);
+    auto* duplicateShortcut = new CSMPrefs::Shortcut("scene-duplicate", worldspaceWidget);
 
     connect(
         duplicateShortcut, qOverload<>(&CSMPrefs::Shortcut::activated), this, &InstanceMode::cloneSelectedInstances);
@@ -466,7 +466,7 @@ void CSVRender::InstanceMode::primaryOpenPressed(const WorldspaceHitResult& hit)
 {
     if (hit.tag)
     {
-        if (CSVRender::ObjectTag* objectTag = dynamic_cast<CSVRender::ObjectTag*>(hit.tag.get()))
+        if (auto* objectTag = dynamic_cast<CSVRender::ObjectTag*>(hit.tag.get()))
         {
             const std::string refId = objectTag->mObject->getReferenceId();
             emit requestFocus(refId);
@@ -489,7 +489,7 @@ void CSVRender::InstanceMode::primarySelectPressed(const WorldspaceHitResult& hi
     if (!hit.tag)
         return;
 
-    if (CSVRender::ObjectTag* objectTag = dynamic_cast<CSVRender::ObjectTag*>(hit.tag.get()))
+    if (auto* objectTag = dynamic_cast<CSVRender::ObjectTag*>(hit.tag.get()))
     {
         // hit an Object, select it
         CSVRender::Object* object = objectTag->mObject;
@@ -503,7 +503,7 @@ void CSVRender::InstanceMode::secondarySelectPressed(const WorldspaceHitResult& 
     if (!hit.tag)
         return;
 
-    if (CSVRender::ObjectTag* objectTag = dynamic_cast<CSVRender::ObjectTag*>(hit.tag.get()))
+    if (auto* objectTag = dynamic_cast<CSVRender::ObjectTag*>(hit.tag.get()))
     {
         // hit an Object, toggle its selection state
         CSVRender::Object* object = objectTag->mObject;
@@ -529,7 +529,7 @@ void CSVRender::InstanceMode::tertiarySelectPressed(const WorldspaceHitResult& h
     if (!hit.tag)
         return;
 
-    if (CSVRender::ObjectTag* objectTag = dynamic_cast<CSVRender::ObjectTag*>(hit.tag.get()))
+    if (auto* objectTag = dynamic_cast<CSVRender::ObjectTag*>(hit.tag.get()))
     {
         // hit an Object, toggle its selection state
         CSVRender::Object* object = objectTag->mObject;
@@ -553,7 +553,7 @@ bool CSVRender::InstanceMode::primaryEditStartDrag(const QPoint& pos)
         if (hit.tag && CSMPrefs::get()["3D Scene Input"]["context-select"].isTrue())
         {
             worldspaceWidget.clearSelection(Mask_Reference);
-            if (CSVRender::ObjectTag* objectTag = dynamic_cast<CSVRender::ObjectTag*>(hit.tag.get()))
+            if (auto* objectTag = dynamic_cast<CSVRender::ObjectTag*>(hit.tag.get()))
             {
                 CSVRender::Object* object = objectTag->mObject;
                 object->setSelected(true);
@@ -568,9 +568,9 @@ bool CSVRender::InstanceMode::primaryEditStartDrag(const QPoint& pos)
 
     mObjectsAtDragStart.clear();
 
-    for (std::vector<osg::ref_ptr<TagBase>>::iterator iter(selection.begin()); iter != selection.end(); ++iter)
+    for (auto& iter : selection)
     {
-        if (CSVRender::ObjectTag* objectTag = dynamic_cast<CSVRender::ObjectTag*>(iter->get()))
+        if (auto* objectTag = dynamic_cast<CSVRender::ObjectTag*>(iter.get()))
         {
             if (mSubModeId == "move")
             {
@@ -607,7 +607,7 @@ bool CSVRender::InstanceMode::primaryEditStartDrag(const QPoint& pos)
         }
     }
 
-    if (CSVRender::ObjectMarkerTag* objectTag = dynamic_cast<CSVRender::ObjectMarkerTag*>(hit.tag.get()))
+    if (auto* objectTag = dynamic_cast<CSVRender::ObjectMarkerTag*>(hit.tag.get()))
     {
         mDragAxis = objectTag->mAxis;
     }
@@ -633,7 +633,7 @@ bool CSVRender::InstanceMode::secondaryEditStartDrag(const QPoint& pos)
         if (hit.tag && CSMPrefs::get()["3D Scene Input"]["context-select"].isTrue())
         {
             worldspaceWidget.clearSelection(Mask_Reference);
-            if (CSVRender::ObjectTag* objectTag = dynamic_cast<CSVRender::ObjectTag*>(hit.tag.get()))
+            if (auto* objectTag = dynamic_cast<CSVRender::ObjectTag*>(hit.tag.get()))
             {
                 CSVRender::Object* object = objectTag->mObject;
                 object->setSelected(true);
@@ -648,9 +648,9 @@ bool CSVRender::InstanceMode::secondaryEditStartDrag(const QPoint& pos)
 
     mObjectsAtDragStart.clear();
 
-    for (std::vector<osg::ref_ptr<TagBase>>::iterator iter(selection.begin()); iter != selection.end(); ++iter)
+    for (auto& iter : selection)
     {
-        if (CSVRender::ObjectTag* objectTag = dynamic_cast<CSVRender::ObjectTag*>(iter->get()))
+        if (auto* objectTag = dynamic_cast<CSVRender::ObjectTag*>(iter.get()))
         {
             if (mSubModeId == "move")
             {
@@ -688,7 +688,7 @@ bool CSVRender::InstanceMode::secondaryEditStartDrag(const QPoint& pos)
         }
     }
 
-    if (CSVRender::ObjectMarkerTag* objectTag = dynamic_cast<CSVRender::ObjectMarkerTag*>(hit.tag.get()))
+    if (auto* objectTag = dynamic_cast<CSVRender::ObjectMarkerTag*>(hit.tag.get()))
     {
         mDragAxis = objectTag->mAxis;
     }
@@ -867,7 +867,7 @@ void CSVRender::InstanceMode::drag(const QPoint& pos, int diffX, int diffY, doub
     float numCenters = 0.0f;
     for (auto& item : selection)
     {
-        if (CSVRender::ObjectTag* objectTag = dynamic_cast<CSVRender::ObjectTag*>(item.get()))
+        if (auto* objectTag = dynamic_cast<CSVRender::ObjectTag*>(item.get()))
         {
             ESM::Position position = objectTag->mObject->getPosition();
             center.x() += position.pos[0];
@@ -883,7 +883,7 @@ void CSVRender::InstanceMode::drag(const QPoint& pos, int diffX, int diffY, doub
     int i = 0;
     for (auto& item : selection)
     {
-        if (CSVRender::ObjectTag* objectTag = dynamic_cast<CSVRender::ObjectTag*>(item.get()))
+        if (auto* objectTag = dynamic_cast<CSVRender::ObjectTag*>(item.get()))
         {
             if (mDragMode == DragMode_Move || mDragMode == DragMode_Move_Snap)
             {
@@ -1056,9 +1056,9 @@ void CSVRender::InstanceMode::dragCompleted(const QPoint& pos)
     CSMWorld::CommandMacro macro(undoStack, description);
 
     // Is this even supposed to be here?
-    for (std::vector<osg::ref_ptr<TagBase>>::iterator iter(selection.begin()); iter != selection.end(); ++iter)
+    for (auto& iter : selection)
     {
-        if (CSVRender::ObjectTag* objectTag = dynamic_cast<CSVRender::ObjectTag*>(iter->get()))
+        if (auto* objectTag = dynamic_cast<CSVRender::ObjectTag*>(iter.get()))
         {
             if (mDragMode == DragMode_Rotate_Snap)
             {
@@ -1125,9 +1125,9 @@ void CSVRender::InstanceMode::dragWheel(int diff, double speedFactor)
 
         int j = 0;
 
-        for (std::vector<osg::ref_ptr<TagBase>>::iterator iter(selection.begin()); iter != selection.end(); ++iter, j++)
+        for (auto iter(selection.begin()); iter != selection.end(); ++iter, j++)
         {
-            if (CSVRender::ObjectTag* objectTag = dynamic_cast<CSVRender::ObjectTag*>(iter->get()))
+            if (auto* objectTag = dynamic_cast<CSVRender::ObjectTag*>(iter->get()))
             {
                 ESM::Position position = objectTag->mObject->getPosition();
                 auto preMovedObjectPosition = position.asVec3();
@@ -1170,7 +1170,7 @@ void CSVRender::InstanceMode::dragWheel(int diff, double speedFactor)
 
 void CSVRender::InstanceMode::dragEnterEvent(QDragEnterEvent* event)
 {
-    if (const CSMWorld::TableMimeData* mime = dynamic_cast<const CSMWorld::TableMimeData*>(event->mimeData()))
+    if (const auto* mime = dynamic_cast<const CSMWorld::TableMimeData*>(event->mimeData()))
     {
         if (!mime->fromDocument(getWorldspaceWidget().getDocument()))
             return;
@@ -1182,7 +1182,7 @@ void CSVRender::InstanceMode::dragEnterEvent(QDragEnterEvent* event)
 
 void CSVRender::InstanceMode::dropEvent(QDropEvent* event)
 {
-    if (const CSMWorld::TableMimeData* mime = dynamic_cast<const CSMWorld::TableMimeData*>(event->mimeData()))
+    if (const auto* mime = dynamic_cast<const CSMWorld::TableMimeData*>(event->mimeData()))
     {
         CSMDoc::Document& document = getWorldspaceWidget().getDocument();
 
@@ -1209,7 +1209,8 @@ void CSVRender::InstanceMode::dropEvent(QDropEvent* event)
 
             if (mode == "Create cell and insert")
             {
-                std::unique_ptr<CSMWorld::CreateCommand> createCommand(new CSMWorld::CreateCommand(cellTable, cellId));
+                std::unique_ptr<CSMWorld::CreateCommand> createCommand
+                    = std::make_unique<CSMWorld::CreateCommand>(cellTable, cellId);
 
                 int parentIndex = cellTable.findColumnIndex(CSMWorld::Columns::ColumnId_Cell);
                 int index = cellTable.findNestedColumnIndex(parentIndex, CSMWorld::Columns::ColumnId_Interior);
@@ -1217,8 +1218,7 @@ void CSVRender::InstanceMode::dropEvent(QDropEvent* event)
 
                 document.getUndoStack().push(createCommand.release());
 
-                if (CSVRender::PagedWorldspaceWidget* paged
-                    = dynamic_cast<CSVRender::PagedWorldspaceWidget*>(&getWorldspaceWidget()))
+                if (auto* paged = dynamic_cast<CSVRender::PagedWorldspaceWidget*>(&getWorldspaceWidget()))
                 {
                     CSMWorld::CellSelection selection = paged->getCellSelection();
                     selection.add(CSMWorld::CellCoordinates::fromId(cellId).first);
@@ -1226,8 +1226,7 @@ void CSVRender::InstanceMode::dropEvent(QDropEvent* event)
                 }
             }
         }
-        else if (CSVRender::PagedWorldspaceWidget* paged
-            = dynamic_cast<CSVRender::PagedWorldspaceWidget*>(&getWorldspaceWidget()))
+        else if (auto* paged = dynamic_cast<CSVRender::PagedWorldspaceWidget*>(&getWorldspaceWidget()))
         {
             CSMWorld::CellSelection selection = paged->getCellSelection();
             if (!selection.has(CSMWorld::CellCoordinates::fromId(cellId).first))
@@ -1253,8 +1252,8 @@ void CSVRender::InstanceMode::dropEvent(QDropEvent* event)
 
         std::vector<CSMWorld::UniversalId> ids = mime->getData();
 
-        for (std::vector<CSMWorld::UniversalId>::const_iterator iter(ids.begin()); iter != ids.end(); ++iter)
-            if (mime->isReferencable(iter->getType()))
+        for (const auto& id : ids)
+            if (mime->isReferencable(id.getType()))
             {
                 // create reference
                 std::unique_ptr<CSMWorld::CreateCommand> createCommand(
@@ -1269,7 +1268,7 @@ void CSVRender::InstanceMode::dropEvent(QDropEvent* event)
                 createCommand->addValue(
                     referencesTable.findColumnIndex(CSMWorld::Columns::ColumnId_PositionZPos), hit.worldPos.z());
                 createCommand->addValue(referencesTable.findColumnIndex(CSMWorld::Columns::ColumnId_ReferenceableId),
-                    QString::fromUtf8(iter->getId().c_str()));
+                    QString::fromUtf8(id.getId().c_str()));
 
                 document.getUndoStack().push(createCommand.release());
 
@@ -1313,7 +1312,7 @@ void CSVRender::InstanceMode::deleteSelectedInstances()
 
     CSMWorld::CommandMacro macro(undoStack, "Delete Instances");
     for (osg::ref_ptr<TagBase> tag : selection)
-        if (CSVRender::ObjectTag* objectTag = dynamic_cast<CSVRender::ObjectTag*>(tag.get()))
+        if (auto* objectTag = dynamic_cast<CSVRender::ObjectTag*>(tag.get()))
             macro.push(new CSMWorld::DeleteCommand(referencesTable, objectTag->mObject->getReferenceId()));
 
     getWorldspaceWidget().clearSelection(Mask_Reference);
@@ -1332,7 +1331,7 @@ void CSVRender::InstanceMode::cloneSelectedInstances()
 
     CSMWorld::CommandMacro macro(undoStack, "Clone Instances");
     for (osg::ref_ptr<TagBase> tag : selection)
-        if (CSVRender::ObjectTag* objectTag = dynamic_cast<CSVRender::ObjectTag*>(tag.get()))
+        if (auto* objectTag = dynamic_cast<CSVRender::ObjectTag*>(tag.get()))
         {
             macro.push(new CSMWorld::CloneCommand(referencesTable, objectTag->mObject->getReferenceId(),
                 document.getData().getReferences().getNewId(), CSMWorld::UniversalId::Type_Reference));
@@ -1365,7 +1364,7 @@ float CSVRender::InstanceMode::calculateDropHeight(CSVRender::Object* object, fl
 
     mParentNode->accept(visitor);
 
-    osgUtil::LineSegmentIntersector::Intersections::iterator it = intersector->getIntersections().begin();
+    auto it = intersector->getIntersections().begin();
     if (it != intersector->getIntersections().end())
     {
         osgUtil::LineSegmentIntersector::Intersection intersection = *it;
@@ -1391,7 +1390,7 @@ void CSVRender::InstanceMode::dropToCollision()
 
     int counter = 0;
     for (osg::ref_ptr<TagBase> tag : selection)
-        if (CSVRender::ObjectTag* objectTag = dynamic_cast<CSVRender::ObjectTag*>(tag.get()))
+        if (auto* objectTag = dynamic_cast<CSVRender::ObjectTag*>(tag.get()))
         {
             float objectHeight = dropObjectDataHandler.mObjectHeights[counter++];
             float dropHeight = calculateDropHeight(objectTag->mObject, objectHeight);
@@ -1406,7 +1405,7 @@ CSVRender::DropObjectHeightHandler::DropObjectHeightHandler(WorldspaceWidget* wo
     std::vector<osg::ref_ptr<TagBase>> selection = mWorldspaceWidget->getSelection(Mask_Reference);
     for (osg::ref_ptr<TagBase> tag : selection)
     {
-        if (CSVRender::ObjectTag* objectTag = dynamic_cast<CSVRender::ObjectTag*>(tag.get()))
+        if (auto* objectTag = dynamic_cast<CSVRender::ObjectTag*>(tag.get()))
         {
             osg::ref_ptr<osg::Group> objectNodeWithGUI = objectTag->mObject->getRootNode();
             osg::ref_ptr<osg::Group> objectNodeWithoutGUI = objectTag->mObject->getBaseNode();
@@ -1433,7 +1432,7 @@ CSVRender::DropObjectHeightHandler::~DropObjectHeightHandler()
     int counter = 0;
     for (osg::ref_ptr<TagBase> tag : selection)
     {
-        if (CSVRender::ObjectTag* objectTag = dynamic_cast<CSVRender::ObjectTag*>(tag.get()))
+        if (auto* objectTag = dynamic_cast<CSVRender::ObjectTag*>(tag.get()))
         {
             osg::ref_ptr<osg::Group> objectNodeWithGUI = objectTag->mObject->getRootNode();
             objectNodeWithGUI->setNodeMask(mOldMasks[counter]);

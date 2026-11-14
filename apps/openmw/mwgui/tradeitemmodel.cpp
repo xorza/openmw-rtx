@@ -53,7 +53,7 @@ namespace MWGui
 
     void TradeItemModel::unborrowImpl(const ItemStack& item, size_t count, std::vector<ItemStack>& out)
     {
-        std::vector<ItemStack>::iterator it = out.begin();
+        auto it = out.begin();
         bool found = false;
         for (; it != out.end(); ++it)
         {

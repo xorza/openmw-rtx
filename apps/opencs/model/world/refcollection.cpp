@@ -252,7 +252,7 @@ int CSMWorld::RefCollection::getIntIndex(unsigned int id) const
 
 int CSMWorld::RefCollection::searchId(unsigned int id) const
 {
-    std::map<unsigned int, int>::const_iterator iter = mRefIndex.find(id);
+    auto iter = mRefIndex.find(id);
 
     if (iter == mRefIndex.end())
         return -1;
@@ -264,7 +264,7 @@ void CSMWorld::RefCollection::removeRows(int index, int count)
 {
     Collection<CellRef>::removeRows(index, count); // erase records only
 
-    std::map<unsigned int, int>::iterator iter = mRefIndex.begin();
+    auto iter = mRefIndex.begin();
     while (iter != mRefIndex.end())
     {
         if (iter->second >= index)
@@ -341,10 +341,10 @@ void CSMWorld::RefCollection::insertRecord(std::unique_ptr<RecordBase> record, i
 
     if (index < size - 1)
     {
-        for (std::map<unsigned int, int>::iterator iter(mRefIndex.begin()); iter != mRefIndex.end(); ++iter)
+        for (auto& iter : mRefIndex)
         {
-            if (iter->second >= index)
-                ++(iter->second);
+            if (iter.second >= index)
+                ++(iter.second);
         }
     }
 

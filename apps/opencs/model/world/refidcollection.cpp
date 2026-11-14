@@ -50,7 +50,7 @@ bool CSMWorld::RefIdColumn::isUserEditable() const
 
 const CSMWorld::RefIdAdapter& CSMWorld::RefIdCollection::findAdapter(UniversalId::Type type) const
 {
-    std::map<UniversalId::Type, RefIdAdapter*>::const_iterator iter = mAdapters.find(type);
+    auto iter = mAdapters.find(type);
 
     if (iter == mAdapters.end())
         throw std::logic_error("unsupported type in RefIdCollection");
@@ -631,15 +631,12 @@ CSMWorld::RefIdCollection::RefIdCollection(const IdCollection<ESM::MagicEffect>&
 
 CSMWorld::RefIdCollection::~RefIdCollection()
 {
-    for (std::map<UniversalId::Type, RefIdAdapter*>::iterator iter(mAdapters.begin()); iter != mAdapters.end(); ++iter)
-        delete iter->second;
+    for (auto& mAdapter : mAdapters)
+        delete mAdapter.second;
 
-    for (std::vector<std::pair<const ColumnBase*, std::map<UniversalId::Type, NestedRefIdAdapterBase*>>>::iterator iter(
-             mNestedAdapters.begin());
-        iter != mNestedAdapters.end(); ++iter)
+    for (auto& mNestedAdapter : mNestedAdapters)
     {
-        for (std::map<UniversalId::Type, NestedRefIdAdapterBase*>::iterator it((iter->second).begin());
-            it != (iter->second).end(); ++it)
+        for (auto it((mNestedAdapter.second).begin()); it != (mNestedAdapter.second).end(); ++it)
             delete it->second;
     }
 }
@@ -855,15 +852,13 @@ CSMWorld::NestedTableWrapperBase* CSMWorld::RefIdCollection::nestedTable(int row
 const CSMWorld::NestedRefIdAdapterBase& CSMWorld::RefIdCollection::getNestedAdapter(
     const CSMWorld::ColumnBase& column, UniversalId::Type type) const
 {
-    for (std::vector<std::pair<const ColumnBase*, std::map<UniversalId::Type, NestedRefIdAdapterBase*>>>::const_iterator
-             iter(mNestedAdapters.begin());
-        iter != mNestedAdapters.end(); ++iter)
+    for (const auto& mNestedAdapter : mNestedAdapters)
     {
-        if ((iter->first) == &column)
+        if ((mNestedAdapter.first) == &column)
         {
-            std::map<UniversalId::Type, NestedRefIdAdapterBase*>::const_iterator it = (iter->second).find(type);
+            auto it = (mNestedAdapter.second).find(type);
 
-            if (it == (iter->second).end())
+            if (it == (mNestedAdapter.second).end())
                 throw std::runtime_error("No such type in the nestedadapters");
 
             return *it->second;

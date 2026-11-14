@@ -140,7 +140,7 @@ namespace Settings
     const std::string& Manager::getString(std::string_view setting, std::string_view category)
     {
         const auto key = std::make_pair(category, setting);
-        CategorySettingValueMap::iterator it = mUserSettings.find(key);
+        auto it = mUserSettings.find(key);
         if (it != mUserSettings.end())
             return it->second;
 

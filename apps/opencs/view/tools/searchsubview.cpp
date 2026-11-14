@@ -16,6 +16,7 @@
 #include <apps/opencs/model/prefs/setting.hpp>
 #include <apps/opencs/model/world/data.hpp>
 #include <apps/opencs/view/doc/subview.hpp>
+#include <ranges>
 
 #include "reporttable.hpp"
 #include "searchbox.hpp"
@@ -40,9 +41,9 @@ void CSVTools::SearchSubView::replace(bool selection)
 
     // We are running through the indices in reverse order to avoid messing up multiple results
     // in a single string.
-    for (std::vector<int>::const_reverse_iterator iter(indices.rbegin()); iter != indices.rend(); ++iter)
+    for (int indice : std::views::reverse(indices))
     {
-        const CSMWorld::UniversalId& id = model->getUniversalId(*iter);
+        const CSMWorld::UniversalId& id = model->getUniversalId(indice);
 
         CSMWorld::UniversalId::Type type = CSMWorld::UniversalId::getParentType(id.getType());
 
@@ -54,15 +55,15 @@ void CSVTools::SearchSubView::replace(bool selection)
             currentTable = table;
         }
 
-        std::string hint = model->getHint(*iter);
+        std::string hint = model->getHint(indice);
 
         if (search.verify(mDocument, table, id, hint))
         {
             search.replace(mDocument, table, id, hint, replace);
-            mTable->flagAsReplaced(*iter);
+            mTable->flagAsReplaced(indice);
 
             if (autoDelete)
-                mTable->model()->removeRows(*iter, 1);
+                mTable->model()->removeRows(indice, 1);
         }
     }
 }
@@ -77,7 +78,7 @@ CSVTools::SearchSubView::SearchSubView(const CSMWorld::UniversalId& id, CSMDoc::
     : CSVDoc::SubView(id)
     , mDocument(document)
 {
-    QVBoxLayout* layout = new QVBoxLayout;
+    auto* layout = new QVBoxLayout;
 
     layout->addWidget(&mSearchBox);
 
@@ -85,7 +86,7 @@ CSVTools::SearchSubView::SearchSubView(const CSMWorld::UniversalId& id, CSMDoc::
 
     layout->addWidget(mBottom = new CSVWorld::TableBottomBox(CSVWorld::NullCreatorFactory(), document, id, this), 0);
 
-    QWidget* widget = new QWidget;
+    auto* widget = new QWidget;
 
     widget->setLayout(layout);
 

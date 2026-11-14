@@ -84,7 +84,7 @@ namespace MWGui
 
         const int lineHeight = MWBase::Environment::get().getWindowManager()->getFontSize() + 2;
 
-        MyGUI::Button* toAdd = mDestinationsView->createWidget<MyGUI::Button>(
+        auto* toAdd = mDestinationsView->createWidget<MyGUI::Button>(
             "SandTextButton", 0, mCurrentY, 200, lineHeight, MyGUI::Align::Default);
         toAdd->setEnabled(price <= playerGold);
         mCurrentY += lineHeight;

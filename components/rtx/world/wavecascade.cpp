@@ -206,7 +206,7 @@ namespace Rtx
             std::vector<float> power(Shaders::WAVE_LEVELS * cascade.mTile.mGrid);
             for (std::size_t level = 0; level < Shaders::WAVE_LEVELS; ++level)
             {
-                const float count = static_cast<float>(std::size_t{ 1 } << level);
+                const auto count = static_cast<float>(std::size_t{ 1 } << level);
                 for (std::size_t along = 0; along < cascade.mTile.mGrid; ++along)
                 {
                     const float phase = 0.5f * step * static_cast<float>(static_cast<int>(along) - half) * texel;

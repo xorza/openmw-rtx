@@ -184,7 +184,7 @@ namespace DetourNavigator
 
         bool isSupportedCoordinate(float value)
         {
-            constexpr float maxVertexCoordinate = static_cast<float>(1 << 22);
+            constexpr auto maxVertexCoordinate = static_cast<float>(1 << 22);
             return -maxVertexCoordinate < value && value < maxVertexCoordinate;
         }
 

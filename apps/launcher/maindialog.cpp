@@ -76,11 +76,11 @@ Launcher::MainDialog::MainDialog(const Files::ConfigurationManager& configuratio
 
     createIcons();
 
-    QWidget* spacer = new QWidget();
+    auto* spacer = new QWidget();
     spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     toolBar->addWidget(spacer);
 
-    QLabel* logo = new QLabel(this);
+    auto* logo = new QLabel(this);
     logo->setPixmap(QIcon(":/images/openmw-header.png").pixmap(QSize(294, 64)));
     toolBar->addWidget(logo);
     toolBar->setStyleSheet(toolBarStyle);

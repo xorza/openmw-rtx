@@ -13,6 +13,7 @@
 #include <components/translation/translation.hpp>
 #include <components/widgets/box.hpp>
 #include <components/widgets/list.hpp>
+#include <utility>
 
 #include "../mwbase/dialoguemanager.hpp"
 #include "../mwbase/environment.hpp"
@@ -919,7 +920,7 @@ namespace MWGui
         {
             // Scroll the side bar to keep the active item in view
             int offset = 0;
-            for (int i = 6; i < static_cast<int>(index); i++)
+            for (int i = 6; std::cmp_less(i, index); i++)
             {
                 const std::string& keyword = mTopicsList->getItemNameAt(i);
                 if (keyword.empty())
@@ -939,7 +940,7 @@ namespace MWGui
             {
                 if (mChoices.size() == 1)
                     onChoiceActivated(mChoices[0].second);
-                else if (mControllerChoice >= 0 && mControllerChoice < static_cast<int>(mChoices.size()))
+                else if (mControllerChoice >= 0 && std::cmp_less(mControllerChoice, mChoices.size()))
                     onChoiceActivated(mChoices[mControllerChoice].second);
             }
             else if (mControllerFocus == mTopicsList->getItemCount())

@@ -14,7 +14,7 @@ namespace MWPhysics
         const btCollisionObject* collisionObject = col0Wrap->m_collisionObject;
         if (collisionObject == mTestedAgainst)
             collisionObject = col1Wrap->m_collisionObject;
-        PtrHolder* holder = static_cast<PtrHolder*>(collisionObject->getUserPointer());
+        auto* holder = static_cast<PtrHolder*>(collisionObject->getUserPointer());
         if (holder)
             mResult.emplace_back(ContactPoint{ holder->getPtr(), Misc::Convert::toOsg(cp.m_positionWorldOnB),
                 Misc::Convert::toOsg(cp.m_normalWorldOnB) });

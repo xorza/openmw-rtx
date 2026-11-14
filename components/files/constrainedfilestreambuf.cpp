@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <filesystem>
 #include <limits>
+#include <utility>
 
 namespace Files
 {
@@ -76,7 +77,9 @@ namespace Files
         if ((mode & std::ios_base::out) || !(mode & std::ios_base::in))
             return traits_type::eof();
 
-        if (static_cast<std::size_t>(pos) > mSize)
+        // A position before the start is refused as one past the end is.
+        const std::streamoff offset = pos;
+        if (offset < 0 || std::cmp_greater(offset, mSize))
             return traits_type::eof();
 
         File::seek(mFile, mOrigin + pos);

@@ -855,7 +855,7 @@ namespace MWLua
                         self.advance();
                         continue;
                     }
-                    ActiveEffect effect = ActiveEffect{ self.mIterator->first, self.mIterator->second };
+                    auto effect = ActiveEffect{ self.mIterator->first, self.mIterator->second };
                     auto result = sol::make_object(lua, effect);
 
                     auto key = sol::make_object(lua, self.mIterator->first.toString());
@@ -871,7 +871,7 @@ namespace MWLua
             auto id = ESM::RefId::deserializeText(idStr);
             auto* rec = MWBase::Environment::get().getWorld()->getStore().get<ESM::MagicEffect>().find(id);
 
-            MWMechanics::EffectKey key = MWMechanics::EffectKey(id);
+            auto key = MWMechanics::EffectKey(id);
 
             if (argStr.has_value()
                 && (rec->mData.mFlags & (ESM::MagicEffect::TargetAttribute | ESM::MagicEffect::TargetSkill)))

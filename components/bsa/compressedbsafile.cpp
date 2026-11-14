@@ -290,7 +290,7 @@ namespace Bsa
 
             if (mHeader.mVersion != Version_SSE)
             {
-                uLongf destSize = static_cast<uLongf>(resultSize);
+                auto destSize = static_cast<uLongf>(resultSize);
                 int ec = ::uncompress(reinterpret_cast<Bytef*>(memoryStreamPtr->getRawData()), &destSize,
                     reinterpret_cast<Bytef*>(buffer.data()), static_cast<uLong>(buffer.size()));
 

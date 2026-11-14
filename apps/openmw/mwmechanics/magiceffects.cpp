@@ -116,7 +116,7 @@ namespace MWMechanics
 
     void MagicEffects::add(const EffectKey& key, const EffectParam& param)
     {
-        Collection::iterator iter = mCollection.find(key);
+        auto iter = mCollection.find(key);
 
         if (iter == mCollection.end())
         {
@@ -145,7 +145,7 @@ namespace MWMechanics
 
     std::optional<EffectParam> MagicEffects::get(const EffectKey& key) const
     {
-        Collection::const_iterator iter = mCollection.find(key);
+        auto iter = mCollection.find(key);
 
         if (iter != mCollection.end())
         {

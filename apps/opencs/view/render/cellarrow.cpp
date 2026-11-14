@@ -133,7 +133,7 @@ void CSVRender::CellArrow::buildShape()
     const int arrowLength = 1350;
     const int arrowHeight = 300;
 
-    osg::Vec3Array* vertices = new osg::Vec3Array;
+    auto* vertices = new osg::Vec3Array;
     for (int i2 = 0; i2 < 2; ++i2)
         for (int i = 0; i < 2; ++i)
         {
@@ -145,7 +145,7 @@ void CSVRender::CellArrow::buildShape()
 
     geometry->setVertexArray(vertices);
 
-    osg::DrawElementsUShort* primitives = new osg::DrawElementsUShort(osg::PrimitiveSet::TRIANGLES, 0);
+    auto* primitives = new osg::DrawElementsUShort(osg::PrimitiveSet::TRIANGLES, 0);
 
     // top
     primitives->push_back(0);
@@ -185,7 +185,7 @@ void CSVRender::CellArrow::buildShape()
 
     geometry->addPrimitiveSet(primitives);
 
-    osg::Vec4Array* colours = new osg::Vec4Array;
+    auto* colours = new osg::Vec4Array;
 
     for (int i = 0; i < 6; ++i)
         colours->push_back(osg::Vec4f(0.11f, 0.6f, 0.95f, 1.0f));

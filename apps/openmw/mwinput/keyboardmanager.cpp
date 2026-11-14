@@ -26,8 +26,8 @@ namespace MWInput
     {
         MyGUI::UString ustring(&arg.text[0]);
         MyGUI::UString::utf32string utf32string = ustring.asUTF32();
-        for (MyGUI::UString::utf32string::const_iterator it = utf32string.begin(); it != utf32string.end(); ++it)
-            MyGUI::InputManager::getInstance().injectKeyPress(MyGUI::KeyCode::None, *it);
+        for (char32_t it : utf32string)
+            MyGUI::InputManager::getInstance().injectKeyPress(MyGUI::KeyCode::None, it);
     }
 
     void KeyboardManager::keyPressed(const SDL_KeyboardEvent& arg)

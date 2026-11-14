@@ -182,7 +182,7 @@ class Optimizer
 
         inline unsigned int getPermissibleOptimizationsForObject(const osg::Object* object) const
         {
-            PermissibleOptimizationsMap::const_iterator itr = _permissibleOptimizationsMap.find(object);
+            auto itr = _permissibleOptimizationsMap.find(object);
             if (itr!=_permissibleOptimizationsMap.end()) return itr->second;
             else return 0xffffffff;
         }

@@ -13,7 +13,7 @@ CSVDoc::FileWidget::FileWidget(QWidget* parent)
     : QWidget(parent)
     , mAddon(false)
 {
-    QHBoxLayout* layout = new QHBoxLayout(this);
+    auto* layout = new QHBoxLayout(this);
 
     mInput = new QLineEdit(this);
 

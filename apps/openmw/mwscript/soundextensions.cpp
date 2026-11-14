@@ -30,8 +30,7 @@ namespace MWScript
             {
                 MWWorld::Ptr ptr = R()(runtime);
 
-                MWScript::InterpreterContext& context
-                    = static_cast<MWScript::InterpreterContext&>(runtime.getContext());
+                auto& context = static_cast<MWScript::InterpreterContext&>(runtime.getContext());
 
                 VFS::Path::Normalized file{ runtime.getStringLiteral(runtime[0].mInteger) };
                 runtime.pop();

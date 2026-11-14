@@ -29,7 +29,7 @@ namespace Terrain
 
         void operator()(ChunkKey, osg::Object* obj)
         {
-            TerrainDrawable* drawable = static_cast<TerrainDrawable*>(obj);
+            auto* drawable = static_cast<TerrainDrawable*>(obj);
             const CompositeMap* composite = drawable->getCompositeMap().get();
             if (composite && composite->mTexture)
                 mSceneManager->applyFilterSettings(composite->mTexture);
@@ -145,7 +145,7 @@ namespace Terrain
             float height = texCoords.w() * 2.f;
 
             std::vector<osg::ref_ptr<osg::StateSet>> passes = createPasses(chunkSize, chunkCenter, true);
-            for (std::vector<osg::ref_ptr<osg::StateSet>>::iterator it = passes.begin(); it != passes.end(); ++it)
+            for (auto& passe : passes)
             {
                 osg::ref_ptr<osg::Geometry> geom = osg::createTexturedQuadGeometry(
                     osg::Vec3(left, top, 0), osg::Vec3(width, 0, 0), osg::Vec3(0, height, 0));
@@ -154,7 +154,7 @@ namespace Terrain
                 geom->setUseVertexBufferObjects(false);
                 geom->setTexCoordArray(1, geom->getTexCoordArray(0), osg::Array::BIND_PER_VERTEX);
 
-                geom->setStateSet(*it);
+                geom->setStateSet(passe);
 
                 compositeMap.mDrawables.emplace_back(geom);
             }
@@ -170,26 +170,26 @@ namespace Terrain
 
         std::vector<TextureLayer> layers;
         {
-            for (std::vector<LayerInfo>::const_iterator it = layerList.begin(); it != layerList.end(); ++it)
+            for (auto& it : layerList)
             {
                 TextureLayer textureLayer;
-                textureLayer.mParallax = it->mParallax;
-                textureLayer.mSpecular = it->mSpecular;
+                textureLayer.mParallax = it.mParallax;
+                textureLayer.mSpecular = it.mSpecular;
 
-                textureLayer.mDiffuseMap = mTextureManager->getTexture(it->mDiffuseMap);
+                textureLayer.mDiffuseMap = mTextureManager->getTexture(it.mDiffuseMap);
 
-                if (!forCompositeMap && !it->mNormalMap.empty())
-                    textureLayer.mNormalMap = mTextureManager->getTexture(it->mNormalMap);
+                if (!forCompositeMap && !it.mNormalMap.empty())
+                    textureLayer.mNormalMap = mTextureManager->getTexture(it.mNormalMap);
 
                 layers.push_back(textureLayer);
             }
         }
 
         std::vector<osg::ref_ptr<osg::Texture2D>> blendmapTextures;
-        for (std::vector<osg::ref_ptr<osg::Image>>::const_iterator it = blendmaps.begin(); it != blendmaps.end(); ++it)
+        for (auto& blendmap : blendmaps)
         {
             osg::ref_ptr<osg::Texture2D> texture(new osg::Texture2D);
-            texture->setImage(*it);
+            texture->setImage(blendmap);
             texture->setWrap(osg::Texture::WRAP_S, osg::Texture::CLAMP_TO_EDGE);
             texture->setWrap(osg::Texture::WRAP_T, osg::Texture::CLAMP_TO_EDGE);
             texture->setResizeNonPowerOfTwoHint(false);
@@ -251,7 +251,7 @@ namespace Terrain
         if (chunkSize <= 1.f)
             geometry->setLightListCallback(new SceneUtil::LightListCallback);
 
-        unsigned int numVerts
+        auto numVerts
             = static_cast<unsigned>((mStorage->getCellVertices(mWorldspace) - 1) * chunkSize / (1 << lod) + 1);
 
         geometry->addPrimitiveSet(mBufferCache.getIndexBuffer(numVerts, lodFlags));

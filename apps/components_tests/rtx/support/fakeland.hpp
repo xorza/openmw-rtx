@@ -58,7 +58,7 @@ namespace Rtx::Testing
         /// Where the storage puts vertex (`column`, `row`) of a cell, relative to its centre.
         static osg::Vec3f positionAt(const int column, const int row)
         {
-            const float side = static_cast<float>(sVerts - 1);
+            const auto side = static_cast<float>(sVerts - 1);
             return osg::Vec3f(
                 (column / side - 0.5f) * sCellSize, (row / side - 0.5f) * sCellSize, heightAt(column, row));
         }

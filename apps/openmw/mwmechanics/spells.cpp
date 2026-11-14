@@ -240,19 +240,21 @@ namespace MWMechanics
                 addSpell(spell);
         }
 
-        for (auto it = state.mUsedPowers.begin(); it != state.mUsedPowers.end(); ++it)
+        for (const auto& mUsedPower : state.mUsedPowers)
         {
-            const ESM::Spell* spell = MWBase::Environment::get().getESMStore()->get<ESM::Spell>().search(it->first);
+            const ESM::Spell* spell
+                = MWBase::Environment::get().getESMStore()->get<ESM::Spell>().search(mUsedPower.first);
             if (!spell)
                 continue;
-            mUsedPowers.emplace_back(spell, MWWorld::TimeStamp(it->second));
+            mUsedPowers.emplace_back(spell, MWWorld::TimeStamp(mUsedPower.second));
         }
 
         // Permanent effects are used only to keep the custom magnitude of corprus spells effects (after cure too), and
         // only in old saves. Convert data to the new approach.
-        for (auto it = state.mPermanentSpellEffects.begin(); it != state.mPermanentSpellEffects.end(); ++it)
+        for (const auto& mPermanentSpellEffect : state.mPermanentSpellEffects)
         {
-            const ESM::Spell* spell = MWBase::Environment::get().getESMStore()->get<ESM::Spell>().search(it->first);
+            const ESM::Spell* spell
+                = MWBase::Environment::get().getESMStore()->get<ESM::Spell>().search(mPermanentSpellEffect.first);
             if (!spell)
                 continue;
 
@@ -262,7 +264,7 @@ namespace MWMechanics
                 return;
 
             // Note: if target actor has the Restore attribute effects, stats will be restored.
-            for (const ESM::SpellState::PermanentSpellEffectInfo& info : it->second)
+            for (const ESM::SpellState::PermanentSpellEffectInfo& info : mPermanentSpellEffect.second)
             {
                 // Applied corprus effects are already in loaded stats modifiers
                 if (info.mId == ESM::MagicEffect::refIdToIndex(ESM::MagicEffect::FortifyAttribute))

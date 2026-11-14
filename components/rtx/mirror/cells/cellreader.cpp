@@ -71,7 +71,7 @@ namespace Rtx
         osg::Vec3f anchorIn(const osg::Node& root)
         {
             // OSG's visitor API is non-const throughout, and neither walk writes anything.
-            osg::Node& walked = const_cast<osg::Node&>(root);
+            auto& walked = const_cast<osg::Node&>(root);
             SceneUtil::FindByNameVisitor find("AttachLight");
             walked.accept(find);
             if (find.mFoundNode == nullptr)

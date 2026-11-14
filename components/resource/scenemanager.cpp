@@ -124,7 +124,7 @@ namespace
 
         void apply(osg::Drawable& drw) override
         {
-            if (osgParticle::ParticleSystem* partsys = dynamic_cast<osgParticle::ParticleSystem*>(&drw))
+            if (auto* partsys = dynamic_cast<osgParticle::ParticleSystem*>(&drw))
             {
                 if (isWorldSpaceParticleSystem(partsys))
                 {
@@ -152,7 +152,7 @@ namespace
 
             if (stateSet)
             {
-                if (osg::Material* material
+                if (auto* material
                     = dynamic_cast<osg::Material*>(stateSet->getAttribute(osg::StateAttribute::MATERIAL)))
                     stateSet->setAttribute(new SceneUtil::Material({
                         .mDiffuse = material->getDiffuse(osg::Material::FRONT_AND_BACK),
@@ -200,7 +200,7 @@ namespace Resource
 
         void clearCache()
         {
-            std::lock_guard<OpenThreads::Mutex> lock(_listMutex);
+            std::scoped_lock lock(_listMutex);
             _sharedTextureList.clear();
             _sharedStateSetList.clear();
         }
@@ -220,7 +220,7 @@ namespace Resource
 
         void visit(osg::Node& node, SceneUtil::Controller& ctrl) override
         {
-            if (NifOsg::FlipController* flipctrl = dynamic_cast<NifOsg::FlipController*>(&ctrl))
+            if (auto* flipctrl = dynamic_cast<NifOsg::FlipController*>(&ctrl))
             {
                 for (const osg::ref_ptr<osg::Texture2D>& tex : flipctrl->getTextures())
                 {
@@ -377,8 +377,7 @@ namespace Resource
                         node.accept(osgaRigFinder);
                         for (osg::Node* foundRigNode : osgaRigFinder.mFoundNodes)
                         {
-                            if (SceneUtil::RigGeometryHolder* rigGeometryHolder
-                                = dynamic_cast<SceneUtil::RigGeometryHolder*>(foundRigNode))
+                            if (auto* rigGeometryHolder = dynamic_cast<SceneUtil::RigGeometryHolder*>(foundRigNode))
                                 mRigGeometryHolders.emplace_back(
                                     osg::ref_ptr<SceneUtil::RigGeometryHolder>(rigGeometryHolder));
                             else
@@ -705,7 +704,7 @@ namespace Resource
             {
                 if (foundRigNode->libraryName() == std::string_view("osgAnimation"))
                 {
-                    osgAnimation::RigGeometry* foundRigGeometry = static_cast<osgAnimation::RigGeometry*>(foundRigNode);
+                    auto* foundRigGeometry = static_cast<osgAnimation::RigGeometry*>(foundRigNode);
 
                     // The state set shared and not copied, as the holder takes the source's below. A copy
                     // copies its textures' images by OpenSceneGraph's own count, which the Windows build
@@ -717,7 +716,7 @@ namespace Resource
                     if (foundRigGeometry->getStateSet())
                         newRig->setStateSet(foundRigGeometry->getStateSet());
 
-                    if (osg::Group* parent = dynamic_cast<osg::Group*>(foundRigGeometry->getParent(0)))
+                    if (auto* parent = dynamic_cast<osg::Group*>(foundRigGeometry->getParent(0)))
                     {
                         parent->removeChild(foundRigGeometry);
                         parent->addChild(newRig);
@@ -732,7 +731,7 @@ namespace Resource
 
                 if (colladaDescriptionVisitor.mSkeleton)
                 {
-                    if (osg::Group* group = dynamic_cast<osg::Group*>(node))
+                    if (auto* group = dynamic_cast<osg::Group*>(node))
                     {
                         group->removeChildren(0, group->getNumChildren());
                         for (osg::ref_ptr<SceneUtil::RigGeometryHolder> newRiggeometryHolder :
@@ -1126,7 +1125,7 @@ namespace Resource
 
         mShaderManager->releaseGLObjects(state);
 
-        std::lock_guard<std::mutex> lock(mSharedStateMutex);
+        std::scoped_lock lock(mSharedStateMutex);
         mSharedStateManager->releaseGLObjects(state);
     }
 
@@ -1216,9 +1215,9 @@ namespace Resource
 
         if (mIncrementalCompileOperation)
         {
-            std::lock_guard<OpenThreads::Mutex> lock(*mIncrementalCompileOperation->getToCompiledMutex());
+            std::scoped_lock lock(*mIncrementalCompileOperation->getToCompiledMutex());
             osgUtil::IncrementalCompileOperation::CompileSets& sets = mIncrementalCompileOperation->getToCompile();
-            for (osgUtil::IncrementalCompileOperation::CompileSets::iterator it = sets.begin(); it != sets.end();)
+            for (auto it = sets.begin(); it != sets.end();)
             {
                 int refcount = (*it)->_subgraphToCompile->referenceCount();
                 if ((*it)->_subgraphToCompile->asDrawable())
@@ -1243,7 +1242,7 @@ namespace Resource
             mImageManager->removeFromCache(path);
         }
 
-        std::lock_guard<std::mutex> lock(mSharedStateMutex);
+        std::scoped_lock lock(mSharedStateMutex);
         mSharedStateManager->prune();
     }
 
@@ -1251,7 +1250,7 @@ namespace Resource
     {
         NodeResourceManager<std::string>::clearCache();
 
-        std::lock_guard<std::mutex> lock(mSharedStateMutex);
+        std::scoped_lock lock(mSharedStateMutex);
         mSharedStateManager->clearCache();
     }
 
@@ -1259,13 +1258,13 @@ namespace Resource
     {
         if (mIncrementalCompileOperation)
         {
-            std::lock_guard<OpenThreads::Mutex> lock(*mIncrementalCompileOperation->getToCompiledMutex());
+            std::scoped_lock lock(*mIncrementalCompileOperation->getToCompiledMutex());
             stats->setAttribute(
                 frameNumber, "Compiling", static_cast<double>(mIncrementalCompileOperation->getToCompile().size()));
         }
 
         {
-            std::lock_guard<std::mutex> lock(mSharedStateMutex);
+            std::scoped_lock lock(mSharedStateMutex);
             stats->setAttribute(
                 frameNumber, "Texture", static_cast<double>(mSharedStateManager->getNumSharedTextures()));
             stats->setAttribute(

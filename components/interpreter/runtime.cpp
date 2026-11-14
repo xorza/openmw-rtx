@@ -4,6 +4,7 @@
 #include <cassert>
 #include <cstring>
 #include <stdexcept>
+#include <utility>
 
 namespace Interpreter
 {
@@ -76,7 +77,7 @@ namespace Interpreter
 
     Data& Runtime::operator[](int index)
     {
-        if (index < 0 || index >= static_cast<int>(mStack.size()))
+        if (index < 0 || std::cmp_greater_equal(index, mStack.size()))
             throw std::runtime_error("stack index out of range");
 
         return mStack[mStack.size() - index - 1];

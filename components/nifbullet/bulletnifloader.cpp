@@ -47,7 +47,7 @@ namespace NifBullet
             const Nif::Record* r = nif.getRoot(i);
             if (!r)
                 continue;
-            const Nif::NiAVObject* node = dynamic_cast<const Nif::NiAVObject*>(r);
+            const auto* node = dynamic_cast<const Nif::NiAVObject*>(r);
             if (node)
                 roots.emplace_back(node);
         }
@@ -166,7 +166,7 @@ namespace NifBullet
                 }
             }
 
-            const Nif::NiNode* ninode = dynamic_cast<const Nif::NiNode*>(&node);
+            const auto* ninode = dynamic_cast<const Nif::NiNode*>(&node);
             if (ninode)
                 args.mCollisionNode = ninode->findRootCollisionNode(recursiveRcn);
             if (!args.mCollisionNode)
@@ -244,7 +244,7 @@ namespace NifBullet
         }
 
         // For NiNodes, loop through children
-        if (const Nif::NiNode* ninode = dynamic_cast<const Nif::NiNode*>(&node))
+        if (const auto* ninode = dynamic_cast<const Nif::NiNode*>(&node))
         {
             const Nif::Parent currentParent{ *ninode, parent };
             for (const auto& child : ninode->mChildren)

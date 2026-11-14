@@ -30,16 +30,16 @@ int CSVWorld::EnumDelegate::getValueIndex(const QModelIndex& index, int role) co
 
 void CSVWorld::EnumDelegate::setModelDataImp(QWidget* editor, QAbstractItemModel* model, const QModelIndex& index) const
 {
-    if (QComboBox* comboBox = dynamic_cast<QComboBox*>(editor))
+    if (auto* comboBox = dynamic_cast<QComboBox*>(editor))
     {
         QString value = comboBox->currentText();
 
-        for (std::vector<std::pair<int, QString>>::const_iterator iter(mValues.begin()); iter != mValues.end(); ++iter)
-            if (iter->second == value)
+        for (const auto& mValue : mValues)
+            if (mValue.second == value)
             {
                 // do nothing if the value has not changed
-                if (model->data(index).toInt() != iter->first)
-                    addCommands(model, index, iter->first);
+                if (model->data(index).toInt() != mValue.first)
+                    addCommands(model, index, mValue.first);
                 break;
             }
     }
@@ -69,10 +69,10 @@ QWidget* CSVWorld::EnumDelegate::createEditor(QWidget* parent, const QStyleOptio
     if (!index.data(Qt::EditRole).isValid() && !index.data(Qt::DisplayRole).isValid())
         return nullptr;
 
-    QComboBox* comboBox = new QComboBox(parent);
+    auto* comboBox = new QComboBox(parent);
 
-    for (std::vector<std::pair<int, QString>>::const_iterator iter(mValues.begin()); iter != mValues.end(); ++iter)
-        comboBox->addItem(iter->second);
+    for (const auto& mValue : mValues)
+        comboBox->addItem(mValue.second);
 
     comboBox->setMaxVisibleItems(20);
 
@@ -81,7 +81,7 @@ QWidget* CSVWorld::EnumDelegate::createEditor(QWidget* parent, const QStyleOptio
 
 void CSVWorld::EnumDelegate::setEditorData(QWidget* editor, const QModelIndex& index, bool tryDisplay) const
 {
-    if (QComboBox* comboBox = dynamic_cast<QComboBox*>(editor))
+    if (auto* comboBox = dynamic_cast<QComboBox*>(editor))
     {
         int role = Qt::EditRole;
         if (tryDisplay && !index.data(role).isValid())

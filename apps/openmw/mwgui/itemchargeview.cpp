@@ -76,7 +76,7 @@ namespace MWGui
             ItemStack stack = mModel->getItem(static_cast<ItemModel::ModelIndex>(i));
 
             bool found = false;
-            for (Lines::const_iterator iter = mLines.begin(); iter != mLines.end(); ++iter)
+            for (auto iter = mLines.begin(); iter != mLines.end(); ++iter)
             {
                 if (iter->mItemPtr == stack.mBase)
                 {
@@ -118,7 +118,7 @@ namespace MWGui
             }
         }
 
-        for (Lines::iterator iter = mLines.begin(); iter != mLines.end(); ++iter)
+        for (auto iter = mLines.begin(); iter != mLines.end(); ++iter)
         {
             if (visitedLines.count(iter))
                 continue;

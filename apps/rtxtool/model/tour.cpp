@@ -170,7 +170,7 @@ namespace RtxTool
         std::vector<TrackKey> roomKeys(const TourPacing& pacing, const osg::Vec3f& eye)
         {
             constexpr std::size_t quarters = 4;
-            const double each = static_cast<double>(pacing.framesOf(pacing.mRoomSeconds / quarters));
+            const auto each = static_cast<double>(pacing.framesOf(pacing.mRoomSeconds / quarters));
             std::vector<TrackKey> keys;
             for (std::size_t quarter = 0; quarter <= quarters; ++quarter)
                 keys.push_back(TrackKey{ .mFrame = each * static_cast<double>(quarter),

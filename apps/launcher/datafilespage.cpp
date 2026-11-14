@@ -216,7 +216,7 @@ Launcher::DataFilesPage::DataFilesPage(const Files::ConfigurationManager& cfg, C
 Launcher::DataFilesPage::~DataFilesPage()
 {
     {
-        const std::lock_guard lock(mReloadCellsMutex);
+        const std::scoped_lock lock(mReloadCellsMutex);
         mAbortReloadCells = true;
         mStartReloadCells.notify_one();
     }
@@ -826,7 +826,7 @@ void Launcher::DataFilesPage::addSubdirectories(bool append)
     {
         if (!ui.directoryListWidget->findItems(dir, Qt::MatchFixedString).isEmpty())
             continue;
-        QListWidgetItem* newDir = new QListWidgetItem(dir, mDirectoryPicker.dirListWidget);
+        auto* newDir = new QListWidgetItem(dir, mDirectoryPicker.dirListWidget);
         newDir->setCheckState(Qt::Unchecked);
     }
 
@@ -1011,7 +1011,7 @@ void Launcher::DataFilesPage::onReloadCellsTimerTimeout()
 
     if (mSelectedFiles != selectedFiles)
     {
-        const std::lock_guard lock(mReloadCellsMutex);
+        const std::scoped_lock lock(mReloadCellsMutex);
         mSelectedFiles = std::move(selectedFiles);
         mReloadCells = true;
         mStartReloadCells.notify_one();
@@ -1099,7 +1099,7 @@ void Launcher::DataFilesPage::updateNavMeshProgress(int minDataSize)
     mNavMeshToolProgress.mMessagesData.append(process.readAllStandardError());
     if (mNavMeshToolProgress.mMessagesData.size() < minDataSize)
         return;
-    const std::byte* const begin = reinterpret_cast<const std::byte*>(mNavMeshToolProgress.mMessagesData.constData());
+    const auto* const begin = reinterpret_cast<const std::byte*>(mNavMeshToolProgress.mMessagesData.constData());
     const std::byte* const end = begin + mNavMeshToolProgress.mMessagesData.size();
     const std::byte* position = begin;
     HandleNavMeshToolMessage handle{
@@ -1192,7 +1192,7 @@ bool Launcher::DataFilesPage::eventFilter(QObject* obj, QEvent* event)
     }
     else if (event->type() == QEvent::Drop)
     {
-        QDropEvent* dropEvent = static_cast<QDropEvent*>(event);
+        auto* dropEvent = static_cast<QDropEvent*>(event);
         const QMimeData* mimeData = dropEvent->mimeData();
 
         // may be dragging multiple files and folders together

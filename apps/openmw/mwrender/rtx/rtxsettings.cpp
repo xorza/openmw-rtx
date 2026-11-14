@@ -11,6 +11,7 @@
 #include <components/rtx/mirror/cells/cellgrid.hpp>
 #include <components/rtx/shaders/gbuffer.h>
 #include <components/settings/values.hpp>
+#include <utility>
 
 namespace MWRender
 {
@@ -46,7 +47,7 @@ namespace MWRender
             throw Rtx::InputError(
                 std::format("a gamma of {} is not a finite number greater than nought", values.mGamma));
 
-        if (values.mBounceRays < 1 || values.mBounceRays > static_cast<int>(Rtx::Shaders::MAX_BOUNCE_RAYS))
+        if (values.mBounceRays < 1 || std::cmp_greater(values.mBounceRays, Rtx::Shaders::MAX_BOUNCE_RAYS))
             throw Rtx::InputError(
                 std::format("{} bounce rays is outside one to {}", values.mBounceRays, Rtx::Shaders::MAX_BOUNCE_RAYS));
 

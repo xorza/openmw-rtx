@@ -193,31 +193,31 @@ namespace ESM
 
         void AiSequence::save(ESMWriter& esm) const
         {
-            for (std::vector<AiPackageContainer>::const_iterator it = mPackages.begin(); it != mPackages.end(); ++it)
+            for (const auto& mPackage : mPackages)
             {
-                esm.writeHNT("AIPK", it->mType);
-                switch (it->mType)
+                esm.writeHNT("AIPK", mPackage.mType);
+                switch (mPackage.mType)
                 {
                     case Ai_Wander:
-                        static_cast<const AiWander&>(*it->mPackage).save(esm);
+                        static_cast<const AiWander&>(*mPackage.mPackage).save(esm);
                         break;
                     case Ai_Travel:
-                        static_cast<const AiTravel&>(*it->mPackage).save(esm);
+                        static_cast<const AiTravel&>(*mPackage.mPackage).save(esm);
                         break;
                     case Ai_Escort:
-                        static_cast<const AiEscort&>(*it->mPackage).save(esm);
+                        static_cast<const AiEscort&>(*mPackage.mPackage).save(esm);
                         break;
                     case Ai_Follow:
-                        static_cast<const AiFollow&>(*it->mPackage).save(esm);
+                        static_cast<const AiFollow&>(*mPackage.mPackage).save(esm);
                         break;
                     case Ai_Activate:
-                        static_cast<const AiActivate&>(*it->mPackage).save(esm);
+                        static_cast<const AiActivate&>(*mPackage.mPackage).save(esm);
                         break;
                     case Ai_Combat:
-                        static_cast<const AiCombat&>(*it->mPackage).save(esm);
+                        static_cast<const AiCombat&>(*mPackage.mPackage).save(esm);
                         break;
                     case Ai_Pursue:
-                        static_cast<const AiPursue&>(*it->mPackage).save(esm);
+                        static_cast<const AiPursue&>(*mPackage.mPackage).save(esm);
                         break;
 
                     default:

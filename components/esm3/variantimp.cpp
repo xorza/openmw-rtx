@@ -17,8 +17,8 @@ namespace ESM
         {
             // float to int conversions for values outside T's valid range are UB. This code produces a result
             // equivalent to static_cast<T>(value) on x86 without invoking UB.
-            constexpr double min = static_cast<double>(std::numeric_limits<int32_t>::lowest());
-            constexpr double max = static_cast<double>(std::numeric_limits<int32_t>::max());
+            constexpr auto min = static_cast<double>(std::numeric_limits<int32_t>::lowest());
+            constexpr auto max = static_cast<double>(std::numeric_limits<int32_t>::max());
             if (std::isnan(value) || value < min || value > max)
                 return static_cast<T>(std::numeric_limits<int32_t>::lowest());
             return static_cast<T>(static_cast<int32_t>(value));
@@ -116,7 +116,7 @@ namespace ESM
         {
             if (type == VT_Short || type == VT_Long)
             {
-                float value = static_cast<float>(in);
+                auto value = static_cast<float>(in);
                 esm.writeHNString("FNAM", type == VT_Short ? "s" : "l");
                 esm.writeHNT("FLTV", value);
             }

@@ -99,7 +99,7 @@ namespace Rtx::Testing
 
                 const float open = frame.at((row * size + 0) * 4);
                 std::size_t last = 0;
-                for (std::size_t x = static_cast<std::size_t>(centre); x < size; ++x)
+                for (auto x = static_cast<std::size_t>(centre); x < size; ++x)
                     if (frame.at((row * size + x) * 4) < open - 0.01f)
                         last = x;
                 return static_cast<float>(last) + 0.5f - centre;

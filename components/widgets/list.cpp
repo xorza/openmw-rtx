@@ -64,7 +64,7 @@ namespace Gui
             {
                 if (mListItemSkin.empty())
                     return;
-                MyGUI::Button* button = mScrollView->createWidget<MyGUI::Button>(mListItemSkin,
+                auto* button = mScrollView->createWidget<MyGUI::Button>(mListItemSkin,
                     MyGUI::IntCoord(0, mItemHeight, mScrollView->getSize().width - scrollBarWidth - 2, 24),
                     MyGUI::Align::Left | MyGUI::Align::Top, getName() + "_item_" + item.mName);
                 button->setCaption(item.mName);
@@ -83,7 +83,7 @@ namespace Gui
             }
             else
             {
-                MyGUI::ImageBox* separator = mScrollView->createWidget<MyGUI::ImageBox>("MW_HLine",
+                auto* separator = mScrollView->createWidget<MyGUI::ImageBox>("MW_HLine",
                     MyGUI::IntCoord(2, mItemHeight, mScrollView->getWidth() - scrollBarWidth - 4, 18),
                     MyGUI::Align::Left | MyGUI::Align::Top | MyGUI::Align::HStretch);
                 separator->setNeedMouseFocus(false);

@@ -101,11 +101,11 @@ CSVWidget::TextureBrushWindow::TextureBrushWindow(CSMDoc::Document& document, QW
 
     mSizeSliders = new BrushSizeControls("Brush size", this);
 
-    QVBoxLayout* layoutMain = new QVBoxLayout;
+    auto* layoutMain = new QVBoxLayout;
     layoutMain->setSpacing(0);
     layoutMain->setContentsMargins(4, 0, 4, 4);
 
-    QHBoxLayout* layoutHorizontal = new QHBoxLayout;
+    auto* layoutHorizontal = new QHBoxLayout;
     layoutHorizontal->setSpacing(0);
     layoutHorizontal->setContentsMargins(QMargins(0, 0, 0, 0));
 
@@ -119,7 +119,7 @@ CSVWidget::TextureBrushWindow::TextureBrushWindow(CSMDoc::Document& document, QW
     mButtonCircle->setToolTip(toolTipCircle);
     mButtonCustom->setToolTip(toolTipCustom);
 
-    QButtonGroup* brushButtonGroup = new QButtonGroup(this);
+    auto* brushButtonGroup = new QButtonGroup(this);
     brushButtonGroup->addButton(mButtonPoint);
     brushButtonGroup->addButton(mButtonSquare);
     brushButtonGroup->addButton(mButtonCircle);
@@ -229,7 +229,7 @@ CSVWidget::SceneToolTextureBrush::SceneToolTextureBrush(
 
     mPanel = new QFrame(this, Qt::Popup);
 
-    QHBoxLayout* layout = new QHBoxLayout(mPanel);
+    auto* layout = new QHBoxLayout(mPanel);
 
     layout->setContentsMargins(QMargins(0, 0, 0, 0));
 

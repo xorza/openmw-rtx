@@ -6,6 +6,7 @@
 #include <components/esm3/loadscpt.hpp>
 #include <components/esm3/locals.hpp>
 #include <components/esm3/variant.hpp>
+#include <utility>
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/scriptmanager.hpp"
@@ -153,7 +154,7 @@ namespace MWScript
 
             const std::vector<std::string>& names = declarations.get(type);
 
-            for (int i2 = 0; i2 < static_cast<int>(names.size()); ++i2)
+            for (int i2 = 0; std::cmp_less(i2, names.size()); ++i2)
             {
                 ESM::Variant value;
 

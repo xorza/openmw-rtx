@@ -88,9 +88,8 @@ namespace MWRender
         unsigned int insertStateSetPosition = state.getStateSetStackSize() - numToPop;
 
         state.insertStateSet(insertStateSetPosition, mStateSet);
-        for (auto rit = bin->getRenderLeafList().begin(); rit != bin->getRenderLeafList().end(); rit++)
+        for (auto rl : bin->getRenderLeafList())
         {
-            osgUtil::RenderLeaf* rl = *rit;
             const osg::StateSet* ss = rl->_parent->getStateSet();
 
             if (rl->_drawable->getNodeMask() == Mask_ParticleSystem)
@@ -101,7 +100,7 @@ namespace MWRender
 
             if (ss->getAttribute(osg::StateAttribute::MATERIAL))
             {
-                const SceneUtil::Material* mat
+                const auto* mat
                     = static_cast<const SceneUtil::Material*>(ss->getAttribute(osg::StateAttribute::MATERIAL));
                 if (mat->getDiffuse().a() < 0.5)
                     continue;

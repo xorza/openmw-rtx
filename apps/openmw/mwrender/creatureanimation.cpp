@@ -121,7 +121,7 @@ namespace MWRender
                 if (bonename != "Weapon Bone")
                 {
                     const NodeMap& nodeMap = getNodeMap();
-                    NodeMap::const_iterator found = nodeMap.find(bonename);
+                    auto found = nodeMap.find(bonename);
                     if (found == nodeMap.end())
                         bonename = "Weapon Bone";
                 }

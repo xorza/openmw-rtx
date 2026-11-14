@@ -79,10 +79,9 @@ namespace MWGui
         mDraggedWidget = MyGUI::Gui::getInstance().createWidget<ItemWidget>(
             "MW_ItemIcon", 0, 0, 42, 42, MyGUI::Align::Default, "DragAndDrop");
 
-        Controllers::ControllerFollowMouse* controller
-            = MyGUI::ControllerManager::getInstance()
-                  .createItem(Controllers::ControllerFollowMouse::getClassTypeName())
-                  ->castType<Controllers::ControllerFollowMouse>();
+        auto* controller = MyGUI::ControllerManager::getInstance()
+                               .createItem(Controllers::ControllerFollowMouse::getClassTypeName())
+                               ->castType<Controllers::ControllerFollowMouse>();
         MyGUI::ControllerManager::getInstance().addItem(mDraggedWidget, controller);
 
         mDraggedWidget->setItem(mItem.mBase);

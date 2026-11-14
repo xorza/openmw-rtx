@@ -78,7 +78,7 @@ namespace MWGui
             mSkillWidgetMap.emplace(skill.mId, std::make_pair<MyGUI::TextBox*, MyGUI::TextBox*>(nullptr, nullptr));
         }
 
-        MyGUI::Window* t = mMainWidget->castType<MyGUI::Window>();
+        auto* t = mMainWidget->castType<MyGUI::Window>();
         t->eventWindowChangeCoord += MyGUI::newDelegate(this, &StatsWindow::onWindowResize);
 
         if (Settings::gui().mControllerMenus)
@@ -410,7 +410,7 @@ namespace MWGui
 
     void StatsWindow::addSeparator(MyGUI::IntCoord& coord1, MyGUI::IntCoord& coord2)
     {
-        MyGUI::ImageBox* separator = mSkillView->createWidget<MyGUI::ImageBox>("MW_HLine",
+        auto* separator = mSkillView->createWidget<MyGUI::ImageBox>("MW_HLine",
             MyGUI::IntCoord(10, coord1.top, coord1.width + coord2.width - 4, 18),
             MyGUI::Align::Left | MyGUI::Align::Top | MyGUI::Align::HStretch);
         separator->eventMouseWheel += MyGUI::newDelegate(this, &StatsWindow::onMouseWheel);
@@ -422,7 +422,7 @@ namespace MWGui
 
     void StatsWindow::addGroup(std::string_view label, MyGUI::IntCoord& coord1, MyGUI::IntCoord& coord2)
     {
-        MyGUI::TextBox* groupWidget = mSkillView->createWidget<MyGUI::TextBox>("SandBrightText",
+        auto* groupWidget = mSkillView->createWidget<MyGUI::TextBox>("SandBrightText",
             MyGUI::IntCoord(0, coord1.top, coord1.width + coord2.width, coord1.height),
             MyGUI::Align::Left | MyGUI::Align::Top | MyGUI::Align::HStretch);
         groupWidget->setCaption(MyGUI::UString(label));
@@ -726,7 +726,7 @@ namespace MWGui
         else if (MyGUI::InputManager::getInstance().isShiftPressed())
         {
             MWBase::Environment::get().getWindowManager()->toggleMaximized(this);
-            MyGUI::Window* t = mMainWidget->castType<MyGUI::Window>();
+            auto* t = mMainWidget->castType<MyGUI::Window>();
             onWindowResize(t);
         }
         else if (!mPinned)
@@ -754,7 +754,7 @@ namespace MWGui
             int x = (viewSize.width - width) / 2;
             int y = (viewSize.height - height) / 2;
 
-            MyGUI::Window* window = mMainWidget->castType<MyGUI::Window>();
+            auto* window = mMainWidget->castType<MyGUI::Window>();
             window->setCoord(x, active ? y : viewSize.height + 1, width, height);
 
             if (active)

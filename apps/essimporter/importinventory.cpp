@@ -3,6 +3,7 @@
 #include <stdexcept>
 
 #include <components/esm3/esmreader.hpp>
+#include <utility>
 
 namespace ESSImport
 {
@@ -63,7 +64,7 @@ namespace ESSImport
             int32_t itemIndex; // index of the item in the NPCO list
             esm.getT(itemIndex);
 
-            if (itemIndex < 0 || itemIndex >= int(mItems.size()))
+            if (itemIndex < 0 || std::cmp_greater_equal(itemIndex, mItems.size()))
                 esm.fail("equipment item index out of range");
 
             // appears to be a relative index for only the *possible* slots this item can be equipped in,

@@ -14,11 +14,11 @@
 CSVPrefs::Page::Page(CSMPrefs::Category& category, QWidget* parent)
     : PageBase(category, parent)
 {
-    QWidget* widget = new QWidget(parent);
+    auto* widget = new QWidget(parent);
     mGrid = new QGridLayout(widget);
 
-    for (CSMPrefs::Category::Iterator iter = category.begin(); iter != category.end(); ++iter)
-        addSetting(*iter);
+    for (auto& iter : category)
+        addSetting(iter);
 
     setWidget(widget);
 }

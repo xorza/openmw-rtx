@@ -563,7 +563,7 @@ namespace Rtx::Testing
             const auto expectShares = [&](const Frame& dark, double rise, std::initializer_list<float> points) {
                 for (const float x : points)
                 {
-                    const std::uint32_t column = static_cast<std::uint32_t>(std::lround(x / pixel + 0.5f * (size - 1)));
+                    const auto column = static_cast<std::uint32_t>(std::lround(x / pixel + 0.5f * (size - 1)));
                     const double centre = (static_cast<double>(column) - 0.5 * (size - 1)) * pixel;
                     double share = 0.0;
                     for (std::uint32_t row = 0; row < size; ++row)

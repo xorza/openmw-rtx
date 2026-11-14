@@ -149,15 +149,13 @@ namespace
         void setDefaults(osg::StateSet* stateset) override
         {
             // need to create a deep copy of StateAttributes we will modify
-            SceneUtil::Material* mat
-                = static_cast<SceneUtil::Material*>(stateset->getAttribute(osg::StateAttribute::MATERIAL));
+            auto* mat = static_cast<SceneUtil::Material*>(stateset->getAttribute(osg::StateAttribute::MATERIAL));
             stateset->setAttribute(osg::clone(mat, osg::CopyOp::DEEP_COPY_ALL), osg::StateAttribute::ON);
         }
 
         void apply(osg::StateSet* stateset, osg::NodeVisitor* nv) override
         {
-            SceneUtil::Material* mat
-                = static_cast<SceneUtil::Material*>(stateset->getAttribute(osg::StateAttribute::MATERIAL));
+            auto* mat = static_cast<SceneUtil::Material*>(stateset->getAttribute(osg::StateAttribute::MATERIAL));
             mat->setDiffuse(osg::Vec4f(0.f, 0.f, 0.f, mAlpha));
         }
 
@@ -691,10 +689,9 @@ namespace MWRender
 
                 const osg::Vec3 defaultWrapRange = osg::Vec3(1024, 1024, 800);
 
-                for (unsigned int i = 0; i < findPSVisitor.mFoundNodes.size(); ++i)
+                for (auto& mFoundNode : findPSVisitor.mFoundNodes)
                 {
-                    osgParticle::ParticleSystem* ps
-                        = static_cast<osgParticle::ParticleSystem*>(findPSVisitor.mFoundNodes[i]);
+                    auto* ps = static_cast<osgParticle::ParticleSystem*>(mFoundNode);
 
                     osg::ref_ptr<osgParticle::ModularProgram> program = new osgParticle::ModularProgram;
                     if (mParticleOcclusion)

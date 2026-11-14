@@ -45,7 +45,7 @@ namespace Fx
     {
         if (mUseUBO)
         {
-            osg::UniformBufferBinding* ubb = dynamic_cast<osg::UniformBufferBinding*>(
+            auto* ubb = dynamic_cast<osg::UniformBufferBinding*>(
                 stateset->getAttribute(osg::StateAttribute::UNIFORMBUFFERBINDING,
                     static_cast<int>(Resource::SceneManager::UBOBinding::PostProcessor)));
             if (!ubb)

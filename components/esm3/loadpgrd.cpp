@@ -4,6 +4,7 @@
 #include "esmwriter.hpp"
 
 #include <components/misc/concepts.hpp>
+#include <utility>
 
 namespace ESM
 {
@@ -114,7 +115,7 @@ namespace ESM
                             unsigned char connectionNum = point.mConnectionNum;
                             if (rawConnections.end() - rawIt < connectionNum)
                                 esm.fail("Not enough connections");
-                            for (int i = 0; i < connectionNum; ++i)
+                            for (int i = 0; std::cmp_less(i, connectionNum); ++i)
                             {
                                 Edge edge;
                                 edge.mV0 = pointIndex;

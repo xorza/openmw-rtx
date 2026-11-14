@@ -371,7 +371,7 @@ void CSVDoc::View::setupHelpMenu()
 QAction* CSVDoc::View::createMenuEntry(CSMWorld::UniversalId::Type type, QMenu* menu, const char* shortcutName)
 {
     const std::string title = CSMWorld::UniversalId(type).getTypeName();
-    QAction* entry = new QAction(QString::fromStdString(title), this);
+    auto* entry = new QAction(QString::fromStdString(title), this);
     setupShortcut(shortcutName, entry);
     const std::string iconName = CSMWorld::UniversalId(type).getIcon();
     if (!iconName.empty() && iconName != ":placeholder")
@@ -385,7 +385,7 @@ QAction* CSVDoc::View::createMenuEntry(CSMWorld::UniversalId::Type type, QMenu* 
 QAction* CSVDoc::View::createMenuEntry(
     const std::string& title, const std::string& iconName, QMenu* menu, const char* shortcutName)
 {
-    QAction* entry = new QAction(QString::fromStdString(title), this);
+    auto* entry = new QAction(QString::fromStdString(title), this);
     setupShortcut(shortcutName, entry);
     if (!iconName.empty() && iconName != ":placeholder")
         entry->setIcon(Misc::ScalableIcon::load(QString::fromStdString(iconName)));
@@ -410,7 +410,7 @@ void CSVDoc::View::setupUi()
 
 void CSVDoc::View::setupShortcut(const char* name, QAction* action)
 {
-    CSMPrefs::Shortcut* shortcut = new CSMPrefs::Shortcut(name, this);
+    auto* shortcut = new CSMPrefs::Shortcut(name, this);
     shortcut->associateAction(action);
 }
 
@@ -476,8 +476,8 @@ void CSVDoc::View::updateActions()
     bool editing = !(mDocument->getState() & CSMDoc::State_Locked);
     bool running = mDocument->getState() & CSMDoc::State_Running;
 
-    for (std::vector<QAction*>::iterator iter(mEditingActions.begin()); iter != mEditingActions.end(); ++iter)
-        (*iter)->setEnabled(editing);
+    for (auto& mEditingAction : mEditingActions)
+        mEditingAction->setEnabled(editing);
 
     mUndo->setEnabled(editing && mDocument->getUndoStack().canUndo());
     mRedo->setEnabled(editing && mDocument->getUndoStack().canRedo());
@@ -697,13 +697,13 @@ void CSVDoc::View::addSubView(const CSMWorld::UniversalId& id, const std::string
 
     connect(view, &SubView::updateSubViewIndices, this, &View::updateSubViewIndices);
 
-    CSVWorld::TableSubView* tableView = dynamic_cast<CSVWorld::TableSubView*>(view);
+    auto* tableView = dynamic_cast<CSVWorld::TableSubView*>(view);
     if (tableView)
     {
         connect(this, &View::requestFocus, tableView, &CSVWorld::TableSubView::requestFocus);
     }
 
-    CSVWorld::SceneSubView* sceneView = dynamic_cast<CSVWorld::SceneSubView*>(view);
+    auto* sceneView = dynamic_cast<CSVWorld::SceneSubView*>(view);
     if (sceneView)
     {
         connect(sceneView, &CSVWorld::SceneSubView::requestFocus, this, &View::onRequestFocus);
@@ -711,11 +711,11 @@ void CSVDoc::View::addSubView(const CSMWorld::UniversalId& id, const std::string
 
     if (CSMPrefs::State::get()["ID Tables"]["subview-new-window"].isTrue())
     {
-        CSVWorld::DialogueSubView* dialogueView = dynamic_cast<CSVWorld::DialogueSubView*>(view);
+        auto* dialogueView = dynamic_cast<CSVWorld::DialogueSubView*>(view);
         if (dialogueView)
             dialogueView->setFloating(true);
 
-        CSVWorld::ScriptSubView* scriptView = dynamic_cast<CSVWorld::ScriptSubView*>(view);
+        auto* scriptView = dynamic_cast<CSVWorld::ScriptSubView*>(view);
         if (scriptView)
             scriptView->setFloating(true);
     }
@@ -1066,7 +1066,7 @@ void CSVDoc::View::toggleShowStatusBar(bool show)
 {
     for (QObject* view : mSubViewWindow.children())
     {
-        if (CSVDoc::SubView* subView = dynamic_cast<CSVDoc::SubView*>(view))
+        if (auto* subView = dynamic_cast<CSVDoc::SubView*>(view))
             subView->setStatusBar(show);
     }
 }
@@ -1114,9 +1114,9 @@ void CSVDoc::View::updateScrollbar()
         rect = this->rect();
 
     int newWidth = 0;
-    for (int i = 0; i < mSubViews.size(); ++i)
+    for (auto& mSubView : mSubViews)
     {
-        newWidth += mSubViews[i]->width();
+        newWidth += mSubView->width();
     }
 
     int frameWidth = frameGeometry().width() - width();

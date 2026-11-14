@@ -20,7 +20,7 @@ CSMFilter::TextNode::TextNode(int columnId, const std::string& text)
 
 bool CSMFilter::TextNode::test(const CSMWorld::IdTableBase& table, int row, const std::map<int, int>& columns) const
 {
-    const std::map<int, int>::const_iterator iter = columns.find(mColumnId);
+    const auto iter = columns.find(mColumnId);
 
     if (iter == columns.end())
         throw std::logic_error("invalid column in text node test");
@@ -46,7 +46,7 @@ bool CSMFilter::TextNode::test(const CSMWorld::IdTableBase& table, int row, cons
         std::vector<std::pair<int, std::string>> enums
             = CSMWorld::Columns::getEnums(static_cast<CSMWorld::Columns::ColumnId>(mColumnId));
 
-        if (value >= 0 && value < static_cast<int>(enums.size()))
+        if (value >= 0 && std::cmp_less(value, enums.size()))
             string = QString::fromUtf8(enums[value].second.c_str());
     }
     else if (data.typeId() == QMetaType::Bool)

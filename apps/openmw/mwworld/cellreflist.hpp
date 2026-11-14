@@ -42,7 +42,7 @@ namespace MWWorld
         /// Remove all references with the given refNum from this list.
         void remove(ESM::RefNum refNum)
         {
-            for (typename List::iterator it = mList.begin(); it != mList.end();)
+            for (auto it = mList.begin(); it != mList.end();)
             {
                 if (*it == refNum)
                     mList.erase(it++);

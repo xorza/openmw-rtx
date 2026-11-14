@@ -12,8 +12,8 @@ namespace MWRender
         /// Convenience constructor, initialises all priorities to the same value.
         AnimPriority(int priority)
         {
-            for (unsigned int i = 0; i < sNumBlendMasks; ++i)
-                mPriority[i] = priority;
+            for (int& i : mPriority)
+                i = priority;
         }
 
         bool operator==(const AnimPriority& other) const
@@ -30,8 +30,8 @@ namespace MWRender
 
         bool contains(int priority) const
         {
-            for (unsigned int i = 0; i < sNumBlendMasks; ++i)
-                if (priority == mPriority[i])
+            for (int i : mPriority)
+                if (priority == i)
                     return true;
             return false;
         }

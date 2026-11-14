@@ -106,7 +106,7 @@ namespace NifOsg
             if (time <= keys.front().first)
                 return keys.front().second.mValue;
 
-            typename MapT::MapType::const_iterator it = retrieveKey(time);
+            auto it = retrieveKey(time);
 
             // now do the actual interpolation
             if (it != keys.end())

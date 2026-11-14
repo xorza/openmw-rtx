@@ -63,7 +63,7 @@ namespace MWGui
 
     int ControllerButtonsOverlay::getHeight()
     {
-        MyGUI::Window* window = mMainWidget->castType<MyGUI::Window>();
+        auto* window = mMainWidget->castType<MyGUI::Window>();
         return window->getHeight();
     }
 

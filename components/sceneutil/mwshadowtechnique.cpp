@@ -186,27 +186,21 @@ public:
     void traverse(const osgUtil::RenderBin* renderBin)
     {
         const osgUtil::RenderBin::RenderBinList& rbl = renderBin->getRenderBinList();
-        for(osgUtil::RenderBin::RenderBinList::const_iterator itr = rbl.begin();
-            itr != rbl.end();
-            ++itr)
+        for(const auto & itr : rbl)
         {
-            traverse(itr->second.get());
+            traverse(itr.second.get());
         }
 
         const osgUtil::RenderBin::RenderLeafList& rll = renderBin->getRenderLeafList();
-        for(osgUtil::RenderBin::RenderLeafList::const_iterator itr = rll.begin();
-            itr != rll.end();
-            ++itr)
+        for(auto itr : rll)
         {
-            handle(*itr);
+            handle(itr);
         }
 
         const osgUtil::RenderBin::StateGraphList& rgl = renderBin->getStateGraphList();
-        for(osgUtil::RenderBin::StateGraphList::const_iterator itr = rgl.begin();
-            itr != rgl.end();
-            ++itr)
+        for(auto itr : rgl)
         {
-            traverse(*itr);
+            traverse(itr);
         }
 
     }
@@ -214,19 +208,15 @@ public:
     void traverse(const osgUtil::StateGraph* stateGraph)
     {
         const osgUtil::StateGraph::ChildList& cl = stateGraph->_children;
-        for(osgUtil::StateGraph::ChildList::const_iterator itr = cl.begin();
-            itr != cl.end();
-            ++itr)
+        for(const auto & itr : cl)
         {
-            traverse(itr->second.get());
+            traverse(itr.second.get());
         }
 
         const osgUtil::StateGraph::LeafList& ll = stateGraph->_leaves;
-        for(osgUtil::StateGraph::LeafList::const_iterator itr = ll.begin();
-            itr != ll.end();
-            ++itr)
+        for(const auto & itr : ll)
         {
-            handle(itr->get());
+            handle(itr.get());
         }
     }
 
@@ -267,7 +257,7 @@ VDSMCameraCullCallback::VDSMCameraCullCallback(MWShadowTechnique* vdsm, osg::Pol
 
 void VDSMCameraCullCallback::operator()(osg::Node* node, osg::NodeVisitor* nv)
 {
-    osgUtil::CullVisitor* cv = static_cast<osgUtil::CullVisitor*>(nv);
+    auto* cv = static_cast<osgUtil::CullVisitor*>(nv);
     osg::Camera* camera = node->asCamera();
     OSG_INFO<<"VDSMCameraCullCallback::operator()(osg::Node* "<<camera<<", osg::NodeVisitor* "<<cv<<")"<<std::endl;
 
@@ -662,8 +652,8 @@ MWShadowTechnique::Frustum::Frustum(osgUtil::CullVisitor* cv, double minZNear, d
 
     if (cv->getComputeNearFarMode()!=osg::CullSettings::DO_NOT_COMPUTE_NEAR_FAR)
     {
-        osg::Matrix::value_type zNear = osg::maximum<osg::Matrix::value_type>(cv->getCalculatedNearPlane(),minZNear);
-        osg::Matrix::value_type zFar = osg::minimum<osg::Matrix::value_type>(cv->getCalculatedFarPlane(),maxZFar);
+        auto zNear = osg::maximum<osg::Matrix::value_type>(cv->getCalculatedNearPlane(),minZNear);
+        auto zFar = osg::minimum<osg::Matrix::value_type>(cv->getCalculatedFarPlane(),maxZFar);
         if (zFar < 0)
             zFar = minZNear;
         zNear = std::min(zNear, zFar);
@@ -708,13 +698,11 @@ void SceneUtil::MWShadowTechnique::Frustum::init()
     }
 
     // transform frustum corners from clipspace to world coords, and compute center
-    for(Vertices::iterator itr = corners.begin();
-        itr != corners.end();
-        ++itr)
+    for(auto & corner : corners)
     {
-        *itr = (*itr) * clipToWorld;
+        corner = corner * clipToWorld;
 
-        OSG_INFO<<"   corner "<<*itr<<std::endl;
+        OSG_INFO<<"   corner "<<corner<<std::endl;
     }
 
     // compute eye point
@@ -813,11 +801,9 @@ MWShadowTechnique::ViewDependentData::ViewDependentData(MWShadowTechnique* vdsm)
 
 void MWShadowTechnique::ViewDependentData::releaseGLObjects(osg::State* state) const
 {
-    for(ShadowDataList::const_iterator itr = _shadowDataList.begin();
-        itr != _shadowDataList.end();
-        ++itr)
+    for(const auto & itr : _shadowDataList)
     {
-        (*itr)->releaseGLObjects(state);
+        itr->releaseGLObjects(state);
     }
 }
 
@@ -986,8 +972,8 @@ MWShadowTechnique::ViewDependentData* MWShadowTechnique::createViewDependentData
 
 MWShadowTechnique::ViewDependentData* MWShadowTechnique::getViewDependentData(osgUtil::CullVisitor* cv)
 {
-    std::lock_guard<std::mutex> lock(_viewDependentDataMapMutex);
-    ViewDependentDataMap::iterator itr = _viewDependentDataMap.find(cv);
+    std::scoped_lock lock(_viewDependentDataMapMutex);
+    auto itr = _viewDependentDataMap.find(cv);
     if (itr!=_viewDependentDataMap.end()) return itr->second.get();
 
     osg::ref_ptr<ViewDependentData> vdd = createViewDependentData(cv);
@@ -1186,7 +1172,7 @@ void MWShadowTechnique::cull(osgUtil::CullVisitor& cv)
         if (sharedFrustumHint)
         {
             // user hinted another view shares its frustum
-            std::lock_guard<std::mutex> lock(_viewDependentDataMapMutex);
+            std::scoped_lock lock(_viewDependentDataMapMutex);
             auto itr = _viewDependentDataMap.find(sharedFrustumHint);
             if (itr != _viewDependentDataMap.end())
             {
@@ -1248,14 +1234,12 @@ void MWShadowTechnique::cull(osgUtil::CullVisitor& cv)
     unsigned int numShadowMapsPerLight = settings->getNumShadowMapsPerLight();
 
     LightDataList& pll = vdd->getLightDataList();
-    for(LightDataList::iterator itr = pll.begin();
-        itr != pll.end();
-        ++itr)
+    for(auto & itr : pll)
     {
         // 3. create per light/per shadow map division of lightspace/frustum
         //    create a list of light/shadow map data structures
 
-        LightData& pl = **itr;
+        LightData& pl = *itr;
 
         // 3.1 compute light space polytope
         //
@@ -1454,8 +1438,8 @@ void MWShadowTechnique::cull(osgUtil::CullVisitor& cv)
                 // split system based on the original Parallel Split Shadow Maps paper.
                 double n = reducedNear;
                 double f = reducedFar;
-                double i = double(sm_i);
-                double m = double(numShadowMapsPerLight);
+                auto i = double(sm_i);
+                auto m = double(numShadowMapsPerLight);
                 if (sm_i == 0)
                     r_start = -1.0;
                 else
@@ -1657,7 +1641,7 @@ bool MWShadowTechnique::selectActiveLights(osgUtil::CullVisitor* cv, ViewDepende
     _shadowedScene->accept(lightManagerFinder);
 
     if (lightManagerFinder.mLightManager && lightManagerFinder.mLightManager->getSunlight()) {
-        LightData* ld = new LightData(vdd);
+        auto* ld = new LightData(vdd);
         ld->setLightData(lightManagerFinder.mLocalToWorld, lightManagerFinder.mLightManager->getSunlight(), modelViewMatrix);
         pll.push_back(ld);
     }
@@ -1959,7 +1943,7 @@ bool MWShadowTechnique::computeShadowCameraSettings(Frustum& frustum, LightData&
         double yMin=0.0, yMax=0.0;
         double zMin=0.0, zMax=0.0;
 
-        for(Frustum::Vertices::iterator itr = frustum.corners.begin();
+        for(auto itr = frustum.corners.begin();
             itr != frustum.corners.end();
             ++itr)
         {
@@ -2015,11 +1999,9 @@ bool MWShadowTechnique::computeShadowCameraSettings(Frustum& frustum, LightData&
 
         OSG_INFO<<"lightDir = "<<positionedLight.lightDir<<std::endl;
         OSG_INFO<<"lightPos3 = "<<positionedLight.lightPos3<<std::endl;
-        for(Frustum::Vertices::iterator itr = frustum.corners.begin();
-            itr != frustum.corners.end();
-            ++itr)
+        for(auto & corner : frustum.corners)
         {
-            osg::Vec3d cornerDelta(*itr - positionedLight.lightPos3);
+            osg::Vec3d cornerDelta(corner - positionedLight.lightPos3);
             osg::Vec3d cornerInLightCoords(cornerDelta*lightSide,
                                            cornerDelta*lightUp,
                                            cornerDelta*positionedLight.lightDir);
@@ -2057,11 +2039,9 @@ bool MWShadowTechnique::computeShadowCameraSettings(Frustum& frustum, LightData&
             fov = 0.0;
 
             // calculate the max FOV from the corners of the frustum relative to the light position
-            for(Frustum::Vertices::iterator itr = frustum.corners.begin();
-                itr != frustum.corners.end();
-                ++itr)
+            for(auto & corner : frustum.corners)
             {
-                osg::Vec3d cornerDelta(*itr - positionedLight.lightPos3);
+                osg::Vec3d cornerDelta(corner - positionedLight.lightPos3);
                 double length = cornerDelta.length();
 
                 if (length==0.0) fov = osg::minimum(fov, 180.0);
@@ -2430,9 +2410,9 @@ struct ConvexHull
         }
 
         osg::Vec3d previous_v = vertexMap.rbegin()->second.back().first;
-        for (auto itr = vertexMap.begin(); itr != vertexMap.end(); ++itr)
+        for (auto & itr : vertexMap)
         {
-            for (const auto& vertex : itr->second)
+            for (const auto& vertex : itr.second)
             {
                 _edges.emplace_back(previous_v, vertex.first);
                 previous_v = vertex.first;
@@ -3255,23 +3235,19 @@ osg::StateSet* MWShadowTechnique::prepareStateSetForRenderingShadow(ViewDependen
     }
 
     LightDataList& pll = vdd.getLightDataList();
-    for(LightDataList::iterator itr = pll.begin();
-        itr != pll.end();
-        ++itr)
+    for(auto & itr : pll)
     {
         // 3. create per light/per shadow map division of lightspace/frustum
         //    create a list of light/shadow map data structures
 
-        LightData& pl = (**itr);
+        LightData& pl = (*itr);
 
         // if no texture units have been activated for this light then no shadow state required.
         if (pl.textureUnits.empty()) continue;
 
-        for(LightData::ActiveTextureUnits::iterator atu_itr = pl.textureUnits.begin();
-            atu_itr != pl.textureUnits.end();
-            ++atu_itr)
+        for(unsigned int & textureUnit : pl.textureUnits)
         {
-            OSG_INFO<<"   Need to assign state for "<<*atu_itr<<std::endl;
+            OSG_INFO<<"   Need to assign state for "<<textureUnit<<std::endl;
         }
 
     }
@@ -3283,14 +3259,12 @@ osg::StateSet* MWShadowTechnique::prepareStateSetForRenderingShadow(ViewDependen
 
 
     ShadowDataList& sdl = vdd.getShadowDataList();
-    for(ShadowDataList::iterator itr = sdl.begin();
-        itr != sdl.end();
-        ++itr)
+    for(auto & itr : sdl)
     {
         // 3. create per light/per shadow map division of lightspace/frustum
         //    create a list of light/shadow map data structures
 
-        ShadowData& sd = (**itr);
+        ShadowData& sd = (*itr);
 
         OSG_INFO<<"   ShadowData for "<<sd._textureUnit<<std::endl;
 
@@ -3307,12 +3281,10 @@ void MWShadowTechnique::resizeGLObjectBuffers(unsigned int /*maxSize*/)
 
 void MWShadowTechnique::releaseGLObjects(osg::State* state) const
 {
-    std::lock_guard<std::mutex> lock(_viewDependentDataMapMutex);
-    for(ViewDependentDataMap::const_iterator itr = _viewDependentDataMap.begin();
-        itr != _viewDependentDataMap.end();
-        ++itr)
+    std::scoped_lock lock(_viewDependentDataMapMutex);
+    for(const auto & itr : _viewDependentDataMap)
     {
-        ViewDependentData* vdd = itr->second.get();
+        ViewDependentData* vdd = itr.second.get();
         if (vdd)
         {
             vdd->releaseGLObjects(state);

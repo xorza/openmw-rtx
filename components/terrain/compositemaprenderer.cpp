@@ -30,7 +30,7 @@ namespace Terrain
         double conservativeTimeRatio(0.75);
         double availableTime = std::max((targetFrameTime - dt) * conservativeTimeRatio, mMinimumTimeAvailable);
 
-        std::lock_guard<std::mutex> lock(mMutex);
+        std::scoped_lock lock(mMutex);
 
         if (mImmediateCompileSet.empty() && mCompileSet.empty())
             return;
@@ -143,7 +143,7 @@ namespace Terrain
 
     void CompositeMapRenderer::addCompositeMap(const std::shared_ptr<CompositeMap>& compositeMap, bool immediate)
     {
-        std::lock_guard<std::mutex> lock(mMutex);
+        std::scoped_lock lock(mMutex);
         if (immediate)
             mImmediateCompileSet.insert(compositeMap);
         else
@@ -152,8 +152,8 @@ namespace Terrain
 
     void CompositeMapRenderer::setImmediate(const std::shared_ptr<CompositeMap>& compositeMap)
     {
-        std::lock_guard<std::mutex> lock(mMutex);
-        CompileSet::iterator found = mCompileSet.find(compositeMap);
+        std::scoped_lock lock(mMutex);
+        auto found = mCompileSet.find(compositeMap);
         if (found == mCompileSet.end())
             return;
         else
@@ -165,7 +165,7 @@ namespace Terrain
 
     size_t CompositeMapRenderer::getCompileSetSize() const
     {
-        std::lock_guard<std::mutex> lock(mMutex);
+        std::scoped_lock lock(mMutex);
         return mCompileSet.size();
     }
 

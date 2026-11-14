@@ -57,7 +57,7 @@ namespace DetourNavigator
 {
     NavMeshTileConstView asNavMeshTileConstView(const unsigned char* data)
     {
-        const dtMeshHeader* header = reinterpret_cast<const dtMeshHeader*>(data);
+        const auto* header = reinterpret_cast<const dtMeshHeader*>(data);
 
         if (header->magic != DT_NAVMESH_MAGIC)
             throw std::logic_error("Invalid navmesh magic");

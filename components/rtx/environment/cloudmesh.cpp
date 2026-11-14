@@ -140,7 +140,7 @@ namespace Rtx
                 middleV += static_cast<double>(coords[i].y());
             }
 
-            const double taken = static_cast<double>(placed.size());
+            const auto taken = static_cast<double>(placed.size());
             middleX /= taken;
             middleY /= taken;
             middleU /= taken;

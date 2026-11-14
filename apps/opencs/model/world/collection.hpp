@@ -321,7 +321,7 @@ namespace CSMWorld
     template <typename ESXRecordT>
     Collection<ESXRecordT>::~Collection()
     {
-        for (typename std::vector<Column<ESXRecordT>*>::iterator iter(mColumns.begin()); iter != mColumns.end(); ++iter)
+        for (auto iter(mColumns.begin()); iter != mColumns.end(); ++iter)
             delete *iter;
     }
 
@@ -413,8 +413,7 @@ namespace CSMWorld
     template <typename ESXRecordT>
     void Collection<ESXRecordT>::merge()
     {
-        for (typename std::vector<std::unique_ptr<Record<ESXRecordT>>>::iterator iter(mRecords.begin());
-            iter != mRecords.end(); ++iter)
+        for (auto iter(mRecords.begin()); iter != mRecords.end(); ++iter)
             (*iter)->merge();
 
         purge();
@@ -515,10 +514,10 @@ namespace CSMWorld
     {
         std::vector<ESM::RefId> ids;
 
-        for (auto iter = mIndex.begin(); iter != mIndex.end(); ++iter)
+        for (const auto& iter : mIndex)
         {
-            if (listDeleted || !mRecords[iter->second]->isDeleted())
-                ids.push_back(getRecordId(mRecords[iter->second]->get()));
+            if (listDeleted || !mRecords[iter.second]->isDeleted())
+                ids.push_back(getRecordId(mRecords[iter.second]->get()));
         }
 
         return ids;

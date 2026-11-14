@@ -16,7 +16,7 @@ QPushButton* CSVDoc::StartupDialogue::addButton(const QString& label, const QStr
 {
     int column = mColumn--;
 
-    QPushButton* button = new QPushButton(this);
+    auto* button = new QPushButton(this);
 
     button->setIcon(Misc::ScalableIcon::load(icon));
 
@@ -36,7 +36,7 @@ QPushButton* CSVDoc::StartupDialogue::addButton(const QString& label, const QStr
 
 QWidget* CSVDoc::StartupDialogue::createButtons()
 {
-    QWidget* widget = new QWidget(this);
+    auto* widget = new QWidget(this);
 
     mLayout = new QGridLayout(widget);
 
@@ -71,13 +71,13 @@ QWidget* CSVDoc::StartupDialogue::createButtons()
 
 QWidget* CSVDoc::StartupDialogue::createTools()
 {
-    QWidget* widget = new QWidget(this);
+    auto* widget = new QWidget(this);
 
-    QHBoxLayout* layout = new QHBoxLayout(widget);
+    auto* layout = new QHBoxLayout(widget);
     layout->setDirection(QBoxLayout::RightToLeft);
     layout->setContentsMargins(4, 4, 4, 4);
 
-    QPushButton* config = new QPushButton(widget);
+    auto* config = new QPushButton(widget);
 
     config->setSizePolicy(QSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed));
     config->setIcon(Misc::ScalableIcon::load(":startup/configure"));
@@ -100,7 +100,7 @@ CSVDoc::StartupDialogue::StartupDialogue()
 {
     setWindowTitle("OpenMW-CS");
 
-    QVBoxLayout* layout = new QVBoxLayout(this);
+    auto* layout = new QVBoxLayout(this);
 
     layout->setContentsMargins(0, 0, 0, 0);
 
@@ -109,7 +109,7 @@ CSVDoc::StartupDialogue::StartupDialogue()
 
     /// \todo remove this label once we are feature complete and convinced that this thing is
     /// working properly.
-    QLabel* warning = new QLabel(
+    auto* warning = new QLabel(
         "<font color=Red>WARNING: OpenMW-CS is in alpha stage.<p>The editor is not feature complete and not "
         "sufficiently tested.<br>In theory your data should be safe. But we strongly advise to make backups regularly "
         "if you are working with live data.</font color>");

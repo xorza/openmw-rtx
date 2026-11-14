@@ -8,6 +8,7 @@
 
 #include <components/files/streamwithbuffer.hpp>
 #include <components/vfs/manager.hpp>
+#include <utility>
 
 namespace MWSound
 {
@@ -95,7 +96,7 @@ namespace MWSound
                 std::streamsize done = 0;
                 while (done < n && mPos < mBuffer->mFileSize)
                 {
-                    const std::streamoff headSize = static_cast<std::streamoff>(mBuffer->mHead.size());
+                    const auto headSize = static_cast<std::streamoff>(mBuffer->mHead.size());
                     if (mPos < headSize)
                     {
                         const std::streamsize take = std::min<std::streamsize>(n - done, headSize - mPos);
@@ -181,7 +182,7 @@ namespace MWSound
 
     std::shared_ptr<const HeadBuffer> HeadCache::lookup(VFS::Path::NormalizedView name)
     {
-        const std::lock_guard lock(mMutex);
+        const std::scoped_lock lock(mMutex);
         const auto it = mEntries.find(name);
         if (it == mEntries.end())
             return nullptr;
@@ -231,13 +232,13 @@ namespace MWSound
 
     bool HeadCache::contains(VFS::Path::NormalizedView name) const
     {
-        const std::lock_guard lock(mMutex);
+        const std::scoped_lock lock(mMutex);
         return mEntries.contains(name);
     }
 
     bool HeadCache::full() const
     {
-        const std::lock_guard lock(mMutex);
+        const std::scoped_lock lock(mMutex);
         return mMaxBytes - mBytes < static_cast<std::size_t>(sMaxWholeFileBytes);
     }
 
@@ -245,12 +246,12 @@ namespace MWSound
     {
         {
             // Permit head-only entries to upgrade.
-            const std::lock_guard lock(mMutex);
+            const std::scoped_lock lock(mMutex);
             const auto it = mEntries.find(name);
             if (it != mEntries.end())
             {
                 const HeadBuffer& buffer = **it->second;
-                if (static_cast<std::streamoff>(buffer.mHead.size()) == buffer.mFileSize)
+                if (std::cmp_equal(buffer.mHead.size(), buffer.mFileSize))
                     return true;
                 if (buffer.mFileSize > sMaxWholeFileBytes)
                     return false;
@@ -279,7 +280,7 @@ namespace MWSound
         // would empty the cache for no purpose.
         if (bytes > mMaxBytes)
             return;
-        const std::lock_guard lock(mMutex);
+        const std::scoped_lock lock(mMutex);
         const auto existing = mEntries.find(name);
         if (existing != mEntries.end())
         {
@@ -299,7 +300,7 @@ namespace MWSound
             mEntries.erase(evicted.mName);
             mLru.pop_back();
         }
-        const LruIt lruIt = mLru.insert(mLru.begin(),
+        const auto lruIt = mLru.insert(mLru.begin(),
             std::make_shared<const HeadBuffer>(
                 VFS::Path::Normalized(name), std::move(head), std::move(suffix), suffixStart, fileSize));
         mEntries.emplace((*lruIt)->mName, lruIt);

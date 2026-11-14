@@ -459,9 +459,9 @@ namespace Terrain
 
                 if (!debug)
                     break;
-                osg::Box* b = new osg::Box;
+                auto* b = new osg::Box;
                 b->set(bb.center(), bb._max - bb.center());
-                osg::ShapeDrawable* drw = new osg::ShapeDrawable(b);
+                auto* drw = new osg::ShapeDrawable(b);
                 static const osg::ref_ptr<osg::StateSet> stateset = makeStateSet();
                 drw->setStateSet(stateset);
                 drw->accept(*cv);
@@ -489,7 +489,7 @@ namespace Terrain
             mRootNode->traverseNodes(vd, viewPoint, &lodCallback);
         }
 
-        const float cellWorldSize = static_cast<float>(ESM::getCellSize(mWorldspace));
+        const auto cellWorldSize = static_cast<float>(ESM::getCellSize(mWorldspace));
 
         for (unsigned int i = 0; i < vd->getNumEntries(); ++i)
         {
@@ -514,7 +514,7 @@ namespace Terrain
 
     void QuadTreeWorld::ensureQuadTreeBuilt()
     {
-        std::lock_guard<std::mutex> lock(mQuadTreeMutex);
+        std::scoped_lock lock(mQuadTreeMutex);
         if (mQuadTreeBuilt)
             return;
 
@@ -550,7 +550,7 @@ namespace Terrain
         ensureQuadTreeBuilt();
         const float cellWorldSize = mStorage->getCellWorldSize(mWorldspace);
 
-        ViewData* vd = static_cast<ViewData*>(view);
+        auto* vd = static_cast<ViewData*>(view);
         vd->setViewPoint(viewPoint);
         vd->setActiveGrid(grid);
 

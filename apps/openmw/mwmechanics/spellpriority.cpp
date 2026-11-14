@@ -34,19 +34,19 @@ namespace
     {
         int toCure = 0;
         const MWMechanics::ActiveSpells& activeSpells = actor.getClass().getCreatureStats(actor).getActiveSpells();
-        for (MWMechanics::ActiveSpells::TIterator it = activeSpells.begin(); it != activeSpells.end(); ++it)
+        for (const auto& activeSpell : activeSpells)
         {
             // if the effect filter is not specified, take in account only spells effects. Leave potions, enchanted
             // items etc.
             if (effectFilter.empty())
             {
-                const ESM::Spell* spell
-                    = MWBase::Environment::get().getESMStore()->get<ESM::Spell>().search(it->getSourceSpellId());
+                const ESM::Spell* spell = MWBase::Environment::get().getESMStore()->get<ESM::Spell>().search(
+                    activeSpell.getSourceSpellId());
                 if (!spell || spell->mData.mType != ESM::Spell::ST_Spell)
                     continue;
             }
 
-            const MWMechanics::ActiveSpells::ActiveSpellParams& params = *it;
+            const MWMechanics::ActiveSpells::ActiveSpellParams& params = activeSpell;
             for (const auto& effect : params.getEffects())
             {
                 ESM::RefId effectId = effect.mEffectId;
@@ -72,12 +72,12 @@ namespace
     {
         float duration = 0;
         const MWMechanics::ActiveSpells& activeSpells = actor.getClass().getCreatureStats(actor).getActiveSpells();
-        for (MWMechanics::ActiveSpells::TIterator it = activeSpells.begin(); it != activeSpells.end(); ++it)
+        for (const auto& activeSpell : activeSpells)
         {
-            if (it->getSourceSpellId() != spellId)
+            if (activeSpell.getSourceSpellId() != spellId)
                 continue;
 
-            const MWMechanics::ActiveSpells::ActiveSpellParams& params = *it;
+            const MWMechanics::ActiveSpells::ActiveSpellParams& params = activeSpell;
             for (const auto& effect : params.getEffects())
             {
                 if (effect.mDuration > duration)
@@ -510,9 +510,9 @@ namespace MWMechanics
             bool enemyHasArmor = false;
 
             // Ignore enemy without armor
-            for (unsigned int i = 0; i < sizeof(armorSlots) / sizeof(int); ++i)
+            for (int armorSlot : armorSlots)
             {
-                MWWorld::ContainerStoreIterator item = inv.getSlot(armorSlots[i]);
+                MWWorld::ContainerStoreIterator item = inv.getSlot(armorSlot);
 
                 if (item != inv.end() && (item.getType() == MWWorld::ContainerStore::Type_Armor))
                 {
@@ -746,10 +746,9 @@ namespace MWMechanics
 
         float mult = fAIMagicSpellMult;
 
-        for (std::vector<ESM::IndexedENAMstruct>::const_iterator effectIt = spell->mEffects.mList.begin();
-            effectIt != spell->mEffects.mList.end(); ++effectIt)
+        for (const auto& effectIt : spell->mEffects.mList)
         {
-            if (effectIt->mData.mRange == ESM::RT_Target)
+            if (effectIt.mData.mRange == ESM::RT_Target)
             {
                 if (!MWBase::Environment::get().getWorld()->isSwimming(enemy))
                     mult = fAIRangeMagicSpellMult;

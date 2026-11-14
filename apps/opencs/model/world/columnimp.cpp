@@ -93,7 +93,7 @@ namespace CSMWorld
 
     void LandNormalsColumn::set(Record<Land>& record, const QVariant& data)
     {
-        DataType values = data.value<DataType>();
+        auto values = data.value<DataType>();
 
         if (values.size() != Land::LAND_NUM_VERTS * 3)
             throw std::runtime_error("invalid land normals data");
@@ -140,7 +140,7 @@ namespace CSMWorld
 
     void LandHeightsColumn::set(Record<Land>& record, const QVariant& data)
     {
-        DataType values = data.value<DataType>();
+        auto values = data.value<DataType>();
 
         if (values.size() != Land::LAND_NUM_VERTS)
             throw std::runtime_error("invalid land heights data");
@@ -192,7 +192,7 @@ namespace CSMWorld
 
     void LandColoursColumn::set(Record<Land>& record, const QVariant& data)
     {
-        DataType values = data.value<DataType>();
+        auto values = data.value<DataType>();
 
         if (values.size() != Land::LAND_NUM_VERTS * 3)
             throw std::runtime_error("invalid land colours data");
@@ -241,7 +241,7 @@ namespace CSMWorld
 
     void LandTexturesColumn::set(Record<Land>& record, const QVariant& data)
     {
-        DataType values = data.value<DataType>();
+        auto values = data.value<DataType>();
 
         if (values.size() != Land::LAND_NUM_TEXTURES)
             throw std::runtime_error("invalid land textures data");

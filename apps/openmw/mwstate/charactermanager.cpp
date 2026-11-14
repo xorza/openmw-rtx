@@ -39,7 +39,7 @@ MWState::Character* MWState::CharacterManager::getCurrentCharacter()
 
 void MWState::CharacterManager::deleteSlot(const MWState::Slot* slot, const MWState::Character*& character)
 {
-    std::list<Character>::iterator it = findCharacter(character);
+    auto it = findCharacter(character);
 
     it->deleteSlot(slot);
 
@@ -86,7 +86,7 @@ MWState::Character* MWState::CharacterManager::createCharacter(const std::string
 
 std::list<MWState::Character>::iterator MWState::CharacterManager::findCharacter(const MWState::Character* character)
 {
-    std::list<Character>::iterator it = mCharacters.begin();
+    auto it = mCharacters.begin();
     for (; it != mCharacters.end(); ++it)
     {
         if (&*it == character)
@@ -103,7 +103,7 @@ void MWState::CharacterManager::setCurrentCharacter(const Character* character)
         mCurrent = nullptr;
     else
     {
-        std::list<Character>::iterator it = findCharacter(character);
+        auto it = findCharacter(character);
 
         mCurrent = &*it;
     }

@@ -68,7 +68,7 @@ CSVWorld::NotEditableSubDelegate::NotEditableSubDelegate(const CSMWorld::IdTable
 
 void CSVWorld::NotEditableSubDelegate::setEditorData(QWidget* editor, const QModelIndex& index) const
 {
-    QLabel* label = qobject_cast<QLabel*>(editor);
+    auto* label = qobject_cast<QLabel*>(editor);
     if (!label)
         return;
 
@@ -82,8 +82,7 @@ void CSVWorld::NotEditableSubDelegate::setEditorData(QWidget* editor, const QMod
         }
     }
 
-    CSMWorld::Columns::ColumnId columnId
-        = static_cast<CSMWorld::Columns::ColumnId>(mTable->getColumnId(index.column()));
+    auto columnId = static_cast<CSMWorld::Columns::ColumnId>(mTable->getColumnId(index.column()));
 
     if (QMetaType::QString == v.typeId())
     {
@@ -122,7 +121,7 @@ QSize CSVWorld::NotEditableSubDelegate::sizeHint(const QStyleOptionViewItem& opt
 QWidget* CSVWorld::NotEditableSubDelegate::createEditor(
     QWidget* parent, const QStyleOptionViewItem& option, const QModelIndex& index) const
 {
-    QLabel* label = new QLabel(parent);
+    auto* label = new QLabel(parent);
     label->setTextFormat(Qt::PlainText);
     label->setTextInteractionFlags(Qt::TextSelectableByMouse);
     return label;
@@ -209,14 +208,14 @@ void CSVWorld::DialogueDelegateDispatcher::setEditorData(QWidget* editor, const 
             mTable->headerData(index.column(), Qt::Horizontal, CSMWorld::ColumnBase::Role_Display).toInt());
     }
 
-    QLabel* label = qobject_cast<QLabel*>(editor);
+    auto* label = qobject_cast<QLabel*>(editor);
     if (label)
     {
         mNotEditableDelegate.setEditorData(label, index);
         return;
     }
 
-    std::map<int, CommandDelegate*>::const_iterator delegateIt(mDelegates.find(display));
+    auto delegateIt(mDelegates.find(display));
     if (delegateIt != mDelegates.end())
     {
         delegateIt->second->setEditorData(editor, index, true);
@@ -240,7 +239,7 @@ void CSVWorld::DialogueDelegateDispatcher::setModelData(
 void CSVWorld::DialogueDelegateDispatcher::setModelData(
     QWidget* editor, QAbstractItemModel* model, const QModelIndex& index, CSMWorld::ColumnBase::Display display) const
 {
-    std::map<int, CommandDelegate*>::const_iterator delegateIt(mDelegates.find(display));
+    auto delegateIt(mDelegates.find(display));
     if (delegateIt != mDelegates.end())
     {
         delegateIt->second->setModelData(editor, model, index);
@@ -277,14 +276,14 @@ QWidget* CSVWorld::DialogueDelegateDispatcher::makeEditor(
         return mNotEditableDelegate.createEditor(qobject_cast<QWidget*>(mParent), QStyleOptionViewItem(), index);
     }
 
-    std::map<int, CommandDelegate*>::iterator delegateIt(mDelegates.find(display));
+    auto delegateIt(mDelegates.find(display));
 
     if (delegateIt != mDelegates.end())
     {
         editor
             = delegateIt->second->createEditor(qobject_cast<QWidget*>(mParent), QStyleOptionViewItem(), index, display);
 
-        DialogueDelegateDispatcherProxy* proxy = new DialogueDelegateDispatcherProxy(editor, display);
+        auto* proxy = new DialogueDelegateDispatcherProxy(editor, display);
 
         // NOTE: For each entry in CSVWorld::CommandDelegate::createEditor() a corresponding entry
         // is required here
@@ -362,7 +361,7 @@ CSVWorld::IdContextMenu::IdContextMenu(QWidget* widget, CSMWorld::ColumnBase::Di
     mEditIdAction = new QAction(this);
     connect(mEditIdAction, &QAction::triggered, this, qOverload<>(&IdContextMenu::editIdRequest));
 
-    QLineEdit* lineEdit = qobject_cast<QLineEdit*>(mWidget);
+    auto* lineEdit = qobject_cast<QLineEdit*>(mWidget);
     if (lineEdit != nullptr)
     {
         mContextMenu = lineEdit->createStandardContextMenu();
@@ -380,8 +379,8 @@ void CSVWorld::IdContextMenu::excludeId(const std::string& id)
 
 QString CSVWorld::IdContextMenu::getWidgetValue() const
 {
-    QLineEdit* lineEdit = qobject_cast<QLineEdit*>(mWidget);
-    QLabel* label = qobject_cast<QLabel*>(mWidget);
+    auto* lineEdit = qobject_cast<QLineEdit*>(mWidget);
+    auto* label = qobject_cast<QLabel*>(mWidget);
 
     QString value = "";
     if (lineEdit != nullptr)
@@ -467,7 +466,7 @@ void CSVWorld::EditWidget::createEditorContextMenu(
         int idColumn = mTable->findColumnIndex(CSMWorld::Columns::ColumnId_Id);
         QString id = mTable->data(mTable->index(currentRow, idColumn)).toString();
 
-        IdContextMenu* menu = new IdContextMenu(editor, display);
+        auto* menu = new IdContextMenu(editor, display);
         // Current ID is already opened, so no need to create Edit 'ID' action for it
         menu->excludeId(id.toUtf8().constData());
         connect(menu, qOverload<const CSMWorld::UniversalId&, const std::string&>(&IdContextMenu::editIdRequest), this,
@@ -534,22 +533,22 @@ void CSVWorld::EditWidget::remake(int row)
     if (mNestedTableMapper)
         delete mNestedTableMapper;
 
-    QFrame* line = new QFrame(mMainWidget);
+    auto* line = new QFrame(mMainWidget);
     line->setObjectName(QString::fromUtf8("line"));
     line->setGeometry(QRect(320, 150, 118, 3));
     line->setFrameShape(QFrame::HLine);
     line->setFrameShadow(QFrame::Sunken);
 
-    QFrame* line2 = new QFrame(mMainWidget);
+    auto* line2 = new QFrame(mMainWidget);
     line2->setObjectName(QString::fromUtf8("line"));
     line2->setGeometry(QRect(320, 150, 118, 3));
     line2->setFrameShape(QFrame::HLine);
     line2->setFrameShadow(QFrame::Sunken);
 
-    QVBoxLayout* mainLayout = new QVBoxLayout(mMainWidget);
-    QGridLayout* lockedLayout = new QGridLayout();
-    QGridLayout* unlockedLayout = new QGridLayout();
-    QVBoxLayout* tablesLayout = new QVBoxLayout();
+    auto* mainLayout = new QVBoxLayout(mMainWidget);
+    auto* lockedLayout = new QGridLayout();
+    auto* unlockedLayout = new QGridLayout();
+    auto* tablesLayout = new QVBoxLayout();
 
     mainLayout->addLayout(lockedLayout, QSizePolicy::Fixed);
     mainLayout->addWidget(line, 1);
@@ -604,8 +603,7 @@ void CSVWorld::EditWidget::remake(int row)
                 // Create and display nested table only if it's editable.
                 if (editable)
                 {
-                    NestedTable* table
-                        = new NestedTable(mDocument, id, mNestedModels.back(), this, editable, fixedRows);
+                    auto* table = new NestedTable(mDocument, id, mNestedModels.back(), this, editable, fixedRows);
                     table->resizeColumnsToContents();
                     if (isBlocked)
                         table->setEditTriggers(QAbstractItemView::NoEditTriggers);
@@ -617,7 +615,7 @@ void CSVWorld::EditWidget::remake(int row)
                     table->setMinimumHeight(tableMaxHeight);
 
                     QString headerText = mTable->headerData(i, Qt::Horizontal, Qt::DisplayRole).toString();
-                    QLabel* label = new QLabel(headerText, mMainWidget);
+                    auto* label = new QLabel(headerText, mMainWidget);
                     label->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 
                     tablesLayout->addWidget(label);
@@ -635,7 +633,7 @@ void CSVWorld::EditWidget::remake(int row)
                 {
                     mWidgetMapper->addMapping(editor, i);
 
-                    QLabel* label = new QLabel(mTable->headerData(i, Qt::Horizontal).toString(), mMainWidget);
+                    auto* label = new QLabel(mTable->headerData(i, Qt::Horizontal).toString(), mMainWidget);
 
                     label->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
                     editor->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Fixed);
@@ -666,7 +664,7 @@ void CSVWorld::EditWidget::remake(int row)
             }
             else // Flag_Dialogue_List
             {
-                CSMWorld::IdTree* tree = static_cast<CSMWorld::IdTree*>(mTable);
+                auto* tree = static_cast<CSMWorld::IdTree*>(mTable);
                 mNestedTableMapper = new QDataWidgetMapper(this);
 
                 mNestedTableMapper->setModel(tree);
@@ -695,7 +693,7 @@ void CSVWorld::EditWidget::remake(int row)
 
                         // Need to use Qt::DisplayRole in order to get the  correct string
                         // from CSMWorld::Columns
-                        QLabel* label = new QLabel(
+                        auto* label = new QLabel(
                             tree->nestedHeaderData(i, col, Qt::Horizontal, Qt::DisplayRole).toString(), mMainWidget);
 
                         label->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
@@ -770,7 +768,7 @@ CSVWorld::SimpleDialogueSubView::SimpleDialogueSubView(const CSMWorld::Universal
 
     updateCurrentId();
 
-    QWidget* mainWidget = new QWidget(this);
+    auto* mainWidget = new QWidget(this);
 
     mMainLayout = new QVBoxLayout(mainWidget);
     setWidget(mainWidget);

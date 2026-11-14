@@ -179,7 +179,7 @@ namespace MWRender
         {
             mSpineControllers[i] = nullptr;
 
-            Animation::NodeMap::const_iterator found = nodes.find(i == 0 ? "bip01 spine1" : "bip01 spine2");
+            auto found = nodes.find(i == 0 ? "bip01 spine1" : "bip01 spine2");
             if (found != nodes.end())
             {
                 osg::Node* node = found->second;
@@ -192,8 +192,8 @@ namespace MWRender
 
     void WeaponAnimation::deleteControllers()
     {
-        for (int i = 0; i < 2; ++i)
-            mSpineControllers[i] = nullptr;
+        for (auto& mSpineController : mSpineControllers)
+            mSpineController = nullptr;
     }
 
     void WeaponAnimation::configureControllers(float characterPitchRadians)
@@ -212,16 +212,16 @@ namespace MWRender
 
     void WeaponAnimation::setControllerRotate(const osg::Quat& rotate)
     {
-        for (int i = 0; i < 2; ++i)
-            if (mSpineControllers[i])
-                mSpineControllers[i]->setRotate(rotate);
+        for (const auto& mSpineController : mSpineControllers)
+            if (mSpineController)
+                mSpineController->setRotate(rotate);
     }
 
     void WeaponAnimation::setControllerEnabled(bool enabled)
     {
-        for (int i = 0; i < 2; ++i)
-            if (mSpineControllers[i])
-                mSpineControllers[i]->setEnabled(enabled);
+        for (const auto& mSpineController : mSpineControllers)
+            if (mSpineController)
+                mSpineController->setEnabled(enabled);
     }
 
 }

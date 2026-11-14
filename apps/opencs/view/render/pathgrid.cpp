@@ -54,7 +54,7 @@ namespace CSVRender
     public:
         void operator()(osg::Node* node, osg::NodeVisitor* nv) override
         {
-            PathgridTag* tag = static_cast<PathgridTag*>(node->getUserData());
+            auto* tag = static_cast<PathgridTag*>(node->getUserData());
             tag->getPathgrid()->update();
         }
     };
@@ -164,7 +164,7 @@ namespace CSVRender
 
     void Pathgrid::toggleSelected(unsigned short node)
     {
-        NodeList::iterator searchResult = std::find(mSelected.begin(), mSelected.end(), node);
+        auto searchResult = std::find(mSelected.begin(), mSelected.end(), node);
         if (searchResult != mSelected.end())
         {
             mSelected.erase(searchResult);
@@ -401,10 +401,10 @@ namespace CSVRender
             int recordIndex = mPathgridCollection.getIndex(mId);
             int parentColumn = mPathgridCollection.findColumnIndex(CSMWorld::Columns::ColumnId_PathgridPoints);
 
-            for (std::vector<unsigned short>::iterator row = mSelected.begin(); row != mSelected.end(); ++row)
+            for (unsigned short& row : mSelected)
             {
                 commands.push(new CSMWorld::DeleteNestedCommand(
-                    *model, mId.getRefIdString(), static_cast<int>(*row), parentColumn));
+                    *model, mId.getRefIdString(), static_cast<int>(row), parentColumn));
             }
 
             // Fix/remove edges
@@ -546,11 +546,11 @@ namespace CSVRender
             {
                 temp = *source;
 
-                for (NodeList::iterator it = mSelected.begin(); it != mSelected.end(); ++it)
+                for (unsigned short& it : mSelected)
                 {
-                    temp.mPoints[*it].mX += mMoveOffset.x();
-                    temp.mPoints[*it].mY += mMoveOffset.y();
-                    temp.mPoints[*it].mZ += mMoveOffset.z();
+                    temp.mPoints[it].mX += mMoveOffset.x();
+                    temp.mPoints[it].mY += mMoveOffset.y();
+                    temp.mPoints[it].mZ += mMoveOffset.z();
                 }
 
                 source = &temp;

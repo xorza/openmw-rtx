@@ -338,7 +338,7 @@ namespace MWGui
         {
             if (mButtons.find(id) == mButtons.end())
             {
-                Gui::ImageButton* button = mButtonBox->createWidget<Gui::ImageButton>(
+                auto* button = mButtonBox->createWidget<Gui::ImageButton>(
                     "ImageBox", MyGUI::IntCoord(0, curH, 0, 0), MyGUI::Align::Default);
                 const std::string& buttonId = mButtons.emplace(id, button).first->first;
                 button->setProperty("ImageHighlighted", "textures\\menu_" + buttonId + "_over.dds");

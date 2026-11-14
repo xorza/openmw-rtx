@@ -61,7 +61,7 @@ namespace SceneUtil
         osg::Callback* cb = node.getUpdateCallback();
         while (cb)
         {
-            osgAnimation::UpdateMatrixTransform* umt = dynamic_cast<osgAnimation::UpdateMatrixTransform*>(cb);
+            auto* umt = dynamic_cast<osgAnimation::UpdateMatrixTransform*>(cb);
             if (umt)
                 if (Misc::StringUtils::lowerCase(node.getName()) != "bip01")
                     link(umt);
@@ -81,8 +81,7 @@ namespace SceneUtil
         mLinker = nullptr;
         for (const auto& mergedAnimationTrack : copy.mMergedAnimationTracks)
         {
-            Resource::Animation* copiedAnimationTrack
-                = static_cast<Resource::Animation*>(mergedAnimationTrack.get()->clone(copyop));
+            auto* copiedAnimationTrack = static_cast<Resource::Animation*>(mergedAnimationTrack.get()->clone(copyop));
             mMergedAnimationTracks.emplace_back(copiedAnimationTrack);
         }
     }
@@ -116,8 +115,7 @@ namespace SceneUtil
                 if (!Misc::StringUtils::ciEqual(name, channel->getTargetName()) || channel->getName() != "transform")
                     continue;
 
-                if (osgAnimation::MatrixLinearSampler* templateSampler
-                    = dynamic_cast<osgAnimation::MatrixLinearSampler*>(channel->getSampler()))
+                if (auto* templateSampler = dynamic_cast<osgAnimation::MatrixLinearSampler*>(channel->getSampler()))
                 {
                     osg::Matrixf matrix;
                     templateSampler->getValueAt(newTime, matrix);

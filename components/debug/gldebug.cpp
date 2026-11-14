@@ -235,7 +235,7 @@ namespace Debug
         lastAppliedStack.reserve(attributeVec.size());
         for (size_t i = firstNonMatch; i < attributeVec.size(); ++i)
         {
-            const DebugGroup* group = static_cast<const DebugGroup*>(attributeVec[i].first);
+            const auto* group = static_cast<const DebugGroup*>(attributeVec[i].first);
             group->push(state);
             lastAppliedStack.push_back(group);
         }

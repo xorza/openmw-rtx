@@ -10,6 +10,7 @@
 
 #include <boost/program_options/options_description.hpp>
 #include <boost/program_options/variables_map.hpp>
+#include <ranges>
 
 /**
  * \namespace Files
@@ -121,10 +122,10 @@ namespace Files
             }
         }
 
-        for (auto it = parsedConfigs.rbegin(); it != parsedConfigs.rend(); ++it)
+        for (auto& parsedConfig : std::views::reverse(parsedConfigs))
         {
             auto composingVariables = separateComposingVariables(variables, description);
-            for (auto& [k, v] : *it)
+            for (auto& [k, v] : parsedConfig)
             {
                 auto variable = variables.find(k);
                 if (variable == variables.end())
@@ -172,8 +173,8 @@ namespace Files
         if (configIt == variables.end())
             return;
         Files::PathContainer newDirs = asPathContainer(configIt->second.as<Files::MaybeQuotedPathContainer>());
-        for (auto it = newDirs.rbegin(); it != newDirs.rend(); ++it)
-            dirs.push(*it);
+        for (auto& newDir : std::views::reverse(newDirs))
+            dirs.push(newDir);
     }
 
     void ConfigurationManager::addCommonOptions(bpo::options_description& description)

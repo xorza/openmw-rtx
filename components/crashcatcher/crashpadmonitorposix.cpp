@@ -121,7 +121,7 @@ namespace Crash::Monitor
                 const crashpad::ExceptionHandlerProtocol::ClientInformation& info, crashpad::VMAddress stack,
                 pid_t* thread, crashpad::UUID* report) override
             {
-                const std::lock_guard lock(mParts.mReading);
+                const std::scoped_lock lock(mParts.mReading);
                 return said(mHandler.HandleException(client, user, info, stack, thread, report));
             }
 
@@ -129,7 +129,7 @@ namespace Crash::Monitor
                 const crashpad::ExceptionHandlerProtocol::ClientInformation& info, int broker,
                 crashpad::UUID* report) override
             {
-                const std::lock_guard lock(mParts.mReading);
+                const std::scoped_lock lock(mParts.mReading);
                 return said(mHandler.HandleExceptionWithBroker(client, user, info, broker, report));
             }
 

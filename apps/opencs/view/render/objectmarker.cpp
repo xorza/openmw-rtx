@@ -110,8 +110,7 @@ namespace CSVRender
         for (const auto& [name, node] : mMarkerNodes)
         {
             osg::StateSet* state = node->getStateSet();
-            SceneUtil::Material* mat
-                = static_cast<SceneUtil::Material*>(state->getAttribute(osg::StateAttribute::MATERIAL));
+            auto* mat = static_cast<SceneUtil::Material*>(state->getAttribute(osg::StateAttribute::MATERIAL));
             osg::Vec4f emis = mat->getEmission();
             mat->setEmission(emis / 4);
             mat->updateStateSet(state);
@@ -125,7 +124,7 @@ namespace CSVRender
         mMarkerNodes.insert(sceneNodes.begin(), sceneNodes.end());
 
         osg::ref_ptr<osg::Node> rotateMarkers = mMarkerNodes["rotateMarkers"];
-        osg::ClipPlane* clip = new osg::ClipPlane(0);
+        auto* clip = new osg::ClipPlane(0);
         rotateMarkers->setCullCallback(new ToCamera(clip));
         rotateMarkers->getStateSet()->setAttributeAndModes(clip, osg::StateAttribute::ON);
     }
@@ -299,7 +298,7 @@ namespace CSVRender
             osg::StateSet* state = matNode->getStateSet();
             osg::StateAttribute* matAttr = state->getAttribute(osg::StateAttribute::MATERIAL);
 
-            SceneUtil::Material* mat = static_cast<SceneUtil::Material*>(matAttr);
+            auto* mat = static_cast<SceneUtil::Material*>(matAttr);
             mat->setEmission(mOriginalColors[materialNodeName]);
             mat->updateStateSet(state);
 

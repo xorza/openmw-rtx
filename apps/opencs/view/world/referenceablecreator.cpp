@@ -28,7 +28,7 @@ CSVWorld::ReferenceableCreator::ReferenceableCreator(
     CSMWorld::Data& worldData, QUndoStack& undoStack, const CSMWorld::UniversalId& id)
     : GenericCreator(worldData, undoStack, id)
 {
-    QLabel* label = new QLabel("Type", this);
+    auto* label = new QLabel("Type", this);
     insertBeforeButtons(label, false);
 
     std::vector<CSMWorld::UniversalId::Type> types = CSMWorld::UniversalId::listReferenceableTypes();
@@ -36,9 +36,9 @@ CSVWorld::ReferenceableCreator::ReferenceableCreator(
     mType = new QComboBox(this);
     mType->setMaxVisibleItems(20);
 
-    for (std::vector<CSMWorld::UniversalId::Type>::const_iterator iter(types.begin()); iter != types.end(); ++iter)
+    for (auto type : types)
     {
-        CSMWorld::UniversalId id2(*iter, "");
+        CSMWorld::UniversalId id2(type, "");
 
         mType->addItem(Misc::ScalableIcon::load(id2.getIcon().c_str()), id2.getTypeName().c_str(),
             static_cast<int>(id2.getType()));

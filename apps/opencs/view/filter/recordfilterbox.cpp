@@ -12,11 +12,11 @@
 CSVFilter::RecordFilterBox::RecordFilterBox(CSMWorld::Data& worldData, QWidget* parent)
     : QWidget(parent)
 {
-    QHBoxLayout* layout = new QHBoxLayout(this);
+    auto* layout = new QHBoxLayout(this);
 
     layout->setContentsMargins(0, 6, 5, 0);
 
-    QLabel* label = new QLabel("Record Filter", this);
+    auto* label = new QLabel("Record Filter", this);
     label->setIndent(2);
     layout->addWidget(label);
 

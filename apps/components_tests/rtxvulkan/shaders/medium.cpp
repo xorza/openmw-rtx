@@ -37,13 +37,13 @@ namespace Rtx
             for (const float x : { 1e-7f, 1e-5f, 1e-3f, 0.03f, 0.0624f, 0.0625f, 0.07f, 0.5f, 2.0f, 10.0f, -1e-5f,
                      -0.0624f, -0.0625f, -0.5f, -3.0f })
             {
-                const double depth = static_cast<double>(x);
+                const auto depth = static_cast<double>(x);
                 const double truth = -std::expm1(-depth) / depth;
                 EXPECT_NEAR(static_cast<double>(Shaders::mediumKept(x)), truth, truth * 2e-6) << "at " << x;
             }
 
             const float thin = 1e-7f;
-            const double naive = static_cast<double>((1.0f - std::exp(-thin)) / thin);
+            const auto naive = static_cast<double>((1.0f - std::exp(-thin)) / thin);
             EXPECT_GT(std::abs(naive - 1.0), 0.05)
                 << "the closed form in floats holds a ten-millionth, so this proves nothing";
         }
@@ -86,8 +86,8 @@ namespace Rtx
             const double thinD = density[1];
             const double denseProduct = denseD * static_cast<double>(light[0]);
             const double thinProduct = thinD * static_cast<double>(light[1]);
-            const double per = static_cast<double>(extinction);
-            const double span = static_cast<double>(length);
+            const auto per = static_cast<double>(extinction);
+            const auto span = static_cast<double>(length);
             const double scattered = integral(
                 [&](double t) {
                     const double product = denseProduct + (thinProduct - denseProduct) * t / span;
@@ -153,7 +153,7 @@ namespace Rtx
                         const Shaders::vec3 gathered = Shaders::gatheredAlong(direction, slant, path);
                         for (std::size_t channel = 0; channel < 3; ++channel)
                         {
-                            const double extinction = static_cast<double>(Shaders::WATER_EXTINCTION[channel]);
+                            const auto extinction = static_cast<double>(Shaders::WATER_EXTINCTION[channel]);
                             const double rising = 1.0 - static_cast<double>(slant) * static_cast<double>(direction[2]);
                             const double truth
                                 = integral([&](double t) { return extinction * std::exp(-extinction * rising * t); },

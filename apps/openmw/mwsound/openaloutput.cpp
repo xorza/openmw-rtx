@@ -7,6 +7,7 @@
 #include <memory>
 #include <string_view>
 #include <thread>
+#include <utility>
 #include <vector>
 
 #include <cstdint>
@@ -367,7 +368,7 @@ namespace MWSound
 
         void add(OpenAL_SoundStream* stream)
         {
-            std::lock_guard<std::mutex> lock(mMutex);
+            std::scoped_lock lock(mMutex);
             if (std::find(mStreams.begin(), mStreams.end(), stream) == mStreams.end())
             {
                 mStreams.push_back(stream);
@@ -377,7 +378,7 @@ namespace MWSound
 
         void remove(OpenAL_SoundStream* stream)
         {
-            std::lock_guard<std::mutex> lock(mMutex);
+            std::scoped_lock lock(mMutex);
             auto iter = std::find(mStreams.begin(), mStreams.end(), stream);
             if (iter != mStreams.end())
                 mStreams.erase(iter);
@@ -385,7 +386,7 @@ namespace MWSound
 
         void removeAll()
         {
-            std::lock_guard<std::mutex> lock(mMutex);
+            std::scoped_lock lock(mMutex);
             mStreams.clear();
         }
 
@@ -416,7 +417,7 @@ namespace MWSound
             while (!mQuitNow)
             {
                 {
-                    const std::lock_guard<std::mutex> openLock(mOutput.mReopenMutex);
+                    const std::scoped_lock openLock(mOutput.mReopenMutex);
                     std::basic_string_view<ALCchar> defaultName = getDeviceName(nullptr);
                     if (mCurrentName != defaultName)
                     {
@@ -683,7 +684,7 @@ namespace MWSound
     {
         if (!mInitialized || !alcReopenDeviceSOFT)
             return;
-        const std::lock_guard<std::mutex> lock(mReopenMutex);
+        const std::scoped_lock lock(mReopenMutex);
         Log(Debug::Warning) << "Audio device disconnected, attempting to reopen...";
         ALCboolean reopened = alcReopenDeviceSOFT(mDevice, mDeviceName.c_str(), mContextAttributes.data());
         if (reopened == AL_FALSE && !mDeviceName.empty())
@@ -705,7 +706,7 @@ namespace MWSound
     bool OpenALOutput::init(const std::string& devname, const std::string& hrtfname, HrtfMode hrtfmode)
     {
         deinit();
-        std::lock_guard<std::mutex> lock(mReopenMutex);
+        std::scoped_lock lock(mReopenMutex);
 
         Log(Debug::Info) << "Initializing OpenAL...";
 
@@ -1084,7 +1085,7 @@ namespace MWSound
             return 0;
 
         // Make sure no sources are playing this buffer before unloading it.
-        SoundVec::const_iterator iter = mActiveSounds.begin();
+        auto iter = mActiveSounds.begin();
         for (; iter != mActiveSounds.end(); ++iter)
         {
             if (!(*iter)->mHandle)
@@ -1093,7 +1094,7 @@ namespace MWSound
             ALuint source = GET_PTRID((*iter)->mHandle);
             ALint srcbuf;
             alGetSourcei(source, AL_BUFFER, &srcbuf);
-            if ((ALuint)srcbuf == buffer)
+            if (std::cmp_equal(srcbuf, buffer))
             {
                 alSourceStop(source);
                 alSourcei(source, AL_BUFFER, 0);
@@ -1337,7 +1338,7 @@ namespace MWSound
         if (getALError() != AL_NO_ERROR)
             return false;
 
-        OpenAL_SoundStream* stream = new OpenAL_SoundStream(source, std::move(decoder));
+        auto* stream = new OpenAL_SoundStream(source, std::move(decoder));
         if (!stream->init(getLoudnessData))
         {
             delete stream;
@@ -1368,7 +1369,7 @@ namespace MWSound
         if (getALError() != AL_NO_ERROR)
             return false;
 
-        OpenAL_SoundStream* stream = new OpenAL_SoundStream(source, std::move(decoder));
+        auto* stream = new OpenAL_SoundStream(source, std::move(decoder));
         if (!stream->init(getLoudnessData))
         {
             delete stream;
@@ -1386,7 +1387,7 @@ namespace MWSound
     {
         if (!sound->mHandle)
             return;
-        OpenAL_SoundStream* stream = reinterpret_cast<OpenAL_SoundStream*>(sound->mHandle);
+        auto* stream = reinterpret_cast<OpenAL_SoundStream*>(sound->mHandle);
         ALuint source = stream->mSource;
 
         sound->mHandle = nullptr;
@@ -1408,7 +1409,7 @@ namespace MWSound
     {
         if (!sound->mHandle)
             return 0.0;
-        OpenAL_SoundStream* stream = reinterpret_cast<OpenAL_SoundStream*>(sound->mHandle);
+        auto* stream = reinterpret_cast<OpenAL_SoundStream*>(sound->mHandle);
         return stream->getStreamDelay();
     }
 
@@ -1416,8 +1417,8 @@ namespace MWSound
     {
         if (!sound->mHandle)
             return 0.f;
-        OpenAL_SoundStream* stream = reinterpret_cast<OpenAL_SoundStream*>(sound->mHandle);
-        std::lock_guard<std::mutex> lock(mStreamThread->mMutex);
+        auto* stream = reinterpret_cast<OpenAL_SoundStream*>(sound->mHandle);
+        std::scoped_lock lock(mStreamThread->mMutex);
         return stream->getStreamOffset();
     }
 
@@ -1425,8 +1426,8 @@ namespace MWSound
     {
         if (!sound->mHandle)
             return 0.0;
-        OpenAL_SoundStream* stream = reinterpret_cast<OpenAL_SoundStream*>(sound->mHandle);
-        std::lock_guard<std::mutex> lock(mStreamThread->mMutex);
+        auto* stream = reinterpret_cast<OpenAL_SoundStream*>(sound->mHandle);
+        std::scoped_lock lock(mStreamThread->mMutex);
         return stream->getCurrentLoudness();
     }
 
@@ -1434,8 +1435,8 @@ namespace MWSound
     {
         if (!sound->mHandle)
             return false;
-        OpenAL_SoundStream* stream = reinterpret_cast<OpenAL_SoundStream*>(sound->mHandle);
-        std::lock_guard<std::mutex> lock(mStreamThread->mMutex);
+        auto* stream = reinterpret_cast<OpenAL_SoundStream*>(sound->mHandle);
+        std::scoped_lock lock(mStreamThread->mMutex);
         return stream->isPlaying();
     }
 
@@ -1443,7 +1444,7 @@ namespace MWSound
     {
         if (!sound->mHandle)
             return;
-        OpenAL_SoundStream* stream = reinterpret_cast<OpenAL_SoundStream*>(sound->mHandle);
+        auto* stream = reinterpret_cast<OpenAL_SoundStream*>(sound->mHandle);
         ALuint source = stream->mSource;
 
         updateCommon(source, sound->getPosition(), sound->getVelocity(), sound->getMaxDistance(),
@@ -1517,7 +1518,7 @@ namespace MWSound
         {
             if ((types & sound->getPlayType()))
             {
-                OpenAL_SoundStream* stream = reinterpret_cast<OpenAL_SoundStream*>(sound->mHandle);
+                auto* stream = reinterpret_cast<OpenAL_SoundStream*>(sound->mHandle);
                 sources.push_back(stream->mSource);
             }
         }
@@ -1572,7 +1573,7 @@ namespace MWSound
         {
             if ((types & sound->getPlayType()))
             {
-                OpenAL_SoundStream* stream = reinterpret_cast<OpenAL_SoundStream*>(sound->mHandle);
+                auto* stream = reinterpret_cast<OpenAL_SoundStream*>(sound->mHandle);
                 sources.push_back(stream->mSource);
             }
         }

@@ -24,7 +24,7 @@ namespace Misc
         template <class Write>
         auto under(Write write)
         {
-            const std::lock_guard<std::mutex> lock(mMutex);
+            const std::scoped_lock lock(mMutex);
             return write();
         }
 
@@ -84,7 +84,7 @@ namespace Misc
         {
             // Under the lock, or the wake could land between a worker's check and its wait.
             const std::stop_callback woken(stop, [this] {
-                const std::lock_guard<std::mutex> lock(mMutex);
+                const std::scoped_lock lock(mMutex);
                 mToWorker.notify_all();
             });
 

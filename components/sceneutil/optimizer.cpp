@@ -237,11 +237,9 @@ class CollectLowestTransformsVisitor : public BaseOptimizerVisitor
             _currentObjectList.push_back(drawable);
 
             const osg::Drawable::ParentList& parents = drawable->getParents();
-            for(osg::Drawable::ParentList::const_iterator itr=parents.begin();
-                itr!=parents.end();
-                ++itr)
+            for(auto parent : parents)
             {
-                (*itr)->accept(*this);
+                parent->accept(*this);
             }
 
             _currentObjectList.pop_back();
@@ -345,11 +343,9 @@ class CollectLowestTransformsVisitor : public BaseOptimizerVisitor
         template <typename T>
         void registerWithCurrentObjects(T* transform)
         {
-            for(ObjectList::iterator itr=_currentObjectList.begin();
-                itr!=_currentObjectList.end();
-                ++itr)
+            for(auto & itr : _currentObjectList)
             {
-                _objectMap[*itr].add(transform, transform && isOperationPermissibleForObject(transform));
+                _objectMap[itr].add(transform, transform && isOperationPermissibleForObject(transform));
             }
         }
 
@@ -388,9 +384,8 @@ void CollectLowestTransformsVisitor::doTransform(osg::Object* obj,osg::Matrix& m
         osg::Vec4Array* tangents = geom ? dynamic_cast<osg::Vec4Array*>(geom->getTexCoordArray(7)) : nullptr;
         if (tangents)
         {
-            for (unsigned int i=0; i<tangents->size(); ++i)
+            for (auto & itr : *tangents)
             {
-                osg::Vec4f& itr = (*tangents)[i];
                 osg::Vec3f vec3 (itr.x(), itr.y(), itr.z());
                 vec3 = osg::Matrix::transform3x3(tf._im, vec3);
                 vec3.normalize();
@@ -404,7 +399,7 @@ void CollectLowestTransformsVisitor::doTransform(osg::Object* obj,osg::Matrix& m
         return;
     }
 
-    osg::LOD* lod = dynamic_cast<osg::LOD*>(obj);
+    auto* lod = dynamic_cast<osg::LOD*>(obj);
     if (lod)
     {
         osg::Matrix matrix_no_trans = matrix;
@@ -427,7 +422,7 @@ void CollectLowestTransformsVisitor::doTransform(osg::Object* obj,osg::Matrix& m
         return;
     }
 
-    osg::Billboard* billboard = dynamic_cast<osg::Billboard*>(obj);
+    auto* billboard = dynamic_cast<osg::Billboard*>(obj);
     if (billboard)
     {
         osg::Matrix matrix_no_trans = matrix;
@@ -471,18 +466,16 @@ void CollectLowestTransformsVisitor::disableObject(ObjectMap::iterator itr)
         itr->second._canBeApplied = false;
 
         // and then inform everybody we have been disabled.
-        for(ObjectStruct::TransformSet::iterator titr = itr->second._transformSet.begin();
-            titr != itr->second._transformSet.end();
-            ++titr)
+        for(auto titr : itr->second._transformSet)
         {
-            disableTransform(*titr);
+            disableTransform(titr);
         }
     }
 }
 
 void CollectLowestTransformsVisitor::disableTransform(osg::Transform* transform)
 {
-    TransformMap::iterator itr=_transformMap.find(transform);
+    auto itr=_transformMap.find(transform);
     if (itr==_transformMap.end())
     {
         return;
@@ -494,11 +487,9 @@ void CollectLowestTransformsVisitor::disableTransform(osg::Transform* transform)
         // we haven't been disabled yet so we need to disable,
         itr->second._canBeApplied = false;
         // and then inform everybody we have been disabled.
-        for(TransformStruct::ObjectSet::iterator oitr = itr->second._objectSet.begin();
-            oitr != itr->second._objectSet.end();
-            ++oitr)
+        for(auto oitr : itr->second._objectSet)
         {
-            disableObject(*oitr);
+            disableObject(oitr);
         }
     }
 }
@@ -514,11 +505,9 @@ void CollectLowestTransformsVisitor::setUpMaps()
         osg::Object* object = oitr->first;
         ObjectStruct& os = oitr->second;
 
-        for(ObjectStruct::TransformSet::iterator titr = os._transformSet.begin();
-            titr != os._transformSet.end();
-            ++titr)
+        for(auto titr : os._transformSet)
         {
-            _transformMap[*titr].add(object);
+            _transformMap[titr].add(object);
         }
     }
 
@@ -548,12 +537,10 @@ void CollectLowestTransformsVisitor::setUpMaps()
 bool CollectLowestTransformsVisitor::removeTransforms(osg::Node* nodeWeCannotRemove)
 {
     // transform the objects that can be applied.
-    for(ObjectMap::iterator oitr=_objectMap.begin();
-        oitr!=_objectMap.end();
-        ++oitr)
+    for(auto & oitr : _objectMap)
     {
-        osg::Object* object = oitr->first;
-        ObjectStruct& os = oitr->second;
+        osg::Object* object = oitr.first;
+        ObjectStruct& os = oitr.second;
         if (os._canBeApplied)
         {
             doTransform(object,os._firstMatrix);
@@ -564,17 +551,15 @@ bool CollectLowestTransformsVisitor::removeTransforms(osg::Node* nodeWeCannotRem
     bool transformRemoved = false;
 
     // clean up the transforms.
-    for(TransformMap::iterator titr=_transformMap.begin();
-        titr!=_transformMap.end();
-        ++titr)
+    for(auto & titr : _transformMap)
     {
-        if (titr->first!=nullptr && titr->second._canBeApplied)
+        if (titr.first!=nullptr && titr.second._canBeApplied)
         {
-            if (titr->first!=nodeWeCannotRemove)
+            if (titr.first!=nodeWeCannotRemove)
             {
                 transformRemoved = true;
 
-                osg::ref_ptr<osg::Transform> transform = titr->first;
+                osg::ref_ptr<osg::Transform> transform = titr.first;
                 osg::ref_ptr<osg::Group>     group = new osg::Group;
                 group->setName( transform->getName() );
                 group->setDataVariance(osg::Object::STATIC);
@@ -597,11 +582,11 @@ bool CollectLowestTransformsVisitor::removeTransforms(osg::Node* nodeWeCannotRem
             }
             else
             {
-                osg::MatrixTransform* mt = titr->first->asMatrixTransform();
+                osg::MatrixTransform* mt = titr.first->asMatrixTransform();
                 if (mt) mt->setMatrix(osg::Matrix::identity());
                 else
                 {
-                    osg::PositionAttitudeTransform* pat = titr->first->asPositionAttitudeTransform();
+                    osg::PositionAttitudeTransform* pat = titr.first->asPositionAttitudeTransform();
                     if (pat)
                     {
                         pat->setPosition(osg::Vec3(0.0f,0.0f,0.0f));
@@ -611,7 +596,7 @@ bool CollectLowestTransformsVisitor::removeTransforms(osg::Node* nodeWeCannotRem
                     else
                     {
                         OSG_WARN<<"Warning:: during Optimize::CollectLowestTransformsVisitor::removeTransforms(Node*)"<<std::endl;
-                        OSG_WARN<<"          unhandled of setting of indentity matrix on "<< titr->first->className()<<std::endl;
+                        OSG_WARN<<"          unhandled of setting of indentity matrix on "<< titr.first->className()<<std::endl;
                         OSG_WARN<<"          model will appear in the incorrect position."<<std::endl;
                     }
                 }
@@ -691,34 +676,26 @@ bool Optimizer::FlattenStaticTransformsVisitor::removeTransforms(osg::Node* node
 {
     CollectLowestTransformsVisitor cltv(_optimizer);
 
-    for(NodeSet::iterator nitr=_excludedNodeSet.begin();
-        nitr!=_excludedNodeSet.end();
-        ++nitr)
+    for(auto nitr : _excludedNodeSet)
     {
-        cltv.collectDataFor(*nitr);
+        cltv.collectDataFor(nitr);
     }
 
-    for(DrawableSet::iterator ditr=_drawableSet.begin();
-        ditr!=_drawableSet.end();
-        ++ditr)
+    for(auto ditr : _drawableSet)
     {
-        cltv.collectDataFor(*ditr);
+        cltv.collectDataFor(ditr);
     }
 
-    for(BillboardSet::iterator bitr=_billboardSet.begin();
-        bitr!=_billboardSet.end();
-        ++bitr)
+    for(auto bitr : _billboardSet)
     {
-        cltv.collectDataFor(*bitr);
+        cltv.collectDataFor(bitr);
     }
 
     cltv.setUpMaps();
 
-    for(TransformSet::iterator titr=_transformSet.begin();
-        titr!=_transformSet.end();
-        ++titr)
+    for(auto titr : _transformSet)
     {
-        cltv.disableTransform(*titr);
+        cltv.disableTransform(titr);
     }
 
 
@@ -750,7 +727,7 @@ bool Optimizer::CombineStaticTransformsVisitor::removeTransforms(osg::Node* node
     if (topmost!=nullptr && topmost->asMatrixTransform()!=nullptr)
     {
         // remove topmost node from transform set if it exists there.
-        TransformSet::iterator itr = _transformSet.find(topmost->asMatrixTransform());
+        auto itr = _transformSet.find(topmost->asMatrixTransform());
         if (itr!=_transformSet.end()) _transformSet.erase(itr);
     }
 
@@ -781,11 +758,9 @@ bool Optimizer::CombineStaticTransformsVisitor::removeTransforms(osg::Node* node
             transformRemoved = true;
 
             osg::Node::ParentList parents = transform->getParents();
-            for(osg::Node::ParentList::iterator pitr=parents.begin();
-                pitr!=parents.end();
-                ++pitr)
+            for(auto & parent : parents)
             {
-                (*pitr)->replaceChild(transform.get(),child);
+                parent->replaceChild(transform.get(),child);
             }
 
         }
@@ -821,21 +796,16 @@ void Optimizer::RemoveEmptyNodesVisitor::removeEmptyNodes()
     // keep iterator through until scene graph is cleaned of empty nodes.
     while (!_redundantNodeList.empty())
     {
-        for(NodeList::iterator itr=_redundantNodeList.begin();
-            itr!=_redundantNodeList.end();
-            ++itr)
+        for(auto itr : _redundantNodeList)
         {
 
-            osg::ref_ptr<osg::Node> nodeToRemove = (*itr);
+            osg::ref_ptr<osg::Node> nodeToRemove = itr;
 
             // take a copy of parents list since subsequent removes will modify the original one.
             osg::Node::ParentList parents = nodeToRemove->getParents();
 
-            for(osg::Node::ParentList::iterator pitr=parents.begin();
-                pitr!=parents.end();
-                ++pitr)
+            for(auto parent : parents)
             {
-                osg::Group* parent = *pitr;
                 if (!parent->asSwitch() && !dynamic_cast<osg::LOD*>(parent) && !dynamic_cast<osg::Sequence*>(parent))
                 {
                     parent->removeChild(nodeToRemove.get());
@@ -917,27 +887,23 @@ void Optimizer::RemoveRedundantNodesVisitor::apply(osg::Transform& transform)
 void Optimizer::RemoveRedundantNodesVisitor::removeRedundantNodes()
 {
 
-    for(NodeList::iterator itr=_redundantNodeList.begin();
-        itr!=_redundantNodeList.end();
-        ++itr)
+    for(auto itr : _redundantNodeList)
     {
-        osg::ref_ptr<osg::Group> group = (*itr)->asGroup();
+        osg::ref_ptr<osg::Group> group = itr->asGroup();
         if (group.valid())
         {
             // take a copy of parents list since subsequent removes will modify the original one.
             osg::Node::ParentList parents = group->getParents();
 
-            for(osg::Node::ParentList::iterator pitr=parents.begin();
-                pitr!=parents.end();
-                ++pitr)
+            for(auto & parent : parents)
             {
-                unsigned int childIndex = (*pitr)->getChildIndex(group);
+                unsigned int childIndex = parent->getChildIndex(group);
                 for (unsigned int i=0; i<group->getNumChildren(); ++i)
                 {
                     if (i==0)
-                        (*pitr)->setChild(childIndex, group->getChild(i));
+                        parent->setChild(childIndex, group->getChild(i));
                     else
-                        (*pitr)->insertChild(childIndex+i, group->getChild(i));
+                        parent->insertChild(childIndex+i, group->getChild(i));
                 }
             }
 
@@ -1165,9 +1131,8 @@ void Optimizer::MergeGeometryVisitor::checkAlphaBlendingActive()
 {
     int renderingHint = 0;
     bool override = false;
-    for (std::vector<osg::StateSet*>::const_iterator it = _stateSetStack.begin(); it != _stateSetStack.end(); ++it)
+    for (auto stateSet : _stateSetStack)
     {
-        osg::StateSet* stateSet = *it;
         osg::StateSet::RenderBinMode mode = stateSet->getRenderBinMode();
         if (override && !(mode & osg::StateSet::PROTECTED_RENDERBIN_DETAILS))
             continue;
@@ -1332,11 +1297,8 @@ bool Optimizer::MergeGeometryVisitor::mergeGroup(osg::Group& group)
         // (i.e. array types) to avoid loss of data during merging
         MergeList mergeListChecked;        // List of drawables just before merging, grouped by "compatibility" and vertex limit
         MergeList mergeList;            // Intermediate list of drawables, grouped ony by "compatibility"
-        for(MergeList::iterator itr=geometryDuplicates.begin();
-            itr!=geometryDuplicates.end();
-            ++itr)
+        for(auto & duplicates : geometryDuplicates)
         {
-            DuplicateList& duplicates = *itr;
             if (duplicates.empty()) continue;
             if (duplicates.size()==1)
             {
@@ -1355,14 +1317,14 @@ bool Optimizer::MergeGeometryVisitor::mergeGroup(osg::Group& group)
             DuplicateList* duplicateList = &mergeListTmp.back();
             duplicateList->push_back(duplicates[0]);
 
-            for(DuplicateList::iterator dupItr=duplicates.begin()+1;
+            for(auto dupItr=duplicates.begin()+1;
                 dupItr!=duplicates.end();
                 ++dupItr)
             {
                 osg::Geometry* geomToPush = dupItr->get();
 
                 // try to group geomToPush with another geometry
-                MergeList::iterator eachMergeList=mergeListTmp.begin();
+                auto eachMergeList=mergeListTmp.begin();
                 for(;eachMergeList!=mergeListTmp.end();++eachMergeList)
                 {
                     if (!eachMergeList->empty() && eachMergeList->front()!=nullptr
@@ -1383,18 +1345,17 @@ bool Optimizer::MergeGeometryVisitor::mergeGroup(osg::Group& group)
             }
 
             // copy the group in the mergeListChecked
-            for(MergeList::iterator eachMergeList=mergeListTmp.begin();eachMergeList!=mergeListTmp.end();++eachMergeList)
+            for(auto & eachMergeList : mergeListTmp)
             {
-                mergeListChecked.push_back(*eachMergeList);
+                mergeListChecked.push_back(eachMergeList);
             }
         }
 
         // then build merge list using _targetMaximumNumberOfVertices
         bool needToDoMerge = false;
         // dequeue each DuplicateList when vertices limit is reached or when all elements has been checked
-        for(MergeList::iterator itr=mergeListChecked.begin(); itr!=mergeListChecked.end(); ++itr)
+        for(auto & duplicateList : mergeListChecked)
         {
-            DuplicateList& duplicateList(*itr);
             if (duplicateList.size()==0)
             {
                 continue;
@@ -1408,11 +1369,9 @@ bool Optimizer::MergeGeometryVisitor::mergeGroup(osg::Group& group)
 
             unsigned int totalNumberVertices = 0;
             DuplicateList subset;
-            for(DuplicateList::iterator ditr = duplicateList.begin();
-                ditr != duplicateList.end();
-                ++ditr)
+            for(auto & ditr : duplicateList)
             {
-                osg::Geometry* geometry = ditr->get();
+                osg::Geometry* geometry = ditr.get();
                 unsigned int numVertices = (geometry->getVertexArray() ? geometry->getVertexArray()->getNumElements() : 0);
                 if ((totalNumberVertices+numVertices)>_targetMaximumNumberOfVertices && !subset.empty())
                 {
@@ -1432,22 +1391,17 @@ bool Optimizer::MergeGeometryVisitor::mergeGroup(osg::Group& group)
             // to avoid performance issues associated with incrementally removing a large number children, we remove them all and add back the ones we need.
             group.removeChildren(0, group.getNumChildren());
 
-            for(Nodes::iterator itr = standardChildren.begin();
-                itr != standardChildren.end();
-                ++itr)
+            for(auto & itr : standardChildren)
             {
-                group.addChild(*itr);
+                group.addChild(itr);
             }
 
             // Place outside the loop to keep vectors allocated
             GeometryArraySizes sizes;
 
             // now do the merging of geometries
-            for(MergeList::iterator mitr = mergeList.begin();
-                mitr != mergeList.end();
-                ++mitr)
+            for(auto & duplicateList : mergeList)
             {
-                DuplicateList& duplicateList = *mitr;
                 if (!duplicateList.empty())
                 {
                     if (_alphaBlendingActive)
@@ -1458,7 +1412,7 @@ bool Optimizer::MergeGeometryVisitor::mergeGroup(osg::Group& group)
                         // Stable, so that geometries at one distance keep the child order
                         std::stable_sort(duplicateList.begin(), duplicateList.end(), lgvp);
                     }
-                    DuplicateList::iterator ditr = duplicateList.begin();
+                    auto ditr = duplicateList.begin();
                     osg::ref_ptr<osg::Geometry> lhs = *ditr++;
 
                     initArraySizes(*lhs, sizes);
@@ -1492,21 +1446,19 @@ bool Optimizer::MergeGeometryVisitor::mergeGroup(osg::Group& group)
         if (geom)
         {
             osg::Geometry::PrimitiveSetList& primitives = geom->getPrimitiveSetList();
-            for(osg::Geometry::PrimitiveSetList::iterator itr=primitives.begin();
-                itr!=primitives.end();
-                ++itr)
+            for(auto & primitive : primitives)
             {
-                osg::PrimitiveSet* prim = itr->get();
+                osg::PrimitiveSet* prim = primitive.get();
                 if (prim->getMode()==osg::PrimitiveSet::POLYGON)
                 {
                     if (prim->getNumIndices()==3)
                     {
-                        prim = clonePrimitive(prim, ebo, geom); (*itr) = prim;
+                        prim = clonePrimitive(prim, ebo, geom); primitive = prim;
                         prim->setMode(osg::PrimitiveSet::TRIANGLES);
                     }
                     else if (prim->getNumIndices()==4)
                     {
-                        prim = clonePrimitive(prim, ebo, geom); (*itr) = prim;
+                        prim = clonePrimitive(prim, ebo, geom); primitive = prim;
                         prim->setMode(osg::PrimitiveSet::QUADS);
                     }
                 }
@@ -1613,11 +1565,9 @@ bool Optimizer::MergeGeometryVisitor::mergeGroup(osg::Group& group)
                     primitives.swap(oldPrimitives);
 
                     // now add the active primitive sets
-                    for(osg::Geometry::PrimitiveSetList::iterator pitr = oldPrimitives.begin();
-                        pitr != oldPrimitives.end();
-                        ++pitr)
+                    for(auto & oldPrimitive : oldPrimitives)
                     {
-                        if (!toremove.count(*pitr)) primitives.push_back(*pitr);
+                        if (!toremove.count(oldPrimitive)) primitives.push_back(oldPrimitive);
                     }
                 }
     #endif
@@ -1892,18 +1842,16 @@ bool Optimizer::MergeGeometryVisitor::mergeGeometry(osg::Geometry& lhs, osg::Geo
         {
         case(osg::PrimitiveSet::DrawElementsUBytePrimitiveType):
             {
-                osg::DrawElementsUByte* primitiveUByte = static_cast<osg::DrawElementsUByte*>(primitive);
+                auto* primitiveUByte = static_cast<osg::DrawElementsUByte*>(primitive);
                 unsigned int currentMaximum = 0;
-                for(osg::DrawElementsUByte::iterator eitr=primitiveUByte->begin();
-                    eitr!=primitiveUByte->end();
-                    ++eitr)
+                for(unsigned char & eitr : *primitiveUByte)
                 {
-                    currentMaximum = osg::maximum(currentMaximum,(unsigned int)*eitr);
+                    currentMaximum = osg::maximum(currentMaximum,(unsigned int)eitr);
                 }
                 if ((base+currentMaximum)>=65536)
                 {
                     // must promote to a DrawElementsUInt
-                    osg::DrawElementsUInt* new_primitive = new osg::DrawElementsUInt(primitive->getMode());
+                    auto* new_primitive = new osg::DrawElementsUInt(primitive->getMode());
                     if (!ebo) ebo = new osg::ElementBufferObject;
                     new_primitive->setElementBufferObject(ebo);
                     std::copy(primitiveUByte->begin(),primitiveUByte->end(),std::back_inserter(*new_primitive));
@@ -1912,7 +1860,7 @@ bool Optimizer::MergeGeometryVisitor::mergeGeometry(osg::Geometry& lhs, osg::Geo
                 } else if ((base+currentMaximum)>=256)
                 {
                     // must promote to a DrawElementsUShort
-                    osg::DrawElementsUShort* new_primitive = new osg::DrawElementsUShort(primitive->getMode());
+                    auto* new_primitive = new osg::DrawElementsUShort(primitive->getMode());
                     if (!ebo) ebo = new osg::ElementBufferObject;
                     new_primitive->setElementBufferObject(ebo);
                     std::copy(primitiveUByte->begin(),primitiveUByte->end(),std::back_inserter(*new_primitive));
@@ -1929,18 +1877,16 @@ bool Optimizer::MergeGeometryVisitor::mergeGeometry(osg::Geometry& lhs, osg::Geo
 
         case(osg::PrimitiveSet::DrawElementsUShortPrimitiveType):
             {
-                osg::DrawElementsUShort* primitiveUShort = static_cast<osg::DrawElementsUShort*>(primitive);
+                auto* primitiveUShort = static_cast<osg::DrawElementsUShort*>(primitive);
                 unsigned int currentMaximum = 0;
-                for(osg::DrawElementsUShort::iterator eitr=primitiveUShort->begin();
-                    eitr!=primitiveUShort->end();
-                    ++eitr)
+                for(unsigned short & eitr : *primitiveUShort)
                 {
-                    currentMaximum = osg::maximum(currentMaximum,(unsigned int)*eitr);
+                    currentMaximum = osg::maximum(currentMaximum,(unsigned int)eitr);
                 }
                 if ((base+currentMaximum)>=65536)
                 {
                     // must promote to a DrawElementsUInt
-                    osg::DrawElementsUInt* new_primitive = new osg::DrawElementsUInt(primitive->getMode());
+                    auto* new_primitive = new osg::DrawElementsUInt(primitive->getMode());
                     if (!ebo) ebo = new osg::ElementBufferObject;
                     new_primitive->setElementBufferObject(ebo);
                     std::copy(primitiveUShort->begin(),primitiveUShort->end(),std::back_inserter(*new_primitive));
@@ -2078,15 +2024,14 @@ void Optimizer::MergeGroupsVisitor::apply(osg::Group &group)
             }
         }
 
-        for (std::vector<std::vector<osg::Group*> >::iterator it = childOrder.begin(); it != childOrder.end(); ++it)
+        for (auto & groupSet : childOrder)
         {
-            const std::vector<osg::Group*>& groupSet = *it;
             if (groupSet.size() <= 1)
                 continue;
             else
             {
                 osg::Group* first = *groupSet.begin();
-                for (std::vector<osg::Group*>::const_iterator groupIt = ++groupSet.begin(); groupIt != groupSet.end(); ++groupIt)
+                for (auto groupIt = ++groupSet.begin(); groupIt != groupSet.end(); ++groupIt)
                 {
                     osg::Group* toMerge = *groupIt;
                     for (unsigned int i=0; i<toMerge->getNumChildren(); ++i)

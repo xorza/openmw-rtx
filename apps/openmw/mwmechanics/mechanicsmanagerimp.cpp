@@ -327,9 +327,9 @@ namespace MWMechanics
 
     void MechanicsManager::processChangedSettings(const Settings::CategorySettingVector& changed)
     {
-        for (Settings::CategorySettingVector::const_iterator it = changed.begin(); it != changed.end(); ++it)
+        for (const auto& it : changed)
         {
-            if (it->first == "Game" && it->second == "actors processing range")
+            if (it.first == "Game" && it.second == "actors processing range")
             {
                 int state = MWBase::Environment::get().getStateManager()->getState();
                 if (state != MWBase::StateManager::State_Running)
@@ -475,7 +475,7 @@ namespace MWMechanics
     int MechanicsManager::getDerivedDisposition(const MWWorld::Ptr& ptr, bool clamp)
     {
         const MWMechanics::NpcStats& npcStats = ptr.getClass().getNpcStats(ptr);
-        float x = static_cast<float>(npcStats.getBaseDisposition() + npcStats.getCrimeDispositionModifier());
+        auto x = static_cast<float>(npcStats.getBaseDisposition() + npcStats.getCrimeDispositionModifier());
 
         MWWorld::LiveCellRef<ESM::NPC>* npc = ptr.get<ESM::NPC>();
         MWWorld::Ptr playerPtr = getPlayer();
@@ -967,34 +967,34 @@ namespace MWMechanics
     std::vector<std::pair<ESM::RefId, int>> MechanicsManager::getStolenItemOwners(const ESM::RefId& itemid)
     {
         std::vector<std::pair<ESM::RefId, int>> result;
-        StolenItemsMap::const_iterator it = mStolenItems.find(itemid);
+        auto it = mStolenItems.find(itemid);
         if (it == mStolenItems.end())
             return result;
         else
         {
             const OwnerMap& owners = it->second;
-            for (OwnerMap::const_iterator ownerIt = owners.begin(); ownerIt != owners.end(); ++ownerIt)
-                result.emplace_back(ownerIt->first.first, ownerIt->second);
+            for (const auto& owner : owners)
+                result.emplace_back(owner.first.first, owner.second);
             return result;
         }
     }
 
     bool MechanicsManager::isItemStolenFrom(const ESM::RefId& itemid, const MWWorld::Ptr& ptr)
     {
-        StolenItemsMap::const_iterator it = mStolenItems.find(itemid);
+        auto it = mStolenItems.find(itemid);
         if (it == mStolenItems.end())
             return false;
 
         const OwnerMap& owners = it->second;
         const ESM::RefId& ownerid = ptr.getCellRef().getRefId();
-        OwnerMap::const_iterator ownerFound = owners.find(std::make_pair(ownerid, false));
+        auto ownerFound = owners.find(std::make_pair(ownerid, false));
         if (ownerFound != owners.end())
             return true;
 
         const ESM::RefId& factionid = ptr.getClass().getPrimaryFaction(ptr);
         if (!factionid.empty())
         {
-            OwnerMap::const_iterator factionOwnerFound = owners.find(std::make_pair(factionid, true));
+            auto factionOwnerFound = owners.find(std::make_pair(factionid, true));
             return factionOwnerFound != owners.end();
         }
 
@@ -1009,7 +1009,7 @@ namespace MWMechanics
 
         const ESM::RefId& itemId = item.getCellRef().getRefId();
 
-        StolenItemsMap::iterator stolenIt = mStolenItems.find(itemId);
+        auto stolenIt = mStolenItems.find(itemId);
         if (stolenIt == mStolenItems.end())
             return;
 
@@ -1031,7 +1031,7 @@ namespace MWMechanics
         {
             // erase owner from stolen items owners
             OwnerMap& owners = stolenIt->second;
-            OwnerMap::iterator ownersIt = owners.find(owner);
+            auto ownersIt = owners.find(owner);
             if (ownersIt != owners.end())
                 owners.erase(ownersIt);
         }
@@ -1051,12 +1051,12 @@ namespace MWMechanics
         MWWorld::ContainerStore& containerStore = targetContainer.getClass().getContainerStore(targetContainer);
         for (MWWorld::ContainerStoreIterator it = store.begin(); it != store.end(); ++it)
         {
-            StolenItemsMap::iterator stolenIt = mStolenItems.find(it->getCellRef().getRefId());
+            auto stolenIt = mStolenItems.find(it->getCellRef().getRefId());
             if (stolenIt == mStolenItems.end())
                 continue;
             OwnerMap& owners = stolenIt->second;
             int itemCount = it->getCellRef().getCount();
-            for (OwnerMap::iterator ownerIt = owners.begin(); ownerIt != owners.end();)
+            for (auto ownerIt = owners.begin(); ownerIt != owners.end();)
             {
                 int toRemove = std::min(itemCount, ownerIt->second);
                 itemCount -= toRemove;
@@ -1424,7 +1424,7 @@ namespace MWMechanics
                 else if (type == OT_Pickpocket && !isActorVictim)
                     alarmTerm = 0.0;
 
-                float fightTerm = static_cast<float>(isActorVictim ? fightVictim : fight);
+                auto fightTerm = static_cast<float>(isActorVictim ? fightVictim : fight);
                 fightTerm += getFightDispositionBias(dispTerm);
                 fightTerm += getFightDistanceBias(actor, player);
                 fightTerm *= alarmTerm;
@@ -1615,7 +1615,7 @@ namespace MWMechanics
         {
             static float fSneakSkillMult = store.find("fSneakSkillMult")->mValue.getFloat();
             static float fSneakBootMult = store.find("fSneakBootMult")->mValue.getFloat();
-            float sneak = static_cast<float>(ptr.getClass().getSkill(ptr, ESM::Skill::Sneak));
+            auto sneak = static_cast<float>(ptr.getClass().getSkill(ptr, ESM::Skill::Sneak));
             float agility = stats.getAttribute(ESM::Attribute::Agility).getModified();
             float luck = stats.getAttribute(ESM::Attribute::Luck).getModified();
             float bootWeight = 0;

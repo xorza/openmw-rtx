@@ -239,15 +239,14 @@ namespace Shader
 
                     for (const auto& [templateName, shaderDefines] : shaderKeys)
                     {
-                        ShaderManager::ShaderMap::iterator shaderIt
-                            = manager.mShaders.find(std::make_pair(templateName, shaderDefines));
+                        auto shaderIt = manager.mShaders.find(std::make_pair(templateName, shaderDefines));
                         if (shaderIt == manager.mShaders.end())
                         {
                             Log(Debug::Error) << "Failed to find shader " << templateName;
                             continue;
                         }
 
-                        ShaderManager::TemplateMap::iterator templateIt = manager.mShaderTemplates.find(
+                        auto templateIt = manager.mShaderTemplates.find(
                             templateName); // Can't be Null, if we're here it means the template was added
                         assert(templateIt != manager.mShaderTemplates.end());
                         std::string& shaderSource = templateIt->second;
@@ -456,8 +455,8 @@ namespace Shader
                 return false;
             }
             std::string define = source.substr(foundPos + 1, endPos - (foundPos + 1));
-            ShaderManager::DefineMap::const_iterator defineFound = defines.find(define);
-            ShaderManager::DefineMap::const_iterator globalDefineFound = globalDefines.find(define);
+            auto defineFound = defines.find(define);
+            auto globalDefineFound = globalDefines.find(define);
             if (define == "foreach")
             {
                 source.replace(foundPos, 1, "$");
@@ -523,7 +522,7 @@ namespace Shader
             templateName = "compatibility/" + templateName;
 
         // read the template if we haven't already
-        TemplateMap::iterator templateIt = mShaderTemplates.find(templateName);
+        auto templateIt = mShaderTemplates.find(templateName);
         std::set<std::filesystem::path> insertedPaths;
 
         if (templateIt == mShaderTemplates.end())
@@ -549,7 +548,7 @@ namespace Shader
             templateIt = mShaderTemplates.insert(std::make_pair(templateName, source)).first;
         }
 
-        ShaderMap::iterator shaderIt = mShaders.find(std::make_pair(templateName, defines));
+        auto shaderIt = mShaders.find(std::make_pair(templateName, defines));
         if (shaderIt == mShaders.end())
         {
             std::string shaderSource = templateIt->second;
@@ -677,8 +676,8 @@ namespace Shader
         osg::ref_ptr<osg::Shader> fragmentShader, const osg::Program* programTemplate,
         const SamplerBindingMap& samplers)
     {
-        std::lock_guard<std::mutex> lock(mMutex);
-        ProgramMap::iterator found = mPrograms.find(std::make_pair(vertexShader, fragmentShader));
+        std::scoped_lock lock(mMutex);
+        auto found = mPrograms.find(std::make_pair(vertexShader, fragmentShader));
         if (found == mPrograms.end())
         {
             if (!programTemplate)
@@ -712,7 +711,7 @@ namespace Shader
 
     void ShaderManager::setGlobalDefines(DefineMap& globalDefines)
     {
-        std::lock_guard<std::mutex> lock(mMutex);
+        std::scoped_lock lock(mMutex);
         mGlobalDefines = globalDefines;
         // clear out linked dependencies - changing defines may make them obsolete
         for (const auto& [pair, program] : mPrograms)
@@ -753,7 +752,7 @@ namespace Shader
 
     void ShaderManager::releaseGLObjects(osg::State* state)
     {
-        std::lock_guard<std::mutex> lock(mMutex);
+        std::scoped_lock lock(mMutex);
         for (const auto& [_, shader] : mShaders)
         {
             if (shader != nullptr)

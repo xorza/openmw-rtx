@@ -107,7 +107,7 @@ namespace Crash
         /// Whether the watch has ended, which it does once the game is gone.
         bool watchEnded(MonitorState& monitor)
         {
-            const std::lock_guard lock(monitor.mWatchMutex);
+            const std::scoped_lock lock(monitor.mWatchMutex);
             return monitor.mWatchEnds;
         }
 
@@ -128,7 +128,7 @@ namespace Crash
                 settings->GetClientID(&stamp.mClient);
 
             const bool written = [&] {
-                const std::lock_guard lock(monitor.mReading);
+                const std::scoped_lock lock(monitor.mReading);
                 return monitor.mGame.readWhole(stamp, [&](const crashpad::ProcessSnapshot& snapshot) {
                     crashpad::MinidumpFileWriter minidump;
                     minidump.InitializeFromSnapshot(&snapshot);
@@ -522,7 +522,7 @@ namespace Crash
                     Monitor::HandlerParts{
                         .mSources = sources, .mReading = monitor.mReading, .mUnwritten = monitor.mUnwritten });
                 {
-                    const std::lock_guard lock(monitor.mWatchMutex);
+                    const std::scoped_lock lock(monitor.mWatchMutex);
                     monitor.mWatchEnds = true;
                 }
                 monitor.mWatchWake.notify_one();
@@ -547,7 +547,7 @@ namespace Crash
                             + " seconds of the game, and the monitor ends without it" });
                     break;
                 }
-                const AskToEnd& asked = std::get<AskToEnd>(request);
+                const auto& asked = std::get<AskToEnd>(request);
                 // Gone before its question was asked, which no box asks about.
                 if (watchEnded(monitor) || monitor.mGame.isGone())
                 {

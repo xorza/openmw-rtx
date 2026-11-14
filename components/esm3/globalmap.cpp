@@ -33,11 +33,11 @@ namespace ESM
         esm.write(mImageData.data(), mImageData.size());
         esm.endRecord("DATA");
 
-        for (std::set<CellId>::const_iterator it = mMarkers.begin(); it != mMarkers.end(); ++it)
+        for (const auto& mMarker : mMarkers)
         {
             esm.startSubRecord("MRK_");
-            esm.writeT(it->first);
-            esm.writeT(it->second);
+            esm.writeT(mMarker.first);
+            esm.writeT(mMarker.second);
             esm.endRecord("MRK_");
         }
     }

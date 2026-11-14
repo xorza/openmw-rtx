@@ -110,31 +110,31 @@ CSVRender::WorldspaceWidget::WorldspaceWidget(CSMDoc::Document& document, QWidge
     CSMPrefs::get()["Tooltips"].update();
 
     // Shortcuts
-    CSMPrefs::Shortcut* primaryEditShortcut
+    auto* primaryEditShortcut
         = new CSMPrefs::Shortcut("scene-edit-primary", "scene-speed-modifier", CSMPrefs::Shortcut::SM_Detach, this);
-    CSMPrefs::Shortcut* primaryOpenShortcut = new CSMPrefs::Shortcut("scene-open-primary", this);
+    auto* primaryOpenShortcut = new CSMPrefs::Shortcut("scene-open-primary", this);
 
     connect(primaryOpenShortcut, qOverload<bool>(&CSMPrefs::Shortcut::activated), this, &WorldspaceWidget::primaryOpen);
     connect(primaryEditShortcut, qOverload<bool>(&CSMPrefs::Shortcut::activated), this, &WorldspaceWidget::primaryEdit);
     connect(primaryEditShortcut, qOverload<bool>(&CSMPrefs::Shortcut::secondary), this, &WorldspaceWidget::speedMode);
 
-    CSMPrefs::Shortcut* secondaryEditShortcut = new CSMPrefs::Shortcut("scene-edit-secondary", this);
+    auto* secondaryEditShortcut = new CSMPrefs::Shortcut("scene-edit-secondary", this);
     connect(
         secondaryEditShortcut, qOverload<bool>(&CSMPrefs::Shortcut::activated), this, &WorldspaceWidget::secondaryEdit);
 
-    CSMPrefs::Shortcut* primarySelectShortcut = new CSMPrefs::Shortcut("scene-select-primary", this);
+    auto* primarySelectShortcut = new CSMPrefs::Shortcut("scene-select-primary", this);
     connect(
         primarySelectShortcut, qOverload<bool>(&CSMPrefs::Shortcut::activated), this, &WorldspaceWidget::primarySelect);
 
-    CSMPrefs::Shortcut* secondarySelectShortcut = new CSMPrefs::Shortcut("scene-select-secondary", this);
+    auto* secondarySelectShortcut = new CSMPrefs::Shortcut("scene-select-secondary", this);
     connect(secondarySelectShortcut, qOverload<bool>(&CSMPrefs::Shortcut::activated), this,
         &WorldspaceWidget::secondarySelect);
 
-    CSMPrefs::Shortcut* tertiarySelectShortcut = new CSMPrefs::Shortcut("scene-select-tertiary", this);
+    auto* tertiarySelectShortcut = new CSMPrefs::Shortcut("scene-select-tertiary", this);
     connect(tertiarySelectShortcut, qOverload<bool>(&CSMPrefs::Shortcut::activated), this,
         &WorldspaceWidget::tertiarySelect);
 
-    CSMPrefs::Shortcut* abortShortcut = new CSMPrefs::Shortcut("scene-edit-abort", this);
+    auto* abortShortcut = new CSMPrefs::Shortcut("scene-edit-abort", this);
     connect(abortShortcut, qOverload<>(&CSMPrefs::Shortcut::activated), this, &WorldspaceWidget::abortDrag);
 
     connect(new CSMPrefs::Shortcut("scene-toggle-visibility", this), qOverload<>(&CSMPrefs::Shortcut::activated), this,
@@ -146,7 +146,7 @@ CSVRender::WorldspaceWidget::WorldspaceWidget(CSMDoc::Document& document, QWidge
     connect(new CSMPrefs::Shortcut("scene-clear-selection", this), qOverload<>(&CSMPrefs::Shortcut::activated), this,
         [this] { clearSelection(Mask_Reference); });
 
-    CSMPrefs::Shortcut* switchPerspectiveShortcut = new CSMPrefs::Shortcut("scene-cam-cycle", this);
+    auto* switchPerspectiveShortcut = new CSMPrefs::Shortcut("scene-cam-cycle", this);
     connect(switchPerspectiveShortcut, qOverload<>(&CSMPrefs::Shortcut::activated), this,
         &WorldspaceWidget::cycleNavigationMode);
 
@@ -183,9 +183,9 @@ void CSVRender::WorldspaceWidget::centerOrbitCameraOnSelection()
 {
     std::vector<osg::ref_ptr<TagBase>> selection = getSelection(Mask_Reference);
 
-    for (std::vector<osg::ref_ptr<TagBase>>::iterator it = selection.begin(); it != selection.end(); ++it)
+    for (auto& it : selection)
     {
-        if (CSVRender::ObjectTag* objectTag = static_cast<CSVRender::ObjectTag*>(it->get()))
+        if (auto* objectTag = static_cast<CSVRender::ObjectTag*>(it.get()))
         {
             mOrbitCamControl->setCenter(objectTag->mObject->getPosition().asVec3());
         }
@@ -194,7 +194,7 @@ void CSVRender::WorldspaceWidget::centerOrbitCameraOnSelection()
 
 CSVWidget::SceneToolMode* CSVRender::WorldspaceWidget::makeNavigationSelector(CSVWidget::SceneToolbar* parent)
 {
-    CSVWidget::SceneToolMode* tool = new CSVWidget::SceneToolMode(parent, "Camera Mode");
+    auto* tool = new CSVWidget::SceneToolMode(parent, "Camera Mode");
 
     /// \todo replace icons
     /// \todo consider user-defined button-mapping
@@ -302,7 +302,7 @@ CSVRender::WorldspaceWidget::DropType CSVRender::WorldspaceWidget::getDropType(
 {
     DropType output = Type_Other;
 
-    for (std::vector<CSMWorld::UniversalId>::const_iterator iter(data.begin()); iter != data.end(); ++iter)
+    for (auto iter(data.begin()); iter != data.end(); ++iter)
     {
         DropType type = Type_Other;
 
@@ -337,9 +337,8 @@ bool CSVRender::WorldspaceWidget::handleDrop(const std::vector<CSMWorld::Univers
     {
         if (mRun)
         {
-            for (std::vector<CSMWorld::UniversalId>::const_iterator iter(universalIdData.begin());
-                iter != universalIdData.end(); ++iter)
-                mRun->addProfile(iter->getId());
+            for (const auto& iter : universalIdData)
+                mRun->addProfile(iter.getId());
         }
 
         return true;
@@ -501,7 +500,7 @@ void CSVRender::WorldspaceWidget::abortDrag()
 {
     if (mDragging)
     {
-        EditMode& editMode = dynamic_cast<CSVRender::EditMode&>(*mEditMode->getCurrent());
+        auto& editMode = dynamic_cast<CSVRender::EditMode&>(*mEditMode->getCurrent());
 
         editMode.dragAborted();
         mDragMode = InteractionType_None;
@@ -510,7 +509,7 @@ void CSVRender::WorldspaceWidget::abortDrag()
 
 void CSVRender::WorldspaceWidget::dragEnterEvent(QDragEnterEvent* event)
 {
-    const CSMWorld::TableMimeData* mime = dynamic_cast<const CSMWorld::TableMimeData*>(event->mimeData());
+    const auto* mime = dynamic_cast<const CSMWorld::TableMimeData*>(event->mimeData());
     if (!mime) // May happen when non-records (e.g. plain text) are dragged and dropped
         return;
 
@@ -530,7 +529,7 @@ void CSVRender::WorldspaceWidget::dragEnterEvent(QDragEnterEvent* event)
 
 void CSVRender::WorldspaceWidget::dragMoveEvent(QDragMoveEvent* event)
 {
-    const CSMWorld::TableMimeData* mime = dynamic_cast<const CSMWorld::TableMimeData*>(event->mimeData());
+    const auto* mime = dynamic_cast<const CSMWorld::TableMimeData*>(event->mimeData());
     if (!mime) // May happen when non-records (e.g. plain text) are dragged and dropped
         return;
 
@@ -550,7 +549,7 @@ void CSVRender::WorldspaceWidget::dragMoveEvent(QDragMoveEvent* event)
 
 void CSVRender::WorldspaceWidget::dropEvent(QDropEvent* event)
 {
-    const CSMWorld::TableMimeData* mime = dynamic_cast<const CSMWorld::TableMimeData*>(event->mimeData());
+    const auto* mime = dynamic_cast<const CSMWorld::TableMimeData*>(event->mimeData());
     if (!mime) // May happen when non-records (e.g. plain text) are dragged and dropped
         return;
 
@@ -699,13 +698,13 @@ void CSVRender::WorldspaceWidget::mouseMoveEvent(QMouseEvent* event)
         if (mSpeedMode)
             factor *= mDragShiftFactor;
 
-        EditMode& editMode = dynamic_cast<CSVRender::EditMode&>(*mEditMode->getCurrent());
+        auto& editMode = dynamic_cast<CSVRender::EditMode&>(*mEditMode->getCurrent());
 
         editMode.drag(event->position().toPoint(), diffX, diffY, factor);
     }
     else if (mDragMode != InteractionType_None)
     {
-        EditMode& editMode = dynamic_cast<CSVRender::EditMode&>(*mEditMode->getCurrent());
+        auto& editMode = dynamic_cast<CSVRender::EditMode&>(*mEditMode->getCurrent());
 
         if (mDragMode == InteractionType_PrimaryEdit)
             mDragging = editMode.primaryEditStartDrag(event->position().toPoint());
@@ -750,7 +749,7 @@ void CSVRender::WorldspaceWidget::wheelEvent(QWheelEvent* event)
         if (mSpeedMode)
             factor *= mDragShiftFactor;
 
-        EditMode& editMode = dynamic_cast<CSVRender::EditMode&>(*mEditMode->getCurrent());
+        auto& editMode = dynamic_cast<CSVRender::EditMode&>(*mEditMode->getCurrent());
         editMode.dragWheel(event->angleDelta().y(), factor);
     }
     else
@@ -759,7 +758,7 @@ void CSVRender::WorldspaceWidget::wheelEvent(QWheelEvent* event)
 
 void CSVRender::WorldspaceWidget::handleInteractionPress(const WorldspaceHitResult& hit, InteractionType type)
 {
-    EditMode& editMode = dynamic_cast<CSVRender::EditMode&>(*mEditMode->getCurrent());
+    auto& editMode = dynamic_cast<CSVRender::EditMode&>(*mEditMode->getCurrent());
 
     if (type == InteractionType_PrimaryEdit)
         editMode.primaryEditPressed(hit);

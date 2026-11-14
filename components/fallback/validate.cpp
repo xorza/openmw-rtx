@@ -253,7 +253,7 @@ void Fallback::validate(boost::any& v, std::vector<std::string> const& tokens, F
         v = boost::any(FallbackMap());
     }
 
-    FallbackMap* map = boost::any_cast<FallbackMap>(&v);
+    auto* map = boost::any_cast<FallbackMap>(&v);
 
     for (const auto& token : tokens)
     {

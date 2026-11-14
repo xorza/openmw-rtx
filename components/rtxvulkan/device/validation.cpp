@@ -62,20 +62,20 @@ namespace Rtx
 
     void ValidationLog::recordError(std::string&& text)
     {
-        const std::lock_guard<std::mutex> lock(mMutex);
+        const std::scoped_lock lock(mMutex);
         mErrors.push_back(ValidationMessage{ std::move(text), sFiledUnder });
     }
 
     void ValidationLog::disown(std::string prefix)
     {
         assert(!prefix.empty() && "a prefix every name starts with disowns every resource");
-        const std::lock_guard<std::mutex> lock(mMutex);
+        const std::scoped_lock lock(mMutex);
         mDisowned.push_back(std::move(prefix));
     }
 
     bool ValidationLog::isDisowned(const std::span<const VkDebugUtilsObjectNameInfoEXT> objects) const
     {
-        const std::lock_guard<std::mutex> lock(mMutex);
+        const std::scoped_lock lock(mMutex);
         bool any = false;
         for (const VkDebugUtilsObjectNameInfoEXT& object : objects)
         {
@@ -93,7 +93,7 @@ namespace Rtx
     {
         const std::thread::id current = std::this_thread::get_id();
 
-        const std::lock_guard<std::mutex> lock(mMutex);
+        const std::scoped_lock lock(mMutex);
 
         // Stable, so that messages come back in the order the layers raised them: the first is
         // usually the mistake and the rest are what it led to.

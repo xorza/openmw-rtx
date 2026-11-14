@@ -37,7 +37,7 @@ namespace Rtx
 
     osg::Vec2f splitSeconds(const double seconds)
     {
-        const float high = static_cast<float>(seconds);
+        const auto high = static_cast<float>(seconds);
         return osg::Vec2f(high, static_cast<float>(seconds - static_cast<double>(high)));
     }
 

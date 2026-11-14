@@ -95,8 +95,8 @@ CSVWorld::TableBottomBox::TableBottomBox(const CreatorFactoryBase& creatorFactor
     , mRow(0)
     , mColumn(0)
 {
-    for (int i = 0; i < 4; ++i)
-        mStatusCount[i] = 0;
+    for (int& i : mStatusCount)
+        i = 0;
 
     setVisible(false);
 
@@ -164,7 +164,7 @@ bool CSVWorld::TableBottomBox::eventFilter(QObject* object, QEvent* event)
 {
     if (event->type() == QEvent::KeyPress)
     {
-        QKeyEvent* keyEvent = static_cast<QKeyEvent*>(event);
+        auto* keyEvent = static_cast<QKeyEvent*>(event);
         if (keyEvent->key() == Qt::Key_Escape)
         {
             requestDone();
@@ -279,7 +279,7 @@ void CSVWorld::TableBottomBox::createRequest()
 
 void CSVWorld::TableBottomBox::createRecordsDirectlyRequest(const std::string& id)
 {
-    if (InfoCreator* creator = dynamic_cast<InfoCreator*>(mCreator))
+    if (auto* creator = dynamic_cast<InfoCreator*>(mCreator))
     {
         creator->reset();
         creator->setText(id);

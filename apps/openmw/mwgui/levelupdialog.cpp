@@ -85,7 +85,7 @@ namespace MWGui
 
         for (unsigned int i = 0; i < sMaxCoins; ++i)
         {
-            MyGUI::ImageBox* image = mCoinBox->createWidget<MyGUI::ImageBox>(
+            auto* image = mCoinBox->createWidget<MyGUI::ImageBox>(
                 "ImageBox", MyGUI::IntCoord(0, 0, 16, 16), MyGUI::Align::Default);
             image->setImageTexture("icons\\tx_goldicon.dds");
             mCoins.push_back(image);

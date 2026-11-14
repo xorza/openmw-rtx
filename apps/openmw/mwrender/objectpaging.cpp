@@ -141,7 +141,7 @@ namespace MWRender
         if (const osg::ref_ptr<osg::Object> obj = mCache->getRefFromObjectCache(id))
             return static_cast<osg::Node*>(obj.get());
 
-        const unsigned char lod = static_cast<unsigned char>(lodFlags >> (4 * 4));
+        const auto lod = static_cast<unsigned char>(lodFlags >> (4 * 4));
         osg::ref_ptr<osg::Node> node = createChunk(size, center, activeGrid, viewPoint, compile, lod);
         mCache->addEntryToObjectCache(id, node.get());
         return node;
@@ -221,14 +221,14 @@ namespace MWRender
 
                 if (const osg::Switch* sw = node->asSwitch())
                 {
-                    osg::Group* n = new osg::Group;
+                    auto* n = new osg::Group;
                     for (unsigned int i = 0; i < sw->getNumChildren(); ++i)
                         if (sw->getValue(i))
                             n->addChild(operator()(sw->getChild(i)));
                     n->setDataVariance(osg::Object::STATIC);
                     return n;
                 }
-                if (const osg::LOD* lod = dynamic_cast<const osg::LOD*>(node))
+                if (const auto* lod = dynamic_cast<const osg::LOD*>(node))
                 {
                     std::vector<std::pair<osg::ref_ptr<osg::Node>, LODRange>> children;
                     for (unsigned int i = 0; i < lod->getNumChildren(); ++i)
@@ -241,7 +241,7 @@ namespace MWRender
                         return children.front().first.release();
                     else
                     {
-                        osg::LOD* n = new osg::LOD;
+                        auto* n = new osg::LOD;
                         for (const auto& [child, range] : children)
                             n->addChild(child, range.first, range.second);
                         n->setRangeMode(lod->getRangeMode());
@@ -252,9 +252,9 @@ namespace MWRender
                         return n;
                     }
                 }
-                if (const osg::Sequence* sq = dynamic_cast<const osg::Sequence*>(node))
+                if (const auto* sq = dynamic_cast<const osg::Sequence*>(node))
                 {
-                    osg::Group* n = new osg::Group;
+                    auto* n = new osg::Group;
                     n->addChild(operator()(sq->getChild(sq->getValue() != -1 ? sq->getValue() : 0)));
                     n->setDataVariance(osg::Object::STATIC);
                     return n;
@@ -264,7 +264,7 @@ namespace MWRender
                 {
                     if (const auto* autoTransform = dynamic_cast<const NifOsg::AutoTransform*>(node))
                     {
-                        osg::MatrixTransform* n = new osg::MatrixTransform();
+                        auto* n = new osg::MatrixTransform();
                         n->setMatrix(autoTransform->computeMatrix(nullptr));
 
                         for (unsigned int i = 0; i < autoTransform->getNumChildren(); ++i)
@@ -279,7 +279,7 @@ namespace MWRender
                     }
                 }
 
-                osg::Node* cloned = static_cast<osg::Node*>(node->clone(*this));
+                auto* cloned = static_cast<osg::Node*>(node->clone(*this));
                 if (!mActiveGrid)
                     cloned->setDataVariance(osg::Object::STATIC);
                 cloned->setUserDataContainer(nullptr);
@@ -315,14 +315,14 @@ namespace MWRender
 
                 if (dynamic_cast<const SceneUtil::OsgaRigGeometry*>(drawable))
                     return nullptr;
-                if (const SceneUtil::RigGeometry* rig = dynamic_cast<const SceneUtil::RigGeometry*>(drawable))
+                if (const auto* rig = dynamic_cast<const SceneUtil::RigGeometry*>(drawable))
                     return operator()(rig->getSourceGeometry());
-                if (const SceneUtil::MorphGeometry* morph = dynamic_cast<const SceneUtil::MorphGeometry*>(drawable))
+                if (const auto* morph = dynamic_cast<const SceneUtil::MorphGeometry*>(drawable))
                     return operator()(morph->getSourceGeometry());
 
                 if (getCopyFlags() & DEEP_COPY_DRAWABLES)
                 {
-                    osg::Drawable* d = static_cast<osg::Drawable*>(drawable->clone(*this));
+                    auto* d = static_cast<osg::Drawable*>(drawable->clone(*this));
                     d->setDataVariance(osg::Object::STATIC);
                     d->setUserDataContainer(nullptr);
                     d->setName("");
@@ -363,14 +363,14 @@ namespace MWRender
                             traverse(*sw->getChild(i));
                     return;
                 }
-                if (osg::LOD* lod = dynamic_cast<osg::LOD*>(&node))
+                if (auto* lod = dynamic_cast<osg::LOD*>(&node))
                 {
                     for (unsigned int i = 0; i < lod->getNumChildren(); ++i)
                         if (const auto r = intersection(lod->getRangeList()[i], mDistances); !empty(r))
                             traverse(*lod->getChild(i));
                     return;
                 }
-                if (osg::Sequence* sq = dynamic_cast<osg::Sequence*>(&node))
+                if (auto* sq = dynamic_cast<osg::Sequence*>(&node))
                 {
                     traverse(*sq->getChild(sq->getValue() != -1 ? sq->getValue() : 0));
                     return;
@@ -529,7 +529,7 @@ namespace MWRender
                     {
                         try
                         {
-                            const std::size_t index = static_cast<std::size_t>(cell->mContextList[i].index);
+                            const auto index = static_cast<std::size_t>(cell->mContextList[i].index);
                             const ESM::ReadersCache::BusyItem reader = readers.get(index);
                             cell->restore(*reader, i);
                             ESM::CellRef ref;
@@ -666,7 +666,7 @@ namespace MWRender
 
         if (activeGrid && !refs.empty())
         {
-            std::lock_guard<std::mutex> lock(mRefTrackerMutex);
+            std::scoped_lock lock(mRefTrackerMutex);
             const std::set<ESM::RefNum>& blacklist = getRefTracker().mBlacklist;
             if (blacklist.size() < refs.size())
             {
@@ -725,8 +725,8 @@ namespace MWRender
             const float dSqr = (viewPoint - ref.mPosition).length2();
             if (!activeGrid)
             {
-                std::lock_guard<std::mutex> lock(mSizeCacheMutex);
-                SizeCache::iterator found = mSizeCache.find(refNum);
+                std::scoped_lock lock(mSizeCacheMutex);
+                auto found = mSizeCache.find(refNum);
                 if (found != mSizeCache.end() && found->second < dSqr * minSize * minSize)
                     continue;
             }
@@ -756,9 +756,9 @@ namespace MWRender
 
             if (!activeGrid)
             {
-                std::lock_guard<std::mutex> lock(mLODNameCacheMutex);
+                std::scoped_lock lock(mLODNameCacheMutex);
                 LODNameCacheKey key{ model, lod };
-                LODNameCache::const_iterator found = mLODNameCache.lower_bound(key);
+                auto found = mLODNameCache.lower_bound(key);
                 if (found != mLODNameCache.end() && found->first == key)
                     model = found->second;
                 else
@@ -784,7 +784,7 @@ namespace MWRender
             }
 
             {
-                std::lock_guard<std::mutex> lock(mRefTrackerMutex);
+                std::scoped_lock lock(mRefTrackerMutex);
                 if (getRefTracker().mDisabled.count(refNum))
                     continue;
             }
@@ -792,7 +792,7 @@ namespace MWRender
             const float radius2 = cnode->getBound().radius2() * ref.mScale * ref.mScale;
             if (radius2 < dSqr * minSize * minSize && !activeGrid)
             {
-                std::lock_guard<std::mutex> lock(mSizeCacheMutex);
+                std::scoped_lock lock(mSizeCacheMutex);
                 mSizeCache[refNum] = radius2;
                 continue;
             }
@@ -864,8 +864,7 @@ namespace MWRender
                 else
                 {
                     trans = new SceneUtil::PositionAttitudeTransform;
-                    SceneUtil::PositionAttitudeTransform* pat
-                        = static_cast<SceneUtil::PositionAttitudeTransform*>(trans.get());
+                    auto* pat = static_cast<SceneUtil::PositionAttitudeTransform*>(trans.get());
                     pat->setPosition(nodePos);
                     pat->setScale(nodeScale);
                     pat->setAttitude(nodeAttitude);
@@ -1026,7 +1025,7 @@ namespace MWRender
             return false;
 
         {
-            std::lock_guard<std::mutex> lock(mRefTrackerMutex);
+            std::scoped_lock lock(mRefTrackerMutex);
             if (enabled && !getWritableRefTracker().mDisabled.erase(refnum))
                 return false;
             if (!enabled && !getWritableRefTracker().mDisabled.insert(refnum).second)
@@ -1050,7 +1049,7 @@ namespace MWRender
             return false;
 
         {
-            std::lock_guard<std::mutex> lock(mRefTrackerMutex);
+            std::scoped_lock lock(mRefTrackerMutex);
             if (!getWritableRefTracker().mBlacklist.insert(refnum).second)
                 return false;
             if (mRefTrackerLocked)
@@ -1068,7 +1067,7 @@ namespace MWRender
 
     void ObjectPaging::clear()
     {
-        std::lock_guard<std::mutex> lock(mRefTrackerMutex);
+        std::scoped_lock lock(mRefTrackerMutex);
         mRefTrackerNew.mDisabled.clear();
         mRefTrackerNew.mBlacklist.clear();
         mRefTrackerLocked = true;
@@ -1079,7 +1078,7 @@ namespace MWRender
         if (!mRefTrackerLocked)
             return false;
         {
-            std::lock_guard<std::mutex> lock(mRefTrackerMutex);
+            std::scoped_lock lock(mRefTrackerMutex);
             mRefTrackerLocked = false;
             if (mRefTracker == mRefTrackerNew)
                 return false;
@@ -1140,7 +1139,7 @@ namespace MWRender
         Terrain::RefCollector& collector, std::vector<Terrain::PagedCellRef>& into) const
     {
         assert(dynamic_cast<RefBuffer*>(&collector) != nullptr && "a collector another storage made");
-        RefBuffer& buffer = static_cast<RefBuffer&>(collector);
+        auto& buffer = static_cast<RefBuffer&>(collector);
 
         into.clear();
         buffer.mStack.clear();

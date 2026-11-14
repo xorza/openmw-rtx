@@ -51,9 +51,9 @@ void ESM4::Navigation::IslandInfo::load(ESM4::Reader& reader)
     {
         triangles.resize(count);
         // std::cout << "NVMI island triangles " << std::dec << count << std::endl; // FIXME
-        for (std::vector<Navigation::Triangle>::iterator it = triangles.begin(); it != triangles.end(); ++it)
+        for (auto& triangle : triangles)
         {
-            reader.get(*it);
+            reader.get(triangle);
         }
     }
 
@@ -61,9 +61,9 @@ void ESM4::Navigation::IslandInfo::load(ESM4::Reader& reader)
     if (count)
     {
         verticies.resize(count);
-        for (std::vector<ESM4::Vertex>::iterator it = verticies.begin(); it != verticies.end(); ++it)
+        for (auto& verticie : verticies)
         {
-            reader.get(*it);
+            reader.get(verticie);
 // FIXME: debugging only
 #if 0
             std::string padding;
@@ -158,9 +158,9 @@ void ESM4::Navigation::NavMeshInfo::loadTES5(ESM4::Reader& reader)
     {
         // std::cout << "NVMI countLinkedDoors " << std::dec << count << std::endl;
         linkedDoors.resize(count);
-        for (std::vector<DoorRef>::iterator it = linkedDoors.begin(); it != linkedDoors.end(); ++it)
+        for (auto& linkedDoor : linkedDoors)
         {
-            reader.get(*it);
+            reader.get(linkedDoor);
         }
     }
 

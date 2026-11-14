@@ -157,7 +157,7 @@ namespace MWGui
                     color = "#FFFFFF";
             }
             bool bufferOverflow = false;
-            std::lock_guard lock(sBufferMutex);
+            std::scoped_lock lock(sBufferMutex);
             const int64_t bufSize = sLogCircularBuffer.size();
             auto addChar = [&](char c) {
                 sLogCircularBuffer[sLogEndIndex++] = c;
@@ -190,7 +190,7 @@ namespace MWGui
 
     void DebugWindow::updateLogView()
     {
-        std::lock_guard lock(sBufferMutex);
+        std::scoped_lock lock(sBufferMutex);
 
         if (!mLogView || sLogCircularBuffer.empty() || sLogStartIndex == sLogEndIndex)
             return;

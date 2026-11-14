@@ -485,7 +485,7 @@ namespace
         const std::chrono::steady_clock::time_point processTime{};
 
         std::list<Job> jobs;
-        const JobIt job = jobs.emplace(
+        const auto job = jobs.emplace(
             jobs.end(), mAgentBounds, mNavMeshCacheItem, mWorldspace, mChangedTile, ChangeType::remove, processTime);
 
         JobQueue queue;
@@ -515,7 +515,7 @@ namespace
     TEST_F(DetourNavigatorJobQueueTest, push_on_change_type_not_remove_should_add_to_updating)
     {
         std::list<Job> jobs;
-        const JobIt job = jobs.emplace(
+        const auto job = jobs.emplace(
             jobs.end(), mAgentBounds, mNavMeshCacheItem, mWorldspace, mChangedTile, ChangeType::update, mProcessTime);
 
         JobQueue queue;
@@ -548,7 +548,7 @@ namespace
         const std::chrono::steady_clock::time_point processTime = now + std::chrono::seconds(1);
 
         std::list<Job> jobs;
-        const JobIt job = jobs.emplace(
+        const auto job = jobs.emplace(
             jobs.end(), mAgentBounds, mNavMeshCacheItem, mWorldspace, mChangedTile, ChangeType::update, processTime);
 
         JobQueue queue;
@@ -563,7 +563,7 @@ namespace
         const std::chrono::steady_clock::time_point processTime = now + std::chrono::seconds(1);
 
         std::list<Job> jobs;
-        const JobIt job = jobs.emplace(
+        const auto job = jobs.emplace(
             jobs.end(), mAgentBounds, mNavMeshCacheItem, mWorldspace, mChangedTile, ChangeType::update, processTime);
 
         JobQueue queue;
@@ -611,7 +611,7 @@ namespace
         const std::chrono::steady_clock::time_point processTime = now + std::chrono::seconds(1);
 
         std::list<Job> jobs;
-        const JobIt job = jobs.emplace(
+        const auto job = jobs.emplace(
             jobs.end(), mAgentBounds, mNavMeshCacheItem, mWorldspace, mChangedTile, ChangeType::update, processTime);
 
         JobQueue queue;
@@ -631,7 +631,7 @@ namespace
         const std::chrono::steady_clock::time_point processTime = now + std::chrono::seconds(1);
 
         std::list<Job> jobs;
-        const JobIt job = jobs.emplace(
+        const auto job = jobs.emplace(
             jobs.end(), mAgentBounds, mNavMeshCacheItem, mWorldspace, mChangedTile, ChangeType::update, processTime);
 
         JobQueue queue;
@@ -672,11 +672,11 @@ namespace
         const std::chrono::steady_clock::time_point processTime = now + std::chrono::seconds(1);
 
         std::list<Job> jobs;
-        const JobIt removing = jobs.emplace(jobs.end(), mAgentBounds, mNavMeshCacheItem, mWorldspace,
-            TilePosition(0, 0), ChangeType::remove, mProcessTime);
-        const JobIt updating = jobs.emplace(jobs.end(), mAgentBounds, mNavMeshCacheItem, mWorldspace,
-            TilePosition(1, 0), ChangeType::update, mProcessTime);
-        const JobIt delayed = jobs.emplace(jobs.end(), mAgentBounds, mNavMeshCacheItem, mWorldspace, TilePosition(2, 0),
+        const auto removing = jobs.emplace(jobs.end(), mAgentBounds, mNavMeshCacheItem, mWorldspace, TilePosition(0, 0),
+            ChangeType::remove, mProcessTime);
+        const auto updating = jobs.emplace(jobs.end(), mAgentBounds, mNavMeshCacheItem, mWorldspace, TilePosition(1, 0),
+            ChangeType::update, mProcessTime);
+        const auto delayed = jobs.emplace(jobs.end(), mAgentBounds, mNavMeshCacheItem, mWorldspace, TilePosition(2, 0),
             ChangeType::update, processTime);
 
         JobQueue queue;

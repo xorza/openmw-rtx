@@ -59,7 +59,7 @@ namespace DetourNavigator
         TilesPositionsRange makeCellGridRange(
             const RecastSettings& settings, ESM::RefId worldspace, const CellGridBounds& bounds)
         {
-            const float floatCellSize = static_cast<float>(ESM::getCellSize(worldspace));
+            const auto floatCellSize = static_cast<float>(ESM::getCellSize(worldspace));
             const osg::Vec2f min = getMinCellGridPosition(bounds.mCenter, -bounds.mHalfSize, floatCellSize);
             const osg::Vec2f max = getMinCellGridPosition(bounds.mCenter, bounds.mHalfSize + 1, floatCellSize);
             return TilesPositionsRange{

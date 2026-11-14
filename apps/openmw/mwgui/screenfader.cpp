@@ -3,6 +3,8 @@
 #include <MyGUI_Gui.h>
 #include <MyGUI_ImageBox.h>
 
+#include <memory>
+
 namespace MWGui
 {
 
@@ -91,7 +93,7 @@ namespace MWGui
     {
         MyGUI::Gui::getInstance().eventFrameStart += MyGUI::newDelegate(this, &ScreenFader::onFrameStart);
 
-        MyGUI::ImageBox* imageBox = mMainWidget->castType<MyGUI::ImageBox>(false);
+        auto* imageBox = mMainWidget->castType<MyGUI::ImageBox>(false);
         if (imageBox)
         {
             imageBox->setImageTexture(texturePath);
@@ -175,7 +177,7 @@ namespace MWGui
             return;
         }
 
-        mQueue.push_back(FadeOp::Ptr(new FadeOp(this, time, targetAlpha, delay)));
+        mQueue.push_back(std::make_shared<FadeOp>(this, time, targetAlpha, delay));
     }
 
     bool ScreenFader::isEmpty()

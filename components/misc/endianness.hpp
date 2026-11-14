@@ -1,6 +1,7 @@
 #ifndef COMPONENTS_MISC_ENDIANNESS_H
 #define COMPONENTS_MISC_ENDIANNESS_H
 
+#include <bit>
 #include <cstdint>
 #include <cstring>
 #include <type_traits>
@@ -19,7 +20,7 @@ namespace Misc
         {
             uint16_t v16;
             std::memcpy(&v16, &v, sizeof(T));
-            v16 = (v16 >> 8) | (v16 << 8);
+            v16 = std::rotl(v16, 8);
             std::memcpy(&v, &v16, sizeof(T));
         }
         if constexpr (sizeof(T) == 4)

@@ -13,7 +13,7 @@ CSVDoc::NewGameDialogue::NewGameDialogue()
 {
     setWindowTitle("Create New Game");
 
-    QVBoxLayout* layout = new QVBoxLayout(this);
+    auto* layout = new QVBoxLayout(this);
 
     mFileWidget = new FileWidget(this);
     mFileWidget->setType(false);
@@ -24,7 +24,7 @@ CSVDoc::NewGameDialogue::NewGameDialogue()
 
     layout->addWidget(mAdjusterWidget, 1);
 
-    QDialogButtonBox* buttons = new QDialogButtonBox(this);
+    auto* buttons = new QDialogButtonBox(this);
 
     mCreate = new QPushButton("Create", this);
     mCreate->setDefault(true);
@@ -32,7 +32,7 @@ CSVDoc::NewGameDialogue::NewGameDialogue()
 
     buttons->addButton(mCreate, QDialogButtonBox::AcceptRole);
 
-    QPushButton* cancel = new QPushButton("Cancel", this);
+    auto* cancel = new QPushButton("Cancel", this);
 
     buttons->addButton(cancel, QDialogButtonBox::RejectRole);
 

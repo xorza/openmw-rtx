@@ -13,7 +13,7 @@ CSVPrefs::ContextMenuList::ContextMenuList(QWidget* parent)
 
 void CSVPrefs::ContextMenuList::contextMenuEvent(QContextMenuEvent* e)
 {
-    QMenu* menu = new QMenu();
+    auto* menu = new QMenu();
 
     menu->addAction("Reset category to default", this, SLOT(resetCategory()));
     menu->addAction("Reset all to default", this, SLOT(resetAll()));

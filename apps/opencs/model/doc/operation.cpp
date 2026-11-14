@@ -48,10 +48,10 @@ void CSMDoc::Operation::prepareStages()
     mTotalSteps = 0;
     mError = false;
 
-    for (std::vector<std::pair<Stage*, int>>::iterator iter(mStages.begin()); iter != mStages.end(); ++iter)
+    for (auto& mStage : mStages)
     {
-        iter->second = iter->first->setup();
-        mTotalSteps += iter->second;
+        mStage.second = mStage.first->setup();
+        mTotalSteps += mStage.second;
     }
 }
 
@@ -71,8 +71,8 @@ CSMDoc::Operation::Operation(State type, bool finalAlways)
 
 CSMDoc::Operation::~Operation()
 {
-    for (std::vector<std::pair<Stage*, int>>::iterator iter(mStages.begin()); iter != mStages.end(); ++iter)
-        delete iter->first;
+    for (auto& mStage : mStages)
+        delete mStage.first;
 }
 
 void CSMDoc::Operation::run()
@@ -158,8 +158,8 @@ void CSMDoc::Operation::executeStage()
 
     emit progress(mCurrentStepTotal, mTotalSteps ? mTotalSteps : 1, mType);
 
-    for (Messages::Iterator iter(messages.begin()); iter != messages.end(); ++iter)
-        emit reportMessage(*iter, mType);
+    for (const auto& message : messages)
+        emit reportMessage(message, mType);
 
     if (mCurrentStage == mStages.end())
     {

@@ -45,32 +45,31 @@ void CSVWorld::ScriptErrorTable::addMessage(
 
     setRowCount(row + 1);
 
-    QTableWidgetItem* severityItem
-        = new QTableWidgetItem(QString::fromUtf8(CSMDoc::Message::toString(severity).c_str()));
+    auto* severityItem = new QTableWidgetItem(QString::fromUtf8(CSMDoc::Message::toString(severity).c_str()));
     severityItem->setFlags(severityItem->flags() ^ Qt::ItemIsEditable);
     setItem(row, 0, severityItem);
 
     if (line != -1)
     {
-        QTableWidgetItem* lineItem = new QTableWidgetItem;
+        auto* lineItem = new QTableWidgetItem;
         lineItem->setData(Qt::DisplayRole, line + 1);
         lineItem->setFlags(lineItem->flags() ^ Qt::ItemIsEditable);
         setItem(row, 1, lineItem);
 
-        QTableWidgetItem* columnItem = new QTableWidgetItem;
+        auto* columnItem = new QTableWidgetItem;
         columnItem->setData(Qt::DisplayRole, column);
         columnItem->setFlags(columnItem->flags() ^ Qt::ItemIsEditable);
         setItem(row, 3, columnItem);
     }
     else
     {
-        QTableWidgetItem* lineItem = new QTableWidgetItem;
+        auto* lineItem = new QTableWidgetItem;
         lineItem->setData(Qt::DisplayRole, "-");
         lineItem->setFlags(lineItem->flags() ^ Qt::ItemIsEditable);
         setItem(row, 1, lineItem);
     }
 
-    QTableWidgetItem* messageItem = new QTableWidgetItem(QString::fromUtf8(message.c_str()));
+    auto* messageItem = new QTableWidgetItem(QString::fromUtf8(message.c_str()));
     messageItem->setFlags(messageItem->flags() ^ Qt::ItemIsEditable);
     setItem(row, 2, messageItem);
 }

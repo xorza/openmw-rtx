@@ -1266,7 +1266,7 @@ namespace MWMechanics
         // Fade away actors on large distance (>90% of actor's processing distance)
         float visibilityRatio = 1.0;
         const float fadeStartDistance = actorsProcessingRange * 0.9f;
-        const float fadeEndDistance = static_cast<float>(actorsProcessingRange);
+        const auto fadeEndDistance = static_cast<float>(actorsProcessingRange);
         const float fadeRatio = (dist - fadeStartDistance) / (fadeEndDistance - fadeStartDistance);
         if (fadeRatio > 0)
             visibilityRatio -= std::max(0.f, fadeRatio);
@@ -1902,7 +1902,7 @@ namespace MWMechanics
 
     void Actors::rest(double hours, bool sleep) const
     {
-        float duration = static_cast<float>(hours * 3600);
+        auto duration = static_cast<float>(hours * 3600);
         const float timeScale = MWBase::Environment::get().getWorld()->getTimeManager()->getGameTimeScale();
         if (timeScale != 0.f)
             duration /= timeScale;

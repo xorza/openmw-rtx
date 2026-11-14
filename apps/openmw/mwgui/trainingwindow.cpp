@@ -120,7 +120,7 @@ namespace MWGui
             price = std::max(1, price);
             price = MWBase::Environment::get().getMechanicsManager()->getBarterOffer(mPtr, price, true);
 
-            MyGUI::Button* button = mTrainingOptions->createWidget<MyGUI::Button>(price <= playerGold
+            auto* button = mTrainingOptions->createWidget<MyGUI::Button>(price <= playerGold
                     ? "SandTextButton"
                     : "SandTextButtonDisabled", // can't use setEnabled since that removes tooltip
                 MyGUI::IntCoord(4, static_cast<int>(3 + i * lineHeight), mTrainingOptions->getWidth() - 10, lineHeight),

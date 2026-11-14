@@ -15,6 +15,7 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <memory>
 #include <span>
 #include <type_traits>
 
@@ -593,10 +594,10 @@ namespace
 
         const auto result = mLoader.load(file);
 
-        std::unique_ptr<btTriangleMesh> triangles(new btTriangleMesh(false));
+        std::unique_ptr<btTriangleMesh> triangles = std::make_unique<btTriangleMesh>(false);
         triangles->addTriangle(btVector3(0, 0, 0), btVector3(1, 0, 0), btVector3(1, 1, 0));
 
-        std::unique_ptr<btCompoundShape> compound(new btCompoundShape);
+        std::unique_ptr<btCompoundShape> compound = std::make_unique<btCompoundShape>();
         auto triShape = std::make_unique<Resource::TriangleMeshShape>(triangles.release(), true);
         compound->addChildShape(
             btTransform::getIdentity(), new Resource::ScaledTriangleMeshShape(triShape.release(), btVector3(1, 1, 1)));
@@ -619,10 +620,10 @@ namespace
 
         const auto result = mLoader.load(file);
 
-        std::unique_ptr<btTriangleMesh> triangles(new btTriangleMesh(false));
+        std::unique_ptr<btTriangleMesh> triangles = std::make_unique<btTriangleMesh>(false);
         triangles->addTriangle(btVector3(0, 0, 0), btVector3(1, 0, 0), btVector3(1, 1, 0));
 
-        std::unique_ptr<btCompoundShape> compound(new btCompoundShape);
+        std::unique_ptr<btCompoundShape> compound = std::make_unique<btCompoundShape>();
         auto triShape = std::make_unique<Resource::TriangleMeshShape>(triangles.release(), true);
         compound->addChildShape(
             btTransform::getIdentity(), new Resource::ScaledTriangleMeshShape(triShape.release(), btVector3(1, 1, 1)));
@@ -644,10 +645,10 @@ namespace
 
         const auto result = mLoader.load(file);
 
-        std::unique_ptr<btTriangleMesh> triangles(new btTriangleMesh(false));
+        std::unique_ptr<btTriangleMesh> triangles = std::make_unique<btTriangleMesh>(false);
         triangles->addTriangle(btVector3(0, 0, 0), btVector3(1, 0, 0), btVector3(1, 1, 0));
 
-        std::unique_ptr<btCompoundShape> compound(new btCompoundShape);
+        std::unique_ptr<btCompoundShape> compound = std::make_unique<btCompoundShape>();
         auto triShape = std::make_unique<Resource::TriangleMeshShape>(triangles.release(), true);
         compound->addChildShape(
             btTransform::getIdentity(), new Resource::ScaledTriangleMeshShape(triShape.release(), btVector3(1, 1, 1)));
@@ -671,10 +672,10 @@ namespace
 
         const auto result = mLoader.load(file);
 
-        std::unique_ptr<btTriangleMesh> triangles(new btTriangleMesh(false));
+        std::unique_ptr<btTriangleMesh> triangles = std::make_unique<btTriangleMesh>(false);
         triangles->addTriangle(btVector3(0, 0, 0), btVector3(1, 0, 0), btVector3(1, 1, 0));
 
-        std::unique_ptr<btCompoundShape> compound(new btCompoundShape);
+        std::unique_ptr<btCompoundShape> compound = std::make_unique<btCompoundShape>();
         auto triShape = std::make_unique<Resource::TriangleMeshShape>(triangles.release(), true);
         compound->addChildShape(
             btTransform::getIdentity(), new Resource::ScaledTriangleMeshShape(triShape.release(), btVector3(1, 1, 1)));
@@ -697,11 +698,11 @@ namespace
 
         const auto result = mLoader.load(file);
 
-        std::unique_ptr<btTriangleMesh> triangles(new btTriangleMesh(false));
+        std::unique_ptr<btTriangleMesh> triangles = std::make_unique<btTriangleMesh>(false);
         triangles->addTriangle(btVector3(0, 0, 0), btVector3(1, 0, 0), btVector3(1, 1, 0));
-        std::unique_ptr<btTriangleMesh> triangles2(new btTriangleMesh(false));
+        std::unique_ptr<btTriangleMesh> triangles2 = std::make_unique<btTriangleMesh>(false);
         triangles2->addTriangle(btVector3(0, 0, 1), btVector3(1, 0, 1), btVector3(1, 1, 1));
-        std::unique_ptr<btCompoundShape> compound(new btCompoundShape);
+        std::unique_ptr<btCompoundShape> compound = std::make_unique<btCompoundShape>();
         auto triShape = std::make_unique<Resource::TriangleMeshShape>(triangles.release(), true);
         auto triShape2 = std::make_unique<Resource::TriangleMeshShape>(triangles2.release(), true);
 
@@ -729,9 +730,9 @@ namespace
 
         const auto result = mLoader.load(file);
 
-        std::unique_ptr<btTriangleMesh> triangles(new btTriangleMesh(false));
+        std::unique_ptr<btTriangleMesh> triangles = std::make_unique<btTriangleMesh>(false);
         triangles->addTriangle(btVector3(0, 0, 0), btVector3(1, 0, 0), btVector3(1, 1, 0));
-        std::unique_ptr<btCompoundShape> compound(new btCompoundShape);
+        std::unique_ptr<btCompoundShape> compound = std::make_unique<btCompoundShape>();
         auto triShape = std::make_unique<Resource::TriangleMeshShape>(triangles.release(), true);
         compound->addChildShape(
             btTransform::getIdentity(), new Resource::ScaledTriangleMeshShape(triShape.release(), btVector3(1, 1, 1)));
@@ -753,10 +754,11 @@ namespace
 
         const auto result = mLoader.load(file);
 
-        std::unique_ptr<btTriangleMesh> triangles(new btTriangleMesh(false));
+        std::unique_ptr<btTriangleMesh> triangles = std::make_unique<btTriangleMesh>(false);
         triangles->addTriangle(btVector3(0, 0, 0), btVector3(1, 0, 0), btVector3(1, 1, 0));
-        std::unique_ptr<Resource::TriangleMeshShape> mesh(new Resource::TriangleMeshShape(triangles.release(), true));
-        std::unique_ptr<btCompoundShape> shape(new btCompoundShape);
+        std::unique_ptr<Resource::TriangleMeshShape> mesh
+            = std::make_unique<Resource::TriangleMeshShape>(triangles.release(), true);
+        std::unique_ptr<btCompoundShape> shape = std::make_unique<btCompoundShape>();
         shape->addChildShape(mTransform, new Resource::ScaledTriangleMeshShape(mesh.release(), btVector3(3, 3, 3)));
         Resource::BulletShape expected;
         expected.mCollisionShape.reset(shape.release());
@@ -779,10 +781,11 @@ namespace
 
         const auto result = mLoader.load(file);
 
-        std::unique_ptr<btTriangleMesh> triangles(new btTriangleMesh(false));
+        std::unique_ptr<btTriangleMesh> triangles = std::make_unique<btTriangleMesh>(false);
         triangles->addTriangle(btVector3(0, 0, 0), btVector3(1, 0, 0), btVector3(1, 1, 0));
-        std::unique_ptr<Resource::TriangleMeshShape> mesh(new Resource::TriangleMeshShape(triangles.release(), true));
-        std::unique_ptr<btCompoundShape> shape(new btCompoundShape);
+        std::unique_ptr<Resource::TriangleMeshShape> mesh
+            = std::make_unique<Resource::TriangleMeshShape>(triangles.release(), true);
+        std::unique_ptr<btCompoundShape> shape = std::make_unique<btCompoundShape>();
         shape->addChildShape(
             mTransformScale4, new Resource::ScaledTriangleMeshShape(mesh.release(), btVector3(12, 12, 12)));
         Resource::BulletShape expected;
@@ -811,15 +814,17 @@ namespace
 
         const auto result = mLoader.load(file);
 
-        std::unique_ptr<btTriangleMesh> triangles(new btTriangleMesh(false));
+        std::unique_ptr<btTriangleMesh> triangles = std::make_unique<btTriangleMesh>(false);
         triangles->addTriangle(btVector3(0, 0, 0), btVector3(1, 0, 0), btVector3(1, 1, 0));
-        std::unique_ptr<Resource::TriangleMeshShape> mesh(new Resource::TriangleMeshShape(triangles.release(), true));
+        std::unique_ptr<Resource::TriangleMeshShape> mesh
+            = std::make_unique<Resource::TriangleMeshShape>(triangles.release(), true);
 
-        std::unique_ptr<btTriangleMesh> triangles2(new btTriangleMesh(false));
+        std::unique_ptr<btTriangleMesh> triangles2 = std::make_unique<btTriangleMesh>(false);
         triangles2->addTriangle(btVector3(0, 0, 1), btVector3(1, 0, 1), btVector3(1, 1, 1));
-        std::unique_ptr<Resource::TriangleMeshShape> mesh2(new Resource::TriangleMeshShape(triangles2.release(), true));
+        std::unique_ptr<Resource::TriangleMeshShape> mesh2
+            = std::make_unique<Resource::TriangleMeshShape>(triangles2.release(), true);
 
-        std::unique_ptr<btCompoundShape> shape(new btCompoundShape);
+        std::unique_ptr<btCompoundShape> shape = std::make_unique<btCompoundShape>();
         shape->addChildShape(mTransform, new Resource::ScaledTriangleMeshShape(mesh.release(), btVector3(3, 3, 3)));
         shape->addChildShape(mTransform, new Resource::ScaledTriangleMeshShape(mesh2.release(), btVector3(3, 3, 3)));
         Resource::BulletShape expected;
@@ -846,10 +851,11 @@ namespace
 
         const auto result = mLoader.load(file);
 
-        std::unique_ptr<btTriangleMesh> triangles(new btTriangleMesh(false));
+        std::unique_ptr<btTriangleMesh> triangles = std::make_unique<btTriangleMesh>(false);
         triangles->addTriangle(btVector3(0, 0, 0), btVector3(1, 0, 0), btVector3(1, 1, 0));
-        std::unique_ptr<Resource::TriangleMeshShape> mesh(new Resource::TriangleMeshShape(triangles.release(), true));
-        std::unique_ptr<btCompoundShape> shape(new btCompoundShape);
+        std::unique_ptr<Resource::TriangleMeshShape> mesh
+            = std::make_unique<Resource::TriangleMeshShape>(triangles.release(), true);
+        std::unique_ptr<btCompoundShape> shape = std::make_unique<btCompoundShape>();
         shape->addChildShape(
             mTransformScale4, new Resource::ScaledTriangleMeshShape(mesh.release(), btVector3(12, 12, 12)));
         Resource::BulletShape expected;
@@ -882,15 +888,17 @@ namespace
 
         const auto result = mLoader.load(file);
 
-        std::unique_ptr<btTriangleMesh> triangles(new btTriangleMesh(false));
+        std::unique_ptr<btTriangleMesh> triangles = std::make_unique<btTriangleMesh>(false);
         triangles->addTriangle(btVector3(0, 0, 0), btVector3(1, 0, 0), btVector3(1, 1, 0));
-        std::unique_ptr<Resource::TriangleMeshShape> mesh(new Resource::TriangleMeshShape(triangles.release(), true));
+        std::unique_ptr<Resource::TriangleMeshShape> mesh
+            = std::make_unique<Resource::TriangleMeshShape>(triangles.release(), true);
 
-        std::unique_ptr<btTriangleMesh> triangles2(new btTriangleMesh(false));
+        std::unique_ptr<btTriangleMesh> triangles2 = std::make_unique<btTriangleMesh>(false);
         triangles2->addTriangle(btVector3(0, 0, 1), btVector3(1, 0, 1), btVector3(1, 1, 1));
-        std::unique_ptr<Resource::TriangleMeshShape> mesh2(new Resource::TriangleMeshShape(triangles2.release(), true));
+        std::unique_ptr<Resource::TriangleMeshShape> mesh2
+            = std::make_unique<Resource::TriangleMeshShape>(triangles2.release(), true);
 
-        std::unique_ptr<btCompoundShape> shape(new btCompoundShape);
+        std::unique_ptr<btCompoundShape> shape = std::make_unique<btCompoundShape>();
         shape->addChildShape(
             mTransformScale4, new Resource::ScaledTriangleMeshShape(mesh.release(), btVector3(12, 12, 12)));
         shape->addChildShape(
@@ -914,15 +922,17 @@ namespace
 
         const auto result = mLoader.load(file);
 
-        std::unique_ptr<btTriangleMesh> triangles(new btTriangleMesh(false));
+        std::unique_ptr<btTriangleMesh> triangles = std::make_unique<btTriangleMesh>(false);
         triangles->addTriangle(btVector3(0, 0, 0), btVector3(1, 0, 0), btVector3(1, 1, 0));
-        std::unique_ptr<Resource::TriangleMeshShape> mesh(new Resource::TriangleMeshShape(triangles.release(), true));
+        std::unique_ptr<Resource::TriangleMeshShape> mesh
+            = std::make_unique<Resource::TriangleMeshShape>(triangles.release(), true);
 
-        std::unique_ptr<btTriangleMesh> triangles2(new btTriangleMesh(false));
+        std::unique_ptr<btTriangleMesh> triangles2 = std::make_unique<btTriangleMesh>(false);
         triangles2->addTriangle(btVector3(0, 0, 1), btVector3(1, 0, 1), btVector3(1, 1, 1));
-        std::unique_ptr<Resource::TriangleMeshShape> mesh2(new Resource::TriangleMeshShape(triangles2.release(), true));
+        std::unique_ptr<Resource::TriangleMeshShape> mesh2
+            = std::make_unique<Resource::TriangleMeshShape>(triangles2.release(), true);
 
-        std::unique_ptr<btCompoundShape> compound(new btCompoundShape);
+        std::unique_ptr<btCompoundShape> compound = std::make_unique<btCompoundShape>();
         compound->addChildShape(
             btTransform::getIdentity(), new Resource::ScaledTriangleMeshShape(mesh.release(), btVector3(1, 1, 1)));
         compound->addChildShape(
@@ -948,11 +958,12 @@ namespace
 
         const auto result = mLoader.load(file);
 
-        std::unique_ptr<btTriangleMesh> triangles(new btTriangleMesh(false));
+        std::unique_ptr<btTriangleMesh> triangles = std::make_unique<btTriangleMesh>(false);
         triangles->addTriangle(btVector3(0, 0, 0), btVector3(1, 0, 0), btVector3(1, 1, 0));
-        std::unique_ptr<Resource::TriangleMeshShape> mesh(new Resource::TriangleMeshShape(triangles.release(), true));
+        std::unique_ptr<Resource::TriangleMeshShape> mesh
+            = std::make_unique<Resource::TriangleMeshShape>(triangles.release(), true);
 
-        std::unique_ptr<btCompoundShape> compound(new btCompoundShape);
+        std::unique_ptr<btCompoundShape> compound = std::make_unique<btCompoundShape>();
         compound->addChildShape(
             btTransform::getIdentity(), new Resource::ScaledTriangleMeshShape(mesh.release(), btVector3(1, 1, 1)));
         Resource::BulletShape expected;
@@ -1012,10 +1023,11 @@ namespace
 
         const auto result = mLoader.load(file);
 
-        std::unique_ptr<btTriangleMesh> triangles(new btTriangleMesh(false));
+        std::unique_ptr<btTriangleMesh> triangles = std::make_unique<btTriangleMesh>(false);
         triangles->addTriangle(btVector3(0, 0, 0), btVector3(1, 0, 0), btVector3(1, 1, 0));
-        std::unique_ptr<Resource::TriangleMeshShape> mesh(new Resource::TriangleMeshShape(triangles.release(), true));
-        std::unique_ptr<btCompoundShape> compound(new btCompoundShape);
+        std::unique_ptr<Resource::TriangleMeshShape> mesh
+            = std::make_unique<Resource::TriangleMeshShape>(triangles.release(), true);
+        std::unique_ptr<btCompoundShape> compound = std::make_unique<btCompoundShape>();
         compound->addChildShape(
             btTransform::getIdentity(), new Resource::ScaledTriangleMeshShape(mesh.release(), btVector3(1, 1, 1)));
 
@@ -1043,10 +1055,11 @@ namespace
 
         const auto result = mLoader.load(file);
 
-        std::unique_ptr<btTriangleMesh> triangles(new btTriangleMesh(false));
+        std::unique_ptr<btTriangleMesh> triangles = std::make_unique<btTriangleMesh>(false);
         triangles->addTriangle(btVector3(0, 0, 0), btVector3(1, 0, 0), btVector3(1, 1, 0));
-        std::unique_ptr<Resource::TriangleMeshShape> mesh(new Resource::TriangleMeshShape(triangles.release(), true));
-        std::unique_ptr<btCompoundShape> compound(new btCompoundShape);
+        std::unique_ptr<Resource::TriangleMeshShape> mesh
+            = std::make_unique<Resource::TriangleMeshShape>(triangles.release(), true);
+        std::unique_ptr<btCompoundShape> compound = std::make_unique<btCompoundShape>();
         compound->addChildShape(
             btTransform::getIdentity(), new Resource::ScaledTriangleMeshShape(mesh.release(), btVector3(1, 1, 1)));
 
@@ -1072,10 +1085,11 @@ namespace
 
         const auto result = mLoader.load(file);
 
-        std::unique_ptr<btTriangleMesh> triangles(new btTriangleMesh(false));
+        std::unique_ptr<btTriangleMesh> triangles = std::make_unique<btTriangleMesh>(false);
         triangles->addTriangle(btVector3(0, 0, 0), btVector3(1, 0, 0), btVector3(1, 1, 0));
-        std::unique_ptr<Resource::TriangleMeshShape> mesh(new Resource::TriangleMeshShape(triangles.release(), true));
-        std::unique_ptr<btCompoundShape> compound(new btCompoundShape);
+        std::unique_ptr<Resource::TriangleMeshShape> mesh
+            = std::make_unique<Resource::TriangleMeshShape>(triangles.release(), true);
+        std::unique_ptr<btCompoundShape> compound = std::make_unique<btCompoundShape>();
         compound->addChildShape(
             btTransform::getIdentity(), new Resource::ScaledTriangleMeshShape(mesh.release(), btVector3(1, 1, 1)));
 
@@ -1102,10 +1116,11 @@ namespace
 
         const auto result = mLoader.load(file);
 
-        std::unique_ptr<btTriangleMesh> triangles(new btTriangleMesh(false));
+        std::unique_ptr<btTriangleMesh> triangles = std::make_unique<btTriangleMesh>(false);
         triangles->addTriangle(btVector3(0, 0, 0), btVector3(1, 0, 0), btVector3(1, 1, 0));
-        std::unique_ptr<Resource::TriangleMeshShape> mesh(new Resource::TriangleMeshShape(triangles.release(), true));
-        std::unique_ptr<btCompoundShape> compound(new btCompoundShape);
+        std::unique_ptr<Resource::TriangleMeshShape> mesh
+            = std::make_unique<Resource::TriangleMeshShape>(triangles.release(), true);
+        std::unique_ptr<btCompoundShape> compound = std::make_unique<btCompoundShape>();
         compound->addChildShape(
             btTransform::getIdentity(), new Resource::ScaledTriangleMeshShape(mesh.release(), btVector3(1, 1, 1)));
 
@@ -1130,10 +1145,11 @@ namespace
 
         const auto result = mLoader.load(file);
 
-        std::unique_ptr<btTriangleMesh> triangles(new btTriangleMesh(false));
+        std::unique_ptr<btTriangleMesh> triangles = std::make_unique<btTriangleMesh>(false);
         triangles->addTriangle(btVector3(0, 0, 0), btVector3(1, 0, 0), btVector3(1, 1, 0));
-        std::unique_ptr<Resource::TriangleMeshShape> mesh(new Resource::TriangleMeshShape(triangles.release(), true));
-        std::unique_ptr<btCompoundShape> compound(new btCompoundShape);
+        std::unique_ptr<Resource::TriangleMeshShape> mesh
+            = std::make_unique<Resource::TriangleMeshShape>(triangles.release(), true);
+        std::unique_ptr<btCompoundShape> compound = std::make_unique<btCompoundShape>();
         compound->addChildShape(
             btTransform::getIdentity(), new Resource::ScaledTriangleMeshShape(mesh.release(), btVector3(1, 1, 1)));
 
@@ -1165,10 +1181,11 @@ namespace
 
         const auto result = mLoader.load(file);
 
-        std::unique_ptr<btTriangleMesh> triangles(new btTriangleMesh(false));
+        std::unique_ptr<btTriangleMesh> triangles = std::make_unique<btTriangleMesh>(false);
         triangles->addTriangle(btVector3(0, 0, 0), btVector3(1, 0, 0), btVector3(1, 1, 0));
-        std::unique_ptr<Resource::TriangleMeshShape> mesh(new Resource::TriangleMeshShape(triangles.release(), true));
-        std::unique_ptr<btCompoundShape> compound(new btCompoundShape);
+        std::unique_ptr<Resource::TriangleMeshShape> mesh
+            = std::make_unique<Resource::TriangleMeshShape>(triangles.release(), true);
+        std::unique_ptr<btCompoundShape> compound = std::make_unique<btCompoundShape>();
         compound->addChildShape(
             btTransform::getIdentity(), new Resource::ScaledTriangleMeshShape(mesh.release(), btVector3(1, 1, 1)));
 
@@ -1228,11 +1245,12 @@ namespace
 
         const auto result = mLoader.load(file);
 
-        std::unique_ptr<btTriangleMesh> triangles(new btTriangleMesh(false));
+        std::unique_ptr<btTriangleMesh> triangles = std::make_unique<btTriangleMesh>(false);
         triangles->addTriangle(btVector3(0, 0, 0), btVector3(1, 0, 0), btVector3(1, 1, 0));
         triangles->addTriangle(btVector3(1, 0, 0), btVector3(0, 1, 0), btVector3(1, 1, 0));
-        std::unique_ptr<Resource::TriangleMeshShape> mesh(new Resource::TriangleMeshShape(triangles.release(), true));
-        std::unique_ptr<btCompoundShape> compound(new btCompoundShape);
+        std::unique_ptr<Resource::TriangleMeshShape> mesh
+            = std::make_unique<Resource::TriangleMeshShape>(triangles.release(), true);
+        std::unique_ptr<btCompoundShape> compound = std::make_unique<btCompoundShape>();
         compound->addChildShape(
             btTransform::getIdentity(), new Resource::ScaledTriangleMeshShape(mesh.release(), btVector3(1, 1, 1)));
 
@@ -1320,10 +1338,11 @@ namespace
 
         const auto result = mLoader.load(file);
 
-        std::unique_ptr<btTriangleMesh> triangles(new btTriangleMesh(false));
+        std::unique_ptr<btTriangleMesh> triangles = std::make_unique<btTriangleMesh>(false);
         triangles->addTriangle(btVector3(0, 0, 0), btVector3(1, 0, 0), btVector3(1, 1, 0));
-        std::unique_ptr<Resource::TriangleMeshShape> mesh(new Resource::TriangleMeshShape(triangles.release(), true));
-        std::unique_ptr<btCompoundShape> compound(new btCompoundShape);
+        std::unique_ptr<Resource::TriangleMeshShape> mesh
+            = std::make_unique<Resource::TriangleMeshShape>(triangles.release(), true);
+        std::unique_ptr<btCompoundShape> compound = std::make_unique<btCompoundShape>();
         compound->addChildShape(
             btTransform::getIdentity(), new Resource::ScaledTriangleMeshShape(mesh.release(), btVector3(1, 1, 1)));
 
@@ -1351,13 +1370,15 @@ namespace
 
         const auto result = mLoader.load(file);
 
-        std::unique_ptr<btTriangleMesh> triangles1(new btTriangleMesh(false));
+        std::unique_ptr<btTriangleMesh> triangles1 = std::make_unique<btTriangleMesh>(false);
         triangles1->addTriangle(btVector3(0, 0, 0), btVector3(1, 0, 0), btVector3(1, 1, 0));
-        std::unique_ptr<Resource::TriangleMeshShape> mesh1(new Resource::TriangleMeshShape(triangles1.release(), true));
-        std::unique_ptr<btTriangleMesh> triangles2(new btTriangleMesh(false));
+        std::unique_ptr<Resource::TriangleMeshShape> mesh1
+            = std::make_unique<Resource::TriangleMeshShape>(triangles1.release(), true);
+        std::unique_ptr<btTriangleMesh> triangles2 = std::make_unique<btTriangleMesh>(false);
         triangles2->addTriangle(btVector3(0, 0, 0), btVector3(1, 0, 0), btVector3(1, 1, 0));
-        std::unique_ptr<Resource::TriangleMeshShape> mesh2(new Resource::TriangleMeshShape(triangles2.release(), true));
-        std::unique_ptr<btCompoundShape> shape(new btCompoundShape);
+        std::unique_ptr<Resource::TriangleMeshShape> mesh2
+            = std::make_unique<Resource::TriangleMeshShape>(triangles2.release(), true);
+        std::unique_ptr<btCompoundShape> shape = std::make_unique<btCompoundShape>();
         shape->addChildShape(
             mTransformScale2, new Resource::ScaledTriangleMeshShape(mesh1.release(), btVector3(8, 8, 8)));
         shape->addChildShape(
@@ -1412,10 +1433,11 @@ namespace
 
         const auto result = mLoader.load(file);
 
-        std::unique_ptr<btTriangleMesh> triangles(new btTriangleMesh(false));
+        std::unique_ptr<btTriangleMesh> triangles = std::make_unique<btTriangleMesh>(false);
         triangles->addTriangle(btVector3(0, 0, 1), btVector3(1, 0, 1), btVector3(1, 1, 1));
-        std::unique_ptr<Resource::TriangleMeshShape> mesh(new Resource::TriangleMeshShape(triangles.release(), true));
-        std::unique_ptr<btCompoundShape> compound(new btCompoundShape);
+        std::unique_ptr<Resource::TriangleMeshShape> mesh
+            = std::make_unique<Resource::TriangleMeshShape>(triangles.release(), true);
+        std::unique_ptr<btCompoundShape> compound = std::make_unique<btCompoundShape>();
         compound->addChildShape(
             btTransform::getIdentity(), new Resource::ScaledTriangleMeshShape(mesh.release(), btVector3(1, 1, 1)));
 
@@ -1446,15 +1468,17 @@ namespace
 
         const auto result = mLoader.load(file);
 
-        std::unique_ptr<btTriangleMesh> triangles1(new btTriangleMesh(false));
+        std::unique_ptr<btTriangleMesh> triangles1 = std::make_unique<btTriangleMesh>(false);
         triangles1->addTriangle(btVector3(0, 0, 0), btVector3(1, 0, 0), btVector3(1, 1, 0));
-        std::unique_ptr<Resource::TriangleMeshShape> mesh1(new Resource::TriangleMeshShape(triangles1.release(), true));
+        std::unique_ptr<Resource::TriangleMeshShape> mesh1
+            = std::make_unique<Resource::TriangleMeshShape>(triangles1.release(), true);
 
-        std::unique_ptr<btTriangleMesh> triangles2(new btTriangleMesh(false));
+        std::unique_ptr<btTriangleMesh> triangles2 = std::make_unique<btTriangleMesh>(false);
         triangles2->addTriangle(btVector3(0, 0, 1), btVector3(1, 0, 1), btVector3(1, 1, 1));
-        std::unique_ptr<Resource::TriangleMeshShape> mesh2(new Resource::TriangleMeshShape(triangles2.release(), true));
+        std::unique_ptr<Resource::TriangleMeshShape> mesh2
+            = std::make_unique<Resource::TriangleMeshShape>(triangles2.release(), true);
 
-        std::unique_ptr<btCompoundShape> compound(new btCompoundShape);
+        std::unique_ptr<btCompoundShape> compound = std::make_unique<btCompoundShape>();
         compound->addChildShape(
             btTransform::getIdentity(), new Resource::ScaledTriangleMeshShape(mesh1.release(), btVector3(1, 1, 1)));
         compound->addChildShape(
@@ -1491,10 +1515,11 @@ namespace
 
         const auto result = mLoader.load(file);
 
-        std::unique_ptr<btTriangleMesh> triangles(new btTriangleMesh(false));
+        std::unique_ptr<btTriangleMesh> triangles = std::make_unique<btTriangleMesh>(false);
         triangles->addTriangle(btVector3(0, 0, 1), btVector3(1, 0, 1), btVector3(1, 1, 1));
-        std::unique_ptr<Resource::TriangleMeshShape> mesh(new Resource::TriangleMeshShape(triangles.release(), true));
-        std::unique_ptr<btCompoundShape> compound(new btCompoundShape);
+        std::unique_ptr<Resource::TriangleMeshShape> mesh
+            = std::make_unique<Resource::TriangleMeshShape>(triangles.release(), true);
+        std::unique_ptr<btCompoundShape> compound = std::make_unique<btCompoundShape>();
         compound->addChildShape(
             btTransform::getIdentity(), new Resource::ScaledTriangleMeshShape(mesh.release(), btVector3(1, 1, 1)));
 
@@ -1539,10 +1564,11 @@ namespace
 
         const auto result = mLoader.load(file);
 
-        std::unique_ptr<btTriangleMesh> triangles(new btTriangleMesh(false));
+        std::unique_ptr<btTriangleMesh> triangles = std::make_unique<btTriangleMesh>(false);
         triangles->addTriangle(btVector3(0, 0, 1), btVector3(1, 0, 1), btVector3(1, 1, 1));
-        std::unique_ptr<Resource::TriangleMeshShape> mesh(new Resource::TriangleMeshShape(triangles.release(), true));
-        std::unique_ptr<btCompoundShape> compound(new btCompoundShape);
+        std::unique_ptr<Resource::TriangleMeshShape> mesh
+            = std::make_unique<Resource::TriangleMeshShape>(triangles.release(), true);
+        std::unique_ptr<btCompoundShape> compound = std::make_unique<btCompoundShape>();
         compound->addChildShape(
             btTransform::getIdentity(), new Resource::ScaledTriangleMeshShape(mesh.release(), btVector3(1, 1, 1)));
 

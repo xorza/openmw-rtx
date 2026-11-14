@@ -4,6 +4,7 @@
 #include <iterator>
 
 #include <components/esm3/inventorystate.hpp>
+#include <utility>
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/windowmanager.hpp"
@@ -164,7 +165,7 @@ void MWWorld::InventoryStore::equip(int slot, const ContainerStoreIterator& iter
     if (iterator == end())
         throw std::runtime_error("can't equip end() iterator, use unequip function instead");
 
-    if (slot < 0 || slot >= static_cast<int>(mSlots.size()))
+    if (slot < 0 || std::cmp_greater_equal(slot, mSlots.size()))
         throw std::runtime_error("slot number out of range");
 
     if (iterator.getContainerStore() != this)
@@ -217,7 +218,7 @@ MWWorld::ConstContainerStoreIterator MWWorld::InventoryStore::getSlot(int slot) 
 
 MWWorld::ContainerStoreIterator MWWorld::InventoryStore::findSlot(int slot) const
 {
-    if (slot < 0 || slot >= static_cast<int>(mSlots.size()))
+    if (slot < 0 || std::cmp_greater_equal(slot, mSlots.size()))
         throw std::runtime_error("slot number out of range");
 
     if (mSlots[slot] == end())
@@ -269,7 +270,7 @@ void MWWorld::InventoryStore::autoEquipWeapon(TSlots& slots)
 
         if (esmWeapon->mData.mType == ESM::WeaponType::Arrow)
         {
-            if (esmWeapon->mData.mChop[1] >= arrowMax)
+            if (std::cmp_greater_equal(esmWeapon->mData.mChop[1], arrowMax))
             {
                 arrowMax = esmWeapon->mData.mChop[1];
                 arrow = iter;
@@ -277,7 +278,7 @@ void MWWorld::InventoryStore::autoEquipWeapon(TSlots& slots)
         }
         else if (esmWeapon->mData.mType == ESM::WeaponType::Bolt)
         {
-            if (esmWeapon->mData.mChop[1] >= boltMax)
+            if (std::cmp_greater_equal(esmWeapon->mData.mChop[1], boltMax))
             {
                 boltMax = esmWeapon->mData.mChop[1];
                 bolt = iter;
@@ -286,12 +287,12 @@ void MWWorld::InventoryStore::autoEquipWeapon(TSlots& slots)
     }
 
     // rate weapon
-    for (int i = 0; i < static_cast<int>(weaponSkillsLength); ++i)
+    for (int i = 0; std::cmp_less(i, weaponSkillsLength); ++i)
     {
         float max = 0;
         int maxWeaponSkill = -1;
 
-        for (int j = 0; j < static_cast<int>(weaponSkillsLength); ++j)
+        for (int j = 0; std::cmp_less(j, weaponSkillsLength); ++j)
         {
             float skillValue = actor.getClass().getSkill(actor, weaponSkills[j]);
             if (skillValue > max && !weaponSkillVisited[j])
@@ -551,11 +552,11 @@ bool MWWorld::InventoryStore::stacks(const ConstPtr& ptr1, const ConstPtr& ptr2)
         return false;
 
     // don't stack if either item is currently equipped
-    for (TSlots::const_iterator iter(mSlots.begin()); iter != mSlots.end(); ++iter)
+    for (const auto& mSlot : mSlots)
     {
-        if (*iter != end() && (ptr1 == **iter || ptr2 == **iter))
+        if (mSlot != end() && (ptr1 == *mSlot || ptr2 == *mSlot))
         {
-            bool stackWhenEquipped = (*iter)->getClass().getEquipmentSlots(**iter).second;
+            bool stackWhenEquipped = mSlot->getClass().getEquipmentSlots(*mSlot).second;
             if (!stackWhenEquipped)
                 return false;
         }
@@ -606,7 +607,7 @@ int MWWorld::InventoryStore::remove(const Ptr& item, int count, bool equipReplac
 
 MWWorld::ContainerStoreIterator MWWorld::InventoryStore::unequipSlot(int slot, bool applyUpdates)
 {
-    if (slot < 0 || slot >= static_cast<int>(mSlots.size()))
+    if (slot < 0 || std::cmp_greater_equal(slot, mSlots.size()))
         throw std::runtime_error("slot number out of range");
 
     ContainerStoreIterator it = mSlots[slot];

@@ -18,7 +18,7 @@ namespace MWSound
     WarmQueue::~WarmQueue()
     {
         {
-            std::lock_guard<std::mutex> lock(mMutex);
+            std::scoped_lock lock(mMutex);
             mQuit = true;
         }
         mCV.notify_all();
@@ -39,7 +39,7 @@ namespace MWSound
     {
         // Allow head-only entries to upgrade.
         {
-            std::lock_guard<std::mutex> lock(mMutex);
+            std::scoped_lock lock(mMutex);
             const auto [it, inserted] = mQueued.try_emplace(path);
             if (!inserted)
             {

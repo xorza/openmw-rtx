@@ -511,7 +511,7 @@ namespace MWScript
 
                 MWMechanics::CreatureStats& creatureStats = ptr.getClass().getCreatureStats(ptr);
                 creatureStats.getSpells().add(spell);
-                ESM::Spell::SpellType type = static_cast<ESM::Spell::SpellType>(spell->mData.mType);
+                auto type = static_cast<ESM::Spell::SpellType>(spell->mData.mType);
                 if (type != ESM::Spell::ST_Spell && type != ESM::Spell::ST_Power)
                 {
                     // Add spell effect to *this actor's* queue immediately

@@ -1,5 +1,6 @@
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/loadlevlist.hpp>
+#include <utility>
 
 #include "../mwworld/class.hpp"
 #include "../mwworld/esmstore.hpp"
@@ -37,7 +38,8 @@ namespace MWMechanics
         int highestLevel = 0;
         for (const auto& levelledItem : items)
         {
-            if (levelledItem.mLevel > highestLevel && levelledItem.mLevel <= playerLevel)
+            if (std::cmp_greater(levelledItem.mLevel, highestLevel)
+                && std::cmp_less_equal(levelledItem.mLevel, playerLevel))
                 highestLevel = levelledItem.mLevel;
         }
 
@@ -48,7 +50,8 @@ namespace MWMechanics
 
         for (const auto& levelledItem : items)
         {
-            if (playerLevel >= levelledItem.mLevel && (allLevels || levelledItem.mLevel == highestLevel))
+            if (std::cmp_greater_equal(playerLevel, levelledItem.mLevel)
+                && (allLevels || std::cmp_equal(levelledItem.mLevel, highestLevel)))
                 candidates.push_back(&levelledItem.mId);
         }
         if (candidates.empty())

@@ -52,7 +52,7 @@ namespace Rtx
         std::exception_ptr failed;
 
         const auto keep = [&] {
-            const std::lock_guard<std::mutex> hold(kept);
+            const std::scoped_lock hold(kept);
             if (failed == nullptr)
                 failed = std::current_exception();
         };

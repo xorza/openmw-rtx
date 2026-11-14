@@ -228,7 +228,7 @@ namespace MWMechanics
             return false; // Don't bother with immobile creatures
 
         // get or create temporary storage
-        AiWanderStorage& storage = state.get<AiWanderStorage>();
+        auto& storage = state.get<AiWanderStorage>();
 
         mRemainingDuration
             -= ((duration * MWBase::Environment::get().getWorld()->getTimeManager()->getGameTimeScale()) / 3600);
@@ -774,7 +774,7 @@ namespace MWMechanics
         if (mDistance == 0)
             return;
 
-        AiWanderStorage& storage = state.get<AiWanderStorage>();
+        auto& storage = state.get<AiWanderStorage>();
         if (storage.mPopulateAvailablePositions)
             fillAllowedPositions(actor, storage);
 

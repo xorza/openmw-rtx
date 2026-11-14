@@ -251,7 +251,7 @@ namespace MWWorld
             return;
         }
 
-        PreloadMap::iterator found = mPreloadCells.find(&cell);
+        auto found = mPreloadCells.find(&cell);
         if (found != mPreloadCells.end())
         {
             // already preloaded, nothing to do other than updating the timestamp
@@ -262,10 +262,10 @@ namespace MWWorld
         while (mPreloadCells.size() >= mMaxCacheSize)
         {
             // throw out oldest cell to make room
-            PreloadMap::iterator oldestCell = mPreloadCells.begin();
+            auto oldestCell = mPreloadCells.begin();
             double oldestTimestamp = std::numeric_limits<double>::max();
             double threshold = 1.0; // seconds
-            for (PreloadMap::iterator it = mPreloadCells.begin(); it != mPreloadCells.end(); ++it)
+            for (auto it = mPreloadCells.begin(); it != mPreloadCells.end(); ++it)
             {
                 if (it->second.mTimeStamp < oldestTimestamp)
                 {
@@ -294,7 +294,7 @@ namespace MWWorld
 
     void CellPreloader::notifyLoaded(CellStore* cell)
     {
-        PreloadMap::iterator found = mPreloadCells.find(cell);
+        auto found = mPreloadCells.find(cell);
         if (found != mPreloadCells.end())
         {
             if (found->second.mWorkItem)
@@ -310,7 +310,7 @@ namespace MWWorld
 
     void CellPreloader::clear()
     {
-        for (PreloadMap::iterator it = mPreloadCells.begin(); it != mPreloadCells.end();)
+        for (auto it = mPreloadCells.begin(); it != mPreloadCells.end();)
         {
             if (it->second.mWorkItem)
             {
@@ -324,7 +324,7 @@ namespace MWWorld
 
     void CellPreloader::updateCache(double timestamp)
     {
-        for (PreloadMap::iterator it = mPreloadCells.begin(); it != mPreloadCells.end();)
+        for (auto it = mPreloadCells.begin(); it != mPreloadCells.end();)
         {
             if (mPreloadCells.size() >= mMinCacheSize && it->second.mTimeStamp < timestamp - mExpiryDelay)
             {
@@ -459,11 +459,11 @@ namespace MWWorld
             mUpdateCacheItem = nullptr;
         }
 
-        for (PreloadMap::iterator it = mPreloadCells.begin(); it != mPreloadCells.end(); ++it)
-            it->second.mWorkItem->abort();
+        for (auto& mPreloadCell : mPreloadCells)
+            mPreloadCell.second.mWorkItem->abort();
 
-        for (PreloadMap::iterator it = mPreloadCells.begin(); it != mPreloadCells.end(); ++it)
-            it->second.mWorkItem->waitTillDone();
+        for (auto& mPreloadCell : mPreloadCells)
+            mPreloadCell.second.mWorkItem->waitTillDone();
 
         mPreloadCells.clear();
     }

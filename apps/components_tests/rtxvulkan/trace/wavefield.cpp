@@ -295,7 +295,7 @@ namespace Rtx
 
                 const long double turns = static_cast<long double>(rate)
                     * (static_cast<long double>(clock.x()) + static_cast<long double>(clock.y()));
-                const float phase
+                const auto phase
                     = static_cast<float>((turns - std::floor(turns)) * 2.0L * std::numbers::pi_v<long double>);
 
                 const float wavenumber = Shaders::TAU / sExtent * static_cast<float>(alongX);

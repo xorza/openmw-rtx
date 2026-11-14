@@ -221,7 +221,7 @@ namespace MWLua
             {
                 throw std::runtime_error("Incorrect stance");
             }
-            MWMechanics::DrawState newDrawState = static_cast<MWMechanics::DrawState>(stance);
+            auto newDrawState = static_cast<MWMechanics::DrawState>(stance);
             if (stats.getDrawState() == newDrawState)
                 return;
             if (newDrawState == MWMechanics::DrawState::Spell)

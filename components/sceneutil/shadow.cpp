@@ -66,7 +66,7 @@ namespace SceneUtil
         else
             mShadowSettings->setComputeNearFarModeOverride(osg::CullSettings::DO_NOT_COMPUTE_NEAR_FAR);
 
-        const short mapres = static_cast<short>(settings.mShadowMapResolution);
+        const auto mapres = static_cast<short>(settings.mShadowMapResolution);
         mShadowSettings->setTextureSize(osg::Vec2s(mapres, mapres));
 
         mShadowTechnique->setSplitPointUniformLogarithmicRatio(settings.mSplitPointUniformLogarithmicRatio);

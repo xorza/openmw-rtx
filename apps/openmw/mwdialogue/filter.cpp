@@ -171,7 +171,7 @@ bool MWDialogue::Filter::testPlayer(const ESM::DialInfo& info) const
     // check player faction and rank
     if (!info.mPcFaction.empty())
     {
-        std::map<ESM::RefId, int>::const_iterator iter = stats.getFactionRanks().find(info.mPcFaction);
+        auto iter = stats.getFactionRanks().find(info.mPcFaction);
 
         if (iter == stats.getFactionRanks().end())
             return false;
@@ -183,8 +183,7 @@ bool MWDialogue::Filter::testPlayer(const ESM::DialInfo& info) const
     else if (info.mData.mPCrank != -1)
     {
         // required PC faction is not specified but PC rank is; use speaker's faction
-        std::map<ESM::RefId, int>::const_iterator iter
-            = stats.getFactionRanks().find(mActor.getClass().getPrimaryFaction(mActor));
+        auto iter = stats.getFactionRanks().find(mActor.getClass().getPrimaryFaction(mActor));
 
         if (iter == stats.getFactionRanks().end())
             return false;
@@ -539,7 +538,7 @@ int MWDialogue::Filter::getSelectStructInteger(const SelectWrapper& select) cons
 
             MWMechanics::NpcStats& playerStats = player.getClass().getNpcStats(player);
 
-            std::map<ESM::RefId, int>::const_iterator playerFactionIt = playerStats.getFactionRanks().begin();
+            auto playerFactionIt = playerStats.getFactionRanks().begin();
             for (; playerFactionIt != playerStats.getFactionRanks().end(); ++playerFactionIt)
             {
                 int reaction = MWBase::Environment::get().getDialogueManager()->getFactionReaction(

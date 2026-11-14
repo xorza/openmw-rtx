@@ -35,7 +35,7 @@ namespace MWGui
 
     int InventoryTabsOverlay::getHeight()
     {
-        MyGUI::Window* window = mMainWidget->castType<MyGUI::Window>();
+        auto* window = mMainWidget->castType<MyGUI::Window>();
         return window->getHeight();
     }
 

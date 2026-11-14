@@ -328,7 +328,7 @@ namespace Fx
                     error("number out of range");
                 return Integer{ intValue };
             }
-            float floatValue = static_cast<float>(buffer);
+            auto floatValue = static_cast<float>(buffer);
             if (!std::isfinite(floatValue))
                 error("number out of range");
             return Float{ floatValue };

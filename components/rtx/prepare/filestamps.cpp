@@ -6,7 +6,7 @@ namespace Rtx
     {
         const std::string_view name = path.value();
         {
-            const std::lock_guard lock(mMutex);
+            const std::scoped_lock lock(mMutex);
             if (const auto kept = mKept.find(name); kept != mKept.end())
                 return kept->second;
         }
@@ -14,7 +14,7 @@ namespace Rtx
         // Asked outside the lock, so the threads stamp side by side; two that ask one path at once
         // both ask it, and keep the one stamp.
         const std::uint64_t stamp = mSource.stampOf(path);
-        const std::lock_guard lock(mMutex);
+        const std::scoped_lock lock(mMutex);
         mKept.emplace(name, stamp);
         return stamp;
     }

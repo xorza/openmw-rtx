@@ -233,7 +233,7 @@ namespace Rtx
     {
         // Under the lock, or the wake could land between this thread's ask and its wait.
         const std::stop_callback woken(stop, [this] {
-            const std::lock_guard lock(mMutex);
+            const std::scoped_lock lock(mMutex);
             mToHands.notify_all();
         });
 
@@ -273,15 +273,15 @@ namespace Rtx
                     lock.unlock();
                     walkJob(hand, dispatch.mJob);
                     lock.lock();
-                    for (std::size_t at = 0; at < hand.mQueued.size(); ++at)
+                    for (auto& at : hand.mQueued)
                     {
-                        [[maybe_unused]] const std::size_t chain = mDispatcher.queue(needOf(*hand.mQueued[at].mImage,
-                            hand.mQueued[at].mPartner.get(), hand.mQueued[at].mEncoding, hand.mQueued[at].mWrap));
+                        [[maybe_unused]] const std::size_t chain
+                            = mDispatcher.queue(needOf(*at.mImage, at.mPartner.get(), at.mEncoding, at.mWrap));
                         assert(chain == mChains.size() && "a chain numbered apart from its queue");
-                        use(std::string(SceneUtil::EmbeddedImage::nameOf(*hand.mQueued[at].mImage)));
-                        if (hand.mQueued[at].mPartner != nullptr)
-                            use(std::string(SceneUtil::EmbeddedImage::nameOf(*hand.mQueued[at].mPartner)));
-                        mChains.push_back(std::move(hand.mQueued[at]));
+                        use(std::string(SceneUtil::EmbeddedImage::nameOf(*at.mImage)));
+                        if (at.mPartner != nullptr)
+                            use(std::string(SceneUtil::EmbeddedImage::nameOf(*at.mPartner)));
+                        mChains.push_back(std::move(at));
                     }
                     hand.mQueued.clear();
                     for (const std::string& file : hand.mFiles)
@@ -537,7 +537,7 @@ namespace Rtx
 
     bool ContentPreparation::claim(ChainIdentity identity)
     {
-        const std::lock_guard lock(mMutex);
+        const std::scoped_lock lock(mMutex);
         return mClaimed.insert(std::move(identity)).second;
     }
 

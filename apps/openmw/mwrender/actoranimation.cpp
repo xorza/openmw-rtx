@@ -76,7 +76,7 @@ namespace MWRender
         osg::ref_ptr<osg::Node> instance = mResourceSystem->getSceneManager()->getInstance(model, parent);
 
         const NodeMap& nodeMap = getNodeMap();
-        NodeMap::const_iterator found = nodeMap.find(bonename);
+        auto found = nodeMap.find(bonename);
         if (found == nodeMap.end())
             return {};
 
@@ -522,7 +522,7 @@ namespace MWRender
     {
         if (item.getType() == ESM::Light::sRecordId)
         {
-            ItemLightMap::iterator iter = mItemLights.find(item);
+            auto iter = mItemLights.find(item);
             if (iter != mItemLights.end())
             {
                 if (!item.getCellRef().getCount())
@@ -573,14 +573,13 @@ namespace MWRender
 
     void ActorAnimation::removeHiddenItemLight(const MWWorld::ConstPtr& item)
     {
-        ItemLightMap::iterator iter = mItemLights.find(item);
+        auto iter = mItemLights.find(item);
         if (iter == mItemLights.end())
             return;
 
         if (mLightListCallback && mPtr == MWMechanics::getPlayer())
         {
-            std::set<SceneUtil::LightSource*>::iterator ignoredIter
-                = mLightListCallback->getIgnoredLightSources().find(iter->second.get());
+            auto ignoredIter = mLightListCallback->getIgnoredLightSources().find(iter->second.get());
             if (ignoredIter != mLightListCallback->getIgnoredLightSources().end())
                 mLightListCallback->getIgnoredLightSources().erase(ignoredIter);
         }
