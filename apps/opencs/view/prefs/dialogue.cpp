@@ -1,7 +1,6 @@
 #include "dialogue.hpp"
 
 #include <exception>
-#include <map>
 #include <utility>
 
 #include <QApplication>

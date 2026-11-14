@@ -1,14 +1,11 @@
 #include "tracechain.hpp"
 
-#include <algorithm>
 #include <cassert>
 #include <optional>
 
 #include <components/rtx/renderer/channel.hpp>
-#include <components/rtx/renderer/framezone.hpp>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtxvulkan/denoise/denoised.hpp>
-#include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/device/memory/barriers.hpp>
 #include <components/rtxvulkan/device/memory/formats.hpp>

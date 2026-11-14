@@ -8,7 +8,6 @@
 #include <limits>
 #include <map>
 #include <sstream>
-#include <stdexcept>
 
 #include "controller.hpp"
 #include "data.hpp"

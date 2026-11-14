@@ -3,8 +3,6 @@
 #include <QKeyEvent>
 #include <QMouseEvent>
 
-#include <string>
-
 #include <apps/opencs/model/prefs/category.hpp>
 #include <apps/opencs/model/prefs/setting.hpp>
 

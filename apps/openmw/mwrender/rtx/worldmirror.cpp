@@ -1,13 +1,14 @@
 #include "worldmirror.hpp"
 
+#include <algorithm>
 #include <cassert>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <exception>
 #include <format>
-#include <iterator>
 #include <memory>
+#include <optional>
 #include <span>
 #include <string>
 #include <utility>
@@ -41,29 +42,39 @@
 #include <components/platform/memory.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
+#include <components/rtx/common/jobprogress.hpp>
 #include <components/rtx/common/mebibytes.hpp>
 #include <components/rtx/frame/camera.hpp>
 #include <components/rtx/image/imagedescription.hpp>
 #include <components/rtx/mirror/cells/cellgrid.hpp>
 #include <components/rtx/mirror/cells/cellworld.hpp>
 #include <components/rtx/mirror/cells/nightday.hpp>
+#include <components/rtx/mirror/contentmemory.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/mirror/meshreader.hpp>
 #include <components/rtx/mirror/nodekind.hpp>
+#include <components/rtx/mirror/released.hpp>
+#include <components/rtx/mirror/sceneextractor.hpp>
 #include <components/rtx/prepare/contentpreparation.hpp>
 #include <components/rtx/prepare/filestamps.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
+#include <components/rtx/preprocess/preparedimages.hpp>
+#include <components/rtx/renderer/framespend.hpp>
+#include <components/rtx/renderer/sceneholder.hpp>
+#include <components/rtx/renderer/sceneuploader.hpp>
 #include <components/rtx/renderer/slot.hpp>
+#include <components/rtx/scene/deformertable.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/meshtable.hpp>
+#include <components/rtx/scene/ripple.hpp>
 #include <components/sceneutil/unrefqueue.hpp>
 #include <components/terrain/storage.hpp>
 #include <components/terrain/world.hpp>
 #include <components/vfs/manager.hpp>
 #include <components/vfs/pathutil.hpp>
-#include <components/vfs/recursivedirectoryiterator.hpp>
+#include <components/vfs/recursivedirectoryiterator.hpp> // IWYU pragma: keep: the range whole, which a call returns by value
 
 #include "classmasks.hpp"
 #include "mirrorknobs.hpp"

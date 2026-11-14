@@ -1,4 +1,4 @@
-#include "operators.hpp"
+#include "operators.hpp" // IWYU pragma: keep: the operators a test's matchers and messages call
 #include "settings.hpp"
 
 #include <components/bullethelpers/heightfield.hpp>
@@ -11,12 +11,10 @@
 #include <components/resource/bulletshape.hpp>
 #include <components/testing/util.hpp>
 
-#include <osg/io_utils>
-#include <osg/ref_ptr>
-
 #include <BulletCollision/CollisionShapes/btBoxShape.h>
 #include <BulletCollision/CollisionShapes/btCompoundShape.h>
 #include <BulletCollision/CollisionShapes/btHeightfieldTerrainShape.h>
+#include <osg/io_utils> // IWYU pragma: keep: the vectors' operator<<, which a test's message calls
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>

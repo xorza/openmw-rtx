@@ -3,28 +3,58 @@
 
 #include <algorithm>
 #include <array>
+#include <cstddef>
+#include <cstdint>
+#include <filesystem>
 #include <fstream>
+#include <ios>
+#include <iostream>
+#include <istream>
+#include <iterator>
+#include <memory>
+#include <ostream>
 #include <span>
+#include <sstream>
+#include <string>
+#include <tuple>
 #include <type_traits>
+#include <utility>
+#include <vector>
 
 #include <boost/program_options/options_description.hpp>
+#include <boost/program_options/value_semantic.hpp>
 #include <boost/program_options/variables_map.hpp>
 
+#include <apps/openmw/mwworld/store.hpp>
 #include <components/esm/defs.hpp>
-#include <components/esm/records.hpp>
 #include <components/esm/typetraits.hpp>
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/esmwriter.hpp>
 #include <components/esm3/readerscache.hpp>
 #include <components/esm3/typetraits.hpp>
-#include <components/esm4/common.hpp>
-#include <components/esm4/reader.hpp>
-#include <components/esm4/readerutils.hpp>
 #include <components/files/configurationmanager.hpp>
 #include <components/files/conversion.hpp>
 #include <components/loadinglistener/loadinglistener.hpp>
 #include <components/misc/strings/algorithm.hpp>
 #include <components/testing/util.hpp>
+// Every record type whole, which the type lists below detect a member of: one left incomplete would drop out of the
+// lists unseen.
+#include <components/esm/path.hpp>
+#include <components/esm/records.hpp> // IWYU pragma: keep
+#include <components/esm/stringrefid.hpp>
+#include <components/esm3/cellref.hpp>
+#include <components/esm3/formatversion.hpp>
+#include <components/esm3/loadacti.hpp>
+#include <components/esm3/loadappa.hpp>
+#include <components/esm3/loadarmo.hpp>
+#include <components/esm3/loadbody.hpp>
+#include <components/esm3/loadbook.hpp>
+#include <components/esm3/loadbsgn.hpp>
+#include <components/esm3/loadclas.hpp>
+#include <components/esm3/loadrace.hpp>
+#include <components/esm3/variant.hpp>
+#include <components/files/collections.hpp>
+#include <components/files/multidircollection.hpp>
 
 #include "apps/openmw/mwworld/esmstore.hpp"
 
@@ -231,7 +261,6 @@ namespace
             std::cout << "No content files found, skipping test" << std::endl;
             return;
         }
-
 
     }
     */

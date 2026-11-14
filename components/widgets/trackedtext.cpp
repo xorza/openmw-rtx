@@ -1,6 +1,5 @@
 #include "trackedtext.hpp"
 
-#include <MyGUI_IFont.h>
 #include <MyGUI_Widget.h>
 
 #include "box.hpp"

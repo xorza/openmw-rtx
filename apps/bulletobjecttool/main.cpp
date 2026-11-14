@@ -1,6 +1,5 @@
 #include <components/debug/debugging.hpp>
 #include <components/debug/debuglog.hpp>
-#include <components/esm/defs.hpp>
 #include <components/esm3/loadcell.hpp>
 #include <components/esm3/readerscache.hpp>
 #include <components/esmloader/esmdata.hpp>
@@ -13,7 +12,6 @@
 #include <components/misc/strings/conversion.hpp>
 #include <components/platform/platform.hpp>
 #include <components/resource/bgsmfilemanager.hpp>
-#include <components/resource/bulletshape.hpp>
 #include <components/resource/bulletshapemanager.hpp>
 #include <components/resource/foreachbulletobject.hpp>
 #include <components/resource/imagemanager.hpp>
@@ -25,23 +23,21 @@
 #include <components/vfs/manager.hpp>
 #include <components/vfs/registerarchives.hpp>
 
-#include <boost/program_options.hpp>
-
-#include <charconv>
 #include <cstddef>
-#include <cstdint>
 #include <filesystem>
 #include <iomanip>
+#include <ios>
 #include <limits>
 #include <map>
-#include <memory>
 #include <ostream>
 #include <string>
 #include <string_view>
-#include <system_error>
-#include <type_traits>
 #include <utility>
 #include <vector>
+
+#include <boost/program_options/parsers.hpp>
+#include <boost/program_options/value_semantic.hpp>
+#include <boost/program_options/variables_map.hpp>
 
 namespace
 {

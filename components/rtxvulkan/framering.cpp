@@ -3,7 +3,6 @@
 #include <array>
 #include <cassert>
 #include <chrono>
-#include <cstddef>
 #include <cstdint>
 #include <span>
 #include <string_view>
@@ -16,7 +15,6 @@
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
-#include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/device/notfinitecensus.hpp>
 #include <components/rtxvulkan/device/physicaldevice.hpp>
 #include <components/rtxvulkan/device/timeline.hpp>

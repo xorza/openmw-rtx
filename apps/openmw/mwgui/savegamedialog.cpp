@@ -13,7 +13,6 @@
 #include <components/esm3/loadclas.hpp>
 #include <components/files/conversion.hpp>
 #include <components/l10n/manager.hpp>
-#include <components/misc/strings/lower.hpp>
 #include <components/misc/timeconvert.hpp>
 #include <components/myguiplatform/myguitexture.hpp>
 #include <components/settings/values.hpp>

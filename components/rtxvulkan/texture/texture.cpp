@@ -27,7 +27,6 @@
 #include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/device/memory/batch.hpp>
 #include <components/rtxvulkan/device/memory/formats.hpp>
-#include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/device/physicaldevice.hpp>
 #include <components/rtxvulkan/device/requirements.hpp>
 #include <components/rtxvulkan/device/result.hpp>

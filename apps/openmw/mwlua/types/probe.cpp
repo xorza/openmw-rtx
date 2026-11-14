@@ -3,8 +3,6 @@
 #include "usertypeutil.hpp"
 
 #include <components/esm3/loadprob.hpp>
-#include <components/lua/luastate.hpp>
-#include <components/lua/util.hpp>
 #include <components/misc/resourcehelpers.hpp>
 
 namespace sol

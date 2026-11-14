@@ -3,7 +3,6 @@
 #include <components/fallback/fallback.hpp>
 #include <components/fallback/validate.hpp>
 #include <components/files/configurationmanager.hpp>
-#include <components/misc/rng.hpp>
 #include <components/platform/platform.hpp>
 #include <components/settings/values.hpp>
 #include <components/version/version.hpp>
@@ -26,10 +25,6 @@ extern "C" __declspec(dllexport) DWORD AmdPowerXpressRequestHighPerformance = 0x
 
 #include <chrono>
 #include <filesystem>
-
-#if (defined(__linux) || defined(__unix) || defined(__posix))
-#include <unistd.h>
-#endif
 
 /**
  * \brief Parses application command line and calls \ref Cfg::ConfigurationManager

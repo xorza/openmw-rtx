@@ -28,14 +28,11 @@
 #include <components/config/gamesettings.hpp>
 #include <components/config/launchersettings.hpp>
 
-#include <components/bsa/compressedbsafile.hpp>
+#include <components/bsa/bsafile.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/files/qtconversion.hpp>
 #include <components/misc/scalableicon.hpp>
-#include <components/misc/strings/conversion.hpp>
 #include <components/navmeshtool/protocol.hpp>
-#include <components/settings/values.hpp>
-#include <components/vfs/bsaarchive.hpp>
 #include <components/vfs/qtconversion.hpp>
 
 #include "utils/profilescombobox.hpp"

@@ -1,6 +1,5 @@
 #include "cell.hpp"
 
-#include <algorithm>
 #include <set>
 #include <utility>
 
@@ -10,7 +9,6 @@
 #include <osg/NodeVisitor>
 #include <osg/Referenced>
 
-#include <components/esm/defs.hpp>
 #include <components/esm3/loadcell.hpp>
 #include <components/esm3/loadland.hpp>
 #include <components/misc/strings/lower.hpp>

@@ -25,7 +25,6 @@
 #include <components/nif/parent.hpp>
 #include <components/resource/bgsmfilemanager.hpp>
 #include <components/resource/imagemanager.hpp>
-#include <components/serialization/osgyaml.hpp>
 
 // particle
 #include <osgParticle/BoxPlacer>
@@ -63,7 +62,6 @@
 #include <components/sceneutil/texmat.hpp>
 #include <components/sceneutil/texturetype.hpp>
 #include <components/sceneutil/userdata.hpp>
-#include <components/sceneutil/visitor.hpp>
 
 #include "autotransform.hpp"
 #include "matrixtransform.hpp"

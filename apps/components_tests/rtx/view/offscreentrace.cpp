@@ -34,7 +34,6 @@
 #include <components/rtx/renderer/slot.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/shaders/scene.h>
-#include <components/rtx/shaders/visibility.h>
 #include <components/rtx/view/offscreentrace.hpp>
 #include <components/rtx/view/viewscene.hpp>
 #include <components/sceneutil/offscreenframing.hpp>

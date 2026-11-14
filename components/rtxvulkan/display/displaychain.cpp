@@ -11,7 +11,6 @@
 
 #include <components/rtx/frame/camera.hpp>
 #include <components/rtx/renderer/channel.hpp>
-#include <components/rtx/renderer/framezone.hpp>
 #include <components/rtx/shaders/camera.h>
 #include <components/rtx/shaders/hosttypes.h>
 #include <components/rtxvulkan/device/gputimer.hpp>

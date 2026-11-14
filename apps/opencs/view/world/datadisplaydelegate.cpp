@@ -10,8 +10,6 @@
 #include <QString>
 #include <QStyle>
 
-#include <memory>
-
 #include <apps/opencs/model/prefs/category.hpp>
 #include <apps/opencs/model/prefs/setting.hpp>
 #include <apps/opencs/view/world/enumdelegate.hpp>

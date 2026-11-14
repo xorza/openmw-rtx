@@ -1,9 +1,7 @@
-#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 #include <components/lua/inputactions.hpp>
-#include <components/lua/scriptscontainer.hpp>
-#include <components/testing/util.hpp>
+#include <components/testing/util.hpp> // IWYU pragma: keep: the namespace this source uses whole
 
 namespace
 {

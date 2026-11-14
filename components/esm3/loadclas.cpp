@@ -1,7 +1,5 @@
 #include "loadclas.hpp"
 
-#include <stdexcept>
-
 #include <components/esm/attr.hpp>
 #include <components/esm/defs.hpp>
 #include <components/esm3/loadskil.hpp>

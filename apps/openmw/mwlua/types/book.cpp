@@ -3,13 +3,8 @@
 #include "usertypeutil.hpp"
 
 #include <components/esm3/loadbook.hpp>
-#include <components/esm3/loadskil.hpp>
-#include <components/lua/luastate.hpp>
-#include <components/lua/util.hpp>
 #include <components/misc/finitevalues.hpp>
 #include <components/misc/resourcehelpers.hpp>
-#include <components/misc/strings/algorithm.hpp>
-#include <components/misc/strings/lower.hpp>
 
 namespace sol
 {

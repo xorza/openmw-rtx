@@ -1,7 +1,5 @@
 #include "mandatoryid.hpp"
 
-#include <memory>
-
 #include "../world/collectionbase.hpp"
 
 #include "../world/record.hpp"

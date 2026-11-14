@@ -1,8 +1,6 @@
 #include "scenewidget.hpp"
 
-#include <chrono>
 #include <exception>
-#include <thread>
 
 #include <QLayout>
 #include <QMouseEvent>
@@ -16,7 +14,6 @@
 
 #include <osg/Array>
 #include <osg/Camera>
-#include <osg/DisplaySettings>
 #include <osg/GL>
 #include <osg/Geometry>
 #include <osg/GraphicsContext>
@@ -29,7 +26,6 @@
 #include <osg/Vec3>
 #include <osg/Vec4>
 #include <osg/Vec4ub>
-#include <osg/View>
 #include <osg/Viewport>
 
 #include <osgGA/EventQueue>

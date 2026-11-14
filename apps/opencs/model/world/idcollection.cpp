@@ -1,7 +1,6 @@
 #include "idcollection.hpp"
 
 #include <memory>
-#include <string>
 #include <utility>
 
 #include <apps/opencs/model/world/collection.hpp>

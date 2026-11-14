@@ -2,8 +2,6 @@
 
 #include <QTableView>
 
-#include <components/esm/refid.hpp>
-
 #include "../../model/world/data.hpp"
 #include "../../model/world/idtable.hpp"
 #include "../../model/world/tablemimedata.hpp"

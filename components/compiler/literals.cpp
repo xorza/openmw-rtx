@@ -1,8 +1,5 @@
 #include "literals.hpp"
 
-#include <algorithm>
-#include <cstring>
-
 namespace Compiler
 {
     int Literals::addInteger(Interpreter::Type_Integer value)

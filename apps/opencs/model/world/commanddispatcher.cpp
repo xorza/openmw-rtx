@@ -20,7 +20,6 @@
 
 #include <components/esm3/loaddial.hpp>
 #include <components/misc/constants.hpp>
-#include <components/misc/strings/lower.hpp>
 
 #include "../doc/document.hpp"
 

@@ -1,7 +1,6 @@
 #include "luamanagerimp.hpp"
 
 #include <cassert>
-#include <chrono>
 #include <cmath>
 #include <filesystem>
 #include <functional>

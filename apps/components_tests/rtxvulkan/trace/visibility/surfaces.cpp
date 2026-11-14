@@ -6,7 +6,6 @@
 #include <optional>
 #include <span>
 #include <string>
-#include <utility>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -46,7 +45,6 @@
 #include <components/rtx/scene/sceneroom.hpp>
 #include <components/rtx/scene/surface.hpp>
 #include <components/rtx/scene/texturetable.hpp>
-#include <components/rtx/shaders/brdf.h>
 #include <components/rtx/shaders/gbuffer.h>
 #include <components/rtx/shaders/look.h>
 #include <components/rtx/shaders/scene.h>
@@ -56,7 +54,6 @@
 #include <components/rtxvulkan/device/memory/batch.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/scene/scenebuffers.hpp>
-#include <components/rtxvulkan/shaders/shared/ground.h>
 #include <components/rtxvulkan/shaders/shared/tables.h>
 #include <components/rtxvulkan/trace/spritebin.hpp>
 #include <components/rtxvulkan/trace/spritepasses.hpp>

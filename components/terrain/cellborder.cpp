@@ -6,7 +6,6 @@
 #include "world.hpp"
 
 #include <components/esm/util.hpp>
-#include <components/esm3/loadland.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/sceneutil/material.hpp>
 #include <components/terrain/storage.hpp>

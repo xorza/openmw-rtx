@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <format>
@@ -20,17 +21,22 @@
 #include <apps/openmw/mwbase/world.hpp>
 #include <apps/openmw/mwrender/camera.hpp>
 #include <apps/openmw/mwrender/renderingmanager.hpp>
-#include <apps/openmw/mwrender/rtx/rtxrenderer.hpp>
+#include <apps/openmw/mwrender/rtx/framereport.hpp>
+#include <apps/openmw/mwrender/rtx/worldmirror.hpp>
 #include <apps/openmw/mwworld/cell.hpp>
 #include <apps/openmw/mwworld/cellstore.hpp>
 #include <apps/openmw/mwworld/ptr.hpp>
 #include <apps/openmw/mwworld/worldmodel.hpp>
+#include <apps/rtxtool/instruments/frametimes.hpp>
+#include <apps/rtxtool/model/benchrecord.hpp>
+#include <apps/rtxtool/model/benchrun.hpp>
 #include <apps/rtxtool/model/runrecord.hpp>
 #include <components/esm3/refnum.hpp>
 #include <components/misc/constants.hpp>
 #include <components/rtx/mirror/cells/cellgrid.hpp>
 #include <components/rtx/mirror/cells/cellplacer.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
+#include <components/rtx/renderer/framesinflight.hpp>
 #include <components/rtx/renderer/framezone.hpp>
 #include <components/rtx/scene/light.hpp>
 #include <components/rtx/scene/refusal.hpp>

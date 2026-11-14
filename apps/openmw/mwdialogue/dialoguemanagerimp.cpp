@@ -14,7 +14,6 @@
 #include <components/esm3/loadinfo.hpp>
 #include <components/esm3/loadmgef.hpp>
 
-#include <components/compiler/errorhandler.hpp>
 #include <components/compiler/exception.hpp>
 #include <components/compiler/locals.hpp>
 #include <components/compiler/output.hpp>

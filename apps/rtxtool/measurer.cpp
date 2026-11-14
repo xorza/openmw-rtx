@@ -15,10 +15,12 @@
 #include <apps/openmw/mwbase/environment.hpp>
 #include <apps/openmw/mwbase/world.hpp>
 #include <apps/openmw/mwrender/rtx/framereport.hpp>
-#include <apps/openmw/mwrender/rtx/rtxrenderer.hpp>
+#include <apps/openmw/mwrender/rtx/worldmirror.hpp>
 #include <apps/openmw/mwworld/ptr.hpp>
 #include <apps/openmw/mwworld/timestamp.hpp>
+#include <apps/rtxtool/instruments/cardwatch.hpp>
 #include <apps/rtxtool/instruments/framehashes.hpp>
+#include <apps/rtxtool/instruments/frametimes.hpp>
 #include <apps/rtxtool/instruments/gpuclock.hpp>
 #include <apps/rtxtool/instruments/png.hpp>
 #include <apps/rtxtool/instruments/reportfile.hpp>
@@ -26,16 +28,19 @@
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <apps/rtxtool/model/benchspec.hpp>
 #include <apps/rtxtool/model/film.hpp>
+#include <apps/rtxtool/model/measurewindow.hpp>
 #include <apps/rtxtool/model/runrecord.hpp>
 #include <components/crashcatcher/crash.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/files/conversion.hpp>
 #include <components/misc/result.hpp>
+#include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/renderer/framespend.hpp>
+#include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/sceneuploader.hpp>
-#include <components/rtx/world/skylight.hpp>
 #include <components/rtx/world/weather.hpp>
 
+#include "checks.hpp"
 #include "stager.hpp"
 #include "stopwriter.hpp"
 

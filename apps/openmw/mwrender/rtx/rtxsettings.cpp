@@ -6,8 +6,6 @@
 
 #include <components/rtx/common/error.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
-#include <components/rtx/frame/upscale.hpp>
-#include <components/rtx/image/specularlayout.hpp>
 #include <components/rtx/mirror/cells/cellgrid.hpp>
 #include <components/rtx/shaders/gbuffer.h>
 #include <components/settings/values.hpp>

@@ -1,7 +1,6 @@
 #include "static.hpp"
 
 #include <components/esm3/loadstat.hpp>
-#include <components/esm4/loadstat.hpp>
 #include <components/sceneutil/positionattitudetransform.hpp>
 
 #include "../mwphysics/physicssystem.hpp"

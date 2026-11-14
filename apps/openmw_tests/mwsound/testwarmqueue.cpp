@@ -11,9 +11,7 @@
 
 #include <gtest/gtest.h>
 
-#include <components/files/istreamptr.hpp>
 #include <components/testing/util.hpp>
-#include <components/vfs/manager.hpp>
 #include <components/vfs/pathutil.hpp>
 
 namespace MWSound

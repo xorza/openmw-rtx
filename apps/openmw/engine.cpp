@@ -1,15 +1,31 @@
 #include "engine.hpp"
 
+#include <cassert>
 #include <chrono>
+#include <exception>
+#include <filesystem>
+#include <fstream>
+#include <functional>
 #include <future>
+#include <ios>
+#include <memory>
+#include <optional>
+#include <set>
 #include <stdexcept>
+#include <string>
+#include <thread>
+#include <utility>
 
+#include <SDL3/SDL_error.h>
+#include <SDL3/SDL_init.h>
+#include <SDL3/SDL_version.h>
+#include <SDL3/SDL_video.h>
 #include <osg/Stats>
 #include <osg/Timer>
+#include <osg/Version>
+#include <osg/ref_ptr>
 #include <osgDB/ReaderWriter>
 #include <osgDB/Registry>
-
-#include <SDL3/SDL.h>
 
 #include <components/debug/debuglog.hpp>
 
@@ -41,8 +57,22 @@
 #include <components/sceneutil/screencapture.hpp>
 #include <components/sceneutil/unrefqueue.hpp>
 
+#include <apps/openmw/mwbase/statemanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwgui/mode.hpp>
+#include <apps/openmw/mwscript/compilercontext.hpp>
+#include <apps/openmw/mwworld/localscripts.hpp>
+#include <apps/openmw/mwworld/store.hpp>
+#include <components/esm/stringrefid.hpp>
+#include <components/esm3/loadgmst.hpp>
+#include <components/esm3/variant.hpp>
+#include <components/files/multidircollection.hpp>
+#include <components/l10n/messagebundles.hpp>
+#include <components/misc/strings/algorithm.hpp>
+#include <components/settings/settings.hpp>
 #include <components/settings/shadermanager.hpp>
 #include <components/settings/values.hpp>
+#include <components/toutf8/toutf8.hpp>
 
 #include "mwinput/inputmanagerimp.hpp"
 #include "mwinput/rendererkeys.hpp"

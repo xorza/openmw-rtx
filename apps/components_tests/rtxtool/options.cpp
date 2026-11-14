@@ -26,7 +26,6 @@
 #include <apps/rtxtool/toolline.hpp>
 #include <apps/rtxtool/verbs.hpp>
 #include <components/files/configurationmanager.hpp>
-#include <components/files/conversion.hpp>
 #include <components/platform/process.hpp>
 #include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/frame/reconstruction.hpp>

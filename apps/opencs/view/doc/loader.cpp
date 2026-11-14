@@ -15,7 +15,6 @@
 
 #include <filesystem>
 #include <stddef.h>
-#include <type_traits>
 #include <utility>
 #include <vector>
 

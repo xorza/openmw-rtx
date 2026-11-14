@@ -3,7 +3,6 @@
 #include "modelproperty.hpp"
 
 #include <components/esm3/loadbody.hpp>
-#include <components/lua/luastate.hpp>
 
 namespace sol
 {

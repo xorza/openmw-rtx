@@ -1,16 +1,30 @@
 #include "bindingsmanager.hpp"
 
 #include <cmath>
+#include <exception>
 #include <filesystem>
+#include <initializer_list>
+#include <map>
+#include <memory>
+#include <string>
+#include <string_view>
 
-#include <MyGUI_EditBox.h>
-
+#include <MyGUI_TextIterator.h>
+#include <SDL3/SDL_events.h>
+#include <SDL3/SDL_gamepad.h>
+#include <SDL3/SDL_mouse.h>
+#include <SDL3/SDL_scancode.h>
+#include <SDL3/SDL_stdinc.h>
+#include <oics/ICSChannel.h>
 #include <oics/ICSChannelListener.h>
+#include <oics/ICSControl.h>
 #include <oics/ICSInputControlSystem.h>
+#include <oics/ICSPrerequisites.h>
 
 #include <components/crashcatcher/crash.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/files/conversion.hpp>
+#include <components/sdlutil/events.hpp>
 #include <components/sdlutil/sdlmappings.hpp>
 
 #include "../mwbase/environment.hpp"

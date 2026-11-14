@@ -5,7 +5,6 @@
 #include <sstream>
 
 #include <osg/Camera>
-#include <osg/ClipControl>
 #include <osg/ComputeBoundsVisitor>
 #include <osg/FrameStamp>
 #include <osg/Group>
@@ -21,9 +20,6 @@
 
 #include <components/debug/debuglog.hpp>
 
-#include <components/stereo/multiview.hpp>
-#include <components/stereo/stereomanager.hpp>
-
 #include <components/resource/imagemanager.hpp>
 #include <components/resource/keyframemanager.hpp>
 #include <components/resource/resourcesystem.hpp>
@@ -36,35 +32,27 @@
 #include <components/sceneutil/lightmanager.hpp>
 #include <components/sceneutil/material.hpp>
 #include <components/sceneutil/positionattitudetransform.hpp>
-#include <components/sceneutil/rtt.hpp>
 #include <components/sceneutil/shadow.hpp>
 #include <components/sceneutil/stableidentity.hpp>
 #include <components/sceneutil/stateupdater.hpp>
 #include <components/sceneutil/texmat.hpp>
 #include <components/sceneutil/userdata.hpp>
-#include <components/sceneutil/visitor.hpp>
 #include <components/sceneutil/workqueue.hpp>
 #include <components/sceneutil/writescene.hpp>
-
-#include <components/misc/constants.hpp>
 
 #include <components/terrain/quadtreeworld.hpp>
 #include <components/terrain/terraingrid.hpp>
 
 #include <components/esm3/loadcell.hpp>
-#include <components/esm4/loadcell.hpp>
 
 #include <components/debug/debugdraw.hpp>
 #include <components/detournavigator/navigator.hpp>
-#include <components/detournavigator/navmeshcacheitem.hpp>
 
 #include "../mwworld/cellstore.hpp"
 #include "../mwworld/class.hpp"
 #include "../mwworld/groundcoverstore.hpp"
 #include "../mwworld/scene.hpp"
 #include "../mwworld/weather.hpp"
-
-#include "../mwgui/postprocessorhud.hpp"
 
 #include "../mwmechanics/actorutil.hpp"
 

@@ -1,11 +1,6 @@
 #include "actor.hpp"
 
-#include <memory>
-#include <unordered_map>
-#include <utility>
-
 #include <osg/Group>
-#include <osg/MatrixTransform>
 #include <osg/Node>
 #include <osg/Vec3d>
 

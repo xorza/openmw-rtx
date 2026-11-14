@@ -1,24 +1,12 @@
 #include "multiview.hpp"
 
-#include <osg/DisplaySettings>
-#include <osg/Texture2D>
-#include <osg/Texture2DArray>
-#include <osg/Texture2DMultisample>
-#include <osg/io_utils>
-
 #include <osgUtil/CullVisitor>
-#include <osgUtil/RenderStage>
 
 #include <osgViewer/Renderer>
-#include <osgViewer/Viewer>
 
 #include <map>
-#include <string>
 
-#include <components/sceneutil/color.hpp>
 #include <components/sceneutil/mwshadowtechnique.hpp>
-
-#include <components/settings/settings.hpp>
 
 #include "frustum.hpp"
 

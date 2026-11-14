@@ -149,7 +149,9 @@ the posture behind them does.
   `components/rtxvulkan/shaders/shared/*.h`) are the one exception to `#pragma once`, and
   `portable.h` says why.
 - **Include what you name.** A `.cpp` may lean on its own header for what that header's interface
-  already needs, and on nothing else.
+  already needs, and on nothing else. An include nothing names — a type a template or a conversion
+  needs whole, an operator a template calls, a macro — says why it stays as
+  `// IWYU pragma: keep: <why>`, which `misc-include-cleaner` reads.
 - **A part that needs another part's state is handed it at the call** (`ThreadContent`, whose cache
   is handed the preprocessor at each read), and holds no reference to a sibling member or to its
   owner. An owner that does wire its parts together by reference is pinned: a class with a

@@ -3,8 +3,6 @@
 #include <QUndoStack>
 
 #include <filesystem>
-#include <map>
-#include <memory>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -34,7 +32,6 @@
 #include <components/esm3/loadinfo.hpp>
 #include <components/esm3/loadpgrd.hpp>
 #include <components/files/conversion.hpp>
-#include <components/misc/strings/lower.hpp>
 
 #include "../world/cellcoordinates.hpp"
 

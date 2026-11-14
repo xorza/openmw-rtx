@@ -5,9 +5,7 @@
 #include <components/detournavigator/debug.hpp>
 #include <components/detournavigator/gettilespositions.hpp>
 #include <components/detournavigator/objectid.hpp>
-#include <components/detournavigator/recastmesh.hpp>
 #include <components/detournavigator/settings.hpp>
-#include <components/detournavigator/tilecachedrecastmeshmanager.hpp>
 #include <components/esm/refid.hpp>
 #include <components/esm3/cellref.hpp>
 #include <components/esm3/esmreader.hpp>
@@ -19,14 +17,11 @@
 #include <components/esmloader/record.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/misc/strings/conversion.hpp>
-#include <components/misc/strings/lower.hpp>
 #include <components/navmeshtool/protocol.hpp>
 #include <components/resource/bulletshapemanager.hpp>
-#include <components/settings/settings.hpp>
 #include <components/vfs/manager.hpp>
 
 #include <osg/Vec2i>
-#include <osg/ref_ptr>
 
 #include <algorithm>
 #include <memory>

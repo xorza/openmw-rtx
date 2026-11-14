@@ -9,8 +9,6 @@
 
 #include <osgViewer/Viewer>
 
-#include <osgGA/GUIEventHandler>
-
 #include <components/resource/imagemanager.hpp>
 #include <components/sceneutil/nodecallback.hpp>
 #include <components/sceneutil/paintedtexture.hpp>

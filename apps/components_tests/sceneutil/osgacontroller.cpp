@@ -3,9 +3,6 @@
 #include <gtest/gtest.h>
 #include <osgAnimation/Channel>
 
-#include <filesystem>
-#include <fstream>
-
 namespace
 {
     using namespace SceneUtil;

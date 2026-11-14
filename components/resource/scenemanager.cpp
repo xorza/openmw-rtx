@@ -1,11 +1,21 @@
 #include "scenemanager.hpp"
 
+#include <algorithm>
+#include <array>
+#include <cstdint>
 #include <cstdlib>
+#include <exception>
 #include <filesystem>
 #include <format>
+#include <istream>
 #include <iterator>
+#include <mutex>
+#include <span>
 #include <sstream>
+#include <stdexcept>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include <osg/AlphaFunc>
 #include <osg/Capability>
@@ -16,15 +26,34 @@
 #include <osg/UserDataContainer>
 
 #include <osgAnimation/BasicAnimationManager>
-#include <osgAnimation/Bone>
 #include <osgAnimation/RigGeometry>
-#include <osgAnimation/UpdateBone>
 
 #include <osgParticle/ParticleSystem>
 
 #include <osgUtil/IncrementalCompileOperation>
 
+#include <osg/BoundingBox>
+#include <osg/BoundingSphere>
+#include <osg/Callback>
+#include <osg/Depth>
+#include <osg/MatrixTransform>
+#include <osg/Matrixf>
+#include <osg/NodeVisitor>
+#include <osg/StateAttribute>
+#include <osg/StateSet>
+#include <osg/Texture2D>
+#include <osg/Texture>
+#include <osg/Transform>
+#include <osg/Uniform>
+#include <osg/ref_ptr>
+#include <osgAnimation/Animation>
+#include <osgAnimation/AnimationUpdateCallback>
+#include <osgAnimation/Channel>
+#include <osgAnimation/Skeleton>
+#include <osgAnimation/VertexInfluence>
+#include <osgDB/Callbacks>
 #include <osgDB/FileUtils>
+#include <osgDB/ReaderWriter>
 #include <osgDB/Registry>
 #include <osgDB/SharedStateManager>
 
@@ -48,7 +77,6 @@
 #include <components/sceneutil/clone.hpp>
 #include <components/sceneutil/controller.hpp>
 #include <components/sceneutil/depth.hpp>
-#include <components/sceneutil/lightmanager.hpp>
 #include <components/sceneutil/optimizer.hpp>
 #include <components/sceneutil/riggeometryosgaextension.hpp>
 #include <components/sceneutil/serialize.hpp>
@@ -62,12 +90,17 @@
 #include <components/files/conversion.hpp>
 #include <components/files/hash.hpp>
 #include <components/files/memorystream.hpp>
+#include <components/sceneutil/material.hpp>
+#include <components/sceneutil/nodecallback.hpp>
+#include <components/shader/automaps.hpp>
 
 #include "bgsmfilemanager.hpp"
+#include "cachestats.hpp"
 #include "errormarker.hpp"
 #include "imagemanager.hpp"
 #include "niffilemanager.hpp"
 #include "objectcache.hpp"
+#include "resourcemanager.hpp"
 
 namespace
 {

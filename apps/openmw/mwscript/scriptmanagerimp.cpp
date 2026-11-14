@@ -1,6 +1,5 @@
 #include "scriptmanagerimp.hpp"
 
-#include <algorithm>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -14,8 +13,6 @@
 
 #include <components/esm/refid.hpp>
 #include <components/esm3/loadscpt.hpp>
-
-#include <components/misc/strings/lower.hpp>
 
 #include <components/compiler/context.hpp>
 #include <components/compiler/exception.hpp>

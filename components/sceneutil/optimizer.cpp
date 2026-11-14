@@ -25,7 +25,6 @@
 #include <osg/Geometry>
 #include <osg/Notify>
 #include <osg/Timer>
-#include <osg/io_utils>
 #include <osg/Depth>
 
 #include <osgDB/SharedStateManager>

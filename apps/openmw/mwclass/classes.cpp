@@ -13,14 +13,10 @@
 #include <components/esm4/loadfurn.hpp>
 #include <components/esm4/loadimod.hpp>
 #include <components/esm4/loadingr.hpp>
-#include <components/esm4/loadligh.hpp>
 #include <components/esm4/loadmisc.hpp>
 #include <components/esm4/loadmstt.hpp>
-#include <components/esm4/loadnpc.hpp>
 #include <components/esm4/loadscol.hpp>
-#include <components/esm4/loadstat.hpp>
 #include <components/esm4/loadterm.hpp>
-#include <components/esm4/loadtree.hpp>
 #include <components/esm4/loadweap.hpp>
 
 #include "activator.hpp"

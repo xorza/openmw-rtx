@@ -1,7 +1,5 @@
 #include "statsextensions.hpp"
 
-#include <cmath>
-
 #include <components/esm3/loadcrea.hpp>
 #include <components/esm3/loadnpc.hpp>
 

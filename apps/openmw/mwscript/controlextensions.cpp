@@ -1,7 +1,10 @@
+#include <string_view>
+
 #include "controlextensions.hpp"
 
 #include <components/compiler/opcodes.hpp>
 
+#include <components/interpreter/context.hpp>
 #include <components/interpreter/interpreter.hpp>
 #include <components/interpreter/opcodes.hpp>
 #include <components/interpreter/runtime.hpp>
@@ -16,7 +19,6 @@
 
 #include "../mwmechanics/creaturestats.hpp"
 
-#include "interpretercontext.hpp"
 #include "ref.hpp"
 
 namespace MWScript

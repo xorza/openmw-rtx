@@ -1,7 +1,6 @@
 #include "regioncheck.hpp"
 
 #include <string>
-#include <vector>
 
 #include "../prefs/state.hpp"
 

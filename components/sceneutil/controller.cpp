@@ -7,7 +7,6 @@
 #include <osg/Drawable>
 #include <osg/Geometry>
 #include <osg/MatrixTransform>
-#include <osg/NodeCallback>
 
 namespace SceneUtil
 {

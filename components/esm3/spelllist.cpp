@@ -3,8 +3,6 @@
 #include "esmreader.hpp"
 #include "esmwriter.hpp"
 
-#include <components/misc/strings/algorithm.hpp>
-
 namespace ESM
 {
 

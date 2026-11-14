@@ -1,8 +1,20 @@
+#include <algorithm>
+#include <cassert>
+#include <cstddef>
+#include <memory>
+#include <stdexcept>
+#include <utility>
+
 #include "container.hpp"
 
 #include <MyGUI_Button.h>
+#include <MyGUI_Delegate.h>
 #include <MyGUI_InputManager.h>
+#include <SDL3/SDL_events.h>
+#include <SDL3/SDL_gamepad.h>
 
+#include <apps/openmw/mwmechanics/aipackage.hpp> // IWYU pragma: keep: the package whole, which a shared pointer to it is read through
+#include <components/esm/defs.hpp>
 #include <components/settings/values.hpp>
 
 #include "../mwbase/environment.hpp"
@@ -14,7 +26,6 @@
 #include "../mwworld/class.hpp"
 #include "../mwworld/inventorystore.hpp"
 
-#include "../mwmechanics/aipackage.hpp"
 #include "../mwmechanics/creaturestats.hpp"
 #include "../mwmechanics/summoning.hpp"
 
@@ -25,9 +36,12 @@
 #include "draganddrop.hpp"
 #include "inventoryitemmodel.hpp"
 #include "inventorywindow.hpp"
+#include "itemmodel.hpp"
 #include "itemtransfer.hpp"
 #include "itemview.hpp"
+#include "mode.hpp"
 #include "pickpocketitemmodel.hpp"
+#include "referenceinterface.hpp"
 #include "sortfilteritemmodel.hpp"
 #include "tooltips.hpp"
 

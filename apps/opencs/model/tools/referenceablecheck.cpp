@@ -1,6 +1,5 @@
 #include "referenceablecheck.hpp"
 
-#include <cstddef>
 #include <format>
 
 #include <apps/opencs/model/doc/messages.hpp>
@@ -31,7 +30,6 @@
 #include <components/esm3/loadstat.hpp>
 #include <components/esm3/loadweap.hpp>
 #include <components/misc/resourcehelpers.hpp>
-#include <components/misc/strings/algorithm.hpp>
 
 #include "../prefs/state.hpp"
 

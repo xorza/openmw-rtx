@@ -1,12 +1,28 @@
+#include <algorithm>
+#include <cmath>
+#include <map>
+#include <optional>
+#include <stdexcept>
+#include <string>
+#include <utility>
+#include <vector>
+
 #include "spellcasting.hpp"
 
+#include <apps/openmw/mwworld/containerstore.hpp> // IWYU pragma: keep: the store whole, which a Ptr hands out
+#include <components/esm/defs.hpp>
+#include <components/esm3/activespells.hpp>
+#include <components/esm3/loadalch.hpp>
 #include <components/esm3/loadench.hpp>
+#include <components/esm3/loadingr.hpp>
 #include <components/esm3/loadmgef.hpp>
 #include <components/esm3/loadstat.hpp>
+#include <components/esm3/loadweap.hpp>
 #include <components/misc/constants.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/misc/rng.hpp>
 #include <components/misc/strings/format.hpp>
+#include <components/vfs/pathutil.hpp>
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/luamanager.hpp"
@@ -16,11 +32,11 @@
 #include "../mwbase/world.hpp"
 
 #include "../mwworld/class.hpp"
-#include "../mwworld/containerstore.hpp"
 #include "../mwworld/esmstore.hpp"
 
 #include "../mwrender/animation.hpp"
 
+#include "activespells.hpp"
 #include "actorutil.hpp"
 #include "creaturestats.hpp"
 #include "spelleffects.hpp"

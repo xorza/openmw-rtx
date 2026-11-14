@@ -22,7 +22,6 @@
 #include "backgroundimage.hpp"
 #include "confirmationdialog.hpp"
 #include "savegamedialog.hpp"
-#include "settingswindow.hpp"
 #include "videowidget.hpp"
 
 namespace MWGui

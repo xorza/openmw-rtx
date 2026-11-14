@@ -1,10 +1,8 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include <components/files/configurationmanager.hpp>
 #include <components/fx/technique.hpp>
 #include <components/resource/imagemanager.hpp>
-#include <components/settings/settings.hpp>
 #include <components/testing/util.hpp>
 
 namespace

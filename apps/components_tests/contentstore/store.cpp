@@ -12,7 +12,6 @@
 #include <optional>
 #include <span>
 #include <string>
-#include <system_error>
 #include <thread>
 #include <utility>
 #include <vector>

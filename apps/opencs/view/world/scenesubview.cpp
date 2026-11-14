@@ -1,8 +1,6 @@
 #include "scenesubview.hpp"
 
-#include <algorithm>
 #include <cassert>
-#include <map>
 #include <sstream>
 
 #include <QHBoxLayout>

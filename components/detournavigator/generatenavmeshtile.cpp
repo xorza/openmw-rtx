@@ -9,12 +9,9 @@
 #include <components/debug/debuglog.hpp>
 
 #include <DetourNavMesh.h>
-
-#include <osg/io_utils>
+#include <osg/io_utils> // IWYU pragma: keep: the vectors' operator<<, which a log line's template calls
 
 #include <memory>
-#include <optional>
-#include <vector>
 
 namespace DetourNavigator
 {

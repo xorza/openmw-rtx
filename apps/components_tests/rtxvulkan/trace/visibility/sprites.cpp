@@ -20,9 +20,7 @@
 #include <components/rtx/frame/camera.hpp>
 #include <components/rtx/frame/surfaceview.hpp>
 #include <components/rtx/image/texturedata.hpp>
-#include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>
-#include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/scene/light.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/scenedesc.hpp>

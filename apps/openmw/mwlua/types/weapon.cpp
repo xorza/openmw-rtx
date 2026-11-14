@@ -4,7 +4,6 @@
 
 #include <components/esm3/loadweap.hpp>
 #include <components/lua/luastate.hpp>
-#include <components/lua/util.hpp>
 #include <components/misc/finitevalues.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/resource/resourcesystem.hpp>

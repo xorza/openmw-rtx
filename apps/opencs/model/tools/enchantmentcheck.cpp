@@ -2,7 +2,6 @@
 
 #include <stddef.h>
 #include <string>
-#include <vector>
 
 #include <apps/opencs/model/doc/messages.hpp>
 #include <apps/opencs/model/prefs/category.hpp>

@@ -6,7 +6,6 @@
 #include <optional>
 #include <span>
 
-#include <unicode/calendar.h>
 #include <unicode/errorcode.h>
 #include <yaml-cpp/yaml.h>
 

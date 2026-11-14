@@ -14,7 +14,6 @@
 #include <components/resource/scenemanager.hpp>
 #include <components/testing/util.hpp>
 #include <components/toutf8/toutf8.hpp>
-#include <components/vfs/manager.hpp>
 #include <components/vfs/pathutil.hpp>
 
 namespace

@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <stdexcept>
-#include <type_traits>
 #include <utility>
 
 #include <QAbstractItemModel>
@@ -38,7 +37,6 @@
 #include <components/esm3/loadltex.hpp>
 #include <components/esm3/loadstat.hpp>
 #include <components/files/collections.hpp>
-#include <components/misc/strings/lower.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/sceneutil/shadow.hpp>

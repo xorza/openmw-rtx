@@ -1,6 +1,5 @@
 #include "editor.hpp"
 
-#include <exception>
 #include <string>
 
 #include <QIcon>

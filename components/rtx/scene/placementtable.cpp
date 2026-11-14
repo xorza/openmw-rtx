@@ -3,7 +3,6 @@
 #include <cassert>
 #include <cstddef>
 #include <span>
-#include <utility>
 #include <vector>
 
 #include <osg/BoundingBox>

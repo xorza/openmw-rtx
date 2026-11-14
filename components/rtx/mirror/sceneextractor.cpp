@@ -10,7 +10,6 @@
 
 #include <osg/Drawable>
 #include <osg/FrameStamp>
-#include <osg/Group>
 #include <osg/Matrix>
 #include <osg/Matrixd>
 #include <osg/NodeVisitor>
@@ -27,7 +26,6 @@
 #include <components/misc/result.hpp>
 #include <components/nifosg/autotransform.hpp>
 #include <components/rtx/common/finite.hpp>
-#include <components/rtx/common/runs.hpp>
 #include <components/rtx/mirror/cells/cellring.hpp>
 #include <components/rtx/scene/light.hpp>
 #include <components/rtx/scene/refusal.hpp>

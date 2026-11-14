@@ -4,7 +4,6 @@
 #include "esmwriter.hpp"
 
 #include <cmath>
-#include <components/misc/strings/algorithm.hpp>
 
 namespace ESM
 {

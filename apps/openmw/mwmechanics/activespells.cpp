@@ -4,9 +4,6 @@
 
 #include <components/misc/resourcehelpers.hpp>
 
-#include <components/misc/strings/algorithm.hpp>
-
-#include <components/esm/generatedrefid.hpp>
 #include <components/esm3/actoridconverter.hpp>
 #include <components/esm3/loadench.hpp>
 #include <components/esm3/loadmgef.hpp>

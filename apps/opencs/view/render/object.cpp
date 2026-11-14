@@ -1,7 +1,6 @@
 #include "object.hpp"
 
 #include <algorithm>
-#include <cmath>
 #include <exception>
 #include <stddef.h>
 #include <stdexcept>
@@ -12,8 +11,6 @@
 #include <osg/PolygonOffset>
 #include <osg/ShapeDrawable>
 
-#include <apps/opencs/model/prefs/category.hpp>
-#include <apps/opencs/model/prefs/setting.hpp>
 #include <apps/opencs/model/world/columns.hpp>
 #include <apps/opencs/model/world/record.hpp>
 #include <apps/opencs/model/world/ref.hpp>
@@ -22,7 +19,6 @@
 #include <apps/opencs/model/world/universalid.hpp>
 #include <apps/opencs/view/render/tagbase.hpp>
 
-#include "../../model/prefs/state.hpp"
 #include "../../model/world/cellcoordinates.hpp"
 #include "../../model/world/commandmacro.hpp"
 #include "../../model/world/commands.hpp"

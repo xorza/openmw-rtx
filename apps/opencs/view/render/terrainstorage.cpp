@@ -1,13 +1,12 @@
 #include "terrainstorage.hpp"
 
-#include <components/esm3/loadltex.hpp>
 #include <components/esmterrain/storage.hpp>
-#include <components/resource/resourcesystem.hpp>
 
 #include <apps/opencs/model/world/data.hpp>
 #include <apps/opencs/model/world/idcollection.hpp>
 #include <apps/opencs/model/world/land.hpp>
 #include <apps/opencs/model/world/record.hpp>
+#include <components/resource/resourcesystem.hpp> // IWYU pragma: keep: the resource system whole, which a shared pointer to it is read through
 
 #include <algorithm>
 #include <cmath>

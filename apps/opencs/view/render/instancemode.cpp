@@ -7,7 +7,6 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
-#include <map>
 #include <memory>
 #include <utility>
 
@@ -39,7 +38,6 @@
 #include <apps/opencs/view/render/instancedragmodes.hpp>
 #include <apps/opencs/view/render/tagbase.hpp>
 
-#include <components/esm/defs.hpp>
 #include <components/misc/scalableicon.hpp>
 
 #include "../../model/prefs/shortcut.hpp"

@@ -1,7 +1,5 @@
 #include "tablemimedata.hpp"
 
-#include <algorithm>
-#include <memory>
 #include <stdexcept>
 #include <string>
 

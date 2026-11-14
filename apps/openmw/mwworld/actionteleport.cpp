@@ -1,6 +1,5 @@
 #include "actionteleport.hpp"
 
-#include <components/esm3/loadcell.hpp>
 #include <components/esm3/loadmgef.hpp>
 
 #include "../mwbase/environment.hpp"

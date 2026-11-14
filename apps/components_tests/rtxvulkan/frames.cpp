@@ -1,5 +1,4 @@
 #include <array>
-#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -27,7 +26,6 @@
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/renderer/channel.hpp>
-#include <components/rtx/renderer/guirenderer.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/slot.hpp>
 #include <components/rtx/scene/mesh.hpp>

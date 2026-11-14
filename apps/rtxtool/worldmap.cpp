@@ -21,7 +21,6 @@
 #include <components/esm/refid.hpp>
 #include <components/esm3/cellref.hpp>
 #include <components/esm3/esmreader.hpp>
-#include <components/esm3/landrecorddata.hpp>
 #include <components/esm3/loadcell.hpp>
 #include <components/esm3/loadland.hpp>
 #include <components/esm3/readerscache.hpp>

@@ -3,8 +3,6 @@
 #include <MyGUI_Button.h>
 #include <MyGUI_InputManager.h>
 
-#include <SDL3/SDL.h>
-
 #include <components/debug/debuglog.hpp>
 #include <components/esm/refid.hpp>
 #include <components/files/conversion.hpp>

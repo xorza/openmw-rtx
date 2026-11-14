@@ -2,10 +2,8 @@
 
 #include <algorithm>
 #include <cassert>
-#include <chrono>
 #include <cmath>
 #include <filesystem>
-#include <thread>
 
 #include <osg/Image>
 #include <osg/ref_ptr>
@@ -18,9 +16,6 @@
 #include <MyGUI_PointerManager.h>
 #include <MyGUI_RenderManager.h>
 #include <MyGUI_UString.h>
-
-// For BT_NO_PROFILE
-#include <LinearMath/btQuickprof.h>
 
 #include <SDL3/SDL_clipboard.h>
 #include <SDL3/SDL_keyboard.h>

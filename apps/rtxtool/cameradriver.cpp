@@ -32,7 +32,6 @@
 #include <components/esm/position.hpp>
 #include <components/esm3/loadregn.hpp>
 #include <components/fallback/fallback.hpp>
-#include <components/rtx/world/skylight.hpp>
 #include <components/rtx/world/weather.hpp>
 
 namespace RtxTool

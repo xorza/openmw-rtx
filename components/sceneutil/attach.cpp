@@ -5,7 +5,6 @@
 #include <vector>
 
 #include <osg/FrontFace>
-#include <osg/Geometry>
 #include <osg/Group>
 #include <osg/MatrixTransform>
 #include <osg/NodeVisitor>

@@ -18,8 +18,6 @@
 #include <components/navmeshtool/protocol.hpp>
 #include <components/sceneutil/workqueue.hpp>
 
-#include <osg/Vec3f>
-
 #include <algorithm>
 #include <atomic>
 #include <condition_variable>

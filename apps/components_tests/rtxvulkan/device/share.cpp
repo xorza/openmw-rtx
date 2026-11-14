@@ -2,7 +2,6 @@
 #include <cstdint>
 #include <limits>
 #include <span>
-#include <vector>
 
 #include <gtest/gtest.h>
 

@@ -2,15 +2,22 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cstddef>
 #include <cstring>
+#include <istream>
+#include <memory>
 #include <span>
 #include <stdexcept>
 #include <string>
 #include <utility>
+#include <vector>
 
-#include <MyGUI_DataFileStream.h>
+#include <MyGUI_DataStream.h>
+#include <MyGUI_IDataStream.h>
+#include <MyGUI_Types.h>
 
 #include <components/vfs/manager.hpp>
+#include <components/vfs/pathutil.hpp>
 
 namespace
 {

@@ -26,7 +26,6 @@
 */
 #include "loadpack.hpp"
 
-#include <cstring>
 #include <stdexcept>
 
 #include "reader.hpp"

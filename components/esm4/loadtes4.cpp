@@ -28,7 +28,6 @@
 
 #include <stdexcept>
 
-#include "common.hpp"
 #include "reader.hpp"
 // #include "writer.hpp"
 

@@ -1,7 +1,6 @@
 #include "stager.hpp"
 
 #include <cstddef>
-#include <cstdint>
 #include <format>
 #include <optional>
 #include <string>
@@ -31,7 +30,6 @@
 #include <apps/openmw/mwworld/ptr.hpp>
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <components/crashcatcher/crashinstall.hpp>
-#include <components/debug/debuglog.hpp>
 #include <components/detournavigator/navigator.hpp>
 #include <components/detournavigator/waitconditiontype.hpp>
 #include <components/esm/attr.hpp>
@@ -43,7 +41,6 @@
 #include <components/esm3/loadskil.hpp>
 #include <components/esm3/loadweap.hpp>
 #include <components/misc/rng.hpp>
-#include <components/rtx/world/skylight.hpp>
 #include <components/rtx/world/weather.hpp>
 
 namespace RtxTool

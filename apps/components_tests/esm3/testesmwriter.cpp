@@ -1,10 +1,8 @@
 #include <components/esm3/esmwriter.hpp>
 
-#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 #include <algorithm>
-#include <memory>
 #include <random>
 
 namespace ESM

@@ -4,7 +4,6 @@
 #include <cstdlib>
 #include <limits>
 
-#include <sys/resource.h>
 #if defined(__linux__)
 #include <sys/prctl.h>
 #endif

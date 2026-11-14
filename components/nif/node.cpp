@@ -12,7 +12,7 @@
 #include "data.hpp"
 #include "exception.hpp"
 #include "physics.hpp"
-#include "property.hpp"
+#include "property.hpp" // IWYU pragma: keep: the records whole, which the record pointers' templates read
 
 namespace
 {

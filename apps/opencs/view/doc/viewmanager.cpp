@@ -1,7 +1,6 @@
 #include "viewmanager.hpp"
 
 #include <algorithm>
-#include <cstddef>
 #include <filesystem>
 #include <map>
 #include <type_traits>

@@ -1,9 +1,13 @@
+#include <string_view>
+
 #include "security.hpp"
 
+#include <apps/openmw/mwworld/containerstore.hpp> // IWYU pragma: keep: the store whole, which a Ptr hands out
+#include <components/esm3/loadlock.hpp>
+#include <components/esm3/loadprob.hpp>
 #include <components/misc/rng.hpp>
 
 #include "../mwworld/class.hpp"
-#include "../mwworld/containerstore.hpp"
 #include "../mwworld/esmstore.hpp"
 
 #include "../mwbase/environment.hpp"

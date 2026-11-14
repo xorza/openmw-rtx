@@ -21,14 +21,12 @@
 #include <apps/openmw/mwrender/renderer.hpp>
 #include <apps/openmw/mwrender/rtx/rtxrenderer.hpp>
 #include <apps/openmw/mwrender/rtx/tracedview.hpp>
-#include <apps/openmw/mwworld/cell.hpp>
 #include <apps/openmw/mwworld/esmstore.hpp>
 #include <apps/openmw/mwworld/manualref.hpp>
 #include <apps/openmw/mwworld/ptr.hpp>
 #include <apps/rtxtool/instruments/contactsheet.hpp>
 #include <apps/rtxtool/instruments/png.hpp>
 #include <apps/rtxtool/instruments/scenereport.hpp>
-#include <apps/rtxtool/model/benchrecord.hpp>
 #include <apps/rtxtool/model/pictureshelf.hpp>
 #include <apps/rtxtool/model/runrecord.hpp>
 #include <components/esm/refid.hpp>
@@ -37,15 +35,12 @@
 #include <components/misc/result.hpp>
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/frame/frameextents.hpp>
-#include <components/rtx/frame/reconstruction.hpp>
-#include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/scenetextures.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/placementtable.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
-#include <components/rtx/scene/surface.hpp>
 #include <components/rtx/scene/texturetable.hpp>
 
 namespace RtxTool

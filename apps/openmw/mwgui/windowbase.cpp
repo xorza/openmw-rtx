@@ -7,7 +7,6 @@
 #include "../mwbase/environment.hpp"
 #include "../mwbase/windowmanager.hpp"
 
-#include <components/settings/values.hpp>
 #include <components/widgets/imagebutton.hpp>
 
 #include "draganddrop.hpp"

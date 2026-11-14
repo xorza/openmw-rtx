@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <cassert>
-#include <cstddef>
 #include <optional>
 #include <span>
 

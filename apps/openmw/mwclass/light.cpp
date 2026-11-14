@@ -5,8 +5,6 @@
 
 #include <components/esm3/loadligh.hpp>
 #include <components/esm3/loadnpc.hpp>
-#include <components/esm3/objectstate.hpp>
-#include <components/esm4/loadligh.hpp>
 #include <components/settings/values.hpp>
 
 #include "../mwbase/environment.hpp"

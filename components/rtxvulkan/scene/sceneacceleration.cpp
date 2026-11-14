@@ -12,7 +12,6 @@
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/placementtable.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
-#include <components/rtx/shaders/visibility.h>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/gputimer.hpp>

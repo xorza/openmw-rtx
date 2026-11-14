@@ -9,7 +9,6 @@
 #include <sstream>
 #include <stdexcept>
 #include <type_traits>
-#include <utility>
 #include <vector>
 
 namespace Settings

@@ -4,7 +4,6 @@
 #include <span>
 #include <string_view>
 #include <tuple>
-#include <utility>
 #include <vector>
 
 #include <gtest/gtest.h>

@@ -1,7 +1,6 @@
 #include "mergeoperation.hpp"
 
 #include <utility>
-#include <variant>
 
 #include <apps/opencs/model/doc/operation.hpp>
 #include <apps/opencs/model/tools/mergestate.hpp>
@@ -10,7 +9,6 @@
 #include <apps/opencs/model/world/info.hpp>
 #include <apps/opencs/model/world/infocollection.hpp>
 #include <apps/opencs/model/world/pathgrid.hpp>
-#include <apps/opencs/model/world/record.hpp>
 #include <apps/opencs/model/world/subcellcollection.hpp>
 
 #include <components/esm3/debugprofile.hpp>

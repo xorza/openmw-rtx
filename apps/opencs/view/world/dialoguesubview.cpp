@@ -1,9 +1,6 @@
 #include "dialoguesubview.hpp"
 
-#include <algorithm>
-#include <memory>
 #include <stdexcept>
-#include <type_traits>
 #include <utility>
 
 #include <QAbstractItemModel>

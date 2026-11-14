@@ -2,12 +2,10 @@
 
 #include <cmath>
 #include <limits>
-#include <list>
 #include <string>
 
 #include <components/debug/debuglog.hpp>
 #include <components/misc/concepts.hpp>
-#include <components/misc/strings/algorithm.hpp>
 
 #include "esmreader.hpp"
 #include "esmwriter.hpp"

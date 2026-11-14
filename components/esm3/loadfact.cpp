@@ -1,7 +1,5 @@
 #include "loadfact.hpp"
 
-#include <stdexcept>
-
 #include "esmreader.hpp"
 #include "esmwriter.hpp"
 

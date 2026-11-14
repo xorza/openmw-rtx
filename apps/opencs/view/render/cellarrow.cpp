@@ -8,8 +8,6 @@
 #include <osg/PositionAttitudeTransform>
 #include <osg/PrimitiveSet>
 #include <osg/Quat>
-#include <osg/StateAttribute>
-#include <osg/StateSet>
 #include <osg/Vec3f>
 #include <osg/Vec4f>
 

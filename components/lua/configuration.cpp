@@ -1,7 +1,6 @@
 #include "configuration.hpp"
 
 #include <algorithm>
-#include <bitset>
 #include <cassert>
 #include <format>
 #include <sstream>
@@ -9,7 +8,6 @@
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/esmwriter.hpp>
 #include <components/misc/strings/algorithm.hpp>
-#include <components/misc/strings/lower.hpp>
 #include <utility>
 
 namespace LuaUtil

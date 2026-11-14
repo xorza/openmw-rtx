@@ -22,14 +22,12 @@
 #include <apps/opencs/view/render/scenewidget.hpp>
 #include <apps/opencs/view/widget/modebutton.hpp>
 
-#include <components/esm/defs.hpp>
 #include <components/misc/scalableicon.hpp>
 
 #include <osg/Camera>
 #include <osg/Group>
 #include <osg/Matrixd>
 #include <osg/Node>
-#include <osg/Referenced>
 #include <osg/Viewport>
 #include <osgUtil/IntersectionVisitor>
 #include <osgViewer/View>

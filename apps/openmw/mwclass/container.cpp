@@ -5,7 +5,6 @@
 
 #include <components/esm3/containerstate.hpp>
 #include <components/esm3/loadcont.hpp>
-#include <components/esm3/loadsoun.hpp>
 #include <components/settings/values.hpp>
 
 #include "../mwbase/environment.hpp"
@@ -31,7 +30,6 @@
 #include "../mwrender/renderinginterface.hpp"
 
 #include "../mwmechanics/inventory.hpp"
-#include "../mwmechanics/npcstats.hpp"
 
 #include "classmodel.hpp"
 #include "nameorid.hpp"

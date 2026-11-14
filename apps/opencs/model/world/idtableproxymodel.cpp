@@ -5,7 +5,6 @@
 #include <QSortFilterProxyModel>
 #include <QString>
 
-#include <compare>
 #include <string_view>
 #include <type_traits>
 #include <utility>

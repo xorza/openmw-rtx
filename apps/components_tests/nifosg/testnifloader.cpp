@@ -12,7 +12,6 @@
 #include <components/sceneutil/visitor.hpp>
 #include <components/vfs/manager.hpp>
 
-#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 #include <osgDB/Registry>

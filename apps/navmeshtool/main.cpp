@@ -4,7 +4,6 @@
 #include <components/debug/debugging.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/detournavigator/agentbounds.hpp>
-#include <components/detournavigator/collisionshapetype.hpp>
 #include <components/detournavigator/navmeshtilestore.hpp>
 #include <components/detournavigator/recastglobalallocator.hpp>
 #include <components/detournavigator/settings.hpp>
@@ -25,26 +24,30 @@
 #include <components/resource/niffilemanager.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/sceneutil/workqueue.hpp>
+#include <components/settings/settings.hpp>
 #include <components/settings/values.hpp>
 #include <components/toutf8/toutf8.hpp>
 #include <components/version/version.hpp>
 #include <components/vfs/manager.hpp>
 #include <components/vfs/registerarchives.hpp>
 
-#include <osg/Vec3f>
-
-#include <boost/program_options.hpp>
-
+#include <algorithm>
 #include <cstddef>
-#include <cstdint>
 #include <filesystem>
 #include <iostream>
 #include <map>
 #include <regex>
 #include <string>
+#include <string_view>
 #include <thread>
+#include <unordered_map>
 #include <utility>
 #include <vector>
+
+#include <boost/program_options/options_description.hpp>
+#include <boost/program_options/parsers.hpp>
+#include <boost/program_options/value_semantic.hpp>
+#include <boost/program_options/variables_map.hpp>
 
 #ifdef WIN32
 #include <fcntl.h>

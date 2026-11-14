@@ -1,18 +1,9 @@
 #include "animblendrulesmanager.hpp"
 
-#include <array>
-
 #include <components/vfs/manager.hpp>
 
 #include <osg/Stats>
-#include <osgAnimation/Animation>
-#include <osgAnimation/BasicAnimationManager>
-#include <osgAnimation/Channel>
 
-#include <components/debug/debuglog.hpp>
-#include <components/misc/pathhelpers.hpp>
-
-#include <components/sceneutil/osgacontroller.hpp>
 #include <components/vfs/pathutil.hpp>
 
 #include <components/resource/scenemanager.hpp>

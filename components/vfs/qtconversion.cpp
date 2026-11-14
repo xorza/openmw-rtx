@@ -1,7 +1,5 @@
 #include "qtconversion.hpp"
 
-#include <components/misc/strings/conversion.hpp>
-
 #include <string_view>
 
 QString VFS::Path::normalizedToQString(NormalizedView path)

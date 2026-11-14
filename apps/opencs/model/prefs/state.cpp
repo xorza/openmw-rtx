@@ -4,10 +4,8 @@
 #include <QKeySequence>
 
 #include <filesystem>
-#include <sstream>
 #include <stdexcept>
 #include <utility>
-#include <vector>
 
 #include <apps/opencs/model/prefs/category.hpp>
 #include <apps/opencs/model/prefs/enumsetting.hpp>
@@ -15,7 +13,6 @@
 #include <apps/opencs/model/prefs/shortcutmanager.hpp>
 #include <apps/opencs/model/prefs/subcategory.hpp>
 
-#include <components/settings/categories.hpp>
 #include <components/settings/settings.hpp>
 
 #include "boolsetting.hpp"

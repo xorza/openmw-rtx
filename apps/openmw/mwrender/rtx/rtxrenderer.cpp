@@ -10,7 +10,6 @@
 #include <limits>
 #include <optional>
 #include <ratio>
-#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -23,10 +22,8 @@
 #include <osg/GL>
 #include <osg/Group>
 #include <osg/Image>
-#include <osg/Matrixf>
 #include <osg/Node>
 #include <osg/Stats>
-#include <osg/Texture2D>
 #include <osg/Timer>
 #include <osg/Vec2i>
 #include <osg/Vec3f>
@@ -59,7 +56,6 @@
 #include <components/rtx/common/clock.hpp>
 #include <components/rtx/common/error.hpp>
 #include <components/rtx/common/jobprogress.hpp>
-#include <components/rtx/common/namedenum.hpp>
 #include <components/rtx/frame/camera.hpp>
 #include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/frame/frameoptions.hpp>
@@ -75,7 +71,6 @@
 #include <components/rtx/renderer/verticalsync.hpp>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtx/world/frameworld.hpp>
-#include <components/rtx/world/moon.hpp>
 #include <components/sceneutil/screencapture.hpp>
 #include <components/sdlutil/imagetosurface.hpp>
 #include <components/sdlutil/vsyncmode.hpp>

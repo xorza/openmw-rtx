@@ -1,23 +1,41 @@
 #include "localmap.hpp"
 
 #include <algorithm>
+#include <cassert>
+#include <cmath>
+#include <cstddef>
 #include <cstdint>
+#include <cstdlib>
+#include <cstring>
+#include <memory>
 #include <optional>
+#include <sstream>
+#include <string>
+#include <tuple>
 #include <utility>
+#include <vector>
 
+#include <MyGUI_Types.h>
+#include <osg/BoundingBox>
 #include <osg/BoundingSphere>
 #include <osg/ComputeBoundsVisitor>
 #include <osg/Image>
-#include <osg/Texture2D>
+#include <osg/Math>
+#include <osg/Matrixd>
+#include <osg/Quat>
+#include <osg/Vec2f>
+#include <osg/Vec3d>
+#include <osg/ref_ptr>
+#include <osgDB/ReaderWriter>
+#include <osgDB/Registry>
 
-#include <osgDB/ReadFile>
-
+#include <apps/openmw/mwworld/ptr.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/fogstate.hpp>
-#include <components/esm3/loadcell.hpp>
 #include <components/files/memorystream.hpp>
 #include <components/misc/constants.hpp>
 #include <components/myguiplatform/guirendermanager.hpp>
+#include <components/sceneutil/imageregion.hpp>
 #include <components/sceneutil/offscreenframing.hpp>
 #include <components/sceneutil/paintedtexture.hpp>
 #include <components/settings/values.hpp>

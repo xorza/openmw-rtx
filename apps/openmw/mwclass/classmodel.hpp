@@ -4,6 +4,7 @@
 #include "../mwworld/ptr.hpp"
 
 #include <components/esm/path.hpp>
+#include <components/esm4/loadligh.hpp>
 #include <components/vfs/pathutil.hpp>
 
 namespace MWClass

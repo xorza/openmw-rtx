@@ -11,7 +11,6 @@
 #include <QTextStream>
 
 #include <components/debug/debuglog.hpp>
-#include <components/files/qtconversion.hpp>
 #include <ranges>
 
 #include "gamesettings.hpp"

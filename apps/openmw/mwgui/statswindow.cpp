@@ -6,7 +6,6 @@
 #include <MyGUI_Gui.h>
 #include <MyGUI_ImageBox.h>
 #include <MyGUI_InputManager.h>
-#include <MyGUI_LanguageManager.h>
 #include <MyGUI_ProgressBar.h>
 #include <MyGUI_RenderManager.h>
 #include <MyGUI_ScrollView.h>

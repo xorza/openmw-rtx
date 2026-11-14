@@ -2,8 +2,6 @@
 
 #include "convertscri.hpp"
 
-#include <components/misc/strings/lower.hpp>
-
 namespace ESSImport
 {
 

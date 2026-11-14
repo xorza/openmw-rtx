@@ -10,11 +10,8 @@
 #include <components/esmloader/lessbyid.hpp>
 #include <components/esmloader/record.hpp>
 #include <components/misc/resourcehelpers.hpp>
-#include <components/misc/strings/lower.hpp>
 #include <components/resource/bulletshapemanager.hpp>
 #include <components/vfs/manager.hpp>
-
-#include <osg/ref_ptr>
 
 #include <algorithm>
 #include <utility>

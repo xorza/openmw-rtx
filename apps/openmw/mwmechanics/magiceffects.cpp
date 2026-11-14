@@ -1,6 +1,5 @@
 #include "magiceffects.hpp"
 
-#include <cmath>
 #include <stdexcept>
 
 #include <components/esm/attr.hpp>

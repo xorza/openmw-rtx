@@ -1,15 +1,39 @@
 #include "esmstore.hpp"
 
 #include <algorithm>
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
+#include <exception>
+#include <filesystem>
 #include <fstream>
+#include <iterator>
+#include <limits>
+#include <map>
+#include <memory>
+#include <set>
+#include <span>
+#include <stdexcept>
+#include <string>
 #include <tuple>
+#include <unordered_map>
+#include <utility>
+#include <variant>
+#include <vector>
 
 #include <components/debug/debuglog.hpp>
 
-#include <components/esm/records.hpp>
+#include <components/esm/defs.hpp>
+#include <components/esm/esmcommon.hpp>
+#include <components/esm/luascripts.hpp>
+#include <components/esm/records.hpp> // IWYU pragma: keep: every record type whole, which the stores' tuple instantiates
+#include <components/esm/refid.hpp>
+#include <components/esm3/cellref.hpp>
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/esmwriter.hpp>
+#include <components/esm3/formatversion.hpp>
 #include <components/esm3/readerscache.hpp>
+#include <components/esm3/refnum.hpp>
 #include <components/esm4/common.hpp>
 #include <components/esm4/reader.hpp>
 #include <components/esm4/readerutils.hpp>
@@ -19,6 +43,7 @@
 #include <components/misc/algorithm.hpp>
 
 #include "../mwmechanics/spelllist.hpp"
+#include "store.hpp"
 
 namespace
 {

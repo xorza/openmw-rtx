@@ -15,12 +15,10 @@
 #include <vector>
 
 #include <spawn.h>
-#include <sys/wait.h>
 #include <unistd.h>
 
 #include <components/crashcatcher/crash.hpp>
 #include <components/crashcatcher/crashinstall.hpp>
-#include <components/crashcatcher/crashnote.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/platform/process.hpp>
 

@@ -12,7 +12,6 @@
 #include <apps/opencs/model/world/universalid.hpp>
 
 #include <components/esm3/loadclas.hpp>
-#include <components/esm3/loadskil.hpp>
 
 #include "../prefs/state.hpp"
 

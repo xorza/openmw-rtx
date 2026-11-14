@@ -5,7 +5,6 @@
 
 #include <components/esm/attr.hpp>
 #include <components/misc/concepts.hpp>
-#include <components/misc/strings/algorithm.hpp>
 
 #include <cstdint>
 

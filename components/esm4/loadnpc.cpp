@@ -28,7 +28,7 @@
 
 #include <cstring>
 #include <stdexcept>
-#include <string> // getline
+#include <string> // IWYU pragma: keep: std::getline
 
 #include "reader.hpp"
 // #include "writer.hpp"

@@ -12,13 +12,11 @@
 #include <components/misc/resourcehelpers.hpp>
 #include <components/misc/rng.hpp>
 
-#include <components/debug/debuglog.hpp>
 #include <components/esm3/loadbody.hpp>
 #include <components/esm3/loadclas.hpp>
 #include <components/esm3/loadmgef.hpp>
 #include <components/esm3/loadnpc.hpp>
 #include <components/esm3/loadrace.hpp>
-#include <components/esm3/loadsoun.hpp>
 #include <components/esm3/npcstate.hpp>
 #include <components/settings/values.hpp>
 #include <components/vfs/pathutil.hpp>

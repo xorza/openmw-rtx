@@ -3,7 +3,6 @@
 #include <array>
 #include <cmath>
 
-#include <osg/AlphaFunc>
 #include <osg/BlendFunc>
 #include <osg/ColorMask>
 #include <osg/Depth>
@@ -17,7 +16,6 @@
 
 #include <osgParticle/Particle>
 
-#include <components/misc/rng.hpp>
 #include <components/stereo/multiview.hpp>
 #include <components/stereo/stereomanager.hpp>
 

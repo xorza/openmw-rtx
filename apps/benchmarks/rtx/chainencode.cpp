@@ -18,11 +18,10 @@
 #include <utility>
 #include <vector>
 
-#include <benchmark/benchmark.h>
-
+#include <benchmark/benchmark.h> // IWYU pragma: keep: the macros this source registers its benchmarks with
 #include <osg/GL>
 #include <osg/Image>
-#include <osg/Texture> // The S3TC formats, which Windows's gl.h lacks.
+#include <osg/Texture> // IWYU pragma: keep: the S3TC formats, which Windows's gl.h lacks
 #include <osg/ref_ptr>
 #include <osgDB/Options>
 #include <osgDB/ReaderWriter>

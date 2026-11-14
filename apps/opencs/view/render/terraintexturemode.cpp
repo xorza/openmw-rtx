@@ -1,10 +1,7 @@
 #include "terraintexturemode.hpp"
 
-#include <algorithm>
 #include <cmath>
 #include <cstdlib>
-#include <exception>
-#include <limits>
 #include <string>
 
 #include <QDropEvent>
@@ -27,7 +24,6 @@
 #include <apps/opencs/view/widget/scenetool.hpp>
 
 #include <components/misc/scalableicon.hpp>
-#include <components/misc/strings/conversion.hpp>
 
 #include "../widget/scenetoolbar.hpp"
 #include "../widget/scenetooltexturebrush.hpp"

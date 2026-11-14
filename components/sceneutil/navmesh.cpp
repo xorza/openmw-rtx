@@ -4,9 +4,13 @@
 
 #include <components/detournavigator/settings.hpp>
 
-#include <DetourDebugDraw.h>
-
+#include <DebugDraw.h>
+#include <DetourNavMesh.h>
+#include <DetourNavMeshQuery.h>
+#include <cmath>
+#include <cstddef>
 #include <osg/Group>
+#include <osg/ref_ptr>
 #include <utility>
 
 namespace

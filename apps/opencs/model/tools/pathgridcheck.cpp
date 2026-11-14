@@ -1,7 +1,6 @@
 #include "pathgridcheck.hpp"
 
 #include <algorithm>
-#include <memory>
 #include <sstream>
 
 #include <apps/opencs/model/doc/messages.hpp>

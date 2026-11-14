@@ -19,11 +19,9 @@
 #include <components/rtx/mirror/poseupdate.hpp>
 #include <components/rtx/mirror/released.hpp>
 #include <components/rtx/mirror/sceneextractor.hpp>
-#include <components/rtx/renderer/guirenderer.hpp>
 #include <components/rtx/renderer/slot.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/shaders/camera.h>
-#include <components/rtx/shaders/visibility.h>
 
 namespace Rtx
 {

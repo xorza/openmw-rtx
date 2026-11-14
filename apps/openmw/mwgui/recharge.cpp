@@ -1,7 +1,5 @@
 #include "recharge.hpp"
 
-#include <MyGUI_ScrollView.h>
-
 #include <components/widgets/box.hpp>
 
 #include <components/esm3/loadcrea.hpp>

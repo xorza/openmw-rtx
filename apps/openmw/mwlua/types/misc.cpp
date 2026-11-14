@@ -4,8 +4,6 @@
 
 #include <components/esm3/loadcrea.hpp>
 #include <components/esm3/loadmisc.hpp>
-#include <components/lua/luastate.hpp>
-#include <components/lua/util.hpp>
 #include <components/misc/resourcehelpers.hpp>
 
 #include "apps/openmw/mwbase/environment.hpp"

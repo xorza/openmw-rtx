@@ -6,7 +6,6 @@
 #include <components/esm3/loadacti.hpp>
 #include <components/esm3/loadcrea.hpp>
 #include <components/esm3/loadsndg.hpp>
-#include <components/esm3/loadsoun.hpp>
 #include <components/misc/rng.hpp>
 #include <components/sceneutil/positionattitudetransform.hpp>
 
@@ -17,7 +16,6 @@
 #include "../mwworld/action.hpp"
 #include "../mwworld/cellstore.hpp"
 #include "../mwworld/esmstore.hpp"
-#include "../mwworld/failedaction.hpp"
 #include "../mwworld/nullaction.hpp"
 #include "../mwworld/ptr.hpp"
 
@@ -28,8 +26,6 @@
 #include "../mwrender/vismask.hpp"
 
 #include "../mwgui/tooltips.hpp"
-
-#include "../mwmechanics/npcstats.hpp"
 
 #include "classmodel.hpp"
 

@@ -2,8 +2,6 @@
 
 #include <cassert>
 #include <stdexcept>
-#include <string>
-#include <type_traits>
 #include <utility>
 
 #include <apps/opencs/model/world/universalid.hpp>

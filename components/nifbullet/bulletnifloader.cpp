@@ -2,13 +2,10 @@
 #include <memory>
 
 #include <cassert>
-#include <sstream>
 #include <tuple>
-#include <variant>
 #include <vector>
 
 #include <components/debug/debuglog.hpp>
-#include <components/files/conversion.hpp>
 #include <components/misc/convert.hpp>
 #include <components/misc/strings/algorithm.hpp>
 #include <components/nif/extra.hpp>

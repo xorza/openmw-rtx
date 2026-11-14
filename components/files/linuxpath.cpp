@@ -3,11 +3,8 @@
 #if defined(__linux__)
 
 #include <array>
-#include <cstring>
 #include <pwd.h>
 #include <unistd.h>
-
-#include <components/misc/strings/lower.hpp>
 
 #include "wineutils.hpp"
 

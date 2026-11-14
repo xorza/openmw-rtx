@@ -2,15 +2,16 @@
 
 #include <algorithm>
 #include <array>
+#include <cstddef>
+#include <string>
 
 #include <osg/FrameStamp>
 #include <osg/Stats>
 
 #include <MyGUI_EditBox.h>
-#include <MyGUI_Gui.h>
 #include <MyGUI_ScrollBar.h>
 #include <MyGUI_TextBox.h>
-#include <MyGUI_UString.h>
+#include <MyGUI_Types.h>
 
 #include <components/debug/debuglog.hpp>
 #include <components/misc/pathhelpers.hpp>
@@ -18,7 +19,8 @@
 #include <components/resource/resourcesystem.hpp>
 #include <components/settings/values.hpp>
 #include <components/vfs/manager.hpp>
-#include <components/vfs/recursivedirectoryiterator.hpp>
+#include <components/vfs/pathutil.hpp>
+#include <components/vfs/recursivedirectoryiterator.hpp> // IWYU pragma: keep: the range whole, which a call returns by value
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/inputmanager.hpp"
@@ -28,6 +30,7 @@
 #include "../mwrender/renderer.hpp"
 
 #include "backgroundimage.hpp"
+#include "mode.hpp"
 
 namespace MWGui
 {

@@ -6,8 +6,6 @@
 #include <components/esmloader/esmdata.hpp>
 #include <components/esmloader/load.hpp>
 #include <components/misc/resourcehelpers.hpp>
-#include <components/misc/strings/lower.hpp>
-#include <components/resource/resourcesystem.hpp>
 
 #include "store.hpp"
 

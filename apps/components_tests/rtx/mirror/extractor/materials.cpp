@@ -41,7 +41,6 @@
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/rtx/common/index.hpp>
-#include <components/rtx/image/specularlayout.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/mirror/cells/prepared.hpp>

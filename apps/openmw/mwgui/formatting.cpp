@@ -1,9 +1,7 @@
 #include "formatting.hpp"
 
 #include <charconv>
-#include <system_error>
 
-#include <MyGUI_EditBox.h>
 #include <MyGUI_EditText.h>
 #include <MyGUI_Gui.h>
 #include <MyGUI_ImageBox.h>

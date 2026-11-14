@@ -1,10 +1,16 @@
+#include <algorithm>
+#include <string_view>
+#include <vector>
+
 #include "savedgame.hpp"
 
 #include "esmreader.hpp"
 #include "esmwriter.hpp"
+#include "formatversion.hpp"
 
-#include <components/misc/algorithm.hpp>
+#include <components/esm/defs.hpp>
 #include <components/misc/concepts.hpp>
+#include <components/misc/strings/algorithm.hpp>
 
 namespace ESM
 {

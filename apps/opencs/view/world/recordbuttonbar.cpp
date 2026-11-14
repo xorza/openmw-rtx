@@ -3,8 +3,6 @@
 #include <QHBoxLayout>
 #include <QToolButton>
 
-#include <memory>
-
 #include "../../model/world/commanddispatcher.hpp"
 #include "../../model/world/idtable.hpp"
 

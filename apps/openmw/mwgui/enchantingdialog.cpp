@@ -1,15 +1,11 @@
 #include "enchantingdialog.hpp"
 
-#include <iomanip>
-
 #include <MyGUI_Button.h>
 #include <MyGUI_EditBox.h>
-#include <MyGUI_ScrollView.h>
 #include <MyGUI_UString.h>
 
 #include <components/misc/strings/format.hpp>
 #include <components/settings/values.hpp>
-#include <components/widgets/list.hpp>
 
 #include <components/esm3/loadgmst.hpp>
 

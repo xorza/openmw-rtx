@@ -1,8 +1,6 @@
 #include "tools.hpp"
 
 #include <stdexcept>
-#include <string>
-#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -34,7 +32,6 @@
 #include "topicinfocheck.hpp"
 
 #include <apps/opencs/model/doc/operationholder.hpp>
-#include <apps/opencs/model/world/idcollection.hpp>
 #include <apps/opencs/model/world/refidcollection.hpp>
 
 namespace CSMDoc

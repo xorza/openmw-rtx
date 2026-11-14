@@ -3,11 +3,9 @@
 #include <array>
 #include <span>
 
-#include <components/detournavigator/agentbounds.hpp>
 #include <components/esm3/loaddoor.hpp>
 #include <components/sceneutil/positionattitudetransform.hpp>
 
-#include "../mwbase/environment.hpp"
 #include "../mwbase/world.hpp"
 #include "../mwworld/cellstore.hpp"
 #include "../mwworld/class.hpp"

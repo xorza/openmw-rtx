@@ -1,12 +1,9 @@
 #include "esmwriter.hpp"
 
 #include <cassert>
-#include <fstream>
 #include <stdexcept>
 
-#include <components/debug/debuglog.hpp>
 #include <components/esm3/cellid.hpp>
-#include <components/misc/notnullptr.hpp>
 #include <components/toutf8/toutf8.hpp>
 
 #include "formatversion.hpp"

@@ -14,7 +14,6 @@
 
 #include <osg/BlendFunc>
 #include <osg/LineWidth>
-#include <osg/PositionAttitudeTransform>
 #include <osg/StateSet>
 
 #include <DetourNavMesh.h>

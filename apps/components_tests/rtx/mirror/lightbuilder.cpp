@@ -11,7 +11,6 @@
 #include <gtest/gtest.h>
 
 #include <osg/BoundingBox>
-#include <osg/Callback>
 #include <osg/CopyOp>
 #include <osg/Matrixf>
 #include <osg/Vec3f>

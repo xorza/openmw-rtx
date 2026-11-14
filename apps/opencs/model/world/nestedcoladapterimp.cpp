@@ -2,9 +2,7 @@
 
 #include <map>
 #include <stdint.h>
-#include <type_traits>
 #include <utility>
-#include <variant>
 
 #include <apps/opencs/model/world/cell.hpp>
 #include <apps/opencs/model/world/disabletag.hpp>
@@ -14,11 +12,9 @@
 #include <components/esm/attr.hpp>
 #include <components/esm3/loadcell.hpp>
 #include <components/esm3/loadfact.hpp>
-#include <components/esm3/loadinfo.hpp>
 #include <components/esm3/loadpgrd.hpp>
 #include <components/esm3/loadrace.hpp>
 #include <components/esm3/loadregn.hpp>
-#include <components/esm3/variant.hpp>
 
 #include "info.hpp"
 #include "infoselectwrapper.hpp"

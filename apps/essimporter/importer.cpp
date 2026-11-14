@@ -1,11 +1,25 @@
 #include "importer.hpp"
 
+#include <cassert>
+#include <cmath>
+#include <cstddef>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
+#include <ios>
+#include <iostream>
+#include <map>
+#include <memory>
+#include <ostream>
+#include <set>
+#include <sstream>
+#include <utility>
+#include <vector>
 
-#include <osg/ImageUtils>
-#include <osgDB/ReadFile>
+#include <osg/Image>
+#include <osg/ref_ptr>
+#include <osgDB/ReaderWriter>
+#include <osgDB/Registry>
 
 #include <components/esm/defs.hpp>
 #include <components/esm3/esmreader.hpp>
@@ -25,6 +39,11 @@
 
 #include <components/misc/constants.hpp>
 
+#include <components/esm/esmcommon.hpp>
+#include <components/esm/fourcc.hpp>
+#include <components/esm3/formatversion.hpp>
+#include <components/esm3/loadcell.hpp>
+#include <components/esm3/loadtes3.hpp>
 #include <components/toutf8/toutf8.hpp>
 
 #include "importercontext.hpp"

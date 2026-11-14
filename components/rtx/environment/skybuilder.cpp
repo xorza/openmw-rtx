@@ -1,15 +1,11 @@
 #include "skybuilder.hpp"
 
-#include <algorithm>
 #include <cassert>
-#include <cmath>
-#include <cstddef>
 #include <string>
 #include <string_view>
 #include <utility>
 
 #include <osg/Image>
-#include <osg/Vec2f>
 #include <osg/ref_ptr>
 
 #include <components/misc/resourcehelpers.hpp>
@@ -22,9 +18,6 @@
 #include <components/rtx/scene/refusals.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/shaders/colour.h>
-#include <components/rtx/shaders/look.h>
-#include <components/rtx/shaders/scene.h>
-#include <components/rtx/shaders/sky.h>
 #include <components/vfs/manager.hpp>
 #include <components/vfs/pathutil.hpp>
 

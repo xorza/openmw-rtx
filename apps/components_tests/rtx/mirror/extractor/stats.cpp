@@ -8,14 +8,13 @@
 #include <osg/Geometry>
 #include <osg/Group>
 #include <osg/StateAttribute>
-#include <osg/Texture> // The S3TC and RGTC formats, which Windows's gl.h lacks.
+#include <osg/Texture> // IWYU pragma: keep: the S3TC and RGTC formats, which Windows's gl.h lacks
 #include <osg/ref_ptr>
 
 #include <apps/components_tests/rtx/support/graph.hpp>
 #include <apps/components_tests/rtx/support/image.hpp>
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/image/formatcensus.hpp>
-#include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/textureformat.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>

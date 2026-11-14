@@ -32,13 +32,12 @@
 #include <client/settings.h>
 #include <handler/user_stream_data_source.h>
 #include <minidump/minidump_file_writer.h>
-#include <minidump/minidump_user_extension_stream_data_source.h>
+#include <minidump/minidump_user_extension_stream_data_source.h> // IWYU pragma: keep: the stream source whole, which its owner deletes
 #include <snapshot/process_snapshot.h>
 #include <util/file/file_writer.h>
 #include <util/misc/uuid.h>
 
 #include <components/files/conversion.hpp>
-#include <components/platform/appendfile.hpp>
 #include <components/platform/localtime.hpp>
 #include <components/platform/process.hpp>
 
@@ -46,7 +45,6 @@
 #include "crashmonitorarguments.hpp"
 #include "crashmonitorlog.hpp"
 #include "crashmonitorrequests.hpp"
-#include "crashnote.hpp"
 #include "crashpackage.hpp"
 #include "crashpadmonitorsystem.hpp"
 #include "crashpadsummarysource.hpp"

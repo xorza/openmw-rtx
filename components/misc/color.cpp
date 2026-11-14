@@ -1,7 +1,6 @@
 #include "color.hpp"
 
 #include <algorithm>
-#include <array>
 #include <charconv>
 #include <sstream>
 #include <system_error>

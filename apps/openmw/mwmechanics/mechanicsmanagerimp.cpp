@@ -2,18 +2,41 @@
 
 #include <cassert>
 
+#include <algorithm>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <map>
+#include <set>
+#include <string>
+#include <utility>
+#include <vector>
+
 #include <components/misc/framestats.hpp>
 #include <components/misc/rng.hpp>
+#include <osg/Math>
 
-#include <components/esm/records.hpp>
 #include <components/esm/refid.hpp>
 #include <components/esm3/esmwriter.hpp>
 #include <components/esm3/loadgmst.hpp>
 #include <components/esm3/loadmgef.hpp>
 #include <components/esm3/stolenitems.hpp>
 
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwgui/mode.hpp>
+#include <apps/openmw/mwworld/cellref.hpp>
+#include <apps/openmw/mwworld/containerstore.hpp>
+#include <apps/openmw/mwworld/livecellref.hpp>
+#include <apps/openmw/mwworld/store.hpp>
+#include <components/esm/defs.hpp>
+#include <components/esm3/activespells.hpp>
+#include <components/esm3/loadbsgn.hpp>
+#include <components/esm3/loadcrea.hpp>
+#include <components/esm3/loadrace.hpp>
+#include <components/esm3/refnum.hpp>
+#include <components/misc/strings/lower.hpp>
 #include <components/sceneutil/positionattitudetransform.hpp>
+#include <components/settings/categories.hpp>
 
 #include "../mwworld/class.hpp"
 #include "../mwworld/esmstore.hpp"
@@ -29,15 +52,17 @@
 #include "../mwbase/windowmanager.hpp"
 #include "../mwbase/world.hpp"
 
-#include "../mwsound/constants.hpp"
-
 #include "actor.hpp"
 #include "actors.hpp"
 #include "actorutil.hpp"
 #include "aicombat.hpp"
+#include "aipackagetypeid.hpp"
 #include "aipursue.hpp"
+#include "aisetting.hpp"
 #include "autocalcspell.hpp"
 #include "combat.hpp"
+#include "drawstate.hpp"
+#include "greetingstate.hpp"
 #include "npcstats.hpp"
 #include "spelleffects.hpp"
 #include "spellutil.hpp"

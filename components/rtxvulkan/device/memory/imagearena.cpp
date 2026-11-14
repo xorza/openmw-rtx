@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <numeric>
-#include <utility>
 
 #include <components/rtx/common/error.hpp>
 #include <components/rtxvulkan/device/device.hpp>

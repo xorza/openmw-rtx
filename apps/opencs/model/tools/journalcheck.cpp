@@ -1,11 +1,8 @@
 #include "journalcheck.hpp"
 
-#include <memory>
 #include <set>
 #include <string>
 #include <utility>
-#include <variant>
-#include <vector>
 
 #include <apps/opencs/model/doc/messages.hpp>
 #include <apps/opencs/model/prefs/category.hpp>

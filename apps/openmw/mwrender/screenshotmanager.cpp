@@ -3,7 +3,6 @@
 #include <condition_variable>
 #include <mutex>
 
-#include <components/stereo/multiview.hpp>
 #include <components/stereo/stereomanager.hpp>
 
 #include "../mwbase/environment.hpp"

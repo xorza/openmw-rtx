@@ -7,11 +7,9 @@
 #include <QStringList>
 #include <QTime>
 
-#include <components/debug/debugging.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/dlss/dlss.hpp>
 #include <components/files/configurationmanager.hpp>
-#include <components/files/conversion.hpp>
 #include <components/files/qtconfigpath.hpp>
 #include <components/files/qtconversion.hpp>
 #include <components/misc/helpviewer.hpp>

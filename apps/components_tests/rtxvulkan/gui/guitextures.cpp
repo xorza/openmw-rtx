@@ -27,7 +27,6 @@
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/renderer/guirenderer.hpp>
-#include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/slot.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/scenedesc.hpp>

@@ -1,18 +1,32 @@
 #include "esmreader.hpp"
 
+#include "formatversion.hpp"
 #include "readerscache.hpp"
 
+#include <components/esm/defs.hpp>
+#include <components/esm/esmcommon.hpp>
+#include <components/esm/formid.hpp>
+#include <components/esm/refid.hpp>
 #include <components/esm3/cellid.hpp>
 #include <components/esm3/loadcell.hpp>
 #include <components/files/conversion.hpp>
 #include <components/files/openfile.hpp>
 #include <components/misc/strings/algorithm.hpp>
 
+#include <cstddef>
+#include <cstdint>
 #include <filesystem>
-#include <fstream>
+#include <ios>
+#include <istream>
+#include <memory>
 #include <sstream>
 #include <stdexcept>
+#include <string>
 #include <utility>
+
+#include <cstring>
+
+#include <fstream> // IWYU pragma: keep: a file stream whole, which the stream pointer converts from
 
 namespace ESM
 {

@@ -10,11 +10,9 @@
 #include <osg/BlendFunc>
 #include <osg/ColorMask>
 #include <osg/CullFace>
-#include <osg/FrontFace>
 #include <osg/GL>
 #include <osg/Material>
 #include <osg/Matrixf>
-#include <osg/Multisample>
 #include <osg/PolygonMode>
 #include <osg/ShadeModel>
 #include <osg/StateAttribute>

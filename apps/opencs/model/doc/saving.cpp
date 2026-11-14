@@ -1,10 +1,6 @@
 #include "saving.hpp"
 
-#include <algorithm>
-#include <variant>
-
 #include <apps/opencs/model/doc/operation.hpp>
-#include <apps/opencs/model/world/record.hpp>
 #include <apps/opencs/model/world/scope.hpp>
 
 #include <components/esm3/debugprofile.hpp>

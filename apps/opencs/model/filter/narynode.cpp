@@ -1,6 +1,5 @@
 #include "narynode.hpp"
 
-#include <algorithm>
 #include <sstream>
 
 #include <apps/opencs/model/filter/node.hpp>

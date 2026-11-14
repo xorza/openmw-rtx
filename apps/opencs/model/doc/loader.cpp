@@ -1,6 +1,5 @@
 #include "loader.hpp"
 
-#include <algorithm>
 #include <exception>
 #include <filesystem>
 

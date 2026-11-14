@@ -1,7 +1,6 @@
 #include "statemanagerimp.hpp"
 
 #include <filesystem>
-#include <fstream>
 #include <sstream>
 
 #include <SDL3/SDL_clipboard.h>
@@ -21,7 +20,6 @@
 #include <components/loadinglistener/loadinglistener.hpp>
 
 #include <components/files/conversion.hpp>
-#include <components/misc/algorithm.hpp>
 #include <components/platform/wholefile.hpp>
 #include <components/settings/values.hpp>
 #include <utility>

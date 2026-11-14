@@ -4,8 +4,6 @@
 
 #include <SDL3/SDL_keyboard.h>
 
-#include <components/settings/values.hpp>
-
 #include "../mwbase/environment.hpp"
 #include "../mwbase/inputmanager.hpp"
 #include "../mwbase/luamanager.hpp"

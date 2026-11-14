@@ -1,20 +1,28 @@
 #include "debugging.hpp"
 
 #include <chrono>
+#include <cstddef>
+#include <cstdio>
+#include <cstdlib>
+#include <ctime>
 #include <deque>
+#include <exception>
 #include <filesystem>
 #include <iostream>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 
 #ifdef _MSC_VER
 // TODO: why is this necessary? this has /external:I
 #pragma warning(push)
 #pragma warning(disable : 4702)
 #endif
-#include <boost/iostreams/stream.hpp>
+#include <boost/iostreams/concepts.hpp>
+#include <boost/iostreams/stream_buffer.hpp>
 #ifdef _MSC_VER
 #pragma warning(pop)
 #endif
@@ -22,8 +30,8 @@
 #include <components/crashcatcher/crash.hpp>
 #include <components/crashcatcher/crashanswering.hpp>
 #include <components/crashcatcher/crashinstall.hpp>
-#include <components/files/conversion.hpp>
 #include <components/files/fixedpath.hpp>
+#include <components/misc/guarded.hpp>
 #include <components/misc/result.hpp>
 #include <components/misc/strings/conversion.hpp>
 #include <components/misc/strings/lower.hpp>
@@ -36,6 +44,12 @@
 #endif
 
 #include <SDL3/SDL_messagebox.h>
+
+#include "debuglog.hpp"
+
+#ifndef _WIN32
+#include <unistd.h>
+#endif
 
 namespace Debug
 {

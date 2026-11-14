@@ -19,7 +19,6 @@
 #include <components/misc/resourcehelpers.hpp>
 #include <components/misc/thread.hpp>
 #include <components/settings/values.hpp>
-#include <components/vfs/manager.hpp>
 
 #include "efxpresets.h"
 #include "loudness.hpp"

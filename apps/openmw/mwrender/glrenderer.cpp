@@ -7,14 +7,12 @@
 #include <filesystem>
 #include <ios>
 #include <mutex>
-#include <sstream>
 #include <stdexcept>
 #include <system_error>
 #include <utility>
 #include <vector>
 
 #include <MyGUI_ITexture.h>
-#include <SDL3/SDL_error.h>
 #include <osg/Array>
 #include <osg/BoundingSphere>
 #include <osg/Camera>

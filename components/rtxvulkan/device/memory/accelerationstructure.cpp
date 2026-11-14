@@ -1,7 +1,6 @@
 #include "accelerationstructure.hpp"
 
 #include <cassert>
-#include <cstdint>
 #include <utility>
 
 #include <components/rtxvulkan/device/device.hpp>

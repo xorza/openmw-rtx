@@ -20,12 +20,10 @@
 
 #include <components/crashcatcher/crash.hpp>
 #include <components/rtx/image/colour.hpp>
-#include <components/rtx/image/texels.hpp>
 #include <components/rtx/preprocess/threadcontent.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/surface.hpp>
-#include <components/rtx/shaders/look.h>
 #include <components/sceneutil/embeddedimage.hpp>
 #include <components/sceneutil/statesetupdater.hpp>
 #include <components/vfs/pathutil.hpp>

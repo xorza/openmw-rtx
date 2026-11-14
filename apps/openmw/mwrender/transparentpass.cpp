@@ -2,10 +2,8 @@
 
 #include "water.hpp"
 
-#include <osg/AlphaFunc>
 #include <osg/BlendFunc>
 #include <osg/Texture2D>
-#include <osg/Texture2DArray>
 
 #include <osgUtil/RenderStage>
 

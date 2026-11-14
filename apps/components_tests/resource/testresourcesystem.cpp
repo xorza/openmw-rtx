@@ -6,7 +6,6 @@
 #include <components/toutf8/toutf8.hpp>
 #include <components/vfs/manager.hpp>
 
-#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 #include <osg/Drawable>

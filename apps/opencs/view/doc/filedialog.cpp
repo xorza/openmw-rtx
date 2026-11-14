@@ -8,8 +8,6 @@
 #include <components/contentselector/view/contentselector.hpp>
 #include <components/files/qtconversion.hpp>
 
-#include <string>
-
 #include "adjusterwidget.hpp"
 #include "filewidget.hpp"
 

@@ -4,7 +4,6 @@
 #include <cstdint>
 
 #include <osg/Vec2f>
-#include <osg/Vec3f>
 
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/shaders/camera.h>

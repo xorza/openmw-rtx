@@ -4,7 +4,6 @@
 #include <QRegularExpression>
 #include <QString>
 
-#include <memory>
 #include <sstream>
 #include <stdexcept>
 #include <utility>

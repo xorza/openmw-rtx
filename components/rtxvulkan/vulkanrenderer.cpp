@@ -5,7 +5,6 @@
 #include <cassert>
 #include <chrono>
 #include <cmath>
-#include <cstddef>
 #include <cstdint>
 #include <format>
 #include <functional>
@@ -23,9 +22,7 @@
 #include <components/crashcatcher/crash.hpp>
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/debug/debuglog.hpp>
-#include <components/dlss/dlss.hpp>
 #include <components/platform/memory.hpp>
-#include <components/rtx/common/index.hpp>
 #include <components/rtx/common/jobprogress.hpp>
 #include <components/rtx/frame/frameoptions.hpp>
 #include <components/rtx/frame/framepast.hpp>
@@ -36,7 +33,6 @@
 #include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/renderer/denoiserimage.hpp>
 #include <components/rtx/renderer/framedigest.hpp>
-#include <components/rtx/renderer/framezone.hpp>
 #include <components/rtx/renderer/memoryreport.hpp>
 #include <components/rtx/renderer/slot.hpp>
 #include <components/rtx/renderer/verticalsync.hpp>
@@ -64,12 +60,10 @@
 #include <components/rtxvulkan/device/validation.hpp>
 #include <components/rtxvulkan/frame/digestimages.hpp>
 #include <components/rtxvulkan/frame/gbuffer.hpp>
-#include <components/rtxvulkan/frame/tracepast.hpp>
 #include <components/rtxvulkan/present/presenter.hpp>
 #include <components/rtxvulkan/present/surface.hpp>
 #include <components/rtxvulkan/scene/devicescene.hpp>
 #include <components/rtxvulkan/scene/placing.hpp>
-#include <components/rtxvulkan/shaders/shared/fields.h>
 #include <components/rtxvulkan/texture/texture.hpp>
 #include <components/rtxvulkan/trace/tracerecording.hpp>
 #include <components/rtxvulkan/trace/visibilitypass.hpp>

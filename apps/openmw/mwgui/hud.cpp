@@ -7,7 +7,6 @@
 #include <MyGUI_InputManager.h>
 #include <MyGUI_ProgressBar.h>
 #include <MyGUI_RenderManager.h>
-#include <MyGUI_ScrollView.h>
 
 #include <components/esm3/loadgmst.hpp>
 #include <components/esm3/loadmgef.hpp>

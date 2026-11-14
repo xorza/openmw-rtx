@@ -3,8 +3,6 @@
 
 #include <gtest/gtest.h>
 
-#include <sol/sol.hpp>
-
 #include <components/files/conversion.hpp>
 #include <components/lua/luastate.hpp>
 #include <components/lua/utilpackage.hpp>

@@ -1,5 +1,4 @@
 #include <algorithm>
-#include <cstdint>
 #include <functional>
 #include <limits>
 #include <stdexcept>
@@ -9,7 +8,6 @@
 #include <gtest/gtest.h>
 
 #include <osg/Callback>
-#include <osg/Geometry>
 #include <osg/Group>
 #include <osg/LOD>
 #include <osg/Matrix>

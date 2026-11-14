@@ -3,7 +3,6 @@
 #include <osg/BlendFunc>
 #include <osg/Capability>
 #include <osg/Depth>
-#include <osg/Fog>
 #include <osg/Texture2D>
 
 #include <components/resource/scenemanager.hpp>

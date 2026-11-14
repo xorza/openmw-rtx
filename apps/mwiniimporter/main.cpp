@@ -1,13 +1,19 @@
 #include "importer.hpp"
 
+#include <exception>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 
-#include <boost/program_options.hpp>
+#include <boost/program_options/options_description.hpp>
+#include <boost/program_options/parsers.hpp>
+#include <boost/program_options/positional_options.hpp>
+#include <boost/program_options/value_semantic.hpp>
+#include <boost/program_options/variables_map.hpp>
 
 #include <components/files/configurationmanager.hpp>
 #include <components/files/conversion.hpp>
+#include <components/toutf8/toutf8.hpp>
 
 namespace bpo = boost::program_options;
 

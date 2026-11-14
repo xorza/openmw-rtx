@@ -1,7 +1,6 @@
 #include "scenetooltoggle.hpp"
 
 #include <stdexcept>
-#include <type_traits>
 #include <utility>
 
 #include <QFrame>

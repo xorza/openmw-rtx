@@ -1,7 +1,5 @@
 #include "operations.hpp"
 
-#include <algorithm>
-
 #include <QDockWidget>
 #include <QVBoxLayout>
 #include <QWidget>

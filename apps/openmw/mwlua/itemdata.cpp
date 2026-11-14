@@ -4,7 +4,6 @@
 #include <components/esm3/loadench.hpp>
 
 #include "context.hpp"
-#include "luamanagerimp.hpp"
 #include "objectvariant.hpp"
 
 #include "../mwbase/environment.hpp"

@@ -1,9 +1,10 @@
-#include <benchmark/benchmark.h>
 
 #include "components/misc/strings/conversion.hpp"
+
 #include "components/settings/parser.hpp"
 #include "components/settings/settings.hpp"
 #include "components/settings/values.hpp"
+#include <benchmark/benchmark.h> // IWYU pragma: keep: the macros this source registers its benchmarks with
 
 namespace
 {

@@ -1,15 +1,18 @@
-#include "aiextensions.hpp"
+#include <algorithm>
+#include <vector>
 
-#include <stdexcept>
+#include "aiextensions.hpp"
 
 #include <components/debug/debuglog.hpp>
 
-#include <components/compiler/extensions.hpp>
 #include <components/compiler/opcodes.hpp>
 
+#include <apps/openmw/mwmechanics/aisetting.hpp>
+#include <components/interpreter/context.hpp>
 #include <components/interpreter/interpreter.hpp>
 #include <components/interpreter/opcodes.hpp>
 #include <components/interpreter/runtime.hpp>
+#include <components/interpreter/types.hpp>
 
 #include "../mwworld/class.hpp"
 #include "../mwworld/esmstore.hpp"
@@ -28,7 +31,6 @@
 #include "../mwbase/mechanicsmanager.hpp"
 #include "../mwbase/world.hpp"
 
-#include "interpretercontext.hpp"
 #include "ref.hpp"
 
 namespace MWScript

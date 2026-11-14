@@ -14,7 +14,7 @@
 
 #include <osg/GL>
 #include <osg/Image>
-#include <osg/Texture> // The S3TC formats, which Windows's gl.h lacks.
+#include <osg/Texture> // IWYU pragma: keep: the S3TC formats, which Windows's gl.h lacks
 #include <osg/Vec3f>
 #include <osg/observer_ptr>
 #include <osg/ref_ptr>
@@ -35,7 +35,6 @@
 #include <components/rtx/preprocess/contentpass.hpp>
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
-#include <components/rtx/preprocess/shape/shapefold.hpp>
 #include <components/rtx/preprocess/shape/shapepass.hpp>
 #include <components/rtx/preprocess/texture/chainpass.hpp>
 #include <components/rtx/preprocess/texture/chainscratch.hpp>

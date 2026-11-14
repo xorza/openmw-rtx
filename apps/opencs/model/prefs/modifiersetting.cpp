@@ -6,8 +6,6 @@
 #include <QMouseEvent>
 #include <QPushButton>
 
-#include <components/settings/settings.hpp>
-
 #include <apps/opencs/model/prefs/category.hpp>
 #include <apps/opencs/model/prefs/setting.hpp>
 

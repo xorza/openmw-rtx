@@ -16,16 +16,13 @@
 #include <components/esm3/loadstat.hpp>
 #include <components/esm3/readerscache.hpp>
 #include <components/files/collections.hpp>
-#include <components/files/conversion.hpp>
 #include <components/files/multidircollection.hpp>
 #include <components/loadinglistener/loadinglistener.hpp>
 #include <components/misc/pathhelpers.hpp>
 #include <components/misc/resourcehelpers.hpp>
-#include <components/misc/strings/lower.hpp>
 
 #include <algorithm>
 #include <cstddef>
-#include <filesystem>
 #include <map>
 #include <set>
 #include <sstream>

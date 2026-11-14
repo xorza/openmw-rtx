@@ -8,7 +8,7 @@
 #include <QMessageBox>
 #include <QProcess>
 
-#include <components/debug/debugging.hpp>
+#include <components/debug/debuglog.hpp>
 #include <components/files/qtconfigpath.hpp>
 #include <components/files/qtconversion.hpp>
 #include <components/misc/utf8qtextstream.hpp>

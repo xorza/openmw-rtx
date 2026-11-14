@@ -2,7 +2,6 @@
 #include <memory>
 
 #include <components/contentstore/key.hpp>
-#include <components/contentstore/store.hpp>
 #include <components/detournavigator/asyncnavmeshupdater.hpp>
 #include <components/detournavigator/clock.hpp>
 #include <components/detournavigator/makenavmesh.hpp>
@@ -21,7 +20,6 @@
 #include <atomic>
 #include <chrono>
 #include <filesystem>
-#include <limits>
 #include <map>
 #include <optional>
 #include <string>

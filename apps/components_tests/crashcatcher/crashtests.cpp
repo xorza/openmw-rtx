@@ -7,7 +7,6 @@
 //                                   checks the log and the dump each left; nought where all hold
 
 #include <algorithm>
-#include <atomic>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>

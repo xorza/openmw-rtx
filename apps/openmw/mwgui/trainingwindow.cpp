@@ -17,7 +17,6 @@
 #include "../mwmechanics/actorutil.hpp"
 #include "../mwmechanics/npcstats.hpp"
 
-#include <components/esm3/loadclas.hpp>
 #include <components/settings/values.hpp>
 
 #include "tooltips.hpp"

@@ -13,6 +13,17 @@
 #include <osgParticle/ParticleProcessor>
 #include <osgParticle/ParticleSystem>
 
+#include <osg/Callback>
+#include <osg/Drawable>
+#include <osg/Geometry>
+#include <osg/NodeVisitor>
+#include <osg/Object>
+#include <osg/StateAttribute>
+#include <osg/StateSet>
+#include <osg/Transform>
+#include <osg/Uniform>
+#include <osg/Vec3f>
+#include <osg/ref_ptr>
 #include <osgAnimation/Bone>
 #include <osgAnimation/UpdateBone>
 
@@ -24,7 +35,6 @@
 
 #include <components/esm3/loadcont.hpp>
 #include <components/esm3/loadcrea.hpp>
-#include <components/esm3/loadmgef.hpp>
 #include <components/esm3/loadnpc.hpp>
 #include <components/esm3/loadrace.hpp>
 #include <components/esm4/loadligh.hpp>
@@ -35,20 +45,44 @@
 
 #include <components/vfs/manager.hpp>
 #include <components/vfs/pathutil.hpp>
-#include <components/vfs/recursivedirectoryiterator.hpp>
 
 #include <components/sceneutil/keyframe.hpp>
 #include <components/sceneutil/lightcommon.hpp>
 #include <components/sceneutil/lightmanager.hpp>
 #include <components/sceneutil/lightutil.hpp>
-#include <components/sceneutil/positionattitudetransform.hpp>
 #include <components/sceneutil/skeleton.hpp>
 #include <components/sceneutil/statesetupdater.hpp>
 #include <components/sceneutil/util.hpp>
 #include <components/sceneutil/visitor.hpp>
 
+#include <apps/openmw/mwworld/livecellref.hpp>
+#include <apps/openmw/mwworld/movementdirection.hpp>
+#include <cassert>
+#include <cmath>
+#include <components/misc/strings/algorithm.hpp>
+#include <components/misc/strings/lower.hpp>
+#include <components/nifosg/matrixtransform.hpp>
+#include <components/sceneutil/animblendrules.hpp>
+#include <components/sceneutil/controller.hpp>
+#include <components/sceneutil/nodecallback.hpp>
+#include <components/sceneutil/positionattitudetransform.hpp> // IWYU pragma: keep: the transform whole, which the ref_ptr releasing it needs
+#include <components/sceneutil/textkeymap.hpp>
 #include <components/settings/values.hpp>
+#include <components/vfs/recursivedirectoryiterator.hpp> // IWYU pragma: keep: the range whole, which a call returns by value
+#include <cstddef>
+#include <cstdint>
+#include <cstdlib>
+#include <exception>
+#include <initializer_list>
+#include <map>
+#include <memory>
 #include <ranges>
+#include <span>
+#include <stdexcept>
+#include <string_view>
+#include <unordered_set>
+#include <utility>
+#include <vector>
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/luamanager.hpp"
@@ -62,6 +96,8 @@
 #include "../mwmechanics/weapontype.hpp"
 
 #include "actorutil.hpp"
+#include "animblendcontroller.hpp"
+#include "blendmask.hpp"
 #include "rotatecontroller.hpp"
 #include "util.hpp"
 #include "vismask.hpp"

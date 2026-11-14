@@ -20,7 +20,6 @@
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/image/colour.hpp>
 #include <components/rtx/image/texturedata.hpp>
-#include <components/rtx/image/textureformat.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/scenedesc.hpp>

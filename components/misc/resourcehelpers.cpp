@@ -8,7 +8,6 @@
 
 #include <components/misc/pathhelpers.hpp>
 #include <components/misc/strings/algorithm.hpp>
-#include <components/misc/strings/lower.hpp>
 
 #include <components/vfs/manager.hpp>
 #include <components/vfs/pathutil.hpp>

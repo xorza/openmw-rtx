@@ -4,8 +4,6 @@
 #include <ranges>
 #include <stdexcept>
 
-#include <components/files/conversion.hpp>
-#include <components/misc/strings/lower.hpp>
 #include <components/vfs/recursivedirectoryiterator.hpp>
 
 #include "archive.hpp"

@@ -8,8 +8,6 @@
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/sceneutil/depth.hpp>
-#include <components/sceneutil/positionattitudetransform.hpp>
-#include <components/sceneutil/util.hpp>
 #include <components/settings/values.hpp>
 #include <components/shader/shadermanager.hpp>
 

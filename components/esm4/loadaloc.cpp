@@ -26,7 +26,6 @@
 */
 #include "loadaloc.hpp"
 
-#include <cstring>
 #include <stdexcept>
 
 #include "reader.hpp"

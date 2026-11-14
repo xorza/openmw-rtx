@@ -1,12 +1,21 @@
 #include "interpretercontext.hpp"
 
 #include <algorithm>
-#include <cmath>
+#include <memory>
 #include <sstream>
+#include <stdexcept>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
 
+#include <apps/openmw/mwworld/store.hpp>
 #include <components/compiler/locals.hpp>
 #include <components/debug/debuglog.hpp>
-#include <components/esm/records.hpp>
+#include <components/esm3/loadcrea.hpp>
+#include <components/esm3/loadfact.hpp>
+#include <components/esm3/loadrace.hpp>
+#include <components/interpreter/types.hpp>
 
 #include "../mwworld/esmstore.hpp"
 

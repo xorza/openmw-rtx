@@ -5,7 +5,6 @@
 #include <exception>
 #include <span>
 #include <string>
-#include <utility>
 #include <vector>
 
 #include <components/debug/debuglog.hpp>

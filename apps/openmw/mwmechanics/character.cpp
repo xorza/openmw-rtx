@@ -21,17 +21,42 @@
 
 #include <array>
 
+#include <algorithm>
 #include <cmath>
-#include <components/esm/records.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <limits>
+#include <optional>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
+
 #include <components/misc/mathutil.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/misc/rng.hpp>
 #include <components/misc/strings/algorithm.hpp>
 #include <components/misc/strings/conversion.hpp>
+#include <osg/Math>
 
 #include <components/settings/values.hpp>
 
+#include <apps/openmw/mwgui/mode.hpp>
+#include <apps/openmw/mwrender/blendmask.hpp>
+#include <apps/openmw/mwrender/bonegroup.hpp>
+#include <apps/openmw/mwsound/type.hpp>
+#include <apps/openmw/mwworld/containerstore.hpp>
+#include <apps/openmw/mwworld/movementdirection.hpp>
+#include <apps/openmw/mwworld/store.hpp>
+#include <components/esm3/animationstate.hpp>
+#include <components/esm3/loadcrea.hpp>
+#include <components/esm3/loadench.hpp>
+#include <components/esm3/loadrace.hpp>
+#include <components/esm3/loadsoun.hpp>
+#include <components/esm3/loadstat.hpp>
 #include <components/sceneutil/positionattitudetransform.hpp>
+#include <components/sceneutil/textkeymap.hpp>
+#include <components/vfs/pathutil.hpp>
 
 #include "../mwrender/animation.hpp"
 
@@ -51,6 +76,7 @@
 #include "actorutil.hpp"
 #include "aicombataction.hpp"
 #include "creaturestats.hpp"
+#include "drawstate.hpp"
 #include "movement.hpp"
 #include "npcstats.hpp"
 #include "security.hpp"

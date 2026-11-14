@@ -1,8 +1,6 @@
 #include "bulletshapemanager.hpp"
 #include <memory>
 
-#include <cstring>
-
 #include <osg/Drawable>
 #include <osg/NodeVisitor>
 #include <osg/Transform>

@@ -2,11 +2,8 @@
 #include "recordstore.hpp"
 
 #include <algorithm>
-#include <span>
-#include <stdexcept>
 
 #include <components/esm3/loadregn.hpp>
-#include <components/esm3/loadsoun.hpp>
 #include <components/lua/luastate.hpp>
 #include <components/misc/color.hpp>
 

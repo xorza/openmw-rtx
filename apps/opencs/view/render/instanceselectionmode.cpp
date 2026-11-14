@@ -1,7 +1,6 @@
 #include "instanceselectionmode.hpp"
 
 #include <cmath>
-#include <string>
 #include <vector>
 
 #include <apps/opencs/model/doc/document.hpp>

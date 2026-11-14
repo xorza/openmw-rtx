@@ -7,7 +7,6 @@
 #include <components/esm3/loadcell.hpp>
 #include <components/esm4/loadcell.hpp>
 #include <components/esm4/loadwrld.hpp>
-#include <components/misc/algorithm.hpp>
 
 #include <stdexcept>
 #include <string>

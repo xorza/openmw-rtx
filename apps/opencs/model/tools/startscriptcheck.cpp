@@ -12,7 +12,6 @@
 #include <apps/opencs/model/world/universalid.hpp>
 
 #include <components/esm3/loadsscr.hpp>
-#include <components/misc/strings/lower.hpp>
 
 namespace ESM
 {

@@ -3,28 +3,46 @@
 #include <SDL3/SDL_opengl_glext.h>
 #include <algorithm>
 #include <chrono>
+#include <cstddef>
+#include <iterator>
+#include <memory>
+#include <optional>
+#include <string>
 #include <thread>
+#include <utility>
+#include <vector>
 
+#include <osg/FrameBufferObject>
+#include <osg/GLExtensions>
+#include <osg/GraphicsContext>
+#include <osg/Matrix>
+#include <osg/NodeVisitor>
+#include <osg/StateAttribute>
 #include <osg/Texture1D>
 #include <osg/Texture2D>
 #include <osg/Texture2DArray>
-#include <osg/Texture2DMultisample>
 #include <osg/Texture3D>
+#include <osg/Uniform>
+#include <osg/Vec2i>
+#include <osg/ref_ptr>
+#include <osgUtil/CullVisitor>
+#include <osgUtil/RenderBin>
 
-#include <components/files/conversion.hpp>
+#include <components/debug/debuglog.hpp>
+#include <components/fx/stateupdater.hpp>
+#include <components/fx/technique.hpp>
+#include <components/fx/types.hpp>
 #include <components/misc/pathhelpers.hpp>
-#include <components/misc/strings/algorithm.hpp>
-#include <components/misc/strings/lower.hpp>
 #include <components/resource/scenemanager.hpp>
-#include <components/sceneutil/color.hpp>
 #include <components/sceneutil/depth.hpp>
 #include <components/sceneutil/nodecallback.hpp>
 #include <components/settings/values.hpp>
 #include <components/shader/shadermanager.hpp>
 #include <components/stereo/multiview.hpp>
 #include <components/stereo/stereomanager.hpp>
+#include <components/stereo/types.hpp>
 #include <components/vfs/manager.hpp>
-#include <components/vfs/recursivedirectoryiterator.hpp>
+#include <components/vfs/recursivedirectoryiterator.hpp> // IWYU pragma: keep: the range whole, which a call returns by value
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/windowmanager.hpp"
@@ -32,6 +50,7 @@
 #include "../mwgui/postprocessorhud.hpp"
 
 #include "distortion.hpp"
+#include "luminancecalculator.hpp"
 #include "opaqueblit.hpp"
 #include "pingpongcull.hpp"
 #include "renderbin.hpp"

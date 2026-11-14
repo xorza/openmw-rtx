@@ -1,7 +1,6 @@
 #include "universalid.hpp"
 
 #include <algorithm>
-#include <compare>
 #include <iostream>
 #include <span>
 #include <sstream>

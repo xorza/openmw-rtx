@@ -5,7 +5,6 @@
 #include <cstdint>
 #include <span>
 
-#include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/shaders/scene.h>
 
 #include "material.hpp"

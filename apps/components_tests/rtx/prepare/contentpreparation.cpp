@@ -23,7 +23,6 @@
 
 #include <apps/components_tests/rtx/support/bound.hpp>
 #include <apps/components_tests/rtx/support/graph.hpp>
-#include <components/contentstore/key.hpp>
 #include <components/contentstore/store.hpp>
 #include <components/rtx/common/jobprogress.hpp>
 #include <components/rtx/mirror/cells/cellworld.hpp>

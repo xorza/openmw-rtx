@@ -3,9 +3,11 @@
 #include <string>
 #include <string_view>
 
+#include <MyGUI_ScrollView.h>
 #include <MyGUI_Widget.h>
 
 #include <components/debug/debuglog.hpp>
+#include <components/widgets/list.hpp>
 
 namespace MWGui
 {

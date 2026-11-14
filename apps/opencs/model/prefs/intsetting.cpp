@@ -7,8 +7,6 @@
 #include <QMutexLocker>
 #include <QSpinBox>
 
-#include <components/settings/settings.hpp>
-
 #include <apps/opencs/model/prefs/setting.hpp>
 
 #include "category.hpp"

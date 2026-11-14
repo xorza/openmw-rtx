@@ -1,8 +1,8 @@
-#include "operators.hpp"
-#include <memory>
 
 #include <components/detournavigator/recastmesh.hpp>
 #include <components/detournavigator/recastmeshbuilder.hpp>
+
+#include "operators.hpp" // IWYU pragma: keep: the operators a test's matchers and messages call
 
 #include <BulletCollision/CollisionDispatch/btCollisionObject.h>
 #include <BulletCollision/CollisionShapes/btBoxShape.h>
@@ -10,8 +10,6 @@
 #include <BulletCollision/CollisionShapes/btCompoundShape.h>
 #include <BulletCollision/CollisionShapes/btHeightfieldTerrainShape.h>
 #include <BulletCollision/CollisionShapes/btTriangleMesh.h>
-
-#include <DetourCommon.h>
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>

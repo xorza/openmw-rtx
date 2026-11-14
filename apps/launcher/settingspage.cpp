@@ -1,7 +1,6 @@
 #include "settingspage.hpp"
 
 #include <array>
-#include <cmath>
 #include <string>
 
 #include <QCompleter>

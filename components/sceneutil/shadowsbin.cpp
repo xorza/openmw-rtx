@@ -4,7 +4,6 @@
 #include <unordered_set>
 
 #include <osg/AlphaFunc>
-#include <osg/Program>
 #include <osg/StateSet>
 #include <osgUtil/StateGraph>
 

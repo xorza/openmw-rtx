@@ -1,7 +1,5 @@
 #include "weaponanimation.hpp"
 
-#include <osg/MatrixTransform>
-
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
 

@@ -1,7 +1,6 @@
 #include "idcompletiondelegate.hpp"
 
 #include "../../model/world/idcompletionmanager.hpp"
-#include "../../model/world/infoselectwrapper.hpp"
 
 #include <apps/opencs/model/doc/document.hpp>
 #include <apps/opencs/view/world/util.hpp>

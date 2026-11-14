@@ -12,7 +12,7 @@
 
 #include <osg/GL>
 #include <osg/Image>
-#include <osg/Texture> // The S3TC and RGTC formats, which Windows's gl.h lacks.
+#include <osg/Texture> // IWYU pragma: keep: the S3TC and RGTC formats, which Windows's gl.h lacks
 #include <osg/Vec3f>
 #include <osg/ref_ptr>
 
@@ -20,7 +20,6 @@
 #include <apps/components_tests/rtx/support/death.hpp>
 #include <apps/components_tests/rtx/support/image.hpp>
 #include <components/rtx/image/colour.hpp>
-#include <components/rtx/image/imagedescription.hpp>
 #include <components/rtx/image/texels.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/textureencoding.hpp>

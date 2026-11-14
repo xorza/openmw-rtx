@@ -1,6 +1,5 @@
 #include <components/shader/shadermanager.hpp>
 
-#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <vector>
 

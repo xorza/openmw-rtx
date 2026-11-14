@@ -8,7 +8,6 @@
 #include <vector>
 
 #include <components/rtx/common/clock.hpp>
-#include <components/rtx/common/index.hpp>
 #include <components/rtx/preprocess/preparedimages.hpp>
 #include <components/rtx/scene/compositequeue.hpp>
 #include <components/rtx/scene/refusal.hpp>

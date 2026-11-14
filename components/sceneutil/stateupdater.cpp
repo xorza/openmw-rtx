@@ -1,6 +1,5 @@
 #include "stateupdater.hpp"
 
-#include <osg/Fog>
 #include <osg/PolygonMode>
 
 #include "depth.hpp"

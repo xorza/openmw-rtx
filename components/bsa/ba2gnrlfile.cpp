@@ -1,9 +1,7 @@
 #include "ba2gnrlfile.hpp"
 
-#include <algorithm>
 #include <cassert>
 #include <format>
-#include <fstream>
 
 #include <zlib.h>
 

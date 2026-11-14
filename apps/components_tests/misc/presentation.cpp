@@ -1,13 +1,11 @@
 #include <components/misc/presentation.hpp>
 
-#include <ostream>
 #include <string>
 
 #include <gtest/gtest.h>
 
 #include <osg/Vec2f>
 #include <osg/Vec2i>
-#include <osg/io_utils>
 
 #include <components/misc/display.hpp>
 

@@ -3,7 +3,6 @@
 #include <array>
 #include <cassert>
 #include <cstddef>
-#include <cstdint>
 
 #include <components/rtx/shaders/camera.h>
 #include <components/rtxvulkan/frame/gbuffer.hpp>

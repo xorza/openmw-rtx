@@ -20,7 +20,6 @@
 #include <components/rtx/preprocess/shape/creasesplit.hpp>
 #include <components/rtx/preprocess/shape/facecross.hpp>
 #include <components/rtx/preprocess/shape/probetable.hpp>
-#include <components/rtx/preprocess/shape/shapefold.hpp>
 #include <components/rtx/preprocess/shape/shapepass.hpp>
 #include <components/rtx/shaders/tangent.h>
 #include <components/testing/util.hpp>

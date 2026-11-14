@@ -10,7 +10,6 @@
 #include <osg/Vec3f>
 #include <osg/Vec4f>
 #include <osgText/Text>
-#include <osgText/TextBase>
 
 #include <components/misc/constants.hpp>
 #include <components/sceneutil/material.hpp>

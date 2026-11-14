@@ -7,7 +7,6 @@
 #include <cstdint>
 #include <exception>
 #include <limits>
-#include <optional>
 #include <string>
 #include <thread>
 #include <utility>

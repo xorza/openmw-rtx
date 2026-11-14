@@ -13,7 +13,6 @@
 #include <components/crashcatcher/crash.hpp>
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/debug/debuglog.hpp>
-#include <components/platform/gpu.hpp>
 #include <components/rtx/common/error.hpp>
 #include <components/rtxvulkan/device/memory/memory.hpp>
 

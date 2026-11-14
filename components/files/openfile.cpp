@@ -1,7 +1,6 @@
 #include "openfile.hpp"
 #include "conversion.hpp"
 
-#include <cstring>
 #include <fstream>
 
 namespace Files

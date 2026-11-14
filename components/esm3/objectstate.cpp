@@ -1,6 +1,5 @@
 #include "objectstate.hpp"
 
-#include <array>
 #include <sstream>
 #include <stdexcept>
 #include <typeinfo>

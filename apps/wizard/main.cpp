@@ -7,7 +7,6 @@
 #include <components/files/qtconversion.hpp>
 #include <components/l10n/qttranslations.hpp>
 #include <components/platform/application.hpp>
-#include <components/platform/platform.hpp>
 
 #include "mainwizard.hpp"
 

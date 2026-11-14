@@ -1,7 +1,6 @@
 #include "manager.hpp"
 
 #include <set>
-#include <unicode/errorcode.h>
 
 #include <components/debug/debuglog.hpp>
 #include <components/vfs/manager.hpp>

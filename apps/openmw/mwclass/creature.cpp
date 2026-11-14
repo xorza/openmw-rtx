@@ -8,7 +8,6 @@
 #include <components/esm3/loadclas.hpp>
 #include <components/esm3/loadcrea.hpp>
 #include <components/esm3/loadsndg.hpp>
-#include <components/esm3/loadsoun.hpp>
 #include <components/misc/rng.hpp>
 #include <components/settings/values.hpp>
 
@@ -31,8 +30,6 @@
 #include "../mwbase/soundmanager.hpp"
 #include "../mwbase/windowmanager.hpp"
 #include "../mwbase/world.hpp"
-
-#include "../mwlua/localscripts.hpp"
 
 #include "../mwworld/actionopen.hpp"
 #include "../mwworld/actiontalk.hpp"

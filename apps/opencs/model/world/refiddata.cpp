@@ -3,11 +3,7 @@
 #include <apps/opencs/model/world/record.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
 
-#include <components/misc/strings/lower.hpp>
-
 #include <memory>
-#include <string_view>
-#include <type_traits>
 
 namespace ESM
 {

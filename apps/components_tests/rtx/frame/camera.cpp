@@ -15,7 +15,6 @@
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <components/rtx/frame/camera.hpp>
 #include <components/rtx/shaders/camera.h>
-#include <components/rtx/shaders/look.h>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/visibility.h>
 

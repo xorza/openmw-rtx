@@ -1,4 +1,3 @@
-#include <bit>
 #include <cstdint>
 #include <limits>
 

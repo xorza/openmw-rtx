@@ -6,7 +6,6 @@
 
 #include <filesystem>
 #include <stdexcept>
-#include <string>
 
 #include <components/files/qtconversion.hpp>
 #include <components/misc/strings/lower.hpp>

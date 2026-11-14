@@ -7,7 +7,6 @@
 
 #include "customdata.hpp"
 
-#include "../mwbase/environment.hpp"
 #include "../mwbase/world.hpp"
 
 #include "../mwlua/localscripts.hpp"

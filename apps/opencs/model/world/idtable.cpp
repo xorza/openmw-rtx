@@ -3,13 +3,10 @@
 #include <QModelIndex>
 #include <QVariant>
 
-#include <algorithm>
 #include <cstdint>
-#include <limits>
 #include <map>
 #include <stddef.h>
 #include <stdexcept>
-#include <type_traits>
 
 #include <apps/opencs/model/world/columns.hpp>
 #include <apps/opencs/model/world/idcollection.hpp>
@@ -18,7 +15,6 @@
 #include <apps/opencs/model/world/universalid.hpp>
 
 #include <components/esm3/loadcell.hpp>
-#include <components/misc/strings/lower.hpp>
 
 #include "collectionbase.hpp"
 #include "columnbase.hpp"

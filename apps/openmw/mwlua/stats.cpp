@@ -11,11 +11,9 @@
 #include <components/esm3/loadclas.hpp>
 #include <components/lua/luastate.hpp>
 #include <components/misc/resourcehelpers.hpp>
-#include <components/resource/resourcesystem.hpp>
 
 #include "context.hpp"
 #include "localscripts.hpp"
-#include "luamanagerimp.hpp"
 
 #include "../mwbase/environment.hpp"
 #include "../mwmechanics/creaturestats.hpp"

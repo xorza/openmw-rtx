@@ -3,14 +3,11 @@
 #include <osg/Drawable>
 #include <osg/MatrixTransform>
 
-#include <osgParticle/ParticleSystem>
-
 #include <osgAnimation/Bone>
 
 #include <components/debug/debuglog.hpp>
 #include <components/misc/strings/algorithm.hpp>
 
-#include <cstring>
 #include <string_view>
 
 namespace SceneUtil

@@ -14,7 +14,6 @@
 #include <osg/Switch>
 #include <osg/Transform>
 
-#include <components/contentstore/store.hpp>
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/misc/constants.hpp>
 #include <components/rtx/common/finite.hpp>

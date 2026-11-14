@@ -5,6 +5,7 @@
 #include <cassert>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <iterator>
 #include <optional>
 #include <span>
@@ -16,28 +17,42 @@
 #include <unicode/locid.h>
 
 #include <MyGUI_ComboBox.h>
+#include <MyGUI_Delegate.h>
 #include <MyGUI_Gui.h>
 #include <MyGUI_LanguageManager.h>
+#include <MyGUI_Macros.h>
 #include <MyGUI_ScrollBar.h>
 #include <MyGUI_ScrollView.h>
+#include <MyGUI_StringUtility.h>
 #include <MyGUI_TabControl.h>
+#include <MyGUI_TextBox.h>
 #include <MyGUI_UString.h>
+#include <MyGUI_WidgetDefines.h>
 #include <MyGUI_Window.h>
+#include <SDL3/SDL_events.h>
+#include <SDL3/SDL_gamepad.h>
+#include <unicode/fmtable.h>
 
+#include <apps/openmw/mwbase/luamanager.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/files/configurationmanager.hpp>
 #include <components/l10n/manager.hpp>
 #include <components/lua_ui/scriptsettings.hpp>
 #include <components/misc/constants.hpp>
 #include <components/misc/display.hpp>
-#include <components/misc/strings/algorithm.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/rtx/common/menu.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/sdlutil/sdldisplay.hpp>
+#include <components/sdlutil/vsyncmode.hpp>
+#include <components/settings/categories.hpp>
+#include <components/settings/categories/rtx.hpp>
+#include <components/settings/settings.hpp>
 #include <components/settings/values.hpp>
+#include <components/settings/windowmode.hpp>
 #include <components/vfs/manager.hpp>
-#include <components/vfs/recursivedirectoryiterator.hpp>
+#include <components/vfs/pathutil.hpp>
+#include <components/vfs/recursivedirectoryiterator.hpp> // IWYU pragma: keep: the range whole, which a call returns by value
 #include <components/widgets/settlingscrollbar.hpp>
 #include <components/widgets/sharedstatebutton.hpp>
 
@@ -47,10 +62,10 @@
 #include "../mwbase/soundmanager.hpp"
 #include "../mwbase/windowmanager.hpp"
 #include "../mwbase/world.hpp"
-#include "../mwlua/luamanagerimp.hpp"
 
 #include "confirmationdialog.hpp"
 #include "weightedsearch.hpp"
+#include "windowbase.hpp"
 
 namespace
 {

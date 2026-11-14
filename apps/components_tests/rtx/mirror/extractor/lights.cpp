@@ -37,7 +37,6 @@
 #include <components/rtx/shaders/scene.h>
 #include <components/sceneutil/lampbody.hpp>
 #include <components/sceneutil/lightcommon.hpp>
-#include <components/sceneutil/lightcontroller.hpp>
 #include <components/sceneutil/lightmanager.hpp>
 #include <components/sceneutil/lightutil.hpp>
 #include <components/sceneutil/material.hpp>

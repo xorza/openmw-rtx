@@ -1,7 +1,6 @@
 #include "cellwater.hpp"
 
 #include <cmath>
-#include <memory>
 #include <string_view>
 
 #include <osg/Geometry>
@@ -21,7 +20,6 @@
 
 #include <components/esm3/loadland.hpp>
 #include <components/fallback/fallback.hpp>
-#include <components/misc/strings/lower.hpp>
 #include <components/resource/imagemanager.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>

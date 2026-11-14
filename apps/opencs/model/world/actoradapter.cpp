@@ -2,9 +2,7 @@
 
 #include <QModelIndex>
 
-#include <algorithm>
 #include <string>
-#include <string_view>
 #include <vector>
 
 #include <apps/opencs/model/prefs/state.hpp>
@@ -21,7 +19,6 @@
 #include <components/esm3/loadnpc.hpp>
 #include <components/esm3/loadrace.hpp>
 #include <components/esm3/mappings.hpp>
-#include <components/settings/settings.hpp>
 
 #include "data.hpp"
 

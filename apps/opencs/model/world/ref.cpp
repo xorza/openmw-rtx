@@ -1,7 +1,5 @@
 #include "ref.hpp"
 
-#include <components/esm/defs.hpp>
-
 #include "cellcoordinates.hpp"
 
 CSMWorld::CellRef::CellRef()

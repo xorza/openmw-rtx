@@ -1,20 +1,39 @@
 #include "tooltips.hpp"
 
+#include <algorithm>
+#include <cstddef>
 #include <format>
-#include <iomanip>
+#include <initializer_list>
+#include <limits>
+#include <stdexcept>
+#include <string>
+#include <tuple>
+#include <utility>
+#include <vector>
 
+#include <MyGUI_Align.h>
 #include <MyGUI_Gui.h>
 #include <MyGUI_ImageBox.h>
 #include <MyGUI_InputManager.h>
 #include <MyGUI_RenderManager.h>
+#include <MyGUI_TextBox.h>
 #include <MyGUI_TextIterator.h>
+#include <MyGUI_Types.h>
 #include <MyGUI_UString.h>
 
-#include <components/esm/records.hpp>
+#include <apps/openmw/mwworld/store.hpp>
+#include <components/esm3/loadbsgn.hpp>
+#include <components/esm3/loadclas.hpp>
+#include <components/esm3/loadcrea.hpp>
+#include <components/esm3/loadench.hpp>
+#include <components/esm3/loadfact.hpp>
+#include <components/esm3/loadrace.hpp>
+#include <components/esm3/loadspel.hpp>
 #include <components/l10n/manager.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/settings/values.hpp>
+#include <components/vfs/pathutil.hpp>
 #include <components/widgets/box.hpp>
 
 #include "../mwbase/environment.hpp"
@@ -30,6 +49,8 @@
 #include "mapwindow.hpp"
 
 #include "itemmodel.hpp"
+#include "mode.hpp"
+#include "widgets.hpp"
 
 namespace MWGui
 {

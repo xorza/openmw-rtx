@@ -1,6 +1,5 @@
 #include "timestamp.hpp"
 
-#include <cmath>
 #include <stdexcept>
 #include <string>
 

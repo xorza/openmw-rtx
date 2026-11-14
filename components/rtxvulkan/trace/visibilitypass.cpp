@@ -23,13 +23,11 @@
 #include <components/rtx/frame/specularalbedo.hpp>
 #include <components/rtx/renderer/framezone.hpp>
 #include <components/rtx/scene/lightgrid.hpp>
-#include <components/rtx/scene/material.hpp>
 #include <components/rtx/shaders/camera.h>
 #include <components/rtx/shaders/hosttypes.h>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/sky.h>
 #include <components/rtx/shaders/wave.h>
-#include <components/rtx/world/wavecascade.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/gputimer.hpp>

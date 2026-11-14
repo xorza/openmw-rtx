@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <array>
-#include <cstdint>
 #include <format>
 #include <sstream>
 #include <stdexcept>
@@ -12,7 +11,6 @@
 #include <apps/rtxtool/instruments/wholenumber.hpp>
 #include <components/files/conversion.hpp>
 #include <components/platform/wholefile.hpp>
-#include <components/rtx/world/skylight.hpp>
 #include <components/rtx/world/weather.hpp>
 
 #include "benchrun.hpp"

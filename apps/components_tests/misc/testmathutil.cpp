@@ -1,7 +1,5 @@
 #include <components/misc/mathutil.hpp>
 
-#include <osg/io_utils>
-
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 

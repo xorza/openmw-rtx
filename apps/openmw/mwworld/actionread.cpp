@@ -1,8 +1,6 @@
 #include "actionread.hpp"
 
 #include <components/esm3/loadbook.hpp>
-#include <components/esm3/loadclas.hpp>
-#include <components/esm3/loadskil.hpp>
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/luamanager.hpp"

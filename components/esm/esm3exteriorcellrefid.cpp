@@ -1,9 +1,7 @@
 #include "esm3exteriorcellrefid.hpp"
 #include "serializerefid.hpp"
 
-#include <limits>
 #include <ostream>
-#include <sstream>
 
 namespace ESM
 {

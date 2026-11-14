@@ -9,7 +9,6 @@
 
 #include <algorithm>
 #include <stdexcept>
-#include <type_traits>
 #include <utility>
 
 #include <apps/opencs/model/prefs/category.hpp>

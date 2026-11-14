@@ -11,10 +11,10 @@
 #include <components/bullethelpers/aabb.hpp>
 #include <components/misc/convert.hpp>
 
-#include <boost/geometry/geometry.hpp>
-
 #include <algorithm>
 #include <limits>
+
+#include <boost/geometry/geometry.hpp> // IWYU pragma: keep: the strategies the R-tree's queries instantiate
 
 namespace DetourNavigator
 {

@@ -7,14 +7,7 @@
 
 #include <components/debug/debuglog.hpp>
 #include <components/loadinglistener/loadinglistener.hpp>
-#include <components/misc/strings/conversion.hpp>
 #include <components/misc/thread.hpp>
-
-#include <DetourNavMesh.h>
-
-#include <osg/io_utils>
-
-#include <boost/geometry.hpp>
 
 #include <algorithm>
 #include <format>
@@ -22,6 +15,9 @@
 #include <set>
 #include <tuple>
 #include <type_traits>
+
+#include <boost/geometry.hpp> // IWYU pragma: keep: the strategies the R-tree's queries instantiate
+#include <osg/io_utils> // IWYU pragma: keep: the vectors' operator<<, which a log line's template calls
 
 namespace DetourNavigator
 {

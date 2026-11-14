@@ -4,9 +4,10 @@
 #include <cstddef>
 #include <string>
 #include <string_view>
+#include <utility>
 
 #include <fcntl.h>
-#include <sys/mman.h>
+#include <sys/mman.h> // IWYU pragma: keep: shm_open and mmap, which the check maps to no header
 #include <sys/types.h>
 #include <unistd.h>
 

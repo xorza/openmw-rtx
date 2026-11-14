@@ -4,7 +4,6 @@
 
 #include <components/esm3/loadcell.hpp>
 #include <components/misc/constants.hpp>
-#include <components/misc/strings/lower.hpp>
 
 namespace ESSImport
 {

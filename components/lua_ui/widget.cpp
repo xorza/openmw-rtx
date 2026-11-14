@@ -6,7 +6,6 @@
 
 #include <SDL3/SDL_events.h>
 #include <components/sdlutil/sdlmappings.hpp>
-#include <ranges>
 
 #include <MyGUI_InputManager.h>
 #include <MyGUI_PointerManager.h>

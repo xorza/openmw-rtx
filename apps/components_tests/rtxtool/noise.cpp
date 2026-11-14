@@ -1,9 +1,7 @@
 #include <array>
-#include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <optional>
-#include <stdexcept>
 #include <string>
 #include <variant>
 #include <vector>
@@ -15,7 +13,6 @@
 #include <apps/components_tests/rtx/support/refusal.hpp>
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <apps/rtxtool/noise.hpp>
-#include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
 

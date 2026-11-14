@@ -5,7 +5,6 @@
 #include <cstdint>
 #include <cstring>
 #include <span>
-#include <string>
 #include <variant>
 
 #include <MyGUI_ITexture.h>
@@ -18,7 +17,6 @@
 #include <components/myguirtx/texture.hpp>
 #include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/mirror/cells/cellring.hpp>
-#include <components/rtx/mirror/mirrorpass.hpp>
 #include <components/rtx/renderer/frameimage.hpp>
 #include <components/sceneutil/offscreenframing.hpp>
 

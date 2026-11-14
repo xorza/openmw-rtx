@@ -33,7 +33,6 @@
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/sky.h>
 #include <components/rtx/shaders/visibility.h>
-#include <components/rtx/world/frameworld.hpp>
 #include <components/rtx/world/moon.hpp>
 #include <components/rtx/world/sunglare.hpp>
 #include <components/vfs/pathutil.hpp>

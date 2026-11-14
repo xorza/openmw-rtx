@@ -12,8 +12,6 @@
 #include <apps/opencs/model/world/idcollection.hpp>
 #include <apps/opencs/view/world/genericcreator.hpp>
 
-#include <components/misc/strings/lower.hpp>
-
 #include "../../model/doc/document.hpp"
 
 #include "../../model/world/columns.hpp"

@@ -5,8 +5,7 @@
 #include <memory>
 
 #include <BulletCollision/CollisionShapes/btBoxShape.h>
-
-#include <osg/io_utils>
+#include <osg/io_utils> // IWYU pragma: keep: the vectors' operator<<, which a test's message calls
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>

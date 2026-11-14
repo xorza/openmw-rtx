@@ -7,7 +7,6 @@
 #include <cstdint>
 #include <format>
 #include <optional>
-#include <ostream>
 #include <sstream>
 #include <stdexcept>
 #include <string>

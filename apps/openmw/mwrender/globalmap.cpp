@@ -1,10 +1,19 @@
 #include "globalmap.hpp"
 
 #include <algorithm>
+#include <memory>
 #include <osg/Image>
 #include <osg/Texture2D>
-
-#include <osgDB/WriteFile>
+#include <osg/Texture>
+#include <osg/Vec4>
+#include <osg/ref_ptr>
+#include <osgDB/ReaderWriter>
+#include <osgDB/Registry>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include <components/files/memorystream.hpp>
 #include <components/myguiplatform/guirendermanager.hpp>
@@ -20,8 +29,10 @@
 
 #include <components/vfs/pathutil.hpp>
 
+#include <apps/openmw/mwworld/store.hpp>
 #include <components/esm3/globalmap.hpp>
 #include <components/esm3/loadland.hpp>
+#include <components/misc/constants.hpp>
 
 #include "../mwbase/environment.hpp"
 

@@ -1,7 +1,6 @@
 #include "mwscriptbindings.hpp"
 
 #include <components/compiler/locals.hpp>
-#include <components/esm3/loaddial.hpp>
 #include <components/lua/luastate.hpp>
 #include <components/lua/util.hpp>
 #include <components/misc/strings/lower.hpp>

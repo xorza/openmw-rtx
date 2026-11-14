@@ -12,7 +12,6 @@
 
 #include <components/misc/scalableicon.hpp>
 
-#include <type_traits>
 #include <utility>
 
 #include "modebutton.hpp"

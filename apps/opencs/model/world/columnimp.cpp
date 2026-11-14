@@ -8,9 +8,7 @@
 
 #include <components/esm3/loadland.hpp>
 #include <components/esm3/loadltex.hpp>
-#include <components/esm3/loadmgef.hpp>
 
-#include <algorithm>
 #include <stdexcept>
 
 namespace CSMWorld

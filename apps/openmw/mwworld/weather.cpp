@@ -3,26 +3,27 @@
 #include <cassert>
 
 #include <cmath>
-#include <components/esm/stringrefid.hpp>
 #include <components/misc/resourcehelpers.hpp>
-#include <components/resource/resourcesystem.hpp>
-#include <components/settings/values.hpp>
 
 #include <components/misc/rng.hpp>
 #include <components/sky/sundisc.hpp>
 
+#include <apps/openmw/mwbase/soundmanager.hpp>
+#include <apps/openmw/mwrender/skyutil.hpp>
+#include <apps/openmw/mwsound/sound.hpp> // IWYU pragma: keep: the sound whole, which its pointer converts to its base's
+#include <apps/openmw/mwsound/type.hpp>
+#include <components/esm/defs.hpp>
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/esmwriter.hpp>
 #include <components/esm3/loadregn.hpp>
 #include <components/esm3/weatherstate.hpp>
+#include <components/sky/timeofday.hpp>
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/soundmanager.hpp"
 #include "../mwbase/world.hpp"
 
 #include "../mwmechanics/actorutil.hpp"
-
-#include "../mwsound/sound.hpp"
 
 #include "../mwrender/renderingmanager.hpp"
 
@@ -31,8 +32,15 @@
 #include "player.hpp"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <limits>
+#include <map>
+#include <stdexcept>
 #include <utility>
+#include <vector>
+
+#include <osg/Vec4f>
 
 namespace MWWorld
 {

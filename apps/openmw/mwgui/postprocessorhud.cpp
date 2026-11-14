@@ -10,7 +10,6 @@
 #include <MyGUI_InputManager.h>
 #include <MyGUI_Macros.h>
 #include <MyGUI_ScrollView.h>
-#include <MyGUI_TabItem.h>
 #include <MyGUI_UString.h>
 #include <MyGUI_Widget.h>
 #include <MyGUI_WidgetDefines.h>
@@ -21,7 +20,6 @@
 #include <components/fx/technique.hpp>
 #include <components/fx/widgets.hpp>
 
-#include <components/misc/strings/algorithm.hpp>
 #include <components/misc/utf8stream.hpp>
 #include <components/settings/settings.hpp>
 

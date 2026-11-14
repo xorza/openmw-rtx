@@ -2,9 +2,7 @@
 
 #include <algorithm>
 #include <cassert>
-#include <cstddef>
 #include <string>
-#include <string_view>
 #include <utility>
 
 #include <components/rtxvulkan/device/device.hpp>

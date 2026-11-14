@@ -8,8 +8,6 @@
 
 #include <LinearMath/btTransform.h>
 
-#include <type_traits>
-
 #if BT_BULLET_VERSION < 310
 // Older Bullet versions only support `btScalar` heightfields.
 // Our heightfield data is `float`.

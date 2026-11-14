@@ -1,7 +1,6 @@
 #include "brushdraw.hpp"
 
 #include <limits>
-#include <set>
 #include <utility>
 
 #include <osg/Array>

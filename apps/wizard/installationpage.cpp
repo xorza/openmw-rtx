@@ -6,7 +6,7 @@
 #include <QThread>
 
 #include <components/config/launchersettings.hpp>
-#include <components/debug/debugging.hpp>
+#include <components/debug/debuglog.hpp>
 #include <components/toutf8/toutf8.hpp>
 
 #include "mainwizard.hpp"

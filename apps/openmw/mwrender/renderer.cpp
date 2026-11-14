@@ -3,9 +3,6 @@
 #include <algorithm>
 #include <cassert>
 #include <chrono>
-#include <exception>
-#include <stdexcept>
-#include <string>
 #include <thread>
 #include <utility>
 
@@ -20,7 +17,6 @@
 
 #include <components/crashcatcher/crash.hpp>
 #include <components/debug/debuglog.hpp>
-#include <components/files/conversion.hpp>
 #include <components/misc/frameclock.hpp>
 #include <components/misc/frameratelimiter.hpp>
 #include <components/resource/resourcesystem.hpp>

@@ -24,7 +24,6 @@
  */
 #include "compressedbsafile.hpp"
 
-#include <algorithm>
 #include <cassert>
 #include <cerrno>
 #include <format>

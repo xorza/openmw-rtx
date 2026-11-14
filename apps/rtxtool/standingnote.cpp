@@ -2,7 +2,6 @@
 
 #include <cassert>
 #include <cstddef>
-#include <cstdint>
 #include <format>
 #include <span>
 #include <string_view>
@@ -19,7 +18,6 @@
 #include <apps/openmw/mwworld/ptr.hpp>
 #include <apps/openmw/mwworld/timestamp.hpp>
 #include <apps/rtxtool/model/stopdescription.hpp>
-#include <components/rtx/world/skylight.hpp>
 #include <components/rtx/world/weather.hpp>
 
 #include "stager.hpp"

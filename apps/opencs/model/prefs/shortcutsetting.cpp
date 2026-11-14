@@ -8,8 +8,6 @@
 #include <QString>
 #include <QWidget>
 
-#include <components/settings/settings.hpp>
-
 #include <apps/opencs/model/prefs/category.hpp>
 #include <apps/opencs/model/prefs/setting.hpp>
 

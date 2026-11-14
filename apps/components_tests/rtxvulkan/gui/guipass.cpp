@@ -5,7 +5,6 @@
 #include <memory>
 #include <span>
 #include <string_view>
-#include <utility>
 #include <vector>
 
 #include <gtest/gtest.h>

@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <array>
-#include <optional>
 
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/esmwriter.hpp>
@@ -40,8 +39,6 @@
 #include "../mwmechanics/aibreathe.hpp"
 
 #include "../mwrender/vismask.hpp"
-
-#include "../mwsound/constants.hpp"
 
 #include "actor.hpp"
 #include "actorutil.hpp"

@@ -21,7 +21,6 @@
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <components/rtx/frame/camera.hpp>
 #include <components/rtx/renderer/channel.hpp>
-#include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/scene/light.hpp>
 #include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/mesh.hpp>

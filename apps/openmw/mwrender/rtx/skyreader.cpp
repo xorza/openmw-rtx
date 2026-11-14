@@ -4,12 +4,10 @@
 #include <array>
 #include <cmath>
 #include <cstddef>
-#include <cstdint>
 #include <format>
 #include <limits>
 #include <optional>
 
-#include <osg/Math>
 #include <osg/Vec3f>
 #include <osg/Vec4f>
 

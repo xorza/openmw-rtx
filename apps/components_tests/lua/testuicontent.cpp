@@ -1,5 +1,4 @@
 #include <gtest/gtest.h>
-#include <sol/sol.hpp>
 
 #include <components/lua/luastate.hpp>
 #include <components/lua_ui/content.hpp>

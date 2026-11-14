@@ -1,6 +1,7 @@
+#include <MyGUI_Delegate.h>
 #include <MyGUI_ScrollBar.h>
 
-#include <components/misc/rng.hpp>
+#include <apps/openmw/mwmechanics/creaturestats.hpp>
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/luamanager.hpp"
@@ -9,13 +10,11 @@
 #include "../mwbase/world.hpp"
 
 #include "../mwmechanics/actorutil.hpp"
-#include "../mwmechanics/npcstats.hpp"
 
 #include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/store.hpp"
 
 #include "jailscreen.hpp"
+#include "mode.hpp"
 
 namespace MWGui
 {

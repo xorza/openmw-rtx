@@ -5,11 +5,9 @@
 
 #include <components/esm3/loaddoor.hpp>
 #include <components/esm4/loaddoor.hpp>
-#include <components/lua/util.hpp>
 #include <components/lua/utilpackage.hpp>
 #include <components/misc/convert.hpp>
 #include <components/misc/resourcehelpers.hpp>
-#include <components/resource/resourcesystem.hpp>
 
 #include "apps/openmw/mwworld/class.hpp"
 #include "apps/openmw/mwworld/worldmodel.hpp"

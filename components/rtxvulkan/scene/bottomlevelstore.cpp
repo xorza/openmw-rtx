@@ -4,10 +4,8 @@
 #include <cassert>
 #include <optional>
 #include <string>
-#include <string_view>
 #include <utility>
 
-#include <osg/Vec3f>
 #include <volk.h>
 
 #include <components/crashcatcher/crashnote.hpp>

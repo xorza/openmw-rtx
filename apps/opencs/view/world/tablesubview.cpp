@@ -11,7 +11,6 @@
 #include <QVBoxLayout>
 #include <QVariant>
 
-#include <algorithm>
 #include <utility>
 #include <variant>
 

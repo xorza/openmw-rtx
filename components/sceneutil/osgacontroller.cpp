@@ -5,7 +5,6 @@
 #include <osg/NodeVisitor>
 #include <osg/ref_ptr>
 
-#include <osgAnimation/Animation>
 #include <osgAnimation/Channel>
 #include <osgAnimation/Sampler>
 #include <osgAnimation/UpdateMatrixTransform>
@@ -13,7 +12,6 @@
 #include <components/misc/strings/algorithm.hpp>
 #include <components/misc/strings/lower.hpp>
 #include <components/resource/animation.hpp>
-#include <components/sceneutil/controller.hpp>
 #include <components/sceneutil/keyframe.hpp>
 
 namespace SceneUtil

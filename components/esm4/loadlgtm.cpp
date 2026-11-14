@@ -28,7 +28,7 @@
 */
 #include "loadlgtm.hpp"
 
-#include <cfloat> // FLT_MAX for gcc
+#include <cfloat> // IWYU pragma: keep: FLT_MAX, for GCC
 #include <stdexcept>
 
 #include "reader.hpp"

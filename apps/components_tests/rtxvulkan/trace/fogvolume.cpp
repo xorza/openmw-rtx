@@ -8,7 +8,6 @@
 #include <apps/components_tests/rtxvulkan/support/device/harness.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtxvulkan/device/handles.hpp>
-#include <components/rtxvulkan/device/memory/memory.hpp>
 #include <components/rtxvulkan/frame/tracepast.hpp>
 #include <components/rtxvulkan/trace/fogvolume.hpp>
 

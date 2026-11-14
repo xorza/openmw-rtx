@@ -3,13 +3,8 @@
 #include "multiview.hpp"
 
 #include <osg/DisplaySettings>
-#include <osg/Texture2D>
-#include <osg/Texture2DArray>
-#include <osg/Texture2DMultisample>
-#include <osg/io_utils>
 
 #include <osgUtil/CullVisitor>
-#include <osgUtil/RenderStage>
 
 #include <osgViewer/Renderer>
 #include <osgViewer/Viewer>
@@ -19,11 +14,8 @@
 
 #include <components/misc/constants.hpp>
 
-#include <components/sceneutil/color.hpp>
 #include <components/sceneutil/depth.hpp>
 #include <components/sceneutil/statesetupdater.hpp>
-
-#include <components/settings/values.hpp>
 
 namespace Stereo
 {

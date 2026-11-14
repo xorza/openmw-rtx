@@ -1,7 +1,5 @@
 #include "journalimp.hpp"
 
-#include <iterator>
-
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/esmwriter.hpp>
 #include <components/esm3/journalentry.hpp>

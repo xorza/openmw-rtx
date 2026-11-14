@@ -3,10 +3,7 @@
 #include "modelproperty.hpp"
 
 #include <components/esm4/loadterm.hpp>
-#include <components/lua/utilpackage.hpp>
-#include <components/misc/convert.hpp>
 #include <components/misc/resourcehelpers.hpp>
-#include <components/resource/resourcesystem.hpp>
 
 namespace sol
 {

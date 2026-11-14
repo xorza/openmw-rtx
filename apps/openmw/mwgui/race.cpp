@@ -1,7 +1,6 @@
 #include "race.hpp"
 
 #include <MyGUI_Gui.h>
-#include <MyGUI_ITexture.h>
 #include <MyGUI_ImageBox.h>
 #include <MyGUI_ListBox.h>
 #include <MyGUI_ScrollBar.h>

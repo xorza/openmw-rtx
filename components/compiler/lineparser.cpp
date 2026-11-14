@@ -1,7 +1,5 @@
 #include "lineparser.hpp"
 
-#include <memory>
-
 #include <components/esm/refid.hpp>
 #include <components/misc/strings/lower.hpp>
 

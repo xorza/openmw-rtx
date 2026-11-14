@@ -2,7 +2,6 @@
 
 #include <components/debug/debuglog.hpp>
 
-#include <cstring>
 #include <thread>
 
 #ifdef __linux__

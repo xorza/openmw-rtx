@@ -10,7 +10,6 @@
 
 #include <gtest/gtest.h>
 
-#include <components/contentstore/key.hpp>
 #include <components/contentstore/store.hpp>
 #include <components/misc/bytebuffer.hpp>
 #include <components/platform/wholefile.hpp>

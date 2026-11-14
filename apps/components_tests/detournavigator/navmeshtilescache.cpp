@@ -7,12 +7,9 @@
 
 #include <osg/Vec3f>
 
-#include <RecastAlloc.h>
-
 #include <gtest/gtest.h>
 
 #include <random>
-#include <stdexcept>
 
 namespace
 {

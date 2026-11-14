@@ -3,10 +3,6 @@
 #include <osg/MatrixTransform>
 #include <osg/Texture2D>
 
-#include <osgAnimation/Bone>
-
-#include <osgParticle/Emitter>
-
 #include <components/nif/data.hpp>
 #include <components/sceneutil/clone.hpp>
 #include <components/sceneutil/material.hpp>

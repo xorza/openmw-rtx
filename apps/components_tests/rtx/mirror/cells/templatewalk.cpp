@@ -34,7 +34,6 @@
 #include <components/misc/constants.hpp>
 #include <components/misc/digestwords.hpp>
 #include <components/misc/hashstate.hpp>
-#include <components/misc/result.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/image/colour.hpp>
 #include <components/rtx/mirror/cells/nightday.hpp>

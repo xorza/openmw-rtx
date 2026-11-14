@@ -1,7 +1,13 @@
+#include <exception>
 #include <filesystem>
 #include <iostream>
+#include <stdexcept>
+#include <string_view>
 
-#include <boost/program_options.hpp>
+#include <boost/program_options/parsers.hpp>
+#include <boost/program_options/positional_options.hpp>
+#include <boost/program_options/value_semantic.hpp>
+#include <boost/program_options/variables_map.hpp>
 
 #include <components/files/configurationmanager.hpp>
 

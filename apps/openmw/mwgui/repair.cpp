@@ -2,8 +2,6 @@
 
 #include <iomanip>
 
-#include <MyGUI_ScrollView.h>
-
 #include <components/esm3/loadrepa.hpp>
 #include <components/widgets/box.hpp>
 

@@ -1,14 +1,26 @@
-#include "magiceffects.hpp"
-#include "esmstore.hpp"
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <map>
+#include <string>
+#include <utility>
 
+#include "esmstore.hpp"
+#include "magiceffects.hpp"
+
+#include <components/esm/defs.hpp>
+#include <components/esm/refid.hpp>
+#include <components/esm3/activespells.hpp>
+#include <components/esm3/creaturestats.hpp>
+#include <components/esm3/inventorystate.hpp>
 #include <components/esm3/loadarmo.hpp>
 #include <components/esm3/loadclot.hpp>
 #include <components/esm3/loadench.hpp>
 #include <components/esm3/loadmgef.hpp>
-#include <components/esm3/loadskil.hpp>
 #include <components/esm3/loadspel.hpp>
 #include <components/esm3/loadweap.hpp>
-#include <components/esm3/npcstate.hpp>
+#include <components/esm3/npcstats.hpp>
+#include <components/esm3/objectstate.hpp>
 
 #include "../mwbase/environment.hpp"
 #include "../mwworld/worldmodel.hpp"

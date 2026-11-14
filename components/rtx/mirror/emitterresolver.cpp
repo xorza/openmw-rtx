@@ -18,7 +18,6 @@
 #include <components/misc/result.hpp>
 #include <components/rtx/common/finite.hpp>
 #include <components/rtx/image/colour.hpp>
-#include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/preprocess/threadcontent.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/refusal.hpp>
@@ -30,7 +29,6 @@
 #include <components/rtx/shaders/look.h>
 #include <components/rtx/shaders/scene.h>
 #include <components/sceneutil/embeddedimage.hpp>
-#include <components/vfs/pathutil.hpp>
 
 #include "extractionstats.hpp"
 #include "lightbuilder.hpp"

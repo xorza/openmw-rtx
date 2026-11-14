@@ -19,7 +19,6 @@
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/sceneutil/depth.hpp>
-#include <components/sceneutil/keyframe.hpp>
 #include <components/sceneutil/lightcommon.hpp>
 #include <components/sceneutil/textkeymap.hpp>
 #include <components/sceneutil/userdata.hpp>

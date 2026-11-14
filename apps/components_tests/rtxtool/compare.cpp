@@ -19,7 +19,6 @@
 #include <apps/rtxtool/noise.hpp>
 #include <components/files/conversion.hpp>
 #include <components/misc/result.hpp>
-#include <components/rtx/frame/upscale.hpp>
 #include <components/testing/util.hpp>
 
 namespace RtxTool

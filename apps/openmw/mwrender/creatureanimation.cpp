@@ -1,18 +1,39 @@
+#include <exception>
+#include <memory>
+#include <string>
+#include <string_view>
+#include <utility>
+
+#include <osg/Group>
+#include <osg/Node>
+#include <osg/Vec3f>
+#include <osg/ref_ptr>
+
 #include "creatureanimation.hpp"
 
-#include <osg/MatrixTransform>
-
+#include <apps/openmw/mwworld/containerstore.hpp>
+#include <apps/openmw/mwworld/livecellref.hpp>
+#include <apps/openmw/mwworld/ptr.hpp>
 #include <components/debug/debuglog.hpp>
+#include <components/esm/refid.hpp>
+#include <components/esm3/loadarmo.hpp>
 #include <components/esm3/loadcrea.hpp>
+#include <components/esm3/loadweap.hpp>
 #include <components/resource/resourcesystem.hpp>
+#include <components/sceneutil/controller.hpp>
 #include <components/sceneutil/lightcommon.hpp>
-#include <components/sceneutil/positionattitudetransform.hpp>
+#include <components/sceneutil/positionattitudetransform.hpp> // IWYU pragma: keep: the transform whole, which the ref_ptr releasing it needs
+#include <components/sceneutil/util.hpp>
 #include <components/sceneutil/visitor.hpp>
 #include <components/settings/values.hpp>
+#include <components/vfs/pathutil.hpp>
 
 #include "../mwmechanics/weapontype.hpp"
 
 #include "../mwworld/class.hpp"
+#include "actoranimation.hpp"
+#include "animation.hpp"
+#include "weaponanimation.hpp"
 
 namespace MWRender
 {

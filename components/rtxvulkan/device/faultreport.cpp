@@ -1,6 +1,5 @@
 #include "faultreport.hpp"
 
-#include <cstddef>
 #include <cstdint>
 #include <format>
 #include <span>

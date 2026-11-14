@@ -4,12 +4,10 @@
 
 #include <osg/ClipNode>
 #include <osg/Depth>
-#include <osg/Fog>
 #include <osg/FrontFace>
 #include <osg/Geometry>
 #include <osg/Group>
 #include <osg/PositionAttitudeTransform>
-#include <osg/ViewportIndexed>
 
 #include <osgUtil/CullVisitor>
 #include <osgUtil/IncrementalCompileOperation>
@@ -31,8 +29,6 @@
 #include <components/nifosg/controller.hpp>
 
 #include <components/shader/shadermanager.hpp>
-
-#include <components/esm3/loadcell.hpp>
 
 #include <components/fallback/fallback.hpp>
 

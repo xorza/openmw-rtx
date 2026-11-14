@@ -9,10 +9,9 @@
 
 #include <gtest/gtest.h>
 
-#include <sol/sol.hpp>
-
 #include <osg/Vec2d>
 #include <osg/Vec3f>
+#include <sol/sol.hpp> // IWYU pragma: keep: sol's umbrella, which its parts are not to be included apart from
 
 #include <apps/rtxtool/model/benchrecord.hpp>
 #include <apps/rtxtool/model/benchrun.hpp>

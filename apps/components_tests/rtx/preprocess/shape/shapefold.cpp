@@ -16,7 +16,6 @@
 
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
 #include <components/rtx/preprocess/shape/pockettree.hpp>
-#include <components/rtx/preprocess/shape/shapefold.hpp>
 #include <components/rtx/preprocess/shape/shapepass.hpp>
 
 namespace Rtx

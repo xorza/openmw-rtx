@@ -1,7 +1,7 @@
 #include "effect.hpp"
 
 #include "node.hpp"
-#include "texture.hpp"
+#include "texture.hpp" // IWYU pragma: keep: the records whole, which the record pointers' templates read
 
 namespace Nif
 {

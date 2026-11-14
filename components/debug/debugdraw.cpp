@@ -1,5 +1,4 @@
 #include "debugdraw.hpp"
-#include <components/sceneutil/nodecallback.hpp>
 #include <components/shader/shadermanager.hpp>
 
 #include <osg/Array>

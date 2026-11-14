@@ -1,7 +1,5 @@
 #include "niffilemanager.hpp"
 
-#include <iostream>
-
 #include <components/vfs/manager.hpp>
 
 #include "objectcache.hpp"

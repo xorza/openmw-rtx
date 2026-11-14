@@ -4,7 +4,6 @@
 #include <QColor>
 #include <QMutexLocker>
 
-#include <components/settings/settings.hpp>
 #include <components/settings/settingvalue.hpp>
 
 #include "category.hpp"

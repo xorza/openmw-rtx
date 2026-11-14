@@ -1,5 +1,4 @@
 #include <array>
-#include <cstdint>
 
 #include <gtest/gtest.h>
 

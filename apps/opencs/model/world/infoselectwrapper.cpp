@@ -4,8 +4,6 @@
 #include <sstream>
 #include <stdexcept>
 
-#include <components/esm3/variant.hpp>
-
 const char* CSMWorld::ConstInfoSelectWrapper::FunctionEnumStrings[] = {
     "Faction Reaction Low",
     "Faction Reaction High",

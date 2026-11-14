@@ -1,25 +1,42 @@
+#include <algorithm>
+#include <cerrno>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 #include <deque>
+#include <exception>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <map>
 #include <memory>
 #include <optional>
+#include <system_error>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
-#include <boost/program_options.hpp>
-
+#include <boost/program_options/parsers.hpp>
+#include <boost/program_options/positional_options.hpp>
+#include <boost/program_options/value_semantic.hpp>
+#include <boost/program_options/variables_map.hpp>
 #include <osg/Math>
 
+#include <components/esm/common.hpp>
+#include <components/esm/defs.hpp>
+#include <components/esm/esmcommon.hpp>
 #include <components/esm/format.hpp>
+#include <components/esm/gameformat.hpp>
+#include <components/esm3/cellref.hpp>
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/esmwriter.hpp>
+#include <components/esm3/loadcell.hpp>
+#include <components/esm3/loadtes3.hpp>
 #include <components/files/configurationmanager.hpp>
 #include <components/files/conversion.hpp>
 #include <components/files/openfile.hpp>
 #include <components/misc/strings/algorithm.hpp>
+#include <components/toutf8/toutf8.hpp>
 
 #include "arguments.hpp"
 #include "labels.hpp"

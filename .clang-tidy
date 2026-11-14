@@ -61,7 +61,7 @@ Checks:
   - misc-unused-alias-decls
   - misc-redundant-expression
   - misc-definitions-in-headers
-  # - misc-include-cleaner
+  - misc-include-cleaner
   - readability-container-contains
   - readability-container-size-empty
   - readability-container-data-pointer

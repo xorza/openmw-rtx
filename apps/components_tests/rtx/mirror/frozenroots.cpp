@@ -3,7 +3,6 @@
 #include <osg/Group>
 #include <osg/Matrix>
 #include <osg/Node>
-#include <osg/StateSet>
 #include <osg/observer_ptr>
 #include <osg/ref_ptr>
 

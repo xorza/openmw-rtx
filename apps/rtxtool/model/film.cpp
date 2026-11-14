@@ -19,7 +19,6 @@
 #include <components/files/conversion.hpp>
 #include <components/platform/folder.hpp>
 #include <components/platform/process.hpp>
-#include <components/rtx/world/skylight.hpp>
 #include <components/rtx/world/weather.hpp>
 
 #include "benchrecord.hpp"

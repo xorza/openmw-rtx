@@ -1,5 +1,4 @@
 #include <array>
-#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
@@ -17,7 +16,6 @@
 #include <osg/Geometry>
 #include <osg/Group>
 #include <osg/MatrixTransform>
-#include <osg/NodeCallback>
 #include <osg/PrimitiveSet>
 #include <osg/Vec2f>
 #include <osg/Vec3f>

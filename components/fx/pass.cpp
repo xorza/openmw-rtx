@@ -2,13 +2,9 @@
 
 #include <sstream>
 #include <string>
-#include <unordered_set>
 
-#include <osg/BindImageTexture>
-#include <osg/FrameBufferObject>
 #include <osg/Program>
 #include <osg/Shader>
-#include <osg/State>
 #include <osg/StateSet>
 
 #include <components/resource/scenemanager.hpp>

@@ -2,7 +2,6 @@
 
 #include <cmath>
 #include <sstream>
-#include <type_traits>
 
 #include <osg/Vec3d>
 

@@ -10,8 +10,6 @@
 #include <MyGUI_RenderManager.h>
 #include <MyGUI_Window.h>
 
-#include <components/misc/strings/algorithm.hpp>
-
 #include <components/settings/values.hpp>
 #include <utility>
 

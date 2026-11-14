@@ -1,11 +1,9 @@
 #include "pagedworldspacewidget.hpp"
 
-#include <algorithm>
 #include <cmath>
 #include <memory>
 #include <sstream>
 #include <string>
-#include <type_traits>
 
 #include <apps/opencs/model/doc/document.hpp>
 #include <apps/opencs/model/world/cellselection.hpp>

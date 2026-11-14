@@ -2,14 +2,10 @@
 
 #include <osg/Geometry>
 #include <osg/Texture2D>
-#include <osgUtil/CullVisitor>
 
 #include <components/debug/debuglog.hpp>
-#include <components/resource/imagemanager.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
-#include <components/sceneutil/color.hpp>
-#include <components/sceneutil/depth.hpp>
 #include <components/sceneutil/glextensions.hpp>
 #include <components/shader/shadermanager.hpp>
 

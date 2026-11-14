@@ -20,7 +20,6 @@
 #include <sched.h>
 #include <signal.h>
 #include <sys/syscall.h>
-#include <sys/wait.h>
 #include <unistd.h>
 
 #include "folder.hpp"

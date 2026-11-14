@@ -31,7 +31,6 @@
 #include <apps/rtxtool/model/film.hpp>
 #include <apps/rtxtool/model/pictureshelf.hpp>
 #include <apps/rtxtool/model/viewfile.hpp>
-#include <components/crashcatcher/crash.hpp>
 #include <components/crashcatcher/crashinstall.hpp>
 #include <components/debug/debugging.hpp>
 #include <components/debug/debuglog.hpp>
@@ -42,7 +41,6 @@
 #include <components/platform/platform.hpp>
 #include <components/platform/process.hpp>
 #include <components/rtx/common/error.hpp>
-#include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/preprocess/contentpass.hpp>
 #include <components/rtx/renderer/renderer.hpp>

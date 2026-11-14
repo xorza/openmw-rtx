@@ -3,8 +3,6 @@
 
 #include <gtest/gtest.h>
 
-#include <vulkan/vulkan_core.h>
-
 #include <apps/components_tests/rtxvulkan/support/device/harness.hpp>
 #include <apps/components_tests/rtxvulkan/support/device/heldsubmit.hpp>
 #include <components/rtxvulkan/device/commands.hpp>

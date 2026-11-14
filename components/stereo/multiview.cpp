@@ -14,7 +14,6 @@
 
 #include <components/debug/debuglog.hpp>
 #include <components/sceneutil/nodecallback.hpp>
-#include <components/settings/settings.hpp>
 #include <components/stereo/stereomanager.hpp>
 
 #include <algorithm>

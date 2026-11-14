@@ -1,10 +1,10 @@
 #include "controller.hpp"
 
-#include "data.hpp"
+#include "data.hpp" // IWYU pragma: keep: the records whole, which the record pointers' templates read
 #include "exception.hpp"
-#include "node.hpp"
-#include "particle.hpp"
-#include "texture.hpp"
+#include "node.hpp" // IWYU pragma: keep: the records whole, which the record pointers' templates read
+#include "particle.hpp" // IWYU pragma: keep: the records whole, which the record pointers' templates read
+#include "texture.hpp" // IWYU pragma: keep: the records whole, which the record pointers' templates read
 
 namespace Nif
 {

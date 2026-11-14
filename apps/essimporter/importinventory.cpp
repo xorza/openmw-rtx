@@ -1,7 +1,5 @@
 #include "importinventory.hpp"
 
-#include <stdexcept>
-
 #include <components/esm3/esmreader.hpp>
 #include <utility>
 

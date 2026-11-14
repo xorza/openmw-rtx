@@ -3,7 +3,6 @@
 #include <cassert>
 #include <errno.h>
 #include <fcntl.h>
-#include <stdexcept>
 #include <string.h>
 #include <string>
 #include <sys/types.h>

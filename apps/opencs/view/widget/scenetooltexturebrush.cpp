@@ -19,8 +19,6 @@
 #include <QWidget>
 
 #include <algorithm>
-#include <limits>
-#include <memory>
 
 #include "scenetool.hpp"
 

@@ -1,6 +1,5 @@
 #include <gtest/gtest.h>
 
-#include <sol/object.hpp>
 #include <sol/state.hpp>
 #include <sol/table.hpp>
 

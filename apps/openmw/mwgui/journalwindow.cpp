@@ -6,7 +6,6 @@
 #include <initializer_list>
 #include <memory>
 #include <ranges>
-#include <set>
 #include <stack>
 #include <string>
 #include <string_view>
@@ -17,7 +16,6 @@
 #include <MyGUI_InputManager.h>
 #include <MyGUI_TextBox.h>
 
-#include <components/misc/strings/algorithm.hpp>
 #include <components/widgets/imagebutton.hpp>
 #include <components/widgets/list.hpp>
 

@@ -14,8 +14,6 @@
 #include "mtphysics.hpp"
 #include "trace.h"
 
-#include <cmath>
-
 namespace MWPhysics
 {
 

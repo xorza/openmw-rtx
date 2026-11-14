@@ -20,14 +20,12 @@
 #include <components/esm3/variant.hpp>
 #include <components/files/conversion.hpp>
 
-#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <memory>
 #include <stddef.h>
 #include <stdexcept>
 #include <utility>
-#include <variant>
 
 #include "../world/defaultgmsts.hpp"
 

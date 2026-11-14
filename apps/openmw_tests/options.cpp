@@ -9,10 +9,8 @@
 #include <boost/program_options/options_description.hpp>
 #include <boost/program_options/variables_map.hpp>
 
-#include <algorithm>
 #include <array>
 #include <string>
-#include <utility>
 #include <vector>
 
 namespace

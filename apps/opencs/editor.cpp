@@ -7,9 +7,10 @@
 #include <QMessageBox>
 #include <QRegularExpression>
 
-#include <boost/program_options.hpp>
-
 #include <exception>
+
+#include <boost/program_options/options_description.hpp>
+#include <boost/program_options/value_semantic.hpp>
 
 #include <apps/opencs/model/doc/document.hpp>
 #include <apps/opencs/model/doc/documentmanager.hpp>

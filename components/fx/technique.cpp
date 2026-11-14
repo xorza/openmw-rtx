@@ -12,7 +12,6 @@
 #include <SDL3/SDL_opengl_glext.h>
 
 #include <components/debug/debuglog.hpp>
-#include <components/files/conversion.hpp>
 #include <components/misc/strings/algorithm.hpp>
 #include <components/resource/imagemanager.hpp>
 #include <components/stereo/multiview.hpp>

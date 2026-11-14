@@ -27,14 +27,10 @@
 #include <apps/rtxtool/model/film.hpp>
 #include <apps/rtxtool/model/finding.hpp>
 #include <apps/rtxtool/model/skycrossing.hpp>
-#include <components/crashcatcher/crash.hpp>
 #include <components/fallback/validate.hpp>
 #include <components/files/configurationmanager.hpp>
-#include <components/files/conversion.hpp>
 #include <components/misc/constants.hpp>
 #include <components/misc/result.hpp>
-#include <components/platform/folder.hpp>
-#include <components/platform/process.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/surfaceview.hpp>
 #include <components/rtx/frame/upscale.hpp>

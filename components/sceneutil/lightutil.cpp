@@ -4,7 +4,6 @@
 
 #include <osgParticle/ParticleSystem>
 
-#include <components/esm3/loadligh.hpp>
 #include <components/fallback/fallback.hpp>
 #include <components/sceneutil/lightcommon.hpp>
 

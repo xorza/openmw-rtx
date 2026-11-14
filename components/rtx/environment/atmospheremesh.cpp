@@ -1,6 +1,5 @@
 #include "atmospheremesh.hpp"
 
-#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <string>
@@ -8,7 +7,6 @@
 
 #include <osg/Geometry>
 #include <osg/NodeVisitor>
-#include <osg/Vec3d>
 #include <osg/Vec3f>
 
 #include <components/misc/result.hpp>

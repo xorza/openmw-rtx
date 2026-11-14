@@ -11,7 +11,6 @@
 #include <components/esm/util.hpp>
 #include <components/esmterrain/storage.hpp>
 #include <components/lua/luastate.hpp>
-#include <components/vfs/pathutil.hpp>
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/world.hpp"

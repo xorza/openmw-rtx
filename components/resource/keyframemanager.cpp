@@ -9,8 +9,6 @@
 #include <osgAnimation/Channel>
 
 #include <components/debug/debuglog.hpp>
-#include <components/misc/pathhelpers.hpp>
-#include <components/misc/strings/algorithm.hpp>
 #include <components/misc/strings/conversion.hpp>
 #include <components/nifosg/nifloader.hpp>
 #include <components/sceneutil/keyframe.hpp>

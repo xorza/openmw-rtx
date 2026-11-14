@@ -15,7 +15,6 @@
 
 #include <osg/Matrixf>
 #include <osg/Node>
-#include <osg/StateSet>
 #include <osg/Transform>
 #include <osg/Vec3f>
 #include <osg/ref_ptr>

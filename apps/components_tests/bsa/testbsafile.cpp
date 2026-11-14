@@ -1,8 +1,9 @@
-#include "operators.hpp"
 
-#include <components/bsa/compressedbsafile.hpp>
+#include <components/bsa/bsafile.hpp>
 #include <components/files/memorystream.hpp>
 #include <components/testing/util.hpp>
+
+#include "operators.hpp" // IWYU pragma: keep: the operators a test's matchers and messages call
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>

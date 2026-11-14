@@ -1,7 +1,6 @@
 #include <filesystem>
 #include <fstream>
 #include <ios>
-#include <stdexcept>
 #include <string>
 
 #include <gtest/gtest.h>
@@ -17,7 +16,6 @@
 #include <components/sdlutil/vsyncmode.hpp>
 #include <components/settings/categories/camera.hpp>
 #include <components/settings/categories/general.hpp>
-#include <components/settings/categories/groundcover.hpp>
 #include <components/settings/categories/rtx.hpp>
 #include <components/settings/categories/shaders.hpp>
 #include <components/settings/categories/terrain.hpp>

@@ -5,7 +5,6 @@
 
 #include <algorithm>
 #include <format>
-#include <map>
 #include <stdexcept>
 
 #include <components/misc/rng.hpp>

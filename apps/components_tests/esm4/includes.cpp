@@ -1,3 +1,5 @@
+// Every ESM4 header in one source, so a header that does not compile is a build failure here; nothing is used.
+// NOLINTBEGIN(misc-include-cleaner)
 #include <components/esm4/actor.hpp>
 #include <components/esm4/common.hpp>
 #include <components/esm4/dialogue.hpp>
@@ -85,3 +87,4 @@
 #include <components/esm4/reader.hpp>
 #include <components/esm4/reference.hpp>
 #include <components/esm4/script.hpp>
+// NOLINTEND(misc-include-cleaner)

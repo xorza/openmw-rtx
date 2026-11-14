@@ -2,26 +2,48 @@
 
 #include <algorithm>
 #include <atomic>
-#include <chrono>
+#include <cassert>
+#include <cstddef>
+#include <cstdlib>
+#include <exception>
 #include <limits>
+#include <memory>
+#include <optional>
+#include <stdexcept>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
 
 #include <BulletCollision/CollisionDispatch/btCollisionObject.h>
 
+#include <LinearMath/btTransform.h>
+#include <osg/Vec2f>
+#include <osg/Vec4i>
 #include <osg/ref_ptr>
 
+#include <apps/openmw/mwphysics/collisiontype.hpp>
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/detournavigator/agentbounds.hpp>
-#include <components/detournavigator/debug.hpp>
+#include <components/detournavigator/cellgridbounds.hpp>
+#include <components/detournavigator/debug.hpp> // IWYU pragma: keep: AgentBounds' operator<<, which a log line's template calls
 #include <components/detournavigator/heightfieldshape.hpp>
 #include <components/detournavigator/navigator.hpp>
+#include <components/detournavigator/objectid.hpp>
 #include <components/detournavigator/updateguard.hpp>
+#include <components/detournavigator/waitconditiontype.hpp>
+#include <components/esm/esmbridge.hpp>
 #include <components/esm/esmterrain.hpp>
-#include <components/esm/records.hpp>
+#include <components/esm/util.hpp>
 #include <components/esm3/loadcell.hpp>
+#include <components/esm3/loadcrea.hpp>
+#include <components/esm3/transport.hpp>
 #include <components/loadinglistener/loadinglistener.hpp>
+#include <components/misc/constants.hpp>
 #include <components/misc/convert.hpp>
 #include <components/misc/resourcehelpers.hpp>
+#include <components/resource/bulletshape.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/sceneutil/positionattitudetransform.hpp>
@@ -48,12 +70,16 @@
 #include "../mwworld/actionteleport.hpp"
 
 #include "cellpreloader.hpp"
+#include "cellreflist.hpp"
 #include "cellstore.hpp"
 #include "cellvisitors.hpp"
 #include "class.hpp"
 #include "esmstore.hpp"
 #include "localscripts.hpp"
+#include "lowestpoints.hpp"
 #include "player.hpp"
+#include "positioncellgrid.hpp"
+#include "store.hpp"
 #include "worldimp.hpp"
 
 namespace

@@ -26,7 +26,6 @@
 */
 #include "loadinfo.hpp"
 
-#include <cstring>
 #include <stdexcept>
 
 #include <components/esm/refid.hpp>

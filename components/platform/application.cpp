@@ -1,7 +1,5 @@
 #include "application.hpp"
 
-#include <string>
-
 #include <QFile>
 #include <QOperatingSystemVersion>
 #include <QStyle>

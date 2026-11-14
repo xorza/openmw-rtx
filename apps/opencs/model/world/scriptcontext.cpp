@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <sstream>
-#include <type_traits>
 
 #include <apps/opencs/model/world/columns.hpp>
 #include <apps/opencs/model/world/idcollection.hpp>

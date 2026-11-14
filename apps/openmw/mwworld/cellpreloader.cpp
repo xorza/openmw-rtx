@@ -6,14 +6,11 @@
 #include <span>
 
 #include <components/debug/debuglog.hpp>
-#include <components/esm3/loadcell.hpp>
 #include <components/loadinglistener/reporter.hpp>
 #include <components/misc/constants.hpp>
 #include <components/misc/framestats.hpp>
 #include <components/misc/pathhelpers.hpp>
 #include <components/misc/resourcehelpers.hpp>
-#include <components/misc/strings/algorithm.hpp>
-#include <components/misc/strings/lower.hpp>
 #include <components/resource/bulletshapemanager.hpp>
 #include <components/resource/keyframemanager.hpp>
 #include <components/resource/resourcesystem.hpp>

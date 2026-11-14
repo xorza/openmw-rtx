@@ -30,7 +30,6 @@
 #include <components/resource/scenemanager.hpp>
 #include <components/rtx/renderer/sceneuploader.hpp>
 #include <components/sdlutil/vsyncmode.hpp>
-#include <components/settings/categories.hpp>
 #include <components/shader/automaps.hpp>
 #include <components/testing/util.hpp>
 #include <components/vfs/manager.hpp>

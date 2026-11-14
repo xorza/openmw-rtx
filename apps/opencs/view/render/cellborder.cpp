@@ -6,8 +6,6 @@
 #include <osg/Group>
 #include <osg/PositionAttitudeTransform>
 #include <osg/PrimitiveSet>
-#include <osg/StateAttribute>
-#include <osg/StateSet>
 #include <osg/Vec3f>
 #include <osg/Vec4f>
 

@@ -1,9 +1,10 @@
-#include "cursor.hpp"
+#include <MyGUI_ImageBox.h>
+#include <MyGUI_ResourceImageSet.h>
+#include <MyGUI_StringUtility.h>
+#include <MyGUI_Version.h>
+#include <MyGUI_XmlDocument.h>
 
-#include <MyGUI_Gui.h>
-#include <MyGUI_InputManager.h>
-#include <MyGUI_PointerManager.h>
-#include <MyGUI_RotatingSkin.h>
+#include "cursor.hpp"
 
 namespace MWGui
 {

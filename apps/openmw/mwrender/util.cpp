@@ -1,14 +1,12 @@
 #include "util.hpp"
 
 #include <osg/Node>
-#include <osg/ValueObject>
 
 #include <components/misc/resourcehelpers.hpp>
 #include <components/resource/imagemanager.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/sceneutil/texturetype.hpp>
-#include <components/sceneutil/visitor.hpp>
 #include <components/settings/values.hpp>
 
 namespace MWRender

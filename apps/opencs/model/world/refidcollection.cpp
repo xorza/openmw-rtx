@@ -1,10 +1,8 @@
 #include "refidcollection.hpp"
 
-#include <algorithm>
 #include <memory>
 #include <stdexcept>
 #include <string_view>
-#include <type_traits>
 
 #include <apps/opencs/model/world/columnbase.hpp>
 #include <apps/opencs/model/world/record.hpp>
@@ -26,7 +24,7 @@
 #include <components/esm3/loadweap.hpp>
 
 #include "columns.hpp"
-#include "nestedcoladapterimp.hpp"
+#include "nestedcoladapterimp.hpp" // IWYU pragma: keep: the adapters whole, which the collection's templates instantiate
 #include "nestedtablewrapper.hpp"
 #include "refidadapter.hpp"
 #include "refidadapterimp.hpp"

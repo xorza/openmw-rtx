@@ -7,7 +7,6 @@
 #include <utility>
 #include <vector>
 
-#include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/textureformat.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtxvulkan/device/memory/formats.hpp>

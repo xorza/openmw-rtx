@@ -1,16 +1,26 @@
+#include <exception>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <memory>
+#include <stdexcept>
+#include <string>
+#include <string_view>
 #include <vector>
 
-#include <boost/program_options.hpp>
+#include <boost/program_options/parsers.hpp>
+#include <boost/program_options/positional_options.hpp>
+#include <boost/program_options/value_semantic.hpp>
+#include <boost/program_options/variables_map.hpp>
 
 #include <components/bsa/ba2dx10file.hpp>
 #include <components/bsa/ba2gnrlfile.hpp>
+#include <components/bsa/bsafile.hpp>
 #include <components/bsa/compressedbsafile.hpp>
 #include <components/files/configurationmanager.hpp>
 #include <components/files/conversion.hpp>
+#include <components/files/istreamptr.hpp>
 #include <components/misc/strings/algorithm.hpp>
 #include <components/misc/strings/conversion.hpp>
 

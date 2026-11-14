@@ -17,12 +17,10 @@
 #include <apps/opencs/model/world/columns.hpp>
 #include <apps/opencs/model/world/data.hpp>
 #include <apps/opencs/model/world/idtable.hpp>
-#include <apps/opencs/model/world/land.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
 #include <apps/opencs/view/widget/brushshapes.hpp>
 #include <apps/opencs/view/widget/scenetool.hpp>
 
-#include <components/debug/debuglog.hpp>
 #include <components/esm3/loadland.hpp>
 
 #include "../widget/scenetoolbar.hpp"

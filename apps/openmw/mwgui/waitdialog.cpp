@@ -1,6 +1,5 @@
 #include "waitdialog.hpp"
 
-#include <MyGUI_InputManager.h>
 #include <MyGUI_ProgressBar.h>
 #include <MyGUI_ScrollBar.h>
 

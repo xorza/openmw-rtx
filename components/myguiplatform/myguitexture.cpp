@@ -1,14 +1,24 @@
 #include "myguitexture.hpp"
 
+#include <cstddef>
+#include <memory>
+#include <span>
 #include <stdexcept>
+#include <string>
 
+#include <MyGUI_IRenderTarget.h>
+#include <MyGUI_ITexture.h>
 #include <osg/StateSet>
 #include <osg/Texture2D>
-#include <osgDB/ReadFile>
+#include <osg/Texture>
+#include <osg/ref_ptr>
+#include <osgDB/ReaderWriter>
+#include <osgDB/Registry>
 
 #include <components/debug/debuglog.hpp>
 #include <components/files/memorystream.hpp>
 #include <components/resource/imagemanager.hpp>
+#include <components/vfs/pathutil.hpp>
 
 #include "guirendermanager.hpp"
 

@@ -1,14 +1,12 @@
 #include "compare.hpp"
 
 #include <algorithm>
-#include <array>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <format>
 #include <optional>
-#include <ostream>
 #include <string>
 #include <string_view>
 #include <vector>

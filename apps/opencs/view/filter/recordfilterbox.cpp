@@ -1,7 +1,5 @@
 #include "recordfilterbox.hpp"
 
-#include <variant>
-
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QVariant>

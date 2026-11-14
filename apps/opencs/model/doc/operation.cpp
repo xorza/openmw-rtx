@@ -1,6 +1,5 @@
 #include "operation.hpp"
 
-#include <algorithm>
 #include <exception>
 #include <vector>
 

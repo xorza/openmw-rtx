@@ -10,9 +10,7 @@
 #include <osg/ColorMaski>
 #include <osg/GLExtensions>
 #include <osg/Geometry>
-#include <osg/Multisample>
 #include <osg/Texture>
-#include <osg/ValueObject>
 
 #include <osgParticle/ParticleSystem>
 
@@ -21,7 +19,6 @@
 #include <components/sceneutil/glextensions.hpp>
 #include <components/sceneutil/material.hpp>
 #include <components/sceneutil/util.hpp>
-#include <components/settings/settings.hpp>
 #include <components/stereo/stereomanager.hpp>
 
 #include "automaps.hpp"

@@ -2,8 +2,6 @@
 
 #include <QMenu>
 
-#include <memory>
-
 #include "../../model/prefs/shortcut.hpp"
 
 #include <apps/opencs/view/widget/modebutton.hpp>

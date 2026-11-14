@@ -1,7 +1,5 @@
 #include "spellcreationdialog.hpp"
 
-#include <format>
-
 #include <MyGUI_Button.h>
 #include <MyGUI_Gui.h>
 #include <MyGUI_ImageBox.h>

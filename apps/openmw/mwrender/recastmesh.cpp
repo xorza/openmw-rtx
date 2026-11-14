@@ -2,14 +2,15 @@
 
 #include <algorithm>
 
-#include <components/detournavigator/recastmesh.hpp>
+#include <osg/ref_ptr>
+
+#include <components/detournavigator/recastmesh.hpp> // IWYU pragma: keep: the mesh whole, which a shared pointer to it is read through
+#include <components/detournavigator/recastmeshtiles.hpp>
 #include <components/detournavigator/settings.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/sceneutil/detourdebugdraw.hpp>
 #include <components/sceneutil/recastmesh.hpp>
-
-#include <osg/PositionAttitudeTransform>
 
 #include "vismask.hpp"
 

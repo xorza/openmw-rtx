@@ -11,11 +11,9 @@
 #include <apps/openmw/mwworld/ptr.hpp>
 #include <apps/openmw/mwworld/timestamp.hpp>
 #include <components/sceneutil/lightmanager.hpp>
-#include <components/sceneutil/positionattitudetransform.hpp>
 #include <components/settings/values.hpp>
 
 #include "fogmanager.hpp"
-#include "sky.hpp"
 
 namespace MWRender
 {

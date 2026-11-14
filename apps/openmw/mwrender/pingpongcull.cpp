@@ -1,9 +1,6 @@
 #include "pingpongcull.hpp"
 
 #include <osg/Camera>
-#include <osg/FrameBufferObject>
-#include <osg/Texture2DArray>
-#include <osg/Texture>
 #include <osgUtil/CullVisitor>
 
 #include <components/stereo/multiview.hpp>

@@ -41,8 +41,6 @@
 #include <components/resource/bulletshape.hpp>
 #include <components/resource/resourcesystem.hpp>
 
-#include <components/sceneutil/lightmanager.hpp>
-#include <components/sceneutil/positionattitudetransform.hpp>
 #include <components/sceneutil/workqueue.hpp>
 
 #include <components/detournavigator/agentbounds.hpp>
@@ -55,6 +53,7 @@
 #include <components/files/conversion.hpp>
 #include <components/loadinglistener/loadinglistener.hpp>
 
+#include <components/sceneutil/positionattitudetransform.hpp> // IWYU pragma: keep: the transform whole, which the ref_ptr releasing it needs
 #include <components/settings/values.hpp>
 
 #include "../mwbase/environment.hpp"
@@ -91,8 +90,6 @@
 #include "../mwphysics/collisiontype.hpp"
 #include "../mwphysics/object.hpp"
 #include "../mwphysics/physicssystem.hpp"
-
-#include "../mwsound/constants.hpp"
 
 #include "actionteleport.hpp"
 #include "cellstore.hpp"

@@ -5,8 +5,6 @@
 #include <format>
 #include <string_view>
 
-#include <MyGUI_ITexture.h>
-
 #include <components/debug/debuglog.hpp>
 #include <components/fallback/fallback.hpp>
 #include <components/misc/resourcehelpers.hpp>

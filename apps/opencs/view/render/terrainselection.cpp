@@ -6,7 +6,6 @@
 #include <osg/GL>
 #include <osg/Geometry>
 #include <osg/Group>
-#include <osg/PositionAttitudeTransform>
 #include <osg/PrimitiveSet>
 #include <osg/StateAttribute>
 #include <osg/StateSet>

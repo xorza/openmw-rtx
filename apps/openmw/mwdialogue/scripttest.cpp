@@ -21,7 +21,6 @@
 #include "filter.hpp"
 
 #include <memory>
-#include <set>
 #include <sstream>
 
 namespace

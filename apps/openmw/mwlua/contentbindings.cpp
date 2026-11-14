@@ -29,7 +29,6 @@
 #include "racebindings.hpp"
 #include "soundbindings.hpp"
 #include "stats.hpp"
-#include "types/modelproperty.hpp"
 #include "types/types.hpp"
 #include "weatherbindings.hpp"
 

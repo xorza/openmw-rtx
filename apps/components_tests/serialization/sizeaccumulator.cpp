@@ -7,7 +7,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <variant>
-#include <vector>
 
 namespace
 {

@@ -1,14 +1,22 @@
 #include "soundmanagerimp.hpp"
 
 #include <algorithm>
+#include <cstddef>
+#include <exception>
 #include <map>
-#include <numeric>
+#include <memory>
 #include <set>
 #include <sstream>
+#include <string>
 #include <unordered_map>
+#include <utility>
+#include <vector>
 
 #include <osg/Matrixf>
 
+#include <apps/openmw/mwbase/soundmanager.hpp>
+#include <apps/openmw/mwgui/mode.hpp>
+#include <apps/openmw/mwworld/ptr.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/loadcrea.hpp>
 #include <components/esm3/loaddial.hpp>
@@ -16,13 +24,14 @@
 #include <components/esm3/loadregn.hpp>
 #include <components/esm3/loadsndg.hpp>
 #include <components/esm3/loadsoun.hpp>
+#include <components/fallback/fallback.hpp>
 #include <components/misc/resourcehelpers.hpp>
-#include <components/misc/rng.hpp>
 #include <components/sceneutil/textkeymap.hpp>
+#include <components/settings/categories.hpp>
 #include <components/settings/values.hpp>
 #include <components/vfs/manager.hpp>
 #include <components/vfs/pathutil.hpp>
-#include <components/vfs/recursivedirectoryiterator.hpp>
+#include <components/vfs/recursivedirectoryiterator.hpp> // IWYU pragma: keep: the range whole, which a call returns by value
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/statemanager.hpp"
@@ -45,7 +54,9 @@
 #include "soundbuffer.hpp"
 #include "sounddecoder.hpp"
 #include "soundoutput.hpp"
+#include "type.hpp"
 #include "warmqueue.hpp"
+#include "watersoundupdater.hpp"
 
 namespace MWSound
 {

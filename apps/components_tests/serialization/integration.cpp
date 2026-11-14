@@ -4,7 +4,6 @@
 #include <components/serialization/binarywriter.hpp>
 #include <components/serialization/sizeaccumulator.hpp>
 
-#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 #include <vector>

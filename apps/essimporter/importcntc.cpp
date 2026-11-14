@@ -1,7 +1,6 @@
 #include "importcntc.hpp"
 
 #include <components/esm3/esmreader.hpp>
-#include <cstdint>
 
 namespace ESSImport
 {

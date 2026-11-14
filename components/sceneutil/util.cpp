@@ -8,8 +8,6 @@
 #include <osg/FrameBufferObject>
 #include <osg/Node>
 #include <osg/NodeVisitor>
-#include <osgUtil/CullVisitor>
-#include <osgUtil/RenderStage>
 #include <osgViewer/Renderer>
 
 #include <components/resource/imagemanager.hpp>

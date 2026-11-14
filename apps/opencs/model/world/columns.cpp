@@ -1,6 +1,5 @@
 #include "columns.hpp"
 
-#include <algorithm>
 #include <string_view>
 
 #include <components/fallback/fallback.hpp>

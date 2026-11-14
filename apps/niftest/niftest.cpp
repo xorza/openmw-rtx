@@ -6,21 +6,26 @@
 #include <memory>
 #include <string>
 #include <utility>
-#include <vector>
+
+#include <boost/program_options/parsers.hpp>
+#include <boost/program_options/positional_options.hpp>
+#include <boost/program_options/value_semantic.hpp>
+#include <boost/program_options/variables_map.hpp>
 
 #include <components/bgsm/file.hpp>
+#include <components/files/collections.hpp>
 #include <components/files/configurationmanager.hpp>
 #include <components/files/constrainedfilestream.hpp>
 #include <components/files/conversion.hpp>
-#include <components/misc/strings/algorithm.hpp>
+#include <components/files/multidircollection.hpp>
+#include <components/misc/strings/lower.hpp>
 #include <components/nif/niffile.hpp>
 #include <components/vfs/archive.hpp>
 #include <components/vfs/bsaarchive.hpp>
 #include <components/vfs/filesystemarchive.hpp>
 #include <components/vfs/manager.hpp>
-#include <components/vfs/recursivedirectoryiterator.hpp>
-
-#include <boost/program_options.hpp>
+#include <components/vfs/pathutil.hpp>
+#include <components/vfs/recursivedirectoryiterator.hpp> // IWYU pragma: keep: the range whole, which a call returns by value
 
 // Create local aliases for brevity
 namespace bpo = boost::program_options;

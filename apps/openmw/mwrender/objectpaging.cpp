@@ -32,7 +32,6 @@
 #include <components/esm4/loadfurn.hpp>
 #include <components/esm4/loadstat.hpp>
 #include <components/esm4/loadtree.hpp>
-#include <components/misc/pathhelpers.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/misc/rng.hpp>
 #include <components/nifosg/autotransform.hpp>

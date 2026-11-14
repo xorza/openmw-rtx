@@ -18,8 +18,6 @@
 #include "../mwbase/windowmanager.hpp"
 #include "../mwbase/world.hpp"
 
-#include "../mwgui/settingswindow.hpp"
-
 #include "../mwrender/renderer.hpp"
 
 #include "../mwworld/player.hpp"

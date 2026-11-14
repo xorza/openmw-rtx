@@ -17,7 +17,6 @@
 #include <osg/Geometry>
 #include <osg/Matrix>
 #include <osg/Matrixf>
-#include <osg/PrimitiveSet>
 
 #include <components/crashcatcher/crash.hpp>
 #include <components/crashcatcher/crashnote.hpp>

@@ -1,7 +1,6 @@
 #include "enumdelegate.hpp"
 
 #include <cassert>
-#include <memory>
 
 #include <QApplication>
 #include <QComboBox>

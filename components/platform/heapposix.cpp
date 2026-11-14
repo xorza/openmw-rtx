@@ -1,7 +1,5 @@
 #include "heap.hpp"
 
-#include <cstdlib>
-
 // glibc alone keeps freed arena memory until it is trimmed; another libc has no such call.
 #if defined(__GLIBC__)
 #include <malloc.h>

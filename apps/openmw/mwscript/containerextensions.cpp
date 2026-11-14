@@ -1,6 +1,9 @@
 #include "containerextensions.hpp"
 
+#include <cstdint>
+#include <memory>
 #include <stdexcept>
+#include <string>
 
 #include <MyGUI_LanguageManager.h>
 
@@ -16,6 +19,8 @@
 #include <components/esm3/loadcrea.hpp>
 #include <components/esm3/loadlevlist.hpp>
 #include <components/esm3/loadskil.hpp>
+#include <components/interpreter/context.hpp>
+#include <components/interpreter/types.hpp>
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/windowmanager.hpp"
@@ -31,7 +36,6 @@
 #include "../mwmechanics/actorutil.hpp"
 #include "../mwmechanics/levelledlist.hpp"
 
-#include "interpretercontext.hpp"
 #include "ref.hpp"
 
 namespace

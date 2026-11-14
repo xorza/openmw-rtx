@@ -1,8 +1,5 @@
 #include "scriptsettings.hpp"
 
-#include <map>
-#include <sol/sol.hpp>
-
 #include "adapter.hpp"
 #include "element.hpp"
 #include "registerscriptsettings.hpp"

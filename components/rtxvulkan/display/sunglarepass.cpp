@@ -1,7 +1,6 @@
 #include "sunglarepass.hpp"
 
 #include <array>
-#include <cstddef>
 #include <span>
 
 #include <components/rtx/renderer/framezone.hpp>

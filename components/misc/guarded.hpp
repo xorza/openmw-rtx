@@ -5,6 +5,8 @@
 #include <mutex>
 #include <type_traits>
 
+#include <components/detournavigator/navmeshcacheitem.hpp>
+
 namespace Misc
 {
     template <class T>

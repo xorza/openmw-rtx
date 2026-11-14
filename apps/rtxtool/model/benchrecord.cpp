@@ -17,7 +17,6 @@
 #include <apps/openmw/mwrender/rtx/mirrorknobs.hpp>
 #include <apps/rtxtool/instruments/jsontext.hpp>
 #include <apps/rtxtool/instruments/reportfile.hpp>
-#include <components/files/conversion.hpp>
 #include <components/rtx/common/mebibytes.hpp>
 #include <components/rtx/mirror/cells/readermemory.hpp>
 #include <components/rtx/mirror/contentmemory.hpp>

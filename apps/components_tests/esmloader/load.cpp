@@ -1,10 +1,10 @@
-#include <components/esm3/loadacti.hpp>
-#include <components/esm3/loadcell.hpp>
-#include <components/esm3/loadcont.hpp>
-#include <components/esm3/loaddoor.hpp>
-#include <components/esm3/loadgmst.hpp>
-#include <components/esm3/loadland.hpp>
-#include <components/esm3/loadstat.hpp>
+#include <components/esm3/loadacti.hpp> // IWYU pragma: keep: the record whole, which the stores' templates instantiate
+#include <components/esm3/loadcell.hpp> // IWYU pragma: keep: the record whole, which the stores' templates instantiate
+#include <components/esm3/loadcont.hpp> // IWYU pragma: keep: the record whole, which the stores' templates instantiate
+#include <components/esm3/loaddoor.hpp> // IWYU pragma: keep: the record whole, which the stores' templates instantiate
+#include <components/esm3/loadgmst.hpp> // IWYU pragma: keep: the record whole, which the stores' templates instantiate
+#include <components/esm3/loadland.hpp> // IWYU pragma: keep: the record whole, which the stores' templates instantiate
+#include <components/esm3/loadstat.hpp> // IWYU pragma: keep: the record whole, which the stores' templates instantiate
 #include <components/esm3/readerscache.hpp>
 #include <components/esmloader/esmdata.hpp>
 #include <components/esmloader/load.hpp>

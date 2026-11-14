@@ -2,8 +2,6 @@
 
 #include <cassert>
 
-#include <osgUtil/CullVisitor>
-
 #include "defs.hpp"
 #include "viewdata.hpp"
 

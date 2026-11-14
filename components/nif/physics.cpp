@@ -1,9 +1,17 @@
 #include "physics.hpp"
 
-#include "data.hpp"
-#include "node.hpp"
-
 #include <array>
+#include <cstddef>
+#include <cstdint>
+#include <vector>
+
+#include <osg/Vec4f>
+
+#include "base.hpp"
+#include "data.hpp" // IWYU pragma: keep: the records whole, which the record pointers' templates read
+#include "exception.hpp"
+#include "niffile.hpp"
+#include "recordptr.hpp"
 
 namespace Nif
 {

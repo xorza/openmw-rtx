@@ -22,7 +22,6 @@
 #include <components/misc/pathhelpers.hpp>
 #include <components/misc/strings/algorithm.hpp>
 #include <components/misc/strings/conversion.hpp>
-#include <components/settings/settings.hpp>
 
 namespace
 {

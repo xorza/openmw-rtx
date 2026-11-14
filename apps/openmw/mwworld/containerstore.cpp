@@ -8,9 +8,7 @@
 #include <components/esm3/inventorystate.hpp>
 #include <components/esm3/loadench.hpp>
 #include <components/esm3/loadlevlist.hpp>
-#include <components/misc/strings/algorithm.hpp>
-#include <components/misc/strings/lower.hpp>
-#include <components/sceneutil/positionattitudetransform.hpp>
+#include <components/sceneutil/positionattitudetransform.hpp> // IWYU pragma: keep: the transform whole, which the ref_ptr releasing it needs
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/windowmanager.hpp"

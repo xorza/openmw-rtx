@@ -3,9 +3,7 @@
 #include "depth.hpp"
 #include "util.hpp"
 
-#include <osg/BlendFunc>
 #include <osg/Group>
-#include <osg/LineWidth>
 #include <osg/PolygonOffset>
 
 #include <algorithm>

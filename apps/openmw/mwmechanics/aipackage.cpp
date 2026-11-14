@@ -21,7 +21,6 @@
 #include "../mwphysics/raycasting.hpp"
 
 #include "actorutil.hpp"
-#include "creaturestats.hpp"
 #include "movement.hpp"
 #include "pathgrid.hpp"
 #include "steering.hpp"

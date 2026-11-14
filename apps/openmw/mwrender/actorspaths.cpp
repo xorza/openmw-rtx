@@ -9,7 +9,6 @@
 #include <components/sceneutil/detourdebugdraw.hpp>
 
 #include <osg/LineWidth>
-#include <osg/PositionAttitudeTransform>
 #include <osg/StateSet>
 
 #include <components/sceneutil/material.hpp>

@@ -3,7 +3,6 @@
 #include <QAbstractItemModel>
 #include <QCompleter>
 
-#include <algorithm>
 #include <stdexcept>
 #include <utility>
 

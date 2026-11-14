@@ -1,6 +1,5 @@
 #include "apps/opencs/model/world/universalid.hpp"
 
-#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 #include <array>

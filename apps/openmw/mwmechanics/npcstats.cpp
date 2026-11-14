@@ -10,8 +10,6 @@
 #include <components/esm3/npcstats.hpp>
 #include <utility>
 
-#include <MyGUI_TextIterator.h>
-
 #include "../mwworld/esmstore.hpp"
 
 #include "../mwbase/environment.hpp"

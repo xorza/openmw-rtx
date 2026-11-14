@@ -23,7 +23,6 @@
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/shaders/colour.h>
 #include <components/rtx/shaders/gbuffer.h>
-#include <components/rtx/shaders/look.h>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/sky.h>
 #include <components/rtx/shaders/visibility.h>

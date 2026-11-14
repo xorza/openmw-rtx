@@ -8,7 +8,6 @@
 #include <gtest/gtest.h>
 
 #include <apps/components_tests/rtx/support/bound.hpp>
-#include <components/platform/thread.hpp>
 #include <components/rtx/common/job.hpp>
 #include <components/rtx/common/jobprogress.hpp>
 
