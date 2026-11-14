@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_BULLETHELPERS_OPERATORS_H
-#define OPENMW_COMPONENTS_BULLETHELPERS_OPERATORS_H
+#pragma once
 
 #include <tuple>
 
@@ -20,5 +19,3 @@ inline bool operator<(const btTransform& lhs, const btTransform& rhs)
 {
     return std::tie(lhs.getBasis(), lhs.getOrigin()) < std::tie(rhs.getBasis(), rhs.getOrigin());
 }
-
-#endif

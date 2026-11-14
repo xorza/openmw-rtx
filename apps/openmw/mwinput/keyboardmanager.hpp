@@ -1,5 +1,4 @@
-#ifndef MWINPUT_MWKEYBOARDMANAGER_H
-#define MWINPUT_MWKEYBOARDMANAGER_H
+#pragma once
 
 #include <components/sdlutil/events.hpp>
 
@@ -25,4 +24,3 @@ namespace MWInput
         SDL_Window* mWindow;
     };
 }
-#endif

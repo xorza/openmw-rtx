@@ -1,5 +1,4 @@
-#ifndef GAME_MWMECHANICS_AIPURSUE_H
-#define GAME_MWMECHANICS_AIPURSUE_H
+#pragma once
 
 #include "typedaipackage.hpp"
 
@@ -42,4 +41,3 @@ namespace MWMechanics
         void writeState(ESM::AiSequence::AiSequence& sequence) const override;
     };
 }
-#endif

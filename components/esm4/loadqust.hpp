@@ -24,8 +24,7 @@
   trial & error.  See http://en.uesp.net/wiki for details.
 
 */
-#ifndef ESM4_QUST_H
-#define ESM4_QUST_H
+#pragma once
 
 #include <cstdint>
 #include <string>
@@ -81,5 +80,3 @@ namespace ESM4
         static constexpr ESM::RecNameInts sRecordId = ESM::RecNameInts::REC_QUST4;
     };
 }
-
-#endif // ESM4_QUST_H

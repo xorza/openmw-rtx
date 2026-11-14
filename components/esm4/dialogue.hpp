@@ -24,8 +24,7 @@
   trial & error.  See http://en.uesp.net/wiki for details.
 
 */
-#ifndef ESM4_DIALOGUE_H
-#define ESM4_DIALOGUE_H
+#pragma once
 
 namespace ESM4
 {
@@ -42,5 +41,3 @@ namespace ESM4
         DTYP_Radio = 7
     };
 }
-
-#endif // ESM4_DIALOGUE_H

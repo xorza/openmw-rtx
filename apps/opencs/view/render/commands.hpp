@@ -1,5 +1,4 @@
-#ifndef CSV_RENDER_COMMANDS_HPP
-#define CSV_RENDER_COMMANDS_HPP
+#pragma once
 
 #include <QPointer>
 #include <QUndoCommand>
@@ -35,5 +34,3 @@ namespace CSVRender
         void tryUpdate();
     };
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_SKIL_H
-#define OPENMW_ESM_SKIL_H
+#pragma once
 
 #include <array>
 #include <optional>
@@ -132,4 +131,3 @@ namespace ESM
         static int refIdToIndex(RefId id);
     };
 }
-#endif

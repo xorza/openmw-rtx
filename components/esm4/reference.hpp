@@ -24,8 +24,7 @@
   trial & error.  See http://en.uesp.net/wiki for details.
 
 */
-#ifndef ESM4_REFERENCE_H
-#define ESM4_REFERENCE_H
+#pragma once
 
 #include <cstdint>
 #include <string>
@@ -55,5 +54,3 @@ namespace ESM4
         float scale;
     };
 }
-
-#endif // ESM4_REFERENCE_H

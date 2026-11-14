@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_ESM4_TYPETRAITS
-#define OPENMW_COMPONENTS_ESM4_TYPETRAITS
+#pragma once
 
 namespace ESM4
 {
@@ -51,5 +50,3 @@ namespace ESM4
     template <class T>
     concept HasData = requires { T::mData; };
 }
-
-#endif // OPENMW_COMPONENTS_ESM4_TYPETRAITS

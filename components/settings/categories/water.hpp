@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SETTINGS_CATEGORIES_WATER_H
-#define OPENMW_COMPONENTS_SETTINGS_CATEGORIES_WATER_H
+#pragma once
 
 #include <components/settings/sanitizerimpl.hpp>
 #include <components/settings/settingvalue.hpp>
@@ -29,5 +28,3 @@ namespace Settings
         SettingValue<bool> mWobblyShores{ mIndex, "Water", "wobbly shores" };
     };
 }
-
-#endif

@@ -24,8 +24,7 @@
   trial & error.  See http://en.uesp.net/wiki for details.
 
 */
-#ifndef OPENMW_COMPONENTS_ESM4_CELLGRID_H
-#define OPENMW_COMPONENTS_ESM4_CELLGRID_H
+#pragma once
 
 #include <variant>
 
@@ -41,5 +40,3 @@ namespace ESM4
     // TES5 and FO4 navmesh location: exteriors have worldspace and grid, interiors have null worldspace and a cell
     void readPathingCell(Reader& reader, ESM::FormId& worldSpaceId, CellGrid& cellGrid);
 }
-
-#endif // OPENMW_COMPONENTS_ESM4_CELLGRID_H

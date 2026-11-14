@@ -1,5 +1,4 @@
-#ifndef MWLUA_CONTENTBINDINGS_H
-#define MWLUA_CONTENTBINDINGS_H
+#pragma once
 
 #include <sol/forward.hpp>
 
@@ -23,5 +22,3 @@ namespace MWLua
 
     sol::table initContentPackage(const Context& context);
 }
-
-#endif // MWLUA_CONTENTBINDINGS_H

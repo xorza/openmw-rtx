@@ -1,5 +1,4 @@
-#ifndef OPENCS_VIEW_TAGBASE_H
-#define OPENCS_VIEW_TAGBASE_H
+#pragma once
 
 #include <osg/Referenced>
 
@@ -26,5 +25,3 @@ namespace CSVRender
         virtual QString getToolTip(bool hideBasics, const WorldspaceHitResult& hit) const { return {}; }
     };
 }
-
-#endif

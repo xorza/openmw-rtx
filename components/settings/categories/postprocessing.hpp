@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SETTINGS_CATEGORIES_POSTPROCESSING_H
-#define OPENMW_COMPONENTS_SETTINGS_CATEGORIES_POSTPROCESSING_H
+#pragma once
 
 #include <components/settings/sanitizerimpl.hpp>
 #include <components/settings/settingvalue.hpp>
@@ -25,5 +24,3 @@ namespace Settings
         SettingValue<bool> mTransparentPostpass{ mIndex, "Post Processing", "transparent postpass" };
     };
 }
-
-#endif

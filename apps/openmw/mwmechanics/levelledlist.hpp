@@ -1,5 +1,4 @@
-#ifndef OPENMW_MECHANICS_LEVELLEDLIST_H
-#define OPENMW_MECHANICS_LEVELLEDLIST_H
+#pragma once
 
 #include <components/misc/rng.hpp>
 
@@ -19,5 +18,3 @@ namespace MWMechanics
         const ESM::LevelledListBase* levItem, bool creature, Misc::Rng::Generator& prng, std::optional<int> level = {});
 
 }
-
-#endif

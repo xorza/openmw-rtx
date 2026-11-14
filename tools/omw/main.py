@@ -89,7 +89,8 @@ omw [flavour] <verb> [args]: one grammar for every build, on the desk and in CI,
   merge-file %O %A %B %L %P    git's merge driver for C++, which upstream.yml sets: the three sides
                                formatted, then merged; no flavour
   lint [check...]              the checks CI's checks job runs besides the formatting, every one or
-                               those named: names, translations, driver, workflows; no flavour
+                               those named: names, pragmas, translations, driver, workflows; no
+                               flavour
   translations [--purge]       the Qt programs' .ts files regenerated from their sources, as the lint
                                checks them; --purge drops the strings no source has; no flavour
   bootstrap [--cached-tools]   the pinned dependency set, Windows' Vulkan loader and CMake into out/deps/;

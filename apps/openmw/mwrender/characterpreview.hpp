@@ -1,5 +1,4 @@
-#ifndef MWRENDER_CHARACTERPREVIEW_H
-#define MWRENDER_CHARACTERPREVIEW_H
+#pragma once
 
 #include <memory>
 #include <osg/ref_ptr>
@@ -127,5 +126,3 @@ namespace MWRender
     };
 
 }
-
-#endif

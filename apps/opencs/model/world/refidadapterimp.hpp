@@ -1,5 +1,4 @@
-#ifndef CSM_WOLRD_REFIDADAPTERIMP_H
-#define CSM_WOLRD_REFIDADAPTERIMP_H
+#pragma once
 
 #include <algorithm>
 #include <map>
@@ -2463,5 +2462,3 @@ namespace CSMWorld
         }
     };
 }
-
-#endif

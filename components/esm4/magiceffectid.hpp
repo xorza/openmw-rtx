@@ -24,8 +24,7 @@
   trial & error.  See http://en.uesp.net/wiki for details.
 
 */
-#ifndef OPENMW_COMPONENTS_ESM4_MAGICEFFECTID_H
-#define OPENMW_COMPONENTS_ESM4_MAGICEFFECTID_H
+#pragma once
 
 #include "components/esm/fourcc.hpp"
 
@@ -175,5 +174,3 @@ namespace ESM4
         EFI_RSWD = fourCC("RSWD") // Resist Water Damage
     };
 }
-
-#endif // OPENMW_COMPONENTS_ESM4_MAGICEFFECTID_H

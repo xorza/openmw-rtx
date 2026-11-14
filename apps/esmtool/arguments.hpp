@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESMTOOL_ARGUMENTS_H
-#define OPENMW_ESMTOOL_ARGUMENTS_H
+#pragma once
 
 #include <filesystem>
 #include <optional>
@@ -28,5 +27,3 @@ namespace EsmTool
         ESM::GameFormat gameFormat = ESM::GameFormat::Unknown;
     };
 }
-
-#endif

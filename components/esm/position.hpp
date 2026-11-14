@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM3_POSITION_H
-#define OPENMW_ESM3_POSITION_H
+#pragma once
 
 #include <components/misc/concepts.hpp>
 #include <osg/Vec3f>
@@ -44,4 +43,3 @@ namespace ESM
         f(v.pos, v.rot);
     }
 }
-#endif

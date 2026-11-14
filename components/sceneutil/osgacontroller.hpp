@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SCENEUTIL_OSGACONTROLLER_HPP
-#define OPENMW_COMPONENTS_SCENEUTIL_OSGACONTROLLER_HPP
+#pragma once
 
 #include <osg/Node>
 #include <osg/NodeVisitor>
@@ -85,5 +84,3 @@ namespace SceneUtil
 #pragma warning(pop)
 #endif
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWDIALOGUE_SCRIPTTEST_H
-#define OPENMW_MWDIALOGUE_SCRIPTTEST_H
+#pragma once
 
 #include <components/compiler/extensions.hpp>
 
@@ -16,5 +15,3 @@ namespace MWDialogue
     }
 
 }
-
-#endif

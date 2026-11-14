@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWWORLD_ESMSTORE_H
-#define OPENMW_MWWORLD_ESMSTORE_H
+#pragma once
 
 #include <filesystem>
 #include <memory>
@@ -325,5 +324,3 @@ namespace MWWorld
     template <class T>
     concept HasRecordId = requires { T::sRecordId; };
 }
-
-#endif

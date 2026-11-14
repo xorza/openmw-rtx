@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_NIFBULLET_BULLETNIFLOADER_HPP
-#define OPENMW_COMPONENTS_NIFBULLET_BULLETNIFLOADER_HPP
+#pragma once
 
 #include <cassert>
 #include <map>
@@ -70,5 +69,3 @@ namespace NifBullet
     };
 
 }
-
-#endif

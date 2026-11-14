@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESSIMPORT_IMPORTINVENTORY_H
-#define OPENMW_ESSIMPORT_IMPORTINVENTORY_H
+#pragma once
 
 #include <cstdint>
 #include <string>
@@ -39,5 +38,3 @@ namespace ESSImport
     };
 
 }
-
-#endif

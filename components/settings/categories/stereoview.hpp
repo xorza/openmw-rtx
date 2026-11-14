@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SETTINGS_CATEGORIES_STEREOVIEW_H
-#define OPENMW_COMPONENTS_SETTINGS_CATEGORIES_STEREOVIEW_H
+#pragma once
 
 #include <components/settings/sanitizerimpl.hpp>
 #include <components/settings/settingvalue.hpp>
@@ -60,5 +59,3 @@ namespace Settings
             makeClampSanitizerFloat(-osg::PIf, osg::PIf) };
     };
 }
-
-#endif

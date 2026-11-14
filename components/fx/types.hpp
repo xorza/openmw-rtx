@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_FX_TYPES_HPP
-#define OPENMW_COMPONENTS_FX_TYPES_HPP
+#pragma once
 
 #include <format>
 #include <optional>
@@ -302,5 +301,3 @@ namespace Fx
         };
     }
 }
-
-#endif

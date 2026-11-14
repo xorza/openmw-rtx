@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SETTINGS_GYROSCOPEAXIS_H
-#define OPENMW_COMPONENTS_SETTINGS_GYROSCOPEAXIS_H
+#pragma once
 
 namespace Settings
 {
@@ -13,5 +12,3 @@ namespace Settings
         MinusZ,
     };
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_RESOURCE_FILESYSTEMARCHIVE_H
-#define OPENMW_COMPONENTS_RESOURCE_FILESYSTEMARCHIVE_H
+#pragma once
 
 #include "archive.hpp"
 #include "file.hpp"
@@ -42,5 +41,3 @@ namespace VFS
     };
 
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef CSM_PREFS_DOUBLESETTING_H
-#define CSM_PREFS_DOUBLESETTING_H
+#pragma once
 
 #include "setting.hpp"
 
@@ -44,5 +43,3 @@ namespace CSMPrefs
         void valueChanged(double value);
     };
 }
-
-#endif

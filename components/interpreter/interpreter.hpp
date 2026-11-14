@@ -1,5 +1,4 @@
-#ifndef INTERPRETER_INTERPRETER_H_INCLUDED
-#define INTERPRETER_INTERPRETER_H_INCLUDED
+#pragma once
 
 #include <map>
 #include <memory>
@@ -73,5 +72,3 @@ namespace Interpreter
         void run(const Program& program, Context& context);
     };
 }
-
-#endif

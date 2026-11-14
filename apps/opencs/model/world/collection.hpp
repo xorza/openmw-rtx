@@ -1,5 +1,4 @@
-#ifndef CSM_WOLRD_COLLECTION_H
-#define CSM_WOLRD_COLLECTION_H
+#pragma once
 
 #include <algorithm>
 #include <cctype>
@@ -578,5 +577,3 @@ namespace CSMWorld
         return false;
     }
 }
-
-#endif

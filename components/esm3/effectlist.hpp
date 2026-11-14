@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_EFFECTLIST_H
-#define OPENMW_ESM_EFFECTLIST_H
+#pragma once
 
 #include <cstdint>
 #include <vector>
@@ -53,5 +52,3 @@ namespace ESM
     };
 
 }
-
-#endif

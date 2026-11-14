@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_FX_LEXER_HPP
-#define OPENMW_COMPONENTS_FX_LEXER_HPP
+#pragma once
 
 #include <cstddef>
 #include <optional>
@@ -72,5 +71,3 @@ namespace Fx
         };
     }
 }
-
-#endif

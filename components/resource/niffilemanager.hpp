@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_RESOURCE_NIFFILEMANAGER_H
-#define OPENMW_COMPONENTS_RESOURCE_NIFFILEMANAGER_H
+#pragma once
 
 #include <components/nif/niffile.hpp>
 
@@ -32,5 +31,3 @@ namespace Resource
     };
 
 }
-
-#endif

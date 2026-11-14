@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWGUI_VIDEOWIDGET_H
-#define OPENMW_MWGUI_VIDEOWIDGET_H
+#pragma once
 
 #include <memory>
 
@@ -66,5 +65,3 @@ namespace MWGui
     };
 
 }
-
-#endif

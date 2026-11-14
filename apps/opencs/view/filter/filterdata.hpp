@@ -1,5 +1,4 @@
-#ifndef CSV_FILTER_FILTERDATA_H
-#define CSV_FILTER_FILTERDATA_H
+#pragma once
 
 #include <string>
 #include <variant>
@@ -15,5 +14,3 @@ namespace CSVFilter
         std::vector<std::string> columns;
     };
 }
-
-#endif

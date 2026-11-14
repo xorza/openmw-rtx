@@ -1,5 +1,4 @@
-#ifndef CSV_DOC_LOADER_H
-#define CSV_DOC_LOADER_H
+#pragma once
 
 #include <map>
 #include <string>
@@ -96,5 +95,3 @@ namespace CSVDoc
         void loadMessage(CSMDoc::Document* document, const std::string& message);
     };
 }
-
-#endif

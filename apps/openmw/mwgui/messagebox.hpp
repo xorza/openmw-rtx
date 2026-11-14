@@ -1,5 +1,4 @@
-#ifndef MWGUI_MESSAGE_BOX_H
-#define MWGUI_MESSAGE_BOX_H
+#pragma once
 
 #include <memory>
 
@@ -120,5 +119,3 @@ namespace MWGui
     };
 
 }
-
-#endif

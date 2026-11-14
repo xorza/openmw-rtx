@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_FILES_STREAMWITHBUFFER_H
-#define OPENMW_COMPONENTS_FILES_STREAMWITHBUFFER_H
+#pragma once
 
 #include <istream>
 #include <memory>
@@ -20,5 +19,3 @@ namespace Files
         std::unique_ptr<Buffer> mBuffer;
     };
 }
-
-#endif

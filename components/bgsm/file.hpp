@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_BGSM_FILE_HPP
-#define OPENMW_COMPONENTS_BGSM_FILE_HPP
+#pragma once
 
 #include <cstdint>
 #include <memory>
@@ -174,4 +173,3 @@ namespace Bgsm
     using MaterialFilePtr = std::shared_ptr<const Bgsm::MaterialFile>;
     MaterialFilePtr parse(Files::IStreamPtr&& stream);
 }
-#endif

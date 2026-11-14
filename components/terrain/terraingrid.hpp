@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_TERRAIN_TERRAINGRID_H
-#define COMPONENTS_TERRAIN_TERRAINGRID_H
+#pragma once
 
 #include <map>
 
@@ -55,5 +54,3 @@ namespace Terrain
         CellBorder::CellGrid mGrid;
     };
 }
-
-#endif

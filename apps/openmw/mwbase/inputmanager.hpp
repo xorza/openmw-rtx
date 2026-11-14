@@ -1,5 +1,4 @@
-#ifndef GAME_MWBASE_INPUTMANAGER_H
-#define GAME_MWBASE_INPUTMANAGER_H
+#pragma once
 
 #include <set>
 #include <string>
@@ -113,5 +112,3 @@ namespace MWBase
         virtual void saveBindings() = 0;
     };
 }
-
-#endif

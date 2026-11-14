@@ -1,5 +1,4 @@
-#ifndef COMPILER_SCRIPTPARSER_H_INCLUDED
-#define COMPILER_SCRIPTPARSER_H_INCLUDED
+#pragma once
 
 #include "controlparser.hpp"
 #include "lineparser.hpp"
@@ -44,5 +43,3 @@ namespace Compiler
         ///< Reset parser to clean state.
     };
 }
-
-#endif

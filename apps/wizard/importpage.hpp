@@ -1,5 +1,4 @@
-#ifndef IMPORTPAGE_HPP
-#define IMPORTPAGE_HPP
+#pragma once
 
 #include "ui_importpage.h"
 
@@ -20,5 +19,3 @@ namespace Wizard
     };
 
 }
-
-#endif // IMPORTPAGE_HPP

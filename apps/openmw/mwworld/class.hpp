@@ -1,5 +1,4 @@
-#ifndef GAME_MWWORLD_CLASS_H
-#define GAME_MWWORLD_CLASS_H
+#pragma once
 
 #include <map>
 #include <memory>
@@ -392,5 +391,3 @@ namespace MWWorld
         virtual void modifyBaseInventory(const ESM::RefId& actorId, const ESM::RefId& itemId, int amount) const;
     };
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_FILES_WINEUTILS_HPP
-#define COMPONENTS_FILES_WINEUTILS_HPP
+#pragma once
 
 #include <algorithm>
 #include <filesystem>
@@ -98,5 +97,3 @@ namespace Files::Wine
         return paths;
     }
 }
-
-#endif /* COMPONENTS_FILES_WINEUTILS_HPP */

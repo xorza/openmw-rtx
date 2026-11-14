@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_CELLREF_H
-#define OPENMW_ESM_CELLREF_H
+#pragma once
 
 #include <cstdint>
 #include <string>
@@ -108,5 +107,3 @@ namespace ESM
 
     CellRef makeBlankCellRef();
 }
-
-#endif

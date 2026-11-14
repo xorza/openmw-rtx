@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_REMOVEDALPHAFUNC_H
-#define OPENMW_COMPONENTS_REMOVEDALPHAFUNC_H
+#pragma once
 
 #include <array>
 
@@ -40,4 +39,3 @@ namespace Shader
         static std::array<osg::ref_ptr<RemovedAlphaFunc>, GL_ALWAYS - GL_NEVER + 1> sInstances;
     };
 }
-#endif // OPENMW_COMPONENTS_REMOVEDALPHAFUNC_H

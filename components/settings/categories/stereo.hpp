@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SETTINGS_CATEGORIES_STEREO_H
-#define OPENMW_COMPONENTS_SETTINGS_CATEGORIES_STEREO_H
+#pragma once
 
 #include <components/settings/settingvalue.hpp>
 
@@ -25,5 +24,3 @@ namespace Settings
         SettingValue<bool> mUseCustomEyeResolution{ mIndex, "Stereo", "use custom eye resolution" };
     };
 }
-
-#endif

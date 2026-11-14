@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SCENEUTIL_CULLSAFEBOUNDSVISITOR_H
-#define OPENMW_COMPONENTS_SCENEUTIL_CULLSAFEBOUNDSVISITOR_H
+#pragma once
 
 #include <vector>
 
@@ -63,4 +62,3 @@ namespace SceneUtil
         std::vector<osg::Matrix> mMatrixStack;
     };
 }
-#endif // OPENMW_COMPONENTS_SCENEUTIL_CULLSAFEBOUNDSVISITOR_H

@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SDLUTIL_SDLCURSORMANAGER_H
-#define OPENMW_COMPONENTS_SDLUTIL_SDLCURSORMANAGER_H
+#pragma once
 
 #include <map>
 #include <string>
@@ -70,5 +69,3 @@ namespace SDLUtil
         CursorScaling mScaling;
     };
 }
-
-#endif

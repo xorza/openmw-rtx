@@ -1,5 +1,4 @@
-#ifndef GAME_STATE_STATEMANAGER_H
-#define GAME_STATE_STATEMANAGER_H
+#pragma once
 
 #include <filesystem>
 #include <map>
@@ -103,5 +102,3 @@ namespace MWState
         void update(float duration);
     };
 }
-
-#endif

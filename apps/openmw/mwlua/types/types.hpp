@@ -1,5 +1,4 @@
-#ifndef MWLUA_TYPES_H
-#define MWLUA_TYPES_H
+#pragma once
 
 #include <sol/sol.hpp>
 
@@ -85,5 +84,3 @@ namespace MWLua
     void addESM4DoorBindings(sol::table door, const Context& context);
     void addESM4TerminalBindings(sol::table term, const Context& context);
 }
-
-#endif // MWLUA_TYPES_H

@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_MISC_STRINGS_LOWER_H
-#define COMPONENTS_MISC_STRINGS_LOWER_H
+#pragma once
 
 #include <string>
 #include <string_view>
@@ -58,5 +57,3 @@ namespace Misc::StringUtils
         return out;
     }
 }
-
-#endif

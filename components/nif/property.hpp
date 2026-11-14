@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_NIF_PROPERTY_HPP
-#define OPENMW_COMPONENTS_NIF_PROPERTY_HPP
+#pragma once
 
 #include "base.hpp"
 
@@ -596,4 +595,3 @@ namespace Nif
     };
 
 }
-#endif

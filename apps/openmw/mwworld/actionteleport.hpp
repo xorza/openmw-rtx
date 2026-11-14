@@ -1,5 +1,4 @@
-#ifndef GAME_MWWORLD_ACTIONTELEPORT_H
-#define GAME_MWWORLD_ACTIONTELEPORT_H
+#pragma once
 
 #include <set>
 #include <string>
@@ -35,5 +34,3 @@ namespace MWWorld
             const MWWorld::Ptr& actor, std::set<MWWorld::Ptr>& out, bool toExterior, bool includeHostiles = false);
     };
 }
-
-#endif

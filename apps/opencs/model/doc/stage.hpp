@@ -1,5 +1,4 @@
-#ifndef CSM_DOC_STAGE_H
-#define CSM_DOC_STAGE_H
+#pragma once
 
 namespace CSMDoc
 {
@@ -16,5 +15,3 @@ namespace CSMDoc
         ///< Messages resulting from this stage will be appended to \a messages.
     };
 }
-
-#endif

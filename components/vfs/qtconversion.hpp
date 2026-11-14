@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_VFS_QTCONVERSION_HPP
-#define COMPONENTS_VFS_QTCONVERSION_HPP
+#pragma once
 
 #include <QString>
 
@@ -15,5 +14,3 @@ namespace VFS::Path
 
     Normalized normalizedFromQString(QString&& path);
 }
-
-#endif // COMPONENTS_VFS_QTCONVERSION_HPP

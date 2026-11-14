@@ -1,5 +1,4 @@
-#ifndef CSV_WORLD_CREATOR_H
-#define CSV_WORLD_CREATOR_H
+#pragma once
 
 #include <memory>
 #include <string>
@@ -94,5 +93,3 @@ namespace CSVWorld
         return creator.release();
     }
 }
-
-#endif

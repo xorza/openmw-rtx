@@ -1,5 +1,4 @@
-#ifndef STEREO_TYPES_H
-#define STEREO_TYPES_H
+#pragma once
 
 #include <osg/Matrix>
 #include <osg/Vec3>
@@ -57,5 +56,3 @@ namespace Stereo
     std::ostream& operator<<(std::ostream& os, const FieldOfView& fov);
     std::ostream& operator<<(std::ostream& os, const View& view);
 }
-
-#endif

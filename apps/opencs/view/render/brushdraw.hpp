@@ -1,5 +1,4 @@
-#ifndef CSV_RENDER_BRUSHDRAW_H
-#define CSV_RENDER_BRUSHDRAW_H
+#pragma once
 
 #include <osg/Vec3d>
 #include <osg/ref_ptr>
@@ -37,5 +36,3 @@ namespace CSVRender
         float mLandSizeFactor;
     };
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef OPENCS_VIEW_PREVIEWWIDGET_H
-#define OPENCS_VIEW_PREVIEWWIDGET_H
+#pragma once
 
 #include "scenewidget.hpp"
 
@@ -48,5 +47,3 @@ namespace CSVRender
         void assetTablesChanged();
     };
 }
-
-#endif

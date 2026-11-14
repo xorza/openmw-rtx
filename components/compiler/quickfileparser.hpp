@@ -1,5 +1,4 @@
-#ifndef COMPILER_QUICKFILEPARSER_H_INCLUDED
-#define COMPILER_QUICKFILEPARSER_H_INCLUDED
+#pragma once
 
 #include "declarationparser.hpp"
 #include "parser.hpp"
@@ -32,5 +31,3 @@ namespace Compiler
         ///< Handle EOF token.
     };
 }
-
-#endif

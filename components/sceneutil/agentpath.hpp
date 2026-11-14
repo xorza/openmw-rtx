@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SCENEUTIL_AGENTPATH_H
-#define OPENMW_COMPONENTS_SCENEUTIL_AGENTPATH_H
+#pragma once
 
 #include <osg/ref_ptr>
 
@@ -24,5 +23,3 @@ namespace SceneUtil
         const DetourNavigator::AgentBounds& agentBounds, const osg::Vec3f& start, const osg::Vec3f& end,
         const DetourNavigator::RecastSettings& settings, const osg::ref_ptr<osg::StateSet>& debugDrawStateSet);
 }
-
-#endif

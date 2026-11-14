@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_RESOURCE_STATS_H
-#define OPENMW_COMPONENTS_RESOURCE_STATS_H
+#pragma once
 
 #include <osgViewer/ViewerEventHandlers>
 
@@ -70,5 +69,3 @@ namespace Resource
 
     void collectStatistics(osgViewer::ViewerBase& viewer);
 }
-
-#endif

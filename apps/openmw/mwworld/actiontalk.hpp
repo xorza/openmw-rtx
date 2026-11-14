@@ -1,5 +1,4 @@
-#ifndef GAME_MWWORLD_ACTIONTALK_H
-#define GAME_MWWORLD_ACTIONTALK_H
+#pragma once
 
 #include "action.hpp"
 
@@ -14,5 +13,3 @@ namespace MWWorld
         ///< \param actor The actor the player is talking to
     };
 }
-
-#endif

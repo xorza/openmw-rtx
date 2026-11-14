@@ -1,5 +1,4 @@
-#ifndef CSM_TOOLS_EFFECTLISTCHECK_H
-#define CSM_TOOLS_EFFECTLISTCHECK_H
+#pragma once
 
 #include <vector>
 
@@ -26,5 +25,3 @@ namespace CSMTools
     void ingredientEffectListCheck(
         const ESM::Ingredient& ingredient, CSMDoc::Messages& messages, const CSMWorld::UniversalId& id);
 }
-
-#endif

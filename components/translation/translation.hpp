@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_TRANSLATION_DATA_H
-#define COMPONENTS_TRANSLATION_DATA_H
+#pragma once
 
 #include <components/files/collections.hpp>
 #include <components/toutf8/toutf8.hpp>
@@ -38,5 +37,3 @@ namespace Translation
         ContainerType mCellNamesTranslations, mKeywords, mPhraseForms;
     };
 }
-
-#endif

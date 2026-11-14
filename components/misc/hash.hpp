@@ -1,5 +1,4 @@
-#ifndef MISC_HASH_H
-#define MISC_HASH_H
+#pragma once
 
 #include <cstddef>
 #include <cstdint>
@@ -23,5 +22,3 @@ namespace Misc
         return (53 + std::hash<int32_t>{}(x)) * 53 + std::hash<int32_t>{}(y);
     }
 }
-
-#endif

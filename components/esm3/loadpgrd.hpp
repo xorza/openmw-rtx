@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_PGRD_H
-#define OPENMW_ESM_PGRD_H
+#pragma once
 
 #include <string>
 #include <vector>
@@ -68,4 +67,3 @@ namespace ESM
         void blank();
     };
 }
-#endif

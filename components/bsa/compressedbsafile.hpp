@@ -23,8 +23,7 @@
 
  */
 
-#ifndef OPENMW_COMPONENTS_BSA_COMPRESSEDBSAFILE_HPP
-#define OPENMW_COMPONENTS_BSA_COMPRESSEDBSAFILE_HPP
+#pragma once
 
 #include <limits>
 #include <map>
@@ -130,5 +129,3 @@ namespace Bsa
         void addFile(const std::string& filename, std::istream& file);
     };
 }
-
-#endif

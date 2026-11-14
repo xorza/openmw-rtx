@@ -1,5 +1,4 @@
-#ifndef MWGUI_ITEMCHARGEVIEW_H
-#define MWGUI_ITEMCHARGEVIEW_H
+#pragma once
 
 #include <memory>
 #include <vector>
@@ -79,5 +78,3 @@ namespace MWGui
         void updateControllerFocus(size_t prevFocus, size_t newFocus);
     };
 }
-
-#endif

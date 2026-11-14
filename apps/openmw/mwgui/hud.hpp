@@ -1,5 +1,4 @@
-#ifndef OPENMW_GAME_MWGUI_HUD_H
-#define OPENMW_GAME_MWGUI_HUD_H
+#pragma once
 
 #include <memory>
 
@@ -122,5 +121,3 @@ namespace MWGui
         void updatePositions();
     };
 }
-
-#endif

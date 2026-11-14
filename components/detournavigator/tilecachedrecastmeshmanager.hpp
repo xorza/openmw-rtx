@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_DETOURNAVIGATOR_TILECACHEDRECASTMESHMANAGER_H
-#define OPENMW_COMPONENTS_DETOURNAVIGATOR_TILECACHEDRECASTMESHMANAGER_H
+#pragma once
 
 #include "areatype.hpp"
 #include "changetype.hpp"
@@ -167,5 +166,3 @@ namespace DetourNavigator
         inline void addChangedTiles(const std::optional<TilesPositionsRange>& range);
     };
 }
-
-#endif

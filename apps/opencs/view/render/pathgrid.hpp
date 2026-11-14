@@ -1,5 +1,4 @@
-#ifndef CSV_RENDER_PATHGRID_H
-#define CSV_RENDER_PATHGRID_H
+#pragma once
 
 #include <algorithm>
 #include <string>
@@ -132,5 +131,3 @@ namespace CSVRender
         int clampToCell(int v);
     };
 }
-
-#endif

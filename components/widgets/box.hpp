@@ -1,5 +1,4 @@
-#ifndef OPENMW_WIDGETS_BOX_H
-#define OPENMW_WIDGETS_BOX_H
+#pragma once
 
 #include <MyGUI_Button.h>
 #include <MyGUI_ComboBox.h>
@@ -165,5 +164,3 @@ namespace Gui
     };
 
 }
-
-#endif

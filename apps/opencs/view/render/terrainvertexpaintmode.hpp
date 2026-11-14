@@ -1,5 +1,4 @@
-#ifndef CSV_RENDER_TERRAINVERTEXPAINTMODE_H
-#define CSV_RENDER_TERRAINVERTEXPAINTMODE_H
+#pragma once
 
 #include "editmode.hpp"
 
@@ -132,5 +131,3 @@ namespace CSVRender
         void setVertexPaintColor(const QColor& color);
     };
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef CSM_WORLD_SCRIPTCONTEXT_H
-#define CSM_WORLD_SCRIPTCONTEXT_H
+#pragma once
 
 #include <map>
 #include <string>
@@ -48,5 +47,3 @@ namespace CSMWorld
         bool clearLocals(const std::string& script);
     };
 }
-
-#endif

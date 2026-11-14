@@ -1,5 +1,4 @@
-#ifndef GAME_MWDIALOG_QUEST_H
-#define GAME_MWDIALOG_QUEST_H
+#pragma once
 
 #include "topic.hpp"
 
@@ -42,5 +41,3 @@ namespace MWDialogue
         void write(ESM::QuestState& state) const;
     };
 }
-
-#endif

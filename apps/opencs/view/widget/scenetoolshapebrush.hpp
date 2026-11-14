@@ -1,5 +1,4 @@
-#ifndef CSV_WIDGET_SCENETOOLSHAPEBRUSH_H
-#define CSV_WIDGET_SCENETOOLSHAPEBRUSH_H
+#pragma once
 
 #include <QFrame>
 #include <QGroupBox>
@@ -125,5 +124,3 @@ namespace CSVWidget
         void passEvent(QDragEnterEvent* event);
     };
 }
-
-#endif

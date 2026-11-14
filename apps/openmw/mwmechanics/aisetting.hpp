@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWMECHANICS_AISETTING_H
-#define OPENMW_MWMECHANICS_AISETTING_H
+#pragma once
 
 namespace MWMechanics
 {
@@ -11,5 +10,3 @@ namespace MWMechanics
         Alarm = 3
     };
 }
-
-#endif

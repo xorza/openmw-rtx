@@ -1,5 +1,4 @@
-#ifndef CSV_WIDGET_SCENETOOLRUN_H
-#define CSV_WIDGET_SCENETOOLRUN_H
+#pragma once
 
 #include <set>
 #include <string>
@@ -61,5 +60,3 @@ namespace CSVWidget
         void runRequest(const std::string& profile);
     };
 }
-
-#endif

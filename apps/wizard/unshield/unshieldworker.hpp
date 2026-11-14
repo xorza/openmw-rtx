@@ -1,5 +1,4 @@
-#ifndef UNSHIELDWORKER_HPP
-#define UNSHIELDWORKER_HPP
+#pragma once
 
 #include <QObject>
 #include <QReadWriteLock>
@@ -124,5 +123,3 @@ namespace Wizard
         void progressChanged(int progress);
     };
 }
-
-#endif // UNSHIELDWORKER_HPP

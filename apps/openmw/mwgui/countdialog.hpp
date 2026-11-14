@@ -1,5 +1,4 @@
-#ifndef MWGUI_COUNTDIALOG_H
-#define MWGUI_COUNTDIALOG_H
+#pragma once
 
 #include "windowbase.hpp"
 
@@ -39,5 +38,3 @@ namespace MWGui
     };
 
 }
-
-#endif

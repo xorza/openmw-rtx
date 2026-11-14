@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SETTINGS_WINDOWMODE_H
-#define OPENMW_COMPONENTS_SETTINGS_WINDOWMODE_H
+#pragma once
 
 namespace Settings
 {
@@ -10,5 +9,3 @@ namespace Settings
         Windowed = 2,
     };
 }
-
-#endif

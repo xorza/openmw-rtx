@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWWORLD_MAGICEFFECTS_H
-#define OPENMW_MWWORLD_MAGICEFFECTS_H
+#pragma once
 
 namespace ESM
 {
@@ -17,5 +16,3 @@ namespace MWWorld
 
     void convertEnchantmentSlots(ESM::CreatureStats& creatureStats, ESM::InventoryState& inventory);
 }
-
-#endif

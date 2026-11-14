@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_ESM3_FORMATVERSION_H
-#define OPENMW_COMPONENTS_ESM3_FORMATVERSION_H
+#pragma once
 
 #include <cstdint>
 
@@ -39,5 +38,3 @@ namespace ESM
     inline constexpr FormatVersion MinSupportedSaveGameFormatVersion = 5;
     inline constexpr FormatVersion OpenMW0_49MinSaveGameFormatVersion = 5;
 }
-
-#endif

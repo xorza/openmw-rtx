@@ -1,5 +1,4 @@
-#ifndef COMPILER_FILEPARSER_H_INCLUDED
-#define COMPILER_FILEPARSER_H_INCLUDED
+#pragma once
 
 #include "locals.hpp"
 #include "parser.hpp"
@@ -52,5 +51,3 @@ namespace Compiler
         ///< Reset parser to clean state.
     };
 }
-
-#endif

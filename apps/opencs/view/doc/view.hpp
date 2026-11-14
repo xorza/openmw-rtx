@@ -1,5 +1,4 @@
-#ifndef CSV_DOC_VIEW_H
-#define CSV_DOC_VIEW_H
+#pragma once
 
 #include <string>
 #include <vector>
@@ -270,5 +269,3 @@ namespace CSVDoc
         void onRequestFocus(const std::string& id);
     };
 }
-
-#endif

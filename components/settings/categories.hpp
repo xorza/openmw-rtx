@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_SETTINGS_CATEGORIES_H
-#define COMPONENTS_SETTINGS_CATEGORIES_H
+#pragma once
 
 #include <map>
 #include <set>
@@ -24,5 +23,3 @@ namespace Settings
     using CategorySettingVector = std::set<CategorySetting>;
     using CategorySettingValueMap = std::map<CategorySetting, std::string, Less>;
 }
-
-#endif // COMPONENTS_SETTINGS_CATEGORIES_H

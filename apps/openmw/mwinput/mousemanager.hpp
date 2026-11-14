@@ -1,5 +1,4 @@
-#ifndef MWINPUT_MWMOUSEMANAGER_H
-#define MWINPUT_MWMOUSEMANAGER_H
+#pragma once
 
 #include <optional>
 
@@ -90,4 +89,3 @@ namespace MWInput
         float mMouseMoveY;
     };
 }
-#endif

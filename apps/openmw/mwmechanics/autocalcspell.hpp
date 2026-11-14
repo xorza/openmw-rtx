@@ -1,5 +1,4 @@
-#ifndef OPENMW_AUTOCALCSPELL_H
-#define OPENMW_AUTOCALCSPELL_H
+#pragma once
 
 #include "creaturestats.hpp"
 #include <components/esm/refid.hpp>
@@ -37,5 +36,3 @@ namespace MWMechanics
         const std::map<ESM::RefId, AttributeValue>& actorAttributes, ESM::RefId effectiveSchool);
 
 }
-
-#endif

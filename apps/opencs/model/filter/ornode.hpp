@@ -1,5 +1,4 @@
-#ifndef CSM_FILTER_ORNODE_H
-#define CSM_FILTER_ORNODE_H
+#pragma once
 
 #include "narynode.hpp"
 
@@ -25,5 +24,3 @@ namespace CSMFilter
         /// \param columns column ID to column index mapping
     };
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_VFS_PATHUTIL_H
-#define OPENMW_COMPONENTS_VFS_PATHUTIL_H
+#pragma once
 
 #include <components/misc/strings/lower.hpp>
 
@@ -461,5 +460,3 @@ namespace VFS::Path
         return result;
     }
 }
-
-#endif

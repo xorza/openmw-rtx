@@ -1,5 +1,4 @@
-#ifndef CSM_WOLRD_DATA_H
-#define CSM_WOLRD_DATA_H
+#pragma once
 
 #include <QObject>
 
@@ -340,5 +339,3 @@ namespace CSMWorld
         void rowsChanged(const QModelIndex& parent, int start, int end);
     };
 }
-
-#endif

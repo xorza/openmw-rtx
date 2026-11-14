@@ -1,5 +1,4 @@
-#ifndef CSV_RENDER_ELEMENTS_H
-#define CSV_RENDER_ELEMENTS_H
+#pragma once
 
 namespace CSVRender
 {
@@ -28,5 +27,3 @@ namespace CSVRender
         Mask_CellBorder = 0x40000
     };
 }
-
-#endif

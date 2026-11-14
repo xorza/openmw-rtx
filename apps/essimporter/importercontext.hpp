@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESSIMPORT_CONTEXT_H
-#define OPENMW_ESSIMPORT_CONTEXT_H
+#pragma once
 
 #include <map>
 
@@ -91,5 +90,3 @@ namespace ESSImport
     };
 
 }
-
-#endif

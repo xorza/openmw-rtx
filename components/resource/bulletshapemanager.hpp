@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_BULLETSHAPEMANAGER_H
-#define OPENMW_COMPONENTS_BULLETSHAPEMANAGER_H
+#pragma once
 
 #include <memory>
 
@@ -57,5 +56,3 @@ namespace Resource
     };
 
 }
-
-#endif

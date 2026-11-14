@@ -1,5 +1,4 @@
-#ifndef MWLUA_PLAYERSCRIPTS_H
-#define MWLUA_PLAYERSCRIPTS_H
+#pragma once
 
 #include <SDL3/SDL_events.h>
 
@@ -64,5 +63,3 @@ namespace MWLua
     };
 
 }
-
-#endif // MWLUA_PLAYERSCRIPTS_H

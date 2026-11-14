@@ -1,5 +1,4 @@
-#ifndef CSV_TOOLS_SEARCHBOX_H
-#define CSV_TOOLS_SEARCHBOX_H
+#pragma once
 
 #include <QCheckBox>
 #include <QComboBox>
@@ -73,5 +72,3 @@ namespace CSVTools
         void replaceAll();
     };
 }
-
-#endif

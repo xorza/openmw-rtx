@@ -21,8 +21,7 @@
 
  */
 
-#ifndef OPENMW_COMPONENTS_NIF_NIFTYPES_HPP
-#define OPENMW_COMPONENTS_NIF_NIFTYPES_HPP
+#pragma once
 
 #include <osg/Matrixf>
 #include <osg/Quat>
@@ -118,4 +117,3 @@ namespace Nif
     };
 
 } // Namespace
-#endif

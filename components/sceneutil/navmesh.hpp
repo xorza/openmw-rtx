@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SCENEUTIL_NAVMESH_H
-#define OPENMW_COMPONENTS_SCENEUTIL_NAVMESH_H
+#pragma once
 
 #include <osg/ref_ptr>
 
@@ -31,5 +30,3 @@ namespace SceneUtil
         const DetourNavigator::Settings& settings, const osg::ref_ptr<osg::StateSet>& debugDrawStateSet,
         unsigned char flags, unsigned minSalt, unsigned maxSalt);
 }
-
-#endif

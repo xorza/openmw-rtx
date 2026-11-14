@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_CELLSTATE_H
-#define OPENMW_ESM_CELLSTATE_H
+#pragma once
 
 #include "components/esm/defs.hpp"
 #include "components/esm/refid.hpp"
@@ -27,5 +26,3 @@ namespace ESM
         void save(ESMWriter& esm) const;
     };
 }
-
-#endif

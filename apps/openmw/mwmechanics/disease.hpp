@@ -1,5 +1,4 @@
-#ifndef OPENMW_MECHANICS_DISEASE_H
-#define OPENMW_MECHANICS_DISEASE_H
+#pragma once
 
 #include <components/esm3/loadmgef.hpp>
 #include <components/misc/rng.hpp>
@@ -85,5 +84,3 @@ namespace MWMechanics
         }
     }
 }
-
-#endif

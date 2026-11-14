@@ -1,5 +1,4 @@
-#ifndef CSV_TOOLS_SEARCHSUBVIEW_H
-#define CSV_TOOLS_SEARCHSUBVIEW_H
+#pragma once
 
 #include "../../model/tools/search.hpp"
 
@@ -62,5 +61,3 @@ namespace CSVTools
         void operationDone(int type, bool failed);
     };
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef COMPILER_DISCARDPARSER_H_INCLUDED
-#define COMPILER_DISCARDPARSER_H_INCLUDED
+#pragma once
 
 #include "parser.hpp"
 #include "tokenloc.hpp"
@@ -45,5 +44,3 @@ namespace Compiler
         const TokenLoc& getTokenLoc() const;
     };
 }
-
-#endif

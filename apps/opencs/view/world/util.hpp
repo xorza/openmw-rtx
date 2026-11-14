@@ -1,5 +1,4 @@
-#ifndef CSV_WORLD_UTIL_H
-#define CSV_WORLD_UTIL_H
+#pragma once
 
 #include <map>
 
@@ -139,5 +138,3 @@ namespace CSVWorld
         virtual void settingChanged(const CSMPrefs::Setting* setting);
     };
 }
-
-#endif

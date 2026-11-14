@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWMECHANICS_GREETINGSTATE_H
-#define OPENMW_MWMECHANICS_GREETINGSTATE_H
+#pragma once
 
 namespace MWMechanics
 {
@@ -10,5 +9,3 @@ namespace MWMechanics
         Done
     };
 }
-
-#endif

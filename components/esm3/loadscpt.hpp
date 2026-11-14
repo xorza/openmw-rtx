@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_SCPT_H
-#define OPENMW_ESM_SCPT_H
+#pragma once
 
 #include <cstdint>
 #include <string>
@@ -53,4 +52,3 @@ namespace ESM
 
     std::uint32_t computeScriptStringTableSize(const std::vector<std::string>& varNames);
 }
-#endif

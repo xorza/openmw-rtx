@@ -1,5 +1,4 @@
-#ifndef LOADORDERERROR_HPP
-#define LOADORDERERROR_HPP
+#pragma once
 
 #include <QString>
 
@@ -35,5 +34,3 @@ namespace ContentSelectorModel
         static QString sErrorToolTips[ErrorCode_LoadOrder];
     };
 }
-
-#endif // LOADORDERERROR_HPP

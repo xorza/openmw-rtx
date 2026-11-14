@@ -1,5 +1,4 @@
-#ifndef CSV_DOC_OPERATIONS_H
-#define CSV_DOC_OPERATIONS_H
+#pragma once
 
 #include <vector>
 
@@ -36,5 +35,3 @@ namespace CSVDoc
         void abortOperation(int type);
     };
 }
-
-#endif

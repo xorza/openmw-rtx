@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SCENEUTIL_SHADOWBIN_H
-#define OPENMW_COMPONENTS_SCENEUTIL_SHADOWBIN_H
+#pragma once
 
 #include <array>
 #include <osgUtil/RenderBin>
@@ -77,5 +76,3 @@ namespace SceneUtil
         Array<osg::ref_ptr<osg::StateSet>> mAlphaFuncShaders;
     };
 }
-
-#endif

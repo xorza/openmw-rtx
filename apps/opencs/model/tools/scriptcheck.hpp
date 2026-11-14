@@ -1,5 +1,4 @@
-#ifndef CSM_TOOLS_SCRIPTCHECK_H
-#define CSM_TOOLS_SCRIPTCHECK_H
+#pragma once
 
 #include <string>
 
@@ -61,5 +60,3 @@ namespace CSMTools
         ///< Messages resulting from this tage will be appended to \a messages.
     };
 }
-
-#endif

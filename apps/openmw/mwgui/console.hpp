@@ -1,5 +1,4 @@
-#ifndef MWGUI_CONSOLE_H
-#define MWGUI_CONSOLE_H
+#pragma once
 
 #include <list>
 #include <string>
@@ -128,4 +127,3 @@ namespace MWGui
         void initConsoleHistory();
     };
 }
-#endif

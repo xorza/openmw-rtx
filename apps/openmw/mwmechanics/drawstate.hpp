@@ -1,5 +1,4 @@
-#ifndef GAME_MWMECHANICS_DRAWSTATE_H
-#define GAME_MWMECHANICS_DRAWSTATE_H
+#pragma once
 
 namespace MWMechanics
 {
@@ -11,5 +10,3 @@ namespace MWMechanics
         Spell = 2
     };
 }
-
-#endif

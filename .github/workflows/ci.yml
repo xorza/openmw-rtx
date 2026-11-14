@@ -52,8 +52,8 @@ jobs:
           python-version: "3.11"
 
       # Through the driver, which the gate runs too, so a tree the gate passes passes here.
-      - name: File names
-        run: python omw lint names
+      - name: File names and header guards
+        run: python omw lint names pragmas
 
       - name: clang-format and gersemi
         run: python omw format --check

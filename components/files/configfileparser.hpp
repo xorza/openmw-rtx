@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_FILES_CONFIGFILEPARSER_HPP
-#define COMPONENTS_FILES_CONFIGFILEPARSER_HPP
+#pragma once
 
 #include <boost/program_options/parsers.hpp>
 
@@ -17,5 +16,3 @@ namespace Files
 }
 
 // NOLINTEND(readability-identifier-naming)
-
-#endif // COMPONENTS_FILES_CONFIGFILEPARSER_HPP

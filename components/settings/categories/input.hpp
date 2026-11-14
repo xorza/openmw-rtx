@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SETTINGS_CATEGORIES_INPUT_H
-#define OPENMW_COMPONENTS_SETTINGS_CATEGORIES_INPUT_H
+#pragma once
 
 #include <components/settings/sanitizerimpl.hpp>
 #include <components/settings/settingvalue.hpp>
@@ -39,5 +38,3 @@ namespace Settings
             makeMaxStrictSanitizerFloat(0) };
     };
 }
-
-#endif

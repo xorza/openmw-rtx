@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWPHYSICS_MOVEMENTSOLVER_H
-#define OPENMW_MWPHYSICS_MOVEMENTSOLVER_H
+#pragma once
 
 #include <osg/Vec3f>
 
@@ -49,5 +48,3 @@ namespace MWPhysics
         static void unstuck(ActorFrameData& actor, const btCollisionWorld* collisionWorld);
     };
 }
-
-#endif

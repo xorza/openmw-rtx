@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_BULLETHELPERS_PROCESSTRIANGLECALLBACK_H
-#define OPENMW_COMPONENTS_BULLETHELPERS_PROCESSTRIANGLECALLBACK_H
+#pragma once
 
 #include <BulletCollision/CollisionShapes/btTriangleCallback.h>
 
@@ -32,5 +31,3 @@ namespace BulletHelpers
         return ProcessTriangleCallback<typename std::decay<Impl>::type>(std::forward<Impl>(impl));
     }
 }
-
-#endif

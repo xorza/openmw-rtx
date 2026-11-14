@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_LTEX_H
-#define OPENMW_ESM_LTEX_H
+#pragma once
 
 #include <components/esm/defs.hpp>
 #include <components/esm/path.hpp>
@@ -36,4 +35,3 @@ namespace ESM
         void blank();
     };
 }
-#endif

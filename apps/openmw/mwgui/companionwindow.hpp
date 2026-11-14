@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWGUI_COMPANIONWINDOW_H
-#define OPENMW_MWGUI_COMPANIONWINDOW_H
+#pragma once
 
 #include "referenceinterface.hpp"
 #include "windowbase.hpp"
@@ -79,5 +78,3 @@ namespace MWGui
     };
 
 }
-
-#endif

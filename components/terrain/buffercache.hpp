@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_TERRAIN_BUFFERCACHE_H
-#define COMPONENTS_TERRAIN_BUFFERCACHE_H
+#pragma once
 
 #include <osg/Array>
 #include <osg/PrimitiveSet>
@@ -38,5 +37,3 @@ namespace Terrain
     };
 
 }
-
-#endif

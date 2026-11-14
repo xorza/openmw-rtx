@@ -1,5 +1,4 @@
-#ifndef MWGUI_DIALOGE_H
-#define MWGUI_DIALOGE_H
+#pragma once
 
 #include <memory>
 
@@ -227,4 +226,3 @@ namespace MWGui
         void updateTopicFormat();
     };
 }
-#endif

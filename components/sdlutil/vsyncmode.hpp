@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SDLUTIL_VSYNCMODE_H
-#define OPENMW_COMPONENTS_SDLUTIL_VSYNCMODE_H
+#pragma once
 
 namespace SDLUtil
 {
@@ -10,5 +9,3 @@ namespace SDLUtil
         Adaptive = 2
     };
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef GAME_MWWORLD_FAILEDACTION_H
-#define GAME_MWWORLD_FAILEDACTION_H
+#pragma once
 
 #include "action.hpp"
 #include "ptr.hpp"
@@ -16,5 +15,3 @@ namespace MWWorld
         explicit FailedAction(std::string_view message = {}, const Ptr& target = Ptr());
     };
 }
-
-#endif

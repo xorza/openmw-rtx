@@ -16,7 +16,6 @@ target_sources(
     PUBLIC
         FILE_SET HEADERS
             FILES
-                doc.hpp
                 engine.hpp
                 options.hpp
                 profile.hpp

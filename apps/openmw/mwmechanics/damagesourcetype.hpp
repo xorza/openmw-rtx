@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWMECHANICS_DAMAGESOURCETYPE_H
-#define OPENMW_MWMECHANICS_DAMAGESOURCETYPE_H
+#pragma once
 
 namespace MWMechanics
 {
@@ -11,5 +10,3 @@ namespace MWMechanics
         Magical,
     };
 }
-
-#endif

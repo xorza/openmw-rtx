@@ -1,5 +1,4 @@
-#ifndef OPENMW_RTT_H
-#define OPENMW_RTT_H
+#pragma once
 
 #include <osg/Node>
 
@@ -119,4 +118,3 @@ namespace SceneUtil
         bool mAddMSAAIntermediateTarget;
     };
 }
-#endif

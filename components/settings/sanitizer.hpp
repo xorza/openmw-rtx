@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SETTINGS_SANITIZER_H
-#define OPENMW_COMPONENTS_SETTINGS_SANITIZER_H
+#pragma once
 
 namespace Settings
 {
@@ -11,5 +10,3 @@ namespace Settings
         virtual T apply(const T& value) const = 0;
     };
 }
-
-#endif

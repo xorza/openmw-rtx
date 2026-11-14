@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_MISC_COLOR
-#define COMPONENTS_MISC_COLOR
+#pragma once
 
 #include <string>
 
@@ -39,5 +38,3 @@ namespace Misc
         osg::Vec4 mValue;
     };
 }
-
-#endif // !COMPONENTS_MISC_COLOR

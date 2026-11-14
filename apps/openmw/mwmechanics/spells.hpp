@@ -1,5 +1,4 @@
-#ifndef GAME_MWMECHANICS_SPELLS_H
-#define GAME_MWMECHANICS_SPELLS_H
+#pragma once
 
 #include <map>
 #include <memory>
@@ -113,5 +112,3 @@ namespace MWMechanics
         void addAutoCalc(const std::vector<const ESM::Spell*>& spells);
     };
 }
-
-#endif

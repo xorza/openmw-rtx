@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWLUA_WORKER_H
-#define OPENMW_MWLUA_WORKER_H
+#pragma once
 
 #include <components/misc/framestats.hpp>
 
@@ -57,5 +56,3 @@ namespace MWLua
         std::optional<std::thread> mThread;
     };
 }
-
-#endif // OPENMW_MWLUA_LUAWORKER_H

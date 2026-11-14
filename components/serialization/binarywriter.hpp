@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SERIALIZATION_BINARYWRITER_H
-#define OPENMW_COMPONENTS_SERIALIZATION_BINARYWRITER_H
+#pragma once
 
 #include <components/misc/endianness.hpp>
 
@@ -86,5 +85,3 @@ namespace Serialization
         }
     };
 }
-
-#endif

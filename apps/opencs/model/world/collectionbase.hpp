@@ -1,5 +1,4 @@
-#ifndef CSM_WOLRD_COLLECTIONBASE_H
-#define CSM_WOLRD_COLLECTIONBASE_H
+#pragma once
 
 #include <memory>
 #include <string>
@@ -112,5 +111,3 @@ namespace CSMWorld
         /// thrown.
     };
 }
-
-#endif

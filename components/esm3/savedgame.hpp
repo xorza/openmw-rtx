@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_SAVEDGAME_H
-#define OPENMW_ESM_SAVEDGAME_H
+#pragma once
 
 #include <string>
 #include <vector>
@@ -44,5 +43,3 @@ namespace ESM
         std::vector<std::string_view> getMissingContentFiles(const std::vector<std::string>& allContentFiles) const;
     };
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_DEFS_H
-#define OPENMW_ESM_DEFS_H
+#pragma once
 
 #include <stdexcept>
 #include <stdint.h>
@@ -315,4 +314,3 @@ namespace ESM
     };
 
 }
-#endif

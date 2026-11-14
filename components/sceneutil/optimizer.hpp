@@ -14,8 +14,7 @@
 
 /* Modified for OpenMW */
 
-#ifndef OPENMW_OSGUTIL_OPTIMIZER
-#define OPENMW_OSGUTIL_OPTIMIZER
+#pragma once
 
 #include <osg/NodeVisitor>
 #include <osg/Matrix>
@@ -483,5 +482,4 @@ inline bool BaseOptimizerVisitor::isOperationPermissibleForObject(const osg::Nod
 
 // NOLINTEND(readability-identifier-naming)
 
-#endif
 // clang-format on

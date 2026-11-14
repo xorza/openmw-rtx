@@ -1,5 +1,4 @@
-#ifndef CSM_WOLRD_DISABLETAG_H
-#define CSM_WOLRD_DISABLETAG_H
+#pragma once
 
 #include <QVariant>
 
@@ -18,5 +17,3 @@ namespace CSMWorld
 }
 
 Q_DECLARE_METATYPE(CSMWorld::DisableTag)
-
-#endif

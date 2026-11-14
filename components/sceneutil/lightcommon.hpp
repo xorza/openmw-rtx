@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_SCENEUTIL_LIGHTCOMMON
-#define COMPONENTS_SCENEUTIL_LIGHTCOMMON
+#pragma once
 
 #include <osg/Vec4>
 
@@ -32,4 +31,3 @@ namespace SceneUtil
     };
 
 }
-#endif

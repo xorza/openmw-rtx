@@ -1,5 +1,4 @@
-#ifndef MWLUA_VFSBINDINGS_H
-#define MWLUA_VFSBINDINGS_H
+#pragma once
 
 #include <sol/forward.hpp>
 
@@ -9,5 +8,3 @@ namespace MWLua
 
     sol::table initVFSPackage(const Context& context);
 }
-
-#endif // MWLUA_VFSBINDINGS_H

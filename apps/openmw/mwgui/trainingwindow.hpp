@@ -1,5 +1,4 @@
-#ifndef MWGUI_TRAININGWINDOW_H
-#define MWGUI_TRAININGWINDOW_H
+#pragma once
 
 #include "referenceinterface.hpp"
 #include "timeadvancer.hpp"
@@ -59,5 +58,3 @@ namespace MWGui
     };
 
 }
-
-#endif

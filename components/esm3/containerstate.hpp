@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_CONTAINERSTATE_H
-#define OPENMW_ESM_CONTAINERSTATE_H
+#pragma once
 
 #include "inventorystate.hpp"
 #include "objectstate.hpp"
@@ -30,5 +29,3 @@ namespace ESM
         const ContainerState& asContainerState() const override { return *this; }
     };
 }
-
-#endif

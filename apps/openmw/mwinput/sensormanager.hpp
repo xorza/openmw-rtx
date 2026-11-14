@@ -1,5 +1,4 @@
-#ifndef MWINPUT_MWSENSORMANAGER_H
-#define MWINPUT_MWSENSORMANAGER_H
+#pragma once
 
 #include <array>
 
@@ -54,4 +53,3 @@ namespace MWInput
         SDL_Window* mWindow;
     };
 }
-#endif

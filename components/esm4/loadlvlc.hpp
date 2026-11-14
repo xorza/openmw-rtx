@@ -24,8 +24,7 @@
   trial & error.  See http://en.uesp.net/wiki for details.
 
 */
-#ifndef ESM4_LVLC_H
-#define ESM4_LVLC_H
+#pragma once
 
 #include <cstdint>
 #include <vector>
@@ -67,5 +66,3 @@ namespace ESM4
         static constexpr ESM::RecNameInts sRecordId = ESM::RecNameInts::REC_LVLC4;
     };
 }
-
-#endif // ESM4_LVLC_H

@@ -1,5 +1,4 @@
-#ifndef CSV_WIDGET_SCENETOOL_TOGGLE_H
-#define CSV_WIDGET_SCENETOOL_TOGGLE_H
+#pragma once
 
 #include "scenetool.hpp"
 
@@ -73,5 +72,3 @@ namespace CSVWidget
         void selected();
     };
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SETTINGS_CATEGORIES_PHYSICS_H
-#define OPENMW_COMPONENTS_SETTINGS_CATEGORIES_PHYSICS_H
+#pragma once
 
 #include <components/settings/sanitizerimpl.hpp>
 #include <components/settings/settingvalue.hpp>
@@ -23,5 +22,3 @@ namespace Settings
             makeMaxSanitizerInt(-1) };
     };
 }
-
-#endif

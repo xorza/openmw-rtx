@@ -1,5 +1,4 @@
-#ifndef GAME_STATE_QUICKSAVEMANAGER_H
-#define GAME_STATE_QUICKSAVEMANAGER_H
+#pragma once
 
 #include <string>
 
@@ -34,5 +33,3 @@ namespace MWState
         ///\return Either the oldest quicksave slot visited, or nullptr if a new slot can be made
     };
 }
-
-#endif

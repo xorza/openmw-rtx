@@ -1,5 +1,4 @@
-#ifndef CSV_TOOLS_SUBVIEWS_H
-#define CSV_TOOLS_SUBVIEWS_H
+#pragma once
 
 namespace CSVDoc
 {
@@ -10,5 +9,3 @@ namespace CSVTools
 {
     void addSubViewFactories(CSVDoc::SubViewFactoryManager& manager);
 }
-
-#endif

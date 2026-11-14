@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_ESM_EXTERIORCELLLOCATION_H
-#define OPENMW_COMPONENTS_ESM_EXTERIORCELLLOCATION_H
+#pragma once
 
 #include "refid.hpp"
 
@@ -55,5 +54,3 @@ namespace std
         }
     };
 }
-
-#endif

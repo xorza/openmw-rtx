@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_MISC_STRINGS_FORMAT_H
-#define COMPONENTS_MISC_STRINGS_FORMAT_H
+#pragma once
 
 #include <MyGUI_UString.h>
 #include <cerrno>
@@ -75,5 +74,3 @@ namespace Misc::StringUtils
         return Details::format(fmt.c_str(), Details::nullTerminated(args)...);
     }
 }
-
-#endif

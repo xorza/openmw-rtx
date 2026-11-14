@@ -1,5 +1,4 @@
-#ifndef OPENMW_AICOMBAT_ACTION_H
-#define OPENMW_AICOMBAT_ACTION_H
+#pragma once
 
 #include <memory>
 
@@ -108,5 +107,3 @@ namespace MWMechanics
     float vanillaRateFlee(const MWWorld::Ptr& actor, const MWWorld::Ptr& enemy);
     bool makeFleeDecision(const MWWorld::Ptr& actor, const MWWorld::Ptr& enemy, float antiFleeRating);
 }
-
-#endif

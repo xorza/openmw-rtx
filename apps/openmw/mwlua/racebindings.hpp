@@ -1,5 +1,4 @@
-#ifndef MWLUA_RACEBINDINGS_H
-#define MWLUA_RACEBINDINGS_H
+#pragma once
 
 #include <sol/forward.hpp>
 
@@ -16,5 +15,3 @@ namespace MWLua
     void addMutableRaceType(sol::state_view& lua);
     ESM::Race tableToRace(const sol::table& rec);
 }
-
-#endif // MWLUA_RACEBINDINGS_H

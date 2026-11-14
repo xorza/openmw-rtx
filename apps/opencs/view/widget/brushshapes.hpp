@@ -1,5 +1,4 @@
-#ifndef CSV_WIDGET_BRUSHSHAPES_H
-#define CSV_WIDGET_BRUSHSHAPES_H
+#pragma once
 
 namespace CSVWidget
 {
@@ -11,4 +10,3 @@ namespace CSVWidget
         BrushShape_Custom
     };
 }
-#endif

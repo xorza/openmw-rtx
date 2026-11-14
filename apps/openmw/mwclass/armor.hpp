@@ -1,5 +1,4 @@
-#ifndef GAME_MWCLASS_ARMOR_H
-#define GAME_MWCLASS_ARMOR_H
+#pragma once
 
 #include "../mwworld/registeredclass.hpp"
 
@@ -87,5 +86,3 @@ namespace MWClass
             const MWWorld::ConstPtr& armor, const MWWorld::Ptr& actor, bool useLuaInterfaceIfAvailable) const override;
     };
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_NIF_TEXTURE_HPP
-#define OPENMW_COMPONENTS_NIF_TEXTURE_HPP
+#pragma once
 
 #include "base.hpp"
 
@@ -78,4 +77,3 @@ namespace Nif
     };
 
 }
-#endif

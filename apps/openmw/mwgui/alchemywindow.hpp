@@ -1,5 +1,4 @@
-#ifndef MWGUI_ALCHEMY_H
-#define MWGUI_ALCHEMY_H
+#pragma once
 
 #include <memory>
 #include <vector>
@@ -104,5 +103,3 @@ namespace MWGui
         void filterListButtonHandler(const SDL_GamepadButtonEvent& arg);
     };
 }
-
-#endif

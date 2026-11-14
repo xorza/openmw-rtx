@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWMECHANICS_CREATURECUSTOMDATARESETTER_H
-#define OPENMW_MWMECHANICS_CREATURECUSTOMDATARESETTER_H
+#pragma once
 
 #include "../mwworld/ptr.hpp"
 
@@ -16,5 +15,3 @@ namespace MWMechanics
         }
     };
 }
-
-#endif

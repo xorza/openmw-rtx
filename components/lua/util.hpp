@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_LUA_UTIL_H
-#define COMPONENTS_LUA_UTIL_H
+#pragma once
 
 #include <chrono>
 #include <cstdint>
@@ -35,5 +34,3 @@ inline int sol_lua_push(sol::types<ESM::RefId>, lua_State* state, const ESM::Ref
         return sol::stack::push(state, sol::lua_nil);
     return sol::stack::push(state, id.serializeText());
 }
-
-#endif

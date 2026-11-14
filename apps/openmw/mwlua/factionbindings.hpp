@@ -1,5 +1,4 @@
-#ifndef MWLUA_FACTIONBINDINGS_H
-#define MWLUA_FACTIONBINDINGS_H
+#pragma once
 
 #include <sol/forward.hpp>
 
@@ -16,5 +15,3 @@ namespace MWLua
     void addMutableFactionType(sol::state_view& lua);
     ESM::Faction tableToFaction(const sol::table& rec);
 }
-
-#endif // MWLUA_FACTIONBINDINGS_H

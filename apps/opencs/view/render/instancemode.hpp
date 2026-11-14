@@ -1,5 +1,4 @@
-#ifndef CSV_RENDER_INSTANCEMODE_H
-#define CSV_RENDER_INSTANCEMODE_H
+#pragma once
 
 #include <QString>
 
@@ -145,5 +144,3 @@ namespace CSVRender
         std::vector<osg::Node::NodeMask> mOldMasks;
     };
 }
-
-#endif

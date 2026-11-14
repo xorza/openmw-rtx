@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWRENDER_ROTATECONTROLLER_H
-#define OPENMW_MWRENDER_ROTATECONTROLLER_H
+#pragma once
 
 #include <components/sceneutil/nodecallback.hpp>
 #include <osg/Quat>
@@ -40,5 +39,3 @@ namespace MWRender
     };
 
 }
-
-#endif

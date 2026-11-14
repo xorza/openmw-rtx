@@ -1,5 +1,4 @@
-#ifndef MWGUI_EXPOSEDWINDOW_H
-#define MWGUI_EXPOSEDWINDOW_H
+#pragma once
 
 #include <MyGUI_Window.h>
 
@@ -21,5 +20,3 @@ namespace MWGui
     };
 
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef CSM_TOOLS_SEARCHSTAGE_H
-#define CSM_TOOLS_SEARCHSTAGE_H
+#pragma once
 
 #include "../doc/stage.hpp"
 
@@ -37,5 +36,3 @@ namespace CSMTools
         void setOperation(const SearchOperation* operation);
     };
 }
-
-#endif

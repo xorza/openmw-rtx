@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_WIDGETS_LIST_HPP
-#define OPENMW_COMPONENTS_WIDGETS_LIST_HPP
+#pragma once
 
 #include <MyGUI_ScrollView.h>
 
@@ -81,5 +80,3 @@ namespace Gui
         int mItemHeight; // height of all items
     };
 }
-
-#endif

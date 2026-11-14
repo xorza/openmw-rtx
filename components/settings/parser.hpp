@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_SETTINGS_PARSER_H
-#define COMPONENTS_SETTINGS_PARSER_H
+#pragma once
 
 #include "categories.hpp"
 
@@ -28,5 +27,3 @@ namespace Settings
         int mLine = 0;
     };
 }
-
-#endif // _COMPONENTS_SETTINGS_PARSER_H

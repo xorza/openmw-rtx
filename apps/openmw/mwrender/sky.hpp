@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWRENDER_SKY_H
-#define OPENMW_MWRENDER_SKY_H
+#pragma once
 
 #include <memory>
 #include <string>
@@ -247,5 +246,3 @@ namespace MWRender
         bool mDirtyParticlesEffect = false;
     };
 }
-
-#endif

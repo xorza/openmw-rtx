@@ -1,5 +1,4 @@
-#ifndef GAME_MWWORLD_ACTIONREPAIR_H
-#define GAME_MWWORLD_ACTIONREPAIR_H
+#pragma once
 
 #include "action.hpp"
 
@@ -16,5 +15,3 @@ namespace MWWorld
         explicit ActionRepair(const Ptr& item, bool force = false);
     };
 }
-
-#endif

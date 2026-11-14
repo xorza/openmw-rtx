@@ -1,5 +1,6 @@
 """`omw lint [check...]`: the checks CI runs besides the formatting, run by the gate through the same code: upstream's
-file names and Qt translations, the fork's lint of the driver and audit of the workflows. CI's `checks` job runs all
+file names and Qt translations, every header's `#pragma once`, the fork's lint of the driver and audit of the
+workflows. CI's `checks` job runs all
 but the translations, which take the vcpkg set's Qt and so run in a leg that holds the set.
 
 **The pins are here and nowhere else**: the desk runs the pinned tool from the PATH and refuses another version; CI
@@ -76,6 +77,28 @@ def misnamed(names: list[str]) -> list[str]:
 def _names() -> list[str]:
     """Upstream's rule for the names of sources (`misnamed`)."""
     return misnamed(working_tree_files(*CXX_SOURCES))
+
+
+# The headers GLSL reads as well, which keep the guards `portable.h` says GLSL needs.
+GLSL_HEADERS = ("components/rtx/shaders/", "components/rtxvulkan/shaders/shared/")
+DIRECTIVE = re.compile(r"^\s*#")
+
+
+def unguarded(headers: dict[str, str]) -> list[str]:
+    """Each header of `headers`, by name and text, whose first directive is not `#pragma once`: the tree's one
+    spelling of a guard, which `.clang-tidy` lets stand."""
+    found = []
+    for name, text in headers.items():
+        first = next((line.strip() for line in text.splitlines() if DIRECTIVE.match(line)), None)
+        if first != "#pragma once":
+            found.append(f"{name}: a header opens with `#pragma once`, not {first or 'no directive'}")
+    return found
+
+
+def _pragmas() -> list[str]:
+    """Every header of apps/ and components/ but GLSL's guarded once (`unguarded`)."""
+    names = working_tree_files("apps/*.hpp", "apps/*.h", "components/*.hpp", "components/*.h")
+    return unguarded({name: read_text(ROOT / name) for name in names if not name.startswith(GLSL_HEADERS)})
 
 
 # The sources each set of translations is read out of.
@@ -175,6 +198,7 @@ def _containers(root: Path) -> list[str]:
 
 CHECKS: dict[str, Callable[[], list[str]]] = {
     "names": _names,
+    "pragmas": _pragmas,
     "translations": _translations,
     "driver": _driver,
     "workflows": _workflows,

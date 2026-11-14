@@ -1,5 +1,4 @@
-#ifndef CSV_WIDGET_SCENETOOLVERTEXPAINTBRUSH_H
-#define CSV_WIDGET_SCENETOOLVERTEXPAINTBRUSH_H
+#pragma once
 
 #include <QColor>
 #include <QFrame>
@@ -130,5 +129,3 @@ namespace CSVWidget
         void passEvent(QDragEnterEvent* event);
     };
 }
-
-#endif

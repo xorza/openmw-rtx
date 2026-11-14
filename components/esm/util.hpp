@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_ESM_UTIL_H
-#define OPENMW_COMPONENTS_ESM_UTIL_H
+#pragma once
 
 #include <cmath>
 
@@ -36,5 +35,3 @@ namespace ESM
     // Convert exterior cell location to position.
     osg::Vec2f indexToPosition(const ESM::ExteriorCellLocation& cellIndex, bool centre = false);
 }
-
-#endif

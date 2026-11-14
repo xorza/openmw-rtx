@@ -24,8 +24,7 @@
   trial & error.  See http://en.uesp.net/wiki for details.
 
 */
-#ifndef ESM4_REFR_H
-#define ESM4_REFR_H
+#pragma once
 
 #include <cstdint>
 
@@ -119,5 +118,3 @@ namespace ESM4
         static constexpr ESM::RecNameInts sRecordId = ESM::REC_REFR4;
     };
 }
-
-#endif // ESM4_REFR_H

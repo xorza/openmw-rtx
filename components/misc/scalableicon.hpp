@@ -1,5 +1,4 @@
-#ifndef SCALABLEICON_HPP
-#define SCALABLEICON_HPP
+#pragma once
 
 #include <QIconEngine>
 #include <QProcess>
@@ -32,5 +31,3 @@ namespace Misc
         QByteArray mContent;
     };
 }
-
-#endif // SCALABLEICON_HPP

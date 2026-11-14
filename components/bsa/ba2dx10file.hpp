@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_BSA_BA2DX10FILE_HPP
-#define OPENMW_COMPONENTS_BSA_BA2DX10FILE_HPP
+#pragma once
 
 #include <list>
 #include <map>
@@ -63,5 +62,3 @@ namespace Bsa
         void addFile(const std::string& filename, std::istream& file);
     };
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWCLASS_NAMEORID_H
-#define OPENMW_MWCLASS_NAMEORID_H
+#pragma once
 
 #include <components/esm/refid.hpp>
 
@@ -21,5 +20,3 @@ namespace MWClass
         return {};
     }
 }
-
-#endif

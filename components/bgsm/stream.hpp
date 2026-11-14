@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_BGSM_STREAM_HPP
-#define OPENMW_COMPONENTS_BGSM_STREAM_HPP
+#pragma once
 
 #include <array>
 #include <cassert>
@@ -73,5 +72,3 @@ namespace Bgsm
     template <>
     void BGSMStream::read<std::string>(std::string& str);
 }
-
-#endif

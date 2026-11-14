@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SCENEUTIL_CONTROLLER_H
-#define OPENMW_COMPONENTS_SCENEUTIL_CONTROLLER_H
+#pragma once
 
 #include <memory>
 #include <osg/NodeVisitor>
@@ -119,5 +118,3 @@ namespace SceneUtil
     };
 
 }
-
-#endif

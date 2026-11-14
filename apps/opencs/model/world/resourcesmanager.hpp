@@ -1,5 +1,4 @@
-#ifndef CSM_WOLRD_RESOURCESMANAGER_H
-#define CSM_WOLRD_RESOURCESMANAGER_H
+#pragma once
 
 #include <map>
 
@@ -37,5 +36,3 @@ namespace CSMWorld
         const Resources& get(UniversalId::Type type) const;
     };
 }
-
-#endif

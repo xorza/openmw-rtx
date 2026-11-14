@@ -1,5 +1,4 @@
-#ifndef GAME_MWBASE_LUAMANAGER_H
-#define GAME_MWBASE_LUAMANAGER_H
+#pragma once
 
 #include <filesystem>
 #include <map>
@@ -191,5 +190,3 @@ namespace MWBase
     };
 
 }
-
-#endif // GAME_MWBASE_LUAMANAGER_H

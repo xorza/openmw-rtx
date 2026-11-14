@@ -1,5 +1,4 @@
-#ifndef OPENMW_GAME_MWGUI_ITEMSELECTION_H
-#define OPENMW_GAME_MWGUI_ITEMSELECTION_H
+#pragma once
 
 #include <MyGUI_Delegate.h>
 
@@ -45,5 +44,3 @@ namespace MWGui
     };
 
 }
-
-#endif

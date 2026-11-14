@@ -24,8 +24,7 @@
   trial & error.  See http://en.uesp.net/wiki for details.
 
 */
-#ifndef ESM4_RACE
-#define ESM4_RACE
+#pragma once
 
 #include <array>
 #include <cstdint>
@@ -170,5 +169,3 @@ namespace ESM4
         static constexpr ESM::RecNameInts sRecordId = ESM::RecNameInts::REC_RACE4;
     };
 }
-
-#endif // ESM4_RACE

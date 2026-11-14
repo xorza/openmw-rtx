@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_BSA_BA2FILE_HPP
-#define OPENMW_COMPONENTS_BSA_BA2FILE_HPP
+#pragma once
 
 #include <cstdint>
 #include <string_view>
@@ -18,5 +17,3 @@ namespace Bsa
         Fallout4NextGen_v8 = 8,
     };
 }
-
-#endif

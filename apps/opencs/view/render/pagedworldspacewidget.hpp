@@ -1,5 +1,4 @@
-#ifndef OPENCS_VIEW_PAGEDWORLDSPACEWIDGET_H
-#define OPENCS_VIEW_PAGEDWORLDSPACEWIDGET_H
+#pragma once
 
 #include <map>
 #include <string>
@@ -216,5 +215,3 @@ namespace CSVRender
         void loadSouthCell();
     };
 }
-
-#endif

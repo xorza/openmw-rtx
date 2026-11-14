@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_NPCSTATS_H
-#define OPENMW_ESM_NPCSTATS_H
+#pragma once
 
 #include "loadskil.hpp"
 #include "statstate.hpp"
@@ -52,5 +51,3 @@ namespace ESM
         void save(ESMWriter& esm) const;
     };
 }
-
-#endif

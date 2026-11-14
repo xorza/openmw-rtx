@@ -1,5 +1,4 @@
-#ifndef COMPILER_CONTEXT_H_INCLUDED
-#define COMPILER_CONTEXT_H_INCLUDED
+#pragma once
 
 #include <string>
 namespace ESM
@@ -43,5 +42,3 @@ namespace Compiler
         ///< Does \a name match an ID, that can be referenced?
     };
 }
-
-#endif

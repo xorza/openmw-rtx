@@ -1,5 +1,4 @@
-#ifndef OPENMW_BARRIER_H
-#define OPENMW_BARRIER_H
+#pragma once
 
 #include <condition_variable>
 #include <mutex>
@@ -48,5 +47,3 @@ namespace Misc
         std::condition_variable mRendezvous;
     };
 }
-
-#endif

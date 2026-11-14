@@ -1,5 +1,4 @@
-#ifndef CSM_PREFS_StringSetting_H
-#define CSM_PREFS_StringSetting_H
+#pragma once
 
 #include "setting.hpp"
 
@@ -38,5 +37,3 @@ namespace CSMPrefs
         void textChanged(const QString& text);
     };
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef CSM_WOLRD_REFIDDATA_H
-#define CSM_WOLRD_REFIDDATA_H
+#pragma once
 
 #include <algorithm>
 #include <cassert>
@@ -328,5 +327,3 @@ namespace CSMWorld
         void copyTo(int index, RefIdData& target) const;
     };
 }
-
-#endif

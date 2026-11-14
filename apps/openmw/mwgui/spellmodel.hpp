@@ -1,5 +1,4 @@
-#ifndef OPENMW_GUI_SPELLMODEL_H
-#define OPENMW_GUI_SPELLMODEL_H
+#pragma once
 
 #include "../mwworld/ptr.hpp"
 #include <components/esm3/effectlist.hpp>
@@ -63,5 +62,3 @@ namespace MWGui
     };
 
 }
-
-#endif

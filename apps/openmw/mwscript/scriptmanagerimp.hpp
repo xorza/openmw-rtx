@@ -1,5 +1,4 @@
-#ifndef GAME_SCRIPT_SCRIPTMANAGER_H
-#define GAME_SCRIPT_SCRIPTMANAGER_H
+#pragma once
 
 #include <map>
 #include <set>
@@ -101,5 +100,3 @@ namespace MWScript
         const Compiler::Extensions& getExtensions() const override;
     };
 }
-
-#endif

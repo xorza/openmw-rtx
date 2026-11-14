@@ -1,5 +1,4 @@
-#ifndef CSV_DOC_RUNLOGSUBVIEW_H
-#define CSV_DOC_RUNLOGSUBVIEW_H
+#pragma once
 
 #include "subview.hpp"
 
@@ -22,5 +21,3 @@ namespace CSVDoc
         void setEditLock(bool locked) override;
     };
 }
-
-#endif

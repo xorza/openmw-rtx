@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_DETOURNAVIGATOR_CELLGRIDBOUNDS_H
-#define OPENMW_COMPONENTS_DETOURNAVIGATOR_CELLGRIDBOUNDS_H
+#pragma once
 
 #include <osg/Vec2i>
 
@@ -11,5 +10,3 @@ namespace DetourNavigator
         int mHalfSize;
     };
 }
-
-#endif

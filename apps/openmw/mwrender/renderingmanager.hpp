@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWRENDER_RENDERINGMANAGER_H
-#define OPENMW_MWRENDER_RENDERINGMANAGER_H
+#pragma once
 
 #include "framedescriber.hpp"
 #include "ground.hpp"
@@ -403,5 +402,3 @@ namespace MWRender
     };
 
 }
-
-#endif

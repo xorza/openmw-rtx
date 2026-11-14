@@ -1,5 +1,4 @@
-#ifndef GAME_MWCLASS_REPAIR_H
-#define GAME_MWCLASS_REPAIR_H
+#pragma once
 
 #include "../mwworld/registeredclass.hpp"
 
@@ -64,5 +63,3 @@ namespace MWClass
         bool canSell(const MWWorld::ConstPtr& item, int npcServices) const override;
     };
 }
-
-#endif

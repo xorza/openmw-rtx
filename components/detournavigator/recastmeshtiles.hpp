@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_DETOURNAVIGATOR_RECASTMESHTILE_H
-#define OPENMW_COMPONENTS_DETOURNAVIGATOR_RECASTMESHTILE_H
+#pragma once
 
 #include "tileposition.hpp"
 
@@ -12,5 +11,3 @@ namespace DetourNavigator
 
     using RecastMeshTiles = std::map<TilePosition, std::shared_ptr<RecastMesh>>;
 }
-
-#endif

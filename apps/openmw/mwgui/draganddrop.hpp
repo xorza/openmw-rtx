@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWGUI_DRAGANDDROP_H
-#define OPENMW_MWGUI_DRAGANDDROP_H
+#pragma once
 
 #include "itemmodel.hpp"
 #include "itemwidget.hpp"
@@ -44,5 +43,3 @@ namespace MWGui
     };
 
 }
-
-#endif

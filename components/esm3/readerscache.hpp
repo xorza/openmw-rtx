@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_ESM3_READERSCACHE_H
-#define OPENMW_COMPONENTS_ESM3_READERSCACHE_H
+#pragma once
 
 #include "esmreader.hpp"
 
@@ -74,5 +73,3 @@ namespace ESM
         inline void releaseItem(std::list<Item>::iterator it) noexcept;
     };
 }
-
-#endif

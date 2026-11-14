@@ -1,5 +1,4 @@
-#ifndef MAINDIALOG_H
-#define MAINDIALOG_H
+#pragma once
 
 #ifndef Q_MOC_RUN
 #include <components/process/processinvoker.hpp>
@@ -105,4 +104,3 @@ namespace Launcher
         Config::LauncherSettings mLauncherSettings;
     };
 }
-#endif

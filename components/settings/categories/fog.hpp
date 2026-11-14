@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SETTINGS_CATEGORIES_FOG_H
-#define OPENMW_COMPONENTS_SETTINGS_CATEGORIES_FOG_H
+#pragma once
 
 #include <components/settings/sanitizerimpl.hpp>
 #include <components/settings/settingvalue.hpp>
@@ -33,5 +32,3 @@ namespace Settings
         SettingValue<osg::Vec2f> mSkyRttResolution{ mIndex, "Fog", "sky rtt resolution" };
     };
 }
-
-#endif

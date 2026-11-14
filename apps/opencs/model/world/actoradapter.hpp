@@ -1,5 +1,4 @@
-#ifndef CSM_WOLRD_ACTORADAPTER_H
-#define CSM_WOLRD_ACTORADAPTER_H
+#pragma once
 
 #include <array>
 #include <map>
@@ -186,5 +185,3 @@ namespace CSMWorld
         RefIdSet mDirtyRaces; // Races that need updating
     };
 }
-
-#endif

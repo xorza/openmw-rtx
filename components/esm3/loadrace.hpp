@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_RACE_H
-#define OPENMW_ESM_RACE_H
+#pragma once
 
 #include <array>
 #include <map>
@@ -81,4 +80,3 @@ namespace ESM
     };
 
 }
-#endif

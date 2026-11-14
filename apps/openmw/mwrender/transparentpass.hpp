@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWRENDER_TRANSPARENTPASS_H
-#define OPENMW_MWRENDER_TRANSPARENTPASS_H
+#pragma once
 
 #include <array>
 #include <memory>
@@ -45,5 +44,3 @@ namespace MWRender
     };
 
 }
-
-#endif

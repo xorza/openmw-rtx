@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SETTINGS_CATEGORIES_VIDEO_H
-#define OPENMW_COMPONENTS_SETTINGS_CATEGORIES_VIDEO_H
+#pragma once
 
 #include <components/sdlutil/vsyncmode.hpp>
 #include <components/settings/sanitizerimpl.hpp>
@@ -34,5 +33,3 @@ namespace Settings
         SettingValue<float> mGamma{ mIndex, "Video", "gamma", makeMaxStrictSanitizerFloat(0) };
     };
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef CSM_DOC_STATE_H
-#define CSM_DOC_STATE_H
+#pragma once
 
 namespace CSMDoc
 {
@@ -17,5 +16,3 @@ namespace CSMDoc
         State_Loading = 256 // pseudo-state; can not be encountered in a loaded document
     };
 }
-
-#endif

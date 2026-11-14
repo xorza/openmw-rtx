@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWRENDER_RECASTMESH_H
-#define OPENMW_MWRENDER_RECASTMESH_H
+#pragma once
 
 #include <components/detournavigator/recastmeshtiles.hpp>
 #include <components/detournavigator/version.hpp>
@@ -52,5 +51,3 @@ namespace MWRender
         osg::ref_ptr<osg::StateSet> mDebugDrawStateSet;
     };
 }
-
-#endif

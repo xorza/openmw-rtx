@@ -1,5 +1,4 @@
-#ifndef GAME_RENDER_ANIMATION_H
-#define GAME_RENDER_ANIMATION_H
+#pragma once
 
 #include "animationpriority.hpp"
 #include "animblendcontroller.hpp"
@@ -540,4 +539,3 @@ namespace MWRender
         double mStartingTime;
     };
 }
-#endif

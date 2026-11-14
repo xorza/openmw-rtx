@@ -1,5 +1,4 @@
-#ifndef GAME_SOUND_WATERSOUNDUPDATER_H
-#define GAME_SOUND_WATERSOUNDUPDATER_H
+#pragma once
 
 #include "components/esm/refid.hpp"
 #include <string>
@@ -48,5 +47,3 @@ namespace MWSound
         float getVolume(const MWWorld::ConstPtr& player, const MWBase::World& world) const;
     };
 }
-
-#endif

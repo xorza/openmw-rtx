@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_DETOURNAVIGATOR_CHANGETYPE_H
-#define OPENMW_COMPONENTS_DETOURNAVIGATOR_CHANGETYPE_H
+#pragma once
 
 namespace DetourNavigator
 {
@@ -10,5 +9,3 @@ namespace DetourNavigator
         update = 2,
     };
 }
-
-#endif

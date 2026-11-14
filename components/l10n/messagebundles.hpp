@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_L10N_MESSAGEBUNDLES_H
-#define COMPONENTS_L10N_MESSAGEBUNDLES_H
+#pragma once
 
 #include <functional>
 #include <map>
@@ -80,5 +79,3 @@ namespace L10n
 
     icu::UnicodeString toUnicode(std::string_view value);
 }
-
-#endif // COMPONENTS_L10N_MESSAGEBUNDLES_H

@@ -21,8 +21,7 @@
 
  */
 
-#ifndef OPENMW_COMPONENTS_NIF_EFFECT_HPP
-#define OPENMW_COMPONENTS_NIF_EFFECT_HPP
+#pragma once
 
 #include "node.hpp"
 
@@ -102,4 +101,3 @@ namespace Nif
     };
 
 } // Namespace
-#endif

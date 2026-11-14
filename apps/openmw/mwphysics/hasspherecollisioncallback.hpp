@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWPHYSICS_HASSPHERECOLLISIONCALLBACK_H
-#define OPENMW_MWPHYSICS_HASSPHERECOLLISIONCALLBACK_H
+#pragma once
 
 #include <BulletCollision/BroadphaseCollision/btBroadphaseInterface.h>
 #include <BulletCollision/CollisionDispatch/btCollisionObject.h>
@@ -61,5 +60,3 @@ namespace MWPhysics
         }
     };
 }
-
-#endif

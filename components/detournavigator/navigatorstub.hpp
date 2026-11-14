@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_DETOURNAVIGATOR_NAVIGATORSTUB_H
-#define OPENMW_COMPONENTS_DETOURNAVIGATOR_NAVIGATORSTUB_H
+#pragma once
 
 #include "navigator.hpp"
 #include "settings.hpp"
@@ -93,5 +92,3 @@ namespace DetourNavigator
         SharedNavMeshCacheItem mEmptyNavMeshCacheItem;
     };
 }
-
-#endif

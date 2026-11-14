@@ -1,5 +1,4 @@
-#ifndef OPENMW_LUAUI_TEXT
-#define OPENMW_LUAUI_TEXT
+#pragma once
 
 #include <vector>
 
@@ -30,5 +29,3 @@ namespace LuaUi
         MyGUI::IntSize getViewSize() const override;
     };
 }
-
-#endif // OPENMW_LUAUI_TEXT

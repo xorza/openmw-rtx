@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SETTINGS_CATEGORIES_SOUND_H
-#define OPENMW_COMPONENTS_SETTINGS_CATEGORIES_SOUND_H
+#pragma once
 
 #include <components/settings/hrtfmode.hpp>
 #include <components/settings/sanitizerimpl.hpp>
@@ -29,5 +28,3 @@ namespace Settings
         SettingValue<float> mDopplerFactor{ mIndex, "Sound", "doppler factor", makeClampSanitizerFloat(0, 1) };
     };
 }
-
-#endif

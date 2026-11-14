@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SCENEUTIL_SCREENCAPTURE_H
-#define OPENMW_COMPONENTS_SCENEUTIL_SCREENCAPTURE_H
+#pragma once
 
 #include <components/misc/guarded.hpp>
 
@@ -56,5 +55,3 @@ namespace SceneUtil
         Misc::ScopeGuarded<std::vector<std::shared_ptr<SceneUtil::WorkItem>>> mWorkItems;
     };
 }
-
-#endif

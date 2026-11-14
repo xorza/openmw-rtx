@@ -1,5 +1,4 @@
-#ifndef TEXTINPUTDIALOG_HPP
-#define TEXTINPUTDIALOG_HPP
+#pragma once
 
 #include <QDialog>
 
@@ -27,5 +26,3 @@ namespace Launcher
         LineEdit* mLineEdit;
     };
 }
-
-#endif // TEXTINPUTDIALOG_HPP

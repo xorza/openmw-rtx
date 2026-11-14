@@ -1,8 +1,5 @@
-#ifndef SDLINIT_H
-#define SDLINIT_H
+#pragma once
 
 bool initSDL();
 
 void quitSDL();
-
-#endif

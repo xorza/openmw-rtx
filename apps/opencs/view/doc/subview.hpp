@@ -1,5 +1,4 @@
-#ifndef CSV_DOC_SUBVIEW_H
-#define CSV_DOC_SUBVIEW_H
+#pragma once
 
 #include "../../model/world/universalid.hpp"
 
@@ -63,5 +62,3 @@ namespace CSVDoc
         void closeRequest();
     };
 }
-
-#endif

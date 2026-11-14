@@ -1,5 +1,4 @@
-#ifndef CSM_PREFS_ENUMSETTING_H
-#define CSM_PREFS_ENUMSETTING_H
+#pragma once
 
 #include <span>
 #include <string>
@@ -40,5 +39,3 @@ namespace CSMPrefs
         void valueChanged(int value);
     };
 }
-
-#endif

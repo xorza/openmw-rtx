@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_TERRAIN_COMPOSITEMAPRENDERER_H
-#define OPENMW_COMPONENTS_TERRAIN_COMPOSITEMAPRENDERER_H
+#pragma once
 
 #include <osg/Drawable>
 
@@ -69,5 +68,3 @@ namespace Terrain
     };
 
 }
-
-#endif

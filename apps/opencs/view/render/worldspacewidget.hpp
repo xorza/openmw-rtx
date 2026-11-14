@@ -1,5 +1,4 @@
-#ifndef OPENCS_VIEW_WORLDSPACEWIDGET_H
-#define OPENCS_VIEW_WORLDSPACEWIDGET_H
+#pragma once
 
 #include <QPoint>
 #include <QTimer>
@@ -347,5 +346,3 @@ namespace CSVRender
         friend class MouseState;
     };
 }
-
-#endif

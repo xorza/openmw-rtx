@@ -24,8 +24,7 @@
   trial & error.  See http://en.uesp.net/wiki for details.
 
 */
-#ifndef ESM4_COMMON_H
-#define ESM4_COMMON_H
+#pragma once
 
 #include "components/esm/fourcc.hpp"
 
@@ -216,5 +215,3 @@ namespace ESM4
         Rec_MultiBound = 0x80000000 // (REFR) MultiBound
     };
 }
-
-#endif // ESM4_COMMON_H

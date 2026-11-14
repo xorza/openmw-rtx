@@ -1,5 +1,4 @@
-#ifndef COMPILER_STREAMERRORHANDLER_H_INCLUDED
-#define COMPILER_STREAMERRORHANDLER_H_INCLUDED
+#pragma once
 
 #include "errorhandler.hpp"
 
@@ -47,5 +46,3 @@ namespace Compiler
         ~ContextOverride();
     };
 }
-
-#endif

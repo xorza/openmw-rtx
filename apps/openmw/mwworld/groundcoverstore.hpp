@@ -1,5 +1,4 @@
-#ifndef GAME_MWWORLD_GROUNDCOVER_STORE_H
-#define GAME_MWWORLD_GROUNDCOVER_STORE_H
+#pragma once
 
 #include <components/esm/refid.hpp>
 #include <components/vfs/pathutil.hpp>
@@ -57,5 +56,3 @@ namespace MWWorld
         void initCell(ESM::Cell& cell, int cellX, int cellY) const;
     };
 }
-
-#endif

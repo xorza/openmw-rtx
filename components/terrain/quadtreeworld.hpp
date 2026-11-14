@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_TERRAIN_QUADTREEWORLD_H
-#define COMPONENTS_TERRAIN_QUADTREEWORLD_H
+#pragma once
 
 #include "terraingrid.hpp"
 
@@ -108,5 +107,3 @@ namespace Terrain
     };
 
 }
-
-#endif

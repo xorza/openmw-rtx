@@ -1,5 +1,4 @@
-#ifndef MWRENDER_TERRAINSTORAGE_H
-#define MWRENDER_TERRAINSTORAGE_H
+#pragma once
 
 #include <memory>
 
@@ -41,5 +40,3 @@ namespace MWRender
     };
 
 }
-
-#endif

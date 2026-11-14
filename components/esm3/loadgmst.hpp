@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_GMST_H
-#define OPENMW_ESM_GMST_H
+#pragma once
 
 #include <string>
 
@@ -41,4 +40,3 @@ namespace ESM
 
     bool operator==(const GameSetting& left, const GameSetting& right);
 }
-#endif

@@ -1,5 +1,4 @@
-#ifndef CSV_DOC_SIZEHINT_H
-#define CSV_DOC_SIZEHINT_H
+#pragma once
 
 #include <QSize>
 #include <QWidget>
@@ -22,5 +21,3 @@ namespace CSVDoc
         void setSizeHint(const QSize& size) { mSize = size; }
     };
 }
-
-#endif // CSV_DOC_SIZEHINT_H

@@ -1,5 +1,4 @@
-#ifndef OPENW_MWORLD_CELL
-#define OPENW_MWORLD_CELL
+#pragma once
 
 #include <osg/Vec2i>
 
@@ -72,5 +71,3 @@ namespace MWWorld
         MoodData mMood;
     };
 }
-
-#endif

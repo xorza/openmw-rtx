@@ -1,5 +1,4 @@
-#ifndef CSM_FILTER_VALUENODE_H
-#define CSM_FILTER_VALUENODE_H
+#pragma once
 
 #include "leafnode.hpp"
 
@@ -46,5 +45,3 @@ namespace CSMFilter
         /// \param numericColumns Use numeric IDs instead of string to represent columns.
     };
 }
-
-#endif

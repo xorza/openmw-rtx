@@ -1,5 +1,4 @@
-#ifndef CSM_WOLRD_INFOCOLLECTION_H
-#define CSM_WOLRD_INFOCOLLECTION_H
+#pragma once
 
 #include <map>
 #include <string>
@@ -58,5 +57,3 @@ namespace CSMWorld
 
     ESM::RefId makeCompositeInfoRefId(const ESM::RefId& topicId, const ESM::RefId& infoId);
 }
-
-#endif

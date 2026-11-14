@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_TERRAIN_QUADTREENODE_H
-#define OPENMW_COMPONENTS_TERRAIN_QUADTREENODE_H
+#pragma once
 
 #include <osg/Group>
 
@@ -96,5 +95,3 @@ namespace Terrain
     };
 
 }
-
-#endif

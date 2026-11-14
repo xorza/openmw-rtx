@@ -1,5 +1,4 @@
-#ifndef GAME_MWMECHANICS_AIWANDER_H
-#define GAME_MWMECHANICS_AIWANDER_H
+#pragma once
 
 #include "aitemporarybase.hpp"
 #include "aitimer.hpp"
@@ -189,5 +188,3 @@ namespace MWMechanics
         static const std::string_view sIdleSelectToGroupName[GroupIndex_MaxIdle - GroupIndex_MinIdle + 1];
     };
 }
-
-#endif

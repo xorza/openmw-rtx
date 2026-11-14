@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_DETOURNAVIGATOR_RECASTMESHBUILDER_H
-#define OPENMW_COMPONENTS_DETOURNAVIGATOR_RECASTMESHBUILDER_H
+#pragma once
 
 #include "recastmesh.hpp"
 #include "tilebounds.hpp"
@@ -74,5 +73,3 @@ namespace DetourNavigator
 
     Mesh makeMesh(const Heightfield& heightfield);
 }
-
-#endif

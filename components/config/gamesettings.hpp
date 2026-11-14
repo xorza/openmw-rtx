@@ -1,5 +1,4 @@
-#ifndef GAMESETTINGS_HPP
-#define GAMESETTINGS_HPP
+#pragma once
 
 #include <QFile>
 #include <QMultiMap>
@@ -128,5 +127,3 @@ namespace Config
 }
 
 Q_DECLARE_METATYPE(Config::SettingValue)
-
-#endif // GAMESETTINGS_HPP

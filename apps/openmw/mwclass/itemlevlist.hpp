@@ -1,5 +1,4 @@
-#ifndef GAME_MWCLASS_ITEMLEVLIST_H
-#define GAME_MWCLASS_ITEMLEVLIST_H
+#pragma once
 
 #include "../mwworld/registeredclass.hpp"
 
@@ -19,5 +18,3 @@ namespace MWClass
         ///< @return true if this object has a tooltip when focused (default implementation: true)
     };
 }
-
-#endif

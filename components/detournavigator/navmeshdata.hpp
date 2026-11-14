@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_DETOURNAVIGATOR_NAVMESHDATA_H
-#define OPENMW_COMPONENTS_DETOURNAVIGATOR_NAVMESHDATA_H
+#pragma once
 
 #include <DetourAlloc.h>
 
@@ -28,5 +27,3 @@ namespace DetourNavigator
         }
     };
 }
-
-#endif

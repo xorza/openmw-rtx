@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_ESM_ESMTERRAIN
-#define COMPONENTS_ESM_ESMTERRAIN
+#pragma once
 
 #include <array>
 #include <cstdint>
@@ -67,4 +66,3 @@ namespace ESM
     };
 
 }
-#endif // ! COMPNENTS_ESM_ESMTERRAIN

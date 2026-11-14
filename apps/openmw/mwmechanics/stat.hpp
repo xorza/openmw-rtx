@@ -1,5 +1,4 @@
-#ifndef GAME_MWMECHANICS_STAT_H
-#define GAME_MWMECHANICS_STAT_H
+#pragma once
 
 namespace ESM
 {
@@ -159,5 +158,3 @@ namespace MWMechanics
         return !(left == right);
     }
 }
-
-#endif

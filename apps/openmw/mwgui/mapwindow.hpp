@@ -1,5 +1,4 @@
-#ifndef MWGUI_MAPWINDOW_H
-#define MWGUI_MAPWINDOW_H
+#pragma once
 
 #include <cstdint>
 #include <memory>
@@ -350,4 +349,3 @@ namespace MWGui
         void centerView() override;
     };
 }
-#endif

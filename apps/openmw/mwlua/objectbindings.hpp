@@ -1,5 +1,4 @@
-#ifndef MWLUA_OBJECTBINDINGS_H
-#define MWLUA_OBJECTBINDINGS_H
+#pragma once
 
 namespace MWLua
 {
@@ -8,5 +7,3 @@ namespace MWLua
     void initObjectBindingsForLocalScripts(const Context& context);
     void initObjectBindingsForGlobalScripts(const Context& context);
 }
-
-#endif // MWLUA_OBJECTBINDINGS_H

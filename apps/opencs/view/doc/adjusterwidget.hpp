@@ -1,5 +1,4 @@
-#ifndef CSV_DOC_ADJUSTERWIDGET_H
-#define CSV_DOC_ADJUSTERWIDGET_H
+#pragma once
 
 #include <QWidget>
 
@@ -50,5 +49,3 @@ namespace CSVDoc
         void stateChanged(bool valid);
     };
 }
-
-#endif

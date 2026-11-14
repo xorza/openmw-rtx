@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_FILES_FIXEDPATH_HPP
-#define COMPONENTS_FILES_FIXEDPATH_HPP
+#pragma once
 
 #include <filesystem>
 #include <string>
@@ -98,5 +97,3 @@ namespace Files
     };
 
 } /* namespace Files */
-
-#endif /* COMPONENTS_FILES_FIXEDPATH_HPP */

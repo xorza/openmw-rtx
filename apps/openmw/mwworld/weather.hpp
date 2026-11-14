@@ -1,5 +1,4 @@
-#ifndef GAME_MWWORLD_WEATHER_H
-#define GAME_MWWORLD_WEATHER_H
+#pragma once
 
 #include <cstdint>
 #include <map>
@@ -454,5 +453,3 @@ namespace MWWorld
         float calculateWindSpeed(const Weather& weather, float currentSpeed) const;
     };
 }
-
-#endif // GAME_MWWORLD_WEATHER_H

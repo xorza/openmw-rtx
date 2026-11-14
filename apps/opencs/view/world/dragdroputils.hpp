@@ -1,5 +1,4 @@
-#ifndef CSV_WORLD_DRAGDROPUTILS_HPP
-#define CSV_WORLD_DRAGDROPUTILS_HPP
+#pragma once
 
 #include "../../model/world/columnbase.hpp"
 
@@ -30,5 +29,3 @@ namespace CSVWorld
         ///< \return Type_None if the \a event data doesn't holds the \a type
     }
 }
-
-#endif

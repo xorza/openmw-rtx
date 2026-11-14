@@ -1,5 +1,4 @@
-#ifndef CSM_TOOLS_REFERENCECHECK_H
-#define CSM_TOOLS_REFERENCECHECK_H
+#pragma once
 
 #include "../world/idcollection.hpp"
 #include "../world/refcollection.hpp"
@@ -47,5 +46,3 @@ namespace CSMTools
         bool mIgnoreBaseRecords;
     };
 }
-
-#endif // CSM_TOOLS_REFERENCECHECK_H

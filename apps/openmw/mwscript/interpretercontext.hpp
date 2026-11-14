@@ -1,5 +1,4 @@
-#ifndef GAME_SCRIPT_INTERPRETERCONTEXT_H
-#define GAME_SCRIPT_INTERPRETERCONTEXT_H
+#pragma once
 
 #include <memory>
 #include <stdexcept>
@@ -133,5 +132,3 @@ namespace MWScript
         ///< been moved to a new cell.
     };
 }
-
-#endif

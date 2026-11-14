@@ -1,5 +1,4 @@
-#ifndef ESMFILE_HPP
-#define ESMFILE_HPP
+#pragma once
 
 #include <QDateTime>
 #include <QStringList>
@@ -105,5 +104,3 @@ namespace ContentSelectorModel
         bool mHasGameExtension = false;
     };
 }
-
-#endif

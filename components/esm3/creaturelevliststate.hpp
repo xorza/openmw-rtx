@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_CREATURELEVLISTSTATE_H
-#define OPENMW_ESM_CREATURELEVLISTSTATE_H
+#pragma once
 
 #include "objectstate.hpp"
 
@@ -19,5 +18,3 @@ namespace ESM
         const CreatureLevListState& asCreatureLevListState() const override { return *this; }
     };
 }
-
-#endif

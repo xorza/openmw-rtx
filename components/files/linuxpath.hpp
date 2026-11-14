@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_FILES_LINUXPATH_H
-#define COMPONENTS_FILES_LINUXPATH_H
+#pragma once
 
 #if defined(__linux__)
 
@@ -62,5 +61,3 @@ namespace Files
 } /* namespace Files */
 
 #endif /* defined(__linux__) */
-
-#endif /* COMPONENTS_FILES_LINUXPATH_H */

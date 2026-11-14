@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWGUI_LAYOUT_H
-#define OPENMW_MWGUI_LAYOUT_H
+#pragma once
 
 #include <string>
 #include <string_view>
@@ -75,4 +74,3 @@ namespace MWGui
         MyGUI::VectorWidgetPtr mListWindowRoot;
     };
 }
-#endif

@@ -1,5 +1,4 @@
-#ifndef GAME_RENDER_ESM4NPCANIMATION_H
-#define GAME_RENDER_ESM4NPCANIMATION_H
+#pragma once
 
 #include "animation.hpp"
 
@@ -27,5 +26,3 @@ namespace MWRender
         void updatePartsTES5(const ESM4::Npc& traits);
     };
 }
-
-#endif // GAME_RENDER_ESM4NPCANIMATION_H

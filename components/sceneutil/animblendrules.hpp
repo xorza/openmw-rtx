@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SCENEUTIL_ANIMBLENDRULES_HPP
-#define OPENMW_COMPONENTS_SCENEUTIL_ANIMBLENDRULES_HPP
+#pragma once
 
 #include <memory>
 #include <optional>
@@ -41,5 +40,3 @@ namespace SceneUtil
         inline bool fitsRuleString(const std::string_view str, const std::string_view ruleStr) const;
     };
 }
-
-#endif

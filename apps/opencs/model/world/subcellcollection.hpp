@@ -1,5 +1,4 @@
-#ifndef CSM_WOLRD_SUBCOLLECTION_H
-#define CSM_WOLRD_SUBCOLLECTION_H
+#pragma once
 
 #include "nestedidcollection.hpp"
 
@@ -37,5 +36,3 @@ namespace CSMWorld
     {
     }
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWPHYSICS_HEIGHTFIELD_H
-#define OPENMW_MWPHYSICS_HEIGHTFIELD_H
+#pragma once
 
 #include <LinearMath/btScalar.h>
 
@@ -43,5 +42,3 @@ namespace MWPhysics
         HeightField(const HeightField&);
     };
 }
-
-#endif

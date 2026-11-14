@@ -1,5 +1,4 @@
-#ifndef GAME_MWCLASS_ACTIVATOR_H
-#define GAME_MWCLASS_ACTIVATOR_H
+#pragma once
 
 #include "../mwworld/registeredclass.hpp"
 
@@ -53,5 +52,3 @@ namespace MWClass
         ESM::RefId getSoundIdFromSndGen(const MWWorld::Ptr& ptr, std::string_view name) const override;
     };
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_FX_WIDGETS_HPP
-#define OPENMW_COMPONENTS_FX_WIDGETS_HPP
+#pragma once
 
 #include <MyGUI_Button.h>
 #include <MyGUI_Delegate.h>
@@ -287,5 +286,3 @@ namespace Fx
         };
     }
 }
-
-#endif

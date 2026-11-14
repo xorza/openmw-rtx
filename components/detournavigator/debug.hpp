@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_DETOURNAVIGATOR_DEBUG_H
-#define OPENMW_COMPONENTS_DETOURNAVIGATOR_DEBUG_H
+#pragma once
 
 #include "agentbounds.hpp"
 #include "areatype.hpp"
@@ -74,5 +73,3 @@ namespace DetourNavigator
         const RecastSettings& settings);
     void writeToFile(const dtNavMesh& navMesh, const std::string& pathPrefix, const std::string& revision);
 }
-
-#endif

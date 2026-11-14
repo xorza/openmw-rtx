@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWRENDER_BULLETDEBUGDRAW_H
-#define OPENMW_MWRENDER_BULLETDEBUGDRAW_H
+#pragma once
 
 #include <chrono>
 #include <vector>
@@ -86,5 +85,3 @@ namespace MWRender
     };
 
 }
-
-#endif

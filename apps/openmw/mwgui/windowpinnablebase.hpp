@@ -1,5 +1,4 @@
-#ifndef MWGUI_WINDOW_PINNABLE_BASE_H
-#define MWGUI_WINDOW_PINNABLE_BASE_H
+#pragma once
 
 #include "windowbase.hpp"
 
@@ -23,5 +22,3 @@ namespace MWGui
         bool mPinned;
     };
 }
-
-#endif

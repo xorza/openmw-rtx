@@ -1,5 +1,4 @@
-#ifndef MWGUI_ITEMVIEW_H
-#define MWGUI_ITEMVIEW_H
+#pragma once
 
 #include <MyGUI_Widget.h>
 
@@ -61,5 +60,3 @@ namespace MWGui
     };
 
 }
-
-#endif

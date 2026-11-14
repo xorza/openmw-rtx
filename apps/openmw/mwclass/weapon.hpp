@@ -1,5 +1,4 @@
-#ifndef GAME_MWCLASS_WEAPON_H
-#define GAME_MWCLASS_WEAPON_H
+#pragma once
 
 #include "../mwworld/registeredclass.hpp"
 
@@ -83,5 +82,3 @@ namespace MWClass
         int getEnchantmentPoints(const MWWorld::ConstPtr& ptr) const override;
     };
 }
-
-#endif

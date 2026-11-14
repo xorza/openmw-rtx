@@ -1,5 +1,4 @@
-#ifndef GAME_MWMECHANICS_AIBREATHE_H
-#define GAME_MWMECHANICS_AIBREATHE_H
+#pragma once
 
 #include "typedaipackage.hpp"
 
@@ -25,4 +24,3 @@ namespace MWMechanics
         }
     };
 }
-#endif

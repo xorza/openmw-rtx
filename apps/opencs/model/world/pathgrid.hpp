@@ -1,5 +1,4 @@
-#ifndef CSM_WOLRD_PATHGRID_H
-#define CSM_WOLRD_PATHGRID_H
+#pragma once
 
 #include <string>
 
@@ -31,5 +30,3 @@ namespace CSMWorld
         void load(ESM::ESMReader& esm, bool& isDeleted);
     };
 }
-
-#endif

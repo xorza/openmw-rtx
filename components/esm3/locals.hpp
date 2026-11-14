@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_LOCALS_H
-#define OPENMW_ESM_LOCALS_H
+#pragma once
 
 #include <string>
 #include <vector>
@@ -23,5 +22,3 @@ namespace ESM
         void save(ESMWriter& esm) const;
     };
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef GAME_MWWORLD_INVENTORYSTORE_H
-#define GAME_MWWORLD_INVENTORYSTORE_H
+#pragma once
 
 #include "containerstore.hpp"
 
@@ -171,5 +170,3 @@ namespace MWWorld
         bool isFirstEquip();
     };
 }
-
-#endif

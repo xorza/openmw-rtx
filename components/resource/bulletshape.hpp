@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_RESOURCE_BULLETSHAPE_H
-#define OPENMW_COMPONENTS_RESOURCE_BULLETSHAPE_H
+#pragma once
 
 #include <map>
 #include <memory>
@@ -113,5 +112,3 @@ namespace Resource
     };
 
 }
-
-#endif

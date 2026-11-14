@@ -1,5 +1,4 @@
-#ifndef FILEDIALOG_HPP
-#define FILEDIALOG_HPP
+#pragma once
 
 #include <QDialog>
 
@@ -83,4 +82,3 @@ namespace CSVDoc
         void slotAddonDataChanged(const QModelIndex& topleft, const QModelIndex& bottomright);
     };
 }
-#endif // FILEDIALOG_HPP

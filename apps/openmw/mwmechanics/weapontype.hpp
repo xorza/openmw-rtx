@@ -1,5 +1,4 @@
-#ifndef GAME_MWMECHANICS_WEAPONTYPE_H
-#define GAME_MWMECHANICS_WEAPONTYPE_H
+#pragma once
 
 #include <string_view>
 #include <vector>
@@ -33,5 +32,3 @@ namespace MWMechanics
 
     std::vector<std::string_view> getAllWeaponTypeShortGroups();
 }
-
-#endif

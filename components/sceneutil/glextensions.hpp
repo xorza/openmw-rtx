@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SCENEUTIL_GLEXTENSIONS_H
-#define OPENMW_COMPONENTS_SCENEUTIL_GLEXTENSIONS_H
+#pragma once
 
 #include <osg/GLExtensions>
 #include <osg/GraphicsThread>
@@ -17,5 +16,3 @@ namespace SceneUtil
         void operator()(osg::GraphicsContext* graphicsContext) override;
     };
 }
-
-#endif

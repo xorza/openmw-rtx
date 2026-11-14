@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_VARIANTIMP_H
-#define OPENMW_ESM_VARIANTIMP_H
+#pragma once
 
 #include <functional>
 #include <string>
@@ -64,5 +63,3 @@ namespace ESM
         }
     };
 }
-
-#endif

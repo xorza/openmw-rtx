@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_TERRAIN_DRAWABLE_H
-#define OPENMW_COMPONENTS_TERRAIN_DRAWABLE_H
+#pragma once
 
 #include <osg/Geometry>
 
@@ -77,5 +76,3 @@ namespace Terrain
     };
 
 }
-
-#endif

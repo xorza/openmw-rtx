@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_DETOURNAVIGATOR_NAVIGATORIMPL_H
-#define OPENMW_COMPONENTS_DETOURNAVIGATOR_NAVIGATORIMPL_H
+#pragma once
 
 #include "navigator.hpp"
 #include "navmeshmanager.hpp"
@@ -94,5 +93,3 @@ namespace DetourNavigator
         friend class UpdateGuard;
     };
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef MWGUI_TOOLTIPS_H
-#define MWGUI_TOOLTIPS_H
+#pragma once
 
 #include "../mwworld/ptr.hpp"
 #include "layout.hpp"
@@ -135,4 +134,3 @@ namespace MWGui
         float mFrameDuration;
     };
 }
-#endif

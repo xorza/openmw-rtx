@@ -1,5 +1,4 @@
-#ifndef GAME_MWWORLD_ACTIONDOOR_H
-#define GAME_MWWORLD_ACTIONDOOR_H
+#pragma once
 
 #include "action.hpp"
 #include "ptr.hpp"
@@ -14,5 +13,3 @@ namespace MWWorld
         explicit ActionDoor(const Ptr& object);
     };
 }
-
-#endif

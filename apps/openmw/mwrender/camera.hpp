@@ -1,5 +1,4 @@
-#ifndef GAME_MWRENDER_CAMERA_H
-#define GAME_MWRENDER_CAMERA_H
+#pragma once
 
 #include <optional>
 #include <string>
@@ -173,5 +172,3 @@ namespace MWRender
         bool mDeferredRotationDisabled;
     };
 }
-
-#endif

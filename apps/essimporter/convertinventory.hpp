@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESSIMPORT_CONVERTINVENTORY_H
-#define OPENMW_ESSIMPORT_CONVERTINVENTORY_H
+#pragma once
 
 #include "importinventory.hpp"
 
@@ -11,5 +10,3 @@ namespace ESSImport
     void convertInventory(const Inventory& inventory, ESM::InventoryState& state);
 
 }
-
-#endif

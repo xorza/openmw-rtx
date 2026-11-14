@@ -1,5 +1,4 @@
-#ifndef COMPILER_EXPRPARSER_H_INCLUDED
-#define COMPILER_EXPRPARSER_H_INCLUDED
+#pragma once
 
 #include <vector>
 
@@ -105,5 +104,3 @@ namespace Compiler
         const TokenLoc& getTokenLoc() const;
     };
 }
-
-#endif

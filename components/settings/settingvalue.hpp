@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SETTINGS_SETTINGVALUE_H
-#define OPENMW_COMPONENTS_SETTINGS_SETTINGVALUE_H
+#pragma once
 
 #include "gyroscopeaxis.hpp"
 #include "navmeshrendermode.hpp"
@@ -486,5 +485,3 @@ namespace Settings
         Index& mIndex;
     };
 }
-
-#endif

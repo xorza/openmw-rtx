@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWMECHANICS_ACTORUTIL_H
-#define OPENMW_MWMECHANICS_ACTORUTIL_H
+#pragma once
 
 namespace MWWorld
 {
@@ -14,5 +13,3 @@ namespace MWMechanics
     bool hasWaterWalking(const MWWorld::Ptr& actor);
     bool isTargetMagicallyHidden(const MWWorld::Ptr& actor);
 }
-
-#endif

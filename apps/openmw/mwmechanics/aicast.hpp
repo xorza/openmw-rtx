@@ -1,5 +1,4 @@
-#ifndef GAME_MWMECHANICS_AICAST_H
-#define GAME_MWMECHANICS_AICAST_H
+#pragma once
 
 #include "typedaipackage.hpp"
 #include <components/esm/refid.hpp>
@@ -41,5 +40,3 @@ namespace MWMechanics
         const float mDistance;
     };
 }
-
-#endif

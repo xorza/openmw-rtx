@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SCENEUTIL_TEMPLATEREF_H
-#define OPENMW_COMPONENTS_SCENEUTIL_TEMPLATEREF_H
+#pragma once
 
 #include <osg/CopyOp>
 #include <osg/Object>
@@ -40,5 +39,3 @@ namespace SceneUtil
             derived.getOrCreateUserDataContainer()->addUserObject(new TemplateRef(tmpl));
     }
 }
-
-#endif

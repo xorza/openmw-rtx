@@ -1,5 +1,4 @@
-#ifndef CSV_PREFS_KEYBINDINGPAGE_H
-#define CSV_PREFS_KEYBINDINGPAGE_H
+#pragma once
 
 #include "pagebase.hpp"
 
@@ -35,5 +34,3 @@ namespace CSVPrefs
         void resetKeyBindings();
     };
 }
-
-#endif

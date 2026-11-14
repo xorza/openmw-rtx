@@ -1,5 +1,4 @@
-#ifndef CSM_PREFS_BOOLSETTING_H
-#define CSM_PREFS_BOOLSETTING_H
+#pragma once
 
 #include "setting.hpp"
 
@@ -35,5 +34,3 @@ namespace CSMPrefs
         void valueChanged(int value);
     };
 }
-
-#endif

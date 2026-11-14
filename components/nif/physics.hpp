@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_NIF_PHYSICS_HPP
-#define OPENMW_COMPONENTS_NIF_PHYSICS_HPP
+#pragma once
 
 #include "extra.hpp"
 #include "niftypes.hpp"
@@ -950,4 +949,3 @@ namespace Nif
     };
 
 } // Namespace
-#endif

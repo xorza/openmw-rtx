@@ -1,5 +1,4 @@
-#ifndef CSV_TOOLS_REPORTTABLE_H
-#define CSV_TOOLS_REPORTTABLE_H
+#pragma once
 
 #include <map>
 #include <string>
@@ -113,5 +112,3 @@ namespace CSVTools
         void refreshRequest();
     };
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef MAINWIZARD_HPP
-#define MAINWIZARD_HPP
+#pragma once
 
 #include <QProcess>
 #include <QWizard>
@@ -81,5 +80,3 @@ namespace Wizard
     };
 
 }
-
-#endif // MAINWIZARD_HPP

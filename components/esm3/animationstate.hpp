@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_ANIMATIONSTATE_H
-#define OPENMW_ESM_ANIMATIONSTATE_H
+#pragma once
 
 #include <cstdint>
 #include <string>
@@ -37,5 +36,3 @@ namespace ESM
         void save(ESMWriter& esm) const;
     };
 }
-
-#endif

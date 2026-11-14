@@ -1,5 +1,4 @@
-#ifndef VERSION_HPP
-#define VERSION_HPP
+#pragma once
 
 #include <filesystem>
 #include <string>
@@ -20,5 +19,3 @@ namespace Version
 
     std::string_view getDocumentationUrl();
 }
-
-#endif // VERSION_HPP

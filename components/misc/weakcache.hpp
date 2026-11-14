@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_WEAKCACHE_HPP
-#define OPENMW_COMPONENTS_WEAKCACHE_HPP
+#pragma once
 
 #include <memory>
 #include <unordered_map>
@@ -136,5 +135,3 @@ namespace Misc
         mDirty.clear();
     }
 }
-
-#endif

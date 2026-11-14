@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_MISC_FRAMESTATS_H
-#define OPENMW_COMPONENTS_MISC_FRAMESTATS_H
+#pragma once
 
 #include <chrono>
 #include <string>
@@ -33,5 +32,3 @@ namespace Misc
         return std::chrono::duration<double>(to - from).count();
     }
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef GAME_MWWORLD_SCENE_H
-#define GAME_MWWORLD_SCENE_H
+#pragma once
 
 #include <osg/Vec2i>
 #include <osg/Vec4i>
@@ -214,5 +213,3 @@ namespace MWWorld
         void reportStats(unsigned int frameNumber, Misc::FrameStats& stats) const;
     };
 }
-
-#endif

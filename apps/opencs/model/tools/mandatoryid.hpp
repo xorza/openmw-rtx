@@ -1,5 +1,4 @@
-#ifndef CSM_TOOLS_MANDATORYID_H
-#define CSM_TOOLS_MANDATORYID_H
+#pragma once
 
 #include <string>
 #include <vector>
@@ -38,5 +37,3 @@ namespace CSMTools
         ///< Messages resulting from this tage will be appended to \a messages.
     };
 }
-
-#endif

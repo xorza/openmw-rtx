@@ -1,5 +1,4 @@
-#ifndef CSV_WORLD_SCRIPTHIGHLIGHTER_H
-#define CSV_WORLD_SCRIPTHIGHLIGHTER_H
+#pragma once
 
 #include <map>
 #include <string>
@@ -110,5 +109,3 @@ namespace CSVWorld
         bool settingChanged(const CSMPrefs::Setting* setting);
     };
 }
-
-#endif

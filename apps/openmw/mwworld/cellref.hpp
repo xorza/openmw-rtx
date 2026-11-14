@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWWORLD_CELLREF_H
-#define OPENMW_MWWORLD_CELLREF_H
+#pragma once
 
 #include <string_view>
 
@@ -270,5 +269,3 @@ namespace MWWorld
     };
 
 }
-
-#endif

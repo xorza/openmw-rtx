@@ -1,5 +1,4 @@
-#ifndef GAME_MWWORLD_PLAYER_H
-#define GAME_MWWORLD_PLAYER_H
+#pragma once
 
 #include <map>
 
@@ -122,4 +121,3 @@ namespace MWWorld
         void update();
     };
 }
-#endif

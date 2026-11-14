@@ -1,5 +1,4 @@
-#ifndef COMPONENT_ESM_TES3_H
-#define COMPONENT_ESM_TES3_H
+#pragma once
 
 #include <vector>
 
@@ -57,5 +56,3 @@ namespace ESM
     };
 
 }
-
-#endif

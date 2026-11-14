@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_TERRAIN_CHUNKMANAGER_H
-#define OPENMW_COMPONENTS_TERRAIN_CHUNKMANAGER_H
+#pragma once
 
 #include <tuple>
 
@@ -124,5 +123,3 @@ namespace Terrain
     };
 
 }
-
-#endif

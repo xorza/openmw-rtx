@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_LUAUI_CONTENT
-#define COMPONENTS_LUAUI_CONTENT
+#pragma once
 
 #include <sol/sol.hpp>
 
@@ -38,5 +37,3 @@ namespace LuaUi
         static inline size_t toLua(size_t index) { return index + 1; }
     };
 }
-
-#endif // COMPONENTS_LUAUI_CONTENT

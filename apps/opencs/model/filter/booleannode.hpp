@@ -1,5 +1,4 @@
-#ifndef CSM_FILTER_BOOLEANNODE_H
-#define CSM_FILTER_BOOLEANNODE_H
+#pragma once
 
 #include <map>
 #include <string>
@@ -36,5 +35,3 @@ namespace CSMFilter
         /// \param numericColumns Use numeric IDs instead of string to represent columns.
     };
 }
-
-#endif

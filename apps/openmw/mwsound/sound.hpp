@@ -1,5 +1,4 @@
-#ifndef GAME_SOUND_SOUND_H
-#define GAME_SOUND_SOUND_H
+#pragma once
 
 #include <algorithm>
 
@@ -197,5 +196,3 @@ namespace MWSound
         Stream() = default;
     };
 }
-
-#endif

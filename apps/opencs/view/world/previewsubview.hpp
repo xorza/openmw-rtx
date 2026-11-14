@@ -1,5 +1,4 @@
-#ifndef CSV_WORLD_PREVIEWSUBVIEW_H
-#define CSV_WORLD_PREVIEWSUBVIEW_H
+#pragma once
 
 #include "../doc/subview.hpp"
 
@@ -38,5 +37,3 @@ namespace CSVWorld
         void referenceableIdChanged(const std::string& id);
     };
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef OPENMW_APPS_OPENCS_VIEW_WORLD_TABLEHEADERMOUSEEVENTHANDLER_HPP
-#define OPENMW_APPS_OPENCS_VIEW_WORLD_TABLEHEADERMOUSEEVENTHANDLER_HPP
+#pragma once
 
 #include <QWidget>
 
@@ -29,5 +28,3 @@ namespace CSVWorld
 
     }; // class TableHeaderMouseEventHandler
 } // namespace CSVWorld
-
-#endif

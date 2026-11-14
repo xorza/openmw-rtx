@@ -1,5 +1,4 @@
-#ifndef CSM_WOLRD_NESTEDCOLLECTION_H
-#define CSM_WOLRD_NESTEDCOLLECTION_H
+#pragma once
 
 #include "columns.hpp"
 
@@ -42,5 +41,3 @@ namespace CSMWorld
         ///< \return the column index or throws an exception if the requested column wasn't found.
     };
 }
-
-#endif // CSM_WOLRD_NESTEDCOLLECTION_H

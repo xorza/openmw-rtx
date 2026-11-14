@@ -1,5 +1,4 @@
-#ifndef MWGUI_ENCHANTINGDIALOG_H
-#define MWGUI_ENCHANTINGDIALOG_H
+#pragma once
 
 #include <memory>
 
@@ -78,5 +77,3 @@ namespace MWGui
     };
 
 }
-
-#endif

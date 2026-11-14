@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_LIGHTUTIL_H
-#define OPENMW_COMPONENTS_LIGHTUTIL_H
+#pragma once
 
 #include <osg/Vec4f>
 #include <osg/ref_ptr>
@@ -40,5 +39,3 @@ namespace SceneUtil
         bool isExterior, const osg::Vec4f& ambient = osg::Vec4f(0, 0, 0, 1));
 
 }
-
-#endif

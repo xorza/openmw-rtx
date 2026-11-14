@@ -17,8 +17,7 @@
  * OpenSceneGraph Public License for more details.
 */
 
-#ifndef COMPONENTS_SCENEUTIL_MWSHADOWTECHNIQUE_H
-#define COMPONENTS_SCENEUTIL_MWSHADOWTECHNIQUE_H 1
+#pragma once
 
 #include <array>
 #include <memory>
@@ -348,5 +347,4 @@ namespace SceneUtil {
 
 // NOLINTEND(readability-identifier-naming)
 
-#endif
 // clang-format on

@@ -1,5 +1,4 @@
-#ifndef MWLUA_ENGINEEVENTS_H
-#define MWLUA_ENGINEEVENTS_H
+#pragma once
 
 #include <variant>
 
@@ -116,5 +115,3 @@ namespace MWLua
     };
 
 }
-
-#endif // MWLUA_ENGINEEVENTS_H

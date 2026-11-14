@@ -1,5 +1,4 @@
-#ifndef CSM_WORLD_INFOSELECTWRAPPER_H
-#define CSM_WORLD_INFOSELECTWRAPPER_H
+#pragma once
 
 #include <stddef.h>
 #include <string>
@@ -97,5 +96,3 @@ namespace CSMWorld
         void writeRule();
     };
 }
-
-#endif

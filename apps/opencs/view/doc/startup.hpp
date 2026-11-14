@@ -1,5 +1,4 @@
-#ifndef CSV_DOC_STARTUP_H
-#define CSV_DOC_STARTUP_H
+#pragma once
 
 #include <QWidget>
 
@@ -40,5 +39,3 @@ namespace CSVDoc
         void editConfig();
     };
 }
-
-#endif

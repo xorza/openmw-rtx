@@ -1,5 +1,4 @@
-#ifndef OPENMW_MECHANICS_SUMMONING_H
-#define OPENMW_MECHANICS_SUMMONING_H
+#pragma once
 
 #include <string_view>
 #include <utility>
@@ -27,5 +26,3 @@ namespace MWMechanics
 
     void updateSummons(const MWWorld::Ptr& summoner, bool cleanup);
 }
-
-#endif

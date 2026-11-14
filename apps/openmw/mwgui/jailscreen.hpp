@@ -1,5 +1,4 @@
-#ifndef MWGUI_JAILSCREEN_H
-#define MWGUI_JAILSCREEN_H
+#pragma once
 
 #include "timeadvancer.hpp"
 #include "windowbase.hpp"
@@ -31,5 +30,3 @@ namespace MWGui
         TimeAdvancer mTimeAdvancer;
     };
 }
-
-#endif

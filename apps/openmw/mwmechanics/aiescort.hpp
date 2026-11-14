@@ -1,5 +1,4 @@
-#ifndef GAME_MWMECHANICS_AIESCORT_H
-#define GAME_MWMECHANICS_AIESCORT_H
+#pragma once
 
 #include "typedaipackage.hpp"
 
@@ -60,4 +59,3 @@ namespace MWMechanics
         float mRemainingDuration; // In hours
     };
 }
-#endif

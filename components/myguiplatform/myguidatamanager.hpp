@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_MYGUIPLATFORM_MYGUIDATAMANAGER_H
-#define OPENMW_COMPONENTS_MYGUIPLATFORM_MYGUIDATAMANAGER_H
+#pragma once
 
 #include <MyGUI_DataManager.h>
 
@@ -70,5 +69,3 @@ namespace MyGUIPlatform
     };
 
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_ESM_INDEXREFID_HPP
-#define OPENMW_COMPONENTS_ESM_INDEXREFID_HPP
+#pragma once
 
 #include <functional>
 #include <iosfwd>
@@ -57,5 +56,3 @@ namespace std
         }
     };
 }
-
-#endif

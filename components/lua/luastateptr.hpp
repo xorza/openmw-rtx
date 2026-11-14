@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_LUA_LUASTATEPTR_H
-#define OPENMW_COMPONENTS_LUA_LUASTATEPTR_H
+#pragma once
 
 #include <sol/state.hpp>
 
@@ -14,5 +13,3 @@ namespace LuaUtil
 
     using LuaStatePtr = std::unique_ptr<lua_State, CloseLuaState>;
 }
-
-#endif

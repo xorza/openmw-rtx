@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_MISC_COORDINATECONVERTER_H
-#define OPENMW_COMPONENTS_MISC_COORDINATECONVERTER_H
+#pragma once
 
 #include <components/esm/esmbridge.hpp>
 #include <components/esm3/loadcell.hpp>
@@ -101,5 +100,3 @@ namespace Misc
         return visit([](const auto& v) { return makeCoordinateConverterImpl(v); }, cell);
     }
 }
-
-#endif

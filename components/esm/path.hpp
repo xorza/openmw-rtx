@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_ESM_PATH_H
-#define OPENMW_COMPONENTS_ESM_PATH_H
+#pragma once
 
 #include <components/vfs/pathutil.hpp>
 
@@ -65,5 +64,3 @@ namespace ESM
         VFS::Path::Normalized mNormalized;
     };
 }
-
-#endif

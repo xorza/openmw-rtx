@@ -1,5 +1,4 @@
-#ifndef SCENEUTIL_NODECALLBACK_H
-#define SCENEUTIL_NODECALLBACK_H
+#pragma once
 
 #include <osg/Callback>
 #include <osg/Node>
@@ -38,4 +37,3 @@ namespace SceneUtil
     };
 
 }
-#endif

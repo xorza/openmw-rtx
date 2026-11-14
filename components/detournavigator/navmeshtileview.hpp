@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_DETOURNAVIGATOR_NAVMESHTILEVIEW_H
-#define OPENMW_COMPONENTS_DETOURNAVIGATOR_NAVMESHTILEVIEW_H
+#pragma once
 
 struct dtMeshHeader;
 struct dtPoly;
@@ -27,5 +26,3 @@ namespace DetourNavigator
     NavMeshTileConstView asNavMeshTileConstView(const unsigned char* data);
     NavMeshTileConstView asNavMeshTileConstView(const dtMeshTile& tile);
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWMECHANICS_DIFFICULTYSCALING_H
-#define OPENMW_MWMECHANICS_DIFFICULTYSCALING_H
+#pragma once
 
 namespace MWWorld
 {
@@ -8,5 +7,3 @@ namespace MWWorld
 
 /// Scales damage dealt to an actor based on difficulty setting
 float scaleDamage(float damage, const MWWorld::Ptr& attacker, const MWWorld::Ptr& victim);
-
-#endif

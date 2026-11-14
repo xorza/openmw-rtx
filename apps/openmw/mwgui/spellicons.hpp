@@ -1,5 +1,4 @@
-#ifndef MWGUI_SPELLICONS_H
-#define MWGUI_SPELLICONS_H
+#pragma once
 
 #include <map>
 
@@ -24,5 +23,3 @@ namespace MWGui
     };
 
 }
-
-#endif

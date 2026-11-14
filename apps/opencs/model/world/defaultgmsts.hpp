@@ -1,5 +1,4 @@
-#ifndef CSM_WORLD_DEFAULTGMSTS_H
-#define CSM_WORLD_DEFAULTGMSTS_H
+#pragma once
 
 #include <cstddef>
 
@@ -32,5 +31,3 @@ namespace CSMWorld
 
     }
 }
-
-#endif

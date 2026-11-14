@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_MISC_ENDIANNESS_H
-#define COMPONENTS_MISC_ENDIANNESS_H
+#pragma once
 
 #include <bit>
 #include <cstdint>
@@ -87,5 +86,3 @@ namespace Misc
     }
 
 }
-
-#endif // COMPONENTS_MISC_ENDIANNESS_H

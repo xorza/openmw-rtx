@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_DIALOGUESTATE_H
-#define OPENMW_ESM_DIALOGUESTATE_H
+#pragma once
 
 #include <components/esm/refid.hpp>
 #include <map>
@@ -25,5 +24,3 @@ namespace ESM
         void save(ESMWriter& esm) const;
     };
 }
-
-#endif

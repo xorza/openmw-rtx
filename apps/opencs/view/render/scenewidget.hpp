@@ -1,5 +1,4 @@
-#ifndef OPENCS_VIEW_SCENEWIDGET_H
-#define OPENCS_VIEW_SCENEWIDGET_H
+#pragma once
 
 #include <memory>
 #include <string>
@@ -180,5 +179,3 @@ namespace CSVRender
         void focusToolbarRequest();
     };
 }
-
-#endif

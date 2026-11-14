@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_DETOURNAVIGATOR_SETTINGS_H
-#define OPENMW_COMPONENTS_DETOURNAVIGATOR_SETTINGS_H
+#pragma once
 
 #include <components/debug/debuglog.hpp>
 
@@ -56,5 +55,3 @@ namespace DetourNavigator
 
     Settings makeSettingsFromSettingsManager(Debug::Level maxLogLevel);
 }
-
-#endif

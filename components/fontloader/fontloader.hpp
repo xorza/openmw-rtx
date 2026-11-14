@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_FONTLOADER_H
-#define OPENMW_COMPONENTS_FONTLOADER_H
+#pragma once
 
 #include <vector>
 
@@ -107,5 +106,3 @@ namespace Gui
     };
 
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef MWGUI_JOURNALVIEWMODEL_HPP
-#define MWGUI_JOURNALVIEWMODEL_HPP
+#pragma once
 
 #include <cstdint>
 #include <functional>
@@ -96,5 +95,3 @@ namespace MWGui
         virtual ~JournalViewModel() = default;
     };
 }
-
-#endif // MWGUI_JOURNALVIEWMODEL_HPP

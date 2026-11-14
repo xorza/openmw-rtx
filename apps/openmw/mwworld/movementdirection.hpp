@@ -1,5 +1,4 @@
-#ifndef OPENMW_APPS_OPENMW_MWWORLD_MOVEMENTDIRECTION_H
-#define OPENMW_APPS_OPENMW_MWWORLD_MOVEMENTDIRECTION_H
+#pragma once
 
 namespace MWWorld
 {
@@ -13,5 +12,3 @@ namespace MWWorld
         MovementDirectionFlag_Right = 1 << 3,
     };
 }
-
-#endif

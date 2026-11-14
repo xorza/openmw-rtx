@@ -1,5 +1,4 @@
-#ifndef CSV_RENDER_INSTANCE_SELECTION_MODE_H
-#define CSV_RENDER_INSTANCE_SELECTION_MODE_H
+#pragma once
 
 #include <osg/Vec3d>
 #include <osg/ref_ptr>
@@ -79,5 +78,3 @@ namespace CSVRender
         void selectSame();
     };
 }
-
-#endif

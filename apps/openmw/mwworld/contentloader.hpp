@@ -1,5 +1,4 @@
-#ifndef CONTENTLOADER_HPP
-#define CONTENTLOADER_HPP
+#pragma once
 
 #include <filesystem>
 
@@ -19,5 +18,3 @@ namespace MWWorld
     };
 
 } /* namespace MWWorld */
-
-#endif /* CONTENTLOADER_HPP */

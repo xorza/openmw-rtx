@@ -1,5 +1,4 @@
-#ifndef GAME_MWMECHANICS_AIFACE_H
-#define GAME_MWMECHANICS_AIFACE_H
+#pragma once
 
 #include "typedaipackage.hpp"
 
@@ -30,5 +29,3 @@ namespace MWMechanics
         const float mTargetY;
     };
 }
-
-#endif

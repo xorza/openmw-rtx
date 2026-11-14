@@ -1,5 +1,4 @@
-#ifndef MWLUA_INPUTPROCESSOR_H
-#define MWLUA_INPUTPROCESSOR_H
+#pragma once
 
 #include <SDL3/SDL_events.h>
 
@@ -82,5 +81,3 @@ namespace MWLua
         typename Container::EngineHandlerList mMouseWheel{ "onMouseWheel" };
     };
 }
-
-#endif // MWLUA_INPUTPROCESSOR_H

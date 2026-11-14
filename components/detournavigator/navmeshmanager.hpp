@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_DETOURNAVIGATOR_NAVMESHMANAGER_H
-#define OPENMW_COMPONENTS_DETOURNAVIGATOR_NAVMESHMANAGER_H
+#pragma once
 
 #include "agentbounds.hpp"
 #include "asyncnavmeshupdater.hpp"
@@ -85,5 +84,3 @@ namespace DetourNavigator
             const std::map<osg::Vec2i, ChangeType>& changedTiles);
     };
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_UNREFQUEUE_H
-#define OPENMW_COMPONENTS_UNREFQUEUE_H
+#pragma once
 
 #include <memory>
 #include <vector>
@@ -26,5 +25,3 @@ namespace SceneUtil
         std::vector<std::shared_ptr<void>> mObjects;
     };
 }
-
-#endif

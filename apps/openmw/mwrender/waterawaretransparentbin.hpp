@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWRENDER_WATERAWARETRANSPARENTBIN_H
-#define OPENMW_MWRENDER_WATERAWARETRANSPARENTBIN_H
+#pragma once
 
 #include <osgUtil/RenderBin>
 
@@ -46,5 +45,3 @@ namespace MWRender
         const Water* mWater;
     };
 }
-
-#endif

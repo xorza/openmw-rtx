@@ -1,5 +1,4 @@
-#ifndef COMPONENT_ESM_FORMID_H
-#define COMPONENT_ESM_FORMID_H
+#pragma once
 
 #include <cstdint>
 #include <cstring>
@@ -59,5 +58,3 @@ namespace std
     };
 
 }
-
-#endif // COMPONENT_ESM_FORMID_H

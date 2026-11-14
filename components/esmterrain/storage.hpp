@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_ESMTERRAIN_STORAGE_H
-#define OPENMW_COMPONENTS_ESMTERRAIN_STORAGE_H
+#pragma once
 
 #include <cassert>
 #include <mutex>
@@ -182,5 +181,3 @@ namespace ESMTerrain
     };
 
 }
-
-#endif

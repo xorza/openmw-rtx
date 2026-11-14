@@ -1,5 +1,4 @@
-#ifndef OPENMW_LUAUI_REGISTERSCRIPTSETTINGS
-#define OPENMW_LUAUI_REGISTERSCRIPTSETTINGS
+#pragma once
 
 #include <sol/sol.hpp>
 
@@ -10,5 +9,3 @@ namespace LuaUi
     void clearSettings();
     void removeSettingsPage(const sol::table& options);
 }
-
-#endif // !OPENMW_LUAUI_REGISTERSCRIPTSETTINGS

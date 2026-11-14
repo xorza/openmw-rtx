@@ -1,5 +1,4 @@
-#ifndef OPENMW_APPS_OPENMW_MWGUI_ITEMTRANSFER_H
-#define OPENMW_APPS_OPENMW_MWGUI_ITEMTRANSFER_H
+#pragma once
 
 #include "inventorywindow.hpp"
 #include "itemmodel.hpp"
@@ -74,5 +73,3 @@ namespace MWGui
         std::unordered_set<ItemView*> mTargets;
     };
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_DETOURNAVIGATOR_STATS_H
-#define OPENMW_COMPONENTS_DETOURNAVIGATOR_STATS_H
+#pragma once
 
 #include <cstddef>
 #include <optional>
@@ -65,5 +64,3 @@ namespace DetourNavigator
 
     void reportStats(const Stats& stats, unsigned int frameNumber, Misc::FrameStats& out);
 }
-
-#endif

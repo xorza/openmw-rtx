@@ -1,5 +1,4 @@
-#ifndef CSVWORLD_EXTENDEDCOMMANDCONFIGURATOR_HPP
-#define CSVWORLD_EXTENDEDCOMMANDCONFIGURATOR_HPP
+#pragma once
 
 #include <map>
 #include <vector>
@@ -78,5 +77,3 @@ namespace CSVWorld
         void done();
     };
 }
-
-#endif

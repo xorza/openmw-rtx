@@ -1,5 +1,4 @@
-#ifndef CSVWORLD_TABLEEDITIDACTION_HPP
-#define CSVWORLD_TABLEEDITIDACTION_HPP
+#pragma once
 
 #include <QAction>
 #include <QString>
@@ -32,5 +31,3 @@ namespace CSVWorld
         CSMWorld::UniversalId getCurrentId() const;
     };
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef MWGUI_CLASS_H
-#define MWGUI_CLASS_H
+#pragma once
 
 #include <array>
 #include <memory>
@@ -357,4 +356,3 @@ namespace MWGui
         size_t mControllerFocus = 2;
     };
 }
-#endif

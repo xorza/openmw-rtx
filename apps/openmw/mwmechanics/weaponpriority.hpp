@@ -1,5 +1,4 @@
-#ifndef OPENMW_WEAPON_PRIORITY_H
-#define OPENMW_WEAPON_PRIORITY_H
+#pragma once
 
 #include <components/esm/refid.hpp>
 
@@ -19,5 +18,3 @@ namespace MWMechanics
     float vanillaRateWeaponAndAmmo(
         const MWWorld::Ptr& weapon, const MWWorld::Ptr& ammo, const MWWorld::Ptr& actor, const MWWorld::Ptr& enemy);
 }
-
-#endif

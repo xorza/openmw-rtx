@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWWORLD_PROJECTILEMANAGER_H
-#define OPENMW_MWWORLD_PROJECTILEMANAGER_H
+#pragma once
 
 #include <optional>
 #include <string>
@@ -147,5 +146,3 @@ namespace MWWorld
     };
 
 }
-
-#endif

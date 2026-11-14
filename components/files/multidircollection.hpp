@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_FILES_MULTIDIRSOLLECTION_HPP
-#define COMPONENTS_FILES_MULTIDIRSOLLECTION_HPP
+#pragma once
 
 #include <cctype>
 #include <filesystem>
@@ -49,5 +48,3 @@ namespace Files
         ///< Return iterator pointing past the last file.
     };
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESMTOOL_RECORD_H
-#define OPENMW_ESMTOOL_RECORD_H
+#pragma once
 
 #include <memory>
 #include <string>
@@ -193,5 +192,3 @@ namespace EsmTool
     template <>
     void Record<CellState>::print();
 }
-
-#endif

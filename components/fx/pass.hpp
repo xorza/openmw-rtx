@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_FX_PASS_HPP
-#define OPENMW_COMPONENTS_FX_PASS_HPP
+#pragma once
 
 #include <array>
 #include <optional>
@@ -78,5 +77,3 @@ namespace Fx
         std::optional<osg::BlendEquation::Equation> mBlendEq;
     };
 }
-
-#endif

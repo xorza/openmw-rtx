@@ -1,5 +1,4 @@
-#ifndef AL_EFX_H
-#define AL_EFX_H
+#pragma once
 
 #include "al.h"
 
@@ -748,5 +747,3 @@ extern "C"
 #ifdef __cplusplus
 } /* extern "C" */
 #endif
-
-#endif /* AL_EFX_H */

@@ -1,5 +1,4 @@
-#ifndef VFS_BSAARCHIVE_HPP_
-#define VFS_BSAARCHIVE_HPP_
+#pragma once
 
 #include "archive.hpp"
 #include "file.hpp"
@@ -134,5 +133,3 @@ namespace VFS
         throw std::runtime_error("Unknown archive type '" + Files::pathToUnicodeString(path) + "'");
     }
 }
-
-#endif

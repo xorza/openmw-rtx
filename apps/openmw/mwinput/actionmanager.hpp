@@ -1,5 +1,4 @@
-#ifndef MWINPUT_ACTIONMANAGER_H
-#define MWINPUT_ACTIONMANAGER_H
+#pragma once
 
 namespace MWRender
 {
@@ -45,4 +44,3 @@ namespace MWInput
         float mTimeIdle;
     };
 }
-#endif

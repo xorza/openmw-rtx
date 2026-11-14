@@ -1,5 +1,4 @@
-#ifndef CSV_WORLD_SCRIPTERRORTABLE_H
-#define CSV_WORLD_SCRIPTERRORTABLE_H
+#pragma once
 
 #include <QTableWidget>
 
@@ -70,5 +69,3 @@ namespace CSVWorld
         void highlightError(int line, int column);
     };
 }
-
-#endif

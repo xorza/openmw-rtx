@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_ESM_ESM3EXTERIORCELLREFID_HPP
-#define OPENMW_COMPONENTS_ESM_ESM3EXTERIORCELLREFID_HPP
+#pragma once
 
 #include <functional>
 #include <iosfwd>
@@ -58,5 +57,3 @@ namespace std
         }
     };
 }
-
-#endif

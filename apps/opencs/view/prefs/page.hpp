@@ -1,5 +1,4 @@
-#ifndef CSV_PREFS_PAGE_H
-#define CSV_PREFS_PAGE_H
+#pragma once
 
 #include "pagebase.hpp"
 
@@ -27,5 +26,3 @@ namespace CSVPrefs
         void addSetting(CSMPrefs::Setting* setting);
     };
 }
-
-#endif

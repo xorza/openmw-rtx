@@ -1,5 +1,4 @@
-#ifndef MWGUI_WEIGHTEDSEARCH_H
-#define MWGUI_WEIGHTEDSEARCH_H
+#pragma once
 
 #include <cstddef>
 #include <iterator>
@@ -33,5 +32,3 @@ namespace MWGui
         return numberOfMatches;
     }
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWPHYSICS_CONTACTTESTRESULTCALLBACK_H
-#define OPENMW_MWPHYSICS_CONTACTTESTRESULTCALLBACK_H
+#pragma once
 
 #include <vector>
 
@@ -29,5 +28,3 @@ namespace MWPhysics
         const btCollisionObject* mTestedAgainst;
     };
 }
-
-#endif

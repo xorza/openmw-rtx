@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_ATTR_H
-#define OPENMW_ESM_ATTR_H
+#pragma once
 
 #include <string>
 #include <string_view>
@@ -47,4 +46,3 @@ namespace ESM
         static int refIdToIndex(RefId id);
     };
 }
-#endif

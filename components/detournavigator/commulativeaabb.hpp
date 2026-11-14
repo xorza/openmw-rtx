@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_DETOURNAVIGATOR_COMMULATIVEAABB_H
-#define OPENMW_COMPONENTS_DETOURNAVIGATOR_COMMULATIVEAABB_H
+#pragma once
 
 #include <BulletCollision/Gimpact/btBoxCollision.h>
 
@@ -19,5 +18,3 @@ namespace DetourNavigator
         btAABB mAabb;
     };
 }
-
-#endif

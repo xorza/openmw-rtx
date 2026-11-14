@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_DEBUG_WRITEFLAGS_H
-#define OPENMW_COMPONENTS_DEBUG_WRITEFLAGS_H
+#pragma once
 
 #include <iomanip>
 #include <ostream>
@@ -33,5 +32,3 @@ namespace Debug
         return stream << " (0x" << std::hex << value << std::resetiosflags(std::ios_base::hex) << ')';
     }
 }
-
-#endif

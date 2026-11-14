@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWMECHANICS_MOVINGTARGET_H
-#define OPENMW_MWMECHANICS_MOVINGTARGET_H
+#pragma once
 
 #include <osg/Vec3f>
 
@@ -12,5 +11,3 @@ namespace MWMechanics
         osg::Vec3f mVelocity;
     };
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef STEREO_FRUSTUM_H
-#define STEREO_FRUSTUM_H
+#pragma once
 
 #include <osg/BoundingBox>
 #include <osg/Matrix>
@@ -65,5 +64,3 @@ namespace Stereo
         std::unique_ptr<MultiviewFrustumCallback> mMultiviewFrustumCallback;
     };
 }
-
-#endif

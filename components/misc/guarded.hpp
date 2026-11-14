@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_MISC_GUARDED_H
-#define OPENMW_COMPONENTS_MISC_GUARDED_H
+#pragma once
 
 #include <condition_variable>
 #include <memory>
@@ -86,5 +85,3 @@ namespace Misc
         T mValue;
     };
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef CSM_TOOLS_TOOLS_H
-#define CSM_TOOLS_TOOLS_H
+#pragma once
 
 #include <map>
 #include <memory>
@@ -101,5 +100,3 @@ namespace CSMTools
         void mergeDone(CSMDoc::Document* document);
     };
 }
-
-#endif

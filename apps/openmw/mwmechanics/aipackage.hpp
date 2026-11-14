@@ -1,5 +1,4 @@
-#ifndef GAME_MWMECHANICS_AIPACKAGE_H
-#define GAME_MWMECHANICS_AIPACKAGE_H
+#pragma once
 
 #include <memory>
 
@@ -185,5 +184,3 @@ namespace MWMechanics
         bool isNearInactiveCell(osg::Vec3f position);
     };
 }
-
-#endif

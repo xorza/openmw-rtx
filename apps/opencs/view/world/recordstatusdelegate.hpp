@@ -1,5 +1,4 @@
-#ifndef RECORDSTATUSDELEGATE_H
-#define RECORDSTATUSDELEGATE_H
+#pragma once
 
 #include "datadisplaydelegate.hpp"
 
@@ -36,4 +35,3 @@ namespace CSVWorld
         ///< The ownership of the returned CommandDelegate is transferred to the caller.
     };
 }
-#endif // RECORDSTATUSDELEGATE_HPP

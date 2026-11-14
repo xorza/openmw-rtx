@@ -1,5 +1,4 @@
-#ifndef CSM_TOOLS_BODYPARTCHECK_H
-#define CSM_TOOLS_BODYPARTCHECK_H
+#pragma once
 
 #include <components/esm3/loadrace.hpp>
 
@@ -44,5 +43,3 @@ namespace CSMTools
         ///< Messages resulting from this tage will be appended to \a messages.
     };
 }
-
-#endif

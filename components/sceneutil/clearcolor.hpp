@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SCENEUTIL_CLEARCOLOR_H
-#define OPENMW_COMPONENTS_SCENEUTIL_CLEARCOLOR_H
+#pragma once
 
 #include <osg/StateAttribute>
 #include <osg/Vec4f>
@@ -49,5 +48,3 @@ namespace SceneUtil
         GLbitfield mMask;
     };
 }
-
-#endif

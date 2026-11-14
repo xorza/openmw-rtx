@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_MYGUIPLATFORM_MYGUIRENDERMANAGER_H
-#define OPENMW_COMPONENTS_MYGUIPLATFORM_MYGUIRENDERMANAGER_H
+#pragma once
 
 #include <osg/ref_ptr>
 
@@ -132,5 +131,3 @@ namespace MyGUIPlatform
     };
 
 }
-
-#endif

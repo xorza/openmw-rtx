@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_NIF_EXCEPTION_HPP
-#define OPENMW_COMPONENTS_NIF_EXCEPTION_HPP
+#pragma once
 
 #include <stdexcept>
 #include <string>
@@ -20,5 +19,3 @@ namespace Nif
         }
     };
 }
-
-#endif

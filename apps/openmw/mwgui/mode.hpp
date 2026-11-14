@@ -1,5 +1,4 @@
-#ifndef MWGUI_MODE_H
-#define MWGUI_MODE_H
+#pragma once
 
 namespace MWGui
 {
@@ -61,5 +60,3 @@ namespace MWGui
         GW_ALL = 0xFF
     };
 }
-
-#endif

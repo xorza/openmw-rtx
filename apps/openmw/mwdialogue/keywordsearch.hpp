@@ -1,5 +1,4 @@
-#ifndef GAME_MWDIALOGUE_KEYWORDSEARCH_H
-#define GAME_MWDIALOGUE_KEYWORDSEARCH_H
+#pragma once
 
 #include <map>
 #include <string>
@@ -47,5 +46,3 @@ namespace MWDialogue
     };
 
 }
-
-#endif

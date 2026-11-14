@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWRENDER_EFFECTMANAGER_H
-#define OPENMW_MWRENDER_EFFECTMANAGER_H
+#pragma once
 
 #include <memory>
 #include <vector>
@@ -62,5 +61,3 @@ namespace MWRender
     };
 
 }
-
-#endif

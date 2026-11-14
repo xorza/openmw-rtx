@@ -24,8 +24,7 @@
   trial & error.  See http://en.uesp.net/wiki for details.
 
 */
-#ifndef ESM4_NAVI_H
-#define ESM4_NAVI_H
+#pragma once
 
 #include <cstdint>
 #include <map>
@@ -121,5 +120,3 @@ namespace ESM4
         static constexpr ESM::RecNameInts sRecordId = ESM::RecNameInts::REC_NAVI4;
     };
 }
-
-#endif // ESM4_NAVI_H

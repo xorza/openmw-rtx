@@ -1,5 +1,4 @@
-#ifndef CSV_RENDER_SELECTION_MODE_H
-#define CSV_RENDER_SELECTION_MODE_H
+#pragma once
 
 #include "../widget/scenetoolmode.hpp"
 
@@ -47,5 +46,3 @@ namespace CSVRender
         virtual void invertSelection();
     };
 }
-
-#endif

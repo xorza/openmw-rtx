@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_ESM4_RECORDS_H
-#define COMPONENTS_ESM4_RECORDS_H
+#pragma once
 
 #include <components/esm4/loadachr.hpp>
 #include <components/esm4/loadacti.hpp>
@@ -80,5 +79,3 @@
 #include <components/esm4/loadtxst.hpp>
 #include <components/esm4/loadweap.hpp>
 #include <components/esm4/loadwrld.hpp>
-
-#endif

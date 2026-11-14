@@ -1,5 +1,4 @@
-#ifndef COMPILER_STRINGPARSER_H_INCLUDED
-#define COMPILER_STRINGPARSER_H_INCLUDED
+#pragma once
 
 #include <vector>
 
@@ -53,5 +52,3 @@ namespace Compiler
         void discard();
     };
 }
-
-#endif

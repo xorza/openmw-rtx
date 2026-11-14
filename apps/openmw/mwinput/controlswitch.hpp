@@ -1,5 +1,4 @@
-#ifndef MWINPUT_CONTROLSWITCH_H
-#define MWINPUT_CONTROLSWITCH_H
+#pragma once
 
 #include <cstdint>
 #include <map>
@@ -37,4 +36,3 @@ namespace MWInput
         std::map<std::string, bool, std::less<>> mSwitches;
     };
 }
-#endif

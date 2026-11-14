@@ -1,5 +1,4 @@
-#ifndef OPENCS_VIEW_OBJECT_H
-#define OPENCS_VIEW_OBJECT_H
+#pragma once
 
 #include <memory>
 #include <string>
@@ -188,5 +187,3 @@ namespace CSVRender
         void reset();
     };
 }
-
-#endif

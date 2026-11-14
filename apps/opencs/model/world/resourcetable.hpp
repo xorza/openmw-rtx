@@ -1,5 +1,4 @@
-#ifndef CSM_WOLRD_RESOURCETABLE_H
-#define CSM_WOLRD_RESOURCETABLE_H
+#pragma once
 
 #include "idtablebase.hpp"
 
@@ -67,5 +66,3 @@ namespace CSMWorld
         void endReset();
     };
 }
-
-#endif

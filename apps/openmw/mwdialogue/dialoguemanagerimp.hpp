@@ -1,5 +1,4 @@
-#ifndef GAME_MWDIALOG_DIALOGUEMANAGERIMP_H
-#define GAME_MWDIALOG_DIALOGUEMANAGERIMP_H
+#pragma once
 
 #include "../mwbase/dialoguemanager.hpp"
 
@@ -137,5 +136,3 @@ namespace MWDialogue
         void clearInfoActor(const MWWorld::Ptr& actor) const override;
     };
 }
-
-#endif

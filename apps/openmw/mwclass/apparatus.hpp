@@ -1,5 +1,4 @@
-#ifndef GAME_MWCLASS_APPARATUS_H
-#define GAME_MWCLASS_APPARATUS_H
+#pragma once
 
 #include "../mwworld/registeredclass.hpp"
 
@@ -56,5 +55,3 @@ namespace MWClass
         bool canSell(const MWWorld::ConstPtr& item, int npcServices) const override;
     };
 }
-
-#endif

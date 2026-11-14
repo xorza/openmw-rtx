@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SETTINGS_NAVMESHRENDERMODE_H
-#define OPENMW_COMPONENTS_SETTINGS_NAVMESHRENDERMODE_H
+#pragma once
 
 namespace Settings
 {
@@ -9,5 +8,3 @@ namespace Settings
         UpdateFrequency,
     };
 }
-
-#endif

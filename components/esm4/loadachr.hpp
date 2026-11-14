@@ -24,8 +24,7 @@
   trial & error.  See http://en.uesp.net/wiki for details.
 
 */
-#ifndef ESM4_ACHR_H
-#define ESM4_ACHR_H
+#pragma once
 
 #include <cstdint>
 
@@ -72,5 +71,3 @@ namespace ESM4
         static constexpr ESM::RecNameInts sRecordId = ESM::REC_ACRE4;
     };
 }
-
-#endif // ESM4_ACHR_H

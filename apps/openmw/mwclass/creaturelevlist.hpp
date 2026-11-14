@@ -1,5 +1,4 @@
-#ifndef GAME_MWCLASS_CREATURELEVLIST_H
-#define GAME_MWCLASS_CREATURELEVLIST_H
+#pragma once
 
 #include "../mwworld/registeredclass.hpp"
 
@@ -42,5 +41,3 @@ namespace MWClass
         void adjustPosition(const MWWorld::Ptr& ptr, bool force) const override;
     };
 }
-
-#endif

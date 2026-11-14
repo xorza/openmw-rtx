@@ -1,5 +1,4 @@
-#ifndef GAME_SOUND_FFMPEGDECODER_H
-#define GAME_SOUND_FFMPEGDECODER_H
+#pragma once
 
 #include <cstdint>
 
@@ -154,5 +153,3 @@ namespace MWSound
         bool mRecordHead;
     };
 }
-
-#endif

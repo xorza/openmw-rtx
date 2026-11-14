@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_LOCK_H
-#define OPENMW_ESM_LOCK_H
+#pragma once
 
 #include <string>
 
@@ -44,4 +43,3 @@ namespace ESM
     };
 
 }
-#endif

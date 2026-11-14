@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_WEATHERSTATE_H
-#define OPENMW_ESM_WEATHERSTATE_H
+#pragma once
 
 #include <components/esm/refid.hpp>
 #include <map>
@@ -33,5 +32,3 @@ namespace ESM
         void save(ESMWriter& esm) const;
     };
 }
-
-#endif

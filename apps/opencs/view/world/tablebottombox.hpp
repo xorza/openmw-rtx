@@ -1,5 +1,4 @@
-#ifndef CSV_WORLD_BOTTOMBOX_H
-#define CSV_WORLD_BOTTOMBOX_H
+#pragma once
 
 #include <string>
 #include <vector>
@@ -118,5 +117,3 @@ namespace CSVWorld
         void extendedRevertConfigRequest(const std::vector<std::string>& selectedIds);
     };
 }
-
-#endif

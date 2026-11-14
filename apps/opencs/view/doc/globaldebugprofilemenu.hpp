@@ -1,5 +1,4 @@
-#ifndef CSV_DOC_GLOBALDEBUGPROFILEMENU_H
-#define CSV_DOC_GLOBALDEBUGPROFILEMENU_H
+#pragma once
 
 #include <QMenu>
 
@@ -48,5 +47,3 @@ namespace CSVDoc
         void triggered(const std::string& profile);
     };
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef MWLUA_IDCOLLECTIONBINDINGS_H
-#define MWLUA_IDCOLLECTIONBINDINGS_H
+#pragma once
 
 #include <functional>
 
@@ -21,5 +20,3 @@ namespace MWLua
         return LuaUtil::makeReadOnly(res);
     }
 }
-
-#endif

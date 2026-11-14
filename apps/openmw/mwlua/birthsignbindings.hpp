@@ -1,5 +1,4 @@
-#ifndef MWLUA_BIRTHSIGNBINDINGS_H
-#define MWLUA_BIRTHSIGNBINDINGS_H
+#pragma once
 
 #include <sol/forward.hpp>
 
@@ -9,5 +8,3 @@ namespace MWLua
 
     sol::table initBirthSignRecordBindings(const Context& context);
 }
-
-#endif // MWLUA_BIRTHSIGNBINDINGS_H

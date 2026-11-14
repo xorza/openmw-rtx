@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_ESM_FOURCC_H
-#define OPENMW_COMPONENTS_ESM_FOURCC_H
+#pragma once
 
 namespace ESM
 {
@@ -9,5 +8,3 @@ namespace ESM
             | (static_cast<unsigned char>(name[2]) << 16) | (static_cast<unsigned char>(name[3]) << 24);
     }
 }
-
-#endif // OPENMW_COMPONENTS_ESM_FOURCC_H

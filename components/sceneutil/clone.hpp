@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SCENEUTIL_CLONE_H
-#define OPENMW_COMPONENTS_SCENEUTIL_CLONE_H
+#pragma once
 
 #include <map>
 #include <vector>
@@ -49,5 +48,3 @@ namespace SceneUtil
     };
 
 }
-
-#endif

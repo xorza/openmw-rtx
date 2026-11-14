@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_FALLBACK_VALIDATE_H
-#define OPENMW_COMPONENTS_FALLBACK_VALIDATE_H
+#pragma once
 
 #include <map>
 #include <string>
@@ -28,5 +27,3 @@ namespace Fallback
     // Parses and validates a fallback map from boost program_options.
     void validate(boost::any& v, std::vector<std::string> const& tokens, FallbackMap*, int);
 }
-
-#endif

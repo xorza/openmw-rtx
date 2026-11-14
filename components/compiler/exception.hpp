@@ -1,5 +1,4 @@
-#ifndef COMPILER_EXCEPTION_H_INCLUDED
-#define COMPILER_EXCEPTION_H_INCLUDED
+#pragma once
 
 #include <exception>
 
@@ -32,5 +31,3 @@ namespace Compiler
         ///< Return error message
     };
 }
-
-#endif

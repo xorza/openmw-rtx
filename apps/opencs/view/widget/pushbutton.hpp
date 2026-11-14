@@ -1,5 +1,4 @@
-#ifndef CSV_WIDGET_PUSHBUTTON_H
-#define CSV_WIDGET_PUSHBUTTON_H
+#pragma once
 
 #include <QPushButton>
 
@@ -65,5 +64,3 @@ namespace CSVWidget
         void settingChanged(const CSMPrefs::Setting* setting);
     };
 }
-
-#endif

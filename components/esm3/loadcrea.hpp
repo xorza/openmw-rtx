@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_CREA_H
-#define OPENMW_ESM_CREA_H
+#pragma once
 
 #include <map>
 #include <string>
@@ -103,4 +102,3 @@ namespace ESM
     };
 
 }
-#endif

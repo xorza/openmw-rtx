@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWPHYSICS_MTPHYSICS_H
-#define OPENMW_MWPHYSICS_MTPHYSICS_H
+#pragma once
 
 #include <atomic>
 #include <condition_variable>
@@ -131,4 +130,3 @@ namespace MWPhysics
     };
 
 }
-#endif

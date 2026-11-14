@@ -1,5 +1,4 @@
-#ifndef CSM_WORLD_LAND_H
-#define CSM_WORLD_LAND_H
+#pragma once
 
 #include <string>
 
@@ -26,5 +25,3 @@ namespace CSMWorld
         static void parseUniqueRecordId(const std::string& id, int& x, int& y);
     };
 }
-
-#endif

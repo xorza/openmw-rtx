@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_MISC_COMPRESSION_H
-#define OPENMW_COMPONENTS_MISC_COMPRESSION_H
+#pragma once
 
 #include <cstddef>
 #include <vector>
@@ -10,5 +9,3 @@ namespace Misc
 
     std::vector<std::byte> decompress(const std::vector<std::byte>& data);
 }
-
-#endif

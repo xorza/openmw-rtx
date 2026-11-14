@@ -1,5 +1,4 @@
-#ifndef CSV_TOOLS_REPORTSUBVIEW_H
-#define CSV_TOOLS_REPORTSUBVIEW_H
+#pragma once
 
 #include "../doc/subview.hpp"
 #include <apps/opencs/model/world/universalid.hpp>
@@ -33,5 +32,3 @@ namespace CSVTools
         void refreshRequest();
     };
 }
-
-#endif

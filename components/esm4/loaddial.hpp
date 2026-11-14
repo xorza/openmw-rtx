@@ -24,8 +24,7 @@
   trial & error.  See http://en.uesp.net/wiki for details.
 
 */
-#ifndef ESM4_DIAL_H
-#define ESM4_DIAL_H
+#pragma once
 
 #include <cstdint>
 #include <string>
@@ -64,5 +63,3 @@ namespace ESM4
         static constexpr ESM::RecNameInts sRecordId = ESM::RecNameInts::REC_DIAL4;
     };
 }
-
-#endif // ESM4_DIAL_H

@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_NIFOSG_AUTOTRANSFORM_H
-#define OPENMW_COMPONENTS_NIFOSG_AUTOTRANSFORM_H
+#pragma once
 
 #include <components/nifosg/matrixtransform.hpp>
 
@@ -39,5 +38,3 @@ namespace NifOsg
         mutable osg::Quat mRotation;
     };
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef CSV_DOC_FILEWIDGET_H
-#define CSV_DOC_FILEWIDGET_H
+#pragma once
 
 #include <QString>
 #include <QWidget>
@@ -41,5 +40,3 @@ namespace CSVDoc
         void nameChanged(const QString& file, bool addon);
     };
 }
-
-#endif

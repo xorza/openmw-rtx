@@ -1,5 +1,4 @@
-#ifndef MWGUI_CURSOR_H
-#define MWGUI_CURSOR_H
+#pragma once
 
 #include <MyGUI_IPointer.h>
 #include <MyGUI_ResourceImageSet.h>
@@ -40,5 +39,3 @@ namespace MWGui
     };
 
 }
-
-#endif

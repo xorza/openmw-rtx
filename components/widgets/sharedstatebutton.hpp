@@ -1,5 +1,4 @@
-#ifndef OPENMW_WIDGETS_SHAREDSTATEBUTTON_HPP
-#define OPENMW_WIDGETS_SHAREDSTATEBUTTON_HPP
+#pragma once
 
 #include <MyGUI_Button.h>
 
@@ -53,5 +52,3 @@ namespace Gui
         bool mIsMouseFocus;
     };
 }
-
-#endif

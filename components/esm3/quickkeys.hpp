@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_ESM_QUICKKEYS_H
-#define OPENMW_COMPONENTS_ESM_QUICKKEYS_H
+#pragma once
 
 #include "components/esm/refid.hpp"
 
@@ -35,5 +34,3 @@ namespace ESM
     };
 
 }
-
-#endif

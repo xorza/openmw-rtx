@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESSIMPORT_CELLREF_H
-#define OPENMW_ESSIMPORT_CELLREF_H
+#pragma once
 
 #include <string>
 
@@ -35,5 +34,3 @@ namespace ESSImport
     };
 
 }
-
-#endif

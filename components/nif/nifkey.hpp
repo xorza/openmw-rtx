@@ -1,7 +1,6 @@
 /// File to handle keys used by nif file records
 
-#ifndef OPENMW_COMPONENTS_NIF_NIFKEY_HPP
-#define OPENMW_COMPONENTS_NIF_NIFKEY_HPP
+#pragma once
 
 #include <cmath>
 #include <utility>
@@ -238,4 +237,3 @@ namespace Nif
     using BoolKeyMapPtr = std::shared_ptr<BoolKeyMap>;
 
 } // Namespace
-#endif // #ifndef OPENMW_COMPONENTS_NIF_NIFKEY_HPP

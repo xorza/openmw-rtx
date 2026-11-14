@@ -1,5 +1,4 @@
-#ifndef OPENMW_MECHANICS_OBSTACLE_H
-#define OPENMW_MECHANICS_OBSTACLE_H
+#pragma once
 
 #include "apps/openmw/mwworld/movementdirection.hpp"
 
@@ -56,5 +55,3 @@ namespace MWMechanics
         osg::Vec3f mDestination;
     };
 }
-
-#endif

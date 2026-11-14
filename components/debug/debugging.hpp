@@ -1,5 +1,4 @@
-#ifndef DEBUG_DEBUGGING_H
-#define DEBUG_DEBUGGING_H
+#pragma once
 
 #include <filesystem>
 #include <functional>
@@ -49,5 +48,3 @@ namespace Debug
     int wrapApplication(
         int (*innerApplication)(int argc, char* argv[]), int argc, char* argv[], std::string_view appName);
 }
-
-#endif

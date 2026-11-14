@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_ESM4_READERUTILS
-#define OPENMW_COMPONENTS_ESM4_READERUTILS
+#pragma once
 
 #include "grouptype.hpp"
 #include "reader.hpp"
@@ -82,5 +81,3 @@ namespace ESM4
         }
     };
 }
-
-#endif // OPENMW_COMPONENTS_ESM4_READERUTILS

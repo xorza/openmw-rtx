@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_NIFOSG_LOADER
-#define OPENMW_COMPONENTS_NIFOSG_LOADER
+#pragma once
 
 #include <components/nif/niffile.hpp>
 
@@ -66,5 +65,3 @@ namespace NifOsg
     };
 
 }
-
-#endif

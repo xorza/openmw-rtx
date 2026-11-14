@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SETTINGS_CATEGORIES_GENERAL_H
-#define OPENMW_COMPONENTS_SETTINGS_CATEGORIES_GENERAL_H
+#pragma once
 
 #include <components/settings/sanitizerimpl.hpp>
 #include <components/settings/settingvalue.hpp>
@@ -35,5 +34,3 @@ namespace Settings
         SettingValue<int> mCrashHangSeconds{ mIndex, "General", "crash hang seconds", makeClampSanitizerInt(0, 86400) };
     };
 }
-
-#endif

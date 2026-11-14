@@ -1,5 +1,4 @@
-#ifndef GAME_MWMECHANICS_TYPEDAIPACKAGE_H
-#define GAME_MWMECHANICS_TYPEDAIPACKAGE_H
+#pragma once
 
 #include "aipackage.hpp"
 
@@ -35,5 +34,3 @@ namespace MWMechanics
         }
     };
 }
-
-#endif

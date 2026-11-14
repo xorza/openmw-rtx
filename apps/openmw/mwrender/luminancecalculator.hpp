@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWRENDER_LUMINANCECALCULATOR_H
-#define OPENMW_MWRENDER_LUMINANCECALCULATOR_H
+#pragma once
 
 #include <array>
 
@@ -65,5 +64,3 @@ namespace MWRender
         osg::Vec2f mScale = osg::Vec2f(1, 1);
     };
 }
-
-#endif

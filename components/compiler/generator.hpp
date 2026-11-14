@@ -1,5 +1,4 @@
-#ifndef COMPILER_GENERATOR_H_INCLUDED
-#define COMPILER_GENERATOR_H_INCLUDED
+#pragma once
 
 #include <cassert>
 #include <string>
@@ -100,5 +99,3 @@ namespace Compiler
         ///< \param global Member of a global script instead of a script of a reference.
     }
 }
-
-#endif

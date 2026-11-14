@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_MGEF_H
-#define OPENMW_ESM_MGEF_H
+#pragma once
 
 #include <array>
 #include <map>
@@ -270,4 +269,3 @@ namespace ESM
         static std::string_view indexToName(int index);
     };
 }
-#endif

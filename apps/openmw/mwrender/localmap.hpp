@@ -1,5 +1,4 @@
-#ifndef GAME_RENDER_LOCALMAP_H
-#define GAME_RENDER_LOCALMAP_H
+#pragma once
 
 #include <cstdint>
 #include <map>
@@ -214,4 +213,3 @@ namespace MWRender
     };
 
 }
-#endif

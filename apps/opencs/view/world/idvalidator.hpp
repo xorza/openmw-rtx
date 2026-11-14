@@ -1,5 +1,4 @@
-#ifndef CSV_WORLD_IDVALIDATOR_H
-#define CSV_WORLD_IDVALIDATOR_H
+#pragma once
 
 #include <string>
 
@@ -28,5 +27,3 @@ namespace CSVWorld
         std::string getError() const;
     };
 }
-
-#endif

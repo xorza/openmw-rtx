@@ -1,5 +1,4 @@
-#ifndef CSV_WORLD_COLORDELEGATE_HPP
-#define CSV_WORLD_COLORDELEGATE_HPP
+#pragma once
 
 #include "util.hpp"
 
@@ -35,5 +34,3 @@ namespace CSVWorld
         ///< The ownership of the returned CommandDelegate is transferred to the caller.
     };
 }
-
-#endif

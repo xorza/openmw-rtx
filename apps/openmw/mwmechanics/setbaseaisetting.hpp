@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWMECHANICS_SETBASEAISETTING_H
-#define OPENMW_MWMECHANICS_SETBASEAISETTING_H
+#pragma once
 
 #include <string>
 
@@ -35,5 +34,3 @@ namespace MWMechanics
         MWBase::Environment::get().getESMStore()->overrideRecord(copy);
     }
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef OPENMW_APPS_OPENMW_MWGUI_WORLDITEMMODEL_H
-#define OPENMW_APPS_OPENMW_MWGUI_WORLDITEMMODEL_H
+#pragma once
 
 #include "itemmodel.hpp"
 
@@ -84,5 +83,3 @@ namespace MWGui
         float mCursorY;
     };
 }
-
-#endif

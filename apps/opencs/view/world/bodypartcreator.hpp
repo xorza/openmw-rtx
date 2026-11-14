@@ -1,5 +1,4 @@
-#ifndef BODYPARTCREATOR_HPP
-#define BODYPARTCREATOR_HPP
+#pragma once
 
 class QCheckBox;
 
@@ -38,5 +37,3 @@ namespace CSVWorld
         void checkboxClicked();
     };
 }
-
-#endif // BODYPARTCREATOR_HPP

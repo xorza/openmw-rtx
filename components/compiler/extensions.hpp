@@ -1,5 +1,4 @@
-#ifndef COMPILER_EXTENSIONS_H_INCLUDED
-#define COMPILER_EXTENSIONS_H_INCLUDED
+#pragma once
 
 #include <map>
 #include <string>
@@ -108,5 +107,3 @@ namespace Compiler
         ///< Append all known keywords to \a kaywords.
     };
 }
-
-#endif

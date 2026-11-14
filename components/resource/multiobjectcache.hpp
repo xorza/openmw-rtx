@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_MULTIOBJECTCACHE_H
-#define OPENMW_COMPONENTS_MULTIOBJECTCACHE_H
+#pragma once
 
 #include <map>
 #include <mutex>
@@ -117,5 +116,3 @@ namespace Resource
         std::size_t mExpired = 0;
     };
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef GAME_MWWORLD_ACTIONAPPLY_H
-#define GAME_MWWORLD_ACTIONAPPLY_H
+#pragma once
 
 #include "action.hpp"
 #include <components/esm/refid.hpp>
@@ -17,5 +16,3 @@ namespace MWWorld
         ActionApply(const Ptr& object, const ESM::RefId& id);
     };
 }
-
-#endif

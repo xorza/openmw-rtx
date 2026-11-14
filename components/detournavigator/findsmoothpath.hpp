@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_DETOURNAVIGATOR_FINDSMOOTHPATH_H
-#define OPENMW_COMPONENTS_DETOURNAVIGATOR_FINDSMOOTHPATH_H
+#pragma once
 
 #include "areatype.hpp"
 #include "flags.hpp"
@@ -212,5 +211,3 @@ namespace DetourNavigator
         return polygonPath[*toEndPathSize - 1] == endRef ? Status::Success : Status::PartialPath;
     }
 }
-
-#endif

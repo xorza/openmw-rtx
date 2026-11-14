@@ -1,5 +1,4 @@
-#ifndef GAME_MWMECHANICS_ALCHEMY_H
-#define GAME_MWMECHANICS_ALCHEMY_H
+#pragma once
 
 #include <vector>
 
@@ -138,5 +137,3 @@ namespace MWMechanics
         static std::vector<std::string> effectsDescription(const MWWorld::ConstPtr& ptr, const float alchemySKill);
     };
 }
-
-#endif

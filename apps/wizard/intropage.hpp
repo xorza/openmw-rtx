@@ -1,5 +1,4 @@
-#ifndef INTROPAGE_HPP
-#define INTROPAGE_HPP
+#pragma once
 
 #include "ui_intropage.h"
 
@@ -22,5 +21,3 @@ namespace Wizard
     };
 
 }
-
-#endif // INTROPAGE_HPP

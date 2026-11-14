@@ -1,5 +1,4 @@
-#ifndef MWGUI_REFERENCEINTERFACE_H
-#define MWGUI_REFERENCEINTERFACE_H
+#pragma once
 
 #include "../mwworld/ptr.hpp"
 
@@ -26,5 +25,3 @@ namespace MWGui
         MWWorld::Ptr mPtr;
     };
 }
-
-#endif

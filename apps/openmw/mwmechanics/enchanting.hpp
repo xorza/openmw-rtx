@@ -1,5 +1,4 @@
-#ifndef GAME_MWMECHANICS_ENCHANTING_H
-#define GAME_MWMECHANICS_ENCHANTING_H
+#pragma once
 
 #include <string>
 #include <vector>
@@ -59,4 +58,3 @@ namespace MWMechanics
         bool itemEmpty() const; // Return true if empty
     };
 }
-#endif

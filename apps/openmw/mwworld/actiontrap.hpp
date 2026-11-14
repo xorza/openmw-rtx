@@ -1,5 +1,4 @@
-#ifndef GAME_MWWORLD_ACTIONTRAP_H
-#define GAME_MWWORLD_ACTIONTRAP_H
+#pragma once
 
 #include <string>
 
@@ -25,5 +24,3 @@ namespace MWWorld
         }
     };
 }
-
-#endif

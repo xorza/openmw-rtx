@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWRENDER_PINGPONGCANVAS_H
-#define OPENMW_MWRENDER_PINGPONGCANVAS_H
+#pragma once
 
 #include <array>
 #include <optional>
@@ -108,5 +107,3 @@ namespace MWRender
         mutable osg::buffered_object<osg::State::UniformMap> mEmptyUniformStacks;
     };
 }
-
-#endif

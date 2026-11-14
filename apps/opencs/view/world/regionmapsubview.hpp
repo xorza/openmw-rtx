@@ -1,5 +1,4 @@
-#ifndef CSV_WORLD_REGIONMAPSUBVIEW_H
-#define CSV_WORLD_REGIONMAPSUBVIEW_H
+#pragma once
 
 #include <string>
 
@@ -32,5 +31,3 @@ namespace CSVWorld
         void editRequest(const CSMWorld::UniversalId& id, const std::string& hint);
     };
 }
-
-#endif

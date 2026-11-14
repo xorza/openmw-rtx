@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_DETOURNAVIGATOR_RECASTMESHPROVIDER_H
-#define OPENMW_COMPONENTS_DETOURNAVIGATOR_RECASTMESHPROVIDER_H
+#pragma once
 
 #include "tileposition.hpp"
 
@@ -18,5 +17,3 @@ namespace DetourNavigator
         virtual std::shared_ptr<RecastMesh> getMesh(ESM::RefId worldspace, const TilePosition& tilePosition) const = 0;
     };
 }
-
-#endif

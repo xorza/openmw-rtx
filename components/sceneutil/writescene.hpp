@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_WRITESCENE_H
-#define OPENMW_COMPONENTS_WRITESCENE_H
+#pragma once
 
 #include <filesystem>
 
@@ -14,5 +13,3 @@ namespace SceneUtil
     void writeScene(osg::Node* node, const std::filesystem::path& filename, const std::string& format);
 
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_GLOBALSCRIPT_H
-#define OPENMW_ESM_GLOBALSCRIPT_H
+#pragma once
 
 #include "cellref.hpp"
 #include "components/esm/refid.hpp"
@@ -24,5 +23,3 @@ namespace ESM
         void save(ESMWriter& esm) const;
     };
 }
-
-#endif

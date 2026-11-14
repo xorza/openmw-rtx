@@ -1,5 +1,4 @@
-#ifndef COMPILER_SCANNER_H_INCLUDED
-#define COMPILER_SCANNER_H_INCLUDED
+#pragma once
 
 #include <cctype>
 #include <iosfwd>
@@ -318,5 +317,3 @@ namespace Compiler
         void enableExpectName();
     };
 }
-
-#endif

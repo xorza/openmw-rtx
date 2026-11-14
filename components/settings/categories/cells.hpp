@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SETTINGS_CATEGORIES_CELLS_H
-#define OPENMW_COMPONENTS_SETTINGS_CATEGORIES_CELLS_H
+#pragma once
 
 #include <components/settings/sanitizerimpl.hpp>
 #include <components/settings/settingvalue.hpp>
@@ -35,5 +34,3 @@ namespace Settings
         SettingValue<int> mPointersCacheSize{ mIndex, "Cells", "pointers cache size", makeClampSanitizerInt(40, 1000) };
     };
 }
-
-#endif

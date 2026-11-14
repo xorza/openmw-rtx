@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_MISC_PATHGRIDUTILS_H
-#define OPENMW_COMPONENTS_MISC_PATHGRIDUTILS_H
+#pragma once
 
 #include "convert.hpp"
 
@@ -49,5 +48,3 @@ namespace Misc
         return closestIndex;
     }
 }
-
-#endif

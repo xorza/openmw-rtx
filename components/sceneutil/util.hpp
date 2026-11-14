@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SCENEUTIL_UTIL_H
-#define OPENMW_COMPONENTS_SCENEUTIL_UTIL_H
+#pragma once
 
 #include <osg/Camera>
 #include <osg/Matrixf>
@@ -128,5 +127,3 @@ namespace SceneUtil
 
     void disableFFPStateForRenderer(osgViewer::Renderer* renderer);
 }
-
-#endif

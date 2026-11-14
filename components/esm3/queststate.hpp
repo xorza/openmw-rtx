@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_QUESTSTATE_H
-#define OPENMW_ESM_QUESTSTATE_H
+#pragma once
 
 #include <components/esm/refid.hpp>
 #include <string>
@@ -21,5 +20,3 @@ namespace ESM
         void save(ESMWriter& esm) const;
     };
 }
-
-#endif

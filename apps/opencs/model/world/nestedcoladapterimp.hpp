@@ -1,5 +1,4 @@
-#ifndef CSM_WOLRD_NESTEDCOLADAPTERIMP_H
-#define CSM_WOLRD_NESTEDCOLADAPTERIMP_H
+#pragma once
 
 #include <QString>
 #include <QVariant>
@@ -573,5 +572,3 @@ namespace CSMWorld
         int getRowsCount(const Record<ESM::Region>& record) const override;
     };
 }
-
-#endif // CSM_WOLRD_NESTEDCOLADAPTERIMP_H

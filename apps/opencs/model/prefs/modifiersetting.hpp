@@ -1,5 +1,4 @@
-#ifndef CSM_PREFS_MODIFIERSETTING_H
-#define CSM_PREFS_MODIFIERSETTING_H
+#pragma once
 
 #include "setting.hpp"
 
@@ -45,5 +44,3 @@ namespace CSMPrefs
         void buttonToggled(bool checked);
     };
 }
-
-#endif

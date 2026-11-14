@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_INTERPRETER_PROGRAM_H
-#define OPENMW_COMPONENTS_INTERPRETER_PROGRAM_H
+#pragma once
 
 #include "types.hpp"
 
@@ -16,5 +15,3 @@ namespace Interpreter
         std::vector<std::string> mStrings;
     };
 }
-
-#endif

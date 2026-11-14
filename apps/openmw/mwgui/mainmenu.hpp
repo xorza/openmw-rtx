@@ -1,5 +1,4 @@
-#ifndef OPENMW_GAME_MWGUI_MAINMENU_H
-#define OPENMW_GAME_MWGUI_MAINMENU_H
+#pragma once
 
 #include <memory>
 #include <optional>
@@ -82,5 +81,3 @@ namespace MWGui
     };
 
 }
-
-#endif

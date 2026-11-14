@@ -1,5 +1,4 @@
-#ifndef OPENMW_MECHANICS_COMBAT_H
-#define OPENMW_MECHANICS_COMBAT_H
+#pragma once
 
 #include <utility>
 
@@ -76,5 +75,3 @@ namespace MWMechanics
 
     bool friendlyHit(const MWWorld::Ptr& attacker, const MWWorld::Ptr& target, bool complain);
 }
-
-#endif

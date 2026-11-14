@@ -1,5 +1,4 @@
-#ifndef GAME_MWWORLD_WORLDMODEL_H
-#define GAME_MWWORLD_WORLDMODEL_H
+#pragma once
 
 #include <list>
 #include <map>
@@ -127,5 +126,3 @@ namespace MWWorld
         void writeCell(ESM::ESMWriter& writer, CellStore& cell) const;
     };
 }
-
-#endif

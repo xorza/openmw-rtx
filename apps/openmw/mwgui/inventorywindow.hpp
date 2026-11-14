@@ -1,5 +1,4 @@
-#ifndef MGUI_Inventory_H
-#define MGUI_Inventory_H
+#pragma once
 
 #include "mode.hpp"
 #include "windowpinnablebase.hpp"
@@ -173,5 +172,3 @@ namespace MWGui
         void ensureSelectedItemUnequipped(int count);
     };
 }
-
-#endif // Inventory_H

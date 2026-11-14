@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_NIF_DATA_HPP
-#define OPENMW_COMPONENTS_NIF_DATA_HPP
+#pragma once
 
 #include "nifkey.hpp"
 #include "niftypes.hpp" // NiTransform
@@ -481,4 +480,3 @@ namespace Nif
     };
 
 }
-#endif

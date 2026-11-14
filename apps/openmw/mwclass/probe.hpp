@@ -1,5 +1,4 @@
-#ifndef GAME_MWCLASS_PROBE_H
-#define GAME_MWCLASS_PROBE_H
+#pragma once
 
 #include "../mwworld/registeredclass.hpp"
 
@@ -69,5 +68,3 @@ namespace MWClass
         ///< \return Item health data available? (default implementation: false)
     };
 }
-
-#endif

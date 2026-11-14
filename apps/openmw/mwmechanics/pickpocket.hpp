@@ -1,5 +1,4 @@
-#ifndef OPENMW_MECHANICS_PICKPOCKET_H
-#define OPENMW_MECHANICS_PICKPOCKET_H
+#pragma once
 
 #include "../mwworld/ptr.hpp"
 
@@ -26,5 +25,3 @@ namespace MWMechanics
     };
 
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef CSV_PREFS_PAGEBASE_H
-#define CSV_PREFS_PAGEBASE_H
+#pragma once
 
 #include <QScrollArea>
 
@@ -33,5 +32,3 @@ namespace CSVPrefs
         void resetAll();
     };
 }
-
-#endif

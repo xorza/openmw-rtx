@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SCENEUTIL_WORKQUEUE_H
-#define OPENMW_COMPONENTS_SCENEUTIL_WORKQUEUE_H
+#pragma once
 
 #include <atomic>
 #include <condition_variable>
@@ -95,5 +94,3 @@ namespace SceneUtil
     };
 
 }
-
-#endif

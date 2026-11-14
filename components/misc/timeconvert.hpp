@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_MISC_TIMECONVERT_H
-#define OPENMW_COMPONENTS_MISC_TIMECONVERT_H
+#pragma once
 
 #include <cerrno>
 #include <chrono>
@@ -47,5 +46,3 @@ namespace Misc
         return timeTToString(std::chrono::system_clock::to_time_t(tp), fmt);
     }
 } // namespace Misc
-
-#endif

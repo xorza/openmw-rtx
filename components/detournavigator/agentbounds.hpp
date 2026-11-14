@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_DETOURNAVIGATOR_AGENTBOUNDS_H
-#define OPENMW_COMPONENTS_DETOURNAVIGATOR_AGENTBOUNDS_H
+#pragma once
 
 #include "collisionshapetype.hpp"
 
@@ -30,5 +29,3 @@ namespace DetourNavigator
         return tie(lhs) < tie(rhs);
     }
 }
-
-#endif

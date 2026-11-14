@@ -1,5 +1,4 @@
-#ifndef CSM_DOC_MESSAGES_H
-#define CSM_DOC_MESSAGES_H
+#pragma once
 
 #include <QMetaType>
 
@@ -60,5 +59,3 @@ namespace CSMDoc
 }
 
 Q_DECLARE_METATYPE(CSMDoc::Message)
-
-#endif

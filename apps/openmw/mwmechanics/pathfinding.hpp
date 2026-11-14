@@ -1,5 +1,4 @@
-#ifndef GAME_MWMECHANICS_PATHFINDING_H
-#define GAME_MWMECHANICS_PATHFINDING_H
+#pragma once
 
 #include <cassert>
 #include <deque>
@@ -158,5 +157,3 @@ namespace MWMechanics
             std::back_insert_iterator<std::deque<osg::Vec3f>> out);
     };
 }
-
-#endif

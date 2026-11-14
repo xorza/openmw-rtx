@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_FX_PARSECONSTANTS_HPP
-#define OPENMW_COMPONENTS_FX_PARSECONSTANTS_HPP
+#pragma once
 
 #include <array>
 #include <string_view>
@@ -129,5 +128,3 @@ namespace Fx
         } };
     }
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef GAME_MWWORLD_ACTIONOPEN_H
-#define GAME_MWWORLD_ACTIONOPEN_H
+#pragma once
 
 #include "action.hpp"
 
@@ -14,5 +13,3 @@ namespace MWWorld
         ///< \param container The Container the Player has activated.
     };
 }
-
-#endif // ACTIONOPEN_H

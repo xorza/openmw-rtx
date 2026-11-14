@@ -1,5 +1,4 @@
-#ifndef CSM_DOC_SAVINGSTAGES_H
-#define CSM_DOC_SAVINGSTAGES_H
+#pragma once
 
 #include "stage.hpp"
 
@@ -253,5 +252,3 @@ namespace CSMDoc
         ///< Messages resulting from this stage will be appended to \a messages.
     };
 }
-
-#endif

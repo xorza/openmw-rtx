@@ -1,5 +1,4 @@
-#ifndef OPENMW_CONSTANTS_H
-#define OPENMW_CONSTANTS_H
+#pragma once
 
 #include <string>
 
@@ -52,5 +51,3 @@ namespace Constants
     const std::string SceneCamera = "SceneCam";
 
 }
-
-#endif

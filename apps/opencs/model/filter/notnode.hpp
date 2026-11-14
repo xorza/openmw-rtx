@@ -1,5 +1,4 @@
-#ifndef CSM_FILTER_NOTNODE_H
-#define CSM_FILTER_NOTNODE_H
+#pragma once
 
 #include <map>
 #include <memory>
@@ -24,5 +23,3 @@ namespace CSMFilter
         /// \param columns column ID to column index mapping
     };
 }
-
-#endif

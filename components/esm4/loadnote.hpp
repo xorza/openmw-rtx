@@ -24,8 +24,7 @@
   trial & error.  See http://en.uesp.net/wiki for details.
 
 */
-#ifndef ESM4_NOTE_H
-#define ESM4_NOTE_H
+#pragma once
 
 #include <cstdint>
 #include <string>
@@ -61,5 +60,3 @@ namespace ESM4
         static constexpr ESM::RecNameInts sRecordId = ESM::RecNameInts::REC_NOTE4;
     };
 }
-
-#endif // ESM4_NOTE_H

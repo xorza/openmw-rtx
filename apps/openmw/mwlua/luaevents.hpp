@@ -1,5 +1,4 @@
-#ifndef MWLUA_LUAEVENTS_H
-#define MWLUA_LUAEVENTS_H
+#pragma once
 
 #include <map>
 #include <string>
@@ -70,5 +69,3 @@ namespace MWLua
     };
 
 }
-
-#endif // MWLUA_LUAEVENTS_H

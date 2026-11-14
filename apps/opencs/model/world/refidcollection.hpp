@@ -1,5 +1,4 @@
-#ifndef CSM_WOLRD_REFIDCOLLECTION_H
-#define CSM_WOLRD_REFIDCOLLECTION_H
+#pragma once
 
 #include <QVariant>
 
@@ -151,5 +150,3 @@ namespace CSMWorld
         void copyTo(int index, RefIdCollection& target) const;
     };
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_DETOURNAVIGATOR_NAVMESHTILESCACHE_H
-#define OPENMW_COMPONENTS_DETOURNAVIGATOR_NAVMESHTILESCACHE_H
+#pragma once
 
 #include "agentbounds.hpp"
 #include "preparednavmeshdata.hpp"
@@ -153,5 +152,3 @@ namespace DetourNavigator
         void releaseItem(ItemIterator iterator);
     };
 }
-
-#endif

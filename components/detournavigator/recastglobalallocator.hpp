@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_DETOURNAVIGATOR_RECASTGLOBALALLOCATOR_H
-#define OPENMW_COMPONENTS_DETOURNAVIGATOR_RECASTGLOBALALLOCATOR_H
+#pragma once
 
 #include "recasttempallocator.hpp"
 
@@ -71,5 +70,3 @@ namespace DetourNavigator
         }
     };
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_TESTING_EXPECTERROR_H
-#define OPENMW_COMPONENTS_TESTING_EXPECTERROR_H
+#pragma once
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -16,5 +15,3 @@
     {                                                                                                                  \
         EXPECT_THAT(e.what(), ::testing::HasSubstr(ERR_SUBSTR));                                                       \
     }
-
-#endif

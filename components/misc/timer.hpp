@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_MISC_TIMER_H
-#define OPENMW_COMPONENTS_MISC_TIMER_H
+#pragma once
 
 #include "rng.hpp"
 
@@ -41,5 +40,3 @@ namespace Misc
         float mTimeLeft;
     };
 }
-
-#endif

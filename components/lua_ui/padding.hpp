@@ -1,5 +1,4 @@
-#ifndef OPENMW_LUAUI_PADDING
-#define OPENMW_LUAUI_PADDING
+#pragma once
 
 namespace LuaUi
 {
@@ -11,5 +10,3 @@ namespace LuaUi
         int mBottom = 0;
     };
 }
-
-#endif

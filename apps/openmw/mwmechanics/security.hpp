@@ -1,5 +1,4 @@
-#ifndef MWMECHANICS_SECURITY_H
-#define MWMECHANICS_SECURITY_H
+#pragma once
 
 #include "../mwworld/ptr.hpp"
 
@@ -23,5 +22,3 @@ namespace MWMechanics
     };
 
 }
-
-#endif

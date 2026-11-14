@@ -1,5 +1,4 @@
-#ifndef CSV_WORLD_CELLCREATOR_H
-#define CSV_WORLD_CELLCREATOR_H
+#pragma once
 
 #include <string>
 
@@ -55,5 +54,3 @@ namespace CSVWorld
         void valueChanged(int index);
     };
 }
-
-#endif

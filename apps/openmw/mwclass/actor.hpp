@@ -1,5 +1,4 @@
-#ifndef GAME_MWCLASS_MOBILE_H
-#define GAME_MWCLASS_MOBILE_H
+#pragma once
 
 #include "../mwworld/class.hpp"
 
@@ -67,5 +66,3 @@ namespace MWClass
         Actor& operator=(const Actor&) = delete;
     };
 }
-
-#endif

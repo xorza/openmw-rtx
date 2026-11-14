@@ -1,5 +1,4 @@
-#ifndef MISC_RESOURCEHELPERS_H
-#define MISC_RESOURCEHELPERS_H
+#pragma once
 
 #include <span>
 #include <string>
@@ -62,5 +61,3 @@ namespace Misc
             const VFS::Manager& vfs, unsigned char lod = 0);
     }
 }
-
-#endif

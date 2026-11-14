@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_PROJECTILESTATE_H
-#define OPENMW_ESM_PROJECTILESTATE_H
+#pragma once
 
 #include <osg/Quat>
 #include <osg/Vec3f>
@@ -60,5 +59,3 @@ namespace ESM
     };
 
 }
-
-#endif

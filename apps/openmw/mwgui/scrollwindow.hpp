@@ -1,5 +1,4 @@
-#ifndef MWGUI_SCROLLWINDOW_H
-#define MWGUI_SCROLLWINDOW_H
+#pragma once
 
 #include "windowbase.hpp"
 
@@ -46,5 +45,3 @@ namespace MWGui
     };
 
 }
-
-#endif

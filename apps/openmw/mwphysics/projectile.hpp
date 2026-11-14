@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWPHYSICS_PROJECTILE_H
-#define OPENMW_MWPHYSICS_PROJECTILE_H
+#pragma once
 
 #include <atomic>
 #include <memory>
@@ -78,5 +77,3 @@ namespace MWPhysics
     };
 
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SCENEUTIL_TEXTURETYPE_H
-#define OPENMW_COMPONENTS_SCENEUTIL_TEXTURETYPE_H
+#pragma once
 
 #include <osg/StateAttribute>
 
@@ -32,4 +31,3 @@ namespace SceneUtil
         }
     };
 }
-#endif

@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_PLAYER_H
-#define OPENMW_ESM_PLAYER_H
+#pragma once
 
 #include <string>
 
@@ -39,5 +38,3 @@ namespace ESM
         void save(ESMWriter& esm) const;
     };
 }
-
-#endif

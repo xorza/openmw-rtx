@@ -1,5 +1,4 @@
-#ifndef CSM_TOOLS_JOURNALCHECK_H
-#define CSM_TOOLS_JOURNALCHECK_H
+#pragma once
 
 #include "../world/idcollection.hpp"
 #include "../world/infocollection.hpp"
@@ -43,5 +42,3 @@ namespace CSMTools
         CSMWorld::InfosRecordPtrByTopic mInfosByTopic;
     };
 }
-
-#endif

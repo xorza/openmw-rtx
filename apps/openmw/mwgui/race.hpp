@@ -1,5 +1,4 @@
-#ifndef MWGUI_RACE_H
-#define MWGUI_RACE_H
+#pragma once
 
 #include "windowbase.hpp"
 #include <components/esm/refid.hpp>
@@ -114,4 +113,3 @@ namespace MWGui
         bool onControllerThumbstickEvent(const SDL_GamepadAxisEvent& arg) override;
     };
 }
-#endif

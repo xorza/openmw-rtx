@@ -1,5 +1,4 @@
-#ifndef GAME_MWMECHANICS_AIACTIVATE_H
-#define GAME_MWMECHANICS_AIACTIVATE_H
+#pragma once
 
 #include "typedaipackage.hpp"
 #include <components/esm/refid.hpp>
@@ -38,4 +37,3 @@ namespace MWMechanics
         const ESM::RefId mObjectId;
     };
 }
-#endif // GAME_MWMECHANICS_AIACTIVATE_H

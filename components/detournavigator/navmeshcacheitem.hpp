@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_DETOURNAVIGATOR_NAVMESHCACHEITEM_H
-#define OPENMW_COMPONENTS_DETOURNAVIGATOR_NAVMESHCACHEITEM_H
+#pragma once
 
 #include "navmeshdata.hpp"
 #include "navmeshtilescache.hpp"
@@ -155,5 +154,3 @@ namespace DetourNavigator
         std::set<TilePosition> mEmptyTiles;
     };
 }
-
-#endif

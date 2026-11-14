@@ -1,5 +1,4 @@
-#ifndef GAME_SCRIPT_MISCEXTENSIONS_H
-#define GAME_SCRIPT_MISCEXTENSIONS_H
+#pragma once
 
 namespace Compiler
 {
@@ -18,5 +17,3 @@ namespace MWScript
         void installOpcodes(Interpreter::Interpreter& interpreter);
     }
 }
-
-#endif

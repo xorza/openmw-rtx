@@ -1,5 +1,4 @@
-#ifndef METHODSELECTIONPAGE_HPP
-#define METHODSELECTIONPAGE_HPP
+#pragma once
 
 #include "ui_methodselectionpage.h"
 
@@ -23,5 +22,3 @@ namespace Wizard
     };
 
 }
-
-#endif // METHODSELECTIONPAGE_HPP

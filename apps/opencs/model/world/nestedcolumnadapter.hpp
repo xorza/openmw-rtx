@@ -1,5 +1,4 @@
-#ifndef CSM_WOLRD_NESTEDCOLUMNADAPTER_H
-#define CSM_WOLRD_NESTEDCOLUMNADAPTER_H
+#pragma once
 
 class QVariant;
 
@@ -36,5 +35,3 @@ namespace CSMWorld
         virtual int getRowsCount(const Record<ESXRecordT>& record) const = 0;
     };
 }
-
-#endif // CSM_WOLRD_NESTEDCOLUMNADAPTER_H

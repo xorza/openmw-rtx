@@ -1,5 +1,4 @@
-#ifndef CSM_DOC_SAVING_H
-#define CSM_DOC_SAVING_H
+#pragma once
 
 #include <QObject>
 
@@ -25,5 +24,3 @@ namespace CSMDoc
         Saving(Document& document, const std::filesystem::path& projectPath, ToUTF8::FromType encoding);
     };
 }
-
-#endif

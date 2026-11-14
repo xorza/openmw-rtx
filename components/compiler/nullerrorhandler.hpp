@@ -1,5 +1,4 @@
-#ifndef COMPILER_NULLERRORHANDLER_H_INCLUDED
-#define COMPILER_NULLERRORHANDLER_H_INCLUDED
+#pragma once
 
 #include "errorhandler.hpp"
 
@@ -16,5 +15,3 @@ namespace Compiler
         ///< Report a file related error
     };
 }
-
-#endif

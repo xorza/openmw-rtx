@@ -1,5 +1,4 @@
-#ifndef CSV_WIDGET_DROPLINEEDIT_HPP
-#define CSV_WIDGET_DROPLINEEDIT_HPP
+#pragma once
 
 #include <QLineEdit>
 
@@ -36,5 +35,3 @@ namespace CSVWidget
         void tableMimeDataDropped(const CSMWorld::UniversalId& id, const CSMDoc::Document* document);
     };
 }
-
-#endif

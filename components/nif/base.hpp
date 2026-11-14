@@ -1,6 +1,5 @@
 /// This file holds the main classes of NIF Records used by everything else.
-#ifndef OPENMW_COMPONENTS_NIF_BASE_HPP
-#define OPENMW_COMPONENTS_NIF_BASE_HPP
+#pragma once
 
 #include "recordptr.hpp"
 
@@ -63,4 +62,3 @@ namespace Nif
     };
 
 }
-#endif

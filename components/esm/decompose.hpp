@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_ESM_DECOMPOSE_H
-#define OPENMW_COMPONENTS_ESM_DECOMPOSE_H
+#pragma once
 
 namespace ESM
 {
@@ -13,5 +12,3 @@ namespace ESM
         return result;
     }
 }
-
-#endif

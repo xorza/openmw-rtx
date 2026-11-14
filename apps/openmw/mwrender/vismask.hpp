@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWRENDER_VISMASK_H
-#define OPENMW_MWRENDER_VISMASK_H
+#pragma once
 
 namespace MWRender
 {
@@ -63,5 +62,3 @@ namespace MWRender
         = Mask_Actor | Mask_Terrain | Mask_Object | Mask_Static | Mask_Groundcover;
 
 }
-
-#endif

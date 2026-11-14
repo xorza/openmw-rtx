@@ -1,5 +1,4 @@
-#ifndef GAME_STATE_CHARACTERMANAGER_H
-#define GAME_STATE_CHARACTERMANAGER_H
+#pragma once
 
 #include <filesystem>
 #include <list>
@@ -46,5 +45,3 @@ namespace MWState
         std::list<Character>::const_iterator end() const;
     };
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef IMPORTSPAGE_HPP
-#define IMPORTSPAGE_HPP
+#pragma once
 
 #include <components/process/processinvoker.hpp>
 
@@ -60,5 +59,3 @@ namespace Launcher
         MainDialog* mMain;
     };
 }
-
-#endif // IMPORTSPAGE_HPP

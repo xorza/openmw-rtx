@@ -1,5 +1,4 @@
-﻿#ifndef OPENMW_COMPONENTS_DETOURNAVIGATOR_SETTINGSUTILS_H
-#define OPENMW_COMPONENTS_DETOURNAVIGATOR_SETTINGSUTILS_H
+#pragma once
 
 #include "settings.hpp"
 #include "tilebounds.hpp"
@@ -114,5 +113,3 @@ namespace DetourNavigator
         return result;
     }
 }
-
-#endif

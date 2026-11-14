@@ -1,5 +1,4 @@
-#ifndef GAME_BASE_ENVIRONMENT_H
-#define GAME_BASE_ENVIRONMENT_H
+#pragma once
 
 #include <components/misc/notnullptr.hpp>
 
@@ -140,5 +139,3 @@ namespace MWBase
         }
     };
 }
-
-#endif

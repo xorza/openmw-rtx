@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESSIMPORT_IMPORTPROJ_H
-#define OPENMW_ESSIMPORT_IMPORTPROJ_H
+#pragma once
 
 #include <components/esm/esmcommon.hpp>
 #include <components/esm/vector3.hpp>
@@ -42,5 +41,3 @@ namespace ESSImport
     };
 
 }
-
-#endif

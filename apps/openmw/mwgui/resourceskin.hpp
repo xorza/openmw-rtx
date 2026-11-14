@@ -1,5 +1,4 @@
-#ifndef MWGUI_RESOURCESKIN_H
-#define MWGUI_RESOURCESKIN_H
+#pragma once
 
 #include <MyGUI_ResourceSkin.h>
 
@@ -14,5 +13,3 @@ namespace MWGui
     };
 
 }
-
-#endif

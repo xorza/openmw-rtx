@@ -1,5 +1,4 @@
-#ifndef OPENMW_TEST_SUITE_DETOURNAVIGATOR_SETTINGS_H
-#define OPENMW_TEST_SUITE_DETOURNAVIGATOR_SETTINGS_H
+#pragma once
 
 #include <components/detournavigator/settings.hpp>
 
@@ -45,5 +44,3 @@ namespace DetourNavigator
         }
     }
 }
-
-#endif

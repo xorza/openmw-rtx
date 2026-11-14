@@ -1,5 +1,4 @@
-#ifndef GAME_MWWORLD_LIVECELLREF_H
-#define GAME_MWWORLD_LIVECELLREF_H
+#pragma once
 
 #include "cellref.hpp"
 
@@ -192,5 +191,3 @@ namespace MWWorld
         return checkStateImp(state);
     }
 }
-
-#endif

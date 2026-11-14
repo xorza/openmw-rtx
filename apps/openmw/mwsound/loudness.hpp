@@ -1,5 +1,4 @@
-#ifndef GAME_SOUND_LOUDNESS_H
-#define GAME_SOUND_LOUDNESS_H
+#pragma once
 
 #include <deque>
 #include <vector>
@@ -56,5 +55,3 @@ namespace MWSound
     };
 
 }
-
-#endif /* GAME_SOUND_LOUDNESS_H */

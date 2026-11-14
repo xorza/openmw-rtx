@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_ESM_QUATERNION_H
-#define OPENMW_COMPONENTS_ESM_QUATERNION_H
+#pragma once
 
 #include <osg/Quat>
 
@@ -29,5 +28,3 @@ namespace ESM
         operator osg::Quat() const { return osg::Quat(mValues[1], mValues[2], mValues[3], mValues[0]); }
     };
 }
-
-#endif

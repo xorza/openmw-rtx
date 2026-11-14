@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_DETOURNAVIGATOR_RAYCAST_H
-#define OPENMW_COMPONENTS_DETOURNAVIGATOR_RAYCAST_H
+#pragma once
 
 #include "flags.hpp"
 
@@ -16,5 +15,3 @@ namespace DetourNavigator
     std::optional<osg::Vec3f> raycast(const dtNavMeshQuery& navMeshQuery, const osg::Vec3f& halfExtents,
         const osg::Vec3f& start, const osg::Vec3f& end, const Flags includeFlags);
 }
-
-#endif

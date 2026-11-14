@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_LUA_LUASTATE_H
-#define COMPONENTS_LUA_LUASTATE_H
+#pragma once
 
 #include <filesystem>
 #include <map>
@@ -375,5 +374,3 @@ namespace LuaUtil
             out.add(t);
     }
 }
-
-#endif // COMPONENTS_LUA_LUASTATE_H

@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_MISC_MATH_H
-#define OPENMW_COMPONENTS_MISC_MATH_H
+#pragma once
 
 #include <osg/Vec3f>
 
@@ -12,5 +11,3 @@ namespace Misc
         return (position - a) ^ direction;
     }
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_LUA_STORAGE_H
-#define COMPONENTS_LUA_STORAGE_H
+#pragma once
 
 #include <map>
 #include <sol/sol.hpp>
@@ -133,5 +132,3 @@ namespace LuaUtil
     };
 
 }
-
-#endif // COMPONENTS_LUA_STORAGE_H

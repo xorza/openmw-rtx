@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESSIMPORT_CONVERTER_H
-#define OPENMW_ESSIMPORT_CONVERTER_H
+#pragma once
 
 #include <limits>
 
@@ -624,5 +623,3 @@ namespace ESSImport
     };
 
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef GAME_MWWORLD_CONTAINERSTORE_H
-#define GAME_MWWORLD_CONTAINERSTORE_H
+#pragma once
 
 #include <iterator>
 #include <map>
@@ -465,4 +464,3 @@ namespace MWWorld
     template <class T, class U>
     bool operator!=(const ContainerStoreIteratorBase<T>& left, const ContainerStoreIteratorBase<U>& right);
 }
-#endif

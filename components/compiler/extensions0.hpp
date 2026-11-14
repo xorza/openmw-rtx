@@ -1,5 +1,4 @@
-#ifndef COMPILER_EXTENSIONS0_H
-#define COMPILER_EXTENSIONS0_H
+#pragma once
 
 namespace Compiler
 {
@@ -77,5 +76,3 @@ namespace Compiler
         void registerExtensions(Extensions& extensions);
     }
 }
-
-#endif

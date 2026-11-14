@@ -1,5 +1,4 @@
-#ifndef MWGUI_BIRTH_H
-#define MWGUI_BIRTH_H
+#pragma once
 
 #include "windowbase.hpp"
 #include <components/esm/refid.hpp>
@@ -63,4 +62,3 @@ namespace MWGui
         bool onControllerButtonEvent(const SDL_GamepadButtonEvent& arg) override;
     };
 }
-#endif

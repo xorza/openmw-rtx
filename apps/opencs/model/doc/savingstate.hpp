@@ -1,5 +1,4 @@
-#ifndef CSM_DOC_SAVINGSTATE_H
-#define CSM_DOC_SAVINGSTATE_H
+#pragma once
 
 #include <deque>
 #include <filesystem>
@@ -55,5 +54,3 @@ namespace CSMDoc
     };
 
 }
-
-#endif

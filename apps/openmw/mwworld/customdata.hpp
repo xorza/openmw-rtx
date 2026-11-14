@@ -1,5 +1,4 @@
-#ifndef GAME_MWWORLD_CUSTOMDATA_H
-#define GAME_MWWORLD_CUSTOMDATA_H
+#pragma once
 
 #include <memory>
 
@@ -55,5 +54,3 @@ namespace MWWorld
         TypedCustomData() = default;
     };
 }
-
-#endif

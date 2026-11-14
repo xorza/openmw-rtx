@@ -1,5 +1,4 @@
-#ifndef GAME_MWMECHANICS_PATHGRID_H
-#define GAME_MWMECHANICS_PATHGRID_H
+#pragma once
 
 #include <deque>
 
@@ -64,5 +63,3 @@ namespace MWMechanics
         std::vector<Node> mGraph;
     };
 }
-
-#endif

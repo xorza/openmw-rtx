@@ -1,5 +1,4 @@
-#ifndef MWLUA_RECORDSTORE_H
-#define MWLUA_RECORDSTORE_H
+#pragma once
 
 #include <type_traits>
 
@@ -72,5 +71,3 @@ namespace MWLua
         table["records"] = &store;
     }
 }
-
-#endif // MWLUA_RECORDSTORE_H

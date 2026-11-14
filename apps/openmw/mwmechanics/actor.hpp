@@ -1,5 +1,4 @@
-#ifndef OPENMW_MECHANICS_ACTOR_H
-#define OPENMW_MECHANICS_ACTOR_H
+#pragma once
 
 #include <memory>
 
@@ -82,5 +81,3 @@ namespace MWMechanics
     };
 
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESSIMPORT_CONVERTCREC_H
-#define OPENMW_ESSIMPORT_CONVERTCREC_H
+#pragma once
 
 #include "importcrec.hpp"
 
@@ -11,5 +10,3 @@ namespace ESSImport
     void convertCREC(const CREC& crec, ESM::CreatureState& state);
 
 }
-
-#endif

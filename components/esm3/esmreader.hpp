@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_READER_H
-#define OPENMW_ESM_READER_H
+#pragma once
 
 #include <array>
 #include <cstdint>
@@ -396,4 +395,3 @@ namespace ESM
         const LuaUtil::ScriptsConfiguration* mScriptsConfiguration = nullptr;
     };
 }
-#endif

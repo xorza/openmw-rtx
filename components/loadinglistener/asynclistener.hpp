@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_LOADINGLISTENER_ASYNCLISTENER_H
-#define COMPONENTS_LOADINGLISTENER_ASYNCLISTENER_H
+#pragma once
 
 #include <mutex>
 #include <optional>
@@ -61,5 +60,3 @@ namespace Loading
         std::optional<size_t> mProgressUpdate;
     };
 }
-
-#endif // COMPONENTS_LOADINGLISTENER_ASYNCLISTENER_H

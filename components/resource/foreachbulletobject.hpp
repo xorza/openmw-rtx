@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_RESOURCE_FOREACHBULLETOBJECT_H
-#define OPENMW_COMPONENTS_RESOURCE_FOREACHBULLETOBJECT_H
+#pragma once
 
 #include <components/esm/position.hpp>
 #include <components/resource/bulletshape.hpp>
@@ -44,5 +43,3 @@ namespace Resource
         Resource::BulletShapeManager& bulletShapeManager, const EsmLoader::EsmData& esmData,
         std::function<void(const ESM::Cell&, const BulletObject& object)> callback);
 }
-
-#endif

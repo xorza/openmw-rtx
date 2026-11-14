@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_MISC_PROGRESSREPORTER_H
-#define OPENMW_COMPONENTS_MISC_PROGRESSREPORTER_H
+#pragma once
 
 #include <algorithm>
 #include <chrono>
@@ -48,5 +47,3 @@ namespace Misc
         std::chrono::steady_clock::time_point mNextReport{ std::chrono::steady_clock::now() + mInterval };
     };
 }
-
-#endif

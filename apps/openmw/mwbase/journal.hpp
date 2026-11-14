@@ -1,5 +1,4 @@
-#ifndef GAME_MWBASE_JOURNAL_H
-#define GAME_MWBASE_JOURNAL_H
+#pragma once
 
 #include <deque>
 #include <map>
@@ -81,5 +80,3 @@ namespace MWBase
         virtual void readRecord(ESM::ESMReader& reader, uint32_t type) = 0;
     };
 }
-
-#endif

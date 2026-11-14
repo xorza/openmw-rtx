@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_MISC_ALGORITHM_H
-#define OPENMW_COMPONENTS_MISC_ALGORITHM_H
+#pragma once
 
 #include <iterator>
 #include <type_traits>
@@ -54,5 +53,3 @@ namespace Misc
     }
 
 }
-
-#endif

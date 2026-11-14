@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_NIFOSG_SKELETON_H
-#define OPENMW_COMPONENTS_NIFOSG_SKELETON_H
+#pragma once
 
 #include <osg/Group>
 
@@ -85,5 +84,3 @@ namespace SceneUtil
     };
 
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_OSGAEXTENSION_RIGGEOMETRY_H
-#define OPENMW_COMPONENTS_OSGAEXTENSION_RIGGEOMETRY_H
+#pragma once
 
 #include <array>
 
@@ -70,5 +69,3 @@ namespace SceneUtil
     };
 
 }
-
-#endif

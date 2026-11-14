@@ -1,5 +1,4 @@
-#ifndef GAME_MWBASE_SCRIPTMANAGER_H
-#define GAME_MWBASE_SCRIPTMANAGER_H
+#pragma once
 
 #include <span>
 #include <string_view>
@@ -69,5 +68,3 @@ namespace MWBase
         virtual const Compiler::Extensions& getExtensions() const = 0;
     };
 }
-
-#endif

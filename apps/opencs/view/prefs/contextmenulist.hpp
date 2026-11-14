@@ -1,5 +1,4 @@
-#ifndef CSV_PREFS_CONTEXTMENULIST_H
-#define CSV_PREFS_CONTEXTMENULIST_H
+#pragma once
 
 #include <QListWidget>
 
@@ -27,5 +26,3 @@ namespace CSVPrefs
         void resetAll();
     };
 }
-
-#endif

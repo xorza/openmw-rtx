@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SETTINGS_CATEGORIES_TERRAIN_H
-#define OPENMW_COMPONENTS_SETTINGS_CATEGORIES_TERRAIN_H
+#pragma once
 
 #include <components/settings/sanitizerimpl.hpp>
 #include <components/settings/settingvalue.hpp>
@@ -40,5 +39,3 @@ namespace Settings
         SettingValue<bool> mWaterCulling{ mIndex, "Terrain", "water culling" };
     };
 }
-
-#endif

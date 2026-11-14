@@ -24,8 +24,7 @@
   trial & error.  See http://en.uesp.net/wiki for details.
 
 */
-#ifndef OPENMW_COMPONENTS_ESM4_GRID_H
-#define OPENMW_COMPONENTS_ESM4_GRID_H
+#pragma once
 
 #include <cstdint>
 
@@ -37,5 +36,3 @@ namespace ESM4
         std::int16_t y;
     };
 }
-
-#endif // OPENMW_COMPONENTS_ESM4_GRID_H

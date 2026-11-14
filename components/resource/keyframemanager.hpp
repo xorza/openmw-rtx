@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_KEYFRAMEMANAGER_H
-#define OPENMW_COMPONENTS_KEYFRAMEMANAGER_H
+#pragma once
 
 #include <memory>
 #include <string>
@@ -67,5 +66,3 @@ namespace Resource
     };
 
 }
-
-#endif

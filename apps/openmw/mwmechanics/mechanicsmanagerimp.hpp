@@ -1,5 +1,4 @@
-#ifndef GAME_MWMECHANICS_MECHANICSMANAGERIMP_H
-#define GAME_MWMECHANICS_MECHANICSMANAGERIMP_H
+#pragma once
 
 #include <components/settings/settings.hpp>
 
@@ -250,5 +249,3 @@ namespace MWMechanics
             const ESM::RefId& factionId, int arg = 0);
     };
 }
-
-#endif

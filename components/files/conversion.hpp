@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_FILES_CONVERSION_HPP
-#define COMPONENTS_FILES_CONVERSION_HPP
+#pragma once
 
 #include <filesystem>
 
@@ -15,5 +14,3 @@ namespace Files
 
     std::filesystem::path pathFromUnicodeString(const char* path);
 }
-
-#endif // COMPONENTS_FILES_CONFIGURATIONMANAGER_HPP

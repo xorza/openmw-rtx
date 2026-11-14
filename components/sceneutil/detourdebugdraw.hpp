@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SCENEUTIL_DETOURDEBUGDRAW_H
-#define OPENMW_COMPONENTS_SCENEUTIL_DETOURDEBUGDRAW_H
+#pragma once
 
 #include <DebugDraw.h>
 
@@ -54,5 +53,3 @@ namespace SceneUtil
 
     osg::ref_ptr<osg::StateSet> makeDetourGroupStateSet();
 }
-
-#endif

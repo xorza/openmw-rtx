@@ -1,5 +1,4 @@
-#ifndef ENGINE_H
-#define ENGINE_H
+#pragma once
 
 #include <filesystem>
 #include <memory>
@@ -303,5 +302,3 @@ namespace OMW
         void setRecastMaxLogLevel(Debug::Level value) { mMaxRecastLogLevel = value; }
     };
 }
-
-#endif /* ENGINE_H */

@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_FX_LEXERTYPES_HPP
-#define OPENMW_COMPONENTS_FX_LEXERTYPES_HPP
+#pragma once
 
 #include <string_view>
 #include <variant>
@@ -164,5 +163,3 @@ namespace Fx
             Uniform_Vec2, Uniform_Vec3, Uniform_Vec4, True, False, Vec2, Vec3, Vec4, Eof>;
     }
 }
-
-#endif

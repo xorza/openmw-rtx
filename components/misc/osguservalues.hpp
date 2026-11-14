@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_MISC_OSGUSERVALUES_H
-#define OPENMW_COMPONENTS_MISC_OSGUSERVALUES_H
+#pragma once
 
 #include <string>
 
@@ -13,5 +12,3 @@ namespace Misc
         static const std::string sXSoftEffect;
     };
 }
-
-#endif

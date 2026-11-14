@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_DETOURNAVIGATOR_AREATYPE_H
-#define OPENMW_COMPONENTS_DETOURNAVIGATOR_AREATYPE_H
+#pragma once
 
 #include <Recast.h>
 
@@ -22,5 +21,3 @@ namespace DetourNavigator
         float mGround = 1.0f;
     };
 }
-
-#endif

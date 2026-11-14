@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_NIF_RECORDPTR_HPP
-#define OPENMW_COMPONENTS_NIF_RECORDPTR_HPP
+#pragma once
 
 #include <format>
 #include <stdexcept>
@@ -291,4 +290,3 @@ namespace Nif
     using bhkRagdollTemplateDataList = RecordListT<bhkRagdollTemplateData>;
 
 } // Namespace
-#endif

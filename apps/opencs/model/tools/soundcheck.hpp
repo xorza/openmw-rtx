@@ -1,5 +1,4 @@
-#ifndef CSM_TOOLS_SOUNDCHECK_H
-#define CSM_TOOLS_SOUNDCHECK_H
+#pragma once
 
 #include "../world/idcollection.hpp"
 
@@ -39,5 +38,3 @@ namespace CSMTools
         ///< Messages resulting from this tage will be appended to \a messages.
     };
 }
-
-#endif

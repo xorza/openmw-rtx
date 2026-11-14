@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_DETOURNAVIGATOR_RECASTMESH_H
-#define OPENMW_COMPONENTS_DETOURNAVIGATOR_RECASTMESH_H
+#pragma once
 
 #include "areatype.hpp"
 #include "version.hpp"
@@ -148,5 +147,3 @@ namespace DetourNavigator
         }
     };
 }
-
-#endif

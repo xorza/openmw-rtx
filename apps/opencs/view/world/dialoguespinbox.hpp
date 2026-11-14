@@ -1,5 +1,4 @@
-#ifndef CSV_WORLD_DIALOGUESPINBOX_H
-#define CSV_WORLD_DIALOGUESPINBOX_H
+#pragma once
 
 #include <QDoubleSpinBox>
 #include <QSpinBox>
@@ -32,5 +31,3 @@ namespace CSVWorld
         void wheelEvent(QWheelEvent* event) override;
     };
 }
-
-#endif // CSV_WORLD_DIALOGUESPINBOX_H

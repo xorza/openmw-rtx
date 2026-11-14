@@ -1,5 +1,4 @@
-#ifndef MWGUI_SPELLWINDOW_H
-#define MWGUI_SPELLWINDOW_H
+#pragma once
 
 #include <memory>
 
@@ -54,5 +53,3 @@ namespace MWGui
         float mUpdateTimer;
     };
 }
-
-#endif

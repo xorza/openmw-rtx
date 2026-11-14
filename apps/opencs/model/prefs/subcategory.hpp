@@ -1,5 +1,4 @@
-#ifndef OPENMW_APPS_OPENCS_MODEL_PREFS_SUBCATEGORY_H
-#define OPENMW_APPS_OPENCS_MODEL_PREFS_SUBCATEGORY_H
+#pragma once
 
 #include "setting.hpp"
 
@@ -24,5 +23,3 @@ namespace CSMPrefs
         void reset() override {}
     };
 }
-
-#endif

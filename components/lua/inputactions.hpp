@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_LUA_INPUTACTIONS
-#define COMPONENTS_LUA_INPUTACTIONS
+#pragma once
 
 #include <string>
 #include <string_view>
@@ -135,5 +134,3 @@ namespace LuaUtil::InputTrigger
         std::vector<std::vector<LuaUtil::Callback>> mHandlers;
     };
 }
-
-#endif // COMPONENTS_LUA_INPUTACTIONS

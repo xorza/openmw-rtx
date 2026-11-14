@@ -1,5 +1,4 @@
-#ifndef DATADISPLAYDELEGATE_HPP
-#define DATADISPLAYDELEGATE_HPP
+#pragma once
 
 #include "enumdelegate.hpp"
 
@@ -113,5 +112,3 @@ namespace CSVWorld
     };
 
 }
-
-#endif // DATADISPLAYDELEGATE_HPP

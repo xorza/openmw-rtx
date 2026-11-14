@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_FILES_WINDOWSPATH_HPP
-#define COMPONENTS_FILES_WINDOWSPATH_HPP
+#pragma once
 
 #if defined(_WIN32) || defined(__WINDOWS__)
 
@@ -80,5 +79,3 @@ namespace Files
 } /* namespace Files */
 
 #endif /* defined(_WIN32) || defined(__WINDOWS__) */
-
-#endif /* COMPONENTS_FILES_WINDOWSPATH_HPP */

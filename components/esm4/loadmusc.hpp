@@ -26,8 +26,7 @@
   Also see https://tes5edit.github.io/fopdoc/ for FO3/FNV specific details.
 
 */
-#ifndef ESM4_MUSC_H
-#define ESM4_MUSC_H
+#pragma once
 
 #include <cstdint>
 #include <string>
@@ -55,5 +54,3 @@ namespace ESM4
         static constexpr ESM::RecNameInts sRecordId = ESM::RecNameInts::REC_MUSC4;
     };
 }
-
-#endif // ESM4_MUSC_H

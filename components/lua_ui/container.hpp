@@ -1,5 +1,4 @@
-#ifndef OPENMW_LUAUI_CONTAINER
-#define OPENMW_LUAUI_CONTAINER
+#pragma once
 
 #include "widget.hpp"
 
@@ -24,5 +23,3 @@ namespace LuaUi
         MyGUI::IntSize mOuterSize;
     };
 }
-
-#endif // !OPENMW_LUAUI_CONTAINER

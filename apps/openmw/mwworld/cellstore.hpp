@@ -1,5 +1,4 @@
-#ifndef GAME_MWWORLD_CELLSTORE_H
-#define GAME_MWWORLD_CELLSTORE_H
+#pragma once
 
 #include <algorithm>
 #include <map>
@@ -432,5 +431,3 @@ namespace MWWorld
     };
 
 }
-
-#endif

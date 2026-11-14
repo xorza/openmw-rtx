@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_LUA_SERIALIZATION_H
-#define COMPONENTS_LUA_SERIALIZATION_H
+#pragma once
 
 #include <sol/sol.hpp>
 
@@ -55,5 +54,3 @@ namespace LuaUtil
         const UserdataSerializer* customSerializer = nullptr, bool readOnly = false);
 
 }
-
-#endif // COMPONENTS_LUA_SERIALIZATION_H

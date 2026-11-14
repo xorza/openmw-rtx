@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SCENEUTIL_STATEUPDATER_H
-#define OPENMW_COMPONENTS_SCENEUTIL_STATEUPDATER_H
+#pragma once
 
 #include <osg/Matrixf>
 #include <osg/Vec2f>
@@ -121,5 +120,3 @@ namespace SceneUtil
         bool mWaterEnabled = false;
     };
 }
-
-#endif

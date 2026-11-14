@@ -7,7 +7,7 @@ from pathlib import Path
 from unittest import mock
 
 from omw import lint
-from omw.lint import Pinned, command_for, misnamed, version_of
+from omw.lint import Pinned, command_for, misnamed, unguarded, version_of
 from omw.system import Refusal
 
 
@@ -16,6 +16,17 @@ class LintTest(unittest.TestCase):
         names = ["apps/a/foo2.cpp", "apps/a/FooBar.hpp", "apps/a/foo_bar.h", "apps/a/foo.h", "top.cpp"]
         self.assertEqual([line.split(":")[0] for line in misnamed(names)],
                          ["apps/a/FooBar.hpp", "apps/a/foo_bar.h", "top.cpp"])
+
+    def test_a_header_opens_with_pragma_once_and_nothing_else_counts(self):
+        headers = {
+            "a.hpp": "#pragma once\n\n#include <vector>\n",
+            "b.hpp": "// The licence.\n/* More of it. */\n#pragma once\n",
+            "c.hpp": "#ifndef C_HPP\n#define C_HPP\n#endif\n",
+            "d.hpp": "#include <vector>\n#pragma once\n",
+            "e.hpp": "// Comments alone.\n",
+        }
+        self.assertEqual([line.split(":")[0] for line in unguarded(headers)], ["c.hpp", "d.hpp", "e.hpp"])
+        self.assertIn("#ifndef C_HPP", unguarded({"c.hpp": headers["c.hpp"]})[0])
 
     def test_the_version_is_the_second_word_of_what_a_tool_says(self):
         self.assertEqual(version_of("ruff 0.16.9\n"), "0.16.9")

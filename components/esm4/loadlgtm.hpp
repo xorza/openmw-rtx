@@ -26,8 +26,7 @@
   Also see https://tes5edit.github.io/fopdoc/ for FO3/FNV specific details.
 
 */
-#ifndef ESM4_LGTM_H
-#define ESM4_LGTM_H
+#pragma once
 
 #include <cstdint>
 #include <string>
@@ -57,5 +56,3 @@ namespace ESM4
         static constexpr ESM::RecNameInts sRecordId = ESM::RecNameInts::REC_LGTM4;
     };
 }
-
-#endif // ESM4_LGTM_H

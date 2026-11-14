@@ -1,5 +1,4 @@
-#ifndef CSM_TOOLS_PATHGRIDCHECK_H
-#define CSM_TOOLS_PATHGRIDCHECK_H
+#pragma once
 
 #include <algorithm>
 #include <vector>
@@ -44,5 +43,3 @@ namespace CSMTools
         void perform(int stage, CSMDoc::Messages& messages) override;
     };
 }
-
-#endif // CSM_TOOLS_PATHGRIDCHECK_H

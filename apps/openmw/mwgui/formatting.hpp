@@ -1,5 +1,4 @@
-#ifndef MWGUI_FORMATTING_H
-#define MWGUI_FORMATTING_H
+#pragma once
 
 #include <MyGUI_Colour.h>
 #include <map>
@@ -178,5 +177,3 @@ namespace MWGui
         };
     }
 }
-
-#endif

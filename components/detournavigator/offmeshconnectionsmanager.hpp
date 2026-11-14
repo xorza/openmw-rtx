@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_DETOURNAVIGATOR_OFFMESHCONNECTIONSMANAGER_H
-#define OPENMW_COMPONENTS_DETOURNAVIGATOR_OFFMESHCONNECTIONSMANAGER_H
+#pragma once
 
 #include "objectid.hpp"
 #include "offmeshconnection.hpp"
@@ -37,5 +36,3 @@ namespace DetourNavigator
         Misc::ScopeGuarded<Values> mValues;
     };
 }
-
-#endif

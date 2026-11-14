@@ -1,5 +1,4 @@
-#ifndef CSM_WOLRD_COMMANDS_H
-#define CSM_WOLRD_COMMANDS_H
+#pragma once
 
 #include "record.hpp"
 
@@ -321,5 +320,3 @@ namespace CSMWorld
         void undo() override;
     };
 }
-
-#endif

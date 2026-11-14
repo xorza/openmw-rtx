@@ -1,5 +1,4 @@
-#ifndef MWLUA_OBJECT_H
-#define MWLUA_OBJECT_H
+#pragma once
 
 #include <stdexcept>
 
@@ -132,5 +131,3 @@ namespace sol
         };
     }
 }
-
-#endif // MWLUA_OBJECT_H

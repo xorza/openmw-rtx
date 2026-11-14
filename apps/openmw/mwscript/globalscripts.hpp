@@ -1,5 +1,4 @@
-#ifndef GAME_SCRIPT_GLOBALSCRIPTS_H
-#define GAME_SCRIPT_GLOBALSCRIPTS_H
+#pragma once
 
 #include <cstdint>
 #include <map>
@@ -94,5 +93,3 @@ namespace MWScript
         ///< Update the Ptrs stored in mTarget. Should be called after the reference has been moved to a new cell.
     };
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_MYGUIPLATFORM_LOGLISTENER_H
-#define OPENMW_COMPONENTS_MYGUIPLATFORM_LOGLISTENER_H
+#pragma once
 
 #include <filesystem>
 #include <fstream>
@@ -67,5 +66,3 @@ namespace MyGUIPlatform
     };
 
 }
-
-#endif

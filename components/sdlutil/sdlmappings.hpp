@@ -1,5 +1,4 @@
-#ifndef SDLUTIL_SDLMAPPINGS
-#define SDLUTIL_SDLMAPPINGS
+#pragma once
 
 #include <string>
 
@@ -24,4 +23,3 @@ namespace SDLUtil
     MyGUI::KeyCode sdlKeyToMyGUI(SDL_Keycode code);
     SDL_Keycode myGuiKeyToSdl(MyGUI::KeyCode button);
 }
-#endif // !SDLUTIL_SDLMAPPINGS

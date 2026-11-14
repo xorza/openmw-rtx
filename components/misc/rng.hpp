@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_MISC_RNG_H
-#define OPENMW_COMPONENTS_MISC_RNG_H
+#pragma once
 
 #include <cassert>
 #include <concepts>
@@ -46,5 +45,3 @@ namespace Misc::Rng
 
     float deviate(float mean, float deviation, Generator& prng = getGenerator());
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_LUA_SCRIPTTRACKER_H
-#define COMPONENTS_LUA_SCRIPTTRACKER_H
+#pragma once
 
 #include <memory>
 #include <queue>
@@ -24,5 +23,3 @@ namespace LuaUtil
         std::size_t size() const { return mLoadedScripts.size(); }
     };
 }
-
-#endif // COMPONENTS_LUA_SCRIPTTRACKER_H

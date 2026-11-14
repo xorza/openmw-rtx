@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWPHYSICS_OBJECT_H
-#define OPENMW_MWPHYSICS_OBJECT_H
+#pragma once
 
 #include "ptrholder.hpp"
 #include <memory>
@@ -65,5 +64,3 @@ namespace MWPhysics
         char mCollidedWith;
     };
 }
-
-#endif

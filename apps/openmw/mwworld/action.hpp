@@ -1,5 +1,4 @@
-#ifndef GAME_MWWORLD_ACTION_H
-#define GAME_MWWORLD_ACTION_H
+#pragma once
 
 #include <string>
 #include <string_view>
@@ -42,5 +41,3 @@ namespace MWWorld
         void setSoundOffset(float offset);
     };
 }
-
-#endif

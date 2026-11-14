@@ -1,5 +1,4 @@
-#ifndef MWGUI_PICKPOCKET_ITEM_MODEL_H
-#define MWGUI_PICKPOCKET_ITEM_MODEL_H
+#pragma once
 
 #include "itemmodel.hpp"
 
@@ -32,5 +31,3 @@ namespace MWGui
     };
 
 }
-
-#endif

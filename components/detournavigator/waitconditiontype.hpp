@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_DETOURNAVIGATOR_WAITCONDITIONTYPE_H
-#define OPENMW_COMPONENTS_DETOURNAVIGATOR_WAITCONDITIONTYPE_H
+#pragma once
 
 namespace DetourNavigator
 {
@@ -9,5 +8,3 @@ namespace DetourNavigator
         allJobsDone,
     };
 }
-
-#endif

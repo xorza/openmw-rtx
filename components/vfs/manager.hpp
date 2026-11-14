@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_RESOURCEMANAGER_H
-#define OPENMW_COMPONENTS_RESOURCEMANAGER_H
+#pragma once
 
 #include <components/files/istreamptr.hpp>
 
@@ -85,5 +84,3 @@ namespace VFS
     };
 
 }
-
-#endif

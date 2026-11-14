@@ -1,5 +1,4 @@
-#ifndef GAME_MWCLASS_NPC_H
-#define GAME_MWCLASS_NPC_H
+#pragma once
 
 #include "../mwworld/registeredclass.hpp"
 
@@ -177,5 +176,3 @@ namespace MWClass
         float getSwimSpeed(const MWWorld::Ptr& ptr) const override;
     };
 }
-
-#endif

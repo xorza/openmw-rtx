@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_DETOURNAVIGATOR_VERSION_H
-#define OPENMW_COMPONENTS_DETOURNAVIGATOR_VERSION_H
+#pragma once
 
 #include <cstddef>
 #include <tuple>
@@ -22,5 +21,3 @@ namespace DetourNavigator
         friend inline bool operator!=(const Version& lhs, const Version& rhs) { return !(lhs == rhs); }
     };
 }
-
-#endif

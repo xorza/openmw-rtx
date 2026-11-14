@@ -1,5 +1,4 @@
-#ifndef CSV_WIDGET_COMPLETERPOPUP_HPP
-#define CSV_WIDGET_COMPLETERPOPUP_HPP
+#pragma once
 
 #include <QListView>
 
@@ -13,5 +12,3 @@ namespace CSVWidget
         int sizeHintForRow(int row) const override;
     };
 }
-
-#endif

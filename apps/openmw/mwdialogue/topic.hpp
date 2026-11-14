@@ -1,5 +1,4 @@
-#ifndef GAME_MWDIALOG_TOPIC_H
-#define GAME_MWDIALOG_TOPIC_H
+#pragma once
 
 #include <string>
 #include <string_view>
@@ -59,5 +58,3 @@ namespace MWDialogue
         const Entry& operator[](std::size_t i) const { return mEntries[i]; }
     };
 }
-
-#endif

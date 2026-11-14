@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_LUASCRIPTS_H
-#define OPENMW_ESM_LUASCRIPTS_H
+#pragma once
 
 #include <components/esm/refid.hpp>
 #include <components/vfs/pathutil.hpp>
@@ -109,5 +108,3 @@ namespace ESM
     std::string loadLuaBinaryData(ESM::ESMReader& esm);
 
 }
-
-#endif

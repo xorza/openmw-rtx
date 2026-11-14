@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_DETOURNAVIGATOR_OBJECTID_H
-#define OPENMW_COMPONENTS_DETOURNAVIGATOR_OBJECTID_H
+#pragma once
 
 #include <cstddef>
 #include <functional>
@@ -39,5 +38,3 @@ namespace std
         std::size_t operator()(const DetourNavigator::ObjectId value) const noexcept { return value.value(); }
     };
 }
-
-#endif

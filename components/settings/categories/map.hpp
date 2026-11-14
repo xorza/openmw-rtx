@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SETTINGS_CATEGORIES_MAP_H
-#define OPENMW_COMPONENTS_SETTINGS_CATEGORIES_MAP_H
+#pragma once
 
 #include <components/misc/constants.hpp>
 #include <components/settings/sanitizerimpl.hpp>
@@ -29,5 +28,3 @@ namespace Settings
             makeMaxSanitizerInt(Constants::CellGridRadius) };
     };
 }
-
-#endif

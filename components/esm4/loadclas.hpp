@@ -24,8 +24,7 @@
   trial & error.  See http://en.uesp.net/wiki for details.
 
 */
-#ifndef ESM4_CLAS_H
-#define ESM4_CLAS_H
+#pragma once
 
 #include <cstdint>
 #include <string>
@@ -61,5 +60,3 @@ namespace ESM4
         static constexpr ESM::RecNameInts sRecordId = ESM::REC_CLAS4;
     };
 }
-
-#endif // ESM4_CLAS_H

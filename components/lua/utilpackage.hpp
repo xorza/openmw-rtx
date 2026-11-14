@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_LUA_UTILPACKAGE_H
-#define COMPONENTS_LUA_UTILPACKAGE_H
+#pragma once
 
 #include <osg/Matrix>
 #include <osg/Quat>
@@ -42,5 +41,3 @@ namespace LuaUtil
 
     sol::table initUtilPackage(lua_State* state);
 }
-
-#endif // COMPONENTS_LUA_UTILPACKAGE_H

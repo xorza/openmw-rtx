@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_NPC_H
-#define OPENMW_ESM_NPC_H
+#pragma once
 
 #include <map>
 #include <string>
@@ -135,4 +134,3 @@ namespace ESM
         void blankNpdt();
     };
 }
-#endif

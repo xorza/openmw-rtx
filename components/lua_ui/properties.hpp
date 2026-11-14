@@ -1,5 +1,4 @@
-#ifndef OPENMW_LUAUI_PROPERTIES
-#define OPENMW_LUAUI_PROPERTIES
+#pragma once
 
 #include <MyGUI_Colour.h>
 #include <MyGUI_Types.h>
@@ -90,5 +89,3 @@ namespace LuaUi
         return optional.value_or(defaultValue);
     }
 }
-
-#endif // !OPENMW_LUAUI_PROPERTIES

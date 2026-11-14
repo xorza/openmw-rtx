@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWRENDER_PRECIPITATIONOCCLUSION_H
-#define OPENMW_MWRENDER_PRECIPITATIONOCCLUSION_H
+#pragma once
 
 #include <osg/Camera>
 #include <osg/Texture2D>
@@ -32,5 +31,3 @@ namespace MWRender
         std::optional<osg::Vec3f> mRange;
     };
 }
-
-#endif

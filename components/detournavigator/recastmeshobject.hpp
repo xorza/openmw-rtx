@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_DETOURNAVIGATOR_RECASTMESHOBJECT_H
-#define OPENMW_COMPONENTS_DETOURNAVIGATOR_RECASTMESHOBJECT_H
+#pragma once
 
 #include "areatype.hpp"
 #include <memory>
@@ -74,5 +73,3 @@ namespace DetourNavigator
         ChildRecastMeshObject mImpl;
     };
 }
-
-#endif

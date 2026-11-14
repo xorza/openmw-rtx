@@ -1,5 +1,4 @@
-#ifndef MWRENDER_SCREENSHOTMANAGER_H
-#define MWRENDER_SCREENSHOTMANAGER_H
+#pragma once
 
 #include <osg/ref_ptr>
 
@@ -22,5 +21,3 @@ namespace MWRender
         osg::ref_ptr<NotifyDrawCompletedCallback> mDrawCompleteCallback;
     };
 }
-
-#endif

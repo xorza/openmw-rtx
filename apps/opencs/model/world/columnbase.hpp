@@ -1,5 +1,4 @@
-#ifndef CSM_WOLRD_COLUMNBASE_H
-#define CSM_WOLRD_COLUMNBASE_H
+#pragma once
 
 #include <stdexcept>
 #include <string>
@@ -248,5 +247,3 @@ namespace CSMWorld
 }
 
 Q_DECLARE_METATYPE(CSMWorld::ColumnBase::TableEditModes)
-
-#endif

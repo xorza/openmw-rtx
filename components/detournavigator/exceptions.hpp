@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_DETOURNAVIGATOR_EXCEPTIONS_H
-#define OPENMW_COMPONENTS_DETOURNAVIGATOR_EXCEPTIONS_H
+#pragma once
 
 #include <stdexcept>
 
@@ -29,5 +28,3 @@ namespace DetourNavigator
         }
     };
 }
-
-#endif

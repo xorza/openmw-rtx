@@ -1,5 +1,4 @@
-#ifndef GAME_MWCLASS_MISC_H
-#define GAME_MWCLASS_MISC_H
+#pragma once
 
 #include "../mwworld/registeredclass.hpp"
 
@@ -63,5 +62,3 @@ namespace MWClass
         bool isSoulGem(const MWWorld::ConstPtr& ptr) const override;
     };
 }
-
-#endif

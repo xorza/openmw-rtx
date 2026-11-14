@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_COMMON_H
-#define OPENMW_ESM_COMMON_H
+#pragma once
 
 #include <cassert>
 #include <cstdint>
@@ -207,5 +206,3 @@ namespace ESM
     };
 
 }
-
-#endif

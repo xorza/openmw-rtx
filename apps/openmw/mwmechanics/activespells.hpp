@@ -1,5 +1,4 @@
-#ifndef GAME_MWMECHANICS_ACTIVESPELLS_H
-#define GAME_MWMECHANICS_ACTIVESPELLS_H
+#pragma once
 
 #include <functional>
 #include <list>
@@ -175,5 +174,3 @@ namespace MWMechanics
         void unloadActor(const MWWorld::Ptr& ptr);
     };
 }
-
-#endif

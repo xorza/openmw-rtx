@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWGUI_MERCHANTREPAIR_H
-#define OPENMW_MWGUI_MERCHANTREPAIR_H
+#pragma once
 
 #include "../mwworld/ptr.hpp"
 #include "windowbase.hpp"
@@ -37,5 +36,3 @@ namespace MWGui
     };
 
 }
-
-#endif

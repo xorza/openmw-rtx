@@ -1,5 +1,4 @@
-#ifndef GAME_MWWORLD_ACTIONEAT_H
-#define GAME_MWWORLD_ACTIONEAT_H
+#pragma once
 
 #include "action.hpp"
 
@@ -13,5 +12,3 @@ namespace MWWorld
         explicit ActionEat(const MWWorld::Ptr& object);
     };
 }
-
-#endif

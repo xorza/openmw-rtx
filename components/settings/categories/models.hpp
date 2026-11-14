@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SETTINGS_CATEGORIES_MODELS_H
-#define OPENMW_COMPONENTS_SETTINGS_CATEGORIES_MODELS_H
+#pragma once
 
 #include <components/settings/settingvalue.hpp>
 #include <components/vfs/pathutil.hpp>
@@ -31,5 +30,3 @@ namespace Settings
         SettingValue<VFS::Path::Normalized> mSkynight02{ mIndex, "Models", "skynight02" };
     };
 }
-
-#endif

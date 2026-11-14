@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWGUI_ITEMWIDGET_H
-#define OPENMW_MWGUI_ITEMWIDGET_H
+#pragma once
 
 #include <components/vfs/pathutil.hpp>
 
@@ -67,5 +66,3 @@ namespace MWGui
     };
 
 }
-
-#endif

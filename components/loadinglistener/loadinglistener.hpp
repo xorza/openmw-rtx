@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_LOADINGLISTENER_H
-#define COMPONENTS_LOADINGLISTENER_H
+#pragma once
 
 #include <memory>
 #include <string>
@@ -63,5 +62,3 @@ namespace Loading
         }
     };
 }
-
-#endif

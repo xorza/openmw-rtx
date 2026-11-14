@@ -1,5 +1,4 @@
-#ifndef INTERPRETER_LOCALOPCODES_H_INCLUDED
-#define INTERPRETER_LOCALOPCODES_H_INCLUDED
+#pragma once
 
 #include "context.hpp"
 #include "opcodes.hpp"
@@ -303,5 +302,3 @@ namespace Interpreter
         }
     };
 }
-
-#endif

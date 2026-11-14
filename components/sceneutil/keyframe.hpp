@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SCENEUTIL_KEYFRAME_HPP
-#define OPENMW_COMPONENTS_SCENEUTIL_KEYFRAME_HPP
+#pragma once
 
 #include <map>
 #include <optional>
@@ -50,5 +49,3 @@ namespace SceneUtil
     };
 
 }
-
-#endif

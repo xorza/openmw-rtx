@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SERIALIZATION_SIZEACCUMULATOR_H
-#define OPENMW_COMPONENTS_SERIALIZATION_SIZEACCUMULATOR_H
+#pragma once
 
 #include <cstddef>
 #include <type_traits>
@@ -37,5 +36,3 @@ namespace Serialization
         std::size_t mValue = 0;
     };
 }
-
-#endif

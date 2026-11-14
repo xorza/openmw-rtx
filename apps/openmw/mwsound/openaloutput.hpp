@@ -1,5 +1,4 @@
-#ifndef GAME_SOUND_OPENALOUTPUT_H
-#define GAME_SOUND_OPENALOUTPUT_H
+#pragma once
 
 #include <deque>
 #include <map>
@@ -122,5 +121,3 @@ namespace MWSound
         ~OpenALOutput() override;
     };
 }
-
-#endif

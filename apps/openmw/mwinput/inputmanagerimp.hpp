@@ -1,5 +1,4 @@
-#ifndef MWINPUT_MWINPUTMANAGERIMP_H
-#define MWINPUT_MWINPUTMANAGERIMP_H
+#pragma once
 
 #include <memory>
 
@@ -127,4 +126,3 @@ namespace MWInput
         std::unique_ptr<GyroManager> mGyroManager;
     };
 }
-#endif

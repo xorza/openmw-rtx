@@ -1,5 +1,4 @@
-#ifndef CSV_WORLD_NESTEDTABLE_H
-#define CSV_WORLD_NESTEDTABLE_H
+#pragma once
 
 #include "dragrecordtable.hpp"
 
@@ -55,5 +54,3 @@ namespace CSVWorld
         void editRequest(const CSMWorld::UniversalId& id, const std::string& hint);
     };
 }
-
-#endif

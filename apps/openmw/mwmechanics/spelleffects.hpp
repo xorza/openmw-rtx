@@ -1,5 +1,4 @@
-#ifndef GAME_MWMECHANICS_SPELLEFFECTS_H
-#define GAME_MWMECHANICS_SPELLEFFECTS_H
+#pragma once
 
 #include "activespells.hpp"
 
@@ -38,5 +37,3 @@ namespace MWMechanics
     // Restarts the Sound effect's looping SFX, which is only started when the effect is first applied
     void restoreMagicSound(const MWWorld::Ptr& player);
 }
-
-#endif

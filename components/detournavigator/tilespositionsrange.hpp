@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_DETOURNAVIGATOR_TILESPOSITIONSRANGE_H
-#define OPENMW_COMPONENTS_DETOURNAVIGATOR_TILESPOSITIONSRANGE_H
+#pragma once
 
 #include "tileposition.hpp"
 
@@ -23,5 +22,3 @@ namespace DetourNavigator
         return tie(lhs) == tie(rhs);
     }
 }
-
-#endif

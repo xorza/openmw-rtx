@@ -17,8 +17,7 @@
  * OpenSceneGraph Public License for more details.
  */
 
-#ifndef OPENMW_COMPONENTS_RESOURCE_OBJECTCACHE
-#define OPENMW_COMPONENTS_RESOURCE_OBJECTCACHE
+#pragma once
 
 #include "cachestats.hpp"
 
@@ -263,5 +262,3 @@ namespace Resource
         }
     };
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef CSM_WOLRD_CELLSELECTION_H
-#define CSM_WOLRD_CELLSELECTION_H
+#pragma once
 
 #include <set>
 
@@ -50,5 +49,3 @@ namespace CSMWorld
 }
 
 Q_DECLARE_METATYPE(CSMWorld::CellSelection)
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_FILES_QTCONFIGPATH_H
-#define OPENMW_COMPONENTS_FILES_QTCONFIGPATH_H
+#pragma once
 
 #include "configurationmanager.hpp"
 #include "qtconversion.hpp"
@@ -23,5 +22,3 @@ namespace Files
         return result;
     }
 }
-
-#endif // OPENMW_COMPONENTS_FILES_QTCONFIGPATH_H

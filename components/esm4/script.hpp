@@ -26,8 +26,7 @@
   Also see https://tes5edit.github.io/fopdoc/ for FO3/FNV specific details.
 
 */
-#ifndef ESM4_SCRIPT_H
-#define ESM4_SCRIPT_H
+#pragma once
 
 #include <cstdint>
 #include <string>
@@ -377,5 +376,3 @@ namespace ESM4
         ESM::FormId globReference;
     };
 }
-
-#endif // ESM4_SCRIPT_H

@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESSIMPORT_CONVERTACDT_H
-#define OPENMW_ESSIMPORT_CONVERTACDT_H
+#pragma once
 
 #include <components/esm3/animationstate.hpp>
 #include <components/esm3/creaturestats.hpp>
@@ -21,5 +20,3 @@ namespace ESSImport
 
     void convertANIS(const ANIS& anis, ESM::AnimationState& state);
 }
-
-#endif

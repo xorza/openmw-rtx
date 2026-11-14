@@ -24,8 +24,7 @@
   trial & error.  See http://en.uesp.net/wiki for details.
 
 */
-#ifndef ESM4_KEYM_H
-#define ESM4_KEYM_H
+#pragma once
 
 #include <cstdint>
 #include <string>
@@ -73,5 +72,3 @@ namespace ESM4
         static constexpr ESM::RecNameInts sRecordId = ESM::RecNameInts::REC_KEYM4;
     };
 }
-
-#endif // ESM4_KEYM_H

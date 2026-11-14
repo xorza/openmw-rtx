@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_NIF_NODE_HPP
-#define OPENMW_COMPONENTS_NIF_NODE_HPP
+#pragma once
 
 #include <array>
 #include <unordered_map>
@@ -541,4 +540,3 @@ namespace Nif
     };
 
 }
-#endif

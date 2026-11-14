@@ -1,5 +1,4 @@
-#ifndef COMPONETS_TESTS_BSA_OPERATORS_H
-#define COMPONETS_TESTS_BSA_OPERATORS_H
+#pragma once
 
 #include <components/bsa/bsafile.hpp>
 
@@ -36,5 +35,3 @@ namespace Bsa
         return makeTuple(lhs) == makeTuple(rhs);
     }
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef CSM_WOLRD_IDTREE_H
-#define CSM_WOLRD_IDTREE_H
+#pragma once
 
 #include "columns.hpp"
 #include "idtable.hpp"
@@ -87,5 +86,3 @@ namespace CSMWorld
         void resetEnd(const QString& id);
     };
 }
-
-#endif

@@ -24,8 +24,7 @@
   trial & error.  See http://en.uesp.net/wiki for details.
 
 */
-#ifndef ESM4_CELL_H
-#define ESM4_CELL_H
+#pragma once
 
 #include <cstdint>
 #include <string>
@@ -118,5 +117,3 @@ namespace ESM4
         static float sInvalidWaterLevel;
     };
 }
-
-#endif // ESM4_CELL_H

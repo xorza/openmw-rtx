@@ -1,5 +1,4 @@
-#ifndef MWLUA_CLASSBINDINGS_H
-#define MWLUA_CLASSBINDINGS_H
+#pragma once
 
 #include <sol/forward.hpp>
 
@@ -16,5 +15,3 @@ namespace MWLua
     void addMutableClassType(sol::state_view& lua);
     ESM::Class tableToClass(const sol::table& rec);
 }
-
-#endif // MWLUA_CLASSBINDINGS_H

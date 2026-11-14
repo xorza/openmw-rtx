@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_INFO_H
-#define OPENMW_ESM_INFO_H
+#pragma once
 
 #include <string>
 #include <vector>
@@ -111,4 +110,3 @@ namespace ESM
     };
 
 }
-#endif

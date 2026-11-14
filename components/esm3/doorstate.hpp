@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_DOORSTATE_H
-#define OPENMW_ESM_DOORSTATE_H
+#pragma once
 
 #include "objectstate.hpp"
 
@@ -18,5 +17,3 @@ namespace ESM
         const DoorState& asDoorState() const override { return *this; }
     };
 }
-
-#endif

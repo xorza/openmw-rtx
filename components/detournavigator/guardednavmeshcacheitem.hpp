@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_DETOURNAVIGATOR_GUARDEDNAVMESHCACHEITEM_H
-#define OPENMW_COMPONENTS_DETOURNAVIGATOR_GUARDEDNAVMESHCACHEITEM_H
+#pragma once
 
 namespace Misc
 {
@@ -13,5 +12,3 @@ namespace DetourNavigator
 
     using GuardedNavMeshCacheItem = Misc::ScopeGuarded<NavMeshCacheItem>;
 }
-
-#endif

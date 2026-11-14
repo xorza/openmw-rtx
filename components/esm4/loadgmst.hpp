@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_ESM4_LOADGMST_H
-#define OPENMW_COMPONENTS_ESM4_LOADGMST_H
+#pragma once
 
 #include <cstdint>
 #include <string>
@@ -25,5 +24,3 @@ namespace ESM4
         static constexpr ESM::RecNameInts sRecordId = ESM::RecNameInts::REC_GMST4;
     };
 }
-
-#endif // OPENMW_COMPONENTS_ESM4_LOADGMST_H

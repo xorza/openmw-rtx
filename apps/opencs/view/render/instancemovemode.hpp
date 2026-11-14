@@ -1,5 +1,4 @@
-#ifndef CSV_RENDER_INSTANCEMOVEMODE_H
-#define CSV_RENDER_INSTANCEMOVEMODE_H
+#pragma once
 
 #include "../widget/modebutton.hpp"
 
@@ -13,5 +12,3 @@ namespace CSVRender
         explicit InstanceMoveMode(QWidget* parent = nullptr);
     };
 }
-
-#endif

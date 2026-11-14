@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SETTINGS_CATEGORIES_LUA_H
-#define OPENMW_COMPONENTS_SETTINGS_CATEGORIES_LUA_H
+#pragma once
 
 #include <components/settings/sanitizerimpl.hpp>
 #include <components/settings/settingvalue.hpp>
@@ -29,5 +28,3 @@ namespace Settings
         SettingValue<int> mGcStepsPerFrame{ mIndex, "Lua", "gc steps per frame", makeMaxSanitizerInt(0) };
     };
 }
-
-#endif

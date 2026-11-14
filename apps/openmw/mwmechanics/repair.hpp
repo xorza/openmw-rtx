@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWMECHANICS_REPAIR_H
-#define OPENMW_MWMECHANICS_REPAIR_H
+#pragma once
 
 #include "../mwworld/ptr.hpp"
 
@@ -19,5 +18,3 @@ namespace MWMechanics
     };
 
 }
-
-#endif

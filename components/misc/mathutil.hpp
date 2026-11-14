@@ -1,5 +1,4 @@
-#ifndef MISC_MATHUTIL_H
-#define MISC_MATHUTIL_H
+#pragma once
 
 #include <osg/Math>
 #include <osg/Matrixf>
@@ -95,5 +94,3 @@ namespace Misc
         return 1 << depth;
     }
 }
-
-#endif

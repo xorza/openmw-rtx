@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SCENEUTIL_SERIALIZE_H
-#define OPENMW_COMPONENTS_SCENEUTIL_SERIALIZE_H
+#pragma once
 
 namespace SceneUtil
 {
@@ -9,5 +8,3 @@ namespace SceneUtil
     void registerSerializers();
 
 }
-
-#endif

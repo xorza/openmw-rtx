@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESMTOOL_LABELS_H
-#define OPENMW_ESMTOOL_LABELS_H
+#pragma once
 
 #include <cstdint>
 #include <string>
@@ -67,5 +66,3 @@ std::string recordFlags(uint32_t flags);
 
 // Missing flags functions:
 // aiServicesFlags, possibly more
-
-#endif

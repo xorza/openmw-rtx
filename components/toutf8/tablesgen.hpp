@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_TOUTF8_TABLESGEN_HPP
-#define OPENMW_COMPONENTS_TOUTF8_TABLESGEN_HPP
+#pragma once
 
 namespace ToUTF8
 {
@@ -220,5 +219,3 @@ namespace ToUTF8
         -65, 0, 0, 2, -62, -78, 0, 0, 0, 3, -30, -106, -96, 0, 0, 2, -62, -96, 0, 0, 0 };
 
 }
-
-#endif

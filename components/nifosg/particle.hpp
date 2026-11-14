@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_NIFOSG_PARTICLE_H
-#define OPENMW_COMPONENTS_NIFOSG_PARTICLE_H
+#pragma once
 
 #include <optional>
 
@@ -281,5 +280,3 @@ namespace NifOsg
     };
 
 }
-
-#endif

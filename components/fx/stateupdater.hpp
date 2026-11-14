@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_FX_STATEUPDATER_H
-#define OPENMW_COMPONENTS_FX_STATEUPDATER_H
+#pragma once
 
 #include <osg/BufferTemplate>
 
@@ -295,5 +294,3 @@ namespace Fx
         std::shared_ptr<SceneUtil::PPLightBuffer> mPointLightBuffer;
     };
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESSIMPORT_IMPORTJOUR_H
-#define OPENMW_ESSIMPORT_IMPORTJOUR_H
+#pragma once
 
 #include <string>
 
@@ -21,5 +20,3 @@ namespace ESSImport
     };
 
 }
-
-#endif

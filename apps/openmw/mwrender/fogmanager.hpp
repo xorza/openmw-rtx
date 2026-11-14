@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWRENDER_FOGMANAGER_H
-#define OPENMW_MWRENDER_FOGMANAGER_H
+#pragma once
 
 #include <osg/Vec4f>
 
@@ -34,5 +33,3 @@ namespace MWRender
         float mUnderwaterIndoorFog;
     };
 }
-
-#endif

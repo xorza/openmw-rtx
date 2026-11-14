@@ -1,5 +1,4 @@
-#ifndef GAME_MWMECHANICS_AICOMBAT_H
-#define GAME_MWMECHANICS_AICOMBAT_H
+#pragma once
 
 #include "aitemporarybase.hpp"
 #include "aitimer.hpp"
@@ -122,5 +121,3 @@ namespace MWMechanics
     };
 
 }
-
-#endif

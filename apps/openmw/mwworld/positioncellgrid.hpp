@@ -1,5 +1,4 @@
-#ifndef OPENMW_APPS_OPENMW_MWWORLD_POSITIONCELLGRID_H
-#define OPENMW_APPS_OPENMW_MWWORLD_POSITIONCELLGRID_H
+#pragma once
 
 #include <vector>
 
@@ -23,5 +22,3 @@ namespace MWWorld
     std::vector<PositionCellGrid> terrainPreloadPositions(const osg::Vec3f& primary, const osg::Vec3f& playerPos,
         const osg::Vec3f& cameraPos, bool cameraDetached, const osg::Vec4i& grid, ESM::RefId worldspace);
 }
-
-#endif

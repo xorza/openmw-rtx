@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_LUA_SCRIPTSCONTAINER_H
-#define COMPONENTS_LUA_SCRIPTSCONTAINER_H
+#pragma once
 
 #include <map>
 #include <set>
@@ -359,5 +358,3 @@ namespace LuaUtil
         static int64_t sInstanceCount; // debug information, shown in Lua profiler
     };
 }
-
-#endif // COMPONENTS_LUA_SCRIPTSCONTAINER_H

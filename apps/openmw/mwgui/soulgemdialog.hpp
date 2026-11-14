@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWGUI_SOULGEMDIALOG_H
-#define OPENMW_MWGUI_SOULGEMDIALOG_H
+#pragma once
 
 #include "../mwworld/ptr.hpp"
 
@@ -26,5 +25,3 @@ namespace MWGui
     };
 
 }
-
-#endif

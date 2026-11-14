@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESSIMPORT_CONVERTNPCC_H
-#define OPENMW_ESSIMPORT_CONVERTNPCC_H
+#pragma once
 
 #include "importnpcc.hpp"
 
@@ -11,5 +10,3 @@ namespace ESSImport
     void convertNPCC(const NPCC& npcc, ESM::NpcState& npcState);
 
 }
-
-#endif

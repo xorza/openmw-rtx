@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWGUI_RECHARGE_H
-#define OPENMW_MWGUI_RECHARGE_H
+#pragma once
 
 #include <memory>
 
@@ -56,5 +55,3 @@ namespace MWGui
     };
 
 }
-
-#endif

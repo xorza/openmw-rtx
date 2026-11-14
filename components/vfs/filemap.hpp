@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_VFS_FILEMAP_H
-#define OPENMW_COMPONENTS_VFS_FILEMAP_H
+#pragma once
 
 #include <map>
 #include <string>
@@ -15,5 +14,3 @@ namespace VFS
 
     using FileMap = std::map<Path::Normalized, File*, std::less<>>;
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef MWLUA_CONTEXT_H
-#define MWLUA_CONTEXT_H
+#pragma once
 
 #include <components/lua/luastate.hpp>
 
@@ -109,5 +108,3 @@ namespace MWLua
     };
 
 }
-
-#endif // MWLUA_CONTEXT_H

@@ -1,5 +1,4 @@
-#ifndef CSV_RENDER_TERRAINTEXTUREMODE_H
-#define CSV_RENDER_TERRAINTEXTUREMODE_H
+#pragma once
 
 #include "editmode.hpp"
 
@@ -145,5 +144,3 @@ namespace CSVRender
         void setBrushTexture(ESM::RefId brushShape);
     };
 }
-
-#endif

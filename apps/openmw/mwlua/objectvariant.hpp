@@ -1,5 +1,4 @@
-#ifndef MWLUA_OBJECTVARIANT_H
-#define MWLUA_OBJECTVARIANT_H
+#pragma once
 
 #include <variant>
 
@@ -55,5 +54,3 @@ namespace MWLua
     };
 
 } // namespace MWLua
-
-#endif // MWLUA_OBJECTVARIANT_H

@@ -1,5 +1,4 @@
-#ifndef MWLUA_STATS_H
-#define MWLUA_STATS_H
+#pragma once
 
 #include <sol/forward.hpp>
 
@@ -23,5 +22,3 @@ namespace MWLua
     ESM::Skill tableToSkill(const sol::table& rec);
     void addMutableSkillType(sol::state_view& lua);
 }
-
-#endif

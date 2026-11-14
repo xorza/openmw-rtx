@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SDLUTIL_IMAGETOSURFACE_H
-#define OPENMW_COMPONENTS_SDLUTIL_IMAGETOSURFACE_H
+#pragma once
 
 #include <memory>
 
@@ -18,5 +17,3 @@ namespace SDLUtil
     SurfaceUniquePtr imageToSurface(osg::Image* image, bool flip = false);
 
 }
-
-#endif

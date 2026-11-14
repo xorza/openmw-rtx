@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_PLATFORM_PLATFORM_HPP
-#define OPENMW_COMPONENTS_PLATFORM_PLATFORM_HPP
+#pragma once
 
 namespace Platform
 {
@@ -7,5 +6,3 @@ namespace Platform
     void init();
 
 }
-
-#endif // OPENMW_COMPONENTS_PLATFORM_PLATFORM_HPP

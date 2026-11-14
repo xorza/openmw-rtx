@@ -1,5 +1,4 @@
-#ifndef MWGUI_BOOKPAGE_HPP
-#define MWGUI_BOOKPAGE_HPP
+#pragma once
 
 #include "MyGUI_Colour.h"
 #include "MyGUI_IFont.h"
@@ -168,5 +167,3 @@ namespace MWGui
         virtual void setFocusItem(BookTypesetter::Style* itemStyle) = 0;
     };
 }
-
-#endif // MWGUI_BOOKPAGE_HPP

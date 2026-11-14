@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_MISC_DISPLAY_H
-#define OPENMW_COMPONENTS_MISC_DISPLAY_H
+#pragma once
 
 #include <string>
 
@@ -7,5 +6,3 @@ namespace Misc
 {
     std::string getResolutionText(int x, int y);
 }
-
-#endif

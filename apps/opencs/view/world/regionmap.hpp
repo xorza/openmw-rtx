@@ -1,5 +1,4 @@
-#ifndef CSV_WORLD_REGIONMAP_H
-#define CSV_WORLD_REGIONMAP_H
+#pragma once
 
 #include <QModelIndexList>
 
@@ -91,5 +90,3 @@ namespace CSVWorld
         void viewInTable();
     };
 }
-
-#endif

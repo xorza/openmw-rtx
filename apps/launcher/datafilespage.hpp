@@ -1,5 +1,4 @@
-#ifndef DATAFILESPAGE_H
-#define DATAFILESPAGE_H
+#pragma once
 
 #include "ui_datafilespage.h"
 #include "ui_directorypicker.h"
@@ -177,4 +176,3 @@ namespace Launcher
         bool eventFilter(QObject* obj, QEvent* event) override;
     };
 }
-#endif

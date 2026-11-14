@@ -1,5 +1,4 @@
-#ifndef MWMECHANICS_SPELLRESISTANCE_H
-#define MWMECHANICS_SPELLRESISTANCE_H
+#pragma once
 
 namespace ESM
 {
@@ -34,5 +33,3 @@ namespace MWMechanics
     /// ResistX and Weakness to X effects relevant against the given effect.
     float getEffectResistanceAttribute(ESM::RefId effectId, const MagicEffects* actorEffects);
 }
-
-#endif

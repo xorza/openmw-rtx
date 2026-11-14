@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM3_DIALOGUECONDITION_H
-#define OPENMW_ESM3_DIALOGUECONDITION_H
+#pragma once
 
 #include <cstdint>
 #include <optional>
@@ -130,5 +129,3 @@ namespace ESM
         void save(ESMWriter& esm) const;
     };
 }
-
-#endif

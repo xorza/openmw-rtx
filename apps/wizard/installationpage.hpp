@@ -1,5 +1,4 @@
-#ifndef INSTALLATIONPAGE_HPP
-#define INSTALLATIONPAGE_HPP
+#pragma once
 
 #include <memory>
 
@@ -54,5 +53,3 @@ namespace Wizard
     };
 
 }
-
-#endif // INSTALLATIONPAGE_HPP

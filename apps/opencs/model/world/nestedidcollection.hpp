@@ -1,5 +1,4 @@
-#ifndef CSM_WOLRD_NESTEDIDCOLLECTION_H
-#define CSM_WOLRD_NESTEDIDCOLLECTION_H
+#pragma once
 
 #include <map>
 #include <memory>
@@ -181,5 +180,3 @@ namespace CSMWorld
         return Collection<ESXRecordT>::getNestableColumn(column);
     }
 }
-
-#endif // CSM_WOLRD_NESTEDIDCOLLECTION_H

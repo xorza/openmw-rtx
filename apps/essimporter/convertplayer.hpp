@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESSIMPORT_CONVERTPLAYER_H
-#define OPENMW_ESSIMPORT_CONVERTPLAYER_H
+#pragma once
 
 #include "importplayer.hpp"
 
@@ -13,5 +12,3 @@ namespace ESSImport
         bool& firstPersonCam, bool& teleportingEnabled, bool& levitationEnabled, ESM::ControlsState& controls);
 
 }
-
-#endif

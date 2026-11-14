@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_BSA_BA2GNRLFILE_HPP
-#define OPENMW_COMPONENTS_BSA_BA2GNRLFILE_HPP
+#pragma once
 
 #include <list>
 #include <map>
@@ -51,5 +50,3 @@ namespace Bsa
         void addFile(const std::string& filename, std::istream& file);
     };
 }
-
-#endif

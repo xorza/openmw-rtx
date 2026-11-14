@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SCENEUTIL_CLUSTEREDLIGHTING_HPP
-#define OPENMW_COMPONENTS_SCENEUTIL_CLUSTEREDLIGHTING_HPP
+#pragma once
 
 #include <cstdint>
 #include <osg/Vec4f>
@@ -30,5 +29,3 @@ namespace SceneUtil
         float mRadius;
     };
 }
-
-#endif

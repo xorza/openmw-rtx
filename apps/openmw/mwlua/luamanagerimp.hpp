@@ -1,5 +1,4 @@
-#ifndef MWLUA_LUAMANAGERIMP_H
-#define MWLUA_LUAMANAGERIMP_H
+#pragma once
 
 #include <filesystem>
 #include <map>
@@ -283,5 +282,3 @@ namespace MWLua
     };
 
 }
-
-#endif // MWLUA_LUAMANAGERIMP_H

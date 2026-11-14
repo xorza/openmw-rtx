@@ -1,5 +1,4 @@
-#ifndef CSM_FILTER_NODE_H
-#define CSM_FILTER_NODE_H
+#pragma once
 
 #include <map>
 #include <memory>
@@ -43,5 +42,3 @@ namespace CSMFilter
 }
 
 Q_DECLARE_METATYPE(std::shared_ptr<CSMFilter::Node>)
-
-#endif

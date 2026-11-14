@@ -1,5 +1,4 @@
-#ifndef MWLUA_OBJECTLISTS_H
-#define MWLUA_OBJECTLISTS_H
+#pragma once
 
 #include <set>
 
@@ -51,5 +50,3 @@ namespace MWLua
     };
 
 }
-
-#endif // MWLUA_OBJECTLISTS_H

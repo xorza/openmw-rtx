@@ -1,5 +1,4 @@
-#ifndef MWGUI_TEXTCOLORS_H
-#define MWGUI_TEXTCOLORS_H
+#pragma once
 
 #include <MyGUI_Colour.h>
 
@@ -32,5 +31,3 @@ namespace MWGui
     };
 
 }
-
-#endif

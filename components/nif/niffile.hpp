@@ -1,7 +1,6 @@
 /// Main header for reading .nif files
 
-#ifndef OPENMW_COMPONENTS_NIF_NIFFILE_HPP
-#define OPENMW_COMPONENTS_NIF_NIFFILE_HPP
+#pragma once
 
 #include <atomic>
 #include <cstdint>
@@ -163,4 +162,3 @@ namespace Nif
     using NIFFilePtr = std::shared_ptr<const Nif::NIFFile>;
 
 } // Namespace
-#endif

@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_MISC_META_H
-#define OPENMW_COMPONENTS_MISC_META_H
+#pragma once
 
 #include <cstddef>
 #include <tuple>
@@ -31,5 +30,3 @@ namespace Misc
         static constexpr std::size_t value = 1 + TupleTypeIndex<T, std::tuple<Types...>>::value;
     };
 }
-
-#endif

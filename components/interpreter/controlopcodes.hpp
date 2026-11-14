@@ -1,5 +1,4 @@
-#ifndef INTERPRETER_CONTROLOPCODES_H_INCLUDED
-#define INTERPRETER_CONTROLOPCODES_H_INCLUDED
+#pragma once
 
 #include <stdexcept>
 
@@ -64,5 +63,3 @@ namespace Interpreter
         }
     };
 }
-
-#endif

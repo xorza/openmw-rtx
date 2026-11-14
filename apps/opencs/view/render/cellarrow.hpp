@@ -1,5 +1,4 @@
-#ifndef OPENCS_VIEW_CELLARROW_H
-#define OPENCS_VIEW_CELLARROW_H
+#pragma once
 
 #include "tagbase.hpp"
 
@@ -67,5 +66,3 @@ namespace CSVRender
         Direction getDirection() const;
     };
 }
-
-#endif

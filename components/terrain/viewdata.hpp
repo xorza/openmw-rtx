@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_TERRAIN_VIEWDATA_H
-#define OPENMW_COMPONENTS_TERRAIN_VIEWDATA_H
+#pragma once
 
 #include <deque>
 #include <memory>
@@ -132,5 +131,3 @@ namespace Terrain
     };
 
 }
-
-#endif

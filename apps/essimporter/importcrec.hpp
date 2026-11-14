@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESSIMPORT_CREC_H
-#define OPENMW_ESSIMPORT_CREC_H
+#pragma once
 
 #include "importinventory.hpp"
 #include <components/esm3/aipackage.hpp>
@@ -25,5 +24,3 @@ namespace ESSImport
     };
 
 }
-
-#endif

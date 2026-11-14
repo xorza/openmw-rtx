@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESSIMPORT_CONVERTSCRI_H
-#define OPENMW_ESSIMPORT_CONVERTSCRI_H
+#pragma once
 
 #include "importscri.hpp"
 
@@ -12,5 +11,3 @@ namespace ESSImport
     void convertSCRI(const SCRI& scri, ESM::Locals& locals);
 
 }
-
-#endif

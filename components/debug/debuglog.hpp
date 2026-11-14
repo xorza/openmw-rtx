@@ -1,5 +1,4 @@
-#ifndef DEBUG_LOG_H
-#define DEBUG_LOG_H
+#pragma once
 
 #include <filesystem>
 #include <iostream>
@@ -46,5 +45,3 @@ public:
 private:
     const bool mShouldLog;
 };
-
-#endif

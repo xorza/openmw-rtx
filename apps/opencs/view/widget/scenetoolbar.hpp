@@ -1,5 +1,4 @@
-#ifndef CSV_WIDGET_SCENETOOLBAR_H
-#define CSV_WIDGET_SCENETOOLBAR_H
+#pragma once
 
 #include <QWidget>
 
@@ -38,5 +37,3 @@ namespace CSVWidget
         void focusSceneRequest();
     };
 }
-
-#endif

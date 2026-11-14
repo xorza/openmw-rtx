@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_SNDG_H
-#define OPENMW_ESM_SNDG_H
+#pragma once
 
 #include <string>
 
@@ -47,4 +46,3 @@ namespace ESM
         void blank();
     };
 }
-#endif

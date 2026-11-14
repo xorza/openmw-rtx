@@ -1,5 +1,4 @@
-#ifndef OPENMW_LUAUI_FLEX
-#define OPENMW_LUAUI_FLEX
+#pragma once
 
 #include <vector>
 
@@ -68,5 +67,3 @@ namespace LuaUi
         }
     };
 }
-
-#endif // OPENMW_LUAUI_FLEX

@@ -1,5 +1,4 @@
-#ifndef GAME_RENDER_OBJECTS_H
-#define GAME_RENDER_OBJECTS_H
+#pragma once
 
 #include <cstdint>
 #include <map>
@@ -86,4 +85,3 @@ namespace MWRender
         Objects(const Objects&);
     };
 }
-#endif

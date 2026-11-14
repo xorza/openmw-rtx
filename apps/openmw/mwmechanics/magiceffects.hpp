@@ -1,5 +1,4 @@
-#ifndef GAME_MWMECHANICS_MAGICEFFECTS_H
-#define GAME_MWMECHANICS_MAGICEFFECTS_H
+#pragma once
 
 #include <map>
 #include <optional>
@@ -120,5 +119,3 @@ namespace MWMechanics
     std::string getMagicEffectString(
         const ESM::MagicEffect& effect, const ESM::Attribute* attribute, const ESM::Skill* skill);
 }
-
-#endif

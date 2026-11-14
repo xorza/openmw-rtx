@@ -1,6 +1,5 @@
 
-#ifndef OPENMW_COMPONENTS_SCENEUTIL_MATERIAL_H
-#define OPENMW_COMPONENTS_SCENEUTIL_MATERIAL_H
+#pragma once
 
 #include <algorithm>
 #include <cstdint>
@@ -103,5 +102,3 @@ namespace SceneUtil
     };
 
 }
-
-#endif

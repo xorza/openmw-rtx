@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_WIDGETS_H
-#define OPENMW_COMPONENTS_WIDGETS_H
+#pragma once
 
 extern int GuiFontHeight;
 
@@ -9,5 +8,3 @@ namespace Gui
     void registerAllWidgets();
 
 }
-
-#endif

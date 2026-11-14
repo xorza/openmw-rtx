@@ -1,5 +1,4 @@
-#ifndef CSM_WOLRD_METADATA_H
-#define CSM_WOLRD_METADATA_H
+#pragma once
 
 #include <components/esm/refid.hpp>
 #include <components/esm3/formatversion.hpp>
@@ -30,5 +29,3 @@ namespace CSMWorld
         void save(ESM::ESMWriter& esm) const;
     };
 }
-
-#endif

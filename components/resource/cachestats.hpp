@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_RESOURCE_CACHESATS
-#define OPENMW_COMPONENTS_RESOURCE_CACHESATS
+#pragma once
 
 #include <cstddef>
 #include <string>
@@ -25,5 +24,3 @@ namespace Resource
 
     void reportStats(std::string_view prefix, unsigned frameNumber, const CacheStats& src, osg::Stats& dst);
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_PLATFORM_FILE_HPP
-#define OPENMW_COMPONENTS_PLATFORM_FILE_HPP
+#pragma once
 
 #include <cstdlib>
 #include <filesystem>
@@ -68,5 +67,3 @@ namespace Platform::File
         operator Handle() const { return mHandle; }
     };
 }
-
-#endif // OPENMW_COMPONENTS_PLATFORM_FILE_HPP

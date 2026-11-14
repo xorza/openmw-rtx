@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWRENDER_PINGPONGCULL_H
-#define OPENMW_MWRENDER_PINGPONGCULL_H
+#pragma once
 
 #include <array>
 
@@ -31,5 +30,3 @@ namespace MWRender
         PostProcessor* mPostProcessor;
     };
 }
-
-#endif

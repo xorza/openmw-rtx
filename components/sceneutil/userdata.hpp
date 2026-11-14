@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SCENEUTIL_USERDATA_HPP
-#define OPENMW_COMPONENTS_SCENEUTIL_USERDATA_HPP
+#pragma once
 
 #include <utility>
 
@@ -80,5 +79,3 @@ namespace SceneUtil
     }
 
 }
-
-#endif

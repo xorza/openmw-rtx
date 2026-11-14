@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_ACTI_H
-#define OPENMW_ESM_ACTI_H
+#pragma once
 
 #include <components/esm/defs.hpp>
 #include <components/esm/path.hpp>
@@ -34,4 +33,3 @@ namespace ESM
     };
 
 }
-#endif

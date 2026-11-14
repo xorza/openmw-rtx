@@ -1,5 +1,4 @@
-#ifndef MWGUI_REVIEW_H
-#define MWGUI_REVIEW_H
+#pragma once
 
 #include "widgets.hpp"
 #include "windowbase.hpp"
@@ -109,4 +108,3 @@ namespace MWGui
         size_t mControllerFocus = 0;
     };
 }
-#endif

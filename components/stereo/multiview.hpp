@@ -1,5 +1,4 @@
-#ifndef STEREO_MULTIVIEW_H
-#define STEREO_MULTIVIEW_H
+#pragma once
 
 #include <osg/Camera>
 #include <osg/FrameBufferObject>
@@ -155,5 +154,3 @@ namespace Stereo
         osg::observer_ptr<osg::Camera> mCamera;
     };
 }
-
-#endif

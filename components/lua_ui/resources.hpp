@@ -1,5 +1,4 @@
-#ifndef OPENMW_LUAUI_RESOURCES
-#define OPENMW_LUAUI_RESOURCES
+#pragma once
 
 #include <functional>
 #include <memory>
@@ -154,5 +153,3 @@ namespace LuaUi
         std::size_t mNextCursorId = 0;
     };
 }
-
-#endif // OPENMW_LUAUI_LAYERS

@@ -1,5 +1,4 @@
-#ifndef OPENMW_APPS_OPENMW_MWLUA_TYPES_MODELPROPERTY_H
-#define OPENMW_APPS_OPENMW_MWLUA_TYPES_MODELPROPERTY_H
+#pragma once
 
 #include <components/esm/path.hpp>
 #include <components/misc/resourcehelpers.hpp>
@@ -38,5 +37,3 @@ namespace MWLua
             });
     }
 }
-
-#endif

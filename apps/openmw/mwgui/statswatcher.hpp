@@ -1,5 +1,4 @@
-#ifndef MWGUI_STATSWATCHER_H
-#define MWGUI_STATSWATCHER_H
+#pragma once
 
 #include <map>
 #include <set>
@@ -71,5 +70,3 @@ namespace MWGui
         void forceUpdate() { mWatchedStatsEmpty = true; }
     };
 }
-
-#endif

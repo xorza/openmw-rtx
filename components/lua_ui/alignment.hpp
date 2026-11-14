@@ -1,5 +1,4 @@
-#ifndef OPENMW_LUAUI_ALIGNMENT
-#define OPENMW_LUAUI_ALIGNMENT
+#pragma once
 
 #include <MyGUI_Align.h>
 
@@ -26,5 +25,3 @@ namespace LuaUi
         return align;
     }
 }
-
-#endif

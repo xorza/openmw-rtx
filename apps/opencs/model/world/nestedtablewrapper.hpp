@@ -1,5 +1,4 @@
-#ifndef CSM_WOLRD_NESTEDTABLEWRAPPER_H
-#define CSM_WOLRD_NESTEDTABLEWRAPPER_H
+#pragma once
 
 namespace CSMWorld
 {
@@ -28,4 +27,3 @@ namespace CSMWorld
         }
     };
 }
-#endif

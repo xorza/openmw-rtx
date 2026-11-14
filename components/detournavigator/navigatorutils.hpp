@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_DETOURNAVIGATOR_NAVIGATORUTILS_H
-#define OPENMW_COMPONENTS_DETOURNAVIGATOR_NAVIGATORUTILS_H
+#pragma once
 
 #include "findsmoothpath.hpp"
 #include "flags.hpp"
@@ -75,5 +74,3 @@ namespace DetourNavigator
     std::optional<osg::Vec3f> findNearestNavMeshPosition(const Navigator& navigator, const AgentBounds& agentBounds,
         const osg::Vec3f& position, const osg::Vec3f& searchAreaHalfExtents, const Flags includeFlags);
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_STAT_H
-#define OPENMW_ESM_STAT_H
+#pragma once
 
 #include <components/esm/defs.hpp>
 #include <components/esm/path.hpp>
@@ -41,4 +40,3 @@ namespace ESM
         ///< Set record to default state (does not touch the ID).
     };
 }
-#endif

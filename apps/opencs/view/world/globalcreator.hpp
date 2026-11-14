@@ -1,5 +1,4 @@
-#ifndef CSV_WORLD_GLOBALCREATOR_H
-#define CSV_WORLD_GLOBALCREATOR_H
+#pragma once
 
 #include "genericcreator.hpp"
 
@@ -27,5 +26,3 @@ namespace CSVWorld
         void configureCreateCommand(CSMWorld::CreateCommand& command) const override;
     };
 }
-
-#endif

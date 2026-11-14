@@ -1,7 +1,6 @@
 /// Functions used to read raw binary data from .nif files
 
-#ifndef OPENMW_COMPONENTS_NIF_NIFSTREAM_HPP
-#define OPENMW_COMPONENTS_NIF_NIFSTREAM_HPP
+#pragma once
 
 #include <array>
 #include <cassert>
@@ -255,5 +254,3 @@ namespace Nif
     void NIFStream::read<std::string>(std::string* dest, size_t size);
 
 }
-
-#endif

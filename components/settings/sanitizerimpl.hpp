@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SETTINGS_SANITIZERIMPL_H
-#define OPENMW_COMPONENTS_SETTINGS_SANITIZERIMPL_H
+#pragma once
 
 #include "sanitizer.hpp"
 
@@ -41,5 +40,3 @@ namespace Settings
 
     std::unique_ptr<Sanitizer<float>> makeEqualOrMaxSanitizerFloat(float equal, float max);
 }
-
-#endif

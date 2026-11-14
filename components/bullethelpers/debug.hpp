@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_BULLETHELPERS_DEBUG_H
-#define OPENMW_COMPONENTS_BULLETHELPERS_DEBUG_H
+#pragma once
 
 #include <iomanip>
 #include <limits>
@@ -67,5 +66,3 @@ inline std::ostream& operator<<(std::ostream& stream, BroadphaseNativeTypes valu
             return stream << "undefined(" << static_cast<int>(value) << ")";
     }
 }
-
-#endif

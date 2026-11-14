@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SCENEUTIL_COLOR_H
-#define OPENMW_COMPONENTS_SCENEUTIL_COLOR_H
+#pragma once
 
 #include <osg/GraphicsThread>
 
@@ -203,6 +202,4 @@ namespace SceneUtil
 
 #ifndef GL_RGB9_E5
 #define GL_RGB9_E5 0x8C3D
-#endif
-
 #endif

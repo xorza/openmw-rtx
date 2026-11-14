@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_DETOURNAVIGATOR_PREPAREDNAVMESHDATATUPLE_H
-#define OPENMW_COMPONENTS_DETOURNAVIGATOR_PREPAREDNAVMESHDATATUPLE_H
+#pragma once
 
 #include "preparednavmeshdata.hpp"
 #include "recast.hpp"
@@ -38,5 +37,3 @@ namespace DetourNavigator
         return std::tuple(v.mUserId, v.mCellHeight, v.mCellSize, Ref(v.mPolyMesh), Ref(v.mPolyMeshDetail));
     }
 }
-
-#endif

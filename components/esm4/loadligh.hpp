@@ -24,8 +24,7 @@
   trial & error.  See http://en.uesp.net/wiki for details.
 
 */
-#ifndef ESM4_LIGH_H
-#define ESM4_LIGH_H
+#pragma once
 
 #include <cstdint>
 #include <string>
@@ -111,5 +110,3 @@ namespace ESM4
         // void blank();
     };
 }
-
-#endif // ESM4_LIGH_H

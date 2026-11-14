@@ -1,5 +1,4 @@
-#ifndef CSV_FILTER_RECORDFILTERBOX_H
-#define CSV_FILTER_RECORDFILTERBOX_H
+#pragma once
 
 #include <memory>
 #include <string>
@@ -47,5 +46,3 @@ namespace CSVFilter
     };
 
 }
-
-#endif

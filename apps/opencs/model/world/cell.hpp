@@ -1,5 +1,4 @@
-#ifndef CSM_WOLRD_CELL_H
-#define CSM_WOLRD_CELL_H
+#pragma once
 
 #include <components/esm3/loadcell.hpp>
 
@@ -26,5 +25,3 @@ namespace CSMWorld
         }
     };
 }
-
-#endif

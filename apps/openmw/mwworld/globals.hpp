@@ -1,5 +1,4 @@
-#ifndef GAME_MWWORLD_GLOBALS_H
-#define GAME_MWWORLD_GLOBALS_H
+#pragma once
 
 #include <cstdint>
 #include <map>
@@ -74,5 +73,3 @@ namespace MWWorld
         /// \return Known type?
     };
 }
-
-#endif

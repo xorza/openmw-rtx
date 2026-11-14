@@ -1,5 +1,4 @@
-#ifndef GAME_MWMECHANICS_CHARACTER_HPP
-#define GAME_MWMECHANICS_CHARACTER_HPP
+#pragma once
 
 #include <deque>
 
@@ -344,5 +343,3 @@ namespace MWMechanics
         MWWorld::MovementDirectionFlags getSupportedMovementDirections() const;
     };
 }
-
-#endif /* GAME_MWMECHANICS_CHARACTER_HPP */

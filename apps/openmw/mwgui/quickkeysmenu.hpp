@@ -1,5 +1,4 @@
-#ifndef MWGUI_QUICKKEYS_H
-#define MWGUI_QUICKKEYS_H
+#pragma once
 
 #include <memory>
 
@@ -121,5 +120,3 @@ namespace MWGui
         bool onControllerButtonEvent(const SDL_GamepadButtonEvent& arg) override;
     };
 }
-
-#endif

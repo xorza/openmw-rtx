@@ -1,5 +1,4 @@
-#ifndef COMPILER_SKIPPARSER_H_INCLUDED
-#define COMPILER_SKIPPARSER_H_INCLUDED
+#pragma once
 
 #include "parser.hpp"
 
@@ -39,5 +38,3 @@ namespace Compiler
         /// \return fetch another token?
     };
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef CSM_TOOLS_STARTSCRIPTCHECK_H
-#define CSM_TOOLS_STARTSCRIPTCHECK_H
+#pragma once
 
 #include <components/esm3/loadscpt.hpp>
 
@@ -34,5 +33,3 @@ namespace CSMTools
         int setup() override;
     };
 }
-
-#endif

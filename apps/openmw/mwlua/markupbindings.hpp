@@ -1,5 +1,4 @@
-#ifndef MWLUA_MARKUPBINDINGS_H
-#define MWLUA_MARKUPBINDINGS_H
+#pragma once
 
 #include <sol/forward.hpp>
 
@@ -9,5 +8,3 @@ namespace MWLua
 
     sol::table initMarkupPackage(const Context& context);
 }
-
-#endif // MWLUA_MARKUPBINDINGS_H

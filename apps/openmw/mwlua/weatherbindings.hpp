@@ -1,5 +1,4 @@
-#ifndef MWLUA_WEATHERBINDINGS_H
-#define MWLUA_WEATHERBINDINGS_H
+#pragma once
 
 #include <sol/forward.hpp>
 
@@ -31,5 +30,3 @@ namespace MWLua
 
     void addMutableWeatherType(sol::state_view& lua);
 }
-
-#endif // MWLUA_WEATHERBINDINGS_H

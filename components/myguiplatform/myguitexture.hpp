@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_MYGUIPLATFORM_MYGUITEXTURE_H
-#define OPENMW_COMPONENTS_MYGUIPLATFORM_MYGUITEXTURE_H
+#pragma once
 
 #include <memory>
 #include <span>
@@ -76,5 +75,3 @@ namespace MyGUIPlatform
     std::unique_ptr<MyGUI::ITexture> createTextureFromJpeg(std::span<const char> data);
 
 }
-
-#endif

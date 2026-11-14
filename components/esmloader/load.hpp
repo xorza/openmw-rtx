@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_ESMLOADER_LOAD_H
-#define OPENMW_COMPONENTS_ESMLOADER_LOAD_H
+#pragma once
 
 #include <components/esm3/esmreader.hpp>
 
@@ -42,5 +41,3 @@ namespace EsmLoader
         const Files::Collections& fileCollections, ESM::ReadersCache& readers, ToUTF8::Utf8Encoder* encoder,
         Loading::Listener* listener = nullptr);
 }
-
-#endif

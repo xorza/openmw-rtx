@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_DETOURNAVIGATOR_UPDATEGUARD_H
-#define OPENMW_COMPONENTS_DETOURNAVIGATOR_UPDATEGUARD_H
+#pragma once
 
 #include <memory>
 #include <mutex>
@@ -27,5 +26,3 @@ namespace DetourNavigator
 
     using ScopedUpdateGuard = std::unique_ptr<UpdateGuard, UnlockUpdateGuard>;
 }
-
-#endif

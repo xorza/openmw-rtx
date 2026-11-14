@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWGUI_DEBUGWINDOW_H
-#define OPENMW_MWGUI_DEBUGWINDOW_H
+#pragma once
 
 #include "windowbase.hpp"
 
@@ -27,5 +26,3 @@ namespace MWGui
     };
 
 }
-
-#endif

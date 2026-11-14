@@ -1,5 +1,4 @@
-#ifndef GAME_MWWORLD_DURATION_H
-#define GAME_MWWORLD_DURATION_H
+#pragma once
 
 #include <cmath>
 #include <stdexcept>
@@ -35,5 +34,3 @@ namespace MWWorld
         }
     };
 }
-
-#endif

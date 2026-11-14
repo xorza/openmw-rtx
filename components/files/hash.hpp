@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_FILES_HASH_H
-#define COMPONENTS_FILES_HASH_H
+#pragma once
 
 #include <array>
 #include <cstdint>
@@ -10,5 +9,3 @@ namespace Files
 {
     std::array<std::uint64_t, 2> getHash(std::string_view fileName, std::istream& stream);
 }
-
-#endif

@@ -24,8 +24,7 @@
   trial & error.  See http://en.uesp.net/wiki for details.
 
 */
-#ifndef ESM4_GRUP_H
-#define ESM4_GRUP_H
+#pragma once
 
 #include <cstdint>
 #include <vector>
@@ -151,5 +150,3 @@ namespace ESM4
         // to this group)
     };
 }
-
-#endif // ESM4_GRUP_H

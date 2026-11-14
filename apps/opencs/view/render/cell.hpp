@@ -1,5 +1,4 @@
-#ifndef OPENCS_VIEW_CELL_H
-#define OPENCS_VIEW_CELL_H
+#pragma once
 
 #include <map>
 #include <memory>
@@ -190,5 +189,3 @@ namespace CSVRender
         friend class CellNodeCallback;
     };
 }
-
-#endif

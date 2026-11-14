@@ -1,5 +1,4 @@
-#ifndef SFO_EVENTS_H
-#define SFO_EVENTS_H
+#pragma once
 
 #include <SDL3/SDL_events.h>
 #include <SDL3/SDL_stdinc.h>
@@ -108,5 +107,3 @@ namespace SDLUtil
     };
 
 }
-
-#endif

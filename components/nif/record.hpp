@@ -21,8 +21,7 @@
 
  */
 
-#ifndef OPENMW_COMPONENTS_NIF_RECORD_HPP
-#define OPENMW_COMPONENTS_NIF_RECORD_HPP
+#pragma once
 
 #include <string>
 
@@ -339,4 +338,3 @@ namespace Nif
     };
 
 } // Namespace
-#endif

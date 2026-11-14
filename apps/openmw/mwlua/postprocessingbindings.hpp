@@ -1,5 +1,4 @@
-#ifndef MWLUA_POSTPROCESSINGBINDINGS_H
-#define MWLUA_POSTPROCESSINGBINDINGS_H
+#pragma once
 
 #include <sol/forward.hpp>
 
@@ -9,5 +8,3 @@ namespace MWLua
 
     sol::table initPostprocessingPackage(const Context& context);
 }
-
-#endif // MWLUA_POSTPROCESSINGBINDINGS_H

@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_CELL_H
-#define OPENMW_ESM_CELL_H
+#pragma once
 
 #include <list>
 #include <string>
@@ -203,4 +202,3 @@ namespace ESM
         static ESM::RefId generateIdForCell(bool exterior, std::string_view cellName, int x, int y);
     };
 }
-#endif

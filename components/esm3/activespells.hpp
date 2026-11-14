@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_ACTIVESPELLS_H
-#define OPENMW_ESM_ACTIVESPELLS_H
+#pragma once
 
 #include "cellref.hpp"
 #include "components/esm/defs.hpp"
@@ -104,5 +103,3 @@ namespace ESM
         }
     }
 }
-
-#endif

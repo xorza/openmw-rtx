@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_DETOURNAVIGATOR_MAKENAVMESH_H
-#define OPENMW_COMPONENTS_DETOURNAVIGATOR_MAKENAVMESH_H
+#pragma once
 
 #include "recastmesh.hpp"
 #include "tileposition.hpp"
@@ -54,5 +53,3 @@ namespace DetourNavigator
 
     bool isSupportedAgentBounds(const RecastSettings& settings, const AgentBounds& agentBounds);
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWRENDER_RENDERBIN_H
-#define OPENMW_MWRENDER_RENDERBIN_H
+#pragma once
 
 namespace MWRender
 {
@@ -18,5 +17,3 @@ namespace MWRender
     };
 
 }
-
-#endif

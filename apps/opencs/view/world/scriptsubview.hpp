@@ -1,5 +1,4 @@
-#ifndef CSV_WORLD_SCRIPTSUBVIEW_H
-#define CSV_WORLD_SCRIPTSUBVIEW_H
+#pragma once
 
 #include <QVBoxLayout>
 
@@ -100,5 +99,3 @@ namespace CSVWorld
         void updateRequest();
     };
 }
-
-#endif

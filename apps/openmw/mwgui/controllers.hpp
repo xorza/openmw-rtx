@@ -1,5 +1,4 @@
-#ifndef MWGUI_CONTROLLERS_H
-#define MWGUI_CONTROLLERS_H
+#pragma once
 
 #include <MyGUI_ControllerItem.h>
 
@@ -20,5 +19,3 @@ namespace MWGui::Controllers
         void prepareItem(MyGUI::Widget* widget) override;
     };
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef OPENMW_APPS_OPENMW_MWRENDER_ACTORUTIL_H
-#define OPENMW_APPS_OPENMW_MWRENDER_ACTORUTIL_H
+#pragma once
 
 #include <components/vfs/pathutil.hpp>
 
@@ -11,5 +10,3 @@ namespace MWRender
     bool isDefaultActorSkeleton(VFS::Path::NormalizedView model);
     std::string addSuffixBeforeExtension(const std::string& filename, const std::string& suffix);
 }
-
-#endif

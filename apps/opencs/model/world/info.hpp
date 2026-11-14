@@ -1,5 +1,4 @@
-#ifndef CSM_WOLRD_INFO_H
-#define CSM_WOLRD_INFO_H
+#pragma once
 
 #include <components/esm3/loadinfo.hpp>
 
@@ -11,5 +10,3 @@ namespace CSMWorld
         ESM::RefId mOriginalId;
     };
 }
-
-#endif

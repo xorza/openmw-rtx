@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_RESOURCE_EXTRADATA_H
-#define OPENMW_COMPONENTS_RESOURCE_EXTRADATA_H
+#pragma once
 
 namespace osg
 {
@@ -23,5 +22,3 @@ namespace SceneUtil
     void setupSoftEffect(osg::Node& node, const SoftEffectConfig& config);
     void setupDistortion(osg::Node& node, const DistortionConfig& config);
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef GAME_MWWORLD_LOCALSCRIPTS_H
-#define GAME_MWWORLD_LOCALSCRIPTS_H
+#pragma once
 
 #include <list>
 #include <string>
@@ -50,5 +49,3 @@ namespace MWWorld
         ///< Is the local script registered for an active object and not paused?
     };
 }
-
-#endif

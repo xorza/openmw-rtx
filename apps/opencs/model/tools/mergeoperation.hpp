@@ -1,5 +1,4 @@
-#ifndef CSM_TOOLS_MERGEOPERATION_H
-#define CSM_TOOLS_MERGEOPERATION_H
+#pragma once
 
 #include <memory>
 
@@ -41,5 +40,3 @@ namespace CSMTools
         void mergeDone(CSMDoc::Document* document);
     };
 }
-
-#endif

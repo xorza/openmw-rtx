@@ -1,5 +1,4 @@
-#ifndef GAME_MWCLASS_STATIC_H
-#define GAME_MWCLASS_STATIC_H
+#pragma once
 
 #include "../mwworld/cellstore.hpp"
 #include "../mwworld/registeredclass.hpp"
@@ -35,5 +34,3 @@ namespace MWClass
         VFS::Path::NormalizedView getModel(const MWWorld::ConstPtr& ptr) const override;
     };
 }
-
-#endif

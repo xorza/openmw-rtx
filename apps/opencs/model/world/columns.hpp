@@ -1,5 +1,4 @@
-#ifndef CSM_WOLRD_COLUMNS_H
-#define CSM_WOLRD_COLUMNS_H
+#pragma once
 
 #include <string>
 #include <utility>
@@ -405,5 +404,3 @@ namespace CSMWorld
         ///< Returns an empty vector, if \a column isn't an enum type column.
     }
 }
-
-#endif

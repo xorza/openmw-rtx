@@ -1,5 +1,4 @@
-#ifndef CSM_WOLRD_COLUMNIMP_H
-#define CSM_WOLRD_COLUMNIMP_H
+#pragma once
 
 #include <cassert>
 #include <cstdint>
@@ -2459,5 +2458,3 @@ Q_DECLARE_METATYPE(CSMWorld::LandNormalsColumn::DataType)
 Q_DECLARE_METATYPE(CSMWorld::LandHeightsColumn::DataType)
 Q_DECLARE_METATYPE(CSMWorld::LandColoursColumn::DataType)
 Q_DECLARE_METATYPE(CSMWorld::LandTexturesColumn::DataType)
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef MWGUI_CONTROLLERBUTTONSOVERLAY_H
-#define MWGUI_CONTROLLERBUTTONSOVERLAY_H
+#pragma once
 
 #include <array>
 #include <string_view>
@@ -82,5 +81,3 @@ namespace MWGui
         int updateButton(Button button, const std::string& buttonStr);
     };
 }
-
-#endif

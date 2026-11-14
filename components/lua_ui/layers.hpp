@@ -1,5 +1,4 @@
-#ifndef OPENMW_LUAUI_LAYERS
-#define OPENMW_LUAUI_LAYERS
+#pragma once
 
 #include <string>
 #include <string_view>
@@ -62,5 +61,3 @@ namespace LuaUi
         size_t mCachedIndex;
     };
 }
-
-#endif // OPENMW_LUAUI_LAYERS

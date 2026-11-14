@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SCENEUTIL_LIGHTCONTROLLER_H
-#define OPENMW_COMPONENTS_SCENEUTIL_LIGHTCONTROLLER_H
+#pragma once
 
 #include <components/sceneutil/nodecallback.hpp>
 #include <osg/Node>
@@ -48,5 +47,3 @@ namespace SceneUtil
     };
 
 }
-
-#endif

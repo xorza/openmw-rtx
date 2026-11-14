@@ -1,5 +1,4 @@
-#ifndef CSM_WOLRD_CELLCOORDINATES_H
-#define CSM_WOLRD_CELLCOORDINATES_H
+#pragma once
 
 #include <iosfwd>
 #include <string>
@@ -90,5 +89,3 @@ namespace CSMWorld
 }
 
 Q_DECLARE_METATYPE(CSMWorld::CellCoordinates)
-
-#endif

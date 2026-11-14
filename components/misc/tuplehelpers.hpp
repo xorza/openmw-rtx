@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_MISC_TUPLEHELPERS_H
-#define OPENMW_COMPONENTS_MISC_TUPLEHELPERS_H
+#pragma once
 
 #include <tuple>
 
@@ -11,5 +10,3 @@ namespace Misc
         std::apply([&f](auto&... x) { (f(x), ...); }, tuple);
     }
 }
-
-#endif

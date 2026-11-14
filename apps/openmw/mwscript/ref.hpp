@@ -1,5 +1,4 @@
-#ifndef GAME_MWSCRIPT_REF_H
-#define GAME_MWSCRIPT_REF_H
+#pragma once
 
 #include "../mwworld/ptr.hpp"
 
@@ -24,5 +23,3 @@ namespace MWScript
         MWWorld::Ptr operator()(Interpreter::Runtime& runtime, bool required = true, bool activeOnly = false) const;
     };
 }
-
-#endif

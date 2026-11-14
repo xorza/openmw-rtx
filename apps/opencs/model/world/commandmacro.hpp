@@ -1,5 +1,4 @@
-#ifndef CSM_WOLRD_COMMANDMACRO_H
-#define CSM_WOLRD_COMMANDMACRO_H
+#pragma once
 
 class QUndoStack;
 class QUndoCommand;
@@ -29,5 +28,3 @@ namespace CSMWorld
         void push(QUndoCommand* command);
     };
 }
-
-#endif

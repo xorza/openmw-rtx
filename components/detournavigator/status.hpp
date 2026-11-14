@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_DETOURNAVIGATOR_STATUS_H
-#define OPENMW_COMPONENTS_DETOURNAVIGATOR_STATUS_H
+#pragma once
 
 namespace DetourNavigator
 {
@@ -45,5 +44,3 @@ namespace DetourNavigator
         return "unknown error";
     }
 }
-
-#endif

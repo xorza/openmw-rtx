@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_TERRAIN_TEXTUREMANAGER_H
-#define OPENMW_COMPONENTS_TERRAIN_TEXTUREMANAGER_H
+#pragma once
 
 #include <osg/Texture2D>
 
@@ -30,5 +29,3 @@ namespace Terrain
     };
 
 }
-
-#endif

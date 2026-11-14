@@ -1,5 +1,4 @@
-#ifndef MWLUA_LUABINDINGS_H
-#define MWLUA_LUABINDINGS_H
+#pragma once
 
 #include <sol/forward.hpp>
 
@@ -29,5 +28,3 @@ namespace MWLua
     // Initialize Lua packages that are available for load scripts (in addition to common packages).
     std::map<std::string, sol::object> initLoadPackages(const Context& context);
 }
-
-#endif // MWLUA_LUABINDINGS_H

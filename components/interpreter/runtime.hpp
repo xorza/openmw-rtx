@@ -1,5 +1,4 @@
-#ifndef INTERPRETER_RUNTIME_H_INCLUDED
-#define INTERPRETER_RUNTIME_H_INCLUDED
+#pragma once
 
 #include <string_view>
 #include <vector>
@@ -57,5 +56,3 @@ namespace Interpreter
         Context& getContext();
     };
 }
-
-#endif

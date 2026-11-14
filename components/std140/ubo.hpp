@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_STD140_UBO_H
-#define COMPONENTS_STD140_UBO_H
+#pragma once
 
 #include <osg/Matrixf>
 #include <osg/Vec2f>
@@ -162,5 +161,3 @@ namespace Std140
         std::tuple<CArgs...> mData;
     };
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_DETOURNAVIGATOR_SERIALIZATION_H
-#define OPENMW_COMPONENTS_DETOURNAVIGATOR_SERIALIZATION_H
+#pragma once
 
 #include <cstddef>
 #include <cstdint>
@@ -16,5 +15,3 @@ namespace DetourNavigator
 
     bool deserialize(const std::vector<std::byte>& data, PreparedNavMeshData& value);
 }
-
-#endif

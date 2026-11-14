@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_FILES_QTCONVERSION_HPP
-#define COMPONENTS_FILES_QTCONVERSION_HPP
+#pragma once
 
 #include <QString>
 #include <filesystem>
@@ -14,5 +13,3 @@ namespace Files
 
     std::filesystem::path pathFromQString(QString&& path);
 }
-
-#endif // COMPONENTS_FILES_QTCONVERSION_HPP

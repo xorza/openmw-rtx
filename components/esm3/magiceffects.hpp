@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_ESM_MAGICEFFECTS_H
-#define COMPONENTS_ESM_MAGICEFFECTS_H
+#pragma once
 
 #include <components/esm/refid.hpp>
 
@@ -55,5 +54,3 @@ namespace ESM
         return makeTupleRef(l) < makeTupleRef(r);
     }
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWPHYSICS_PTRHOLDER_H
-#define OPENMW_MWPHYSICS_PTRHOLDER_H
+#pragma once
 
 #include <memory>
 #include <mutex>
@@ -59,5 +58,3 @@ namespace MWPhysics
         osg::Vec3d mPreviousPosition;
     };
 }
-
-#endif

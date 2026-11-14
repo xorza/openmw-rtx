@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SCENEUTIL_VISITOR_H
-#define OPENMW_COMPONENTS_SCENEUTIL_VISITOR_H
+#pragma once
 
 #include <osg/MatrixTransform>
 #include <osg/NodeVisitor>
@@ -128,5 +127,3 @@ namespace SceneUtil
         void applyImpl(osg::Node& node);
     };
 }
-
-#endif

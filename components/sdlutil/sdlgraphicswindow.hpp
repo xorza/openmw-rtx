@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SDLUTIL_SDLGRAPHICSWINDOW_H
-#define OPENMW_COMPONENTS_SDLUTIL_SDLGRAPHICSWINDOW_H
+#pragma once
 
 #include <SDL3/SDL_video.h>
 
@@ -95,5 +94,3 @@ namespace SDLUtil
     };
 
 }
-
-#endif /* OSGGRAPHICSWINDOW_H */

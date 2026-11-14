@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SERIALIZATION_OSGYAML_H
-#define OPENMW_COMPONENTS_SERIALIZATION_OSGYAML_H
+#pragma once
 
 #include <yaml-cpp/yaml.h>
 
@@ -60,5 +59,3 @@ namespace YAML
     };
 
 }
-
-#endif

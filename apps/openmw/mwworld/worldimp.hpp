@@ -1,5 +1,4 @@
-#ifndef GAME_MWWORLD_WORLDIMP_H
-#define GAME_MWWORLD_WORLDIMP_H
+#pragma once
 
 #include <memory>
 
@@ -718,5 +717,3 @@ namespace MWWorld
         void setActorActive(const MWWorld::Ptr& ptr, bool value) override;
     };
 }
-
-#endif

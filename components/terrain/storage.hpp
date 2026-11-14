@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_TERRAIN_STORAGE_H
-#define COMPONENTS_TERRAIN_STORAGE_H
+#pragma once
 
 #include <cmath>
 #include <vector>
@@ -92,5 +91,3 @@ namespace Terrain
     };
 
 }
-
-#endif

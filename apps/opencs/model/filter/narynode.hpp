@@ -1,5 +1,4 @@
-#ifndef CSM_FILTER_NARYNODE_H
-#define CSM_FILTER_NARYNODE_H
+#pragma once
 
 #include <memory>
 #include <string>
@@ -31,5 +30,3 @@ namespace CSMFilter
         /// \param numericColumns Use numeric IDs instead of string to represent columns.
     };
 }
-
-#endif

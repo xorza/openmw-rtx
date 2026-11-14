@@ -1,5 +1,4 @@
-#ifndef OPENCS_VIEW_CELLBORDER_H
-#define OPENCS_VIEW_CELLBORDER_H
+#pragma once
 
 #include <cstddef>
 
@@ -46,5 +45,3 @@ namespace CSVRender
         osg::ref_ptr<osg::Geometry> mBorderGeometry;
     };
 }
-
-#endif

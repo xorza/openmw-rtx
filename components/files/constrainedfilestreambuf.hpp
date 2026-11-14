@@ -1,5 +1,4 @@
-#ifndef OPENMW_CONSTRAINEDFILESTREAMBUF_H
-#define OPENMW_CONSTRAINEDFILESTREAMBUF_H
+#pragma once
 
 #include <filesystem>
 #include <streambuf>
@@ -27,5 +26,3 @@ namespace Files
         char mBuffer[8192]{ 0 };
     };
 }
-
-#endif

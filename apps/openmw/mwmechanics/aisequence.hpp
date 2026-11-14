@@ -1,5 +1,4 @@
-#ifndef GAME_MWMECHANICS_AISEQUENCE_H
-#define GAME_MWMECHANICS_AISEQUENCE_H
+#pragma once
 
 #include <algorithm>
 #include <memory>
@@ -175,5 +174,3 @@ namespace MWMechanics
         void readState(const ESM::AiSequence::AiSequence& sequence);
     };
 }
-
-#endif

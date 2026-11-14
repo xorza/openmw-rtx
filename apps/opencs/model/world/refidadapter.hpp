@@ -1,5 +1,4 @@
-#ifndef CSM_WOLRD_REFIDADAPTER_H
-#define CSM_WOLRD_REFIDADAPTER_H
+#pragma once
 
 #include <components/esm/refid.hpp>
 #include <string>
@@ -70,5 +69,3 @@ namespace CSMWorld
             = 0;
     };
 }
-
-#endif

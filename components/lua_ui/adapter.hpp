@@ -1,5 +1,4 @@
-#ifndef OPENMW_LUAUI_ADAPTER
-#define OPENMW_LUAUI_ADAPTER
+#pragma once
 
 #include <memory>
 
@@ -29,5 +28,3 @@ namespace LuaUi
         void containerChangedCoord(MyGUI::Widget*);
     };
 }
-
-#endif // !OPENMW_LUAUI_ADAPTER

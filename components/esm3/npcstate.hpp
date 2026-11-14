@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_NPCSTATE_H
-#define OPENMW_ESM_NPCSTATE_H
+#pragma once
 
 #include "creaturestats.hpp"
 #include "inventorystate.hpp"
@@ -26,5 +25,3 @@ namespace ESM
         const NpcState& asNpcState() const override { return *this; }
     };
 }
-
-#endif

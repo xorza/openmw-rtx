@@ -1,5 +1,4 @@
-#ifndef STARTSCRIPTCREATOR_HPP
-#define STARTSCRIPTCREATOR_HPP
+#pragma once
 
 #include "genericcreator.hpp"
 
@@ -75,5 +74,3 @@ namespace CSVWorld
         Creator* makeCreator(CSMDoc::Document& document, const CSMWorld::UniversalId& id) const override;
     };
 }
-
-#endif // STARTSCRIPTCREATOR_HPP

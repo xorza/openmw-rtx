@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_DEBUG_DEBUGDRAW_H
-#define OPENMW_COMPONENTS_DEBUG_DEBUGDRAW_H
+#pragma once
 
 #include <osg/Drawable>
 #include <osg/Vec3>
@@ -113,4 +112,3 @@ namespace Debug
         std::array<osg::ref_ptr<DebugCustomDraw>, 2> mCustomDebugDrawer;
     };
 }
-#endif // !

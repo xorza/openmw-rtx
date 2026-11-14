@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SETTINGS_CATEGORIES_SHADERS_H
-#define OPENMW_COMPONENTS_SETTINGS_CATEGORIES_SHADERS_H
+#pragma once
 
 #include <components/settings/sanitizerimpl.hpp>
 #include <components/settings/settingvalue.hpp>
@@ -49,5 +48,3 @@ namespace Settings
             "weather particle occlusion small feature culling pixel size" };
     };
 }
-
-#endif

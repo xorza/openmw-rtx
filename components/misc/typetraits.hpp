@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_MISC_TYPETRAITS_H
-#define OPENMW_COMPONENTS_MISC_TYPETRAITS_H
+#pragma once
 
 #include <optional>
 #include <type_traits>
@@ -19,5 +18,3 @@ namespace Misc
     template <class T>
     inline constexpr bool isOptional = IsOptional<T>::value;
 }
-
-#endif

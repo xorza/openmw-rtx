@@ -24,8 +24,7 @@
   trial & error.  See http://en.uesp.net/wiki for details.
 
 */
-#ifndef OPENMW_COMPONENTS_ESM4_GROUPTYPE_H
-#define OPENMW_COMPONENTS_ESM4_GROUPTYPE_H
+#pragma once
 
 namespace ESM4
 {
@@ -45,5 +44,3 @@ namespace ESM4
         Grp_CellVisibleDistChild = 10
     };
 }
-
-#endif // OPENMW_COMPONENTS_ESM4_GROUPTYPE_H

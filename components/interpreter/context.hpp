@@ -1,5 +1,4 @@
-#ifndef INTERPRETER_CONTEXT_H_INCLUDED
-#define INTERPRETER_CONTEXT_H_INCLUDED
+#pragma once
 
 #include <components/esm/refid.hpp>
 #include <string>
@@ -92,5 +91,3 @@ namespace Interpreter
         virtual void setMemberFloat(ESM::RefId id, std::string_view name, float value, bool global) = 0;
     };
 }
-
-#endif

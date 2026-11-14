@@ -1,5 +1,4 @@
-#ifndef MWGUI_WAIT_DIALOG_H
-#define MWGUI_WAIT_DIALOG_H
+#pragma once
 
 #include "timeadvancer.hpp"
 #include "windowbase.hpp"
@@ -85,5 +84,3 @@ namespace MWGui
     };
 
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef MWLUA_NEARBYBINDINGS_H
-#define MWLUA_NEARBYBINDINGS_H
+#pragma once
 
 #include <sol/forward.hpp>
 
@@ -9,5 +8,3 @@ namespace MWLua
 
     sol::table initNearbyPackage(const Context& context);
 }
-
-#endif // MWLUA_NEARBYBINDINGS_H

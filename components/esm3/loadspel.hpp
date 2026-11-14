@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_SPEL_H
-#define OPENMW_ESM_SPEL_H
+#pragma once
 
 #include <string>
 
@@ -57,4 +56,3 @@ namespace ESM
         ///< Set record to default state (does not touch the ID/index).
     };
 }
-#endif

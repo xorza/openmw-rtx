@@ -1,5 +1,4 @@
-#ifndef CSM_WOLRD_REF_H
-#define CSM_WOLRD_REF_H
+#pragma once
 
 #include <string>
 #include <utility>
@@ -23,5 +22,3 @@ namespace CSMWorld
         std::pair<int, int> getCellIndex() const;
     };
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef CSM_PREFS_SETTING_H
-#define CSM_PREFS_SETTING_H
+#pragma once
 
 #include <string>
 #include <utility>
@@ -114,5 +113,3 @@ namespace CSMPrefs
     bool operator!=(const Setting& setting, const std::string& fullKey);
     bool operator!=(const std::string& fullKey, const Setting& setting);
 }
-
-#endif

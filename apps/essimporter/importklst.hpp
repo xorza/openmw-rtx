@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESSIMPORT_KLST_H
-#define OPENMW_ESSIMPORT_KLST_H
+#pragma once
 
 #include <cstdint>
 #include <map>
@@ -25,5 +24,3 @@ namespace ESSImport
     };
 
 }
-
-#endif

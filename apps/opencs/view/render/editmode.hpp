@@ -1,5 +1,4 @@
-#ifndef CSV_RENDER_EDITMODE_H
-#define CSV_RENDER_EDITMODE_H
+#pragma once
 
 #include "../widget/modebutton.hpp"
 
@@ -111,5 +110,3 @@ namespace CSVRender
         virtual int getSubMode() const;
     };
 }
-
-#endif

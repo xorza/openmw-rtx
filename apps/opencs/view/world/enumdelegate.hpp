@@ -1,5 +1,4 @@
-#ifndef CSV_WORLD_ENUMDELEGATE_H
-#define CSV_WORLD_ENUMDELEGATE_H
+#pragma once
 
 #include <string>
 #include <utility>
@@ -76,5 +75,3 @@ namespace CSVWorld
     };
 
 }
-
-#endif

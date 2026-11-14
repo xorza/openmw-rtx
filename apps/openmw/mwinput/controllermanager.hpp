@@ -1,5 +1,4 @@
-#ifndef MWINPUT_MWCONTROLLERMANAGER_H
-#define MWINPUT_MWCONTROLLERMANAGER_H
+#pragma once
 
 #include <array>
 #include <filesystem>
@@ -73,4 +72,3 @@ namespace MWInput
         bool mRightTriggerGuiPressed;
     };
 }
-#endif

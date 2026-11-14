@@ -1,5 +1,4 @@
-#ifndef GAME_MWWORLD_REFDATA_H
-#define GAME_MWWORLD_REFDATA_H
+#pragma once
 
 #include <components/esm/position.hpp>
 #include <components/esm/refid.hpp>
@@ -161,5 +160,3 @@ namespace MWWorld
         ESM::AnimationState& getAnimationState();
     };
 }
-
-#endif

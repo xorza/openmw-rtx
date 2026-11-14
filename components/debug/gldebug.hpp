@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_DEBUG_GLDEBUG_H
-#define OPENMW_COMPONENTS_DEBUG_GLDEBUG_H
+#pragma once
 
 #include <osgViewer/ViewerEventHandlers>
 
@@ -79,4 +78,3 @@ namespace Debug
         friend EnableGLDebugOperation;
     };
 }
-#endif

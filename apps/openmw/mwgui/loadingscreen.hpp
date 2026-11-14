@@ -1,5 +1,4 @@
-#ifndef MWGUI_LOADINGSCREEN_H
-#define MWGUI_LOADINGSCREEN_H
+#pragma once
 
 #include <memory>
 #include <string>
@@ -90,5 +89,3 @@ namespace MWGui
     };
 
 }
-
-#endif

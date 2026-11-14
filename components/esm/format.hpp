@@ -1,5 +1,4 @@
-#ifndef COMPONENT_ESM_FORMAT_H
-#define COMPONENT_ESM_FORMAT_H
+#pragma once
 
 #include "components/esm/fourcc.hpp"
 
@@ -19,5 +18,3 @@ namespace ESM
 
     Format parseFormat(std::string_view value);
 }
-
-#endif

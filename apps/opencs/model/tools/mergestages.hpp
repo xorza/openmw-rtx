@@ -1,5 +1,4 @@
-#ifndef CSM_TOOLS_MERGESTAGES_H
-#define CSM_TOOLS_MERGESTAGES_H
+#pragma once
 
 #include <map>
 #include <memory>
@@ -186,5 +185,3 @@ namespace CSMTools
         ///< Messages resulting from this stage will be appended to \a messages.
     };
 }
-
-#endif

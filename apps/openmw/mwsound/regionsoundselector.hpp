@@ -1,5 +1,4 @@
-#ifndef GAME_SOUND_REGIONSOUNDSELECTOR_H
-#define GAME_SOUND_REGIONSOUNDSELECTOR_H
+#pragma once
 
 #include <components/esm/refid.hpp>
 
@@ -19,5 +18,3 @@ namespace MWSound
         float mMaxTimeBetweenSounds;
     };
 }
-
-#endif

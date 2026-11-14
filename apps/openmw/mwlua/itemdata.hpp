@@ -1,5 +1,4 @@
-#ifndef MWLUA_ITEMDATA_H
-#define MWLUA_ITEMDATA_H
+#pragma once
 
 #include <sol/forward.hpp>
 
@@ -10,4 +9,3 @@ namespace MWLua
     void addItemDataBindings(sol::table& item, const Context& context);
 
 }
-#endif // MWLUA_ITEMDATA_H

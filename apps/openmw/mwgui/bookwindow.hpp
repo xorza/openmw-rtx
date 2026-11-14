@@ -1,5 +1,4 @@
-#ifndef MWGUI_BOOKWINDOW_H
-#define MWGUI_BOOKWINDOW_H
+#pragma once
 
 #include "windowbase.hpp"
 
@@ -63,5 +62,3 @@ namespace MWGui
     };
 
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_NIFOSG_CONTROLLER_H
-#define COMPONENTS_NIFOSG_CONTROLLER_H
+#pragma once
 
 #include <set>
 #include <type_traits>
@@ -438,5 +437,3 @@ namespace NifOsg
     };
 
 }
-
-#endif

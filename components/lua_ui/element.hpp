@@ -1,5 +1,4 @@
-#ifndef OPENMW_LUAUI_ELEMENT
-#define OPENMW_LUAUI_ELEMENT
+#pragma once
 
 #include <map>
 #include <memory>
@@ -68,5 +67,3 @@ namespace LuaUi
         static std::map<Element*, std::shared_ptr<Element>> sMenuElements;
     };
 }
-
-#endif // !OPENMW_LUAUI_ELEMENT

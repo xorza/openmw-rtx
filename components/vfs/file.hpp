@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_VFS_FILE_H
-#define OPENMW_COMPONENTS_VFS_FILE_H
+#pragma once
 
 #include <filesystem>
 #include <string>
@@ -20,5 +19,3 @@ namespace VFS
         virtual std::string getStem() const = 0;
     };
 }
-
-#endif

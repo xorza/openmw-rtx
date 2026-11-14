@@ -1,5 +1,4 @@
-#ifndef MWSCRIPT_TESTING_UTIL_H
-#define MWSCRIPT_TESTING_UTIL_H
+#pragma once
 
 #include <optional>
 #include <string>
@@ -270,5 +269,3 @@ namespace MWScriptTesting
         }
     };
 }
-
-#endif

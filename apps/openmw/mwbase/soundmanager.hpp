@@ -1,5 +1,4 @@
-#ifndef GAME_MWBASE_SOUNDMANAGER_H
-#define GAME_MWBASE_SOUNDMANAGER_H
+#pragma once
 
 #include <memory>
 #include <set>
@@ -238,5 +237,3 @@ namespace MWBase
         virtual void clear() = 0;
     };
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_L10N_QTTRANSLATIONS_H
-#define COMPONENTS_L10N_QTTRANSLATIONS_H
+#pragma once
 
 #include <QApplication>
 #include <QTranslator>
@@ -12,5 +11,3 @@ namespace L10n
 
     void installQtTranslations(QApplication& app, const QString& appName, const QString& resourcesPath);
 }
-
-#endif // COMPONENTS_L10N_QTTRANSLATIONS_H

@@ -1,5 +1,4 @@
-#ifndef CSV_RENDER_PATHGRID_SELECTION_MODE_H
-#define CSV_RENDER_PATHGRID_SELECTION_MODE_H
+#pragma once
 
 #include "selectionmode.hpp"
 
@@ -41,5 +40,3 @@ namespace CSVRender
         void removeSelectedEdges();
     };
 }
-
-#endif

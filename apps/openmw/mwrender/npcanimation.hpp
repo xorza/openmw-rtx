@@ -1,5 +1,4 @@
-#ifndef GAME_RENDER_NPCANIMATION_H
-#define GAME_RENDER_NPCANIMATION_H
+#pragma once
 
 #include "actoranimation.hpp"
 #include "animation.hpp"
@@ -183,5 +182,3 @@ namespace MWRender
     };
 
 }
-
-#endif

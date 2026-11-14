@@ -1,5 +1,4 @@
-#ifndef OPENMW_APPS_OPENMW_MWGUI_SETTINGS_H
-#define OPENMW_APPS_OPENMW_MWGUI_SETTINGS_H
+#pragma once
 
 #include "components/settings/settingvalue.hpp"
 
@@ -37,5 +36,3 @@ namespace MWGui
     WindowSettingValues makeSpellsWindowSettingValues();
     WindowSettingValues makeStatsWindowSettingValues();
 }
-
-#endif

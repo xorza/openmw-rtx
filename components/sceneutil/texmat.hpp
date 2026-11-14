@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SCENEUTIL_TEXMAT_H
-#define OPENMW_COMPONENTS_SCENEUTIL_TEXMAT_H
+#pragma once
 
 #include <osg/ref_ptr>
 
@@ -20,5 +19,3 @@ namespace SceneUtil
     void initTexMatForStateSet(osg::StateSet& stateset);
 
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWRENDER_RIPPLES_H
-#define OPENMW_MWRENDER_RIPPLES_H
+#pragma once
 
 #include <array>
 
@@ -100,5 +99,3 @@ namespace MWRender
         osg::ref_ptr<RipplesSurface> mRipples;
     };
 }
-
-#endif

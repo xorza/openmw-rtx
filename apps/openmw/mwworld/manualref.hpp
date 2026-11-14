@@ -1,5 +1,4 @@
-#ifndef GAME_MWWORLD_MANUALREF_H
-#define GAME_MWWORLD_MANUALREF_H
+#pragma once
 
 #include <any>
 
@@ -28,5 +27,3 @@ namespace MWWorld
         const Ptr& getPtr() const { return mPtr; }
     };
 }
-
-#endif

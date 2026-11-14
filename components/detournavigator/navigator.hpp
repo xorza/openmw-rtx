@@ -1,5 +1,4 @@
-﻿#ifndef OPENMW_COMPONENTS_DETOURNAVIGATOR_NAVIGATOR_H
-#define OPENMW_COMPONENTS_DETOURNAVIGATOR_NAVIGATOR_H
+#pragma once
 
 #include <cassert>
 #include <filesystem>
@@ -195,5 +194,3 @@ namespace DetourNavigator
 
     std::unique_ptr<Navigator> makeNavigatorStub();
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_FOGSTATE_H
-#define OPENMW_ESM_FOGSTATE_H
+#pragma once
 
 #include <cstdint>
 #include <vector>
@@ -42,5 +41,3 @@ namespace ESM
         void save(ESMWriter& esm, bool interiorCell) const;
     };
 }
-
-#endif

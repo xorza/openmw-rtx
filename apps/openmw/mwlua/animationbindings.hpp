@@ -1,5 +1,4 @@
-#ifndef MWLUA_ANIMATIONBINDINGS_H
-#define MWLUA_ANIMATIONBINDINGS_H
+#pragma once
 
 #include <sol/forward.hpp>
 
@@ -10,5 +9,3 @@ namespace MWLua
     sol::table initAnimationPackage(const Context& context);
     sol::table initWorldVfxBindings(const Context& context);
 }
-
-#endif // MWLUA_ANIMATIONBINDINGS_H

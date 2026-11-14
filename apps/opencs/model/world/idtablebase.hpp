@@ -1,5 +1,4 @@
-#ifndef CSM_WOLRD_IDTABLEBASE_H
-#define CSM_WOLRD_IDTABLEBASE_H
+#pragma once
 
 #include <QAbstractItemModel>
 #include <QModelIndex>
@@ -68,5 +67,3 @@ namespace CSMWorld
         unsigned int getFeatures() const;
     };
 }
-
-#endif

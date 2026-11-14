@@ -1,5 +1,4 @@
-#ifndef GAME_MWWORLD_SPELLCASTSTATE_H
-#define GAME_MWWORLD_SPELLCASTSTATE_H
+#pragma once
 
 namespace MWWorld
 {
@@ -10,5 +9,3 @@ namespace MWWorld
         PowerAlreadyUsed = 2
     };
 }
-
-#endif

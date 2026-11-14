@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_RESOURCE_BGSMFILEMANAGER_H
-#define OPENMW_COMPONENTS_RESOURCE_BGSMFILEMANAGER_H
+#pragma once
 
 #include <components/bgsm/file.hpp>
 
@@ -23,5 +22,3 @@ namespace Resource
     };
 
 }
-
-#endif

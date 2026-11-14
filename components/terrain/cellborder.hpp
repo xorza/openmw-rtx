@@ -1,5 +1,4 @@
-#ifndef GAME_RENDER_CELLBORDER
-#define GAME_RENDER_CELLBORDER
+#pragma once
 
 #include <map>
 #include <osg/Group>
@@ -47,5 +46,3 @@ namespace Terrain
         int mBorderMask;
     };
 }
-
-#endif

@@ -1,10 +1,7 @@
-#ifndef GAME_MWCLASS_CLASSES_H
-#define GAME_MWCLASS_CLASSES_H
+#pragma once
 
 namespace MWClass
 {
     void registerClasses();
     ///< register all known classes
 }
-
-#endif

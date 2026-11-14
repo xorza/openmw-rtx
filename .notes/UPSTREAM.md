@@ -359,7 +359,8 @@ the lines each item names, which the merge resolves by keeping the seam:
   declarations and preprocessed-size scripts only GitLab's pipeline ran, with `osg_stats.py` and
   `HOWTO-benchmark.md` for the rasterizer's OSG statistics, where `omw bench` measures the ray tracer.
   And upstream's `docs/`: its user manual (`docs/source`), which the fork publishes nowhere and upstream's online
-  manual stands for, the Docker image and scripts that build it, the Doxygen API reference nothing built, and the
+  manual stands for, the Docker image and scripts that build it, the Doxygen API reference nothing built with the
+  `doc.hpp` files that held only its groups, and the
   post-1.0 roadmap (`openmw-stage1.md`); and `manual/`, the LaTeX manual of OpenMW-CS, which the fork does not ship;
   `docs/` holds the fork's own, and what the fork wrote in the manual, the
   `[RTX]` settings and its changes to upstream's, is `docs/settings.md`.
@@ -565,3 +566,9 @@ the lines each item names, which the merge resolves by keeping the seam:
   and checks of style alone stay out, as their fixes would touch most of upstream's files for no fault. The cost is
   a conflict with an upstream edit to the lines the fixes touched, and upstream code a merge brings that the checks
   refuse, which `omw tidy` names.
+- Every header of `apps/` and `components/` guarded by `#pragma once`, upstream's 1,400 include guards among them,
+  by the user's decision: one spelling of a guard across the tree, as `AGENTS.md` writes the fork's, which
+  `omw lint pragmas` holds and CI's checks job runs. The headers GLSL reads as well keep their guards, for the
+  reason `portable.h` gives, and the UTF-8 tables' generator writes the pragma. The cost is a conflict with an
+  upstream edit to a header's first or last lines, and a header upstream adds arriving with a guard, which the
+  lint names.

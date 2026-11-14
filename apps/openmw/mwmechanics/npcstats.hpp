@@ -1,5 +1,4 @@
-#ifndef GAME_MWMECHANICS_NPCSTATS_H
-#define GAME_MWMECHANICS_NPCSTATS_H
+#pragma once
 
 #include "creaturestats.hpp"
 #include <components/esm/refid.hpp>
@@ -146,5 +145,3 @@ namespace MWMechanics
         const std::map<ESM::RefId, SkillValue>& getSkills() const { return mSkills; }
     };
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef CSM_TOOLS_MERGESTATE_H
-#define CSM_TOOLS_MERGESTATE_H
+#pragma once
 
 #include <cstdint>
 
@@ -24,5 +23,3 @@ namespace CSMTools
         }
     };
 }
-
-#endif

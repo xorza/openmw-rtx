@@ -1,5 +1,4 @@
-#ifndef CONCLUSIONPAGE_HPP
-#define CONCLUSIONPAGE_HPP
+#pragma once
 
 #include "ui_conclusionpage.h"
 
@@ -23,5 +22,3 @@ namespace Wizard
     };
 
 }
-
-#endif // CONCLUSIONPAGE_HPP

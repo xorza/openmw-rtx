@@ -1,5 +1,4 @@
-#ifndef CSM_TOOLS_REPORTMODEL_H
-#define CSM_TOOLS_REPORTMODEL_H
+#pragma once
 
 #include <string>
 #include <vector>
@@ -63,5 +62,3 @@ namespace CSMTools
         int countErrors() const;
     };
 }
-
-#endif

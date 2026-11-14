@@ -1,5 +1,4 @@
-#ifndef OPENMW_LUAUI_WINDOW
-#define OPENMW_LUAUI_WINDOW
+#pragma once
 
 #include <vector>
 
@@ -32,5 +31,3 @@ namespace LuaUi
         void notifyMouseDrag(MyGUI::Widget* sender, int left, int top, MyGUI::MouseButton id);
     };
 }
-
-#endif // OPENMW_LUAUI_WINDOW

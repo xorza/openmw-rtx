@@ -1,5 +1,4 @@
-#ifndef GAME_RENDER_BONEGROUP_H
-#define GAME_RENDER_BONEGROUP_H
+#pragma once
 
 namespace MWRender
 {
@@ -13,4 +12,3 @@ namespace MWRender
         Num_BoneGroups
     };
 }
-#endif

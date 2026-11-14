@@ -1,5 +1,4 @@
-#ifndef CSM_DOC_LOADER_H
-#define CSM_DOC_LOADER_H
+#pragma once
 
 #include <chrono>
 #include <optional>
@@ -78,5 +77,3 @@ namespace CSMDoc
         ///< Non-critical load error or warning
     };
 }
-
-#endif

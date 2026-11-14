@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SCENEUTIL_STATESETCONTROLLER_H
-#define OPENMW_COMPONENTS_SCENEUTIL_STATESETCONTROLLER_H
+#pragma once
 
 #include <components/sceneutil/nodecallback.hpp>
 
@@ -97,5 +96,3 @@ namespace SceneUtil
     };
 
 }
-
-#endif

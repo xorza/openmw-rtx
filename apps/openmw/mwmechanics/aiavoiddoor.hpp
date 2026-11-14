@@ -1,5 +1,4 @@
-#ifndef GAME_MWMECHANICS_AIAVOIDDOOR_H
-#define GAME_MWMECHANICS_AIAVOIDDOOR_H
+#pragma once
 
 #include "typedaipackage.hpp"
 
@@ -42,4 +41,3 @@ namespace MWMechanics
         float getAdjustedAngle() const;
     };
 }
-#endif

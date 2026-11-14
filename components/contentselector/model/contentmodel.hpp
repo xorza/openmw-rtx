@@ -1,5 +1,4 @@
-#ifndef CONTENTMODEL_HPP
-#define CONTENTMODEL_HPP
+#pragma once
 
 #include "loadordererror.hpp"
 #include <QAbstractTableModel>
@@ -105,4 +104,3 @@ namespace ContentSelectorModel
         Qt::DropActions mDropActions;
     };
 }
-#endif // CONTENTMODEL_HPP

@@ -1,5 +1,4 @@
-#ifndef MWLUA_SERVICESOFFERED_HPP
-#define MWLUA_SERVICESOFFERED_HPP
+#pragma once
 
 #include <array>
 #include <components/esm3/loadnpc.hpp>
@@ -17,5 +16,3 @@ namespace MWLua
             { ESM::NPC::Apparatus, "Apparatus" }, { ESM::NPC::RepairItem, "RepairItem" }, { ESM::NPC::Misc, "Misc" },
             { ESM::NPC::Potions, "Potions" }, { ESM::NPC::MagicItems, "MagicItems" } } };
 }
-
-#endif

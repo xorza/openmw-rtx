@@ -1,5 +1,4 @@
-#ifndef OPENMW_WIDGETS_WINDOWCAPTION_H
-#define OPENMW_WIDGETS_WINDOWCAPTION_H
+#pragma once
 
 #include <MyGUI_EditBox.h>
 
@@ -29,5 +28,3 @@ namespace Gui
     };
 
 }
-
-#endif

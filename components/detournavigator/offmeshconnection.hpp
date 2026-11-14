@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_DETOURNAVIGATOR_OFFMESHCONNECTION_H
-#define OPENMW_COMPONENTS_DETOURNAVIGATOR_OFFMESHCONNECTION_H
+#pragma once
 
 #include "areatype.hpp"
 
@@ -21,5 +20,3 @@ namespace DetourNavigator
         return std::tie(lhs.mStart, lhs.mEnd, lhs.mAreaType) < std::tie(rhs.mStart, rhs.mEnd, rhs.mAreaType);
     }
 }
-
-#endif

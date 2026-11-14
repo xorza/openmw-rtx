@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_MISC_STRINGS_ALGORITHM_H
-#define COMPONENTS_MISC_STRINGS_ALGORITHM_H
+#pragma once
 
 #include "lower.hpp"
 
@@ -202,5 +201,3 @@ namespace Misc::StringUtils
         return std::string_view::npos;
     }
 }
-
-#endif

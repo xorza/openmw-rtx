@@ -1,5 +1,4 @@
-#ifndef GAME_RENDER_ACTORANIMATION_H
-#define GAME_RENDER_ACTORANIMATION_H
+#pragma once
 
 #include <map>
 
@@ -74,5 +73,3 @@ namespace MWRender
     };
 
 }
-
-#endif

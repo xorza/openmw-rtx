@@ -1,5 +1,4 @@
-#ifndef GAME_MWCLASS_BODYPART_H
-#define GAME_MWCLASS_BODYPART_H
+#pragma once
 
 #include "../mwworld/registeredclass.hpp"
 
@@ -29,5 +28,3 @@ namespace MWClass
     };
 
 }
-
-#endif

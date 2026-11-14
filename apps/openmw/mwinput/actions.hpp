@@ -1,5 +1,4 @@
-#ifndef MWINPUT_ACTIONS_H
-#define MWINPUT_ACTIONS_H
+#pragma once
 
 namespace MWInput
 {
@@ -71,4 +70,3 @@ namespace MWInput
         A_Last // Marker for the last item
     };
 }
-#endif

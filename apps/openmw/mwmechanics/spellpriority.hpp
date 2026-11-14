@@ -1,5 +1,4 @@
-#ifndef OPENMW_SPELL_PRIORITY_H
-#define OPENMW_SPELL_PRIORITY_H
+#pragma once
 
 namespace ESM
 {
@@ -38,5 +37,3 @@ namespace MWMechanics
 
     float vanillaRateSpell(const ESM::Spell* spell, const MWWorld::Ptr& actor, const MWWorld::Ptr& enemy);
 }
-
-#endif

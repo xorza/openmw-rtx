@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SETTINGS_CATEGORIES_WINDOWS_H
-#define OPENMW_COMPONENTS_SETTINGS_CATEGORIES_WINDOWS_H
+#pragma once
 
 #include <components/settings/settingvalue.hpp>
 
@@ -171,5 +170,3 @@ namespace Settings
         SettingValue<bool> mDebugMaximized{ mIndex, "Windows", "debug maximized" };
     };
 }
-
-#endif

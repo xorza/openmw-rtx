@@ -1,5 +1,4 @@
-#ifndef OPENMW_APPS_OPENCS_MODEL_PREFS_ENUMVALUEVIEW_H
-#define OPENMW_APPS_OPENCS_MODEL_PREFS_ENUMVALUEVIEW_H
+#pragma once
 
 #include <string_view>
 
@@ -11,5 +10,3 @@ namespace CSMPrefs
         std::string_view mTooltip;
     };
 }
-
-#endif

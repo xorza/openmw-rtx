@@ -1,5 +1,4 @@
-#ifndef GAME_MWBASE_WINDOWMANAGER_H
-#define GAME_MWBASE_WINDOWMANAGER_H
+#pragma once
 
 #include <cstdint>
 #include <filesystem>
@@ -425,5 +424,3 @@ namespace MWBase
         virtual std::vector<std::string_view> getAllowedWindowIds(MWGui::GuiMode mode) const = 0;
     };
 }
-
-#endif

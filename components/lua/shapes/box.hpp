@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_LUA_SHAPES_BOX_H
-#define COMPONENTS_LUA_SHAPES_BOX_H
+#pragma once
 
 #include <array>
 
@@ -28,4 +27,3 @@ namespace LuaUtil
         osg::Quat mRotation;
     };
 }
-#endif // COMPONENTS_LUA_SHAPES_BOX_H

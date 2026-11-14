@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWPHYSICS_STEPPER_H
-#define OPENMW_MWPHYSICS_STEPPER_H
+#pragma once
 
 #include "trace.h"
 
@@ -28,5 +27,3 @@ namespace MWPhysics
             bool firstIteration);
     };
 }
-
-#endif

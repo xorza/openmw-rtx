@@ -1,5 +1,4 @@
-#ifndef CSV_WORLD_VARTYPEDELEGATE_H
-#define CSV_WORLD_VARTYPEDELEGATE_H
+#pragma once
 
 #include <utility>
 #include <vector>
@@ -47,5 +46,3 @@ namespace CSVWorld
         void add(ESM::VarType type);
     };
 }
-
-#endif

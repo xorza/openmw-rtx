@@ -1,5 +1,4 @@
-#ifndef CSM_DOC_DOCUMENT_H
-#define CSM_DOC_DOCUMENT_H
+#pragma once
 
 #include <QObject>
 #include <QUndoStack>
@@ -170,5 +169,3 @@ namespace CSMDoc
         void progress(int current, int max, int type);
     };
 }
-
-#endif

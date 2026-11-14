@@ -1,5 +1,4 @@
-#ifndef CSM_WOLRD_IDTABLEPROXYMODEL_H
-#define CSM_WOLRD_IDTABLEPROXYMODEL_H
+#pragma once
 
 #include <map>
 #include <memory>
@@ -80,5 +79,3 @@ namespace CSMWorld
         void rowAdded(const std::string& id);
     };
 }
-
-#endif

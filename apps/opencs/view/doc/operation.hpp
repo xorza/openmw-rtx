@@ -1,5 +1,4 @@
-#ifndef CSV_DOC_OPERATION_H
-#define CSV_DOC_OPERATION_H
+#pragma once
 
 #include <QObject>
 
@@ -48,5 +47,3 @@ namespace CSVDoc
         void abortOperation();
     };
 }
-
-#endif

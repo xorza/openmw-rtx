@@ -1,5 +1,4 @@
-#ifndef CSV_WORLD_RECORDBUTTONBAR_H
-#define CSV_WORLD_RECORDBUTTONBAR_H
+#pragma once
 
 #include <QWidget>
 
@@ -85,5 +84,3 @@ namespace CSVWorld
         void switchToRow(int row);
     };
 }
-
-#endif

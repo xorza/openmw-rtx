@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_RESOURCE_SCENEMANAGER_H
-#define OPENMW_COMPONENTS_RESOURCE_SCENEMANAGER_H
+#pragma once
 
 #include <array>
 #include <memory>
@@ -245,5 +244,3 @@ namespace Resource
         void operator=(const SceneManager&) = delete;
     };
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef CSM_PREFS_SHORTCUT_EVENT_HANDLER_H
-#define CSM_PREFS_SHORTCUT_EVENT_HANDLER_H
+#pragma once
 
 #include <map>
 #include <vector>
@@ -61,5 +60,3 @@ namespace CSMPrefs
         void widgetDestroyed();
     };
 }
-
-#endif

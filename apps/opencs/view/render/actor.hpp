@@ -1,5 +1,4 @@
-#ifndef OPENCS_VIEW_RENDER_ACTOR_H
-#define OPENCS_VIEW_RENDER_ACTOR_H
+#pragma once
 
 #include <string>
 #include <string_view>
@@ -63,5 +62,3 @@ namespace CSVRender
         SceneUtil::NodeMap mNodeMap;
     };
 }
-
-#endif

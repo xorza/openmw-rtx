@@ -1,5 +1,4 @@
-#ifndef COMPILER_OUTPUT_H_INCLUDED
-#define COMPILER_OUTPUT_H_INCLUDED
+#pragma once
 
 #include "literals.hpp"
 
@@ -38,5 +37,3 @@ namespace Compiler
         void clear();
     };
 }
-
-#endif

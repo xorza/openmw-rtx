@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWWORLD_GLOBALVARIABLENAME_H
-#define OPENMW_MWWORLD_GLOBALVARIABLENAME_H
+#pragma once
 
 #include <cstddef>
 #include <string>
@@ -43,5 +42,3 @@ namespace MWWorld
         friend Globals;
     };
 }
-
-#endif

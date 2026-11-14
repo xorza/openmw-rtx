@@ -1,5 +1,4 @@
-#ifndef TABLEMIMEDATA_H
-#define TABLEMIMEDATA_H
+#pragma once
 
 #include <string>
 #include <vector>
@@ -82,4 +81,3 @@ namespace CSMWorld
         bool isReferencable(CSMWorld::ColumnBase::Display type) const;
     };
 }
-#endif // TABLEMIMEDATA_H

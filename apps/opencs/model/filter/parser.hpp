@@ -1,5 +1,4 @@
-#ifndef CSM_FILTER_PARSER_H
-#define CSM_FILTER_PARSER_H
+#pragma once
 
 #include <memory>
 #include <string>
@@ -58,5 +57,3 @@ namespace CSMFilter
         ///< Throws an exception if the last call to parse did not return true.
     };
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_MISC_UTF8QTEXTSTREAM_HPP
-#define OPENMW_COMPONENTS_MISC_UTF8QTEXTSTREAM_HPP
+#pragma once
 
 #include <QtGlobal>
 
@@ -12,4 +11,3 @@ namespace Misc
         stream.setEncoding(QStringConverter::Utf8);
     }
 }
-#endif

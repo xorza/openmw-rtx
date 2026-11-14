@@ -1,5 +1,4 @@
-#ifndef CSM_PREFS_SHORTCUTMANAGER_H
-#define CSM_PREFS_SHORTCUTMANAGER_H
+#pragma once
 
 #include <map>
 #include <string>
@@ -69,5 +68,3 @@ namespace CSMPrefs
         static const std::pair<int, const char*> QtKeys[];
     };
 }
-
-#endif

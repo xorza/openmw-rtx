@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_ESM3_ACTORIDCONVERTER_H
-#define OPENMW_COMPONENTS_ESM3_ACTORIDCONVERTER_H
+#pragma once
 
 #include <map>
 #include <vector>
@@ -21,5 +20,3 @@ namespace ESM
         void convert(ESM::RefNum& refNum, int actorId);
     };
 }
-
-#endif

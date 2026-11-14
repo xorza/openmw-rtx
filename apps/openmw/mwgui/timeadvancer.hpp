@@ -1,5 +1,4 @@
-#ifndef MWGUI_TIMEADVANCER_H
-#define MWGUI_TIMEADVANCER_H
+#pragma once
 
 #include <MyGUI_Delegate.h>
 
@@ -35,5 +34,3 @@ namespace MWGui
         float mRemainingTime;
     };
 }
-
-#endif

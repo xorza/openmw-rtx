@@ -1,5 +1,4 @@
-#ifndef GAME_MWWORLD_NULLACTION_H
-#define GAME_MWWORLD_NULLACTION_H
+#pragma once
 
 #include "action.hpp"
 
@@ -13,5 +12,3 @@ namespace MWWorld
         bool isNullAction() override { return true; }
     };
 }
-
-#endif

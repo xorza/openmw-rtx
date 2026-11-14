@@ -1,5 +1,4 @@
-#ifndef GAME_MWMECHANICS_ACTORS_H
-#define GAME_MWMECHANICS_ACTORS_H
+#pragma once
 
 #include <list>
 #include <map>
@@ -216,5 +215,3 @@ namespace MWMechanics
         const std::set<MWWorld::Ptr>& getActorsSidingWith(const MWWorld::Ptr& actor);
     };
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef MWINIIMPORTER_IMPORTER
-#define MWINIIMPORTER_IMPORTER 1
+#pragma once
 
 #include <exception>
 #include <filesystem>
@@ -46,5 +45,3 @@ private:
     std::vector<std::string> mMergeFallback;
     ToUTF8::FromType mEncoding;
 };
-
-#endif

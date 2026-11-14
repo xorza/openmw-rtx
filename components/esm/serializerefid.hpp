@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_ESM_SERIALIZEREFID_HPP
-#define OPENMW_COMPONENTS_ESM_SERIALIZEREFID_HPP
+#pragma once
 
 #include <charconv>
 #include <cstring>
@@ -107,5 +106,3 @@ namespace ESM
         return result;
     }
 }
-
-#endif

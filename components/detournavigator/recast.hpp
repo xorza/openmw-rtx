@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_DETOURNAVIGATOR_RECAST_H
-#define OPENMW_COMPONENTS_DETOURNAVIGATOR_RECAST_H
+#pragma once
 
 #include <Recast.h>
 
@@ -67,5 +66,3 @@ namespace DetourNavigator
 
     void copyPolyMeshDetail(const rcPolyMeshDetail& src, rcPolyMeshDetail& dst);
 }
-
-#endif

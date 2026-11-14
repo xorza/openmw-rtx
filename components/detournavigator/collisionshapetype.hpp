@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_DETOURNAVIGATOR_COLLISIONSHAPETYPE_H
-#define OPENMW_COMPONENTS_DETOURNAVIGATOR_COLLISIONSHAPETYPE_H
+#pragma once
 
 #include <cstdint>
 
@@ -14,5 +13,3 @@ namespace DetourNavigator
 
     CollisionShapeType toCollisionShapeType(int value);
 }
-
-#endif

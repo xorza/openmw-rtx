@@ -1,5 +1,4 @@
-#ifndef CSM_TOOLS_SOUNDGENCHECK_HPP
-#define CSM_TOOLS_SOUNDGENCHECK_HPP
+#pragma once
 
 #include "../world/idcollection.hpp"
 
@@ -42,5 +41,3 @@ namespace CSMTools
         ///< Messages resulting from this stage will be appended to \a messages.
     };
 }
-
-#endif

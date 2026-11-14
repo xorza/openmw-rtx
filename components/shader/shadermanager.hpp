@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SHADERMANAGER_H
-#define OPENMW_COMPONENTS_SHADERMANAGER_H
+#pragma once
 
 #include <array>
 #include <filesystem>
@@ -149,5 +148,3 @@ namespace Shader
 
     ShaderManager::DefineMap getDefaultDefines();
 }
-
-#endif

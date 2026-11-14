@@ -1,5 +1,4 @@
-#ifndef MWLUA_USERTYPEUTIL_H
-#define MWLUA_USERTYPEUTIL_H
+#pragma once
 
 #include "../contentbindings.hpp"
 #include "modelproperty.hpp"
@@ -212,5 +211,3 @@ namespace MWLua::Types
         return out;
     }
 }
-
-#endif

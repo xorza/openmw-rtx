@@ -1,5 +1,4 @@
-#ifndef CSM_PREFS_SHORTCUTSETTING_H
-#define CSM_PREFS_SHORTCUTSETTING_H
+#pragma once
 
 #include <string>
 #include <string_view>
@@ -53,5 +52,3 @@ namespace CSMPrefs
         void buttonToggled(bool checked);
     };
 }
-
-#endif

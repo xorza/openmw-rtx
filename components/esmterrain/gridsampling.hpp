@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_ESMTERRAIN_GRIDSAMPLING_H
-#define OPENMW_COMPONENTS_ESMTERRAIN_GRIDSAMPLING_H
+#pragma once
 
 #include <components/misc/mathutil.hpp>
 
@@ -206,5 +205,3 @@ namespace ESMTerrain
         }
     }
 }
-
-#endif

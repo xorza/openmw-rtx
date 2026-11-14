@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_FILES_MEMORYSTREAM_H
-#define OPENMW_COMPONENTS_FILES_MEMORYSTREAM_H
+#pragma once
 
 #include <istream>
 
@@ -47,5 +46,3 @@ namespace Files
     };
 
 }
-
-#endif

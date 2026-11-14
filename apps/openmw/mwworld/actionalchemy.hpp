@@ -1,5 +1,4 @@
-#ifndef GAME_MWWORLD_ACTIONALCHEMY_H
-#define GAME_MWWORLD_ACTIONALCHEMY_H
+#pragma once
 
 #include "action.hpp"
 
@@ -14,5 +13,3 @@ namespace MWWorld
         explicit ActionAlchemy(bool force = false);
     };
 }
-
-#endif

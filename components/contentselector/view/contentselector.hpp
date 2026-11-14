@@ -1,5 +1,4 @@
-#ifndef CONTENTSELECTOR_HPP
-#define CONTENTSELECTOR_HPP
+#pragma once
 
 #include <memory>
 
@@ -90,5 +89,3 @@ namespace ContentSelectorView
         void slotRowsMoved();
     };
 }
-
-#endif // CONTENTSELECTOR_HPP

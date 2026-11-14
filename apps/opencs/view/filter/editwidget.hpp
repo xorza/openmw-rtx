@@ -1,5 +1,4 @@
-#ifndef CSV_FILTER_EDITWIDGET_H
-#define CSV_FILTER_EDITWIDGET_H
+#pragma once
 
 #include <QLineEdit>
 #include <QPalette>
@@ -109,5 +108,3 @@ namespace CSVFilter
         static void openHelp();
     };
 }
-
-#endif

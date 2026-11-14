@@ -1,5 +1,4 @@
-#ifndef COMPILER_LITERALS_H_INCLUDED
-#define COMPILER_LITERALS_H_INCLUDED
+#pragma once
 
 #include <string>
 #include <vector>
@@ -36,5 +35,3 @@ namespace Compiler
         ///< remove all literals.
     };
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef OPENMW_TEST_SUITE_SERIALIZATION_FORMAT_H
-#define OPENMW_TEST_SUITE_SERIALIZATION_FORMAT_H
+#pragma once
 
 #include <components/serialization/format.hpp>
 
@@ -71,5 +70,3 @@ namespace SerializationTesting
         }
     };
 }
-
-#endif

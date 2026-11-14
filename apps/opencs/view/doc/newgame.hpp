@@ -1,5 +1,4 @@
-#ifndef CSV_DOC_NEWGAME_H
-#define CSV_DOC_NEWGAME_H
+#pragma once
 
 #include <QDialog>
 #include <QMetaType>
@@ -46,5 +45,3 @@ namespace CSVDoc
         void reject() override;
     };
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef GAME_MWBASE_ROTATIONFLAGS_H
-#define GAME_MWBASE_ROTATIONFLAGS_H
+#pragma once
 
 namespace MWBase
 {
@@ -12,5 +11,3 @@ namespace MWBase
         RotationFlag_inverseOrder = 1 << 1,
     };
 }
-
-#endif

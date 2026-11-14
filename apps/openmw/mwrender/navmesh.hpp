@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWRENDER_NAVMESH_H
-#define OPENMW_MWRENDER_NAVMESH_H
+#pragma once
 
 #include <components/detournavigator/tileposition.hpp>
 #include <components/detournavigator/version.hpp>
@@ -80,5 +79,3 @@ namespace MWRender
         std::vector<std::shared_ptr<CreateNavMeshTileGroups>> mWorkItems;
     };
 }
-
-#endif

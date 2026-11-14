@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_MYGUIPLATFORM_ADDITIVELAYER
-#define OPENMW_COMPONENTS_MYGUIPLATFORM_ADDITIVELAYER
+#pragma once
 
 #include <MyGUI_OverlappedLayer.h>
 
@@ -29,5 +28,3 @@ namespace MyGUIPlatform
     };
 
 }
-
-#endif

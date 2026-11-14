@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_ESM3_LANDRECORDDATA_H
-#define OPENMW_COMPONENTS_ESM3_LANDRECORDDATA_H
+#pragma once
 
 #include <array>
 #include <cstdint>
@@ -39,5 +38,3 @@ namespace ESM
         int mDataLoaded = 0;
     };
 }
-
-#endif

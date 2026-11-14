@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_VFS_RECURSIVEDIRECTORYITERATOR_H
-#define OPENMW_COMPONENTS_VFS_RECURSIVEDIRECTORYITERATOR_H
+#pragma once
 
 #include <string>
 
@@ -52,5 +51,3 @@ namespace VFS
         RecursiveDirectoryIterator mEnd;
     };
 }
-
-#endif

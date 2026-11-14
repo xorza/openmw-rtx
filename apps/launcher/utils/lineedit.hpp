@@ -7,8 +7,7 @@
 **
 ****************************************************************************/
 
-#ifndef LINEEDIT_H
-#define LINEEDIT_H
+#pragma once
 
 #include <QLineEdit>
 #include <QStylePainter>
@@ -36,5 +35,3 @@ protected:
 
     void setupClearButton();
 };
-
-#endif // LIENEDIT_H

@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SCENEUTIL_DEPTH_H
-#define OPENMW_COMPONENTS_SCENEUTIL_DEPTH_H
+#pragma once
 
 #include <osg/Depth>
 
@@ -176,5 +175,3 @@ namespace SceneUtil
         std::vector<GLenum> mSupportedFormats;
     };
 }
-
-#endif

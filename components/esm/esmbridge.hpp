@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_ESM_ESMBRIDGE
-#define COMPONENTS_ESM_ESMBRIDGE
+#pragma once
 
 #include <string>
 #include <string_view>
@@ -87,4 +86,3 @@ namespace ESM
     template <class... Ts>
     VisitOverload(Ts...) -> VisitOverload<Ts...>;
 }
-#endif

@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_RESOURCE_ERRORMARKER_H
-#define OPENMW_COMPONENTS_RESOURCE_ERRORMARKER_H
+#pragma once
 
 #include <string_view>
 
@@ -10,5 +9,3 @@ namespace Resource
         static const std::string_view sValue;
     };
 }
-
-#endif

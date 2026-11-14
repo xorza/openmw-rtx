@@ -1,5 +1,4 @@
-#ifndef INTERPRETER_MATHOPCODES_H_INCLUDED
-#define INTERPRETER_MATHOPCODES_H_INCLUDED
+#pragma once
 
 #include <cmath>
 #include <stdexcept>
@@ -84,5 +83,3 @@ namespace Interpreter
         }
     };
 }
-
-#endif

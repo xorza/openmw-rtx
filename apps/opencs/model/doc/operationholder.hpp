@@ -1,5 +1,4 @@
-#ifndef CSM_DOC_OPERATIONHOLDER_H
-#define CSM_DOC_OPERATIONHOLDER_H
+#pragma once
 
 #include <QObject>
 #include <QThread>
@@ -46,5 +45,3 @@ namespace CSMDoc
         void abortSignal();
     };
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_AIPACKAGE_H
-#define OPENMW_ESM_AIPACKAGE_H
+#pragma once
 
 #include <string>
 #include <vector>
@@ -99,5 +98,3 @@ namespace ESM
         f(v.mHello, v.mFight, v.mFlee, v.mAlarm, padding, v.mServices);
     }
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef GAME_SOUND_TYPE_H
-#define GAME_SOUND_TYPE_H
+#pragma once
 
 namespace MWSound
 {
@@ -13,5 +12,3 @@ namespace MWSound
         Mask = Sfx | Voice | Foot | Music | Movie
     };
 }
-
-#endif

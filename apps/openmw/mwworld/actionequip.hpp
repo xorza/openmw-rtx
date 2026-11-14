@@ -1,5 +1,4 @@
-#ifndef GAME_MWWORLD_ACTIONEQUIP_H
-#define GAME_MWWORLD_ACTIONEQUIP_H
+#pragma once
 
 #include "action.hpp"
 
@@ -16,5 +15,3 @@ namespace MWWorld
         explicit ActionEquip(const Ptr& object, bool force = false);
     };
 }
-
-#endif

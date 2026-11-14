@@ -1,5 +1,4 @@
-#ifndef MWGUI_WINDOW_BASE_H
-#define MWGUI_WINDOW_BASE_H
+#pragma once
 
 #include <SDL3/SDL_events.h>
 
@@ -145,5 +144,3 @@ namespace MWGui
         float adjustButton(std::string_view name);
     };
 }
-
-#endif

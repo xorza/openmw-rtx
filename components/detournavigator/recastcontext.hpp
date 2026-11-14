@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_DETOURNAVIGATOR_RECASTCONTEXT_H
-#define OPENMW_COMPONENTS_DETOURNAVIGATOR_RECASTCONTEXT_H
+#pragma once
 
 #include "tileposition.hpp"
 
@@ -30,5 +29,3 @@ namespace DetourNavigator
         void doLog(rcLogCategory category, const char* msg, int len) override;
     };
 }
-
-#endif

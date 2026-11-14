@@ -1,5 +1,4 @@
-#ifndef CSV_WORLD_REFERENCECREATOR_H
-#define CSV_WORLD_REFERENCECREATOR_H
+#pragma once
 
 #include <string>
 
@@ -70,5 +69,3 @@ namespace CSVWorld
         ///< The ownership of the returned Creator is transferred to the caller.
     };
 }
-
-#endif

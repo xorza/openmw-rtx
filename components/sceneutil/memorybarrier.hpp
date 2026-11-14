@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SCENEUTIL_MEMORYBARRIER_H
-#define OPENMW_COMPONENTS_SCENEUTIL_MEMORYBARRIER_H
+#pragma once
 
 #include <osg/Drawable>
 
@@ -20,5 +19,3 @@ namespace SceneUtil
         GLbitfield mBarriers;
     };
 }
-
-#endif

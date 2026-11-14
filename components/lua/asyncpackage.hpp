@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_LUA_ASYNCPACKAGE_H
-#define COMPONENTS_LUA_ASYNCPACKAGE_H
+#pragma once
 
 #include "scriptscontainer.hpp"
 
@@ -55,5 +54,3 @@ namespace LuaUtil
         }
     };
 }
-
-#endif // COMPONENTS_LUA_ASYNCPACKAGE_H

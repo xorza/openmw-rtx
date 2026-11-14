@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWLUA_DEBUGBINDINGS_H
-#define OPENMW_MWLUA_DEBUGBINDINGS_H
+#pragma once
 
 #include <sol/forward.hpp>
 
@@ -9,5 +8,3 @@ namespace MWLua
 
     sol::table initDebugPackage(const Context& context);
 }
-
-#endif // OPENMW_MWLUA_DEBUGBINDINGS_H

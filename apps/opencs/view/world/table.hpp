@@ -1,5 +1,4 @@
-#ifndef CSV_WORLD_TABLE_H
-#define CSV_WORLD_TABLE_H
+#pragma once
 
 #include <map>
 #include <memory>
@@ -182,5 +181,3 @@ namespace CSVWorld
         void queuedScrollTo(int state);
     };
 }
-
-#endif

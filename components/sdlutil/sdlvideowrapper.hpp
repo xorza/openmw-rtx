@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SDLUTIL_SDLVIDEOWRAPPER_H
-#define OPENMW_COMPONENTS_SDLUTIL_SDLVIDEOWRAPPER_H
+#pragma once
 
 #include <SDL3/SDL_video.h>
 
@@ -43,5 +42,3 @@ namespace SDLUtil
     /// and a changed setting both go through.
     void setVideoMode(SDL_Window* window, int width, int height, Settings::WindowMode windowMode, bool windowBorder);
 }
-
-#endif

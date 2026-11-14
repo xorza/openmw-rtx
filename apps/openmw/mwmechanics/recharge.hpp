@@ -1,5 +1,4 @@
-#ifndef MWMECHANICS_RECHARGE_H
-#define MWMECHANICS_RECHARGE_H
+#pragma once
 
 #include "../mwworld/ptr.hpp"
 
@@ -11,5 +10,3 @@ namespace MWMechanics
     bool rechargeItem(const MWWorld::Ptr& item, const MWWorld::Ptr& gem);
 
 }
-
-#endif

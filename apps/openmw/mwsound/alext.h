@@ -1,5 +1,4 @@
-#ifndef AL_ALEXT_H
-#define AL_ALEXT_H
+#pragma once
 
 // OpenAL Soft's header, spelled as OpenAL Soft spells it.
 // NOLINTBEGIN(bugprone-reserved-identifier)
@@ -642,4 +641,3 @@ extern "C"
 #endif
 
 // NOLINTEND(bugprone-reserved-identifier)
-#endif

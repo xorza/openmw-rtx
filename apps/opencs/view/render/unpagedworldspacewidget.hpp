@@ -1,5 +1,4 @@
-#ifndef OPENCS_VIEW_UNPAGEDWORLDSPACEWIDGET_H
-#define OPENCS_VIEW_UNPAGEDWORLDSPACEWIDGET_H
+#pragma once
 
 #include <memory>
 #include <string>
@@ -143,5 +142,3 @@ namespace CSVRender
         void cellChanged(const CSMWorld::UniversalId& id);
     };
 }
-
-#endif

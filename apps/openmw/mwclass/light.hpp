@@ -1,5 +1,4 @@
-#ifndef GAME_MWCLASS_LIGHT_H
-#define GAME_MWCLASS_LIGHT_H
+#pragma once
 
 #include "../mwworld/registeredclass.hpp"
 
@@ -84,5 +83,3 @@ namespace MWClass
     };
 
 }
-
-#endif

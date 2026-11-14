@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_MISC_BUDGETMEASUREMENT_H
-#define OPENMW_COMPONENTS_MISC_BUDGETMEASUREMENT_H
+#pragma once
 
 #include <array>
 #include <cstddef>
@@ -41,5 +40,3 @@ namespace Misc
     };
 
 }
-
-#endif

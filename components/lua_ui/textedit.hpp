@@ -1,5 +1,4 @@
-#ifndef OPENMW_LUAUI_TEXTEDIT
-#define OPENMW_LUAUI_TEXTEDIT
+#pragma once
 
 #include <vector>
 
@@ -34,5 +33,3 @@ namespace LuaUi
         bool mAutoSize{ false };
     };
 }
-
-#endif // OPENMW_LUAUI_TEXTEDIT

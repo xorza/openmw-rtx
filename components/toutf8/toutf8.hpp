@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_TOUTF8_TOUTF8_HPP
-#define OPENMW_COMPONENTS_TOUTF8_TOUTF8_HPP
+#pragma once
 
 #include <cstring>
 #include <span>
@@ -76,5 +75,3 @@ namespace ToUTF8
         StatelessUtf8Encoder mImpl;
     };
 }
-
-#endif

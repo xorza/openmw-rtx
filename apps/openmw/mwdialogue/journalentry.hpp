@@ -1,5 +1,4 @@
-#ifndef GAME_MWDIALOGUE_JOURNALENTRY_H
-#define GAME_MWDIALOGUE_JOURNALENTRY_H
+#pragma once
 
 #include <components/esm/refid.hpp>
 #include <string>
@@ -83,5 +82,3 @@ namespace MWDialogue
         static StampedJournalEntry makeFromQuest(const ESM::RefId& topic, int index, const MWWorld::Ptr& actor);
     };
 }
-
-#endif

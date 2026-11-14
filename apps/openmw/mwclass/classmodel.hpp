@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWCLASS_CLASSMODEL_H
-#define OPENMW_MWCLASS_CLASSMODEL_H
+#pragma once
 
 #include "../mwworld/livecellref.hpp"
 #include "../mwworld/ptr.hpp"
@@ -16,5 +15,3 @@ namespace MWClass
         return ref->mBase->mModel.getNormalized();
     }
 }
-
-#endif

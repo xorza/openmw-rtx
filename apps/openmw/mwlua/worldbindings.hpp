@@ -1,5 +1,4 @@
-#ifndef MWLUA_WORLDBINDINGS_H
-#define MWLUA_WORLDBINDINGS_H
+#pragma once
 
 #include <sol/forward.hpp>
 
@@ -9,5 +8,3 @@ namespace MWLua
 
     sol::table initWorldPackage(const Context& context);
 }
-
-#endif // MWLUA_WORLDBINDINGS_H

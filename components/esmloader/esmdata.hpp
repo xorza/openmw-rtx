@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_ESMLOADER_ESMDATA_H
-#define OPENMW_COMPONENTS_ESMLOADER_ESMDATA_H
+#pragma once
 
 #include <components/esm/defs.hpp>
 #include <components/esm/refid.hpp>
@@ -51,5 +50,3 @@ namespace EsmLoader
 
     ESM::Variant getGameSetting(const std::vector<ESM::GameSetting>& records, std::string_view id);
 }
-
-#endif

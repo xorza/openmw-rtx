@@ -1,5 +1,4 @@
-#ifndef OPENMW_PROFILE_H
-#define OPENMW_PROFILE_H
+#pragma once
 
 #include <components/misc/framestats.hpp>
 
@@ -146,5 +145,3 @@ namespace OMW
         Misc::FrameStats& mStats;
     };
 }
-
-#endif

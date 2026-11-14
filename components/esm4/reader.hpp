@@ -20,8 +20,7 @@
   cc9cii cc9c@iinet.net.au
 
 */
-#ifndef ESM4_READER_H
-#define ESM4_READER_H
+#pragma once
 
 #include <cstddef>
 #include <filesystem>
@@ -398,5 +397,3 @@ namespace ESM4
     // For pretty printing GroupHeader labels
     std::string printLabel(const GroupLabel& label, const std::uint32_t type);
 }
-
-#endif // ESM4_READER_H

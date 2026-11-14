@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWPHYSICS_PHYSICSSYSTEM_H
-#define OPENMW_MWPHYSICS_PHYSICSSYSTEM_H
+#pragma once
 
 #include <algorithm>
 #include <array>
@@ -334,5 +333,3 @@ namespace MWPhysics
         PhysicsSystem& operator=(const PhysicsSystem&);
     };
 }
-
-#endif

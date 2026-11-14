@@ -1,5 +1,4 @@
-#ifndef MYGUI_POSTPROCESSOR_HUD_H
-#define MYGUI_POSTPROCESSOR_HUD_H
+#pragma once
 
 #include "windowbase.hpp"
 
@@ -106,5 +105,3 @@ namespace MWGui
         Files::ConfigurationManager& mCfgMgr;
     };
 }
-
-#endif

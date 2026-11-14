@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWRENDER_WEAPONANIMATION_H
-#define OPENMW_MWRENDER_WEAPONANIMATION_H
+#pragma once
 
 #include <components/sceneutil/controller.hpp>
 
@@ -76,5 +75,3 @@ namespace MWRender
     };
 
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SETTINGS_CATEGORIES_SHADOWS_H
-#define OPENMW_COMPONENTS_SETTINGS_CATEGORIES_SHADOWS_H
+#pragma once
 
 #include <components/settings/sanitizerimpl.hpp>
 #include <components/settings/settingvalue.hpp>
@@ -44,5 +43,3 @@ namespace Settings
         SettingValue<bool> mEnableIndoorShadows{ mIndex, "Shadows", "enable indoor shadows" };
     };
 }
-
-#endif

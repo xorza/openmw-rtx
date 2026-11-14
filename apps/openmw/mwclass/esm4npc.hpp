@@ -1,5 +1,4 @@
-#ifndef GAME_MWCLASS_ESM4ACTOR_H
-#define GAME_MWCLASS_ESM4ACTOR_H
+#pragma once
 
 #include <components/esm4/loadcrea.hpp>
 #include <components/esm4/loadnpc.hpp>
@@ -67,5 +66,3 @@ namespace MWClass
         static ESM4NpcCustomData& getCustomData(const MWWorld::ConstPtr& ptr);
     };
 }
-
-#endif // GAME_MWCLASS_ESM4ACTOR_H

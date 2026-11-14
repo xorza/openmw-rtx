@@ -1,5 +1,4 @@
-#ifndef GAME_RENDER_GLOBALMAP_H
-#define GAME_RENDER_GLOBALMAP_H
+#pragma once
 
 #include <map>
 #include <memory>
@@ -92,5 +91,3 @@ namespace MWRender
     };
 
 }
-
-#endif

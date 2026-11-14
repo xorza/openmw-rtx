@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_FALLBACK_H
-#define OPENMW_COMPONENTS_FALLBACK_H
+#pragma once
 
 #include <map>
 #include <string>
@@ -33,4 +32,3 @@ namespace Fallback
         static osg::Vec4f getColour(std::string_view fall);
     };
 }
-#endif

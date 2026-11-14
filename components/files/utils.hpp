@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_FILES_UTILS_H
-#define COMPONENTS_FILES_UTILS_H
+#pragma once
 
 #include <cerrno>
 #include <format>
@@ -34,5 +33,3 @@ namespace Files
         return end - begin;
     }
 }
-
-#endif

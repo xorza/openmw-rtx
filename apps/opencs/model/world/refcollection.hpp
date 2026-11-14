@@ -1,5 +1,4 @@
-#ifndef CSM_WOLRD_REFCOLLECTION_H
-#define CSM_WOLRD_REFCOLLECTION_H
+#pragma once
 
 #include <cstdint>
 #include <map>
@@ -80,5 +79,3 @@ namespace CSMWorld
             std::unique_ptr<RecordBase> record, int index, UniversalId::Type type = UniversalId::Type_None) override;
     };
 }
-
-#endif

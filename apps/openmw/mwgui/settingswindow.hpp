@@ -1,5 +1,4 @@
-#ifndef MWGUI_SETTINGS_H
-#define MWGUI_SETTINGS_H
+#pragma once
 
 #include <span>
 
@@ -125,5 +124,3 @@ namespace MWGui
         Files::ConfigurationManager& mCfgMgr;
     };
 }
-
-#endif

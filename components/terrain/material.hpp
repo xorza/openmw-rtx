@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_TERRAIN_MATERIAL_H
-#define COMPONENTS_TERRAIN_MATERIAL_H
+#pragma once
 
 #include <osg/StateSet>
 
@@ -28,5 +27,3 @@ namespace Terrain
         const std::vector<TextureLayer>& layers, const std::vector<osg::ref_ptr<osg::Texture2D>>& blendmaps,
         int blendmapScale, float layerTileSize, bool isComposite, bool esm4terrain = false);
 }
-
-#endif

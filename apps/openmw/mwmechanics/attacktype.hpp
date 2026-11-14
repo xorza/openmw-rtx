@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWMECHANICS_ATTACKTYPE_H
-#define OPENMW_MWMECHANICS_ATTACKTYPE_H
+#pragma once
 
 namespace MWMechanics
 {
@@ -12,5 +11,3 @@ namespace MWMechanics
         Thrust
     };
 }
-
-#endif

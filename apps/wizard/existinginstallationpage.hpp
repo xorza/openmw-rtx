@@ -1,5 +1,4 @@
-#ifndef EXISTINGINSTALLATIONPAGE_HPP
-#define EXISTINGINSTALLATIONPAGE_HPP
+#pragma once
 
 #include "ui_existinginstallationpage.h"
 
@@ -29,5 +28,3 @@ namespace Wizard
     };
 
 }
-
-#endif // EXISTINGINSTALLATIONPAGE_HPP

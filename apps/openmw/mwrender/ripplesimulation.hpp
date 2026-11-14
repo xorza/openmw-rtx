@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWRENDER_RIPPLESIMULATION_H
-#define OPENMW_MWRENDER_RIPPLESIMULATION_H
+#pragma once
 
 #include <osg/ref_ptr>
 
@@ -79,5 +78,3 @@ namespace MWRender
     };
 
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef CSV_WORLD_DRAGRECORDTABLE_H
-#define CSV_WORLD_DRAGRECORDTABLE_H
+#pragma once
 
 #include <QTableView>
 
@@ -60,5 +59,3 @@ namespace CSVWorld
         void createNewInfoRecord(const std::string& id);
     };
 }
-
-#endif

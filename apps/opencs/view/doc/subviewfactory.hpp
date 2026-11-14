@@ -1,5 +1,4 @@
-#ifndef CSV_DOC_SUBVIEWFACTORY_H
-#define CSV_DOC_SUBVIEWFACTORY_H
+#pragma once
 
 #include <map>
 
@@ -43,5 +42,3 @@ namespace CSVDoc
         ///< The ownership of the returned sub view is not transferred.
     };
 }
-
-#endif

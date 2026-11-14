@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SCENEUTIL_ATTACH_H
-#define OPENMW_COMPONENTS_SCENEUTIL_ATTACH_H
+#pragma once
 
 #include <string_view>
 
@@ -29,5 +28,3 @@ namespace SceneUtil
         osg::Group* attachNode, Resource::SceneManager* sceneManager, const osg::Quat* attitude = nullptr);
 
 }
-
-#endif

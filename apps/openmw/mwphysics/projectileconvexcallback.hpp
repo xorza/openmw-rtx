@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWPHYSICS_PROJECTILECONVEXCALLBACK_H
-#define OPENMW_MWPHYSICS_PROJECTILECONVEXCALLBACK_H
+#pragma once
 
 #include <BulletCollision/CollisionDispatch/btCollisionWorld.h>
 
@@ -29,5 +28,3 @@ namespace MWPhysics
         Projectile& mProjectile;
     };
 }
-
-#endif

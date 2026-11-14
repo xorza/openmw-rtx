@@ -21,8 +21,7 @@
 
  */
 
-#ifndef OPENMW_COMPONENTS_BSA_BSAFILE_HPP
-#define OPENMW_COMPONENTS_BSA_BSAFILE_HPP
+#pragma once
 
 #include <cstdint>
 #include <filesystem>
@@ -136,5 +135,3 @@ namespace Bsa
         static BsaVersion detectVersion(const std::filesystem::path& filePath);
     };
 }
-
-#endif

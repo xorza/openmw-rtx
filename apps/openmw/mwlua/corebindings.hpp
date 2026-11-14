@@ -1,5 +1,4 @@
-#ifndef MWLUA_COREBINDINGS_H
-#define MWLUA_COREBINDINGS_H
+#pragma once
 
 #include <sol/forward.hpp>
 
@@ -11,5 +10,3 @@ namespace MWLua
 
     sol::table initCorePackage(const Context& context);
 }
-
-#endif // MWLUA_COREBINDINGS_H

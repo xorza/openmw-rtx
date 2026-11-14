@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SHADERVISITOR_H
-#define OPENMW_COMPONENTS_SHADERVISITOR_H
+#pragma once
 
 #include <osg/NodeVisitor>
 #include <osg/Program>
@@ -123,5 +122,3 @@ namespace Shader
     };
 
 }
-
-#endif

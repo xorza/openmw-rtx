@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_ESM_STOLENITEMS_H
-#define OPENMW_COMPONENTS_ESM_STOLENITEMS_H
+#pragma once
 
 #include <components/esm/refid.hpp>
 #include <map>
@@ -21,5 +20,3 @@ namespace ESM
     };
 
 }
-
-#endif

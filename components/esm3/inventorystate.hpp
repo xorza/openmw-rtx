@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_INVENTORYSTATE_H
-#define OPENMW_ESM_INVENTORYSTATE_H
+#pragma once
 
 #include <map>
 #include <optional>
@@ -32,5 +31,3 @@ namespace ESM
         virtual void save(ESMWriter& esm) const;
     };
 }
-
-#endif

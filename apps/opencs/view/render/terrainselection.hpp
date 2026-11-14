@@ -1,5 +1,4 @@
-#ifndef CSV_RENDER_TERRAINSELECTION_H
-#define CSV_RENDER_TERRAINSELECTION_H
+#pragma once
 
 #include <string>
 #include <utility>
@@ -82,5 +81,3 @@ namespace CSVRender
         TerrainSelectionType mSelectionType;
     };
 }
-
-#endif

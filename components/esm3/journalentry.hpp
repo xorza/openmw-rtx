@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_JOURNALENTRY_H
-#define OPENMW_ESM_JOURNALENTRY_H
+#pragma once
 
 #include <components/esm/refid.hpp>
 
@@ -36,5 +35,3 @@ namespace ESM
         void save(ESMWriter& esm) const;
     };
 }
-
-#endif

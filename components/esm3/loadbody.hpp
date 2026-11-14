@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_BODY_H
-#define OPENMW_ESM_BODY_H
+#pragma once
 
 #include <components/esm/defs.hpp>
 #include <components/esm/path.hpp>
@@ -76,4 +75,3 @@ namespace ESM
 
     bool isFirstPersonBodyPart(const BodyPart& value);
 }
-#endif

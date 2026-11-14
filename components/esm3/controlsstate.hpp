@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_CONTROLSSTATE_H
-#define OPENMW_ESM_CONTROLSSTATE_H
+#pragma once
 
 namespace ESM
 {
@@ -35,5 +34,3 @@ namespace ESM
         void save(ESMWriter& esm) const;
     };
 }
-
-#endif

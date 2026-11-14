@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWRENDER_POSTPROCESSOR_H
-#define OPENMW_MWRENDER_POSTPROCESSOR_H
+#pragma once
 
 #include <array>
 #include <string>
@@ -295,5 +294,3 @@ namespace MWRender
         Fx::DispatchArray mTemplateData;
     };
 }
-
-#endif

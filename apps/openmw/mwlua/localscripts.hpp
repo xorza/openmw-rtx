@@ -1,5 +1,4 @@
-#ifndef MWLUA_LOCALSCRIPTS_H
-#define MWLUA_LOCALSCRIPTS_H
+#pragma once
 
 #include <string_view>
 #include <utility>
@@ -143,5 +142,3 @@ namespace MWLua
     };
 
 }
-
-#endif // MWLUA_LOCALSCRIPTS_H

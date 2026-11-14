@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_POSITIONATTITUDE_TRANSFORM_H
-#define OPENMW_COMPONENTS_POSITIONATTITUDE_TRANSFORM_H
+#pragma once
 
 #include <osg/Transform>
 
@@ -57,5 +56,3 @@ namespace SceneUtil
     };
 
 }
-
-#endif

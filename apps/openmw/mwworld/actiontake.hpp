@@ -1,5 +1,4 @@
-#ifndef GAME_MWWORLD_ACTIONTAKE_H
-#define GAME_MWWORLD_ACTIONTAKE_H
+#pragma once
 
 #include "action.hpp"
 
@@ -13,5 +12,3 @@ namespace MWWorld
         explicit ActionTake(const MWWorld::Ptr& object);
     };
 }
-
-#endif

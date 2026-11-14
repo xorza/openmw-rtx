@@ -1,5 +1,4 @@
-#ifndef SETTINGSPAGE_H
-#define SETTINGSPAGE_H
+#pragma once
 
 #include <QCompleter>
 #include <QStringListModel>
@@ -53,4 +52,3 @@ namespace Launcher
         void loadCellsForAutocomplete(QStringList filePaths);
     };
 }
-#endif

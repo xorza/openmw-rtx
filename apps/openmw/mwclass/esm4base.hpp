@@ -1,5 +1,4 @@
-#ifndef GAME_MWCLASS_ESM4BASE_H
-#define GAME_MWCLASS_ESM4BASE_H
+#pragma once
 
 #include <components/esm4/inventory.hpp>
 #include <components/esm4/loadstat.hpp>
@@ -160,5 +159,3 @@ namespace MWClass
         bool hasToolTip(const MWWorld::ConstPtr& ptr) const override { return !getName(ptr).empty(); }
     };
 }
-
-#endif // GAME_MWCLASS_ESM4BASE_H

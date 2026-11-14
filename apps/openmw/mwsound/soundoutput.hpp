@@ -1,5 +1,4 @@
-#ifndef GAME_SOUND_SOUNDOUTPUT_H
-#define GAME_SOUND_SOUNDOUTPUT_H
+#pragma once
 
 #include <memory>
 #include <string>
@@ -92,5 +91,3 @@ namespace MWSound
         friend class SoundBufferPool;
     };
 }
-
-#endif

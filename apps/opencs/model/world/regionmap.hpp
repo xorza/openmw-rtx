@@ -1,5 +1,4 @@
-#ifndef CSM_WOLRD_REGIONMAP_H
-#define CSM_WOLRD_REGIONMAP_H
+#pragma once
 
 #include <map>
 #include <string>
@@ -120,5 +119,3 @@ namespace CSMWorld
         void cellsChanged(const QModelIndex& topLeft, const QModelIndex& bottomRight);
     };
 }
-
-#endif

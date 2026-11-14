@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_NIF_PARTICLE_HPP
-#define OPENMW_COMPONENTS_NIF_PARTICLE_HPP
+#pragma once
 
 #include "base.hpp"
 #include "controller.hpp"
@@ -588,4 +587,3 @@ namespace Nif
     };
 
 }
-#endif

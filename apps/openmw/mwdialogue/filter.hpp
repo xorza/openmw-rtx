@@ -1,5 +1,4 @@
-#ifndef GAME_MWDIALOGUE_FILTER_H
-#define GAME_MWDIALOGUE_FILTER_H
+#pragma once
 
 #include <utility>
 #include <vector>
@@ -71,5 +70,3 @@ namespace MWDialogue
         ///  Redirect to "Info Refusal" topic if a response fulfills all conditions but disposition.
     };
 }
-
-#endif

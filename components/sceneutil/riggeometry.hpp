@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_NIFOSG_RIGGEOMETRY_H
-#define OPENMW_COMPONENTS_NIFOSG_RIGGEOMETRY_H
+#pragma once
 
 #include <osg/Geometry>
 #include <osg/Matrixf>
@@ -129,5 +128,3 @@ namespace SceneUtil
     };
 
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef MWINPUT_MWBINDINGSMANAGER_H
-#define MWINPUT_MWBINDINGSMANAGER_H
+#pragma once
 
 #include <filesystem>
 #include <memory>
@@ -78,4 +77,3 @@ namespace MWInput
         bool mDragDrop;
     };
 }
-#endif

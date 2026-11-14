@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_BULLETHELPERS_HEIGHTFIELD_H
-#define OPENMW_COMPONENTS_BULLETHELPERS_HEIGHTFIELD_H
+#pragma once
 
 #include <LinearMath/btVector3.h>
 
@@ -11,5 +10,3 @@ namespace BulletHelpers
             (static_cast<float>(y) + 0.5f) * static_cast<float>(size), (maxHeight + minHeight) * 0.5f);
     }
 }
-
-#endif

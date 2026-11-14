@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWRENDER_OPAQUEBLIT_H
-#define OPENMW_MWRENDER_OPAQUEBLIT_H
+#pragma once
 
 #include <array>
 #include <memory>
@@ -26,5 +25,3 @@ namespace MWRender
         std::array<std::unique_ptr<Stereo::MultiviewFramebufferResolve>, 2> mMultiviewResolve;
     };
 }
-
-#endif

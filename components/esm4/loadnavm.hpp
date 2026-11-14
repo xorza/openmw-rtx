@@ -24,8 +24,7 @@
   trial & error.  See http://en.uesp.net/wiki for details.
 
 */
-#ifndef ESM4_NAVM_H
-#define ESM4_NAVM_H
+#pragma once
 
 #include <cstdint>
 #include <vector>
@@ -112,5 +111,3 @@ namespace ESM4
     };
 
 }
-
-#endif // ESM4_NAVM_H

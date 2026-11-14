@@ -1,5 +1,4 @@
-#ifndef GAME_MWCLASS_DOOR_H
-#define GAME_MWCLASS_DOOR_H
+#pragma once
 
 #include <components/esm3/loaddoor.hpp>
 
@@ -64,5 +63,3 @@ namespace MWClass
         ///< Write additional state from \a ptr into \a state.
     };
 }
-
-#endif

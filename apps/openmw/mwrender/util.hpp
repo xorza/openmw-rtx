@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWRENDER_UTIL_H
-#define OPENMW_MWRENDER_UTIL_H
+#pragma once
 
 #include <components/vfs/pathutil.hpp>
 
@@ -37,5 +36,3 @@ namespace MWRender
 
     bool shouldAddMSAAIntermediateTarget();
 }
-
-#endif

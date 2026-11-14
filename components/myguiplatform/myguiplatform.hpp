@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_MYGUIPLATFORM_MYGUIPLATFORM_H
-#define OPENMW_COMPONENTS_MYGUIPLATFORM_MYGUIPLATFORM_H
+#pragma once
 
 #include <filesystem>
 #include <memory>
@@ -57,5 +56,3 @@ namespace MyGUIPlatform
     };
 
 }
-
-#endif

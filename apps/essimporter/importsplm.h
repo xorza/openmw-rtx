@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESSIMPORT_IMPORTSPLM_H
-#define OPENMW_ESSIMPORT_IMPORTSPLM_H
+#pragma once
 
 #include <components/esm/esmcommon.hpp>
 #include <cstdint>
@@ -72,5 +71,3 @@ namespace ESSImport
     };
 
 }
-
-#endif

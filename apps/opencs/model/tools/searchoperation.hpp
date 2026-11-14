@@ -1,5 +1,4 @@
-#ifndef CSM_TOOLS_SEARCHOPERATION_H
-#define CSM_TOOLS_SEARCHOPERATION_H
+#pragma once
 
 #include "../doc/operation.hpp"
 
@@ -32,5 +31,3 @@ namespace CSMTools
         const Search& getSearch() const;
     };
 }
-
-#endif

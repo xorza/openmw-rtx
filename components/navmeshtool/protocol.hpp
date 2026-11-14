@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_NAVMESHTOOL_PROTOCOL_H
-#define OPENMW_COMPONENTS_NAVMESHTOOL_PROTOCOL_H
+#pragma once
 
 #include <cstddef>
 #include <cstdint>
@@ -63,5 +62,3 @@ namespace NavMeshTool
 
     TypedMessage decode(const Message& message);
 }
-
-#endif

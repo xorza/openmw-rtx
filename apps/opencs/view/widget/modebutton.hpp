@@ -1,5 +1,4 @@
-#ifndef CSV_WIDGET_MODEBUTTON_H
-#define CSV_WIDGET_MODEBUTTON_H
+#pragma once
 
 #include "pushbutton.hpp"
 
@@ -32,5 +31,3 @@ namespace CSVWidget
         virtual bool createContextMenu(QMenu* menu);
     };
 }
-
-#endif

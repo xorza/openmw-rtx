@@ -1,5 +1,4 @@
-#ifndef GAME_MWCLASS_CONTAINER_H
-#define GAME_MWCLASS_CONTAINER_H
+#pragma once
 
 #include "../mwworld/containerstore.hpp"
 #include "../mwworld/customdata.hpp"
@@ -94,5 +93,3 @@ namespace MWClass
         void modifyBaseInventory(const ESM::RefId& containerId, const ESM::RefId& itemId, int amount) const override;
     };
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWGUI_BACKGROUNDIMAGE_H
-#define OPENMW_MWGUI_BACKGROUNDIMAGE_H
+#pragma once
 
 #include <MyGUI_ImageBox.h>
 
@@ -37,5 +36,3 @@ namespace MWGui
     };
 
 }
-
-#endif

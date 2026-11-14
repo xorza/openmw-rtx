@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_MISC_STRONGTYPEDEF_H
-#define OPENMW_COMPONENTS_MISC_STRONGTYPEDEF_H
+#pragma once
 
 #include <utility>
 
@@ -40,5 +39,3 @@ namespace Misc
         }
     };
 }
-
-#endif

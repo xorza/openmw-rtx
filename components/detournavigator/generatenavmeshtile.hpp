@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_DETOURNAVIGATOR_GENERATENAVMESHTILE_H
-#define OPENMW_COMPONENTS_DETOURNAVIGATOR_GENERATENAVMESHTILE_H
+#pragma once
 
 #include "agentbounds.hpp"
 #include "preparednavmeshdata.hpp"
@@ -70,5 +69,3 @@ namespace DetourNavigator
         inline void impl() noexcept;
     };
 }
-
-#endif

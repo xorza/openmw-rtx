@@ -1,5 +1,4 @@
-#ifndef MWLUA_MWSCRIPTBINDINGS_H
-#define MWLUA_MWSCRIPTBINDINGS_H
+#pragma once
 
 #include <sol/forward.hpp>
 
@@ -9,5 +8,3 @@ namespace MWLua
 
     sol::table initMWScriptBindings(const Context& context);
 }
-
-#endif // MWLUA_MWSCRIPTBINDINGS_H

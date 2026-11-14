@@ -1,5 +1,4 @@
-#ifndef GAME_MWCLASS_LOCKPICK_H
-#define GAME_MWCLASS_LOCKPICK_H
+#pragma once
 
 #include "../mwworld/registeredclass.hpp"
 
@@ -74,5 +73,3 @@ namespace MWClass
         ///< \return Item health data available? (default implementation: false)
     };
 }
-
-#endif

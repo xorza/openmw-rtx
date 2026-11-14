@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_LAND_H
-#define OPENMW_ESM_LAND_H
+#pragma once
 
 #include <array>
 #include <cstdint>
@@ -143,5 +142,3 @@ namespace ESM
     void generateWnam(const std::array<float, LandRecordData::sLandNumVerts>& heights,
         std::array<std::int8_t, Land::sGlobalMapLodSize>& wnam);
 }
-
-#endif

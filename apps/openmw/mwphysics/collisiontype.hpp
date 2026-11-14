@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWPHYSICS_COLLISIONTYPE_H
-#define OPENMW_MWPHYSICS_COLLISIONTYPE_H
+#pragma once
 
 namespace MWPhysics
 {
@@ -21,5 +20,3 @@ namespace MWPhysics
     };
 
 }
-
-#endif

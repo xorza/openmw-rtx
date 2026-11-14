@@ -1,5 +1,4 @@
-#ifndef COMPONENTSELECTIONPAGE_HPP
-#define COMPONENTSELECTIONPAGE_HPP
+#pragma once
 
 #include "ui_componentselectionpage.h"
 
@@ -27,5 +26,3 @@ namespace Wizard
     };
 
 }
-
-#endif // COMPONENTSELECTIONPAGE_HPP

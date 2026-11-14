@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SCENEUTIL_RECASTMESH_H
-#define OPENMW_COMPONENTS_SCENEUTIL_RECASTMESH_H
+#pragma once
 
 #include <osg/ref_ptr>
 
@@ -20,5 +19,3 @@ namespace SceneUtil
     osg::ref_ptr<osg::Group> createRecastMeshGroup(const DetourNavigator::RecastMesh& recastMesh,
         const DetourNavigator::RecastSettings& settings, const osg::ref_ptr<osg::StateSet>& debugDrawStateSet);
 }
-
-#endif

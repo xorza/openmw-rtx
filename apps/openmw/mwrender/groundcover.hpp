@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWRENDER_GROUNDCOVER_H
-#define OPENMW_MWRENDER_GROUNDCOVER_H
+#pragma once
 
 #include <components/esm3/loadcell.hpp>
 #include <components/resource/scenemanager.hpp>
@@ -59,5 +58,3 @@ namespace MWRender
         void collectInstances(InstanceMap& instances, float size, const osg::Vec2f& center);
     };
 }
-
-#endif

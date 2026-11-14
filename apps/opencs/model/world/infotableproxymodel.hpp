@@ -1,5 +1,4 @@
-#ifndef CSM_WORLD_INFOTABLEPROXYMODEL_HPP
-#define CSM_WORLD_INFOTABLEPROXYMODEL_HPP
+#pragma once
 
 #include <QHash>
 
@@ -43,5 +42,3 @@ namespace CSMWorld
         void sourceDataChanged(const QModelIndex& topLeft, const QModelIndex& bottomRight) override;
     };
 }
-
-#endif

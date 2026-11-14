@@ -1,5 +1,4 @@
-#ifndef COMPILER_LOCALS_H_INCLUDED
-#define COMPILER_LOCALS_H_INCLUDED
+#pragma once
 
 #include <iosfwd>
 #include <string>
@@ -43,5 +42,3 @@ namespace Compiler
         ///< remove all declarations.
     };
 }
-
-#endif

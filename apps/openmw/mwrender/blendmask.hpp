@@ -1,5 +1,4 @@
-#ifndef GAME_RENDER_BLENDMASK_H
-#define GAME_RENDER_BLENDMASK_H
+#pragma once
 
 #include <cstddef>
 
@@ -19,4 +18,3 @@ namespace MWRender
     /* This is the number of *discrete* blend masks. */
     static constexpr size_t sNumBlendMasks = 4;
 }
-#endif

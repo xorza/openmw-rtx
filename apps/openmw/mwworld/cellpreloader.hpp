@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWWORLD_CELLPRELOADER_H
-#define OPENMW_MWWORLD_CELLPRELOADER_H
+#pragma once
 
 #include "positioncellgrid.hpp"
 
@@ -135,5 +134,3 @@ namespace MWWorld
     };
 
 }
-
-#endif

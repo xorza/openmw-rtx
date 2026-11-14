@@ -1,5 +1,4 @@
-#ifndef CSVWIDGET_COLORPICKERPOPUP_HPP
-#define CSVWIDGET_COLORPICKERPOPUP_HPP
+#pragma once
 
 #include <QFrame>
 
@@ -26,5 +25,3 @@ namespace CSVWidget
         void colorChanged(const QColor& color);
     };
 }
-
-#endif

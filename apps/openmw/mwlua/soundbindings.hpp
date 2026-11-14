@@ -1,5 +1,4 @@
-#ifndef MWLUA_SOUNDBINDINGS_H
-#define MWLUA_SOUNDBINDINGS_H
+#pragma once
 
 #include <sol/forward.hpp>
 
@@ -20,5 +19,3 @@ namespace MWLua
 
     ESM::Sound tableToSound(const sol::table&);
 }
-
-#endif // MWLUA_SOUNDBINDINGS_H

@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_ESM_FILTER_H
-#define COMPONENTS_ESM_FILTER_H
+#pragma once
 
 #include "components/esm/defs.hpp"
 #include "components/esm/refid.hpp"
@@ -31,5 +30,3 @@ namespace ESM
         ///< Set record to default state (does not touch the ID).
     };
 }
-
-#endif

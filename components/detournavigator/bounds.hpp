@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_DETOURNAVIGATOR_BOUNDS_H
-#define OPENMW_COMPONENTS_DETOURNAVIGATOR_BOUNDS_H
+#pragma once
 
 #include <osg/Vec3f>
 
@@ -16,5 +15,3 @@ namespace DetourNavigator
         return value.mMin == value.mMax;
     }
 }
-
-#endif

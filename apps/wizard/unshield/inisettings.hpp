@@ -1,5 +1,4 @@
-#ifndef INISETTINGS_HPP
-#define INISETTINGS_HPP
+#pragma once
 
 #include <fstream>
 
@@ -43,5 +42,3 @@ namespace Wizard
     };
 
 }
-
-#endif // INISETTINGS_HPP

@@ -1,5 +1,4 @@
-#ifndef MISC_UTF8ITER_HPP
-#define MISC_UTF8ITER_HPP
+#pragma once
 
 #include <cstdint>
 #include <cstring>
@@ -196,5 +195,3 @@ private:
     Point mEnd;
     UnicodeChar mVal;
 };
-
-#endif

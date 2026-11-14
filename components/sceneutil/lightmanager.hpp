@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SCENEUTIL_LIGHTMANAGER_H
-#define OPENMW_COMPONENTS_SCENEUTIL_LIGHTMANAGER_H
+#pragma once
 
 #include <array>
 #include <memory>
@@ -416,5 +415,3 @@ namespace SceneUtil
 
     void configureSunAmbientOverride(const osg::Vec4f& ambient, osg::StateSet* stateset);
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_SPELLSTATE_H
-#define OPENMW_ESM_SPELLSTATE_H
+#pragma once
 
 #include <map>
 #include <set>
@@ -53,5 +52,3 @@ namespace ESM
     };
 
 }
-
-#endif

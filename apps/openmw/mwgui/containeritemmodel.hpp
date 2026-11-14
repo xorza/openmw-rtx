@@ -1,5 +1,4 @@
-#ifndef MWGUI_CONTAINER_ITEM_MODEL_H
-#define MWGUI_CONTAINER_ITEM_MODEL_H
+#pragma once
 
 #include <utility>
 #include <vector>
@@ -49,5 +48,3 @@ namespace MWGui
     };
 
 }
-
-#endif

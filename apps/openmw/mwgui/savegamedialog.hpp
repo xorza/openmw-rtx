@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWGUI_SAVEGAMEDIALOG_H
-#define OPENMW_MWGUI_SAVEGAMEDIALOG_H
+#pragma once
 
 #include <memory>
 
@@ -75,5 +74,3 @@ namespace MWGui
     };
 
 }
-
-#endif

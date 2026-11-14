@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESSIMPORT_IMPORTSCPT_H
-#define OPENMW_ESSIMPORT_IMPORTSCPT_H
+#pragma once
 
 #include "importscri.hpp"
 
@@ -42,5 +41,3 @@ namespace ESSImport
     };
 
 }
-
-#endif

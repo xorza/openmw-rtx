@@ -1,5 +1,4 @@
-#ifndef OPENMW_MECHANICS_AITIMER_H
-#define OPENMW_MECHANICS_AITIMER_H
+#pragma once
 
 #include <components/misc/rng.hpp>
 #include <components/misc/timer.hpp>
@@ -28,5 +27,3 @@ namespace MWMechanics
         Misc::DeviatingPeriodicTimer mImpl;
     };
 }
-
-#endif

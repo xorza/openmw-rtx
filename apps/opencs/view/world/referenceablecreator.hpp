@@ -1,5 +1,4 @@
-#ifndef CSV_WORLD_REFERENCEABLECREATOR_H
-#define CSV_WORLD_REFERENCEABLECREATOR_H
+#pragma once
 
 #include "genericcreator.hpp"
 
@@ -43,5 +42,3 @@ namespace CSVWorld
         void setType(int index);
     };
 }
-
-#endif

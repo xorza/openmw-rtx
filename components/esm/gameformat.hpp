@@ -1,5 +1,4 @@
-#ifndef COMPONENT_ESM_GAMEFORMAT_H
-#define COMPONENT_ESM_GAMEFORMAT_H
+#pragma once
 
 #include <cstdint>
 #include <iosfwd>
@@ -34,5 +33,3 @@ namespace ESM
     GameFormat getGameFormat(std::uint32_t version, std::optional<std::uint16_t> headerFormVersion,
         std::span<const MasterData> masters = {}, std::span<const GameFormat> masterFormats = {});
 }
-
-#endif // COMPONENT_ESM_GAMEFORMAT_H

@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_RESOURCE_ANIMATION_HPP
-#define OPENMW_COMPONENTS_RESOURCE_ANIMATION_HPP
+#pragma once
 
 #include <vector>
 
@@ -38,5 +37,3 @@ namespace Resource
         std::vector<osg::ref_ptr<osgAnimation::Channel>> mChannels;
     };
 }
-
-#endif

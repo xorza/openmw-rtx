@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_LEVLISTS_H
-#define OPENMW_ESM_LEVLISTS_H
+#pragma once
 
 #include <string>
 #include <vector>
@@ -97,4 +96,3 @@ namespace ESM
     };
 
 }
-#endif

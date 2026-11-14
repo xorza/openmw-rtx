@@ -24,8 +24,7 @@
   trial & error.  See http://en.uesp.net/wiki for details.
 
 */
-#ifndef ESM4_LAND_H
-#define ESM4_LAND_H
+#pragma once
 
 #include <cstdint>
 #include <vector>
@@ -139,5 +138,3 @@ namespace ESM4
         static constexpr ESM::RecNameInts sRecordId = ESM::REC_LAND4;
     };
 }
-
-#endif // ESM4_LAND_H

@@ -1,5 +1,4 @@
-#ifndef TEXT_SLOT_MSG_BOX
-#define TEXT_SLOT_MSG_BOX
+#pragma once
 
 #include <QMessageBox>
 
@@ -12,4 +11,3 @@ namespace Launcher
         void setTextSlot(const QString& string);
     };
 }
-#endif

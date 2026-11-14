@@ -1,5 +1,4 @@
-#ifndef OPENW_MWCLASS_LIGHT4
-#define OPENW_MWCLASS_LIGHT4
+#pragma once
 
 #include "../mwworld/registeredclass.hpp"
 
@@ -19,4 +18,3 @@ namespace MWClass
         ///< Add reference into a cell for rendering
     };
 }
-#endif

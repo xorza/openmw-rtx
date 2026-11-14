@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_VARIANT_H
-#define OPENMW_ESM_VARIANT_H
+#pragma once
 
 #include <iosfwd>
 #include <string>
@@ -109,5 +108,3 @@ namespace ESM
 
     std::ostream& operator<<(std::ostream& stream, const Variant& value);
 }
-
-#endif

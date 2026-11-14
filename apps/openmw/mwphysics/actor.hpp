@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWPHYSICS_ACTOR_H
-#define OPENMW_MWPHYSICS_ACTOR_H
+#pragma once
 
 #include <memory>
 #include <mutex>
@@ -201,5 +200,3 @@ namespace MWPhysics
     };
 
 }
-
-#endif

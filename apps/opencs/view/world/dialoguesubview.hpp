@@ -1,5 +1,4 @@
-#ifndef CSV_WORLD_DIALOGUESUBVIEW_H
-#define CSV_WORLD_DIALOGUESUBVIEW_H
+#pragma once
 
 #include <map>
 #include <memory>
@@ -267,5 +266,3 @@ namespace CSVWorld
         void requestFocus(const std::string& id);
     };
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef GAME_MWDIALOG_JOURNAL_H
-#define GAME_MWDIALOG_JOURNAL_H
+#pragma once
 
 #include "../mwbase/journal.hpp"
 
@@ -60,5 +59,3 @@ namespace MWDialogue
         void readRecord(ESM::ESMReader& reader, uint32_t type) override;
     };
 }
-
-#endif

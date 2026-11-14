@@ -1,5 +1,4 @@
-#ifndef GAME_MWMECHANICS_ACTIVATORS_H
-#define GAME_MWMECHANICS_ACTIVATORS_H
+#pragma once
 
 #include "character.hpp"
 
@@ -59,5 +58,3 @@ namespace MWMechanics
         std::size_t size() const { return mObjects.size(); }
     };
 }
-
-#endif

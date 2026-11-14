@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_DETOURNAVIGATOR_RECASTALLOCUTILS_H
-#define OPENMW_COMPONENTS_DETOURNAVIGATOR_RECASTALLOCUTILS_H
+#pragma once
 
 #include <cstddef>
 
@@ -85,5 +84,3 @@ namespace DetourNavigator
     }
 
 }
-
-#endif

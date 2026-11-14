@@ -1,5 +1,4 @@
-#ifndef OPENMW_GUI_SPELLVIEW_H
-#define OPENMW_GUI_SPELLVIEW_H
+#pragma once
 
 #include <memory>
 #include <tuple>
@@ -112,5 +111,3 @@ namespace MWGui
     };
 
 }
-
-#endif

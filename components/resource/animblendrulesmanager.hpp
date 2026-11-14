@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_ANIMBLENDRULESMANAGER_H
-#define OPENMW_COMPONENTS_ANIMBLENDRULESMANAGER_H
+#pragma once
 
 #include <memory>
 #include <string>
@@ -30,5 +29,3 @@ namespace Resource
     };
 
 }
-
-#endif

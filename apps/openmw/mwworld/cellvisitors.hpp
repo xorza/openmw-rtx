@@ -1,5 +1,4 @@
-#ifndef GAME_MWWORLD_CELLVISITORS_H
-#define GAME_MWWORLD_CELLVISITORS_H
+#pragma once
 
 #include <string>
 #include <vector>
@@ -25,5 +24,3 @@ namespace MWWorld
     };
 
 }
-
-#endif

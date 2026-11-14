@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_ESM_GLOBALMAP_H
-#define OPENMW_COMPONENTS_ESM_GLOBALMAP_H
+#pragma once
 
 #include <cstdint>
 #include <set>
@@ -37,5 +36,3 @@ namespace ESM
     };
 
 }
-
-#endif

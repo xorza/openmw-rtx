@@ -1,5 +1,4 @@
-#ifndef MWMECHANICS_SPELLCASTING_H
-#define MWMECHANICS_SPELLCASTING_H
+#pragma once
 
 #include <optional>
 
@@ -82,5 +81,3 @@ namespace MWMechanics
 
     void playEffects(const MWWorld::Ptr& target, const ESM::MagicEffect& magicEffect, bool playNonLooping = true);
 }
-
-#endif

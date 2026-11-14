@@ -1,5 +1,4 @@
-#ifndef OPENMW_TEST_SUITE_NIF_NODE_H
-#define OPENMW_TEST_SUITE_NIF_NODE_H
+#pragma once
 
 #include <components/nif/data.hpp>
 #include <components/nif/node.hpp>
@@ -67,5 +66,3 @@ namespace Nif::Testing
         value.mTarget = NiObjectNETPtr(nullptr);
     }
 }
-
-#endif

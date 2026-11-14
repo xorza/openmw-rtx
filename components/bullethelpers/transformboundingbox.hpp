@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_BULLETHELPERS_TRANSFORMBOUNDINGBOX_H
-#define OPENMW_COMPONENTS_BULLETHELPERS_TRANSFORMBOUNDINGBOX_H
+#pragma once
 
 #include <LinearMath/btTransform.h>
 #include <LinearMath/btVector3.h>
@@ -34,5 +33,3 @@ namespace BulletHelpers
         aabbMax = max(xa, xb) + max(ya, yb) + max(za, zb) + transform.getOrigin();
     }
 }
-
-#endif

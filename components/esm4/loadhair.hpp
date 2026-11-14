@@ -24,8 +24,7 @@
   trial & error.  See http://en.uesp.net/wiki for details.
 
 */
-#ifndef ESM4_HAIR
-#define ESM4_HAIR
+#pragma once
 
 #include <cstdint>
 #include <string>
@@ -67,5 +66,3 @@ namespace ESM4
         static constexpr ESM::RecNameInts sRecordId = ESM::RecNameInts::REC_HAIR4;
     };
 }
-
-#endif // ESM4_HAIR

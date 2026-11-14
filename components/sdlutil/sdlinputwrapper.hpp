@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SDLUTIL_SDLINPUTWRAPPER_H
-#define OPENMW_COMPONENTS_SDLUTIL_SDLINPUTWRAPPER_H
+#pragma once
 
 #include <SDL3/SDL_events.h>
 
@@ -89,5 +88,3 @@ namespace SDLUtil
     };
 
 }
-
-#endif

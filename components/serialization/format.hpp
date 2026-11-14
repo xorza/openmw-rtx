@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SERIALIZATION_FORMAT_H
-#define OPENMW_COMPONENTS_SERIALIZATION_FORMAT_H
+#pragma once
 
 #include <algorithm>
 #include <array>
@@ -74,5 +73,3 @@ namespace Serialization
         const Derived& self() const { return static_cast<const Derived&>(*this); }
     };
 }
-
-#endif

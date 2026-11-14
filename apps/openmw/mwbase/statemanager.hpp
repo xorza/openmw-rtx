@@ -1,5 +1,4 @@
-#ifndef GAME_MWSTATE_STATEMANAGER_H
-#define GAME_MWSTATE_STATEMANAGER_H
+#pragma once
 
 #include <filesystem>
 #include <list>
@@ -89,5 +88,3 @@ namespace MWBase
         virtual CharacterIterator characterEnd() = 0;
     };
 }
-
-#endif

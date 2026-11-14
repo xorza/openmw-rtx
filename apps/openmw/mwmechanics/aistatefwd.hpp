@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWMECHANICS_AISTATEFWD_H
-#define OPENMW_MWMECHANICS_AISTATEFWD_H
+#pragma once
 
 namespace MWMechanics
 {
@@ -11,5 +10,3 @@ namespace MWMechanics
     /// \brief Container for AI package status.
     using AiState = DerivedClassStorage<AiTemporaryBase>;
 }
-
-#endif

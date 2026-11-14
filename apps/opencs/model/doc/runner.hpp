@@ -1,5 +1,4 @@
-#ifndef CSM_DOC_RUNNER_H
-#define CSM_DOC_RUNNER_H
+#pragma once
 
 #include <string>
 #include <vector>
@@ -78,5 +77,3 @@ namespace CSMDoc
         void saveDone(int type, bool failed);
     };
 }
-
-#endif

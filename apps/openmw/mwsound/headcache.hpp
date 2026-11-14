@@ -1,5 +1,4 @@
-#ifndef GAME_SOUND_HEADCACHE_H
-#define GAME_SOUND_HEADCACHE_H
+#pragma once
 
 #include <cstddef>
 #include <functional>
@@ -102,5 +101,3 @@ namespace MWSound
         std::size_t mBytes = 0;
     };
 }
-
-#endif

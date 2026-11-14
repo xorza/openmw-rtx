@@ -1,5 +1,4 @@
-#ifndef CSV_RENDER_PATHGRIDMODE_H
-#define CSV_RENDER_PATHGRIDMODE_H
+#pragma once
 
 #include <string>
 
@@ -66,5 +65,3 @@ namespace CSVRender
         QString getTooltip();
     };
 }
-
-#endif

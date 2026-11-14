@@ -1,5 +1,4 @@
-#ifndef GAME_RENDER_MWSCENE_H
-#define GAME_RENDER_MWSCENE_H
+#pragma once
 
 #include <utility>
 
@@ -57,5 +56,3 @@ namespace MWRender
     };
 
 }
-
-#endif

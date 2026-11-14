@@ -1,5 +1,4 @@
-#ifndef GAME_MWBASE_MECHANICSMANAGER_H
-#define GAME_MWBASE_MECHANICSMANAGER_H
+#pragma once
 
 #include <cstdint>
 #include <map>
@@ -306,5 +305,3 @@ namespace MWBase
         virtual void fastForwardAi() const = 0;
     };
 }
-
-#endif

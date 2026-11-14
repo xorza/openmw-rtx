@@ -1,5 +1,4 @@
-#ifndef OPENCS_VIEW_CAMERACONTROLLER_H
-#define OPENCS_VIEW_CAMERACONTROLLER_H
+#pragma once
 
 #include <vector>
 
@@ -188,5 +187,3 @@ namespace CSVRender
         void swapSpeedMode();
     };
 }
-
-#endif

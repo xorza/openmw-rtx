@@ -1,5 +1,4 @@
-#ifndef COMPILER_OPCODES_H
-#define COMPILER_OPCODES_H
+#pragma once
 
 namespace Compiler
 {
@@ -556,5 +555,3 @@ namespace Compiler
         const int opcodeUser4Explicit = 0x2000171;
     }
 }
-
-#endif

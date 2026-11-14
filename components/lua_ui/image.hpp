@@ -1,5 +1,4 @@
-#ifndef OPENMW_LUAUI_IMAGE
-#define OPENMW_LUAUI_IMAGE
+#pragma once
 
 #include <vector>
 
@@ -37,5 +36,3 @@ namespace LuaUi
         LuaTileRect* mTileRect;
     };
 }
-
-#endif // OPENMW_LUAUI_IMAGE

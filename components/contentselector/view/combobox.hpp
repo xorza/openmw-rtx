@@ -1,5 +1,4 @@
-#ifndef COMBOBOX_HPP
-#define COMBOBOX_HPP
+#pragma once
 
 #include <QComboBox>
 
@@ -27,5 +26,3 @@ namespace ContentSelectorView
         QRegularExpressionValidator* mValidator;
     };
 }
-
-#endif // COMBOBOX_HPP

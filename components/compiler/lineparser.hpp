@@ -1,5 +1,4 @@
-#ifndef COMPILER_LINEPARSER_H_INCLUDED
-#define COMPILER_LINEPARSER_H_INCLUDED
+#pragma once
 
 #include <string>
 #include <vector>
@@ -101,5 +100,3 @@ namespace Compiler
         std::string getArguments() const { return mArguments; }
     };
 }
-
-#endif

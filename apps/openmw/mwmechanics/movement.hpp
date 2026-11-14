@@ -1,5 +1,4 @@
-#ifndef GAME_MWMECHANICS_MOVEMENT_H
-#define GAME_MWMECHANICS_MOVEMENT_H
+#pragma once
 
 #include <osg/Vec3f>
 
@@ -30,5 +29,3 @@ namespace MWMechanics
         osg::Vec3f asVec3() { return osg::Vec3f(mPosition[0], mPosition[1], mPosition[2]); }
     };
 }
-
-#endif

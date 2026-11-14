@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_MISC_FRAMERATELIMITER_H
-#define OPENMW_COMPONENTS_MISC_FRAMERATELIMITER_H
+#pragma once
 
 #include <chrono>
 #include <thread>
@@ -51,5 +50,3 @@ namespace Misc
             return Misc::FrameRateLimiter(std::chrono::steady_clock::duration::zero());
     }
 }
-
-#endif

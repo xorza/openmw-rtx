@@ -1,5 +1,4 @@
-#ifndef AISTATE_H
-#define AISTATE_H
+#pragma once
 
 #include "aistatefwd.hpp"
 #include "aitemporarybase.hpp"
@@ -62,5 +61,3 @@ namespace MWMechanics
         void reset() { mStorage.reset(); }
     };
 }
-
-#endif // AISTATE_H

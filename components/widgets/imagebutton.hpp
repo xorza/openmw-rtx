@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_WIDGETS_IMAGEBUTTON_H
-#define OPENMW_COMPONENTS_WIDGETS_IMAGEBUTTON_H
+#pragma once
 
 #include <MyGUI_ImageBox.h>
 
@@ -53,5 +52,3 @@ namespace Gui
     };
 
 }
-
-#endif

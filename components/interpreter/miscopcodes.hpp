@@ -1,5 +1,4 @@
-#ifndef INTERPRETER_MISCOPCODES_H_INCLUDED
-#define INTERPRETER_MISCOPCODES_H_INCLUDED
+#pragma once
 
 #include <algorithm>
 #include <format>
@@ -177,5 +176,3 @@ namespace Interpreter
     };
 
 }
-
-#endif

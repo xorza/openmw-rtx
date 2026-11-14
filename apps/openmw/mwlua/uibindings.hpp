@@ -1,5 +1,4 @@
-#ifndef MWLUA_UIBINDINGS_H
-#define MWLUA_UIBINDINGS_H
+#pragma once
 
 #include <sol/forward.hpp>
 
@@ -9,5 +8,3 @@ namespace MWLua
 
     sol::table initUserInterfacePackage(const Context& context);
 }
-
-#endif // MWLUA_UIBINDINGS_H

@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_DETOURNAVIGATOR_HEIGHFIELDSHAPE_H
-#define OPENMW_COMPONENTS_DETOURNAVIGATOR_HEIGHFIELDSHAPE_H
+#pragma once
 
 #include <components/bullethelpers/heightfield.hpp>
 
@@ -41,5 +40,3 @@ namespace DetourNavigator
         return std::visit([&](const auto& w) { return getHeightfieldShift(w, cellPosition, cellSize); }, v);
     }
 }
-
-#endif

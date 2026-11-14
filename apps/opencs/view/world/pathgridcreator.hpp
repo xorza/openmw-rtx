@@ -1,5 +1,4 @@
-#ifndef PATHGRIDCREATOR_HPP
-#define PATHGRIDCREATOR_HPP
+#pragma once
 
 #include <string>
 
@@ -72,5 +71,3 @@ namespace CSVWorld
         Creator* makeCreator(CSMDoc::Document& document, const CSMWorld::UniversalId& id) const override;
     };
 }
-
-#endif // PATHGRIDCREATOR_HPP

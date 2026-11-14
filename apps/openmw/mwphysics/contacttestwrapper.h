@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWPHYSICS_CONTACTTESTWRAPPER_H
-#define OPENMW_MWPHYSICS_CONTACTTESTWRAPPER_H
+#pragma once
 
 #include <BulletCollision/CollisionDispatch/btCollisionWorld.h>
 
@@ -13,4 +12,3 @@ namespace MWPhysics
             btCollisionObject* colObjB, btCollisionWorld::ContactResultCallback& resultCallback);
     };
 }
-#endif

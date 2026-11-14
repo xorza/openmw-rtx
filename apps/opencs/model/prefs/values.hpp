@@ -1,5 +1,4 @@
-#ifndef OPENMW_APPS_OPENCS_MODEL_PREFS_VALUES_H
-#define OPENMW_APPS_OPENCS_MODEL_PREFS_VALUES_H
+#pragma once
 
 #include "enumvalueview.hpp"
 
@@ -553,5 +552,3 @@ namespace CSMPrefs
         ModelsCategory mModels{ mIndex };
     };
 }
-
-#endif

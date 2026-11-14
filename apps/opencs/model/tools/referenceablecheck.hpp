@@ -1,5 +1,4 @@
-#ifndef REFERENCEABLECHECKSTAGE_H
-#define REFERENCEABLECHECKSTAGE_H
+#pragma once
 
 #include <string>
 #include <vector>
@@ -119,4 +118,3 @@ namespace CSMTools
         bool mIgnoreBaseRecords;
     };
 }
-#endif // REFERENCEABLECHECKSTAGE_H

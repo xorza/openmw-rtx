@@ -1,5 +1,4 @@
-#ifndef CSV_WIDGET_SCENETOOL_H
-#define CSV_WIDGET_SCENETOOL_H
+#pragma once
 
 #include "pushbutton.hpp"
 
@@ -33,5 +32,3 @@ namespace CSVWidget
         void openRequest();
     };
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef CSM_WOLRD_SCOPE_H
-#define CSM_WOLRD_SCOPE_H
+#pragma once
 
 namespace ESM
 {
@@ -22,5 +21,3 @@ namespace CSMWorld
 
     Scope getScopeFromId(ESM::RefId id);
 }
-
-#endif

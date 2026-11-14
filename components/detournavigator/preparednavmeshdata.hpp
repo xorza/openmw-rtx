@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_DETOURNAVIGATOR_PREPAREDNAVMESHDATA_H
-#define OPENMW_COMPONENTS_DETOURNAVIGATOR_PREPAREDNAVMESHDATA_H
+#pragma once
 
 #include "recast.hpp"
 
@@ -45,5 +44,3 @@ namespace DetourNavigator
         return getSize(value.mPolyMesh) + getSize(value.mPolyMeshDetail);
     }
 }
-
-#endif

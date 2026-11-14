@@ -1,5 +1,4 @@
-#ifndef CSV_TOOLS_MERGE_H
-#define CSV_TOOLS_MERGE_H
+#pragma once
 
 #include <QWidget>
 
@@ -56,5 +55,3 @@ namespace CSVTools
         void stateChanged(bool valid);
     };
 }
-
-#endif

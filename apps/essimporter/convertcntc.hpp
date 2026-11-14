@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESSIMPORT_CONVERTCNTC_H
-#define OPENMW_ESSIMPORT_CONVERTCNTC_H
+#pragma once
 
 #include "importcntc.hpp"
 
@@ -11,5 +10,3 @@ namespace ESSImport
     void convertCNTC(const CNTC& cntc, ESM::ContainerState& state);
 
 }
-
-#endif

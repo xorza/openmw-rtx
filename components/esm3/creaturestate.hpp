@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_CREATURESTATE_H
-#define OPENMW_ESM_CREATURESTATE_H
+#pragma once
 
 #include "creaturestats.hpp"
 #include "inventorystate.hpp"
@@ -24,5 +23,3 @@ namespace ESM
         const CreatureState& asCreatureState() const override { return *this; }
     };
 }
-
-#endif

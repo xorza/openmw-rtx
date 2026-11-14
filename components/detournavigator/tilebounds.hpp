@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_DETOURNAVIGATOR_TILEBOUNDS_H
-#define OPENMW_COMPONENTS_DETOURNAVIGATOR_TILEBOUNDS_H
+#pragma once
 
 #include <components/misc/convert.hpp>
 
@@ -70,5 +69,3 @@ namespace DetourNavigator
         return TileBounds{ Misc::Convert::toOsgXY(aabbMin), Misc::Convert::toOsgXY(aabbMax) };
     }
 }
-
-#endif

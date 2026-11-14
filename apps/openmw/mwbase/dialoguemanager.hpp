@@ -1,5 +1,4 @@
-#ifndef GAME_MWBASE_DIALOGUEMANAGER_H
-#define GAME_MWBASE_DIALOGUEMANAGER_H
+#pragma once
 
 #include <list>
 #include <map>
@@ -124,5 +123,3 @@ namespace MWBase
         virtual void clearInfoActor(const MWWorld::Ptr& actor) const = 0;
     };
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef MWLUA_MENUSCRIPTS_H
-#define MWLUA_MENUSCRIPTS_H
+#pragma once
 
 #include <SDL3/SDL_events.h>
 
@@ -60,5 +59,3 @@ namespace MWLua
         EngineHandlerList mUiModeChanged{ "_onUiModeChanged" };
     };
 }
-
-#endif // MWLUA_GLOBALSCRIPTS_H

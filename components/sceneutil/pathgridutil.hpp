@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_PATHGRIDUTIL_H
-#define OPENMW_COMPONENTS_PATHGRIDUTIL_H
+#pragma once
 
 #include <osg/Geometry>
 #include <osg/ref_ptr>
@@ -21,5 +20,3 @@ namespace SceneUtil
 
     unsigned short getPathgridNode(unsigned vertexIndex);
 }
-
-#endif

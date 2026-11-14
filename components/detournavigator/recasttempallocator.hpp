@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_DETOURNAVIGATOR_RECASTTEMPALLOCATOR_H
-#define OPENMW_COMPONENTS_DETOURNAVIGATOR_RECASTTEMPALLOCATOR_H
+#pragma once
 
 #include "recastallocutils.hpp"
 
@@ -62,5 +61,3 @@ namespace DetourNavigator
         std::size_t getUsedSize() const { return static_cast<std::size_t>(static_cast<char*>(mTop) - mStack.data()); }
     };
 }
-
-#endif

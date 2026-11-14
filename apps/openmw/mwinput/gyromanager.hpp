@@ -1,5 +1,4 @@
-#ifndef MWINPUT_GYROMANAGER
-#define MWINPUT_GYROMANAGER
+#pragma once
 
 #include <array>
 
@@ -16,5 +15,3 @@ namespace MWInput
         bool mGuiCursorEnabled = true;
     };
 }
-
-#endif // !MWINPUT_GYROMANAGER

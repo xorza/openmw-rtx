@@ -1,5 +1,4 @@
-#ifndef GAME_SCRIPT_LOCALS_H
-#define GAME_SCRIPT_LOCALS_H
+#pragma once
 
 #include <string>
 #include <string_view>
@@ -78,5 +77,3 @@ namespace MWScript
         void read(const ESM::Locals& locals, const ESM::RefId& script);
     };
 }
-
-#endif

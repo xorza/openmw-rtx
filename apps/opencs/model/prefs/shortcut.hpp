@@ -1,5 +1,4 @@
-#ifndef CSM_PREFS_SHORTCUT_H
-#define CSM_PREFS_SHORTCUT_H
+#pragma once
 
 #include <string>
 
@@ -116,5 +115,3 @@ namespace CSMPrefs
         void secondary();
     };
 }
-
-#endif

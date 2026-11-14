@@ -1,5 +1,4 @@
-#ifndef CSV_RENDER_ORBITCAMERAPICKMODE_H
-#define CSV_RENDER_ORBITCAMERAPICKMODE_H
+#pragma once
 
 #include "../widget/modebutton.hpp"
 
@@ -45,5 +44,3 @@ namespace CSVRender
         void centerSelection();
     };
 }
-
-#endif

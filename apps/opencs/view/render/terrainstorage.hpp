@@ -1,5 +1,4 @@
-#ifndef OPENCS_RENDER_TERRAINSTORAGE_H
-#define OPENCS_RENDER_TERRAINSTORAGE_H
+#pragma once
 
 #include <array>
 
@@ -60,5 +59,3 @@ namespace CSVRender
     };
 
 }
-
-#endif

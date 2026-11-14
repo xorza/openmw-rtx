@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SETTINGS_CATEGORIES_GAME_H
-#define OPENMW_COMPONENTS_SETTINGS_CATEGORIES_GAME_H
+#pragma once
 
 #include <components/detournavigator/collisionshapetype.hpp>
 #include <components/settings/sanitizerimpl.hpp>
@@ -77,5 +76,3 @@ namespace Settings
         SettingValue<bool> mTerrainObstructsFocus{ mIndex, "Game", "terrain obstructs focus" };
     };
 }
-
-#endif

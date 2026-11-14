@@ -1,5 +1,4 @@
-#ifndef CSM_TOOLS_MAGICEFFECTCHECK_HPP
-#define CSM_TOOLS_MAGICEFFECTCHECK_HPP
+#pragma once
 
 #include <string>
 
@@ -55,5 +54,3 @@ namespace CSMTools
         ///< Messages resulting from this tage will be appended to \a messages.
     };
 }
-
-#endif

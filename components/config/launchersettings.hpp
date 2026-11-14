@@ -1,5 +1,4 @@
-#ifndef LAUNCHERSETTINGS_HPP
-#define LAUNCHERSETTINGS_HPP
+#pragma once
 
 #include <QList>
 #include <QMap>
@@ -142,4 +141,3 @@ namespace Config
     /// language or none keeps the encoding it has.
     QString languageForEncoding(const QStringList& languages, const QString& stored, const QString& encoding);
 }
-#endif // LAUNCHERSETTINGS_HPP

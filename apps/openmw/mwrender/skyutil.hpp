@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWRENDER_SKYUTIL_H
-#define OPENMW_MWRENDER_SKYUTIL_H
+#pragma once
 
 #include <osg/Matrixf>
 #include <osg/Texture2D>
@@ -323,5 +322,3 @@ namespace MWRender
         MeshType mType;
     };
 }
-
-#endif

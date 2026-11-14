@@ -1,5 +1,4 @@
-#ifndef CSM_TOOLS_TOPICINFOCHECK_HPP
-#define CSM_TOOLS_TOPICINFOCHECK_HPP
+#pragma once
 
 #include <set>
 #include <string>
@@ -92,5 +91,3 @@ namespace CSMTools
             const CSMWorld::UniversalId& id, CSMDoc::Messages& messages);
     };
 }
-
-#endif

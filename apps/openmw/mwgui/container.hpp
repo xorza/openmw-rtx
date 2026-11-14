@@ -1,5 +1,4 @@
-#ifndef MGUI_CONTAINER_H
-#define MGUI_CONTAINER_H
+#pragma once
 
 #include "itemmodel.hpp"
 #include "referenceinterface.hpp"
@@ -78,4 +77,3 @@ namespace MWGui
         void onReferenceUnavailable() override;
     };
 }
-#endif // CONTAINER_H

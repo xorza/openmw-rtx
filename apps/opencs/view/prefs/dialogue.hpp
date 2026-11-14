@@ -1,5 +1,4 @@
-#ifndef CSV_PREFS_DIALOGUE_H
-#define CSV_PREFS_DIALOGUE_H
+#pragma once
 
 #include <QMainWindow>
 
@@ -43,5 +42,3 @@ namespace CSVPrefs
         void selectionChanged(QListWidgetItem* current, QListWidgetItem* previous);
     };
 }
-
-#endif

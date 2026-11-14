@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_FILES_CONFIGURATIONMANAGER_HPP
-#define COMPONENTS_FILES_CONFIGURATIONMANAGER_HPP
+#pragma once
 
 #include <optional>
 #include <stack>
@@ -101,5 +100,3 @@ namespace Files
     PathContainer asPathContainer(const MaybeQuotedPathContainer& value);
 
 } /* namespace Files */
-
-#endif /* COMPONENTS_FILES_CONFIGURATIONMANAGER_HPP */

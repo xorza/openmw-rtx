@@ -1,5 +1,4 @@
-#ifndef CSV_WORLD_GENERICCREATOR_H
-#define CSV_WORLD_GENERICCREATOR_H
+#pragma once
 
 #include <QString>
 
@@ -135,5 +134,3 @@ namespace CSVWorld
         void dataIdListChanged();
     };
 }
-
-#endif

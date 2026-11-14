@@ -1,5 +1,4 @@
-#ifndef OENGINE_BULLET_TRACE_H
-#define OENGINE_BULLET_TRACE_H
+#pragma once
 
 #include <osg/Vec3f>
 
@@ -25,5 +24,3 @@ namespace MWPhysics
             const Actor* actor, const osg::Vec3f& start, const osg::Vec3f& end, const btCollisionWorld* world);
     };
 }
-
-#endif

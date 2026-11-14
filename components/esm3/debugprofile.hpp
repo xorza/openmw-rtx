@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_ESM_DEBUGPROFILE_H
-#define COMPONENTS_ESM_DEBUGPROFILE_H
+#pragma once
 
 #include <string>
 
@@ -40,5 +39,3 @@ namespace ESM
         void blank();
     };
 }
-
-#endif

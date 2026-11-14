@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SETTINGS_CATEGORIES_GROUNDCOVER_H
-#define OPENMW_COMPONENTS_SETTINGS_CATEGORIES_GROUNDCOVER_H
+#pragma once
 
 #include <components/settings/sanitizerimpl.hpp>
 #include <components/settings/settingvalue.hpp>
@@ -27,5 +26,3 @@ namespace Settings
         SettingValue<bool> mPointLighting{ mIndex, "Groundcover", "point lighting" };
     };
 }
-
-#endif

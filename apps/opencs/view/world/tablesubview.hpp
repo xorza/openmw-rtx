@@ -1,5 +1,4 @@
-#ifndef CSV_WORLD_TABLESUBVIEW_H
-#define CSV_WORLD_TABLESUBVIEW_H
+#pragma once
 
 #include "../doc/subview.hpp"
 
@@ -71,5 +70,3 @@ namespace CSVWorld
         void requestFocus(const std::string& id);
     };
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef GAME_STATE_CHARACTER_H
-#define GAME_STATE_CHARACTER_H
+#pragma once
 
 #include <filesystem>
 #include <string_view>
@@ -69,5 +68,3 @@ namespace MWState
     bool operator<(const Slot& left, const Slot& right);
     bool operator<(const Character& left, const Character& right);
 }
-
-#endif

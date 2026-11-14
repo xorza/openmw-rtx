@@ -1,5 +1,4 @@
-#ifndef GAME_SOUND_WARMQUEUE_H
-#define GAME_SOUND_WARMQUEUE_H
+#pragma once
 
 #include <condition_variable>
 #include <functional>
@@ -51,5 +50,3 @@ namespace MWSound
         std::thread mThread;
     };
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWPHYSICS_CLOSESTNOTMERAYRESULTCALLBACK_H
-#define OPENMW_MWPHYSICS_CLOSESTNOTMERAYRESULTCALLBACK_H
+#pragma once
 
 #include <span>
 
@@ -29,5 +28,3 @@ namespace MWPhysics
         const std::span<const btCollisionObject*> mTargets;
     };
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SETTINGS_CATEGORIES_CAMERA_H
-#define OPENMW_COMPONENTS_SETTINGS_CATEGORIES_CAMERA_H
+#pragma once
 
 #include <components/settings/sanitizerimpl.hpp>
 #include <components/settings/settingvalue.hpp>
@@ -29,5 +28,3 @@ namespace Settings
         SettingValue<bool> mReverseZ{ mIndex, "Camera", "reverse z" };
     };
 }
-
-#endif

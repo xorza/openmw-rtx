@@ -1,5 +1,4 @@
-#ifndef GAME_MWWORLD_CELLREFLIST_H
-#define GAME_MWWORLD_CELLREFLIST_H
+#pragma once
 
 #include <list>
 
@@ -52,5 +51,3 @@ namespace MWWorld
         }
     };
 }
-
-#endif

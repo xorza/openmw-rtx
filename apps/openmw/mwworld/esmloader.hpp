@@ -1,5 +1,4 @@
-#ifndef ESMLOADER_HPP
-#define ESMLOADER_HPP
+#pragma once
 
 #include <map>
 #include <optional>
@@ -44,5 +43,3 @@ namespace MWWorld
     };
 
 } /* namespace MWWorld */
-
-#endif // ESMLOADER_HPP

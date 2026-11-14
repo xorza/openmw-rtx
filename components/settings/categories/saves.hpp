@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SETTINGS_CATEGORIES_SAVES_H
-#define OPENMW_COMPONENTS_SETTINGS_CATEGORIES_SAVES_H
+#pragma once
 
 #include <components/settings/sanitizerimpl.hpp>
 #include <components/settings/settingvalue.hpp>
@@ -23,5 +22,3 @@ namespace Settings
         SettingValue<int> mMaxQuicksaves{ mIndex, "Saves", "max quicksaves", makeMaxSanitizerInt(1) };
     };
 }
-
-#endif

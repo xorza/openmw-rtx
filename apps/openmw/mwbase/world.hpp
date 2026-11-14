@@ -1,5 +1,4 @@
-#ifndef GAME_MWBASE_WORLD_H
-#define GAME_MWBASE_WORLD_H
+#pragma once
 
 #include "rotationflags.hpp"
 
@@ -618,5 +617,3 @@ namespace MWBase
         virtual void setActorActive(const MWWorld::Ptr& ptr, bool value) = 0;
     };
 }
-
-#endif

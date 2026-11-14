@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_ESM_GENERATEDREFID_HPP
-#define OPENMW_COMPONENTS_ESM_GENERATEDREFID_HPP
+#pragma once
 
 #include <cstdint>
 #include <functional>
@@ -46,5 +45,3 @@ namespace std
         }
     };
 }
-
-#endif

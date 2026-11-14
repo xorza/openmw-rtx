@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SCENEUTIL_TEXTKEYMAP
-#define OPENMW_COMPONENTS_SCENEUTIL_TEXTKEYMAP
+#pragma once
 
 #include <algorithm>
 #include <map>
@@ -61,5 +60,3 @@ namespace SceneUtil
         std::multimap<float, std::string> mTextKeyByTime;
     };
 }
-
-#endif

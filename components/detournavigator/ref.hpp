@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_DETOURNAVIGATOR_REF_H
-#define OPENMW_COMPONENTS_DETOURNAVIGATOR_REF_H
+#pragma once
 
 #include <algorithm>
 #include <cassert>
@@ -56,5 +55,3 @@ namespace DetourNavigator
         }
     };
 }
-
-#endif

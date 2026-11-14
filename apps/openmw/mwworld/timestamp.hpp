@@ -1,5 +1,4 @@
-#ifndef GAME_MWWORLD_TIMESTAMP_H
-#define GAME_MWWORLD_TIMESTAMP_H
+#pragma once
 
 namespace ESM
 {
@@ -47,5 +46,3 @@ namespace MWWorld
     double operator-(const TimeStamp& left, const TimeStamp& right);
     ///< Returns the difference between \a left and \a right in in-game hours.
 }
-
-#endif

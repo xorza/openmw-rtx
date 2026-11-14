@@ -1,5 +1,4 @@
-#ifndef CSM_WOLRD_NESTEDTABLEPROXYMODEL_H
-#define CSM_WOLRD_NESTEDTABLEPROXYMODEL_H
+#pragma once
 
 #include <string>
 
@@ -77,5 +76,3 @@ namespace CSMWorld
         void forwardDataChanged(const QModelIndex& topLeft, const QModelIndex& bottomRight);
     };
 }
-
-#endif

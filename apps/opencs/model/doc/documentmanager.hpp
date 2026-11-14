@@ -1,5 +1,4 @@
-#ifndef CSM_DOC_DOCUMENTMGR_H
-#define CSM_DOC_DOCUMENTMGR_H
+#pragma once
 
 #include <QObject>
 #include <QThread>
@@ -107,5 +106,3 @@ namespace CSMDoc
         void loadMessage(CSMDoc::Document* document, const std::string& message);
     };
 }
-
-#endif

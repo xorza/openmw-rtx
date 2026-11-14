@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_MAPPINGS_H
-#define OPENMW_ESM_MAPPINGS_H
+#pragma once
 
 #include <string>
 
@@ -12,5 +11,3 @@ namespace ESM
     std::string getBoneName(PartReferenceType type);
     std::string getMeshFilter(PartReferenceType type);
 }
-
-#endif

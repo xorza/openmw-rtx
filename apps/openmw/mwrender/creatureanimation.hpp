@@ -1,5 +1,4 @@
-#ifndef GAME_RENDER_CREATUREANIMATION_H
-#define GAME_RENDER_CREATUREANIMATION_H
+#pragma once
 
 #include "../mwworld/inventorystore.hpp"
 #include "actoranimation.hpp"
@@ -77,5 +76,3 @@ namespace MWRender
         std::shared_ptr<WeaponAnimationTime> mWeaponAnimationTime;
     };
 }
-
-#endif

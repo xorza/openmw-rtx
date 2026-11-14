@@ -1,5 +1,4 @@
-#ifndef INTERPRETER_INSTALLOPCODES_H_INCLUDED
-#define INTERPRETER_INSTALLOPCODES_H_INCLUDED
+#pragma once
 
 namespace Interpreter
 {
@@ -7,5 +6,3 @@ namespace Interpreter
 
     void installOpcodes(Interpreter& interpreter);
 }
-
-#endif

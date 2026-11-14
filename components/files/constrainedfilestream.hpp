@@ -1,5 +1,4 @@
-#ifndef OPENMW_CONSTRAINEDFILESTREAM_H
-#define OPENMW_CONSTRAINEDFILESTREAM_H
+#pragma once
 
 #include "constrainedfilestreambuf.hpp"
 #include "istreamptr.hpp"
@@ -21,5 +20,3 @@ namespace Files
             std::make_unique<ConstrainedFileStreamBuf>(filename, start, length));
     }
 }
-
-#endif

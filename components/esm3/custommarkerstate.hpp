@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_CUSTOMMARKERSTATE_H
-#define OPENMW_ESM_CUSTOMMARKERSTATE_H
+#pragma once
 
 #include <components/esm/refid.hpp>
 
@@ -28,5 +27,3 @@ namespace ESM
     };
 
 }
-
-#endif

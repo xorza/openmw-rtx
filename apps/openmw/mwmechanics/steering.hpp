@@ -1,5 +1,4 @@
-#ifndef OPENMW_MECHANICS_STEERING_H
-#define OPENMW_MECHANICS_STEERING_H
+#pragma once
 
 #include <osg/Math>
 
@@ -32,5 +31,3 @@ namespace MWMechanics
         float epsilonRadians = static_cast<float>(osg::DegreesToRadians(0.5)));
 
 }
-
-#endif

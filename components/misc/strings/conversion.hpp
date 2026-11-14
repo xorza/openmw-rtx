@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_MISC_STRINGS_CONVERSION_H
-#define COMPONENTS_MISC_STRINGS_CONVERSION_H
+#pragma once
 
 #include <charconv>
 #include <cmath>
@@ -104,5 +103,3 @@ namespace Misc::StringUtils
         return buffer;
     }
 }
-
-#endif // COMPONENTS_MISC_STRINGS_CONVERSION_H

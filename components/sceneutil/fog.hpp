@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SCENEUTIL_FOG_H
-#define OPENMW_COMPONENTS_SCENEUTIL_FOG_H
+#pragma once
 
 #include <osg/StateAttribute>
 
@@ -50,5 +49,3 @@ namespace SceneUtil
     void disableFog(osg::StateSet& stateset, osg::StateAttribute::OverrideValue value = osg::StateAttribute::ON);
 
 }
-
-#endif

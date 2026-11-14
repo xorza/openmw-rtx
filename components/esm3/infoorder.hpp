@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_ESM3_INFOORDER_H
-#define OPENMW_COMPONENTS_ESM3_INFOORDER_H
+#pragma once
 
 #include "components/esm/refid.hpp"
 
@@ -101,5 +100,3 @@ namespace ESM
         std::unordered_map<RefId, Item> mInfoPositions;
     };
 }
-
-#endif

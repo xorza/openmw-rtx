@@ -1,5 +1,4 @@
-#ifndef PROCESSINVOKER_HPP
-#define PROCESSINVOKER_HPP
+#pragma once
 
 #include <QProcess>
 #include <QString>
@@ -44,5 +43,3 @@ namespace Process
         void processFinished(int exitCode, QProcess::ExitStatus exitStatus);
     };
 }
-
-#endif // PROCESSINVOKER_HPP

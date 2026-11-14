@@ -1,5 +1,4 @@
-#ifndef CSM_TOOLS_GMSTCHECK_H
-#define CSM_TOOLS_GMSTCHECK_H
+#pragma once
 
 #include <string>
 
@@ -40,5 +39,3 @@ namespace CSMTools
         std::string varTypeToString(ESM::VarType);
     };
 }
-
-#endif

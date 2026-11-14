@@ -1,5 +1,4 @@
-#ifndef OPENMW_NUMERIC_EDIT_BOX_H
-#define OPENMW_NUMERIC_EDIT_BOX_H
+#pragma once
 
 #include <MyGUI_EditBox.h>
 
@@ -46,5 +45,3 @@ namespace Gui
     };
 
 }
-
-#endif

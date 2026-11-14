@@ -1,5 +1,4 @@
-#ifndef GAME_SCRIPT_COMPILERCONTEXT_H
-#define GAME_SCRIPT_COMPILERCONTEXT_H
+#pragma once
 
 #include <components/compiler/context.hpp>
 
@@ -42,5 +41,3 @@ namespace MWScript
         ///< Does \a name match an ID, that can be referenced?
     };
 }
-
-#endif

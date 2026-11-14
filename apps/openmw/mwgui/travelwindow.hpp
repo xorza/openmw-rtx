@@ -1,5 +1,4 @@
-#ifndef MWGUI_TravelWINDOW_H
-#define MWGUI_TravelWINDOW_H
+#pragma once
 
 #include "referenceinterface.hpp"
 #include "windowbase.hpp"
@@ -45,5 +44,3 @@ namespace MWGui
         size_t mControllerFocus = 0;
     };
 }
-
-#endif

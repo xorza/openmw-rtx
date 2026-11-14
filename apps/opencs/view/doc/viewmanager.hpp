@@ -1,5 +1,4 @@
-#ifndef CSV_DOC_VIEWMANAGER_H
-#define CSV_DOC_VIEWMANAGER_H
+#pragma once
 
 #include <string>
 #include <vector>
@@ -93,5 +92,3 @@ namespace CSVDoc
     };
 
 }
-
-#endif

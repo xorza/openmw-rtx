@@ -1,5 +1,4 @@
-#ifndef MWLUA_MAGICTYPEBINDINGS_H
-#define MWLUA_MAGICTYPEBINDINGS_H
+#pragma once
 
 #include <sol/forward.hpp>
 
@@ -31,5 +30,3 @@ namespace MWLua
     void addMutableMagicEffectType(sol::state_view& lua);
     ESM::MagicEffect tableToMagicEffect(const sol::table&);
 }
-
-#endif // MWLUA_MAGICTYPEBINDINGS_H

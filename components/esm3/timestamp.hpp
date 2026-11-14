@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_ESM3_TIMESTAMP_H
-#define OPENMW_COMPONENTS_ESM3_TIMESTAMP_H
+#pragma once
 
 #include <cstdint>
 
@@ -17,5 +16,3 @@ namespace ESM
         void load(ESMReader& esm, NAME name = "TIME");
     };
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef GRAPHICSPAGE_H
-#define GRAPHICSPAGE_H
+#pragma once
 
 #include "ui_graphicspage.h"
 
@@ -74,4 +73,3 @@ namespace Launcher
         void handleWindowModeChange(Settings::WindowMode state);
     };
 }
-#endif

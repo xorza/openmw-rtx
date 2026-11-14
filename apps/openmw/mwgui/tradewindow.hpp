@@ -1,5 +1,4 @@
-#ifndef MWGUI_TRADEWINDOW_H
-#define MWGUI_TRADEWINDOW_H
+#pragma once
 
 #include "referenceinterface.hpp"
 #include "windowbase.hpp"
@@ -124,5 +123,3 @@ namespace MWGui
         int getMerchantGold();
     };
 }
-
-#endif

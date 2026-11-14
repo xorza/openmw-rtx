@@ -1,5 +1,4 @@
-#ifndef COMPONENT_ESM_COMMON_H
-#define COMPONENT_ESM_COMMON_H
+#pragma once
 
 #include <cstdint>
 #include <string>
@@ -53,5 +52,3 @@ namespace ESM
         return std::string(reinterpret_cast<char*>(typeName), 4);
     }
 }
-
-#endif // COMPONENT_ESM_COMMON_H

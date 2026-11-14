@@ -1,5 +1,4 @@
-#ifndef OPENMW_WIDGETS_TAGS_H
-#define OPENMW_WIDGETS_TAGS_H
+#pragma once
 
 #include <MyGUI_UString.h>
 #include <string_view>
@@ -11,5 +10,3 @@ namespace Gui
     bool replaceTag(std::string_view tag, MyGUI::UString& out);
 
 }
-
-#endif

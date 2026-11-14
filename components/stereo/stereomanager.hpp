@@ -1,5 +1,4 @@
-#ifndef STEREO_MANAGER_H
-#define STEREO_MANAGER_H
+#pragma once
 
 #include <osg/Camera>
 #include <osg/Matrix>
@@ -193,5 +192,3 @@ namespace Stereo
         std::optional<osg::Vec2i> mEyeResolution;
     };
 }
-
-#endif

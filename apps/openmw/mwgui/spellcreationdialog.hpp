@@ -1,5 +1,4 @@
-#ifndef MWGUI_SPELLCREATION_H
-#define MWGUI_SPELLCREATION_H
+#pragma once
 
 #include <memory>
 
@@ -196,5 +195,3 @@ namespace MWGui
     };
 
 }
-
-#endif

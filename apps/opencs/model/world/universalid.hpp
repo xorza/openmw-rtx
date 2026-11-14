@@ -1,5 +1,4 @@
-#ifndef CSM_WOLRD_UNIVERSALID_H
-#define CSM_WOLRD_UNIVERSALID_H
+#pragma once
 
 #include <string>
 #include <variant>
@@ -210,5 +209,3 @@ namespace CSMWorld
 }
 
 Q_DECLARE_METATYPE(CSMWorld::UniversalId)
-
-#endif

@@ -24,8 +24,7 @@
   trial & error.  See http://en.uesp.net/wiki for details.
 
 */
-#ifndef ESM4_ACTOR_H
-#define ESM4_ACTOR_H
+#pragma once
 
 #include <cstdint>
 
@@ -173,5 +172,3 @@ namespace ESM4
         std::uint32_t type; // 0 = light, 1 = heavy, 2 = none (cloth?)
     };
 }
-
-#endif // ESM4_ACTOR_H

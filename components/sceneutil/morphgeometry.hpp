@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_MORPHGEOMETRY_H
-#define OPENMW_COMPONENTS_MORPHGEOMETRY_H
+#pragma once
 
 #include <osg/Geometry>
 
@@ -90,5 +89,3 @@ namespace SceneUtil
     };
 
 }
-
-#endif

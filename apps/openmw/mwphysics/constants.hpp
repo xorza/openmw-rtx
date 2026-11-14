@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWPHYSICS_CONSTANTS_H
-#define OPENMW_MWPHYSICS_CONSTANTS_H
+#pragma once
 
 namespace MWPhysics
 {
@@ -22,5 +21,3 @@ namespace MWPhysics
     // glitchy snagging issues
     static constexpr float sAllowedPenetration = 0.0f;
 }
-
-#endif

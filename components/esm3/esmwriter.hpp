@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_WRITER_H
-#define OPENMW_ESM_WRITER_H
+#pragma once
 
 #include <iosfwd>
 #include <list>
@@ -210,5 +209,3 @@ namespace ESM
         void writeRefId(RefId value);
     };
 }
-
-#endif

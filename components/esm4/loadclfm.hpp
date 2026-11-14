@@ -24,8 +24,7 @@
   trial & error.  See http://en.uesp.net/wiki for details.
 
 */
-#ifndef ESM4_CLFM_H
-#define ESM4_CLFM_H
+#pragma once
 
 #include <cstdint>
 #include <string>
@@ -65,5 +64,3 @@ namespace ESM4
         static constexpr ESM::RecNameInts sRecordId = ESM::REC_CLFM4;
     };
 }
-
-#endif // ESM4_CLFM_H

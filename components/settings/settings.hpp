@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_SETTINGS_H
-#define COMPONENTS_SETTINGS_H
+#pragma once
 
 #include "categories.hpp"
 #include "gyroscopeaxis.hpp"
@@ -279,5 +278,3 @@ namespace Settings
         return VFS::Path::Normalized(getString(setting, category));
     }
 }
-
-#endif // COMPONENTS_SETTINGS_H

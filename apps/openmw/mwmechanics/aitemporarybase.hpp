@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWMECHANICS_AISTATE_H
-#define OPENMW_MWMECHANICS_AISTATE_H
+#pragma once
 
 namespace MWMechanics
 {
@@ -15,5 +14,3 @@ namespace MWMechanics
         virtual ~AiTemporaryBase() = default;
     };
 }
-
-#endif

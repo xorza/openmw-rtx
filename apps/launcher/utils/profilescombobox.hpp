@@ -1,5 +1,4 @@
-#ifndef PROFILESCOMBOBOX_HPP
-#define PROFILESCOMBOBOX_HPP
+#pragma once
 
 #include "components/contentselector/view/combobox.hpp"
 #include "lineedit.hpp"
@@ -43,4 +42,3 @@ private slots:
 private:
     QString mOldProfile;
 };
-#endif // PROFILESCOMBOBOX_HPP

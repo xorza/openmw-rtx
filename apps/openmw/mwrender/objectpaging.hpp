@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWRENDER_OBJECTPAGING_H
-#define OPENMW_MWRENDER_OBJECTPAGING_H
+#pragma once
 
 #include <components/esm3/refnum.hpp>
 #include <components/resource/resourcemanager.hpp>
@@ -89,5 +88,3 @@ namespace MWRender
         unsigned int mNumVertices = 0;
     };
 }
-
-#endif

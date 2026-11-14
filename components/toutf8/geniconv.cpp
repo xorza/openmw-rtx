@@ -88,7 +88,7 @@ int write_table(const std::string& charset, const std::string& tableName)
 int main()
 {
     // Write header guard
-    std::cout << "#ifndef OPENMW_COMPONENTS_TOUTF8_TABLESGEN_HPP\n#define OPENMW_COMPONENTS_TOUTF8_TABLESGEN_HPP\n\n";
+    std::cout << "#pragma once\n\n";
 
     // Write namespace
     std::cout << "namespace ToUTF8\n{\n\n";
@@ -115,10 +115,7 @@ int main()
     write_table("CP437", "cp437");
 
     // Close namespace
-    std::cout << "\n}\n\n";
-
-    // Close header guard
-    std::cout << "#endif\n\n";
+    std::cout << "\n}\n";
 
     return 0;
 }

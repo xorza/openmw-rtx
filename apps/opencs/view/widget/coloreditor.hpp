@@ -1,5 +1,4 @@
-#ifndef CSV_WIDGET_COLOREDITOR_HPP
-#define CSV_WIDGET_COLOREDITOR_HPP
+#pragma once
 
 #include <QPushButton>
 
@@ -51,5 +50,3 @@ namespace CSVWidget
         void pickingFinished();
     };
 }
-
-#endif

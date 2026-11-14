@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_DETOURNAVIGATOR_GETTILESPOSITIONS_H
-#define OPENMW_COMPONENTS_DETOURNAVIGATOR_GETTILESPOSITIONS_H
+#pragma once
 
 #include "tilebounds.hpp"
 #include "tileposition.hpp"
@@ -53,5 +52,3 @@ namespace DetourNavigator
 
     TilesPositionsRange getUnion(const TilesPositionsRange& a, const TilesPositionsRange& b) noexcept;
 }
-
-#endif

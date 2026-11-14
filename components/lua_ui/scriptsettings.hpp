@@ -1,5 +1,4 @@
-#ifndef OPENMW_LUAUI_SCRIPTSETTINGS
-#define OPENMW_LUAUI_SCRIPTSETTINGS
+#pragma once
 
 #include <memory>
 #include <string>
@@ -19,5 +18,3 @@ namespace LuaUi
     void ensureScriptSettingsPage(size_t index);
     void attachPageAt(size_t index, LuaAdapter* adapter);
 }
-
-#endif // !OPENMW_LUAUI_SCRIPTSETTINGS

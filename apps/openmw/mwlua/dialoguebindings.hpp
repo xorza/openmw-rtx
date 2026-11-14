@@ -1,5 +1,4 @@
-#ifndef MWLUA_DIALOGUEBINDINGS_H
-#define MWLUA_DIALOGUEBINDINGS_H
+#pragma once
 
 #include <sol/forward.hpp>
 
@@ -9,5 +8,3 @@ namespace MWLua
 
     sol::table initCoreDialogueBindings(const Context& context);
 }
-
-#endif // MWLUA_DIALOGUEBINDINGS_H

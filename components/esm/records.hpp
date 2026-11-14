@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_RECORDS_H
-#define OPENMW_ESM_RECORDS_H
+#pragma once
 
 #include <components/esm3/loadacti.hpp>
 #include <components/esm3/loadalch.hpp>
@@ -86,4 +85,3 @@
 
 // Special records which are not loaded from ESM
 #include <components/esm/attr.hpp>
-#endif

@@ -1,5 +1,4 @@
-#ifndef SCRIPTEDIT_H
-#define SCRIPTEDIT_H
+#pragma once
 
 #include <QFont>
 #include <QPlainTextEdit>
@@ -146,4 +145,3 @@ namespace CSVWorld
         void paintEvent(QPaintEvent* event) override;
     };
 }
-#endif // SCRIPTEDIT_H

@@ -1,5 +1,4 @@
-#ifndef CSM_WOLRD_COMMANDDISPATCHER_H
-#define CSM_WOLRD_COMMANDDISPATCHER_H
+#pragma once
 
 #include <string>
 #include <vector>
@@ -75,5 +74,3 @@ namespace CSMWorld
         void executeExtendedRevert();
     };
 }
-
-#endif

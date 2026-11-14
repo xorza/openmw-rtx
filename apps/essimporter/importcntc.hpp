@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESSIMPORT_IMPORTCNTC_H
-#define OPENMW_ESSIMPORT_IMPORTCNTC_H
+#pragma once
 
 #include "importinventory.hpp"
 
@@ -22,4 +21,3 @@ namespace ESSImport
     };
 
 }
-#endif

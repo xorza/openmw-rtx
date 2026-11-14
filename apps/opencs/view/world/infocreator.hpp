@@ -1,5 +1,4 @@
-#ifndef CSV_WORLD_INFOCREATOR_H
-#define CSV_WORLD_INFOCREATOR_H
+#pragma once
 
 #include "genericcreator.hpp"
 
@@ -72,5 +71,3 @@ namespace CSVWorld
         ///< The ownership of the returned Creator is transferred to the caller.
     };
 }
-
-#endif

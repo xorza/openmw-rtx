@@ -1,5 +1,4 @@
-#ifndef OPENCS_VIEW_CELLMARKER_H
-#define OPENCS_VIEW_CELLMARKER_H
+#pragma once
 
 #include "tagbase.hpp"
 
@@ -57,5 +56,3 @@ namespace CSVRender
         ~CellMarker();
     };
 }
-
-#endif

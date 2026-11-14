@@ -1,5 +1,4 @@
-#ifndef CSM_WORLD_LANDTEXTURETABLEPROXYMODEL_H
-#define CSM_WORLD_LANDTEXTURETABLEPROXYMODEL_H
+#pragma once
 
 #include "idtableproxymodel.hpp"
 
@@ -19,5 +18,3 @@ namespace CSMWorld
         bool filterAcceptsRow(int sourceRow, const QModelIndex& sourceParent) const override;
     };
 }
-
-#endif

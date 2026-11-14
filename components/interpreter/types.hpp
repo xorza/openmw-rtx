@@ -1,5 +1,4 @@
-#ifndef INTERPRETER_TYPES_H_INCLUDED
-#define INTERPRETER_TYPES_H_INCLUDED
+#pragma once
 
 #include <cstdint>
 #include <stdexcept>
@@ -38,5 +37,3 @@ namespace Interpreter
         return data.mFloat;
     }
 }
-
-#endif

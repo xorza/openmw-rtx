@@ -1,5 +1,4 @@
-#ifndef CSV_WIDGET_SCENETOOLTEXTUREBRUSH_H
-#define CSV_WIDGET_SCENETOOLTEXTUREBRUSH_H
+#pragma once
 
 #include <QFrame>
 #include <QGroupBox>
@@ -134,5 +133,3 @@ namespace CSVWidget
         void passTextureId(ESM::RefId brushTexture);
     };
 }
-
-#endif

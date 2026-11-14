@@ -1,5 +1,4 @@
-#ifndef GAME_SOUND_SOUNDDECODER_H
-#define GAME_SOUND_SOUNDDECODER_H
+#pragma once
 
 #include <components/vfs/pathutil.hpp>
 
@@ -59,5 +58,3 @@ namespace MWSound
         SoundDecoder& operator=(const SoundDecoder& rhs);
     };
 }
-
-#endif

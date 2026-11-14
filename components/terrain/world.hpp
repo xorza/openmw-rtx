@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_TERRAIN_WORLD_H
-#define COMPONENTS_TERRAIN_WORLD_H
+#pragma once
 
 #include <osg/Referenced>
 #include <osg/Vec3f>
@@ -139,5 +138,3 @@ namespace Terrain
         ESM::RefId mWorldspace;
     };
 }
-
-#endif

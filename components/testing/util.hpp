@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_TESTING_UTIL_H
-#define OPENMW_COMPONENTS_TESTING_UTIL_H
+#pragma once
 
 #include <chrono>
 #include <filesystem>
@@ -125,5 +124,3 @@ namespace TestingOpenMW
         return createTestVFS(VFS::FileMap(files.begin(), files.end()));
     }
 }
-
-#endif

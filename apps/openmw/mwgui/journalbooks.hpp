@@ -1,5 +1,4 @@
-#ifndef MWGUI_JOURNALBOOKS_HPP
-#define MWGUI_JOURNALBOOKS_HPP
+#pragma once
 
 #include "bookpage.hpp"
 #include "journalviewmodel.hpp"
@@ -33,5 +32,3 @@ namespace MWGui
         std::shared_ptr<BookTypesetter> createCyrillicJournalIndex();
     };
 }
-
-#endif // MWGUI_JOURNALBOOKS_HPP

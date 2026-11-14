@@ -1,5 +1,4 @@
-#ifndef MWGUI_LEVELUPDIALOG_H
-#define MWGUI_LEVELUPDIALOG_H
+#pragma once
 
 #include <components/esm/refid.hpp>
 
@@ -57,5 +56,3 @@ namespace MWGui
     };
 
 }
-
-#endif

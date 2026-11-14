@@ -1,5 +1,4 @@
-#ifndef GAME_MWWORLD_REGISTEREDCLASS_H
-#define GAME_MWWORLD_REGISTEREDCLASS_H
+#pragma once
 
 #include "class.hpp"
 
@@ -24,5 +23,3 @@ namespace MWWorld
         }
     };
 }
-
-#endif

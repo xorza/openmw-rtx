@@ -1,5 +1,4 @@
-#ifndef GAME_RENDERING_INTERFACE_H
-#define GAME_RENDERING_INTERFACE_H
+#pragma once
 
 namespace MWRender
 {
@@ -12,4 +11,3 @@ namespace MWRender
         virtual ~RenderingInterface() {}
     };
 }
-#endif

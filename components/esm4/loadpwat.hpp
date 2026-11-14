@@ -26,8 +26,7 @@
   Also see https://tes5edit.github.io/fopdoc/ for FO3/FNV specific details.
 
 */
-#ifndef ESM4_PWAT_H
-#define ESM4_PWAT_H
+#pragma once
 
 #include <cstdint>
 #include <string>
@@ -54,5 +53,3 @@ namespace ESM4
         static constexpr ESM::RecNameInts sRecordId = ESM::RecNameInts::REC_PWAT4;
     };
 }
-
-#endif // ESM4_PWAT_H

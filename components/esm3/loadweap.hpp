@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_WEAP_H
-#define OPENMW_ESM_WEAP_H
+#pragma once
 
 #include <array>
 #include <string>
@@ -142,4 +141,3 @@ namespace ESM
     };
 
 }
-#endif

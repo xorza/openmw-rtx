@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_RESOURCE_MANAGER_H
-#define OPENMW_COMPONENTS_RESOURCE_MANAGER_H
+#pragma once
 
 #include <memory>
 
@@ -104,5 +103,3 @@ namespace Resource
     };
 
 }
-
-#endif

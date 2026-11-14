@@ -1,5 +1,4 @@
-#ifndef OPENCS_VIEW_OBJECT_MARKER_H
-#define OPENCS_VIEW_OBJECT_MARKER_H
+#pragma once
 
 #include "object.hpp"
 
@@ -78,4 +77,3 @@ namespace CSVRender
         void updateScale(const float scale);
     };
 }
-#endif // OPENCS_VIEW_OBJECT_MARKER_H

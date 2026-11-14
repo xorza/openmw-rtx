@@ -1,5 +1,4 @@
-#ifndef MWGUI_INVENTORYTABSSOVERLAY_H
-#define MWGUI_INVENTORYTABSSOVERLAY_H
+#pragma once
 
 #include "windowbase.hpp"
 
@@ -24,5 +23,3 @@ namespace MWGui
         void onTabClicked(MyGUI::Widget* sender);
     };
 }
-
-#endif

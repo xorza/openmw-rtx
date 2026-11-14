@@ -1,5 +1,4 @@
-#ifndef CSM_WOLRD_IDCOLLECTION_H
-#define CSM_WOLRD_IDCOLLECTION_H
+#pragma once
 
 #include <filesystem>
 #include <memory>
@@ -199,5 +198,3 @@ namespace CSMWorld
     template <>
     int BaseIdCollection<Pathgrid>::load(ESM::ESMReader& reader, bool base);
 }
-
-#endif

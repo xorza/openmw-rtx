@@ -1,5 +1,4 @@
-#ifndef COMPILER_JUNKPARSER_H_INCLUDED
-#define COMPILER_JUNKPARSER_H_INCLUDED
+#pragma once
 
 #include "parser.hpp"
 
@@ -34,5 +33,3 @@ namespace Compiler
         /// \return fetch another token?
     };
 }
-
-#endif

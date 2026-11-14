@@ -1,5 +1,4 @@
-#ifndef CSM_WOLRD_IDTABLE_H
-#define CSM_WOLRD_IDTABLE_H
+#pragma once
 
 #include <QModelIndex>
 #include <QVariant>
@@ -118,5 +117,3 @@ namespace CSMWorld
         const CSMWorld::Record<ESM::LandTexture>* searchRecord(std::uint16_t index, int plugin) const;
     };
 }
-
-#endif

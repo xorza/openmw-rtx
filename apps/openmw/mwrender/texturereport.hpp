@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWRENDER_TEXTUREREPORT_H
-#define OPENMW_MWRENDER_TEXTUREREPORT_H
+#pragma once
 
 #include <iosfwd>
 
@@ -16,5 +15,3 @@ namespace MWRender
     // part with its model and textures. Output for the BetaComment console command.
     void reportTextures(std::ostream& msg, const MWWorld::Ptr& ptr, const VFS::Path::Normalized& model);
 }
-
-#endif

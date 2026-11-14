@@ -1,5 +1,4 @@
-#ifndef CSM_WOLRD_RECORD_H
-#define CSM_WOLRD_RECORD_H
+#pragma once
 
 #include <memory>
 #include <stdexcept>
@@ -159,5 +158,3 @@ namespace CSMWorld
         }
     }
 }
-
-#endif

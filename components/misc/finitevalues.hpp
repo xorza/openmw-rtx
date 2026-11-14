@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_MISC_FINITEVALUES_HPP
-#define OPENMW_COMPONENTS_MISC_FINITEVALUES_HPP
+#pragma once
 
 #include <osg/Vec2f>
 #include <osg/Vec3f>
@@ -75,5 +74,3 @@ namespace sol
         return value;
     }
 }
-
-#endif

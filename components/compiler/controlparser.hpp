@@ -1,5 +1,4 @@
-#ifndef COMPILER_CONTROLPARSER_H_INCLUDED
-#define COMPILER_CONTROLPARSER_H_INCLUDED
+#pragma once
 
 #include <vector>
 
@@ -72,5 +71,3 @@ namespace Compiler
         ///< Reset parser to clean state.
     };
 }
-
-#endif

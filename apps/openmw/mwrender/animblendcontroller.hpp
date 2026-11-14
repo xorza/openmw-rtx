@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWRENDER_ANIMBLENDCONTROLLER_H
-#define OPENMW_MWRENDER_ANIMBLENDCONTROLLER_H
+#pragma once
 
 #include <map>
 #include <optional>
@@ -138,5 +137,3 @@ namespace MWRender
         osgAnimation::Bone* mNode{ nullptr };
     };
 }
-
-#endif

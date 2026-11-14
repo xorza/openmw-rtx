@@ -1,5 +1,4 @@
-#ifndef GAME_MWMECHANICS_CREATURESTATS_H
-#define GAME_MWMECHANICS_CREATURESTATS_H
+#pragma once
 
 #include <map>
 #include <set>
@@ -289,5 +288,3 @@ namespace MWMechanics
         int getAwarenessRoll();
     };
 }
-
-#endif

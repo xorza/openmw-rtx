@@ -1,5 +1,4 @@
-#ifndef CSM_WOLRD_NESTEDINFOCOLLECTION_H
-#define CSM_WOLRD_NESTEDINFOCOLLECTION_H
+#pragma once
 
 #include <QVariant>
 
@@ -51,5 +50,3 @@ namespace CSMWorld
         void addAdapter(std::pair<const ColumnBase*, NestedColumnAdapter<Info>*> adapter);
     };
 }
-
-#endif // CSM_WOLRD_NESTEDINFOCOLLECTION_H

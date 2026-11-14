@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_LUA_CONFIGURATION_H
-#define COMPONENTS_LUA_CONFIGURATION_H
+#pragma once
 
 #include <map>
 #include <optional>
@@ -65,5 +64,3 @@ namespace LuaUtil
     std::string scriptCfgToString(const ESM::LuaScriptCfg& script);
 
 }
-
-#endif // COMPONENTS_LUA_CONFIGURATION_H

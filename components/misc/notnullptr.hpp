@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_MISC_NOTNULLPTR_H
-#define OPENMW_COMPONENTS_MISC_NOTNULLPTR_H
+#pragma once
 
 #include <cassert>
 #include <cstddef>
@@ -32,5 +31,3 @@ namespace Misc
         T* mValue;
     };
 }
-
-#endif

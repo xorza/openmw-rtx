@@ -1,5 +1,4 @@
-#ifndef CSM_PREFS_STATE_H
-#define CSM_PREFS_STATE_H
+#pragma once
 
 #include <map>
 #include <string>
@@ -117,5 +116,3 @@ namespace CSMPrefs
     // convenience function
     State& get();
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef INTERPRETER_GENERICOPCODES_H_INCLUDED
-#define INTERPRETER_GENERICOPCODES_H_INCLUDED
+#pragma once
 
 #include "opcodes.hpp"
 #include "runtime.hpp"
@@ -78,5 +77,3 @@ namespace Interpreter
         }
     };
 }
-
-#endif

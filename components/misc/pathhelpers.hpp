@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_MISC_PATHHELPERS_H
-#define OPENMW_COMPONENTS_MISC_PATHHELPERS_H
+#pragma once
 
 #include <string_view>
 
@@ -42,5 +41,3 @@ namespace Misc
         return path;
     }
 }
-
-#endif

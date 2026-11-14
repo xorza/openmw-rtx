@@ -1,5 +1,4 @@
-#ifndef GAME_MWMECHANICS_AIPACKAGETYPEID_H
-#define GAME_MWMECHANICS_AIPACKAGETYPEID_H
+#pragma once
 
 namespace MWMechanics
 {
@@ -24,5 +23,3 @@ namespace MWMechanics
         Cast = 11
     };
 }
-
-#endif

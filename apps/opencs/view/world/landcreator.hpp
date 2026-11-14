@@ -1,5 +1,4 @@
-#ifndef CSV_WORLD_LANDCREATOR_H
-#define CSV_WORLD_LANDCREATOR_H
+#pragma once
 
 #include "genericcreator.hpp"
 
@@ -52,5 +51,3 @@ namespace CSVWorld
         void coordChanged(int value);
     };
 }
-
-#endif

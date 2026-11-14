@@ -1,5 +1,4 @@
-#ifndef OPENMW_LUAUI_WIDGET
-#define OPENMW_LUAUI_WIDGET
+#pragma once
 
 #include <functional>
 #include <map>
@@ -233,5 +232,3 @@ namespace LuaUi
         MYGUI_RTTI_DERIVED(LuaWidget)
     };
 }
-
-#endif // !OPENMW_LUAUI_WIDGET

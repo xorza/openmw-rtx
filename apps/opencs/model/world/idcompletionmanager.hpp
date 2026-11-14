@@ -1,5 +1,4 @@
-#ifndef CSM_WORLD_IDCOMPLETIONMANAGER_HPP
-#define CSM_WORLD_IDCOMPLETIONMANAGER_HPP
+#pragma once
 
 #include <map>
 #include <memory>
@@ -36,5 +35,3 @@ namespace CSMWorld
         std::shared_ptr<QCompleter> getCompleter(ColumnBase::Display display);
     };
 }
-
-#endif

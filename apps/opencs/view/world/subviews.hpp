@@ -1,5 +1,4 @@
-#ifndef CSV_WORLD_SUBVIEWS_H
-#define CSV_WORLD_SUBVIEWS_H
+#pragma once
 
 namespace CSVDoc
 {
@@ -10,5 +9,3 @@ namespace CSVWorld
 {
     void addSubViewFactories(CSVDoc::SubViewFactoryManager& manager);
 }
-
-#endif

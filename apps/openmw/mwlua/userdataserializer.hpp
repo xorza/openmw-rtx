@@ -1,5 +1,4 @@
-#ifndef MWLUA_USERDATASERIALIZER_H
-#define MWLUA_USERDATASERIALIZER_H
+#pragma once
 
 #include <map>
 #include <memory>
@@ -19,5 +18,3 @@ namespace MWLua
     std::unique_ptr<LuaUtil::UserdataSerializer> createUserdataSerializer(
         bool local, std::map<int, int>* contentFileMapping = nullptr);
 }
-
-#endif // MWLUA_USERDATASERIALIZER_H

@@ -1,5 +1,4 @@
-#ifndef GAME_MWWORLD_DATETIMEMANAGER_H
-#define GAME_MWWORLD_DATETIMEMANAGER_H
+#pragma once
 
 #include <optional>
 #include <set>
@@ -106,5 +105,3 @@ namespace MWWorld
         std::optional<float> mSeen;
     };
 }
-
-#endif

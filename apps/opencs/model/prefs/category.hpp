@@ -1,5 +1,4 @@
-#ifndef CSM_PREFS_CATEGORY_H
-#define CSM_PREFS_CATEGORY_H
+#pragma once
 
 #include <algorithm>
 #include <string>
@@ -44,5 +43,3 @@ namespace CSMPrefs
         void update();
     };
 }
-
-#endif

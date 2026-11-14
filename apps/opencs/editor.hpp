@@ -1,5 +1,4 @@
-#ifndef CS_EDITOR_H
-#define CS_EDITOR_H
+#pragma once
 
 #include <boost/program_options/variables_map.hpp>
 
@@ -117,5 +116,3 @@ namespace CS
         QLocalSocket* mClientSocket;
     };
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWGUI_REPAIR_H
-#define OPENMW_MWGUI_REPAIR_H
+#pragma once
 
 #include <memory>
 
@@ -55,5 +54,3 @@ namespace MWGui
     };
 
 }
-
-#endif

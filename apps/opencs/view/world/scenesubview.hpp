@@ -1,5 +1,4 @@
-#ifndef CSV_WORLD_SCENESUBVIEW_H
-#define CSV_WORLD_SCENESUBVIEW_H
+#pragma once
 
 #include <QHBoxLayout>
 
@@ -86,5 +85,3 @@ namespace CSVWorld
         void requestFocus(const std::string& id);
     };
 }
-
-#endif

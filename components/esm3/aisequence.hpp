@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_ESM_AISEQUENCE_H
-#define OPENMW_COMPONENTS_ESM_AISEQUENCE_H
+#pragma once
 
 #include <cstdint>
 #include <memory>
@@ -170,5 +169,3 @@ namespace ESM
     }
 
 }
-
-#endif

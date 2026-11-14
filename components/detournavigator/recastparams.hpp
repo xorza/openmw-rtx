@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_DETOURNAVIGATOR_RECASTPARAMS_H
-#define OPENMW_COMPONENTS_DETOURNAVIGATOR_RECASTPARAMS_H
+#pragma once
 
 #include "agentbounds.hpp"
 
@@ -33,5 +32,3 @@ namespace DetourNavigator
         return 0;
     }
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESSIMPORT_NPCC_H
-#define OPENMW_ESSIMPORT_NPCC_H
+#pragma once
 
 #include <components/esm3/aipackage.hpp>
 #include <cstdint>
@@ -32,5 +31,3 @@ namespace ESSImport
     };
 
 }
-
-#endif

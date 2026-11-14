@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_ESM_SELECTIONGROUP_H
-#define COMPONENTS_ESM_SELECTIONGROUP_H
+#pragma once
 
 #include <string>
 
@@ -30,5 +29,3 @@ namespace ESM
         void blank();
     };
 }
-
-#endif

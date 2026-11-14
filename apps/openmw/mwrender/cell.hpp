@@ -1,5 +1,4 @@
-#ifndef GAME_RENDER_CELL_H
-#define GAME_RENDER_CELL_H
+#pragma once
 
 #include <string>
 
@@ -30,5 +29,3 @@ namespace MWRender
         virtual void deleteObject(const std::string& handle) = 0;
     };
 }
-
-#endif

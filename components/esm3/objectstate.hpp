@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_OBJECTSTATE_H
-#define OPENMW_ESM_OBJECTSTATE_H
+#pragma once
 
 #include <string>
 #include <vector>
@@ -69,5 +68,3 @@ namespace ESM
         virtual CreatureLevListState& asCreatureLevListState();
     };
 }
-
-#endif

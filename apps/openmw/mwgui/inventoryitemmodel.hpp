@@ -1,5 +1,4 @@
-#ifndef MWGUI_INVENTORY_ITEM_MODEL_H
-#define MWGUI_INVENTORY_ITEM_MODEL_H
+#pragma once
 
 #include "itemmodel.hpp"
 
@@ -37,5 +36,3 @@ namespace MWGui
     };
 
 }
-
-#endif

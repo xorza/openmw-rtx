@@ -1,5 +1,4 @@
-#ifndef GAME_RENDER_ANIMATIONPRIORITY_H
-#define GAME_RENDER_ANIMATIONPRIORITY_H
+#pragma once
 
 #include "blendmask.hpp"
 #include "bonegroup.hpp"
@@ -41,4 +40,3 @@ namespace MWRender
         int mPriority[sNumBlendMasks];
     };
 }
-#endif

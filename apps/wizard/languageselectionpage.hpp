@@ -1,5 +1,4 @@
-#ifndef LANGUAGESELECTIONPAGE_HPP
-#define LANGUAGESELECTIONPAGE_HPP
+#pragma once
 
 #include <QString>
 #include <QWizard>
@@ -25,5 +24,3 @@ namespace Wizard
         MainWizard* mWizard;
     };
 }
-
-#endif // LANGUAGESELECTIONPAGE_HPP

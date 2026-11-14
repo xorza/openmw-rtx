@@ -1,5 +1,4 @@
-#ifndef CSV_DOC_SUBVIEWFACTORYIMP_H
-#define CSV_DOC_SUBVIEWFACTORYIMP_H
+#pragma once
 
 #include "../../model/doc/document.hpp"
 
@@ -44,5 +43,3 @@ namespace CSVDoc
         return new SubViewT(id, document, CreatorFactoryT(), mSorting);
     }
 }
-
-#endif

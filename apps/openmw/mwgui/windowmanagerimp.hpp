@@ -1,5 +1,4 @@
-#ifndef MWGUI_WINDOWMANAGERIMP_H
-#define MWGUI_WINDOWMANAGERIMP_H
+#pragma once
 
 /**
    This class owns and controls all the MW specific windows in the
@@ -693,5 +692,3 @@ namespace MWGui
         Files::ConfigurationManager& mCfgMgr;
     };
 }
-
-#endif

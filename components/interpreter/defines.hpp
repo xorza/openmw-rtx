@@ -1,5 +1,4 @@
-#ifndef INTERPRETER_DEFINES_H_INCLUDED
-#define INTERPRETER_DEFINES_H_INCLUDED
+#pragma once
 
 #include "context.hpp"
 #include <string>
@@ -10,5 +9,3 @@ namespace Interpreter
     std::string fixDefinesMsgBox(std::string_view text, Context& context);
     std::string fixDefinesBook(std::string_view text, Context& context);
 }
-
-#endif

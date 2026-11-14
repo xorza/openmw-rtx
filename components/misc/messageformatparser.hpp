@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_MISC_MESSAGEFORMATPARSER_H
-#define OPENMW_COMPONENTS_MISC_MESSAGEFORMATPARSER_H
+#pragma once
 
 #include <string_view>
 
@@ -46,5 +45,3 @@ namespace Misc
         virtual void process(std::string_view message);
     };
 }
-
-#endif

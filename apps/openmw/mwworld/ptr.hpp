@@ -1,5 +1,4 @@
-#ifndef GAME_MWWORLD_PTR_H
-#define GAME_MWWORLD_PTR_H
+#pragma once
 
 #include <cassert>
 #include <string>
@@ -198,5 +197,3 @@ namespace MWWorld
         void update() const;
     };
 }
-
-#endif

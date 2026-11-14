@@ -1,5 +1,4 @@
-#ifndef OPENMW_TEST_SUITE_DETOURNAVIGATOR_OPERATORS_H
-#define OPENMW_TEST_SUITE_DETOURNAVIGATOR_OPERATORS_H
+#pragma once
 
 #include <components/bullethelpers/operators.hpp>
 #include <components/detournavigator/debug.hpp>
@@ -102,5 +101,3 @@ namespace testing
         return DetourNavigatorTesting::writeRange(*this, value, 3);
     }
 }
-
-#endif

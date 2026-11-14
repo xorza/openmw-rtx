@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SETTINGS_CATEGORIES_HUD_H
-#define OPENMW_COMPONENTS_SETTINGS_CATEGORIES_HUD_H
+#pragma once
 
 #include <components/settings/settingvalue.hpp>
 
@@ -21,5 +20,3 @@ namespace Settings
         SettingValue<bool> mMouseEmulationCursor{ mIndex, "HUD", "mouse emulation cursor" };
     };
 }
-
-#endif

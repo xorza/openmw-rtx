@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESSIMPORT_IMPORTINFO_H
-#define OPENMW_ESSIMPORT_IMPORTINFO_H
+#pragma once
 
 #include <string>
 
@@ -22,5 +21,3 @@ namespace ESSImport
     };
 
 }
-
-#endif

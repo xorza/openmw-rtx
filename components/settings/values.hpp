@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SETTINGS_VALUES_H
-#define OPENMW_COMPONENTS_SETTINGS_VALUES_H
+#pragma once
 
 #include "categories/camera.hpp"
 #include "categories/cells.hpp"
@@ -240,5 +239,3 @@ namespace Settings
         return StaticValues::sIndex->get<T>(category, name);
     }
 }
-
-#endif

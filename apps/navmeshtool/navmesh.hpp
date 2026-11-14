@@ -1,5 +1,4 @@
-#ifndef OPENMW_NAVMESHTOOL_NAVMESH_H
-#define OPENMW_NAVMESHTOOL_NAVMESH_H
+#pragma once
 
 #include <cstddef>
 #include <memory>
@@ -69,5 +68,3 @@ namespace NavMeshTool
         std::shared_ptr<NavMeshTileConsumer> mConsumer;
     };
 }
-
-#endif

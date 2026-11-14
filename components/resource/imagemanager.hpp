@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_RESOURCE_IMAGEMANAGER_H
-#define OPENMW_COMPONENTS_RESOURCE_IMAGEMANAGER_H
+#pragma once
 
 #include <osg/Image>
 #include <osg/Texture2D>
@@ -42,5 +41,3 @@ namespace Resource
     };
 
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWPHYSICS_RAYCASTING_H
-#define OPENMW_MWPHYSICS_RAYCASTING_H
+#pragma once
 
 #include <osg/Vec3f>
 
@@ -41,5 +40,3 @@ namespace MWPhysics
         virtual bool getLineOfSight(const MWWorld::ConstPtr& actor1, const MWWorld::ConstPtr& actor2) const = 0;
     };
 }
-
-#endif

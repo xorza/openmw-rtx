@@ -1,5 +1,4 @@
-#ifndef MWGUI_TEXT_INPUT_H
-#define MWGUI_TEXT_INPUT_H
+#pragma once
 
 #include "windowbase.hpp"
 
@@ -33,4 +32,3 @@ namespace MWGui
         MyGUI::EditBox* mTextEdit;
     };
 }
-#endif

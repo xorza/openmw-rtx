@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_SCENEUTIL_SHADOW_H
-#define COMPONENTS_SCENEUTIL_SHADOW_H
+#pragma once
 
 #include <components/shader/shadermanager.hpp>
 
@@ -62,5 +61,3 @@ namespace SceneUtil
         unsigned int mIndoorShadowCastingMask;
     };
 }
-
-#endif // COMPONENTS_SCENEUTIL_SHADOW_H

@@ -1,5 +1,4 @@
-#ifndef MWLUA_LANDBINDINGS_H
-#define MWLUA_LANDBINDINGS_H
+#pragma once
 
 #include <sol/forward.hpp>
 
@@ -9,5 +8,3 @@ namespace MWLua
 
     sol::table initCoreLandBindings(const Context& context);
 }
-
-#endif // MWLUA_LANDBINDINGS_H

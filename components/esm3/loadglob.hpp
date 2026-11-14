@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_GLOB_H
-#define OPENMW_ESM_GLOB_H
+#pragma once
 
 #include <string>
 
@@ -39,4 +38,3 @@ namespace ESM
     bool operator==(const Global& left, const Global& right);
 
 }
-#endif

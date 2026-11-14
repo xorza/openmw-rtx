@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWGUI_SCREENFADER_H
-#define OPENMW_MWGUI_SCREENFADER_H
+#pragma once
 
 #include <deque>
 #include <memory>
@@ -69,5 +68,3 @@ namespace MWGui
         std::deque<FadeOp::Ptr> mQueue;
     };
 }
-
-#endif

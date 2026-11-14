@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWWORLD_STORE_H
-#define OPENMW_MWWORLD_STORE_H
+#pragma once
 
 #include <map>
 #include <set>
@@ -571,5 +570,3 @@ namespace MWWorld
     };
 
 } // end namespace
-
-#endif

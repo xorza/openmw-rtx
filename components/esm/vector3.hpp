@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_ESM_VECTOR3_H
-#define OPENMW_COMPONENTS_ESM_VECTOR3_H
+#pragma once
 
 #include <osg/Vec3f>
 
@@ -23,5 +22,3 @@ namespace ESM
         operator osg::Vec3f() const { return osg::Vec3f(mValues[0], mValues[1], mValues[2]); }
     };
 }
-
-#endif

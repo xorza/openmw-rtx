@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_LOADINGLISTENER_REPORTER_H
-#define COMPONENTS_LOADINGLISTENER_REPORTER_H
+#pragma once
 
 #include <condition_variable>
 #include <cstddef>
@@ -28,5 +27,3 @@ namespace Loading
         mutable std::condition_variable mUpdated;
     };
 }
-
-#endif

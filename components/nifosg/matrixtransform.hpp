@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_NIFOSG_MATRIXTRANSFORM_H
-#define OPENMW_COMPONENTS_NIFOSG_MATRIXTRANSFORM_H
+#pragma once
 
 #include <components/nif/niftypes.hpp>
 
@@ -35,5 +34,3 @@ namespace NifOsg
     };
 
 }
-
-#endif

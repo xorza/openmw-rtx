@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_L10N_MANAGER_H
-#define COMPONENTS_L10N_MANAGER_H
+#pragma once
 
 #include <memory>
 
@@ -45,5 +44,3 @@ namespace L10n
     };
 
 }
-
-#endif // COMPONENTS_L10N_MANAGER_H

@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_DETOURNAVIGATOR_CLOCK_H
-#define OPENMW_COMPONENTS_DETOURNAVIGATOR_CLOCK_H
+#pragma once
 
 #include <chrono>
 
@@ -35,5 +34,3 @@ namespace DetourNavigator
         return clock;
     }
 }
-
-#endif

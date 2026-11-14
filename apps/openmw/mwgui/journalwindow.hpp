@@ -1,5 +1,4 @@
-#ifndef MWGUI_JOURNAL_H
-#define MWGUI_JOURNAL_H
+#pragma once
 
 #include "windowbase.hpp"
 
@@ -38,5 +37,3 @@ namespace MWGui
         size_t mSelectedIndex = 0;
     };
 }
-
-#endif

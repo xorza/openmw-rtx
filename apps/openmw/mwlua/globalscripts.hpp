@@ -1,5 +1,4 @@
-#ifndef MWLUA_GLOBALSCRIPTS_H
-#define MWLUA_GLOBALSCRIPTS_H
+#pragma once
 
 #include <components/lua/luastate.hpp>
 #include <components/lua/scriptscontainer.hpp>
@@ -67,5 +66,3 @@ namespace MWLua
     };
 
 }
-
-#endif // MWLUA_GLOBALSCRIPTS_H

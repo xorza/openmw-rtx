@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_TERRAIN_DEFS_HPP
-#define COMPONENTS_TERRAIN_DEFS_HPP
+#pragma once
 
 #include <components/vfs/pathutil.hpp>
 
@@ -25,5 +24,3 @@ namespace Terrain
     };
 
 }
-
-#endif

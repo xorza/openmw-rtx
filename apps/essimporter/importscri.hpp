@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESSIMPORT_IMPORTSCRI_H
-#define OPENMW_ESSIMPORT_IMPORTSCRI_H
+#pragma once
 
 #include <components/esm3/variant.hpp>
 
@@ -27,5 +26,3 @@ namespace ESSImport
     };
 
 }
-
-#endif

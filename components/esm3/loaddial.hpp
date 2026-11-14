@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_DIAL_H
-#define OPENMW_ESM_DIAL_H
+#pragma once
 
 #include <list>
 #include <map>
@@ -68,4 +67,3 @@ namespace ESM
         ///< Set record to default state (does not touch the ID and does not change the type).
     };
 }
-#endif

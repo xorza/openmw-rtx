@@ -1,5 +1,4 @@
-#ifndef CSM_FILTER_TEXTNODE_H
-#define CSM_FILTER_TEXTNODE_H
+#pragma once
 
 #include <map>
 #include <string>
@@ -38,5 +37,3 @@ namespace CSMFilter
         bool isValid() { return mRegExp.isValid(); }
     };
 }
-
-#endif

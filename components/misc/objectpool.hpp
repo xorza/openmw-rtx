@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_MISC_OBJECTPOOL_H
-#define OPENMW_COMPONENTS_MISC_OBJECTPOOL_H
+#pragma once
 
 #include <deque>
 #include <memory>
@@ -89,5 +88,3 @@ namespace Misc
         void recycle(T* object) { mUnused.push_back(object); }
     };
 }
-
-#endif

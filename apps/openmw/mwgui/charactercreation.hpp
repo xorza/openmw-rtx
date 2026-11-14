@@ -1,5 +1,4 @@
-#ifndef CHARACTER_CREATION_HPP
-#define CHARACTER_CREATION_HPP
+#pragma once
 
 #include <components/esm3/loadclas.hpp>
 
@@ -123,5 +122,3 @@ namespace MWGui
         void handleDialogDone(CSE currentStage, int nextMode);
     };
 }
-
-#endif

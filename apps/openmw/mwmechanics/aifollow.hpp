@@ -1,5 +1,4 @@
-#ifndef GAME_MWMECHANICS_AIFOLLOW_H
-#define GAME_MWMECHANICS_AIFOLLOW_H
+#pragma once
 
 #include "aitemporarybase.hpp"
 #include "typedaipackage.hpp"
@@ -99,4 +98,3 @@ namespace MWMechanics
         static int mFollowIndexCounter;
     };
 }
-#endif

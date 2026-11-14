@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_CONTENT_LESSBYID_H
-#define OPENMW_COMPONENTS_CONTENT_LESSBYID_H
+#pragma once
 
 #include <components/esm/refid.hpp>
 
@@ -28,5 +27,3 @@ namespace EsmLoader
         }
     };
 }
-
-#endif

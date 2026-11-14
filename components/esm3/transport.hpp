@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_ESM_TRANSPORT_H
-#define OPENMW_COMPONENTS_ESM_TRANSPORT_H
+#pragma once
 
 #include <string>
 #include <vector>
@@ -31,5 +30,3 @@ namespace ESM
     };
 
 }
-
-#endif

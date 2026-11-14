@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SETTINGS_SHADERMANAGER_H
-#define OPENMW_COMPONENTS_SETTINGS_SHADERMANAGER_H
+#pragma once
 
 #include <filesystem>
 #include <fstream>
@@ -166,5 +165,3 @@ namespace Settings
         Mode mMode = Mode::Normal;
     };
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef MWGUI_ITEM_MODEL_H
-#define MWGUI_ITEM_MODEL_H
+#pragma once
 
 #include <memory>
 
@@ -119,5 +118,3 @@ namespace MWGui
     };
 
 }
-
-#endif

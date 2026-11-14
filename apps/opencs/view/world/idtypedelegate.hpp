@@ -1,5 +1,4 @@
-#ifndef IDTYPEDELEGATE_HPP
-#define IDTYPEDELEGATE_HPP
+#pragma once
 
 #include "datadisplaydelegate.hpp"
 
@@ -36,5 +35,3 @@ namespace CSVWorld
         ///< The ownership of the returned CommandDelegate is transferred to the caller.
     };
 }
-
-#endif // REFIDTYPEDELEGATE_HPP

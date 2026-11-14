@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SETTINGS_HRTFMODE_H
-#define OPENMW_COMPONENTS_SETTINGS_HRTFMODE_H
+#pragma once
 
 namespace Settings
 {
@@ -10,5 +9,3 @@ namespace Settings
         Auto,
     };
 }
-
-#endif

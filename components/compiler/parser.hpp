@@ -1,5 +1,4 @@
-#ifndef COMPILER_PARSER_H_INCLUDED
-#define COMPILER_PARSER_H_INCLUDED
+#pragma once
 
 #include <string>
 
@@ -101,5 +100,3 @@ namespace Compiler
         ///< Has anything been parsed?
     };
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef COMPILER_DECLARATIONPARSER_H_INCLUDED
-#define COMPILER_DECLARATIONPARSER_H_INCLUDED
+#pragma once
 
 #include "parser.hpp"
 
@@ -42,5 +41,3 @@ namespace Compiler
         void reset() override;
     };
 }
-
-#endif

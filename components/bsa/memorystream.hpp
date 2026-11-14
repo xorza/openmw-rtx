@@ -23,8 +23,7 @@
 
  */
 
-#ifndef OPENMW_COMPONENTS_BSA_MEMORYSTREAM_HPP
-#define OPENMW_COMPONENTS_BSA_MEMORYSTREAM_HPP
+#pragma once
 
 #include <istream>
 #include <vector>
@@ -55,4 +54,3 @@ namespace Bsa
     };
 
 }
-#endif

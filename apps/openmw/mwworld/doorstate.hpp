@@ -1,5 +1,4 @@
-#ifndef GAME_MWWORLD_DOORSTATE_H
-#define GAME_MWWORLD_DOORSTATE_H
+#pragma once
 
 namespace MWWorld
 {
@@ -10,5 +9,3 @@ namespace MWWorld
         Closing = 2,
     };
 }
-
-#endif

@@ -24,8 +24,7 @@
   trial & error.  See http://en.uesp.net/wiki for details.
 
 */
-#ifndef ESM4_LIGHTING_H
-#define ESM4_LIGHTING_H
+#pragma once
 
 #include <cstdint>
 
@@ -77,5 +76,3 @@ namespace ESM4
     };
 #pragma pack(pop)
 }
-
-#endif // ESM4_LIGHTING_H

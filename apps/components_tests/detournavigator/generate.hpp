@@ -1,5 +1,4 @@
-#ifndef OPENMW_TEST_SUITE_DETOURNAVIGATOR_GENERATE_H
-#define OPENMW_TEST_SUITE_DETOURNAVIGATOR_GENERATE_H
+#pragma once
 
 #include <algorithm>
 #include <numeric>
@@ -42,5 +41,3 @@ namespace DetourNavigator
         }
     }
 }
-
-#endif

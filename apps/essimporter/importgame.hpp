@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESSIMPORT_GAME_H
-#define OPENMW_ESSIMPORT_GAME_H
+#pragma once
 
 #include <cstdint>
 
@@ -31,5 +30,3 @@ namespace ESSImport
     };
 
 }
-
-#endif

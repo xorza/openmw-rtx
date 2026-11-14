@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_RESOURCE_RESOURCESYSTEM_H
-#define OPENMW_COMPONENTS_RESOURCE_RESOURCESYSTEM_H
+#pragma once
 
 #include <memory>
 #include <vector>
@@ -94,5 +93,3 @@ namespace Resource
     };
 
 }
-
-#endif

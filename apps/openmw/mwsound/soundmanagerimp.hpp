@@ -1,5 +1,4 @@
-#ifndef GAME_SOUND_SOUNDMANAGER_H
-#define GAME_SOUND_SOUNDMANAGER_H
+#pragma once
 
 #include <map>
 #include <memory>
@@ -302,5 +301,3 @@ namespace MWSound
         void clear() override;
     };
 }
-
-#endif

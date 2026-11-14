@@ -1,5 +1,4 @@
-#ifndef GAME_SOUND_SOUNDBUFFER_H
-#define GAME_SOUND_SOUNDBUFFER_H
+#pragma once
 
 #include <algorithm>
 #include <deque>
@@ -126,5 +125,3 @@ namespace MWSound
         inline void unloadUnused();
     };
 }
-
-#endif /* GAME_SOUND_SOUNDBUFFER_H */

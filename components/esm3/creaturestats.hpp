@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_CREATURESTATS_H
-#define OPENMW_ESM_CREATURESTATS_H
+#pragma once
 
 #include <array>
 #include <map>
@@ -100,5 +99,3 @@ namespace ESM
         void save(ESMWriter& esm) const;
     };
 }
-
-#endif

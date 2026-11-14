@@ -1,5 +1,4 @@
-#ifndef CSM_FILTER_LEAFNODE_H
-#define CSM_FILTER_LEAFNODE_H
+#pragma once
 
 #include <vector>
 
@@ -15,5 +14,3 @@ namespace CSMFilter
         /// passed into test as columns must contain all columns listed here.
     };
 }
-
-#endif

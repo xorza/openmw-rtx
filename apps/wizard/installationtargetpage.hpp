@@ -1,5 +1,4 @@
-#ifndef INSTALLATIONTARGETPAGE_HPP
-#define INSTALLATIONTARGETPAGE_HPP
+#pragma once
 
 #include <QWizard>
 
@@ -34,5 +33,3 @@ namespace Wizard
     };
 
 }
-
-#endif // INSTALLATIONTARGETPAGE_HPP

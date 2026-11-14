@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_FILES_COLLECTION_HPP
-#define COMPONENTS_FILES_COLLECTION_HPP
+#pragma once
 
 #include <filesystem>
 
@@ -36,5 +35,3 @@ namespace Files
         mutable std::map<std::string, MultiDirCollection, Misc::StringUtils::CiComp> mCollections;
     };
 }
-
-#endif

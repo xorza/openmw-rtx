@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWRENDER_LANDMANAGER_H
-#define OPENMW_MWRENDER_LANDMANAGER_H
+#pragma once
 
 #include <osg/Object>
 
@@ -31,5 +30,3 @@ namespace MWRender
     };
 
 }
-
-#endif

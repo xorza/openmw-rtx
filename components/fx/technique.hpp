@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_FX_TECHNIQUE_HPP
-#define OPENMW_COMPONENTS_FX_TECHNIQUE_HPP
+#pragma once
 
 #include <filesystem>
 #include <memory>
@@ -351,5 +350,3 @@ namespace Fx
     template <>
     void Technique::parseBlockImp<Lexer::Uniform_Vec4>();
 }
-
-#endif

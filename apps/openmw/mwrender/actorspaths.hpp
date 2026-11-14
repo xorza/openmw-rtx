@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWRENDER_AGENTSPATHS_H
-#define OPENMW_MWRENDER_AGENTSPATHS_H
+#pragma once
 
 #include "apps/openmw/mwworld/ptr.hpp"
 
@@ -60,5 +59,3 @@ namespace MWRender
         osg::ref_ptr<osg::StateSet> mDebugDrawStateSet;
     };
 }
-
-#endif

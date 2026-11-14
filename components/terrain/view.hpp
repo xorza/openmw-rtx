@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_TERRAIN_VIEW_H
-#define COMPONENTS_TERRAIN_VIEW_H
+#pragma once
 
 namespace Terrain
 {
@@ -17,5 +16,3 @@ namespace Terrain
     };
 
 }
-
-#endif

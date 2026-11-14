@@ -1,5 +1,4 @@
-#ifndef CSV_WIDGET_INSTANCEDRAGMODES_H
-#define CSV_WIDGET_INSTANCEDRAGMODES_H
+#pragma once
 
 namespace CSVRender
 {
@@ -18,4 +17,3 @@ namespace CSVRender
         DragMode_Scale_Snap
     };
 }
-#endif

@@ -1,5 +1,4 @@
-#ifndef CSM_TOOLS_SEARCH_H
-#define CSM_TOOLS_SEARCH_H
+#pragma once
 
 #include <set>
 #include <string>
@@ -91,5 +90,3 @@ namespace CSMTools
 }
 
 Q_DECLARE_METATYPE(CSMTools::Search)
-
-#endif

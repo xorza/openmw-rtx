@@ -1,5 +1,4 @@
-#ifndef GAME_MWMECHANICS_AITRAVEL_H
-#define GAME_MWMECHANICS_AITRAVEL_H
+#pragma once
 
 #include "typedaipackage.hpp"
 
@@ -68,5 +67,3 @@ namespace MWMechanics
         std::unique_ptr<AiPackage> clone() const override;
     };
 }
-
-#endif

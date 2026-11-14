@@ -1,5 +1,4 @@
-#ifndef OPENMW_APPS_OPENMW_MWWORLD_PTRREGISTRY_H
-#define OPENMW_APPS_OPENMW_MWWORLD_PTRREGISTRY_H
+#pragma once
 
 #include "ptr.hpp"
 
@@ -89,5 +88,3 @@ namespace MWWorld
         const PtrRegistry* mPtr;
     };
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef OPENMW_ESM_CELLID_H
-#define OPENMW_ESM_CELLID_H
+#pragma once
 
 #include <components/esm/refid.hpp>
 #include <cstdint>
@@ -33,5 +32,3 @@ namespace ESM
     bool operator!=(const CellId& left, const CellId& right);
     bool operator<(const CellId& left, const CellId& right);
 }
-
-#endif

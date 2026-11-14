@@ -1,5 +1,4 @@
-#ifndef MWGUI_SORT_FILTER_ITEM_MODEL_H
-#define MWGUI_SORT_FILTER_ITEM_MODEL_H
+#pragma once
 
 #include "itemmodel.hpp"
 
@@ -67,5 +66,3 @@ namespace MWGui
     };
 
 }
-
-#endif

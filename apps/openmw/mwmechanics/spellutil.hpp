@@ -1,5 +1,4 @@
-#ifndef MWMECHANICS_SPELLUTIL_H
-#define MWMECHANICS_SPELLUTIL_H
+#pragma once
 
 #include <components/esm3/loadskil.hpp>
 
@@ -66,5 +65,3 @@ namespace MWMechanics
     bool spellIncreasesSkill(const ESM::Spell* spell);
     bool spellIncreasesSkill(const ESM::RefId& spellId);
 }
-
-#endif

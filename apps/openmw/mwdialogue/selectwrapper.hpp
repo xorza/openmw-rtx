@@ -1,5 +1,4 @@
-#ifndef GAME_MWDIALOGUE_SELECTWRAPPER_H
-#define GAME_MWDIALOGUE_SELECTWRAPPER_H
+#pragma once
 
 #include <components/esm3/loadinfo.hpp>
 
@@ -44,5 +43,3 @@ namespace MWDialogue
         ESM::RefId getId() const;
     };
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef CSV_RENDER_TERRAINSHAPEMODE_H
-#define CSV_RENDER_TERRAINSHAPEMODE_H
+#pragma once
 
 #include "editmode.hpp"
 
@@ -224,5 +223,3 @@ namespace CSVRender
         void setShapeEditToolStrength(int shapeEditToolStrength);
     };
 }
-
-#endif

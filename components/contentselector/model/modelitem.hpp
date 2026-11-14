@@ -1,5 +1,4 @@
-#ifndef MODELITEM_HPP
-#define MODELITEM_HPP
+#pragma once
 
 #include <QList>
 #include <QMimeData>
@@ -37,5 +36,3 @@ namespace ContentSelectorModel
         QList<ModelItem*> mChildItems;
     };
 }
-
-#endif

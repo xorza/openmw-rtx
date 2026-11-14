@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_MISC_CONVERT_H
-#define OPENMW_COMPONENTS_MISC_CONVERT_H
+#pragma once
 
 #include <components/esm/position.hpp>
 #include <components/esm3/loadpgrd.hpp>
@@ -79,5 +78,3 @@ namespace Misc::Convert
         return osg::Vec2f(static_cast<float>(value.x()), static_cast<float>(value.y()));
     }
 }
-
-#endif

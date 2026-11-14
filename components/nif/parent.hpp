@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_NIF_PARENT_HPP
-#define OPENMW_COMPONENTS_NIF_PARENT_HPP
+#pragma once
 
 namespace Nif
 {
@@ -11,5 +10,3 @@ namespace Nif
         const Parent* mParent;
     };
 }
-
-#endif

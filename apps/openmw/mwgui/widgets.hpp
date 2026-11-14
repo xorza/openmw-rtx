@@ -1,5 +1,4 @@
-#ifndef MWGUI_WIDGETS_H
-#define MWGUI_WIDGETS_H
+#pragma once
 
 #include "../mwmechanics/stat.hpp"
 
@@ -285,5 +284,3 @@ namespace MWGui
         typedef MWDynamicStat* MWDynamicStatPtr;
     }
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef MWGUI_STATS_WINDOW_H
-#define MWGUI_STATS_WINDOW_H
+#pragma once
 
 #include "statswatcher.hpp"
 #include "windowpinnablebase.hpp"
@@ -97,4 +96,3 @@ namespace MWGui
         void onTitleDoubleClicked() override;
     };
 }
-#endif

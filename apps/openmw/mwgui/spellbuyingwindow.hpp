@@ -1,5 +1,4 @@
-#ifndef MWGUI_SpellBuyingWINDOW_H
-#define MWGUI_SpellBuyingWINDOW_H
+#pragma once
 
 #include "referenceinterface.hpp"
 #include "windowbase.hpp"
@@ -61,5 +60,3 @@ namespace MWGui
         size_t mControllerFocus = 0;
     };
 }
-
-#endif

@@ -1,5 +1,4 @@
-﻿#ifndef OPENMW_NAVMESHTOOL_WORLDSPACEDATA_H
-#define OPENMW_NAVMESHTOOL_WORLDSPACEDATA_H
+#pragma once
 
 #include <components/bullethelpers/collisionobject.hpp>
 #include <components/detournavigator/settings.hpp>
@@ -97,5 +96,3 @@ namespace NavMeshTool
         const VFS::Manager& vfs, Resource::BulletShapeManager& bulletShapeManager, const EsmLoader::EsmData& esmData,
         bool writeBinaryLog, ESM::RefId worldspace, std::span<const std::size_t> cells);
 }
-
-#endif

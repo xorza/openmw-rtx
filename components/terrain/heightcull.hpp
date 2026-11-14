@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_TERRAIN_HEIGHTCULL_H
-#define COMPONENTS_TERRAIN_HEIGHTCULL_H
+#pragma once
 
 #include <osg/Referenced>
 
@@ -40,5 +39,3 @@ namespace Terrain
     };
 
 }
-
-#endif

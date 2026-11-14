@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_ESMLOADER_RECORD_H
-#define OPENMW_COMPONENTS_ESMLOADER_RECORD_H
+#pragma once
 
 #include <components/esm3/loadcell.hpp>
 #include <components/misc/algorithm.hpp>
@@ -41,5 +40,3 @@ namespace EsmLoader
         return result;
     }
 }
-
-#endif

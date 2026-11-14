@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_SERIALIZATION_BINARYREADER_H
-#define OPENMW_COMPONENTS_SERIALIZATION_BINARYREADER_H
+#pragma once
 
 #include <components/misc/endianness.hpp>
 
@@ -79,5 +78,3 @@ namespace Serialization
         const std::byte* const mEnd;
     };
 }
-
-#endif

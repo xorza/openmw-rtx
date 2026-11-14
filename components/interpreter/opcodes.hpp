@@ -1,5 +1,4 @@
-#ifndef INTERPRETER_OPCODES_H_INCLUDED
-#define INTERPRETER_OPCODES_H_INCLUDED
+#pragma once
 
 namespace Interpreter
 {
@@ -24,5 +23,3 @@ namespace Interpreter
     };
 
 }
-
-#endif

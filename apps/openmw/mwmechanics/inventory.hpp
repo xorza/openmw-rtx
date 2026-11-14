@@ -1,5 +1,4 @@
-#ifndef OPENMW_MWMECHANICS_INVENTORY_H
-#define OPENMW_MWMECHANICS_INVENTORY_H
+#pragma once
 
 #include "../mwbase/environment.hpp"
 
@@ -37,5 +36,3 @@ namespace MWMechanics
         }
     }
 }
-
-#endif

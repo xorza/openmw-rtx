@@ -1,5 +1,4 @@
-#ifndef MWLUA_ACTOR_H
-#define MWLUA_ACTOR_H
+#pragma once
 
 #include <sol/sol.hpp>
 
@@ -74,4 +73,3 @@ namespace MWLua
         });
     }
 }
-#endif // MWLUA_ACTOR_H

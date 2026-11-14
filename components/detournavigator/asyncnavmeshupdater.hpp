@@ -1,5 +1,4 @@
-#ifndef OPENMW_COMPONENTS_DETOURNAVIGATOR_ASYNCNAVMESHUPDATER_H
-#define OPENMW_COMPONENTS_DETOURNAVIGATOR_ASYNCNAVMESHUPDATER_H
+#pragma once
 
 #include "agentbounds.hpp"
 #include "changetype.hpp"
@@ -267,5 +266,3 @@ namespace DetourNavigator
         inline void waitUntilAllJobsDone();
     };
 }
-
-#endif

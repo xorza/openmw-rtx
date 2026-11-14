@@ -1,5 +1,4 @@
-#ifndef COMPONENTS_LUA_L10N_H
-#define COMPONENTS_LUA_L10N_H
+#pragma once
 
 #include <sol/sol.hpp>
 
@@ -12,5 +11,3 @@ namespace LuaUtil
 {
     sol::function initL10nLoader(lua_State* state, L10n::Manager* manager);
 }
-
-#endif // COMPONENTS_LUA_L10N_H
