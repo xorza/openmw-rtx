@@ -72,8 +72,11 @@ namespace RtxTool
         /// The frame before's time, which a hitch stands out from.
         double mLastMs = 0.0;
 
-        /// The cell the player stood in on the frame before, which tells a frame that crossed into another.
-        const void* mLastCell = nullptr;
+        /// The game's active cells on the frame before and on this one, sorted, which tell a frame the game loaded
+        /// cells on: it changes its grid apart from the frame the player's own cell changes. Refilled each frame
+        /// into room reserved for two grids.
+        std::vector<const void*> mActive;
+        std::vector<const void*> mLastActive;
 
         /// The refusals counted so far, by kind, so a frame's new ones are the difference.
         std::array<std::uint32_t, Rtx::sRefusedKinds> mRefused{};

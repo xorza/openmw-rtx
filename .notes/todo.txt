@@ -1,9 +1,12 @@
+- remove visibility limit
+
 - all IO serial?
 
 - x86_64-v3
 - publish rgbcx
 - avx encoders
 - bake distant land into one mesh
+
 
 
 /optimize-perf rtx renderer, make sure implementation is canonical and idiomatic, see if you find inconsistencies or issues fix them, try and reduce register and spill memory usage, analyze rtx shaders, denoiser, fsr. etc.  bench and profile vanilla, mfr and pbr , make sure to test and bench on windows at 192.168.0.8, optimize kernels, registers and reduce spills there as well, test, on windows gpu use low resulution, that gpu is very weak and i dont want benches to take forever

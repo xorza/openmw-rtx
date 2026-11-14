@@ -7,6 +7,8 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
+#include <vector>
 
 #include <apps/openmw/mwbase/environment.hpp>
 #include <apps/openmw/mwbase/world.hpp>
@@ -14,6 +16,8 @@
 #include <apps/openmw/mwworld/cell.hpp>
 #include <apps/openmw/mwworld/cellstore.hpp>
 #include <apps/openmw/mwworld/ptr.hpp>
+#include <apps/openmw/mwworld/scene.hpp>
+#include <components/misc/constants.hpp>
 #include <components/rtx/renderer/framespend.hpp>
 #include <components/rtx/scene/refusals.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
@@ -35,6 +39,12 @@ namespace RtxTool
         : mBudgetMs(static_cast<double>(stepSeconds) * 1000.0)
         , mPaced(paced)
     {
+        // The active grid's cells, which the game keeps active at once, with room for a frame that holds an old grid
+        // beside a new one.
+        constexpr std::size_t sActiveMost
+            = 2 * (2 * Constants::CellGridRadius + 1) * (2 * Constants::CellGridRadius + 1);
+        mActive.reserve(sActiveMost);
+        mLastActive.reserve(sActiveMost);
     }
 
     void TourWatch::begin(const Stop& stop)
@@ -42,7 +52,7 @@ namespace RtxTool
         mLeg = stop.mName;
         mFrame = 0;
         mLastMs = 0.0;
-        mLastCell = nullptr;
+        mLastActive.clear();
         mCovered.clear();
         mSlow = 0;
         mMeasured = 0;
@@ -91,11 +101,20 @@ namespace RtxTool
             mRefused[kind] = count;
         }
 
+        // How many cells the game made active on this frame: its loads, which run on the frame's own thread.
+        const MWWorld::Scene::CellStoreCollection& active
+            = MWBase::Environment::get().getWorldScene()->getActiveCells();
+        mActive.assign(active.begin(), active.end());
+        std::ranges::sort(mActive);
+        std::size_t loaded = 0;
+        if (!mLastActive.empty())
+            for (const void* cell : mActive)
+                loaded += std::ranges::binary_search(mLastActive, cell) ? 0 : 1;
+        std::swap(mActive, mLastActive);
+
         // Covered where the world stood whole while the player stood in the cell's column: the rows of a leg's band
         // stand in the active grid together.
         const MWWorld::CellStore* standing = MWBase::Environment::get().getWorld()->getPlayerPtr().getCell();
-        const bool crossed = mLastCell != nullptr && standing != mLastCell;
-        mLastCell = standing;
         if (report.isWhole())
         {
             if (standing != nullptr && standing->getCell()->isExterior())
@@ -120,13 +139,13 @@ namespace RtxTool
                 mSlowWorstMs = frameMs;
                 mSlowWorst = placeOf(note);
             }
-            // **Whose it was, said**: a frame that crossed into another cell is the one the game loads the active
-            // grid's new cells on, and what the renderer's stretches leave of the frame is the game's.
+            // **Whose it was, said**: `update` is the game's own work between two frames, and a frame the game made
+            // cells active on is one it loaded them on.
             if (mLastMs > 0.0 && frameMs > sHitchRatio * mLastMs)
                 add(FindingKind::Hitch,
                     std::format("{:.1f} ms after {:.1f}{}: {} meshes arrived, {}", frameMs, mLastMs,
-                        crossed ? ", crossing into another cell" : "", report.mUpload.mArrivedMeshes,
-                        Rtx::describeStretches(report.mSpend)),
+                        loaded > 0 ? std::format(", the game loading {} cells", loaded) : std::string(),
+                        report.mUpload.mArrivedMeshes, Rtx::describeStretches(report.mSpend)),
                     note, frameMs);
         }
         mLastMs = frameMs;

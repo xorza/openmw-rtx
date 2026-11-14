@@ -117,14 +117,16 @@ namespace RtxTool
         constexpr int sRing = (2 * Constants::CellGridRadius + 3) * (2 * Constants::CellGridRadius + 3)
             - (2 * Constants::CellGridRadius + 1) * (2 * Constants::CellGridRadius + 1);
         const int processors = std::max(1, static_cast<int>(std::thread::hardware_concurrency()) - 1);
-        // What the preloader may hold at once: the active grid and the ring around it, (2r + 3)², and a teleport's
-        // destination with its surroundings, (2r + 1)², and the cell the teleport leaves; 35 at a radius of one,
-        // what the game itself asks for when a tour's teleport finds less.
-        constexpr int sCacheTheGameAsksFor = (2 * Constants::CellGridRadius + 3) * (2 * Constants::CellGridRadius + 3)
-            + (2 * Constants::CellGridRadius + 1) * (2 * Constants::CellGridRadius + 1) + 1;
+        // What the preloader may hold at once: the grid and its ring around the centre the player stands at and
+        // around the one the flight is predicted to reach, (2r + 3)² each, 50 at a radius of one; past the 43 and 44
+        // the game asked for under the three contents' tours, a door's surroundings among them.
+        constexpr int sCacheTheGameAsksFor
+            = 2 * (2 * Constants::CellGridRadius + 3) * (2 * Constants::CellGridRadius + 3);
         return CellPreload{ .mDistance = shipped.get(cells.mPreloadDistance) * faster,
             .mThreads = std::clamp(threads, 1, std::min(sRing, processors)),
-            .mCacheMin = std::max(shipped.get(cells.mPreloadCellCacheMin), sCacheTheGameAsksFor),
+            // The least kept stays the shipped file's, so what expired makes room: a cache held full at its most
+            // asked for more on every door, 58 against 50.
+            .mCacheMin = shipped.get(cells.mPreloadCellCacheMin),
             .mCacheMax = std::max(shipped.get(cells.mPreloadCellCacheMax), sCacheTheGameAsksFor) };
     }
 

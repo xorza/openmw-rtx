@@ -167,7 +167,7 @@ namespace RtxTool
     /// The game's preloading for a flight at `speed` units a second, made to work as it does for a running player:
     /// the shipped `preload distance` scaled by the flight's speed over a player's, so it begins as many seconds
     /// ahead of a crossing; the cache the game itself asks for when the ring and the cells around a teleport do not
-    /// fit (35); and as many threads as the shipped file's single one would need to keep pace, at most the ring's
+    /// fit (50); and as many threads as the shipped file's single one would need to keep pace, at most the ring's
     /// sixteen cells and the processor's own less the frame's.
     CellPreload preloadFlownAt(const ShippedDefaults& shipped, float speed);
 

@@ -227,8 +227,9 @@ namespace RtxTool
             EXPECT_FLOAT_EQ(run.mPreload->mDistance, 1000.0f * 12000.0f / 337.5f);
             EXPECT_EQ(run.mPreload->mThreads,
                 std::min(16, std::max(1, static_cast<int>(std::thread::hardware_concurrency()) - 1)));
-            EXPECT_EQ(run.mPreload->mCacheMin, 35) << "25 for the grid and its ring, 10 for a teleport's";
-            EXPECT_EQ(run.mPreload->mCacheMax, 35);
+            EXPECT_EQ(run.mPreload->mCacheMin, 12) << "the shipped least, so what expired makes room";
+            EXPECT_EQ(run.mPreload->mCacheMax, 50)
+                << "the grid and its ring, 25, around where the player is and will be";
             EXPECT_EQ(run.mPhysicsThreads, 1) << "the game's threaded physics";
             EXPECT_TRUE(request.mHud) << "the interface over the frame, as a player sees it";
             EXPECT_TRUE(request.mSetup.mInterface);

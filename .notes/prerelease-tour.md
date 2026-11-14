@@ -313,7 +313,8 @@ On `rtx-tour`. Whoever addresses an item deletes it.
 - **The game's preloading at the flight's pace** (`preloadFlownAt`): the shipped `preload distance` scaled by the
   flight's speed over a running player's 337.5 units a second, from the vanilla movement GMSTs, so preloading
   begins as many seconds ahead of a crossing; its one thread scaled the same, held to the ring's sixteen cells and
-  what the processor spares; and the cache the game itself asks for, 35. The vanilla tour's hitches went from
+  what the processor spares; and a cache of 50, the grid and its ring around where the player is and will be, past
+  the 43 and 44 the game asked for under the first tours. The vanilla tour's hitches went from
   451, the game loading cells on the frame, to 75, the renderer's own update after an arrival.
 - **A tour draws 1024x768 where the line names no size** (`sTourFrame`), at the person's ask: its findings are the
   content's faults, not its figures.
