@@ -390,6 +390,15 @@ namespace Rtx
                 }
             }
 
+            // **No ceiling lets a lane hold scratch the device would warn of** at a start
+            // (`StatisticNames::mScratchFreeBytes`): what the gate passes, a player's log is quiet about.
+            const std::uint64_t scratchFree = getDevice().getPhysicalDevice().getDriver().mStatistics.mScratchFreeBytes;
+            EXPECT_LE(measured->mRule.mScratch, scratchFree) << "the rule's scratch";
+            for (const Row& row : measured->mRows)
+            {
+                EXPECT_LE(row.mCeiling.mScratch, scratchFree) << "the scratch of a row of `" << row.mName << "`";
+            }
+
             for (std::size_t at = 0; at < kernels.size(); ++at)
             {
                 const VisibilityPass::NamedKernel& kernel = kernels[at];

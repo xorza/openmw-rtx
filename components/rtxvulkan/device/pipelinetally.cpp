@@ -7,8 +7,10 @@
 
 namespace Rtx
 {
-    PipelineTally::PipelineTally(const std::chrono::steady_clock::time_point start)
-        : mStart(start)
+    PipelineTally::PipelineTally(
+        const std::chrono::steady_clock::time_point start, const std::uint64_t scratchFreeBytes)
+        : mScratchFreeBytes(scratchFreeBytes)
+        , mStart(start)
     {
     }
 
@@ -36,7 +38,7 @@ namespace Rtx
 
         if (made.mExecutables == 0)
             ++mSummary.mWithoutExecutable;
-        if (made.mScratchBytes > 0)
+        if (made.mScratchBytes > mScratchFreeBytes)
             mSummary.mSpills.push_back(PipelineSpill{ .mName = std::string(made.mName), .mBytes = made.mScratchBytes });
     }
 
@@ -44,6 +46,7 @@ namespace Rtx
     {
         const std::scoped_lock lock(mLock);
         PipelineSummary taken = std::exchange(mSummary, PipelineSummary{});
+        taken.mScratchFreeBytes = mScratchFreeBytes;
         mStart = now;
 
         std::ranges::sort(taken.mSpills, [](const PipelineSpill& left, const PipelineSpill& right) {
@@ -74,8 +77,9 @@ namespace Rtx
         if (summary.mSpills.empty())
             return {};
 
-        std::string line = std::format(
-            "{} of {} pipelines use scratch memory, bytes a lane:", summary.mSpills.size(), summary.mMade);
+        std::string line
+            = std::format("{} of {} pipelines use more than {} bytes of scratch memory a lane:", summary.mSpills.size(),
+                summary.mMade, summary.mScratchFreeBytes);
         for (std::size_t at = 0; at < summary.mSpills.size(); ++at)
             line += std::format(
                 "{} \"{}\" {}", at == 0 ? "" : ",", summary.mSpills[at].mName, summary.mSpills[at].mBytes);

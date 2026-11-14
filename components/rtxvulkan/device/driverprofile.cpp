@@ -20,7 +20,8 @@ namespace Rtx
                     return StatisticNames{ .mScratch = "Local Memory Size",
                         .mRegisters = "Register Count",
                         .mShared = "Shared Memory Size",
-                        .mScratchBits = 0xFFFFFFFF };
+                        .mScratchBits = 0xFFFFFFFF,
+                        .mScratchFreeBytes = 112 };
                 default:
                     return StatisticNames{};
             }

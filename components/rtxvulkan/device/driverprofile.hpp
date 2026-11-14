@@ -7,7 +7,8 @@
 
 namespace Rtx
 {
-    /// The names a driver reports a pipeline's use under (`CompiledUse`), empty where it reports none.
+    /// The names a driver reports a pipeline's use under (`CompiledUse`), empty where it reports none, and how
+    /// its scratch figure is read.
     struct StatisticNames
     {
         std::string_view mScratch;
@@ -18,6 +19,14 @@ namespace Rtx
         /// as 2^36 above the bytes spilled, and as the bytes alone under driver 615.78 on Linux, so
         /// its low 32 bits are the bytes either way; every other driver's is the bytes.
         std::uint64_t mScratchBits = ~std::uint64_t{ 0 };
+
+        /// The most scratch a lane holds on the driver at no cost a bench showed, in bytes: a summary warns
+        /// of a pipeline that holds more (`PipelineTally`). NVIDIA's compiler keeps what a kernel's registers
+        /// do not hold in shared memory and what is over in a lane's local memory, its scratch, and 112 bytes
+        /// of it taken off a stage moved its time by nothing
+        /// (`docs/research/2026-11-14-nvidia-register-spills.md`); on every other driver scratch is a spill
+        /// from its first byte.
+        std::uint64_t mScratchFreeBytes = 0;
     };
 
     /// What differs by the vendor and the driver of a device, read once off its identity: the one place

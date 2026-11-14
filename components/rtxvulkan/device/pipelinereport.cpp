@@ -28,8 +28,9 @@ namespace Rtx
 
             // **A spill is a warning**: a kernel that spills runs at the speed of its scratch memory, which
             // took a frame on an integrated card from milliseconds to the better part of a second
-            // (`docs/research/2026-10-21-amd-integrated-stage-times.md`). One line for them all, the worst
-            // first.
+            // (`docs/research/2026-10-21-amd-integrated-stage-times.md`). Past what the driver holds at no
+            // cost (`StatisticNames::mScratchFreeBytes`), so a start that is as it was measured warns of
+            // nothing. One line for them all, the worst first.
             if (const std::string spills = describeSpills(summary); !spills.empty())
                 Log(Debug::Warning) << what << ": " << spills;
         }
@@ -108,7 +109,8 @@ namespace Rtx
     PipelineReport::PipelineReport(const Device& device, const std::filesystem::path& codeFolder)
         : mDevice(device)
         , mCode(codeFolder.empty() ? nullptr : std::make_unique<PipelineCodeFolder>(codeFolder))
-        , mTally(std::make_unique<PipelineTally>(std::chrono::steady_clock::now()))
+        , mTally(std::make_unique<PipelineTally>(
+              std::chrono::steady_clock::now(), device.getPhysicalDevice().getDriver().mStatistics.mScratchFreeBytes))
     {
     }
 

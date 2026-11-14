@@ -155,8 +155,9 @@ namespace Rtx
 
         /// **A driver's profile is read off its vendor and its driver alone**: NGX runs on NVIDIA's id
         /// and on no other; each driver names its statistics its own way, RADV and AMD's own
-        /// differently on one card, and a driver that names none has none. AMD's own alone is handed its
-        /// ray-query modules without their reconvergence, which its compiler fails on.
+        /// differently on one card, and a driver that names none has none; NVIDIA's alone holds scratch
+        /// at no cost, 112 bytes a lane. AMD's own alone is handed its ray-query modules without their
+        /// reconvergence, which its compiler fails on.
         TEST(RtxPhysicalDeviceTest, aDriversProfileIsItsCapabilitiesAndItsStatisticsNames)
         {
             const DriverProfile nvidia = DriverProfile::of(0x10DE, VK_DRIVER_ID_NVIDIA_PROPRIETARY);
@@ -164,15 +165,18 @@ namespace Rtx
             EXPECT_EQ(nvidia.mStatistics.mRegisters, "Register Count");
             EXPECT_EQ(nvidia.mStatistics.mScratch, "Local Memory Size");
             EXPECT_EQ(nvidia.mStatistics.mScratchBits, 0xFFFFFFFFu);
+            EXPECT_EQ(nvidia.mStatistics.mScratchFreeBytes, 112u);
             EXPECT_TRUE(nvidia.mReconvergesRayQueries);
 
             const DriverProfile radv = DriverProfile::of(0x1002, VK_DRIVER_ID_MESA_RADV);
             EXPECT_FALSE(radv.mNgx);
             EXPECT_EQ(radv.mStatistics.mScratch, "Scratch size");
             EXPECT_EQ(radv.mStatistics.mScratchBits, ~std::uint64_t{ 0 });
+            EXPECT_EQ(radv.mStatistics.mScratchFreeBytes, 0u);
             EXPECT_TRUE(radv.mReconvergesRayQueries);
             const DriverProfile amd = DriverProfile::of(0x1002, VK_DRIVER_ID_AMD_PROPRIETARY);
             EXPECT_EQ(amd.mStatistics.mScratch, "scratchMemUsageInBytes");
+            EXPECT_EQ(amd.mStatistics.mScratchFreeBytes, 0u);
             EXPECT_FALSE(amd.mReconvergesRayQueries);
 
             const DriverProfile other = DriverProfile::of(0x5143, VK_DRIVER_ID_QUALCOMM_PROPRIETARY);

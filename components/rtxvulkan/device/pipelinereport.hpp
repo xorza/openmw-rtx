@@ -87,7 +87,8 @@ namespace Rtx
         void report(VkPipeline pipeline, std::string_view name, const PipelineFeedback& feedback) const;
 
         /// Logs what the pipelines made since the device was made, or since the last summary, came to
-        /// (`describePipelines`), and a warning naming every one of them that uses scratch memory, under `what`.
+        /// (`describePipelines`), and a warning naming every one of them that uses more scratch memory than its
+        /// driver holds at no cost (`StatisticNames::mScratchFreeBytes`), under `what`.
         void logSummary(std::string_view what);
 
         /// What the driver's compiler made `pipeline` use, the most of any of its executables, where the driver

@@ -63,8 +63,47 @@ tuples:
 - **By the split**: 35 `panes`, 10 `direct` and 2 `media` pipelines hold local memory. The modules that count
   (the census) differ in a few: `panes sun sea` holds 128 registers and 96 bytes there, 168 and none shipped.
 
+## What lowers what `panes` holds
+
+Each change on top of the one before it, the shipped modules of every tuple compiled again and read as above; a
+stage no change touched moved by nothing in any tuple. Words a lane over the 48 `panes` pipelines:
+
+| change | words a lane | moved by, mean (range) | at 168 registers | with local memory, most |
+|---|---|---|---|---|
+| `4a983b9987` | 180 to 210 | | 13 | 35, 112 bytes |
+| the path end's and the direct stage's shadow rays held as seven numbers, each query made at its turn | 172 to 208 | −2.0 (−8 to +4) | 5 | 40, 112 |
+| the stage record read again at the end | 170 to 204 | −3.0 (−8 to +4) | 5 | 39, 112 |
+| the peel's ray made again from the pixel at each use | 166 to 200 | −2.5 (−8 to 0) | 0 | 44, 96 |
+| a layer's glow and response worked out before its rays | 166 to 200 | −0.9 (−6 to 0) | 0 | 41, 96 |
+| one pane stack for the arms' and the world's, an upper bound: wrong under see-through arms | 156 to 184 | −16.7 (−26 to −10) | 0 | 12, 32 |
+
+- **The two stacks are what `panes` carries**: 19 words each through every traversal, the eye's and a layer's
+  four rays', of which the arms' is nought wherever the arms are not seen through.
+- **The compiler already keeps a ray in few words**: holding one as its origin, direction, reach and flags took
+  1.0 word off `direct` at the mean and 0.5 off `landing`.
+- **Fewer words made more pipelines hold local memory**, 35 to 44, until the stacks went: the compiler took the
+  tuples at 168 registers to 128. The count of pipelines with local memory is not what a change is read by.
+
+## What it costs: nothing a bench shows in `panes`
+
+The last row against `4a983b9987`, the release harness, `bench` at 1920x1080 with the default upscale (1280x720
+traced), the default suite on vanilla, 20 s a place: a warm-up leg a side, then five legs a side in turn, the
+two sides' shader files copied in between legs. The card ran at 1764 MHz at the mean under its power cap. The
+median of the legs' medians, and how far each side's legs' medians spread:
+
+| place | its `panes` tuple, registers / local / shared | `panes`, ms | spread, ms |
+|---|---|---|---|
+| `seyda-neen-ship` | 168 / 0 / 4736 → 128 / 0 / 5504 | 0.0735 → 0.0737 (+0.3%) | 0.0012, 0.0012 |
+| `seyda-neen-ship-dawn` | 128 / 112 / 6272 → 128 / 0 / 6016 | 0.0908 → 0.0912 (+0.4%) | 0.0006, 0.0011 |
+| `balmora-mages-guild` | 128 / 16 / 6272 → 128 / 0 / 3712 | 0.1114 → 0.1112 (−0.2%) | 0.0021, 0.0022 |
+
+Neither 112 bytes of local memory taken off, nor 168 registers brought to 128, nor 2560 bytes of shared memory
+taken off moved the zone past its legs' spread. The frame's medians stood at 6.11 → 6.05, 6.54 → 6.54 and
+5.39 → 5.40 ms. The guild's `panes` p99 rose 0.132 → 0.162 ms beside `bounce`'s 0.551 → 0.664, a kernel no
+change touched.
+
 ## Not measured
 
-What the local memory costs a frame: no pair of builds here differs in it alone. At `0011749652`, `panes` was
-0.07 to 0.14 ms and `direct` 0.52 to 1.08 of this card's frames of 5.2 to 7.9 ms at 1920x1080 (the medians, over
-three contents). RADV and AMD's driver in the tuples besides the two their ceilings were measured in.
+`direct`'s tuples with local memory, which no bench place of vanilla's runs: those without maps and away from
+the sea under the sun or the moons, and those of a dark map's alpha. RADV and AMD's driver, in the tuples besides
+the two their ceilings were measured in and under any of the changes above.

@@ -28,11 +28,24 @@ namespace Rtx
         /// **A stretch of pipelines in a line, and its spills in another**: compiled, cached and unsaid
         /// counted apart, the compiles summed with their slowest, the span reaching the last made
         /// whatever order they arrive in, and the spills the most first, a tie by name. A take starts
-        /// the next stretch at its own instant.
+        /// the next stretch at its own instant. **A spill is scratch past what the driver holds at no
+        /// cost**: at 32 bytes free the two pipelines at 32 are none, and at 112 none is.
         TEST(RtxPipelineTallyTest, aStretchIsSaidInALineAndItsSpillsInAnother)
         {
             const std::chrono::steady_clock::time_point start{};
-            PipelineTally tally(start);
+            PipelineTally tally(start, 0);
+            PipelineTally thirtyTwoFree(start, 32);
+            PipelineTally allFree(start, 112);
+            for (PipelineTally* const free : { &thirtyTwoFree, &allFree })
+            {
+                free->add(made("b", PipelineSource::Compiled, 250.5, 1, 32), start);
+                free->add(made("e", PipelineSource::Cached, 0.3, 2, 112), start);
+                free->add(made("f", PipelineSource::Compiled, 50.0, 1, 32), start);
+            }
+            EXPECT_EQ(describeSpills(thirtyTwoFree.take(start)),
+                "1 of 3 pipelines use more than 32 bytes of scratch memory a lane: \"e\" 112");
+            EXPECT_EQ(describeSpills(allFree.take(start)), "");
+
             tally.add(made("a", PipelineSource::Compiled, 100.0, 1, 0), start + milliseconds(500));
             tally.add(made("b", PipelineSource::Compiled, 250.5, 1, 32), start + milliseconds(1500));
             tally.add(made("c", PipelineSource::Cached, 0.2, 0, 0), start + milliseconds(1000));
@@ -56,7 +69,7 @@ namespace Rtx
                 "6 made over 1.50 s: 3 compiled and 2 found in the pipeline cache, 1 the driver gave no feedback "
                 "of; 0.40 s compiling, the slowest \"b\" at 250.50 ms; 1 with no executable the driver reports");
             EXPECT_EQ(describeSpills(first),
-                "3 of 6 pipelines use scratch memory, bytes a lane: \"e\" 112, \"b\" 32, \"f\" 32");
+                "3 of 6 pipelines use more than 0 bytes of scratch memory a lane: \"e\" 112, \"b\" 32, \"f\" 32");
 
             EXPECT_EQ(describePipelines(tally.take(start + milliseconds(2000))), "none made") << "taken whole";
 

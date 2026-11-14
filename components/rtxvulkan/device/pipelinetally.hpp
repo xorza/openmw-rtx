@@ -69,7 +69,10 @@ namespace Rtx
         /// How many the driver made of no executable it reports: NVIDIA's ray tracing pipelines.
         std::uint32_t mWithoutExecutable = 0;
 
-        /// Every pipeline whose lanes use scratch memory, the most first, then by name.
+        /// What a lane holds of scratch memory at no cost on the device's driver, in bytes
+        /// (`StatisticNames::mScratchFreeBytes`), and every pipeline whose lanes use more, the most first,
+        /// then by name.
+        std::uint64_t mScratchFreeBytes = 0;
         std::vector<PipelineSpill> mSpills;
 
         /// From the stretch's start to the last pipeline made in it.
@@ -81,7 +84,8 @@ namespace Rtx
     class PipelineTally
     {
     public:
-        explicit PipelineTally(std::chrono::steady_clock::time_point start);
+        /// @param scratchFreeBytes `StatisticNames::mScratchFreeBytes` of the driver that makes the pipelines.
+        PipelineTally(std::chrono::steady_clock::time_point start, std::uint64_t scratchFreeBytes);
 
         void add(const PipelineMade& made, std::chrono::steady_clock::time_point at);
 
@@ -89,6 +93,7 @@ namespace Rtx
         PipelineSummary take(std::chrono::steady_clock::time_point now);
 
     private:
+        const std::uint64_t mScratchFreeBytes;
         std::mutex mLock;
         std::chrono::steady_clock::time_point mStart;
         PipelineSummary mSummary;

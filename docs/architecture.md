@@ -496,13 +496,18 @@ bounce (or `unbounced` in their place), then the composite. Every ray is a ray q
   compares two listings, which keeps no reason and goes stale on the drivers not at hand. Measured on the shipped
   modules, as a measured run of the harness reads them: the census's counting, which the test devices carry, cost
   every AMD kernel up to five registers more and is no part of what the game runs.
-- **NVIDIA's rows hold a stage's scratch at what it is**: its compiler keeps what the registers do not hold in shared
-  memory and only what is over in a lane's local memory, one spill in two places
-  (`research/2026-11-14-nvidia-register-spills.md`).
 - **Every pipeline captures its statistics**, the game's as well as the harness's, so a player's log names a kernel
   that spills (`Device::logPipelineSummary`): NVIDIA's driver kept its pipeline cache under the flag and compiled no
   slower, and RADV keys its cache on it without skipping it (`research/2026-11-13-pipeline-statistics-cost.md`).
   Refused: statistics only where a harness run reads them, which left a spill on a player's card unseen.
+- **A spill is scratch past what its driver holds at no cost** (`StatisticNames::mScratchFreeBytes`): 112 bytes a
+  lane on NVIDIA, whose compiler keeps what the registers do not hold in shared memory and only what is over in a
+  lane's local memory, and whose `panes` ran no faster with them gone; none on AMD's drivers
+  (`research/2026-11-14-nvidia-register-spills.md`). The test's NVIDIA rows hold a stage's scratch at what it is,
+  under that figure. Refused: no warning on NVIDIA at all, as its own compiler warns of a spill only where asked
+  (`--warn-on-spills`), which leaves a kernel that grew on a player's card unsaid; the test's ceilings shipped and
+  warned past, which are one card's; the stages lowered until none holds any, which moved no zone and took tuples
+  to fewer registers that hold it again.
 - **A stage a kernel, the channels between them**, as Quake II RTX traces its stages as passes: one kernel carrying
   every walk's record spilled 67 KB a lane (`research/2026-10-21-amd-integrated-stage-times.md`). Refused: a wavefront
   with queues, records in a buffer, every point's light stored.
