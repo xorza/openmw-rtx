@@ -1,4 +1,5 @@
 - remove visibility limit
+- remove zhi dialong from rtxtool
 
 - all IO serial?
 
