@@ -148,8 +148,8 @@ namespace Rtx
                     getPool(), std::span<const std::uint32_t>(bits), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
                 const Buffer dampingIn = Testing::hostWritten(
                     getPool(), std::span<const float>(damping), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
-                const Buffer out = Buffer::readBack(
-                    device, lanes * 4 * sizeof(float), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "shadow moments");
+                const Buffer out = Buffer::readBack(device, static_cast<std::size_t>(lanes) * 4 * sizeof(float),
+                    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "shadow moments");
 
                 const std::array buffers{ Testing::ProbeBuffer{ Shaders::SHADOW_MOMENTS_PROBE_BIND_BITS, &bitsIn },
                     Testing::ProbeBuffer{ Shaders::SHADOW_MOMENTS_PROBE_BIND_DAMPING, &dampingIn },
@@ -161,7 +161,7 @@ namespace Rtx
                     lanes, Shaders::SHADOW_MOMENTS_PROBE_WORKGROUP);
 
                 const auto* values = static_cast<const float*>(out.map());
-                return std::vector<float>(values, values + lanes * 4);
+                return std::vector<float>(values, values + static_cast<std::size_t>(lanes * 4));
             }
 
             /// The words of `count` running means kept as a shadow field's are, each blended toward
@@ -256,6 +256,8 @@ namespace Rtx
                 }
             }
             ASSERT_EQ(hairs, 5u) << "a step lost the float whose product rounds up onto it";
+            // The same sequence each run, on purpose.
+            // NOLINTNEXTLINE(bugprone-random-generator-seed)
             std::mt19937 draws(20261009u);
             std::uniform_real_distribution<float> inUnit(0.0f, 1.0f);
             for (int i = 0; i < 4096; ++i)
@@ -344,6 +346,8 @@ namespace Rtx
             std::vector<float> damping(frames, 1.0f);
             damping[200] = 0.3f;
             std::vector<std::uint32_t> bits(static_cast<std::size_t>(lanes) * frames);
+            // The same sequence each run, on purpose.
+            // NOLINTNEXTLINE(bugprone-random-generator-seed)
             std::mt19937 draws(20261010u);
             std::uniform_real_distribution<double> inUnit(0.0, 1.0);
             std::vector<double> chances(lanes);
@@ -364,7 +368,7 @@ namespace Rtx
             for (std::uint32_t lane = 0; lane < lanes; ++lane)
             {
                 const Moments expected = momentsAfter(bits, damping, lanes, lane, Shaders::SHADOW_MOMENT_FRAMES);
-                const float* kept = &unpacked[lane * 4];
+                const float* kept = &unpacked[static_cast<std::size_t>(lane) * 4];
                 EXPECT_NEAR(kept[0], expected.mMean, 1e-5) << "lane " << lane;
                 EXPECT_NEAR(kept[1], expected.mDeviations, 1e-4 * std::max(1.0, expected.mDeviations))
                     << "lane " << lane;
@@ -375,7 +379,8 @@ namespace Rtx
                 cappedSum += expected.mDeviations;
                 uncappedSum
                     += momentsAfter(bits, damping, lanes, lane, std::numeric_limits<double>::infinity()).mDeviations;
-                meanApart += static_cast<double>(packed[lane * 4]) - static_cast<double>(kept[0]);
+                meanApart
+                    += static_cast<double>(packed[static_cast<std::size_t>(lane) * 4]) - static_cast<double>(kept[0]);
                 sumApart += static_cast<double>(packed[lane * 4 + 1]) - static_cast<double>(kept[1]);
                 varianceApart += static_cast<double>(packed[lane * 4 + 3]) - static_cast<double>(kept[3]);
             }

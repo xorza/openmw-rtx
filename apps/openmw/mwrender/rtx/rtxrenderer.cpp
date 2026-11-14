@@ -347,10 +347,14 @@ namespace MWRender
     osg::ref_ptr<osg::Group> RtxRenderer::createSceneRoot() noexcept
     {
         mPhase.expect(Phase::Between);
+        // An allocation that fails ends the process, as this noexcept function means.
+        // NOLINTNEXTLINE(bugprone-unhandled-exception-at-new)
         mSceneRoot = new osg::Group;
         return mSceneRoot;
     }
 
+    // An exception here ends the process, which is what this function means.
+    // NOLINTNEXTLINE(bugprone-exception-escape)
     std::unique_ptr<Ground> RtxRenderer::createGround(const GroundSpec& spec) noexcept
     {
         mPhase.expect(Phase::Between, Phase::Run);
@@ -360,6 +364,8 @@ namespace MWRender
         return std::make_unique<TracedGround>(spec, *getResources().getSceneManager(), Mask_Terrain, mMirror.getRing());
     }
 
+    // An exception here ends the process, which is what this function means.
+    // NOLINTNEXTLINE(bugprone-exception-escape)
     void RtxRenderer::addCell(const MWWorld::CellStore* cell) noexcept
     {
         expectWorldEvent();
@@ -1054,6 +1060,8 @@ namespace MWRender
         // Once a second, which is how often `FrameTimer::addFrame` closes one — and the window is
         // asked then whether anybody can see it, rather than a copy of that being kept here.
         if (since.has_value() && mTimer.addFrame(*since))
+            // The timer's buffer, which it ends with a terminator.
+            // NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage)
             mWindow.setTitle(mTimer.writeTitle(mRun.describeTitle()).data());
     }
 }

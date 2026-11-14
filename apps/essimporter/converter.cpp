@@ -124,7 +124,7 @@ namespace ESSImport
         int width = cellSize * numcells;
         int height = cellSize * numcells;
         std::vector<unsigned char> data;
-        data.resize(width * height * 4, 0);
+        data.resize(static_cast<std::size_t>(width * height) * 4, 0);
 
         image2->allocateImage(width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE);
         memcpy(image2->data(), data.data(), data.size());

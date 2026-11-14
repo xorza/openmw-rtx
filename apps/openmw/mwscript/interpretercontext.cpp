@@ -108,6 +108,8 @@ namespace MWScript
             case 'f':
                 stream << "float";
                 break;
+            default:
+                break;
         }
 
         stream << " member variable " << name << " in script " << scriptId;

@@ -145,6 +145,8 @@ bool CSVRender::PagedWorldspaceWidget::adjustCells()
                     case CellArrow::Direction_East:
                         coordinates = coordinates.move(1, 0);
                         break;
+                    default:
+                        break;
                 }
 
                 if (!mSelection.has(coordinates))

@@ -347,6 +347,8 @@ namespace Rtx
         /// geometry. A fixed seed, so a failure can be run again.
         TEST(RtxShapeFoldTest, everyShapeFoldsTheWayTheRuleSaysItShould)
         {
+            // The same sequence each run, on purpose.
+            // NOLINTNEXTLINE(bugprone-random-generator-seed)
             std::mt19937 random(20260830);
             ContentPreprocessor fold;
 
@@ -357,6 +359,8 @@ namespace Rtx
                 std::vector<osg::Vec3f> positions;
                 positions.reserve(corners);
                 for (std::size_t at = 0; at < corners; ++at)
+                    // A whole-number division on purpose.
+                    // NOLINTNEXTLINE(bugprone-integer-division)
                     positions.push_back(osg::Vec3f(static_cast<float>(at % 3), static_cast<float>(at / 3), 0.0f));
 
                 for (int attempt = 0; attempt < 200; ++attempt)

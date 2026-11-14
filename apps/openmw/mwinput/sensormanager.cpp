@@ -48,7 +48,6 @@ namespace MWInput
         switch (currentOrientation)
         {
             case SDL_ORIENTATION_UNKNOWN:
-                break;
             case SDL_ORIENTATION_LANDSCAPE:
                 break;
             case SDL_ORIENTATION_LANDSCAPE_FLIPPED:

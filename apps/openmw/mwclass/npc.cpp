@@ -421,6 +421,8 @@ namespace MWClass
         if (!model.value().starts_with(prefix.value()))
             throw std::runtime_error(std::format("NPC {} model path does not start with \"{}\": {}",
                 ref->mRef.getRefId().toDebugString(), prefix.value(), model.value()));
+        // A suffix of a path held whole in a string, terminated where the string is.
+        // NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage)
         return VFS::Path::NormalizedView(model.value().substr(prefix.value().size()).data());
     }
 

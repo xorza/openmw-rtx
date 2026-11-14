@@ -1460,7 +1460,7 @@ namespace Rtx::Testing
             start(ESM::RefId::stringRefId("tamriel"));
 
             ExtractionStats stood;
-            for (std::size_t walks = 0; walks < 2 * sPreparedCells; ++walks)
+            for (std::size_t walks = 0; walks < std::size_t{ 2 } * sPreparedCells; ++walks)
                 stood = walk(mWalked++);
             ASSERT_GT(stood.mGroundCells, 0u);
 
@@ -1468,7 +1468,7 @@ namespace Rtx::Testing
             // place stands nothing.
             around(osg::Vec3f(60.5f * sCellSize, 60.5f * sCellSize, 0.0f), osg::Vec4i(59, 59, 62, 62));
             ExtractionStats away;
-            for (std::size_t walks = 0; walks < 2 * sPreparedCells; ++walks)
+            for (std::size_t walks = 0; walks < std::size_t{ 2 } * sPreparedCells; ++walks)
                 away = walk(mWalked++);
 
             EXPECT_EQ(away.mGroundCells, 0u) << "a recycled cell stood the ground of the cell it replaced";

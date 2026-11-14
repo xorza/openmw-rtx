@@ -36,7 +36,11 @@ namespace ESM
         float mSpeed;
         RefNum mItem;
 
+        // Hides the base's member on purpose: it is called through the derived type.
+        // NOLINTNEXTLINE(bugprone-derived-method-shadowing-base-method)
         void load(ESMReader& esm);
+        // Hides the base's member on purpose: it is called through the derived type.
+        // NOLINTNEXTLINE(bugprone-derived-method-shadowing-base-method)
         void save(ESMWriter& esm) const;
     };
 
@@ -47,7 +51,11 @@ namespace ESM
         float mAttackStrength;
         float mAttackWindUp;
 
+        // Hides the base's member on purpose: it is called through the derived type.
+        // NOLINTNEXTLINE(bugprone-derived-method-shadowing-base-method)
         void load(ESMReader& esm);
+        // Hides the base's member on purpose: it is called through the derived type.
+        // NOLINTNEXTLINE(bugprone-derived-method-shadowing-base-method)
         void save(ESMWriter& esm) const;
     };
 

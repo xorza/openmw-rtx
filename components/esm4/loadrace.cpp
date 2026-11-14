@@ -325,6 +325,8 @@ void ESM4::Race::load(ESM4::Reader& reader)
             }
             case ESM::fourCC("MODL"):
             {
+                // Each branch states its own case, kept apart to be read and changed as its own.
+                // NOLINTBEGIN(bugprone-branch-clone)
                 if (!currentIndex.has_value())
                 {
                     reader.skipSubRecordData();
@@ -358,6 +360,7 @@ void ESM4::Race::load(ESM4::Reader& reader)
                     // std::cout << mEditorId << " hkx " << currentIndex << std::endl; // FIXME
                     reader.skipSubRecordData(); // FIXME TES5 hkx
                 }
+                // NOLINTEND(bugprone-branch-clone)
 
                 break;
             }
@@ -366,6 +369,8 @@ void ESM4::Race::load(ESM4::Reader& reader)
                 break; // always 0x0000?
             case ESM::fourCC("ICON"):
             {
+                // Each branch states its own case, kept apart to be read and changed as its own.
+                // NOLINTBEGIN(bugprone-branch-clone)
                 if (!currentIndex.has_value())
                 {
                     reader.skipSubRecordData();
@@ -389,6 +394,7 @@ void ESM4::Race::load(ESM4::Reader& reader)
                     reader.skipSubRecordData(); // FIXME TES5
 
                 break;
+                // NOLINTEND(bugprone-branch-clone)
             }
             //
             case ESM::fourCC("NAM1"): // start marker body data /* 4 */

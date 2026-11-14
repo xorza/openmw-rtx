@@ -248,6 +248,8 @@ void CSVWorld::ScriptSubView::useHint(const std::string& hint)
         case 'l':
             if (!(stream >> c >> line >> column))
                 return;
+        default:
+            break;
     }
 
     QTextCursor cursor = mEditor->textCursor();

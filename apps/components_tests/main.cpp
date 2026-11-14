@@ -8,6 +8,8 @@
 
 #include <filesystem>
 
+// An exception here ends the process, which is what this function means.
+// NOLINTNEXTLINE(bugprone-exception-escape)
 int main(int argc, char** argv)
 {
     Log::sMinDebugLevel = Debug::getDebugLevel();

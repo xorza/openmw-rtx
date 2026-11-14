@@ -147,7 +147,7 @@ void ESM4::NavMesh::NVNMstruct::load(ESM4::Reader& reader)
         }
         triSegments.push_back(std::move(indices));
     }
-    if (triSegments.size() != divisor * divisor)
+    if (triSegments.size() != static_cast<std::size_t>(divisor) * divisor)
         throw std::runtime_error("Triangle segments size is not the square of divisor");
 #if 0
     if (triSegments.size() != divisor*divisor)

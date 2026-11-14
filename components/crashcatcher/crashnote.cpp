@@ -116,6 +116,8 @@ namespace Crash
             // **Cut before a character and not inside one**: the summary that quotes a note goes
             // into the log and into an address, where half a UTF-8 character reads as none.
             const std::size_t length = wholeCharacters(text.substr(0, std::min(text.size(), sNoteCapacity - 1 - at)));
+            // The view is handed on with its size beside it.
+            // NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage)
             std::copy_n(text.data(), length, into + at);
             return at + length;
         }

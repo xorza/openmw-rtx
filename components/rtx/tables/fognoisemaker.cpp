@@ -156,10 +156,10 @@ namespace Rtx
                         float total = 0.0f;
                         for (int corner = 0; corner < 8; ++corner)
                         {
-                            const std::size_t at = (static_cast<std::size_t>(2 * z + ((corner >> 2) & 1)) * size + 2 * y
-                                                       + ((corner >> 1) & 1))
+                            const std::size_t at = (static_cast<std::size_t>(2 * z + ((corner >> 2) & 1)) * size
+                                                       + std::size_t{ 2 } * y + ((corner >> 1) & 1))
                                     * size
-                                + 2 * x + (corner & 1);
+                                + std::size_t{ 2 } * x + (corner & 1);
                             total += field[at];
                         }
 

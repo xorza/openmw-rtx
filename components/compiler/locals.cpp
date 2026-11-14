@@ -19,6 +19,8 @@ namespace Compiler
                 return mLongs;
             case 'f':
                 return mFloats;
+            default:
+                break;
         }
 
         throw std::logic_error("Unknown variable type");
@@ -51,6 +53,8 @@ namespace Compiler
                 return mLongs;
             case 'f':
                 return mFloats;
+            default:
+                break;
         }
 
         throw std::logic_error("Unknown variable type");

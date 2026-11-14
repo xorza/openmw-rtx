@@ -54,6 +54,8 @@ namespace CSVWorld
         bool mCloneMode;
 
     protected:
+        // Hides the base's member on purpose: it is called through the derived type.
+        // NOLINTNEXTLINE(bugprone-derived-method-shadowing-base-method)
         void update();
 
         virtual void setManualEditing(bool enabled);

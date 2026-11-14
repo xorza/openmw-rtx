@@ -1598,15 +1598,15 @@ void CSVRender::TerrainShapeMode::fixEdges(CSMWorld::CellCoordinates cellCoords)
     for (int i = 0; i < ESM::Land::LAND_SIZE; ++i)
     {
         if (isLandLoaded(cellLeftId)
-            && landShapePointer[i * ESM::Land::LAND_SIZE]
+            && landShapePointer[static_cast<qsizetype>(i) * ESM::Land::LAND_SIZE]
                 != landLeftShapePointer[i * ESM::Land::LAND_SIZE + ESM::Land::LAND_SIZE - 1])
-            landShapeNew[i * ESM::Land::LAND_SIZE]
+            landShapeNew[static_cast<qsizetype>(i) * ESM::Land::LAND_SIZE]
                 = landLeftShapePointer[i * ESM::Land::LAND_SIZE + ESM::Land::LAND_SIZE - 1];
         if (isLandLoaded(cellRightId)
             && landShapePointer[i * ESM::Land::LAND_SIZE + ESM::Land::LAND_SIZE - 1]
-                != landRightShapePointer[i * ESM::Land::LAND_SIZE])
+                != landRightShapePointer[static_cast<qsizetype>(i) * ESM::Land::LAND_SIZE])
             landShapeNew[i * ESM::Land::LAND_SIZE + ESM::Land::LAND_SIZE - 1]
-                = landRightShapePointer[i * ESM::Land::LAND_SIZE];
+                = landRightShapePointer[static_cast<qsizetype>(i) * ESM::Land::LAND_SIZE];
         if (isLandLoaded(cellUpId)
             && landShapePointer[i] != landUpShapePointer[(ESM::Land::LAND_SIZE - 1) * ESM::Land::LAND_SIZE + i])
             landShapeNew[i] = landUpShapePointer[(ESM::Land::LAND_SIZE - 1) * ESM::Land::LAND_SIZE + i];

@@ -4,63 +4,28 @@
 # - `portability-avoid-pragma-once`: `#pragma once` is the fork's rule;
 # - the static analyzer: every finding it made on the fork's sources was one it could not follow (a span's size
 #   after an assert, a moved-from `shared_ptr`, a bound `std::find` keeps), and it is half a run's time;
-# - `bugprone-easily-swappable-parameters`, `-signed-bitwise`, `-implicit-widening-of-multiplication-result`,
-#   `-integer-division`, `-incorrect-roundings`: arithmetic the code means, a Vulkan flag or a clamped colour;
+# - `bugprone-easily-swappable-parameters`: every function of two parameters of one type, which only new types
+#   across the APIs would answer;
+# - `bugprone-signed-bitwise`: bit operations on Vulkan's and OSG's flags, which their APIs type as signed;
 # - `bugprone-unchecked-optional-access`: blind to `Crash::contract` and gtest's `ASSERT_TRUE`;
-# - `bugprone-branch-clone`, `-switch-missing-default-case`, `-unhandled-code-paths`: a record's cases that read
-#   alike, and switches over a value with no other case;
-# - `bugprone-derived-method-shadowing-base-method`: `MWWorld::Store`'s specializations hide on purpose;
-# - `bugprone-random-generator-seed`, `-multi-level-implicit-pointer-conversion`,
-#   `-crtp-constructor-accessibility`, `-throwing-static-initialization`, `-unhandled-exception-at-new`: a
-#   repeatable sequence, OpenAL's `memcpy` of a function pointer, and failures that end the process anyway;
+# - `bugprone-throwing-static-initialization`: every constant string and table at namespace scope, whose failure
+#   to allocate at startup ends the process either way;
 # - `performance-enum-size`, `-no-int-to-ptr`, `-avoid-endl`: an enum's width is its API's, a Vulkan handle is an
-#   integer, and `std::endl` is style.
-# - `bugprone-exception-escape`: destructors and `noexcept` functions that join a thread or lock a mutex, and the
-#   test binaries' `main`, whose failure ends the process as an escaped exception would;
-# - `bugprone-std-exception-baseclass`: tests that throw a plain value to prove a catch-all, and `NamedEnum`'s
-#   compile-time checks, which throw a literal to fail the build;
-# - `bugprone-float-loop-counter`: the tests' sweeps over hours and distances, whose bounds absorb the drift;
-# - `bugprone-inc-dec-in-conditions`: a loop's step inside its condition, the idiom and not a slip;
-# - `bugprone-invalid-enum-default-initialization`: Vulkan's structures and flag sets zeroed before their fields
-#   are set, the API's own idiom;
-# - `bugprone-suspicious-stringview-data-usage`: it flags every `data()` handed on with its size beside it, as
-#   `from_chars` and `memcpy` take it; the views handed to an API that reads to a terminator are in the issue log;
-# - `bugprone-parent-virtual-call`: overrides that call past their parent's override on purpose, as the terrain's
-#   quad tree past the grid's;
-# - `bugprone-misplaced-widening-cast`: an index computed in `int` from signed steps and widened once it is whole;
+#   integer, and `std::endl` is style;
+# - `readability-make-member-function-const`: it makes `const` what changes state through a pointer it holds, a
+#   widget's `setText` among them, and once a pair whose overloads then differed in their return type alone;
 # - `cppcoreguidelines-slicing`: a base copied on purpose, a Lua self as the object it is, a store's base in its
 #   copy;
 # - `cppcoreguidelines-rvalue-reference-param-not-moved`: rvalue overloads beside their `const&` twins, and the holds
 #   a `drop` consumes by taking them;
-# - `cppcoreguidelines-no-malloc`: every `malloc` here is an allocator's own, Lua's, Recast's and the tests' count;
-# - `readability-make-member-function-const`: it makes `const` what changes state through a pointer it holds, a
-#   widget's `setText` among them, and once a pair whose overloads then differed in their return type alone.
+# - `cppcoreguidelines-no-malloc`: every `malloc` here is an allocator's own, Lua's, Recast's and the tests' count.
 Checks:
   - '-*'
   - 'bugprone-*'
   - '-bugprone-easily-swappable-parameters'
   - '-bugprone-signed-bitwise'
-  - '-bugprone-implicit-widening-of-multiplication-result'
-  - '-bugprone-integer-division'
-  - '-bugprone-incorrect-roundings'
   - '-bugprone-unchecked-optional-access'
-  - '-bugprone-branch-clone'
-  - '-bugprone-switch-missing-default-case'
-  - '-bugprone-unhandled-code-paths'
-  - '-bugprone-derived-method-shadowing-base-method'
-  - '-bugprone-random-generator-seed'
-  - '-bugprone-multi-level-implicit-pointer-conversion'
-  - '-bugprone-crtp-constructor-accessibility'
   - '-bugprone-throwing-static-initialization'
-  - '-bugprone-unhandled-exception-at-new'
-  - '-bugprone-exception-escape'
-  - '-bugprone-std-exception-baseclass'
-  - '-bugprone-float-loop-counter'
-  - '-bugprone-inc-dec-in-conditions'
-  - '-bugprone-invalid-enum-default-initialization'
-  - '-bugprone-suspicious-stringview-data-usage'
-  - '-bugprone-parent-virtual-call'
-  - '-bugprone-misplaced-widening-cast'
   - 'performance-*'
   - '-performance-enum-size'
   - '-performance-no-int-to-ptr'
@@ -120,6 +85,8 @@ HeaderFilterRegex: '(apps|components)/'
 # Generated sources are their generator's, and the headers GLSL reads as well spell what GLSL can.
 ExcludeHeaderFilterRegex: '(_autogen/|/shaders/.*\.h$)'
 CheckOptions:
+  # A product of constants is computed by the compiler, which refuses one that overflows.
+  bugprone-implicit-widening-of-multiplication-result.IgnoreConstantIntExpr: true
   # A script that does not compile has reported why to the error handler before it throws.
   bugprone-empty-catch.AllowEmptyCatchForExceptions: 'Compiler::SourceException'
   # A source may lean on its own header for what that header's interface needs (AGENTS.md), which the missing

@@ -487,7 +487,9 @@ namespace Rtx
                         std::array<std::uint8_t, 64> block{};
                         for (std::uint32_t y = 0; y < 4; ++y)
                             std::memcpy(block.data() + std::size_t{ y } * 16,
-                                texels.data() + (std::size_t{ by * 4 + y } * across + bx * 4) * 4, 16);
+                                texels.data()
+                                    + (std::size_t{ by * 4 + y } * across + static_cast<std::size_t>(bx) * 4) * 4,
+                                16);
                         std::array<std::uint8_t, 8> encoded{};
                         rgbcx::encode_bc1(rgbcx::MIN_LEVEL, encoded.data(), block.data(), false, false);
                         file.insert(file.end(), encoded.begin(), encoded.end());
@@ -503,7 +505,8 @@ namespace Rtx
                         {
                             const auto above = [&](std::uint32_t dx, std::uint32_t dy) {
                                 return std::uint32_t{
-                                    texels[(std::size_t{ 2 * y + dy } * across + 2 * x + dx) * 4 + channel]
+                                    texels[(std::size_t{ 2 * y + dy } * across + std::size_t{ 2 } * x + dx) * 4
+                                        + channel]
                                 };
                             };
                             texels[(std::size_t{ y } * (across / 2) + x) * 4 + channel] = static_cast<std::uint8_t>(
@@ -687,6 +690,8 @@ namespace Rtx
     }
 }
 
+// An exception here ends the process, which is what this function means.
+// NOLINTNEXTLINE(bugprone-exception-escape)
 int main(int argc, char** argv)
 {
     benchmark::Initialize(&argc, argv);

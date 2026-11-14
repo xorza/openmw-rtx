@@ -183,6 +183,8 @@ static std::ostream& operator<<(std::ostream& stream, const btCollisionShape& va
             if (const auto casted = dynamic_cast<const Resource::ScaledTriangleMeshShape*>(&value))
                 return stream << *casted;
             break;
+        default:
+            break;
     }
     return stream << "btCollisionShape {" << value.getShapeType() << "}";
 }
@@ -291,6 +293,8 @@ static bool operator==(const btCollisionShape& lhs, const btCollisionShape& rhs)
                 if (const auto rhsCasted = dynamic_cast<const Resource::ScaledTriangleMeshShape*>(&rhs))
                     return *lhsCasted == *rhsCasted;
             return false;
+        default:
+            break;
     }
     return false;
 }

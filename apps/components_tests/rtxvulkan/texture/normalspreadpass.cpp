@@ -251,7 +251,7 @@ namespace Rtx
                 }
             const std::array maps{ SpreadMap{ .mTexels = leaning, .mWidth = 4, .mHeight = 4 },
                 SpreadMap{ .mTexels = mirrored, .mWidth = 4, .mHeight = 4 } };
-            constexpr VkDeviceSize one = 5 * Shaders::NORMAL_SPREAD_MEAN_BYTES;
+            constexpr VkDeviceSize one = VkDeviceSize{ 5 } * Shaders::NORMAL_SPREAD_MEAN_BYTES;
 
             const Spreads apart = spreadsOf(maps, one);
             const Spreads together = spreadsOf(maps);

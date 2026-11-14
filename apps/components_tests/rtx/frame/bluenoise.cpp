@@ -98,6 +98,8 @@ namespace Rtx
         {
             std::vector<std::uint32_t> ranks(sCount);
             std::iota(ranks.begin(), ranks.end(), std::uint32_t{ 0 });
+            // The same sequence each run, on purpose.
+            // NOLINTNEXTLINE(bugprone-random-generator-seed)
             std::shuffle(ranks.begin(), ranks.end(), std::mt19937(12345));
 
             std::vector<float> field(sCount);

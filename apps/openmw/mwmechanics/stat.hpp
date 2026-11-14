@@ -131,7 +131,11 @@ namespace MWMechanics
         float getProgress() const;
         void setProgress(float progress);
 
+        // Hides the base's member on purpose: it is called through the derived type.
+        // NOLINTNEXTLINE(bugprone-derived-method-shadowing-base-method)
         void writeState(ESM::StatState<float>& state) const;
+        // Hides the base's member on purpose: it is called through the derived type.
+        // NOLINTNEXTLINE(bugprone-derived-method-shadowing-base-method)
         void readState(const ESM::StatState<float>& state);
     };
 

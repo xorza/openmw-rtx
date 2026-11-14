@@ -112,9 +112,9 @@ namespace Rtx
                 const auto* rounded = static_cast<const float*>(nearest.map());
                 for (std::uint32_t at = 0; at < count; ++at)
                 {
-                    converted.mStored.push_back(texels[at * 4]);
+                    converted.mStored.push_back(texels[static_cast<std::size_t>(at) * 4]);
                     converted.mPacked.push_back(fromHalf(static_cast<std::uint16_t>(words[at] & 0xffffu)));
-                    converted.mBytes.push_back(pixels[at * 4]);
+                    converted.mBytes.push_back(pixels[static_cast<std::size_t>(at) * 4]);
                     converted.mNearest.push_back(rounded[at]);
                 }
                 return converted;
@@ -304,7 +304,7 @@ namespace Rtx
                 history.readFloats(VK_IMAGE_LAYOUT_GENERAL, texels);
                 double sum = 0.0;
                 for (std::uint32_t at = 0; at < count; ++at)
-                    sum += static_cast<double>(texels[at * 4]);
+                    sum += static_cast<double>(texels[static_cast<std::size_t>(at) * 4]);
                 return sum / count;
             };
 

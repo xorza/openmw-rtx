@@ -254,6 +254,8 @@ namespace Terrain
                                 reconstructNormalZ = true;
                                 parallax = false;
                             }
+                            default:
+                                break;
                         }
                     }
                 }

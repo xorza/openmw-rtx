@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cassert>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -164,10 +165,10 @@ namespace MyGUIRtx
                 for (int x = 0; x < mWidth; ++x, into += 4)
                 {
                     const osg::Vec4f colour = image.getColor(x, y);
-                    into[0] = static_cast<std::uint8_t>(std::clamp(colour.r(), 0.f, 1.f) * 255.f + 0.5f);
-                    into[1] = static_cast<std::uint8_t>(std::clamp(colour.g(), 0.f, 1.f) * 255.f + 0.5f);
-                    into[2] = static_cast<std::uint8_t>(std::clamp(colour.b(), 0.f, 1.f) * 255.f + 0.5f);
-                    into[3] = static_cast<std::uint8_t>(std::clamp(colour.a(), 0.f, 1.f) * 255.f + 0.5f);
+                    into[0] = static_cast<std::uint8_t>(std::lround(std::clamp(colour.r(), 0.f, 1.f) * 255.f));
+                    into[1] = static_cast<std::uint8_t>(std::lround(std::clamp(colour.g(), 0.f, 1.f) * 255.f));
+                    into[2] = static_cast<std::uint8_t>(std::lround(std::clamp(colour.b(), 0.f, 1.f) * 255.f));
+                    into[3] = static_cast<std::uint8_t>(std::lround(std::clamp(colour.a(), 0.f, 1.f) * 255.f));
                 }
         }
     }

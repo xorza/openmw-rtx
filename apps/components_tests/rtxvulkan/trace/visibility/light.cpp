@@ -976,8 +976,8 @@ namespace Rtx::Testing
             };
 
             const std::vector<float> first = carry(-600.0f, true);
-            for (float x = -450.0f; x < 600.0f; x += 150.0f)
-                carry(x, false);
+            for (int at = -3; at < 4; ++at)
+                carry(150.0f * static_cast<float>(at), false);
             const std::vector<float> one = carry(600.0f, false);
             const std::vector<float> other = carry(600.0f, false);
 
@@ -1603,9 +1603,12 @@ namespace Rtx::Testing
             // Where square on reads with no epsilon, found where a step of the epsilon lands inside
             // the first level: below it the loss is nought, and past it all.
             float inside = std::numeric_limits<float>::quiet_NaN();
-            for (float step = -12.0f; step <= 12.0f && std::isnan(inside); step += 0.5f)
+            for (int half = -24; half <= 24 && std::isnan(inside); ++half)
+            {
+                const float step = static_cast<float>(half) / 2.0f;
                 if (const float level = levelRead(0.0f, step, 16); level > 0.05f && level < 0.95f)
                     inside = level - step;
+            }
             ASSERT_FALSE(std::isnan(inside)) << "no epsilon put the read inside the map's first level";
 
             const float epsilon = 0.25f - inside;

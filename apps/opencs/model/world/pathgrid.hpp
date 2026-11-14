@@ -26,6 +26,8 @@ namespace CSMWorld
         ESM::RefId mId;
 
         void load(ESM::ESMReader& esm, bool& isDeleted, const IdCollection<Cell>& cells);
+        // Hides the base's member on purpose: it is called through the derived type.
+        // NOLINTNEXTLINE(bugprone-derived-method-shadowing-base-method)
         void load(ESM::ESMReader& esm, bool& isDeleted);
     };
 }

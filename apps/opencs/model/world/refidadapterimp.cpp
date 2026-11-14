@@ -1118,9 +1118,7 @@ QVariant CSMWorld::NpcMiscRefIdAdapter::getNestedData(
             case 0:
                 return static_cast<int>(record.get().mNpdt.mLevel);
             case 1:
-                return CSMWorld::DisableTag::getVariant();
             case 2:
-                return CSMWorld::DisableTag::getVariant();
             case 3:
                 return CSMWorld::DisableTag::getVariant();
             case 4:
@@ -1174,9 +1172,7 @@ void CSMWorld::NpcMiscRefIdAdapter::setNestedData(
                 npc.mNpdt.mLevel = static_cast<short>(value.toInt());
                 break;
             case 1:
-                return;
             case 2:
-                return;
             case 3:
                 return;
             case 4:

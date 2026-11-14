@@ -154,7 +154,7 @@ namespace Rtx
         // last frame's trace may still be sampling it, and the head barrier `CommandPool::begin`
         // recorded is what orders this buffer after that.
         static_assert(2 * Shaders::WAVE_CASCADES <= Shaders::MIPCHAIN_CHAINS_MOST, "a tile's chains past the record's");
-        std::array<const Image*, 2 * Shaders::WAVE_CASCADES> images{};
+        std::array<const Image*, std::size_t{ 2 } * Shaders::WAVE_CASCADES> images{};
         for (std::size_t index = 0; index < Shaders::WAVE_CASCADES; ++index)
         {
             images[2 * index] = &mTiles[index].mSurface;

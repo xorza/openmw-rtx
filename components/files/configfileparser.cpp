@@ -212,6 +212,8 @@ namespace Files
             // lower_bound should find the element after "p".
             // This depends on 'allowed_prefixes' invariant.
             i = allowed_prefixes.lower_bound(s);
+            // The step inside the test is the loop it means.
+            // NOLINTNEXTLINE(bugprone-inc-dec-in-conditions)
             if (i != allowed_prefixes.begin() && s.starts_with(*--i))
                 return true;
             return false;

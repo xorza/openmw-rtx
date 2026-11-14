@@ -269,6 +269,8 @@ namespace Rtx
             constexpr float shared = 1.0f / 8.0f;
             constexpr float own = 3.0f / 8.0f - shared;
 
+            // The same sequence each run, on purpose.
+            // NOLINTNEXTLINE(bugprone-random-generator-seed)
             std::mt19937 gen(11);
             std::normal_distribution<float> normal(0.0f, 1.0f);
 

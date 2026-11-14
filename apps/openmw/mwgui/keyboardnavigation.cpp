@@ -255,6 +255,8 @@ namespace MWGui
         int vertdiff = next->getTop() - focus->getTop();
         int horizdiff = next->getLeft() - focus->getLeft();
         bool isVertical = std::abs(vertdiff) > std::abs(horizdiff);
+        // Each branch states its own case, kept apart to be read and changed as its own.
+        // NOLINTBEGIN(bugprone-branch-clone)
         if (direction == D_Right && (horizdiff <= 0 || isVertical))
             return false;
         else if (direction == D_Left && (horizdiff >= 0 || isVertical))
@@ -263,6 +265,7 @@ namespace MWGui
             return false;
         else if (direction == D_Up && (vertdiff >= 0 || !isVertical))
             return false;
+        // NOLINTEND(bugprone-branch-clone)
 
         MWBase::Environment::get().getWindowManager()->setKeyFocusWidget(keyFocusList[index]);
         return true;

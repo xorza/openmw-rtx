@@ -83,6 +83,8 @@ void ESM4::Region::load(ESM4::Reader& reader)
             }
             // FO3 only 2: DemoMegatonSound and DC01 (both 0 RDMD)
             // FNV none
+            // Each branch states its own case, kept apart to be read and changed as its own.
+            // NOLINTBEGIN(bugprone-branch-clone)
             case ESM::fourCC("RDMD"): // music type; 0 default, 1 public, 2 dungeon
             {
 #if 0
@@ -101,6 +103,7 @@ void ESM4::Region::load(ESM4::Reader& reader)
                 reader.skipSubRecordData();
                 break;
             }
+            // NOLINTEND(bugprone-branch-clone)
             case ESM::fourCC("RDSD"): // Possibly the same as RDSA
             {
                 if (mData.type != RDAT_Sound)

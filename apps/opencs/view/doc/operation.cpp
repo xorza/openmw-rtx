@@ -29,6 +29,8 @@ void CSVDoc::Operation::updateLabel(int threads)
             case CSMDoc::State_Merging:
                 name = "Merging";
                 break;
+            default:
+                break;
         }
 
         std::ostringstream stream;
@@ -144,6 +146,8 @@ void CSVDoc::Operation::setBarColor(int type)
             midTopColor = "#d07f72";
             midBottomColor = "#cc6d5a";
             bottomColor = "#b86344"; // brown
+            break;
+        default:
             break;
     }
 

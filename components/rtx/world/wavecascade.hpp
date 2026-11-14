@@ -79,7 +79,7 @@ namespace Rtx
         /// What share of `mWhole` a tile still resolves at a level of its own chain, indexed
         /// `cascade * WAVE_LEVELS + level`. The shares sum to one across the tiles at the finest
         /// level, and toward nought at the coarsest, where the surface has been averaged flat.
-        std::array<float, Shaders::WAVE_CASCADES * Shaders::WAVE_LEVELS> mResolved{};
+        std::array<float, static_cast<std::size_t>(Shaders::WAVE_CASCADES) * Shaders::WAVE_LEVELS> mResolved{};
     };
 
     /// What a mip chain over these tiles leaves of their curvature. Two filters, because a sampler

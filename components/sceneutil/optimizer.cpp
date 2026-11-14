@@ -265,11 +265,15 @@ class CollectLowestTransformsVisitor : public BaseOptimizerVisitor
             return true;
         }
 
+        // Hides the base's member on purpose: it is called through the derived type.
+        // NOLINTNEXTLINE(bugprone-derived-method-shadowing-base-method)
         inline bool isOperationPermissibleForObject(const osg::Drawable* drawable) const
         {
             return BaseOptimizerVisitor::isOperationPermissibleForObject(drawable);
         }
 
+        // Hides the base's member on purpose: it is called through the derived type.
+        // NOLINTNEXTLINE(bugprone-derived-method-shadowing-base-method)
         inline bool isOperationPermissibleForObject(const osg::Node* node) const
         {
             return BaseOptimizerVisitor::isOperationPermissibleForObject(node);
@@ -314,8 +318,11 @@ class CollectLowestTransformsVisitor : public BaseOptimizerVisitor
             {
                 if (transform)
                 {
+                    // Each branch states its own case, kept apart to be read and changed as its own.
+                    // NOLINTBEGIN(bugprone-branch-clone)
                     if (!canOptimize) _moreThanOneMatrixRequired=true;
                     else if (transform->getReferenceFrame()!=osg::Transform::RELATIVE_RF) _moreThanOneMatrixRequired=true;
+                    // NOLINTEND(bugprone-branch-clone)
                     else
                     {
                         if (_transformSet.empty()) _firstMatrix = getMatrix(transform);
@@ -1526,6 +1533,8 @@ bool Optimizer::MergeGeometryVisitor::mergeGroup(osg::Group& group)
                         case(osg::PrimitiveSet::QUADS):
                             combine = true;
                             break;
+                            default:
+                                break;
                         }
 
                     }

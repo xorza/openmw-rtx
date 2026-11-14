@@ -48,7 +48,7 @@ namespace Rtx
         {
             const std::uint8_t* row = image.data(0, y);
             const int stride = image.getPixelFormat() == GL_RGB ? 3 : 4;
-            return { row[x * stride], row[x * stride + 1] };
+            return { row[static_cast<std::ptrdiff_t>(x * stride)], row[x * stride + 1] };
         }
 
         /// The whole frame comes back at the frame's own extents, and the row order is the only

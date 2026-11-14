@@ -140,6 +140,8 @@ namespace
                                     case 'f':
                                         retval << context.getGlobalFloat(global);
                                         break;
+                                    default:
+                                        break;
                                 }
                                 break;
                             }

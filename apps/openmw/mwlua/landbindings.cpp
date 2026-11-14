@@ -91,6 +91,8 @@ namespace MWLua
                 return values;
 
             const int cellSize = ESM::getCellSize(worldspace);
+            // A whole-number division on purpose.
+            // NOLINTNEXTLINE(bugprone-integer-division)
             const float offset = static_cast<float>((cellSize / ESM::LandRecordData::sLandTextureSize)) * 0.25f;
             const osg::Vec3f correctedPos = pos + osg::Vec3f{ -offset, +offset, 0.0f };
 

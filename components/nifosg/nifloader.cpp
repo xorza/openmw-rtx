@@ -172,6 +172,8 @@ namespace
             case Nif::RC_BSLODTriShape:
             case Nif::RC_BSSegmentedTriShape:
                 return true;
+            default:
+                break;
         }
         return false;
     }
@@ -185,6 +187,8 @@ namespace
             case Nif::RC_BSMeshLODTriShape:
             case Nif::RC_BSSubIndexTriShape:
                 return true;
+            default:
+                break;
         }
         return false;
     }
@@ -2617,6 +2621,8 @@ namespace NifOsg
                     }
                     // OSG groups the material properties that NIFs have separate, so we have to parse them all again
                     // when one changed
+                    // Each branch states its own case, kept apart to be read and changed as its own.
+                    // NOLINTBEGIN(bugprone-branch-clone)
                     case Nif::RC_NiMaterialProperty:
                     case Nif::RC_NiVertexColorProperty:
                     case Nif::RC_NiSpecularProperty:
@@ -2629,6 +2635,7 @@ namespace NifOsg
                         // Handled on drawable level to prevent RenderBin nesting issues
                         break;
                     }
+                    // NOLINTEND(bugprone-branch-clone)
                     case Nif::RC_NiTexturingProperty:
                     {
                         const auto* texprop = static_cast<const Nif::NiTexturingProperty*>(property);

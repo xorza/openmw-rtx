@@ -623,7 +623,7 @@ namespace Rtx::Testing
             constexpr std::uint32_t size = 32;
 
             // The top right, which the arms below leave open.
-            constexpr std::size_t corner = (size - 1) * 4;
+            constexpr std::size_t corner = (static_cast<std::size_t>(size - 1)) * 4;
 
             constexpr std::array<std::uint8_t, 4> white{ 255, 255, 255, 255 };
             const std::array<TextureData, 1> sheet{ describeTexel(white) };
@@ -922,7 +922,7 @@ namespace Rtx::Testing
             // where the camera's sky (`Testing::sHemisphereRamp`) has faded `tan e / (1 + tan e)` = 0.494737 of
             // the way: 0.148421 of red's range of 0.3. A flat sky would pass the loop above without saying anything.
             const std::size_t bottom = (std::size_t{ size - 1 } * size + size / 2) * 4;
-            EXPECT_NEAR(edged[size / 2 * 4] - edged[bottom], 0.148421f, 1.0e-4f)
+            EXPECT_NEAR(edged[static_cast<std::size_t>(size / 2) * 4] - edged[bottom], 0.148421f, 1.0e-4f)
                 << "the sky's own gradient, still in it";
         }
     }

@@ -599,7 +599,7 @@ namespace Rtx::Testing
                 EXPECT_GE(widths[at], static_cast<float>(over * tangent * 0.999)) << "pixel " << at;
                 EXPECT_LE(widths[at], static_cast<float>(over / std::cos(lean) * tangent * 1.001)) << "pixel " << at;
             }
-            EXPECT_GT(stopped, std::size_t{ 20 * size }) << "the sheet stopped too few rays to say";
+            EXPECT_GT(stopped, std::size_t{ 20 } * size) << "the sheet stopped too few rays to say";
 
             const Frame overhead = shadedAt(5.0f);
             expectShares(overhead, depth, { -20.0f, 0.0f, 20.0f });

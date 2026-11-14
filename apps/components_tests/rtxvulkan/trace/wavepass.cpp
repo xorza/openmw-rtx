@@ -165,6 +165,8 @@ namespace Rtx
             for (std::size_t at = 0; at < slopes.size(); at += 4)
                 lost += slopes[at + 2] - slopes[at] * slopes[at] - slopes[at + 1] * slopes[at + 1];
 
+            // A whole-number division on purpose.
+            // NOLINTNEXTLINE(bugprone-integer-division)
             lost /= static_cast<float>(slopes.size() / 4);
 
             // The default state, because that is the one `WavePass` describes itself with when it is

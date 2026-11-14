@@ -31,6 +31,8 @@ namespace MWWorld
     {
     }
 
+    // An exception here ends the process, which is what this function means.
+    // NOLINTNEXTLINE(bugprone-exception-escape)
     ESM::RefNum CellRef::getRefNum() const noexcept
     {
         return std::visit(ESM::VisitOverload{

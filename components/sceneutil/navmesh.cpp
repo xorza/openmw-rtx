@@ -78,21 +78,22 @@ namespace
                         continue;
                 }
 
-                const float* v0 = &tile->verts[p->verts[j] * 3];
-                const float* v1 = &tile->verts[p->verts[(j + 1) % nj] * 3];
+                const float* v0 = &tile->verts[static_cast<std::ptrdiff_t>(p->verts[j] * 3)];
+                const float* v1 = &tile->verts[static_cast<std::ptrdiff_t>(p->verts[(j + 1) % nj] * 3)];
 
                 // Draw detail mesh edges which align with the actual poly edge.
                 // This is really slow.
                 for (int k = 0; std::cmp_less(k, pd->triCount); ++k)
                 {
-                    const unsigned char* t = &tile->detailTris[(pd->triBase + k) * 4];
+                    const unsigned char* t = &tile->detailTris[(static_cast<std::size_t>(pd->triBase + k) * 4)];
                     const float* tv[3];
                     for (int m = 0; m < 3; ++m)
                     {
                         if (t[m] < p->vertCount)
-                            tv[m] = &tile->verts[p->verts[t[m]] * 3];
+                            tv[m] = &tile->verts[static_cast<std::ptrdiff_t>(p->verts[t[m]] * 3)];
                         else
-                            tv[m] = &tile->detailVerts[(pd->vertBase + (t[m] - p->vertCount)) * 3];
+                            tv[m] = &tile->detailVerts[(
+                                static_cast<std::size_t>(pd->vertBase + (t[m] - p->vertCount)) * 3)];
                     }
                     for (int m = 0, n = 2; m < 3; n = m++)
                     {
@@ -179,13 +180,15 @@ namespace
 
             for (int j = 0; std::cmp_less(j, pd->triCount); ++j)
             {
-                const unsigned char* t = &tile->detailTris[(pd->triBase + j) * 4];
+                const unsigned char* t = &tile->detailTris[(static_cast<std::size_t>(pd->triBase + j) * 4)];
                 for (int k = 0; k < 3; ++k)
                 {
                     if (t[k] < p->vertCount)
-                        dd->vertex(&tile->verts[p->verts[t[k]] * 3], col);
+                        dd->vertex(&tile->verts[static_cast<std::ptrdiff_t>(p->verts[t[k]] * 3)], col);
                     else
-                        dd->vertex(&tile->detailVerts[(pd->vertBase + t[k] - p->vertCount) * 3], col);
+                        dd->vertex(
+                            &tile->detailVerts[(static_cast<std::size_t>(pd->vertBase + t[k] - p->vertCount) * 3)],
+                            col);
                 }
             }
         }
@@ -213,8 +216,8 @@ namespace
                     col = duDarkenCol(duTransCol(dd->areaToCol(p->getArea()), 220));
 
                 const dtOffMeshConnection* con = &tile->offMeshCons[i - tile->header->offMeshBase];
-                const float* va = &tile->verts[p->verts[0] * 3];
-                const float* vb = &tile->verts[p->verts[1] * 3];
+                const float* va = &tile->verts[static_cast<std::ptrdiff_t>(p->verts[0] * 3)];
+                const float* vb = &tile->verts[static_cast<std::ptrdiff_t>(p->verts[1] * 3)];
 
                 // Check to see if start and end end-points have links.
                 bool startSet = false;
@@ -256,7 +259,7 @@ namespace
         dd->begin(DU_DRAW_POINTS, 3.0f);
         for (int i = 0; i < tile->header->vertCount; ++i)
         {
-            const float* v = &tile->verts[i * 3];
+            const float* v = &tile->verts[static_cast<std::ptrdiff_t>(i * 3)];
             dd->vertex(v[0], v[1], v[2], vcol);
         }
         dd->end();

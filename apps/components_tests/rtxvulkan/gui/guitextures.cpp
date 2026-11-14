@@ -236,7 +236,7 @@ namespace Rtx
             const GuiSlot texture = mRenderer.addGuiTexture(side, side);
             mHeld.push_back(texture);
 
-            std::array<std::uint8_t, side * side * 4> red{};
+            std::array<std::uint8_t, static_cast<std::size_t>(side * side) * 4> red{};
             for (std::size_t at = 0; at < red.size(); at += 4)
             {
                 red[at] = 255;
@@ -380,7 +380,7 @@ namespace Rtx
 
             for (std::uint32_t texel = 0; texel < side * side; ++texel)
             {
-                into[texel * 4] = static_cast<std::uint8_t>(texel);
+                into[static_cast<std::size_t>(texel) * 4] = static_cast<std::uint8_t>(texel);
                 into[texel * 4 + 1] = 0;
                 into[texel * 4 + 2] = 0;
                 into[texel * 4 + 3] = 255;
@@ -393,8 +393,8 @@ namespace Rtx
 
             for (std::uint32_t texel = 0; texel < side * side; ++texel)
             {
-                const std::array<std::uint8_t, 4> found{ mPixels[texel * 4], mPixels[texel * 4 + 1],
-                    mPixels[texel * 4 + 2], mPixels[texel * 4 + 3] };
+                const std::array<std::uint8_t, 4> found{ mPixels[static_cast<std::size_t>(texel) * 4],
+                    mPixels[texel * 4 + 1], mPixels[texel * 4 + 2], mPixels[texel * 4 + 3] };
                 EXPECT_EQ(found, (std::array<std::uint8_t, 4>{ static_cast<std::uint8_t>(texel), 0, 0, 255 }))
                     << "texel " << texel;
             }
@@ -473,8 +473,8 @@ namespace Rtx
             mHeld.push_back(red);
             mHeld.push_back(green);
 
-            std::array<std::uint8_t, side * side * 4> redRows{};
-            std::array<std::uint8_t, side * side * 4> greenRows{};
+            std::array<std::uint8_t, static_cast<std::size_t>(side * side) * 4> redRows{};
+            std::array<std::uint8_t, static_cast<std::size_t>(side * side) * 4> greenRows{};
             for (std::size_t at = 0; at < redRows.size(); at += 4)
             {
                 redRows[at] = 255;

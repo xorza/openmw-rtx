@@ -688,7 +688,7 @@ namespace Rtx::Testing
 
             // The largest whole number of triangles a block holds, so what is left of it is one
             // index and the wall's six cannot fit.
-            std::vector<std::uint32_t> fillerIndices(MeshTable::sIndexBlock / 3 * 3);
+            std::vector<std::uint32_t> fillerIndices(static_cast<std::size_t>(MeshTable::sIndexBlock / 3) * 3);
             for (std::size_t at = 0; at < fillerIndices.size(); ++at)
                 fillerIndices[at] = static_cast<std::uint32_t>(at % 3);
 
@@ -1693,7 +1693,7 @@ namespace Rtx::Testing
             // Sixty-four texels for sixty-four columns, so every pixel samples exactly one texel
             // centre and no filtering weight can enter the answer. Green for the first half, blue
             // for the second.
-            std::array<std::uint8_t, size * 4> strip{};
+            std::array<std::uint8_t, static_cast<std::size_t>(size) * 4> strip{};
             for (std::uint32_t texel = 0; texel < size; ++texel)
                 strip[texel * 4 + (texel < size / 2 ? 1 : 2)] = 255;
 

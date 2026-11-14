@@ -101,6 +101,8 @@ namespace
 
     void serializeRefId(benchmark::State& state)
     {
+        // The same sequence each run, on purpose.
+        // NOLINTNEXTLINE(bugprone-random-generator-seed)
         std::minstd_rand random;
         std::vector<ESM::RefId> refIds = generateStringRefIds(state.range(0), random);
         std::size_t i = 0;
@@ -114,6 +116,8 @@ namespace
 
     void deserializeRefId(benchmark::State& state)
     {
+        // The same sequence each run, on purpose.
+        // NOLINTNEXTLINE(bugprone-random-generator-seed)
         std::minstd_rand random;
         std::vector<std::string> serializedRefIds
             = generateSerializedStringRefIds(state.range(0), random, [](ESM::RefId v) { return v.serialize(); });
@@ -128,6 +132,8 @@ namespace
 
     void serializeTextStringRefId(benchmark::State& state)
     {
+        // The same sequence each run, on purpose.
+        // NOLINTNEXTLINE(bugprone-random-generator-seed)
         std::minstd_rand random;
         std::vector<ESM::RefId> refIds = generateStringRefIds(state.range(0), random);
         std::size_t i = 0;
@@ -141,6 +147,8 @@ namespace
 
     void deserializeTextStringRefId(benchmark::State& state)
     {
+        // The same sequence each run, on purpose.
+        // NOLINTNEXTLINE(bugprone-random-generator-seed)
         std::minstd_rand random;
         std::vector<std::string> serializedRefIds
             = generateSerializedStringRefIds(state.range(0), random, [](ESM::RefId v) { return v.serializeText(); });
@@ -155,6 +163,8 @@ namespace
 
     void serializeTextGeneratedRefId(benchmark::State& state)
     {
+        // The same sequence each run, on purpose.
+        // NOLINTNEXTLINE(bugprone-random-generator-seed)
         std::minstd_rand random;
         std::vector<ESM::RefId> refIds = generateGeneratedRefIds(random);
         std::size_t i = 0;
@@ -168,6 +178,8 @@ namespace
 
     void deserializeTextGeneratedRefId(benchmark::State& state)
     {
+        // The same sequence each run, on purpose.
+        // NOLINTNEXTLINE(bugprone-random-generator-seed)
         std::minstd_rand random;
         std::vector<std::string> serializedRefIds
             = generateSerializedGeneratedRefIds(random, [](ESM::RefId v) { return v.serializeText(); });
@@ -182,6 +194,8 @@ namespace
 
     void serializeTextIndexRefId(benchmark::State& state)
     {
+        // The same sequence each run, on purpose.
+        // NOLINTNEXTLINE(bugprone-random-generator-seed)
         std::minstd_rand random;
         std::vector<ESM::RefId> refIds = generateIndexRefIds(random);
         std::size_t i = 0;
@@ -195,6 +209,8 @@ namespace
 
     void deserializeTextIndexRefId(benchmark::State& state)
     {
+        // The same sequence each run, on purpose.
+        // NOLINTNEXTLINE(bugprone-random-generator-seed)
         std::minstd_rand random;
         std::vector<std::string> serializedRefIds
             = generateSerializedIndexRefIds(random, [](ESM::RefId v) { return v.serializeText(); });
@@ -209,6 +225,8 @@ namespace
 
     void serializeTextESM3ExteriorCellRefId(benchmark::State& state)
     {
+        // The same sequence each run, on purpose.
+        // NOLINTNEXTLINE(bugprone-random-generator-seed)
         std::minstd_rand random;
         std::vector<ESM::RefId> refIds = generateESM3ExteriorCellRefIds(random);
         std::size_t i = 0;
@@ -222,6 +240,8 @@ namespace
 
     void deserializeTextESM3ExteriorCellRefId(benchmark::State& state)
     {
+        // The same sequence each run, on purpose.
+        // NOLINTNEXTLINE(bugprone-random-generator-seed)
         std::minstd_rand random;
         std::vector<std::string> serializedRefIds
             = generateSerializedESM3ExteriorCellRefIds(random, [](ESM::RefId v) { return v.serializeText(); });

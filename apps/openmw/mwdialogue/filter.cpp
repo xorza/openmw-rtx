@@ -258,6 +258,8 @@ bool MWDialogue::Filter::testFunctionLocal(const MWDialogue::SelectWrapper& sele
             return select.selectCompare(locals.mLongs[index]);
         case 'f':
             return select.selectCompare(locals.mFloats[index]);
+        default:
+            break;
     }
 
     throw std::logic_error("unknown local variable type in dialogue filter");

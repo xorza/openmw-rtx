@@ -41,6 +41,8 @@ namespace LuaUi
 
     void LuaText::setCaption(const MyGUI::UString& caption)
     {
+        // Calls past its parent's override on purpose.
+        // NOLINTNEXTLINE(bugprone-parent-virtual-call)
         MyGUI::TextBox::setCaption(caption);
         if (mAutoSized)
             updateCoord();

@@ -21,6 +21,8 @@ namespace Rtx
     {
     }
 
+    // An exception here ends the process, which is what this function means.
+    // NOLINTNEXTLINE(bugprone-exception-escape)
     Graveyard::~Graveyard()
     {
         // What the device's own idle left: burials stamped for a submit nobody will make now, and

@@ -357,7 +357,7 @@ namespace Settings
         }
 
         // Reads the setting again, and throws where it is missing, which a test holds it to.
-        // NOLINTNEXTLINE(performance-noexcept-move-constructor,cppcoreguidelines-noexcept-move-operations)
+        // NOLINTNEXTLINE(performance-noexcept-move-constructor,cppcoreguidelines-noexcept-move-operations,bugprone-exception-escape)
         SettingValue(SettingValue&& other)
             : BaseSettingValue(std::move(other))
             , mSanitizer(std::move(other.mSanitizer))

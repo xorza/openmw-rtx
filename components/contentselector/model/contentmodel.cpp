@@ -230,6 +230,8 @@ QVariant ContentSelectorModel::ContentModel::data(const QModelIndex& index, int 
 
         case Qt::UserRole + 1:
             return isChecked(file);
+        default:
+            break;
     }
     return QVariant();
 }
@@ -267,6 +269,8 @@ bool ContentSelectorModel::ContentModel::setData(const QModelIndex& index, const
             if (checkValue == Qt::Unchecked)
                 return !isChecked(file) || setCheckState(file, false);
         }
+        default:
+            break;
     }
 
     return false;

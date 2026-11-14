@@ -62,6 +62,8 @@ namespace MWPhysics
          * Used by the physics simulation to store the simulation result. Used in conjunction with mWorldPosition
          * to account for e.g. scripted movements
          */
+        // Hides the base's member on purpose: it is called through the derived type.
+        // NOLINTNEXTLINE(bugprone-derived-method-shadowing-base-method)
         void setSimulationPosition(const osg::Vec3f& position);
 
         void updateCollisionObjectPosition();
@@ -87,6 +89,8 @@ namespace MWPhysics
          * Store the current position into mPreviousPosition, then move to this position.
          * Returns true if the new position is different.
          */
+        // Hides the base's member on purpose: it is called through the derived type.
+        // NOLINTNEXTLINE(bugprone-derived-method-shadowing-base-method)
         bool setPosition(const osg::Vec3f& position);
 
         // force set actor position to be as in Ptr::RefData

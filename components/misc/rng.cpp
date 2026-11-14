@@ -8,6 +8,8 @@ namespace Misc::Rng
 {
     namespace
     {
+        // The same sequence each run, on purpose.
+        // NOLINTNEXTLINE(bugprone-random-generator-seed)
         Generator sGenerator;
     }
 

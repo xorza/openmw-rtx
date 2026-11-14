@@ -294,10 +294,13 @@ namespace Rtx::Testing
 
             const auto sceneOf = [&](bool withPost) {
                 SceneDesc scene;
-                for (float left = -2000.0f; left < 2000.0f; left += 100.0f)
+                for (int at = -20; at < 20; ++at)
+                {
+                    const float left = 100.0f * static_cast<float>(at);
                     addQuad(scene,
                         std::array{ osg::Vec3f(left, 2000.0f, -2000.0f), osg::Vec3f(left + 50.0f, 2000.0f, -2000.0f),
                             osg::Vec3f(left + 50.0f, 2000.0f, 2000.0f), osg::Vec3f(left, 2000.0f, 2000.0f) });
+                }
                 const float postEdge = -step * static_cast<float>(frames - 1);
                 if (withPost)
                     addQuad(scene,

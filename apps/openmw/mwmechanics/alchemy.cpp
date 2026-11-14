@@ -130,6 +130,8 @@ void MWMechanics::Alchemy::applyTools(int flags, float& value) const
 
             quality = magnitude && duration ? calcinatorQuality : calcinatorQuality + 0.5f;
             break;
+        default:
+            break;
     }
 
     if (setup == 3 || !negative)

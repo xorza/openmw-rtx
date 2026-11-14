@@ -94,6 +94,8 @@ namespace Rtx::Dlss
 
     Ngx::FeatureDiscoveryInfo Application::discovery() const
     {
+        // Zeroed, as the API means its structures and flag sets to start.
+        // NOLINTNEXTLINE(bugprone-invalid-enum-default-initialization)
         Ngx::FeatureDiscoveryInfo info{};
         info.SDKVersion = Ngx::sApiVersion;
         info.FeatureId = Ngx::Feature::RayReconstruction;

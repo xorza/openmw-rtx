@@ -23,6 +23,8 @@ namespace Gui
         void onMouseLostFocus(MyGUI::Widget* newWidget) override;
 
     protected:
+        // Hides the base's member on purpose: it is called through the derived type.
+        // NOLINTNEXTLINE(bugprone-derived-method-shadowing-base-method)
         void updateButtonState();
 
         void onMouseButtonPressed(int left, int top, MyGUI::MouseButton id) override;
@@ -40,6 +42,8 @@ namespace Gui
         static void createButtonGroup(ButtonGroup& group);
 
         //! Set button selected state
+        // Hides the base's member on purpose: it is called through the derived type.
+        // NOLINTNEXTLINE(bugprone-derived-method-shadowing-base-method)
         void setStateSelected(bool value);
 
     private:

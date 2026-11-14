@@ -23,11 +23,11 @@ namespace
         bool anyDeltas = (lodDeltas[Terrain::North] || lodDeltas[Terrain::South] || lodDeltas[Terrain::West]
             || lodDeltas[Terrain::East]);
 
-        size_t increment = static_cast<size_t>(1) << lodLevel;
+        size_t increment = size_t{ 1 } << lodLevel;
         assert(increment < verts);
 
         osg::ref_ptr<IndexArrayType> indices(new IndexArrayType(osg::PrimitiveSet::TRIANGLES));
-        indices->reserve((verts - 1) * (verts - 1) * 2 * 3 / increment);
+        indices->reserve(static_cast<std::size_t>((verts - 1) * (verts - 1) * 2) * 3 / increment);
 
         size_t rowStart = 0, colStart = 0, rowEnd = verts - 1, colEnd = verts - 1;
         // If any edge needs stitching we'll skip all edges at this point,
@@ -75,7 +75,7 @@ namespace
 
             // South
             size_t row = 0;
-            size_t outerStep = static_cast<size_t>(1) << (lodDeltas[Terrain::South] + lodLevel);
+            size_t outerStep = size_t{ 1 } << (lodDeltas[Terrain::South] + lodLevel);
             for (size_t col = 0; col < verts - 1; col += outerStep)
             {
                 indices->push_back(static_cast<IndexType>(verts * col + row));
@@ -99,7 +99,7 @@ namespace
 
             // North
             row = verts - 1;
-            outerStep = static_cast<size_t>(1) << (lodDeltas[Terrain::North] + lodLevel);
+            outerStep = size_t{ 1 } << (lodDeltas[Terrain::North] + lodLevel);
             for (size_t col = 0; col < verts - 1; col += outerStep)
             {
                 indices->push_back(static_cast<IndexType>(verts * (col + outerStep) + row));
@@ -123,7 +123,7 @@ namespace
 
             // West
             size_t col = 0;
-            outerStep = static_cast<size_t>(1) << (lodDeltas[Terrain::West] + lodLevel);
+            outerStep = size_t{ 1 } << (lodDeltas[Terrain::West] + lodLevel);
             for (row = 0; row < verts - 1; row += outerStep)
             {
                 indices->push_back(static_cast<IndexType>(verts * col + row + outerStep));
@@ -147,7 +147,7 @@ namespace
 
             // East
             col = verts - 1;
-            outerStep = static_cast<size_t>(1) << (lodDeltas[Terrain::East] + lodLevel);
+            outerStep = size_t{ 1 } << (lodDeltas[Terrain::East] + lodLevel);
             for (row = 0; row < verts - 1; row += outerStep)
             {
                 indices->push_back(static_cast<IndexType>(verts * col + row));

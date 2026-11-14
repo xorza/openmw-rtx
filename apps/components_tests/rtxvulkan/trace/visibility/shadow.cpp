@@ -123,7 +123,7 @@ namespace Rtx::Testing
                     for (std::size_t value = 0; value < sunlit.size(); value += 4)
                         shadowed += Testing::shadowOpen(sunlit[value + 3]) ? 0 : 1;
                     if (noShadows == 0u)
-                        EXPECT_GT(shadowed, std::size_t{ 2 * size })
+                        EXPECT_GT(shadowed, std::size_t{ 2 } * size)
                             << "the slab cast no shadow, or this proves nothing";
                     else
                         EXPECT_EQ(shadowed, 0u) << "a picture with shadows off kept a shadow under the water";
@@ -166,8 +166,8 @@ namespace Rtx::Testing
                 ASSERT_EQ(Testing::shadowBit(sunlit[value + 3]), lit ? 0.0f : 1.0f) << "pixel " << value / 4;
                 ++(lit ? floor : wall);
             }
-            ASSERT_GT(floor, std::size_t{ 8 * size }) << "no floor under the wall, or this proves nothing";
-            ASSERT_GT(wall, std::size_t{ 8 * size }) << "no wall over the floor, or this proves nothing";
+            ASSERT_GT(floor, std::size_t{ 8 } * size) << "no floor under the wall, or this proves nothing";
+            ASSERT_GT(wall, std::size_t{ 8 } * size) << "no wall over the floor, or this proves nothing";
 
             const Frame filtered = shoot(scene, {}, camera, size,
                 { .mFrames = 16, .mAverage = false, .mFilter = true, .mLoss = HistoryLoss::Cut });
@@ -221,7 +221,7 @@ namespace Rtx::Testing
                     EXPECT_FALSE(Testing::shadowOpen(sunlit[value + 3]))
                         << "pixel " << value / 4 << " lit through the wall, two-sided " << twoSided;
                 }
-                ASSERT_GT(floor, std::size_t{ 8 * size })
+                ASSERT_GT(floor, std::size_t{ 8 } * size)
                     << "no floor before the wall, or this proves nothing, two-sided " << twoSided;
             }
         }
@@ -341,7 +341,7 @@ namespace Rtx::Testing
                 EXPECT_GE(width, narrowest * 0.999f) << "pixel " << pixel;
                 EXPECT_LE(width, widest * 1.001f) << "pixel " << pixel;
             }
-            EXPECT_GT(stopped, std::size_t{ 7 * size }) << "the bar cast less than the shadow it casts";
+            EXPECT_GT(stopped, std::size_t{ 7 } * size) << "the bar cast less than the shadow it casts";
 
             const Frame denoised = shoot(scene, {}, camera, size,
                 { .mFrames = frames,
@@ -420,7 +420,7 @@ namespace Rtx::Testing
                 ASSERT_TRUE(width < 1.0f || width > 10.0f) << "a penumbra of neither occluder: " << width;
                 barred += width < 1.0f ? 1 : 0;
             }
-            EXPECT_GT(barred, std::size_t{ 5 * size }) << "the bar's shadow took a farther occluder's penumbra";
+            EXPECT_GT(barred, std::size_t{ 5 } * size) << "the bar's shadow took a farther occluder's penumbra";
 
             // The ray is aimed across the disc, whose half angle is `asin 0.0349` = 2.0 degrees, so it
             // meets the bar `100 / cos 62°` to `100 / cos 58°` along it.
@@ -436,7 +436,7 @@ namespace Rtx::Testing
                 EXPECT_GE(width, pixels(nearest * tangent / 0.5, 387.0) * 0.999f) << "the penumbra square to the light";
                 EXPECT_LE(width, pixels(farthest * tangent / 0.5, 300.0) * 1.001f);
             }
-            EXPECT_GT(stopped, std::size_t{ 7 * size }) << "the bar cast less than the shadow it casts";
+            EXPECT_GT(stopped, std::size_t{ 7 } * size) << "the bar cast less than the shadow it casts";
 
             Shaders::VisibilityConstants between = Testing::makeCamera(
                 osg::Vec3f(0.0f, -1.0f, 30.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);
@@ -472,8 +472,8 @@ namespace Rtx::Testing
                                                      ++roofed;
                                                  }
                                              } });
-            EXPECT_GE(drawn, std::size_t{ frames * 8 * size });
-            EXPECT_GE(roofed, std::size_t{ frames * 8 * size });
+            EXPECT_GE(drawn, static_cast<std::size_t>(frames) * 8 * size);
+            EXPECT_GE(roofed, static_cast<std::size_t>(frames) * 8 * size);
             const double open = static_cast<double>(opened) / static_cast<double>(drawn);
             EXPECT_NEAR(open, 0.5, 4.0 * 0.5 / std::sqrt(static_cast<double>(drawn)))
                 << "the bit's mean is what the pane lets through";
@@ -530,7 +530,7 @@ namespace Rtx::Testing
                              opened += Testing::shadowBit(shadowed[pixel * 4 + 3]) == 1.0f ? 1 : 0;
                          }
                  } });
-            ASSERT_GE(drawn, std::size_t{ frames * size * size } / 2);
+            ASSERT_GE(drawn, static_cast<std::size_t>(frames) * size * size / 2);
             const double open = static_cast<double>(opened) / static_cast<double>(drawn);
             const double owed = 1.0 - 0.5 * 128.0 / 255.0;
             EXPECT_NEAR(open, owed, 4.0 * std::sqrt(owed * (1.0 - owed) / static_cast<double>(drawn)))
@@ -574,6 +574,8 @@ namespace Rtx::Testing
                         for (int dy = -2; dy <= 2; ++dy)
                             for (int dx = -2; dx <= 2; ++dx)
                             {
+                                // An index from signed steps, whole and in range before it is widened.
+                                // NOLINTNEXTLINE(bugprone-misplaced-widening-cast)
                                 const auto at = static_cast<std::size_t>((y + dy) * static_cast<int>(size) + x + dx);
                                 box += static_cast<double>(Testing::shadowBit(bits[at * 4 + 3])) / 25.0;
                                 truth += mean[at] / 25.0;

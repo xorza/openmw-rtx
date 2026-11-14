@@ -15,13 +15,15 @@ namespace SceneUtil
     template <class Derived, typename NodeType = osg::Node*, typename VisitorType = osg::NodeVisitor*>
     class NodeCallback : public osg::Callback
     {
-    public:
+        friend Derived;
+
         NodeCallback() {}
         NodeCallback(const NodeCallback& nc, const osg::CopyOp& copyop)
             : osg::Callback(nc, copyop)
         {
         }
 
+    public:
         bool run(osg::Object* object, osg::Object* data) override
         {
             static_cast<Derived*>(this)->operator()(

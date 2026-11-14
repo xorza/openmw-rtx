@@ -128,6 +128,8 @@ namespace MWWorld
                 case ESM::REC_WEAP:
                     getEnchantedItem<ESM::Weapon>(id, eId, name);
                     break;
+                default:
+                    break;
             }
             if (eId.empty())
                 continue;

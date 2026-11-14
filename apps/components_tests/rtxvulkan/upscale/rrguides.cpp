@@ -219,7 +219,7 @@ namespace Rtx
             ASSERT_EQ(diffuses.size(), 4 * sWidth);
 
             const auto rgb = [](const std::vector<float>& values, const std::uint32_t x) {
-                return osg::Vec3f(values[4 * x], values[4 * x + 1], values[4 * x + 2]);
+                return osg::Vec3f(values[std::size_t{ 4 } * x], values[4 * x + 1], values[4 * x + 2]);
             };
             const auto half = [](const float value) { return fromHalf(toHalf(value)); };
             const auto halfOf = [&](const osg::Vec3f& value) {
@@ -229,7 +229,7 @@ namespace Rtx
             for (std::uint32_t x = 0; x < sWidth; ++x)
             {
                 const Pixel& pixel = sPixels[x];
-                EXPECT_EQ(motions[2 * x], half(pixel.mMotion.x())) << x;
+                EXPECT_EQ(motions[std::size_t{ 2 } * x], half(pixel.mMotion.x())) << x;
                 EXPECT_EQ(motions[2 * x + 1], half(pixel.mMotion.y())) << x;
             }
 

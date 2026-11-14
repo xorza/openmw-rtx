@@ -330,6 +330,8 @@ bool CSMTools::TopicInfoCheckStage::verifySelectStruct(
     }
 
     // Id checks
+    // Each branch states its own case, kept apart to be read and changed as its own.
+    // NOLINTBEGIN(bugprone-branch-clone)
     if (select.mFunction == ESM::DialogueCondition::Function_Global
         && !verifyId(ESM::RefId::stringRefId(select.mVariable), mGlobals, id, messages))
     {
@@ -375,6 +377,7 @@ bool CSMTools::TopicInfoCheckStage::verifySelectStruct(
     {
         return false;
     }
+    // NOLINTEND(bugprone-branch-clone)
 
     return true;
 }

@@ -83,11 +83,14 @@ namespace MWSound
             else
                 sampleFormat = AV_SAMPLE_FMT_S16;
 
+            // Each branch states its own case, kept apart to be read and changed as its own.
+            // NOLINTBEGIN(bugprone-branch-clone)
             if (channelLayout == AV_CH_LAYOUT_5POINT1 || channelLayout == AV_CH_LAYOUT_7POINT1
                 || channelLayout == AV_CH_LAYOUT_QUAD) // FIXME: check for AL_EXT_MCFORMATS support
                 channelLayout = AV_CH_LAYOUT_STEREO;
             else if (channelLayout != AV_CH_LAYOUT_MONO && channelLayout != AV_CH_LAYOUT_STEREO)
                 channelLayout = AV_CH_LAYOUT_STEREO;
+            // NOLINTEND(bugprone-branch-clone)
         }
 
     public:

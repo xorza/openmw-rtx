@@ -143,6 +143,8 @@ BENCHMARK(localStatic3);
 BENCHMARK(settingsStorage3);
 BENCHMARK(settingsStorageGet3);
 
+// An exception here ends the process, which is what this function means.
+// NOLINTNEXTLINE(bugprone-exception-escape)
 int main(int argc, char* argv[])
 {
     const std::filesystem::path settingsDefaultPath = std::filesystem::path{ OPENMW_PROJECT_SOURCE_DIR } / "files"

@@ -104,6 +104,8 @@ namespace MWMechanics
         : mSourceSpellId(id)
         , mDisplayName(sourceName)
         , mItem(item)
+        // Zeroed, as the API means its structures and flag sets to start.
+        // NOLINTNEXTLINE(bugprone-invalid-enum-default-initialization)
         , mFlags()
         , mWorsenings(-1)
     {
@@ -116,6 +118,8 @@ namespace MWMechanics
         : mSourceSpellId(spell->mId)
         , mDisplayName(spell->mName)
         , mCaster(actor.getCellRef().getRefNum())
+        // Zeroed, as the API means its structures and flag sets to start.
+        // NOLINTNEXTLINE(bugprone-invalid-enum-default-initialization)
         , mFlags()
         , mWorsenings(-1)
     {
@@ -132,6 +136,8 @@ namespace MWMechanics
         , mDisplayName(item.getClass().getName(item))
         , mCaster(actor.getCellRef().getRefNum())
         , mItem(item.getCellRef().getRefNum())
+        // Zeroed, as the API means its structures and flag sets to start.
+        // NOLINTNEXTLINE(bugprone-invalid-enum-default-initialization)
         , mFlags()
         , mWorsenings(-1)
     {

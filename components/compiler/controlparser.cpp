@@ -244,8 +244,6 @@ namespace Compiler
                     mState = IfElseifBodyState;
                     return true;
                 case IfElseEndState:
-                    mState = IfElseBodyState;
-                    return true;
                 case IfElseJunkState:
                     mState = IfElseBodyState;
                     return true;

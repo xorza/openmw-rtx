@@ -1114,6 +1114,8 @@ namespace MWScript
                                     output << refId << "." << var << " = "
                                            << ptr.getRefData().getLocals().getFloatVar(script, var);
                                     break;
+                                default:
+                                    break;
                             }
                         }
                     }

@@ -189,7 +189,7 @@ namespace Rtx
     {
         // In double, for the reason `variance` is above, and stored as the floats the shader reads.
         double whole = 0.0;
-        std::array<double, Shaders::WAVE_CASCADES * Shaders::WAVE_LEVELS> resolved{};
+        std::array<double, static_cast<std::size_t>(Shaders::WAVE_CASCADES) * Shaders::WAVE_LEVELS> resolved{};
 
         for (std::size_t index = 0; index < Shaders::WAVE_CASCADES; ++index)
         {

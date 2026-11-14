@@ -52,6 +52,8 @@ CSMDoc::OperationHolder* CSMTools::Tools::get(int type)
             return mSearch;
         case CSMDoc::State_Merging:
             return mMerge;
+        default:
+            break;
     }
 
     return nullptr;

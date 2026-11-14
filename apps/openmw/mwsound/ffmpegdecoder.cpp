@@ -23,7 +23,7 @@ namespace MWSound
     void AVIOContextDeleter::operator()(AVIOContext* ptr) const
     {
         if (ptr->buffer != nullptr)
-            av_freep(&ptr->buffer);
+            av_freep(static_cast<void*>(&ptr->buffer));
 
         avio_context_free(&ptr);
     }
@@ -167,7 +167,7 @@ namespace MWSound
             {
                 if (!mDataBuf || mDataBufLen < mFrame->nb_samples)
                 {
-                    av_freep(&mDataBuf);
+                    av_freep(static_cast<void*>(&mDataBuf));
 #if OPENMW_FFMPEG_5_OR_GREATER
                     if (av_samples_alloc(&mDataBuf, nullptr, mOutputChannelLayout.nb_channels,
 #else
@@ -210,7 +210,7 @@ namespace MWSound
                     break;
                 mFramePos = 0;
 #if OPENMW_FFMPEG_5_OR_GREATER
-                mFrameSize = mFrame->nb_samples * mOutputChannelLayout.nb_channels
+                mFrameSize = static_cast<std::size_t>(mFrame->nb_samples * mOutputChannelLayout.nb_channels)
 #else
                 mFrameSize = mFrame->nb_samples * av_get_channel_layout_nb_channels(mOutputChannelLayout)
 #endif
@@ -287,7 +287,7 @@ namespace MWSound
         ioCtx.reset(avio_alloc_context(ioBuffer, ioBufferSize, 0, this, readPacket, writePacket, seek));
         if (ioCtx == nullptr)
         {
-            av_freep(&ioBuffer);
+            av_freep(static_cast<void*>(&ioBuffer));
             throw std::runtime_error("Failed to allocate AVIO context");
         }
 
@@ -426,6 +426,8 @@ namespace MWSound
         {
             // Lenient demuxers (mp3) can accept mislabelled data and produce a
             // stream with empty parameters; that counts as a failed attempt too.
+            // A view of a path held whole in a string, terminated where the string is.
+            // NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage)
             opened = openContext(fname.value().data(), fmt, true, ioCtx, formatCtxPtr, stream)
                 && hasCompleteAudioParameters(**stream);
             if (!opened)
@@ -435,6 +437,8 @@ namespace MWSound
             }
         }
 
+        // A view of a path held whole in a string, terminated where the string is.
+        // NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage)
         if (!opened && !openContext(fname.value().data(), nullptr, false, ioCtx, formatCtxPtr, stream))
             throw std::runtime_error("Failed to open input");
 
@@ -496,7 +500,7 @@ namespace MWSound
         mCodecCtx.reset();
 
         av_packet_unref(&mPacket);
-        av_freep(&mDataBuf);
+        av_freep(static_cast<void*>(&mDataBuf));
         mFrame.reset();
         swr_free(&mSwr);
 
@@ -650,7 +654,7 @@ namespace MWSound
         while (getAVAudioData())
         {
 #if OPENMW_FFMPEG_5_OR_GREATER
-            size_t got = mFrame->nb_samples * mOutputChannelLayout.nb_channels
+            size_t got = static_cast<std::size_t>(mFrame->nb_samples * mOutputChannelLayout.nb_channels)
 #else
             size_t got = mFrame->nb_samples * av_get_channel_layout_nb_channels(mOutputChannelLayout)
 #endif

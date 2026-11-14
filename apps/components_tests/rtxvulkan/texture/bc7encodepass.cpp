@@ -171,13 +171,14 @@ namespace Rtx
                     {
                         const std::array<Texel, 16> texelsOf
                             = decodeMode6(std::span<const std::byte, Shaders::BC7_BLOCK_BYTES>(
-                                bytes + shape.mOffset + block * Shaders::BC7_BLOCK_BYTES, Shaders::BC7_BLOCK_BYTES));
+                                bytes + shape.mOffset + static_cast<std::size_t>(block) * Shaders::BC7_BLOCK_BYTES,
+                                Shaders::BC7_BLOCK_BYTES));
                         for (std::uint32_t texel = 0; texel < 16; ++texel)
                         {
                             const std::uint32_t x = block % across * 4 + texel % 4;
                             const std::uint32_t y = block / across * 4 + texel / 4;
                             if (x < shape.mWidth && y < shape.mHeight)
-                                encoded.mHost[start + y * shape.mWidth + x] = texelsOf[texel];
+                                encoded.mHost[start + static_cast<std::size_t>(y) * shape.mWidth + x] = texelsOf[texel];
                         }
                     }
 

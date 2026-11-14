@@ -213,6 +213,8 @@ namespace MWMechanics
         // NOTE: enemy may be empty
 
         float rating = 1;
+        // Each branch states its own case, kept apart to be read and changed as its own.
+        // NOLINTBEGIN(bugprone-branch-clone)
         if (effect.mEffectID == ESM::MagicEffect::Soultrap || effect.mEffectID == ESM::MagicEffect::AlmsiviIntervention
             || effect.mEffectID == ESM::MagicEffect::DivineIntervention
             || effect.mEffectID == ESM::MagicEffect::CalmHumanoid || effect.mEffectID == ESM::MagicEffect::CalmCreature
@@ -366,6 +368,7 @@ namespace MWMechanics
             {
                 // Beast races can't wear helmets or boots
                 const ESM::RefId& raceid = actor.get<ESM::NPC>()->mBase->mRace;
+                // NOLINTEND(bugprone-branch-clone)
                 const ESM::Race* race = MWBase::Environment::get().getESMStore()->get<ESM::Race>().find(raceid);
                 if (race->mData.mFlags & ESM::Race::Beast)
                     return 0.f;

@@ -90,7 +90,8 @@ namespace MWRender
                 // One texel of the mask per pixel of the overlay
                 const unsigned int mask = alpha[static_cast<std::size_t>(destination.mX + x) * alphaBits / 8
                     + static_cast<std::size_t>(destination.mY + y) * alphaRow];
-                std::uint8_t* out = scratch.data() + static_cast<std::size_t>(y) * stride + x * 4;
+                std::uint8_t* out
+                    = scratch.data() + static_cast<std::size_t>(y) * stride + static_cast<std::ptrdiff_t>(x * 4);
                 out[0] = sampled[0];
                 out[1] = sampled[1];
                 out[2] = sampled[2];

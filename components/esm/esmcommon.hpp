@@ -105,6 +105,8 @@ namespace ESM
                 return;
             }
 
+            // The view is handed on with its size beside it.
+            // NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage)
             std::memcpy(mData, value.data(), capacity);
 
             if constexpr (capacity != sizeof(std::uint32_t))

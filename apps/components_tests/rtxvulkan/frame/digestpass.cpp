@@ -131,7 +131,7 @@ namespace Rtx
                 for (std::size_t image = 0; image < read.mChannels.size(); ++image)
                     for (std::size_t lane = 0; lane < Shaders::DIGEST_LANES; ++lane)
                         read.mChannels[image][lane] = words[image * Shaders::DIGEST_LANES + lane];
-                for (std::size_t lane = Shaders::DIGEST_IMAGES * Shaders::DIGEST_LANES;
+                for (std::size_t lane = static_cast<std::size_t>(Shaders::DIGEST_IMAGES) * Shaders::DIGEST_LANES;
                     lane < DigestImages::sCount * Shaders::DIGEST_LANES; ++lane)
                     read.mDenoiserLanesHeld += words[lane] != 0 ? 1 : 0;
 

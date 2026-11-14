@@ -237,6 +237,8 @@ namespace MWDialogue
 
                         getTopic(record.mTopic).insertEntry(record);
                         break;
+                    default:
+                        break;
                 }
         }
         else if (type == ESM::REC_QUES)

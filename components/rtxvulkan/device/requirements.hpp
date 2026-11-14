@@ -93,6 +93,8 @@ namespace Rtx
 
         VkPhysicalDeviceProperties2 mProperties2{};
         VkPhysicalDeviceVulkan11Properties mVulkan11{};
+        // Zeroed, as the API means its structures and flag sets to start.
+        // NOLINTNEXTLINE(bugprone-invalid-enum-default-initialization)
         VkPhysicalDeviceVulkan12Properties mVulkan12{};
 
         /// The subgroup sizes a pipeline may ask for, and in which stages: what the trace's 32 lanes

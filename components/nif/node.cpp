@@ -576,9 +576,9 @@ namespace Nif
 
         size_t numTriangleIndices = 0;
         if (nif->getBethVersion() >= NIFFile::BethVersion::BETHVER_FO4)
-            numTriangleIndices = nif->get<uint32_t>() * 3;
+            numTriangleIndices = static_cast<std::size_t>(nif->get<uint32_t>()) * 3;
         else
-            numTriangleIndices = nif->get<uint16_t>() * 3;
+            numTriangleIndices = static_cast<std::size_t>(nif->get<uint16_t>()) * 3;
         nif->read(mNumVertices);
         mVertData.reserve(mNumVertices);
         nif->read(mDataSize);
@@ -594,8 +594,8 @@ namespace Nif
             nif->read(mParticleDataSize);
             if (mParticleDataSize > 0)
             {
-                nif->readVector(mParticleVerts, mNumVertices * 3);
-                nif->readVector(mParticleNormals, mNumVertices * 3);
+                nif->readVector(mParticleVerts, static_cast<std::size_t>(mNumVertices) * 3);
+                nif->readVector(mParticleNormals, static_cast<std::size_t>(mNumVertices) * 3);
                 nif->readVector(mParticleTriangles, numTriangleIndices);
             }
         }
@@ -778,7 +778,7 @@ namespace Nif
     void BSDistantObjectInstance::read(NIFStream* nif)
     {
         mResourceID.read(nif);
-        nif->skip(12 * nif->get<uint32_t>()); // Unknown data
+        nif->skip(std::size_t{ 12 } * nif->get<uint32_t>()); // Unknown data
         nif->readVectorOfRecords<uint32_t>(readBSDistantObjectInstanceTransform, mTransforms);
     }
 

@@ -77,6 +77,8 @@ namespace Rtx
         /// loose row's beside two colours of nought and three.
         TEST(RtxTexelTest, aBandIsEveryTexelTexelAtReadsInRowOrder)
         {
+            // The same sequence each run, on purpose.
+            // NOLINTNEXTLINE(bugprone-random-generator-seed)
             std::mt19937 random(7);
             for (const TextureFormat format :
                 { TextureFormat::Bc1RgbaSrgb, TextureFormat::Bc1RgbaUnorm, TextureFormat::Bc2Srgb,

@@ -67,12 +67,15 @@ namespace
         int slash = weapon->mData.mSlash[0] + weapon->mData.mSlash[1];
         int chop = weapon->mData.mChop[0] + weapon->mData.mChop[1];
         int thrust = weapon->mData.mThrust[0] + weapon->mData.mThrust[1];
+        // Each branch states its own case, kept apart to be read and changed as its own.
+        // NOLINTBEGIN(bugprone-branch-clone)
         if (slash == chop && slash == thrust)
             return "slash";
         else if (thrust >= chop && thrust >= slash)
             return "thrust";
         else if (slash >= chop && slash >= thrust)
             return "slash";
+        // NOLINTEND(bugprone-branch-clone)
         else
             return "chop";
     }
@@ -1146,6 +1149,8 @@ namespace MWMechanics
                         mAttackHitPos, mAttackSuccess);
             }
         }
+        // Each branch states its own case, kept apart to be read and changed as its own.
+        // NOLINTBEGIN(bugprone-branch-clone)
         else if (action == "shoot attach")
             mAnimation->attachArrow();
         else if (action == "shoot release")
@@ -1159,6 +1164,7 @@ namespace MWMechanics
         }
         else if (action == "shoot follow attach")
             mAnimation->attachArrow();
+        // NOLINTEND(bugprone-branch-clone)
         // Make sure this key is actually for the RangeType we are casting. The flame atronach has
         // the same animation for all range types, so there are 3 "release" keys on the same time, one for each range
         // type.
@@ -1629,6 +1635,8 @@ namespace MWMechanics
                                     case 2:
                                         mAttackType = "target";
                                         break;
+                                    default:
+                                        break;
                                 }
 
                                 startKey = mAttackType + " start";
@@ -2044,6 +2052,8 @@ namespace MWMechanics
                 float deltaLen = delta.length();
 
                 float maxDelta = NAN;
+                // Each branch states its own case, kept apart to be read and changed as its own.
+                // NOLINTBEGIN(bugprone-branch-clone)
                 if (isFirstPersonPlayer)
                     maxDelta = 1;
                 else if (std::abs(speedDelta) < deltaLen / 2)
@@ -2053,6 +2063,7 @@ namespace MWMechanics
                     // As soon as controls are released, mwinput switches player from running to walking.
                     // So stopping should be instant for player, otherwise it causes a small twitch.
                     maxDelta = 1;
+                // NOLINTEND(bugprone-branch-clone)
                 else // In all other cases speeding up and stopping are smooth.
                     maxDelta = duration * 3.f;
 

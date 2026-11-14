@@ -57,6 +57,8 @@ namespace
                 return 10;
             case ESM::Probe::sRecordId:
                 return 11;
+            default:
+                break;
         }
         assert(false && "Invalid type value");
         return std::numeric_limits<unsigned int>::max();
@@ -226,6 +228,8 @@ namespace MWGui
             case ESM::Book::sRecordId:
             case ESM::Probe::sRecordId:
                 category = Category_Misc;
+                break;
+            default:
                 break;
         }
 

@@ -103,6 +103,8 @@ namespace Rtx
 
                     vkCmdCopyBuffer(batch.getCommands(), source.getHandle(), target.getHandle(), 1, &whole);
 
+                    // A plain value thrown on purpose.
+                    // NOLINTNEXTLINE(bugprone-std-exception-baseclass)
                     throw Abandoned{};
                 },
                 Abandoned);
@@ -135,6 +137,8 @@ namespace Rtx
                 // On a condition the compiler cannot decide, or MSVC calls the flush after the
                 // record unreachable, and its warning is an error.
                 if (commands != VK_NULL_HANDLE)
+                    // A plain value thrown on purpose.
+                    // NOLINTNEXTLINE(bugprone-std-exception-baseclass)
                     throw Abandoned{};
             }),
                 Abandoned);

@@ -372,6 +372,8 @@ namespace MWPhysics
         }
 
         template <class F>
+        // An exception here ends the process, which is what this function means.
+        // NOLINTNEXTLINE(bugprone-exception-escape)
         void runWorker(F&& f) noexcept
         {
             std::size_t lastFrame = 0;

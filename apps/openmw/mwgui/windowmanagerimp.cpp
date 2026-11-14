@@ -1279,11 +1279,14 @@ namespace MWGui
         {
             if (setting.first == "GUI" && setting.second == "menu transparency")
                 setMenuTransparency(Settings::gui().mMenuTransparency);
+            // Each branch states its own case, kept apart to be read and changed as its own.
+            // NOLINTBEGIN(bugprone-branch-clone)
             else if (setting.first == "GUI" && (setting.second == "scaling factor" || setting.second == "font size"))
                 layOut();
             // The renderer has the new frame already: `World` hears of a change before this does.
             else if (setting.first == "Video" && (setting.second == "resolution x" || setting.second == "resolution y"))
                 layOut();
+            // NOLINTEND(bugprone-branch-clone)
             else if (setting.first == "Video" && (setting.second == "window mode" || setting.second == "window border"))
                 changeRes = true;
 

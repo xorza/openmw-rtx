@@ -708,6 +708,8 @@ namespace CSVRender
     {
         const int cellExtent = ESM::Land::REAL_SIZE;
 
+        // Each branch states its own case, kept apart to be read and changed as its own.
+        // NOLINTBEGIN(bugprone-branch-clone)
         if (mInterior)
             return v;
         else if (v > cellExtent)
@@ -716,5 +718,6 @@ namespace CSVRender
             return 0;
         else
             return v;
+        // NOLINTEND(bugprone-branch-clone)
     }
 }

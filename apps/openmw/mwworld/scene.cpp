@@ -460,7 +460,8 @@ namespace MWWorld
             }
             else if (!ESM::isEsm4Ext(worldspace))
             {
-                static const std::vector<float> defaultHeight(verts * verts, ESM::Land::DEFAULT_HEIGHT);
+                static const std::vector<float> defaultHeight(
+                    static_cast<std::size_t>(verts) * verts, ESM::Land::DEFAULT_HEIGHT);
                 mPhysics->addHeightField(defaultHeight.data(), cellX, cellY, worldsize, verts,
                     ESM::Land::DEFAULT_HEIGHT, ESM::Land::DEFAULT_HEIGHT, std::move(land));
             }
@@ -565,6 +566,8 @@ namespace MWWorld
             float distance = std::max(std::abs(center.x() - pos.x()), std::abs(center.y() - pos.y()));
             int cellSize = ESM::getCellSize(worldspace);
             const float maxDistance
+                // A whole-number division on purpose.
+                // NOLINTNEXTLINE(bugprone-integer-division)
                 = static_cast<float>(cellSize / 2) + mCellLoadingThreshold; // 1/2 cell size + threshold
             if (distance <= maxDistance)
                 return *currentGridCenter;
@@ -1234,6 +1237,8 @@ namespace MWWorld
                 dist = std::min(dist,
                     std::max(std::abs(thisCellCenter.x() - predictedPos.x()),
                         std::abs(thisCellCenter.y() - predictedPos.y())));
+                // A whole-number division on purpose.
+                // NOLINTNEXTLINE(bugprone-integer-division)
                 float loadDist = static_cast<float>(cellSize / 2 + cellSize) - mCellLoadingThreshold + mPreloadDistance;
 
                 if (dist < loadDist)
@@ -1254,6 +1259,8 @@ namespace MWWorld
         const int cellY = cell.getCell()->getGridY();
 
         std::vector<std::pair<int, int>> cells;
+        // An index from signed steps, whole and in range before it is widened.
+        // NOLINTNEXTLINE(bugprone-misplaced-widening-cast)
         const auto gridSize = static_cast<std::size_t>(2 * mHalfGridSize + 1);
         cells.reserve(gridSize * gridSize);
 

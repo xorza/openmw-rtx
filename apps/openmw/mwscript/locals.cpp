@@ -118,6 +118,8 @@ namespace MWScript
             case 'f':
                 mFloats.at(index) = static_cast<Interpreter::Type_Float>(val);
                 break;
+            default:
+                break;
         }
         return true;
     }
@@ -150,6 +152,8 @@ namespace MWScript
                 case 2:
                     type = 'f';
                     break;
+                default:
+                    break;
             }
 
             const std::vector<std::string>& names = declarations.get(type);
@@ -171,6 +175,8 @@ namespace MWScript
                     case 2:
                         value.setType(ESM::VT_Float);
                         value.setFloat(mFloats.at(i2));
+                        break;
+                    default:
                         break;
                 }
 
@@ -239,6 +245,8 @@ namespace MWScript
                             break;
                         case 'f':
                             mFloats.at(index2) = value.getFloat();
+                            break;
+                        default:
                             break;
                     }
                 }

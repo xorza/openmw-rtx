@@ -599,7 +599,7 @@ namespace Nif
         if (!compressed)
             nif->readVector(mVertices, numVertices);
         else
-            nif->skip(6 * numVertices); // Half-precision vectors are not currently supported
+            nif->skip(std::size_t{ 6 } * numVertices); // Half-precision vectors are not currently supported
         if (nif->getVersion() >= NIFFile::NIFVersion::VER_BGS)
             nif->readVectorOfRecords<uint16_t>(mSubshapes);
     }
@@ -784,9 +784,9 @@ namespace Nif
         nif->read(mAabbMax);
         nif->read(mWeldingType);
         nif->read(mMaterialType);
-        nif->skip(nif->get<uint32_t>() * 4); // Unused
-        nif->skip(nif->get<uint32_t>() * 4); // Unused
-        nif->skip(nif->get<uint32_t>() * 4); // Unused
+        nif->skip(static_cast<std::size_t>(nif->get<uint32_t>()) * 4); // Unused
+        nif->skip(static_cast<std::size_t>(nif->get<uint32_t>()) * 4); // Unused
+        nif->skip(static_cast<std::size_t>(nif->get<uint32_t>()) * 4); // Unused
         nif->readVectorOfRecords<uint32_t>(mMaterials);
         nif->skip(4); // Unused
         nif->readVectorOfRecords<uint32_t>(mChunkTransforms);

@@ -90,6 +90,8 @@ namespace
             unicode = ch;
             numbytes = 0;
         }
+        // Each branch states its own case, kept apart to be read and changed as its own.
+        // NOLINTBEGIN(bugprone-branch-clone)
         else if (ch <= 0xBF)
         {
             throw std::logic_error("not a UTF-8 string");
@@ -113,6 +115,7 @@ namespace
         {
             throw std::logic_error("not a UTF-8 string");
         }
+        // NOLINTEND(bugprone-branch-clone)
         for (size_t j = 0; j < numbytes; ++j)
         {
             ch = utf8[i++];
@@ -151,11 +154,9 @@ namespace
             case 0x87:
                 return 0x9f;
             case 0x88:
-                return 0xea;
             case 0x89:
                 return 0xea;
             case 0x8a:
-                return 0x00; // not contained in win1250
             case 0x8b:
                 return 0x00; // not contained in win1250
             case 0x8c:
@@ -197,7 +198,6 @@ namespace
             case 0xe1:
                 return 0x8c;
             case 0xe3:
-                return 0x00; // not contained in win1250
             case 0xf5:
                 return 0x00; // not contained in win1250
             default:
@@ -480,8 +480,8 @@ namespace Gui
             fail(*bitmapFile, bitmapPath, "Width and height must be positive");
 
         std::vector<char> textureData;
-        textureData.resize(width * height * 4);
-        bitmapFile->read(textureData.data(), width * height * 4);
+        textureData.resize(static_cast<std::size_t>(width * height) * 4);
+        bitmapFile->read(textureData.data(), static_cast<std::streamsize>(width * height) * 4);
         if (!bitmapFile->good())
             Log(Debug::Warning) << "Font bitmap " << bitmapPath << " ended prematurely, using partial data ("
                                 << bitmapFile->gcount() << "/" << (width * height * 4) << " bytes)";

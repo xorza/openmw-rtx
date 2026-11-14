@@ -8,6 +8,8 @@
 namespace Settings
 {
     /// The ray tracing renderer's own settings, read as they are wanted.
+    // An exception here ends the process, which is what this function means.
+    // NOLINTNEXTLINE(bugprone-exception-escape)
     struct RTXCategory : WithIndex
     {
         using WithIndex::WithIndex;

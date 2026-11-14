@@ -216,6 +216,8 @@ namespace Rtx::Testing
                     double sum = 0.0;
                     for (std::size_t value = channel; value < radiance.size(); value += 4)
                         sum += static_cast<double>(radiance[value]);
+                    // A whole-number division on purpose.
+                    // NOLINTNEXTLINE(bugprone-integer-division)
                     means.push_back(sum / static_cast<double>(radiance.size() / 4));
                 }
                 return means;

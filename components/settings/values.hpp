@@ -35,6 +35,8 @@
 
 namespace Settings
 {
+    // An exception here ends the process, which is what this function means.
+    // NOLINTNEXTLINE(bugprone-exception-escape)
     struct Values : WithIndex
     {
         using WithIndex::WithIndex;

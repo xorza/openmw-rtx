@@ -164,10 +164,14 @@ namespace Debug
                     // stamp and its text split the line in two. One line held for all writers, whom
                     // `Log`'s lock takes one at a time, as the stream's own buffer needs it to.
                     mLine.assign(prefix, prefixSize);
+                    // The view is handed on with its size beside it.
+                    // NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage)
                     mLine.append(msg.data(), lineSize);
                     writeImpl(mLine.data(), static_cast<std::streamsize>(mLine.size()), level);
                     if (logListener)
                         logListener(
+                            // The view is handed on with its size beside it.
+                            // NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage)
                             level, std::string_view(prefix, prefixSize), std::string_view(msg.data(), lineSize));
                     msg = msg.substr(lineSize);
                 }
@@ -233,7 +237,6 @@ namespace Debug
                 case Info:
                     return Reset;
                 case Verbose:
-                    return DarkGray;
                 case Debug:
                     return DarkGray;
                 case All:

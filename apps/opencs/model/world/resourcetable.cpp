@@ -74,6 +74,8 @@ QVariant CSMWorld::ResourceTable::headerData(int section, Qt::Orientation orient
                 return ColumnBase::Display_Integer;
 
             break;
+        default:
+            break;
     }
 
     return QVariant();
@@ -156,6 +158,8 @@ int CSMWorld::ResourceTable::getColumnId(int column) const
             return Columns::ColumnId_Id;
         case 1:
             return Columns::ColumnId_RecordType;
+        default:
+            break;
     }
 
     return -1;

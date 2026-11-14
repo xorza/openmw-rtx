@@ -281,6 +281,8 @@ namespace MWWorld
     class Store<ESM::GameSetting> : public TypedDynamicStore<ESM::GameSetting>
     {
     public:
+        // Hides the base's member on purpose: it is called through the derived type.
+        // NOLINTNEXTLINE(bugprone-derived-method-shadowing-base-method)
         const ESM::GameSetting* search(const ESM::RefId& id) const;
 
         const ESM::GameSetting* find(const std::string_view id) const;
@@ -297,7 +299,11 @@ namespace MWWorld
     public:
         const ESM4::Cell* searchCellName(std::string_view) const;
         const ESM4::Cell* searchExterior(ESM::ExteriorCellLocation cellIndex) const;
+        // Hides the base's member on purpose: it is called through the derived type.
+        // NOLINTNEXTLINE(bugprone-derived-method-shadowing-base-method)
         ESM4::Cell* insert(const ESM4::Cell& item, bool overrideOnly = false);
+        // Hides the base's member on purpose: it is called through the derived type.
+        // NOLINTNEXTLINE(bugprone-derived-method-shadowing-base-method)
         ESM4::Cell* insertStatic(const ESM4::Cell& item);
         void insertCell(ESM4::Cell* cell);
         void clearDynamic() override;

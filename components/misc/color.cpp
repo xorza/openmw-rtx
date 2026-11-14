@@ -30,7 +30,7 @@ namespace Misc
         col.mValue.a() = 1;
         for (unsigned i = 0; i < 3; i++)
         {
-            auto sub = hex.substr(i * 2, 2);
+            auto sub = hex.substr(static_cast<std::size_t>(i) * 2, 2);
             unsigned char v = 0;
             auto [_, ec] = std::from_chars(sub.data(), sub.data() + sub.size(), v, 16);
             if (ec != std::errc())
@@ -56,10 +56,10 @@ namespace Misc
         for (unsigned i = 0; i < 3; i++)
         {
             int b = static_cast<int>(mValue[i] * 255.0f);
-            char* start = result.data() + i * 2;
+            char* start = result.data() + static_cast<std::size_t>(i * 2);
             if (b < 16)
                 start++;
-            auto [_, ec] = std::to_chars(start, result.data() + (i + 1) * 2, b, 16);
+            auto [_, ec] = std::to_chars(start, result.data() + (static_cast<std::size_t>(i + 1) * 2), b, 16);
             if (ec != std::errc())
                 throw std::logic_error("Error when converting number to base 16");
         }

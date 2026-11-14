@@ -145,6 +145,8 @@ namespace MWMechanics
                     static const int iMagicItemChargeConst = store.find("iMagicItemChargeConst")->mValue.getInteger();
                     return charge * iMagicItemChargeConst;
                 }
+                default:
+                    break;
             }
         }
         return enchantment.mData.mCharge;

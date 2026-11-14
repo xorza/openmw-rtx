@@ -98,6 +98,8 @@ namespace CSVWorld
         ///< \param createAndDelete Allow creation and deletion of records.
         /// \param sorting Allow changing order of rows in the view via column headers.
 
+        // Hides the base's member on purpose: it is called through the derived type.
+        // NOLINTNEXTLINE(bugprone-derived-method-shadowing-base-method)
         virtual void setEditLock(bool locked);
 
         CSMWorld::UniversalId getUniversalId(int row) const;

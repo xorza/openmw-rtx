@@ -195,6 +195,8 @@ void CSVTools::SearchBox::modeSelected(int index)
             mInput.setCurrentIndex(1);
             mReplaceInput.setCurrentIndex(1);
             break;
+        default:
+            break;
     }
 
     mInput.currentWidget()->setFocus();

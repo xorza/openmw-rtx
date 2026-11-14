@@ -56,12 +56,15 @@ namespace MWRender
         const auto& msaaFbo = mMsaaFbo[frameId];
         const auto& opaqueFbo = mOpaqueFbo[frameId];
 
+        // Each branch states its own case, kept apart to be read and changed as its own.
+        // NOLINTBEGIN(bugprone-branch-clone)
         if (bin->getStage()->getMultisampleResolveFramebufferObject()
             && bin->getStage()->getMultisampleResolveFramebufferObject() == fbo)
             validFbo = true;
         else if (bin->getStage()->getFrameBufferObject()
             && (bin->getStage()->getFrameBufferObject() == fbo || bin->getStage()->getFrameBufferObject() == msaaFbo))
             validFbo = true;
+        // NOLINTEND(bugprone-branch-clone)
 
         if (!validFbo)
         {

@@ -480,8 +480,9 @@ namespace LuaUi
 
         if (depth > 0)
         {
-            std::ranges::transform(warnings, warnings.begin(),
-                [&](const std::string& warning) { return std::string((depth + 1) * 2, ' ') + warning; });
+            std::ranges::transform(warnings, warnings.begin(), [&](const std::string& warning) {
+                return std::string((static_cast<std::size_t>(depth + 1)) * 2, ' ') + warning;
+            });
         }
 
         for (size_t i = 0; i < mChildren.size(); i++)
@@ -493,14 +494,15 @@ namespace LuaUi
                 continue;
             if (!generateWarningStrings)
                 return true;
-            warnings.emplace_back(std::string((depth + 1) * 2, ' ') + "in content[" + std::to_string(i) + "]:");
+            warnings.emplace_back(
+                std::string((static_cast<std::size_t>(depth + 1)) * 2, ' ') + "in content[" + std::to_string(i) + "]:");
             std::ranges::move(childWarnings, std::back_inserter(warnings));
         }
         if (!warnings.empty())
         {
             warnings.insert(warnings.begin(), "Warnings generated for " + diagnosticName() + ":");
             if (depth > 0)
-                warnings.front() = std::string(depth * 2, ' ') + warnings.front();
+                warnings.front() = std::string(static_cast<std::size_t>(depth) * 2, ' ') + warnings.front();
         }
 
         return warnings.size() != beginningSize;

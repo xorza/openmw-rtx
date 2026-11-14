@@ -55,9 +55,6 @@ QWidget* CSVWorld::IdCompletionDelegate::createEditor(QWidget* parent, const QSt
                 return createEditor(parent, option, index, CSMWorld::ColumnBase::Display_Journal);
             }
             case ESM::DialogueCondition::Function_Item:
-            {
-                return createEditor(parent, option, index, CSMWorld::ColumnBase::Display_Referenceable);
-            }
             case ESM::DialogueCondition::Function_Dead:
             case ESM::DialogueCondition::Function_NotId:
             {

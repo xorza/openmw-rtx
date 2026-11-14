@@ -58,6 +58,8 @@ namespace Rtx
                         // breaks a tie the other way and yields another tile.
                         const auto squared = static_cast<double>(dx * dx + dy * dy);
                         const auto sigma = static_cast<double>(sSigma);
+                        // An index from signed steps, whole and in range before it is widened.
+                        // NOLINTNEXTLINE(bugprone-misplaced-widening-cast)
                         mKernel[static_cast<std::size_t>((dy + sRadius) * sSide + (dx + sRadius))]
                             = static_cast<float>(std::exp(-squared / (2.0 * sigma * sigma)));
                     }
@@ -78,6 +80,8 @@ namespace Rtx
                     const std::size_t row = static_cast<std::size_t>((cy + dy + extent) % extent) * sExtent;
                     for (int dx = -sRadius; dx <= sRadius; ++dx)
                         mEnergy[row + static_cast<std::size_t>((cx + dx + extent) % extent)]
+                            // An index from signed steps, whole and in range before it is widened.
+                            // NOLINTNEXTLINE(bugprone-misplaced-widening-cast)
                             += sign * mKernel[static_cast<std::size_t>((dy + sRadius) * sSide + (dx + sRadius))];
                 }
             }

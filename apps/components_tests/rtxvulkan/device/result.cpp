@@ -24,6 +24,8 @@ namespace Rtx
         TEST(RtxResultTest, aTearDownLetsNothingOutWhateverItWasHanded)
         {
             EXPECT_NO_THROW(tearDown("a teardown raised", [] { throw DeviceError("the device was lost"); }));
+            // A plain value thrown on purpose.
+            // NOLINTNEXTLINE(bugprone-std-exception-baseclass)
             EXPECT_NO_THROW(tearDown("a teardown raised", [] { throw 7; }));
 
             bool ran = false;

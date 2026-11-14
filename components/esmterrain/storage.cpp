@@ -450,7 +450,7 @@ namespace ESMTerrain
             int startx = static_cast<int>(sample.mDstRow) * quadSize;
             for (int y = std::max(0, starty + 1); y <= starty + quadSize && y < blendmapSize; ++y)
             {
-                unsigned char* const row = baseBlendmap + y * blendmapSize;
+                unsigned char* const row = baseBlendmap + static_cast<std::ptrdiff_t>(y * blendmapSize);
                 for (int x = startx; x < startx + quadSize && x < blendmapSize; ++x)
                     row[x] = 255;
             }
@@ -467,6 +467,8 @@ namespace ESMTerrain
                     {
                         continue;
                     }
+                    // An index from signed steps, whole and in range before it is widened.
+                    // NOLINTNEXTLINE(bugprone-misplaced-widening-cast)
                     auto index = static_cast<size_t>((starty + y) * blendmapSize + startx + x);
                     auto delta = static_cast<unsigned char>(std::clamp(static_cast<int>(v.opacity * 255.f), 0, 255));
                     baseBlendmap[index] -= std::min(baseBlendmap[index], delta);

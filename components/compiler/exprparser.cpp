@@ -53,6 +53,8 @@ namespace Compiler
             case 'm':
 
                 return 4;
+            default:
+                break;
         }
 
         return 0;
@@ -578,6 +580,8 @@ namespace Compiler
                     break;
                 case Scanner::S_cmpGE:
                     c = 'G';
+                    break;
+                default:
                     break;
             }
 

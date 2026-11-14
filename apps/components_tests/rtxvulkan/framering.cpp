@@ -240,6 +240,8 @@ namespace Rtx
                     {
                         const Recording placement = getPool().begin(ring.takePlaceCommands(frame));
                         const Recording world = ring.recordWorld(frame);
+                        // A plain value thrown on purpose.
+                        // NOLINTNEXTLINE(bugprone-std-exception-baseclass)
                         throw Thrown{};
                     },
                     Thrown);

@@ -44,13 +44,19 @@ namespace Rtx
             for (std::size_t at = 0; at < N; ++at)
             {
                 if (mNames[at].second.empty())
+                    // A plain value thrown on purpose.
+                    // NOLINTNEXTLINE(bugprone-std-exception-baseclass)
                     throw "a NamedEnum spells a value as nothing";
 
                 for (std::size_t other = at + 1; other < N; ++other)
                 {
                     if (mNames[at].first == mNames[other].first)
+                        // A plain value thrown on purpose.
+                        // NOLINTNEXTLINE(bugprone-std-exception-baseclass)
                         throw "a NamedEnum names one value twice";
                     if (mNames[at].second == mNames[other].second)
+                        // A plain value thrown on purpose.
+                        // NOLINTNEXTLINE(bugprone-std-exception-baseclass)
                         throw "a NamedEnum gives two values one spelling";
                 }
             }
@@ -58,9 +64,13 @@ namespace Rtx
             if constexpr (requires { Enum::Count; })
             {
                 if (N != static_cast<std::size_t>(Enum::Count))
+                    // A plain value thrown on purpose.
+                    // NOLINTNEXTLINE(bugprone-std-exception-baseclass)
                     throw "a NamedEnum over an enum with a Count leaves a value out";
                 for (std::size_t at = 0; at < N; ++at)
                     if (static_cast<std::size_t>(mNames[at].first) != at)
+                        // A plain value thrown on purpose.
+                        // NOLINTNEXTLINE(bugprone-std-exception-baseclass)
                         throw "a NamedEnum over an enum with a Count lists it out of order";
             }
         }

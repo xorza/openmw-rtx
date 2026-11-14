@@ -26,6 +26,8 @@ namespace Misc
         }
 
         // 683:384 (used in 1366 x 768) is usually referred as 16:9
+        // Each branch states its own case, kept apart to be read and changed as its own.
+        // NOLINTBEGIN(bugprone-branch-clone)
         if (xaspect == 683 && yaspect == 384)
         {
             xaspect = 16;
@@ -37,7 +39,10 @@ namespace Misc
             xaspect = 16;
             yaspect = 9;
         }
+        // NOLINTEND(bugprone-branch-clone)
         // 49:36 (used in 1176 x 864) is usually referred as 4:3
+        // Each branch states its own case, kept apart to be read and changed as its own.
+        // NOLINTBEGIN(bugprone-branch-clone)
         else if (xaspect == 49 && yaspect == 36)
         {
             xaspect = 4;
@@ -49,6 +54,7 @@ namespace Misc
             xaspect = 4;
             yaspect = 3;
         }
+        // NOLINTEND(bugprone-branch-clone)
         // 8:5 (used in 1440 x 900) is usually referred as 16:10
         else if (xaspect == 8 && yaspect == 5)
         {

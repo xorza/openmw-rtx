@@ -22,10 +22,13 @@ size_t MWGui::wrap(size_t index, size_t max, int delta)
     if (delta >= 0)
     {
         auto absDelta = static_cast<unsigned>(delta);
+        // Each branch states its own case, kept apart to be read and changed as its own.
+        // NOLINTBEGIN(bugprone-branch-clone)
         if (absDelta >= max)
             return 0;
         else if (index >= max - absDelta)
             return 0;
+        // NOLINTEND(bugprone-branch-clone)
         return index + absDelta;
     }
     auto absDelta = static_cast<size_t>(-static_cast<ptrdiff_t>(delta));

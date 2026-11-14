@@ -63,6 +63,8 @@ namespace
                 return AreaType_pathgrid;
             case 4:
                 return AreaType_ground;
+            default:
+                break;
         }
         return AreaType_null;
     }
@@ -174,6 +176,8 @@ namespace
     void getFromFilledCache(benchmark::State& state)
     {
         NavMeshTilesCache cache(maxCacheSize);
+        // The same sequence each run, on purpose.
+        // NOLINTNEXTLINE(bugprone-random-generator-seed)
         std::minstd_rand random;
         std::vector<Key> keys;
         fillCache(std::back_inserter(keys), random, cache);
@@ -232,6 +236,8 @@ namespace
     void setToBoundedNonEmptyCache(benchmark::State& state)
     {
         NavMeshTilesCache cache(maxCacheSize);
+        // The same sequence each run, on purpose.
+        // NOLINTNEXTLINE(bugprone-random-generator-seed)
         std::minstd_rand random;
         std::vector<Key> keys;
         fillCache(std::back_inserter(keys), random, cache);

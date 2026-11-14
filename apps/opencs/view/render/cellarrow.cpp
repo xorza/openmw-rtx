@@ -138,7 +138,11 @@ void CSVRender::CellArrow::buildShape()
         for (int i = 0; i < 2; ++i)
         {
             float height = i ? -arrowHeight / 2 : arrowHeight / 2;
+            // A whole-number division on purpose.
+            // NOLINTNEXTLINE(bugprone-integer-division)
             vertices->push_back(osg::Vec3f(height, -arrowWidth / 2, 0));
+            // A whole-number division on purpose.
+            // NOLINTNEXTLINE(bugprone-integer-division)
             vertices->push_back(osg::Vec3f(height, arrowWidth / 2, 0));
             vertices->push_back(osg::Vec3f(height, 0, arrowLength));
         }

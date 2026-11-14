@@ -476,10 +476,13 @@ namespace MWGui
         {
             if (button == mRangeButton)
                 onRangeButtonClicked(mRangeButton);
+            // Each branch states its own case, kept apart to be read and changed as its own.
+            // NOLINTBEGIN(bugprone-branch-clone)
             else if (button == mCancelButton)
                 mControllerFocus--;
             else if (button == mOkButton && mDeleteButton->getVisible())
                 mControllerFocus--;
+            // NOLINTEND(bugprone-branch-clone)
             else if (button == mMagnitudeMinValue)
             {
                 mMagnitudeMinSlider->setScrollPosition(mMagnitudeMinSlider->getScrollPosition() - 1);
@@ -506,10 +509,13 @@ namespace MWGui
         {
             if (button == mRangeButton)
                 onRangeButtonClicked(mRangeButton);
+            // Each branch states its own case, kept apart to be read and changed as its own.
+            // NOLINTBEGIN(bugprone-branch-clone)
             else if (button == mDeleteButton)
                 mControllerFocus++;
             else if (button == mOkButton)
                 mControllerFocus++;
+            // NOLINTEND(bugprone-branch-clone)
             else if (button == mMagnitudeMinValue)
             {
                 mMagnitudeMinSlider->setScrollPosition(

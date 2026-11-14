@@ -200,6 +200,8 @@ namespace Rtx
             {
                 const Crash::NoteScope noted("initializing NVIDIA's NGX");
                 const Ngx::Result init = api.InitWithProjectId(Dlss::sProjectId, Ngx::Engine::Custom,
+                    // A view of a string the build writes as a literal.
+                    // NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage)
                     Version::getVersion().data(), application.getDataPath(), device.getInstanceHandle(),
                     device.getPhysicalDevice().getHandle(), mDevice, vkGetInstanceProcAddr, vkGetDeviceProcAddr,
                     Ngx::sApiVersion, application.getCommonInfo());

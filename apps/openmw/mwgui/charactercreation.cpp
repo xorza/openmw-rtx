@@ -351,6 +351,8 @@ namespace MWGui
                 break;
             case ReviewDialog::BIRTHSIGN_DIALOG:
                 MWBase::Environment::get().getWindowManager()->pushGuiMode(GM_Birth);
+            default:
+                break;
         };
     }
 
@@ -405,6 +407,8 @@ namespace MWGui
                 break;
             case ClassChoiceDialog::Class_Back:
                 MWBase::Environment::get().getWindowManager()->pushGuiMode(GM_Race);
+                break;
+            default:
                 break;
         };
     }

@@ -329,6 +329,8 @@ namespace SceneUtil
             case GL_COMPRESSED_RGB8_ETC2:
             case GL_COMPRESSED_SRGB8_ETC2:
                 return GL_RGB;
+            // Each branch states its own case, kept apart to be read and changed as its own.
+            // NOLINTBEGIN(bugprone-branch-clone)
             case GL_COMPRESSED_RGB8_PUNCHTHROUGH_ALPHA1_ETC2:
             case GL_COMPRESSED_SRGB8_PUNCHTHROUGH_ALPHA1_ETC2:
             case GL_COMPRESSED_RGBA8_ETC2_EAC:
@@ -365,6 +367,7 @@ namespace SceneUtil
             case GL_COMPRESSED_SRGB8_ALPHA8_ASTC_12x10_KHR:
             case GL_COMPRESSED_SRGB8_ALPHA8_ASTC_12x12_KHR:
                 return GL_RGBA;
+            // NOLINTEND(bugprone-branch-clone)
 
             // Plug in some holes computePixelFormat has, you never know when these could come in handy
             case GL_INTENSITY4:
@@ -386,6 +389,8 @@ namespace SceneUtil
             case GL_LUMINANCE12_ALPHA12:
             case GL_LUMINANCE16_ALPHA16:
                 return GL_LUMINANCE_ALPHA;
+            default:
+                break;
         }
 
         return osg::Image::computePixelFormat(format);

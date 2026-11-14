@@ -62,6 +62,8 @@ namespace MyGUIPlatform
                 glfmt = GL_RGBA;
                 numelems = 4;
                 break;
+            default:
+                break;
         }
         if (glfmt == GL_NONE)
             throw std::runtime_error("Texture format not supported");

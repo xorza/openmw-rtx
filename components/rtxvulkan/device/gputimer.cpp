@@ -97,6 +97,8 @@ namespace Rtx
     {
         const std::string_view name = sFrameZoneNames.name(zone);
         assert(name.data()[name.size()] == '\0' && "a zone's name is a literal, so the label reads it whole");
+        // A zone's name is a literal, as the assert above holds.
+        // NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage)
         mDevice.beginLabel(commands, name.data());
 
         assert(mOpen == mZones.size() && "a zone was opened while another was still open");
@@ -149,7 +151,7 @@ namespace Rtx
             return;
 
         // A tick and its availability for each query.
-        std::array<std::uint64_t, sMaxGpuZones * 2 * 2> results{};
+        std::array<std::uint64_t, static_cast<std::size_t>(sMaxGpuZones * 2) * 2> results{};
         const auto count = static_cast<std::uint32_t>(mZones.size()) * 2;
 
         // **No wait for availability.** Every submit these were written into has been waited for, so every
@@ -157,7 +159,7 @@ namespace Rtx
         // batch) and would outlast every patience the device keeps. An unwritten query is this code's
         // broken contract and not a fault of the device's.
         const VkResult read = vkGetQueryPoolResults(mDevice.getHandle(), mHandle.get(), 0, count,
-            count * 2 * sizeof(std::uint64_t), results.data(), 2 * sizeof(std::uint64_t),
+            static_cast<std::size_t>(count) * 2 * sizeof(std::uint64_t), results.data(), 2 * sizeof(std::uint64_t),
             VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WITH_AVAILABILITY_BIT);
         if (read != VK_NOT_READY)
             checkVk(mDevice, read, "vkGetQueryPoolResults");

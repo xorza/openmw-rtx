@@ -331,6 +331,8 @@ CSMWorld::RefIdCollection::RefIdCollection(const IdCollection<ESM::MagicEffect>&
             case ESM::Creature::Essential:
                 essential = &mColumns.back();
                 break;
+            default:
+                break;
         }
     }
 

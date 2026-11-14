@@ -442,6 +442,8 @@ namespace MWRender
     {
         if (mode == Render_CollisionDebug || mode == Render_Pathgrid)
             return mPathgrid->toggleRenderMode(mode);
+        // Each branch states its own case, kept apart to be read and changed as its own.
+        // NOLINTBEGIN(bugprone-branch-clone)
         else if (mode == Render_Wireframe)
             return mRenderer.toggleRenderMode(mode);
         else if (mode == Render_Water)
@@ -451,6 +453,7 @@ namespace MWRender
             // Asked of the renderer, because a cull mask is only the rasterizer's way of saying it
             return mRenderer.toggleRenderMode(mode);
         }
+        // NOLINTEND(bugprone-branch-clone)
         else if (mode == Render_NavMesh)
         {
             return mNavMesh->toggle();
@@ -1135,6 +1138,8 @@ namespace MWRender
             {
                 updateTextureFiltering();
             }
+            // Each branch states its own case, kept apart to be read and changed as its own.
+            // NOLINTBEGIN(bugprone-branch-clone)
             else if (entry.first == "Shaders" && entry.second == "minimum interior brightness")
             {
                 if (MWMechanics::getPlayer().isInCell())
@@ -1149,6 +1154,7 @@ namespace MWRender
                 if (MWMechanics::getPlayer().isInCell())
                     configureAmbient(*MWMechanics::getPlayer().getCell()->getCell());
             }
+            // NOLINTEND(bugprone-branch-clone)
         }
 
         mRenderer.processChangedSettings(changed);

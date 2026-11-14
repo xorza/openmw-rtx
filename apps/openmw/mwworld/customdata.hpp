@@ -48,6 +48,11 @@ namespace MWWorld
     struct TypedCustomData : CustomData
     {
         std::unique_ptr<CustomData> clone() const final { return std::make_unique<T>(*static_cast<const T*>(this)); }
+
+    private:
+        friend T;
+
+        TypedCustomData() = default;
     };
 }
 

@@ -150,7 +150,7 @@ namespace Rtx
             });
 
             Readings read;
-            read.mValues.resize(sCount * Shaders::PROBE_READINGS);
+            read.mValues.resize(static_cast<std::size_t>(sCount) * Shaders::PROBE_READINGS);
             std::memcpy(read.mValues.data(), readings.map(), read.mValues.size() * sizeof(osg::Vec3f));
             read.mRows.resize(sCount);
             std::memcpy(read.mRows.data(), rowReadings.map(), read.mRows.size() * sizeof(Shaders::ProbeRow));

@@ -40,6 +40,8 @@ namespace MWPhysics
                 mProjectile.setHitWater();
                 break;
             }
+            default:
+                break;
         }
         mProjectile.hit(hitObject, m_hitPointWorld, m_hitNormalWorld);
 

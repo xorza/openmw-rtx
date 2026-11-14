@@ -381,6 +381,8 @@ namespace Compiler
                     getErrorHandler().warning("Stray begin", loc);
                     mState = EndState;
                     return true;
+                default:
+                    break;
             }
         }
         else if (mState == SetLocalVarState && keyword == Scanner::K_to)

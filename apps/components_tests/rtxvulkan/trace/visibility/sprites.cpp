@@ -227,10 +227,13 @@ namespace Rtx::Testing
                     constexpr float width = 8.0f;
                     constexpr float extent = 200.0f;
                     constexpr float height = 600.0f;
-                    for (float x = -extent; x < extent; x += 2.0f * width)
+                    for (int strip = 0; -extent + 2.0f * width * static_cast<float>(strip) < extent; ++strip)
+                    {
+                        const float x = -extent + 2.0f * width * static_cast<float>(strip);
                         addQuad(scene,
                             std::array{ osg::Vec3f(x, -extent, height), osg::Vec3f(x + width, -extent, height),
                                 osg::Vec3f(x + width, extent, height), osg::Vec3f(x, extent, height) });
+                    }
                 }
 
                 Shaders::VisibilityConstants camera = Testing::makeCamera(

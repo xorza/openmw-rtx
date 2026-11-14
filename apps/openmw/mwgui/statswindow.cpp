@@ -1,5 +1,7 @@
 #include "statswindow.hpp"
 
+#include <cmath>
+
 #include <MyGUI_Button.h>
 #include <MyGUI_Gui.h>
 #include <MyGUI_ImageBox.h>
@@ -247,7 +249,7 @@ namespace MWGui
             // due to the int casting in the skill levelup logic. Also the progress label could in rare cases
             // reach 100% without the skill levelling up.
             // Leaving the original display logic for now, for consistency with ess-imported savegames.
-            int progressPercent = static_cast<int>(progress / progressRequirement * 100.f + 0.5f);
+            int progressPercent = static_cast<int>(std::lround(progress / progressRequirement * 100.f));
 
             w->setUserString("Caption_SkillProgressText", MyGUI::utility::toString(progressPercent) + "/100");
             w->setUserString("RangePosition_SkillProgress", MyGUI::utility::toString(progressPercent));

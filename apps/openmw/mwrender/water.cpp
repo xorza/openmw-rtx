@@ -747,7 +747,11 @@ namespace MWRender
 
     osg::Vec3f Water::getSceneNodeCoordinates(int gridX, int gridY)
     {
+        // A whole-number division on purpose.
+        // NOLINTNEXTLINE(bugprone-integer-division)
         return osg::Vec3f(static_cast<float>(gridX * Constants::CellSizeInUnits + (Constants::CellSizeInUnits / 2)),
+            // A whole-number division on purpose.
+            // NOLINTNEXTLINE(bugprone-integer-division)
             static_cast<float>(gridY * Constants::CellSizeInUnits + (Constants::CellSizeInUnits / 2)), mTop);
     }
 

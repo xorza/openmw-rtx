@@ -77,6 +77,8 @@ QVariant CSMTools::ReportModel::data(const QModelIndex& index, int role) const
         case Column_Hint:
 
             return QString::fromUtf8(mRows.at(index.row()).mHint.c_str());
+        default:
+            break;
     }
 
     if (index.column() == mColumnDescription)
@@ -121,6 +123,8 @@ QVariant CSMTools::ReportModel::headerData(int section, Qt::Orientation orientat
             return "Type";
         case Column_Id:
             return "ID";
+        default:
+            break;
     }
 
     if (section == mColumnDescription)

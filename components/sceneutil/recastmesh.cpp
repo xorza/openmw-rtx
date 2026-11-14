@@ -22,9 +22,9 @@ namespace
         std::vector<float> result(indices.size());
         for (std::size_t i = 0, n = indices.size(); i < n; i += 3)
         {
-            const float* v0Ptr = &vertices[indices[i] * 3];
-            const float* v1Ptr = &vertices[indices[i + 1] * 3];
-            const float* v2Ptr = &vertices[indices[i + 2] * 3];
+            const float* v0Ptr = &vertices[static_cast<std::size_t>(indices[i]) * 3];
+            const float* v1Ptr = &vertices[static_cast<std::size_t>(indices[i + 1]) * 3];
+            const float* v2Ptr = &vertices[static_cast<std::size_t>(indices[i + 2]) * 3];
             const osg::Vec3f v0(v0Ptr[0], v0Ptr[1], v0Ptr[2]);
             const osg::Vec3f v1(v1Ptr[0], v1Ptr[1], v1Ptr[2]);
             const osg::Vec3f v2(v2Ptr[0], v2Ptr[1], v2Ptr[2]);

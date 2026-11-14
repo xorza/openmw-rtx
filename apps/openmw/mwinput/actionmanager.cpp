@@ -146,11 +146,16 @@ namespace MWInput
                 if (checkAllowedToUseItems() && windowManager->isAllowed(MWGui::GW_Inventory))
                     MWBase::Environment::get().getWindowManager()->cycleWeapon(true);
                 break;
+            // Each branch states its own case, kept apart to be read and changed as its own.
+            // NOLINTBEGIN(bugprone-branch-clone)
             case A_Inventory:
             case A_Journal:
             case A_QuickKeysMenu:
                 // Handled in Lua
                 break;
+            default:
+                break;
+                // NOLINTEND(bugprone-branch-clone)
         }
     }
 

@@ -596,6 +596,8 @@ namespace Terrain
         if (mChunkManager && !mStorage->hasData(cellLocation))
             TerrainGrid::loadCell(x, y);
         else
+            // Calls past its parent's override on purpose.
+            // NOLINTNEXTLINE(bugprone-parent-virtual-call)
             World::loadCell(x, y);
     }
 
@@ -606,6 +608,8 @@ namespace Terrain
         if (mChunkManager && !mStorage->hasData(cellLocation))
             TerrainGrid::unloadCell(x, y);
         else
+            // Calls past its parent's override on purpose.
+            // NOLINTNEXTLINE(bugprone-parent-virtual-call)
             World::unloadCell(x, y);
     }
 

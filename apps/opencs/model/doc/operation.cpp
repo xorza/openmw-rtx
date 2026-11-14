@@ -106,6 +106,8 @@ void CSMDoc::Operation::abort()
 
     if (mFinalAlways)
     {
+        // The step inside the test is the loop it means.
+        // NOLINTNEXTLINE(bugprone-inc-dec-in-conditions)
         if (mStages.begin() != mStages.end() && mCurrentStage != --mStages.end())
         {
             mCurrentStep = 0;

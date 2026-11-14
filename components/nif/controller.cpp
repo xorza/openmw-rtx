@@ -409,7 +409,7 @@ namespace Nif
         {
             readRecordList(nif, mInterpolators);
             if (nif->getVersion() >= NIFStream::generateVersion(10, 2, 0, 0) && nif->getBethVersion() >= 10)
-                nif->skip(4 * nif->get<uint32_t>()); // Unknown
+                nif->skip(std::size_t{ 4 } * nif->get<uint32_t>()); // Unknown
             return;
         }
 

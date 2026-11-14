@@ -149,6 +149,8 @@ namespace SDLUtil
                 case SDL_EVENT_TEXT_INPUT:
                     mKeyboardListener->textInput(evt.text);
                     break;
+                // Each branch states its own case, kept apart to be read and changed as its own.
+                // NOLINTBEGIN(bugprone-branch-clone)
                 case SDL_EVENT_KEYMAP_CHANGED:
                 case SDL_EVENT_KEYBOARD_ADDED:
                 case SDL_EVENT_KEYBOARD_REMOVED:
@@ -166,6 +168,7 @@ namespace SDLUtil
                 case SDL_EVENT_JOYSTICK_BATTERY_UPDATED:
                 case SDL_EVENT_JOYSTICK_UPDATE_COMPLETE:
                     break;
+                // NOLINTEND(bugprone-branch-clone)
                 case SDL_EVENT_GAMEPAD_ADDED:
                     if (mConListener)
                         mConListener->controllerAdded(
@@ -218,6 +221,8 @@ namespace SDLUtil
                     if (mWindowListener && evt.display.displayID == SDL_GetDisplayForWindow(mSDLWindow))
                         mWindowListener->windowDisplayChanged();
                     break;
+                // Each branch states its own case, kept apart to be read and changed as its own.
+                // NOLINTBEGIN(bugprone-branch-clone)
                 case SDL_EVENT_DISPLAY_ADDED:
                 case SDL_EVENT_DISPLAY_REMOVED:
                 case SDL_EVENT_DISPLAY_MOVED:
@@ -268,6 +273,7 @@ namespace SDLUtil
                 case SDL_EVENT_TERMINATING:
                     // There is nothing we can do here.
                     break;
+                    // NOLINTEND(bugprone-branch-clone)
 
                 case SDL_EVENT_LOW_MEMORY:
                     Log(Debug::Warning) << "System reports that free RAM on device is running low. You may encounter "
@@ -365,6 +371,8 @@ namespace SDLUtil
                 mWindowListener->windowVisibilityChange(shown);
                 break;
             }
+            default:
+                break;
         }
     }
 

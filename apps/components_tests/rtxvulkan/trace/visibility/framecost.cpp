@@ -124,7 +124,7 @@ namespace Rtx::Testing
             constexpr std::uint32_t mostSprites = 64;
             std::uint32_t storm = 0;
             std::vector<Sprite> sprites;
-            sprites.reserve(2 * mostSprites);
+            sprites.reserve(std::size_t{ 2 } * mostSprites);
             const auto rain = [&](std::uint32_t count) {
                 sprites.clear();
                 for (std::uint32_t at = 0; at < count; ++at)

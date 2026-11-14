@@ -4,6 +4,7 @@
 #include <array>
 #include <bit>
 #include <cassert>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
@@ -60,7 +61,7 @@ namespace Rtx
         // a NaN never reaches the conversion to an integer.
         if (encoded > 0.0f && encoded <= 1.0f)
         {
-            const auto byte = static_cast<std::uint8_t>(encoded * 255.0f + 0.5f);
+            const auto byte = static_cast<std::uint8_t>(std::lround(encoded * 255.0f));
             if (static_cast<float>(byte) / 255.0f == encoded)
                 return DisplayCurve::get().toLinear(byte);
         }

@@ -1,6 +1,7 @@
 #include "loadland.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <limits>
 #include <utility>
@@ -162,8 +163,7 @@ namespace ESM
                 for (unsigned i = 0; i < LandRecordData::sLandSize; ++i)
                 {
                     float diff = (mLandData->mHeights[number] - prevY) / sHeightScale;
-                    offsets.mHeightData[number]
-                        = diff >= 0 ? static_cast<std::int8_t>(diff + 0.5) : static_cast<std::int8_t>(diff - 0.5);
+                    offsets.mHeightData[number] = static_cast<std::int8_t>(std::lround(diff));
 
                     float prevX = prevY = mLandData->mHeights[number];
                     ++number;
@@ -171,8 +171,7 @@ namespace ESM
                     for (unsigned j = 1; j < LandRecordData::sLandSize; ++j)
                     {
                         diff = (mLandData->mHeights[number] - prevX) / sHeightScale;
-                        offsets.mHeightData[number]
-                            = diff >= 0 ? static_cast<std::int8_t>(diff + 0.5) : static_cast<std::int8_t>(diff - 0.5);
+                        offsets.mHeightData[number] = static_cast<std::int8_t>(std::lround(diff));
 
                         prevX = mLandData->mHeights[number];
                         ++number;
@@ -322,9 +321,11 @@ namespace ESM
                 float rowOffset = vhgt.mHeightOffset;
                 for (unsigned y = 0; y < LandRecordData::sLandSize; y++)
                 {
-                    rowOffset += static_cast<float>(vhgt.mHeightData[y * LandRecordData::sLandSize]);
+                    rowOffset += static_cast<float>(
+                        vhgt.mHeightData[static_cast<std::size_t>(y * LandRecordData::sLandSize)]);
 
-                    data.mHeights[y * LandRecordData::sLandSize] = rowOffset * Land::sHeightScale;
+                    data.mHeights[static_cast<std::size_t>(y) * LandRecordData::sLandSize]
+                        = rowOffset * Land::sHeightScale;
                     data.mMaxHeight = std::max(rowOffset * Land::sHeightScale, data.mMaxHeight);
                     data.mMinHeight = std::min(rowOffset * Land::sHeightScale, data.mMinHeight);
 

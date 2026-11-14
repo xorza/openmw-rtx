@@ -1240,6 +1240,8 @@ namespace MWRender
                     while (bIt != sBodyPartMap.end() && bIt->first == bodypart.mData.mPart)
                     {
                         // If we have no fallback bodypart now and bodypart is for same gender (1)
+                        // Each branch states its own case, kept apart to be read and changed as its own.
+                        // NOLINTBEGIN(bugprone-branch-clone)
                         if (!parts[bIt->second] && isSameGender)
                             parts[bIt->second] = &bodypart;
 
@@ -1250,6 +1252,7 @@ namespace MWRender
                         // If we have no fallback bodypart and searching for female bodyparts (3)
                         else if (!parts[bIt->second] && female)
                             parts[bIt->second] = &bodypart;
+                        // NOLINTEND(bugprone-branch-clone)
 
                         ++bIt;
                     }
@@ -1268,12 +1271,15 @@ namespace MWRender
                     while (bIt != sBodyPartMap.end() && bIt->first == bodypart.mData.mPart)
                     {
                         // If we have no fallback bodypart now
+                        // Each branch states its own case, kept apart to be read and changed as its own.
+                        // NOLINTBEGIN(bugprone-branch-clone)
                         if (!parts[bIt->second])
                             parts[bIt->second] = &bodypart;
 
                         // If we have 3d person fallback bodypart for hand and 1st person fallback found (2)
                         else if (isHand && !ESM::isFirstPersonBodyPart(*parts[bIt->second]) && partFirstPerson)
                             parts[bIt->second] = &bodypart;
+                        // NOLINTEND(bugprone-branch-clone)
 
                         ++bIt;
                     }

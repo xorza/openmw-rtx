@@ -43,6 +43,8 @@ namespace Platform::LinuxText
         constexpr std::uint32_t limit = 8192;
         const auto number = [](std::string_view digits, std::uint32_t& into) {
             const char* const end = digits.data() + digits.size();
+            // The view is handed on with its size beside it.
+            // NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage)
             const std::from_chars_result read = std::from_chars(digits.data(), end, into);
             return !digits.empty() && read.ec == std::errc{} && read.ptr == end && into < limit;
         };

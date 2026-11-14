@@ -539,7 +539,8 @@ namespace Rtx
                     const std::uint32_t colour = block % 2 == 0 ? hash & 255u : 96u + block + (hash & 15u);
                     sixteen[byte] = byte % 4 == 3 ? std::uint8_t{ 255 } : static_cast<std::uint8_t>(colour);
                 }
-                rgbcx::encode_bc1(18, madeOfEveryOrdering.data() + block * 8, sixteen.data(), true, true);
+                rgbcx::encode_bc1(
+                    18, madeOfEveryOrdering.data() + static_cast<std::size_t>(block * 8), sixteen.data(), true, true);
             }
             EXPECT_EQ(digestOf(madeOfEveryOrdering), (Misc::DigestWords{ 0xa430bd01b2b82b8b, 0xbdff5f35edcb5d2c }));
 

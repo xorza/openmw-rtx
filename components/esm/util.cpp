@@ -12,7 +12,11 @@ osg::Vec2f ESM::indexToPosition(const ESM::ExteriorCellLocation& cellIndex, bool
 
     if (centre)
     {
+        // A whole-number division on purpose.
+        // NOLINTNEXTLINE(bugprone-integer-division)
         x += static_cast<float>(cellSize / 2);
+        // A whole-number division on purpose.
+        // NOLINTNEXTLINE(bugprone-integer-division)
         y += static_cast<float>(cellSize / 2);
     }
 

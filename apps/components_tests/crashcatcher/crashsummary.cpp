@@ -167,6 +167,8 @@ namespace
 
         try
         {
+            // A plain value thrown on purpose.
+            // NOLINTNEXTLINE(bugprone-std-exception-baseclass)
             throw 4;
         }
         catch (...)

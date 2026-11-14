@@ -1,6 +1,7 @@
 #include "tracedview.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <span>
@@ -30,7 +31,7 @@ namespace MWRender
     {
         std::uint8_t channel(float value)
         {
-            return static_cast<std::uint8_t>(std::clamp(value, 0.f, 1.f) * 255.f + 0.5f);
+            return static_cast<std::uint8_t>(std::lround(std::clamp(value, 0.f, 1.f) * 255.f));
         }
 
         /// The spec as the trace takes it. Bottom row first, which is what
@@ -77,7 +78,7 @@ namespace MWRender
 
         auto* pixels = static_cast<std::uint8_t*>(mTexture->lock(MyGUI::TextureUsage::Write));
         for (int i = 0; i < width * height; ++i)
-            std::memcpy(pixels + i * 4, colour, sizeof(colour));
+            std::memcpy(pixels + static_cast<std::ptrdiff_t>(i * 4), colour, sizeof(colour));
         mTexture->unlock();
 
         mViews.adopt(*this);

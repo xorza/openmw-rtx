@@ -30,7 +30,8 @@ namespace Rtx
 
     MipChainPass::MipChainPass(const Device& device)
         : mPipeline(device, sBindings, {}, "mipchain.comp.spv", "mip chain")
-        , mCounters(Buffer::deviceLocal(device, Shaders::MIPCHAIN_CHAINS_MOST * Shaders::MIPCHAIN_COUNTER_STRIDE,
+        , mCounters(Buffer::deviceLocal(device,
+              static_cast<VkDeviceSize>(Shaders::MIPCHAIN_CHAINS_MOST) * Shaders::MIPCHAIN_COUNTER_STRIDE,
               VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, "mip chain counters"))
     {
         device.getPool().submitAndWait([&](VkCommandBuffer commands) {

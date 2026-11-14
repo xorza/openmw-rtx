@@ -112,14 +112,18 @@ namespace Rtx
             Sky::TimeOfDaySettings slow = times;
             slow.mSunriseDuration = 8.0f;
             slow.mDayStart = slow.mNightEnd + slow.mSunriseDuration;
-            for (float hour = slow.mNightEnd; hour < slow.mNightStart; hour += 0.25f)
+            for (int quarter = 0; slow.mNightEnd + 0.25f * static_cast<float>(quarter) < slow.mNightStart; ++quarter)
+            {
+                const float hour = slow.mNightEnd + 0.25f * static_cast<float>(quarter);
                 EXPECT_LE(sunShareAt(hour, slow), 1.0f) << "at hour " << hour;
+            }
 
             // And it moves without a step anywhere, which is what stops the shadows jumping when the
             // sun goes out: the two curves and the night all meet at nought.
             float previous = sunShareAt(0.0f, times);
-            for (float hour = 0.01f; hour < 24.0f; hour += 0.01f)
+            for (int hundredth = 1; hundredth < 2400; ++hundredth)
             {
+                const float hour = static_cast<float>(hundredth) / 100.0f;
                 const float at = sunShareAt(hour, times);
                 EXPECT_LT(std::abs(at - previous), 0.02f) << "the sun stepped at hour " << hour;
                 previous = at;
@@ -158,8 +162,11 @@ namespace Rtx
 
             // **And never less than the ground's**, at any hour of the clock — which is the whole
             // claim, and the one a sign error in the offset would break.
-            for (float hour = 0.0f; hour < 24.0f; hour += 0.05f)
+            for (int twentieth = 0; twentieth < 480; ++twentieth)
+            {
+                const float hour = static_cast<float>(twentieth) / 20.0f;
                 EXPECT_GE(sunShareAloft(hour, times), sunShareAt(hour, times)) << "at hour " << hour;
+            }
         }
     }
 }

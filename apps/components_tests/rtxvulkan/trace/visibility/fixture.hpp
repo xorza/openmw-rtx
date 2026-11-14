@@ -283,6 +283,8 @@ namespace Rtx::Testing
             for (std::size_t value = channel; value < mRadiance.size(); value += 4)
                 sum += mRadiance[value];
 
+            // A whole-number division on purpose.
+            // NOLINTNEXTLINE(bugprone-integer-division)
             return sum / static_cast<float>(mRadiance.size() / 4);
         }
 
@@ -297,6 +299,8 @@ namespace Rtx::Testing
                 squares += difference * difference;
             }
 
+            // A whole-number division on purpose.
+            // NOLINTNEXTLINE(bugprone-integer-division)
             return std::sqrt(squares / static_cast<float>(mRadiance.size() / 4));
         }
 
@@ -307,6 +311,8 @@ namespace Rtx::Testing
             for (std::size_t value = channel; value < mRadiance.size(); value += 4)
                 squares += mRadiance[value] * mRadiance[value];
 
+            // A whole-number division on purpose.
+            // NOLINTNEXTLINE(bugprone-integer-division)
             return std::sqrt(squares / static_cast<float>(mRadiance.size() / 4));
         }
 

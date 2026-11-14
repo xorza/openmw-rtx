@@ -111,6 +111,8 @@ namespace SceneUtil
                 dir = rot * dir;
 
                 unsigned short diamondIndex = 0;
+                // Each branch states its own case, kept apart to be read and changed as its own.
+                // NOLINTBEGIN(bugprone-branch-clone)
                 if (dir.isNaN())
                     diamondIndex = 0;
                 else if (dir.y() >= 0 && dir.x() > 0)
@@ -119,6 +121,7 @@ namespace SceneUtil
                     diamondIndex = 1;
                 else if (dir.y() <= 0 && dir.x() < 0)
                     diamondIndex = 0;
+                // NOLINTEND(bugprone-branch-clone)
                 else if (dir.x() >= 0 && dir.y() < 0)
                     diamondIndex = 2;
 

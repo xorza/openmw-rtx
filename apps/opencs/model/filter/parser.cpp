@@ -285,6 +285,8 @@ CSMFilter::Token CSMFilter::Parser::getNextToken()
         case '!':
             ++mIndex;
             return Token(Token::Type_OneShot);
+        default:
+            break;
     }
 
     if (c == '"' || c == '_' || isAlpha(c) || c == ':')

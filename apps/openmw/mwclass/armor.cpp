@@ -162,6 +162,8 @@ namespace MWClass
             case ESM::Armor::RBracer:
                 typeGmst = "iGauntletWeight";
                 break;
+            default:
+                break;
         }
 
         if (typeGmst.empty())

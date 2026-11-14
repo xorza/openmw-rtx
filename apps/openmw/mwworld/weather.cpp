@@ -696,6 +696,8 @@ namespace MWWorld
         forceWeather(ESM::Weather::indexToRefId(0));
     }
 
+    // An exception here ends the process, which is what this function means.
+    // NOLINTNEXTLINE(bugprone-exception-escape)
     WeatherManager::~WeatherManager()
     {
         stopSounds();

@@ -34,6 +34,8 @@ namespace CSVPrefs
 
     public slots:
 
+        // Hides the base's member on purpose: it is called through the derived type.
+        // NOLINTNEXTLINE(bugprone-derived-method-shadowing-base-method)
         void show();
 
     private slots:

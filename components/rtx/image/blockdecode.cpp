@@ -106,7 +106,8 @@ namespace Rtx
                     texels);
                 const std::uint32_t columns = std::min(4u, width - bx * 4);
                 for (std::uint32_t row = 0; row < 4 && by * 4 + row < height; ++row)
-                    std::memcpy(into.data() + ((std::size_t{ by } * 4 + row) * width + bx * 4) * 4,
+                    std::memcpy(
+                        into.data() + ((std::size_t{ by } * 4 + row) * width + static_cast<std::size_t>(bx) * 4) * 4,
                         texels.data() + std::size_t{ row } * 16, std::size_t{ columns } * 4);
             }
         return true;

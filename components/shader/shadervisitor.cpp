@@ -335,6 +335,8 @@ namespace Shader
                         mRequirements.back().mReconstructNormalZ = true;
                         mRequirements.back().mNormalHeight = false;
                     }
+                    default:
+                        break;
                 }
             }
         }

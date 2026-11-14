@@ -120,6 +120,8 @@ std::string_view StatelessUtf8Encoder::getUtf8(
 
     // If we're pure ascii, then don't bother converting anything.
     if (ascii)
+        // The view is handed on with its size beside it.
+        // NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage)
         return std::string_view(input.data(), outlen);
 
     // Make sure the output is large enough
@@ -158,6 +160,8 @@ std::string_view StatelessUtf8Encoder::getLegacyEnc(
 
     // If we're pure ascii, then don't bother converting anything.
     if (ascii)
+        // The view is handed on with its size beside it.
+        // NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage)
         return std::string_view(input.data(), outlen);
 
     // Make sure the output is large enough
@@ -206,7 +210,7 @@ std::pair<std::size_t, bool> StatelessUtf8Encoder::getLength(std::string_view in
     {
         // Find the translated length of this character in the
         // lookup table.
-        len += mTranslationArray[static_cast<unsigned char>(*it) * 6];
+        len += mTranslationArray[static_cast<std::size_t>(static_cast<unsigned char>(*it)) * 6];
         ++it;
     } while (it != input.end() && *it != 0);
 
@@ -224,7 +228,7 @@ void StatelessUtf8Encoder::copyFromArray(unsigned char ch, char*& out) const
         return;
     }
 
-    const signed char* in = &mTranslationArray[ch * 6];
+    const signed char* in = &mTranslationArray[static_cast<std::size_t>(ch) * 6];
     const int len = static_cast<unsigned char>(*(in++));
     memcpy(out, in, len);
     out += len;
@@ -305,6 +309,8 @@ void StatelessUtf8Encoder::copyFromArrayLegacyEnc(
         case 0xd2:
         case 0xc5:
             len = 2;
+            break;
+        default:
             break;
     }
 

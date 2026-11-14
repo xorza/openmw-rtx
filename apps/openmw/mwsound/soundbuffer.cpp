@@ -43,7 +43,7 @@ namespace MWSound
 
     SoundBufferPool::SoundBufferPool(SoundOutput& output)
         : mOutput(&output)
-        , mBufferCacheMax(Settings::sound().mBufferCacheMax * 1024 * 1024)
+        , mBufferCacheMax(static_cast<std::size_t>(Settings::sound().mBufferCacheMax * 1024) * 1024)
         , mBufferCacheMin(
               std::min(static_cast<std::size_t>(Settings::sound().mBufferCacheMin) * 1024 * 1024, mBufferCacheMax))
     {

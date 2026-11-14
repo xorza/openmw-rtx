@@ -378,6 +378,8 @@ CSVRender::InstanceMode::InstanceMode(
                     case (Object::Mode_Scale):
                         axisStr += "_Axis_Scale";
                         break;
+                    default:
+                        break;
                 }
 
                 auto selectionMarker = getWorldspaceWidget().getSelectionMarker();
@@ -1028,17 +1030,8 @@ void CSVRender::InstanceMode::dragCompleted(const QPoint& pos)
             description = "Scale Instances";
             break;
         case DragMode_Select_Only:
-            handleSelectDrag(pos);
-            return;
-            break;
         case DragMode_Select_Add:
-            handleSelectDrag(pos);
-            return;
-            break;
         case DragMode_Select_Remove:
-            handleSelectDrag(pos);
-            return;
-            break;
         case DragMode_Select_Invert:
             handleSelectDrag(pos);
             return;

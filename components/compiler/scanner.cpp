@@ -140,6 +140,8 @@ namespace Compiler
 
             return parser.parseComment(comment, loc, *this);
         }
+        // Each branch states its own case, kept apart to be read and changed as its own.
+        // NOLINTBEGIN(bugprone-branch-clone)
         else if (c.isWhitespace())
         {
             mLoc.mLiteral.clear();
@@ -151,6 +153,7 @@ namespace Compiler
             mLoc.mLiteral.clear();
             return true;
         }
+        // NOLINTEND(bugprone-branch-clone)
         else if (c.isAlpha() || c == '_' || c == '"')
         {
             mIgnoreSpecial = false;

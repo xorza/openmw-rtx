@@ -115,6 +115,8 @@ namespace LuaUtil::InputTrigger
         std::optional<std::string> nextKey(std::string_view key) const
         {
             auto it = mIds.find(key);
+            // The step inside the test is the loop it means.
+            // NOLINTNEXTLINE(bugprone-inc-dec-in-conditions)
             if (it == mIds.end() || ++it == mIds.end())
                 return std::nullopt;
             return it->first;

@@ -62,6 +62,8 @@ namespace LuaUtil
             if (binaryData.size() < sizeof(T))
                 throw std::runtime_error("Unexpected end of serialized data.");
             T v;
+            // The view is handed on with its size beside it.
+            // NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage)
             std::memcpy(&v, binaryData.data(), sizeof(T));
             binaryData = binaryData.substr(sizeof(T));
             return Misc::fromLittleEndian(v);

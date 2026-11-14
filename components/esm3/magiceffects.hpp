@@ -41,11 +41,15 @@ namespace ESM
         return std::tie(value.mEffectId, value.mSourceId, value.mEffectIndex);
     }
 
+    // An exception here ends the process, which is what this function means.
+    // NOLINTNEXTLINE(bugprone-exception-escape)
     inline bool operator==(const SummonKey& l, const SummonKey& r) noexcept
     {
         return makeTupleRef(l) == makeTupleRef(r);
     }
 
+    // An exception here ends the process, which is what this function means.
+    // NOLINTNEXTLINE(bugprone-exception-escape)
     inline bool operator<(const SummonKey& l, const SummonKey& r) noexcept
     {
         return makeTupleRef(l) < makeTupleRef(r);

@@ -184,6 +184,8 @@ MWWorld::ContainerStore::ContainerStore(const MWWorld::ContainerStore& store)
     }
 }
 
+// An exception here ends the process, which is what this function means.
+// NOLINTNEXTLINE(bugprone-exception-escape)
 MWWorld::ContainerStore::ContainerStore(MWWorld::ContainerStore&& store) noexcept
     : mListener(store.mListener)
     , mSelectedEnchantItem(end())
@@ -230,6 +232,8 @@ MWWorld::ContainerStore& MWWorld::ContainerStore::operator=(const ContainerStore
     return *this;
 }
 
+// An exception here ends the process, which is what this function means.
+// NOLINTNEXTLINE(bugprone-exception-escape)
 MWWorld::ContainerStore& MWWorld::ContainerStore::operator=(ContainerStore&& store) noexcept
 {
     const std::ptrdiff_t distance = store.index(store.mSelectedEnchantItem);
@@ -579,6 +583,8 @@ MWWorld::ContainerStoreIterator MWWorld::ContainerStore::addNewStack(const Const
         case Type_Weapon:
             mLists.mWeapons.mList.push_back(*ptr.get<ESM::Weapon>());
             it = ContainerStoreIterator(this, --mLists.mWeapons.mList.end());
+            break;
+        default:
             break;
     }
 

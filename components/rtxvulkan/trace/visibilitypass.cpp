@@ -186,7 +186,7 @@ namespace Rtx
         {
             const Buffer& tiles = channels.getStageTiles();
             tiles.nameForNext();
-            vkCmdDispatchIndirect(commands, tiles.getHandle(), VkDeviceSize{ 4u * list } * sizeof(std::uint32_t));
+            vkCmdDispatchIndirect(commands, tiles.getHandle(), VkDeviceSize{ 4 } * list * sizeof(std::uint32_t));
         }
 
         /// One of the trace's stages: its module, the name its kernels are made under, the zone it

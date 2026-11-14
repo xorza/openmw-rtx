@@ -135,7 +135,7 @@ namespace MWRender
             fog->mCenterX = mCenter.x();
             fog->mCenterY = mCenter.y();
 
-            fog->mFogTextures.reserve(segments.first * segments.second);
+            fog->mFogTextures.reserve(static_cast<std::size_t>(segments.first) * segments.second);
 
             for (int x = 0; x < segments.first; ++x)
             {

@@ -115,6 +115,8 @@ namespace Misc
         int width = 0;
         int height = 0;
         const char* const end = listed.data() + listed.size();
+        // The view is handed on with its size beside it.
+        // NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage)
         const std::from_chars_result first = std::from_chars(listed.data(), end, width);
         if (first.ec != std::errc() || !std::string_view(first.ptr, end).starts_with(by))
             return osg::Vec2i();

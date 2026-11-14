@@ -70,6 +70,8 @@ namespace
 
     std::unique_ptr<PreparedNavMeshData> makePeparedNavMeshData(int size)
     {
+        // The same sequence each run, on purpose.
+        // NOLINTNEXTLINE(bugprone-random-generator-seed)
         std::minstd_rand random;
         auto result = std::make_unique<PreparedNavMeshData>();
         generate(*result, size, random);

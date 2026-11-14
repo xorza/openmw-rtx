@@ -386,6 +386,8 @@ namespace MWWorld
                 case ESM::REC_WEAP4:
                     return true;
                     break;
+                default:
+                    break;
             }
             return false;
         }

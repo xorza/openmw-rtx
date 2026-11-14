@@ -143,6 +143,8 @@ namespace MWGui
                         "sItemCastConstant", "Cast Constant")));
                 setConstantEffect(true);
                 break;
+            default:
+                break;
         }
     }
 

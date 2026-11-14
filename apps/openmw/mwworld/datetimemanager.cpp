@@ -35,7 +35,6 @@ namespace
             case 5:
                 return 30;
             case 6:
-                return 31;
             case 7:
                 return 31;
             case 8:
@@ -46,6 +45,8 @@ namespace
                 return 30;
             case 11:
                 return 31;
+            default:
+                break;
         }
 
         throw std::runtime_error("month out of range");

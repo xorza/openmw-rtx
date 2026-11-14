@@ -113,6 +113,8 @@ namespace Rtx::Testing
     /// the test would leave the second run starting somewhere else. Only that both runs get the same point matters.
     inline void resetRandom()
     {
+        // The same sequence each run, on purpose.
+        // NOLINTNEXTLINE(bugprone-random-generator-seed)
         std::srand(1);
     }
 

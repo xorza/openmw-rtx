@@ -209,6 +209,8 @@ namespace ESM
             load(reader, result);
         }
 
+        // The same sequence each run, on purpose.
+        // NOLINTNEXTLINE(bugprone-random-generator-seed)
         struct Esm3SaveLoadRecordTest : public TestWithParam<FormatVersion>
         {
             std::minstd_rand mRandom;
@@ -304,6 +306,8 @@ namespace ESM
             // Player state is not saved to vanilla ESM format.
             if (GetParam() == CurrentContentFormatVersion)
                 return;
+            // The same sequence each run, on purpose.
+            // NOLINTNEXTLINE(bugprone-random-generator-seed)
             std::minstd_rand random;
             Player record{};
             record.mObject.blank();

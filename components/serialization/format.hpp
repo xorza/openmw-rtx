@@ -36,7 +36,9 @@ namespace Serialization
     template <class T>
     inline constexpr bool isContiguousContainer = IsContiguousContainer<std::decay_t<T>>::value;
 
+    // Formats are brace-initialized aggregates, whose construction must reach this base's.
     template <Mode mode, class Derived>
+    // NOLINTNEXTLINE(bugprone-crtp-constructor-accessibility)
     struct Format
     {
         template <class Visitor, class T>

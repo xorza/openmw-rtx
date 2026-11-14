@@ -480,6 +480,8 @@ namespace Shader
                 else
                     forIterators.pop_back();
             }
+            // Each branch states its own case, kept apart to be read and changed as its own.
+            // NOLINTBEGIN(bugprone-branch-clone)
             else if (define == "link")
             {
                 source.replace(foundPos, 1, "$");
@@ -488,6 +490,7 @@ namespace Shader
             {
                 source.replace(foundPos, 1, "$");
             }
+            // NOLINTEND(bugprone-branch-clone)
             else if (defineFound != defines.end())
             {
                 source.replace(foundPos, endPos - foundPos, defineFound->second);

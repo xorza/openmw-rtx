@@ -209,8 +209,13 @@ void CSVWorld::ExtendedCommandConfigurator::checkBoxStateChanged(int state)
         case Qt::Checked:
             ++mNumChecked;
             break;
+        // Each branch states its own case, kept apart to be read and changed as its own.
+        // NOLINTBEGIN(bugprone-branch-clone)
         case Qt::PartiallyChecked: // Not used
             break;
+        default:
+            break;
+            // NOLINTEND(bugprone-branch-clone)
     }
 
     mPerformButton->setEnabled(mNumChecked > 0);

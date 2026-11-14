@@ -1263,7 +1263,6 @@ namespace Rtx
                 case Kind::Float:
                     return type;
                 case Kind::Vector:
-                    return scalarOf(shape.mPart);
                 case Kind::Matrix:
                     return scalarOf(shape.mPart);
                 default:

@@ -79,6 +79,8 @@ namespace Rtx
         private:
             std::array<VkFormat, 2> mFormats;
             VkImageFormatListCreateInfo mList;
+            // Zeroed, as the API means its structures and flag sets to start.
+            // NOLINTNEXTLINE(bugprone-invalid-enum-default-initialization)
             VkImageCreateInfo mCreate{};
         };
     }

@@ -280,6 +280,8 @@ namespace DetourNavigator
             mThreads.emplace_back([&] { process(); });
     }
 
+    // An exception here ends the process, which is what this function means.
+    // NOLINTNEXTLINE(bugprone-exception-escape)
     AsyncNavMeshUpdater::~AsyncNavMeshUpdater()
     {
         stop();
@@ -695,6 +697,8 @@ namespace DetourNavigator
         return isSuccess(status) ? JobStatus::Done : JobStatus::Fail;
     }
 
+    // An exception here ends the process, which is what this function means.
+    // NOLINTNEXTLINE(bugprone-exception-escape)
     JobIt AsyncNavMeshUpdater::getNextJob() noexcept
     {
         std::unique_lock<std::mutex> lock(mMutex);
@@ -846,6 +850,8 @@ namespace DetourNavigator
     {
     }
 
+    // An exception here ends the process, which is what this function means.
+    // NOLINTNEXTLINE(bugprone-exception-escape)
     TileStoreReader::~TileStoreReader()
     {
         stop();
@@ -873,6 +879,8 @@ namespace DetourNavigator
             mThread.join();
     }
 
+    // An exception here ends the process, which is what this function means.
+    // NOLINTNEXTLINE(bugprone-exception-escape)
     void TileStoreReader::run() noexcept
     {
         while (!mShouldStop)

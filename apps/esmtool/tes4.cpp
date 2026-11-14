@@ -229,7 +229,6 @@ namespace EsmTool
                     readTypedRecord<ESM4::AcousticSpace>(params, reader);
                     return true;
                 case ESM4::REC_ASTP:
-                    break;
                 case ESM4::REC_AVIF:
                     break;
                 case ESM4::REC_BOOK:
@@ -239,7 +238,6 @@ namespace EsmTool
                     readTypedRecord<ESM4::BodyPartData>(params, reader);
                     return true;
                 case ESM4::REC_CAMS:
-                    break;
                 case ESM4::REC_CCRD:
                     break;
                 case ESM4::REC_CELL:
@@ -257,9 +255,7 @@ namespace EsmTool
                     readTypedRecord<ESM4::Clothing>(params, reader);
                     return true;
                 case ESM4::REC_CMNY:
-                    break;
                 case ESM4::REC_COBJ:
-                    break;
                 case ESM4::REC_COLL:
                     break;
                 case ESM4::REC_CONT:
@@ -271,14 +267,12 @@ namespace EsmTool
                     readTypedRecord<ESM4::Creature>(params, reader);
                     return true;
                 case ESM4::REC_CSTY:
-                    break;
                 case ESM4::REC_DEBR:
                     break;
                 case ESM4::REC_DIAL:
                     readTypedRecord<ESM4::Dialogue>(params, reader);
                     return true;
                 case ESM4::REC_DLBR:
-                    break;
                 case ESM4::REC_DLVW:
                     break;
                 case ESM4::REC_DOBJ:
@@ -288,15 +282,10 @@ namespace EsmTool
                     readTypedRecord<ESM4::Door>(params, reader);
                     return true;
                 case ESM4::REC_DUAL:
-                    break;
                 case ESM4::REC_ECZN:
-                    break;
                 case ESM4::REC_EFSH:
-                    break;
                 case ESM4::REC_ENCH:
-                    break;
                 case ESM4::REC_EQUP:
-                    break;
                 case ESM4::REC_EXPL:
                     break;
                 case ESM4::REC_EYES:
@@ -311,7 +300,6 @@ namespace EsmTool
                     readTypedRecord<ESM4::FormIdList>(params, reader);
                     return true;
                 case ESM4::REC_FSTP:
-                    break;
                 case ESM4::REC_FSTS:
                     break;
                 case ESM4::REC_FURN:
@@ -344,7 +332,6 @@ namespace EsmTool
                     readTypedRecord<ESM4::IdleMarker>(params, reader);
                     return true;
                 case ESM4::REC_IMAD:
-                    break;
                 case ESM4::REC_IMGS:
                     break;
                 case ESM4::REC_IMOD:
@@ -357,7 +344,6 @@ namespace EsmTool
                     readTypedRecord<ESM4::Ingredient>(params, reader);
                     return true;
                 case ESM4::REC_IPCT:
-                    break;
                 case ESM4::REC_IPDS:
                     break;
                 case ESM4::REC_KEYM:
@@ -369,7 +355,6 @@ namespace EsmTool
                     readTypedRecord<ESM4::Land>(params, reader);
                     return true;
                 case ESM4::REC_LCRT:
-                    break;
                 case ESM4::REC_LCTN:
                     break;
                 case ESM4::REC_LGTM:
@@ -398,9 +383,7 @@ namespace EsmTool
                     readTypedRecord<ESM4::Material>(params, reader);
                     return true;
                 case ESM4::REC_MATT:
-                    break;
                 case ESM4::REC_MESG:
-                    break;
                 case ESM4::REC_MGEF:
                     break;
                 case ESM4::REC_MISC:
@@ -446,7 +429,6 @@ namespace EsmTool
                     readTypedRecord<ESM4::PlacedGrenade>(params, reader);
                     return true;
                 case ESM4::REC_PHZD:
-                    break;
                 case ESM4::REC_PROJ:
                     break;
                 case ESM4::REC_PWAT:
@@ -465,9 +447,7 @@ namespace EsmTool
                     readTypedRecord<ESM4::Region>(params, reader);
                     return true;
                 case ESM4::REC_RELA:
-                    break;
                 case ESM4::REC_REVB:
-                    break;
                 case ESM4::REC_RFCT:
                     break;
                 case ESM4::REC_ROAD:
@@ -496,11 +476,8 @@ namespace EsmTool
                     readTypedRecord<ESM4::SoulGem>(params, reader);
                     return true;
                 case ESM4::REC_SMBN:
-                    break;
                 case ESM4::REC_SMEN:
-                    break;
                 case ESM4::REC_SMQN:
-                    break;
                 case ESM4::REC_SNCT:
                     break;
                 case ESM4::REC_SNDR:
@@ -512,7 +489,6 @@ namespace EsmTool
                     readTypedRecord<ESM4::Sound>(params, reader);
                     return true;
                 case ESM4::REC_SPEL:
-                    break;
                 case ESM4::REC_SPGD:
                     break;
                 case ESM4::REC_STAT:
@@ -534,7 +510,6 @@ namespace EsmTool
                     readTypedRecord<ESM4::TextureSet>(params, reader);
                     return true;
                 case ESM4::REC_VTYP:
-                    break;
                 case ESM4::REC_WATR:
                     break;
                 case ESM4::REC_WEAP:

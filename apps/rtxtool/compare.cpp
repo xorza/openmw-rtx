@@ -223,6 +223,8 @@ namespace RtxTool
         for (std::int32_t at = -radius; at <= radius; ++at)
         {
             const float weight = std::exp(-0.5f * static_cast<float>(at * at) / (sigma * sigma));
+            // An index from signed steps, whole and in range before it is widened.
+            // NOLINTNEXTLINE(bugprone-misplaced-widening-cast)
             kernel[static_cast<std::size_t>(at + radius)] = weight;
             total += weight;
         }
@@ -251,6 +253,8 @@ namespace RtxTool
                 {
                     float sum = 0.0f;
                     for (std::int32_t at = -radius; at <= radius; ++at)
+                        // An index from signed steps, whole and in range before it is widened.
+                        // NOLINTNEXTLINE(bugprone-misplaced-widening-cast)
                         sum += kernel[static_cast<std::size_t>(at + radius)] * difference[index(x + at, y) + channel];
                     across[index(x, y) + channel] = sum;
                 }
@@ -264,6 +268,8 @@ namespace RtxTool
                 {
                     float sum = 0.0f;
                     for (std::int32_t at = -radius; at <= radius; ++at)
+                        // An index from signed steps, whole and in range before it is widened.
+                        // NOLINTNEXTLINE(bugprone-misplaced-widening-cast)
                         sum += kernel[static_cast<std::size_t>(at + radius)] * across[index(x, y + at) + channel];
                     pixelWorst = std::max(pixelWorst, std::abs(sum));
                 }

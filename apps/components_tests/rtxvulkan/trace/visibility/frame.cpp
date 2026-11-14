@@ -350,6 +350,8 @@ namespace Rtx::Testing
                                 ASSERT_EQ(pixels[i + 3], 255) << "the dither reached the alpha of pixel " << i / 4;
                                 const int step = int{ pixels[i] } - byte;
                                 ASSERT_LE(std::abs(step), 1) << "pixel " << i / 4 << " at " << level;
+                                // An index from signed steps, whole and in range before it is widened.
+                                // NOLINTNEXTLINE(bugprone-misplaced-widening-cast)
                                 ++counts[static_cast<std::size_t>(step + 1)];
                                 sum += pixels[i];
                                 turned += !previous.empty() && previous[i] != pixels[i] ? 1 : 0;

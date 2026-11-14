@@ -98,6 +98,8 @@ namespace Rtx
 
     std::optional<VkSurfaceCapabilitiesKHR> Surface::getCapabilities(const VkPhysicalDevice device) const
     {
+        // Zeroed, as the API means its structures and flag sets to start.
+        // NOLINTNEXTLINE(bugprone-invalid-enum-default-initialization)
         VkSurfaceCapabilitiesKHR capabilities{};
         const VkResult result = mGetCapabilities(device, mHandle, &capabilities);
         if (result == VK_ERROR_SURFACE_LOST_KHR)

@@ -15,7 +15,9 @@ namespace MWWorld
             Base::registerClass(instance);
         }
 
-    protected:
+    private:
+        friend Derived;
+
         explicit RegisteredClass(unsigned type)
             : Base(type)
         {

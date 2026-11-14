@@ -133,9 +133,13 @@ namespace MWMechanics
         /// @param time value from [0,20]
         void setTimeToStartDrowning(float time);
 
+        // Hides the base's member on purpose: it is called through the derived type.
+        // NOLINTNEXTLINE(bugprone-derived-method-shadowing-base-method)
         void writeState(ESM::CreatureStats& state) const;
         void writeState(ESM::NpcStats& state) const;
 
+        // Hides the base's member on purpose: it is called through the derived type.
+        // NOLINTNEXTLINE(bugprone-derived-method-shadowing-base-method)
         void readState(const ESM::CreatureStats& state);
         void readState(const ESM::NpcStats& state);
 

@@ -106,9 +106,12 @@ namespace RtxTool
             EXPECT_NEAR(arriving, 5.0, 1e-6) << "the speed the key is passed at";
 
             const CruiseJoins own{ .mTo = 10.0 };
-            for (double at = 0.0; at <= 12.0; at += 0.5)
+            for (int half = 0; half <= 24; ++half)
+            {
+                const double at = static_cast<double>(half) / 2.0;
                 EXPECT_DOUBLE_EQ(cruise.coveredAt(sFromRest, 12.0, at, own), cruise.coveredAt(sFromRest, 12.0, at))
                     << "frame " << at;
+            }
             EXPECT_NE(cruise.coveredAt(sFromRest, 12.0, 10.0, slower), cruise.coveredAt(sFromRest, 12.0, 10.0, own));
 
             const CruiseLeg brief{ .mLength = 20.0, .mFromRest = true };

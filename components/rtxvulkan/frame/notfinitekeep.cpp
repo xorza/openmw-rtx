@@ -180,7 +180,7 @@ namespace Rtx
                 .mFirst = placeOf(kept.mFirst[at]),
                 .mTexels = {},
             });
-            const std::uint32_t* const texels = &kept.mTexels[at * Shaders::KEEP_TEXELS * 4];
+            const std::uint32_t* const texels = &kept.mTexels[static_cast<std::size_t>(at * Shaders::KEEP_TEXELS * 4)];
             for (std::uint32_t texel = 0; texel < Shaders::KEEP_TEXELS; ++texel)
                 for (std::uint32_t word = 0; word < 4; ++word)
                     read.mTexels[texel][word] = texels[texel * 4 + word];

@@ -1,4 +1,5 @@
 #include <array>
+#include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <vector>
@@ -142,7 +143,7 @@ namespace MyGUIRtx
                     {
                         const osg::Vec4f colour = image->getColor(x, y);
                         for (int channel = 0; channel < 4; ++channel)
-                            read.push_back(static_cast<std::uint8_t>(colour[channel] * 255.0f + 0.5f));
+                            read.push_back(static_cast<std::uint8_t>(std::lround(colour[channel] * 255.0f)));
                     }
 
                 Rtx::Testing::CountingRenderer renderer;
@@ -159,7 +160,7 @@ namespace MyGUIRtx
             const osg::ref_ptr<osg::Texture2D> texture = new osg::Texture2D(floats);
             const SharedTexture mirror(renderer, *texture);
             ASSERT_EQ(renderer.mLending.size(), std::size_t{ width * height * 4 });
-            EXPECT_EQ(renderer.mLending[4], static_cast<std::uint8_t>(4.0f / 23.0f * 255.0f + 0.5f));
+            EXPECT_EQ(renderer.mLending[4], static_cast<std::uint8_t>(std::lround(4.0f / 23.0f * 255.0f)));
 
             // **What `getColor` cannot read, read as GL samples it**: an X8 file's spare byte is
             // no alpha, and an old mod's sixteen-bit words are their channels, where `getColor`

@@ -138,8 +138,9 @@ namespace Graphite
         // Rounding to the grid can land a hair under the floor: a step a grid's worth up at a time,
         // which white, clearing it, bounds.
         constexpr double sStep = 1.0 / 255.0;
-        for (double lightness = clears; lightness <= 1.0 + sStep; lightness += sStep)
+        for (int step = 0; clears + sStep * static_cast<double>(step) <= 1.0 + sStep; ++step)
         {
+            const double lightness = clears + sStep * static_cast<double>(step);
             const QRgb rounded = opaqueOf(atLightness(std::min(lightness, 1.0), lab[1], lab[2]));
             if (contrast(rounded, ground) >= floor)
                 return rounded;

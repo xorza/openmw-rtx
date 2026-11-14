@@ -52,6 +52,8 @@ namespace MWDialogue
         // NOLINTNEXTLINE(google-explicit-constructor)
         JournalEntry(const ESM::JournalEntry& record);
 
+        // Hides the base's member on purpose: it is called through the derived type.
+        // NOLINTNEXTLINE(bugprone-derived-method-shadowing-base-method)
         void write(ESM::JournalEntry& entry) const;
 
         static JournalEntry makeFromQuest(const ESM::RefId& topic, int index);
@@ -74,6 +76,8 @@ namespace MWDialogue
         // NOLINTNEXTLINE(google-explicit-constructor)
         StampedJournalEntry(const ESM::JournalEntry& record);
 
+        // Hides the base's member on purpose: it is called through the derived type.
+        // NOLINTNEXTLINE(bugprone-derived-method-shadowing-base-method)
         void write(ESM::JournalEntry& entry) const;
 
         static StampedJournalEntry makeFromQuest(const ESM::RefId& topic, int index, const MWWorld::Ptr& actor);

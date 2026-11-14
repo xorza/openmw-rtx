@@ -143,7 +143,6 @@ int MWDialogue::SelectWrapper::getArgument() const
         case ESM::DialogueCondition::Function_PcFatigue:
             return 2;
         case ESM::DialogueCondition::Function_PcHealth:
-            return 0;
         default:
             return 0;
     }

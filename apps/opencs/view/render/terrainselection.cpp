@@ -176,8 +176,12 @@ void CSVRender::TerrainSelection::drawTextureSelection(const osg::ref_ptr<osg::V
                 for (int i = 1; i < (textureSizeToLandSizeModifier + 1); i++)
                 {
                     float drawPreviousX = CSMWorld::CellCoordinates::textureGlobalXToWorldCoords(x)
+                        // A whole-number division on purpose.
+                        // NOLINTNEXTLINE(bugprone-integer-division)
                         + static_cast<float>((i - 1) * (ESM::Land::REAL_SIZE / (ESM::Land::LAND_SIZE - 1)));
                     float drawCurrentX = CSMWorld::CellCoordinates::textureGlobalXToWorldCoords(x)
+                        // A whole-number division on purpose.
+                        // NOLINTNEXTLINE(bugprone-integer-division)
                         + static_cast<float>(i * (ESM::Land::REAL_SIZE / (ESM::Land::LAND_SIZE - 1)));
                     vertices->push_back(
                         osg::Vec3f(drawPreviousX, CSMWorld::CellCoordinates::textureGlobalYToWorldCoords(y + 1),
@@ -194,8 +198,12 @@ void CSVRender::TerrainSelection::drawTextureSelection(const osg::ref_ptr<osg::V
                 for (int i = 1; i < (textureSizeToLandSizeModifier + 1); i++)
                 {
                     float drawPreviousX = CSMWorld::CellCoordinates::textureGlobalXToWorldCoords(x)
+                        // A whole-number division on purpose.
+                        // NOLINTNEXTLINE(bugprone-integer-division)
                         + static_cast<float>((i - 1) * (ESM::Land::REAL_SIZE / (ESM::Land::LAND_SIZE - 1)));
                     float drawCurrentX = CSMWorld::CellCoordinates::textureGlobalXToWorldCoords(x)
+                        // A whole-number division on purpose.
+                        // NOLINTNEXTLINE(bugprone-integer-division)
                         + static_cast<float>(i * (ESM::Land::REAL_SIZE / (ESM::Land::LAND_SIZE - 1)));
                     vertices->push_back(
                         osg::Vec3f(drawPreviousX, CSMWorld::CellCoordinates::textureGlobalYToWorldCoords(y),
@@ -212,8 +220,12 @@ void CSVRender::TerrainSelection::drawTextureSelection(const osg::ref_ptr<osg::V
                 for (int i = 1; i < (textureSizeToLandSizeModifier + 1); i++)
                 {
                     float drawPreviousY = CSMWorld::CellCoordinates::textureGlobalYToWorldCoords(y)
+                        // A whole-number division on purpose.
+                        // NOLINTNEXTLINE(bugprone-integer-division)
                         + static_cast<float>((i - 1) * (ESM::Land::REAL_SIZE / (ESM::Land::LAND_SIZE - 1)));
                     float drawCurrentY = CSMWorld::CellCoordinates::textureGlobalYToWorldCoords(y)
+                        // A whole-number division on purpose.
+                        // NOLINTNEXTLINE(bugprone-integer-division)
                         + static_cast<float>(i * (ESM::Land::REAL_SIZE / (ESM::Land::LAND_SIZE - 1)));
                     vertices->push_back(osg::Vec3f(CSMWorld::CellCoordinates::textureGlobalXToWorldCoords(x + 1),
                         drawPreviousY, static_cast<float>(calculateLandHeight(x2, y1 + (i - 1)))));
@@ -228,8 +240,12 @@ void CSVRender::TerrainSelection::drawTextureSelection(const osg::ref_ptr<osg::V
                 for (int i = 1; i < (textureSizeToLandSizeModifier + 1); i++)
                 {
                     float drawPreviousY = CSMWorld::CellCoordinates::textureGlobalYToWorldCoords(y)
+                        // A whole-number division on purpose.
+                        // NOLINTNEXTLINE(bugprone-integer-division)
                         + static_cast<float>((i - 1) * (ESM::Land::REAL_SIZE / (ESM::Land::LAND_SIZE - 1)));
                     float drawCurrentY = CSMWorld::CellCoordinates::textureGlobalYToWorldCoords(y)
+                        // A whole-number division on purpose.
+                        // NOLINTNEXTLINE(bugprone-integer-division)
                         + static_cast<float>(i * (ESM::Land::REAL_SIZE / (ESM::Land::LAND_SIZE - 1)));
                     vertices->push_back(osg::Vec3f(CSMWorld::CellCoordinates::textureGlobalXToWorldCoords(x),
                         drawPreviousY, static_cast<float>(calculateLandHeight(x1, y1 + (i - 1)))));

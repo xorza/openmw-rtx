@@ -18,6 +18,8 @@ namespace CSMWorld
     struct Land : public ESM::Land
     {
         /// Loads the metadata and ID
+        // Hides the base's member on purpose: it is called through the derived type.
+        // NOLINTNEXTLINE(bugprone-derived-method-shadowing-base-method)
         void load(ESM::ESMReader& esm, bool& isDeleted);
 
         static std::string createUniqueRecordId(int x, int y);

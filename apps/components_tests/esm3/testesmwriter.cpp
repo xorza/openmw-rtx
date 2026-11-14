@@ -13,6 +13,8 @@ namespace ESM
     {
         using namespace ::testing;
 
+        // The same sequence each run, on purpose.
+        // NOLINTNEXTLINE(bugprone-random-generator-seed)
         struct Esm3EsmWriterTest : public Test
         {
             std::minstd_rand mRandom;

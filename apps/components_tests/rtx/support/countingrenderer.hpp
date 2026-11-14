@@ -150,7 +150,11 @@ namespace Rtx::Testing
             Rtx::StructureRevision mRevision;
         };
 
+        // Hides the base's member on purpose: it is called through the derived type.
+        // NOLINTNEXTLINE(bugprone-derived-method-shadowing-base-method)
         Built& heldAt(Rtx::SceneSlot slot) { return slot.isWorld() ? mBuilt : mViewBuilt[slot.getViewIndex()]; }
+        // Hides the base's member on purpose: it is called through the derived type.
+        // NOLINTNEXTLINE(bugprone-derived-method-shadowing-base-method)
         const Built& heldAt(Rtx::SceneSlot slot) const
         {
             return slot.isWorld() ? mBuilt : mViewBuilt[slot.getViewIndex()];

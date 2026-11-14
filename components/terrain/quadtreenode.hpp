@@ -43,6 +43,8 @@ namespace Terrain
         ~QuadTreeNode() override;
 
         inline QuadTreeNode* getParent() { return mParent; }
+        // Hides the base's member on purpose: it is called through the derived type.
+        // NOLINTNEXTLINE(bugprone-derived-method-shadowing-base-method)
         inline QuadTreeNode* getChild(unsigned int i) { return static_cast<QuadTreeNode*>(Group::getChild(i)); }
         inline unsigned int getNumChildren() const override { return static_cast<unsigned int>(_children.size()); }
 

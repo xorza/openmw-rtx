@@ -199,6 +199,8 @@ namespace MWWorld
             mRendering->setSkyEnabled(false);
     }
 
+    // The same sequence each run, on purpose.
+    // NOLINTNEXTLINE(bugprone-random-generator-seed)
     World::World(Resource::ResourceSystem* resourceSystem, int activationDistanceOverride, const std::string& startCell,
         const std::filesystem::path& userDataPath, const std::filesystem::path& cachePath)
         : mResourceSystem(resourceSystem)
@@ -332,7 +334,11 @@ namespace MWWorld
             {
                 ESM::Position pos;
                 const int cellSize = Constants::CellSizeInUnits;
+                // A whole-number division on purpose.
+                // NOLINTNEXTLINE(bugprone-integer-division)
                 pos.pos[0] = cellSize / 2;
+                // A whole-number division on purpose.
+                // NOLINTNEXTLINE(bugprone-integer-division)
                 pos.pos[1] = cellSize / 2;
                 pos.pos[2] = 0;
                 pos.rot[0] = 0;
@@ -2754,6 +2760,8 @@ namespace MWWorld
             if (comma != std::string::npos)
             {
                 int x = 0, y = 0;
+                // The view is handed on with its size beside it.
+                // NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage)
                 std::from_chars_result xResult = std::from_chars(nameId.data(), nameId.data() + comma, x);
                 std::from_chars_result yResult
                     = std::from_chars(nameId.data() + comma + 1, nameId.data() + nameId.size(), y);

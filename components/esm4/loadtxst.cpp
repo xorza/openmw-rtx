@@ -71,6 +71,8 @@ void ESM4::TextureSet::load(ESM4::Reader& reader)
             case ESM::fourCC("TX06"):
                 reader.getZString(mMultiLayer);
                 break;
+            // Each branch states its own case, kept apart to be read and changed as its own.
+            // NOLINTBEGIN(bugprone-branch-clone)
             case ESM::fourCC("TX07"):
                 // This is a "smooth specular" map in FO4/76
                 reader.getZString(mSpecular);
@@ -78,6 +80,7 @@ void ESM4::TextureSet::load(ESM4::Reader& reader)
             case ESM::fourCC("TX08"): // FO76
                 reader.getZString(mSpecular);
                 break;
+            // NOLINTEND(bugprone-branch-clone)
             case ESM::fourCC("TX09"): // FO76
                 reader.getZString(mLighting);
                 break;

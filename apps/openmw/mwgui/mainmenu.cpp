@@ -151,6 +151,8 @@ namespace MWGui
                 MWBase::Environment::get().getWindowManager()->setKeyFocusWidget(mButtons["return"]);
         }
 
+        // Calls past its parent's override on purpose.
+        // NOLINTNEXTLINE(bugprone-parent-virtual-call)
         Layout::setVisible(visible);
     }
 

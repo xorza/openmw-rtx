@@ -71,7 +71,7 @@ namespace
     {
         // An object pointer becomes a function pointer, which no cast spells portably.
         // NOLINTNEXTLINE(bugprone-bitwise-pointer-cast)
-        memcpy(&dest, &src, sizeof(src));
+        memcpy(static_cast<void*>(&dest), static_cast<const void*>(&src), sizeof(src));
     }
 
     template <typename T>
@@ -517,8 +517,6 @@ namespace MWSound
                 mSilence = 0x80;
                 break;
             case SampleType_Int16:
-                mSilence = 0x00;
-                break;
             case SampleType_Float32:
                 mSilence = 0x00;
                 break;

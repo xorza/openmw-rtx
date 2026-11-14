@@ -50,6 +50,8 @@ namespace CSVWorld
 
         void update(const std::string& source);
 
+        // Hides the base's member on purpose: it is called through the derived type.
+        // NOLINTNEXTLINE(bugprone-derived-method-shadowing-base-method)
         void clear();
 
         /// Clear local variable cache for \a script.

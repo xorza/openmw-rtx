@@ -171,6 +171,8 @@ namespace EsmLoader
                     if (query.mLoadStatics)
                         return loadRecord(reader, content.mStatics);
                     break;
+                default:
+                    break;
             }
 
             reader.skipRecord();

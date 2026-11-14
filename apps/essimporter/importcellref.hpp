@@ -29,6 +29,8 @@ namespace ESSImport
 
         void load(ESM::ESMReader& esm);
 
+        // Hides the base's member on purpose: it is called through the derived type.
+        // NOLINTNEXTLINE(bugprone-derived-method-shadowing-base-method)
         ~CellRef() = default;
     };
 

@@ -186,6 +186,8 @@ namespace Nif
             NiParticles::read(nif);
         else
         {
+            // Calls past its parent's override on purpose.
+            // NOLINTNEXTLINE(bugprone-parent-virtual-call)
             NiAVObject::read(nif);
 
             nif->read(mBoundingSphere);

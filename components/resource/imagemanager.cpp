@@ -24,7 +24,7 @@ namespace
         unsigned char* data = warningImage->data();
         for (int i = 0; i < width * height; ++i)
         {
-            data[3 * i] = (255);
+            data[static_cast<std::ptrdiff_t>(3 * i)] = (255);
             data[3 * i + 1] = (0);
             data[3 * i + 2] = (255);
         }
@@ -40,6 +40,8 @@ namespace
             case GL_COMPRESSED_RGBA_S3TC_DXT3_EXT:
             case GL_COMPRESSED_RGBA_S3TC_DXT5_EXT:
                 return true;
+            default:
+                break;
         }
         return false;
     }

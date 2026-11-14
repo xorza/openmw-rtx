@@ -84,6 +84,8 @@ void CSVWorld::NotEditableSubDelegate::setEditorData(QWidget* editor, const QMod
 
     auto columnId = static_cast<CSMWorld::Columns::ColumnId>(mTable->getColumnId(index.column()));
 
+    // Each branch states its own case, kept apart to be read and changed as its own.
+    // NOLINTBEGIN(bugprone-branch-clone)
     if (QMetaType::QString == v.typeId())
     {
         label->setText(v.toString());
@@ -99,6 +101,7 @@ void CSVWorld::NotEditableSubDelegate::setEditorData(QWidget* editor, const QMod
     {
         label->setText(v.toString());
     }
+    // NOLINTEND(bugprone-branch-clone)
 }
 
 void CSVWorld::NotEditableSubDelegate::setModelData(

@@ -1,4 +1,5 @@
 #include <array>
+#include <cmath>
 #include <cstdint>
 #include <vector>
 
@@ -64,7 +65,7 @@ namespace Rtx
             for (const std::uint32_t shown : sides)
                 for (const double scale : scales)
                 {
-                    const auto traced = static_cast<std::uint32_t>(shown * scale + 0.5);
+                    const auto traced = static_cast<std::uint32_t>(std::lround(shown * scale));
                     ASSERT_TRUE(covers(shown, traced)) << shown << " shown over " << traced << " traced";
                 }
         }

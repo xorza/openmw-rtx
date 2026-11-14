@@ -118,6 +118,8 @@ void MWMechanics::NpcStats::setFactionRank(const ESM::RefId& faction, int newRan
             do
                 it->second = newRank;
             // Does the new rank exist?
+            // The step inside the test is the loop it means.
+            // NOLINTNEXTLINE(bugprone-inc-dec-in-conditions)
             while (newRank > 0 && factionPtr->mRanks[newRank--].empty());
     }
 }

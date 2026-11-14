@@ -63,6 +63,8 @@ namespace Interpreter
 
                 return getDispatcher(mSegment2, 2, opcode)->execute(mRuntime, arg0);
             }
+            default:
+                break;
         }
 
         segSpec = code >> 26;
@@ -83,6 +85,8 @@ namespace Interpreter
 
                 return getDispatcher(mSegment5, 5, opcode)->execute(mRuntime);
             }
+            default:
+                break;
         }
 
         abortUnknownSegment(code);

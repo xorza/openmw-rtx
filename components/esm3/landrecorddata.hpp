@@ -26,7 +26,7 @@ namespace ESM
         float mMaxHeight = 0;
 
         // 24-bit normals, these aren't always correct though. Edge and corner normals may be garbage.
-        std::array<std::int8_t, 3 * sLandNumVerts> mNormals;
+        std::array<std::int8_t, std::size_t{ 3 } * sLandNumVerts> mNormals;
 
         // 2D array of texture indices. An index can be used to look up an LandTexture,
         // but to do so you must subtract 1 from the index first!
@@ -34,7 +34,7 @@ namespace ESM
         std::array<std::uint16_t, sLandNumTextures> mTextures;
 
         // 24-bit RGB color for each vertex
-        std::array<std::uint8_t, 3 * sLandNumVerts> mColours;
+        std::array<std::uint8_t, std::size_t{ 3 } * sLandNumVerts> mColours;
 
         int mDataLoaded = 0;
     };

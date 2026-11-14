@@ -564,6 +564,8 @@ namespace MWGui
                 case 5:
                     onOkClicked(mButtons[5]);
                     break;
+                default:
+                    break;
             }
             return true;
         }

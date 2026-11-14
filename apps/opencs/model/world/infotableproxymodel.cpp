@@ -71,6 +71,8 @@ int CSMWorld::InfoTableProxyModel::getFirstInfoRow(int currentRow) const
         return mFirstRowCache[info];
     }
 
+    // The step inside the test is the loop it means.
+    // NOLINTNEXTLINE(bugprone-inc-dec-in-conditions)
     while (--row >= 0 && toLower(mSourceModel->data(mSourceModel->index(row, column)).toString()) == info)
         ;
     ++row;

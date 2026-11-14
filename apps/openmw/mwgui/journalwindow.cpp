@@ -288,6 +288,8 @@ namespace
             mTopicIndexBook.reset();
         }
 
+        // Calls past its parent's override on purpose.
+        // NOLINTNEXTLINE(bugprone-parent-virtual-call)
         void setVisible(bool newValue) override { WindowBase::setVisible(newValue); }
 
         void setBookMode()

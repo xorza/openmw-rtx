@@ -32,7 +32,7 @@ namespace SDLUtil
             resolutions.push_back({ .mWidth = displayPixels(mode.w, mode.pixel_density),
                 .mHeight = displayPixels(mode.h, mode.pixel_density) });
         }
-        SDL_free(modes);
+        SDL_free(static_cast<void*>(modes));
 
         const auto key = [](const DisplayResolution& r) { return std::pair(r.mWidth, r.mHeight); };
         std::ranges::sort(resolutions, std::ranges::greater{}, key);

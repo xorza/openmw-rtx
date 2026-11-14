@@ -167,7 +167,7 @@ namespace MWGui
         mRightPageNumber->setCaption(MyGUI::utility::toString(mCurrentPage * 2 + 2));
 
         MyGUI::Widget* focus = MyGUI::InputManager::getInstance().getKeyFocusWidget();
-        bool nextPageVisible = (mCurrentPage + 1) * 2 < mPages.size();
+        bool nextPageVisible = (static_cast<std::size_t>(mCurrentPage + 1)) * 2 < mPages.size();
         mNextPageButton->setVisible(nextPageVisible);
         bool prevPageVisible = mCurrentPage != 0;
         mPrevPageButton->setVisible(prevPageVisible);
@@ -183,11 +183,11 @@ namespace MWGui
         MyGUI::Widget* paper = nullptr;
 
         paper = mLeftPage->getChildAt(0);
-        paper->setCoord(paper->getPosition().left, -mPages[mCurrentPage * 2].first, paper->getWidth(),
-            mPages[mCurrentPage * 2].second);
+        paper->setCoord(paper->getPosition().left, -mPages[static_cast<std::size_t>(mCurrentPage) * 2].first,
+            paper->getWidth(), mPages[static_cast<std::size_t>(mCurrentPage) * 2].second);
 
         paper = mRightPage->getChildAt(0);
-        if ((mCurrentPage + 1) * 2 <= mPages.size())
+        if ((static_cast<std::size_t>(mCurrentPage + 1)) * 2 <= mPages.size())
         {
             paper->setCoord(paper->getPosition().left, -mPages[mCurrentPage * 2 + 1].first, paper->getWidth(),
                 mPages[mCurrentPage * 2 + 1].second);
@@ -201,7 +201,7 @@ namespace MWGui
 
     void BookWindow::nextPage()
     {
-        if ((mCurrentPage + 1) * 2 < mPages.size())
+        if ((static_cast<std::size_t>(mCurrentPage + 1)) * 2 < mPages.size())
         {
             MWBase::Environment::get().getWindowManager()->playSound(ESM::RefId::stringRefId("book page2"));
 

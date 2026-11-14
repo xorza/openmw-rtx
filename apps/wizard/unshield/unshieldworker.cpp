@@ -958,6 +958,8 @@ QStringList Wizard::UnshieldWorker::findFiles(
                     if (info.fileName().endsWith(fileName, Qt::CaseInsensitive))
                         result.append(info.absoluteFilePath());
                     break;
+                default:
+                    break;
             }
         }
     }

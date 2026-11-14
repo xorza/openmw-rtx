@@ -819,9 +819,6 @@ void CSVWorld::Table::tableSizeUpdate()
                         ++size;
                         break;
                     case CSMWorld::RecordBase::State_Modified:
-                        ++size;
-                        ++modified;
-                        break;
                     case CSMWorld::RecordBase::State_ModifiedOnly:
                         ++size;
                         ++modified;
@@ -829,6 +826,8 @@ void CSVWorld::Table::tableSizeUpdate()
                     case CSMWorld::RecordBase::State_Deleted:
                         ++deleted;
                         ++modified;
+                        break;
+                    default:
                         break;
                 }
             }

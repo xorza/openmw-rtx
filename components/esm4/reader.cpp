@@ -289,12 +289,15 @@ namespace ESM4
         if (getExact(modVer)) // get the first 4 bytes of the record header only
         {
             // FIXME: need to setup header/context
+            // Each branch states its own case, kept apart to be read and changed as its own.
+            // NOLINTBEGIN(bugprone-branch-clone)
             if (modVer == REC_TES4)
             {
             }
             else
             {
             }
+            // NOLINTEND(bugprone-branch-clone)
         }
 
         throw std::runtime_error("Unknown file format"); // can't yet use fail() as mCtx is not setup
@@ -921,7 +924,7 @@ namespace ESM4
         std::string buffer;
         while (true)
         {
-            std::string_view value(inputView.data());
+            std::string_view value = inputView.substr(0, inputView.find('\0'));
             const std::size_t next = inputView.find_first_not_of('\0', value.size());
             if (mEncoder != nullptr)
                 value = mEncoder->getUtf8(value, ToUTF8::BufferAllocationPolicy::UseGrowFactor, buffer);

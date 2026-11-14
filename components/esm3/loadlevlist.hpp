@@ -44,7 +44,9 @@ namespace ESM
         ///< Set record to default state (does not touch the ID).
     };
 
+    // Records are brace-initialized aggregates, whose construction must reach this base's.
     template <class Base>
+    // NOLINTNEXTLINE(bugprone-crtp-constructor-accessibility)
     struct CustomLevelledListBase : LevelledListBase
     {
         void load(ESMReader& esm, bool& isDeleted) { LevelledListBase::load(esm, Base::sRecName, isDeleted); }

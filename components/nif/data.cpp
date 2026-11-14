@@ -211,7 +211,7 @@ namespace Nif
         if (mNumVertices < 2)
             return;
         // There can't be more than 2 indices for each vertex
-        mLines.reserve(mNumVertices * 2);
+        mLines.reserve(static_cast<std::size_t>(mNumVertices) * 2);
         // Convert connectivity flags into usable geometry. The last element needs special handling.
         for (uint16_t i = 0; i < mNumVertices - 1; ++i)
         {
@@ -301,7 +301,7 @@ namespace Nif
         const auto numPixels = nif->get<uint32_t>();
         if (nif->getVersion() >= NIFStream::generateVersion(10, 4, 0, 2))
             nif->read(mNumFaces);
-        nif->readVector(mData, numPixels * mNumFaces);
+        nif->readVector(mData, static_cast<std::size_t>(numPixels) * mNumFaces);
     }
 
     void NiPixelData::post(Reader& nif)
@@ -487,7 +487,7 @@ namespace Nif
                     nif->readVector(mStrips.emplace_back(), stripLengths[i]);
             }
             else
-                nif->readVector(mTriangles, numTriangles * 3);
+                nif->readVector(mTriangles, static_cast<std::size_t>(numTriangles) * 3);
         }
         if (nif->get<uint8_t>() != 0)
             nif->readVector(mBoneIndices, static_cast<size_t>(numVertices) * bonesPerVertex);
@@ -498,7 +498,7 @@ namespace Nif
             if (nif->getBethVersion() == NIFFile::BethVersion::BETHVER_SSE)
             {
                 mVertexDesc.read(nif);
-                nif->readVector(mTrueTriangles, numTriangles * 3);
+                nif->readVector(mTrueTriangles, static_cast<std::size_t>(numTriangles) * 3);
             }
         }
 

@@ -153,7 +153,7 @@ namespace RtxTool
                 std::uint64_t mFrame = 0;
                 std::uint32_t mNumber = 0;
             };
-            using FilmFrames = std::array<FilmFrame, 2 * Rtx::sFramesInFlight>;
+            using FilmFrames = std::array<FilmFrame, std::size_t{ 2 } * Rtx::sFramesInFlight>;
             FilmFrames mFilmFrames{};
             std::size_t mFilmPending = 0;
 

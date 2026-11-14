@@ -16,6 +16,8 @@ namespace ContentSelectorModel
 
         ~ModelItem() override;
 
+        // Hides the base's member on purpose: it is called through the derived type.
+        // NOLINTNEXTLINE(bugprone-derived-method-shadowing-base-method)
         ModelItem* parent() const;
         int row() const;
 

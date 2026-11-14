@@ -88,6 +88,8 @@ namespace ESM
                 return GameFormat::TES5;
             case VER_095:
                 return GameFormat::FO4;
+            default:
+                break;
         }
         return GameFormat::Unknown;
     }
