@@ -24,6 +24,7 @@ from omw import (
     remote,
     repeat,
     testing,
+    tidy,
     tour,
 )
 from omw.build import FLAVOURS, Build
@@ -48,6 +49,11 @@ omw [flavour] <verb> [args]: one grammar for every build, on the desk and in CI,
                                two runs of one binary walk one place and must agree
   kernels [--against=<file>]   one digest per shader and tuple of its constants; against an earlier
                                listing, which tuples moved
+  tidy [--fix] [--changed] [file...]
+                               the pinned clang-tidy under `.clang-tidy` over the sources of apps/ and
+                               components/ the build compiles, those the working tree changed and their
+                               includers, or those the files named are or are included by; --fix
+                               applies the fixes, then formats the changed files as build does
   integration [script args]    upstream's integration tests, which drive the game, on the example
                                suite at the revision its GitLab pipeline pins
   gate                         {gate}
@@ -153,6 +159,7 @@ BUILD_VERBS = {
     "repeat": Verb(repeat.repeat),
     "kernels": Verb(kernels.kernels),
     "integration": Verb(integration.integration),
+    "tidy": Verb(tidy.tidy),
     "gate": Verb(gate.gate, flavour="debug"),
     "exec": Verb(_exec),
     "archive": Verb(package.archive, flavour="release"),

@@ -42,6 +42,24 @@ CLANG_FORMAT = {
     ),
 }
 
+# The clang-tidy every desk and CI lints with (`deps.clang_tidy`), by system: the PyPI wheels, about 45 MB with
+# their builtin headers, built for glibc 2.28 as the Linux legs' AlmaLinux 8 is. 23.1.4, a point behind the
+# compiler, as no 23.1.5 wheel is published yet; a build of our own at the compiler's version is in the to-do list.
+# The digests are PyPI's.
+CLANG_TIDY_VERSION = "23.1.4"
+CLANG_TIDY = {
+    "linux": Pin(
+        "https://files.pythonhosted.org/packages/80/85/9b483f300124a9245ec6da8975612f1841e26da13b27ad8d17f2006e13bd/"
+        f"clang_tidy-{CLANG_TIDY_VERSION}-py2.py3-none-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl",
+        "6bb31e4f319ecbe14acb75f23c3050d0f1d4b1d92ea1c66091bc76e4eac2c1ac",
+    ),
+    "windows": Pin(
+        "https://files.pythonhosted.org/packages/c0/49/b2adbdedbe430d0cce9b354a679d57e28692ce2fb59a575486784d438125/"
+        f"clang_tidy-{CLANG_TIDY_VERSION}-py2.py3-none-win_amd64.whl",
+        "8107e05930f53dc477dbb5fb8108d7c10464176fc95d3e58f4ee7317887aed59",
+    ),
+}
+
 # gersemi, the CMake files' formatter (`deps.gersemi`), by system and by the CPython it runs under: its
 # layout is computed in Rust, built into each wheel for one interpreter's ABI, so the wheel follows the
 # Python that runs the driver, 3.10 and later. The digests are PyPI's. Exact, as clang-format's is.

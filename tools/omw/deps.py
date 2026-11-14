@@ -65,6 +65,41 @@ def clang_format() -> Path:
     return _fetched_once(clang_format_dir(), fill) / program
 
 
+def clang_tidy_dir() -> Path:
+    return pinned_folder("clang-tidy", pins.CLANG_TIDY[SYSTEM])
+
+
+# The wheel's tree below this prefix is the one LLVM installs: `bin/` and the builtin headers in `lib/clang/`.
+_CLANG_TIDY_TREE = "clang_tidy/data/"
+
+
+def clang_tidy() -> Path:
+    """**The clang-tidy every desk and CI lints with**, out of the wheel `pins.py` names for this system, read and
+    never installed. With the builtin headers beside it as LLVM lays them out, which it finds from its own path, and
+    `clang-apply-replacements` (`clang_apply_replacements`), which `--fix` merges its edits with."""
+
+    def fill(partial: Path) -> None:
+        wheel = _download_into(partial, pins.CLANG_TIDY[SYSTEM])
+        with zipfile.ZipFile(wheel) as zipped:
+            for member in zipped.infolist():
+                relative = member.filename.removeprefix(_CLANG_TIDY_TREE)
+                if relative == member.filename or member.is_dir() or relative.endswith(".py"):
+                    continue
+                target = partial / relative
+                target.parent.mkdir(parents=True, exist_ok=True)
+                with zipped.open(member) as source, target.open("wb") as out:
+                    shutil.copyfileobj(source, out)
+                if not WINDOWS and relative.startswith("bin/"):
+                    target.chmod(0o755)
+        wheel.unlink()
+
+    return _fetched_once(clang_tidy_dir(), fill) / "bin" / f"clang-tidy{EXE}"
+
+
+def clang_apply_replacements() -> Path:
+    return clang_tidy().parent / f"clang-apply-replacements{EXE}"
+
+
 def gersemi_pin() -> pins.Pin:
     """The gersemi wheel for this system and the CPython running the driver, whose ABI its Rust is built for."""
     tag = f"cp{sys.version_info.major}{sys.version_info.minor}"
@@ -404,8 +439,8 @@ def vulkan_environment(env: dict[str, str]) -> None:
 def pinned_names() -> set[str]:
     """Every name in out/deps/ that the pins give this system, through the functions that name each getter's folder,
     so pruning cannot take what a getter fetched."""
-    kept = [cmake_dir(), ninja_dir(), clang_format_dir(), gersemi_dir(), vcpkg_root_dir(), appimage_tools_dir(),
-            llvm_dir(), VCPKG_BINARY_CACHE, VCPKG_DOWNLOADS, VCPKG_WORK, VCPKG_SETS,
+    kept = [cmake_dir(), ninja_dir(), clang_format_dir(), clang_tidy_dir(), gersemi_dir(), vcpkg_root_dir(),
+            appimage_tools_dir(), llvm_dir(), VCPKG_BINARY_CACHE, VCPKG_DOWNLOADS, VCPKG_WORK, VCPKG_SETS,
             held_set_dir(), vcpkg_set_dir(set_digest()), vcpkg_set_dir(pins.VCPKG_SET.digest)]
     kept += [crash_tool_dir(name) for name, system in pins.CRASH_TOOLS if system == SYSTEM]
     if WINDOWS:

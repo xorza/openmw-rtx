@@ -100,6 +100,40 @@ class NinjaTest(unittest.TestCase):
             self.assertEqual(fetched.call_count, 1, "a Ninja already there was fetched again")
 
 
+class ClangTidyTest(unittest.TestCase):
+    def test_the_wheel_gives_its_programs_and_builtin_headers_as_llvm_lays_them_out_and_nothing_else(self):
+        folder = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, folder)
+        pin = Pin("https://example.com/clang_tidy-test.whl", "f" * 64)
+
+        def download(_pin: Pin, file: Path) -> None:
+            file.parent.mkdir(parents=True, exist_ok=True)
+            with zipfile.ZipFile(file, "w") as zipped:
+                zipped.writestr("clang_tidy/__init__.py", b"")
+                zipped.writestr("clang_tidy/data/bin/", b"")
+                zipped.writestr(f"clang_tidy/data/bin/clang-tidy{deps.EXE}", b"#!/bin/sh\n")
+                zipped.writestr(f"clang_tidy/data/bin/clang-apply-replacements{deps.EXE}", b"#!/bin/sh\n")
+                zipped.writestr("clang_tidy/data/bin/run-clang-tidy.py", b"")
+                zipped.writestr("clang_tidy/data/lib/clang/23/include/stddef.h", b"")
+                zipped.writestr("clang_tidy-0.dist-info/RECORD", b"")
+
+        with (mock.patch.object(deps, "DEPS", folder), mock.patch.dict(deps.pins.CLANG_TIDY, {deps.SYSTEM: pin}),
+              mock.patch.object(deps.fetch, "download_pin", side_effect=download) as fetched):
+            found = deps.clang_tidy()
+            root = deps.clang_tidy_dir()
+            self.assertEqual(found, root / "bin" / f"clang-tidy{deps.EXE}")
+            self.assertEqual(deps.clang_apply_replacements(), root / "bin" / f"clang-apply-replacements{deps.EXE}")
+            # The headers where clang-tidy looks for them, `../lib/clang/<major>` from its own path; the wheel's
+            # Python, its metadata and the scripts left behind.
+            self.assertEqual(sorted(path.relative_to(root).as_posix() for path in root.rglob("*") if path.is_file()),
+                             [f"bin/clang-apply-replacements{deps.EXE}", f"bin/clang-tidy{deps.EXE}",
+                              "lib/clang/23/include/stddef.h"])
+            if not deps.WINDOWS:
+                self.assertTrue(os.access(found, os.X_OK), "the program cannot run")
+            self.assertEqual(deps.clang_tidy(), found)
+            self.assertEqual(fetched.call_count, 1, "a clang-tidy already there was fetched again")
+
+
 class PruneTest(unittest.TestCase):
     def test_what_no_pin_names_goes_and_what_one_names_stays(self):
         folder = Path(tempfile.mkdtemp())
@@ -108,6 +142,7 @@ class PruneTest(unittest.TestCase):
             kept = sorted(deps.pinned_names())
             # Every getter's folder, the formatters' among them, which a prune once took.
             self.assertIn(deps.clang_format_dir().name, kept)
+            self.assertIn(deps.clang_tidy_dir().name, kept)
             self.assertIn(deps.gersemi_dir().name, kept)
             for name in kept:
                 (folder / name).mkdir()
