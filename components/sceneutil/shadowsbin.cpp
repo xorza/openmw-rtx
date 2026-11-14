@@ -75,7 +75,7 @@ namespace SceneUtil
         StateGraph* sgNew = sg;
         do
         {
-            if (uninterestingCache.find(sgNew) != uninterestingCache.end())
+            if (uninterestingCache.contains(sgNew))
                 break;
             returnPath.push_back(sgNew);
             sgNew = sgNew->_parent;
@@ -180,7 +180,7 @@ namespace SceneUtil
         // current renderbin (if it's not there already) and the drawable is added as a renderleaf to the stategraph
         // This means our list only contains stategraph nodes with directly-attached renderleaves, but they might have
         // parents with more state set that needs to be considered.
-        if (!_stateGraphList.size())
+        if (_stateGraphList.empty())
             return;
         StateGraph* root = _stateGraphList[0];
         while (root->_parent)

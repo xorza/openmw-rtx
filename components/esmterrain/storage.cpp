@@ -142,10 +142,8 @@ namespace ESMTerrain
                 for (int col = startColumn; col < endColumn; ++col)
                 {
                     float h = data->getHeights()[col * landSize + row];
-                    if (h > max)
-                        max = h;
-                    if (h < min)
-                        min = h;
+                    max = std::max(h, max);
+                    min = std::min(h, min);
                 }
             }
             return true;

@@ -1,5 +1,6 @@
 #include "terrainstorage.hpp"
 
+#include <algorithm>
 #include <components/esm3/loadland.hpp>
 #include <components/esm4/loadltex.hpp>
 #include <components/esm4/loadtxst.hpp>
@@ -50,14 +51,10 @@ namespace MWRender
 
     static void BoundUnion(float& minX, float& maxX, float& minY, float& maxY, float x, float y)
     {
-        if (x < minX)
-            minX = x;
-        if (x > maxX)
-            maxX = x;
-        if (y < minY)
-            minY = y;
-        if (y > maxY)
-            maxY = y;
+        minX = std::min(x, minX);
+        maxX = std::max(x, maxX);
+        minY = std::min(y, minY);
+        maxY = std::max(y, maxY);
     }
 
     void TerrainStorage::getBounds(float& minX, float& maxX, float& minY, float& maxY, ESM::RefId worldspace)

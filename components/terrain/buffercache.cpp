@@ -181,7 +181,7 @@ namespace Terrain
     osg::ref_ptr<osg::Vec2Array> BufferCache::getUVBuffer(unsigned int numVerts)
     {
         std::scoped_lock lock(mUvBufferMutex);
-        if (mUvBufferMap.find(numVerts) != mUvBufferMap.end())
+        if (mUvBufferMap.contains(numVerts))
         {
             return mUvBufferMap[numVerts];
         }
@@ -213,7 +213,7 @@ namespace Terrain
         std::pair<int, int> id = std::make_pair(numVerts, flags);
         std::scoped_lock lock(mIndexBufferMutex);
 
-        if (mIndexBufferMap.find(id) != mIndexBufferMap.end())
+        if (mIndexBufferMap.contains(id))
         {
             return mIndexBufferMap[id];
         }

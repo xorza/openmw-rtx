@@ -88,11 +88,11 @@ namespace Shader
             setTextureAttribute(unit, attribute.get());
         }
 
-        bool hasUniform(const std::string& name) { return mUniforms.count(name); }
-        bool hasMode(osg::StateAttribute::GLMode mode) { return mModes.count(mode); }
+        bool hasUniform(const std::string& name) { return mUniforms.contains(name); }
+        bool hasMode(osg::StateAttribute::GLMode mode) { return mModes.contains(mode); }
         bool hasAttribute(const osg::StateAttribute::TypeMemberPair& typeMemberPair)
         {
-            return mAttributes.count(typeMemberPair);
+            return mAttributes.contains(typeMemberPair);
         }
         bool hasAttribute(osg::StateAttribute::Type type, unsigned int member)
         {

@@ -1,5 +1,6 @@
 #include "bookpage.hpp"
 
+#include <algorithm>
 #include <cassert>
 #include <optional>
 #include <utility>
@@ -465,14 +466,13 @@ namespace MWGui
         {
             add_partial_text();
 
-            if (mBook->mSections.size() > 0)
+            if (!mBook->mSections.empty())
             {
                 mRun = nullptr;
                 mLine = nullptr;
                 mSection = nullptr;
 
-                if (mBook->mRect.bottom < (mBook->mSections.back().mRect.bottom + margin))
-                    mBook->mRect.bottom = (mBook->mSections.back().mRect.bottom + margin);
+                mBook->mRect.bottom = std::max(mBook->mRect.bottom, mBook->mSections.back().mRect.bottom + margin);
             }
         }
 
@@ -705,23 +705,17 @@ namespace MWGui
                 mLine->mRect = MyGUI::IntRect(0, mSection->mRect.bottom, 0, mBook->mRect.bottom);
             }
 
-            if (mBook->mRect.right < right)
-                mBook->mRect.right = right;
+            mBook->mRect.right = std::max(mBook->mRect.right, right);
 
-            if (mBook->mRect.bottom < bottom)
-                mBook->mRect.bottom = bottom;
+            mBook->mRect.bottom = std::max(mBook->mRect.bottom, bottom);
 
-            if (mSection->mRect.right < right)
-                mSection->mRect.right = right;
+            mSection->mRect.right = std::max(mSection->mRect.right, right);
 
-            if (mSection->mRect.bottom < bottom)
-                mSection->mRect.bottom = bottom;
+            mSection->mRect.bottom = std::max(mSection->mRect.bottom, bottom);
 
-            if (mLine->mRect.right < right)
-                mLine->mRect.right = right;
+            mLine->mRect.right = std::max(mLine->mRect.right, right);
 
-            if (mLine->mRect.bottom < bottom)
-                mLine->mRect.bottom = bottom;
+            mLine->mRect.bottom = std::max(mLine->mRect.bottom, bottom);
 
             if (mRun == nullptr || mRun->mStyle != style || mRun->mRange.second != begin)
             {

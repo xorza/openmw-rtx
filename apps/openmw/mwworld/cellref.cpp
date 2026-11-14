@@ -1,5 +1,6 @@
 #include "cellref.hpp"
 
+#include <algorithm>
 #include <cassert>
 
 #include <components/debug/debuglog.hpp>
@@ -194,8 +195,7 @@ namespace MWWorld
                 float newChargeRemainder = std::modf(cellRef3.mChargeIntRemainder, &cellRef3.mChargeIntRemainder);
                 cellRef3.mChargeInt += static_cast<int>(cellRef3.mChargeIntRemainder);
                 cellRef3.mChargeIntRemainder = newChargeRemainder;
-                if (cellRef3.mChargeInt < 0)
-                    cellRef3.mChargeInt = 0;
+                cellRef3.mChargeInt = std::max(cellRef3.mChargeInt, 0);
             }
         };
         std::visit(ESM::VisitOverload{

@@ -6,6 +6,7 @@
 #include <MyGUI_RenderManager.h>
 #include <MyGUI_UString.h>
 
+#include <algorithm>
 #include <components/debug/debuglog.hpp>
 #include <components/misc/strings/algorithm.hpp>
 #include <components/settings/values.hpp>
@@ -276,10 +277,7 @@ namespace MWGui
                 buttonsHeight += buttonTopPadding;
             buttonsHeight += buttonHeight;
 
-            if (buttonWidth > biggestButtonWidth)
-            {
-                biggestButtonWidth = buttonWidth;
-            }
+            biggestButtonWidth = std::max(buttonWidth, biggestButtonWidth);
         }
 
         if (Settings::gui().mControllerMenus)

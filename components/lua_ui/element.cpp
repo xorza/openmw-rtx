@@ -196,7 +196,7 @@ namespace LuaUi
         {
             static auto widgetTypeMap = widgetTypeToName();
             std::string type = widgetType(layout);
-            if (widgetTypeMap.find(type) == widgetTypeMap.end())
+            if (!widgetTypeMap.contains(type))
                 throw std::logic_error(std::string("Invalid widget type ") += type);
 
             std::string name = layout.get_or(LayoutKeys::name, std::string());

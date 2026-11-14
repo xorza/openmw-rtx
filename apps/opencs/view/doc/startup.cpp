@@ -1,5 +1,6 @@
 #include "startup.hpp"
 
+#include <algorithm>
 #include <components/misc/scalableicon.hpp>
 
 #include <QGridLayout>
@@ -28,8 +29,7 @@ QPushButton* CSVDoc::StartupDialogue::addButton(const QString& label, const QStr
 
     int width = mLayout->itemAtPosition(1, column)->widget()->sizeHint().width();
 
-    if (width > mWidth)
-        mWidth = width;
+    mWidth = std::max(width, mWidth);
 
     return button;
 }

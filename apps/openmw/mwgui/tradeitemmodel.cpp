@@ -1,5 +1,6 @@
 #include "tradeitemmodel.hpp"
 
+#include <algorithm>
 #include <components/misc/strings/algorithm.hpp>
 #include <components/settings/values.hpp>
 
@@ -119,8 +120,7 @@ namespace MWGui
             for (auto it = list.begin(); it != list.end();)
             {
                 size_t actualCount = it->mBase.getCellRef().getCount();
-                if (actualCount < it->mCount)
-                    it->mCount = actualCount;
+                it->mCount = std::min(actualCount, it->mCount);
                 if (it->mCount == 0)
                     it = list.erase(it);
                 else

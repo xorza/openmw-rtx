@@ -65,7 +65,7 @@ void MWWorld::InventoryStore::readEquipmentState(
         // make sure the item can actually be equipped in this slot
         int32_t slot = found->second;
         std::pair<std::vector<int>, bool> allowedSlots = iter->getClass().getEquipmentSlots(*iter);
-        if (!allowedSlots.first.size())
+        if (allowedSlots.first.empty())
             return;
         if (std::find(allowedSlots.first.begin(), allowedSlots.first.end(), slot) == allowedSlots.first.end())
             slot = allowedSlots.first.front();

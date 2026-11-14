@@ -93,7 +93,7 @@ namespace SceneUtil
         stateset->removeUniform("envMapColor");
 
         osg::StateSet::TextureAttributeList& list = stateset->getTextureAttributeList();
-        while (list.size() && list.rbegin()->empty())
+        while (!list.empty() && list.rbegin()->empty())
             list.pop_back();
     }
 

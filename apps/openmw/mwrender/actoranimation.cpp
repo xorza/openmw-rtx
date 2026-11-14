@@ -554,7 +554,7 @@ namespace MWRender
 
     void ActorAnimation::addHiddenItemLight(const MWWorld::ConstPtr& item, const ESM::Light* esmLight)
     {
-        if (mItemLights.find(item) != mItemLights.end())
+        if (mItemLights.contains(item))
             return;
 
         bool exterior = mPtr.isInCell() && mPtr.getCell()->getCell()->isExterior();

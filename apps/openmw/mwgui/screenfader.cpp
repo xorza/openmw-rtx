@@ -3,6 +3,7 @@
 #include <MyGUI_Gui.h>
 #include <MyGUI_ImageBox.h>
 
+#include <algorithm>
 #include <memory>
 
 namespace MWGui
@@ -63,14 +64,12 @@ namespace MWGui
         if (mStartAlpha > mTargetAlpha)
         {
             currentAlpha -= dt / mTargetTime * (mStartAlpha - mTargetAlpha);
-            if (currentAlpha < mTargetAlpha)
-                currentAlpha = mTargetAlpha;
+            currentAlpha = std::max(currentAlpha, mTargetAlpha);
         }
         else
         {
             currentAlpha += dt / mTargetTime * (mTargetAlpha - mStartAlpha);
-            if (currentAlpha > mTargetAlpha)
-                currentAlpha = mTargetAlpha;
+            currentAlpha = std::min(currentAlpha, mTargetAlpha);
         }
 
         mFader->notifyAlphaChanged(currentAlpha);

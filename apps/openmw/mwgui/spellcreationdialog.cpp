@@ -625,7 +625,7 @@ namespace MWGui
 
     void SpellCreationDialog::onBuyButtonClicked(MyGUI::Widget* /*sender*/)
     {
-        if (mEffects.size() <= 0)
+        if (mEffects.empty())
         {
             MWBase::Environment::get().getWindowManager()->messageBox("#{sNotifyMessage30}");
             return;
@@ -1093,7 +1093,7 @@ namespace MWGui
 
             winMgr->setControllerTooltipVisible(Settings::gui().mControllerTooltips);
         }
-        else if (arg.button == SDL_GAMEPAD_BUTTON_DPAD_RIGHT && !mRightColumn && mEffectButtons.size() > 0)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_DPAD_RIGHT && !mRightColumn && !mEffectButtons.empty())
         {
             mRightColumn = true;
             if (mAvailableFocus < mAvailableButtons.size())

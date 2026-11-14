@@ -58,7 +58,7 @@ namespace MWMechanics
     {
         static std::map<ESM::RefId, ESM::RefId> summonMap;
 
-        if (summonMap.size() > 0)
+        if (!summonMap.empty())
             return summonMap;
 
         const std::map<ESM::RefId, std::string_view> summonMapToGameSetting{

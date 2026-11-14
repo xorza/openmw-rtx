@@ -31,13 +31,13 @@ void CSVWorld::RegionMap::contextMenuEvent(QContextMenuEvent* event)
 {
     QMenu menu(this);
 
-    if (getUnselectedCells().size() > 0)
+    if (!getUnselectedCells().empty())
         menu.addAction(mSelectAllAction);
 
-    if (selectionModel()->selectedIndexes().size() > 0)
+    if (!selectionModel()->selectedIndexes().empty())
         menu.addAction(mClearSelectionAction);
 
-    if (getMissingRegionCells().size() > 0)
+    if (!getMissingRegionCells().empty())
         menu.addAction(mSelectRegionsAction);
 
     int selectedNonExistentCells = getSelectedCells(false, true).size();
@@ -56,7 +56,7 @@ void CSVWorld::RegionMap::contextMenuEvent(QContextMenuEvent* event)
         menu.addAction(mCreateCellsAction);
     }
 
-    if (getSelectedCells().size() > 0)
+    if (!getSelectedCells().empty())
     {
         if (!mRegionId.empty())
         {
@@ -69,7 +69,7 @@ void CSVWorld::RegionMap::contextMenuEvent(QContextMenuEvent* event)
         menu.addAction(mViewInTableAction);
     }
 
-    if (selectionModel()->selectedIndexes().size() > 0)
+    if (!selectionModel()->selectedIndexes().empty())
         menu.addAction(mViewAction);
 
     menu.exec(event->globalPos());
@@ -147,7 +147,7 @@ QModelIndexList CSVWorld::RegionMap::getMissingRegionCells() const
     {
         std::string region = model->data(*iter, CSMWorld::RegionMap::Role_Region).toString().toUtf8().constData();
 
-        if (!region.empty() && regions.find(region) != regions.end())
+        if (!region.empty() && regions.contains(region))
             list.push_back(*iter);
     }
 

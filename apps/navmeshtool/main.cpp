@@ -141,7 +141,7 @@ namespace NavMeshTool
             bpo::store(options, variables);
             bpo::notify(variables);
 
-            if (variables.find("help") != variables.end())
+            if (variables.contains("help"))
             {
                 Debug::getRawStdout() << desc << std::endl;
                 return 0;

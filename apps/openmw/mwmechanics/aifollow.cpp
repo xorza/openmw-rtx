@@ -1,5 +1,6 @@
 #include "aifollow.hpp"
 
+#include <algorithm>
 #include <components/esm3/aisequence.hpp>
 #include <components/esm3/loadcell.hpp>
 #include <components/misc/algorithm.hpp>
@@ -130,8 +131,7 @@ namespace MWMechanics
             for (auto& follower : followers)
             {
                 auto halfExtent = getHalfExtents(follower.second);
-                if (halfExtent > floatingDistance)
-                    floatingDistance = halfExtent;
+                floatingDistance = std::max(halfExtent, floatingDistance);
             }
             floatingDistance += 128;
         }

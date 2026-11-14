@@ -3,6 +3,7 @@
 #include <MyGUI_FactoryManager.h>
 #include <MyGUI_Timer.h>
 
+#include <algorithm>
 #include <osg/Drawable>
 #include <osg/Texture2D>
 
@@ -490,10 +491,8 @@ namespace MyGUIPlatform
 
     void RenderManager::setViewSize(int width, int height)
     {
-        if (width < 1)
-            width = 1;
-        if (height < 1)
-            height = 1;
+        width = std::max(width, 1);
+        height = std::max(height, 1);
 
         mGuiRoot->setViewport(0, 0, width, height);
 

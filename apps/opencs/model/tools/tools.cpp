@@ -172,7 +172,7 @@ CSMWorld::UniversalId CSMTools::Tools::runVerifier(const CSMWorld::UniversalId& 
     int reportNumber = reportId.getType() == CSMWorld::UniversalId::Type_VerificationResults ? reportId.getIndex()
                                                                                              : mNextReportNumber++;
 
-    if (mReports.find(reportNumber) == mReports.end())
+    if (!mReports.contains(reportNumber))
         mReports.insert(std::make_pair(reportNumber, new ReportModel));
 
     mActiveReports[CSMDoc::State_Verifying] = reportNumber;

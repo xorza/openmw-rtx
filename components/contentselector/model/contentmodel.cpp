@@ -576,7 +576,7 @@ void ContentSelectorModel::ContentModel::sortFiles()
     for (int i = mFiles.size() - 1; i > firstModifiable;)
     {
         const auto file = mFiles.at(i);
-        if (moved.find(file) == moved.end())
+        if (!moved.contains(file))
         {
             int index = -1;
             for (int j = firstModifiable; j < i; ++j)

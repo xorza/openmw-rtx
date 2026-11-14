@@ -429,7 +429,7 @@ void CSVWorld::IdContextMenu::removeEditIdActionFromMenu()
 void CSVWorld::IdContextMenu::showContextMenu(const QPoint& pos)
 {
     QString value = getWidgetValue();
-    bool isExcludedId = mExcludedIds.find(value.toUtf8().constData()) != mExcludedIds.end();
+    bool isExcludedId = mExcludedIds.contains(value.toUtf8().constData());
     if (!value.isEmpty() && !isExcludedId)
     {
         addEditIdActionToMenu("Edit '" + value + "'");

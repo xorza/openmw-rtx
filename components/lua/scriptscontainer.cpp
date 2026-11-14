@@ -96,7 +96,7 @@ namespace LuaUtil
             return false; // already present
 
         LoadedData& data = ensureLoaded();
-        if (data.mScripts.count(scriptId) != 0)
+        if (data.mScripts.contains(scriptId))
             return false; // bail if the script we're adding was auto started
 
         const VFS::Path::Normalized& path = scriptPath(scriptId);

@@ -1,5 +1,6 @@
 #include "actors.hpp"
 
+#include <algorithm>
 #include <array>
 #include <optional>
 
@@ -677,7 +678,7 @@ namespace MWMechanics
         MWWorld::Ptr player = MWMechanics::getPlayer();
         const std::set<MWWorld::Ptr>& playerAllies = cachedAllies.getActorsSidingWith(player);
 
-        bool isPlayerFollowerOrEscorter = playerAllies.find(actor1) != playerAllies.end();
+        bool isPlayerFollowerOrEscorter = playerAllies.contains(actor1);
 
         // If actor2 and at least one actor2 are in combat with actor1, actor1 and its allies start combat with them
         // Doesn't apply for player followers/escorters
@@ -735,7 +736,7 @@ namespace MWMechanics
         // Do aggression check if actor2 is the player or a player follower or escorter
         if (!aggressive)
         {
-            if (againstPlayer || playerAllies.find(actor2) != playerAllies.end())
+            if (againstPlayer || playerAllies.contains(actor2))
             {
                 // Player followers and escorters with high fight should not initiate combat with the player or with
                 // other player followers or escorters
@@ -843,7 +844,7 @@ namespace MWMechanics
                     {
                         if (caster.getClass().isNpc() && caster.getClass().getNpcStats(caster).isWerewolf())
                             caster.getClass().getNpcStats(caster).addWerewolfKill();
-                        if (caster == player || playerFollowers.find(caster) != playerFollowers.end())
+                        if (caster == player || playerFollowers.contains(caster))
                         {
                             MWBase::Environment::get().getMechanicsManager()->actorKilled(creature, player);
                             actorKilled = true;
@@ -926,8 +927,7 @@ namespace MWMechanics
         const float endurance = stats.getAttribute(ESM::Attribute::Endurance).getModified();
 
         float normalizedEncumbrance = ptr.getClass().getNormalizedEncumbrance(ptr);
-        if (normalizedEncumbrance > 1)
-            normalizedEncumbrance = 1;
+        normalizedEncumbrance = std::min<float>(normalizedEncumbrance, 1);
 
         const float x
             = (fFatigueReturnBase + fFatigueReturnMult * (1 - normalizedEncumbrance)) * (fEndFatigueMult * endurance);
@@ -1020,8 +1020,7 @@ namespace MWMechanics
             else
             {
                 timeLeft = stats.getTimeToStartDrowning() - duration;
-                if (timeLeft < 0.0f)
-                    timeLeft = 0.0f;
+                timeLeft = std::max(timeLeft, 0.0f);
                 stats.setTimeToStartDrowning(timeLeft);
             }
 
@@ -2309,7 +2308,7 @@ namespace MWMechanics
             if (stats.isDead() || neighbor == actor || neighbor.getClass().isPureWaterCreature(neighbor))
                 continue;
 
-            const bool isFollower = followers.find(neighbor) != followers.end();
+            const bool isFollower = followers.contains(neighbor);
 
             if (stats.getAiSequence().isInCombat(actor) || (MWMechanics::isAggressive(neighbor, actor) && !isFollower))
                 list.push_back(neighbor);

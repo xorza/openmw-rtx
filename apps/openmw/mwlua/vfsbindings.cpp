@@ -1,5 +1,6 @@
 #include "vfsbindings.hpp"
 
+#include <algorithm>
 #include <sol/object.hpp>
 
 #include <components/files/istreamptr.hpp>
@@ -109,11 +110,10 @@ namespace MWLua
             if (bytesLeft <= 0)
                 return sol::nil;
 
-            if (count > bytesLeft)
-                count = bytesLeft;
+            count = std::min(count, bytesLeft);
 
             std::string result(count, '\0');
-            if (file.mFilePtr->read(&result[0], count))
+            if (file.mFilePtr->read(result.data(), count))
             {
                 printLargeDataMessage(file, result.size());
                 return sol::make_object<std::string>(lua, result);

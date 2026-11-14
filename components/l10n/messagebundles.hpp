@@ -58,7 +58,7 @@ namespace L10n
             std::string_view localeName = loc.getName();
             if (localeName == "gmst")
                 return mGmstsLoaded;
-            return mBundles.find(localeName) != mBundles.end();
+            return mBundles.contains(localeName);
         }
         const icu::Locale& getFallbackLocale() const { return mFallbackLocale; }
         void setGmstLoader(GmstLoader fn) { mGmstLoader = std::move(fn); }

@@ -64,12 +64,12 @@ namespace VFS
 
     bool Manager::exists(const Path::Normalized& name) const
     {
-        return mIndex.find(name) != mIndex.end();
+        return mIndex.contains(name);
     }
 
     bool Manager::exists(Path::NormalizedView name) const
     {
-        return mIndex.find(name) != mIndex.end();
+        return mIndex.contains(name);
     }
 
     std::string Manager::getArchive(const Path::Normalized& name) const

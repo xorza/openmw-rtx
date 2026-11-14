@@ -287,7 +287,7 @@ namespace MWGui::Formatting
                 if (brAtStart && !brBeforeLastTag && !isPrevImg)
                     plainText.erase(plainText.begin());
 
-                if (plainText.size() && brAtEnd)
+                if (!plainText.empty() && brAtEnd)
                     plainText.erase(plainText.end() - 1);
 
                 if (!plainText.empty() || brBeforeLastTag || isPrevImg)
@@ -439,7 +439,7 @@ namespace MWGui::Formatting
 
             mTextStyle.mFont = "Journalbook " + name;
         }
-        if (attr.find("size") != attr.end())
+        if (attr.contains("size"))
         {
             /// \todo
         }

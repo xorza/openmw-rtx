@@ -3203,7 +3203,7 @@ namespace MWWorld
                     else
                     {
                         ESM::RefId dest = ref.mRef.getDestCell();
-                        if (!checkedCells.count(dest) && !currentCells.count(dest))
+                        if (!checkedCells.contains(dest) && !currentCells.contains(dest))
                             nextCells.insert(dest);
                     }
                 }

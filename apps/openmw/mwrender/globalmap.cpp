@@ -1,5 +1,6 @@
 #include "globalmap.hpp"
 
+#include <algorithm>
 #include <osg/Image>
 #include <osg/Texture2D>
 
@@ -179,14 +180,10 @@ namespace MWRender
         MWWorld::Store<ESM::Cell>::iterator it = esmStore.get<ESM::Cell>().extBegin();
         for (; it != esmStore.get<ESM::Cell>().extEnd(); ++it)
         {
-            if (it->getGridX() < mMinX)
-                mMinX = it->getGridX();
-            if (it->getGridX() > mMaxX)
-                mMaxX = it->getGridX();
-            if (it->getGridY() < mMinY)
-                mMinY = it->getGridY();
-            if (it->getGridY() > mMaxY)
-                mMaxY = it->getGridY();
+            mMinX = std::min(it->getGridX(), mMinX);
+            mMaxX = std::max(it->getGridX(), mMaxX);
+            mMinY = std::min(it->getGridY(), mMinY);
+            mMaxY = std::max(it->getGridY(), mMaxY);
         }
 
         const int cellSize = Settings::map().mGlobalMapCellSize;

@@ -275,7 +275,7 @@ namespace Fx
     template <>
     void Technique::parseBlockImp<Lexer::Render_Target>()
     {
-        if (mRenderTargets.count(mBlockName))
+        if (mRenderTargets.contains(mBlockName))
             error(std::format("redeclaration of render target '{}'", mBlockName));
 
         Fx::Types::RenderTarget rt;

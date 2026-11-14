@@ -181,7 +181,7 @@ namespace Terrain
     ViewData* ViewDataMap::createOrReuseView()
     {
         ViewData* vd = nullptr;
-        if (mUnusedViews.size())
+        if (!mUnusedViews.empty())
         {
             vd = mUnusedViews.front();
             mUnusedViews.pop_front();

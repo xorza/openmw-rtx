@@ -52,13 +52,13 @@ bool parseOptions(int argc, char** argv, OMW::Engine& engine, Files::Configurati
     Files::parseArgs(argc, argv, variables, desc);
     bpo::notify(variables);
 
-    if (variables.count("help"))
+    if (variables.contains("help"))
     {
         Debug::getRawStdout() << desc << std::endl;
         return false;
     }
 
-    if (variables.count("version"))
+    if (variables.contains("version"))
     {
         Debug::getRawStdout() << Version::getOpenmwVersionDescription() << std::endl;
         return false;
@@ -136,7 +136,7 @@ bool parseOptions(int argc, char** argv, OMW::Engine& engine, Files::Configurati
         engine.addGroundcoverFile(file);
     }
 
-    if (variables.count("lua-scripts"))
+    if (variables.contains("lua-scripts"))
     {
         Log(Debug::Warning) << "Lua scripts have been specified via the old lua-scripts option and will not be loaded. "
                                "Please update them to a version which uses the new omwscripts format.";

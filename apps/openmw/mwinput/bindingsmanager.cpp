@@ -319,19 +319,18 @@ namespace MWInput
             {
                 clearAllKeyBindings(mInputBinder.get(), control);
 
-                if (defaultKeyBindings.find(i) != defaultKeyBindings.end()
-                    && (force || !mInputBinder->isKeyBound(defaultKeyBindings[i])))
+                if (defaultKeyBindings.contains(i) && (force || !mInputBinder->isKeyBound(defaultKeyBindings[i])))
                 {
                     control->setInitialValue(0.0f);
                     mInputBinder->addKeyBinding(control, defaultKeyBindings[i], ICS::Control::INCREASE);
                 }
-                else if (defaultMouseButtonBindings.find(i) != defaultMouseButtonBindings.end()
+                else if (defaultMouseButtonBindings.contains(i)
                     && (force || !mInputBinder->isMouseButtonBound(defaultMouseButtonBindings[i])))
                 {
                     control->setInitialValue(0.0f);
                     mInputBinder->addMouseButtonBinding(control, defaultMouseButtonBindings[i], ICS::Control::INCREASE);
                 }
-                else if (defaultMouseWheelBindings.find(i) != defaultMouseWheelBindings.end()
+                else if (defaultMouseWheelBindings.contains(i)
                     && (force || !mInputBinder->isMouseWheelBound(defaultMouseWheelBindings[i])))
                 {
                     control->setInitialValue(0.f);
@@ -388,7 +387,7 @@ namespace MWInput
             if (!controlExists)
             {
                 float initial;
-                if (defaultAxisBindings.find(i) == defaultAxisBindings.end())
+                if (!defaultAxisBindings.contains(i))
                     initial = 0.0f;
                 else
                     initial = 0.5f;
@@ -409,14 +408,14 @@ namespace MWInput
             {
                 clearAllControllerBindings(mInputBinder.get(), control);
 
-                if (defaultButtonBindings.find(i) != defaultButtonBindings.end()
+                if (defaultButtonBindings.contains(i)
                     && (force || !mInputBinder->isJoystickButtonBound(sFakeDeviceId, defaultButtonBindings[i])))
                 {
                     control->setInitialValue(0.0f);
                     mInputBinder->addJoystickButtonBinding(
                         control, sFakeDeviceId, defaultButtonBindings[i], ICS::Control::INCREASE);
                 }
-                else if (defaultAxisBindings.find(i) != defaultAxisBindings.end()
+                else if (defaultAxisBindings.contains(i)
                     && (force || !mInputBinder->isJoystickAxisBound(sFakeDeviceId, defaultAxisBindings[i])))
                 {
                     control->setValue(0.5f);

@@ -384,10 +384,8 @@ namespace MWRender
                     yOffset = static_cast<int>(std::ceil(diff / mMapWorldSize));
                     mBounds.yMin() = fog->mBounds.mMinY - yOffset * mMapWorldSize;
                 }
-                if (fog->mBounds.mMaxX > mBounds.xMax())
-                    mBounds.xMax() = fog->mBounds.mMaxX;
-                if (fog->mBounds.mMaxY > mBounds.yMax())
-                    mBounds.yMax() = fog->mBounds.mMaxY;
+                mBounds.xMax() = std::max(fog->mBounds.mMaxX, mBounds.xMax());
+                mBounds.yMax() = std::max(fog->mBounds.mMaxY, mBounds.yMax());
 
                 if (xOffset != 0 || yOffset != 0)
                     Log(Debug::Warning) << "Warning: expanding fog by " << xOffset << ", " << yOffset;

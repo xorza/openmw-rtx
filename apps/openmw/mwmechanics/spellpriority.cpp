@@ -1,6 +1,7 @@
 #include "spellpriority.hpp"
 #include "weaponpriority.hpp"
 
+#include <algorithm>
 #include <cmath>
 
 #include <components/esm3/loadench.hpp>
@@ -80,8 +81,7 @@ namespace
             const MWMechanics::ActiveSpells::ActiveSpellParams& params = activeSpell;
             for (const auto& effect : params.getEffects())
             {
-                if (effect.mDuration > duration)
-                    duration = effect.mDuration;
+                duration = std::max(effect.mDuration, duration);
             }
         }
         return duration;

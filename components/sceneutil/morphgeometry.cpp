@@ -135,7 +135,7 @@ namespace SceneUtil
             mMorphedBoundingBox = true;
 
             const auto* sourceVerts = static_cast<const osg::Vec3Array*>(mSourceGeometry->getVertexArray());
-            if (mMorphTargets.size() != 0)
+            if (!mMorphTargets.empty())
                 sourceVerts = mMorphTargets[0].getOffsets();
             std::vector<osg::BoundingBox> vertBounds(sourceVerts->size());
 
@@ -171,7 +171,7 @@ namespace SceneUtil
 
     void MorphGeometry::cull(osg::NodeVisitor* nv)
     {
-        if (mLastFrameNumber == nv->getTraversalNumber() || !mDirty || mMorphTargets.size() == 0)
+        if (mLastFrameNumber == nv->getTraversalNumber() || !mDirty || mMorphTargets.empty())
         {
             osg::Geometry& geom = *getGeometry(mLastFrameNumber);
             nv->pushOntoNodePath(&geom);

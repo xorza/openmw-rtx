@@ -1,5 +1,6 @@
 #include "charactercreation.hpp"
 
+#include <algorithm>
 #include <array>
 #include <format>
 #include <string_view>
@@ -198,8 +199,7 @@ namespace MWGui
                     mRaceDialog->eventDone += MyGUI::newDelegate(this, &CharacterCreation::onRaceDialogDone);
                     mRaceDialog->eventBack += MyGUI::newDelegate(this, &CharacterCreation::onRaceDialogBack);
                     mRaceDialog->setVisible(true);
-                    if (mCreationStage < CSE_NameChosen)
-                        mCreationStage = CSE_NameChosen;
+                    mCreationStage = std::max(mCreationStage, CSE_NameChosen);
                     break;
                 }
                 case GM_Class:
@@ -209,8 +209,7 @@ namespace MWGui
                     mClassChoiceDialog->eventButtonSelected
                         += MyGUI::newDelegate(this, &CharacterCreation::onClassChoice);
                     mClassChoiceDialog->setVisible(true);
-                    if (mCreationStage < CSE_RaceChosen)
-                        mCreationStage = CSE_RaceChosen;
+                    mCreationStage = std::max(mCreationStage, CSE_RaceChosen);
                     break;
                 }
                 case GM_ClassPick:
@@ -222,8 +221,7 @@ namespace MWGui
                     mPickClassDialog->eventDone += MyGUI::newDelegate(this, &CharacterCreation::onPickClassDialogDone);
                     mPickClassDialog->eventBack += MyGUI::newDelegate(this, &CharacterCreation::onPickClassDialogBack);
                     mPickClassDialog->setVisible(true);
-                    if (mCreationStage < CSE_RaceChosen)
-                        mCreationStage = CSE_RaceChosen;
+                    mCreationStage = std::max(mCreationStage, CSE_RaceChosen);
                     break;
                 }
                 case GM_Birth:
@@ -235,8 +233,7 @@ namespace MWGui
                     mBirthSignDialog->eventDone += MyGUI::newDelegate(this, &CharacterCreation::onBirthSignDialogDone);
                     mBirthSignDialog->eventBack += MyGUI::newDelegate(this, &CharacterCreation::onBirthSignDialogBack);
                     mBirthSignDialog->setVisible(true);
-                    if (mCreationStage < CSE_ClassChosen)
-                        mCreationStage = CSE_ClassChosen;
+                    mCreationStage = std::max(mCreationStage, CSE_ClassChosen);
                     break;
                 }
                 case GM_ClassCreate:
@@ -251,8 +248,7 @@ namespace MWGui
                     }
                     mCreateClassDialog->setNextButtonShow(mCreationStage >= CSE_ClassChosen);
                     mCreateClassDialog->setVisible(true);
-                    if (mCreationStage < CSE_RaceChosen)
-                        mCreationStage = CSE_RaceChosen;
+                    mCreationStage = std::max(mCreationStage, CSE_RaceChosen);
                     break;
                 }
                 case GM_ClassGenerate:
@@ -263,8 +259,7 @@ namespace MWGui
                     mGenerateClassSpecializations[1] = 0;
                     mGenerateClassSpecializations[2] = 0;
                     showClassQuestionDialog();
-                    if (mCreationStage < CSE_RaceChosen)
-                        mCreationStage = CSE_RaceChosen;
+                    mCreationStage = std::max(mCreationStage, CSE_RaceChosen);
                     break;
                 }
                 case GM_Review:
@@ -306,8 +301,7 @@ namespace MWGui
                     mReviewDialog->eventActivateDialog
                         += MyGUI::newDelegate(this, &CharacterCreation::onReviewActivateDialog);
                     mReviewDialog->setVisible(true);
-                    if (mCreationStage < CSE_BirthSignChosen)
-                        mCreationStage = CSE_BirthSignChosen;
+                    mCreationStage = std::max(mCreationStage, CSE_BirthSignChosen);
                     break;
                 }
                 default:

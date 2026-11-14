@@ -4,6 +4,7 @@
 #include <MyGUI_Gui.h>
 #include <MyGUI_ImageBox.h>
 
+#include <algorithm>
 #include <components/misc/strings/algorithm.hpp>
 
 namespace Gui
@@ -104,8 +105,7 @@ namespace Gui
             redraw(true);
 
         int viewRange = mScrollView->getCanvasSize().height;
-        if (viewPosition > viewRange)
-            viewPosition = viewRange;
+        viewPosition = std::min(viewPosition, viewRange);
         mScrollView->setViewOffset(MyGUI::IntPoint(0, -viewPosition));
     }
 

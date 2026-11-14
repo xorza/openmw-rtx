@@ -32,7 +32,7 @@ Allowed options)");
             = bpo::command_line_parser(argc, argv).options(desc).positional(positionalDesc).run();
         bpo::store(parsed, variables);
 
-        if (variables.count("help") || !variables.count("mwsave") || !variables.count("output"))
+        if (variables.contains("help") || !variables.contains("mwsave") || !variables.contains("output"))
         {
             std::cout << desc;
             return 0;
@@ -50,7 +50,7 @@ Allowed options)");
 
         ESSImport::Importer importer(essFile, outputFile, encoding);
 
-        if (variables.count("compare"))
+        if (variables.contains("compare"))
             importer.compare();
         else
         {

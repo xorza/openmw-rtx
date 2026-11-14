@@ -183,7 +183,7 @@ namespace Debug
         if (!env)
             return false;
         std::string str(env);
-        if (str.length() == 0)
+        if (str.empty())
             return true;
 
         return str.find("OFF") == std::string::npos && str.find('0') == std::string::npos
@@ -267,7 +267,7 @@ namespace Debug
 
     bool DebugGroup::isValid() const
     {
-        return mSource || mId || mMessage.length();
+        return mSource || mId || !mMessage.empty();
     }
 
     void DebugGroup::push(osg::State& state) const

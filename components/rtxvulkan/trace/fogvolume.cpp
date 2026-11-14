@@ -275,7 +275,7 @@ namespace Rtx
         device.getPool().submitAndWait([&](VkCommandBuffer commands) {
             constexpr VkClearColorValue nothing{ .float32 = { 0.0f, 0.0f, 0.0f, 0.0f } };
 
-            for (const Image* image : { &mScatter[0], &mScatter[1], &mSunward[0], &mSunward[1], &mLamps, &mAir,
+            for (const Image* image : { mScatter.data(), &mScatter[1], mSunward.data(), &mSunward[1], &mLamps, &mAir,
                      &mAirSunward, &mSlice, &mSliceSunward, &mSeeing, &mColumnDepth, &mColumnMoons })
                 if (!image->isEmpty())
                     image->clear(commands, Use::sUndefined, nothing, Use::sAnyGeneral);

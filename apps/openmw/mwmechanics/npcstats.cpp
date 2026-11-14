@@ -123,12 +123,12 @@ void MWMechanics::NpcStats::setFactionRank(const ESM::RefId& faction, int newRan
 
 bool MWMechanics::NpcStats::getExpelled(const ESM::RefId& factionID) const
 {
-    return mExpelled.find(factionID) != mExpelled.end();
+    return mExpelled.contains(factionID);
 }
 
 void MWMechanics::NpcStats::expell(const ESM::RefId& factionID, bool printMessage)
 {
-    if (mExpelled.find(factionID) == mExpelled.end())
+    if (!mExpelled.contains(factionID))
     {
         mExpelled.insert(factionID);
         if (!printMessage)
@@ -147,7 +147,7 @@ void MWMechanics::NpcStats::clearExpelled(const ESM::RefId& factionID)
 
 bool MWMechanics::NpcStats::isInFaction(const ESM::RefId& faction) const
 {
-    return (mFactionRank.find(faction) != mFactionRank.end());
+    return (mFactionRank.contains(faction));
 }
 
 int MWMechanics::NpcStats::getFactionReputation(const ESM::RefId& faction) const
@@ -305,7 +305,7 @@ void MWMechanics::NpcStats::flagAsUsed(const ESM::RefId& id)
 
 bool MWMechanics::NpcStats::hasBeenUsed(const ESM::RefId& id) const
 {
-    return mUsedIds.find(id) != mUsedIds.end();
+    return mUsedIds.contains(id);
 }
 
 int MWMechanics::NpcStats::getBounty() const

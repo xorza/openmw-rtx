@@ -74,7 +74,7 @@ namespace CSMWorld
 
     bool ActorAdapter::RaceData::hasDependency(const ESM::RefId& id) const
     {
-        return mDependencies.find(id) != mDependencies.end();
+        return mDependencies.contains(id);
     }
 
     void ActorAdapter::RaceData::setFemalePart(ESM::BodyPart::MeshPart index, const ESM::RefId& partId)
@@ -177,7 +177,7 @@ namespace CSMWorld
 
     bool ActorAdapter::ActorData::hasDependency(const ESM::RefId& id) const
     {
-        return mDependencies.find(id) != mDependencies.end();
+        return mDependencies.contains(id);
     }
 
     void ActorAdapter::ActorData::setPart(ESM::PartReferenceType index, const ESM::RefId& partId, int priority)

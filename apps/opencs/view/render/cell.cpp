@@ -505,7 +505,7 @@ void CSVRender::Cell::selectAllWithSameParentId(int elementMask)
 
     for (std::map<std::string, Object*>::const_iterator iter(mObjects.begin()); iter != mObjects.end(); ++iter)
     {
-        if (!iter->second->getSelected() && ids.find(iter->second->getReferenceableId()) != ids.end())
+        if (!iter->second->getSelected() && ids.contains(iter->second->getReferenceableId()))
         {
             iter->second->setSelected(true);
             mSelectionMarker->addToSelectionHistory(iter->second->getReferenceId(), false);

@@ -325,10 +325,8 @@ namespace ESM
                     rowOffset += vhgt.mHeightData[y * LandRecordData::sLandSize];
 
                     data.mHeights[y * LandRecordData::sLandSize] = rowOffset * Land::sHeightScale;
-                    if (rowOffset * Land::sHeightScale > data.mMaxHeight)
-                        data.mMaxHeight = rowOffset * Land::sHeightScale;
-                    if (rowOffset * Land::sHeightScale < data.mMinHeight)
-                        data.mMinHeight = rowOffset * Land::sHeightScale;
+                    data.mMaxHeight = std::max(rowOffset * Land::sHeightScale, data.mMaxHeight);
+                    data.mMinHeight = std::min(rowOffset * Land::sHeightScale, data.mMinHeight);
 
                     float colOffset = rowOffset;
                     for (unsigned x = 1; x < LandRecordData::sLandSize; x++)
@@ -336,10 +334,8 @@ namespace ESM
                         colOffset += vhgt.mHeightData[y * LandRecordData::sLandSize + x];
                         data.mHeights[x + y * LandRecordData::sLandSize] = colOffset * Land::sHeightScale;
 
-                        if (colOffset * Land::sHeightScale > data.mMaxHeight)
-                            data.mMaxHeight = colOffset * Land::sHeightScale;
-                        if (colOffset * Land::sHeightScale < data.mMinHeight)
-                            data.mMinHeight = colOffset * Land::sHeightScale;
+                        data.mMaxHeight = std::max(colOffset * Land::sHeightScale, data.mMaxHeight);
+                        data.mMinHeight = std::min(colOffset * Land::sHeightScale, data.mMinHeight);
                     }
                 }
             }

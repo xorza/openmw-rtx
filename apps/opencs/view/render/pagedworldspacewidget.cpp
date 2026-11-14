@@ -113,7 +113,7 @@ bool CSVRender::PagedWorldspaceWidget::adjustCells()
     // add
     for (auto iter : mSelection)
     {
-        if (mCells.find(iter) == mCells.end())
+        if (!mCells.contains(iter))
         {
             addCellToScene(iter);
             modified = true;
@@ -223,7 +223,7 @@ void CSVRender::PagedWorldspaceWidget::handleInteractionPress(const WorldspaceHi
             {
                 CSMWorld::CellCoordinates newCoordinates = coordinates.move(x, y);
 
-                if (mCells.find(newCoordinates) == mCells.end())
+                if (!mCells.contains(newCoordinates))
                 {
                     addCellToScene(newCoordinates);
                     mSelection.add(newCoordinates);
@@ -232,7 +232,7 @@ void CSVRender::PagedWorldspaceWidget::handleInteractionPress(const WorldspaceHi
 
                 if (type == InteractionType_SecondaryEdit)
                 {
-                    if (mCells.find(coordinates) != mCells.end())
+                    if (mCells.contains(coordinates))
                     {
                         removeCellFromScene(coordinates);
                         mSelection.remove(coordinates);
@@ -491,7 +491,7 @@ void CSVRender::PagedWorldspaceWidget::addCellSelection(int x, int y)
 
     for (auto iter : newSelection)
     {
-        if (mCells.find(iter) == mCells.end())
+        if (!mCells.contains(iter))
         {
             addCellToScene(iter);
             mSelection.add(iter);

@@ -105,7 +105,7 @@ namespace Resource
             }
 
             bool killAlpha = false;
-            if (reader->supportedExtensions().count("tga"))
+            if (reader->supportedExtensions().contains("tga"))
             {
                 // Morrowind ignores the alpha channel of 16bpp TGA files even when the header says not to
                 unsigned char header[18];

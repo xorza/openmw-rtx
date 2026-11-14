@@ -75,7 +75,7 @@ namespace LuaUtil
 
     void LuaStorage::Section::throwIfCallbackRecursionIsTooDeep()
     {
-        if (mStorage->mRunningCallbacks.count(this) > 0)
+        if (mStorage->mRunningCallbacks.contains(this))
             throw std::runtime_error(
                 "Storage handler shouldn't change the storage section it handles (leads to an infinite recursion)");
         if (mStorage->mRunningCallbacks.size() > 10)

@@ -603,10 +603,8 @@ void CSVWorld::Table::moveRecords(QDropEvent* event)
     for (const auto& thisRowData : selectedRows)
     {
         int thisRow = mProxyModel->mapToSource(mProxyModel->index(thisRowData.row(), 0)).row();
-        if (std::abs(targetRow - thisRow) > highestDifference)
-            highestDifference = std::abs(targetRow - thisRow);
-        if (thisRow - 1 < baseRow)
-            baseRow = thisRow - 1;
+        highestDifference = std::max(std::abs(targetRow - thisRow), highestDifference);
+        baseRow = std::min(thisRow - 1, baseRow);
     }
 
     std::vector<int> newOrder(highestDifference + 1);

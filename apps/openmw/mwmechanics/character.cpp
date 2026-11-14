@@ -1695,7 +1695,7 @@ namespace MWMechanics
                         else if (aiInactive)
                         {
                             mAttackType = getDesiredAttackType();
-                            if (mAttackType == "")
+                            if (mAttackType.empty())
                                 mAttackType = getRandomAttackType();
                         }
 

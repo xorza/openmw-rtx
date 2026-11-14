@@ -116,7 +116,7 @@ namespace MWGui
         if (Settings::gui().mControllerMenus)
         {
             mControllerFocus = 0;
-            if (mButtons.size() > 0)
+            if (!mButtons.empty())
                 mButtons[0].first->setStateSelected(true);
         }
 

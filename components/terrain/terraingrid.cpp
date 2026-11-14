@@ -89,7 +89,7 @@ namespace Terrain
 
     void TerrainGrid::loadCell(int x, int y)
     {
-        if (mGrid.find(std::make_pair(x, y)) != mGrid.end())
+        if (mGrid.contains(std::make_pair(x, y)))
             return; // already loaded
 
         osg::Vec2f center(x + 0.5f, y + 0.5f);

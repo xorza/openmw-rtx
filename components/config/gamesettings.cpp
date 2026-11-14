@@ -393,7 +393,7 @@ bool Config::GameSettings::writeFileWithComments(QFile& file)
 
             // blank or non-"ordered" line, write saved comments
             if (!comments.empty() && match.hasMatch() && settingRegex.captureCount() >= 2
-                && mUserSettings.find(match.captured(1)) != mUserSettings.end())
+                && mUserSettings.contains(match.captured(1)))
             {
                 if (commentStart == fileCopy.end())
                     throw std::runtime_error(

@@ -836,7 +836,7 @@ namespace MWGui
 
     void CreateClassDialog::onOkClicked(MyGUI::Widget* /*sender*/)
     {
-        if (getName().size() <= 0)
+        if (getName().empty())
             return;
         eventDone(this);
     }
@@ -961,7 +961,7 @@ namespace MWGui
 
         if (Settings::gui().mControllerMenus)
         {
-            if (mAttributeButtons.size() > 0)
+            if (!mAttributeButtons.empty())
                 mAttributeButtons[0]->setStateSelected(true);
 
             mControllerButtons.mA = "#{Interface:Select}";
@@ -1061,7 +1061,7 @@ namespace MWGui
 
         if (Settings::gui().mControllerMenus)
         {
-            if (mSkillButtons.size() > 0)
+            if (!mSkillButtons.empty())
                 mSkillButtons[0]->setStateSelected(true);
 
             mControllerButtons.mA = "#{Interface:Select}";

@@ -124,25 +124,25 @@ Allowed options)");
 
         bpo::notify(variables);
 
-        if (variables.count("help"))
+        if (variables.contains("help"))
         {
             std::cout << desc << finalText << std::endl;
             return false;
         }
-        if (variables.count("version"))
+        if (variables.contains("version"))
         {
             std::cout << "ESMTool version " << majorVersion << '.' << minorVersion << std::endl;
             return false;
         }
-        if (!variables.count("mode"))
+        if (!variables.contains("mode"))
         {
             std::cout << "No mode specified!\n\n" << desc << finalText << std::endl;
             return false;
         }
 
-        if (variables.count("type") > 0)
+        if (variables.contains("type"))
             info.types = variables["type"].as<std::vector<std::string>>();
-        if (variables.count("name") > 0)
+        if (variables.contains("name"))
             info.name = variables["name"].as<std::string>();
 
         info.mode = variables["mode"].as<std::string>();
@@ -152,7 +152,7 @@ Allowed options)");
             return false;
         }
 
-        if (!variables.count("input-file"))
+        if (!variables.contains("input-file"))
         {
             std::cout << "\nERROR: missing ES file\n\n";
             std::cout << desc << finalText << std::endl;
@@ -177,9 +177,9 @@ Allowed options)");
         if (const auto it = variables.find("raw"); it != variables.end())
             info.mRawFormat = ESM::parseFormat(it->second.as<std::string>());
 
-        info.quiet_given = variables.count("quiet") != 0;
-        info.loadcells_given = variables.count("loadcells") != 0;
-        info.plain_given = variables.count("plain") != 0;
+        info.quiet_given = variables.contains("quiet");
+        info.loadcells_given = variables.contains("loadcells");
+        info.plain_given = variables.contains("plain");
 
         // Font encoding settings
         info.encoding = variables["encoding"].as<std::string>();
@@ -376,7 +376,7 @@ namespace
                 auto record = EsmTool::RecordBase::create(n);
                 if (record == nullptr)
                 {
-                    if (!quiet && skipped.count(n.toInt()) == 0)
+                    if (!quiet && !skipped.contains(n.toInt()))
                     {
                         std::cout << "Skipping " << n.toStringView() << " records.\n";
                         skipped.emplace(n.toInt());

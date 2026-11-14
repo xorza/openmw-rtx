@@ -294,7 +294,7 @@ namespace ESM
     void ESMWriter::writeHCString(std::string_view data)
     {
         writeHString(data);
-        if (data.size() > 0 && data[data.size() - 1] != '\0')
+        if (!data.empty() && data[data.size() - 1] != '\0')
             write("\0", 1);
     }
 

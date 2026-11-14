@@ -788,7 +788,7 @@ namespace MWMechanics
 
         std::set<MWWorld::Ptr> followersAttacker;
         MWBase::Environment::get().getMechanicsManager()->getActorsSidingWith(attacker, followersAttacker);
-        if (followersAttacker.find(target) == followersAttacker.end())
+        if (!followersAttacker.contains(target))
             return false;
 
         MWMechanics::CreatureStats& statsTarget = target.getClass().getCreatureStats(target);

@@ -551,7 +551,7 @@ namespace MWWorld
 
         bool operator()(const MWWorld::Ptr& ptr)
         {
-            if (mMovedToAnotherCell.find(ptr.getBase()) != mMovedToAnotherCell.end())
+            if (mMovedToAnotherCell.contains(ptr.getBase()))
                 return true;
             mMergeTo.push_back(ptr.getBase());
             return true;
@@ -590,7 +590,7 @@ namespace MWWorld
         if (ptr.isEmpty())
             return false;
 
-        if (mMovedHere.find(ptr.getBase()) != mMovedHere.end())
+        if (mMovedHere.contains(ptr.getBase()))
             return true;
 
         return false;

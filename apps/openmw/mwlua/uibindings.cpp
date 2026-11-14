@@ -484,7 +484,7 @@ namespace MWLua
             uiElement[sol::meta_function::to_string] = [](const LuaUi::Element& element) {
                 std::stringstream res;
                 res << "UiElement";
-                if (element.mLayer != "")
+                if (!element.mLayer.empty())
                     res << "[" << element.mLayer << "]";
                 return res.str();
             };

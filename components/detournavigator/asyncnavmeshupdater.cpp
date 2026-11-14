@@ -38,8 +38,7 @@ namespace DetourNavigator
             const Misc::ScopeGuarded<std::set<std::tuple<AgentBounds, TilePosition>>>& processingTiles)
         {
             const auto isAbsentAndCloserThan = [&](const std::tuple<AgentBounds, TilePosition>& v) {
-                return presentTiles.find(v) == presentTiles.end()
-                    && getManhattanDistance(position, std::get<1>(v)) < distance;
+                return !presentTiles.contains(v) && getManhattanDistance(position, std::get<1>(v)) < distance;
             };
             if (std::any_of(pushedTiles.begin(), pushedTiles.end(), isAbsentAndCloserThan))
                 return true;

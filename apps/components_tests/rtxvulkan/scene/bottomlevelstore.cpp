@@ -393,7 +393,7 @@ namespace Rtx
             EXPECT_EQ(store.pickRebuild(bodies, 1), bodies[0]);
             EXPECT_EQ(store.pickRebuild(bodies, 2), bodies[1]);
             EXPECT_EQ(store.pickRebuild(bodies, 3), bodies[0]);
-            EXPECT_EQ(store.pickRebuild(std::span(&bodies[0], 1), 3), sNoIndex) << "a body rebuilt twice at once";
+            EXPECT_EQ(store.pickRebuild(std::span(bodies.data(), 1), 3), sNoIndex) << "a body rebuilt twice at once";
             EXPECT_EQ(store.pickRebuild({}, 4), sNoIndex);
 
             const VkDeviceSize alignment = getDevice().getPhysicalDevice().getStructureScratchAlignment();

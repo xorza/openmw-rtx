@@ -19,6 +19,7 @@
 
 #include "mwshadowtechnique.hpp"
 
+#include <algorithm>
 #include <osgShadow/ShadowedScene>
 #include <osg/CullFace>
 #include <osg/Geometry>
@@ -460,11 +461,11 @@ void MWShadowTechnique::ComputeLightSpaceBounds::update(const osg::Vec3& v)
         return;
     }
     float x = v.x();
-    if (x<-1.0f) x = -1.0f;
-    if (x>1.0f) x = 1.0f;
+    x = std::max(x, -1.0f);
+    x = std::min(x, 1.0f);
     float y = v.y();
-    if (y<-1.0f) y = -1.0f;
-    if (y>1.0f) y = 1.0f;
+    y = std::max(y, -1.0f);
+    y = std::min(y, 1.0f);
     _bb.expandBy(osg::Vec3(x, y, v.z()));
 }
 
@@ -2194,7 +2195,7 @@ struct ConvexHull
         std::sort(vertices.begin(), vertices.end());
         vertices.erase(std::unique(vertices.begin(), vertices.end()), vertices.end());
 
-        if (vertices.size() == 0)
+        if (vertices.empty())
             return;
 
         // Get the vertices contributing to the 2D convex hull
@@ -2398,7 +2399,7 @@ struct ConvexHull
                 sortValue = h;
             else
                 sortValue = -v;
-            if (vertexMap.count(angle))
+            if (vertexMap.contains(angle))
             {
                 auto listItr = vertexMap[angle].begin();
                 while (listItr != vertexMap[angle].end() && listItr->second < sortValue)
@@ -2436,8 +2437,8 @@ struct ConvexHull
         double m = dbl_max;
         for(const auto& edge : _edges)
         {
-            if (edge.first[index] < m) m = edge.first[index];
-            if (edge.second[index] < m) m = edge.second[index];
+            m = std::min(edge.first[index], m);
+            m = std::min(edge.second[index], m);
         }
         return m;
     }
@@ -2447,8 +2448,8 @@ struct ConvexHull
         double m = -dbl_max;
         for (const auto& edge : _edges)
         {
-            if (edge.first[index] > m) m = edge.first[index];
-            if (edge.second[index] > m) m = edge.second[index];
+            m = std::max(edge.first[index], m);
+            m = std::max(edge.second[index], m);
         }
         return m;
     }
@@ -2462,11 +2463,11 @@ struct ConvexHull
         {
             delta = edge.first - eye;
             ratio = delta[index] / delta[1];
-            if (ratio < m) m = ratio;
+            m = std::min(ratio, m);
 
             delta = edge.second - eye;
             ratio = delta[index] / delta[1];
-            if (ratio < m) m = ratio;
+            m = std::min(ratio, m);
         }
         return m;
     }
@@ -2480,11 +2481,11 @@ struct ConvexHull
         {
             delta = edge.first - eye;
             ratio = delta[index] / delta[1];
-            if (ratio > m) m = ratio;
+            m = std::max(ratio, m);
 
             delta = edge.second - eye;
             ratio = delta[index] / delta[1];
-            if (ratio > m) m = ratio;
+            m = std::max(ratio, m);
         }
         return m;
     }
@@ -2606,27 +2607,27 @@ struct RenderLeafBounds
                 z_ratio = delta.z()/n;
             }
 
-            if (x_ratio<min_x_ratio) min_x_ratio = x_ratio;
-            if (x_ratio>max_x_ratio) max_x_ratio = x_ratio;
-            if (z_ratio<min_z_ratio) min_z_ratio = z_ratio;
-            if (z_ratio>max_z_ratio) max_z_ratio = z_ratio;
+            min_x_ratio = std::min(x_ratio, min_x_ratio);
+            max_x_ratio = std::max(x_ratio, max_x_ratio);
+            min_z_ratio = std::min(z_ratio, min_z_ratio);
+            max_z_ratio = std::max(z_ratio, max_z_ratio);
         }
 
         // clip to the light space
-        if (ls.x()<clip_min_x) ls.x()=clip_min_x;
-        if (ls.x()>clip_max_x) ls.x()=clip_max_x;
-        if (ls.y()<clip_min_y) ls.y()=clip_min_y;
-        if (ls.y()>clip_max_y) ls.y()=clip_max_y;
-        if (ls.z()<clip_min_z) ls.z()=clip_min_z;
-        if (ls.z()>clip_max_z) ls.z()=clip_max_z;
+        ls.x() = std::max(ls.x(), clip_min_x);
+        ls.x() = std::min(ls.x(), clip_max_x);
+        ls.y() = std::max(ls.y(), clip_min_y);
+        ls.y() = std::min(ls.y(), clip_max_y);
+        ls.z() = std::max(ls.z(), clip_min_z);
+        ls.z() = std::min(ls.z(), clip_max_z);
 
         // compute the xyz range.
-        if (ls.x()<min_x) min_x=ls.x();
-        if (ls.x()>max_x) max_x=ls.x();
-        if (ls.y()<min_y) min_y=ls.y();
-        if (ls.y()>max_y) max_y=ls.y();
-        if (ls.z()<min_z) { min_z=ls.z(); /* OSG_NOTICE<<" - ";*/ }
-        if (ls.z()>max_z) { max_z=ls.z(); /* OSG_NOTICE<<" + ";*/ }
+        min_x = std::min(ls.x(), min_x);
+        max_x = std::max(ls.x(), max_x);
+        min_y = std::min(ls.y(), min_y);
+        max_y = std::max(ls.y(), max_y);
+        min_z = std::min(ls.z(), min_z); /* OSG_NOTICE<<" - ";*/ 
+        max_z = std::max(ls.z(), max_z); /* OSG_NOTICE<<" + ";*/ 
 
         // OSG_NOTICE<<"   bb.z() in ls = "<<ls.z()<<std::endl;
 
@@ -2979,11 +2980,8 @@ bool MWShadowTechnique::adjustPerspectiveShadowMapCameraSettings(osgUtil::Render
 
     //OSG_NOTICE<<"n = "<<n<<", eye_ls.y()="<<eye_ls.y()<<", eye_v="<<eye_v<<", eye="<<frustum.eye<<std::endl;
     double min_n = osg::maximum(-1.0-eye_ls.y(), settings->getMinimumShadowMapNearFarRatio());
-    if (n<min_n)
-    {
-        //OSG_NOTICE<<"Clamping n to eye point"<<std::endl;
-        n=min_n;
-    }
+    n = std::max(n, min_n); //OSG_NOTICE<<"Clamping n to eye point"<<std::endl;
+        
 
     //n = min_n;
 

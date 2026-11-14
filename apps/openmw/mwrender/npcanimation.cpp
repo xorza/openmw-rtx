@@ -924,7 +924,7 @@ namespace MWRender
         {
             // If there is no active animation, then the bip01 neck node will not be updated each frame, and the
             // RotateController will accumulate rotations.
-            if (mStates.size() > 0)
+            if (!mStates.empty())
             {
                 auto found = mNodeMap.find("bip01 neck");
                 if (found != mNodeMap.end())

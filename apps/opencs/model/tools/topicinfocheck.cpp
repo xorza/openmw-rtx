@@ -212,7 +212,7 @@ bool CSMTools::TopicInfoCheckStage::verifyActor(
 bool CSMTools::TopicInfoCheckStage::verifyCell(
     const std::string& cell, const CSMWorld::UniversalId& id, CSMDoc::Messages& messages)
 {
-    if (mCellNames.find(cell) == mCellNames.end())
+    if (!mCellNames.contains(cell))
     {
         messages.add(id, "Cell '" + cell + "' does not exist", "", CSMDoc::Message::Severity_Error);
         return false;

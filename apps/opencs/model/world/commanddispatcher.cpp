@@ -126,7 +126,7 @@ bool CSMWorld::CommandDispatcher::canDelete() const
     if (mLocked)
         return false;
 
-    return getDeletableRecords().size() != 0;
+    return !getDeletableRecords().empty();
 }
 
 bool CSMWorld::CommandDispatcher::canRevert() const
@@ -134,7 +134,7 @@ bool CSMWorld::CommandDispatcher::canRevert() const
     if (mLocked)
         return false;
 
-    return getRevertableRecords().size() != 0;
+    return !getRevertableRecords().empty();
 }
 
 std::vector<CSMWorld::UniversalId> CSMWorld::CommandDispatcher::getExtendedTypes() const

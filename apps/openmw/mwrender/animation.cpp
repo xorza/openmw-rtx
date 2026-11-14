@@ -303,7 +303,7 @@ namespace
                 auto* vfxCallback = dynamic_cast<MWRender::UpdateVfxCallback*>(callback);
                 if (vfxCallback)
                 {
-                    bool toRemove = mEffectId == "" || vfxCallback->mParams.mEffectId == mEffectId;
+                    bool toRemove = mEffectId.empty() || vfxCallback->mParams.mEffectId == mEffectId;
                     if (toRemove)
                         mToRemove.emplace_back(node.asNode(), node.getParent(0));
                     else
@@ -344,7 +344,7 @@ namespace
                 auto* vfxCallback = dynamic_cast<MWRender::UpdateVfxCallback*>(callback);
                 if (vfxCallback)
                 {
-                    if (mEffectId == "" || vfxCallback->mParams.mEffectId == mEffectId)
+                    if (mEffectId.empty() || vfxCallback->mParams.mEffectId == mEffectId)
                     {
                         mCallbacks.push_back(vfxCallback);
                     }
@@ -775,7 +775,7 @@ namespace MWRender
 
     bool Animation::hasAnimation(std::string_view anim) const
     {
-        return mSupportedAnimations.find(anim) != mSupportedAnimations.end();
+        return mSupportedAnimations.contains(anim);
     }
 
     bool Animation::isLoopingAnimation(std::string_view group) const
@@ -810,7 +810,7 @@ namespace MWRender
         }
         group.remove_suffix(suffixLength);
 
-        return loopingAnimations.count(group) > 0;
+        return loopingAnimations.contains(group);
     }
 
     float Animation::getStartTime(const std::string& groupname) const

@@ -459,7 +459,7 @@ namespace MWLua
 
             ESM::RefId factionId = parseFactionId(faction);
             // If the faction is provided but not found, error out
-            if (faction != "" && factionId == ESM::RefId())
+            if (!faction.empty() && factionId == ESM::RefId())
                 throw std::runtime_error("Faction does not exist");
 
             MWWorld::Ptr victimObj = nullptr;

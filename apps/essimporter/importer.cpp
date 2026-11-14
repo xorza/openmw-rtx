@@ -212,7 +212,7 @@ namespace ESSImport
 
                 if (sub.mData != sub2.mData)
                 {
-                    if (blacklist.find(std::make_pair(rec.mName, sub.mName)) != blacklist.end())
+                    if (blacklist.contains(std::make_pair(rec.mName, sub.mName)))
                         continue;
 
                     std::ios::fmtflags f(std::cout.flags());

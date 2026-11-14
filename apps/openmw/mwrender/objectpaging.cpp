@@ -785,7 +785,7 @@ namespace MWRender
 
             {
                 std::scoped_lock lock(mRefTrackerMutex);
-                if (getRefTracker().mDisabled.count(refNum))
+                if (getRefTracker().mDisabled.contains(refNum))
                     continue;
             }
 

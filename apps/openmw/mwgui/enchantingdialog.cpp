@@ -303,7 +303,7 @@ namespace MWGui
 
     void EnchantingDialog::onBuyButtonClicked(MyGUI::Widget* /*sender*/)
     {
-        if (mEffects.size() <= 0)
+        if (mEffects.empty())
         {
             MWBase::Environment::get().getWindowManager()->messageBox("#{sEnchantmentMenu11}");
             return;

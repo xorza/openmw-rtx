@@ -936,7 +936,7 @@ namespace MWGui
     {
         if (arg.button == SDL_GAMEPAD_BUTTON_SOUTH)
         {
-            if (mChoices.size() > 0)
+            if (!mChoices.empty())
             {
                 if (mChoices.size() == 1)
                     onChoiceActivated(mChoices[0].second);
@@ -955,7 +955,7 @@ namespace MWGui
         }
         else if (arg.button == SDL_GAMEPAD_BUTTON_DPAD_UP)
         {
-            if (mChoices.size() > 0)
+            if (!mChoices.empty())
             {
                 // In-dialogue choice (red text)
                 mControllerChoice = std::clamp(mControllerChoice - 1, 0, static_cast<int>(mChoices.size()) - 1);
@@ -976,7 +976,7 @@ namespace MWGui
         }
         else if (arg.button == SDL_GAMEPAD_BUTTON_DPAD_DOWN)
         {
-            if (mChoices.size() > 0)
+            if (!mChoices.empty())
             {
                 // In-dialogue choice (red text)
                 mControllerChoice = std::clamp(mControllerChoice + 1, 0, static_cast<int>(mChoices.size()) - 1);
@@ -997,13 +997,13 @@ namespace MWGui
                 setControllerFocus(mControllerFocus, true);
             }
         }
-        else if (arg.button == SDL_GAMEPAD_BUTTON_LEFT_SHOULDER && mChoices.size() == 0)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_LEFT_SHOULDER && mChoices.empty())
         {
             setControllerFocus(mControllerFocus, false);
             mControllerFocus = mControllerFocus > 5 ? mControllerFocus - 5 : 0;
             setControllerFocus(mControllerFocus, true);
         }
-        else if (arg.button == SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER && mChoices.size() == 0)
+        else if (arg.button == SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER && mChoices.empty())
         {
             setControllerFocus(mControllerFocus, false);
             mControllerFocus = std::min(mControllerFocus + 5, mTopicsList->getItemCount());

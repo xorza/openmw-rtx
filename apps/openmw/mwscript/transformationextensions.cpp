@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <components/debug/debuglog.hpp>
 
 #include <components/sceneutil/positionattitudetransform.hpp>
@@ -322,8 +323,7 @@ namespace MWScript
                             terrainHeight = MWBase::Environment::get().getWorld()->getTerrainHeightAt(
                                 curPos, ptr.getCell()->getCell()->getWorldSpace());
 
-                        if (pos < terrainHeight)
-                            pos = terrainHeight;
+                        pos = std::max(pos, terrainHeight);
                     }
 
                     newPos[2] = pos;

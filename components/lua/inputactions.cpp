@@ -114,7 +114,7 @@ namespace LuaUtil
 
         void Registry::insert(const Info& info)
         {
-            if (mIds.find(info.mKey) != mIds.end())
+            if (mIds.contains(info.mKey))
                 throw std::domain_error("Action key \"" + info.mKey + "\" is already in use");
             if (info.mKey.empty())
                 throw std::domain_error("Action key can't be an empty string");
@@ -281,7 +281,7 @@ namespace LuaUtil
 
         void Registry::insert(const Info& info)
         {
-            if (mIds.find(info.mKey) != mIds.end())
+            if (mIds.contains(info.mKey))
                 throw std::domain_error("Trigger key \"" + info.mKey + "\" is already in use");
             if (info.mKey.empty())
                 throw std::domain_error("Trigger key can't be an empty string");

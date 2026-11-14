@@ -468,7 +468,7 @@ namespace MWGui
 
         // Decode screenshot
         const std::vector<char>& data = mCurrentSlot->mProfile.mScreenshot;
-        if (!data.size())
+        if (data.empty())
         {
             Log(Debug::Warning) << "Selected save file '" << Files::pathToUnicodeString(mCurrentSlot->mPath.filename())
                                 << "' has no savegame screenshot";

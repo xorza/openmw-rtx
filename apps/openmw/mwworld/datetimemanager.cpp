@@ -69,8 +69,7 @@ namespace MWWorld
 
     void DateTimeManager::setHour(double hour)
     {
-        if (hour < 0)
-            hour = 0;
+        hour = std::max<double>(hour, 0);
 
         const Duration duration = Duration::fromHours(hour);
 
@@ -82,8 +81,7 @@ namespace MWWorld
 
     void DateTimeManager::setDay(int day)
     {
-        if (day < 1)
-            day = 1;
+        day = std::max(day, 1);
 
         int month = mMonth;
         while (true)
@@ -131,15 +129,13 @@ namespace MWWorld
 
     void DateTimeManager::setMonth(int month)
     {
-        if (month < 0)
-            month = 0;
+        month = std::max(month, 0);
 
         int years = month / 12;
         month = month % 12;
 
         int days = getDaysPerMonth(month);
-        if (mDay > days)
-            mDay = days;
+        mDay = std::min(mDay, days);
 
         mMonth = month;
 

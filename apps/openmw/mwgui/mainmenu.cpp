@@ -5,6 +5,7 @@
 #include <MyGUI_RenderManager.h>
 #include <MyGUI_TextBox.h>
 
+#include <algorithm>
 #include <components/misc/frameratelimiter.hpp>
 #include <components/settings/values.hpp>
 #include <components/vfs/manager.hpp>
@@ -336,7 +337,7 @@ namespace MWGui
         // Create new buttons if needed
         for (std::string_view id : { "return", "newgame", "savegame", "loadgame", "options", "credits", "exitgame" })
         {
-            if (mButtons.find(id) == mButtons.end())
+            if (!mButtons.contains(id))
             {
                 auto* button = mButtonBox->createWidget<Gui::ImageButton>(
                     "ImageBox", MyGUI::IntCoord(0, curH, 0, 0), MyGUI::Align::Default);
@@ -355,8 +356,7 @@ namespace MWGui
         {
             buttonPair.second->setVisible(false);
             MyGUI::IntSize requested = buttonPair.second->getRequestedSize();
-            if (requested.width > maxwidth)
-                maxwidth = requested.width;
+            maxwidth = std::max(requested.width, maxwidth);
         }
 
         // Now show and position the ones we want

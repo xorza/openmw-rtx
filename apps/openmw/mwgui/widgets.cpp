@@ -1,5 +1,6 @@
 #include "widgets.hpp"
 
+#include <algorithm>
 #include <iomanip>
 
 #include <MyGUI_Button.h>
@@ -289,8 +290,7 @@ namespace MWGui::Widgets
             effectInfo.mNoMagnitude = (flags & EF_NoMagnitude) || effectInfo.mNoMagnitude;
             effect->setSpellEffect(effectInfo);
             effects.push_back(effect);
-            if (effect->getRequestedWidth() > maxwidth)
-                maxwidth = effect->getRequestedWidth();
+            maxwidth = std::max(effect->getRequestedWidth(), maxwidth);
 
             coord.top += effect->getHeight();
         }

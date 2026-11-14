@@ -126,7 +126,7 @@ namespace MWGui
                 const ESM::MagicEffect& effect = *store.get<ESM::MagicEffect>().find(effectId);
                 const ESM::RefId arg = source.getSkillOrAttribute();
 
-                if (mWidgetMap.find(effectId) == mWidgetMap.end())
+                if (!mWidgetMap.contains(effectId))
                     mWidgetMap[effectId] = createIcon(*parent, effect.mName, effect.mIcon.getOriginal(), size);
 
                 MyGUI::ImageBox& widget = *mWidgetMap[effectId];

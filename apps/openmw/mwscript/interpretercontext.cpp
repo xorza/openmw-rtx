@@ -1,5 +1,6 @@
 #include "interpretercontext.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <sstream>
 
@@ -413,8 +414,7 @@ namespace MWScript
         ++rank; // Next rank
 
         // if we are already at max rank, there is no next rank
-        if (rank > 9)
-            rank = 9;
+        rank = std::min(rank, 9);
 
         const MWWorld::ESMStore& store = world->getStore();
         const ESM::Faction* faction = store.get<ESM::Faction>().find(factionId);

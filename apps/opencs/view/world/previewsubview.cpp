@@ -18,7 +18,7 @@
 
 CSVWorld::PreviewSubView::PreviewSubView(const CSMWorld::UniversalId& id, CSMDoc::Document& document)
     : SubView(id)
-    , mTitle(id.toString().c_str())
+    , mTitle(id.toString())
 {
     auto* layout = new QHBoxLayout;
 

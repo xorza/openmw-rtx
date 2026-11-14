@@ -727,7 +727,7 @@ namespace ESM4
     // else the method may try to dereference an element that does not exist
     const GroupTypeHeader& Reader::grp(std::size_t pos) const
     {
-        if (mCtx.groupStack.size() == 0)
+        if (mCtx.groupStack.empty())
             throw std::runtime_error("ESM4::Reader::grp mCtx.groupStack.size is zero");
         if (pos > mCtx.groupStack.size() - 1)
             throw std::runtime_error("ESM4::Reader::grp - exceeded stack depth");

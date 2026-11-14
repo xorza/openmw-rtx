@@ -615,7 +615,7 @@ namespace MWGui
 
                 text += std::string("#{fontcolourhtml=header}") + faction->mName;
 
-                if (expelled.find(factionId) != expelled.end())
+                if (expelled.contains(factionId))
                     text += "\n#{fontcolourhtml=normal}#{sExpelled}";
                 else
                 {

@@ -140,8 +140,7 @@ namespace MWScript
 
         // execute script
         const auto& target = interpreterContext.getTarget();
-        if (!iter->second.mProgram.mInstructions.empty()
-            && iter->second.mInactive.find(target) == iter->second.mInactive.end())
+        if (!iter->second.mProgram.mInstructions.empty() && !iter->second.mInactive.contains(target))
         {
             try
             {

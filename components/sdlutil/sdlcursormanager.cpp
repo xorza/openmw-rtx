@@ -148,7 +148,7 @@ namespace SDLUtil
     void SDLCursorManager::createCursor(std::string_view name, double rotDegrees, osg::Image* image, int hotspotX,
         int hotspotY, int width, int height, float displayScale)
     {
-        if (mCursorMap.find(name) != mCursorMap.end())
+        if (mCursorMap.contains(name))
             return;
 
         const float divisor = baseDivisor(mScaling, displayScale);

@@ -497,7 +497,7 @@ namespace MWMechanics
         int rank = 0;
         const ESM::RefId& npcFaction = ptr.getClass().getPrimaryFaction(ptr);
 
-        if (playerStats.getFactionRanks().find(npcFaction) != playerStats.getFactionRanks().end())
+        if (playerStats.getFactionRanks().contains(npcFaction))
         {
             if (!playerStats.getExpelled(npcFaction))
             {
@@ -880,7 +880,7 @@ namespace MWMechanics
     {
         static const std::set<ESM::RefId> boundItemIdCache = makeBoundItemIdCache();
 
-        return boundItemIdCache.find(item.getCellRef().getRefId()) != boundItemIdCache.end();
+        return boundItemIdCache.contains(item.getCellRef().getRefId());
     }
 
     bool MechanicsManager::isAllowedToUse(const MWWorld::Ptr& ptr, const MWWorld::Ptr& target, MWWorld::Ptr& victim)
@@ -1217,7 +1217,7 @@ namespace MWMechanics
         // Player's followers should not attack player, or try to arrest him
         if (actor.getClass().getCreatureStats(actor).getAiSequence().hasPackage(AiPackageTypeId::Follow))
         {
-            if (playerFollowers.find(actor) != playerFollowers.end())
+            if (playerFollowers.contains(actor))
                 return false;
         }
 
@@ -1474,7 +1474,7 @@ namespace MWMechanics
                 const ESM::RefId& factionID = victim.getClass().getPrimaryFaction(victim);
 
                 const std::map<ESM::RefId, int>& playerRanks = player.getClass().getNpcStats(player).getFactionRanks();
-                if (playerRanks.find(factionID) != playerRanks.end())
+                if (playerRanks.contains(factionID))
                 {
                     player.getClass().getNpcStats(player).expell(factionID, true);
                 }
@@ -1482,7 +1482,7 @@ namespace MWMechanics
             else if (!factionId.empty())
             {
                 const std::map<ESM::RefId, int>& playerRanks = player.getClass().getNpcStats(player).getFactionRanks();
-                if (playerRanks.find(factionId) != playerRanks.end())
+                if (playerRanks.contains(factionId))
                 {
                     player.getClass().getNpcStats(player).expell(factionId, true);
                 }
@@ -1587,7 +1587,7 @@ namespace MWMechanics
         {
             std::set<MWWorld::Ptr> playerFollowers;
             getActorsSidingWith(player, playerFollowers);
-            if (playerFollowers.find(attacker) == playerFollowers.end())
+            if (!playerFollowers.contains(attacker))
                 return;
         }
 

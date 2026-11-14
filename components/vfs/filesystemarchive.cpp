@@ -62,7 +62,7 @@ namespace VFS
 
     bool FileSystemArchive::contains(Path::NormalizedView file) const
     {
-        return mIndex.find(file) != mIndex.end();
+        return mIndex.contains(file);
     }
 
     std::string FileSystemArchive::getDescription() const

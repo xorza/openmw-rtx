@@ -11,7 +11,7 @@ namespace MWSound
     void Sound_Loudness::analyzeLoudness(const std::vector<char>& data)
     {
         mQueue.insert(mQueue.end(), data.begin(), data.end());
-        if (!mQueue.size())
+        if (mQueue.empty())
             return;
 
         int samplesPerSegment = static_cast<int>(mSampleRate / mSamplesPerSec);

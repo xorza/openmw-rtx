@@ -82,7 +82,7 @@ CSMWorld::IdCompletionManager::IdCompletionManager(CSMWorld::Data& data)
 
 bool CSMWorld::IdCompletionManager::hasCompleterFor(CSMWorld::ColumnBase::Display display) const
 {
-    return mCompleters.find(display) != mCompleters.end();
+    return mCompleters.contains(display);
 }
 
 std::shared_ptr<QCompleter> CSMWorld::IdCompletionManager::getCompleter(CSMWorld::ColumnBase::Display display)

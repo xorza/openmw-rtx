@@ -949,10 +949,10 @@ namespace MWSound
             return;
         std::set<ESM::RefId> creatures;
         for (const ESM::Creature& creature : store.get<ESM::Creature>())
-            if (soundGenModels.count(creature.mModel.getNormalized()) > 0)
+            if (soundGenModels.contains(creature.mModel.getNormalized()))
                 creatures.insert(creature.mOriginal.empty() ? creature.mId : creature.mOriginal);
         for (const ESM::SoundGenerator& soundGen : store.get<ESM::SoundGenerator>())
-            if (soundGen.mCreature.empty() || creatures.count(soundGen.mCreature) > 0)
+            if (soundGen.mCreature.empty() || creatures.contains(soundGen.mCreature))
                 enqueueWarmSound(soundGen.mSound);
     }
 

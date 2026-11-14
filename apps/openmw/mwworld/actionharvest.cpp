@@ -84,10 +84,10 @@ namespace MWWorld
             }
             std::string tooltip = stream.str();
             // remove the first newline (easier this way)
-            if (tooltip.size() > 0 && tooltip[0] == '\n')
+            if (!tooltip.empty() && tooltip[0] == '\n')
                 tooltip.erase(0, 1);
 
-            if (tooltip.size() > 0)
+            if (!tooltip.empty())
                 MWBase::Environment::get().getWindowManager()->messageBox(tooltip);
         }
 

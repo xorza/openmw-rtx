@@ -233,7 +233,7 @@ namespace NifOsg
 
     GeomMorpherController::GeomMorpherController(const Nif::NiGeomMorpherController* ctrl)
     {
-        if (ctrl->mInterpolators.size() == 0)
+        if (ctrl->mInterpolators.empty())
         {
             if (!ctrl->mData.empty())
             {

@@ -389,7 +389,7 @@ MwIniImporter::multistrmap MwIniImporter::loadCfgFile(const std::filesystem::pat
         key = trim_ws(key);
         value = trim_ws(value);
 
-        if (map.find(key) == map.end())
+        if (!map.contains(key))
         {
             map.insert(std::make_pair(key, std::vector<std::string>()));
         }
@@ -538,10 +538,10 @@ void MwIniImporter::importGameFiles(
     ToUTF8::Utf8Encoder encoder(mEncoding);
 
     std::vector<std::filesystem::path> dataPaths;
-    if (cfg.count("data"))
+    if (cfg.contains("data"))
         addPaths(dataPaths, cfg["data"]);
 
-    if (cfg.count("data-local"))
+    if (cfg.contains("data-local"))
         addPaths(dataPaths, cfg["data-local"]);
 
     dataPaths.push_back(iniFilename.parent_path() /= "Data Files");

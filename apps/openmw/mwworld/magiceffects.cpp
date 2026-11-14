@@ -70,7 +70,7 @@ namespace MWWorld
             params.mNextWorsening = ESM::TimeStamp();
             for (const auto& enam : spell->mEffects.mList)
             {
-                if (oldParams.mPurgedEffects.find(enam.mIndex) == oldParams.mPurgedEffects.end())
+                if (!oldParams.mPurgedEffects.contains(enam.mIndex))
                 {
                     ESM::ActiveEffect effect;
                     effect.mEffectId = enam.mData.mEffectID;

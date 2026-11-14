@@ -87,7 +87,7 @@ int wmain(int argc, wchar_t* wargv[])
             = bpo::command_line_parser(argc, argv).options(desc).positional(positionalDesc).run();
         bpo::store(parsed, vm);
 
-        if (vm.count("help") || !vm.count("ini") || !vm.count("cfg"))
+        if (vm.contains("help") || !vm.contains("ini") || !vm.contains("cfg"))
         {
             std::cout << desc;
             return 0;
@@ -124,7 +124,7 @@ int wmain(int argc, wchar_t* wargv[])
             std::cerr << "cfg file does not exist" << std::endl;
 
         MwIniImporter importer;
-        importer.setVerbose(vm.count("verbose") != 0);
+        importer.setVerbose(vm.contains("verbose"));
 
         MwIniImporter::multistrmap cfg = importer.loadCfgFile(cfgFile);
 
@@ -141,7 +141,7 @@ int wmain(int argc, wchar_t* wargv[])
 
         MwIniImporter::multistrmap ini = importer.loadIniFile(iniFile);
 
-        if (!vm.count("fonts"))
+        if (!vm.contains("fonts"))
         {
             ini.erase("Fonts:Font 0");
             ini.erase("Fonts:Font 1");
@@ -151,12 +151,12 @@ int wmain(int argc, wchar_t* wargv[])
         importer.merge(cfg, ini);
         importer.mergeFallback(cfg, ini);
 
-        if (vm.count("game-files"))
+        if (vm.contains("game-files"))
         {
             importer.importGameFiles(cfg, ini, iniFile);
         }
 
-        if (!vm.count("no-archives"))
+        if (!vm.contains("no-archives"))
         {
             importer.importArchives(cfg, ini);
         }

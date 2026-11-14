@@ -228,12 +228,12 @@ namespace MWWorld
 
     bool Player::isInCombat()
     {
-        return MWBase::Environment::get().getMechanicsManager()->getActorsFighting(getPlayer()).size() != 0;
+        return !MWBase::Environment::get().getMechanicsManager()->getActorsFighting(getPlayer()).empty();
     }
 
     bool Player::enemiesNearby()
     {
-        return MWBase::Environment::get().getMechanicsManager()->getEnemiesNearby(getPlayer()).size() != 0;
+        return !MWBase::Environment::get().getMechanicsManager()->getEnemiesNearby(getPlayer()).empty();
     }
 
     void Player::markPosition(CellStore* markedCell, const ESM::Position& markedPosition)

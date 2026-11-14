@@ -120,7 +120,7 @@ namespace MWGui
 
         for (auto iter = mLines.begin(); iter != mLines.end(); ++iter)
         {
-            if (visitedLines.count(iter))
+            if (visitedLines.contains(iter))
                 continue;
 
             // remove line widgets

@@ -1356,7 +1356,7 @@ bool Optimizer::MergeGeometryVisitor::mergeGroup(osg::Group& group)
         // dequeue each DuplicateList when vertices limit is reached or when all elements has been checked
         for(auto & duplicateList : mergeListChecked)
         {
-            if (duplicateList.size()==0)
+            if (duplicateList.empty())
             {
                 continue;
             }
@@ -1567,7 +1567,7 @@ bool Optimizer::MergeGeometryVisitor::mergeGroup(osg::Group& group)
                     // now add the active primitive sets
                     for(auto & oldPrimitive : oldPrimitives)
                     {
-                        if (!toremove.count(oldPrimitive)) primitives.push_back(oldPrimitive);
+                        if (!toremove.contains(oldPrimitive)) primitives.push_back(oldPrimitive);
                     }
                 }
     #endif

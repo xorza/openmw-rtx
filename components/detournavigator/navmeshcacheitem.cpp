@@ -153,6 +153,6 @@ namespace DetourNavigator
 
     bool NavMeshCacheItem::isEmptyTile(const TilePosition& position) const
     {
-        return mEmptyTiles.find(position) != mEmptyTiles.end();
+        return mEmptyTiles.contains(position);
     }
 }

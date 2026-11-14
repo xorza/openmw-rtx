@@ -344,8 +344,7 @@ namespace RtxTool
                         "beside the core checks. `sync` by default outside a Release build and `off` "
                         "in one; a run that names a level and cannot have it fails rather than "
                         "reporting nothing",
-                Rtx::sValidationNames.list())
-                .c_str());
+                Rtx::sValidationNames.list()));
 
         option(sPlaces, "cell", bpo::value<std::string>()->default_value(""),
             "cell to read, addressed the way Morrowind does: a pair of integers is an exterior, "
@@ -388,15 +387,13 @@ namespace RtxTool
                         "what comes out, and what gets traced is --size over the mode's ratio. `{}` "
                         "by default. `film` is always `{}`",
                 Rtx::sUpscaleNames.list(), Rtx::sUpscaleNames.name(sUpscaleByDefault),
-                Rtx::sUpscaleNames.name(sFilmUpscale))
-                .c_str());
+                Rtx::sUpscaleNames.name(sFilmUpscale)));
 
         option(sFramed, "upscaler",
             bpo::value<std::string>()->default_value(
                 std::string(Rtx::sUpscalerNames.name(byDefault.mSetup.mRun.mProfile.mUpscaler))),
             std::format("reconstruction backend: {}. `{}` by default for repeatable measurements",
-                Rtx::sUpscalerNames.list(), Rtx::sUpscalerNames.name(byDefault.mSetup.mRun.mProfile.mUpscaler))
-                .c_str());
+                Rtx::sUpscalerNames.list(), Rtx::sUpscalerNames.name(byDefault.mSetup.mRun.mProfile.mUpscaler)));
 
         option(sFramed, "exposure", bpo::value<std::string>()->default_value("auto"),
             "what to scale the frame by before the display curve: auto measures it off the frame, "
@@ -408,15 +405,13 @@ namespace RtxTool
                         "input of the surface with no shading over it — the albedo, the shading normal as "
                         "0.5 + 0.5n, the perceptual roughness, the reflectance at normal incidence — which is "
                         "what a texture or a map problem looks like when nothing else is in the way",
-                Rtx::sSurfaceViewNames.list())
-                .c_str());
+                Rtx::sSurfaceViewNames.list()));
 
         option(sOneSky, "weather", bpo::value<std::string>()->default_value(std::string(Rtx::nameOf(sDefaultWeather))),
             std::format("which weather's sun, sky and precipitation an exterior stands under, named as the "
                         "content files spell it: {}. The ones that drop something drop it here too. Given, "
                         "it beats a weather a view fixes for itself",
-                listWeathers())
-                .c_str());
+                listWeathers()));
 
         option({ Verb::Bench, Verb::Film }, "turn-weather", bpo::value<std::string>()->default_value(""),
             std::format("turn the sky through these weathers, comma separated and round again — "
@@ -562,8 +557,7 @@ namespace RtxTool
             std::format("where the trace's per-pixel draws come from: auto, {}. Auto is the tile, "
                         "which the wavelet is built to read and Ray Reconstruction measured cleaner "
                         "on. Naming one is the A/B",
-                Rtx::sNoiseSourceNames.list())
-                .c_str());
+                Rtx::sNoiseSourceNames.list()));
 
         option(sFramed, "antilag",
             bpo::value<bool>()
@@ -579,8 +573,7 @@ namespace RtxTool
             std::format("rebuild the denoiser's mean of the bounce, where it holds {:g} frames or fewer, from "
                         "the surface around it, so what the eye uncovers shows the light beside it and not one "
                         "bounce spread into blotches. Off is the A/B",
-                Rtx::Shaders::ACCUMULATE_FIX_FRAMES)
-                .c_str());
+                Rtx::Shaders::ACCUMULATE_FIX_FRAMES));
 
         option(sFramed, "dual-motion",
             bpo::value<bool>()
@@ -598,8 +591,7 @@ namespace RtxTool
                         "past that, and the denoiser's mean of the bounce, where it holds {:g} frames or fewer, under "
                         "the light around it, so a bounce that found a small bright thing is not a speck. Off is the "
                         "A/B",
-                Rtx::Shaders::ACCUMULATE_FIREFLY_CEILING, Rtx::Shaders::ACCUMULATE_RING_FRAMES)
-                .c_str());
+                Rtx::Shaders::ACCUMULATE_FIREFLY_CEILING, Rtx::Shaders::ACCUMULATE_RING_FRAMES));
 
         option(sFramed, "level-epsilon", number(anyNumber<float>())->default_value(0.0f),
             "levels added to the texture level bias past the ratio the upscaler sets, negative for "
@@ -782,8 +774,7 @@ namespace RtxTool
                         "out. {:g} where neither this nor --speed is named, unless a key names its `at`, "
                         "every flight has its own seconds or the rest leave no frame to fly, where the film "
                         "is what the keys and --speed make it",
-                FilmPacing::sLengthByDefault)
-                .c_str());
+                FilmPacing::sLengthByDefault));
         option({ Verb::Film }, "ease", number(atLeast(0.0f))->default_value(pacing.mEase),
             "seconds the camera takes to reach its speed from a rest and to come back to one: at a "
             "take's ends, at a hold, and beside a turn on the spot; and to change speed at a key it "
@@ -919,7 +910,7 @@ namespace RtxTool
 
     ToolLine ToolOptions::read(const bpo::variables_map& variables, const Verb verb) const
     {
-        const auto named = [&](const char* name) { return variables.count(name) != 0 && !variables[name].defaulted(); };
+        const auto named = [&](const char* name) { return variables.contains(name) && !variables[name].defaulted(); };
         const auto text = [&](const char* name) -> const std::string& { return variables[name].as<std::string>(); };
         const auto real = [&](const char* name) { return variables[name].as<float>(); };
         const auto count = [&](const char* name) { return variables[name].as<std::uint32_t>(); };

@@ -522,7 +522,7 @@ namespace NifOsg
             osg::NodePath path = visitor.mFoundPath;
             path.erase(path.begin());
             if (!useGeometryEmitter && (mFlags & Nif::NiParticleSystemController::BSPArrayController_AtNode)
-                && path.size())
+                && !path.empty())
             {
                 osg::Matrix current;
 

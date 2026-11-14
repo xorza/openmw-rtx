@@ -238,14 +238,14 @@ Allowed options)");
         bpo::parsed_options validOpts = bpo::command_line_parser(argc, argv).options(desc).positional(p).run();
         bpo::store(validOpts, variables);
         bpo::notify(variables);
-        if (variables.count("help"))
+        if (variables.contains("help"))
         {
             std::cout << desc << std::endl;
             return false;
         }
-        writeDebugLog = variables.count("write-debug-log") > 0;
-        quiet = variables.count("quiet") > 0;
-        if (variables.count("input-file"))
+        writeDebugLog = variables.contains("write-debug-log");
+        quiet = variables.contains("quiet");
+        if (variables.contains("input-file"))
         {
             files = asPathContainer(variables["input-file"].as<Files::MaybeQuotedPathContainer>());
             if (const auto it = variables.find("archives"); it != variables.end())

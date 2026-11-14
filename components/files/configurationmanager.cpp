@@ -99,7 +99,7 @@ namespace Files
         {
             auto path = extraConfigDirs.top();
             extraConfigDirs.pop();
-            if (alreadyParsedPaths.count(path) > 0)
+            if (alreadyParsedPaths.contains(path))
             {
                 if (!quiet)
                     Log(Debug::Warning) << "Repeated config dir: " << path;
@@ -246,7 +246,8 @@ namespace Files
                     continue;
                 }
 
-                if (replacedVariables.count(name) || firstPosition->second.defaulted() || firstPosition->second.empty())
+                if (replacedVariables.contains(name) || firstPosition->second.defaulted()
+                    || firstPosition->second.empty())
                 {
                     firstPosition->second = second[name];
                     continue;

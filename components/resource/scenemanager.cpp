@@ -472,7 +472,7 @@ namespace Resource
 
             for (const auto& [oldName, newName] : renameList)
             {
-                if (vertexInfluenceMap->find(newName) == vertexInfluenceMap->end())
+                if (!vertexInfluenceMap->contains(newName))
                     (*vertexInfluenceMap)[newName] = std::move((*vertexInfluenceMap)[oldName]);
                 vertexInfluenceMap->erase(oldName);
             }

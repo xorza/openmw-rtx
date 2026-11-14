@@ -1,5 +1,6 @@
 #include "recharge.hpp"
 
+#include <algorithm>
 #include <components/esm3/loadcrea.hpp>
 #include <components/esm3/loadench.hpp>
 #include <components/misc/rng.hpp>
@@ -52,10 +53,8 @@ namespace MWMechanics
 
         float intelligenceTerm = 0.2f * stats.getAttribute(ESM::Attribute::Intelligence).getModified();
 
-        if (intelligenceTerm > 20)
-            intelligenceTerm = 20;
-        if (intelligenceTerm < 1)
-            intelligenceTerm = 1;
+        intelligenceTerm = std::min<float>(intelligenceTerm, 20);
+        intelligenceTerm = std::max<float>(intelligenceTerm, 1);
 
         float x = (player.getClass().getSkill(player, ESM::Skill::Enchant) + intelligenceTerm + luckTerm)
             * stats.getFatigueTerm();

@@ -86,17 +86,17 @@ Allowed options)");
 
     bpo::notify(variables);
 
-    if (variables.count("help"))
+    if (variables.contains("help"))
     {
         std::cout << desc << std::endl;
         return false;
     }
-    if (variables.count("version"))
+    if (variables.contains("version"))
     {
         std::cout << "BSATool version " << BSATOOL_VERSION << std::endl;
         return false;
     }
-    if (!variables.count("mode"))
+    if (!variables.contains("mode"))
     {
         std::cout << "ERROR: no mode specified!\n\n" << desc << std::endl;
         return false;
@@ -110,7 +110,7 @@ Allowed options)");
         return false;
     }
 
-    if (!variables.count("input-file"))
+    if (!variables.contains("input-file"))
     {
         std::cout << "\nERROR: missing BSA archive\n\n" << desc << std::endl;
         return false;
@@ -152,8 +152,8 @@ Allowed options)");
         info.outdir = inputFiles[1].u8string(); // This call to u8string is redundant, but required to build on
                                                 // MSVC 14.26 due to implementation bugs.
 
-    info.longformat = variables.count("long") != 0;
-    info.fullpath = variables.count("full-path") != 0;
+    info.longformat = variables.contains("long");
+    info.fullpath = variables.contains("full-path");
 
     return true;
 }

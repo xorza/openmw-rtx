@@ -177,7 +177,7 @@ namespace SceneUtil
             // This is safe since the visitor is never dereferenced.
             cv = nullptr;
 
-        if (mViewDependentDataMap.count(cv) == 0)
+        if (!mViewDependentDataMap.contains(cv))
         {
             auto camera = new osg::Camera();
             auto vdd = std::make_shared<ViewDependentData>();
@@ -195,16 +195,16 @@ namespace SceneUtil
 
             setDefaults(camera);
 
-            if (camera->getBufferAttachmentMap().count(osg::Camera::COLOR_BUFFER))
+            if (camera->getBufferAttachmentMap().contains(osg::Camera::COLOR_BUFFER))
                 vdd->mColorTexture = camera->getBufferAttachmentMap()[osg::Camera::COLOR_BUFFER]._texture;
-            if (camera->getBufferAttachmentMap().count(osg::Camera::PACKED_DEPTH_STENCIL_BUFFER))
+            if (camera->getBufferAttachmentMap().contains(osg::Camera::PACKED_DEPTH_STENCIL_BUFFER))
                 vdd->mDepthTexture
                     = camera->getBufferAttachmentMap()[osg::Camera::PACKED_DEPTH_STENCIL_BUFFER]._texture;
 
             if (shouldDoTextureArray())
             {
                 // Create any buffer attachments not added in setDefaults
-                if (camera->getBufferAttachmentMap().count(osg::Camera::COLOR_BUFFER) == 0)
+                if (!camera->getBufferAttachmentMap().contains(osg::Camera::COLOR_BUFFER))
                 {
                     vdd->mColorTexture = createTextureArray(mColorBufferInternalFormat);
                     camera->attach(osg::Camera::COLOR_BUFFER, vdd->mColorTexture, 0,
@@ -214,7 +214,7 @@ namespace SceneUtil
                         mAddMSAAIntermediateTarget);
                 }
 
-                if (camera->getBufferAttachmentMap().count(osg::Camera::PACKED_DEPTH_STENCIL_BUFFER) == 0)
+                if (!camera->getBufferAttachmentMap().contains(osg::Camera::PACKED_DEPTH_STENCIL_BUFFER))
                 {
                     vdd->mDepthTexture = createTextureArray(mDepthBufferInternalFormat);
                     camera->attach(osg::Camera::PACKED_DEPTH_STENCIL_BUFFER, vdd->mDepthTexture, 0,
@@ -235,7 +235,7 @@ namespace SceneUtil
             else
             {
                 // Create any buffer attachments not added in setDefaults
-                if (camera->getBufferAttachmentMap().count(osg::Camera::COLOR_BUFFER) == 0)
+                if (!camera->getBufferAttachmentMap().contains(osg::Camera::COLOR_BUFFER))
                 {
                     vdd->mColorTexture = createTexture(mColorBufferInternalFormat);
                     camera->attach(osg::Camera::COLOR_BUFFER, vdd->mColorTexture, 0, 0, mGenerateMipmaps, mSamples);
@@ -243,7 +243,7 @@ namespace SceneUtil
                         vdd->mColorTexture, 0, 0, mGenerateMipmaps, mAddMSAAIntermediateTarget);
                 }
 
-                if (camera->getBufferAttachmentMap().count(osg::Camera::PACKED_DEPTH_STENCIL_BUFFER) == 0)
+                if (!camera->getBufferAttachmentMap().contains(osg::Camera::PACKED_DEPTH_STENCIL_BUFFER))
                 {
                     vdd->mDepthTexture = createTexture(mDepthBufferInternalFormat);
                     camera->attach(osg::Camera::PACKED_DEPTH_STENCIL_BUFFER, vdd->mDepthTexture, 0, 0, false, mSamples);

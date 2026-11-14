@@ -7,6 +7,7 @@
 #include <MyGUI_TextBox.h>
 #include <MyGUI_UString.h>
 
+#include <algorithm>
 #include <components/fallback/fallback.hpp>
 #include <components/settings/values.hpp>
 #include <components/widgets/box.hpp>
@@ -117,8 +118,7 @@ namespace MWGui
                 val += pcStats.getLevelupAttributeMultiplier(attribute.mId);
             }
 
-            if (val >= 100)
-                val = 100;
+            val = std::min(val, 100);
 
             mAttributeWidgets[attribute.mId].mValue->setCaption(MyGUI::utility::toString(val));
         }

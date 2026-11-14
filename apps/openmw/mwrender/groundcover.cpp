@@ -378,7 +378,7 @@ namespace MWRender
                     bool deleted = false;
                     while (cell.getNextRef(*reader, ref, deleted))
                     {
-                        if (!deleted && refs.find(ref.mRefNum) == refs.end() && !calculator.isInstanceEnabled())
+                        if (!deleted && !refs.contains(ref.mRefNum) && !calculator.isInstanceEnabled())
                             deleted = true;
                         if (!deleted && !isInChunkBorders(ref, minBound, maxBound))
                             deleted = true;

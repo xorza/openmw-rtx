@@ -42,7 +42,7 @@ namespace SceneUtil
             return std::find_if(mTextKeyByTime.begin(), mTextKeyByTime.end(), IsGroupStart{ groupName });
         }
 
-        bool hasGroupStart(std::string_view groupName) const { return mGroups.count(groupName) > 0; }
+        bool hasGroupStart(std::string_view groupName) const { return mGroups.contains(groupName); }
 
         const std::set<std::string, std::less<>>& getGroups() const { return mGroups; }
 

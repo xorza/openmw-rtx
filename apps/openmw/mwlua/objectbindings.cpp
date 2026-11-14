@@ -441,7 +441,7 @@ namespace MWLua
                     LocalScripts* localScripts = ptr.getRefData().getLuaScripts();
                     if (!localScripts || !localScripts->hasScript(*scriptId))
                         throw std::runtime_error("There is no script " + std::string(path) + " on " + ptr.toString());
-                    if (localScripts->getAutoStartConf().count(*scriptId) > 0)
+                    if (localScripts->getAutoStartConf().contains(*scriptId))
                         throw std::runtime_error("Autostarted script can not be removed: " + std::string(path));
                     localScripts->removeScript(*scriptId);
                 };

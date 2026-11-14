@@ -218,7 +218,7 @@ namespace DetourNavigator
             const auto locked = cached->lockConst();
             const auto& navMesh = locked->getImpl();
             getTilesPositions(range, [&](const TilePosition& tile) {
-                if (changedTiles.find(tile) != changedTiles.end() || locked->isEmptyTile(tile))
+                if (changedTiles.contains(tile) || locked->isEmptyTile(tile))
                     return;
                 const bool shouldAdd = shouldAddTile(tile, playerTile, maxTiles);
                 const bool presentInNavMesh = navMesh.getTileAt(tile.x(), tile.y(), 0) != nullptr;

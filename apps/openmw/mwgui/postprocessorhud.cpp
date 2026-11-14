@@ -383,7 +383,7 @@ namespace MWGui
 
         if (Settings::ShaderManager::get().getMode() == Settings::ShaderManager::Mode::Debug)
         {
-            if (technique->getUniformMap().size() > 0)
+            if (!technique->getUniformMap().empty())
             {
                 auto* resetButton
                     = mConfigArea->createWidget<MyGUI::Button>("MW_Button", { 0, 0, 0, 24 }, MyGUI::Align::Default);

@@ -120,7 +120,7 @@ namespace MWDialogue
 
         for (const auto& topicId : parseTopicIdsFromText(text))
         {
-            if (mActorKnownTopics.count(topicId))
+            if (mActorKnownTopics.contains(topicId))
                 mKnownTopics.insert(topicId);
         }
     }
@@ -381,12 +381,12 @@ namespace MWDialogue
             // If the topic is not marked as exhausted, we don't need to do anything about it.
             // If the topic will not be shown to the player, the flag actually does not matter.
 
-            if (!(topicInfo.mFlags & MWBase::DialogueManager::TopicType::Exhausted) || !mKnownTopics.count(dialogId))
+            if (!(topicInfo.mFlags & MWBase::DialogueManager::TopicType::Exhausted) || !mKnownTopics.contains(dialogId))
                 continue;
 
             for (const auto& topicId : parseTopicIdsFromText(topicInfo.mInfo->mResponse))
             {
-                if (mActorKnownTopics.count(topicId) && !mKnownTopics.count(topicId))
+                if (mActorKnownTopics.contains(topicId) && !mKnownTopics.contains(topicId))
                 {
                     topicInfo.mFlags &= ~MWBase::DialogueManager::TopicType::Exhausted;
                     break;
