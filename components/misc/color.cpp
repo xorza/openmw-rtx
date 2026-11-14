@@ -47,7 +47,7 @@ namespace Misc
 
     Color Color::fromVec(osg::Vec4f value)
     {
-        return Color(std::move(value));
+        return Color(value);
     }
 
     std::string Color::toHex() const

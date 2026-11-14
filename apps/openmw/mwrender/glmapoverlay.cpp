@@ -108,7 +108,7 @@ namespace
     osg::ref_ptr<osg::Texture2D> textureOver(osg::ref_ptr<osg::Image> image)
     {
         osg::ref_ptr<osg::Texture2D> texture(new osg::Texture2D);
-        texture->setImage(std::move(image));
+        texture->setImage(image);
         texture->setWrap(osg::Texture::WRAP_S, osg::Texture::CLAMP_TO_EDGE);
         texture->setWrap(osg::Texture::WRAP_T, osg::Texture::CLAMP_TO_EDGE);
         texture->setFilter(osg::Texture::MIN_FILTER, osg::Texture::LINEAR);

@@ -44,7 +44,7 @@ namespace MWLua
                 },
                 "StatUpdateAction");
         }
-        mStatsCache[std::move(key)] = std::move(value);
+        mStatsCache[key] = std::move(value);
     }
 
     void LocalScripts::initializeSelfPackage(const Context& context)

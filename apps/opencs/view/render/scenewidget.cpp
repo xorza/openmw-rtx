@@ -365,7 +365,7 @@ namespace CSVRender
 
         osg::ref_ptr<osg::Geometry> gradientQuad = createGradientRectangle(bgColour, gradientColour);
 
-        camera->addChild(std::move(gradientQuad));
+        camera->addChild(gradientQuad);
         return camera;
     }
 

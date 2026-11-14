@@ -18,7 +18,7 @@ namespace ESM
             {
                 StatState<float> stat;
                 stat.load(esm, intFallback);
-                mAttributes.emplace(ESM::Attribute::indexToRefId(i), std::move(stat));
+                mAttributes.emplace(ESM::Attribute::indexToRefId(i), stat);
             }
         }
         else

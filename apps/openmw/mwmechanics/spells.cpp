@@ -41,7 +41,7 @@ namespace MWMechanics
     Spells::Spells(Spells&& spells) noexcept
         : mSpellList(std::move(spells.mSpellList))
         , mSpells(std::move(spells.mSpells))
-        , mSelectedSpell(std::move(spells.mSelectedSpell))
+        , mSelectedSpell(spells.mSelectedSpell)
         , mUsedPowers(std::move(spells.mUsedPowers))
     {
         if (mSpellList)

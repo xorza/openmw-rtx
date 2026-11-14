@@ -8,7 +8,7 @@ namespace Misc
 {
     class Color
     {
-        explicit Color(osg::Vec4&& value)
+        explicit Color(const osg::Vec4& value)
             : mValue(value)
         {
         }

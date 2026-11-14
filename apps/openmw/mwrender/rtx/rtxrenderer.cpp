@@ -918,7 +918,7 @@ namespace MWRender
             return;
         }
 
-        trace(frame, std::move(*request), report, since);
+        trace(frame, *request, report, since);
     }
 
     void RtxRenderer::finishBehind(FrameReport& report)

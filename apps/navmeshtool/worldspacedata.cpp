@@ -56,11 +56,10 @@ namespace NavMeshTool
             float mScale;
             ESM::Position mPos;
 
-            CellRef(
-                ESM::RecNameInts type, ESM::RefNum refNum, ESM::RefId&& refId, float scale, const ESM::Position& pos)
+            CellRef(ESM::RecNameInts type, ESM::RefNum refNum, ESM::RefId refId, float scale, const ESM::Position& pos)
                 : mType(type)
                 , mRefNum(refNum)
-                , mRefId(std::move(refId))
+                , mRefId(refId)
                 , mScale(scale)
                 , mPos(pos)
             {
@@ -111,8 +110,7 @@ namespace NavMeshTool
                     const ESM::RecNameInts type = getType(esmData, cellRef.mRefID);
                     if (type == ESM::RecNameInts{})
                         continue;
-                    cellRefs.emplace_back(
-                        deleted, type, cellRef.mRefNum, std::move(cellRef.mRefID), cellRef.mScale, cellRef.mPos);
+                    cellRefs.emplace_back(deleted, type, cellRef.mRefNum, cellRef.mRefID, cellRef.mScale, cellRef.mPos);
                 }
             }
 

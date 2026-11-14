@@ -34,7 +34,7 @@ namespace DetourNavigator
         static constexpr std::uint32_t sTileVersion = 3;
 
         /// @param directory where the store stands, made if it is not there.
-        explicit NavMeshTileStore(std::filesystem::path directory);
+        explicit NavMeshTileStore(const std::filesystem::path& directory);
 
         /// The key of the tile `recastMesh` makes for `agentBounds` at `tilePosition` of `worldspace`: a digest of
         /// everything Recast builds it from, the mesh's triangles among them.

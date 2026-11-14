@@ -793,7 +793,7 @@ namespace MWWorld
                         continue;
                     }
 
-                    mIds.push_back(std::move(ref.mRefID));
+                    mIds.push_back(ref.mRefID);
                 }
             }
             catch (std::exception& e)

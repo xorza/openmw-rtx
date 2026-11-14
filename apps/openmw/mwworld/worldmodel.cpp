@@ -115,7 +115,7 @@ namespace MWWorld
             }
             auto [cell, created] = createExteriorCell(location, store);
             const ESM::RefId id = cell.getId();
-            CellStore* const cellStore = &emplaceCellStore(id, std::move(cell), store, readers, cells);
+            CellStore* const cellStore = &emplaceCellStore(id, cell, store, readers, cells);
             exteriors.emplace(location, cellStore);
             if (created && triggerEvent)
                 MWBase::Environment::get().getLuaManager()->exteriorCreated(*cellStore);
@@ -283,7 +283,7 @@ namespace MWWorld
         if (!cell.has_value())
             return nullptr;
 
-        CellStore& cellStore = emplaceCellStore(id, std::move(*cell), mStore, mReaders, mCells);
+        CellStore& cellStore = emplaceCellStore(id, *cell, mStore, mReaders, mCells);
 
         if (cellStore.isExterior())
             mExteriors.emplace(ESM::ExteriorCellLocation(cellStore.getCell()->getGridX(),

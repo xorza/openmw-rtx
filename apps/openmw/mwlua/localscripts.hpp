@@ -27,8 +27,8 @@ namespace MWLua
 
             CachedStat(Setter setter, Index index, std::string_view prop)
                 : mSetter(setter)
-                , mIndex(std::move(index))
-                , mProp(std::move(prop))
+                , mIndex(index)
+                , mProp(prop)
             {
             }
 

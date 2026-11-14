@@ -96,8 +96,8 @@ namespace DetourNavigator
         }
     }
 
-    NavMeshTileStore::NavMeshTileStore(std::filesystem::path directory)
-        : mStore(std::move(directory), sTilePolicy)
+    NavMeshTileStore::NavMeshTileStore(const std::filesystem::path& directory)
+        : mStore(directory, sTilePolicy)
     {
     }
 

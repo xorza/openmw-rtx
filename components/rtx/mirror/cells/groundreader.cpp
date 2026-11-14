@@ -190,7 +190,7 @@ namespace Rtx
                     layer.mRow.mMaskTransform = maskTransform(mTileCount);
             }
 
-            into.mLayers.push_back(std::move(layer));
+            into.mLayers.push_back(layer);
         }
     }
 }

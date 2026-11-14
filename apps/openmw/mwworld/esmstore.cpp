@@ -57,9 +57,9 @@ namespace
                     == cell.mMovedRefs.end())
                 {
                     if (!ref.mKey.empty())
-                        keyIDs.insert(std::move(ref.mKey));
+                        keyIDs.insert(ref.mKey);
                     refs.emplace_back(ref.mRefNum, refIDs.size(), cellIndex);
-                    refIDs.push_back(std::move(ref.mRefID));
+                    refIDs.push_back(ref.mRefID);
                 }
             }
         }
@@ -70,7 +70,7 @@ namespace
             else
             {
                 if (!value.mKey.empty())
-                    keyIDs.insert(std::move(value.mKey));
+                    keyIDs.insert(value.mKey);
                 refs.emplace_back(value.mRefNum, refIDs.size(), cellIndex);
                 refIDs.push_back(value.mRefID);
             }

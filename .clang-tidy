@@ -74,7 +74,6 @@ Checks:
   - readability-identifier-naming
   # Not yet applied, each until its fixes land: the checks commented out above, and these of the families above.
   - '-performance-unnecessary-value-param'
-  - '-performance-move-const-arg'
   - '-performance-inefficient-string-concatenation'
   - '-performance-no-automatic-move'
   - '-performance-use-std-move'

@@ -35,10 +35,10 @@ namespace ESM
                 ESM::RefId owner = esm.getRefId();
                 int count = 0;
                 esm.getHNT(count, "COUN");
-                ownerMap.emplace(std::make_pair(std::move(owner), isFaction), count);
+                ownerMap.emplace(std::make_pair(owner, isFaction), count);
             }
 
-            mStolenItems.insert_or_assign(std::move(itemid), std::move(ownerMap));
+            mStolenItems.insert_or_assign(itemid, std::move(ownerMap));
         }
     }
 

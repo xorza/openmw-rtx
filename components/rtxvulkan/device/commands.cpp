@@ -225,7 +225,7 @@ namespace Rtx
         // Under the value this submit signals: the deferred batches run ahead of `commands` and
         // are finished when it is.
         for (VkCommandBuffer deferred : mDeferred)
-            mRetiring.hold(value, std::move(deferred));
+            mRetiring.hold(value, deferred);
         mDeferred.clear();
         mDeferredNotes.clear();
 
@@ -304,7 +304,7 @@ namespace Rtx
     {
         const std::uint64_t until = mDevice.getTimeline().getNext();
         for (VkCommandBuffer buffer : commands)
-            mRetiring.hold(until, std::move(buffer));
+            mRetiring.hold(until, buffer);
     }
 
     LentCommands::LentCommands(LentCommands&& other) noexcept

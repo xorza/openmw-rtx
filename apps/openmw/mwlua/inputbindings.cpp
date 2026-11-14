@@ -175,7 +175,7 @@ namespace MWLua
                   parsedOptions.mDescription = options["description"].get<std::string_view>();
                   parsedOptions.mDefaultValue = options["defaultValue"].get<sol::main_object>();
                   parsedOptions.mPersistent = persistent;
-                  manager->inputActions().insert(std::move(parsedOptions));
+                  manager->inputActions().insert(parsedOptions);
               };
         api["bindAction"] = [manager = context.mLuaManager](
                                 std::string_view key, const sol::table& callback, sol::table dependencies) {
@@ -214,7 +214,7 @@ namespace MWLua
                   parsedOptions.mName = options["name"].get<std::string_view>();
                   parsedOptions.mDescription = options["description"].get<std::string_view>();
                   parsedOptions.mPersistent = persistent;
-                  manager->inputTriggers().insert(std::move(parsedOptions));
+                  manager->inputTriggers().insert(parsedOptions);
               };
         api["registerTriggerHandler"]
             = [manager = context.mLuaManager](std::string_view key, const sol::table& callback) {
