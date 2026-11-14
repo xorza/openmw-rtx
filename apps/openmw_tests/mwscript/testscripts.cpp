@@ -561,7 +561,7 @@ End)mwscript";
                 {
                 }
 
-                void execute(Interpreter::Runtime& runtime)
+                void execute(Interpreter::Runtime& runtime) override
                 {
                     const auto topic = runtime.getStringLiteral(runtime[0].mInteger);
                     runtime.pop();
@@ -849,7 +849,7 @@ End)mwscript";
                 {
                 }
 
-                void execute(Interpreter::Runtime& runtime)
+                void execute(Interpreter::Runtime& runtime) override
                 {
                     const auto topic = runtime.getStringLiteral(runtime[0].mInteger);
                     runtime.pop();
@@ -860,7 +860,7 @@ End)mwscript";
             class PositionCell : public Interpreter::Opcode0
             {
             public:
-                void execute(Interpreter::Runtime& runtime)
+                void execute(Interpreter::Runtime& runtime) override
                 {
                     std::string_view target = runtime.getStringLiteral(runtime[0].mInteger);
                     runtime.pop();
@@ -998,7 +998,7 @@ End)mwscript";
                 {
                 }
 
-                void execute(Interpreter::Runtime& runtime) { mRan = true; }
+                void execute(Interpreter::Runtime& runtime) override { mRan = true; }
             };
             bool ran = false;
             installOpcode<PositionCell>(Compiler::Transformation::opcodePositionCell, ran);

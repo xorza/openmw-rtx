@@ -136,11 +136,10 @@ the lines each item names, which the merge resolves by keeping the seam:
 - One set of checks for every file, on every compiler: the checks `cmake/Checks.cmake` adds to
   upstream's, and the hunks in upstream code that keep it clean under them, the patches to
   `extern/sol3` included. MSVC's `4244` and `4267` are off, since `-Wall -Wextra` leave `-Wconversion`
-  out. `-Wsuggest-override` and `-Wzero-as-null-pointer-constant` are off for the eleven upstream sources
-  that keep OpenSceneGraph's style and differ by nothing else (`openmw_keep_upstream_styles`), whose text is
-  upstream's; the six headers of that style (`nif/data.hpp`, `nif/node.hpp`, `nif/particle.hpp`,
-  `sceneutil/memorybarrier.hpp`, `sceneutil/mwshadowtechnique.hpp`, `sceneutil/optimizer.hpp`) keep the
-  edits, as every file including one would need the checks off with it. What GCC alone asked, which left with
+  out. `-Wsuggest-override` and `-Wzero-as-null-pointer-constant` hold for upstream's sources as for the
+  fork's, so the eleven sources and six headers in OpenSceneGraph's style (a null pointer spelled `0`, an
+  override left unmarked) carry the edits that keep them clean, decided 2026-11-14: one set of checks with no
+  list of exempt files, against those lines' conflicts with an upstream edit to them. What GCC alone asked, which left with
   it on 2026-11-12, is upstream's again: the casts `-Wdouble-promotion` asked in 50 files and the 34
   `Crash::notNull` its flow-sensitive null check asked; an ESM4 group label's cast stays, which `-Wcast-qual`
   asks. The cost is a conflict with an upstream edit to a hunk that keeps a current check clean.
