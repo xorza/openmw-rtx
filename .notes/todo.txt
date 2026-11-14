@@ -1,5 +1,6 @@
 - remove visibility limit
 - remove zhi dialong from rtxtool
+- contribution rules
 
 - all IO serial?
 
@@ -7,6 +8,7 @@
 - publish rgbcx
 - avx encoders
 - bake distant land into one mesh
+- build clang-tidy ourselves at the compiler's LLVM version (23.1.5), Linux on AlmaLinux 8 and Windows, published and pinned in place of the PyPI wheel (`pins.CLANG_TIDY`, 23.1.4)
 
 
 
