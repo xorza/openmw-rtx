@@ -157,7 +157,6 @@ place, and the log's warnings counted.
   one content. `tools/omw/tour.py` takes several, runs them one after another, never two at once since they
   share the card, and prints one table with the worst status; a Zed task a profile and one for all three, as the
   profiles are the machine's.
-
 - **One pass, under the counting shaders, in the release flavour with no layers**, decided 2026-11-13. The
   census lives only in the counting set, and a figure taken under it is not the build's
   (`VerbPolicy::mMeasures`): NaNs are named by module, hitches are judged relatively, which holds under a
@@ -259,22 +258,26 @@ and the first run with a measurement.
 On `rtx-tour`. Whoever addresses an item deletes it.
 
 - [ ] `model/tour`: `WorldMap`, `planTour` for exteriors (rows, legs, heights, keys), `describePlan`; tests.
-- [ ] `worldmap`: the store read into a `WorldMap`; `tour --plan` prints the plan and its cost.
+- [ ] `worldmap`: the store read into a `WorldMap`; `Verb::Tour`, its row in `verbs.cpp` and its options, and
+  the tour's stops from its plan (`stopsFor`, beside the film's); `tour --plan` prints the plan and its cost at
+  the frame time the line names.
 - [ ] `Session`: stops taken where the world stands; a leg that continues a flight; a failed leg recorded.
 - [ ] `model/finding` and `tourwatch`: not-finite stores by module with the kept frame's place; slow frames and
   hitches with `WorstFrame`'s spend; refusals; the checks a leg can answer, asked at its end; outrun cells.
 - [ ] The policy row: the shader set a field of its own, the tour's frames at the game's width with no layers.
 - [ ] Interiors: the counts and the files in the `WorldMap`, the share a file, the turn on the spot; a test
   that a file of few rooms keeps its eight and one of fewer than eight gives all it has.
-- [ ] The window: `--window` and `--pace`, the title's note, Home's mark as a finding.
+- [ ] The window: `--window` and `--pace=real`, the title's note, Home's mark as a finding.
 - [ ] The closing leg, and the first pass against the last as a finding.
 - [ ] The turning sky and the running clock: the circuit of weathers and the clock's rate in `TourPacing`, each
   leg's first hour and crossing from the plan, the closing leg under the first leg's; a finding carries its
-  crossing and hour. Tests: a leg begins under the same hour and crossing whichever leg the run began from,
+  crossing and hour; `--speed`, `--crossing`, `--weather-hold` and `--clock` on the line, as a film's are. Tests: a leg begins under the same hour and crossing whichever leg the run began from,
   and two plans of one map agree frame for frame.
 - [ ] The log's warnings and errors, by the route decided above.
 - [ ] The report: findings as blocks, the table a leg, memory at the first leg and the last; the record a leg
-  at a time; `--from`.
+  at a time; `--from`; the exit status the faults set (`ExitStatus::Failed`) and `--fail-on=<kind>`.
 - [ ] `tools/omw/tour.py`, the tasks (the vanilla one naming both expansions), and a line in `AGENTS.md`'s
   verification list saying when a tour is run.
-- [ ] The first tours of the three contents, their figures to `docs/research`, and this file folded away.
+- [ ] The first tours of the three contents: whether a tour after a shader change waits for its pipelines
+  read first, the speed, the share of sixty and the sky's pace set by what they show, their figures to
+  `docs/research`, and this file folded away.
