@@ -37,6 +37,8 @@ namespace Platform::File
     public:
         ScopedHandle() noexcept = default;
         ScopedHandle(ScopedHandle& other) = delete;
+        // A handle converts to the scoped handle that closes it.
+        // NOLINTNEXTLINE(google-explicit-constructor)
         ScopedHandle(Handle handle) noexcept
             : mHandle(handle)
         {
@@ -61,6 +63,8 @@ namespace Platform::File
                 close(mHandle);
         }
 
+        // A file is used as its handle.
+        // NOLINTNEXTLINE(google-explicit-constructor)
         operator Handle() const { return mHandle; }
     };
 }

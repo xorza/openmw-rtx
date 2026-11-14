@@ -97,7 +97,7 @@ namespace MWGui
 
         struct MarkerUserData
         {
-            MarkerUserData(MWRender::LocalMap* map)
+            explicit MarkerUserData(MWRender::LocalMap* map)
                 : mLocalMapRender(map)
                 , cellX(0)
                 , cellY(0)

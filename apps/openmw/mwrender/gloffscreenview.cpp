@@ -46,7 +46,7 @@ namespace MWRender
     class DrawOnceCallback : public SceneUtil::NodeCallback<DrawOnceCallback>
     {
     public:
-        DrawOnceCallback(osg::Node* subgraph)
+        explicit DrawOnceCallback(osg::Node* subgraph)
             : mRendered(false)
             , mLastRenderedFrame(0)
             , mSubgraph(subgraph)
@@ -156,7 +156,7 @@ namespace MWRender
     class CharacterPreviewRTTNode : public SceneUtil::RTTNode
     {
     public:
-        CharacterPreviewRTTNode(const OffscreenViewSpec& spec)
+        explicit CharacterPreviewRTTNode(const OffscreenViewSpec& spec)
             : RTTNode(spec.mWidth, spec.mHeight, Settings::video().mAntialiasing, false, 0,
                   StereoAwareness::Unaware_MultiViewShaders, shouldAddMSAAIntermediateTarget())
             , mAspectRatio(static_cast<float>(spec.mWidth) / static_cast<float>(spec.mHeight))
@@ -231,7 +231,7 @@ namespace MWRender
     class LocalMapRenderToTexture : public SceneUtil::RTTNode
     {
     public:
-        LocalMapRenderToTexture(const OffscreenViewSpec& spec);
+        explicit LocalMapRenderToTexture(const OffscreenViewSpec& spec);
 
         void setDefaults(osg::Camera* camera) override;
         void apply(osg::Camera* camera) override;

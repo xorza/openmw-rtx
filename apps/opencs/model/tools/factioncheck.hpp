@@ -24,7 +24,7 @@ namespace CSMTools
         bool mIgnoreBaseRecords;
 
     public:
-        FactionCheckStage(const CSMWorld::IdCollection<ESM::Faction>& factions);
+        explicit FactionCheckStage(const CSMWorld::IdCollection<ESM::Faction>& factions);
 
         int setup() override;
         ///< \return number of steps

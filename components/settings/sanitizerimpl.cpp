@@ -105,7 +105,7 @@ namespace Settings
         {
             std::vector<T> mValues;
 
-            explicit Enum(std::initializer_list<T> value)
+            Enum(std::initializer_list<T> value)
                 : mValues(std::make_move_iterator(value.begin()), std::make_move_iterator(value.end()))
             {
             }

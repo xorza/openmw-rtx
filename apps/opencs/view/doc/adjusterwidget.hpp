@@ -30,7 +30,7 @@ namespace CSVDoc
         bool mDoFilenameCheck;
 
     public:
-        AdjusterWidget(QWidget* parent = nullptr);
+        explicit AdjusterWidget(QWidget* parent = nullptr);
 
         void setLocalData(const std::filesystem::path& localData);
         void setAction(ContentAction action);

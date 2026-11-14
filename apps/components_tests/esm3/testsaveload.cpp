@@ -76,8 +76,8 @@ namespace ESM
 
     inline std::ostream& operator<<(std::ostream& stream, const ESM::Region::SoundRef& value)
     {
-        return stream << "ESM::Region::SoundRef {.mSound = '" << value.mSound << "', .mChance = " << value.mChance
-                      << "}";
+        return stream << "ESM::Region::SoundRef {.mSound = '" << value.mSound
+                      << "', .mChance = " << static_cast<unsigned int>(value.mChance) << "}";
     }
 
     inline bool operator==(const ESM::QuickKeys::QuickKey& lhs, const ESM::QuickKeys::QuickKey& rhs)

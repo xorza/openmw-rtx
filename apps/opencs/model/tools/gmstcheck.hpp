@@ -25,7 +25,7 @@ namespace CSMTools
     class GmstCheckStage : public CSMDoc::Stage
     {
     public:
-        GmstCheckStage(const CSMWorld::IdCollection<ESM::GameSetting>& gameSettings);
+        explicit GmstCheckStage(const CSMWorld::IdCollection<ESM::GameSetting>& gameSettings);
 
         int setup() override;
         ///< \return number of steps

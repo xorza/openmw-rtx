@@ -97,7 +97,7 @@ namespace MWRender
     class PreloadCommonAssetsWorkItem : public SceneUtil::WorkItem
     {
     public:
-        PreloadCommonAssetsWorkItem(Resource::ResourceSystem* resourceSystem)
+        explicit PreloadCommonAssetsWorkItem(Resource::ResourceSystem* resourceSystem)
             : mResourceSystem(resourceSystem)
         {
         }

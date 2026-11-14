@@ -10,7 +10,7 @@ namespace MWWorld
         void executeImp(const MWWorld::Ptr& actor) override;
 
     public:
-        ActionOpen(const Ptr& container);
+        explicit ActionOpen(const Ptr& container);
         ///< \param container The Container the Player has activated.
     };
 }

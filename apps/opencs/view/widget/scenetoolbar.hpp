@@ -21,7 +21,7 @@ namespace CSVWidget
         void focusInEvent(QFocusEvent* event) override;
 
     public:
-        SceneToolbar(int buttonSize, QWidget* parent = nullptr);
+        explicit SceneToolbar(int buttonSize, QWidget* parent = nullptr);
 
         /// If insertPoint==0, insert \a tool at the end of the scrollbar. Otherwise
         /// insert tool after \a insertPoint.

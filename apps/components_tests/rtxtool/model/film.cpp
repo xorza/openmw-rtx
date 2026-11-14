@@ -61,7 +61,7 @@ namespace RtxTool
             pacing.mStep = 0.1f;
             pacing.mSpeed = 100.0f;
             pacing.mEase = 0.0f;
-            pacing.mAspect = std::sqrt(3.0f);
+            pacing.mAspect = std::numbers::sqrt3_v<float>;
             return pacing;
         }
 

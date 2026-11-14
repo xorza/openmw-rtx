@@ -38,7 +38,7 @@ namespace CSVWidget
         Q_OBJECT
 
     public:
-        ColorButtonWidget(QWidget* parent = nullptr);
+        explicit ColorButtonWidget(QWidget* parent = nullptr);
 
     private:
         QColor mColor = Qt::white;
@@ -74,7 +74,7 @@ namespace CSVWidget
         Q_OBJECT
 
     public:
-        VertexPaintBrushWindow(CSMDoc::Document& document, QWidget* parent = nullptr);
+        explicit VertexPaintBrushWindow(CSMDoc::Document& document, QWidget* parent = nullptr);
         void configureButtonInitialSettings(QPushButton* button);
 
         const QString toolTipPoint = "Paint single point";

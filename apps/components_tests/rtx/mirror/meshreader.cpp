@@ -123,7 +123,7 @@ namespace Rtx::Testing
         /// space) or a callback moves, they keep the lean.
         TEST(RtxMeshReaderTest, aDrawableIsSplitAcrossTheShapesItsModelStandsBesideIt)
         {
-            const osg::Vec3f averaged = osg::Vec3f(0.0f, -1.0f, 1.0f) / std::sqrt(2.0f);
+            const osg::Vec3f averaged = osg::Vec3f(0.0f, -1.0f, 1.0f) / std::numbers::sqrt2_v<float>;
             const osg::Vec3f up(0.0f, 0.0f, 1.0f);
             const osg::Vec3f wallNormal(0.0f, -1.0f, 0.0f);
 

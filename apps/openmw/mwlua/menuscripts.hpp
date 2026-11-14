@@ -20,7 +20,7 @@ namespace MWLua
     class MenuScripts : public LuaUtil::ScriptsContainer
     {
     public:
-        MenuScripts(LuaUtil::LuaState* lua)
+        explicit MenuScripts(LuaUtil::LuaState* lua)
             : LuaUtil::ScriptsContainer(lua, "Menu")
             , mInputProcessor(this)
         {

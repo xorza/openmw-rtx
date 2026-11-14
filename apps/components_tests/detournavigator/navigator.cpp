@@ -130,7 +130,7 @@ namespace
     class CollisionShapeInstance
     {
     public:
-        CollisionShapeInstance(std::unique_ptr<T>&& shape)
+        explicit CollisionShapeInstance(std::unique_ptr<T>&& shape)
             : mInstance(makeBulletShapeInstance(std::move(shape)))
         {
         }
@@ -639,8 +639,8 @@ namespace
         const btVector3 shift = getHeightfieldShift(mCellPosition, cellSize, surface.mMinHeight, surface.mMaxHeight);
 
         std::vector<CollisionShapeInstance<btBoxShape>> boxes;
-        std::generate_n(
-            std::back_inserter(boxes), 100, [] { return std::make_unique<btBoxShape>(btVector3(20, 20, 100)); });
+        std::generate_n(std::back_inserter(boxes), 100,
+            [] { return CollisionShapeInstance<btBoxShape>(std::make_unique<btBoxShape>(btVector3(20, 20, 100))); });
 
         ASSERT_TRUE(mNavigator->addAgent(mAgentBounds));
 
@@ -683,8 +683,8 @@ namespace
     TEST_F(DetourNavigatorNavigatorTest, update_changed_multiple_times_object_should_delay_navmesh_change)
     {
         std::vector<CollisionShapeInstance<btBoxShape>> shapes;
-        std::generate_n(
-            std::back_inserter(shapes), 100, [] { return std::make_unique<btBoxShape>(btVector3(64, 64, 64)); });
+        std::generate_n(std::back_inserter(shapes), 100,
+            [] { return CollisionShapeInstance<btBoxShape>(std::make_unique<btBoxShape>(btVector3(64, 64, 64))); });
 
         ASSERT_TRUE(mNavigator->addAgent(mAgentBounds));
 

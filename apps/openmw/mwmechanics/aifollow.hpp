@@ -45,9 +45,9 @@ namespace MWMechanics
         AiFollow(
             const ESM::RefId& actorId, std::string_view cellId, float duration, float x, float y, float z, bool repeat);
         /// Follow Actor indefinitely
-        AiFollow(const MWWorld::Ptr& actor, bool commanded = false);
+        explicit AiFollow(const MWWorld::Ptr& actor, bool commanded = false);
 
-        AiFollow(const ESM::AiSequence::AiFollow* follow);
+        explicit AiFollow(const ESM::AiSequence::AiFollow* follow);
 
         bool execute(const MWWorld::Ptr& actor, CharacterController& characterController, AiState& state,
             float duration) override;

@@ -15,7 +15,7 @@ namespace LuaUi
     class Layer
     {
     public:
-        Layer(size_t index)
+        explicit Layer(size_t index)
             : mName(at(index)->getName())
             , mCachedIndex(index)
         {

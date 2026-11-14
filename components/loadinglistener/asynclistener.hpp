@@ -12,7 +12,7 @@ namespace Loading
     class AsyncListener : public Listener
     {
     public:
-        AsyncListener(Listener& baseListener)
+        explicit AsyncListener(Listener& baseListener)
             : mBaseListener(baseListener)
         {
         }

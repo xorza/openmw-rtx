@@ -21,7 +21,7 @@ namespace CSVRender
         Q_OBJECT
 
     public:
-        PathgridMode(WorldspaceWidget* worldspace, QWidget* parent = nullptr);
+        explicit PathgridMode(WorldspaceWidget* worldspace, QWidget* parent = nullptr);
 
         void activate(CSVWidget::SceneToolbar* toolbar) override;
 

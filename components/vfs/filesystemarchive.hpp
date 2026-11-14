@@ -13,7 +13,7 @@ namespace VFS
     class FileSystemArchiveFile : public File
     {
     public:
-        FileSystemArchiveFile(const std::filesystem::path& path);
+        explicit FileSystemArchiveFile(const std::filesystem::path& path);
 
         Files::IStreamPtr open() override;
 
@@ -28,7 +28,7 @@ namespace VFS
     class FileSystemArchive : public Archive
     {
     public:
-        FileSystemArchive(const std::filesystem::path& path);
+        explicit FileSystemArchive(const std::filesystem::path& path);
 
         void listResources(FileMap& out) override;
 

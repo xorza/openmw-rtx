@@ -21,7 +21,7 @@ namespace MWGui
         ///< removal,
         ///  while the last element will be used to add new items to.
 
-        ContainerItemModel(const MWWorld::Ptr& source);
+        explicit ContainerItemModel(const MWWorld::Ptr& source);
 
         bool allowedToUseItems() const override;
 

@@ -50,7 +50,7 @@ namespace CSVDoc
         bool removeDocument(View* view);
 
     public:
-        ViewManager(CSMDoc::DocumentManager& documentManager);
+        explicit ViewManager(CSMDoc::DocumentManager& documentManager);
 
         ~ViewManager() override;
 

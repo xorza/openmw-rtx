@@ -109,7 +109,7 @@ namespace
     {
     public:
         /// @param mask The node mask to set on ParticleSystem nodes.
-        InitParticlesVisitor(unsigned int mask)
+        explicit InitParticlesVisitor(unsigned int mask)
             : osg::NodeVisitor(TRAVERSE_ALL_CHILDREN)
             , mMask(mask)
         {
@@ -602,7 +602,7 @@ namespace Resource
     class ImageReadCallback : public osgDB::ReadFileCallback
     {
     public:
-        ImageReadCallback(Resource::ImageManager* imageMgr)
+        explicit ImageReadCallback(Resource::ImageManager* imageMgr)
             : mImageManager(imageMgr)
         {
         }

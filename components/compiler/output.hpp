@@ -19,7 +19,7 @@ namespace Compiler
         Locals& mLocals;
 
     public:
-        Output(Locals& locals);
+        explicit Output(Locals& locals);
 
         Interpreter::Program getProgram() const;
 

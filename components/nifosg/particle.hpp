@@ -48,7 +48,7 @@ namespace NifOsg
     class ParticleAgeSetter : public osgParticle::Particle
     {
     public:
-        ParticleAgeSetter(float age)
+        explicit ParticleAgeSetter(float age)
             : Particle()
         {
             _t0 = age;
@@ -101,7 +101,7 @@ namespace NifOsg
     class PlanarCollider : public osgParticle::Operator
     {
     public:
-        PlanarCollider(const Nif::NiPlanarCollider* collider);
+        explicit PlanarCollider(const Nif::NiPlanarCollider* collider);
         PlanarCollider() = default;
         PlanarCollider(const PlanarCollider& copy, const osg::CopyOp& copyop);
 
@@ -122,7 +122,7 @@ namespace NifOsg
     class SphericalCollider : public osgParticle::Operator
     {
     public:
-        SphericalCollider(const Nif::NiSphericalCollider* collider);
+        explicit SphericalCollider(const Nif::NiSphericalCollider* collider);
         SphericalCollider();
         SphericalCollider(const SphericalCollider& copy, const osg::CopyOp& copyop);
 
@@ -161,7 +161,7 @@ namespace NifOsg
     class ParticleColorAffector : public osgParticle::Operator
     {
     public:
-        ParticleColorAffector(const Nif::NiColorData* clrdata);
+        explicit ParticleColorAffector(const Nif::NiColorData* clrdata);
         ParticleColorAffector();
         ParticleColorAffector(const ParticleColorAffector& copy, const osg::CopyOp& copyop = osg::CopyOp::SHALLOW_COPY);
 
@@ -178,7 +178,7 @@ namespace NifOsg
     class GravityAffector : public osgParticle::Operator
     {
     public:
-        GravityAffector(const Nif::NiGravity* gravity);
+        explicit GravityAffector(const Nif::NiGravity* gravity);
         GravityAffector() = default;
         GravityAffector(const GravityAffector& copy, const osg::CopyOp& copyop = osg::CopyOp::SHALLOW_COPY);
 
@@ -202,7 +202,7 @@ namespace NifOsg
     class ParticleBomb : public osgParticle::Operator
     {
     public:
-        ParticleBomb(const Nif::NiParticleBomb* bomb);
+        explicit ParticleBomb(const Nif::NiParticleBomb* bomb);
         ParticleBomb() = default;
         ParticleBomb(const ParticleBomb& copy, const osg::CopyOp& copyop = osg::CopyOp::SHALLOW_COPY);
 
@@ -229,7 +229,7 @@ namespace NifOsg
     class FindGroupByRecordIndex : public osg::NodeVisitor
     {
     public:
-        FindGroupByRecordIndex(unsigned int recordIndex);
+        explicit FindGroupByRecordIndex(unsigned int recordIndex);
 
         void apply(osg::Node& node) override;
 
@@ -252,7 +252,7 @@ namespace NifOsg
     class Emitter : public osgParticle::Emitter
     {
     public:
-        Emitter(const std::vector<int>& targets);
+        explicit Emitter(const std::vector<int>& targets);
         Emitter();
         Emitter(const Emitter& copy, const osg::CopyOp& copyop);
 

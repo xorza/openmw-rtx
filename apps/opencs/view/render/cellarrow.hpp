@@ -25,7 +25,7 @@ namespace CSVRender
         CellArrow* mArrow;
 
     public:
-        CellArrowTag(CellArrow* arrow);
+        explicit CellArrowTag(CellArrow* arrow);
 
         CellArrow* getCellArrow() const;
 

@@ -335,7 +335,7 @@ namespace SceneUtil
         : public SceneUtil::NodeCallback<LightManagerCullCallback, LightManager*, osgUtil::CullVisitor*>
     {
     public:
-        LightManagerCullCallback(const LightSettings& settings = LightSettings{});
+        explicit LightManagerCullCallback(const LightSettings& settings = LightSettings{});
 
         void operator()(LightManager* node, osgUtil::CullVisitor* cv);
 

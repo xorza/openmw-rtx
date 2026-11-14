@@ -118,7 +118,7 @@ namespace MWSound
         void pauseActiveDevice() override;
         void resumeActiveDevice() override;
 
-        OpenALOutput(SoundManager& mgr);
+        explicit OpenALOutput(SoundManager& mgr);
         ~OpenALOutput() override;
     };
 }

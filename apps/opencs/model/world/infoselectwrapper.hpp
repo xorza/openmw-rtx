@@ -26,7 +26,7 @@ namespace CSMWorld
         static const char* FunctionEnumStrings[];
         static const char* RelationEnumStrings[];
 
-        ConstInfoSelectWrapper(const ESM::DialogueCondition& select);
+        explicit ConstInfoSelectWrapper(const ESM::DialogueCondition& select);
 
         ESM::DialogueCondition::Function getFunctionName() const;
         ESM::DialogueCondition::Comparison getRelationType() const;
@@ -82,7 +82,7 @@ namespace CSMWorld
     class InfoSelectWrapper : public ConstInfoSelectWrapper
     {
     public:
-        InfoSelectWrapper(ESM::DialogueCondition& select);
+        explicit InfoSelectWrapper(ESM::DialogueCondition& select);
 
         // Wrapped SelectStruct will not be modified until update() is called
         void setFunctionName(ESM::DialogueCondition::Function name);

@@ -24,7 +24,7 @@ namespace CSMTools
         bool mIgnoreBaseRecords;
 
     public:
-        ClassCheckStage(const CSMWorld::IdCollection<ESM::Class>& classes);
+        explicit ClassCheckStage(const CSMWorld::IdCollection<ESM::Class>& classes);
 
         int setup() override;
         ///< \return number of steps

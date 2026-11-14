@@ -53,7 +53,7 @@ namespace CSMWorld
 
     public:
         // MSVC needs the constructor for a class inheriting a template to be defined in header
-        RefCollection(Collection<Cell>& cells)
+        explicit RefCollection(Collection<Cell>& cells)
             : mCells(cells)
             , mNextId(0)
         {

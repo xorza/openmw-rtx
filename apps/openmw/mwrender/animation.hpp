@@ -525,7 +525,7 @@ namespace MWRender
     class UpdateVfxCallback : public SceneUtil::NodeCallback<UpdateVfxCallback>
     {
     public:
-        UpdateVfxCallback(EffectParams& params)
+        explicit UpdateVfxCallback(EffectParams& params)
             : mFinished(false)
             , mParams(params)
             , mStartingTime(0)

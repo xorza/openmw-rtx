@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <numbers>
 #include <optional>
 #include <vector>
 
@@ -382,7 +383,7 @@ namespace Rtx::Testing
             constexpr float reach = 30000.0f;
 
             // Half the ray's worth of fog, so the wall and the air contribute comparably.
-            const float extinction = std::log(2.0f) / distance;
+            const float extinction = std::numbers::ln2_v<float> / distance;
 
             // Behind the wall in y, so its cosine there is negative and the lamp lights the air
             // without also lighting what the air is in front of.
@@ -468,7 +469,7 @@ namespace Rtx::Testing
             static constexpr float sDistance = 2000.0f;
 
             /// Half the ray's light, which leaves the wall and the air comparable.
-            static constexpr float sExtinction = 0.693147f / sDistance;
+            static constexpr float sExtinction = std::numbers::ln2_v<float> / sDistance;
 
             /// Where the lamp stands and how far it carries. Three hundred units up off the ray and
             /// a reach of five hundred, so it lights the stretch of it between 385 and 1215.
@@ -890,7 +891,7 @@ namespace Rtx::Testing
             const auto eye = [&](float across, float up, const osg::Vec3f& colour) {
                 Shaders::VisibilityConstants camera = Testing::makeCamera(
                     osg::Vec3f(across, -distance, up), osg::Vec3f(across, 0.0f, up), 60.0f, size, size, 100000.0f);
-                litThroughFog(camera, 0.693147f / distance);
+                litThroughFog(camera, std::numbers::ln2_v<float> / distance);
                 camera.mFogColour = colour;
                 camera.mSkyHorizon = osg::Vec3f();
                 camera.mSkyZenith = osg::Vec3f();

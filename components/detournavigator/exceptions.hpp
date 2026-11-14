@@ -7,11 +7,11 @@ namespace DetourNavigator
 {
     struct NavigatorException : std::runtime_error
     {
-        NavigatorException(const std::string& message)
+        explicit NavigatorException(const std::string& message)
             : std::runtime_error(message)
         {
         }
-        NavigatorException(const char* message)
+        explicit NavigatorException(const char* message)
             : std::runtime_error(message)
         {
         }
@@ -19,11 +19,11 @@ namespace DetourNavigator
 
     struct InvalidArgument : std::invalid_argument
     {
-        InvalidArgument(const std::string& message)
+        explicit InvalidArgument(const std::string& message)
             : std::invalid_argument(message)
         {
         }
-        InvalidArgument(const char* message)
+        explicit InvalidArgument(const char* message)
             : std::invalid_argument(message)
         {
         }

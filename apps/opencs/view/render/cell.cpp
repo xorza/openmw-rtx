@@ -48,7 +48,7 @@ namespace CSVRender
     class CellNodeContainer : public osg::Referenced
     {
     public:
-        CellNodeContainer(Cell* cell)
+        explicit CellNodeContainer(Cell* cell)
             : mCell(cell)
         {
         }

@@ -22,7 +22,7 @@ namespace
     class PrecipitationOcclusionUpdater : public SceneUtil::StateSetUpdater
     {
     public:
-        PrecipitationOcclusionUpdater(osg::ref_ptr<osg::Texture2D> depthTexture)
+        explicit PrecipitationOcclusionUpdater(osg::ref_ptr<osg::Texture2D> depthTexture)
             : mDepthTexture(std::move(depthTexture))
         {
         }

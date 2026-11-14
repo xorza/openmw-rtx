@@ -65,16 +65,20 @@ namespace CSMFilter
         std::string mString;
         double mNumber;
 
+        // A token converts from the type, the string or the number it reads as.
+        // NOLINTNEXTLINE(google-explicit-constructor)
         Token(Type type = Type_None);
 
         Token(Type type, const std::string& string);
         ///< Non-string type that can also be interpreted as a string.
 
+        // NOLINTNEXTLINE(google-explicit-constructor)
         Token(const std::string& string);
 
+        // NOLINTNEXTLINE(google-explicit-constructor)
         Token(double number);
 
-        operator bool() const;
+        explicit operator bool() const;
 
         bool isString() const;
     };

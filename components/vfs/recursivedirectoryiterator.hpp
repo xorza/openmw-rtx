@@ -11,6 +11,8 @@ namespace VFS
     class RecursiveDirectoryIterator
     {
     public:
+        // An iterator converts from the map iterator it wraps.
+        // NOLINTNEXTLINE(google-explicit-constructor)
         RecursiveDirectoryIterator(FileMap::const_iterator it)
             : mIt(it)
         {

@@ -179,7 +179,7 @@ namespace MWWorld
     struct OMWScriptsLoader : public ContentLoader
     {
         ESMStore& mStore;
-        OMWScriptsLoader(ESMStore& store)
+        explicit OMWScriptsLoader(ESMStore& store)
             : mStore(store)
         {
         }
@@ -672,7 +672,7 @@ namespace MWWorld
         ConstPtr mContainedPtr;
         Ptr mResult;
 
-        FindContainerVisitor(const ConstPtr& containedPtr)
+        explicit FindContainerVisitor(const ConstPtr& containedPtr)
             : mContainedPtr(containedPtr)
         {
         }

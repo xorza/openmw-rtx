@@ -11,7 +11,7 @@ namespace MWWorld
 
     public:
         /// @param book or scroll to read
-        ActionRead(const Ptr& object);
+        explicit ActionRead(const Ptr& object);
     };
 }
 

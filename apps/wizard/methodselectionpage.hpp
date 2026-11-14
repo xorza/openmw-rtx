@@ -11,7 +11,7 @@ namespace Wizard
     {
         Q_OBJECT
     public:
-        MethodSelectionPage(QWidget* parent);
+        explicit MethodSelectionPage(QWidget* parent);
 
         int nextId() const override;
 

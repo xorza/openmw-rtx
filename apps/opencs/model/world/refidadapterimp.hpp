@@ -170,7 +170,7 @@ namespace CSMWorld
         const RefIdColumn* mModel;
         const RefIdColumn* mPersistence;
 
-        ModelColumns(const BaseColumns& base)
+        explicit ModelColumns(const BaseColumns& base)
             : BaseColumns(base)
             , mModel(nullptr)
             , mPersistence(nullptr)
@@ -246,7 +246,7 @@ namespace CSMWorld
         const RefIdColumn* mName;
         const RefIdColumn* mScript;
 
-        NameColumns(const ModelColumns& base)
+        explicit NameColumns(const ModelColumns& base)
             : ModelColumns(base)
             , mName(nullptr)
             , mScript(nullptr)
@@ -318,7 +318,7 @@ namespace CSMWorld
         const RefIdColumn* mWeight;
         const RefIdColumn* mValue;
 
-        InventoryColumns(const NameColumns& base)
+        explicit InventoryColumns(const NameColumns& base)
             : NameColumns(base)
             , mIcon(nullptr)
             , mWeight(nullptr)
@@ -394,7 +394,7 @@ namespace CSMWorld
     {
         const RefIdColumn* mEffects;
 
-        PotionColumns(const InventoryColumns& columns);
+        explicit PotionColumns(const InventoryColumns& columns);
     };
 
     class PotionRefIdAdapter : public InventoryRefIdAdapter<ESM::Potion>
@@ -415,7 +415,7 @@ namespace CSMWorld
     {
         const RefIdColumn* mEffects;
 
-        IngredientColumns(const InventoryColumns& columns);
+        explicit IngredientColumns(const InventoryColumns& columns);
     };
 
     class IngredientRefIdAdapter : public InventoryRefIdAdapter<ESM::Ingredient>
@@ -423,7 +423,7 @@ namespace CSMWorld
         IngredientColumns mColumns;
 
     public:
-        IngredientRefIdAdapter(const IngredientColumns& columns);
+        explicit IngredientRefIdAdapter(const IngredientColumns& columns);
 
         QVariant getData(const RefIdColumn* column, const RefIdData& data, int index) const override;
 
@@ -440,7 +440,7 @@ namespace CSMWorld
         const IdCollection<ESM::MagicEffect>& mMagicEffects;
 
     public:
-        IngredEffectRefIdAdapter(const IdCollection<ESM::MagicEffect>& magicEffects)
+        explicit IngredEffectRefIdAdapter(const IdCollection<ESM::MagicEffect>& magicEffects)
             : mType(UniversalId::Type_Ingredient)
             , mMagicEffects(magicEffects)
         {
@@ -474,7 +474,7 @@ namespace CSMWorld
         const RefIdColumn* mEnchantment;
         const RefIdColumn* mEnchantmentPoints;
 
-        EnchantableColumns(const InventoryColumns& base)
+        explicit EnchantableColumns(const InventoryColumns& base)
             : InventoryColumns(base)
             , mEnchantment(nullptr)
             , mEnchantmentPoints(nullptr)
@@ -546,7 +546,7 @@ namespace CSMWorld
         const RefIdColumn* mQuality;
         const RefIdColumn* mUses;
 
-        ToolColumns(const InventoryColumns& base)
+        explicit ToolColumns(const InventoryColumns& base)
             : InventoryColumns(base)
             , mQuality(nullptr)
             , mUses(nullptr)
@@ -624,7 +624,7 @@ namespace CSMWorld
         const RefIdColumn* mAiPackages;
         std::map<const RefIdColumn*, unsigned int> mServices;
 
-        ActorColumns(const NameColumns& base)
+        explicit ActorColumns(const NameColumns& base)
             : NameColumns(base)
             , mHello(nullptr)
             , mFlee(nullptr)
@@ -823,7 +823,7 @@ namespace CSMWorld
         const RefIdColumn* mMisc;
         const RefIdColumn* mBloodType;
 
-        CreatureColumns(const ActorColumns& actorColumns);
+        explicit CreatureColumns(const ActorColumns& actorColumns);
     };
 
     class CreatureRefIdAdapter : public ActorRefIdAdapter<ESM::Creature>
@@ -831,7 +831,7 @@ namespace CSMWorld
         CreatureColumns mColumns;
 
     public:
-        CreatureRefIdAdapter(const CreatureColumns& columns);
+        explicit CreatureRefIdAdapter(const CreatureColumns& columns);
 
         QVariant getData(const RefIdColumn* column, const RefIdData& data, int index) const override;
 
@@ -862,7 +862,7 @@ namespace CSMWorld
         const RefIdColumn* mEmitterType;
         std::map<const RefIdColumn*, unsigned int> mFlags;
 
-        LightColumns(const InventoryColumns& columns);
+        explicit LightColumns(const InventoryColumns& columns);
     };
 
     class LightRefIdAdapter : public InventoryRefIdAdapter<ESM::Light>
@@ -870,7 +870,7 @@ namespace CSMWorld
         LightColumns mColumns;
 
     public:
-        LightRefIdAdapter(const LightColumns& columns);
+        explicit LightRefIdAdapter(const LightColumns& columns);
 
         QVariant getData(const RefIdColumn* column, const RefIdData& data, int index) const override;
 
@@ -905,7 +905,7 @@ namespace CSMWorld
         const RefIdColumn* mBloodType;
         const RefIdColumn* mGender;
 
-        NpcColumns(const ActorColumns& actorColumns);
+        explicit NpcColumns(const ActorColumns& actorColumns);
     };
 
     class NpcRefIdAdapter : public ActorRefIdAdapter<ESM::NPC>
@@ -913,7 +913,7 @@ namespace CSMWorld
         NpcColumns mColumns;
 
     public:
-        NpcRefIdAdapter(const NpcColumns& columns);
+        explicit NpcRefIdAdapter(const NpcColumns& columns);
 
         QVariant getData(const RefIdColumn* column, const RefIdData& data, int index) const override;
 
@@ -932,7 +932,7 @@ namespace CSMWorld
         const RefIdColumn* mThrust[2];
         std::map<const RefIdColumn*, unsigned int> mFlags;
 
-        WeaponColumns(const EnchantableColumns& columns);
+        explicit WeaponColumns(const EnchantableColumns& columns);
     };
 
     class WeaponRefIdAdapter : public EnchantableRefIdAdapter<ESM::Weapon>
@@ -940,7 +940,7 @@ namespace CSMWorld
         WeaponColumns mColumns;
 
     public:
-        WeaponRefIdAdapter(const WeaponColumns& columns);
+        explicit WeaponRefIdAdapter(const WeaponColumns& columns);
 
         QVariant getData(const RefIdColumn* column, const RefIdData& data, int index) const override;
 
@@ -1194,7 +1194,7 @@ namespace CSMWorld
         NestedInventoryRefIdAdapter& operator=(const NestedInventoryRefIdAdapter&);
 
     public:
-        NestedInventoryRefIdAdapter(UniversalId::Type type)
+        explicit NestedInventoryRefIdAdapter(UniversalId::Type type)
             : mType(type)
         {
         }
@@ -1330,7 +1330,7 @@ namespace CSMWorld
         NestedSpellRefIdAdapter& operator=(const NestedSpellRefIdAdapter&);
 
     public:
-        NestedSpellRefIdAdapter(UniversalId::Type type)
+        explicit NestedSpellRefIdAdapter(UniversalId::Type type)
             : mType(type)
         {
         }
@@ -1452,7 +1452,7 @@ namespace CSMWorld
         NestedTravelRefIdAdapter& operator=(const NestedTravelRefIdAdapter&);
 
     public:
-        NestedTravelRefIdAdapter(UniversalId::Type type)
+        explicit NestedTravelRefIdAdapter(UniversalId::Type type)
             : mType(type)
         {
         }
@@ -1621,7 +1621,7 @@ namespace CSMWorld
         ActorAiRefIdAdapter& operator=(const ActorAiRefIdAdapter&);
 
     public:
-        ActorAiRefIdAdapter(UniversalId::Type type)
+        explicit ActorAiRefIdAdapter(UniversalId::Type type)
             : mType(type)
         {
         }
@@ -1977,7 +1977,7 @@ namespace CSMWorld
         BodyPartRefIdAdapter& operator=(const BodyPartRefIdAdapter&);
 
     public:
-        BodyPartRefIdAdapter(UniversalId::Type type)
+        explicit BodyPartRefIdAdapter(UniversalId::Type type)
             : mType(type)
         {
         }
@@ -2120,7 +2120,7 @@ namespace CSMWorld
         const RefIdColumn* mLevList;
         const RefIdColumn* mNestedListLevList;
 
-        LevListColumns(const BaseColumns& base)
+        explicit LevListColumns(const BaseColumns& base)
             : BaseColumns(base)
             , mLevList(nullptr)
             , mNestedListLevList(nullptr)
@@ -2178,7 +2178,7 @@ namespace CSMWorld
         NestedListLevListRefIdAdapter& operator=(const NestedListLevListRefIdAdapter&);
 
     public:
-        NestedListLevListRefIdAdapter(UniversalId::Type type)
+        explicit NestedListLevListRefIdAdapter(UniversalId::Type type)
             : mType(type)
         {
         }
@@ -2335,7 +2335,7 @@ namespace CSMWorld
         NestedLevListRefIdAdapter& operator=(const NestedLevListRefIdAdapter&);
 
     public:
-        NestedLevListRefIdAdapter(UniversalId::Type type)
+        explicit NestedLevListRefIdAdapter(UniversalId::Type type)
             : mType(type)
         {
         }

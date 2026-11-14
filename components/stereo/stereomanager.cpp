@@ -31,7 +31,7 @@ namespace Stereo
     class StereoUpdateCallback final : public osg::Callback
     {
     public:
-        StereoUpdateCallback(Manager* stereoView)
+        explicit StereoUpdateCallback(Manager* stereoView)
             : mStereoView(stereoView)
         {
         }
@@ -50,7 +50,7 @@ namespace Stereo
     class BruteForceStereoStatesetUpdateCallback final : public SceneUtil::StateSetUpdater
     {
     public:
-        BruteForceStereoStatesetUpdateCallback(Manager* manager)
+        explicit BruteForceStereoStatesetUpdateCallback(Manager* manager)
             : mManager(manager)
         {
         }
@@ -85,7 +85,7 @@ namespace Stereo
     class MultiviewStereoStatesetUpdateCallback : public SceneUtil::StateSetUpdater
     {
     public:
-        MultiviewStereoStatesetUpdateCallback(Manager* manager)
+        explicit MultiviewStereoStatesetUpdateCallback(Manager* manager)
             : mManager(manager)
         {
         }
@@ -211,7 +211,7 @@ namespace Stereo
 
         struct ComputeStereoMatricesCallback : public osgUtil::SceneView::ComputeStereoMatricesCallback
         {
-            ComputeStereoMatricesCallback(Manager* sv)
+            explicit ComputeStereoMatricesCallback(Manager* sv)
                 : mManager(sv)
             {
             }

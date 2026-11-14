@@ -17,7 +17,7 @@ namespace CSMTools
         bool mCompleted;
         std::map<std::pair<uint16_t, int>, int> mTextureIndices; // (texture, content file) -> new texture
 
-        MergeState(CSMDoc::Document& source)
+        explicit MergeState(CSMDoc::Document& source)
             : mSource(source)
             , mCompleted(false)
         {

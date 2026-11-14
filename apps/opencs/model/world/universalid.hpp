@@ -147,8 +147,11 @@ namespace CSMWorld
             NumberOfTypes = Type_RunLog + 1
         };
 
+        // An id converts from the string or the type that names it.
+        // NOLINTNEXTLINE(google-explicit-constructor)
         UniversalId(const std::string& universalId);
 
+        // NOLINTNEXTLINE(google-explicit-constructor)
         UniversalId(Type type = Type_None);
 
         UniversalId(Type type, const std::string& id);

@@ -83,7 +83,7 @@ namespace CSMPrefs
         void declareSubcategory(const QString& label);
 
     public:
-        State(const Files::ConfigurationManager& configurationManager);
+        explicit State(const Files::ConfigurationManager& configurationManager);
 
         State(const State&) = delete;
 

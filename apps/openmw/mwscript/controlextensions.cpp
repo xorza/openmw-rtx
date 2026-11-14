@@ -46,7 +46,7 @@ namespace MWScript
             std::string_view mControl;
 
         public:
-            OpGetDisabled(std::string_view control)
+            explicit OpGetDisabled(std::string_view control)
                 : mControl(control)
             {
             }
@@ -74,7 +74,7 @@ namespace MWScript
             MWMechanics::CreatureStats::Flag mFlag;
 
         public:
-            OpClearMovementFlag(MWMechanics::CreatureStats::Flag flag)
+            explicit OpClearMovementFlag(MWMechanics::CreatureStats::Flag flag)
                 : mFlag(flag)
             {
             }
@@ -93,7 +93,7 @@ namespace MWScript
             MWMechanics::CreatureStats::Flag mFlag;
 
         public:
-            OpSetMovementFlag(MWMechanics::CreatureStats::Flag flag)
+            explicit OpSetMovementFlag(MWMechanics::CreatureStats::Flag flag)
                 : mFlag(flag)
             {
             }

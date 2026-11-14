@@ -14,7 +14,7 @@ namespace DetourNavigator
     class RecastTempAllocator
     {
     public:
-        RecastTempAllocator(std::size_t capacity)
+        explicit RecastTempAllocator(std::size_t capacity)
             : mStack(capacity)
             , mTop(mStack.data())
             , mPrev(nullptr)

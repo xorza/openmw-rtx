@@ -364,7 +364,7 @@ namespace Rtx
         if (const std::optional<std::uint64_t> stood
             = mManifest.standingDigest(nameOf(at), mStamps, mStore, hand.mStood))
         {
-            mStood[at] = *stood;
+            mStood[at] = stood;
             return;
         }
 

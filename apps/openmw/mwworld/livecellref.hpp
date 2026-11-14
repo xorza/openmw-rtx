@@ -126,19 +126,19 @@ namespace MWWorld
     template <typename X>
     struct LiveCellRef : public LiveCellRefBase
     {
-        LiveCellRef(const ESM::CellRef& cref, const X* b = nullptr)
+        explicit LiveCellRef(const ESM::CellRef& cref, const X* b = nullptr)
             : LiveCellRefBase(X::sRecordId, cref)
             , mBase(b)
         {
         }
 
-        LiveCellRef(const ESM4::Reference& cref, const X* b = nullptr)
+        explicit LiveCellRef(const ESM4::Reference& cref, const X* b = nullptr)
             : LiveCellRefBase(X::sRecordId, cref)
             , mBase(b)
         {
         }
 
-        LiveCellRef(const ESM4::ActorCharacter& cref, const X* b = nullptr)
+        explicit LiveCellRef(const ESM4::ActorCharacter& cref, const X* b = nullptr)
             : LiveCellRefBase(X::sRecordId, cref)
             , mBase(b)
         {

@@ -505,7 +505,7 @@ namespace MWRender
     class CopyFramebufferToTextureCallback : public osg::Camera::DrawCallback
     {
     public:
-        CopyFramebufferToTextureCallback(osg::Texture2D* texture)
+        explicit CopyFramebufferToTextureCallback(osg::Texture2D* texture)
             : mOneshot(true)
             , mTexture(texture)
         {

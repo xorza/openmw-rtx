@@ -249,7 +249,7 @@ namespace Resource
         class SetFontVisitor : public osg::NodeVisitor
         {
         public:
-            SetFontVisitor(osgText::Font* font)
+            explicit SetFontVisitor(osgText::Font* font)
                 : osg::NodeVisitor(TRAVERSE_ALL_CHILDREN)
                 , mFont(font)
             {

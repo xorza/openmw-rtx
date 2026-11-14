@@ -29,7 +29,7 @@ namespace CSVDoc
         bool event(QEvent* event) override;
 
     public:
-        SubView(const CSMWorld::UniversalId& id);
+        explicit SubView(const CSMWorld::UniversalId& id);
 
         CSMWorld::UniversalId getUniversalId() const;
 

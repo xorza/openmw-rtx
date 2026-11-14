@@ -13,7 +13,7 @@ namespace Misc
         std::array<unsigned int, 4> mBudgetStepCount;
 
     public:
-        BudgetMeasurement(const float defaultExpense)
+        explicit BudgetMeasurement(const float defaultExpense)
         {
             mBudgetHistory = { defaultExpense, defaultExpense, defaultExpense, defaultExpense };
             mBudgetStepCount = { 1, 1, 1, 1 };

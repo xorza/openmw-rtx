@@ -54,7 +54,7 @@ namespace MWLua
         struct BoolScopeGuard
         {
             bool& mValue;
-            BoolScopeGuard(bool& value)
+            explicit BoolScopeGuard(bool& value)
                 : mValue(value)
             {
                 mValue = true;

@@ -48,7 +48,7 @@ namespace MWWorld
         ESM::RefId mId;
         bool mIsDeleted;
 
-        RecordId(const ESM::RefId& id = {}, bool isDeleted = false);
+        explicit RecordId(const ESM::RefId& id = {}, bool isDeleted = false);
     };
 
     class StoreBase
@@ -124,6 +124,8 @@ namespace MWWorld
 
         SharedIterator(const SharedIterator& other) = default;
 
+        // The shared iterator converts from the iterator it wraps.
+        // NOLINTNEXTLINE(google-explicit-constructor)
         SharedIterator(const Iter& iter)
             : mIter(iter)
         {

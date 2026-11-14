@@ -144,6 +144,8 @@ TEST_F(ContentFileTest, dialogue_merging_test)
 }
 
 // Note: here we don't test records that don't use string names (e.g. Land, Pathgrid, Cell)
+// `func` is a template's name, which parentheses would not let take its arguments.
+// NOLINTBEGIN(bugprone-macro-parentheses)
 #define RUN_TEST_FOR_TYPES(func, arg1, arg2)                                                                           \
     func<ESM::Activator>(arg1, arg2);                                                                                  \
     func<ESM::Apparatus>(arg1, arg2);                                                                                  \
@@ -179,6 +181,7 @@ TEST_F(ContentFileTest, dialogue_merging_test)
     func<ESM::Spell>(arg1, arg2);                                                                                      \
     func<ESM::StartScript>(arg1, arg2);                                                                                \
     func<ESM::Weapon>(arg1, arg2);
+// NOLINTEND(bugprone-macro-parentheses)
 
 template <typename T>
 void printRecords(MWWorld::ESMStore& esmStore, std::ostream& outStream)

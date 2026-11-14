@@ -37,7 +37,7 @@ namespace CSMTools
         int mColumnSeverity;
 
     public:
-        ReportModel(bool fieldColumn = false, bool severityColumn = true);
+        explicit ReportModel(bool fieldColumn = false, bool severityColumn = true);
 
         int rowCount(const QModelIndex& parent = QModelIndex()) const override;
 

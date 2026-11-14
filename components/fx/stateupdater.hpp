@@ -12,7 +12,7 @@ namespace Fx
     class StateUpdater : public SceneUtil::StateSetUpdater
     {
     public:
-        StateUpdater(bool useUBO);
+        explicit StateUpdater(bool useUBO);
 
         void setProjectionMatrix(const osg::Matrixf& matrix)
         {

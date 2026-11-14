@@ -34,7 +34,7 @@ namespace CSMDoc
         void prepareStages();
 
     public:
-        Operation(State type, bool finalAlways = false);
+        explicit Operation(State type, bool finalAlways = false);
         /// \param finalAlways Execute last stage even if an error occurred during earlier stages.
 
         ~Operation() override;

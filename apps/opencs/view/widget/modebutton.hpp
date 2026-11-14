@@ -15,7 +15,7 @@ namespace CSVWidget
         Q_OBJECT
 
     public:
-        ModeButton(const QIcon& icon, const QString& tooltip = "", QWidget* parent = nullptr);
+        explicit ModeButton(const QIcon& icon, const QString& tooltip = "", QWidget* parent = nullptr);
 
         /// Default-Implementation: do nothing
         virtual void activate(SceneToolbar* toolbar);

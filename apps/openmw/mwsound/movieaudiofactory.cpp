@@ -16,7 +16,7 @@ namespace MWSound
     class MWSoundDecoderBridge final : public SoundDecoder
     {
     public:
-        MWSoundDecoderBridge(MWSound::MovieAudioDecoder* decoder)
+        explicit MWSoundDecoderBridge(MWSound::MovieAudioDecoder* decoder)
             : SoundDecoder(nullptr)
             , mDecoder(decoder)
         {
@@ -38,7 +38,7 @@ namespace MWSound
     class MovieAudioDecoder : public Video::MovieAudioDecoder
     {
     public:
-        MovieAudioDecoder(Video::VideoState* videoState)
+        explicit MovieAudioDecoder(Video::VideoState* videoState)
             : Video::MovieAudioDecoder(videoState)
             , mAudioTrack(nullptr)
             , mDecoderBridge(std::make_shared<MWSoundDecoderBridge>(this))

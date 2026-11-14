@@ -41,7 +41,7 @@ namespace CSMDoc
         DocumentManager& operator=(const DocumentManager&);
 
     public:
-        DocumentManager(const Files::ConfigurationManager& configuration);
+        explicit DocumentManager(const Files::ConfigurationManager& configuration);
 
         ~DocumentManager() override;
 

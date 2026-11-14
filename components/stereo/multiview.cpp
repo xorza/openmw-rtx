@@ -487,7 +487,7 @@ namespace Stereo
         : public SceneUtil::NodeCallback<UpdateRenderStagesCallback, osg::Node*, osgUtil::CullVisitor*>
     {
     public:
-        UpdateRenderStagesCallback(Stereo::MultiviewFramebuffer* multiviewFramebuffer)
+        explicit UpdateRenderStagesCallback(Stereo::MultiviewFramebuffer* multiviewFramebuffer)
             : mMultiviewFramebuffer(multiviewFramebuffer)
         {
             mViewport = new osg::Viewport(0, 0, multiviewFramebuffer->width(), multiviewFramebuffer->height());

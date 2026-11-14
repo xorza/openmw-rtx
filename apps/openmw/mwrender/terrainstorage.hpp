@@ -16,7 +16,7 @@ namespace MWRender
     class TerrainStorage : public ESMTerrain::Storage
     {
     public:
-        TerrainStorage(Resource::ResourceSystem* resourceSystem, std::string_view normalMapPattern = {},
+        explicit TerrainStorage(Resource::ResourceSystem* resourceSystem, std::string_view normalMapPattern = {},
             std::string_view normalHeightMapPattern = {}, bool autoUseNormalMaps = false,
             std::string_view specularMapPattern = {}, bool autoUseSpecularMaps = false);
         ~TerrainStorage() override;

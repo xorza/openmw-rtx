@@ -11,7 +11,7 @@ namespace SceneUtil
     public:
         TextureType() = default;
 
-        TextureType(const std::string& name) { setName(name); }
+        explicit TextureType(const std::string& name) { setName(name); }
 
         TextureType(const TextureType& copy, const osg::CopyOp& copyop = osg::CopyOp::SHALLOW_COPY)
             : StateAttribute(copy, copyop)

@@ -120,7 +120,7 @@ namespace MWRender
     class AtmosphereNightUpdater : public SceneUtil::StateSetUpdater
     {
     public:
-        AtmosphereNightUpdater(Resource::ImageManager* imageManager);
+        explicit AtmosphereNightUpdater(Resource::ImageManager* imageManager);
 
         void setFade(float fade);
 
@@ -188,7 +188,7 @@ namespace MWRender
     class UnderwaterSwitchCallback : public SceneUtil::NodeCallback<UnderwaterSwitchCallback>
     {
     public:
-        UnderwaterSwitchCallback(CameraRelativeTransform* cameraRelativeTransform);
+        explicit UnderwaterSwitchCallback(CameraRelativeTransform* cameraRelativeTransform);
         bool isUnderwater();
 
         void operator()(osg::Node* node, osg::NodeVisitor* nv);
@@ -315,7 +315,7 @@ namespace MWRender
             Clouds
         };
 
-        ModVertexAlphaVisitor(MeshType type);
+        explicit ModVertexAlphaVisitor(MeshType type);
 
         void apply(osg::Geometry& geometry) override;
 

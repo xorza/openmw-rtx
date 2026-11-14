@@ -115,7 +115,7 @@ namespace MWScript
             ESM::RefId mIndex;
 
         public:
-            OpGetAttribute(ESM::RefId index)
+            explicit OpGetAttribute(ESM::RefId index)
                 : mIndex(index)
             {
             }
@@ -138,7 +138,7 @@ namespace MWScript
             ESM::RefId mIndex;
 
         public:
-            OpSetAttribute(ESM::RefId index)
+            explicit OpSetAttribute(ESM::RefId index)
                 : mIndex(index)
             {
             }
@@ -165,7 +165,7 @@ namespace MWScript
             ESM::RefId mIndex;
 
         public:
-            OpModAttribute(ESM::RefId index)
+            explicit OpModAttribute(ESM::RefId index)
                 : mIndex(index)
             {
             }
@@ -192,7 +192,7 @@ namespace MWScript
             int mIndex;
 
         public:
-            OpGetDynamic(int index)
+            explicit OpGetDynamic(int index)
                 : mIndex(index)
             {
             }
@@ -224,7 +224,7 @@ namespace MWScript
             int mIndex;
 
         public:
-            OpSetDynamic(int index)
+            explicit OpSetDynamic(int index)
                 : mIndex(index)
             {
             }
@@ -254,7 +254,7 @@ namespace MWScript
             int mIndex;
 
         public:
-            OpModDynamic(int index)
+            explicit OpModDynamic(int index)
                 : mIndex(index)
             {
             }
@@ -306,7 +306,7 @@ namespace MWScript
             int mIndex;
 
         public:
-            OpModCurrentDynamic(int index)
+            explicit OpModCurrentDynamic(int index)
                 : mIndex(index)
             {
             }
@@ -348,7 +348,7 @@ namespace MWScript
             int mIndex;
 
         public:
-            OpGetDynamicGetRatio(int index)
+            explicit OpGetDynamicGetRatio(int index)
                 : mIndex(index)
             {
             }
@@ -375,7 +375,7 @@ namespace MWScript
             ESM::RefId mId;
 
         public:
-            OpGetSkill(ESM::RefId id)
+            explicit OpGetSkill(ESM::RefId id)
                 : mId(id)
             {
             }
@@ -402,7 +402,7 @@ namespace MWScript
             ESM::RefId mId;
 
         public:
-            OpSetSkill(ESM::RefId id)
+            explicit OpSetSkill(ESM::RefId id)
                 : mId(id)
             {
             }
@@ -429,7 +429,7 @@ namespace MWScript
             ESM::RefId mId;
 
         public:
-            OpModSkill(ESM::RefId id)
+            explicit OpModSkill(ESM::RefId id)
                 : mId(id)
             {
             }

@@ -38,7 +38,7 @@ namespace CSVRender
     class PathgridTag : public TagBase
     {
     public:
-        PathgridTag(Pathgrid* pathgrid);
+        explicit PathgridTag(Pathgrid* pathgrid);
 
         Pathgrid* getPathgrid() const;
 

@@ -568,7 +568,7 @@ namespace Rtx
             };
 
             const osg::Matrixf turn = osg::Matrixf::rotate(osg::PI_2f, osg::Vec3f(0.0f, 1.0f, 0.0f));
-            const osg::Vec3f turned = osg::Vec3f(0.0f, -1.0f, -1.0f) / std::sqrt(2.0f);
+            const osg::Vec3f turned = osg::Vec3f(0.0f, -1.0f, -1.0f) / std::numbers::sqrt2_v<float>;
             for (int frame = 0; frame < 2; ++frame)
             {
                 const osg::Vec3f read = centreNormalPosedBy(turn);
@@ -577,7 +577,7 @@ namespace Rtx
             }
 
             const osg::Vec3f standing = centreNormalPosedBy(turn * osg::Matrixf::translate(0.0f, -1000.0f, 0.0f));
-            const osg::Vec3f leaningBack = back / std::sqrt(2.0f);
+            const osg::Vec3f leaningBack = back / std::numbers::sqrt2_v<float>;
             for (int axis = 0; axis < 3; ++axis)
                 EXPECT_NEAR(standing[axis], leaningBack[axis], 1e-3f) << "the standing wall, axis " << axis;
 

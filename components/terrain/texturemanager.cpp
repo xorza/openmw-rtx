@@ -17,7 +17,7 @@ namespace Terrain
 
     struct UpdateTextureFilteringFunctor
     {
-        UpdateTextureFilteringFunctor(Resource::SceneManager* sceneMgr)
+        explicit UpdateTextureFilteringFunctor(Resource::SceneManager* sceneMgr)
             : mSceneManager(sceneMgr)
         {
         }

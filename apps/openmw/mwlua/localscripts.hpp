@@ -49,7 +49,7 @@ namespace MWLua
             std::string_view mProp; // Name of the stat's property
         };
 
-        SelfObject(const LObject& obj)
+        explicit SelfObject(const LObject& obj)
             : LObject(obj)
             , mIsActive(false)
         {

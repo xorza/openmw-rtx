@@ -35,7 +35,7 @@ namespace MWMechanics
     class ActionSpell : public Action
     {
     public:
-        ActionSpell(const ESM::RefId& spellId)
+        explicit ActionSpell(const ESM::RefId& spellId)
             : mSpellId(spellId)
         {
         }
@@ -50,7 +50,7 @@ namespace MWMechanics
     class ActionEnchantedItem : public Action
     {
     public:
-        ActionEnchantedItem(const MWWorld::ContainerStoreIterator& item)
+        explicit ActionEnchantedItem(const MWWorld::ContainerStoreIterator& item)
             : mItem(item)
         {
         }
@@ -66,7 +66,7 @@ namespace MWMechanics
     class ActionPotion : public Action
     {
     public:
-        ActionPotion(const MWWorld::Ptr& potion)
+        explicit ActionPotion(const MWWorld::Ptr& potion)
             : mPotion(potion)
         {
         }
@@ -88,7 +88,7 @@ namespace MWMechanics
 
     public:
         /// \a weapon may be empty for hand-to-hand combat
-        ActionWeapon(const MWWorld::Ptr& weapon, const MWWorld::Ptr& ammo = MWWorld::Ptr())
+        explicit ActionWeapon(const MWWorld::Ptr& weapon, const MWWorld::Ptr& ammo = MWWorld::Ptr())
             : mAmmunition(ammo)
             , mWeapon(weapon)
         {

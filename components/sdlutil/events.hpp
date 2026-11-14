@@ -1,5 +1,5 @@
-#ifndef _SFO_EVENTS_H
-#define _SFO_EVENTS_H
+#ifndef SFO_EVENTS_H
+#define SFO_EVENTS_H
 
 #include <SDL3/SDL_events.h>
 #include <SDL3/SDL_stdinc.h>

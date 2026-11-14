@@ -13,7 +13,7 @@ namespace LuaUtil
     {
     public:
         Box(const osg::Vec3f& center, const osg::Vec3f& halfSize, const osg::Quat& rotation = osg::Quat());
-        Box(const osg::Matrix& transform);
+        explicit Box(const osg::Matrix& transform);
 
         std::array<osg::Vec3f, 8> vertices() const;
 

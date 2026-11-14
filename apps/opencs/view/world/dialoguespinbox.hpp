@@ -11,7 +11,7 @@ namespace CSVWorld
         Q_OBJECT
 
     public:
-        DialogueSpinBox(QWidget* parent = nullptr);
+        explicit DialogueSpinBox(QWidget* parent = nullptr);
 
     protected:
         void focusInEvent(QFocusEvent* event) override;
@@ -24,7 +24,7 @@ namespace CSVWorld
         Q_OBJECT
 
     public:
-        DialogueDoubleSpinBox(QWidget* parent = nullptr);
+        explicit DialogueDoubleSpinBox(QWidget* parent = nullptr);
 
     protected:
         void focusInEvent(QFocusEvent* event) override;

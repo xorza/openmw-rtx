@@ -11,7 +11,7 @@ namespace Wizard
     {
         Q_OBJECT
     public:
-        ExistingInstallationPage(QWidget* parent);
+        explicit ExistingInstallationPage(QWidget* parent);
 
         int nextId() const override;
         bool isComplete() const override;

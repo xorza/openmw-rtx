@@ -42,7 +42,7 @@ namespace MWScript
         int findLocalVariableIndex(const ESM::RefId& scriptId, std::string_view name, char type) const;
 
     public:
-        InterpreterContext(std::shared_ptr<GlobalScriptDesc> globalScriptDesc);
+        explicit InterpreterContext(std::shared_ptr<GlobalScriptDesc> globalScriptDesc);
 
         InterpreterContext(MWScript::Locals* locals, const MWWorld::Ptr& reference);
         ///< The ownership of \a locals is not transferred. 0-pointer allowed.

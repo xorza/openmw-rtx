@@ -15,7 +15,7 @@ namespace CSMWorld
     {
         NestedTable mNestedTable;
 
-        NestedTableWrapper(const NestedTable& nestedTable)
+        explicit NestedTableWrapper(const NestedTable& nestedTable)
             : mNestedTable(nestedTable)
         {
         }

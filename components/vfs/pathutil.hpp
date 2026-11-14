@@ -151,6 +151,8 @@ namespace VFS::Path
                 throw std::invalid_argument("NormalizedView value is not normalized: \"" + std::string(mValue) + "\"");
         }
 
+        // A view of a normalized path converts from the path, as a string view does from a string.
+        // NOLINTNEXTLINE(google-explicit-constructor)
         NormalizedView(const Normalized& value) noexcept;
 
         explicit NormalizedView(const std::string&) = delete;
@@ -238,6 +240,8 @@ namespace VFS::Path
         {
         }
 
+        // A path converts from the string that holds it.
+        // NOLINTNEXTLINE(google-explicit-constructor)
         Normalized(const std::string& value)
             : Normalized(std::string_view(value))
         {
@@ -264,8 +268,11 @@ namespace VFS::Path
 
         constexpr std::size_t size() const { return mValue.size(); }
 
+        // A path reads as the string that spells it.
+        // NOLINTNEXTLINE(google-explicit-constructor)
         operator std::string_view() const { return mValue; }
 
+        // NOLINTNEXTLINE(google-explicit-constructor)
         operator const std::string&() const { return mValue; }
 
         bool changeExtension(ExtensionView extension)

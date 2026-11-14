@@ -27,7 +27,7 @@ namespace MWRender
         class Painted
         {
         public:
-            Painted(const osg::Geometry& geometry)
+            explicit Painted(const osg::Geometry& geometry)
                 : mFour(dynamic_cast<const osg::Vec4Array*>(geometry.getColorArray()))
                 , mThree(dynamic_cast<const osg::Vec3Array*>(geometry.getColorArray()))
                 , mPerVertex(geometry.getColorArray() != nullptr

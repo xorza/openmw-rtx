@@ -19,7 +19,7 @@ namespace MWRender
     class PingPongCull : public SceneUtil::NodeCallback<PingPongCull, osg::Node*, osgUtil::CullVisitor*>
     {
     public:
-        PingPongCull(PostProcessor* pp);
+        explicit PingPongCull(PostProcessor* pp);
         ~PingPongCull() override;
 
         void operator()(osg::Node* node, osgUtil::CullVisitor* nv);

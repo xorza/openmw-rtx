@@ -50,7 +50,7 @@ namespace MWWorld
         ContainerStore& mStore;
 
     public:
-        ResolutionListener(ContainerStore& store)
+        explicit ResolutionListener(ContainerStore& store)
             : mStore(store)
         {
         }
@@ -62,6 +62,8 @@ namespace MWWorld
         std::shared_ptr<ResolutionListener> mListener;
 
     public:
+        // A listener converts to the handle that holds it.
+        // NOLINTNEXTLINE(google-explicit-constructor)
         ResolutionHandle(std::shared_ptr<ResolutionListener> listener)
             : mListener(std::move(listener))
         {
@@ -141,6 +143,8 @@ namespace MWWorld
         typename Iterator<ESM::Repair>::type mRepair;
         typename Iterator<ESM::Weapon>::type mWeapon;
 
+        // An iterator converts from the store it walks, and to its const kind.
+        // NOLINTNEXTLINE(google-explicit-constructor)
         ContainerStoreIteratorBase(ContainerStoreType container);
         ///< End-iterator
 
@@ -186,6 +190,7 @@ namespace MWWorld
         using reference = PtrType&;
 
         template <class T>
+        // NOLINTNEXTLINE(google-explicit-constructor)
         ContainerStoreIteratorBase(const ContainerStoreIteratorBase<T>& other)
         {
             static_assert(IsConvertible<T, PtrType, void>::value);

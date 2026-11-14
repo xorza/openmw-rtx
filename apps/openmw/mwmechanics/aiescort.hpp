@@ -27,7 +27,7 @@ namespace MWMechanics
         AiEscort(
             const ESM::RefId& actorId, std::string_view cellId, int duration, float x, float y, float z, bool repeat);
 
-        AiEscort(const ESM::AiSequence::AiEscort* escort);
+        explicit AiEscort(const ESM::AiSequence::AiEscort* escort);
 
         bool execute(const MWWorld::Ptr& actor, CharacterController& characterController, AiState& state,
             float duration) override;

@@ -13,7 +13,7 @@ namespace MWWorld
 
     public:
         /// @param item repair hammer
-        ActionRepair(const Ptr& item, bool force = false);
+        explicit ActionRepair(const Ptr& item, bool force = false);
     };
 }
 

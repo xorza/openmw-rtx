@@ -29,7 +29,7 @@ namespace CSMTools
         MergeState& mState;
 
     public:
-        StartMergeStage(MergeState& state);
+        explicit StartMergeStage(MergeState& state);
 
         int setup() override;
         ///< \return number of steps
@@ -101,7 +101,7 @@ namespace CSMTools
         MergeState& mState;
 
     public:
-        MergeRefIdsStage(MergeState& state);
+        explicit MergeRefIdsStage(MergeState& state);
 
         int setup() override;
         ///< \return number of steps
@@ -116,7 +116,7 @@ namespace CSMTools
         std::map<ESM::RefId, int> mIndex;
 
     public:
-        MergeReferencesStage(MergeState& state);
+        explicit MergeReferencesStage(MergeState& state);
 
         int setup() override;
         ///< \return number of steps
@@ -131,7 +131,7 @@ namespace CSMTools
         MergeState& mState;
 
     public:
-        PopulateLandTexturesMergeStage(MergeState& state);
+        explicit PopulateLandTexturesMergeStage(MergeState& state);
 
         int setup() override;
         ///< \return number of steps
@@ -145,7 +145,7 @@ namespace CSMTools
         MergeState& mState;
 
     public:
-        MergeLandStage(MergeState& state);
+        explicit MergeLandStage(MergeState& state);
 
         int setup() override;
         ///< \return number of steps
@@ -161,7 +161,7 @@ namespace CSMTools
         MergeState& mState;
 
     public:
-        FixLandsAndLandTexturesMergeStage(MergeState& state);
+        explicit FixLandsAndLandTexturesMergeStage(MergeState& state);
 
         int setup() override;
         ///< \return number of steps
@@ -177,7 +177,7 @@ namespace CSMTools
         MergeState& mState;
 
     public:
-        CleanupLandTexturesMergeStage(MergeState& state);
+        explicit CleanupLandTexturesMergeStage(MergeState& state);
 
         int setup() override;
         ///< \return number of steps

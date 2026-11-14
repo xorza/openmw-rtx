@@ -107,7 +107,7 @@ namespace MWGui
             Enchanting
         };
 
-        EffectEditorBase(Type type);
+        explicit EffectEditorBase(Type type);
         virtual ~EffectEditorBase();
 
         void setConstantEffect(bool constant);

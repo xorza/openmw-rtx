@@ -16,7 +16,7 @@ namespace L10n
     class Manager
     {
     public:
-        Manager(const VFS::Manager* vfs)
+        explicit Manager(const VFS::Manager* vfs)
             : mVFS(vfs)
         {
         }

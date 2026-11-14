@@ -45,7 +45,7 @@ namespace SceneUtil
     class WorkQueue
     {
     public:
-        WorkQueue(std::size_t workerThreads);
+        explicit WorkQueue(std::size_t workerThreads);
         ~WorkQueue();
 
         void start(std::size_t workerThreads);
@@ -80,7 +80,7 @@ namespace SceneUtil
     class WorkThread
     {
     public:
-        WorkThread(WorkQueue& workQueue);
+        explicit WorkThread(WorkQueue& workQueue);
 
         ~WorkThread();
 

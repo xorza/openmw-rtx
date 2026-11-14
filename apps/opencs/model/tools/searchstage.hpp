@@ -26,7 +26,7 @@ namespace CSMTools
         const SearchOperation* mOperation;
 
     public:
-        SearchStage(const CSMWorld::IdTableBase* model);
+        explicit SearchStage(const CSMWorld::IdTableBase* model);
 
         int setup() override;
         ///< \return number of steps

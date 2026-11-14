@@ -63,7 +63,7 @@ namespace SceneUtil
     class AutoDepth : public osg::Depth
     {
     public:
-        AutoDepth(
+        explicit AutoDepth(
             // NB: OSG uses LESS test function by default, Morrowind uses LEQUAL
             osg::Depth::Function func = osg::Depth::LEQUAL, double zNear = 0.0, double zFar = 1.0,
             bool writeMask = true)
@@ -74,7 +74,7 @@ namespace SceneUtil
             setWriteMask(writeMask);
         }
 
-        AutoDepth(const osg::Depth& copy, const osg::CopyOp& copyop = osg::CopyOp::SHALLOW_COPY)
+        explicit AutoDepth(const osg::Depth& copy, const osg::CopyOp& copyop = osg::CopyOp::SHALLOW_COPY)
             : osg::Depth(copy, copyop)
         {
         }

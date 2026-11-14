@@ -29,7 +29,7 @@ namespace MWDialogue
     public:
         Topic();
 
-        Topic(const ESM::RefId& topic);
+        explicit Topic(const ESM::RefId& topic);
 
         virtual ~Topic() = default;
 

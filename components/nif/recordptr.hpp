@@ -46,6 +46,8 @@ namespace Nif
         {
         }
 
+        // A record pointer converts from the pointer it holds.
+        // NOLINTNEXTLINE(google-explicit-constructor)
         RecordPtrT(X* ptr)
             :
 #ifndef NDEBUG

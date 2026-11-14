@@ -30,7 +30,7 @@ namespace CSMWorld
     public:
         static std::vector<ColumnBase::Display> getDisplayTypes();
 
-        IdCompletionManager(Data& data);
+        explicit IdCompletionManager(Data& data);
 
         bool hasCompleterFor(ColumnBase::Display display) const;
         std::shared_ptr<QCompleter> getCompleter(ColumnBase::Display display);

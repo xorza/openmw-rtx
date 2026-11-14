@@ -14,7 +14,7 @@ namespace SceneUtil
     {
     public:
         typedef std::vector<osg::MatrixTransform*> TransformPath;
-        InitBoneCacheVisitor(std::unordered_map<std::string, TransformPath>& cache)
+        explicit InitBoneCacheVisitor(std::unordered_map<std::string, TransformPath>& cache)
             : osg::NodeVisitor(TRAVERSE_ALL_CHILDREN)
             , mCache(cache)
         {

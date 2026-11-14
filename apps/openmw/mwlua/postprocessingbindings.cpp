@@ -49,7 +49,7 @@ namespace MWLua
         // and its technique draws nothing, as under a chain that is switched off
         std::string mRequested;
 
-        Shader(std::shared_ptr<Fx::Technique> shader)
+        explicit Shader(std::shared_ptr<Fx::Technique> shader)
             : mShader(std::move(shader))
         {
         }

@@ -66,7 +66,7 @@ namespace MWSound
     class SoundBufferPool
     {
     public:
-        SoundBufferPool(SoundOutput& output);
+        explicit SoundBufferPool(SoundOutput& output);
 
         SoundBufferPool(const SoundBufferPool&) = delete;
 

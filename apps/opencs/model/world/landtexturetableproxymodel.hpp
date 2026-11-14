@@ -13,7 +13,7 @@ namespace CSMWorld
     {
         Q_OBJECT
     public:
-        LandTextureTableProxyModel(QObject* parent = nullptr);
+        explicit LandTextureTableProxyModel(QObject* parent = nullptr);
 
     protected:
         bool filterAcceptsRow(int sourceRow, const QModelIndex& sourceParent) const override;

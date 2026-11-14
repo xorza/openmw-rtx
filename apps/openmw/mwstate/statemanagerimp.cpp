@@ -438,7 +438,7 @@ protected:
 
 struct SaveVersionTooOldError : SaveFormatVersionError
 {
-    SaveVersionTooOldError(ESM::FormatVersion savegameFormat)
+    explicit SaveVersionTooOldError(ESM::FormatVersion savegameFormat)
         : SaveFormatVersionError(savegameFormat, "format version " + std::to_string(savegameFormat) + " is too old")
     {
     }
@@ -446,7 +446,7 @@ struct SaveVersionTooOldError : SaveFormatVersionError
 
 struct SaveVersionTooNewError : SaveFormatVersionError
 {
-    SaveVersionTooNewError(ESM::FormatVersion savegameFormat)
+    explicit SaveVersionTooNewError(ESM::FormatVersion savegameFormat)
         : SaveFormatVersionError(savegameFormat, "format version " + std::to_string(savegameFormat) + " is too new")
     {
     }

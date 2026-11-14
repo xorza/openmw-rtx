@@ -11,7 +11,7 @@ namespace MWWorld
         void executeImp(const MWWorld::Ptr& actor) override;
 
     public:
-        ActionHarvest(const Ptr& container);
+        explicit ActionHarvest(const Ptr& container);
         ///< \param container The Container the Player has activated.
     };
 }

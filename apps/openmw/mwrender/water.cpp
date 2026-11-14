@@ -60,7 +60,7 @@ namespace MWRender
         {
         public:
             /// @param cullPlane The culling plane (in world space).
-            PlaneCullCallback(const osg::Plane* cullPlane)
+            explicit PlaneCullCallback(const osg::Plane* cullPlane)
                 : mCullPlane(cullPlane)
             {
             }
@@ -92,7 +92,7 @@ namespace MWRender
         class FlipCallback : public SceneUtil::NodeCallback<FlipCallback, osg::Node*, osgUtil::CullVisitor*>
         {
         public:
-            FlipCallback(const osg::Plane* cullPlane)
+            explicit FlipCallback(const osg::Plane* cullPlane)
                 : mCullPlane(cullPlane)
             {
             }

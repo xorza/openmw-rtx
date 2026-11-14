@@ -19,7 +19,7 @@ namespace MyGUIPlatform
     class CustomLogListener : public MyGUI::ILogListener
     {
     public:
-        CustomLogListener(const std::filesystem::path& name)
+        explicit CustomLogListener(const std::filesystem::path& name)
             : mFileName(name)
         {
         }

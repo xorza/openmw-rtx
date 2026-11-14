@@ -52,7 +52,8 @@ namespace Files
         {
         public:
             common_config_file_iterator() { found_eof(); }
-            common_config_file_iterator(const std::set<std::string>& allowed_options, bool allow_unregistered = false);
+            explicit common_config_file_iterator(
+                const std::set<std::string>& allowed_options, bool allow_unregistered = false);
 
             virtual ~common_config_file_iterator() {}
 

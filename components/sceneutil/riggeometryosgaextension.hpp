@@ -16,7 +16,8 @@ namespace SceneUtil
     public:
         OsgaRigGeometry();
 
-        OsgaRigGeometry(const osgAnimation::RigGeometry& copy, const osg::CopyOp& copyop = osg::CopyOp::SHALLOW_COPY);
+        explicit OsgaRigGeometry(
+            const osgAnimation::RigGeometry& copy, const osg::CopyOp& copyop = osg::CopyOp::SHALLOW_COPY);
 
         OsgaRigGeometry(const OsgaRigGeometry& copy, const osg::CopyOp& copyop = osg::CopyOp::SHALLOW_COPY);
 

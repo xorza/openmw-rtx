@@ -13,18 +13,18 @@ namespace MWMechanics
         {
         }
 
-        TypedAiPackage(bool repeat)
+        explicit TypedAiPackage(bool repeat)
             : AiPackage(T::getTypeId(), T::makeDefaultOptions().withRepeat(repeat))
         {
         }
 
-        TypedAiPackage(const Options& options)
+        explicit TypedAiPackage(const Options& options)
             : AiPackage(T::getTypeId(), options)
         {
         }
 
         template <class Derived>
-        TypedAiPackage(Derived*)
+        explicit TypedAiPackage(Derived*)
             : AiPackage(Derived::getTypeId(), Derived::makeDefaultOptions())
         {
         }

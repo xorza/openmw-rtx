@@ -115,7 +115,7 @@ namespace MWLua
             ObjectVariant mObject;
 
         public:
-            SkillIncreasesForAttributeStats(ObjectVariant object)
+            explicit SkillIncreasesForAttributeStats(ObjectVariant object)
                 : mObject(std::move(object))
             {
             }
@@ -148,7 +148,7 @@ namespace MWLua
             ObjectVariant mObject;
 
         public:
-            SkillIncreasesForSpecializationStats(ObjectVariant object)
+            explicit SkillIncreasesForSpecializationStats(ObjectVariant object)
                 : mObject(std::move(object))
             {
             }
@@ -181,7 +181,7 @@ namespace MWLua
         {
             ObjectVariant mObject;
 
-            LevelStat(ObjectVariant object)
+            explicit LevelStat(ObjectVariant object)
                 : mObject(std::move(object))
             {
             }
@@ -501,7 +501,7 @@ namespace MWLua
         {
             ObjectVariant mObject;
 
-            ReputationStat(ObjectVariant object)
+            explicit ReputationStat(ObjectVariant object)
                 : mObject(std::move(object))
             {
             }

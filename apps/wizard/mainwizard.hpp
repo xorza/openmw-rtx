@@ -45,7 +45,7 @@ namespace Wizard
             Page_Conclusion
         };
 
-        MainWizard(Files::ConfigurationManager&& cfgMgr, QWidget* parent = nullptr);
+        explicit MainWizard(Files::ConfigurationManager&& cfgMgr, QWidget* parent = nullptr);
         ~MainWizard() override;
 
         static bool findFiles(const QString& name, const QString& path);

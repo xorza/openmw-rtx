@@ -23,7 +23,7 @@ namespace CSVRender
         CellMarker* mMarker;
 
     public:
-        CellMarkerTag(CellMarker* marker);
+        explicit CellMarkerTag(CellMarker* marker);
 
         CellMarker* getCellMarker() const;
     };

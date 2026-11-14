@@ -24,7 +24,7 @@ namespace CSMTools
         bool mIgnoreBaseRecords;
 
     public:
-        RegionCheckStage(const CSMWorld::IdCollection<ESM::Region>& regions);
+        explicit RegionCheckStage(const CSMWorld::IdCollection<ESM::Region>& regions);
 
         int setup() override;
         ///< \return number of steps

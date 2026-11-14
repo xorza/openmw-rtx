@@ -2,6 +2,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <numbers>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -162,7 +163,7 @@ namespace Rtx
             constexpr std::uint32_t samples = 1u << 18;
             constexpr std::uint32_t bins = 16;
             constexpr std::uint32_t steps = 64;
-            constexpr double pi = 3.14159265358979323846;
+            constexpr double pi = std::numbers::pi;
 
             std::vector<double> drawn(std::size_t{ bins } * bins);
             for (const float alpha : { 0.1f, 0.5f, 1.0f })

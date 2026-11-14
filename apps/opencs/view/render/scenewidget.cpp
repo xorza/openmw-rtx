@@ -64,7 +64,7 @@ namespace
     class DayNightSwitchVisitor : public osg::NodeVisitor
     {
     public:
-        DayNightSwitchVisitor(int index)
+        explicit DayNightSwitchVisitor(int index)
             : osg::NodeVisitor(TRAVERSE_ALL_CHILDREN)
             , mIndex(index)
         {

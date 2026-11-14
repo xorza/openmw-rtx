@@ -514,8 +514,8 @@ namespace MWGui
 
         struct GuiModeState
         {
-            GuiModeState(WindowBase* window) { mWindows.push_back(window); }
-            GuiModeState(const std::vector<WindowBase*>& windows)
+            explicit GuiModeState(WindowBase* window) { mWindows.push_back(window); }
+            explicit GuiModeState(const std::vector<WindowBase*>& windows)
                 : mWindows(windows)
             {
             }

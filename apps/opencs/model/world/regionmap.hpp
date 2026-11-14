@@ -93,7 +93,7 @@ namespace CSMWorld
         std::pair<CellCoordinates, CellCoordinates> getSize() const;
 
     public:
-        RegionMap(Data& data);
+        explicit RegionMap(Data& data);
 
         int rowCount(const QModelIndex& parent = QModelIndex()) const override;
 

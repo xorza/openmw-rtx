@@ -165,7 +165,7 @@ class CollectLowestTransformsVisitor : public BaseOptimizerVisitor
     public:
 
 
-        CollectLowestTransformsVisitor(Optimizer* optimizer=nullptr):
+        explicit CollectLowestTransformsVisitor(Optimizer* optimizer=nullptr):
                     BaseOptimizerVisitor(optimizer,Optimizer::FLATTEN_STATIC_TRANSFORMS),
                     _transformFunctor(osg::Matrix())
         {

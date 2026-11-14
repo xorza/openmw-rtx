@@ -16,7 +16,7 @@ namespace MWGui
     class Layout
     {
     public:
-        Layout(std::string_view layout)
+        explicit Layout(std::string_view layout)
             : mMainWidget(nullptr)
         {
             initialise(layout);

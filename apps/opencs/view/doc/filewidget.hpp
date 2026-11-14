@@ -22,7 +22,7 @@ namespace CSVDoc
         QString getExtension() const;
 
     public:
-        FileWidget(QWidget* parent = nullptr);
+        explicit FileWidget(QWidget* parent = nullptr);
 
         void setType(bool addon);
 

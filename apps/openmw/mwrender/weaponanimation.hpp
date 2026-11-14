@@ -20,7 +20,7 @@ namespace MWRender
         bool mRelativeTime;
 
     public:
-        WeaponAnimationTime(Animation* animation)
+        explicit WeaponAnimationTime(Animation* animation)
             : mAnimation(animation)
             , mStartTime(0)
             , mRelativeTime(false)

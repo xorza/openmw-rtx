@@ -29,7 +29,7 @@ namespace CSMTools
         void performFinal(CSMDoc::Messages& messages);
 
     public:
-        RaceCheckStage(const CSMWorld::IdCollection<ESM::Race>& races);
+        explicit RaceCheckStage(const CSMWorld::IdCollection<ESM::Race>& races);
 
         int setup() override;
         ///< \return number of steps

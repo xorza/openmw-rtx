@@ -13,7 +13,7 @@ namespace CSVPrefs
         Q_OBJECT
 
     public:
-        ContextMenuList(QWidget* parent = nullptr);
+        explicit ContextMenuList(QWidget* parent = nullptr);
 
     protected:
         void contextMenuEvent(QContextMenuEvent* e) override;

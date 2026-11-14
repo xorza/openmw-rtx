@@ -12,6 +12,8 @@ namespace ESM
 
         Quaternion() = default;
 
+        // OSG's quaternion converts to the record's.
+        // NOLINTNEXTLINE(google-explicit-constructor)
         Quaternion(const osg::Quat& q)
             : mValues{
                 static_cast<float>(q.w()),
@@ -22,6 +24,8 @@ namespace ESM
         {
         }
 
+        // OSG's quaternion converts to the record's.
+        // NOLINTNEXTLINE(google-explicit-constructor)
         operator osg::Quat() const { return osg::Quat(mValues[1], mValues[2], mValues[3], mValues[0]); }
     };
 }

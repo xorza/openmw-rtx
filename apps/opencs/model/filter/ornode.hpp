@@ -18,7 +18,7 @@ namespace CSMFilter
     class OrNode : public NAryNode
     {
     public:
-        OrNode(const std::vector<std::shared_ptr<Node>>& nodes);
+        explicit OrNode(const std::vector<std::shared_ptr<Node>>& nodes);
 
         bool test(const CSMWorld::IdTableBase& table, int row, const std::map<int, int>& columns) const override;
         ///< \return Can the specified table row pass through to filter?

@@ -44,7 +44,7 @@ namespace MWMechanics
             MWWorld::TimeStamp mNextWorsening;
             MWWorld::Ptr mSource;
 
-            ActiveSpellParams(const ESM::ActiveSpells::ActiveSpellParams& params);
+            explicit ActiveSpellParams(const ESM::ActiveSpells::ActiveSpellParams& params);
 
             ActiveSpellParams(const ESM::Spell* spell, const MWWorld::Ptr& actor, bool ignoreResistances = false);
 
@@ -113,7 +113,7 @@ namespace MWMechanics
         {
             ActiveSpells& mActiveSpells;
 
-            IterationGuard(ActiveSpells& spells);
+            explicit IterationGuard(ActiveSpells& spells);
             ~IterationGuard();
         };
         struct UpdateContext;

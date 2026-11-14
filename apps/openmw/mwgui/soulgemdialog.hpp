@@ -11,7 +11,7 @@ namespace MWGui
     class SoulgemDialog
     {
     public:
-        SoulgemDialog(MessageBoxManager* manager)
+        explicit SoulgemDialog(MessageBoxManager* manager)
             : mManager(manager)
         {
         }

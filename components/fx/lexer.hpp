@@ -15,11 +15,11 @@ namespace Fx
     {
         struct LexerException : std::runtime_error
         {
-            LexerException(const std::string& message)
+            explicit LexerException(const std::string& message)
                 : std::runtime_error(message)
             {
             }
-            LexerException(const char* message)
+            explicit LexerException(const char* message)
                 : std::runtime_error(message)
             {
             }
@@ -34,7 +34,7 @@ namespace Fx
                 std::string_view mContent;
             };
 
-            Lexer(std::string_view buffer);
+            explicit Lexer(std::string_view buffer);
             Lexer() = delete;
 
             Token next();

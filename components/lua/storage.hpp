@@ -67,7 +67,7 @@ namespace LuaUtil
         {
         public:
             Value() {}
-            Value(const sol::object& value)
+            explicit Value(const sol::object& value)
                 : mSerializedValue(serialize(value))
             {
             }

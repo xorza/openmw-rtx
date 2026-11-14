@@ -22,9 +22,9 @@ namespace MWMechanics
     public:
         /// Constructor
         /** \param actor Actor to pursue **/
-        AiPursue(const MWWorld::Ptr& actor);
+        explicit AiPursue(const MWWorld::Ptr& actor);
 
-        AiPursue(const ESM::AiSequence::AiPursue* pursue);
+        explicit AiPursue(const ESM::AiSequence::AiPursue* pursue);
 
         bool execute(const MWWorld::Ptr& actor, CharacterController& characterController, AiState& state,
             float duration) override;

@@ -39,7 +39,7 @@ namespace CSVWorld
         QVariant mData;
 
     public:
-        NastyTableModelHack(QAbstractItemModel& model);
+        explicit NastyTableModelHack(QAbstractItemModel& model);
 
         int rowCount(const QModelIndex& parent = QModelIndex()) const override;
 

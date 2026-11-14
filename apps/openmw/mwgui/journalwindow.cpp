@@ -603,7 +603,7 @@ namespace
 
         struct AddNamesToList
         {
-            AddNamesToList(Gui::MWList* list)
+            explicit AddNamesToList(Gui::MWList* list)
                 : mList(list)
             {
             }
@@ -613,7 +613,7 @@ namespace
         };
         struct SetNamesInactive
         {
-            SetNamesInactive(Gui::MWList* list)
+            explicit SetNamesInactive(Gui::MWList* list)
                 : mList(list)
             {
             }

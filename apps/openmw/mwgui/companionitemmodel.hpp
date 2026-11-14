@@ -11,7 +11,7 @@ namespace MWGui
     class CompanionItemModel : public InventoryItemModel
     {
     public:
-        CompanionItemModel(const MWWorld::Ptr& actor);
+        explicit CompanionItemModel(const MWWorld::Ptr& actor);
 
         bool hasProfit(const MWWorld::Ptr& actor);
 

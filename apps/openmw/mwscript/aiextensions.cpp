@@ -256,7 +256,7 @@ namespace MWScript
             MWMechanics::AiSetting mIndex;
 
         public:
-            OpGetAiSetting(MWMechanics::AiSetting index)
+            explicit OpGetAiSetting(MWMechanics::AiSetting index)
                 : mIndex(index)
             {
             }
@@ -277,7 +277,7 @@ namespace MWScript
             MWMechanics::AiSetting mIndex;
 
         public:
-            OpModAiSetting(MWMechanics::AiSetting index)
+            explicit OpModAiSetting(MWMechanics::AiSetting index)
                 : mIndex(index)
             {
             }
@@ -303,7 +303,7 @@ namespace MWScript
             MWMechanics::AiSetting mIndex;
 
         public:
-            OpSetAiSetting(MWMechanics::AiSetting index)
+            explicit OpSetAiSetting(MWMechanics::AiSetting index)
                 : mIndex(index)
             {
             }

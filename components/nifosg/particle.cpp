@@ -56,7 +56,7 @@ namespace
     class LocalToWorldAccumulator : public osg::NodeVisitor
     {
     public:
-        LocalToWorldAccumulator(osg::Matrix& matrix)
+        explicit LocalToWorldAccumulator(osg::Matrix& matrix)
             : osg::NodeVisitor()
             , mMatrix(matrix)
         {

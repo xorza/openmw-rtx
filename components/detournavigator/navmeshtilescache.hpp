@@ -117,14 +117,14 @@ namespace DetourNavigator
 
             const PreparedNavMeshData& get() const { return *mIterator->mPreparedNavMeshData; }
 
-            operator bool() const { return mOwner; }
+            explicit operator bool() const { return mOwner; }
 
         private:
             NavMeshTilesCache* mOwner;
             ItemIterator mIterator;
         };
 
-        NavMeshTilesCache(const std::size_t maxNavMeshDataSize);
+        explicit NavMeshTilesCache(const std::size_t maxNavMeshDataSize);
 
         Value get(const AgentBounds& agentBounds, const TilePosition& changedTile, const RecastMesh& recastMesh);
 

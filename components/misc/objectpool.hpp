@@ -14,11 +14,15 @@ namespace Misc
     class ObjectPtrDeleter
     {
     public:
+        // Null converts to the deleter of no pool, as unique_ptr asks of its deleter.
+        // NOLINTNEXTLINE(google-explicit-constructor)
         ObjectPtrDeleter(std::nullptr_t)
             : mPool(nullptr)
         {
         }
+        // A pool converts to the deleter that hands objects back to it.
 
+        // NOLINTNEXTLINE(google-explicit-constructor)
         ObjectPtrDeleter(ObjectPool<T>& pool)
             : mPool(&pool)
         {
@@ -41,6 +45,8 @@ namespace Misc
         {
         }
 
+        // Null converts to the empty pointer, as it does to any pointer.
+        // NOLINTNEXTLINE(google-explicit-constructor)
         ObjectPtr(std::nullptr_t)
             : std::unique_ptr<T, ObjectPtrDeleter<T>>(nullptr, nullptr)
         {

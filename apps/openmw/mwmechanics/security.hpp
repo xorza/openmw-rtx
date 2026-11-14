@@ -10,7 +10,7 @@ namespace MWMechanics
     class Security
     {
     public:
-        Security(const MWWorld::Ptr& actor);
+        explicit Security(const MWWorld::Ptr& actor);
 
         void pickLock(const MWWorld::Ptr& lock, const MWWorld::Ptr& lockpick, std::string_view& resultMessage,
             std::string_view& resultSound);

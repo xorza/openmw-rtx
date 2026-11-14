@@ -24,7 +24,7 @@ namespace CSMTools
         bool mIgnoreBaseRecords;
 
     public:
-        EnchantmentCheckStage(const CSMWorld::IdCollection<ESM::Enchantment>& enchantments);
+        explicit EnchantmentCheckStage(const CSMWorld::IdCollection<ESM::Enchantment>& enchantments);
 
         int setup() override;
         ///< \return number of steps

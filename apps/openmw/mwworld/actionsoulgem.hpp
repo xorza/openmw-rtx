@@ -11,7 +11,7 @@ namespace MWWorld
 
     public:
         /// @param soulgem to use
-        ActionSoulgem(const Ptr& object);
+        explicit ActionSoulgem(const Ptr& object);
     };
 }
 

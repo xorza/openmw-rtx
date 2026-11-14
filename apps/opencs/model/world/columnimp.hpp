@@ -64,7 +64,7 @@ namespace CSMWorld
     template <typename ESXRecordT>
     struct StringIdColumn : public Column<ESXRecordT>
     {
-        StringIdColumn(bool hidden = false)
+        explicit StringIdColumn(bool hidden = false)
             : Column<ESXRecordT>(Columns::ColumnId_Id, ColumnBase::Display_Id,
                   hidden ? 0 : ColumnBase::Flag_Table | ColumnBase::Flag_Dialogue)
         {
@@ -116,7 +116,7 @@ namespace CSMWorld
     {
         int mType;
 
-        FixedRecordTypeColumn(int type)
+        explicit FixedRecordTypeColumn(int type)
             : Column<ESXRecordT>(Columns::ColumnId_RecordType, ColumnBase::Display_Integer, 0)
             , mType(type)
         {
@@ -131,7 +131,7 @@ namespace CSMWorld
     template <typename ESXRecordT>
     struct VarTypeColumn : public Column<ESXRecordT>
     {
-        VarTypeColumn(ColumnBase::Display display)
+        explicit VarTypeColumn(ColumnBase::Display display)
             : Column<ESXRecordT>(Columns::ColumnId_ValueType, display,
                   ColumnBase::Flag_Table | ColumnBase::Flag_Dialogue | ColumnBase::Flag_Dialogue_Refresh)
         {
@@ -270,7 +270,7 @@ namespace CSMWorld
     {
         int mIndex;
 
-        UseValueColumn(int index)
+        explicit UseValueColumn(int index)
             : Column<ESXRecordT>(Columns::ColumnId_UseValue1 + index, ColumnBase::Display_Float)
             , mIndex(index)
         {
@@ -318,7 +318,7 @@ namespace CSMWorld
     template <typename ESXRecordT>
     struct NameColumn : public Column<ESXRecordT>
     {
-        NameColumn(ColumnBase::Display display = ColumnBase::Display_String)
+        explicit NameColumn(ColumnBase::Display display = ColumnBase::Display_String)
             : Column<ESXRecordT>(Columns::ColumnId_Name, display)
         {
         }
@@ -343,7 +343,7 @@ namespace CSMWorld
     template <>
     struct NameColumn<CSMWorld::Cell> : public Column<CSMWorld::Cell>
     {
-        NameColumn(ColumnBase::Display display = ColumnBase::Display_String)
+        explicit NameColumn(ColumnBase::Display display = ColumnBase::Display_String)
             : Column<CSMWorld::Cell>(Columns::ColumnId_Name, display)
         {
         }
@@ -370,7 +370,7 @@ namespace CSMWorld
     {
         int mIndex;
 
-        AttributesColumn(int index)
+        explicit AttributesColumn(int index)
             : Column<ESXRecordT>(Columns::ColumnId_Attribute1 + index, ColumnBase::Display_Attribute)
             , mIndex(index)
         {
@@ -399,7 +399,7 @@ namespace CSMWorld
         int mIndex;
         bool mMajor;
 
-        SkillsColumn(int index, bool typePrefix = false, bool major = false)
+        explicit SkillsColumn(int index, bool typePrefix = false, bool major = false)
             : Column<ESXRecordT>((typePrefix ? (major ? Columns::ColumnId_MajorSkill1 : Columns::ColumnId_MinorSkill1)
                                              : Columns::ColumnId_Skill1)
                       + index,
@@ -625,7 +625,7 @@ namespace CSMWorld
 
         Type mType;
 
-        SoundParamColumn(Type type)
+        explicit SoundParamColumn(Type type)
             : Column<ESXRecordT>(type == Type_Volume
                       ? Columns::ColumnId_Volume
                       : (type == Type_MinRange ? Columns::ColumnId_MinRange : Columns::ColumnId_MaxRange),
@@ -831,7 +831,7 @@ namespace CSMWorld
             Type_Info // dialogue context (not implemented yet)
         };
 
-        ScriptColumn(Type type)
+        explicit ScriptColumn(Type type)
             : Column<ESXRecordT>(Columns::ColumnId_ScriptText,
                   type == Type_File ? ColumnBase::Display_ScriptFile : ColumnBase::Display_ScriptLines,
                   type == Type_File ? 0 : ColumnBase::Flag_Dialogue)
@@ -886,7 +886,7 @@ namespace CSMWorld
         bool mBlocked;
 
         /// \param blocked Do not allow user-modification
-        CellColumn(bool blocked = false)
+        explicit CellColumn(bool blocked = false)
             : Column<ESXRecordT>(Columns::ColumnId_Cell, ColumnBase::Display_Cell)
             , mBlocked(blocked)
         {
@@ -1141,7 +1141,7 @@ namespace CSMWorld
     template <typename ESXRecordT>
     struct TeleportColumn : public Column<ESXRecordT>
     {
-        TeleportColumn(int flags)
+        explicit TeleportColumn(int flags)
             : Column<ESXRecordT>(Columns::ColumnId_Teleport, ColumnBase::Display_Boolean, flags)
         {
         }
@@ -1192,7 +1192,7 @@ namespace CSMWorld
     template <typename ESXRecordT>
     struct IsLockedColumn : public Column<ESXRecordT>
     {
-        IsLockedColumn(int flags)
+        explicit IsLockedColumn(int flags)
             : Column<ESXRecordT>(Columns::ColumnId_IsLocked, ColumnBase::Display_Boolean, flags)
         {
         }
@@ -1390,7 +1390,7 @@ namespace CSMWorld
     template <typename ESXRecordT>
     struct DialogueTypeColumn : public Column<ESXRecordT>
     {
-        DialogueTypeColumn(bool hidden = false)
+        explicit DialogueTypeColumn(bool hidden = false)
             : Column<ESXRecordT>(Columns::ColumnId_DialogueType, ColumnBase::Display_DialogueType,
                   hidden ? 0 : ColumnBase::Flag_Table | ColumnBase::Flag_Dialogue)
         {
@@ -1485,7 +1485,7 @@ namespace CSMWorld
     template <typename ESXRecordT>
     struct TopicColumn : public Column<ESXRecordT>
     {
-        TopicColumn(bool journal)
+        explicit TopicColumn(bool journal)
             : Column<ESXRecordT>(journal ? Columns::ColumnId_Journal : Columns::ColumnId_Topic,
                   journal ? ColumnBase::Display_Journal : ColumnBase::Display_Topic)
         {
@@ -1901,7 +1901,7 @@ namespace CSMWorld
     template <typename ESXRecordT>
     struct MeshTypeColumn : public Column<ESXRecordT>
     {
-        MeshTypeColumn(int flags = ColumnBase::Flag_Table | ColumnBase::Flag_Dialogue)
+        explicit MeshTypeColumn(int flags = ColumnBase::Flag_Table | ColumnBase::Flag_Dialogue)
             : Column<ESXRecordT>(Columns::ColumnId_MeshType, ColumnBase::Display_MeshType, flags)
         {
         }
@@ -2142,7 +2142,7 @@ namespace CSMWorld
     template <typename ESXRecordT>
     struct EffectTextureColumn : public Column<ESXRecordT>
     {
-        EffectTextureColumn(Columns::ColumnId columnId)
+        explicit EffectTextureColumn(Columns::ColumnId columnId)
             : Column<ESXRecordT>(columnId,
                   columnId == Columns::ColumnId_Particle ? ColumnBase::Display_Texture : ColumnBase::Display_Icon)
         {
@@ -2172,7 +2172,7 @@ namespace CSMWorld
     template <typename ESXRecordT>
     struct EffectObjectColumn : public Column<ESXRecordT>
     {
-        EffectObjectColumn(Columns::ColumnId columnId)
+        explicit EffectObjectColumn(Columns::ColumnId columnId)
             : Column<ESXRecordT>(columnId,
                   columnId == Columns::ColumnId_BoltObject ? ColumnBase::Display_Weapon : ColumnBase::Display_Static)
         {
@@ -2242,7 +2242,7 @@ namespace CSMWorld
     template <typename ESXRecordT>
     struct EffectSoundColumn : public Column<ESXRecordT>
     {
-        EffectSoundColumn(Columns::ColumnId columnId)
+        explicit EffectSoundColumn(Columns::ColumnId columnId)
             : Column<ESXRecordT>(columnId, ColumnBase::Display_Sound)
         {
             assert(this->mColumnId == Columns::ColumnId_CastingSound || this->mColumnId == Columns::ColumnId_HitSound
@@ -2435,7 +2435,7 @@ namespace CSMWorld
     {
         const MeshTypeColumn<ESM::BodyPart>* mMeshType;
 
-        BodyPartRaceColumn(const MeshTypeColumn<ESM::BodyPart>* meshType);
+        explicit BodyPartRaceColumn(const MeshTypeColumn<ESM::BodyPart>* meshType);
 
         QVariant get(const Record<ESM::BodyPart>& record) const override;
         void set(Record<ESM::BodyPart>& record, const QVariant& data) override;

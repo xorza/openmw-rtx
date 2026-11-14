@@ -29,7 +29,7 @@ namespace MWGui
         bool mNeedMargin;
 
     public:
-        ResponseCallback(DialogueWindow* win, bool needMargin = true)
+        explicit ResponseCallback(DialogueWindow* win, bool needMargin = true)
             : mWindow(win)
             , mNeedMargin(needMargin)
         {
@@ -43,7 +43,7 @@ namespace MWGui
     class PersuasionDialog : public WindowModal
     {
     public:
-        PersuasionDialog(std::unique_ptr<ResponseCallback> callback);
+        explicit PersuasionDialog(std::unique_ptr<ResponseCallback> callback);
 
         void onOpen() override;
 
@@ -86,7 +86,7 @@ namespace MWGui
     struct Topic : Link
     {
         MyGUI::delegates::MultiDelegate<const std::string&> eventTopicActivated;
-        Topic(const std::string& id)
+        explicit Topic(const std::string& id)
             : mTopicId(id)
         {
         }
@@ -97,7 +97,7 @@ namespace MWGui
     struct Choice : Link
     {
         MyGUI::delegates::MultiDelegate<int> eventChoiceActivated;
-        Choice(int id)
+        explicit Choice(int id)
             : mChoiceId(id)
         {
         }
@@ -121,7 +121,7 @@ namespace MWGui
 
     struct Response : DialogueText
     {
-        Response(std::string_view text, std::string_view title = {}, bool needMargin = true);
+        explicit Response(std::string_view text, std::string_view title = {}, bool needMargin = true);
         void write(std::shared_ptr<BookTypesetter> typesetter, const MWDialogue::KeywordSearch& keywordSearch,
             std::unordered_map<std::string, std::unique_ptr<Link>>& topicLinks) const override;
         std::string mTitle;
@@ -130,7 +130,7 @@ namespace MWGui
 
     struct Message : DialogueText
     {
-        Message(std::string_view text);
+        explicit Message(std::string_view text);
         void write(std::shared_ptr<BookTypesetter> typesetter, const MWDialogue::KeywordSearch& keywordSearch,
             std::unordered_map<std::string, std::unique_ptr<Link>>& topicLinks) const override;
     };

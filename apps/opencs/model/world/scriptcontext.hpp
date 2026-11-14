@@ -22,7 +22,7 @@ namespace CSMWorld
         mutable std::map<ESM::RefId, Compiler::Locals, std::less<>> mLocals;
 
     public:
-        ScriptContext(const Data& data);
+        explicit ScriptContext(const Data& data);
 
         bool canDeclareLocals() const override;
         ///< Is the compiler allowed to declare local variables?

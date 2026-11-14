@@ -103,7 +103,7 @@ namespace MWLua
                     const Record* rec = self.mStore.search(ESM::RefId::deserializeText(id));
                     return mapper(rec, state);
                 });
-            storeT[sol::meta_function::new_index] = std::move(newIndex);
+            storeT[sol::meta_function::new_index] = std::forward<decltype(newIndex)>(newIndex);
             storeT[sol::meta_function::ipairs] = lua["ipairsForArray"].template get<sol::function>();
             storeT[sol::meta_function::pairs] = [=](const Store& self) {
                 return sol::as_function(

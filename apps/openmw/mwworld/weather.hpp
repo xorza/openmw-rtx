@@ -187,6 +187,8 @@ namespace MWWorld
         explicit RegionWeather(const ESM::Region& region);
         explicit RegionWeather(const ESM::RegionWeatherState& state);
 
+        // The region's weather converts to the state a save holds.
+        // NOLINTNEXTLINE(google-explicit-constructor)
         operator ESM::RegionWeatherState() const;
 
         void setChances(const std::map<ESM::RefId, uint8_t>& chances, const WeatherStore& store);
@@ -208,7 +210,7 @@ namespace MWWorld
     class MoonModel
     {
     public:
-        MoonModel(const std::string& name);
+        explicit MoonModel(const std::string& name);
         MoonModel(float fadeInStart, float fadeInFinish, float fadeOutStart, float fadeOutFinish, float axisOffset,
             float speed, float dailyIncrement, float fadeStartAngle, float fadeEndAngle, float moonShadowEarlyFadeAngle,
             float sunriseHour, float sunsetHour);

@@ -48,7 +48,7 @@ namespace CSMWorld
         void updateColumnMap();
 
     public:
-        IdTableProxyModel(QObject* parent = nullptr);
+        explicit IdTableProxyModel(QObject* parent = nullptr);
 
         virtual QModelIndex getModelIndex(const std::string& id, int column) const;
 

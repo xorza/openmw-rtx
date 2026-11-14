@@ -11,7 +11,7 @@ namespace ContentSelectorModel
         Q_OBJECT
 
     public:
-        ModelItem(ModelItem* parent = nullptr);
+        explicit ModelItem(ModelItem* parent = nullptr);
         // ModelItem(const ModelItem *parent = 0);
 
         ~ModelItem() override;

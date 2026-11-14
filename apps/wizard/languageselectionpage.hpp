@@ -17,7 +17,7 @@ namespace Wizard
     {
         Q_OBJECT
     public:
-        LanguageSelectionPage(QWidget* parent);
+        explicit LanguageSelectionPage(QWidget* parent);
 
         int nextId() const override;
 

@@ -84,7 +84,8 @@ namespace DetourNavigator
             case CollisionShapeType::Cylinder:
                 return s << "CollisionShapeType::Cylinder";
         }
-        return s << "CollisionShapeType::" << static_cast<std::underlying_type_t<CollisionShapeType>>(v);
+        return s << "CollisionShapeType::"
+                 << static_cast<unsigned int>(static_cast<std::underlying_type_t<CollisionShapeType>>(v));
     }
 
     std::ostream& operator<<(std::ostream& s, const AgentBounds& v)
@@ -174,7 +175,8 @@ namespace DetourNavigator
             case AreaType_ground:
                 return stream << "ground";
         }
-        return stream << "unknown area type (" << static_cast<std::underlying_type_t<AreaType>>(value) << ")";
+        return stream << "unknown area type ("
+                      << static_cast<unsigned int>(static_cast<std::underlying_type_t<AreaType>>(value)) << ")";
     }
 
     std::ostream& operator<<(std::ostream& stream, ChangeType value)

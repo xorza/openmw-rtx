@@ -284,7 +284,7 @@ class Optimizer
         {
             public:
 
-                FlattenStaticTransformsVisitor(Optimizer* optimizer=nullptr):
+                explicit FlattenStaticTransformsVisitor(Optimizer* optimizer=nullptr):
                     BaseOptimizerVisitor(optimizer, FLATTEN_STATIC_TRANSFORMS) {}
 
                 void apply(osg::Node& node) override;
@@ -317,7 +317,7 @@ class Optimizer
         {
             public:
 
-                CombineStaticTransformsVisitor(Optimizer* optimizer=nullptr):
+                explicit CombineStaticTransformsVisitor(Optimizer* optimizer=nullptr):
                     BaseOptimizerVisitor(optimizer, FLATTEN_STATIC_TRANSFORMS) {}
 
                 void apply(osg::MatrixTransform& transform) override;
@@ -340,7 +340,7 @@ class Optimizer
                 typedef std::set<osg::Node*> NodeList;
                 NodeList                     _redundantNodeList;
 
-                RemoveEmptyNodesVisitor(Optimizer* optimizer=nullptr):
+                explicit RemoveEmptyNodesVisitor(Optimizer* optimizer=nullptr):
                     BaseOptimizerVisitor(optimizer, REMOVE_REDUNDANT_NODES) {}
 
                 void apply(osg::Group& group) override;
@@ -358,7 +358,7 @@ class Optimizer
                 typedef std::set<osg::Node*> NodeList;
                 NodeList                     _redundantNodeList;
 
-                RemoveRedundantNodesVisitor(Optimizer* optimizer=nullptr):
+                explicit RemoveRedundantNodesVisitor(Optimizer* optimizer=nullptr):
                     BaseOptimizerVisitor(optimizer, REMOVE_REDUNDANT_NODES) {}
 
                 void apply(osg::Group& group) override;
@@ -378,7 +378,7 @@ class Optimizer
         class MergeGroupsVisitor : public SceneUtil::BaseOptimizerVisitor
         {
         public:
-            MergeGroupsVisitor(SceneUtil::Optimizer* optimizer)
+            explicit MergeGroupsVisitor(SceneUtil::Optimizer* optimizer)
                 : BaseOptimizerVisitor(optimizer, REMOVE_REDUNDANT_NODES)
             {
             }
@@ -408,7 +408,7 @@ class Optimizer
             public:
 
                 /// default to traversing all children.
-                MergeGeometryVisitor(Optimizer* optimizer=nullptr) :
+                explicit MergeGeometryVisitor(Optimizer* optimizer=nullptr) :
                     BaseOptimizerVisitor(optimizer, MERGE_GEOMETRY),
                     _targetMaximumNumberOfVertices(10000), _alphaBlendingActive(false), _mergeAlphaBlending(false) {}
 

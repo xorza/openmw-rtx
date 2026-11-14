@@ -160,7 +160,7 @@ namespace Rtx::Testing
 
             // At sixty degrees off square the cosine is exactly a half, so this is the same radiance
             // the half-irradiance case gave — the same 111, reached the other way.
-            const osg::Vec3f slanted(std::sqrt(3.0f) * 0.5f, 0.5f, 0.0f);
+            const osg::Vec3f slanted(std::numbers::sqrt3_v<float> * 0.5f, 0.5f, 0.0f);
             EXPECT_EQ(render(slanted, bright, Occluder::None), 111) << "or the same again from a slant";
         }
 
@@ -1246,7 +1246,7 @@ namespace Rtx::Testing
             const float irradiance = 4000.0f * 3.99760e-4f;
             const float base = 128.0f / 255.0f;
             const float roughness = 128.0f / 255.0f;
-            const osg::Vec3f toEye = osg::Vec3f(1.0f, -1.0f, 0.0f) / std::sqrt(2.0f);
+            const osg::Vec3f toEye = osg::Vec3f(1.0f, -1.0f, 0.0f) / std::numbers::sqrt2_v<float>;
             const osg::Vec3f toLamp(0.0f, -1.0f, 0.0f);
             const osg::Vec3f normal(0.0f, -1.0f, 0.0f);
             const osg::Vec3f tangent(1.0f, 0.0f, 0.0f);
@@ -1774,7 +1774,7 @@ namespace Rtx::Testing
             const float irradiance = 4000.0f * 3.99760e-4f;
             const float reflectance = 128.0f / 255.0f;
             const float roughness = 128.0f / 255.0f;
-            const osg::Vec3f toEye = osg::Vec3f(1.0f, -1.0f, 0.0f) / std::sqrt(2.0f);
+            const osg::Vec3f toEye = osg::Vec3f(1.0f, -1.0f, 0.0f) / std::numbers::sqrt2_v<float>;
             const auto lobe = [&](const osg::Vec3f& toLamp) {
                 osg::Vec3f halfway = toEye + toLamp;
                 halfway.normalize();
@@ -1856,7 +1856,7 @@ namespace Rtx::Testing
 
             const float reflectance = 128.0f / 255.0f;
             const float roughness = 128.0f / 255.0f;
-            const osg::Vec3f toEye = osg::Vec3f(1.0f, -1.0f, 0.0f) / std::sqrt(2.0f);
+            const osg::Vec3f toEye = osg::Vec3f(1.0f, -1.0f, 0.0f) / std::numbers::sqrt2_v<float>;
             const osg::Vec3f mirror = normal * (2.0f * (normal * toEye)) - toEye;
             const auto lobe = [&](const osg::Vec3f& toCentre, float irradiance, float sine) {
                 const float cosine = std::sqrt(1.0f - sine * sine);

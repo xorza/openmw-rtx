@@ -138,6 +138,8 @@ namespace MWWorld
     class Ptr : public PtrBase<std::remove_const_t>
     {
     public:
+        // Default-constructs the empty Ptr, and converts from a reference.
+        // NOLINTNEXTLINE(google-explicit-constructor)
         Ptr(LiveCellRefBase* liveCellRef = nullptr, CellStoreType* cell = nullptr)
             : PtrBase(liveCellRef, cell, nullptr)
         {
@@ -149,10 +151,13 @@ namespace MWWorld
     class ConstPtr : public PtrBase<std::add_const_t>
     {
     public:
+        // A Ptr converts to the ConstPtr of the same object, as a pointer does to a pointer to const.
+        // NOLINTNEXTLINE(google-explicit-constructor)
         ConstPtr(const Ptr& ptr)
             : PtrBase(ptr.mRef, ptr.mCell, ptr.mContainerStore)
         {
         }
+        // NOLINTNEXTLINE(google-explicit-constructor)
         ConstPtr(const LiveCellRefBase* liveCellRef = nullptr, const CellStoreType* cell = nullptr)
             : PtrBase(liveCellRef, cell, nullptr)
         {

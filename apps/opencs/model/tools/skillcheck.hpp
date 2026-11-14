@@ -24,7 +24,7 @@ namespace CSMTools
         bool mIgnoreBaseRecords;
 
     public:
-        SkillCheckStage(const CSMWorld::IdCollection<ESM::Skill>& skills);
+        explicit SkillCheckStage(const CSMWorld::IdCollection<ESM::Skill>& skills);
 
         int setup() override;
         ///< \return number of steps

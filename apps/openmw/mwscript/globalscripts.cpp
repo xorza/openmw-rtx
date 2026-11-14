@@ -73,7 +73,7 @@ namespace
         const MWWorld::Ptr& mPtr;
 
     public:
-        MatchPtrVisitor(const MWWorld::Ptr& ptr)
+        explicit MatchPtrVisitor(const MWWorld::Ptr& ptr)
             : mPtr(ptr)
         {
         }

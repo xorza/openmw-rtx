@@ -73,7 +73,7 @@ namespace
 {
     struct DisableOptimizer : osg::NodeVisitor
     {
-        DisableOptimizer(osg::NodeVisitor::TraversalMode mode = TRAVERSE_ALL_CHILDREN)
+        explicit DisableOptimizer(osg::NodeVisitor::TraversalMode mode = TRAVERSE_ALL_CHILDREN)
             : osg::NodeVisitor(mode)
         {
         }

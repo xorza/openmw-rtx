@@ -48,7 +48,7 @@ namespace CSMWorld
 
         Record();
 
-        Record(State state, const ESXRecordT* base = 0, const ESXRecordT* modified = 0);
+        explicit Record(State state, const ESXRecordT* base = 0, const ESXRecordT* modified = 0);
 
         std::unique_ptr<RecordBase> clone() const override;
 

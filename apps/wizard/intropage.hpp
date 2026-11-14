@@ -13,7 +13,7 @@ namespace Wizard
     {
         Q_OBJECT
     public:
-        IntroPage(QWidget* parent);
+        explicit IntroPage(QWidget* parent);
 
         int nextId() const override;
 

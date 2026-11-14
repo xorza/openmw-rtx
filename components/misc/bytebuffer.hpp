@@ -25,7 +25,7 @@ namespace Misc
         DefaultInitAllocator() = default;
 
         template <class U>
-        constexpr DefaultInitAllocator(const DefaultInitAllocator<U>& other) noexcept
+        constexpr explicit DefaultInitAllocator(const DefaultInitAllocator<U>& other) noexcept
             : std::allocator<T>(other)
         {
         }

@@ -11,7 +11,7 @@ namespace Wizard
     {
         Q_OBJECT
     public:
-        ImportPage(QWidget* parent);
+        explicit ImportPage(QWidget* parent);
 
         int nextId() const override;
 

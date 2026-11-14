@@ -14,7 +14,7 @@ namespace MWGui
     class SpellWindow : public WindowPinnableBase, public NoDrop
     {
     public:
-        SpellWindow(DragAndDrop* drag);
+        explicit SpellWindow(DragAndDrop* drag);
 
         void updateSpells();
 

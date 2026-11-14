@@ -10,6 +10,8 @@ namespace Misc
     class NotNullPtr
     {
     public:
+        // A pointer converts to the not-null pointer, which checks it.
+        // NOLINTNEXTLINE(google-explicit-constructor)
         constexpr NotNullPtr(T* value) noexcept
             : mValue(value)
         {
@@ -18,6 +20,8 @@ namespace Misc
 
         NotNullPtr(std::nullptr_t) = delete;
 
+        // The pointer reads as the raw pointer it holds.
+        // NOLINTNEXTLINE(google-explicit-constructor)
         constexpr operator T*() const noexcept { return mValue; }
 
         constexpr T* operator->() const noexcept { return mValue; }

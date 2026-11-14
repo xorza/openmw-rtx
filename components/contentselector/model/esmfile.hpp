@@ -31,7 +31,7 @@ namespace ContentSelectorModel
             FileProperty_GameFile = 8,
         };
 
-        EsmFile(const QString& fileName = QString(), ModelItem* parent = nullptr);
+        explicit EsmFile(const QString& fileName = QString(), ModelItem* parent = nullptr);
 
         void setFileProperty(const FileProperty prop, const QString& value);
 

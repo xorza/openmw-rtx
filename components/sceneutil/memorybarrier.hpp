@@ -7,7 +7,7 @@ namespace SceneUtil
 {
     struct MemoryBarrier : public osg::Drawable::DrawCallback
     {
-        MemoryBarrier(GLbitfield barriers)
+        explicit MemoryBarrier(GLbitfield barriers)
             : mBarriers(barriers)
         {
         }

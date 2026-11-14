@@ -18,7 +18,7 @@ namespace MWGui
     class ItemSelectionDialog : public WindowModal
     {
     public:
-        ItemSelectionDialog(const std::string& label);
+        explicit ItemSelectionDialog(const std::string& label);
 
         bool exit() override;
 

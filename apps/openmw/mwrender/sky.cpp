@@ -141,7 +141,7 @@ namespace
     {
     public:
         /// @param alpha the variable alpha value is recovered from
-        AlphaFader(const float& alpha)
+        explicit AlphaFader(const float& alpha)
             : mAlpha(alpha)
         {
         }
@@ -167,7 +167,7 @@ namespace
     class SetupVisitor : public osg::NodeVisitor
     {
     public:
-        SetupVisitor(const float& alpha)
+        explicit SetupVisitor(const float& alpha)
             : osg::NodeVisitor(TRAVERSE_ALL_CHILDREN)
             , mAlpha(alpha)
         {

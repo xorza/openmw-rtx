@@ -28,6 +28,8 @@ class [[nodiscard]] Result
 public:
     template <class U>
         requires std::constructible_from<T, U&&>
+    // A value or an Err returns as the Result.
+    // NOLINTNEXTLINE(google-explicit-constructor)
     Result(U&& value)
         : mState(std::in_place_index<0>, std::forward<U>(value))
     {
@@ -35,6 +37,7 @@ public:
 
     template <class F>
         requires std::constructible_from<E, F&&>
+    // NOLINTNEXTLINE(google-explicit-constructor)
     Result(Err<F> error)
         : mState(std::in_place_index<1>, std::move(error.mError))
     {
@@ -76,6 +79,7 @@ public:
 
     template <class F>
         requires std::constructible_from<E, F&&>
+    // NOLINTNEXTLINE(google-explicit-constructor)
     Result(Err<F> error)
         : mError(std::move(error.mError))
     {

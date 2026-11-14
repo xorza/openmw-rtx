@@ -649,7 +649,7 @@ namespace MWWorld
     {
         PtrType mFound;
         const ESM::RefId& mIdToFind;
-        SearchVisitor(const ESM::RefId& id)
+        explicit SearchVisitor(const ESM::RefId& id)
             : mIdToFind(id)
         {
         }
@@ -683,7 +683,7 @@ namespace MWWorld
         ESM::RefNum mRefNum;
 
     public:
-        RefNumSearchVisitor(ESM::RefNum refNum)
+        explicit RefNumSearchVisitor(ESM::RefNum refNum)
             : mRefNum(refNum)
         {
         }

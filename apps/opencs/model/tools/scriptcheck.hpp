@@ -52,7 +52,7 @@ namespace CSMTools
         ///< Report a file related error
 
     public:
-        ScriptCheckStage(const CSMDoc::Document& document);
+        explicit ScriptCheckStage(const CSMDoc::Document& document);
 
         int setup() override;
         ///< \return number of steps

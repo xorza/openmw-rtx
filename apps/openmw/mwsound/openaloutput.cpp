@@ -31,11 +31,18 @@
 #define ALC_ALL_DEVICES_SPECIFIER 0x1013
 #endif
 
-#define MAKE_PTRID(id) ((void*)(uintptr_t)id)
-#define GET_PTRID(ptr) ((ALuint)(uintptr_t)ptr)
-
 namespace
 {
+    // A sound's handle is a pointer wide and holds an OpenAL name, the integer itself and not an address.
+    void* makePtrId(const ALuint id)
+    {
+        return reinterpret_cast<void*>(static_cast<std::uintptr_t>(id));
+    }
+
+    ALuint getPtrId(const void* const handle)
+    {
+        return static_cast<ALuint>(reinterpret_cast<std::uintptr_t>(handle));
+    }
 
     const float sLoudnessFPS = 20.0f; // loudness values per second of audio
 
@@ -435,7 +442,7 @@ namespace MWSound
         }
 
     public:
-        DefaultDeviceThread(OpenALOutput& output, std::basic_string_view<ALCchar> name = {})
+        explicit DefaultDeviceThread(OpenALOutput& output, std::basic_string_view<ALCchar> name = {})
             : mCurrentName(name)
             , mOutput(output)
             , mQuitNow(false)
@@ -1076,12 +1083,12 @@ namespace MWSound
             getALError();
             return std::make_pair(nullptr, 0);
         }
-        return std::make_pair(MAKE_PTRID(buf), size);
+        return std::make_pair(makePtrId(buf), size);
     }
 
     size_t OpenALOutput::unloadSound(Sound_Handle data)
     {
-        ALuint buffer = GET_PTRID(data);
+        ALuint buffer = getPtrId(data);
         if (!buffer)
             return 0;
 
@@ -1092,7 +1099,7 @@ namespace MWSound
             if (!(*iter)->mHandle)
                 continue;
 
-            ALuint source = GET_PTRID((*iter)->mHandle);
+            ALuint source = getPtrId((*iter)->mHandle);
             ALint srcbuf = 0;
             alGetSourcei(source, AL_BUFFER, &srcbuf);
             if (std::cmp_equal(srcbuf, buffer))
@@ -1215,7 +1222,7 @@ namespace MWSound
 
         initCommon2D(source, sound->getPosition(), sound->getRealVolume(), getTimeScaledPitch(sound),
             sound->getIsLooping(), sound->getUseEnv());
-        alSourcei(source, AL_BUFFER, GET_PTRID(data));
+        alSourcei(source, AL_BUFFER, getPtrId(data));
         alSourcef(source, AL_SEC_OFFSET, offset);
         if (getALError() != AL_NO_ERROR)
         {
@@ -1235,7 +1242,7 @@ namespace MWSound
         }
 
         mFreeSources.pop_front();
-        sound->mHandle = MAKE_PTRID(source);
+        sound->mHandle = makePtrId(source);
         mActiveSounds.push_back(sound);
 
         return true;
@@ -1255,7 +1262,7 @@ namespace MWSound
         initCommon3D(source, sound->getPosition(), sound->getVelocity(), sound->getMinDistance(),
             sound->getMaxDistance(), sound->getRealVolume(), getTimeScaledPitch(sound), sound->getIsLooping(),
             sound->getUseEnv());
-        alSourcei(source, AL_BUFFER, GET_PTRID(data));
+        alSourcei(source, AL_BUFFER, getPtrId(data));
         alSourcef(source, AL_SEC_OFFSET, offset);
         if (getALError() != AL_NO_ERROR)
         {
@@ -1275,7 +1282,7 @@ namespace MWSound
         }
 
         mFreeSources.pop_front();
-        sound->mHandle = MAKE_PTRID(source);
+        sound->mHandle = makePtrId(source);
         mActiveSounds.push_back(sound);
 
         return true;
@@ -1285,7 +1292,7 @@ namespace MWSound
     {
         if (!sound->mHandle)
             return;
-        ALuint source = GET_PTRID(sound->mHandle);
+        ALuint source = getPtrId(sound->mHandle);
         sound->mHandle = nullptr;
 
         // Rewind the stream to put the source back into an AL_INITIAL state, for
@@ -1302,7 +1309,7 @@ namespace MWSound
     {
         if (!sound->mHandle)
             return false;
-        ALuint source = GET_PTRID(sound->mHandle);
+        ALuint source = getPtrId(sound->mHandle);
         ALint state = AL_STOPPED;
 
         alGetSourcei(source, AL_SOURCE_STATE, &state);
@@ -1315,7 +1322,7 @@ namespace MWSound
     {
         if (!sound->mHandle)
             return;
-        ALuint source = GET_PTRID(sound->mHandle);
+        ALuint source = getPtrId(sound->mHandle);
 
         updateCommon(source, sound->getPosition(), sound->getVelocity(), sound->getMaxDistance(),
             sound->getRealVolume(), getTimeScaledPitch(sound), sound->getUseEnv());
@@ -1485,7 +1492,7 @@ namespace MWSound
                     for (Sound* sound : mActiveSounds)
                     {
                         if (sound->getUseEnv())
-                            alSourcei(GET_PTRID(sound->mHandle), AL_DIRECT_FILTER, filter);
+                            alSourcei(getPtrId(sound->mHandle), AL_DIRECT_FILTER, filter);
                     }
                     for (Stream* sound : mActiveStreams)
                     {
@@ -1513,7 +1520,7 @@ namespace MWSound
         for (Sound* sound : mActiveSounds)
         {
             if ((types & sound->getPlayType()))
-                sources.push_back(GET_PTRID(sound->mHandle));
+                sources.push_back(getPtrId(sound->mHandle));
         }
         for (Stream* sound : mActiveStreams)
         {
@@ -1568,7 +1575,7 @@ namespace MWSound
         for (Sound* sound : mActiveSounds)
         {
             if ((types & sound->getPlayType()))
-                sources.push_back(GET_PTRID(sound->mHandle));
+                sources.push_back(getPtrId(sound->mHandle));
         }
         for (Stream* sound : mActiveStreams)
         {

@@ -409,7 +409,7 @@ namespace MWRender
         osg::Vec4f mAtmosphereColor{ 1.f, 1.f, 1.f, 1.f };
         osg::Vec4f mMoonColor{ 1.f, 1.f, 1.f, 1.f };
 
-        MoonUpdater(Resource::ImageManager& imageManager)
+        explicit MoonUpdater(Resource::ImageManager& imageManager)
             : mImageManager(imageManager)
         {
         }

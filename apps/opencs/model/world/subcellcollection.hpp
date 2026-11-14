@@ -21,7 +21,7 @@ namespace CSMWorld
         void loadRecord(ESXRecordT& record, ESM::ESMReader& reader, bool& isDeleted, bool base) override;
 
     public:
-        SubCellCollection(const IdCollection<Cell>& cells);
+        explicit SubCellCollection(const IdCollection<Cell>& cells);
     };
 
     template <typename ESXRecordT>

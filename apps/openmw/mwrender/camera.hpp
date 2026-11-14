@@ -35,7 +35,7 @@ namespace MWRender
             Preview = 4
         };
 
-        Camera(osg::Camera* camera);
+        explicit Camera(osg::Camera* camera);
         ~Camera();
 
         /// Attach camera to object

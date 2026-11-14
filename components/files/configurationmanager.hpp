@@ -28,7 +28,7 @@ namespace Files
      */
     struct ConfigurationManager
     {
-        ConfigurationManager(bool silent = false); /// @param silent Emit log messages to cout?
+        explicit ConfigurationManager(bool silent = false); /// @param silent Emit log messages to cout?
         virtual ~ConfigurationManager();
 
         void readConfiguration(boost::program_options::variables_map& variables,

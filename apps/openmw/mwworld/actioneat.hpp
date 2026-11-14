@@ -10,7 +10,7 @@ namespace MWWorld
         void executeImp(const Ptr& actor) override;
 
     public:
-        ActionEat(const MWWorld::Ptr& object);
+        explicit ActionEat(const MWWorld::Ptr& object);
     };
 }
 

@@ -43,7 +43,7 @@ namespace CSVDoc
         void closeEvent(QCloseEvent* event) override;
 
     public:
-        LoadingDocument(CSMDoc::Document* document);
+        explicit LoadingDocument(CSMDoc::Document* document);
 
         void nextStage(const std::string& name, int totalRecords);
 

@@ -13,7 +13,7 @@ namespace MWMechanics
     public:
         static constexpr float sDeviation = 0.1f;
 
-        AiReactionTimer(Misc::Rng::Generator& prng)
+        explicit AiReactionTimer(Misc::Rng::Generator& prng)
             : mPrng{ prng }
             , mImpl{ AI_REACTION_TIME, sDeviation, Misc::Rng::deviate(0, sDeviation, prng) }
         {

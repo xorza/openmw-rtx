@@ -177,7 +177,7 @@ namespace EsmTool
             if constexpr (ESM4::HasKf<T>)
                 std::cout << "\n  Kf:" << WriteArray("\n  - ", value.mKf);
             if constexpr (ESM4::HasType<T>)
-                std::cout << "\n  Type: " << value.mType;
+                std::cout << "\n  Type: " << static_cast<unsigned int>(value.mType);
             if constexpr (ESM4::HasValue<T>)
                 std::cout << "\n  Value: " << value.mValue;
             if constexpr (ESM4::HasData<T>)

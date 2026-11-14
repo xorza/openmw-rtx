@@ -31,7 +31,7 @@ namespace MWLua
             ObjectVariant mObject;
 
         public:
-            ItemData(const ObjectVariant& object)
+            explicit ItemData(const ObjectVariant& object)
                 : mObject(object)
             {
             }

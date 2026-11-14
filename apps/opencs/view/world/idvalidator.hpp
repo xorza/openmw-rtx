@@ -14,7 +14,7 @@ namespace CSVWorld
         mutable std::string mError;
 
     public:
-        IdValidator(bool relaxed = false, QObject* parent = nullptr);
+        explicit IdValidator(bool relaxed = false, QObject* parent = nullptr);
         ///< \param relaxed Relaxed rules for IDs that also functino as user visible text
 
         State validate(QString& input, int& pos) const override;

@@ -22,6 +22,8 @@
 #define MYGUI_PLATFORM_LOG_SECTION "Platform"
 #define MYGUI_PLATFORM_LOG(level, text) MYGUI_LOGGING(MYGUI_PLATFORM_LOG_SECTION, level, text)
 
+// `dest` is a chain of stream insertions, which parentheses would make one expression.
+// NOLINTBEGIN(bugprone-macro-parentheses)
 #define MYGUI_PLATFORM_EXCEPT(dest)                                                                                    \
     do                                                                                                                 \
     {                                                                                                                  \
@@ -42,6 +44,7 @@
             MYGUI_BASE_EXCEPT(stream.str().c_str(), "MyGUI");                                                          \
         }                                                                                                              \
     } while (0)
+// NOLINTEND(bugprone-macro-parentheses)
 
 namespace MyGUIPlatform
 {
@@ -164,7 +167,7 @@ namespace MyGUIPlatform
         }
 
     public:
-        Drawable(MyGUIPlatform::RenderManager* parent = nullptr)
+        explicit Drawable(MyGUIPlatform::RenderManager* parent = nullptr)
             : mParent(parent)
             , mWriteTo(0)
             , mReadFrom(0)

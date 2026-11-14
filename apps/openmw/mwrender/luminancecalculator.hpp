@@ -22,7 +22,7 @@ namespace MWRender
     public:
         LuminanceCalculator() = default;
 
-        LuminanceCalculator(Shader::ShaderManager& shaderManager);
+        explicit LuminanceCalculator(Shader::ShaderManager& shaderManager);
 
         void draw(const PingPongCanvas& canvas, osg::RenderInfo& renderInfo, osg::State& state, osg::GLExtensions* ext,
             size_t frameId);

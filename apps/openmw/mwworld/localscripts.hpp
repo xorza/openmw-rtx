@@ -20,7 +20,7 @@ namespace MWWorld
         const MWWorld::ESMStore& mStore;
 
     public:
-        LocalScripts(const MWWorld::ESMStore& store);
+        explicit LocalScripts(const MWWorld::ESMStore& store);
 
         void startIteration();
         ///< Set the iterator to the begin of the script list.

@@ -320,7 +320,7 @@ namespace Rtx::Testing
                     camera.mAmbientFromSky = 0.0f;
                     camera.mAmbient = osg::Vec3f();
                     camera.mSun = Shaders::sunSource(
-                        osg::Vec3f(0.0f, -1.0f, 1.0f) / std::sqrt(2.0f), osg::Vec3f(2.0f, 2.0f, 2.0f));
+                        osg::Vec3f(0.0f, -1.0f, 1.0f) / std::numbers::sqrt2_v<float>, osg::Vec3f(2.0f, 2.0f, 2.0f));
                     camera.mFrame = at;
                     mProbe.traceFrame(camera,
                         FrameOptions{ .mLoss = at == 0 ? HistoryLoss::Cut : HistoryLoss::None,

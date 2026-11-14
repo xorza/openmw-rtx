@@ -26,12 +26,15 @@ namespace MWMechanics
 
         EffectKey();
 
+        // An effect converts to the key that names it.
+        // NOLINTNEXTLINE(google-explicit-constructor)
         EffectKey(ESM::RefId id, ESM::RefId arg = {})
             : mId(id)
             , mArg(arg)
         {
         }
 
+        // NOLINTNEXTLINE(google-explicit-constructor)
         EffectKey(const ESM::ENAMstruct& effect);
 
         std::string toString() const;
@@ -62,6 +65,8 @@ namespace MWMechanics
 
         EffectParam();
 
+        // A magnitude converts to the effect parameter it sets.
+        // NOLINTNEXTLINE(google-explicit-constructor)
         EffectParam(float magnitude)
             : mModifier(magnitude)
             , mBase(0)

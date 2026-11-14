@@ -83,7 +83,7 @@ namespace SceneUtil
     {
     public:
         AssignControllerSourcesVisitor();
-        AssignControllerSourcesVisitor(std::shared_ptr<ControllerSource> toAssign);
+        explicit AssignControllerSourcesVisitor(std::shared_ptr<ControllerSource> toAssign);
 
         /// Assign the wanted ControllerSource. May be overridden in derived classes.
         /// By default assigns the ControllerSource passed to the constructor of this class if no ControllerSource is
@@ -98,7 +98,7 @@ namespace SceneUtil
     {
     public:
         ForceControllerSourcesVisitor();
-        ForceControllerSourcesVisitor(std::shared_ptr<ControllerSource> toAssign);
+        explicit ForceControllerSourcesVisitor(std::shared_ptr<ControllerSource> toAssign);
 
         /// Assign the wanted ControllerSource even if one is already assigned to the controller.
         void visit(osg::Node& node, Controller& ctrl) override;

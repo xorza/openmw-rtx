@@ -20,7 +20,7 @@ namespace
     class FindMaterialVisitor : public osg::NodeVisitor
     {
     public:
-        FindMaterialVisitor(CSVRender::NodeMap& map)
+        explicit FindMaterialVisitor(CSVRender::NodeMap& map)
             : osg::NodeVisitor(osg::NodeVisitor::TRAVERSE_ALL_CHILDREN)
             , mMap(map)
         {
@@ -42,7 +42,7 @@ namespace
     class ToCamera : public SceneUtil::NodeCallback<ToCamera, osg::Node*, osgUtil::CullVisitor*>
     {
     public:
-        ToCamera(osg::ref_ptr<osg::ClipPlane> clipPlane)
+        explicit ToCamera(osg::ref_ptr<osg::ClipPlane> clipPlane)
             : mClipPlane(std::move(clipPlane))
         {
         }

@@ -26,7 +26,7 @@ namespace CSVDoc
         bool mSorting;
 
     public:
-        SubViewFactoryWithCreator(bool sorting = true);
+        explicit SubViewFactoryWithCreator(bool sorting = true);
 
         CSVDoc::SubView* makeSubView(const CSMWorld::UniversalId& id, CSMDoc::Document& document) override;
     };

@@ -517,7 +517,7 @@ void MWWorld::WorldModel::write(ESM::ESMWriter& writer, Loading::Listener& progr
 struct MWWorld::WorldModel::GetCellStoreCallback : public CellStore::GetCellStoreCallback
 {
 public:
-    GetCellStoreCallback(WorldModel& worldModel)
+    explicit GetCellStoreCallback(WorldModel& worldModel)
         : mWorldModel(worldModel)
     {
     }

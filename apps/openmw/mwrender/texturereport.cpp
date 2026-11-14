@@ -43,7 +43,7 @@ namespace MWRender
             std::vector<std::pair<std::string, std::string>> mTextures;
             std::set<const osg::Node*> mSkippedNodes;
 
-            TextureFetchVisitor(osg::NodeVisitor::TraversalMode mode = TRAVERSE_ALL_CHILDREN)
+            explicit TextureFetchVisitor(osg::NodeVisitor::TraversalMode mode = TRAVERSE_ALL_CHILDREN)
                 : osg::NodeVisitor(mode)
             {
             }

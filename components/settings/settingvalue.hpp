@@ -374,6 +374,8 @@ namespace Settings
 
         const T& get() const { return mValue; }
 
+        // A setting reads as its value wherever one is asked for, which is the point of the type.
+        // NOLINTNEXTLINE(google-explicit-constructor)
         operator const T&() const { return mValue; }
 
         void set(const T& value)
@@ -398,7 +400,7 @@ namespace Settings
             friend std::ostream& operator<<(std::ostream& stream, const WriteValue& value)
             {
                 if constexpr (std::is_enum_v<T>)
-                    return stream << static_cast<std::underlying_type_t<T>>(value.mValue);
+                    return stream << +static_cast<std::underlying_type_t<T>>(value.mValue);
                 else if constexpr (std::is_same_v<T, std::vector<std::string>>)
                 {
                     bool first = true;

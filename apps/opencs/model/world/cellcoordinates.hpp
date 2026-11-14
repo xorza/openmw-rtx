@@ -29,7 +29,7 @@ namespace CSMWorld
 
         CellCoordinates(int x, int y);
 
-        CellCoordinates(const std::pair<int, int>& coordinates);
+        explicit CellCoordinates(const std::pair<int, int>& coordinates);
 
         int getX() const;
 

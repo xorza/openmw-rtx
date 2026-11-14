@@ -40,7 +40,7 @@ namespace CSMWorld
         IdTable& operator=(const IdTable&);
 
     public:
-        IdTable(CollectionBase* idCollection, unsigned int features = 0);
+        explicit IdTable(CollectionBase* idCollection, unsigned int features = 0);
         ///< The ownership of \a idCollection is not transferred.
 
         ~IdTable() override = default;
@@ -113,7 +113,7 @@ namespace CSMWorld
     class LandTextureIdTable : public IdTable
     {
     public:
-        LandTextureIdTable(CollectionBase* idCollection, unsigned int features = 0);
+        explicit LandTextureIdTable(CollectionBase* idCollection, unsigned int features = 0);
 
         const CSMWorld::Record<ESM::LandTexture>* searchRecord(std::uint16_t index, int plugin) const;
     };

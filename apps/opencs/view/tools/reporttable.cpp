@@ -32,7 +32,7 @@ namespace CSVTools
     class RichTextDelegate : public QStyledItemDelegate
     {
     public:
-        RichTextDelegate(QObject* parent = nullptr);
+        explicit RichTextDelegate(QObject* parent = nullptr);
 
         void paint(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const override;
     };

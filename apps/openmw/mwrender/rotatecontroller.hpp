@@ -18,7 +18,7 @@ namespace MWRender
     class RotateController : public SceneUtil::NodeCallback<RotateController, osg::MatrixTransform*>
     {
     public:
-        RotateController(osg::Node* relativeTo);
+        explicit RotateController(osg::Node* relativeTo);
 
         void setEnabled(bool enabled);
         void setOffset(const osg::Vec3f& offset);

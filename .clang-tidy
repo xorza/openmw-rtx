@@ -51,7 +51,7 @@ Checks:
   # - cppcoreguidelines-use-enum-class
   # - cppcoreguidelines-pro-type-reinterpret-cast
   # - cppcoreguidelines-pro-type-const-cast
-  # - google-explicit-constructor
+  - google-explicit-constructor
   - google-global-names-in-headers
   # - google-build-namespaces
   # - modernize-avoid-c-arrays
@@ -65,14 +65,14 @@ Checks:
   - modernize-loop-convert
   - modernize-use-starts-ends-with
   - modernize-use-std-bit
-  # - modernize-use-std-numbers
+  - modernize-use-std-numbers
   # - misc-throw-by-value-catch-by-reference
   # - misc-use-anonymous-namespace
   # - misc-use-internal-linkage
   - misc-unused-using-decls
   - misc-unused-alias-decls
   # - misc-redundant-expression
-  # - misc-definitions-in-headers
+  - misc-definitions-in-headers
   # - misc-include-cleaner
   - readability-container-contains
   - readability-container-size-empty
@@ -86,7 +86,6 @@ Checks:
   - readability-identifier-naming
   # Not yet applied, each until its fixes land: the checks commented out above, and these of the families above.
   - '-bugprone-narrowing-conversions'
-  - '-bugprone-macro-parentheses'
   - '-bugprone-exception-escape'
   - '-bugprone-suspicious-stringview-data-usage'
   - '-bugprone-use-after-move'
@@ -99,10 +98,8 @@ Checks:
   - '-bugprone-invalid-enum-default-initialization'
   - '-bugprone-parent-virtual-call'
   - '-bugprone-signed-char-misuse'
-  - '-bugprone-unintended-char-ostream-output'
   - '-bugprone-suspicious-memory-comparison'
   - '-bugprone-inc-dec-in-conditions'
-  - '-bugprone-reserved-identifier'
   - '-bugprone-return-const-ref-from-parameter'
   - '-bugprone-unchecked-string-to-number-conversion'
   - '-bugprone-tagged-union-member-count'
@@ -116,11 +113,9 @@ Checks:
   - '-bugprone-exception-copy-constructor-throws'
   - '-bugprone-unused-return-value'
   - '-bugprone-assignment-in-selection-statement'
-  - '-bugprone-move-forwarding-reference'
   - '-bugprone-unhandled-self-assignment'
   - '-bugprone-undefined-memory-manipulation'
   - '-bugprone-command-processor'
-  - '-bugprone-optional-value-conversion'
   - '-performance-unnecessary-value-param'
   - '-performance-move-const-arg'
   - '-performance-inefficient-string-concatenation'
@@ -142,6 +137,8 @@ CheckOptions:
   # What a source keeps to itself goes in an unnamed namespace, never `static`, which the fix would write.
   misc-use-internal-linkage.FixMode: None
   cppcoreguidelines-init-variables.MathHeader: '<cmath>'
+  # Only a literal that is the constant to a float's precision: 0.435 is not log10(e), however near.
+  modernize-use-std-numbers.DiffThreshold: '0.000001'
   cppcoreguidelines-special-member-functions.AllowSoleDefaultDtor: true
   cppcoreguidelines-special-member-functions.AllowImplicitlyDeletedCopyOrMove: true
   readability-identifier-naming.ConceptCase: CamelCase

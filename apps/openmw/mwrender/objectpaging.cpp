@@ -337,7 +337,7 @@ namespace MWRender
         class AnalyzeVisitor : public osg::NodeVisitor
         {
         public:
-            AnalyzeVisitor(osg::Node::NodeMask analyzeMask)
+            explicit AnalyzeVisitor(osg::Node::NodeMask analyzeMask)
                 : osg::NodeVisitor(TRAVERSE_ALL_CHILDREN)
                 , mCurrentStateSet(nullptr)
             {
@@ -446,7 +446,7 @@ namespace MWRender
         class AddRefnumMarkerVisitor : public osg::NodeVisitor
         {
         public:
-            AddRefnumMarkerVisitor(ESM::RefNum refnum)
+            explicit AddRefnumMarkerVisitor(ESM::RefNum refnum)
                 : osg::NodeVisitor(TRAVERSE_ALL_CHILDREN)
                 , mRefnum(refnum)
             {
@@ -1093,7 +1093,7 @@ namespace MWRender
     {
         struct GetRefnumsFunctor
         {
-            GetRefnumsFunctor(std::vector<ESM::RefNum>& output)
+            explicit GetRefnumsFunctor(std::vector<ESM::RefNum>& output)
                 : mOutput(output)
             {
             }

@@ -24,7 +24,7 @@ public:
     {
     }
 
-    Utf8Stream(const char* str)
+    explicit Utf8Stream(const char* str)
         : mCur(reinterpret_cast<const unsigned char*>(str))
         , mNxt(reinterpret_cast<const unsigned char*>(str))
         , mEnd(reinterpret_cast<const unsigned char*>(str) + strlen(str))
@@ -32,7 +32,7 @@ public:
     {
     }
 
-    Utf8Stream(std::pair<Point, Point> range)
+    explicit Utf8Stream(std::pair<Point, Point> range)
         : mCur(range.first)
         , mNxt(range.first)
         , mEnd(range.second)
@@ -40,7 +40,7 @@ public:
     {
     }
 
-    Utf8Stream(std::string_view str)
+    explicit Utf8Stream(std::string_view str)
         : Utf8Stream(reinterpret_cast<Point>(str.data()), reinterpret_cast<Point>(str.data() + str.size()))
     {
     }

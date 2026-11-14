@@ -36,7 +36,7 @@ namespace CSVTools
         void keyPressEvent(QKeyEvent* event) override;
 
     public:
-        Merge(CSMDoc::DocumentManager& documentManager, QWidget* parent = nullptr);
+        explicit Merge(CSMDoc::DocumentManager& documentManager, QWidget* parent = nullptr);
 
         /// Configure dialogue for a new merge
         void configure(CSMDoc::Document* document);

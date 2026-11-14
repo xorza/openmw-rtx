@@ -36,6 +36,8 @@ namespace ESM
         FixedString() = default;
 
         template <std::size_t size>
+        // A record's name converts from the literal that spells it.
+        // NOLINTNEXTLINE(google-explicit-constructor)
         constexpr FixedString(const char (&value)[size]) noexcept
             : mData()
         {

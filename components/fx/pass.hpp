@@ -40,7 +40,7 @@ namespace Fx
 
         friend class Technique;
 
-        Pass(Type type = Type::Pixel, Order order = Order::Post, bool ubo = false);
+        explicit Pass(Type type = Type::Pixel, Order order = Order::Post, bool ubo = false);
 
         void compile(Technique& technique, std::string_view preamble);
 

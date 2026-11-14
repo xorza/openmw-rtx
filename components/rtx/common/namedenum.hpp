@@ -38,7 +38,7 @@ namespace Rtx
     template <class Enum, std::size_t N>
     struct NamedEnum
     {
-        consteval NamedEnum(const std::array<std::pair<Enum, std::string_view>, N>& names)
+        consteval explicit NamedEnum(const std::array<std::pair<Enum, std::string_view>, N>& names)
             : mNames(names)
         {
             for (std::size_t at = 0; at < N; ++at)

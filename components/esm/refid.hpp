@@ -75,16 +75,20 @@ namespace ESM
         {
         }
 
+        // Every kind of id is a RefId.
+        // NOLINTNEXTLINE(google-explicit-constructor)
         constexpr RefId(EmptyRefId value) noexcept
             : mValue(value)
         {
         }
 
+        // NOLINTNEXTLINE(google-explicit-constructor)
         RefId(StringRefId value) noexcept
             : mValue(value)
         {
         }
 
+        // NOLINTNEXTLINE(google-explicit-constructor)
         constexpr RefId(FormId value)
         {
             if (value.isZeroOrUnset())
@@ -95,16 +99,19 @@ namespace ESM
                 throw std::logic_error("RefId can't be a generated FormId");
         }
 
+        // NOLINTNEXTLINE(google-explicit-constructor)
         constexpr RefId(GeneratedRefId value) noexcept
             : mValue(value)
         {
         }
 
+        // NOLINTNEXTLINE(google-explicit-constructor)
         constexpr RefId(IndexRefId value) noexcept
             : mValue(value)
         {
         }
 
+        // NOLINTNEXTLINE(google-explicit-constructor)
         constexpr RefId(ESM3ExteriorCellRefId value) noexcept
             : mValue(value)
         {

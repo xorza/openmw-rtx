@@ -19,7 +19,7 @@ namespace CSMTools
         Search mSearch;
 
     public:
-        SearchOperation(CSMDoc::Document& document);
+        explicit SearchOperation(CSMDoc::Document& document);
 
         /// \attention Do not call this function while a search is running.
         void configure(const Search& search);

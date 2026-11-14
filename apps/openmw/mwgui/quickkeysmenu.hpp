@@ -84,7 +84,7 @@ namespace MWGui
     class QuickKeysMenuAssign : public WindowModal
     {
     public:
-        QuickKeysMenuAssign(QuickKeysMenu* parent);
+        explicit QuickKeysMenuAssign(QuickKeysMenu* parent);
 
     private:
         MyGUI::TextBox* mLabel;
@@ -102,7 +102,7 @@ namespace MWGui
     class MagicSelectionDialog : public WindowModal
     {
     public:
-        MagicSelectionDialog(QuickKeysMenu* parent);
+        explicit MagicSelectionDialog(QuickKeysMenu* parent);
 
         void onOpen() override;
         bool exit() override;

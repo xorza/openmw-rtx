@@ -61,11 +61,11 @@ namespace CSVWorld
     public:
         EnumDelegateFactory() = default;
 
-        EnumDelegateFactory(const char** names, bool allowNone = false);
+        explicit EnumDelegateFactory(const char** names, bool allowNone = false);
         ///< \param names Array of char pointer with a 0-pointer as end mark
         /// \param allowNone Use value of -1 for "none selected" (empty string)
 
-        EnumDelegateFactory(const std::vector<std::pair<int, std::string>>& names, bool allowNone = false);
+        explicit EnumDelegateFactory(const std::vector<std::pair<int, std::string>>& names, bool allowNone = false);
         /// \param allowNone Use value of -1 for "none selected" (empty string)
 
         CommandDelegate* makeDelegate(

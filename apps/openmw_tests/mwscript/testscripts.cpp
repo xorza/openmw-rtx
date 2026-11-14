@@ -556,7 +556,7 @@ End)mwscript";
                 bool& mFailed;
 
             public:
-                AddTopic(bool& failed)
+                explicit AddTopic(bool& failed)
                     : mFailed(failed)
                 {
                 }
@@ -844,7 +844,7 @@ End)mwscript";
                 std::vector<std::string>& mTopics;
 
             public:
-                AddTopic(std::vector<std::string>& topics)
+                explicit AddTopic(std::vector<std::string>& topics)
                     : mTopics(topics)
                 {
                 }
@@ -993,7 +993,7 @@ End)mwscript";
                 bool& mRan;
 
             public:
-                PositionCell(bool& ran)
+                explicit PositionCell(bool& ran)
                     : mRan(ran)
                 {
                 }

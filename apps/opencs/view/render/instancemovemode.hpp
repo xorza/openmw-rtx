@@ -10,7 +10,7 @@ namespace CSVRender
         Q_OBJECT
 
     public:
-        InstanceMoveMode(QWidget* parent = nullptr);
+        explicit InstanceMoveMode(QWidget* parent = nullptr);
     };
 }
 

@@ -10,6 +10,8 @@ namespace MWRender
     struct AnimPriority
     {
         /// Convenience constructor, initialises all priorities to the same value.
+        // One priority converts to the same priority for every part of a group.
+        // NOLINTNEXTLINE(google-explicit-constructor)
         AnimPriority(int priority)
         {
             for (int& i : mPriority)

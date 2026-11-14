@@ -66,6 +66,8 @@ namespace Nif
     class FileView
     {
     public:
+        // A NIF file is read through its view.
+        // NOLINTNEXTLINE(google-explicit-constructor)
         FileView(const NIFFile& file)
             : mFile(&file)
         {

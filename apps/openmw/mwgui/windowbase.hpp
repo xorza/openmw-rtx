@@ -39,7 +39,7 @@ namespace MWGui
     class WindowBase : public Layout
     {
     public:
-        WindowBase(std::string_view parLayout);
+        explicit WindowBase(std::string_view parLayout);
 
         virtual MyGUI::Widget* getDefaultKeyFocus() { return nullptr; }
 
@@ -113,7 +113,7 @@ namespace MWGui
     class WindowModal : public WindowBase
     {
     public:
-        WindowModal(const std::string& parLayout);
+        explicit WindowModal(const std::string& parLayout);
         void onOpen() override;
         void onClose() override;
         bool exit() override { return true; }
@@ -139,7 +139,7 @@ namespace MWGui
     class BookWindowBase : public WindowBase
     {
     public:
-        BookWindowBase(std::string_view parLayout);
+        explicit BookWindowBase(std::string_view parLayout);
 
     protected:
         float adjustButton(std::string_view name);

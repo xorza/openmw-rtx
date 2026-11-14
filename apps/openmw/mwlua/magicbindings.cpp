@@ -48,7 +48,7 @@ namespace MWLua
         using Collection = typename Store::Collection;
         using Iterator = typename Collection::const_iterator;
 
-        ActorStore(const sol::object& actor)
+        explicit ActorStore(const sol::object& actor)
             : mActor(actor)
             , mIterator()
             , mIndex(0)

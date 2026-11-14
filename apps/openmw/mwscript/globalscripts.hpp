@@ -57,7 +57,7 @@ namespace MWScript
         std::map<ESM::RefId, std::shared_ptr<GlobalScriptDesc>> mScripts;
 
     public:
-        GlobalScripts(const MWWorld::ESMStore& store);
+        explicit GlobalScripts(const MWWorld::ESMStore& store);
 
         void addScript(const ESM::RefId& name, const MWWorld::Ptr& target = MWWorld::Ptr());
 

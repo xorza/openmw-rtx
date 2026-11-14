@@ -82,7 +82,7 @@ namespace SDLUtil
         /** WindowData is used to pass in the SDL window handle attached to the GraphicsContext::Traits structure. */
         struct WindowData : public osg::Referenced
         {
-            WindowData(SDL_Window* window)
+            explicit WindowData(SDL_Window* window)
                 : mWindow(window)
             {
             }

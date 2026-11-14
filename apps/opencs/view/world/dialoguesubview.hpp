@@ -58,7 +58,7 @@ namespace CSVWorld
         const CSMWorld::IdTable* mTable;
 
     public:
-        NotEditableSubDelegate(const CSMWorld::IdTable* table, QObject* parent = nullptr);
+        explicit NotEditableSubDelegate(const CSMWorld::IdTable* table, QObject* parent = nullptr);
 
         void setEditorData(QWidget* editor, const QModelIndex& index) const override;
 

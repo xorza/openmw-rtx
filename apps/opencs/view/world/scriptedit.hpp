@@ -53,7 +53,7 @@ namespace CSVWorld
             ChangeLock& operator=(const ChangeLock&);
 
         public:
-            ChangeLock(ScriptEdit& edit);
+            explicit ChangeLock(ScriptEdit& edit);
             ~ChangeLock();
         };
 
@@ -139,7 +139,7 @@ namespace CSVWorld
         ScriptEdit* mScriptEdit;
 
     public:
-        LineNumberArea(ScriptEdit* editor);
+        explicit LineNumberArea(ScriptEdit* editor);
         QSize sizeHint() const override;
 
     protected:

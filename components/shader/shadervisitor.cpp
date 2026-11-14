@@ -116,7 +116,7 @@ namespace Shader
         class InterrogateModesHelper : public osg::StateAttribute::ModeUsage
         {
         public:
-            InterrogateModesHelper(AddedState* tracker)
+            explicit InterrogateModesHelper(AddedState* tracker)
                 : mTracker(tracker)
             {
             }

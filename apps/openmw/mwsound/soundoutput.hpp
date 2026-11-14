@@ -76,7 +76,7 @@ namespace MWSound
     protected:
         bool mInitialized;
 
-        SoundOutput(SoundManager& mgr)
+        explicit SoundOutput(SoundManager& mgr)
             : mManager(mgr)
             , mInitialized(false)
         {

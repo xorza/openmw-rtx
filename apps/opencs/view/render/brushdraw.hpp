@@ -17,7 +17,7 @@ namespace CSVRender
     class BrushDraw
     {
     public:
-        BrushDraw(osg::ref_ptr<osg::Group> parentNode, bool textureMode = false);
+        explicit BrushDraw(osg::ref_ptr<osg::Group> parentNode, bool textureMode = false);
         ~BrushDraw();
 
         void update(osg::Vec3d point, int brushSize, CSVWidget::BrushShape toolShape);

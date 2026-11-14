@@ -34,7 +34,7 @@ namespace SceneUtil
             float mWeight;
 
         public:
-            MorphTarget(osg::Vec3Array* offsets, float w = 1.0)
+            explicit MorphTarget(osg::Vec3Array* offsets, float w = 1.0)
                 : mOffsets(offsets)
                 , mWeight(w)
             {

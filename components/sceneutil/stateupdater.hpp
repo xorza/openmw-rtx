@@ -25,7 +25,7 @@ namespace SceneUtil
     class PerViewUniformStateUpdater final : public StateSetUpdater
     {
     public:
-        PerViewUniformStateUpdater(
+        explicit PerViewUniformStateUpdater(
             Resource::SceneManager* sceneManager, int opaqueTextureUnit = -1, int opaqueColorTextureUnit = -1);
 
         void setDefaults(osg::StateSet* stateset) override;
@@ -57,7 +57,7 @@ namespace SceneUtil
     class SharedUniformStateUpdater : public StateSetUpdater
     {
     public:
-        SharedUniformStateUpdater(float skyBlendingStartCoef);
+        explicit SharedUniformStateUpdater(float skyBlendingStartCoef);
 
         void setDefaults(osg::StateSet* stateset) override;
         void apply(osg::StateSet* stateset, osg::NodeVisitor* nv) override;

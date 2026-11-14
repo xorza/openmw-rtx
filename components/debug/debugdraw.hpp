@@ -94,7 +94,7 @@ namespace Debug
     {
         DebugDrawer() = default;
         DebugDrawer(const DebugDrawer& copy, const osg::CopyOp& copyop);
-        DebugDrawer(Shader::ShaderManager& shaderManager);
+        explicit DebugDrawer(Shader::ShaderManager& shaderManager);
 
         META_Node(Debug, DebugDrawer)
 

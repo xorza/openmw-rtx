@@ -24,7 +24,7 @@ namespace CSMTools
         bool mIgnoreBaseRecords;
 
     public:
-        SpellCheckStage(const CSMWorld::IdCollection<ESM::Spell>& spells);
+        explicit SpellCheckStage(const CSMWorld::IdCollection<ESM::Spell>& spells);
 
         int setup() override;
         ///< \return number of steps

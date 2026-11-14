@@ -169,7 +169,7 @@ namespace SceneUtil {
 
         struct LightData : public osg::Referenced
         {
-            LightData(ViewDependentData* vdd);
+            explicit LightData(ViewDependentData* vdd);
 
             virtual void setLightData(osg::RefMatrix* lm, std::shared_ptr<const Light> l, const osg::Matrixd& modelViewMatrix);
 
@@ -191,7 +191,7 @@ namespace SceneUtil {
 
         struct ShadowData : public osg::Referenced
         {
-            ShadowData(ViewDependentData* vdd);
+            explicit ShadowData(ViewDependentData* vdd);
 
             virtual void releaseGLObjects(osg::State* = nullptr) const;
 
@@ -211,7 +211,7 @@ namespace SceneUtil {
         class ViewDependentData : public osg::Referenced
         {
         public:
-            ViewDependentData(MWShadowTechnique* vdsm);
+            explicit ViewDependentData(MWShadowTechnique* vdsm);
 
             const MWShadowTechnique* getViewDependentShadowMap() const { return _viewDependentShadowMap; }
 
@@ -317,7 +317,7 @@ namespace SceneUtil {
         class DebugHUD final : public osg::Referenced
         {
         public:
-            DebugHUD(int numberOfShadowMapsPerLight);
+            explicit DebugHUD(int numberOfShadowMapsPerLight);
 
             void draw(osg::ref_ptr<osg::Texture2D> texture, unsigned int shadowMapNumber, const osg::Matrixd &matrix, osgUtil::CullVisitor& cv);
 

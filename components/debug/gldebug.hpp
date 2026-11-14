@@ -49,7 +49,7 @@ namespace Debug
         {
         }
 
-        DebugGroup(const std::string& message, GLuint id = 0);
+        explicit DebugGroup(const std::string& message, GLuint id = 0);
 
         DebugGroup(const DebugGroup& debugGroup, const osg::CopyOp& copyop = osg::CopyOp::SHALLOW_COPY);
 

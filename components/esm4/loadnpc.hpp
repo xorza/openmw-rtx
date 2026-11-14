@@ -24,8 +24,8 @@
   trial & error.  See http://en.uesp.net/wiki for details.
 
 */
-#ifndef ESM4_NPC__H
-#define ESM4_NPC__H
+#ifndef ESM4_NPC_H
+#define ESM4_NPC_H
 
 #include <cstdint>
 #include <string>
@@ -235,4 +235,4 @@ namespace ESM4
     };
 }
 
-#endif // ESM4_NPC__H
+#endif // ESM4_NPC_H

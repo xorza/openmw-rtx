@@ -146,7 +146,7 @@ namespace Stereo
     //! multiview.cpp
     struct InitialFrustumCallback
     {
-        InitialFrustumCallback(osg::Camera* camera);
+        explicit InitialFrustumCallback(osg::Camera* camera);
         virtual ~InitialFrustumCallback();
 
         virtual void setInitialFrustum(

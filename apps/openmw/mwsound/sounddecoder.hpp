@@ -48,7 +48,7 @@ namespace MWSound
         virtual void readAll(std::vector<char>& output);
         virtual size_t getSampleOffset() = 0;
 
-        SoundDecoder(const VFS::Manager* resourceMgr)
+        explicit SoundDecoder(const VFS::Manager* resourceMgr)
             : mResourceMgr(resourceMgr)
         {
         }

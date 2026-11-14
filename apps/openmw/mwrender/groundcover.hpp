@@ -39,7 +39,7 @@ namespace MWRender
             ESM::Position mPos;
             float mScale;
 
-            GroundcoverEntry(const ESM::CellRef& ref)
+            explicit GroundcoverEntry(const ESM::CellRef& ref)
                 : mPos(ref.mPos)
                 , mScale(ref.mScale)
             {

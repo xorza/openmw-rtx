@@ -18,7 +18,7 @@ namespace SceneUtil
     class FindByNameVisitor : public osg::NodeVisitor
     {
     public:
-        FindByNameVisitor(std::string_view nameToFind)
+        explicit FindByNameVisitor(std::string_view nameToFind)
             : osg::NodeVisitor(TRAVERSE_ALL_CHILDREN)
             , mNameToFind(nameToFind)
             , mFoundNode(nullptr)
@@ -38,7 +38,7 @@ namespace SceneUtil
     class FindByClassVisitor : public osg::NodeVisitor
     {
     public:
-        FindByClassVisitor(std::string_view nameToFind)
+        explicit FindByClassVisitor(std::string_view nameToFind)
             : osg::NodeVisitor(TRAVERSE_ALL_CHILDREN)
             , mNameToFind(nameToFind)
         {
@@ -58,7 +58,7 @@ namespace SceneUtil
     class NodeMapVisitor : public osg::NodeVisitor
     {
     public:
-        NodeMapVisitor(NodeMap& map)
+        explicit NodeMapVisitor(NodeMap& map)
             : osg::NodeVisitor(osg::NodeVisitor::TRAVERSE_ALL_CHILDREN)
             , mMap(map)
         {
@@ -74,7 +74,7 @@ namespace SceneUtil
     class NodeMapVisitorBoneOnly : public osg::NodeVisitor
     {
     public:
-        NodeMapVisitorBoneOnly(NodeMap& map)
+        explicit NodeMapVisitorBoneOnly(NodeMap& map)
             : osg::NodeVisitor(osg::NodeVisitor::TRAVERSE_ALL_CHILDREN)
             , mMap(map)
         {

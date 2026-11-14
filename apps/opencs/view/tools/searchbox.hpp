@@ -42,7 +42,7 @@ namespace CSVTools
         void updateSearchButtons();
 
     public:
-        SearchBox(QWidget* parent = nullptr);
+        explicit SearchBox(QWidget* parent = nullptr);
 
         void setEditLock(bool locked);
 

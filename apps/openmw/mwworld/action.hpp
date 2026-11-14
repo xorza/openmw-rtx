@@ -28,7 +28,7 @@ namespace MWWorld
     public:
         const Ptr& getTarget() const;
 
-        Action(bool keepSound = false, const Ptr& target = Ptr());
+        explicit Action(bool keepSound = false, const Ptr& target = Ptr());
         ///< \param keepSound Keep playing the sound even if the object the sound is played on is removed.
 
         virtual ~Action();

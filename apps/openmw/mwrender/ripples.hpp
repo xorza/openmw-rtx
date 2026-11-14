@@ -32,7 +32,7 @@ namespace MWRender
     class RipplesSurface : public osg::Geometry
     {
     public:
-        RipplesSurface(Resource::ResourceSystem* resourceSystem);
+        explicit RipplesSurface(Resource::ResourceSystem* resourceSystem);
 
         osg::Texture* getColorTexture() const;
 
@@ -89,7 +89,7 @@ namespace MWRender
     class Ripples : public osg::Camera
     {
     public:
-        Ripples(Resource::ResourceSystem* resourceSystem);
+        explicit Ripples(Resource::ResourceSystem* resourceSystem);
 
         osg::Texture* getColorTexture() const;
 

@@ -37,7 +37,7 @@ namespace CSVWorld
         std::vector<std::pair<int, QString>> mValues;
 
     public:
-        VarTypeDelegateFactory(ESM::VarType type0 = ESM::VT_Unknown, ESM::VarType type1 = ESM::VT_Unknown,
+        explicit VarTypeDelegateFactory(ESM::VarType type0 = ESM::VT_Unknown, ESM::VarType type1 = ESM::VT_Unknown,
             ESM::VarType type2 = ESM::VT_Unknown, ESM::VarType type3 = ESM::VT_Unknown);
 
         CommandDelegate* makeDelegate(

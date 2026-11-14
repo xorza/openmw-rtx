@@ -230,7 +230,7 @@ namespace Rtx
         /// bent as it is.
         TEST(RtxCreaseSplitTest, aBroadFaceSmoothedIntoANarrowBevelStaysNearlyFlat)
         {
-            const osg::Vec3f leaning = osg::Vec3f(0.0f, -1.0f, 1.0f) / std::sqrt(2.0f);
+            const osg::Vec3f leaning = osg::Vec3f(0.0f, -1.0f, 1.0f) / std::numbers::sqrt2_v<float>;
             const osg::Vec3f up(0.0f, 0.0f, 1.0f);
             const osg::Vec3f bent = osg::Vec3f(0.0f, -1.0f, 0.2f) / std::sqrt(1.04f);
             const std::array<osg::Vec3f, 6> positions{ osg::Vec3f(0.0f, 0.0f, 0.0f), osg::Vec3f(100.0f, 0.0f, 0.0f),
@@ -302,7 +302,7 @@ namespace Rtx
                 osg::Vec3f(1.0f, 1.0f, 1.0f),
                 osg::Vec3f(0.0f, 1.0f, 1.0f), // the wall, facing -y
             };
-            const osg::Vec3f averaged = osg::Vec3f(0.0f, -1.0f, 1.0f) / std::sqrt(2.0f);
+            const osg::Vec3f averaged = osg::Vec3f(0.0f, -1.0f, 1.0f) / std::numbers::sqrt2_v<float>;
             const osg::Vec3f floorNormal(0.0f, 0.0f, 1.0f);
             const osg::Vec3f wallNormal(0.0f, -1.0f, 0.0f);
             const std::array<osg::Vec3f, 8> normals{ floorNormal, floorNormal, averaged, averaged, averaged, averaged,
@@ -329,7 +329,7 @@ namespace Rtx
         /// wall is read and never written. A floor beside it that carries on flat is no crease.
         TEST(RtxCreaseSplitTest, aCreaseBetweenTwoShapesIsCutOnTheMeshAlone)
         {
-            const osg::Vec3f averaged = osg::Vec3f(0.0f, -1.0f, 1.0f) / std::sqrt(2.0f);
+            const osg::Vec3f averaged = osg::Vec3f(0.0f, -1.0f, 1.0f) / std::numbers::sqrt2_v<float>;
             const osg::Vec3f floorNormal(0.0f, 0.0f, 1.0f);
             const osg::Vec3f wallNormal(0.0f, -1.0f, 0.0f);
             const std::array<osg::Vec3f, 4> floor{ osg::Vec3f(0.0f, 0.0f, 0.0f), osg::Vec3f(1.0f, 0.0f, 0.0f),
@@ -372,7 +372,7 @@ namespace Rtx
         /// cards' normals on purpose.
         TEST(RtxCreaseSplitTest, aSheetKeepsTheNormalsItWasWrittenWith)
         {
-            const osg::Vec3f averaged = osg::Vec3f(0.0f, -1.0f, 1.0f) / std::sqrt(2.0f);
+            const osg::Vec3f averaged = osg::Vec3f(0.0f, -1.0f, 1.0f) / std::numbers::sqrt2_v<float>;
             std::vector<osg::Vec3f> positions{
                 osg::Vec3f(0.0f, 0.0f, 0.0f),
                 osg::Vec3f(1.0f, 0.0f, 0.0f),

@@ -56,6 +56,8 @@ namespace MWMechanics
         typedef T Type;
 
         DynamicStat();
+        // A number converts to the stat whose base it is.
+        // NOLINTNEXTLINE(google-explicit-constructor)
         DynamicStat(T base);
         DynamicStat(T base, T modified, T current);
         DynamicStat(const Stat<T>& stat, T current);

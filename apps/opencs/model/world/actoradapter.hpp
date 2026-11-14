@@ -130,7 +130,7 @@ namespace CSMWorld
         };
         using ActorDataPtr = std::shared_ptr<ActorData>;
 
-        ActorAdapter(Data& data);
+        explicit ActorAdapter(Data& data);
 
         /// Obtains the shared data for a given actor
         ActorDataPtr getActorData(const ESM::RefId& refId);

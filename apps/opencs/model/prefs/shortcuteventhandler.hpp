@@ -19,7 +19,7 @@ namespace CSMPrefs
         Q_OBJECT
 
     public:
-        ShortcutEventHandler(QObject* parent);
+        explicit ShortcutEventHandler(QObject* parent);
 
         void addShortcut(Shortcut* shortcut);
         void removeShortcut(Shortcut* shortcut);

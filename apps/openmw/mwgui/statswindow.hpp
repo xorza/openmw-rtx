@@ -17,7 +17,7 @@ namespace MWGui
         static int getIdealHeight() { return 750; }
         static int getIdealWidth() { return 600; }
 
-        StatsWindow(DragAndDrop* drag);
+        explicit StatsWindow(DragAndDrop* drag);
 
         /// automatically updates all the data in the stats window, but only if it has changed.
         void onFrame(float dt) override;

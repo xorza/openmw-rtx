@@ -106,7 +106,7 @@ namespace Interpreter
         void visitedCharacter(char c) override { mFormattedMessage += c; }
 
     public:
-        RuntimeMessageFormatter(Runtime& runtime)
+        explicit RuntimeMessageFormatter(Runtime& runtime)
             : mRuntime(runtime)
         {
         }

@@ -13,7 +13,7 @@ namespace Files
         Collections();
 
         ///< Directories are listed with increasing priority.
-        Collections(const Files::PathContainer& directories);
+        explicit Collections(const Files::PathContainer& directories);
 
         ///< Return a file collection for the given extension.
         const MultiDirCollection& getCollection(std::string_view extension) const;

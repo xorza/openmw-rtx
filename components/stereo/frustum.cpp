@@ -46,7 +46,7 @@ namespace Stereo
 
     struct ShadowFrustumCallback final : public SceneUtil::MWShadowTechnique::CustomFrustumCallback
     {
-        ShadowFrustumCallback(StereoFrustumManager* parent)
+        explicit ShadowFrustumCallback(StereoFrustumManager* parent)
             : mParent(parent)
         {
         }

@@ -15,7 +15,7 @@ namespace SceneUtil
     // Computes bounding box of a node without dirtying it or any of its children
     struct CullSafeBoundsVisitor : osg::NodeVisitor
     {
-        CullSafeBoundsVisitor(osg::NodeVisitor::TraversalMode traversalMode = TRAVERSE_ALL_CHILDREN)
+        explicit CullSafeBoundsVisitor(osg::NodeVisitor::TraversalMode traversalMode = TRAVERSE_ALL_CHILDREN)
             : osg::NodeVisitor(traversalMode)
         {
         }

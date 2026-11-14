@@ -13,7 +13,7 @@ namespace MWLua
     class InputProcessor
     {
     public:
-        InputProcessor(Container* scriptsContainer)
+        explicit InputProcessor(Container* scriptsContainer)
             : mScriptsContainer(scriptsContainer)
         {
             mScriptsContainer->registerEngineHandlers({ &mKeyPressHandlers, &mKeyReleaseHandlers,

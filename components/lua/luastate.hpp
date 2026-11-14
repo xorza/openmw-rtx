@@ -44,7 +44,7 @@ namespace LuaUtil
 
         LuaView(const LuaView&) = delete;
 
-        LuaView(lua_State* state)
+        explicit LuaView(lua_State* state)
             : mSol(state)
         {
         }

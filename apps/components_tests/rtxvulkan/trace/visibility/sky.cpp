@@ -3,6 +3,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <numbers>
 #include <optional>
 #include <vector>
 
@@ -864,7 +865,7 @@ namespace Rtx::Testing
             // Past the reach along the ray in all three frames, so the ramp is fully crossed and the
             // mask is the only thing left to differ.
             constexpr float slant = reach / 0.8660254f;
-            constexpr float climb = reach * 0.5773503f;
+            constexpr float climb = reach * std::numbers::inv_sqrt3_v<float>;
 
             const auto look = [&](const osg::Vec3f& eye) {
                 const Shaders::VisibilityConstants camera = underTheEdge(eye, size, reach);

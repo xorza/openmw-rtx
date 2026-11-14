@@ -19,9 +19,9 @@ namespace MWDialogue
     public:
         Quest();
 
-        Quest(const ESM::RefId& topic);
+        explicit Quest(const ESM::RefId& topic);
 
-        Quest(const ESM::QuestState& state);
+        explicit Quest(const ESM::QuestState& state);
 
         std::string_view getName() const override;
         ///< May be an empty string

@@ -72,6 +72,8 @@ namespace NifOsg
                                        std::is_same<ValueT, bool>, std::is_same<ValueT, osg::Vec4f>>,
                     std::is_same<decltype(T::mDefaultValue), ValueT>>,
                 T>>
+        // An interpolator converts from the NIF data it reads.
+        // NOLINTNEXTLINE(google-explicit-constructor)
         ValueInterpolator(const T* interpolator)
             : mDefaultVal(interpolator->mDefaultValue)
         {
@@ -85,6 +87,7 @@ namespace NifOsg
             }
         }
 
+        // NOLINTNEXTLINE(google-explicit-constructor)
         ValueInterpolator(std::shared_ptr<const MapT> keys, ValueT defaultVal = ValueT())
             : mKeys(keys)
             , mDefaultVal(defaultVal)
@@ -202,7 +205,7 @@ namespace NifOsg
         Nif::NiTimeController::ExtrapolationMode mExtrapolationMode;
 
     public:
-        ControllerFunction(const Nif::NiTimeController* ctrl);
+        explicit ControllerFunction(const Nif::NiTimeController* ctrl);
 
         float calculate(float value) const override;
 
@@ -213,7 +216,7 @@ namespace NifOsg
                                   public SceneUtil::NodeCallback<GeomMorpherController, SceneUtil::MorphGeometry*>
     {
     public:
-        GeomMorpherController(const Nif::NiGeomMorpherController* ctrl);
+        explicit GeomMorpherController(const Nif::NiGeomMorpherController* ctrl);
         GeomMorpherController();
         GeomMorpherController(const GeomMorpherController& copy, const osg::CopyOp& copyop);
 
@@ -240,7 +243,7 @@ namespace NifOsg
     public:
         KeyframeController();
         KeyframeController(const KeyframeController& copy, const osg::CopyOp& copyop);
-        KeyframeController(const Nif::NiKeyframeController* keyctrl);
+        explicit KeyframeController(const Nif::NiKeyframeController* keyctrl);
 
         META_Object(NifOsg, KeyframeController)
 
@@ -316,7 +319,7 @@ namespace NifOsg
         double mStartingTime{ 0 };
 
     public:
-        RollController(const Nif::NiRollController* interpolator);
+        explicit RollController(const Nif::NiRollController* interpolator);
         RollController() = default;
         RollController(const RollController& copy, const osg::CopyOp& copyop);
 
@@ -331,7 +334,7 @@ namespace NifOsg
         FloatInterpolator mData;
 
     public:
-        AlphaController(const Nif::NiAlphaController* ctrl);
+        explicit AlphaController(const Nif::NiAlphaController* ctrl);
         AlphaController();
         AlphaController(const AlphaController& copy, const osg::CopyOp& copyop);
 
@@ -389,7 +392,7 @@ namespace NifOsg
           public SceneUtil::Controller
     {
     public:
-        ParticleSystemController(const Nif::NiParticleSystemController* ctrl);
+        explicit ParticleSystemController(const Nif::NiParticleSystemController* ctrl);
         ParticleSystemController() = default;
         ParticleSystemController(const ParticleSystemController& copy, const osg::CopyOp& copyop);
 
@@ -406,7 +409,7 @@ namespace NifOsg
                            public SceneUtil::Controller
     {
     public:
-        PathController(const Nif::NiPathController* ctrl);
+        explicit PathController(const Nif::NiPathController* ctrl);
         PathController() = default;
         PathController(const PathController& copy, const osg::CopyOp& copyop);
 
@@ -426,7 +429,7 @@ namespace NifOsg
                              public SceneUtil::Controller
     {
     public:
-        LookAtController(const Nif::NiLookAtController& ctrl);
+        explicit LookAtController(const Nif::NiLookAtController& ctrl);
         LookAtController() = default;
         LookAtController(const LookAtController& copy, const osg::CopyOp& copyop);
 

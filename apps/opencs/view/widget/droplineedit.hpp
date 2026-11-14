@@ -25,7 +25,7 @@ namespace CSVWidget
         ///< The accepted Display type for this LineEdit.
 
     public:
-        DropLineEdit(CSMWorld::ColumnBase::Display type, QWidget* parent = nullptr);
+        explicit DropLineEdit(CSMWorld::ColumnBase::Display type, QWidget* parent = nullptr);
 
     protected:
         void dragEnterEvent(QDragEnterEvent* event) override;

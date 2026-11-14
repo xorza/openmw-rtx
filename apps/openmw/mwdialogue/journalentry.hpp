@@ -29,6 +29,8 @@ namespace MWDialogue
         /// actor is optional
         Entry(const ESM::RefId& topic, const ESM::RefId& infoId, const MWWorld::Ptr& actor);
 
+        // An entry converts from the journal record it reads.
+        // NOLINTNEXTLINE(google-explicit-constructor)
         Entry(const ESM::JournalEntry& record);
 
         const std::string& getText() const;
@@ -47,6 +49,7 @@ namespace MWDialogue
 
         JournalEntry(const ESM::RefId& topic, const ESM::RefId& infoId, const MWWorld::Ptr& actor);
 
+        // NOLINTNEXTLINE(google-explicit-constructor)
         JournalEntry(const ESM::JournalEntry& record);
 
         void write(ESM::JournalEntry& entry) const;
@@ -68,6 +71,7 @@ namespace MWDialogue
         StampedJournalEntry(const ESM::RefId& topic, const ESM::RefId& infoId, int day, int month, int dayOfMonth,
             const MWWorld::Ptr& actor);
 
+        // NOLINTNEXTLINE(google-explicit-constructor)
         StampedJournalEntry(const ESM::JournalEntry& record);
 
         void write(ESM::JournalEntry& entry) const;

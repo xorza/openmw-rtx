@@ -114,7 +114,7 @@ namespace MWRender
         void resetBlinkTimer();
 
     public:
-        HeadAnimationTime(const MWWorld::Ptr& reference);
+        explicit HeadAnimationTime(const MWWorld::Ptr& reference);
 
         void updatePtr(const MWWorld::Ptr& updated);
 

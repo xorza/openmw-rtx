@@ -27,7 +27,7 @@ namespace CSVRender
         QPointer<WorldspaceWidget> mWorldspaceWidget;
 
     public:
-        DrawTerrainSelectionCommand(WorldspaceWidget* worldspaceWidget, QUndoCommand* parent = nullptr);
+        explicit DrawTerrainSelectionCommand(WorldspaceWidget* worldspaceWidget, QUndoCommand* parent = nullptr);
 
         void redo() override;
         void undo() override;

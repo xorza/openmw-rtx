@@ -1,6 +1,9 @@
 #ifndef AL_ALEXT_H
 #define AL_ALEXT_H
 
+// OpenAL Soft's header, spelled as OpenAL Soft spells it.
+// NOLINTBEGIN(bugprone-reserved-identifier)
+
 #include <stddef.h>
 /* Define int64 and uint64 types */
 #if (defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L) || (defined(__cplusplus) && __cplusplus >= 201103L)
@@ -638,4 +641,5 @@ extern "C"
 }
 #endif
 
+// NOLINTEND(bugprone-reserved-identifier)
 #endif

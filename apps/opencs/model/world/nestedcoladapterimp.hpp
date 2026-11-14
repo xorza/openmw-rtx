@@ -255,7 +255,7 @@ namespace CSMWorld
         const IdCollection<ESM::MagicEffect>& mMagicEffects;
 
     public:
-        EffectsListAdapter(const IdCollection<ESM::MagicEffect>& magicEffects)
+        explicit EffectsListAdapter(const IdCollection<ESM::MagicEffect>& magicEffects)
             : mMagicEffects(magicEffects)
         {
         }

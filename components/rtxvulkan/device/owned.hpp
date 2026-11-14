@@ -103,6 +103,8 @@ namespace Rtx
     struct Buried
     {
         /// Implicit, so an owner is made from the device it belongs to.
+        // A device converts to the burial its handles wait in.
+        // NOLINTNEXTLINE(google-explicit-constructor)
         Buried(const Device& device)
             : mDevice(&device)
         {
@@ -132,6 +134,8 @@ namespace Rtx
         EndedWith() = default;
 
         /// Implicit, so an owner is made from the parent it belongs to.
+        // A destroyer converts from the parent it destroys through.
+        // NOLINTNEXTLINE(google-explicit-constructor)
         EndedWith(Parent parent, Destroy destroy = {})
             : mParent(parent)
             , mDestroy(destroy)

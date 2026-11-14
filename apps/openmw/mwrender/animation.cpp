@@ -284,7 +284,7 @@ namespace
         {
         }
 
-        RemoveCallbackVisitor(std::string_view effectId)
+        explicit RemoveCallbackVisitor(std::string_view effectId)
             : RemoveVisitor()
             , mHasMagicEffects(false)
             , mEffectId(effectId)
@@ -328,7 +328,7 @@ namespace
         {
         }
 
-        FindVfxCallbacksVisitor(std::string_view effectId)
+        explicit FindVfxCallbacksVisitor(std::string_view effectId)
             : osg::NodeVisitor(TRAVERSE_ALL_CHILDREN)
             , mEffectId(effectId)
         {

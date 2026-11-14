@@ -114,7 +114,7 @@ namespace Shader
     class ReinstateRemovedStateVisitor : public osg::NodeVisitor
     {
     public:
-        ReinstateRemovedStateVisitor(bool allowedToModifyStateSets);
+        explicit ReinstateRemovedStateVisitor(bool allowedToModifyStateSets);
 
         void apply(osg::Node& node) override;
 

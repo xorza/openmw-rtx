@@ -19,7 +19,7 @@ namespace MWRender
                             std::shared_ptr<const ESMTerrain::LandObject>>
     {
     public:
-        LandManager(int loadFlags);
+        explicit LandManager(int loadFlags);
 
         /// @note Will return nullptr if not found.
         std::shared_ptr<const ESMTerrain::LandObject> getLand(ESM::ExteriorCellLocation cellIndex);

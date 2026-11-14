@@ -108,7 +108,7 @@ namespace SceneUtil
     class OperationSequence : public osg::Operation
     {
     public:
-        OperationSequence(bool keep);
+        explicit OperationSequence(bool keep);
 
         void operator()(osg::Object* object) override;
 

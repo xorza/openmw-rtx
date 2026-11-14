@@ -10,7 +10,7 @@ namespace MWLua
     class LoadScripts : public LuaUtil::ScriptsContainer
     {
     public:
-        LoadScripts(LuaUtil::LuaState* lua)
+        explicit LoadScripts(LuaUtil::LuaState* lua)
             : LuaUtil::ScriptsContainer(lua, "Load")
         {
             registerEngineHandlers({

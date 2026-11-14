@@ -51,7 +51,7 @@ namespace MWInput
     class InputControlSystem : public ICS::InputControlSystem
     {
     public:
-        InputControlSystem(const std::filesystem::path& bindingsFile)
+        explicit InputControlSystem(const std::filesystem::path& bindingsFile)
             : ICS::InputControlSystem(Files::pathToUnicodeString(bindingsFile), true, nullptr, nullptr, A_Last)
         {
         }

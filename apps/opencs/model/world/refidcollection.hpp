@@ -65,7 +65,7 @@ namespace CSMWorld
         const NestedRefIdAdapterBase& getNestedAdapter(const ColumnBase& column, UniversalId::Type type) const;
 
     public:
-        RefIdCollection(const IdCollection<ESM::MagicEffect>& magicEffects);
+        explicit RefIdCollection(const IdCollection<ESM::MagicEffect>& magicEffects);
 
         ~RefIdCollection() override;
 

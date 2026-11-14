@@ -233,7 +233,7 @@ namespace OMW
         void setWindowIcon();
 
     public:
-        Engine(Files::ConfigurationManager& configurationManager);
+        explicit Engine(Files::ConfigurationManager& configurationManager);
         virtual ~Engine();
 
         /// Set data dirs

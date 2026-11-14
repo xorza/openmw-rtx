@@ -82,7 +82,7 @@ namespace MWMechanics
         bool mEraseRemoved = false;
         bool mUpdate;
 
-        UpdateContext(bool update)
+        explicit UpdateContext(bool update)
             : mUpdate(update)
         {
         }

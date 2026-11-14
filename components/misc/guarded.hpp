@@ -39,20 +39,20 @@ namespace Misc
         {
         }
 
-        ScopeGuarded(const T& value)
+        explicit ScopeGuarded(const T& value)
             : mMutex()
             , mValue(value)
         {
         }
 
-        ScopeGuarded(T&& value)
+        explicit ScopeGuarded(T&& value)
             : mMutex()
             , mValue(std::move(value))
         {
         }
 
         template <class... Args>
-        ScopeGuarded(Args&&... args)
+        explicit ScopeGuarded(Args&&... args)
             : mMutex()
             , mValue(std::forward<Args>(args)...)
         {

@@ -44,7 +44,7 @@ namespace CSMWorld
         unsigned int mFeatures;
 
     public:
-        IdTableBase(unsigned int features);
+        explicit IdTableBase(unsigned int features);
 
         virtual QModelIndex getModelIndex(const std::string& id, int column) const = 0;
 

@@ -25,7 +25,7 @@ namespace CSVRender
     class TerrainStorage : public ESMTerrain::Storage
     {
     public:
-        TerrainStorage(const CSMWorld::Data& data);
+        explicit TerrainStorage(const CSMWorld::Data& data);
         void setAlteredHeight(int inCellX, int inCellY, float heightMap);
         void resetHeights();
 

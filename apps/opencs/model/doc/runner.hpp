@@ -32,7 +32,7 @@ namespace CSMDoc
         std::filesystem::path mProjectPath;
 
     public:
-        Runner(std::filesystem::path projectPath);
+        explicit Runner(std::filesystem::path projectPath);
 
         ~Runner() override;
 

@@ -29,7 +29,7 @@ namespace CSVDoc
         void rebuild();
 
     public:
-        GlobalDebugProfileMenu(CSMWorld::IdTable* debugProfiles, QWidget* parent = nullptr);
+        explicit GlobalDebugProfileMenu(CSMWorld::IdTable* debugProfiles, QWidget* parent = nullptr);
 
         void updateActions(bool running);
 

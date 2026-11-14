@@ -26,7 +26,7 @@ namespace MWScript
             MWGui::GuiWindow mWindow;
 
         public:
-            OpEnableWindow(MWGui::GuiWindow window)
+            explicit OpEnableWindow(MWGui::GuiWindow window)
                 : mWindow(window)
             {
             }
@@ -65,7 +65,7 @@ namespace MWScript
             MWGui::GuiMode mDialogue;
 
         public:
-            OpShowDialogue(MWGui::GuiMode dialogue)
+            explicit OpShowDialogue(MWGui::GuiMode dialogue)
                 : mDialogue(dialogue)
             {
             }

@@ -12,7 +12,7 @@ namespace MWRender
     class ScreenshotManager
     {
     public:
-        ScreenshotManager(osgViewer::Viewer* viewer);
+        explicit ScreenshotManager(osgViewer::Viewer* viewer);
         ~ScreenshotManager();
 
         void screenshot(osg::Image* image, int w, int h);

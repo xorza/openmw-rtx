@@ -11,7 +11,7 @@ namespace MWWorld
         void executeImp(const Ptr& actor) override;
 
     public:
-        ActionAlchemy(bool force = false);
+        explicit ActionAlchemy(bool force = false);
     };
 }
 

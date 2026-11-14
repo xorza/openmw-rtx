@@ -38,11 +38,11 @@ namespace MWRender
                 osg::ref_ptr<osg::Vec3Array> vertices = new osg::Vec3Array;
                 vertices->push_back(osg::Vec3f(1.0f, 0.0f, 0.0f));
                 osg::ref_ptr<osg::Vec3Array> normals = new osg::Vec3Array(osg::Array::BIND_PER_VERTEX);
-                normals->push_back(osg::Vec3f(1.0f, 1.0f, 0.0f) / std::sqrt(2.0f));
+                normals->push_back(osg::Vec3f(1.0f, 1.0f, 0.0f) / std::numbers::sqrt2_v<float>);
                 mShape->setVertexArray(vertices);
                 mShape->setNormalArray(normals, osg::Array::BIND_PER_VERTEX);
                 osg::ref_ptr<osg::Vec4Array> tangents = new osg::Vec4Array(osg::Array::BIND_PER_VERTEX);
-                tangents->push_back(osg::Vec4f(osg::Vec3f(1.0f, -1.0f, 0.0f) / std::sqrt(2.0f), 1.0f));
+                tangents->push_back(osg::Vec4f(osg::Vec3f(1.0f, -1.0f, 0.0f) / std::numbers::sqrt2_v<float>, 1.0f));
                 mShape->setTexCoordArray(Shader::sTangentUnit, tangents, osg::Array::BIND_PER_VERTEX);
                 mShape->addPrimitiveSet(new osg::DrawArrays(osg::PrimitiveSet::POINTS, 0, 1));
 

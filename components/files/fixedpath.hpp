@@ -44,7 +44,7 @@ namespace Files
          *
          * \param [in] applicationName - Name of the application
          */
-        FixedPath(const std::string& applicationName)
+        explicit FixedPath(const std::string& applicationName)
             : mPath(applicationName + "/")
             , mUserConfigPath(mPath.getUserConfigPath())
             , mUserDataPath(mPath.getUserDataPath())

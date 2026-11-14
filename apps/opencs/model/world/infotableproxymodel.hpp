@@ -30,7 +30,7 @@ namespace CSMWorld
         ///< \a currentRow is a row of the source model.
 
     public:
-        InfoTableProxyModel(UniversalId::Type type, QObject* parent = nullptr);
+        explicit InfoTableProxyModel(UniversalId::Type type, QObject* parent = nullptr);
 
         void setSourceModel(QAbstractItemModel* sourceModel) override;
 

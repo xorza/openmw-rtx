@@ -11,7 +11,7 @@ namespace Wizard
     {
         Q_OBJECT
     public:
-        ComponentSelectionPage(QWidget* parent);
+        explicit ComponentSelectionPage(QWidget* parent);
 
         int nextId() const override;
         bool validatePage() override;

@@ -40,7 +40,7 @@ namespace SceneUtil
     class Material : public osg::StateAttribute
     {
     public:
-        Material(const MaterialConfig& config = MaterialConfig{});
+        explicit Material(const MaterialConfig& config = MaterialConfig{});
 
         Material(const Material& other, const osg::CopyOp& copyop = osg::CopyOp::SHALLOW_COPY);
 

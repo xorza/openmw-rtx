@@ -31,7 +31,7 @@ namespace CSVRender
         static const osg::Vec3d LocalLeft;
         static const osg::Vec3d LocalForward;
 
-        CameraController(QObject* parent);
+        explicit CameraController(QObject* parent);
         ~CameraController() override = default;
 
         bool isActive() const;
@@ -75,7 +75,7 @@ namespace CSVRender
         Q_OBJECT
 
     public:
-        FreeCameraController(QWidget* parent);
+        explicit FreeCameraController(QWidget* parent);
 
         double getLinearSpeed() const;
         double getRotationalSpeed() const;
@@ -130,7 +130,7 @@ namespace CSVRender
         Q_OBJECT
 
     public:
-        OrbitCameraController(QWidget* parent);
+        explicit OrbitCameraController(QWidget* parent);
 
         osg::Vec3d getCenter() const;
         double getOrbitSpeed() const;

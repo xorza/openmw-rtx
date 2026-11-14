@@ -20,6 +20,8 @@ namespace MWDialogue
         };
 
     public:
+        // A condition is read through its wrapper wherever one is asked for.
+        // NOLINTNEXTLINE(google-explicit-constructor)
         SelectWrapper(const ESM::DialogueCondition& select);
 
         ESM::DialogueCondition::Function getFunction() const;

@@ -16,7 +16,7 @@ namespace
 
     struct AddScriptsVisitor
     {
-        AddScriptsVisitor(MWWorld::LocalScripts& scripts)
+        explicit AddScriptsVisitor(MWWorld::LocalScripts& scripts)
             : mScripts(scripts)
         {
         }
@@ -38,7 +38,7 @@ namespace
 
     struct AddContainerItemScriptsVisitor
     {
-        AddContainerItemScriptsVisitor(MWWorld::LocalScripts& scripts)
+        explicit AddContainerItemScriptsVisitor(MWWorld::LocalScripts& scripts)
             : mScripts(scripts)
         {
         }

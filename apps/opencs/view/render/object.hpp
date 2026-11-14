@@ -46,7 +46,7 @@ namespace CSVRender
     class ObjectTag : public TagBase
     {
     public:
-        ObjectTag(Object* object);
+        explicit ObjectTag(Object* object);
 
         Object* mObject;
 

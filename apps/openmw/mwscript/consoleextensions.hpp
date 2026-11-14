@@ -16,7 +16,7 @@ namespace MWScript
     /// \brief Script functionality limited to the console
     namespace Console
     {
-        void installOpcodes(Interpreter::Interpreter& interpreter) {}
+        inline void installOpcodes(Interpreter::Interpreter& interpreter) {}
     }
 }
 

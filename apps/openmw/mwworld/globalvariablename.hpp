@@ -12,11 +12,14 @@ namespace MWWorld
     class GlobalVariableName
     {
     public:
+        // A global's name converts from the string that spells it.
+        // NOLINTNEXTLINE(google-explicit-constructor)
         GlobalVariableName(const std::string& value)
             : mValue(value)
         {
         }
 
+        // NOLINTNEXTLINE(google-explicit-constructor)
         GlobalVariableName(std::string_view value)
             : mValue(value)
         {

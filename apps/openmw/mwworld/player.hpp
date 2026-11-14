@@ -56,7 +56,7 @@ namespace MWWorld
         bool mJumping;
 
     public:
-        Player(const ESM::NPC* player);
+        explicit Player(const ESM::NPC* player);
 
         void saveStats();
         void restoreStats();

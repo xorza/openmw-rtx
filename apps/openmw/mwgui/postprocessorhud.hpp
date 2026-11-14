@@ -33,7 +33,7 @@ namespace MWGui
         };
 
     public:
-        PostProcessorHud(Files::ConfigurationManager& cfgMgr);
+        explicit PostProcessorHud(Files::ConfigurationManager& cfgMgr);
 
         void onOpen() override;
 

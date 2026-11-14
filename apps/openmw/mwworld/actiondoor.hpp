@@ -11,7 +11,7 @@ namespace MWWorld
         void executeImp(const MWWorld::Ptr& actor) override;
 
     public:
-        ActionDoor(const Ptr& object);
+        explicit ActionDoor(const Ptr& object);
     };
 }
 

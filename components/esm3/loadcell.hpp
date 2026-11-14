@@ -52,7 +52,7 @@ namespace ESM
     {
         RefNum mRefNum;
 
-        CellRefTrackerPredicate(const RefNum& refNum)
+        explicit CellRefTrackerPredicate(const RefNum& refNum)
             : mRefNum(refNum)
         {
         }

@@ -229,7 +229,7 @@ namespace CSMDoc
         SavingState& mState;
 
     public:
-        CloseSaveStage(SavingState& state);
+        explicit CloseSaveStage(SavingState& state);
 
         int setup() override;
         ///< \return number of steps

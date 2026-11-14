@@ -8,7 +8,7 @@ namespace MWRender
     class DensityCalculator
     {
     public:
-        DensityCalculator(float density)
+        explicit DensityCalculator(float density)
             : mDensity(density)
         {
         }

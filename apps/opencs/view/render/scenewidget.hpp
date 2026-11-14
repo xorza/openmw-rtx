@@ -70,7 +70,7 @@ namespace CSVRender
         Q_OBJECT
 
     public:
-        RenderWidget(std::shared_ptr<Resource::ResourceSystem> resourceSystem, QWidget* parent = nullptr,
+        explicit RenderWidget(std::shared_ptr<Resource::ResourceSystem> resourceSystem, QWidget* parent = nullptr,
             Qt::WindowFlags f = Qt::WindowFlags());
         ~RenderWidget() override;
 
@@ -106,7 +106,7 @@ namespace CSVRender
     {
         Q_OBJECT
     public:
-        SceneWidget(std::shared_ptr<Resource::ResourceSystem> resourceSystem, QWidget* parent = nullptr,
+        explicit SceneWidget(std::shared_ptr<Resource::ResourceSystem> resourceSystem, QWidget* parent = nullptr,
             Qt::WindowFlags f = Qt::WindowFlags(), bool retrieveInput = true);
         ~SceneWidget() override;
 

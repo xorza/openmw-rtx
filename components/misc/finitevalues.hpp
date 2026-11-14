@@ -19,6 +19,8 @@ namespace Misc
     {
         T mValue;
 
+        // A finite value converts from and to the value it checks.
+        // NOLINTNEXTLINE(google-explicit-constructor)
         FiniteValue(T v)
         {
             constexpr bool isVecType
@@ -38,6 +40,7 @@ namespace Misc
             mValue = v;
         }
 
+        // NOLINTNEXTLINE(google-explicit-constructor)
         operator T() const { return mValue; }
     };
 

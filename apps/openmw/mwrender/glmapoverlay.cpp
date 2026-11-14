@@ -76,7 +76,7 @@ namespace
     class CameraUpdateGlobalCallback : public SceneUtil::NodeCallback<CameraUpdateGlobalCallback, osg::Camera*>
     {
     public:
-        CameraUpdateGlobalCallback(MWRender::GlMapOverlay* parent)
+        explicit CameraUpdateGlobalCallback(MWRender::GlMapOverlay* parent)
             : mRendered(false)
             , mParent(parent)
         {

@@ -27,7 +27,7 @@ namespace
     class UpdateRenderCameraCallback : public SceneUtil::NodeCallback<UpdateRenderCameraCallback, osg::Camera*>
     {
     public:
-        UpdateRenderCameraCallback(MWRender::Camera* cam)
+        explicit UpdateRenderCameraCallback(MWRender::Camera* cam)
             : mCamera(cam)
         {
         }

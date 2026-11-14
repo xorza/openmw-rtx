@@ -48,7 +48,7 @@ namespace MWRender
         void disableCellPathgrid(const MWWorld::CellStore* store);
 
     public:
-        Pathgrid(osg::ref_ptr<osg::Group> root);
+        explicit Pathgrid(osg::ref_ptr<osg::Group> root);
         ~Pathgrid();
         bool toggleRenderMode(int mode);
 

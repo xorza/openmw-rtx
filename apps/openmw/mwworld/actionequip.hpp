@@ -13,7 +13,7 @@ namespace MWWorld
 
     public:
         /// @param item to equip
-        ActionEquip(const Ptr& object, bool force = false);
+        explicit ActionEquip(const Ptr& object, bool force = false);
     };
 }
 

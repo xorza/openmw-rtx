@@ -9,7 +9,7 @@ namespace MWGui
     class InventoryItemModel : public ItemModel
     {
     public:
-        InventoryItemModel(const MWWorld::Ptr& actor);
+        explicit InventoryItemModel(const MWWorld::Ptr& actor);
 
         ItemStack getItem(ModelIndex index) override;
         ModelIndex getIndex(const ItemStack& item) override;

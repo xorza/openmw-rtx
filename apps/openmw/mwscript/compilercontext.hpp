@@ -24,7 +24,7 @@ namespace MWScript
         Type mType;
 
     public:
-        CompilerContext(Type type);
+        explicit CompilerContext(Type type);
 
         /// Is the compiler allowed to declare local variables?
         bool canDeclareLocals() const override;

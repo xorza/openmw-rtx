@@ -209,7 +209,7 @@ namespace CSMWorld
     template <typename ESXRecordT>
     struct NestedParentColumn : public Column<ESXRecordT>
     {
-        NestedParentColumn(int id, int flags = ColumnBase::Flag_Dialogue, bool fixedRows = false)
+        explicit NestedParentColumn(int id, int flags = ColumnBase::Flag_Dialogue, bool fixedRows = false)
             : Column<ESXRecordT>(id, ColumnBase::Display_NestedHeader, flags)
             , mFixedRows(fixedRows)
         {

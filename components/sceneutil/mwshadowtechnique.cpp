@@ -28,7 +28,6 @@
 #include <osg/Depth>
 #include <osg/ClipControl>
 
-#include <cmath>
 #include <sstream>
 #include <vector>
 
@@ -3296,7 +3295,7 @@ void MWShadowTechnique::releaseGLObjects(osg::State* state) const
 class DoubleBufferCallback : public osg::Callback
 {
 public:
-    DoubleBufferCallback(osg::NodeList &children) : mChildren(children) {}
+    explicit DoubleBufferCallback(osg::NodeList &children) : mChildren(children) {}
 
     bool run(osg::Object* node, osg::Object* visitor) override
     {
