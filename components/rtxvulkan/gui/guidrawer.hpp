@@ -7,6 +7,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include <components/rtx/renderer/guirenderer.hpp>
+#include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/device/memory/growablebuffer.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
@@ -54,13 +55,10 @@ namespace Rtx
         {
             LentCommands mCommands;
 
-            /// Rewritten every draw and grown to the busiest one so far. Host-visible device memory,
-            /// so writing it is a memcpy and there is no staging copy and no transfer to record.
+            /// Rewritten every draw and grown to the busiest one so far, staged as every host write is
+            /// (`Uploads`).
             GrowableBuffer mVertices;
         };
-
-        /// The slot the next draw takes.
-        Slot& current() { return mSlots.at(FrameSlot{ static_cast<std::uint32_t>(mDrawn % sFrameSlots) }); }
 
         const Device& mDevice;
         GuiPass mPass;
@@ -72,8 +70,14 @@ namespace Rtx
 
         PerSlot<Slot> mSlots;
 
-        /// How many draws there were, which picks the slot: the interface runs on its own count.
-        std::uint64_t mDrawn = 0;
+        /// How many draws were prepared, which picks the slot: the next on every prepare, drawn or not, so a slot
+        /// waits on its use two prepares ago. A count of draws recorded held the slot after a prepare no present
+        /// showed, and the next prepare then waited on the write it had itself deferred, a device frame a frame
+        /// through a resize drag.
+        std::uint64_t mPrepares = 0;
+
+        /// The slot the prepared draw is recorded from.
+        FrameSlot mSlot{ 0 };
 
         bool mPrepared = false;
     };

@@ -20,6 +20,7 @@
 #include <apps/components_tests/rtx/support/allocations.hpp>
 #include <apps/components_tests/rtx/support/firsttexel.hpp>
 #include <apps/components_tests/rtx/support/geometry.hpp>
+#include <apps/components_tests/rtx/support/image.hpp>
 #include <components/misc/result.hpp>
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/image/imagedescription.hpp>
@@ -46,9 +47,7 @@ namespace Rtx
         /// One block's worth of image in `format`, which is all the description reads beyond it.
         osg::ref_ptr<osg::Image> makeBlock(GLenum format)
         {
-            osg::ref_ptr<osg::Image> image = new osg::Image;
-            image->setFileName("textures/tx_test.dds");
-            image->allocateImage(4, 4, 1, format, GL_UNSIGNED_BYTE);
+            osg::ref_ptr<osg::Image> image = Testing::makeImage("textures/tx_test.dds", 4, 4, format, GL_UNSIGNED_BYTE);
             return image;
         }
 
@@ -248,9 +247,8 @@ namespace Rtx
         {
             std::vector<Rtx::MipLevel> levels;
             std::vector<std::byte> texels;
-            osg::ref_ptr<osg::Image> image = new osg::Image;
-            image->setFileName("textures/tx_odd.dds");
-            image->allocateImage(4, 4, 1, GL_RGB, GL_UNSIGNED_BYTE_3_3_2);
+            osg::ref_ptr<osg::Image> image
+                = Testing::makeImage("textures/tx_odd.dds", 4, 4, GL_RGB, GL_UNSIGNED_BYTE_3_3_2);
             const Result<Rtx::TextureData, std::string> odd
                 = describeImage(*image, Rtx::TextureEncoding::Colour, levels, texels);
             ASSERT_FALSE(odd.isOk());
@@ -261,9 +259,8 @@ namespace Rtx
             for (const auto& [spelling, name] : { std::pair{ GL_COMPRESSED_RED_GREEN_RGTC2_EXT, "BC5 (ATI2, linear)" },
                      std::pair{ GL_COMPRESSED_RED_RGTC1_EXT, "BC4 (ATI1, linear)" } })
             {
-                osg::ref_ptr<osg::Image> channels = new osg::Image;
-                channels->setFileName("textures/tx_b_n_argonian_m_n.dds");
-                channels->allocateImage(4, 4, 1, spelling, GL_UNSIGNED_BYTE);
+                osg::ref_ptr<osg::Image> channels
+                    = Testing::makeImage("textures/tx_b_n_argonian_m_n.dds", 4, 4, spelling, GL_UNSIGNED_BYTE);
                 const Result<Rtx::TextureData, std::string> asColour
                     = describeImage(*channels, Rtx::TextureEncoding::Colour, levels, texels);
                 ASSERT_FALSE(asColour.isOk()) << name;
@@ -686,8 +683,8 @@ namespace Rtx
             shifted->setMipmapLevels(osg::Image::MipmapDataType{ 16 });
             EXPECT_EQ(describeImage(*shifted, Rtx::TextureEncoding::Colour, levels, texels).value().mBytes.size(), 20u);
 
-            osg::ref_ptr<osg::Image> block = new osg::Image;
-            block->allocateImage(2, 2, 1, GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, GL_UNSIGNED_BYTE);
+            osg::ref_ptr<osg::Image> block
+                = Testing::makeImage("", 2, 2, GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, GL_UNSIGNED_BYTE);
             EXPECT_EQ(describeImage(*block, Rtx::TextureEncoding::Colour, levels, texels).value().mBytes.size(), 16u);
         }
 
@@ -724,9 +721,7 @@ namespace Rtx
             // prepares the rest here.
             ASSERT_EQ(described.getDescriptions()[0].mLevels.size(), std::size_t{ 1 });
 
-            const std::size_t before = Testing::getAllocationCount();
-            described.describeAll(scene, nullptr, false);
-            const std::size_t spent = Testing::getAllocationCount() - before;
+            const std::size_t spent = Testing::allocationsIn([&] { described.describeAll(scene, nullptr, false); });
 
             EXPECT_EQ(spent, 0u) << "a second description reached the heap " << spent << " times";
 
@@ -882,9 +877,7 @@ namespace Rtx
         {
             constexpr VFS::Path::NormalizedView path("textures/tx_read.dds");
 
-            osg::ref_ptr<osg::Image> image = new osg::Image;
-            image->setFileName(std::string(path.value()));
-            image->allocateImage(4, 4, 1, GL_RGBA, GL_UNSIGNED_BYTE);
+            osg::ref_ptr<osg::Image> image = Testing::makeImage(std::string(path.value()), 4, 4);
             std::fill_n(image->data(), image->getTotalSizeInBytes(), static_cast<unsigned char>(128));
 
             Rtx::SceneDesc scene;
@@ -949,8 +942,8 @@ namespace Rtx
         TEST(RtxSceneTexturesTest, aNormalMapOfTwoChannelsStandsInUntilItsChainIsMade)
         {
             constexpr VFS::Path::NormalizedView path("textures/tx_two_n.dds");
-            osg::ref_ptr<osg::Image> image = new osg::Image;
-            image->allocateImage(4, 4, 1, GL_COMPRESSED_RED_GREEN_RGTC2_EXT, GL_UNSIGNED_BYTE);
+            osg::ref_ptr<osg::Image> image
+                = Testing::makeImage("", 4, 4, GL_COMPRESSED_RED_GREEN_RGTC2_EXT, GL_UNSIGNED_BYTE);
             std::fill_n(image->data(), image->getTotalSizeInBytes(), static_cast<unsigned char>(0));
             image->setFileName(std::string(path.value()));
 
@@ -979,12 +972,10 @@ namespace Rtx
         TEST(RtxSceneTexturesTest, aClassicSpecularMapStandsInUntilItIsConverted)
         {
             constexpr VFS::Path::NormalizedView path("textures/tx_ore_spec.dds|textures/tx_ore.dds");
-            osg::ref_ptr<osg::Image> specular = new osg::Image;
-            specular->allocateImage(2, 2, 1, GL_RGBA, GL_UNSIGNED_BYTE);
+            osg::ref_ptr<osg::Image> specular = Testing::makeImage("", 2, 2);
             std::fill_n(specular->data(), 16, static_cast<unsigned char>(128));
             specular->setFileName("textures/tx_ore_spec.dds");
-            osg::ref_ptr<osg::Image> diffuse = new osg::Image;
-            diffuse->allocateImage(2, 2, 1, GL_RGBA, GL_UNSIGNED_BYTE);
+            osg::ref_ptr<osg::Image> diffuse = Testing::makeImage("", 2, 2);
             std::fill_n(diffuse->data(), 16, static_cast<unsigned char>(128));
             diffuse->setFileName("textures/tx_ore.dds");
 
@@ -1012,15 +1003,12 @@ namespace Rtx
         TEST(RtxSceneTexturesTest, aWholeChainMadeInBc7IsDescribedAsItWasMade)
         {
             constexpr VFS::Path::NormalizedView path("textures/tx_read.dds");
-            osg::ref_ptr<osg::Image> image = new osg::Image;
-            image->setFileName(std::string(path.value()));
-            image->allocateImage(4, 4, 1, GL_RGBA, GL_UNSIGNED_BYTE);
+            osg::ref_ptr<osg::Image> image = Testing::makeImage(std::string(path.value()), 4, 4);
             std::fill_n(image->data(), image->getTotalSizeInBytes(), static_cast<unsigned char>(128));
 
             constexpr VFS::Path::NormalizedView widenedPath("textures/tx_rgb.dds");
-            osg::ref_ptr<osg::Image> widened = new osg::Image;
-            widened->setFileName(std::string(widenedPath.value()));
-            widened->allocateImage(2, 2, 1, GL_RGB, GL_UNSIGNED_BYTE);
+            osg::ref_ptr<osg::Image> widened
+                = Testing::makeImage(std::string(widenedPath.value()), 2, 2, GL_RGB, GL_UNSIGNED_BYTE);
             for (std::size_t texel = 0; texel < 4; ++texel)
             {
                 widened->data()[texel * 3 + 0] = 255;

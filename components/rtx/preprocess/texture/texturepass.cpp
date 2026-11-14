@@ -86,10 +86,10 @@ namespace Rtx
         {
             readTexelBand(texture, level, row / 4, scratch.mColours);
             for (const osg::Vec3f& texel : scratch.mColours)
-                spread += double(
+                spread += static_cast<double>(
                     std::max({ texel.x(), texel.y(), texel.z() }) - std::min({ texel.x(), texel.y(), texel.z() }));
         }
-        const double texels = double(level.mWidth) * level.mHeight;
+        const double texels = static_cast<double>(level.mWidth) * level.mHeight;
         return spread / texels < sClassicSpreadMost ? SpecularLayout::Classic : SpecularLayout::MetalRoughness;
     }
 }

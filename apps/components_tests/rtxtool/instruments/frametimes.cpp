@@ -16,6 +16,7 @@
 
 #include <apps/components_tests/rtx/support/allocations.hpp>
 #include <apps/rtxtool/instruments/frametimes.hpp>
+#include <apps/rtxtool/instruments/perfcontrol.hpp>
 #include <components/files/conversion.hpp>
 #include <components/misc/result.hpp>
 #include <components/rtx/renderer/framespend.hpp>
@@ -42,11 +43,11 @@ namespace RtxTool
         /// path at all. Named either way, at once.
         TEST(RtxPerfControlTest, aFifoThatIsNotThereIsNamedRatherThanWaitedOn)
         {
-            const std::filesystem::path missing = TestingOpenMW::outputFilePath("perf-control-absent");
+            const std::filesystem::path missing = TestingOpenMW::currentTestDirPath() / "perf-control-absent";
             std::filesystem::remove(missing);
 
             PerfControl control(missing);
-            EXPECT_THROW(control.enable(), std::system_error);
+            EXPECT_THROW(control.enable(), std::system_error) << "the system's own error, in its own words";
         }
     }
 
@@ -82,7 +83,7 @@ namespace RtxTool
             EXPECT_DOUBLE_EQ(samples.at(Rtx::Timing::Wait)[1], 0.0);
             EXPECT_DOUBLE_EQ(samples.at(Rtx::Timing::Frame)[1], 8.0);
 
-            const std::filesystem::path file = TestingOpenMW::outputFilePath("frame-times.txt");
+            const std::filesystem::path file = TestingOpenMW::currentTestDirPath() / "frame-times.txt";
             const Result<void, std::string> written = writeFrameTimes(file, samples);
             ASSERT_TRUE(written.isOk()) << written.error();
 
@@ -94,7 +95,8 @@ namespace RtxTool
                 "8.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000 1.500 0.000 0.000 2.000 0.750\n");
 
             // A directory nobody made is named rather than written past.
-            const std::filesystem::path nowhere = TestingOpenMW::outputFilePath("no-such-dir") / "frame-times.txt";
+            const std::filesystem::path nowhere
+                = TestingOpenMW::currentTestDirPath() / "no-such-dir" / "frame-times.txt";
             const std::string refused = writeFrameTimes(nowhere, samples).error();
             const std::string named = "could not write " + Files::pathToUnicodeString(nowhere) + ": ";
             EXPECT_TRUE(refused.starts_with(named)) << refused;
@@ -252,9 +254,17 @@ namespace RtxTool
             // of blas against the 70 ms it spent over ten frames.
             EXPECT_DOUBLE_EQ(zones[0].mShareMs + zones[1].mShareMs, 7.0);
 
-            EXPECT_EQ(describeZone(zones[0]), "trace 4.00") << "a zone every frame ran needs no qualification";
-            EXPECT_EQ(describeZone(zones[1]), "blas 3.00 (10.00 on 2 of 10)");
-            EXPECT_EQ(describeZones(zones), "  gpu ms    trace 4.00  blas 3.00 (10.00 on 2 of 10)\n");
+            EXPECT_EQ(describeZone(zones[0]), "trace 4.000") << "a zone every frame ran needs no qualification";
+            EXPECT_EQ(describeZone(zones[1]), "blas 3.000 (10.000 on 2 of 10)");
+            EXPECT_EQ(describeZones(zones), "  gpu ms    trace 4.000  blas 3.000 (10.000 on 2 of 10)\n");
+
+            // A pass of four microseconds a frame reads as one, where two places read it as one that never ran.
+            GpuZone glare;
+            glare.mZone = Rtx::FrameZone::Glare;
+            glare.mFrames = 10;
+            glare.mOfFrames = 10;
+            glare.mShareMs = 0.004;
+            EXPECT_EQ(describeZone(glare), "glare 0.004");
 
             // **The next stop keeps the rows and quotes only what it met.** Emptied, a stop that
             // ran `trace` alone reports `trace` alone, over its own ten frames and out of the room
@@ -263,11 +273,14 @@ namespace RtxTool
             breakdown.clear();
             EXPECT_TRUE(breakdown.empty());
 
-            const std::size_t before = Rtx::Testing::getAllocationCount();
-            for (int frame = 0; frame < 10; ++frame)
-                breakdown.add(std::span<const Rtx::GpuSpan>(&trace, 1));
-            const std::span<const GpuZone> again = breakdown.summariseZones();
-            EXPECT_EQ(Rtx::Testing::getAllocationCount() - before, 0u) << "a second stop grew a row or the summary";
+            std::span<const GpuZone> again;
+            EXPECT_EQ(Rtx::Testing::allocationsIn([&] {
+                for (int frame = 0; frame < 10; ++frame)
+                    breakdown.add(std::span<const Rtx::GpuSpan>(&trace, 1));
+                again = breakdown.summariseZones();
+            }),
+                0u)
+                << "a second stop grew a row or the summary";
 
             ASSERT_EQ(again.size(), 1u) << "a zone the first stop met and this one did not is not quoted";
             EXPECT_EQ(again[0].mZone, Rtx::FrameZone::Trace);
@@ -380,10 +393,12 @@ namespace RtxTool
             };
 
             frame(1.0);
-            const std::size_t before = Rtx::Testing::getAllocationCount();
-            for (const double first : { 4.0, 7.0, 10.0 })
-                frame(first);
-            EXPECT_EQ(Rtx::Testing::getAllocationCount() - before, 0u) << "a measured frame grew the counters' store";
+            EXPECT_EQ(Rtx::Testing::allocationsIn([&] {
+                for (const double first : { 4.0, 7.0, 10.0 })
+                    frame(first);
+            }),
+                0u)
+                << "a measured frame grew the counters' store";
 
             const std::span<const GpuZone> zones = breakdown.summariseZones();
             ASSERT_EQ(zones.size(), 2u);

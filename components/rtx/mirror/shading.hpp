@@ -95,6 +95,14 @@ namespace Rtx
         return !shading.empty() && shading.back().mAnimatedThrough;
     }
 
+    /// Whether a placement shown through `shading` shows the face wound clockwise — `Shading::mClockwise` at the near
+    /// end. The one maker of the placement's winding, which the frame's walk and the cell ring's reader both ask, so a
+    /// static the ring stands in the distance shows the face it shows once its cell loads (`MeshInstance::mClockwise`).
+    inline bool clockwiseThrough(std::span<const Shading> shading)
+    {
+        return !shading.empty() && shading.back().mClockwise;
+    }
+
     /// What the content said this surface is, folded out of the chain of state sets in force at it,
     /// root first and nearest last, which is how OpenGL resolves the same chain — a parent's
     /// `OVERRIDE` included, through one `SurfaceLocks` carried down it. False where no state set

@@ -56,9 +56,13 @@ namespace Rtx
         VkDeviceAddress mTileList = 0;
         VkDeviceAddress mPresence = 0;
 
-        /// Whether the bin took anything a puff is lit as: a sprite, or a placement in the
-        /// presence table — `VisibilityConstants::mPuffsInFrame`.
+        /// Whether the bin took anything a puff is drawn as: a sprite, or a placement in the presence table.
         bool mPuffs = false;
+
+        /// Whether any of that is lit as a puff is (`puffLight`), which the air then lights by the frame's ambient
+        /// for: a sprite of an emitter that is not additive, or a placement in the presence table —
+        /// `Shaders::PUFFS_LIT`. A frame of flames alone casts no ambient ray from its air.
+        bool mLitPuffs = false;
     };
 
     /// What one bin is of: the sprites, and where they are seen from.
@@ -104,7 +108,8 @@ namespace Rtx
                 .mEmitterFrames = mEmitterFrames.get().addressFor(),
                 .mTileList = mTileList.get().addressFor(),
                 .mPresence = mPresence.get().addressFor(),
-                .mPuffs = mPuffs };
+                .mPuffs = mPuffs,
+                .mLitPuffs = mLitPuffs };
         }
 
     private:
@@ -146,7 +151,8 @@ namespace Rtx
         /// `SpriteListSize` says why the two numbers are one object.
         SpriteListSize mListSize;
 
-        /// Whether the last `take` took anything a puff is lit as: `SpriteTables::mPuffs`.
+        /// Whether the last `take` took anything a puff is drawn as, and anything lit as one: `SpriteTables`.
         bool mPuffs = false;
+        bool mLitPuffs = false;
     };
 }

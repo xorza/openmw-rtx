@@ -22,7 +22,6 @@
 #include <apps/opencs/view/render/scenewidget.hpp>
 #include <apps/opencs/view/widget/modebutton.hpp>
 
-#include <components/crashcatcher/crash.hpp>
 #include <components/esm/defs.hpp>
 #include <components/misc/scalableicon.hpp>
 
@@ -862,7 +861,7 @@ void CSVRender::WorldspaceWidget::handleInteraction(InteractionType type, bool a
 
         if (mDragging)
         {
-            EditMode* editMode = Crash::notNull(getEditMode(), "a drag completed with no edit mode");
+            EditMode* editMode = getEditMode();
             editMode->dragCompleted(mapFromGlobal(QCursor::pos()));
             mDragging = false;
         }

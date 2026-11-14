@@ -129,19 +129,9 @@ void main()
         // shafts make of the eye's whole column** (`storeStageShafts`), and one where that stage did not run.
         const float air = layer.mDistance;
         const WorldRay ray = WorldRay(peel.mOrigin, peel.mDirection);
-        MediumAhead ahead = MediumAhead(vec3(0.0), vec3(1.0));
-        if (!(waterOver(ray.mFrom) > 0.0))
-        {
-            const vec4 fog = fogAlong(pixel, ray, air);
-            ahead = MediumAhead(fog.xyz, vec3(fog.w));
-        }
-        else
-        {
-            const float under = waterAlong(ray.mFrom, ray.mAlong, air);
-            const vec3 ratio = written.mMedia ? stageShaftsAt(storedAt(ivec2(pixel), width, swap)) : vec3(1.0);
-            ahead = mediumOverColumn(
-                ray, under, air, air, columnOf(columnStartOf(ray.mFrom, ray.mAlong, under), ratio));
-        }
+        const vec3 shafts = written.mMedia ? stageShaftsAt(storedAt(ivec2(pixel), width, swap)) : vec3(1.0);
+        bool marches;
+        const MediumAhead ahead = mediumAheadOf(pixel, ray, air, air, shafts, marches);
 
         if (peel.mLayer == 0u)
             nearest = nearestPaneOf(layer, peel.mArms);

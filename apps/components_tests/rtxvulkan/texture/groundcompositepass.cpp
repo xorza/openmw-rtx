@@ -29,6 +29,7 @@
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/handles.hpp>
+#include <components/rtxvulkan/device/memory/batch.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/uploads.hpp>
@@ -142,9 +143,9 @@ namespace Rtx
             /// weighs that and the first the rest, red under grey.
             static int expected(std::uint32_t x, std::size_t channel, std::uint8_t grey)
             {
-                const float u = (float(x) + 0.5f) / float(sExtent);
+                const float u = (static_cast<float>(x) + 0.5f) / static_cast<float>(sExtent);
                 const float second = std::clamp(u * 2.0f - 0.5f, 0.0f, 1.0f);
-                const float ladder = second * float(grey) / 255.0f;
+                const float ladder = second * static_cast<float>(grey) / 255.0f;
                 const float linear = channel == 0 ? (1.0f - second) + ladder : ladder;
                 return static_cast<int>(std::lround(toEncoded(linear) * 255.0f));
             }
@@ -154,9 +155,10 @@ namespace Rtx
             /// and the roughness over both, the red a Lambert layer counted at one.
             static int expectedGloss(std::uint32_t x, std::size_t channel, std::uint8_t grey)
             {
-                const float u = (float(x) + 0.5f) / float(sExtent);
+                const float u = (static_cast<float>(x) + 0.5f) / static_cast<float>(sExtent);
                 const float second = std::clamp(u * 2.0f - 0.5f, 0.0f, 1.0f);
-                const float gloss[4]{ second, (1.0f - second) + second * float(grey) / 255.0f, 0.0f, 1.0f };
+                const float gloss[4]{ second, (1.0f - second) + second * static_cast<float>(grey) / 255.0f, 0.0f,
+                    1.0f };
                 return static_cast<int>(std::lround(gloss[channel] * 255.0f));
             }
         };

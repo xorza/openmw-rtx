@@ -20,8 +20,6 @@
 #include <apps/components_tests/rtx/support/testtexture.hpp>
 #include <apps/components_tests/rtx/support/wavemoments.hpp>
 #include <components/rtx/common/index.hpp>
-#include <components/rtx/environment/wavecascade.hpp>
-#include <components/rtx/environment/wavespectrum.hpp>
 #include <components/rtx/frame/camera.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/scene/material.hpp>
@@ -33,6 +31,8 @@
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtx/world/frameworld.hpp>
+#include <components/rtx/world/wavecascade.hpp>
+#include <components/rtx/world/wavespectrum.hpp>
 #include <components/rtxvulkan/shaders/shared/ripple.h>
 #include <components/vfs/pathutil.hpp>
 
@@ -405,18 +405,19 @@ namespace Rtx::Testing
             // twelfth of a second. The margin also keeps every shifted read inside the frame rather
             // than wrapping, since the two fields are the same patch of bed.
             constexpr int sweep = 3;
-            constexpr int inside = int(size) - 2 * sweep;
+            constexpr int inside = static_cast<int>(size) - 2 * sweep;
             const auto newAfter = [&](int across, int down) {
                 float apart = 0.0f;
-                for (int y = sweep; y < int(size) - sweep; ++y)
-                    for (int x = sweep; x < int(size) - sweep; ++x)
+                for (int y = sweep; y < static_cast<int>(size) - sweep; ++y)
+                    for (int x = sweep; x < static_cast<int>(size) - sweep; ++x)
                     {
-                        const float gap
-                            = later[std::size_t(y + down) * size + (x + across)] - shallow[std::size_t(y) * size + x];
+                        const float gap = later[static_cast<std::size_t>(y + down) * size + (x + across)]
+                            - shallow[static_cast<std::size_t>(y) * size + x];
                         apart += gap * gap;
                     }
 
-                return 0.5f * apart / spread * float(count) / (float(inside) * float(inside));
+                return 0.5f * apart / spread * static_cast<float>(count)
+                    / (static_cast<float>(inside) * static_cast<float>(inside));
             };
 
             const float unshifted = newAfter(0, 0);

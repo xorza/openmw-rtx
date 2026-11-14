@@ -283,11 +283,11 @@ namespace RtxTool
             "--against={} is where this run writes; name another --out", Files::pathToUnicodeString(against)) };
     }
 
-    int compareRuns(const PictureShelf& drawn, const std::filesystem::path& wrote, const std::filesystem::path& against,
-        const std::span<const WrittenPicture> pictures)
+    ExitStatus compareRuns(const PictureShelf& drawn, const std::filesystem::path& wrote,
+        const std::filesystem::path& against, const std::span<const WrittenPicture> pictures)
     {
         if (against.empty())
-            return 0;
+            return ExitStatus::Passed;
 
         Debug::getRawStdout() << std::format("{} {} against {}\n", pictures.size(),
             pictures.size() == 1 ? "picture" : "pictures", Files::pathToUnicodeString(against));
@@ -296,7 +296,7 @@ namespace RtxTool
         if (pictures.empty())
         {
             Debug::getRawStdout() << "  this run drew no picture to compare\n";
-            return 1;
+            return ExitStatus::Failed;
         }
 
         std::uint32_t moved = 0;
@@ -340,12 +340,12 @@ namespace RtxTool
             Debug::getRawStdout() << std::format("  {}{}{}\n",
                 noisy == 0 ? "every picture judged here is the same" : "no picture judged here moved", noiseNote,
                 hashNote);
-            return 0;
+            return ExitStatus::Passed;
         }
 
         Debug::getRawStdout() << std::format("  {} of {} pictures moved, {} had nothing to compare against{}{}\n",
             moved, judged, unmatched, noiseNote, hashNote);
 
-        return 1;
+        return unmatched > 0 ? ExitStatus::Failed : ExitStatus::Differed;
     }
 }

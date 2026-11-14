@@ -27,8 +27,6 @@
 #include <apps/components_tests/rtx/support/testtexture.hpp>
 #include <apps/components_tests/rtxvulkan/support/device/harness.hpp>
 #include <components/rtx/common/runs.hpp>
-#include <components/rtx/environment/wavecascade.hpp>
-#include <components/rtx/environment/wavespectrum.hpp>
 #include <components/rtx/frame/camera.hpp>
 #include <components/rtx/frame/debuglines.hpp>
 #include <components/rtx/frame/frameoptions.hpp>
@@ -47,6 +45,8 @@
 #include <components/rtx/world/frameworld.hpp>
 #include <components/rtx/world/moon.hpp>
 #include <components/rtx/world/sunglare.hpp>
+#include <components/rtx/world/wavecascade.hpp>
+#include <components/rtx/world/wavespectrum.hpp>
 #include <components/rtxvulkan/scene/sceneacceleration.hpp>
 #include <components/rtxvulkan/scene/scenebuffers.hpp>
 #include <components/rtxvulkan/scene/skinpass.hpp>

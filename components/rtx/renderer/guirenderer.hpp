@@ -71,6 +71,8 @@ namespace Rtx
 
         GuiRenderer(const GuiRenderer&) = delete;
         GuiRenderer& operator=(const GuiRenderer&) = delete;
+        GuiRenderer(GuiRenderer&&) = delete;
+        GuiRenderer& operator=(GuiRenderer&&) = delete;
 
         /// What the last `Renderer::resize` settled on: the interface is laid out over the output
         /// extent, and a camera has to be built for the render extent.

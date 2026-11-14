@@ -6,6 +6,7 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include <volk.h>
 
@@ -65,6 +66,9 @@ namespace Rtx
 
         ShaderCode(const ShaderCode&) = delete;
         ShaderCode& operator=(const ShaderCode&) = delete;
+        ShaderCode(ShaderCode&&) = delete;
+        ShaderCode& operator=(ShaderCode&&) = delete;
+        ~ShaderCode() = default;
 
         /// What the `pNext` of a stage that runs `module`, one this read, points at, valid while
         /// this lives.
@@ -101,7 +105,11 @@ namespace Rtx
         struct Read
         {
             std::string mModule;
+
+            /// The set's words, or `mRewritten`'s where the driver is handed other words than the set holds
+            /// (`DriverProfile::mReconvergesRayQueries`).
             std::span<const std::uint32_t> mWords;
+            std::vector<std::uint32_t> mRewritten{};
             ModuleInterface mInterface;
             VkDebugUtilsObjectNameInfoEXT mNamed{};
             VkShaderModuleCreateInfo mCreate{};

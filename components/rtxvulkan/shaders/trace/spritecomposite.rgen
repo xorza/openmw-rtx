@@ -62,8 +62,7 @@ float surfaceDepthAt(uvec2 traced, uvec2 extent, uvec2 tracedExtent)
     const Camera camera = picture.mShown.mWorld;
     const vec2 centre = (vec2(traced) + 0.5) * vec2(extent) / vec2(tracedExtent) - 0.5;
     const Ray ray = rayAt(camera, centre);
-    const float distance = surfaceWithin(WorldRay(frame.mOrigin + ray.mOffset, ray.mDirection), 0.0, frame.mFar,
-        coneAt(camera), RayRule(worldMask(frame.mRayMask), MEET_WALK_PAST, true));
+    const float distance = eyeViewEnds(WorldRay(frame.mOrigin + ray.mOffset, ray.mDirection), coneAt(camera));
 
     return distance * dot(ray.mDirection, camera.mBasis.mForward);
 }

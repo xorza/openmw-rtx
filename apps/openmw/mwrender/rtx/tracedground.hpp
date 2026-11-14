@@ -9,6 +9,11 @@
 
 #include "tracedterrain.hpp"
 
+namespace Rtx
+{
+    class CellRing;
+}
+
 namespace Resource
 {
     class SceneManager;
@@ -24,8 +29,6 @@ namespace MWRender
     bool standsAway(
         bool sameWorldspace, const ESM::Position& standing, const ESM::Position& placed, ESM::RefId worldspace);
 
-    class WorldMirror;
-
     /// The ground and the distance as the ray tracer has them: a `TracedTerrain` that draws no
     /// chunks, and the mirror's cell ring, which stands the distant statics itself. What the game
     /// says of a reference reaches the ring through this and the mirror, the way it reaches the
@@ -34,7 +37,7 @@ namespace MWRender
     {
     public:
         TracedGround(
-            const GroundSpec& spec, Resource::SceneManager& scenes, unsigned int nodeMask, WorldMirror& mirror);
+            const GroundSpec& spec, Resource::SceneManager& scenes, unsigned int nodeMask, Rtx::CellRing& ring);
 
         Terrain::World& getTerrain() override { return mTerrain; }
 
@@ -59,7 +62,7 @@ namespace MWRender
     private:
         TracedTerrain mTerrain;
 
-        /// Borrowed: the renderer that made this owns the mirror, and outlives it.
-        WorldMirror& mMirror;
+        /// Borrowed: the renderer that made this owns the mirror the ring stands in, and outlives it.
+        Rtx::CellRing& mRing;
     };
 }

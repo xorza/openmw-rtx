@@ -105,14 +105,16 @@ namespace Rtx
                 }
         }
 
-        const double texels = double(level.mWidth) * level.mHeight;
+        const double texels = static_cast<double>(level.mWidth) * level.mHeight;
         total /= texels;
         whole /= texels;
 
         return MeanTexel{
-            .mColour = osg::Vec3f(float(total.x()), float(total.y()), float(total.z())),
-            .mWhole = osg::Vec3f(float(whole.x()), float(whole.y()), float(whole.z())),
-            .mAlpha = float(covered / texels),
+            .mColour
+            = osg::Vec3f(static_cast<float>(total.x()), static_cast<float>(total.y()), static_cast<float>(total.z())),
+            .mWhole
+            = osg::Vec3f(static_cast<float>(whole.x()), static_cast<float>(whole.y()), static_cast<float>(whole.z())),
+            .mAlpha = static_cast<float>(covered / texels),
         };
     }
 }

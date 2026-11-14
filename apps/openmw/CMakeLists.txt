@@ -678,12 +678,14 @@ target_sources(
         mwrender/rtx/classmasks.cpp
         mwrender/rtx/contentmodels.cpp
         mwrender/rtx/debugwalk.cpp
+        mwrender/rtx/framereader.cpp
         mwrender/rtx/frametimer.cpp
         mwrender/rtx/rippleemitters.cpp
         mwrender/rtx/rtxbackend.cpp
         mwrender/rtx/rtxrenderer.cpp
         mwrender/rtx/rtxrun.cpp
         mwrender/rtx/rtxsettings.cpp
+        mwrender/rtx/rtxstart.cpp
         mwrender/rtx/rtxsupport.cpp
         mwrender/rtx/rtxwindow.cpp
         mwrender/rtx/skyreader.cpp
@@ -770,6 +772,7 @@ target_sources(
                 mwrender/rtx/classmasks.hpp
                 mwrender/rtx/contentmodels.hpp
                 mwrender/rtx/debugwalk.hpp
+                mwrender/rtx/framereader.hpp
                 mwrender/rtx/framereport.hpp
                 mwrender/rtx/frametimer.hpp
                 mwrender/rtx/mirrorknobs.hpp
@@ -779,6 +782,7 @@ target_sources(
                 mwrender/rtx/rtxrenderer.hpp
                 mwrender/rtx/rtxrun.hpp
                 mwrender/rtx/rtxsettings.hpp
+                mwrender/rtx/rtxstart.hpp
                 mwrender/rtx/rtxsupport.hpp
                 mwrender/rtx/rtxwindow.hpp
                 mwrender/rtx/skyreader.hpp

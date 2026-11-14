@@ -8,7 +8,7 @@
 // reason `visibility.h` is.
 //
 // **The probe is the build's pinning put to the device.** `pinning.comp` computes each operation
-// `Rtx::pinFloatArithmetic` rewrites, the host computes the order the rewrite states with one
+// `Rtx::pinModule` rewrites, the host computes the order the rewrite states with one
 // rounding per step, and the two have to agree to the bit — which they do only where the device
 // keeps every `NoContraction` step apart.
 //

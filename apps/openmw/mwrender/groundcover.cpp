@@ -10,7 +10,6 @@
 #include <osg/VertexAttribDivisor>
 #include <osgUtil/CullVisitor>
 
-#include <components/crashcatcher/crash.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/loadland.hpp>
@@ -65,7 +64,7 @@ namespace MWRender
 
             bool cull(osg::NodeVisitor* nv, osg::Drawable* drawable, osg::RenderInfo* renderInfo) const override
             {
-                osgUtil::CullVisitor& cullVisitor = *Crash::notNull(nv->asCullVisitor(), "a cull by no cull visitor");
+                osgUtil::CullVisitor& cullVisitor = *nv->asCullVisitor();
                 osg::CullSettings::ComputeNearFarMode cnfMode = cullVisitor.getComputeNearFarMode();
                 const osg::BoundingBox& boundingBox = drawable->getBoundingBox();
                 osg::RefMatrix& matrix = *cullVisitor.getModelViewMatrix();

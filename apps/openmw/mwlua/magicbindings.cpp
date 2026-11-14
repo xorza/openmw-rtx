@@ -2,7 +2,6 @@
 
 #include <format>
 
-#include <components/crashcatcher/crash.hpp>
 #include <components/esm3/activespells.hpp>
 #include <components/esm3/loadalch.hpp>
 #include <components/esm3/loadarmo.hpp>
@@ -161,7 +160,7 @@ namespace MWLua
     template <class Record>
     static const ESM::RefId& idOf(const sol::object& object)
     {
-        return Crash::notNull(object.as<const Record*>(), "a record Lua holds as nil")->mId;
+        return object.as<const Record*>()->mId;
     }
 
     static ESM::RefId toSpellId(const sol::object& spellOrId)

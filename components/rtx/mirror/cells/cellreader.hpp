@@ -1,12 +1,13 @@
 #pragma once
 
+#include <functional>
 #include <memory>
 #include <string_view>
 #include <utility>
 #include <vector>
 
-#include <boost/container/flat_map.hpp>
 #include <boost/container/flat_set.hpp>
+#include <boost/unordered/unordered_flat_map.hpp>
 #include <osg/Node>
 #include <osg/Vec2i>
 #include <osg/Vec3f>
@@ -136,6 +137,9 @@ namespace Rtx
         bool mStatics;
 
         GroundReader mGround;
+
+        /// What this thread computes from the content, its every read reaching the store's files.
+        ThreadContent mComputed;
         TemplateWalk mWalk;
 
         /// What the storage reads this reader's cells with, kept from one cell to the next.
@@ -170,12 +174,13 @@ namespace Rtx
         /// The model path each record names, as `readModel` files it — empty where the record
         /// names none. Built the first time a reference to the record is met and kept for the
         /// reader's life, because a record's model does not change and building the path is two
-        /// strings, which every static reference of every cell read would otherwise pay.
-        boost::container::flat_map<ESM::RefId, VFS::Path::Normalized> mModelPaths;
+        /// strings, which every static reference of every cell read would otherwise pay. Hashed and not sorted, as
+        /// `CellHolds` is: a sorted vector shifted its paths at each of the thousands of records a session meets.
+        boost::unordered_flat_map<ESM::RefId, VFS::Path::Normalized, std::hash<ESM::RefId>> mModelPaths;
 
         /// Where each lamp record's light stands, found the first time a reference to it is met
         /// and kept for the same reason: apart from the model's reading, because the light is
         /// carried whether or not the statics are read.
-        boost::container::flat_map<ESM::RefId, osg::Vec3f> mAnchors;
+        boost::unordered_flat_map<ESM::RefId, osg::Vec3f, std::hash<ESM::RefId>> mAnchors;
     };
 }

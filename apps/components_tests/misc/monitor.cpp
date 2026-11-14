@@ -55,7 +55,10 @@ namespace Misc
 
             void give(int one)
             {
-                mMonitor.give([&] { mPending.push_back(one); });
+                EXPECT_TRUE(mMonitor.give([&] {
+                    mPending.push_back(one);
+                    return true;
+                }));
             }
 
             /// Waits for `count` and answers them.
@@ -150,7 +153,8 @@ namespace Misc
 
         /// **A wait for what nothing will hand over ends, and says so.** With no worker serving it
         /// answers at once; with one that finished everything it was given and waits idle, as soon
-        /// as the worker has looked; with what it waited for, true.
+        /// as the worker has looked, and still after a give whose write gave nothing; with what it
+        /// waited for, true.
         TEST(MonitorTest, aWaitEndsWhereNoWorkerCanHelp)
         {
             Served unserved;
@@ -162,6 +166,9 @@ namespace Misc
             EXPECT_TRUE(served.mMonitor.await([&] { return !served.mDone.empty(); }));
             EXPECT_FALSE(served.mMonitor.await([&] { return served.mDone.size() >= 2; }))
                 << "the worker is idle with nothing given";
+            EXPECT_FALSE(served.mMonitor.give([] { return false; }));
+            EXPECT_FALSE(served.mMonitor.await([&] { return served.mDone.size() >= 2; }))
+                << "a give that gave nothing woke the worker out of its idleness";
         }
 
         /// **A worker in a turn is not idle**, so a wait goes on while it works rather than taking

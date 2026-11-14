@@ -17,6 +17,6 @@ namespace Rtx
     /// defines is named by where it is defined. What has no order is sorted. The digest is `MurmurHash3_x64_128`'s, as
     /// `digestShaders`' is. Instructions and not values; debug instructions are skipped.
     ///
-    /// Throws `std::runtime_error` for a line it cannot read and for an id nothing defines, naming it.
+    /// Throws `Rtx::InputError` for a line it cannot read and for an id nothing defines, naming it.
     Misc::DigestWords digestProgram(std::string_view disassembly);
 }

@@ -13,6 +13,7 @@
 #include <components/rtx/common/cardaddress.hpp>
 
 #include "amdgpu.hpp"
+#include "cardsample.hpp"
 #include "gpuclock.hpp"
 #include "nvml.hpp"
 
@@ -100,6 +101,18 @@ namespace RtxTool
         CardReading mPlace;
     };
 
+    /// A card no instrument reads, and why: no clock, no samples, as `Nvml` and `AmdGpu` answer the same calls.
+    struct UnreadCard
+    {
+        std::string_view mWhy;
+
+        GpuClock readClock() const { return GpuClock{}; }
+        std::string_view describeUnsampled() const { return mWhy; }
+        bool hasSamples() const { return false; }
+        void readSamples(std::vector<CardSample>& into) const { into.clear(); }
+        void nameProcess(std::uint32_t /*pid*/, std::string& into) const { into.clear(); }
+    };
+
     /// The card through a run, on a thread of its own: its clock across a place's frames, and
     /// who held it through every window of the run.
     ///
@@ -159,8 +172,9 @@ namespace RtxTool
         void open(const Rtx::CardAddress& card);
 
         /// Where the clock is read: NVML for an NVIDIA card, amdgpu's sysfs files for an AMD one, or
-        /// why no reader reads the card. The holders are NVML's alone, `AmdGpu` says why.
-        std::variant<std::string_view, Nvml, AmdGpu> mReader{ std::string_view("no card was named") };
+        /// why no reader reads the card. Each answers the same calls, and the holders are NVML's
+        /// alone, which the others say why. Chosen once, by `open`.
+        std::variant<UnreadCard, Nvml, AmdGpu> mReader{ UnreadCard{ "no card was named" } };
 
         /// The lock over everything below but the worker.
         Misc::Monitor mMonitor;

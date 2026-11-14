@@ -41,7 +41,6 @@
 #include <iterator>
 #include <cassert>
 
-#include <components/crashcatcher/crash.hpp>
 #include <components/sceneutil/depth.hpp>
 
 // NOLINTBEGIN(readability-identifier-naming)
@@ -448,7 +447,7 @@ void CollectLowestTransformsVisitor::doTransform(osg::Object* obj,osg::Matrix& m
         for(unsigned int i=0;i<billboard->getNumDrawables();++i)
         {
             billboard->setPosition(i,billboard->getPosition(i)*matrix);
-            osg::Drawable* child = Crash::notNull(billboard->getDrawable(i), "a billboard child that is not drawable");
+            osg::Drawable* child = billboard->getDrawable(i);
             child->accept(tf);
             child->dirtyBound();
         }
@@ -2061,6 +2060,7 @@ void Optimizer::MergeGroupsVisitor::apply(osg::Group &group)
         typedef std::map<osg::StateSet*, std::size_t, LessStateContent> GroupMap;
         GroupMap groupIndex;
         std::vector<std::vector<osg::Group*> > childOrder;
+        std::set<osg::Group*> named;
         for (unsigned int i=0; i<group.getNumChildren(); ++i)
         {
             osg::Node* child = group.getChild(i);
@@ -2073,9 +2073,8 @@ void Optimizer::MergeGroupsVisitor::apply(osg::Group &group)
                     childOrder.push_back(std::vector<osg::Group*>());
 
                 // Named once however many times it is a child, or the merge below would empty it into itself
-                std::vector<osg::Group*>& sharing = childOrder[found.first->second];
-                if (std::find(sharing.begin(), sharing.end(), childGroup) == sharing.end())
-                    sharing.push_back(childGroup);
+                if (named.insert(childGroup).second)
+                    childOrder[found.first->second].push_back(childGroup);
             }
         }
 

@@ -4,11 +4,11 @@
 #include <string>
 #include <utility>
 
-#include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/requirements.hpp>
 
 #include "barriers.hpp"
+#include "batch.hpp"
 #include "imageuse.hpp"
 #include "memory.hpp"
 

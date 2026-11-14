@@ -53,6 +53,7 @@
 #include <components/rtx/shaders/tangent.h>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtxvulkan/device/commands.hpp>
+#include <components/rtxvulkan/device/memory/batch.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/scene/scenebuffers.hpp>
 #include <components/rtxvulkan/shaders/shared/ground.h>

@@ -49,7 +49,7 @@ namespace Rtx
     /// `checkVk` for a wait that was given `patience`: `VK_TIMEOUT` is `deviceFailed` under a
     /// message of its own, because it is the one that says nothing about what the device thought
     /// was wrong — only that it stopped saying anything at all. The buffer markers say where the
-    /// queue stands (`Device::describeMarkers`).
+    /// queue stands (`FaultReport::describeMarkers`).
     void checkVkWait(const Device& device, VkResult result, const char* what, std::uint64_t patience);
 
     /// Waits for `fence`, and ends the process through `deviceFailed` naming `what` if the device

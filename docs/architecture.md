@@ -104,7 +104,6 @@ machine every entry point asserts.
 - **World events take one phase rule** (`expectWorldEvent`): between frames or from the run's hook.
 - **Jumps are told by stable identity, sorted** (`SceneUtil::StableIdentity`). Refused: the node's address, which a
   new node can reuse.
-- **Ripple candidates are a bounded max-heap**, the farthest given up for a nearer one.
 - **A played session's frame times are a histogram** of 0.1 to 250 ms (`Rtx::FrameTimeHistogram`), the worst kept
   exactly, logged at each cut and at the end.
 
@@ -153,15 +152,16 @@ another is part of it. `RtxSourceTreeTest` holds the order.
 | `shaders/`          | the structures core C++ and GLSL both read                               |
 | `common/`           | what knows no scene: contracts, results, slots, runs, threads, the clock |
 | `image/`            | a texture file read: its formats, texels, alpha, levels and painted light |
-| `preprocess/`       | `ContentPreprocessor`, its keys, cache and costs; the passes in `shape/` and `texture/` |
 | `scene/`            | `SceneDesc`, its rows and tables, and what makes textures of it          |
+| `preprocess/`       | `ContentPreprocessor`, its keys, cache and costs; the passes in `shape/` and `texture/` |
 | `frame/`            | what a frame is asked for and sampled with: the camera, the reconstruction |
-| `world/`            | the sky, the air and the water a frame is told                           |
+| `world/`            | the sky, the air and the water a frame is told, and the sea's waves      |
 | `renderer/`         | `Rtx::Renderer` and what it hands, reports and writes                    |
 | `mirror/`           | the walk from the scene graph, how it reads a surface and a lamp; the cell ring in `cells/` |
 | `prepare/`          | the loading screen's walk of every model the content names into the store |
-| `environment/`      | the sky read out of the content files, and the sea's waves               |
+| `environment/`      | the sky read out of the content files                                    |
 | `view/`             | the pictures traced away from the eye                                    |
+| `tables/`           | what makes the tables the build computes once and compiles in: the blue noise, the fog's noise, the specular albedo |
 
 - **`Rtx::Renderer`** (`renderer/renderer.hpp`) is one traced image, whichever API makes it; each call is worth a
   whole scene or frame, never an instance or a pixel. Each consumer takes the part it calls: `Rtx::SceneHolder`,
@@ -318,13 +318,17 @@ them.
 | `spirv/`    | the pinning and the kernel digest, a library the build runs                                           |
 | `device/`   | the instance, the device, the timeline, the graveyard; `memory/` for buffers and images               |
 | `pipeline/` | compute, graphics and ray tracing pipelines, and how a dispatch is sized                              |
+| `frame/`    | the G-buffer a frame is traced into, its steps, and the digests and kept texels a test reads          |
 | `texture/`  | the bindless array and the passes a texture is made with as it arrives                                |
 | `scene/`    | `DeviceScene`: its tables, structures, skinning and sprites                                           |
-| `trace/`    | `TraceChain` and its passes, the sea and the fog; the denoiser in `denoise/`                          |
+| `denoise/`  | the denoiser: the accumulator, the wavelet, the shadow's filter and the composite                     |
+| `trace/`    | `TraceChain` and its passes, the sea and the fog                                                      |
 | `upscale/`  | `Upscaler`: FSR 3.1.4, ported, or NVIDIA DLSS Ray Reconstruction through NGX                          |
-| `display/`  | `DisplayChain` and its passes                                                                         |
 | `present/`  | the swapchain and the present                                                                         |
+| `display/`  | `DisplayChain` and its passes                                                                         |
 | `gui/`      | the interface's pass and textures                                                                     |
+
+- **Ripple candidates are a bounded max-heap** (`trace/ripplepass.cpp`), the farthest given up for a nearer one.
 
 ### Device and memory
 
@@ -339,8 +343,12 @@ them.
 - **The loader's entry points, not the device's**: `volkLoadDevice` rebinds the process to one device, which the GPU
   tests' second devices would call through.
 - **The command pool** (`device/commands.hpp`): commands recorded again and again are lent (`LentCommands`), a scope's
-  span to its submit is a `Recording`, setup work with its staging a `Batch`. Refused: a pool a frame slot, which would
-  stop a deferred batch from riding any submit.
+  span to its submit is a `Recording`, setup work with its staging a `Batch` (`device/memory/batch.hpp`) written into
+  the device's staging ring (`device/memory/stagingring.hpp`), which the pool lends. Refused: a pool a frame slot,
+  which would stop a deferred batch from riding any submit. The pool and the clock are the device's thread's,
+  asserted, though the compile hands hold the same device.
+- **What the device says of itself stands beside it**: what its pipelines say (`PipelineReport`) and where a lost
+  queue was (`FaultReport`), each a part the device makes and lends, as its pool and clock are.
 - **The pipeline cache** is a file named for the driver and the shaders, checked by a header of its own before the
   driver sees it, written whole or not at all.
 - **Memory**: what a frame cannot go without is essential and never refused; content (structures, textures) is taken
@@ -352,8 +360,10 @@ them.
   deferred ahead of the submit that reads, as VMA's advanced uploading and D3D12's upload heaps split it. Refused:
   writes mapped into video memory, 0.1 ms faster with resizable BAR and bounded by a window NVIDIA's Windows driver
   budgets at nought (`research/2026-11-10-host-writes-on-three-machines.md`,
-  `research/2026-11-09-host-written-window-on-windows.md`); a shared device copy (Unreal's GPUScene); a transfer
-  queue; a compute scatter, where a copy region a run of rows does.
+  `research/2026-11-09-host-written-window-on-windows.md`); a shared device copy (Unreal's GPUScene), as one copy
+  changes every copy's debt and makes each write wait out the frame before it on the queue, and a frame reads the
+  previous pose copy for its motion: the copy a frame slot stands, for the scene's tables and the interface's vertices
+  alike; a transfer queue; a compute scatter, where a copy region a run of rows does.
 - **What is written once is video memory**: the block address tables, the constant floats, a shader binding table,
   uploaded through a batch deferred ahead of its first launch.
 - **A texture's image and sampler stand apart, paired at each read by the wrap its texel word carries**
@@ -406,7 +416,12 @@ them.
 - **A hazard among NGX's own commands on its own resources is NGX's** (`ValidationLog::disown`): a warning; one naming
   a resource of the renderer's still aborts.
 - **Refused for RR** (`research/2026-11-11-ray-reconstruction-against-super-resolution.md`): water left unblended or
-  split at random, a specular hit distance, the colour before the layers, and the demodulated channels dropped.
+  split at random, and the demodulated channels dropped.
+- **Not handed to RR, and not measured**: a specular hit distance with the world-to-view and view-to-clip
+  matrices, which NVIDIA's guide lists among what RR requires where no specular motion is given (4.1.8, 4.1.9),
+  and the colour before transparency, which it lists as optional
+  (https://github.com/NVIDIAGameWorks/Streamline/blob/main/docs/ProgrammingGuideDLSS_RR.md). The note above holds
+  no row for either; an A/B under the PBR profile is what would decide them.
 
 ### The bounce
 
@@ -433,7 +448,7 @@ them.
 
 ### The denoiser
 
-`trace/denoise/` runs where the renderer filters the frame (`LightFilter::Renderer`), each history held to the frame
+`denoise/`, with its shaders in `shaders/trace/denoise/`, runs where the renderer filters the frame (`LightFilter::Renderer`), each history held to the frame
 before's surfaces (`GBuffer::getHeld`).
 
 - The bounce's diffuse light: an accumulator held to a fast mean (ReLAX's clamp), a spatial variance for a young mean,

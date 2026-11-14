@@ -6,7 +6,6 @@
 #include <osgUtil/CullVisitor>
 #include <osgUtil/RenderBin>
 
-#include <components/crashcatcher/crash.hpp>
 #include <components/debug/debuglog.hpp>
 
 #include <components/misc/rng.hpp>
@@ -339,8 +338,7 @@ namespace MWRender
         {
             osg::State* state = renderInfo.getState();
 
-            PostProcessor* postProcessor = static_cast<PostProcessor*>(
-                Crash::notNull(renderInfo.getCurrentCamera(), "a draw with no camera")->getUserData());
+            PostProcessor* postProcessor = static_cast<PostProcessor*>(renderInfo.getCurrentCamera()->getUserData());
 
             state->applyAttribute(mDepth);
 

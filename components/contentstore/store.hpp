@@ -12,6 +12,7 @@
 #include <string_view>
 #include <unordered_map>
 #include <unordered_set>
+#include <variant>
 #include <vector>
 
 #include <components/misc/bytebuffer.hpp>
@@ -39,6 +40,10 @@ namespace ContentStore
         /// from its file again.
         std::size_t mResidentBytesMost;
 
+        /// The most entries held in memory, whatever their bytes, which the table's buckets are made for at the
+        /// start: a bound by count, as the bytes alone sized the table for an entry of no payload in every byte.
+        std::size_t mResidentCountMost;
+
         /// The most keys a session remembers stamping, past which a hit stamps nothing.
         std::size_t mStampedMost;
     };
@@ -50,6 +55,10 @@ namespace ContentStore
     {
         std::uint32_t mKindCount;
         std::optional<Holding> mHolding;
+
+        /// The most bytes of payload the queue holds, past which a write waits or is dropped (`Store::write`). Tens of
+        /// megabytes against the largest entry an owner makes, so a burst of misses at a cell's arrival queues whole.
+        std::size_t mQueuedBytesMost = std::size_t{ 64 } << 20;
     };
 
     /// What a store did since it was made, for a report and a test.
@@ -80,6 +89,10 @@ namespace ContentStore
 
         /// Temporary files the start's sweep removed that a killed process left.
         std::uint64_t mStale = 0;
+
+        /// Entries not held in memory where they would have been, a cap of `Holding` reached: each is read from its
+        /// file again.
+        std::uint64_t mUnheldInMemory = 0;
     };
 
     /// Where an ask may reach for an entry: the memory the store holds alone, which the frame's thread
@@ -104,10 +117,6 @@ namespace ContentStore
     class Store
     {
     public:
-        /// The most bytes of payload the queue holds, past which a write waits or is dropped (`write`). Tens of
-        /// megabytes against the largest entry an owner makes, so a burst of misses at a cell's arrival queues whole.
-        static constexpr std::size_t sQueuedMost = std::size_t{ 64 } << 20;
-
         /// The longest payload a file may say it holds before it is refused unread: past any owner's
         /// entry, so a trailer a fault wrote cannot ask for gigabytes.
         static constexpr std::uint64_t sPayloadMost = std::uint64_t{ 1 } << 30;
@@ -147,7 +156,7 @@ namespace ContentStore
         bool holds(const Key& key, Reach reach);
 
         /// Files `payload` under `key` as `kind` at `version`, on the store's thread, once the queue has
-        /// room for it, `sQueuedMost`, or is empty: a writer that reaches the disk waits for room, and one
+        /// room for it, `Policy::mQueuedBytesMost`, or is empty: a writer that reaches the disk waits for room, and one
         /// that reaches memory alone drops it, which a later ask answers as a miss.
         void write(const Key& key, std::uint32_t kind, std::uint32_t version, Misc::ByteBuffer payload, Reach reach);
 
@@ -167,22 +176,31 @@ namespace ContentStore
         std::filesystem::path pathOf(const Key& key) const;
 
     private:
-        enum class TaskKind
+        /// What the store's thread is handed: the start's sweep and load, an entry to write, a file to stamp
+        /// for this session (one a key, `Holding::mStampedMost` at most), or a file to refuse.
+        struct StartTask
         {
-            Start,
-            Write,
-            Stamp,
-            Discard,
         };
 
-        struct Task
+        struct WriteTask
         {
-            TaskKind mKind;
-            Key mKey{};
-            std::uint32_t mEntryKind = 0;
-            std::uint32_t mVersion = 0;
-            Misc::ByteBuffer mPayload{};
+            Key mKey;
+            std::uint32_t mKind;
+            std::uint32_t mVersion;
+            Misc::ByteBuffer mPayload;
         };
+
+        struct StampTask
+        {
+            Key mKey;
+        };
+
+        struct DiscardTask
+        {
+            Key mKey;
+        };
+
+        using Task = std::variant<StartTask, WriteTask, StampTask, DiscardTask>;
 
         /// What an entry is: its kind and version, which an ask holds against its own, and its payload. Shared and
         /// never changed, so a reader takes it under the lock and copies it after, and an entry replaced or discarded
@@ -198,13 +216,18 @@ namespace ContentStore
         void run(Task& task);
         /// The start's work: the sweep of stale temporaries, and the small entries loaded into memory.
         void start();
-        void writeFile(const Task& task);
+        void writeFile(const WriteTask& task);
         void stampFile(const Key& key);
 
         /// Reads the file at `path` for `key` into `kind`, `version` and `payload`, answering whether
         /// it was whole; refuses and deletes it where it was not. Nothing where there is no file.
         bool readFile(const std::filesystem::path& path, const Key& key, std::uint32_t& kind, std::uint32_t& version,
             Misc::ByteBuffer& payload);
+
+        /// Whether an entry of `kind` and `payloadBytes` ranks what the start loads into memory, which its file's time
+        /// decides: a small one of a kind not held at any size. Only such a file is stamped, since nothing else reads a
+        /// file's time.
+        bool ranks(std::uint32_t kind, std::size_t payloadBytes) const;
 
         /// Whether a hit on `key` stamps its file now: true the first time this session, which notes the
         /// key, and false after it; false for a key met once `Holding::mStampedMost` keys are noted, since no

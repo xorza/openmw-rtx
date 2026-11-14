@@ -12,6 +12,7 @@
 #include <components/crashcatcher/crash.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 
+#include "faultreport.hpp"
 #include "physicaldevice.hpp"
 #include "result.hpp"
 #include "zonecounters.hpp"
@@ -110,7 +111,7 @@ namespace Rtx
         const auto first = static_cast<std::uint32_t>(mZones.size()) * 2;
         const Zone& opened = mZones.emplace_back(
             Zone{ .mCheckpoint = Checkpoint{ .mName = name, .mFrame = mFrame }, .mZone = zone, .mFirstQuery = first });
-        mDevice.checkpoint(commands, &opened.mCheckpoint);
+        mDevice.getFaults().checkpoint(commands, &opened.mCheckpoint);
 
         if (!mTimes)
             return;

@@ -60,7 +60,7 @@ namespace Rtx
         /// The frame's, which every measurement reads before it writes.
         Buffer mExposure;
 
-        /// Host memory written once and never again, so a picture costs no write and no barrier.
+        /// Written once at the making and never again, so a picture costs no write and no barrier.
         Buffer mPicture;
     };
 }

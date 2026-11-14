@@ -11,8 +11,6 @@
 
 #include <components/esm/refid.hpp>
 
-Q_MOC_INCLUDE("apps/opencs/model/doc/document.hpp")
-
 class QTableWidget;
 class QDragEnterEvent;
 class QDropEvent;

@@ -1,5 +1,8 @@
 #include "skysheet.hpp"
 
+#include <string>
+
+#include <components/misc/result.hpp>
 #include <components/rtx/image/imagedescription.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/refusals.hpp>
@@ -7,21 +10,15 @@
 
 namespace Rtx
 {
-    TextureHold takeSkySheet(SceneDesc& scene, const VFS::Path::NormalizedView path,
-        const Result<osg::ref_ptr<const osg::Image>, std::string>& image, const TextureWrap wrap)
+    TextureHold takeSkySheet(
+        SceneDesc& scene, const VFS::Path::NormalizedView path, const osg::Image& image, const TextureWrap wrap)
     {
-        if (!image.isOk())
-        {
-            scene.refusals().refuse(Refused::SkyLayer, path.value(), image.error());
-            return TextureHold{};
-        }
-
-        if (const Result<void, std::string> uploadable = checkUploadable(*image.value()); !uploadable.isOk())
+        if (const Result<void, std::string> uploadable = checkUploadable(image); !uploadable.isOk())
         {
             scene.refusals().refuse(Refused::SkyLayer, path.value(), uploadable.error());
             return TextureHold{};
         }
 
-        return scene.takeTexture(path, *image.value(), wrap);
+        return scene.takeTexture(path, image, wrap);
     }
 }

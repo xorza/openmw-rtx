@@ -30,6 +30,7 @@ namespace Rtx
     DriverProfile DriverProfile::of(const std::uint32_t vendorId, const VkDriverId driver)
     {
         return DriverProfile{ .mNgx = Platform::Gpu::vendorOf(vendorId) == Platform::Gpu::Vendor::Nvidia,
-            .mStatistics = statisticNamesOf(driver) };
+            .mStatistics = statisticNamesOf(driver),
+            .mReconvergesRayQueries = driver != VK_DRIVER_ID_AMD_PROPRIETARY };
     }
 }

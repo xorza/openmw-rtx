@@ -12,13 +12,10 @@
 
 #include <apps/components_tests/rtxvulkan/support/device/harness.hpp>
 #include <apps/components_tests/rtxvulkan/support/device/hostwritten.hpp>
+#include <apps/components_tests/rtxvulkan/support/device/probekernel.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
-#include <components/rtxvulkan/device/memory/barriers.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
-#include <components/rtxvulkan/device/memory/imageuse.hpp>
-#include <components/rtxvulkan/pipeline/computepipeline.hpp>
-#include <components/rtxvulkan/pipeline/dispatch.hpp>
 #include <components/rtxvulkan/shaders/shared/sharedexponent.h>
 
 namespace Rtx
@@ -37,16 +34,6 @@ namespace Rtx
             Packed pack(std::span<const osg::Vec3f> colours)
             {
                 const Device& device = getDevice();
-                constexpr std::array<VkDescriptorSetLayoutBinding, 3> bindings{
-                    VkDescriptorSetLayoutBinding{ Shaders::SHARED_EXPONENT_BIND_COLOURS,
-                        VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
-                    VkDescriptorSetLayoutBinding{ Shaders::SHARED_EXPONENT_BIND_PACKED,
-                        VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
-                    VkDescriptorSetLayoutBinding{ Shaders::SHARED_EXPONENT_BIND_UNPACKED,
-                        VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr }
-                };
-                const ComputePipeline<Shaders::SharedExponentConstants> pipeline(
-                    device, bindings, {}, "sharedexponent.comp.spv", "shared exponent");
                 const auto count = static_cast<std::uint32_t>(colours.size());
 
                 const Buffer in = Testing::hostWritten(getPool(), colours, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
@@ -55,19 +42,11 @@ namespace Rtx
                 const Buffer out = Buffer::readBack(
                     device, colours.size_bytes(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "shared exponent unpacked");
 
-                DescriptorWrites writes(pipeline);
-                const auto bind = [&](std::uint32_t binding, const Buffer& buffer) {
-                    writes.buffer(binding, VkDescriptorBufferInfo{ buffer.getHandle(), 0, VK_WHOLE_SIZE });
-                };
-                bind(Shaders::SHARED_EXPONENT_BIND_COLOURS, in);
-                bind(Shaders::SHARED_EXPONENT_BIND_PACKED, words);
-                bind(Shaders::SHARED_EXPONENT_BIND_UNPACKED, out);
-
-                getPool().submitAndWait([&](VkCommandBuffer commands) {
-                    dispatch(commands, pipeline, writes, Shaders::SharedExponentConstants{ .mCount = count },
-                        Groups::along(count, Shaders::SHARED_EXPONENT_WORKGROUP));
-                    handOver(commands, Use::sBufferComputeWrite, Use::sBufferHostRead);
-                });
+                const std::array buffers{ Testing::ProbeBuffer{ Shaders::SHARED_EXPONENT_BIND_COLOURS, &in },
+                    Testing::ProbeBuffer{ Shaders::SHARED_EXPONENT_BIND_PACKED, &words },
+                    Testing::ProbeBuffer{ Shaders::SHARED_EXPONENT_BIND_UNPACKED, &out } };
+                Testing::runProbe(getPool(), "sharedexponent.comp.spv", buffers,
+                    Shaders::SharedExponentConstants{ .mCount = count }, count, Shaders::SHARED_EXPONENT_WORKGROUP);
 
                 const auto* wordsOut = static_cast<const std::uint32_t*>(words.map());
                 const auto* coloursOut = static_cast<const osg::Vec3f*>(out.map());

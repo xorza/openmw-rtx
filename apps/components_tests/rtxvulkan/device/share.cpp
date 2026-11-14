@@ -10,13 +10,10 @@
 
 #include <apps/components_tests/rtxvulkan/support/device/harness.hpp>
 #include <apps/components_tests/rtxvulkan/support/device/hostwritten.hpp>
+#include <apps/components_tests/rtxvulkan/support/device/probekernel.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
-#include <components/rtxvulkan/device/memory/barriers.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
-#include <components/rtxvulkan/device/memory/imageuse.hpp>
-#include <components/rtxvulkan/pipeline/computepipeline.hpp>
-#include <components/rtxvulkan/pipeline/dispatch.hpp>
 #include <components/rtxvulkan/shaders/shared/share.h>
 
 namespace Rtx
@@ -36,17 +33,6 @@ namespace Rtx
         TEST_F(RtxShareTest, aTermIsItsValueInTwentyBitsAndAPastTermIsClamped)
         {
             const Device& device = getDevice();
-            constexpr std::array<VkDescriptorSetLayoutBinding, 3> bindings{
-                VkDescriptorSetLayoutBinding{ Shaders::SHARE_PROBE_BIND_VALUES, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1,
-                    VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
-                VkDescriptorSetLayoutBinding{ Shaders::SHARE_PROBE_BIND_TERMS, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1,
-                    VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
-                VkDescriptorSetLayoutBinding{ Shaders::SHARE_PROBE_BIND_SUMS, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1,
-                    VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
-            };
-            const ComputePipeline<Shaders::ShareProbeConstants> pipeline(
-                device, bindings, {}, "share.comp.spv", "share probe");
-
             constexpr std::array<float, 10> values{ 0.0f, 1.0f, 0.5f, 3.25f, 4095.0f, 4096.0f, 1.0e9f, -1.0f,
                 std::numeric_limits<float>::quiet_NaN(), std::numeric_limits<float>::infinity() };
             constexpr std::uint32_t sMost = 4294967040u;
@@ -64,18 +50,11 @@ namespace Rtx
             const Buffer sumsOut = Buffer::readBack(
                 device, count * sizeof(std::uint32_t), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "share probe sums");
 
-            DescriptorWrites writes(pipeline);
-            writes.buffer(Shaders::SHARE_PROBE_BIND_VALUES, VkDescriptorBufferInfo{ in.getHandle(), 0, VK_WHOLE_SIZE });
-            writes.buffer(
-                Shaders::SHARE_PROBE_BIND_TERMS, VkDescriptorBufferInfo{ termsOut.getHandle(), 0, VK_WHOLE_SIZE });
-            writes.buffer(
-                Shaders::SHARE_PROBE_BIND_SUMS, VkDescriptorBufferInfo{ sumsOut.getHandle(), 0, VK_WHOLE_SIZE });
-
-            getPool().submitAndWait([&](VkCommandBuffer commands) {
-                dispatch(commands, pipeline, writes, Shaders::ShareProbeConstants{ .mCount = count },
-                    Groups::along(count, Shaders::SHARE_PROBE_WORKGROUP));
-                handOver(commands, Use::sBufferComputeWrite, Use::sBufferHostRead);
-            });
+            const std::array buffers{ Testing::ProbeBuffer{ Shaders::SHARE_PROBE_BIND_VALUES, &in },
+                Testing::ProbeBuffer{ Shaders::SHARE_PROBE_BIND_TERMS, &termsOut },
+                Testing::ProbeBuffer{ Shaders::SHARE_PROBE_BIND_SUMS, &sumsOut } };
+            Testing::runProbe(getPool(), "share.comp.spv", buffers, Shaders::ShareProbeConstants{ .mCount = count },
+                count, Shaders::SHARE_PROBE_WORKGROUP);
 
             const auto* termsRead = static_cast<const std::uint32_t*>(termsOut.map());
             const auto* sumsRead = static_cast<const std::uint32_t*>(sumsOut.map());

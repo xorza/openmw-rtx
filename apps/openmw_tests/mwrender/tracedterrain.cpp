@@ -29,6 +29,8 @@
 #include <components/resource/niffilemanager.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/rtx/frame/debuglines.hpp>
+#include <components/sceneutil/morphgeometry.hpp>
+#include <components/sceneutil/riggeometry.hpp>
 #include <components/sceneutil/userdata.hpp>
 #include <components/terrain/view.hpp>
 #include <components/vfs/manager.hpp>
@@ -136,7 +138,7 @@ namespace MWRender
             Stood mStood;
 
             // The borders' shaders are the rasterizer's, and an empty archive holds none of them.
-            Making() { mScenes.setModelPrograms(Resource::ModelPrograms::Left); }
+            Making() { mScenes.setModelPrograms(Resource::ModelPrograms::Omitted); }
 
             TracedTerrain make()
             {
@@ -378,6 +380,73 @@ namespace MWRender
             ground.loadCell(4, 0);
             EXPECT_TRUE(metAlong(*making.mSceneRoot, from, to, Mask_Static).empty())
                 << "the ring answered a loaded cell";
+        }
+
+        /// The drawables a cast was handed, as the game's visitor is handed each to pose before it meets it
+        /// (`Renderer::poseForIntersection`).
+        class HandedDrawables final : public osgUtil::IntersectionVisitor
+        {
+        public:
+            using osgUtil::IntersectionVisitor::IntersectionVisitor;
+
+            void apply(osg::Drawable& drawable) override
+            {
+                mHanded.push_back(&drawable);
+                osgUtil::IntersectionVisitor::apply(drawable);
+            }
+
+            std::vector<const osg::Drawable*> mHanded;
+        };
+
+        /// **A deforming part the ring stands is met by its source geometry**, never handed to the visitor as
+        /// itself: the game's visitor would pose it, writing arrays every reference of the model shares and the
+        /// ring's reader threads read. A morphed and a skinned quad of one source, each met at z = 300 through
+        /// the source alone.
+        TEST(RtxTracedTerrainTest, aDeformingPartTheRingStandsIsMetByItsSource)
+        {
+            Making making;
+            for (int x = 0; x <= 4; ++x)
+                making.mLand.mWithData.push_back(osg::Vec2i(x, 0));
+            TracedTerrain ground = making.make();
+
+            constexpr double cell = static_cast<double>(Rtx::Testing::FakeLand::sCellSize);
+            osg::ref_ptr<osg::Geometry> source = new osg::Geometry;
+            osg::ref_ptr<osg::Vec3Array> corners = new osg::Vec3Array;
+            for (const osg::Vec3f& corner : { osg::Vec3f(-100.0f, -100.0f, 0.0f), osg::Vec3f(100.0f, -100.0f, 0.0f),
+                     osg::Vec3f(100.0f, 100.0f, 0.0f), osg::Vec3f(-100.0f, 100.0f, 0.0f) })
+                corners->push_back(corner);
+            source->setVertexArray(corners);
+            source->addPrimitiveSet(new osg::DrawArrays(GL_QUADS, 0, 4));
+
+            osg::ref_ptr<SceneUtil::MorphGeometry> morphed = new SceneUtil::MorphGeometry;
+            morphed->setSourceGeometry(source);
+            osg::ref_ptr<SceneUtil::RigGeometry> skinned = new SceneUtil::RigGeometry;
+            skinned->setSourceGeometry(source);
+
+            const osg::Vec3d from(4.5 * cell + 30.0, 0.5 * cell + 10.0, 10000.0);
+            const osg::Vec3d to(4.5 * cell + 30.0, 0.5 * cell + 10.0, -10000.0);
+            for (const osg::Drawable* deforming :
+                { static_cast<const osg::Drawable*>(morphed.get()), static_cast<const osg::Drawable*>(skinned.get()) })
+            {
+                Rtx::Placement placed;
+                placed.mStood.mTransform
+                    = osg::Matrixf::translate(static_cast<float>(4.5 * cell), static_cast<float>(0.5 * cell), 300.0f);
+                placed.mStood.mSlot = 0;
+                placed.mDrawable = deforming;
+                making.mStood.mPlacedCell = osg::Vec2i(4, 0);
+                making.mStood.mPlacements = { placed };
+
+                osg::ref_ptr<osgUtil::LineSegmentIntersector> intersector
+                    = new osgUtil::LineSegmentIntersector(osgUtil::LineSegmentIntersector::MODEL, from, to);
+                HandedDrawables visitor(intersector);
+                visitor.setTraversalMask(Mask_Static);
+                making.mSceneRoot->accept(visitor);
+
+                ASSERT_EQ(intersector->getIntersections().size(), 1u) << deforming->className();
+                EXPECT_NEAR(intersector->getFirstIntersection().getWorldIntersectPoint().z(), 300.0, 1e-3);
+                EXPECT_EQ(visitor.mHanded, std::vector<const osg::Drawable*>{ source.get() })
+                    << deforming->className() << " was handed to the visitor as itself";
+            }
         }
     }
 }

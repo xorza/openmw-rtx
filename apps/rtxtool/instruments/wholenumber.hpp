@@ -16,18 +16,10 @@ namespace RtxTool
     template <typename T>
     std::optional<T> wholeNumber(std::string_view text)
     {
-        if constexpr (std::is_floating_point_v<T> && !Misc::StringUtils::sFromCharsReadsFloats)
-        {
-            if (Misc::StringUtils::floatPrefix(text) != text.size())
-                return std::nullopt;
-        }
-        else
-        {
-            T result{};
-            const auto [ptr, ec] = std::from_chars(text.data(), text.data() + text.size(), result);
-            if (ec != std::errc() || ptr != text.data() + text.size())
-                return std::nullopt;
-        }
+        T result{};
+        const auto [ptr, ec] = std::from_chars(text.data(), text.data() + text.size(), result);
+        if (ec != std::errc() || ptr != text.data() + text.size())
+            return std::nullopt;
 
         return Misc::StringUtils::toNumeric<T>(text);
     }

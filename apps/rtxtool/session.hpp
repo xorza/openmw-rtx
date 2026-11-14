@@ -38,7 +38,7 @@ namespace RtxTool
     /// `MWBase::Environment`, is fed each frame by `MWRender::RtxRenderer` through the interface it implements, and
     /// ends the run through `StateManager::requestQuit` the way the player's quit key does.
     ///
-    /// The sequence and nothing else: a stop is staged by the `Stager`, flown by the `CameraDriver`, noted by the
+    /// The sequence and nothing else: a stop is staged by `Staging`, flown by the `CameraDriver`, noted by the
     /// `StandingNote` and measured by the `Measurer`; this is the engine's host that says which runs when. It is
     /// built before the engine and makes the renderer with itself installed as `RtxSetup::mRun`; what it came to is
     /// read with `describe` once `Engine::go` has returned, where a run that ends its last stop and a window
@@ -95,8 +95,9 @@ namespace RtxTool
         /// where it would otherwise exit nought and leave the last run's record standing.
         void endedEarly();
 
-        /// What the run came to: the places, the report, the verdict and where the eye was left.
-        SessionResult describe() const;
+        /// What the run came to: the places, the report, the verdict, where the eye was left and the pictures it
+        /// kept. Asked once, as the pictures are handed over.
+        SessionResult conclude();
 
     private:
         /// Whether the game has a world with a player in it. Nothing happens before it does.
@@ -145,7 +146,6 @@ namespace RtxTool
         /// which writes into it.
         RunRecord mRecord;
 
-        Stager mStager;
         CameraDriver mCamera;
         StandingNote mNote;
 

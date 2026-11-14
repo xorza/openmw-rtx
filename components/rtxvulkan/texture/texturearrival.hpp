@@ -7,7 +7,7 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include <components/rtxvulkan/device/commands.hpp>
+#include <components/rtxvulkan/device/memory/batch.hpp>
 #include <components/rtxvulkan/device/memory/growablebuffer.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 
@@ -39,6 +39,9 @@ namespace Rtx
 
         TextureArrival(const TextureArrival&) = delete;
         TextureArrival& operator=(const TextureArrival&) = delete;
+        TextureArrival(TextureArrival&&) = delete;
+        TextureArrival& operator=(TextureArrival&&) = delete;
+        ~TextureArrival() = default;
 
         /// Copies `staged`, which the caller staged through the batch the run is recorded into, into
         /// `image` by `regions`, whose offsets are into `staged`. `image` is met undefined.

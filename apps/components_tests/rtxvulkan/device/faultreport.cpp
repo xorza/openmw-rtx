@@ -4,7 +4,7 @@
 
 #include <gtest/gtest.h>
 
-#include <components/rtxvulkan/device/device.hpp>
+#include <components/rtxvulkan/device/faultreport.hpp>
 
 namespace Rtx
 {

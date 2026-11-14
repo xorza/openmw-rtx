@@ -297,9 +297,10 @@ End
             "\"plank\"->disable\nendif\ndisable\nend s\n");
         static_cast<void>(mRun.run(scriptOf(settling), mReads, inputs, mNamed));
         inputs.clear();
-        const std::size_t before = Rtx::Testing::getAllocationCount();
-        EXPECT_EQ(mRun.run(scriptOf(settling), mReads, inputs, mNamed), GateState::Closed);
-        EXPECT_EQ(Rtx::Testing::getAllocationCount() - before, 0u);
+        GateState settled = GateState::Open;
+        EXPECT_EQ(
+            Rtx::Testing::allocationsIn([&] { settled = mRun.run(scriptOf(settling), mReads, inputs, mNamed); }), 0u);
+        EXPECT_EQ(settled, GateState::Closed);
         EXPECT_EQ(plank(), GateState::Closed);
     }
 

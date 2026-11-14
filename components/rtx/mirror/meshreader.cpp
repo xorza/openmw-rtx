@@ -45,11 +45,11 @@ namespace Rtx
         /// What a drawable with no triangle reads as: nothing to place, or, where it draws lines or
         /// points, a refusal saying so — the rasterizer draws them, an `NiLines`, and a ray has no
         /// width of theirs to meet.
-        Result<bool, std::string> noTriangle(const osg::Geometry& geometry)
+        Result<MeshRead, std::string> noTriangle(const osg::Geometry& geometry)
         {
             if (drawsLines(geometry))
                 return Err{ std::string("its lines and points have no width a ray can meet") };
-            return false;
+            return MeshRead::Empty;
         }
 
         /// `values` with the vertices a split added on the end, each a copy of its source, laid into
@@ -431,9 +431,9 @@ namespace Rtx
         if (!std::ranges::all_of(arrays.mPositions, [](const osg::Vec3f& position) { return isFinite(position); }))
             return faces;
 
-        const Result<bool, std::string> collected
+        const Result<MeshRead, std::string> collected
             = collectTriangles(geometry, arrays.mPositions.size(), mBesideCollectScratch);
-        if (!collected.isOk() || !collected.value())
+        if (!collected.isOk() || collected.value() == MeshRead::Empty)
             return faces;
 
         faces.mVertices = Run{ .mOffset = static_cast<std::uint32_t>(mFacePositions.size()),
@@ -501,7 +501,7 @@ namespace Rtx
         }
     }
 
-    Result<bool, std::string> MeshReader::collectTriangles(
+    Result<MeshRead, std::string> MeshReader::collectTriangles(
         const osg::Geometry& geometry, const std::size_t vertices, std::vector<std::uint32_t>& into)
     {
         into.clear();
@@ -511,16 +511,16 @@ namespace Rtx
         geometry.accept(collector);
 
         if (into.empty())
-            return false;
+            return MeshRead::Empty;
 
         if (collector.mLargest >= vertices)
             return Err{ "its triangles name vertex " + std::to_string(collector.mLargest) + " of "
                 + std::to_string(vertices) };
 
-        return true;
+        return MeshRead::Triangles;
     }
 
-    Result<bool, std::string> MeshReader::read(
+    Result<MeshRead, std::string> MeshReader::read(
         ContentPreprocessor& content, const DrawableRead& read, const osg::Node* const model, MeshReading& into)
     {
         const osg::Geometry& geometry = *read.mGeometry;
@@ -602,10 +602,10 @@ namespace Rtx
         // Shaped before the mesh is written, so the copy the content drew for a card's back never
         // reaches a structure. Once per drawable and never for a pose: a rig moves the two copies
         // together, so the pairs found in the bind pose are the pairs.
-        const Result<bool, std::string> collected = collectTriangles(geometry, count, mTriangleScratch);
+        const Result<MeshRead, std::string> collected = collectTriangles(geometry, count, mTriangleScratch);
         if (!collected.isOk())
             return Err{ collected.error() };
-        if (!collected.value())
+        if (collected.value() == MeshRead::Empty)
             return noTriangle(geometry);
 
         const bool splits = read.mDeform == Deform::None;
@@ -651,6 +651,6 @@ namespace Rtx
             .mIndices = mIndexScratch,
         };
 
-        return true;
+        return MeshRead::Triangles;
     }
 }

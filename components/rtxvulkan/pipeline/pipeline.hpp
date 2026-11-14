@@ -55,6 +55,9 @@ namespace Rtx
 
         Specialization(const Specialization&) = delete;
         Specialization& operator=(const Specialization&) = delete;
+        Specialization(Specialization&&) = delete;
+        Specialization& operator=(Specialization&&) = delete;
+        ~Specialization() = default;
 
         const VkSpecializationInfo* getInfo() const { return mEntries.empty() ? nullptr : &mInfo; }
 
@@ -76,6 +79,9 @@ namespace Rtx
 
         PipelineCreation(const PipelineCreation&) = delete;
         PipelineCreation& operator=(const PipelineCreation&) = delete;
+        PipelineCreation(PipelineCreation&&) = delete;
+        PipelineCreation& operator=(PipelineCreation&&) = delete;
+        ~PipelineCreation() = default;
 
         /// What a create info's `pNext` points at: the feedback, and `next` after it.
         const void* chain(const void* next);

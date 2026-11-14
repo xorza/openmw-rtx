@@ -183,13 +183,9 @@ namespace MWRender
         const MirrorKnobs& knobs, ContentStore::Store* const store, Rtx::PreparedImages* const prepared)
         : mStore(store)
         , mWalk{ .mContent{ store, ContentStore::Reach::Memory }, .mPrepared = prepared }
-        , mGroundcoverReach(knobs.mGroundcoverReach)
-        , mGroundcoverDensity(knobs.mGroundcoverDensity)
-        , mGroundcoverLampLit(knobs.mGroundcoverLampLit)
-        , mDistantStatics(knobs.mDistantStatics)
+        , mKnobs(knobs)
         , mExtractor(mScene, mWalk, Rtx::sWorldExtractorRoom)
         , mTraversal(worldTraversal(~0u))
-        , mReach(knobs.mReach)
     {
         mRing.setMinSize(knobs.mMinSize);
         // The sky is not mirrored: the engine rebuilds it every frame, so walking it churns the identity maps
@@ -246,9 +242,10 @@ namespace MWRender
             Rtx::ContentPreprocessor content(&store, ContentStore::Reach::Disk);
             Rtx::MeshReader reader;
             Rtx::MeshReading reading;
-            [[maybe_unused]] const Result<bool, std::string> read
+            [[maybe_unused]] const Result<Rtx::MeshRead, std::string> read
                 = reader.read(content, Rtx::readDrawable(sea, Rtx::NodeKind::Other), nullptr, reading);
             assert(read.isOk() && "the sea's own plane does not read");
+            assert(read.value() == Rtx::MeshRead::Triangles && "the sea's own plane holds no triangle");
             return content.takeStats();
         }
     }
@@ -400,8 +397,9 @@ namespace MWRender
     {
         assert(mGroundcover == nullptr && "the default worldspace's ground made twice for one world");
 
-        if (mGroundcoverReach > 0.0f)
-            mGroundcover = std::make_unique<TracedGroundcover>(store, mGroundcoverDensity, mGroundcoverLampLit);
+        if (mKnobs.mGroundcoverReach > 0.0f)
+            mGroundcover
+                = std::make_unique<TracedGroundcover>(store, mKnobs.mGroundcoverDensity, mKnobs.mGroundcoverLampLit);
     }
 
     Rtx::ContentMemory WorldMirror::getContentMemory()
@@ -495,12 +493,12 @@ namespace MWRender
                 .mMask = sWorldTraversal,
                 // What `extractWorld` walks every reference root under, below.
                 .mAbove = frame.mScene.getStateSet(),
-                .mStatics = mDistantStatics,
+                .mStatics = mKnobs.mDistantStatics,
                 .mStore = mStore,
             },
             .mEye = eye,
             .mReach = getReach(),
-            .mGroundcoverReach = mGroundcoverReach,
+            .mGroundcoverReach = mKnobs.mGroundcoverReach,
             .mActiveGrid = frame.mTerrain.getActiveGrid(),
             .mExterior = frame.mWorld.mLocation == Location::Exterior,
             .mSimulationTime = frame.mWhen.getSimulationTime(),

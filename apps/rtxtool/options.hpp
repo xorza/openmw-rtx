@@ -23,7 +23,7 @@ namespace RtxTool
     struct OptionOwner
     {
         std::string_view mName;
-        Verbs mVerbs = Verbs::Every;
+        VerbSet mVerbs = VerbSet::every();
     };
 
     /// Every option the harness takes, and which commands read each. In the library rather than
@@ -40,18 +40,18 @@ namespace RtxTool
 
         /// Which commands read `name`. Every one of them where nothing said otherwise, which is
         /// only the options `Files::ConfigurationManager::addCommonOptions` adds.
-        Verbs readsOption(std::string_view name) const;
+        VerbSet readsOption(std::string_view name) const;
 
         /// What `verb` was given on `line` and does not read, as the lines to print, or empty. The
         /// command line only: an option in `openmw.cfg` is there for every command.
-        std::string complainAbout(const boost::program_options::parsed_options& line, Verbs verb) const;
+        std::string complainAbout(const boost::program_options::parsed_options& line, Verb verb) const;
 
         /// The line `variables` holds, once the configuration filled it, read for `verb` into what
         /// each option means: every spelling refused here, with the option that named it, as a
         /// `std::runtime_error` or an `Rtx::InputError`. `--frames` beside `--seconds`, `--length`
         /// beside `--speed`, and a place named beside `--views` are refused as two answers to one
         /// question.
-        ToolLine read(const boost::program_options::variables_map& variables, Verbs verb) const;
+        ToolLine read(const boost::program_options::variables_map& variables, Verb verb) const;
 
         /// What `noise --versus=<switch>=<value>` runs its other side with: `played` with the one
         /// switch `asked` names read at its value, as the line would have read it. A switch named

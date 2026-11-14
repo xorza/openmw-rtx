@@ -22,6 +22,8 @@
 #include <spirv/unified1/GLSL.std.450.h>
 #include <spirv/unified1/spirv.hpp>
 
+#include <components/rtx/common/error.hpp>
+
 #include "spirvfile.hpp"
 
 namespace Rtx
@@ -54,7 +56,7 @@ namespace Rtx
         std::uint32_t operandAt(const Instruction& instruction, std::size_t at)
         {
             if (at >= instruction.mOperands.size())
-                throw std::runtime_error(
+                throw Rtx::InputError(
                     std::format("{} is missing its operand {}", spv::OpToString(instruction.mOp), at));
             return instruction.mOperands[at];
         }
@@ -118,7 +120,7 @@ namespace Rtx
             Bounded,
 
             /// Inherited from a formula whose order or fusions the specification leaves free:
-            /// rewritten in the order `pinFloatArithmetic` states.
+            /// rewritten in the order `pinModule` states.
             Lowered,
 
             /// Inherited from such a formula and not rewritten, because nothing here uses it yet:
@@ -381,6 +383,32 @@ namespace Rtx
         /// from the source's `precise`.
         constexpr std::string_view sGuardMark = "rtx-pin-guard";
 
+        constexpr std::string_view sMaximalReconvergence = "SPV_KHR_maximal_reconvergence";
+
+        /// Whether a module that declares `capability` may run a subgroup operation: the non-uniform group
+        /// operations of SPIR-V 1.3 and the extensions before them.
+        constexpr bool isSubgroupCapability(const spv::Capability capability)
+        {
+            switch (capability)
+            {
+                case spv::CapabilityGroupNonUniform:
+                case spv::CapabilityGroupNonUniformVote:
+                case spv::CapabilityGroupNonUniformArithmetic:
+                case spv::CapabilityGroupNonUniformBallot:
+                case spv::CapabilityGroupNonUniformShuffle:
+                case spv::CapabilityGroupNonUniformShuffleRelative:
+                case spv::CapabilityGroupNonUniformClustered:
+                case spv::CapabilityGroupNonUniformQuad:
+                case spv::CapabilityGroupNonUniformPartitionedNV:
+                case spv::CapabilityGroupNonUniformRotateKHR:
+                case spv::CapabilitySubgroupBallotKHR:
+                case spv::CapabilitySubgroupVoteKHR:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
         bool isAnnotation(spv::Op op)
         {
             switch (op)
@@ -469,6 +497,12 @@ namespace Rtx
             std::vector<std::uint32_t> mEntryPoints;
             std::set<std::pair<std::uint32_t, std::uint32_t>> mPreserved;
 
+            /// Whether the module declares a subgroup operation's capability, whether it already names
+            /// `SPV_KHR_maximal_reconvergence`, and the entry points that already reconverge maximally.
+            bool mUsesSubgroups = false;
+            bool mNamesReconvergence = false;
+            std::set<std::uint32_t> mReconverges;
+
             /// The functions as the rewrites leave them.
             std::vector<Instruction> mOut;
 
@@ -531,7 +565,7 @@ namespace Rtx
                     // **An instruction newer than these headers is one nothing here can classify**, and
                     // the float arithmetic it might hold is exactly what a newer header would name.
                     if (nameOf(op) == "Unknown")
-                        throw std::runtime_error(std::format(
+                        throw Rtx::InputError(std::format(
                             "opcode {} is newer than the SPIR-V headers this build has, so what it computes cannot "
                             "be pinned; build against the headers that name it",
                             static_cast<std::uint32_t>(op)));
@@ -619,8 +653,15 @@ namespace Rtx
                             guarded.insert(operands[0]);
                         break;
                     case spv::OpCapability:
-                        if (static_cast<spv::Capability>(operandAt(instruction, 0)) == spv::CapabilityFMAKHR)
+                    {
+                        const auto capability = static_cast<spv::Capability>(operandAt(instruction, 0));
+                        if (capability == spv::CapabilityFMAKHR)
                             refuse(instruction, "a module that fuses runs only on a device with SPV_KHR_fma");
+                        mUsesSubgroups = mUsesSubgroups || isSubgroupCapability(capability);
+                        break;
+                    }
+                    case spv::OpExtension:
+                        mNamesReconvergence = mNamesReconvergence || readString(operands) == sMaximalReconvergence;
                         break;
                     case spv::OpDecorate:
                     {
@@ -652,6 +693,9 @@ namespace Rtx
                                 refuse(instruction, "a float environment the module sets for itself");
                             case spv::ExecutionModeSignedZeroInfNanPreserve:
                                 mPreserved.insert(std::pair(operandAt(instruction, 0), operandAt(instruction, 2)));
+                                break;
+                            case spv::ExecutionModeMaximallyReconvergesKHR:
+                                mReconverges.insert(operandAt(instruction, 0));
                                 break;
                             default:
                                 break;
@@ -837,7 +881,7 @@ namespace Rtx
                 case Treatment::Unpinned:
                     refuse(instruction,
                         "it is inherited from a formula whose order the compile chooses and nothing here rewrites "
-                        "it yet; write it out in the shader or teach Rtx::pinFloatArithmetic its order");
+                        "it yet; write it out in the shader or teach Rtx::pinModule its order");
                 case Treatment::Interpolation:
                     refuse(instruction, "interpolation is the rasterizer's and nothing here pins it");
                 case Treatment::Fused:
@@ -1059,8 +1103,28 @@ namespace Rtx
                           && instruction.mOperands.at(0) == spv::CapabilitySignedZeroInfNanPreserve;
                   });
 
+            // **A subgroup reconverges where the source's control flow does, at every entry point of a module
+            // that uses a subgroup operation.** Core Vulkan promises no reconvergence after a branch, so a stage
+            // that elects a lane after one and broadcasts its answer reads a lane the driver may have left apart
+            // (`bounce.comp`, `visibility.comp`). `SubgroupUniformControlFlowKHR` promises it only for a subgroup
+            // uniform at a structured construct's entry and leaving by its merge, which says nothing certain of
+            // an early return or a traversal loop; `MaximallyReconvergesKHR` reconverges as the control flow
+            // graph reads
+            // (https://github.khronos.org/SPIRV-Registry/extensions/KHR/SPV_KHR_maximal_reconvergence.html). A device
+            // without it is refused at its creation (`getRequiredDeviceExtensions`).
+            std::vector<Instruction> reconverging;
+            if (mUsesSubgroups)
+                for (const std::uint32_t entry : mEntryPoints)
+                    if (!mReconverges.contains(entry))
+                        reconverging.push_back(
+                            Instruction{ spv::OpExecutionMode, { entry, spv::ExecutionModeMaximallyReconvergesKHR } });
+            std::optional<Instruction> reconvergence;
+            if (!reconverging.empty() && !mNamesReconvergence)
+                reconvergence = Instruction{ spv::OpExtension, spell(sMaximalReconvergence) };
+
             std::vector<Instruction> global;
-            global.reserve(mGlobal.size() + mDeclared.size() + decorations.size() + preserved.size() + 2);
+            global.reserve(
+                mGlobal.size() + mDeclared.size() + decorations.size() + preserved.size() + reconverging.size() + 3);
 
             // Where each addition goes: a capability among the capabilities, an import after the
             // extensions and the other imports, the decorations among the annotations or before the
@@ -1081,7 +1145,8 @@ namespace Rtx
                     break;
                 }
 
-            const std::size_t importAfter = lastImport.value_or(lastExtension.value_or(lastCapability.value_or(0)));
+            const std::size_t extensionAfter = lastExtension.value_or(lastCapability.value_or(0));
+            const std::size_t importAfter = lastImport.value_or(extensionAfter);
             for (std::size_t at = 0; at < mGlobal.size(); ++at)
             {
                 if (at == firstType && !lastAnnotation.has_value())
@@ -1091,8 +1156,13 @@ namespace Rtx
 
                 if (!preserved.empty() && !hasPreservation && lastCapability == at)
                     global.push_back(Instruction{ spv::OpCapability, { spv::CapabilitySignedZeroInfNanPreserve } });
+                if (reconvergence.has_value() && at == extensionAfter)
+                    global.push_back(*reconvergence);
                 if (lastMode == at)
+                {
                     global.insert(global.end(), preserved.begin(), preserved.end());
+                    global.insert(global.end(), reconverging.begin(), reconverging.end());
+                }
                 if (mImportsGlsl && at == importAfter)
                 {
                     Instruction import{ spv::OpExtInstImport, { *mGlsl } };
@@ -1158,7 +1228,7 @@ namespace Rtx
                 what += std::format(" {}", instruction.mOperands[3]);
             if (result.has_value())
                 what += std::format(" %{}", *result);
-            throw std::runtime_error(std::format("{} cannot be pinned: {}", what, why));
+            throw Rtx::InputError(std::format("{} cannot be pinned: {}", what, why));
         }
 
         std::uint32_t Pinner::fresh()
@@ -1170,8 +1240,7 @@ namespace Rtx
         {
             const auto found = mTypes.find(type);
             if (found == mTypes.end())
-                throw std::runtime_error(
-                    std::format("%{} is used as a float, vector or matrix type and is none", type));
+                throw Rtx::InputError(std::format("%{} is used as a float, vector or matrix type and is none", type));
             return found->second;
         }
 
@@ -1179,7 +1248,7 @@ namespace Rtx
         {
             const auto found = mTypeOf.find(value);
             if (found == mTypeOf.end())
-                throw std::runtime_error(std::format("%{} is read and never made", value));
+                throw Rtx::InputError(std::format("%{} is read and never made", value));
             return found->second;
         }
 
@@ -1195,14 +1264,14 @@ namespace Rtx
                 case Kind::Matrix:
                     return scalarOf(shape.mPart);
                 default:
-                    throw std::runtime_error(std::format("%{} is no float, vector or matrix type", type));
+                    throw Rtx::InputError(std::format("%{} is no float, vector or matrix type", type));
             }
         }
 
         std::uint32_t Pinner::floatConstant(std::uint32_t type, float value)
         {
             if (typeNamed(type).mWidth != 32)
-                throw std::runtime_error(
+                throw Rtx::InputError(
                     std::format("a rewrite needs a constant of the {}-bit float %{}, and only 32 bits are pinned",
                         typeNamed(type).mWidth, type));
 
@@ -1413,7 +1482,7 @@ namespace Rtx
             if (shape.mKind == Kind::Float)
                 return { value };
             if (shape.mKind != Kind::Vector)
-                throw std::runtime_error(std::format("%{} is read as a float vector and is not one", value));
+                throw Rtx::InputError(std::format("%{} is read as a float vector and is not one", value));
 
             std::vector<std::uint32_t> parts;
             for (std::uint32_t at = 0; at < shape.mCount; ++at)
@@ -1426,7 +1495,7 @@ namespace Rtx
         {
             const std::uint32_t scalar = typeOfValue(left[0]);
             if (typeNamed(scalar).mWidth != 32)
-                throw std::runtime_error("a rewrite of a sum of products over a float that is not 32 bits wide");
+                throw Rtx::InputError("a rewrite of a sum of products over a float that is not 32 bits wide");
 
             if (left.size() == 1)
                 return emit(spv::OpFMul, scalar, result.has_value() ? *result : fresh(), { left[0], right[0] });
@@ -1458,7 +1527,7 @@ namespace Rtx
         }
     }
 
-    std::vector<std::uint32_t> pinFloatArithmetic(std::span<const std::uint32_t> module)
+    std::vector<std::uint32_t> pinModule(std::span<const std::uint32_t> module)
     {
         return Pinner(module).assemble();
     }
@@ -1503,7 +1572,7 @@ namespace Rtx
                     rounding.push_back(operands[1]);
             });
         if (module[1] < 0x00010400u)
-            throw std::runtime_error("a module older than SPIR-V 1.4 has no UserSemantic to mark the guard with");
+            throw Rtx::InputError("a module older than SPIR-V 1.4 has no UserSemantic to mark the guard with");
 
         const std::size_t split = types.value_or(module.size());
         std::vector<std::uint32_t> guarded(module.begin(), module.begin() + static_cast<std::ptrdiff_t>(split));
@@ -1521,5 +1590,26 @@ namespace Rtx
         }
         guarded.insert(guarded.end(), module.begin() + static_cast<std::ptrdiff_t>(split), module.end());
         return guarded;
+    }
+
+    std::vector<std::uint32_t> withoutRayQueryReconvergence(const std::span<const std::uint32_t> module)
+    {
+        bool traces = false;
+        forEachInstruction(module, [&](const spv::Op op, const std::span<const std::uint32_t> operands, std::size_t) {
+            traces = traces
+                || (op == spv::OpCapability && static_cast<spv::Capability>(operands[0]) == spv::CapabilityRayQueryKHR);
+        });
+
+        std::vector<std::uint32_t> kept(module.begin(), module.begin() + std::min(module.size(), sSpirvHeaderWords));
+        kept.reserve(module.size());
+        forEachInstruction(
+            module, [&](const spv::Op op, const std::span<const std::uint32_t> operands, std::size_t at) {
+                const bool reconverges = op == spv::OpExecutionMode && operands.size() >= 2
+                    && static_cast<spv::ExecutionMode>(operands[1]) == spv::ExecutionModeMaximallyReconvergesKHR;
+                if (!traces || !reconverges)
+                    kept.insert(kept.end(), module.begin() + static_cast<std::ptrdiff_t>(at),
+                        module.begin() + static_cast<std::ptrdiff_t>(at + 1 + operands.size()));
+            });
+        return kept;
     }
 }

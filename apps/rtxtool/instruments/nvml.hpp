@@ -9,19 +9,11 @@
 #include <components/platform/uniquehold.hpp>
 #include <components/rtx/common/cardaddress.hpp>
 
+#include "cardsample.hpp"
 #include "gpuclock.hpp"
 
 namespace RtxTool
 {
-    /// One of the driver's own samples of a process on the card: which process, the driver's
-    /// clock when it was taken, and whether the process had the SMs or the memory busy in it.
-    struct CardSample
-    {
-        std::uint32_t mPid = 0;
-        std::uint64_t mStamp = 0;
-        bool mHeld = false;
-    };
-
     /// NVIDIA's management library (what `nvidia-smi` reads), opened by name at run time and never linked, because
     /// only one vendor's driver ships it and a build must start on any card; a box without it answers no clock and
     /// no card line. Asked directly, not through the tool: forking `nvidia-smi` costs tens of milliseconds a time, and
@@ -34,6 +26,9 @@ namespace RtxTool
         explicit Nvml(const Rtx::PciAddress& card);
         Nvml(const Nvml&) = delete;
         Nvml& operator=(const Nvml&) = delete;
+        Nvml(Nvml&&) = delete;
+        Nvml& operator=(Nvml&&) = delete;
+        ~Nvml() = default;
 
         bool isOpen() const { return mDevice != nullptr; }
 

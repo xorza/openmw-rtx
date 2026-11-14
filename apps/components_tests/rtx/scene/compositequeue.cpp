@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include <apps/components_tests/rtx/support/allocations.hpp>
 #include <apps/components_tests/rtx/support/layers.hpp>
 #include <apps/components_tests/rtx/support/sceneholds.hpp>
 #include <components/rtx/common/index.hpp>
@@ -116,6 +117,22 @@ namespace Rtx
                 scene.clearArrivals();
                 EXPECT_EQ(frame(queue, scene), 0u) << "a chunk with its ground asked again";
             }
+        }
+
+        /// **A frame with nothing asked allocates nothing**, once a chunk has been taken: every frame of a walk
+        /// that stands still.
+        TEST(RtxCompositeQueueTest, aFrameWithNothingAskedAllocatesNothing)
+        {
+            SceneDesc scene;
+            addChunk(
+                scene, VFS::Path::NormalizedView("textures/under.dds"), VFS::Path::NormalizedView("textures/over.dds"));
+            CompositeQueue queue;
+            ASSERT_EQ(frame(queue, scene), 1u);
+            ASSERT_EQ(frame(queue, scene), 0u);
+
+            std::size_t taken = 1;
+            EXPECT_EQ(Testing::allocationsIn([&] { taken = frame(queue, scene); }), 0u);
+            EXPECT_EQ(taken, 0u);
         }
 
         /// A frame takes `sCompositesPerFrame` and no more, in the order the chunks asked.

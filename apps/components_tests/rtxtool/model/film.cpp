@@ -17,6 +17,7 @@
 #include <osg/Vec3d>
 #include <osg/Vec3f>
 
+#include <apps/components_tests/rtx/support/refusal.hpp>
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <apps/rtxtool/model/cameratrack.hpp>
 #include <apps/rtxtool/model/film.hpp>
@@ -39,15 +40,7 @@ namespace RtxTool
 
         std::string refusal(const std::string& text)
         {
-            try
-            {
-                read(text);
-            }
-            catch (const std::runtime_error& error)
-            {
-                return error.what();
-            }
-            return "nothing was refused";
+            return Rtx::Testing::refusalOf([&] { read(text); });
         }
 
         FilmKey keyAt(std::string name, std::string cell, osg::Vec3f eye, osg::Vec3f look = osg::Vec3f(0, 1e4f, 0))
@@ -682,8 +675,7 @@ namespace RtxTool
         /// Only what the film writes goes: six digits and `.png`.
         TEST(RtxFilmTest, clearingTheFramesLeavesEverythingElse)
         {
-            const std::filesystem::path frames = TestingOpenMW::outputDirPath("film-frames");
-            std::filesystem::remove_all(frames);
+            const std::filesystem::path frames = TestingOpenMW::currentTestDirPath() / "film-frames";
             std::filesystem::create_directories(frames);
             for (const char* name :
                 { "000000.png", "000001.png", "notes.txt", "12345.png", "0000001.png", "00000a.png" })
@@ -698,8 +690,9 @@ namespace RtxTool
             EXPECT_TRUE(std::filesystem::exists(frames / "00000a.png"));
 
             // A folder that cannot be listed is a film that would be written in among the last one's.
-            EXPECT_THROW(clearFrames(frames / "nowhere"), std::runtime_error);
-            EXPECT_THROW(clearFrames(frames / "notes.txt"), std::runtime_error);
+            for (const std::filesystem::path& unlisted : { frames / "nowhere", frames / "notes.txt" })
+                EXPECT_EQ(Rtx::Testing::refusalOf([&] { clearFrames(unlisted); }),
+                    "the frames in " + Files::pathToUnicodeString(unlisted) + " could not be listed");
             EXPECT_EQ(frameName(42), "000042.png");
         }
 

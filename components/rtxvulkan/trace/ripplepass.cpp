@@ -13,9 +13,9 @@
 #include <osg/Vec2f>
 #include <osg/Vec2i>
 
-#include <components/rtx/environment/wavecascade.hpp>
 #include <components/rtx/renderer/framezone.hpp>
 #include <components/rtx/shaders/wave.h>
+#include <components/rtx/world/wavecascade.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/gputimer.hpp>

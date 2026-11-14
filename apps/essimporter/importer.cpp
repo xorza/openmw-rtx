@@ -7,7 +7,6 @@
 #include <osg/ImageUtils>
 #include <osgDB/ReadFile>
 
-#include <components/crashcatcher/crash.hpp>
 #include <components/esm/defs.hpp>
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/esmwriter.hpp>
@@ -52,10 +51,10 @@ namespace
         {
             for (int x = 0; x < 128; ++x)
             {
-                unsigned char* texel = Crash::notNull(image->data(x, y), "a screenshot with no texels");
-                texel[2] = *it++;
-                texel[1] = *it++;
-                texel[0] = *it++;
+                assert(image->data(x, y));
+                *(image->data(x, y) + 2) = *it++;
+                *(image->data(x, y) + 1) = *it++;
+                *image->data(x, y) = *it++;
                 ++it; // skip alpha
             }
         }

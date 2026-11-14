@@ -12,6 +12,7 @@
 #include <osg/Vec2d>
 #include <osg/Vec3f>
 
+#include <apps/components_tests/rtx/support/refusal.hpp>
 #include <apps/rtxtool/instruments/wholenumber.hpp>
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <apps/rtxtool/model/blockfile.hpp>
@@ -48,33 +49,13 @@ namespace RtxTool
 
         std::string refusal(const std::string& text)
         {
-            try
-            {
-                readBlocks(text);
-            }
-            catch (const std::runtime_error& error)
-            {
-                return error.what();
-            }
-            return "nothing was refused";
+            return Rtx::Testing::refusalOf([&] { readBlocks(text); });
         }
 
         /// The views in `text`, read the way `--list-views` reads them.
-        std::vector<Stop> readViews(std::string_view text)
+        std::vector<Stop> viewsOf(const std::string& text)
         {
-            const std::filesystem::path file = TestingOpenMW::outputFilePath("blockfile-views.cfg");
-            {
-                std::ofstream out(file);
-                out << text;
-            }
-
-            struct Remove
-            {
-                std::filesystem::path mFile;
-                ~Remove() { std::filesystem::remove(mFile); }
-            } removed{ file };
-
-            return loadViews(file);
+            return readViews(readBlocks(text));
         }
 
         /// A point is three numbers and an air four, and nothing else, spaces around each allowed;
@@ -148,7 +129,7 @@ namespace RtxTool
         /// that names one view twice is refused by the second's line rather than running one of them.
         TEST(RtxBlockFileTest, theViewsKeepTheFilesOrderAndARepeatedViewIsRefused)
         {
-            const std::vector<Stop> views = readViews("[zulu]\ncell = 1,1\n[alpha]\ncell = 2,2\n[mike]\ncell = 3,3\n");
+            const std::vector<Stop> views = viewsOf("[zulu]\ncell = 1,1\n[alpha]\ncell = 2,2\n[mike]\ncell = 3,3\n");
             ASSERT_EQ(views.size(), 3u);
             EXPECT_EQ(views[0].mName, "zulu");
             EXPECT_EQ(views[1].mName, "alpha");
@@ -156,7 +137,7 @@ namespace RtxTool
 
             try
             {
-                readViews("[zulu]\ncell = 1,1\n[alpha]\ncell = 2,2\n[zulu]\ncell = 3,3\n");
+                viewsOf("[zulu]\ncell = 1,1\n[alpha]\ncell = 2,2\n[zulu]\ncell = 3,3\n");
                 ADD_FAILURE() << "a view named twice was read";
             }
             catch (const std::runtime_error& error)

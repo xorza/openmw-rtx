@@ -256,7 +256,7 @@ namespace MWWorld
         {
             double time = nv->getFrameStamp()->getSimulationTime();
 
-            osg::Quat orient = osg::Quat(time * static_cast<double>(mRotateSpeed), mAxis);
+            osg::Quat orient = osg::Quat(time * mRotateSpeed, mAxis);
             node->setAttitude(orient);
 
             traverse(node, nv);
@@ -496,8 +496,7 @@ namespace MWWorld
             auto isCleanable = [](const ProjectileManager::State& state) -> bool {
                 const float farawayThreshold = 72000.0f;
                 osg::Vec3 playerPos = MWMechanics::getPlayer().getRefData().getPosition().asVec3();
-                return (state.mNode->getPosition() - playerPos).length2()
-                    >= static_cast<double>(farawayThreshold * farawayThreshold);
+                return (state.mNode->getPosition() - playerPos).length2() >= farawayThreshold * farawayThreshold;
             };
 
             for (auto& projectileState : mProjectiles)

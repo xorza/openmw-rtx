@@ -27,7 +27,7 @@ namespace SceneUtil
 
     bool PositionAttitudeTransform::computeWorldToLocalMatrix(osg::Matrix& matrix, osg::NodeVisitor*) const
     {
-        if (_scale.x() == 0.0f || _scale.y() == 0.0f || _scale.z() == 0.0f)
+        if (_scale.x() == 0.0 || _scale.y() == 0.0 || _scale.z() == 0.0)
             return false;
 
         if (_referenceFrame == RELATIVE_RF)

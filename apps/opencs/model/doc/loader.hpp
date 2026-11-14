@@ -11,8 +11,6 @@
 #include <QObject>
 #include <QWaitCondition>
 
-Q_MOC_INCLUDE("apps/opencs/model/doc/document.hpp")
-
 class QTimer;
 
 namespace CSMDoc

@@ -73,6 +73,7 @@ openmw_rtx_layer(
         common/index.hpp
         common/job.hpp
         common/jobprogress.hpp
+        common/letgo.hpp
         common/mebibytes.hpp
         common/menu.hpp
         common/namedenum.hpp
@@ -368,8 +369,8 @@ openmw_rtx_layer(
         environment/skymesh.cpp
         environment/skysheet.cpp
         environment/starmesh.cpp
-        environment/wavecascade.cpp
-        environment/wavespectrum.cpp
+        world/wavecascade.cpp
+        world/wavespectrum.cpp
     HEADERS
         environment/atmospheremesh.hpp
         environment/cloudmesh.hpp
@@ -378,8 +379,8 @@ openmw_rtx_layer(
         environment/skymesh.hpp
         environment/skysheet.hpp
         environment/starmesh.hpp
-        environment/wavecascade.hpp
-        environment/wavespectrum.hpp
+        world/wavecascade.hpp
+        world/wavespectrum.hpp
 )
 
 openmw_rtx_layer(

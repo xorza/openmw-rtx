@@ -232,8 +232,8 @@ namespace Rtx
             float below = 0.0f;
             for (int step = 0; step <= 64; ++step)
             {
-                const float carried = airTransmittance(float(step) / 64.0f).y();
-                EXPECT_GT(carried, below) << "at a height of " << float(step) / 64.0f;
+                const float carried = airTransmittance(static_cast<float>(step) / 64.0f).y();
+                EXPECT_GT(carried, below) << "at a height of " << static_cast<float>(step) / 64.0f;
                 below = carried;
             }
         }

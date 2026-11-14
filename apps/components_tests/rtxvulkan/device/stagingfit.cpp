@@ -4,7 +4,7 @@
 
 #include <gtest/gtest.h>
 
-#include <components/rtxvulkan/device/commands.hpp>
+#include <components/rtxvulkan/device/memory/stagingring.hpp>
 
 namespace Rtx
 {
@@ -26,14 +26,14 @@ namespace Rtx
             constexpr std::array<std::size_t, 4> spare{ 1, 0, 2, 3 };
             const auto sizeOf = [&](const std::size_t block) { return sizes[block]; };
 
-            EXPECT_EQ(CommandPool::bestFit(spare, sizeOf, 100), std::optional<std::size_t>(1));
-            EXPECT_EQ(CommandPool::bestFit(spare, sizeOf, 8 * sMiB + 1), std::optional<std::size_t>(2));
-            EXPECT_EQ(CommandPool::bestFit(spare, sizeOf, 36 * sMiB), std::optional<std::size_t>(0));
-            EXPECT_EQ(CommandPool::bestFit(spare, sizeOf, 40 * sMiB), std::nullopt);
-            EXPECT_EQ(CommandPool::bestFit({}, sizeOf, 100), std::nullopt);
+            EXPECT_EQ(StagingRing::bestFit(spare, sizeOf, 100), std::optional<std::size_t>(1));
+            EXPECT_EQ(StagingRing::bestFit(spare, sizeOf, 8 * sMiB + 1), std::optional<std::size_t>(2));
+            EXPECT_EQ(StagingRing::bestFit(spare, sizeOf, 36 * sMiB), std::optional<std::size_t>(0));
+            EXPECT_EQ(StagingRing::bestFit(spare, sizeOf, 40 * sMiB), std::nullopt);
+            EXPECT_EQ(StagingRing::bestFit({}, sizeOf, 100), std::nullopt);
 
             constexpr std::array<std::size_t, 2> tiedBackwards{ 3, 0 };
-            EXPECT_EQ(CommandPool::bestFit(tiedBackwards, sizeOf, 100), std::optional<std::size_t>(1))
+            EXPECT_EQ(StagingRing::bestFit(tiedBackwards, sizeOf, 100), std::optional<std::size_t>(1))
                 << "a tie went to the block given back first and not the lower one";
         }
     }

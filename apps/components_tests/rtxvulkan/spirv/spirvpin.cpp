@@ -434,7 +434,7 @@ namespace Rtx
             {
                 Writer writer;
                 const std::uint32_t result = one.mBuild(writer);
-                const Decoded pinned = decode(pinFloatArithmetic(writer.finish()));
+                const Decoded pinned = decode(pinModule(writer.finish()));
                 EXPECT_EQ(describe(pinned, writer.names(), result), one.mExpected) << one.mName;
             }
         }
@@ -480,7 +480,7 @@ namespace Rtx
             {
                 Writer writer;
                 const std::uint32_t result = one.mBuild(writer);
-                const Decoded pinned = decode(pinFloatArithmetic(writer.finish()));
+                const Decoded pinned = decode(pinModule(writer.finish()));
                 EXPECT_EQ(describe(pinned, writer.names(), result), one.mExpected) << one.mName;
             }
         }
@@ -505,7 +505,7 @@ namespace Rtx
             const std::uint32_t root = writer.glsl(writer.mFloat, GLSLstd450Sqrt, { s });
             writer.decorate(added, spv::DecorationNoContraction);
 
-            const std::vector<std::uint32_t> words = pinFloatArithmetic(writer.finish());
+            const std::vector<std::uint32_t> words = pinModule(writer.finish());
             const Decoded pinned = decode(words);
 
             const auto decorations = [&](std::uint32_t id) {
@@ -582,7 +582,7 @@ namespace Rtx
             EXPECT_EQ(guarded.mNoContraction.at(precise), 1);
             EXPECT_EQ(marks[precise], 0) << "the source's precise is the source's, and the guard's mark is not on it";
 
-            EXPECT_EQ(pinFloatArithmetic(guardFloatArithmetic(module)), pinFloatArithmetic(module));
+            EXPECT_EQ(pinModule(guardFloatArithmetic(module)), pinModule(module));
 
             std::vector<std::uint32_t> older = module;
             older[1] = 0x00010300;
@@ -630,7 +630,7 @@ namespace Rtx
             // `x (1 - a) + y a`, its 1 the rewrite's.
             const std::uint32_t mixed = writer.glsl(writer.mFloat, GLSLstd450FMix, { tenth, fifth, three });
 
-            const Decoded pinned = decode(pinFloatArithmetic(writer.finish()));
+            const Decoded pinned = decode(pinModule(writer.finish()));
             const auto copied = [&](std::uint32_t id) -> std::vector<float> {
                 const Decoded::Made& made = pinned.mDefinitions.at(id);
                 if (made.mOp != spv::OpCopyObject)
@@ -677,7 +677,7 @@ namespace Rtx
             const std::uint32_t result = writer.op(
                 spv::OpFMod, writer.mFloat, { writer.input(writer.mFloat, "s"), writer.input(writer.mFloat, "t") });
 
-            const Decoded pinned = decode(pinFloatArithmetic(writer.finish()));
+            const Decoded pinned = decode(pinModule(writer.finish()));
             EXPECT_EQ(describe(pinned, writer.names(), result), "sub(s, mul(t, floor(div(s, t))))");
 
             std::size_t imports = 0;
@@ -715,7 +715,7 @@ namespace Rtx
                 { expected.mMain, spv::ExecutionModeSignedZeroInfNanPreserve, 16 });
             expected.raw(expected.mModes, spv::OpExecutionMode,
                 { expected.mMain, spv::ExecutionModeSignedZeroInfNanPreserve, 32 });
-            EXPECT_EQ(pinFloatArithmetic(module), expected.finish());
+            EXPECT_EQ(pinModule(module), expected.finish());
 
             // **A module that asks for it already gets no second one**: the 32-bit width it declared
             // stays as it was, and only the 16-bit one and the capability are added.
@@ -726,7 +726,53 @@ namespace Rtx
             answered.raw(answered.mCapabilities, spv::OpCapability, { spv::CapabilitySignedZeroInfNanPreserve });
             answered.raw(answered.mModes, spv::OpExecutionMode,
                 { answered.mMain, spv::ExecutionModeSignedZeroInfNanPreserve, 16 });
-            EXPECT_EQ(pinFloatArithmetic(asking.finish()), answered.finish());
+            EXPECT_EQ(pinModule(asking.finish()), answered.finish());
+        }
+
+        /// **A module that uses a subgroup operation reconverges maximally at its entry point**, and names the
+        /// extension once, after the module's own extensions; a module that names both already gets neither again,
+        /// and one with no subgroup capability (the test above) gets neither at all. Written by hand and compared
+        /// word for word.
+        TEST(RtxSpirvPinTest, aModuleThatUsesASubgroupOperationReconvergesMaximally)
+        {
+            Writer writer;
+            writer.raw(writer.mCapabilities, spv::OpCapability, { spv::CapabilityGroupNonUniformBallot });
+            const std::vector<std::uint32_t> named = spell("SPV_KHR_storage_buffer_storage_class");
+            writer.mExtensions.push_back(static_cast<std::uint32_t>(named.size() + 1) << spv::WordCountShift
+                | static_cast<std::uint32_t>(spv::OpExtension));
+            writer.mExtensions.insert(writer.mExtensions.end(), named.begin(), named.end());
+            writer.op(spv::OpFNegate, writer.mFloat, { writer.input(writer.mFloat, "s") });
+
+            // What the pinning adds to `from`: the preservation's capability and modes, the extension, and the mode.
+            const auto pinnedOf = [](Writer from) {
+                from.raw(from.mCapabilities, spv::OpCapability, { spv::CapabilitySignedZeroInfNanPreserve });
+                const std::vector<std::uint32_t> reconvergence = spell("SPV_KHR_maximal_reconvergence");
+                from.mExtensions.push_back(static_cast<std::uint32_t>(reconvergence.size() + 1) << spv::WordCountShift
+                    | static_cast<std::uint32_t>(spv::OpExtension));
+                from.mExtensions.insert(from.mExtensions.end(), reconvergence.begin(), reconvergence.end());
+                from.raw(
+                    from.mModes, spv::OpExecutionMode, { from.mMain, spv::ExecutionModeSignedZeroInfNanPreserve, 16 });
+                from.raw(
+                    from.mModes, spv::OpExecutionMode, { from.mMain, spv::ExecutionModeSignedZeroInfNanPreserve, 32 });
+                from.raw(from.mModes, spv::OpExecutionMode, { from.mMain, spv::ExecutionModeMaximallyReconvergesKHR });
+                return from;
+            };
+            const Writer expected = pinnedOf(writer);
+            const std::vector<std::uint32_t> pinned = pinModule(writer.finish());
+            EXPECT_EQ(pinned, expected.finish());
+            EXPECT_EQ(pinModule(pinned), pinned) << "a pinned module pinned again";
+
+            // **And a driver that fails on the two together is handed a ray-query module without the mode**: this
+            // module traces none and is handed as it is; with the capability, the mode alone goes.
+            EXPECT_EQ(withoutRayQueryReconvergence(pinned), pinned) << "a module that traces no ray lost its mode";
+            Writer tracing = writer;
+            tracing.raw(tracing.mCapabilities, spv::OpCapability, { spv::CapabilityRayQueryKHR });
+            const Writer tracingExpected = pinnedOf(tracing);
+            const std::vector<std::uint32_t> tracingPinned = pinModule(tracing.finish());
+            ASSERT_EQ(tracingPinned, tracingExpected.finish());
+            Writer unreconverged = tracingExpected;
+            unreconverged.mModes.resize(unreconverged.mModes.size() - 3);
+            EXPECT_EQ(withoutRayQueryReconvergence(tracingPinned), unreconverged.finish());
         }
 
         /// **What cannot be pinned stops the build, and says what it is.** One module per refusal,
@@ -843,7 +889,7 @@ namespace Rtx
                 one.mBuild(writer);
                 try
                 {
-                    pinFloatArithmetic(writer.finish());
+                    pinModule(writer.finish());
                     ADD_FAILURE() << one.mName << " was pinned";
                 }
                 catch (const std::runtime_error& refused)
@@ -856,11 +902,11 @@ namespace Rtx
             // The last instruction, `OpFunctionEnd`, claiming a word the module does not have.
             std::vector<std::uint32_t> cut = Writer().finish();
             cut.back() = 2u << spv::WordCountShift | static_cast<std::uint32_t>(spv::OpFunctionEnd);
-            EXPECT_THROW(pinFloatArithmetic(cut), std::runtime_error) << "an instruction that runs past the module";
+            EXPECT_THROW(pinModule(cut), std::runtime_error) << "an instruction that runs past the module";
 
             std::vector<std::uint32_t> swapped = Writer().finish();
             swapped[0] = 0x03022307;
-            EXPECT_THROW(pinFloatArithmetic(swapped), std::runtime_error) << "a module in the other byte order";
+            EXPECT_THROW(pinModule(swapped), std::runtime_error) << "a module in the other byte order";
         }
     }
 }

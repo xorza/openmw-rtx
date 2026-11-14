@@ -22,7 +22,8 @@ namespace RtxTool
         mHeader.mSuite = request.mSuite;
         mHeader.mAsserts = Rtx::sAssertsOn;
         mHeader.mMeasures = request.mMeasures;
-        mHeader.mMaps = request.mMaps;
+        mHeader.mPlayed = request.mPlayed;
+        mKeepsPictures = request.mKeepsPictures;
         mHeader.mHashed = std::any_of(
             request.mStops.begin(), request.mStops.end(), [](const Stop& stop) { return stop.mActions.mHash; });
         mHeader.mTurnsWeather = std::any_of(request.mStops.begin(), request.mStops.end(),
@@ -107,10 +108,12 @@ namespace RtxTool
             fail();
     }
 
-    SessionResult RunRecord::describe(const Stop* const left) const
+    SessionResult RunRecord::conclude(const Stop* const left)
     {
         SessionResult result;
-        result.mExitStatus = mExitStatus != 0 ? mExitStatus : mDiffered ? sDifferedStatus : 0;
+        result.mExitStatus = mStatus;
+        result.mShelf = std::move(mShelf);
+        result.mTraced = mTraced;
         result.mPlaces = mPlaces;
         result.mReport = mReport;
         if (left != nullptr)

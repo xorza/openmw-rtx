@@ -240,7 +240,7 @@ namespace Rtx
             for (int y = 0; y < size; ++y)
                 for (int x = 0; x < size; ++x)
                 {
-                    float* const texel = &frame[(std::size_t(y) * size + std::size_t(x)) * 4];
+                    float* const texel = &frame[(static_cast<std::size_t>(y) * size + static_cast<std::size_t>(x)) * 4];
                     texel[0] = static_cast<float>((x * 5 + y * 3) % 8) / 8.0f;
                     texel[1] = static_cast<float>((x * 3 + y * 7) % 8) / 8.0f;
                     texel[2] = static_cast<float>((x + y * 5) % 8) / 8.0f;
@@ -251,7 +251,8 @@ namespace Rtx
             const auto at = [&](int x, int y, int channel) {
                 x = std::clamp(x, 0, size - 1);
                 y = std::clamp(y, 0, size - 1);
-                return frame[(std::size_t(y) * size + std::size_t(x)) * 4 + std::size_t(channel)];
+                return frame[(static_cast<std::size_t>(y) * size + static_cast<std::size_t>(x)) * 4
+                    + static_cast<std::size_t>(channel)];
             };
             // A tap on the corner at `(x, y)` in texels: the four texels around it.
             const auto tap = [&](int x, int y, int channel) {
@@ -280,10 +281,10 @@ namespace Rtx
                     std::array<float, 3> mean{};
                     for (const auto& [dx, dy] : square.mTaps)
                         for (int c = 0; c < 3; ++c)
-                            mean[std::size_t(c)] += 0.25f * tap(cx + dx, cy + dy, c);
+                            mean[static_cast<std::size_t>(c)] += 0.25f * tap(cx + dx, cy + dy, c);
                     const float luminance = 0.2126f * mean[0] + 0.7152f * mean[1] + 0.0722f * mean[2];
                     const float weight = square.mShare / (1.0f + luminance * exposure);
-                    weighed += weight * mean[std::size_t(channel)];
+                    weighed += weight * mean[static_cast<std::size_t>(channel)];
                     total += weight;
                 }
                 return weighed / total;
@@ -301,7 +302,8 @@ namespace Rtx
                         for (int c = 0; c < 3; ++c)
                         {
                             const float expected = halved(px, py, c, exposure);
-                            EXPECT_NEAR(level[(std::size_t(py) * half + std::size_t(px)) * 4 + std::size_t(c)],
+                            EXPECT_NEAR(level[(static_cast<std::size_t>(py) * half + static_cast<std::size_t>(px)) * 4
+                                            + static_cast<std::size_t>(c)],
                                 expected, 1.0e-3f * expected + 1.0e-4f)
                                 << "texel " << px << ", " << py << " channel " << c << " at an exposure of "
                                 << exposure;

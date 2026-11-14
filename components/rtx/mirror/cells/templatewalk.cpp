@@ -62,16 +62,17 @@ namespace Rtx
         }
     }
 
-    TemplateWalk::TemplateWalk(const osg::StateSet* const above, ContentStore::Store* const store)
+    TemplateWalk::TemplateWalk(const osg::StateSet* const above)
         : osg::NodeVisitor(TRAVERSE_ALL_CHILDREN)
-        , mContent(store, ContentStore::Reach::Disk)
         , mAbove(above)
     {
     }
 
-    void TemplateWalk::read(const osg::Node& root, const osg::Node::NodeMask mask, PreparedModel& into)
+    void TemplateWalk::read(
+        const osg::Node& root, const osg::Node::NodeMask mask, PreparedModel& into, ThreadContent& content)
     {
         mInto = &into;
+        mContent = &content;
         mHere = osg::Matrix();
         mModes = NightDayModes{};
         mShading.clear();
@@ -84,6 +85,7 @@ namespace Rtx
         const_cast<osg::Node&>(root).accept(*this);
 
         mInto = nullptr;
+        mContent = nullptr;
     }
 
     void TemplateWalk::refuse(std::string_view why)
@@ -150,14 +152,14 @@ namespace Rtx
             return;
 
         MeshReading reading;
-        const Result<bool, std::string> readMesh
-            = mMeshes.read(mContent.mPreprocessor, read, modelOf(getNodePath()), reading);
+        const Result<MeshRead, std::string> readMesh
+            = mMeshes.read(mContent->mPreprocessor, read, modelOf(getNodePath()), reading);
         if (!readMesh.isOk())
         {
             refuse(readMesh.error());
             return;
         }
-        if (!readMesh.value())
+        if (readMesh.value() == MeshRead::Empty)
             return;
 
         // Here on the reader's thread, and not at the adoption, which is inside the frame's walk.
@@ -180,11 +182,12 @@ namespace Rtx
 
         PreparedPart part;
         part.mDrawable = &drawable;
-        part.mMaterial = MaterialResolver::read(mShading, mContent);
+        part.mMaterial = MaterialResolver::read(mShading, *mContent);
         const auto chained = static_cast<std::uint32_t>(into.mChains.size());
         MaterialResolver::chainOf(mShading, into.mChains);
         part.mChain = Run{ .mOffset = chained, .mCount = static_cast<std::uint32_t>(into.mChains.size()) - chained };
         part.mLocal = osg::Matrixf(mHere);
+        part.mClockwise = clockwiseThrough(mShading);
         part.mShape = reading.mShape;
         part.mModes = mModes;
         into.mEmits = into.mEmits || (part.mMaterial.mDescribed.has_value() && part.mMaterial.mDescribed->emits());

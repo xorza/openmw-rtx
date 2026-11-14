@@ -1,6 +1,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <span>
+#include <thread>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -59,14 +60,14 @@ namespace Rtx
             // The fifty end at 162, and the next run starts on the sixteen after it.
             const CommandPool& pool = getPool();
             const VkDeviceSize pastStart = 176;
-            const bool pastStays = pastStart + past.size() <= pool.getStagingSize(first.mBuffer);
+            const bool pastStays = pastStart + past.size() <= pool.getStaging().getSize(first.mBuffer);
             EXPECT_EQ(alone.mBuffer == first.mBuffer, pastStays) << "an upload left a block that held it, or "
                                                                     "landed in one with no room for it";
             EXPECT_EQ(alone.mOffset, pastStays ? pastStart : 0u);
 
             const VkDeviceSize afterStart
                 = (alone.mOffset + past.size() + sStagingAlignment - 1) / sStagingAlignment * sStagingAlignment;
-            const bool afterStays = afterStart + fifty.size() <= pool.getStagingSize(alone.mBuffer);
+            const bool afterStays = afterStart + fifty.size() <= pool.getStaging().getSize(alone.mBuffer);
             EXPECT_EQ(after.mBuffer == alone.mBuffer, afterStays);
             EXPECT_EQ(after.mOffset, afterStays ? afterStart : 0u) << "an upload landed over the one before it";
 
@@ -126,7 +127,7 @@ namespace Rtx
 
             // **And a one-off whose recording throws** goes back to the pool as the batch's does, takes no
             // staging, and is the next buffer a one-off records into.
-            const std::size_t blocks = getPool().getStagingBlockCount();
+            const std::size_t blocks = getPool().getStaging().getBlockCount();
             VkCommandBuffer thrown = VK_NULL_HANDLE;
             EXPECT_THROW(getPool().submitAndWait([&](VkCommandBuffer commands) {
                 thrown = commands;
@@ -141,7 +142,7 @@ namespace Rtx
             getPool().submitAndWait([&](VkCommandBuffer commands) { next = commands; });
 
             EXPECT_EQ(next, thrown) << "the thrown one-off's buffer was not given back";
-            EXPECT_EQ(getPool().getStagingBlockCount(), blocks);
+            EXPECT_EQ(getPool().getStaging().getBlockCount(), blocks);
             EXPECT_EQ(*static_cast<const std::uint32_t*>(target.map()), 0u) << "a thrown one-off's copy ran";
         }
 
@@ -179,6 +180,21 @@ namespace Rtx
             std::move(open).end();
         }
 
+        /// **The pool and the clock are the device's thread's**: a compile hand holds the same `const Device&`, and a
+        /// command buffer taken or a wait made from one dies where it is made, where it was a race on an externally
+        /// synchronized pool and on what a wait left behind.
+        TEST_F(RtxBatchTest, aCommandBufferTakenOrAWaitMadeOffTheDevicesThreadDies)
+        {
+            Testing::expectAssertDies([&] { std::jthread([&] { static_cast<void>(getPool().lend(1)); }).join(); },
+                "a member touched from the wrong thread");
+            Testing::expectAssertDies([&] { std::jthread([&] { getDevice().waitIdle(); }).join(); },
+                "a member touched from the wrong thread");
+
+            // And on the device's own, neither is anything.
+            static_cast<void>(getPool().lend(1));
+            getDevice().waitIdle();
+        }
+
         /// A staged write names its destination for the submit the batch rides.
         ///
         /// **The other way a table is written on the queue**, the one an arrival's rows take into the
@@ -213,7 +229,7 @@ namespace Rtx
             CommandPool& pool = getPool();
             const Buffer target = Buffer::readBack(getDevice(), 64, VK_BUFFER_USAGE_TRANSFER_DST_BIT, "test");
             const std::vector<std::byte> some(64, std::byte{ 1 });
-            const auto blocks = [&] { return pool.getStagingBlockCount(); };
+            const auto blocks = [&] { return pool.getStaging().getBlockCount(); };
 
             // A copy out of a block, so the batch has something to carry: a block is read by the
             // submit the batch rides, and a batch that recorded nothing rides none.
@@ -258,14 +274,14 @@ namespace Rtx
         TEST_F(RtxBatchTest, aTrimLetsGoOfTheFreeBlocksPastWhatItKeeps)
         {
             CommandPool& pool = getPool();
-            const auto blocks = [&] { return pool.getStagingBlockCount(); };
+            const auto blocks = [&] { return pool.getStaging().getBlockCount(); };
 
             // From a queue run dry, so every block a test before left retiring is free and the trim
             // lets go of it: a block still retiring is one no trim reaches, and freed by a later
             // submit it was a block the counts below never expected.
             getDevice().waitIdle();
             getDevice().collectIdle();
-            pool.trimStaging(0);
+            pool.getStaging().trim(0);
             ASSERT_EQ(blocks(), 0u) << "a block outlived a trim of everything on an idle queue";
 
             // A recording opened, so the flush is a submit the blocks are read until: a batch that
@@ -280,7 +296,7 @@ namespace Rtx
             stage({ sStagingBlock, sStagingBlock, sStagingBlock, 20 << 20 });
             ASSERT_EQ(blocks(), 4u) << "the batch did not take a block per run";
 
-            pool.trimStaging(2 * sStagingBlock);
+            pool.getStaging().trim(2 * sStagingBlock);
             EXPECT_EQ(blocks(), 2u) << "the trim kept more or fewer than the two smallest";
 
             stage({ sStagingBlock, sStagingBlock });
@@ -293,17 +309,17 @@ namespace Rtx
             // than it keeps.** Three standard blocks and a twenty-megabyte one, against two
             // standard blocks kept: the large one goes first, then one standard block, and the two
             // left are what is kept, which a shed leaves.
-            pool.trimStaging(0);
+            pool.getStaging().trim(0);
             stage({ sStagingBlock, sStagingBlock, sStagingBlock, 20 << 20 });
             ASSERT_EQ(blocks(), 4u);
-            pool.shedStaging(2 * sStagingBlock);
+            pool.getStaging().shed(2 * sStagingBlock);
             EXPECT_EQ(blocks(), 3u) << "a shed let go of more or less than one block";
             stage({ 20 << 20 });
             EXPECT_EQ(blocks(), 4u) << "a run past the blocks left made one of its own";
-            pool.shedStaging(2 * sStagingBlock);
-            pool.shedStaging(2 * sStagingBlock);
+            pool.getStaging().shed(2 * sStagingBlock);
+            pool.getStaging().shed(2 * sStagingBlock);
             EXPECT_EQ(blocks(), 2u);
-            pool.shedStaging(2 * sStagingBlock);
+            pool.getStaging().shed(2 * sStagingBlock);
             EXPECT_EQ(blocks(), 2u) << "a shed let go of what the ring keeps";
         }
     }

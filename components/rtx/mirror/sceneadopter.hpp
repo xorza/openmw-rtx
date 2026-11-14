@@ -32,6 +32,8 @@ namespace Rtx
 
         SceneAdopter(const SceneAdopter&) = delete;
         SceneAdopter& operator=(const SceneAdopter&) = delete;
+        SceneAdopter(SceneAdopter&&) = delete;
+        SceneAdopter& operator=(SceneAdopter&&) = delete;
 
         /// The material of a reading somebody else made, with one hold taken on it, and the key it
         /// is held under: `chain` keyed by the walk's own table (`ChainKeys::keyOf`), so a chain the

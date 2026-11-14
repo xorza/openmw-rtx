@@ -194,9 +194,10 @@ namespace Rtx
             mRenderer.drawGui(over, std::array<GuiBatch, 1>{ GuiBatch{ white, 0, 6 } });
             const std::array<std::uint8_t, 4> picture = inPicture(1, 4);
             const auto left = [&](std::size_t channel) {
-                return static_cast<std::uint8_t>(std::lround(float(picture[channel]) * 127.0f / 255.0f));
+                return static_cast<std::uint8_t>(std::lround(static_cast<float>(picture[channel]) * 127.0f / 255.0f));
             };
-            const auto red = static_cast<std::uint8_t>(std::lround(128.0f + float(picture[0]) * 127.0f / 255.0f));
+            const auto red
+                = static_cast<std::uint8_t>(std::lround(128.0f + static_cast<float>(picture[0]) * 127.0f / 255.0f));
             EXPECT_EQ(at(1, 4), (std::array<std::uint8_t, 4>{ red, left(1), left(2), 255 }))
                 << "over the picture alone";
         }
@@ -857,7 +858,7 @@ namespace Rtx
                 .mRadius = 30.0f,
                 .mColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
                 .mAlpha = 1.0f } };
-            scene.addEmitter(sprites, cut, BlendKind::Over);
+            scene.addEmitter(sprites, EmitterSpec{ .mTexture = cut, .mBlend = BlendKind::Over });
             mRenderer.setScene(Rtx::SceneSlot::world(), scene, puff);
 
             const GuiSlot texture = mRenderer.addGuiTexture(extent, extent);
@@ -918,7 +919,8 @@ namespace Rtx
                     .mRadius = 60.0f,
                     .mColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
                     .mAlpha = 1.0f } };
-                scene.addEmitter(sprites, cut, additive ? BlendKind::Add : BlendKind::Over);
+                scene.addEmitter(
+                    sprites, EmitterSpec{ .mTexture = cut, .mBlend = additive ? BlendKind::Add : BlendKind::Over });
                 mRenderer.setScene(Rtx::SceneSlot::world(), scene, puff);
 
                 Shaders::VisibilityConstants camera = makeMapCamera(extent);

@@ -46,6 +46,7 @@
 #include <components/crashcatcher/crashinstall.hpp>
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/debug/debuglog.hpp>
+#include <components/dlss/dlss.hpp>
 #include <components/esm3/loadcell.hpp>
 #include <components/loadinglistener/loadinglistener.hpp>
 #include <components/misc/frameclock.hpp>
@@ -111,6 +112,33 @@ namespace MWRender
             Crash::fatal("a vertical sync mode past the three");
         }
 
+        /// Waits out `await` under the loading screen, its label `label` and its note `note`, empty for none.
+        /// **Under a frame of the loading screen's**, so the screen paces it and not this wait: every report
+        /// draws, the count moved or not, as the draw pumps the window's events and beats the crash catcher's
+        /// heart, and one kernel alone takes seconds cold.
+        template <class Await>
+        void awaitOnScreen(
+            Loading::Listener& listener, const std::string_view label, const std::string_view note, Await&& await)
+        {
+            Rtx::JobProgress progress = await(std::chrono::milliseconds::zero());
+            if (progress.isDone())
+                return;
+
+            listener.setLabel(std::string(label));
+            if (!note.empty())
+                listener.setNote(std::string(note));
+            listener.setProgressRange(progress.mCount);
+
+            constexpr std::chrono::milliseconds patience{ 8 };
+            listener.setProgress(progress.mMade);
+            while (!progress.isDone())
+            {
+                progress = await(patience);
+                listener.setProgress(progress.mMade);
+            }
+            if (!note.empty())
+                listener.setNote({});
+        }
     }
 
     RtxRenderer::RtxRenderer(const RendererSpec& spec, const RtxSetup* const run)
@@ -157,7 +185,7 @@ namespace MWRender
         // The player keeps the fork's cache: a game is not compared with itself.
         if (run == nullptr)
             options.mCacheDirectory = spec.mCachePath;
-        options.mDlss = spec.mDlss;
+        options.mDlss = DlssLibrary::foldersIn(spec.mUserLocalData, spec.mGameFiles);
         // None whose traced extent truncates to nought, and none past the side every device chosen
         // makes an image at.
         constexpr auto smallest = static_cast<int>(Rtx::sSmallestFrameSide);
@@ -210,8 +238,8 @@ namespace MWRender
 
         // Nothing above may have made a GL context (the window, a realize operation, a stray `osgViewer`):
         // one that exists is one something is paying for.
-        if (SDL_GL_GetCurrentContext() != nullptr)
-            throw std::runtime_error("something initialised OpenGL under the ray tracing renderer");
+        Crash::contract(
+            SDL_GL_GetCurrentContext() == nullptr, "something initialised OpenGL under the ray tracing renderer");
     }
 
     Rtx::CardAddress RtxRenderer::getCardAddress() const
@@ -298,7 +326,7 @@ namespace MWRender
         mMirror.getRing().setSettled(mSettled.value_or(stated.has_value()));
 
         Resource::SceneManager& scene = *resources.getSceneManager();
-        scene.setModelPrograms(Resource::ModelPrograms::Left);
+        scene.setModelPrograms(Resource::ModelPrograms::Omitted);
         setAutoMaps(scene);
     }
 
@@ -329,7 +357,7 @@ namespace MWRender
         if (spec.mWorldspace == ESM::Cell::sDefaultWorldspaceId)
             mMirror.growGroundcover(spec.mGroundcoverStore);
 
-        return std::make_unique<TracedGround>(spec, *getResources().getSceneManager(), Mask_Terrain, mMirror);
+        return std::make_unique<TracedGround>(spec, *getResources().getSceneManager(), Mask_Terrain, mMirror.getRing());
     }
 
     void RtxRenderer::addCell(const MWWorld::CellStore* cell) noexcept
@@ -535,78 +563,25 @@ namespace MWRender
         mMirror.startPreparing(getResources(), std::move(models), std::move(layers),
             std::max<std::size_t>(1, Platform::Process::usableCpuCount() - 1));
 
-        Rtx::JobProgress progress = mRenderer->awaitKernels(mKernels, std::chrono::milliseconds::zero());
-        if (!progress.isDone())
-        {
-            listener.setLabel("#{OMWEngine:CompilingShaders}");
-            listener.setProgressRange(progress.mCount);
+        awaitOnScreen(listener, "#{OMWEngine:CompilingShaders}", {},
+            [&](const std::chrono::milliseconds patience) { return mRenderer->awaitKernels(mKernels, patience); });
 
-            // Under a frame of the loading screen's, so the screen paces it and not this wait. Every report
-            // draws, the count moved or not: the draw pumps the window's events and beats the crash catcher's
-            // heart, and one kernel alone takes seconds cold.
-            constexpr std::chrono::milliseconds patience{ 8 };
-            listener.setProgress(progress.mMade);
-            while (!progress.isDone())
-            {
-                progress = mRenderer->awaitKernels(mKernels, patience);
-                listener.setProgress(progress.mMade);
-            }
-        }
-
-        progress = mMirror.awaitPreparing(std::chrono::milliseconds::zero());
-        if (!progress.isDone())
-        {
-            listener.setLabel("#{OMWEngine:PreparingContent}");
-            // A cold start waits here up to minutes, 364 s on a large mod list, and a player told nothing
-            // takes it for a hang (`docs/research/2026-11-09-content-preparation-cost.md`).
-            listener.setNote("#{OMWEngine:PreparingContentNote}");
-            listener.setProgressRange(progress.mCount);
-
-            // Each file is let go of by the loader's caches as the last job reading it ends
-            // (`Rtx::ContentPreparation`, `Resource::SceneManager::letGo`): cleared once a second the caches
-            // held 7.3 GiB at the peak of a PBR start, and aged by their expiry, 14.7 GB.
-            constexpr std::chrono::milliseconds patience{ 8 };
-            // Each report draws a frame, as above, the last one the whole count.
-            listener.setProgress(progress.mMade);
-            while (!progress.isDone())
-            {
-                progress = mMirror.awaitPreparing(patience);
-                listener.setProgress(progress.mMade);
-            }
-            listener.setNote({});
-        }
+        // A cold start waits here up to minutes, 364 s on a large mod list, and a player told nothing takes it for
+        // a hang (`docs/research/2026-11-09-content-preparation-cost.md`). Each file is let go of by the loader's
+        // caches as the last job reading it ends (`Rtx::ContentPreparation`, `Resource::SceneManager::letGo`):
+        // cleared once a second the caches held 7.3 GiB at the peak of a PBR start, and aged by their expiry, 14.7 GB.
+        awaitOnScreen(listener, "#{OMWEngine:PreparingContent}", "#{OMWEngine:PreparingContentNote}",
+            [&](const std::chrono::milliseconds patience) { return mMirror.awaitPreparing(patience); });
         mWalked.mSession.mLoading += mMirror.finishPreparing();
 
         // Drops what a job's files did not name, so the models a run keeps do not hang on the threads' timing.
         getResources().clearCache();
     }
 
-    osg::ref_ptr<osg::Image> RtxRenderer::readFrame(const int width, const int height, const Rtx::Channels channels)
-    {
-        // A readback drains the queue, which a frame may not pay for and a stop or a loading
-        // screen may.
-        mPhase.expect(Phase::Between, Phase::Run);
-
-        const Rtx::FrameExtents extents = mRenderer->getExtents();
-        if (extents.mOutputWidth == 0 || extents.mOutputHeight == 0)
-            return nullptr;
-
-        mRenderer->readPixels(mReadBack);
-
-        const Rtx::TracedFrame frame{
-            .mWidth = extents.mOutputWidth,
-            .mHeight = extents.mOutputHeight,
-            .mPixels = mReadBack,
-        };
-
-        return Rtx::frameImage(frame, width > 0 ? width : static_cast<int>(frame.mWidth),
-            height > 0 ? height : static_cast<int>(frame.mHeight), Rtx::RowOrder::BottomFirst, channels);
-    }
-
     void RtxRenderer::capture(osg::Image& image, int width, int height) noexcept
     {
         mPhase.expect(Phase::Between, Phase::Run);
-        const osg::ref_ptr<osg::Image> taken = readFrame(width, height, Rtx::Channels::Rgb);
+        const osg::ref_ptr<osg::Image> taken = FrameReader::read(*mRenderer, width, height, Rtx::Channels::Rgb);
         if (taken == nullptr)
             return;
 
@@ -618,7 +593,7 @@ namespace MWRender
         mPhase.expect(Phase::Between, Phase::Run);
         // Three channels, as the rasterizer reads its screenshots: the JPEG writer `screenshot
         // format` may name refuses four (`Rtx::Channels::Rgb`).
-        const osg::ref_ptr<osg::Image> taken = readFrame(0, 0, Rtx::Channels::Rgb);
+        const osg::ref_ptr<osg::Image> taken = FrameReader::read(*mRenderer, 0, 0, Rtx::Channels::Rgb);
         if (taken == nullptr)
         {
             Log(Debug::Warning) << "Ray tracing has no frame to write a screenshot from";
@@ -722,31 +697,10 @@ namespace MWRender
 
     MyGUI::ITexture& RtxRenderer::freezeFrame() noexcept
     {
-        mPhase.expect(Phase::Between, Phase::Run);
-        const osg::ref_ptr<osg::Image> taken = readFrame();
-
-        if (mFrozenFrame == nullptr)
-            mFrozenFrame = new osg::Texture2D;
-
         // A full readback, which a load screen is exactly the moment to afford.
-        if (taken != nullptr)
-            mFrozenFrame->setImage(taken);
-
-        if (mFrozenFrame->getImage() == nullptr)
-        {
-            // Nothing has been presented yet, which is the very first load: black is what a fade from nothing
-            // looks like.
-            osg::ref_ptr<osg::Image> black = new osg::Image;
-            black->allocateImage(1, 1, 1, GL_RGB, GL_UNSIGNED_BYTE);
-            std::memset(black->data(), 0, black->getTotalSizeInBytes());
-            mFrozenFrame->setImage(black);
-        }
-
+        mPhase.expect(Phase::Between, Phase::Run);
         assert(mGui != nullptr && "a frame frozen before the interface was made");
-        if (mFrozenFrameTexture == nullptr)
-            mFrozenFrameTexture = mGui->shareTexture(*mFrozenFrame);
-
-        return *mFrozenFrameTexture;
+        return mFrames.freeze(*mRenderer, *mGui);
     }
 
     std::unique_ptr<MyGUIPlatform::Platform> RtxRenderer::createGuiPlatform(
@@ -762,12 +716,17 @@ namespace MWRender
             std::move(manager), getResources().getVFS(), resourcePath, logPath);
     }
 
-    void RtxRenderer::notifyCut() noexcept
+    void RtxRenderer::closeStretch()
     {
-        expectWorldEvent();
         // How the stretch the cut ends ran, which a player's report reads beside where it went.
         Log(Debug::Info) << "Frame times since the last cut: " << Rtx::describe(mStretchTimes.summarise());
         mStretchTimes.clear();
+    }
+
+    void RtxRenderer::notifyCut() noexcept
+    {
+        expectWorldEvent();
+        closeStretch();
         // Told rather than worked out: the mirror recycles its slots and is never cleared, so a cell load
         // looks like a step across a room. Kept for the next frame the world is traced in.
         mLoss = std::max(mLoss, Rtx::HistoryLoss::Cut);
@@ -776,6 +735,7 @@ namespace MWRender
     void RtxRenderer::notifyWorldspaceChanged() noexcept
     {
         expectWorldEvent();
+        closeStretch();
         mLoss = Rtx::HistoryLoss::Worldspace;
         mRipples.dropStrikes();
         mViews.leaveScene();

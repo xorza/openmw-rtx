@@ -2,6 +2,8 @@
 
 #include <cstring>
 
+#include "faultreport.hpp"
+
 namespace Rtx
 {
     namespace

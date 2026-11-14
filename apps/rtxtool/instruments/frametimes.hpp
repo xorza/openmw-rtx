@@ -1,7 +1,6 @@
 #pragma once
 
 #include <array>
-#include <chrono>
 #include <cstdint>
 #include <filesystem>
 #include <span>
@@ -10,51 +9,12 @@
 #include <vector>
 
 #include <components/misc/result.hpp>
-#include <components/platform/file.hpp>
 #include <components/rtx/renderer/framespend.hpp>
 #include <components/rtx/renderer/framezone.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 
 namespace RtxTool
 {
-    /// perf's control fifo, so a recording holds the frames that were measured and nothing else.
-    ///
-    /// `perf record --delay=-1 --control=fifo:<path>` starts with its counters off and turns them on when
-    /// the word `enable` arrives on the fifo. Handed that path, this writes the word around each place's
-    /// measured frames, so the profile is those frames alone. Trimming a whole-run recording to a guessed
-    /// boundary instead reports a quarter of its samples against code the benchmark never claimed to measure.
-    ///
-    /// An empty path does nothing at all, which is every run that is not being profiled.
-    class PerfControl
-    {
-    public:
-        /// How long `open` waits for perf to open its end: perf attaches to a running process and
-        /// loads a BPF program for `--offcpu` before it reads, which takes seconds and not minutes.
-        static constexpr std::chrono::milliseconds sReaderWait{ 30000 };
-
-        explicit PerfControl(std::filesystem::path fifo, std::chrono::milliseconds readerWait = sReaderWait);
-
-        /// Opens the fifo, where it is not open yet: ahead of a place, so no measured frame pays it.
-        ///
-        /// Not on construction, because the reader has to be there first: opening a fifo for writing with
-        /// nobody reading fails without blocking, and perf attaches only after the harness started. The open
-        /// retries until the reader is there, and throws once the wait is spent.
-        void open();
-
-        /// Starts counting, on the first measured frame: one write, the fifo `open` opened.
-        void enable();
-
-        /// Stops counting. Silent before the first `enable`, so a run stopped early is not an error.
-        void disable();
-
-    private:
-        void send(std::string_view command);
-
-        std::filesystem::path mFifo;
-        std::chrono::milliseconds mReaderWait;
-        Platform::File::ScopedHandle mHandle;
-    };
-
     /// What a run of frame times came to, in milliseconds.
     ///
     /// A distribution and not an average: "is this build faster" is answered by the middle of the run and
@@ -209,13 +169,8 @@ namespace RtxTool
 
     private:
         /// One zone and what it has cost.
-        ///
-        /// One row and not three vectors kept level by hand: a name pushed without its row is an index that
-        /// reads another zone's samples.
         struct ZoneRow
         {
-            Rtx::FrameZone mZone = Rtx::FrameZone::Count;
-
             /// One sample a frame, never one a span.
             ///
             /// Its own vector, because the rows are pushed to independently: a flat buffer shared by all of
@@ -227,10 +182,12 @@ namespace RtxTool
             std::uint32_t mSeen = 0;
         };
 
-        std::vector<ZoneRow> mRows;
+        /// A row a zone, at the zone's own index: the set of zones is closed, so a span finds its row without a
+        /// search, and every row has its room from `reserve` on, before any frame it times.
+        std::array<ZoneRow, Rtx::sFrameZoneCount> mRows{};
 
         /// What the counters read, `counterNames().size()` a run, every zone's runs one after
-        /// another in the order they ran, and the place in `mRows` of each run's zone.
+        /// another in the order they ran, and the zone of each run.
         ///
         /// One store for every zone, made room for at its bound: a frame opens at most `Rtx::sMaxGpuZones`
         /// zones, so `reserve`'s frames times that many runs is room no measured frame outgrows. A row's own

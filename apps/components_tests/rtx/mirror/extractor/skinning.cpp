@@ -45,6 +45,21 @@ namespace Rtx::Testing
             return Rtx::boneAt(scene.getMeshPose(mesh), 0).mRows[2];
         }
 
+        /// Moves the bone from inside the update traversal, which is where a keyframe
+        /// controller lives.
+        ///
+        /// **Setting the matrix from outside would prove nothing**: the bone would move whether
+        /// or not the traversal ran, and the traversal running is the entire question.
+        struct BoneClock : osg::NodeCallback
+        {
+            void operator()(osg::Node* node, osg::NodeVisitor* nv) override
+            {
+                static_cast<osg::MatrixTransform*>(node)->setMatrix(
+                    osg::Matrix::translate(0.0, 0.0, static_cast<double>(nv->getTraversalNumber())));
+                traverse(node, nv);
+            }
+        };
+
         /// A skinned body is mirrored as its bind pose and its bone rows, and not as vertices.
         ///
         /// **Nothing else poses this graph**, which is the whole assertion: the rows exist only because the walk read
@@ -130,9 +145,8 @@ namespace Rtx::Testing
             rigged.update(3);
             mScene.clearPlacement();
 
-            const std::size_t before = Testing::getAllocationCount();
-            const ExtractionStats still = walk(*rigged.mSkeleton, 0, 2);
-            const std::size_t spent = Testing::getAllocationCount() - before;
+            ExtractionStats still{};
+            const std::size_t spent = Testing::allocationsIn([&] { still = walk(*rigged.mSkeleton, 0, 2); });
 
             EXPECT_EQ(spent, 0u) << spent << " allocations to pose a body the walk already held";
             EXPECT_EQ(still.mDeformed, 1u) << "posed, which is what the count says";
@@ -247,21 +261,6 @@ namespace Rtx::Testing
         /// does, or a street of people would slide about in the pose they held three frames after loading.
         TEST_F(RtxSceneExtractorTest, aSemiActiveSkeletonGoesOnAnimatingUnderAWalkThatReachesIt)
         {
-            /// Moves the bone from inside the update traversal, which is where a keyframe
-            /// controller lives.
-            ///
-            /// **Setting the matrix from outside would prove nothing**: the bone would move whether
-            /// or not the traversal ran, and the traversal running is the entire question.
-            struct BoneClock : osg::NodeCallback
-            {
-                void operator()(osg::Node* node, osg::NodeVisitor* nv) override
-                {
-                    static_cast<osg::MatrixTransform*>(node)->setMatrix(
-                        osg::Matrix::translate(0.0, 0.0, static_cast<double>(nv->getTraversalNumber())));
-                    traverse(node, nv);
-                }
-            };
-
             RiggedQuad rigged;
             rigged.mBone->addUpdateCallback(new BoneClock);
             rigged.mSkeleton->setActive(SceneUtil::Skeleton::SemiActive);
@@ -291,18 +290,6 @@ namespace Rtx::Testing
         /// the mask stops being zero this fails and says what the consequence is.
         TEST_F(RtxSceneExtractorTest, anInactiveActorStopsAnimatingAndIsKeptOutOfReachByItsMask)
         {
-            /// The same clock the `SemiActive` case uses: the bone moves only because the update
-            /// traversal reached it, which is the entire question.
-            struct BoneClock : osg::NodeCallback
-            {
-                void operator()(osg::Node* node, osg::NodeVisitor* nv) override
-                {
-                    static_cast<osg::MatrixTransform*>(node)->setMatrix(
-                        osg::Matrix::translate(0.0, 0.0, static_cast<double>(nv->getTraversalNumber())));
-                    traverse(node, nv);
-                }
-            };
-
             RiggedQuad rigged;
             rigged.mBone->addUpdateCallback(new BoneClock);
 
@@ -457,9 +444,8 @@ namespace Rtx::Testing
             // is measured against is read from the targets as they stand.
             mScene.clearPlacement();
 
-            const std::size_t before = Testing::getAllocationCount();
-            const ExtractionStats third = walk(*root);
-            const std::size_t spent = Testing::getAllocationCount() - before;
+            ExtractionStats third{};
+            const std::size_t spent = Testing::allocationsIn([&] { third = walk(*root); });
 
             EXPECT_EQ(spent, 0u) << spent << " allocations to pose a face the walk already held";
             EXPECT_EQ(third.mMeshesReused, 2u);

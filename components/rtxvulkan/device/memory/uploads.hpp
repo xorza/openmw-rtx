@@ -7,8 +7,8 @@
 #include <vulkan/vulkan_core.h>
 
 #include <components/rtx/common/index.hpp>
-#include <components/rtxvulkan/device/commands.hpp>
 
+#include "batch.hpp"
 #include "buffer.hpp"
 
 namespace Rtx
@@ -40,6 +40,8 @@ namespace Rtx
 
         Uploads(const Uploads&) = delete;
         Uploads& operator=(const Uploads&) = delete;
+        Uploads(Uploads&&) = delete;
+        Uploads& operator=(Uploads&&) = delete;
 
         /// Writes `data` at `offset` bytes into `into`. Nothing at all for nothing.
         template <class T>

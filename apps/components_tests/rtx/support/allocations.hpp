@@ -14,4 +14,13 @@ namespace Rtx::Testing
     /// that thread's reads for its own. **Not `malloc`**, which would also catch the driver's own
     /// allocations, noise a guard has no use for.
     std::size_t getAllocationCount();
+
+    /// How many times `run` went to the heap on the calling thread (`getAllocationCount`).
+    template <class Run>
+    std::size_t allocationsIn(Run&& run)
+    {
+        const std::size_t before = getAllocationCount();
+        run();
+        return getAllocationCount() - before;
+    }
 }

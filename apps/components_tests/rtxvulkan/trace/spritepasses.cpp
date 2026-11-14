@@ -25,8 +25,10 @@
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
+#include <components/rtxvulkan/scene/spritesource.hpp>
 #include <components/rtxvulkan/shaders/shared/spritebin.h>
 #include <components/rtxvulkan/shaders/shared/spriteshade.h>
+#include <components/rtxvulkan/trace/spritebin.hpp>
 #include <components/rtxvulkan/trace/spritepasses.hpp>
 
 namespace Rtx
@@ -409,6 +411,38 @@ namespace Rtx
         /// a map tile, which draws no effect, does not look for an effect's sheet. The same sphere of
         /// class `Effect` marks the tiles it is met from under a camera that draws effects, and none
         /// under one that draws statics alone.
+        /// **A bin says whether it took a puff, and apart from that whether any of it is lit as one**: an additive
+        /// emitter's sprites are drawn as puffs and glow with their own light, so a frame of flames alone asks the air
+        /// for no ambient ray (`Shaders::PUFFS_LIT`); a sprite of any other emitter, or a placement in the presence
+        /// table, is lit as a puff.
+        TEST_F(RtxSpriteBinPassTest, aBinSaysWhetherAnyPuffItTookIsLit)
+        {
+            Device& device = getDevice();
+            const SpriteShadePass shading(device);
+            const SpriteBinPass binning(device);
+            SpriteBin bin(device, shading, binning);
+
+            const Buffer sprites = Buffer::deviceLocal(device, 3 * sizeof(Shaders::GpuSprite),
+                VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "test");
+            const Shaders::VisibilityConstants constants = Testing::makeCamera(
+                osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, 16, 16, 1000.0f);
+            const auto take = [&](const std::uint32_t count, const std::uint32_t lit, const std::uint32_t presences) {
+                getPool().submitAndWait([&](VkCommandBuffer commands) {
+                    bin.take(SpriteSource{ .mSprites = &sprites,
+                                 .mSpriteCount = count,
+                                 .mPresenceCount = presences,
+                                 .mLitSpriteCount = lit },
+                        constants.mEyes.mWorld, commands);
+                });
+                return std::pair(bin.getTables().mPuffs, bin.getTables().mLitPuffs);
+            };
+
+            EXPECT_EQ(take(0, 0, 0), std::pair(false, false)) << "nothing";
+            EXPECT_EQ(take(3, 0, 0), std::pair(true, false)) << "flames alone";
+            EXPECT_EQ(take(3, 2, 0), std::pair(true, true)) << "smoke beside the flames";
+            EXPECT_EQ(take(0, 0, 1), std::pair(true, true)) << "a presence";
+        }
+
         TEST_F(RtxSpriteBinPassTest, aPresenceOfAClassTheCameraDoesNotDrawMarksNoTile)
         {
             Layer layer;
@@ -1325,9 +1359,7 @@ namespace Rtx
             shading.mDevice.getPool().submitAndWait([&](VkCommandBuffer commands) {
                 shading.mPass.record(commands, shade, nullptr);
 
-                const std::size_t before = Testing::getAllocationCount();
-                shading.mPass.record(commands, shade, nullptr);
-                spent = Testing::getAllocationCount() - before;
+                spent = Testing::allocationsIn([&] { shading.mPass.record(commands, shade, nullptr); });
             });
 
             EXPECT_EQ(spent, 0u) << spent << " allocations to record the shading";

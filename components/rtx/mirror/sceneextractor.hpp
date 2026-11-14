@@ -290,6 +290,8 @@ namespace Rtx
 
             WalkGuard(const WalkGuard&) = delete;
             WalkGuard& operator=(const WalkGuard&) = delete;
+            WalkGuard(WalkGuard&&) = delete;
+            WalkGuard& operator=(WalkGuard&&) = delete;
 
         private:
             MirrorPass& mPass;

@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <bit>
+#include <cassert>
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
@@ -157,6 +158,16 @@ namespace Rtx
         {
             into.reserve(into.size() + chain.mBytes.size() + 1);
             into.insert(into.end(), chain.mBytes.begin(), chain.mBytes.end());
+            ContentBytes::put(into, static_cast<std::uint8_t>(chain.mForm));
+        }
+
+        /// The same of a chain nobody reads again, its bytes moved into an empty payload rather than copied:
+        /// a chain is tens of megabytes at the most.
+        static void encode(MadeChain&& chain, Misc::ByteBuffer& into)
+        {
+            assert(into.empty() && "a chain moved into a payload that holds something");
+            into = std::move(chain.mBytes);
+            chain.mBytes = Misc::ByteBuffer();
             ContentBytes::put(into, static_cast<std::uint8_t>(chain.mForm));
         }
 

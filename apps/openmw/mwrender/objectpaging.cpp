@@ -17,7 +17,6 @@
 #include <osgParticle/ParticleSystemUpdater>
 #include <osgUtil/IncrementalCompileOperation>
 
-#include <components/crashcatcher/crash.hpp>
 #include <components/esm/path.hpp>
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/loadacti.hpp>
@@ -298,8 +297,7 @@ namespace MWRender
                 {
                     if (node->getCullCallback()->getNestedCallback())
                     {
-                        osg::Callback* clonedCallback = Crash::notNull(
-                            osg::clone(callback, osg::CopyOp::SHALLOW_COPY), "a cull callback OSG could not clone");
+                        osg::Callback* clonedCallback = osg::clone(callback, osg::CopyOp::SHALLOW_COPY);
                         clonedCallback->setNestedCallback(nullptr);
                         cloned->addCullCallback(clonedCallback);
                     }
@@ -517,14 +515,14 @@ namespace MWRender
         };
 
         template <class Sink>
-        void visitESM3References(float size, const osg::Vec2i& startCell, const MWWorld::ESMStore& store,
+        void visitESM3References(float size, const osg::Vec2i& startCell, const StaticRecords& records,
             Terrain::RefKinds kinds, ESM::ReadersCache& readers, Sink& refs)
         {
             for (int cellX = startCell.x(); cellX < startCell.x() + size; ++cellX)
             {
                 for (int cellY = startCell.y(); cellY < startCell.y() + size; ++cellY)
                 {
-                    const ESM::Cell* cell = store.get<ESM::Cell>().searchStatic(cellX, cellY);
+                    const ESM::Cell* cell = records.searchExterior(cellX, cellY);
                     if (!cell)
                         continue;
                     for (size_t i = 0; i < cell->mContextList.size(); ++i)
@@ -548,7 +546,7 @@ namespace MWRender
                                     != cell->mMovedRefs.end())
                                     continue;
 
-                                int type = store.findStatic(ref.mRefID);
+                                int type = records.findType(ref.mRefID);
                                 if (!typeFilter(type, size >= 2, kinds))
                                     continue;
                                 if (deleted)
@@ -573,7 +571,7 @@ namespace MWRender
                             refs.erase(ref.mRefNum);
                             continue;
                         }
-                        int type = store.findStatic(ref.mRefID);
+                        int type = records.findType(ref.mRefID);
                         if (!typeFilter(type, size >= 2, kinds))
                             continue;
                         refs.assign(ref.mRefNum, makePagedCellRef(ref));
@@ -587,7 +585,7 @@ namespace MWRender
         {
             RefMap refs;
             ESM::ReadersCache readers;
-            visitESM3References(size, startCell, store, kinds, readers, refs);
+            visitESM3References(size, startCell, StaticRecords(store), kinds, readers, refs);
             return std::move(refs.mRefs);
         }
 
@@ -1147,9 +1145,8 @@ namespace MWRender
         into.clear();
         buffer.mStack.clear();
 
-        const MWWorld::ESMStore& store = MWBase::Environment::get().getWorld()->getStore();
         if (worldspace == ESM::Cell::sDefaultWorldspaceId)
-            visitESM3References(size, startCell, store, kinds, buffer.mReaders, buffer.mStack);
+            visitESM3References(size, startCell, records(), kinds, buffer.mReaders, buffer.mStack);
         else
             visitESM4References(size, startCell, worldspace, kinds, buffer.mStack);
 
@@ -1165,25 +1162,46 @@ namespace MWRender
 
     std::optional<SceneUtil::LightCommon> ObjectStorage::getLight(const ESM::RefId& id) const
     {
-        const MWWorld::ESMStore& store = MWBase::Environment::get().getWorld()->getStore();
+        return records().getLight(id);
+    }
 
-        const ESM::Light* found = store.get<ESM::Light>().search(id);
+    VFS::Path::Normalized ObjectStorage::getModel(const ESM::RefId& id) const
+    {
+        const StaticRecords answers = records();
+        return answers.getModel(answers.findType(id), id);
+    }
+
+    StaticRecords ObjectStorage::records()
+    {
+        return StaticRecords(MWBase::Environment::get().getWorld()->getStore());
+    }
+
+    int StaticRecords::findType(const ESM::RefId& id) const
+    {
+        return mStore.findStatic(id);
+    }
+
+    const ESM::Cell* StaticRecords::searchExterior(const int x, const int y) const
+    {
+        return mStore.get<ESM::Cell>().searchStatic(x, y);
+    }
+
+    std::optional<SceneUtil::LightCommon> StaticRecords::getLight(const ESM::RefId& id) const
+    {
+        const ESM::Light* found = mStore.get<ESM::Light>().searchStatic(id);
         if (found == nullptr)
             return std::nullopt;
 
         return SceneUtil::LightCommon(*found);
     }
 
-    VFS::Path::Normalized ObjectStorage::getModel(const ESM::RefId& id) const
+    VFS::Path::Normalized StaticRecords::getModel(const int type, const ESM::RefId& id) const
     {
-        const MWWorld::ESMStore& store = MWBase::Environment::get().getWorld()->getStore();
-        const int type = store.findStatic(id);
-
         // Apart from the paging's own answer, which never meets a lamp: `REC_LIGH` is no paged type.
         if (type == ESM::REC_LIGH)
-            return store.get<ESM::Light>().searchStatic(id)->mModel.getNormalized();
+            return mStore.get<ESM::Light>().searchStatic(id)->mModel.getNormalized();
 
-        return MWRender::getModel(type, id, store);
+        return MWRender::getModel(type, id, mStore);
     }
 
 }

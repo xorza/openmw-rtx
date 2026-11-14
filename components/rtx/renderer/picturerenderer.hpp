@@ -57,6 +57,8 @@ namespace Rtx
 
         PictureRenderer(const PictureRenderer&) = delete;
         PictureRenderer& operator=(const PictureRenderer&) = delete;
+        PictureRenderer(PictureRenderer&&) = delete;
+        PictureRenderer& operator=(PictureRenderer&&) = delete;
 
         /// Room for pictures inside the interface up to `width` by `height`, asked as each view that
         /// will trace one is made: kept for the session and counted with the frame's targets, so no

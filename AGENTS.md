@@ -88,7 +88,8 @@ The user runs the harness through the Zed tasks in `.zed/tasks.json`: `./omw rel
   filter: `./omw test <binary> --gtest_filter=...`. `./omw lint driver` before a push that touches
   `tools/omw`.
 - `./omw test` once before saying it works. The GPU binary fails without a device rather than
-  skipping, so a green run means a device ran it.
+  skipping, so a green run means a device ran it. It loads the layers without their shader checks,
+  which are `check`'s: a shader change is checked against the layers by `check`, not by a test.
 - `./omw gate` once at the end. Never a gate beside a build or another gate, and never two runs at
   once: they share the card.
 - Do not open the game window to check a rendering change: the harness's verbs check it, at the
@@ -109,7 +110,7 @@ The user runs the harness through the Zed tasks in `.zed/tasks.json`: `./omw rel
   the kernels the change moved; a tuple of constants it did not name draws what it drew.
 - `./omw repeat --pairs=10` after touching anything a frame reads: two processes walk one place with the
   upscaler and the denoiser off, the second with the queue held behind the host, and must agree
-  frame for frame. A pair that finds nothing has found nothing. Read a difference with
+  frame for frame, at `check`'s frame of 957x539 unless the line names another. A pair that finds nothing has found nothing. Read a difference with
   `--exposure=1` and `--pictures`.
 - **The denoised frame is not bit-exact on every card** (`docs/architecture.md`): on a high-end
   NVIDIA laptop GPU under a busy queue, the first wavelet dispatch after a pipeline drain sometimes

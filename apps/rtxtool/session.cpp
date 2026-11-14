@@ -50,6 +50,7 @@ namespace RtxTool
             throw std::runtime_error("the run cannot be traced: " + *refused);
         // And the stops' lengths, where one is what the run's frames hold, at the extents the renderer made.
         mRequest.settleUnder(renderer->getExtents());
+        mRecord.noteTraced(renderer->getExtents());
         mMeasurer.reserve();
         mMeasurer.watchCard(renderer->getCardAddress());
         return renderer;
@@ -80,9 +81,9 @@ namespace RtxTool
         mDone = true;
     }
 
-    SessionResult Session::describe() const
+    SessionResult Session::conclude()
     {
-        return mRecord.describe(mNote.getLeft());
+        return mRecord.conclude(mNote.getLeft());
     }
 
     void Session::abandon(const std::string_view why)
@@ -124,7 +125,7 @@ namespace RtxTool
         // **A place the content does not hold is passed over, and the run goes on**: under `Morrowind.esm` alone a
         // run of every view ended at Mournhold and drew none of the seven after it. Whether the run fails for it is
         // the stop's (`WhenAbsent`).
-        if (const Result<void, std::string> staged = mStager.stage(stop, mRequest); !staged.isOk())
+        if (const Result<void, std::string> staged = Staging::stage(stop, mRequest); !staged.isOk())
         {
             Log(Debug::Warning) << "Ray tracing session: stop " << (mAt + 1) << " of " << mRequest.mStops.size()
                                 << " passed over: " << staged.error();
@@ -242,7 +243,7 @@ namespace RtxTool
             return;
 
         if (!mRequest.mPlayed)
-            Stager::closeMenus();
+            Staging::closeMenus();
 
         // A stop that throws as it begins is the run's failure, said once: `Engine::frame` catches what leaves here
         // and goes on, so the stop would begin again on every frame after (with `--perf-control` and nothing reading
@@ -271,7 +272,7 @@ namespace RtxTool
         // its frames are drawn on a screen; this because those frames are not measured, and a measured run may not
         // depend on them.
         if (mMeasurer.getSeen() == 0)
-            Stager::forgetHistory();
+            Staging::forgetHistory();
 
         // Where somebody plays the run, and nowhere else: a key pressed in a measured window would move what the
         // measurement records nothing of. And not while a menu or the console has the keys: the three read the

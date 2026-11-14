@@ -43,6 +43,26 @@ namespace Rtx
         Index mDeformer = sNoIndex;
     };
 
+    /// What one particle system's sprites are, as `SceneDesc::addEmitter` stands them.
+    struct EmitterSpec
+    {
+        Index mTexture;
+        BlendKind mBlend;
+
+        /// How wide the quads are against their own axis, per unit of `Sprite::mRadius`, or nought for sprites
+        /// that face the eye. Every sprite carries an axis where this is set and none where it is not —
+        /// `SpriteEmitter::mWidth`.
+        float mWidth = 0.0f;
+
+        /// The bake of `mTexture`'s alpha, or `sNoIndex` — `SpriteEmitter::mLighting`.
+        Index mLighting = sNoIndex;
+
+        /// Whether the sprites fall from the sky (`EMITTER_FALLS`), and whether the emitter is on the arms
+        /// (`EMITTER_FIRST_PERSON`).
+        bool mFalls = false;
+        bool mFirstPerson = false;
+    };
+
     /// Everything the renderer needs to know about a world, with no Vulkan and no scene graph in
     /// it, and what of the world it could not take. It keeps what it is handed, one slot for a
     /// texture however many name its path, and frees what nothing holds: deciding that two drawables
@@ -169,18 +189,11 @@ namespace Rtx
         /// What a detached world is, and what a mirror asserts of its scene at teardown.
         bool isEmpty() const;
 
-        /// Appends one particle system's live sprites, and the emitter that names them. The sphere
+        /// Appends one particle system's live sprites, and the emitter `spec` says they are. The sphere
         /// is derived here rather than passed in, so the rejection test a ray makes and the sprites
         /// it would then walk cannot disagree about where they are. Nothing is added for an emitter
         /// with no live particles.
-        /// @param width how wide the quads are against their own axis, per unit of
-        ///        `Sprite::mRadius`, or nought for sprites that face the eye. Every sprite carries
-        ///        an axis where this is set and none where it is not — `SpriteEmitter::mWidth`.
-        /// @param lighting the bake of `texture`'s alpha, or `sNoIndex`. `SpriteEmitter::mLighting`.
-        /// @param falls whether the sprites fall from the sky. `SpriteEmitter::mFalls`.
-        /// @param firstPerson whether the emitter is on the arms. `EMITTER_FIRST_PERSON`.
-        void addEmitter(std::span<const Sprite> sprites, Index texture, BlendKind blend, float width = 0.0f,
-            Index lighting = sNoIndex, bool falls = false, bool firstPerson = false);
+        void addEmitter(std::span<const Sprite> sprites, const EmitterSpec& spec);
 
         /// Empties the per-frame lists a walk rebuilds wholesale: lights, deformed meshes, sprites
         /// and emitters. Placements are not among them: they are reconciled in place through

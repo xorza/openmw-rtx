@@ -47,6 +47,8 @@ namespace Rtx
         /// Not copied or moved: the default's room is its own, and a copy would name the original's.
         Barriers(const Barriers&) = delete;
         Barriers& operator=(const Barriers&) = delete;
+        Barriers(Barriers&&) = delete;
+        Barriers& operator=(Barriers&&) = delete;
 
         void add(const VkImageMemoryBarrier2& barrier);
         void add(const VkBufferMemoryBarrier2& barrier);

@@ -43,6 +43,26 @@ MediumAhead mediumOverColumn(WorldRay ray, float under, float water, float air, 
     return MediumAhead(column.mScattered + column.mTransmittance * above.xyz, column.mTransmittance * above.w);
 }
 
+/// **The medium in front of a point `air` along the eye's `ray`**, in its closed forms: the air, where the ray starts
+/// above the water, or the column of water it crosses, as far as `water` (`waterAlong`), and the air past where it
+/// rose through it. The column's beam is scaled by `shafts`, what the media stage's march found them make of the
+/// eye's column (`storeStageShafts`), one where that stage did not run; and `marches` says whether the column is
+/// one that stage marches. One composition for the whole path and for every layer peeled off it.
+MediumAhead mediumAheadOf(uvec2 pixel, WorldRay ray, float air, float water, vec3 shafts, out bool marches)
+{
+    marches = false;
+    if (!(waterOver(ray.mFrom) > 0.0))
+    {
+        const vec4 fog = fogAlong(pixel, ray, air);
+        return MediumAhead(fog.xyz, vec3(fog.w));
+    }
+
+    const float under = waterAlong(ray.mFrom, ray.mAlong, water);
+    const ColumnStart start = columnStartOf(ray.mFrom, ray.mAlong, under);
+    marches = start.mMarches;
+    return mediumOverColumn(ray, under, water, air, columnOf(start, shafts));
+}
+
 /// The see-through layers peeled off one ray, composited as they are met: what they sent, what they
 /// let through, and what the medium in front of the last of them scattered.
 struct PaneStack

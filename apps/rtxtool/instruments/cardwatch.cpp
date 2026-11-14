@@ -99,7 +99,7 @@ namespace RtxTool
     {
         if (!card.mPci.has_value())
         {
-            mReader = std::string_view("the renderer's device names no PCI address");
+            mReader = UnreadCard{ "the renderer's device names no PCI address" };
             return;
         }
 
@@ -112,10 +112,10 @@ namespace RtxTool
                 if (std::optional<AmdGpu> amd = AmdGpu::at(std::filesystem::path(AmdGpu::sDevices), *card.mPci))
                     mReader.emplace<AmdGpu>(std::move(*amd));
                 else
-                    mReader = std::string_view("amdgpu lists no card at the renderer's address");
+                    mReader = UnreadCard{ "amdgpu lists no card at the renderer's address" };
                 return;
             default:
-                mReader = std::string_view("no instrument reads this vendor's cards");
+                mReader = UnreadCard{ "no instrument reads this vendor's cards" };
                 return;
         }
     }
@@ -147,23 +147,24 @@ namespace RtxTool
 
     void CardWatch::read()
     {
-        if (AmdGpu* const amd = std::get_if<AmdGpu>(&mReader))
-            mClock.add(amd->readClock());
-        Nvml* const nvml = std::get_if<Nvml>(&mReader);
-        if (nvml == nullptr)
-            return;
+        std::visit(
+            [this](auto& reader) {
+                mClock.add(reader.readClock());
+                if (!reader.hasSamples())
+                    return;
 
-        mClock.add(nvml->readClock());
-        nvml->readSamples(mSamples);
-        for (const CardSample& sample : mSamples)
-        {
-            if (!sample.mHeld)
-                continue;
+                reader.readSamples(mSamples);
+                for (const CardSample& sample : mSamples)
+                {
+                    if (!sample.mHeld)
+                        continue;
 
-            if (mTally.needsName(sample.mPid))
-                nvml->nameProcess(sample.mPid, mName);
-            mTally.take(sample.mPid, mName);
-        }
+                    if (mTally.needsName(sample.mPid))
+                        reader.nameProcess(sample.mPid, mName);
+                    mTally.take(sample.mPid, mName);
+                }
+            },
+            mReader);
     }
 
     CardReading CardWatch::close()
@@ -175,16 +176,14 @@ namespace RtxTool
             .mClock = mClock,
             .mShare = mTally.summarise(std::chrono::duration<double>(now - mBegan).count()),
         };
-        if (const Nvml* const nvml = std::get_if<Nvml>(&mReader); nvml == nullptr || !nvml->hasSamples())
-        {
-            reading.mShare.mViewed = false;
-            if (nvml != nullptr)
-                reading.mShare.mWhyNot = nvml->describeUnsampled();
-            else if (const std::string_view* const unread = std::get_if<std::string_view>(&mReader))
-                reading.mShare.mWhyNot = *unread;
-            else
-                reading.mShare.mWhyNot = AmdGpu::describeUnsampled();
-        }
+        std::visit(
+            [&reading](const auto& reader) {
+                if (reader.hasSamples())
+                    return;
+                reading.mShare.mViewed = false;
+                reading.mShare.mWhyNot = reader.describeUnsampled();
+            },
+            mReader);
 
         mClock = GpuClock{};
         mTally.clear();

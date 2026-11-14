@@ -37,4 +37,4 @@ that owns each. Read this once and the headers read as the field's.
 | pocket | an inside-out gap between two faces of one mesh, where its generalized winding number is minus one | `ShapeFold`, `PocketTree` |
 | knobs | the mirror's settings | `MWRender::MirrorKnobs` |
 | profile | the run's rendering settings | `RenderProfile` |
-| pin, pinned | float arithmetic every compile computes alike, invariance | `Rtx::pinFloatArithmetic` |
+| pin, pinned | float arithmetic every compile computes alike, and subgroups that reconverge where the source does; invariance | `Rtx::pinModule` |

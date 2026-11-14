@@ -27,6 +27,9 @@ namespace Rtx
 
         TupleQueue(const TupleQueue&) = delete;
         TupleQueue& operator=(const TupleQueue&) = delete;
+        TupleQueue(TupleQueue&&) = delete;
+        TupleQueue& operator=(TupleQueue&&) = delete;
+        ~TupleQueue() = default;
 
         std::uint32_t getItemCount() const { return mItems; }
 

@@ -1,11 +1,8 @@
 #include "sceneslots.hpp"
 
 #include <cassert>
-#include <cstdint>
 #include <exception>
 #include <utility>
-
-#include <components/rtx/common/index.hpp>
 
 #include "devicescene.hpp"
 
@@ -15,27 +12,23 @@ namespace Rtx
 
     SceneSlots::~SceneSlots()
     {
-        assert((std::uncaught_exceptions() > 0 || mFreeViews.size() == mViews.size())
+        assert((std::uncaught_exceptions() > 0 || mViews.getLiveCount() == 0)
             && "a renderer taken apart with a picture's scene slot still out");
     }
 
     SceneSlot SceneSlots::add()
     {
-        if (const Index taken = mFreeViews.take(); taken != sNoIndex)
-            return SceneSlot::view(taken);
-
-        mViews.push_back(nullptr);
-        return SceneSlot::view(static_cast<std::uint32_t>(mViews.size() - 1));
+        return SceneSlot::view(mViews.take(nullptr));
     }
 
     void SceneSlots::drop(const SceneSlot slot)
     {
         assert(!slot.isWorld() && "the world's slot given back");
         assert(slot.getViewIndex() < mViews.size() && "a scene slot nothing handed out");
-        assert(!mFreeViews.isFree(slot.getViewIndex()) && "a scene given back twice");
+        assert(mViews.isLive(slot.getViewIndex()) && "a scene given back twice");
 
         clear(slot);
-        mFreeViews.free(slot.getViewIndex());
+        mViews.free(slot.getViewIndex());
     }
 
     void SceneSlots::clear(const SceneSlot slot)
@@ -57,11 +50,12 @@ namespace Rtx
             return mWorld;
 
         assert(slot.getViewIndex() < mViews.size() && "a scene slot nothing handed out");
-        return mViews[slot.getViewIndex()];
+        return mViews.at(slot.getViewIndex());
     }
 
     std::unique_ptr<DeviceScene>& SceneSlots::slotAt(const SceneSlot slot)
     {
+        // The const lookup's answer, on an object the caller holds mutable: one lookup for both overloads.
         return const_cast<std::unique_ptr<DeviceScene>&>(std::as_const(*this).slotAt(slot));
     }
 
@@ -84,6 +78,7 @@ namespace Rtx
 
     DeviceScene& SceneSlots::at(const SceneSlot slot)
     {
+        // The const lookup's answer, on an object the caller holds mutable: one lookup for both overloads.
         return const_cast<DeviceScene&>(std::as_const(*this).at(slot));
     }
 }

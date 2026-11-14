@@ -31,6 +31,10 @@ namespace Rtx
     /// The module keeps its signed zeros, infinities and NaNs: each entry point declares `SignedZeroInfNanPreserve` for
     /// every float width it has, since a compile may otherwise fold `isnan` to false and `!(a >= b)` to `a < b`.
     ///
+    /// And a module that uses a subgroup operation reconverges where its control flow does: each entry point declares
+    /// `MaximallyReconvergesKHR`, since core Vulkan lets lanes stay apart after any branch, and a lane elected there
+    /// broadcasts an answer the others may not have reached.
+    ///
     /// The orders, over components 0 up and a matrix's columns 0 up, each product and sum rounded
     /// in turn.
     /// - `dot(a, b)`: `a0 b0`, then `sum + ai bi`.
@@ -57,20 +61,24 @@ namespace Rtx
     ///   half a division is owed, and one answer on every device. Not where `c` or `1 / c` is not
     ///   a normal float.
     ///
-    /// Throws `std::runtime_error` for a module it cannot read and for an operation it cannot pin — a derivative or a
+    /// Throws `Rtx::InputError` for a module it cannot read and for an operation it cannot pin — a derivative or a
     /// level of detail worked out from one, an `fma` or the capability to fuse, a relaxed precision, a rounding mode or
     /// other float environment the module sets, an extended instruction set it does not know, an instruction newer than
     /// the SPIR-V headers it was built with, and any instruction that makes a float and that no rule here names —
     /// naming it, so the build stops rather than ships a shader a compile may change.
-    std::vector<std::uint32_t> pinFloatArithmetic(std::span<const std::uint32_t> module);
+    std::vector<std::uint32_t> pinModule(std::span<const std::uint32_t> module);
 
     /// The module with every rounding add, subtract, multiply and divide `NoContraction`, beside a `UserSemantic` that
-    /// says the guard put it there: what the build hands the optimizer, which `pinFloatArithmetic` then reads as the
+    /// says the guard put it there: what the build hands the optimizer, which `pinModule` then reads as the
     /// source's arithmetic, the guard's marks taken off. Because the optimizer's folds reach the module before the
     /// pinning holds it (`glslc -O` rewrote `floor((m - 0.5) + 0.5)` as `floor(m)`). The rounding operations alone: the
     /// optimizer folds an exponential of constants on the host, exactly, where the driver would fold it its own way
     /// (`shadowLocalWeight`).
     ///
-    /// Throws `std::runtime_error` for a module older than SPIR-V 1.4, which has no `UserSemantic`.
+    /// Throws `Rtx::InputError` for a module older than SPIR-V 1.4, which has no `UserSemantic`.
     std::vector<std::uint32_t> guardFloatArithmetic(std::span<const std::uint32_t> module);
+
+    /// The pinned `module` with no `MaximallyReconvergesKHR`, where it declares ray queries, for a driver whose
+    /// compiler fails on the two together (`DriverProfile::mReconvergesRayQueries`); any other module as it is.
+    std::vector<std::uint32_t> withoutRayQueryReconvergence(std::span<const std::uint32_t> module);
 }

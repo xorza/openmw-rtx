@@ -2477,8 +2477,7 @@ namespace MWGui
             return;
         }
 
-        const MWRender::PostProcessor* processor = MWBase::Environment::get().getWorld()->getPostProcessor();
-        if (processor == nullptr || !processor->isEnabled())
+        if (!MWBase::Environment::get().getWorld()->getPostProcessor()->isEnabled())
         {
             messageBox("#{OMWEngine:PostProcessingIsNotEnabled}");
             return;

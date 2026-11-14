@@ -135,14 +135,14 @@ namespace Rtx
         const Crash::NoteScope noted("reading the mesh \"{}\" of the model \"{}\"", drawable.getName(),
             model != nullptr ? modelNameOf(*model) : std::string_view());
         MeshReading reading;
-        const Result<bool, std::string> readMesh = mReader.read(mContent, read, model, reading);
+        const Result<MeshRead, std::string> readMesh = mReader.read(mContent, read, model, reading);
         if (!readMesh.isOk())
             return refuse(drawable, model, readMesh.error());
 
         // Vertices and no triangle: nothing to place, and filed as a refusal is, with nothing to
         // report, so the next walk does not read and decode it again. Lines and points the reader
         // refuses, with the reason.
-        if (!readMesh.value())
+        if (readMesh.value() == MeshRead::Empty)
         {
             ++stats.mSkippedEmpty;
             mMeshes.add(&drawable, KnownMesh{});

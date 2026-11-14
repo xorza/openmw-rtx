@@ -8,6 +8,7 @@
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 
 #include "device.hpp"
+#include "faultreport.hpp"
 
 namespace Rtx
 {

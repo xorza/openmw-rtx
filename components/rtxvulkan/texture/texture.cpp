@@ -23,9 +23,9 @@
 #include <components/rtx/renderer/framezone.hpp>
 #include <components/rtx/shaders/look.h>
 #include <components/rtx/shaders/scene.h>
-#include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/gputimer.hpp>
+#include <components/rtxvulkan/device/memory/batch.hpp>
 #include <components/rtxvulkan/device/memory/formats.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/device/physicaldevice.hpp>
@@ -333,6 +333,8 @@ namespace Rtx
         for (SlotSet& owed : mOwed.live())
             owed.addMakingRoom(Shaders::TEXTURE_NEUTRAL);
 
+        writeSamplers();
+
         // Sized to the table before anything is written into it, so a description lands in the
         // slot it names whatever sits either side of it. Every entry starts holding no image and no
         // map, which is what a free slot goes on holding: its descriptors are never written, and
@@ -405,7 +407,7 @@ namespace Rtx
     }
 
     void TextureArray::chooseLevels(std::span<const TextureData> arrived, const VkDeviceSize room,
-        const TextureArrival& arrival, std::vector<std::uint32_t>& firsts) const
+        const TextureArrival& arrival, std::vector<std::uint32_t>& firsts)
     {
         // What every `costAt` below asks of a bake's source, found once for the arrival.
         mArrivingAt.clear();
@@ -686,7 +688,6 @@ namespace Rtx
         // A set with descriptors owed names what it no longer holds: after `setAnisotropy`, a
         // sampler destroyed with the ones it replaced.
         assert(mOwed.at(slot).empty() && "a texture set sampled before `sync` paid what it owes");
-        assert(!mSamplersOwed.at(slot) && "a texture set sampled before `sync` wrote its samplers");
         mBound.at(slot).nameFor(mDevice.getTimeline().getNext());
         return mSets.get(slot.get());
     }
@@ -702,8 +703,7 @@ namespace Rtx
         mTexels.sync(slot, uploads);
 
         SlotSet& owed = mOwed.at(slot);
-        bool& samplersOwed = mSamplersOwed.at(slot);
-        if (owed.empty() && !samplersOwed)
+        if (owed.empty())
             return;
 
         assert(mBound.at(slot).isIdle(mDevice) && "a descriptor written under a submit still bound to it");
@@ -712,26 +712,13 @@ namespace Rtx
         // the scene's free list put them, and a run is no longer what they are. Reserved before
         // any write points into it, since a write names its image by address.
         const std::span<const Index> slots = owed.getSlots();
-        const std::size_t writes = 2 * slots.size() + (samplersOwed ? Shaders::TEXTURE_SAMPLERS : 0);
+        const std::size_t writes = 2 * slots.size();
         mImageScratch.clear();
         mWriteScratch.clear();
         mImageScratch.reserve(writes);
         mWriteScratch.reserve(writes);
 
         const VkDescriptorSet set = mSets.get(slot.get());
-        if (samplersOwed)
-        {
-            for (std::size_t wrap = 0; wrap < sTextureWrapCount; ++wrap)
-            {
-                const auto at = static_cast<std::uint32_t>(wrap);
-                queueWrite(set, Shaders::TEXTURE_BIND_SAMPLERS, at, VK_DESCRIPTOR_TYPE_SAMPLER,
-                    describeSampler(mSamplers[wrap].get()), mImageScratch, mWriteScratch);
-                queueWrite(set, Shaders::TEXTURE_BIND_SAMPLERS, Shaders::TEXTURE_SAMPLERS_ALONG + at,
-                    VK_DESCRIPTOR_TYPE_SAMPLER, describeSampler(mFootprintSamplers[wrap].get()), mImageScratch,
-                    mWriteScratch);
-            }
-            samplersOwed = false;
-        }
 
         for (const Index at : slots)
         {
@@ -865,10 +852,35 @@ namespace Rtx
 
     void TextureArray::setAnisotropy(const std::uint32_t anisotropy)
     {
-        // The samplers replaced bury themselves: a frame in flight may still sample through them.
+        // The samplers replaced bury themselves, and every set names the new ones before this returns: a
+        // set left naming the old until its next placement was a picture's scene traced unplaced through
+        // samplers the graveyard had destroyed.
         mFootprintSamplers = makeFootprintSamplers(mDevice, anisotropy);
-        for (bool& owed : mSamplersOwed.live())
-            owed = true;
+        writeSamplers();
+    }
+
+    void TextureArray::writeSamplers()
+    {
+        mImageScratch.clear();
+        mWriteScratch.clear();
+        mImageScratch.reserve(mSets.getCount() * Shaders::TEXTURE_SAMPLERS);
+        mWriteScratch.reserve(mSets.getCount() * Shaders::TEXTURE_SAMPLERS);
+        for (std::uint32_t copy = 0; copy < mSets.getCount(); ++copy)
+        {
+            assert((copy >= mBound.live().size() || mBound.live()[copy].isIdle(mDevice))
+                && "samplers written under a submit still bound to their set");
+            const VkDescriptorSet set = mSets.get(copy);
+            for (std::size_t wrap = 0; wrap < sTextureWrapCount; ++wrap)
+            {
+                const auto at = static_cast<std::uint32_t>(wrap);
+                queueWrite(set, Shaders::TEXTURE_BIND_SAMPLERS, at, VK_DESCRIPTOR_TYPE_SAMPLER,
+                    describeSampler(mSamplers[wrap].get()), mImageScratch, mWriteScratch);
+                queueWrite(set, Shaders::TEXTURE_BIND_SAMPLERS, Shaders::TEXTURE_SAMPLERS_ALONG + at,
+                    VK_DESCRIPTOR_TYPE_SAMPLER, describeSampler(mFootprintSamplers[wrap].get()), mImageScratch,
+                    mWriteScratch);
+            }
+        }
+        updateSets(mDevice, mWriteScratch);
     }
 
     void TextureArray::queueWrite(const VkDescriptorSet set, const std::uint32_t binding, const std::uint32_t slot,

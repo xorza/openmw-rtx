@@ -46,10 +46,8 @@ namespace RtxTool
         // `keys.lua`, because what they do is turn the world, which only a script may; what this
         // one does is keep the session's own note of the frame, which no script can reach. The
         // state array is the engine's, pumped once a frame on this thread before the host's turn.
-        const bool down = SDL_GetKeyboardState(nullptr)[SDL_SCANCODE_HOME];
-        if (down && !mHeld)
+        if (mHome.wentDown(SDL_GetKeyboardState(nullptr)[SDL_SCANCODE_HOME]))
             press();
-        mHeld = down;
     }
 
     void HomeKey::answer(const Stop* left, const MWRender::FrameReport& report, const Rtx::FrameExtents& extents)
@@ -106,6 +104,7 @@ namespace RtxTool
             filled.mId = mId;
             filled.mPress = mPresses++;
             filled.mState = RoomState::Waiting;
+            return true;
         });
 
         if (mWriter.joinable())

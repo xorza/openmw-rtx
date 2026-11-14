@@ -76,6 +76,9 @@ namespace Rtx
 
         Upscaler(const Upscaler&) = delete;
         Upscaler& operator=(const Upscaler&) = delete;
+        Upscaler(Upscaler&&) = delete;
+        Upscaler& operator=(Upscaler&&) = delete;
+        ~Upscaler() = default;
 
         /// What the choice came to.
         UpscalerKind getKind() const;
@@ -161,7 +164,6 @@ namespace Rtx
         static Backend makeBackend(const Device& device, UpscalerChoice choice, DlssAvailability& availability,
             std::string& refusal, const Dlss::Application* application);
 
-        const Device& mDevice;
         const UpscalerChoice mAsked;
 
         /// Before the backend, which the constructor resolves them with.

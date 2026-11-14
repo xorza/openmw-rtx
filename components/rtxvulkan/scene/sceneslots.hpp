@@ -1,7 +1,6 @@
 #pragma once
 
 #include <memory>
-#include <vector>
 
 #include <components/rtx/common/slots.hpp>
 #include <components/rtx/renderer/slot.hpp>
@@ -50,7 +49,7 @@ namespace Rtx
         {
             if (mWorld != nullptr)
                 visit(*mWorld);
-            for (const std::unique_ptr<DeviceScene>& view : mViews)
+            for (const std::unique_ptr<DeviceScene>& view : mViews.getRows())
                 if (view != nullptr)
                     visit(*view);
         }
@@ -60,7 +59,7 @@ namespace Rtx
         std::unique_ptr<DeviceScene>& slotAt(SceneSlot slot);
 
         std::unique_ptr<DeviceScene> mWorld;
-        std::vector<std::unique_ptr<DeviceScene>> mViews;
-        SlotPool mFreeViews;
+        /// A freed slot's scene is let go at its drop, so a null row is a slot nothing holds whether or not it is out.
+        SlotRows<std::unique_ptr<DeviceScene>> mViews;
     };
 }

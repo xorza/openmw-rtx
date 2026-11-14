@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -11,14 +12,15 @@
 
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/misc/result.hpp>
+#include <components/rtx/common/runs.hpp>
 #include <components/rtx/renderer/framezone.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/meshtable.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
-#include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/device/memory/barriers.hpp>
+#include <components/rtxvulkan/device/memory/batch.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/bufferusage.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
@@ -28,6 +30,53 @@
 
 namespace Rtx
 {
+    VkBuildAccelerationStructureFlagsKHR BottomLevelStore::buildFlagsOf(const StructureMotion motion)
+    {
+        // ALLOW_DATA_ACCESS is what lets a candidate's corners be fetched off the structure
+        // (`GL_EXT_ray_tracing_position_fetch`), for the test that takes or passes it.
+        constexpr VkBuildAccelerationStructureFlagsKHR every = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR
+            | VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_DATA_ACCESS_BIT_KHR;
+
+        // A mesh that deforms is refit, and an update has to be asked of the build that allows it. One that does
+        // not may be asked what it would come to tight, for a fraction of a per cent against the half it gives
+        // back; a refit writes back into the slack, so never both.
+        return every
+            | (motion == StructureMotion::Refit ? VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR
+                                                : VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_COMPACTION_BIT_KHR);
+    }
+
+    VkDeviceSize BottomLevelStore::getRefitScratchBytes() const
+    {
+        const VkDeviceSize alignment = mDevice.getPhysicalDevice().getStructureScratchAlignment();
+
+        VkDeviceSize updates = 0;
+        VkDeviceSize rebuild = 0;
+        for (const Index mesh : mRefittable.getSlots())
+        {
+            const VkDeviceSize update = alignUp(mRows[mesh].mUpdateScratch, alignment);
+            const VkDeviceSize build = alignUp(mRows[mesh].mBuildScratch, alignment);
+            updates += update;
+            rebuild = std::max(rebuild, build > update ? build - update : 0);
+        }
+        return updates > 0 ? updates + rebuild : 0;
+    }
+
+    Index BottomLevelStore::pickRebuild(const std::span<const Index> posed, const std::uint64_t placement)
+    {
+        Index picked = sNoIndex;
+        for (const Index mesh : posed)
+        {
+            assert(isUpdatable(mesh) && "a mesh posed that was not built to be refitted");
+
+            const std::uint64_t builtAt = mRows[mesh].mRebuiltAt;
+            if (builtAt < placement && (picked == sNoIndex || builtAt < mRows[picked].mRebuiltAt))
+                picked = mesh;
+        }
+        if (picked != sNoIndex)
+            mRows[picked].mRebuiltAt = placement;
+        return picked;
+    }
+
     namespace
     {
         /// How much a placement copies out of the loose storage before it leaves the rest to the
@@ -149,24 +198,8 @@ namespace Rtx
             mBuild.mGeometries[at] = describeTriangles(
                 mesh, vertices, !mesh.mIndices.empty() ? indices.addressOf(mesh.mIndices.mOffset) : 0);
 
-            // Only a mesh that deforms is built to be refitted. The flag costs a structure its
-            // tightness and the trace that reads it a little; a few dozen actors pay it and the
-            // thousands of static meshes around them do not.
-            row.mUpdatable = mesh.deforms();
-
-            // ALLOW_DATA_ACCESS is what lets a candidate's corners be fetched off the structure
-            // (`GL_EXT_ray_tracing_position_fetch`), for the test that takes or passes it.
-            VkBuildAccelerationStructureFlagsKHR flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR
-                | VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_DATA_ACCESS_BIT_KHR;
-            if (mesh.deforms())
-                flags |= VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR;
-            else
-            {
-                // What lets the builder be asked what it would come to tight, for a fraction of a
-                // per cent against the half it gives back. A mesh that refits is left out: a refit
-                // writes back into the slack.
-                flags |= VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_COMPACTION_BIT_KHR;
-            }
+            const VkBuildAccelerationStructureFlagsKHR flags
+                = buildFlagsOf(mesh.deforms() ? StructureMotion::Refit : StructureMotion::Still);
 
             mBuild.mBuilds[at] = VkAccelerationStructureBuildGeometryInfoKHR{
                 .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR,
@@ -190,9 +223,15 @@ namespace Rtx
             // acceleration structure can be created at.
             if (triangles == 0)
             {
+                row.mUpdatable = false;
                 row.mUpdateScratch = 0;
                 continue;
             }
+
+            // Only a mesh that deforms is built to be refitted, and only where a structure is made. The flag
+            // costs a structure its tightness and the trace that reads it a little; a few dozen actors pay it
+            // and the thousands of static meshes around them do not.
+            row.mUpdatable = mesh.deforms();
 
             VkAccelerationStructureBuildSizesInfoKHR sizes{
                 .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR,
@@ -230,31 +269,14 @@ namespace Rtx
         // one run over every mesh held the sum of their scratch, which on a world's build is the
         // world's, as essential memory for as long as the scene stood. A mesh larger than the room
         // is a run of its own, and the room is then what it needs.
-        mRunEnds.clear();
-        VkDeviceSize runScratch = 0;
-        VkDeviceSize mostScratch = 0;
-        bool runHolds = false;
-        for (std::size_t at = 0; at < meshes.size(); ++at)
-        {
-            BuildRow& building = mBuilding[at];
-            if (building.mSize == 0)
-                continue;
-
-            if (runHolds && runScratch + building.mScratch > mBuildRoom)
-            {
-                mRunEnds.push_back(at);
-                runScratch = 0;
-            }
-
-            building.mScratchOffset = runScratch;
-            runScratch += building.mScratch;
-            runHolds = true;
-            mostScratch = std::max(mostScratch, runScratch);
-        }
-
-        if (!runHolds)
+        const VkDeviceSize mostScratch = splitIntoRuns(
+            meshes.size(), mBuildRoom,
+            [&](const std::size_t at) {
+                return mBuilding[at].mSize > 0 ? std::optional<std::uint64_t>(mBuilding[at].mScratch) : std::nullopt;
+            },
+            [&](const std::size_t at, const std::uint64_t offset) { mBuilding[at].mScratchOffset = offset; }, mRunEnds);
+        if (mRunEnds.empty())
             return;
-        mRunEnds.push_back(meshes.size());
 
         mScratch.growTo(mostScratch);
         const VkDeviceAddress scratchAddress = mScratch.get().addressFor();

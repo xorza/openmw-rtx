@@ -107,7 +107,7 @@ namespace Rtx
 
         //
         // None in a frame no puff can be met in (`ToneConstants::mPuffs`). Never over the trace's own
-        // frame, which a read back and the digest hold to as the trace's answer (`readComposite`):
+        // frame, which a read back and the digest hold to as the trace's answer (`RendererProbe::readComposite`):
         // over a copy of it in the chain's canvas, since the composite writes only the pixels a puff
         // covers. The upscaler's image, which nothing reads back, takes them in place.
         const Image* shownImage = &what.mShown.mImage;

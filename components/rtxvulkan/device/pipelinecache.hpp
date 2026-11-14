@@ -5,10 +5,10 @@
 #include <filesystem>
 #include <span>
 #include <string_view>
-#include <vector>
 
 #include <volk.h>
 
+#include <components/misc/bytebuffer.hpp>
 #include <components/misc/digestwords.hpp>
 #include <components/misc/result.hpp>
 
@@ -67,12 +67,23 @@ namespace Rtx
         /// Public because an offset off by four would reject every blob with no symptom but a cache
         /// that never hit.
         static Result<void, std::string_view> accepts(
-            std::span<const std::uint8_t> blob, const VkPhysicalDeviceProperties& properties);
+            std::span<const std::byte> blob, const VkPhysicalDeviceProperties& properties);
+
+        /// A cache file as `read` took it: its bytes, the blob all of them past the header, and the blob's
+        /// digest, which the read checked against the header's.
+        struct Stored
+        {
+            Misc::ByteBuffer mFile;
+            Misc::DigestWords mDigest{};
+
+            /// Nothing where there was no file.
+            std::span<const std::byte> getBlob() const;
+        };
 
         /// The blob the file at `path` holds, where its own header says the device, driver, length
         /// and digest this run has and `accepts` takes it; nothing where there is no file; and why it
         /// was set aside otherwise. Public for the reason `accepts` is.
-        static Result<std::vector<std::uint8_t>, std::string_view> read(
+        static Result<Stored, std::string_view> read(
             const std::filesystem::path& path, const VkPhysicalDeviceProperties& properties);
 
     private:

@@ -519,8 +519,7 @@ namespace MWInput
 
     std::string BindingsManager::getActionKeyBindingName(int action)
     {
-        const auto controls = Crash::notNull(mInputBinder->getChannel(action), "an action with no input channel")
-                                  ->getAttachedControls();
+        const auto controls = mInputBinder->getChannel(action)->getAttachedControls();
         if (controls.empty())
             return "#{Interface:None}";
 
@@ -553,8 +552,7 @@ namespace MWInput
 
     std::string BindingsManager::getActionControllerBindingName(int action)
     {
-        const auto controls = Crash::notNull(mInputBinder->getChannel(action), "an action with no input channel")
-                                  ->getAttachedControls();
+        const auto controls = mInputBinder->getChannel(action)->getAttachedControls();
         if (controls.empty())
             return "#{Interface:None}";
 
@@ -598,8 +596,7 @@ namespace MWInput
     void BindingsManager::enableDetectingBindingMode(int action, bool keyboard)
     {
         mListener->setDetectingKeyboard(keyboard);
-        const auto controls = Crash::notNull(mInputBinder->getChannel(action), "an action with no input channel")
-                                  ->getAttachedControls();
+        const auto controls = mInputBinder->getChannel(action)->getAttachedControls();
         Crash::contract(!controls.empty(), "a binding detected for an action with no control");
         ICS::Control* c = controls.front().control;
         mInputBinder->enableDetectingBindingState(c, ICS::Control::INCREASE);

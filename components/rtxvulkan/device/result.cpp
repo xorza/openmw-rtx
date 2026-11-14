@@ -9,6 +9,7 @@
 #include <components/rtx/common/error.hpp>
 
 #include "device.hpp"
+#include "faultreport.hpp"
 
 namespace Rtx
 {
@@ -116,7 +117,7 @@ namespace Rtx
 
         std::string message = describeFailure(result, call);
         if (result == VK_ERROR_DEVICE_LOST)
-            deviceFailed(message + device.describeFault() + device.describeInFlight());
+            deviceFailed(message + device.getFaults().describeFault() + device.describeInFlight());
 
         throw DeviceError(message);
     }
@@ -153,7 +154,7 @@ namespace Rtx
     void checkVkWait(const Device& device, const VkResult result, const char* what, const std::uint64_t patience)
     {
         if (result == VK_TIMEOUT)
-            deviceFailed(timedOut(what, patience) + device.describeMarkers() + device.describeInFlight());
+            deviceFailed(timedOut(what, patience) + device.getFaults().describeMarkers() + device.describeInFlight());
 
         checkVk(device, result, what);
     }

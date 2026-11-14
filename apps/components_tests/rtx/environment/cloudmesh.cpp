@@ -51,7 +51,7 @@ namespace Rtx
             osg::ref_ptr<osg::Vec2Array> coords = new osg::Vec2Array;
 
             const auto put = [&](float radius, int step) {
-                const float turn = 2.0f * osg::PIf * float(step) / float(perRing);
+                const float turn = 2.0f * osg::PIf * static_cast<float>(step) / static_cast<float>(perRing);
                 const osg::Vec2f at(radius * std::cos(turn), radius * std::sin(turn));
 
                 vertices->push_back(osg::Vec3f(at.x(), at.y(), height - curvature * radius * radius));
@@ -65,7 +65,7 @@ namespace Rtx
 
             for (int ring = 2; ring <= 4; ++ring)
                 for (int step = 0; step < perRing; ++step)
-                    put(200.0f * float(ring), step);
+                    put(200.0f * static_cast<float>(ring), step);
 
             osg::ref_ptr<osg::Geometry> geometry = new osg::Geometry;
             geometry->setVertexArray(vertices);
@@ -190,8 +190,8 @@ namespace Rtx
             float above = 1.0f;
             for (int step = 0; step <= 64; ++step)
             {
-                const float here = fadesTo(shell, 2.5f * float(step) / 64.0f);
-                EXPECT_LE(here, above + 1.0e-6f) << "at " << 2.5f * float(step) / 64.0f;
+                const float here = fadesTo(shell, 2.5f * static_cast<float>(step) / 64.0f);
+                EXPECT_LE(here, above + 1.0e-6f) << "at " << 2.5f * static_cast<float>(step) / 64.0f;
                 above = here;
             }
         }
@@ -275,7 +275,7 @@ namespace Rtx
             osg::ref_ptr<osg::Vec2Array> coords = new osg::Vec2Array;
             for (int step = 0; step < 8; ++step)
             {
-                const float turn = 0.25f * osg::PIf * float(step);
+                const float turn = 0.25f * osg::PIf * static_cast<float>(step);
                 ring->push_back(osg::Vec3f(500.0f * std::cos(turn), 500.0f * std::sin(turn), 100.0f));
                 coords->push_back(osg::Vec2f(ring->back().x() / sTile, -ring->back().y() / sTile));
             }

@@ -58,6 +58,8 @@ namespace Rtx
 
         CellRing(const CellRing&) = delete;
         CellRing& operator=(const CellRing&) = delete;
+        CellRing(CellRing&&) = delete;
+        CellRing& operator=(CellRing&&) = delete;
 
         /// Stops the thread. A cell in flight is finished and dropped rather than waited out.
         ~CellRing();

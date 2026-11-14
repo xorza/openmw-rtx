@@ -30,6 +30,12 @@ namespace Rtx
 
         StatisticNames mStatistics{};
 
+        /// Whether the driver's compiler takes `MaximallyReconvergesKHR` on a module that traces ray queries,
+        /// as the pinning declares it (`pinModule`). AMD's Windows driver 26.8.1 reads a null pointer compiling one
+        /// (`bounce.comp`, `visibility.comp`; the module without ray queries compile), so it is handed those
+        /// modules without the mode, and its lanes reconverge where its compiler happens to put them.
+        bool mReconvergesRayQueries = true;
+
         /// What a device of `vendorId` running `driver` comes to.
         static DriverProfile of(std::uint32_t vendorId, VkDriverId driver);
     };

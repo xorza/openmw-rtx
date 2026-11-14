@@ -9,8 +9,11 @@
 #include <components/rtx/renderer/shaderset.hpp>
 #include <components/rtxvulkan/device/bindingtable.hpp>
 #include <components/rtxvulkan/device/device.hpp>
+#include <components/rtxvulkan/device/driverprofile.hpp>
+#include <components/rtxvulkan/device/physicaldevice.hpp>
 #include <components/rtxvulkan/shaders/shared/counts.h>
 #include <components/rtxvulkan/shaders/shared/sets.h>
+#include <components/rtxvulkan/spirv/spirvpin.hpp>
 
 namespace Rtx
 {
@@ -210,6 +213,15 @@ namespace Rtx
         ModuleInterface interface = readInterface(found->mWords);
         Read& read = mRead.emplace_back(
             Read{ .mModule = std::string(module), .mWords = found->mWords, .mInterface = std::move(interface) });
+        if (!mDevice.getPhysicalDevice().getDriver().mReconvergesRayQueries)
+        {
+            std::vector<std::uint32_t> rewritten = withoutRayQueryReconvergence(found->mWords);
+            if (rewritten.size() != found->mWords.size())
+            {
+                read.mRewritten = std::move(rewritten);
+                read.mWords = read.mRewritten;
+            }
+        }
 
         read.mCreate = VkShaderModuleCreateInfo{
             .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,

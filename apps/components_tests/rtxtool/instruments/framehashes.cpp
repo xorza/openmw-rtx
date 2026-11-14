@@ -12,6 +12,7 @@
 #include <gtest/gtest.h>
 
 #include <apps/components_tests/rtx/support/death.hpp>
+#include <apps/components_tests/rtx/support/refusal.hpp>
 #include <apps/rtxtool/instruments/framehashes.hpp>
 #include <apps/rtxtool/instruments/scenedigest.hpp>
 #include <components/rtx/common/error.hpp>
@@ -428,14 +429,13 @@ namespace RtxTool
             finished.mDigest = Rtx::FrameDigest{};
             ASSERT_TRUE(hashes.picture(finished).has_value());
 
-            const std::filesystem::path file = TestingOpenMW::outputFilePath("hashes-comma.csv");
+            const std::filesystem::path file = TestingOpenMW::currentTestDirPath() / "hashes-comma.csv";
             EXPECT_FALSE(hashes.write(file).isOk());
         }
 
         TEST(RtxFrameHashesTest, aRunSurvivesTheFileItIsWrittenTo)
         {
-            const std::filesystem::path file = TestingOpenMW::outputFilePath("hashes-test.csv");
-            std::filesystem::remove(file);
+            const std::filesystem::path file = TestingOpenMW::currentTestDirPath() / "hashes-test.csv";
 
             ASSERT_TRUE(plainRun(Rtx::Upscale::Quality).write(file).isOk());
             const FrameHashes read = FrameHashes::read(file);
@@ -456,7 +456,7 @@ namespace RtxTool
             EXPECT_EQ(onlyView(plainRun().against(read)).mConfigurationDiffering, 1u);
 
             // And whether the denoiser composed it comes back too.
-            const std::filesystem::path denoisedFile = TestingOpenMW::outputFilePath("hashes-denoised-test.csv");
+            const std::filesystem::path denoisedFile = TestingOpenMW::currentTestDirPath() / "hashes-denoised-test.csv";
             ASSERT_TRUE(denoisedRunOf(sPixels, digestOf(100)).write(denoisedFile).isOk());
             const FrameHashes denoisedRead = FrameHashes::read(denoisedFile);
             EXPECT_EQ(
@@ -488,7 +488,6 @@ namespace RtxTool
                     ++unwritten;
                 EXPECT_EQ(unwritten, 2u) << "the pane filter's two, spelled as unwritten: " << row;
             }
-            std::filesystem::remove(denoisedFile);
 
             std::string header;
             {
@@ -504,8 +503,6 @@ namespace RtxTool
                 << header;
             EXPECT_NE(header.find(",wavelet-blend,wavelet-fill-blend,positions,"), std::string::npos) << header;
             EXPECT_NE(header.find(",textures,"), std::string::npos) << header;
-
-            std::filesystem::remove(file);
         }
 
         TEST(RtxFrameHashesTest, aRowIsNotedAtTheFrameAndPicturedWhenItComesBack)
@@ -563,10 +560,9 @@ namespace RtxTool
 
             FrameHashes half;
             half.note("somewhere", 1, 7, partsOf(100));
-            const std::filesystem::path file = TestingOpenMW::outputFilePath("hashes-half.csv");
+            const std::filesystem::path file = TestingOpenMW::currentTestDirPath() / "hashes-half.csv";
             Rtx::Testing::expectDies(
                 [&] { static_cast<void>(half.write(file)); }, "frames were noted and never pictured");
-            std::filesystem::remove(file);
         }
 
         TEST(RtxFrameHashesTest, aFileWhoseViewIsOutOfFrameOrderIsRefused)
@@ -574,7 +570,7 @@ namespace RtxTool
             FrameHashes run;
             add(run, 1, sPixels, partsOf(100));
             add(run, 2, sPixels, partsOf(100));
-            const std::filesystem::path file = TestingOpenMW::outputFilePath("hashes-order.csv");
+            const std::filesystem::path file = TestingOpenMW::currentTestDirPath() / "hashes-order.csv";
             ASSERT_TRUE(run.write(file).isOk());
 
             std::ifstream in(file);
@@ -584,14 +580,11 @@ namespace RtxTool
             std::getline(in, header);
             std::getline(in, first);
             std::getline(in, second);
-            in.close();
 
-            std::ofstream out(file);
-            out << header << '\n' << second << '\n' << first << '\n';
-            out.close();
-
-            EXPECT_THROW(FrameHashes::read(file), Rtx::InputError) << "frame 2 before frame 1 of one view";
-            std::filesystem::remove(file);
+            EXPECT_EQ(Rtx::Testing::refusalOf(
+                          [&] { FrameHashes::parse(header + '\n' + second + '\n' + first + '\n', "hashes.csv"); }),
+                "cannot read hashes.csv: " + first)
+                << "frame 2 before frame 1 of one view";
         }
 
         /// **A number is read whole or the file is refused**: a frame of `1x`, and a picture's hash
@@ -601,7 +594,7 @@ namespace RtxTool
         {
             FrameHashes run;
             add(run, 1, sPixels, partsOf(100));
-            const std::filesystem::path file = TestingOpenMW::outputFilePath("hashes-partial.csv");
+            const std::filesystem::path file = TestingOpenMW::currentTestDirPath() / "hashes-partial.csv";
             ASSERT_TRUE(run.write(file).isOk());
 
             std::string header;
@@ -629,28 +622,17 @@ namespace RtxTool
             partialHash[pictureAt + pictureLength - 1] = 'g';
 
             for (const std::string& written : { partialFrame, partialHash })
-            {
-                {
-                    std::ofstream out(file);
-                    out << header << '\n' << written << '\n';
-                }
-                EXPECT_THROW(FrameHashes::read(file), Rtx::InputError) << written;
-            }
-            std::filesystem::remove(file);
+                EXPECT_EQ(
+                    Rtx::Testing::refusalOf([&] { FrameHashes::parse(header + '\n' + written + '\n', "hashes.csv"); }),
+                    "cannot read hashes.csv: " + written);
         }
 
         TEST(RtxFrameHashesTest, aFileWhoseColumnsAreNotThisBuildsIsRefused)
         {
-            const std::filesystem::path file = TestingOpenMW::outputFilePath("hashes-old.csv");
-
-            {
-                std::ofstream out(file);
-                out << "hashes 3: view,frame,picture,positions\n";
-                out << "somewhere,1," << std::string(32, 'a') << ',' << std::string(32, 'b') << '\n';
-            }
-
-            EXPECT_THROW(FrameHashes::read(file), Rtx::InputError);
-            std::filesystem::remove(file);
+            const std::string old = "hashes 3: view,frame,picture,positions\nsomewhere,1," + std::string(32, 'a') + ','
+                + std::string(32, 'b') + '\n';
+            EXPECT_EQ(Rtx::Testing::refusalOf([&] { FrameHashes::parse(old, "hashes.csv"); }),
+                "cannot read hashes.csv: hashes 3: view,frame,picture,positions");
         }
     }
 }

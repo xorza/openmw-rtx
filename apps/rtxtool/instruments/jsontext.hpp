@@ -9,7 +9,11 @@ namespace RtxTool
     /// process table, and one with a quote or a backslash in it would end the record there.
     std::string jsonString(std::string_view text);
 
-    /// `value` as a JSON number at four decimals, or `null` where it is not finite, which JSON has no
+    /// `value` as a JSON number at `decimals` decimals, or `null` where it is not finite, which JSON has no
     /// number for: a figure of no samples, which a reader such as Python's `json` refuses as `nan`.
-    std::string jsonNumber(double value);
+    std::string jsonNumber(double value, int decimals);
+
+    /// `value` as a JSON number to `digits` significant digits, or `null` where it is not finite: a figure whose
+    /// scale nobody knows ahead, as a card's counter.
+    std::string jsonSignificant(double value, int digits);
 }

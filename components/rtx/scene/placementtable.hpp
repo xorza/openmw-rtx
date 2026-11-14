@@ -112,7 +112,7 @@ namespace Rtx
         }
 
         /// Ends a placement a backend took: what moved becomes where things were. Costs what moved
-        /// and not what stands. What was moved becomes `getSettled`, and `getMoved` starts empty —
+        /// and not what stands. What had motion becomes `getSettled`, and `getMoved` starts empty —
         /// so only after a backend has read both, because a slot that leaves the lists unread is a
         /// row no copy of the tables is ever told about.
         void advance();

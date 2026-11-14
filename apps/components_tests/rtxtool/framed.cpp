@@ -8,6 +8,7 @@
 
 #include <Base64.h>
 
+#include <apps/components_tests/rtx/support/refusal.hpp>
 #include <apps/openmw/mwrender/rtx/rtxsettings.hpp>
 #include <apps/rtxtool/framed.hpp>
 #include <apps/rtxtool/toolline.hpp>
@@ -36,27 +37,28 @@ namespace RtxTool
         /// finite, is refused naming the setting. Read when made, so a file gone after says the same.
         TEST(RtxShippedDefaultsTest, theShippedFileIsReadOnceAndAskedAsTheGameReadsIt)
         {
-            const std::filesystem::path file = TestingOpenMW::outputFilePath("shipped-defaults.bin");
+            const std::filesystem::path file = TestingOpenMW::currentTestDirPath() / "shipped-defaults.bin";
             std::ofstream(file, std::ios::binary) << Base64::Base64::Encode(
                 "[Camera]\nviewing distance = 7168.5\n[Terrain]\nobject paging = TRUE\n"
                 "[General]\nanisotropy = 4\n[Shaders]\nnormal map pattern = _n\n"
                 "[RTX]\ndistant land cells = inf\n");
             const ShippedDefaults shipped(file);
-            std::filesystem::remove(file);
 
             EXPECT_EQ(shipped.get(Settings::camera().mViewingDistance), 7168.5f);
             EXPECT_TRUE(shipped.get(Settings::terrain().mObjectPaging));
             EXPECT_EQ(shipped.get(Settings::general().mAnisotropy), 4);
             EXPECT_EQ(shipped.get(Settings::shaders().mNormalMapPattern), "_n");
-            EXPECT_THROW(shipped.get(Settings::camera().mFieldOfView), std::runtime_error);
-            EXPECT_THROW(shipped.get(Settings::rtx().mDistantLandCells), std::runtime_error);
+            EXPECT_EQ(Rtx::Testing::refusalOf([&] { shipped.get(Settings::camera().mFieldOfView); }),
+                "defaults.bin names no [Camera] field of view");
+            EXPECT_EQ(Rtx::Testing::refusalOf([&] { shipped.get(Settings::rtx().mDistantLandCells); }),
+                "defaults.bin's [RTX] distant land cells is not a finite number: \"inf\"");
         }
 
         /// The shipped file every setting a measured run reads is named in, each a value of its own
         /// so a test tells them apart.
         ShippedDefaults everyShipped()
         {
-            const std::filesystem::path file = TestingOpenMW::outputFilePath("every-shipped.bin");
+            const std::filesystem::path file = TestingOpenMW::currentTestDirPath() / "every-shipped.bin";
             std::ofstream(file, std::ios::binary) << Base64::Base64::Encode(
                 "[RTX]\ndistant land cells = 3.5\n[Camera]\nviewing distance = 7168\n"
                 "[Terrain]\nobject paging = false\nobject paging min size = 0.02\n"
@@ -64,7 +66,6 @@ namespace RtxTool
                 "[General]\nanisotropy = 8\n[Video]\ngamma = 1.25\n"
                 "[Shaders]\napply lighting to environment maps = true\n");
             ShippedDefaults shipped(file);
-            std::filesystem::remove(file);
             return shipped;
         }
 

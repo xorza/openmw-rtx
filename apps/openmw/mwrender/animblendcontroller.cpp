@@ -206,7 +206,7 @@ namespace MWRender
         else
             mTimeFactor = 1;
 
-        mInterpActive = mTimeFactor < 1.0f;
+        mInterpActive = mTimeFactor < 1.0;
 
         if (mInterpActive)
             mInterpFactor = mEasingFn(mTimeFactor);

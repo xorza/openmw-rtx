@@ -88,7 +88,8 @@ namespace Rtx::Testing
             ContentPreprocessor content;
             MeshReader reader;
             MeshReading reading;
-            ASSERT_TRUE(reader.read(content, readDrawable(*cube, NodeKinds{}.of(*cube)), nullptr, reading).value());
+            ASSERT_EQ(reader.read(content, readDrawable(*cube, NodeKinds{}.of(*cube)), nullptr, reading).value(),
+                MeshRead::Triangles);
 
             const MeshArrays& arrays = reading.mArrays;
             ASSERT_EQ(arrays.mPositions.size(), 24u);
@@ -151,7 +152,8 @@ namespace Rtx::Testing
                 ContentPreprocessor content;
                 MeshReader reader;
                 MeshReading reading;
-                EXPECT_TRUE(reader.read(content, readDrawable(*floor, NodeKinds{}.of(*floor)), model, reading).value());
+                EXPECT_EQ(reader.read(content, readDrawable(*floor, NodeKinds{}.of(*floor)), model, reading).value(),
+                    MeshRead::Triangles);
                 return std::vector<osg::Vec3f>(reading.mArrays.mNormals.begin(), reading.mArrays.mNormals.end());
             };
 
@@ -183,7 +185,8 @@ namespace Rtx::Testing
             MeshReader reader;
             const auto normalsOf = [&](osg::Geometry& shape, const osg::Node& model) {
                 MeshReading reading;
-                EXPECT_TRUE(reader.read(content, readDrawable(shape, NodeKinds{}.of(shape)), &model, reading).value());
+                EXPECT_EQ(reader.read(content, readDrawable(shape, NodeKinds{}.of(shape)), &model, reading).value(),
+                    MeshRead::Triangles);
                 return std::vector<osg::Vec3f>(reading.mArrays.mNormals.begin(), reading.mArrays.mNormals.end());
             };
             const osg::ref_ptr<osg::Group> growing = new osg::Group;
@@ -200,7 +203,8 @@ namespace Rtx::Testing
                 ContentPreprocessor own;
                 MeshReader alone;
                 MeshReading reading;
-                EXPECT_TRUE(alone.read(own, readDrawable(*wall, NodeKinds{}.of(*wall)), &model, reading).value());
+                EXPECT_EQ(alone.read(own, readDrawable(*wall, NodeKinds{}.of(*wall)), &model, reading).value(),
+                    MeshRead::Triangles);
                 return std::vector<osg::Vec3f>(reading.mArrays.mNormals.begin(), reading.mArrays.mNormals.end());
             };
             EXPECT_EQ(normalsOf(*wall, *growing), wallIn(*growing)) << "the wall, read after the floor";
@@ -249,7 +253,8 @@ namespace Rtx::Testing
             ContentPreprocessor content;
             MeshReader reader;
             MeshReading reading;
-            ASSERT_TRUE(reader.read(content, readDrawable(*quad, NodeKinds{}.of(*quad)), nullptr, reading).value());
+            ASSERT_EQ(reader.read(content, readDrawable(*quad, NodeKinds{}.of(*quad)), nullptr, reading).value(),
+                MeshRead::Triangles);
 
             EXPECT_EQ(reading.mArrays.mPositions.size(), 4u);
             EXPECT_EQ(reading.mArrays.mIndices.size(), 6u) << "two triangles, none of them the other's reverse";
@@ -268,7 +273,8 @@ namespace Rtx::Testing
                                      osg::Vec3f(0.0f, 1.0f, 0.0f), osg::Vec3f(0.0f, 1.0f, 0.0f) }),
                 osg::Array::BIND_OVERALL);
             MeshReading asLong;
-            ASSERT_TRUE(reader.read(content, readDrawable(*quad, NodeKinds{}.of(*quad)), nullptr, asLong).value());
+            ASSERT_EQ(reader.read(content, readDrawable(*quad, NodeKinds{}.of(*quad)), nullptr, asLong).value(),
+                MeshRead::Triangles);
             ASSERT_EQ(asLong.mArrays.mNormals.size(), 4u);
             for (const osg::Vec3f& normal : asLong.mArrays.mNormals)
                 EXPECT_EQ(normal, osg::Vec3f(0.0f, 0.0f, 1.0f)) << "an overall array was read per vertex";
@@ -281,7 +287,8 @@ namespace Rtx::Testing
                 osg::Vec3f(nan, 0.0f, 1.0f), osg::Vec3f(0.0f, -inf, 0.0f), osg::Vec3f(0.0f, 0.0f, 1.0f) });
             quad->setNormalArray(perVertex, osg::Array::BIND_PER_VERTEX);
             MeshReading unwritten;
-            ASSERT_TRUE(reader.read(content, readDrawable(*quad, NodeKinds{}.of(*quad)), nullptr, unwritten).value());
+            ASSERT_EQ(reader.read(content, readDrawable(*quad, NodeKinds{}.of(*quad)), nullptr, unwritten).value(),
+                MeshRead::Triangles);
             EXPECT_EQ(unwritten.mArrays.mNormals.size(), 4u);
             EXPECT_EQ(std::vector<osg::Vec3f>(unwritten.mArrays.mNormals.begin(), unwritten.mArrays.mNormals.end()),
                 (std::vector<osg::Vec3f>{
@@ -289,23 +296,26 @@ namespace Rtx::Testing
 
             (*perVertex)[1] = osg::Vec3f(0.0f, 0.0f, 1.0f);
             (*perVertex)[2] = osg::Vec3f(0.0f, 0.0f, 1.0f);
-            ASSERT_TRUE(reader.read(content, readDrawable(*quad, NodeKinds{}.of(*quad)), nullptr, unwritten).value());
+            ASSERT_EQ(reader.read(content, readDrawable(*quad, NodeKinds{}.of(*quad)), nullptr, unwritten).value(),
+                MeshRead::Triangles);
             EXPECT_EQ(unwritten.mArrays.mNormals.data(), perVertex->asVector().data()) << "a finite array was copied";
 
             quad->setNormalArray(makePositions({ osg::Vec3f(nan, nan, nan) }), osg::Array::BIND_OVERALL);
-            ASSERT_TRUE(reader.read(content, readDrawable(*quad, NodeKinds{}.of(*quad)), nullptr, unwritten).value());
+            ASSERT_EQ(reader.read(content, readDrawable(*quad, NodeKinds{}.of(*quad)), nullptr, unwritten).value(),
+                MeshRead::Triangles);
             ASSERT_EQ(unwritten.mArrays.mNormals.size(), 4u);
             for (const osg::Vec3f& normal : unwritten.mArrays.mNormals)
                 EXPECT_EQ(normal, osg::Vec3f()) << "an overall normal that is not finite";
 
             // A drawable with no triangles mirrors nothing, and says so rather than reading zero.
             osg::ref_ptr<osg::Geometry> empty = new osg::Geometry;
-            EXPECT_FALSE(reader.read(content, readDrawable(*empty, NodeKinds{}.of(*empty)), nullptr, reading).value());
+            EXPECT_EQ(reader.read(content, readDrawable(*empty, NodeKinds{}.of(*empty)), nullptr, reading).value(),
+                MeshRead::Empty);
 
             // One whose triangles name a vertex it does not have is refused by name: four vertices,
             // and the second triangle ends at index four.
             osg::ref_ptr<osg::Geometry> past = makeIndexPastItsVertices();
-            const Result<bool, std::string> refused
+            const Result<MeshRead, std::string> refused
                 = reader.read(content, readDrawable(*past, NodeKinds{}.of(*past)), nullptr, reading);
             ASSERT_FALSE(refused.isOk()) << "a triangle past its vertices was read";
             EXPECT_EQ(refused.error(), "its triangles name vertex 4 of 4");
@@ -314,7 +324,7 @@ namespace Rtx::Testing
             // nothing: nothing stands in for where a vertex is.
             osg::ref_ptr<osg::Geometry> unplaced = makeQuad();
             (*static_cast<osg::Vec3Array*>(unplaced->getVertexArray()))[2].y() = std::numeric_limits<float>::infinity();
-            const Result<bool, std::string> notFinite
+            const Result<MeshRead, std::string> notFinite
                 = reader.read(content, readDrawable(*unplaced, NodeKinds{}.of(*unplaced)), nullptr, reading);
             ASSERT_FALSE(notFinite.isOk()) << "a vertex that is not finite was read";
             EXPECT_EQ(notFinite.error(), "its vertices are not finite numbers");
@@ -342,7 +352,8 @@ namespace Rtx::Testing
                 asFloats->push_back(osg::Vec4f(64.0f / 255.0f, 128.0f / 255.0f, 1.0f, 1.0f));
             floats->setColorArray(asFloats, osg::Array::BIND_PER_VERTEX);
 
-            ASSERT_TRUE(reader.read(content, readDrawable(*floats, NodeKinds{}.of(*floats)), nullptr, reading).value());
+            ASSERT_EQ(reader.read(content, readDrawable(*floats, NodeKinds{}.of(*floats)), nullptr, reading).value(),
+                MeshRead::Triangles);
             ASSERT_EQ(reading.mArrays.mColours.size(), 4u);
             for (const osg::Vec3f& colour : reading.mArrays.mColours)
             {
@@ -358,7 +369,8 @@ namespace Rtx::Testing
                 asBytes->push_back(osg::Vec4ub(64, 128, 255, 255));
             bytes->setColorArray(asBytes, osg::Array::BIND_PER_VERTEX);
 
-            ASSERT_TRUE(reader.read(content, readDrawable(*bytes, NodeKinds{}.of(*bytes)), nullptr, reading).value());
+            ASSERT_EQ(reader.read(content, readDrawable(*bytes, NodeKinds{}.of(*bytes)), nullptr, reading).value(),
+                MeshRead::Triangles);
             ASSERT_EQ(reading.mArrays.mColours.size(), 4u);
             for (const osg::Vec3f& colour : reading.mArrays.mColours)
             {
@@ -374,8 +386,8 @@ namespace Rtx::Testing
             one->push_back(osg::Vec4f(1.0f, 128.0f / 255.0f, 0.0f, 1.0f));
             overall->setColorArray(one, osg::Array::BIND_OVERALL);
 
-            ASSERT_TRUE(
-                reader.read(content, readDrawable(*overall, NodeKinds{}.of(*overall)), nullptr, reading).value());
+            ASSERT_EQ(reader.read(content, readDrawable(*overall, NodeKinds{}.of(*overall)), nullptr, reading).value(),
+                MeshRead::Triangles);
             ASSERT_EQ(reading.mArrays.mColours.size(), 4u);
             for (const osg::Vec3f& colour : reading.mArrays.mColours)
             {
@@ -390,7 +402,8 @@ namespace Rtx::Testing
             (*asFloats)[1] = osg::Vec4f(std::numeric_limits<float>::quiet_NaN(), 0.5f, 0.5f, 1.0f);
             (*asFloats)[2] = osg::Vec4f(64.0f / 255.0f, std::numeric_limits<float>::infinity(), 1.0f, 1.0f);
             (*asFloats)[3].w() = std::numeric_limits<float>::quiet_NaN();
-            ASSERT_TRUE(reader.read(content, readDrawable(*floats, NodeKinds{}.of(*floats)), nullptr, reading).value());
+            ASSERT_EQ(reader.read(content, readDrawable(*floats, NodeKinds{}.of(*floats)), nullptr, reading).value(),
+                MeshRead::Triangles);
             ASSERT_EQ(reading.mArrays.mColours.size(), 4u);
             EXPECT_FLOAT_EQ(reading.mArrays.mColours[0].x(), sAt64);
             EXPECT_EQ(reading.mArrays.mColours[1], white);
@@ -398,8 +411,8 @@ namespace Rtx::Testing
             EXPECT_FLOAT_EQ(reading.mArrays.mColours[3].y(), sAt128) << "a colour whose alpha alone is not finite";
 
             (*one)[0] = osg::Vec4f(0.0f, std::numeric_limits<float>::quiet_NaN(), 0.0f, 1.0f);
-            ASSERT_TRUE(
-                reader.read(content, readDrawable(*overall, NodeKinds{}.of(*overall)), nullptr, reading).value());
+            ASSERT_EQ(reader.read(content, readDrawable(*overall, NodeKinds{}.of(*overall)), nullptr, reading).value(),
+                MeshRead::Triangles);
             for (const osg::Vec3f& colour : reading.mArrays.mColours)
                 EXPECT_EQ(colour, white) << "an overall colour that is not finite";
         }
@@ -463,7 +476,7 @@ namespace Rtx::Testing
             MeshReading reading;
             for (const auto& [geometry, why] : broken)
             {
-                const Result<bool, std::string> refused
+                const Result<MeshRead, std::string> refused
                     = reader.read(content, readDrawable(*geometry, NodeKinds{}.of(*geometry)), nullptr, reading);
                 ASSERT_FALSE(refused.isOk()) << "read a face that should be refused because " << why;
                 EXPECT_EQ(refused.error(), why);
@@ -477,7 +490,8 @@ namespace Rtx::Testing
             whole->setTexCoordArray(1, pairs(4));
             whole->setColorArray(new osg::Vec4Array(4), osg::Array::BIND_PER_VERTEX);
             whole->setTexCoordArray(Shader::sTangentUnit, new osg::Vec4Array(4));
-            EXPECT_TRUE(reader.read(content, readDrawable(*whole, NodeKinds{}.of(*whole)), nullptr, reading).value());
+            EXPECT_EQ(reader.read(content, readDrawable(*whole, NodeKinds{}.of(*whole)), nullptr, reading).value(),
+                MeshRead::Triangles);
         }
 
         /// The tangents `Shader::MapVisitor` builds are read as they are, and their unit is not
@@ -502,7 +516,8 @@ namespace Rtx::Testing
             ContentPreprocessor content;
             MeshReader reader;
             MeshReading reading;
-            ASSERT_TRUE(reader.read(content, readDrawable(*quad, NodeKinds{}.of(*quad)), nullptr, reading).value());
+            ASSERT_EQ(reader.read(content, readDrawable(*quad, NodeKinds{}.of(*quad)), nullptr, reading).value(),
+                MeshRead::Triangles);
             EXPECT_TRUE(reading.mArrays.mTangents.empty()) << "a quad no normal map is read through";
 
             osg::ref_ptr<osg::Vec4Array> tangents = new osg::Vec4Array;
@@ -512,7 +527,8 @@ namespace Rtx::Testing
             tangents->push_back(osg::Vec4f());
             quad->setTexCoordArray(Shader::sTangentUnit, tangents, osg::Array::BIND_PER_VERTEX);
 
-            ASSERT_TRUE(reader.read(content, readDrawable(*quad, NodeKinds{}.of(*quad)), nullptr, reading).value());
+            ASSERT_EQ(reader.read(content, readDrawable(*quad, NodeKinds{}.of(*quad)), nullptr, reading).value(),
+                MeshRead::Triangles);
             ASSERT_EQ(reading.mArrays.mTangents.size(), 4u);
             for (std::size_t vertex = 0; vertex < 4; ++vertex)
                 EXPECT_EQ(reading.mArrays.mTangents[vertex], (*tangents)[vertex]) << vertex;
@@ -523,7 +539,8 @@ namespace Rtx::Testing
             const std::vector<osg::Vec4f> written = tangents->asVector();
             (*tangents)[1].x() = std::numeric_limits<float>::quiet_NaN();
             (*tangents)[2].w() = std::numeric_limits<float>::infinity();
-            ASSERT_TRUE(reader.read(content, readDrawable(*quad, NodeKinds{}.of(*quad)), nullptr, reading).value());
+            ASSERT_EQ(reader.read(content, readDrawable(*quad, NodeKinds{}.of(*quad)), nullptr, reading).value(),
+                MeshRead::Triangles);
             EXPECT_EQ(std::vector<osg::Vec4f>(reading.mArrays.mTangents.begin(), reading.mArrays.mTangents.end()),
                 (std::vector<osg::Vec4f>{ written[0], osg::Vec4f(), osg::Vec4f(), written[3] }));
 
@@ -536,7 +553,8 @@ namespace Rtx::Testing
             (*second)[3] = osg::Vec2f(0.0f, std::numeric_limits<float>::infinity());
             quad->setTexCoordArray(1, new osg::Vec2Array(*first));
             quad->setTexCoordArray(3, new osg::Vec2Array(*second));
-            ASSERT_TRUE(reader.read(content, readDrawable(*quad, NodeKinds{}.of(*quad)), nullptr, reading).value());
+            ASSERT_EQ(reader.read(content, readDrawable(*quad, NodeKinds{}.of(*quad)), nullptr, reading).value(),
+                MeshRead::Triangles);
             EXPECT_EQ(std::vector<osg::Vec2f>(reading.mArrays.mTexCoords.begin(), reading.mArrays.mTexCoords.end()),
                 (std::vector<osg::Vec2f>{ osg::Vec2f(), osg::Vec2f(1.0f, 0.0f), osg::Vec2f(), osg::Vec2f() }));
             EXPECT_EQ(std::vector<osg::Vec2f>(
@@ -555,7 +573,8 @@ namespace Rtx::Testing
             ContentPreprocessor content;
             MeshReader reader;
             MeshReading reading;
-            ASSERT_TRUE(reader.read(content, readDrawable(*quad, NodeKinds{}.of(*quad)), nullptr, reading).value());
+            ASSERT_EQ(reader.read(content, readDrawable(*quad, NodeKinds{}.of(*quad)), nullptr, reading).value(),
+                MeshRead::Triangles);
 
             Resolving adopted;
             const Index mesh = adopted.mResolver.adopt(*quad, reading);

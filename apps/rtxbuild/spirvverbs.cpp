@@ -117,7 +117,7 @@ namespace RtxBuild
     void pin(const Arguments arguments)
     {
         rewriteModule(std::filesystem::path(arguments[0]),
-            [](const std::vector<std::uint32_t>& words) { return Rtx::pinFloatArithmetic(words); });
+            [](const std::vector<std::uint32_t>& words) { return Rtx::pinModule(words); });
     }
 
     void embed(const Arguments arguments)

@@ -19,6 +19,7 @@
 #include <osg/observer_ptr>
 #include <osg/ref_ptr>
 
+#include <apps/components_tests/rtx/support/image.hpp>
 #include <components/contentstore/key.hpp>
 #include <components/contentstore/store.hpp>
 #include <components/misc/bytebuffer.hpp>
@@ -65,9 +66,7 @@ namespace Rtx
         /// Two by two RGBA8, as a file would arrive.
         osg::ref_ptr<osg::Image> makeImage(const std::array<std::uint8_t, 16>& bytes, const char* name)
         {
-            osg::ref_ptr<osg::Image> image = new osg::Image;
-            image->setFileName(name);
-            image->allocateImage(2, 2, 1, GL_RGBA, GL_UNSIGNED_BYTE);
+            osg::ref_ptr<osg::Image> image = Testing::makeImage(name, 2, 2);
             for (std::size_t at = 0; at < bytes.size(); ++at)
                 image->data()[at] = bytes[at];
 
@@ -89,9 +88,7 @@ namespace Rtx
         /// `width` by `height` of loose RGBA8, mid grey and opaque, with no chain.
         osg::ref_ptr<osg::Image> makeLoose(int width, int height)
         {
-            osg::ref_ptr<osg::Image> image = new osg::Image;
-            image->setFileName("textures/tx_loose.dds");
-            image->allocateImage(width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE);
+            osg::ref_ptr<osg::Image> image = Testing::makeImage("textures/tx_loose.dds", width, height);
             std::memset(image->data(), 128, image->getTotalSizeInBytes());
             return image;
         }
@@ -384,9 +381,7 @@ namespace Rtx
             EXPECT_EQ(asked.mWhole, direct.mWhole);
             EXPECT_EQ(asked.mAlpha, direct.mAlpha);
 
-            osg::ref_ptr<osg::Image> odd = new osg::Image;
-            odd->setFileName("odd.dds");
-            odd->allocateImage(2, 2, 1, GL_RGB, GL_UNSIGNED_BYTE_3_3_2);
+            osg::ref_ptr<osg::Image> odd = Testing::makeImage("odd.dds", 2, 2, GL_RGB, GL_UNSIGNED_BYTE_3_3_2);
             EXPECT_TRUE(content.reachesSolid(*odd));
             EXPECT_EQ(content.meanTexel(*odd).mColour, osg::Vec3f());
 
@@ -417,9 +412,7 @@ namespace Rtx
             EXPECT_EQ(content.specularLayout(*makeImage(texels(126), "over.dds")), SpecularLayout::MetalRoughness);
             EXPECT_EQ(content.specularLayout(*makeImage(sPaint, "painted.dds")), SpecularLayout::MetalRoughness);
 
-            osg::ref_ptr<osg::Image> odd = new osg::Image;
-            odd->setFileName("odd.dds");
-            odd->allocateImage(2, 2, 1, GL_RGB, GL_UNSIGNED_BYTE_3_3_2);
+            osg::ref_ptr<osg::Image> odd = Testing::makeImage("odd.dds", 2, 2, GL_RGB, GL_UNSIGNED_BYTE_3_3_2);
             EXPECT_EQ(content.specularLayout(*odd), SpecularLayout::MetalRoughness);
             EXPECT_EQ(content.takeStats().at(ContentPassId::SpecularKind).mAsked, 4u);
         }
@@ -491,20 +484,25 @@ namespace Rtx
         }
 
         /// **A chain asked only to be stored is run where the store lacks it, and not read where it holds
-        /// it**: the first ask runs and files the chain, and a later one, in a session of its own, counts a
-        /// hit and leaves the output it was handed as it was, a coarser chain of one byte, nine; an ask for
-        /// the output then reads the bytes the run made.
+        /// it**: the first ask runs and files the chain, its bytes moved into the store's payload and not
+        /// copied, and a later one, in a session of its own, counts a hit and leaves the output it was handed
+        /// as it was, a coarser chain of one byte, nine; an ask for the output then reads the bytes a run with
+        /// no store makes.
         TEST(RtxContentPreprocessorTest, aChainAskedOnlyToBeStoredIsNotReadWhereTheStoreHoldsIt)
         {
             const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "store";
             const osg::ref_ptr<osg::Image> painted = makeImage(sPaint, "painted.dds");
             const ChainPass::Input input{ .mImage = *painted, .mEncoding = TextureEncoding::Normal };
             MadeChain made;
+            ContentPreprocessor(nullptr, ContentStore::Reach::Disk).chain(input, made);
+            ASSERT_FALSE(made.mBytes.empty());
             {
                 ContentStore::Store store(folder, sContentStorePolicy);
                 ContentPreprocessor content(&store, ContentStore::Reach::Disk);
-                content.chain(input, made, ContentAsk::Stored);
-                ASSERT_EQ(made.mForm, ChainForm::Bc7) << "the store lacked it, so it ran";
+                MadeChain stored;
+                content.chain(input, stored, ContentAsk::Stored);
+                ASSERT_EQ(stored.mForm, ChainForm::Bc7) << "the store lacked it, so it ran";
+                EXPECT_TRUE(stored.mBytes.empty()) << "the chain was copied into the store's payload";
                 EXPECT_EQ(content.takeStats().at(ContentPassId::Chain).mHits, 0u);
             }
 
@@ -591,8 +589,7 @@ namespace Rtx
             EXPECT_FALSE(finest.describes(*held));
             EXPECT_FALSE(finest.get().has_value());
 
-            osg::ref_ptr<osg::Image> odd = new osg::Image;
-            odd->allocateImage(2, 2, 1, GL_RGB, GL_UNSIGNED_BYTE_3_3_2);
+            osg::ref_ptr<osg::Image> odd = Testing::makeImage("", 2, 2, GL_RGB, GL_UNSIGNED_BYTE_3_3_2);
             finestKeyOf(*odd, finest);
             EXPECT_FALSE(finest.get().has_value()) << "an image no reader decodes is described as none";
         }

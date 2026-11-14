@@ -47,14 +47,17 @@
 #include <components/rtx/world/fognoise.hpp>
 #include <components/rtx/world/frameworld.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
+#include <components/rtxvulkan/device/memory/batch.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/imagearena.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/device/memory/memory.hpp>
+#include <components/rtxvulkan/device/memory/stagingring.hpp>
 #include <components/rtxvulkan/device/memory/uploads.hpp>
 #include <components/rtxvulkan/device/physicaldevice.hpp>
 #include <components/rtxvulkan/device/pipelinecache.hpp>
+#include <components/rtxvulkan/device/pipelinereport.hpp>
 #include <components/rtxvulkan/device/requirements.hpp>
 #include <components/rtxvulkan/device/result.hpp>
 #include <components/rtxvulkan/device/timeline.hpp>
@@ -448,7 +451,7 @@ namespace Rtx
 
         // The whole world's upload, every block of it free now that the flush has waited, and not
         // what any arrival after needs.
-        mDevice.getPool().trimStaging(sStagingKept);
+        mDevice.getPool().getStaging().trim(sStagingKept);
 
         held.readStats(mStats);
         mMedia.keepRipples(scene);
@@ -492,13 +495,6 @@ namespace Rtx
     std::span<const Refusal> VulkanRenderer::getRefusals(const SceneSlot slot) const
     {
         return mScenes.at(slot).getRefusals();
-    }
-
-    void VulkanRenderer::dropTextures(const SceneSlot slot, std::span<const Index> textures)
-    {
-        // No scene yet is a sweep that came before the first hand-over: nothing holds images to destroy.
-        if (DeviceScene* const held = mScenes.find(slot); held != nullptr)
-            held->dropTextures(textures);
     }
 
     void VulkanRenderer::placeScene(const SceneSlot slot, const SceneDesc& scene)
@@ -595,7 +591,10 @@ namespace Rtx
         if (anisotropy == mProfile.mAnisotropy)
             return;
 
+        // Drained first, so every scene writes its sets now, which no submit then binds: a menu change, as a
+        // change of the vertical sync is.
         mProfile.mAnisotropy = anisotropy;
+        drain();
         mScenes.forEach([&](DeviceScene& scene) { scene.setAnisotropy(anisotropy); });
     }
 
@@ -754,7 +753,7 @@ namespace Rtx
         // past a cache that missed, reads why in the line.
         if (!mKernelsSummarised && progress.isDone())
         {
-            mDevice.logPipelineSummary("Pipelines by the time the start's kernels stood ready");
+            mDevice.getPipelineReport().logSummary("Pipelines by the time the start's kernels stood ready");
             mKernelsSummarised = true;
         }
         return progress;
@@ -777,9 +776,9 @@ namespace Rtx
         const Shaders::VisibilityConstants& camera, const FrameOptions& options, const WorldOptions& described)
     {
         // A frame that handed nothing over gives the ring a block back where an arrival grew it past what
-        // it keeps (`CommandPool::shedStaging`).
+        // it keeps (`StagingRing::shed`).
         if (!std::exchange(mHandedOver, false))
-            mDevice.getPool().shedStaging(sStagingKept);
+            mDevice.getPool().getStaging().shed(sStagingKept);
 
         const DeviceScene* const held = mScenes.find(SceneSlot::world());
         assert(held != nullptr && "renderFrame before setScene");

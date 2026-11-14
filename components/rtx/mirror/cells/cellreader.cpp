@@ -1,8 +1,10 @@
 #include "cellreader.hpp"
 
+#include <algorithm>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <limits>
 #include <optional>
 #include <span>
@@ -90,7 +92,8 @@ namespace Rtx
         , mGroundcover(world.mGroundcover)
         , mStatics(world.mStatics)
         , mGround(*Crash::notNull(world.mGround, "a reader of a world with no land"), world.mWorldspace)
-        , mWalk(world.mAbove, world.mStore)
+        , mComputed(world.mStore, ContentStore::Reach::Disk)
+        , mWalk(world.mAbove)
         , mCollector(mStorage.makeCollector())
     {
     }
@@ -138,7 +141,7 @@ namespace Rtx
             into.mRadius = node->getBound().radius();
 
             // The loader answers a file it cannot read with the error marker, which reads.
-            mWalk.read(*node, mMask, into);
+            mWalk.read(*node, mMask, into, mComputed);
 
             // A model with nothing left to stand holds no template: it is filed by its path so that
             // the next reference to it is not walked again, and nothing reads the graph of it.
@@ -206,7 +209,7 @@ namespace Rtx
     {
         PreparedCell& prepared = mCells.take([&](PreparedCell& into) {
             fill(into, cell);
-            into.mPreprocessed = mWalk.takeStats();
+            into.mPreprocessed = mComputed.mPreprocessor.takeStats();
         });
         mCells.lend(prepared);
         return prepared;
@@ -232,7 +235,7 @@ namespace Rtx
             PreparedTexture& normal = readTexture(files[at].mNormalPath);
             layer.mNormalTexture = &normal;
             if (files[at].mParallax && normal.mImage != nullptr && carriesHeight(*normal.mImage))
-                layer.mRelief = mWalk.alphaRangeOf(*normal.mImage);
+                layer.mRelief = mComputed.alphaRangeOf(mComputed.factsOf(*normal.mImage), *normal.mImage);
         }
 
         // One cell at a time, which is the paging's near answer: containers page here as they do in the active grid's
@@ -247,6 +250,11 @@ namespace Rtx
             if (mStatics)
                 readStatic(ref, lamp, prepared);
         }
+
+        // **Largest first, here off the frame**, so the placements the frame adopts in this order are a prefix to the
+        // size rule (`CellPlacer::adoptPlacements`): a reference's parts share its radius. Stable, so equal radii keep
+        // the order the references were read in and two runs of one walk place the same slots.
+        std::ranges::stable_sort(prepared.mRefs, std::ranges::greater{}, &PreparedRef::mRadius);
     }
 
     CellReader::CarriedLamp CellReader::readLamp(const Terrain::PagedCellRef& ref, PreparedCell& prepared)
@@ -375,7 +383,7 @@ namespace Rtx
                 addReference(
                     *read, PreparedRef{ .mRefNum = ref.mRefNum, .mTransform = *transform }, into.mModels, into.mRefs);
             }
-            into.mPreprocessed = mWalk.takeStats();
+            into.mPreprocessed = mComputed.mPreprocessor.takeStats();
         });
         mGrass.lend(prepared);
         return prepared;

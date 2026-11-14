@@ -1,5 +1,7 @@
 #pragma once
 
+#include "keyedge.hpp"
+
 namespace RtxTool
 {
     /// What the sky keys asked for since the last frame: how many weathers on, one back for `[` and
@@ -26,7 +28,7 @@ namespace RtxTool
         SkyPress listen();
 
     private:
-        bool mBackHeld = false;
-        bool mOnHeld = false;
+        KeyEdge mBack;
+        KeyEdge mOn;
     };
 }

@@ -59,6 +59,8 @@ namespace MyGUIRtx
 
         RenderManager(const RenderManager&) = delete;
         RenderManager& operator=(const RenderManager&) = delete;
+        RenderManager(RenderManager&&) = delete;
+        RenderManager& operator=(RenderManager&&) = delete;
 
         void initialise() override;
         void shutdown() override;

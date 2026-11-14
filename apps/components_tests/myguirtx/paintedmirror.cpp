@@ -9,6 +9,7 @@
 #include <osg/ref_ptr>
 
 #include <apps/components_tests/rtx/support/countingrenderer.hpp>
+#include <apps/components_tests/rtx/support/image.hpp>
 #include <components/myguirtx/paintedmirror.hpp>
 #include <components/rtx/renderer/guirenderer.hpp>
 #include <components/sceneutil/imageregion.hpp>
@@ -20,8 +21,7 @@ namespace MyGUIRtx
     {
         osg::ref_ptr<osg::Image> makePicture(const int width, const int height)
         {
-            osg::ref_ptr<osg::Image> image = new osg::Image;
-            image->allocateImage(width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE);
+            osg::ref_ptr<osg::Image> image = Rtx::Testing::makeImage("", width, height);
             for (unsigned int at = 0; at < image->getTotalSizeInBytes(); ++at)
                 image->data()[at] = static_cast<std::uint8_t>(at);
             return image;

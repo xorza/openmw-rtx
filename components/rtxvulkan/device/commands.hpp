@@ -10,8 +10,9 @@
 
 #include <volk.h>
 
-#include <components/rtxvulkan/device/memory/buffer.hpp>
-#include <components/rtxvulkan/device/memory/image.hpp>
+#include <components/rtx/common/ownedby.hpp>
+#include <components/rtxvulkan/device/memory/batch.hpp>
+#include <components/rtxvulkan/device/memory/stagingring.hpp>
 
 #include "owned.hpp"
 #include "retiring.hpp"
@@ -25,6 +26,10 @@ namespace Rtx
     /// The one command pool, the device's own, and both ways a submit is made out of it: a load
     /// asks the queue and waits, and a frame cannot wait, because a frame that drained the queue
     /// could not hand the CPU the next one to walk.
+    ///
+    /// **The device's thread's alone**, asserted where a command buffer is taken, begun, deferred or
+    /// submitted: reached through the `const Device&` the compile hands hold too, and a Vulkan pool is
+    /// externally synchronized.
     class CommandPool
     {
     public:
@@ -54,47 +59,9 @@ namespace Rtx
 
         const Device& getDevice() const { return mDevice; }
 
-        /// Which of the spare staging blocks `spare` an upload of `bytes` takes, as a position in `spare`,
-        /// or nothing where none holds it: the smallest that does, and of equal ones the lowest block.
-        /// **Best fit and not first**: first fit lent a 36 MiB block to a hundred bytes beside a free
-        /// 8 MiB one, and the next large upload then made one more. The lowest of a tie, so the choice is
-        /// the blocks' and not the order the queue gave them back in.
-        ///
-        /// @param sizeOf a block's size, by its index.
-        template <class SizeOf>
-        static std::optional<std::size_t> bestFit(
-            std::span<const std::size_t> spare, SizeOf&& sizeOf, const VkDeviceSize bytes)
-        {
-            std::optional<std::size_t> best;
-            VkDeviceSize bestSize = 0;
-            for (std::size_t at = 0; at < spare.size(); ++at)
-            {
-                const VkDeviceSize size = sizeOf(spare[at]);
-                if (size < bytes)
-                    continue;
-                if (!best.has_value() || size < bestSize || (size == bestSize && spare[at] < spare[*best]))
-                {
-                    best = at;
-                    bestSize = size;
-                }
-            }
-            return best;
-        }
-
-        /// Lets go of the free staging blocks past the `keep` bytes the smallest of them hold together,
-        /// burying each as a buffer is buried: after a load, the one stretch whose staging no frame
-        /// needs again. **The ring otherwise settles at its busiest stretch**, and a world built in one
-        /// submit is the busiest there is. The arrivals after grow it again to their own.
-        void trimStaging(VkDeviceSize keep);
-
-        /// Lets go of the largest free staging block where the ring holds more than `keep` bytes, and of
-        /// nothing else: what a frame that hands nothing over calls, so a crossing that staged hundreds
-        /// of megabytes gives them back a block a frame, and no one frame pays for all. Free blocks only.
-        void shedStaging(VkDeviceSize keep);
-
-        // Read by the tests and by nothing else.
-        std::size_t getStagingBlockCount() const { return mStaging.size() - mLetGoStaging.size(); }
-        VkDeviceSize getStagingSize(VkBuffer block) const;
+        /// The device's staging, which a batch writes its uploads into.
+        StagingRing& getStaging() { return mStaging; }
+        const StagingRing& getStaging() const { return mStaging; }
 
     private:
         friend class Batch;
@@ -158,30 +125,6 @@ namespace Rtx
         /// Gives back a recording nobody will submit. `Batch::~Batch` says when that happens.
         void discard(VkCommandBuffer commands);
 
-        /// A staging block of at least `bytes` that nothing on the queue reads, made where none
-        /// is free, as an index into the ring. Taken until `giveStaging`.
-        std::size_t takeStaging(VkDeviceSize bytes);
-
-        /// The block behind an index.
-        const Buffer& stagingAt(std::size_t block) const { return mStaging[block]; }
-
-        /// Gives a block back, read until the timeline has passed `readUntil`.
-        void giveStaging(std::size_t block, std::uint64_t readUntil);
-
-        /// What one batch holds until it ends: what callers handed over with `Batch::keep`, and the
-        /// staging blocks it took. The pool's and lent to each batch in turn, emptied and never
-        /// freed, so an arrival's batch allocates nothing once as many batches have been open at
-        /// once as ever will be — the interface keeps one open across frames beside the load's.
-        struct BatchHold
-        {
-            std::vector<Buffer> mBuffers;
-            std::vector<Image> mImages;
-            std::vector<std::size_t> mBlocks;
-
-            /// `Batch::stageRuns`' regions, cleared and refilled for each call.
-            std::vector<VkBufferCopy> mRegions;
-        };
-
         /// A hold nothing else has, as an index, taken until `giveHold`.
         std::size_t takeHold();
         BatchHold& holdAt(std::size_t hold) { return mHolds[hold]; }
@@ -212,6 +155,7 @@ namespace Rtx
 
         const Device& mDevice;
         Owned<VkCommandPool, vkDestroyCommandPool> mHandle;
+        OwnedBy mThread;
 
         /// Recorded and ended, waiting for the next submit to carry them first.
         std::vector<VkCommandBuffer> mDeferred;
@@ -230,22 +174,11 @@ namespace Rtx
         /// Given back and not yet taken again.
         std::vector<VkCommandBuffer> mSpare;
 
-        /// The pool's staging: blocks a batch writes uploads into and copies out of, retired under the
-        /// submit that last read them as the command buffers are. An arrival then costs no staging
-        /// buffer of its own. The ring settles at the busiest stretch so far, shrunk only by
-        /// `trimStaging` and `shedStaging`.
-        std::vector<Buffer> mStaging;
-        Retiring<std::size_t> mRetiringStaging;
-        std::vector<std::size_t> mSpareStaging;
+        StagingRing mStaging;
 
-        /// What the blocks in `mStaging` hold together, free and in use: what `shedStaging` keeps
-        /// to.
-        VkDeviceSize mStagingBytes = 0;
-
-        /// The places in `mStaging` `trimStaging` emptied, which the next block made takes, so an
-        /// index a batch holds never moves.
-        std::vector<std::size_t> mLetGoStaging;
-
+        /// What each batch holds until it ends, lent to each batch in turn, emptied and never freed, so an
+        /// arrival's batch allocates nothing once as many batches have been open at once as ever will be —
+        /// the interface keeps one open across frames beside the load's.
         std::vector<BatchHold> mHolds;
         std::vector<std::size_t> mFreeHolds;
 
@@ -326,132 +259,6 @@ namespace Rtx
         int mUnwinding;
     };
 
-    /// How much staging a batch takes at a time, sized so a town's tens of megabytes of textures
-    /// cost a few blocks rather than hundreds of buffers. An upload larger than a block is given a
-    /// block of its own exactly its size, which the ring keeps like any other.
-    inline constexpr VkDeviceSize sStagingBlock = 8 * 1024 * 1024;
-
-    /// What `CommandPool::trimStaging` leaves once a world is built: a town's tens of megabytes, the
-    /// most a crossing commonly brings, so the arrivals after a load make few blocks before the ring
-    /// settles again.
-    inline constexpr VkDeviceSize sStagingKept = 8 * sStagingBlock;
-
-    /// What every run inside a block starts on: the largest texel block of any format this renderer
-    /// uploads, BC2's and BC3's sixteen bytes. `VkBufferImageCopy::bufferOffset` has to be a
-    /// multiple of four and of the format's texel block.
-    inline constexpr VkDeviceSize sStagingAlignment = 16;
-
-    /// Where a batch put an upload's bytes: the buffer holding them, and how far into it they
-    /// start. See `Batch::stage`.
-    struct StagingRun
-    {
-        VkBuffer mBuffer = VK_NULL_HANDLE;
-        VkDeviceSize mOffset = 0;
-    };
-
-    /// Room a batch lent out of its staging: where it is, and the bytes to write there. See
-    /// `Batch::reserve`.
-    struct StagingLend
-    {
-        StagingRun mRun;
-        std::span<std::byte> mBytes;
-    };
-
-    /// One run of a write that lands in pieces: where its bytes start in what they are written from,
-    /// where they go in the buffer written, and how many. See `Batch::stageRuns`.
-    struct CopyRun
-    {
-        VkDeviceSize mFrom = 0;
-        VkDeviceSize mTo = 0;
-        VkDeviceSize mSize = 0;
-
-        bool operator==(const CopyRun& other) const = default;
-    };
-
-    /// One command buffer that a run of setup records into, submitted and waited on once. A load path's
-    /// cost is round trips, not work: a cell arriving at Balmora creates 361 textures, and a submit
-    /// each is 367 waits. The batch holds the staging blocks it took off the pool's ring, because the
-    /// copy has not run when an upload returns, and gives them back stamped with the submit it rides
-    /// when it ends — `keep` says what else it holds until then. What is recorded is readable by what
-    /// is recorded after it (`uploadBuffer` ends in a barrier, a `Texture` leaves its image in
-    /// `SHADER_READ_ONLY_OPTIMAL`) and nothing else here orders anything.
-    class Batch
-    {
-    public:
-        explicit Batch(CommandPool& pool)
-            : mPool(pool)
-            , mHold(pool.takeHold())
-        {
-        }
-
-        Batch(const Batch&) = delete;
-        Batch& operator=(const Batch&) = delete;
-
-        /// Throws away anything still recorded. A destructor is not where a submit belongs: it
-        /// runs during unwinding too, and a constructor that fails half way leaves a recording
-        /// naming resources its own members have already let go of. A caller that simply forgot
-        /// `flush` or `defer` is the contract the assert names.
-        ~Batch();
-
-        /// What to record into. Opens a command buffer on first use, and again after a flush.
-        VkCommandBuffer getCommands();
-
-        /// The device the pool records for, which is the one everything staged through this is
-        /// made on.
-        const Device& getDevice() const { return mPool.getDevice(); }
-
-        /// Holds what this recording reads, or what an earlier submit may still read, and buries it under
-        /// the submit this batch rides when the batch ends, whichever way it ends: a buffer staged
-        /// through, a build's scratch, an image the last frame drew with. Buried then and not now,
-        /// because a burial is stamped with the next submit, which this batch's is not until handed over.
-        void keep(Buffer&& buffer);
-        void keep(Image&& image);
-
-        /// Writes `bytes` into the batch's staging and says where they landed. One block serves every
-        /// upload of a batch, where a buffer apiece was three driver calls per upload. Appended and never
-        /// rewound, because nothing has run yet.
-        StagingRun stage(std::span<const std::byte> bytes);
-
-        /// The same room, `bytes` long, lent empty for a caller that produces the bytes where they
-        /// land — a picture the interface fills through `lock`, which then crosses main memory
-        /// once. Writable until the batch ends; write it and do not read it back, because it is
-        /// write-combined memory.
-        StagingLend reserve(VkDeviceSize bytes);
-
-        /// Stages `runs` of `source`, packed one after another, and copies each into `into` where
-        /// it says, as one copy command with a region a run: a table's rows owed apiece are hundreds
-        /// of runs a frame, and a command a run was hundreds of commands. A run of no bytes is no
-        /// region. Nothing is ordered here, as `stageInto` orders nothing.
-        void stageRuns(const Buffer& into, std::span<const std::byte> source, std::span<const CopyRun> runs);
-
-        /// Buries what it held under the submit it is about to make, submits what has been
-        /// recorded and waits for it. A batch nobody used costs nothing.
-        void flush();
-
-        /// Hands what has been recorded to the pool, to go ahead of the pool's next submit, and
-        /// buries what it held under that submit; records nothing more. The other way out of a
-        /// batch, for a load that is followed by a submit anyway.
-        void defer();
-
-        /// Gives back what was begun, submitting nothing, and buries what the batch held under the
-        /// next submit: the third way out, for a caller whose recording came to nothing.
-        void abandon();
-
-    private:
-        /// Buries everything this batch was holding and gives its staging back, whichever way it
-        /// ended, under the next submit — which is the one this batch rides where it was handed
-        /// over, and one after every reader where it was flushed or thrown away.
-        void release();
-
-        CommandPool& mPool;
-        VkCommandBuffer mCommands = VK_NULL_HANDLE;
-
-        /// The pool's `BatchHold` this batch has, and how much of its last block is spoken for.
-        /// See `stage`.
-        std::size_t mHold;
-        VkDeviceSize mFilled = 0;
-    };
-
     /// Through a batch, so a `record` that throws gives its recording back as an abandoned batch
     /// does. The buffer is begun whatever `record` does, so a submit that carries only what was
     /// deferred is still one.
@@ -463,32 +270,4 @@ namespace Rtx
         batch.flush();
     }
 
-    /// Stages `bytes` through the batch's own staging and copies them into `into` at `offset`.
-    /// Nothing is ordered here: a run of these is made readable together by `orderStagedWrites`.
-    void stageInto(Batch& batch, const Buffer& into, VkDeviceSize offset, std::span<const std::byte> bytes);
-
-    /// A device-local buffer holding `bytes`, staged through the batch's staging. The copy is
-    /// recorded into `batch` and ends in a barrier, so a structure can be built from it in the same
-    /// batch.
-    Buffer uploadBuffer(
-        Batch& batch, std::span<const std::byte> bytes, VkBufferUsageFlags usage, std::string_view name);
-
-    /// Makes every staged write recorded into `batch` visible to whatever reads or writes it next —
-    /// one dependency for a run of writes that are read together, rather than one barrier per
-    /// buffer. A write too: the skin pass writes the posed normals over the bind normals staged into
-    /// them.
-    void orderStagedWrites(Batch& batch);
-
-    /// Copies `bytes` into `image` by `regions`, and leaves it where a sampler expects it. From
-    /// `UNDEFINED`, so whatever the image held is thrown away; an image written over in part —
-    /// the interface's textures — transitions from where it stands instead, in `GuiTextures`.
-    /// `regions` is written to: each is moved along by where the bytes landed in the staging.
-    void uploadImage(
-        Batch& batch, Image& image, std::span<const std::byte> bytes, std::span<VkBufferImageCopy> regions);
-
-    template <class T>
-    Buffer uploadBuffer(Batch& batch, std::span<const T> data, VkBufferUsageFlags usage, std::string_view name)
-    {
-        return uploadBuffer(batch, std::as_bytes(data), usage, name);
-    }
 }

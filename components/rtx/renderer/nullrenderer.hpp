@@ -33,8 +33,9 @@ namespace Rtx
     /// game's ray tracer, its mirror, its ring, its interface and its pictures run whole above it,
     /// on a machine with no device — CI's runners. What a picture comes to is black: `readPixels`
     /// and `readDeepPixels` answer a frame of noughts, and `takeGuiCopy` a copy of noughts once a
-    /// trace left one.
-    class NullRenderer final : public Renderer
+    /// trace left one. Not final: a test's double records what it is handed over it, and keeps every
+    /// other promise by it (`Rtx::Testing::CountingRenderer`).
+    class NullRenderer : public Renderer
     {
     public:
         explicit NullRenderer(const RendererOptions& options);
@@ -43,7 +44,6 @@ namespace Rtx
         void extendScene(SceneSlot slot, const SceneDesc& scene, std::span<const TextureData> arrived) override;
         SceneHeld describeHeld(SceneSlot slot) const override;
         std::span<const Refusal> getRefusals(SceneSlot) const override { return {}; }
-        void dropTextures(SceneSlot, std::span<const Index>) override {}
         void placeScene(SceneSlot slot, const SceneDesc& scene) override;
         SceneSlot addViewScene() override;
         void dropViewScene(SceneSlot slot) override;
@@ -97,7 +97,6 @@ namespace Rtx
         {
             std::uint32_t mWidth = 0;
             std::uint32_t mHeight = 0;
-            bool mHeld = false;
             bool mCopied = false;
         };
 
@@ -125,12 +124,10 @@ namespace Rtx
 
         SceneHeld mWorld;
 
-        /// Every view scene's, by its index, and the indices given back for the next to take.
-        std::vector<std::optional<SceneHeld>> mViews;
-        SlotPool mFreeViews;
+        /// Every view scene's, by its index.
+        SlotRows<SceneHeld> mViews;
 
-        std::vector<GuiTexture> mGuiTextures;
-        SlotPool mFreeGuiTextures;
+        SlotRows<GuiTexture> mGuiTextures;
 
         /// What `lendGuiTexture` hands out, grown to the largest rectangle lent and never shrunk.
         std::vector<std::uint8_t> mLending;

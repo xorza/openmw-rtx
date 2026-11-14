@@ -4,7 +4,7 @@
 #include <gtest/gtest.h>
 
 #include <components/rtx/common/index.hpp>
-#include <components/rtxvulkan/device/commands.hpp>
+#include <components/rtxvulkan/device/memory/batch.hpp>
 #include <components/rtxvulkan/device/memory/uploads.hpp>
 
 namespace Rtx

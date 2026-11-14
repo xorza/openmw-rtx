@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -10,17 +11,10 @@
 
 #include <osg/ref_ptr>
 
-#include <components/contentstore/store.hpp>
 #include <components/misc/result.hpp>
-#include <components/rtx/image/alpharange.hpp>
-#include <components/rtx/image/specularlayout.hpp>
 #include <components/rtx/mirror/meshreader.hpp>
 #include <components/rtx/mirror/nodekind.hpp>
 #include <components/rtx/mirror/shading.hpp>
-#include <components/rtx/preprocess/contentpreprocessor.hpp>
-#include <components/rtx/preprocess/contentstats.hpp>
-#include <components/rtx/preprocess/texture/chainpass.hpp>
-#include <components/rtx/preprocess/texture/conversionpass.hpp>
 #include <components/rtx/preprocess/threadcontent.hpp>
 
 #include "nightday.hpp"
@@ -47,12 +41,16 @@ namespace Rtx
     class TemplateWalk final : public osg::NodeVisitor
     {
     public:
+        /// The version of what a walk reads of a model and asks the passes of it, which the content's preparation
+        /// files its manifest under (`ContentPreparation::signatureOf`): a walk that reads otherwise is every model
+        /// walked again. Held by `RtxTemplateWalkTest.aWalksKeysAreItsVersions`, which a change to the keys a walk
+        /// files fails until this moves.
+        static constexpr std::uint32_t sVersion = 1;
+
         /// @param above the state set every reference of the world stands under (`CellWorld::mAbove`), or null for
         ///        none: the first link of every chain this reads, so a part is described and keyed as the frame's walk
         ///        finds its clone. Read on this walk's thread, so nothing may write it while this stands.
-        /// @param store the process's content store, or null for none (`CellWorld::mStore`), which this thread reaches
-        ///        to the disk, being no frame's.
-        TemplateWalk(const osg::StateSet* above, ContentStore::Store* store);
+        TemplateWalk(const osg::StateSet* above);
 
         /// Walks `root` and appends one part to `into` for every drawable under it that holds a triangle, with its
         /// arrays appended to the model's buffers. A drawable this cannot take is left out and the model stands without
@@ -60,42 +58,9 @@ namespace Rtx
         /// `PreparedModel::mRefused`.
         ///
         /// @param mask which nodes the walk may descend into: the same `osg` traversal mask the frame's walk carries.
-        void read(const osg::Node& root, osg::Node::NodeMask mask, PreparedModel& into);
-
-        /// `ThreadContent::alphaRangeOf`, through this thread's content: the heights a land layer's normal map
-        /// spans.
-        AlphaRange alphaRangeOf(const osg::Image& image)
-        {
-            return mContent.alphaRangeOf(mContent.factsOf(image), image);
-        }
-
-        /// `ThreadContent::specularLayoutOf`, through this thread's content: what a `_spec` map's channels
-        /// mean, read once an image.
-        SpecularLayout specularLayoutOf(const osg::Image& image)
-        {
-            return mContent.specularLayoutOf(mContent.factsOf(image), image);
-        }
-
-        /// `ContentPreprocessor::chain` and `convert`, through this thread's content, for what asks the
-        /// store to hold a chain (`ContentAsk::Stored`): one preprocessor a thread, its build shared.
-        void storeChain(const ChainPass::Input& input, MadeChain& scratch)
-        {
-            mContent.mPreprocessor.chain(input, scratch, ContentAsk::Stored);
-        }
-        void storeConversion(const ConversionPass::Input& input, MadeChain& scratch)
-        {
-            mContent.mPreprocessor.convert(input, scratch, ContentAsk::Stored);
-        }
-
-        /// What the reads computed from the content since the last take — `ContentPreprocessor`.
-        ContentStats takeStats() { return mContent.mPreprocessor.takeStats(); }
-
-        /// `ContentPreprocessor::chainScratch` and `letGoChainScratch`, through this thread's content.
-        ChainScratch chainScratch() const { return mContent.mPreprocessor.chainScratch(); }
-        void letGoScratch() { mContent.mPreprocessor.letGoChainScratch(); }
-
-        /// `ContentPreprocessor::collectKeys`, through this thread's content.
-        void collectKeys(std::vector<StoredKey>* into) { mContent.mPreprocessor.collectKeys(into); }
+        /// @param content what this thread computes from the content, which its owner holds and hands each read, as
+        ///        the frame's walks are handed theirs.
+        void read(const osg::Node& root, osg::Node::NodeMask mask, PreparedModel& into, ThreadContent& content);
 
         void apply(osg::Node& node) override;
         void apply(osg::Transform& node) override;
@@ -115,8 +80,8 @@ namespace Rtx
 
         PreparedModel* mInto = nullptr;
 
-        /// What this thread computes from the content, as the frame thread's walks hold theirs.
-        ThreadContent mContent;
+        /// What the read under way computes with, handed at `read`.
+        ThreadContent* mContent = nullptr;
         MeshReader mMeshes;
 
         /// This thread's own classifier: `NodeKinds` is written on a miss.

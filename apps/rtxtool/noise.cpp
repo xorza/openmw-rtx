@@ -52,14 +52,14 @@ namespace RtxTool
         return NoiseFrame{ .mWarmup = std::nullopt, .mBar = barAfter(sHistoryFrames + 2) };
     }
 
-    int judgeNoise(const PictureShelf& drawn, const std::filesystem::path& wrote,
+    ExitStatus judgeNoise(const PictureShelf& drawn, const std::filesystem::path& wrote,
         const std::span<const NoiseSide> places, const std::uint32_t barFrames, std::vector<NoiseFigures>& measured)
     {
         // A run that measured nothing has not shown that anything is as clean as its bar.
         if (places.empty())
         {
             Debug::getRawStdout() << "  no place was measured\n";
-            return 1;
+            return ExitStatus::Failed;
         }
 
         std::uint32_t noisier = 0;
@@ -123,13 +123,13 @@ namespace RtxTool
         if (noisier == 0 && missing == 0)
         {
             Debug::getRawStdout() << std::format("  every frame is as clean as {} frames averaged\n", barFrames);
-            return 0;
+            return ExitStatus::Passed;
         }
 
         Debug::getRawStdout() << std::format(
             "  {} of {} frames noisier than {} frames averaged, {} could not be measured\n", noisier, places.size(),
             barFrames, missing);
-        return 1;
+        return missing > 0 ? ExitStatus::Failed : ExitStatus::Differed;
     }
 
     Result<void, std::string> writeNoiseRecord(
@@ -147,11 +147,12 @@ namespace RtxTool
                      << std::format(R"({{"place": {}, "mean": {}, "p99": {}, "barMean": {}, )"
                                     R"("barP99": {}, "bias": {}, "barBias": {}, "fireflies": {}, )"
                                     R"("tileX": {}, "tileY": {}, "tileMean": {}, "tileBarMean": {}, "clean": {}}})",
-                            jsonString(place.mPlace), jsonNumber(place.mNoise.mMean), jsonNumber(place.mNoise.mP99),
-                            jsonNumber(place.mBarNoise.mMean), jsonNumber(place.mBarNoise.mP99),
-                            jsonNumber(place.mBias), jsonNumber(place.mBarBias), jsonNumber(place.mFireflies),
-                            place.mWorstTile.mX, place.mWorstTile.mY, jsonNumber(place.mWorstTile.mNoise),
-                            jsonNumber(place.mWorstTile.mBarNoise), place.clean());
+                            jsonString(place.mPlace), jsonNumber(place.mNoise.mMean, 4),
+                            jsonNumber(place.mNoise.mP99, 4), jsonNumber(place.mBarNoise.mMean, 4),
+                            jsonNumber(place.mBarNoise.mP99, 4), jsonNumber(place.mBias, 4),
+                            jsonNumber(place.mBarBias, 4), jsonNumber(place.mFireflies, 4), place.mWorstTile.mX,
+                            place.mWorstTile.mY, jsonNumber(place.mWorstTile.mNoise, 4),
+                            jsonNumber(place.mWorstTile.mBarNoise, 4), place.clean());
             }
             file << "\n  ]";
         }

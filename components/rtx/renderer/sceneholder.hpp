@@ -38,6 +38,8 @@ namespace Rtx
 
         SceneHolder(const SceneHolder&) = delete;
         SceneHolder& operator=(const SceneHolder&) = delete;
+        SceneHolder(SceneHolder&&) = delete;
+        SceneHolder& operator=(SceneHolder&&) = delete;
 
         /// Builds everything a scene needs, replacing whatever was there, and places it. `textures`
         /// are decoded already, each naming the slot it stands in (`TextureData::mSlot`), and must
@@ -62,10 +64,6 @@ namespace Rtx
         /// texture refused draws the stand-in, and a mesh refused is left out. Valid until the next
         /// call of either for `slot`.
         virtual std::span<const Refusal> getRefusals(SceneSlot slot) const = 0;
-
-        /// Destroys the images of the texture slots a scene gave up. The slots keep their place,
-        /// as they do in the scene's own table, and no live material names a freed one.
-        virtual void dropTextures(SceneSlot slot, std::span<const Index> textures) = 0;
 
         /// The same scene with its instances and lights somewhere else and its actors in a new pose:
         /// rebuilds only what says where things are, plus the structure of each mesh `getDeformed`

@@ -83,7 +83,8 @@ namespace Rtx::Shaders
     const uint ACCUMULATE_CLAMP_BIND_SAMPLED_FILL = 5;
     const uint ACCUMULATE_CLAMP_BIND_FAST_OUT = 6;
     const uint ACCUMULATE_CLAMP_BIND_MOMENTS = 7;
-    const uint ACCUMULATE_CLAMP_BINDINGS = 8;
+    const uint ACCUMULATE_CLAMP_BIND_EXPOSURE = 8;
+    const uint ACCUMULATE_CLAMP_BINDINGS = 9;
 
     /// How far either way of a pixel the clamp's square reaches: ReLAX's 5×5.
     const uint ACCUMULATE_CLAMP_REACH = 2;
@@ -104,9 +105,10 @@ namespace Rtx::Shaders
     };
 
     /// Where `accumulateclamp.comp`'s specialization constant sits: `ACCUMULATE_RING`, whether the
-    /// slow mean is held under its ring's ceiling (`ringHeldLuminance`), as
-    /// `Reconstruction::mAntiFirefly` asks. **A constant and not a factor**, because the ring's square
-    /// is the most of what the clamp loads, and a factor of nought paid for all of it.
+    /// slow mean is held under its ring's ceiling (`ringHeldLuminance`) and the samples the push goes
+    /// toward under the accumulator's (`heldSampleShare`), as `Reconstruction::mAntiFirefly` asks. **A constant and not
+    /// a factor**, because the ring's square is the most of what the clamp loads, and a factor of nought paid for all
+    /// of it.
     const uint ACCUMULATE_CLAMP_SPEC_RING = 0u;
 
     /// Where `ACCUMULATE_HOLDS_FILL` sits: whether the fill stands apart from the bounce. False where no

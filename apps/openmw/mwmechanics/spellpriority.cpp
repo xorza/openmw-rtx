@@ -434,7 +434,7 @@ namespace MWMechanics
                     priority = 2.f;
                 float overheal = 0.f;
                 float heal = toHeal;
-                if (damage < toHeal && current.getCurrent() > current.getModified() * 0.5f)
+                if (damage < toHeal && current.getCurrent() > current.getModified() * 0.5)
                 {
                     overheal = toHeal - damage;
                     heal = damage;

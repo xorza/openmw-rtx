@@ -229,6 +229,10 @@ namespace MWRender
         /// either way.
         void notifyCut();
 
+        /// The clock jumped, a rest or a wait: the world's effects go, as they go at a change of worldspace, and
+        /// the renderer is told of a cut, which keeps the eye's adaptation and the water's wake.
+        void notifyTimeJumped();
+
         /// `ptr` was put somewhere else in one step rather than walked there — a door, a teleport,
         /// a script's `Position` — and its history from where it stood is no history of where it
         /// stands: `SceneFrame::mJumped`.

@@ -23,10 +23,12 @@ namespace MWRender
                 EXPECT_FALSE(timer.addFrame(10.0)) << "frame " << at + 1 << " closed a second early";
             EXPECT_EQ(timer.writeTitle({}), "OpenMW RTX") << "an open second has no rate";
 
-            const std::size_t before = Rtx::Testing::getAllocationCount();
-            const bool closed = timer.addFrame(10.0);
-            const std::string_view title = timer.writeTitle({});
-            const std::size_t spent = Rtx::Testing::getAllocationCount() - before;
+            bool closed = false;
+            std::string_view title;
+            const std::size_t spent = Rtx::Testing::allocationsIn([&] {
+                closed = timer.addFrame(10.0);
+                title = timer.writeTitle({});
+            });
 
             EXPECT_TRUE(closed) << "the hundredth frame is the second";
             EXPECT_EQ(spent, 0u) << "closing a second reached the heap " << spent << " times";

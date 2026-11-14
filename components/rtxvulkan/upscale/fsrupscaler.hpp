@@ -39,6 +39,23 @@ namespace Rtx
 
         FsrUpscaler(const FsrUpscaler&) = delete;
         FsrUpscaler& operator=(const FsrUpscaler&) = delete;
+        FsrUpscaler(FsrUpscaler&&) = delete;
+        FsrUpscaler& operator=(FsrUpscaler&&) = delete;
+
+        /// The extents `mode` traces at for an output of `width` by `height`: `Rtx::extentsFor`'s ratios, which FSR's
+        /// arithmetic follows from.
+        static FrameExtents extentsFor(std::uint32_t width, std::uint32_t height, Upscale mode)
+        {
+            return Rtx::extentsFor(width, height, mode);
+        }
+
+        /// Nothing, as FSR holds nothing outside the frame's targets: DLSS makes its feature here, ahead of the
+        /// frame's reserve, and measures one for a mode the run moves to.
+        static void prepare(Upscale, VkExtent2D, VkExtent2D) {}
+        static void measure(Upscale, VkExtent2D, VkExtent2D) {}
+
+        /// What FSR holds outside the allocator: nothing.
+        static VkDeviceSize getHeldOutside() { return 0; }
 
         /// Builds what the upscaler keeps for one pair of extents, and clears all of it: the frame after starts a
         /// history of its own. Once per resolution, and never per frame. Takes `shared`, the images `declareShared`
@@ -67,7 +84,7 @@ namespace Rtx
 
         /// What `resize` to these extents builds, in the device's memory, and not what the frame's
         /// arena holds of it.
-        static VkDeviceSize bytesAt(const Device& device, VkExtent2D render, VkExtent2D output);
+        VkDeviceSize bytesAt(VkExtent2D render, VkExtent2D output) const;
 
         /// Says the history is worthless, until the next `record`: after a jump no motion vector can
         /// describe, a new cell or a teleport. A `resize` says it too.

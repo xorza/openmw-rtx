@@ -32,7 +32,10 @@ namespace Rtx
     namespace
     {
         /// The block a memory type is grown by: sixty-four megabytes, against the library's quarter of a
-        /// gigabyte.
+        /// gigabyte, so the unused tail of a type's last block is a quarter of the library's. The content
+        /// at the ship comes to some 6 blocks on vanilla and 57 on the PBR replacers, far under any
+        /// driver's count of allocations, and none of its 1526 and 3464 allocations is past half a
+        /// block (`docs/research/2026-11-14-device-layer-at-a-start.md`).
         constexpr VkDeviceSize sBlockBytes = 64 * 1024 * 1024;
 
         /// A request for memory of `properties` in the types `memoryTypesFor` names on `memory`,

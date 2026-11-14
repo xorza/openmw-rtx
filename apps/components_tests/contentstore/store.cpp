@@ -1,4 +1,5 @@
 #include <array>
+#include <barrier>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
@@ -12,6 +13,7 @@
 #include <span>
 #include <string>
 #include <system_error>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -38,8 +40,14 @@ namespace ContentStore
         /// **Caps a test reaches, and no more**: the store sizes its tables to them at its start, which at the ray
         /// tracer's caps took some 60 ms a store. Room for every entry a test here holds, a shape of 4097 bytes
         /// the largest.
-        constexpr Holding sHolding{ .mAtAnySize = 1u << sShape, .mResidentBytesMost = 64 << 10, .mStampedMost = 64 };
+        constexpr Holding sHolding{
+            .mAtAnySize = 1u << sShape, .mResidentBytesMost = 64 << 10, .mResidentCountMost = 64, .mStampedMost = 64
+        };
         constexpr Policy sPolicy{ .mKindCount = 3, .mHolding = sHolding };
+
+        /// A queue of 1 KiB, which two entries of more than half of it pass, where the owner's tens of megabytes
+        /// would have a test build hundreds of megabytes of payload to reach its bound.
+        constexpr Policy sSmallQueue{ .mKindCount = 3, .mHolding = sHolding, .mQueuedBytesMost = 1024 };
 
         constexpr Key sKey{ { 0x0123456789abcdefull, 0xfedcba9876543210ull } };
         constexpr Key sOther{ { 0x1111111111111111ull, 0x2222222222222222ull } };
@@ -169,18 +177,19 @@ namespace ContentStore
         /// **A store holds no more than its owner's caps**, each one entry past where the other cap lets it:
         ///
         /// - room for two entries of 16 bytes, `2 × residentBytesOf(16)`, holds the first two of three written in
-        ///   memory and the third on the disk alone, and room for three holds all three;
-        /// - one key stamped a session leaves the second of two files read from the disk at the time it had, two days
-        ///   ago, and two keys stamp both. Entries of 5000 bytes, past `sResidentMost`, so the start loads none and
-        ///   every hit is a read's.
+        ///   memory and the third on the disk alone, and room for three holds all three; and room in bytes for three
+        ///   and in count for two holds two, the third counted as not held;
+        /// - one key stamped a session leaves the second of two files at the time it had, two days ago, and two keys
+        ///   stamp both. Entries of 16 bytes, which rank the start's load and so are stamped.
         TEST(ContentStoreTest, aStoreHoldsNoMoreThanItsCaps)
         {
             const std::array<Key, 3> keys{ sKey, sOther, sThird };
             for (const std::size_t entries : { std::size_t{ 2 }, std::size_t{ 3 } })
             {
                 const Policy policy{ .mKindCount = 3,
-                    .mHolding
-                    = Holding{ .mResidentBytesMost = entries * Store::residentBytesOf(16), .mStampedMost = 64 } };
+                    .mHolding = Holding{ .mResidentBytesMost = entries * Store::residentBytesOf(16),
+                        .mResidentCountMost = 64,
+                        .mStampedMost = 64 } };
                 Store store(TestingOpenMW::currentTestDirPath() / ("held " + std::to_string(entries)), policy);
                 for (const Key& key : keys)
                     store.write(key, sFact, 1, payloadOf(16, 1), Reach::Disk);
@@ -193,18 +202,37 @@ namespace ContentStore
                 EXPECT_TRUE(store.read(sThird, sFact, 1, Reach::Disk, read)) << entries << ": the file stands";
             }
 
+            // The same by count: room in bytes for all three and in count for two.
+            {
+                const Policy policy{ .mKindCount = 3,
+                    .mHolding = Holding{ .mResidentBytesMost = 3 * Store::residentBytesOf(16),
+                        .mResidentCountMost = 2,
+                        .mStampedMost = 64 } };
+                Store store(TestingOpenMW::currentTestDirPath() / "counted", policy);
+                for (const Key& key : keys)
+                    store.write(key, sFact, 1, payloadOf(16, 1), Reach::Disk);
+
+                Misc::ByteBuffer read;
+                EXPECT_TRUE(store.read(sKey, sFact, 1, Reach::Memory, read));
+                EXPECT_TRUE(store.read(sOther, sFact, 1, Reach::Memory, read));
+                EXPECT_FALSE(store.read(sThird, sFact, 1, Reach::Memory, read)) << "a third entry past a count of two";
+                EXPECT_EQ(store.getStats().mUnheldInMemory, 1u);
+            }
+
             for (const std::size_t stamped : { std::size_t{ 1 }, std::size_t{ 2 } })
             {
                 const std::filesystem::path folder
                     = TestingOpenMW::currentTestDirPath() / ("stamped " + std::to_string(stamped));
                 {
                     Store store(folder, sPolicy);
-                    store.write(sKey, sFact, 3, payloadOf(sLarge, 1), Reach::Disk);
-                    store.write(sOther, sFact, 3, payloadOf(sLarge, 2), Reach::Disk);
+                    store.write(sKey, sFact, 3, payloadOf(16, 1), Reach::Disk);
+                    store.write(sOther, sFact, 3, payloadOf(16, 2), Reach::Disk);
                 }
 
                 const Policy policy{ .mKindCount = 3,
-                    .mHolding = Holding{ .mResidentBytesMost = sHolding.mResidentBytesMost, .mStampedMost = stamped } };
+                    .mHolding = Holding{ .mResidentBytesMost = sHolding.mResidentBytesMost,
+                        .mResidentCountMost = 64,
+                        .mStampedMost = stamped } };
                 Store again(folder, policy);
                 again.flush();
                 const auto old = std::filesystem::file_time_type::clock::now() - std::chrono::hours(48);
@@ -325,25 +353,32 @@ namespace ContentStore
 
         /// **A hit stamps its file's time once a session**, so the next start's sweep counts it as
         /// used now: a file two days old reads as used within the minute after a hit, and a second
-        /// hit stamps nothing more.
+        /// hit stamps nothing more. **Only a file that ranks the start's load**: one past `sResidentMost`,
+        /// which the start never loads, keeps its time.
         TEST(ContentStoreTest, aHitStampsItsFileOnceASession)
         {
             const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "store";
             const auto now = std::filesystem::file_time_type::clock::now();
             {
                 Store store(folder, sPolicy);
-                store.write(sKey, sFact, 3, payloadOf(sLarge, 1), Reach::Disk);
+                store.write(sKey, sFact, 3, payloadOf(16, 1), Reach::Disk);
+                store.write(sOther, sFact, 3, payloadOf(sLarge, 2), Reach::Disk);
             }
 
             Store again(folder, sPolicy);
             again.flush();
             const std::filesystem::path path = again.pathOf(sKey);
-            std::filesystem::last_write_time(path, now - std::chrono::hours(48));
+            const std::filesystem::path large = again.pathOf(sOther);
+            const auto old = now - std::chrono::hours(48);
+            std::filesystem::last_write_time(path, old);
+            std::filesystem::last_write_time(large, old);
 
             Misc::ByteBuffer read;
             ASSERT_TRUE(again.read(sKey, sFact, 3, Reach::Disk, read));
+            ASSERT_TRUE(again.read(sOther, sFact, 3, Reach::Disk, read));
             again.flush();
             EXPECT_GT(std::filesystem::last_write_time(path), now - std::chrono::minutes(1));
+            EXPECT_EQ(std::filesystem::last_write_time(large), old) << "a file past what the start loads was stamped";
             EXPECT_EQ(again.getStats().mStamped, 1u);
 
             ASSERT_TRUE(again.read(sKey, sFact, 3, Reach::Disk, read));
@@ -359,7 +394,7 @@ namespace ContentStore
         {
             const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "store";
             const auto now = std::filesystem::file_time_type::clock::now();
-            const Misc::ByteBuffer first = payloadOf(sLarge, 1);
+            const Misc::ByteBuffer first = payloadOf(16, 1);
             {
                 Store store(folder, sPolicy);
                 store.write(sKey, sFact, 3, first, Reach::Disk);
@@ -369,15 +404,15 @@ namespace ContentStore
             again.flush();
             const std::filesystem::path path = again.pathOf(sKey);
             std::filesystem::last_write_time(path, now - std::chrono::hours(48));
-            again.write(sKey, sFact, 3, payloadOf(sLarge, 2), Reach::Disk);
+            again.write(sKey, sFact, 3, payloadOf(16, 2), Reach::Disk);
             again.flush();
 
             EXPECT_EQ(again.getStats().mWritten, 0u);
             EXPECT_EQ(again.getStats().mStamped, 1u);
             EXPECT_GT(std::filesystem::last_write_time(path), now - std::chrono::minutes(1));
-            Misc::ByteBuffer read;
-            ASSERT_TRUE(again.read(sKey, sFact, 3, Reach::Disk, read));
-            EXPECT_EQ(read, first);
+            const std::vector<char> file = readAll(path);
+            ASSERT_EQ(file.size(), first.size() + sTrailerBytes);
+            EXPECT_EQ(std::memcmp(file.data(), first.data(), first.size()), 0) << "the file was written again";
         }
 
         /// **A discarded entry is gone from memory and from its folder**, and counted refused: a small
@@ -406,14 +441,14 @@ namespace ContentStore
         TEST(ContentStoreTest, anEmptyQueueAdmitsAnyWriteAndADiskWriterNeverDrops)
         {
             const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "store";
-            Store store(folder, sPolicy);
-            store.write(sKey, sFact, 3, payloadOf(Store::sQueuedMost + 1, 0), Reach::Memory);
+            Store store(folder, sSmallQueue);
+            store.write(sKey, sFact, 3, payloadOf(sSmallQueue.mQueuedBytesMost + 1, 0), Reach::Memory);
             store.flush();
             EXPECT_EQ(store.getStats().mWritten, 1u);
             EXPECT_EQ(store.getStats().mDropped, 0u);
             EXPECT_TRUE(std::filesystem::exists(store.pathOf(sKey)));
 
-            const std::size_t half = Store::sQueuedMost / 2 + 1;
+            const std::size_t half = sSmallQueue.mQueuedBytesMost / 2 + 1;
             store.write(sOther, sFact, 3, payloadOf(half, 1), Reach::Disk);
             const Key third{ .mHash = { 3, 4 } };
             store.write(third, sFact, 3, payloadOf(half, 2), Reach::Disk);
@@ -422,6 +457,38 @@ namespace ContentStore
             EXPECT_EQ(stats.mWritten, 3u);
             EXPECT_EQ(stats.mDropped, 0u);
             EXPECT_TRUE(std::filesystem::exists(store.pathOf(third)));
+        }
+
+        /// **Two writers on one store drop nothing that reaches the disk.** Each round starts with the queue empty
+        /// and the store's thread idle, and the two write at once an entry of more than half the queue's bound,
+        /// so the second waits for room behind the first. A write queued and announced to the store's thread in
+        /// two lock holds let the second writer read a queue that held work beside a thread that said it had
+        /// none, and drop its entry as one no thread would make room for. 2 × 256 writes, every one written.
+        TEST(ContentStoreTest, twoWritersOnASmallQueueDropNothingThatReachesTheDisk)
+        {
+            constexpr std::uint64_t sRounds = 256;
+            const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "store";
+            Store store(folder, sSmallQueue);
+            const Misc::ByteBuffer payload = payloadOf(sSmallQueue.mQueuedBytesMost / 2 + 1, 0);
+            std::barrier rounds(2);
+            const auto writeAll = [&](const std::uint64_t writer) {
+                for (std::uint64_t round = 0; round < sRounds; ++round)
+                {
+                    rounds.arrive_and_wait();
+                    store.write(Key{ .mHash = { writer, round } }, sFact, 3, payload, Reach::Disk);
+                    rounds.arrive_and_wait();
+                    if (writer == 0)
+                        store.flush();
+                }
+            };
+            {
+                const std::jthread other(writeAll, 1);
+                writeAll(0);
+            }
+            store.flush();
+            const Stats stats = store.getStats();
+            EXPECT_EQ(stats.mWritten, 2 * sRounds);
+            EXPECT_EQ(stats.mDropped, 0u);
         }
 
         /// **Two stores writing one key leave one whole entry**, as a game and a tool may: each
@@ -455,8 +522,9 @@ namespace ContentStore
             }
 
             constexpr Policy twoKinds{ .mKindCount = 2,
-                .mHolding
-                = Holding{ .mResidentBytesMost = sHolding.mResidentBytesMost, .mStampedMost = sHolding.mStampedMost } };
+                .mHolding = Holding{ .mResidentBytesMost = sHolding.mResidentBytesMost,
+                    .mResidentCountMost = sHolding.mResidentCountMost,
+                    .mStampedMost = sHolding.mStampedMost } };
             Store fewer(folder, twoKinds);
             fewer.flush();
             Misc::ByteBuffer read;

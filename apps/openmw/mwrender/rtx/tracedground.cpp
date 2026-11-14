@@ -7,10 +7,9 @@
 #include <apps/openmw/mwworld/ptr.hpp>
 #include <components/esm/position.hpp>
 #include <components/esm/util.hpp>
+#include <components/rtx/mirror/cells/cellring.hpp>
 #include <components/rtx/mirror/cells/prepared.hpp>
 #include <components/terrain/pagedcellref.hpp>
-
-#include "worldmirror.hpp"
 
 namespace MWRender
 {
@@ -27,25 +26,25 @@ namespace MWRender
     }
 
     TracedGround::TracedGround(
-        const GroundSpec& spec, Resource::SceneManager& scenes, const unsigned int nodeMask, WorldMirror& mirror)
+        const GroundSpec& spec, Resource::SceneManager& scenes, const unsigned int nodeMask, Rtx::CellRing& ring)
         : mTerrain(spec.mSceneRoot, spec.mWorldRoot, spec.mStorage, scenes, *this, nodeMask, spec.mWorldspace)
-        , mMirror(mirror)
+        , mRing(ring)
     {
     }
 
     bool TracedGround::standsGround(const osg::Vec2i& cell) const
     {
-        return mMirror.getRing().standsGround(cell);
+        return mRing.standsGround(cell);
     }
 
     std::span<const Rtx::Placement> TracedGround::placementsIn(const osg::Vec2i& cell) const
     {
-        return mMirror.getRing().placementsIn(cell);
+        return mRing.placementsIn(cell);
     }
 
     bool TracedGround::enableReference(int type, const MWWorld::ConstPtr& ptr, const bool enabled)
     {
-        mMirror.getRing().setReferenceEnabled(ptr.getCellRef().getRefNum(), enabled);
+        mRing.setReferenceEnabled(ptr.getCellRef().getRefNum(), enabled);
         return false;
     }
 
@@ -54,7 +53,7 @@ namespace MWRender
         const ESM::RefNum refnum = now.getCellRef().getRefNum();
         if (now.getCellRef().getCount() == 0)
         {
-            mMirror.getRing().blacklistReference(refnum);
+            mRing.blacklistReference(refnum);
             return;
         }
 
@@ -64,7 +63,7 @@ namespace MWRender
         const ESM::RefId worldspace = paged.getCell()->getCell()->getWorldSpace();
         const bool sameWorldspace
             = now.isInCell() && now.getCell()->isExterior() && now.getCell()->getCell()->getWorldSpace() == worldspace;
-        mMirror.getRing().moveReference(refnum,
+        mRing.moveReference(refnum,
             Rtx::ReferencePlace{ .mPosition = position.asVec3(),
                 .mRotation = osg::Vec3f(position.rot[0], position.rot[1], position.rot[2]),
                 .mScale = now.getCellRef().getScale() },
@@ -73,11 +72,11 @@ namespace MWRender
 
     void TracedGround::setGate(const std::uint32_t gate, const Terrain::GateState state)
     {
-        mMirror.getRing().setGate(gate, state);
+        mRing.setGate(gate, state);
     }
 
     void TracedGround::clear()
     {
-        mMirror.getRing().forgetReferences();
+        mRing.forgetReferences();
     }
 }

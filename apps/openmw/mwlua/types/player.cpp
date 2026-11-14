@@ -1,6 +1,5 @@
 #include "types.hpp"
 
-#include <components/crashcatcher/crash.hpp>
 #include <components/esm3/loadbsgn.hpp>
 #include <components/esm3/loadfact.hpp>
 #include <components/lua/util.hpp>
@@ -87,7 +86,7 @@ namespace
     ESM::RefId toBirthSignId(const sol::object& recordOrId)
     {
         if (recordOrId.is<ESM::BirthSign>())
-            return Crash::notNull(recordOrId.as<const ESM::BirthSign*>(), "a record Lua holds as nil")->mId;
+            return recordOrId.as<const ESM::BirthSign*>()->mId;
         std::string_view textId = LuaUtil::cast<std::string_view>(recordOrId);
         ESM::RefId id = ESM::RefId::deserializeText(textId);
         if (!MWBase::Environment::get().getESMStore()->get<ESM::BirthSign>().search(id))

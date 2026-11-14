@@ -36,6 +36,7 @@ namespace Rtx
 
     void Timeline::waitFor(const std::uint64_t value, const char* const what) const
     {
+        mThread.check();
         // A value past every submit is one nothing will signal: the wait would sit out its patience
         // and blame the device for a call made out of its turn.
         assert(value <= mSubmitted.load(std::memory_order_relaxed) && "a wait for a value no submit signals");
@@ -57,6 +58,7 @@ namespace Rtx
 
     void Timeline::markIdle() const
     {
+        mThread.check();
         mFinished = mSubmitted.load(std::memory_order_relaxed);
     }
 

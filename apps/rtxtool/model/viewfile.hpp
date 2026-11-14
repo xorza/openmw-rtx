@@ -8,6 +8,8 @@
 
 #include "benchrun.hpp"
 
+#include "blockfile.hpp"
+
 namespace RtxTool
 {
     /// A list of places to profile, by view id and not by coordinates, so the frame a screenshot
@@ -27,8 +29,10 @@ namespace RtxTool
         std::optional<bool> mSettled{};
     };
 
-    /// Reads the suite file. Throws when it is missing or malformed, rather than quietly profiling
-    /// somewhere else.
+    /// The suites `file` holds. Throws when it is malformed, rather than quietly profiling somewhere else.
+    std::vector<BenchSuite> readSuites(const BlockFile& file);
+
+    /// The suite file at `path`, read whole (`readSuites`), which throws where it is missing as well.
     std::vector<BenchSuite> loadSuites(const std::filesystem::path& path);
 
     /// The suite called `name`, or null.
@@ -41,8 +45,10 @@ namespace RtxTool
     /// through is not a condition of the place and stays the caller's.
     Stop stopFor(const Stop& view, const StopSky& given);
 
-    /// Reads the view file. Throws when it is missing or malformed, rather than quietly rendering
-    /// somewhere else.
+    /// The views `file` holds. Throws when it is malformed, rather than quietly rendering somewhere else.
+    std::vector<Stop> readViews(const BlockFile& file);
+
+    /// The view file at `path`, read whole (`readViews`), which throws where it is missing as well.
     std::vector<Stop> loadViews(const std::filesystem::path& path);
 
     /// The view called `name`, or null.
@@ -53,8 +59,8 @@ namespace RtxTool
     const Stop& requireView(const std::vector<Stop>& views, std::string_view name);
 
     /// The views `named` asks for, in the order it names them; every one where it names "all", each of which the
-    /// content may lack and the run not fail (`WhenAbsent::Skips`). Throws naming a view that is not there. One place,
-    /// because `bench` reaches it through a suite and `shot` directly, and a run of one has to be reproducible with the
-    /// other.
+    /// content may lack and the run not fail (`WhenAbsent::Skips`). Throws naming a view that is not there, and for a
+    /// list that names none. One place, because `bench` reaches it through a suite and `shot` directly, and a run of
+    /// one has to be reproducible with the other.
     std::vector<Stop> chooseViews(const std::vector<Stop>& views, const std::vector<std::string>& named);
 }

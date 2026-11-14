@@ -18,7 +18,6 @@
 
 #include <components/rtx/common/error.hpp>
 #include <components/rtx/common/parallel.hpp>
-#include <components/rtx/environment/wavecascade.hpp>
 #include <components/rtx/frame/bluenoise.hpp>
 #include <components/rtx/frame/camera.hpp>
 #include <components/rtx/frame/specularalbedo.hpp>
@@ -30,11 +29,13 @@
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/sky.h>
 #include <components/rtx/shaders/wave.h>
+#include <components/rtx/world/wavecascade.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/device/memory/barriers.hpp>
+#include <components/rtxvulkan/device/memory/batch.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
 #include <components/rtxvulkan/device/validation.hpp>
@@ -277,13 +278,14 @@ namespace Rtx
         , mCounting(counting ? 1u : 0u)
         , mUpscaleMasks(masks == UpscaleMasks::Written ? 1u : 0u)
         , mSpecialize(specialize)
+        , mTextureLayout(&textureLayout)
         , mChannelLayout(&channelLayout)
         , mVolumeLayout(&volumeLayout)
     {
-        compileEvery(textureLayout);
+        compileEvery();
     }
 
-    void VisibilityPass::compileEvery(const SetLayout& textureLayout)
+    void VisibilityPass::compileEvery()
     {
         // Queued after the full tuple, which takes seconds a kernel where these take tens of
         // milliseconds: a hand takes up whatever is next, and a tuple taken last is the whole batch
@@ -314,12 +316,12 @@ namespace Rtx
 
         const auto count = static_cast<std::uint32_t>(drawing.size());
         mCompiling.start("kernel compile", count,
-            [this, &textureLayout, caller, drawing = std::move(drawing)](const std::stop_token& stop, Job& job) {
+            [this, caller, drawing = std::move(drawing)](const std::stop_token& stop, Job& job) {
                 mCode.emplace(mDevice, sTraceModules);
                 runInParallel(
                     "compile hand", drawing.size(), Hands::Every, stop, [caller] { return AdoptedThread(caller); },
                     [&](const std::size_t at) {
-                        compile(drawing[at], textureLayout);
+                        compile(drawing[at]);
                         job.advance();
                     });
 
@@ -337,8 +339,8 @@ namespace Rtx
         // it (`variantFor`): the game runs meanwhile, and half the processors are its. After the full
         // tuple, whose compile they would slow. **A kernel a turn**, so a stop waits for one compile
         // and not a tuple's six or seven, and a tuple made when its last kernel lands.
-        mSpecializing.start("tuple compile", VisibilityVariant::sMade - 1,
-            [this, &textureLayout, caller](const std::stop_token& stop, Job& job) {
+        mSpecializing.start(
+            "tuple compile", VisibilityVariant::sMade - 1, [this, caller](const std::stop_token& stop, Job& job) {
                 while (!mCompiling.waitFor(std::chrono::milliseconds(100)).isDone())
                     if (stop.stop_requested())
                         throw std::runtime_error("the tuple compile was stopped");
@@ -383,7 +385,7 @@ namespace Rtx
                     "tuple hand", queue.getItemCount(), Hands::Half, stop, [caller] { return AdoptedThread(caller); },
                     [&](std::size_t) {
                         const Wanted& wanted = kernels[queue.claim(mWanted.load(std::memory_order_relaxed))];
-                        compile(wanted, textureLayout);
+                        compile(wanted);
                         if (queue.land(wanted.mVariant.index()))
                         {
                             mMade[wanted.mVariant.index()].store(true, std::memory_order_release);
@@ -397,7 +399,7 @@ namespace Rtx
             });
     }
 
-    void VisibilityPass::compile(const Wanted& wanted, const SetLayout& textureLayout)
+    void VisibilityPass::compile(const Wanted& wanted)
     {
         const VisibilityVariant variant = wanted.mVariant;
 
@@ -456,7 +458,7 @@ namespace Rtx
                     try
                     {
                         pipeline = std::make_unique<ComputePipeline<Shaders::StageConstants>>(mDevice, sBindings,
-                            sharedSets(textureLayout), *mCode, stage.mModule, canonical.describe(stage.mName), words,
+                            sharedSets(), *mCode, stage.mModule, canonical.describe(stage.mName), words,
                             SubgroupSize::ThirtyTwo);
                     }
                     catch (...)
@@ -480,9 +482,8 @@ namespace Rtx
                 return;
             }
             case Kernel::Scatter:
-                mKernels.mScatter[variant.index()]
-                    = std::make_unique<TracePipeline<NoConstants>>(mDevice, sBindings, sharedSets(textureLayout),
-                        *mCode, "fogscatter.rgen.spv", variant.describe("fog scatter"), specialization);
+                mKernels.mScatter[variant.index()] = std::make_unique<TracePipeline<NoConstants>>(mDevice, sBindings,
+                    sharedSets(), *mCode, "fogscatter.rgen.spv", variant.describe("fog scatter"), specialization);
                 return;
             // From here on no tuple of the sky: each is made at the whole sky and counting nothing, once. The whole sky
             // computes what each tuple would, since a constant a tuple sets false stands in front of a runtime test
@@ -491,28 +492,28 @@ namespace Rtx
             // defaults, so that no constant a module reads takes a default in silence (`specializationDisagreement`).
             case Kernel::Depth:
                 mKernels.mDepth = std::make_unique<TracePipeline<NoConstants>>(
-                    mDevice, sBindings, sharedSets(textureLayout), *mCode, "fogdepth.rgen.spv", "fog depth", sWholeSky);
+                    mDevice, sBindings, sharedSets(), *mCode, "fogdepth.rgen.spv", "fog depth", sWholeSky);
                 return;
             case Kernel::Integrate:
                 mKernels.mIntegrate = std::make_unique<ComputePipeline<NoConstants>>(
-                    mDevice, sBindings, sharedSets(textureLayout), "fogintegrate.comp.spv", "fog integrate", sWholeSky);
+                    mDevice, sBindings, sharedSets(), "fogintegrate.comp.spv", "fog integrate", sWholeSky);
                 return;
             case Kernel::SpriteComposite:
                 mKernels.mSpriteComposite
-                    = std::make_unique<TracePipeline<Shaders::PuffConstants>>(mDevice, sCompositeBindings,
-                        sharedSets(textureLayout), *mCode, "spritecomposite.rgen.spv", "sprite composite", sWholeSky);
+                    = std::make_unique<TracePipeline<Shaders::PuffConstants>>(mDevice, sCompositeBindings, sharedSets(),
+                        *mCode, "spritecomposite.rgen.spv", "sprite composite", sWholeSky);
                 return;
             case Kernel::SpriteShelter:
-                mKernels.mSpriteShelter = std::make_unique<TracePipeline<NoConstants>>(mDevice, sBindings,
-                    sharedSets(textureLayout), *mCode, "spriteshelter.rgen.spv", "sprite shelter", sWholeSky);
+                mKernels.mSpriteShelter = std::make_unique<TracePipeline<NoConstants>>(
+                    mDevice, sBindings, sharedSets(), *mCode, "spriteshelter.rgen.spv", "sprite shelter", sWholeSky);
                 return;
             case Kernel::SpriteEmitters:
-                mKernels.mSpriteEmitters = std::make_unique<TracePipeline<NoConstants>>(mDevice, sBindings,
-                    sharedSets(textureLayout), *mCode, "spriteemitters.rgen.spv", "sprite emitters", sWholeSky);
+                mKernels.mSpriteEmitters = std::make_unique<TracePipeline<NoConstants>>(
+                    mDevice, sBindings, sharedSets(), *mCode, "spriteemitters.rgen.spv", "sprite emitters", sWholeSky);
                 return;
             case Kernel::LampLists:
                 mKernels.mLampLists = std::make_unique<ComputePipeline<NoConstants>>(
-                    mDevice, sBindings, sharedSets(textureLayout), "lamplists.comp.spv", "lamp lists", sWholeSky);
+                    mDevice, sBindings, sharedSets(), "lamplists.comp.spv", "lamp lists", sWholeSky);
                 return;
         }
     }
@@ -659,9 +660,9 @@ namespace Rtx
         return *held;
     }
 
-    SharedSetLayouts VisibilityPass::sharedSets(const SetLayout& textureLayout) const
+    SharedSetLayouts VisibilityPass::sharedSets() const
     {
-        return SharedSetLayouts{ .mTextures = &textureLayout, .mChannels = mChannelLayout, .mVolume = mVolumeLayout };
+        return SharedSetLayouts{ .mTextures = mTextureLayout, .mChannels = mChannelLayout, .mVolume = mVolumeLayout };
     }
 
     void VisibilityPass::writeConstants(VkCommandBuffer commands, const Shaders::VisibilityConstants& described) const
@@ -757,7 +758,8 @@ namespace Rtx
         described.mTables.mEmitterFrames = sprites.mEmitterFrames;
         described.mTables.mSpriteTileList = sprites.mTileList;
         described.mTables.mSpritePresence = sprites.mPresence;
-        described.mPuffsInFrame = sprites.mPuffs ? 1u : 0u;
+        described.mPuffsInFrame
+            = (sprites.mPuffs ? Shaders::PUFFS_DRAWN : 0u) | (sprites.mLitPuffs ? Shaders::PUFFS_LIT : 0u);
 
         // And the camera's lamp lists, the frame before's and this one's, the first read only where they stand for
         // this frame's tiles: written at this extent, by a frame a reprojection finds its way back to.

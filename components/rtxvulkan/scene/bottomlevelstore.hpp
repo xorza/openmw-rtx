@@ -69,6 +69,13 @@ namespace Rtx
     /// mesh needs alone: a storage block's worth, which takes a cell's meshes in a run or two.
     inline constexpr VkDeviceSize sStructureBuildRoom = 64 * 1024 * 1024;
 
+    /// Whether a bottom level is built once or refit as its mesh deforms, which its build flags say.
+    enum class StructureMotion : std::uint8_t
+    {
+        Still,
+        Refit,
+    };
+
     /// One bottom-level acceleration structure per mesh, inside storage buffers at offsets, and the
     /// compaction that keeps them tight: a structure is built loose, the driver is asked what a tight
     /// copy would come to, and the copy is made in the storage that keeps it.
@@ -81,6 +88,10 @@ namespace Rtx
     class BottomLevelStore
     {
     public:
+        /// What a bottom level of `motion` is built with, its first build and every refit or rebuild alike: an
+        /// update is asked of the flags of the build that allowed one.
+        static VkBuildAccelerationStructureFlagsKHR buildFlagsOf(StructureMotion motion);
+
         /// @param buildRoom what one run of `build` may work in: `sStructureBuildRoom`, and less for
         ///        a test that splits a few meshes into runs.
         explicit BottomLevelStore(const Device& device, VkDeviceSize buildRoom = sStructureBuildRoom);
@@ -125,24 +136,30 @@ namespace Rtx
 
         /// Whether `mesh`'s structure was built with `ALLOW_UPDATE`, which is whether the scene's
         /// mesh deformed at the time it was built — `MeshRange::deforms`. Whether a mesh deforms is
-        /// fixed when it arrives, so this is also whether the mesh can ever be refitted.
+        /// fixed when it arrives, so this is also whether the mesh can ever be refitted. False where
+        /// no structure was made.
         bool isUpdatable(const Index mesh) const { return mRows[mesh].mUpdatable; }
 
-        /// Every mesh that `stands` and `isUpdatable`: a few dozen bodies among thousands of
-        /// statics, which is what sizing the refit's scratch reads rather than every slot.
-        std::span<const Index> getRefittable() const { return mRefittable.getSlots(); }
+        /// What a refit of every structure that can be refit works in at once, each at the aligned end of the one
+        /// before, and the rota's pick in a whole build's room where an update's was: what the refit's scratch is
+        /// grown to as the refittable arrive, so no frame grows it.
+        VkDeviceSize getRefitScratchBytes() const;
 
-        /// What a refit of `mesh` asks for, so a frame does not have to ask the driver again.
-        /// Nought for a mesh that was not built to be refitted.
-        VkDeviceSize getUpdateScratch(const Index mesh) const { return mRows[mesh].mUpdateScratch; }
+        /// What `mesh`'s place in a refit works in: a whole build's scratch for a rebuild from nothing, an update's
+        /// for the rest, as the store asked the driver when it was built.
+        VkDeviceSize getScratchFor(const Index mesh, const VkBuildAccelerationStructureModeKHR mode) const
+        {
+            return mode == VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR ? mRows[mesh].mBuildScratch
+                                                                          : mRows[mesh].mUpdateScratch;
+        }
 
-        /// What a build of `mesh` from nothing asks for, which a rebuild into the same room reads.
-        VkDeviceSize getBuildScratch(const Index mesh) const { return mRows[mesh].mBuildScratch; }
-
-        /// Which placement last built `mesh` whole rather than refitting it — its arrival's, until
-        /// the rota comes round — and the rota's own note of a rebuild.
-        std::uint64_t getRebuiltAt(const Index mesh) const { return mRows[mesh].mRebuiltAt; }
-        void noteRebuilt(const Index mesh, const std::uint64_t placement) { mRows[mesh].mRebuiltAt = placement; }
+        /// **The rota**: of the posed meshes, the one built whole longest ago, which `placement` builds whole
+        /// again, or nothing where each was built whole on `placement` itself. A refit keeps the tree the first pose
+        /// was built over and moves its boxes, which fit a body met crouched badly once it stands, so every ray
+        /// through it pays for as long as the body lives; one a placement, so no frame carries two and every frame
+        /// carries the same (a threshold made frames alternate between one and none). Noted as built at
+        /// `placement`.
+        Index pickRebuild(std::span<const Index> posed, std::uint64_t placement);
 
         /// Reads every compaction answer whose placement has certainly run, and makes a tight
         /// structure for as many of the answered as this placement's budget takes. The set it

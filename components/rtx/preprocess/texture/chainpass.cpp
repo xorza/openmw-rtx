@@ -59,6 +59,41 @@ namespace Rtx
             digest.add(file.bytesOf(level));
     }
 
+    namespace
+    {
+        /// **What a run makes of a file's header**, the one derivation `run`, `madeLayout` and `scratchOf` read: a
+        /// file with no chain is built to a texel and every other to its own count of levels, and a colour's own
+        /// chain stands where it carries one, every other chain built.
+        struct ChainPlan
+        {
+            std::uint32_t mWidth;
+            std::uint32_t mHeight;
+            std::uint32_t mFileLevels;
+            bool mChainless;
+            std::uint32_t mLevels;
+            bool mBuilt;
+
+            static ChainPlan of(const std::uint32_t width, const std::uint32_t height, const std::uint32_t fileLevels,
+                const TextureEncoding encoding)
+            {
+                const bool chainless = fileLevels == 1;
+                return ChainPlan{ .mWidth = width,
+                    .mHeight = height,
+                    .mFileLevels = fileLevels,
+                    .mChainless = chainless,
+                    .mLevels = chainless ? levelsTo1x1(width, height) : fileLevels,
+                    .mBuilt = encoding != TextureEncoding::Colour || chainless };
+            }
+
+            /// The plan of a file as its header states it, at one level at least.
+            static ChainPlan of(const osg::Image& image, const TextureEncoding encoding)
+            {
+                return of(static_cast<std::uint32_t>(image.s()), static_cast<std::uint32_t>(image.t()),
+                    std::max(levelCountOf(image), 1u), encoding);
+            }
+        };
+    }
+
     void ChainPass::run(const Input& input, Output& output)
     {
         describe(input);
@@ -68,18 +103,18 @@ namespace Rtx
         {
             const TextureData& file = *mFile;
             const MipLevel& finest = file.mLevels.front();
-            const bool chainless = file.mLevels.size() == 1;
+            const ChainPlan plan = ChainPlan::of(
+                finest.mWidth, finest.mHeight, static_cast<std::uint32_t>(file.mLevels.size()), file.mEncoding);
+            const bool chainless = plan.mChainless;
+            const bool built = plan.mBuilt;
             const bool loose = !layoutOf(file.mFormat).isBlocked();
             const bool painted = file.mEncoding == TextureEncoding::Painted;
             const bool normals = file.mEncoding == TextureEncoding::Normal;
 
             // A colour's own chain stands, and is encoded as it stands where it is loose; every other
             // chain is built, a painted colour's from every level it carries.
-            const bool built = file.mEncoding != TextureEncoding::Colour || chainless;
             if (built)
-                mChain.build(file,
-                    chainless ? levelsTo1x1(finest.mWidth, finest.mHeight)
-                              : static_cast<std::uint32_t>(file.mLevels.size()));
+                mChain.build(file, plan.mLevels);
 
             const bool cut = built && mChain.holdsCut(file);
             const bool small = std::max(finest.mWidth, finest.mHeight) <= sLargestBc7ChainSide;
@@ -120,13 +155,9 @@ namespace Rtx
         if (form == ChainForm::Stands || image.s() <= 0 || image.t() <= 0)
             return std::nullopt;
 
-        // As `run` builds: a file with no chain to a texel, and every other to its own count of levels.
-        const auto width = static_cast<std::uint32_t>(image.s());
-        const auto height = static_cast<std::uint32_t>(image.t());
-        const std::uint32_t fileLevels = std::max(levelCountOf(image), 1u);
-        const std::uint32_t count = fileLevels == 1 ? levelsTo1x1(width, height) : fileLevels;
+        const ChainPlan plan = ChainPlan::of(image, input.mEncoding);
         const TextureFormat own = readFormat(image, input.mEncoding);
-        const MadeLayout whole{ .mWidth = width, .mHeight = height, .mFirst = 0, .mCount = count };
+        const MadeLayout whole{ .mWidth = plan.mWidth, .mHeight = plan.mHeight, .mFirst = 0, .mCount = plan.mLevels };
         switch (form)
         {
             case ChainForm::Bc7:
@@ -170,15 +201,11 @@ namespace Rtx
         if (image.s() <= 0 || image.t() <= 0 || (!isUploadable(format) && !isWidened(format)))
             return scratch;
 
-        // As `run` builds: a file with no chain to a texel, and every other to its own count of levels.
-        const auto width = static_cast<std::uint32_t>(image.s());
-        const auto height = static_cast<std::uint32_t>(image.t());
-        const std::uint32_t fileLevels = std::max(levelCountOf(image), 1u);
-        const bool chainless = fileLevels == 1;
-        const std::uint32_t levels = chainless ? levelsTo1x1(width, height) : fileLevels;
-        const bool built = input.mEncoding != TextureEncoding::Colour || chainless;
-        if (built)
-            scratch.setBuild(ChainBuild::scratchOf(width, height, fileLevels, input.mEncoding, levels));
+        const ChainPlan plan = ChainPlan::of(image, input.mEncoding);
+        const std::uint32_t width = plan.mWidth;
+        const std::uint32_t height = plan.mHeight;
+        if (plan.mBuilt)
+            scratch.setBuild(ChainBuild::scratchOf(width, height, plan.mFileLevels, input.mEncoding, plan.mLevels));
 
         // Whole in BC7, or whole in the file's own block format, the larger: a loose file is made in BC7
         // alone.
@@ -186,7 +213,7 @@ namespace Rtx
         const TexelLayout own = layoutOf(format);
         std::size_t asBc7 = 0;
         std::size_t asOwn = 0;
-        for (std::uint32_t level = 0; level < (built ? levels : fileLevels); ++level)
+        for (std::uint32_t level = 0; level < (plan.mBuilt ? plan.mLevels : plan.mFileLevels); ++level)
         {
             const std::uint32_t across = std::max(width >> level, 1u);
             const std::uint32_t down = std::max(height >> level, 1u);

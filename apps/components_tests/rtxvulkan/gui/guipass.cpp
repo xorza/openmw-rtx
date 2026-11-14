@@ -19,6 +19,7 @@
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/renderer/guirenderer.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
+#include <components/rtxvulkan/device/memory/batch.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>

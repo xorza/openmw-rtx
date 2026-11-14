@@ -37,8 +37,13 @@ namespace RtxTool
         return quoted + '"';
     }
 
-    std::string jsonNumber(const double value)
+    std::string jsonNumber(const double value, const int decimals)
     {
-        return std::isfinite(value) ? std::format("{:.4f}", value) : std::string("null");
+        return std::isfinite(value) ? std::format("{:.{}f}", value, decimals) : std::string("null");
+    }
+
+    std::string jsonSignificant(const double value, const int digits)
+    {
+        return std::isfinite(value) ? std::format("{:.{}g}", value, digits) : std::string("null");
     }
 }

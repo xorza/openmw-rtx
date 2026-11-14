@@ -5,18 +5,16 @@
 #include <cstdint>
 #include <utility>
 
-#include <components/rtx/shaders/skinning.h>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/graveyard.hpp>
 #include <components/rtxvulkan/device/physicaldevice.hpp>
 #include <components/rtxvulkan/device/result.hpp>
 #include <components/rtxvulkan/device/timeline.hpp>
-#include <components/rtxvulkan/shaders/shared/probe.h>
-#include <components/rtxvulkan/shaders/shared/tables.h>
 
 #include "barriers.hpp"
 #include "bufferusage.hpp"
 #include "memory.hpp"
+#include "referencealignment.hpp"
 
 namespace Rtx
 {
@@ -42,13 +40,6 @@ namespace Rtx
 
             return 0;
         }
-
-        /// The most any shader's `buffer_reference_align` claims of where a buffer it reads by address
-        /// starts: every claim a shader makes names one of these.
-        constexpr VkDeviceSize sReferenceAlignment
-            = std::max({ Shaders::TABLE_ALIGN_ROWS, Shaders::TABLE_ALIGN_MATERIALS, Shaders::TABLE_ALIGN_BLOCKS,
-                Shaders::TABLE_ALIGN_LAYERS, Shaders::TABLE_ALIGN_INSTANCES, Shaders::BONE_ALIGN,
-                static_cast<std::uint32_t>(Shaders::PROBE_ROW_ALIGN) });
 
         /// The alignment a buffer's memory owes beyond what the driver asks for binding it: the
         /// rules Vulkan states at the use and not at the bind, which a driver's requirement need not

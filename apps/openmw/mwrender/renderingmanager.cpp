@@ -900,6 +900,12 @@ namespace MWRender
         mRenderer.notifyWorldspaceChanged();
     }
 
+    void RenderingManager::notifyTimeJumped()
+    {
+        mEffectManager->clear();
+        mRenderer.notifyCut();
+    }
+
     void RenderingManager::notifyCut()
     {
         mRenderer.notifyCut();

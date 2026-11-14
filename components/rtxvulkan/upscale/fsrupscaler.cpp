@@ -302,11 +302,14 @@ namespace Rtx
             VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT | VK_ACCESS_2_SHADER_STORAGE_READ_BIT
                 | VK_ACCESS_2_SHADER_SAMPLED_READ_BIT | VK_ACCESS_2_TRANSFER_WRITE_BIT };
 
-        /// FSR's frame info at a reset, as the SDK clears it: an exposure it has not measured, `-1`, and a log luma of
+        /// FSR's frame info at a reset: an exposure it has not measured, `-1`, as the SDK clears it, and a log luma of
         /// `1e8`, over `resetAutoExposureAverageSmoothing`, which tells its luma pyramid there is no average to smooth
-        /// from. FSR meters its own exposure and not the display's: handed the display's, last frame's, the still
-        /// frames stood further from the converged reference (the guild's bias 1.20 -> 1.58, the pond 1.51 -> 1.71, the
-        /// pier 1.32 -> 1.39).
+        /// from. **Not the SDK's one**: the 3.1.4 host clears the log luma to `1`
+        /// (`ffx_fsr3upscaler.cpp`, "Clear Frame Info"), which is under that bound, so the pyramid smooths the reset
+        /// frame's luma from one as though it had been measured, where the bound's name promises no smoothing. FSR
+        /// meters its own exposure and not the display's: handed the display's, last frame's, the still frames stood
+        /// further from the converged reference (the guild's bias 1.20 -> 1.58, the pond 1.51 -> 1.71, the pier 1.32
+        /// -> 1.39).
         constexpr VkClearColorValue sFreshFrameInfo{ .float32 = { -1.0f, 1e8f, 0.0f, 0.0f } };
     }
 
@@ -429,6 +432,9 @@ namespace Rtx
 
         Targets(const Targets&) = delete;
         Targets& operator=(const Targets&) = delete;
+        Targets(Targets&&) = delete;
+        Targets& operator=(Targets&&) = delete;
+        ~Targets() = default;
 
         /// Every image of its own the constructor made, which is what the first record lays out and
         /// clears: the one list `add` fills, so an image cannot be made and left out of it.
@@ -524,11 +530,11 @@ namespace Rtx
         return mTargets != nullptr && same(mTargets->mRender, render) && same(mTargets->mOutput, output);
     }
 
-    VkDeviceSize FsrUpscaler::bytesAt(const Device& device, const VkExtent2D render, const VkExtent2D output)
+    VkDeviceSize FsrUpscaler::bytesAt(const VkExtent2D render, const VkExtent2D output) const
     {
         VkDeviceSize bytes = 0;
         const Targets measured(render, output, [&](const ImageDescription& description, std::string_view) {
-            bytes += Image::bytesFor(device, description);
+            bytes += Image::bytesFor(mDevice, description);
             return Image();
         });
         return bytes;

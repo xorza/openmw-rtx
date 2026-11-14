@@ -10,6 +10,8 @@
 #include <components/misc/monitor.hpp>
 #include <components/platform/thread.hpp>
 
+#include "keyedge.hpp"
+
 namespace MWRender
 {
     struct FrameReport;
@@ -104,7 +106,7 @@ namespace RtxTool
         const std::filesystem::path mKeys;
         const std::filesystem::path mPictures;
 
-        bool mHeld = false;
+        KeyEdge mHome;
         bool mAsked = false;
 
         /// The note of the frame Home asked for, whole, and the backend's number of that frame,

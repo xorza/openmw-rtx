@@ -10,6 +10,7 @@
 #include <apps/rtxtool/instruments/amdgpu.hpp>
 #include <apps/rtxtool/instruments/gpuclock.hpp>
 #include <components/rtx/common/cardaddress.hpp>
+#include <components/testing/util.hpp>
 
 namespace RtxTool
 {
@@ -19,9 +20,7 @@ namespace RtxTool
         /// folder laid out as `/sys/bus/pci/devices` is, each AMD card at its own clock.
         TEST(RtxAmdGpuTest, theCardAtTheAddressIsReadAndNoOther)
         {
-            const std::filesystem::path devices = std::filesystem::temp_directory_path()
-                / ("openmw-pci-" + std::to_string(::testing::UnitTest::GetInstance()->random_seed()));
-            std::filesystem::remove_all(devices);
+            const std::filesystem::path devices = TestingOpenMW::currentTestDirPath() / "devices";
             const auto card = [&](std::string_view folder, std::string_view vendor, std::string_view core) {
                 const std::filesystem::path device = devices / folder;
                 std::filesystem::create_directories(device);
@@ -55,8 +54,6 @@ namespace RtxTool
             EXPECT_FALSE(AmdGpu::at(devices, atNvidia).has_value()) << "another vendor's card";
             const Rtx::PciAddress atNothing{ .mDomain = 0, .mBus = 9, .mDevice = 0, .mFunction = 0 };
             EXPECT_FALSE(AmdGpu::at(devices, atNothing).has_value());
-
-            std::filesystem::remove_all(devices);
         }
     }
 }

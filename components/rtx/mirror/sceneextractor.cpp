@@ -941,7 +941,7 @@ namespace Rtx
             .mMaterial = material.mIndex,
             .mOpacity = fade,
             .mClass = what,
-            .mClockwise = !shading.empty() && shading.back().mClockwise,
+            .mClockwise = clockwiseThrough(shading),
             .mLampBody = lampBody,
         };
 

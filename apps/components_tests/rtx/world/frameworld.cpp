@@ -166,11 +166,13 @@ namespace Rtx
             FogDrift drift;
             WorldOptions options;
             const SkyContent& sheets = sky();
-            const std::size_t before = Testing::getAllocationCount();
-            const WorldReading read = made;
-            describeWorld(read, sheets, drift, constants, options);
-            const std::size_t after = Testing::getAllocationCount();
-            EXPECT_EQ(after, before) << after - before << " allocations to read and describe a frame's world";
+            WorldReading read;
+            EXPECT_EQ(Testing::allocationsIn([&] {
+                read = made;
+                describeWorld(read, sheets, drift, constants, options);
+            }),
+                0u)
+                << "allocations to read and describe a frame's world";
 
             const Skylight& light = read.mDaylight.mLight;
             EXPECT_EQ(constants.mSun.mDirection, light.mSun.mPosition);

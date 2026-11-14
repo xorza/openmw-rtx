@@ -88,6 +88,7 @@ namespace Rtx
             mWanted = request;
             ++mAsked;
             mWantedTakes = mTakes;
+            return true;
         });
     }
 
@@ -118,7 +119,10 @@ namespace Rtx
         if (mReturning.empty())
             return;
 
-        mMonitor.give([&] { mReturned.take(mReturning); });
+        mMonitor.give([&] {
+            mReturned.take(mReturning);
+            return true;
+        });
     }
 
     ReaderMemory CellSupply::getReaderMemory()

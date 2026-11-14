@@ -282,9 +282,6 @@ namespace RtxTool
             schedule.mAccumulate = frames;
             schedule.mHeld.reset();
         }
-
-        if (mTraced != nullptr)
-            *mTraced = traced;
     }
 
     MWRender::RunSetup SessionRequest::rendererSetup() const

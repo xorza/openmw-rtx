@@ -33,6 +33,7 @@
 #include <components/vfs/pathutil.hpp>
 
 #include "debugwalk.hpp"
+#include "framereader.hpp"
 #include "framereport.hpp"
 #include "frametimer.hpp"
 #include "rippleemitters.hpp"
@@ -157,9 +158,6 @@ namespace MWRender
         /// Into the presentation, which the next frame's fit sizes the trace and the surface to.
         void windowResized(int x, int y, int width, int height) noexcept override;
 
-        /// F3 and F4, which the rasterizer hands OpenSceneGraph's overlays: a message box saying
-        /// why `rtxSupport` declines them, once a press as F2 is, and nothing else.
-
         void advance(double simulationTime) noexcept override;
         void updateTraversal() noexcept override;
 
@@ -262,6 +260,9 @@ namespace MWRender
         void applyChangedSettings(const Settings::CategorySettingVector& changed) noexcept override;
 
     private:
+        /// Logs how the stretch a cut or a change of worldspace ends ran, and starts the next.
+        void closeStretch();
+
         /// A picture of `kind`, traced on the frame thread's walk context: the one body behind
         /// `createWorldView` and `createSubjectView`.
         std::unique_ptr<TracedView> traceView(const OffscreenViewSpec& spec, ViewKind kind);
@@ -337,11 +338,6 @@ namespace MWRender
         /// `Phase::Gui` back to `Phase::Between`.
         void present();
 
-        /// The frame as it stands, as an image `width` by `height` — the frame's own size at nought
-        /// — or null before anything was presented. Bottom row first, because every reader here
-        /// takes OpenGL's order: `LoadingScreen` inverts V for it, and `osgDB`'s writers expect it.
-        osg::ref_ptr<osg::Image> readFrame(int width = 0, int height = 0, Rtx::Channels channels = Rtx::Channels::Rgba);
-
         Rtx::Stepped<Phase> mPhase{ Phase::Between };
 
         ViewQueue mViews;
@@ -357,13 +353,6 @@ namespace MWRender
         /// MyGUI's backend, which `createGuiPlatform` makes and the window manager owns. Never null
         /// where a frame runs, because the window manager outlives every frame.
         MyGUIRtx::RenderManager* mGui = nullptr;
-
-        /// The frame a loading screen holds up, as the image the GUI mirrors. The texture is made
-        /// on the first freeze and the image under it swapped on every one after.
-        osg::ref_ptr<osg::Texture2D> mFrozenFrame;
-
-        /// What a frame is read back into, refilled per read and never freed.
-        std::vector<std::uint8_t> mReadBack;
 
         /// The run a played session is, for a host that installed none. Before `mRun`, which binds
         /// to it then.
@@ -409,9 +398,9 @@ namespace MWRender
         };
         PendingSettings mPending;
 
-        /// After the backend, because its slot is in the backend's table and goes back before the
-        /// table does.
-        std::unique_ptr<MyGUI::ITexture> mFrozenFrameTexture;
+        /// The frame a loading screen holds up, and what a screenshot reads. After the backend, because the
+        /// frozen frame's slot is in the backend's table and goes back before the table does.
+        FrameReader mFrames;
 
         /// The content's derived data kept across sessions (`RunSetup::mContentStore`), or null. Before the
         /// mirror, so its going finishes what the mirror's passes handed it to write.

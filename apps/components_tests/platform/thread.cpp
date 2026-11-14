@@ -5,6 +5,7 @@
 #include <stop_token>
 #include <string>
 #include <thread>
+#include <vector>
 
 #include <gtest/gtest.h>
 
@@ -88,6 +89,38 @@ namespace Platform
             const auto again = now();
             EXPECT_FALSE(sleepUnlessStopped(asked.get_token(), std::chrono::minutes(1)));
             EXPECT_LT(now() - again, std::chrono::seconds(1));
+        }
+
+        /// **Every hand is asked to stop before the first is joined**: three threads that each, once stopped, wait
+        /// until all three have been, end; joined one at a time, the first would wait for a stop the second was never
+        /// asked. Each waits a bounded while, so a broken order fails rather than hangs.
+        TEST(PlatformThreadTest, everyThreadIsAskedToStopBeforeAnyIsJoined)
+        {
+            std::atomic<int> stopped{ 0 };
+            std::atomic<int> waitedOut{ 0 };
+            std::vector<std::jthread> hands;
+            for (int at = 0; at < 3; ++at)
+                hands.push_back(startThread("hand", [&](const std::stop_token& stop) {
+                    while (!stop.stop_requested())
+                        std::this_thread::yield();
+                    ++stopped;
+                    const auto due = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+                    while (stopped.load() < 3)
+                    {
+                        if (std::chrono::steady_clock::now() > due)
+                        {
+                            ++waitedOut;
+                            return;
+                        }
+                        std::this_thread::yield();
+                    }
+                }));
+
+            stopThenJoin(hands, [](std::jthread& hand) -> std::jthread& { return hand; });
+            EXPECT_EQ(stopped.load(), 3);
+            EXPECT_EQ(waitedOut.load(), 0) << "a hand was joined before the others were asked to stop";
+            for (const std::jthread& hand : hands)
+                EXPECT_FALSE(hand.joinable());
         }
     }
 }

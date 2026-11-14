@@ -22,12 +22,13 @@ namespace Rtx
         template <class Visit>
         void forEachCover(const int source, const int target, const int at, Visit visit)
         {
-            const double scale = double(source) / double(target);
+            const double scale = static_cast<double>(source) / static_cast<double>(target);
             const double from = at * scale;
             const double to = (at + 1) * scale;
             for (int pixel = static_cast<int>(from); pixel < source && pixel < to; ++pixel)
             {
-                const double covered = std::min(to, double(pixel + 1)) - std::max(from, double(pixel));
+                const double covered
+                    = std::min(to, static_cast<double>(pixel + 1)) - std::max(from, static_cast<double>(pixel));
                 if (covered > 0.0)
                     visit(pixel, covered / scale);
             }
@@ -77,34 +78,28 @@ namespace Rtx
         // its centre sampled one texel in sixty of a 4K frame.
         const Misc::Crop crop = Misc::cropToAspect(osg::Vec2i(wide, tall), osg::Vec2i(width, height));
 
-        // Across first, into a row of sums a crop row tall, then down.
-        std::vector<double> across(static_cast<std::size_t>(width) * crop.mSize.y() * bytes, 0.0);
-        for (int x = 0; x < width; ++x)
-            forEachCover(crop.mSize.x(), width, x, [&](int column, double weight) {
-                for (int row = 0; row < crop.mSize.y(); ++row)
-                {
-                    const std::uint8_t* const texel = frame.mPixels.data()
-                        + (static_cast<std::size_t>(crop.mOrigin.y() + row) * wide + crop.mOrigin.x() + column) * 4;
-                    double* const sum = &across[(static_cast<std::size_t>(row) * width + x) * bytes];
-                    for (std::size_t channel = 0; channel < bytes; ++channel)
-                        sum[channel] += weight * texel[channel];
-                }
-            });
-
+        // **A row at a time, in the order the frame lies in memory**: each row of the image sums the crop's rows that
+        // row covers, each read along its length, into one row of sums the width of the image.
+        std::vector<double> sums(static_cast<std::size_t>(width) * bytes);
         for (int y = 0; y < height; ++y)
         {
+            std::fill(sums.begin(), sums.end(), 0.0);
+            forEachCover(crop.mSize.y(), height, y, [&](int row, double down) {
+                const std::uint8_t* const line = frame.mPixels.data()
+                    + (static_cast<std::size_t>(crop.mOrigin.y() + row) * wide + crop.mOrigin.x()) * 4;
+                for (int x = 0; x < width; ++x)
+                    forEachCover(crop.mSize.x(), width, x, [&](int column, double across) {
+                        const std::uint8_t* const texel = line + static_cast<std::size_t>(column) * 4;
+                        double* const sum = &sums[static_cast<std::size_t>(x) * bytes];
+                        for (std::size_t channel = 0; channel < bytes; ++channel)
+                            sum[channel] += down * across * texel[channel];
+                    });
+            });
+
             const int to = order == RowOrder::BottomFirst ? height - 1 - y : y;
             std::uint8_t* const into = image->data(0, to);
-            for (int x = 0; x < width; ++x)
-                for (std::size_t channel = 0; channel < bytes; ++channel)
-                {
-                    double value = 0.0;
-                    forEachCover(crop.mSize.y(), height, y, [&](int row, double weight) {
-                        value += weight * across[(static_cast<std::size_t>(row) * width + x) * bytes + channel];
-                    });
-                    into[static_cast<std::size_t>(x) * bytes + channel]
-                        = static_cast<std::uint8_t>(std::clamp(std::lround(value), 0L, 255L));
-                }
+            for (std::size_t at = 0; at < sums.size(); ++at)
+                into[at] = static_cast<std::uint8_t>(std::clamp(std::lround(sums[at]), 0L, 255L));
         }
 
         return image;

@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
 
 #include <components/misc/constants.hpp>
-#include <components/rtx/environment/wavespectrum.hpp>
 #include <components/rtx/shaders/scene.h>
+#include <components/rtx/world/wavespectrum.hpp>
 
 namespace Rtx
 {

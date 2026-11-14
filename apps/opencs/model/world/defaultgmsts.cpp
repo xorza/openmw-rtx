@@ -1973,354 +1973,701 @@ const int CSMWorld::DefaultGmsts::IntsDefaultValues[CSMWorld::DefaultGmsts::IntC
 };
 
 const float CSMWorld::DefaultGmsts::FloatLimits[CSMWorld::DefaultGmsts::FloatCount * 2] = {
-    -FInf, FInf, // fAIFleeFleeMult
-    -FInf, FInf, // fAIFleeHealthMult
-    -FInf, FInf, // fAIMagicSpellMult
-    -FInf, FInf, // fAIMeleeArmorMult
-    -FInf, FInf, // fAIMeleeSummWeaponMult
-    -FInf, FInf, // fAIMeleeWeaponMult
-    -FInf, FInf, // fAIRangeMagicSpellMult
-    -FInf, FInf, // fAIRangeMeleeWeaponMult
-    0, FInf, // fAlarmRadius
-    -FInf, FInf, // fAthleticsRunBonus
-    0, FInf, // fAudioDefaultMaxDistance
-    0, FInf, // fAudioDefaultMinDistance
-    0, FInf, // fAudioMaxDistanceMult
-    0, FInf, // fAudioMinDistanceMult
-    0, FInf, // fAudioVoiceDefaultMaxDistance
-    0, FInf, // fAudioVoiceDefaultMinDistance
-    0, FInf, // fAutoPCSpellChance
-    0, FInf, // fAutoSpellChance
-    -FInf, FInf, // fBargainOfferBase
-    -FInf, 0, // fBargainOfferMulti
-    -FInf, FInf, // fBarterGoldResetDelay
-    0, FInf, // fBaseRunMultiplier
-    -FInf, FInf, // fBlockStillBonus
-    0, FInf, // fBribe1000Mod
-    0, FInf, // fBribe100Mod
-    0, FInf, // fBribe10Mod
-    0, FInf, // fCombatAngleXY
-    0, FInf, // fCombatAngleZ
-    0, 1, // fCombatArmorMinMult
-    -180, 0, // fCombatBlockLeftAngle
-    0, 180, // fCombatBlockRightAngle
-    0, FInf, // fCombatCriticalStrikeMult
-    0, FInf, // fCombatDelayCreature
-    0, FInf, // fCombatDelayNPC
-    0, FInf, // fCombatDistance
-    -FInf, FInf, // fCombatDistanceWerewolfMod
-    -FInf, FInf, // fCombatForceSideAngle
-    0, FInf, // fCombatInvisoMult
-    0, FInf, // fCombatKODamageMult
-    -FInf, FInf, // fCombatTorsoSideAngle
-    -FInf, FInf, // fCombatTorsoStartPercent
-    -FInf, FInf, // fCombatTorsoStopPercent
-    -FInf, FInf, // fConstantEffectMult
-    -FInf, FInf, // fCorpseClearDelay
-    -FInf, FInf, // fCorpseRespawnDelay
-    0, 1, // fCrimeGoldDiscountMult
-    0, FInf, // fCrimeGoldTurnInMult
-    0, FInf, // fCrimeStealing
-    0, FInf, // fDamageStrengthBase
-    0, FInf, // fDamageStrengthMult
-    -FInf, FInf, // fDifficultyMult
-    0, FInf, // fDiseaseXferChance
-    -FInf, 0, // fDispAttacking
-    -FInf, FInf, // fDispBargainFailMod
-    -FInf, FInf, // fDispBargainSuccessMod
-    -FInf, 0, // fDispCrimeMod
-    -FInf, 0, // fDispDiseaseMod
-    0, FInf, // fDispFactionMod
-    0, FInf, // fDispFactionRankBase
-    0, FInf, // fDispFactionRankMult
-    0, FInf, // fDispositionMod
-    0, FInf, // fDispPersonalityBase
-    0, FInf, // fDispPersonalityMult
-    -FInf, 0, // fDispPickPocketMod
-    0, FInf, // fDispRaceMod
-    -FInf, 0, // fDispStealing
-    -FInf, 0, // fDispWeaponDrawn
-    0, FInf, // fEffectCostMult
-    0, FInf, // fElementalShieldMult
-    FEps, FInf, // fEnchantmentChanceMult
-    0, FInf, // fEnchantmentConstantChanceMult
-    0, FInf, // fEnchantmentConstantDurationMult
-    0, FInf, // fEnchantmentMult
-    0, FInf, // fEnchantmentValueMult
-    0, FInf, // fEncumberedMoveEffect
-    0, FInf, // fEncumbranceStrMult
-    0, FInf, // fEndFatigueMult
-    -FInf, FInf, // fFallAcroBase
-    0, FInf, // fFallAcroMult
-    0, FInf, // fFallDamageDistanceMin
-    -FInf, FInf, // fFallDistanceBase
-    0, FInf, // fFallDistanceMult
-    -FInf, FInf, // fFatigueAttackBase
-    0, FInf, // fFatigueAttackMult
-    0, FInf, // fFatigueBase
-    0, FInf, // fFatigueBlockBase
-    0, FInf, // fFatigueBlockMult
-    0, FInf, // fFatigueJumpBase
-    0, FInf, // fFatigueJumpMult
-    0, FInf, // fFatigueMult
-    -FInf, FInf, // fFatigueReturnBase
-    0, FInf, // fFatigueReturnMult
-    -FInf, FInf, // fFatigueRunBase
-    0, FInf, // fFatigueRunMult
-    -FInf, FInf, // fFatigueSneakBase
-    0, FInf, // fFatigueSneakMult
-    -FInf, FInf, // fFatigueSpellBase
-    -FInf, FInf, // fFatigueSpellCostMult
-    0, FInf, // fFatigueSpellMult
-    -FInf, FInf, // fFatigueSwimRunBase
-    0, FInf, // fFatigueSwimRunMult
-    -FInf, FInf, // fFatigueSwimWalkBase
-    0, FInf, // fFatigueSwimWalkMult
-    -FInf, FInf, // fFightDispMult
-    -FInf, FInf, // fFightDistanceMultiplier
-    -FInf, FInf, // fFightStealing
-    -FInf, FInf, // fFleeDistance
-    -FInf, FInf, // fGreetDistanceReset
-    0, FInf, // fHandtoHandHealthPer
-    0, FInf, // fHandToHandReach
-    -FInf, FInf, // fHoldBreathEndMult
-    0, FInf, // fHoldBreathTime
-    0, FInf, // fIdleChanceMultiplier
-    -FInf, FInf, // fIngredientMult
-    0, FInf, // fInteriorHeadTrackMult
-    -FInf, FInf, // fJumpAcrobaticsBase
-    0, FInf, // fJumpAcroMultiplier
-    -FInf, FInf, // fJumpEncumbranceBase
-    0, FInf, // fJumpEncumbranceMultiplier
-    -FInf, FInf, // fJumpMoveBase
-    0, FInf, // fJumpMoveMult
-    0, FInf, // fJumpRunMultiplier
-    -FInf, FInf, // fKnockDownMult
-    0, FInf, // fLevelMod
-    0, FInf, // fLevelUpHealthEndMult
-    0, FInf, // fLightMaxMod
-    0, FInf, // fLuckMod
-    0, FInf, // fMagesGuildTravel
-    -FInf, FInf, // fMagicCreatureCastDelay
-    -FInf, FInf, // fMagicDetectRefreshRate
-    -FInf, FInf, // fMagicItemConstantMult
-    -FInf, FInf, // fMagicItemCostMult
-    -FInf, FInf, // fMagicItemOnceMult
-    -FInf, FInf, // fMagicItemPriceMult
-    0, FInf, // fMagicItemRechargePerSecond
-    -FInf, FInf, // fMagicItemStrikeMult
-    -FInf, FInf, // fMagicItemUsedMult
-    0, FInf, // fMagicStartIconBlink
-    0, FInf, // fMagicSunBlockedMult
-    FEps, FInf, // fMajorSkillBonus
-    0, FInf, // fMaxFlySpeed
-    0, FInf, // fMaxHandToHandMult
-    0, FInf, // fMaxHeadTrackDistance
-    0, FInf, // fMaxWalkSpeed
-    0, FInf, // fMaxWalkSpeedCreature
-    0, FInf, // fMedMaxMod
-    0, FInf, // fMessageTimePerChar
-    0, FInf, // fMinFlySpeed
-    0, FInf, // fMinHandToHandMult
-    FEps, FInf, // fMinorSkillBonus
-    0, FInf, // fMinWalkSpeed
-    0, FInf, // fMinWalkSpeedCreature
-    FEps, FInf, // fMiscSkillBonus
-    0, FInf, // fNPCbaseMagickaMult
-    0, FInf, // fNPCHealthBarFade
-    0, FInf, // fNPCHealthBarTime
-    0, FInf, // fPCbaseMagickaMult
-    0, FInf, // fPerDieRollMult
-    0, FInf, // fPersonalityMod
-    0, FInf, // fPerTempMult
-    -FInf, 0, // fPickLockMult
-    0, FInf, // fPickPocketMod
-    -FInf, FInf, // fPotionMinUsefulDuration
-    0, FInf, // fPotionStrengthMult
-    FEps, FInf, // fPotionT1DurMult
-    FEps, FInf, // fPotionT1MagMult
-    -FInf, FInf, // fPotionT4BaseStrengthMult
-    -FInf, FInf, // fPotionT4EquipStrengthMult
-    0, FInf, // fProjectileMaxSpeed
-    0, FInf, // fProjectileMinSpeed
-    0, FInf, // fProjectileThrownStoreChance
-    0, FInf, // fRepairAmountMult
-    0, FInf, // fRepairMult
-    0, FInf, // fReputationMod
-    0, FInf, // fRestMagicMult
-    -FInf, FInf, // fSeriousWoundMult
-    0, FInf, // fSleepRandMod
-    0, FInf, // fSleepRestMod
-    -FInf, 0, // fSneakBootMult
-    -FInf, FInf, // fSneakDistanceBase
-    0, FInf, // fSneakDistanceMultiplier
-    0, FInf, // fSneakNoViewMult
-    0, FInf, // fSneakSkillMult
-    0, FInf, // fSneakSpeedMultiplier
-    0, FInf, // fSneakUseDelay
-    0, FInf, // fSneakUseDist
-    0, FInf, // fSneakViewMult
-    0, FInf, // fSoulGemMult
-    0, FInf, // fSpecialSkillBonus
-    0, FInf, // fSpellMakingValueMult
-    -FInf, FInf, // fSpellPriceMult
-    0, FInf, // fSpellValueMult
-    0, FInf, // fStromWalkMult
-    0, FInf, // fStromWindSpeed
-    0, FInf, // fSuffocationDamage
-    0, FInf, // fSwimHeightScale
-    0, FInf, // fSwimRunAthleticsMult
-    0, FInf, // fSwimRunBase
-    -FInf, FInf, // fSwimWalkAthleticsMult
-    -FInf, FInf, // fSwimWalkBase
-    0, FInf, // fSwingBlockBase
-    0, FInf, // fSwingBlockMult
-    0, FInf, // fTargetSpellMaxSpeed
-    0, FInf, // fThrownWeaponMaxSpeed
-    0, FInf, // fThrownWeaponMinSpeed
-    0, FInf, // fTrapCostMult
-    0, FInf, // fTravelMult
-    0, FInf, // fTravelTimeMult
-    0, FInf, // fUnarmoredBase1
-    0, FInf, // fUnarmoredBase2
-    0, FInf, // fVanityDelay
-    0, FInf, // fVoiceIdleOdds
-    -FInf, FInf, // fWaterReflectUpdateAlways
-    -FInf, FInf, // fWaterReflectUpdateSeldom
-    0, FInf, // fWeaponDamageMult
-    0, FInf, // fWeaponFatigueBlockMult
-    0, FInf, // fWeaponFatigueMult
-    0, FInf, // fWereWolfAcrobatics
-    -FInf, FInf, // fWereWolfAgility
-    -FInf, FInf, // fWereWolfAlchemy
-    -FInf, FInf, // fWereWolfAlteration
-    -FInf, FInf, // fWereWolfArmorer
-    -FInf, FInf, // fWereWolfAthletics
-    -FInf, FInf, // fWereWolfAxe
-    -FInf, FInf, // fWereWolfBlock
-    -FInf, FInf, // fWereWolfBluntWeapon
-    -FInf, FInf, // fWereWolfConjuration
-    -FInf, FInf, // fWereWolfDestruction
-    -FInf, FInf, // fWereWolfEnchant
-    -FInf, FInf, // fWereWolfEndurance
-    -FInf, FInf, // fWereWolfFatigue
-    -FInf, FInf, // fWereWolfHandtoHand
-    -FInf, FInf, // fWereWolfHealth
-    -FInf, FInf, // fWereWolfHeavyArmor
-    -FInf, FInf, // fWereWolfIllusion
-    -FInf, FInf, // fWereWolfIntellegence
-    -FInf, FInf, // fWereWolfLightArmor
-    -FInf, FInf, // fWereWolfLongBlade
-    -FInf, FInf, // fWereWolfLuck
-    -FInf, FInf, // fWereWolfMagicka
-    -FInf, FInf, // fWereWolfMarksman
-    -FInf, FInf, // fWereWolfMediumArmor
-    -FInf, FInf, // fWereWolfMerchantile
-    -FInf, FInf, // fWereWolfMysticism
-    -FInf, FInf, // fWereWolfPersonality
-    -FInf, FInf, // fWereWolfRestoration
-    0, FInf, // fWereWolfRunMult
-    -FInf, FInf, // fWereWolfSecurity
-    -FInf, FInf, // fWereWolfShortBlade
-    -FInf, FInf, // fWereWolfSilverWeaponDamageMult
-    -FInf, FInf, // fWereWolfSneak
-    -FInf, FInf, // fWereWolfSpear
-    -FInf, FInf, // fWereWolfSpeechcraft
-    -FInf, FInf, // fWereWolfSpeed
-    -FInf, FInf, // fWereWolfStrength
-    -FInf, FInf, // fWereWolfUnarmored
-    -FInf, FInf, // fWereWolfWillPower
-    0, FInf // fWortChanceValue
+    -FInf,
+    FInf, // fAIFleeFleeMult
+    -FInf,
+    FInf, // fAIFleeHealthMult
+    -FInf,
+    FInf, // fAIMagicSpellMult
+    -FInf,
+    FInf, // fAIMeleeArmorMult
+    -FInf,
+    FInf, // fAIMeleeSummWeaponMult
+    -FInf,
+    FInf, // fAIMeleeWeaponMult
+    -FInf,
+    FInf, // fAIRangeMagicSpellMult
+    -FInf,
+    FInf, // fAIRangeMeleeWeaponMult
+    0,
+    FInf, // fAlarmRadius
+    -FInf,
+    FInf, // fAthleticsRunBonus
+    0,
+    FInf, // fAudioDefaultMaxDistance
+    0,
+    FInf, // fAudioDefaultMinDistance
+    0,
+    FInf, // fAudioMaxDistanceMult
+    0,
+    FInf, // fAudioMinDistanceMult
+    0,
+    FInf, // fAudioVoiceDefaultMaxDistance
+    0,
+    FInf, // fAudioVoiceDefaultMinDistance
+    0,
+    FInf, // fAutoPCSpellChance
+    0,
+    FInf, // fAutoSpellChance
+    -FInf,
+    FInf, // fBargainOfferBase
+    -FInf,
+    0, // fBargainOfferMulti
+    -FInf,
+    FInf, // fBarterGoldResetDelay
+    0,
+    FInf, // fBaseRunMultiplier
+    -FInf,
+    FInf, // fBlockStillBonus
+    0,
+    FInf, // fBribe1000Mod
+    0,
+    FInf, // fBribe100Mod
+    0,
+    FInf, // fBribe10Mod
+    0,
+    FInf, // fCombatAngleXY
+    0,
+    FInf, // fCombatAngleZ
+    0,
+    1, // fCombatArmorMinMult
+    -180,
+    0, // fCombatBlockLeftAngle
+    0,
+    180, // fCombatBlockRightAngle
+    0,
+    FInf, // fCombatCriticalStrikeMult
+    0,
+    FInf, // fCombatDelayCreature
+    0,
+    FInf, // fCombatDelayNPC
+    0,
+    FInf, // fCombatDistance
+    -FInf,
+    FInf, // fCombatDistanceWerewolfMod
+    -FInf,
+    FInf, // fCombatForceSideAngle
+    0,
+    FInf, // fCombatInvisoMult
+    0,
+    FInf, // fCombatKODamageMult
+    -FInf,
+    FInf, // fCombatTorsoSideAngle
+    -FInf,
+    FInf, // fCombatTorsoStartPercent
+    -FInf,
+    FInf, // fCombatTorsoStopPercent
+    -FInf,
+    FInf, // fConstantEffectMult
+    -FInf,
+    FInf, // fCorpseClearDelay
+    -FInf,
+    FInf, // fCorpseRespawnDelay
+    0,
+    1, // fCrimeGoldDiscountMult
+    0,
+    FInf, // fCrimeGoldTurnInMult
+    0,
+    FInf, // fCrimeStealing
+    0,
+    FInf, // fDamageStrengthBase
+    0,
+    FInf, // fDamageStrengthMult
+    -FInf,
+    FInf, // fDifficultyMult
+    0,
+    FInf, // fDiseaseXferChance
+    -FInf,
+    0, // fDispAttacking
+    -FInf,
+    FInf, // fDispBargainFailMod
+    -FInf,
+    FInf, // fDispBargainSuccessMod
+    -FInf,
+    0, // fDispCrimeMod
+    -FInf,
+    0, // fDispDiseaseMod
+    0,
+    FInf, // fDispFactionMod
+    0,
+    FInf, // fDispFactionRankBase
+    0,
+    FInf, // fDispFactionRankMult
+    0,
+    FInf, // fDispositionMod
+    0,
+    FInf, // fDispPersonalityBase
+    0,
+    FInf, // fDispPersonalityMult
+    -FInf,
+    0, // fDispPickPocketMod
+    0,
+    FInf, // fDispRaceMod
+    -FInf,
+    0, // fDispStealing
+    -FInf,
+    0, // fDispWeaponDrawn
+    0,
+    FInf, // fEffectCostMult
+    0,
+    FInf, // fElementalShieldMult
+    FEps,
+    FInf, // fEnchantmentChanceMult
+    0,
+    FInf, // fEnchantmentConstantChanceMult
+    0,
+    FInf, // fEnchantmentConstantDurationMult
+    0,
+    FInf, // fEnchantmentMult
+    0,
+    FInf, // fEnchantmentValueMult
+    0,
+    FInf, // fEncumberedMoveEffect
+    0,
+    FInf, // fEncumbranceStrMult
+    0,
+    FInf, // fEndFatigueMult
+    -FInf,
+    FInf, // fFallAcroBase
+    0,
+    FInf, // fFallAcroMult
+    0,
+    FInf, // fFallDamageDistanceMin
+    -FInf,
+    FInf, // fFallDistanceBase
+    0,
+    FInf, // fFallDistanceMult
+    -FInf,
+    FInf, // fFatigueAttackBase
+    0,
+    FInf, // fFatigueAttackMult
+    0,
+    FInf, // fFatigueBase
+    0,
+    FInf, // fFatigueBlockBase
+    0,
+    FInf, // fFatigueBlockMult
+    0,
+    FInf, // fFatigueJumpBase
+    0,
+    FInf, // fFatigueJumpMult
+    0,
+    FInf, // fFatigueMult
+    -FInf,
+    FInf, // fFatigueReturnBase
+    0,
+    FInf, // fFatigueReturnMult
+    -FInf,
+    FInf, // fFatigueRunBase
+    0,
+    FInf, // fFatigueRunMult
+    -FInf,
+    FInf, // fFatigueSneakBase
+    0,
+    FInf, // fFatigueSneakMult
+    -FInf,
+    FInf, // fFatigueSpellBase
+    -FInf,
+    FInf, // fFatigueSpellCostMult
+    0,
+    FInf, // fFatigueSpellMult
+    -FInf,
+    FInf, // fFatigueSwimRunBase
+    0,
+    FInf, // fFatigueSwimRunMult
+    -FInf,
+    FInf, // fFatigueSwimWalkBase
+    0,
+    FInf, // fFatigueSwimWalkMult
+    -FInf,
+    FInf, // fFightDispMult
+    -FInf,
+    FInf, // fFightDistanceMultiplier
+    -FInf,
+    FInf, // fFightStealing
+    -FInf,
+    FInf, // fFleeDistance
+    -FInf,
+    FInf, // fGreetDistanceReset
+    0,
+    FInf, // fHandtoHandHealthPer
+    0,
+    FInf, // fHandToHandReach
+    -FInf,
+    FInf, // fHoldBreathEndMult
+    0,
+    FInf, // fHoldBreathTime
+    0,
+    FInf, // fIdleChanceMultiplier
+    -FInf,
+    FInf, // fIngredientMult
+    0,
+    FInf, // fInteriorHeadTrackMult
+    -FInf,
+    FInf, // fJumpAcrobaticsBase
+    0,
+    FInf, // fJumpAcroMultiplier
+    -FInf,
+    FInf, // fJumpEncumbranceBase
+    0,
+    FInf, // fJumpEncumbranceMultiplier
+    -FInf,
+    FInf, // fJumpMoveBase
+    0,
+    FInf, // fJumpMoveMult
+    0,
+    FInf, // fJumpRunMultiplier
+    -FInf,
+    FInf, // fKnockDownMult
+    0,
+    FInf, // fLevelMod
+    0,
+    FInf, // fLevelUpHealthEndMult
+    0,
+    FInf, // fLightMaxMod
+    0,
+    FInf, // fLuckMod
+    0,
+    FInf, // fMagesGuildTravel
+    -FInf,
+    FInf, // fMagicCreatureCastDelay
+    -FInf,
+    FInf, // fMagicDetectRefreshRate
+    -FInf,
+    FInf, // fMagicItemConstantMult
+    -FInf,
+    FInf, // fMagicItemCostMult
+    -FInf,
+    FInf, // fMagicItemOnceMult
+    -FInf,
+    FInf, // fMagicItemPriceMult
+    0,
+    FInf, // fMagicItemRechargePerSecond
+    -FInf,
+    FInf, // fMagicItemStrikeMult
+    -FInf,
+    FInf, // fMagicItemUsedMult
+    0,
+    FInf, // fMagicStartIconBlink
+    0,
+    FInf, // fMagicSunBlockedMult
+    FEps,
+    FInf, // fMajorSkillBonus
+    0,
+    FInf, // fMaxFlySpeed
+    0,
+    FInf, // fMaxHandToHandMult
+    0,
+    FInf, // fMaxHeadTrackDistance
+    0,
+    FInf, // fMaxWalkSpeed
+    0,
+    FInf, // fMaxWalkSpeedCreature
+    0,
+    FInf, // fMedMaxMod
+    0,
+    FInf, // fMessageTimePerChar
+    0,
+    FInf, // fMinFlySpeed
+    0,
+    FInf, // fMinHandToHandMult
+    FEps,
+    FInf, // fMinorSkillBonus
+    0,
+    FInf, // fMinWalkSpeed
+    0,
+    FInf, // fMinWalkSpeedCreature
+    FEps,
+    FInf, // fMiscSkillBonus
+    0,
+    FInf, // fNPCbaseMagickaMult
+    0,
+    FInf, // fNPCHealthBarFade
+    0,
+    FInf, // fNPCHealthBarTime
+    0,
+    FInf, // fPCbaseMagickaMult
+    0,
+    FInf, // fPerDieRollMult
+    0,
+    FInf, // fPersonalityMod
+    0,
+    FInf, // fPerTempMult
+    -FInf,
+    0, // fPickLockMult
+    0,
+    FInf, // fPickPocketMod
+    -FInf,
+    FInf, // fPotionMinUsefulDuration
+    0,
+    FInf, // fPotionStrengthMult
+    FEps,
+    FInf, // fPotionT1DurMult
+    FEps,
+    FInf, // fPotionT1MagMult
+    -FInf,
+    FInf, // fPotionT4BaseStrengthMult
+    -FInf,
+    FInf, // fPotionT4EquipStrengthMult
+    0,
+    FInf, // fProjectileMaxSpeed
+    0,
+    FInf, // fProjectileMinSpeed
+    0,
+    FInf, // fProjectileThrownStoreChance
+    0,
+    FInf, // fRepairAmountMult
+    0,
+    FInf, // fRepairMult
+    0,
+    FInf, // fReputationMod
+    0,
+    FInf, // fRestMagicMult
+    -FInf,
+    FInf, // fSeriousWoundMult
+    0,
+    FInf, // fSleepRandMod
+    0,
+    FInf, // fSleepRestMod
+    -FInf,
+    0, // fSneakBootMult
+    -FInf,
+    FInf, // fSneakDistanceBase
+    0,
+    FInf, // fSneakDistanceMultiplier
+    0,
+    FInf, // fSneakNoViewMult
+    0,
+    FInf, // fSneakSkillMult
+    0,
+    FInf, // fSneakSpeedMultiplier
+    0,
+    FInf, // fSneakUseDelay
+    0,
+    FInf, // fSneakUseDist
+    0,
+    FInf, // fSneakViewMult
+    0,
+    FInf, // fSoulGemMult
+    0,
+    FInf, // fSpecialSkillBonus
+    0,
+    FInf, // fSpellMakingValueMult
+    -FInf,
+    FInf, // fSpellPriceMult
+    0,
+    FInf, // fSpellValueMult
+    0,
+    FInf, // fStromWalkMult
+    0,
+    FInf, // fStromWindSpeed
+    0,
+    FInf, // fSuffocationDamage
+    0,
+    FInf, // fSwimHeightScale
+    0,
+    FInf, // fSwimRunAthleticsMult
+    0,
+    FInf, // fSwimRunBase
+    -FInf,
+    FInf, // fSwimWalkAthleticsMult
+    -FInf,
+    FInf, // fSwimWalkBase
+    0,
+    FInf, // fSwingBlockBase
+    0,
+    FInf, // fSwingBlockMult
+    0,
+    FInf, // fTargetSpellMaxSpeed
+    0,
+    FInf, // fThrownWeaponMaxSpeed
+    0,
+    FInf, // fThrownWeaponMinSpeed
+    0,
+    FInf, // fTrapCostMult
+    0,
+    FInf, // fTravelMult
+    0,
+    FInf, // fTravelTimeMult
+    0,
+    FInf, // fUnarmoredBase1
+    0,
+    FInf, // fUnarmoredBase2
+    0,
+    FInf, // fVanityDelay
+    0,
+    FInf, // fVoiceIdleOdds
+    -FInf,
+    FInf, // fWaterReflectUpdateAlways
+    -FInf,
+    FInf, // fWaterReflectUpdateSeldom
+    0,
+    FInf, // fWeaponDamageMult
+    0,
+    FInf, // fWeaponFatigueBlockMult
+    0,
+    FInf, // fWeaponFatigueMult
+    0,
+    FInf, // fWereWolfAcrobatics
+    -FInf,
+    FInf, // fWereWolfAgility
+    -FInf,
+    FInf, // fWereWolfAlchemy
+    -FInf,
+    FInf, // fWereWolfAlteration
+    -FInf,
+    FInf, // fWereWolfArmorer
+    -FInf,
+    FInf, // fWereWolfAthletics
+    -FInf,
+    FInf, // fWereWolfAxe
+    -FInf,
+    FInf, // fWereWolfBlock
+    -FInf,
+    FInf, // fWereWolfBluntWeapon
+    -FInf,
+    FInf, // fWereWolfConjuration
+    -FInf,
+    FInf, // fWereWolfDestruction
+    -FInf,
+    FInf, // fWereWolfEnchant
+    -FInf,
+    FInf, // fWereWolfEndurance
+    -FInf,
+    FInf, // fWereWolfFatigue
+    -FInf,
+    FInf, // fWereWolfHandtoHand
+    -FInf,
+    FInf, // fWereWolfHealth
+    -FInf,
+    FInf, // fWereWolfHeavyArmor
+    -FInf,
+    FInf, // fWereWolfIllusion
+    -FInf,
+    FInf, // fWereWolfIntellegence
+    -FInf,
+    FInf, // fWereWolfLightArmor
+    -FInf,
+    FInf, // fWereWolfLongBlade
+    -FInf,
+    FInf, // fWereWolfLuck
+    -FInf,
+    FInf, // fWereWolfMagicka
+    -FInf,
+    FInf, // fWereWolfMarksman
+    -FInf,
+    FInf, // fWereWolfMediumArmor
+    -FInf,
+    FInf, // fWereWolfMerchantile
+    -FInf,
+    FInf, // fWereWolfMysticism
+    -FInf,
+    FInf, // fWereWolfPersonality
+    -FInf,
+    FInf, // fWereWolfRestoration
+    0,
+    FInf, // fWereWolfRunMult
+    -FInf,
+    FInf, // fWereWolfSecurity
+    -FInf,
+    FInf, // fWereWolfShortBlade
+    -FInf,
+    FInf, // fWereWolfSilverWeaponDamageMult
+    -FInf,
+    FInf, // fWereWolfSneak
+    -FInf,
+    FInf, // fWereWolfSpear
+    -FInf,
+    FInf, // fWereWolfSpeechcraft
+    -FInf,
+    FInf, // fWereWolfSpeed
+    -FInf,
+    FInf, // fWereWolfStrength
+    -FInf,
+    FInf, // fWereWolfUnarmored
+    -FInf,
+    FInf, // fWereWolfWillPower
+    0,
+    FInf, // fWortChanceValue
 };
 
 const int CSMWorld::DefaultGmsts::IntLimits[CSMWorld::DefaultGmsts::IntCount * 2] = {
-    IMin, IMax, // i1stPersonSneakDelta
-    IMin, IMax, // iAlarmAttack
-    IMin, IMax, // iAlarmKilling
-    IMin, IMax, // iAlarmPickPocket
-    IMin, IMax, // iAlarmStealing
-    IMin, IMax, // iAlarmTresspass
-    IMin, IMax, // iAlchemyMod
-    0, IMax, // iAutoPCSpellMax
-    IMin, IMax, // iAutoRepFacMod
-    IMin, IMax, // iAutoRepLevMod
-    IMin, IMax, // iAutoSpellAlterationMax
-    0, IMax, // iAutoSpellAttSkillMin
-    IMin, IMax, // iAutoSpellConjurationMax
-    IMin, IMax, // iAutoSpellDestructionMax
-    IMin, IMax, // iAutoSpellIllusionMax
-    IMin, IMax, // iAutoSpellMysticismMax
-    IMin, IMax, // iAutoSpellRestorationMax
-    0, IMax, // iAutoSpellTimesCanCast
-    IMin, 0, // iBarterFailDisposition
-    0, IMax, // iBarterSuccessDisposition
-    1, IMax, // iBaseArmorSkill
-    0, IMax, // iBlockMaxChance
-    0, IMax, // iBlockMinChance
-    0, IMax, // iBootsWeight
-    IMin, IMax, // iCrimeAttack
-    IMin, IMax, // iCrimeKilling
-    IMin, IMax, // iCrimePickPocket
-    0, IMax, // iCrimeThreshold
-    0, IMax, // iCrimeThresholdMultiplier
-    IMin, IMax, // iCrimeTresspass
-    0, IMax, // iCuirassWeight
-    1, IMax, // iDaysinPrisonMod
-    IMin, 0, // iDispAttackMod
-    IMin, 0, // iDispKilling
-    IMin, 0, // iDispTresspass
-    IMin, IMax, // iFightAlarmMult
-    IMin, IMax, // iFightAttack
-    IMin, IMax, // iFightAttacking
-    0, IMax, // iFightDistanceBase
-    IMin, IMax, // iFightKilling
-    IMin, IMax, // iFightPickpocket
-    IMin, IMax, // iFightTrespass
-    IMin, IMax, // iFlee
-    0, IMax, // iGauntletWeight
-    0, IMax, // iGreavesWeight
-    0, IMax, // iGreetDistanceMultiplier
-    0, IMax, // iGreetDuration
-    0, IMax, // iHelmWeight
-    IMin, IMax, // iKnockDownOddsBase
-    IMin, IMax, // iKnockDownOddsMult
-    IMin, IMax, // iLevelUp01Mult
-    IMin, IMax, // iLevelUp02Mult
-    IMin, IMax, // iLevelUp03Mult
-    IMin, IMax, // iLevelUp04Mult
-    IMin, IMax, // iLevelUp05Mult
-    IMin, IMax, // iLevelUp06Mult
-    IMin, IMax, // iLevelUp07Mult
-    IMin, IMax, // iLevelUp08Mult
-    IMin, IMax, // iLevelUp09Mult
-    IMin, IMax, // iLevelUp10Mult
-    IMin, IMax, // iLevelupMajorMult
-    IMin, IMax, // iLevelupMajorMultAttribute
-    IMin, IMax, // iLevelupMinorMult
-    IMin, IMax, // iLevelupMinorMultAttribute
-    IMin, IMax, // iLevelupMiscMultAttriubte
-    IMin, IMax, // iLevelupSpecialization
-    IMin, IMax, // iLevelupTotal
-    IMin, IMax, // iMagicItemChargeConst
-    IMin, IMax, // iMagicItemChargeOnce
-    IMin, IMax, // iMagicItemChargeStrike
-    IMin, IMax, // iMagicItemChargeUse
-    IMin, IMax, // iMaxActivateDist
-    IMin, IMax, // iMaxInfoDist
-    0, IMax, // iMonthsToRespawn
-    0, IMax, // iNumberCreatures
-    0, IMax, // iPauldronWeight
-    0, IMax, // iPerMinChance
-    0, IMax, // iPerMinChange
-    0, IMax, // iPickMaxChance
-    0, IMax, // iPickMinChance
-    0, IMax, // iShieldWeight
-    0, IMax, // iSoulAmountForConstantEffect
-    0, IMax, // iTrainingMod
-    0, IMax, // iVoiceAttackOdds
-    0, IMax, // iVoiceHitOdds
-    IMin, IMax, // iWereWolfBounty
-    IMin, IMax, // iWereWolfFightMod
-    IMin, IMax, // iWereWolfFleeMod
-    IMin, IMax // iWereWolfLevelToAttack
+    IMin,
+    IMax, // i1stPersonSneakDelta
+    IMin,
+    IMax, // iAlarmAttack
+    IMin,
+    IMax, // iAlarmKilling
+    IMin,
+    IMax, // iAlarmPickPocket
+    IMin,
+    IMax, // iAlarmStealing
+    IMin,
+    IMax, // iAlarmTresspass
+    IMin,
+    IMax, // iAlchemyMod
+    0,
+    IMax, // iAutoPCSpellMax
+    IMin,
+    IMax, // iAutoRepFacMod
+    IMin,
+    IMax, // iAutoRepLevMod
+    IMin,
+    IMax, // iAutoSpellAlterationMax
+    0,
+    IMax, // iAutoSpellAttSkillMin
+    IMin,
+    IMax, // iAutoSpellConjurationMax
+    IMin,
+    IMax, // iAutoSpellDestructionMax
+    IMin,
+    IMax, // iAutoSpellIllusionMax
+    IMin,
+    IMax, // iAutoSpellMysticismMax
+    IMin,
+    IMax, // iAutoSpellRestorationMax
+    0,
+    IMax, // iAutoSpellTimesCanCast
+    IMin,
+    0, // iBarterFailDisposition
+    0,
+    IMax, // iBarterSuccessDisposition
+    1,
+    IMax, // iBaseArmorSkill
+    0,
+    IMax, // iBlockMaxChance
+    0,
+    IMax, // iBlockMinChance
+    0,
+    IMax, // iBootsWeight
+    IMin,
+    IMax, // iCrimeAttack
+    IMin,
+    IMax, // iCrimeKilling
+    IMin,
+    IMax, // iCrimePickPocket
+    0,
+    IMax, // iCrimeThreshold
+    0,
+    IMax, // iCrimeThresholdMultiplier
+    IMin,
+    IMax, // iCrimeTresspass
+    0,
+    IMax, // iCuirassWeight
+    1,
+    IMax, // iDaysinPrisonMod
+    IMin,
+    0, // iDispAttackMod
+    IMin,
+    0, // iDispKilling
+    IMin,
+    0, // iDispTresspass
+    IMin,
+    IMax, // iFightAlarmMult
+    IMin,
+    IMax, // iFightAttack
+    IMin,
+    IMax, // iFightAttacking
+    0,
+    IMax, // iFightDistanceBase
+    IMin,
+    IMax, // iFightKilling
+    IMin,
+    IMax, // iFightPickpocket
+    IMin,
+    IMax, // iFightTrespass
+    IMin,
+    IMax, // iFlee
+    0,
+    IMax, // iGauntletWeight
+    0,
+    IMax, // iGreavesWeight
+    0,
+    IMax, // iGreetDistanceMultiplier
+    0,
+    IMax, // iGreetDuration
+    0,
+    IMax, // iHelmWeight
+    IMin,
+    IMax, // iKnockDownOddsBase
+    IMin,
+    IMax, // iKnockDownOddsMult
+    IMin,
+    IMax, // iLevelUp01Mult
+    IMin,
+    IMax, // iLevelUp02Mult
+    IMin,
+    IMax, // iLevelUp03Mult
+    IMin,
+    IMax, // iLevelUp04Mult
+    IMin,
+    IMax, // iLevelUp05Mult
+    IMin,
+    IMax, // iLevelUp06Mult
+    IMin,
+    IMax, // iLevelUp07Mult
+    IMin,
+    IMax, // iLevelUp08Mult
+    IMin,
+    IMax, // iLevelUp09Mult
+    IMin,
+    IMax, // iLevelUp10Mult
+    IMin,
+    IMax, // iLevelupMajorMult
+    IMin,
+    IMax, // iLevelupMajorMultAttribute
+    IMin,
+    IMax, // iLevelupMinorMult
+    IMin,
+    IMax, // iLevelupMinorMultAttribute
+    IMin,
+    IMax, // iLevelupMiscMultAttriubte
+    IMin,
+    IMax, // iLevelupSpecialization
+    IMin,
+    IMax, // iLevelupTotal
+    IMin,
+    IMax, // iMagicItemChargeConst
+    IMin,
+    IMax, // iMagicItemChargeOnce
+    IMin,
+    IMax, // iMagicItemChargeStrike
+    IMin,
+    IMax, // iMagicItemChargeUse
+    IMin,
+    IMax, // iMaxActivateDist
+    IMin,
+    IMax, // iMaxInfoDist
+    0,
+    IMax, // iMonthsToRespawn
+    0,
+    IMax, // iNumberCreatures
+    0,
+    IMax, // iPauldronWeight
+    0,
+    IMax, // iPerMinChance
+    0,
+    IMax, // iPerMinChange
+    0,
+    IMax, // iPickMaxChance
+    0,
+    IMax, // iPickMinChance
+    0,
+    IMax, // iShieldWeight
+    0,
+    IMax, // iSoulAmountForConstantEffect
+    0,
+    IMax, // iTrainingMod
+    0,
+    IMax, // iVoiceAttackOdds
+    0,
+    IMax, // iVoiceHitOdds
+    IMin,
+    IMax, // iWereWolfBounty
+    IMin,
+    IMax, // iWereWolfFightMod
+    IMin,
+    IMax, // iWereWolfFleeMod
+    IMin,
+    IMax, // iWereWolfLevelToAttack
 };

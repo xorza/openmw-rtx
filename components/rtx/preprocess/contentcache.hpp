@@ -1,7 +1,9 @@
 #pragma once
 
 #include <cassert>
+#include <concepts>
 #include <span>
+#include <type_traits>
 #include <utility>
 
 #include <components/misc/bytebuffer.hpp>
@@ -59,13 +61,15 @@ namespace Rtx
 
         /// Keeps what `Pass` computed from the input filed under `key`: encoded into a payload of its
         /// own, which the store's queue takes. Every codec is whole for what its pass hands over, so a
-        /// later hit hands over this very output.
-        template <ContentPass Pass>
+        /// later hit hands over this very output. An output handed over to be kept and not read again
+        /// moves into its payload where its codec can take it whole (a made chain's bytes).
+        template <ContentPass Pass, class Output>
             requires StoredOutput<typename Pass::Output>
-        void keep(const ContentStore::Key& key, const typename Pass::Output& output)
+            && std::same_as<std::remove_cvref_t<Output>, typename Pass::Output>
+        void keep(const ContentStore::Key& key, Output&& output)
         {
             Misc::ByteBuffer payload;
-            ContentCodec<typename Pass::Output>::encode(output, payload);
+            ContentCodec<typename Pass::Output>::encode(std::forward<Output>(output), payload);
             mStore->write(key, storeKindOf(Pass::sPass), Pass::sVersion, std::move(payload), mReach);
         }
 

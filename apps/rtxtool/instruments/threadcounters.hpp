@@ -75,6 +75,8 @@ namespace RtxTool
 
         ThreadCounters(const ThreadCounters&) = delete;
         ThreadCounters& operator=(const ThreadCounters&) = delete;
+        ThreadCounters(ThreadCounters&&) = delete;
+        ThreadCounters& operator=(ThreadCounters&&) = delete;
 
         /// From nought, on the thread that made this.
         void start();

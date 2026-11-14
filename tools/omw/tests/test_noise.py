@@ -127,7 +127,7 @@ class _Harness:
 
 class AbTest(unittest.TestCase):
     def test_only_a_run_that_judged_its_places_is_read(self):
-        for status, expected in ((0, 0), (1, 0), (2, 1), (-6, 1)):
+        for status, expected in ((0, 0), (3, 0), (1, 1), (2, 1), (-6, 1)):
             with self.subTest(status=status), tempfile.TemporaryDirectory() as out:
                 printed, refused = StringIO(), StringIO()
                 with redirect_stdout(printed), redirect_stderr(refused):

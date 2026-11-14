@@ -13,7 +13,9 @@
 #include <string>
 #include <string_view>
 #include <system_error>
+#include <type_traits>
 #include <utility>
+#include <variant>
 
 #include <components/debug/debuglog.hpp>
 #include <components/files/conversion.hpp>
@@ -201,6 +203,7 @@ namespace ContentStore
                 assert(mPolicy.mHolding->mAtAnySize >> mPolicy.mKindCount == 0
                     && "a kind held at any size that the policy does not have");
             assert(mPolicy.mHolding->mResidentBytesMost > 0 && "a store that holds entries in no room");
+            assert(mPolicy.mHolding->mResidentCountMost > 0 && "a store that holds no entry");
             assert(mPolicy.mHolding->mStampedMost > 0 && "a store that holds entries and stamps none");
         }
 
@@ -210,9 +213,11 @@ namespace ContentStore
             Log(Debug::Warning) << "The content store at " << Files::pathToUnicodeString(mDirectory)
                                 << " could not be made, and will miss: " << failed.message();
 
-        mQueue.push_back(Task{ .mKind = TaskKind::Start });
+        mMonitor.give([&] {
+            mQueue.emplace_back(StartTask{});
+            return true;
+        });
         mWorker = Platform::startThread("content store", [this](const std::stop_token& stop) { serve(stop); });
-        mMonitor.give([] {});
     }
 
     Store::~Store()
@@ -232,26 +237,24 @@ namespace ContentStore
     {
         assert(kind < mPolicy.mKindCount && "a kind the store's owner does not have");
 
-        const auto stampOnce = [&] {
-            if (!stampsOnce(key))
+        const auto stampOnce = [&](const std::size_t payloadBytes) {
+            if (!ranks(kind, payloadBytes) || !stampsOnce(key))
                 return false;
-            mQueue.push_back(Task{ .mKind = TaskKind::Stamp, .mKey = key });
+            mQueue.emplace_back(StampTask{ .mKey = key });
             return true;
         };
 
         // **Copied after the lock**, which the frame's thread asks for every shape under: the entry is
         // shared and never changed, so the reference taken under it is all the lock is held for.
-        bool stamp = false;
-        const std::shared_ptr<const Misc::ByteBuffer> resident = mMonitor.under([&] {
+        std::shared_ptr<const Misc::ByteBuffer> resident;
+        mMonitor.give([&] {
             const auto held = mResident.find(key);
             if (held == mResident.end() || held->second.mKind != kind || held->second.mVersion != version)
-                return std::shared_ptr<const Misc::ByteBuffer>();
+                return false;
             ++mStats.mFound;
-            stamp = stampOnce();
-            return held->second.mPayload;
+            resident = held->second.mPayload;
+            return stampOnce(resident->size());
         });
-        if (stamp)
-            mMonitor.give([] {});
         if (resident != nullptr)
         {
             payload.assign(resident->begin(), resident->end());
@@ -278,29 +281,35 @@ namespace ContentStore
         }
 
         std::shared_ptr<const Misc::ByteBuffer> kept = found ? residentCopy(kind, payload) : nullptr;
-        stamp = false;
-        mMonitor.under([&] {
+        mMonitor.give([&] {
             if (!found)
             {
                 ++mStats.mMissed;
-                return;
+                return false;
             }
             ++mStats.mFound;
             if (kept != nullptr)
                 keepResident(key, kind, version, std::move(kept));
-            stamp = stampOnce();
+            return stampOnce(payload.size());
         });
-        if (stamp)
-            mMonitor.give([] {});
 
         return found;
     }
 
     bool Store::holds(const Key& key, const Reach reach)
     {
-        const bool resident = mMonitor.under([&] { return mResident.contains(key); });
-        bool found = resident;
-        if (!resident && reach == Reach::Disk)
+        // What ranks the entry for the start's load (`ranks`), off the entry held or the file's trailer.
+        std::uint32_t kind = 0;
+        std::size_t payloadBytes = 0;
+        bool found = mMonitor.under([&] {
+            const auto held = mResident.find(key);
+            if (held == mResident.end())
+                return false;
+            kind = held->second.mKind;
+            payloadBytes = held->second.mPayload->size();
+            return true;
+        });
+        if (!found && reach == Reach::Disk)
         {
             const std::filesystem::path path = pathOf(key);
             if (const std::optional<TailRead> tail = readTrailer(path))
@@ -309,23 +318,23 @@ namespace ContentStore
                 found = failed.empty();
                 if (!found)
                     refuse(path, failed);
+                kind = tail->mTrailer.mKind;
+                payloadBytes = static_cast<std::size_t>(tail->mTrailer.mPayloadBytes);
             }
         }
 
-        bool stamp = false;
-        mMonitor.under([&] {
+        mMonitor.give([&] {
             if (!found)
             {
                 ++mStats.mUnheld;
-                return;
+                return false;
             }
             ++mStats.mHeld;
-            stamp = stampsOnce(key);
-            if (stamp)
-                mQueue.push_back(Task{ .mKind = TaskKind::Stamp, .mKey = key });
+            if (!ranks(kind, payloadBytes) || !stampsOnce(key))
+                return false;
+            mQueue.emplace_back(StampTask{ .mKey = key });
+            return true;
         });
-        if (stamp)
-            mMonitor.give([] {});
         return found;
     }
 
@@ -338,17 +347,16 @@ namespace ContentStore
         // **Room in the queue, or an empty queue**: one payload past the bound still goes alone, and a
         // writer that reaches the disk waits for room, where the frame's thread, which may wait on no
         // disk, drops what has none.
-        const auto fits
-            = [&] { return mQueuedBytes == 0 || payload.size() <= sQueuedMost - std::min(mQueuedBytes, sQueuedMost); };
+        const std::size_t most = mPolicy.mQueuedBytesMost;
+        const auto fits = [&] { return mQueuedBytes == 0 || payload.size() <= most - std::min(mQueuedBytes, most); };
 
         // Copied before the lock and moved into the queue under it: the frame's thread asks the store's memory under
         // the same lock, and a copy of a chain made there held it for milliseconds.
         std::shared_ptr<const Misc::ByteBuffer> kept = residentCopy(kind, payload);
         while (true)
         {
-            bool queued = false;
             bool dropped = false;
-            mMonitor.under([&] {
+            const bool queued = mMonitor.give([&] {
                 if (kept != nullptr)
                     keepResident(key, kind, version, std::move(kept));
                 if (!fits())
@@ -358,25 +366,17 @@ namespace ContentStore
                         ++mStats.mDropped;
                         dropped = true;
                     }
-                    return;
+                    return false;
                 }
 
                 // Written now, so its time is this session's: no stamp follows a later hit on it.
                 stampsOnce(key);
                 mQueuedBytes += payload.size();
-                mQueue.push_back(Task{ .mKind = TaskKind::Write,
-                    .mKey = key,
-                    .mEntryKind = kind,
-                    .mVersion = version,
-                    .mPayload = std::move(payload) });
-                queued = true;
+                mQueue.emplace_back(
+                    WriteTask{ .mKey = key, .mKind = kind, .mVersion = version, .mPayload = std::move(payload) });
+                return true;
             });
-            if (queued)
-            {
-                mMonitor.give([] {});
-                return;
-            }
-            if (dropped)
+            if (queued || dropped)
                 return;
 
             // No worker left to make room, as once the store is stopping: dropped, as the frame's thread
@@ -391,16 +391,16 @@ namespace ContentStore
 
     void Store::discard(const Key& key)
     {
-        mMonitor.under([&] {
+        mMonitor.give([&] {
             const auto held = mResident.find(key);
             if (held != mResident.end())
             {
                 mResidentBytes -= residentBytesOf(held->second.mPayload->size());
                 mResident.erase(held);
             }
-            mQueue.push_back(Task{ .mKind = TaskKind::Discard, .mKey = key });
+            mQueue.emplace_back(DiscardTask{ .mKey = key });
+            return true;
         });
-        mMonitor.give([] {});
     }
 
     void Store::flush()
@@ -428,8 +428,12 @@ namespace ContentStore
         const auto held = mResident.find(key);
         const std::size_t replaced = held != mResident.end() ? residentBytesOf(held->second.mPayload->size()) : 0;
         const std::size_t bytes = residentBytesOf(payload->size());
-        if (mResidentBytes - replaced + bytes > mPolicy.mHolding->mResidentBytesMost)
+        if (mResidentBytes - replaced + bytes > mPolicy.mHolding->mResidentBytesMost
+            || (held == mResident.end() && mResident.size() >= mPolicy.mHolding->mResidentCountMost))
+        {
+            ++mStats.mUnheldInMemory;
             return;
+        }
 
         mResident.insert_or_assign(key, Resident{ kind, version, std::move(payload) });
         mResidentBytes = mResidentBytes - replaced + bytes;
@@ -447,6 +451,11 @@ namespace ContentStore
         return payloadBytes + node;
     }
 
+    bool Store::ranks(const std::uint32_t kind, const std::size_t payloadBytes) const
+    {
+        return mPolicy.mHolding.has_value() && payloadBytes <= sResidentMost && !isHeldAtAnySize(kind);
+    }
+
     bool Store::stampsOnce(const Key& key)
     {
         // A stamp ranks what the start loads into memory, which a store that holds nothing does not load.
@@ -462,40 +471,38 @@ namespace ContentStore
 
     void Store::serve(const std::stop_token& stop)
     {
-        Task task{ .mKind = TaskKind::Start };
+        Task task = StartTask{};
         mMonitor.serve(
             stop, [&] { return !mQueue.empty(); },
             [&] {
                 task = std::move(mQueue.front());
                 mQueue.pop_front();
-                mQueuedBytes -= task.mPayload.size();
+                if (const WriteTask* const write = std::get_if<WriteTask>(&task))
+                    mQueuedBytes -= write->mPayload.size();
                 ++mInFlight;
             },
             [&](const std::stop_token&) {
                 run(task);
                 // Let go of the payload, so an idle store holds no write's bytes.
-                task.mPayload = Misc::ByteBuffer();
+                task = StartTask{};
                 mMonitor.hand([&] { --mInFlight; });
             });
     }
 
     void Store::run(Task& task)
     {
-        switch (task.mKind)
-        {
-            case TaskKind::Start:
-                start();
-                return;
-            case TaskKind::Write:
-                writeFile(task);
-                return;
-            case TaskKind::Stamp:
-                stampFile(task.mKey);
-                return;
-            case TaskKind::Discard:
-                refuse(pathOf(task.mKey), "a payload its owner could not read");
-                return;
-        }
+        std::visit(
+            [this]<class Kind>(Kind& one) {
+                if constexpr (std::is_same_v<Kind, StartTask>)
+                    start();
+                else if constexpr (std::is_same_v<Kind, WriteTask>)
+                    writeFile(one);
+                else if constexpr (std::is_same_v<Kind, StampTask>)
+                    stampFile(one.mKey);
+                else
+                    refuse(pathOf(one.mKey), "a payload its owner could not read");
+            },
+            task);
     }
 
     void Store::start()
@@ -510,13 +517,13 @@ namespace ContentStore
 
         // The tables sized once, here, at their bounds, off the frame: a table that grows rehashes under the lock,
         // on the frame's thread or while it waits on the lock, and a session adds keys that no file held at its
-        // start. Each bound is exact: `stampsOnce` notes no more keys, and every resident entry costs at least its
-        // node. The cost is the buckets of both tables, which the owner's caps state (`Holding`).
+        // start. Each bound is exact: `stampsOnce` notes no more keys, and `keepResident` keeps no more entries. The
+        // cost is the buckets of both tables, which the owner's caps state (`Holding`).
         const Holding& holding = *mPolicy.mHolding;
         mMonitor.under([&] {
             mStats.mStale += swept.mStale;
             mStamped.reserve(holding.mStampedMost);
-            mResident.reserve(holding.mResidentBytesMost / residentBytesOf(0));
+            mResident.reserve(holding.mResidentCountMost);
         });
 
         // The small entries into memory, newest first, so an ask on the frame's thread finds a fact without waiting
@@ -531,7 +538,10 @@ namespace ContentStore
             // Not read where it could not be kept: a store that only grows would read every small
             // file at every start, past the bound, for nothing.
             const std::size_t costs = residentBytesOf(entry->mBytes - sizeof(EntryTrailer));
-            if (mMonitor.under([&] { return mResidentBytes + costs > holding.mResidentBytesMost; }))
+            if (mMonitor.under([&] {
+                    return mResidentBytes + costs > holding.mResidentBytesMost
+                        || mResident.size() >= holding.mResidentCountMost;
+                }))
                 continue;
 
             std::uint32_t kind = 0;
@@ -597,7 +607,7 @@ namespace ContentStore
                                 << ", deleted it, and counts every refusal after it";
     }
 
-    void Store::writeFile(const Task& task)
+    void Store::writeFile(const WriteTask& task)
     {
         const std::filesystem::path path = pathOf(task.mKey);
         std::error_code failed;
@@ -608,7 +618,7 @@ namespace ContentStore
         // write makes it.
         if (std::filesystem::exists(path, failed))
         {
-            if (mPolicy.mHolding.has_value())
+            if (ranks(task.mKind, task.mPayload.size()))
                 stampFile(task.mKey);
             return;
         }
@@ -617,7 +627,7 @@ namespace ContentStore
 
         const EntryTrailer trailer{ .mMagic = sMagic,
             .mFormat = sFormat,
-            .mKind = task.mEntryKind,
+            .mKind = task.mKind,
             .mVersion = task.mVersion,
             .mKey = task.mKey.mHash,
             .mDigest = digestOf(task.mPayload),

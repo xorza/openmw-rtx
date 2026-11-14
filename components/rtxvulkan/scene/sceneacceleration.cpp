@@ -16,6 +16,7 @@
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/gputimer.hpp>
+#include <components/rtxvulkan/device/memory/batch.hpp>
 #include <components/rtxvulkan/device/memory/bufferusage.hpp>
 #include <components/rtxvulkan/device/memory/memory.hpp>
 #include <components/rtxvulkan/device/memory/uploads.hpp>
@@ -172,22 +173,8 @@ namespace Rtx
 
     void SceneAcceleration::sizeRefitScratch()
     {
-        // `prepareRefit` lays each refit at the aligned end of the one before, so a structure's
-        // share is its own scratch aligned up, and the rota's is the build's where the update's was.
-        const VkDeviceSize alignment = mDevice.getPhysicalDevice().getStructureScratchAlignment();
-
-        VkDeviceSize updates = 0;
-        VkDeviceSize rebuild = 0;
-        for (const Index mesh : mBottomLevel.getRefittable())
-        {
-            const VkDeviceSize update = alignUp(mBottomLevel.getUpdateScratch(mesh), alignment);
-            const VkDeviceSize build = alignUp(mBottomLevel.getBuildScratch(mesh), alignment);
-            updates += update;
-            rebuild = std::max(rebuild, build > update ? build - update : 0);
-        }
-
-        if (updates > 0)
-            mRefitScratch.growTo(updates + rebuild);
+        if (const VkDeviceSize bytes = mBottomLevel.getRefitScratchBytes(); bytes > 0)
+            mRefitScratch.growTo(bytes);
     }
 
     void SceneAcceleration::prepareRefit(const SceneDesc& scene, const FrameSlot slot)
@@ -222,28 +209,12 @@ namespace Rtx
 
         const VkDeviceSize scratchAlignment = mDevice.getPhysicalDevice().getStructureScratchAlignment();
 
-        // One of them is built whole again, on a rota. A refit keeps the tree the first pose was
-        // built over and moves its boxes, which fit a body met crouched badly once it stands, so
-        // every ray through it pays for as long as the body lives. The posed mesh built whole
-        // longest ago is rebuilt on every placement that poses anything, one a placement, so no
-        // frame carries two and every frame carries the same (a threshold made frames alternate
-        // between one and none). Not one built whole on this placement's own arrival. Into the same
-        // room and handle, with the flags the first build used, so later refits stay allowed.
+        // One of them is built whole again (`BottomLevelStore::pickRebuild`), into the same room and handle,
+        // with the flags the first build used, so later refits stay allowed.
         ++mPlacements;
-        mRebuilt = sNoIndex;
-        for (const Index mesh : deformed)
-        {
-            assert(mBottomLevel.isUpdatable(mesh) && "a mesh posed that was not built to be refitted");
-
-            const std::uint64_t builtAt = mBottomLevel.getRebuiltAt(mesh);
-            if (builtAt < mPlacements && (mRebuilt == sNoIndex || builtAt < mBottomLevel.getRebuiltAt(mRebuilt)))
-                mRebuilt = mesh;
-        }
+        mRebuilt = mBottomLevel.pickRebuild(deformed, mPlacements);
         if (mRebuilt != sNoIndex)
-        {
-            mBottomLevel.noteRebuilt(mRebuilt, mPlacements);
             ++mRebuildCount;
-        }
 
         [[maybe_unused]] VkDeviceSize scratchTotal = 0;
         for (const Index mesh : deformed)
@@ -278,16 +249,14 @@ namespace Rtx
             const Index index = deformed[i];
 
             // Into the structure that is already there, since its handle is what every top-level row
-            // points at. An update, with the same flags as the build that allowed one, or for the
-            // rota's pick a build from nothing into the same handle, with the same flags.
+            // points at. An update, with the flags of the build that allowed one, or for the rota's
+            // pick a build from nothing into the same handle.
             const bool whole = index == mRebuilt;
             mRefit.mBuilds[i] = VkAccelerationStructureBuildGeometryInfoKHR{
                 .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR,
                 .pNext = nullptr,
                 .type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR,
-                .flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR
-                    | VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_DATA_ACCESS_BIT_KHR
-                    | VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR,
+                .flags = BottomLevelStore::buildFlagsOf(StructureMotion::Refit),
                 .mode = whole ? VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR
                               : VK_BUILD_ACCELERATION_STRUCTURE_MODE_UPDATE_KHR,
                 .srcAccelerationStructure = whole ? VK_NULL_HANDLE : mBottomLevel.getStructure(index),
@@ -570,7 +539,11 @@ namespace Rtx
         // **Updated where only the instances' places moved**, and built whole where its shape did:
         // a placement that walks, or a structure a refit rewrote, keeps every instance and its place
         // in the packing, which is what an update needs. A build of the whole was 3.45 ms of every
-        // exterior frame on the handheld.
+        // exterior frame on the handheld. **With no bound on the run of updates**: five minutes still
+        // in the Mages Guild with its people walking, the frame's wait on the device rose 0.23 ms from
+        // the run's first fifth to its last as the boxes widened, and still stood under a build's every
+        // frame, whose `tlas` was 0.20 ms against 0.03
+        // (`docs/research/2026-11-14-top-level-update-against-build.md`).
         const bool updated = mBuiltShapes == mShapes && mBuiltPlaced == mPlacedRows;
         mTopLevelBuild.mode = updated ? VK_BUILD_ACCELERATION_STRUCTURE_MODE_UPDATE_KHR
                                       : VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;

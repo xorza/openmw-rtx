@@ -22,54 +22,20 @@
 
 namespace Rtx
 {
-    /// What a pipeline's compiler made it use: the statistics `VK_KHR_pipeline_executable_properties`
-    /// reports under names each driver picks, read by the target drivers' own names — AMD's own
-    /// driver's, RADV's and NVIDIA's — and a launch's stack, which every driver answers. A figure the
-    /// driver does not give is nothing.
-    struct CompiledUse
-    {
-        /// The scratch memory a lane uses, in bytes — what the compiler spilled out of the registers, and
-        /// any array indexed at run time: AMD's `scratchMemUsageInBytes`, RADV's `Scratch size` and
-        /// NVIDIA's `Local Memory Size` (`StatisticNames::mScratchBits`). RADV's `Spilled SGPRs` are not a
-        /// spill to memory: ACO keeps a scalar register spilled in a vector register's lanes.
-        std::optional<std::uint64_t> mScratchBytes;
-
-        /// The vector registers a lane holds, which is how many waves share a SIMD's register file:
-        /// AMD's `numUsedVgprs`, RADV's `VGPRs` and NVIDIA's `Register Count`.
-        std::optional<std::uint64_t> mRegisters;
-
-        /// The shared memory a workgroup holds, in bytes, what the kernel declares and what the
-        /// compiler put there of its own, a ray query's traversal among it: AMD's
-        /// `ldsUsageSizeInBytes`, RADV's `LDS size` and NVIDIA's `Shared Memory Size`.
-        std::optional<std::uint64_t> mSharedBytes;
-
-        /// A launch's ray generation stack, in bytes a lane, which every driver answers: where a
-        /// launch keeps what does not fit its registers. **What a launch is measured by on AMD's
-        /// own driver**, whose statistics for one describe a stub of three registers whatever the
-        /// launch does. Nothing for a pipeline that is not a launch.
-        std::optional<std::uint64_t> mStackBytes;
-
-        /// The lanes a subgroup of the pipeline holds, the widest of its executables, which every
-        /// driver that reports an executable answers: what a register count is a count of.
-        std::optional<std::uint32_t> mSubgroupSize;
-    };
-
-    class BufferMarkers;
     class CommandPool;
+    class FaultReport;
     class Graveyard;
     class Instance;
     class MemoryAllocator;
     class NotFiniteCensus;
     class Timeline;
     class PipelineCache;
-    class PipelineCodeFolder;
-    class PipelineTally;
+    class PipelineReport;
     class ZoneCounters;
     struct PipelineCacheSpec;
-    struct PipelineFeedback;
 
     /// What a device is made to say of the work on it: every pipeline of itself
-    /// (`Device::reportPipeline`), and every zone of a frame what its counters read.
+    /// (`PipelineReport`), and every zone of a frame what its counters read.
     struct DeviceReport
     {
         /// Where the driver's own code of each pipeline is written as text, a file a pipeline
@@ -148,34 +114,6 @@ namespace Rtx
         static constexpr VkObjectType value = VK_OBJECT_TYPE_ACCELERATION_STRUCTURE_KHR;
     };
 
-    /// What a checkpoint on the queue points at: the zone the timer opened and the frame it was
-    /// opened for, so a device loss can say "frame 83, `tlas`". Owned by the timer that set it
-    /// and stable while the timer's slot lives, which is longer than a fault takes to be reported.
-    struct Checkpoint
-    {
-        std::string_view mName;
-        std::uint64_t mFrame = 0;
-    };
-
-    /// The bit a checkpoint's `mFrame` carries where it counts pictures and not frames: a map tile or
-    /// the doll traced inside the interface (`PictureTracer`).
-    inline constexpr std::uint64_t sPictureCheckpoint = std::uint64_t{ 1 } << 63;
-
-    /// **What `VK_EXT_device_fault` says, as lines of a lost device's report**: the driver's
-    /// description, each address with what it was used for and how precisely it is known, and each
-    /// of the vendor's codes.
-    std::string describeDeviceFault(std::string_view description,
-        std::span<const VkDeviceFaultAddressInfoEXT> addresses, std::span<const VkDeviceFaultVendorInfoEXT> vendor);
-
-    /// One executable's statistics as a pipeline's log line says them: each under the driver's own name, in
-    /// the driver's order, the scratch figure masked to its bytes (`StatisticNames::mScratchBits`).
-    std::string describeStatistics(
-        std::span<const VkPipelineExecutableStatisticKHR> statistics, const StatisticNames& names);
-
-    /// The line a lost device's report says of the last checkpoint `stage` passed, or that the host
-    /// no longer names it: the frame's or the picture's it was set in.
-    std::string describePassedStage(VkPipelineStageFlagBits stage, const Checkpoint* checkpoint);
-
     /// A logical device, its single queue, and the extension entry points.
     class Device
     {
@@ -192,7 +130,7 @@ namespace Rtx
         ///        census they count into (`getCensus`).
         /// @param cache where the pipeline cache is kept. An empty directory keeps none, and every
         ///        pipeline is compiled from source every run.
-        /// @param report what the pipelines are made to say of themselves (`reportPipeline`).
+        /// @param report what the pipelines are made to say of themselves (`PipelineReport`).
         Device(const Instance& instance, PhysicalDevice&& physicalDevice, const ShaderSet& shaders,
             const PipelineCacheSpec& cache, const DeviceReport& report);
         ~Device();
@@ -200,6 +138,8 @@ namespace Rtx
         /// Pinned: every resource holds it by reference, and its allocator its physical device's heaps.
         Device(const Device&) = delete;
         Device& operator=(const Device&) = delete;
+        Device(Device&&) = delete;
+        Device& operator=(Device&&) = delete;
 
         VkDevice getHandle() const { return mHandle.get(); }
         VkQueue getQueue() const { return mQueue; }
@@ -252,34 +192,12 @@ namespace Rtx
         /// for them or the driver offers none. The device's, because the profiling lock they hold is.
         const ZoneCounters* getZoneCounters() const { return mZoneCounters.get(); }
 
-        /// What pipelines are made to say of themselves, the flags every create info starts from: their
-        /// statistics always (`docs/architecture.md`, "Every pipeline captures its statistics"), their code
-        /// where `DeviceReport` asks.
-        VkPipelineCreateFlags getPipelineFlags() const
-        {
-            VkPipelineCreateFlags flags = VK_PIPELINE_CREATE_CAPTURE_STATISTICS_BIT_KHR;
-            if (!mReport.mCodeFolder.empty())
-                flags |= VK_PIPELINE_CREATE_CAPTURE_INTERNAL_REPRESENTATIONS_BIT_KHR;
-            return flags;
-        }
+        /// What the pipelines made on the device say of themselves. Not const although the device is, as the
+        /// pool is not: every pipeline holds the device by const reference.
+        PipelineReport& getPipelineReport() const { return *mPipelineReport; }
 
-        /// Counts `pipeline` towards the next `logPipelineSummary`, and logs at the debug level what its
-        /// making took and what the driver's compiler made of it — registers a thread, spills, shared
-        /// memory a block: an occupancy figure with no external profiler.
-        /// Where the device is asked for its code, writes it (`writeCode`).
-        void reportPipeline(VkPipeline pipeline, std::string_view name, const PipelineFeedback& feedback) const;
-
-        /// Logs what the pipelines made since the device was made, or since the last summary, came to
-        /// (`describePipelines`), and a warning naming every one of them that uses scratch memory,
-        /// under `what`. The device's teardown logs what came after the last.
-        void logPipelineSummary(std::string_view what);
-
-        /// What the driver's compiler made `pipeline` use, the most of any of its executables, where
-        /// the driver says: nothing of a figure no statistic of its name reports.
-        ///
-        /// @param point which kind of pipeline it is: a ray tracing one is a launch of this
-        ///        renderer's, whose ray generation group is its first (`makeTracePipeline`).
-        CompiledUse compiledUseOf(VkPipeline pipeline, VkPipelineBindPoint point) const;
+        /// What the device says of where its queue was when it was lost, or a wait ran out.
+        const FaultReport& getFaults() const { return *mFaults; }
 
         /// Attaches a name to a Vulkan object so captures and validation messages name it. Compiled
         /// to nothing in release: an unreadable capture is a debugging session that does not
@@ -316,18 +234,6 @@ namespace Rtx
                 mEndLabel(commands);
         }
 
-        /// Marks the queue's progress with `checkpoint`, which the queue reports as the last one each stage
-        /// passed if the device is lost: NVIDIA's checkpoints or AMD's buffer markers, whichever the driver
-        /// offers, where the run asked for them (`DeviceReport::mCheckpoints`, `mMarkers`). Nothing where
-        /// it did not, or where the driver offers neither.
-        void checkpoint(VkCommandBuffer commands, const Checkpoint* checkpoint) const
-        {
-            if (mCmdSetCheckpoint != nullptr)
-                mCmdSetCheckpoint(commands, checkpoint);
-            if (mMarkers != nullptr)
-                writeMarker(commands, checkpoint);
-        }
-
         /// Blocks until the queue has signalled `value` on the timeline, and then lets go of what
         /// the queue can no longer be reading: the graveyard's burials and the pool's finished
         /// command buffers. The one way to wait, so that no wait is made without the collect a
@@ -343,49 +249,14 @@ namespace Rtx
         /// drain and a teardown — which both assert.
         void collectIdle() const;
 
-        /// What the device says about why it was lost, as lines for the message that reports it.
-        /// Nothing where the driver offers no `VK_EXT_device_fault`. After a loss and never before,
-        /// because the extension forbids the question of a device that is still answering.
-        std::string describeFault() const;
-
-        /// The last checkpoint each stage of the queue passed by AMD's buffer markers, as lines for
-        /// the report of a wait that ran out: words in host memory, which a device still answering
-        /// can be asked, where NVIDIA's checkpoints are asked only of a lost one
-        /// (`VUID-vkGetQueueCheckpointDataNV-queue-02025`). Nothing where the driver offers no
-        /// markers.
-        std::string describeMarkers() const;
-
         /// The submits the queue had not finished as far as the host knew, and every heap
         /// (`describeInFlight`), for the report of a lost device or a wait that ran out.
         std::string describeInFlight() const;
-
-        // Read by the tests and by nothing else.
-        /// Whether the driver offers `VK_EXT_device_fault` with its feature, and so whether
-        /// `describeFault` has anything to ask.
-        bool canDescribeFault() const { return mGetDeviceFaultInfo != nullptr; }
 
     private:
         /// What every wait ends with: the graveyard's burials and the pool's finished command
         /// buffers, let go of as far as the clock now reaches.
         void collect() const;
-
-        /// The executables the driver made `pipeline` of, and what it says of one: the statistics a
-        /// pipeline was made to capture (`getPipelineFlags`).
-        std::vector<VkPipelineExecutablePropertiesKHR> executablePropertiesOf(VkPipeline pipeline) const;
-        std::vector<VkPipelineExecutableStatisticKHR> statisticsOf(VkPipeline pipeline, std::uint32_t executable) const;
-
-        /// Writes the text forms the driver gives the executable `executable` of `pipeline`'s
-        /// `executables` in, the `copy`th of its name (`PipelineCodeFolder::claim`), to `mCode`.
-        /// Nothing where the driver gives none, as NVIDIA's does.
-        void writeCode(VkPipeline pipeline, std::string_view name, std::uint32_t copy, std::uint32_t executable,
-            std::uint32_t executables) const;
-
-        /// The last checkpoint each stage of the queue passed, as lines for the fault report.
-        /// Nothing where the driver offers neither checkpoints nor buffer markers.
-        std::string describeCheckpoints() const;
-
-        /// `BufferMarkers::mark`, out of line, where the markers' type is whole.
-        void writeMarker(VkCommandBuffer commands, const Checkpoint* checkpoint) const;
 
         void setNameImpl(VkObjectType type, std::uint64_t handle, const char* name) const;
         void beginLabelImpl(VkCommandBuffer commands, const char* name) const;
@@ -403,27 +274,12 @@ namespace Rtx
         PFN_vkCmdBeginDebugUtilsLabelEXT mBeginLabel = nullptr;
         PFN_vkCmdEndDebugUtilsLabelEXT mEndLabel = nullptr;
 
-        /// Null where the driver offers no `VK_EXT_device_fault`, or offers the extension without
-        /// its feature.
-        PFN_vkGetDeviceFaultInfoEXT mGetDeviceFaultInfo = nullptr;
-
-        /// Null where the driver offers no `VK_NV_device_diagnostic_checkpoints`.
-        PFN_vkCmdSetCheckpointNV mCmdSetCheckpoint = nullptr;
-        PFN_vkGetQueueCheckpointDataNV mGetQueueCheckpointData = nullptr;
-
         bool mPresentFences = false;
         bool mPresentWait = false;
         bool mWatchesSubmits = false;
 
         ShaderSet mShaders;
         DeviceReport mReport;
-
-        /// Where the pipelines' code goes, null where `mReport` asks for none.
-        std::unique_ptr<PipelineCodeFolder> mCode;
-
-        /// What `reportPipeline` counted towards the next summary, from the device's making.
-        std::unique_ptr<PipelineTally> mPipelines;
-        bool mPipelinesSummarised = false;
 
         // Last, so that they are torn down first, and in this order: everything after the graveyard buries
         // into it as it goes, the graveyard ends what it holds against the clock and gives memory back to
@@ -435,10 +291,11 @@ namespace Rtx
         std::unique_ptr<Graveyard> mGraveyard;
         std::unique_ptr<CommandPool> mPool;
 
-        /// AMD's breadcrumbs, null where the driver offers no `VK_AMD_buffer_marker`. Made on the
-        /// allocator, so torn down before it. Marked from `checkpoint`, which a recording calls on
-        /// the one thread that records.
-        std::unique_ptr<BufferMarkers> mMarkers;
+        /// What the pipelines say of themselves, logged as the device goes.
+        std::unique_ptr<PipelineReport> mPipelineReport;
+
+        /// Made on the allocator, for AMD's buffer markers, so torn down before it.
+        std::unique_ptr<FaultReport> mFaults;
 
         /// Made on the allocator, so torn down before it.
         std::unique_ptr<NotFiniteCensus> mCensus;

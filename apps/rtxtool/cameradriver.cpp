@@ -403,7 +403,7 @@ namespace RtxTool
         const MWWorld::Ptr player = world.getPlayerPtr();
 
         // **Forced, because the draw is not an animation the view change may wait out**: the body
-        // was built drawn (`Stager::arm`), and a change asked for unforced while an upper-body
+        // was built drawn (`Staging::arm`), and a change asked for unforced while an upper-body
         // animation plays is queued behind it.
         camera->setMode(MWRender::Camera::Mode::FirstPerson, true);
 

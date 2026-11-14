@@ -63,7 +63,7 @@ namespace Rtx
         constexpr std::array<char, 8> sMagic{ 'O', 'M', 'W', 'R', 'T', 'X', 'P', 'C' };
         constexpr std::uint32_t sFormat = 1;
 
-        Misc::DigestWords digestOf(std::span<const std::uint8_t> blob)
+        Misc::DigestWords digestOf(std::span<const std::byte> blob)
         {
             Misc::HashState digest;
             digest.add(blob);
@@ -71,7 +71,7 @@ namespace Rtx
         }
 
         /// The header the file opens with for `blob`, written on the device `properties` names.
-        FileHeader headerFor(std::span<const std::uint8_t> blob, const VkPhysicalDeviceProperties& properties)
+        FileHeader headerFor(std::span<const std::byte> blob, const VkPhysicalDeviceProperties& properties)
         {
             FileHeader header{ .mMagic = sMagic,
                 .mFormat = sFormat,
@@ -93,7 +93,7 @@ namespace Rtx
         /// purge: sweeping them all made every switch of card or shader tree a cold compile.
         constexpr std::size_t sKeptCaches = 4;
 
-        std::uint32_t readWord(std::span<const std::uint8_t> data, std::size_t at)
+        std::uint32_t readWord(std::span<const std::byte> data, std::size_t at)
         {
             std::uint32_t word = 0;
             std::memcpy(&word, data.data() + at, sizeof(word));
@@ -139,7 +139,7 @@ namespace Rtx
     }
 
     Result<void, std::string_view> PipelineCache::accepts(
-        std::span<const std::uint8_t> blob, const VkPhysicalDeviceProperties& properties)
+        std::span<const std::byte> blob, const VkPhysicalDeviceProperties& properties)
     {
         if (blob.size() < sHeaderBytes)
             return Err{ sTooShort };
@@ -157,26 +157,37 @@ namespace Rtx
         return {};
     }
 
-    Result<std::vector<std::uint8_t>, std::string_view> PipelineCache::read(
+    std::span<const std::byte> PipelineCache::Stored::getBlob() const
+    {
+        if (mFile.empty())
+            return {};
+        return std::span(mFile).subspan(sizeof(FileHeader));
+    }
+
+    Result<PipelineCache::Stored, std::string_view> PipelineCache::read(
         const std::filesystem::path& path, const VkPhysicalDeviceProperties& properties)
     {
         // Bounded before the body is read: the file refused for its size is the costliest to read.
-        Misc::ByteBuffer file;
+        Stored stored;
         if (const Result<void, Platform::IoError> read
-            = Platform::readWhole(path, file, sizeof(FileHeader) + sMostBytes);
+            = Platform::readWhole(path, stored.mFile, sizeof(FileHeader) + sMostBytes);
             !read.isOk())
         {
             if (read.error().mFailure == Platform::IoFailure::NotFound)
-                return std::vector<std::uint8_t>{};
+            {
+                stored.mFile.clear();
+                stored.mDigest = digestOf({});
+                return stored;
+            }
             if (read.error().mFailure == Platform::IoFailure::TooLarge)
                 return Err{ sTooLong };
             return Err{ "could not be read" };
         }
-        if (file.size() < sizeof(FileHeader))
+        if (stored.mFile.size() < sizeof(FileHeader))
             return Err{ "is shorter than its own header" };
 
         FileHeader header{};
-        std::memcpy(&header, file.data(), sizeof(header));
+        std::memcpy(&header, stored.mFile.data(), sizeof(header));
         if (header.mMagic != sMagic || header.mFormat != sFormat)
             return Err{ "is in no format this renderer writes" };
         if (header.mVendor != properties.vendorID || header.mDevice != properties.deviceID
@@ -185,19 +196,17 @@ namespace Rtx
             return Err{ "was written on another device or driver" };
         if (header.mBlobBytes > sMostBytes)
             return Err{ sTooLong };
-        if (header.mBlobBytes != file.size() - sizeof(FileHeader))
+        if (header.mBlobBytes != stored.mFile.size() - sizeof(FileHeader))
             return Err{ "holds another length than its header says" };
 
-        const auto body = std::span(file).subspan(sizeof(FileHeader));
-        std::vector<std::uint8_t> data(body.size());
-        std::memcpy(data.data(), body.data(), body.size());
-        if (digestOf(data) != header.mBlobDigest)
+        stored.mDigest = digestOf(stored.getBlob());
+        if (stored.mDigest != header.mBlobDigest)
             return Err{ "holds another body than its header says" };
 
-        if (const Result<void, std::string_view> accepted = accepts(data, properties); !accepted.isOk())
+        if (const Result<void, std::string_view> accepted = accepts(stored.getBlob(), properties); !accepted.isOk())
             return Err{ accepted.error() };
 
-        return data;
+        return stored;
     }
 
     PipelineCache::PipelineCache(VkDevice device, const VkPhysicalDeviceProperties& properties,
@@ -217,25 +226,26 @@ namespace Rtx
         // Nothing here fails loudly: a refused sweep or a read that cannot allocate starts the cache
         // empty. The sweep comes before the read so a run that fails to load its file has still
         // swept.
-        std::vector<std::uint8_t> loaded;
+        Stored loaded{ .mFile = {}, .mDigest = digestOf({}) };
         tearDown("the pipeline cache starts empty", [&] {
             sweep();
-            Result<std::vector<std::uint8_t>, std::string_view> found = read(mPath, properties);
+            Result<Stored, std::string_view> found = read(mPath, properties);
             if (found.isOk())
                 loaded = std::move(found.value());
             else
                 Log(Debug::Info) << "Rtx: the pipeline cache starts empty: "
                                  << Files::pathToUnicodeString(mPath.filename()) << ' ' << found.error();
         });
-        mKeptBytes = loaded.size();
-        mKeptDigest = digestOf(loaded);
+        const std::span<const std::byte> blob = loaded.getBlob();
+        mKeptBytes = blob.size();
+        mKeptDigest = loaded.mDigest;
 
         const VkPipelineCacheCreateInfo describe{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO,
             .pNext = nullptr,
             .flags = 0,
-            .initialDataSize = loaded.size(),
-            .pInitialData = loaded.empty() ? nullptr : loaded.data(),
+            .initialDataSize = blob.size(),
+            .pInitialData = blob.empty() ? nullptr : blob.data(),
         };
 
         // Into a local, for the reason `Owned::make` gives.
@@ -314,7 +324,7 @@ namespace Rtx
         if (vkGetPipelineCacheData(mDevice, mHandle.get(), &bytes, nullptr) != VK_SUCCESS || bytes == 0)
             return;
 
-        std::vector<std::uint8_t> data(bytes);
+        Misc::ByteBuffer data(bytes);
         if (vkGetPipelineCacheData(mDevice, mHandle.get(), &bytes, data.data()) != VK_SUCCESS)
             return;
 

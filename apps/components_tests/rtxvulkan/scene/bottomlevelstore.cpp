@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <span>
@@ -18,11 +19,15 @@
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtxvulkan/device/commands.hpp>
+#include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/graveyard.hpp>
+#include <components/rtxvulkan/device/memory/batch.hpp>
 #include <components/rtxvulkan/device/memory/blockedbuffer.hpp>
 #include <components/rtxvulkan/device/memory/bufferusage.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
+#include <components/rtxvulkan/device/memory/memory.hpp>
 #include <components/rtxvulkan/device/memory/slottable.hpp>
+#include <components/rtxvulkan/device/physicaldevice.hpp>
 #include <components/rtxvulkan/scene/bottomlevelstore.hpp>
 #include <components/rtxvulkan/scene/structurebuild.hpp>
 
@@ -138,6 +143,20 @@ namespace Rtx
         /// reached the quiet it waited for, and a crossing that placed twice in one frame ran the count ahead of the
         /// queue. A build that waited is readable on the next placement however many builds followed; one deferred
         /// into a submit nothing has made is not readable until that submit has run.
+        /// **One spelling of a bottom level's flags**, which the first build and every refit and rebuild take: a still
+        /// structure may be compacted and never updated, a refit one updated and never compacted, and both are
+        /// traced fast and fetch their corners.
+        TEST_F(RtxBottomLevelStoreTest, aStillStructureCompactsAndARefitOneUpdates)
+        {
+            constexpr VkBuildAccelerationStructureFlagsKHR every
+                = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR
+                | VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_DATA_ACCESS_BIT_KHR;
+            EXPECT_EQ(BottomLevelStore::buildFlagsOf(StructureMotion::Still),
+                every | VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_COMPACTION_BIT_KHR);
+            EXPECT_EQ(BottomLevelStore::buildFlagsOf(StructureMotion::Refit),
+                every | VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR);
+        }
+
         TEST_F(RtxBottomLevelStoreTest, anAnswerIsReadOnceItsOwnSubmitHasRunAndNotBefore)
         {
             const std::array<Index, 3> grids{ addGrid(mScene, 64, 0.0f), addGrid(mScene, 64, 1.0f),
@@ -350,6 +369,48 @@ namespace Rtx
             EXPECT_EQ(store.getLooseBytes(), 0u) << "a loose block outlived every structure in it";
 
             // Before the store goes: a buried structure gives its room back to the store's storage.
+            getDevice().waitIdle();
+            getDevice().collectIdle();
+        }
+
+        /// **The rota rebuilds the posed body built whole longest ago, one a placement**, never one built whole on the
+        /// placement asking, and of two built at once the first posed. And the refit's scratch holds every update at
+        /// the aligned end of the one before, with room for the costliest rebuild where its update was.
+        TEST_F(RtxBottomLevelStoreTest, theRotaRebuildsTheBodyBuiltWholeLongestAgo)
+        {
+            const std::vector<osg::Vec3f> corners{ { 0, 0, 0 }, { 1, 0, 0 }, { 0, 1, 0 } };
+            const std::vector<osg::Vec3f> up(3, osg::Vec3f(0, 0, 1));
+            const std::vector<std::uint32_t> triangle{ 0, 1, 2 };
+            const MeshArrays arrays{ .mPositions = corners, .mNormals = up, .mIndices = triangle };
+            const std::array<Index, 2> bodies{ Testing::addOneBoneBody(mScene, arrays).mMesh,
+                Testing::addOneBoneBody(mScene, arrays).mMesh };
+            stage();
+
+            BottomLevelStore store(getDevice());
+            build(store, bodies);
+
+            // Both arrived at placement nought: the first posed goes first, then the other, then the first again.
+            EXPECT_EQ(store.pickRebuild(bodies, 1), bodies[0]);
+            EXPECT_EQ(store.pickRebuild(bodies, 2), bodies[1]);
+            EXPECT_EQ(store.pickRebuild(bodies, 3), bodies[0]);
+            EXPECT_EQ(store.pickRebuild(std::span(&bodies[0], 1), 3), sNoIndex) << "a body rebuilt twice at once";
+            EXPECT_EQ(store.pickRebuild({}, 4), sNoIndex);
+
+            const VkDeviceSize alignment = getDevice().getPhysicalDevice().getStructureScratchAlignment();
+            VkDeviceSize updates = 0;
+            VkDeviceSize rebuild = 0;
+            for (const Index body : bodies)
+            {
+                const VkDeviceSize update
+                    = alignUp(store.getScratchFor(body, VK_BUILD_ACCELERATION_STRUCTURE_MODE_UPDATE_KHR), alignment);
+                const VkDeviceSize whole
+                    = alignUp(store.getScratchFor(body, VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR), alignment);
+                updates += update;
+                rebuild = std::max(rebuild, whole > update ? whole - update : 0);
+            }
+            ASSERT_GT(updates, 0u);
+            EXPECT_EQ(store.getRefitScratchBytes(), updates + rebuild);
+
             getDevice().waitIdle();
             getDevice().collectIdle();
         }

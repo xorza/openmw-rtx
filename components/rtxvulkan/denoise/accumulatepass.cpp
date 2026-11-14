@@ -31,9 +31,17 @@ namespace Rtx
         }();
 
         /// The surface, the fast blends and the frame's samples read, the slow means rewritten in
-        /// place, and the fast means written.
-        constexpr std::array<VkDescriptorSetLayoutBinding, Shaders::ACCUMULATE_CLAMP_BINDINGS> sClampBindings
-            = computeBindings<Shaders::ACCUMULATE_CLAMP_BINDINGS>(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+        /// place, and the fast means written; and the exposure the accumulator held the samples under, a
+        /// buffer, last.
+        constexpr std::array<VkDescriptorSetLayoutBinding, Shaders::ACCUMULATE_CLAMP_BINDINGS> sClampBindings = [] {
+            std::array<VkDescriptorSetLayoutBinding, Shaders::ACCUMULATE_CLAMP_BINDINGS> bindings{};
+            const auto images
+                = computeBindings<Shaders::ACCUMULATE_CLAMP_BIND_EXPOSURE>(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+            std::copy(images.begin(), images.end(), bindings.begin());
+            bindings[Shaders::ACCUMULATE_CLAMP_BIND_EXPOSURE]
+                = computeBinding(Shaders::ACCUMULATE_CLAMP_BIND_EXPOSURE, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+            return bindings;
+        }();
 
         ComputePipeline<Shaders::AccumulateConstants> makeAccumulate(
             const Device& device, const bool fill, const std::string_view name)
@@ -125,6 +133,7 @@ namespace Rtx
         clampWrites.image(Shaders::ACCUMULATE_CLAMP_BIND_SAMPLED_FILL, buffer.get(Channel::Fill).describeStorage());
         clampWrites.image(Shaders::ACCUMULATE_CLAMP_BIND_FAST_OUT, images.mFast.describeStorage());
         clampWrites.image(Shaders::ACCUMULATE_CLAMP_BIND_MOMENTS, images.mMoments.describeStorage());
+        clampWrites.buffer(Shaders::ACCUMULATE_CLAMP_BIND_EXPOSURE, frame.mExposure.describe());
 
         dispatch(commands, clamp, clampWrites,
             Shaders::AccumulateClampConstants{ .mEyes = frame.mSampled.mEyes,

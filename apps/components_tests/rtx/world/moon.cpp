@@ -15,6 +15,7 @@
 
 #include <apps/components_tests/rtx/support/allocations.hpp>
 #include <apps/components_tests/rtx/support/heldimages.hpp>
+#include <apps/components_tests/rtx/support/image.hpp>
 #include <components/fallback/fallback.hpp>
 #include <components/rtx/environment/moonfaces.hpp>
 #include <components/rtx/preprocess/threadcontent.hpp>
@@ -66,12 +67,9 @@ namespace Rtx
         /// `Moons_<name>_Size` is scaled by 450/115 onto a quad of half-extent 0.5 a thousand units
         /// off (`apps/openmw/mwrender/sky.cpp` and `skyutil.cpp`), so the radius is
         /// `atan(45 * size / 23000)` — the closed form this checks the code against. Morrowind's own
-        /// ini says 94 and 40: `atan(4230 / 23000)` is 0.181881 and `atan(1800 / 23000)` is 0.078102.
-        ///
-        /// **The configured size is not pinned here, and deliberately.** OpenMW ships defaults of 55
-        /// and 20. The conversion is what this owns, and the faces read whatever the run is
-        /// configured with; both give a moon far larger than the real one — 10.4 degrees of radius
-        /// or 6.1, against the quarter of a degree ours has.
+        /// ini says 94 and 40, which the suite's fallback seed plants: `atan(4230 / 23000)` is 0.181881,
+        /// 10.42 degrees of radius against the quarter of a degree ours has, and `atan(1800 / 23000)` is
+        /// 0.078102.
         TEST(RtxMoonBuilderTest, aMoonIsAsWideAsTheGameDrawsIt)
         {
             EXPECT_NEAR(moonAngularRadius(94.0f), 0.181881f, 1e-6f);
@@ -84,8 +82,7 @@ namespace Rtx
             // and the other is refused as a sky layer and takes no slot.
             VFS::Manager vfs;
             Testing::HeldImages images(&vfs, 0);
-            const osg::ref_ptr<osg::Image> portrait = new osg::Image;
-            portrait->allocateImage(2, 2, 1, GL_RGBA, GL_UNSIGNED_BYTE);
+            const osg::ref_ptr<osg::Image> portrait = Testing::makeImage("", 2, 2);
             for (std::size_t texel = 0; texel < 4; ++texel)
             {
                 unsigned char* const at = portrait->data() + texel * 4;
@@ -128,17 +125,8 @@ namespace Rtx
             EXPECT_EQ(broken.refusals().count(Refused::Moon), 1u) << "Masser, and not Secunda";
             broken.drop(brokenHolds);
 
-            EXPECT_NEAR(configured().of(Moon::Masser).mRadius, std::atan(45.0f * masser / 23000.0f), 1e-6f);
-            EXPECT_NEAR(configured().of(Moon::Secunda).mRadius, std::atan(45.0f * secunda / 23000.0f), 1e-6f);
-
-            // **Enormous either way**, which is the sky Morrowind is remembered for: the smaller of
-            // the two pairs still puts Masser at twelve times the real moon's quarter degree.
-            EXPECT_GT(osg::RadiansToDegrees(configured().of(Moon::Masser).mRadius), 3.0f);
-
-            // Masser is the larger, and the angles are closer together than the sizes are: the
-            // arctangent is already bending at a disc this wide.
-            EXPECT_GT(configured().of(Moon::Masser).mRadius, configured().of(Moon::Secunda).mRadius);
-            EXPECT_LT(configured().of(Moon::Masser).mRadius / configured().of(Moon::Secunda).mRadius, masser / secunda);
+            EXPECT_NEAR(configured().of(Moon::Masser).mRadius, 0.181881f, 1e-6f) << "the seeded 94";
+            EXPECT_NEAR(configured().of(Moon::Secunda).mRadius, 0.078102f, 1e-6f) << "the seeded 40";
         }
 
         /// The direction is the arc tipped up from the horizon and swung about the zenith.
@@ -250,7 +238,7 @@ namespace Rtx
             for (int step = 1; step <= 90; ++step)
             {
                 const MoonPlacement at
-                    = placeMoon(configured(), Moon::Masser, float(step), 35.0f, 0.0f, /*alpha=*/1.0f);
+                    = placeMoon(configured(), Moon::Masser, static_cast<float>(step), 35.0f, 0.0f, /*alpha=*/1.0f);
                 const float carried = luminanceOf(at.mThroughAir);
 
                 EXPECT_GT(carried, below) << "at " << step << " degrees along";
@@ -408,10 +396,8 @@ namespace Rtx
         /// Morrowind's moons able to light anything at all: Masser is twenty-four to forty
         /// times wider, so it covers hundreds of times the sky.
         ///
-        /// **A band and not a number, for the reason the sizes are not pinned above.** OpenMW's 55
-        /// puts Masser at a 728th of the sun and the ini's 94 at a 255th, and which of the two a run
-        /// sees is whichever planted the key first. Both are a night that can be lit and neither is a
-        /// second sunrise, which is what the band asserts.
+        /// **Masser at the seeded 94 is a 102nd of the sun**: `0.30 · sin(0.181881)² = 0.0098152`, a night
+        /// that can be lit and no second sunrise, and 1597 times the real moon's share at the same albedo.
         TEST(RtxMoonBuilderTest, theSameLawPutsARealMoonWhereThePhotometryDoes)
         {
             const auto share = [](float angularRadius) {
@@ -424,9 +410,8 @@ namespace Rtx
                 share(osg::DegreesToRadians(0.2593f)) * (0.12f / Shaders::MOON_ALBEDO), 1.0f / 407000.0f, 1e-8f);
 
             const float masser = share(configured().of(Moon::Masser).mRadius);
-            EXPECT_LT(masser, 1.0f / 100.0f) << "a moon brighter than a sunrise";
-            EXPECT_GT(masser, 1.0f / 1000.0f) << "a moon that lights nothing";
-            EXPECT_GT(masser / share(osg::DegreesToRadians(0.2593f)), 400.0f) << "the size the game gives it got lost";
+            EXPECT_NEAR(masser, 0.0098152f, 1e-7f);
+            EXPECT_NEAR(masser / share(osg::DegreesToRadians(0.2593f)), 1597.43f, 0.01f);
         }
 
         /// Secunda delivers the share of the sky it covers, with its own albedo on top.
@@ -530,11 +515,10 @@ namespace Rtx
             const MoonFaces moons = configured();
             const MoonPlacement first = placeMoon(moons, Moon::Masser, 47.0f, 35.0f, 3.0f, 1.0f);
 
-            const std::size_t before = Testing::getAllocationCount();
-            const MoonPlacement again = placeMoon(moons, Moon::Masser, 47.0f, 35.0f, 3.0f, 1.0f);
-            const std::size_t after = Testing::getAllocationCount();
-
-            EXPECT_EQ(after, before) << after - before << " allocations to place a moon";
+            MoonPlacement again{};
+            EXPECT_EQ(
+                Testing::allocationsIn([&] { again = placeMoon(moons, Moon::Masser, 47.0f, 35.0f, 3.0f, 1.0f); }), 0u)
+                << "allocations to place a moon";
 
             EXPECT_EQ(again.mDirection, first.mDirection);
             EXPECT_EQ(again.mAlpha, first.mAlpha);

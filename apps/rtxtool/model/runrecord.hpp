@@ -13,6 +13,7 @@
 
 #include "benchrecord.hpp"
 #include "benchrun.hpp"
+#include "exitstatus.hpp"
 
 namespace RtxTool
 {
@@ -48,10 +49,10 @@ namespace RtxTool
         ///
         /// Apart from `note`, because a line and a verdict are two statements: a picture that could not be written
         /// says so and fails the run; one that was written says so and does not.
-        void fail() { mExitStatus = 1; }
+        void fail() { mStatus = worseOf(mStatus, ExitStatus::Failed); }
 
         /// Says a hashed frame differed from its reference: the run's status unless it failed.
-        void differ() { mDiffered = true; }
+        void differ() { mStatus = worseOf(mStatus, ExitStatus::Differed); }
 
         /// Says `stop` was passed over because the content does not hold what it names, `why`, and fails the run
         /// where the stop says so (`WhenAbsent`).
@@ -86,10 +87,16 @@ namespace RtxTool
         /// Everything a launcher reads back, with `left` where the eye was, or null where the run
         /// reached no place.
         ///
-        /// The whole result and never a field at a time: a launcher reads four of these, and an unfilled
+        /// The whole result and never a field at a time: a launcher reads six of these, and an unfilled
         /// `SessionResult` is a valid one describing a camera at the origin, so a member-by-member hand-over loses
-        /// whichever nobody remembered, silently.
-        SessionResult describe(const Stop* left) const;
+        /// whichever nobody remembered, silently. Hands the kept pictures over, so it is asked once.
+        SessionResult conclude(const Stop* left);
+
+        /// Where every picture a stop writes is kept, where the request keeps them, or null.
+        PictureShelf* getShelf() { return mKeepsPictures ? &mShelf : nullptr; }
+
+        /// Notes the extents the renderer made, which the result carries.
+        void noteTraced(const Rtx::FrameExtents& traced) { mTraced = traced; }
 
     private:
         /// Whether `written` holds; where not, says why in the report and fails the run.
@@ -106,8 +113,11 @@ namespace RtxTool
         /// a run on huge pages whose count rose has frames a compaction stalled.
         std::optional<std::uint64_t> mCompactionStalls;
 
-        int mExitStatus = 0;
-        bool mDiffered = false;
+        ExitStatus mStatus = ExitStatus::Passed;
+
+        bool mKeepsPictures = false;
+        PictureShelf mShelf;
+        std::optional<Rtx::FrameExtents> mTraced;
 
         /// How many checks the run asked and how many of them failed.
         std::uint32_t mChecked = 0;

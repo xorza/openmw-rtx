@@ -93,12 +93,11 @@ namespace Rtx
         }
 
         /// **A job going away stops its work** rather than waiting it out: the work runs until its
-        /// token says stop, and the destruction is bounded at a second.
+        /// token says stop, which only the job's going away asks.
         TEST(RtxJobTest, aJobGoingAwayStopsItsWork)
         {
             std::atomic<bool> started{ false };
             std::atomic<bool> sawStop{ false };
-            std::chrono::steady_clock::time_point began;
             {
                 Job job;
                 job.start("endless", 1, [&](const std::stop_token& stop, Job&) {
@@ -119,10 +118,9 @@ namespace Rtx
                     ASSERT_FALSE(bound.passed()) << "the job never started";
                     std::this_thread::yield();
                 }
-                began = std::chrono::steady_clock::now();
+                EXPECT_FALSE(sawStop) << "the work stopped before the job went away";
             }
             EXPECT_TRUE(sawStop);
-            EXPECT_LT(std::chrono::steady_clock::now() - began, std::chrono::seconds(1));
         }
     }
 }

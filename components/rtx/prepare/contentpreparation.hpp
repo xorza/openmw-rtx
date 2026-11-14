@@ -185,8 +185,8 @@ namespace Rtx
         /// claimed.
         void walkJob(Hand& hand, std::size_t at);
 
-        /// Makes the queued chain `chain`.
-        void makeChain(Hand& hand, std::size_t chain);
+        /// Makes `queued`, which the caller took out of `mChains` under the lock.
+        void makeChain(Hand& hand, const QueuedChain& queued);
 
         void walk(Hand& hand, std::size_t at);
         void read(Hand& hand, const PreparationLayer& layer);
@@ -283,7 +283,8 @@ namespace Rtx
         PreparationDispatcher mDispatcher;
 
         /// In a deque, whose elements stand where they are as it grows: a thread makes a chain out of the
-        /// lock while a walk queues more.
+        /// lock, through a reference it took under the lock, while a walk queues more. Only the elements
+        /// stand: indexing reads the block map a `push_back` moves, so it happens under the lock alone.
         std::deque<QueuedChain> mChains;
         std::unordered_set<ChainIdentity, ChainIdentityHash> mClaimed;
         std::unordered_map<std::string, std::uint32_t> mUses;

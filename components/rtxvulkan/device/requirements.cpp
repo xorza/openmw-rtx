@@ -26,7 +26,7 @@ namespace Rtx
             next = &structure;
         }
 
-        constexpr std::array<const char*, 8> sRequiredDeviceExtensions{
+        constexpr std::array<const char*, 9> sRequiredDeviceExtensions{
             VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,
             VK_KHR_RAY_QUERY_EXTENSION_NAME,
             VK_KHR_RAY_TRACING_POSITION_FETCH_EXTENSION_NAME,
@@ -43,6 +43,11 @@ namespace Rtx
             // hold that fell back to a count would be the one that misses on the first frames of
             // every run — the frames the hold is for.
             VK_KHR_SHADER_CLOCK_EXTENSION_NAME,
+            // What makes a subgroup reconverge where the source's control flow does, which core Vulkan
+            // leaves to the driver: a stage that elects a lane after a branch and broadcasts its answer
+            // reads a lane that may still be apart (`SpirvPin`, which declares the mode on every entry
+            // point of a module that uses a subgroup operation). Roadmap 2024 requires it.
+            VK_KHR_SHADER_MAXIMAL_RECONVERGENCE_EXTENSION_NAME,
         };
 
         constexpr std::array sFaultReport{ VK_EXT_DEVICE_FAULT_EXTENSION_NAME };
@@ -126,7 +131,7 @@ namespace Rtx
 
         constexpr std::array sOptionalExtensions{
             // Turns a device loss from "the driver said no" into where it faulted: the addresses,
-            // how precisely they are known, and what the vendor adds. `Device::describeFault` is
+            // how precisely they are known, and what the vendor adds. `FaultReport::describeFault` is
             // what reads it.
             OptionalExtensions{ .mOption = DeviceOption::FaultReport,
                 .mExtensions = sFaultReport,
@@ -178,7 +183,7 @@ namespace Rtx
                 .mFeature = &sPresentWaitFeature },
             // A marker the queue remembers passing, so a device loss names the last zone each
             // stage reached rather than an address: `GpuTimer::open` sets one per zone where the run
-            // asks (`DeviceReport::mBreadcrumbs`), and `Device::describeFault` reads them back.
+            // asks (`DeviceReport::mBreadcrumbs`), and `FaultReport::describeFault` reads them back.
             OptionalExtensions{ DeviceOption::Checkpoints, sCheckpoints, {} },
             // The same for the drivers that have no checkpoints: AMD's own and RADV. A number
             // written at a stage and not a pointer, so the host keeps what each number names
@@ -304,6 +309,8 @@ namespace Rtx
                 +[](DeviceFeatures& f) -> VkBool32& { return f.mPipelineExecutable.pipelineExecutableInfo; } },
             RequiredFeature{
                 "shaderDeviceClock", +[](DeviceFeatures& f) -> VkBool32& { return f.mShaderClock.shaderDeviceClock; } },
+            RequiredFeature{ "shaderMaximalReconvergence",
+                +[](DeviceFeatures& f) -> VkBool32& { return f.mMaximalReconvergence.shaderMaximalReconvergence; } },
         };
     }
 
@@ -372,6 +379,9 @@ namespace Rtx
         const auto has
             = [&](const char* extension) { return every || std::ranges::find(offered, extension) != offered.end(); };
         void* next = nullptr;
+        if (has(VK_KHR_SHADER_MAXIMAL_RECONVERGENCE_EXTENSION_NAME))
+            chain(next, mMaximalReconvergence,
+                VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_MAXIMAL_RECONVERGENCE_FEATURES_KHR);
         if (has(VK_KHR_SHADER_CLOCK_EXTENSION_NAME))
             chain(next, mShaderClock, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_CLOCK_FEATURES_KHR);
         if (has(VK_KHR_PIPELINE_EXECUTABLE_PROPERTIES_EXTENSION_NAME))

@@ -6,6 +6,8 @@
 
 #include <volk.h>
 
+#include <components/rtx/common/ownedby.hpp>
+
 #include "handles.hpp"
 #include "owned.hpp"
 
@@ -30,7 +32,8 @@ namespace Rtx
     /// which `repeat` cannot see because two runs of one binary keep the same phase.
     ///
     /// Every wait is the device's (`Device::waitFor`, `Device::waitIdle`): a wait is where what the
-    /// queue may still read changes, and the device is what collects that.
+    /// queue may still read changes, and the device is what collects that. **And the device's thread's**,
+    /// asserted where a value is taken or waited for: what a wait leaves behind is read unlocked.
     class Timeline
     {
     public:
@@ -62,7 +65,11 @@ namespace Rtx
 
         /// Takes the value the next submit signals, which the pool signals with `signal`. The
         /// pool's alone: a second caller would put the clock ahead of the queue.
-        std::uint64_t next() { return mSubmitted.fetch_add(1, std::memory_order_relaxed) + 1; }
+        std::uint64_t next()
+        {
+            mThread.check();
+            return mSubmitted.fetch_add(1, std::memory_order_relaxed) + 1;
+        }
 
         /// Blocks until the queue has signalled `value`. `what` names the wait in the error a
         /// device that stops answering produces. The device's alone, for the reason the class
@@ -85,5 +92,7 @@ namespace Rtx
         /// The highest value a wait has left behind. Mutable because waiting is not a change to
         /// the clock, only to what is known of it.
         mutable std::uint64_t mFinished = 0;
+
+        OwnedBy mThread;
     };
 }

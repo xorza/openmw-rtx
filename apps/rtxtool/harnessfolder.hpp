@@ -37,7 +37,7 @@ namespace RtxTool
     {
     public:
         /// @throws Rtx::InputError where a folder's set cannot be read.
-        HarnessShaders(Verbs verb, bool source);
+        HarnessShaders(Verb verb, bool source);
 
         /// Pinned: a folder's set points into what this holds.
         HarnessShaders(const HarnessShaders&) = delete;

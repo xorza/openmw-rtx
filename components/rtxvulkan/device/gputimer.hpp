@@ -9,6 +9,7 @@
 #include <components/rtx/renderer/framezone.hpp>
 
 #include "device.hpp"
+#include "faultreport.hpp"
 #include "handles.hpp"
 
 namespace Rtx

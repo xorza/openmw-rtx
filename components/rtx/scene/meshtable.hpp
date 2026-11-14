@@ -128,6 +128,10 @@ namespace Rtx
         RunAllocator mIndexRuns{ sIndexBlock };
         RunAllocator mSecondRuns{ sVertexBlock };
 
+        /// **The host's copy of every standing mesh's geometry, kept after the device has it**: 100 to 153 MiB
+        /// of it at the ship (`docs/research/2026-11-14-scene-tables-at-three-contents.md`), which a target
+        /// rebuild writes to the device whole again, as `setUpscale` and `resize` let the world go. Freed, each
+        /// rebuild would read every mesh from the content again.
         BlockedValues<osg::Vec3f> mPositions{ sVertexBlock };
 
         /// One word a vertex, `Shaders::packNormal`'s, and nought — the triangle's plane — where the

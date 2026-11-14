@@ -8,6 +8,7 @@
 
 #include <apps/rtxtool/instruments/cardwatch.hpp>
 #include <apps/rtxtool/instruments/frametimes.hpp>
+#include <apps/rtxtool/instruments/perfcontrol.hpp>
 #include <apps/rtxtool/instruments/scenedigest.hpp>
 #include <apps/rtxtool/instruments/threadcounters.hpp>
 #include <apps/rtxtool/model/benchrecord.hpp>
@@ -154,7 +155,7 @@ namespace RtxTool
 
             /// How many measured frames the world stood paused on, and what paused it: named on the first paused
             /// frame ahead of the measurement and again on the first paused measured frame, so each names its own
-            /// cause (`Stager::describePause`). Twice at most and never per frame.
+            /// cause (`Staging::describePause`). Twice at most and never per frame.
             std::uint32_t mPausedFrames = 0;
             std::string mPausedBy;
 

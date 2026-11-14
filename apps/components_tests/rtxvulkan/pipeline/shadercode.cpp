@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <span>
 #include <string_view>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -16,7 +17,9 @@
 #include <components/rtx/renderer/shaderset.hpp>
 #include <components/rtxvulkan/device/bindingtable.hpp>
 #include <components/rtxvulkan/device/device.hpp>
+#include <components/rtxvulkan/device/driverprofile.hpp>
 #include <components/rtxvulkan/device/handles.hpp>
+#include <components/rtxvulkan/device/physicaldevice.hpp>
 #include <components/rtxvulkan/pipeline/shadercode.hpp>
 #include <components/rtxvulkan/shaders/shared/counts.h>
 #include <components/rtxvulkan/shaders/shared/sets.h>
@@ -143,14 +146,18 @@ namespace Rtx
                 scatter);
             EXPECT_NE(visibility, scatter);
 
-            for (const auto& [stage, file] :
-                { std::pair{ scatter, "fogscatter.rgen.spv" }, std::pair{ visibility, "visibility.comp.spv" } })
+            // **The set's words, not a copy**, but where the driver is handed a ray-query module without its
+            // reconvergence (`DriverProfile::mReconvergesRayQueries`): `visibility.comp` loses the one mode, three
+            // words, and `fogscatter.rgen`, which declares none, stands as the set holds it.
+            const bool rewritten = !device.getPhysicalDevice().getDriver().mReconvergesRayQueries;
+            for (const auto& [stage, file, copied] : { std::tuple{ scatter, "fogscatter.rgen.spv", false },
+                     std::tuple{ visibility, "visibility.comp.spv", rewritten } })
             {
                 const VkShaderModuleCreateInfo& read = codeOf(device, stage);
                 const ShaderModule* const module = device.getShaders().find(file);
                 ASSERT_NE(module, nullptr) << file;
-                EXPECT_EQ(read.codeSize, module->mWords.size() * sizeof(std::uint32_t)) << file;
-                EXPECT_EQ(read.pCode, module->mWords.data()) << file << ": the set's words, not a copy";
+                EXPECT_EQ(read.codeSize, (module->mWords.size() - (copied ? 3 : 0)) * sizeof(std::uint32_t)) << file;
+                EXPECT_EQ(read.pCode == module->mWords.data(), !copied) << file;
                 EXPECT_EQ(read.pCode[0], 0x07230203u) << file;
             }
 

@@ -141,3 +141,4 @@ file(
 )
 
 openmw_link_tree("${PROJECT_SOURCE_DIR}")
+openmw_keep_upstream_styles()

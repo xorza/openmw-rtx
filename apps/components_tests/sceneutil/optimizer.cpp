@@ -94,5 +94,18 @@ namespace
         ASSERT_NE(equal->getChild(0)->asGroup(), nullptr);
         EXPECT_EQ(equal->getChild(0)->asGroup()->getNumChildren(), 2u) << "both groups' children";
         EXPECT_EQ(differ->getNumChildren(), 2u) << "two states that differ";
+
+        // A group that is a child twice is named once among those it merges with, or the merge would empty it
+        // into itself and lose its children.
+        const osg::ref_ptr<osg::Group> shared = groupWearing(stateOf(red), 0.0f);
+        osg::ref_ptr<osg::Group> twice = new osg::Group;
+        twice->addChild(shared);
+        twice->addChild(shared);
+        twice->addChild(groupWearing(stateOf(red), 2.0f));
+        optimizer.optimize(twice, SceneUtil::Optimizer::REMOVE_REDUNDANT_NODES);
+        ASSERT_EQ(twice->getNumChildren(), 2u) << "the shared group, twice, and the other merged into it";
+        EXPECT_EQ(twice->getChild(0), shared.get());
+        EXPECT_EQ(twice->getChild(1), shared.get());
+        EXPECT_EQ(shared->getNumChildren(), 2u) << "its own child and the other's";
     }
 }

@@ -121,6 +121,8 @@ namespace Crash
 
             Deflater(const Deflater&) = delete;
             Deflater& operator=(const Deflater&) = delete;
+            Deflater(Deflater&&) = delete;
+            Deflater& operator=(Deflater&&) = delete;
 
             ~Deflater()
             {

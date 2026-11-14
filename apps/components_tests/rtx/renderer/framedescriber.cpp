@@ -6,11 +6,14 @@
 #include <osg/Matrixd>
 #include <osg/Vec3f>
 
+#include <apps/components_tests/rtx/support/allocations.hpp>
 #include <components/rtx/frame/camera.hpp>
 #include <components/rtx/frame/framepast.hpp>
 #include <components/rtx/renderer/framedescriber.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/shaders/visibility.h>
+#include <components/rtx/world/frameworld.hpp>
+#include <components/rtx/world/skycontent.hpp>
 
 namespace Rtx
 {
@@ -62,6 +65,24 @@ namespace Rtx
             describer.lose(FramePast::resized());
             const FramePast moved = describer.takePast(HistoryLoss::Worldspace);
             EXPECT_TRUE(moved.mReprojectionLost && moved.mEyeLost && moved.mWaterLost);
+        }
+
+        /// **A frame is described without an allocation** once the describer has described one: the viewpoint's
+        /// half, the sampling and the world laid over it (`describeWorld`, which holds the same of itself).
+        TEST(RtxFrameDescriberTest, aFrameIsDescribedWithoutAnAllocation)
+        {
+            FrameDescriber describer;
+            const SkyContent sky;
+            FrameRequest request;
+            request.mView = viewpoint();
+            request.mSampleFrame = 3;
+            request.mSky = &sky;
+            WorldOptions described;
+            static_cast<void>(describer.describe(request, described));
+
+            FrameTraced traced;
+            EXPECT_EQ(Testing::allocationsIn([&] { traced = describer.describe(request, described); }), 0u);
+            EXPECT_EQ(traced.mConstants.mFrame, 3u);
         }
 
         /// **A picture is described off its viewpoint and its options alone**: its own sun and

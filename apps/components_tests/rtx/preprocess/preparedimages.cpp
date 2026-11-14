@@ -14,6 +14,7 @@
 #include <osg/ref_ptr>
 
 #include <apps/components_tests/rtx/support/firsttexel.hpp>
+#include <apps/components_tests/rtx/support/image.hpp>
 #include <components/contentstore/key.hpp>
 #include <components/contentstore/store.hpp>
 #include <components/rtx/image/chainbuild.hpp>
@@ -79,7 +80,7 @@ namespace Rtx
         /// BC1 block of (132, 130, 255) where the file held black, standing on the file's own finest level and
         /// holding none of it. Asked again while a texture holds it, it is the same image; let go of by
         /// every holder, it is made again, from the store. Each making is one ask of the chain pass in the
-        /// threads' figures, the second found.
+        /// threads' figures, the second found. A hand keeps none of its scratch once the queue is drained.
         TEST(RtxPreparedImagesTest, aMapsImageIsPendingThenMadeAndHeldByWhatHoldsIt)
         {
             ContentStore::Store store(TestingOpenMW::currentTestDirPath() / "store", sContentStorePolicy);
@@ -91,6 +92,7 @@ namespace Rtx
             EXPECT_EQ(first.mImage, nullptr);
             prepared.flush();
             EXPECT_TRUE(prepared.isIdle());
+            EXPECT_EQ(prepared.getScratchBytes(), 0u) << "a hand kept its chain's scratch past the drained queue";
             const ContentStats madeOnce = prepared.takeStats();
             EXPECT_EQ(madeOnce.at(ContentPassId::Chain).mAsked, 1u);
             EXPECT_EQ(madeOnce.at(ContentPassId::Chain).mHits, 0u);
@@ -278,8 +280,7 @@ namespace Rtx
         TEST(RtxPreparedImagesTest, aClassicPairIsMadeIntoABaseColourAndAMetalRoughnessMap)
         {
             const auto make = [](std::uint8_t alpha, const char* name) {
-                osg::ref_ptr<osg::Image> image = new osg::Image;
-                image->allocateImage(2, 2, 1, GL_RGBA, GL_UNSIGNED_BYTE);
+                osg::ref_ptr<osg::Image> image = Testing::makeImage("", 2, 2);
                 for (std::size_t texel = 0; texel < 4; ++texel)
                 {
                     std::fill_n(image->data() + texel * 4, 3, static_cast<unsigned char>(128));
@@ -343,9 +344,8 @@ namespace Rtx
         TEST(RtxPreparedImagesTest, aFileWhoseChainStandsAnswersNothingMade)
         {
             PreparedImages prepared(nullptr, 1);
-            osg::ref_ptr<osg::Image> two = new osg::Image;
-            two->allocateImage(4, 4, 1, GL_COMPRESSED_RED_GREEN_RGTC2_EXT, GL_UNSIGNED_BYTE);
-            two->setFileName("textures/tx_two_data.dds");
+            osg::ref_ptr<osg::Image> two = Testing::makeImage(
+                "textures/tx_two_data.dds", 4, 4, GL_COMPRESSED_RED_GREEN_RGTC2_EXT, GL_UNSIGNED_BYTE);
 
             EXPECT_TRUE(prepared.find(*two, TextureEncoding::Data, TextureWrap::Repeat).mPending);
             prepared.flush();
@@ -507,8 +507,7 @@ namespace Rtx
         TEST(RtxPreparedImagesTest, aClassicPairOfTwoSizesIsConvertedAtTheSlotsOwnFile)
         {
             const auto make = [](int side, const char* name) {
-                osg::ref_ptr<osg::Image> image = new osg::Image;
-                image->allocateImage(side, side, 1, GL_RGBA, GL_UNSIGNED_BYTE);
+                osg::ref_ptr<osg::Image> image = Testing::makeImage("", side, side);
                 std::fill_n(image->data(), image->getTotalSizeInBytes(), static_cast<unsigned char>(128));
                 image->setFileName(name);
                 return image;

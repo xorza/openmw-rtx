@@ -13,6 +13,7 @@
 #include <osg/ref_ptr>
 
 #include <apps/components_tests/rtx/support/countingrenderer.hpp>
+#include <apps/components_tests/rtx/support/image.hpp>
 #include <components/myguirtx/sharedtexture.hpp>
 #include <components/rtx/renderer/guirenderer.hpp>
 #include <components/rtx/renderer/slot.hpp>
@@ -25,8 +26,7 @@ namespace MyGUIRtx
         /// picture and which place it came from.
         osg::ref_ptr<osg::Image> makePicture(const int width, const int height, const std::uint8_t first)
         {
-            osg::ref_ptr<osg::Image> image = new osg::Image;
-            image->allocateImage(width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE);
+            osg::ref_ptr<osg::Image> image = Rtx::Testing::makeImage("", width, height);
             for (unsigned int at = 0; at < image->getTotalSizeInBytes(); ++at)
                 image->data()[at] = static_cast<std::uint8_t>(first + at);
             return image;
@@ -92,8 +92,7 @@ namespace MyGUIRtx
 
             // Three channels, as a save's thumbnail is: each byte read as n / 255 and written back
             // as n / 255 * 255 + 0.5 rounded down, which is n, beside an opaque alpha.
-            const osg::ref_ptr<osg::Image> rgb = new osg::Image;
-            rgb->allocateImage(2, 1, 1, GL_RGB, GL_UNSIGNED_BYTE);
+            const osg::ref_ptr<osg::Image> rgb = Rtx::Testing::makeImage("", 2, 1, GL_RGB, GL_UNSIGNED_BYTE);
             for (unsigned int at = 0; at < 6; ++at)
                 rgb->data()[at] = static_cast<std::uint8_t>(10 * (at + 1));
             texture->setImage(rgb);
@@ -152,8 +151,7 @@ namespace MyGUIRtx
                 EXPECT_EQ(renderer.mLending, read) << "format " << format;
             }
 
-            osg::ref_ptr<osg::Image> floats = new osg::Image;
-            floats->allocateImage(width, height, 1, GL_RGBA, GL_FLOAT);
+            osg::ref_ptr<osg::Image> floats = Rtx::Testing::makeImage("", width, height, GL_RGBA, GL_FLOAT);
             auto* values = reinterpret_cast<float*>(floats->data());
             for (int at = 0; at < width * height * 4; ++at)
                 values[at] = static_cast<float>(at) / 23.0f;
@@ -183,8 +181,7 @@ namespace MyGUIRtx
                      Packed{ GL_BGRA, GL_UNSIGNED_SHORT_4_4_4_4_REV, GL_RGBA, 0x0F00, { 255, 0, 0, 0 } },
                  })
             {
-                osg::ref_ptr<osg::Image> image = new osg::Image;
-                image->allocateImage(1, 1, 1, one.mFormat, one.mType);
+                osg::ref_ptr<osg::Image> image = Rtx::Testing::makeImage("", 1, 1, one.mFormat, one.mType);
                 image->setInternalTextureFormat(static_cast<GLint>(one.mInternal));
                 std::memcpy(image->data(), &one.mWord, sizeof(one.mWord));
 
@@ -195,8 +192,7 @@ namespace MyGUIRtx
                     << "type " << one.mType << ", internal " << one.mInternal;
             }
 
-            osg::ref_ptr<osg::Image> spare = new osg::Image;
-            spare->allocateImage(1, 1, 1, GL_BGRA, GL_UNSIGNED_BYTE);
+            osg::ref_ptr<osg::Image> spare = Rtx::Testing::makeImage("", 1, 1, GL_BGRA, GL_UNSIGNED_BYTE);
             spare->setInternalTextureFormat(GL_RGB);
             const std::array<std::uint8_t, 4> blueGreenRedNought{ 30, 20, 10, 0 };
             std::memcpy(spare->data(), blueGreenRedNought.data(), blueGreenRedNought.size());

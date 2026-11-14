@@ -3,6 +3,7 @@
 #include <algorithm>
 
 #include <apps/openmw/mwrender/actorutil.hpp>
+#include <apps/openmw/mwrender/terrainstorage.hpp>
 #include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/esm3/loadacti.hpp>
 #include <components/esm3/loadalch.hpp>
@@ -31,7 +32,6 @@
 #include <components/vfs/manager.hpp>
 #include <components/vfs/pathutil.hpp>
 
-#include "../terrainstorage.hpp"
 #include "skyreader.hpp"
 
 namespace MWRender

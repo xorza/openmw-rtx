@@ -20,9 +20,9 @@
 #include <osg/Vec3f>
 
 #include <apps/components_tests/rtx/support/death.hpp>
+#include <apps/components_tests/rtx/support/refusal.hpp>
 #include <apps/rtxtool/framed.hpp>
 #include <apps/rtxtool/model/film.hpp>
-#include <apps/rtxtool/model/maprules.hpp>
 #include <apps/rtxtool/options.hpp>
 #include <apps/rtxtool/runfolder.hpp>
 #include <apps/rtxtool/toolline.hpp>
@@ -51,7 +51,7 @@ namespace RtxTool
 
         /// What `arguments` come to for `verb`, read as the harness reads a line: parsed against its own
         /// description, with no configuration file.
-        ToolLine lineOf(const ToolOptions& options, const std::vector<std::string>& arguments, const Verbs verb)
+        ToolLine lineOf(const ToolOptions& options, const std::vector<std::string>& arguments, const Verb verb)
         {
             bpo::variables_map variables;
             bpo::store(parse(options, arguments), variables);
@@ -60,23 +60,15 @@ namespace RtxTool
         }
 
         /// What refuses a line read for `verb`, or that nothing did.
-        std::string refusalOf(const ToolOptions& options, const std::vector<std::string>& arguments, const Verbs verb)
+        std::string refusalOf(const ToolOptions& options, const std::vector<std::string>& arguments, const Verb verb)
         {
-            try
-            {
-                lineOf(options, arguments, verb);
-            }
-            catch (const std::exception& error)
-            {
-                return error.what();
-            }
-            return "nothing was refused";
+            return Rtx::Testing::refusalOf([&] { lineOf(options, arguments, verb); });
         }
 
         /// What `--validation` comes to when nobody names it, which is what `makeOptions` is told.
         std::string_view defaultValidation(const Rtx::ValidationLevel byDefault)
         {
-            const ToolLine line = lineOf(makeOptions(byDefault), {}, Verbs::Shot);
+            const ToolLine line = lineOf(makeOptions(byDefault), {}, Verb::Shot);
             EXPECT_FALSE(line.mValidation.mDemanded) << "a level nobody named is demanded";
             return Rtx::sValidationNames.name(line.mValidation.mLevel);
         }
@@ -92,7 +84,7 @@ namespace RtxTool
             const ToolOptions options = makeOptions(Rtx::ValidationLevel::Off);
             const std::vector<std::string> playedLine{ "--antilag=false", "--lamp-candidates=4",
                 "--antifirefly=false" };
-            const Rtx::ReconstructionRequest played = lineOf(options, playedLine, Verbs::Noise).mFrame.mReconstruction;
+            const Rtx::ReconstructionRequest played = lineOf(options, playedLine, Verb::Noise).mFrame.mReconstruction;
             ASSERT_FALSE(played.mFilters.mAntilag);
             ASSERT_EQ(played.mSampling.mLampCandidates, 4u);
 
@@ -102,10 +94,10 @@ namespace RtxTool
             EXPECT_EQ(options.versus(played, "antifirefly"), ringed) << "the implicit value";
             std::vector<std::string> versusLine = playedLine;
             versusLine.emplace_back("--versus=antifirefly");
-            const ToolLine::Noise noise = lineOf(options, versusLine, Verbs::Noise).mNoise;
+            const ToolLine::Noise noise = lineOf(options, versusLine, Verb::Noise).mNoise;
             EXPECT_EQ(noise.mAsked, "antifirefly");
             EXPECT_EQ(noise.mVersus, ringed) << "the line's own other side is over the line's own switches";
-            EXPECT_EQ(lineOf(options, {}, Verbs::Noise).mNoise.mVersus, std::nullopt);
+            EXPECT_EQ(lineOf(options, {}, Verb::Noise).mNoise.mVersus, std::nullopt);
             Rtx::ReconstructionRequest every = played;
             every.mSampling.mLampCandidates = 0;
             EXPECT_EQ(options.versus(played, "lamp-candidates=0"), every);
@@ -128,7 +120,7 @@ namespace RtxTool
                 { "dual-motion", "false" },
                 { "antifirefly", "false" },
             } };
-            const Rtx::ReconstructionRequest plain = lineOf(options, {}, Verbs::Noise).mFrame.mReconstruction;
+            const Rtx::ReconstructionRequest plain = lineOf(options, {}, Verb::Noise).mFrame.mReconstruction;
             EXPECT_EQ(plain, Rtx::ReconstructionRequest{});
             for (std::size_t at = 0; at < moved.size(); ++at)
             {
@@ -137,12 +129,23 @@ namespace RtxTool
                     << moved[at].first << " is not read";
             }
 
-            EXPECT_THROW(options.versus(played, "gamma=2.2"), std::runtime_error);
-            EXPECT_THROW(options.versus(played, "noise=sideways"), std::runtime_error);
-            EXPECT_THROW(options.versus(played, "antifirefly=maybe"), std::runtime_error);
-            EXPECT_THROW(options.versus(played, "bounce-rays=0"), std::runtime_error) << "no bounce is `indirect`'s";
-            EXPECT_THROW(options.versus(played, "bounce-rays=9"), std::runtime_error) << "past the landing's heads";
-            EXPECT_THROW(options.versus(played, "shadow-floor=0.5"), std::runtime_error)
+            EXPECT_EQ(Rtx::Testing::refusalOf([&] { options.versus(played, "gamma=2.2"); }),
+                "--versus=gamma=2.2 names no switch of the reconstruction, which are filter, jitter, noise, "
+                "level-epsilon, shadow-floor, lamp-candidates, indirect, bounce-rays, relief, soft-edge-dither, "
+                "water-interleave, antilag, history-fix, dual-motion, antifirefly");
+            EXPECT_EQ(Rtx::Testing::refusalOf([&] { options.versus(played, "noise=sideways"); }),
+                "\"sideways\" is not a noise source: blue-noise or white-hash");
+            EXPECT_EQ(Rtx::Testing::refusalOf([&] { options.versus(played, "antifirefly=maybe"); }),
+                "--versus=antifirefly=maybe: the argument ('maybe') for option '--antifirefly' is invalid. Valid "
+                "choices are 'on|off', 'yes|no', '1|0' and 'true|false'");
+            EXPECT_EQ(Rtx::Testing::refusalOf([&] { options.versus(played, "bounce-rays=0"); }),
+                "--versus=bounce-rays=0: the argument ('0') for option '--bounce-rays' is not a number 1..4")
+                << "no bounce is `indirect`'s";
+            EXPECT_EQ(Rtx::Testing::refusalOf([&] { options.versus(played, "bounce-rays=9"); }),
+                "--versus=bounce-rays=9: the argument ('9') for option '--bounce-rays' is not a number 1..4")
+                << "past the landing's heads";
+            EXPECT_EQ(Rtx::Testing::refusalOf([&] { options.versus(played, "shadow-floor=0.5"); }),
+                "--versus=shadow-floor=0.5: the argument ('0.5') for option '--shadow-floor' is not a number 0..0.25")
                 << "a floor over a quarter, which can leave a pixel nothing to draw";
         }
 
@@ -151,9 +154,8 @@ namespace RtxTool
         TEST(RtxToolOptionsTest, aStopRunsItsFramesOrItsSecondsAndNeverBoth)
         {
             const ToolOptions options = makeOptions(Rtx::ValidationLevel::Off);
-            const auto span = [&](const std::vector<std::string>& line) {
-                return lineOf(options, line, Verbs::Bench).mBench.mSpan;
-            };
+            const auto span
+                = [&](const std::vector<std::string>& line) { return lineOf(options, line, Verb::Bench).mBench.mSpan; };
 
             const BenchSpan plain = span({});
             EXPECT_EQ(plain.mFrames, 0u);
@@ -162,24 +164,26 @@ namespace RtxTool
             EXPECT_EQ(counted.mFrames, 300u);
             EXPECT_EQ(counted.mSeconds, 0.0f);
             EXPECT_EQ(span({ "--seconds=5" }).mSeconds, 5.0f);
-            EXPECT_THROW(span({ "--frames=300", "--seconds=5" }), std::runtime_error);
+            EXPECT_EQ(Rtx::Testing::refusalOf([&] { span({ "--frames=300", "--seconds=5" }); }),
+                "--frames and --seconds each say how long a stop runs, so only one can be named");
         }
 
         TEST(RtxToolOptionsTest, anUpscalerCanBeSelectedWithoutChangingTheQualityMode)
         {
             const ToolOptions options = makeOptions(Rtx::ValidationLevel::Off);
-            const Named<Rtx::UpscalerChoice> unnamed = lineOf(options, {}, Verbs::Bench).mFrame.mUpscaler;
+            const Named<Rtx::UpscalerChoice> unnamed = lineOf(options, {}, Verb::Bench).mFrame.mUpscaler;
             EXPECT_EQ(unnamed.mValue, Rtx::UpscalerChoice::Fsr);
             EXPECT_FALSE(unnamed.mNamed);
             for (const auto& [kind, name] : Rtx::sUpscalerNames.mNames)
             {
                 const ToolLine line
-                    = lineOf(options, { std::format("--upscaler={}", name), "--upscale=quality" }, Verbs::Bench);
+                    = lineOf(options, { std::format("--upscaler={}", name), "--upscale=quality" }, Verb::Bench);
                 EXPECT_EQ(line.mFrame.mUpscaler.mValue, kind);
                 EXPECT_TRUE(line.mFrame.mUpscaler.mNamed);
                 EXPECT_EQ(line.mFrame.mUpscale.mValue, Rtx::Upscale::Quality);
             }
-            EXPECT_THROW(lineOf(options, { "--upscaler=unknown" }, Verbs::Bench), std::runtime_error);
+            EXPECT_EQ(Rtx::Testing::refusalOf([&] { lineOf(options, { "--upscaler=unknown" }, Verb::Bench); }),
+                "\"unknown\" is not an upscaler: auto, fsr or dlss");
         }
 
         /// **The line is read once into what each option means, and a condition nobody named is none**:
@@ -191,9 +195,9 @@ namespace RtxTool
         {
             const ToolOptions options = makeOptions(Rtx::ValidationLevel::Off);
 
-            const ToolLine plain = lineOf(options, {}, Verbs::Shot);
+            const ToolLine plain = lineOf(options, {}, Verb::Shot);
             EXPECT_FALSE(plain.mSession.mSpellHands);
-            EXPECT_TRUE(lineOf(options, { "--spell-hands" }, Verbs::Shot).mSession.mSpellHands);
+            EXPECT_TRUE(lineOf(options, { "--spell-hands" }, Verb::Shot).mSession.mSpellHands);
             EXPECT_EQ(plain.mSky.mHour, std::nullopt);
             EXPECT_EQ(plain.mSky.mWeather, std::nullopt);
             EXPECT_FALSE(plain.mSky.mAir.has_value());
@@ -212,18 +216,18 @@ namespace RtxTool
             EXPECT_FALSE(plain.mFrame.mBouncesNamed.mBounceRays);
 
             // Each named apart, so a window takes the other from the player's settings.
-            const ToolLine rays = lineOf(options, { "--bounce-rays=3" }, Verbs::View);
+            const ToolLine rays = lineOf(options, { "--bounce-rays=3" }, Verb::View);
             EXPECT_EQ(rays.mFrame.mReconstruction.mSampling.mBounceRays, 3u);
             EXPECT_TRUE(rays.mFrame.mBouncesNamed.mBounceRays);
             EXPECT_FALSE(rays.mFrame.mBouncesNamed.mIndirect);
-            EXPECT_TRUE(lineOf(options, { "--indirect=false" }, Verbs::View).mFrame.mBouncesNamed.mIndirect);
+            EXPECT_TRUE(lineOf(options, { "--indirect=false" }, Verb::View).mFrame.mBouncesNamed.mIndirect);
             EXPECT_EQ(plain.mFrame.mSize.mWidth, 1920u);
             EXPECT_EQ(plain.mFrame.mSize.mHeight, 1080u);
 
             const ToolLine named = lineOf(options,
                 { "--hour=6.5", "--weather=Rain", "--turn-weather=Clear,Ashstorm", "--day=3", "--hold=false",
                     "--upscale=off", "--cell=-2,-9", "--pos=1,2,3", "--out=pictures", "--size=640x360" },
-                Verbs::Shot);
+                Verb::Shot);
             EXPECT_EQ(named.mSky.mHour, 6.5f);
             EXPECT_EQ(named.mSky.mWeather, Rtx::Weather::Rain);
             EXPECT_EQ(named.mSky.mTurn, (std::vector{ Rtx::Weather::Clear, Rtx::Weather::Ashstorm }));
@@ -240,19 +244,19 @@ namespace RtxTool
             EXPECT_EQ(named.mFrame.mSize.mHeight, 360u);
 
             EXPECT_EQ(
-                lineOf(options, { "--views=a,b" }, Verbs::Shot).mPlaces.mViews, (std::vector<std::string>{ "a", "b" }));
-            EXPECT_EQ(lineOf(options, { "--views=," }, Verbs::Shot).mPlaces.mViews, std::vector<std::string>{})
+                lineOf(options, { "--views=a,b" }, Verb::Shot).mPlaces.mViews, (std::vector<std::string>{ "a", "b" }));
+            EXPECT_EQ(lineOf(options, { "--views=," }, Verb::Shot).mPlaces.mViews, std::vector<std::string>{})
                 << "named with nothing in it, which is every view";
 
-            EXPECT_EQ(refusalOf(options, { "--views=a", "--pos=1,2,3" }, Verbs::Shot),
+            EXPECT_EQ(refusalOf(options, { "--views=a", "--pos=1,2,3" }, Verb::Shot),
                 "--views takes its places from the file, and --pos names one beside them");
-            EXPECT_EQ(refusalOf(options, { "--pos=1,2" }, Verbs::Shot),
+            EXPECT_EQ(refusalOf(options, { "--pos=1,2" }, Verb::Shot),
                 R"(--pos is not three numbers separated by commas: "1,2")");
-            EXPECT_EQ(refusalOf(options, { "--size=640" }, Verbs::Shot), "--size=640 is not WIDTHxHEIGHT");
-            EXPECT_EQ(refusalOf(options, { "--exposure=0" }, Verbs::Shot),
+            EXPECT_EQ(refusalOf(options, { "--size=640" }, Verb::Shot), "--size=640 is not WIDTHxHEIGHT");
+            EXPECT_EQ(refusalOf(options, { "--exposure=0" }, Verb::Shot),
                 "--exposure=0 is neither auto nor a number over nought");
-            EXPECT_NE(refusalOf(options, { "--weather=Sunny" }, Verbs::Shot).find(R"(--weather: "Sunny")"),
-                std::string::npos);
+            EXPECT_NE(
+                refusalOf(options, { "--weather=Sunny" }, Verb::Shot).find(R"(--weather: "Sunny")"), std::string::npos);
         }
 
         /// **A film is twenty seconds unless its length or its speed is named**, and never both: the
@@ -262,10 +266,10 @@ namespace RtxTool
         {
             const ToolOptions options = makeOptions(Rtx::ValidationLevel::Off);
             const auto length = [&](const std::vector<std::string>& line) {
-                return lineOf(options, line, Verbs::Film).mFilm.mPacing.mLength;
+                return lineOf(options, line, Verb::Film).mFilm.mPacing.mLength;
             };
             const auto refusal
-                = [&](const std::vector<std::string>& line) { return refusalOf(options, line, Verbs::Film); };
+                = [&](const std::vector<std::string>& line) { return refusalOf(options, line, Verb::Film); };
 
             EXPECT_EQ(length({}), (FilmLength{ .mSeconds = 20.0f, .mSource = FilmLengthSource::ByDefault }));
             EXPECT_EQ(FilmPacing::sLengthByDefault, 20.0f);
@@ -274,21 +278,6 @@ namespace RtxTool
             EXPECT_EQ(refusal({ "--length=35", "--speed=500" }),
                 "--length sets the speed, so --speed cannot be named beside it");
             EXPECT_EQ(refusal({ "--length=0" }), "the argument ('0') for option '--length' is not a number >0");
-        }
-
-        /// **A run takes the shipped map names, and `view`, the played game, the player's**, so two
-        /// machines trace one scene. No line names others: what a `_spec` map means is measured on it.
-        TEST(RtxToolOptionsTest, aRunTakesTheShippedMapsAndAWindowThePlayers)
-        {
-            const ToolOptions options = makeOptions(Rtx::ValidationLevel::Off);
-            const auto maps = [&](const std::vector<std::string>& line, Verbs verb) {
-                return lineOf(options, line, verb).mFrame.mMaps;
-            };
-
-            EXPECT_EQ(maps({}, Verbs::Shot), MapRules::Shipped);
-            EXPECT_EQ(maps({}, Verbs::Bench), MapRules::Shipped);
-            EXPECT_EQ(maps({}, Verbs::View), std::nullopt);
-            EXPECT_THROW(maps({ "--maps=shipped" }, Verbs::Shot), std::exception) << "an option no command reads";
         }
 
         /// The build decides the level nobody named, and the level is spelled the way the table
@@ -305,17 +294,16 @@ namespace RtxTool
         TEST(RtxToolOptionsTest, checkDrawsItsOwnFrameWhereTheLineNamesNone)
         {
             const ToolOptions options = makeOptions(Rtx::ValidationLevel::Off);
-            const auto size = [&](const std::vector<std::string>& line, Verbs verb) {
+            const auto size = [&](const std::vector<std::string>& line, Verb verb) {
                 const FrameSize read = lineOf(options, line, verb).mFrame.mSize;
                 return std::pair(read.mWidth, read.mHeight);
             };
 
-            EXPECT_EQ(size({}, Verbs::Check), std::pair(957u, 539u));
-            EXPECT_EQ(size({ "--size=1920x1080" }, Verbs::Check), std::pair(1920u, 1080u));
-            for (const Verbs other :
-                { Verbs::Scene, Verbs::Shot, Verbs::View, Verbs::Bench, Verbs::Film, Verbs::Noise })
+            EXPECT_EQ(size({}, Verb::Check), std::pair(957u, 539u));
+            EXPECT_EQ(size({ "--size=1920x1080" }, Verb::Check), std::pair(1920u, 1080u));
+            for (const Verb other : { Verb::Scene, Verb::Shot, Verb::View, Verb::Bench, Verb::Film, Verb::Noise })
                 EXPECT_EQ(size({}, other), std::pair(1920u, 1080u)) << verbName(other);
-            EXPECT_EQ(size({ "--size=957x539" }, Verbs::Bench), std::pair(957u, 539u));
+            EXPECT_EQ(size({ "--size=957x539" }, Verb::Bench), std::pair(957u, 539u));
 
             const Rtx::FrameExtents traced
                 = Rtx::extentsFor(sCheckFrame.mWidth, sCheckFrame.mHeight, sUpscaleByDefault);
@@ -331,10 +319,10 @@ namespace RtxTool
         /// level the build validates at, and it is no measuring command, whose layers `frameFrom` takes away.
         TEST(RtxToolOptionsTest, checkKeepsTheLayersAndTheirShaderChecks)
         {
-            const ToolLine line = lineOf(makeOptions(Rtx::ValidationLevel::Sync), {}, Verbs::Check);
+            const ToolLine line = lineOf(makeOptions(Rtx::ValidationLevel::Sync), {}, Verb::Check);
             EXPECT_EQ(line.mValidation.mLevel, Rtx::ValidationLevel::Sync);
             EXPECT_EQ(line.mValidation.mShaders, Rtx::ShaderValidation::Checked);
-            EXPECT_FALSE(policyOf(Verbs::Check).mMeasures);
+            EXPECT_FALSE(policyOf(Verb::Check).mMeasures);
         }
 
         /// An option belonging to one command, given to another, is refused: every option is declared on one
@@ -344,26 +332,26 @@ namespace RtxTool
         {
             const ToolOptions options = makeOptions(Rtx::ValidationLevel::Off);
 
-            EXPECT_EQ(options.complainAbout(parse(options, { "--views=balmora" }), Verbs::View),
+            EXPECT_EQ(options.complainAbout(parse(options, { "--views=balmora" }), Verb::View),
                 "`view` does not read --views, which belongs to every command but `info`, `view` and `film`.\n");
 
-            EXPECT_EQ(options.complainAbout(parse(options, { "--views=balmora" }), Verbs::Bench), "")
+            EXPECT_EQ(options.complainAbout(parse(options, { "--views=balmora" }), Verb::Bench), "")
                 << "the command the option belongs to takes it";
-            EXPECT_EQ(options.complainAbout(parse(options, { "--views=balmora" }), Verbs::Shot), "");
-            EXPECT_EQ(options.complainAbout(parse(options, { "--views=balmora" }), Verbs::Check), "");
+            EXPECT_EQ(options.complainAbout(parse(options, { "--views=balmora" }), Verb::Shot), "");
+            EXPECT_EQ(options.complainAbout(parse(options, { "--views=balmora" }), Verb::Check), "");
 
             // The same mistake the other way round: a run of places takes its cell from `--views`,
             // and `--view` is what a command that stands at one place reads.
-            EXPECT_EQ(options.complainAbout(parse(options, { "--view=balmora" }), Verbs::Bench),
+            EXPECT_EQ(options.complainAbout(parse(options, { "--view=balmora" }), Verb::Bench),
                 "`bench` does not read --view, which belongs to `scene`, `shot` and `view`.\n");
-            EXPECT_EQ(options.complainAbout(parse(options, { "--view=balmora" }), Verbs::Shot), "");
+            EXPECT_EQ(options.complainAbout(parse(options, { "--view=balmora" }), Verb::Shot), "");
 
             // A film's keys each name their own sky, so one sky on the line would be thrown away.
-            EXPECT_EQ(options.complainAbout(parse(options, { "--hour=6" }), Verbs::Film),
+            EXPECT_EQ(options.complainAbout(parse(options, { "--hour=6" }), Verb::Film),
                 "`film` does not read --hour, which belongs to every command but `info` and `film`.\n");
-            EXPECT_EQ(options.complainAbout(parse(options, { "--keys=tour.keys" }), Verbs::View), "")
+            EXPECT_EQ(options.complainAbout(parse(options, { "--keys=tour.keys" }), Verb::View), "")
                 << "a window writes the keys a film reads";
-            EXPECT_EQ(options.complainAbout(parse(options, { "--keys=tour.keys", "--day=3" }), Verbs::Film), "");
+            EXPECT_EQ(options.complainAbout(parse(options, { "--keys=tour.keys", "--day=3" }), Verb::Film), "");
         }
 
         /// Every option on the line is answered for, and each of them once.
@@ -376,20 +364,20 @@ namespace RtxTool
                 = parse(options, { "--suite=default", "--upscale=off", "--find=barrel", "--seconds=4" });
 
             EXPECT_EQ(
-                options.complainAbout(line, Verbs::Bench), "`bench` does not read --find, which belongs to `scene`.\n");
-            EXPECT_EQ(options.complainAbout(line, Verbs::Scene),
+                options.complainAbout(line, Verb::Bench), "`bench` does not read --find, which belongs to `scene`.\n");
+            EXPECT_EQ(options.complainAbout(line, Verb::Scene),
                 "`scene` does not read --suite, which belongs to `bench`, `check` and `noise`.\n"
                 "`scene` does not read --seconds, which belongs to `bench` and `check`.\n");
 
             // An option written twice is worth one complaint.
             const bpo::parsed_options twice = parse(options, { "--out=a", "--out=b" });
-            EXPECT_EQ(options.complainAbout(twice, Verbs::Scene),
+            EXPECT_EQ(options.complainAbout(twice, Verb::Scene),
                 "`scene` does not read --out, which belongs to every command but `info` and `scene`.\n");
         }
 
         /// Every option says which commands read it, and the ones that say "all of them" say it.
         ///
-        /// What this holds shut: a knob with no owner would answer `Verbs::Every`, so `info --size=800x600
+        /// What this holds shut: a knob with no owner would answer `VerbSet::every()`, so `info --size=800x600
         /// --delight=0` would be taken and thrown away.
         TEST(RtxToolOptionsTest, everyOptionSaysWhichCommandsReadIt)
         {
@@ -413,25 +401,27 @@ namespace RtxTool
                 EXPECT_TRUE(theirs || owned.contains(name)) << name << " reached the description with no owner";
             }
 
-            EXPECT_EQ(options.readsOption("validation"), Verbs::Every);
-            EXPECT_EQ(options.readsOption("data"), Verbs::Every) << "the engine's own, read by every command";
-            EXPECT_EQ(options.readsOption("load-savegame"), otherThan(Verbs::Info)) << "info starts no game";
-            EXPECT_EQ(options.readsOption("random-seed"), otherThan(Verbs::Info));
-            EXPECT_EQ(
-                options.readsOption("views"), Verbs::Scene | Verbs::Shot | Verbs::Bench | Verbs::Check | Verbs::Noise);
-            EXPECT_EQ(options.readsOption("suite"), Verbs::Bench | Verbs::Check | Verbs::Noise);
+            EXPECT_EQ(options.readsOption("validation"), VerbSet::every());
+            EXPECT_EQ(options.readsOption("data"), VerbSet::every()) << "the engine's own, read by every command";
+            EXPECT_EQ(options.readsOption("load-savegame"), VerbSet{ Verb::Info }.complement())
+                << "info starts no game";
+            EXPECT_EQ(options.readsOption("random-seed"), VerbSet{ Verb::Info }.complement());
+            EXPECT_EQ(options.readsOption("views"),
+                (VerbSet{ Verb::Scene, Verb::Shot, Verb::Bench, Verb::Check, Verb::Noise }));
+            EXPECT_EQ(options.readsOption("suite"), (VerbSet{ Verb::Bench, Verb::Check, Verb::Noise }));
 
             // Every command but `info` builds a frame, and `info` reports on a device. A film is
             // always made under one mode, and names none.
-            EXPECT_EQ(options.readsOption("upscale"), otherThan(Verbs::Info | Verbs::Film));
-            EXPECT_EQ(options.readsOption("size"), otherThan(Verbs::Info));
-            EXPECT_EQ(options.complainAbout(parse(options, { "--size=8x8" }), Verbs::Info),
+            EXPECT_EQ(options.readsOption("upscale"), (VerbSet{ Verb::Info, Verb::Film }.complement()));
+            EXPECT_EQ(options.readsOption("size"), VerbSet{ Verb::Info }.complement());
+            EXPECT_EQ(options.complainAbout(parse(options, { "--size=8x8" }), Verb::Info),
                 "`info` does not read --size, which belongs to every command but `info`.\n");
-            EXPECT_EQ(options.complainAbout(parse(options, { "--size=8x8" }), Verbs::Check), "")
+            EXPECT_EQ(options.complainAbout(parse(options, { "--size=8x8" }), Verb::Check), "")
                 << "`check` frames a camera through the same request every other command does";
 
             for (const std::string_view name : { "info", "scene", "shot", "view", "bench", "check", "film" })
-                EXPECT_EQ(options.complainAbout(parse(options, { "--validation=off" }), verbNamed(name)), "") << name;
+                EXPECT_EQ(options.complainAbout(parse(options, { "--validation=off" }), verbNamed(name).value()), "")
+                    << name;
         }
 
         /// The help line and the check are one statement, so a reader is told what the tool
@@ -476,67 +466,72 @@ namespace RtxTool
 
         /// The names the two tables share: an option's owner and the dispatch's row are the same
         /// word for the same command.
-        TEST(RtxVerbsTest, everyCommandHasOneNameAndOneBit)
+        TEST(RtxVerbsTest, everyCommandHasOneName)
         {
-            EXPECT_EQ(verbName(Verbs::Shot), "shot");
-            EXPECT_EQ(verbNamed("shot"), Verbs::Shot);
-            EXPECT_EQ(verbName(Verbs::Check), "check");
-            EXPECT_EQ(verbNamed("check"), Verbs::Check);
-            EXPECT_EQ(verbName(Verbs::Film), "film");
-            EXPECT_EQ(verbNamed("film"), Verbs::Film);
-            EXPECT_EQ(verbName(Verbs::Noise), "noise");
-            EXPECT_EQ(verbNamed("noise"), Verbs::Noise);
-            EXPECT_EQ(verbNamed("nonesuch"), Verbs::None);
-            EXPECT_EQ(verbName(Verbs::Bench | Verbs::Check), "") << "a set of two is not a command";
-            EXPECT_EQ(verbName(Verbs::None), "");
+            EXPECT_EQ(verbName(Verb::Shot), "shot");
+            EXPECT_EQ(verbNamed("shot"), Verb::Shot);
+            EXPECT_EQ(verbName(Verb::Check), "check");
+            EXPECT_EQ(verbNamed("check"), Verb::Check);
+            EXPECT_EQ(verbName(Verb::Film), "film");
+            EXPECT_EQ(verbNamed("film"), Verb::Film);
+            EXPECT_EQ(verbName(Verb::Noise), "noise");
+            EXPECT_EQ(verbNamed("noise"), Verb::Noise);
+            EXPECT_EQ(verbNamed("nonesuch"), std::nullopt);
+            EXPECT_EQ(verbNamed(""), std::nullopt);
 
-            EXPECT_EQ(countVerbs(Verbs::Every), 8u) << "the eight `--help` prints";
-            EXPECT_EQ(countVerbs(Verbs::None), 0u);
-            EXPECT_EQ(otherThan(Verbs::Every), Verbs::None);
-            EXPECT_EQ(countVerbs(otherThan(Verbs::Shot)), 7u);
-            EXPECT_TRUE(holds(Verbs::Bench | Verbs::Check, Verbs::Check));
-            EXPECT_FALSE(holds(Verbs::Bench | Verbs::Check, Verbs::Shot));
+            // Eight commands, each its own bit: a set holds exactly what it was given, and its complement the
+            // rest.
+            EXPECT_EQ(VerbSet::every().size(), 8u) << "the eight `--help` prints";
+            EXPECT_EQ(VerbSet{}.size(), 0u);
+            EXPECT_EQ(VerbSet::every().complement(), VerbSet{});
+            EXPECT_EQ(VerbSet{}.complement(), VerbSet::every());
+            EXPECT_EQ(VerbSet{ Verb::Shot }.complement().size(), 7u);
+            EXPECT_FALSE(VerbSet{ Verb::Shot }.complement().contains(Verb::Shot));
+            EXPECT_TRUE(VerbSet{ Verb::Shot }.complement().contains(Verb::Noise));
+            EXPECT_TRUE((VerbSet{ Verb::Bench, Verb::Check }.contains(Verb::Check)));
+            EXPECT_FALSE((VerbSet{ Verb::Bench, Verb::Check }.contains(Verb::Shot)));
+            EXPECT_EQ((VerbSet{ Verb::Check, Verb::Check }), VerbSet{ Verb::Check }) << "a command named twice is one";
 
-            EXPECT_EQ(describeVerbs(Verbs::Shot), "`shot`");
-            EXPECT_EQ(describeVerbs(Verbs::Bench | Verbs::Check), "`bench` and `check`");
-            EXPECT_EQ(describeVerbs(Verbs::Check | Verbs::Shot | Verbs::Scene), "`scene`, `shot` and `check`")
+            EXPECT_EQ(describeVerbs({ Verb::Shot }), "`shot`");
+            EXPECT_EQ(describeVerbs({ Verb::Bench, Verb::Check }), "`bench` and `check`");
+            EXPECT_EQ(describeVerbs({ Verb::Check, Verb::Shot, Verb::Scene }), "`scene`, `shot` and `check`")
                 << "in the order --help prints them, whatever order they were written in";
-            EXPECT_EQ(describeVerbs(Verbs::None), "");
+            EXPECT_EQ(describeVerbs({}), "");
         }
 
         /// What each command does with a place is one row: which freeze the world, which fly a
         /// route, which follow a track, which measure without the layers, which hash every frame and
-        /// which somebody plays. **Every command has one**, so a command added to the names and
-        /// forgotten here stops at the first run rather than running with a row it never had.
+        /// which somebody plays. **Every command has one**, which the table's declaration holds: a command added to the
+        /// enum and forgotten there does not compile.
         TEST(RtxVerbsTest, everyCommandHasOneRowOfPolicy)
         {
-            const auto row = [](Verbs verb) {
+            const auto row = [](Verb verb) {
                 const VerbPolicy& policy = policyOf(verb);
                 return std::array{ policy.mFreezes, policy.mFliesRoutes, policy.mFollowsTracks, policy.mMeasures,
                     policy.mHashes, policy.mPlayed };
             };
 
             //                                     freezes routes tracks measures hashes played
-            EXPECT_EQ(row(Verbs::Info), (std::array{ false, false, false, false, false, false }));
-            EXPECT_EQ(row(Verbs::Scene), (std::array{ true, false, false, false, false, false }));
-            EXPECT_EQ(row(Verbs::Shot), (std::array{ true, true, false, false, true, false }));
-            EXPECT_EQ(row(Verbs::View), (std::array{ false, false, false, false, false, true }))
+            EXPECT_EQ(row(Verb::Info), (std::array{ false, false, false, false, false, false }));
+            EXPECT_EQ(row(Verb::Scene), (std::array{ true, false, false, false, false, false }));
+            EXPECT_EQ(row(Verb::Shot), (std::array{ true, true, false, false, true, false }));
+            EXPECT_EQ(row(Verb::View), (std::array{ false, false, false, false, false, true }))
                 << "a window takes no route and keeps the game's interface: somebody is flying it";
-            EXPECT_EQ(row(Verbs::Bench), (std::array{ false, true, false, true, false, false }));
-            EXPECT_EQ(row(Verbs::Check), (std::array{ true, true, false, false, false, false }));
-            EXPECT_EQ(row(Verbs::Film), (std::array{ false, false, true, true, false, false }));
-            EXPECT_EQ(row(Verbs::Noise), (std::array{ true, false, false, false, false, false }))
+            EXPECT_EQ(row(Verb::Bench), (std::array{ false, true, false, true, false, false }));
+            EXPECT_EQ(row(Verb::Check), (std::array{ true, true, false, false, false, false }));
+            EXPECT_EQ(row(Verb::Film), (std::array{ false, false, true, true, false, false }));
+            EXPECT_EQ(row(Verb::Noise), (std::array{ true, false, false, false, false, false }))
                 << "a reference is many frames of one frame, and a route would make them many";
 
             // Traced at the game's width where a player sees the frames — a window, a bench, a film —
             // and at the reference's wherever a picture may be summed.
-            for (const Verbs verb : { Verbs::Info, Verbs::Scene, Verbs::Shot, Verbs::View, Verbs::Bench, Verbs::Check,
-                     Verbs::Film, Verbs::Noise })
+            for (const Verb verb :
+                { Verb::Info, Verb::Scene, Verb::Shot, Verb::View, Verb::Bench, Verb::Check, Verb::Film, Verb::Noise })
             {
-                const bool shown = verb == Verbs::View || verb == Verbs::Bench || verb == Verbs::Film;
+                const bool shown = verb == Verb::View || verb == Verb::Bench || verb == Verb::Film;
                 EXPECT_EQ(
                     policyOf(verb).radianceWidth(), shown ? Rtx::RadianceWidth::Shown : Rtx::RadianceWidth::Summed)
-                    << describeVerbs(verb);
+                    << verbName(verb);
             }
         }
     }
@@ -568,8 +563,7 @@ namespace RtxTool
         /// because the last configuration directory is the one the engine writes into.
         TEST(RtxOwnConfigTest, theDirectoryIsMadeAndComesLast)
         {
-            const std::filesystem::path own = TestingOpenMW::outputFilePath("own-config-test");
-            std::filesystem::remove_all(own);
+            const std::filesystem::path own = TestingOpenMW::currentTestDirPath() / "own-config-test";
 
             bpo::variables_map bare = parse({ "openmw-rtxtool" });
             adoptConfigDirectory(bare, own);
@@ -580,21 +574,22 @@ namespace RtxTool
             adoptConfigDirectory(named, own);
             EXPECT_EQ(configDirectories(named), (std::vector<std::filesystem::path>{ "/one", "/two", own }))
                 << "after what the command line named, so it is the one the engine saves into";
-
-            std::filesystem::remove_all(own);
         }
 
-        /// **A run's own directory is this process's, and the same one every time it is asked**:
-        /// under `rtxtool`, named `<time>-<process id>`.
+        /// **A run's own directory is named for this process**: under `rtxtool`, `<time>-<process id>`, with its
+        /// saves inside it.
         TEST(RtxOwnConfigTest, aRunsDirectoryIsItsOwn)
         {
             const Files::ConfigurationManager config;
-            const std::filesystem::path own = ownConfigDirectory(config);
-            EXPECT_EQ(own, ownConfigDirectory(config)) << "one directory for the whole run";
-            EXPECT_EQ(own.parent_path(), config.getCachePath() / "rtxtool");
-            EXPECT_EQ(ownSavesFolder(config), own / "saves") << "a run's saves outside its own directory";
-            EXPECT_TRUE(Files::pathToUnicodeString(own.filename())
-                    .ends_with(std::format("-{}", Platform::Process::currentId())));
+            const std::string run = nameThisRun();
+            EXPECT_TRUE(run.ends_with(std::format("-{}", Platform::Process::currentId()))) << run;
+            const std::string time = run.substr(0, run.find('-'));
+            EXPECT_FALSE(time.empty()) << run;
+            EXPECT_EQ(time.find_first_not_of("0123456789"), std::string::npos) << run;
+
+            const std::filesystem::path own = ownConfigDirectory(config, run);
+            EXPECT_EQ(own, config.getCachePath() / "rtxtool" / run);
+            EXPECT_EQ(ownSavesFolder(own), own / "saves") << "a run's saves outside its own directory";
         }
 
         /// **Everything but a live run's directory is swept**: process nought, which no system hands
@@ -619,8 +614,6 @@ namespace RtxTool
                 std::filesystem::directory_iterator(runs))
                 ++left;
             EXPECT_EQ(left, 1u) << "only the live run stays";
-
-            std::filesystem::remove_all(runs);
 
             // A relative folder is the working directory's, which is no folder of runs.
             Rtx::Testing::expectDies(

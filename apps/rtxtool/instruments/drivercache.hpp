@@ -19,7 +19,7 @@ namespace RtxTool
     ///
     /// Nothing here settles which code the driver runs, and nothing has to: the driver builds a launch's code
     /// again from its own profile and swaps it in at a frame of some processes, and the build pins every
-    /// shader's float arithmetic (`Rtx::pinFloatArithmetic`) so both codes trace the same frame.
+    /// shader's float arithmetic (`Rtx::pinModule`) so both codes trace the same frame.
     class DriverCache
     {
     public:

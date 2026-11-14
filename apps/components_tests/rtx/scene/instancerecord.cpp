@@ -187,10 +187,8 @@ namespace Rtx
             expectSame(kept, scene, "moved");
             EXPECT_FALSE(kept[leaf].mMotion == still) << "a mover carried no motion";
             EXPECT_TRUE(kept[water].mMotion == still) << "the sea stood a cell over moved its surface";
-            // The four the build placed that settle for the first time, and then the two that moved:
-            // a slot in both lists is written once, by the pass that gives it its motion.
-            EXPECT_EQ(changed, (std::vector<Index>{ pane, chunk, cloud, glow, leaf, water }))
-                << "the slots written, in order";
+            // The two that moved: the build placed every slot where it stands, which settles nothing.
+            EXPECT_EQ(changed, (std::vector<Index>{ leaf, water })) << "the slots written, in order";
 
             scene.placements().advance();
             updateInstanceRecords(scene, kept, changed);

@@ -36,11 +36,12 @@ namespace Rtx::Testing
     ::testing::AssertionResult isNear(const Texel& got, const Texel& want, const int step)
     {
         for (std::size_t channel = 0; channel < got.size(); ++channel)
-            if (std::abs(int(got[channel]) - int(want[channel])) > step)
+            if (std::abs(static_cast<int>(got[channel]) - static_cast<int>(want[channel])) > step)
                 return ::testing::AssertionFailure()
-                    << "channel " << channel << " is " << int(got[channel]) << " where " << int(want[channel])
-                    << " was asked, within " << step << " (" << int(got[0]) << ", " << int(got[1]) << ", "
-                    << int(got[2]) << ", " << int(got[3]) << ")";
+                    << "channel " << channel << " is " << static_cast<int>(got[channel]) << " where "
+                    << static_cast<int>(want[channel]) << " was asked, within " << step << " ("
+                    << static_cast<int>(got[0]) << ", " << static_cast<int>(got[1]) << ", " << static_cast<int>(got[2])
+                    << ", " << static_cast<int>(got[3]) << ")";
         return ::testing::AssertionSuccess();
     }
 }

@@ -1063,7 +1063,7 @@ namespace Rtx
         /// **What lets a backend rewrite hundreds of rows a frame and not tens of thousands.** Transform,
         /// opacity and what traversal is told about the material each make a row; a texture scrolling
         /// under the same material does not. What settled is reported the frame after, or a backend would
-        /// leave last frame's motion in a row for ever.
+        /// leave last frame's motion in a row for ever; a row written with no motion settles nothing.
         TEST(RtxSceneDescTest, aRowIsReportedWhenAPlacementIsPlacedMovedFadedDroppedOrReclassed)
         {
             SceneDesc scene;
@@ -1081,8 +1081,7 @@ namespace Rtx
 
             scene.placements().advance();
             EXPECT_TRUE(scene.placements().getMoved().empty());
-            EXPECT_EQ(sorted(scene.placements().getSettled()), (std::vector<Index>{ one, two }))
-                << "what moved is what settles";
+            EXPECT_TRUE(scene.placements().getSettled().empty()) << "a placement made where it stands has no motion";
 
             // A fade that changes the number is a row; one that does not is nothing. And the settled
             // list is the last moved list and nothing older.
@@ -1090,7 +1089,7 @@ namespace Rtx
             scene.placements().fade(one, 0.5f);
             EXPECT_EQ(sorted(scene.placements().getMoved()), (std::vector<Index>{ one }));
             scene.placements().advance();
-            EXPECT_EQ(sorted(scene.placements().getSettled()), (std::vector<Index>{ one }));
+            EXPECT_TRUE(scene.placements().getSettled().empty()) << "a fade on the spot has no motion";
 
             // A material crossing opaque re-classes every placement wearing it; a texture scrolling
             // under it re-classes none.
@@ -1127,6 +1126,15 @@ namespace Rtx
             EXPECT_TRUE(scene.placements().getMoved().empty());
             scene.placements().advance();
 
+            // **And a jump to where a walk moved it, with no hand-over between, is motionless too**: the walk's
+            // step is no motion once the slot is said to have jumped there.
+            const osg::Matrixf further = osg::Matrixf::translate(4100.0f, 0.0f, 5.0f);
+            EXPECT_TRUE(scene.placements().move(two, further));
+            EXPECT_FALSE(scene.placements().jump(two, further)) << "it already stands there";
+            EXPECT_EQ(scene.placements().getRows()[two].mPrevious, further) << "the walk's step carried as motion";
+            scene.placements().advance();
+            EXPECT_TRUE(scene.placements().getSettled().empty());
+
             // A dropped slot is a row to write inactive, and the slot it frees is the next
             // placement's — both reported, on the frames they happen.
             scene.dropInstance(two, Stander::Walk);
@@ -1140,10 +1148,7 @@ namespace Rtx
             // writes twice, for ever.
             scene.placements().advance();
             EXPECT_TRUE(scene.placements().getMoved().empty());
-            EXPECT_EQ(sorted(scene.placements().getSettled()), (std::vector<Index>{ two }));
-
-            scene.placements().advance();
-            EXPECT_TRUE(scene.placements().getSettled().empty());
+            EXPECT_TRUE(scene.placements().getSettled().empty()) << "a slot taken over where it stands has no motion";
         }
 
         TEST(RtxSceneDescTest, anEmitterCarriesItsSpritesAndTheSphereThatHoldsThem)
@@ -1175,15 +1180,16 @@ namespace Rtx
                 .mColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
                 .mAlpha = 1.0f } };
 
-            scene.addEmitter(sPlume, texture, BlendKind::Add, 0.0f, lighting);
+            scene.addEmitter(
+                sPlume, EmitterSpec{ .mTexture = texture, .mBlend = BlendKind::Add, .mLighting = lighting });
             ASSERT_EQ(scene.emitters().size(), 1u);
 
             // An emitter with nothing alive in it is not an emitter, and the next one that has
             // something starts where the first left off rather than where a placeholder would have.
-            scene.addEmitter({}, texture, BlendKind::Over);
+            scene.addEmitter({}, EmitterSpec{ .mTexture = texture, .mBlend = BlendKind::Over });
             EXPECT_EQ(scene.emitters().size(), 1u);
 
-            scene.addEmitter(sSmoke, texture, BlendKind::Over);
+            scene.addEmitter(sSmoke, EmitterSpec{ .mTexture = texture, .mBlend = BlendKind::Over });
             ASSERT_EQ(scene.emitters().size(), 2u);
 
             // Named once the adds are done, for the reason `SceneDesc`'s spans give.
@@ -1251,9 +1257,9 @@ namespace Rtx
             // **Every add before any read**, for the reason `SceneDesc`'s spans give: a row named
             // while another emitter is still to come is a row the next `addEmitter` moves out from
             // under the name.
-            scene.addEmitter(disc, texture, BlendKind::Over);
-            scene.addEmitter(streak, texture, BlendKind::Over, 0.1f);
-            scene.addEmitter(leant, texture, BlendKind::Over, 0.1f);
+            scene.addEmitter(disc, EmitterSpec{ .mTexture = texture, .mBlend = BlendKind::Over });
+            scene.addEmitter(streak, EmitterSpec{ .mTexture = texture, .mBlend = BlendKind::Over, .mWidth = 0.1f });
+            scene.addEmitter(leant, EmitterSpec{ .mTexture = texture, .mBlend = BlendKind::Over, .mWidth = 0.1f });
 
             ASSERT_EQ(scene.emitters().size(), 3u);
             const std::span<const SpriteEmitter> made = scene.emitters();

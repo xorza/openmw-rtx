@@ -219,9 +219,10 @@ namespace Rtx
         /// scene's table has not either.
         void drop(std::span<const std::uint32_t> slots);
 
-        /// Filters the footprint binding by `anisotropy` from each set's next `sync` on: every slot
-        /// that stands is owed to every set again, and the samplers it was written through go
-        /// under the frames that may still read them.
+        /// Filters the footprint binding by `anisotropy`, written into every set before this returns: on a
+        /// queue that binds none of them (`VulkanRenderer::setAnisotropy` drains it first), as a scene not
+        /// placed since is traced through what its sets name. The samplers replaced go under the frames that
+        /// may still read them.
         void setAnisotropy(std::uint32_t anisotropy);
 
         /// The set `slot`'s frame binds, which `sync(slot)` brought up to date. A hand-out, so it
@@ -270,7 +271,7 @@ namespace Rtx
         /// is left; and each file as far down as it goes where not even that fits. Nought for what is not a file. The
         /// rooms of `arrival` are priced past what they hold already.
         void chooseLevels(std::span<const TextureData> arrived, VkDeviceSize room, const TextureArrival& arrival,
-            std::vector<std::uint32_t>& firsts) const;
+            std::vector<std::uint32_t>& firsts);
 
     private:
         /// One slot of the array: the texture standing in it, or the stand-in, which stands once
@@ -337,9 +338,8 @@ namespace Rtx
 
         /// Where each slot stands in the arrival `chooseLevels` is weighing, `sNoIndex` for a slot that
         /// did not arrive: what a bake's cost asks of its source, where a search of the arrival asked
-        /// it up to twice a halving for every bake. Refilled per arrival, and kept — scratch, which
-        /// is why a question that is otherwise const may write it.
-        mutable std::vector<Index> mArrivingAt;
+        /// it up to twice a halving for every bake. Refilled per arrival, and kept.
+        std::vector<Index> mArrivingAt;
 
         /// One level a file of the arrival `chooseLevels` is weighing can come down by: what the
         /// file stands from the level it comes down from, its slot, and where it stands in the
@@ -351,8 +351,8 @@ namespace Rtx
             std::uint32_t mSlot;
             std::size_t mAt;
         };
-        mutable std::vector<Drop> mDrops;
-        mutable std::vector<std::uint32_t> mTrialFirsts;
+        std::vector<Drop> mDrops;
+        std::vector<std::uint32_t> mTrialFirsts;
 
         /// The levels `chooseLevels` gave the last `write`'s arrival. Refilled per arrival, and kept.
         std::vector<std::uint32_t> mFirsts;
@@ -376,6 +376,9 @@ namespace Rtx
             std::optional<Buffer> mBlocks;
         };
         CompositeCanvas mCanvas;
+
+        /// Writes both sampler bindings into every set: at the making, and at a change of anisotropy.
+        void writeSamplers();
 
         /// Makes the blocks and the canvas a composite of `source` is baked on, where either is
         /// missing, or says why the device has no room for one.
@@ -419,10 +422,6 @@ namespace Rtx
 
         /// The slots each set has yet to be told, each once however often it was written.
         PerSlot<SlotSet> mOwed;
-
-        /// Whether each set has yet to be told the samplers: from its start, and after
-        /// `setAnisotropy` replaced the footprint's.
-        PerSlot<bool> mSamplersOwed{ [](FrameSlot) { return true; } };
 
         /// Which composites arrived and stand empty, whose ground each is and which of its two
         /// images: what the next placement bakes, one sum a chunk for whichever of its two it

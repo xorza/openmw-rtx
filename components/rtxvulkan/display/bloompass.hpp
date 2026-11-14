@@ -22,7 +22,8 @@ namespace Rtx
     /// Warfare*) — a thirteen-tap halving per level, the frame's own a Karis average, and a nine-tap
     /// tent back up, mixed rather than added. No threshold, because a threshold is a brightness at
     /// which the veil switches on. This builds the pyramid and `TonePass` spreads it, so
-    /// `readComposite` stays the trace's own answer that a measurement can hand-compute.
+    /// the composed frame a test reads back (`RendererProbe::readComposite`) stays the trace's own answer that a
+    /// measurement can hand-compute.
     class BloomPass
     {
     public:

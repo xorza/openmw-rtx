@@ -5,6 +5,7 @@
 
 #include <gtest/gtest.h>
 
+#include <apps/components_tests/rtx/support/refusal.hpp>
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <apps/rtxtool/model/benchspec.hpp>
 
@@ -30,9 +31,12 @@ namespace RtxTool
             // **One past what a count holds is refused and not wrapped**: 1e8 seconds at sixty frames a
             // second is six billion frames, past the 4294967295 that means a window; an endless span is
             // refused the same.
-            EXPECT_THROW((BenchSpan{ .mSeconds = 1e8f }).getFrames(sStepSeconds), std::range_error);
-            EXPECT_THROW((BenchSpan{ .mSeconds = std::numeric_limits<float>::infinity() }).getFrames(sStepSeconds),
-                std::range_error);
+            EXPECT_EQ(Rtx::Testing::refusalOf([&] { (BenchSpan{ .mSeconds = 1e8f }).getFrames(sStepSeconds); }),
+                "1e+08 seconds at 0.016666668 seconds a frame is more frames than a run counts");
+            EXPECT_EQ(Rtx::Testing::refusalOf([&] {
+                (BenchSpan{ .mSeconds = std::numeric_limits<float>::infinity() }).getFrames(sStepSeconds);
+            }),
+                "inf seconds at 0.016666668 seconds a frame is more frames than a run counts");
 
             // Nothing asked for is nothing measured, which is what an absent warm-up says.
             EXPECT_TRUE(BenchSpan{}.empty());

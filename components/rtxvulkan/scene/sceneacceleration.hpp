@@ -58,6 +58,9 @@ namespace Rtx
         /// Pinned: the top-level build keeps a pointer to its geometry, a member beside it.
         SceneAcceleration(const SceneAcceleration&) = delete;
         SceneAcceleration& operator=(const SceneAcceleration&) = delete;
+        SceneAcceleration(SceneAcceleration&&) = delete;
+        SceneAcceleration& operator=(SceneAcceleration&&) = delete;
+        ~SceneAcceleration() = default;
 
         /// Builds every mesh's structure, writes every row, and builds the top level, in one submit
         /// with each stage ending in the barrier the next one needs. Once, after the constructor.
@@ -192,7 +195,9 @@ namespace Rtx
         /// one the rota picked, an update's for the rest.
         VkDeviceSize refitScratchOf(Index mesh) const
         {
-            return mesh == mRebuilt ? mBottomLevel.getBuildScratch(mesh) : mBottomLevel.getUpdateScratch(mesh);
+            return mBottomLevel.getScratchFor(mesh,
+                mesh == mRebuilt ? VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR
+                                 : VK_BUILD_ACCELERATION_STRUCTURE_MODE_UPDATE_KHR);
         }
 
         /// Brings the host rows up to what `changed` names, and to whatever the table grew by.

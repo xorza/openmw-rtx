@@ -84,7 +84,7 @@ namespace Rtx::Testing
                     .mRadius = 50.0f,
                     .mColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
                     .mAlpha = 1.0f } };
-                scene.addEmitter(sprites, cut, BlendKind::Over);
+                scene.addEmitter(sprites, EmitterSpec{ .mTexture = cut, .mBlend = BlendKind::Over });
 
                 Shaders::VisibilityConstants camera = Testing::makeCamera(
                     osg::Vec3f(0.0f, 0.0f, 200.0f), osg::Vec3f(0.0f, 300.0f, 200.0f), 90.0f, size, size, 100000.0f);
@@ -151,7 +151,7 @@ namespace Rtx::Testing
                     .mRadius = 60.0f,
                     .mColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
                     .mAlpha = 1.0f } };
-                scene.addEmitter(sprites, cut, BlendKind::Over);
+                scene.addEmitter(sprites, EmitterSpec{ .mTexture = cut, .mBlend = BlendKind::Over });
 
                 if (lidded)
                     addQuad(scene, sheetAt(4000.0f, 600.0f));
@@ -219,7 +219,7 @@ namespace Rtx::Testing
                     .mRadius = 60.0f,
                     .mColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
                     .mAlpha = 1.0f } };
-                scene.addEmitter(sprites, cut, BlendKind::Over);
+                scene.addEmitter(sprites, EmitterSpec{ .mTexture = cut, .mBlend = BlendKind::Over });
 
                 if (slatted)
                 {
@@ -295,7 +295,8 @@ namespace Rtx::Testing
                     .mRadius = 20.0f,
                     .mColour = osg::Vec3f(1, 1, 1),
                     .mAlpha = 1.0f } };
-                scene.addEmitter(sprites, texture, blend, 0.0f, sNoIndex, false, firstPerson);
+                scene.addEmitter(
+                    sprites, EmitterSpec{ .mTexture = texture, .mBlend = blend, .mFirstPerson = firstPerson });
                 addQuad(scene, uprightQuadAt(200.0f, 90.0f));
                 return shoot(scene, textures, camera, size).at(centreValueOf(size));
             };
@@ -368,7 +369,7 @@ namespace Rtx::Testing
                         .mRadius = 60.0f,
                         .mColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
                         .mAlpha = 1.0f } };
-                    scene.addEmitter(sprites, cut, BlendKind::Over);
+                    scene.addEmitter(sprites, EmitterSpec{ .mTexture = cut, .mBlend = BlendKind::Over });
                 }
                 else
                 {
@@ -444,7 +445,7 @@ namespace Rtx::Testing
                             .mRadius = 60.0f,
                             .mColour = osg::Vec3f(1.0f, 0.0f, 0.0f),
                             .mAlpha = 0.5f };
-                    scene.addEmitter(four, cut, BlendKind::Over);
+                    scene.addEmitter(four, EmitterSpec{ .mTexture = cut, .mBlend = BlendKind::Over });
                 }
                 if (shell)
                 {
@@ -514,14 +515,14 @@ namespace Rtx::Testing
                             .mRadius = 10.0f,
                             .mColour = osg::Vec3f(0.0f, 0.0f, 1.0f),
                             .mAlpha = 0.5f };
-                    scene.addEmitter(three, cut, BlendKind::Over);
+                    scene.addEmitter(three, EmitterSpec{ .mTexture = cut, .mBlend = BlendKind::Over });
                 };
                 const auto addOnRay = [&](float distance, const osg::Vec3f& colour) {
                     const std::array<Sprite, 1> one{ Sprite{ .mPosition = osg::Vec3f(0.0f, distance, 0.0f),
                         .mRadius = 40.0f,
                         .mColour = colour,
                         .mAlpha = 0.5f } };
-                    scene.addEmitter(one, cut, BlendKind::Over);
+                    scene.addEmitter(one, EmitterSpec{ .mTexture = cut, .mBlend = BlendKind::Over });
                 };
 
                 if (aside)
@@ -580,8 +581,9 @@ namespace Rtx::Testing
             const auto shot = [&](std::span<const Sprite> sprites) {
                 SceneDesc scene;
                 std::array<TextureData, 1> textures{ describeTexel(white) };
-                scene.addEmitter(
-                    sprites, scene.textures().add(VFS::Path::NormalizedView("white.dds")), BlendKind::Over);
+                scene.addEmitter(sprites,
+                    EmitterSpec{ .mTexture = scene.textures().add(VFS::Path::NormalizedView("white.dds")),
+                        .mBlend = BlendKind::Over });
                 const Frame frame = shoot(scene, textures, camera, size, Shot{ .mLoss = HistoryLoss::Cut });
                 return Seen{
                     .mRed = frame.at(centre), .mGreen = frame.at(centre + 1), .mThrough = frame.at(centre + 3)
@@ -716,7 +718,7 @@ namespace Rtx::Testing
                         .mRadius = 2.0f,
                         .mColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
                         .mAlpha = 1.0f } };
-                    scene.addEmitter(sprites, puff, BlendKind::Over);
+                    scene.addEmitter(sprites, EmitterSpec{ .mTexture = puff, .mBlend = BlendKind::Over });
                 }
 
                 Shaders::VisibilityConstants camera = Testing::makeCamera(
@@ -778,7 +780,7 @@ namespace Rtx::Testing
                         .mRadius = 10.0f,
                         .mColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
                         .mAlpha = 1.0f } };
-                    scene.addEmitter(sprites, puff, BlendKind::Over);
+                    scene.addEmitter(sprites, EmitterSpec{ .mTexture = puff, .mBlend = BlendKind::Over });
                 }
 
                 Shaders::VisibilityConstants camera = Testing::makeCamera(
@@ -848,7 +850,7 @@ namespace Rtx::Testing
                         .mRadius = 40.0f,
                         .mColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
                         .mAlpha = 1.0f } };
-                    scene.addEmitter(sprites, cut, BlendKind::Over);
+                    scene.addEmitter(sprites, EmitterSpec{ .mTexture = cut, .mBlend = BlendKind::Over });
                 }
 
                 // Nothing at all where the fill is whole, rather than sheets moved out of reach: a
@@ -918,7 +920,7 @@ namespace Rtx::Testing
                     .mRadius = 40.0f,
                     .mColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
                     .mAlpha = 1.0f } };
-                scene.addEmitter(sprites, cut, BlendKind::Over);
+                scene.addEmitter(sprites, EmitterSpec{ .mTexture = cut, .mBlend = BlendKind::Over });
                 if (lamp)
                     scene.addLight(Light{
                         .mPosition = osg::Vec3f(0.0f, 0.0f, 200.0f),
@@ -977,7 +979,7 @@ namespace Rtx::Testing
                         .mRadius = 60.0f,
                         .mColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
                         .mAlpha = 1.0f } };
-                    scene.addEmitter(sprites, cut, BlendKind::Over);
+                    scene.addEmitter(sprites, EmitterSpec{ .mTexture = cut, .mBlend = BlendKind::Over });
                 }
 
                 // Forty up over four hundred along, so the centre ray runs down through the
@@ -1032,7 +1034,7 @@ namespace Rtx::Testing
                         .mRadius = 60.0f,
                         .mColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
                         .mAlpha = 1.0f });
-                scene.addEmitter(flames, cut, blend);
+                scene.addEmitter(flames, EmitterSpec{ .mTexture = cut, .mBlend = blend });
 
                 Shaders::VisibilityConstants camera = Testing::makeCamera(
                     osg::Vec3f(0.0f, -400.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);
@@ -1082,7 +1084,7 @@ namespace Rtx::Testing
                     .mAxis = axis,
                     .mColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
                     .mAlpha = 1.0f } };
-                scene.addEmitter(sprites, cut, BlendKind::Add, width);
+                scene.addEmitter(sprites, EmitterSpec{ .mTexture = cut, .mBlend = BlendKind::Add, .mWidth = width });
 
                 Shaders::VisibilityConstants camera = Testing::makeCamera(
                     osg::Vec3f(0.0f, -400.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);
@@ -1158,7 +1160,7 @@ namespace Rtx::Testing
                     .mAxis = axis,
                     .mColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
                     .mAlpha = 1.0f } };
-                scene.addEmitter(sprites, cut, BlendKind::Over, 0.25f);
+                scene.addEmitter(sprites, EmitterSpec{ .mTexture = cut, .mBlend = BlendKind::Over, .mWidth = 0.25f });
 
                 Shaders::VisibilityConstants camera = Testing::makeCamera(
                     osg::Vec3f(0.0f, -400.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);
@@ -1230,7 +1232,7 @@ namespace Rtx::Testing
                     .mAlpha = 1.0f } };
 
                 // Additive, so what a pixel holds is the texel it read and nothing has to light it.
-                scene.addEmitter(sprites, cut, BlendKind::Add, width);
+                scene.addEmitter(sprites, EmitterSpec{ .mTexture = cut, .mBlend = BlendKind::Add, .mWidth = width });
 
                 Shaders::VisibilityConstants camera = Testing::makeCamera(
                     osg::Vec3f(0.0f, -800.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);
@@ -1289,7 +1291,7 @@ namespace Rtx::Testing
                     .mRadius = 60.0f,
                     .mColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
                     .mAlpha = 1.0f } };
-                scene.addEmitter(sprites, cut, BlendKind::Over, 0.0f, bake);
+                scene.addEmitter(sprites, EmitterSpec{ .mTexture = cut, .mBlend = BlendKind::Over, .mLighting = bake });
 
                 Shaders::VisibilityConstants camera = Testing::makeCamera(
                     osg::Vec3f(0.0f, -400.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);
@@ -1376,7 +1378,7 @@ namespace Rtx::Testing
                         .mRadius = 60.0f,
                         .mColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
                         .mAlpha = 1.0f });
-                scene.addEmitter(sprites, cut, BlendKind::Over);
+                scene.addEmitter(sprites, EmitterSpec{ .mTexture = cut, .mBlend = BlendKind::Over });
 
                 Shaders::VisibilityConstants camera = Testing::makeCamera(
                     osg::Vec3f(0.0f, -400.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);
@@ -1445,7 +1447,7 @@ namespace Rtx::Testing
                         .mColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
                         .mAlpha = 1.0f },
                 };
-                scene.addEmitter(drops, cut, BlendKind::Over, 0.0f, sNoIndex, falls);
+                scene.addEmitter(drops, EmitterSpec{ .mTexture = cut, .mBlend = BlendKind::Over, .mFalls = falls });
 
                 // A lid two hundred wide over the left drop alone, three hundred up.
                 addQuad(scene, sheetAt(100.0f, 300.0f), std::nullopt, osg::Matrixf::translate(-100.0f, 0.0f, 0.0f));

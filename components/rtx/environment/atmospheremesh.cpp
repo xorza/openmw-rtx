@@ -74,10 +74,10 @@ namespace Rtx
         if (read.mUpper.mCount == 0 || read.mLower.mCount == 0)
             return Atmosphere{};
 
-        const double lowRadius = read.mLower.mRadius / double(read.mLower.mCount);
-        const double lowHeight = read.mLower.mHeight / double(read.mLower.mCount);
-        const double highRadius = read.mUpper.mRadius / double(read.mUpper.mCount);
-        const double highHeight = read.mUpper.mHeight / double(read.mUpper.mCount);
+        const double lowRadius = read.mLower.mRadius / static_cast<double>(read.mLower.mCount);
+        const double lowHeight = read.mLower.mHeight / static_cast<double>(read.mLower.mCount);
+        const double highRadius = read.mUpper.mRadius / static_cast<double>(read.mUpper.mCount);
+        const double highHeight = read.mUpper.mHeight / static_cast<double>(read.mUpper.mCount);
 
         // A fade runs up the wall, so the upper ring stands at a higher elevation than the lower.
         // Anything else is not the cylinder the engine's rule is written for.
@@ -87,10 +87,10 @@ namespace Rtx
             return Atmosphere{};
 
         const Shaders::SkyRamp ramp{
-            .mBottom = float(bottom),
-            .mTop = float(top),
-            .mLow = osg::Vec2f(float(lowRadius), float(lowHeight)),
-            .mStep = osg::Vec2f(float(highRadius - lowRadius), float(highHeight - lowHeight)),
+            .mBottom = static_cast<float>(bottom),
+            .mTop = static_cast<float>(top),
+            .mLow = osg::Vec2f(static_cast<float>(lowRadius), static_cast<float>(lowHeight)),
+            .mStep = osg::Vec2f(static_cast<float>(highRadius - lowRadius), static_cast<float>(highHeight - lowHeight)),
         };
         return Atmosphere{ .mRamp = ramp, .mZenithShare = zenithShareOf(ramp) };
     }

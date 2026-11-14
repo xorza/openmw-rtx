@@ -581,11 +581,11 @@ namespace MWMechanics
             // if actor is within range of target's weapon.
             if (std::abs(angleToTarget) > osg::PI / 4)
                 moveDuration = 0.2f;
-            else if (distToTarget <= rangeAttackOfTarget && Misc::Rng::rollClosedProbability(prng) < 0.25f)
+            else if (distToTarget <= rangeAttackOfTarget && Misc::Rng::rollClosedProbability(prng) < 0.25)
                 moveDuration = 0.1f + 0.1f * Misc::Rng::rollClosedProbability(prng);
             if (moveDuration > 0)
             {
-                mMovement.mPosition[0] = Misc::Rng::rollProbability(prng) < 0.5f ? 1.0f : -1.0f; // to the left/right
+                mMovement.mPosition[0] = Misc::Rng::rollProbability(prng) < 0.5 ? 1.0f : -1.0f; // to the left/right
                 mTimerCombatMove = moveDuration;
                 mCombatMove = true;
             }
@@ -600,8 +600,7 @@ namespace MWMechanics
             // or not at all if opponent is using a ranged weapon
 
             if (targetUsesRanged
-                || static_cast<double>(distToTarget) > static_cast<double>(rangeAttackOfTarget)
-                        * 1.5) // Don't back up if the target is wielding ranged weapon
+                || distToTarget > rangeAttackOfTarget * 1.5) // Don't back up if the target is wielding ranged weapon
                 return;
 
             // actor should not back up into water

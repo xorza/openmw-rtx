@@ -108,9 +108,9 @@ namespace Rtx
         mLights.push_back(light);
     }
 
-    void SceneDesc::addEmitter(std::span<const Sprite> sprites, Index texture, BlendKind blend, float width,
-        Index lighting, bool falls, bool firstPerson)
+    void SceneDesc::addEmitter(std::span<const Sprite> sprites, const EmitterSpec& spec)
     {
+        const float width = spec.mWidth;
         mTurn.expect(Turn::Open, Turn::Walked);
         if (sprites.empty())
             return;
@@ -148,12 +148,13 @@ namespace Rtx
             .mReach = reach,
             .mFirst = static_cast<Index>(mSprites.size()),
             .mCount = static_cast<Index>(sprites.size()),
-            .mTexture = texture,
-            .mFlags = (blend != BlendKind::Over ? Shaders::EMITTER_ADDITIVE : 0u)
-                | (blend == BlendKind::AddWhole ? Shaders::EMITTER_ADD_WHOLE : 0u)
-                | (falls ? Shaders::EMITTER_FALLS : 0u) | (firstPerson ? Shaders::EMITTER_FIRST_PERSON : 0u),
+            .mTexture = spec.mTexture,
+            .mFlags = (spec.mBlend != BlendKind::Over ? Shaders::EMITTER_ADDITIVE : 0u)
+                | (spec.mBlend == BlendKind::AddWhole ? Shaders::EMITTER_ADD_WHOLE : 0u)
+                | (spec.mFalls ? Shaders::EMITTER_FALLS : 0u)
+                | (spec.mFirstPerson ? Shaders::EMITTER_FIRST_PERSON : 0u),
             .mWidth = width,
-            .mLighting = lighting,
+            .mLighting = spec.mLighting,
         });
 
         for (const Sprite& sprite : sprites)

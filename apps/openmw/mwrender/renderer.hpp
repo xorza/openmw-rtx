@@ -17,7 +17,6 @@
 #include <osg/Vec3f>
 #include <osg/ref_ptr>
 
-#include <components/dlss/dlss.hpp>
 #include <components/misc/frameratelimiter.hpp>
 #include <components/misc/presentation.hpp>
 #include <components/rtx/frame/upscale.hpp>
@@ -102,14 +101,13 @@ namespace MWRender
     /// through the resource system's shader path and it compiles nothing it keeps.
     struct RendererSpec
     {
-        /// Where a renderer's own files are read from: the ray tracer's shaders.
-        std::filesystem::path mResourceDir;
-
         /// Where a renderer keeps what it compiled: regenerable, so the cache directory.
         std::filesystem::path mCachePath;
 
-        /// Where DLSS's files are: the runtime folder in the user's local data, and the game's own.
-        DlssLibrary::Folders mDlss;
+        /// Where the player's own local data is, and where the game's own files are: the folders a renderer
+        /// looks in for a library the player installs beside the game, as an upscaler's runtime.
+        std::filesystem::path mUserLocalData;
+        std::filesystem::path mGameFiles;
     };
 
     class Renderer;
@@ -147,15 +145,29 @@ namespace MWRender
     /// renderer's mechanism, since each caller would grow a null test that is a renderer test in
     /// disguise; the shader chain and the compile operation remain for upstream callers.
     ///
-    /// The window's own moments — its size, the function keys — reach the renderer as an
-    /// `SDLUtil::GraphicsListener`, from `SDLUtil::InputWrapper`.
-    class Renderer : public SDLUtil::GraphicsListener
+    /// The window's own moments — its size, the function keys — reach the renderer through
+    /// `MWInput::RendererKeys`, the one `SDLUtil::GraphicsListener` `SDLUtil::InputWrapper` is handed, which
+    /// tells the player of a key the renderer declines: a renderer is no listener of its own, so no route
+    /// reaches it past that.
+    class Renderer
     {
     public:
         virtual ~Renderer();
 
         Renderer(const Renderer&) = delete;
         Renderer& operator=(const Renderer&) = delete;
+        Renderer(Renderer&&) = delete;
+        Renderer& operator=(Renderer&&) = delete;
+
+        /// The events of one frame are about to be read (`SDLUtil::GraphicsListener::beginEvents`).
+        virtual void beginEvents() {}
+
+        /// F1 to F12, as `index` nought to eleven, that this renderer has not declined
+        /// (`SDLUtil::GraphicsListener::functionKey`).
+        virtual void functionKey(int index, SDLUtil::KeyChange change) {}
+
+        /// The window's drawable size changed, in pixels (`SDLUtil::GraphicsListener::windowResized`).
+        virtual void windowResized(int x, int y, int width, int height) {}
 
         /// The resource system exists; keep it, and tell its scene manager what this renderer needs
         /// of every model it loads. Called once, before any model is loaded and before anything
@@ -587,21 +599,6 @@ namespace MWRender
     /// The game's own choice. A host with a renderer of its own — the harness, with its run —
     /// makes it itself, as the engine's host (`OMW::EngineHost::createRenderer`).
     std::unique_ptr<Renderer> createRenderer(RendererKind kind, const RendererSpec& spec);
-
-    /// What a player is told where the ray tracer could not start: what failed, the folder whose
-    /// log says the rest, and, where the machine cannot run it (`Rtx::Unsupported`), the hardware
-    /// the build needs. A fault of the renderer's own does not name the card, which is not its
-    /// cause.
-    std::string describeStartFailure(const std::exception& failure, const std::filesystem::path& logFolder);
-
-    /// Makes the ray tracer: `createRenderer` in the game, a renderer of its own in a test.
-    using RendererFactory = std::function<std::unique_ptr<Renderer>()>;
-
-    /// **The ray tracer or nothing.** The game starts no other renderer: the OpenGL renderer stays
-    /// in the build, where upstream's code keeps it, and is never chosen. A failure of any kind,
-    /// a machine that cannot run the ray tracer (`Rtx::Unsupported`) among them, ends the start
-    /// with `describeStartFailure`'s words, which the fatal error box shows.
-    std::unique_ptr<Renderer> startRenderer(const RendererFactory& create, const std::filesystem::path& logFolder);
 
     /// The window a renderer draws into, as the video settings ask for it: hidden, on the display
     /// `[Video] screen` names and in its window mode, or null with SDL's error to read. Windowed, it

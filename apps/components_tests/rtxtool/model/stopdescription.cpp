@@ -116,14 +116,13 @@ namespace RtxTool
 
             // The whole of what a window prints, because the command line is pasted with the rest
             // and has to read as a comment.
-            const std::filesystem::path file = TestingOpenMW::outputFilePath("viewpoint-test.cfg");
+            const std::filesystem::path file = TestingOpenMW::currentTestDirPath() / "viewpoint-test.cfg";
             {
                 std::ofstream out(file);
                 out << describeStanding(spot);
             }
 
             const std::vector<RtxTool::Stop> read = loadViews(file);
-            std::filesystem::remove(file);
 
             ASSERT_EQ(read.size(), 1u);
             EXPECT_EQ(read.front().mName, spot.mName);
@@ -151,14 +150,13 @@ namespace RtxTool
             dawn.mSky.mAir = Rtx::AirClock{ .mSky = { .mSeconds = 36000.123456789, .mCloudScroll = 3.9999998f },
                 .mCarried = osg::Vec2d(-123456.78901234, 0.1) };
 
-            const std::filesystem::path second = TestingOpenMW::outputFilePath("viewpoint-dawn.cfg");
+            const std::filesystem::path second = TestingOpenMW::currentTestDirPath() / "viewpoint-dawn.cfg";
             {
                 std::ofstream out(second);
                 out << describeSpot(dawn) << describeBlock(dawn);
             }
 
             const std::vector<RtxTool::Stop> back = loadViews(second);
-            std::filesystem::remove(second);
 
             ASSERT_EQ(back.size(), 1u);
             ASSERT_TRUE(back.front().mSky.mHour.has_value());
@@ -175,13 +173,12 @@ namespace RtxTool
             // view that measures them.
             RtxTool::Stop unlit = spot;
             unlit.mStand.mLamps = false;
-            const std::filesystem::path third = TestingOpenMW::outputFilePath("viewpoint-unlit.cfg");
+            const std::filesystem::path third = TestingOpenMW::currentTestDirPath() / "viewpoint-unlit.cfg";
             {
                 std::ofstream out(third);
                 out << describeBlock(unlit);
             }
             const std::vector<RtxTool::Stop> dark = loadViews(third);
-            std::filesystem::remove(third);
             ASSERT_EQ(dark.size(), 1u);
             EXPECT_FALSE(dark.front().mStand.mLamps);
             EXPECT_TRUE(dark.front().mStand.mArms.empty()) << "an unarmed place writes no arms";
@@ -190,13 +187,12 @@ namespace RtxTool
             // measures the world alone.
             RtxTool::Stop armed = spot;
             armed.mStand.mArms = "iron longsword";
-            const std::filesystem::path fourth = TestingOpenMW::outputFilePath("viewpoint-armed.cfg");
+            const std::filesystem::path fourth = TestingOpenMW::currentTestDirPath() / "viewpoint-armed.cfg";
             {
                 std::ofstream out(fourth);
                 out << describeBlock(armed);
             }
             const std::vector<RtxTool::Stop> held = loadViews(fourth);
-            std::filesystem::remove(fourth);
             ASSERT_EQ(held.size(), 1u);
             EXPECT_EQ(held.front().mStand.mArms, "iron longsword");
         }
@@ -226,14 +222,13 @@ namespace RtxTool
             EXPECT_EQ(stopFor(exterior, StopSky{ .mDay = 0 }).mName, "Sadrith Mora_ Wolverine Hall_ Mage's Guild");
             EXPECT_EQ(block.find("note ="), std::string::npos) << "an empty note is left out, not written blank";
 
-            const std::filesystem::path file = TestingOpenMW::outputFilePath("viewpoint-unnamed.cfg");
+            const std::filesystem::path file = TestingOpenMW::currentTestDirPath() / "viewpoint-unnamed.cfg";
             {
                 std::ofstream out(file);
                 out << describeSpot(spot) << block;
             }
 
             const std::vector<RtxTool::Stop> read = loadViews(file);
-            std::filesystem::remove(file);
 
             ASSERT_EQ(read.size(), 1u);
             EXPECT_EQ(read.front().mName, "balmora-guild-of-mages");

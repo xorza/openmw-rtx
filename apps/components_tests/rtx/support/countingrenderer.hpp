@@ -1,28 +1,23 @@
 #pragma once
 
 #include <algorithm>
-#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
 #include <optional>
 #include <span>
-#include <string>
 #include <vector>
 
-#include <components/rtx/common/cardaddress.hpp>
 #include <components/rtx/common/index.hpp>
-#include <components/rtx/common/jobprogress.hpp>
 #include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/frame/frameoptions.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/renderer/guirenderer.hpp>
-#include <components/rtx/renderer/memoryreport.hpp>
+#include <components/rtx/renderer/nullrenderer.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/slot.hpp>
-#include <components/rtx/renderer/verticalsync.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/shaders/visibility.h>
@@ -31,27 +26,29 @@
 
 namespace Rtx::Testing
 {
-    /// A renderer that records what it was given.
+    /// A renderer that records what it was given, over `NullRenderer`, which keeps every promise it does
+    /// not record.
     ///
     /// **The decision is what is under test, so nothing here draws.** What `extendScene` and
     /// `setScene` do with the descriptions has its own tests against a real device
     /// (`apps/components_tests/rtxvulkan/trace/visibility/`); what nothing else covers is which of
     /// them a frame picks, and that answer is the same one on every machine.
-    class CountingRenderer final : public Rtx::Renderer
+    class CountingRenderer final : public Rtx::NullRenderer
     {
     public:
-        std::string describeDevice() const override { return "a renderer that counts rather than draws"; }
-        Rtx::CardAddress getCardAddress() const override { return {}; }
+        CountingRenderer()
+            : NullRenderer(Rtx::RendererOptions{})
+        {
+        }
+
         const Rtx::RenderProfile& getProfile() const override { return mProfile; }
-        std::span<const Rtx::UpscalerChoice> getUpscalers() const override { return Rtx::offeredUpscalers(false); }
-        Rtx::UpscalerInput getUpscalerInput() const override { return Rtx::UpscalerInput::Filtered; }
-        bool isValidating() const override { return false; }
 
         void setScene(
             Rtx::SceneSlot slot, const Rtx::SceneDesc& scene, std::span<const Rtx::TextureData> textures) override
         {
             ++mRebuilt;
             recordSlots(textures);
+            mDroppedThrough = scene.textures().getFreedCount();
 
             // What the backend does: the array is made again and ends where the scene's table
             // does, whatever it held before.
@@ -64,6 +61,7 @@ namespace Rtx::Testing
         {
             ++mExtended;
             recordSlots(arrived);
+            recordDropped(scene);
 
             // **The array reaches the highest slot written, and is not a count of what arrived.**
             // A slot the table freed is handed out again, so an arrival can land below the end and
@@ -77,7 +75,11 @@ namespace Rtx::Testing
             heldAt(slot).mRevision = scene.getStructureRevision();
         }
 
-        void placeScene(Rtx::SceneSlot, const Rtx::SceneDesc&) override { ++mPlaced; }
+        void placeScene(Rtx::SceneSlot, const Rtx::SceneDesc& scene) override
+        {
+            ++mPlaced;
+            recordDropped(scene);
+        }
 
         Rtx::SceneHeld describeHeld(Rtx::SceneSlot slot) const override
         {
@@ -91,38 +93,15 @@ namespace Rtx::Testing
         /// What the device refused, which a test fills to be what the next hand-over answers.
         std::span<const Rtx::Refusal> getRefusals(Rtx::SceneSlot) const override { return mRefusing; }
 
-        /// **The texture array does not shrink**, which is what `mTextures` staying put records: a
-        /// slot goes on being where an append begins from whether or not it holds an image.
-        void dropTextures(Rtx::SceneSlot, std::span<const Rtx::Index> slots) override
-        {
-            ++mDropCalls;
-            mDropped.insert(mDropped.end(), slots.begin(), slots.end());
-        }
-
-        const Rtx::SceneStats& getSceneStats() const override { return mStats; }
-        Rtx::MemoryReport getMemoryReport() const override { return {}; }
-        void resize(std::uint32_t, std::uint32_t) override {}
-        void showIn(std::uint32_t, std::uint32_t) override {}
         void setUpscale(Upscale upscale) override { mProfile.mUpscale = upscale; }
-        void setVerticalSync(VerticalSync) override {}
-        void setAnisotropy(std::uint32_t) override {}
-        void setGamma(float) override {}
-        void setIndirectLighting(bool) override {}
-        void setBounceRays(std::uint32_t) override {}
-        Rtx::JobProgress awaitKernels(Rtx::KernelSet, std::chrono::milliseconds) override { return {}; }
         Rtx::FrameExtents getExtents() const override { return mExtents; }
         Rtx::FrameTraced renderFrame(const Rtx::FrameRequest&) override
         {
             ++mFrames;
             return {};
         }
-        void holdAir(const Rtx::AirClock&) override {}
         void skipFrame() override { ++mSkipped; }
         std::uint64_t getFrameCount() const override { return mFrames + mSkipped; }
-        std::optional<Rtx::FrameResult> finishFrame() override { return std::nullopt; }
-        std::optional<Rtx::FrameResult> collectFrame() override { return std::nullopt; }
-        void presentFrame() override {}
-        void awaitPresented() override {}
 
         /// Slots go up, what a texture is sent is kept for a test to read, and nothing is drawn. A
         /// side past `mGuiSide` is refused, as a device refuses one past its own.
@@ -191,6 +170,18 @@ namespace Rtx::Testing
             return slot.isWorld() ? mTextures : mViewTextures[slot.getViewIndex()];
         }
 
+        /// The texture slots the scene gave up since the last hand-over, read as the backend reads them: once, at
+        /// the first extension or placement that sees the scene's count of freed slots move. **The texture array
+        /// does not shrink**, which is what `mTextures` staying put records.
+        void recordDropped(const Rtx::SceneDesc& scene)
+        {
+            if (scene.textures().getFreedCount() == mDroppedThrough)
+                return;
+            const std::span<const Rtx::Index> freed = scene.textures().getFreed();
+            mDropped.insert(mDropped.end(), freed.begin(), freed.end());
+            mDroppedThrough = scene.textures().getFreedCount();
+        }
+
         void recordSlots(std::span<const Rtx::TextureData> described)
         {
             mDescribedSlots.clear();
@@ -205,10 +196,8 @@ namespace Rtx::Testing
 
         void dropViewScene(Rtx::SceneSlot slot) override { mViewDropped.push_back(slot.getViewIndex()); }
         bool takeGuiCopy(Rtx::GuiSlot, std::span<std::uint8_t>) override { return false; }
-        void finishGuiTraces() override {}
         void readPixels(std::vector<std::uint8_t>&) override {}
         void readDeepPixels(std::vector<std::uint16_t>&) override {}
-        std::optional<Rtx::NotFiniteFrame> takeNotFiniteFrame() override { return std::nullopt; }
 
         /// The first texel of each described texture's second level, beside `mDescribedSlots`, or
         /// nought for one of one level: what says which chain a slot was described with.
@@ -237,11 +226,12 @@ namespace Rtx::Testing
         std::uint32_t mTextures = 0;
         bool mAppendedToWrongEnd = false;
 
-        /// Every texture slot given back, across every call, in the order it was named.
+        /// Every texture slot given back, across every call, in the order it was named, and the scene's count of
+        /// freed slots as it last read them.
         std::vector<std::uint32_t> mDropped;
+        std::uint64_t mDroppedThrough = 0;
         std::uint64_t mFrames = 0;
         std::uint64_t mSkipped = 0;
-        std::uint32_t mDropCalls = 0;
 
         /// What `getRefusals` answers, as a device short of room would after a hand-over.
         std::vector<Rtx::Refusal> mRefusing;
@@ -280,7 +270,6 @@ namespace Rtx::Testing
         std::uint32_t mPictureHeight = 0;
 
     private:
-        Rtx::SceneStats mStats;
         std::uint32_t mGuiTextures = 0;
     };
 }

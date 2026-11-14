@@ -242,10 +242,15 @@ namespace RtxTool
             !read.isOk())
             throw Rtx::InputError(
                 "could not read " + Files::pathToUnicodeString(file) + ": " + read.error().mCode.message());
+        return parse(std::move(text), Files::pathToUnicodeString(file));
+    }
+
+    FrameHashes FrameHashes::parse(std::string text, const std::string_view source)
+    {
         std::istringstream in(std::move(text));
 
         const auto fail = [&](const std::string& line) {
-            return Rtx::InputError("cannot read " + Files::pathToUnicodeString(file) + ": " + line);
+            return Rtx::InputError("cannot read " + std::string(source) + ": " + line);
         };
 
         std::string line;

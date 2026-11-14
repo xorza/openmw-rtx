@@ -64,6 +64,8 @@ namespace Rtx
 
         EmitterResolver(const EmitterResolver&) = delete;
         EmitterResolver& operator=(const EmitterResolver&) = delete;
+        EmitterResolver(EmitterResolver&&) = delete;
+        EmitterResolver& operator=(EmitterResolver&&) = delete;
 
         /// Forgets what a walk that threw left noted and never placed, ahead of the next walk: its
         /// places and its effects belong to a walk that is over, and an effect index into a list

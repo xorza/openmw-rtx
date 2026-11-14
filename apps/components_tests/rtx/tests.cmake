@@ -25,8 +25,8 @@ target_sources(
         rtx/environment/cloudmesh.cpp
         rtx/environment/skybuilder.cpp
         rtx/environment/starmesh.cpp
-        rtx/environment/wavecascade.cpp
-        rtx/environment/wavespectrum.cpp
+        rtx/world/wavecascade.cpp
+        rtx/world/wavespectrum.cpp
         rtx/frame/bluenoise.cpp
         rtx/frame/camera.cpp
         rtx/frame/framepast.cpp
@@ -111,6 +111,7 @@ target_sources(
         rtxtool/instruments/gpuclock.cpp
         rtxtool/instruments/png.cpp
         rtxtool/instruments/scenedigest.cpp
+        rtxtool/instruments/scenereport.cpp
         rtxtool/instruments/threadcounters.cpp
         rtxtool/model/benchrecord.cpp
         rtxtool/model/benchrun.cpp
@@ -129,6 +130,7 @@ target_sources(
         rtxtool/numbervalue.cpp
         rtxtool/options.cpp
         rtxtool/picturemean.cpp
+        rtxtool/plans.cpp
         rtxvulkan/denoise/temporalturns.cpp
         rtxvulkan/device/buffermarkers.cpp
         rtxvulkan/device/extensionfilter.cpp
@@ -204,10 +206,12 @@ set(RTX_TEST_SUPPORT_HEADERS
     rtx/support/guiquad.hpp
     rtx/support/halfstep.hpp
     rtx/support/heldimages.hpp
+    rtx/support/image.hpp
     rtx/support/layers.hpp
     rtx/support/lobeintegrals.hpp
     rtx/support/ownedtexture.hpp
     rtx/support/pngtext.hpp
+    rtx/support/refusal.hpp
     rtx/support/sceneholds.hpp
     rtx/support/spritelightbake.hpp
     rtx/support/statistics.hpp
@@ -348,6 +352,7 @@ target_sources(
                 rtxvulkan/support/device/harness.hpp
                 rtxvulkan/support/device/heldsubmit.hpp
                 rtxvulkan/support/device/hostwritten.hpp
+                rtxvulkan/support/device/probekernel.hpp
                 rtxvulkan/support/device/memorylimits.hpp
                 rtxvulkan/support/device/readback.hpp
                 rtxvulkan/support/device/rendererprobe.hpp

@@ -1,7 +1,6 @@
 #include "rtxwindow.hpp"
 
 #include <cstdint>
-#include <stdexcept>
 #include <string>
 #include <string_view>
 
@@ -11,6 +10,7 @@
 
 #include <apps/openmw/mwrender/renderer.hpp>
 #include <components/crashcatcher/crash.hpp>
+#include <components/rtx/common/error.hpp>
 #include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/sdlutil/sdlvideowrapper.hpp>
@@ -33,7 +33,7 @@ namespace MWRender
         // The backend's own flags, and no `SDL_GL_SetAttribute`: no GL context is ever made.
         mWindow.reset(openWindow(surface.value_or(SDL_WindowFlags{ 0 }), pixels));
         if (mWindow == nullptr)
-            throw std::runtime_error(std::string("failed to create SDL window: ") + SDL_GetError());
+            throw Rtx::Unsupported(std::string("the window could not be made: ") + SDL_GetError());
         if (const char* const driver = SDL_GetCurrentVideoDriver())
             Crash::annotate("video driver", driver);
 

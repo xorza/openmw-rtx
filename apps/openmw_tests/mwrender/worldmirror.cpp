@@ -20,6 +20,7 @@
 #include <apps/components_tests/rtx/mirror/extractor/fixture.hpp>
 #include <apps/components_tests/rtx/support/fakeland.hpp>
 #include <apps/components_tests/rtx/support/graph.hpp>
+#include <apps/components_tests/rtx/support/image.hpp>
 #include <apps/openmw/mwrender/objectstorage.hpp>
 #include <apps/openmw/mwrender/rtx/mirrorknobs.hpp>
 #include <apps/openmw/mwrender/rtx/tracedterrain.hpp>
@@ -161,9 +162,7 @@ namespace MWRender
             WorldMirror mirror(MWRender::MirrorKnobs{}, nullptr, nullptr);
             const osg::Matrixd view = osg::Matrixd::identity();
 
-            osg::ref_ptr<osg::Image> sheet = new osg::Image;
-            sheet->allocateImage(2, 2, 1, GL_RGBA, GL_UNSIGNED_BYTE);
-            sheet->setFileName("textures/sheet.dds");
+            osg::ref_ptr<osg::Image> sheet = Rtx::Testing::makeImage("textures/sheet.dds", 2, 2);
             mirror.getWalkContext().mContent.meanOf(*sheet);
 
             const Rtx::ExtractionStats first = mirror.mirror(world.frame(1), view);

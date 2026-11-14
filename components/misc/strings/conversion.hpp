@@ -5,9 +5,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
-#include <locale>
 #include <optional>
-#include <sstream>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -57,74 +55,9 @@ namespace Misc::StringUtils
         return { str.begin(), str.end() }; // Undefined behavior if the contents of "char" aren't UTF8 or ASCII.
     }
 
-    // Whether `std::from_chars` reads floating point: what the standard library says of itself,
-    // `__cpp_lib_to_chars`, which a library defines once the whole of `<charconv>` is there. Not
-    // the compiler's macros: Clang over libstdc++ has it, and Clang over libc++ has had it only
-    // lately.
-#if defined(__cpp_lib_to_chars) && __cpp_lib_to_chars >= 201611L
-    inline constexpr bool sFromCharsReadsFloats = true;
-#else
-    inline constexpr bool sFromCharsReadsFloats = false;
-#endif
-
-    /// How much of `s` the floating-point number it begins with takes, by `std::from_chars`'s
-    /// grammar: an optional minus, digits with an optional fraction, and an exponent where it is
-    /// complete. Nought where `s` begins with no number.
-    inline std::size_t floatPrefix(std::string_view s)
-    {
-        const auto digitAt = [&](std::size_t at) { return at < s.size() && s[at] >= '0' && s[at] <= '9'; };
-
-        std::size_t at = s.starts_with('-') ? 1 : 0;
-        const std::size_t whole = at;
-        while (digitAt(at))
-            ++at;
-        bool read = at > whole;
-        if (at < s.size() && s[at] == '.' && (read || digitAt(at + 1)))
-        {
-            ++at;
-            read = read || digitAt(at);
-            while (digitAt(at))
-                ++at;
-        }
-        if (!read)
-            return 0;
-
-        if (at < s.size() && (s[at] == 'e' || s[at] == 'E'))
-        {
-            std::size_t exponent = at + 1;
-            if (exponent < s.size() && (s[exponent] == '+' || s[exponent] == '-'))
-                ++exponent;
-            if (digitAt(exponent))
-            {
-                at = exponent;
-                while (digitAt(at))
-                    ++at;
-            }
-        }
-
-        return at;
-    }
-
-    /// The floating-point number `s` begins with, read by a classic-locale stream: what `toNumeric`
-    /// reads with where `std::from_chars` has no floating point. **Held to the prefix `from_chars`
-    /// reads** (`floatPrefix`), so a spelling is the same number on every toolchain or none on any:
-    /// a stream on its own skips leading whitespace, reads a leading `+`, and on libc++ reads `0x10`
-    /// as sixteen.
-    template <typename T>
-    inline std::optional<T> toFloatByStream(std::string_view s)
-    {
-        const std::size_t length = floatPrefix(s);
-        if (length == 0)
-            return std::nullopt;
-
-        T result{};
-        std::istringstream stream{ std::string(s.substr(0, length)) };
-        stream.imbue(std::locale::classic());
-        if (!(stream >> result))
-            return std::nullopt;
-
-        return result;
-    }
+    // Every toolchain the fork builds with reads floating point through `std::from_chars`, which is
+    // what `__cpp_lib_to_chars` says of a library once the whole of `<charconv>` is there.
+    static_assert(__cpp_lib_to_chars >= 201611L, "a standard library whose std::from_chars reads no floats");
 
     /// The number `s` spells, or nothing where it spells none. A floating-point number is a finite
     /// one: `std::from_chars` reads `inf` and `nan` as numbers, and no text this reads — a setting,
@@ -134,19 +67,9 @@ namespace Misc::StringUtils
     inline std::optional<T> toNumeric(std::string_view s)
     {
         T result{};
-        if constexpr (std::is_floating_point_v<T> && !sFromCharsReadsFloats)
-        {
-            const std::optional<T> read = toFloatByStream<T>(s);
-            if (!read.has_value())
-                return std::nullopt;
-            result = *read;
-        }
-        else
-        {
-            const auto [ptr, ec] = std::from_chars(s.data(), s.data() + s.size(), result);
-            if (ec != std::errc())
-                return std::nullopt;
-        }
+        const auto [ptr, ec] = std::from_chars(s.data(), s.data() + s.size(), result);
+        if (ec != std::errc())
+            return std::nullopt;
 
         if constexpr (std::is_floating_point_v<T>)
             if (!std::isfinite(result))

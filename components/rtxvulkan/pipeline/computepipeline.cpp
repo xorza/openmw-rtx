@@ -4,6 +4,7 @@
 #include <string_view>
 
 #include <components/rtxvulkan/device/device.hpp>
+#include <components/rtxvulkan/device/pipelinereport.hpp>
 #include <components/rtxvulkan/device/result.hpp>
 
 #include "shadercode.hpp"
@@ -39,7 +40,7 @@ namespace Rtx
         const VkComputePipelineCreateInfo pipeline{
             .sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
             .pNext = creation.chain(nullptr),
-            .flags = device.getPipelineFlags(),
+            .flags = device.getPipelineReport().getFlags(),
             .stage = {
                 .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
                 .pNext = lanes == SubgroupSize::ThirtyTwo ? &thirtyTwo : moduleChain,

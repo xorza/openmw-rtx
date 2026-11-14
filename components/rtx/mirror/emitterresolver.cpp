@@ -340,8 +340,13 @@ namespace Rtx
         // An untextured system is the white texel coloured by its particles, as the rasterizer
         // draws one, and lit as a flat card, having no alpha to bake.
         const Index texture = held.mUntextured ? Shaders::TEXTURE_NEUTRAL : held.mSlot.get();
-        mScene.addEmitter(
-            mSpriteScratch, texture, held.mBlend, width, held.mLighting.get(), pending.mFalls, pending.mFirstPerson);
+        mScene.addEmitter(mSpriteScratch,
+            EmitterSpec{ .mTexture = texture,
+                .mBlend = held.mBlend,
+                .mWidth = width,
+                .mLighting = held.mLighting.get(),
+                .mFalls = pending.mFalls,
+                .mFirstPerson = pending.mFirstPerson });
 
         ++stats.mEmitters;
         stats.mSprites += static_cast<std::uint32_t>(mSpriteScratch.size());

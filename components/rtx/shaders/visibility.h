@@ -28,6 +28,10 @@ namespace Rtx::Shaders
     const uint SHOW_ROUGHNESS = 3u;
     const uint SHOW_SPECULAR = 4u;
 
+    /// `VisibilityConstants::mPuffsInFrame`'s bits.
+    const uint PUFFS_DRAWN = 0x1u;
+    const uint PUFFS_LIT = 0x2u;
+
     /// What the frame is: where the eye stands, how it turns a pixel into a ray, and everything about
     /// the world that a ray needs to be answered. **The ray generator is `Camera` and is separate**,
     /// because the wavelet builds the same rays and needs none of the rest.
@@ -310,9 +314,10 @@ namespace Rtx::Shaders
         /// inside the interface — pays no second trace.
         uint mArmsInFrame;
 
-        /// Non-zero where the trace's sprite bin took a sprite, or a medium or additive placement:
-        /// anything `puffLight` lights. The air's ambient ray is cast for nothing else, and a frame
-        /// with none of them pays none — a fifth of what the air costs.
+        /// What the trace's sprite bin took, `PUFFS_*`: `PUFFS_DRAWN` where it took a sprite, or a medium or
+        /// additive placement, which the trace draws into the puffs' channel; and `PUFFS_LIT` where any of it is
+        /// lit as a puff is (`puffLight`), an additive emitter's glow left out. The air's ambient ray is cast for
+        /// nothing else, and a frame of flames alone pays none — a fifth of what the air costs.
         uint mPuffsInFrame;
 
         /// Which classes of instance this camera draws — the rasterizer's cull mask, in the bits

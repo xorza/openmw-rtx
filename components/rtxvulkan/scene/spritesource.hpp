@@ -20,5 +20,9 @@ namespace Rtx
         /// Where the placement's medium and additive instances can be met, `Shaders::GpuPresence`.
         VkDeviceAddress mPresences = 0;
         std::uint32_t mPresenceCount = 0;
+
+        /// How many of the sprites a puff's light is asked for (`puffLight`): every one but an additive emitter's,
+        /// whose glow is its own.
+        std::uint32_t mLitSpriteCount = 0;
     };
 }

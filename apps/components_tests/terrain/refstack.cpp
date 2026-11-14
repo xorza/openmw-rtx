@@ -55,12 +55,13 @@ namespace Terrain
             // no more than before, into a result that kept its room.
             stack.clear();
             into.clear();
-            const std::size_t before = Rtx::Testing::getAllocationCount();
-            stack.assign(ESM::RefNum{ 9, 0 }, at(9, 0.0f));
-            stack.erase(ESM::RefNum{ 9, 0 });
-            stack.assign(ESM::RefNum{ 8, 0 }, at(8, 0.0f));
-            stack.reduceInto(into);
-            EXPECT_EQ(Rtx::Testing::getAllocationCount() - before, 0u);
+            EXPECT_EQ(Rtx::Testing::allocationsIn([&] {
+                stack.assign(ESM::RefNum{ 9, 0 }, at(9, 0.0f));
+                stack.erase(ESM::RefNum{ 9, 0 });
+                stack.assign(ESM::RefNum{ 8, 0 }, at(8, 0.0f));
+                stack.reduceInto(into);
+            }),
+                0u);
             ASSERT_EQ(into.size(), 1u);
             EXPECT_EQ(into[0].mRefNum, (ESM::RefNum{ 8, 0 }));
         }

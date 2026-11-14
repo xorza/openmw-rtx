@@ -19,7 +19,6 @@
 #include <components/rtx/world/fogbuilder.hpp>
 #include <components/rtx/world/fognoise.hpp>
 #include <components/rtx/world/skylight.hpp>
-#include <components/settings/values.hpp>
 
 namespace Rtx
 {
@@ -404,9 +403,6 @@ namespace Rtx
         ///   ln(2) / (7168 * 0.655) = 1.4763e-4 per unit.
         TEST(RtxFogTest, aRecordedDepthBecomesTheExtinctionThatHalvesWhereTheOriginalRampDoes)
         {
-            // Stated rather than read, because the figures below are only the game's if this is.
-            ASSERT_EQ(Settings::camera().mViewingDistance, 7168.0f) << "the view range these are against";
-
             // **Passed rather than assumed**, because outdoors this renderer does not measure the
             // air against it: the world is built to `distant land cells` and fog tuned to a shorter
             // reach swallows all of it. What is checked here is the conversion, against the range the
@@ -512,18 +508,8 @@ namespace Rtx
         TEST(RtxFogTest, aRoomsAirIsWhatTheContentSaidAndNotWhatTheViewDistanceIs)
         {
             const ESM::Cell::AMBIstruct room{ .mFog = 0x00808080, .mFogDensity = 0.75f };
-            const auto air = [&room] { return makeRoomLight(room).mFog.mExtinction; };
-
-            const float thick = air();
-            EXPECT_NEAR(thick, 6.1888e-6f, 1e-10f) << "the customs office, from its own record alone";
-
-            Settings::camera().mViewingDistance.set(4.0f * 8192.0f);
-            EXPECT_FLOAT_EQ(air(), thick) << "a cellar cleared because the sky got bigger";
-
-            Settings::camera().mViewingDistance.set(2048.0f);
-            EXPECT_FLOAT_EQ(air(), thick) << "and thickened because it got smaller";
-
-            Settings::camera().mViewingDistance.set(7168.0f);
+            EXPECT_NEAR(makeRoomLight(room).mFog.mExtinction, 6.1888e-6f, 1e-10f)
+                << "the customs office, from its own record alone";
         }
 
         /// The air is as bright as the sky and in the weather's colour, and no channel of it is

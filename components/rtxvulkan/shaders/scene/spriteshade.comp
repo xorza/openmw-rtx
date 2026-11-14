@@ -65,10 +65,12 @@ shared float radii[SPRITE_SHADE_WORKGROUP];
 shared vec4 discs[SPRITE_SHADE_WORKGROUP];
 shared uint indices[SPRITE_SHADE_WORKGROUP];
 
-/// Whether this emitter is shaded at all.
+/// Whether this emitter is shaded at all: a column of smoke, whose sides the light takes. Not what falls —
+/// rain and snow are a sheet of single flakes, each lit as the air around it is, with no column to shade.
 bool spriteShadeWants(GpuEmitter emitter)
 {
-    return (emitter.mFlags & EMITTER_ADDITIVE) == 0u && emitter.mWidth <= 0.0 && emitter.mCount >= 2u;
+    return (emitter.mFlags & (EMITTER_ADDITIVE | EMITTER_FALLS)) == 0u && emitter.mWidth <= 0.0
+        && emitter.mCount >= 2u;
 }
 
 /// A float's bits, reordered so that unsigned comparison is the float's own descending order.

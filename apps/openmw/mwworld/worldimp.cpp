@@ -823,7 +823,7 @@ namespace MWWorld
 
         if (!incremental)
         {
-            mRendering->notifyWorldSpaceChanged();
+            mRendering->notifyTimeJumped();
             mProjectileManager->clear();
             mDiscardMovements = true;
         }

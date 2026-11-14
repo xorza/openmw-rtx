@@ -2,11 +2,8 @@
 
 #include <algorithm>
 #include <array>
-#include <chrono>
 #include <cstddef>
 #include <cstdint>
-#include <cstring>
-#include <format>
 #include <span>
 #include <string>
 #include <string_view>
@@ -20,15 +17,14 @@
 #include <components/rtx/common/error.hpp>
 #include <components/rtxvulkan/device/memory/memory.hpp>
 
-#include "buffermarkers.hpp"
 #include "commands.hpp"
 #include "extensionfilter.hpp"
+#include "faultreport.hpp"
 #include "graveyard.hpp"
 #include "instance.hpp"
 #include "notfinitecensus.hpp"
 #include "pipelinecache.hpp"
-#include "pipelinecode.hpp"
-#include "pipelinetally.hpp"
+#include "pipelinereport.hpp"
 #include "requirements.hpp"
 #include "result.hpp"
 #include "timeline.hpp"
@@ -38,65 +34,6 @@ namespace Rtx
 {
     namespace
     {
-        void logSummary(const std::string_view what, const PipelineSummary& summary)
-        {
-            Log(Debug::Info) << what << ": " << describePipelines(summary);
-
-            // **A spill is a warning**: a kernel that spills runs at the speed of its scratch memory, which
-            // took a frame on an integrated card from milliseconds to the better part of a second
-            // (`docs/research/2026-10-21-amd-integrated-stage-times.md`). One line for them all, the worst
-            // first.
-            if (const std::string spills = describeSpills(summary); !spills.empty())
-                Log(Debug::Warning) << what << ": " << spills;
-        }
-
-        /// Which stage a checkpoint was reported for, for the handful a queue reports on and
-        /// the number for the rest.
-        std::string checkpointStageName(const VkPipelineStageFlagBits stage)
-        {
-            switch (stage)
-            {
-                case VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT:
-                    return "the top of the pipe";
-                case VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT:
-                    return "the bottom of the pipe";
-                case VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT:
-                    return "the compute stage";
-                case VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR:
-                    return "the ray tracing stage";
-                case VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR:
-                    return "the structure build stage";
-                case VK_PIPELINE_STAGE_TRANSFER_BIT:
-                    return "the transfer stage";
-                default:
-                    return std::format("stage {:#x}", static_cast<std::uint32_t>(stage));
-            }
-        }
-
-        /// What a faulting address was being used for, as the header spells it.
-        std::string_view faultAddressTypeName(VkDeviceFaultAddressTypeEXT type)
-        {
-            switch (type)
-            {
-                case VK_DEVICE_FAULT_ADDRESS_TYPE_NONE_EXT:
-                    return "a fault at no address";
-                case VK_DEVICE_FAULT_ADDRESS_TYPE_READ_INVALID_EXT:
-                    return "an invalid read";
-                case VK_DEVICE_FAULT_ADDRESS_TYPE_WRITE_INVALID_EXT:
-                    return "an invalid write";
-                case VK_DEVICE_FAULT_ADDRESS_TYPE_EXECUTE_INVALID_EXT:
-                    return "an invalid execute";
-                case VK_DEVICE_FAULT_ADDRESS_TYPE_INSTRUCTION_POINTER_UNKNOWN_EXT:
-                    return "an instruction pointer the driver could not place";
-                case VK_DEVICE_FAULT_ADDRESS_TYPE_INSTRUCTION_POINTER_INVALID_EXT:
-                    return "an instruction pointer outside any shader";
-                case VK_DEVICE_FAULT_ADDRESS_TYPE_INSTRUCTION_POINTER_FAULT_EXT:
-                    return "the instruction that faulted";
-                default:
-                    return "an address of unrecognised type";
-            }
-        }
-
         void requireDispatch(VkDevice device, const char* name)
         {
             if (vkGetDeviceProcAddr(device, name) == nullptr)
@@ -126,9 +63,7 @@ namespace Rtx
             std::ranges::adjacent_find(mShaders.mModules, std::ranges::greater_equal{}, &ShaderModule::mName)
                 == mShaders.mModules.end(),
             "a shader set out of name order, or naming a module twice");
-        if (!mReport.mCodeFolder.empty())
-            mCode = std::make_unique<PipelineCodeFolder>(mReport.mCodeFolder);
-        mPipelines = std::make_unique<PipelineTally>(std::chrono::steady_clock::now());
+        mPipelineReport = std::make_unique<PipelineReport>(*this, mReport.mCodeFolder);
 
         // **What else needs the device is asked before it exists**, since an extension cannot be enabled
         // after `vkCreateDevice`. **Only what the device offers is enabled**: an extension the driver
@@ -287,18 +222,18 @@ namespace Rtx
                  "vkGetPipelineExecutableInternalRepresentationsKHR" })
             requireDispatch(mHandle.get(), name);
 
+        FaultReport::EntryPoints faultEntries;
         if (describesFault)
-            load(mHandle.get(), mGetDeviceFaultInfo, "vkGetDeviceFaultInfoEXT");
+            load(mHandle.get(), faultEntries.mFaultInfo, "vkGetDeviceFaultInfoEXT");
 
         if (has(DeviceOption::Checkpoints))
         {
-            load(mHandle.get(), mCmdSetCheckpoint, "vkCmdSetCheckpointNV");
-            load(mHandle.get(), mGetQueueCheckpointData, "vkGetQueueCheckpointDataNV");
+            load(mHandle.get(), faultEntries.mSetCheckpoint, "vkCmdSetCheckpointNV");
+            load(mHandle.get(), faultEntries.mCheckpointData, "vkGetQueueCheckpointDataNV");
         }
 
-        PFN_vkCmdWriteBufferMarkerAMD markerWrite = nullptr;
         if (has(DeviceOption::BufferMarkers))
-            load(mHandle.get(), markerWrite, "vkCmdWriteBufferMarkerAMD");
+            load(mHandle.get(), faultEntries.mWriteMarker, "vkCmdWriteBufferMarkerAMD");
 
         if (instance.hasDebugUtils())
         {
@@ -322,8 +257,7 @@ namespace Rtx
         // `new` and not `make_unique`, which the pool's private constructor does not admit.
         mPool.reset(new CommandPool(*this));
 
-        if (markerWrite != nullptr)
-            mMarkers = std::make_unique<BufferMarkers>(*this, markerWrite, has(DeviceOption::UncachedMarkers));
+        mFaults = std::make_unique<FaultReport>(*this, faultEntries, has(DeviceOption::UncachedMarkers));
 
         if (shaders.mCensus)
             mCensus = std::make_unique<NotFiniteCensus>(*this, mShaders);
@@ -345,10 +279,6 @@ namespace Rtx
         // a lost device carries: the raw call answered with a number nobody read. The members
         // then go in the order they are declared for.
         tearDown("the device would not finish before it was destroyed", [&] { waitIdle(); });
-
-        // By now every compile on the device has ended: what makes pipelines is torn down before it.
-        if (const PipelineSummary rest = mPipelines->take(std::chrono::steady_clock::now()); rest.mMade > 0)
-            logSummary(mPipelinesSummarised ? "Pipelines later in the session" : "Pipelines of the session", rest);
     }
 
     MemoryAllocator& Device::getMemory() const
@@ -364,273 +294,6 @@ namespace Rtx
     void Device::savePipelineCache()
     {
         mPipelineCache->save();
-    }
-
-    namespace
-    {
-        void raise(std::optional<std::uint64_t>& most, const std::uint64_t value)
-        {
-            most = std::max(most.value_or(0), value);
-        }
-
-        std::uint64_t unsignedOf(const VkPipelineExecutableStatisticKHR& statistic)
-        {
-            switch (statistic.format)
-            {
-                case VK_PIPELINE_EXECUTABLE_STATISTIC_FORMAT_INT64_KHR:
-                    return statistic.value.i64 > 0 ? static_cast<std::uint64_t>(statistic.value.i64) : 0;
-                case VK_PIPELINE_EXECUTABLE_STATISTIC_FORMAT_UINT64_KHR:
-                    return statistic.value.u64;
-                default:
-                    return 0;
-            }
-        }
-
-        /// Raises what `use` says by one statistic the driver reported under one of `names`.
-        void readUse(CompiledUse& use, const VkPipelineExecutableStatisticKHR& statistic, const StatisticNames& names)
-        {
-            const std::string_view name = statistic.name;
-            const std::uint64_t value = unsignedOf(statistic);
-            if (name == names.mScratch)
-                raise(use.mScratchBytes, value & names.mScratchBits);
-            else if (name == names.mRegisters)
-                raise(use.mRegisters, value);
-            else if (name == names.mShared)
-                raise(use.mSharedBytes, value);
-        }
-    }
-
-    std::string describeStatistics(
-        const std::span<const VkPipelineExecutableStatisticKHR> statistics, const StatisticNames& names)
-    {
-        // Whatever the driver chose to say, and not a list this side picked: the names are the compiler's own,
-        // so a fixed set of fields would go empty on the next driver.
-        std::string line;
-        for (const VkPipelineExecutableStatisticKHR& statistic : statistics)
-        {
-            if (!line.empty())
-                line += ", ";
-            line += statistic.name;
-            line += ' ';
-            if (std::string_view(statistic.name) == names.mScratch)
-            {
-                line += std::to_string(unsignedOf(statistic) & names.mScratchBits);
-                continue;
-            }
-            switch (statistic.format)
-            {
-                case VK_PIPELINE_EXECUTABLE_STATISTIC_FORMAT_BOOL32_KHR:
-                    line += statistic.value.b32 != VK_FALSE ? "yes" : "no";
-                    break;
-                case VK_PIPELINE_EXECUTABLE_STATISTIC_FORMAT_INT64_KHR:
-                    line += std::to_string(statistic.value.i64);
-                    break;
-                case VK_PIPELINE_EXECUTABLE_STATISTIC_FORMAT_UINT64_KHR:
-                    line += std::to_string(statistic.value.u64);
-                    break;
-                case VK_PIPELINE_EXECUTABLE_STATISTIC_FORMAT_FLOAT64_KHR:
-                    line += std::to_string(statistic.value.f64);
-                    break;
-                default:
-                    line += '?';
-                    break;
-            }
-        }
-        return line;
-    }
-
-    std::vector<VkPipelineExecutablePropertiesKHR> Device::executablePropertiesOf(const VkPipeline pipeline) const
-    {
-        const VkPipelineInfoKHR asked{
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_INFO_KHR,
-            .pNext = nullptr,
-            .pipeline = pipeline,
-        };
-        return enumerateVk<VkPipelineExecutablePropertiesKHR>(
-            *this, "vkGetPipelineExecutablePropertiesKHR",
-            [&](std::uint32_t* count, VkPipelineExecutablePropertiesKHR* into) {
-                return vkGetPipelineExecutablePropertiesKHR(mHandle.get(), &asked, count, into);
-            },
-            VkPipelineExecutablePropertiesKHR{ .sType = VK_STRUCTURE_TYPE_PIPELINE_EXECUTABLE_PROPERTIES_KHR,
-                .pNext = nullptr,
-                .stages = 0,
-                .name = {},
-                .description = {},
-                .subgroupSize = 0 });
-    }
-
-    std::vector<VkPipelineExecutableStatisticKHR> Device::statisticsOf(
-        const VkPipeline pipeline, const std::uint32_t executable) const
-    {
-        const VkPipelineExecutableInfoKHR which{
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_EXECUTABLE_INFO_KHR,
-            .pNext = nullptr,
-            .pipeline = pipeline,
-            .executableIndex = executable,
-        };
-
-        return enumerateVk<VkPipelineExecutableStatisticKHR>(
-            *this, "vkGetPipelineExecutableStatisticsKHR",
-            [&](std::uint32_t* count, VkPipelineExecutableStatisticKHR* into) {
-                return vkGetPipelineExecutableStatisticsKHR(mHandle.get(), &which, count, into);
-            },
-            VkPipelineExecutableStatisticKHR{ .sType = VK_STRUCTURE_TYPE_PIPELINE_EXECUTABLE_STATISTIC_KHR,
-                .pNext = nullptr,
-                .name = {},
-                .description = {},
-                .format = VK_PIPELINE_EXECUTABLE_STATISTIC_FORMAT_BOOL32_KHR,
-                .value = {} });
-    }
-
-    CompiledUse Device::compiledUseOf(const VkPipeline pipeline, const VkPipelineBindPoint point) const
-    {
-        CompiledUse use;
-        if (point == VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR)
-            use.mStackBytes = vkGetRayTracingShaderGroupStackSizeKHR(
-                mHandle.get(), pipeline, 0, VK_SHADER_GROUP_SHADER_GENERAL_KHR);
-
-        const std::vector<VkPipelineExecutablePropertiesKHR> executables = executablePropertiesOf(pipeline);
-        const StatisticNames& names = mPhysicalDevice.getDriver().mStatistics;
-        for (std::uint32_t executable = 0; executable < executables.size(); ++executable)
-        {
-            use.mSubgroupSize = std::max(use.mSubgroupSize.value_or(0), executables[executable].subgroupSize);
-            for (const VkPipelineExecutableStatisticKHR& statistic : statisticsOf(pipeline, executable))
-            {
-                readUse(use, statistic, names);
-            }
-        }
-        return use;
-    }
-
-    void Device::reportPipeline(
-        const VkPipeline pipeline, const std::string_view name, const PipelineFeedback& feedback) const
-    {
-        // One line a pipeline, at the debug level and built only where it is shown: a start makes hundreds,
-        // which `logPipelineSummary` says in a line.
-        const bool listed = Log::sMinDebugLevel >= Debug::Debug;
-        std::string line;
-        if (listed)
-        {
-            switch (feedback.mSource)
-            {
-                case PipelineSource::Compiled:
-                    line = std::format("pipeline {}: compiled in {:.2f} ms", name, feedback.mDurationMs);
-                    break;
-                case PipelineSource::Cached:
-                    line = std::format(
-                        "pipeline {}: found in the pipeline cache in {:.2f} ms", name, feedback.mDurationMs);
-                    break;
-                case PipelineSource::Unsaid:
-                    line = std::format("pipeline {}: made", name);
-                    break;
-            }
-        }
-
-        const std::vector<VkPipelineExecutablePropertiesKHR> executables = executablePropertiesOf(pipeline);
-        const auto count = static_cast<std::uint32_t>(executables.size());
-        const std::uint32_t copy = mCode != nullptr ? mCode->claim(name) : 0;
-
-        // Said rather than left as a missing part of the line: NVIDIA's compiler reports no executable for a
-        // ray tracing pipeline and no internal representation for any, so a reader could not otherwise tell it
-        // from a call nobody made. Nsight Graphics is where that is read.
-        if (count == 0 && listed)
-            line += "; the driver reports no executable";
-
-        const StatisticNames& names = mPhysicalDevice.getDriver().mStatistics;
-        CompiledUse use;
-        for (std::uint32_t executable = 0; executable < count; ++executable)
-        {
-            if (mCode != nullptr)
-                writeCode(pipeline, name, copy, executable, count);
-
-            const std::vector<VkPipelineExecutableStatisticKHR> statistics = statisticsOf(pipeline, executable);
-            for (const VkPipelineExecutableStatisticKHR& statistic : statistics)
-                readUse(use, statistic, names);
-            if (listed)
-                line += std::format("; {}{}{}", count > 1 ? executables[executable].name : "", count > 1 ? ": " : "",
-                    describeStatistics(statistics, names));
-        }
-
-        if (listed)
-            Log(Debug::Debug) << line;
-        mPipelines->add(PipelineMade{ .mName = name,
-                            .mFeedback = feedback,
-                            .mExecutables = count,
-                            .mScratchBytes = use.mScratchBytes.value_or(0) },
-            std::chrono::steady_clock::now());
-    }
-
-    void Device::logPipelineSummary(const std::string_view what)
-    {
-        logSummary(what, mPipelines->take(std::chrono::steady_clock::now()));
-        mPipelinesSummarised = true;
-    }
-
-    void Device::writeCode(const VkPipeline pipeline, const std::string_view name, const std::uint32_t copy,
-        const std::uint32_t executable, const std::uint32_t executables) const
-    {
-        const VkPipelineExecutableInfoKHR which{
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_EXECUTABLE_INFO_KHR,
-            .pNext = nullptr,
-            .pipeline = pipeline,
-            .executableIndex = executable,
-        };
-        const auto represent = [&](std::uint32_t* count, VkPipelineExecutableInternalRepresentationKHR* into) {
-            return vkGetPipelineExecutableInternalRepresentationsKHR(mHandle.get(), &which, count, into);
-        };
-
-        // Asked twice: once for the forms and the size of each, and again with room for the bodies of
-        // the text forms alone, which are all that is written. **A form not asked for keeps a null
-        // `pData`**, which the second call answers with its size and no body: AMD's Windows driver
-        // answers `VK_INCOMPLETE` for a ray tracing launch's two binary forms whatever room they are
-        // given (`docs/research/2026-11-13-amd-pipeline-code-forms.md`).
-        std::vector<VkPipelineExecutableInternalRepresentationKHR> forms
-            = enumerateVk<VkPipelineExecutableInternalRepresentationKHR>(*this,
-                "vkGetPipelineExecutableInternalRepresentationsKHR", represent,
-                VkPipelineExecutableInternalRepresentationKHR{
-                    .sType = VK_STRUCTURE_TYPE_PIPELINE_EXECUTABLE_INTERNAL_REPRESENTATION_KHR,
-                    .pNext = nullptr,
-                    .name = {},
-                    .description = {},
-                    .isText = VK_FALSE,
-                    .dataSize = 0,
-                    .pData = nullptr });
-        std::vector<std::string> bodies(forms.size());
-        for (std::size_t form = 0; form < forms.size(); ++form)
-        {
-            if (forms[form].isText == VK_FALSE)
-                continue;
-            bodies[form].resize(forms[form].dataSize);
-            forms[form].pData = bodies[form].data();
-        }
-        auto count = static_cast<std::uint32_t>(forms.size());
-
-        // Still incomplete with the room the driver said its text needs is the driver's fault, and the
-        // code a diagnostic: left out with a warning, so the run that asked for it goes on.
-        const VkResult filled = represent(&count, forms.data());
-        if (filled == VK_INCOMPLETE)
-        {
-            Log(Debug::Warning) << "pipeline " << name << ": its driver answered VK_INCOMPLETE for its code with the "
-                                << "room it said the code needs, so its code is left out";
-            return;
-        }
-        checkVk(*this, filled, "vkGetPipelineExecutableInternalRepresentationsKHR");
-
-        std::vector<PipelineCodeForm> text;
-        for (std::size_t form = 0; form < forms.size(); ++form)
-        {
-            if (forms[form].isText == VK_FALSE)
-                continue;
-
-            // A text form's size counts its terminator.
-            std::string_view body(bodies[form].data(), forms[form].dataSize);
-            while (!body.empty() && body.back() == '\0')
-                body.remove_suffix(1);
-            text.push_back(
-                PipelineCodeForm{ .mName = forms[form].name, .mDescription = forms[form].description, .mText = body });
-        }
-        if (!text.empty())
-            mCode->write(name, copy, executable, executables, text);
     }
 
     void Device::waitFor(const std::uint64_t value, const char* const what) const
@@ -669,124 +332,9 @@ namespace Rtx
         mPool->collectIdle();
     }
 
-    void Device::writeMarker(const VkCommandBuffer commands, const Checkpoint* const checkpoint) const
-    {
-        mMarkers->mark(commands, checkpoint);
-    }
-
-    std::string Device::describeMarkers() const
-    {
-        if (mMarkers == nullptr)
-            return {};
-
-        const BufferMarkers::Passed passed = mMarkers->read();
-        return describePassedStage(VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, passed.mTop)
-            + describePassedStage(VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, passed.mBottom);
-    }
-
-    std::string Device::describeCheckpoints() const
-    {
-        if (mMarkers != nullptr)
-            return describeMarkers();
-
-        if (mGetQueueCheckpointData == nullptr)
-            return {};
-
-        const std::vector<VkCheckpointDataNV> passed = enumerateVk<VkCheckpointDataNV>(
-            "vkGetQueueCheckpointDataNV",
-            [&](std::uint32_t* count, VkCheckpointDataNV* into) {
-                mGetQueueCheckpointData(mQueue, count, into);
-                return VK_SUCCESS;
-            },
-            VkCheckpointDataNV{ .sType = VK_STRUCTURE_TYPE_CHECKPOINT_DATA_NV,
-                .pNext = nullptr,
-                .stage = VK_PIPELINE_STAGE_NONE,
-                .pCheckpointMarker = nullptr });
-        if (passed.empty())
-            return "\nthe queue passed no checkpoint";
-
-        std::string report;
-        for (std::size_t at = 0; at < passed.size(); ++at)
-        {
-            const auto* checkpoint = static_cast<const Checkpoint*>(passed[at].pCheckpointMarker);
-            if (checkpoint == nullptr)
-                continue;
-
-            report += describePassedStage(passed[at].stage, checkpoint);
-        }
-
-        return report;
-    }
-
-    std::string describeDeviceFault(const std::string_view description,
-        const std::span<const VkDeviceFaultAddressInfoEXT> addresses,
-        const std::span<const VkDeviceFaultVendorInfoEXT> vendor)
-    {
-        std::string report = "\ndevice fault: ";
-        report += description.substr(0, description.find('\0'));
-        for (const VkDeviceFaultAddressInfoEXT& address : addresses)
-            report += std::format("\n  {} at {:#x}, known to within {:#x}", faultAddressTypeName(address.addressType),
-                address.reportedAddress, address.addressPrecision);
-        for (const VkDeviceFaultVendorInfoEXT& said : vendor)
-            report += std::format("\n  {} (vendor code {:#x}, data {:#x})",
-                std::string_view(said.description, std::char_traits<char>::length(said.description)),
-                said.vendorFaultCode, said.vendorFaultData);
-        return report;
-    }
-
-    std::string describePassedStage(const VkPipelineStageFlagBits stage, const Checkpoint* const checkpoint)
-    {
-        return checkpoint == nullptr
-            ? std::format("\n  {} passed no checkpoint the host still names", checkpointStageName(stage))
-            : std::format("\n  {} last passed `{}` of {} {}", checkpointStageName(stage), checkpoint->mName,
-                  (checkpoint->mFrame & sPictureCheckpoint) != 0 ? "picture" : "frame",
-                  checkpoint->mFrame & ~sPictureCheckpoint);
-    }
-
     std::string Device::describeInFlight() const
     {
         return Rtx::describeInFlight(mTimeline->getNext() - 1, mTimeline->getKnownFinished(), mMemory->report());
-    }
-
-    std::string Device::describeFault() const
-    {
-        if (mGetDeviceFaultInfo == nullptr)
-            return describeCheckpoints();
-
-        constexpr const char* sUnsaid = "\nthe driver would not say where the device faulted";
-
-        VkDeviceFaultCountsEXT counts{ .sType = VK_STRUCTURE_TYPE_DEVICE_FAULT_COUNTS_EXT,
-            .pNext = nullptr,
-            .addressInfoCount = 0,
-            .vendorInfoCount = 0,
-            .vendorBinarySize = 0 };
-        if (mGetDeviceFaultInfo(mHandle.get(), &counts, nullptr) != VK_SUCCESS)
-            return sUnsaid + describeCheckpoints();
-
-        std::vector<VkDeviceFaultAddressInfoEXT> addresses(counts.addressInfoCount);
-        std::vector<VkDeviceFaultVendorInfoEXT> vendor(counts.vendorInfoCount);
-
-        // Nought, because the feature that provides the binary was not enabled.
-        counts.vendorBinarySize = 0;
-
-        VkDeviceFaultInfoEXT info{
-            .sType = VK_STRUCTURE_TYPE_DEVICE_FAULT_INFO_EXT,
-            .pNext = nullptr,
-            .description = {},
-            .pAddressInfos = addresses.data(),
-            .pVendorInfos = vendor.data(),
-            .pVendorBinaryData = nullptr,
-        };
-
-        // `VK_INCOMPLETE` is the driver having more to say than the counts it gave a moment ago
-        // allowed for, and what it did say is still worth reading.
-        const VkResult result = mGetDeviceFaultInfo(mHandle.get(), &counts, &info);
-        if (result != VK_SUCCESS && result != VK_INCOMPLETE)
-            return sUnsaid + describeCheckpoints();
-
-        return describeDeviceFault(info.description, std::span(addresses).first(counts.addressInfoCount),
-                   std::span(vendor).first(counts.vendorInfoCount))
-            + describeCheckpoints();
     }
 
     void Device::setNameImpl(VkObjectType type, std::uint64_t handle, const char* name) const

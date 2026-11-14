@@ -11,6 +11,7 @@
 #include <rgbcx/bc7enc.h>
 #include <rgbcx/rgbcx.h>
 
+#include <components/rtx/common/letgo.hpp>
 #include <components/rtx/shaders/halving.h>
 #include <components/rtx/shaders/scene.h>
 
@@ -177,13 +178,13 @@ namespace Rtx
     void ChainBuild::letGo()
     {
         mAlpha = AlphaImage();
-        mBand = {};
-        mRing = {};
-        mRingAt = {};
-        mBoxed = {};
-        mColumns = {};
-        mTexels = {};
-        mLevels = {};
+        letGoOf(mBand);
+        letGoOf(mRing);
+        letGoOf(mRingAt);
+        letGoOf(mBoxed);
+        letGoOf(mColumns);
+        letGoOf(mTexels);
+        letGoOf(mLevels);
     }
 
     bool ChainBuild::rebuilds(const TextureData& file)

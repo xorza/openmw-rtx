@@ -3,7 +3,6 @@
 #include <condition_variable>
 #include <mutex>
 
-#include <components/crashcatcher/crash.hpp>
 #include <components/stereo/multiview.hpp>
 #include <components/stereo/stereomanager.hpp>
 
@@ -66,10 +65,8 @@ namespace MWRender
         }
         void drawImplementation(osg::RenderInfo& renderInfo, const osg::Drawable* /*drawable*/) const override
         {
-            const osg::Viewport* viewport
-                = Crash::notNull(renderInfo.getCurrentCamera(), "a draw with no camera")->getViewport();
-            int screenW = static_cast<int>(viewport->width());
-            int screenH = static_cast<int>(viewport->height());
+            int screenW = static_cast<int>(renderInfo.getCurrentCamera()->getViewport()->width());
+            int screenH = static_cast<int>(renderInfo.getCurrentCamera()->getViewport()->height());
             if (Stereo::getStereo())
             {
                 auto eyeRes = Stereo::Manager::instance().eyeResolution();

@@ -62,9 +62,96 @@ namespace RtxTool
 
         constexpr int sBoostedLevel = 255;
         constexpr int sBoostedGold = 10'000'000;
+
+        /// Puts the sky under `weather` over the player's region, as `changeweather` would.
+        void setWeather(MWBase::World& world, const Rtx::Weather weather)
+        {
+            world.changeWeather(world.getPlayerPtr().getCell()->getCell()->getRegion(),
+                ESM::Weather::indexToRefId(Rtx::scriptIdOf(weather)));
+        }
+
+        /// Gives the player every attribute and skill at 255, a Speed of 2000, level 255 and ten
+        /// million gold, through the calls the console's `setspeed`, `setlevel` and `additem` make.
+        /// A body walking at Morrowind's pace crosses a cell in a minute.
+        void boostPlayer()
+        {
+            const MWWorld::Ptr player = MWBase::Environment::get().getWorld()->getPlayerPtr();
+            const MWWorld::ESMStore& store = *MWBase::Environment::get().getESMStore();
+            MWMechanics::CreatureStats& creature = player.getClass().getCreatureStats(player);
+            MWMechanics::NpcStats& npc = player.getClass().getNpcStats(player);
+
+            // **The base, with the modifier and the damage cleared**, which is what `setattribute` does
+            // and what leaves a fortify or a drain from the start of the game out of the figure.
+            for (const ESM::Attribute& attribute : store.get<ESM::Attribute>())
+            {
+                MWMechanics::AttributeValue value = creature.getAttribute(attribute.mId);
+                value.setBase(attribute.mId == ESM::Attribute::Speed ? sBoostedSpeed : sBoostedStat, true);
+                creature.setAttribute(attribute.mId, value);
+            }
+
+            for (const ESM::Skill& skill : store.get<ESM::Skill>())
+                npc.getSkill(skill.mId).setBase(sBoostedStat, true);
+
+            creature.setLevel(sBoostedLevel);
+
+            // Weightless, so no amount of it encumbers the body it is given to.
+            player.getClass().getContainerStore(player).add(MWWorld::ContainerStore::sGoldId, sBoostedGold);
+        }
+
+        /// Gives the player `weapon`, the id of one the content holds, in the right hand and drawn,
+        /// and says so where the content holds none of that id.
+        Result<void, std::string> arm(MWBase::World& world, const std::string& weapon)
+        {
+            const ESM::RefId id = ESM::RefId::stringRefId(weapon);
+            if (MWBase::Environment::get().getESMStore()->get<ESM::Weapon>().search(id) == nullptr)
+                return Err{ "no weapon is called \"" + weapon + '"' };
+
+            const MWWorld::Ptr player = world.getPlayerPtr();
+            const MWWorld::ContainerStoreIterator given = player.getClass().getContainerStore(player).add(id, 1);
+            player.getClass().getInventoryStore(player).equip(MWWorld::InventoryStore::Slot_CarriedRight, given);
+            player.getClass().getCreatureStats(player).setDrawState(MWMechanics::DrawState::Weapon);
+
+            // **The body built again, and so built drawn**: a controller starts with the weapon in hand
+            // where the draw state says so (`CharacterController`'s constructor), and one told after it
+            // started plays the draw over the next second, which a still stop's stopped clock never runs.
+            world.renderPlayer();
+            return {};
+        }
+
+        /// Stands the player's hands at `state`, so a stop after an armed one stands as every stop
+        /// before it did. Nothing where they stand so already.
+        void setHands(MWBase::World& world, const MWMechanics::DrawState state)
+        {
+            const MWWorld::Ptr player = world.getPlayerPtr();
+            MWMechanics::CreatureStats& stats = player.getClass().getCreatureStats(player);
+            if (stats.getDrawState() == state)
+                return;
+
+            // Built again for the reason `arm` is, so the stop opens on a body at rest and not partway
+            // through putting its weapon away.
+            stats.setDrawState(state);
+            world.renderPlayer();
+        }
+
+        /// Turns the player's collision off, as `tcl` does.
+        void turnCollisionOff(MWBase::World& world)
+        {
+            // **Toggled until it is off, because the call reports rather than sets.** `tcl` is the same
+            // call, and a session that had already used it would otherwise turn collision back on.
+            if (world.toggleCollisionMode())
+                world.toggleCollisionMode();
+        }
+
+        /// Turns it on again, which drops the player onto the ground under them
+        /// (`World::adjustPosition`).
+        void turnCollisionOn(MWBase::World& world)
+        {
+            if (!world.toggleCollisionMode())
+                world.toggleCollisionMode();
+        }
     }
 
-    Result<void, std::string> Stager::stage(const Stop& stop, const SessionRequest& request) const
+    Result<void, std::string> Staging::stage(const Stop& stop, const SessionRequest& request)
     {
         MWBase::World& world = *MWBase::Environment::get().getWorld();
 
@@ -209,19 +296,19 @@ namespace RtxTool
         return {};
     }
 
-    int Stager::newGameDaysPassed()
+    int Staging::newGameDaysPassed()
     {
         const ESM::Global* global = MWBase::Environment::get().getESMStore()->get<ESM::Global>().find(
             ESM::RefId::stringRefId(MWWorld::Globals::sDaysPassed.getValue()));
         return global->mValue.getInteger();
     }
 
-    void Stager::forgetHistory()
+    void Staging::forgetHistory()
     {
         MWBase::Environment::get().getWorld()->getRenderingManager()->notifyWorldSpaceChanged();
     }
 
-    void Stager::closeMenus()
+    void Staging::closeMenus()
     {
         // Popped and not cleared, because a pop is what tells the scripts the mode changed: the interface script
         // paused the world for the menu, and unpauses on that notice. The menus on the stack and no more, and never
@@ -234,7 +321,7 @@ namespace RtxTool
             windows.popGuiMode(true);
     }
 
-    std::string Stager::describePause()
+    std::string Staging::describePause()
     {
         std::string why;
         const auto add = [&](std::string_view reason) {
@@ -257,79 +344,4 @@ namespace RtxTool
         return why.empty() ? std::string("no reason the game names") : why;
     }
 
-    void Stager::setWeather(MWBase::World& world, const Rtx::Weather weather)
-    {
-        world.changeWeather(world.getPlayerPtr().getCell()->getCell()->getRegion(),
-            ESM::Weather::indexToRefId(Rtx::scriptIdOf(weather)));
-    }
-
-    void Stager::boostPlayer()
-    {
-        const MWWorld::Ptr player = MWBase::Environment::get().getWorld()->getPlayerPtr();
-        const MWWorld::ESMStore& store = *MWBase::Environment::get().getESMStore();
-        MWMechanics::CreatureStats& creature = player.getClass().getCreatureStats(player);
-        MWMechanics::NpcStats& npc = player.getClass().getNpcStats(player);
-
-        // **The base, with the modifier and the damage cleared**, which is what `setattribute` does
-        // and what leaves a fortify or a drain from the start of the game out of the figure.
-        for (const ESM::Attribute& attribute : store.get<ESM::Attribute>())
-        {
-            MWMechanics::AttributeValue value = creature.getAttribute(attribute.mId);
-            value.setBase(attribute.mId == ESM::Attribute::Speed ? sBoostedSpeed : sBoostedStat, true);
-            creature.setAttribute(attribute.mId, value);
-        }
-
-        for (const ESM::Skill& skill : store.get<ESM::Skill>())
-            npc.getSkill(skill.mId).setBase(sBoostedStat, true);
-
-        creature.setLevel(sBoostedLevel);
-
-        // Weightless, so no amount of it encumbers the body it is given to.
-        player.getClass().getContainerStore(player).add(MWWorld::ContainerStore::sGoldId, sBoostedGold);
-    }
-
-    Result<void, std::string> Stager::arm(MWBase::World& world, const std::string& weapon)
-    {
-        const ESM::RefId id = ESM::RefId::stringRefId(weapon);
-        if (MWBase::Environment::get().getESMStore()->get<ESM::Weapon>().search(id) == nullptr)
-            return Err{ "no weapon is called \"" + weapon + '"' };
-
-        const MWWorld::Ptr player = world.getPlayerPtr();
-        const MWWorld::ContainerStoreIterator given = player.getClass().getContainerStore(player).add(id, 1);
-        player.getClass().getInventoryStore(player).equip(MWWorld::InventoryStore::Slot_CarriedRight, given);
-        player.getClass().getCreatureStats(player).setDrawState(MWMechanics::DrawState::Weapon);
-
-        // **The body built again, and so built drawn**: a controller starts with the weapon in hand
-        // where the draw state says so (`CharacterController`'s constructor), and one told after it
-        // started plays the draw over the next second, which a still stop's stopped clock never runs.
-        world.renderPlayer();
-        return {};
-    }
-
-    void Stager::setHands(MWBase::World& world, const MWMechanics::DrawState state)
-    {
-        const MWWorld::Ptr player = world.getPlayerPtr();
-        MWMechanics::CreatureStats& stats = player.getClass().getCreatureStats(player);
-        if (stats.getDrawState() == state)
-            return;
-
-        // Built again for the reason `arm` is, so the stop opens on a body at rest and not partway
-        // through putting its weapon away.
-        stats.setDrawState(state);
-        world.renderPlayer();
-    }
-
-    void Stager::turnCollisionOff(MWBase::World& world)
-    {
-        // **Toggled until it is off, because the call reports rather than sets.** `tcl` is the same
-        // call, and a session that had already used it would otherwise turn collision back on.
-        if (world.toggleCollisionMode())
-            world.toggleCollisionMode();
-    }
-
-    void Stager::turnCollisionOn(MWBase::World& world)
-    {
-        if (!world.toggleCollisionMode())
-            world.toggleCollisionMode();
-    }
 }

@@ -11,10 +11,10 @@
 #include <osg/Vec2f>
 
 #include <apps/components_tests/rtx/support/wavemoments.hpp>
-#include <components/rtx/environment/wavecascade.hpp>
-#include <components/rtx/environment/wavespectrum.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/wave.h>
+#include <components/rtx/world/wavecascade.hpp>
+#include <components/rtx/world/wavespectrum.hpp>
 
 namespace Rtx
 {

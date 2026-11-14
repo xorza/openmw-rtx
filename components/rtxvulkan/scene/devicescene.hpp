@@ -94,7 +94,6 @@ namespace Rtx
         void finishReads(FrameSlot slot) const;
 
         /// Destroys the images of `textures`, leaving the slots where they are: `TextureArray::drop`.
-        void dropTextures(std::span<const Index> textures) { mTextures.drop(textures); }
 
         /// Which copy of the tables the last placement wrote — what a trace of this scene reads,
         /// and the copy the next placement leaves alone. A placement's parity and not a frame's,
@@ -200,9 +199,10 @@ namespace Rtx
         /// a scene that only gained textures from one that gained geometry too.
         std::uint64_t mBuiltMeshes = 0;
 
-        /// `MeshTable::getFreedCount` as `releaseFreed` last gave its list back, which a list
-        /// already given back in this hand-over matches.
-        std::uint64_t mReleasedFreed = 0;
+        /// `MeshTable::getFreedCount` and `TextureTable::getFreedCount` as `releaseFreed` last gave their
+        /// lists back, which a list already given back in this hand-over matches.
+        std::uint64_t mReleasedMeshes = 0;
+        std::uint64_t mReleasedTextures = 0;
 
         /// The revision of the whole structure this was built from: what `describe` answers and
         /// an uploader appends against.

@@ -138,7 +138,7 @@ namespace Rtx
         };
 
         /// Every kernel the pass made, once the compile is over: for what is asked of a kernel and
-        /// not of a frame, which is what its compiler made of it (`Device::compiledUseOf`).
+        /// not of a frame, which is what its compiler made of it (`PipelineReport::compiledUseOf`).
         void listKernels(std::vector<NamedKernel>& out) const;
 
         /// Writes the frame's block: `constants` with what only the passes know filled in — the tiles' widths, the
@@ -230,15 +230,15 @@ namespace Rtx
         /// be able to compile: the trace took 2.8 seconds on a cold cache, and a frame that stopped for one was `Xid
         /// 109, CTX SWITCH TIMEOUT` and a device reset. Off the caller's thread, because the full tuple takes ten
         /// seconds cold and every tuple a minute. In parallel, because the driver's cache is internally synchronised.
-        void compileEvery(const SetLayout& textureLayout);
+        void compileEvery();
 
         /// Makes the one kernel `wanted` names, into its slot. On a hand of `compileEvery`'s, each
         /// writing a slot no other hand does.
-        void compile(const Wanted& wanted, const SetLayout& textureLayout);
+        void compile(const Wanted& wanted);
 
         /// The shared sets every kernel of the pass reads. A pipeline layout names every set it will
         /// ever be handed, and the kernels are handed the same.
-        SharedSetLayouts sharedSets(const SetLayout& textureLayout) const;
+        SharedSetLayouts sharedSets() const;
 
         /// Writes the frame's own block into `mConstants`, barriered against both the dispatch
         /// before it and the one after.
@@ -304,8 +304,10 @@ namespace Rtx
         /// full tuple's alone.
         bool mSpecialize = true;
 
-        /// The second of the two sets bound after the pushed one, which the renderer owns for its
-        /// whole life. The first is the scene's and arrives with the frame — `mTextureLayout`.
+        /// The layouts of the three sets bound after the pushed one, which the kernels are made against on the
+        /// compile's hands for as long as this stands: the scene's bindless array, which arrives with the frame,
+        /// and the renderer's channels, which it owns for its whole life.
+        const SetLayout* mTextureLayout = nullptr;
         const SetLayout* mChannelLayout = nullptr;
 
         /// The third of the sets nothing pushes, which the fog volume owns. Held for the reason

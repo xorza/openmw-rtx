@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdlib>
 #include <source_location>
+#include <stdexcept>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -16,6 +17,7 @@
 #include <osg/MatrixTransform>
 #include <osg/Matrixf>
 #include <osg/Node>
+#include <osg/NodeVisitor>
 #include <osg/StateAttribute>
 #include <osg/Vec3f>
 #include <osg/Vec4f>
@@ -38,6 +40,12 @@
 
 namespace Rtx::Testing
 {
+    /// A node whose walk ends the walk, as a content file the walk cannot read does.
+    struct Throwing : osg::Node
+    {
+        void accept(osg::NodeVisitor&) override { throw std::runtime_error("a node the walk cannot read"); }
+    };
+
     /// A particle system under a transform that carries its texture, its blend and its material, the way
     /// `NifOsg` builds one: the material reads the vertex for its colour.
     ///

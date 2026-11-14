@@ -215,7 +215,20 @@ Known hits, each a fault put into the tree, run and taken out:
 
 ## Not measured
 
-- A high-end NVIDIA laptop GPU's figures for any of the above, the shard count and the DLSS renderer's cost to a
-  shard among them.
+- The DLSS renderer's cost to a shard, which the NVIDIA figures below leave inside the shards' totals.
 - The release compile with nothing to build.
 - Why the two faults `4924c912f8` fixed leave three pairs of `repeat` identical when put back alone.
+
+## On a high-end NVIDIA laptop GPU (2026-11-14)
+
+One sitting, debug build, the card warm. `check` from its first log line to its last; `repeat --pairs=1` and the
+GPU binary on the wall.
+
+| | 957x539 | 1920x1080 |
+|---|---|---|
+| `check` | 22.0 s | 25.5 s |
+| `repeat --pairs=1` | 18 s | 24 s |
+
+The GPU binary in four shards took 12.75 s, in two 16.32 s. The frame and the count stand as they are for this
+machine too: the smaller frame saved it 3.5 s on `check` and 6 s on a pair, and four shards beat two. What the
+DLSS renderer costs a shard was not separated: its tests run inside the shards' totals above.

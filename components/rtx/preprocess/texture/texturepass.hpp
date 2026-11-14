@@ -47,6 +47,8 @@ namespace Rtx
 
         FinestTexels(const FinestTexels&) = delete;
         FinestTexels& operator=(const FinestTexels&) = delete;
+        FinestTexels(FinestTexels&&) = delete;
+        FinestTexels& operator=(FinestTexels&&) = delete;
 
         /// Describes `image` into the scratch, and holds it until the next `describe` or `clear`.
         void describe(const osg::Image& image);

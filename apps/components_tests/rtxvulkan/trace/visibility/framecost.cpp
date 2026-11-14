@@ -22,6 +22,7 @@
 #include <components/rtx/image/textureformat.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/slot.hpp>
+#include <components/rtx/scene/deformertable.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
@@ -31,6 +32,7 @@
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/handles.hpp>
+#include <components/rtxvulkan/device/memory/batch.hpp>
 #include <components/rtxvulkan/texture/texture.hpp>
 #include <components/rtxvulkan/texture/texturearrival.hpp>
 #include <components/rtxvulkan/texture/texturepasses.hpp>
@@ -105,11 +107,15 @@ namespace Rtx::Testing
             std::uint32_t index = 0;
             float walked = 0.0f;
 
-            // What the game's walk does to a body every frame: a new pose, placed.
+            // What the game's walk does to a body every frame: a new pose, placed. Its words in a scratch the walk
+            // keeps, as the game's resolver keeps its own, so what a measured frame allocates is the renderer's.
+            std::vector<PoseWord> words;
             const auto walk = [&] {
                 walked += 1.0f;
                 scene.clearPlacement();
-                poseByOneBone(scene, body, osg::Matrixf::translate(0.0f, walked, 0.0f));
+                const osg::Matrixf bone = osg::Matrixf::translate(0.0f, walked, 0.0f);
+                packRig(toGpuBone(osg::Matrixf::identity()), std::array{ toGpuBone(bone) }, words);
+                scene.pose(body, words, reachUnder(scene, body, bone));
                 renderer.placeScene(Rtx::SceneSlot::world(), scene);
             };
 
@@ -128,7 +134,7 @@ namespace Rtx::Testing
                         .mAlpha = 0.5f });
 
                 scene.clearPlacement();
-                scene.addEmitter(sprites, puff, BlendKind::Over);
+                scene.addEmitter(sprites, EmitterSpec{ .mTexture = puff, .mBlend = BlendKind::Over });
                 renderer.placeScene(Rtx::SceneSlot::world(), scene);
             };
             const auto thicken = [&] { rain(mostSprites - storm++ % mostSprites); };
@@ -147,13 +153,13 @@ namespace Rtx::Testing
                 for (int i = 0; i < warmUpFrames; ++i)
                     frame();
 
-                const std::size_t before = Testing::getAllocationCount();
-                for (int i = 0; i < measuredFrames; ++i)
-                    frame();
-                const std::size_t after = Testing::getAllocationCount();
+                const std::size_t spent = Testing::allocationsIn([&] {
+                    for (int i = 0; i < measuredFrames; ++i)
+                        frame();
+                });
 
-                EXPECT_LE(after - before, budgetPerFrame * measuredFrames)
-                    << what << ": " << (after - before) << " allocations across " << measuredFrames << " frames";
+                EXPECT_LE(spent, budgetPerFrame * measuredFrames)
+                    << what << ": " << spent << " allocations across " << measuredFrames << " frames";
             };
 
             measure(
@@ -180,20 +186,21 @@ namespace Rtx::Testing
             };
             for (int i = 0; i < 32; ++i)
                 rise();
-            const std::size_t risen = Testing::getAllocationCount();
-            for (int i = 0; i < 32; ++i)
-                rise();
+            EXPECT_EQ(Testing::allocationsIn([&] {
+                for (int i = 0; i < 32; ++i)
+                    rise();
+            }),
+                0u)
+                << "a new high inside the room a doubling made";
             EXPECT_EQ(rising, 2 * mostSprites);
-            EXPECT_EQ(Testing::getAllocationCount() - risen, 0u) << "a new high inside the room a doubling made";
 
             // **And the read back, which the harness does every frame and the window does never.**
             // Warmed by one call, because the first sizes the caller's vector.
             std::vector<std::uint8_t> pixels;
             renderer.readPixels(pixels);
 
-            const std::size_t before = Testing::getAllocationCount();
-            renderer.readPixels(pixels);
-            EXPECT_EQ(Testing::getAllocationCount() - before, 0u) << "a second read back into the same vector";
+            EXPECT_EQ(Testing::allocationsIn([&] { renderer.readPixels(pixels); }), 0u)
+                << "a second read back into the same vector";
         }
 
         /// A texture arriving costs the device objects it is and nothing besides. The arrival frame has the
@@ -258,16 +265,16 @@ namespace Rtx::Testing
             // command pool rather than the array.
             Batch batch(pool);
 
-            const std::size_t before = Testing::getAllocationCount();
-            for (std::uint32_t slot = 1; slot <= measured; ++slot)
-                arrive(batch, slot);
-            const std::size_t after = Testing::getAllocationCount();
+            const std::size_t spent = Testing::allocationsIn([&] {
+                for (std::uint32_t slot = 1; slot <= measured; ++slot)
+                    arrive(batch, slot);
+            });
 
             batch.flush();
 
-            EXPECT_LE(after - before, budgetPerTexture * measured)
-                << (after - before) << " allocations across " << measured << " arrivals, "
-                << static_cast<double>(after - before) / measured << " apiece";
+            EXPECT_LE(spent, budgetPerTexture * measured)
+                << spent << " allocations across " << measured << " arrivals, " << static_cast<double>(spent) / measured
+                << " apiece";
 
             EXPECT_EQ(array.getHeld().mCount, measured + 1);
         }

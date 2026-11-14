@@ -29,6 +29,8 @@ namespace Rtx
 
         ZoneCounters(const ZoneCounters&) = delete;
         ZoneCounters& operator=(const ZoneCounters&) = delete;
+        ZoneCounters(ZoneCounters&&) = delete;
+        ZoneCounters& operator=(ZoneCounters&&) = delete;
 
         /// Of `offered` counters, the ones a query reads in one pass: each in the driver's order
         /// that a zone can read and that, with those taken before it, `passesOf` still answers one

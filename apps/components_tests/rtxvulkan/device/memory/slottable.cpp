@@ -16,10 +16,12 @@
 #include <apps/components_tests/rtxvulkan/support/device/hostwritten.hpp>
 #include <components/rtx/common/index.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
+#include <components/rtxvulkan/device/memory/batch.hpp>
 #include <components/rtxvulkan/device/memory/blockedbuffer.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/device/memory/slottable.hpp>
 #include <components/rtxvulkan/device/memory/uploads.hpp>
+#include <components/rtxvulkan/device/timeline.hpp>
 
 namespace Rtx
 {
@@ -379,37 +381,33 @@ namespace Rtx
         /// **The copy knows its reader; nothing beside it does.** A count of frames kept by the renderer is exact for
         /// a frame's trace and wrong for a picture the interface's own submit carried. `addressFor` stamps the copy
         /// with the value of whatever submit takes it, and `finishReads` waits for that value. Held on the queue while
-        /// this thread waits, so the wait cannot return before the hold opens.
+        /// the other copy is asked, which waits for nothing and so returns with the submit still held; then let go
+        /// under the first copy's wait, which returns once the submit has run.
         TEST_F(RtxSlotTableTest, syncingWaitsForTheSubmitThatTookTheCopysAddress)
         {
             mTable.grow(1);
             mTable.write(0).mValue = 1;
             sync(0);
 
+            const Timeline& timeline = getDevice().getTimeline();
             Testing::HeldSubmit hold(getDevice());
             const LentCommands reader = getPool().lend(1);
             Recording reading = getPool().begin(reader[0]);
             EXPECT_NE(mTable.addressFor(FrameSlot{ 0 }), 0u);
-            hold.submit(std::move(reading));
+            const std::uint64_t taken = hold.submit(std::move(reading));
 
-            // Long enough that a wait which returned at once is told from one that waited, under three
-            // shards of this binary sharing the device.
-            constexpr std::chrono::milliseconds held{ 200 };
-            const auto asked = std::chrono::steady_clock::now();
-            hold.releaseAfter(held);
+            mTable.finishReads(FrameSlot{ 1 });
+            EXPECT_FALSE(timeline.hasFinished(taken)) << "the copy nothing took waited for the other's reader";
 
+            // A wait that returned at once is told from one that waited by the submit having run when it returns.
+            hold.releaseAfter(std::chrono::milliseconds(20));
             mTable.finishReads(FrameSlot{ 0 });
-            EXPECT_GE(std::chrono::steady_clock::now() - asked, held) << "the sync did not wait for the copy's reader";
+            EXPECT_TRUE(timeline.hasFinished(taken)) << "the sync did not wait for the copy's reader";
 
             // A wait that returned early writes this over a submit the hold still keeps on the
             // queue, which is the write the assert fires on.
             mTable.write(0).mValue = 2;
             sync(0);
-
-            // And the other copy, which nothing took, waits for nothing.
-            const auto other = std::chrono::steady_clock::now();
-            mTable.finishReads(FrameSlot{ 1 });
-            EXPECT_LT(std::chrono::steady_clock::now() - other, held);
         }
     }
 }

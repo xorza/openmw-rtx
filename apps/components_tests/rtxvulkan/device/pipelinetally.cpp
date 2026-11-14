@@ -6,7 +6,8 @@
 
 #include <gtest/gtest.h>
 
-#include <components/rtxvulkan/device/device.hpp>
+#include <components/rtxvulkan/device/driverprofile.hpp>
+#include <components/rtxvulkan/device/pipelinereport.hpp>
 #include <components/rtxvulkan/device/pipelinetally.hpp>
 
 namespace Rtx

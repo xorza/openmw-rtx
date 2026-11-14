@@ -24,6 +24,9 @@ namespace Rtx::Dlss
 
         Application(const Application&) = delete;
         Application& operator=(const Application&) = delete;
+        Application(Application&&) = delete;
+        Application& operator=(Application&&) = delete;
+        ~Application() = default;
 
         /// The search path and the log, as `Init` and every discovery call take them.
         const Ngx::FeatureCommonInfo* getCommonInfo() const { return &mCommon; }

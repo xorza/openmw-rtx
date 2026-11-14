@@ -1,6 +1,7 @@
 #include <array>
 #include <filesystem>
 #include <fstream>
+#include <limits>
 #include <optional>
 #include <span>
 #include <sstream>
@@ -135,13 +136,12 @@ namespace RtxTool
             place.mCard.mViewed = true;
             place.mCard.mHolders.push_back(CardHolder{ .mName = "tab\there", .mSamples = 1 });
 
-            const std::filesystem::path path = TestingOpenMW::outputFilePath("escaped-record.json");
+            const std::filesystem::path path = TestingOpenMW::currentTestDirPath() / "escaped-record.json";
             ASSERT_TRUE(writeJson(path, BenchHeader{ .mSuite = "a\nb" }, std::span(&place, 1)).isOk());
 
             std::ostringstream read;
             read << std::ifstream(path).rdbuf();
             const std::string json = read.str();
-            std::filesystem::remove(path);
 
             // Named outside the assertions: MSVC's preprocessor reads a raw string's `\"` inside a
             // macro argument as the end of the literal.
@@ -180,13 +180,12 @@ namespace RtxTool
                 .mTwoKinds = true,
                 .mRead = true };
 
-            const std::filesystem::path path = TestingOpenMW::outputFilePath("clock-record.json");
+            const std::filesystem::path path = TestingOpenMW::currentTestDirPath() / "clock-record.json";
             ASSERT_TRUE(writeJson(path, BenchHeader{}, places).isOk());
 
             std::ostringstream read;
             read << std::ifstream(path).rdbuf();
             const std::string json = read.str();
-            std::filesystem::remove(path);
 
             constexpr std::string_view clock = R"("clock": {"core": {"meanMhz": 1945, "lowestMhz": 1785, )"
                                                R"("highestMhz": 2070, "readings": 3}, "memory": {"meanMhz": 8500, )"
@@ -200,6 +199,30 @@ namespace RtxTool
             constexpr std::string_view uncounted = R"("thread": null})";
             EXPECT_NE(json.find(counted), std::string::npos) << json;
             EXPECT_NE(json.find(uncounted), std::string::npos) << json;
+        }
+
+        /// **Every fraction in the record is a JSON number or `null`**: a figure of no samples is not finite, which
+        /// JSON has no number for and Python's `json` refuses as `nan`, and the record is read by both.
+        TEST(RtxBenchRecordTest, aFigureThatIsNotFiniteIsWrittenAsNull)
+        {
+            std::array<BenchPlace, 1> places;
+            places[0].mWallSeconds = std::numeric_limits<double>::quiet_NaN();
+            places[0].mHitPercent = std::numeric_limits<double>::infinity();
+            places[0].mTravelled = 0.5;
+            BenchHeader header;
+            header.mHugePageShare = std::numeric_limits<float>::quiet_NaN();
+
+            const std::filesystem::path path = TestingOpenMW::currentTestDirPath() / "not-finite.json";
+            ASSERT_TRUE(writeJson(path, header, places).isOk());
+            std::ostringstream read;
+            read << std::ifstream(path).rdbuf();
+            const std::string json = read.str();
+
+            EXPECT_NE(json.find(R"("wallSeconds": null, "hitPercent": null, )"), std::string::npos) << json;
+            EXPECT_NE(json.find(R"("travelled": 0.5000, )"), std::string::npos) << json;
+            EXPECT_NE(json.find(R"("hugePageShare": null,)"), std::string::npos) << json;
+            for (const std::string_view word : { ": nan", ": -nan", ": inf", ": -inf" })
+                EXPECT_EQ(json.find(word), std::string::npos) << word << " in " << json;
         }
 
         /// **The record writes the place's scene, its memory and its content whole**: every count of
@@ -263,12 +286,11 @@ namespace RtxTool
                     .mSpareBytes = 36,
                     .mFiledBytes = 37 } };
 
-            const std::filesystem::path path = TestingOpenMW::outputFilePath("memory-record.json");
+            const std::filesystem::path path = TestingOpenMW::currentTestDirPath() / "memory-record.json";
             ASSERT_TRUE(writeJson(path, BenchHeader{}, std::span(&place, 1)).isOk());
             std::ostringstream read;
             read << std::ifstream(path).rdbuf();
             const std::string json = read.str();
-            std::filesystem::remove(path);
 
             constexpr std::string_view scene
                 = R"("scene": {"instances": 41, "instanceSlots": 50, "cutoutInstances": 42, "waterInstances": 43, )"

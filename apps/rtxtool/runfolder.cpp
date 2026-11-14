@@ -23,16 +23,20 @@ namespace RtxTool
 {
     namespace bpo = boost::program_options;
 
-    std::filesystem::path ownConfigDirectory(const Files::ConfigurationManager& config)
+    std::filesystem::path ownConfigDirectory(const Files::ConfigurationManager& config, const std::string_view run)
     {
-        static const std::string run = std::format(
-            "{}-{}", std::chrono::system_clock::now().time_since_epoch().count(), Platform::Process::currentId());
         return config.getCachePath() / "rtxtool" / run;
     }
 
-    std::filesystem::path ownSavesFolder(const Files::ConfigurationManager& config)
+    std::string nameThisRun()
     {
-        return ownConfigDirectory(config) / "saves";
+        return std::format(
+            "{}-{}", std::chrono::system_clock::now().time_since_epoch().count(), Platform::Process::currentId());
+    }
+
+    std::filesystem::path ownSavesFolder(const std::filesystem::path& own)
+    {
+        return own / "saves";
     }
 
     namespace

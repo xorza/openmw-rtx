@@ -136,7 +136,7 @@ namespace Rtx
                 bound = &pipeline;
             }
 
-            // Against the layout of the pipeline that is bound: the four are identical, but a push
+            // Against the layout of the pipeline that is bound: the five are identical, but a push
             // is only defined against the one in force.
             DescriptorWrites texture(pipeline);
             texture.image(

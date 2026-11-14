@@ -1,5 +1,7 @@
 #pragma once
 
+#include "keyedge.hpp"
+
 namespace MWRender
 {
     struct FrameContext;
@@ -24,7 +26,7 @@ namespace RtxTool
         void answer(const MWRender::FrameContext& context);
 
     private:
-        bool mHeld = false;
+        KeyEdge mEnd;
         bool mAsked = false;
     };
 }

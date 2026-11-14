@@ -218,6 +218,8 @@ namespace Rtx
 
         MemoryAllocator(const MemoryAllocator&) = delete;
         MemoryAllocator& operator=(const MemoryAllocator&) = delete;
+        MemoryAllocator(MemoryAllocator&&) = delete;
+        MemoryAllocator& operator=(MemoryAllocator&&) = delete;
 
         /// Room for `buffer`, in memory that is `properties`, ready to bind, at the coarser of the
         /// driver's alignment for binding it and `alignment` — what the buffer's use owes beyond the
@@ -384,6 +386,8 @@ namespace Rtx
 
             Library(const Library&) = delete;
             Library& operator=(const Library&) = delete;
+            Library(Library&&) = delete;
+            Library& operator=(Library&&) = delete;
 
             VmaAllocator_T* get() const { return mAllocator; }
 

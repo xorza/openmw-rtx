@@ -10,7 +10,6 @@
 
 #include <osgGA/GUIEventHandler>
 
-#include <components/crashcatcher/crash.hpp>
 #include <components/resource/imagemanager.hpp>
 #include <components/sceneutil/nodecallback.hpp>
 #include <components/sceneutil/paintedtexture.hpp>
@@ -445,7 +444,7 @@ namespace MyGUIPlatform
 
         if (OSGTexture* osgtexture = static_cast<OSGTexture*>(texture))
         {
-            batch.mTexture = Crash::notNull(osgtexture->getTexture(), "a MyGUI texture with no image");
+            batch.mTexture = osgtexture->getTexture();
             if (batch.mTexture->getDataVariance() == osg::Object::DYNAMIC)
                 mDrawable->setDataVariance(osg::Object::DYNAMIC); // only for this frame, reset in begin()
             if (!mInjectState && osgtexture->getInjectState())

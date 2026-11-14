@@ -21,9 +21,9 @@
 #include <apps/components_tests/rtxvulkan/support/testinstance.hpp>
 #include <components/misc/result.hpp>
 #include <components/rtx/common/jobprogress.hpp>
-#include <components/rtx/environment/wavespectrum.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/renderer/renderer.hpp>
+#include <components/rtx/world/wavespectrum.hpp>
 #include <components/rtxvulkan/device/instance.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/notfinitecensus.hpp>

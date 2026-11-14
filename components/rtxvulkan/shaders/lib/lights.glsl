@@ -122,6 +122,13 @@ uvec2 lampsReaching(vec3 position)
     return lampsInCell(lightCellOf(position));
 }
 
+/// The run of `reaching` a surface walks, cut to the budget: an empty one, selected, for a picture no lamp lights
+/// (`FrameConstants::mNoLamps`) or a surface none lights (`Surface::mLampLit`), and the loop is over.
+uvec2 lampRunOf(uvec2 reaching, bool lampLit)
+{
+    return frame.mNoLamps != 0u || !lampLit ? uvec2(0u) : lampsWithin(reaching);
+}
+
 /// The size a lamp's singularity is softened by: its own extent, and one unit where it carries less.
 ///
 /// **The lamp's own extent, because that is what a lamp is.** An inverse square is a point's field and runs
@@ -291,11 +298,13 @@ Facing facingOf(Surface surface)
 /// `bumpShadowing` for one light's direction, which a lit cosine and a lobe both take.
 ///
 /// **One exactly where nothing is mapped**, selected and not worked out: a unit normal's square is one to a
-/// rounding, so a vanilla surface would move by an ulp it has no reason to.
+/// rounding, so a vanilla surface would move by an ulp it has no reason to. And one in a tuple that maps
+/// nothing (`HAS_MAPS`), which the specialization folds the share away under, where the float comparison
+/// cannot be folded under the pinning.
 float terminatorShare(Facing facing, vec3 towards)
 {
     const float share = bumpShadowing(dot(facing.mBase, towards), dot(facing.mBase, facing.mNormal));
-    return all(equal(facing.mBase, facing.mNormal)) ? 1.0 : share;
+    return !HAS_MAPS || all(equal(facing.mBase, facing.mNormal)) ? 1.0 : share;
 }
 
 /// The cosine a diffuse surface takes a light at, with what a sheet takes from its far side.
@@ -532,9 +541,7 @@ vec3 unshadowedOf(LightCandidate candidate)
 void weighLamps(inout Reservoir kept, inout uint state, vec3 from, Facing facing, float scale, Gloss gloss,
     bool lampLit, uint candidates)
 {
-    // None, for a picture no lamp lights or a surface none lights: an empty run, selected, and the
-    // loop is over.
-    const uvec2 near = frame.mNoLamps != 0u || !lampLit ? uvec2(0u) : lampsWithin(lampsReaching(from));
+    const uvec2 near = lampRunOf(lampsReaching(from), lampLit);
 
     // **A fixed count of candidates where the run is longer than it**, drawn uniformly and resampled (RIS,
     // Talbot 2005; Bitterli et al. 2020): each is offered at its own weight, and the total and the
@@ -616,7 +623,7 @@ bool listedIn(LampList list, uint row)
 void weighLampStrata(inout Reservoir listed, inout Reservoir rest, inout uint state, vec3 from, Facing facing,
     float scale, Gloss gloss, bool lampLit, LampList list)
 {
-    const uvec2 near = frame.mNoLamps != 0u || !lampLit ? uvec2(0u) : lampsWithin(lampsReaching(from));
+    const uvec2 near = lampRunOf(lampsReaching(from), lampLit);
     for (uint i = near.x; i < near.y; ++i)
     {
         const uint row = lightListAt(i);
@@ -644,7 +651,7 @@ void weighLampStrata(inout Reservoir listed, inout Reservoir rest, inout uint st
 vec3 darkeningAt(vec3 from, Facing facing, float scale, bool lampLit)
 {
     vec3 taken = vec3(0.0);
-    const uvec2 near = frame.mNoLamps != 0u || !lampLit ? uvec2(0u) : lampsWithin(darkeningReaching(from));
+    const uvec2 near = lampRunOf(darkeningReaching(from), lampLit);
     for (uint i = near.x; i < near.y; ++i)
     {
         const GpuLight held = shownLightAt(lightListAt(i));

@@ -7,6 +7,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from omw import (
+    benchab,
     crash,
     deps,
     depsset,
@@ -64,6 +65,10 @@ omw [flavour] <verb> [args]: one grammar for every build, on the desk and in CI,
                                run a leg, the still leg with `--still`, a leg N frames after a cut
                                for each `--cut=N`, a distance of 0 leaving its leg out, and the
                                figures side by side
+  bench --ab=<switch>[=<a>,<b>] [--legs=N] [bench args]
+                               one switch's timing A/B: a warm-up leg, then N legs a side in turn
+                               (5 unless named), each zone's and host row's median and p99 over
+                               the legs beside the spread of their medians
 
   crash <dump> [symbols]       a player's crash dump or package, every thread named and lined,
                                against the symbols of the build that wrote it: a -symbols.zip, the
@@ -228,6 +233,8 @@ def dispatch(line: Line) -> int:
         return BUILD_VERBS[line.verb].run(build, line.args)
     if line.verb == "noise" and noise.wants_ab(line.args):
         return noise.ab(build, line.args)
+    if line.verb == "bench" and noise.wants_ab(line.args):
+        return benchab.ab(build, line.args)
     return _harness(build, line.verb, line.args)
 
 

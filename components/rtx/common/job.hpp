@@ -32,6 +32,8 @@ namespace Rtx
 
         Job(const Job&) = delete;
         Job& operator=(const Job&) = delete;
+        Job(Job&&) = delete;
+        Job& operator=(Job&&) = delete;
 
         /// Runs `work(stop, job)` on a thread named `name`, where `work` calls `job.advance()` for
         /// each of the `count` steps it makes. Once, and of one step at least: a job of none could

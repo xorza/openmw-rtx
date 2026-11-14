@@ -258,25 +258,15 @@ TracedLists tracePixel(uvec2 pixel)
             | waterStep << (2u * WALK_STEP_BITS);
     }
 
-    // **The medium in front of the surface**, in its closed forms: the air, or the column of water a ray
-    // from under the surface crosses, which the media stage marches where its shafts change it
-    // (`media.comp`).
+    // **The medium in front of the surface** (`mediumAheadOf`), whose column the media stage marches where its
+    // shafts change it (`media.comp`): this stage has not run, so its shafts are one.
     const WorldRay path = WorldRay(origin, direction);
-    MediumAhead ahead;
-    if (!(waterOver(path.mFrom) > 0.0))
-    {
-        const vec4 fog = fogAlong(pixel, path, answer.mDistance);
-        ahead = MediumAhead(fog.xyz, vec3(fog.w));
-    }
-    else
-    {
-        const float waterDistance
-            = waterUnbounded(answer.mHit, origin, direction) ? WATER_UNBOUNDED_PATH : answer.mDistance;
-        const float under = waterAlong(path.mFrom, path.mAlong, waterDistance);
-        const ColumnStart start = columnStartOf(path.mFrom, path.mAlong, under);
-        ahead = mediumOverColumn(path, under, waterDistance, answer.mDistance, columnOf(start, vec3(1.0)));
-        marches = marches || start.mMarches;
-    }
+    const float waterDistance
+        = waterUnbounded(answer.mHit, origin, direction) ? WATER_UNBOUNDED_PATH : answer.mDistance;
+    bool columnMarches;
+    const MediumAhead ahead
+        = mediumAheadOf(pixel, path, answer.mDistance, waterDistance, vec3(1.0), columnMarches);
+    marches = marches || columnMarches;
 
     // **The eye the pixel's ray ended in**, whose cone the rest of the path is charged through: it
     // does not move as the ray carries on past a layer, since the cone is the eye's the ray was cast
@@ -314,7 +304,7 @@ TracedLists tracePixel(uvec2 pixel)
     // The sprites alone, no cloud shell: a shell is gathered along the ray that shows it, which is the
     // composite's, or a cloud's edge shakes with this jittered sample. Only in a frame a puff can be met in, a
     // uniform branch; otherwise the channel holds no puff already (`GBuffer::begin`).
-    if (frame.mPuffsInFrame != 0u)
+    if ((frame.mPuffsInFrame & PUFFS_DRAWN) != 0u)
     {
         const PuffLayer sprites
             = spritesAlong(binnedPixel(pixel, direction, arms), origin, direction, distance, cone, true);

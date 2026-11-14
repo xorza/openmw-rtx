@@ -12,7 +12,6 @@
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <apps/rtxtool/model/benchspec.hpp>
 #include <apps/rtxtool/model/film.hpp>
-#include <apps/rtxtool/model/maprules.hpp>
 #include <components/fallback/validate.hpp>
 #include <components/files/multidircollection.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
@@ -70,10 +69,6 @@ namespace RtxTool
             float mFieldOfView = 0.0f;
             Named<int> mDay;
 
-            /// `--maps`, or where it is not given, nothing for the player's own under `view`, which
-            /// is the played game, and `MapRules::Shipped` under every other verb.
-            std::optional<MapRules> mMaps;
-
             Named<Rtx::Upscale> mUpscale;
 
             /// `--upscaler`: which backend runs, FSR by default so a measured picture does not
@@ -120,8 +115,8 @@ namespace RtxTool
             std::optional<osg::Vec3f> mPos;
             std::optional<osg::Vec3f> mLook;
 
-            /// `--views`, split, or nothing where the line names none: named with nothing in it, it
-            /// is every view (`chooseViews`). And `--suite`.
+            /// `--views`, split, or nothing where the line names none: `all` is every view, and a list
+            /// that names none is refused (`chooseViews`). And `--suite`.
             std::optional<std::vector<std::string>> mViews;
             std::optional<std::string> mSuite;
 

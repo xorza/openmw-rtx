@@ -22,6 +22,7 @@
 
 #include <components/esm3/refnum.hpp>
 #include <components/misc/convert.hpp>
+#include <components/rtx/common/letgo.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/common/scratch.hpp>
 #include <components/rtx/image/alpharange.hpp>
@@ -178,6 +179,9 @@ namespace Rtx
         /// Where the part stands in the template's own space.
         osg::Matrixf mLocal;
 
+        /// Whether it shows the face wound clockwise (`clockwiseThrough`).
+        bool mClockwise = false;
+
         /// Where this part's attributes sit in the model's own buffers.
         Run mVertices;
 
@@ -258,15 +262,15 @@ namespace Rtx
         /// Gives its buffers' room back, where a preparation's thread is asked for it. Lent nowhere.
         void letGoBuffers()
         {
-            mParts = {};
-            mPositions = {};
-            mNormals = {};
-            mTexCoords = {};
-            mSecondTexCoords = {};
-            mColours = {};
-            mTangents = {};
-            mIndices = {};
-            mChains = {};
+            letGoOf(mParts);
+            letGoOf(mPositions);
+            letGoOf(mNormals);
+            letGoOf(mTexCoords);
+            letGoOf(mSecondTexCoords);
+            letGoOf(mColours);
+            letGoOf(mTangents);
+            letGoOf(mIndices);
+            letGoOf(mChains);
         }
 
         /// What one of its parts comes to, as the frame adopts it. The spans are into this model's

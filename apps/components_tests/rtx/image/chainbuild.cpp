@@ -196,9 +196,7 @@ namespace Rtx
             chain.build(small.mData, 2);
             EXPECT_EQ(chain.getLevelCount(), 2u) << "the last texture's levels came through";
 
-            const std::size_t before = Testing::getAllocationCount();
-            chain.build(single.mData, 3);
-            const std::size_t spent = Testing::getAllocationCount() - before;
+            const std::size_t spent = Testing::allocationsIn([&] { chain.build(single.mData, 3); });
             EXPECT_EQ(spent, 0u) << "a rebuild reached the heap " << spent << " times";
             EXPECT_EQ(chain.getLevelCount(), 3u);
         }

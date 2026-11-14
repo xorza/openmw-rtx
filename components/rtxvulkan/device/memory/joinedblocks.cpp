@@ -4,8 +4,9 @@
 #include <cassert>
 #include <span>
 
-#include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/requirements.hpp>
+
+#include "batch.hpp"
 
 namespace Rtx
 {

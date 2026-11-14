@@ -23,6 +23,8 @@
 
 #include <apps/openmw/mwrender/objectpaging.hpp>
 #include <apps/openmw/mwrender/vismask.hpp>
+#include <components/sceneutil/morphgeometry.hpp>
+#include <components/sceneutil/riggeometry.hpp>
 #include <components/sceneutil/userdata.hpp>
 #include <components/terrain/cellborder.hpp>
 #include <components/terrain/storage.hpp>
@@ -296,12 +298,22 @@ namespace MWRender
     /// handed the visitor in the frame the carrier above pushed, and bound by the drawable's own sphere so
     /// the carrier culls the segment first. Read and never changed: the drawable is every reference's of
     /// the model and the reader's threads read it too, so it is put under no node of this.
+    ///
+    /// **A deforming part answers by its source geometry**: the game's visitor poses a morphed or skinned
+    /// drawable before it intersects one (`Renderer::poseForIntersection`), which writes the drawable's own
+    /// arrays, and a template's are read by the ring's reader threads as it does. A static is meant to stand
+    /// as authored, which its source is.
     class TracedTerrain::StandingPart final : public osg::Node
     {
     public:
         void show(const osg::Drawable& drawable)
         {
-            mDrawable = &drawable;
+            osg::ref_ptr<const osg::Geometry> source;
+            if (const auto* morph = dynamic_cast<const SceneUtil::MorphGeometry*>(&drawable))
+                source = morph->getSourceGeometry();
+            else if (const auto* rig = dynamic_cast<const SceneUtil::RigGeometry*>(&drawable))
+                source = rig->getSourceGeometry();
+            mDrawable = source != nullptr ? source.get() : &drawable;
             dirtyBound();
         }
 

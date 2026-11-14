@@ -7,9 +7,9 @@
 #include <osg/Vec2f>
 #include <vulkan/vulkan_core.h>
 
-#include <components/rtx/environment/wavecascade.hpp>
-#include <components/rtx/environment/wavespectrum.hpp>
 #include <components/rtx/shaders/wave.h>
+#include <components/rtx/world/wavecascade.hpp>
+#include <components/rtx/world/wavespectrum.hpp>
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>

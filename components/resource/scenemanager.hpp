@@ -58,7 +58,7 @@ namespace Resource
         Rasterized,
 
         /// None: for a renderer that compiles no GLSL.
-        Left,
+        Omitted,
     };
 
     /// @brief Handles loading and caching of scenes, e.g. .nif files or .osg files
@@ -199,7 +199,7 @@ namespace Resource
 
         void setWeatherParticleOcclusion(bool value) { mWeatherParticleOcclusion = value; }
 
-        /// Whether a loaded model is given the shader programs the rasterizer draws it with. Left for
+        /// Whether a loaded model is given the shader programs the rasterizer draws it with. Omitted for
         /// a renderer that compiles no GLSL: the visitor runs createProgram on every drawable and
         /// moves the material into its removedState, and that state is what such a renderer reads
         /// as the loader left it. Nothing outside this class can stop the visitor, which is built

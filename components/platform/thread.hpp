@@ -53,4 +53,16 @@ namespace Platform
                 work();
         });
     }
+
+    /// Asks every thread `threadOf` names in `owners` to stop, and only then joins each, so none takes more work
+    /// while one before it is joined: a pool's hands stopped one at a time each waited out the turn of every hand
+    /// joined ahead of it.
+    template <class Owners, class ThreadOf>
+    void stopThenJoin(Owners& owners, ThreadOf threadOf)
+    {
+        for (auto& owner : owners)
+            threadOf(owner).request_stop();
+        for (auto& owner : owners)
+            threadOf(owner) = std::jthread();
+    }
 }

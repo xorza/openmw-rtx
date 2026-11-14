@@ -13,6 +13,7 @@
 #include <osg/Image>
 #include <osg/ref_ptr>
 
+#include <apps/components_tests/rtx/support/allocations.hpp>
 #include <apps/components_tests/rtx/support/countingrenderer.hpp>
 #include <apps/components_tests/rtx/support/firsttexel.hpp>
 #include <apps/components_tests/rtx/support/geometry.hpp>
@@ -143,6 +144,23 @@ namespace Rtx
         /// Runs are staged on an extend alone, and the sum of the mesh and texture revisions that
         /// decided it did not move: the device was told to place, and read layers it was never
         /// handed. Over a texture already uploaded, so nothing is described, and placed again after.
+        /// **A frame that only places allocates nothing**, the uploader's and the scene's: once a scene is built,
+        /// every ordinary frame is this branch.
+        TEST(RtxSceneUploaderTest, aFrameThatOnlyPlacesAllocatesNothing)
+        {
+            Rtx::SceneDesc scene;
+            SceneUploader uploader;
+            Testing::CountingRenderer renderer;
+            Testing::addModel(scene, VFS::Path::NormalizedView("textures/one.dds"));
+            const Rtx::SceneUploader::Handing handing{ .mSlot = Rtx::SceneSlot::world(), .mScene = scene };
+            ASSERT_EQ(uploader.hand(renderer, handing).mKind, SceneUpload::Kind::Rebuilt);
+            ASSERT_EQ(uploader.hand(renderer, handing).mKind, SceneUpload::Kind::Placed);
+
+            SceneUpload placed;
+            EXPECT_EQ(Testing::allocationsIn([&] { placed = uploader.hand(renderer, handing); }), 0u);
+            EXPECT_EQ(placed.mKind, SceneUpload::Kind::Placed);
+        }
+
         TEST(RtxSceneUploaderTest, aMaterialThatGainsRunsAndNothingElseIsAnExtension)
         {
             Rtx::SceneDesc scene;

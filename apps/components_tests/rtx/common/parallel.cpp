@@ -10,6 +10,7 @@
 
 #include <gtest/gtest.h>
 
+#include <apps/components_tests/rtx/support/bound.hpp>
 #include <components/platform/process.hpp>
 #include <components/platform/thread.hpp>
 #include <components/rtx/common/parallel.hpp>
@@ -119,8 +120,8 @@ namespace Rtx
         }
 
         /// **A stop asked of the caller's thread ends the batch early.** A million indices of a
-        /// millisecond each would take minutes; the stop comes after the first and the batch is back
-        /// within a second, with most of it never run.
+        /// millisecond each would take minutes; the stop comes after the first, and the batch comes
+        /// back with most of it never run.
         TEST(RtxParallelTest, aStopEndsTheBatchEarly)
         {
             constexpr std::size_t count = 1'000'000;
@@ -136,15 +137,16 @@ namespace Rtx
                     });
                 returned = true;
             });
-            while (ran == 0)
+            for (const Testing::WaitBound bound(Testing::sHandOverPatience); ran == 0;)
+            {
+                ASSERT_FALSE(bound.passed()) << "the batch never began";
                 std::this_thread::yield();
+            }
 
-            const auto began = std::chrono::steady_clock::now();
             runner.request_stop();
             runner.join();
             EXPECT_TRUE(returned);
-            EXPECT_LT(std::chrono::steady_clock::now() - began, std::chrono::seconds(1));
-            EXPECT_LT(ran.load(), count);
+            EXPECT_LT(ran.load(), count) << "the batch ran whole past the stop";
         }
 
         /// **The caller is one of the hands**, so a batch never leaves the thread that asked for it

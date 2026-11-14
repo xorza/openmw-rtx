@@ -3,10 +3,12 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <span>
 
 #include <volk.h>
 
+#include <components/rtx/common/runs.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/gputimer.hpp>
 #include <components/rtxvulkan/device/memory/barriers.hpp>
@@ -125,20 +127,10 @@ namespace Rtx
         const auto bytesOf = [](const Spread& spread) {
             return VkDeviceSize{ NormalSpreadPass::meansTexels(*spread.mSpread) } * Shaders::NORMAL_SPREAD_MEAN_BYTES;
         };
-        mGroupEnds.clear();
-        VkDeviceSize largestGroup = 0;
-        VkDeviceSize group = 0;
-        for (std::size_t at = 0; at < mSpreads.size(); ++at)
-        {
-            if (group > 0 && group + bytesOf(mSpreads[at]) > mMeansRoom)
-            {
-                mGroupEnds.push_back(at);
-                group = 0;
-            }
-            group += bytesOf(mSpreads[at]);
-            largestGroup = std::max(largestGroup, group);
-        }
-        mGroupEnds.push_back(mSpreads.size());
+        const VkDeviceSize largestGroup = splitIntoRuns(
+            mSpreads.size(), mMeansRoom,
+            [&](const std::size_t at) { return std::optional<std::uint64_t>(bytesOf(mSpreads[at])); },
+            [](std::size_t, std::uint64_t) {}, mGroupEnds);
         mMeans.growTo(largestGroup);
         const Buffer& means = mMeans.get();
 

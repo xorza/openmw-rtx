@@ -16,10 +16,8 @@ namespace RtxTool
 {
     void MemoryKey::listen()
     {
-        const bool down = SDL_GetKeyboardState(nullptr)[SDL_SCANCODE_END];
-        if (down && !mHeld)
+        if (mEnd.wentDown(SDL_GetKeyboardState(nullptr)[SDL_SCANCODE_END]))
             mAsked = true;
-        mHeld = down;
     }
 
     void MemoryKey::answer(const MWRender::FrameContext& context)

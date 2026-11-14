@@ -282,9 +282,7 @@ namespace Rtx
             grid.rebuild(lights);
             grid.rebuild(lights);
 
-            const std::size_t before = Testing::getAllocationCount();
-            grid.rebuild(lights);
-            const std::size_t spent = Testing::getAllocationCount() - before;
+            const std::size_t spent = Testing::allocationsIn([&] { grid.rebuild(lights); });
 
             EXPECT_EQ(spent, 0u) << spent << " allocations to bin the lamps a frame already held";
             EXPECT_EQ(entriesIn(grid), 125u + 125u + 9261u) << "and it binned them all the same";
@@ -349,9 +347,7 @@ namespace Rtx
             const std::vector<std::uint32_t> first(grid.getList().begin(), grid.getList().end());
 
             lights[0].mPosition.x() = 50.0f;
-            std::size_t before = Testing::getAllocationCount();
-            grid.rebuild(lights);
-            EXPECT_EQ(Testing::getAllocationCount() - before, 0u);
+            EXPECT_EQ(Testing::allocationsIn([&] { grid.rebuild(lights); }), 0u);
             EXPECT_EQ(std::vector<std::uint32_t>(grid.getList().begin(), grid.getList().end()), first)
                 << "a lamp that stayed in its cells changed the list";
             EXPECT_FALSE(grid.wasMadeAgain());
@@ -359,9 +355,7 @@ namespace Rtx
 
             // The cell it left and the cell it entered, and no other record is owed.
             lights[0].mPosition.x() = 300.0f;
-            before = Testing::getAllocationCount();
-            grid.rebuild(lights);
-            EXPECT_EQ(Testing::getAllocationCount() - before, 0u);
+            EXPECT_EQ(Testing::allocationsIn([&] { grid.rebuild(lights); }), 0u);
             EXPECT_FALSE(grid.wasMadeAgain());
             EXPECT_EQ(std::vector<Index>(grid.getRewritten().begin(), grid.getRewritten().end()),
                 (std::vector<Index>{ cellAt(grid, 1, 1, 1), cellAt(grid, 2, 1, 1) }));
@@ -372,9 +366,7 @@ namespace Rtx
             EXPECT_EQ(lampsIn(grid, 17, 1, 1), std::vector<std::uint32_t>{ 1u });
 
             lights[0].mPosition.x() = -200.0f;
-            before = Testing::getAllocationCount();
-            grid.rebuild(lights);
-            EXPECT_EQ(Testing::getAllocationCount() - before, 0u);
+            EXPECT_EQ(Testing::allocationsIn([&] { grid.rebuild(lights); }), 0u);
             EXPECT_FALSE(grid.wasMadeAgain())
                 << "a lamp carried past the others into the spare cell made the grid again";
             std::vector<Index> rewritten(grid.getRewritten().begin(), grid.getRewritten().end());

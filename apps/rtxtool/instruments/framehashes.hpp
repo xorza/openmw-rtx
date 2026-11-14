@@ -59,9 +59,14 @@ namespace RtxTool
     class FrameHashes
     {
     public:
-        /// Reads what a previous run wrote. Throws `Rtx::InputError` where the file will not parse,
-        /// so a truncated reference is a failure and not a run that silently matches nothing.
+        /// Reads what a previous run wrote, out of `file`. Throws `Rtx::InputError` where it cannot be read
+        /// (`parse`).
         static FrameHashes read(const std::filesystem::path& file);
+
+        /// Reads a table a previous run wrote, `text`, which `source` names in what is refused. Throws
+        /// `Rtx::InputError` where it will not parse, so a truncated reference is a failure and not a run that
+        /// silently matches nothing.
+        static FrameHashes parse(std::string text, std::string_view source);
 
         /// A frame drawn: `parts` is what `SceneDigester::digest` made of the description that
         /// drew it, known as it is drawn, and `submitted` is what `Renderer::getFrameCount`
@@ -160,7 +165,7 @@ namespace RtxTool
         /// differs from that frame in its surface or its motion. Traced with the same sample, the
         /// two are one frame however the eye's soft edges and the light were drawn, so a difference
         /// is other code: the driver swapping in one that computes an operation the build leaves to
-        /// the device otherwise (`Rtx::pinFloatArithmetic`). False where `view` has no pictured frame.
+        /// the device otherwise (`Rtx::pinModule`). False where `view` has no pictured frame.
         bool probeMoved(std::string_view view, const Rtx::FrameDigest& probe) const;
 
     private:

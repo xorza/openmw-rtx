@@ -50,7 +50,6 @@ namespace Rtx
         TEST(RtxPipelineCodeTest, pipelinesThatShareANameWriteBesideEachOther)
         {
             const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "code";
-            std::filesystem::remove_all(folder);
             PipelineCodeFolder code(folder);
             ASSERT_TRUE(std::filesystem::is_directory(folder));
 

@@ -4,7 +4,7 @@
 // Whether a value is a number, read off its bits.
 //
 // An integer test, where a float one is a test a compile may fold. Every module declares the preservation
-// of NaNs and infinities (`pinFloatArithmetic`); this keeps its meaning whatever a module declares, so the
+// of NaNs and infinities (`pinModule`); this keeps its meaning whatever a module declares, so the
 // census `check` asserts on does not rest on the float environment alone.
 
 /// Whether each component is a NaN or an infinity: its exponent all ones.

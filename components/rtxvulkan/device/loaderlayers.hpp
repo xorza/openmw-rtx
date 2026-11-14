@@ -30,6 +30,9 @@ namespace Rtx
         LoaderLayers() = default;
         LoaderLayers(const LoaderLayers&) = delete;
         LoaderLayers& operator=(const LoaderLayers&) = delete;
+        LoaderLayers(LoaderLayers&&) = delete;
+        LoaderLayers& operator=(LoaderLayers&&) = delete;
+        ~LoaderLayers() = default;
 
         /// What chains into `VkInstanceCreateInfo::pNext`, which `VK_EXT_debug_utils` must be
         /// enabled for.

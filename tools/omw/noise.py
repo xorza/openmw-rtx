@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from omw.build import Build
+from omw.exitstatus import ExitStatus
 from omw.system import Refusal, Switches, read_text, temporary_folder
 
 # The distance `look.h` quotes the moving legs at.
@@ -21,7 +22,7 @@ DEFAULT_DISTANCE = "150"
 
 # `RtxTool::judgeNoise`'s statuses: every frame as clean, or one noisier, which is an A/B's to read. Any other
 # ended the run before it judged.
-JUDGED = (0, 1)
+JUDGED = (ExitStatus.PASSED, ExitStatus.DIFFERED)
 
 # What `noise` names the record it writes beside its pictures (`RtxTool::sNoiseRecord`).
 RECORD = "noise.json"
@@ -63,7 +64,7 @@ def wants_ab(args: list[str]) -> bool:
     return any(arg == "--ab" or arg.startswith("--ab=") for arg in args)
 
 
-def _sides(asked: str) -> tuple[Side, Side]:
+def sides_of(asked: str) -> tuple[Side, Side]:
     name, _, values = asked.partition("=")
     if not name or name.startswith("-"):
         raise Refusal(f"--ab={asked} names no switch: `--ab=antifirefly` or `--ab=noise=blue-noise,white-hash`")
@@ -95,7 +96,7 @@ def plan(args: list[str]) -> Plan:
              for leg, distance in (("strafe", asked.strafe), ("walk", asked.walk)) if not _nought(distance)]
     if not legs:
         raise Refusal("no leg is left to run: name --still, --cut=N, or a distance that is not nought")
-    return Plan(_sides(asked.ab), tuple(legs), asked.out, tuple(rest))
+    return Plan(sides_of(asked.ab), tuple(legs), asked.out, tuple(rest))
 
 
 def _nought(distance: str) -> bool:

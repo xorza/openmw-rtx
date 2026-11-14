@@ -313,12 +313,6 @@ namespace Rtx::Testing
             EXPECT_EQ(standingAt, (std::vector<float>{ 10.0f, 20.0f })) << "the two that stayed did not both stand";
         }
 
-        /// A node a walk cannot read, which throws where the walk reaches it.
-        struct Throwing : osg::Node
-        {
-            void accept(osg::NodeVisitor&) override { throw std::runtime_error("a node the walk cannot read"); }
-        };
-
         /// **A walk that threw in the middle of a reference's record leaves no record open**: the
         /// walk after it records its own references as any walk does, where a record left open
         /// was a reference root recorded inside another.

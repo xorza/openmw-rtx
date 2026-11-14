@@ -306,23 +306,30 @@ void main()
     }
     const vec4 mean = sum / count;
 
-    // The principal axis by power iteration on the covariance, from the widest channel's direction.
+    // **The principal axis by power iteration on the covariance, from the widest channel's column of it**: that
+    // channel's spread with every channel, which only a block of one colour leaves nought. Not from the box's
+    // diagonal, which every deviation of a block that trades one channel for another is orthogonal to — eight
+    // texels of (200, 100, 50) and eight of (100, 200, 50) — and which such a block's covariance takes to nought,
+    // leaving the block its mean.
     mat4 covariance = mat4(0.0);
-    vec4 least = vec4(255.0);
-    vec4 most = vec4(0.0);
     for (uint texel = 0u; texel < 16u; ++texel)
     {
         const vec4 apart = (texelAt(texel) - mean) * insideAt(texel);
         covariance += outerProduct(apart, apart);
-        least = insideAt(texel) > 0.0 ? min(least, texelAt(texel)) : least;
-        most = insideAt(texel) > 0.0 ? max(most, texelAt(texel)) : most;
     }
-    vec4 axis = most - least;
+    vec4 axis = covariance[0];
+    float widest = covariance[0][0];
+    for (int channel = 1; channel < 4; ++channel)
+    {
+        const bool wider = covariance[channel][channel] > widest;
+        axis = wider ? covariance[channel] : axis;
+        widest = wider ? covariance[channel][channel] : widest;
+    }
     for (uint iteration = 0u; iteration < 8u; ++iteration)
     {
         const vec4 turned = covariance * axis;
-        const float length = sqrt(dot(turned, turned));
-        axis = length > 1e-6 ? turned / length : axis;
+        const float turnedLength = sqrt(dot(turned, turned));
+        axis = turnedLength > 1e-6 ? turned / turnedLength : axis;
     }
     const float axisLength = sqrt(dot(axis, axis));
     axis = axisLength > 1e-6 ? axis / axisLength : vec4(0.0);

@@ -18,10 +18,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from omw.build import Build
+from omw.exitstatus import ExitStatus
 from omw.system import Refusal, Switches, read_text, temporary_folder
-
-# `RtxTool::sDifferedStatus`: the run's one fault is a frame that differed from its reference.
-DIFFERED_STATUS = 3
 
 # **What `repeat` sets on every run**: what the walk is and how it is taken. Named twice, `bench` refuses the line,
 # so each is refused here first.
@@ -90,7 +88,7 @@ def repeat(build: Build, args: list[str]) -> int:
             second = run(pair)
             if second.code == 0:
                 print(f"pair {pair} of {pairs}: identical")
-            elif second.code == DIFFERED_STATUS:
+            elif second.code == ExitStatus.DIFFERED:
                 # Decided by the status alone; the report's comparison is only shown, from where it opens.
                 status = 1
                 lines = read_text(second.log).splitlines()

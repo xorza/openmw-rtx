@@ -205,7 +205,7 @@ namespace Rtx::Testing
                 .mRadius = 60.0f,
                 .mColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
                 .mAlpha = 1.0f } };
-            scene.addEmitter(sprites, cut, BlendKind::Over);
+            scene.addEmitter(sprites, EmitterSpec{ .mTexture = cut, .mBlend = BlendKind::Over });
             addQuad(scene,
                 std::array{ osg::Vec3f(-500.0f, 200.0f, -500.0f), osg::Vec3f(edge, 200.0f, -500.0f),
                     osg::Vec3f(edge, 200.0f, 500.0f), osg::Vec3f(-500.0f, 200.0f, 500.0f) });

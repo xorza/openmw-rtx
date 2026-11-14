@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <fstream>
 #include <optional>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -13,11 +14,13 @@
 
 #include <osg/Vec3f>
 
+#include <apps/components_tests/rtx/support/refusal.hpp>
 #include <apps/rtxtool/harnessfolder.hpp>
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <apps/rtxtool/model/blockfile.hpp>
 #include <apps/rtxtool/model/viewfile.hpp>
 #include <apps/rtxtool/verbs.hpp>
+#include <components/files/conversion.hpp>
 #include <components/rtx/renderer/shaderset.hpp>
 #include <components/rtx/world/frameworld.hpp>
 #include <components/rtx/world/weather.hpp>
@@ -28,21 +31,23 @@ namespace RtxTool
 {
     namespace
     {
+        /// The suites `text` holds, read as the suite file is.
+        std::vector<BenchSuite> suitesOf(const std::string& text)
+        {
+            std::istringstream in(text);
+            return readSuites(BlockFile(in, "benches.cfg"));
+        }
+
         TEST(RtxBenchSuiteTest, aSuiteFileIsSectionsOfViewNames)
         {
-            const std::filesystem::path file = TestingOpenMW::outputFilePath("suite-test.cfg");
-            {
-                std::ofstream written(file);
-                written << "[quick]\n"
-                           "note = two of them\n"
-                           "views = balmora, vivec\n"
-                           "settled = false\n"
-                           "\n"
-                           "[one]\n"
-                           "views = arkngthand\n";
-            }
-
-            const std::vector<BenchSuite> suites = loadSuites(file);
+            const std::vector<BenchSuite> suites = suitesOf(
+                "[quick]\n"
+                "note = two of them\n"
+                "views = balmora, vivec\n"
+                "settled = false\n"
+                "\n"
+                "[one]\n"
+                "views = arkngthand\n");
             ASSERT_EQ(suites.size(), 2u);
 
             const BenchSuite* quick = findSuite(suites, "quick");
@@ -58,8 +63,6 @@ namespace RtxTool
             EXPECT_EQ(one->mSettled, std::nullopt) << "and so is settled, which the frame clock then decides";
 
             EXPECT_EQ(findSuite(suites, "nothing"), nullptr);
-
-            std::filesystem::remove(file);
         }
 
         /// A suite with no views in it, and a field nobody defined.
@@ -69,21 +72,18 @@ namespace RtxTool
         /// place out of the list.
         TEST(RtxBenchSuiteTest, aMalformedSuiteSaysSoRatherThanRunningNothing)
         {
-            const std::filesystem::path file = TestingOpenMW::outputFilePath("suite-bad.cfg");
-            {
-                std::ofstream written(file);
-                written << "[empty]\nnote = nothing here\n";
-            }
-            EXPECT_THROW(loadSuites(file), std::runtime_error) << "a suite naming no views";
-
-            {
-                std::ofstream written(file);
-                written << "[typo]\nveiws = balmora\n";
-            }
-            EXPECT_THROW(loadSuites(file), std::runtime_error) << "a field nobody defined";
-
-            std::filesystem::remove(file);
-            EXPECT_THROW(loadSuites(file), std::runtime_error) << "a file that is not there";
+            EXPECT_EQ(Rtx::Testing::refusalOf([&] { suitesOf("[empty]\nnote = nothing here\n"); }),
+                "benches.cfg:1: suite \"empty\" names no views")
+                << "a suite naming no views";
+            EXPECT_EQ(Rtx::Testing::refusalOf([&] { suitesOf("[typo]\nveiws = balmora\n"); }),
+                "benches.cfg:2: a suite has no field called \"veiws\"")
+                << "a field nobody defined";
+            // The rest is the system's own words for the file it could not open.
+            const std::filesystem::path missing = TestingOpenMW::currentTestDirPath() / "no-such-suites.cfg";
+            EXPECT_TRUE(Rtx::Testing::refusalOf([&] {
+                loadSuites(missing);
+            }).starts_with("cannot read " + Files::pathToUnicodeString(missing) + ": "))
+                << "a file that is not there";
         }
 
         /// Every place the shipped suites name is a place the shipped views file has.
@@ -99,13 +99,20 @@ namespace RtxTool
             // **A verb that measures reads the modules the game compiles in**, and every other counts: `bench`
             // and `film` time the game's kernels, and the rest are where a NaN is found. Each set is named after
             // its folder in the harness's, which its driver cache is named after.
-            const std::array<std::pair<Verbs, bool>, 8> counts{ { { Verbs::Info, true }, { Verbs::Scene, true },
-                { Verbs::Shot, true }, { Verbs::View, true }, { Verbs::Bench, false }, { Verbs::Check, true },
-                { Verbs::Film, false }, { Verbs::Noise, true } } };
-            Verbs covered = Verbs::None;
+            const std::array<std::pair<Verb, bool>, static_cast<std::size_t>(Verb::Count)> counts{ {
+                { Verb::Info, true },
+                { Verb::Scene, true },
+                { Verb::Shot, true },
+                { Verb::View, true },
+                { Verb::Bench, false },
+                { Verb::Check, true },
+                { Verb::Film, false },
+                { Verb::Noise, true },
+            } };
+            for (std::size_t at = 0; at < counts.size(); ++at)
+                EXPECT_EQ(static_cast<std::size_t>(counts[at].first), at) << "a verb this table has no row for";
             for (const auto& [verb, census] : counts)
             {
-                covered = covered | verb;
                 for (const bool source : { false, true })
                 {
                     const HarnessShaders shaders(verb, source);
@@ -120,7 +127,6 @@ namespace RtxTool
                     EXPECT_TRUE(std::filesystem::is_directory(harness / shaders.getName())) << shaders.getName();
                 }
             }
-            EXPECT_EQ(covered, Verbs::Every) << "a verb this table has no row for";
 
             const std::vector<RtxTool::Stop> views = loadViews(viewsFile());
             const std::vector<BenchSuite> suites = loadSuites(suitesFile());
@@ -136,27 +142,11 @@ namespace RtxTool
 
     namespace
     {
-        /// Writes `text` to a scratch view file, reads it back, and removes the file.
-        ///
-        /// **In this run's own directory, `TestingOpenMW::outputDir`, and never under a fixed name
-        /// in the temp directory**: a run sharded with `GTEST_TOTAL_SHARDS` deals a fixture's tests
-        /// out to concurrent processes, so a file two tests share by name is a file one shard
-        /// removes under the other.
-        std::vector<RtxTool::Stop> readViews(std::string_view text)
+        /// The views `text` holds, read as the view file is.
+        std::vector<RtxTool::Stop> viewsOf(const std::string_view text)
         {
-            const std::filesystem::path file = TestingOpenMW::outputFilePath("route-test.cfg");
-            {
-                std::ofstream out(file);
-                out << text;
-            }
-
-            struct Remove
-            {
-                std::filesystem::path mFile;
-                ~Remove() { std::filesystem::remove(mFile); }
-            } removed{ file };
-
-            return loadViews(file);
+            std::istringstream in{ std::string(text) };
+            return readViews(BlockFile(in, "views.cfg"));
         }
 
         /// A route resolves to the coordinates of the view it names, and both halves are required.
@@ -166,7 +156,7 @@ namespace RtxTool
         /// which a benchmark reports as a different number rather than as an error.
         TEST(RtxViewsTest, aRouteTakesItsDestinationFromTheViewItNames)
         {
-            const std::vector<RtxTool::Stop> read = readViews(R"(
+            const std::vector<RtxTool::Stop> read = viewsOf(R"(
 [start]
 cell = -3,-2
 pos = 100, 200, 300
@@ -202,27 +192,35 @@ look = 8292, 300, 700
         {
             constexpr std::string_view sEnd = "\n[finish]\ncell = -1,-2\npos = 8292, 0, 0\nlook = 8292, 100, 0\n";
 
-            EXPECT_THROW(
-                readViews(std::string("[start]\ncell = -3,-2\nto = finish\n") + std::string(sEnd)), std::runtime_error)
+            EXPECT_EQ(Rtx::Testing::refusalOf(
+                          [&] { viewsOf(std::string("[start]\ncell = -3,-2\nto = finish\n") + std::string(sEnd)); }),
+                "views.cfg:3: view \"start\" flies to \"finish\" at no speed")
                 << "a destination with no speed";
 
-            EXPECT_THROW(readViews("[start]\ncell = -3,-2\nspeed = 1500\n"), std::runtime_error)
+            EXPECT_EQ(Rtx::Testing::refusalOf([&] { viewsOf("[start]\ncell = -3,-2\nspeed = 1500\n"); }),
+                "views.cfg:3: view \"start\" names a speed but nowhere to go")
                 << "a speed with nowhere to go";
 
-            EXPECT_THROW(readViews("[start]\ncell = -3,-2\nto = nowhere\nspeed = 1500\n"), std::runtime_error)
+            EXPECT_EQ(Rtx::Testing::refusalOf([&] { viewsOf("[start]\ncell = -3,-2\nto = nowhere\nspeed = 1500\n"); }),
+                "views.cfg:3: view \"start\" flies to \"nowhere\", which is not a view")
                 << "a destination that is not a view";
 
-            EXPECT_THROW(readViews("[start]\ncell = -3,-2\nto = finish\nspeed = 1500\n\n[finish]\ncell = -1,-2\n"),
-                std::runtime_error)
+            EXPECT_EQ(Rtx::Testing::refusalOf([&] {
+                viewsOf("[start]\ncell = -3,-2\nto = finish\nspeed = 1500\n\n[finish]\ncell = -1,-2\n");
+            }),
+                "views.cfg:3: view \"start\" flies to \"finish\", which names no pos and look of its own to arrive at")
                 << "a destination with no coordinates of its own to arrive at";
 
-            EXPECT_THROW(readViews(std::string("[start]\ncell = -3,-2\nto = finish\nspeed = -1\n") + std::string(sEnd)),
-                std::runtime_error)
+            EXPECT_EQ(Rtx::Testing::refusalOf([&] {
+                viewsOf(std::string("[start]\ncell = -3,-2\nto = finish\nspeed = -1\n") + std::string(sEnd));
+            }),
+                "views.cfg:4: speed \"-1\" is not a positive number of units a second")
                 << "a speed that goes backwards";
 
-            EXPECT_THROW(
-                readViews(std::string("[start]\ncell = -3,-2\nto = finish\nspeed = quickly\n") + std::string(sEnd)),
-                std::runtime_error)
+            EXPECT_EQ(Rtx::Testing::refusalOf([&] {
+                viewsOf(std::string("[start]\ncell = -3,-2\nto = finish\nspeed = quickly\n") + std::string(sEnd));
+            }),
+                "views.cfg:4: speed \"quickly\" is not a number")
                 << "a speed that is not a number";
         }
 
@@ -234,7 +232,7 @@ look = 8292, 300, 700
         /// difference the hour made.
         TEST(RtxViewsTest, aPlaceFixesItsConditionsAndTakesItsCameraFromWhatItIsLike)
         {
-            const std::vector<RtxTool::Stop> read = readViews(R"(
+            const std::vector<RtxTool::Stop> read = viewsOf(R"(
 [ship]
 cell = -2,-9
 pos = 100, 200, 300
@@ -330,47 +328,62 @@ arms = iron longsword
         {
             constexpr std::string_view sShip = "[ship]\ncell = -2,-9\npos = 1, 2, 3\nlook = 1, 9, 3\n";
 
-            EXPECT_THROW(readViews(std::string(sShip) + "[dawn]\nlike = ship\nhour = dawn\n"), std::runtime_error)
+            EXPECT_EQ(
+                Rtx::Testing::refusalOf([&] { viewsOf(std::string(sShip) + "[dawn]\nlike = ship\nhour = dawn\n"); }),
+                "views.cfg:7: hour \"dawn\" is not a number")
                 << "an hour that is not a number";
 
             // **The whole of the field, so a number with a letter after it is a typo and not an
             // hour.** A view that stood at six because `6h` began with a six would report a figure
             // against a frame nobody asked for.
-            EXPECT_THROW(readViews(std::string(sShip) + "[dawn]\nlike = ship\nhour = 6h\n"), std::runtime_error)
+            EXPECT_EQ(
+                Rtx::Testing::refusalOf([&] { viewsOf(std::string(sShip) + "[dawn]\nlike = ship\nhour = 6h\n"); }),
+                "views.cfg:7: hour \"6h\" is not a number")
                 << "an hour with a letter after it";
 
-            EXPECT_THROW(readViews(std::string(sShip) + "[dawn]\nlike = ship\nhour = 24\n"), std::runtime_error)
+            EXPECT_EQ(
+                Rtx::Testing::refusalOf([&] { viewsOf(std::string(sShip) + "[dawn]\nlike = ship\nhour = 24\n"); }),
+                "views.cfg:7: hour \"24\" is not from 0 up to but not including 24")
                 << "an hour off the end of the clock";
 
-            EXPECT_THROW(readViews(std::string(sShip) + "[dawn]\nlike = ship\nhour = -1\n"), std::runtime_error)
+            EXPECT_EQ(
+                Rtx::Testing::refusalOf([&] { viewsOf(std::string(sShip) + "[dawn]\nlike = ship\nhour = -1\n"); }),
+                "views.cfg:7: hour \"-1\" is not from 0 up to but not including 24")
                 << "an hour before the day began";
 
             // Midnight and a moment before the next one are both hours of the day.
-            EXPECT_NO_THROW(readViews(std::string(sShip) + "[dark]\nlike = ship\nhour = 0\n"));
-            EXPECT_NO_THROW(readViews(std::string(sShip) + "[late]\nlike = ship\nhour = 23.99\n"));
+            EXPECT_NO_THROW(viewsOf(std::string(sShip) + "[dark]\nlike = ship\nhour = 0\n"));
+            EXPECT_NO_THROW(viewsOf(std::string(sShip) + "[late]\nlike = ship\nhour = 23.99\n"));
 
             // **A weather is one of the ten, in any case, as the game reads a weather's id**, and
             // refused at the file rather than at the frame, when the run has staged a cell for it.
             // It is kept as the content files spell it.
-            EXPECT_THROW(readViews(std::string(sShip) + "[grim]\nlike = ship\nweather = Drizzle\n"), std::runtime_error)
+            EXPECT_EQ(Rtx::Testing::refusalOf(
+                          [&] { viewsOf(std::string(sShip) + "[grim]\nlike = ship\nweather = Drizzle\n"); }),
+                "views.cfg:7: weather \"Drizzle\" is none of the weathers the content files name")
                 << "a weather that is none of the ten";
 
             const std::vector<RtxTool::Stop> lowered
-                = readViews(std::string(sShip) + "[grim]\nlike = ship\nweather = overcast\n");
+                = viewsOf(std::string(sShip) + "[grim]\nlike = ship\nweather = overcast\n");
             ASSERT_EQ(lowered.size(), 2u);
             EXPECT_EQ(lowered[1].mSky.mWeather, std::optional<Rtx::Weather>(Rtx::Weather::Overcast))
                 << "a weather kept as the file spelled it";
 
-            EXPECT_NO_THROW(readViews(std::string(sShip) + "[grim]\nlike = ship\nweather = Thunderstorm\n"));
+            EXPECT_NO_THROW(viewsOf(std::string(sShip) + "[grim]\nlike = ship\nweather = Thunderstorm\n"));
 
-            EXPECT_THROW(readViews(std::string(sShip) + "[unlit]\nlike = ship\nlamps = off\n"), std::runtime_error)
+            EXPECT_EQ(
+                Rtx::Testing::refusalOf([&] { viewsOf(std::string(sShip) + "[unlit]\nlike = ship\nlamps = off\n"); }),
+                "views.cfg:7: lamps \"off\" is not true or false")
                 << "lamps that are not true or false";
-            EXPECT_THROW(readViews(std::string(sShip) + "[armed]\nlike = ship\narms =\n"), std::runtime_error)
+            EXPECT_EQ(Rtx::Testing::refusalOf([&] { viewsOf(std::string(sShip) + "[armed]\nlike = ship\narms =\n"); }),
+                "views.cfg:7: arms \"\" names no weapon")
                 << "arms that name no weapon";
-            EXPECT_THROW(readViews("[armed]\ncell = -2,-9\narms = iron longsword\n"), std::runtime_error)
+            EXPECT_EQ(Rtx::Testing::refusalOf([&] { viewsOf("[armed]\ncell = -2,-9\narms = iron longsword\n"); }),
+                "views.cfg:1: view \"armed\" names arms but no pos")
                 << "arms with no eye to see them through";
 
-            EXPECT_THROW(readViews(std::string(sShip) + "[dawn]\nlike = nowhere\n"), std::runtime_error)
+            EXPECT_EQ(Rtx::Testing::refusalOf([&] { viewsOf(std::string(sShip) + "[dawn]\nlike = nowhere\n"); }),
+                "views.cfg:6: view \"dawn\" is like \"nowhere\", which is not a view")
                 << "like a view that is not there";
 
             // **A camera written badly is refused by the view's name, and an empty one is written
@@ -378,7 +391,7 @@ arms = iron longsword
             const auto refusal = [](std::string_view text) {
                 try
                 {
-                    readViews(text);
+                    viewsOf(text);
                 }
                 catch (const std::runtime_error& error)
                 {
@@ -391,13 +404,19 @@ arms = iron longsword
             EXPECT_TRUE(refusal("[ship]\ncell = -2,-9\nlook =\n")
                     .ends_with(":3: look \"\" is not three numbers separated by commas"));
 
-            EXPECT_THROW(readViews("[dawn]\nlike = dawn\n"), std::runtime_error) << "like itself";
+            EXPECT_EQ(Rtx::Testing::refusalOf([&] { viewsOf("[dawn]\nlike = dawn\n"); }),
+                "views.cfg:2: view \"dawn\" is like itself")
+                << "like itself";
 
             // **"all" means every view, so no view may be called it**, and a list that names nothing
             // is refused rather than read as every view: `--views=,` ran the whole file.
-            EXPECT_THROW(readViews("[all]\ncell = -2,-9\n"), std::runtime_error) << "a view called all";
-            const std::vector<RtxTool::Stop> two = readViews(std::string(sShip) + "[dawn]\nlike = ship\n");
-            EXPECT_THROW(RtxTool::chooseViews(two, {}), std::runtime_error) << "a list that names nothing";
+            EXPECT_EQ(Rtx::Testing::refusalOf([&] { viewsOf("[all]\ncell = -2,-9\n"); }),
+                "views.cfg:1: \"all\" names every view and may not name one")
+                << "a view called all";
+            const std::vector<RtxTool::Stop> two = viewsOf(std::string(sShip) + "[dawn]\nlike = ship\n");
+            EXPECT_EQ(
+                Rtx::Testing::refusalOf([&] { RtxTool::chooseViews(two, {}); }), "nothing to visit: no view was named")
+                << "a list that names nothing";
             const std::vector<RtxTool::Stop> every = RtxTool::chooseViews(two, { "all" });
             ASSERT_EQ(every.size(), 2u);
             for (const RtxTool::Stop& view : every)
@@ -406,7 +425,8 @@ arms = iron longsword
             const std::vector<RtxTool::Stop> named = RtxTool::chooseViews(two, { "dawn" });
             ASSERT_EQ(named.size(), 1u);
             EXPECT_EQ(named[0].mWhenAbsent, RtxTool::WhenAbsent::Fails) << "a view somebody named";
-            EXPECT_THROW(RtxTool::chooseViews(two, { "dawn", "ship", "dawn" }), std::runtime_error)
+            EXPECT_EQ(Rtx::Testing::refusalOf([&] { RtxTool::chooseViews(two, { "dawn", "ship", "dawn" }); }),
+                "the view \"dawn\" is named twice")
                 << "a view named twice, whose hashes the run would then refuse to read";
 
             // **The command line refuses by the same rules**, `checkHour`, `checkDay` and
@@ -422,8 +442,10 @@ arms = iron longsword
             EXPECT_EQ(RtxTool::listWeathers(),
                 "Clear, Cloudy, Foggy, Overcast, Rain, Thunderstorm, Ashstorm, Blight, Snow, Blizzard");
 
-            EXPECT_THROW(
-                readViews(std::string(sShip) + "[dawn]\nlike = ship\n[later]\nlike = dawn\n"), std::runtime_error)
+            EXPECT_EQ(Rtx::Testing::refusalOf(
+                          [&] { viewsOf(std::string(sShip) + "[dawn]\nlike = ship\n[later]\nlike = dawn\n"); }),
+                "views.cfg:8: view \"later\" is like \"dawn\", which is itself like another view; only a view that "
+                "states its own place may be lent")
                 << "a chain, which would make the order things are read in decide what a view is";
         }
 

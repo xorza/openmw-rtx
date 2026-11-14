@@ -10,6 +10,7 @@
 #include <vector>
 
 #include <apps/rtxtool/model/benchrun.hpp>
+#include <apps/rtxtool/model/exitstatus.hpp>
 #include <apps/rtxtool/model/pictureshelf.hpp>
 #include <components/misc/result.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
@@ -23,9 +24,10 @@ namespace RtxTool
     /// the air's, which keeps `FOG_VOLUME_HISTORY` of itself a frame, so this is where the air's
     /// weight on the frame the cut left falls under what `sHistoryFrames` leaves of the
     /// accumulator's, `(1 - 1/N)^4N`: 39 at a history of 0.9 and an `N` of 32, against 128.
-    inline const std::uint32_t sAirFrames = static_cast<std::uint32_t>(std::ceil(
-        std::log(std::pow(1.0 - 1.0 / static_cast<double>(Rtx::Shaders::ACCUMULATE_FRAMES), double(sHistoryFrames)))
-        / std::log(static_cast<double>(Rtx::Shaders::FOG_VOLUME_HISTORY))));
+    inline const std::uint32_t sAirFrames = static_cast<std::uint32_t>(
+        std::ceil(std::log(std::pow(1.0 - 1.0 / static_cast<double>(Rtx::Shaders::ACCUMULATE_FRAMES),
+                      static_cast<double>(sHistoryFrames)))
+            / std::log(static_cast<double>(Rtx::Shaders::FOG_VOLUME_HISTORY))));
 
     /// How many frames `noise` averages into the reference, and into the bar. The reference at 256: a second
     /// reference drawn from another sequence stood 5 levels from it at the 99th percentile at the Seyda Neen pier,
@@ -79,7 +81,7 @@ namespace RtxTool
     /// Standing too: its warm-up is `sHistoryFrames`, so its history holds `sHistoryFrames + 2` frames, which at
     /// ultra performance is fewer samples a shown pixel than `sNoiseBarFrames`.
     ///
-    /// A stop begins with a cut already (`Stager::forgetHistory`), and its first frame, the one the cut resets, is
+    /// A stop begins with a cut already (`Staging::forgetHistory`), and its first frame, the one the cut resets, is
     /// not measured. So the frame `cut` frames after it is a warm-up of `cut - 1` and its history holds `cut + 1`
     /// frames, which is what its bar holds, where the world stands whole on the stop's first frame; a stop that
     /// waited for its world says so in the run's notes, and its frame then holds the frames it waited as well. That
@@ -137,8 +139,8 @@ namespace RtxTool
     /// Takes the five pictures `noise` wrote of each of `places` into `wrote`, kept on `drawn`, and says whether
     /// each frame is as clean as its bar: its noise, how far it stands from its own mean, no more than the bar's
     /// from the bar's own limit, by the mean and at the 99th percentile. Beside it, each one's bias: how far its
-    /// mean stands from the reference, blurred by `sNoiseBiasBlur`. Returns a process exit status, non-zero where
-    /// any frame is noisier than its bar, any picture was not written or is of another size, or no place was named.
+    /// mean stands from the reference, blurred by `sNoiseBiasBlur`. Differed where a frame is noisier than its bar,
+    /// failed where a picture was not written or is of another size, or no place was named.
     ///
     /// Noise against noise, because a frame and its bar are drawn two ways: held to the one reference, each also
     /// carried the difference between its own reconstruction and the reference's box over the pixel (at the Seyda
@@ -147,8 +149,8 @@ namespace RtxTool
     ///
     /// @param barFrames how many frames the bars averaged, which the report names.
     /// @param measured where each place measured is appended, for `writeNoiseRecord`.
-    int judgeNoise(const PictureShelf& drawn, const std::filesystem::path& wrote, std::span<const NoiseSide> places,
-        std::uint32_t barFrames, std::vector<NoiseFigures>& measured);
+    ExitStatus judgeNoise(const PictureShelf& drawn, const std::filesystem::path& wrote,
+        std::span<const NoiseSide> places, std::uint32_t barFrames, std::vector<NoiseFigures>& measured);
 
     /// Writes what each side of a `noise` run measured to `path` as JSON — `{"sides": [[...], ...]}`,
     /// a side a list of its places' figures, the first side first — for a reader that is no person:

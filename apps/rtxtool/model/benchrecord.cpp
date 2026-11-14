@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <array>
 #include <bit>
-#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <format>
@@ -11,6 +10,7 @@
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <variant>
 
 #include <apps/openmw/mwrender/rtx/mirrorknobs.hpp>
@@ -43,10 +43,16 @@ namespace RtxTool
                 range.getMeanMhz(), range.mLowestMhz, range.mHighestMhz, range.mReadings);
         }
 
+        /// Null where there is no value, and a fraction through `jsonNumber` like every other.
         template <class T>
         std::string asJson(const std::optional<T>& value)
         {
-            return value.has_value() ? std::format("{}", *value) : "null";
+            if (!value.has_value())
+                return "null";
+            if constexpr (std::is_floating_point_v<T>)
+                return jsonNumber(*value, 4);
+            else
+                return std::format("{}", *value);
         }
 
         /// Null where nothing answered, so a record from a machine with no driver library says it carries no clock
@@ -75,16 +81,17 @@ namespace RtxTool
         {
             const Rtx::RenderProfile& profile = setup.mRun.mProfile;
             const MWRender::MirrorKnobs& mirror = setup.mMirror;
-            return std::format(R"(  "filter": {}, "jitter": {}, "gamma": {:.3f}, "show": "{}", )"
-                               R"("exposure": {}, "exposureHeld": {}, "variants": {}, "holdMs": {:.3f},)"
+            return std::format(R"(  "filter": {}, "jitter": {}, "gamma": {}, "show": "{}", )"
+                               R"("exposure": {}, "exposureHeld": {}, "variants": {}, "holdMs": {},)"
                                "\n"
-                               R"(  "landCells": {:.1f}, "viewingDistance": {:.1f}, "distantStatics": {}, "step": {}, )"
+                               R"(  "landCells": {}, "viewingDistance": {}, "distantStatics": {}, "step": {}, )"
                                R"("settled": {}, "memoryBudget": {},)",
-                profile.mReconstruction.mDenoise, profile.mReconstruction.mJitter, profile.mGamma,
+                profile.mReconstruction.mDenoise, profile.mReconstruction.mJitter, jsonNumber(profile.mGamma, 3),
                 Rtx::sSurfaceViewNames.name(profile.mShow), asJson(fixedScaleOf(profile.mExposure)),
                 std::holds_alternative<Rtx::HeldExposure>(profile.mExposure), profile.mSpecializeKernels,
-                profile.mStressOverlapMs, mirror.mReach.mCells, mirror.mReach.mViewingDistance, mirror.mDistantStatics,
-                asJson(step), asJson(setup.mSettled), asJson(setup.mRun.mMemoryBudget));
+                jsonNumber(profile.mStressOverlapMs, 3), jsonNumber(mirror.mReach.mCells, 1),
+                jsonNumber(mirror.mReach.mViewingDistance, 1), mirror.mDistantStatics, asJson(step),
+                asJson(setup.mSettled), asJson(setup.mRun.mMemoryBudget));
         }
 
         /// Null where nothing looked, for the same reason; in the record at all because a run another process drew
@@ -100,8 +107,8 @@ namespace RtxTool
                     asJson(card.mHolders[at].mName), card.mHolders[at].mSamples);
             holders += ']';
 
-            return std::format(R"({{"seconds": {:.2f}, "samples": {}, "others": {}, "holders": {}}})", card.mSeconds,
-                card.mSamples, card.mOthers, holders);
+            return std::format(R"({{"seconds": {}, "samples": {}, "others": {}, "holders": {}}})",
+                jsonNumber(card.mSeconds, 2), card.mSamples, card.mOthers, holders);
         }
 
         /// Null where nothing was counted, for the same reason; and every count, so a record read
@@ -112,9 +119,9 @@ namespace RtxTool
                 return "null";
 
             return std::format(
-                R"({{"cycles": {}, "instructions": {}, "cacheMisses": {}, "runningNs": {}, "efficiencyNs": {}, "counted": {:.4f}, "kernelCounted": {}, "twoKinds": {}}})",
+                R"({{"cycles": {}, "instructions": {}, "cacheMisses": {}, "runningNs": {}, "efficiencyNs": {}, "counted": {}, "kernelCounted": {}, "twoKinds": {}}})",
                 counts.mCycles, counts.mInstructions, counts.mCacheMisses, counts.mRunningNs, counts.mEfficiencyNs,
-                counts.mCounted, counts.mKernelCounted, counts.mTwoKinds);
+                jsonNumber(counts.mCounted, 4), counts.mKernelCounted, counts.mTwoKinds);
         }
 
         /// Everything a scene came to, so the record can compare what a change cost in memory as well as in time.
@@ -182,12 +189,13 @@ namespace RtxTool
         {
             std::string worst = "[";
             for (std::size_t at = 0; at < arrivals.mWorstCount; ++at)
-                worst += std::format(R"({}{{"frameMs": {:.2f}, "arrivedMeshes": {}}})", at == 0 ? "" : ", ",
-                    arrivals.mWorst[at].getFrameMs(), arrivals.mWorst[at].mArrivedMeshes);
+                worst += std::format(R"({}{{"frameMs": {}, "arrivedMeshes": {}}})", at == 0 ? "" : ", ",
+                    jsonNumber(arrivals.mWorst[at].getFrameMs(), 2), arrivals.mWorst[at].mArrivedMeshes);
             worst += ']';
 
-            return std::format(R"({{"frames": {}, "meshes": {}, "worstMs": {:.2f}, "meanMs": {:.2f}, "worst": {}}})",
-                arrivals.mFrames, arrivals.mMeshes, arrivals.mWorstMs, arrivals.getMeanMs(), worst);
+            return std::format(R"({{"frames": {}, "meshes": {}, "worstMs": {}, "meanMs": {}, "worst": {}}})",
+                arrivals.mFrames, arrivals.mMeshes, jsonNumber(arrivals.mWorstMs, 2),
+                jsonNumber(arrivals.getMeanMs(), 2), worst);
         }
 
         /// One of the worst frames, as the place's report prints it: the whole frame, what it
@@ -200,23 +208,23 @@ namespace RtxTool
 
         std::string asJson(const Crossings& crossings)
         {
-            return std::format(R"({{"count": {}, "rebuilds": {}, "worstMs": {:.2f}, "totalMs": {:.2f}}})",
-                crossings.mCount, crossings.mRebuilds, crossings.mWorstMs, crossings.mTotalMs);
+            return std::format(R"({{"count": {}, "rebuilds": {}, "worstMs": {}, "totalMs": {}}})", crossings.mCount,
+                crossings.mRebuilds, jsonNumber(crossings.mWorstMs, 2), jsonNumber(crossings.mTotalMs, 2));
         }
 
         std::string asJson(const FrameTimes& times)
         {
-            return std::format(
-                R"({{"median": {:.4f}, "mean": {:.4f}, "p95": {:.4f}, "p99": {:.4f}, "best": {:.4f}, "worst": {:.4f}}})",
-                times.mMedian, times.mMean, times.mP95, times.mP99, times.mBest, times.mWorst);
+            return std::format(R"({{"median": {}, "mean": {}, "p95": {}, "p99": {}, "best": {}, "worst": {}}})",
+                jsonNumber(times.mMedian, 4), jsonNumber(times.mMean, 4), jsonNumber(times.mP95, 4),
+                jsonNumber(times.mP99, 4), jsonNumber(times.mBest, 4), jsonNumber(times.mWorst, 4));
         }
 
         /// The counts as well as the times, because a zone's distribution is over the frames that ran it: without
         /// them a record cannot tell a tenth of a millisecond every frame from seven every sixtieth.
         std::string asJson(const GpuZone& zone)
         {
-            return std::format(R"({{"shareMs": {:.4f}, "frames": {}, "ofFrames": {}, "times": {}}})", zone.mShareMs,
-                zone.mFrames, zone.mOfFrames, asJson(zone.mTimes));
+            return std::format(R"({{"shareMs": {}, "frames": {}, "ofFrames": {}, "times": {}}})",
+                jsonNumber(zone.mShareMs, 4), zone.mFrames, zone.mOfFrames, asJson(zone.mTimes));
         }
     }
 
@@ -271,11 +279,11 @@ namespace RtxTool
             return step.has_value() ? std::format("{:.4f} s", *step) : std::string("the wall");
         }
 
-        /// "player" for the player's own, which is no spelling of `--maps`: the line names only rules
-        /// another machine can repeat.
-        std::string_view describeMaps(const std::optional<MapRules>& maps)
+        /// Whose patterns named the companion maps: the player's in a played session, the shipped
+        /// file's in every other.
+        std::string_view describeMaps(const bool played)
         {
-            return maps.has_value() ? sMapRulesNames.name(*maps) : "player";
+            return played ? "player" : "shipped";
         }
 
         std::string_view describeSettled(const std::optional<bool>& settled)
@@ -418,7 +426,7 @@ namespace RtxTool
             "     land {:.1f} cells, viewing distance {:.0f}, distant statics {}, maps {}, step {}, walks {}, "
             "memory budget {}, host pages {}\n",
             mirror.mReach.mCells, mirror.mReach.mViewingDistance, mirror.mDistantStatics ? "on" : "off",
-            describeMaps(header.mMaps), describeStep(header.mStep), describeSettled(header.mSetup.mSettled),
+            describeMaps(header.mPlayed), describeStep(header.mStep), describeSettled(header.mSetup.mSettled),
             describeBudget(header.mSetup.mRun.mMemoryBudget), describeHugePages(header.mHugePageShare));
         return out;
     }
@@ -536,24 +544,25 @@ namespace RtxTool
                    Rtx::sLightFilterNames.name(header.mReconstruction.mFilter), header.mReconstruction.mJitter)
             << '\n'
             << std::format(
-                   R"(  "noise": "{}", "levelBias": {:.3f}, "antilag": {}, )"
-                   R"("historyFix": {}, "dualMotion": {}, "antiFirefly": {}, "shadowFloor": {:.4f}, "lampCandidates": {}, )"
+                   R"(  "noise": "{}", "levelBias": {}, "antilag": {}, )"
+                   R"("historyFix": {}, "dualMotion": {}, "antiFirefly": {}, "shadowFloor": {}, "lampCandidates": {}, )"
                    R"("indirect": {}, "bounceRays": {}, "relief": {}, "softEdgeDither": {}, "waterInterleave": {},)",
-                   Rtx::sNoiseSourceNames.name(header.mReconstruction.mNoise), header.mReconstruction.mLevelBias,
-                   header.mReconstruction.mFilters.mAntilag, header.mReconstruction.mFilters.mHistoryFix,
-                   header.mReconstruction.mFilters.mDualMotion, header.mReconstruction.mFilters.mAntiFirefly,
-                   header.mReconstruction.mSampling.mShadowFloor, header.mReconstruction.mSampling.mLampCandidates,
-                   header.mReconstruction.mSampling.mIndirect, header.mReconstruction.mSampling.mBounceRays,
-                   header.mReconstruction.mSampling.mRelief, header.mReconstruction.mSoftEdgeDither,
-                   header.mReconstruction.mSampling.mWaterInterleave)
+                   Rtx::sNoiseSourceNames.name(header.mReconstruction.mNoise),
+                   jsonNumber(header.mReconstruction.mLevelBias, 3), header.mReconstruction.mFilters.mAntilag,
+                   header.mReconstruction.mFilters.mHistoryFix, header.mReconstruction.mFilters.mDualMotion,
+                   header.mReconstruction.mFilters.mAntiFirefly,
+                   jsonNumber(header.mReconstruction.mSampling.mShadowFloor, 4),
+                   header.mReconstruction.mSampling.mLampCandidates, header.mReconstruction.mSampling.mIndirect,
+                   header.mReconstruction.mSampling.mBounceRays, header.mReconstruction.mSampling.mRelief,
+                   header.mReconstruction.mSoftEdgeDither, header.mReconstruction.mSampling.mWaterInterleave)
             << '\n'
             << std::format(R"(  "frames": {}, "warmup": {}, "validation": {},)", header.mMeasured, header.mWarmup,
                    header.mValidating)
             << '\n'
             << std::format(R"(  "asserts": {}, "measures": {}, "hashed": {}, "turnsWeather": {}, "maps": "{}", )"
                            R"("hugePageShare": {},)",
-                   header.mAsserts, header.mMeasures, header.mHashed, header.mTurnsWeather, describeMaps(header.mMaps),
-                   asJson(header.mHugePageShare))
+                   header.mAsserts, header.mMeasures, header.mHashed, header.mTurnsWeather,
+                   describeMaps(header.mPlayed), asJson(header.mHugePageShare))
             << '\n'
             << asJson(header.mSetup, header.mStep) << '\n'
             << R"(  "places": [)" << '\n';
@@ -562,14 +571,15 @@ namespace RtxTool
         {
             const BenchPlace& place = places[at];
             file << std::format(R"(    {{"view": {}, "cell": {}, "hour": {}, "weather": {}, )", asJson(place.mView),
-                asJson(place.mCell), place.mHour, asJson(place.mWeather))
+                asJson(place.mCell), jsonNumber(place.mHour, 4), asJson(place.mWeather))
                  << R"("scene": )" << asJson(place.mScene) << R"(, "memory": )" << asJson(place.mMemory)
                  << R"(, "content": )" << asJson(place.mContent)
-                 << std::format(R"(, "frames": {}, "wallSeconds": {:.4f}, "hitPercent": {:.2f}, )", place.mFrames,
-                        place.mWallSeconds, place.mHitPercent)
+                 << std::format(R"(, "frames": {}, "wallSeconds": {}, "hitPercent": {}, )", place.mFrames,
+                        jsonNumber(place.mWallSeconds, 4), jsonNumber(place.mHitPercent, 2))
                  << R"("crossings": )" << asJson(place.mCrossings) << R"(, "arrivals": )" << asJson(place.mArrivals)
-                 << std::format(R"(, "overlap": {{"mean": {:.4f}, "least": {}}}, "travelled": {:.4f}, )",
-                        place.mOverlap.getMean(), place.mOverlap.mLeast, place.mTravelled);
+                 << std::format(R"(, "overlap": {{"mean": {}, "least": {}}}, "travelled": {}, )",
+                        jsonNumber(place.mOverlap.getMean(), 4), place.mOverlap.mLeast,
+                        jsonNumber(place.mTravelled, 4));
 
             for (const Rtx::Timing timing : Rtx::sTimings.values())
                 file << std::format(R"("{}Ms": )", Rtx::sTimings.name(timing)) << asJson(place.mRows[indexOf(timing)])
@@ -590,9 +600,8 @@ namespace RtxTool
                 for (std::size_t counter = 0; counter < place.mCounterNames.size(); ++counter)
                 {
                     // A counter no run read a number for is null, which JSON has and NaN it has not.
-                    const double value = place.mGpu[zone].mCounters[counter];
                     file << std::format(R"({}{}: {})", counter == 0 ? "" : ", ", asJson(place.mCounterNames[counter]),
-                        std::isfinite(value) ? std::format("{:.6g}", value) : std::string("null"));
+                        jsonSignificant(place.mGpu[zone].mCounters[counter], 6));
                 }
                 file << '}';
             }

@@ -14,6 +14,7 @@
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/world/weather.hpp>
 
+#include "checks.hpp"
 #include "picturemean.hpp"
 
 namespace osg
@@ -30,36 +31,6 @@ namespace RtxTool
 {
     class PictureShelf;
     class RunRecord;
-
-    /// What a stop asked for and what it came to, beside the frame it drew. Named for the reason `FrameContext` is:
-    /// each is read by one claim and by nothing else, so one value carries them past `write` and `runChecks`,
-    /// which read neither. Borrowed and valid for one stop.
-    struct StopFacts
-    {
-        /// Every measured frame's figures, which only the frame series reads.
-        const FrameSamples& mSamples;
-
-        /// What the stop's route came to, which only `CrossingsAppend` reads.
-        const Crossings& mCrossings;
-
-        /// What the stop asked its camera to be, which only `CameraStands` reads.
-        const Stand& mStand;
-
-        /// The weather the stop named, which only `SkyNamed` reads.
-        std::optional<Rtx::Weather> mWeather;
-
-        /// How many frames the ring held at each submit, which only `FramesOverlap` reads.
-        const Overlap& mOverlap;
-
-        /// What the frames' zones came to, what the hold's own clock read, and how long a hold
-        /// the run asked for, which only `QueueHeld` reads.
-        std::span<const GpuZone> mZones;
-        const HoldTimes& mHold;
-        double mHoldAskedMs = 0.0;
-
-        /// What the measured frames wrote that was not finite, summed, which only `Finite` reads.
-        const Rtx::NotFinite& mNotFinite;
-    };
 
     /// Writes what `Actions` asks of the place a stop stood at: what a stop produces, apart from what drove it
     /// there. A picture, its frame times, a scene report, a contact sheet, a map tile, a doll, a listing and a set
@@ -111,9 +82,6 @@ namespace RtxTool
         /// Every measured frame's figures, a frame a line.
         void writeFrameTimes(const Writing& into, const std::filesystem::path& file, const FrameSamples& samples);
 
-        /// What the renderer was handed, as `scene` reports it.
-        void reportScene(const Writing& into);
-
         /// Every texture the scene holds, vanilla beside de-lit, as one sheet.
         void writeSheet(const Writing& into, const std::filesystem::path& sheet);
 
@@ -135,14 +103,6 @@ namespace RtxTool
 
         /// Writes a picture that is already in main memory, bottom row first, as a PNG.
         void writeImage(const Writing& into, const osg::Image& drawn, const std::filesystem::path& file);
-
-        /// Asks every check the stop named, and reports each one's answer.
-        void runChecks(const Writing& into, std::span<const Check> checks, const StopFacts& facts);
-
-        /// Whether one check holds of what the run was handed and what it drew, with what it found
-        /// in `found` either way.
-        static bool checkHolds(const MWRender::FrameContext& context, const MWRender::FrameReport& report, Check check,
-            const StopFacts& facts, std::string& found);
 
         /// What a read back lands in, refilled per stop and never freed.
         std::vector<std::uint8_t> mPixels;

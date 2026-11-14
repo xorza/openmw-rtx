@@ -30,7 +30,7 @@ namespace Rtx
         double mDurationMs = 0.0;
     };
 
-    /// One pipeline as the device reported it (`Device::reportPipeline`): what its making took, and what
+    /// One pipeline as the device reported it (`PipelineReport::report`): what its making took, and what
     /// the driver's statistics say of it.
     struct PipelineMade
     {

@@ -228,7 +228,7 @@ namespace Files
                 bool allow_unregistered = false);
 
         private: // base overrides
-            bool getline(std::string&) override;
+            bool getline(std::string&);
 
         private: // internal data
             std::shared_ptr<std::basic_istream<charT>> is;

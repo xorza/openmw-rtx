@@ -185,7 +185,7 @@ namespace CSMPrefs
 
             // Move on to parent
             WidgetMap::iterator widgetIt = mChildParentRelations.find(widget);
-            widget = (widgetIt != mChildParentRelations.end()) ? widgetIt->second : nullptr;
+            widget = (widgetIt != mChildParentRelations.end()) ? widgetIt->second : 0;
         }
 
         // Only activate the best match; in exact conflicts, this will favor the first shortcut added.
@@ -253,7 +253,7 @@ namespace CSMPrefs
 
             // Move on to parent
             WidgetMap::iterator widgetIt = mChildParentRelations.find(widget);
-            widget = (widgetIt != mChildParentRelations.end()) ? widgetIt->second : nullptr;
+            widget = (widgetIt != mChildParentRelations.end()) ? widgetIt->second : 0;
         }
 
         return used;

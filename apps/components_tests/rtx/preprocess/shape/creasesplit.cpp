@@ -174,7 +174,8 @@ namespace Rtx
                 for (int side = 0; side < sides; ++side)
                 {
                     const double angle = side * 2.0 * std::numbers::pi / sides;
-                    const osg::Vec3f out(float(std::cos(angle)), float(std::sin(angle)), 0.0f);
+                    const osg::Vec3f out(
+                        static_cast<float>(std::cos(angle)), static_cast<float>(std::sin(angle)), 0.0f);
                     positions.push_back(out);
                     positions.push_back(out + osg::Vec3f(0.0f, 0.0f, 1.0f));
                     normals.push_back(out);
@@ -182,7 +183,7 @@ namespace Rtx
                 }
 
                 std::vector<std::uint32_t> triangles;
-                for (std::uint32_t side = 0; side < std::uint32_t(sides); ++side)
+                for (std::uint32_t side = 0; side < static_cast<std::uint32_t>(sides); ++side)
                 {
                     const std::uint32_t low = 2 * side;
                     const std::uint32_t next = 2 * ((side + 1) % sides);
@@ -202,7 +203,7 @@ namespace Rtx
                     return;
                 }
 
-                EXPECT_EQ(shaped.mSources.size(), std::size_t(2 * sides)) << sides << " sides";
+                EXPECT_EQ(shaped.mSources.size(), static_cast<std::size_t>(2 * sides)) << sides << " sides";
                 for (std::size_t t = 0; t < triangles.size() / 3; ++t)
                 {
                     const osg::Vec3f face = faceOf(positions, &triangles[3 * t]);

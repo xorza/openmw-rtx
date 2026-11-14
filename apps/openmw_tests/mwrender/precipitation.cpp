@@ -59,7 +59,7 @@ namespace MWRender
             Resource::SceneManager scenes(&vfs, &images, &nifs, &materials, 0);
 
             // The box's shaders are the rasterizer's, and an empty archive holds none of them.
-            scenes.setModelPrograms(Resource::ModelPrograms::Left);
+            scenes.setModelPrograms(Resource::ModelPrograms::Omitted);
 
             osg::ref_ptr<osg::Group> root = new osg::Group;
             osg::ref_ptr<osg::Camera> camera = new osg::Camera;

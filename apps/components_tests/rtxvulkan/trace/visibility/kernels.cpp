@@ -21,6 +21,7 @@
 #include <components/rtxvulkan/device/instance.hpp>
 #include <components/rtxvulkan/device/physicaldevice.hpp>
 #include <components/rtxvulkan/device/pipelinecache.hpp>
+#include <components/rtxvulkan/device/pipelinereport.hpp>
 #include <components/rtxvulkan/frame/gbuffer.hpp>
 #include <components/rtxvulkan/pipeline/pipeline.hpp>
 #include <components/rtxvulkan/texture/texture.hpp>
@@ -141,7 +142,7 @@ namespace Rtx
             EXPECT_EQ(every.mCount, drawing + 47u);
         }
 
-        /// No kernel spills past its ceiling, where the driver says (`Device::compiledUseOf`): the full tuple,
+        /// No kernel spills past its ceiling, where the driver says (`PipelineReport::compiledUseOf`): the full tuple,
         /// which carries every case, and the same without a dark map's alpha, which nearly every scene that has
         /// everything else runs. A kernel that spills runs at the speed of its scratch: the inline trace's, 800
         /// words a lane through 256 registers, drew an 80x45 frame of a low-end AMD integrated GPU in 650 ms
@@ -291,8 +292,8 @@ namespace Rtx
                         ceiling = stated;
                 }
 
-                const CompiledUse use
-                    = table.mDevice.compiledUseOf(kernel.mPipeline->getHandle(), kernel.mPipeline->getBindPoint());
+                const CompiledUse use = table.mDevice.getPipelineReport().compiledUseOf(
+                    kernel.mPipeline->getHandle(), kernel.mPipeline->getBindPoint());
                 // A launch's stack is its scratch on RADV, a lane's stack a lane: held as its stack.
                 if (use.mScratchBytes.has_value() && !use.mStackBytes.has_value())
                 {

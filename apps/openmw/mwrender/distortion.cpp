@@ -2,8 +2,6 @@
 
 #include <osg/FrameBufferObject>
 
-#include <components/crashcatcher/crash.hpp>
-
 #include "postprocessor.hpp"
 
 namespace MWRender
@@ -14,8 +12,7 @@ namespace MWRender
         osg::State* state = renderInfo.getState();
         unsigned frameId = state->getFrameStamp()->getFrameNumber() % 2;
 
-        PostProcessor* postProcessor = dynamic_cast<PostProcessor*>(
-            Crash::notNull(renderInfo.getCurrentCamera(), "a draw with no camera")->getUserData());
+        PostProcessor* postProcessor = dynamic_cast<PostProcessor*>(renderInfo.getCurrentCamera()->getUserData());
 
         if (!postProcessor || bin->getStage()->getFrameBufferObject() != postProcessor->getPrimaryFbo(frameId))
             return;

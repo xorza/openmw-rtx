@@ -7,6 +7,7 @@
 #include <memory>
 #include <new>
 #include <numeric>
+#include <optional>
 #include <span>
 #include <type_traits>
 #include <vector>
@@ -22,6 +23,43 @@ namespace Rtx
         into.resize(count);
         std::iota(into.begin(), into.end(), Index{ 0 });
         return into;
+    }
+
+    /// Splits the items below `count` into runs whose bytes fit `room`, in order, each run worked over the room the
+    /// one before used: an item that would carry its run past the room starts the next, and one larger than the room
+    /// is a run of its own, whose room is then what it needs. `bytesOf(item)` is an item's bytes, or nothing for an
+    /// item that takes no part; `place(item, offset)` is told where in its run's room each item that does starts.
+    /// `ends` is refilled with where each run ends, nothing where no item takes part, and what is answered is the
+    /// largest run's bytes, which the room is grown to.
+    template <class BytesOf, class Place>
+    std::uint64_t splitIntoRuns(const std::size_t count, const std::uint64_t room, BytesOf&& bytesOf, Place&& place,
+        std::vector<std::size_t>& ends)
+    {
+        ends.clear();
+        std::uint64_t run = 0;
+        std::uint64_t most = 0;
+        bool holds = false;
+        for (std::size_t at = 0; at < count; ++at)
+        {
+            const std::optional<std::uint64_t> bytes = bytesOf(at);
+            if (!bytes.has_value())
+                continue;
+
+            if (holds && run + *bytes > room)
+            {
+                ends.push_back(at);
+                run = 0;
+            }
+
+            place(at, run);
+            run += *bytes;
+            holds = true;
+            most = std::max(most, run);
+        }
+
+        if (holds)
+            ends.push_back(count);
+        return most;
     }
 
     template <class T>
@@ -142,7 +180,7 @@ namespace Rtx
                 return;
 
             while (static_cast<std::uint64_t>(mBlocks.size()) * mBlock < end)
-                mBlocks.push_back(std::unique_ptr<std::byte[]>(new std::byte[std::size_t{ mBlock } * sizeof(T)]));
+                mBlocks.push_back(std::make_unique_for_overwrite<std::byte[]>(std::size_t{ mBlock } * sizeof(T)));
 
             for (std::uint32_t at = mEnd; at < end;)
             {

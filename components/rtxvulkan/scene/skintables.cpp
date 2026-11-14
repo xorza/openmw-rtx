@@ -12,8 +12,8 @@
 #include <components/rtx/scene/deformertable.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/shaders/skinning.h>
-#include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
+#include <components/rtxvulkan/device/memory/batch.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/bufferusage.hpp>
 #include <components/rtxvulkan/device/memory/uploads.hpp>

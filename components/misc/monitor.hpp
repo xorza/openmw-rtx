@@ -28,18 +28,27 @@ namespace Misc
             return write();
         }
 
-        /// The frame's side: runs `write` under the lock, then wakes one worker and not all,
-        /// because what a `give` adds is one piece of work. A caller that adds several calls this
-        /// several times, which is what wakes several. A worker given work is not idle until it has
-        /// looked at it, so a wait that follows cannot take the worker's last idleness for its answer.
+        /// The frame's side: runs `write` under the lock, which answers whether it gave a worker anything,
+        /// and wakes one worker if it did and not all, because what a `give` adds is one piece of work. A
+        /// caller that adds several calls this several times, which is what wakes several. **The work and
+        /// the worker's waking are published in one lock hold**: a worker given work is not idle until it
+        /// has looked at it, and an `await` that read the work queued while the flag still said idle would
+        /// answer that no worker can make it ready
+        /// (https://en.cppreference.com/w/cpp/thread/condition_variable).
+        ///
+        /// @return what `write` answered: whether it gave work.
         template <class Write>
-        void give(Write write)
+        bool give(Write write)
         {
-            under([&] {
-                write();
-                mIdle = false;
+            const bool given = under([&] {
+                const bool gave = write();
+                if (gave)
+                    mIdle = false;
+                return gave;
             });
-            mToWorker.notify_one();
+            if (given)
+                mToWorker.notify_one();
+            return given;
         }
 
         /// A worker's side: runs `write` under the lock, then wakes the frame.

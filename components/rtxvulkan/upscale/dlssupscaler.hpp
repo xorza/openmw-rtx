@@ -72,11 +72,14 @@ namespace Rtx
 
         DlssUpscaler(const DlssUpscaler&) = delete;
         DlssUpscaler& operator=(const DlssUpscaler&) = delete;
+        DlssUpscaler(DlssUpscaler&&) = delete;
+        DlssUpscaler& operator=(DlssUpscaler&&) = delete;
 
-        /// What `mode` traces at for `output`: NGX's optimal settings, as the feature is made for, since
-        /// Ray Reconstruction takes no extent but the one it gives (DLSS-RR Integration Guide 3.3).
-        /// Throws `DeviceError` where NGX gives none.
-        VkExtent2D renderExtentFor(Upscale mode, VkExtent2D output) const;
+        /// The extents `mode` traces at for an output of `width` by `height`: NGX's optimal settings where it
+        /// upscales, as the feature is made for, since Ray Reconstruction takes no extent but the one it gives
+        /// (DLSS-RR Integration Guide 3.3), and the output where it does not. Throws `DeviceError` where NGX gives
+        /// none.
+        FrameExtents extentsFor(std::uint32_t width, std::uint32_t height, Upscale mode) const;
 
         /// Makes the feature at `mode`'s quality for one pair of extents, where it does not stand at
         /// them already, and measures what NGX holds for it (`bytesAt`): **ahead of the frame's

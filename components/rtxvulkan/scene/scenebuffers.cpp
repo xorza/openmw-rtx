@@ -19,8 +19,8 @@
 #include <components/rtx/scene/sprite.hpp>
 #include <components/rtx/scene/surface.hpp>
 #include <components/rtx/shaders/scene.h>
-#include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
+#include <components/rtxvulkan/device/memory/batch.hpp>
 #include <components/rtxvulkan/device/memory/bufferusage.hpp>
 #include <components/rtxvulkan/device/memory/uploads.hpp>
 #include <components/rtxvulkan/device/timeline.hpp>
@@ -282,6 +282,7 @@ namespace Rtx
             .mEmitterCount = tables.mEmitterCount,
             .mPresences = tables.mPresences.get().addressFor(),
             .mPresenceCount = tables.mPresenceCount,
+            .mLitSpriteCount = tables.mLitSpriteCount,
         };
     }
 
@@ -457,6 +458,9 @@ namespace Rtx
         uploads.write(tables.mSprites.get(), 0, sprites);
         tables.mSpriteCount = static_cast<std::uint32_t>(sprites.size());
         tables.mEmitterCount = static_cast<std::uint32_t>(emitters.size());
+        tables.mLitSpriteCount = 0;
+        for (const SpriteEmitter& emitter : emitters)
+            tables.mLitSpriteCount += (emitter.mFlags & Shaders::EMITTER_ADDITIVE) == 0u ? emitter.mCount : 0u;
         uploads.write(tables.mPresences.get(), 0, presences);
         tables.mPresenceCount = static_cast<std::uint32_t>(presences.size());
 

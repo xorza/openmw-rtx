@@ -198,12 +198,11 @@ namespace Rtx::Testing
     }
 
     /// Poses a mesh on a rig by `bones` under `transform` for the skin's own, laid as the scene
-    /// takes them. The scratch is kept, as the resolver keeps its own, because a test counts a
-    /// frame's allocations through this.
+    /// takes them.
     inline void poseRig(SceneDesc& scene, Index mesh, std::span<const Shaders::GpuBone> bones,
         const osg::BoundingBoxf& reach, const Shaders::GpuBone& transform = toGpuBone(osg::Matrixf::identity()))
     {
-        static std::vector<PoseWord> words;
+        std::vector<PoseWord> words;
         packRig(transform, bones, words);
         scene.pose(mesh, words, reach);
     }
@@ -211,20 +210,25 @@ namespace Rtx::Testing
     /// Poses a mesh on a morph by `weights`, laid as the scene takes them.
     inline void poseMorph(SceneDesc& scene, Index mesh, std::span<const float> weights, const osg::BoundingBoxf& reach)
     {
-        static std::vector<PoseWord> words;
+        std::vector<PoseWord> words;
         packWeights(weights, words);
         scene.pose(mesh, words, reach);
+    }
+
+    /// The box `mesh`'s bind pose reaches carried through `bone`.
+    inline osg::BoundingBoxf reachUnder(const SceneDesc& scene, Index mesh, const osg::Matrixf& bone)
+    {
+        osg::BoundingBoxf reach;
+        for (const osg::Vec3f& vertex : scene.meshes().getMeshPositions(mesh))
+            reach.expandBy(vertex * bone);
+        return reach;
     }
 
     /// Poses `mesh`, a mesh on a one-bone rig, by `bone`, with the box its bind pose reaches
     /// carried through the same transform.
     inline void poseByOneBone(SceneDesc& scene, Index mesh, const osg::Matrixf& bone)
     {
-        osg::BoundingBoxf reach;
-        for (const osg::Vec3f& vertex : scene.meshes().getMeshPositions(mesh))
-            reach.expandBy(vertex * bone);
-
         const std::array rows{ toGpuBone(bone) };
-        poseRig(scene, mesh, rows, reach);
+        poseRig(scene, mesh, rows, reachUnder(scene, mesh, bone));
     }
 }

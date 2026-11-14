@@ -91,12 +91,12 @@ namespace Stereo
         }
 
     protected:
-        void setDefaults(osg::StateSet* stateset) override
+        virtual void setDefaults(osg::StateSet* stateset)
         {
             stateset->addUniform(new osg::Uniform(osg::Uniform::FLOAT_MAT4, "invProjectionMatrixMultiView", 2));
         }
 
-        void apply(osg::StateSet* stateset, osg::NodeVisitor* /*nv*/) override
+        virtual void apply(osg::StateSet* stateset, osg::NodeVisitor* /*nv*/)
         {
             mManager->updateMultiviewStateset(stateset);
         }

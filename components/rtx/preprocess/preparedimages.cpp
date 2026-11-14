@@ -37,7 +37,8 @@ namespace Rtx
         if (!isUploadable(format) && !isWidened(format))
             return false;
         return encoding != TextureEncoding::Colour
-            || (file.getNumMipmapLevels() <= 1 && std::size_t(file.s()) * std::size_t(file.t()) > 1)
+            || (file.getNumMipmapLevels() <= 1
+                && static_cast<std::size_t>(file.s()) * static_cast<std::size_t>(file.t()) > 1)
             || !layoutOf(format).isBlocked();
     }
 
@@ -55,12 +56,8 @@ namespace Rtx
 
     PreparedImages::~PreparedImages()
     {
-        // Every hand asked first and joined after, so none takes another job while the one before it
-        // is joined.
-        for (const std::unique_ptr<Hand>& hand : mHands)
-            hand->mWorker.request_stop();
-        for (const std::unique_ptr<Hand>& hand : mHands)
-            hand->mWorker = std::jthread();
+        Platform::stopThenJoin(
+            mHands, [](const std::unique_ptr<Hand>& hand) -> std::jthread& { return hand->mWorker; });
     }
 
     PreparedImage PreparedImages::find(
@@ -69,8 +66,8 @@ namespace Rtx
         assert(prepares(file, encoding) && "a colour's own chain asked to be made again");
         assert((partner != nullptr) == isConverted(encoding) && "a converted slot is two files, and no other slot is");
 
-        bool queued = false;
-        PreparedImage answer = mMonitor.under([&] {
+        PreparedImage answer;
+        mMonitor.give([&] {
             // The wrap only where it decides what is made: a painted colour's estimate follows it, and a
             // converted slot's delit diffuse.
             const bool delit = encoding == TextureEncoding::Painted || isConverted(encoding);
@@ -87,37 +84,41 @@ namespace Rtx
                 sweep();
                 mEntries.emplace(key, Entry{ .mFile = &file, .mPartner = partner });
                 mQueue.push_back(Job{ .mKey = key, .mFile = &file, .mPartner = partner });
-                queued = true;
-                return PreparedImage{ .mPending = true };
+                answer = PreparedImage{ .mPending = true };
+                return true;
             }
 
             Entry& found = entry->second;
             if (!found.mMade)
-                return PreparedImage{ .mPending = true };
+            {
+                answer = PreparedImage{ .mPending = true };
+                return false;
+            }
 
             if (found.mHeld != nullptr)
             {
-                PreparedImage made{ .mImage = found.mHeld };
+                answer = PreparedImage{ .mImage = found.mHeld };
                 found.mWatched = found.mHeld;
                 found.mHeld = nullptr;
-                return made;
+                return false;
             }
 
             osg::ref_ptr<const MadeImage> image;
             if (found.mWatched.lock(image))
-                return PreparedImage{ .mImage = image };
+            {
+                answer = PreparedImage{ .mImage = image };
+                return false;
+            }
             if (found.mStands)
-                return PreparedImage{};
+                return false;
 
             // Made once and let go of by every texture since: made again, from the store.
             found.mMade = false;
             mQueue.push_back(Job{ .mKey = key, .mFile = &file, .mPartner = partner });
-            queued = true;
-            return PreparedImage{ .mPending = true };
+            answer = PreparedImage{ .mPending = true };
+            return true;
         });
 
-        if (queued)
-            mMonitor.give([] {});
         return answer;
     }
 
@@ -139,6 +140,15 @@ namespace Rtx
     std::size_t PreparedImages::getEntryCount()
     {
         return mMonitor.under([&] { return mEntries.size(); });
+    }
+
+    std::size_t PreparedImages::getScratchBytes()
+    {
+        assert(isIdle() && "a hand's scratch asked while it works");
+        std::size_t bytes = 0;
+        for (const std::unique_ptr<Hand>& hand : mHands)
+            bytes += hand->mContent.chainScratch().total();
+        return bytes;
     }
 
     bool PreparedImages::isGone(const std::pair<const Key, Entry>& entry)
@@ -188,6 +198,7 @@ namespace Rtx
             [&](const std::stop_token&) {
                 const osg::Image& file = *job.mFile;
                 const auto [image, encoding, wrap, partner] = job.mKey;
+
                 std::optional<MadeLayout> layout;
                 if (job.mPartner != nullptr)
                 {
@@ -215,6 +226,12 @@ namespace Rtx
                 osg::ref_ptr<const MadeImage> made;
                 if (layout.has_value())
                     made = MadeImage::make(*layout, std::move(hand.mChain.mBytes));
+
+                // **A hand lets go of its chains' scratch once the queue is drained**, as the preparation's hands
+                // do: one miss on a 4096 map held some 106 MB on this thread for the session. Before the hand-over,
+                // so a waiter `flush` let go finds it let go of.
+                if (mMonitor.under([&] { return mQueue.empty(); }))
+                    hand.mContent.letGoChainScratch();
 
                 // **The image handed over and the job's files let go of under the lock, and no reference
                 // left on this thread** once the job counts as done: a waiter that `flush` let go may drop

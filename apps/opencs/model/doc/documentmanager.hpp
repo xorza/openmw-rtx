@@ -13,8 +13,6 @@
 
 #include "loader.hpp"
 
-Q_MOC_INCLUDE("apps/opencs/model/doc/document.hpp")
-
 namespace Files
 {
     struct ConfigurationManager;

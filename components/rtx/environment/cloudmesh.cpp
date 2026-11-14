@@ -134,13 +134,13 @@ namespace Rtx
             double middleV = 0.0;
             for (std::size_t i = 0; i < placed.size(); ++i)
             {
-                middleX += double(placed[i].x());
-                middleY += double(placed[i].y());
-                middleU += double(coords[i].x());
-                middleV += double(coords[i].y());
+                middleX += static_cast<double>(placed[i].x());
+                middleY += static_cast<double>(placed[i].y());
+                middleU += static_cast<double>(coords[i].x());
+                middleV += static_cast<double>(coords[i].y());
             }
 
-            const double taken = double(placed.size());
+            const double taken = static_cast<double>(placed.size());
             middleX /= taken;
             middleY /= taken;
             middleU /= taken;
@@ -156,10 +156,10 @@ namespace Rtx
 
             for (std::size_t i = 0; i < placed.size(); ++i)
             {
-                const double x = double(placed[i].x()) - middleX;
-                const double y = double(placed[i].y()) - middleY;
-                const double u = double(coords[i].x()) - middleU;
-                const double v = double(coords[i].y()) - middleV;
+                const double x = static_cast<double>(placed[i].x()) - middleX;
+                const double y = static_cast<double>(placed[i].y()) - middleY;
+                const double u = static_cast<double>(coords[i].x()) - middleU;
+                const double v = static_cast<double>(coords[i].y()) - middleV;
 
                 xx += x * x;
                 xy += x * y;
@@ -232,9 +232,10 @@ namespace Rtx
             return CloudShell{};
 
         return CloudShell{
-            .mTiles = osg::Vec2f(float(surface->mHeight * std::abs(*rate)), float(surface->mHeight * *rate)),
-            .mCurvature = float(surface->mCurvature * surface->mHeight),
-            .mRings = fadeRadii(read.mPlaced, read.mAlphas) * float(std::abs(*rate)),
+            .mTiles = osg::Vec2f(
+                static_cast<float>(surface->mHeight * std::abs(*rate)), static_cast<float>(surface->mHeight * *rate)),
+            .mCurvature = static_cast<float>(surface->mCurvature * surface->mHeight),
+            .mRings = fadeRadii(read.mPlaced, read.mAlphas) * static_cast<float>(std::abs(*rate)),
         };
     }
 

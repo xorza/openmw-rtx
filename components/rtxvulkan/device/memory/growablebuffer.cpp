@@ -4,9 +4,8 @@
 #include <cassert>
 #include <utility>
 
-#include <components/rtxvulkan/device/commands.hpp>
-
 #include "barriers.hpp"
+#include "batch.hpp"
 #include "imageuse.hpp"
 
 namespace Rtx

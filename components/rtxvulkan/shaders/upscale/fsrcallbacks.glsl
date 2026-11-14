@@ -18,6 +18,7 @@
 #define FFX_FSR3UPSCALER_OPTION_JITTERED_MOTION_VECTORS 0
 #define FFX_FSR3UPSCALER_OPTION_INVERTED_DEPTH 1
 #define FFX_FSR3UPSCALER_OPTION_APPLY_SHARPENING 0
+#define FFX_FSR3UPSCALER_OPTION_REPROJECT_USE_LANCZOS_TYPE 1
 
 #include "camera.h"
 #include "shared/fsr.h"
@@ -513,11 +514,19 @@ FfxFloat32 Exposure()
 }
 #endif
 
-// The SDK's table of Lanczos weights, which the reference reprojection never reads and this binds
-// nowhere. A body all the same, because `Lanczos2_UseLUT` names it whether or not anything reaches it.
+// **The SDK's table of Lanczos weights**, which its host binds on devices of 32 to 64 lanes, every device
+// this renderer runs on: the reprojection reads sixteen weights a pixel, each two `sin`s in the reference.
+// Made by each workgroup that reads it from the SDK's own reference (`fsraccumulate.comp`) rather than bound,
+// and read with the lerp the SDK's linear sampler gives, so every device reads the same weights. A pass that
+// reprojects nothing makes none and reads none.
+const uint LANCZOS_TABLE_SIZE = 128u;
+shared FfxFloat32 lanczosTable[LANCZOS_TABLE_SIZE];
+
 FfxFloat32 SampleLanczos2Weight(FfxFloat32 x)
 {
-    return 0.0;
+    const FfxFloat32 place = clamp(x, 0.0, 2.0) * (0.5 * FfxFloat32(LANCZOS_TABLE_SIZE - 1u));
+    const uint below = min(uint(place), LANCZOS_TABLE_SIZE - 2u);
+    return mix(lanczosTable[below], lanczosTable[below + 1u], place - FfxFloat32(below));
 }
 
 #if defined(FSR3UPSCALER_BIND_SRV_DILATED_REACTIVE_MASKS)

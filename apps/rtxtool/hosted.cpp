@@ -8,8 +8,6 @@
 #include <utility>
 #include <vector>
 
-#include <osg/Vec2i>
-
 #include <apps/openmw/engine.hpp>
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <apps/rtxtool/model/stopdescription.hpp>
@@ -66,15 +64,24 @@ namespace RtxTool
             shaders.mNormalHeightMapPattern.set(shipped.get(shaders.mNormalHeightMapPattern));
             shaders.mSpecularMapPattern.set(shipped.get(shaders.mSpecularMapPattern));
         }
+
+        /// A run that failed before the engine ran it: no place, no report, no picture.
+        SessionResult failedBeforeItRan()
+        {
+            SessionResult result;
+            result.mExitStatus = ExitStatus::Failed;
+            return result;
+        }
     }
 
-    int runHosted(const Command& command, const Framed& framed, SessionRequest request)
+    SessionResult runHosted(const Command& command, HostedRun run)
     {
         const ToolLine& line = command.mLine;
         const ToolLine::Game& game = line.mGame;
         Files::ConfigurationManager& config = command.mConfig;
         const std::filesystem::path& resources = line.mResources;
-        const WindowRequest& window = framed.mWindow;
+        const WindowRequest& window = run.mWindow;
+        SessionRequest& request = run.mRequest;
 
         std::ostream& out = Debug::getRawStdout();
 
@@ -83,14 +90,12 @@ namespace RtxTool
         {
             out << "no content file given: name one with --content, or point openmw.cfg at an "
                    "installation.\n";
-            return 1;
+            return failedBeforeItRan();
         }
 
         applyHostedSettings(window);
-        // The window at the frame's size, so the frame is shown pixel for pixel.
-        request.mSetup.mWindowPixels = osg::Vec2i(static_cast<int>(window.mWidth), static_cast<int>(window.mHeight));
-        request.mSaves = ownSavesFolder(config);
-        if (request.mMaps.has_value())
+        request.mSaves = ownSavesFolder(command.mOwnDirectory);
+        if (!request.mPlayed)
             applyShippedMapNames(command.mShipped);
 
         // **Whether the run was meant to end on its own**, which is what says an empty report is a
@@ -153,7 +158,7 @@ namespace RtxTool
                 if (!once.insert(file).second)
                 {
                     out << "content file specified more than once: " << file << '\n';
-                    return 1;
+                    return failedBeforeItRan();
                 }
 
                 engine.addContentFile(file);
@@ -186,7 +191,7 @@ namespace RtxTool
             session.endedEarly();
         }
 
-        const SessionResult result = session.describe();
+        SessionResult result = session.conclude();
 
         out << result.mReport;
 
@@ -200,9 +205,9 @@ namespace RtxTool
         if (scheduled && result.mPlaces.empty())
         {
             out << "\nnothing was measured: the run ended before a stop finished\n";
-            return 1;
+            result.mExitStatus = worseOf(result.mExitStatus, ExitStatus::Failed);
         }
 
-        return result.mExitStatus;
+        return result;
     }
 }

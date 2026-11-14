@@ -1,4 +1,5 @@
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
@@ -16,6 +17,7 @@
 #include <apps/openmw/mwrender/rtx/framereport.hpp>
 #include <apps/rtxtool/homekey.hpp>
 #include <apps/rtxtool/instruments/png.hpp>
+#include <apps/rtxtool/keyedge.hpp>
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <apps/rtxtool/model/stopdescription.hpp>
 #include <components/misc/result.hpp>
@@ -83,6 +85,16 @@ namespace RtxTool
         /// way waits for it rather than taking the note from under it, then keeps the first frame
         /// after; the pictures are numbered in the order of the presses, and each press appends its
         /// own note to the keys.
+        /// **A key held across frames is one press**: it goes down where it was up at the last read, and only there.
+        TEST(RtxToolKeyEdgeTest, aKeyHeldAcrossFramesIsOnePress)
+        {
+            KeyEdge key;
+            const std::array<bool, 7> down{ false, true, true, true, false, true, false };
+            const std::array<bool, 7> pressed{ false, true, false, false, false, true, false };
+            for (std::size_t frame = 0; frame < down.size(); ++frame)
+                EXPECT_EQ(key.wentDown(down[frame]), pressed[frame]) << "frame " << frame;
+        }
+
         TEST(RtxToolHomeKeyTest, aPressKeepsTheFrameItAskedForAndAPressInFlightWaitsForIt)
         {
             const std::filesystem::path dir = TestingOpenMW::currentTestDirPath();

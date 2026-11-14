@@ -46,7 +46,7 @@ namespace Rtx
         Buffer mCounts;
         Buffer mShare;
 
-        /// Host memory written once and never again.
+        /// Written once at the making and never again.
         Buffer mNoShare;
     };
 }

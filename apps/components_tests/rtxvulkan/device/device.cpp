@@ -19,6 +19,7 @@
 #include <components/rtx/renderer/shaderset.hpp>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
+#include <components/rtxvulkan/device/faultreport.hpp>
 #include <components/rtxvulkan/device/graveyard.hpp>
 #include <components/rtxvulkan/device/instance.hpp>
 #include <components/rtxvulkan/device/loaderlayers.hpp>
@@ -56,13 +57,14 @@ namespace Rtx
         /// reached. A fence nothing submits against, and a patience short enough not to sit out the real
         /// one. **The report says where the queue stands**, from what a device still answering can be
         /// asked: the buffer markers both stages pass at a checkpoint once the queue is done with it,
-        /// where the build marks and the driver offers them (`Device::checkpoint`), and nothing anywhere
+        /// where the build marks and the driver offers them (`FaultReport::checkpoint`), and nothing anywhere
         /// else, NVIDIA's checkpoints being asked only of a lost device.
         TEST_F(RtxDeviceTest, aWaitOnADeviceThatNeverAnswersEndsAndNamesItself)
         {
             const Device& device = *mHarness.mDevice;
             const Checkpoint checkpoint{ "probe", 9 };
-            getPool().submitAndWait([&](VkCommandBuffer commands) { device.checkpoint(commands, &checkpoint); });
+            getPool().submitAndWait(
+                [&](VkCommandBuffer commands) { device.getFaults().checkpoint(commands, &checkpoint); });
             const bool marks = device.getPhysicalDevice().hasOptionalExtension(VK_AMD_BUFFER_MARKER_EXTENSION_NAME);
 
             const VkFenceCreateInfo unsignalled{
@@ -84,7 +86,8 @@ namespace Rtx
 
             // A picture's checkpoint names the picture, and not a frame.
             const Checkpoint picture{ "probe", sPictureCheckpoint | 4 };
-            getPool().submitAndWait([&](VkCommandBuffer commands) { device.checkpoint(commands, &picture); });
+            getPool().submitAndWait(
+                [&](VkCommandBuffer commands) { device.getFaults().checkpoint(commands, &picture); });
             if (marks)
                 Testing::expectDies([&] { awaitVk(device, fence, "a submit nobody made", 1'000'000ull); },
                     "the top of the pipe last passed `probe` of picture 4");
@@ -147,7 +150,7 @@ namespace Rtx
             // The one optional entry point, present exactly where the driver offers its extension.
             // An extension enabled and never read is what this proves gone.
             const PhysicalDevice& physical = mHarness.mDevice->getPhysicalDevice();
-            EXPECT_EQ(mHarness.mDevice->canDescribeFault(),
+            EXPECT_EQ(mHarness.mDevice->getFaults().canDescribeFault(),
                 physical.hasOptionalExtension(VK_EXT_DEVICE_FAULT_EXTENSION_NAME));
 
             // Which card it is, as the card watch opens it: the vendor the device states, and a PCI

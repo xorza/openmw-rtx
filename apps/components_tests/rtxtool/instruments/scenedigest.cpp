@@ -249,8 +249,10 @@ namespace RtxTool
                 .mRadius = 4.0f,
                 .mColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
                 .mAlpha = 1.0f } };
-            scene.addEmitter(
-                sprites, texture, additive ? Rtx::BlendKind::Add : Rtx::BlendKind::Over, 0.0f, Rtx::sNoIndex, falls);
+            scene.addEmitter(sprites,
+                Rtx::EmitterSpec{ .mTexture = texture,
+                    .mBlend = additive ? Rtx::BlendKind::Add : Rtx::BlendKind::Over,
+                    .mFalls = falls });
 
             return digestParts(scene);
         }

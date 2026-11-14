@@ -24,6 +24,7 @@
 
 #include <apps/components_tests/rtx/support/death.hpp>
 #include <apps/components_tests/rtx/support/heldimages.hpp>
+#include <apps/components_tests/rtx/support/image.hpp>
 #include <components/misc/result.hpp>
 #include <components/resource/bgsmfilemanager.hpp>
 #include <components/resource/imagemanager.hpp>
@@ -423,8 +424,7 @@ namespace Rtx
             Testing::HeldImages images(&vfs, 0);
             for (const Moon moon : { Moon::Masser, Moon::Secunda })
             {
-                const osg::ref_ptr<osg::Image> portrait = new osg::Image;
-                portrait->allocateImage(2, 2, 1, GL_RGBA, GL_UNSIGNED_BYTE);
+                const osg::ref_ptr<osg::Image> portrait = Testing::makeImage("", 2, 2);
                 std::fill_n(portrait->data(), 16, std::uint8_t{ 255 });
                 portrait->setFileName(std::string(moonFaceOf(moon).value()));
                 images.hold(moonFaceOf(moon), portrait);
@@ -486,9 +486,8 @@ namespace Rtx
             Resource::BgsmFileManager materials(vfs.get(), 0);
             Resource::SceneManager scenes(vfs.get(), &images, &nifs, &materials, 0);
 
-            osg::ref_ptr<osg::Image> rgb = new osg::Image;
-            rgb->setFileName("textures/tx_sky_clear.dds");
-            rgb->allocateImage(4, 4, 1, GL_RGB, GL_UNSIGNED_BYTE_3_3_2);
+            osg::ref_ptr<osg::Image> rgb
+                = Testing::makeImage("textures/tx_sky_clear.dds", 4, 4, GL_RGB, GL_UNSIGNED_BYTE_3_3_2);
             images.hold(VFS::Path::NormalizedView("textures/tx_sky_clear.dds"), rgb);
 
             SceneDesc scene;
@@ -507,9 +506,8 @@ namespace Rtx
             scene.drop(holds);
             EXPECT_TRUE(scene.isEmpty());
 
-            osg::ref_ptr<osg::Image> alpha = new osg::Image;
-            alpha->setFileName("textures/tx_sky_clear.dds");
-            alpha->allocateImage(4, 4, 1, GL_ALPHA, GL_UNSIGNED_BYTE);
+            osg::ref_ptr<osg::Image> alpha
+                = Testing::makeImage("textures/tx_sky_clear.dds", 4, 4, GL_ALPHA, GL_UNSIGNED_BYTE);
             images.hold(VFS::Path::NormalizedView("textures/tx_sky_clear.dds"), alpha);
 
             SceneDesc taken;
@@ -534,9 +532,7 @@ namespace Rtx
             Resource::BgsmFileManager materials(vfs.get(), 0);
             Resource::SceneManager scenes(vfs.get(), &images, &nifs, &materials, 0);
 
-            osg::ref_ptr<osg::Image> sheet = new osg::Image;
-            sheet->setFileName("textures/tx_script_sky.dds");
-            sheet->allocateImage(4, 4, 1, GL_RGBA, GL_UNSIGNED_BYTE);
+            osg::ref_ptr<osg::Image> sheet = Testing::makeImage("textures/tx_script_sky.dds", 4, 4);
             for (std::size_t texel = 0; texel < 16; ++texel)
             {
                 std::fill_n(sheet->data() + texel * 4, 3, std::uint8_t{ 255 });
@@ -604,12 +600,9 @@ namespace Rtx
             Resource::BgsmFileManager materials(vfs.get(), 0);
             HeldScenes scenes(vfs.get(), &images, &nifs, &materials, 0);
 
-            osg::ref_ptr<osg::Image> rgb = new osg::Image;
-            rgb->setFileName("textures/star_rgb.dds");
-            rgb->allocateImage(4, 4, 1, GL_RGB, GL_UNSIGNED_BYTE_3_3_2);
-            osg::ref_ptr<osg::Image> rgba = new osg::Image;
-            rgba->setFileName("textures/star_rgba.dds");
-            rgba->allocateImage(4, 4, 1, GL_RGBA, GL_UNSIGNED_BYTE);
+            osg::ref_ptr<osg::Image> rgb
+                = Testing::makeImage("textures/star_rgb.dds", 4, 4, GL_RGB, GL_UNSIGNED_BYTE_3_3_2);
+            osg::ref_ptr<osg::Image> rgba = Testing::makeImage("textures/star_rgba.dds", 4, 4);
 
             osg::ref_ptr<osg::Group> night = new osg::Group;
             night->addChild(patchOf(rgb));

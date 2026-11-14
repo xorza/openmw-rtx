@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <format>
 #include <unordered_map>
+#include <vector>
 
 #include <spirv/unified1/spirv.hpp>
 
@@ -51,6 +52,8 @@ namespace Rtx
             std::vector<MemberFacts> mMembers;
         };
 
+        /// **Keyed, and not a vector by the module's bound**: the declarations name a few hundred of a module's
+        /// ids, and the bound counts every id its bodies define too — 19,537 in a module of 14,088 words.
         using IdFacts = std::unordered_map<std::uint32_t, Facts>;
 
         /// What the module says of `id`, which `owner` reads: refused where it says nothing. An owner,
@@ -346,7 +349,7 @@ namespace Rtx
         std::vector<std::uint32_t> variables;
         std::vector<std::uint32_t> laidOut;
         std::vector<std::uint32_t> specialized;
-        forEachInstruction(
+        forEachDeclaration(
             module, [&](const spv::Op op, const std::span<const std::uint32_t> operands, std::size_t at) {
                 // An instruction shorter than its opcode needs is a module no compiler wrote, and is refused
                 // rather than read past.
@@ -401,6 +404,11 @@ namespace Rtx
                     {
                         need(3);
                         std::vector<MemberFacts>& members = ids[operands[0]].mMembers;
+                        if (operands[1] >= module.size())
+                            throw InputError(
+                                std::format("the instruction at word {} decorates member {} of a module "
+                                            "of {} words",
+                                    at, operands[1], module.size()));
                         if (members.size() <= operands[1])
                             members.resize(operands[1] + std::size_t{ 1 });
                         MemberFacts& member = members[operands[1]];

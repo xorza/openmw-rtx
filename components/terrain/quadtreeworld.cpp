@@ -6,7 +6,6 @@
 
 #include <limits>
 
-#include <components/crashcatcher/crash.hpp>
 #include <components/esm/util.hpp>
 #include <components/loadinglistener/reporter.hpp>
 #include <components/misc/constants.hpp>
@@ -444,7 +443,7 @@ namespace Terrain
             for (unsigned int i = 0; i < vd->getNumEntries(); ++i)
             {
                 ViewDataEntry& entry = vd->getEntry(i);
-                osg::Group* chunk = Crash::notNull(entry.mRenderingNode->asGroup(), "a terrain chunk that is no group");
+                osg::Group* chunk = entry.mRenderingNode->asGroup();
                 osg::BoundingBox bb = static_cast<TerrainDrawable*>(chunk->getChild(0))->getWaterBoundingBox();
                 if (!bb.valid())
                     continue;

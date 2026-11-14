@@ -25,8 +25,8 @@ namespace osg
 namespace Rtx
 {
     /// What an ask of a stored pass wants: the output, from the store or a run, or only that the
-    /// store holds it — a preparation's ask, which reads no entry the store holds and leaves the
-    /// output as it was then.
+    /// store holds it — a preparation's ask, which reads no entry the store holds, and hands the store
+    /// what a run made, the output left emptied where its codec takes it whole.
     enum class ContentAsk
     {
         Output,

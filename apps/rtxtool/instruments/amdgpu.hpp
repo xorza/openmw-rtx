@@ -6,9 +6,11 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include <components/rtx/common/cardaddress.hpp>
 
+#include "cardsample.hpp"
 #include "gpuclock.hpp"
 
 namespace RtxTool
@@ -32,8 +34,11 @@ namespace RtxTool
         /// `card` as the kernel names its folder: `0000:03:00.0`.
         static std::string folderName(const Rtx::PciAddress& card);
 
-        /// Why the report names no holder of an AMD card.
-        static std::string_view describeUnsampled() { return "amdgpu keeps no process samples for a card"; }
+        /// Why the report names no holder of an AMD card: amdgpu keeps no samples, so the three below say so.
+        std::string_view describeUnsampled() const { return "amdgpu keeps no process samples for a card"; }
+        bool hasSamples() const { return false; }
+        void readSamples(std::vector<CardSample>& into) const { into.clear(); }
+        void nameProcess(std::uint32_t /*pid*/, std::string& into) const { into.clear(); }
 
         /// One reading of the clocks and the temperature, or one that answered nothing where a file
         /// could not be read. No throttle reasons: those are NVML's bits.

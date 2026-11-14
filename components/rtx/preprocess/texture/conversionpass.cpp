@@ -6,6 +6,7 @@
 #include <string>
 
 #include <components/misc/result.hpp>
+#include <components/rtx/common/letgo.hpp>
 #include <components/rtx/image/colour.hpp>
 #include <components/rtx/image/imagedescription.hpp>
 #include <components/rtx/image/texels.hpp>
@@ -185,8 +186,8 @@ namespace Rtx
                     const std::size_t from = (std::size_t{ dy } * lit.mWidth + dx) * 4;
                     osg::Vec3f light;
                     for (int channel = 0; channel < 3; ++channel)
-                        light[channel]
-                            = curve.toLinear(std::to_integer<std::uint8_t>(delit[from + std::size_t(channel)]));
+                        light[channel] = curve.toLinear(
+                            std::to_integer<std::uint8_t>(delit[from + static_cast<std::size_t>(channel)]));
                     const osg::Vec3f highlight = toLinear(mHighlights[std::size_t{ sy } * shine.mWidth + sx]);
                     const ConvertedTexel converted = convertTexel(light, highlight);
 
@@ -194,7 +195,8 @@ namespace Rtx
                     if (colour)
                     {
                         for (int channel = 0; channel < 3; ++channel)
-                            mConverted[into + std::size_t(channel)] = curve.encodedByte(converted.mBase[channel]);
+                            mConverted[into + static_cast<std::size_t>(channel)]
+                                = curve.encodedByte(converted.mBase[channel]);
                         mConverted[into + 3] = delit[from + 3];
                     }
                     else
@@ -338,15 +340,15 @@ namespace Rtx
     void ConversionPass::letGo()
     {
         release();
-        mDiffuseLevels = {};
-        mDiffuseTexels = {};
-        mSpecularLevels = {};
-        mSpecularTexels = {};
+        letGoOf(mDiffuseLevels);
+        letGoOf(mDiffuseTexels);
+        letGoOf(mSpecularLevels);
+        letGoOf(mSpecularTexels);
         mGloss = AlphaImage();
-        mBand = {};
-        mHighlights = {};
-        mConverted = {};
-        mConvertedLevel = {};
+        letGoOf(mBand);
+        letGoOf(mHighlights);
+        letGoOf(mConverted);
+        letGoOf(mConvertedLevel);
     }
 
     void ConversionPass::release()

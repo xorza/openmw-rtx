@@ -26,7 +26,6 @@
 #include <apps/rtxtool/model/benchspec.hpp>
 #include <apps/rtxtool/model/blockfile.hpp>
 #include <apps/rtxtool/model/film.hpp>
-#include <apps/rtxtool/model/maprules.hpp>
 #include <apps/rtxtool/model/skycrossing.hpp>
 #include <components/crashcatcher/crash.hpp>
 #include <components/fallback/validate.hpp>
@@ -203,17 +202,17 @@ namespace RtxTool
         /// The commands that can stand at one place named on the line — a cell, a camera, a view.
         /// A run of places — `bench` and `check`, and `shot` and `scene` under `--views` — takes
         /// its cells and its cameras from `views.cfg` instead.
-        constexpr Verbs sPlaces = Verbs::Scene | Verbs::Shot | Verbs::View;
+        constexpr VerbSet sPlaces{ Verb::Scene, Verb::Shot, Verb::View };
 
         /// The commands that visit a list of places.
-        constexpr Verbs sRuns = Verbs::Scene | Verbs::Shot | Verbs::Bench | Verbs::Check | Verbs::Noise;
+        constexpr VerbSet sRuns{ Verb::Scene, Verb::Shot, Verb::Bench, Verb::Check, Verb::Noise };
 
         /// The commands that frame the world, which is every one that builds a `Framed`.
         /// `info` is the one that does not: it reports on a device and draws nothing.
-        constexpr Verbs sFramed = otherThan(Verbs::Info);
+        constexpr VerbSet sFramed = VerbSet{ Verb::Info }.complement();
 
         /// The commands that stand under one sky the line names. A film's keys each name their own.
-        constexpr Verbs sOneSky = otherThan(Verbs::Info | Verbs::Film);
+        constexpr VerbSet sOneSky = VerbSet{ Verb::Info, Verb::Film }.complement();
 
         /// How long a place runs where nobody says. Twenty because ten left the CPU medians moving
         /// by more than the changes being measured.
@@ -223,10 +222,10 @@ namespace RtxTool
         /// the shorter list, since naming eight commands to exclude one is a line nobody reads to the end. The help
         /// line and the complaint say it the same way, because they are the same fact before and after somebody gets
         /// it wrong.
-        std::string describeReaders(const Verbs verbs)
+        std::string describeReaders(const VerbSet verbs)
         {
-            const Verbs missing = otherThan(verbs);
-            if (countVerbs(missing) < countVerbs(verbs))
+            const VerbSet missing = verbs.complement();
+            if (missing.size() < verbs.size())
                 return std::format("every command but {}", describeVerbs(missing));
 
             return describeVerbs(verbs);
@@ -236,9 +235,9 @@ namespace RtxTool
         ///
         /// An option every command reads opens with nothing at all: there is no command it would
         /// be telling the reader about.
-        std::string describeOption(const Verbs verbs, const std::string_view description)
+        std::string describeOption(const VerbSet verbs, const std::string_view description)
         {
-            if (verbs == Verbs::Every)
+            if (verbs == VerbSet::every())
                 return std::string(description);
 
             return std::format("with {}, {}", describeReaders(verbs), description);
@@ -278,7 +277,7 @@ namespace RtxTool
         return request;
     }
 
-    Verbs ToolOptions::readsOption(const std::string_view name) const
+    VerbSet ToolOptions::readsOption(const std::string_view name) const
     {
         for (const OptionOwner& owner : mOwners)
         {
@@ -286,18 +285,18 @@ namespace RtxTool
                 return owner.mVerbs;
         }
 
-        return Verbs::Every;
+        return VerbSet::every();
     }
 
-    std::string ToolOptions::complainAbout(const bpo::parsed_options& line, const Verbs verb) const
+    std::string ToolOptions::complainAbout(const bpo::parsed_options& line, const Verb verb) const
     {
         std::string complaint;
         std::vector<std::string_view> said;
 
         for (const bpo::option& given : line.options)
         {
-            const Verbs reads = readsOption(given.string_key);
-            if (holds(reads, verb))
+            const VerbSet reads = readsOption(given.string_key);
+            if (reads.contains(verb))
                 continue;
 
             // A composing option arrives once per time it was written, and a run that named three
@@ -322,7 +321,7 @@ namespace RtxTool
         // the record and the help line come from that one statement, so a run that names an option under a command
         // that does not read it is stopped rather than quietly rendering something else.
         const auto option
-            = [&](Verbs verbs, const char* name, const bpo::value_semantic* semantic, std::string_view description) {
+            = [&](VerbSet verbs, const char* name, const bpo::value_semantic* semantic, std::string_view description) {
                   result.mOwners.push_back(OptionOwner{ .mName = name, .mVerbs = verbs });
                   declare(name, semantic, describeOption(verbs, description).c_str());
               };
@@ -334,9 +333,9 @@ namespace RtxTool
         // (`frameFrom`).
         const Framed byDefault;
 
-        option(Verbs::Every, "help", bpo::bool_switch(), "print this message and quit");
+        option(VerbSet::every(), "help", bpo::bool_switch(), "print this message and quit");
 
-        option(Verbs::Every, "validation",
+        option(VerbSet::every(), "validation",
             bpo::value<std::string>()->default_value(std::string(Rtx::sValidationNames.name(validationByDefault))),
             std::format("which of VK_LAYER_KHRONOS_validation's checks to load: {}. `on` is the core "
                         "checks; `sync` adds synchronization validation, which catches a missing "
@@ -357,9 +356,9 @@ namespace RtxTool
             "a named viewpoint from rtxtool/views.cfg, which supplies the cell and usually the "
             "camera. Overrides --cell. A run of places names them with --views instead.");
 
-        option(Verbs::Every, "list-views", bpo::bool_switch(), "print the named viewpoints and quit");
+        option(VerbSet::every(), "list-views", bpo::bool_switch(), "print the named viewpoints and quit");
 
-        option(Verbs::Info, "folders", bpo::bool_switch(),
+        option({ Verb::Info }, "folders", bpo::bool_switch(),
             "print where the game reads its openmw.cfg and where it keeps its saves, one to a line as "
             "`config <path>` and `data <path>`, and quit, before any device: the answer `Files` gives "
             "on this system, which the driver's `setup` and `game` read rather than restating");
@@ -370,19 +369,19 @@ namespace RtxTool
                 ->implicit_value(true),
             "run the denoisers over the light. Off shows the raw light, and is what a reference is "
             "made with");
-        option(Verbs::Shot, "doll", bpo::value<std::string>()->default_value(""),
+        option({ Verb::Shot }, "doll", bpo::value<std::string>()->default_value(""),
             "also write the inventory doll of this person, by NPC record id -- fargoth, \"caius "
             "cosades\" -- traced against a scene of their own. They arrive dressed out of their "
             "own record, which is what the game equips them with. `scene --find=<text>` finds one");
-        option(Verbs::Shot, "map", bpo::bool_switch(),
+        option({ Verb::Shot }, "map", bpo::bool_switch(),
             "also write one local-map tile of the place, traced straight down and framed the way "
             "the game's own compass frames one");
-        option(Verbs::Shot, "textures", bpo::bool_switch(),
+        option({ Verb::Shot }, "textures", bpo::bool_switch(),
             "also write every texture the world around the place uses, vanilla beside de-lit, as "
             "one sheet: what a frame there would actually sample, since a town's people wear "
             "textures the town itself never names");
 
-        option(otherThan(Verbs::Info | Verbs::Film), "upscale",
+        option(VerbSet{ Verb::Info, Verb::Film }.complement(), "upscale",
             bpo::value<std::string>()->default_value(
                 std::string(Rtx::sUpscaleNames.name(byDefault.mSetup.mRun.mProfile.mUpscale))),
             std::format("put the upscaler, FSR 3.1, between the trace and the picture: {}. --size is "
@@ -419,7 +418,7 @@ namespace RtxTool
                 listWeathers())
                 .c_str());
 
-        option(Verbs::Bench | Verbs::Film, "turn-weather", bpo::value<std::string>()->default_value(""),
+        option({ Verb::Bench, Verb::Film }, "turn-weather", bpo::value<std::string>()->default_value(""),
             std::format("turn the sky through these weathers, comma separated and round again — "
                         "--turn-weather=Rain,Foggy. Under `bench`, while each place runs: each crossing takes {} "
                         "seconds of world in place of the weather's own Transition_Delta, a minute for most, "
@@ -451,17 +450,17 @@ namespace RtxTool
             "that names a day of its own keeps it. In a `view`, Insert and Delete step it a day on and "
             "back");
 
-        option(Verbs::View | Verbs::Bench, "frames",
+        option({ Verb::View, Verb::Bench }, "frames",
             number(between(0u, BenchSpan::sUntilClosed, true))->default_value(0),
             "how many frames to run: `view` closes after this many instead of waiting to be "
             "closed, and `bench` measures this many at each place instead of deriving them from "
             "--seconds");
 
-        option(Verbs::Bench | Verbs::Check | Verbs::Noise, "suite", bpo::value<std::string>()->default_value(""),
+        option({ Verb::Bench, Verb::Check, Verb::Noise }, "suite", bpo::value<std::string>()->default_value(""),
             "which list of places in rtxtool/benches.cfg to visit: [default] for `bench`, "
             "[check] for `check` and [noise] for `noise` unless named. Overridden by --views");
 
-        option(Verbs::Noise, "strafe", number(atLeast(0.0f))->default_value(0.0f),
+        option({ Verb::Noise }, "strafe", number(atLeast(0.0f))->default_value(0.0f),
             std::format("how many world units to the side the frame starts: it flies into the place over "
                         "the last {} frames, facing it, through a world as still as the reference's, so the "
                         "frame is taken after a history the eye moved through, and held to as many frames "
@@ -469,12 +468,12 @@ namespace RtxTool
                         "still",
                 sNoiseFlightFrames));
 
-        option(Verbs::Noise, "walk", number(anyNumber<float>())->default_value(0.0f),
+        option({ Verb::Noise }, "walk", number(anyNumber<float>())->default_value(0.0f),
             "how many world units behind the place the frame starts, as --strafe does to the side: it "
             "walks in along the level of its facing, and a negative distance starts in front and walks "
             "back. Adds to --strafe, which it flies in beside");
 
-        option(Verbs::Noise, "cut", number(anyNumber<std::uint32_t>())->default_value(0),
+        option({ Verb::Noise }, "cut", number(anyNumber<std::uint32_t>())->default_value(0),
             "how many frames after the cut a stop begins with the frame is taken, standing: the first "
             "frames after a door, a load or a teleport, where a history is too short to tell a rare "
             "bright bounce from the light. The frame holds this many and one more, since the frame the "
@@ -482,7 +481,7 @@ namespace RtxTool
             "history could hold samples a shown pixel. Nought takes it after its history converged; not "
             "with --strafe or --walk");
 
-        option(Verbs::Noise, "versus", bpo::value<std::string>()->default_value(""),
+        option({ Verb::Noise }, "versus", bpo::value<std::string>()->default_value(""),
             "a second side in the same run: <switch>=<value> takes the frame and its mean again with that "
             "one switch of the reconstruction changed, at the same draws, and judges both. The bar is "
             "the first side's where the switch changes nothing an unfiltered frame reads, and the "
@@ -494,16 +493,16 @@ namespace RtxTool
             "--views=all runs every view there is, which with `shot --against` is what says what "
             "a change moved");
 
-        option(Verbs::Bench | Verbs::Check, "seconds", number(atLeast(0.0f, true))->default_value(sSecondsByDefault),
+        option({ Verb::Bench, Verb::Check }, "seconds", number(atLeast(0.0f, true))->default_value(sSecondsByDefault),
             std::format("how many seconds of world to run at each place. World and not wall: the world "
                         "steps 1/{} of a second per frame however long the frame took, so the {} seconds "
                         "nobody named are {} frames either way, and two builds render the same frames",
                 sStepRate, sSecondsByDefault, sStepRate * sSecondsByDefault));
 
-        option(Verbs::Bench, "warmup", number(atLeast(0.0f))->default_value(sWarmupByDefault),
+        option({ Verb::Bench }, "warmup", number(atLeast(0.0f))->default_value(sWarmupByDefault),
             "how many seconds of world to draw and throw away once the world stands whole, before "
-            "measuring. This machine's GPU idles at 315 MHz and ramps under load, and a scene's first "
-            "frames pay for its residency as well. Every other command waits out its histories "
+            "measuring. A card's clock idles low and ramps under load, and a scene's first frames pay "
+            "for its residency as well. Every other command waits out its histories "
             "instead, four of the accumulator's lengths");
 
         option(sFramed, "spell-hands", bpo::bool_switch(),
@@ -543,7 +542,7 @@ namespace RtxTool
             "game, the store the game keeps under the user's cache directory, so a run reads what the "
             "game wrote; off, none, so every pass runs; or a directory of the run's own");
 
-        option(Verbs::Bench, "window", bpo::value<bool>()->default_value(true)->implicit_value(true),
+        option({ Verb::Bench }, "window", bpo::value<bool>()->default_value(true)->implicit_value(true),
             "show the run while it happens. The swapchain is mailbox, so it does not "
             "pace the loop; --window=false is one fewer thing between the trace and the number");
 
@@ -553,7 +552,7 @@ namespace RtxTool
             "the same picture to a rounding by lib/variants.glsl's argument, for measuring what the "
             "tuples are worth against the sixteen launches the driver compiles for them");
 
-        option(Verbs::Every, "shader-source", bpo::value<bool>()->default_value(false)->implicit_value(true),
+        option(VerbSet::every(), "shader-source", bpo::value<bool>()->default_value(false)->implicit_value(true),
             "hand the driver the shaders with their source in them, for a profiler that shows a "
             "shader's lines. The driver keys its cache on the modules it is handed, so these keep a "
             "cache of their own, apart from the one every other run reads");
@@ -653,7 +652,7 @@ namespace RtxTool
                         "than a frame, and a hold of seconds is the desktop frozen for every one of them",
                 sCheckHoldMs));
 
-        option(Verbs::Bench, "counters", bpo::value<bool>()->default_value(false)->implicit_value(true),
+        option({ Verb::Bench }, "counters", bpo::value<bool>()->default_value(false)->implicit_value(true),
             "also read the device's own counters around every zone — instructions run, how busy the "
             "vector and scalar units were, how the caches hit — and report each zone's median under its "
             "times: what a profiler shows of a dispatch, where none reads the device. As many as one "
@@ -661,25 +660,25 @@ namespace RtxTool
             "card at the kernel's profiling clock while it reads them, so a run with them is not the run "
             "its times are quoted from. Where the driver offers none, nothing is read");
 
-        option(Verbs::Bench, "json", bpo::value<std::string>()->default_value(""),
+        option({ Verb::Bench }, "json", bpo::value<std::string>()->default_value(""),
             "also write the run to this file as one record, for comparing against the "
             "same run on another commit");
 
-        option(Verbs::Bench, "frame-times", bpo::value<std::string>()->default_value(""),
+        option({ Verb::Bench }, "frame-times", bpo::value<std::string>()->default_value(""),
             "also write every measured frame's figures, a frame a line and a row of the report a "
             "column, to <dir>/<place>.txt: the series the report summarises, for whether a tail "
             "is one mode or two and how far apart the frames that make it are");
 
-        option(Verbs::Bench, "perf-control", bpo::value<std::string>()->default_value(""),
+        option({ Verb::Bench }, "perf-control", bpo::value<std::string>()->default_value(""),
             "turn a `perf record --delay=-1 --control=fifo:<path>` on around each "
             "place's measured frames, so the profile holds those frames and not the cell being "
             "loaded either side of them. `omw profile` passes this");
 
-        option(Verbs::Shot, "repeat", number(atLeast<std::uint32_t>(1))->default_value(8),
+        option({ Verb::Shot }, "repeat", number(atLeast<std::uint32_t>(1))->default_value(8),
             "trace the frame this many times and report the best. One submit times "
             "the GPU's clock rather than the shader; a comparison worth making wants hundreds");
 
-        option(Verbs::Scene, "find", bpo::value<std::string>()->default_value(""),
+        option({ Verb::Scene }, "find", bpo::value<std::string>()->default_value(""),
             "print where every placement wearing a texture whose path contains this stands. A mesh "
             "keeps no name of its own once it is a run of triangles, so the material it arrived "
             "wearing is what it is found by. How the coordinates in a view are found.");
@@ -712,7 +711,7 @@ namespace RtxTool
             "is 7168 against a cell of 8192 and so barely leaves the active grid. Not given, "
             "`settings-default.cfg`'s `[RTX] distant land cells`, or the player's own under `view`");
 
-        option(Verbs::Shot | Verbs::Bench, "against", bpo::value<std::string>()->default_value(""),
+        option({ Verb::Shot, Verb::Bench }, "against", bpo::value<std::string>()->default_value(""),
             "what to subtract this run from: the directory a previous `shot` or `bench --out` wrote, "
             "the `hashes.csv` in it, which says which frames of the run now trace "
             "something else, which frames now draw something else, and which parts of the scene "
@@ -731,13 +730,13 @@ namespace RtxTool
             "verdict, in the order the frame writes it: the first that moved is where a difference "
             "under the composed frame began");
 
-        option(Verbs::Bench, "pictures", bpo::bool_switch(),
+        option({ Verb::Bench }, "pictures", bpo::bool_switch(),
             "write every measured frame's picture into --out as <view>-<frame>.png, beside its "
             "hash, which is what a pair that differed is diffed pixel by pixel from: a hash names "
             "the frame and never where in it. A PNG a frame on the frame path, some sixty "
             "milliseconds each, so a run under this is further still from a benchmark");
 
-        option(Verbs::Shot | Verbs::Bench | Verbs::Check | Verbs::Film | Verbs::View | Verbs::Noise, "out",
+        option({ Verb::Shot, Verb::Bench, Verb::Check, Verb::Film, Verb::View, Verb::Noise }, "out",
             bpo::value<std::string>()->default_value(""),
             "the directory to write into: a `bench`'s `hashes.csv`, one row a frame — the picture, "
             "every image the trace wrote, what the frame handed the reconstruction, every image the "
@@ -753,24 +752,24 @@ namespace RtxTool
             "and <view>-averaged-limit.png: the verb's own name unless named");
 
         const FilmPacing pacing;
-        option(Verbs::View | Verbs::Film, "keys", bpo::value<std::string>()->default_value(""),
+        option({ Verb::View, Verb::Film }, "keys", bpo::value<std::string>()->default_value(""),
             "a film's keys file: `view` appends the key it stands at to it on every Home press, and "
             "`film` flies through its keys. A key is the block Home prints, so Home output pasted "
             "into a file is keys too; a key may add `seconds` (how long the flight to it takes), "
             "`at` (the second of the film it is reached at, which the flights since the key before "
             "with a time fill at one speed), `hold` (how long the camera rests on it) and `cut` (true "
             "to cut before it, false to fly to it however far)");
-        option(Verbs::Film, "plan", bpo::bool_switch(),
+        option({ Verb::Film }, "plan", bpo::bool_switch(),
             "print the takes and the length of every segment, and why, then stop without drawing");
-        option(Verbs::Film, "fps", number(atLeast(0.0f, true))->default_value(sStepRate),
+        option({ Verb::Film }, "fps", number(atLeast(0.0f, true))->default_value(sStepRate),
             "frames a second of film, which is also what the world steps by");
-        option(Verbs::Film, "speed", number(atLeast(0.0f, true))->default_value(pacing.mSpeed),
+        option({ Verb::Film }, "speed", number(atLeast(0.0f, true))->default_value(pacing.mSpeed),
             std::format("world units a second the camera flies along its path through the keys, one speed "
                         "from the first key to the last, in place of --length: {:.0f} metres a second is a "
                         "drone and not a run. A turn, the clock or a crossing on a flight takes the flight's "
                         "time, and --plan says where one asks for longer",
                 pacing.mSpeed / Constants::UnitsPerMeter));
-        option(Verbs::Film, "length", number(atLeast(0.0f, true)),
+        option({ Verb::Film }, "length", number(atLeast(0.0f, true)),
             std::format("the film's length in seconds: every flight after the last key with an `at` at "
                         "the one speed that fills it, which is the path's whole length over what is left once "
                         "the holds, the stills, what stands on the spot and the keys' own seconds are taken "
@@ -779,35 +778,35 @@ namespace RtxTool
                         "is what the keys and --speed make it",
                 FilmPacing::sLengthByDefault)
                 .c_str());
-        option(Verbs::Film, "ease", number(atLeast(0.0f))->default_value(pacing.mEase),
+        option({ Verb::Film }, "ease", number(atLeast(0.0f))->default_value(pacing.mEase),
             "seconds the camera takes to reach its speed from a rest and to come back to one: at a "
             "take's ends, at a hold, and beside a turn on the spot; and to change speed at a key it "
             "flies through, between a slower flight and a faster one, inside the faster. Nought "
             "flies at full speed from the first frame to the last");
-        option(Verbs::Film, "pan-seconds", number(atLeast(0.0f, true))->default_value(pacing.mPanSeconds),
+        option({ Verb::Film }, "pan-seconds", number(atLeast(0.0f, true))->default_value(pacing.mPanSeconds),
             "how long a pan takes to sweep one image width, or a tilt one image height: the "
             "established limit before judder, which a frame with no motion blur shows sooner");
-        option(Verbs::Film, "hour-seconds", number(atLeast(0.0f, true))->default_value(pacing.mHourSeconds),
+        option({ Verb::Film }, "hour-seconds", number(atLeast(0.0f, true))->default_value(pacing.mHourSeconds),
             "seconds of film a game hour takes where two keys' hours differ: the time-lapse's pace. "
             "The clock runs forward only, so a key at an earlier hour is reached the next day");
-        option(Verbs::Film, "crossing", number(atLeast(0.0f, true))->default_value(pacing.mCrossingSeconds),
+        option({ Verb::Film }, "crossing", number(atLeast(0.0f, true))->default_value(pacing.mCrossingSeconds),
             "the least a crossing into another weather takes. The sky crosses over the whole of the "
             "segment between two keys whatever it takes; under --turn-weather, each crossing takes this");
-        option(Verbs::Film, "clock", number(atLeast(0.0f)),
+        option({ Verb::Film }, "clock", number(atLeast(0.0f)),
             "run the game clock at this many times the game's own speed over the whole film — the timescale the "
             "session starts at, which the ×N the clock keys set in a window multiplies too — whatever hours the keys "
             "after the first name: a time-lapse the camera flies through at its own pace, across cuts. The keys' "
             "hours then set no segment's length, and --clock=0 holds the first key's hour");
-        option(Verbs::Film, "weather-hold", number(atLeast(0.0f))->default_value(pacing.mWeatherHold),
+        option({ Verb::Film }, "weather-hold", number(atLeast(0.0f))->default_value(pacing.mWeatherHold),
             "how long each weather of --turn-weather stands before it crosses into the next");
-        option(Verbs::Film, "still", number(atLeast(0.0f, true))->default_value(pacing.mStillSeconds),
+        option({ Verb::Film }, "still", number(atLeast(0.0f, true))->default_value(pacing.mStillSeconds),
             "how long a key with no key either side of it stands, and a segment where nothing changes");
-        option(Verbs::Film, "cut-distance", number(atLeast(0.0f))->default_value(pacing.mCutDistance),
+        option({ Verb::Film }, "cut-distance", number(atLeast(0.0f))->default_value(pacing.mCutDistance),
             std::format("how far apart two keys can be and still be flown between rather than cut: {:g} "
                         "exterior cells by default. A key in another interior, or inside where the last "
                         "was out, is always a cut",
                 pacing.mCutDistance / static_cast<float>(Constants::CellSizeInUnits)));
-        option(Verbs::Film, "encode", bpo::value<bool>()->default_value(true)->implicit_value(true),
+        option({ Verb::Film }, "encode", bpo::value<bool>()->default_value(true)->implicit_value(true),
             std::format("run ffmpeg over the frames once they are drawn, with {} at CRF {} in {}, which "
                         "every player reads. --encode=false prints the command instead",
                 sVideoCodec, sVideoQuality, sVideoPixels));
@@ -827,7 +826,7 @@ namespace RtxTool
             "what the camera looks at, as x,y,z, from --pos or the view's eye, and refused without "
             "either. Defaults to the view's, and without one to due north.");
 
-        option(Verbs::Shot, "accumulate", number(anyNumber<std::uint32_t>())->default_value(0),
+        option({ Verb::Shot }, "accumulate", number(anyNumber<std::uint32_t>())->default_value(0),
             "average this many differently-seeded frames into one picture. A converged reference, "
             "which is the only ground truth a sampled renderer has: error falls as the square root "
             "of this, so a hundred is a clean picture and a thousand is a reference. Wants "
@@ -841,34 +840,34 @@ namespace RtxTool
             "sample a different point inside each pixel every frame. Only worth anything to "
             "something putting several frames together, and forced on whenever anything upscales");
 
-        option(Verbs::Every, "data",
+        option(VerbSet::every(), "data",
             bpo::value<Files::MaybeQuotedPathContainer>()
                 ->default_value(Files::MaybeQuotedPathContainer(), "data")
                 ->multitoken()
                 ->composing(),
             "set data directories (later directories have higher priority)");
 
-        option(Verbs::Every, "data-local",
+        option(VerbSet::every(), "data-local",
             bpo::value<Files::MaybeQuotedPathContainer::value_type>()->default_value(
                 Files::MaybeQuotedPathContainer::value_type(), ""),
             "set local data directory (highest priority)");
 
-        option(Verbs::Every, "fallback-archive",
+        option(VerbSet::every(), "fallback-archive",
             bpo::value<StringsVector>()->default_value(StringsVector(), "fallback-archive")->multitoken()->composing(),
             "set fallback BSA archives (later archives have higher priority)");
 
-        option(Verbs::Every, "content",
+        option(VerbSet::every(), "content",
             bpo::value<StringsVector>()->default_value(StringsVector(), "")->multitoken()->composing(),
             "content file(s): esm/esp, or omwgame/omwaddon/omwscripts");
 
-        option(Verbs::Every, "groundcover",
+        option(VerbSet::every(), "groundcover",
             bpo::value<StringsVector>()->default_value(StringsVector(), "")->multitoken()->composing(),
             "groundcover content file(s): esm/esp, or omwgame/omwaddon");
 
-        option(Verbs::Every, "encoding", bpo::value<std::string>()->default_value("win1252"),
+        option(VerbSet::every(), "encoding", bpo::value<std::string>()->default_value("win1252"),
             "character encoding of the content files");
 
-        option(Verbs::Every, "fallback",
+        option(VerbSet::every(), "fallback",
             bpo::value<Fallback::FallbackMap>()->default_value(Fallback::FallbackMap(), "")->multitoken()->composing(),
             "fallback values");
 
@@ -887,7 +886,7 @@ namespace RtxTool
         return result;
     }
 
-    ToolLine ToolOptions::read(const bpo::variables_map& variables, const Verbs verb) const
+    ToolLine ToolOptions::read(const bpo::variables_map& variables, const Verb verb) const
     {
         const auto named = [&](const char* name) { return variables.count(name) != 0 && !variables[name].defaulted(); };
         const auto text = [&](const char* name) -> const std::string& { return variables[name].as<std::string>(); };
@@ -915,13 +914,11 @@ namespace RtxTool
         };
 
         ToolLine::Frame& frame = line.mFrame;
-        frame.mSize = verb == Verbs::Check && !named("size") ? sCheckFrame : parseSize(text("size"));
+        frame.mSize = verb == Verb::Check && !named("size") ? sCheckFrame : parseSize(text("size"));
         frame.mFieldOfView = real("fov");
         frame.mDay = { variables["day"].as<int>(), named("day") };
         if (const Result<void, std::string_view> checked = checkDay(frame.mDay.mValue); !checked.isOk())
             throw std::runtime_error(std::format("--day={} {}", frame.mDay.mValue, checked.error()));
-        if (verb != Verbs::View)
-            frame.mMaps = MapRules::Shipped;
         frame.mUpscale = { Rtx::sUpscaleNames.require(text("upscale"), "an upscale mode"), named("upscale") };
         frame.mUpscaler = { Rtx::sUpscalerNames.require(text("upscaler"), "an upscaler"), named("upscaler") };
         if (named("grass"))

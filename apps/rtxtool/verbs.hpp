@@ -3,6 +3,8 @@
 #include <bit>
 #include <cstddef>
 #include <cstdint>
+#include <initializer_list>
+#include <optional>
 #include <string>
 #include <string_view>
 
@@ -10,58 +12,72 @@
 
 namespace RtxTool
 {
-    /// Which of the harness's commands something is about, as a set of them: the question the options ask, since an
-    /// option is read by one command, by two or by every one, and that fact written only in the prose of its own
-    /// help line is one nothing can check (`shot --views=balmora` rendered the default place and said nothing).
-    enum class Verbs : std::uint16_t
+    /// One of the harness's commands.
+    enum class Verb : std::uint8_t
     {
-        None = 0,
+        Info,
+        Scene,
+        Shot,
+        View,
+        Bench,
+        Check,
+        Film,
+        Noise,
 
-        Info = 1 << 0,
-        Scene = 1 << 1,
-        Shot = 1 << 2,
-        View = 1 << 3,
-        Bench = 1 << 4,
-        Check = 1 << 5,
-        Film = 1 << 6,
-        Noise = 1 << 7,
-
-        /// Every command, which is what an option nobody restricted is read by: every bit up to
-        /// the last one named above, so a command added there is in it by being there.
-        Every = (Noise << 1) - 1,
+        Count,
     };
 
-    constexpr Verbs operator|(Verbs a, Verbs b)
+    /// A set of the harness's commands: the question the options ask, since an option is read by one command, by
+    /// two or by every one, and that fact written only in the prose of its own help line is one nothing can check
+    /// (`shot --views=balmora` rendered the default place and said nothing). A type apart from `Verb`, so a
+    /// question only one command can answer — its policy, its name — cannot be asked of a set.
+    class VerbSet
     {
-        return static_cast<Verbs>(static_cast<std::uint16_t>(a) | static_cast<std::uint16_t>(b));
-    }
+    public:
+        /// The commands listed, braced at an option's declaration as `{ Verb::Bench, Verb::Check }`.
+        constexpr VerbSet(std::initializer_list<Verb> verbs)
+        {
+            for (const Verb verb : verbs)
+                mBits = static_cast<std::uint16_t>(mBits | bitOf(verb));
+        }
 
-    /// Whether `one` is in `set`.
-    constexpr bool holds(Verbs set, Verbs one)
-    {
-        return (static_cast<std::uint16_t>(set) & static_cast<std::uint16_t>(one)) != 0;
-    }
+        /// Every command, which is what an option nobody restricted is read by.
+        static constexpr VerbSet every() { return VerbSet(sEvery); }
 
-    /// Every command that is not in `set`.
-    constexpr Verbs otherThan(Verbs set)
-    {
-        return static_cast<Verbs>(~static_cast<std::uint16_t>(set) & static_cast<std::uint16_t>(Verbs::Every));
-    }
+        constexpr bool contains(const Verb verb) const { return (mBits & bitOf(verb)) != 0; }
 
-    /// How many commands are in `set`.
-    constexpr std::size_t countVerbs(Verbs set)
-    {
-        return static_cast<std::size_t>(std::popcount(static_cast<std::uint16_t>(set)));
-    }
+        constexpr std::size_t size() const { return static_cast<std::size_t>(std::popcount(mBits)); }
 
-    /// What one command is typed as, or empty for a set that is not exactly one of them.
-    std::string_view verbName(Verbs one);
+        /// Every command this does not hold.
+        constexpr VerbSet complement() const { return VerbSet(static_cast<std::uint16_t>(~mBits & sEvery)); }
 
-    /// The command called `name`, or `Verbs::None` where nothing is called that.
-    Verbs verbNamed(std::string_view name);
+        constexpr bool operator==(const VerbSet&) const = default;
+
+    private:
+        static constexpr std::uint16_t sEvery = (1u << static_cast<unsigned>(Verb::Count)) - 1;
+        static_assert(static_cast<unsigned>(Verb::Count) <= 16, "a command past the set's bits");
+
+        static constexpr std::uint16_t bitOf(const Verb verb)
+        {
+            return static_cast<std::uint16_t>(1u << static_cast<unsigned>(verb));
+        }
+
+        constexpr explicit VerbSet(const std::uint16_t bits)
+            : mBits(bits)
+        {
+        }
+
+        std::uint16_t mBits = 0;
+    };
+
+    /// What `one` is typed as.
+    std::string_view verbName(Verb one);
+
+    /// The command called `name`, or nothing where nothing is called that.
+    std::optional<Verb> verbNamed(std::string_view name);
 
     /// The commands in `set`, spelled the way a help line spells them: "`bench` and `check`".
-    std::string describeVerbs(Verbs set);
+    std::string describeVerbs(VerbSet set);
 
     /// What one command does with the places it runs at: one row a command, which the staging, the
     /// hold and the setup every command shares all read, so what `shot` does with a routed view is
@@ -90,7 +106,7 @@ namespace RtxTool
 
         /// Whether somebody plays the session, so the interface is the game's — its menus, its
         /// console, a script's window — and `--hud` decides the bars alone. Everywhere else a
-        /// picture is of the world: the run closes any menu a script opens (`Stager::closeMenus`),
+        /// picture is of the world: the run closes any menu a script opens (`Staging::closeMenus`),
         /// and `--hud` decides whether anything of the interface is drawn over it
         /// (`MWRender::RunSetup::mInterface`).
         bool mPlayed = false;
@@ -104,6 +120,6 @@ namespace RtxTool
         }
     };
 
-    /// The row of `one`, which is one command.
-    const VerbPolicy& policyOf(Verbs one);
+    /// The row of `one`.
+    const VerbPolicy& policyOf(Verb one);
 }

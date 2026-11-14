@@ -253,12 +253,10 @@ namespace
             EXPECT_EQ(toNumeric<double>(spelled), std::nullopt) << spelled;
     }
 
-    /// **One reading of a spelling on every toolchain.** `toNumeric` reads floats with
-    /// `std::from_chars` where it has them and with `toFloatByStream` where it has not, and the two
-    /// are held to one set of answers here, both run on this toolchain: a leading `+` or whitespace
-    /// is no number, the number a spelling begins with is the number, a hexadecimal prefix is a
-    /// nought, and an exponent with no digits is no exponent.
-    TEST(MiscStringsToNumeric, should_read_a_spelling_the_same_way_by_either_reader)
+    /// **A spelling is read by `std::from_chars`'s grammar**: a leading `+` or whitespace is no
+    /// number, the number a spelling begins with is the number, a hexadecimal prefix is a nought,
+    /// and an exponent with no digits is no exponent.
+    TEST(MiscStringsToNumeric, should_read_a_spelling_by_from_chars_grammar)
     {
         const std::pair<std::string_view, std::optional<double>> spellings[] = {
             { "1.5", 1.5 },
@@ -277,11 +275,8 @@ namespace
         };
 
         for (const auto& [spelled, expected] : spellings)
-        {
             EXPECT_EQ(toNumeric<double>(spelled), expected) << spelled;
-            EXPECT_EQ(toFloatByStream<double>(spelled), expected) << spelled;
-        }
-        EXPECT_TRUE(std::signbit(*toFloatByStream<double>("-0")));
+        EXPECT_TRUE(std::signbit(*toNumeric<double>("-0")));
     }
 
     TEST(MiscStringsToNumeric, should_read_only_the_view)

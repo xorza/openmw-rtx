@@ -113,6 +113,9 @@ namespace Rtx
 
         FrameRing(const FrameRing&) = delete;
         FrameRing& operator=(const FrameRing&) = delete;
+        FrameRing(FrameRing&&) = delete;
+        FrameRing& operator=(FrameRing&&) = delete;
+        ~FrameRing() = default;
 
         /// How many frames have been submitted, which is the number the next one will carry.
         std::uint64_t getRecording() const { return mFrame; }

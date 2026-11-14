@@ -36,6 +36,7 @@
 #include <apps/components_tests/rtx/support/allocations.hpp>
 #include <apps/components_tests/rtx/support/graph.hpp>
 #include <apps/components_tests/rtx/support/graphlight.hpp>
+#include <apps/components_tests/rtx/support/image.hpp>
 #include <apps/components_tests/rtx/support/sceneholds.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
@@ -50,6 +51,7 @@
 #include <components/rtx/mirror/sceneextractor.hpp>
 #include <components/rtx/mirror/statereading.hpp>
 #include <components/rtx/mirror/surfacedescription.hpp>
+#include <components/rtx/preprocess/threadcontent.hpp>
 #include <components/rtx/scene/instancerecord.hpp>
 #include <components/rtx/scene/light.hpp>
 #include <components/rtx/scene/material.hpp>
@@ -174,9 +176,7 @@ namespace Rtx::Testing
                 update.setTraversalNumber(pass);
                 node->accept(update);
                 mScene.clearPlacement();
-                const std::size_t before = Testing::getAllocationCount();
-                walk(*root, 0, pass);
-                const std::size_t spent = Testing::getAllocationCount() - before;
+                const std::size_t spent = Testing::allocationsIn([&] { walk(*root, 0, pass); });
                 return std::pair{ spent, mExtractor.retire() };
             };
 
@@ -302,9 +302,7 @@ namespace Rtx::Testing
         TEST_F(RtxSceneExtractorTest, aBlendIsACutWhereItsTextureIsAMaskAndAPaneWhereItNeverCloses)
         {
             const auto imageOf = [](std::array<std::uint8_t, 4> alphas) {
-                osg::ref_ptr<osg::Image> image = new osg::Image;
-                image->setFileName("textures/tx_window_pane.dds");
-                image->allocateImage(2, 2, 1, GL_RGBA, GL_UNSIGNED_BYTE);
+                osg::ref_ptr<osg::Image> image = Testing::makeImage("textures/tx_window_pane.dds", 2, 2);
                 for (std::size_t texel = 0; texel < alphas.size(); ++texel)
                     image->data()[texel * 4 + 3] = alphas[texel];
                 return image;
@@ -363,8 +361,9 @@ namespace Rtx::Testing
             osg::ref_ptr<osg::Geometry> quad = makeQuad();
             paint(*quad->getOrCreateStateSet(), *glass);
             quad->getOrCreateStateSet()->setAttributeAndModes(new osg::BlendFunc, osg::StateAttribute::ON);
-            TemplateWalk walk(nullptr, nullptr);
-            walk.read(*quad, ~0u, model);
+            ThreadContent content;
+            TemplateWalk walk(nullptr);
+            walk.read(*quad, ~0u, model, content);
             ASSERT_EQ(model.mParts.size(), 1u);
             ASSERT_TRUE(model.mParts[0].mMaterial.mDiffuseFacts.has_value());
             EXPECT_EQ(model.mParts[0].mMaterial.mDiffuseFacts->mReachesSolid, std::optional<bool>(false));
@@ -378,9 +377,7 @@ namespace Rtx::Testing
         TEST_F(RtxSceneExtractorTest, aPanesDarkMapCountsWhereItsAlphaFallsBelowSolid)
         {
             const auto imageOf = [](std::string_view file, std::array<std::uint8_t, 4> alphas) {
-                osg::ref_ptr<osg::Image> image = new osg::Image;
-                image->setFileName(std::string(file));
-                image->allocateImage(2, 2, 1, GL_RGBA, GL_UNSIGNED_BYTE);
+                osg::ref_ptr<osg::Image> image = Testing::makeImage(std::string(file), 2, 2);
                 for (std::size_t texel = 0; texel < alphas.size(); ++texel)
                     image->data()[texel * 4 + 3] = alphas[texel];
                 return image;
@@ -424,8 +421,9 @@ namespace Rtx::Testing
             EXPECT_FALSE(wall.mDarkBelowSolid) << "an opaque surface reads no coverage";
 
             PreparedModel model;
-            TemplateWalk walk(nullptr, nullptr);
-            walk.read(*quadWearing(*stained, true), ~0u, model);
+            ThreadContent content;
+            TemplateWalk walk(nullptr);
+            walk.read(*quadWearing(*stained, true), ~0u, model, content);
             ASSERT_EQ(model.mParts.size(), 1u);
             ASSERT_TRUE(model.mParts[0].mMaterial.mDarkFacts.has_value());
             EXPECT_EQ(model.mParts[0].mMaterial.mDarkFacts->mFallsBelowSolid, std::optional<bool>(true));
@@ -629,8 +627,7 @@ namespace Rtx::Testing
                 osg::StateSet& state = *quad->getOrCreateStateSet();
                 paint(state, "textures/tx_a_steel.dds");
 
-                osg::ref_ptr<osg::Image> normalMap = new osg::Image;
-                normalMap->allocateImage(2, 2, 1, GL_RGBA, GL_UNSIGNED_BYTE);
+                osg::ref_ptr<osg::Image> normalMap = Testing::makeImage("", 2, 2);
                 constexpr std::array<unsigned char, 4> heights{ 30, 90, 200, 120 };
                 for (std::size_t texel = 0; texel < heights.size(); ++texel)
                 {
@@ -644,8 +641,7 @@ namespace Rtx::Testing
                 paint(state, *normalMap, normalRole);
                 if (specularTexel.has_value())
                 {
-                    osg::ref_ptr<osg::Image> specularMap = new osg::Image;
-                    specularMap->allocateImage(2, 2, 1, GL_RGBA, GL_UNSIGNED_BYTE);
+                    osg::ref_ptr<osg::Image> specularMap = Testing::makeImage("", 2, 2);
                     for (std::size_t texel = 0; texel < 4; ++texel)
                         std::copy(specularTexel->begin(), specularTexel->end(), specularMap->data() + texel * 4);
                     specularMap->setFileName("textures/tx_a_steel_spec.dds");
@@ -713,8 +709,7 @@ namespace Rtx::Testing
             osg::ref_ptr<osg::Image> diffuse = new osg::Image;
             diffuse->setFileName("textures/tx_ore.dds");
             const auto grey = [](const char* name) {
-                osg::ref_ptr<osg::Image> image = new osg::Image;
-                image->allocateImage(2, 2, 1, GL_RGBA, GL_UNSIGNED_BYTE);
+                osg::ref_ptr<osg::Image> image = Testing::makeImage("", 2, 2);
                 std::fill_n(image->data(), 16, static_cast<unsigned char>(128));
                 image->setFileName(name);
                 return image;
@@ -927,7 +922,7 @@ namespace Rtx::Testing
             Resource::ResourceSystem resources(&vfs, 1.0, nullptr);
 
             // The ray tracer compiles none of the rasterizer's shaders, and neither does this.
-            resources.getSceneManager()->setModelPrograms(Resource::ModelPrograms::Left);
+            resources.getSceneManager()->setModelPrograms(Resource::ModelPrograms::Omitted);
 
             const auto frame = [&](osg::Group& root, unsigned int number, double seconds) {
                 osg::ref_ptr<osg::FrameStamp> stamp = new osg::FrameStamp;
@@ -1653,9 +1648,7 @@ namespace Rtx::Testing
 
                 mScene.clearPlacement();
 
-                const std::size_t before = Testing::getAllocationCount();
-                walk(*node, 0, frame);
-                const std::size_t spent = Testing::getAllocationCount() - before;
+                const std::size_t spent = Testing::allocationsIn([&] { walk(*node, 0, frame); });
 
                 // **What the first frame legitimately spends, and every frame after it must not.**
                 // The first walk builds the scene: the tables, the identity entries and the one
@@ -1740,9 +1733,7 @@ namespace Rtx::Testing
                 both->accept(update);
                 mScene.clearPlacement();
 
-                const std::size_t before = Testing::getAllocationCount();
-                walk(*both, 0, frame);
-                const std::size_t spent = Testing::getAllocationCount() - before;
+                const std::size_t spent = Testing::allocationsIn([&] { walk(*both, 0, frame); });
 
                 if (frame > 1)
                 {
@@ -1800,9 +1791,7 @@ namespace Rtx::Testing
             root->addChild(paintedQuad(osg::StateAttribute::ON));
             const auto frame = [&](std::size_t number) {
                 mScene.clearPlacement();
-                const std::size_t before = Testing::getAllocationCount();
-                walk(*root, 0, number);
-                const std::size_t spent = Testing::getAllocationCount() - before;
+                const std::size_t spent = Testing::allocationsIn([&] { walk(*root, 0, number); });
                 mExtractor.retire();
                 mExtractor.getReleased().clear();
                 return spent;

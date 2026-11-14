@@ -3,7 +3,6 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
-#include <stdexcept>
 #include <utility>
 #include <vector>
 
@@ -11,7 +10,9 @@
 #include <osg/Image>
 #include <osg/ref_ptr>
 
+#include <components/crashcatcher/crash.hpp>
 #include <components/resource/imagemanager.hpp>
+#include <components/rtx/common/letgo.hpp>
 #include <components/rtx/renderer/guirenderer.hpp>
 #include <components/vfs/pathutil.hpp>
 
@@ -55,9 +56,9 @@ namespace MyGUIRtx
 
     void Texture::createManual(int width, int height, MyGUI::TextureUsage usage, MyGUI::PixelFormat format)
     {
+        // MyGUI asks its formats of the game's interface code, which asks none this backend does not draw.
         const std::size_t elements = elementsOf(format);
-        if (elements == 0)
-            throw std::runtime_error("Texture format not supported");
+        Crash::contract(elements != 0, "an interface texture in a format the backend does not draw");
 
         release();
 
@@ -65,18 +66,11 @@ namespace MyGUIRtx
         mUsage = usage;
         mNumElemBytes = elements;
         take(width, height);
-
-        // Nothing at four channels: `lock` hands out the renderer's own bytes there, and this is
-        // only what a narrower format is widened out of. Nothing for a slot the renderer refused,
-        // which `lock` gives a buffer of its own.
-        if (elements != 4 && !getSlot().isNone())
-            mPixels.assign(static_cast<std::size_t>(width) * height * elements, 0);
     }
 
     void Texture::loadFromFile(const std::string& fname)
     {
-        if (mImageManager == nullptr)
-            throw std::runtime_error("No imagemanager set");
+        Crash::contract(mImageManager != nullptr, "an interface texture read from a file with no image manager");
 
         // **Decoded by the engine's own image manager**, which is where every other picture in this
         // fork comes from: OpenSceneGraph stays as the content loader whatever draws
@@ -100,16 +94,16 @@ namespace MyGUIRtx
 
         mLocked = true;
 
-        // **A slot the renderer refused draws as nothing** (`SlotTexture::take`), and MyGUI still
-        // fills the whole surface it locked, a font's atlas past the device's side among them: a
-        // buffer of its own for the one fill, dropped at the unlock.
-        if (getSlot().isNone())
-        {
-            mPixels.assign(static_cast<std::size_t>(getWidth()) * getHeight() * mNumElemBytes, 0);
-            return mPixels.data();
-        }
+        // The renderer's own bytes at four channels. **A buffer of its own for one fill otherwise, dropped at the
+        // unlock**: a narrower format is widened out of it there, and a slot the renderer refused draws as nothing
+        // (`SlotTexture::take`) though MyGUI still fills the whole surface it locked, a font's atlas past the
+        // device's side among them. Held between a lock and its unlock alone, where a 1024 square atlas held two
+        // megabytes for as long as the texture stood.
+        if (mNumElemBytes == 4 && !getSlot().isNone())
+            return mRenderer.lendGuiTexture(getSlot(), whole()).data();
 
-        return mNumElemBytes == 4 ? mRenderer.lendGuiTexture(getSlot(), whole()).data() : mPixels.data();
+        mPixels.assign(static_cast<std::size_t>(getWidth()) * getHeight() * mNumElemBytes, 0);
+        return mPixels.data();
     }
 
     void Texture::unlock()
@@ -118,12 +112,15 @@ namespace MyGUIRtx
 
         mLocked = false;
 
-        if (getSlot().isNone())
-            std::vector<std::uint8_t>().swap(mPixels);
-        else if (mNumElemBytes == 4)
+        if (mNumElemBytes == 4 && !getSlot().isNone())
+        {
             mRenderer.sendGuiTexture(getSlot());
-        else
+            return;
+        }
+
+        if (!getSlot().isNone())
             widen();
+        Rtx::letGoOf(mPixels);
     }
 
     void Texture::widen()
@@ -134,28 +131,36 @@ namespace MyGUIRtx
         const std::size_t count = static_cast<std::size_t>(getWidth()) * getHeight();
         std::uint8_t* const into = mRenderer.lendGuiTexture(getSlot(), whole()).data();
 
-        for (std::size_t i = 0; i < count; ++i)
+        // One loop a format, the format chosen once and not at every pixel.
+        const std::uint8_t* const from = mPixels.data();
+        switch (mNumElemBytes)
         {
-            const std::uint8_t* in = mPixels.data() + i * mNumElemBytes;
-            std::uint8_t* out = into + i * 4;
-
-            switch (mNumElemBytes)
-            {
-                case 1:
-                    out[0] = out[1] = out[2] = in[0];
+            case 1:
+                for (std::size_t i = 0; i < count; ++i)
+                {
+                    std::uint8_t* const out = into + i * 4;
+                    out[0] = out[1] = out[2] = from[i];
                     out[3] = 0xFF;
-                    break;
-                case 2:
-                    out[0] = out[1] = out[2] = in[0];
-                    out[3] = in[1];
-                    break;
-                default:
-                    out[0] = in[0];
-                    out[1] = in[1];
-                    out[2] = in[2];
+                }
+                break;
+            case 2:
+                for (std::size_t i = 0; i < count; ++i)
+                {
+                    std::uint8_t* const out = into + i * 4;
+                    out[0] = out[1] = out[2] = from[i * 2];
+                    out[3] = from[i * 2 + 1];
+                }
+                break;
+            default:
+                for (std::size_t i = 0; i < count; ++i)
+                {
+                    std::uint8_t* const out = into + i * 4;
+                    out[0] = from[i * 3];
+                    out[1] = from[i * 3 + 1];
+                    out[2] = from[i * 3 + 2];
                     out[3] = 0xFF;
-                    break;
-            }
+                }
+                break;
         }
 
         mRenderer.sendGuiTexture(getSlot());

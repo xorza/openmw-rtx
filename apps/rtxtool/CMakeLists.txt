@@ -18,9 +18,11 @@ target_sources(
         instruments/gpuclock.cpp
         instruments/jsontext.cpp
         instruments/nvml.cpp
+        instruments/perfcontrol.cpp
         instruments/png.cpp
         instruments/reportfile.cpp
         instruments/scenedigest.cpp
+        instruments/scenereport.cpp
         instruments/threadcounters.cpp
         model/benchrecord.cpp
         model/benchrun.cpp
@@ -39,6 +41,7 @@ target_sources(
         noise.cpp
         options.cpp
         picturemean.cpp
+        plans.cpp
         runfolder.cpp
         skykeys.cpp
         verbs.cpp
@@ -51,7 +54,9 @@ target_sources(
                 framed.hpp
                 harnessfolder.hpp
                 homekey.hpp
+                keyedge.hpp
                 instruments/amdgpu.hpp
+                instruments/cardsample.hpp
                 instruments/cardwatch.hpp
                 instruments/contactsheet.hpp
                 instruments/digest.hpp
@@ -61,9 +66,11 @@ target_sources(
                 instruments/gpuclock.hpp
                 instruments/jsontext.hpp
                 instruments/nvml.hpp
+                instruments/perfcontrol.hpp
                 instruments/png.hpp
                 instruments/reportfile.hpp
                 instruments/scenedigest.hpp
+                instruments/scenereport.hpp
                 instruments/threadcounters.hpp
                 instruments/wholenumber.hpp
                 model/benchrecord.hpp
@@ -73,8 +80,8 @@ target_sources(
                 model/camerapath.hpp
                 model/cameratrack.hpp
                 model/cruise.hpp
+                model/exitstatus.hpp
                 model/film.hpp
-                model/maprules.hpp
                 model/measurewindow.hpp
                 model/pictureshelf.hpp
                 model/runrecord.hpp
@@ -85,6 +92,7 @@ target_sources(
                 numbervalue.hpp
                 options.hpp
                 picturemean.hpp
+                plans.hpp
                 runfolder.hpp
                 skykeys.hpp
                 verbs.hpp
@@ -148,6 +156,7 @@ target_sources(
     openmw-rtxtool
     PRIVATE
         cameradriver.cpp
+        checks.cpp
         hosted.cpp
         measurer.cpp
         memorykey.cpp
@@ -161,6 +170,7 @@ target_sources(
                 "${PROJECT_SOURCE_DIR}"
             FILES
                 cameradriver.hpp
+                checks.hpp
                 hosted.hpp
                 measurer.hpp
                 memorykey.hpp

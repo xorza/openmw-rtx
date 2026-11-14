@@ -26,7 +26,6 @@
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtx/world/frameworld.hpp>
-#include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/device/instance.hpp>
@@ -84,7 +83,6 @@ namespace Rtx
         void extendScene(SceneSlot slot, const SceneDesc& scene, std::span<const TextureData> arrived) override;
         SceneHeld describeHeld(SceneSlot slot) const override;
         std::span<const Refusal> getRefusals(SceneSlot slot) const override;
-        void dropTextures(SceneSlot slot, std::span<const Index> textures) override;
         void placeScene(SceneSlot slot, const SceneDesc& scene) override;
         const SceneStats& getSceneStats() const override { return mStats; }
         MemoryReport getMemoryReport() const override;
@@ -192,7 +190,7 @@ namespace Rtx
         bool mKernelsSaved = false;
 
         /// Whether `awaitKernels` has seen the set it was asked for whole and logged the pipelines
-        /// made by then (`Device::logPipelineSummary`).
+        /// made by then (`PipelineReport::logSummary`).
         bool mKernelsSummarised = false;
 
         /// The frame `createTargets` last logged.

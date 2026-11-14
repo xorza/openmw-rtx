@@ -44,6 +44,9 @@ namespace Rtx
         /// (`MeshInstance::mLampBody`).
         bool mLampBody = false;
 
+        /// Whether it shows the face wound clockwise (`MeshInstance::mClockwise`).
+        bool mClockwise = false;
+
         /// The slot it stands in, or none while the size rule, a script or the ring keeps it out.
         Index mSlot = sNoIndex;
 

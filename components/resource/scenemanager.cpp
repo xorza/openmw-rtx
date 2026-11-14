@@ -513,7 +513,7 @@ namespace Resource
     void SceneManager::recreateShaders(
         osg::ref_ptr<osg::Node> node, const std::string& shaderPrefix, const osg::Program* programTemplate)
     {
-        if (mPrograms == ModelPrograms::Left)
+        if (mPrograms == ModelPrograms::Omitted)
             return;
 
         osg::ref_ptr<Shader::ShaderVisitor> shaderVisitor(createShaderVisitor(shaderPrefix));

@@ -47,7 +47,11 @@ namespace Rtx
                 }
 
                 pass.run(input, output);
-                mCache.keep<Pass>(key, output);
+                // A stored ask reads no output, so what the run made moves into the store's payload.
+                if (ask == ContentAsk::Stored)
+                    mCache.keep<Pass>(key, std::move(output));
+                else
+                    mCache.keep<Pass>(key, output);
                 stats.mRunMs += since(keyed, std::chrono::steady_clock::now());
                 return;
             }

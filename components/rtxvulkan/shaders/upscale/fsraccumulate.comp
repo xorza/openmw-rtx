@@ -31,7 +31,17 @@
 
 layout(local_size_x = FSR_WORKGROUP, local_size_y = FSR_WORKGROUP) in;
 
+/// Fills the reprojection's table of weights (`SampleLanczos2Weight`), its points spread over `[0, 2]` as the
+/// SDK's host spreads them and each the SDK's reference `Lanczos2`, from every lane of the workgroup.
+void fillLanczosTable()
+{
+    for (uint at = gl_LocalInvocationIndex; at < LANCZOS_TABLE_SIZE; at += FSR_WORKGROUP * FSR_WORKGROUP)
+        lanczosTable[at] = Lanczos2(2.0 * FfxFloat32(at) / FfxFloat32(LANCZOS_TABLE_SIZE - 1u));
+    barrier();
+}
+
 void main()
 {
+    fillLanczosTable();
     Accumulate(FfxInt32x2(gl_GlobalInvocationID.xy));
 }

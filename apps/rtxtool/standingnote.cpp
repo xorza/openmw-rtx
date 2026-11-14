@@ -77,7 +77,7 @@ namespace RtxTool
         stood.mSky.mHour = now.getHour();
         // Counted from the new game's day, as `--day` and a key's `day` are, so the line read back
         // stands on the day it was noted on.
-        stood.mSky.mDay = now.getDay() - Stager::newGameDaysPassed();
+        stood.mSky.mDay = now.getDay() - Staging::newGameDaysPassed();
         stood.mSky.mWeather = Rtx::weatherOfScriptId(world.getCurrentWeatherScriptId());
 
         // The factor the weather system counts down from one, so what is noted counts up.

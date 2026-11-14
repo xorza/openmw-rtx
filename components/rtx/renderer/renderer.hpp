@@ -230,7 +230,7 @@ namespace Rtx
         /// pipeline. Measured by default, so a reader who forgets it gets numbers rather than a
         /// silent nought. Not a knob of the run's picture, which is why it is not in the profile. A
         /// played frame still opens its zones, which name the work a lost device was on
-        /// (`Device::checkpoint`): what goes is the timestamps and the read of them.
+        /// (`FaultReport::checkpoint`): what goes is the timestamps and the read of them.
         Reporting mReporting = Reporting::Measured;
     };
 

@@ -28,6 +28,9 @@ namespace Rtx
         /// Pinned: the visibility pass keeps the channel and volume layouts beside it by reference.
         TracePasses(const TracePasses&) = delete;
         TracePasses& operator=(const TracePasses&) = delete;
+        TracePasses(TracePasses&&) = delete;
+        TracePasses& operator=(TracePasses&&) = delete;
+        ~TracePasses() = default;
 
         /// Whether the trace writes the masks the upscaler reads, which every chain keeps whole or a
         /// texel wide by (`ChannelKeeping::mMasks`).

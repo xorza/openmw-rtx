@@ -19,7 +19,6 @@
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <apps/components_tests/rtx/support/shadowalpha.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
-#include <components/rtx/environment/wavespectrum.hpp>
 #include <components/rtx/frame/camera.hpp>
 #include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/renderer/renderer.hpp>
@@ -31,6 +30,7 @@
 #include <components/rtx/shaders/look.h>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtx/shaders/visibility.h>
+#include <components/rtx/world/wavespectrum.hpp>
 #include <components/rtxvulkan/shaders/shared/fields.h>
 #include <components/rtxvulkan/shaders/shared/ripple.h>
 
@@ -556,7 +556,7 @@ namespace Rtx::Testing
                             = axis * cosine + first * (sine * std::cos(turn)) + second * (sine * std::sin(turn));
                         lit += x + rise * d.x() / d.z() >= 0.0 ? 1 : 0;
                     }
-                return double(lit) / double(steps * steps);
+                return static_cast<double>(lit) / static_cast<double>(steps * steps);
             };
 
             const float pixel = across / size;

@@ -234,7 +234,7 @@ namespace ESM
             }
         }
         esm.writeHNT("FLAG", ((mBloodType << 10) + mFlags));
-        if (mScale != 1.0f)
+        if (mScale != 1.0)
         {
             esm.writeHNT("XSCL", mScale);
         }

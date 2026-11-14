@@ -39,10 +39,16 @@ namespace Rtx
         /// How much of the field's power sits at each distance from the origin in frequency. The mean is taken
         /// out first so the zero-frequency term does not drown the rest, and distances wrap, because the tile does.
         /// A plain O(n^2) transform over four thousand cells: a fast one would be a second implementation to be
-        /// right about for no gain here.
+        /// right about for no gain here. **Its twiddles are the tile's roots of unity, worked out once**: the phase of
+        /// a term is a whole number of `sExtent`ths of a turn, so the 16.8 million terms read `sExtent` of them.
         std::vector<double> radialPower(const std::vector<float>& field)
         {
             const double mean = std::accumulate(field.begin(), field.end(), 0.0) / static_cast<double>(sCount);
+
+            std::vector<std::complex<double>> roots(sExtent);
+            for (std::size_t k = 0; k < sExtent; ++k)
+                roots[k] = std::polar(
+                    1.0, -2.0 * std::numbers::pi_v<double> * static_cast<double>(k) / static_cast<double>(sExtent));
 
             std::vector<double> power(sExtent / 2 + 1, 0.0);
             std::vector<double> counts(sExtent / 2 + 1, 0.0);
@@ -53,11 +59,8 @@ namespace Rtx
                     std::complex<double> sum;
                     for (std::size_t y = 0; y < sExtent; ++y)
                         for (std::size_t x = 0; x < sExtent; ++x)
-                        {
-                            const double turns = static_cast<double>(u * x + v * y) / static_cast<double>(sExtent);
                             sum += (static_cast<double>(field[y * sExtent + x]) - mean)
-                                * std::polar(1.0, -2.0 * std::numbers::pi_v<double> * turns);
-                        }
+                                * roots[(u * x + v * y) % sExtent];
 
                     const std::size_t du = std::min(u, sExtent - u);
                     const std::size_t dv = std::min(v, sExtent - v);

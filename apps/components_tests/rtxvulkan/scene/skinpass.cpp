@@ -30,6 +30,7 @@
 #include <components/rtx/shaders/tangent.h>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/memory/barriers.hpp>
+#include <components/rtxvulkan/device/memory/batch.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>

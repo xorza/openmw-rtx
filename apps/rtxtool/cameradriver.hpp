@@ -24,7 +24,7 @@ namespace RtxTool
     /// Moves the camera through a stop, frame by frame: where a route has flown to, where a film's
     /// track stands the eye, the clock and the sky, the sky a turn or the keys cross, and the aim
     /// that holds the camera there. What the world is put in once, at the stop's start, is
-    /// `Stager`'s; this starts where that leaves the player.
+    /// `Staging`'s; this starts where that leaves the player.
     ///
     /// The sky is the world's until a turn or a key takes it, and from then until the stop ends it is this
     /// one's (`SkyCrossing`), handed to the world whole on every frame: the world then rolls no weather of

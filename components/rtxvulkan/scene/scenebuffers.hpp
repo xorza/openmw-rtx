@@ -13,7 +13,7 @@
 #include <components/rtx/scene/lightgrid.hpp>
 #include <components/rtx/scene/sceneroom.hpp>
 #include <components/rtx/shaders/scene.h>
-#include <components/rtxvulkan/device/commands.hpp>
+#include <components/rtxvulkan/device/memory/batch.hpp>
 #include <components/rtxvulkan/device/memory/blockedbuffer.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
@@ -128,6 +128,9 @@ namespace Rtx
             std::uint32_t mSpriteCount = 0;
             std::uint32_t mEmitterCount = 0;
             std::uint32_t mPresenceCount = 0;
+
+            /// How many of the sprites are lit as a puff is, the additive ones' glow left out: `SpriteSource`.
+            std::uint32_t mLitSpriteCount = 0;
 
             /// What one copy of them occupies. Beside the declarations, because a table added above
             /// and forgotten here is a figure that quietly stops accounting for it, which two of

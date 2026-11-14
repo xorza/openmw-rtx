@@ -25,7 +25,7 @@ namespace RtxTool
         return std::filesystem::path(OPENMW_RTX_KEYS_DIR);
     }
 
-    HarnessShaders::HarnessShaders(const Verbs verb, const bool source)
+    HarnessShaders::HarnessShaders(const Verb verb, const bool source)
     {
         const bool census = !policyOf(verb).mMeasures;
         const std::filesystem::path folder(census

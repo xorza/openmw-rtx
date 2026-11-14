@@ -67,8 +67,6 @@ namespace RtxTool
             EXPECT_TRUE(checkAgainst(root / "shot", root / "missing").isOk())
                 << "a reference nobody wrote has nothing to overwrite";
             EXPECT_TRUE(checkAgainst(root / "shot", {}).isOk());
-
-            std::filesystem::remove_all(root);
         }
 
         /// The whole of what the report says, on a picture whose differences are counted by hand.
@@ -307,36 +305,40 @@ namespace RtxTool
             struct Case
             {
                 std::vector<WrittenPicture> mPictures;
-                int mStatus;
+                ExitStatus mStatus;
                 const char* mWhat;
             };
             const Case cases[] = {
-                { { { "same.png", PictureRule::Exact } }, 0, "the same picture" },
-                { { { "one-level.png", PictureRule::Exact } }, 1, "one level under the exact rule" },
-                { { { "one-level.png", PictureRule::Denoised } }, 0, "one level under the denoiser's rule" },
-                { { { "moved.png", PictureRule::Denoised } }, 1, "forty levels under the denoiser's rule" },
-                { { { "moved.png", PictureRule::Hashed } }, 0, "a hashed picture that moved" },
-                { { { "no-reference.png", PictureRule::Exact } }, 1, "a picture with no reference" },
-                { { { "not-drawn.png", PictureRule::Exact } }, 1, "a reference with no picture" },
-                { { { "same.png", PictureRule::Exact }, { "moved.png", PictureRule::Exact } }, 1,
+                { { { "same.png", PictureRule::Exact } }, ExitStatus::Passed, "the same picture" },
+                { { { "one-level.png", PictureRule::Exact } }, ExitStatus::Differed, "one level under the exact rule" },
+                { { { "one-level.png", PictureRule::Denoised } }, ExitStatus::Passed,
+                    "one level under the denoiser's rule" },
+                { { { "moved.png", PictureRule::Denoised } }, ExitStatus::Differed,
+                    "forty levels under the denoiser's rule" },
+                { { { "moved.png", PictureRule::Hashed } }, ExitStatus::Passed, "a hashed picture that moved" },
+                { { { "no-reference.png", PictureRule::Exact } }, ExitStatus::Failed, "a picture with no reference" },
+                { { { "not-drawn.png", PictureRule::Exact } }, ExitStatus::Failed, "a reference with no picture" },
+                { { { "same.png", PictureRule::Exact }, { "moved.png", PictureRule::Exact } }, ExitStatus::Differed,
                     "one moved picture among the same" },
-                { {}, 1, "nothing to compare" },
+                { { { "moved.png", PictureRule::Exact }, { "no-reference.png", PictureRule::Exact } },
+                    ExitStatus::Failed, "a moved picture beside one with nothing to compare against" },
+                { {}, ExitStatus::Failed, "nothing to compare" },
             };
             for (const Case& expected : cases)
                 EXPECT_EQ(compareRuns(drawn, wrote, against, expected.mPictures), expected.mStatus) << expected.mWhat;
 
             const std::vector<WrittenPicture> moving = { { "moved.png", PictureRule::Exact } };
-            EXPECT_EQ(compareRuns(drawn, wrote, {}, moving), 0) << "no reference directory asks for no comparison";
+            EXPECT_EQ(compareRuns(drawn, wrote, {}, moving), ExitStatus::Passed)
+                << "no reference directory asks for no comparison";
 
             // **A picture the run did not keep fails as one not drawn**, as a run that ended before
             // the stop that writes it leaves it; and a picture is found under the folder it was
             // written to and no other.
             const std::vector<WrittenPicture> same = { { "same.png", PictureRule::Exact } };
-            EXPECT_EQ(compareRuns(PictureShelf(), wrote, against, same), 1) << "a picture this run did not draw";
-            EXPECT_EQ(compareRuns(drawn, root / "elsewhere", against, same), 1)
+            EXPECT_EQ(compareRuns(PictureShelf(), wrote, against, same), ExitStatus::Failed)
+                << "a picture this run did not draw";
+            EXPECT_EQ(compareRuns(drawn, root / "elsewhere", against, same), ExitStatus::Failed)
                 << "a picture drawn into another folder";
-
-            std::filesystem::remove_all(root);
         }
 
         /// A picture of `width` by `height` whose every pixel is `base`, but for the first `count`
@@ -437,7 +439,7 @@ namespace RtxTool
                 measured.clear();
                 return judgeNoise(drawn, root, places, 16, measured);
             };
-            EXPECT_EQ(judge({ "clean" }), 0);
+            EXPECT_EQ(judge({ "clean" }), ExitStatus::Passed);
             // **What a place measured is handed back as its line printed it**: the frame and the bar
             // each 2 off their limits everywhere, and every picture's mean 100, the reference's too,
             // so neither stands off it and the frame's no pixel is four times it.
@@ -449,15 +451,15 @@ namespace RtxTool
             EXPECT_DOUBLE_EQ(measured[0].mBias, 0.0);
             EXPECT_DOUBLE_EQ(measured[0].mFireflies, 0.0);
             EXPECT_TRUE(measured[0].clean());
-            EXPECT_EQ(judge({ "noisier-mean" }), 1);
+            EXPECT_EQ(judge({ "noisier-mean" }), ExitStatus::Differed);
             ASSERT_EQ(measured.size(), 1u);
             EXPECT_FALSE(measured[0].clean());
-            EXPECT_EQ(judge({ "noisier-tail" }), 1) << "a tail the mean hides";
-            EXPECT_EQ(judge({ "missing" }), 1);
+            EXPECT_EQ(judge({ "noisier-tail" }), ExitStatus::Differed) << "a tail the mean hides";
+            EXPECT_EQ(judge({ "missing" }), ExitStatus::Failed);
             EXPECT_TRUE(measured.empty()) << "a place not measured was handed back";
-            EXPECT_EQ(judge({ "other-size" }), 1);
-            EXPECT_EQ(judge({ "clean", "noisier-tail" }), 1) << "one noisier place among clean ones";
-            EXPECT_EQ(judge({}), 1) << "nothing measured";
+            EXPECT_EQ(judge({ "other-size" }), ExitStatus::Failed);
+            EXPECT_EQ(judge({ "clean", "noisier-tail" }), ExitStatus::Differed) << "one noisier place among clean ones";
+            EXPECT_EQ(judge({}), ExitStatus::Failed) << "nothing measured";
 
             // **A side reads its frame under its own name, and its bar and its reference under the
             // ones it names**: the frame 3 off, noisier than its own bar 2 off, is as clean as a
@@ -470,12 +472,12 @@ namespace RtxTool
                 std::vector<NoiseFigures> sideMeasured;
                 return judgeNoise(drawn, root, places, 16, sideMeasured);
             };
-            EXPECT_EQ(against("noisier-mean", "noisier-mean", "noisier-mean"), 1);
-            EXPECT_EQ(against("noisier-mean", "loose", "loose"), 0);
-            EXPECT_EQ(against("noisier-mean", "loose", "clean"), 0) << "another side's reference";
-            EXPECT_EQ(against("noisier-mean", "nowhere", "loose"), 1) << "a bar no side wrote";
-            EXPECT_EQ(against("noisier-mean", "loose", "nowhere"), 1) << "a reference no side wrote";
-            EXPECT_EQ(against("nowhere", "loose", "loose"), 1) << "a frame no side wrote";
+            EXPECT_EQ(against("noisier-mean", "noisier-mean", "noisier-mean"), ExitStatus::Differed);
+            EXPECT_EQ(against("noisier-mean", "loose", "loose"), ExitStatus::Passed);
+            EXPECT_EQ(against("noisier-mean", "loose", "clean"), ExitStatus::Passed) << "another side's reference";
+            EXPECT_EQ(against("noisier-mean", "nowhere", "loose"), ExitStatus::Failed) << "a bar no side wrote";
+            EXPECT_EQ(against("noisier-mean", "loose", "nowhere"), ExitStatus::Failed) << "a reference no side wrote";
+            EXPECT_EQ(against("nowhere", "loose", "loose"), ExitStatus::Failed) << "a frame no side wrote";
 
             // **The record holds each side's places as measured, the first side first**, and a name
             // that is no plain word stays one string.
@@ -498,15 +500,18 @@ namespace RtxTool
                 "\"barMean\": 1.5000, \"barP99\": 2.0000, \"bias\": 0.2500, \"barBias\": 0.1250, "
                 "\"fireflies\": 0.5000, \"tileX\": 8, \"tileY\": 16, \"tileMean\": 2.5000, \"tileBarMean\": 1.2500, "
                 "\"clean\": true}\n  ],\n  [\n  ]\n]}\n");
-            EXPECT_EQ(jsonNumber(std::numeric_limits<double>::quiet_NaN()), "null")
+            EXPECT_EQ(jsonNumber(std::numeric_limits<double>::quiet_NaN(), 4), "null")
                 << "a figure of no samples, which JSON has no number for";
-            EXPECT_EQ(jsonNumber(std::numeric_limits<double>::infinity()), "null");
+            EXPECT_EQ(jsonNumber(std::numeric_limits<double>::infinity(), 4), "null");
+            EXPECT_EQ(jsonNumber(1.0 / 3.0, 2), "0.33");
+            EXPECT_EQ(jsonNumber(1.0 / 3.0, 4), "0.3333");
+            EXPECT_EQ(jsonSignificant(123456789.0, 6), "1.23457e+08");
+            EXPECT_EQ(jsonSignificant(0.000123456789, 3), "0.000123");
+            EXPECT_EQ(jsonSignificant(-std::numeric_limits<double>::infinity(), 6), "null");
 
             const PictureError tail = measureError(raisedAt(10, 10, 100, 2, 10), limit);
             EXPECT_DOUBLE_EQ(tail.mMean, 0.2);
             EXPECT_EQ(tail.mP99, 10.0);
-
-            std::filesystem::remove_all(root);
         }
     }
 }

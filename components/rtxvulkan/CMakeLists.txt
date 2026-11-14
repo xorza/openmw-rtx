@@ -296,6 +296,7 @@ set(RTX_SHADER_LIB
     shaders/lib/counts.glsl
     shaders/lib/finite.glsl
     shaders/lib/fog.glsl
+    shaders/lib/fogfield.glsl
     shaders/lib/footprint.glsl
     shaders/lib/frame.glsl
     shaders/lib/froxel.glsl
@@ -310,6 +311,7 @@ set(RTX_SHADER_LIB
     shaders/lib/normaldecode.glsl
     shaders/lib/peel.glsl
     shaders/lib/pixels.glsl
+    shaders/lib/puff.glsl
     shaders/lib/random.glsl
     shaders/lib/records.glsl
     shaders/lib/reproject.glsl
@@ -384,6 +386,7 @@ target_sources(
         device/commands.cpp
         device/device.cpp
         device/extensionfilter.cpp
+        device/faultreport.cpp
         device/driverprofile.cpp
         device/gputimer.cpp
         device/graveyard.cpp
@@ -393,6 +396,7 @@ target_sources(
         device/notfinitecensus.cpp
         device/memory/accelerationstructure.cpp
         device/memory/barriers.cpp
+        device/memory/batch.cpp
         device/memory/blockedbuffer.cpp
         device/memory/buffer.cpp
         device/memory/descriptorsets.cpp
@@ -402,11 +406,13 @@ target_sources(
         device/memory/imagearena.cpp
         device/memory/joinedblocks.cpp
         device/memory/memory.cpp
+        device/memory/stagingring.cpp
         device/memory/structurestorage.cpp
         device/memory/uploads.cpp
         device/physicaldevice.cpp
         device/pipelinecache.cpp
         device/pipelinecode.cpp
+        device/pipelinereport.cpp
         device/pipelinetally.cpp
         device/requirements.cpp
         device/result.cpp
@@ -493,6 +499,7 @@ target_sources(
                 device/device.hpp
                 upscale/dlssapplication.hpp
                 device/extensionfilter.hpp
+                device/faultreport.hpp
                 device/driverprofile.hpp
                 device/gputimer.hpp
                 device/graveyard.hpp
@@ -502,6 +509,7 @@ target_sources(
                 device/notfinitecensus.hpp
                 device/memory/accelerationstructure.hpp
                 device/memory/barriers.hpp
+                device/memory/batch.hpp
                 device/memory/blockedbuffer.hpp
                 device/memory/blocklist.hpp
                 device/memory/buffer.hpp
@@ -515,13 +523,16 @@ target_sources(
                 device/memory/imageuse.hpp
                 device/memory/joinedblocks.hpp
                 device/memory/memory.hpp
+                device/memory/referencealignment.hpp
                 device/memory/slottable.hpp
+                device/memory/stagingring.hpp
                 device/memory/structurestorage.hpp
                 device/memory/uploads.hpp
                 device/owned.hpp
                 device/physicaldevice.hpp
                 device/pipelinecache.hpp
                 device/pipelinecode.hpp
+                device/pipelinereport.hpp
                 device/pipelinetally.hpp
                 device/readstamp.hpp
                 device/requirements.hpp

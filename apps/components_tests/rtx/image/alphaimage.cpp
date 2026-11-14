@@ -15,6 +15,7 @@
 
 #include <apps/components_tests/rtx/support/allocations.hpp>
 #include <apps/components_tests/rtx/support/death.hpp>
+#include <apps/components_tests/rtx/support/image.hpp>
 #include <apps/components_tests/rtx/support/testtexture.hpp>
 #include <components/rtx/image/alphaimage.hpp>
 #include <components/rtx/image/alpharange.hpp>
@@ -257,9 +258,7 @@ namespace Rtx
             alpha.build(TextureData{});
             EXPECT_TRUE(alpha.isEmpty()) << "the last texture's levels came through";
 
-            const std::size_t before = Testing::getAllocationCount();
-            alpha.build(texture);
-            const std::size_t spent = Testing::getAllocationCount() - before;
+            const std::size_t spent = Testing::allocationsIn([&] { alpha.build(texture); });
 
             EXPECT_EQ(spent, 0u) << "a rebuild reached the heap " << spent << " times";
             EXPECT_EQ(alpha.at(0, 1, 1), 77);
@@ -268,9 +267,7 @@ namespace Rtx
         /// Two texels by two, in the plain spelling `describeImage` reads.
         osg::ref_ptr<osg::Image> makeAlphaImage(std::array<std::uint8_t, 4> alphas)
         {
-            osg::ref_ptr<osg::Image> image = new osg::Image;
-            image->setFileName("paint.dds");
-            image->allocateImage(2, 2, 1, GL_RGBA, GL_UNSIGNED_BYTE);
+            osg::ref_ptr<osg::Image> image = Testing::makeImage("paint.dds", 2, 2);
 
             for (std::size_t texel = 0; texel < alphas.size(); ++texel)
             {
@@ -461,9 +458,8 @@ namespace Rtx
             ContentPreprocessor content;
             ASSERT_TRUE(content.reachesSolid(*mask)) << "the image this one has to stop carrying";
 
-            const std::size_t before = Testing::getAllocationCount();
-            const bool answer = content.reachesSolid(*wisp);
-            const std::size_t spent = Testing::getAllocationCount() - before;
+            bool answer{};
+            const std::size_t spent = Testing::allocationsIn([&] { answer = content.reachesSolid(*wisp); });
 
             EXPECT_FALSE(answer) << "the last image's alpha came through";
             EXPECT_EQ(spent, 0u) << "a second reading reached the heap " << spent << " times";
@@ -476,9 +472,7 @@ namespace Rtx
         /// stopping on.
         TEST(RtxAlphaImageTest, aFormatNobodyShipsReachesSolidRatherThanBecomingAMedium)
         {
-            osg::ref_ptr<osg::Image> luminance = new osg::Image;
-            luminance->setFileName("odd.dds");
-            luminance->allocateImage(2, 2, 1, GL_LUMINANCE, GL_UNSIGNED_BYTE);
+            osg::ref_ptr<osg::Image> luminance = Testing::makeImage("odd.dds", 2, 2, GL_LUMINANCE, GL_UNSIGNED_BYTE);
 
             ContentPreprocessor content;
             EXPECT_TRUE(content.reachesSolid(*luminance));

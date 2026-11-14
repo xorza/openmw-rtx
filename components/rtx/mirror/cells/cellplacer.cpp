@@ -406,6 +406,7 @@ namespace Rtx
                     .mMaterial = adopted.mParts[at].mMaterial,
                     .mTransform = model.mParts[at].mLocal * ref.mTransform,
                     .mLampBody = ref.mLampBody,
+                    .mClockwise = model.mParts[at].mClockwise,
                 },
                 .mRadius = ref.mRadius,
                 .mModes = model.mParts[at].mModes,
@@ -430,11 +431,9 @@ namespace Rtx
             held.mPlaces.push_back(ref.mTransform);
         }
 
-        // Largest first, once, so the size rule's answer is a prefix on every walk after this.
-        // Stable, so equal radii keep the order the references were read in and two runs of one
-        // walk place the same slots.
-        std::stable_sort(held.mPlacements.begin(), held.mPlacements.end(),
-            [](const Placement& larger, const Placement& smaller) { return larger.mRadius > smaller.mRadius; });
+        // Largest first, as the reader sorted the references, so the size rule's answer is a prefix on every walk.
+        assert(std::ranges::is_sorted(held.mPlacements, std::ranges::greater{}, &Placement::mRadius)
+            && "a cell's references read out of the size rule's order");
 
         held.mLights.clear();
         for (const PreparedLight& lamp : cell.mLights)
@@ -515,6 +514,7 @@ namespace Rtx
             .mTransform = stood.mTransform,
             .mMesh = stood.mMesh,
             .mMaterial = stood.mMaterial,
+            .mClockwise = stood.mClockwise,
             .mLampBody = stood.mLampBody,
             .mStander = Stander::Ring,
         });

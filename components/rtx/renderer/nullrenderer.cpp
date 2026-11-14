@@ -21,19 +21,19 @@ namespace Rtx
 
     bool NullRenderer::holds(const SceneSlot slot) const
     {
-        return slot.isWorld() || (slot.getViewIndex() < mViews.size() && mViews[slot.getViewIndex()].has_value());
+        return slot.isWorld() || (slot.getViewIndex() < mViews.size() && mViews.isLive(slot.getViewIndex()));
     }
 
     SceneHeld& NullRenderer::heldAt(const SceneSlot slot)
     {
         assert(holds(slot) && "a view scene that was never made or was dropped");
-        return slot.isWorld() ? mWorld : *mViews[slot.getViewIndex()];
+        return slot.isWorld() ? mWorld : mViews.at(slot.getViewIndex());
     }
 
     const SceneHeld& NullRenderer::heldAt(const SceneSlot slot) const
     {
         assert(holds(slot) && "a view scene that was never made or was dropped");
-        return slot.isWorld() ? mWorld : *mViews[slot.getViewIndex()];
+        return slot.isWorld() ? mWorld : mViews.at(slot.getViewIndex());
     }
 
     void NullRenderer::setScene(const SceneSlot slot, const SceneDesc& scene, std::span<const TextureData>)
@@ -62,27 +62,20 @@ namespace Rtx
 
     SceneSlot NullRenderer::addViewScene()
     {
-        const Index index = mFreeViews.take();
-        if (index == sNoIndex)
-        {
-            mViews.emplace_back(SceneHeld{});
-            return SceneSlot::view(static_cast<std::uint32_t>(mViews.size() - 1));
-        }
-        mViews[index] = SceneHeld{};
-        return SceneSlot::view(index);
+        return SceneSlot::view(mViews.take(SceneHeld{}));
     }
 
     void NullRenderer::dropViewScene(const SceneSlot slot)
     {
         assert(!slot.isWorld() && holds(slot) && "a view scene dropped that is not held");
-        mViews[slot.getViewIndex()].reset();
-        mFreeViews.free(slot.getViewIndex());
+        mViews.free(slot.getViewIndex());
     }
 
     NullRenderer::GuiTexture& NullRenderer::textureAt(const GuiSlot slot)
     {
-        assert(!slot.isNone() && slot.get() < mGuiTextures.size() && mGuiTextures[slot.get()].mHeld);
-        return mGuiTextures[slot.get()];
+        assert(!slot.isNone() && "a gui texture nothing names");
+        assert(mGuiTextures.isLive(slot.get()) && "a gui texture that was never made or was dropped");
+        return mGuiTextures.at(slot.get());
     }
 
     bool NullRenderer::traceGuiTexture(const GuiSlot texture, [[maybe_unused]] const SceneSlot scene,
@@ -110,15 +103,7 @@ namespace Rtx
 
     GuiSlot NullRenderer::addGuiTexture(const std::uint32_t width, const std::uint32_t height)
     {
-        const GuiTexture made{ .mWidth = width, .mHeight = height, .mHeld = true, .mCopied = false };
-        const Index index = mFreeGuiTextures.take();
-        if (index == sNoIndex)
-        {
-            mGuiTextures.push_back(made);
-            return GuiSlot::at(static_cast<std::uint32_t>(mGuiTextures.size() - 1));
-        }
-        mGuiTextures[index] = made;
-        return GuiSlot::at(index);
+        return GuiSlot::at(mGuiTextures.take(GuiTexture{ .mWidth = width, .mHeight = height, .mCopied = false }));
     }
 
     std::span<std::uint8_t> NullRenderer::lendGuiTexture(const GuiSlot texture, const GuiRegion& region)
@@ -143,8 +128,8 @@ namespace Rtx
 
     void NullRenderer::dropGuiTexture(const GuiSlot texture)
     {
-        textureAt(texture) = GuiTexture{};
-        mFreeGuiTextures.free(texture.get());
+        assert(!texture.isNone() && "a gui texture nothing names");
+        mGuiTextures.free(texture.get());
     }
 
     void NullRenderer::resize(const std::uint32_t width, const std::uint32_t height)

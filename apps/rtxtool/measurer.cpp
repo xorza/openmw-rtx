@@ -142,7 +142,7 @@ namespace RtxTool
 
         // Named once, on the first paused frame ahead of the measurement, for its note and its failure.
         if (taken.mFirstPause)
-            mProgress.mPausedBy = Stager::describePause();
+            mProgress.mPausedBy = Staging::describePause();
 
         switch (taken.mOutcome)
         {
@@ -173,9 +173,9 @@ namespace RtxTool
 
         // A measured frame of a paused world is a frame of something else, and nothing in a report says so. A menu
         // a script opens (M[FR]'s hotkey notice), the console, a message box and a script's own tag pause it;
-        // `Stager::closeMenus` closes the first kind. Not in a session somebody plays, whose pauses are theirs.
+        // `Staging::closeMenus` closes the first kind. Not in a session somebody plays, whose pauses are theirs.
         if (report.mPaused && !mRequest.mPlayed && mProgress.mPausedFrames++ == 0)
-            mProgress.mPausedBy = Stager::describePause();
+            mProgress.mPausedBy = Staging::describePause();
 
         // Counted here and not where the route moved, because a crossing is a dropped frame and only here is what it
         // dropped known (`MeasureWindow::Taken::mClosedCrossing`). The whole frame goes in as the read, because the
@@ -414,7 +414,7 @@ namespace RtxTool
                 .mHoldAskedMs = mRequest.mSetup.mRun.mProfile.mStressOverlapMs,
                 .mNotFinite = mProgress.mNotFinite,
             },
-            mRecord, mRequest.mShelf);
+            mRecord, mRecord.getShelf());
 
         // The hour and the sky of one moment, the stop's last frame, so a stop the sky turned over is not reported
         // at its closing hour under its opening sky.

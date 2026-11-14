@@ -113,6 +113,9 @@ namespace Rtx
 
         DescriptorWrites(const DescriptorWrites&) = delete;
         DescriptorWrites& operator=(const DescriptorWrites&) = delete;
+        DescriptorWrites(DescriptorWrites&&) = delete;
+        DescriptorWrites& operator=(DescriptorWrites&&) = delete;
+        ~DescriptorWrites() = default;
 
         void image(std::uint32_t binding, const VkDescriptorImageInfo& info)
         {

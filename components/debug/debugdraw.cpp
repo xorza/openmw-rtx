@@ -1,5 +1,4 @@
 #include "debugdraw.hpp"
-#include <components/crashcatcher/crash.hpp>
 #include <components/sceneutil/nodecallback.hpp>
 #include <components/shader/shadermanager.hpp>
 
@@ -331,7 +330,7 @@ namespace Debug
             ext->glUniform3f(colLocation, color.x(), color.y(), color.z());
             ext->glUniform3f(scaleLocation, scale.x(), scale.y(), scale.z());
             ext->glUniform1i(normalAsColorLocation, normalAsColor);
-            Crash::notNull(primitive, "a debug shape with no geometry")->drawImplementation(renderInfo);
+            primitive->drawImplementation(renderInfo);
         };
 
         drawPrimitive(mLinesToDraw, { 0.f, 0.f, 0.f }, { 1.f, 1.f, 1.f }, { 1.f, 1.f, 1.f }, true);

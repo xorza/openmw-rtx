@@ -10,6 +10,7 @@
 #include <apps/components_tests/rtx/support/allocations.hpp>
 #include <apps/components_tests/rtx/support/death.hpp>
 #include <components/rtx/common/index.hpp>
+#include <components/rtx/common/letgo.hpp>
 #include <components/rtx/common/scratch.hpp>
 #include <components/rtx/common/slots.hpp>
 
@@ -143,6 +144,20 @@ namespace Rtx
         /// **A spare is held by whoever `lend`s it, and given back once the last of them releases
         /// it.** The pool counts, so every lent type has one count and one assert: a cell's, a
         /// model's and a texture's holds are the same bookkeeping.
+        /// **A buffer let go of holds no room**, where one assigned an empty brace list keeps all 100 of its
+        /// elements' room: the assignment of an empty initializer list.
+        TEST(RtxScratchTest, aBufferLetGoOfHoldsNoRoom)
+        {
+            std::vector<int> braced(100);
+            braced = {};
+            EXPECT_EQ(braced.capacity(), 100u) << "a brace list gave its room back, and this proves nothing";
+
+            std::vector<int> held(100);
+            letGoOf(held);
+            EXPECT_TRUE(held.empty());
+            EXPECT_EQ(held.capacity(), 0u);
+        }
+
         TEST(RtxSparesTest, anObjectIsSpareAgainWhenItsLastHolderReleasesIt)
         {
             Spares<Reading> spares;
@@ -181,25 +196,31 @@ namespace Rtx
             Spares<Reading> spares;
             std::vector<Reading*> taken;
             taken.reserve(1000);
-            const std::size_t before = Testing::getAllocationCount();
-            for (int at = 0; at < 1000; ++at)
-                taken.push_back(&spares.take(valued(at)));
-            EXPECT_LT(Testing::getAllocationCount() - before, 1000u + 40u) << "a room made for every object made";
+            EXPECT_LT(Testing::allocationsIn([&] {
+                for (int at = 0; at < 1000; ++at)
+                    taken.push_back(&spares.take(valued(at)));
+            }),
+                1000u + 40u)
+                << "a room made for every object made";
 
-            const std::size_t made = Testing::getAllocationCount();
-            for (Reading* reading : taken)
-                spares.give(*reading);
-            EXPECT_EQ(Testing::getAllocationCount(), made) << "a give-back reached the heap";
+            EXPECT_EQ(Testing::allocationsIn([&] {
+                for (Reading* reading : taken)
+                    spares.give(*reading);
+            }),
+                0u)
+                << "a give-back reached the heap";
 
             Recycled<std::vector<int>> recycled;
             std::vector<std::vector<int>> out;
             out.reserve(100);
             for (int at = 0; at < 100; ++at)
                 out.push_back(recycled.take());
-            const std::size_t recycledMade = Testing::getAllocationCount();
-            for (std::vector<int>& value : out)
-                recycled.give(std::move(value));
-            EXPECT_EQ(Testing::getAllocationCount(), recycledMade) << "a recycled value's give-back reached the heap";
+            EXPECT_EQ(Testing::allocationsIn([&] {
+                for (std::vector<int>& value : out)
+                    recycled.give(std::move(value));
+            }),
+                0u)
+                << "a recycled value's give-back reached the heap";
         }
 
         /// **A fill that throws leaves nothing taken.** The pool empties the object and has it

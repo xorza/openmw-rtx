@@ -15,6 +15,7 @@
 
 #include <apps/components_tests/rtxvulkan/support/device/harness.hpp>
 #include <apps/components_tests/rtxvulkan/support/device/hostwritten.hpp>
+#include <apps/components_tests/rtxvulkan/support/device/probekernel.hpp>
 #include <components/rtx/shaders/storageformat.h>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
@@ -86,21 +87,6 @@ namespace Rtx
             return moments;
         }
 
-        constexpr std::array<VkDescriptorSetLayoutBinding, 6> sRoundBindings{
-            VkDescriptorSetLayoutBinding{ Shaders::UNORM_ROUND_BIND_VALUES, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1,
-                VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
-            VkDescriptorSetLayoutBinding{ Shaders::UNORM_ROUND_BIND_WORDS, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1,
-                VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
-            VkDescriptorSetLayoutBinding{ Shaders::UNORM_ROUND_BIND_ROUNDED, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1,
-                VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
-            VkDescriptorSetLayoutBinding{ Shaders::UNORM_ROUND_BIND_MEANS, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1,
-                VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
-            VkDescriptorSetLayoutBinding{ Shaders::UNORM_ROUND_BIND_VARIANCES, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1,
-                VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
-            VkDescriptorSetLayoutBinding{ Shaders::UNORM_ROUND_BIND_NEAREST, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1,
-                VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
-        };
-
         /// What the rounding probe made of each float and word.
         struct Rounded
         {
@@ -115,8 +101,6 @@ namespace Rtx
             Rounded round(const std::vector<float>& values, const std::vector<std::uint32_t>& words)
             {
                 const Device& device = getDevice();
-                const ComputePipeline<Shaders::UnormRoundConstants> pipeline(
-                    device, sRoundBindings, {}, "unormround.comp.spv", "unorm round");
                 const auto count = static_cast<std::uint32_t>(values.size());
                 const VkDeviceSize bytes = count * sizeof(std::uint32_t);
 
@@ -133,22 +117,14 @@ namespace Rtx
                 const Buffer nearest
                     = Buffer::readBack(device, bytes, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "unorm round nearest");
 
-                DescriptorWrites writes(pipeline);
-                const auto bind = [&](std::uint32_t binding, const Buffer& buffer) {
-                    writes.buffer(binding, VkDescriptorBufferInfo{ buffer.getHandle(), 0, VK_WHOLE_SIZE });
-                };
-                bind(Shaders::UNORM_ROUND_BIND_VALUES, valuesIn);
-                bind(Shaders::UNORM_ROUND_BIND_WORDS, wordsIn);
-                bind(Shaders::UNORM_ROUND_BIND_ROUNDED, rounded);
-                bind(Shaders::UNORM_ROUND_BIND_MEANS, means);
-                bind(Shaders::UNORM_ROUND_BIND_VARIANCES, variances);
-                bind(Shaders::UNORM_ROUND_BIND_NEAREST, nearest);
-
-                getPool().submitAndWait([&](VkCommandBuffer commands) {
-                    dispatch(commands, pipeline, writes, Shaders::UnormRoundConstants{ .mCount = count },
-                        Groups::along(count, Shaders::UNORM_ROUND_WORKGROUP));
-                    handOver(commands, Use::sBufferComputeWrite, Use::sBufferHostRead);
-                });
+                const std::array buffers{ Testing::ProbeBuffer{ Shaders::UNORM_ROUND_BIND_VALUES, &valuesIn },
+                    Testing::ProbeBuffer{ Shaders::UNORM_ROUND_BIND_WORDS, &wordsIn },
+                    Testing::ProbeBuffer{ Shaders::UNORM_ROUND_BIND_ROUNDED, &rounded },
+                    Testing::ProbeBuffer{ Shaders::UNORM_ROUND_BIND_MEANS, &means },
+                    Testing::ProbeBuffer{ Shaders::UNORM_ROUND_BIND_VARIANCES, &variances },
+                    Testing::ProbeBuffer{ Shaders::UNORM_ROUND_BIND_NEAREST, &nearest } };
+                Testing::runProbe(getPool(), "unormround.comp.spv", buffers,
+                    Shaders::UnormRoundConstants{ .mCount = count }, count, Shaders::UNORM_ROUND_WORKGROUP);
 
                 const auto* roundedOut = static_cast<const std::uint32_t*>(rounded.map());
                 const auto* meansOut = static_cast<const float*>(means.map());
@@ -168,17 +144,6 @@ namespace Rtx
                 std::uint32_t lanes, bool packed)
             {
                 const Device& device = getDevice();
-                constexpr std::array<VkDescriptorSetLayoutBinding, 3> bindings{
-                    VkDescriptorSetLayoutBinding{ Shaders::SHADOW_MOMENTS_PROBE_BIND_BITS,
-                        VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
-                    VkDescriptorSetLayoutBinding{ Shaders::SHADOW_MOMENTS_PROBE_BIND_DAMPING,
-                        VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr },
-                    VkDescriptorSetLayoutBinding{ Shaders::SHADOW_MOMENTS_PROBE_BIND_MOMENTS,
-                        VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT, nullptr }
-                };
-                const ComputePipeline<Shaders::ShadowMomentsProbeConstants> pipeline(
-                    device, bindings, {}, "shadowmoments.comp.spv", "shadow moments");
-
                 const Buffer bitsIn = Testing::hostWritten(
                     getPool(), std::span<const std::uint32_t>(bits), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
                 const Buffer dampingIn = Testing::hostWritten(
@@ -186,22 +151,14 @@ namespace Rtx
                 const Buffer out = Buffer::readBack(
                     device, lanes * 4 * sizeof(float), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, "shadow moments");
 
-                DescriptorWrites writes(pipeline);
-                writes.buffer(Shaders::SHADOW_MOMENTS_PROBE_BIND_BITS,
-                    VkDescriptorBufferInfo{ bitsIn.getHandle(), 0, VK_WHOLE_SIZE });
-                writes.buffer(Shaders::SHADOW_MOMENTS_PROBE_BIND_DAMPING,
-                    VkDescriptorBufferInfo{ dampingIn.getHandle(), 0, VK_WHOLE_SIZE });
-                writes.buffer(Shaders::SHADOW_MOMENTS_PROBE_BIND_MOMENTS,
-                    VkDescriptorBufferInfo{ out.getHandle(), 0, VK_WHOLE_SIZE });
-
-                getPool().submitAndWait([&](VkCommandBuffer commands) {
-                    dispatch(commands, pipeline, writes,
-                        Shaders::ShadowMomentsProbeConstants{ .mLanes = lanes,
-                            .mFrames = static_cast<std::uint32_t>(damping.size()),
-                            .mPacked = packed ? 1u : 0u },
-                        Groups::along(lanes, Shaders::SHADOW_MOMENTS_PROBE_WORKGROUP));
-                    handOver(commands, Use::sBufferComputeWrite, Use::sBufferHostRead);
-                });
+                const std::array buffers{ Testing::ProbeBuffer{ Shaders::SHADOW_MOMENTS_PROBE_BIND_BITS, &bitsIn },
+                    Testing::ProbeBuffer{ Shaders::SHADOW_MOMENTS_PROBE_BIND_DAMPING, &dampingIn },
+                    Testing::ProbeBuffer{ Shaders::SHADOW_MOMENTS_PROBE_BIND_MOMENTS, &out } };
+                Testing::runProbe(getPool(), "shadowmoments.comp.spv", buffers,
+                    Shaders::ShadowMomentsProbeConstants{ .mLanes = lanes,
+                        .mFrames = static_cast<std::uint32_t>(damping.size()),
+                        .mPacked = packed ? 1u : 0u },
+                    lanes, Shaders::SHADOW_MOMENTS_PROBE_WORKGROUP);
 
                 const auto* values = static_cast<const float*>(out.map());
                 return std::vector<float>(values, values + lanes * 4);

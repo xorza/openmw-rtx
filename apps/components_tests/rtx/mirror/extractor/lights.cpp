@@ -25,6 +25,7 @@
 
 #include <apps/components_tests/rtx/support/graph.hpp>
 #include <apps/components_tests/rtx/support/graphlight.hpp>
+#include <apps/components_tests/rtx/support/image.hpp>
 #include <components/esm3/loadligh.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
 #include <components/rtx/mirror/lightbuilder.hpp>
@@ -114,9 +115,7 @@ namespace Rtx::Testing
         {
             constexpr osg::Node::NodeMask sEffect = 1u << 1;
 
-            osg::ref_ptr<osg::Image> map = new osg::Image;
-            map->setFileName("textures/vfx_fireball01.tga");
-            map->allocateImage(2, 2, 1, GL_RGBA, GL_UNSIGNED_BYTE);
+            osg::ref_ptr<osg::Image> map = Testing::makeImage("textures/vfx_fireball01.tga", 2, 2);
             for (std::size_t texel = 0; texel < 4; ++texel)
             {
                 map->data()[texel * 4] = 255;
@@ -212,9 +211,7 @@ namespace Rtx::Testing
         {
             constexpr osg::Node::NodeMask sEffect = 1u << 1;
 
-            osg::ref_ptr<osg::Image> map = new osg::Image;
-            map->setFileName("textures/vfx_fireglow.tga");
-            map->allocateImage(2, 2, 1, GL_RGBA, GL_UNSIGNED_BYTE);
+            osg::ref_ptr<osg::Image> map = Testing::makeImage("textures/vfx_fireglow.tga", 2, 2);
             for (std::size_t texel = 0; texel < 4; ++texel)
             {
                 map->data()[texel * 4] = 255;
@@ -249,9 +246,7 @@ namespace Rtx::Testing
             EXPECT_EQ(Shaders::lightFill(lamp.mTraits), 1.0f);
 
             {
-                osg::ref_ptr<osg::Image> half = new osg::Image;
-                half->setFileName("textures/vfx_fireglow_half.tga");
-                half->allocateImage(2, 2, 1, GL_RGBA, GL_UNSIGNED_BYTE);
+                osg::ref_ptr<osg::Image> half = Testing::makeImage("textures/vfx_fireglow_half.tga", 2, 2);
                 for (std::size_t texel = 0; texel < 4; ++texel)
                 {
                     half->data()[texel * 4] = 255;
@@ -475,9 +470,7 @@ namespace Rtx::Testing
             constexpr osg::Node::NodeMask sActor = 1u << 2;
             mExtractor.setClassMask(Rtx::InstanceClass::Actor, sActor);
 
-            osg::ref_ptr<osg::Image> map = new osg::Image;
-            map->setFileName("textures/creature_flame.tga");
-            map->allocateImage(1, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE);
+            osg::ref_ptr<osg::Image> map = Testing::makeImage("textures/creature_flame.tga", 1, 1);
             for (std::size_t channel = 0; channel < 4; ++channel)
                 map->data()[channel] = 255;
 

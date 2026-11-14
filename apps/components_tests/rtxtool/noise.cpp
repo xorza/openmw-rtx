@@ -12,6 +12,7 @@
 
 #include <osg/Vec3f>
 
+#include <apps/components_tests/rtx/support/refusal.hpp>
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <apps/rtxtool/noise.hpp>
 #include <components/rtx/frame/frameextents.hpp>
@@ -98,15 +99,7 @@ namespace RtxTool
 
         std::string refusal(const NoiseAsk& ask)
         {
-            try
-            {
-                planNoise(ask);
-            }
-            catch (const std::runtime_error& error)
-            {
-                return error.what();
-            }
-            return "nothing was refused";
+            return Rtx::Testing::refusalOf([&] { planNoise(ask); });
         }
 
         /// **A place standing is five pictures from 67 stops, each drawing samples of its own.** With

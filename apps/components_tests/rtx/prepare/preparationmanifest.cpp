@@ -180,17 +180,19 @@ namespace Rtx
             EXPECT_TRUE(again.isChanged());
         }
 
+        /// Every file stamped `mStamp`, which a test moves to say a file changed.
+        struct FixedStamps final : FileStamps
+        {
+            std::uint64_t stampOf(VFS::Path::NormalizedView) override { return mStamp; }
+            std::uint64_t mStamp = 5;
+        };
+
         /// **A model stands where its files' stamps match and the store holds every key its walk filed**:
         /// filed with two keys the store holds, it stands; with one of them deleted, as a store refuses a
         /// file, it does not; and a stamp that moved is no match whatever the store holds.
         TEST(RtxPreparationManifestTest, aModelStandsOnlyWhereTheStoreHoldsEveryKeyItFiled)
         {
-            struct Fixed final : FileStamps
-            {
-                std::uint64_t stampOf(VFS::Path::NormalizedView) override { return mStamp; }
-                std::uint64_t mStamp = 5;
-            };
-            Fixed stamps;
+            FixedStamps stamps;
             Misc::ByteBuffer scratch;
             ContentStore::Store store(TestingOpenMW::currentTestDirPath() / "store", sContentStorePolicy);
             for (const StoredKey& key : { sShared, sOwn })
@@ -352,11 +354,7 @@ namespace Rtx
         /// file is gone is a model that does not stand.
         TEST(RtxPreparationManifestTest, aStandingModelsShapesAreReadIntoTheStoresMemory)
         {
-            struct Fixed final : FileStamps
-            {
-                std::uint64_t stampOf(VFS::Path::NormalizedView) override { return 5; }
-            };
-            Fixed stamps;
+            FixedStamps stamps;
             const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "store";
             constexpr StoredKey shape{ .mKey = { { 0x0123456789abcdefull, 0xfedcba9876543210ull } },
                 .mPass = ContentPassId::Shape };

@@ -66,6 +66,12 @@ layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_FAST, ACCUMULATE_FAST) un
 layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_SAMPLED) uniform readonly image2D sampled;
 layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_SAMPLED_FILL) uniform readonly image2D sampledFill;
 
+/// What the frame before was shown at, which the accumulator held each sample under (`heldSampleShare`).
+layout(set = SET_PASS, binding = ACCUMULATE_CLAMP_BIND_EXPOSURE, scalar) readonly buffer Exposure
+{
+    float exposure;
+};
+
 /// The slow means as the accumulator blended them, in the bounce's `a` the deviation this writes — the
 /// square root of the variance, which the wavelet squares back (`atrous.comp` says why) — and in the fill's
 /// how many frames the mean holds: whether the ring holds it down, and whether its variance is its own or
@@ -153,9 +159,14 @@ void main()
         const ivec2 inside = clamp(pixel, ivec2(0), last);
         const ivec2 insideStored = storedAt(inside, frame.mEyes.mWorld.mWidth, fieldSwapOf(frame.mFrame));
         const bool held = gFastLit[square.y + INSET][square.x + INSET] >= 0.0;
-        gSampled[square.y][square.x] = held ? imageLoad(sampled, insideStored).rgb : vec3(0.0);
+        // **The samples as the accumulator blended them**, each held under the exposure's ceiling where it held
+        // them, so the push goes toward the means the slow and the fast ones are of: one firefly in the square
+        // otherwise set the push's direction for the whole of it.
+        const vec3 traced = imageLoad(sampled, insideStored).rgb;
+        const float kept = ACCUMULATE_RING ? heldSampleShare(dot(traced, LUMINANCE_WEIGHTS), exposure) : 1.0;
+        gSampled[square.y][square.x] = held ? traced * kept : vec3(0.0);
         if (ACCUMULATE_HOLDS_FILL)
-            gSampledFill[square.y][square.x] = held ? imageLoad(sampledFill, insideStored).rgb : vec3(0.0);
+            gSampledFill[square.y][square.x] = held ? imageLoad(sampledFill, insideStored).rgb * kept : vec3(0.0);
         const vec2 luminance = imageLoad(moments, insideStored).rg;
         gMoments[square.y][square.x] = held ? vec2(luminance.x, secondMoment(luminance.x, luminance.y)) : vec2(0.0);
         // No surface is `SURFACE_NO_NORMAL`, whose normal of nought weighs nought in the variance.

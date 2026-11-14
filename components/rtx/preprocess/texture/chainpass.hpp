@@ -10,6 +10,7 @@
 
 #include <components/contentstore/key.hpp>
 #include <components/misc/bytebuffer.hpp>
+#include <components/rtx/common/letgo.hpp>
 #include <components/rtx/image/chainbuild.hpp>
 #include <components/rtx/image/madeimage.hpp>
 #include <components/rtx/image/textureencoding.hpp>
@@ -134,8 +135,8 @@ namespace Rtx
         void letGo()
         {
             release();
-            mLevels = {};
-            mTexels = {};
+            letGoOf(mLevels);
+            letGoOf(mTexels);
         }
 
     private:

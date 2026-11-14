@@ -1,76 +1,82 @@
 #include "verbs.hpp"
 
 #include <array>
+#include <cassert>
 #include <cstddef>
 #include <string>
 #include <string_view>
 #include <utility>
 
-#include <components/crashcatcher/crash.hpp>
 #include <components/rtx/common/namedenum.hpp>
 
 namespace RtxTool
 {
     namespace
     {
-        /// Every command and the word it is typed as, in the order `--help` prints them.
+        /// One command: the word it is typed as and what it does with the places it runs at.
+        struct VerbRow
+        {
+            Verb mVerb;
+            std::string_view mName;
+            VerbPolicy mPolicy;
+        };
+
+        /// Every command, in the order `--help` prints them and the enum counts them.
         ///
-        /// **The one list of the names**, which is what makes an option's ownership and the
-        /// dispatch's table the same statement: a command renamed here is renamed in both.
-        constexpr Rtx::NamedEnum sNames{ std::array{
-            std::pair{ Verbs::Info, std::string_view("info") },
-            std::pair{ Verbs::Scene, std::string_view("scene") },
-            std::pair{ Verbs::Shot, std::string_view("shot") },
-            std::pair{ Verbs::View, std::string_view("view") },
-            std::pair{ Verbs::Bench, std::string_view("bench") },
-            std::pair{ Verbs::Check, std::string_view("check") },
-            std::pair{ Verbs::Film, std::string_view("film") },
-            std::pair{ Verbs::Noise, std::string_view("noise") },
-        } };
-    }
-
-    const VerbPolicy& policyOf(const Verbs one)
-    {
-        // In the order `sNames` names them. `view` flies nothing and freezes nothing, and keeps the
-        // game's interface, because somebody is flying it; `check` and `shot` fly a route unfrozen
-        // and stand still elsewhere; `bench` measures what moves; `noise` stands still, because a
-        // reference is many frames of one frame.
-        static constexpr std::array<std::pair<Verbs, VerbPolicy>, 8> sPolicies{ {
-            { Verbs::Info, VerbPolicy{} },
-            { Verbs::Scene, VerbPolicy{ .mFreezes = true } },
-            { Verbs::Shot, VerbPolicy{ .mFreezes = true, .mFliesRoutes = true, .mHashes = true } },
-            { Verbs::View, VerbPolicy{ .mPlayed = true } },
-            { Verbs::Bench, VerbPolicy{ .mFliesRoutes = true, .mMeasures = true } },
-            { Verbs::Check, VerbPolicy{ .mFreezes = true, .mFliesRoutes = true } },
-            { Verbs::Film, VerbPolicy{ .mFollowsTracks = true, .mMeasures = true } },
-            { Verbs::Noise, VerbPolicy{ .mFreezes = true } },
+        /// **The one list of the names**, which is what makes an option's ownership and the dispatch's table the same
+        /// statement: a command renamed here is renamed in both. `view` flies nothing and freezes nothing, and keeps
+        /// the game's interface, because somebody is flying it; `check` and `shot` fly a route unfrozen and stand
+        /// still elsewhere; `bench` measures what moves; `noise` stands still, because a reference is many frames of
+        /// one frame.
+        constexpr std::array<VerbRow, static_cast<std::size_t>(Verb::Count)> sRows{ {
+            { Verb::Info, "info", VerbPolicy{} },
+            { Verb::Scene, "scene", VerbPolicy{ .mFreezes = true } },
+            { Verb::Shot, "shot", VerbPolicy{ .mFreezes = true, .mFliesRoutes = true, .mHashes = true } },
+            { Verb::View, "view", VerbPolicy{ .mPlayed = true } },
+            { Verb::Bench, "bench", VerbPolicy{ .mFliesRoutes = true, .mMeasures = true } },
+            { Verb::Check, "check", VerbPolicy{ .mFreezes = true, .mFliesRoutes = true } },
+            { Verb::Film, "film", VerbPolicy{ .mFollowsTracks = true, .mMeasures = true } },
+            { Verb::Noise, "noise", VerbPolicy{ .mFreezes = true } },
         } };
 
-        for (const auto& [verb, policy] : sPolicies)
-            if (verb == one)
-                return policy;
+        /// The names, checked where they are declared: each command once, in enum order, no spelling shared.
+        constexpr Rtx::NamedEnum sNames{ [] {
+            std::array<std::pair<Verb, std::string_view>, sRows.size()> names{};
+            for (std::size_t at = 0; at < sRows.size(); ++at)
+                names[at] = { sRows[at].mVerb, sRows[at].mName };
+            return names;
+        }() };
 
-        Crash::fatal("a command with no row in the policy table");
+        const VerbRow& rowOf(const Verb one)
+        {
+            assert(one != Verb::Count);
+            return sRows[static_cast<std::size_t>(one)];
+        }
     }
 
-    std::string_view verbName(const Verbs one)
+    const VerbPolicy& policyOf(const Verb one)
     {
-        return sNames.name(one);
+        return rowOf(one).mPolicy;
     }
 
-    Verbs verbNamed(const std::string_view name)
+    std::string_view verbName(const Verb one)
     {
-        return sNames.named(name).value_or(Verbs::None);
+        return rowOf(one).mName;
     }
 
-    std::string describeVerbs(const Verbs set)
+    std::optional<Verb> verbNamed(const std::string_view name)
     {
-        std::size_t left = countVerbs(set);
+        return sNames.named(name);
+    }
+
+    std::string describeVerbs(const VerbSet set)
+    {
+        std::size_t left = set.size();
 
         std::string result;
-        for (const auto& [verb, name] : sNames.mNames)
+        for (const VerbRow& row : sRows)
         {
-            if (!holds(set, verb))
+            if (!set.contains(row.mVerb))
                 continue;
 
             // The last of several is joined with "and", so a help line reads as a sentence rather
@@ -79,7 +85,7 @@ namespace RtxTool
                 result += left == 1 ? " and " : ", ";
 
             result += '`';
-            result += name;
+            result += row.mName;
             result += '`';
             --left;
         }

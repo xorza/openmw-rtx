@@ -1,3 +1,7 @@
+#include <algorithm>
+#include <array>
+#include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <optional>
@@ -8,7 +12,10 @@
 
 #include <gtest/gtest.h>
 
+#include <apps/rtxtool/instruments/png.hpp>
 #include <apps/rtxtool/model/benchrun.hpp>
+#include <apps/rtxtool/model/exitstatus.hpp>
+#include <apps/rtxtool/model/pictureshelf.hpp>
 #include <apps/rtxtool/model/runrecord.hpp>
 #include <components/files/conversion.hpp>
 #include <components/rtx/common/asserts.hpp>
@@ -26,38 +33,93 @@ namespace RtxTool
 {
     namespace
     {
+        /// Two parts of one run answer the worse of their two statuses, whichever is asked first: a refusal over a
+        /// failure over a difference over a pass.
+        TEST(RtxExitStatusTest, twoPartsOfARunAnswerTheWorse)
+        {
+            constexpr std::array sBestFirst{ ExitStatus::Passed, ExitStatus::Differed, ExitStatus::Failed,
+                ExitStatus::Refused };
+            for (std::size_t a = 0; a < sBestFirst.size(); ++a)
+                for (std::size_t b = 0; b < sBestFirst.size(); ++b)
+                    EXPECT_EQ(worseOf(sBestFirst[a], sBestFirst[b]), sBestFirst[std::max(a, b)]) << a << ' ' << b;
+
+            // The codes a driver reads: 0 passed, 1 failed, 2 a usage error, 3 differed.
+            EXPECT_EQ(codeOf(ExitStatus::Passed), 0);
+            EXPECT_EQ(codeOf(ExitStatus::Failed), 1);
+            EXPECT_EQ(codeOf(ExitStatus::Refused), 2);
+            EXPECT_EQ(codeOf(ExitStatus::Differed), 3);
+        }
+
+        /// **The result carries what the run kept**: the pictures where the request kept them, and the extents the
+        /// renderer made where one was made; a run that keeps none hands back an empty shelf.
+        TEST(RtxRunRecordTest, theResultCarriesThePicturesKeptAndTheExtentsTraced)
+        {
+            const std::filesystem::path file = "place.png";
+            const std::array<std::uint8_t, 4> pixel{ 1, 2, 3, 255 };
+
+            SessionRequest keeping;
+            keeping.mKeepsPictures = true;
+            RunRecord kept;
+            kept.begin(keeping);
+            ASSERT_NE(kept.getShelf(), nullptr);
+            kept.getShelf()->keep(file, 1, 1, pixel);
+            const Rtx::FrameExtents made{
+                .mRenderWidth = 638, .mRenderHeight = 359, .mOutputWidth = 957, .mOutputHeight = 539
+            };
+            kept.noteTraced(made);
+            const SessionResult result = kept.conclude(nullptr);
+            const PngImage* const found = result.mShelf.find(file);
+            ASSERT_NE(found, nullptr);
+            EXPECT_EQ(found->mWidth, 1u);
+            ASSERT_TRUE(result.mTraced.has_value());
+            EXPECT_EQ(result.mTraced->mRenderWidth, 638u);
+            EXPECT_EQ(result.mTraced->mOutputHeight, 539u);
+
+            RunRecord unkept;
+            unkept.begin(SessionRequest{});
+            EXPECT_EQ(unkept.getShelf(), nullptr);
+            const SessionResult none = unkept.conclude(nullptr);
+            EXPECT_EQ(none.mShelf.find(file), nullptr);
+            EXPECT_FALSE(none.mTraced.has_value()) << "no renderer was made";
+        }
+
         /// **A run's status tells "differed" from "failed"**: a run that only differed from its
-        /// reference answers `sDifferedStatus`, one that failed answers 1 whatever else differed, and
+        /// reference answers differed, one that failed answers failed whatever else differed, and
         /// a failed check is a failure.
         TEST(RtxRunRecordTest, aRunThatDifferedIsToldApartFromOneThatFailed)
         {
-            EXPECT_EQ(RunRecord().describe(nullptr).mExitStatus, 0);
+            EXPECT_EQ(RunRecord().conclude(nullptr).mExitStatus, ExitStatus::Passed);
 
             RunRecord differed;
             differed.differ();
-            EXPECT_EQ(differed.describe(nullptr).mExitStatus, sDifferedStatus);
+            EXPECT_EQ(differed.conclude(nullptr).mExitStatus, ExitStatus::Differed);
 
             RunRecord both;
             both.differ();
             both.fail();
-            EXPECT_EQ(both.describe(nullptr).mExitStatus, 1);
+            EXPECT_EQ(both.conclude(nullptr).mExitStatus, ExitStatus::Failed);
+            RunRecord bothAfter;
+            bothAfter.fail();
+            bothAfter.differ();
+            EXPECT_EQ(bothAfter.conclude(nullptr).mExitStatus, ExitStatus::Failed) << "whichever came first";
 
             RunRecord checked;
             checked.checked(true);
-            EXPECT_EQ(checked.describe(nullptr).mExitStatus, 0);
+            EXPECT_EQ(checked.conclude(nullptr).mExitStatus, ExitStatus::Passed);
             checked.checked(false);
-            EXPECT_EQ(checked.describe(nullptr).mExitStatus, 1);
+            EXPECT_EQ(checked.conclude(nullptr).mExitStatus, ExitStatus::Failed);
 
             // **A stop passed over fails the run where somebody named it**, and not where it came of every view.
             RunRecord passed;
             passed.skip(Stop{ .mName = "mournhold-arrival", .mWhenAbsent = WhenAbsent::Skips },
                 R"(no interior is called "Mournhold, Royal Palace: Reception Area")");
-            EXPECT_EQ(passed.describe(nullptr).mExitStatus, 0);
+            EXPECT_EQ(passed.conclude(nullptr).mExitStatus, ExitStatus::Passed);
             EXPECT_EQ(passed.getReport(),
                 "\nmournhold-arrival: passed over, no interior is called \"Mournhold, Royal Palace: Reception Area\", "
                 "which a run of every view does not fail on\n");
             passed.skip(Stop{ .mName = "mournhold-arrival" }, "no interior is called \"Mournhold\"");
-            EXPECT_EQ(passed.describe(nullptr).mExitStatus, 1) << "a named stop's absence fails the run";
+            EXPECT_EQ(passed.conclude(nullptr).mExitStatus, ExitStatus::Failed)
+                << "a named stop's absence fails the run";
             EXPECT_TRUE(passed.getReport().ends_with(
                 "\nmournhold-arrival: passed over, no interior is called \"Mournhold\"\n"));
         }
@@ -74,8 +136,8 @@ namespace RtxTool
 
             SessionRequest request;
             request.mStops = { turning };
-            request.mHashes = TestingOpenMW::outputFilePath("premises-hashes.csv");
-            request.mJson = TestingOpenMW::outputFilePath("premises.json");
+            request.mHashes = TestingOpenMW::currentTestDirPath() / "premises-hashes.csv";
+            request.mJson = TestingOpenMW::currentTestDirPath() / "premises.json";
             Rtx::RenderProfile& profile = request.mSetup.mRun.mProfile;
             profile.mReconstruction.mDenoise = false;
             profile.mReconstruction.mJitter = false;
@@ -89,7 +151,7 @@ namespace RtxTool
             request.mStep = 0.0625f;
             request.mSetup.mSettled = false;
             request.mSetup.mRun.mMemoryBudget = 512ull * 1024 * 1024;
-            request.mMaps = std::nullopt;
+            request.mPlayed = true;
 
             RunRecord record;
             record.begin(request);
@@ -139,18 +201,22 @@ namespace RtxTool
             EXPECT_EQ(word == "not said", !share.has_value());
             EXPECT_NE(record.getReport().find("  not a measurement: this command draws its frames"), std::string::npos);
 
+            // A session nobody plays names its maps by the shipped patterns, so two machines trace one scene.
+            RunRecord unplayed;
+            unplayed.begin(SessionRequest{});
+            unplayed.add(BenchPlace{});
+            EXPECT_NE(unplayed.getReport().find(", maps shipped, "), std::string::npos) << unplayed.getReport();
+
             record.finish(request);
             std::ostringstream read;
             read << std::ifstream(request.mJson).rdbuf();
-            std::filesystem::remove(request.mJson);
-            std::filesystem::remove(request.mHashes);
 
             const std::string json = read.str();
             constexpr std::string_view premises
                 = R"("measures": false, "hashed": true, "turnsWeather": true, "maps": "player", "hugePageShare": )";
             constexpr std::string_view setup
                 = R"(  "filter": false, "jitter": false, "gamma": 2.200, "show": "albedo", )"
-                  R"("exposure": 1.5, "exposureHeld": false, "variants": false, "holdMs": 8.000,)";
+                  R"("exposure": 1.5000, "exposureHeld": false, "variants": false, "holdMs": 8.000,)";
             constexpr std::string_view mirror = R"(  "landCells": 4.0, "viewingDistance": 7168.0, )"
                                                 R"("distantStatics": false, "step": 0.0625, "settled": false, )"
                                                 R"("memoryBudget": 536870912,)";
@@ -171,7 +237,7 @@ namespace RtxTool
         /// write is one line under them and a status of 1.
         TEST(RtxRunRecordTest, aFileItCannotWriteFailsTheRunAndKeepsTheReport)
         {
-            const std::filesystem::path nowhere = TestingOpenMW::outputFilePath("no-such-folder") / "deeper";
+            const std::filesystem::path nowhere = TestingOpenMW::currentTestDirPath() / "no-such-folder" / "deeper";
             std::filesystem::remove_all(nowhere.parent_path());
 
             RunRecord record;
@@ -185,8 +251,8 @@ namespace RtxTool
             request.mJson = nowhere / "record.json";
             record.finish(request);
 
-            const SessionResult result = record.describe(nullptr);
-            EXPECT_EQ(result.mExitStatus, 1);
+            const SessionResult result = record.conclude(nullptr);
+            EXPECT_EQ(result.mExitStatus, ExitStatus::Failed);
             EXPECT_EQ(result.mReport.find(place), 0u) << result.mReport;
             EXPECT_NE(result.mReport.find("could not write " + Files::pathToUnicodeString(nowhere / "hashes.csv")),
                 std::string::npos)
@@ -202,7 +268,7 @@ namespace RtxTool
         /// dropped rather than written as a hash of nothing, and the run fails.
         TEST(RtxRunRecordTest, anAbandonedRunWritesWhatItReachedAndFails)
         {
-            const std::filesystem::path hashes = TestingOpenMW::outputFilePath("abandoned-hashes.csv");
+            const std::filesystem::path hashes = TestingOpenMW::currentTestDirPath() / "abandoned-hashes.csv";
             {
                 std::ofstream stale(hashes);
                 stale << "the run before\n";
@@ -220,7 +286,7 @@ namespace RtxTool
             request.mHashes = hashes;
             record.abandon(request);
 
-            EXPECT_EQ(record.describe(nullptr).mExitStatus, 1);
+            EXPECT_EQ(record.conclude(nullptr).mExitStatus, ExitStatus::Failed);
             EXPECT_EQ(record.getHashes().frameCount(), 1u) << "the frame whose picture never came";
             EXPECT_NE(record.getReport().find("wrote 1 frame hashes"), std::string::npos) << record.getReport();
 
@@ -228,7 +294,6 @@ namespace RtxTool
             read << std::ifstream(hashes).rdbuf();
             EXPECT_EQ(read.str().find("the run before"), std::string::npos) << read.str();
             EXPECT_NE(read.str().find("seyda-neen,1,"), std::string::npos) << read.str();
-            std::filesystem::remove(hashes);
         }
 
         /// **A run that begins removes everything the last run wrote where it writes**: its hashes, JSON,
@@ -238,8 +303,7 @@ namespace RtxTool
         /// stop's name that is no frame's.
         TEST(RtxRunRecordTest, aRunThatBeginsRemovesTheLastRunsOutputs)
         {
-            const std::filesystem::path folder = TestingOpenMW::outputFilePath("begun");
-            std::filesystem::remove_all(folder);
+            const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "begun";
             std::filesystem::create_directories(folder);
 
             Stop stop;
@@ -271,7 +335,6 @@ namespace RtxTool
                 EXPECT_FALSE(std::filesystem::exists(folder / name)) << "the last run's " << name << " stood";
             for (const std::string& name : kept)
                 EXPECT_TRUE(std::filesystem::exists(folder / name)) << name << " is no output of this run";
-            std::filesystem::remove_all(folder);
         }
     }
 }

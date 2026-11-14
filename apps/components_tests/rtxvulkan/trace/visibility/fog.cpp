@@ -21,7 +21,6 @@
 #include <apps/components_tests/rtx/support/testtexture.hpp>
 #include <apps/components_tests/rtxvulkan/support/device/rendererprobe.hpp>
 #include <components/rtx/common/index.hpp>
-#include <components/rtx/environment/wavespectrum.hpp>
 #include <components/rtx/frame/frameoptions.hpp>
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/renderer/framesinflight.hpp>
@@ -38,6 +37,7 @@
 #include <components/rtx/world/fognoise.hpp>
 #include <components/rtx/world/frameworld.hpp>
 #include <components/rtx/world/moon.hpp>
+#include <components/rtx/world/wavespectrum.hpp>
 #include <components/vfs/pathutil.hpp>
 
 #include "fixture.hpp"
@@ -365,16 +365,16 @@ namespace Rtx::Testing
                 }
         }
 
-        /// A lamp lights the air it stands in, and by the isotropic share of what it delivers.
+        /// A lamp lights the air it stands in, by what the fog's phase turns of what it delivers toward the eye.
         ///
-        /// `INV_FOUR_PI` is what this is about: a lamp reaches a point in the fog as irradiance, as it reaches a
-        /// surface, and what comes back toward the eye is that spread over the whole sphere. Dropping the factor
-        /// lights the air 4pi times over (the centre pixel goes from 121 of 255 to 211).
+        /// A lamp reaches a point in the fog as irradiance, as it reaches a surface, and what comes back toward
+        /// the eye is that turned by the phase the sun and the moons take: the even sphere's `INV_FOUR_PI` sent
+        /// thirty-nine times what this lamp, square to the ray, sends toward the eye.
         ///
         /// The lamp is far enough away that its falloff is flat along the ray, so the march's answer is
         /// analytic: the scattered terms telescope to `E / 4pi * (1 - T)`. Twenty thousand units off a
         /// two-hundred-unit ray varies the irradiance by 0.02%.
-        TEST_F(RtxVisibilityTest, aLampLightsTheAirItStandsInByTheIsotropicShareOfWhatItDelivers)
+        TEST_F(RtxVisibilityTest, aLampLightsTheAirItStandsInByTheFogsPhaseOfWhatItDelivers)
         {
             constexpr std::uint32_t size = 33;
             constexpr std::size_t centre = centreValueOf(size);
@@ -429,9 +429,12 @@ namespace Rtx::Testing
             constexpr float wall = 0.5f * sFoggySky;
             EXPECT_EQ(look(false), int{ encodeSrgb(0.5f * wall) }) << "black air over a lit wall";
 
-            // And with it, one unit of irradiance through an isotropic sphere, over the half of the
-            // ray's light the fog took: 0.15 + 1 / (4 pi) * 0.5 = 0.18979, which encodes to 121.
-            const float scattered = 0.25f * Shaders::INV_PI * 0.5f;
+            // And with it, one unit of irradiance turned toward the eye by the fog's phase, over the half of the
+            // ray's light the fog took. The lamp stands square to the ray, `cos` 200 / 20001 = 0.01 at the
+            // middle and 0.005 to 0.015 along it, where Jendersie and d'Eon's fit at eight microns sends
+            // 0.0020416 of it a steradian (0.0020258 to 0.0020592, flat to a byte): 0.15 + 0.0020416 * 0.5.
+            constexpr float sideways = 0.0020416f;
+            const float scattered = sideways * 0.5f;
             EXPECT_NEAR(look(true), int{ encodeSrgb(0.5f * wall + scattered) }, 1) << "the lamp in the air";
 
             // And nothing at all through a lid, the whole of what the march's one ray buys: every lamp at every
@@ -474,7 +477,9 @@ namespace Rtx::Testing
 
             /// What it delivers where the ray passes closest, which the intensity is scaled to
             /// rather than named — so the expectations below need no falloff in them.
-            static constexpr float sIrradiance = 12.0f;
+            /// Bright, because the fog's phase sends a lamp beside the ray a thirtieth of what an even sphere would
+            /// toward the eye, and what the tests below measure has to stand above the frame's noise.
+            static constexpr float sIrradiance = 120.0f;
             static inline const osg::Vec3f sIntensity
                 = osg::Vec3f(1.0f, 1.0f, 1.0f) * (sIrradiance / lampDelivered(sLamp.z(), sReach));
 
@@ -673,7 +678,8 @@ namespace Rtx::Testing
                                 osg::Vec3f(side * slit, posts, 500.0f) });
                 scene.addLight(Light{
                     .mPosition = lamp,
-                    .mIntensity = osg::Vec3f(1.0f, 1.0f, 1.0f) * (48.0f / lampDelivered(lamp.z(), reach)),
+                    // Bright for the reason `LampInTheAir::sIrradiance` gives.
+                    .mIntensity = osg::Vec3f(1.0f, 1.0f, 1.0f) * (480.0f / lampDelivered(lamp.z(), reach)),
                     .mReach = reach,
                 });
 
@@ -1354,7 +1360,7 @@ namespace Rtx::Testing
                     .mRadius = 2000.0f,
                     .mColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
                     .mAlpha = 1.0f } };
-                scene.addEmitter(sprites, cut, BlendKind::Add);
+                scene.addEmitter(sprites, EmitterSpec{ .mTexture = cut, .mBlend = BlendKind::Add });
 
                 Shaders::VisibilityConstants camera = Testing::makeCamera(
                     osg::Vec3f(0.0f, -height, height), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 100000.0f);

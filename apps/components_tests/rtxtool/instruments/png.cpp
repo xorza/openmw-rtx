@@ -33,8 +33,8 @@ namespace RtxTool
             constexpr std::array<std::uint8_t, 8> pixels{ 255, 0, 0, 255, 0, 128, 255, 64 };
             const std::string description = "# -2,-10 at -9491, -74261, 450 — bearing 265°\n[view]\npos = 1, 2, 3\n";
 
-            const std::filesystem::path plain = TestingOpenMW::outputFilePath("plain.png");
-            const std::filesystem::path described = TestingOpenMW::outputFilePath("described.png");
+            const std::filesystem::path plain = TestingOpenMW::currentTestDirPath() / "plain.png";
+            const std::filesystem::path described = TestingOpenMW::currentTestDirPath() / "described.png";
             ASSERT_TRUE(writePng(plain, 2, 1, pixels).isOk());
             ASSERT_TRUE(writePng(described, 2, 1, pixels, description).isOk());
 
@@ -83,7 +83,7 @@ namespace RtxTool
         {
             constexpr std::array<std::uint16_t, 8> samples{ 0, 1, 32768, 65535, 257, 258, 25700, 25829 };
 
-            const std::filesystem::path deep = TestingOpenMW::outputFilePath("deep.png");
+            const std::filesystem::path deep = TestingOpenMW::currentTestDirPath() / "deep.png";
             ASSERT_TRUE(writePng(deep, 2, 1, samples, "a mean").isOk());
 
             const Result<PngImage, std::string> read = readPng(deep);
@@ -115,7 +115,7 @@ namespace RtxTool
         {
             constexpr std::array<std::uint8_t, 4> pixel{ 1, 2, 3, 255 };
 
-            const std::filesystem::path nowhere = TestingOpenMW::outputFilePath("no-such-dir") / "picture.png";
+            const std::filesystem::path nowhere = TestingOpenMW::currentTestDirPath() / "no-such-dir" / "picture.png";
             // The file's name, then the system's own words for why, which are each system's to spell.
             const std::string named = "could not write " + Files::pathToUnicodeString(nowhere) + ": ";
             for (const std::string& refused :
@@ -127,7 +127,7 @@ namespace RtxTool
 
             EXPECT_EQ(readPng(nowhere).error(), Files::pathToUnicodeString(nowhere) + " is missing");
 
-            const std::filesystem::path text = TestingOpenMW::outputFilePath("text.png");
+            const std::filesystem::path text = TestingOpenMW::currentTestDirPath() / "text.png";
             std::ofstream(text) << "not a picture";
             EXPECT_EQ(readPng(text).error(), Files::pathToUnicodeString(text) + " does not decode");
         }

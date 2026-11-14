@@ -983,6 +983,14 @@ float surfaceWithin(WorldRay ray, float tmin, float reach, Cone cone, RayRule ru
     return withinOf(queryScene(surfaceWithinQuery(ray, tmin, reach, cone, rule)), reach);
 }
 
+/// **Where the eye's view ends along `ray`**, which is the eye's own or one through a column or a traced pixel of
+/// it: the first surface the camera draws (`worldMask`), walking past what a ray meets by chance, out to
+/// `frame.mFar`, which a ray that met nothing answers. What the fog's columns and the sprites' composite march to.
+float eyeViewEnds(WorldRay ray, Cone cone)
+{
+    return surfaceWithin(ray, 0.0, frame.mFar, cone, RayRule(worldMask(frame.mRayMask), MEET_WALK_PAST, true));
+}
+
 RayAsk solidWithinAsk(WorldRay ray, float tmin, float reach, Cone cone)
 {
     return rayOf(surfaceWithinQuery(ray, tmin, reach, cone, RayRule(solidMask(frame.mRayMask), MEET_BY_CHANCE, false)));

@@ -8,6 +8,7 @@
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/memory/barriers.hpp>
+#include <components/rtxvulkan/device/memory/batch.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>
@@ -34,10 +35,11 @@ namespace Rtx
 
     void GuiDrawer::prepare(std::span<const GuiVertex> vertices, std::span<const GuiBatch> batches)
     {
-        // The interface drawn two draws ago drew out of this slot, and the vertices carry the
-        // submit that bound them: that passed is what says they may be written over.
-        Slot& slot = current();
-        slot.mVertices.get().waitIdle("the interface drawn two frames ago");
+        // The interface prepared two prepares ago drew out of this slot, if anything drew it, and the vertices
+        // carry the submit that bound them: that passed is what says they may be written over.
+        mSlot = FrameSlot{ static_cast<std::uint32_t>(mPrepares++ % sFrameSlots) };
+        Slot& slot = mSlots.at(mSlot);
+        slot.mVertices.get().waitIdle("the interface prepared two draws ago");
 
         // The picture first, over the whole of what is shown and replacing it, and the interface's
         // own vertices after it. White, so the draw hands the picture on as it is.
@@ -92,7 +94,7 @@ namespace Rtx
         const VkCommandBuffer commands, const Image& picture, const Image& shown, const ImageUse& shownAfter)
     {
         assert(mPrepared && "an interface recorded that was never prepared");
-        const Slot& slot = current();
+        const Slot& slot = mSlots.at(mSlot);
 
         mDraws.front().mTexture = picture.getView();
         Barriers drawing(commands);
@@ -107,12 +109,11 @@ namespace Rtx
         rested.flush();
 
         mPrepared = false;
-        ++mDrawn;
     }
 
     void GuiDrawer::submit(const Image& picture, const Image& shown)
     {
-        Recording recording = mDevice.getPool().begin(current().mCommands[0]);
+        Recording recording = mDevice.getPool().begin(mSlots.at(mSlot).mCommands[0]);
         record(recording.get(), picture, shown, PresentTarget::sResting);
         std::move(recording).submit();
     }

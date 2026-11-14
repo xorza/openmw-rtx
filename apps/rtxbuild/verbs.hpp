@@ -11,7 +11,7 @@ namespace RtxBuild
     /// and the optimizer.
     void guard(Arguments arguments);
 
-    /// `pin <module.spv>`: the module rewritten in place by `Rtx::pinFloatArithmetic`, the step every shader takes
+    /// `pin <module.spv>`: the module rewritten in place by `Rtx::pinModule`, the step every shader takes
     /// before `spirv-val`. In place, as `guard` is, because each is a step over the one file of its stage.
     void pin(Arguments arguments);
 

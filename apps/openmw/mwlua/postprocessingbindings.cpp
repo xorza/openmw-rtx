@@ -8,11 +8,15 @@
 #include "../mwbase/environment.hpp"
 #include "../mwbase/world.hpp"
 #include "../mwrender/postprocessor.hpp"
+#include "../mwrender/renderer.hpp"
+#include "../mwrender/renderingmanager.hpp"
+#include "../mwrender/rendersupport.hpp"
 
 #include "context.hpp"
 #include "luamanagerimp.hpp"
 
 #include <format>
+#include <string_view>
 
 namespace
 {
@@ -70,6 +74,21 @@ namespace MWLua
             Action_Disable
         } mQueuedAction = Action_None;
     };
+
+    namespace
+    {
+        /// Why the renderer has no post-processing chain, or nothing where it has one: the seam's answer, as every
+        /// other caller asks it (`MWRender::RenderSupport::declinedSetting`).
+        std::string_view declinedChain()
+        {
+            return MWBase::Environment::get()
+                .getWorld()
+                ->getRenderingManager()
+                ->getRenderer()
+                .support()
+                .declinedSetting("Post Processing", "enabled");
+        }
+    }
 
     template <class T>
     auto getSetter(const Context& context)
@@ -204,11 +223,10 @@ namespace MWLua
         }
 
         api["load"] = [](const std::string& name) {
-            if (MWBase::Environment::get().getWorld()->getPostProcessor() == nullptr)
+            if (const std::string_view declined = declinedChain(); !declined.empty())
             {
-                [[maybe_unused]] static const bool told = [] {
-                    Log(Debug::Info) << "This renderer has no post-processing chain: a script's shaders load and draw "
-                                        "nothing";
+                [[maybe_unused]] static const bool told = [declined] {
+                    Log(Debug::Info) << "A script's post-processing shaders load and draw nothing: " << declined;
                     return true;
                 }();
                 return Shader(std::string_view(name));
@@ -224,7 +242,7 @@ namespace MWLua
 
         api["getChain"] = [context]() {
             sol::table chain(context.sol(), sol::create);
-            if (MWBase::Environment::get().getWorld()->getPostProcessor() == nullptr)
+            if (!declinedChain().empty())
                 return chain;
 
             for (const auto& shader : MWBase::Environment::get().getWorld()->getPostProcessor()->getChain())

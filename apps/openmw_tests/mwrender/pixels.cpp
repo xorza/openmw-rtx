@@ -8,6 +8,7 @@
 #include <osg/Image>
 #include <osg/ref_ptr>
 
+#include <apps/components_tests/rtx/support/image.hpp>
 #include <apps/openmw/mwrender/pixels.hpp>
 #include <components/crashcatcher/crash.hpp>
 #include <components/sceneutil/imageregion.hpp>
@@ -25,8 +26,7 @@ namespace MWRender
         /// A grey picture `width` by `height`, with `value(x, y)` in every channel of every pixel.
         osg::ref_ptr<osg::Image> makeGrey(int width, int height, const std::function<int(int, int)>& value)
         {
-            osg::ref_ptr<osg::Image> image = new osg::Image;
-            image->allocateImage(width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE);
+            osg::ref_ptr<osg::Image> image = Rtx::Testing::makeImage("", width, height);
 
             for (int y = 0; y < height; ++y)
             {
@@ -144,8 +144,7 @@ namespace MWRender
         {
             const osg::ref_ptr<osg::Image> tile = makeGrey(2, 2, [](int x, int y) { return 50 + x * 100 + y * 20; });
 
-            osg::ref_ptr<osg::Image> land = new osg::Image;
-            land->allocateImage(4, 4, 1, GL_ALPHA, GL_UNSIGNED_BYTE);
+            osg::ref_ptr<osg::Image> land = Rtx::Testing::makeImage("", 4, 4, GL_ALPHA, GL_UNSIGNED_BYTE);
             for (int y = 0; y < 4; ++y)
                 for (int x = 0; x < 4; ++x)
                     texelAt(*land, x, y) = x < 3 ? 255 : 0;

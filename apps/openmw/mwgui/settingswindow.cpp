@@ -253,9 +253,6 @@ namespace MWGui
         , mCurrentPage(static_cast<size_t>(-1))
         , mCfgMgr(cfgMgr)
     {
-        assert(std::ranges::equal(mUpscalers, std::span(Rtx::sUpscalerMenu).first(mUpscalers.size()))
-            && "the renderer offered upscalers that are not a prefix of the menu");
-
         // One cell to a step, over the range the setting's own category states
         MyGUI::ScrollBar* distantLand;
         getWidget(distantLand, "RayTracingDistantLandSlider");
@@ -303,7 +300,15 @@ namespace MWGui
         mRayTracingUpscale->eventComboChangePosition
             += MyGUI::newDelegate(this, &SettingsWindow::onRayTracingUpscaleChanged);
 
-        addMenuItems<Rtx::UpscalerChoice>(mRayTracingUpscaler, std::span(sUpscalerLabels).first(mUpscalers.size()));
+        // Each offered choice by its own label, looked up and not read by position: the renderer offers what this
+        // machine runs, which need not be the menu's first entries.
+        for (const Rtx::UpscalerChoice offered : mUpscalers)
+        {
+            const auto label
+                = std::ranges::find(sUpscalerLabels, offered, &Rtx::MenuLabel<Rtx::UpscalerChoice>::mValue);
+            assert(label != sUpscalerLabels.end() && "an upscaler offered with no label");
+            mRayTracingUpscaler->addItem(MyGUI::LanguageManager::getInstance().replaceTags(label->mLabel));
+        }
         mRayTracingUpscaler->eventComboChangePosition
             += MyGUI::newDelegate(this, &SettingsWindow::onRayTracingUpscalerChanged);
 

@@ -1,6 +1,8 @@
 #include <algorithm>
 #include <array>
+#include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <span>
 #include <vector>
 
@@ -14,6 +16,29 @@ namespace Rtx
     {
         /// Runs handed out one after another are laid end to end, and the buffer is as long as they
         /// are together.
+        /// **Items split into runs whose bytes fit the room, in order**: 5 and 3 fill a room of 8, 4 starts the next, 9
+        /// is larger than the room and a run of its own, which the room is then grown to, and 2 starts the last. An
+        /// item that takes no part is neither placed nor ends a run, and nothing is no run at all.
+        TEST(RtxSplitIntoRunsTest, itemsSplitIntoRunsWhoseBytesFitTheRoom)
+        {
+            const std::array<std::optional<std::uint64_t>, 6> bytes{ 5, 3, std::nullopt, 4, 9, 2 };
+            std::vector<std::uint64_t> offsets(bytes.size(), 99);
+            std::vector<std::size_t> ends{ 7 };
+            const std::uint64_t most = splitIntoRuns(
+                bytes.size(), 8, [&](const std::size_t at) { return bytes[at]; },
+                [&](const std::size_t at, const std::uint64_t offset) { offsets[at] = offset; }, ends);
+
+            EXPECT_EQ(most, 9u);
+            EXPECT_EQ(ends, (std::vector<std::size_t>{ 3, 4, 5, 6 }));
+            EXPECT_EQ(offsets, (std::vector<std::uint64_t>{ 0, 5, 99, 0, 0, 0 }));
+
+            EXPECT_EQ(splitIntoRuns(
+                          2, 8, [](std::size_t) { return std::optional<std::uint64_t>(); },
+                          [](std::size_t, std::uint64_t) {}, ends),
+                0u);
+            EXPECT_TRUE(ends.empty()) << "a run of nothing";
+        }
+
         TEST(RtxRunAllocatorTest, runsAreLaidEndToEndAndTheBufferIsAsLongAsTheySum)
         {
             RunAllocator allocator;

@@ -16,7 +16,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include <apps/rtxtool/instruments/frametimes.hpp>
+#include <apps/rtxtool/instruments/perfcontrol.hpp>
 #include <components/platform/fifo.hpp>
 #include <components/platform/file.hpp>
 #include <components/testing/util.hpp>
@@ -72,7 +72,7 @@ namespace RtxTool
         /// so the message is the count, not whatever failed before it.
         TEST(RtxPerfControlTest, aShortWriteIsNamedByWhatItWrote)
         {
-            const Reader listening(TestingOpenMW::outputFilePath("perf-control-short-test"));
+            const Reader listening(TestingOpenMW::currentTestDirPath() / "perf-control-short-test");
             const Platform::File::ScopedHandle fifo(Platform::Fifo::openForWriting(listening.getPath()));
 
             const std::vector<char> flood(std::size_t{ 1 } << 20, 'x');
@@ -91,7 +91,7 @@ namespace RtxTool
 
         TEST(RtxPerfControlTest, aBracketedRunSendsPerfTheTwoWordsItListensFor)
         {
-            const Reader listening(TestingOpenMW::outputFilePath("perf-control-test"));
+            const Reader listening(TestingOpenMW::currentTestDirPath() / "perf-control-test");
 
             {
                 PerfControl control(listening.getPath());
@@ -104,7 +104,7 @@ namespace RtxTool
 
         TEST(RtxPerfControlTest, twoPlacesEachBracketTheirOwnFrames)
         {
-            const Reader listening(TestingOpenMW::outputFilePath("perf-control-pair-test"));
+            const Reader listening(TestingOpenMW::currentTestDirPath() / "perf-control-pair-test");
 
             PerfControl control(listening.getPath());
             control.enable();
@@ -122,8 +122,7 @@ namespace RtxTool
         /// first raced a slow load. A reader that never comes is a failure once the wait is spent.
         TEST(RtxPerfControlTest, theOpenWaitsForAReaderThatComesLateAndNoLonger)
         {
-            const std::filesystem::path path = TestingOpenMW::outputFilePath("perf-control-late-test");
-            std::filesystem::remove(path);
+            const std::filesystem::path path = TestingOpenMW::currentTestDirPath() / "perf-control-late-test";
             ASSERT_EQ(::mkfifo(path.c_str(), 0600), 0);
 
             int reader = -1;
@@ -154,12 +153,11 @@ namespace RtxTool
                 EXPECT_EQ(error.code(), std::errc::no_such_device_or_address) << error.what();
             }
             EXPECT_GE(std::chrono::steady_clock::now() - begun, std::chrono::milliseconds(50)) << "it did not wait";
-            std::filesystem::remove(path);
         }
 
         TEST(RtxPerfControlTest, aStopBeforeTheFirstFrameSaysNothing)
         {
-            const Reader listening(TestingOpenMW::outputFilePath("perf-control-stop-test"));
+            const Reader listening(TestingOpenMW::currentTestDirPath() / "perf-control-stop-test");
 
             PerfControl control(listening.getPath());
             control.disable();

@@ -18,7 +18,11 @@ namespace RtxTool
 {
     std::vector<BenchSuite> loadSuites(const std::filesystem::path& path)
     {
-        const BlockFile file = BlockFile::load(path);
+        return readSuites(BlockFile::load(path));
+    }
+
+    std::vector<BenchSuite> readSuites(const BlockFile& file)
+    {
         const std::span<const Block> blocks = file.getBlocks();
 
         std::vector<BenchSuite> suites;
@@ -200,7 +204,11 @@ namespace RtxTool
 
     std::vector<Stop> loadViews(const std::filesystem::path& path)
     {
-        const BlockFile file = BlockFile::load(path);
+        return readViews(BlockFile::load(path));
+    }
+
+    std::vector<Stop> readViews(const BlockFile& file)
+    {
         const std::span<const Block> blocks = file.getBlocks();
 
         // Collected and resolved afterwards, because a route and a likeness can point forwards: `to` and `like` may

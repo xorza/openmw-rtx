@@ -139,7 +139,7 @@ namespace MWRender
         /// How much world this renderer builds, in units: the ground, the air and the distant lights are all
         /// measured over it. The settings' count of cells in the cells of the worldspace the last walk stood
         /// in (`Rtx::CellGrid::reachOf`).
-        float getReach() const { return mGrid.reachOf(mReach); }
+        float getReach() const { return mGrid.reachOf(mKnobs.mReach); }
 
         /// The worldspace's grid, as the last walk read it off the land.
         const Rtx::CellGrid& getGrid() const { return mGrid; }
@@ -151,7 +151,7 @@ namespace MWRender
 
         /// The menu moved the reach, or the view distance it falls back to. Told rather than read
         /// per frame, so the ring, the air and the map follow one number a frame was handed.
-        void setReach(const Rtx::LandReach& reach) { mReach = reach; }
+        void setReach(const Rtx::LandReach& reach) { mKnobs.mReach = reach; }
 
         /// Where the last walk stood the rings: the camera's eye, which is not the player's feet.
         const osg::Vec3f& getEye() const { return mEye; }
@@ -208,12 +208,10 @@ namespace MWRender
 
         /// The world's groundcover, or null where it has none. Before the ring, as the content is.
         std::unique_ptr<TracedGroundcover> mGroundcover;
-        float mGroundcoverReach = 0.0f;
-        float mGroundcoverDensity = 0.0f;
-        bool mGroundcoverLampLit = true;
 
-        /// `MirrorKnobs::mDistantStatics`, which every frame's world says (`Rtx::CellWorld::mStatics`).
-        bool mDistantStatics = true;
+        /// What the settings say of the mirror: its groundcover, and whether the distance's statics stand, which
+        /// every frame's world says (`Rtx::CellWorld::mStatics`), and its reach, which a change moves (`setReach`).
+        MirrorKnobs mKnobs;
 
         Rtx::SceneExtractor mExtractor;
 
@@ -236,8 +234,6 @@ namespace MWRender
         /// The distant cells waiting for their ground to be flattened, in the order the walks asked. Here
         /// because only a world has ground and a chunk waits past the frame that asked for it.
         Rtx::CompositeQueue mComposites;
-
-        Rtx::LandReach mReach;
         Rtx::CellGrid mGrid;
         osg::Vec3f mEye;
     };

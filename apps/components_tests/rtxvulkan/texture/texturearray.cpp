@@ -27,9 +27,11 @@
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/handles.hpp>
+#include <components/rtxvulkan/device/memory/batch.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/memory.hpp>
+#include <components/rtxvulkan/device/timeline.hpp>
 #include <components/rtxvulkan/texture/texture.hpp>
 #include <components/rtxvulkan/texture/texturearrival.hpp>
 #include <components/rtxvulkan/texture/texturecost.hpp>
@@ -95,26 +97,56 @@ namespace Rtx
             textures.write(secondArrival, passes, rooms, std::span(&second, 1), refused, nullptr);
             EXPECT_TRUE(refused.empty());
             secondArrival.defer();
-            hold.submit(std::move(binding));
+            const std::uint64_t bound = hold.submit(std::move(binding));
 
-            // Long enough that a wait which returned at once is told from one that waited, under three
-            // shards of this binary sharing the device.
-            constexpr std::chrono::milliseconds held{ 200 };
-            const auto asked = std::chrono::steady_clock::now();
-            hold.releaseAfter(held);
+            // The other set, which nothing bound, waits for nothing: it returns with the binder still held.
+            const Timeline& timeline = device.getTimeline();
+            textures.finishReads(FrameSlot{ 1 });
+            EXPECT_FALSE(timeline.hasFinished(bound)) << "the set nothing bound waited for the other's binder";
 
+            // A wait that returned at once is told from one that waited by the submit having run when it returns.
+            hold.releaseAfter(std::chrono::milliseconds(20));
             textures.finishReads(FrameSlot{ 0 });
-            EXPECT_GE(std::chrono::steady_clock::now() - asked, held) << "the sync did not wait for the set's binder";
+            EXPECT_TRUE(timeline.hasFinished(bound)) << "the sync did not wait for the set's binder";
 
             // A wait that returned early writes this into a set a submit the hold still keeps on
             // the queue has bound, which is the write the assert fires on.
             syncSet(textures, pool, FrameSlot{ 0 });
-
-            // And the other set, which nothing bound, waits for nothing.
-            const auto other = std::chrono::steady_clock::now();
-            textures.finishReads(FrameSlot{ 1 });
-            EXPECT_LT(std::chrono::steady_clock::now() - other, held);
             syncSet(textures, pool, FrameSlot{ 1 });
+        }
+
+        /// **A change of anisotropy is in every set when it returns**, on a queue that binds none of them: a set left
+        /// owing its samplers until its next placement was a picture's scene traced unplaced through samplers the
+        /// graveyard had destroyed. A set bound by a submit still on the queue is a contract the renderer's drain
+        /// keeps, and the write dies under it.
+        TEST_F(RtxTextureArrayTest, aChangeOfAnisotropyIsInEverySetWhenItReturns)
+        {
+            Device& device = getDevice();
+            CommandPool& pool = getPool();
+
+            const SetLayout layout = TextureArray::describeLayout(device);
+            const TexturePasses passes(device);
+            TextureArrival rooms(device);
+            Batch setup(pool);
+            TextureArray textures(device, setup, layout, passes, rooms, 1, 1);
+            setup.flush();
+            syncSet(textures, pool, FrameSlot{ 0 });
+            syncSet(textures, pool, FrameSlot{ 1 });
+
+            // Handed out with no sync between: the sets owe nothing.
+            textures.setAnisotropy(16);
+            const LentCommands binder = pool.lend(1);
+            Recording binding = pool.begin(binder[0]);
+            EXPECT_NE(textures.getSet(FrameSlot{ 0 }), VK_NULL_HANDLE);
+            EXPECT_NE(textures.getSet(FrameSlot{ 1 }), VK_NULL_HANDLE);
+
+            Testing::HeldSubmit hold(device);
+            const std::uint64_t bound = hold.submit(std::move(binding));
+            Testing::expectAssertDies(
+                [&] { textures.setAnisotropy(8); }, "samplers written under a submit still bound to their set");
+            hold.release();
+            device.waitFor(bound, "the binder");
+            textures.setAnisotropy(8);
         }
 
         /// An arrival of one file is held to the largest side it fits the room at, the level a file begins at: a file
@@ -143,7 +175,7 @@ namespace Rtx
             const TexturePasses passes(device);
             TextureArrival rooms(device);
             Batch setup(getPool());
-            const TextureArray textures(device, setup, layout, passes, rooms, 3);
+            TextureArray textures(device, setup, layout, passes, rooms, 3);
             setup.flush();
 
             Testing::TestTexture ladder;
@@ -227,7 +259,7 @@ namespace Rtx
             const TexturePasses passes(device);
             TextureArrival rooms(device);
             Batch setup(getPool());
-            const TextureArray textures(device, setup, layout, passes, rooms, 2);
+            TextureArray textures(device, setup, layout, passes, rooms, 2);
             setup.flush();
 
             Testing::TestTexture first;
@@ -280,7 +312,7 @@ namespace Rtx
             second.mData.mSlot = 1;
 
             std::vector<std::uint32_t> firsts;
-            const auto firstOf = [&](const TextureArray& array, const TextureData& texture, const VkDeviceSize room) {
+            const auto firstOf = [&](TextureArray& array, const TextureData& texture, const VkDeviceSize room) {
                 array.chooseLevels(std::span(&texture, 1), room, rooms, firsts);
                 return firsts.at(0);
             };
@@ -299,7 +331,7 @@ namespace Rtx
 
             // **And so is another scene's array**: the rooms are the renderer's, one for every scene.
             Batch other(getPool());
-            const TextureArray elsewhere(device, other, layout, passes, rooms, 2);
+            TextureArray elsewhere(device, other, layout, passes, rooms, 2);
             other.flush();
             EXPECT_EQ(firstOf(elsewhere, second.mData, 44709 - 21840), 0u)
                 << "a second scene priced the means the shared room holds";

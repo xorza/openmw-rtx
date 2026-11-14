@@ -10,7 +10,7 @@
 #include <components/rtx/common/slots.hpp>
 #include <components/rtx/renderer/guirenderer.hpp>
 #include <components/rtx/renderer/slot.hpp>
-#include <components/rtxvulkan/device/commands.hpp>
+#include <components/rtxvulkan/device/memory/batch.hpp>
 #include <components/rtxvulkan/device/memory/growablebuffer.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/device/memory/imageuse.hpp>

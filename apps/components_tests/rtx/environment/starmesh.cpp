@@ -20,6 +20,7 @@
 #include <osg/Vec3f>
 #include <osg/ref_ptr>
 
+#include <apps/components_tests/rtx/support/image.hpp>
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/environment/starmesh.hpp>
 #include <components/rtx/preprocess/threadcontent.hpp>
@@ -60,8 +61,7 @@ namespace Rtx
         /// upload takes.
         osg::ref_ptr<osg::StateSet> binding(const std::string& file, unsigned int flags = osg::StateAttribute::ON)
         {
-            osg::ref_ptr<osg::Image> image = new osg::Image;
-            image->allocateImage(2, 2, 1, GL_RGBA, GL_UNSIGNED_BYTE);
+            osg::ref_ptr<osg::Image> image = Testing::makeImage("", 2, 2);
             for (int at = 0; at < 16; ++at)
                 image->data()[at] = 128;
             image->setFileName(file);

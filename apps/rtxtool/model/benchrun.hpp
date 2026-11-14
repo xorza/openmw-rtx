@@ -22,7 +22,8 @@
 #include "benchrecord.hpp"
 #include "benchspec.hpp"
 #include "cameratrack.hpp"
-#include "maprules.hpp"
+#include "exitstatus.hpp"
+#include "pictureshelf.hpp"
 
 namespace RtxTool
 {
@@ -134,7 +135,6 @@ namespace RtxTool
     bool canAsk(Check check, const Stop& stop, const Rtx::RenderProfile& profile);
 
     struct Approach;
-    class PictureShelf;
 
     /// A cell as Morrowind addresses one, read once from its spelling: a pair of integers is an exterior, anything
     /// else is an interior's name. The spelling and not an id, because the world's `findExteriorPosition` and
@@ -421,7 +421,7 @@ namespace RtxTool
         bool walksTwice() const;
     };
 
-    /// What a stop whose place the content does not hold comes to (`Stager::stage`): it is passed over either way and
+    /// What a stop whose place the content does not hold comes to (`Staging::stage`): it is passed over either way and
     /// the run goes on, as a test runner goes on past a test whose premise is missing.
     enum class WhenAbsent : std::uint8_t
     {
@@ -468,14 +468,11 @@ namespace RtxTool
         bool mMeasures = false;
 
         /// Whether somebody plays the session (`VerbPolicy::mPlayed`): the menus are theirs to open
-        /// and close. Otherwise the run closes any a script opens, and draws the interface only
-        /// where `mHud` asks.
+        /// and close, and a model's companion maps are named by the player's patterns. Otherwise the
+        /// run closes any a script opens, draws the interface only where `mHud` asks, and takes the
+        /// shipped patterns, so two machines with the same content trace one scene; what a `_spec`
+        /// map's channels mean is measured on each map (`Rtx::specularLayoutOf`).
         bool mPlayed = false;
-
-        /// Which companion maps a model takes, as the line names them, or nothing for the player's
-        /// own: the shipped file's unless the line names others, and the player's in a window
-        /// somebody plays.
-        std::optional<MapRules> mMaps = MapRules::Shipped;
 
         /// Whether the game's HUD is drawn over the picture, and for a session nobody plays whether
         /// anything of the interface is. Off by default: a picture is of the world, and the bars and
@@ -516,14 +513,9 @@ namespace RtxTool
         /// and never where in it.
         std::filesystem::path mPictures;
 
-        /// Where every picture a stop writes is kept as well, for the verb that judges them once the
-        /// run is over, or null where it judges none. The verb's, and outlives the run.
-        PictureShelf* mShelf = nullptr;
-
-        /// Where the extents the run's frames were traced and shown at are written once the renderer has made
-        /// them (`settleUnder`), for the verb whose figures follow from them, as `noise`'s bar does, or null
-        /// where none does. The verb's, and outlives the run.
-        Rtx::FrameExtents* mTraced = nullptr;
+        /// Whether every picture a stop writes is kept as well, for the verb that judges them once the run is
+        /// over (`SessionResult::mShelf`).
+        bool mKeepsPictures = false;
 
         /// Where a window appends a film's key on every Home press, or empty for none.
         std::filesystem::path mKeys;
@@ -563,16 +555,10 @@ namespace RtxTool
         std::optional<std::string> refusalUnder(Rtx::UpscalerInput input) const;
 
         /// Settles every stop whose length is samples a shown pixel (`Schedule::mHeld`) into frames under
-        /// `traced`, what the renderer traces and shows the run's mode at, and writes `traced` where `mTraced`
-        /// points. Asked once the renderer is made, before the first frame and before any stop's length is read.
+        /// `traced`, what the renderer traces and shows the run's mode at. Asked once the renderer is made, before
+        /// the first frame and before any stop's length is read.
         void settleUnder(const Rtx::FrameExtents& traced);
     };
-
-    /// The exit status of a run whose one fault is a hashed frame that differed from its reference.
-    ///
-    /// Apart from a run that failed, which is 1: `omw repeat` tells "not repeatable" from "the run itself broke" by
-    /// this number and not by the report's wording, which a reworded sentence would swap.
-    inline constexpr int sDifferedStatus = 3;
 
     /// The hour and the weather a place stands under where neither the view nor the command line
     /// names one: what a picture of a place is taken at. Not the hour a budget is written against
@@ -598,9 +584,9 @@ namespace RtxTool
     /// What a launcher reads back once `Engine::go` has returned.
     struct SessionResult
     {
-        /// 1 where a stop somebody named could not be reached (`WhenAbsent::Fails`) or something else failed the
-        /// run; else `sDifferedStatus` where a hashed frame differed from its reference; else nought.
-        int mExitStatus = 0;
+        /// Failed where a stop somebody named could not be reached (`WhenAbsent::Fails`) or something else failed
+        /// the run; else differed where a hashed frame differed from its reference; else passed.
+        ExitStatus mExitStatus = ExitStatus::Passed;
 
         std::vector<BenchPlace> mPlaces;
 
@@ -610,6 +596,14 @@ namespace RtxTool
         /// Where the run was left, as a stop that would put a camera back there, so a place somebody
         /// flew to and closed the window on is not lost. Nothing where no stop began.
         std::optional<Stop> mLeft;
+
+        /// Every picture the stops wrote, where the request kept them (`SessionRequest::mKeepsPictures`): the
+        /// result's and not the verb's, so nothing the verb holds is written into while the run lasts.
+        PictureShelf mShelf;
+
+        /// The extents the run's frames were traced and shown at, once the renderer made them, for the verb whose
+        /// figures follow from them, as `noise`'s bar does. Nothing where no renderer was made.
+        std::optional<Rtx::FrameExtents> mTraced;
     };
 
 }

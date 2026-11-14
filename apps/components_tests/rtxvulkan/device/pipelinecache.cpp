@@ -20,6 +20,7 @@
 #include <apps/components_tests/rtx/support/death.hpp>
 #include <apps/components_tests/rtxvulkan/support/device/harness.hpp>
 #include <components/files/conversion.hpp>
+#include <components/misc/bytebuffer.hpp>
 #include <components/misc/digestwords.hpp>
 #include <components/misc/result.hpp>
 #include <components/rtxvulkan/device/device.hpp>
@@ -41,7 +42,7 @@ namespace Rtx
             /// header and the size and nothing between them, while the suite's device holds what the renderer
             /// compiled, copied per leg and four times over inside one. And `sMostBytes` is 256 MiB, so a live cache
             /// past that would make the leg that grows a blob one byte past it write off the end of its own buffer.
-            std::vector<std::uint8_t> deviceBlob()
+            Misc::ByteBuffer deviceBlob()
             {
                 const VkDevice device = getDevice().getHandle();
                 const VkPipelineCacheCreateInfo nothing{ .sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO,
@@ -57,7 +58,7 @@ namespace Rtx
                 std::size_t bytes = 0;
                 EXPECT_EQ(vkGetPipelineCacheData(device, empty.get(), &bytes, nullptr), VK_SUCCESS);
 
-                std::vector<std::uint8_t> blob(bytes);
+                Misc::ByteBuffer blob(bytes);
                 EXPECT_EQ(vkGetPipelineCacheData(device, empty.get(), &bytes, blob.data()), VK_SUCCESS);
 
                 return blob;
@@ -106,8 +107,7 @@ namespace Rtx
         /// one in the same tick would still show.
         TEST_F(RtxPipelineCacheTest, aSavedCacheIsOnTheDiskAndASecondSaveWritesNothing)
         {
-            const std::filesystem::path cacheDirectory = TestingOpenMW::outputFilePath("cache-save-test");
-            std::filesystem::remove_all(cacheDirectory);
+            const std::filesystem::path cacheDirectory = TestingOpenMW::currentTestDirPath() / "cache-save-test";
 
             std::filesystem::file_time_type stamped;
             {
@@ -121,7 +121,7 @@ namespace Rtx
                 ASSERT_EQ(saved.size(), 1u) << "the save wrote the cache's file while it stands";
 
                 const std::filesystem::path file = cacheDirectory / saved.front();
-                const Result<std::vector<std::uint8_t>, std::string_view> read
+                const Result<PipelineCache::Stored, std::string_view> read
                     = PipelineCache::read(file, deviceProperties());
                 ASSERT_TRUE(read.isOk()) << "the saved file reads back: " << read.error();
 
@@ -148,7 +148,7 @@ namespace Rtx
         {
             ASSERT_NE(getDevice().getPipelineCache(), VK_NULL_HANDLE) << "the device made a pipeline cache";
 
-            const std::vector<std::uint8_t> blob = deviceBlob();
+            const Misc::ByteBuffer blob = deviceBlob();
 
             // Even a cache nothing was compiled into carries its header, which is all this reads.
             ASSERT_GE(blob.size(), std::size_t{ 32 }) << "a blob is at least a header";
@@ -171,29 +171,29 @@ namespace Rtx
         /// large it has grown, so the size is the only thing left to refuse it for.
         TEST_F(RtxPipelineCacheTest, aBlobThisRunWillNotSeedFromIsRefused)
         {
-            const std::vector<std::uint8_t> blob = deviceBlob();
+            const Misc::ByteBuffer blob = deviceBlob();
             const VkPhysicalDeviceProperties& properties = deviceProperties();
             ASSERT_TRUE(PipelineCache::accepts(blob, properties).isOk());
 
             // A header of another length, in its first word.
-            std::vector<std::uint8_t> foreign = blob;
-            foreign.at(0) ^= 0xFF;
+            Misc::ByteBuffer foreign = blob;
+            foreign.at(0) ^= std::byte{ 0xFF };
             EXPECT_EQ(
                 PipelineCache::accepts(foreign, properties).error(), "has no header of the one version Vulkan defines");
 
             // Another vendor's, at byte eight of the header.
-            std::vector<std::uint8_t> elsewhere = blob;
-            elsewhere.at(8) ^= 0xFF;
+            Misc::ByteBuffer elsewhere = blob;
+            elsewhere.at(8) ^= std::byte{ 0xFF };
             EXPECT_EQ(PipelineCache::accepts(elsewhere, properties).error(), "was written for another vendor's device");
 
             // The other card of the vendor, at byte twelve.
-            std::vector<std::uint8_t> otherCard = blob;
-            otherCard.at(12) ^= 0xFF;
+            Misc::ByteBuffer otherCard = blob;
+            otherCard.at(12) ^= std::byte{ 0xFF };
             EXPECT_EQ(PipelineCache::accepts(otherCard, properties).error(), "was written for another device");
 
             // The same driver after an update, which is what the UUID is for.
-            std::vector<std::uint8_t> updated = blob;
-            updated.at(16) ^= 0xFF;
+            Misc::ByteBuffer updated = blob;
+            updated.at(16) ^= std::byte{ 0xFF };
             EXPECT_EQ(PipelineCache::accepts(updated, properties).error(), "was written by another driver build");
 
             // And a write that stopped part way through the header itself.
@@ -203,7 +203,7 @@ namespace Rtx
             EXPECT_EQ(PipelineCache::accepts({}, properties).error(), "is shorter than a cache header")
                 << "nothing at all";
 
-            std::vector<std::uint8_t> grown(PipelineCache::sMostBytes + 1, 0);
+            Misc::ByteBuffer grown(PipelineCache::sMostBytes + 1, std::byte{ 0 });
             std::copy(blob.begin(), blob.end(), grown.begin());
             EXPECT_EQ(PipelineCache::accepts(grown, properties).error(), "is larger than a cache is kept")
                 << "one byte past what is kept";
@@ -222,8 +222,7 @@ namespace Rtx
         /// header in all.
         TEST_F(RtxPipelineCacheTest, aFileIsReadBackOnlyWholeAndByItsOwnDriver)
         {
-            const std::filesystem::path scratch = TestingOpenMW::outputFilePath("cache-file-test");
-            std::filesystem::remove_all(scratch);
+            const std::filesystem::path scratch = TestingOpenMW::currentTestDirPath() / "cache-file-test";
             const std::filesystem::path cacheDirectory = scratch / "cache";
             const VkPhysicalDeviceProperties& properties = deviceProperties();
             const auto made = [&] {
@@ -238,22 +237,23 @@ namespace Rtx
             ASSERT_EQ(files.size(), 1u) << "the destructor wrote the cache";
             const std::filesystem::path path = cacheDirectory / files.front();
 
-            const Result<std::vector<std::uint8_t>, std::string_view> whole = PipelineCache::read(path, properties);
+            const Result<PipelineCache::Stored, std::string_view> whole = PipelineCache::read(path, properties);
             ASSERT_TRUE(whole.isOk()) << whole.error();
-            EXPECT_EQ(whole.value(), deviceBlob()) << "the body is the driver's blob as it stood";
+            const std::span<const std::byte> body = whole.value().getBlob();
+            EXPECT_TRUE(std::ranges::equal(body, deviceBlob())) << "the body is the driver's blob as it stood";
 
             std::vector<char> bytes;
             {
                 std::ifstream reading(path, std::ios::binary);
                 bytes.assign(std::istreambuf_iterator<char>(reading), std::istreambuf_iterator<char>());
             }
-            ASSERT_EQ(bytes.size(), 64 + whole.value().size());
+            ASSERT_EQ(bytes.size(), 64 + body.size());
 
             const auto readAs = [&](const std::vector<char>& file) {
                 const std::filesystem::path copy = scratch / "copy.pipelinecache";
                 std::ofstream(copy, std::ios::binary | std::ios::trunc)
                     .write(file.data(), static_cast<std::streamsize>(file.size()));
-                const Result<std::vector<std::uint8_t>, std::string_view> read = PipelineCache::read(copy, properties);
+                const Result<PipelineCache::Stored, std::string_view> read = PipelineCache::read(copy, properties);
                 return read.isOk() ? std::string_view("read") : read.error();
             };
 
@@ -282,7 +282,6 @@ namespace Rtx
                 EXPECT_NE(unreadable.getHandle(), VK_NULL_HANDLE);
             });
             std::filesystem::permissions(cacheDirectory, std::filesystem::perms::owner_all);
-            std::filesystem::remove_all(scratch);
         }
 
         /// The name carries the shaders, and every cache that is not this run's is swept.
@@ -296,8 +295,7 @@ namespace Rtx
         /// every byte). **And a file that is not ours survives**, because the cache directory is shared.
         TEST_F(RtxPipelineCacheTest, theNameCarriesTheShadersAndOtherCachesAreKeptToABound)
         {
-            const std::filesystem::path scratch = TestingOpenMW::outputFilePath("cache-test");
-            std::filesystem::remove_all(scratch);
+            const std::filesystem::path scratch = TestingOpenMW::currentTestDirPath() / "cache-test";
 
             const std::filesystem::path cacheDirectory = scratch / "cache";
             const Misc::DigestWords shaders = getDevice().getShaders().mDigest;
@@ -371,8 +369,6 @@ namespace Rtx
             const PipelineCache none(getDevice().getHandle(), deviceProperties(), PipelineCacheSpec{}, shaders);
             EXPECT_EQ(none.getHandle(), VK_NULL_HANDLE) << "a spec with no directory made a cache object";
             EXPECT_EQ(filesIn(cacheDirectory).size(), 6u) << "a spec with no directory touched the directory";
-
-            std::filesystem::remove_all(scratch);
         }
     }
 }

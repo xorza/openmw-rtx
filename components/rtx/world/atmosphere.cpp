@@ -40,6 +40,6 @@ namespace Rtx
 
         const double wall
             = alpha * (top * top - bottom * bottom) + 2.0 * beta * (tiltedLog(to, c, d) - tiltedLog(from, c, d));
-        return float(1.0 - top * top + wall);
+        return static_cast<float>(1.0 - top * top + wall);
     }
 }

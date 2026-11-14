@@ -8,7 +8,6 @@
 #include <apps/openmw/mwrender/rtx/rtxrun.hpp>
 #include <apps/openmw/mwrender/rtx/rtxsettings.hpp>
 #include <apps/rtxtool/model/benchrun.hpp>
-#include <apps/rtxtool/model/maprules.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/settings/categories.hpp>
 #include <components/settings/settingvalue.hpp>
@@ -101,9 +100,6 @@ namespace RtxTool
 
         /// Which day, counted from the one a new game begins on. Only the moons read it.
         int mDay = 0;
-
-        /// Which companion maps a model takes — `SessionRequest::mMaps`.
-        std::optional<MapRules> mMaps = MapRules::Shipped;
     };
 
     /// What a setting is where nobody has set it: the shipped defaults, out of the `defaults.bin` beside the

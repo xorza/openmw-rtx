@@ -22,19 +22,6 @@
 
 namespace Rtx
 {
-    namespace
-    {
-        /// Hands over the texture slots the scene has given up, and says how many there were.
-        std::size_t dropFreed(SceneHolder& scenes, SceneSlot slot, const SceneDesc& scene)
-        {
-            const std::span<const Index> freed = scene.textures().getFreed();
-            if (!freed.empty())
-                scenes.dropTextures(slot, freed);
-
-            return freed.size();
-        }
-    }
-
     SceneUpload SceneUploader::hand(SceneHolder& scenes, const Handing& handing)
     {
         const SceneSlot slot = handing.mSlot;
@@ -102,16 +89,12 @@ namespace Rtx
         {
             const std::chrono::steady_clock::time_point told = std::chrono::steady_clock::now();
 
-            // A departure with nothing arriving is the ordinary way to leave a region, and it is
-            // the frame that must not wait for an arrival to give the memory back: walking away from
-            // a ring frees its slots and nothing takes them over until the walk reaches the far side
-            // of the next one.
-            done.mDropped = dropFreed(scenes, slot, tables);
-
-            // Placed before the lists are forgotten, because placing is what consumes the meshes
-            // that went: their structures are destroyed and their storage given back there. Clearing
-            // first would hand the renderer an empty list and hold a departed ring's structures
-            // until something arrived to take the slots over.
+            // Placed before the lists are forgotten, because placing is what consumes the meshes and the
+            // textures that went: their structures and images are destroyed there. A departure with
+            // nothing arriving is the ordinary way to leave a region, and it is the frame that must not
+            // wait for an arrival to give the memory back: walking away from a ring frees its slots and
+            // nothing takes them over until the walk reaches the far side of the next one.
+            done.mDropped = tables.textures().getFreed().size();
             scenes.placeScene(slot, tables);
 
             timed.at(Timing::Upload) = since(told, std::chrono::steady_clock::now());
@@ -146,10 +129,10 @@ namespace Rtx
             }
             else
             {
-                // Order against the arrivals is free — `SceneDesc` keeps the two lists disjoint —
-                // and first is where the memory is given back soonest. A build from nothing needs
-                // none of this: the array holds no image of what went.
-                done.mDropped = dropFreed(scenes, slot, tables);
+                // The extension gives back what went before it stands what arrived: `SceneDesc` keeps the
+                // two lists disjoint, and first is where the memory is given back soonest. A build from
+                // nothing needs none of this: the array holds no image of what went.
+                done.mDropped = tables.textures().getFreed().size();
                 scenes.extendScene(slot, tables, mTextures.getDescriptions());
                 scenes.placeScene(slot, tables);
                 done.mKind = SceneUpload::Kind::Extended;

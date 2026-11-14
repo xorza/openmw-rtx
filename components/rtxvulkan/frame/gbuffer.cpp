@@ -32,7 +32,7 @@ namespace Rtx
         /// tolerance the radiance channels are held to.
         constexpr VkFormat sAlbedo = toVulkanFormat(GBUFFER_ALBEDO);
 
-        /// Two halves, for the reason `gbuffer.h` gives.
+        /// Four halves, three of them read and the fourth nought, for the reasons `gbuffer.h` gives.
         constexpr VkFormat sMotion = toVulkanFormat(GBUFFER_MOTION);
 
         /// Two full floats, for the reasons `gbuffer.h` gives: the distance runs past thirty thousand
@@ -60,9 +60,9 @@ namespace Rtx
         constexpr VkImageUsageFlags sUsage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 
         /// The channels a caller can ask to read back: every one but the backdrop and the puffs. See
-        /// `Rtx::Channel`. The direct channel among them is the frame once composed: `readComposite`
-        /// copies it out, the frame a measurement is taken on, where `readPixels` gives the one a
-        /// display would show.
+        /// `Rtx::Channel`. The direct channel among them is the frame once composed, which a test's probe
+        /// copies out (`RendererProbe::readComposite`), the frame a measurement is taken on, where `readPixels`
+        /// gives the one a display would show.
         constexpr VkImageUsageFlags sReadable = sUsage | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 
         struct ChannelFormat
@@ -295,10 +295,9 @@ namespace Rtx
     {
         static_assert(sHeldChannels.size() == std::tuple_size_v<decltype(mOthers)>, "a held channel with no image");
 
-        mChannels.reserve(sChannelCount);
         for (const Channel channel : sEveryChannel)
-            mChannels.emplace_back(MemoryUse::Frame, device, descriptionOf(channel, width, height, radiance, keeping),
-                channelName(channel));
+            mChannels[indexOf(channel)] = Image(MemoryUse::Frame, device,
+                descriptionOf(channel, width, height, radiance, keeping), channelName(channel));
 
         if (keeping.keepsHeld())
             for (std::size_t at = 0; at < sHeldChannels.size(); ++at)

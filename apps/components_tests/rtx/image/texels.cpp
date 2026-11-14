@@ -18,6 +18,7 @@
 
 #include <apps/components_tests/rtx/support/allocations.hpp>
 #include <apps/components_tests/rtx/support/death.hpp>
+#include <apps/components_tests/rtx/support/image.hpp>
 #include <components/rtx/image/colour.hpp>
 #include <components/rtx/image/imagedescription.hpp>
 #include <components/rtx/image/texels.hpp>
@@ -36,9 +37,7 @@ namespace Rtx
         /// One image of four texels, in the plain spelling the sky's own decks are stored in.
         osg::ref_ptr<osg::Image> makeSheetImage(std::array<std::uint8_t, 16> bytes)
         {
-            osg::ref_ptr<osg::Image> image = new osg::Image;
-            image->setFileName("sheet.dds");
-            image->allocateImage(2, 2, 1, GL_RGBA, GL_UNSIGNED_BYTE);
+            osg::ref_ptr<osg::Image> image = Testing::makeImage("sheet.dds", 2, 2);
 
             for (std::size_t at = 0; at < bytes.size(); ++at)
                 image->data()[at] = bytes[at];
@@ -186,9 +185,7 @@ namespace Rtx
         /// that lights nothing rather than a renderer that will not start.
         TEST(RtxMeanTexelTest, anImageInAFormatNobodyShipsIsWorthNothing)
         {
-            osg::ref_ptr<osg::Image> odd = new osg::Image;
-            odd->setFileName("odd.dds");
-            odd->allocateImage(2, 2, 1, GL_RGB, GL_UNSIGNED_BYTE_3_3_2);
+            osg::ref_ptr<osg::Image> odd = Testing::makeImage("odd.dds", 2, 2, GL_RGB, GL_UNSIGNED_BYTE_3_3_2);
 
             EXPECT_EQ(ContentPreprocessor().meanTexel(*odd).mColour, osg::Vec3f());
             EXPECT_EQ(ContentPreprocessor().meanTexel(*odd).mAlpha, 0.0f);
@@ -241,9 +238,8 @@ namespace Rtx
 
             // Found without an allocation, because the ring's reader asks for every material it
             // reads.
-            const std::size_t allocated = Testing::getAllocationCount();
-            thread.factsOf(*again);
-            EXPECT_EQ(Testing::getAllocationCount(), allocated) << "a file already met was found through a new string";
+            EXPECT_EQ(Testing::allocationsIn([&] { thread.factsOf(*again); }), 0u)
+                << "a file already met was found through a new string";
             EXPECT_EQ(&thread.meanOf(*again), &first);
             EXPECT_NEAR(thread.meanOf(*again).mColour.x(), 1.0f, 1e-5f) << "the second image was read";
             EXPECT_EQ(thread.mFacts.size(), 1u);
@@ -270,8 +266,7 @@ namespace Rtx
         /// not nought, which is all the format reader looks at.
         osg::ref_ptr<osg::Image> makeImage(GLenum spelling, GLenum type = GL_UNSIGNED_BYTE, GLint internal = 0)
         {
-            osg::ref_ptr<osg::Image> image = new osg::Image;
-            image->allocateImage(4, 4, 1, spelling, type);
+            osg::ref_ptr<osg::Image> image = Testing::makeImage("", 4, 4, spelling, type);
             if (internal != 0)
                 image->setInternalTextureFormat(internal);
             return image;

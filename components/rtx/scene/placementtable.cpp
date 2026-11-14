@@ -165,11 +165,17 @@ namespace Rtx
 
     bool PlacementTable::jump(const Index slot, const osg::Matrixf& transform)
     {
-        if (!move(slot, transform))
-            return false;
+        const bool moved = move(slot, transform);
 
-        mRows.at(slot).mPrevious = transform;
-        return true;
+        // **Where it stood is where it stands, whatever the walks before left unsettled**: a slot a walk moved
+        // to this very place, with no hand-over between, holds that walk's step as motion until it settles.
+        PlacementRow& row = mRows.at(slot);
+        if (row.mPrevious != transform)
+        {
+            row.mPrevious = transform;
+            mMoved.addMakingRoom(slot);
+        }
+        return moved;
     }
 
     void PlacementTable::drop(const Index slot, const Stander by)
@@ -218,14 +224,18 @@ namespace Rtx
 
     void PlacementTable::advance()
     {
+        // **Only a slot that had motion settles**: one placed, dropped, faded or re-classed where it stood was
+        // written whole with no motion, and a rewrite a frame later would recompute its row, two inverses, for
+        // nothing.
+        mSettled.clear();
         for (const Index slot : mMoved.getSlots())
         {
             PlacementRow& row = mRows.at(slot);
+            if (row.mPrevious == row.mInstance.mTransform)
+                continue;
             row.mPrevious = row.mInstance.mTransform;
+            mSettled.addMakingRoom(slot);
         }
-
-        // Swapped and not copied: the two sets trade buffers, and neither allocates on the frame.
-        std::swap(mSettled, mMoved);
         mMoved.clear();
     }
 }

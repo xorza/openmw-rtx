@@ -67,8 +67,7 @@ namespace Rtx
 
     Upscaler::Upscaler(const Device& device, const UpscalerChoice choice, const DlssAvailability availability,
         const Dlss::Application* application)
-        : mDevice(device)
-        , mAsked(choice)
+        : mAsked(choice)
         , mDlss(availability)
         , mBackend(makeBackend(device, choice, mDlss, mRefusal, application))
     {
@@ -103,32 +102,22 @@ namespace Rtx
 
     FrameExtents Upscaler::extentsFor(const std::uint32_t width, const std::uint32_t height, const Upscale mode) const
     {
-        const DlssUpscaler* const dlss = std::get_if<DlssUpscaler>(&mBackend);
-        if (dlss == nullptr || !upscales(mode))
-            return Rtx::extentsFor(width, height, mode);
-
-        const VkExtent2D render = dlss->renderExtentFor(mode, VkExtent2D{ width, height });
-        return FrameExtents{
-            .mRenderWidth = render.width, .mRenderHeight = render.height, .mOutputWidth = width, .mOutputHeight = height
-        };
+        return std::visit([&](const auto& backend) { return backend.extentsFor(width, height, mode); }, mBackend);
     }
 
     void Upscaler::prepare(const Upscale mode, const VkExtent2D render, const VkExtent2D output)
     {
-        if (DlssUpscaler* const dlss = std::get_if<DlssUpscaler>(&mBackend))
-            dlss->prepare(mode, render, output);
+        std::visit([&](auto& backend) { backend.prepare(mode, render, output); }, mBackend);
     }
 
     void Upscaler::measure(const Upscale mode, const VkExtent2D render, const VkExtent2D output)
     {
-        if (DlssUpscaler* const dlss = std::get_if<DlssUpscaler>(&mBackend))
-            dlss->measure(mode, render, output);
+        std::visit([&](auto& backend) { backend.measure(mode, render, output); }, mBackend);
     }
 
     VkDeviceSize Upscaler::getHeldOutside() const
     {
-        const DlssUpscaler* const dlss = std::get_if<DlssUpscaler>(&mBackend);
-        return dlss != nullptr ? dlss->getHeldOutside() : 0;
+        return std::visit([](const auto& backend) { return backend.getHeldOutside(); }, mBackend);
     }
 
     void Upscaler::resize(const Upscale mode, const VkExtent2D render, const VkExtent2D output, const ArenaRun& shared)
@@ -150,9 +139,7 @@ namespace Rtx
 
     VkDeviceSize Upscaler::bytesAt(const VkExtent2D render, const VkExtent2D output) const
     {
-        if (const DlssUpscaler* const dlss = std::get_if<DlssUpscaler>(&mBackend))
-            return dlss->bytesAt(render, output);
-        return FsrUpscaler::bytesAt(mDevice, render, output);
+        return std::visit([&](const auto& backend) { return backend.bytesAt(render, output); }, mBackend);
     }
 
     void Upscaler::release()

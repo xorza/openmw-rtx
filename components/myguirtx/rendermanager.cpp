@@ -1,9 +1,9 @@
 #include "rendermanager.hpp"
 
 #include <algorithm>
+#include <bit>
 #include <cassert>
 #include <cstdint>
-#include <cstring>
 #include <span>
 
 #include <MyGUI_Diagnostic.h>
@@ -213,8 +213,10 @@ namespace MyGUIRtx
             return;
 
         const std::uint32_t first = static_cast<std::uint32_t>(mVertices.size());
-        mVertices.resize(mVertices.size() + vertices.size());
-        std::memcpy(mVertices.data() + first, vertices.data(), vertices.size_bytes());
+        // The same 24 bytes MyGUI writes, read as the renderer's own (`GuiVertex`): copied once, where a resize
+        // wrote every vertex as nought ahead of the copy.
+        for (const MyGUI::Vertex& vertex : vertices)
+            mVertices.push_back(std::bit_cast<Rtx::GuiVertex>(vertex));
 
         mBatches.push_back(Rtx::GuiBatch{
             .mTexture = texel->getSlot(),
@@ -257,9 +259,9 @@ namespace MyGUIRtx
         mInfo.maximumDepth = 1;
         mInfo.hOffset = 0;
         mInfo.vOffset = 0;
-        mInfo.aspectCoef = float(mViewSize.height) / float(mViewSize.width);
-        mInfo.pixScaleX = 1.0f / float(mViewSize.width);
-        mInfo.pixScaleY = 1.0f / float(mViewSize.height);
+        mInfo.aspectCoef = static_cast<float>(mViewSize.height) / static_cast<float>(mViewSize.width);
+        mInfo.pixScaleX = 1.0f / static_cast<float>(mViewSize.width);
+        mInfo.pixScaleY = 1.0f / static_cast<float>(mViewSize.height);
 
         onResizeView(mViewSize);
         mUpdate = true;

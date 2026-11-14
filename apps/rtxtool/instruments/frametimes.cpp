@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <cassert>
-#include <chrono>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -13,75 +12,15 @@
 #include <sstream>
 #include <string>
 #include <string_view>
-#include <system_error>
-#include <thread>
 #include <utility>
 
-#include <components/crashcatcher/crashinstall.hpp>
 #include <components/files/conversion.hpp>
-#include <components/platform/fifo.hpp>
 #include <components/rtx/renderer/framezone.hpp>
 
 #include "reportfile.hpp"
 
 namespace RtxTool
 {
-    PerfControl::PerfControl(std::filesystem::path fifo, const std::chrono::milliseconds readerWait)
-        : mFifo(std::move(fifo))
-        , mReaderWait(readerWait)
-    {
-    }
-
-    void PerfControl::open()
-    {
-        if (mFifo.empty() || mHandle != Platform::File::Handle::Invalid)
-            return;
-
-        // A wait the run asked for, inside a frame, which the hang watch is told is not a hang:
-        // perf's thirty seconds are past the twenty the shipped watch allows a frame.
-        const Crash::HangPause waiting;
-
-        const std::chrono::steady_clock::time_point deadline = std::chrono::steady_clock::now() + mReaderWait;
-        while (true)
-        {
-            try
-            {
-                mHandle = Platform::Fifo::openForWriting(mFifo);
-                return;
-            }
-            catch (const std::system_error& error)
-            {
-                // `ENXIO` is "nobody reads it yet"; every other failure is final.
-                if (error.code() != std::errc::no_such_device_or_address
-                    || std::chrono::steady_clock::now() >= deadline)
-                    throw;
-            }
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
-        }
-    }
-
-    void PerfControl::enable()
-    {
-        open();
-        if (mHandle == Platform::File::Handle::Invalid)
-            return;
-
-        send("enable\n");
-    }
-
-    void PerfControl::disable()
-    {
-        if (mHandle == Platform::File::Handle::Invalid)
-            return;
-
-        send("disable\n");
-    }
-
-    void PerfControl::send(std::string_view command)
-    {
-        Platform::Fifo::write(mHandle, command.data(), command.size());
-    }
-
     namespace
     {
         /// The `quantile`th value of an already sorted `times`, by nearest rank.
@@ -159,6 +98,7 @@ namespace RtxTool
         mReserved = frames;
         for (ZoneRow& row : mRows)
             row.mTimes.reserve(frames);
+        mZones.reserve(mRows.size());
         reserveReadings();
     }
 
@@ -204,21 +144,8 @@ namespace RtxTool
         for (std::size_t spanAt = 0; spanAt < spans.size(); ++spanAt)
         {
             const Rtx::GpuSpan& span = spans[spanAt];
-            // The index and not the iterator: adding a row invalidates whatever `find_if` returned,
-            // and the row about to be pushed to is the one that name is at.
-            const auto at = static_cast<std::size_t>(std::find_if(mRows.begin(), mRows.end(), [&](const ZoneRow& row) {
-                return row.mZone == span.mZone;
-            }) - mRows.begin());
-
-            if (at == mRows.size())
-            {
-                mRows.push_back(ZoneRow{ .mZone = span.mZone });
-
-                // **Room for the run taken on the frame the zone first appears.** A row that grows
-                // does it inside a frame it is timing, and what a growth costs is a copy of every
-                // sample taken so far — landing on one frame of the run and reported as its worst.
-                mRows.back().mTimes.reserve(mReserved);
-            }
+            const auto at = static_cast<std::size_t>(span.mZone);
+            assert(at < mRows.size());
 
             if (!counterNames.empty())
             {
@@ -246,7 +173,6 @@ namespace RtxTool
     std::span<const GpuZone> GpuBreakdown::summariseZones()
     {
         mZones.clear();
-        mZones.reserve(mRows.size());
 
         for (std::size_t at = 0; at < mRows.size(); ++at)
         {
@@ -259,7 +185,7 @@ namespace RtxTool
             const double spent = std::accumulate(row.mTimes.begin(), row.mTimes.end(), 0.0);
 
             GpuZone& zone = mZones.emplace_back(GpuZone{
-                .mZone = row.mZone,
+                .mZone = static_cast<Rtx::FrameZone>(at),
                 .mTimes = summarise(row.mTimes),
                 .mFrames = static_cast<std::uint32_t>(row.mTimes.size()),
                 .mOfFrames = mFrames,
@@ -310,13 +236,14 @@ namespace RtxTool
 
     std::string describeZone(const GpuZone& zone)
     {
+        // **To the microsecond**: a pass of four of them read "0.00" at two places, the same as one that never ran.
         if (zone.isEveryFrame())
-            return std::format("{} {:.2f}", Rtx::sFrameZoneNames.name(zone.mZone), zone.mShareMs);
+            return std::format("{} {:.3f}", Rtx::sFrameZoneNames.name(zone.mZone), zone.mShareMs);
 
         // What it cost when it ran, and how rarely — the two figures the share is the product of,
         // and without them a pass that stalls a frame every sixty of them reads as a rounding
         // error.
-        return std::format("{} {:.2f} ({:.2f} on {} of {})", Rtx::sFrameZoneNames.name(zone.mZone), zone.mShareMs,
+        return std::format("{} {:.3f} ({:.3f} on {} of {})", Rtx::sFrameZoneNames.name(zone.mZone), zone.mShareMs,
             zone.mTimes.mMedian, zone.mFrames, zone.mOfFrames);
     }
 

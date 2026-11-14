@@ -30,6 +30,7 @@
 #include <apps/openmw/mwrender/renderingmanager.hpp>
 #include <apps/openmw/mwrender/rendermode.hpp>
 #include <apps/openmw/mwrender/rendersupport.hpp>
+#include <apps/openmw/mwrender/rtx/rtxstart.hpp>
 #include <apps/openmw/mwrender/vismask.hpp>
 #include <components/misc/frameclock.hpp>
 #include <components/myguiplatform/myguiplatform.hpp>

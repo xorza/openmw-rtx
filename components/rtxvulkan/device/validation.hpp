@@ -37,6 +37,9 @@ namespace Rtx
 
         ValidationLog(const ValidationLog&) = delete;
         ValidationLog& operator=(const ValidationLog&) = delete;
+        ValidationLog(ValidationLog&&) = delete;
+        ValidationLog& operator=(ValidationLog&&) = delete;
+        ~ValidationLog() = default;
 
         bool abortsOnError() const { return mAbortOnError; }
 
@@ -78,6 +81,8 @@ namespace Rtx
 
         AdoptedThread(const AdoptedThread&) = delete;
         AdoptedThread& operator=(const AdoptedThread&) = delete;
+        AdoptedThread(AdoptedThread&&) = delete;
+        AdoptedThread& operator=(AdoptedThread&&) = delete;
 
     private:
         std::thread::id mPrevious;

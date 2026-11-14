@@ -198,7 +198,7 @@ namespace Rtx
         /// An array at each channel's index (`indexOf`), and not a member a channel. Named
         /// three times each — a member, an accessor, and a hand-written table mapping the index
         /// back — a channel added to `Rtx::Channel` without the third reaches its pass as a null.
-        std::vector<Image> mChannels;
+        std::array<Image, sChannelCount> mChannels;
 
         /// The other image of each channel `getHeld` answers for, at its index among them: the one
         /// the frame before wrote, or the one this frame writes, by `mNow`. Empty where the past is

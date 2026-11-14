@@ -63,7 +63,12 @@ namespace Rtx
 
             const VFS::Path::NormalizedView path = moonFaceOf(moon);
             const Result<osg::ref_ptr<const osg::Image>, std::string> image = openImage(images, path);
-            TextureHold held = takeSkySheet(scene, path, image, TextureWrap::Clamp);
+            if (!image.isOk())
+            {
+                scene.refusals().refuse(Refused::SkyLayer, path.value(), image.error());
+                continue;
+            }
+            TextureHold held = takeSkySheet(scene, path, *image.value(), TextureWrap::Clamp);
             face.mSlot = held.get();
             if (face.mSlot == sNoIndex)
                 continue;

@@ -27,7 +27,7 @@ namespace Rtx
             osg::ref_ptr<osg::Vec3Array> vertices = new osg::Vec3Array;
             for (int step = 0; step < 16; ++step)
             {
-                const float angle = 2.0f * std::numbers::pi_v<float> * float(step) / 16.0f;
+                const float angle = 2.0f * std::numbers::pi_v<float> * static_cast<float>(step) / 16.0f;
                 vertices->push_back(osg::Vec3f(1466.0f * std::cos(angle), 1466.0f * std::sin(angle), -high));
                 vertices->push_back(osg::Vec3f(1587.0f * std::cos(angle), 1587.0f * std::sin(angle), -low));
             }
@@ -73,7 +73,7 @@ namespace Rtx
             for (int band = 0; band < bands; ++band)
             {
                 const double up = (band + 0.5) / bands;
-                const float elevation = float(std::asin(up));
+                const float elevation = static_cast<float>(std::asin(up));
                 summed += 2.0 * up
                     * double{ Shaders::skyShare(
                         read.mRamp, osg::Vec3f(std::cos(elevation), 0.0f, std::sin(elevation))) };

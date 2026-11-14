@@ -117,7 +117,6 @@ namespace Rtx
         TEST_F(RtxTracePipelineTest, aLaunchsCodeIsAskedOfItsTextFormsAlone)
         {
             const std::filesystem::path folder = TestingOpenMW::currentTestDirPath() / "code";
-            std::filesystem::remove_all(folder);
             const Instance& instance = *mHarness.mInstance;
             const Device device(instance, PhysicalDevice::select(instance.getHandle(), {}), Testing::getCensusShaders(),
                 PipelineCacheSpec{}, DeviceReport{ .mCodeFolder = folder });

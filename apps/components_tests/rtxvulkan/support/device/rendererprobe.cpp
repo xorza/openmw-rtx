@@ -9,7 +9,7 @@
 #include <utility>
 #include <vector>
 
-#include <components/rtx/environment/wavespectrum.hpp>
+#include <components/rtx/world/wavespectrum.hpp>
 #include <components/rtxvulkan/device/memory/barriers.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/image.hpp>

@@ -5,11 +5,11 @@
 #include <osg/Vec2f>
 #include <vulkan/vulkan_core.h>
 
-#include <components/rtx/environment/wavespectrum.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/scene/ripple.hpp>
 #include <components/rtx/shaders/visibility.h>
 #include <components/rtx/world/fognoise.hpp>
+#include <components/rtx/world/wavespectrum.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
 #include <components/rtxvulkan/device/memory/frameslots.hpp>
 
@@ -62,6 +62,8 @@ namespace Rtx
         const RipplePass& getRipples() const { return mRipples; }
         const FogTile& getFog() const { return mFog; }
 
+        // Read and written by the tests and by nothing else: the game's sea and fog field are the ones the media
+        // is made with, and a test's renderer stands under another without being made again.
         /// What the sea's amplitudes were last drawn for.
         const SeaState& getSea() const { return mWaves.getSea(); }
 

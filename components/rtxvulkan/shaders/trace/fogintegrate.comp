@@ -76,7 +76,9 @@ FogSlice sliceAt(ivec2 column, uint slice, ivec2 grid, float surfaces[9], out ve
     seeing /= total;
     averaged = seeing;
 
-    const vec3 lamps = texelFetch(fogLamps, ivec3(column, int(slice)), 0).xyz;
+    // What the air holds of the lamps, turned toward the eye by the share their phase gives it (`lampsInAir`).
+    const vec4 lampsHeld = texelFetch(fogLamps, ivec3(column, int(slice)), 0);
+    const vec3 lamps = lampsHeld.xyz * lampsHeld.w;
     const FogPoint held = unpackFogPoint(point, seeing);
 
     return FogSlice(held.mSource + lamps * (held.mSeeing.mLampsSeen * held.mDensity), held.mDensity,

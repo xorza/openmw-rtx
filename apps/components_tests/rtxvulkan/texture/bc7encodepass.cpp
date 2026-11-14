@@ -241,6 +241,32 @@ namespace Rtx
                     EXPECT_EQ(weighed.mDevice[y * sWidth + x], (Texel{ 136, 224, 0, 254 }))
                         << "texel " << x << ", " << y;
         }
+
+        /// **A block of two colours that trade one channel for another comes back exactly**: (200, 100, 50) and
+        /// (100, 200, 50) in turn, whose deviations from their mean are all orthogonal to the box's diagonal. Both are
+        /// even in every channel, so two end points of lowest bit nought hold them at the weights nought and 64. An
+        /// axis started from the diagonal is nought after one turn of the power iteration, and the block came back
+        /// its mean, (150, 150, 50).
+        TEST_F(RtxBc7EncodePassTest, aBlockOfTwoColoursAcrossTheDiagonalComesBackExactly)
+        {
+            constexpr Texel first{ 200, 100, 50, 255 };
+            constexpr Texel second{ 100, 200, 50, 255 };
+            std::vector<Texel> texels = twoBlocks(first);
+            for (std::uint32_t y = 0; y < sHeight; ++y)
+                for (std::uint32_t x = 0; x < 4; ++x)
+                    texels[y * sWidth + x] = (x + y) % 2 == 0 ? first : second;
+
+            const Encoded encoded = encode(texels, 1, false);
+            for (std::uint32_t y = 0; y < sHeight; ++y)
+                for (std::uint32_t x = 0; x < 4; ++x)
+                {
+                    const Texel& owed = (x + y) % 2 == 0 ? first : second;
+                    const Texel& got = encoded.mDevice[y * sWidth + x];
+                    EXPECT_EQ(encoded.mHost[y * sWidth + x], got) << "texel " << x << ", " << y;
+                    for (std::size_t channel = 0; channel < 3; ++channel)
+                        EXPECT_EQ(got[channel], owed[channel]) << "texel " << x << ", " << y << ", channel " << channel;
+                }
+        }
     }
 }
 

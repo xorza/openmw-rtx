@@ -12,6 +12,7 @@
 #include <osg/ref_ptr>
 
 #include <apps/components_tests/rtx/support/graph.hpp>
+#include <apps/components_tests/rtx/support/image.hpp>
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/image/formatcensus.hpp>
 #include <components/rtx/image/texturedata.hpp>
@@ -70,17 +71,15 @@ namespace Rtx::Testing
         /// not by the walk**, so a second walk reads the same census and a region walked away from is counted out.
         TEST_F(RtxSceneExtractorTest, texturesAreCountedByFormatAndByWhetherTheyBroughtMips)
         {
-            osg::ref_ptr<osg::Image> chained = new osg::Image;
-            chained->setFileName("textures/tx_chained.dds");
-            chained->allocateImage(4, 4, 1, GL_COMPRESSED_RGB_S3TC_DXT1_EXT, GL_UNSIGNED_BYTE);
+            osg::ref_ptr<osg::Image> chained = Testing::makeImage(
+                "textures/tx_chained.dds", 4, 4, GL_COMPRESSED_RGB_S3TC_DXT1_EXT, GL_UNSIGNED_BYTE);
 
             // One offset is one level past the first, and eight bytes is where a second BC1 block
             // would begin. `getNumMipmapLevels` counts the offsets and reads no further.
             chained->setMipmapLevels(osg::Image::MipmapDataType{ 8 });
 
-            osg::ref_ptr<osg::Image> flat = new osg::Image;
-            flat->setFileName("textures/tx_flat.dds");
-            flat->allocateImage(4, 4, 1, GL_COMPRESSED_RGB_S3TC_DXT1_EXT, GL_UNSIGNED_BYTE);
+            osg::ref_ptr<osg::Image> flat
+                = Testing::makeImage("textures/tx_flat.dds", 4, 4, GL_COMPRESSED_RGB_S3TC_DXT1_EXT, GL_UNSIGNED_BYTE);
 
             osg::ref_ptr<osg::Group> root = new osg::Group;
             for (const osg::ref_ptr<osg::Image>& image : { chained, flat })

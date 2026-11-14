@@ -19,6 +19,7 @@
 #include <vector>
 
 #include <components/misc/hashstate.hpp>
+#include <components/rtx/common/error.hpp>
 
 namespace Rtx
 {
@@ -79,7 +80,7 @@ namespace Rtx
                 }
 
                 if (quoted || at > line.size())
-                    throw std::runtime_error("a string runs past the end of: " + std::string(line));
+                    throw Rtx::InputError("a string runs past the end of: " + std::string(line));
                 tokens.push_back(line.substr(start, at - start));
             }
             return tokens;
@@ -112,7 +113,7 @@ namespace Rtx
 
                 line.mOp = tokens[first];
                 if (!line.mOp.starts_with("Op") || (!line.mResult.empty() && !isId(line.mResult)))
-                    throw std::runtime_error("cannot read the line: " + std::string(row));
+                    throw Rtx::InputError("cannot read the line: " + std::string(row));
 
                 line.mOperands.assign(tokens.begin() + static_cast<std::ptrdiff_t>(first) + 1, tokens.end());
                 if (!isDebug(line.mOp))
@@ -174,7 +175,7 @@ namespace Rtx
                     if (isDecoration(line.mOp))
                     {
                         if (line.mOperands.empty() || !isId(line.mOperands[0]))
-                            throw std::runtime_error("a decoration names no target");
+                            throw Rtx::InputError("a decoration names no target");
                         mDecorations[line.mOperands[0]].push_back(&line);
                     }
                     // What it declares is the `OpTypePointer` that defines it.
@@ -183,7 +184,7 @@ namespace Rtx
                     else if (!line.mResult.empty())
                     {
                         if (!mGlobalAt.emplace(line.mResult, mGlobals.size()).second)
-                            throw std::runtime_error(std::string(line.mResult) + " is defined twice");
+                            throw Rtx::InputError(std::string(line.mResult) + " is defined twice");
                         mGlobals.push_back(&line);
                     }
                     else
@@ -195,16 +196,16 @@ namespace Rtx
                     if (mLines[at].mOp == "OpFunction")
                     {
                         if (!mFunctionAt.emplace(mLines[at].mResult, mFunctions.size()).second)
-                            throw std::runtime_error(std::string(mLines[at].mResult) + " is defined twice");
+                            throw Rtx::InputError(std::string(mLines[at].mResult) + " is defined twice");
                         mFunctions.push_back(Function{ .mBegin = at, .mEnd = at });
                     }
                     if (mFunctions.empty())
-                        throw std::runtime_error(std::string(mLines[at].mOp) + " stands outside every function");
+                        throw Rtx::InputError(std::string(mLines[at].mOp) + " stands outside every function");
                     mFunctions.back().mEnd = at + 1;
                 }
 
                 if (mFunctions.empty())
-                    throw std::runtime_error("the module defines no function");
+                    throw Rtx::InputError("the module defines no function");
                 mFunctionDigests.resize(mFunctions.size());
 
                 std::unordered_set<std::string_view> locals;
@@ -214,8 +215,7 @@ namespace Rtx
                             locals.insert(mLines[line].mResult);
                 for (const auto& [target, decorations] : mDecorations)
                     if (!mGlobalAt.contains(target) && !locals.contains(target))
-                        throw std::runtime_error(
-                            "a decoration names " + std::string(target) + ", which nothing defines");
+                        throw Rtx::InputError("a decoration names " + std::string(target) + ", which nothing defines");
             }
 
             Misc::DigestWords digest()
@@ -230,7 +230,7 @@ namespace Rtx
                     if (line->mOp == "OpEntryPoint")
                     {
                         if (line->mOperands.size() < 3)
-                            throw std::runtime_error("an entry point names no function");
+                            throw Rtx::InputError("an entry point names no function");
                         entries.push_back(line);
                     }
                 std::ranges::sort(
@@ -379,7 +379,7 @@ namespace Rtx
             {
                 const auto found = mGlobalAt.find(id);
                 if (found == mGlobalAt.end())
-                    throw std::runtime_error("no global defines " + std::string(id));
+                    throw Rtx::InputError("no global defines " + std::string(id));
                 return found->second;
             }
 
@@ -387,7 +387,7 @@ namespace Rtx
             {
                 const auto found = mFunctionAt.find(id);
                 if (found == mFunctionAt.end())
-                    throw std::runtime_error("no function defines " + std::string(id));
+                    throw Rtx::InputError("no function defines " + std::string(id));
                 return found->second;
             }
 
@@ -411,7 +411,7 @@ namespace Rtx
                 else if (const auto function = mFunctionAt.find(id); function != mFunctionAt.end())
                     canon.digest('F', functionDigest(function->second));
                 else
-                    throw std::runtime_error("nothing the module declares defines " + std::string(id));
+                    throw Rtx::InputError("nothing the module declares defines " + std::string(id));
             }
 
             /// **An entry point's interface is a set**, so its variables are sorted by their colours.
@@ -422,7 +422,7 @@ namespace Rtx
                 if (line.mOp == "OpEntryPoint")
                 {
                     if (line.mOperands.size() < 3)
-                        throw std::runtime_error("an entry point names no function");
+                        throw Rtx::InputError("an entry point names no function");
                     canon.literal(line.mOperands[0]);
                     nameOutside(canon, line.mOperands[1]);
                     canon.literal(line.mOperands[2]);
@@ -454,14 +454,14 @@ namespace Rtx
                 const Line& phi, const std::unordered_map<std::string_view, std::size_t>& placed)
             {
                 if (phi.mOperands.size() % 2 != 1)
-                    throw std::runtime_error("the pairs of the phi " + std::string(phi.mResult) + " do not pair");
+                    throw Rtx::InputError("the pairs of the phi " + std::string(phi.mResult) + " do not pair");
 
                 std::vector<std::pair<std::string_view, std::string_view>> pairs;
                 pairs.reserve(phi.mOperands.size() / 2);
                 for (std::size_t at = 1; at < phi.mOperands.size(); at += 2)
                 {
                     if (!placed.contains(phi.mOperands[at + 1]))
-                        throw std::runtime_error("the phi " + std::string(phi.mResult) + " names a parent, "
+                        throw Rtx::InputError("the phi " + std::string(phi.mResult) + " names a parent, "
                             + std::string(phi.mOperands[at + 1]) + ", that its function does not define");
                     pairs.emplace_back(phi.mOperands[at], phi.mOperands[at + 1]);
                 }
@@ -519,7 +519,7 @@ namespace Rtx
                     else if (const auto global = mGlobalAt.find(operand); global != mGlobalAt.end())
                         canon.digest('G', mColours[global->second]);
                     else
-                        throw std::runtime_error("a phi names " + std::string(operand) + ", which no value defines");
+                        throw Rtx::InputError("a phi names " + std::string(operand) + ", which no value defines");
                 };
 
                 std::vector<std::vector<std::pair<std::string_view, std::string_view>>> pairs;
@@ -603,13 +603,13 @@ namespace Rtx
                 if (mFunctionDigests[function].has_value())
                     return *mFunctionDigests[function];
                 if (!mDigesting.insert(function).second)
-                    throw std::runtime_error("a function calls itself");
+                    throw Rtx::InputError("a function calls itself");
 
                 const Function& range = mFunctions[function];
                 std::unordered_map<std::string_view, std::size_t> placed;
                 for (std::size_t at = range.mBegin; at < range.mEnd; ++at)
                     if (!mLines[at].mResult.empty() && !placed.emplace(mLines[at].mResult, placed.size()).second)
-                        throw std::runtime_error(std::string(mLines[at].mResult) + " is defined twice");
+                        throw Rtx::InputError(std::string(mLines[at].mResult) + " is defined twice");
 
                 const std::vector<std::size_t> order = digestOrder(range, placed);
                 std::unordered_map<std::string_view, std::size_t> numbered;

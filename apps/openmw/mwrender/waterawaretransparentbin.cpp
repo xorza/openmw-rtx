@@ -82,9 +82,9 @@ namespace MWRender
             {
                 const osg::BoundingBox bound = worldBound(leaf, inverseView);
 
-                if (static_cast<double>(bound.zMax()) < waterHeight)
+                if (bound.zMax() < waterHeight)
                     mUnderwaterLeaves.push_back(leaf);
-                else if (static_cast<double>(bound.zMin()) > waterHeight)
+                else if (bound.zMin() > waterHeight)
                     mAboveWaterLeaves.push_back(leaf);
                 else
                     mStraddlingLeaves.push_back(leaf);

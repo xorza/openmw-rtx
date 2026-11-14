@@ -18,6 +18,7 @@
 #include <gtest/gtest.h>
 
 #include <osg/Array>
+#include <osg/FrontFace>
 #include <osg/GL>
 #include <osg/Geometry>
 #include <osg/Group>
@@ -37,10 +38,12 @@
 #include <osg/ref_ptr>
 
 #include <apps/components_tests/rtx/support/allocations.hpp>
+#include <apps/components_tests/rtx/support/bound.hpp>
 #include <apps/components_tests/rtx/support/death.hpp>
 #include <apps/components_tests/rtx/support/fakeland.hpp>
 #include <apps/components_tests/rtx/support/geometry.hpp>
 #include <apps/components_tests/rtx/support/graph.hpp>
+#include <apps/components_tests/rtx/support/image.hpp>
 #include <components/esm/position.hpp>
 #include <components/esm/refid.hpp>
 #include <components/esm3/loadcell.hpp>
@@ -260,6 +263,8 @@ namespace Rtx::Testing
                     return mTree;
                 if (path.value() == "meshes/fern.nif")
                     return mFern;
+                if (path.value() == "meshes/mirrored.nif")
+                    return mMirrored;
                 if (path.value() == "meshes/window.nif")
                     return mWindow;
                 if (path.value() == "meshes/ember.nif")
@@ -284,15 +289,20 @@ namespace Rtx::Testing
             /// A four-by-four grey with one level, which is an image the ring has a chain to build
             /// for and a shading to estimate.
             osg::ref_ptr<osg::Image> mBark = [] {
-                osg::ref_ptr<osg::Image> image = new osg::Image;
-                image->setFileName("textures/bark.dds");
-                image->allocateImage(4, 4, 1, GL_RGBA, GL_UNSIGNED_BYTE);
+                osg::ref_ptr<osg::Image> image = Testing::makeImage("textures/bark.dds", 4, 4);
                 std::fill_n(image->data(), image->getTotalSizeInBytes(), static_cast<unsigned char>(128));
                 return image;
             }();
 
             osg::ref_ptr<osg::Group> mTree = makeSheet(300.0f, 5.0f);
             osg::ref_ptr<osg::Group> mFern = makeSheet(20.0f, 5.0f);
+
+            /// A tree's sheet under a clockwise front, as a content file's `NiStencilProperty` states one.
+            osg::ref_ptr<osg::Group> mMirrored = [this] {
+                osg::ref_ptr<osg::Group> root = makeSheet(300.0f, 5.0f);
+                root->getOrCreateStateSet()->setAttribute(new osg::FrontFace(osg::FrontFace::CLOCKWISE));
+                return root;
+            }();
 
             /// A fern's sheet that glows, which the size rule never thins.
             osg::ref_ptr<osg::Group> mEmber = [this] {
@@ -733,9 +743,8 @@ namespace Rtx::Testing
 
             // **A steady frame reaches the heap zero times**, which is the rule every loader here
             // keeps: what the ring holds is placed and counted out of buffers it already grew.
-            const std::size_t before = Testing::getAllocationCount();
-            const ExtractionStats again = walk(mWalked++);
-            const std::size_t spent = Testing::getAllocationCount() - before;
+            ExtractionStats again{};
+            const std::size_t spent = Testing::allocationsIn([&] { again = walk(mWalked++); });
             EXPECT_EQ(spent, 0u) << "a steady walk of the ring reached the heap " << spent << " times";
 
             EXPECT_EQ(again.mMeshesAdded, 0u) << "a second walk of one frame adds nothing";
@@ -1082,6 +1091,30 @@ namespace Rtx::Testing
             mScene.placements().forEachPlaced(
                 [&](Index, const PlacementRow& row) { bodies += row.mInstance.mLampBody ? 1 : 0; });
             EXPECT_EQ(bodies, 1u);
+        }
+
+        /// **A static the ring stands shows the face its model's state stack fronts**, as the frame's walk stands it
+        /// once its cell loads (`RtxSceneExtractorTest.aClockwiseFrontIsThePlacementsAndNotTheSharedMaterials`): of a
+        /// tree and the same sheet under a clockwise front, the second alone is clockwise.
+
+        TEST_F(RtxCellRingTest, aStaticStandsUnderTheWindingItsModelStates)
+        {
+            const osg::Vec3f at(3.5f * sCellSize, 0.5f * sCellSize, 0.0f);
+            mStorage.mPlaced = {
+                Placed{
+                    .mCell = osg::Vec2i(3, 0), .mModel = "tree.nif", .mRefNum = ESM::RefNum{ 1, 0 }, .mPosition = at },
+                Placed{ .mCell = osg::Vec2i(3, 0),
+                    .mModel = "mirrored.nif",
+                    .mRefNum = ESM::RefNum{ 2, 0 },
+                    .mPosition = at },
+            };
+            start();
+            ASSERT_EQ(fill().mDistantStatics, 2u);
+
+            std::size_t clockwise = 0;
+            mScene.placements().forEachPlaced(
+                [&](Index, const PlacementRow& row) { clockwise += row.mInstance.mClockwise ? 1 : 0; });
+            EXPECT_EQ(clockwise, 1u) << "the mirrored sheet, and neither the tree nor a cell's ground";
         }
 
         /// What the size rule admits is a prefix of the cell's placements, largest first, and a
@@ -1884,8 +1917,7 @@ namespace Rtx::Testing
             land.mWithData = { osg::Vec2i(0, 0), osg::Vec2i(1, 0) };
             FewStatics storage;
             FewContent content;
-            osg::ref_ptr<osg::Image> looseGrass = new osg::Image;
-            looseGrass->allocateImage(4, 4, 1, GL_RGB, GL_UNSIGNED_BYTE);
+            osg::ref_ptr<osg::Image> looseGrass = Testing::makeImage("", 4, 4, GL_RGB, GL_UNSIGNED_BYTE);
             content.mImages.put("textures/grass.dds", looseGrass);
             CellReader reader(CellWorld{ .mStorage = &storage,
                 .mGround = &land,
@@ -1947,7 +1979,7 @@ namespace Rtx::Testing
                 {
                     mHeldOnce = true;
                     mEntered.release();
-                    mLetGo.acquire();
+                    EXPECT_TRUE(mLetGo.try_acquire_for(Testing::sHandOverPatience)) << "the read was never let go";
                 }
                 return mImages.get(path);
             }
@@ -1979,7 +2011,7 @@ namespace Rtx::Testing
             };
 
             walk(mWalked++);
-            held.mEntered.acquire();
+            ASSERT_TRUE(held.mEntered.try_acquire_for(Testing::sHandOverPatience)) << "the reader never read";
             const std::uint32_t lacking = mRing.getCellsToStand();
             ASSERT_GT(lacking, 0u) << "the band was whole before anything was read";
 
@@ -2016,7 +2048,7 @@ namespace Rtx::Testing
             });
 
             supply.ask(CellRequest{ .mCells = { osg::Vec2i(0, 0), osg::Vec2i(1, 0), osg::Vec2i(2, 0) }, .mGrass = {} });
-            content.mEntered.acquire();
+            ASSERT_TRUE(content.mEntered.try_acquire_for(Testing::sHandOverPatience)) << "the reader never read";
             supply.ask(CellRequest{});
             content.mLetGo.release();
 
@@ -2031,9 +2063,10 @@ namespace Rtx::Testing
             EXPECT_FALSE(supply.waitForOne());
 
             supply.ask(CellRequest{ .mCells = { osg::Vec2i(5, 0) }, .mGrass = {} });
-            while (std::none_of(
-                read.begin(), read.end(), [](const PreparedCell* cell) { return cell->mCell == osg::Vec2i(5, 0); }))
+            for (const Testing::WaitBound bound(Testing::sHandOverPatience); std::none_of(read.begin(), read.end(),
+                     [](const PreparedCell* cell) { return cell->mCell == osg::Vec2i(5, 0); });)
             {
+                ASSERT_FALSE(bound.passed()) << "the cell asked after the cancel was never read";
                 supply.waitForOne();
                 supply.take(read, grass);
             }
@@ -2065,7 +2098,7 @@ namespace Rtx::Testing
             const osg::Vec2i b(1, 0);
             const osg::Vec2i c(2, 0);
             supply.ask(CellRequest{ .mCells = { a, b }, .mGrass = {} });
-            content.mEntered.acquire();
+            ASSERT_TRUE(content.mEntered.try_acquire_for(Testing::sHandOverPatience)) << "the reader never read";
             supply.ask(CellRequest{ .mCells = { a, b, c }, .mGrass = {} });
             content.mLetGo.release();
 

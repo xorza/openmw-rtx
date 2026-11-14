@@ -632,9 +632,7 @@ namespace Rtx::Testing
                     root->removeChild(painted);
 
                 mScene.clearPlacement();
-                const std::size_t before = Testing::getAllocationCount();
-                walk(*root, 0, frame);
-                const std::size_t spent = Testing::getAllocationCount() - before;
+                const std::size_t spent = Testing::allocationsIn([&] { walk(*root, 0, frame); });
                 const Retirement went = mExtractor.retire();
                 mExtractor.getReleased().clear();
 
@@ -836,12 +834,6 @@ namespace Rtx::Testing
 
             EXPECT_EQ(walk(*plume.mRoot).mSprites, 20u) << "a walk on a clock that did not move emits nothing";
         }
-
-        /// A node whose walk ends the walk, as a content file the walk cannot read does.
-        struct Throwing : osg::Node
-        {
-            void accept(osg::NodeVisitor&) override { throw std::runtime_error("a node the walk cannot read"); }
-        };
 
         /// **A walk that threw leaves nothing for the next one to place.** The emitters a walk met are read when it
         /// ends, and a throw is an end with no reading: the next walk would place them as its own, at their old

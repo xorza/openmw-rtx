@@ -35,7 +35,7 @@ namespace Rtx
                 next != nullptr; next = next->pNext)
                 linked.insert(next);
 
-            EXPECT_EQ(linked.size(), 11u) << "a member was added to DeviceFeatures without chaining it";
+            EXPECT_EQ(linked.size(), 12u) << "a member was added to DeviceFeatures without chaining it";
             EXPECT_TRUE(linked.contains(&features.mFeatures2));
             EXPECT_TRUE(linked.contains(&features.mVulkan12));
             EXPECT_TRUE(linked.contains(&features.mVulkan13));
@@ -47,6 +47,7 @@ namespace Rtx
             EXPECT_TRUE(linked.contains(&features.mRayTracingPipeline));
             EXPECT_TRUE(linked.contains(&features.mPipelineExecutable));
             EXPECT_TRUE(linked.contains(&features.mShaderClock));
+            EXPECT_TRUE(linked.contains(&features.mMaximalReconvergence));
         }
 
         /// **A candidate is asked only the structures of what it offers**: of a device that lists no

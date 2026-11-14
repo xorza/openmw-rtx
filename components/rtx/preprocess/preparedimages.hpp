@@ -93,6 +93,10 @@ namespace Rtx
         /// How many asks the table remembers, made or queued: what a test of the sweep reads.
         std::size_t getEntryCount();
 
+        /// What every hand keeps of its chains' scratch, asked while `isIdle`: nought, as a hand lets go of
+        /// it once the queue is drained. What a test reads.
+        std::size_t getScratchBytes();
+
     private:
         using Key = std::tuple<const osg::Image*, TextureEncoding, TextureWrap, const osg::Image*>;
 

@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -16,6 +17,7 @@
 #include <components/files/conversion.hpp>
 #include <components/rtx/common/error.hpp>
 #include <components/rtx/shaders/gbuffer.h>
+#include <components/rtxvulkan/device/memory/referencealignment.hpp>
 #include <components/rtxvulkan/shaders/shared/counts.h>
 #include <components/rtxvulkan/shaders/shared/gui.h>
 #include <components/rtxvulkan/shaders/shared/pane.h>
@@ -112,6 +114,45 @@ namespace Rtx
                 ADD_FAILURE() << module << " places that start a ray query";
         }
 
+        /// **No access a module makes by address claims more alignment than a buffer's memory starts on**
+        /// (`sReferenceAlignment`): a load or a store through a `buffer_reference` carries the alignment its
+        /// declaration claims, and memory that started short of it was a pose buffer AMD's Windows driver put on eight
+        /// bytes under a claim of sixteen. Read in every module the build ships, so a claim of a constant the
+        /// buffer's maximum does not name fails here. The greatest claim is the maximum itself, which no module
+        /// would make were the maximum larger than it has to be.
+        TEST(RtxSpirvInterfaceTest, noAccessByAddressClaimsMoreThanABufferStartsOn)
+        {
+            std::uint32_t most = 0;
+            std::size_t accesses = 0;
+            for (const std::filesystem::directory_entry& entry :
+                std::filesystem::directory_iterator(OPENMW_RTX_SHADER_DIR))
+            {
+                if (entry.path().extension() != ".spv")
+                    continue;
+
+                const std::vector<std::uint32_t> words = readSpirv(entry.path());
+                forEachInstruction(
+                    words, [&](const spv::Op op, const std::span<const std::uint32_t> operands, std::size_t) {
+                        // Where the memory operands start: after a load's type, result and pointer, and after a store's
+                        // or a copy's two pointers. An `Aligned` mask's literal is the first that follows, as it is the
+                        // lowest bit of the mask that takes one.
+                        const std::size_t mask = op == spv::OpLoad            ? 3
+                            : (op == spv::OpStore || op == spv::OpCopyMemory) ? 2
+                                                                              : 0;
+                        if (mask == 0 || operands.size() <= mask + 1
+                            || (operands[mask] & spv::MemoryAccessAlignedMask) == 0)
+                            return;
+                        ++accesses;
+                        most = std::max(most, operands[mask + 1]);
+                        EXPECT_LE(operands[mask + 1], sReferenceAlignment)
+                            << Files::pathToUnicodeString(entry.path().filename());
+                    });
+            }
+
+            ASSERT_GT(accesses, 0u) << "no access by address in " << OPENMW_RTX_SHADER_DIR;
+            EXPECT_EQ(most, sReferenceAlignment);
+        }
+
         /// **No module but the trace's stages binds a stage image**, which is what lets the frame's arena lay the
         /// denoiser's and the upscaler's images over them: `GBuffer::declareStages` spans them over the trace alone
         /// (`FrameStep::Trace`), and a pass after it that read one would read another image's bits. Read in every
@@ -185,6 +226,21 @@ namespace Rtx
             std::vector<std::uint32_t> whole = header;
             whole.insert(whole.end(), { (4u << 16) | spv::OpDecorate, 1u, set, 0u });
             EXPECT_NO_THROW(readInterface(whole)) << "a decoration of a set, whole";
+
+            // **Only the declarations are read**: an instruction in a function's body that would be refused, a
+            // variable with no id, is past the first `OpFunction`, where no declaration stands.
+            std::vector<std::uint32_t> bodied = whole;
+            bodied.insert(
+                bodied.end(), { (5u << 16) | spv::OpFunction, 0u, 1u, 0u, 0u, (2u << 16) | spv::OpVariable, 7u });
+            EXPECT_NO_THROW(readInterface(bodied)) << "a function's body read";
+
+            // A member's index is under the module's length, as every member is a word of its structure: one past
+            // it is refused before anything is made for it.
+            std::vector<std::uint32_t> farMember = header;
+            farMember.insert(farMember.end(),
+                { (5u << 16) | spv::OpMemberDecorate, 1u, static_cast<std::uint32_t>(header.size() + 5),
+                    spv::DecorationOffset, 0u });
+            EXPECT_THROW(readInterface(farMember), InputError) << "a member past the module";
         }
 
         /// **The rest of a module's interface reads as its GLSL states it**: the line pass's vertex stage reads a

@@ -689,11 +689,15 @@ namespace Rtx
             stateSet->addUniform(alpha, osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
             stateSet->addUniform(named);
 
-            const std::size_t before = Testing::getAllocationCount();
-            const osg::StateSet::RefUniformPair* const foundAlpha = findUniform(*stateSet, "alpha");
-            const osg::StateSet::RefUniformPair* const foundNamed = findUniform(*stateSet, "aVeryLongUniformNameHere");
-            const osg::StateSet::RefUniformPair* const missing = findUniform(*stateSet, "alphaRef");
-            EXPECT_EQ(Testing::getAllocationCount(), before);
+            const osg::StateSet::RefUniformPair* foundAlpha = nullptr;
+            const osg::StateSet::RefUniformPair* foundNamed = nullptr;
+            const osg::StateSet::RefUniformPair* missing = nullptr;
+            EXPECT_EQ(Testing::allocationsIn([&] {
+                foundAlpha = findUniform(*stateSet, "alpha");
+                foundNamed = findUniform(*stateSet, "aVeryLongUniformNameHere");
+                missing = findUniform(*stateSet, "alphaRef");
+            }),
+                0u);
 
             ASSERT_NE(foundAlpha, nullptr);
             EXPECT_EQ(foundAlpha->first.get(), alpha.get());

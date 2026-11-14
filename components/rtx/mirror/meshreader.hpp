@@ -80,6 +80,14 @@ namespace Rtx
         FoldedShape mShape;
     };
 
+    /// What a drawable read came to where it was not refused: triangles to place, or none — vertices and no
+    /// triangle, which places nothing and is no fault of the file.
+    enum class MeshRead
+    {
+        Triangles,
+        Empty,
+    };
+
     /// Turns a drawable into a `MeshReading`: the half of a mesh's arrival that reads and shapes,
     /// apart from the half that inserts, because the ring does the first on a thread of its own
     /// and what a shape is has to be one answer. Not thread-safe, and one instance a thread.
@@ -91,15 +99,18 @@ namespace Rtx
 
         MeshReader(const MeshReader&) = delete;
         MeshReader& operator=(const MeshReader&) = delete;
+        MeshReader(MeshReader&&) = delete;
+        MeshReader& operator=(MeshReader&&) = delete;
 
         /// Reads `read` into `into`, shaped by `content`, this thread's, answering whether the drawable held a triangle
-        /// to read, and an error for a face this cannot build, saying why: lines and points, a morph's base that is not
-        /// the length of its source, a triangle naming a vertex the drawable does not have, an array of normals,
-        /// coordinates or colours of another length than the vertices, or an array of a type this does not read.
+        /// to read (`MeshRead`), and an error for a face this cannot build, saying why: lines and points, a morph's
+        /// base that is not the length of its source, a triangle naming a vertex the drawable does not have, an array
+        /// of normals, coordinates or colours of another length than the vertices, or an array of a type this does not
+        /// read.
         ///
         /// @param model the model the drawable stands in (`modelOf`), whose other shapes the split cuts its normals
         ///        across — `CreaseSplit::Beside` — or null for none.
-        Result<bool, std::string> read(
+        Result<MeshRead, std::string> read(
             ContentPreprocessor& content, const DrawableRead& read, const osg::Node* model, MeshReading& into);
 
     private:
@@ -116,7 +127,7 @@ namespace Rtx
 
         /// Collects `geometry`'s triangles into `into`, degenerate ones left out, and answers
         /// whether any is left. An error where one names a vertex at or past `vertices`.
-        static Result<bool, std::string> collectTriangles(
+        static Result<MeshRead, std::string> collectTriangles(
             const osg::Geometry& geometry, std::size_t vertices, std::vector<std::uint32_t>& into);
 
         /// Fills the beside scratch with the triangles of `model`'s other shapes that stand where

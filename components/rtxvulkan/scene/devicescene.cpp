@@ -6,7 +6,7 @@
 
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/shaders/scene.h>
-#include <components/rtxvulkan/device/commands.hpp>
+#include <components/rtxvulkan/device/memory/batch.hpp>
 #include <components/rtxvulkan/device/memory/uploads.hpp>
 
 #include "placing.hpp"
@@ -67,7 +67,8 @@ namespace Rtx
             batch.flush();
         mTextures.write(batch, mPasses.mTextures, arrival, textures, mRefusals, nullptr);
         mBuiltMeshes = scene.meshes().getRevision();
-        mReleasedFreed = scene.meshes().getFreedCount();
+        mReleasedMeshes = scene.meshes().getFreedCount();
+        mReleasedTextures = scene.textures().getFreedCount();
         mBuiltStructure = scene.getStructureRevision();
         mBuiltFrom = scene.getIdentity();
         mCounts = scene.placements().getCounts();
@@ -82,12 +83,18 @@ namespace Rtx
 
     void DeviceScene::releaseFreed(const SceneDesc& scene)
     {
-        const std::uint64_t freed = scene.meshes().getFreedCount();
-        if (freed == mReleasedFreed)
-            return;
+        if (const std::uint64_t freed = scene.meshes().getFreedCount(); freed != mReleasedMeshes)
+        {
+            mAcceleration.release(scene.meshes().getFreed());
+            mReleasedMeshes = freed;
+        }
 
-        mAcceleration.release(scene.meshes().getFreed());
-        mReleasedFreed = freed;
+        // The slots keep their place, as they do in the scene's own table, and no live material names a freed one.
+        if (const std::uint64_t freed = scene.textures().getFreedCount(); freed != mReleasedTextures)
+        {
+            mTextures.drop(scene.textures().getFreed());
+            mReleasedTextures = freed;
+        }
     }
 
     Skinning DeviceScene::skinning(const SceneDesc& scene, const FrameSlot slot, GpuTimer* const timer)

@@ -276,9 +276,8 @@ namespace Rtx
         std::size_t next = 0;
         for (const Layer& layer : read.mLayers)
         {
-            TextureHold held
-                = takeSkySheet(scene, VFS::Path::Normalized(SceneUtil::EmbeddedImage::nameOf(*layer.mImage)),
-                    osg::ref_ptr<const osg::Image>(layer.mImage));
+            TextureHold held = takeSkySheet(
+                scene, VFS::Path::Normalized(SceneUtil::EmbeddedImage::nameOf(*layer.mImage)), *layer.mImage);
             const Index slot = held.get();
             if (slot == sNoIndex)
                 continue;

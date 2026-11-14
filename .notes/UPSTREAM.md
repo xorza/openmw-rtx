@@ -133,10 +133,17 @@ the lines each item names, which the merge resolves by keeping the seam:
     a resize stores what the window reports in it (`WindowListener::windowSized`): a size in pixels
     went through two densities on a Wayland desktop whose displays differ in scale, and shrank at
     every start. The harness states its window in pixels (`RunSetup::mWindowPixels`).
-- One set of checks for every file, on every compiler: the checks the top-level `CMakeLists.txt`
-  adds to upstream's, and the hunks in upstream code that keep it clean under them, the patches to
+- One set of checks for every file, on every compiler: the checks `cmake/Checks.cmake` adds to
+  upstream's, and the hunks in upstream code that keep it clean under them, the patches to
   `extern/sol3` included. MSVC's `4244` and `4267` are off, since `-Wall -Wextra` leave `-Wconversion`
-  out.
+  out. `-Wsuggest-override` and `-Wzero-as-null-pointer-constant` are off for the eleven upstream sources
+  that keep OpenSceneGraph's style and differ by nothing else (`openmw_keep_upstream_styles`), whose text is
+  upstream's; the six headers of that style (`nif/data.hpp`, `nif/node.hpp`, `nif/particle.hpp`,
+  `sceneutil/memorybarrier.hpp`, `sceneutil/mwshadowtechnique.hpp`, `sceneutil/optimizer.hpp`) keep the
+  edits, as every file including one would need the checks off with it. What GCC alone asked, which left with
+  it on 2026-11-12, is upstream's again: the casts `-Wdouble-promotion` asked in 50 files and the 34
+  `Crash::notNull` its flow-sensitive null check asked; an ESM4 group label's cast stays, which `-Wcast-qual`
+  asks. The cost is a conflict with an upstream edit to a hunk that keeps a current check clean.
 - A post-processing technique's integer is held to `int`'s range before it is converted
   (`fx::Lexer::scanNumber`): a double past it converts to no int, which upstream's check read back after the
   conversion, and Clang, which builds the fork, folded that check away, so `18446744073709551615` parsed.
@@ -146,8 +153,9 @@ the lines each item names, which the merge resolves by keeping the seam:
   the last, inside the enumeration's range, where `INT_MAX` was outside it and so no value of the type,
   which Clang's undefined-behaviour check stopped on.
 - A number read from text is finite (`Misc::StringUtils::toNumeric`, which the settings read
-  through): `std::from_chars` reads `inf` and `nan`. Where `from_chars` has no floating point, the
-  stream reads only the prefix it would (`floatPrefix`), so a spelling is one number everywhere.
+  through): `std::from_chars` reads `inf` and `nan`. And floats are read by `from_chars` alone, which every
+  toolchain the fork builds with reads them through (a `static_assert` says so): upstream's stream for Clang
+  read `1.5x` and `0x10` otherwise than the others did.
 - The test support the fork's suites run under (`components/testing/util.hpp`,
   `apps/components_tests/main.cpp`): death tests in the `threadsafe` style, since ThreadSanitizer
   refuses a forked child of a process with threads; a run's output folder keyed on the process as
@@ -159,7 +167,9 @@ the lines each item names, which the merge resolves by keeping the seam:
   moves with its physics placed outright is a jump (`World::moveObject`, `notifyJumped`), and a
   move of the clock past the frame's own step is a cut, found once a frame where the weather is
   updated (`MWWorld::HourWatch`): a Lua global script writes the hour from the Lua worker while the
-  frame draws.
+  frame draws. A rest or a wait, which `World::advanceTime` told as a change of worldspace, is a cut
+  (`RenderingManager::notifyTimeJumped`), which keeps the effect manager's clear the old notice made: the
+  renderer keeps the eye's adaptation and the wake across a rest, as across any other cut.
 - What the harness holds of the game through `OMW::EngineHost`, which the game alone asks nothing
   of: a sky between two weathers for one update (`WeatherManager::holdWeather`), since a filmed
   frame must name its sky; a game hour the host stated (`holdsGameClock`); a content script's
@@ -184,8 +194,8 @@ the lines each item names, which the merge resolves by keeping the seam:
   duration (`files/data-mw/scripts/omw/surfacelight/`), as the user asked: vanilla lit only the
   actor a bolt struck, and a bolt that struck a wall lit nothing. Built-in scripts, so it is on in
   every game, through upstream's own projectile hit handler and no engine code.
-- The launcher's DLSS download, into the folder `getUserLocalDataPath` names on each of the five
-  path classes: NVIDIA's feature library is the player's to install, and a per-user folder is one
+- The launcher's DLSS download, into the folder `getUserLocalDataPath` names on each of the two
+  path classes (`LinuxPath`, `WindowsPath`): NVIDIA's feature library is the player's to install, and a per-user folder is one
   the game may write to on every system.
 - The sky's clocks in `components/sky` (the time of day, the clouds' scroll, the stars' roll) and
   `SkyManager` split from `Precipitation`: the ray tracer lights an hour and draws the rain with no
@@ -523,4 +533,27 @@ the lines each item names, which the merge resolves by keeping the seam:
 - The content selector's game file list a third of its row and the search field two (`horizLayout`'s
   stretch in `contentselector.ui`), by the user's decision, where the list hugged its longest name and its
   chevron. The cost is a conflict with an upstream edit to that layout.
-
+- The reference walk `ObjectPaging` hands the ray tracer (`visitESM3References` and `visitESM4References` into a
+  sink, `Terrain::RefKinds`, `Terrain::PagedCellRef`): the ray tracer stands the statics and the lights of the cells
+  past the active grid from the walk the rasterizer's paging reads, filtered by what each renderer takes. The cost
+  is a conflict with an upstream edit to the two walks or to `typeFilter`.
+- MyGUI's backend behind `MyGUIPlatform::GuiRenderManager` (`components/myguiplatform`), which `myguirtx`
+  implements beside OSG's, and `VideoWidget` sharing its texture through `MyGUIPlatform::shareTexture`: the
+  interface draws through whichever renderer the game started. The cost is a conflict with an upstream edit to the
+  platform's files or to `videowidget.cpp`'s texture.
+- The rules a ripple and the sea are made by, each in a header both renderers read: `ripplerules.hpp`
+  (`isWading`, `strikesWater`, the ripple's size), which `RippleSimulation` reads in place of its own lines, and
+  `searules.hpp`, the sea's plane and its centre under a cell. The cost is a conflict with an upstream edit to
+  `ripplesimulation.cpp`'s emission lines.
+- `Resource::SceneManager::setModelPrograms` (`ModelPrograms::Omitted`), `setAutoMaps` in place of the five
+  pattern setters, and `letGo`: a renderer that compiles no GLSL loads models without their programs, both
+  renderers find a model's companion maps by one rule (`Shader::AutoMapRules`), and the ray tracer's preparation
+  lets go of what it read. The cost is a conflict with an upstream edit to those setters or to the shader
+  visitor `getTemplate` runs.
+- A script's post-processing shader under a renderer that declines the chain (`postprocessingbindings.cpp`) loads
+  by name and draws nothing, and the chain lists empty, asked of the seam as every other caller asks it
+  (`RenderSupport::declinedSetting`): a mod's script that loaded one stopped at the null post-processor. The cost
+  is a conflict with an upstream edit to the shader's methods or to `load` and `getChain`.
+- `DensityCalculator` in a header of its own (`groundcoverdensity.hpp`), which the ray tracer's groundcover
+  reads: both renderers thin the grass by one rule. The cost is a conflict with an upstream edit to the class,
+  which no longer stands in `groundcover.cpp`.

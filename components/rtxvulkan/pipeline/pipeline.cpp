@@ -5,6 +5,7 @@
 
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/notfinitecensus.hpp>
+#include <components/rtxvulkan/device/pipelinereport.hpp>
 #include <components/rtxvulkan/device/pipelinetally.hpp>
 #include <components/rtxvulkan/shaders/shared/counts.h>
 
@@ -69,6 +70,6 @@ namespace Rtx
             };
 
         mDevice.setName(pipeline, mName);
-        mDevice.reportPipeline(pipeline, mName, feedback);
+        mDevice.getPipelineReport().report(pipeline, mName, feedback);
     }
 }

@@ -58,11 +58,12 @@ namespace Rtx
             const std::string name(64, 'x');
             refusals.refuse(Refused::Sprites, name, "a particle's size, colour, place or axis is not a finite number");
 
-            const std::size_t before = Testing::getAllocationCount();
-            refusals.refuse(Refused::Sprites, name, "a particle's size, colour, place or axis is not a finite number");
-            const std::size_t after = Testing::getAllocationCount();
-
-            EXPECT_EQ(after, before) << after - before << " allocations to meet a refusal again";
+            EXPECT_EQ(Testing::allocationsIn([&] {
+                refusals.refuse(
+                    Refused::Sprites, name, "a particle's size, colour, place or axis is not a finite number");
+            }),
+                0u)
+                << "allocations to meet a refusal again";
             EXPECT_EQ(refusals.count(Refused::Sprites), 1u);
         }
 

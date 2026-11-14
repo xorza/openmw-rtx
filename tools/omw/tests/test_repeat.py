@@ -10,7 +10,8 @@ from pathlib import Path
 from unittest import mock
 
 from omw.build import Build
-from omw.repeat import DIFFERED_STATUS, FRAME, repeat
+from omw.exitstatus import ExitStatus
+from omw.repeat import FRAME, repeat
 from omw.system import ROOT, Refusal, read_text, temporary_folder
 
 # A harness that passes and leaves a child holding its output for 0.3 s, as the crash monitor does.
@@ -98,7 +99,7 @@ class RepeatTest(unittest.TestCase):
         self.assertEqual(read_text(kept / "0.log"), "half a run\n")
 
     def test_a_pair_is_judged_by_its_status_and_not_by_its_report(self):
-        for status, judged, says in ((DIFFERED_STATUS, 1, "NOT repeatable"), (1, 1, "the run itself failed")):
+        for status, judged, says in ((ExitStatus.DIFFERED, 1, "NOT repeatable"), (1, 1, "the run itself failed")):
             with self.subTest(status=status):
                 out = Path(tempfile.mkdtemp(prefix="omw-repeat-test-"))
                 self.addCleanup(shutil.rmtree, out, ignore_errors=True)
@@ -115,13 +116,6 @@ class RepeatTest(unittest.TestCase):
               contextlib.redirect_stdout(io.StringIO())):
             self.assertEqual(repeat(OutlivedHarness(), []), 0)
         self.assertFalse(out.exists())
-
-    def test_the_differed_status_is_the_harness_own(self):
-        text = read_text(ROOT / "apps" / "rtxtool" / "model" / "benchrun.hpp")
-        stated = re.search(r"inline constexpr int sDifferedStatus = (\d+);", text)
-        self.assertIsNotNone(stated)
-        self.assertEqual(int(stated.group(1)), DIFFERED_STATUS)
-        self.assertNotIn(DIFFERED_STATUS, (0, 1), "a run that differed must not read as passed or as failed")
 
     def test_the_frame_is_the_harness_check_s_own(self):
         text = read_text(ROOT / "apps" / "rtxtool" / "framed.hpp")

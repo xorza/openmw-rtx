@@ -216,6 +216,8 @@ namespace Rtx
 
             Session(const Session&) = delete;
             Session& operator=(const Session&) = delete;
+            Session(Session&&) = delete;
+            Session& operator=(Session&&) = delete;
 
         private:
             const Ngx::Api& mApi;
@@ -240,6 +242,8 @@ namespace Rtx
 
             ParameterMap(const ParameterMap&) = delete;
             ParameterMap& operator=(const ParameterMap&) = delete;
+            ParameterMap(ParameterMap&&) = delete;
+            ParameterMap& operator=(ParameterMap&&) = delete;
 
             Ngx::Parameter& get() const { return *mMap; }
 
@@ -278,6 +282,8 @@ namespace Rtx
 
             Feature(const Feature&) = delete;
             Feature& operator=(const Feature&) = delete;
+            Feature(Feature&&) = delete;
+            Feature& operator=(Feature&&) = delete;
 
             const Ngx::Handle* get() const { return mHandle; }
 
@@ -345,6 +351,9 @@ namespace Rtx
 
         Context(const Context&) = delete;
         Context& operator=(const Context&) = delete;
+        Context(Context&&) = delete;
+        Context& operator=(Context&&) = delete;
+        ~Context() = default;
 
         const Ngx::Api& mApi;
         Session mSession;
@@ -437,8 +446,13 @@ namespace Rtx
         return sShared;
     }
 
-    VkExtent2D DlssUpscaler::renderExtentFor(const Upscale mode, const VkExtent2D output) const
+    FrameExtents DlssUpscaler::extentsFor(
+        const std::uint32_t width, const std::uint32_t height, const Upscale mode) const
     {
+        if (!upscales(mode))
+            return Rtx::extentsFor(width, height, mode);
+
+        const VkExtent2D output{ width, height };
         // NGX rounds its own ratios (balanced at 1920 by 1080 is 1114 by 626, where 1.7 truncates to
         // 1129 by 635), which only it knows: the extent is asked, never worked out.
         Ngx::OptimalSettings settings;
@@ -447,7 +461,10 @@ namespace Rtx
         if (Ngx::failed(asked) || settings.mOptimal.width == 0 || settings.mOptimal.height == 0)
             throw DeviceError(std::format("NVIDIA DLSS gave no extent to trace {} at for {}x{}: {}",
                 sUpscaleNames.name(mode), output.width, output.height, resultText(asked)));
-        return settings.mOptimal;
+        return FrameExtents{ .mRenderWidth = settings.mOptimal.width,
+            .mRenderHeight = settings.mOptimal.height,
+            .mOutputWidth = width,
+            .mOutputHeight = height };
     }
 
     VkDeviceSize DlssUpscaler::bytesAt(const VkExtent2D render, const VkExtent2D output) const

@@ -56,7 +56,12 @@ namespace Rtx
         // Opened here, where the deck's mean and cover are read off the image anyway: a sheet the
         // upload cannot take takes no slot, which the device reads as no deck.
         const Result<osg::ref_ptr<const osg::Image>, std::string> image = openImage(*scenes.getImageManager(), path);
-        TextureHold deck = takeSkySheet(scene, path, image);
+        if (!image.isOk())
+        {
+            scene.refusals().refuse(Refused::SkyLayer, path.value(), image.error());
+            return at;
+        }
+        TextureHold deck = takeSkySheet(scene, path, *image.value());
         if (deck.get() == sNoIndex)
             return at;
 

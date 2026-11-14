@@ -9,6 +9,7 @@
 #include <vector>
 
 #include <apps/rtxtool/instruments/png.hpp>
+#include <apps/rtxtool/model/exitstatus.hpp>
 #include <apps/rtxtool/model/pictureshelf.hpp>
 #include <components/misc/result.hpp>
 
@@ -160,12 +161,12 @@ namespace RtxTool
     /// since `against`: a directory an earlier run wrote on this machine, never a corpus in the tree,
     /// because the picture is a function of the driver and the card as much as of the code. Each of
     /// `pictures` is looked for under `against` by the name it has under `wrote`, and held to its
-    /// rule. Returns a process exit status, non-zero where any picture moved or has no reference, or where
-    /// there is none to compare, and zero where `against` is empty.
+    /// rule. Differed where a picture moved; failed where one has no reference, or there is none to compare;
+    /// passed where `against` is empty.
     ///
     /// A frame's picture is judged by its hashes where they can judge it: where an upscaler reconstructed
     /// the frame, or nothing composed it past the trace, the hashes hold the same bytes. Where the wavelet
     /// composed it they cannot tell the card's last bit from a change, and the picture is what is held.
-    int compareRuns(const PictureShelf& drawn, const std::filesystem::path& wrote, const std::filesystem::path& against,
-        std::span<const WrittenPicture> pictures);
+    ExitStatus compareRuns(const PictureShelf& drawn, const std::filesystem::path& wrote,
+        const std::filesystem::path& against, std::span<const WrittenPicture> pictures);
 }

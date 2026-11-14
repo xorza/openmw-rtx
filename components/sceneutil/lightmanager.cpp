@@ -5,7 +5,6 @@
 
 #include <osgUtil/CullVisitor>
 
-#include <components/crashcatcher/crash.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/misc/constants.hpp>
 #include <components/resource/scenemanager.hpp>
@@ -349,8 +348,7 @@ namespace SceneUtil
         traverse(node, cv);
         cv->popStateSet();
 
-        if (node->getPPLightsBuffer()
-            && Crash::notNull(cv->getCurrentCamera(), "a cull with no camera")->getName() == Constants::SceneCamera)
+        if (node->getPPLightsBuffer() && cv->getCurrentCamera()->getName() == Constants::SceneCamera)
             node->getPPLightsBuffer()->updateCount(frame);
     }
 

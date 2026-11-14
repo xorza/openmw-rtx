@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cstddef>
 #include <initializer_list>
 #include <iterator>
@@ -10,6 +11,7 @@
 
 #include <osg/Array>
 #include <osg/Drawable>
+#include <osg/FrontFace>
 #include <osg/Geometry>
 #include <osg/Group>
 #include <osg/LOD>
@@ -27,7 +29,11 @@
 #include <osg/ref_ptr>
 
 #include <apps/components_tests/rtx/support/graph.hpp>
+#include <apps/components_tests/rtx/support/image.hpp>
+#include <components/contentstore/store.hpp>
 #include <components/misc/constants.hpp>
+#include <components/misc/digestwords.hpp>
+#include <components/misc/hashstate.hpp>
 #include <components/misc/result.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/image/colour.hpp>
@@ -35,9 +41,12 @@
 #include <components/rtx/mirror/cells/prepared.hpp>
 #include <components/rtx/mirror/cells/templatewalk.hpp>
 #include <components/rtx/mirror/meshreader.hpp>
+#include <components/rtx/preprocess/contentpass.hpp>
+#include <components/rtx/preprocess/threadcontent.hpp>
 #include <components/rtx/scene/meshtable.hpp>
 #include <components/sceneutil/extradata.hpp>
 #include <components/shader/automaps.hpp>
+#include <components/testing/util.hpp>
 
 namespace Rtx::Testing
 {
@@ -60,6 +69,10 @@ namespace Rtx::Testing
             osg::ref_ptr<osg::MatrixTransform> moved
                 = new osg::MatrixTransform(osg::Matrix::translate(10.0f, 0.0f, 0.0f));
             root->addChild(moved);
+
+            // A clockwise front over everything moved, as a content file's `NiStencilProperty` states one, which the
+            // frame's walk puts on the placement (`MeshInstance::mClockwise`).
+            moved->getOrCreateStateSet()->setAttribute(new osg::FrontFace(osg::FrontFace::CLOCKWISE));
 
             // A switch with its first branch off: the harvested plant, the night lamp at noon.
             osg::ref_ptr<osg::Switch> branches = new osg::Switch;
@@ -109,8 +122,9 @@ namespace Rtx::Testing
             root->addChild(haze);
 
             PreparedModel model;
-            TemplateWalk walk(nullptr, nullptr);
-            walk.read(*root, ~hidden, model);
+            ThreadContent content;
+            TemplateWalk walk(nullptr);
+            walk.read(*root, ~hidden, model, content);
 
             ASSERT_EQ(model.mParts.size(), 3u) << "the branch that is on, the frame shown, and the near level";
             EXPECT_EQ(model.mPositions.size(), 12u) << "three quads' corners, appended in turn";
@@ -118,7 +132,10 @@ namespace Rtx::Testing
             EXPECT_EQ(model.mParts[0].mDrawable, on.get());
             ASSERT_EQ(model.chainOf(model.mParts[0]).size(), 1u);
             EXPECT_EQ(model.chainOf(model.mParts[0])[0], rootState)
-                << "the drawable's own state set states nothing, and the root's is the chain's one link";
+                << "the drawable's own state set states nothing, and the root's is the chain's one link: a front is "
+                   "the placement's and keys no material";
+            for (const PreparedPart& part : model.mParts)
+                EXPECT_TRUE(part.mClockwise) << "every part stands under the clockwise front";
             ASSERT_TRUE(model.mParts[0].mMaterial.mDescribed.has_value());
             EXPECT_EQ(model.mParts[0].mMaterial.mDescribed->mDiffuseColour, (EncodedColour{ 0.25f, 0.5f, 0.75f }))
                 << "and the root's state set was in force at it";
@@ -215,7 +232,8 @@ namespace Rtx::Testing
                         { quads[3], modesOf({ ExteriorNight }) } } },
             };
 
-            TemplateWalk walk(nullptr, nullptr);
+            ThreadContent content;
+            TemplateWalk walk(nullptr);
             for (std::size_t at = 0; at < std::size(cases); ++at)
             {
                 const auto& [branches, read] = cases[at];
@@ -225,7 +243,7 @@ namespace Rtx::Testing
                 root->addChild(branches);
 
                 PreparedModel model;
-                walk.read(*root, ~0u, model);
+                walk.read(*root, ~0u, model, content);
                 ASSERT_EQ(model.mParts.size(), 1 + read.size()) << at;
                 EXPECT_EQ(model.mParts[0].mDrawable, plain.get()) << at;
                 EXPECT_TRUE(model.mParts[0].mModes.isEvery()) << at << ": outside the switch";
@@ -260,7 +278,8 @@ namespace Rtx::Testing
                 osg::Matrixd::translate(osg::Vec3d(std::numeric_limits<double>::quiet_NaN(), 0.0, 0.0)));
             nowhere->addChild(makeQuad());
 
-            TemplateWalk walk(nullptr, nullptr);
+            ThreadContent content;
+            TemplateWalk walk(nullptr);
             for (const auto& [broken, why] :
                 { std::pair<osg::ref_ptr<osg::Node>, std::string>{ makePastOneBlock(), pastABlock },
                     std::pair<osg::ref_ptr<osg::Node>, std::string>{
@@ -276,7 +295,7 @@ namespace Rtx::Testing
                 root->addChild(kept);
 
                 PreparedModel model;
-                walk.read(*root, ~0u, model);
+                walk.read(*root, ~0u, model, content);
                 EXPECT_EQ(model.mRefused, why);
                 ASSERT_EQ(model.mParts.size(), 1u) << "the model was refused whole";
                 EXPECT_EQ(model.mParts[0].mDrawable, kept.get());
@@ -284,10 +303,49 @@ namespace Rtx::Testing
 
                 const osg::ref_ptr<osg::Geometry> quad = makeQuad();
                 PreparedModel next;
-                walk.read(*quad, ~0u, next);
+                walk.read(*quad, ~0u, next, content);
                 EXPECT_TRUE(next.mRefused.empty()) << "a refusal carried into the next model";
                 EXPECT_EQ(next.mParts.size(), 1u);
             }
+        }
+
+        /// **What a walk files is its version's**: a model of two quads, one painted with a diffuse and a normal map
+        /// whose chain is made again, walked into a store, files these keys — a shape each — digested in their order
+        /// sorted. A walk that reads a model otherwise files other keys, and every manifest a preparation kept under
+        /// the version before stands for walks this one would not make: move `TemplateWalk::sVersion` with this digest.
+        /// A pass whose own version moved moves it too, and its keys say so.
+        TEST(RtxTemplateWalkTest, aWalksKeysAreItsVersions)
+        {
+            osg::ref_ptr<osg::Image> normals = makeImage("textures/tx_rock_n.dds", 2, 2);
+            std::fill_n(normals->data(), normals->getTotalSizeInBytes(), static_cast<unsigned char>(128));
+
+            osg::ref_ptr<osg::Group> root = new osg::Group;
+            osg::ref_ptr<osg::Geometry> painted = makeQuad();
+            paint(*painted->getOrCreateStateSet(), "textures/tx_a.dds");
+            paint(*painted->getOrCreateStateSet(), *normals, TextureRole::Normal);
+            root->addChild(painted);
+            root->addChild(makeQuad());
+
+            ContentStore::Store store(TestingOpenMW::currentTestDirPath() / "store", sContentStorePolicy);
+            ThreadContent content(&store, ContentStore::Reach::Disk);
+            TemplateWalk walk(nullptr);
+            std::vector<StoredKey> keys;
+            content.mPreprocessor.collectKeys(&keys);
+            PreparedModel model;
+            walk.read(*root, ~0u, model, content);
+            content.mPreprocessor.collectKeys(nullptr);
+            ASSERT_FALSE(keys.empty()) << "the walk filed nothing, so this holds nothing";
+
+            std::ranges::sort(keys, [](const StoredKey& a, const StoredKey& b) { return a.mKey.mHash < b.mKey.mHash; });
+            Misc::HashState digest;
+            for (const StoredKey& key : keys)
+            {
+                digest.add(key.mKey.mHash);
+                digest.add(static_cast<std::uint32_t>(key.mPass));
+            }
+            EXPECT_EQ(TemplateWalk::sVersion, 1u);
+            EXPECT_EQ(digest.getWords(), (Misc::DigestWords{ 0xb1f6e9db89d9de96, 0x582b92714ba0ba46 }))
+                << keys.size() << " keys: the walk files other keys, so move `TemplateWalk::sVersion` with this digest";
         }
     }
 }
