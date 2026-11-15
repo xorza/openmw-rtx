@@ -13,7 +13,7 @@
 ## Open questions
 
 - All I/O serial?
-- tidy not required in ci?
+- automate memleak detection
 
 ## Performance
 
