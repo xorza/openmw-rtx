@@ -30,6 +30,7 @@
 #include <components/resource/imagemanager.hpp>
 #include <components/resource/niffilemanager.hpp>
 #include <components/resource/scenemanager.hpp>
+#include <components/resource/sptfilemanager.hpp>
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/environment/moonfaces.hpp>
 #include <components/rtx/environment/skybuilder.hpp>
@@ -484,7 +485,8 @@ namespace Rtx
             Testing::HeldImages images(vfs.get(), 0);
             Resource::NifFileManager nifs(vfs.get(), nullptr);
             Resource::BgsmFileManager materials(vfs.get(), 0);
-            Resource::SceneManager scenes(vfs.get(), &images, &nifs, &materials, 0);
+            Resource::SptFileManager trees(vfs.get(), 0);
+            Resource::SceneManager scenes(vfs.get(), &images, &nifs, &materials, &trees, 0);
 
             osg::ref_ptr<osg::Image> rgb
                 = Testing::makeImage("textures/tx_sky_clear.dds", 4, 4, GL_RGB, GL_UNSIGNED_BYTE_3_3_2);
@@ -530,7 +532,8 @@ namespace Rtx
             Testing::HeldImages images(vfs.get(), 0);
             Resource::NifFileManager nifs(vfs.get(), nullptr);
             Resource::BgsmFileManager materials(vfs.get(), 0);
-            Resource::SceneManager scenes(vfs.get(), &images, &nifs, &materials, 0);
+            Resource::SptFileManager trees(vfs.get(), 0);
+            Resource::SceneManager scenes(vfs.get(), &images, &nifs, &materials, &trees, 0);
 
             osg::ref_ptr<osg::Image> sheet = Testing::makeImage("textures/tx_script_sky.dds", 4, 4);
             for (std::size_t texel = 0; texel < 16; ++texel)
@@ -598,7 +601,8 @@ namespace Rtx
             Resource::ImageManager images(vfs.get(), 0);
             Resource::NifFileManager nifs(vfs.get(), nullptr);
             Resource::BgsmFileManager materials(vfs.get(), 0);
-            HeldScenes scenes(vfs.get(), &images, &nifs, &materials, 0);
+            Resource::SptFileManager trees(vfs.get(), 0);
+            HeldScenes scenes(vfs.get(), &images, &nifs, &materials, &trees, 0);
 
             osg::ref_ptr<osg::Image> rgb
                 = Testing::makeImage("textures/star_rgb.dds", 4, 4, GL_RGB, GL_UNSIGNED_BYTE_3_3_2);
@@ -642,7 +646,8 @@ namespace Rtx
             Resource::ImageManager images(&vfs, 0);
             Resource::NifFileManager nifs(&vfs, nullptr);
             Resource::BgsmFileManager materials(&vfs, 0);
-            Resource::SceneManager scenes(&vfs, &images, &nifs, &materials, 0);
+            Resource::SptFileManager trees(&vfs, 0);
+            Resource::SceneManager scenes(&vfs, &images, &nifs, &materials, &trees, 0);
             SceneDesc scene;
             ThreadContent thread;
             std::vector<TextureHold> holds;

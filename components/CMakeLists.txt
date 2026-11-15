@@ -751,6 +751,7 @@ target_sources(
 target_sources(
     openmw-components
     PRIVATE
+        files/binarystream.cpp
         files/collections.cpp
         files/configfileparser.cpp
         files/configurationmanager.cpp
@@ -764,6 +765,7 @@ target_sources(
     PUBLIC
         FILE_SET HEADERS
             FILES
+                files/binarystream.hpp
                 files/collections.hpp
                 files/configfileparser.hpp
                 files/configurationmanager.hpp
@@ -1123,6 +1125,7 @@ target_sources(
         resource/niffilemanager.cpp
         resource/resourcesystem.cpp
         resource/scenemanager.cpp
+        resource/sptfilemanager.cpp
         resource/stats.cpp
     PUBLIC
         FILE_SET HEADERS
@@ -1143,6 +1146,7 @@ target_sources(
                 resource/resourcemanager.hpp
                 resource/resourcesystem.hpp
                 resource/scenemanager.hpp
+                resource/sptfilemanager.hpp
                 resource/stats.hpp
 )
 
@@ -1375,6 +1379,25 @@ target_sources(
                 sky/timeofday.hpp
                 sky/vertexrules.hpp
 )
+
+target_sources(
+    openmw-components
+    PRIVATE
+        spt/file.cpp
+        spt/readext.cpp
+        spt/readmap.cpp
+        spt/readmisc.cpp
+        spt/readprop.cpp
+        spt/readtree.cpp
+        spt/stream.cpp
+    PUBLIC
+        FILE_SET HEADERS
+            FILES
+                spt/file.hpp
+                spt/stream.hpp
+)
+
+target_sources(openmw-components PRIVATE sptosg/sptloader.cpp PUBLIC FILE_SET HEADERS FILES sptosg/sptloader.hpp)
 
 target_sources(openmw-components PUBLIC FILE_SET HEADERS FILES std140/ubo.hpp)
 

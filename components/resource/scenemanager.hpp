@@ -1,10 +1,13 @@
 #pragma once
 
 #include <array>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <span>
 #include <string>
+#include <unordered_set>
+#include <utility>
 
 #include <osg/Texture>
 #include <osg/ref_ptr>
@@ -14,6 +17,7 @@
 #include <components/shader/automaps.hpp>
 
 #include <components/sceneutil/lightmanager.hpp>
+#include <components/vfs/pathutil.hpp>
 #include <filesystem>
 
 namespace VFS
@@ -35,6 +39,7 @@ namespace Resource
     class ImageManager;
     class NifFileManager;
     class BgsmFileManager;
+    class SptFileManager;
     class SharedStateManager;
 }
 
@@ -66,8 +71,11 @@ namespace Resource
     class SceneManager : public NodeResourceManager<std::string>
     {
     public:
+        using BlacklistModelSet = std::unordered_set<VFS::Path::Normalized, VFS::Path::Hash, std::equal_to<>>;
+
         explicit SceneManager(const VFS::Manager* vfs, Resource::ImageManager* imageManager,
-            Resource::NifFileManager* nifFileManager, Resource::BgsmFileManager* bgsmFileManager, double expiryDelay);
+            Resource::NifFileManager* nifFileManager, Resource::BgsmFileManager* bgsmFileManager,
+            Resource::SptFileManager* sptFileManager, double expiryDelay);
         ~SceneManager() override;
 
         Shader::ShaderManager& getShaderManager();
@@ -184,8 +192,8 @@ namespace Resource
         void clearCache() override;
 
         /// Lets the caches go of `paths`, each a normalised path of a model or an image which nothing more
-        /// will ask for: its template, its NIF file and its image, and then the shared state no template uses
-        /// any more. What the ray tracer's preparation asks once the last job reading a file ends
+        /// will ask for: its template, its NIF or SpeedTree file and its image, and then the shared state no
+        /// template uses any more. What the ray tracer's preparation asks once the last job reading a file ends
         /// (`Rtx::ContentPreparation`).
         void letGo(std::span<const std::string> paths);
 
@@ -206,6 +214,8 @@ namespace Resource
         /// companion maps of `setAutoMaps` are attached either way.
         void setModelPrograms(ModelPrograms programs) { mPrograms = programs; }
 
+        void setOptimizerBlacklist(BlacklistModelSet blacklist) { mOptimizerBlacklist = std::move(blacklist); }
+
     private:
         osg::ref_ptr<Shader::ShaderVisitor> createShaderVisitor(const std::string& shaderPrefix = "objects");
         osg::ref_ptr<osg::Node> loadErrorMarker();
@@ -223,6 +233,7 @@ namespace Resource
         Resource::ImageManager* mImageManager;
         Resource::NifFileManager* mNifFileManager;
         Resource::BgsmFileManager* mBgsmFileManager;
+        Resource::SptFileManager* mSptFileManager;
         osg::ref_ptr<osgUtil::IncrementalCompileOperation> mIncrementalCompileOperation;
         mutable osg::ref_ptr<osg::Node> mErrorMarker;
         mutable std::once_flag mErrorMarkerFlag;
@@ -230,6 +241,8 @@ namespace Resource
         osg::Texture::FilterMode mMinFilter;
         osg::Texture::FilterMode mMagFilter;
         float mMaxAnisotropy;
+
+        BlacklistModelSet mOptimizerBlacklist;
 
         unsigned int mParticleSystemMask;
         bool mSupportsClusteredLighting = false;

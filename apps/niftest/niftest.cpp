@@ -20,6 +20,7 @@
 #include <components/files/multidircollection.hpp>
 #include <components/misc/strings/lower.hpp>
 #include <components/nif/niffile.hpp>
+#include <components/spt/file.hpp>
 #include <components/vfs/archive.hpp>
 #include <components/vfs/bsaarchive.hpp>
 #include <components/vfs/filesystemarchive.hpp>
@@ -44,6 +45,7 @@ namespace
         BTR,
         RDT,
         PSA,
+        SPT,
         Unknown,
     };
 
@@ -52,6 +54,7 @@ namespace
         Archive,
         Material,
         NIF,
+        SPT,
         Unknown,
     };
 
@@ -78,6 +81,8 @@ namespace
             return { FileType::RDT, FileClass::NIF };
         if (extension == ".psa")
             return { FileType::PSA, FileClass::NIF };
+        if (extension == ".spt")
+            return { FileType::SPT, FileClass::SPT };
 
         return { FileType::Unknown, FileClass::Unknown };
     }
@@ -106,6 +111,8 @@ namespace
                 return "RDT";
             case FileType::PSA:
                 return "PSA";
+            case FileType::SPT:
+                return "SPT";
             case FileType::Unknown:
             default:
                 return {};
@@ -130,7 +137,7 @@ namespace
         const std::filesystem::path& source, const std::filesystem::path& path, const VFS::Manager* vfs, bool quiet)
     {
         const auto [fileType, fileClass] = classifyFile(path);
-        if (fileClass != FileClass::NIF && fileClass != FileClass::Material)
+        if (fileClass != FileClass::NIF && fileClass != FileClass::Material && fileClass != FileClass::SPT)
             return false;
 
         const std::string pathStr = Files::pathToUnicodeString(path);
@@ -162,6 +169,14 @@ namespace
                         Bgsm::parse(vfs->get(VFS::Path::Normalized(pathStr)));
                     else
                         Bgsm::parse(Files::openConstrainedFileStream(fullPath));
+                    break;
+                }
+                case FileClass::SPT:
+                {
+                    if (vfs != nullptr)
+                        Spt::parse(vfs->get(VFS::Path::Normalized(pathStr)), pathStr);
+                    else
+                        Spt::parse(Files::openConstrainedFileStream(fullPath), pathStr);
                     break;
                 }
                 default:
@@ -221,10 +236,10 @@ namespace
         bool& writeDebugLog, bool& quiet)
     {
         bpo::options_description desc(
-            R"(Ensure that OpenMW can use the provided NIF, KF, BTO/BTR, RDT, PSA, BGEM/BGSM and BSA/BA2 files
+            R"(Ensure that OpenMW can use the provided NIF, KF, BTO/BTR, RDT, PSA, SPT, BGEM/BGSM and BSA/BA2 files
 
 Usages:
-  niftest <nif files, kf files, bto/btr files, rdt files, psa files, bgem/bgsm files, BSA/BA2 files, or directories>
+  niftest <nif files, kf files, bto/btr files, rdt files, psa files, spt files, bgem/bgsm files, BSA/BA2 files, or directories>
       Scan the file or directories for NIF errors.
 
 Allowed options)");

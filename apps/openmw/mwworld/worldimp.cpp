@@ -40,6 +40,7 @@
 
 #include <components/resource/bulletshape.hpp>
 #include <components/resource/resourcesystem.hpp>
+#include <components/resource/scenemanager.hpp>
 
 #include <components/sceneutil/workqueue.hpp>
 
@@ -77,6 +78,7 @@
 #include "../mwrender/animation.hpp"
 #include "../mwrender/bulletdebugdraw.hpp"
 #include "../mwrender/camera.hpp"
+#include "../mwrender/esm4npcanimation.hpp"
 #include "../mwrender/npcanimation.hpp"
 #include "../mwrender/renderingmanager.hpp"
 #include "../mwrender/skystate.hpp"
@@ -240,6 +242,8 @@ namespace MWWorld
         mStore.setUp();
         mStore.validateRecords(mReaders);
         mStore.movePlayerRecord();
+
+        mResourceSystem->getSceneManager()->setOptimizerBlacklist(MWRender::getESM4ActorModels(mStore));
 
         mSwimHeightScale = mStore.get<ESM::GameSetting>().find("fSwimHeightScale")->mValue.getFloat();
     }
