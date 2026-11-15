@@ -367,6 +367,10 @@ class GatherTest(unittest.TestCase):
             "https://github.com/o/r/files/2/log.txt"])
         many = [f"https://github.com/user-attachments/files/{n}/a" for n in range(9)]
         self.assertEqual(len(gather.attachments_in(many)), gather.ATTACHMENTS)
+        # The bound a caller names, at none, one, and past the URLs there are.
+        self.assertEqual(gather.attachments_in(many, limit=0), [])
+        self.assertEqual(gather.attachments_in(many, limit=1), many[:1])
+        self.assertEqual(gather.attachments_in(many, limit=20), many)
 
     def test_a_zip_is_refused_by_what_it_says_it_inflates_to(self):
         with tempfile.TemporaryDirectory() as scratch:
