@@ -2,6 +2,7 @@
 stands in a folder named after its pins (`pinned_folder`), so a bump fetches anew and an unchanged pin fetches
 nothing."""
 
+import functools
 import hashlib
 import io
 import shutil
@@ -63,41 +64,6 @@ def clang_format() -> Path:
         wheel.unlink()
 
     return _fetched_once(clang_format_dir(), fill) / program
-
-
-def clang_tidy_dir() -> Path:
-    return pinned_folder("clang-tidy", pins.CLANG_TIDY[SYSTEM])
-
-
-# The wheel's tree below this prefix is the one LLVM installs: `bin/` and the builtin headers in `lib/clang/`.
-_CLANG_TIDY_TREE = "clang_tidy/data/"
-
-
-def clang_tidy() -> Path:
-    """**The clang-tidy every desk and CI lints with**, out of the wheel `pins.py` names for this system, read and
-    never installed. With the builtin headers beside it as LLVM lays them out, which it finds from its own path, and
-    `clang-apply-replacements` (`clang_apply_replacements`), which `--fix` merges its edits with."""
-
-    def fill(partial: Path) -> None:
-        wheel = _download_into(partial, pins.CLANG_TIDY[SYSTEM])
-        with zipfile.ZipFile(wheel) as zipped:
-            for member in zipped.infolist():
-                relative = member.filename.removeprefix(_CLANG_TIDY_TREE)
-                if relative == member.filename or member.is_dir() or relative.endswith(".py"):
-                    continue
-                target = partial / relative
-                target.parent.mkdir(parents=True, exist_ok=True)
-                with zipped.open(member) as source, target.open("wb") as out:
-                    shutil.copyfileobj(source, out)
-                if not WINDOWS and relative.startswith("bin/"):
-                    target.chmod(0o755)
-        wheel.unlink()
-
-    return _fetched_once(clang_tidy_dir(), fill) / "bin" / f"clang-tidy{EXE}"
-
-
-def clang_apply_replacements() -> Path:
-    return clang_tidy().parent / f"clang-apply-replacements{EXE}"
 
 
 def gersemi_pin() -> pins.Pin:
@@ -406,6 +372,33 @@ def set_tool(port: str, tool: str) -> Path:
     return found
 
 
+# The set's clang-tidy, a port of the fork's own: its programs and Clang's builtin headers stand in its tools folder.
+CLANG_TIDY_PORT = "clang-tidy"
+
+
+def clang_tidy() -> Path:
+    """**The clang-tidy every desk and CI lints with**, the set's, built from the LLVM release the Linux builds
+    compile with. With the builtin headers beside it, which it finds from its own path, and `clang-apply-replacements`
+    (`clang_apply_replacements`), which `--fix` merges its edits with."""
+    return set_tool(CLANG_TIDY_PORT, "clang-tidy")
+
+
+def clang_apply_replacements() -> Path:
+    return set_tool(CLANG_TIDY_PORT, "clang-apply-replacements")
+
+
+@functools.cache
+def clang_tidy_digest(root: Path = ROOT) -> str:
+    """**Which clang-tidy lints**, as `omw tidy`'s store remembers it: a digest of the port it is built from, its
+    LLVM release and its switches. Not the set's digest, which every other port moves too, and each move would lint
+    the tree whole again."""
+    digest = hashlib.sha256()
+    for name in sorted(working_tree_files(f"vcpkg/ports/{CLANG_TIDY_PORT}/*", root=root)):
+        digest.update(name.encode() + b"\0")
+        digest.update((root / name).read_bytes().replace(b"\r\n", b"\n") + b"\0")
+    return digest.hexdigest()[:16]
+
+
 def vulkan_loader_dir() -> Path:
     return pinned_folder("vulkan-loader", pins.VULKAN_LOADER_WINDOWS)
 
@@ -439,7 +432,7 @@ def vulkan_environment(env: dict[str, str]) -> None:
 def pinned_names() -> set[str]:
     """Every name in out/deps/ that the pins give this system, through the functions that name each getter's folder,
     so pruning cannot take what a getter fetched."""
-    kept = [cmake_dir(), ninja_dir(), clang_format_dir(), clang_tidy_dir(), gersemi_dir(), vcpkg_root_dir(),
+    kept = [cmake_dir(), ninja_dir(), clang_format_dir(), gersemi_dir(), vcpkg_root_dir(),
             appimage_tools_dir(), llvm_dir(), VCPKG_BINARY_CACHE, VCPKG_DOWNLOADS, VCPKG_WORK, VCPKG_SETS,
             held_set_dir(), vcpkg_set_dir(set_digest()), vcpkg_set_dir(pins.VCPKG_SET.digest)]
     kept += [crash_tool_dir(name) for name, system in pins.CRASH_TOOLS if system == SYSTEM]

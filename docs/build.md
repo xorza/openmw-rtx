@@ -123,6 +123,11 @@ How the tree is configured, built, formatted and shipped, as decisions. The CMak
   ports in `vcpkg/ports` kept as their authors wrote them, two triplets, static and release only, as upstream's
   Windows set is ([OpenMW/openmw-deps-build](https://github.com/OpenMW/openmw-deps-build)). Refused: the system's
   packages, a version per desk; FetchContent for Qt and FFmpeg; Conan.
+- **clang-tidy at the compiler's release, built in the set** (`vcpkg/ports/clang-tidy`): its two programs and
+  Clang's builtin headers alone, from the LLVM source release `pins.LLVM_VERSION` names, so a finding is the
+  compiler's own reading of the code. Refused: the PyPI wheel, a point release behind the compiler while none was
+  published; the registry's `llvm` port, a release behind as well and building every library of LLVM and Clang;
+  kernel.org's LLVM, which carries no clang-tidy.
 - **A set built once for its inputs and published** as `deps-<digest>` in parts of 1 GiB, under GitHub's 2 GiB limit
   per asset; a build fetches the pinned set, or the one `omw deps-set` built for inputs that moved.
 - **The set carries what the tree links or runs**: ports with the switches to build less, and the export pruned of

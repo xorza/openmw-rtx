@@ -1,4 +1,4 @@
-"""`omw tidy [--fix] [--changed] [file...]`: the pinned clang-tidy under the tree's `.clang-tidy`, over the sources
+"""`omw tidy [--fix] [--changed] [file...]`: the set's clang-tidy under the tree's `.clang-tidy`, over the sources
 of `apps/` and `components/` the build's compile database holds: every one, those the working tree changed and
 those that include a changed header (`--changed`), or those the files named are or are included by. `--fix` applies
 the checks' fixes, then formats the working tree's changed files as `build` does. A source whose last run was

@@ -1,9 +1,9 @@
 """What `omw tidy` remembers between runs: **a source whose run was clean is not linted again until something its
-run read changes**. A run's key is the pinned clang-tidy, the source's compile command, and the contents of every
-file the run read, as ccache's direct mode keys a compile: the dependency file clang-tidy's own run writes, and not
-the build's deps log, as an MSVC build's compiler reads other headers. It names what `-H` does not: a forced
-include, and a header a `__has_include` found. The `.clang-tidy` that stands, or does not, in each folder above each
-file read is one of them, so a configuration added is a change as one edited is.
+run read changes**. A run's key is the port the clang-tidy is built from, the source's compile command, and the
+contents of every file the run read, as ccache's direct mode keys a compile: the dependency file clang-tidy's own run
+writes, and not the build's deps log, as an MSVC build's compiler reads other headers. It names what `-H` does not:
+a forced include, and a header a `__has_include` found. The `.clang-tidy` that stands, or does not, in each folder
+above each file read is one of them, so a configuration added is a change as one edited is.
 
 **A run's reads are hashed after it**, so a file modified or changed no earlier than the run's start keeps its
 sources from being remembered, as ccache keeps a compile that read a file too new: the run may have read it as it
@@ -23,8 +23,8 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 
-from omw import pins
-from omw.system import SYSTEM, jobs
+from omw import deps
+from omw.system import jobs
 
 # The store's layout; a store of another is no store.
 FORMAT = 1
@@ -135,7 +135,7 @@ class Compile:
 
 def key(compile: Compile, reads: Iterable[str], digests: Digests) -> str:
     """The key a run of `compile` that read `reads`, in any order, comes to."""
-    hashed = hashlib.sha256(f"{FORMAT}\n{pins.CLANG_TIDY[SYSTEM].sha256}\n{compile.directory}\n{compile.command}\n"
+    hashed = hashlib.sha256(f"{FORMAT}\n{deps.clang_tidy_digest()}\n{compile.directory}\n{compile.command}\n"
                             .encode())
     for path in sorted(reads):
         hashed.update(f"{path}\0{digests[path]}\n".encode())

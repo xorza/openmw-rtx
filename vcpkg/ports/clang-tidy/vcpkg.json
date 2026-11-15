@@ -1,0 +1,13 @@
+{
+  "name": "clang-tidy",
+  "version": "23.1.5",
+  "homepage": "https://clang.llvm.org/extra/clang-tidy/",
+  "license": "Apache-2.0 WITH LLVM-exception",
+  "dependencies": [
+    {
+      "name": "vcpkg-cmake",
+      "host": true
+    }
+  ],
+  "description": "clang-tidy and clang-apply-replacements with Clang's builtin headers, at the version of the Clang the Linux builds compile with: the fork's own port, as the registry's llvm port is older and builds every library."
+}
