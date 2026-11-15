@@ -1,23 +1,33 @@
-- remove visibility limit
-- contribution rules
-- custom map notes plugin
-- audit macros
-- #if OPENMW_FFMPEG_5_OR_GREATER
-- audit ifdefs remove legacy
-- order includes canonically
-- no upscaler
+# To do
 
-- all IO serial?
+## Code
 
-- x86_64-v3
-- publish rgbcx
-- avx encoders
-- bake distant land into one mesh
-- optimize arrivals: a cell's load is a 70-250 ms frame (update, interface, place)
+- Remove the visibility limit.
+- Contribution rules.
+- Custom map notes plugin.
+- Audit macros.
+- `#if OPENMW_FFMPEG_5_OR_GREATER`.
+- Audit `#if`s, remove legacy.
+- Order includes canonically.
+- No upscaler.
 
+## Open questions
 
+- All I/O serial?
 
+## Performance
+
+- `x86_64-v3`.
+- Publish rgbcx.
+- AVX encoders.
+- Bake distant land into one mesh.
+- Optimize arrivals: a cell's load is a 70–250 ms frame (update, interface, place).
+
+## Prompts
+
+```text
 /optimize-perf rtx renderer, make sure implementation is canonical and idiomatic, see if you find inconsistencies or issues - fix them,
 try and reduce register and spill memory usage, analyze rtx shaders, denoiser, fsr. etc.  bench and profile vanilla, mfr and pbr,
 make sure to test and bench on  steamdeck deck@192.168.0.31 and win 192.168.0.8, optimize kernels, registers and reduce spills there as well,
 test. investigate any issues incountered for canonical and idiomatic fixes and apply them. at the end run tour for all the mw flavors on all 3 devices and analyze logs and performance
+```
