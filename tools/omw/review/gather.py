@@ -201,14 +201,14 @@ def kind_of(data: bytes) -> str | None:
     return "txt"
 
 
-def attachments_in(texts: list[str]) -> list[str]:
-    """The attachment URLs of `texts`, each once, in order, at most `ATTACHMENTS`."""
+def attachments_in(texts: list[str], limit: int = ATTACHMENTS) -> list[str]:
+    """The attachment URLs of `texts`, each once, in order, at most `limit`."""
     found: list[str] = []
     for text in texts:
         for url in _ATTACHMENT.findall(text):
             if url not in found:
                 found.append(url)
-    return found[:ATTACHMENTS]
+    return found[:limit + 1]
 
 
 @dataclass(frozen=True)
