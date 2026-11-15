@@ -1,8 +1,8 @@
 #pragma once
 
 #include <iosfwd>
-#include <list>
 #include <type_traits>
+#include <vector>
 
 #include "components/esm/decompose.hpp"
 #include "components/esm/esmcommon.hpp"
@@ -22,9 +22,9 @@ namespace ESM
     {
         struct RecordData
         {
-            NAME name;
-            std::streampos position;
-            uint32_t size;
+            NAME mName;
+            std::size_t mSizeOffset;
+            std::size_t mDataOffset;
         };
 
     public:
@@ -197,12 +197,13 @@ namespace ESM
         void writeFormId(const ESM::FormId&, bool wide = false, NAME tag = "FRMR");
 
     private:
-        std::list<RecordData> mRecords;
+        std::vector<RecordData> mRecords;
+        // Bytes of the outermost open record; endRecord fills in sizes here and writes the record out when it ends.
+        std::vector<char> mBuffer;
         std::ostream* mStream;
         std::streampos mHeaderPos;
         ToUTF8::Utf8Encoder* mEncoder;
         int mRecordCount;
-        bool mCounting;
 
         Header mHeader;
 
