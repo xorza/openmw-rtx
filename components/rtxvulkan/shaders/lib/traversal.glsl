@@ -1713,7 +1713,7 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed, uint relief
     {
         // **A `_spec` map is a metalness, a perceptual roughness and an occlusion**, a classic one converted
         // with its diffuse on the host (`ConversionPass`). The occlusion is of the relief no ray meets, since a
-        // ray stops at the mesh; what real geometry occludes the traced bounce and `ambientReaching` already
+        // ray stops at the mesh; what real geometry occludes the traced bounce and `ambientRayOf`'s ray already
         // find. The scattering in its alpha is not read: the BC1 maps most of the content ships cannot carry it.
 
         const vec4 painted = sampleDiffuse(materialPast.mSpecular, point);

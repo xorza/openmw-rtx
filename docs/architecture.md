@@ -524,18 +524,24 @@ bounce (or `unbounced` in their place), then the composite. Every ray is a ray q
 - **A stage's phases are loops of their own**, so only one walk's records stay live across a traversal; a stage whose
   rays wait on no other's answer works out its light first, as NVIDIA's best practices ask
   (`research/2026-10-30-amd-handheld-stage-times.md`).
-- **A ray is asked at its turn, and what a traversal does not read is not held through it**: a gather keeps where
-  its rays leave from, the sky's source by its id and a lamp by its row, and makes each ask at its turn
-  (`GatherRays`, `skyLegAsk`); the bounce stores what it hands its landing ahead of its ray and reads it back on a
-  miss (`bounce.comp`); the direct stage writes what no ray answers before its rays. A stage's registers are its
-  waves, sixteen a wave on RDNA 2, and a wave was 6 to 14% of a stage on the handheld
-  (`research/2026-11-15-radv-wave-tiers.md`). Refused: the landing resolved once off whichever images hold its hit,
-  four registers more and a wave fewer where the scene has maps.
+- **A ray is asked at its turn, and what a traversal does not read is not held through it**: a gather keeps where its
+  rays leave from, the sky's source by its id and a lamp by its row, and makes each ask at its turn (`GatherRays`,
+  `skyLegAsk`); the bounce stores what it hands its landing ahead of its ray and reads it back on a miss
+  (`bounce.comp`); the direct stage writes what no ray answers before its rays. The fog's scatter launch asks its four
+  the same way, a turn each at one traversal site, and reads its history past them (`fogscatter.rgen`): a tier on the
+  handheld under a sun and both moons, and 6% of the air on NVIDIA and AMD's Windows driver by day
+  (`research/2026-11-15-fog-scatter-turns.md`); read ahead of the rays the history ran RADV 0.06 ms shorter and the
+  other two drivers 6% longer. A stage's registers are its waves, sixteen a wave on RDNA 2, and a wave was 6 to 14% of a
+  stage on the handheld (`research/2026-11-15-radv-wave-tiers.md`). Refused: the landing resolved once off whichever
+  images hold its hit, four registers more and a wave fewer where the scene has maps.
 - **The eye's peel weighs a layer by its opacity alone and resolves what it ends on once, past its loop**
-  (`layerOpacityOf`, the texel `resolve` reads): a resolve inside the loop held the peel's state and the
-  traversal's record of its last hit through every layer's reads (the same note). The price is the peel's own
-  read where the stage gains no wave, 1.3% of the eye's stage under the Repack on the handheld. Refused: the hit
-  stored ahead of its resolve and read back, 2% of the stage under a sky for two registers.
+  (`layerOpacityOf`, the texel `resolve` reads): a resolve inside the loop held the peel's state and the traversal's
+  record of its last hit through every layer's reads (the same note). The price is the peel's own read where the stage
+  gains no wave, 1.3% of the eye's stage under the Repack on the handheld. The layers' stage asks a hit's opacity the
+  same way before it resolves it, so what its walk ends on is not read whole to learn it is no layer (`panes.comp`): a
+  wave on the handheld where the scene has maps, 17% of the stage in the Repack's guild
+  (`research/2026-11-15-fog-scatter-turns.md`). Refused: the hit stored ahead of its resolve and read back, 2% of the
+  stage under a sky for two registers.
 - **A layer under the water takes its column's shafts from `media`**: its column in the closed form, the beam scaled
   by the ratio `media` marched over the eye's whole column (`STAGE_SHAFTS`), the medium integrated once along the ray
   and read at each depth, as Frostbite's volumetrics light transparents (Hillaire 2015); exact where the shafts' share

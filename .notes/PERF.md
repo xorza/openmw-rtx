@@ -1,3 +1,88 @@
+# perf-rtx-renderer-4 — the stages on three drivers, with a mod's maps read
+
+Target: the ray tracer's kernels under vanilla, the Fullrest Repack and the PBR stack, on the desk (a high-end
+NVIDIA laptop GPU), the AMD handheld (RADV, its clock held) and the laptop with a low-end AMD integrated GPU (AMD's
+Windows driver). Started from `f3793d01bf`, which holds the section below and the commit that reads a mod's maps
+(`HAS_MOD_MAPS`).
+
+## Hosts
+
+- **Desk and handheld** as the section below: `bin/ab.py` legs, a shader set a side by `--shader-source`, RADV's
+  compiles for the handheld's card under the drm-shim on the desk.
+- **AMD iGPU**: `base` and `cand` worktrees of a bare repository fed by `git push`, native MSVC release of the
+  harness alone. A run needs the logged-on session, so a job is a script a scheduled task starts there;
+  over SSH a run compiles its pipelines and logs their registers and makes no swapchain. `bench --size=1280x720
+  --window=false --frames=200`; a shader set's cold compile is four minutes, a warm vanilla leg 55 to 85 s.
+- **One binary a host, a shader set a side, on all three**: the desk builds a candidate's modules and each host's
+  base binary reads them (`--shader-source`). The modules with their source differ by the host that built them
+  (the paths in them), so every side of a leg is a desk-built set; the Windows host's shipped modules against its
+  own source set, 40 frames: every zone within 0.5% but `direct`, 1.5%.
+- **RADV caps a kernel's waves by its shared memory as by its registers**: of the shim's listing, a workgroup's
+  declared bytes rounded up to 1024 and 65536 over that many workgroups a compute unit: 11264 bytes run 6 waves a
+  SIMD, 9216 and 8192 run 8, 7168 and 6144 run 10, 5120 run 12, 4096 run 16, and the count the driver reports as
+  the kernel's registers is then the budget of that many waves (the clamp: 168 on a demand of 53). A stage's ray
+  query stack is 2048 bytes there and caps nothing.
+
+## The section below's change over the mod's maps, timed again
+
+The modules of `c83efc723c` against the start's, one binary a host; frame median, the handheld one leg a side, the
+desk three, the AMD iGPU two.
+
+| content | place | handheld | desk | AMD iGPU |
+|---|---|---|---|---|
+| vanilla | ship | 86.89 → 82.04 (−5.6%) | 5.84 → 5.64 (−3.4%) | −1.0% |
+| vanilla | ship-dawn | 101.13 → 94.98 (−6.1%) | 6.31 → 6.02 (−4.6%) | −1.8% |
+| vanilla | guild | 54.96 → 53.07 (−3.4%) | 5.09 → 5.08 | −1.0% |
+| PBR | ship | 99.83 → 97.74 (−2.1%) | 6.78 → 6.73 (−0.8%) | 0.0% |
+| PBR | ship-dawn | 118.13 → 117.57 (−0.5%) | 7.30 → 7.22 (−1.1%) | −1.6% |
+| PBR | guild | 66.14 → 64.53 (−2.4%) | 6.22 → 6.25 (+0.5%) | −2.7% |
+| M[FR] | ship | 119.26 → 114.17 (−4.3%) | 7.31 → 7.34 (+0.5%) | +0.6% |
+| M[FR] | ship-dawn | 134.74 → 130.71 (−3.0%) | 7.69 → 7.70 | −1.3% |
+| M[FR] | guild | 82.43 → 76.40 (−7.3%) | 6.38 → 6.32 (−0.9%) | −3.8% |
+
+- **AMD's Windows driver took it unevenly**, which the section below never ran there: `direct` −3.9 to −7.0% under
+  a sky and +3.2% in the vanilla guild (its tuple with no sky 96 → 109 registers, ten waves to nine), `landing`
+  +1.0 to +1.8% on vanilla, +4.1% at the PBR stack's ship and +3.7% at the Repack's and −3.0 to −7.6% elsewhere
+  (`landing dark` 96 → 112), `panes` +2.2 to +4.4% on vanilla (every tuple's registers up, `panes sun sea` 231 →
+  247), `water` +4.7% at the Repack's ship; `bounce` −1.9 to −7.6% and `trace` −1.3 to −3.7% but the Repack's
+  guild, +1.5%.
+- **The AMD iGPU reads a desk-built set as its own**: shipped, its own source modules and the desk's, every zone
+  within 0.3% over two rounds.
+
+## The kernel test on three drivers
+
+- **AMD's Windows driver**: run there for the first time since the stages asked their rays at their turns: the
+  layers' stage held 251 to 256 registers in eighteen tuples for rows of 248 and 254, four waves both; one row at
+  256 now, and the test passes there.
+- **The handheld's own Mesa**, every pipeline's statistics off a `bench --frames=1` at the debug level: 561 of 574
+  as the shim's Mesa compiled them; the water's stage with a relief and a mod's maps 160 for 144, a row.
+- **The Windows host's test binary**: the debug flavour's `rtx-gpu-tests` from nothing in the candidate tree in
+  about twenty minutes; the kernel tests 215 s cold and 31 s on the driver's cache.
+
+## Tours of the tip
+
+- **Desk** (`3234741bbe`): vanilla with both expansions 93 places, no fault, the frame's median over places 1.21
+  ms and its worst 77.9; the Repack 155 places, one fault, a stencil test unread on two surfaces (80 refusals
+  before a mod's maps were read, 4 now), 2.11 ms and 247.4; the PBR stack 93 places, two faults, the argonians'
+  two necks (`.notes/ISSUES.md`), 1.36 ms and 71.7.
+- **A vanilla tour names both expansions on its line** (`--content=Tribunal.esm --content=Bloodmoon.esm`), as the
+  tree's own task does: the profile names Morrowind alone, which is 81 places.
+- **The handheld under the PBR stack** ends during leg 5 of 93, twice at the same frame: the system's `earlyoom`
+  (`docs/research/2026-11-15-fog-scatter-turns.md`).
+
+## Ideas
+
+| idea | evidence | verdict |
+|---|---|---|
+| The clamp's tile keeps each surface as its channel packs it, decoded where a short history reads it, and no ring luminances where no ring runs (`lds1`) | the default clamp declares 10816 bytes and runs 6 waves on RADV; its normals and points, 24 bytes a texel, are read only by a pixel whose history is short | RADV 9216 bytes and 8 waves with the ring and the fill; NVIDIA 13696 → 10240 bytes shared, 65 → 79 registers. Handheld: the clamp 3.647 → 3.646 ms at the vanilla ship, −1.7% in the guild, +2.5% under the PBR stack's sky: its waves are worth nothing there. Desk: the clamp +2.1 to +8.0% on every content. The Windows host pending |
+| The same with its short history's taps a loop left as a loop (`lds2`) | NVIDIA's 79 registers | desk the clamp +4.2 to +8.5%, handheld +1.4 to +4.0%: worse than `lds1` on both |
+| The ring's luminances alone a texel without the ring (`lds3`); the normals alone packed (`lds4`) | which half costs NVIDIA its registers: the points rebuilt at the tap (62 registers with them decoded at the load) | desk: `lds3` inside the spread, `lds4` +0.4 to +1.8%; RADV 10240 bytes with `lds4`, still 6 waves |
+| The wavelet's first level's tile with its normals packed, as the shadow filter's | `atrous` declares 8064 bytes and runs 8 waves on RADV at a register budget of 10; 6912 would run 9 workgroups | not tried on RADV, where the clamp's two waves bought nothing; waits on the Windows host's answer for the clamp |
+| The fog's scatter launch asks its four rays a turn each at one traversal site, of the lamp's row, the sky's sources read again and the draws off their sequence again; the history read and the lamps' light written off the rays' path (`fog1`) | its four rays are four traversals inlined, the first carrying every later ask and the history's two texels: 43 of 94 registers untouched under a sun and both moons on RADV | **kept** (`cd7d4b58a9`): `air` on the handheld −2.8%, −4.3% at dawn (96 → 80 registers) and +1.2 to +2.0% by day and in a room (0.02 to 0.13 ms); desk −6.0 to −6.9% by day and in a room, +0.9 to +1.7% at dawn (0.004 to 0.006 ms); AMD iGPU −6.2%, −3.7%, −0.9% on vanilla and −6.0%, −3.0%, −2.9% on the PBR stack. No picture moved |
+| The same with the history read ahead of the rays (`fog2`); with the moon's turn skipped in a tuple with no moons (`fog4`) | where the handheld's day lost | **refused**: `fog2` the handheld +0.6% by day and −3.5% at dawn, the desk +0.6 to +1.5% everywhere and the AMD iGPU +0.1% by day: the read past the rays is the other two drivers' whole gain. `fog4` the handheld +1.2%, −2.9%, +1.6%, no better than `fog1` |
+| The layers' stage asks a hit's opacity before it resolves it, as the trace's peel (`pan1`) | it resolves the solid its walk ends on to learn it is no layer | **kept**: `panes` in the guilds, handheld −1.9%, −3.5% and −17.0% (the Repack's, 256 → 192 registers, its frame −1.0%), desk −2.4%, −4.8%, −2.3%, AMD iGPU 0.0%, −6.9%, −1.2%; out of doors within 0.006 ms on all three. No picture moved |
+| The top level built for a fast build and not a fast trace | `tlas` is 3.6 ms of every frame out of doors on the handheld, 1.1 on the AMD iGPU and 0.1 on the desk, where an earlier note measured a whole build at 3.45 | **refused**: the handheld's `tlas` 3.618 → 3.620 at the vanilla ship and 2.250 → 2.230 at the Repack's, every stage within 0.3%: RADV builds it the same either way |
+
 # perf-rtx-renderer-3 — the stages' waves on RADV, on the desk and the AMD handheld
 
 Target: the ray tracer's kernels under vanilla, the Fullrest Repack and the PBR stack, on the desk (a high-end

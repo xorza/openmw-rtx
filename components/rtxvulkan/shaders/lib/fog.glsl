@@ -370,7 +370,7 @@ float fogColumn(vec3 origin, vec3 direction, float span)
 /// density and what is left of the ray are read at the lamp's closest approach, held inside the stretch.
 ///
 /// The sum and the reservoir are one estimator: every lamp is offered with the weight of its share of the
-/// sum, so the one held is drawn in proportion to its contribution and `sum * lampVisible(kept)` carries the
+/// sum, so the one held is drawn in proportion to its contribution and the sum times what the held lamp's ray let through carries the
 /// expectation of the whole sum shadowed lamp by lamp, exactly. What is left of the draw is which lamp the
 /// one ray goes to.
 vec3 lampsInAir(inout Reservoir kept, inout uint state, vec3 origin, vec3 direction, float entry, float exit,

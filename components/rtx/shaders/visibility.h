@@ -137,7 +137,7 @@ namespace Rtx::Shaders
         ///
         /// **Whether the sky is a light at all**: a room's dome is its fog colour standing in for the
         /// picture, and lighting anything with that draws a bright band along every wall's foot.
-        /// **How far `ambientReaching` looks for what stands over a point**: out of doors the ray runs to
+        /// **How far `ambientRayOf` looks for what stands over a point**: out of doors the ray runs to
         /// the sky, so anything takes it away; in a room the walls *make* the fill, so only what is within
         /// `ROOM_FILL_REACH` does (a ray run to the walls comes back blocked everywhere, and occluding
         /// by nothing lets white cloth light its own contact shadow).

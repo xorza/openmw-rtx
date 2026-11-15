@@ -99,15 +99,22 @@ void main()
 
         // **The instance carries its material's kind as its shader-table offset**, which the query hands
         // back (`SceneAnswer::mKind`).
-        Surface surface = resolveAsked(met, eyeRay.mQuery);
+        //
+        // **Whether it is a layer asked of its opacity alone** (`layerOpacityOf`), as the trace's peel asks it,
+        // and only a layer resolved: what the walk ends on is the trace's to shade, and resolved here it was
+        // read whole to learn that it is no layer.
+        const bool sea = met.mKind == KIND_WATER && HAS_SEA;
+        const float opacity = sea ? 1.0 : layerOpacityOf(met, eyeRay.mQuery);
         const vec3 motion = motionOf(pixel, peel.mOrigin, peel.mDirection, met.mDistance, met.mInstance,
             met.mPrimitive, met.mBary, eyeSpread(uint(peel.mArms)));
-        if ((met.mKind == KIND_WATER && HAS_SEA) || !peeled(surface, peel.mLayer))
+        if (sea || !peeled(opacity, peel.mLayer))
         {
             endMotion = motion;
             cut = false;
             break;
         }
+
+        Surface surface = resolveAsked(met, eyeRay.mQuery);
 
         // **The layer lit as the end of a path** (`paneLightOf`), its rays traced before the eye's
         // walk reads it (`stepEye`).

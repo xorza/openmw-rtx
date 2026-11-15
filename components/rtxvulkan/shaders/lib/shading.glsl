@@ -427,7 +427,7 @@ bool indirectGatherDrawn(uint key, uint seed)
 ///
 /// **A stand-in for every bounce that is not being traced**, one level down from the one that is.
 ///
-/// @param reaching how much of the ambient the point can see, out of `ambientReaching`. It bites on
+/// @param reaching how much of the ambient the point can see, out of `ambientAnswered`. It bites on
 ///        the whole of it and on both sides of a door: what a room changes is how far the ray looked
 ///        for the occluder, not whether the answer applies. One is what an asker with no hemisphere
 ///        to trace hands over.
@@ -633,13 +633,6 @@ float ambientAnswered(AmbientRay ray, RayAnswer answered)
 
     const float through = throughAnswered(answered);
     return ray.mRated ? ray.mWeight * through / AMBIENT_EXTERIOR_RATE : ray.mWeight * through;
-}
-
-/// `ambientRayOf`, traced now.
-float ambientReaching(vec3 position, vec3 normal, vec3 plane, float rounding, float transmission, uint seed)
-{
-    const AmbientRay ray = ambientRayOf(position, normal, plane, rounding, transmission, seed);
-    return ambientAnswered(ray, answerAsked(ray.mRay));
 }
 
 /// What a see-through layer sends back, in the pieces the pane filter takes apart.
@@ -897,7 +890,7 @@ struct Arriving
 /// **A room has nothing outside it, so a ray that got out of one brings back nothing.** The dome a room draws
 /// is its fog colour standing in for the *picture* wherever a ray leaves the shell, and it is far brighter
 /// than the room itself: lighting with it would draw a bright band along the foot of every wall.
-/// `mAmbientFromSky` is where a cell answers whether its sky is a light, and `ambientReaching` reads the same
+/// `mAmbientFromSky` is where a cell answers whether its sky is a light, and `ambientRayOf` reads the same
 /// field.
 ///
 /// **The lobe's escape finds the sky a mirror shows**, `reflectedSky`: a reflection is a picture of the world,

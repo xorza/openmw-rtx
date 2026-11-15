@@ -496,7 +496,7 @@ namespace Rtx::Testing
         /// seeing it charges a froxel is the seeing at that froxel.
         ///
         /// A short reach makes it sharp: a probe drawn outside the lamp's reach finds no lamp, buys no ray, and
-        /// `lampVisible` answers one for want of anything to trace, while every slice of the stretch still sums
+        /// its seeing would be one for want of anything to trace, while every slice of the stretch still sums
         /// the lamp where it stands, so a lantern behind a lid would light the air in front of it. The lid
         /// stands in both frames, since it also covers part of the sky the wall gathers.
         TEST_F(RtxVisibilityTest, aLampBehindALidLightsNoneOfTheVolumesAirEither)

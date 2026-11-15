@@ -55,13 +55,6 @@ RayAsk skyAsk(SkySource sky, vec3 position, vec3 step, vec2 draw, bool nearest)
     return skyLightAsk(leaveSurface(position, step, towards), towards, frame.mReach, nearest);
 }
 
-/// The same, traced at once and read as one number: the product `throughAnswered` makes of its
-/// own halves.
-float skyVisible(SkySource sky, vec3 position, vec3 step, vec2 draw)
-{
-    return throughAnswered(answerAsked(skyAsk(sky, position, step, draw, false)));
-}
-
 /// Which lamps one cell of the grid holds, as a range into the light list.
 ///
 /// **By cell rather than by point, because a walk along a ray has the cell already**: the stretch a ray
@@ -662,8 +655,22 @@ vec3 darkeningAt(vec3 from, Facing facing, float scale, bool lampLit)
     return taken;
 }
 
-/// The ray `lampAsk` asks, of the lamp at `row` of the table, leaving from `from`: for an asker that keeps the row
-/// and not the reservoir (`heldLampRay`).
+/// What the world leaves of the lamp at `row` of the table, the one a reservoir held, in `Passage`'s two halves.
+///
+/// **The one ray**, aimed somewhere on the lamp, stopping at its closest approach to it less the clearance
+/// and not at the centre: aimed off-axis, a ray stopped at the centre's distance runs *past* the source. A
+/// record's lamp keeps no clearance (`Rtx::makeLight` says why), so its ray runs to the flame, and the facing
+/// keeps a lantern's frame or a candle's holder from shadowing it: the ray culls the faces turned toward
+/// where it left (`lampLightAsk`).
+///
+/// **The clearance and the size are two numbers because they answer two questions**: how far short of the
+/// lamp nothing shadows it, and how wide the source a penumbra opens to.
+///
+/// **Of the row and not the reservoir**, which an asker that makes the ray at its turn does not hold through the
+/// traversals before it (`heldLampRay`).
+///
+/// @param from where the ray leaves from, the reservoir's point as the asker moved it (`Reservoir::mFrom`).
+/// @param step the step off the triangle that point stands on (`stepOf`), or nought for a point in the air.
 RayAsk lampRowAsk(uint row, vec3 from, vec3 step, vec2 draw, bool nearest)
 {
     // Aimed from where the ray leaves and not from where the lamp was weighed, with no reach test:
@@ -686,24 +693,6 @@ RayAsk lampRowAsk(uint row, vec3 from, vec3 step, vec2 draw, bool nearest)
         leaveSurface(from, step, towards), towards, along - max(lamp.mClearance, SHADOW_BIAS), nearest);
 }
 
-/// What the world leaves of the lamp a reservoir held, in `Passage`'s two halves.
-///
-/// **The one ray**, aimed somewhere on the lamp, stopping at its closest approach to it less the clearance
-/// and not at the centre: aimed off-axis, a ray stopped at the centre's distance runs *past* the source. A
-/// record's lamp keeps no clearance (`Rtx::makeLight` says why), so its ray runs to the flame, and the facing
-/// keeps a lantern's frame or a candle's holder from shadowing it: the ray culls the faces turned toward
-/// where it left (`lampLightAsk`).
-///
-/// **The clearance and the size are two numbers because they answer two questions**: how far short of the
-/// lamp nothing shadows it, and how wide the source a penumbra opens to.
-///
-/// @param step the step off the triangle the reservoir's point stands on (`stepOf`), or nought for a
-///        point in the air.
-RayAsk lampAsk(Reservoir kept, vec3 step, vec2 draw, bool nearest)
-{
-    return lampRowAsk(kept.mLamp, kept.mFrom, step, draw, nearest);
-}
-
 /// The tangent of a half angle given as its sine (`SkySource::mLimb`): a penumbra's radius over its
 /// occluder's distance.
 float tangentOfLimb(float limb)
@@ -723,13 +712,6 @@ float lampPenumbra(float radius, float distance, float occluder)
 {
     return occluder < SHADOW_PENUMBRA_CLEAR ? radius * occluder / max(distance - occluder, SHADOW_BIAS)
                                             : SHADOW_PENUMBRA_CLEAR;
-}
-
-/// `lampAsk`'s two halves, now and as one number, from none of the lamp to all: `throughAnswered`'s
-/// product, exact for the reason it gives.
-float lampVisible(Reservoir kept, vec3 step, vec2 draw)
-{
-    return throughAnswered(answerAsked(lampAsk(kept, step, draw, false)));
 }
 
 /// What the lamp a reservoir held is worth to the estimate of every lamp it stands for: the

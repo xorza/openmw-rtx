@@ -103,7 +103,7 @@ vec3 lightThroughWater(BentPath bent, float footprint, float into)
 
 /// What the world leaves of a light in the sky at a point, asked along the path the light took: under the
 /// water, bent at the surface — up the refracted line to where it met the surface, and on from there along
-/// its own direction in the air — and over it, `skyVisible` itself.
+/// its own direction in the air — and over it, `skyAsk`'s one ray.
 ///
 /// **The shadow is where the light is.** `lightThroughWater` charges the bent path and reads the caustic
 /// where it met the surface; cast straight along the direction in the air, a roof over the water shaded a

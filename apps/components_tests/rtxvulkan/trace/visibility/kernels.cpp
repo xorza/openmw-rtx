@@ -234,8 +234,11 @@ namespace Rtx
             // (`TEXTURE`), still four waves on an RDNA SIMD (`docs/research/2026-11-09-separate-samplers.md`);
             // the landing at 144 since a sheet takes its span off the corners the hit carried
             // (`docs/research/2026-11-09-sheet-span.md`); `panes` with no scratch since a layer under the water
-            // takes its column's shafts from `media` (`docs/research/2026-11-12-panes-column-ratio.md`).
-            constexpr std::array<Row, 11> sAmd{ {
+            // takes its column's shafts from `media` (`docs/research/2026-11-12-panes-column-ratio.md`), and at 256
+            // in every tuple, four waves as at 248, since a path end's rays are asked at their turns
+            // (`docs/research/2026-11-15-radv-wave-tiers.md`): run again there with a mod's maps read, where
+            // every other row held.
+            constexpr std::array<Row, 10> sAmd{ {
                 { "water", {}, { 0, 177, 2048 } },
                 { "water", { .mDarkAlpha = true }, { 0, 190, 2048 } },
                 { "direct", {}, { 0, 160, 2048 } },
@@ -243,8 +246,7 @@ namespace Rtx
                 { "media", {}, { 0, 192, 2048 } },
                 { "media", { .mDarkAlpha = true }, { 0, 216, 2048 } },
                 { "media", { .mMoons = false, .mDarkAlpha = true }, { 0, 217, 2048 } },
-                { "panes", {}, { 0, 248, 2048 } },
-                { "panes", { .mDarkAlpha = true }, { 0, 254, 2048 } },
+                { "panes", {}, { 0, 256, 2048 } },
                 { "landing", {}, { 0, 144, 2048 } },
                 { "bounce", { .mDarkAlpha = true }, { 0, 144, 2048 } },
             } };
@@ -291,12 +293,14 @@ namespace Rtx
             // are asked at their turns, a hit's rows are read again past the ground stack, the bounce's
             // hand-over is stored ahead of its ray and the eye's peel resolves once
             // (`docs/research/2026-11-15-radv-wave-tiers.md`). `media` and `panes` at what they held. The tuples
-            // that read a mod's maps (`HAS_MOD_MAPS`) under the shim alone, where every row held them.
-            constexpr std::array<Row, 17> sRadv{ {
+            // that read a mod's maps (`HAS_MOD_MAPS`) on both as well: the handheld's Mesa holds the water's stage
+            // with a relief and a mod's maps a step over the shim's, at 160.
+            constexpr std::array<Row, 18> sRadv{ {
                 { "visibility", { .mMaps = false }, { 0, 96, 2048 } },
                 { "water", {}, { 0, 160, 2048 } },
                 { "water", { .mMaps = false, .mDarkAlpha = false }, { 0, 144, 2048 } },
                 { "water", { .mDarkAlpha = false, .mRelief = true }, { 0, 144, 2048 } },
+                { "water", { .mDarkAlpha = false, .mRelief = true, .mModMaps = true }, { 0, 160, 2048 } },
                 { "direct", { .mRelief = false }, { 0, 112, 2048 } },
                 { "direct", { .mMaps = false, .mDarkAlpha = false }, { 0, 96, 2048 } },
                 { "media", {}, { 0, 176, 2048 } },
