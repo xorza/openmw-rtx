@@ -5,7 +5,9 @@ import os
 import shutil
 import subprocess
 import tempfile
+import time
 import unittest
+from dataclasses import dataclass
 from pathlib import Path
 from unittest import mock
 
@@ -230,9 +232,23 @@ class RememberedTest(unittest.TestCase):
         self.assertEqual(tidy.tidycache.load(folder / "tidy-clean.json"), {})
 
     def test_a_run_stopped_partway_keeps_in_the_store_what_came_out_clean_before_it_stopped(self):
-        """A cancel stops CI's lint partway: the store holds each source that came out clean by the last write,
-        written after every source here, and none whose run the driver had not taken in when it stopped. One hand,
-        so the order is the list's."""
+        """A cancel stops CI's lint partway. **Each checkpoint writes what came out clean so far**, which a run
+        killed outright keeps, and **a run stopped by an exception writes it on its way out**, between checkpoints
+        too. One hand, so the order is the list's; the third source stops the run."""
+        for checkpoint_s, at_the_stop in ((0.0, ["a.cpp", "b.cpp"]), (float("inf"), [])):
+            with self.subTest(checkpoint_s=checkpoint_s):
+                stopped = self.stopped_at_the_third(checkpoint_s, at_the_stop)
+                self.assertEqual(stopped.at_the_stop, at_the_stop, "the store when the run stopped")
+                self.assertEqual(stopped.left, ["a.cpp", "b.cpp"], "the store the stopped run left")
+
+    @dataclass
+    class Stopped:
+        at_the_stop: list[str]
+        left: list[str]
+
+    def stopped_at_the_third(self, checkpoint_s: float, awaited: list[str]) -> "RememberedTest.Stopped":
+        """Four clean sources linted by one hand, the third interrupted, with checkpoints every `checkpoint_s`: the
+        sources the store held as the third began, after a bounded wait for `awaited`, and those it held after."""
         folder = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, folder)
         paths = [written(folder, name, "int a;") for name in ("a.cpp", "b.cpp", "c.cpp", "d.cpp")]
@@ -240,17 +256,29 @@ class RememberedTest(unittest.TestCase):
             {"directory": str(folder), "file": str(path), "output": f"{path.stem}.o", "command": f"c++ -c {path.name}"}
             for path in paths
         ]))
-        build = mock.Mock(dir=folder)
+        store = folder / "tidy-clean.json"
+        at_the_stop: list[str] = []
+
+        def names() -> list[str]:
+            return sorted(Path(source).name for source in tidy.tidycache.load(store))
+
         def run(_tidy: Path, _build: object, source: Source, _fixes: Path | None,
                 dependencies: Path) -> subprocess.CompletedProcess:
             if source.file == paths[2]:
+                # The driver takes in the second source's run while this one starts: a bounded wait for the
+                # checkpoint that follows it, where there is one.
+                for _ in range(1000):
+                    if names() == awaited:
+                        break
+                    time.sleep(0.005)
+                at_the_stop.extend(names())
                 raise KeyboardInterrupt
             dependencies.write_text(f"{source.file.stem}.o: {source.file.name}\n", encoding="utf-8")
             return subprocess.CompletedProcess([], 0, "", "")
 
         with (mock.patch.object(tidy, "LINTED", (folder,)), mock.patch.object(tidy, "_run", side_effect=run),
-              mock.patch.object(tidy, "CHECKPOINT_S", 0.0), mock.patch.object(tidy, "jobs", return_value=1),
+              mock.patch.object(tidy, "CHECKPOINT_S", checkpoint_s), mock.patch.object(tidy, "jobs", return_value=1),
               mock.patch.object(tidy.deps, "clang_tidy", return_value=Path("clang-tidy")),
               contextlib.redirect_stdout(io.StringIO()), self.assertRaises(KeyboardInterrupt)):
-            tidy.tidy(build, [])
-        self.assertEqual(sorted(tidy.tidycache.load(folder / "tidy-clean.json")), [str(paths[0]), str(paths[1])])
+            tidy.tidy(mock.Mock(dir=folder), [])
+        return RememberedTest.Stopped(at_the_stop, names())

@@ -208,12 +208,15 @@ def tidy(build: Build, args: list[str]) -> int:
                     fresh.clear()
                     tidycache.save(store, kept | remembered_now)
                     saved = time.monotonic()
+        except BaseException:
+            # Stopped early, interrupted or failed: what came out clean is kept as at a checkpoint.
+            tidycache.save(store, kept | remembered_now | tidycache.remember(compiles, fresh, started_ns))
+            raise
         finally:
-            # A run that stops early, interrupted or failed, starts no source it had not reached.
+            # A run that stops early starts no source it had not reached.
             pool.shutdown(wait=True, cancel_futures=True)
         runs = [run for run in done if run is not None]
         assert len(runs) == len(linted)
-        remembered_now |= tidycache.remember(compiles, fresh, started_ns)
         if fix:
             for file in fixes:
                 if file is not None and file.is_file():
@@ -238,7 +241,8 @@ def tidy(build: Build, args: list[str]) -> int:
     print(f"tidy: {len(seen)} findings over {len(sources)} sources, "
           f"{len(unchanged)} of them unchanged since a clean run")
 
-    tidycache.save(store, kept | remembered_now)
+    # After the fixes, whose edits keep out a source that read a file they touched.
+    tidycache.save(store, kept | remembered_now | tidycache.remember(compiles, fresh, started_ns))
 
     if fix:
         formatting.format_tree(formatting.changed_files())

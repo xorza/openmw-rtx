@@ -27,6 +27,8 @@ on:
     workflow_run: # zizmor: ignore[dangerous-triggers] the branch and its logs are read as data, and the one job that edits them runs no command
         workflows: [CI]
         types: [completed]
+        # A run of CI on any other branch starts nothing here, rather than a run whose every job skips.
+        branches: ["upstream-merge/**"]
 
 permissions: {}
 
