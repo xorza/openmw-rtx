@@ -68,23 +68,38 @@ jobs:
       - name: The workflows, audited
         run: python omw lint workflows
 
-  # The tree held to `.clang-tidy`, as the gate holds it (`omw tidy`), on CI's Linux system. A job of its own, so a
-  # finding is a check of its own. The build is `linux-clang`'s, whose caches it reads and never writes: its own
-  # compiler cache would be the same objects twice over the repository's 10 GB. What it keeps is the tidy cache,
-  # saved on master alone, so a branch lints only the sources whose reads its change moved (`tidycache.py`).
+  # The tree held to `.clang-tidy`, as the gate holds it (`omw tidy`), on each system CI builds: Windows compiles files
+  # Linux does not, and MSVC reads the same source otherwise (an enum's type, an iterator that is a class, an attribute
+  # its ABI ignores). A job of its own, so a finding is a check of its own. Each leg reads its build leg's caches and
+  # never writes them: its own compiler cache would be the same objects twice over the repository's 10 GB. What it
+  # keeps is its tidy cache, saved on master alone, so a branch lints only the sources whose reads its change moved
+  # (`tidycache.py`).
   tidy:
-    name: tidy
-    runs-on: ubuntu-26.04
-    container: almalinux:8@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b
+    name: tidy-${{ matrix.build }}
+    runs-on: ${{ matrix.os }}
+    container: ${{ matrix.container }}
     permissions:
       contents: read
     # A store with nothing in it lints every source: a clang-tidy port that moved or a `.clang-tidy` changed is that.
     timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        # Each leg a build leg's: its caches, and its system and compiler cache size as the `build` matrix names them.
+        include:
+          - build: linux-clang
+            os: ubuntu-26.04
+            container: almalinux:8@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b
+            ccache-size: 2000M
+          - build: windows-msvc
+            os: windows-2025-vs2026
+            ccache-size: 3000M
     defaults:
       run:
         shell: bash
     steps:
       - name: Git
+        if: matrix.container != ''
         run: |
           dnf install -y git
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
@@ -96,8 +111,8 @@ jobs:
       - uses: $/.github/actions/openmw-deps
         with:
           cache: ${{ env.CI_CACHE }}
-          cache-key: linux-clang
-          ccache-size: 2000M
+          cache-key: ${{ matrix.build }}
+          ccache-size: ${{ matrix.ccache-size }}
           save: "false"
 
       # The newest store master saved: its entries hold where every read is as it was.
@@ -106,8 +121,8 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: out/debug/tidy-clean.json
-          key: tidy-clean-${{ github.sha }}
-          restore-keys: tidy-clean-
+          key: tidy-clean-${{ matrix.build }}-${{ github.sha }}
+          restore-keys: tidy-clean-${{ matrix.build }}-
 
       - name: clang-tidy
         run: python omw tidy
@@ -119,7 +134,7 @@ jobs:
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: out/debug/tidy-clean.json
-          key: tidy-clean-${{ github.sha }}
+          key: tidy-clean-${{ matrix.build }}-${{ github.sha }}
 
   build:
     # A leg's name is also its caches' key, and no key may begin another: the compiler cache's action

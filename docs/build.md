@@ -160,7 +160,7 @@ How the tree is configured, built, formatted and shipped, as decisions. The CMak
   itself, as Docker's seccomp refuses the `personality` ThreadSanitizer calls.
 - **CI's caches** are saved on master alone and restored on every branch: the compiler cache, the fetched archives, the
   driver's tools by their pinned folders, vcpkg's binary cache by run, and `omw tidy`'s store, so a branch lints only
-  the sources whose reads its change moved. `tidy` restores `linux-clang`'s and saves none (`openmw-deps`'s
+  the sources whose reads its change moved. Each `tidy` leg restores its build leg's and saves none (`openmw-deps`'s
   `save`), as its own would be the same objects twice over the repository's 10 GB.
 - **Master's CI checks the latest commit alone**: a push cancels the run before it, on master as on a branch, by the
   user's decision. Refused: every master run finishing, which spends the runners on commits a newer one superseded.
