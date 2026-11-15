@@ -1,6 +1,7 @@
 #include "stager.hpp"
 
 #include <cstddef>
+#include <cstdint>
 #include <cstdlib>
 #include <format>
 #include <optional>
@@ -48,6 +49,46 @@ namespace RtxTool
 {
     namespace
     {
+        /// The pause tag `Staging::stage` holds a stop's world under while it arrives (`Staging::releaseHold`).
+        constexpr std::string_view sHold = "rtxtool: the stop's world arriving";
+
+        /// One thing that pauses the world: a script's tag by its name, or one of the game's own reasons as a report
+        /// names it.
+        struct PauseReason
+        {
+            enum class Kind : std::uint8_t
+            {
+                Tag,
+                Game,
+            };
+
+            Kind mKind;
+            std::string_view mName;
+        };
+
+        /// Hands each thing that pauses the world beside the hold to `visit`, a tag as its name and the game's own
+        /// reasons as what a report calls them, and stops where `visit` says it has seen enough. As
+        /// `MWWorld::DateTimeManager::updateIsPaused` decides it, but the game's state, which a run never stands in.
+        /// Nothing made, as the measurer asks on every frame of a wait.
+        template <class Visit>
+        void visitPauseReasons(Visit visit)
+        {
+            for (const std::string& tag : MWBase::Environment::get().getWorld()->getTimeManager()->getPausedTags())
+                if (tag != sHold && !visit(PauseReason{ .mKind = PauseReason::Kind::Tag, .mName = tag }))
+                    return;
+
+            const MWBase::WindowManager& windows = *MWBase::Environment::get().getWindowManager();
+            if (windows.isConsoleMode()
+                && !visit(PauseReason{ .mKind = PauseReason::Kind::Game, .mName = "the console" }))
+                return;
+            if (windows.isInteractiveMessageBoxActive()
+                && !visit(
+                    PauseReason{ .mKind = PauseReason::Kind::Game, .mName = "a message box waiting for an answer" }))
+                return;
+            if (windows.isPostProcessorHudVisible())
+                visit(PauseReason{ .mKind = PauseReason::Kind::Game, .mName = "the post-processing window" });
+        }
+
         /// What every attribute and skill of a flown body is set to. Past the hundred the game
         /// levels toward, so nothing a stat gates is out of reach.
         constexpr float sBoostedStat = 255.0f;
@@ -221,9 +262,11 @@ namespace RtxTool
         MWBase::Environment::get().getLuaManager()->seedRandom(request.mRandomSeed);
         std::srand(request.mRandomSeed);
 
-        // **The clock stops after the world has been moved and not before**, and stays held until the world stands
-        // whole: a stop's own time begins on the frame after it (`Session::beforeFrame` says why).
+        // **The clock stops after the world has been moved and not before**, and the world stays held until it stands
+        // whole: a stop's own time begins on the frame after it (`Session::beforeFrame` says why, `releaseHold` what
+        // the pause beside the clock is for).
         world.getTimeManager()->setSimulationTimeScale(0.0f);
+        world.getTimeManager()->pause(sHold);
 
         // Nothing a session does to the player may kill them: a route flies the body across the world at whatever
         // speed its view names and leaves it wherever the line ends, and a dead player ends the game
@@ -321,26 +364,31 @@ namespace RtxTool
             windows.popGuiMode(true);
     }
 
+    void Staging::releaseHold()
+    {
+        MWBase::Environment::get().getWorld()->getTimeManager()->unpause(sHold);
+    }
+
+    bool Staging::pausedBeyondHold()
+    {
+        bool paused = false;
+        visitPauseReasons([&](const PauseReason&) {
+            paused = true;
+            return false;
+        });
+        return paused;
+    }
+
     std::string Staging::describePause()
     {
         std::string why;
-        const auto add = [&](std::string_view reason) {
+        visitPauseReasons([&](const PauseReason& reason) {
             if (!why.empty())
                 why += ", ";
-            why += reason;
-        };
-
-        for (const std::string& tag : MWBase::Environment::get().getWorld()->getTimeManager()->getPausedTags())
-            add(std::format("the pause tag \"{}\"", tag));
-
-        const MWBase::WindowManager& windows = *MWBase::Environment::get().getWindowManager();
-        if (windows.isConsoleMode())
-            add("the console");
-        if (windows.isInteractiveMessageBoxActive())
-            add("a message box waiting for an answer");
-        if (windows.isPostProcessorHudVisible())
-            add("the post-processing window");
-
+            why += reason.mKind == PauseReason::Kind::Tag ? std::format("the pause tag \"{}\"", reason.mName)
+                                                          : std::string(reason.mName);
+            return true;
+        });
         return why.empty() ? std::string("no reason the game names") : why;
     }
 

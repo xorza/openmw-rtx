@@ -383,6 +383,8 @@ namespace RtxTool
         const bool runs = !currentStop().mSchedule.mFrozen && sinceWhole.has_value();
         if ((clock.getSimulationTimeScale() > 0.0f) != runs)
             clock.setSimulationTimeScale(runs ? 1.0f : 0.0f);
+        if (sinceWhole.has_value())
+            Staging::releaseHold();
 
         // Where somebody plays the run, and nowhere else: a key pressed in a measured window would move what the
         // measurement records nothing of. And not while a menu or the console has the keys: the three read the

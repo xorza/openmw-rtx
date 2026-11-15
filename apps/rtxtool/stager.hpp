@@ -37,8 +37,19 @@ namespace RtxTool
         /// post-processing window and a message box are no menus and stay (`describePause`).
         void closeMenus();
 
+        /// Ends the hold `stage` puts the world under, from the next frame on: the game's own pause, as a loading
+        /// screen's, beside the clock held still. **A held clock alone is no hold**: the engine still updates the
+        /// world every frame by a step of nought, and the wind's walk, an armed player's weapon and an actor's idle
+        /// line each draw from the world's generator on every such frame, so a wait two frames longer left the stop's
+        /// world and its random stream elsewhere. Paused, the frames of the wait update nothing. Ended once its world
+        /// stands whole, and by nothing else; a stop never staged was never held.
+        void releaseHold();
+
+        /// Whether anything but that hold pauses the world: what `describePause` names.
+        bool pausedBeyondHold();
+
         /// What holds the world paused, as a report names it: the pause tags a script set — the
-        /// interface's `ui` among them, which a menu sets — and the game's own reasons beside them.
+        /// interface's `ui` among them, which a menu sets — and the game's own reasons beside them. Never the hold.
         std::string describePause();
     }
 }

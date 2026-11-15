@@ -110,7 +110,8 @@ namespace RtxTool
         // sequence and pair one frame's scene with another's picture. What the device answered is taken in below.
         const MeasureWindow::Taken taken = mProgress.mWindow.take(WindowFrame{
             .mWhole = report.isWhole(),
-            .mPaused = report.mPaused,
+            // The stager's own hold is the wait, which the window counts as one; a pause is anything else.
+            .mPaused = report.mPaused && Staging::pausedBeyondHold(),
             .mCellsToStand = report.mCellsToStand,
             .mArrivedMeshes = report.mUpload.mArrivedMeshes,
             .mCell = MWBase::Environment::get().getWorld()->getPlayerPtr().getCell(),
@@ -184,7 +185,7 @@ namespace RtxTool
         // A measured frame of a paused world is a frame of something else, and nothing in a report says so. A menu
         // a script opens (M[FR]'s hotkey notice), the console, a message box and a script's own tag pause it;
         // `Staging::closeMenus` closes the first kind. Not in a session somebody plays, whose pauses are theirs.
-        if (report.mPaused && !mRequest.mPlayed && mProgress.mPausedFrames++ == 0)
+        if (report.mPaused && !mRequest.mPlayed && Staging::pausedBeyondHold() && mProgress.mPausedFrames++ == 0)
             mProgress.mPausedBy = Staging::describePause();
 
         // Counted here and not where the route moved, because a crossing is a dropped frame and only here is what it
