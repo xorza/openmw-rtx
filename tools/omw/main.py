@@ -27,6 +27,7 @@ from omw import (
     tidy,
     tour,
 )
+from omw.review import verb as review
 from omw.build import FLAVOURS, Build
 from omw.system import CI, ROOT, Refusal, refuse_unsupported, status
 
@@ -95,6 +96,9 @@ omw [flavour] <verb> [args]: one grammar for every build, on the desk and in CI,
                                flavour
   translations [--purge]       the Qt programs' .ts files regenerated from their sources, as the lint
                                checks them; --purge drops the strings no source has; no flavour
+  review <step> [args]         the automatic review of pull requests and issues, a step as auto-review.yml
+                               runs it: survey, gather, check, post; schema prints what the agent's
+                               answer is held to; no flavour
   bootstrap [--cached-tools]   the pinned dependency set, Windows' Vulkan loader and CMake into out/deps/;
                                with --cached-tools, the folders of the tools CI caches, one a line; no flavour
   deps-set [--digest]          the libraries vcpkg.json names, built static for this system and packed
@@ -197,6 +201,7 @@ BUILDLESS_VERBS: dict[str, Callable[[list[str]], int]] = {
     "merge-file": formatting.merge_file,
     "lint": lint.lint,
     "translations": lint.translations,
+    "review": review.review,
     "bootstrap": _bootstrap,
     "deps-set": depsset.deps_set,
 }

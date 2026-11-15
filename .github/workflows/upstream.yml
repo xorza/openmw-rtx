@@ -576,6 +576,7 @@ jobs:
                   dir=.upstream-merge
                   mkdir -p "$dir/stages"
                   git show origin/master:.github/upstream-merge/review.md > "$dir/review.md"
+                  git show origin/master:.github/review/passes.md > "$dir/passes.md"
 
                   merged="$RUNNER_TEMP/upstream-merge"
                   git bundle verify --quiet "$merged/merge.bundle"
@@ -659,7 +660,8 @@ jobs:
                       report where it asked.
 
                       Read AGENTS.md first, then `.upstream-merge/review.md`, which says what this review covers,
-                      how it goes and what it reports. Follow it.
+                      how it goes and what it reports, and `.upstream-merge/passes.md`, the passes it names. Follow
+                      them.
 
                       Nothing you write names a tool. Not your report, not a comment: no "Generated with", no
                       co-author trailer, no mention of an agent or of Anthropic. Everything here reads as the
@@ -670,7 +672,7 @@ jobs:
 
                       You are on branch `${{ needs.survey.outputs.branch }}`, which holds the merge committed. The
                       step before you wrote into `.upstream-merge/`, which git ignores:
-                         - `review.md`: the instructions;
+                         - `review.md`: the instructions, and `passes.md`, the passes they name;
                          - `edited.txt`: the files the merge's resolver changed past git's own merge, one a line;
                          - `stages/<file>.base`, `.fork` and `.upstream`: each of them at the merge base, as this
                            fork had it and as upstream has it;
@@ -1004,6 +1006,7 @@ jobs:
             actions: read
         outputs:
             fixed: ${{ steps.bundle.outputs.fixed }}
+            agent: ${{ steps.agent.outcome }}
 
         defaults:
             run:
@@ -1089,6 +1092,10 @@ jobs:
                   github_token: ${{ github.token }}
                   bot_name: github-actions[bot]
                   bot_id: "41898282"
+
+                  # The run this answers was started by the app: it opened the pull request and pushes each fix,
+                  # and the action refuses a bot's run unless it is named.
+                  allowed_bots: claude
 
                   # User settings, which `--setting-sources user` makes the only ones read. The sandbox
                   # takes the file tools' deny rules for every command too.
@@ -1195,6 +1202,7 @@ jobs:
                   BRANCH: ${{ github.event.workflow_run.head_branch }}
                   HEAD: ${{ github.event.workflow_run.head_sha }}
                   FAILED: ${{ steps.read.outputs.failed }}
+                  AGENT: ${{ steps.agent.outcome }}
               run: |
                   out="$RUNNER_TEMP/upstream-fix"
                   mkdir -p "$out"
@@ -1204,6 +1212,9 @@ jobs:
                     echo "No job of the run ended in failure, so the fix had no log to read." > "$out/report.md"
                   elif [ -s UPSTREAM-FIX.md ]; then
                     cp UPSTREAM-FIX.md "$out/report.md"
+                  elif [ "$AGENT" != success ]; then
+                    echo "The fix's agent ended $AGENT before it wrote a report, which the fix job's log says why." \
+                      > "$out/report.md"
                   else
                     echo "The fix wrote no report." > "$out/report.md"
                   fi
@@ -1342,6 +1353,7 @@ jobs:
                   RUN: ${{ github.event.workflow_run.html_url }}
                   FIX: ${{ needs.fix.result }}
                   FIXED: ${{ needs.fix.outputs.fixed }}
+                  AGENT: ${{ needs.fix.outputs.agent }}
                   PUSHED: ${{ steps.push.outcome }}
                   SECRET: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
               run: |
@@ -1353,6 +1365,9 @@ jobs:
                   {
                     if [ "$PUSHED" = success ]; then
                       echo "CI failed ($RUN); round $ROUND of the fix is pushed, and CI runs again."
+                    elif [ -n "$AGENT" ] && [ "$AGENT" != success ] && [ "$AGENT" != skipped ]; then
+                      echo "CI failed ($RUN); round $ROUND of the fix ended with its agent $AGENT. A human finishes" \
+                        "this merge."
                     elif [ "$FIXED" = false ]; then
                       echo "CI failed ($RUN); round $ROUND of the fix changed nothing. A human finishes this merge."
                     else

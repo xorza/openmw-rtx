@@ -55,9 +55,21 @@ def digest_of(path: Path, algorithm: str) -> str:
         return hashlib.file_digest(file, algorithm).hexdigest()
 
 
-def download(url: str, file: Path, *, sha256: str | None = None, sha512: str | None = None) -> None:
-    """`url` into `file`, checked against the digest given: three tries against a network or a server that fails
-    once in a while, a connection cut mid-file among them, and one against a 4xx or a checksum that fails."""
+def _copy_bounded(source: IO[bytes], out: IO[bytes], limit: int | None, url: str) -> None:
+    """`source` into `out`, refused once it passes `limit` bytes, before the rest of it is read."""
+    copied = 0
+    while chunk := source.read(1 << 20):
+        copied += len(chunk)
+        if limit is not None and copied > limit:
+            raise Refusal(f"{url} is larger than {limit} bytes")
+        out.write(chunk)
+
+
+def download(url: str, file: Path, *, sha256: str | None = None, sha512: str | None = None,
+             limit: int | None = None) -> None:
+    """`url` into `file`, checked against the digest given and refused past `limit` bytes, for a file a stranger
+    chose: three tries against a network or a server that fails once in a while, a connection cut mid-file among
+    them, and one against a 4xx or a checksum that fails."""
     if not url.startswith("https://"):
         raise Refusal(f"{url} is not HTTPS")
     print(f"fetching {file.name}", file=sys.stderr)
@@ -66,8 +78,11 @@ def download(url: str, file: Path, *, sha256: str | None = None, sha512: str | N
     for attempt in range(3):
         try:
             with _opener.open(url, timeout=60) as response, partial.open("wb") as out:
-                shutil.copyfileobj(response, out, 1 << 20)
+                _copy_bounded(response, out, limit, url)
             break
+        except Refusal:
+            partial.unlink(missing_ok=True)
+            raise
         except (urllib.error.URLError, http.client.HTTPException, TimeoutError, ConnectionError) as error:
             refused = isinstance(error, urllib.error.HTTPError) and error.code < 500
             if refused or attempt == 2:
