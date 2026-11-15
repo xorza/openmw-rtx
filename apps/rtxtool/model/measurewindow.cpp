@@ -66,6 +66,8 @@ namespace RtxTool
         else
             mStalledMs += frame.mSpend.at(Rtx::Timing::Frame);
         mWhole = frame.mWhole;
+        if (mWhole)
+            mStoodAt = mSeen;
 
         // Not in a session somebody plays, which walks where it likes from its first frame and
         // brings cells in as it walks.

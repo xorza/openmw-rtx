@@ -16,6 +16,7 @@
 #include <apps/openmw/mwbase/windowmanager.hpp>
 #include <apps/openmw/mwbase/world.hpp>
 #include <apps/openmw/mwrender/rtx/rtxrenderer.hpp>
+#include <apps/openmw/mwworld/datetimemanager.hpp>
 #include <apps/openmw/mwworld/globals.hpp>
 #include <apps/openmw/mwworld/ptr.hpp>
 #include <apps/rtxtool/instruments/reportfile.hpp>
@@ -253,7 +254,8 @@ namespace RtxTool
         if (mProbe.has_value())
             return mProbe;
 
-        return currentStop().mSchedule.mSampleOffset + mMeasurer.getSeen();
+        // The wait draws the stop's first sample, which its histories keep nothing of (`beforeFrame`).
+        return currentStop().mSchedule.mSampleOffset + mMeasurer.getSinceWhole().value_or(0);
     }
 
     std::uint32_t Session::getAccumulated() const
@@ -358,17 +360,29 @@ namespace RtxTool
             return;
         }
 
-        // The reset stands until a frame has been counted, and the one the stager issued is not enough: a stop opens
-        // with frames nobody counts (the first trace after the teleport has no predecessor to be timed against, so
-        // `frame` is never reached for it), yet the exposure adapts on every one, and how many there are is how long
-        // the world took to load, so two runs would begin counting from two exposures. Reissued here, the last reset
-        // lands on the frame that becomes the first counted one.
+        // **A stop's own time begins on the frame after its world stood whole** (`MeasureWindow::getSinceWhole`): its
+        // clock, its histories and its samples, so how many frames the world took to arrive moves nothing the stop
+        // shows. Under the Repack the armed deck's world stood whole on its frame 182 in one run of a binary and 183
+        // or 185 in others; counted from the stop's first frame, each run sampled its measured frames at another
+        // place in the sequence and moved its water a frame further.
         //
-        // Both calls, and neither is the other's spare: the stager resets because a teleport is a discontinuity and
-        // its frames are drawn on a screen; this because those frames are not measured, and a measured run may not
-        // depend on them.
-        if (mMeasurer.getSeen() == 0 && !currentStop().mSchedule.mContinues)
+        // The histories are reset on every frame of the wait and on the first after it, where the last reset lands:
+        // the exposure adapts and the denoiser accumulates on every frame, and a run may not depend on frames that
+        // only the world's arrival counted. Both this and the stager's reset, and neither is the other's spare: the
+        // stager resets because a teleport is a discontinuity and its frames are drawn on a screen; this because the
+        // wait's frames are not the stop's. A flight that goes on from the stop before keeps all three as they stand.
+        const std::optional<std::uint32_t> sinceWhole = mMeasurer.getSinceWhole();
+        if (sinceWhole.value_or(0) == 0 && !currentStop().mSchedule.mContinues)
             Staging::forgetHistory();
+
+        // **The clock runs from there** (`Staging::stage` holds it from the move), and never where the stop is frozen:
+        // a frozen stop is a reference, so a frame traced many times is the same frame and an accumulated picture
+        // converges on the integral rather than on the animation. Set ahead of the world's update, it moves the next
+        // frame's step: the engine has taken this one's.
+        MWWorld::DateTimeManager& clock = *MWBase::Environment::get().getWorld()->getTimeManager();
+        const bool runs = !currentStop().mSchedule.mFrozen && sinceWhole.has_value();
+        if ((clock.getSimulationTimeScale() > 0.0f) != runs)
+            clock.setSimulationTimeScale(runs ? 1.0f : 0.0f);
 
         // Where somebody plays the run, and nowhere else: a key pressed in a measured window would move what the
         // measurement records nothing of. And not while a menu or the console has the keys: the three read the

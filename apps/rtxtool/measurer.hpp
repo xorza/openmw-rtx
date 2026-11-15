@@ -78,6 +78,9 @@ namespace RtxTool
         /// route flies over, a take's track is posed by and a reference is averaged over.
         std::optional<std::uint32_t> getMeasuredIndex() const { return mProgress.mWindow.getMeasuredIndex(); }
 
+        /// `MeasureWindow::getSinceWhole` of the stop under way.
+        std::optional<std::uint32_t> getSinceWhole() const { return mProgress.mWindow.getSinceWhole(); }
+
         /// Takes one traced frame of `stop`, and with it whatever the device answered for an earlier
         /// one. `Ended` once the stop has measured its length or its route has `arrived`.
         Verdict frame(

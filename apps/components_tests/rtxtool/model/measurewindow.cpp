@@ -47,9 +47,15 @@ namespace RtxTool
             MeasureWindow window(2, 30, false);
             EXPECT_EQ(window.getMeasuredIndex(), std::nullopt);
 
-            const std::vector<Outcome> ahead
-                = takeAll(window, { standing(5), standing(3), standing(3), standing(0), standing(0) });
-            EXPECT_EQ(ahead, std::vector<Outcome>(5, Outcome::Ahead));
+            EXPECT_EQ(window.getSinceWhole(), std::nullopt);
+            EXPECT_EQ(
+                takeAll(window, { standing(5), standing(3), standing(3) }), std::vector<Outcome>(3, Outcome::Ahead));
+            EXPECT_EQ(window.getSinceWhole(), std::nullopt) << "three frames short of the world";
+            EXPECT_EQ(window.take(standing(0)).mOutcome, Outcome::Ahead);
+            EXPECT_EQ(window.getSinceWhole(), 0u) << "the fourth frame drew it: the fifth is the stop's first";
+            const std::vector<Outcome> ahead = takeAll(window, { standing(0) });
+            EXPECT_EQ(window.getSinceWhole(), 1u);
+            EXPECT_EQ(ahead, std::vector<Outcome>(1, Outcome::Ahead));
             EXPECT_EQ(window.getWaited(), 4u) << "the wait counts the frame that stood whole";
             EXPECT_EQ(window.getMeasuredIndex(), std::nullopt) << "one frame of the warm-up is still to run";
             EXPECT_EQ(window.getMeasuredFrom(), std::nullopt);
@@ -63,6 +69,7 @@ namespace RtxTool
             EXPECT_EQ(first.mDrawn, 1u);
             EXPECT_EQ(window.getSeen(), 7u);
             EXPECT_EQ(window.getMeasuredFrom(), 6u) << "the seventh frame, traced at six seen";
+            EXPECT_EQ(window.getSinceWhole(), 3u) << "seven seen, four of them the wait";
 
             const MeasureWindow::Taken second = window.take(standing(0));
             EXPECT_FALSE(second.mOpened);
@@ -76,6 +83,7 @@ namespace RtxTool
         TEST(RtxMeasureWindowTest, aWorldStandingAlreadyIsMeasuredFromItsFirstFrame)
         {
             MeasureWindow going(0, 30, false, WorldStands::Already);
+            EXPECT_EQ(going.getSinceWhole(), 0u) << "a world that stood stood from before the first frame";
             EXPECT_EQ(going.getMeasuredIndex(), 0u);
             const MeasureWindow::Taken first = going.take(standing(5));
             EXPECT_TRUE(first.mOpened);
@@ -85,6 +93,7 @@ namespace RtxTool
 
             MeasureWindow awaited(0, 30, false);
             EXPECT_EQ(takeAll(awaited, { standing(5), standing(3) }), std::vector<Outcome>(2, Outcome::Ahead));
+            EXPECT_EQ(awaited.getSinceWhole(), std::nullopt);
         }
 
         /// A world whole on its first frame, with no warm-up, is measured from its second.
@@ -112,6 +121,16 @@ namespace RtxTool
             EXPECT_EQ(window.take(standing(0)).mOutcome, Outcome::Ahead);
             EXPECT_TRUE(window.take(standing(0)).mOpened);
             EXPECT_EQ(window.getSeen(), 6u);
+
+            // **A pause in the wait is no frame of the stop's own time either**: the frame after the one that drew the
+            // world is its first, numbered nought, however many paused frames the wait held.
+            MeasureWindow waiting(0, 30, false);
+            WindowFrame pausedShort = standing(3);
+            pausedShort.mPaused = true;
+            takeAll(waiting, { standing(5), pausedShort, pausedShort, standing(0) });
+            EXPECT_EQ(waiting.getWaited(), 2u) << "the paused frames are no part of the wait";
+            EXPECT_EQ(waiting.getStoodAt(), 4u);
+            EXPECT_EQ(waiting.getSinceWhole(), 0u);
 
             MeasureWindow played(2, 30, true);
             takeAll(played, { standing(0), standing(0), paused() });

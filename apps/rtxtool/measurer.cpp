@@ -323,7 +323,8 @@ namespace RtxTool
             || mProgress.mReconstruction.mJitter || !from.has_value())
             return std::nullopt;
 
-        return stop.mSchedule.mSampleOffset + *from;
+        // In the stop's own time, as `Session::getSampleFrame` numbers it: from the frame after the whole world.
+        return stop.mSchedule.mSampleOffset + (*from - mProgress.mWindow.getStoodAt());
     }
 
     void Measurer::probe(const Stop& stop, Rtx::Renderer& renderer, const std::uint64_t submitted)

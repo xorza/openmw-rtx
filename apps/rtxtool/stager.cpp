@@ -1,6 +1,7 @@
 #include "stager.hpp"
 
 #include <cstddef>
+#include <cstdlib>
 #include <format>
 #include <optional>
 #include <string>
@@ -208,19 +209,21 @@ namespace RtxTool
             world.advanceTime(0.0, false);
 
         // Seeded again here, where the stop's frames begin (`SessionRequest::mRandomSeed` says why the engine's
-        // start seed is not enough). All three generators: the process's, the world's own (`AiWander`, `Combat`,
-        // `CharacterController` and `WeatherManager` roll on `World::getPrng`) and the scripts', which the engine
-        // seeds from the clock (`cellhandlers.lua` counts and places the fish of a first-met exterior by it). A stop
-        // that seeded fewer would stand its actors and strike its lightning wherever every stop before it left that
-        // stream. After the move, whose new exteriors the scripts hear on the next update.
+        // start seed is not enough). All four generators: the process's, the world's own (`AiWander`, `Combat`,
+        // `CharacterController` and `WeatherManager` roll on `World::getPrng`), the scripts', which the engine
+        // seeds from the clock (`cellhandlers.lua` counts and places the fish of a first-met exterior by it), and the
+        // C library's, which OpenSceneGraph's particle placers draw from (`osgParticle::range::get_random`, behind
+        // the box a NIF emitter places in). A stop that seeded fewer would stand its actors, strike its lightning
+        // and place its sparks wherever every stop before it left that stream. After the move, whose new exteriors
+        // the scripts hear on the next update.
         Misc::Rng::init(request.mRandomSeed);
         world.getPrng().seed(request.mRandomSeed);
         MWBase::Environment::get().getLuaManager()->seedRandom(request.mRandomSeed);
+        std::srand(request.mRandomSeed);
 
-        // **The clock stops after the world has been moved and not before.** A frozen stop is a
-        // reference: nothing animates, so a frame traced many times is the same frame and an
-        // accumulated picture converges on the integral rather than on the animation.
-        world.getTimeManager()->setSimulationTimeScale(stop.mSchedule.mFrozen ? 0.0f : 1.0f);
+        // **The clock stops after the world has been moved and not before**, and stays held until the world stands
+        // whole: a stop's own time begins on the frame after it (`Session::beforeFrame` says why).
+        world.getTimeManager()->setSimulationTimeScale(0.0f);
 
         // Nothing a session does to the player may kill them: a route flies the body across the world at whatever
         // speed its view names and leaves it wherever the line ends, and a dead player ends the game

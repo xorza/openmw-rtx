@@ -705,6 +705,10 @@ run visits and records, and includes the instruments, never the reverse.
 
 - **The harness chooses its settings source once** (`overLine`): the registry for a window, `measuredSettings` for a
   measured run.
+- **A stop's own time begins on the frame after its world stands whole** (`MeasureWindow::getSinceWhole`): its clock
+  is held from the move, its histories are reset through the wait, and its samples are numbered from there, so how
+  long the world took to arrive moves nothing a stop shows. Refused: counting from the stop's first frame, under which
+  two runs of one binary under the Fullrest Repack waited 183 and 185 frames at one place and drew it differently.
 - **Every waiting loop of a test has a bound** (`Testing::WaitBound`), past which it fails naming what it waited for.
 - **The GPU suite keeps its own pipeline cache** in its build folder (`OPENMW_RTX_TEST_PIPELINE_CACHE_DIR`).
 - **Qt's painting pool is off under ThreadSanitizer** (`QT_NO_GUI_THREADPOOL`), since Qt is built without the

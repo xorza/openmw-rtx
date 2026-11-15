@@ -136,6 +136,19 @@ namespace RtxTool
 
         /// What the wait came to, for the stop's note and its failure.
         std::uint32_t getWaited() const { return mWaited; }
+
+        /// The frames taken since the one that drew the whole world, which is the number of the frame about to be
+        /// taken in the stop's own time; or nothing while the world is still arriving. A world that stood when the
+        /// window opened stood from before its first frame.
+        std::optional<std::uint32_t> getSinceWhole() const
+        {
+            return mWhole ? std::optional<std::uint32_t>(mSeen - mStoodAt) : std::nullopt;
+        }
+
+        /// How many frames had been taken by the one that drew the whole world, its own among them: nought for a
+        /// world that stood already. **Paused frames of the wait among them**, which `getWaited` leaves out.
+        std::uint32_t getStoodAt() const { return mStoodAt; }
+
         std::uint32_t getLeastToStand() const { return mLeastToStand; }
         double getStalledMs() const { return mStalledMs; }
         std::uint32_t getWarmup() const { return mWarmup; }
@@ -148,6 +161,7 @@ namespace RtxTool
 
         std::uint32_t mSeen = 0;
         bool mWhole = false;
+        std::uint32_t mStoodAt = 0;
         std::uint32_t mWaited = 0;
         std::uint32_t mLeastToStand = 0;
         double mStalledMs = 0.0;
