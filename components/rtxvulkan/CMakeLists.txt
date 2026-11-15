@@ -247,6 +247,8 @@ function(openmw_rtx_shader shader census sourcedDir strippedDir)
         DEPENDS
             "${CMAKE_CURRENT_SOURCE_DIR}/${shader}"
             openmw-rtx-build
+        # The shader, the tool and the includes glslc's depfile names are all it reads.
+        DEPENDS_EXPLICIT_ONLY
         DEPFILE "${depfile}"
         COMMENT "Compiling, guarding, optimizing, pinning and validating ${name}, census ${census}"
         VERBATIM
@@ -362,6 +364,9 @@ add_custom_command(
     DEPENDS
         ${RTX_SHIPPED_MODULES}
         openmw-rtx-build
+    # What it names is all it reads: without this, Ninja holds it until every library `openmw-rtx-vulkan` links is
+    # built, and every object of the layer behind it, for a tool of 21 objects.
+    DEPENDS_EXPLICIT_ONLY
     COMMENT "Compiling the shipped shaders into the program"
     VERBATIM
 )

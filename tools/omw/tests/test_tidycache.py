@@ -1,11 +1,13 @@
+import json
 import os
 import shutil
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 from omw import tidycache
-from omw.tidycache import ABSENT, Compile, Digests, Remembered
+from omw.tidycache import ABSENT, Compile, Digests, Read, Remembered
 
 # Written well before any run under test starts: 2001-09-09.
 BEFORE_NS = 1_000_000_000 * 1_000_000_000
@@ -54,37 +56,26 @@ class ConfigurationsTest(FolderTest):
 
 
 class KeyTest(FolderTest):
-    def test_each_input_moves_the_key_and_the_order_of_the_reads_does_not(self):
+    def test_a_file_s_digest_is_its_contents_and_a_compile_s_its_folder_and_command(self):
         a = self.write("a.hpp", "a")
-        b = self.write("b.hpp", "b")
         missing = str(self.folder / ".clang-tidy")
-        compile = Compile("/build", "c++ -c a.cpp")
         digests = Digests()
-        digests.fill([a, b, missing])
+        digests.fill([a, missing])
         self.assertEqual(digests[missing], ABSENT)
         # SHA-256 of the one byte "a".
         self.assertEqual(digests[a], "ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb")
 
-        base = tidycache.key(compile, [a, b, missing], digests)
-        self.assertEqual(tidycache.key(compile, [missing, b, a], digests), base)
-        self.assertNotEqual(tidycache.key(compile, [a, missing], digests), base, "a read left out")
-        self.assertNotEqual(tidycache.key(Compile("/other", compile.command), [a, b, missing], digests), base)
-        self.assertNotEqual(tidycache.key(Compile(compile.directory, "c++ -O2 -c a.cpp"), [a, b, missing], digests),
-                            base)
-
-        self.write("b.hpp", "B")
-        edited = Digests()
-        edited.fill([a, b, missing])
-        self.assertNotEqual(tidycache.key(compile, [a, b, missing], edited), base, "a read edited")
-        self.write("b.hpp", "b")
-        self.write(".clang-tidy", "Checks: '-*'")
-        stood = Digests()
-        stood.fill([a, b, missing])
-        self.assertNotEqual(tidycache.key(compile, [a, b, missing], stood), base, "a configuration that came to stand")
-        Path(missing).unlink()
-        gone = Digests()
-        gone.fill([a, b, missing])
-        self.assertEqual(tidycache.key(compile, [a, b, missing], gone), base, "the same files, the same key")
+        compile = Compile("/build", "c++ -c a.cpp")
+        # SHA-256 of "<the pinned clang-tidy's SHA-256>\n/build\nc++ -c a.cpp\n".
+        with mock.patch.dict(tidycache.pins.CLANG_TIDY, {tidycache.SYSTEM: mock.Mock(sha256="pin")}):
+            self.assertEqual(tidycache.command_digest(compile),
+                             "5ce5ddca420ba0a97aca33c6f0ea51a605fcdf86ef2101fe12db875d0c16c2a4")
+            pinned = tidycache.command_digest(compile)
+        self.assertNotEqual(tidycache.command_digest(compile), pinned, "another clang-tidy")
+        self.assertNotEqual(tidycache.command_digest(Compile("/other", compile.command)),
+                            tidycache.command_digest(compile))
+        self.assertNotEqual(tidycache.command_digest(Compile(compile.directory, "c++ -O2 -c a.cpp")),
+                            tidycache.command_digest(compile))
 
     def test_a_read_the_dependency_file_may_miss_by_either_driver_s_spelling(self):
         for command in ("clang++ -Xclang -include-pch -Xclang cmake_pch.hxx.pch -c a.cpp",
@@ -122,20 +113,22 @@ class KeyTest(FolderTest):
 
 
 class StoreTest(FolderTest):
-    def test_what_is_saved_loads_as_it_was_and_another_layout_loads_as_nothing(self):
+    def test_what_is_saved_loads_as_it_was_and_another_layout_or_clang_tidy_loads_as_nothing(self):
         store = self.folder / "tidy-clean.json"
         self.assertEqual(tidycache.load(store), {}, "no store is no clean run")
-        held = {"/s/b.cpp": Remembered("k2", ("/s/b.cpp", "/s/shared.hpp")),
-                "/s/a.cpp": Remembered("k1", ("/s/a.cpp", "/s/shared.hpp"))}
+        shared = Read("/s/shared.hpp", "d0")
+        held = {"/s/b.cpp": Remembered("c2", (Read("/s/b.cpp", "d2"), shared)),
+                "/s/a.cpp": Remembered("c1", (Read("/s/a.cpp", "d1"), shared))}
         tidycache.save(store, held)
         self.assertEqual(tidycache.load(store), held)
-        self.assertEqual(store.read_text(encoding="utf-8").count("/s/shared.hpp"), 1, "a path written once")
+        self.assertEqual(store.read_text(encoding="utf-8").count("/s/shared.hpp"), 1, "a read written once")
         self.assertFalse(store.with_name(store.name + ".new").exists())
         tidycache.save(store, {})
         self.assertEqual(tidycache.load(store), {})
 
-        store.write_text('{"format": 0, "files": [], "sources": {"/s/a.cpp": {"key": "k", "reads": []}}}',
-                         encoding="utf-8")
+        tidycache.save(store, held)
+        saved = json.loads(store.read_text(encoding="utf-8"))
+        store.write_text(json.dumps({**saved, "format": tidycache.FORMAT - 1}), encoding="utf-8")
         self.assertEqual(tidycache.load(store), {})
 
 
@@ -149,23 +142,37 @@ class RememberTest(FolderTest):
 
         remembered = tidycache.remember(compiles, {source: [header], other: [late]}, started_ns=2 * BEFORE_NS)
         self.assertEqual(set(remembered), {source}, "late.hpp was written as the run started")
-        reads = remembered[source].reads
+        reads = [read.path for read in remembered[source].reads]
         self.assertIn(source, reads)
         self.assertIn(header, reads)
-        self.assertIn(str(self.folder / "src" / ".clang-tidy"), reads)
-        self.assertEqual(list(reads), sorted(set(reads)))
+        configuration = str(self.folder / "src" / ".clang-tidy")
+        self.assertIn(Read(configuration, ABSENT), remembered[source].reads)
+        self.assertEqual(reads, sorted(set(reads)))
 
-        self.assertEqual(tidycache.unchanged(compiles, remembered), {source})
+        def stale(asked: dict[str, Compile]) -> tuple[int, dict[str, int]]:
+            standing = tidycache.freshness(asked, remembered)
+            self.assertEqual(len(standing.unchanged) + standing.ran_otherwise + standing.read_moved.total(),
+                             len(set(asked) & set(remembered)), "each source asked stands or is stale, once")
+            return standing.ran_otherwise, dict(standing.read_moved)
+
+        self.assertEqual(tidycache.freshness(compiles, remembered).unchanged, {source})
+        self.assertEqual(stale(compiles), (0, {}))
         # A source asked of no more is not answered.
-        self.assertEqual(tidycache.unchanged({other: compiles[other]}, remembered), set())
-        self.assertEqual(tidycache.unchanged({source: Compile("/build", "c++ -O3 -c a.cpp")}, remembered), set())
+        self.assertEqual(tidycache.freshness({other: compiles[other]}, remembered).unchanged, set())
+        self.assertEqual(stale({other: compiles[other]}), (0, {}))
+        self.assertEqual(tidycache.freshness({source: Compile("/build", "c++ -O3 -c a.cpp")}, remembered).unchanged,
+                         set())
+        self.assertEqual(stale({source: Compile("/build", "c++ -O3 -c a.cpp")}), (1, {}))
 
         self.write("src/a.hpp", "#pragma once // edited")
-        self.assertEqual(tidycache.unchanged(compiles, remembered), set())
+        self.assertEqual(tidycache.freshness(compiles, remembered).unchanged, set())
+        self.assertEqual(stale(compiles), (0, {header: 1}), "the read that moved is named")
         self.write("src/a.hpp", "#pragma once")
-        self.assertEqual(tidycache.unchanged(compiles, remembered), {source})
+        self.assertEqual(tidycache.freshness(compiles, remembered).unchanged, {source})
         self.write("src/.clang-tidy", "Checks: '-*'")
-        self.assertEqual(tidycache.unchanged(compiles, remembered), set())
+        self.assertEqual(stale(compiles), (0, {configuration: 1}), "a configuration that came to stand")
+        Path(configuration).unlink()
+        self.assertEqual(tidycache.freshness(compiles, remembered).unchanged, {source}, "and went again")
 
     def test_a_read_copied_in_with_its_old_modification_time_after_the_start_keeps_its_source_out(self):
         started = self.folder / "started"

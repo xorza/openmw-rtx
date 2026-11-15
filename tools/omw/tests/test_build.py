@@ -15,6 +15,7 @@ from omw.build import (
     configured_digest,
     deps_inputs,
     device_free,
+    generated_inputs,
     manifest_inputs,
     ninja_outputs,
     order_targets,
@@ -227,6 +228,34 @@ class ManifestInputsTest(unittest.TestCase):
         self.assertEqual(order_targets(listed),
                          ["cmake_object_order_depends_target_openmw", "cmake_object_order_depends_target_components"])
         self.assertEqual(order_targets(""), [])
+
+    def test_what_the_order_targets_wait_on_but_themselves_and_the_sources_the_build_compiles(self):
+        build = Path("/checkout/build")
+        query = "".join(line + "\n" for line in (
+            "cmake_object_order_depends_target_app_private:",
+            "  input: phony",
+            "    || cmake_object_order_depends_target_app",
+            "    || app_autogen/qrc_app.cpp",
+            "    || app_autogen/timestamp",
+            "    || /checkout/build/tables.cpp",
+            "  outputs:",
+            "    app/main.cpp.o",
+            "cmake_object_order_depends_target_app:",
+            "  input: phony",
+            "    || tools/maker",
+            "    | ui_form.h",
+            "    || /checkout/build/app_autogen/timestamp",
+            "  outputs:",
+            "    cmake_object_order_depends_target_app_private",
+        ))
+        # The resources' and the tables' sources compile, and the other spelling of the timestamp is the same file.
+        compiled = {build / "app_autogen" / "qrc_app.cpp", build / "tables.cpp", Path("/checkout/app/main.cpp")}
+        self.assertEqual(generated_inputs(query, compiled, build),
+                         ["app_autogen/timestamp", "tools/maker", "ui_form.h"])
+        self.assertEqual(generated_inputs(query, set(), build),
+                         ["app_autogen/qrc_app.cpp", "app_autogen/timestamp", "/checkout/build/tables.cpp",
+                          "tools/maker", "ui_form.h"])
+        self.assertEqual(generated_inputs("", compiled, build), [])
 
 
 class RedateAheadTest(unittest.TestCase):

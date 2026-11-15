@@ -1,7 +1,7 @@
 """What `omw tidy` remembers between runs: **a source whose run was clean is not linted again until something its
-run read changes**. A run's key is the pinned clang-tidy, the source's compile command, and the contents of every
-file the run read, as ccache's direct mode keys a compile: the dependency file clang-tidy's own run writes, and not
-the build's deps log, as an MSVC build's compiler reads other headers. It names what `-H` does not: a forced
+run read changes**. A run is remembered by the pinned clang-tidy, the source's compile command, and the contents of
+every file the run read, as ccache's direct mode keys a compile: the dependency file clang-tidy's own run writes, and
+not the build's deps log, as an MSVC build's compiler reads other headers. It names what `-H` does not: a forced
 include, and a header a `__has_include` found. The `.clang-tidy` that stands, or does not, in each folder above each
 file read is one of them, so a configuration added is a change as one edited is.
 
@@ -12,12 +12,16 @@ was before. The change time as well as the modification time, which a copy that 
 **What a run looked for and did not find is no read**: a header added where an include's search would now find it
 first, or one a `__has_include` now finds, moves no key, as it moves no object of the build's own. The store holds
 at most one entry a source of the compile database; a source the database no longer has is dropped at the next
-write."""
+write.
+
+**Each read is kept with its digest, and the command as its own**, so a run linted again says what changed since
+(`Freshness`): a cache that misses on every run names the file it misses on instead of a count alone."""
 
 import hashlib
 import json
 import os
 import re
+from collections import Counter
 from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
@@ -27,7 +31,7 @@ from omw import pins
 from omw.system import SYSTEM, jobs
 
 # The store's layout; a store of another is no store.
-FORMAT = 1
+FORMAT = 2
 
 # The one rule of a dependency file, its continuations joined: the target, which a drive's colon may stand in, up
 # to the first colon a space or the end follows.
@@ -133,21 +137,38 @@ class Compile:
                 *(f"--extra-arg=/clang:{clang}" for msvc_flag, clang in _MSVC_IN_CLANG.items() if msvc_flag in flags)]
 
 
-def key(compile: Compile, reads: Iterable[str], digests: Digests) -> str:
-    """The key a run of `compile` that read `reads`, in any order, comes to."""
-    hashed = hashlib.sha256(f"{FORMAT}\n{pins.CLANG_TIDY[SYSTEM].sha256}\n{compile.directory}\n{compile.command}\n"
-                            .encode())
-    for path in sorted(reads):
-        hashed.update(f"{path}\0{digests[path]}\n".encode())
-    return hashed.hexdigest()
+def command_digest(compile: Compile) -> str:
+    """What a remembered run keeps of how it ran, as a digest: the pinned clang-tidy, and the folder and command of
+    the source's compile."""
+    return hashlib.sha256(f"{pins.CLANG_TIDY[SYSTEM].sha256}\n{compile.directory}\n{compile.command}\n".encode()
+                          ).hexdigest()
+
+
+@dataclass(frozen=True)
+class Read:
+    """A file a run read, and its SHA-256 as the run read it, `ABSENT` where it did not stand."""
+
+    path: str
+    digest: str
 
 
 @dataclass(frozen=True)
 class Remembered:
-    """A source's clean run: the key it came to and what it read, the source and the configurations among them."""
+    """A source's clean run: its compile (`command_digest`) and every file it read, the source and the configurations
+    among them, in path order."""
 
-    key: str
-    reads: tuple[str, ...]
+    command: str
+    reads: tuple[Read, ...]
+
+
+@dataclass(frozen=True)
+class Freshness:
+    """Which remembered runs still stand, and what moved under those that do not: how many ran otherwise
+    (`command_digest`), and how many each file moved, the first of a run's reads in path order whose contents did."""
+
+    unchanged: set[str]
+    ran_otherwise: int
+    read_moved: Counter[str]
 
 
 def load(store: Path) -> dict[str, Remembered]:
@@ -157,28 +178,40 @@ def load(store: Path) -> dict[str, Remembered]:
     held = json.loads(store.read_text(encoding="utf-8"))
     if held.get("format") != FORMAT:
         return {}
-    files: list[str] = held["files"]
-    return {source: Remembered(entry["key"], tuple(files[index] for index in entry["reads"]))
+    files = [Read(path, digest) for path, digest in held["files"]]
+    return {source: Remembered(entry["command"], tuple(files[index] for index in entry["reads"]))
             for source, entry in held["sources"].items()}
 
 
 def save(store: Path, remembered: dict[str, Remembered]) -> None:
-    """`remembered` into `store`, each path written once, in place of what it held all at once."""
-    index: dict[str, int] = {}
-    sources = {source: {"key": run.key, "reads": [index.setdefault(path, len(index)) for path in run.reads]}
+    """`remembered` into `store`, each file and digest written once, in place of what it held all at once."""
+    index: dict[Read, int] = {}
+    sources = {source: {"command": run.command, "reads": [index.setdefault(read, len(index)) for read in run.reads]}
                for source, run in sorted(remembered.items())}
     written = store.with_name(store.name + ".new")
-    written.write_text(json.dumps({"format": FORMAT, "files": list(index), "sources": sources},
-                                  separators=(",", ":")), encoding="utf-8")
+    written.write_text(json.dumps({"format": FORMAT, "files": [[read.path, read.digest] for read in index],
+                                   "sources": sources}, separators=(",", ":")), encoding="utf-8")
     os.replace(written, store)
 
 
-def unchanged(compiles: dict[str, Compile], remembered: dict[str, Remembered]) -> set[str]:
-    """The sources of `compiles` whose remembered run comes to the key it came to."""
+def freshness(compiles: dict[str, Compile], remembered: dict[str, Remembered]) -> Freshness:
+    """The sources of `compiles` whose remembered run stands: run as it ran, every file it read as it read it."""
     known = {source: run for source, run in remembered.items() if source in compiles}
     digests = Digests()
-    digests.fill(path for run in known.values() for path in run.reads)
-    return {source for source, run in known.items() if key(compiles[source], run.reads, digests) == run.key}
+    digests.fill(read.path for run in known.values() for read in run.reads)
+    unchanged: set[str] = set()
+    ran_otherwise = 0
+    read_moved: Counter[str] = Counter()
+    for source, run in known.items():
+        if command_digest(compiles[source]) != run.command:
+            ran_otherwise += 1
+            continue
+        moved = next((read.path for read in run.reads if digests[read.path] != read.digest), None)
+        if moved is None:
+            unchanged.add(source)
+        else:
+            read_moved[moved] += 1
+    return Freshness(unchanged, ran_otherwise, read_moved)
 
 
 def _touched_since(path: str, started_ns: int) -> bool:
@@ -200,5 +233,6 @@ def remember(compiles: dict[str, Compile], reads: dict[str, list[str]], started_
     digests = Digests()
     digests.fill(path for read in whole.values() for path in read)
     touched = {path: _touched_since(path, started_ns) for path in {path for read in whole.values() for path in read}}
-    return {source: Remembered(key(compiles[source], read, digests), read) for source, read in whole.items()
+    return {source: Remembered(command_digest(compiles[source]), tuple(Read(path, digests[path]) for path in read))
+            for source, read in whole.items()
             if not any(touched[path] for path in read) and all(digests[path] != ABSENT for path in listed[source])}

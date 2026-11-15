@@ -29,3 +29,10 @@ endif()
 message(STATUS "Links at once: ${openmw_links}, of ${openmw_memory_mib} MiB at ${openmw_link_mib} MiB a link")
 set(CMAKE_JOB_POOLS "link=${openmw_links}")
 set(CMAKE_JOB_POOL_LINK link)
+
+# **A Qt target's moc and uic wait on nothing its target links** (`AUTOGEN_ORIGIN_DEPENDS`), where by default they
+# wait on every library of the game: what they read is the target's own headers and forms, and no library writes a
+# header one of them includes (Ninja's graph names none but SDL's own Wayland protocols). Its objects still wait on
+# what their libraries generate, as every target's do. A lint, which builds the headers the sources read and none
+# of their objects (`omw tidy`), built 1,184 objects for them.
+set(CMAKE_AUTOGEN_ORIGIN_DEPENDS OFF)

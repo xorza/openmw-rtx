@@ -162,7 +162,7 @@ class FixTest(unittest.TestCase):
               contextlib.redirect_stdout(io.StringIO())):
             self.assertEqual(tidy.tidy(build, ["--fix"]), 0)
         # The whole tree's lint builds what its sources wait on alone, and none of their objects.
-        build.build_generated.assert_called_once_with()
+        build.build_generated.assert_called_once_with({one, two})
         build.build_default.assert_not_called()
         self.assertEqual(len(written), 2)
         self.assertEqual(len(set(written)), 2, "two sources wrote their fixes to one file")
@@ -236,8 +236,9 @@ class RememberedTest(unittest.TestCase):
         self.assertIn(f"{dirty}:1:1: warning: w [c]", said, "a finding is said again on every run")
 
         write("clean.hpp", "#pragma once // edited")
-        tidy_run()
+        said = tidy_run()
         self.assertEqual(sorted(linted), [clean, dirty, silent], "a read edited")
+        self.assertIn(f"tidy: 1 remembered runs stand no more, by {header} (1)\n", said, "and named")
         tidy_run()
         self.assertEqual(sorted(linted), [dirty, silent])
         # A source the database no longer holds is dropped from the store.

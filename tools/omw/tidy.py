@@ -29,6 +29,9 @@ LINTED = (ROOT / "apps", ROOT / "components")
 # it linted up to its last write, as a whole tree's lint on CI is an hour and more, and a newer push cancels it.
 CHECKPOINT_S = 30.0
 
+# How many of the files that turned remembered runs stale a run names, the most frequent first.
+STALE_CAUSES = 5
+
 # Where a diagnostic begins: `path:line:column: warning: text [check]`. Its notes and the source it quotes follow.
 _DIAGNOSTIC = re.compile(r"^(?P<path>.+?):(?P<line>\d+):(?P<column>\d+): (?:warning|error): .*\[(?P<checks>[^\]]+)\]$")
 
@@ -141,14 +144,16 @@ def tidy(build: Build, args: list[str]) -> int:
     if changed and named:
         raise Refusal("tidy lints the changed files or the files named, not both")
 
-    # Built first, as a source reads what the build generates: Qt's forms, the version, the shaders' headers. The whole
+    # Built first, as a source reads what the build generates: the headers Qt's uic writes of the forms. The whole
     # tree's lint reads nothing else of the build, so it builds what the sources wait on and none of their objects; a
     # lint of the files named or changed reads Ninja's log of what each object included, which only a build writes.
+    # The database is the configure's, which a build after it does not write again.
+    build.configure()
+    database = json.loads((build.dir / "compile_commands.json").read_text(encoding="utf-8"))
     if named or changed:
         build.build_default()
     else:
-        build.build_generated()
-    database = json.loads((build.dir / "compile_commands.json").read_text(encoding="utf-8"))
+        build.build_generated({Path(entry["file"]) for entry in database})
     every = linted_sources(database)
     sources = every
     if changed:
@@ -167,7 +172,15 @@ def tidy(build: Build, args: list[str]) -> int:
     store = build.dir / "tidy-clean.json"
     remembered = tidycache.load(store)
     compiles = {str(source.file): source.compile for source in sources}
-    unchanged = tidycache.unchanged(compiles, remembered)
+    standing = tidycache.freshness(compiles, remembered)
+    unchanged = standing.unchanged
+    # What moved under the remembered runs that no longer stand, so a cache that misses says on what; before the
+    # lint, which a newer push cancels on CI before it ends.
+    causes = [*([f"the compile or clang-tidy ({standing.ran_otherwise})"] if standing.ran_otherwise else []),
+              *(f"{path} ({count})" for path, count in standing.read_moved.most_common(STALE_CAUSES))]
+    if causes:
+        print(f"tidy: {standing.ran_otherwise + standing.read_moved.total()} remembered runs stand no more, by "
+              + ", ".join(causes), flush=True)
     linted = [source for source in sources if str(source.file) not in unchanged]
 
     # A source of the database not asked of now keeps what it had, and one linted now what came out clean.

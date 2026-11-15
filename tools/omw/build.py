@@ -48,17 +48,23 @@ BUILD_LOCK = "omw-build.lock"
 MANIFEST_AGED = 946_771_200.0
 
 
-def manifest_inputs(query: str, directory: Path) -> list[Path]:
-    """The inputs `ninja -t query build.ninja` names, explicit, implicit and order-only alike: the lines under
-    `input:` with their `|` or `||` taken off. A relative one is from the build `directory`."""
-    inputs: list[Path] = []
+def _query_inputs(query: str) -> list[str]:
+    """The inputs `ninja -t query` names of each target asked, explicit, implicit and order-only alike, as Ninja
+    spells them: the lines under `input:` with their `|` or `||` taken off."""
+    inputs: list[str] = []
     within = False
     for line in query.splitlines():
         if line.startswith("  ") and not line.startswith("    "):
             within = line.strip().startswith("input:")
         elif within and line.startswith("    "):
-            inputs.append(directory / line.strip().removeprefix("||").removeprefix("|").strip())
+            inputs.append(line.strip().removeprefix("||").removeprefix("|").strip())
     return inputs
+
+
+def manifest_inputs(query: str, directory: Path) -> list[Path]:
+    """The inputs `ninja -t query build.ninja` names (`_query_inputs`). A relative one is from the build
+    `directory`."""
+    return [directory / name for name in _query_inputs(query)]
 
 
 def deps_inputs(listing: str, directory: Path) -> list[Path]:
@@ -84,6 +90,21 @@ def order_targets(listing: str) -> list[str]:
     """The phony targets of `ninja -t targets all` that stand for what each target's objects wait on, in order."""
     named = (line.rsplit(": ", 1) for line in listing.splitlines() if ": " in line)
     return [target for target, rule in named if rule == "phony" and target.startswith(_ORDER_TARGET)]
+
+
+def generated_inputs(query: str, compiled: set[Path], directory: Path) -> list[str]:
+    """What `ninja -t query` of the order targets (`order_targets`) says they wait on, as Ninja spells each, once:
+    **less the order targets themselves, and the generated sources the build compiles** (`compiled`, whole paths). A
+    reader of the sources reads the headers a build writes and none of its translation units, and the rule that
+    writes a Qt program's resources as a source (`AUTORCC`), which no `DEPENDS_EXPLICIT_ONLY` reaches, waits on every
+    library the program links: the whole game's. A relative one is from the build `directory`."""
+    sources = {path.resolve() for path in compiled}
+    found: dict[Path, str] = {}
+    for name in _query_inputs(query):
+        path = (directory / name).resolve()
+        if not name.startswith(_ORDER_TARGET) and path not in sources:
+            found.setdefault(path, name)
+    return list(found.values())
 
 
 def dated_after(paths: list[Path], now: float) -> list[Path]:
@@ -324,11 +345,14 @@ class Build:
         says so."""
         self.build([*DEFAULT_TARGETS, *self.test_targets(without_device)])
 
-    def build_generated(self) -> None:
+    def build_generated(self, compiled: set[Path]) -> None:
         """**What every target's sources wait on, and none of their objects**: the forms, headers and shaders the build
-        writes, and the tools that write them (`order_targets`). What a reader of the sources needs, as a lint is."""
+        writes, and the tools that write them, less the sources the build `compiled` (`generated_inputs`). What a
+        reader of the sources needs, as a lint is."""
         self.configure()
-        self.build(order_targets(output([self.ninja, "-C", self.dir, "-t", "targets", "all"], env=self.env)))
+        ninja = [self.ninja, "-C", self.dir, "-t"]
+        order = order_targets(output([*ninja, "targets", "all"], env=self.env))
+        self.build(generated_inputs(output([*ninja, "query", *order], env=self.env), compiled, self.dir))
 
     def tests(self) -> list[dict]:
         """**The tests this build has, asked of its configuration** through CTest and not of a binary some earlier

@@ -432,6 +432,9 @@ function(openmw_rtx_table verb table layer)
             openmw-rtx-build ${verb} "${made}"
         DEPENDS
             openmw-rtx-build
+        # The maker is all it reads: without this, Ninja holds it, and every object of the layer that compiles the
+        # table, until every library the layer links is built.
+        DEPENDS_EXPLICIT_ONLY
         COMMENT "Making ${table}"
         VERBATIM
     )
