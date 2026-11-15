@@ -154,6 +154,10 @@ namespace RtxTool
         /// whole session (`CameraDriver::begin`).
         std::optional<float> mOwnTimeScale;
 
+        /// What the current stop's staging holds its world under until it stands whole, or nothing once let go of,
+        /// and for a flight that goes on from the stop before, which is never staged.
+        std::optional<Staging::Hold> mHold;
+
         /// The extents the renderer traces and shows at, once it is made: what the stops a run plans where the world
         /// stands are settled under (`SessionRequest::settleUnder`).
         /// What a tour meets, where the request watches for findings (`SessionRequest::mWatching`).

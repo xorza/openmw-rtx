@@ -212,15 +212,25 @@ namespace RtxTool
         // run of every view ended at Mournhold and drew none of the seven after it. Whether the run fails for it is
         // the stop's (`WhenAbsent`). A flight that goes on from the stop before is staged by nothing: its world,
         // its sky and its camera are where that stop left them.
-        if (const Result<void, std::string> staged
-            = stop.mSchedule.mContinues ? Result<void, std::string>{} : Staging::stage(stop, mRequest);
-            !staged.isOk())
+        // A stop that failed while its world arrived left it held, scripts off among it: let go of before the next stop
+        // begins, which would read the scripts as off and never run them again.
+        if (mHold.has_value())
         {
-            Log(Debug::Warning) << "Ray tracing session: stop " << (mAt + 1) << " of " << mRequest.mStops.size()
-                                << " passed over: " << staged.error();
-            mRecord.skip(stop, staged.error());
-            advance();
-            return;
+            Staging::releaseHold(*mHold);
+            mHold.reset();
+        }
+        if (!stop.mSchedule.mContinues)
+        {
+            const Result<Staging::Hold, std::string> staged = Staging::stage(stop, mRequest);
+            if (!staged.isOk())
+            {
+                Log(Debug::Warning) << "Ray tracing session: stop " << (mAt + 1) << " of " << mRequest.mStops.size()
+                                    << " passed over: " << staged.error();
+                mRecord.skip(stop, staged.error());
+                advance();
+                return;
+            }
+            mHold = staged.value();
         }
 
         // The world's own clock at the stop's pace, which the engine then advances a frame's step at a time, as a
@@ -383,8 +393,11 @@ namespace RtxTool
         const bool runs = !currentStop().mSchedule.mFrozen && sinceWhole.has_value();
         if ((clock.getSimulationTimeScale() > 0.0f) != runs)
             clock.setSimulationTimeScale(runs ? 1.0f : 0.0f);
-        if (sinceWhole.has_value())
-            Staging::releaseHold();
+        if (sinceWhole.has_value() && mHold.has_value())
+        {
+            Staging::releaseHold(*mHold);
+            mHold.reset();
+        }
 
         // Where somebody plays the run, and nowhere else: a key pressed in a measured window would move what the
         // measurement records nothing of. And not while a menu or the console has the keys: the three read the

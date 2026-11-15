@@ -190,7 +190,7 @@ namespace RtxTool
         }
     }
 
-    Result<void, std::string> Staging::stage(const Stop& stop, const SessionRequest& request)
+    Result<Staging::Hold, std::string> Staging::stage(const Stop& stop, const SessionRequest& request)
     {
         MWBase::World& world = *MWBase::Environment::get().getWorld();
 
@@ -262,12 +262,6 @@ namespace RtxTool
         MWBase::Environment::get().getLuaManager()->seedRandom(request.mRandomSeed);
         std::srand(request.mRandomSeed);
 
-        // **The clock stops after the world has been moved and not before**, and the world stays held until it stands
-        // whole: a stop's own time begins on the frame after it (`Session::beforeFrame` says why, `releaseHold` what
-        // the pause beside the clock is for).
-        world.getTimeManager()->setSimulationTimeScale(0.0f);
-        world.getTimeManager()->pause(sHold);
-
         // Nothing a session does to the player may kill them: a route flies the body across the world at whatever
         // speed its view names and leaves it wherever the line ends, and a dead player ends the game
         // (`State_Ended` on the frame the route arrived, on `island-crossing`), which strands every stop after this
@@ -291,7 +285,7 @@ namespace RtxTool
         if (!stop.mStand.mArms.empty())
         {
             if (const Result<void, std::string> armed = arm(world, stop.mStand.mArms); !armed.isOk())
-                return armed;
+                return Err{ armed.error() };
         }
         else
             setHands(world, request.mSpellHands ? MWMechanics::DrawState::Spell : MWMechanics::DrawState::Nothing);
@@ -336,7 +330,15 @@ namespace RtxTool
         // that drew the whole world.
         forgetHistory();
 
-        return {};
+        // **The world is held after it has been moved and not before**, and last, so a stop passed over is never
+        // held: it stays held until it stands whole, and a stop's own time begins on the frame after it
+        // (`Session::beforeFrame` says why, `Hold` what each part of the hold is for).
+        world.getTimeManager()->setSimulationTimeScale(0.0f);
+        world.getTimeManager()->pause(sHold);
+        const Hold hold{ .mScripts = world.getScriptsEnabled() };
+        if (hold.mScripts)
+            world.toggleScripts();
+        return hold;
     }
 
     int Staging::newGameDaysPassed()
@@ -364,9 +366,12 @@ namespace RtxTool
             windows.popGuiMode(true);
     }
 
-    void Staging::releaseHold()
+    void Staging::releaseHold(const Hold& hold)
     {
-        MWBase::Environment::get().getWorld()->getTimeManager()->unpause(sHold);
+        MWBase::World& world = *MWBase::Environment::get().getWorld();
+        world.getTimeManager()->unpause(sHold);
+        if (hold.mScripts && !world.getScriptsEnabled())
+            world.toggleScripts();
     }
 
     bool Staging::pausedBeyondHold()
