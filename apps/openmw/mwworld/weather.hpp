@@ -10,6 +10,7 @@
 
 #include <components/esm/refid.hpp>
 #include <components/fallback/fallback.hpp>
+#include <components/misc/rng.hpp>
 #include <components/sky/timeofday.hpp>
 #include <components/vfs/pathutil.hpp>
 
@@ -176,6 +177,13 @@ namespace MWWorld
         bool mUseTorches;
         bool mOcclusionEnabled;
     };
+
+    /// The wind's speed a frame on from `currentSpeed` under `weather`: a step drawn from `prng` either way, kept where
+    /// it stays within half and twice the weather's gusts, eight times its wind speed and at most 70, at which a still
+    /// wind starts. **No step on a paused frame**, as `Weather::calculateThunder` strikes none:
+    /// `WeatherManager::update` keeps nothing a paused frame computes, so the draw would only use up the world's
+    /// generator, which a save keeps, and shake the paused sky.
+    float windSpeedAfter(const Weather& weather, float currentSpeed, bool paused, Misc::Rng::Generator& prng);
 
     class WeatherStore;
 
@@ -448,9 +456,9 @@ namespace MWWorld
 
         MWRender::WeatherResult calculateWeatherResult(
             const float gameHour, const float elapsedSeconds, const bool isPaused) const;
-        MWRender::WeatherResult calculateResult(const Weather& weather, const float gameHour) const;
-        MWRender::WeatherResult calculateTransitionResult(
-            const Weather& currentWeather, const Weather& nextWeather, const float factor, const float gameHour) const;
-        float calculateWindSpeed(const Weather& weather, float currentSpeed) const;
+        MWRender::WeatherResult calculateResult(
+            const Weather& weather, const float gameHour, const bool isPaused) const;
+        MWRender::WeatherResult calculateTransitionResult(const Weather& currentWeather, const Weather& nextWeather,
+            const float factor, const float gameHour, const bool isPaused) const;
     };
 }

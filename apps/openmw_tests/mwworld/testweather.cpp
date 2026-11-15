@@ -2,6 +2,9 @@
 
 #include <cmath>
 
+#include <components/misc/rng.hpp>
+#include <components/vfs/pathutil.hpp>
+
 #include "apps/openmw/mwworld/timestamp.hpp"
 #include "apps/openmw/mwworld/weather.hpp"
 
@@ -1367,6 +1370,49 @@ namespace MWWorld
 
             EXPECT_GT(moon.calculateState(midCrossing).mMoonAlpha, 0.0f);
             EXPECT_LE(moon.calculateState(pastTheHorizon).mMoonAlpha, 0.0f);
+        }
+
+        /// A weather blowing at `windSpeed`, with a rain effect where `rains`.
+        MWWorld::Weather windy(const float windSpeed, const bool rains)
+        {
+            MWWorld::Weather weather;
+            weather.blank();
+            weather.mWindSpeed = windSpeed;
+            if (rains)
+                weather.mRainEffect = VFS::Path::Normalized("meshes/raindrop.nif");
+            return weather;
+        }
+
+        /// **A paused frame steps no wind and draws nothing**, as it strikes no thunder; a frame that runs takes one
+        /// draw and steps the wind by it. A weather blowing at 5 gusts about 8 times that, 40, between half and twice
+        /// of it; rain halves the step; a still wind starts at the 40. Seed 16838's first draw is 0.378: a step of
+        /// -4.86 from 30 stays in the band, and from 20.5 would leave it.
+        TEST(MWWorldWeatherTest, aPausedFrameStepsNoWindAndDrawsNothing)
+        {
+            const MWWorld::Weather clear = windy(5.0f, false);
+            const Misc::Rng::Generator seeded(16838); // NOLINT(bugprone-random-generator-seed): the steps on record
+            Misc::Rng::Generator byHand = seeded;
+            const float u = Misc::Rng::rollClosedProbability(byHand);
+
+            Misc::Rng::Generator paused = seeded;
+            EXPECT_EQ(MWWorld::windSpeedAfter(clear, 30.0f, true, paused), 30.0f);
+            EXPECT_EQ(MWWorld::windSpeedAfter(clear, 0.0f, true, paused), 40.0f) << "a still wind starts at its gusts'";
+            EXPECT_EQ(paused, seeded) << "a paused frame drew from the world's generator";
+
+            Misc::Rng::Generator running = seeded;
+            const float stepped = MWWorld::windSpeedAfter(clear, 30.0f, false, running);
+            EXPECT_EQ(stepped, (u - 0.5f) * 1.0f * 40.0f + 30.0f);
+            EXPECT_NE(stepped, 30.0f);
+            EXPECT_EQ(running, byHand) << "a running frame draws once";
+
+            Misc::Rng::Generator rainy = seeded;
+            EXPECT_EQ(
+                MWWorld::windSpeedAfter(windy(5.0f, true), 30.0f, false, rainy), (u - 0.5f) * 0.5f * 40.0f + 30.0f);
+
+            Misc::Rng::Generator low = seeded;
+            EXPECT_EQ(MWWorld::windSpeedAfter(clear, 20.5f, false, low), 20.5f)
+                << "a step out of the band is not taken";
+            EXPECT_EQ(low, byHand);
         }
     }
 }

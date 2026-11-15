@@ -1,8 +1,8 @@
 # A first look at an issue
 
-What the automatic review's agent follows, read from `master` and never from the issue. It is a first look at a
-report, ahead of the maintainer, who reads every issue after it: it investigates and promises nothing — no fix,
-no date, no verdict on whether the report is right.
+What the automatic review's agent follows, read from the workflow's own commit and never from the issue. It is a
+first look at a report, ahead of the maintainer, who reads every issue after it: it investigates and promises
+nothing — no fix, no date, no verdict on whether the report is right.
 
 ## What you have
 
