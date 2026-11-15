@@ -37,6 +37,7 @@
 #include <components/resource/niffilemanager.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
+#include <components/resource/sptfilemanager.hpp>
 #include <components/rtx/common/jobprogress.hpp>
 #include <components/rtx/mirror/cells/cellworld.hpp>
 #include <components/rtx/mirror/extractionstats.hpp>
@@ -68,7 +69,8 @@ namespace MWRender
             Resource::ImageManager mImages{ &mVfs, 0 };
             Resource::NifFileManager mNifs{ &mVfs, nullptr };
             Resource::BgsmFileManager mMaterials{ &mVfs, 0 };
-            Resource::SceneManager mScenes{ &mVfs, &mImages, &mNifs, &mMaterials, 0 };
+            Resource::SptFileManager mTrees{ &mVfs, 0 };
+            Resource::SceneManager mScenes{ &mVfs, &mImages, &mNifs, &mMaterials, &mTrees, 0 };
 
             osg::ref_ptr<osg::Group> mRoot = new osg::Group;
             osg::ref_ptr<osg::MatrixTransform> mFirst = new osg::MatrixTransform(osg::Matrix::translate(1.0, 0.0, 0.0));

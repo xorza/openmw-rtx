@@ -154,7 +154,7 @@ namespace Spt
             if (section != 15003)
                 throw std::runtime_error(std::format("Expected section 15003, got {}", section));
             stream.read(entry.mTwist);
-            mEntries.push_back(std::move(entry));
+            mEntries.push_back(entry);
         }
     }
 }

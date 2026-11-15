@@ -42,7 +42,7 @@ namespace Spt
                 if (!ss)
                     throw std::runtime_error(
                         std::format("Invalid curve data: truncated at control point {} of {}", i, numPoints));
-                curve.mPoints.push_back(std::move(cp));
+                curve.mPoints.push_back(cp);
             }
 
             char closeBrace{};

@@ -8,7 +8,7 @@ namespace Spt
 {
     int32_t SPTStream::readSection()
     {
-        int32_t value;
+        int32_t value = 0;
         read(value);
         return value;
     }

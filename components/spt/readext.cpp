@@ -1,5 +1,6 @@
 #include "file.hpp"
 
+#include <algorithm>
 #include <format>
 #include <stdexcept>
 
@@ -27,9 +28,13 @@ namespace Spt
         std::vector<SPTTextureMap> readTextureMaps(SPTStream& stream, int32_t countSection)
         {
             stream.expectSection(countSection);
-            uint32_t count;
+            uint32_t count = 0;
             stream.read(count);
             std::vector<SPTTextureMap> maps;
+            // The count is the file's and is not trusted with an allocation: the reservation stops at
+            // more maps than a tree carries, and a longer list grows as it is read.
+            constexpr uint32_t maxReserved = 64;
+            maps.reserve(std::min(count, maxReserved));
             for (uint32_t i = 0; i < count; ++i)
                 maps.push_back(readTextureMap(stream));
             return maps;
@@ -38,13 +43,13 @@ namespace Spt
 
     void SPTLeafLodData::read(SPTStream& stream)
     {
-        uint32_t numLods;
+        uint32_t numLods = 0;
         stream.read(numLods);
         for (uint32_t i = 0; i < numLods; ++i)
         {
             std::vector<SPTLeafLodCard>& cards = mLods.emplace_back();
             stream.expectSection(7002);
-            int32_t section;
+            int32_t section = 0;
             while ((section = stream.readSection()) != 7003)
             {
                 if (section != 7004)
@@ -328,7 +333,7 @@ namespace Spt
     void SPTMeshInfo::read(SPTStream& stream)
     {
         stream.expectSection(71001);
-        uint32_t numMeshes;
+        uint32_t numMeshes = 0;
         stream.read(numMeshes);
         for (uint32_t i = 0; i < numMeshes; ++i)
         {
@@ -337,7 +342,7 @@ namespace Spt
             stream.expectSection(71003);
             mesh.mName = stream.readIntString();
             stream.expectSection(71004);
-            uint32_t numVertices;
+            uint32_t numVertices = 0;
             stream.read(numVertices);
             for (uint32_t j = 0; j < numVertices; ++j)
             {
@@ -356,7 +361,7 @@ namespace Spt
                 stream.expectSection(71011);
             }
             stream.expectSection(71012);
-            uint32_t numIndices;
+            uint32_t numIndices = 0;
             stream.read(numIndices);
             for (uint32_t j = 0; j < numIndices; ++j)
             {

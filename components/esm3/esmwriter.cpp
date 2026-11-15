@@ -183,7 +183,7 @@ namespace ESM
         assert(rec.mName == name);
         mRecords.pop_back();
 
-        const uint32_t size = static_cast<uint32_t>(mBuffer.size() - rec.mDataOffset);
+        const auto size = static_cast<uint32_t>(mBuffer.size() - rec.mDataOffset);
         std::memcpy(mBuffer.data() + rec.mSizeOffset, &size, sizeof(size));
 
         if (mRecords.empty())

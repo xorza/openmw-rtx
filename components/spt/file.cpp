@@ -72,17 +72,9 @@ namespace Spt
                 switch (section)
                 {
                     case 5000:
-                        stream.skip(12);
-                        break;
                     case 5001:
-                        stream.skip(12);
-                        break;
                     case 5002:
-                        stream.skip(12);
-                        break;
                     case 5003:
-                        stream.skip(12);
-                        break;
                     case 5004:
                         stream.skip(12);
                         break;

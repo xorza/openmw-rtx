@@ -12,7 +12,7 @@ namespace Spt
     {
         std::vector<SPTCompositeMapData::Quad> readQuads(SPTStream& stream)
         {
-            uint32_t n;
+            uint32_t n = 0;
             stream.read(n);
             std::vector<SPTCompositeMapData::Quad> quads;
             for (uint32_t i = 0; i < n; ++i)

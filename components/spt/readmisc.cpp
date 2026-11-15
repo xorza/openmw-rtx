@@ -22,7 +22,7 @@ namespace Spt
                     obj.mType = SPTCollisionType::Sphere;
                     stream.read(obj.mPosition);
                     stream.read(obj.mRadius);
-                    mObjects.push_back(std::move(obj));
+                    mObjects.push_back(obj);
                     break;
                 }
                 case 12003:
@@ -32,7 +32,7 @@ namespace Spt
                     stream.read(obj.mPosition);
                     stream.read(obj.mRadius);
                     stream.read(obj.mLength);
-                    mObjects.push_back(std::move(obj));
+                    mObjects.push_back(obj);
                     break;
                 }
                 case 12004:
@@ -41,7 +41,7 @@ namespace Spt
                     obj.mType = SPTCollisionType::Box;
                     stream.read(obj.mBoxMin);
                     stream.read(obj.mBoxMax);
-                    mObjects.push_back(std::move(obj));
+                    mObjects.push_back(obj);
                     break;
                 }
                 default:
@@ -105,7 +105,7 @@ namespace Spt
                 throw std::runtime_error(std::format("Unknown section {} in flares block", section));
             if (section == 16012)
             {
-                mEntries.push_back(std::move(entry));
+                mEntries.push_back(entry);
                 entry = {};
             }
         }

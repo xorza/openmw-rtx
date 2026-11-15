@@ -28,6 +28,7 @@
 #include <components/resource/imagemanager.hpp>
 #include <components/resource/niffilemanager.hpp>
 #include <components/resource/scenemanager.hpp>
+#include <components/resource/sptfilemanager.hpp>
 #include <components/rtx/frame/debuglines.hpp>
 #include <components/sceneutil/morphgeometry.hpp>
 #include <components/sceneutil/riggeometry.hpp>
@@ -131,7 +132,8 @@ namespace MWRender
             Resource::ImageManager mImages{ &mVfs, 0 };
             Resource::NifFileManager mNifs{ &mVfs, nullptr };
             Resource::BgsmFileManager mMaterials{ &mVfs, 0 };
-            Resource::SceneManager mScenes{ &mVfs, &mImages, &mNifs, &mMaterials, 0 };
+            Resource::SptFileManager mTrees{ &mVfs, 0 };
+            Resource::SceneManager mScenes{ &mVfs, &mImages, &mNifs, &mMaterials, &mTrees, 0 };
             Rtx::Testing::FakeLand mLand;
             osg::ref_ptr<osg::Group> mSceneRoot = new osg::Group;
             osg::ref_ptr<osg::Group> mWorldRoot = new osg::Group;
