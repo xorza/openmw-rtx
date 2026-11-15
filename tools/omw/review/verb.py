@@ -1,7 +1,9 @@
-"""`omw review <step>`: the automatic review's steps, as `auto-review.yml` runs them."""
+"""`omw review <step>`: the automatic review's steps, as `auto-review.yml` runs them; and `inert`, which
+`upstream.yml` runs over what its agents wrote before it posts any of it."""
 
 import json
 import os
+import sys
 import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
@@ -9,12 +11,13 @@ from pathlib import Path
 from omw.review import answer, gather, post, survey
 from omw.review.github import GitHub, repository
 from omw.review.item import Key
-from omw.system import Refusal, Switches
+from omw.review.text import neutral_upstream
+from omw.system import Refusal, Switches, read_text
 
 # The workflow whose run history counts the reads, and CI's, whose runs say when a head arrived.
 WORKFLOW = "auto-review.yml"
 CI_WORKFLOW = "ci.yml"
-STEPS = ("survey", "gather", "check", "post", "schema")
+STEPS = ("survey", "gather", "check", "post", "schema", "inert")
 
 
 def review(args: list[str]) -> int:
@@ -26,6 +29,12 @@ def review(args: list[str]) -> int:
         switches.add_argument("kind", choices=sorted(answer.SCHEMAS))
         parsed = switches.parse_args(rest)
         print(json.dumps(answer.wire(answer.SCHEMAS[parsed.kind]), separators=(",", ":")))
+        return 0
+    if step == "inert":
+        switches.add_argument("text", type=Path)
+        parsed = switches.parse_args(rest)
+        # As bytes of UTF-8, whatever the locale's encoding: the text goes back into a file GitHub is handed.
+        sys.stdout.buffer.write(neutral_upstream(read_text(parsed.text), repository(), post.BODY).encode())
         return 0
     switches.add_argument("--item", type=Key.parse, required=step != "survey")
     if step != "gather":

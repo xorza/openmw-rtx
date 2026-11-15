@@ -48,21 +48,44 @@ def _download_into(partial: Path, pin: pins.Pin) -> Path:
     return archive
 
 
+def _wheel_program(folder: Path, name: str, wheel: pins.Pin) -> Path:
+    """**The one program a PyPI wheel carries**, `name`, out of `wheel` into `folder`, read and never installed: no
+    interpreter's package, and no version but the pin on any desk or CI."""
+    program = f"{name}{EXE}"
+
+    def fill(partial: Path) -> None:
+        archive = _download_into(partial, wheel)
+        fetch.extract_member(archive, program, partial)
+        archive.unlink()
+
+    return _fetched_once(folder, fill) / program
+
+
 def clang_format_dir() -> Path:
     return pinned_folder("clang-format", pins.CLANG_FORMAT[SYSTEM])
 
 
 def clang_format() -> Path:
-    """**The clang-format every desk and CI formats with**, the one program out of the wheel `pins.py` names for
-    this system, read and never installed: one layout on every system."""
-    program = f"clang-format{EXE}"
+    """**The clang-format every desk and CI formats with**: one layout on every system."""
+    return _wheel_program(clang_format_dir(), "clang-format", pins.CLANG_FORMAT[SYSTEM])
 
-    def fill(partial: Path) -> None:
-        wheel = _download_into(partial, pins.CLANG_FORMAT[SYSTEM])
-        fetch.extract_member(wheel, program, partial)
-        wheel.unlink()
 
-    return _fetched_once(clang_format_dir(), fill) / program
+def ruff_dir() -> Path:
+    return pinned_folder("ruff", pins.RUFF[SYSTEM])
+
+
+def ruff() -> Path:
+    """**The Ruff every desk and CI lints the driver with.**"""
+    return _wheel_program(ruff_dir(), "ruff", pins.RUFF[SYSTEM])
+
+
+def zizmor_dir() -> Path:
+    return pinned_folder("zizmor", pins.ZIZMOR[SYSTEM])
+
+
+def zizmor() -> Path:
+    """**The zizmor every desk and CI audits the workflows with.**"""
+    return _wheel_program(zizmor_dir(), "zizmor", pins.ZIZMOR[SYSTEM])
 
 
 def clang_tidy_dir() -> Path:
@@ -100,14 +123,36 @@ def clang_apply_replacements() -> Path:
     return clang_tidy().parent / f"clang-apply-replacements{EXE}"
 
 
-def gersemi_pin() -> pins.Pin:
-    """The gersemi wheel for this system and the CPython running the driver, whose ABI its Rust is built for."""
-    tag = f"cp{sys.version_info.major}{sys.version_info.minor}"
-    pin = pins.GERSEMI.get((SYSTEM, tag))
+def _for_interpreter(name: str, wheels: dict[tuple[str, str], pins.Pin],
+                     minor: int = sys.version_info.minor) -> pins.Pin:
+    """The wheel of `wheels` for this system and CPython 3.`minor`, the one running the driver, whose ABI the wheel's
+    compiled part is built for; refused, naming the ones `pins.py` has, where it names none."""
+    pin = wheels.get((SYSTEM, f"cp3{minor}"))
     if pin is None:
-        raise Refusal(f"pins.py names no gersemi wheel for Python {sys.version_info.major}.{sys.version_info.minor} "
-                      f"on {SYSTEM}: CPython 3.10 to 3.14")
+        minors = sorted(int(tag.removeprefix("cp3")) for system, tag in wheels if system == SYSTEM)
+        raise Refusal(f"pins.py names no {name} wheel for Python 3.{minor} on {SYSTEM}: "
+                      f"CPython 3.{minors[0]} to 3.{minors[-1]}")
     return pin
+
+
+def _module_command(folder: Path, module: str, function: str) -> list[str]:
+    """`function` of `module` out of the packages unpacked in `folder`, as the command that runs it: by this
+    interpreter, isolated, with that folder alone on its path ahead of its own library."""
+    return [sys.executable, "-I", "-c",
+            f"import sys; sys.path.insert(0, sys.argv.pop(1)); from {module} import {function}; sys.exit({function}())",
+            str(folder)]
+
+
+def _unpack_wheels(partial: Path, wheels: list[pins.Pin]) -> None:
+    for pin in wheels:
+        wheel = _download_into(partial, pin)
+        with zipfile.ZipFile(wheel) as zipped:
+            zipped.extractall(partial)
+        wheel.unlink()
+
+
+def gersemi_pin() -> pins.Pin:
+    return _for_interpreter("gersemi", pins.GERSEMI)
 
 
 def gersemi_dir() -> Path:
@@ -121,10 +166,7 @@ def gersemi() -> list[str]:
     path. Read and never installed."""
 
     def fill(partial: Path) -> None:
-        wheel = _download_into(partial, gersemi_pin())
-        with zipfile.ZipFile(wheel) as zipped:
-            zipped.extractall(partial)
-        wheel.unlink()
+        _unpack_wheels(partial, [gersemi_pin()])
         source = _download_into(partial, pins.PYYAML)
         with tarfile.open(source) as tarred:
             members = [member for member in tarred.getmembers() if "/lib/yaml/" in member.name]
@@ -133,10 +175,25 @@ def gersemi() -> list[str]:
         next((partial / "pyyaml").glob("*/lib/yaml")).rename(partial / "yaml")
         shutil.rmtree(partial / "pyyaml")
 
-    folder = _fetched_once(gersemi_dir(), fill)
-    return [sys.executable, "-I", "-c",
-            "import sys; sys.path.insert(0, sys.argv.pop(1)); from gersemi.__main__ import main; sys.exit(main())",
-            str(folder)]
+    return _module_command(_fetched_once(gersemi_dir(), fill), "gersemi.__main__", "main")
+
+
+def mypy_pins() -> list[pins.Pin]:
+    """mypy's wheel for this system and interpreter, and those of everything it imports."""
+    return [_for_interpreter("mypy", pins.MYPY), _for_interpreter("librt", pins.LIBRT), pins.AST_SERIALIZE[SYSTEM],
+            *pins.MYPY_PURE]
+
+
+def mypy_dir() -> Path:
+    """Where this interpreter's mypy stands: another Python's is another folder, as its wheels are."""
+    return pinned_folder("mypy", *mypy_pins())
+
+
+def mypy() -> list[str]:
+    """**The mypy every desk and CI checks the driver's types with**, as the command that runs it: its wheel and
+    those of what it imports unpacked into one folder, run as gersemi is. Read and never installed."""
+    return _module_command(_fetched_once(mypy_dir(), lambda partial: _unpack_wheels(partial, mypy_pins())),
+                           "mypy.__main__", "console_entry")
 
 
 # What vcpkg keeps between runs (`omw deps-set`): built packages, keyed by everything that built each, so a set
@@ -439,7 +496,8 @@ def vulkan_environment(env: dict[str, str]) -> None:
 def pinned_names() -> set[str]:
     """Every name in out/deps/ that the pins give this system, through the functions that name each getter's folder,
     so pruning cannot take what a getter fetched."""
-    kept = [cmake_dir(), ninja_dir(), clang_format_dir(), clang_tidy_dir(), gersemi_dir(), vcpkg_root_dir(),
+    kept = [cmake_dir(), ninja_dir(), clang_format_dir(), clang_tidy_dir(), gersemi_dir(), ruff_dir(), zizmor_dir(),
+            mypy_dir(), vcpkg_root_dir(),
             appimage_tools_dir(), llvm_dir(), VCPKG_BINARY_CACHE, VCPKG_DOWNLOADS, VCPKG_WORK, VCPKG_SETS,
             held_set_dir(), vcpkg_set_dir(set_digest()), vcpkg_set_dir(pins.VCPKG_SET.digest)]
     kept += [crash_tool_dir(name) for name, system in pins.CRASH_TOOLS if system == SYSTEM]

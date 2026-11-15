@@ -141,13 +141,11 @@ jobs:
             container: almalinux:8@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b
             flavour: debug
             ccache-size: 2000M
-            tested: true
           - name: windows-msvc
             os: windows-2025-vs2026
             flavour: debug
             # At two gigabytes the objects filled the cache and a run hit nothing.
             ccache-size: 3000M
-            tested: true
           # ThreadSanitizer cannot share a build with AddressSanitizer. No GPU binary: under a
           # sanitizer it would never start here.
           - name: linux-asan
@@ -157,7 +155,6 @@ jobs:
             build-flags: --without-device
             # At one gigabyte the sanitized objects evicted 335 times a run.
             ccache-size: 2000M
-            tested: true
           - name: linux-tsan
             os: ubuntu-26.04
             # On the runner itself, over Ubuntu's GCC 15's libstdc++, against the same set: ThreadSanitizer
@@ -166,7 +163,6 @@ jobs:
             flavour: tsan
             build-flags: --without-device
             ccache-size: 2000M
-            tested: true
     defaults:
       run:
         # Git Bash on Windows, so every `run` is one script on every system.
@@ -204,7 +200,6 @@ jobs:
         run: python omw lint translations
 
       - name: Test
-        if: matrix.tested
         # As a user where the container's steps run as root: a report folder root may always write, and a
         # device root may replace, test nothing of the cases that refuse them, as a player meets them.
         run: |
@@ -217,13 +212,13 @@ jobs:
           fi
 
       - name: Install
-        if: matrix.tested && matrix.flavour == 'debug'
+        if: matrix.flavour == 'debug'
         run: python omw debug exec cmake --install . --prefix "$RUNNER_TEMP/install"
 
       - name: Integration tests
         # Over the null backend in SDL's offscreen window: no device and no display. A pass takes a
         # minute.
-        if: matrix.tested && matrix.flavour == 'debug' && runner.os == 'Linux'
+        if: matrix.flavour == 'debug' && runner.os == 'Linux'
         timeout-minutes: 10
         env:
           OPENMW_RTX_BACKEND: "null"

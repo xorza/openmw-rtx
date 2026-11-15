@@ -18,7 +18,8 @@ from omw.review.survey import answers_of
 from omw.review.text import cut, neutral
 from omw.system import Refusal
 
-# A comment's body; GitHub refuses one past 65,536 characters, and the template takes what this leaves.
+# A comment's body, or a pull request's; GitHub refuses one past 65,536 characters, and the template takes what this
+# leaves.
 BODY = 60_000
 INLINE = 4_000
 # A path a link may be built of: no `..`, nothing but what a tree's file names use.

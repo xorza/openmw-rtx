@@ -7,7 +7,7 @@ from pathlib import Path
 from unittest import mock
 
 from omw import lint
-from omw.lint import Pinned, command_for, misnamed, unguarded, version_of
+from omw.lint import misnamed, unguarded
 from omw.system import Refusal
 
 
@@ -28,31 +28,37 @@ class LintTest(unittest.TestCase):
         self.assertEqual([line.split(":")[0] for line in unguarded(headers)], ["c.hpp", "d.hpp", "e.hpp"])
         self.assertIn("#ifndef C_HPP", unguarded({"c.hpp": headers["c.hpp"]})[0])
 
-    def test_the_version_is_the_second_word_of_what_a_tool_says(self):
-        self.assertEqual(version_of("ruff 0.16.9\n"), "0.16.9")
-        self.assertEqual(version_of("mypy 2.3.1 (compiled: yes)"), "2.3.1")
-        self.assertIsNone(version_of(""))
+    def test_the_driver_is_linted_and_typed_for_each_system_by_the_fetched_tools_and_a_failure_names_its_tool(self):
+        ran: list[tuple[list[str], dict[str, str] | None]] = []
 
-    def test_the_pin_runs_from_the_path_through_pipx_on_ci_and_is_refused_otherwise(self):
-        tool = Pinned("ruff", "0.16.9")
-        said = mock.Mock(stdout="ruff 0.16.9\n")
-        other = mock.Mock(stdout="ruff 0.15.0\n")
+        def run(command: list[str], cwd: Path, env: dict[str, str] | None, check: bool) -> mock.Mock:
+            self.assertEqual(cwd, lint.ROOT)
+            self.assertFalse(check)
+            ran.append((command, env))
+            # The Windows type check fails, and the others pass.
+            return mock.Mock(returncode=3 if "win32" in command else 0)
 
-        def found(program: str) -> str | None:
-            return {"ruff": "/bin/ruff", "pipx": "/bin/pipx"}.get(program)
-
-        with mock.patch.object(lint, "on_path", side_effect=found), \
-                mock.patch("omw.system.on_path", side_effect=found):
-            with mock.patch.object(lint.subprocess, "run", return_value=said):
-                self.assertEqual(command_for(tool, ci=False), ["/bin/ruff"])
-            with mock.patch.object(lint.subprocess, "run", return_value=other):
-                self.assertEqual(command_for(tool, ci=True), ["/bin/pipx", "run", "ruff==0.16.9"])
-                with self.assertRaisesRegex(Refusal, r"on the PATH is ruff 0\.15\.0: `pipx install ruff==0\.16\.9`"):
-                    command_for(tool, ci=False)
-
-        with (mock.patch.object(lint, "on_path", return_value=None),
-              self.assertRaisesRegex(Refusal, "is not on the PATH")):
-            command_for(tool, ci=False)
+        with (mock.patch.object(lint.deps, "ruff", return_value=Path("fetched/ruff")),
+              mock.patch.object(lint.deps, "mypy", return_value=["python", "-c", "mypy"]),
+              mock.patch.object(lint.deps, "zizmor", return_value=Path("fetched/zizmor")),
+              mock.patch.object(lint, "_containers", return_value=[]),
+              mock.patch.object(lint.subprocess, "run", side_effect=run)):
+            self.assertEqual(lint._driver(), ["mypy for win32 exited with 3"])
+            self.assertEqual(lint._workflows(), [])
+        typed = ["--python-version", "3.11", "--platform"]
+        cache = lint.OUT / "mypy"
+        self.assertEqual([command for command, _ in ran], [
+            [str(Path("fetched/ruff")), "check", "--config", "tools/omw/ruff.toml", "tools/omw", "omw"],
+            # A cache a system, so neither run checks again what the other left.
+            ["python", "-c", "mypy", *typed, "linux", "--always-false", "WINDOWS", "--cache-dir", str(cache / "linux"),
+             "-p", "omw"],
+            ["python", "-c", "mypy", *typed, "win32", "--always-true", "WINDOWS", "--cache-dir", str(cache / "win32"),
+             "-p", "omw"],
+            [str(Path("fetched/zizmor")), "--offline", "."],
+        ])
+        # mypy finds the driver's package by its own variable, and the other tools take the environment as it is.
+        self.assertEqual([None if env is None else env["MYPYPATH"] for _, env in ran],
+                         [None, str(lint.ROOT / "tools"), str(lint.ROOT / "tools"), None])
 
     def test_every_container_a_workflow_names_is_the_release_base_s_image(self):
         root = Path(tempfile.mkdtemp())
@@ -84,7 +90,7 @@ class LintTest(unittest.TestCase):
     def test_lupdate_is_the_vcpkg_sets_and_nothing_on_the_path_or_in_the_environment(self):
         with mock.patch.object(lint.deps, "set_tool", return_value=Path("set/lupdate")) as tool, \
                 mock.patch.dict(lint.os.environ, {"LUPDATE": "elsewhere/lupdate"}), \
-                mock.patch.object(lint, "on_path", return_value="path/lupdate"):
+                mock.patch("omw.system.on_path", return_value="path/lupdate"):
             self.assertEqual(lint._lupdate(), str(Path("set/lupdate")))
         tool.assert_called_once_with("Qt6/bin", "lupdate")
 

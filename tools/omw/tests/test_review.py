@@ -1,5 +1,7 @@
+import contextlib
 import io
 import json
+import shutil
 import tempfile
 import unittest
 import zipfile
@@ -8,11 +10,11 @@ from pathlib import Path
 from unittest import mock
 
 from omw import fetch
-from omw.review import answer, gather, github, post
+from omw.review import answer, gather, github, post, verb
 from omw.review import diff as diffs
 from omw.review.item import BOT, NO_HEAD, Attempt, Item, Key, Marker, attempt_of, leg_name, markers
 from omw.review.survey import Limits, _items, select
-from omw.review.text import REMOVED, TRUNCATED, cut, neutral, visible
+from omw.review.text import REMOVED, TRUNCATED, cut, neutral, neutral_upstream, visible
 from omw.system import Refusal
 
 REPO = "o/r"
@@ -52,6 +54,36 @@ class TextTest(unittest.TestCase):
         self.assertEqual(neutral("https://github.com/x/y/issues/3", REPO, 100), "` https://github.com/x/y/issues/3 `")
         self.assertEqual(neutral("https://github.com/x/y/blob/main/a.cpp", REPO, 100),
                          "https://github.com/x/y/blob/main/a.cpp")
+
+    def test_an_upstream_report_s_numbers_link_nothing_of_this_repository(self):
+        self.assertEqual(neutral_upstream("Fixes #12, see GH-3 and `#4`", REPO, 100),
+                         "Fixes ` #12 `, see ` GH-3 ` and `#4`")
+        # What `neutral` leaves a link, as a review of this repository's own change means it.
+        self.assertEqual(neutral("Fixes #12", REPO, 100), "Fixes #12")
+        fenced = "```\nabc123 Fix #7\n```"
+        untouched = f"# 12 trees\n&#35; a#1\n{fenced}"
+        self.assertEqual(neutral_upstream(untouched, REPO, 100), untouched)
+        # A number spelled around an invisible character is one once the character is out.
+        self.assertEqual(neutral_upstream("Closes #\u200b12", REPO, 100), "Closes ` #12 `")
+        # A cross-reference's span stays whole though a number stands in it.
+        self.assertEqual(neutral_upstream("see a/b.#1 and x/y#2", REPO, 100), "see a/b.` #1 ` and ` x/y#2 `")
+
+    def test_inert_prints_a_report_made_safe_to_post_and_cut_to_a_body(self):
+        folder = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, folder)
+        report = folder / "report.md"
+        fenced = "```\nabc123 Fix #7 by @her\n```"
+        written = f"Closes #12 for @him, s\u200becret, <b>\n{fenced}\n"
+        # A byte that is no UTF-8, as an agent's file may hold, and more than a body takes.
+        report.write_bytes(written.encode() + b"\xff" + b"x" * post.BODY)
+        said = io.TextIOWrapper(io.BytesIO(), encoding="utf-8")
+        with mock.patch.dict(verb.os.environ, {"GITHUB_REPOSITORY": REPO}), contextlib.redirect_stdout(said):
+            self.assertEqual(verb.review(["inert", str(report)]), 0)
+        said.flush()
+        text = said.buffer.getvalue().decode()
+        self.assertTrue(text.startswith(f"Closes ` #12 ` for ` @him `, secret, &lt;b>\n{fenced}\n"), text[:120])
+        self.assertTrue(text.endswith(TRUNCATED))
+        self.assertLessEqual(len(text), post.BODY)
 
     def test_cut_bounds_and_closes(self):
         # A fence opened and never closed would swallow the template's footer into its block.

@@ -1,10 +1,10 @@
 """`omw lint [check...]`: the checks CI runs besides the formatting, run by the gate through the same code: upstream's
 file names and Qt translations, every header's `#pragma once`, the fork's lint of the driver and audit of the
-workflows. CI's `checks` job runs all
-but the translations, which take the vcpkg set's Qt and so run in a leg that holds the set.
+workflows. CI's `checks` job runs all but the translations, which take the vcpkg set's Qt and so run in a leg that
+holds the set.
 
-**The pins are here and nowhere else**: the desk runs the pinned tool from the PATH and refuses another version; CI
-runs the pin through `pipx run`, which the desk never does unasked."""
+**Ruff, mypy and zizmor are the driver's own** (`deps`), fetched at the versions and digests `pins.py` names and
+never installed: one of each on every desk and CI, and no part of a check is whatever an index serves that day."""
 
 import filecmp
 import os
@@ -13,58 +13,10 @@ import shutil
 import subprocess
 import tempfile
 from collections.abc import Callable
-from dataclasses import dataclass
 from pathlib import Path
 
 from omw import deps
-from omw.system import (
-    CI,
-    CXX_SOURCES,
-    OUT,
-    ROOT,
-    SYSTEMS,
-    Refusal,
-    on_path,
-    read_text,
-    report,
-    require,
-    working_tree_files,
-)
-
-
-@dataclass(frozen=True)
-class Pinned:
-    """A Python tool CI runs at one version."""
-    name: str
-    version: str
-
-
-RUFF = Pinned("ruff", "0.17.4")
-MYPY = Pinned("mypy", "2.4.1")
-ZIZMOR = Pinned("zizmor", "1.32.0")
-
-
-def version_of(said: str) -> str | None:
-    """The version a tool's `--version` printed, its second word: `mypy 2.3.1 (compiled: yes)`."""
-    words = said.split()
-    return words[1] if len(words) > 1 else None
-
-
-def command_for(tool: Pinned, ci: bool = CI) -> list[str]:
-    """How `tool` at its pin is started: from the PATH where the version there is the pin, through `pipx run` on
-    CI, and otherwise refused with the command that installs it."""
-    found = on_path(tool.name)
-    said = "" if found is None else subprocess.run([found, "--version"], capture_output=True, text=True,
-                                                   check=False).stdout.strip()
-    if found is not None and version_of(said) == tool.version:
-        return [found]
-    if ci:
-        return [require("pipx", f"CI runs {tool.name} {tool.version} through it"), "run",
-                f"{tool.name}=={tool.version}"]
-    there = "is not on the PATH" if found is None else f"on the PATH is {said or 'of no version'}"
-    raise Refusal(f"{tool.name} {tool.version}, the version CI pins, {there}: "
-                  f"`pipx install {tool.name}=={tool.version}`")
-
+from omw.system import CXX_SOURCES, OUT, ROOT, SYSTEMS, Refusal, read_text, report, working_tree_files
 
 NAMED = re.compile(r"/[a-z0-9]+\.(cpp|hpp|h)$")
 
@@ -151,23 +103,26 @@ def translations(args: list[str]) -> int:
     return 0
 
 
-def _ran(command: list[str], env: dict[str, str] | None = None) -> list[str]:
-    """A tool that prints its own findings: nothing where it passed, and the line that names it where it did not."""
+def _ran(what: str, command: list[str], env: dict[str, str] | None = None) -> list[str]:
+    """A tool that prints its own findings: nothing where it passed, and a line that names it, `what`, where it did
+    not. By its name and not its command, which for a tool run as a module is a line of Python."""
     code = subprocess.run(command, cwd=ROOT, env=env, check=False).returncode
-    return [] if code == 0 else [f"`{' '.join(command)}` exited with {code}"]
+    return [] if code == 0 else [f"{what} exited with {code}"]
 
 
 def _driver() -> list[str]:
     """Ruff by `ruff.toml`, which an editor reads too, and mypy, against the oldest Python `omw` supports. **Mypy
     once for each system the driver builds on**, with `WINDOWS` a constant to it, so each system's branches are
-    checked against that system's `os`."""
+    checked against that system's `os`, and with a cache of that system's own: one cache between the two had each
+    run check again what the other left."""
     env = {**os.environ, "MYPYPATH": str(ROOT / "tools")}
-    found = _ran([*command_for(RUFF), "check", "--config", "tools/omw/ruff.toml", "tools/omw", "omw"])
-    mypy = command_for(MYPY)
+    found = _ran("ruff", [str(deps.ruff()), "check", "--config", "tools/omw/ruff.toml", "tools/omw", "omw"])
+    mypy = deps.mypy()
     for platform in SYSTEMS:
         windows = "true" if platform == "win32" else "false"
-        found += _ran([*mypy, "--python-version", "3.11", "--platform", platform, f"--always-{windows}", "WINDOWS",
-                       "--cache-dir", str(OUT / "mypy"), "-p", "omw"], env)
+        found += _ran(f"mypy for {platform}",
+                      [*mypy, "--python-version", "3.11", "--platform", platform, f"--always-{windows}", "WINDOWS",
+                       "--cache-dir", str(OUT / "mypy" / platform), "-p", "omw"], env)
     return found
 
 
@@ -177,7 +132,7 @@ RELEASE_BASE_FILE = Path("env") / "release-base.Dockerfile"
 
 def _workflows() -> list[str]:
     """zizmor, offline, and every workflow's container the release base's image: a finding is a failure."""
-    return _containers(ROOT) + _ran([*command_for(ZIZMOR), "--offline", "."])
+    return _containers(ROOT) + _ran("zizmor", [str(deps.zizmor()), "--offline", "."])
 
 
 def _containers(root: Path) -> list[str]:

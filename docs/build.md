@@ -87,6 +87,11 @@ How the tree is configured, built, formatted and shipped, as decisions. The CMak
   Both run the vcpkg set's `lupdate` (`deps.set_tool`), the Qt whose `lrelease` compiles the files, so CI checks them
   where a leg holds the set. Refused: a system's or the PATH's `lupdate`, another Qt that can write a file
   differently.
+- **The driver's lint tools by digest, fetched and never installed**: Ruff and zizmor each the one program of its
+  PyPI wheel, mypy its compiled wheel per CPython with the wheels of what it imports, as gersemi is, so a desk and CI
+  run the same files. Refused: `pipx run <tool>==<version>`, which fixes a version and no file, takes mypy's own
+  imports as the index serves them that day, and asks a desk to install each by hand; a requirements file with
+  hashes, a second place for pins beside `pins.py`.
 
 ## Archives
 
@@ -156,6 +161,8 @@ How the tree is configured, built, formatted and shipped, as decisions. The CMak
   user's decision. Refused: every master run finishing, which spends the runners on commits a newer one superseded.
   The lint's store, which a whole tree's run takes an hour and more to fill, is written as the run goes
   (`tidy.py`'s `CHECKPOINT_S`) and saved after a cancel too, so a cancelled run hands the next what it got through.
+  The run prints each finding as the source that met it ends and how far it is at each write, so its log says what
+  it found before it ends, and where a cancel stopped it.
 - **One compiler and linker on Linux: the pinned Clang 23 and its lld**, kernel.org's build for glibc 2.28, over GCC
   15's libstdc++ (`--gcc-install-dir`, as libstdc++'s C++20 half keeps no ABI across majors). No contraction
   (`-ffp-contract=off`), so arithmetic rounds as written. Refused: GCC, whose link-time optimisation broke the Qt

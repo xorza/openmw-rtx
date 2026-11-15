@@ -247,6 +247,66 @@ class RememberedTest(unittest.TestCase):
         tidy_run()
         self.assertEqual(tidy.tidycache.load(folder / "tidy-clean.json"), {})
 
+    def test_a_run_says_each_finding_once_as_it_is_met_and_how_far_it_is_at_each_checkpoint(self):
+        folder = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, folder)
+        paths = [written(folder, name, "int a;") for name in ("a.cpp", "b.cpp", "c.cpp")]
+        header = folder / "shared.hpp"
+        (folder / "compile_commands.json").write_text(json.dumps([
+            {"directory": str(folder), "file": str(path), "output": f"{path.stem}.o", "command": f"c++ -c {path.name}"}
+            for path in paths
+        ]))
+
+        def run(_tidy: Path, _build: object, source: Source, _fixes: Path | None,
+                _dependencies: Path) -> subprocess.CompletedProcess:
+            # The header's finding from each of its includers, and the last source's own.
+            own = f"{source.file}:2:1: warning: own [d]\n" if source.file == paths[2] else ""
+            return subprocess.CompletedProcess([], 0, f"{header}:1:1: warning: w [c]\n{own}", "")
+
+        said = io.StringIO()
+        with (mock.patch.object(tidy, "LINTED", (folder,)), mock.patch.object(tidy, "_run", side_effect=run),
+              mock.patch.object(tidy, "CHECKPOINT_S", 0.0), mock.patch.object(tidy, "jobs", return_value=1),
+              mock.patch.object(tidy.deps, "clang_tidy", return_value=Path("clang-tidy")),
+              contextlib.redirect_stdout(said)):
+            self.assertEqual(tidy.tidy(mock.Mock(dir=folder), []), 1)
+        # One hand, so the order is the list's: the header's finding at the first source, and never again.
+        self.assertEqual(said.getvalue().splitlines(), [
+            "tidy: linting 3 of 3 sources",
+            f"{header}:1:1: warning: w [c]",
+            "tidy: 1 of 3 sources linted, 1 findings so far",
+            "tidy: 2 of 3 sources linted, 1 findings so far",
+            f"{paths[2]}:2:1: warning: own [d]",
+            "tidy: 3 of 3 sources linted, 2 findings so far",
+            "     1 c",
+            "     1 d",
+            "tidy: 2 findings over 3 sources, 0 of them unchanged since a clean run",
+        ])
+
+    def test_a_run_that_breaks_without_a_diagnostic_is_said_with_its_own_words_and_fails_the_lint(self):
+        folder = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, folder)
+        broken = ROOT / "apps" / "one" / "main.cpp"
+        (folder / "compile_commands.json").write_text(json.dumps([
+            {"directory": str(folder), "file": str(broken), "output": "apps/one/main.cpp.o", "command": "c++"}]))
+
+        def run(_tidy: Path, _build: object, _source: Source, _fixes: Path | None,
+                _dependencies: Path) -> subprocess.CompletedProcess:
+            return subprocess.CompletedProcess([], 1, "", "error: unknown argument\n")
+
+        said = io.StringIO()
+        with (mock.patch.object(tidy, "_run", side_effect=run),
+              mock.patch.object(tidy.deps, "clang_tidy", return_value=Path("clang-tidy")),
+              contextlib.redirect_stdout(said)):
+            self.assertEqual(tidy.tidy(mock.Mock(dir=folder), []), 1)
+        self.assertEqual(said.getvalue().splitlines(), [
+            "tidy: linting 1 of 1 sources",
+            f"clang-tidy failed on {native('apps/one/main.cpp')}:",
+            "error: unknown argument",
+            "",
+            "tidy: 0 findings over 1 sources, 0 of them unchanged since a clean run",
+        ])
+        self.assertEqual(tidy.tidycache.load(folder / "tidy-clean.json"), {})
+
     def test_a_run_stopped_partway_keeps_in_the_store_what_came_out_clean_before_it_stopped(self):
         """A cancel stops CI's lint partway. **Each checkpoint writes what came out clean so far**, which a run
         killed outright keeps, and **a run stopped by an exception writes it on its way out**, between checkpoints

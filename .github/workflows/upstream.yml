@@ -13,16 +13,19 @@
 # once and where its caches are. The gate needs a card, so it runs after the merge or not at all.
 #
 # `merge` and `review` read upstream, which is untrusted text, so their agents hold nothing worth
-# stealing and can send nothing: a read token, no command, no network, no settings of the checkout's
-# own. Each one's whole result is a git bundle. `fix` reads the branch and CI's logs, which print upstream's
-# text, so its agent is held the same way. `survey`, `publish`, `judge` and `push` run no agent and nothing
-# the branch carries. A merge that touches `.github/` or leaves a conflict marker waits for a human, as does
-# one CI still fails after three rounds.
+# stealing and can send nothing: the cage of `.github/actions/agent`, a read token, no command, no network, no
+# settings of the checkout's own. Each one's whole result is a git bundle. `fix` reads the branch and CI's logs,
+# which print upstream's text, so its agent is held the same way. `survey`, `publish`, `judge` and `push` run no
+# agent and nothing the branch carries, and what an agent wrote is made inert before they post it. A merge that
+# touches `.github/` or leaves a conflict marker waits for a human, as does one CI still fails after three rounds.
 name: Upstream merge
 
 on:
     schedule:
-        - cron: "0 0 * * *"
+        # Off the top of the hour, when GitHub's scheduler is busiest: at minute nought a month of runs began four
+        # and a half to eight and a half hours late, and two days' never began
+        # (`docs/research/2026-11-15-scheduled-runs.md`).
+        - cron: "23 0 * * *"
     workflow_dispatch:
     workflow_run: # zizmor: ignore[dangerous-triggers] the branch and its logs are read as data, and the one job that edits them runs no command
         workflows: [CI]
@@ -55,9 +58,11 @@ jobs:
         # `ubuntu-latest` moves.
         runs-on: ubuntu-26.04
         timeout-minutes: 10
+        # `id-token: write` for the token asked for below.
         permissions:
             contents: write
             pull-requests: read
+            id-token: write
         outputs:
             branch: ${{ steps.upstream.outputs.branch }}
             merge: ${{ steps.upstream.outputs.merge }}
@@ -122,6 +127,14 @@ jobs:
                   fi
                   echo "$behind commits behind upstream/master, $waiting merges already open"
 
+            # A merge nobody could open is not begun: the token `publish` opens the pull request with is asked for
+            # here first, so an exchange that stopped answering ends the run with its reason, before two agents work
+            # on a merge that would end unpushed. Not given back, and never used: whether the service hands a later
+            # job of the run the same token is written down nowhere, and one revoked here would then open no pull
+            # request. It lasts its hour.
+            - uses: $/.github/actions/app-token
+              if: steps.upstream.outputs.merge == 'true'
+
     merge:
         needs: survey
         if: needs.survey.outputs.merge == 'true'
@@ -149,16 +162,9 @@ jobs:
                   fetch-depth: 0
                   persist-credentials: false
 
-            # Before the merge, so nothing of upstream's is installed. Ubuntu lets bubblewrap make
-            # its namespaces only with the AppArmor switch off.
-            - name: Tools, before anything of upstream's is in the tree
+            # Before the merge, so it runs no hook, and merges C++ through the fork's driver.
+            - name: Git, before anything of upstream's is in the tree
               run: |
-                  sudo apt-get update
-                  sudo apt-get install -y --no-install-recommends bubblewrap socat
-                  if [ -f /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
-                    sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
-                  fi
-
                   # The identity the action sets as well (`bot_name`).
                   git config user.name "github-actions[bot]"
                   git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -278,6 +284,12 @@ jobs:
                         git show ":${stage%%:*}:$path" > "$dir/stages/$path.${stage#*:}"
                       fi
                     done
+                    # What upstream changed in the file, as a diff: the agent has no shell to make one with, and
+                    # would read it off two whole files.
+                    if git cat-file -e ":1:$path" 2> /dev/null && git cat-file -e ":3:$path" 2> /dev/null; then
+                      git -c core.quotePath=false diff --no-color --no-ext-diff --no-textconv \
+                        ":1:$path" ":3:$path" > "$dir/stages/$path.upstream.diff"
+                    fi
                   done
                   echo "$(wc -l < "$dir/upstream-commits.txt") upstream commits, $(wc -l < "$dir/conflicts.txt") files to resolve"
 
@@ -289,58 +301,13 @@ jobs:
                   { git diff -z --name-only HEAD; git ls-files -z --others --exclude-standard; } | sort -zu \
                     | xargs -0 -r sha256sum -z -- 2> /dev/null | sort -z > "$RUNNER_TEMP/files-before-agent" || true
 
-            - uses: anthropics/claude-code-action@d535f5172dec02b204866b393d6b20b9b2aaf98d # v1.0.266
+            - uses: $/.github/actions/agent
               id: agent
-              env:
-                  # The scrub leaves GitHub tokens, which the sandbox's `credentials` takes out.
-                  CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
               with:
-                  claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-
-                  # Given, so the action does not exchange it for the Claude GitHub App's, which can write.
-                  github_token: ${{ github.token }}
-
-                  # Nothing this repository commits names a tool.
-                  bot_name: github-actions[bot]
-                  bot_id: "41898282"
-
-                  # User settings, which `--setting-sources user` makes the only ones read. The sandbox
-                  # takes the file tools' deny rules for every command too.
-                  settings: |
-                      {
-                        "disableAllHooks": true,
-                        "permissions": {
-                          "deny": [
-                            "Read(//proc/**)",
-                            "Read(~/.claude/**)",
-                            "Read(~/.claude.json)",
-                            "Read(./.git/**)",
-                            "Edit(./.git/**)",
-                            "Edit(./.github/**)",
-                            "Edit(./.claude/**)",
-                            "Edit(./.mcp.json)",
-                            "Skill",
-                            "WebFetch",
-                            "WebSearch"
-                          ]
-                        },
-                        "sandbox": {
-                          "enabled": true,
-                          "failIfUnavailable": true,
-                          "allowUnsandboxedCommands": false,
-                          "network": { "allowedDomains": [] },
-                          "credentials": {
-                            "envVars": [
-                              { "name": "GITHUB_TOKEN", "mode": "deny" },
-                              { "name": "GH_TOKEN", "mode": "deny" },
-                              { "name": "CLAUDE_CODE_OAUTH_TOKEN", "mode": "deny" },
-                              { "name": "ACTIONS_RUNTIME_TOKEN", "mode": "deny" },
-                              { "name": "ACTIONS_ID_TOKEN_REQUEST_TOKEN", "mode": "deny" }
-                            ]
-                          }
-                        }
-                      }
-
+                  oauth-token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+                  max-turns: ${{ steps.merge.outputs.turns }}
+                  edits: true
+                  web: false
                   prompt: |
                       Merge upstream OpenMW into this fork.
 
@@ -372,7 +339,9 @@ jobs:
                             - `upstream-commits.txt`: the upstream commits this merge takes, one a line;
                             - `stages/<file>.base`, `stages/<file>.fork` and `stages/<file>.upstream`: each
                               conflicted file at the merge base, as this fork has it and as upstream has it.
-                              A side that deleted the file, or a base where both sides added it, has none.
+                              A side that deleted the file, or a base where both sides added it, has none;
+                            - `stages/<file>.upstream.diff`: what upstream changed in the file since the merge
+                              base, where both have it. Read it first: it is the change the resolution keeps.
                       2. Resolve every conflict on its own terms. Never take one side wholesale. Both sides
                          usually have to survive: upstream's change to a line and this fork's reason for
                          having moved that line. Where a resolution is a judgement rather than a mechanical
@@ -401,51 +370,20 @@ jobs:
                       turns run out first, the step after you commits the tree as you left it for a human, so
                       a file left half-done costs more than one not begun.
 
-                  # The checkout's `.claude/` and `.mcp.json` are upstream's once the merge stands, and
-                  # would load hooks and servers outside the sandbox. Claude Code checks a `Write` against
-                  # the `Edit` rules.
-                  claude_args: |
-                      --model opus
-                      --max-turns ${{ steps.merge.outputs.turns }}
-                      --setting-sources user
-                      --allowedTools "Read(./**),Edit(./**),Grep,Glob"
-
-            # The action hides the transcript, which a public repository would publish whole. Workflow
-            # commands are stopped: the text is the agent's, written after reading upstream.
-            - name: What the agent reported
-              if: always() && steps.agent.outputs.execution_file != ''
-              env:
-                  EXECUTION_FILE: ${{ steps.agent.outputs.execution_file }}
-              run: |
-                  stop=$(cat /proc/sys/kernel/random/uuid)
-                  echo "::stop-commands::$stop"
-                  jq -r '.[] | select(.type == "result")
-                    | (.result // "no last message: \(.subtype)"),
-                      (.permission_denials[]?
-                        | "refused \(.tool_name): \(.tool_input.command // .tool_input.file_path // (.tool_input | tostring))")' \
-                    "$EXECUTION_FILE"
-                  echo "::$stop::"
-
             # The agent's turns can run out mid-resolution, and the runner then goes with its work, so
-            # whatever it left is committed here and `publish` decides what becomes of it.
+            # whatever it left is committed below and `publish` decides what becomes of it.
             #
             # A merge the agent never changed is not pushed: the next run makes it again, and a pushed
             # one stopped the daily merges.
-            #
-            # Onto master as it stands: GitHub refuses an app's push where the branch's workflows differ
-            # from master's.
-            - name: What the agent left, as a bundle
-              id: bundle
+            - name: What the agent changed past git's own merge
+              id: changed
               if: ${{ !cancelled() && steps.merge.outcome == 'success' }}
-              env:
-                  BRANCH: ${{ needs.survey.outputs.branch }}
               run: |
                   out="$RUNNER_TEMP/upstream-merge"
                   mkdir -p "$out"
-                  dir=.upstream-merge
 
-                  # What the agent changed: a line of the listing after it that the one before it has not. A line
-                  # is the digest, two spaces and the name.
+                  # A line of the listing after the agent that the one before it has not. A line is the digest, two
+                  # spaces and the name.
                   { git diff -z --name-only HEAD; git ls-files -z --others --exclude-standard; } | sort -zu \
                     | xargs -0 -r sha256sum -z -- 2> /dev/null | sort -z > "$RUNNER_TEMP/files-after-agent" || true
                   comm -z -13 "$RUNNER_TEMP/files-before-agent" "$RUNNER_TEMP/files-after-agent" | cut -z -c67- \
@@ -453,40 +391,37 @@ jobs:
 
                   tree=$({ git diff --binary HEAD; git ls-files -z --others --exclude-standard | xargs -0 -r sha256sum --; } \
                     | sha256sum)
-                  if [ ! -s UPSTREAM-MERGE.md ] && [ ! -s "$dir/removed.txt" ] \
+                  if [ ! -s UPSTREAM-MERGE.md ] && [ ! -s .upstream-merge/removed.txt ] \
                     && [ "$tree" = "$(cat "$RUNNER_TEMP/tree-before-agent")" ]; then
                     echo "::error::the agent changed nothing and wrote no report; nothing is pushed, and the next run merges again"
                     exit 1
                   fi
 
-                  # The list is the agent's, written after reading upstream: only a conflicted file goes, or one the
-                  # merge adds.
-                  if [ -f "$dir/removed.txt" ]; then
-                    while IFS= read -r path; do
-                      if [ -n "$path" ] && grep -qxF -- "$path" "$dir/conflicts.txt" "$dir/added.txt"; then
-                        git rm --quiet --ignore-unmatch -- "$path"
-                      fi
-                    done < "$dir/removed.txt"
-                  fi
+            # Only a conflicted file goes, or one the merge adds.
+            - uses: $/.github/actions/agent-edits
+              id: edits
+              if: ${{ !cancelled() && steps.changed.outcome == 'success' }}
+              with:
+                  removable: conflicts.txt added.txt
 
-                  # Not a file with a marker, whose markers a format would reflow. `omw format` leaves alone
-                  # what is not a C++ source of the tree's own.
-                  formatted=()
-                  while IFS= read -r -d '' path; do
-                    if [ -f "$path" ] && ! grep -qE '^(<<<<<<<|>>>>>>>) ' -- "$path"; then
-                      formatted+=("$path")
-                    fi
-                  done < <({ git diff -z --name-only; git ls-files -z --others --exclude-standard; })
-                  if [ "${#formatted[@]}" -gt 0 ]; then
-                    python3 omw format "${formatted[@]}"
-                  fi
+            # Onto master as it stands: GitHub refuses an app's push where the branch's workflows differ
+            # from master's.
+            - name: What the agent left, as a bundle
+              id: bundle
+              if: ${{ !cancelled() && steps.edits.outcome == 'success' }}
+              env:
+                  BRANCH: ${{ needs.survey.outputs.branch }}
+              run: |
+                  out="$RUNNER_TEMP/upstream-merge"
+                  dir=.upstream-merge
 
                   if git rev-parse -q --verify MERGE_HEAD > /dev/null; then
-                    git add --all
                     git commit --quiet --no-edit
                   fi
                   git rev-parse HEAD > "$out/merge-commit"
 
+                  # The commits in a fence, so a subject that names an account or an issue notifies and links
+                  # nothing; a line opens with its commit's hash, so none closes the fence.
                   state=finished
                   if [ -s UPSTREAM-MERGE.md ]; then
                     taken=$(wc -l < "$dir/upstream-commits.txt")
@@ -495,9 +430,12 @@ jobs:
                       echo
                       echo "## Upstream commits taken ($taken)"
                       echo
-                      head -n 200 "$dir/upstream-commits.txt" | sed 's/^/- /'
+                      echo '```'
+                      head -n 200 "$dir/upstream-commits.txt"
+                      echo '```'
                       if [ "$taken" -gt 200 ]; then
-                        echo "- and $((taken - 200)) more"
+                        echo
+                        echo "And $((taken - 200)) more."
                       fi
                     } > "$out/body.md"
                   else
@@ -546,14 +484,8 @@ jobs:
                   fetch-depth: 0
                   persist-credentials: false
 
-            - name: Tools, before anything of upstream's is in the tree
+            - name: Git, before anything of upstream's is in the tree
               run: |
-                  sudo apt-get update
-                  sudo apt-get install -y --no-install-recommends bubblewrap socat
-                  if [ -f /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
-                    sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
-                  fi
-
                   git config user.name "github-actions[bot]"
                   git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
                   git config core.hooksPath /dev/null
@@ -599,59 +531,29 @@ jobs:
                         git show "${side%%:*}:$path" > "$dir/stages/$path.${side##*:}"
                       fi
                     done
+                    # What upstream changed and what the merge made of the fork's file, each as a diff: with no
+                    # shell the agent has no `diff`, and asked for one in every run.
+                    if git cat-file -e "$base:$path" 2> /dev/null && git cat-file -e "$merge^2:$path" 2> /dev/null; then
+                      git -c core.quotePath=false diff --no-color --no-ext-diff --no-textconv \
+                        "$base:$path" "$merge^2:$path" > "$dir/stages/$path.upstream.diff"
+                    fi
+                    if git cat-file -e "$merge^1:$path" 2> /dev/null && git cat-file -e "$merge:$path" 2> /dev/null; then
+                      git -c core.quotePath=false diff --no-color --no-ext-diff --no-textconv \
+                        "$merge^1:$path" "$merge:$path" > "$dir/stages/$path.merged.diff"
+                    fi
                   done < "$dir/edited.txt"
 
                   edited=$(grep -c . "$dir/edited.txt" || true)
                   echo "$edited files resolved"
                   echo "turns=$((40 + 8 * edited))" >> "$GITHUB_OUTPUT"
 
-            - uses: anthropics/claude-code-action@d535f5172dec02b204866b393d6b20b9b2aaf98d # v1.0.266
+            - uses: $/.github/actions/agent
               id: agent
-              env:
-                  CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
               with:
-                  claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-                  github_token: ${{ github.token }}
-                  bot_name: github-actions[bot]
-                  bot_id: "41898282"
-
-                  # User settings, which `--setting-sources user` makes the only ones read. The sandbox
-                  # takes the file tools' deny rules for every command too.
-                  settings: |
-                      {
-                        "disableAllHooks": true,
-                        "permissions": {
-                          "deny": [
-                            "Read(//proc/**)",
-                            "Read(~/.claude/**)",
-                            "Read(~/.claude.json)",
-                            "Read(./.git/**)",
-                            "Edit(./.git/**)",
-                            "Edit(./.github/**)",
-                            "Edit(./.claude/**)",
-                            "Edit(./.mcp.json)",
-                            "Skill",
-                            "WebFetch",
-                            "WebSearch"
-                          ]
-                        },
-                        "sandbox": {
-                          "enabled": true,
-                          "failIfUnavailable": true,
-                          "allowUnsandboxedCommands": false,
-                          "network": { "allowedDomains": [] },
-                          "credentials": {
-                            "envVars": [
-                              { "name": "GITHUB_TOKEN", "mode": "deny" },
-                              { "name": "GH_TOKEN", "mode": "deny" },
-                              { "name": "CLAUDE_CODE_OAUTH_TOKEN", "mode": "deny" },
-                              { "name": "ACTIONS_RUNTIME_TOKEN", "mode": "deny" },
-                              { "name": "ACTIONS_ID_TOKEN_REQUEST_TOKEN", "mode": "deny" }
-                            ]
-                          }
-                        }
-                      }
-
+                  oauth-token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+                  max-turns: ${{ steps.read.outputs.turns }}
+                  edits: true
+                  web: false
                   prompt: |
                       Review this fork's merge of upstream OpenMW, and fix what the review finds.
 
@@ -677,64 +579,35 @@ jobs:
                          - `edited.txt`: the files the merge's resolver changed past git's own merge, one a line;
                          - `stages/<file>.base`, `.fork` and `.upstream`: each of them at the merge base, as this
                            fork had it and as upstream has it;
+                         - `stages/<file>.upstream.diff`: what upstream changed in it since the merge base, and
+                           `stages/<file>.merged.diff`: what the merge changed in this fork's, from the fork's side
+                           to the file as the resolver left it. Either is missing where a side has no such file;
                          - `added.txt`: the files the merge adds, which master has not, one a line.
 
                       Change files where they stand. To delete a file `added.txt` names, write its path as it is
                       spelled there, on a line of its own, into `.upstream-merge/removed.txt`. The step after you
-                      formats the C++ you wrote with `omw format` and commits the tree. Write your report to `UPSTREAM-REVIEW.md` at the root of the
-                      checkout; it joins the pull request's body. Do not edit anything under `.github/`.
+                      formats the C++ you wrote with `omw format` and commits the tree. Write your report to
+                      `UPSTREAM-REVIEW.md` at the root of the checkout; it joins the pull request's body. Do not edit
+                      anything under `.github/`.
 
-                  claude_args: |
-                      --model opus
-                      --max-turns ${{ steps.read.outputs.turns }}
-                      --setting-sources user
-                      --allowedTools "Read(./**),Edit(./**),Grep,Glob"
-
-            - name: What the agent reported
-              if: always() && steps.agent.outputs.execution_file != ''
-              env:
-                  EXECUTION_FILE: ${{ steps.agent.outputs.execution_file }}
-              run: |
-                  stop=$(cat /proc/sys/kernel/random/uuid)
-                  echo "::stop-commands::$stop"
-                  jq -r '.[] | select(.type == "result")
-                    | (.result // "no last message: \(.subtype)"),
-                      (.permission_denials[]?
-                        | "refused \(.tool_name): \(.tool_input.command // .tool_input.file_path // (.tool_input | tostring))")' \
-                    "$EXECUTION_FILE"
-                  echo "::$stop::"
+            # A file goes only where the merge adds it.
+            - uses: $/.github/actions/agent-edits
+              id: edits
+              if: ${{ !cancelled() && steps.read.outcome == 'success' }}
+              with:
+                  removable: added.txt
 
             # What the review changed, committed onto the merge, and the body with its report; onto master as it
             # stands, as the merge's bundle is.
             - name: What the review left, as a bundle
               id: bundle
-              if: ${{ !cancelled() && steps.read.outcome == 'success' }}
+              if: ${{ !cancelled() && steps.edits.outcome == 'success' }}
               env:
                   BRANCH: ${{ needs.survey.outputs.branch }}
               run: |
                   out="$RUNNER_TEMP/upstream-review"
                   mkdir -p "$out"
 
-                  dir=.upstream-merge
-                  if [ -f "$dir/removed.txt" ]; then
-                    while IFS= read -r path; do
-                      if [ -n "$path" ] && grep -qxF -- "$path" "$dir/added.txt"; then
-                        git rm --quiet --ignore-unmatch -- "$path"
-                      fi
-                    done < "$dir/removed.txt"
-                  fi
-
-                  formatted=()
-                  while IFS= read -r -d '' path; do
-                    if [ -f "$path" ] && ! grep -qE '^(<<<<<<<|>>>>>>>) ' -- "$path"; then
-                      formatted+=("$path")
-                    fi
-                  done < <({ git diff -z --name-only; git ls-files -z --others --exclude-standard; })
-                  if [ "${#formatted[@]}" -gt 0 ]; then
-                    python3 omw format "${formatted[@]}"
-                  fi
-
-                  git add --all
                   if ! git diff --cached --quiet; then
                     git commit --quiet -m "Answer the review on the upstream merge"
                   fi
@@ -776,7 +649,7 @@ jobs:
         runs-on: ubuntu-26.04
         timeout-minutes: 15
 
-        # `id-token: write` exchanges the run for the Claude GitHub App's token, which opens the pull
+        # `id-token: write` for the Claude GitHub App's token (`.github/actions/app-token`), which opens the pull
         # request.
         permissions:
             contents: write
@@ -818,6 +691,28 @@ jobs:
                     echo "The resolutions were not reviewed: the review job ended $REVIEW."
                   } >> "$RUNNER_TEMP/upstream-merge/body.md"
 
+            # The body is the agents', written after reading upstream: made inert before any of it is searched or
+            # posted (`omw review inert`), so it notifies no account, writes no cross-reference into another
+            # repository, renders no HTML, and fits a pull request's body, which GitHub refuses past 65,536
+            # characters, here after the branch is pushed. Ahead of the search for the credential, which a
+            # zero-width character between two of its letters would hide from a search of the text as written. Into
+            # a file of its own, the only one a later step searches or posts, so a step that failed here leaves
+            # nothing raw to post. A merge that stopped before its report has no body.
+            - name: The body, made inert
+              run: |
+                  body="$RUNNER_TEMP/upstream-merge/body.md"
+                  if [ -f "$body" ]; then
+                    python3 omw review inert "$body" > "$RUNNER_TEMP/body.md"
+                  fi
+
+            # As the Claude GitHub App: GitHub starts no workflow on a pull request `GITHUB_TOKEN` opens. Asked for
+            # ahead of the push: a branch pushed and never opened as a pull request stops every later run until a
+            # human deletes it, where a merge not pushed is made again by the next run. A merge that stopped before
+            # its report opens no pull request, and asks for no token.
+            - uses: $/.github/actions/app-token
+              id: app
+              if: needs.merge.outputs.state == 'finished'
+
             # The bundle is data: nothing here checks it out or runs what it carries. The search for the
             # agent's credential is the last line before the text is public.
             - name: The branch, checked and pushed
@@ -832,7 +727,7 @@ jobs:
                   if [ -n "$SECRET" ]; then
                     if git log --format=%B "origin/master..$BRANCH" | grep -qF -- "$SECRET" \
                       || git diff --text "origin/master...$BRANCH" | grep -qF -- "$SECRET" \
-                      || { [ -f "$out/body.md" ] && grep -qF -- "$SECRET" "$out/body.md"; }; then
+                      || { [ -f "$RUNNER_TEMP/body.md" ] && grep -qF -- "$SECRET" "$RUNNER_TEMP/body.md"; }; then
                       echo "::error::the merge carries the agent's credential; nothing was pushed. Revoke the token and read the merge job"
                       exit 1
                     fi
@@ -850,33 +745,20 @@ jobs:
                     exit 1
                   fi
 
-            # As the Claude GitHub App: GitHub starts no workflow on a pull request `GITHUB_TOKEN` opens. A draft, so
-            # nobody is asked to read a merge before its CI has passed: `judge` turns it ready then.
-            # The exchange is the pinned action's own (`src/github/token.ts`), and the token is revoked after its one
-            # call.
+            # A draft, so nobody is asked to read a merge before its CI has passed: `judge` turns it ready then.
             - name: The pull request, a draft until CI passes
               env:
-                  BRANCH: ${{ needs.survey.outputs.branch }}
+                  GH_TOKEN: ${{ steps.app.outputs.token }}
                   GH_REPO: ${{ github.repository }}
+                  BRANCH: ${{ needs.survey.outputs.branch }}
               run: |
-                  identity=$(curl -sSf -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-                    "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=claude-code-github-action" | jq -r .value)
-                  echo "::add-mask::$identity"
-                  app=$(curl -sSf -X POST -H "Authorization: Bearer $identity" \
-                    https://api.anthropic.com/api/github/github-app-token-exchange | jq -r '.token // .app_token // empty')
-                  if [ -z "$app" ]; then
-                    echo "::error::the Claude GitHub App gave no token"
-                    exit 1
-                  fi
-                  echo "::add-mask::$app"
+                  gh pr create --draft --base master --head "$BRANCH" --title "Merge upstream/master" \
+                    --body-file "$RUNNER_TEMP/body.md"
 
-                  status=0
-                  GH_TOKEN=$app gh pr create --draft --base master --head "$BRANCH" --title "Merge upstream/master" \
-                    --body-file "$RUNNER_TEMP/upstream-merge/body.md" || status=$?
-                  curl -sS -o /dev/null -X DELETE -H "Accept: application/vnd.github+json" \
-                    -H "Authorization: Bearer $app" -H "X-GitHub-Api-Version: 2022-11-28" \
-                    "${GITHUB_API_URL:-https://api.github.com}/installation/token" || true
-                  exit "$status"
+            - uses: $/.github/actions/app-token-revoke
+              if: always() && steps.app.outputs.token != ''
+              with:
+                  token: ${{ steps.app.outputs.token }}
 
     # CI's run of an upstream merge's pull request, answered: ready and merged where it passed, handed to `fix` where
     # it failed.
@@ -1030,17 +912,13 @@ jobs:
                   fetch-depth: 0
                   persist-credentials: false
 
-            - name: Tools, before anything of the branch's is in the tree
+            - name: Git, before anything of the branch's is in the tree
               run: |
-                  sudo apt-get update
-                  sudo apt-get install -y --no-install-recommends bubblewrap socat
-                  if [ -f /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
-                    sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
-                  fi
-
                   git config user.name "github-actions[bot]"
                   git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
                   git config core.hooksPath /dev/null
+                  git config merge.clang-format.name "C++ laid out by the pinned clang-format, then merged"
+                  git config merge.clang-format.driver "python3 omw merge-file %O %A %B %L %P"
                   echo "/UPSTREAM-FIX.md" >> .git/info/exclude
                   echo "/.upstream-merge/" >> .git/info/exclude
 
@@ -1093,57 +971,18 @@ jobs:
                   echo "failed=$failed" >> "$GITHUB_OUTPUT"
                   echo "turns=$((60 + 60 * (failed < 4 ? failed : 4)))" >> "$GITHUB_OUTPUT"
 
-            - uses: anthropics/claude-code-action@d535f5172dec02b204866b393d6b20b9b2aaf98d # v1.0.266
+            - uses: $/.github/actions/agent
               id: agent
               if: steps.read.outputs.failed != '0'
-              env:
-                  CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
               with:
-                  claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-                  github_token: ${{ github.token }}
-                  bot_name: github-actions[bot]
-                  bot_id: "41898282"
+                  oauth-token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+                  max-turns: ${{ steps.read.outputs.turns }}
+                  edits: true
+                  web: false
 
                   # The run this answers was started by the app: it opened the pull request and pushes each fix,
                   # and the action refuses a bot's run unless it is named.
-                  allowed_bots: claude
-
-                  # User settings, which `--setting-sources user` makes the only ones read. The sandbox
-                  # takes the file tools' deny rules for every command too.
-                  settings: |
-                      {
-                        "disableAllHooks": true,
-                        "permissions": {
-                          "deny": [
-                            "Read(//proc/**)",
-                            "Read(~/.claude/**)",
-                            "Read(~/.claude.json)",
-                            "Read(./.git/**)",
-                            "Edit(./.git/**)",
-                            "Edit(./.github/**)",
-                            "Edit(./.claude/**)",
-                            "Edit(./.mcp.json)",
-                            "Skill",
-                            "WebFetch",
-                            "WebSearch"
-                          ]
-                        },
-                        "sandbox": {
-                          "enabled": true,
-                          "failIfUnavailable": true,
-                          "allowUnsandboxedCommands": false,
-                          "network": { "allowedDomains": [] },
-                          "credentials": {
-                            "envVars": [
-                              { "name": "GITHUB_TOKEN", "mode": "deny" },
-                              { "name": "GH_TOKEN", "mode": "deny" },
-                              { "name": "CLAUDE_CODE_OAUTH_TOKEN", "mode": "deny" },
-                              { "name": "ACTIONS_RUNTIME_TOKEN", "mode": "deny" },
-                              { "name": "ACTIONS_ID_TOKEN_REQUEST_TOKEN", "mode": "deny" }
-                            ]
-                          }
-                        }
-                      }
+                  allowed-bots: claude
 
                   prompt: |
                       Fix what this fork's CI found on a merge of upstream OpenMW.
@@ -1183,32 +1022,19 @@ jobs:
                          why you left it. The step after you formats the C++ you wrote with `omw format`, commits
                          the tree, and pushes it, which runs CI again.
 
-                  claude_args: |
-                      --model opus
-                      --max-turns ${{ steps.read.outputs.turns }}
-                      --setting-sources user
-                      --allowedTools "Read(./**),Edit(./**),Grep,Glob"
-
-            - name: What the agent reported
-              if: always() && steps.agent.outputs.execution_file != ''
-              env:
-                  EXECUTION_FILE: ${{ steps.agent.outputs.execution_file }}
-              run: |
-                  stop=$(cat /proc/sys/kernel/random/uuid)
-                  echo "::stop-commands::$stop"
-                  jq -r '.[] | select(.type == "result")
-                    | (.result // "no last message: \(.subtype)"),
-                      (.permission_denials[]?
-                        | "refused \(.tool_name): \(.tool_input.command // .tool_input.file_path // (.tool_input | tostring))")' \
-                    "$EXECUTION_FILE"
-                  echo "::$stop::"
+            # A file goes only where the merge adds it.
+            - uses: $/.github/actions/agent-edits
+              id: edits
+              if: ${{ !cancelled() && steps.read.outcome == 'success' }}
+              with:
+                  removable: added.txt
 
             # What the agent changed, committed onto the branch, and its report; onto master as it stands, as the
             # merge's bundle is, because GitHub refuses an app's push where the branch's workflows differ from
             # master's.
             - name: What the fix left, as a bundle
               id: bundle
-              if: ${{ !cancelled() && steps.read.outcome == 'success' }}
+              if: ${{ !cancelled() && steps.edits.outcome == 'success' }}
               env:
                   BRANCH: ${{ github.event.workflow_run.head_branch }}
                   HEAD: ${{ github.event.workflow_run.head_sha }}
@@ -1217,7 +1043,6 @@ jobs:
               run: |
                   out="$RUNNER_TEMP/upstream-fix"
                   mkdir -p "$out"
-                  dir=.upstream-merge
 
                   if [ "$FAILED" = 0 ]; then
                     echo "No job of the run ended in failure, so the fix had no log to read." > "$out/report.md"
@@ -1230,25 +1055,6 @@ jobs:
                     echo "The fix wrote no report." > "$out/report.md"
                   fi
 
-                  if [ -f "$dir/removed.txt" ]; then
-                    while IFS= read -r path; do
-                      if [ -n "$path" ] && grep -qxF -- "$path" "$dir/added.txt"; then
-                        git rm --quiet --ignore-unmatch -- "$path"
-                      fi
-                    done < "$dir/removed.txt"
-                  fi
-
-                  formatted=()
-                  while IFS= read -r -d '' path; do
-                    if [ -f "$path" ]; then
-                      formatted+=("$path")
-                    fi
-                  done < <({ git diff -z --name-only; git ls-files -z --others --exclude-standard; })
-                  if [ "${#formatted[@]}" -gt 0 ]; then
-                    python3 omw format "${formatted[@]}"
-                  fi
-
-                  git add --all
                   if git diff --cached --quiet; then
                     echo "the fix changed nothing"
                     echo "fixed=false" >> "$GITHUB_OUTPUT"
@@ -1308,9 +1114,21 @@ jobs:
                   name: upstream-fix
                   path: ${{ runner.temp }}/upstream-fix
 
+            # What the fix's agent wrote, made inert before any of it is searched or posted (`omw review inert`): it
+            # notifies no account, writes no cross-reference into another repository, renders no HTML, and fits a
+            # comment. Ahead of the search for the credential, which a zero-width character between two of its
+            # letters would hide from a search of the text as written. Into a file of its own, the only one a later
+            # step searches or posts, so a step that failed here leaves nothing raw to post.
+            - name: The report, made inert
+              if: needs.fix.result == 'success'
+              run: python3 omw review inert "$RUNNER_TEMP/upstream-fix/report.md" > "$RUNNER_TEMP/report.md"
+
+            - uses: $/.github/actions/app-token
+              id: app
+              if: needs.fix.outputs.fixed == 'true'
+
             # The bundle is data: nothing here checks it out or runs what it carries. The search for the agent's
-            # credential is the last line before the text is public. The exchange is the pinned action's own
-            # (`src/github/token.ts`), and the token is revoked after its one push.
+            # credential is the last line before the text is public.
             - name: The fix, checked and pushed
               id: push
               if: needs.fix.outputs.fixed == 'true'
@@ -1319,6 +1137,7 @@ jobs:
                   HEAD: ${{ github.event.workflow_run.head_sha }}
                   GH_REPO: ${{ github.repository }}
                   SECRET: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+                  APP_TOKEN: ${{ steps.app.outputs.token }}
               run: |
                   out="$RUNNER_TEMP/upstream-fix"
                   git fetch --quiet --no-tags origin "$HEAD"
@@ -1328,31 +1147,20 @@ jobs:
                   if [ -n "$SECRET" ]; then
                     if git log --format=%B "$HEAD..$BRANCH" | grep -qF -- "$SECRET" \
                       || git diff --text "$HEAD...$BRANCH" | grep -qF -- "$SECRET" \
-                      || grep -qF -- "$SECRET" "$out/report.md"; then
+                      || grep -qF -- "$SECRET" "$RUNNER_TEMP/report.md"; then
                       echo "::error::the fix carries the agent's credential; nothing was pushed. Revoke the token and read the fix job"
                       exit 1
                     fi
                   fi
 
-                  identity=$(curl -sSf -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-                    "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=claude-code-github-action" | jq -r .value)
-                  echo "::add-mask::$identity"
-                  app=$(curl -sSf -X POST -H "Authorization: Bearer $identity" \
-                    https://api.anthropic.com/api/github/github-app-token-exchange | jq -r '.token // .app_token // empty')
-                  if [ -z "$app" ]; then
-                    echo "::error::the Claude GitHub App gave no token"
-                    exit 1
-                  fi
-                  echo "::add-mask::$app"
-
                   # A fast-forward of the commit CI ran, or nothing: a branch that moved since is the newer run's.
-                  status=0
-                  git push --quiet "https://x-access-token:$app@github.com/$GH_REPO.git" \
-                    "refs/heads/$BRANCH:refs/heads/$BRANCH" || status=$?
-                  curl -sS -o /dev/null -X DELETE -H "Accept: application/vnd.github+json" \
-                    -H "Authorization: Bearer $app" -H "X-GitHub-Api-Version: 2022-11-28" \
-                    "${GITHUB_API_URL:-https://api.github.com}/installation/token" || true
-                  exit "$status"
+                  git push --quiet "https://x-access-token:$APP_TOKEN@github.com/$GH_REPO.git" \
+                    "refs/heads/$BRANCH:refs/heads/$BRANCH"
+
+            - uses: $/.github/actions/app-token-revoke
+              if: always() && steps.app.outputs.token != ''
+              with:
+                  token: ${{ steps.app.outputs.token }}
 
             - name: The report, on the pull request
               if: ${{ !cancelled() }}
@@ -1365,10 +1173,11 @@ jobs:
                   FIX: ${{ needs.fix.result }}
                   FIXED: ${{ needs.fix.outputs.fixed }}
                   AGENT: ${{ needs.fix.outputs.agent }}
+                  APP: ${{ steps.app.outcome }}
                   PUSHED: ${{ steps.push.outcome }}
                   SECRET: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
               run: |
-                  report="$RUNNER_TEMP/upstream-fix/report.md"
+                  report="$RUNNER_TEMP/report.md"
                   if [ -f "$report" ] && [ -n "$SECRET" ] && grep -qF -- "$SECRET" "$report"; then
                     echo "The report carries the agent's credential and is not posted." > "$report"
                     echo "::error::the fix's report carries the agent's credential. Revoke the token and read the fix job"
@@ -1381,6 +1190,9 @@ jobs:
                         "this merge."
                     elif [ "$FIXED" = false ]; then
                       echo "CI failed ($RUN); round $ROUND of the fix changed nothing. A human finishes this merge."
+                    elif [ "$APP" = failure ]; then
+                      echo "CI failed ($RUN); round $ROUND of the fix is not pushed: the Claude GitHub App gave no" \
+                        "token to push it as, and the push job's log says why. A human finishes this merge."
                     else
                       echo "CI failed ($RUN); round $ROUND of the fix ended with the fix job $FIX and the push" \
                         "${PUSHED:-skipped}. A human finishes this merge."

@@ -1,0 +1,164 @@
+# The cage every agent of the workflows runs in, stated once: `upstream.yml`'s three and `auto-review-item.yml`'s
+# one read text a stranger wrote, so each holds nothing worth stealing and can run nothing. A read token, no shell,
+# no settings of the checkout's own, every credential's variable denied, and the file tools kept to the tree and out
+# of `.git`, where the action leaves its token. What a caller chooses is whether the agent edits the tree and
+# whether it reads the web; the rules it is denied and the tools it is allowed both follow from the two, so neither
+# list can name what the other forgot.
+#
+# Named by `$/`, which is the workflow's own commit and never the workspace: a tree an agent edited, or one upstream's
+# merge stands in, cannot change the cage it runs in.
+name: Caged agent
+description: Runs an agent over the working tree with no shell, no secret and no write past the tree.
+
+inputs:
+  oauth-token:
+    description: The agent's credential, `secrets.CLAUDE_CODE_OAUTH_TOKEN`, which a composite action cannot read itself.
+    required: true
+  prompt:
+    description: What the agent is asked.
+    required: true
+  max-turns:
+    description: How many turns the agent has.
+    required: true
+  edits:
+    description: Whether the agent changes files of the tree, `.git`, `.github/`, `.claude/` and `.mcp.json` aside; false, and it reads alone.
+    required: true
+  web:
+    description: Whether the agent searches and fetches the web; false for one whose edits are pushed.
+    required: true
+  json-schema:
+    description: The schema of the agent's structured output, in no single quote; none, and it answers none.
+    default: ""
+  allowed-bots:
+    description: The bots whose run the agent may answer, as the action's `allowed_bots`.
+    default: ""
+  transcript:
+    description: The artifact the whole transcript is kept as; none, and the log's summary is all that is kept.
+    default: ""
+
+outputs:
+  structured_output:
+    description: The agent's answer to `json-schema`.
+    value: ${{ steps.agent.outputs.structured_output }}
+
+runs:
+  using: composite
+  steps:
+    # Ubuntu lets bubblewrap make its namespaces only with the AppArmor switch off.
+    - name: The sandbox's tools
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends bubblewrap socat
+        if [ -f /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+        fi
+
+    # `Bash` denied by its bare name leaves the agent no shell to ask for: allowed nowhere and denied nowhere, the
+    # upstream review's agent asked for one in every run and was refused each time. Claude Code checks a `Write`
+    # against the `Edit` rules.
+    - name: The cage
+      id: cage
+      shell: bash
+      env:
+        EDITS: ${{ inputs.edits }}
+        WEB: ${{ inputs.web }}
+      run: |
+        for flag in "$EDITS" "$WEB"; do
+          if [ "$flag" != true ] && [ "$flag" != false ]; then
+            echo "::error::the cage's edits and web are true or false, and one is '$flag'"
+            exit 1
+          fi
+        done
+        settings=$(jq -cn --argjson edits "$EDITS" --argjson web "$WEB" '{
+          disableAllHooks: true,
+          permissions: {
+            deny: (
+              ["Read(//proc/**)", "Read(~/.claude/**)", "Read(~/.claude.json)", "Read(./.git/**)",
+               "Bash", "NotebookEdit", "Skill"]
+              + (if $edits
+                 then ["Edit(./.git/**)", "Edit(./.github/**)", "Edit(./.claude/**)", "Edit(./.mcp.json)"]
+                 else ["Edit", "Write"] end)
+              + (if $web then [] else ["WebFetch", "WebSearch"] end)
+            )
+          },
+          sandbox: {
+            enabled: true,
+            failIfUnavailable: true,
+            allowUnsandboxedCommands: false,
+            network: { allowedDomains: [] },
+            credentials: {
+              envVars: [
+                ["GITHUB_TOKEN", "GH_TOKEN", "CLAUDE_CODE_OAUTH_TOKEN", "ACTIONS_RUNTIME_TOKEN",
+                 "ACTIONS_ID_TOKEN_REQUEST_TOKEN"][] | { name: ., mode: "deny" }
+              ]
+            }
+          }
+        }')
+        tools="Read(./**),Grep,Glob"
+        if [ "$EDITS" = true ]; then
+          tools="$tools,Edit(./**)"
+        fi
+        if [ "$WEB" = true ]; then
+          tools="$tools,WebSearch,WebFetch"
+        fi
+        {
+          echo "settings=$settings"
+          echo "tools=$tools"
+        } >> "$GITHUB_OUTPUT"
+
+    - uses: anthropics/claude-code-action@d535f5172dec02b204866b393d6b20b9b2aaf98d # v1.0.266
+      id: agent
+      env:
+        # The scrub leaves GitHub tokens, which the sandbox's `credentials` takes out.
+        CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
+      with:
+        claude_code_oauth_token: ${{ inputs.oauth-token }}
+
+        # Given, so the action does not exchange it for the Claude GitHub App's, which can write.
+        github_token: ${{ github.token }}
+
+        # Nothing this repository commits names a tool.
+        bot_name: github-actions[bot]
+        bot_id: "41898282"
+        allowed_bots: ${{ inputs.allowed-bots }}
+
+        # User settings, which `--setting-sources user` makes the only ones read: the checkout's `.claude/` and
+        # `.mcp.json` are upstream's once a merge stands, and would load hooks and servers outside the sandbox.
+        settings: ${{ steps.cage.outputs.settings }}
+        prompt: ${{ inputs.prompt }}
+        claude_args: |
+          --model opus
+          --max-turns ${{ inputs.max-turns }}
+          --setting-sources user
+          --allowedTools "${{ steps.cage.outputs.tools }}"
+          ${{ inputs.json-schema != '' && format('--json-schema ''{0}''', inputs.json-schema) || '' }}
+
+    # The action hides the transcript: how the run ended, its last message and every tool call the cage refused
+    # are what the log keeps. Workflow commands are stopped: the text is the agent's, written after reading a
+    # stranger's. The transcript in a folder of its own, as an artifact is a folder.
+    - name: What the agent reported
+      if: always() && steps.agent.outputs.execution_file != ''
+      shell: bash
+      env:
+        EXECUTION_FILE: ${{ steps.agent.outputs.execution_file }}
+      run: |
+        mkdir -p "$RUNNER_TEMP/transcript"
+        cp "$EXECUTION_FILE" "$RUNNER_TEMP/transcript/transcript.json"
+        stop=$(cat /proc/sys/kernel/random/uuid)
+        echo "::stop-commands::$stop"
+        jq -r '.[] | select(.type == "result")
+          | "\(.subtype): \(.num_turns) turns, $\(.total_cost_usd)",
+            (.result // empty),
+            (.permission_denials[]?
+              | "refused \(.tool_name): \(.tool_input.command // .tool_input.file_path // .tool_input.url // (.tool_input | tostring))")' \
+          "$EXECUTION_FILE"
+        echo "::$stop::"
+
+    - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      if: always() && inputs.transcript != '' && steps.agent.outputs.execution_file != ''
+      with:
+        name: ${{ inputs.transcript }}
+        path: ${{ runner.temp }}/transcript
+        if-no-files-found: error
+        retention-days: 3

@@ -100,6 +100,82 @@ class NinjaTest(unittest.TestCase):
             self.assertEqual(fetched.call_count, 1, "a Ninja already there was fetched again")
 
 
+class WheelProgramTest(unittest.TestCase):
+    def test_the_one_program_of_a_wheel_is_taken_out_of_it_once_and_nothing_else_of_it_is_kept(self):
+        tools = (("clang-format", "CLANG_FORMAT", deps.clang_format, deps.clang_format_dir),
+                 ("ruff", "RUFF", deps.ruff, deps.ruff_dir), ("zizmor", "ZIZMOR", deps.zizmor, deps.zizmor_dir))
+        for name, pinned, get, where in tools:
+            with self.subTest(name=name):
+                folder = Path(tempfile.mkdtemp())
+                self.addCleanup(shutil.rmtree, folder)
+                pin = Pin(f"https://example.com/{name}-test.whl", "a" * 64)
+
+                def download(_pin: Pin, file: Path, name: str = name) -> None:
+                    file.parent.mkdir(parents=True, exist_ok=True)
+                    with zipfile.ZipFile(file, "w") as zipped:
+                        zipped.writestr(f"{name}/__init__.py", b"")
+                        zipped.writestr(f"{name}-0.data/scripts/{name}{deps.EXE}", b"#!/bin/sh\n")
+                        zipped.writestr(f"{name}-0.dist-info/RECORD", b"")
+
+                with (mock.patch.object(deps, "DEPS", folder),
+                      mock.patch.dict(getattr(deps.pins, pinned), {deps.SYSTEM: pin}),
+                      mock.patch.object(deps.fetch, "download_pin", side_effect=download) as fetched):
+                    found = get()
+                    self.assertEqual(found, pinned_folder(name, pin) / f"{name}{deps.EXE}")
+                    self.assertEqual(found.parent, where())
+                    self.assertEqual(sorted(path.name for path in found.parent.iterdir()), [found.name])
+                    if not deps.WINDOWS:
+                        self.assertTrue(os.access(found, os.X_OK), "the program cannot run")
+                    self.assertEqual(get(), found)
+                    self.assertEqual(fetched.call_count, 1, "a program already there was fetched again")
+
+
+class MypyTest(unittest.TestCase):
+    def test_the_type_check_s_wheels_are_pinned_for_every_system_and_interpreter_the_driver_runs_under(self):
+        # 3.11, the oldest Python `omw` starts under, to the newest pinned; mypy and mypyc's runtime alike, as one
+        # without the other is no mypy.
+        wanted = {(system, f"cp3{minor}") for system in ("linux", "windows") for minor in range(11, 15)}
+        self.assertEqual(set(pins.MYPY), wanted)
+        self.assertEqual(set(pins.LIBRT), wanted)
+        self.assertEqual(set(pins.AST_SERIALIZE), {"linux", "windows"})
+
+    def test_mypy_and_what_it_imports_are_unpacked_into_one_folder_this_interpreter_runs_it_from(self):
+        folder = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, folder)
+
+        def download(pin: Pin, file: Path) -> None:
+            package = Path(pin.url).name.split("-")[0]
+            file.parent.mkdir(parents=True, exist_ok=True)
+            with zipfile.ZipFile(file, "w") as zipped:
+                zipped.writestr(f"{package}/__init__.py", b"")
+
+        with (mock.patch.object(deps, "DEPS", folder),
+              mock.patch.object(deps.fetch, "download_pin", side_effect=download) as fetched):
+            command = deps.mypy()
+            where = deps.mypy_dir()
+            self.assertEqual(command, [
+                deps.sys.executable, "-I", "-c",
+                "import sys; sys.path.insert(0, sys.argv.pop(1)); from mypy.__main__ import console_entry; "
+                "sys.exit(console_entry())", str(where)])
+            self.assertEqual(where, pinned_folder("mypy", *deps.mypy_pins()))
+            # Each wheel's package, and no wheel left beside them.
+            self.assertEqual(sorted(path.name for path in where.iterdir()),
+                             ["ast_serialize", "librt", "mypy", "mypy_extensions", "pathspec", "typing_extensions"])
+            self.assertEqual(deps.mypy(), command)
+            self.assertEqual(fetched.call_count, 6, "a mypy already there was fetched again")
+
+    def test_an_interpreter_no_wheel_is_pinned_for_is_refused_with_the_ones_that_are(self):
+        wheels = {(deps.SYSTEM, "cp310"): Pin("https://example.com/a.whl", "a" * 64),
+                  (deps.SYSTEM, "cp312"): Pin("https://example.com/b.whl", "b" * 64),
+                  ("another", "cp399"): Pin("https://example.com/c.whl", "c" * 64)}
+        self.assertEqual(deps._for_interpreter("mypy", wheels, 12), wheels[(deps.SYSTEM, "cp312")])
+        for minor in (9, 11, 99):
+            with self.subTest(minor=minor), self.assertRaises(Refusal) as refused:
+                deps._for_interpreter("mypy", wheels, minor)
+            self.assertEqual(str(refused.exception), f"pins.py names no mypy wheel for Python 3.{minor} on "
+                                                     f"{deps.SYSTEM}: CPython 3.10 to 3.12")
+
+
 class ClangTidyTest(unittest.TestCase):
     def test_the_wheel_gives_its_programs_and_builtin_headers_as_llvm_lays_them_out_and_nothing_else(self):
         folder = Path(tempfile.mkdtemp())
@@ -144,6 +220,9 @@ class PruneTest(unittest.TestCase):
             self.assertIn(deps.clang_format_dir().name, kept)
             self.assertIn(deps.clang_tidy_dir().name, kept)
             self.assertIn(deps.gersemi_dir().name, kept)
+            # And the lint's, which a bootstrap after a lint would otherwise take.
+            for lint_tool in (deps.ruff_dir(), deps.zizmor_dir(), deps.mypy_dir()):
+                self.assertIn(lint_tool.name, kept)
             for name in kept:
                 (folder / name).mkdir()
             (folder / "vulkan-sdk-0.0.1-00000000").mkdir()

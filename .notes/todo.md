@@ -9,11 +9,13 @@
 - Audit `#if`s, remove legacy.
 - Order includes canonically.
 - No upscaler.
+- actionlint and shellcheck over the workflows (`omw lint`), once an actionlint release reads `$/`: 1.7.11 does not say it does, and the fork jactionlint does.
 
 ## Open questions
 
 - All I/O serial?
 - automate memleak detection
+- Upstream merge's app token: the exchange is copied from claude-code-action and undocumented (`.github/actions/app-token`). An app of our own (`actions/create-github-app-token`), or CI dispatched with the workflow's token?
 
 ## Performance
 

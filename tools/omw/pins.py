@@ -125,6 +125,162 @@ PYYAML = Pin(
     "d76623373421df22fb4cf8817020cbb7ef15c725b9d5e45f17e189bfc384190f",
 )
 
+# Ruff, the driver's linter (`deps.ruff`), by system: the one program out of its PyPI wheel, as clang-format's is. The
+# digests are PyPI's. Exact, since a release adds rules.
+RUFF_VERSION = "0.17.4"
+RUFF = {
+    "linux": Pin(
+        "https://files.pythonhosted.org/packages/af/1b/62874f14c7873f27c7887d2b1ea41de990e14ba9518801ffe8eacb5d51a6/"
+        f"ruff-{RUFF_VERSION}-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+        "2cd025509b2e15721b426fc70fd946d71f43b3db3b08e946dfec2d696d911690",
+    ),
+    "windows": Pin(
+        "https://files.pythonhosted.org/packages/bd/15/42af8a72d8946e3c9efd2bbf6641e462b6832783b0d043d63ef5b280ba7f/"
+        f"ruff-{RUFF_VERSION}-py3-none-win_amd64.whl",
+        "67c5a894fc054cf41f75f7afa24815de5a74329d97634126c2a1015740ff4e8c",
+    ),
+}
+
+# zizmor, the workflows' audit (`deps.zizmor`), by system: the one program out of its PyPI wheel. The digests are
+# PyPI's. Exact, since a release adds audits.
+ZIZMOR_VERSION = "1.32.0"
+ZIZMOR = {
+    "linux": Pin(
+        "https://files.pythonhosted.org/packages/6f/b2/45f4fcb6f428e774750709ecf5320ba6d96393c03b941d9f37a4586f6924/"
+        f"zizmor-{ZIZMOR_VERSION}-py3-none-manylinux_2_28_x86_64.whl",
+        "84a6acb975accc13408786a2bd274b572537ca19c933ebbc13e78f3988562071",
+    ),
+    "windows": Pin(
+        "https://files.pythonhosted.org/packages/0f/1f/1ed88cac316f248c7851860bd209ce2a2abf1a2481d887b8a78619dd4a39/"
+        f"zizmor-{ZIZMOR_VERSION}-py3-none-win_amd64.whl",
+        "9cd1dd7734042f40ca0faa2a31fb4e9033dede620d996af2f903744b8f04fca9",
+    ),
+}
+
+# mypy, the driver's type check (`deps.mypy`), by system and by the CPython it runs under: the wheels mypyc compiled,
+# each for one interpreter's ABI and far faster than the one of Python alone, so the wheel follows the Python that
+# runs the driver, 3.11 and later. The digests are PyPI's.
+MYPY_VERSION = "2.4.1"
+MYPY = {
+    ("linux", "cp311"): Pin(
+        "https://files.pythonhosted.org/packages/c4/5a/379f9bfa18bf3f8d43668fbd9ae4f2922dd027a559c461ca9d41cde1d32e/"
+        f"mypy-{MYPY_VERSION}-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl",
+        "b69a15fc2e75858d6b15e91ed3a0dcff1a533265183b64734138791fe0f49aa5",
+    ),
+    ("linux", "cp312"): Pin(
+        "https://files.pythonhosted.org/packages/5d/b8/7313212b29de570c25c9859d7c8e4ef2251a6d34338a1e20031d94297721/"
+        f"mypy-{MYPY_VERSION}-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl",
+        "a20ff6cd2af7a670c64f089bfa5fbcebe8ff3bf896c5e6ac7c9862c7960e4494",
+    ),
+    ("linux", "cp313"): Pin(
+        "https://files.pythonhosted.org/packages/a2/45/089b4724b85f0f408941be5298f817ee89181c1ce031a73d60ebb150c2c7/"
+        f"mypy-{MYPY_VERSION}-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl",
+        "1fb70621535c22fd4b1a0450d37ed1d6c5eb39656a1cebfb189084c12de54ba7",
+    ),
+    ("linux", "cp314"): Pin(
+        "https://files.pythonhosted.org/packages/16/10/4192a5cea09ebbc41c534f57bd0d8f0fb42a8e810632cda6e37f072c59fd/"
+        f"mypy-{MYPY_VERSION}-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl",
+        "beb254fec368c4e7f7f82a5f310c6470b893ec88a90b66426da971c6826b0453",
+    ),
+    ("windows", "cp311"): Pin(
+        "https://files.pythonhosted.org/packages/6a/36/8b722b88c325d317354de7d10d8fb9d4dc0f958433e873a91fc4ed21a06e/"
+        f"mypy-{MYPY_VERSION}-cp311-cp311-win_amd64.whl",
+        "6f7225951a277dd0d6add900731d487174b7d24ac133c09d670ed63b4d8cb90d",
+    ),
+    ("windows", "cp312"): Pin(
+        "https://files.pythonhosted.org/packages/b6/b4/874f6fd54b005020ad63e2cf7a59b178d16a771d478849b29b842cb0cf14/"
+        f"mypy-{MYPY_VERSION}-cp312-cp312-win_amd64.whl",
+        "4c194c5d878130fca1ae662dfb1feb6274afbab0b40032c80147377e0ea803d5",
+    ),
+    ("windows", "cp313"): Pin(
+        "https://files.pythonhosted.org/packages/76/5b/7d160fb685994b65b0ca86d352f3afb5424f96a9e6914719f7b861fb6701/"
+        f"mypy-{MYPY_VERSION}-cp313-cp313-win_amd64.whl",
+        "acdd82cb3a2eb10720e87706a128d75785d005a8c47e36a4973221524f41fc56",
+    ),
+    ("windows", "cp314"): Pin(
+        "https://files.pythonhosted.org/packages/cc/56/de9d7bad12e3868d5f1f4279aed20b1b568b2c5e166f2d3a05b211dca0b1/"
+        f"mypy-{MYPY_VERSION}-cp314-cp314-win_amd64.whl",
+        "51f742d4154824837ca6e92aa81f00eec222700a3c337bd258e5562a3880d75a",
+    ),
+}
+
+# What mypy imports besides itself, each at the version its own `Requires-Dist` takes, pinned as mypy is so no part
+# of the type check is whatever an index serves that day: librt, mypyc's runtime, built for one interpreter's ABI as
+# mypy is; ast-serialize, built once for every CPython's stable ABI; and three packages of Python alone.
+LIBRT_VERSION = "0.16.0"
+LIBRT = {
+    ("linux", "cp311"): Pin(
+        "https://files.pythonhosted.org/packages/a0/e4/15a8d62b2bc12935080ec7277e2e0b9b233047781eb784a51d3e25af669a/"
+        f"librt-{LIBRT_VERSION}-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl",
+        "94aed6a8308818b91677957d1bd03188869cd7aeb23c5dba7912a6c0402f7602",
+    ),
+    ("linux", "cp312"): Pin(
+        "https://files.pythonhosted.org/packages/ad/f7/7ce72cbf19d0addd05090b339152fd0548a02562c2866a603e6e3b3da2df/"
+        f"librt-{LIBRT_VERSION}-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl",
+        "36e53948e99bbe3ffea257124cfcae1cfb01831555c9a9c903c9f9a72db7fd07",
+    ),
+    ("linux", "cp313"): Pin(
+        "https://files.pythonhosted.org/packages/a9/59/16c409c56f708eda2db9a0553662845d45e3871c77d70a240dae3f3bdc56/"
+        f"librt-{LIBRT_VERSION}-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl",
+        "17bac7f7a16b328fff77e440287693eb017abde913595b5827ebccbc21ecd8a6",
+    ),
+    ("linux", "cp314"): Pin(
+        "https://files.pythonhosted.org/packages/50/07/79007d2165f649ea93e08c0962d1d62c70af9cde77965255095bf9d96f9a/"
+        f"librt-{LIBRT_VERSION}-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl",
+        "ca8052401c55d7511dda6760719fda7618067e83535d7d0010096d216c34b667",
+    ),
+    ("windows", "cp311"): Pin(
+        "https://files.pythonhosted.org/packages/d1/38/c892383d2bb1a6a80b2ec8ede84970a265a792c56614a06282bf3008517c/"
+        f"librt-{LIBRT_VERSION}-cp311-cp311-win_amd64.whl",
+        "5f49cff01bd608ef7d97104cb035c75455e79c2d70bf4a506cf773338ac1860d",
+    ),
+    ("windows", "cp312"): Pin(
+        "https://files.pythonhosted.org/packages/f0/2c/5193dc81127cd5ddfad031391b046bf32dda219b38463ab872407ca30646/"
+        f"librt-{LIBRT_VERSION}-cp312-cp312-win_amd64.whl",
+        "25a58a19ea8d83b68209f04912df765e9260635ef77646542ed4b4abe6bc7940",
+    ),
+    ("windows", "cp313"): Pin(
+        "https://files.pythonhosted.org/packages/cf/24/80bbb463c60ed18e29cb26aba386ddb76609580e4e7160710e550587018c/"
+        f"librt-{LIBRT_VERSION}-cp313-cp313-win_amd64.whl",
+        "14ed6ebe3e4f85f326d7920011ad30ff49ed9334e62cf88caef9ba973d9e3a92",
+    ),
+    ("windows", "cp314"): Pin(
+        "https://files.pythonhosted.org/packages/c2/98/769712f356a1e897df3581bb0c3100375d054a000de26099360ea65b5111/"
+        f"librt-{LIBRT_VERSION}-cp314-cp314-win_amd64.whl",
+        "3f0b8114c44b2ac06ff5dacd08e07e8e807ff4f46083f2a1602685122559be41",
+    ),
+}
+AST_SERIALIZE_VERSION = "0.13.1"
+AST_SERIALIZE = {
+    "linux": Pin(
+        "https://files.pythonhosted.org/packages/c5/fa/da311559dd3dae9af5825cf21660775a929b970f72e3786af3f2cd667944/"
+        f"ast_serialize-{AST_SERIALIZE_VERSION}-cp39-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+        "9f99786e0d62082a5b121b3437f3167562133711df22128de1e9886f57f0b226",
+    ),
+    "windows": Pin(
+        "https://files.pythonhosted.org/packages/9f/6f/bafd6490fe7b355627fabe95f4417e3d02da93102c8552550eb9a0774e1e/"
+        f"ast_serialize-{AST_SERIALIZE_VERSION}-cp39-abi3-win_amd64.whl",
+        "ddf7cbc9c8abf70102c4a088efe154bb86bfb825b0a10e556d2b15972cf99bd7",
+    ),
+}
+MYPY_PURE = (
+    Pin(
+        "https://files.pythonhosted.org/packages/49/d3/b8441a820a491ddfc024b0b0cf0393375b75ea13866d9c66727e54c2fc80/"
+        "typing_extensions-4.16.0-py3-none-any.whl",
+        "481caa481374e813c1b176ada14e97f1f67a4539ce9cfeb3f350d78d6370c2e8",
+    ),
+    Pin(
+        "https://files.pythonhosted.org/packages/b5/99/7b1adac7e97ce7bbda34792dc6e9b2f5cc5cffd1875883f78a818b2a2687/"
+        "mypy_extensions-1.2.0-py3-none-any.whl",
+        "993e7a20aa5671eb41a7132cf555af30062da99729601601b9a8382b11cae768",
+    ),
+    Pin(
+        "https://files.pythonhosted.org/packages/f1/d9/7fb5aa316bc299258e68c73ba3bddbc499654a07f151cba08f6153988714/"
+        "pathspec-1.1.1-py3-none-any.whl",
+        "a00ce642f577bf7f473932318056212bc4f8bfdf53128c78bbd5af0b9b20b189",
+    ),
+)
+
 # The tools an AppImage is made with, by the name each is kept under in its folder of out/deps/
 # (`deps.appimage_tools`).
 APPIMAGE_TOOLS = {

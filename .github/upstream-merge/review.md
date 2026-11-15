@@ -7,7 +7,10 @@ two passes of `passes.md`.
 ## Scope
 
 - **The resolutions**: every file in `.upstream-merge/edited.txt`, which the merge's resolver changed past what git
-  merged on its own, read against its sides in `.upstream-merge/stages/` (`.base`, `.fork`, `.upstream`).
+  merged on its own, read against its sides in `.upstream-merge/stages/` (`.base`, `.fork`, `.upstream`). Start from
+  the two diffs beside them: `.upstream.diff`, what upstream changed since the merge base, and `.merged.diff`, what
+  the merge changed in the fork's file. Upstream's change, carried into the fork's file with the fork's own reasons
+  intact, is what a sound resolution's `.merged.diff` shows.
 - **What the merge adds** (`.upstream-merge/added.txt`) where it lands in code the fork removed or replaced: a
   file there goes, by its path in `.upstream-merge/removed.txt`.
 - **Nothing else.** What upstream changed and git merged cleanly is upstream's and is not reviewed: `AGENTS.md`

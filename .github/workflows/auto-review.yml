@@ -4,7 +4,7 @@
 # comment. Each says it is automatic and that a maintainer will follow, names no tool, and asks for a 👍 or 👎.
 #
 # **The agent never holds a write**, as GitHub's agentic workflows' safe outputs and `upstream.yml` hold theirs:
-# `auto-review-item.yml` gathers the item as data with no secret, an agent reads it under `upstream.yml`'s cage with
+# `auto-review-item.yml` gathers the item as data with no secret, an agent reads it in `actions/agent`'s cage with
 # a read token and answers structured output, and a job that runs no agent posts it through `omw review post`, which
 # makes the text inert and searches it for the agent's credential first. Refused: the action's own review and
 # triage recipes, whose agent posts with the repository's token — the PromptPwnd class. The agent searches and

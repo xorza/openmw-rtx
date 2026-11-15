@@ -53,6 +53,8 @@ _REFERENCING = re.compile(r"/([^/]+/[^/]+)/(?:issues|pull|discussions|commit)/",
 _MENTION = re.compile(r"(?<![\w`@./+-])@[A-Za-z0-9][A-Za-z0-9-]{0,38}(?:/[A-Za-z0-9_.-]+)?")
 _CROSS_REFERENCE = re.compile(r"(?<![\w/`])[A-Za-z0-9][\w.-]*/[\w.-]+#[0-9]+\b")
 _COMMAND = re.compile(r"(?m)^([ \t]*)(/[A-Za-z][\w-]*)")
+# An item of this repository by its number, as GitHub links one: `#12` or `GH-12`. Not an HTML entity's digits.
+_NUMBER = re.compile(r"(?i)(?<![\w/`&#])(?:#|GH-)[0-9]+\b")
 REMOVED = "[URL removed: not HTTPS]"
 TRUNCATED = "\n\n[Text cut at its length limit]"
 
@@ -99,14 +101,32 @@ def _inert(text: str) -> str:
     return text.replace("<", "&lt;")
 
 
+def _numbers(text: str) -> str:
+    return _NUMBER.sub(lambda match: _code(match[0]), text)
+
+
+def _neutral(text: str, repository: str, limit: int, inert: Callable[[str], str]) -> str:
+    """The order every text the agent wrote goes through: the characters first, so nothing a later rule reads is
+    spelled around it, then the links, then `inert` over what is still prose, then the length."""
+    text = _CONTROL.sub("", _INVISIBLE.sub("", unicodedata.normalize("NFC", text)))
+    text = _outside_code(text, lambda prose: _links(prose, repository))
+    # A link made a code span above is code now, which the rules below leave as it is.
+    return cut(_outside_code(text, inert), limit)
+
+
 def neutral(text: str, repository: str, limit: int) -> str:
     """`text`, which the agent wrote, made safe to post in `repository`: invisible and control characters out, links
     over HTTPS alone, no mention that notifies anyone, no cross-reference written into another repository, no slash
     command, no markup a page would render as HTML, and at most `limit` characters."""
-    text = _CONTROL.sub("", _INVISIBLE.sub("", unicodedata.normalize("NFC", text)))
-    text = _outside_code(text, lambda prose: _links(prose, repository))
-    # A link made a code span above is code now, which the rules below leave as it is.
-    return cut(_outside_code(text, _inert), limit)
+    return _neutral(text, repository, limit, _inert)
+
+
+def neutral_upstream(text: str, repository: str, limit: int) -> str:
+    """`neutral` for a text about another project's work, an upstream merge's reports, **with each `#12` a code span
+    too**: the number is that project's tracker's, and GitHub would link this repository's item of that number, and
+    close it at the merge where a closing word stands before it. The numbers ahead of the other rules, whose code
+    spans a number inside one would break out of."""
+    return _neutral(text, repository, limit, lambda prose: _inert(_numbers(prose)))
 
 
 def cut(text: str, limit: int) -> str:

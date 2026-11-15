@@ -1,0 +1,45 @@
+# What an agent of `upstream.yml` left in the tree, made ready to commit, one way for its three jobs: the removals
+# it asked for where it may ask them, its C++ formatted, and the whole staged. The agent runs no git, so a removal is
+# a line of `.upstream-merge/removed.txt`; the list is the agent's, written after reading upstream, so a path goes
+# only where one of the job's own lists names it.
+name: An agent's edits, staged
+description: Applies the removals an agent listed, formats what it changed, and stages the tree.
+
+inputs:
+  removable:
+    description: The lists under `.upstream-merge/` whose paths the agent may remove, a space apart.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        REMOVABLE: ${{ inputs.removable }}
+      run: |
+        dir=.upstream-merge
+        read -r -a lists <<< "$REMOVABLE"
+        # Forced, as a file the merge adds is staged and one the agent also edited differs from the index: git
+        # refuses either without it, and the step went with the whole merge. `/dev/null` beside the lists, so
+        # a job that named none searches nothing, and not the list of removals it is reading.
+        if [ -f "$dir/removed.txt" ]; then
+          while IFS= read -r path; do
+            if [ -n "$path" ] && grep -qxF -- "$path" /dev/null "${lists[@]/#/$dir/}"; then
+              git rm -f --quiet --ignore-unmatch -- "$path"
+            fi
+          done < "$dir/removed.txt"
+        fi
+
+        # Not a file with a marker, whose markers a format would reflow. `omw format` leaves alone what is not a
+        # C++ source or a CMake file of the tree's own.
+        formatted=()
+        while IFS= read -r -d '' path; do
+          if [ -f "$path" ] && ! grep -qE '^(<<<<<<<|>>>>>>>) ' -- "$path"; then
+            formatted+=("$path")
+          fi
+        done < <({ git diff -z --name-only; git ls-files -z --others --exclude-standard; })
+        if [ "${#formatted[@]}" -gt 0 ]; then
+          python3 omw format "${formatted[@]}"
+        fi
+
+        git add --all

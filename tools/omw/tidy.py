@@ -4,8 +4,10 @@ those that include a changed header (`--changed`), or those the files named are 
 the checks' fixes, then formats the working tree's changed files as `build` does. A source whose last run was
 clean and whose run's every read stands as it was then is not linted again (`tidycache`).
 
-**A finding is printed once**: a header's is met by every source that includes it, 12,681 times for 477 headers in
-one run."""
+**A finding is printed once, as the run that met it ends**: a header's is met by every source that includes it,
+12,681 times for 477 headers in one run. **A run says how far it is at each checkpoint**: a whole tree's lint is an
+hour and more on CI, and one that printed its findings only at its end said nothing through all of it, and nothing
+at all where a newer push cancelled it."""
 
 import json
 import os
@@ -25,8 +27,9 @@ from omw.system import ROOT, Refusal, jobs, output
 # The folders whose sources the tree's `.clang-tidy` holds to it; `extern/` is vendored, as `out/` is generated.
 LINTED = (ROOT / "apps", ROOT / "components")
 
-# How often a run writes the clean sources it has so far to the store, in seconds: a run cancelled or killed keeps what
-# it linted up to its last write, as a whole tree's lint on CI is an hour and more, and a newer push cancels it.
+# How often a run writes the clean sources it has so far to the store and says how far it is, in seconds: a run
+# cancelled or killed keeps what it linted up to its last write, as a whole tree's lint on CI is an hour and more, and a
+# newer push cancels it.
 CHECKPOINT_S = 30.0
 
 # How many of the files that turned remembered runs stale a run names, the most frequent first.
@@ -189,7 +192,10 @@ def tidy(build: Build, args: list[str]) -> int:
             if (source in held and source not in compiles) or source in unchanged}
 
     clang_tidy = deps.clang_tidy()
-    found: list[list[Finding]] = [[] for _ in linted]
+    print(f"tidy: linting {len(linted)} of {len(sources)} sources", flush=True)
+    seen: dict[str, Finding] = {}
+    failed = 0
+    finished = 0
     remembered_now: dict[str, tidycache.Remembered] = {}
     fresh: dict[str, list[str]] = {}
     with tempfile.TemporaryDirectory(prefix="omw-tidy-") as scratch:
@@ -202,7 +208,6 @@ def tidy(build: Build, args: list[str]) -> int:
         # another source's is lost.
         fixes = [Path(scratch) / f"{index}.yaml" if fix else None for index in range(len(linted))]
         dependencies = [Path(scratch) / f"{index}.d" for index in range(len(linted))]
-        done: list[subprocess.CompletedProcess | None] = [None] * len(linted)
         pool = ThreadPoolExecutor(max_workers=jobs())
         try:
             pending = {pool.submit(_run, clang_tidy, build, source, into, written): index
@@ -211,20 +216,30 @@ def tidy(build: Build, args: list[str]) -> int:
             for future in as_completed(pending):
                 index = pending[future]
                 source = linted[index]
-                run = done[index] = future.result()
-                found[index] = findings(run.stdout)
+                run = future.result()
+                finished += 1
+                said = findings(run.stdout)
+                for finding in said:
+                    if finding.key not in seen:
+                        seen[finding.key] = finding
+                        print(finding.text, flush=True)
+                # A run that failed and said no diagnostic broke, and its own words say how.
+                if run.returncode != 0 and not said:
+                    failed += 1
+                    print(f"clang-tidy failed on {source.file.relative_to(ROOT)}:\n{run.stderr}", flush=True)
                 # What the run read, nothing where it wrote no dependency file, as a run that failed early does not.
                 listing = dependencies[index]
                 named_reads = (tidycache.dependencies(listing.read_text(encoding="utf-8"),
                                                       Path(source.compile.directory))
                                if listing.is_file() else [])
                 # A run that names nothing it read is not trusted to have named its reads.
-                if run.returncode == 0 and not found[index] and named_reads and not source.compile.reads_unlisted:
+                if run.returncode == 0 and not said and named_reads and not source.compile.reads_unlisted:
                     fresh[str(source.file)] = named_reads
                 if time.monotonic() - saved >= CHECKPOINT_S:
                     remembered_now |= tidycache.remember(compiles, fresh, started_ns)
                     fresh.clear()
                     tidycache.save(store, kept | remembered_now)
+                    print(f"tidy: {finished} of {len(linted)} sources linted, {len(seen)} findings so far", flush=True)
                     saved = time.monotonic()
         except BaseException:
             # Stopped early, interrupted or failed: what came out clean is kept as at a checkpoint.
@@ -233,26 +248,13 @@ def tidy(build: Build, args: list[str]) -> int:
         finally:
             # A run that stops early starts no source it had not reached.
             pool.shutdown(wait=True, cancel_futures=True)
-        runs = [run for run in done if run is not None]
-        assert len(runs) == len(linted)
+        assert finished == len(linted)
         if fix:
             for file in fixes:
                 if file is not None and file.is_file():
                     file.write_text(plain_paths(file.read_text(encoding="utf-8")), encoding="utf-8")
             subprocess.run([deps.clang_apply_replacements(), scratch], cwd=ROOT, check=True)
 
-    seen: dict[str, Finding] = {}
-    failed = 0
-    for source, run, said in zip(linted, runs, found, strict=True):
-        for finding in said:
-            seen.setdefault(finding.key, finding)
-        # A run that failed and said no diagnostic broke, and its own words say how.
-        if run.returncode != 0 and not said:
-            failed += 1
-            print(f"clang-tidy failed on {source.file.relative_to(ROOT)}:\n{run.stderr}")
-
-    for _, finding in sorted(seen.items()):
-        print(finding.text)
     tally = Counter(check for finding in seen.values() for check in finding.checks)
     for check, count in tally.most_common():
         print(f"{count:6} {check}")

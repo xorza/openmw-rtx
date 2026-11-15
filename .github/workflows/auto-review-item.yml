@@ -71,9 +71,10 @@ jobs:
                   if-no-files-found: error
                   retention-days: 3
 
-    # The agent, under `upstream.yml`'s cage: a read token, no shell, no settings of the checkout's own, every
-    # credential's variable denied. Its web tools are free: it holds nothing a fetch could carry away, and what it
-    # writes is made inert before it is posted. One read of an item at a time, so two routes never read it twice.
+    # The agent, in the cage `upstream.yml`'s run in (`.github/actions/agent`): a read token, no shell, no settings of
+    # the checkout's own, every credential's variable denied. It edits nothing, and its web tools are free: it holds
+    # nothing a fetch could carry away, and what it writes is made inert before it is posted. One read of an item at
+    # a time, so two routes never read it twice.
     read:
         needs: gather
         runs-on: ubuntu-26.04
@@ -115,18 +116,12 @@ jobs:
                   fi
                   python omw review check "${args[@]}"
 
-            # Ubuntu lets bubblewrap make its namespaces only with the AppArmor switch off.
-            - name: Tools, and the answer's schema
+            - name: The answer's schema
               if: steps.check.outputs.answered == 'false'
               id: schema
               env:
                   ITEM: ${{ inputs.item }}
               run: |
-                  sudo apt-get update
-                  sudo apt-get install -y --no-install-recommends bubblewrap socat
-                  if [ -f /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
-                    sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
-                  fi
                   git config core.hooksPath /dev/null
                   echo "/.review/" >> .git/info/exclude
                   echo "schema=$(python omw review schema "${ITEM%%:*}")" >> "$GITHUB_OUTPUT"
@@ -151,51 +146,18 @@ jobs:
                   git fetch --quiet --no-tags --depth 1 origin "refs/tags/$TAG:refs/tags/$TAG"
                   git worktree add --quiet --detach .review/release-tree "$TAG"
 
-            - uses: anthropics/claude-code-action@d535f5172dec02b204866b393d6b20b9b2aaf98d # v1.0.266
+            # The whole transcript is kept as an artifact, which holds nothing secret, as the agent never sees a
+            # credential.
+            - uses: $/.github/actions/agent
               if: steps.check.outputs.answered == 'false'
               id: agent
-              env:
-                  CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
               with:
-                  claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-                  github_token: ${{ github.token }}
-                  bot_name: github-actions[bot]
-                  bot_id: "41898282"
-
-                  # User settings, which `--setting-sources user` makes the only ones read.
-                  settings: |
-                      {
-                        "disableAllHooks": true,
-                        "permissions": {
-                          "deny": [
-                            "Read(//proc/**)",
-                            "Read(~/.claude/**)",
-                            "Read(~/.claude.json)",
-                            "Read(./.git/**)",
-                            "Bash",
-                            "Edit",
-                            "Write",
-                            "NotebookEdit",
-                            "Skill"
-                          ]
-                        },
-                        "sandbox": {
-                          "enabled": true,
-                          "failIfUnavailable": true,
-                          "allowUnsandboxedCommands": false,
-                          "network": { "allowedDomains": [] },
-                          "credentials": {
-                            "envVars": [
-                              { "name": "GITHUB_TOKEN", "mode": "deny" },
-                              { "name": "GH_TOKEN", "mode": "deny" },
-                              { "name": "CLAUDE_CODE_OAUTH_TOKEN", "mode": "deny" },
-                              { "name": "ACTIONS_RUNTIME_TOKEN", "mode": "deny" },
-                              { "name": "ACTIONS_ID_TOKEN_REQUEST_TOKEN", "mode": "deny" }
-                            ]
-                          }
-                        }
-                      }
-
+                  oauth-token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+                  max-turns: ${{ needs.gather.outputs.turns }}
+                  edits: false
+                  web: true
+                  json-schema: ${{ steps.schema.outputs.schema }}
+                  transcript: review-transcript-${{ inputs.slug }}
                   prompt: |
                       Read the ${{ startsWith(inputs.item, 'pr:') && 'pull request' || 'issue' }} that
                       `.review/item.json` names, and answer it.
@@ -211,39 +173,6 @@ jobs:
                       You run nothing and write nothing: you have no shell and no editor. Read with the Read, Grep
                       and Glob tools, and the web with WebSearch and WebFetch. Your answer is your structured output
                       alone; nothing else you write is seen.
-
-                  claude_args: |
-                      --model opus
-                      --max-turns ${{ needs.gather.outputs.turns }}
-                      --setting-sources user
-                      --allowedTools "Read(./**),Grep,Glob,WebSearch,WebFetch"
-                      --json-schema '${{ steps.schema.outputs.schema }}'
-
-            # The run's last message and every tool call the cage refused, in the log; the whole transcript as an
-            # artifact, which holds nothing secret, as the agent never sees a credential.
-            - name: What the agent reported
-              if: always() && steps.agent.outputs.execution_file != ''
-              env:
-                  EXECUTION_FILE: ${{ steps.agent.outputs.execution_file }}
-              run: |
-                  stop=$(cat /proc/sys/kernel/random/uuid)
-                  echo "::stop-commands::$stop"
-                  jq -r '.[] | select(.type == "result")
-                    | "\(.subtype): \(.num_turns) turns, $\(.total_cost_usd)",
-                      (.permission_denials[]?
-                        | "refused \(.tool_name): \(.tool_input.command // .tool_input.file_path // .tool_input.url // (.tool_input | tostring))")' \
-                    "$EXECUTION_FILE"
-                  echo "::$stop::"
-                  mkdir -p "$RUNNER_TEMP/transcript"
-                  cp "$EXECUTION_FILE" "$RUNNER_TEMP/transcript/transcript.json"
-
-            - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-              if: always() && steps.agent.outputs.execution_file != ''
-              with:
-                  name: review-transcript-${{ inputs.slug }}
-                  path: ${{ runner.temp }}/transcript
-                  if-no-files-found: error
-                  retention-days: 3
 
             - name: The answer
               if: steps.check.outputs.answered == 'false'
