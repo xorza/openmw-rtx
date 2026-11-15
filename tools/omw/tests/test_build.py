@@ -17,6 +17,7 @@ from omw.build import (
     device_free,
     manifest_inputs,
     ninja_outputs,
+    order_targets,
     redate_ahead,
     remove_ahead,
 )
@@ -213,6 +214,19 @@ class ManifestInputsTest(unittest.TestCase):
         self.assertEqual(ninja_outputs(listed, build), [
             build / "build.ninja", build / "components" / "a.cpp.obj", Path("/checkout/files/lang/de.ts"),
         ])
+
+    def test_what_each_target_s_objects_wait_on_and_nothing_else(self):
+        listed = "".join(line + "\n" for line in (
+            "build.ninja: RERUN_CMAKE",
+            "cmake_object_order_depends_target_openmw: phony",
+            "openmw: phony",
+            "components/a.cpp.obj: CXX_COMPILER__components_unscanned_RelWithDebInfo",
+            "cmake_object_order_depends_target_components: phony",
+            "cmake_object_order_depends_target_lost.cpp.obj: CUSTOM_COMMAND",
+        ))
+        self.assertEqual(order_targets(listed),
+                         ["cmake_object_order_depends_target_openmw", "cmake_object_order_depends_target_components"])
+        self.assertEqual(order_targets(""), [])
 
 
 class RedateAheadTest(unittest.TestCase):

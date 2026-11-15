@@ -75,6 +75,17 @@ def ninja_outputs(listing: str, directory: Path) -> list[Path]:
     return [directory / path for path, rule in named if rule != "phony"]
 
 
+# The phony target CMake's Ninja generator writes beside each target's objects: everything they wait on before they
+# compile, the target's generated sources and the tools that write them, and none of the objects.
+_ORDER_TARGET = "cmake_object_order_depends_target_"
+
+
+def order_targets(listing: str) -> list[str]:
+    """The phony targets of `ninja -t targets all` that stand for what each target's objects wait on, in order."""
+    named = (line.rsplit(": ", 1) for line in listing.splitlines() if ": " in line)
+    return [target for target, rule in named if rule == "phony" and target.startswith(_ORDER_TARGET)]
+
+
 def dated_after(paths: list[Path], now: float) -> list[Path]:
     """The files of `paths` dated after `now`, each once: Ninja names a file CMake spelled both ways once relative
     and once whole."""
@@ -312,6 +323,12 @@ class Build:
         """`DEFAULT_TARGETS` and the tests the build has, those a box with no driver runs where `without_device`
         says so."""
         self.build([*DEFAULT_TARGETS, *self.test_targets(without_device)])
+
+    def build_generated(self) -> None:
+        """**What every target's sources wait on, and none of their objects**: the forms, headers and shaders the build
+        writes, and the tools that write them (`order_targets`). What a reader of the sources needs, as a lint is."""
+        self.configure()
+        self.build(order_targets(output([self.ninja, "-C", self.dir, "-t", "targets", "all"], env=self.env)))
 
     def tests(self) -> list[dict]:
         """**The tests this build has, asked of its configuration** through CTest and not of a binary some earlier

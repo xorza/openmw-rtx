@@ -141,8 +141,13 @@ def tidy(build: Build, args: list[str]) -> int:
     if changed and named:
         raise Refusal("tidy lints the changed files or the files named, not both")
 
-    # Built first, as a source reads what the build generates: Qt's forms, the version, the shaders' headers.
-    build.build_default()
+    # Built first, as a source reads what the build generates: Qt's forms, the version, the shaders' headers. The whole
+    # tree's lint reads nothing else of the build, so it builds what the sources wait on and none of their objects; a
+    # lint of the files named or changed reads Ninja's log of what each object included, which only a build writes.
+    if named or changed:
+        build.build_default()
+    else:
+        build.build_generated()
     database = json.loads((build.dir / "compile_commands.json").read_text(encoding="utf-8"))
     every = linted_sources(database)
     sources = every

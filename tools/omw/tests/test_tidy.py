@@ -161,6 +161,9 @@ class FixTest(unittest.TestCase):
               mock.patch.object(tidy.formatting, "format_tree") as formatted,
               contextlib.redirect_stdout(io.StringIO())):
             self.assertEqual(tidy.tidy(build, ["--fix"]), 0)
+        # The whole tree's lint builds what its sources wait on alone, and none of their objects.
+        build.build_generated.assert_called_once_with()
+        build.build_default.assert_not_called()
         self.assertEqual(len(written), 2)
         self.assertEqual(len(set(written)), 2, "two sources wrote their fixes to one file")
         scratch = {path.parent for path in written if path is not None}
@@ -174,6 +177,18 @@ class FixTest(unittest.TestCase):
                 contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(tidy.tidy(build, []), 0)
         self.assertEqual(written, [None, None], "a run that fixes nothing exports nothing")
+
+        # A file named is linted with what includes it, which Ninja's log of a whole build says.
+        written.clear()
+        build.reset_mock()
+        with mock.patch.object(tidy, "_run", side_effect=run), \
+                mock.patch.object(tidy.deps, "clang_tidy", return_value=Path("clang-tidy")), \
+                mock.patch.object(tidy, "output", return_value="") as deps_log, \
+                contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(tidy.tidy(build, [str(one)]), 0)
+        build.build_default.assert_called_once_with()
+        build.build_generated.assert_not_called()
+        self.assertEqual(deps_log.call_args.args[0][-2:], ["-t", "deps"])
 
 
 class RememberedTest(unittest.TestCase):
