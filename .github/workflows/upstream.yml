@@ -46,7 +46,7 @@ concurrency:
 jobs:
     # Each `upstream-merge/` branch of this repository is one of three:
     #
-    # - every pull request merged or closed: deleted, as an auto-merge keeps its branch;
+    # - every pull request merged or closed: deleted, as a merge by the workflow's token can keep its branch;
     # - one open: the run waits, as a pile of pull requests is worse than a week of drift;
     # - none: a merge the agent did not finish, and every run fails naming it until a human finishes
     #   or deletes it, as a run that skips every step is green.
@@ -909,9 +909,10 @@ jobs:
                   filter: blob:none
                   persist-credentials: false
 
-            # `enablePullRequestAutoMerge` and not `gh pr merge --auto`, which merges at once a pull request with
-            # nothing left to wait for: a ruleset that lost its required checks fails here rather than merging
-            # unchecked. `expectedHeadOid` is the commit CI passed, so a push after it turns nothing on.
+            # Merged at once, not left to auto-merge: this runs once CI has finished, so the required checks have
+            # passed and GitHub refuses auto-merge on a pull request in clean status, with nothing left to wait for.
+            # The ruleset still gates the merge itself. `--match-head-commit` is the commit CI passed, so a push
+            # after it merges nothing.
             - name: Ready and merged, or handed to the fix
               id: judge
               env:
@@ -925,7 +926,7 @@ jobs:
                   # Opened by the app, as `publish` opens it: a writer's own branch of that name does not merge itself
                   # unreviewed. No account's login can hold a slash.
                   pull=$(gh pr list --state open --head "$BRANCH" \
-                    --json number,id,headRefOid,isDraft,isCrossRepository,baseRefName,author \
+                    --json number,headRefOid,isDraft,isCrossRepository,baseRefName,author \
                     --jq '[.[] | select((.isCrossRepository | not) and .baseRefName == "master"
                       and .author.login == "app/claude")] | first // empty')
                   if [ -z "$pull" ]; then
@@ -989,14 +990,8 @@ jobs:
                     exit 0
                   fi
 
-                  gh api graphql \
-                    -f query='mutation($id: ID!, $head: GitObjectID!) {
-                      enablePullRequestAutoMerge(input: { pullRequestId: $id, mergeMethod: MERGE, expectedHeadOid: $head }) {
-                        pullRequest { number }
-                      }
-                    }' \
-                    -f id="$(jq -r .id <<< "$pull")" -f head="$HEAD"
-                  echo "pull request #$number is ready, and merges itself now that its required checks have passed"
+                  gh pr merge "$number" --merge --match-head-commit "$HEAD"
+                  echo "pull request #$number is ready and merged"
 
     # An agent answers what the failed jobs report, under the merge agent's sandbox: the logs print upstream's code
     # and whatever its build and tests said.
