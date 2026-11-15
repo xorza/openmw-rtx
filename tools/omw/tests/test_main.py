@@ -101,9 +101,9 @@ class ParseTest(unittest.TestCase):
         steps = [name for name, _ in gate.STEPS]
         self.assertEqual(len(steps), len(set(steps)), "a step named twice")
         # Nothing ahead of the build it reads, the timing after the run whose reports it reads, and the tests
-        # ahead of the release compile, which a change makes the dearer by minutes.
+        # ahead of clang-tidy and the release compile, which a change makes the dearer by minutes.
         for earlier, later in (("build", "the listing check"), ("build", "tests"), ("tests", "their timing"),
-                               ("their timing", "the release compile")):
+                               ("their timing", "clang-tidy"), ("their timing", "the release compile")):
             with self.subTest(earlier=earlier, later=later):
                 self.assertLess(steps.index(earlier), steps.index(later))
 

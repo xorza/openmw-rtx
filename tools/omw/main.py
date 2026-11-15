@@ -53,7 +53,9 @@ omw [flavour] <verb> [args]: one grammar for every build, on the desk and in CI,
                                the pinned clang-tidy under `.clang-tidy` over the sources of apps/ and
                                components/ the build compiles, those the working tree changed and their
                                includers, or those the files named are or are included by; --fix
-                               applies the fixes, then formats the changed files as build does
+                               applies the fixes, then formats the changed files as build does; a
+                               source whose last run was clean and read nothing since changed is not
+                               linted again
   integration [script args]    upstream's integration tests, which drive the game, on the example
                                suite at the revision its GitLab pipeline pins
   gate                         {gate}
@@ -108,7 +110,8 @@ omw [flavour] <verb> [args]: one grammar for every build, on the desk and in CI,
 """
 # The gate's steps, from the one place they are stated, wrapped to the column the verbs' words stand in.
 USAGE = USAGE.replace("{gate}", textwrap.fill(gate.SUMMARY + " — stops at the first failure", width=100,
-                                              initial_indent=" " * 31, subsequent_indent=" " * 31).lstrip())
+                                              initial_indent=" " * 31, subsequent_indent=" " * 31,
+                                              break_on_hyphens=False).lstrip())
 
 
 # The harness's own verbs, `sNames` in `apps/rtxtool/verbs.cpp`, which a test holds this to: a word

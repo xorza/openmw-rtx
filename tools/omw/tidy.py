@@ -1,7 +1,8 @@
 """`omw tidy [--fix] [--changed] [file...]`: the pinned clang-tidy under the tree's `.clang-tidy`, over the sources
 of `apps/` and `components/` the build's compile database holds: every one, those the working tree changed and
 those that include a changed header (`--changed`), or those the files named are or are included by. `--fix` applies
-the checks' fixes, then formats the working tree's changed files as `build` does.
+the checks' fixes, then formats the working tree's changed files as `build` does. A source whose last run was
+clean and whose run's every read stands as it was then is not linted again (`tidycache`).
 
 **A finding is printed once**: a header's is met by every source that includes it, 12,681 times for 477 headers in
 one run."""
@@ -16,7 +17,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 
-from omw import deps, formatting
+from omw import deps, formatting, tidycache
 from omw.build import Build
 from omw.system import ROOT, Refusal, jobs, output
 
@@ -29,10 +30,11 @@ _DIAGNOSTIC = re.compile(r"^(?P<path>.+?):(?P<line>\d+):(?P<column>\d+): (?:warn
 
 @dataclass(frozen=True)
 class Source:
-    """A source of the compile database, and the object it compiles to, by which Ninja's deps log names it."""
+    """A source of the compile database, the object it compiles to, by which Ninja's deps log names it, and how."""
 
     file: Path
     object: Path
+    compile: tidycache.Compile
 
 
 def linted_sources(database: list[dict]) -> list[Source]:
@@ -41,7 +43,8 @@ def linted_sources(database: list[dict]) -> list[Source]:
     for entry in database:
         file = Path(entry["file"])
         if any(file.is_relative_to(folder) for folder in LINTED):
-            found.setdefault(file, Source(file, Path(entry["directory"]) / entry["output"]))
+            found.setdefault(file, Source(file, Path(entry["directory"]) / entry["output"],
+                                          tidycache.Compile(entry["directory"], entry["command"])))
     return sorted(found.values(), key=lambda source: source.file)
 
 
@@ -114,9 +117,11 @@ def plain_paths(fixes: str) -> str:
     return _FIX_PATH.sub(lambda match: f"{match['key']}'{os.path.normpath(match['path'])}'", fixes)
 
 
-def _run(clang_tidy: Path, build: Build, source: Source, fixes: Path | None) -> subprocess.CompletedProcess:
-    """clang-tidy over `source`, its fixes written to `fixes` where it is named."""
-    line: list[str | Path] = [clang_tidy, "--quiet", f"-p={build.dir}", source.file]
+def _run(clang_tidy: Path, build: Build, source: Source, fixes: Path | None,
+         dependencies: Path) -> subprocess.CompletedProcess:
+    """clang-tidy over `source`, its fixes written to `fixes` where it is named, and what it read to `dependencies`."""
+    line: list[str | Path] = [clang_tidy, "--quiet", f"-p={build.dir}", source.compile.dependency_file(dependencies),
+                              source.file]
     if fixes is not None:
         line.append(f"--export-fixes={fixes}")
     return subprocess.run(line, cwd=ROOT, capture_output=True, text=True, check=False)
@@ -134,7 +139,8 @@ def tidy(build: Build, args: list[str]) -> int:
     # Built first, as a source reads what the build generates: Qt's forms, the version, the shaders' headers.
     build.build_default()
     database = json.loads((build.dir / "compile_commands.json").read_text(encoding="utf-8"))
-    sources = linted_sources(database)
+    every = linted_sources(database)
+    sources = every
     if changed:
         named = formatting.changed_files()
         # A changed configuration holds every source to it.
@@ -148,13 +154,29 @@ def tidy(build: Build, args: list[str]) -> int:
     if not sources:
         return 0
 
+    store = build.dir / "tidy-clean.json"
+    remembered = tidycache.load(store)
+    compiles = {str(source.file): source.compile for source in sources}
+    unchanged = tidycache.unchanged(compiles, remembered)
+    linted = [source for source in sources if str(source.file) not in unchanged]
+
     clang_tidy = deps.clang_tidy()
     with tempfile.TemporaryDirectory(prefix="omw-tidy-") as scratch:
+        # The runs' start by the clock that stamps a file's modification, and not by `time.time_ns`, which that
+        # clock, the kernel's coarse one, lags behind: a file written just after would read as written before.
+        started = Path(scratch) / "started"
+        started.touch()
+        started_ns = started.stat().st_mtime_ns
         # A file a source, by its place in the list: objects share names (`main.cpp.o`), and a fix written over
         # another source's is lost.
-        fixes = [Path(scratch) / f"{index}.yaml" if fix else None for index in range(len(sources))]
+        fixes = [Path(scratch) / f"{index}.yaml" if fix else None for index in range(len(linted))]
+        dependencies = [Path(scratch) / f"{index}.d" for index in range(len(linted))]
         with ThreadPoolExecutor(max_workers=jobs()) as pool:
-            runs = list(pool.map(lambda source, into: _run(clang_tidy, build, source, into), sources, fixes))
+            runs = list(pool.map(lambda source, into, written: _run(clang_tidy, build, source, into, written), linted,
+                                 fixes, dependencies))
+        # What each run read, nothing where it wrote no dependency file, as a run that failed early does not.
+        reads = [tidycache.dependencies(file.read_text(encoding="utf-8"), Path(source.compile.directory))
+                 if file.is_file() else [] for source, file in zip(linted, dependencies, strict=True)]
         if fix:
             for file in fixes:
                 if file is not None and file.is_file():
@@ -163,7 +185,8 @@ def tidy(build: Build, args: list[str]) -> int:
 
     seen: dict[str, Finding] = {}
     failed = 0
-    for source, done in zip(sources, runs, strict=True):
+    clean: dict[str, list[str]] = {}
+    for source, done, named_reads in zip(linted, runs, reads, strict=True):
         found = findings(done.stdout)
         for finding in found:
             seen.setdefault(finding.key, finding)
@@ -171,13 +194,23 @@ def tidy(build: Build, args: list[str]) -> int:
         if done.returncode != 0 and not found:
             failed += 1
             print(f"clang-tidy failed on {source.file.relative_to(ROOT)}:\n{done.stderr}")
+        # A run that names nothing it read is not trusted to have named its reads.
+        if done.returncode == 0 and not found and named_reads and not source.compile.reads_unlisted:
+            clean[str(source.file)] = named_reads
 
     for _, finding in sorted(seen.items()):
         print(finding.text)
     tally = Counter(check for finding in seen.values() for check in finding.checks)
     for check, count in tally.most_common():
         print(f"{count:6} {check}")
-    print(f"tidy: {len(seen)} findings over {len(sources)} sources")
+    print(f"tidy: {len(seen)} findings over {len(sources)} sources, "
+          f"{len(unchanged)} of them unchanged since a clean run")
+
+    # A source of the database not asked of now keeps what it had, and one linted now what came out clean.
+    held = {str(source.file) for source in every}
+    kept = {source: run for source, run in remembered.items()
+            if (source in held and source not in compiles) or source in unchanged}
+    tidycache.save(store, kept | tidycache.remember(compiles, clean, started_ns))
 
     if fix:
         formatting.format_tree(formatting.changed_files())

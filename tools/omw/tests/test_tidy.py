@@ -12,8 +12,11 @@ from unittest import mock
 from omw import tidy
 from omw.system import ROOT
 from omw.tidy import Source
+from omw.tidycache import Compile
 
 BUILD = ROOT / "out" / "debug"
+# How `entry` compiles every source.
+COMPILE = Compile(str(BUILD), "clang++ -c")
 
 
 def native(path: str) -> str:
@@ -38,7 +41,8 @@ class LintedSourcesTest(unittest.TestCase):
             entry(app, "apps/tests/main.o"),
         ]
         self.assertEqual(tidy.linted_sources(database),
-                         [Source(app, BUILD / "apps/main.o"), Source(component, BUILD / "components/a.o")])
+                         [Source(app, BUILD / "apps/main.o", COMPILE),
+                          Source(component, BUILD / "components/a.o", COMPILE)])
 
 
 class SourcesOfTest(unittest.TestCase):
@@ -60,10 +64,10 @@ class SourcesOfTest(unittest.TestCase):
                          {(ROOT / "apps/c.cpp").resolve(), (ROOT / "components/own.hpp").resolve()},
                          "a relative input is from the build directory")
 
-        a = Source(ROOT / "apps/a.cpp", BUILD / "apps/a.o")
-        b = Source(ROOT / "apps/b.cpp", BUILD / "apps/b.o")
-        c = Source(ROOT / "apps/c.cpp", BUILD / "apps/c.o")
-        never_built = Source(ROOT / "apps/d.cpp", BUILD / "apps/d.o")
+        a = Source(ROOT / "apps/a.cpp", BUILD / "apps/a.o", COMPILE)
+        b = Source(ROOT / "apps/b.cpp", BUILD / "apps/b.o", COMPILE)
+        c = Source(ROOT / "apps/c.cpp", BUILD / "apps/c.o", COMPILE)
+        never_built = Source(ROOT / "apps/d.cpp", BUILD / "apps/d.o", COMPILE)
         sources = [a, b, c]
         # A header reaches the sources that read it: shared.hpp is a's alone.
         self.assertEqual(tidy.sources_of([ROOT / "components/shared.hpp"], sources, read), [a])
@@ -129,7 +133,8 @@ class FixTest(unittest.TestCase):
         build = mock.Mock(dir=folder)
         written: list[Path | None] = []
 
-        def run(_tidy: Path, _build: object, _source: Source, fixes: Path | None) -> subprocess.CompletedProcess:
+        def run(_tidy: Path, _build: object, _source: Source, fixes: Path | None,
+                _dependencies: Path) -> subprocess.CompletedProcess:
             written.append(fixes)
             return subprocess.CompletedProcess([], 0, "", "")
 
@@ -154,3 +159,67 @@ class FixTest(unittest.TestCase):
                 contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(tidy.tidy(build, []), 0)
         self.assertEqual(written, [None, None], "a run that fixes nothing exports nothing")
+
+
+class RememberedTest(unittest.TestCase):
+    def test_a_clean_run_is_not_linted_again_until_a_read_changes_and_a_run_with_findings_always_is(self):
+        folder = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, folder)
+        def write(name: str, text: str) -> Path:
+            """`text` into `name`, then the file system's clock past its change time, which the store keeps no
+            source of a read changed at or after a run's start for; a coarse clock tick is milliseconds."""
+            path = folder / name
+            path.write_text(text, encoding="utf-8")
+            probe = folder / "probe"
+            for _ in range(100_000):
+                probe.touch()
+                if probe.stat().st_mtime_ns > path.stat().st_ctime_ns:
+                    return path
+            raise AssertionError("the file system's clock stood still")
+
+        clean = write("clean.cpp", "int a;")
+        header = write("clean.hpp", "#pragma once")
+        dirty = write("dirty.cpp", "int b;")
+        silent = write("silent.cpp", "int c;")
+        (folder / "compile_commands.json").write_text(json.dumps([
+            {"directory": str(folder), "file": str(path), "output": f"{path.stem}.o", "command": f"c++ -c {path.name}"}
+            for path in (clean, dirty, silent)
+        ]))
+        build = mock.Mock(dir=folder)
+        linted: list[Path] = []
+
+        def run(_tidy: Path, _build: object, source: Source, _fixes: Path | None,
+                dependencies: Path) -> subprocess.CompletedProcess:
+            linted.append(source.file)
+            # A run that writes no dependency file, as one whose flag its driver ignored would.
+            if source.file != silent:
+                dependencies.write_text(f"{source.file.stem}.o: {source.file.name} {header.name}\n", encoding="utf-8")
+            said = f"{dirty}:1:1: warning: w [c]\n" if source.file == dirty else ""
+            return subprocess.CompletedProcess([], 0, said, "")
+
+        def tidy_run() -> str:
+            linted.clear()
+            said = io.StringIO()
+            with (mock.patch.object(tidy, "LINTED", (folder,)), mock.patch.object(tidy, "_run", side_effect=run),
+                  mock.patch.object(tidy.deps, "clang_tidy", return_value=Path("clang-tidy")),
+                  contextlib.redirect_stdout(said)):
+                self.assertEqual(tidy.tidy(build, []), 1)
+            return said.getvalue()
+
+        self.assertIn("tidy: 1 findings over 3 sources, 0 of them unchanged since a clean run", tidy_run())
+        self.assertEqual(sorted(linted), [clean, dirty, silent])
+        said = tidy_run()
+        self.assertEqual(sorted(linted), [dirty, silent], "the clean run stands, and the others are linted again")
+        self.assertIn("tidy: 1 findings over 3 sources, 1 of them unchanged since a clean run", said)
+        self.assertIn(f"{dirty}:1:1: warning: w [c]", said, "a finding is said again on every run")
+
+        write("clean.hpp", "#pragma once // edited")
+        tidy_run()
+        self.assertEqual(sorted(linted), [clean, dirty, silent], "a read edited")
+        tidy_run()
+        self.assertEqual(sorted(linted), [dirty, silent])
+        # A source the database no longer holds is dropped from the store.
+        (folder / "compile_commands.json").write_text(json.dumps([
+            {"directory": str(folder), "file": str(dirty), "output": "dirty.o", "command": "c++ -c dirty.cpp"}]))
+        tidy_run()
+        self.assertEqual(tidy.tidycache.load(folder / "tidy-clean.json"), {})

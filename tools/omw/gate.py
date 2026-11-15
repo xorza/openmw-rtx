@@ -5,7 +5,7 @@ reading is about the machine."""
 import unittest
 from collections.abc import Callable
 
-from omw import formatting, integration, lint, listing, spellings, testing
+from omw import formatting, integration, lint, listing, spellings, testing, tidy
 from omw.build import Build
 from omw.repeat import repeat
 from omw.system import ROOT, Refusal
@@ -35,7 +35,8 @@ def _release_compile(build: Build) -> int:
 
 # **The steps, in the order `gate` runs them**: each a name, which `omw help` prints, and what it runs on the
 # gate's build, nought where it passed. **The tests ahead of the release compile**: a minute against the minutes a
-# change makes of the compile, so a red test says so before them.
+# change makes of the compile, so a red test says so before them. **Clang-tidy over every source after the tests**:
+# it lints again only the sources a change reached (`tidycache`), which a header many read makes minutes.
 STEPS: tuple[tuple[str, Callable[[Build], int]], ...] = (
     ("format check", lambda build: formatting.format_tree(["--check"])),
     ("spellings", lambda build: spellings.check()),
@@ -45,6 +46,7 @@ STEPS: tuple[tuple[str, Callable[[Build], int]], ...] = (
     ("the listing check", listing.check),
     ("tests", lambda build: testing.test(build, [])),
     ("their timing", testing.timing),
+    ("clang-tidy", lambda build: tidy.tidy(build, [])),
     ("the release compile", _release_compile),
     ("the integration tests", lambda build: integration.integration(build, [])),
     ("check", lambda build: build.harness("check").returncode),
