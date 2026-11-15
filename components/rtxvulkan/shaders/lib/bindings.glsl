@@ -398,6 +398,12 @@ GpuMaterial materialAt(uint index)
     return MaterialTable(frame.mTables.mMaterials).at[index];
 }
 
+/// The maps row beside the material at `index` (`GpuMaterialMaps`).
+GpuMaterialMaps materialMapsAt(uint index)
+{
+    return MaterialMapTable(frame.mTables.mMaterialMaps).at[index];
+}
+
 GpuLayer layerAt(uint index)
 {
     return LayerTable(frame.mTables.mLayers).at[index];

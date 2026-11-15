@@ -44,6 +44,10 @@ namespace Rtx
         /// filter both read, so the filter runs over every frame whose kernel can reflect.
         bool mMapped = false;
 
+        /// Whether the scene places a material that wears a detail, a decal, a bump or a gloss map
+        /// (`InstanceCounts::mModMapped`): what `HAS_MOD_MAPS` reads. No lobe comes of one.
+        bool mModMapped = false;
+
         /// Whether the scene places a blended material whose dark map falls below solid
         /// (`InstanceCounts::mDarkAlpha`): which picks the tuple that reads its alpha (`HAS_DARK_ALPHA`).
         bool mDarkAlpha = false;

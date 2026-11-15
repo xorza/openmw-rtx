@@ -34,6 +34,8 @@ namespace Rtx
         bool mTextureMatrix = false;
         bool mAmbientOverride = false;
         bool mEnvironmentColour = false;
+        bool mBumpMatrix = false;
+        bool mBumpLuma = false;
 
         /// Whether a value carrying `flags` is taken under `lock`, and claims the lock for the rest
         /// of the chain where it carries `OVERRIDE`. The whole of OpenGL's rule, in one place.
@@ -56,8 +58,8 @@ namespace Rtx
     /// opacity again off an `alpha` uniform unless an `actorFade` stands beside it; the alpha test off the
     /// `osg::AlphaFunc` or the `alphaRef` uniform the visitor moved it into; blending and compositing off `BlendFunc`
     /// or `GL_BLEND`; two-sidedness off `GL_CULL_FACE`; the texture transform off the `texMat<unit>` uniform on the
-    /// diffuse unit; the environment map's tint off `envMapColor`; and the ambient the game overrides off
-    /// `sun.ambient`.
+    /// diffuse unit; the environment map's tint off `envMapColor`; the bump map's matrix and luma off `bumpMapMatrix`
+    /// and `envMapLumaBias`; and the ambient the game overrides off `sun.ambient`.
     ///
     /// A parent's `OVERRIDE` is honoured through `locks`, which a caller folding a chain carries from the root down and
     /// a caller reading one state set leaves at its default.

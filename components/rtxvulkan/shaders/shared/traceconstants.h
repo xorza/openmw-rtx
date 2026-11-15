@@ -29,7 +29,8 @@ namespace Rtx::Shaders
     const uint SPEC_WATER_STAGE = 6u;
     const uint SPEC_HAS_RELIEF = 7u;
     const uint SPEC_UPSCALE_MASKS = 8u;
-    const uint SPEC_COUNT = 9u;
+    const uint SPEC_HAS_MOD_MAPS = 9u;
+    const uint SPEC_COUNT = 10u;
 
     /// What a trace stage is pushed beside the frame block: which of the frame's bounce rays the
     /// bounce's and the landing's stages trace and light (`bounce.comp`, `landing.comp`), counting the

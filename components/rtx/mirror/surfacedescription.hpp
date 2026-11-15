@@ -10,6 +10,7 @@
 #include <osg/Image>
 #include <osg/Vec2f>
 #include <osg/Vec3f>
+#include <osg/Vec4f>
 #include <osg/ref_ptr>
 
 #include <components/rtx/common/namedenum.hpp>
@@ -33,10 +34,6 @@ namespace Rtx
     /// refusal, once for each texture a surface names, and draws the rest of the surface.
     enum class UnreadState : std::uint32_t
     {
-        /// A detail map, which no shipped file binds, and each of the three roles after it apart, so a refusal says
-        /// which map a mod's surface lost.
-        DetailMap = 1u << 0,
-
         /// A blend other than the four the shipped files state.
         BlendPair = 1u << 1,
         BlendEquation = 1u << 2,
@@ -59,16 +56,11 @@ namespace Rtx
 
         /// An attribute or a mode this reader has no rule for.
         Unknown = 1u << 10,
-
-        DecalMap = 1u << 11,
-        GlossMap = 1u << 12,
-        BumpMap = 1u << 13,
     };
 
-    inline constexpr std::array sUnreadStates{ UnreadState::DetailMap, UnreadState::DecalMap, UnreadState::GlossMap,
-        UnreadState::BumpMap, UnreadState::BlendPair, UnreadState::BlendEquation, UnreadState::CulledFront,
-        UnreadState::PolygonMode, UnreadState::Fog, UnreadState::Stencil, UnreadState::ColourMask,
-        UnreadState::FlatShading, UnreadState::TextureState, UnreadState::Unknown };
+    inline constexpr std::array sUnreadStates{ UnreadState::BlendPair, UnreadState::BlendEquation,
+        UnreadState::CulledFront, UnreadState::PolygonMode, UnreadState::Fog, UnreadState::Stencil,
+        UnreadState::ColourMask, UnreadState::FlatShading, UnreadState::TextureState, UnreadState::Unknown };
 
     /// Why the trace draws a surface that states `state` otherwise: the reason its refusal gives.
     std::string_view whyUnread(UnreadState state);
@@ -115,10 +107,8 @@ namespace Rtx
         std::pair{ TextureRole::Environment, std::string_view("envMap") },
     } };
 
-    /// The maps a surface keeps: the roles the trace reads. `TextureRole` names what the content
-    /// can bind, so a unit can be told from one that is no role at all; this names what is
-    /// recorded, because the detail, decal, gloss and bump roles occur in no shipped file, and a
-    /// fold that kept them anyway paid a reference apiece for nothing.
+    /// The maps a surface keeps: every role the trace reads, a normal map with or without its height one.
+    /// `TextureRole` names what the content can bind, so a unit can be told from one that is no role at all.
     enum class SurfaceMap : std::uint8_t
     {
         Diffuse,
@@ -132,13 +122,22 @@ namespace Rtx
         /// A specular map, whose channels `Rtx::SpecularLayout` says the meaning of.
         Specular,
 
+        /// The four maps `objects.frag` reads beside the diffuse, which no shipped file binds and a mod's
+        /// surfaces do: a detail map the colour is multiplied by twice over, a decal laid over it by its own
+        /// alpha, and a bump and a gloss map, which move and dim the environment map and scale it, and do
+        /// nothing where there is none.
+        Detail,
+        Decal,
+        Bump,
+        Gloss,
+
         Count,
     };
 
     inline constexpr std::size_t sSurfaceMapCount = static_cast<std::size_t>(SurfaceMap::Count);
 
-    /// The map a role is kept as, or nothing for a role the trace declines to read.
-    constexpr std::optional<SurfaceMap> mapOf(const TextureRole role)
+    /// The map a role is kept as: every role the content can bind is one the trace reads.
+    constexpr SurfaceMap mapOf(const TextureRole role)
     {
         switch (role)
         {
@@ -156,41 +155,20 @@ namespace Rtx
             case TextureRole::Specular:
                 return SurfaceMap::Specular;
             case TextureRole::Detail:
+                return SurfaceMap::Detail;
             case TextureRole::Decal:
+                return SurfaceMap::Decal;
             case TextureRole::Gloss:
+                return SurfaceMap::Gloss;
             case TextureRole::Bump:
-                break;
+                return SurfaceMap::Bump;
         }
-        return std::nullopt;
+        // Past every role, which no parse makes: `-Wswitch` holds the cases above to the enum.
+        return SurfaceMap::Diffuse;
     }
 
     /// One texture as a surface uses it: the image, and how it is addressed past its edges.
     ///
-
-    /// What a role the trace reads no map for is refused as (`mapOf`'s nothing), or nothing for a role it reads.
-    constexpr std::optional<UnreadState> unreadOf(const TextureRole role)
-    {
-        switch (role)
-        {
-            case TextureRole::Detail:
-                return UnreadState::DetailMap;
-            case TextureRole::Decal:
-                return UnreadState::DecalMap;
-            case TextureRole::Gloss:
-                return UnreadState::GlossMap;
-            case TextureRole::Bump:
-                return UnreadState::BumpMap;
-            case TextureRole::Diffuse:
-            case TextureRole::Normal:
-            case TextureRole::NormalHeight:
-            case TextureRole::Emissive:
-            case TextureRole::Specular:
-            case TextureRole::Dark:
-            case TextureRole::Environment:
-                return std::nullopt;
-        }
-        return std::nullopt;
-    }
     /// **The image and not an `osg::Texture2D`**, for the reason `SurfaceDescription::mTextures` gives; **and the wrap
     /// beside it**, because that is the one piece of sampler state the content decides per texture: a `NiSourceTexture`
     /// states a clamp, and a renderer that read the image alone repeated every banner's edge.
@@ -232,12 +210,21 @@ namespace Rtx
         /// which map it is.
         bool mNormalHeight = false;
 
-        /// Which texture unit the dark map and the glow map are bound at, each meaningful where
-        /// there is one. Carried because half the vanilla dark maps and some glow maps read the
-        /// geometry's second set of texture coordinates, and which set a unit reads is the
-        /// geometry's to say.
-        std::uint8_t mDarkUnit = 0;
-        std::uint8_t mEmissiveUnit = 0;
+        /// Which texture unit each map is bound at, meaningful where there is one. Carried because half
+        /// the vanilla dark maps and some glow maps read the geometry's second set of texture coordinates,
+        /// and which set a unit reads is the geometry's to say; a mod's detail and decal maps likewise.
+        /// The diffuse's own maps — the diffuse, the normal and the specular — read the diffuse's place.
+        std::array<std::uint8_t, sSurfaceMapCount> mUnits{};
+
+        std::uint8_t getUnit(SurfaceMap map) const { return mUnits[static_cast<std::size_t>(map)]; }
+
+        /// How the bump map moves where the environment map is read and how bright it is, as `NifOsg` hands
+        /// the rasterizer the `NiTexturingProperty`'s numbers: its red and green times the matrix
+        /// (`bumpMapMatrix`, the matrix's four entries row by row), and its blue times the first of the luma
+        /// pair plus the second (`envMapLumaBias`). Nought where no uniform says otherwise, as an unset uniform
+        /// reads.
+        osg::Vec4f mBumpMatrix{ 0.0f, 0.0f, 0.0f, 0.0f };
+        osg::Vec2f mBumpLuma{ 0.0f, 0.0f };
 
         /// What the environment map is tinted by: `envMapColor`, which `NifOsg` sets to white
         /// under a `NiTextureEffect` and `SceneUtil::GlowUpdater` to the enchantment's colour.

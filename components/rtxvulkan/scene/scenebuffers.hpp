@@ -211,6 +211,10 @@ namespace Rtx
         /// a row after it — `Shaders::MATERIAL_ROW_FIRST`.
         SlotTable<Shaders::GpuMaterial> mMaterialTable;
 
+        /// Beside each material's row, at its index, the maps a mod's surfaces bind past the diffuse
+        /// (`Shaders::GpuMaterialMaps`).
+        SlotTable<Shaders::GpuMaterialMaps> mMaterialMapTable;
+
         /// A standing mesh's normals in the shared blocks, by its vertex offset, and a deforming
         /// mesh's in the posed blocks, by its bind offset as its pose is (`MeshRange::mBindOffset`):
         /// `SkinPass` poses them as it poses the body, and an arrival writes its bind normals first,

@@ -209,6 +209,22 @@ TexturePoint pointAtUnit(uint unit, TexturePoint point, GpuMesh mesh, uvec3 corn
     return texturePoint(second, bary, vec4(1.0, 1.0, 0.0, 0.0), cone, coneWidth, detailed);
 }
 
+/// What `map` paints where a ray crosses the hit, read at `unit` (`pointAtUnit`), or `absent` where it holds none:
+/// the value that changes nothing in the place it is laid in, so no surface asks twice.
+vec4 mapAt(uint map, uint unit, vec4 absent, GpuMesh mesh, uvec3 corner, vec2 bary, TexturePoint point,
+    SurfaceCone cone, float coneWidth, bool detailed)
+{
+    if (!holdsTexture(map))
+        return absent;
+    return sampleDiffuse(map, pointAtUnit(unit, point, mesh, corner, bary, cone, coneWidth, detailed));
+}
+
+/// The unit one of the four maps of `GpuMaterialMaps::mUnits` is bound at, by its `MAP_UNIT_*_SHIFT`.
+uint mapUnitOf(GpuMaterialMaps maps, uint shift)
+{
+    return (maps.mUnits >> shift) & MATERIAL_UNIT_MASK;
+}
+
 /// What the dark map paints where a ray crosses `material`, at the unit the content bound it at, and white
 /// where it holds none: what the diffuse is multiplied by, colour and alpha, which is where `objects.frag`
 /// puts it.
@@ -222,6 +238,78 @@ vec4 darkAt(GpuMaterial material, GpuMesh mesh, uvec3 corner, vec2 bary, Texture
     return sampleDiffuse(material.mDark, pointAtUnit(unit, point, mesh, corner, bary, cone, coneWidth, detailed));
 }
 
+/// What the detail and the decal maps lay into a surface's colour, in `objects.frag`'s order past the dark map:
+/// the colour times `mDetail`, which is twice the detail map in display encoding — decoded, the map over its grey
+/// (`DETAIL_GREY`) — and then `mDecal`'s colour laid over that by `mLaid`, its alpha and the surface's own. Neutral
+/// where a surface has neither: one, and nothing laid.
+///
+/// **Read only where `HAS_MOD_MAPS` compiles it in**, by the caller's branch on the constant: a material that wears
+/// one is a mod-mapped one (`Rtx::Material::Traversed::mModMapped`). The neutral does not fold away on its own, since
+/// a mix by nought keeps the other side's infinities and the pinned arithmetic may not drop them, and the tint it
+/// holds live cost every other scene's kernels registers.
+struct LaidMaps
+{
+    vec3 mDetail;
+    vec3 mDecal;
+    float mLaid;
+};
+
+/// @param row the material's index, where its maps row stands (`materialMapsAt`).
+LaidMaps laidMapsAt(uint row, GpuMesh mesh, uvec3 corner, vec2 bary, TexturePoint point,
+    SurfaceCone cone, float coneWidth, bool detailed)
+{
+    const GpuMaterialMaps maps = materialMapsAt(row);
+    const vec3 detail = mapAt(maps.mDetail, mapUnitOf(maps, MAP_UNIT_DETAIL_SHIFT), vec4(DETAIL_GREY), mesh, corner,
+        bary, point, cone, coneWidth, detailed)
+                            .rgb;
+    const vec4 decal = mapAt(maps.mDecal, mapUnitOf(maps, MAP_UNIT_DECAL_SHIFT), vec4(0.0), mesh, corner, bary, point,
+        cone, coneWidth, detailed);
+    // **The material's own alpha read again here and not handed in from the caller's row**, which a decal is laid
+    // by as `objects.frag` lays it by `diffuseColor.a`: a use of the caller's field moved where the optimizer loads
+    // the row's fields for every tuple, `HAS_MOD_MAPS` or not, and so how the driver scheduled every other scene's
+    // kernels.
+    const float opacity = materialAt(row).mOpacity;
+    return LaidMaps(detail / DETAIL_GREY, decal.rgb, decal.a * opacity);
+}
+
+/// `colour` with the maps laid in, the decal tinted by `tint` as the colour it is laid over was.
+vec3 laidColour(vec3 colour, vec3 tint, LaidMaps maps)
+{
+    return mix(colour * maps.mDetail, maps.mDecal * tint, maps.mLaid);
+}
+
+/// What a bump and a gloss map do to a sphere-mapped sheet, which `objects.frag` reads beside an environment map
+/// alone: the bump map's red and green through its matrix move where the sheet is read by `mShift`, and `mScale`
+/// is its blue through the luma, which dims the sheet, times the gloss map. Neutral where there is neither:
+/// nothing moved and one.
+struct SheetMaps
+{
+    vec2 mShift;
+    vec3 mScale;
+};
+
+/// The sheet's maps where a ray crosses the hit, each at the unit the content bound it at.
+///
+/// **The luma decoded as a colour is**: `objects.frag` dims the sheet's display value by it, and a product of
+/// display values decodes to the product of what each decodes to, as the sheet's own tint is read.
+///
+/// @param row the material's index, where its maps row stands (`materialMapsAt`).
+SheetMaps sheetMapsAt(uint row, GpuMesh mesh, uvec3 corner, vec2 bary, TexturePoint point, SurfaceCone cone,
+    float coneWidth, bool detailed)
+{
+    const GpuMaterialMaps maps = materialMapsAt(row);
+    const vec4 bump = mapAt(maps.mBump, mapUnitOf(maps, MAP_UNIT_BUMP_SHIFT), vec4(0.0), mesh, corner, bary, point,
+        cone, coneWidth, detailed);
+    const vec3 gloss = mapAt(maps.mGloss, mapUnitOf(maps, MAP_UNIT_GLOSS_SHIFT), vec4(1.0), mesh, corner, bary, point,
+        cone, coneWidth, detailed)
+                           .rgb;
+    const vec2 shift = vec2(dot(bump.rg, maps.mBumpMatrix.xy), dot(bump.rg, maps.mBumpMatrix.zw));
+    const float luma = holdsTexture(maps.mBump)
+        ? decodeSrgb(clamp(bump.b * maps.mBumpLuma.x + maps.mBumpLuma.y, 0.0, 1.0))
+        : 1.0;
+    return SheetMaps(shift, gloss * luma);
+}
+
 /// **A sphere-mapped sheet, added past the albedo and indexed by where the eye is**, in light, and nothing
 /// where `material` holds none.
 ///
@@ -229,7 +317,10 @@ vec4 darkAt(GpuMaterial material, GpuMesh mesh, uvec3 corner, vec2 bary, Texture
 ///        them and not fetched again here: a second fetch inside the surface's resolve held the bounce and
 ///        the landing a wave short on AMD's Windows driver (`docs/research/2026-11-09-sheet-span.md`).
 /// @param shading the normal the surface shows the ray, in world space and unit.
-vec3 sheetAt(GpuMaterial material, SheetSpan span, vec3 shading, vec3 direction, SurfaceCone cone, float coneWidth)
+/// @param maps what the material's bump and gloss maps do to it (`sheetMapsAt`), read only where `HAS_MOD_MAPS`
+///        compiles them in.
+vec3 sheetAt(GpuMaterial material, SheetSpan span, vec3 shading, vec3 direction, SurfaceCone cone, float coneWidth,
+    SheetMaps maps)
 {
     if (!holdsTexture(material.mEnvironment))
         return vec3(0.0);
@@ -243,8 +334,14 @@ vec3 sheetAt(GpuMaterial material, SheetSpan span, vec3 shading, vec3 direction,
 
     // **Its own footprint and not the surface's**, which `spherePoint` says at length: a sheet
     // indexed by the reflection is not read at the level the mesh's coordinates ask for.
-    const TexturePoint sheet = spherePoint(span, normalEye, viewEye, cone, coneWidth);
-    return SUNLIT_WHITE * sampleDiffuse(material.mEnvironment, sheet).rgb * material.mEnvironmentColour;
+    TexturePoint sheet = spherePoint(span, normalEye, viewEye, cone, coneWidth);
+    vec3 colour = material.mEnvironmentColour;
+    if (HAS_MOD_MAPS)
+    {
+        sheet.mAt += maps.mShift;
+        colour *= maps.mScale;
+    }
+    return SUNLIT_WHITE * sampleDiffuse(material.mEnvironment, sheet).rgb * colour;
 }
 
 /// A triangle a ray query met, before anything decides whether it stops the ray: which instance row
@@ -1572,6 +1669,17 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed, uint relief
     surface.mAlbedo *= dark.rgb;
     surface.mAmbientAlbedo *= dark.rgb;
 
+    // **Then the detail and the decal maps, in `objects.frag`'s order** (`LaidMaps`): past the dark map, so a decal is
+    // not darkened by it, and tinted as the texture is, since there the lighting multiplies both.
+    if (HAS_MOD_MAPS)
+    {
+        const LaidMaps laid
+            = laidMapsAt(instance.mMaterial, mesh, corner, hit.mBary, point, cone, surface.mFootprint, detailed);
+        surface.mAlbedo = laidColour(surface.mAlbedo, tint, laid);
+        surface.mAmbientAlbedo
+            = laidColour(surface.mAmbientAlbedo, mix(material.mAmbientColour, vertexColour, ambientTinted), laid);
+    }
+
     // And the lobe, for the tint's reason: a dark map is light painted in.
     if (HAS_MAPS)
         surface.mSpecular *= dark.rgb;
@@ -1594,7 +1702,12 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed, uint relief
     // **Light of its own, or colour the light falls on**, as the player set the rasterizer's `preLightEnv`:
     // there it joins the diffuse colour past the dark map and before the lighting multiplies, so here it
     // joins the albedo at the sheet's own colour, held at one so a bounce returns no more than it met.
-    const vec3 sheet = sheetAt(material, span, surface.mNormal, direction, cone, surface.mFootprint);
+    // Its bump and gloss maps only where it has a sheet for them to change, which is the only place the content
+    // binds them (`Rtx::Material::mBump`).
+    SheetMaps sheetMaps = SheetMaps(vec2(0.0), vec3(1.0));
+    if (HAS_MOD_MAPS && holdsTexture(material.mEnvironment))
+        sheetMaps = sheetMapsAt(instance.mMaterial, mesh, corner, hit.mBary, point, cone, surface.mFootprint, detailed);
+    const vec3 sheet = sheetAt(material, span, surface.mNormal, direction, cone, surface.mFootprint, sheetMaps);
     const bool lit = frame.mLitEnvironmentMaps != 0u;
     surface.mEmitted += lit ? vec3(0.0) : sheet;
     surface.mAlbedo = lit ? min(surface.mAlbedo + sheet / SUNLIT_WHITE, vec3(1.0)) : surface.mAlbedo;

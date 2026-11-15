@@ -216,6 +216,13 @@ another is part of it. `RtxSourceTreeTest` holds the order.
     does not march (`Hit::mMarches`); a relief shadows the sky's source and the held lamp (`reliefLit`).
   - Only the tuples with maps march (`HAS_RELIEF`), and no setting turns it off: 3 to 5% of a close wall's frame.
     `--relief` is the harness's A/B alone.
+- **A mod's detail, decal, bump and gloss maps are read as `objects.frag` reads them**: the detail map and the decal
+  laid into the colour past the dark map (`LaidMaps`), the bump map moving and dimming the environment sheet and the
+  gloss map scaling it, those two only beside a sheet (`SheetMaps`). Under a constant of their own (`HAS_MOD_MAPS`)
+  and in a row of their own beside the material's (`GpuMaterialMaps`), so no other tuple's kernel and no other hit's
+  read moves. Refused: under `HAS_MAPS`, which runs the normal and specular maps' kernels for a Repack scene's
+  detail-mapped bottle; in `GpuMaterial`, 112 bytes to 160, which moved 70 kernels without them; left unread, a mod's
+  surface drawn without what it binds (`research/2026-11-15-mod-maps-registers.md`).
 - **Reconstruction** (`frame/reconstruction.hpp`): `RenderProfile` is what a run decides once, and
   `Reconstruction::resolve` the one rule for who filters the light, the jitter, the noise source and the texture
   level bias.

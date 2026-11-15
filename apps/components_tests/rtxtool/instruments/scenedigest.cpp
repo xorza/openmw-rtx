@@ -147,6 +147,15 @@ namespace RtxTool
             EXPECT_NE(layoutOfBoxes(false, 0.0f, 0.0f), layoutOfBoxes(false, 0.0f, 0.0f, true));
         }
 
+        /// The four maps a mod's surface binds beside the diffuse, each the diffuse's own texture.
+        void wearModMaps(Rtx::Material& material)
+        {
+            material.mDetail = material.mDiffuse;
+            material.mDecal = material.mDiffuse;
+            material.mBump = material.mDiffuse;
+            material.mGloss = material.mDiffuse;
+        }
+
         /// One box under a material `change` has been applied to, digested both ways.
         std::pair<std::string, std::string> digestsOfMaterial(void (*change)(Rtx::Material&))
         {
@@ -178,6 +187,10 @@ namespace RtxTool
                      { "animated", [](Rtx::Material& m) { m.mAnimated = true; } },
                      { "never solid", [](Rtx::Material& m) { m.mDiffuseNeverSolid = true; } },
                      { "relief", [](Rtx::Material& m) { m.mRelief = Rtx::AlphaRange{}; } },
+                     { "detail", [](Rtx::Material& m) { m.mDetail = m.mDiffuse; } },
+                     { "decal", [](Rtx::Material& m) { m.mDecal = m.mDiffuse; } },
+                     { "bump", [](Rtx::Material& m) { m.mBump = m.mDiffuse; } },
+                     { "gloss", [](Rtx::Material& m) { m.mGloss = m.mDiffuse; } },
                  })
             {
                 const auto [movedScene, movedLayout] = digestsOfMaterial(change);
@@ -192,6 +205,47 @@ namespace RtxTool
                 = digestsOfMaterial([](Rtx::Material& m) { m.mRelief = Rtx::AlphaRange{ .mLow = 21, .mHigh = 175 }; });
             EXPECT_NE(whole, spanned) << "the relief's heights";
             EXPECT_NE(wholeLayout, spannedLayout) << "the relief's heights";
+
+            // And what each of a mod's maps carries beside itself, apart from whether there is one: each against the
+            // same four maps without it.
+            const auto [mapped, mappedLayout] = digestsOfMaterial(wearModMaps);
+            for (const auto& [what, change] : std::initializer_list<std::pair<const char*, void (*)(Rtx::Material&)>>{
+                     { "the detail map's unit",
+                         [](Rtx::Material& m) {
+                             wearModMaps(m);
+                             m.mDetailUnit = 1;
+                         } },
+                     { "the decal's unit",
+                         [](Rtx::Material& m) {
+                             wearModMaps(m);
+                             m.mDecalUnit = 1;
+                         } },
+                     { "the bump map's unit",
+                         [](Rtx::Material& m) {
+                             wearModMaps(m);
+                             m.mBumpUnit = 1;
+                         } },
+                     { "the bump matrix",
+                         [](Rtx::Material& m) {
+                             wearModMaps(m);
+                             m.mBumpMatrix = osg::Vec4f(0.0f, 0.0f, 0.25f, 0.0f);
+                         } },
+                     { "the bump luma",
+                         [](Rtx::Material& m) {
+                             wearModMaps(m);
+                             m.mBumpLuma = osg::Vec2f(0.0f, 1.0f);
+                         } },
+                     { "the gloss map's unit",
+                         [](Rtx::Material& m) {
+                             wearModMaps(m);
+                             m.mGlossUnit = 1;
+                         } },
+                 })
+            {
+                const auto [movedScene, movedLayout] = digestsOfMaterial(change);
+                EXPECT_NE(mapped, movedScene) << what;
+                EXPECT_NE(mappedLayout, movedLayout) << what;
+            }
         }
 
         /// One box under one placement, its corners carrying `tangents`, digested whole and part by

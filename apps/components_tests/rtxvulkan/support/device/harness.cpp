@@ -263,12 +263,23 @@ namespace Rtx::Testing
 
     void awaitKernels(Renderer& renderer)
     {
-        const WaitBound bound(sColdPatience);
+        // **A bound on the wait for the next kernel and not on the whole compile**, whose length is the tuples'
+        // count times a kernel's: a kernel takes seconds, so one that none followed for the patience is not coming,
+        // where a bound on the whole failed a cold compile of every tuple that was still landing.
+        WaitBound bound(sColdPatience);
+        std::uint32_t made = 0;
         for (JobProgress progress = renderer.awaitKernels(KernelSet::Every, std::chrono::milliseconds(100));
             !progress.isDone(); progress = renderer.awaitKernels(KernelSet::Every, std::chrono::milliseconds(100)))
-            if (bound.passed())
-                throw std::runtime_error(std::format(
-                    "the renderer's kernels were {} of {} made after five minutes", progress.mMade, progress.mCount));
+        {
+            if (progress.mMade != made)
+            {
+                made = progress.mMade;
+                bound = WaitBound(sColdPatience);
+            }
+            else if (bound.passed())
+                throw std::runtime_error(std::format("the renderer's kernels stood at {} of {} made for {} minutes",
+                    progress.mMade, progress.mCount, sColdPatience.count()));
+        }
     }
 
     VulkanRenderer& getRenderer()

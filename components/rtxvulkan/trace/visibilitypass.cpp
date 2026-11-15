@@ -74,6 +74,7 @@ namespace Rtx
             words[Shaders::SPEC_HAS_MAPS] = tuple.mMaps ? 1u : 0u;
             words[Shaders::SPEC_HAS_DARK_ALPHA] = tuple.mDarkAlpha ? 1u : 0u;
             words[Shaders::SPEC_HAS_RELIEF] = tuple.mRelief ? 1u : 0u;
+            words[Shaders::SPEC_HAS_MOD_MAPS] = tuple.mModMaps ? 1u : 0u;
             return words;
         }
 
@@ -95,6 +96,7 @@ namespace Rtx
                 && at(tables.mIndexBlocks, Shaders::TABLE_ALIGN_BLOCKS) && at(tables.mMeshes, Shaders::TABLE_ALIGN_ROWS)
                 && at(tables.mInstances, Shaders::TABLE_ALIGN_ROWS)
                 && at(tables.mMaterials, Shaders::TABLE_ALIGN_MATERIALS)
+                && at(tables.mMaterialMaps, Shaders::TABLE_ALIGN_MATERIALS)
                 && at(tables.mLayers, Shaders::TABLE_ALIGN_LAYERS) && at(tables.mMasks, Shaders::TABLE_ALIGN_ROWS)
                 && at(tables.mLights, Shaders::TABLE_ALIGN_ROWS) && at(tables.mLightCells, Shaders::TABLE_ALIGN_ROWS)
                 && at(tables.mLightList, Shaders::TABLE_ALIGN_ROWS) && at(tables.mBlueNoise, Shaders::TABLE_ALIGN_ROWS)
@@ -216,8 +218,7 @@ namespace Rtx
         } };
     }
 
-    VisibilityVariant VisibilityVariant::resolve(const Shaders::VisibilityConstants& frame, const bool sea,
-        const bool mapped, const bool darkAlpha, const bool relief)
+    VisibilityVariant VisibilityVariant::resolve(const Shaders::VisibilityConstants& frame, const TraceSubject& subject)
     {
         // A moon that is drawn and a moon that lights are two facts, and the sky needs the first
         // where no surface asks for the second: the game fades both out over the hours around dawn,
@@ -233,19 +234,20 @@ namespace Rtx
             .mSun = frame.mSun.mIrradiance != Shaders::vec3(),
             .mMoons = moons,
 
-            .mSea = sea,
-            .mMaps = mapped,
-            .mDarkAlpha = darkAlpha,
+            .mSea = subject.mSea,
+            .mMaps = subject.mMapped,
+            .mDarkAlpha = subject.mDarkAlpha,
 
             // A relief is read through a normal map, so a scene with none has none to march.
-            .mRelief = mapped && relief,
+            .mRelief = subject.mMapped && subject.mRelief,
+            .mModMaps = subject.mModMapped,
         };
     }
 
     std::uint32_t VisibilityVariant::index() const
     {
         return (mSun ? 1u : 0u) | (mMoons ? 2u : 0u) | (mSea ? 4u : 0u) | (mMaps ? 8u : 0u) | (mDarkAlpha ? 16u : 0u)
-            | (mRelief ? 32u : 0u);
+            | (mRelief ? 32u : 0u) | (mModMaps ? 64u : 0u);
     }
 
     std::string VisibilityVariant::describe(const std::string_view kernel) const
@@ -263,6 +265,8 @@ namespace Rtx
             name += " dark";
         if (mRelief)
             name += " relief";
+        if (mModMaps)
+            name += " modmaps";
         return name;
     }
 
@@ -344,37 +348,41 @@ namespace Rtx
                         throw std::runtime_error("the tuple compile was stopped");
 
                 // The sky's tuples after the dark ones: the order matters less than the tuple a frame waits on, which
-                // the queue takes first. The tuples that read a dark map's alpha come last, which nearly no scene asks
-                // for. A relief only beside the maps, which `resolve` never asks without them: the march reads a normal
+                // the queue takes first. The tuples that read a mod's maps after those that do not, which every
+                // vanilla scene is, and the tuples that read a dark map's alpha last, which nearly no scene asks for.
+                // A relief only beside the maps, which `resolve` never asks without them: the march reads a normal
                 // map.
                 std::vector<Wanted> kernels;
                 std::vector<TupleRun> runs;
                 for (const bool darkAlpha : { false, true })
-                    for (const bool sun : { false, true })
-                        for (const bool moons : { false, true })
-                            for (const bool sea : { false, true })
-                                for (const bool maps : { false, true })
-                                    for (const bool relief : { false, true })
-                                    {
-                                        const VisibilityVariant tuple{ .mSun = sun,
-                                            .mMoons = moons,
-                                            .mSea = sea,
-                                            .mMaps = maps,
-                                            .mDarkAlpha = darkAlpha,
-                                            .mRelief = relief };
-                                        if ((sun && moons && sea && maps && darkAlpha && relief) || (relief && !maps))
-                                            continue;
+                    for (const bool modMaps : { false, true })
+                        for (const bool sun : { false, true })
+                            for (const bool moons : { false, true })
+                                for (const bool sea : { false, true })
+                                    for (const bool maps : { false, true })
+                                        for (const bool relief : { false, true })
+                                        {
+                                            const VisibilityVariant tuple{ .mSun = sun,
+                                                .mMoons = moons,
+                                                .mSea = sea,
+                                                .mMaps = maps,
+                                                .mDarkAlpha = darkAlpha,
+                                                .mRelief = relief,
+                                                .mModMaps = modMaps };
+                                            if (tuple.index() == VisibilityVariant{}.index() || (relief && !maps))
+                                                continue;
 
-                                        const std::size_t first = kernels.size();
-                                        for (std::size_t stage = 0; stage < sStageCount; ++stage)
-                                            if (runsStage(static_cast<Kernel>(stage), tuple))
+                                            const std::size_t first = kernels.size();
+                                            for (std::size_t stage = 0; stage < sStageCount; ++stage)
+                                                if (runsStage(static_cast<Kernel>(stage), tuple))
+                                                    kernels.push_back(Wanted{
+                                                        .mKernel = static_cast<Kernel>(stage), .mVariant = tuple });
+                                            if (!tuple.mMaps && !tuple.mModMaps)
                                                 kernels.push_back(
-                                                    Wanted{ .mKernel = static_cast<Kernel>(stage), .mVariant = tuple });
-                                        if (!tuple.mMaps)
-                                            kernels.push_back(Wanted{ .mKernel = Kernel::Scatter, .mVariant = tuple });
-                                        runs.push_back(TupleRun{ .mTuple = tuple.index(),
-                                            .mItems = static_cast<std::uint32_t>(kernels.size() - first) });
-                                    }
+                                                    Wanted{ .mKernel = Kernel::Scatter, .mVariant = tuple });
+                                            runs.push_back(TupleRun{ .mTuple = tuple.index(),
+                                                .mItems = static_cast<std::uint32_t>(kernels.size() - first) });
+                                        }
                 assert(runs.size() == VisibilityVariant::sMade - 1 && "a tuple made that the count leaves out");
                 TupleQueue queue(runs, VisibilityVariant::sCount);
 
@@ -422,9 +430,9 @@ namespace Rtx
             {
                 // One pipeline for the tuples a stage reads alike: a constant its module does not read compiles to the
                 // same kernel either way (the bounce's and the unbounced stage's read neither the sun nor the moons,
-                // the media's no maps: 80 of the 324 stage pipelines a first start made). The first hand to want the
-                // canonical tuple's makes it; one that wants it meanwhile waits, and a hand never waits on one nobody
-                // is making.
+                // the media's no maps and no mod's maps: 164 of the 648 stage pipelines a first start made). The first
+                // hand to want the canonical tuple's makes it; one that wants it meanwhile waits, and a hand never
+                // waits on one nobody is making.
                 const auto at = static_cast<std::size_t>(wanted.mKernel);
                 const Stage& stage = sTraceStages[at];
                 const VisibilityVariant canonical = canonicalOf(wanted.mKernel, variant);
@@ -568,8 +576,7 @@ namespace Rtx
     VisibilityVariant VisibilityPass::variantFor(
         const VisibilityInputs& inputs, const Shaders::VisibilityConstants& constants) const
     {
-        const VisibilityVariant wanted = VisibilityVariant::resolve(constants, inputs.mSubject.mSea,
-            inputs.mSubject.mMapped, inputs.mSubject.mDarkAlpha, inputs.mSubject.mRelief);
+        const VisibilityVariant wanted = VisibilityVariant::resolve(constants, inputs.mSubject);
         if (isMade(wanted))
             return wanted;
 
@@ -611,6 +618,8 @@ namespace Rtx
             variant.mMaps = full.mMaps;
         if (!reads(Shaders::SPEC_HAS_RELIEF))
             variant.mRelief = variant.mMaps;
+        if (!reads(Shaders::SPEC_HAS_MOD_MAPS))
+            variant.mModMaps = full.mModMaps;
         return variant;
     }
 
@@ -651,6 +660,7 @@ namespace Rtx
     {
         variant.mMaps = false;
         variant.mRelief = false;
+        variant.mModMaps = false;
         const std::uint32_t at = isMade(variant) ? variant.index() : VisibilityVariant{}.index();
         const std::unique_ptr<TracePipeline<NoConstants>>& held = kernels().mScatter[at];
         assert(held != nullptr && "a tuple `compileEvery` made no scatter kernel for");

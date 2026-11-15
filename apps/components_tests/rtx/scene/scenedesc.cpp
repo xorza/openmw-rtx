@@ -993,6 +993,26 @@ namespace Rtx
             scene.setMaterial(foliage, Material{ .mDiffuse = leaf });
             EXPECT_EQ(counts().mDarkAlpha, 0u);
             EXPECT_EQ(counts().mMapped, 0u);
+
+            // A detail, a decal, a bump or a gloss map counts apart from the maps too, each on its own, and a normal
+            // map beside one counts in both.
+            EXPECT_EQ(counts().mModMapped, 0u);
+            for (const Material& worn :
+                { Material{ .mDiffuse = leaf, .mDetail = leaf }, Material{ .mDiffuse = leaf, .mDecal = leaf },
+                    Material{ .mDiffuse = leaf, .mBump = leaf }, Material{ .mDiffuse = leaf, .mGloss = leaf } })
+            {
+                scene.setMaterial(foliage, worn);
+                EXPECT_EQ(counts().mModMapped, 1u);
+                EXPECT_EQ(counts().mMapped, 0u);
+            }
+            // The ripples' slot went back when the sea let go of them, so they are asked for again.
+            const Index normal = scene.textures().add(
+                VFS::Path::NormalizedView("textures/ripples_n.dds"), TextureWrap::Repeat, TextureEncoding::Normal);
+            scene.setMaterial(foliage, Material{ .mDiffuse = leaf, .mNormal = normal, .mDetail = leaf });
+            EXPECT_EQ(counts().mModMapped, 1u);
+            EXPECT_EQ(counts().mMapped, 1u);
+            scene.setMaterial(foliage, Material{ .mDiffuse = leaf });
+            EXPECT_EQ(counts().mModMapped, 0u);
         }
 
         /// A reclass reaches the placements wearing the material and no other, and a mesh's list the

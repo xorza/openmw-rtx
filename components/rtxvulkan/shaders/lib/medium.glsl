@@ -81,6 +81,12 @@ Crossing crossingOf(Candidate candidate, TriangleEdges edges, vec3 direction, fl
     // with a dark map and no base map shows its dark map, as the rockslide's dust does.
     crossing.mTexel = sampleDiffuse(crossing.mMaterial.mDiffuse, point)
         * darkAt(crossing.mMaterial, mesh, crossing.mCorner, candidate.mBary, point, crossing.mCone, coneWidth, false);
+
+    // And the detail and the decal maps past it, as `resolve` lays them, untinted: the walk tints the whole texel.
+    if (HAS_MOD_MAPS)
+        crossing.mTexel.rgb = laidColour(crossing.mTexel.rgb, vec3(1.0),
+            laidMapsAt(crossing.mInstance.mMaterial, mesh, crossing.mCorner, candidate.mBary, point, crossing.mCone,
+                coneWidth, false));
     return crossing;
 }
 
@@ -227,10 +233,22 @@ Gathered gatherAlong(vec3 origin, vec3 direction, float limit, Cone cone, Gather
         {
             // The surface's rule for the sheet, `resolve`'s: lit where the player asked for it.
             const vec3 shading = faceforward(plane, direction, plane);
+            const GpuMesh mesh = meshAt(crossing.mInstance.mMesh);
             vec3 normal[3];
-            triangleNormals(meshAt(crossing.mInstance.mMesh), crossing.mCorner, normal);
+            triangleNormals(mesh, crossing.mCorner, normal);
+
+            // Its bump and gloss maps read where `crossingOf` read its texel.
+            SheetMaps maps = SheetMaps(vec2(0.0), vec3(1.0));
+            if (HAS_MOD_MAPS && holdsTexture(material.mEnvironment))
+            {
+                const TexturePoint point = candidatePoint(
+                    crossing.mCorner, material, crossing.mBary, crossing.mCone, crossing.mConeWidth, false);
+                maps = sheetMapsAt(crossing.mInstance.mMaterial, mesh, crossing.mCorner, crossing.mBary, point,
+                    crossing.mCone, crossing.mConeWidth, false);
+            }
             const vec3 sheet
-                = sheetAt(material, sheetSpanOf(normal), shading, direction, crossing.mCone, crossing.mConeWidth) * alpha;
+                = sheetAt(material, sheetSpanOf(normal), shading, direction, crossing.mCone, crossing.mConeWidth, maps)
+                * alpha;
             const bool lit = frame.mLitEnvironmentMaps != 0u;
             gathered.mSheet = addShare(gathered.mSheet, sharePart(lit ? vec3(0.0) : sheet));
             gathered.mUnlit = addShare(gathered.mUnlit, sharePart(lit ? sheet / SUNLIT_WHITE : vec3(0.0)));

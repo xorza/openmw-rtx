@@ -73,12 +73,12 @@ namespace Rtx
         bool mMaps = true;
         bool mDarkAlpha = true;
         bool mRelief = true;
+        bool mModMaps = true;
 
-        /// What this frame is. `sea` is `TraceSubject::mSea`, for the reason given there, and
-        /// `subject`'s maps and dark alpha the scene's answers, because which materials a camera's
-        /// rays meet is not known until they are traced.
-        static VisibilityVariant resolve(
-            const Shaders::VisibilityConstants& frame, bool sea, bool mapped, bool darkAlpha, bool relief);
+        /// What this frame is: its sea `TraceSubject::mSea`, for the reason given there, and `subject`'s maps, dark
+        /// alpha and relief the scene's answers, because which materials a camera's rays meet is not known until
+        /// they are traced.
+        static VisibilityVariant resolve(const Shaders::VisibilityConstants& frame, const TraceSubject& subject);
 
         /// Which of the table's pipelines this tuple is.
         std::uint32_t index() const;
@@ -87,11 +87,11 @@ namespace Rtx
         std::string describe(std::string_view kernel) const;
 
         /// How many tuples there are, and so how long the table is.
-        static constexpr std::uint32_t sCount = 64;
+        static constexpr std::uint32_t sCount = 128;
 
         /// How many of them are made, the whole tuple's among them: a relief stands only beside the
-        /// maps, which half the table's indices leave out.
-        static constexpr std::uint32_t sMade = 48;
+        /// maps, which a quarter of the table's indices leave out.
+        static constexpr std::uint32_t sMade = 96;
     };
 
     /// One ray per pixel against the top-level structure. Everything it needs arrives at record
@@ -277,9 +277,9 @@ namespace Rtx
         static bool runsStage(Kernel stage, VisibilityVariant variant);
 
         /// The launch that fills the fog volume's froxels for `variant`, a room's included: the volume walks the lamps
-        /// once per froxel where the closed form would be a lamp reservoir and a shadow ray per pixel. The maps are not
-        /// a question it asks, so a tuple is answered by its twin without them where that one is made, and by the full
-        /// tuple's until then.
+        /// once per froxel where the closed form would be a lamp reservoir and a shadow ray per pixel. Neither the maps
+        /// nor a mod's maps are a question it asks, so a tuple is answered by its twin without them where that one is
+        /// made, and by the full tuple's until then.
         const TracePipeline<NoConstants>& scatterPipelineFor(VisibilityVariant variant) const;
 
         const Device& mDevice;
@@ -328,7 +328,7 @@ namespace Rtx
                 mMadeStages;
 
             /// The same table for the launch that fills the froxels, made for the tuples without
-            /// maps — `scatterPipelineFor` says why. A launch and not a dispatch, and so is the
+            /// either maps — `scatterPipelineFor` says why. A launch and not a dispatch, and so is the
             /// column pass under it: `fogscatter.rgen` says what a ray query answers inside a
             /// dispatch when another process shares the card.
             std::array<std::unique_ptr<TracePipeline<NoConstants>>, VisibilityVariant::sCount> mScatter;

@@ -443,7 +443,7 @@ namespace Rtx::Shaders
     static_assert(offsetof(VisibilityConstants, mTables)
             == offsetof(VisibilityConstants, mPreviousJitter) + sizeof(VisibilityConstants::mPreviousJitter),
         "no implicit pad before GpuTables: name one, so a copy carries it and a comparison reads it");
-    static_assert(sizeof(VisibilityConstants) == 1680, "VisibilityConstants must be scalar-packed on every side");
+    static_assert(sizeof(VisibilityConstants) == 1688, "VisibilityConstants must be scalar-packed on every side");
     static_assert(sizeof(PuffConstants) == 152, "PuffConstants must be scalar-packed on every side");
 #endif
 

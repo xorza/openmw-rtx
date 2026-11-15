@@ -129,13 +129,14 @@ namespace Rtx::Testing
                 std::uint64_t mAddress;
                 std::uint32_t mAlign;
             };
-            const std::array<Named, 13> named{ {
+            const std::array<Named, 14> named{ {
                 { "the normal blocks", addressed.mNormalBlocks, Shaders::TABLE_ALIGN_BLOCKS },
                 { "the tangent blocks", addressed.mTangentBlocks, Shaders::TABLE_ALIGN_BLOCKS },
                 { "the texture coordinate blocks", addressed.mTexCoordBlocks, Shaders::TABLE_ALIGN_BLOCKS },
                 { "the meshes", addressed.mMeshes, Shaders::TABLE_ALIGN_ROWS },
                 { "the instance rows", addressed.mInstances, Shaders::TABLE_ALIGN_ROWS },
-                { "the materials", addressed.mMaterials, Shaders::TABLE_ALIGN_ROWS },
+                { "the materials", addressed.mMaterials, Shaders::TABLE_ALIGN_MATERIALS },
+                { "the materials' maps", addressed.mMaterialMaps, Shaders::TABLE_ALIGN_MATERIALS },
                 { "the terrain layers", addressed.mLayers, Shaders::TABLE_ALIGN_LAYERS },
                 { "the blend masks", addressed.mMasks, Shaders::TABLE_ALIGN_ROWS },
                 { "the lights", addressed.mLights, Shaders::TABLE_ALIGN_ROWS },
@@ -156,7 +157,8 @@ namespace Rtx::Testing
         /// four rows each, one frame slot: one mesh at the start, then three meshes and three
         /// materials, which fill both rooms with the untextured row, leave the bytes where the
         /// tables were made. One more of each makes each table again at twice its four rows
-        /// (`GrowableBuffer::outgrow`): 4 · 28 + 4 · 112 = 560 bytes more.
+        /// (`GrowableBuffer::outgrow`), the materials' maps beside the materials: 4 · 28 + 4 · (112 + 48) = 752
+        /// bytes more.
         TEST_F(RtxSceneTableTest, theMeshAndMaterialTablesHoldTheirRoomAndGrowPastIt)
         {
             constexpr SceneRoom room{ .mMeshes = 4, .mMaterials = 4 };
@@ -191,7 +193,8 @@ namespace Rtx::Testing
             ASSERT_EQ(scene.materials().getRows().size() + Shaders::MATERIAL_ROW_FIRST, room.mMaterials);
 
             EXPECT_EQ(arriveAndPlace(1) - made,
-                room.mMeshes * sizeof(Shaders::GpuMesh) + room.mMaterials * sizeof(Shaders::GpuMaterial));
+                room.mMeshes * sizeof(Shaders::GpuMesh)
+                    + room.mMaterials * (sizeof(Shaders::GpuMaterial) + sizeof(Shaders::GpuMaterialMaps)));
         }
 
         /// An arrival the device has no room for is drawn without what it could not stand, and
@@ -481,8 +484,9 @@ namespace Rtx::Testing
         /// on the frame path.** The room holds the untextured row and `sWorldRoom.mMaterials - 1`
         /// materials: arrived and placed twice, so both copies take them, the tables' bytes stand
         /// where the empty world's stood. One material past the room makes each copy again at
-        /// twice its size (`GrowableBuffer::outgrow`), so the two copies add
-        /// `2 · sWorldRoom.mMaterials · sizeof(GpuMaterial)`: 2 · 8192 · 112 = 1,835,008 bytes. Opened
+        /// twice its size (`GrowableBuffer::outgrow`), so the two copies of it and of the maps' table beside it add
+        /// `2 · sWorldRoom.mMaterials · (sizeof(GpuMaterial) + sizeof(GpuMaterialMaps))`: 2 · 8192 · 160 = 2,621,440
+        /// bytes. Opened
         /// at the world's room as the game's mirror opens its scene: the backend makes its tables at
         /// the room the scene states (`SceneDesc::getRoom`).
         TEST_F(RtxVisibilityTest, aWorldsMaterialTableHoldsItsRoomAndGrowsPastIt)
@@ -518,8 +522,8 @@ namespace Rtx::Testing
                 << "a copy was made again inside the room";
             ASSERT_EQ(scene.materials().getRows().size() + Shaders::MATERIAL_ROW_FIRST, sWorldRoom.mMaterials);
 
-            EXPECT_EQ(
-                arriveAndPlace(1) - empty, std::uint64_t{ 2 } * sWorldRoom.mMaterials * sizeof(Shaders::GpuMaterial));
+            const std::uint64_t materialRow = sizeof(Shaders::GpuMaterial) + sizeof(Shaders::GpuMaterialMaps);
+            EXPECT_EQ(arriveAndPlace(1) - empty, std::uint64_t{ 2 } * sWorldRoom.mMaterials * materialRow);
 
             // **The room is the scene's and not the slot's**: the same wall in a world opened at
             // nought makes its tables at what it holds, under the room's by at least the two copies
@@ -530,9 +534,8 @@ namespace Rtx::Testing
             bareHolds.mesh(bareMesh);
             bare.addInstance(MeshInstance{ .mMesh = bareMesh });
             mRenderer.setScene(Rtx::SceneSlot::world(), bare, {});
-            EXPECT_LT(mRenderer.getSceneStats().mTableBytes
-                    + std::uint64_t{ 2 } * sWorldRoom.mMaterials * sizeof(Shaders::GpuMaterial),
-                empty)
+            EXPECT_LT(
+                mRenderer.getSceneStats().mTableBytes + std::uint64_t{ 2 } * sWorldRoom.mMaterials * materialRow, empty)
                 << "a world opened at nought was made at the world's room";
 
             // **What the structures work in is counted beside the tables**: at the least the rows
@@ -1252,6 +1255,180 @@ namespace Rtx::Testing
                 EXPECT_NEAR(onFirst[channel], middle, 1e-4f * middle) << "channel " << channel;
         }
 
+        /// The detail and the decal maps are laid into the albedo past the dark map, in `objects.frag`'s order, each on
+        /// the set of texture coordinates its own unit reads.
+        ///
+        /// **Over the linear-128 grey, `g = 128/255`.** A detail texel multiplies it by twice the map in display
+        /// encoding, which decoded is the texel over `DETAIL_GREY`: `(32, 64, 96)` makes it `g * (0.12549, 0.25098,
+        /// 0.37647) / 0.21404`, `(0.29429, 0.58859, 0.88288)`. A decal of `(255, 0, 0)` at alpha 128 is then laid
+        /// over that by its alpha, `mix(detailed, red * tint, 128/255)`, tinted as the albedo is, so under a tint of
+        /// `(1, 0.5, 0.25)` the detailed grey is tinted too and the red stays red. Bound at a unit that reads the
+        /// second set, the decal is the quadrant sheet's red whole, alpha one, which is all there is to see.
+        TEST_F(RtxVisibilityTest, theDetailAndTheDecalMapsAreLaidIntoTheAlbedoOnTheSetsTheirUnitsRead)
+        {
+            constexpr std::uint32_t size = 33;
+            constexpr std::size_t centre = centreValueOf(size);
+
+            constexpr std::array<std::uint8_t, 4> sDetailTexel{ 32, 64, 96, 255 };
+            constexpr std::array<std::uint8_t, 4> sDecalTexel{ 255, 0, 0, 128 };
+            TestTexture sheet;
+            paintFlat(sheet, 2, sQuadrants, "sheet");
+            sheet.mData.mSlot = 3;
+            const std::array<TextureData, 4> textures{ describeTexel(sGreyTexel, 0), describeTexel(sDetailTexel, 1),
+                describeTexel(sDecalTexel, 2), sheet.mData };
+
+            const Shaders::VisibilityConstants camera = Testing::makeCamera(
+                osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
+            const std::array<osg::Vec2f, 4> onRed{ osg::Vec2f(0.25f, 0.25f), osg::Vec2f(0.25f, 0.25f),
+                osg::Vec2f(0.25f, 0.25f), osg::Vec2f(0.25f, 0.25f) };
+
+            struct Laid
+            {
+                Index mDetail = sNoIndex;
+                Index mDecal = sNoIndex;
+                std::uint8_t mDecalUnit = 0;
+                std::uint32_t mUnitStreams = 0;
+                osg::Vec3f mTint{ 1.0f, 1.0f, 1.0f };
+            };
+            const auto albedoUnder = [&](const Laid& laid) {
+                SceneDesc scene;
+                const Index mesh = scene.addMesh(MeshArrays{
+                    .mPositions = sWallQuad,
+                    .mTexCoords = sQuadUv,
+                    .mSecondTexCoords = onRed,
+                    .mUnitStreams = laid.mUnitStreams,
+                    .mIndices = sQuadIndices,
+                });
+                const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("grey.dds"));
+                EXPECT_EQ(scene.textures().add(VFS::Path::NormalizedView("detail.dds")), 1u);
+                EXPECT_EQ(scene.textures().add(VFS::Path::NormalizedView("decal.dds")), 2u);
+                EXPECT_EQ(scene.textures().add(VFS::Path::NormalizedView("sheet.dds")), 3u);
+                const Index material = scene.addMaterial(Material{
+                    .mDiffuse = diffuse,
+                    .mDetail = laid.mDetail,
+                    .mDecal = laid.mDecal,
+                    .mDecalUnit = laid.mDecalUnit,
+                    .mDiffuseColour = laid.mTint,
+                });
+                scene.addInstance(MeshInstance{ .mMesh = mesh, .mMaterial = material });
+
+                const Frame frame = shoot(scene, textures, camera, size, Shot{ .mShow = SurfaceView::Albedo });
+                EXPECT_EQ(frame.mHits, size * size);
+                return osg::Vec3f(frame.at(centre), frame.at(centre + 1), frame.at(centre + 2));
+            };
+            const auto expectNear = [](const osg::Vec3f& got, const osg::Vec3f& wanted, float tolerance) {
+                for (int channel = 0; channel < 3; ++channel)
+                    EXPECT_NEAR(got[channel], wanted[channel], tolerance) << "channel " << channel;
+            };
+
+            const float grey = 128.0f / 255.0f;
+            const osg::Vec3f detailed = osg::Vec3f(32.0f, 64.0f, 96.0f) * (grey / 255.0f / Shaders::DETAIL_GREY);
+            expectNear(albedoUnder({}), osg::Vec3f(grey, grey, grey), 1e-6f);
+            expectNear(albedoUnder({ .mDetail = 1 }), detailed, 1e-5f);
+            expectNear(detailed, osg::Vec3f(0.29429f, 0.58859f, 0.88288f), 1e-5f);
+
+            const float alpha = 128.0f / 255.0f;
+            const osg::Vec3f red(1.0f, 0.0f, 0.0f);
+            expectNear(albedoUnder({ .mDetail = 1, .mDecal = 2 }), detailed * (1.0f - alpha) + red * alpha, 1e-5f);
+
+            const osg::Vec3f tint(1.0f, 0.5f, 0.25f);
+            expectNear(albedoUnder({ .mDetail = 1, .mDecal = 2, .mTint = tint }),
+                osg::componentMultiply(detailed, tint) * (1.0f - alpha) + red * alpha, 1e-5f);
+
+            // On the second set, at a unit that reads it: the red quadrant, alpha one, laid whole.
+            expectNear(albedoUnder({ .mDecal = 3, .mDecalUnit = 1, .mUnitStreams = 1u << 1 }), red, 1e-6f);
+
+            // At a unit the mesh says reads the first set, the middle of the sheet: a half in every channel, alpha
+            // one. The sampler weighs the four texels in fixed point, which moves the middle by parts in a hundred
+            // thousand.
+            expectNear(albedoUnder({ .mDecal = 3, .mDecalUnit = 1 }), osg::Vec3f(0.5f, 0.5f, 0.5f), 1e-4f);
+        }
+
+        /// A bump map moves where the environment sheet is read and dims it, and a gloss map scales it, as
+        /// `objects.frag` reads both beside an environment map.
+        ///
+        /// **At the centre pixel the eye's reflection lands on the middle of the quadrant sheet** (the sheet test),
+        /// `(0.5, 0.5, 0.5)`, added as `SUNLIT_WHITE * 0.5 * tint`. A bump texel of red one and green nought moves
+        /// that by the matrix's first column, `(m00, m10)`, as `rg * bumpMapMatrix` reads an `osg::Matrix2` handed
+        /// over unchanged: `(0, 0.25)` lands on `v = 0.75`, the sheet's second row, half blue and half white,
+        /// `(0.5, 0.5, 1)`. Its blue of one dims the sheet by `clamp(1 * -0.5 + 1)`, a half in display encoding,
+        /// which is `DETAIL_GREY` decoded. A gloss texel of `(255, 128, 0)` multiplies what is read by itself.
+        TEST_F(RtxVisibilityTest, aBumpMapMovesAndDimsTheSheetAndAGlossMapScalesIt)
+        {
+            constexpr std::uint32_t size = 33;
+            constexpr std::size_t centre = centreValueOf(size);
+
+            constexpr std::array<std::uint8_t, 4> sBumpTexel{ 255, 0, 255, 255 };
+            constexpr std::array<std::uint8_t, 4> sGlossTexel{ 255, 128, 0, 255 };
+            TestTexture sheet;
+            paintFlat(sheet, 2, sQuadrants, "sheet");
+            sheet.mData.mSlot = 1;
+            const std::array<TextureData, 4> textures{ describeTexel(sGreyTexel, 0), sheet.mData,
+                describeTexel(sBumpTexel, 2), describeTexel(sGlossTexel, 3) };
+
+            const osg::Vec3f tint(1.0f, 0.5f, 0.25f);
+            const Shaders::VisibilityConstants camera = Testing::makeCamera(
+                osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f), 60.0f, size, size, 10000.0f);
+
+            struct Sheeted
+            {
+                bool mSheet = true;
+                Index mBump = sNoIndex;
+                osg::Vec4f mBumpMatrix{ 0.0f, 0.0f, 0.25f, 0.0f };
+                osg::Vec2f mBumpLuma{ -0.5f, 1.0f };
+                Index mGloss = sNoIndex;
+            };
+            const auto radianceUnder = [&](const Sheeted& sheeted) {
+                SceneDesc scene;
+                const Index mesh = scene.addMesh(
+                    MeshArrays{ .mPositions = sWallQuad, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
+                const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("grey.dds"));
+                const Index environment = scene.textures().add(VFS::Path::NormalizedView("sheet.dds"));
+                EXPECT_EQ(scene.textures().add(VFS::Path::NormalizedView("bump.dds")), 2u);
+                EXPECT_EQ(scene.textures().add(VFS::Path::NormalizedView("gloss.dds")), 3u);
+                const Index material = scene.addMaterial(Material{
+                    .mDiffuse = diffuse,
+                    .mEnvironment = sheeted.mSheet ? environment : sNoIndex,
+                    .mEnvironmentColour = tint,
+                    .mBump = sheeted.mBump,
+                    .mBumpMatrix = sheeted.mBumpMatrix,
+                    .mBumpLuma = sheeted.mBumpLuma,
+                    .mGloss = sheeted.mGloss,
+                });
+                scene.addInstance(MeshInstance{ .mMesh = mesh, .mMaterial = material });
+
+                const Frame frame = shoot(scene, textures, camera, size);
+                EXPECT_EQ(frame.mHits, size * size);
+                return osg::Vec3f(frame.at(centre), frame.at(centre + 1), frame.at(centre + 2));
+            };
+
+            // A wall with no sheet carries its maps through the same tuple, so what the sheet adds is the difference.
+            const osg::Vec3f bare = radianceUnder({ .mSheet = false, .mBump = 2, .mGloss = 3 });
+            const auto expectAdded = [&](const Sheeted& sheeted, const osg::Vec3f& read, const char* what) {
+                const osg::Vec3f added = radianceUnder(sheeted) - bare;
+                for (int channel = 0; channel < 3; ++channel)
+                {
+                    const float wanted = Shaders::SUNLIT_WHITE * read[channel] * tint[channel];
+                    EXPECT_NEAR(added[channel], wanted, 1e-4f * Shaders::SUNLIT_WHITE)
+                        << what << ", channel " << channel;
+                }
+            };
+
+            const osg::Vec3f middle(0.5f, 0.5f, 0.5f);
+            const osg::Vec3f secondRow(0.5f, 0.5f, 1.0f);
+            const osg::Vec3f gloss(1.0f, 128.0f / 255.0f, 0.0f);
+            expectAdded({}, middle, "no maps");
+            expectAdded({ .mBump = 2 }, secondRow * Shaders::DETAIL_GREY, "bumped");
+            expectAdded({ .mGloss = 3 }, osg::componentMultiply(middle, gloss), "glossed");
+            expectAdded({ .mBump = 2, .mGloss = 3 }, osg::componentMultiply(secondRow, gloss) * Shaders::DETAIL_GREY,
+                "bumped and glossed");
+
+            // The matrix's other column moves nothing a red-only texel reads, and the luma's bias alone sets the dim.
+            expectAdded(
+                { .mBump = 2, .mBumpMatrix = osg::Vec4f(0.0f, 0.25f, 0.0f, 0.25f), .mBumpLuma = { 0.0f, 0.5f } },
+                middle * Shaders::DETAIL_GREY, "the second column");
+        }
+
         /// **A texture is read past its edge as its file wraps it**: through the sampler the slot's wrap
         /// names, which its texel word carries (`TEXTURE_WRAP_SHIFT`).
         ///
@@ -1313,9 +1490,9 @@ namespace Rtx::Testing
             constexpr std::uint32_t size = 32;
             constexpr std::size_t centre = centreValueOf(size);
 
-            const TextureData grey = describeTexel(sGreyTexel, 0);
-            const TextureData red = describeTexel(sRedTexel, 1);
-            const std::array<TextureData, 2> textures{ grey, red };
+            constexpr std::array<std::uint8_t, 4> sGreenTexel{ 0, 255, 0, 255 };
+            const std::array<TextureData, 3> textures{ describeTexel(sGreyTexel, 0), describeTexel(sRedTexel, 1),
+                describeTexel(sGreenTexel, 2) };
 
             const Shaders::VisibilityConstants camera = wallCamera(
                 size, osg::Vec3f(2.0f, 2.0f, 2.0f), osg::Vec3f(0.0f, -100.0f, 0.0f), osg::Vec3f(0.0f, 0.0f, 0.0f));
@@ -1324,12 +1501,14 @@ namespace Rtx::Testing
             // through and a corner pixel does not.
             const std::array<osg::Vec3f, 4> held = uprightQuadAt(20.0f, -50.0f);
 
-            const auto build = [&](std::optional<float> alpha, InstanceClass sheetClass = InstanceClass::Static) {
+            const auto build = [&](std::optional<float> alpha, InstanceClass sheetClass = InstanceClass::Static,
+                                   bool decaled = false) {
                 SceneDesc scene;
                 const Index wall = scene.addMesh(
                     MeshArrays{ .mPositions = sWallQuad, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
                 const Index diffuse = scene.textures().add(VFS::Path::NormalizedView("grey.dds"));
                 const Index glow = scene.textures().add(VFS::Path::NormalizedView("red.dds"));
+                const Index decal = scene.textures().add(VFS::Path::NormalizedView("green.dds"));
                 scene.addInstance(
                     MeshInstance{ .mMesh = wall, .mMaterial = scene.addMaterial(Material{ .mDiffuse = diffuse }) });
 
@@ -1339,6 +1518,7 @@ namespace Rtx::Testing
                         MeshArrays{ .mPositions = held, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
                     const Index additive = scene.addMaterial(Material{
                         .mDiffuse = glow,
+                        .mDecal = decaled ? decal : sNoIndex,
                         .mOpacity = *alpha,
                         .mAlphaMode = AlphaMode::Blend,
                         .mBlend = BlendKind::Add,
@@ -1411,6 +1591,14 @@ namespace Rtx::Testing
             EXPECT_NEAR(half, 2.0f * quarter, 1.0e-3f) << "and twice as much alpha adds twice as much";
             EXPECT_NEAR(addedRedAt(0.0f), bare, 1.0e-4f) << "a sheet faded to nothing adds nothing";
 
+            // **A decal is laid into what a crossing paints as into what a surface shows** (`crossingOf`): green at
+            // alpha one over the red sheet, laid by the sheet's own alpha of a half as well, so the texel is half red
+            // and half green, and at that alpha each adds half what the red sheet alone added.
+            const Frame bareFrame = shoot(build(std::nullopt), textures, camera, size);
+            const Frame decaled = shoot(build(0.5f, InstanceClass::Static, true), textures, camera, size);
+            EXPECT_NEAR(decaled.at(centre) - bareFrame.at(centre), 0.5f * half, 1.0e-3f) << "the decal's red";
+            EXPECT_NEAR(decaled.at(centre + 1) - bareFrame.at(centre + 1), 0.5f * half, 1.0e-3f) << "the decal's green";
+
             // **A camera that does not draw the sheet's class adds nothing of it**, as a map tile
             // draws no effect: the same sheet as an effect's, under a camera of the statics alone,
             // and under one that draws effects too.
@@ -1455,6 +1643,18 @@ namespace Rtx::Testing
             const osg::Vec3f withSheet = sheetAdds(sheeted);
             EXPECT_NEAR(withSheet.x() - plain.x(), 0.5f * Shaders::SUNLIT_WHITE, 1e-5f) << "the sheet was not added";
             EXPECT_EQ(withSheet.y(), plain.y()) << "and nothing but its red";
+
+            // **And its bump and gloss maps, as a surface's sheet wears them** (`sheetMapsAt`): a green gloss map
+            // takes all of the red sheet, and a bump map's luma of a half in display encoding, `DETAIL_GREY` decoded,
+            // dims it to that. The sheet is one texel, so where the bump map moves it reads the same red.
+            Material glossed = sheeted;
+            glossed.mGloss = 2;
+            EXPECT_NEAR(sheetAdds(glossed).x(), plain.x(), 1e-5f) << "the gloss map left red";
+            Material bumped = sheeted;
+            bumped.mBump = 0;
+            bumped.mBumpLuma = osg::Vec2f(0.0f, 0.5f);
+            EXPECT_NEAR(sheetAdds(bumped).x() - plain.x(), 0.5f * Shaders::SUNLIT_WHITE * Shaders::DETAIL_GREY, 1e-5f)
+                << "the bump map's luma did not dim the sheet";
 
             // **Each sheet glows by its own texture**, as the rasterizer sums `texel * alpha * (light +
             // glow)` per crossing: a red sheet that glows white, laid on a grey one that does not,

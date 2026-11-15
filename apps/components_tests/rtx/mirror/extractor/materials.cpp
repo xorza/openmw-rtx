@@ -559,7 +559,7 @@ namespace Rtx::Testing
             describeStateSet(state, described);
             EXPECT_EQ(described.getTextureUse(SurfaceMap::Emissive).mWrap, TextureWrap::Clamp);
             EXPECT_EQ(described.getTexture(SurfaceMap::Emissive), sameFile.get());
-            EXPECT_EQ(described.mEmissiveUnit, 3);
+            EXPECT_EQ(described.getUnit(SurfaceMap::Emissive), 3);
 
             walk(*quad);
 
@@ -579,6 +579,63 @@ namespace Rtx::Testing
             EXPECT_EQ(mScene.textures().getRows()[material.mDiffuse].mWrap, TextureWrap::Repeat);
             EXPECT_EQ(mScene.textures().getRows()[material.mEmissive].mWrap, TextureWrap::Clamp);
             EXPECT_EQ(mScene.textures().getRows().size(), 4u);
+        }
+
+        /// **A mod's detail, decal, bump and gloss maps reach the material at their units, and nothing is refused**:
+        /// the bump and the gloss maps with the bump map's matrix and luma only beside an environment map, the one
+        /// thing they change, and each makes the material a mapped one, which the trace compiles their code for.
+        TEST_F(RtxSceneExtractorTest, aModsDetailDecalBumpAndGlossMapsReachTheMaterial)
+        {
+            const auto layered = [](bool environment) {
+                osg::ref_ptr<osg::Geometry> quad = makeQuad();
+                osg::StateSet& state = *quad->getOrCreateStateSet();
+                paint(state, "textures/tx_hlaalu_wall2_01.dds");
+                paint(state, "textures/tx_detail.dds", TextureRole::Detail);
+                paint(state, "textures/tx_decal.dds", TextureRole::Decal);
+                paint(state, "textures/tx_bump.dds", TextureRole::Bump);
+                paint(state, "textures/tx_gloss.dds", TextureRole::Gloss);
+                if (environment)
+                    paint(state, "textures/vfx_alt_envir.dds", TextureRole::Environment);
+                state.addUniform(new osg::Uniform("bumpMapMatrix", osg::Matrix2(0.5f, 0.0f, 0.0f, 0.5f)));
+                state.addUniform(new osg::Uniform("envMapLumaBias", osg::Vec2f(1.0f, 0.0f)));
+                return quad;
+            };
+
+            osg::ref_ptr<osg::Group> root = new osg::Group;
+            root->addChild(layered(false));
+            root->addChild(layered(true));
+            walk(*root);
+            const std::span<const Rtx::Material> rows = mScene.materials().getRows();
+            ASSERT_EQ(rows.size(), 2u);
+            const bool bareFirst = rows[0].mEnvironment == sNoIndex;
+            const Rtx::Material& bare = rows[bareFirst ? 0 : 1];
+            const Rtx::Material& shiny = rows[bareFirst ? 1 : 0];
+
+            EXPECT_NE(bare.mDetail, sNoIndex);
+            EXPECT_EQ(bare.mDetailUnit, 1);
+            EXPECT_NE(bare.mDecal, sNoIndex);
+            EXPECT_EQ(bare.mDecalUnit, 2);
+            EXPECT_EQ(bare.mBump, sNoIndex) << "a bump map with no environment map to move";
+            EXPECT_EQ(bare.mGloss, sNoIndex) << "a gloss map with no environment map to scale";
+            EXPECT_EQ(bare.mBumpMatrix, osg::Vec4f()) << "kept with the bump map alone";
+            EXPECT_TRUE(bare.getTraversed().mModMapped);
+            EXPECT_FALSE(bare.getTraversed().mMapped) << "a mod's maps are not the normal and specular maps' code";
+            EXPECT_EQ(mScene.refusals().count(Refused::Surface), 0u);
+
+            EXPECT_NE(shiny.mEnvironment, sNoIndex);
+            EXPECT_NE(shiny.mBump, sNoIndex);
+            EXPECT_EQ(shiny.mBumpUnit, 3);
+            EXPECT_NE(shiny.mGloss, sNoIndex);
+            EXPECT_EQ(shiny.mGlossUnit, 4);
+            EXPECT_EQ(shiny.mBumpMatrix, osg::Vec4f(0.5f, 0.0f, 0.0f, 0.5f));
+            EXPECT_EQ(shiny.mBumpLuma, osg::Vec2f(1.0f, 0.0f));
+            EXPECT_EQ(mScene.refusals().count(Refused::Surface), 0u);
+
+            // Each read as its encoding says: the bump map as data, the decal painted as the diffuse is.
+            EXPECT_EQ(mScene.textures().getRows()[shiny.mBump].mEncoding, TextureEncoding::Data);
+            EXPECT_EQ(mScene.textures().getRows()[shiny.mDecal].mEncoding, TextureEncoding::Painted);
+            EXPECT_EQ(mScene.textures().getRows()[shiny.mDetail].mEncoding, TextureEncoding::Colour);
+            EXPECT_EQ(mScene.textures().getRows()[shiny.mGloss].mEncoding, TextureEncoding::Colour);
         }
 
         /// **A model's own image is traced under its stamp, and an image with no name is refused.** The NIF loader

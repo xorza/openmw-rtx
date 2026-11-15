@@ -325,8 +325,6 @@ On `rtx-tour`. Whoever addresses an item deletes it.
   one moves.
 - **Only rooms a door leads into**, from outside or from another room (`readWorldMap`): a content's test cells,
   which nothing leads to and which have no lamps by design, failed `lights-placed` under the large mod list.
-- **A refused surface names the role it lost**: a detail, a decal, a gloss or a bump map, each its own
-  `UnreadState`, where one reason stood for four.
 - **A hitch is one finding a leg and the stretch it spent most in, placed at its worst**, with what that frame came
   to (`describeHitchKey`, `FindingPlaced::Worst`), decided 2026-11-14: a hitch's own figures in its detail made
   every hitch a finding of its own, and the first tours filled the table on land legs and reported no room. Read in

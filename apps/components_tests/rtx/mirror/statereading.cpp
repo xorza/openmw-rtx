@@ -1,5 +1,4 @@
 #include <array>
-#include <cstddef>
 #include <utility>
 
 #include <gtest/gtest.h>
@@ -146,23 +145,14 @@ namespace Rtx
             EXPECT_EQ(twoChannels.getTexture(SurfaceMap::Normal), height.get());
             EXPECT_FALSE(twoChannels.mNormalHeight);
 
-            // What stays declined is what no shipped file binds, and it is kept nowhere: a
-            // description that held it paid a reference for nothing.
+            // Every role the content can bind is a map the trace reads, a normal map with its height or without.
             EXPECT_EQ(mapOf(TextureRole::Normal), SurfaceMap::Normal);
             EXPECT_EQ(mapOf(TextureRole::NormalHeight), SurfaceMap::Normal);
             EXPECT_EQ(mapOf(TextureRole::Specular), SurfaceMap::Specular);
-            osg::ref_ptr<osg::Image> detail = new osg::Image;
-            osg::ref_ptr<osg::StateSet> onlyDetail = new osg::StateSet;
-            onlyDetail->setTextureAttributeAndModes(0, new osg::Texture2D(detail));
-            onlyDetail->setTextureAttribute(0, new SceneUtil::TextureType("detailMap"));
-            SurfaceDescription declined;
-            EXPECT_TRUE(describeStateSet(*onlyDetail, declined)) << "a detail map alone still says a surface";
-            EXPECT_EQ(detail->referenceCount(), 2) << "the image and its texture, and no description";
-            for (std::size_t map = 0; map < sSurfaceMapCount; ++map)
-                EXPECT_EQ(declined.getTexture(static_cast<SurfaceMap>(map)), nullptr) << map;
-            for (const TextureRole declinedRole :
-                { TextureRole::Detail, TextureRole::Decal, TextureRole::Gloss, TextureRole::Bump })
-                EXPECT_FALSE(mapOf(declinedRole).has_value()) << sTextureRoleNames.name(declinedRole);
+            EXPECT_EQ(mapOf(TextureRole::Detail), SurfaceMap::Detail);
+            EXPECT_EQ(mapOf(TextureRole::Decal), SurfaceMap::Decal);
+            EXPECT_EQ(mapOf(TextureRole::Gloss), SurfaceMap::Gloss);
+            EXPECT_EQ(mapOf(TextureRole::Bump), SurfaceMap::Bump);
         }
 
         /// The colours come off the material attribute, and the opacity off it too until an
@@ -502,22 +492,15 @@ namespace Rtx
                 bit(UnreadState::PolygonMode) | bit(UnreadState::Fog) | bit(UnreadState::Stencil)
                     | bit(UnreadState::CulledFront));
 
-            osg::ref_ptr<osg::StateSet> detailed = new osg::StateSet;
-            osg::ref_ptr<osg::Texture2D> detail = new osg::Texture2D(new osg::Image);
-            detailed->setTextureAttributeAndModes(0, detail);
-            detailed->setTextureAttribute(0, new SceneUtil::TextureType("detailMap"));
-            EXPECT_EQ(unreadOf(*detailed), bit(UnreadState::DetailMap));
-
-            // Each role the trace reads no map for is refused as its own, so a mod's surface says which it lost.
+            // The four maps a mod's surfaces bind beside the diffuse are read, and say nothing unread.
             osg::ref_ptr<osg::StateSet> layered = new osg::StateSet;
-            for (const auto& [unit, name] :
-                std::vector<std::pair<unsigned, const char*>>{ { 0, "decalMap" }, { 1, "glossMap" }, { 2, "bumpMap" } })
+            for (const auto& [unit, name] : std::vector<std::pair<unsigned, const char*>>{
+                     { 0, "detailMap" }, { 1, "decalMap" }, { 2, "glossMap" }, { 3, "bumpMap" } })
             {
                 layered->setTextureAttributeAndModes(unit, new osg::Texture2D(new osg::Image));
                 layered->setTextureAttribute(unit, new SceneUtil::TextureType(name));
             }
-            EXPECT_EQ(unreadOf(*layered),
-                bit(UnreadState::DecalMap) | bit(UnreadState::GlossMap) | bit(UnreadState::BumpMap));
+            EXPECT_EQ(unreadOf(*layered), 0u);
 
             // Folded: a parent's lines, and a child that fills again.
             osg::ref_ptr<osg::StateSet> filled = new osg::StateSet;
@@ -534,8 +517,8 @@ namespace Rtx
                 EXPECT_FALSE(whyUnread(state).empty());
         }
 
-        /// The environment map's tint, the ambient the game overrides for a magic effect, and the
-        /// unit a dark map is bound at are all read where the loader and the game put them.
+        /// The environment map's tint, the ambient the game overrides for a magic effect, the unit a dark map is
+        /// bound at, and the bump map's matrix and luma are all read where the loader and the game put them.
         TEST(RtxStateReadingTest, theEnvironmentTintTheAmbientOverrideAndTheDarkUnitAreRead)
         {
             osg::ref_ptr<osg::Image> sheet = new osg::Image;
@@ -554,9 +537,38 @@ namespace Rtx
             EXPECT_EQ(material.getTexture(SurfaceMap::Environment), sheet.get());
             EXPECT_EQ(material.mEnvironmentColour, (EncodedColour{ 0.25f, 0.5f, 1.0f }));
             EXPECT_EQ(material.getTexture(SurfaceMap::Dark), dark.get());
-            EXPECT_EQ(material.mDarkUnit, 1);
+            EXPECT_EQ(material.getUnit(SurfaceMap::Dark), 1);
             ASSERT_TRUE(material.mAmbientOverride.has_value());
             EXPECT_EQ(*material.mAmbientOverride, (EncodedColour{ 1.0f, 1.0f, 1.0f }));
+
+            // The matrix as `NifOsg` builds it from the `NiTexturingProperty`'s four numbers, entries row by row, and
+            // the luma pair as it is handed over; each map at the unit it is bound at.
+            osg::ref_ptr<osg::StateSet> bumped = new osg::StateSet;
+            for (const auto& [unit, name] : std::vector<std::pair<unsigned, const char*>>{
+                     { 3, "detailMap" }, { 4, "decalMap" }, { 5, "bumpMap" }, { 6, "glossMap" } })
+            {
+                bumped->setTextureAttributeAndModes(unit, new osg::Texture2D(new osg::Image));
+                bumped->setTextureAttribute(unit, new SceneUtil::TextureType(name));
+            }
+            bumped->addUniform(new osg::Uniform("bumpMapMatrix", osg::Matrix2(0.5f, -0.25f, 0.125f, 2.0f)));
+            bumped->addUniform(new osg::Uniform("envMapLumaBias", osg::Vec2f(0.75f, 0.0625f)));
+            SurfaceDescription bump;
+            EXPECT_TRUE(describeStateSet(*bumped, bump));
+            EXPECT_EQ(bump.getUnit(SurfaceMap::Detail), 3);
+            EXPECT_EQ(bump.getUnit(SurfaceMap::Decal), 4);
+            EXPECT_EQ(bump.getUnit(SurfaceMap::Bump), 5);
+            EXPECT_EQ(bump.getUnit(SurfaceMap::Gloss), 6);
+            EXPECT_EQ(bump.mBumpMatrix, osg::Vec4f(0.5f, -0.25f, 0.125f, 2.0f));
+            EXPECT_EQ(bump.mBumpLuma, osg::Vec2f(0.75f, 0.0625f));
+            for (const SurfaceMap map : { SurfaceMap::Detail, SurfaceMap::Decal, SurfaceMap::Bump, SurfaceMap::Gloss })
+                EXPECT_NE(bump.getTexture(map), nullptr) << static_cast<int>(map);
+
+            // Encoded as each is read: the detail and the gloss maps as colour, the decal as the diffuse it lies on,
+            // painted where the diffuse is, and the bump map as data.
+            EXPECT_EQ(bump.encodingOf(SurfaceMap::Detail, SpecularLayout::MetalRoughness), TextureEncoding::Colour);
+            EXPECT_EQ(bump.encodingOf(SurfaceMap::Gloss, SpecularLayout::MetalRoughness), TextureEncoding::Colour);
+            EXPECT_EQ(bump.encodingOf(SurfaceMap::Decal, SpecularLayout::MetalRoughness), TextureEncoding::Painted);
+            EXPECT_EQ(bump.encodingOf(SurfaceMap::Bump, SpecularLayout::MetalRoughness), TextureEncoding::Data);
 
             // A state set with neither leaves both where they were, as everything else does.
             osg::ref_ptr<osg::StateSet> plain = new osg::StateSet;

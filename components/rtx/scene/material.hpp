@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <optional>
 
+#include <osg/Vec2f>
 #include <osg/Vec3f>
 #include <osg/Vec4f>
 
@@ -101,6 +102,25 @@ namespace Rtx
         /// content has none.
         Index mNormal = sNoIndex;
         Index mSpecular = sNoIndex;
+
+        /// The two maps `objects.frag` lays into the colour past the dark map, each at the unit the content
+        /// bound it at: a detail map the albedo is multiplied by twice over, so its grey leaves it as it was,
+        /// and a decal laid over the albedo by its own alpha. No shipped file binds either; a mod's surfaces do.
+        Index mDetail = sNoIndex;
+        std::uint8_t mDetailUnit = 0;
+        Index mDecal = sNoIndex;
+        std::uint8_t mDecalUnit = 0;
+
+        /// The two maps that change the environment map, kept only where there is one, since the rasterizer
+        /// reads them nowhere else: a bump map that moves where the sheet is read by its red and green through
+        /// `mBumpMatrix` (its four entries row by row) and dims it by its blue through `mBumpLuma`
+        /// (`clamp(b * x + y)`), and a gloss map the sheet is multiplied by.
+        Index mBump = sNoIndex;
+        std::uint8_t mBumpUnit = 0;
+        osg::Vec4f mBumpMatrix{ 0.0f, 0.0f, 0.0f, 0.0f };
+        osg::Vec2f mBumpLuma{ 0.0f, 0.0f };
+        Index mGloss = sNoIndex;
+        std::uint8_t mGlossUnit = 0;
 
         /// Where the normal map's alpha is a height the texture coordinates are shifted by toward the
         /// eye, as the rasterizer's `parallax.glsl` shifts them (`Shaders::MATERIAL_PARALLAX`), the
@@ -260,6 +280,10 @@ namespace Rtx
             visit(mDark);
             visit(mNormal);
             visit(mSpecular);
+            visit(mDetail);
+            visit(mDecal);
+            visit(mBump);
+            visit(mGloss);
         }
 
         /// Whether traversal has to stop and ask this material whether a hit is a hole — the one
@@ -353,6 +377,12 @@ namespace Rtx
             /// (`InstanceCounts::mMapped`).
             bool mMapped = false;
 
+            /// Whether the material wears a detail, a decal, a bump or a gloss map: what the trace compiles their
+            /// reads in for, and only for a scene that places such a material (`InstanceCounts::mModMapped`). Apart
+            /// from `mMapped`, so a scene whose clutter wears a detail map does not run the normal and specular maps'
+            /// kernels for it.
+            bool mModMapped = false;
+
             /// `mDarkBelowSolid`: what the trace compiles a see-through candidate's read of the dark
             /// map's alpha in for, and only for a scene that places such a material
             /// (`InstanceCounts::mDarkAlpha`).
@@ -388,6 +418,7 @@ namespace Rtx
                 .mAdditive = isAdditive(),
                 .mTwoSided = mTwoSided,
                 .mMapped = mNormal != sNoIndex || mSpecular != sNoIndex || mLayersMapped,
+                .mModMapped = mDetail != sNoIndex || mDecal != sNoIndex || mBump != sNoIndex || mGloss != sNoIndex,
                 .mDarkAlpha = mDarkBelowSolid,
                 .mRelief = mRelief.has_value() && mRelief->spans(),
             };

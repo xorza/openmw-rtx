@@ -76,7 +76,8 @@ namespace RtxTool
         void forEachMaterialField(const Rtx::Material& material, Texture texture, Layers layers, Value value)
         {
             const auto& [kind, diffuse, emissive, emissiveUnit, environment, environmentColour, dark, darkUnit, normal,
-                specular, relief, diffuseColour, ambientColour, emissiveColour, opacity, alphaTest, alphaMode, blend,
+                specular, detail, detailUnit, decal, decalUnit, bump, bumpUnit, bumpMatrix, bumpLuma, gloss, glossUnit,
+                relief, diffuseColour, ambientColour, emissiveColour, opacity, alphaTest, alphaMode, blend,
                 vertexColour, twoSided, lampLit, textureTransform, run, flatten, layersMapped, animated, neverSolid,
                 darkBelowSolid, diffuseMean] = material;
 
@@ -114,6 +115,34 @@ namespace RtxTool
                 value(std::uint8_t{ 7 });
             if (darkBelowSolid)
                 value(std::uint8_t{ 8 });
+
+            // The maps a mod's surfaces lay in beside the diffuse, each behind its own tag, as the companions are.
+            if (detail != Rtx::sNoIndex)
+            {
+                value(std::uint8_t{ 9 });
+                texture(detail);
+                value(detailUnit);
+            }
+            if (decal != Rtx::sNoIndex)
+            {
+                value(std::uint8_t{ 10 });
+                texture(decal);
+                value(decalUnit);
+            }
+            if (bump != Rtx::sNoIndex)
+            {
+                value(std::uint8_t{ 11 });
+                texture(bump);
+                value(bumpUnit);
+                value(bumpMatrix);
+                value(bumpLuma);
+            }
+            if (gloss != Rtx::sNoIndex)
+            {
+                value(std::uint8_t{ 12 });
+                texture(gloss);
+                value(glossUnit);
+            }
 
             layers(run);
 

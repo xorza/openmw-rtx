@@ -425,24 +425,17 @@ namespace Rtx
 
             said = true;
 
-            // A role the trace declines is still a role — it said the surface is one — and is
-            // kept nowhere, so no lock is worth taking for it.
-            const std::optional<SurfaceMap> map = mapOf(*role);
-            if (const std::optional<UnreadState> unread = unreadOf(*role))
-                material.markUnread(*unread, true);
-            if (!map.has_value() || !locks.takesTexture(*role, pair->second))
+            const SurfaceMap map = mapOf(*role);
+            if (!locks.takesTexture(*role, pair->second))
                 continue;
 
-            material.setTexture(*map, texture);
-            if (*map == SurfaceMap::Diffuse)
+            material.setTexture(map, texture);
+            material.mUnits[static_cast<std::size_t>(map)] = static_cast<std::uint8_t>(unit);
+            if (map == SurfaceMap::Diffuse)
                 diffuseUnit = unit;
-            if (*map == SurfaceMap::Normal)
+            if (map == SurfaceMap::Normal)
                 material.mNormalHeight = *role == TextureRole::NormalHeight && texture->getImage(0) != nullptr
                     && carriesHeight(*texture->getImage(0));
-            if (*map == SurfaceMap::Dark)
-                material.mDarkUnit = static_cast<std::uint8_t>(unit);
-            if (*map == SurfaceMap::Emissive)
-                material.mEmissiveUnit = static_cast<std::uint8_t>(unit);
         }
 
         // **The alpha test, its reference from wherever the visitor left it.** `Shader::ShaderVisitor` replaces the
@@ -508,6 +501,18 @@ namespace Rtx
                 if (tint->first->get(colour))
                     material.mEnvironmentColour = stated(colour);
             }
+
+        // What `NifOsg` hands the rasterizer beside a bump map: how it moves the environment map, and how it dims it.
+        if (const osg::StateSet::RefUniformPair* matrix = findUniform(stateSet, "bumpMapMatrix"))
+            if (SurfaceLocks::takes(locks.mBumpMatrix, matrix->second))
+            {
+                osg::Matrix2 read;
+                if (matrix->first->get(read))
+                    material.mBumpMatrix = osg::Vec4f(read(0, 0), read(0, 1), read(1, 0), read(1, 1));
+            }
+        if (const osg::StateSet::RefUniformPair* luma = findUniform(stateSet, "envMapLumaBias"))
+            if (SurfaceLocks::takes(locks.mBumpLuma, luma->second))
+                luma->first->get(material.mBumpLuma);
 
         // The ambient the game overrides for a magic effect — `SceneUtil::configureSunAmbientOverride`.
         if (const osg::StateSet::RefUniformPair* ambient = findUniform(stateSet, "sun.ambient"))

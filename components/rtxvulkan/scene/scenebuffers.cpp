@@ -109,6 +109,24 @@ namespace Rtx
             };
         }
 
+        /// The row beside a material's that holds the maps a mod's surfaces bind past the diffuse
+        /// (`Shaders::GpuMaterialMaps`).
+        Shaders::GpuMaterialMaps toGpuMaps(const Material& material)
+        {
+            return Shaders::GpuMaterialMaps{
+                .mBumpMatrix = material.mBumpMatrix,
+                .mBumpLuma = material.mBumpLuma,
+                .mDetail = material.mDetail,
+                .mDecal = material.mDecal,
+                .mBump = material.mBump,
+                .mGloss = material.mGloss,
+                .mUnits = ((material.mDetailUnit & Shaders::MATERIAL_UNIT_MASK) << Shaders::MAP_UNIT_DETAIL_SHIFT)
+                    | ((material.mDecalUnit & Shaders::MATERIAL_UNIT_MASK) << Shaders::MAP_UNIT_DECAL_SHIFT)
+                    | ((material.mBumpUnit & Shaders::MATERIAL_UNIT_MASK) << Shaders::MAP_UNIT_BUMP_SHIFT)
+                    | ((material.mGlossUnit & Shaders::MATERIAL_UNIT_MASK) << Shaders::MAP_UNIT_GLOSS_SHIFT),
+            };
+        }
+
         /// A drawable with no state set has no material, and `sNoIndex` is not somewhere the shader
         /// can be allowed to look. One untextured row costs less than a branch per hit, and every
         /// instance that had nothing points at it — `Shaders::MATERIAL_ROW_UNTEXTURED`.
@@ -154,6 +172,8 @@ namespace Rtx
         mMeshRows.reserve(room.mMeshes);
         mMaterialTable.open(device, slots, sTableUsage, "materials");
         mMaterialTable.reserve(room.mMaterials);
+        mMaterialMapTable.open(device, slots, sTableUsage, "material maps");
+        mMaterialMapTable.reserve(room.mMaterials);
         mNormals.open(device, 1, sTableUsage, "normals");
         mTangents.open(device, 1, sTableUsage, "tangents");
 
@@ -295,18 +315,26 @@ namespace Rtx
         // so a table that grows only appends.
         const bool made = mMaterialTable.size() == 0;
         mMaterialTable.grow(materials.size() + Shaders::MATERIAL_ROW_FIRST);
+        mMaterialMapTable.grow(materials.size() + Shaders::MATERIAL_ROW_FIRST);
 
+        // Both rows of a material at once, so the two tables never disagree about one.
+        const auto write = [&](const Index row, const Material& material) {
+            mMaterialTable.write(row) = toGpu(material);
+            mMaterialMapTable.write(row) = toGpuMaps(material);
+        };
         if (made)
         {
             mMaterialTable.write(Shaders::MATERIAL_ROW_UNTEXTURED) = sentinelMaterial();
+            mMaterialMapTable.write(Shaders::MATERIAL_ROW_UNTEXTURED) = toGpuMaps(Material{});
             for (std::size_t at = 0; at < materials.size(); ++at)
-                mMaterialTable.write(static_cast<Index>(at + Shaders::MATERIAL_ROW_FIRST)) = toGpu(materials[at]);
+                write(static_cast<Index>(at + Shaders::MATERIAL_ROW_FIRST), materials[at]);
         }
         else
             for (const Index at : scene.materials().getWritten())
-                mMaterialTable.write(at + Shaders::MATERIAL_ROW_FIRST) = toGpu(materials[at]);
+                write(at + Shaders::MATERIAL_ROW_FIRST, materials[at]);
 
         mMaterialTable.sync(slot, uploads);
+        mMaterialMapTable.sync(slot, uploads);
 
         assert(mStagedRuns == scene.materials().getRunRevision()
             && "layer or mask runs arrived without an extend to stage them");
@@ -472,6 +500,7 @@ namespace Rtx
     {
         mInstanceTable.finishReads(slot);
         mMaterialTable.finishReads(slot);
+        mMaterialMapTable.finishReads(slot);
 
         const Tables& tables = mTables.at(slot);
         tables.mLights.get().waitIdle("a trace still reading a copy's lights");
@@ -499,6 +528,7 @@ namespace Rtx
         into.mMeshes = mMeshTable.get().addressFor();
         into.mInstances = mInstanceTable.addressFor(slot);
         into.mMaterials = mMaterialTable.addressFor(slot);
+        into.mMaterialMaps = mMaterialMapTable.addressFor(slot);
         into.mLayers = mLayers.get().addressFor();
         into.mMasks = mMasks.get().addressFor();
         into.mLights = tables.mLights.get().addressFor();
@@ -529,7 +559,8 @@ namespace Rtx
         // (`SceneAcceleration::getIndexBytes`).
         VkDeviceSize total = mTexCoords.getBytes() + mSecondTexCoords.getBytes() + mColours.getBytes()
             + mPositions.getBytes() + mNormals.getBytes() + mTangents.getBytes() + mMeshTable.get().getSize()
-            + mLayers.get().getSize() + mMasks.get().getSize() + mInstanceTable.getBytes() + mMaterialTable.getBytes();
+            + mLayers.get().getSize() + mMasks.get().getSize() + mInstanceTable.getBytes() + mMaterialTable.getBytes()
+            + mMaterialMapTable.getBytes();
         for (const Tables& tables : mTables.live())
             total += tables.getBytes();
 

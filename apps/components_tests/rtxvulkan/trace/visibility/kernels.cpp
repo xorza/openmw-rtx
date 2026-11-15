@@ -99,9 +99,9 @@ namespace Rtx
         /// the compile is over. What a frame draws with is the full tuple's nine (the trace, the water's walk,
         /// its direct light, media, layers, bounce, the bounce's landing, the ambient's stage and the froxels'
         /// launch) beside the 6 kernels no tuple changes (the air's two, the sprites' three and the lamp lists');
-        /// every other tuple compiles behind them, a tuple a step, 47 of them: the 32 of the maps, the sky and a
-        /// dark map's alpha, and the 16 with the maps that march a relief beside them, but the full tuple, one of
-        /// those.
+        /// every other tuple compiles behind them, a tuple a step, 95 of them: the 64 of the maps, a mod's maps, the
+        /// sky and a dark map's alpha, and the 32 with the maps that march a relief beside them, but the full tuple,
+        /// one of those.
         ///
         /// Only the full tuple is watched as it compiles, the rest read off the suite's renderer, which made
         /// every tuple before any test ran (`Testing::getRenderer` waits for `KernelSet::Every`): every kernel
@@ -140,8 +140,8 @@ namespace Rtx
             EXPECT_EQ(first.mCount, drawing);
             const JobProgress every
                 = Testing::getRenderer().awaitKernels(KernelSet::Every, std::chrono::milliseconds::zero());
-            EXPECT_EQ(every.mMade, drawing + 47u);
-            EXPECT_EQ(every.mCount, drawing + 47u);
+            EXPECT_EQ(every.mMade, drawing + 95u);
+            EXPECT_EQ(every.mCount, drawing + 95u);
         }
 
         /// No kernel spills past its ceiling, where the driver says (`PipelineReport::compiledUseOf`), in any tuple
@@ -181,6 +181,7 @@ namespace Rtx
                 std::optional<bool> mMaps = std::nullopt;
                 std::optional<bool> mDarkAlpha = std::nullopt;
                 std::optional<bool> mRelief = std::nullopt;
+                std::optional<bool> mModMaps = std::nullopt;
 
                 bool holds(const VisibilityVariant& tuple) const
                 {
@@ -189,12 +190,12 @@ namespace Rtx
                     };
                     return agrees(mSun, tuple.mSun) && agrees(mMoons, tuple.mMoons) && agrees(mSea, tuple.mSea)
                         && agrees(mMaps, tuple.mMaps) && agrees(mDarkAlpha, tuple.mDarkAlpha)
-                        && agrees(mRelief, tuple.mRelief);
+                        && agrees(mRelief, tuple.mRelief) && agrees(mModMaps, tuple.mModMaps);
                 }
 
                 std::ptrdiff_t named() const
                 {
-                    const std::array constants{ mSun, mMoons, mSea, mMaps, mDarkAlpha, mRelief };
+                    const std::array constants{ mSun, mMoons, mSea, mMaps, mDarkAlpha, mRelief, mModMaps };
                     return std::ranges::count_if(
                         constants, [](const std::optional<bool> constant) { return constant.has_value(); });
                 }
@@ -325,6 +326,7 @@ namespace Rtx
                     .mMaps = (bits & 8u) != 0,
                     .mDarkAlpha = (bits & 16u) != 0,
                     .mRelief = (bits & 32u) != 0,
+                    .mModMaps = (bits & 64u) != 0,
                 };
                 tuples[tuple.index()] = tuple;
             }
@@ -449,7 +451,9 @@ namespace Rtx
         /// **Tuples a stage reads alike share its pipeline** (`VisibilityPass::canonicalOf`): the unbounced
         /// stage reads no sun and no moons, so a tuple without either runs the full tuple's pipeline, and it
         /// reads the sea, so a tuple without one runs a pipeline of its own; the eye's stage reads every
-        /// constant, so no two of its tuples share one. Of the 324 stage pipelines listed, 80 are shared.
+        /// constant, so no two of its tuples share one. Of the 648 stage pipelines listed, 164 are shared: the 80 the
+        /// sky and the maps share, under either value of a mod's maps' constant, and the media's four, which read no
+        /// mod's maps either.
         TEST_F(RtxVisibilityKernelsTest, tuplesAStageReadsAlikeShareItsPipeline)
         {
             const std::vector<VisibilityPass::NamedKernel>& kernels = specialized().mKernels;
@@ -474,7 +478,7 @@ namespace Rtx
             std::ranges::sort(distinct);
             const auto [first, last] = std::ranges::unique(distinct);
             distinct.erase(first, last);
-            EXPECT_EQ(kernels.size() - distinct.size(), 80u) << "the stage pipelines shared tuples save";
+            EXPECT_EQ(kernels.size() - distinct.size(), 164u) << "the stage pipelines shared tuples save";
         }
 
         /// A kernel that cannot be made is thrown to every ask, the bounded one included, and not only the

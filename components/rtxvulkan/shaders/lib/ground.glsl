@@ -23,6 +23,11 @@ layout(buffer_reference, scalar, buffer_reference_align = TABLE_ALIGN_MATERIALS)
     GpuMaterial at[];
 };
 
+layout(buffer_reference, scalar, buffer_reference_align = TABLE_ALIGN_MATERIALS) readonly buffer MaterialMapTable
+{
+    GpuMaterialMaps at[];
+};
+
 layout(buffer_reference, scalar, buffer_reference_align = TABLE_ALIGN_LAYERS) readonly buffer LayerTable
 {
     GpuLayer at[];

@@ -554,13 +554,29 @@ namespace Rtx
         };
         material.mDiffuse = bound(SurfaceMap::Diffuse);
         material.mEmissive = bound(SurfaceMap::Emissive);
-        material.mEmissiveUnit = described->mEmissiveUnit;
+        material.mEmissiveUnit = described->getUnit(SurfaceMap::Emissive);
         material.mEnvironment = bound(SurfaceMap::Environment);
         material.mEnvironmentColour = decodeColour(described->mEnvironmentColour);
         material.mDark = bound(SurfaceMap::Dark);
-        material.mDarkUnit = described->mDarkUnit;
+        material.mDarkUnit = described->getUnit(SurfaceMap::Dark);
         material.mNormal = bound(SurfaceMap::Normal);
         material.mSpecular = bound(SurfaceMap::Specular);
+        material.mDetail = bound(SurfaceMap::Detail);
+        material.mDetailUnit = described->getUnit(SurfaceMap::Detail);
+        material.mDecal = bound(SurfaceMap::Decal);
+        material.mDecalUnit = described->getUnit(SurfaceMap::Decal);
+
+        // **The bump and the gloss maps only beside an environment map**, the one thing they change: a texture
+        // held for a surface that never reads it is room taken for nothing.
+        if (material.mEnvironment != sNoIndex)
+        {
+            material.mBump = bound(SurfaceMap::Bump);
+            material.mBumpUnit = described->getUnit(SurfaceMap::Bump);
+            material.mBumpMatrix = described->mBumpMatrix;
+            material.mBumpLuma = described->mBumpLuma;
+            material.mGloss = bound(SurfaceMap::Gloss);
+            material.mGlossUnit = described->getUnit(SurfaceMap::Gloss);
+        }
 
         material.mAlphaTest = described->mAlphaTest;
         material.mAlphaMode = described->mAlphaMode;

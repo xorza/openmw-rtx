@@ -365,6 +365,18 @@ namespace Rtx::Shaders
     const uint MATERIAL_EMISSIVE_UNIT_SHIFT = 12u;
     const uint MATERIAL_UNIT_MASK = 0x0Fu;
 
+    /// Which texture unit the detail, decal, bump and gloss maps are bound at, `MATERIAL_UNIT_MASK` bits each
+    /// in these places of `GpuMaterialMaps::mUnits`.
+    const uint MAP_UNIT_DETAIL_SHIFT = 0u;
+    const uint MAP_UNIT_DECAL_SHIFT = 4u;
+    const uint MAP_UNIT_BUMP_SHIFT = 8u;
+    const uint MAP_UNIT_GLOSS_SHIFT = 12u;
+
+    /// The linear light of the grey a detail map stores where it changes nothing, `0.5` decoded: `objects.frag`
+    /// multiplies the colour by twice the map in display encoding, so the grey is one; decoded, the map is
+    /// taken over this.
+    const float DETAIL_GREY = 0.21404114f;
+
     /// Which sides of the alpha test's reference a texel passes on, one bit each: OpenGL's comparison
     /// functions are `GL_NEVER` plus a set of these (`GL_LESS` below, `GL_GEQUAL` at and above). In
     /// these bits of `mFlags`, all three where the surface has no mask.
@@ -705,6 +717,10 @@ namespace Rtx::Shaders
         /// (`lamplists.comp`). The camera's and not the scene's, as the sprite bin's are.
         uint64 mLampLists;
         uint64 mLampListsOut;
+
+        /// Beside `mMaterials`, a row at each of its indices (`GpuMaterialMaps`). Last, so no address the frame
+        /// read before moved.
+        uint64 mMaterialMaps;
     };
 
     /// A ground layer whose diffuse is an authored albedo with the perceptual roughness in its alpha
@@ -1002,6 +1018,36 @@ namespace Rtx::Shaders
         uint mRelief RTX_ZERO;
     };
 
+    /// **The maps a mod's surfaces bind beside the diffuse, a row of their own beside each `GpuMaterial`** at the
+    /// same index: read only where `HAS_MOD_MAPS` compiles them in, so the material row every hit reads keeps its 112
+    /// bytes, and a scene with none of them reads what it read before.
+    struct GpuMaterialMaps
+    {
+        /// The bump map's matrix, its entries row by row: its red and green move the sheet's coordinates by
+        /// `(dot(rg, xy), dot(rg, zw))`, as `objects.frag` multiplies them by `bumpMapMatrix`; and its luma, which
+        /// dims the sheet by `clamp(b * x + y, 0, 1)`. First, so the vector stands on the row's sixteen.
+        vec4 mBumpMatrix;
+        vec2 mBumpLuma;
+
+        /// The maps `objects.frag` lays into the colour past the dark map, or `NO_TEXTURE`: a detail map the
+        /// albedo is multiplied by twice over (`DETAIL_GREY`), and a decal laid over it by its own alpha —
+        /// `Rtx::Material::mDetail`.
+        uint mDetail;
+        uint mDecal;
+
+        /// The maps that change the environment map, or `NO_TEXTURE`, only beside one: a bump map that moves
+        /// where `GpuMaterial::mEnvironment` is read and dims it, and a gloss map it is multiplied by —
+        /// `Rtx::Material::mBump`.
+        uint mBump;
+        uint mGloss;
+
+        /// The units the four maps above are bound at (`MAP_UNIT_DETAIL_SHIFT`).
+        uint mUnits RTX_ZERO;
+
+        /// To 48 bytes, so every row starts on sixteen as the material row does.
+        uint mPadding RTX_ZERO;
+    };
+
     // **The host's layout has to be the one the device reads**: this side writes these buffers, and a
     // padding byte nobody asked for gives a plausible wrong image rather than an error. GLSL is
     // pinned separately, by the `--scalar-block-layout` the build hands the validator.
@@ -1016,11 +1062,12 @@ namespace Rtx::Shaders
     static_assert(sizeof(GpuLightCell) == 16, "GpuLightCell must be scalar-packed on every side");
     static_assert(sizeof(GpuLayer) == 64, "GpuLayer must be scalar-packed on every side");
     static_assert(sizeof(GpuMaterial) == 112, "GpuMaterial must be scalar-packed on every side");
+    static_assert(sizeof(GpuMaterialMaps) == 48, "GpuMaterialMaps must be scalar-packed on every side");
     static_assert(sizeof(GpuSprite) == 56, "GpuSprite must be scalar-packed on every side");
     static_assert(sizeof(GpuEmitter) == 40, "GpuEmitter must be scalar-packed on every side");
     static_assert(sizeof(GpuEmitterFrame) == 16, "GpuEmitterFrame must be scalar-packed on every side");
     static_assert(sizeof(GpuPresence) == 24, "GpuPresence must be scalar-packed on every side");
-    static_assert(sizeof(GpuTables) == 216, "GpuTables must be scalar-packed on every side");
+    static_assert(sizeof(GpuTables) == 224, "GpuTables must be scalar-packed on every side");
     static_assert(LAMP_LIST_ROWS % 2u == 0u, "a lamp list's rows stand two to a word");
 
 #endif

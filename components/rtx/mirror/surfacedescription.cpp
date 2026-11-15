@@ -36,14 +36,6 @@ namespace Rtx
     {
         switch (state)
         {
-            case UnreadState::DetailMap:
-                return "a detail map is not read";
-            case UnreadState::DecalMap:
-                return "a decal map is not read";
-            case UnreadState::GlossMap:
-                return "a gloss map is not read";
-            case UnreadState::BumpMap:
-                return "a bump map is not read";
             case UnreadState::BlendPair:
                 return "a blend other than the shipped four is drawn as the nearest of them";
             case UnreadState::BlendEquation:
@@ -82,6 +74,16 @@ namespace Rtx
                 if (classic)
                     return TextureEncoding::ConvertedColour;
                 return getTexture(SurfaceMap::Specular) != nullptr ? TextureEncoding::Colour : TextureEncoding::Painted;
+
+            // **A decal is laid over the diffuse, so it is the diffuse's kind of colour**: delit where the diffuse
+            // is painted, as it was lit with it. Never converted, which only a pair of the diffuse and its
+            // `_spec` is.
+            case SurfaceMap::Decal:
+                return getTexture(SurfaceMap::Specular) != nullptr ? TextureEncoding::Colour : TextureEncoding::Painted;
+
+            // Offsets and a luma, read as they are stored, as the rasterizer's sampler reads them.
+            case SurfaceMap::Bump:
+                return TextureEncoding::Data;
             default:
                 return TextureEncoding::Colour;
         }
