@@ -29,10 +29,13 @@ permissions: {}
 env:
   CI_CACHE: ${{ format('{0}', inputs.cache) != 'false' }}
 
-# A run by hand stands alone: a push must neither cancel it nor be cancelled by it.
+# A run by hand stands alone: a push must neither cancel it nor be cancelled by it. A branch's push cancels the
+# run before it, which nobody reads once it is superseded; master's runs each finish, as each saves the caches every
+# branch restores, and the lint's store is written at its run's end alone: a master cancelled by every push lints
+# every branch from nothing. Waiting runs still fold into the newest.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}${{ github.event_name == 'workflow_dispatch' && format('-{0}', github.run_id) || '' }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
 
 jobs:
   checks:
