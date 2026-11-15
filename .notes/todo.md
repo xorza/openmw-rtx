@@ -3,7 +3,6 @@
 ## Code
 
 - Remove the visibility limit.
-- Contribution rules.
 - Custom map notes plugin.
 - Audit macros.
 - `#if OPENMW_FFMPEG_5_OR_GREATER`.
