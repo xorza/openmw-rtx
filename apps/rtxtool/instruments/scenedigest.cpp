@@ -69,7 +69,7 @@ namespace RtxTool
 
         /// Hands every field of `material` to one of three callables. One list serves both digests, which spell a
         /// texture and a layer run differently: `digestParts` takes the slot and the run's offset (which table a
-        /// material points into is what a layout is), `digestScene` the file named and the run's length alone. A
+        /// material points into is what a layout is), `digestContent` the file named and the run's length alone. A
         /// field added to `Material` and not named here does not compile, which the two hand-kept lists it replaced
         /// did not guarantee; `sCounters` in `extractionstats.cpp` argues the same.
         template <class Texture, class Layers, class Value>
@@ -351,60 +351,108 @@ namespace RtxTool
             return triangles;
         }
 
-        void addMesh(Misc::HashState& digest, const Rtx::SceneDesc& scene, const Rtx::Index index)
+        /// A mesh's shape: the multiset of its triangles, and what deforms it where something does: its deformer's
+        /// kind, rows, runs, influences and morph offsets, which the device poses it by.
+        Misc::DigestWords shapeOf(const Rtx::SceneDesc& scene, const Rtx::MeshRange& mesh)
         {
-            const Rtx::MeshRange& mesh = scene.meshes().getRows()[index];
-            digest.add(digestTriangles(scene, mesh).getWords());
-            digest.add(scene.deformers().kindOf(mesh));
+            Misc::HashState shape;
+            shape.add(digestTriangles(scene, mesh).getWords());
+            const Rtx::DeformerTable& deformers = scene.deformers();
+            shape.add(deformers.kindOf(mesh));
+            if (mesh.deforms())
+            {
+                const Rtx::Deformer& deformer = deformers.getRows()[mesh.mDeformer];
+                shape.add(deformer.mRows);
+                shape.add(deformer.mRuns.in(deformers.getRuns()));
+                shape.add(deformer.mInfluences.in(deformers.getInfluences()));
+                shape.add(deformer.mOffsets.in(deformers.getMorphOffsets()));
+            }
+            return shape.getWords();
         }
     }
 
-    Misc::DigestWords digestScene(const Rtx::SceneDesc& scene)
+    void SceneDigester::digestContent(const Rtx::SceneDesc& scene)
     {
+        const std::span<const Rtx::MeshRange> meshes = scene.meshes().getRows();
+        if (mShapesRevision != scene.meshes().getRevision() || mShapes.size() != meshes.size())
+        {
+            mShapes.resize(meshes.size());
+            for (std::size_t at = 0; at < meshes.size(); ++at)
+                mShapes[at] = shapeOf(scene, meshes[at]);
+            mShapesRevision = scene.meshes().getRevision();
+        }
+
+        // Every record bound whole, as `fieldsOf` binds the layout's, so a field added and not named here does not
+        // compile. What names a slot is read through it, or left out where the record's place says it already.
         Unordered whole;
 
         for (const Rtx::PlacementRow& row : scene.placements().getRows())
         {
-            const Rtx::MeshInstance& instance = row.mInstance;
-            if (instance.mMesh == Rtx::sNoIndex)
+            // The worn traits are the material's, read through it; the links chain slots, which are the layout.
+            const auto& [instance, previous, worn, wearing, placing] = row;
+
+            // Who stood it says who may move it, which no frame draws.
+            const auto& [transform, mesh, material, opacity, instanceClass, clockwise, lampBody, stander] = instance;
+            if (mesh == Rtx::sNoIndex)
                 continue;
 
             Misc::HashState placement;
-            placement.add(std::span<const float>(instance.mTransform.ptr(), 16));
-            placement.add(instance.mOpacity);
-            placement.add(static_cast<std::uint32_t>(instance.mClass));
-            addMaterial(placement, scene, instance.mMaterial);
-            addMesh(placement, scene, instance.mMesh);
+            placement.add(std::span<const float>(transform.ptr(), 16));
+            placement.add(std::span<const float>(previous.ptr(), 16));
+            placement.add(opacity);
+            placement.add(instanceClass);
+            placement.add(clockwise);
+            placement.add(lampBody);
+            addMaterial(placement, scene, material);
+            placement.add(mShapes[mesh]);
+            const Rtx::MeshRange& range = meshes[mesh];
+            if (range.deforms())
+                placement.add(scene.deformers().getMeshPose(range));
             whole.add(placement);
         }
 
+        // A lamp names no slot, so its record is its content.
         for (const Rtx::Light& light : scene.lights())
         {
             Misc::HashState lamp;
-            lamp.add(light.mPosition);
-            lamp.add(light.mIntensity);
-            lamp.add(light.mReach);
+            lamp.add(light);
             whole.add(lamp);
         }
 
         for (const Rtx::SpriteEmitter& emitter : scene.emitters())
         {
+            // The run is the sprites hashed in it, in the order the emitter placed them.
+            const auto& [centre, reach, first, count, texture, flags, width, lighting] = emitter;
             Misc::HashState plume;
-            plume.add(emitter.mCentre);
-            plume.add(emitter.mReach);
-            plume.add(emitter.isAdditive());
-            addTexture(plume, scene, emitter.mTexture);
-            const Rtx::Run run = Rtx::spritesOf(emitter);
-            for (const Rtx::Sprite& sprite : run.in(scene.sprites()))
+            plume.add(centre);
+            plume.add(reach);
+            plume.add(flags);
+            plume.add(width);
+            addTexture(plume, scene, texture);
+            addTexture(plume, scene, lighting);
+            for (const Rtx::Sprite& sprite : Rtx::spritesOf(emitter).in(scene.sprites()))
             {
-                plume.add(sprite.mPosition);
-                plume.add(sprite.mRadius);
-                plume.add(sprite.mColour);
-                plume.add(sprite.mAlpha);
+                // Its emitter's slot is the run it stands in; the layers are the device's, nought on the host.
+                const auto& [position, radius, axis, colour, alpha, emitterSlot, sunLayers, skyLayers] = sprite;
+                plume.add(position);
+                plume.add(radius);
+                plume.add(axis);
+                plume.add(colour);
+                plume.add(alpha);
             }
             whole.add(plume);
         }
-        return whole.getWords();
+
+        for (const Rtx::RippleImpulse& impulse : scene.ripples())
+        {
+            const auto& [at, size] = impulse;
+            Misc::HashState ripple;
+            ripple.add(at);
+            ripple.add(size);
+            whole.add(ripple);
+        }
+
+        take(ScenePart::Content, whole.getWords());
     }
 
     /// The tables `digestParts` reads whole, held to having nothing between their fields: the bytes a record pads
@@ -511,7 +559,7 @@ namespace RtxTool
         take(ScenePart::Layers, layers.take());
         take(ScenePart::Masks, wordsOf(scene.materials().getMasks()));
 
-        // By names and slots both, unlike `digestScene`: which slot a texture landed in is what a material's index
+        // By names and slots both, unlike the content: which slot a texture landed in is what a material's index
         // means. A file and a sprite's bake name their file, a ground its material; the kind tells them apart, and
         // each path ends with its length so two laid end to end cannot read as one. Every other field is bound whole,
         // as `forEachMaterialField` does: the wrap and encoding reach the sampler and the decode. The image and
@@ -560,6 +608,8 @@ namespace RtxTool
 
         take(ScenePart::Poses, wordsOf(scene.deformers().getPoses()));
 
+        digestContent(scene);
+
         // Whole, because the block is scalar-packed on every side, which `visibility.h` pins.
         take(ScenePart::Frame,
             frame != nullptr ? wordsOf(std::span<const Rtx::Shaders::VisibilityConstants>(frame, 1))
@@ -574,11 +624,17 @@ namespace RtxTool
         return once.digest(scene);
     }
 
+    Misc::DigestWords digestScene(const ScenePartDigests& parts)
+    {
+        return parts[static_cast<std::size_t>(ScenePart::Content)];
+    }
+
     Misc::DigestWords digestLayout(const ScenePartDigests& parts)
     {
         Misc::HashState whole;
-        for (const Misc::DigestWords& part : parts)
-            whole.add(part);
+        for (std::size_t part = 0; part < parts.size(); ++part)
+            if (part != static_cast<std::size_t>(ScenePart::Content))
+                whole.add(parts[part]);
 
         return whole.getWords();
     }

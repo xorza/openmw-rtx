@@ -99,7 +99,7 @@ namespace RtxTool
         {
             Rtx::SceneDesc scene;
             fillBoxes(scene, mirroredFirst, lift, aside, shuffled);
-            return spellHash(digestScene(scene));
+            return spellHash(digestScene(digestParts(scene)));
         }
 
         std::string layoutOfBoxes(
@@ -170,7 +170,7 @@ namespace RtxTool
             instance.mMesh = addBox(scene, false);
             scene.addInstance(instance);
 
-            return { spellHash(digestScene(scene)), spellHash(digestLayout(digestParts(scene))) };
+            return { spellHash(digestScene(digestParts(scene))), spellHash(digestLayout(digestParts(scene))) };
         }
 
         /// **Every field of a material reaches both digests**, which is what one field list buys.
@@ -256,7 +256,7 @@ namespace RtxTool
             Rtx::MeshInstance instance;
             instance.mMesh = addBox(scene, false, 0.0f, false, tangents);
             scene.addInstance(instance);
-            return { spellHash(digestScene(scene)), digestParts(scene) };
+            return { spellHash(digestScene(digestParts(scene))), digestParts(scene) };
         }
 
         /// **A tangent moves the normals column, the meshes column and the scene, and no tangent
@@ -280,7 +280,8 @@ namespace RtxTool
             for (std::size_t at = 0; at < bareParts.size(); ++at)
             {
                 const auto part = static_cast<ScenePart>(at);
-                EXPECT_EQ(tangentParts[at] != bareParts[at], part == ScenePart::Normals || part == ScenePart::Meshes)
+                EXPECT_EQ(tangentParts[at] != bareParts[at],
+                    part == ScenePart::Normals || part == ScenePart::Meshes || part == ScenePart::Content)
                     << nameOf(part);
             }
 
@@ -311,8 +312,8 @@ namespace RtxTool
             return digestParts(scene);
         }
 
-        /// **An emitter's flag word moves the emitters column.** The table is hashed whole, so a
-        /// bit that changed what the trace does with a plume — whether it adds, whether a roof
+        /// **An emitter's flag word moves the emitters column and the content.** The table is hashed whole,
+        /// so a bit that changed what the trace does with a plume — whether it adds, whether a roof
         /// keeps it off — has to be a change the report can see, and a sprite's own row names its
         /// emitter, which is the sprites column's to see.
         TEST(RtxSceneDigestTest, anEmittersFlagsMoveTheEmittersColumn)
@@ -325,8 +326,9 @@ namespace RtxTool
             for (std::size_t at = 0; at < smoke.size(); ++at)
             {
                 const auto part = static_cast<ScenePart>(at);
-                EXPECT_EQ(smoke[at] != flame[at], part == ScenePart::Emitters) << nameOf(part) << " under a flame";
-                EXPECT_EQ(smoke[at] != rain[at], part == ScenePart::Emitters) << nameOf(part) << " under rain";
+                const bool moves = part == ScenePart::Emitters || part == ScenePart::Content;
+                EXPECT_EQ(smoke[at] != flame[at], moves) << nameOf(part) << " under a flame";
+                EXPECT_EQ(smoke[at] != rain[at], moves) << nameOf(part) << " under rain";
             }
         }
 
@@ -347,6 +349,8 @@ namespace RtxTool
                                             Rtx::RigSpec{ .mRuns = runs, .mInfluences = influences, .mBones = 1 })
                                         .mMesh;
 
+            scene.addInstance(Rtx::MeshInstance{ .mMesh = quad });
+
             const std::array bones{ Rtx::toGpuBone(osg::Matrixf::translate(0.0f, 0.0f, up)) };
             std::vector<Rtx::PoseWord> words;
             Rtx::packRig(Rtx::toGpuBone(osg::Matrixf::identity()), bones, words);
@@ -357,9 +361,9 @@ namespace RtxTool
             return digestParts(scene);
         }
 
-        /// **A pose moves the poses column alone, and a skin the deformers column alone.** The two
-        /// are one table and one buffer in the scene; a column apiece is what lets a pair say
-        /// whether the actor moved or the actor changed.
+        /// **A pose moves the poses column, and a skin the deformers column, and each the content**, as a
+        /// placement of the mesh is posed by both. The two are one table and one buffer in the scene; a column
+        /// apiece is what lets a pair say whether the actor moved or the actor changed.
         TEST(RtxSceneDigestTest, aPoseAndASkinEachMoveTheirOwnColumn)
         {
             const ScenePartDigests one = partsOfSkin(1.0f, 5.0f);
@@ -370,9 +374,121 @@ namespace RtxTool
             for (std::size_t at = 0; at < one.size(); ++at)
             {
                 const auto part = static_cast<ScenePart>(at);
-                EXPECT_EQ(one[at] != posed[at], part == ScenePart::Poses) << nameOf(part) << " under another pose";
-                EXPECT_EQ(one[at] != reskinned[at], part == ScenePart::Deformers)
+                EXPECT_EQ(one[at] != posed[at], part == ScenePart::Poses || part == ScenePart::Content)
+                    << nameOf(part) << " under another pose";
+                EXPECT_EQ(one[at] != reskinned[at], part == ScenePart::Deformers || part == ScenePart::Content)
                     << nameOf(part) << " under another skin";
+            }
+        }
+
+        /// **Where a placement stood the frame before, and the water's ripples, are the content too**: a motion
+        /// vector is the difference of the two places, and the ripple field is stepped by what disturbed it.
+        /// One box placed at `there`, having moved there from the origin or jumped, with a ripple or none.
+        std::string contentOfMotion(const bool jumped, const bool rippled)
+        {
+            Rtx::SceneDesc scene;
+            Rtx::MeshInstance instance;
+            instance.mMesh = addBox(scene, false);
+            const Rtx::Index slot = scene.addInstance(instance);
+            const osg::Matrixf there = osg::Matrixf::translate(5.0f, 0.0f, 0.0f);
+            if (jumped)
+                scene.placements().jump(slot, there);
+            else
+                scene.placements().move(slot, there);
+            if (rippled)
+                scene.addRipple(Rtx::RippleImpulse{ .mAt = osg::Vec2f(1.0f, 2.0f), .mSize = 3.0f });
+            return spellHash(digestScene(digestParts(scene)));
+        }
+
+        TEST(RtxSceneDigestTest, wherePlacementsStoodAndTheRipplesAreTheContent)
+        {
+            const std::string moved = contentOfMotion(false, false);
+            EXPECT_EQ(moved, contentOfMotion(false, false)) << "one scene built twice";
+            EXPECT_NE(moved, contentOfMotion(true, false))
+                << "one place, stood at the frame before or moved from the origin";
+            EXPECT_NE(moved, contentOfMotion(false, true)) << "a ripple";
+        }
+
+        /// One field of a fixture's placement, lamp or sprite set off its default.
+        enum class Field
+        {
+            None,
+            Clockwise,
+            LampBody,
+            Stander,
+            SourceRadius,
+            Clearance,
+            Traits,
+            Axis,
+        };
+
+        /// One box, one lamp and one rain streak under one emitter, with `field` set off its default, digested part
+        /// by part.
+        ScenePartDigests partsWith(const Field field)
+        {
+            Rtx::SceneDesc scene;
+            Rtx::MeshInstance instance;
+            instance.mMesh = addBox(scene, false);
+            instance.mClockwise = field == Field::Clockwise;
+            instance.mLampBody = field == Field::LampBody;
+            instance.mStander = field == Field::Stander ? Rtx::Stander::Ring : Rtx::Stander::Walk;
+            scene.addInstance(instance);
+
+            Rtx::Light lamp{};
+            lamp.mPosition = osg::Vec3f(1.0f, 2.0f, 3.0f);
+            lamp.mIntensity = osg::Vec3f(4.0f, 5.0f, 6.0f);
+            lamp.mSourceRadius = field == Field::SourceRadius ? 2.0f : 0.0f;
+            lamp.mClearance = field == Field::Clearance ? 2.0f : 0.0f;
+            if (field == Field::Traits)
+                lamp.mTraits = 0;
+            scene.addLight(lamp);
+
+            const Rtx::Index texture = scene.textures().add(VFS::Path::NormalizedView("textures/rain.dds"));
+            const std::array sprites{ Rtx::Sprite{ .mPosition = osg::Vec3f(1.0f, 2.0f, 3.0f),
+                .mRadius = 4.0f,
+                .mAxis = osg::Vec3f(0.0f, 0.0f, field == Field::Axis ? -2.0f : -1.0f),
+                .mColour = osg::Vec3f(1.0f, 1.0f, 1.0f),
+                .mAlpha = 1.0f } };
+            scene.addEmitter(
+                sprites, Rtx::EmitterSpec{ .mTexture = texture, .mBlend = Rtx::BlendKind::Over, .mWidth = 0.1f });
+
+            return digestParts(scene);
+        }
+
+        /// **Every field a frame draws by is the content, and who stood a placement is not**: a mirrored face, a
+        /// lantern's paper, a lamp's flame, its shadow's clearance and the classes it lights, and a streak's length
+        /// each move it and the layout column that holds the field; the stander moves the instances column alone.
+        TEST(RtxSceneDigestTest, everyFieldAFrameDrawsByIsTheContent)
+        {
+            const ScenePartDigests plain = partsWith(Field::None);
+            EXPECT_EQ(plain, partsWith(Field::None)) << "one scene built twice";
+
+            // The emitter's reach holds its sprites' rims, so a longer streak moves the emitters column too.
+            const std::array cases{
+                std::pair{ Field::Clockwise, std::vector{ ScenePart::Instances } },
+                std::pair{ Field::LampBody, std::vector{ ScenePart::Instances } },
+                std::pair{ Field::SourceRadius, std::vector{ ScenePart::Lights } },
+                std::pair{ Field::Clearance, std::vector{ ScenePart::Lights } },
+                std::pair{ Field::Traits, std::vector{ ScenePart::Lights } },
+                std::pair{ Field::Axis, std::vector{ ScenePart::Sprites, ScenePart::Emitters } },
+            };
+            for (const auto& [field, columns] : cases)
+            {
+                const ScenePartDigests changed = partsWith(field);
+                for (std::size_t at = 0; at < plain.size(); ++at)
+                {
+                    const auto part = static_cast<ScenePart>(at);
+                    EXPECT_EQ(plain[at] != changed[at],
+                        part == ScenePart::Content || std::ranges::find(columns, part) != columns.end())
+                        << nameOf(part) << " under field " << static_cast<int>(field);
+                }
+            }
+
+            const ScenePartDigests stood = partsWith(Field::Stander);
+            for (std::size_t at = 0; at < plain.size(); ++at)
+            {
+                const auto part = static_cast<ScenePart>(at);
+                EXPECT_EQ(plain[at] != stood[at], part == ScenePart::Instances) << nameOf(part) << " under the ring";
             }
         }
 

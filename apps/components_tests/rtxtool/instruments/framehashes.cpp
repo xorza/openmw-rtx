@@ -123,25 +123,57 @@ namespace RtxTool
             return came.empty() ? FrameHashes::ViewDifference{} : came.front();
         }
 
+        /// **A scene whose content moved is a difference, picture or no picture**, and the report names the parts
+        /// that moved with it, and only those.
         TEST(RtxFrameHashesTest, onlyThePartThatMovedIsNamed)
         {
             ScenePartDigests moved = partsOf(100);
             moved[static_cast<std::size_t>(ScenePart::Textures)] = hashOf(4242);
+            moved[static_cast<std::size_t>(ScenePart::Content)] = hashOf(4243);
 
             const FrameHashes::ViewDifference difference = onlyView(runOf(moved, sPixels).against(plainRun()));
 
             EXPECT_TRUE(difference.mDiffering.empty()) << "the picture was the same both times";
             EXPECT_TRUE(difference.mTraceDiffering.empty()) << "the trace was the same both times";
             EXPECT_EQ(difference.mSceneDiffering, std::vector<std::uint32_t>{ 1u });
-            EXPECT_FALSE(difference.same()) << "a scene that moved is a difference, picture or no picture";
+            EXPECT_TRUE(difference.mLayoutDiffering.empty()) << "the content moved with it";
+            EXPECT_FALSE(difference.same());
 
             for (std::size_t at = 0; at < difference.mPartsDiffering.size(); ++at)
-                EXPECT_EQ(difference.mPartsDiffering[at], at == static_cast<std::size_t>(ScenePart::Textures) ? 1u : 0u)
+                EXPECT_EQ(difference.mPartsDiffering[at],
+                    at == static_cast<std::size_t>(ScenePart::Textures)
+                            || at == static_cast<std::size_t>(ScenePart::Content)
+                        ? 1u
+                        : 0u)
                     << nameOf(static_cast<ScenePart>(at));
 
             const std::string report = describeDifference(difference);
+            EXPECT_NE(report.find("the scene differs on 1 frames"), std::string::npos) << report;
             EXPECT_NE(report.find("textures 1"), std::string::npos) << report;
             EXPECT_EQ(report.find("meshes"), std::string::npos) << report;
+        }
+
+        /// **A layout that moved where the content and the frame did not is no verdict**: which slot a texture
+        /// stands in follows the order its preparation finished in, which two runs of one build do not share. The
+        /// report says so and names the parts; the frame is judged as the content is.
+        TEST(RtxFrameHashesTest, aLayoutThatMovedAloneIsReportedAndNotJudged)
+        {
+            ScenePartDigests slots = partsOf(100);
+            slots[static_cast<std::size_t>(ScenePart::Textures)] = hashOf(4242);
+            const FrameHashes::ViewDifference layout = onlyView(runOf(slots, sPixels).against(plainRun()));
+            EXPECT_TRUE(layout.mSceneDiffering.empty());
+            EXPECT_EQ(layout.mLayoutDiffering, std::vector<std::uint32_t>{ 1u });
+            EXPECT_TRUE(layout.same()) << "the trace, the picture and the scene were the same";
+            const std::string report = describeDifference(layout);
+            EXPECT_NE(report.find("stands in other slots on 1 frames"), std::string::npos) << report;
+            EXPECT_NE(report.find("textures 1"), std::string::npos) << report;
+
+            ScenePartDigests traced = partsOf(100);
+            traced[static_cast<std::size_t>(ScenePart::Frame)] = hashOf(4244);
+            const FrameHashes::ViewDifference frame = onlyView(runOf(traced, sPixels).against(plainRun()));
+            EXPECT_EQ(frame.mSceneDiffering, std::vector<std::uint32_t>{ 1u });
+            EXPECT_TRUE(frame.mLayoutDiffering.empty());
+            EXPECT_FALSE(frame.same());
         }
 
         /// **A view the reference drew and this run did not is named**, with every frame of it unmatched:
@@ -493,7 +525,7 @@ namespace RtxTool
                 std::ifstream in(file);
                 std::getline(in, header);
             }
-            EXPECT_EQ(header.substr(0, 45), "hashes 7: view,frame,upscale,denoise,picture,");
+            EXPECT_EQ(header.substr(0, 45), "hashes 8: view,frame,upscale,denoise,picture,");
             EXPECT_NE(header.find(",g-direct,"), std::string::npos) << header;
             EXPECT_NE(header.find(",g-puffs,g-shadowed,g-specular,g-pane,g-pane-albedo,g-pane-surface,g-pane-motion,"
                                   "g-upscale-masks,g-fill,g-ambient-albedo,g-lift,g-specular-albedo,g-lamped,"

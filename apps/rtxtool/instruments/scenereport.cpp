@@ -31,6 +31,7 @@ namespace RtxTool
     std::string describeScene(const Rtx::SceneDesc& scene, const MWRender::WalkReport& walked)
     {
         const Rtx::ExtractionStats& stats = walked.mFound;
+        const ScenePartDigests parts = digestParts(scene);
         std::string out;
 
         out
@@ -50,7 +51,7 @@ namespace RtxTool
                 scene.meshes().getRows().size(), scene.materials().getRows().size(), scene.textures().getRows().size(),
                 scene.meshes().getTriangleCount(), scene.meshes().getGeometryBytes() / 1024,
                 scene.meshes().getColours().size() * sizeof(Rtx::Shaders::GpuVertexColour) / 1024,
-                spellHash(digestScene(scene)), spellHash(digestLayout(digestParts(scene)))));
+                spellHash(digestScene(parts)), spellHash(digestLayout(parts))));
 
         // The images the standing slots keep, off the table that keeps them.
         const Rtx::FormatCensus& formats = scene.textures().getFormats();

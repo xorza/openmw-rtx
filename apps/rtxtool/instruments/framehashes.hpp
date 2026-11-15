@@ -132,8 +132,14 @@ namespace RtxTool
             /// Reported and never a verdict, since the wavelet's are the card's arithmetic too.
             std::array<std::uint32_t, Rtx::sDenoiserImageCount> mDenoiserDiffering{};
 
-            /// Frames where any part of the scene differs, in order.
+            /// Frames where the scene differs, in order: its content or what its frame was traced with
+            /// (`ScenePart::Content`, `ScenePart::Frame`).
             std::vector<std::uint32_t> mSceneDiffering{};
+
+            /// Frames where the scene is the same and its layout is not, in order: the content stands in other
+            /// slots, as it arrived in another order from the threads that prepare it. Reported and never a
+            /// verdict: the pictures and the trace say whether the layout drew anything differently.
+            std::vector<std::uint32_t> mLayoutDiffering{};
 
             /// How many frames each part differs on, indexed by `ScenePart`.
             std::array<std::uint32_t, static_cast<std::size_t>(ScenePart::Count)> mPartsDiffering{};

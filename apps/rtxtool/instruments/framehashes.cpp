@@ -51,7 +51,7 @@ namespace RtxTool
             // The format's own number first, stepped where the columns keep their names and a
             // value changes its meaning — a digest hashed another way — so a file an older build
             // wrote is refused rather than compared.
-            std::string header = "hashes 7: view,frame,upscale,denoise,picture";
+            std::string header = "hashes 8: view,frame,upscale,denoise,picture";
             for (std::size_t column = 0; column < sTracedColumns; ++column)
                 header += ',' + std::string(tracedName(column));
             for (const auto& [image, name] : Rtx::sDenoiserImageNames.mNames)
@@ -108,6 +108,11 @@ namespace RtxTool
             return report;
         }
 
+        std::string_view partName(const std::size_t part)
+        {
+            return nameOf(static_cast<ScenePart>(part));
+        }
+
         /// What differed and is not a verdict, a clause each.
         void describeUnjudged(const FrameHashes::ViewDifference& difference, std::vector<std::string>& clauses)
         {
@@ -134,11 +139,13 @@ namespace RtxTool
                 clauses.push_back(std::format(
                     "the denoiser's images differ, in the order the frame writes them — {}, which is not a verdict",
                     denoiser));
-        }
 
-        std::string_view partName(const std::size_t part)
-        {
-            return nameOf(static_cast<ScenePart>(part));
+            // Where the scene differs too, its clause names the parts.
+            if (!difference.mLayoutDiffering.empty() && difference.mSceneDiffering.empty())
+                clauses.push_back(std::format(
+                    "the scene is the same and stands in other slots on {} frames, as its "
+                    "content arrived in another order, which is not a verdict{}",
+                    difference.mLayoutDiffering.size(), nameColumnsDiffering(difference.mPartsDiffering, partName)));
         }
 
         /// The numbers the frame handed the reconstruction, as one column: what a wrong sign on
@@ -483,6 +490,9 @@ namespace RtxTool
                     if (found->mDenoiser[image] != held.mDenoiser[image])
                         ++difference.mDenoiserDiffering[image];
 
+            // **The content and the frame are the verdict, the layout says where**: which slot a mesh or a texture
+            // stands in follows the order the preparing threads finished in, which two runs of one build do not
+            // share.
             bool anyPart = false;
             for (std::size_t part = 0; part < held.mParts.size(); ++part)
             {
@@ -493,8 +503,13 @@ namespace RtxTool
                 anyPart = true;
             }
 
-            if (anyPart)
+            const auto differs = [&](const ScenePart part) {
+                return found->mParts[static_cast<std::size_t>(part)] != held.mParts[static_cast<std::size_t>(part)];
+            };
+            if (differs(ScenePart::Content) || differs(ScenePart::Frame))
                 difference.mSceneDiffering.push_back(held.mFrame);
+            else if (anyPart)
+                difference.mLayoutDiffering.push_back(held.mFrame);
         }
 
         // **What the reference drew and this run did not**, which is a schedule that changed rather
