@@ -1,14 +1,12 @@
 - remove visibility limit
-- remove zhi dialong from rtxtool
 - contribution rules
 - tidy ci
 - custom map notes plugin
 - audit macros
 - #if OPENMW_FFMPEG_5_OR_GREATER
 - audit ifdefs remove legacy
-- tour in 800 600 with balanced upscaler
-- remove mfr messagebox
 - order includes canonically
+- no upscaler
 
 - all IO serial?
 
