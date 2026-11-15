@@ -12,8 +12,9 @@ import os
 import re
 import subprocess
 import tempfile
+import time
 from collections import Counter
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -23,6 +24,10 @@ from omw.system import ROOT, Refusal, jobs, output
 
 # The folders whose sources the tree's `.clang-tidy` holds to it; `extern/` is vendored, as `out/` is generated.
 LINTED = (ROOT / "apps", ROOT / "components")
+
+# How often a run writes the clean sources it has so far to the store, in seconds: a run cancelled or killed keeps what
+# it linted up to its last write, as a whole tree's lint on CI is an hour and more, and a newer push cancels it.
+CHECKPOINT_S = 30.0
 
 # Where a diagnostic begins: `path:line:column: warning: text [check]`. Its notes and the source it quotes follow.
 _DIAGNOSTIC = re.compile(r"^(?P<path>.+?):(?P<line>\d+):(?P<column>\d+): (?:warning|error): .*\[(?P<checks>[^\]]+)\]$")
@@ -160,7 +165,15 @@ def tidy(build: Build, args: list[str]) -> int:
     unchanged = tidycache.unchanged(compiles, remembered)
     linted = [source for source in sources if str(source.file) not in unchanged]
 
+    # A source of the database not asked of now keeps what it had, and one linted now what came out clean.
+    held = {str(source.file) for source in every}
+    kept = {source: run for source, run in remembered.items()
+            if (source in held and source not in compiles) or source in unchanged}
+
     clang_tidy = deps.clang_tidy()
+    found: list[list[Finding]] = [[] for _ in linted]
+    remembered_now: dict[str, tidycache.Remembered] = {}
+    fresh: dict[str, list[str]] = {}
     with tempfile.TemporaryDirectory(prefix="omw-tidy-") as scratch:
         # The runs' start by the clock that stamps a file's modification, and not by `time.time_ns`, which that
         # clock, the kernel's coarse one, lags behind: a file written just after would read as written before.
@@ -171,12 +184,36 @@ def tidy(build: Build, args: list[str]) -> int:
         # another source's is lost.
         fixes = [Path(scratch) / f"{index}.yaml" if fix else None for index in range(len(linted))]
         dependencies = [Path(scratch) / f"{index}.d" for index in range(len(linted))]
-        with ThreadPoolExecutor(max_workers=jobs()) as pool:
-            runs = list(pool.map(lambda source, into, written: _run(clang_tidy, build, source, into, written), linted,
-                                 fixes, dependencies))
-        # What each run read, nothing where it wrote no dependency file, as a run that failed early does not.
-        reads = [tidycache.dependencies(file.read_text(encoding="utf-8"), Path(source.compile.directory))
-                 if file.is_file() else [] for source, file in zip(linted, dependencies, strict=True)]
+        done: list[subprocess.CompletedProcess | None] = [None] * len(linted)
+        pool = ThreadPoolExecutor(max_workers=jobs())
+        try:
+            pending = {pool.submit(_run, clang_tidy, build, source, into, written): index
+                       for index, (source, into, written) in enumerate(zip(linted, fixes, dependencies, strict=True))}
+            saved = time.monotonic()
+            for future in as_completed(pending):
+                index = pending[future]
+                source = linted[index]
+                run = done[index] = future.result()
+                found[index] = findings(run.stdout)
+                # What the run read, nothing where it wrote no dependency file, as a run that failed early does not.
+                listing = dependencies[index]
+                named_reads = (tidycache.dependencies(listing.read_text(encoding="utf-8"),
+                                                      Path(source.compile.directory))
+                               if listing.is_file() else [])
+                # A run that names nothing it read is not trusted to have named its reads.
+                if run.returncode == 0 and not found[index] and named_reads and not source.compile.reads_unlisted:
+                    fresh[str(source.file)] = named_reads
+                if time.monotonic() - saved >= CHECKPOINT_S:
+                    remembered_now |= tidycache.remember(compiles, fresh, started_ns)
+                    fresh.clear()
+                    tidycache.save(store, kept | remembered_now)
+                    saved = time.monotonic()
+        finally:
+            # A run that stops early, interrupted or failed, starts no source it had not reached.
+            pool.shutdown(wait=True, cancel_futures=True)
+        runs = [run for run in done if run is not None]
+        assert len(runs) == len(linted)
+        remembered_now |= tidycache.remember(compiles, fresh, started_ns)
         if fix:
             for file in fixes:
                 if file is not None and file.is_file():
@@ -185,18 +222,13 @@ def tidy(build: Build, args: list[str]) -> int:
 
     seen: dict[str, Finding] = {}
     failed = 0
-    clean: dict[str, list[str]] = {}
-    for source, done, named_reads in zip(linted, runs, reads, strict=True):
-        found = findings(done.stdout)
-        for finding in found:
+    for source, run, said in zip(linted, runs, found, strict=True):
+        for finding in said:
             seen.setdefault(finding.key, finding)
         # A run that failed and said no diagnostic broke, and its own words say how.
-        if done.returncode != 0 and not found:
+        if run.returncode != 0 and not said:
             failed += 1
-            print(f"clang-tidy failed on {source.file.relative_to(ROOT)}:\n{done.stderr}")
-        # A run that names nothing it read is not trusted to have named its reads.
-        if done.returncode == 0 and not found and named_reads and not source.compile.reads_unlisted:
-            clean[str(source.file)] = named_reads
+            print(f"clang-tidy failed on {source.file.relative_to(ROOT)}:\n{run.stderr}")
 
     for _, finding in sorted(seen.items()):
         print(finding.text)
@@ -206,11 +238,7 @@ def tidy(build: Build, args: list[str]) -> int:
     print(f"tidy: {len(seen)} findings over {len(sources)} sources, "
           f"{len(unchanged)} of them unchanged since a clean run")
 
-    # A source of the database not asked of now keeps what it had, and one linted now what came out clean.
-    held = {str(source.file) for source in every}
-    kept = {source: run for source, run in remembered.items()
-            if (source in held and source not in compiles) or source in unchanged}
-    tidycache.save(store, kept | tidycache.remember(compiles, clean, started_ns))
+    tidycache.save(store, kept | remembered_now)
 
     if fix:
         formatting.format_tree(formatting.changed_files())

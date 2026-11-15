@@ -24,6 +24,19 @@ def native(path: str) -> str:
     return path.replace("/", os.sep)
 
 
+def written(folder: Path, name: str, text: str) -> Path:
+    """`text` into `name`, then the file system's clock past its change time, which the store keeps no source of a
+    read changed at or after a run's start for; a coarse clock tick is milliseconds."""
+    path = folder / name
+    path.write_text(text, encoding="utf-8")
+    probe = folder / "probe"
+    for _ in range(100_000):
+        probe.touch()
+        if probe.stat().st_mtime_ns > path.stat().st_ctime_ns:
+            return path
+    raise AssertionError("the file system's clock stood still")
+
+
 def entry(file: Path, output: str) -> dict:
     return {"directory": str(BUILD), "file": str(file), "output": output, "command": "clang++ -c"}
 
@@ -165,17 +178,9 @@ class RememberedTest(unittest.TestCase):
     def test_a_clean_run_is_not_linted_again_until_a_read_changes_and_a_run_with_findings_always_is(self):
         folder = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, folder)
+
         def write(name: str, text: str) -> Path:
-            """`text` into `name`, then the file system's clock past its change time, which the store keeps no
-            source of a read changed at or after a run's start for; a coarse clock tick is milliseconds."""
-            path = folder / name
-            path.write_text(text, encoding="utf-8")
-            probe = folder / "probe"
-            for _ in range(100_000):
-                probe.touch()
-                if probe.stat().st_mtime_ns > path.stat().st_ctime_ns:
-                    return path
-            raise AssertionError("the file system's clock stood still")
+            return written(folder, name, text)
 
         clean = write("clean.cpp", "int a;")
         header = write("clean.hpp", "#pragma once")
@@ -223,3 +228,29 @@ class RememberedTest(unittest.TestCase):
             {"directory": str(folder), "file": str(dirty), "output": "dirty.o", "command": "c++ -c dirty.cpp"}]))
         tidy_run()
         self.assertEqual(tidy.tidycache.load(folder / "tidy-clean.json"), {})
+
+    def test_a_run_stopped_partway_keeps_in_the_store_what_came_out_clean_before_it_stopped(self):
+        """A cancel stops CI's lint partway: the store holds each source that came out clean by the last write,
+        written after every source here, and none whose run the driver had not taken in when it stopped. One hand,
+        so the order is the list's."""
+        folder = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, folder)
+        paths = [written(folder, name, "int a;") for name in ("a.cpp", "b.cpp", "c.cpp", "d.cpp")]
+        (folder / "compile_commands.json").write_text(json.dumps([
+            {"directory": str(folder), "file": str(path), "output": f"{path.stem}.o", "command": f"c++ -c {path.name}"}
+            for path in paths
+        ]))
+        build = mock.Mock(dir=folder)
+        def run(_tidy: Path, _build: object, source: Source, _fixes: Path | None,
+                dependencies: Path) -> subprocess.CompletedProcess:
+            if source.file == paths[2]:
+                raise KeyboardInterrupt
+            dependencies.write_text(f"{source.file.stem}.o: {source.file.name}\n", encoding="utf-8")
+            return subprocess.CompletedProcess([], 0, "", "")
+
+        with (mock.patch.object(tidy, "LINTED", (folder,)), mock.patch.object(tidy, "_run", side_effect=run),
+              mock.patch.object(tidy, "CHECKPOINT_S", 0.0), mock.patch.object(tidy, "jobs", return_value=1),
+              mock.patch.object(tidy.deps, "clang_tidy", return_value=Path("clang-tidy")),
+              contextlib.redirect_stdout(io.StringIO()), self.assertRaises(KeyboardInterrupt)):
+            tidy.tidy(build, [])
+        self.assertEqual(sorted(tidy.tidycache.load(folder / "tidy-clean.json")), [str(paths[0]), str(paths[1])])

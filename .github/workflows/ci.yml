@@ -29,13 +29,11 @@ permissions: {}
 env:
   CI_CACHE: ${{ format('{0}', inputs.cache) != 'false' }}
 
-# A run by hand stands alone: a push must neither cancel it nor be cancelled by it. A branch's push cancels the
-# run before it, which nobody reads once it is superseded; master's runs each finish, as each saves the caches every
-# branch restores, and the lint's store is written at its run's end alone: a master cancelled by every push lints
-# every branch from nothing. Waiting runs still fold into the newest.
+# A push cancels its branch's run before it, master's too: the latest commit alone is checked (`docs/build.md`). A run
+# by hand stands alone: a push must neither cancel it nor be cancelled by it.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}${{ github.event_name == 'workflow_dispatch' && format('-{0}', github.run_id) || '' }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
+  cancel-in-progress: true
 
 jobs:
   checks:
@@ -114,9 +112,10 @@ jobs:
       - name: clang-tidy
         run: python omw tidy
 
-      # After findings too: the store holds the sources that came out clean, and only those.
+      # After findings too, and after a cancel: the store holds the sources that came out clean, and only those, and
+      # `omw tidy` writes it as it goes, so a run a newer push cancelled hands the next what it got through.
       - name: The tidy cache, saved
-        if: ${{ !cancelled() && env.CI_CACHE == 'true' && github.ref == 'refs/heads/master' }}
+        if: ${{ always() && env.CI_CACHE == 'true' && github.ref == 'refs/heads/master' }}
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: out/debug/tidy-clean.json

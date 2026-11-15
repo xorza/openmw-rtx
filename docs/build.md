@@ -152,6 +152,10 @@ How the tree is configured, built, formatted and shipped, as decisions. The CMak
   driver's tools by their pinned folders, vcpkg's binary cache by run, and `omw tidy`'s store, so a branch lints only
   the sources whose reads its change moved. `tidy` restores `linux-clang`'s and saves none (`openmw-deps`'s
   `save`), as its own would be the same objects twice over the repository's 10 GB.
+- **Master's CI checks the latest commit alone**: a push cancels the run before it, on master as on a branch, by the
+  user's decision. Refused: every master run finishing, which spends the runners on commits a newer one superseded.
+  The lint's store, which a whole tree's run takes an hour and more to fill, is written as the run goes
+  (`tidy.py`'s `CHECKPOINT_S`) and saved after a cancel too, so a cancelled run hands the next what it got through.
 - **One compiler and linker on Linux: the pinned Clang 23 and its lld**, kernel.org's build for glibc 2.28, over GCC
   15's libstdc++ (`--gcc-install-dir`, as libstdc++'s C++20 half keeps no ABI across majors). No contraction
   (`-ffp-contract=off`), so arithmetic rounds as written. Refused: GCC, whose link-time optimisation broke the Qt
