@@ -1,0 +1,113 @@
+# An upstream merge's draft pull request (`upstream.yml`) turned ready once its CI has passed, and set to merge
+# itself; one whose CI failed stays a draft for a human, and says so. Run on CI's completion, in master's context:
+# it reads the pull request and the branch's tree as data, and runs nothing the branch carries.
+name: Upstream merge, ready
+
+on:
+    workflow_run: # zizmor: ignore[dangerous-triggers] it reads the pull request and its tree as data, and runs nothing the branch carries
+        workflows: [CI]
+        types: [completed]
+
+permissions: {}
+
+concurrency:
+    group: upstream-ready-${{ github.event.workflow_run.head_branch }}
+    cancel-in-progress: false
+
+jobs:
+    ready:
+        # The pull request's own run, of a branch of this repository's upstream merges.
+        if: >-
+            github.event.workflow_run.event == 'pull_request'
+            && startsWith(github.event.workflow_run.head_branch, 'upstream-merge/')
+            && github.event.workflow_run.head_repository.full_name == github.repository
+        runs-on: ubuntu-26.04
+        timeout-minutes: 10
+        permissions:
+            contents: write
+            pull-requests: write
+
+        defaults:
+            run:
+                shell: bash
+
+        steps:
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  ref: master
+                  fetch-depth: 0
+                  filter: blob:none
+                  persist-credentials: false
+
+            # `enablePullRequestAutoMerge` and not `gh pr merge --auto`, which merges at once a pull request with
+            # nothing left to wait for: a ruleset that lost its required checks fails here rather than merging
+            # unchecked. `expectedHeadOid` is the commit CI passed, so a push after it turns nothing on.
+            - name: Ready, and merged once CI passes
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  GH_REPO: ${{ github.repository }}
+                  BRANCH: ${{ github.event.workflow_run.head_branch }}
+                  HEAD: ${{ github.event.workflow_run.head_sha }}
+                  CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+                  RUN: ${{ github.event.workflow_run.html_url }}
+              run: |
+                  pull=$(gh pr list --state open --head "$BRANCH" \
+                    --json number,id,headRefOid,isDraft,isCrossRepository,baseRefName \
+                    --jq '[.[] | select((.isCrossRepository | not) and .baseRefName == "master")] | first // empty')
+                  if [ -z "$pull" ]; then
+                    echo "no open pull request from $BRANCH"
+                    exit 0
+                  fi
+                  number=$(jq -r .number <<< "$pull")
+                  if [ "$(jq -r .headRefOid <<< "$pull")" != "$HEAD" ]; then
+                    echo "pull request #$number moved past $HEAD, whose run this is"
+                    exit 0
+                  fi
+                  if [ "$(jq -r .isDraft <<< "$pull")" != true ]; then
+                    echo "pull request #$number is ready already"
+                    exit 0
+                  fi
+
+                  # A run cancelled or skipped is one a later run stands in for: CI cancels a branch's run its next
+                  # push begins.
+                  if [ "$CONCLUSION" = cancelled ] || [ "$CONCLUSION" = skipped ]; then
+                    echo "CI ended $CONCLUSION; the run after it decides"
+                    exit 0
+                  fi
+                  if [ "$CONCLUSION" != success ]; then
+                    gh pr comment "$number" --body "CI ended $CONCLUSION ($RUN). A human finishes this merge."
+                    echo "::warning::pull request #$number stays a draft: CI ended $CONCLUSION"
+                    exit 0
+                  fi
+
+                  # Read with an anonymous fetch of a public repository's branch, as data.
+                  git fetch --quiet --no-tags origin "$HEAD"
+
+                  # Outside a test, so a failed `git diff` stops the step rather than reading as no change.
+                  # `git grep` exits 1 for "not found", and anything past it is an error.
+                  workflows=$(git diff --name-only origin/master..."$HEAD" -- .github/)
+                  held=""
+                  if [ -n "$workflows" ]; then
+                    held="it changes .github/"
+                  elif git grep -qE '^(<<<<<<<|>>>>>>>) ' "$HEAD" -- .; then
+                    held="it leaves a conflict marker"
+                  elif [ $? -ne 1 ]; then
+                    echo "::error::git grep could not read $HEAD"
+                    exit 1
+                  fi
+
+                  gh pr ready "$number"
+                  if [ -n "$held" ]; then
+                    gh pr comment "$number" --body "CI passed; not merged automatically: $held. A human reads this one."
+                    echo "::warning::pull request #$number held for a human: $held"
+                    exit 0
+                  fi
+
+                  gh api graphql \
+                    -f query='mutation($id: ID!, $head: GitObjectID!) {
+                      enablePullRequestAutoMerge(input: { pullRequestId: $id, mergeMethod: MERGE, expectedHeadOid: $head }) {
+                        pullRequest { number }
+                      }
+                    }' \
+                    -f id="$(jq -r .id <<< "$pull")" -f head="$HEAD"
+                  echo "pull request #$number is ready, and merges itself now that its required checks have passed"

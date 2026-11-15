@@ -11,6 +11,9 @@ inputs:
   ccache-size:
     description: How large the compiler cache may grow.
     default: 1000M
+  save:
+    description: Whether a run on master may save the caches it restored; false for a job that builds what master does not hold, whose objects every later master build would read.
+    default: "true"
 
 runs:
   using: composite
@@ -62,14 +65,14 @@ runs:
         } >> "$GITHUB_OUTPUT"
 
     - name: The driver's tools cache
-      if: inputs.cache-key != '' && inputs.cache == 'true' && github.ref == 'refs/heads/master'
+      if: inputs.cache-key != '' && inputs.cache == 'true' && github.ref == 'refs/heads/master' && inputs.save == 'true'
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ${{ steps.tools.outputs.paths }}
         key: ${{ steps.tools.outputs.key }}
 
     - name: The driver's tools cache, restored
-      if: inputs.cache-key != '' && inputs.cache == 'true' && github.ref != 'refs/heads/master'
+      if: inputs.cache-key != '' && inputs.cache == 'true' && (github.ref != 'refs/heads/master' || inputs.save != 'true')
       uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ${{ steps.tools.outputs.paths }}
@@ -90,14 +93,14 @@ runs:
     # HTTP error, so one 504 from GitHub failed the leg at configure. A leg's own, since a flavour fetches
     # what its options build.
     - name: FetchContent archives cache
-      if: inputs.cache-key != '' && inputs.cache == 'true' && github.ref == 'refs/heads/master'
+      if: inputs.cache-key != '' && inputs.cache == 'true' && github.ref == 'refs/heads/master' && inputs.save == 'true'
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: out/*/_deps/*-tmp
         key: ${{ steps.fetched.outputs.key }}
 
     - name: FetchContent archives cache, restored
-      if: inputs.cache-key != '' && inputs.cache == 'true' && github.ref != 'refs/heads/master'
+      if: inputs.cache-key != '' && inputs.cache == 'true' && (github.ref != 'refs/heads/master' || inputs.save != 'true')
       uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: out/*/_deps/*-tmp
@@ -113,4 +116,4 @@ runs:
       with:
         key: ${{ inputs.cache-key }}
         max-size: ${{ inputs.ccache-size }}
-        save: ${{ github.ref == 'refs/heads/master' }}
+        save: ${{ github.ref == 'refs/heads/master' && inputs.save == 'true' }}
