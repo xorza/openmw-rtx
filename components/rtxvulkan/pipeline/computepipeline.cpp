@@ -24,7 +24,7 @@ namespace Rtx
         const ShaderCode& code, const std::string_view module, const std::string_view name,
         const std::span<const std::uint32_t> specialization, const SubgroupSize lanes)
     {
-        PipelineCreation creation(device, name);
+        PipelineCreation creation(device, name, VK_PIPELINE_BIND_POINT_COMPUTE);
         const Specialization constants(device, module, specialization);
 
         const void* const moduleChain = code.stage(

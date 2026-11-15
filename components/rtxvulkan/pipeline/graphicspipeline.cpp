@@ -18,7 +18,7 @@ namespace Rtx
     Owned<VkPipeline, vkDestroyPipeline> makeGraphicsPipeline(const Device& device, const PipelineLayout& layout,
         const GraphicsPipelineOptions& options, const ShaderCode& code)
     {
-        PipelineCreation creation(device, options.mName);
+        PipelineCreation creation(device, options.mName, VK_PIPELINE_BIND_POINT_GRAPHICS);
         const Specialization vertexConstants(device, options.mVertexModule, options.mSpecialization);
         const Specialization fragmentConstants(device, options.mFragmentModule, options.mSpecialization);
 

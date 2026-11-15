@@ -35,18 +35,24 @@
 const uint PEEL_SHADES_SURFACE = 0u;
 const uint PEEL_SHADES_LAYERS = 1u;
 
-/// Whether the kernel has still to peel what the ray found: a surface whose resolved opacity is under one,
-/// on a layer short of the peel's budget.
+/// Whether the kernel has still to peel what the ray found: a surface whose opacity is under one, on a layer
+/// short of the peel's budget.
 ///
-/// Decided here, where the number is, and only here: the opacity is a texture read `resolve` has just
-/// made, at full precision, and the kernel is handed the answer, `Answer::mPane`.
+/// Decided here, where the number is, and only here: the opacity is a texture read `resolve` or
+/// `layerOpacityOf` has just made, at full precision, and the kernel is handed the answer, `Answer::mPane`.
 ///
 /// The kernel peels `PEEL_LAYERS` of them and the one after that is a solid. Otherwise a shading would
 /// find one more pane and shade it as a pane however deep the stack went, and a kernel out of layers would
 /// draw a hole through the world.
+bool peeled(float opacity, uint layer)
+{
+    return isSeenThrough(opacity) && layer < PEEL_LAYERS;
+}
+
+/// The same of a surface resolved, by the opacity `resolve` read.
 bool peeled(Surface surface, uint layer)
 {
-    return isSeenThrough(surface.mOpacity) && layer < PEEL_LAYERS;
+    return peeled(surface.mOpacity, layer);
 }
 
 /// How far `image` moves apart from `surfaceMotion` in a frame, `motionsApart`: where the image stood on

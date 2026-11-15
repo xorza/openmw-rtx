@@ -1278,6 +1278,87 @@ LayerFrame layerFrameOf(vec3 normal)
     return LayerFrame(tangent, cross(normal, tangent));
 }
 
+/// The plane of the corners a hit carries (`committedHit`), unit, and up where the triangle has no area.
+vec3 planeOf(TriangleEdges edges)
+{
+    const vec3 crossed = cross(edges.mFirst, edges.mSecond);
+    return dot(crossed, crossed) > 0.0 ? normalize(crossed) : vec3(0.0, 0.0, 1.0);
+}
+
+/// The normal a hit's vertices carry, unit, or its plane `plane` where they carry none.
+vec3 carriedNormalOf(Hit hit, vec3 plane)
+{
+    return dot(hit.mShading, hit.mShading) > 0.0 ? normalize(hit.mShading) : plane;
+}
+
+/// Whether a hit reads its material's normal map: a picture's (`detailed`), of a material that wears one, on a
+/// mesh that carries tangents.
+bool readsNormalMap(Hit hit, GpuMaterial material, bool detailed)
+{
+    return HAS_MAPS && detailed && holdsTexture(material.mNormal) && dot(hit.mTangent.xyz, hit.mTangent.xyz) > 0.0;
+}
+
+/// The frame a hit's normal map is read through, as `normals.glsl` builds it: the tangent unit, the bitangent
+/// `cross(N, T) * w`, and the interpolated normal `normal`, with no orthogonalisation between them — which is
+/// what the maps were checked against.
+struct MapFrame
+{
+    vec3 mTangent;
+    vec3 mBitangent;
+    vec3 mNormal;
+};
+
+MapFrame mapFrameOf(Hit hit, vec3 normal)
+{
+    const vec3 tangent = normalize(hit.mTangent.xyz);
+    return MapFrame(tangent, cross(normal, tangent) * hit.mTangent.w, normal);
+}
+
+/// The way back along `direction` in `frame`.
+vec3 towardEyeIn(MapFrame frame, vec3 direction)
+{
+    return vec3(dot(frame.mTangent, -direction), dot(frame.mBitangent, -direction), dot(frame.mNormal, -direction));
+}
+
+/// The heights a hit's relief spans (`reliefBoundsOf`), or a relief held flat, which is its shift
+/// (`reliefToward`).
+vec2 reliefBoundsOf(Hit hit, GpuMaterial material)
+{
+    return hit.mMarches ? reliefBoundsOf(material.mRelief) : vec2(1.0, 0.0);
+}
+
+/// Shifts `point`, where a hit lands on its material's own sheet, toward the eye by its normal map's height
+/// (`MATERIAL_PARALLAX`), so every read on the sheet after it lands where the relief puts it: the map itself, the
+/// albedo, the opacity, and the specular, emissive and dark maps. **Marched through the relief** where the scene
+/// has one that spans more than one height (`HAS_RELIEF`), read back where the trace marched it already
+/// (`Hit::mRelief`), and shifted and not marched for a stored landing (`RELIEF_STORED`).
+///
+/// **One statement of the shift, for the resolve and for a peel that weighs a layer by its opacity alone**
+/// (`layerOpacityOf`): the two read one texel.
+///
+/// @param eye the way to the eye in the map's frame (`towardEyeIn`), and `bounds` the heights the march spans
+///        (`reliefBoundsOf`).
+/// @return how far toward the eye the relief showed its texture, and by how much deeper it stood
+///         (`reliefDepthOf`): noughts in a scene with no relief to march.
+vec2 shiftToRelief(inout TexturePoint point, Hit hit, GpuMaterial material, vec3 eye, vec2 bounds, uint reliefSource)
+{
+    const float height = sampleDiffuse(material.mNormal, point).a;
+
+    // **The march its own branch, ahead of the shift's and not inside it**, so a tuple with no relief
+    // compiles the shift's branch unchanged (`HAS_RELIEF`).
+    if (HAS_RELIEF)
+    {
+        const vec2 shown = hit.mRelief != RELIEF_UNMARCHED ? vec2(hit.mRelief, 0.0)
+            : reliefSource == RELIEF_STORED ? reliefShiftOf(height)
+                                            : reliefToward(reliefMapOf(material.mNormal), bounds, point, eye, height);
+        point.mAt += eye.xy * shown.x;
+        return shown;
+    }
+
+    point.mAt += parallaxShift(eye, height);
+    return vec2(0.0);
+}
+
 /// What a hit is made of.
 ///
 /// **Everything a hit leads to and nothing the traversal already answered.** Every table this reads is keyed
@@ -1314,14 +1395,13 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed, uint relief
 
     // The plane of the corners `committedHit` read, where the vertices' own normals are a fetch and
     // are better where they are.
-    const vec3 crossed = cross(hit.mEdges.mFirst, hit.mEdges.mSecond);
-    surface.mGeometric = dot(crossed, crossed) > 0.0 ? normalize(crossed) : vec3(0.0, 0.0, 1.0);
+    surface.mGeometric = planeOf(hit.mEdges);
 
     // Every texture read below shares this hit's triangle and this ray: a chunk's whole layer stack,
     // the opacity a pane pays for, and the emissive map.
     const SurfaceCone cone = surfaceConeAt(hit.mEdges, direction);
 
-    const vec3 normal = dot(hit.mShading, hit.mShading) > 0.0 ? normalize(hit.mShading) : surface.mGeometric;
+    const vec3 normal = carriedNormalOf(hit, surface.mGeometric);
 
     // What the footprint averages of the mesh's own bend, and below of what the normal maps' levels
     // lost, which together widen the lobe once the roughness is read.
@@ -1368,40 +1448,25 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed, uint relief
     // emissive map all read at. A terrain layer has a transform of its own and makes its own.
     TexturePoint point = texturePoint(uv, hit.mBary, material.mTextureTransform, cone, surface.mFootprint, detailed);
 
-    // **A normal map, read through the tangents the mesh carries**, in the frame `normals.glsl` builds: the
-    // tangent unit, the bitangent `cross(N, T) * w`, and the interpolated normal, with no orthogonalisation
-    // between them — which is what the maps were checked against.
-    if (HAS_MAPS && detailed && holdsTexture(material.mNormal) && dot(hit.mTangent.xyz, hit.mTangent.xyz) > 0.0)
+    // **A normal map, read through the tangents the mesh carries** (`MapFrame`).
+    if (readsNormalMap(hit, material, detailed))
     {
-        const vec3 tangent = normalize(hit.mTangent.xyz);
-        const vec3 bitangent = cross(normal, tangent) * hit.mTangent.w;
+        const MapFrame frame = mapFrameOf(hit, normal);
+        const vec3 tangent = frame.mTangent;
+        const vec3 bitangent = frame.mBitangent;
 
-        // **Shifted toward the eye by the map's height first**, where it carries one, so every read on this
-        // sheet after it lands where the relief puts it: the map itself, the albedo, the opacity, and the
-        // specular, emissive and dark maps. **Marched through the relief** where the scene has one that spans
-        // more than one height, and read back where the trace marched it already.
-        //
-        // **The march its own branch, ahead of the shift's and not inside it**, so a tuple with no relief
-        // compiles the shift's branch unchanged (`HAS_RELIEF`).
-        if (HAS_RELIEF && (material.mFlags & MATERIAL_PARALLAX) != 0u)
+        // **Shifted toward the eye by the map's height first**, where it carries one (`shiftToRelief`).
+        if ((material.mFlags & MATERIAL_PARALLAX) != 0u)
         {
-            const vec3 eye = vec3(dot(tangent, -direction), dot(bitangent, -direction), dot(normal, -direction));
-            // A relief held flat is its shift (`reliefToward`).
-            const vec2 bounds = hit.mMarches ? reliefBoundsOf(material.mRelief) : vec2(1.0, 0.0);
-            const float height = sampleDiffuse(material.mNormal, point).a;
-            const vec2 shown = hit.mRelief != RELIEF_UNMARCHED ? vec2(hit.mRelief, 0.0)
-                : reliefSource == RELIEF_STORED ? reliefShiftOf(height)
-                                                : reliefToward(reliefMapOf(material.mNormal), bounds, point, eye, height);
-            surface.mRelief = shown.x;
-            point.mAt += eye.xy * surface.mRelief;
-            surface.mReliefSite = ReliefSite(
-                material.mNormal, point.mAt, bounds, tangent, bitangent, normal, reliefLevelOf(material.mNormal, point));
-            surface.mReliefDepth = reliefDepthOf(uv, material.mTextureTransform, cone, shown.y);
-        }
-        else if ((material.mFlags & MATERIAL_PARALLAX) != 0u)
-        {
-            const vec3 eye = vec3(dot(tangent, -direction), dot(bitangent, -direction), dot(normal, -direction));
-            point.mAt += parallaxShift(eye, sampleDiffuse(material.mNormal, point).a);
+            const vec2 bounds = reliefBoundsOf(hit, material);
+            const vec2 shown = shiftToRelief(point, hit, material, towardEyeIn(frame, direction), bounds, reliefSource);
+            if (HAS_RELIEF)
+            {
+                surface.mRelief = shown.x;
+                surface.mReliefSite = ReliefSite(material.mNormal, point.mAt, bounds, tangent, bitangent, normal,
+                    reliefLevelOf(material.mNormal, point));
+                surface.mReliefDepth = reliefDepthOf(uv, material.mTextureTransform, cone, shown.y);
+            }
         }
 
         const vec3 painted = sampleNormalMap(material.mNormal, point);
@@ -1586,6 +1651,16 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed, uint relief
     else
         albedo = sampleDiffuse(material.mDiffuse, point).rgb;
 
+    // **The rows read again past the stack, for what only the reads below take**: the material's tints and its
+    // dark, emissive and sheet maps, and the mesh's second coordinates. A row is loaded where it is read, whole,
+    // so read once ahead of the stack its every field stood in a register through each layer's reads, where a
+    // stage's registers peak: fourteen of the material's alone, a wave of every stage on RADV
+    // (`docs/research/2026-11-15-radv-wave-tiers.md`). What the code ahead of the stack read as well is the same
+    // load, which the compiler makes once. Refused: the placement's row read again for its opacity, a register
+    // more in the eye's stage.
+    const GpuMesh meshPast = meshAt(hit.mMesh);
+    const GpuMaterial materialPast = materialAt(instance.mMaterial);
+
     // **Fetched for every hit, and selected between without a branch.** A mesh that brought no colour holds
     // white, so the load answers neutrally rather than needing a case, and the three weights below are one or
     // nought (`MATERIAL_VERTEX_TINT` says why the mode does not survive the trip). Over half of Morrowind's
@@ -1600,18 +1675,18 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed, uint relief
     // (`docs/research/2026-11-13-amd-integrated-register-tiers.md`).
     const TriangleColour colours = triangleColour(corner, hit.mBary);
     const vec3 vertexColour = surface.mGround ? colours.mColour : colours.mHue;
-    const float tinted = float((material.mFlags & MATERIAL_VERTEX_TINT) != 0u);
-    const float ambientTinted = float((material.mFlags & MATERIAL_VERTEX_AMBIENT) != 0u);
-    const float glowing = float((material.mFlags & MATERIAL_VERTEX_GLOW) != 0u);
+    const float tinted = float((materialPast.mFlags & MATERIAL_VERTEX_TINT) != 0u);
+    const float ambientTinted = float((materialPast.mFlags & MATERIAL_VERTEX_AMBIENT) != 0u);
+    const float glowing = float((materialPast.mFlags & MATERIAL_VERTEX_GLOW) != 0u);
 
-    surface.mEmissiveColour = mix(material.mEmissiveColour, colours.mColour, glowing);
+    surface.mEmissiveColour = mix(materialPast.mEmissiveColour, colours.mColour, glowing);
 
     // The vertex colour *replaces* the material's tint where the content asked for it, which is
     // what `glColorMaterial(GL_AMBIENT_AND_DIFFUSE)` does and what `getDiffuseColor` reads in the
     // game's own shader. Multiplying the two together would tint a surface twice.
-    const vec3 tint = mix(material.mDiffuseColour, vertexColour, tinted);
+    const vec3 tint = mix(materialPast.mDiffuseColour, vertexColour, tinted);
     surface.mAlbedo = albedo * tint;
-    surface.mAmbientAlbedo = albedo * mix(material.mAmbientColour, vertexColour, ambientTinted);
+    surface.mAmbientAlbedo = albedo * mix(materialPast.mAmbientColour, vertexColour, ambientTinted);
 
     // **A specular map says the diffuse was authored as a base colour**, which is why it was read above
     // with nothing divided out of it: glTF's metal and roughness, the base colour split between what a
@@ -1630,7 +1705,7 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed, uint relief
     }
     else if (specularMap && surface.mGround)
     {
-        const vec2 gloss = sampleDiffuse(material.mSpecular, point).rg;
+        const vec2 gloss = sampleDiffuse(materialPast.mSpecular, point).rg;
         surface.mSpecular = vec3(DIELECTRIC_F0 * gloss.x) * tint;
         surface.mRoughness = gloss.y;
     }
@@ -1641,7 +1716,7 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed, uint relief
         // ray stops at the mesh; what real geometry occludes the traced bounce and `ambientReaching` already
         // find. The scattering in its alpha is not read: the BC1 maps most of the content ships cannot carry it.
 
-        const vec4 painted = sampleDiffuse(material.mSpecular, point);
+        const vec4 painted = sampleDiffuse(materialPast.mSpecular, point);
         const float metal = painted.x;
         surface.mSpecular = mix(vec3(DIELECTRIC_F0), albedo, metal) * tint;
         surface.mRoughness = painted.y;
@@ -1657,15 +1732,15 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed, uint relief
     // **Fetched again rather than kept from the albedo**, whose read keeps its colour alone: it is the
     // hottest sampler in the shader and an out-parameter there costs every opaque surface in the frame.
     // This is a fetch a pane of glass pays and nothing else does.
-    const float opacity = surfaceOpacity(instance, material);
-    const bool seenThrough = isSeenThrough(opacity, material);
+    const float opacity = surfaceOpacity(instance, materialPast);
+    const bool seenThrough = isSeenThrough(opacity, materialPast);
     if (seenThrough)
-        surface.mOpacity = sampledOpacity(opacity, material, point);
+        surface.mOpacity = sampledOpacity(opacity, materialPast, point);
 
     // **The dark map multiplies the whole of it**, colour and alpha. At the unit the content bound
     // it at, on whichever set that unit reads: the Sixth House banners read their second set and
     // the durzog its first. White where there is none, so no surface asks twice.
-    const vec4 dark = darkAt(material, mesh, corner, hit.mBary, point, cone, surface.mFootprint, detailed);
+    const vec4 dark = darkAt(materialPast, meshPast, corner, hit.mBary, point, cone, surface.mFootprint, detailed);
     surface.mAlbedo *= dark.rgb;
     surface.mAmbientAlbedo *= dark.rgb;
 
@@ -1674,10 +1749,10 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed, uint relief
     if (HAS_MOD_MAPS)
     {
         const LaidMaps laid
-            = laidMapsAt(instance.mMaterial, mesh, corner, hit.mBary, point, cone, surface.mFootprint, detailed);
+            = laidMapsAt(instance.mMaterial, meshPast, corner, hit.mBary, point, cone, surface.mFootprint, detailed);
         surface.mAlbedo = laidColour(surface.mAlbedo, tint, laid);
         surface.mAmbientAlbedo
-            = laidColour(surface.mAmbientAlbedo, mix(material.mAmbientColour, vertexColour, ambientTinted), laid);
+            = laidColour(surface.mAmbientAlbedo, mix(materialPast.mAmbientColour, vertexColour, ambientTinted), laid);
     }
 
     // And the lobe, for the tint's reason: a dark map is light painted in.
@@ -1690,12 +1765,12 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed, uint relief
         surface.mOpacity *= dark.a;
 
     // At its own unit too: the draugrs' eye glow is bound on their second set.
-    if (holdsTexture(material.mEmissive))
+    if (holdsTexture(materialPast.mEmissive))
     {
-        const uint unit = (material.mFlags >> MATERIAL_EMISSIVE_UNIT_SHIFT) & MATERIAL_UNIT_MASK;
+        const uint unit = (materialPast.mFlags >> MATERIAL_EMISSIVE_UNIT_SHIFT) & MATERIAL_UNIT_MASK;
         surface.mEmitted = EMISSIVE_INTENSITY
-            * sampleDiffuse(material.mEmissive,
-                pointAtUnit(unit, point, mesh, corner, hit.mBary, cone, surface.mFootprint, detailed))
+            * sampleDiffuse(materialPast.mEmissive,
+                pointAtUnit(unit, point, meshPast, corner, hit.mBary, cone, surface.mFootprint, detailed))
                   .rgb;
     }
 
@@ -1705,9 +1780,10 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed, uint relief
     // Its bump and gloss maps only where it has a sheet for them to change, which is the only place the content
     // binds them (`Rtx::Material::mBump`).
     SheetMaps sheetMaps = SheetMaps(vec2(0.0), vec3(1.0));
-    if (HAS_MOD_MAPS && holdsTexture(material.mEnvironment))
-        sheetMaps = sheetMapsAt(instance.mMaterial, mesh, corner, hit.mBary, point, cone, surface.mFootprint, detailed);
-    const vec3 sheet = sheetAt(material, span, surface.mNormal, direction, cone, surface.mFootprint, sheetMaps);
+    if (HAS_MOD_MAPS && holdsTexture(materialPast.mEnvironment))
+        sheetMaps
+            = sheetMapsAt(instance.mMaterial, meshPast, corner, hit.mBary, point, cone, surface.mFootprint, detailed);
+    const vec3 sheet = sheetAt(materialPast, span, surface.mNormal, direction, cone, surface.mFootprint, sheetMaps);
     const bool lit = frame.mLitEnvironmentMaps != 0u;
     surface.mEmitted += lit ? vec3(0.0) : sheet;
     surface.mAlbedo = lit ? min(surface.mAlbedo + sheet / SUNLIT_WHITE, vec3(1.0)) : surface.mAlbedo;
@@ -1715,6 +1791,38 @@ Surface resolve(Hit hit, vec3 origin, vec3 direction, bool detailed, uint relief
         = lit ? min(surface.mAmbientAlbedo + sheet / SUNLIT_WHITE, vec3(1.0)) : surface.mAmbientAlbedo;
 
     return surface;
+}
+
+/// What a peel weighs the surface `asked` met (`met`) by where it is a layer, its opacity alone, as `resolve`
+/// reads it (`Surface::mOpacity`) and with none of the rest: one where the surface is all there. For a walk that
+/// passes its layers and resolves only what it ends on, past its loop (`visibility.comp`).
+///
+/// **The same texel `resolve` reads**, on the material's own sheet where the hit's normal map shifts it
+/// (`shiftToRelief`), by the dark map's alpha.
+float layerOpacityOf(SceneAnswer met, SceneQuery asked)
+{
+    const Hit hit = committedHit(met.mInstance, met.mPrimitive, met.mBary, met.mDistance, footprintOf(asked, met));
+    const GpuInstance instance = instanceAt(hit.mInstance);
+    const GpuMaterial material = materialAt(instance.mMaterial);
+    const float opacity = surfaceOpacity(instance, material);
+    if (!isSeenThrough(opacity, material))
+        return 1.0;
+
+    const GpuMesh mesh = meshAt(hit.mMesh);
+    const SurfaceCone cone = surfaceConeAt(hit.mEdges, asked.mAlong);
+    const bool detailed = asked.mDetailed != 0u;
+    vec2 uv[3];
+    triangleUvs(hit.mCorner, uv);
+    TexturePoint point = texturePoint(uv, hit.mBary, material.mTextureTransform, cone, hit.mFootprint, detailed);
+    if (readsNormalMap(hit, material, detailed) && (material.mFlags & MATERIAL_PARALLAX) != 0u)
+    {
+        const MapFrame frame = mapFrameOf(hit, carriedNormalOf(hit, planeOf(hit.mEdges)));
+        shiftToRelief(point, hit, material, towardEyeIn(frame, asked.mAlong), reliefBoundsOf(hit, material),
+            RELIEF_MARCHES);
+    }
+
+    return sampledOpacity(opacity, material, point)
+        * darkAt(material, mesh, hit.mCorner, hit.mBary, point, cone, hit.mFootprint, detailed).a;
 }
 
 /// The ray that finds the surface a ray meets, to the reach, resolved (`resolveAsked`).

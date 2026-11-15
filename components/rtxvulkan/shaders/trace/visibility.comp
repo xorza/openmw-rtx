@@ -95,7 +95,6 @@ TracedLists tracePixel(uvec2 pixel)
         armsThrough = pending.mArmsThrough;
         turns = pending.mTurns;
         met = SceneAnswer(1u, along.w, 0u, hit.x, hit.y, uintBitsToFloat(hit.zw), KIND_WATER);
-        surface = resolveAsked(met, peelAsk(peel, pixel).mQuery);
         peelCut = false;
     }
     else
@@ -113,25 +112,32 @@ TracedLists tracePixel(uvec2 pixel)
                 break;
             }
 
-            // **What the turn met leaves the loop only as it ends it**, so neither the hit nor its
-            // surface is carried from turn to turn.
-            const Surface found = resolveAsked(answered, ask.mQuery);
-            if ((answered.mKind == KIND_WATER && HAS_SEA) || !peeled(found, peel.mLayer))
+            // **A layer weighed by its opacity alone, and read for it alone** (`layerOpacityOf`): the layers'
+            // stage shades it. What the peel ends on is resolved past the loop, once: a resolve inside it held
+            // through every layer's reads what the loop carries from turn to turn, the traversal's own record of
+            // its last hit among it, and this stage's registers peaked there
+            // (`docs/research/2026-11-15-radv-wave-tiers.md`).
+            const bool sea = answered.mKind == KIND_WATER && HAS_SEA;
+            const float opacity = sea ? 1.0 : layerOpacityOf(answered, ask.mQuery);
+            if (sea || !peeled(opacity, peel.mLayer))
             {
                 met = answered;
-                surface = found;
                 peelCut = false;
                 break;
             }
 
-            // **A layer, weighed by its opacity alone**: the layers' stage shades it.
             if (peel.mArms)
-                armsThrough *= 1.0 - found.mOpacity;
+                armsThrough *= 1.0 - opacity;
             else
-                panesThrough *= 1.0 - found.mOpacity;
+                panesThrough *= 1.0 - opacity;
             peelPastLayer(peel, answered.mDistance);
         }
     }
+
+    // **What the peel ended on, resolved once**, off the ask its last turn made, made again: the trace's own
+    // walk's and the sea the water's stage took up.
+    if (met.mCommitted != 0u)
+        surface = resolveAsked(met, peelAsk(peel, pixel).mQuery);
 
     // The ray the peel ended on, which the rest of the trace is the path of. Read again from the stage's
     // record by the water's stage once its walk ends, so the walk carries none of it (`WaterPending`).
@@ -298,20 +304,6 @@ TracedLists tracePixel(uvec2 pixel)
     // arrives by it as the light of a surface behind the air arrives by what the air let through.
     transmittance *= pathWeight;
 
-    // The sprites in front of all of it, lit where they stand and left in a layer of their own: the frame goes
-    // to the denoiser with no puff in it, and `spritecomposite.rgen` marches their shape again at the answer extent
-    // and takes their colour from here (three fetches a covering sprite, worth paying once at the traced extent).
-    // The sprites alone, no cloud shell: a shell is gathered along the ray that shows it, which is the
-    // composite's, or a cloud's edge shakes with this jittered sample. Only in a frame a puff can be met in, a
-    // uniform branch; otherwise the channel holds no puff already (`GBuffer::begin`).
-    if ((frame.mPuffsInFrame & PUFFS_DRAWN) != 0u)
-    {
-        const PuffLayer sprites
-            = spritesAlong(binnedPixel(pixel, direction, arms), origin, direction, distance, cone, true);
-        RTX_STORE_COUNTED(puffs, channelAt(CHANNEL_PUFFS, ivec2(pixel), width, swap),
-            vec4(sprites.mColour, sprites.mTransmittance))
-    }
-
     // The sun glare fader's query, one ray at a time: the rasterizer draws the sun's quad against the world's
     // depth and counts the surviving pixels; here every primary ray inside the disc counts itself, and again where
     // nothing that writes depth stood in front of the sky (the water writes none, a peeled pane does). `glare.h`
@@ -383,6 +375,24 @@ TracedLists tracePixel(uvec2 pixel)
     // A miss is as far away as anything can be, and `missedAlong` answered `mFar` for it.
     RTX_STORE_COUNTED(surfaceChannel, channelAt(CHANNEL_SURFACE, at, width, swap),
         vec4(answer.mResponse.mNormal, packSurfaceDistance(guideDistance, arms), 0.0, 0.0))
+
+    // The sprites in front of all of it, lit where they stand and left in a layer of their own: the frame goes
+    // to the denoiser with no puff in it, and `spritecomposite.rgen` marches their shape again at the answer extent
+    // and takes their colour from here (three fetches a covering sprite, worth paying once at the traced extent).
+    // The sprites alone, no cloud shell: a shell is gathered along the ray that shows it, which is the
+    // composite's, or a cloud's edge shakes with this jittered sample. Only in a frame a puff can be met in, a
+    // uniform branch; otherwise the channel holds no puff already (`GBuffer::begin`).
+    //
+    // **Past every other store of the pixel**, so the sprites' walk holds the ray alone: walked ahead of them,
+    // it carried everything they write, and the stage's registers peaked in it
+    // (`docs/research/2026-11-15-radv-wave-tiers.md`).
+    if ((frame.mPuffsInFrame & PUFFS_DRAWN) != 0u)
+    {
+        const PuffLayer sprites
+            = spritesAlong(binnedPixel(pixel, direction, arms), origin, direction, distance, cone, true);
+        RTX_STORE_COUNTED(puffs, channelAt(CHANNEL_PUFFS, ivec2(pixel), width, swap),
+            vec4(sprites.mColour, sprites.mTransmittance))
+    }
 
     // **What a pixel no layer stands in holds in the pane channels**, at every pixel: the layers'
     // stage stores the layers' own over the tiles where they stand.

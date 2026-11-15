@@ -156,8 +156,10 @@ namespace Rtx
         /// **A driver's profile is read off its vendor and its driver alone**: NGX runs on NVIDIA's id
         /// and on no other; each driver names its statistics its own way, RADV and AMD's own
         /// differently on one card, and a driver that names none has none; NVIDIA's alone holds scratch
-        /// at no cost, 112 bytes a lane. AMD's own alone is handed its ray-query modules without their
-        /// reconvergence, which its compiler fails on.
+        /// at no cost, 112 bytes a lane. **A scratch figure is read as a lane's bytes**: RADV's counts a
+        /// subgroup's, so a launch's 10240 over 32 lanes is its stack of 320, and NVIDIA's flag above its
+        /// bytes is no byte. AMD's own alone is handed its ray-query modules without their reconvergence,
+        /// which its compiler fails on.
         TEST(RtxPhysicalDeviceTest, aDriversProfileIsItsCapabilitiesAndItsStatisticsNames)
         {
             const DriverProfile nvidia = DriverProfile::of(0x10DE, VK_DRIVER_ID_NVIDIA_PROPRIETARY);
@@ -166,6 +168,9 @@ namespace Rtx
             EXPECT_EQ(nvidia.mStatistics.mScratch, "Local Memory Size");
             EXPECT_EQ(nvidia.mStatistics.mScratchBits, 0xFFFFFFFFu);
             EXPECT_EQ(nvidia.mStatistics.mScratchFreeBytes, 112u);
+            EXPECT_EQ(nvidia.mStatistics.mScratchScope, ScratchScope::Lane);
+            // 2^36 + 96, whatever the lanes.
+            EXPECT_EQ(nvidia.mStatistics.laneScratchBytes((std::uint64_t{ 1 } << 36) + 96, 32), 96u);
             EXPECT_TRUE(nvidia.mReconvergesRayQueries);
 
             const DriverProfile radv = DriverProfile::of(0x1002, VK_DRIVER_ID_MESA_RADV);
@@ -173,10 +178,16 @@ namespace Rtx
             EXPECT_EQ(radv.mStatistics.mScratch, "Scratch size");
             EXPECT_EQ(radv.mStatistics.mScratchBits, ~std::uint64_t{ 0 });
             EXPECT_EQ(radv.mStatistics.mScratchFreeBytes, 0u);
+            EXPECT_EQ(radv.mStatistics.mScratchScope, ScratchScope::Subgroup);
+            // 10240 / 32 and 20480 / 64; an executable that states no lanes is read as one lane wide.
+            EXPECT_EQ(radv.mStatistics.laneScratchBytes(10240, 32), 320u);
+            EXPECT_EQ(radv.mStatistics.laneScratchBytes(20480, 64), 320u);
+            EXPECT_EQ(radv.mStatistics.laneScratchBytes(10240, 0), 10240u);
             EXPECT_TRUE(radv.mReconvergesRayQueries);
             const DriverProfile amd = DriverProfile::of(0x1002, VK_DRIVER_ID_AMD_PROPRIETARY);
             EXPECT_EQ(amd.mStatistics.mScratch, "scratchMemUsageInBytes");
             EXPECT_EQ(amd.mStatistics.mScratchFreeBytes, 0u);
+            EXPECT_EQ(amd.mStatistics.laneScratchBytes(272, 32), 272u);
             EXPECT_FALSE(amd.mReconvergesRayQueries);
 
             const DriverProfile other = DriverProfile::of(0x5143, VK_DRIVER_ID_QUALCOMM_PROPRIETARY);

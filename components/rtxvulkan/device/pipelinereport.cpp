@@ -53,13 +53,15 @@ namespace Rtx
             }
         }
 
-        /// Raises what `use` says by one statistic the driver reported under one of `names`.
-        void readUse(CompiledUse& use, const VkPipelineExecutableStatisticKHR& statistic, const StatisticNames& names)
+        /// Raises what `use` says by one statistic the driver reported under one of `names`, of an executable
+        /// whose subgroups hold `lanes` lanes.
+        void readUse(CompiledUse& use, const VkPipelineExecutableStatisticKHR& statistic, const StatisticNames& names,
+            const std::uint32_t lanes)
         {
             const std::string_view name = statistic.name;
             const std::uint64_t value = unsignedOf(statistic);
             if (name == names.mScratch)
-                raise(use.mScratchBytes, value & names.mScratchBits);
+                raise(use.mScratchBytes, names.laneScratchBytes(value, lanes));
             else if (name == names.mRegisters)
                 raise(use.mRegisters, value);
             else if (name == names.mShared)
@@ -186,14 +188,14 @@ namespace Rtx
             use.mSubgroupSize = std::max(use.mSubgroupSize.value_or(0), executables[executable].subgroupSize);
             for (const VkPipelineExecutableStatisticKHR& statistic : statisticsOf(pipeline, executable))
             {
-                readUse(use, statistic, names);
+                readUse(use, statistic, names, executables[executable].subgroupSize);
             }
         }
         return use;
     }
 
-    void PipelineReport::report(
-        const VkPipeline pipeline, const std::string_view name, const PipelineFeedback& feedback) const
+    void PipelineReport::report(const VkPipeline pipeline, const std::string_view name, const VkPipelineBindPoint point,
+        const PipelineFeedback& feedback) const
     {
         // One line a pipeline, at the debug level and built only where it is shown: a start makes hundreds,
         // which `logSummary` says in a line.
@@ -235,7 +237,7 @@ namespace Rtx
 
             const std::vector<VkPipelineExecutableStatisticKHR> statistics = statisticsOf(pipeline, executable);
             for (const VkPipelineExecutableStatisticKHR& statistic : statistics)
-                readUse(use, statistic, names);
+                readUse(use, statistic, names, executables[executable].subgroupSize);
             if (listed)
                 line += std::format("; {}{}{}", count > 1 ? executables[executable].name : "", count > 1 ? ": " : "",
                     describeStatistics(statistics, names));
@@ -243,10 +245,15 @@ namespace Rtx
 
         if (listed)
             Log(Debug::Debug) << line;
+
+        // **A launch's scratch is its stack and no spill** (`CompiledUse::mStackBytes`): RADV keeps a ray
+        // generation group's stack in a lane's scratch, 320 bytes of every launch that traces, which a summary
+        // would warn of at every start.
+        const bool launch = point == VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR;
         mTally->add(PipelineMade{ .mName = name,
                         .mFeedback = feedback,
                         .mExecutables = count,
-                        .mScratchBytes = use.mScratchBytes.value_or(0) },
+                        .mScratchBytes = launch ? 0 : use.mScratchBytes.value_or(0) },
             std::chrono::steady_clock::now());
     }
 

@@ -27,9 +27,10 @@ namespace Rtx
     struct CompiledUse
     {
         /// The scratch memory a lane uses, in bytes — what the compiler spilled out of the registers, and
-        /// any array indexed at run time: AMD's `scratchMemUsageInBytes`, RADV's `Scratch size` and
-        /// NVIDIA's `Local Memory Size` (`StatisticNames::mScratchBits`). RADV's `Spilled SGPRs` are not a
-        /// spill to memory: ACO keeps a scalar register spilled in a vector register's lanes.
+        /// any array indexed at run time: AMD's `scratchMemUsageInBytes`, RADV's `Scratch size` over its
+        /// subgroup's lanes and NVIDIA's `Local Memory Size` (`StatisticNames::laneScratchBytes`). On RADV a
+        /// launch's includes its stack (`mStackBytes`). RADV's `Spilled SGPRs` are not a spill to memory: ACO
+        /// keeps a scalar register spilled in a vector register's lanes.
         std::optional<std::uint64_t> mScratchBytes;
 
         /// The vector registers a lane holds, which is how many waves share a SIMD's register file:
@@ -82,7 +83,11 @@ namespace Rtx
         /// what the driver's compiler made of it — registers a thread, spills, shared memory a block: an occupancy
         /// figure with no external profiler. Where the run asks for its code, writes it (`writeCode`). From any
         /// compile hand.
-        void report(VkPipeline pipeline, std::string_view name, const PipelineFeedback& feedback) const;
+        ///
+        /// @param point which kind of pipeline it is, as `compiledUseOf` takes it: a launch's scratch is its stack,
+        ///        and counts as no spill.
+        void report(VkPipeline pipeline, std::string_view name, VkPipelineBindPoint point,
+            const PipelineFeedback& feedback) const;
 
         /// Logs what the pipelines made since the device was made, or since the last summary, came to
         /// (`describePipelines`), and a warning naming every one of them that uses more scratch memory than its

@@ -73,7 +73,7 @@ namespace Rtx
     class PipelineCreation
     {
     public:
-        PipelineCreation(const Device& device, std::string_view name);
+        PipelineCreation(const Device& device, std::string_view name, VkPipelineBindPoint point);
 
         PipelineCreation(const PipelineCreation&) = delete;
         PipelineCreation& operator=(const PipelineCreation&) = delete;
@@ -89,6 +89,7 @@ namespace Rtx
     private:
         const Device& mDevice;
         std::string_view mName;
+        VkPipelineBindPoint mPoint;
         Crash::NoteScope mNoted;
         VkPipelineCreationFeedback mFeedback{};
         VkPipelineCreationFeedbackCreateInfo mTimed{};

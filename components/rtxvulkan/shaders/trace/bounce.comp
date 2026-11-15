@@ -76,47 +76,58 @@ bool bouncePixel(uvec2 pixel, uint ray, out bool gathers)
     const uint swap = fieldSwapOf(frame.mFrame);
     const ivec2 at = ivec2(pixel);
     const ivec2 stored = storedAt(at, width, swap);
-    StageRecord record = unpackStageRecord(imageLoad(stageRecord, stored));
+    const StageRecord solid = unpackStageRecord(imageLoad(stageRecord, stored));
 
     // **The solid the trace found, resolved off the hit it stored** (`storedSolidOf`).
-    const Surface surface = storedSolidOf(record, stored);
+    const Surface surface = storedSolidOf(solid, stored);
 
     BounceRun bounce = bounceRunOf();
     if (surface.mHit)
-        startBounce(bounce, surface, coneAt(eyeOf(record.mArms)), pixel, ray);
+        startBounce(bounce, surface, coneAt(eyeOf(solid.mArms)), pixel, ray);
 
     // **A split pixel's lift blended with its split neighbours'** where no layer stands, which the layers'
     // stage blends where one does (`shownSurfaceLift`): here, where every pixel's halves are written, and
     // not in the layers' stage, whose registers its tiles paid for the blend alone.
-    if (HAS_SEA && ray == 0u && !record.mLayered
+    if (HAS_SEA && ray == 0u && !solid.mLayered
         && splitIn(imageLoad(motion, channelAt(CHANNEL_MOTION, at, width, swap))))
         RTX_STORE_COUNTED(lift, channelAt(CHANNEL_LIFT, at, width, swap),
             vec4(shownSurfaceLift(at, width, swap, true), 1.0))
 
+    gathers = bounce.mDrawn.mSpecular || !skyLights()
+        || indirectGatherDrawn(pixelKey(pixel), bounceSeedsAt(ray).mIndirect);
+
+    // **The record read again past the resolve, which read its kind alone**: packed whole below, its other
+    // words stood in registers through every layer's reads.
+    StageRecord record = unpackStageRecord(imageLoad(stageRecord, stored));
     record.mBounceLobe = bounce.mDrawn.mSpecular;
-    gathers = record.mBounceLobe || !skyLights() || indirectGatherDrawn(pixelKey(pixel), bounceSeedsAt(ray).mIndirect);
 
-    const RayAnswer answered = answerAsked(bounce.mBounceRay);
-
-    if (bounce.mBounceTraced)
+    // **What arrived where the answer is known without a ray**: the escape, or nothing.
+    if (!bounce.mBounceTraced)
     {
-        // **What the ray met, stored for the landing** (`storeLandingHit`), which nothing reads after this
-        // stage but the landing's: the landing then resolves it as this walk would have
-        // (`storedLandingOf`).
-        const SceneAnswer met = answered.mMet;
-        if (met.mCommitted != 0u)
-        {
-            storeLandingHit(stored, met, bounce.mBounceRay.mQuery, ray);
-            storeBounce(stored, bounce.mWeight, bounce.mModulationWord);
-            RTX_STORE_WORDS(stageRecord, stored, packStageRecord(record))
-            return true;
-        }
-
-        bounce.mEscaped = bounceMissed(bounce);
+        storeBounced(
+            pixel, record, escapedArriving(bounce.mEscaped), unpackRgb9e5(bounce.mModulationWord), ray > 0u);
+        return false;
     }
 
-    // **What arrived, where this stage knows it**: the escape, or nothing.
-    storeBounced(pixel, record, escapedArriving(bounce.mEscaped), unpackRgb9e5(bounce.mModulationWord), ray > 0u);
+    // **What the landing is handed stored ahead of the ray** (`storeBounce`), with the record, and read back
+    // where the ray met nothing: held through the traversal, the weight, the modulation and the record's words
+    // were eight numbers a lane where this stage's registers peak
+    // (`docs/research/2026-11-15-radv-wave-tiers.md`).
+    storeBounce(stored, bounce.mWeight, bounce.mModulationWord);
+    RTX_STORE_WORDS(stageRecord, stored, packStageRecord(record))
+
+    // **What the ray met, stored for the landing** (`storeLandingHit`), which nothing reads after this
+    // stage but the landing's: the landing then resolves it as this walk would have (`storedLandingOf`).
+    const SceneAnswer met = queryScene(bounce.mBounceRay.mQuery);
+    if (met.mCommitted != 0u)
+    {
+        storeLandingHit(stored, met, bounce.mBounceRay.mQuery, ray);
+        return true;
+    }
+
+    const StoredBounce handed = storedBounceAt(stored);
+    storeBounced(pixel, unpackStageRecord(imageLoad(stageRecord, stored)),
+        escapedArriving(bounceEscape(bounce.mPosition, bounce.mDrawn, handed.mWeight)), handed.mModulation, ray > 0u);
     return false;
 }
 

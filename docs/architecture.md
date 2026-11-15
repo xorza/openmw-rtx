@@ -510,7 +510,10 @@ bounce (or `unbounced` in their place), then the composite. Every ray is a ray q
 - **A spill is scratch past what its driver holds at no cost** (`StatisticNames::mScratchFreeBytes`): 112 bytes a
   lane on NVIDIA, whose compiler keeps what the registers do not hold in shared memory and only what is over in a
   lane's local memory, and whose `panes` ran no faster with them gone; none on AMD's drivers
-  (`research/2026-11-14-nvidia-register-spills.md`). The test's NVIDIA rows hold a stage's scratch at what it is,
+  (`research/2026-11-14-nvidia-register-spills.md`). **Read as a lane's bytes, and a launch's is its stack**: RADV
+  counts a subgroup's scratch and keeps a ray generation stack there (`StatisticNames::laneScratchBytes`,
+  `PipelineReport::report`), which a summary warned of at every start
+  (`research/2026-11-15-radv-wave-tiers.md`). The test's NVIDIA rows hold a stage's scratch at what it is,
   under that figure. Refused: no warning on NVIDIA at all, as its own compiler warns of a spill only where asked
   (`--warn-on-spills`), which leaves a kernel that grew on a player's card unsaid; the test's ceilings shipped and
   warned past, which are one card's; the stages lowered until none holds any, which moved no zone and took tuples
@@ -521,6 +524,18 @@ bounce (or `unbounced` in their place), then the composite. Every ray is a ray q
 - **A stage's phases are loops of their own**, so only one walk's records stay live across a traversal; a stage whose
   rays wait on no other's answer works out its light first, as NVIDIA's best practices ask
   (`research/2026-10-30-amd-handheld-stage-times.md`).
+- **A ray is asked at its turn, and what a traversal does not read is not held through it**: a gather keeps where
+  its rays leave from, the sky's source by its id and a lamp by its row, and makes each ask at its turn
+  (`GatherRays`, `skyLegAsk`); the bounce stores what it hands its landing ahead of its ray and reads it back on a
+  miss (`bounce.comp`); the direct stage writes what no ray answers before its rays. A stage's registers are its
+  waves, sixteen a wave on RDNA 2, and a wave was 6 to 14% of a stage on the handheld
+  (`research/2026-11-15-radv-wave-tiers.md`). Refused: the landing resolved once off whichever images hold its hit,
+  four registers more and a wave fewer where the scene has maps.
+- **The eye's peel weighs a layer by its opacity alone and resolves what it ends on once, past its loop**
+  (`layerOpacityOf`, the texel `resolve` reads): a resolve inside the loop held the peel's state and the
+  traversal's record of its last hit through every layer's reads (the same note). The price is the peel's own
+  read where the stage gains no wave, 1.3% of the eye's stage under the Repack on the handheld. Refused: the hit
+  stored ahead of its resolve and read back, 2% of the stage under a sky for two registers.
 - **A layer under the water takes its column's shafts from `media`**: its column in the closed form, the beam scaled
   by the ratio `media` marched over the eye's whole column (`STAGE_SHAFTS`), the medium integrated once along the ray
   and read at each depth, as Frostbite's volumetrics light transparents (Hillaire 2015); exact where the shafts' share
@@ -530,10 +545,11 @@ bounce (or `unbounced` in their place), then the composite. Every ray is a ray q
   (`research/2026-10-21-nvidia-stage-costs.md`, `research/2026-11-02-water-stage.md`); a walk resolves the surface it
   ends on once, after it (`research/2026-11-09-walks-resolve-once.md`).
 - **What a hit fetches stands where it is read, past the ground stack's loop**, where a stage's registers peak: the
-  vertex colours, and in a scene with a relief the layers' frame, made again (`resolve`,
-  `research/2026-11-13-amd-integrated-register-tiers.md`). Refused: the frame made again in every tuple, which ran the
-  bounce of a scene with maps and no relief 6.6 to 9.5% longer; a relief site of five numbers for nine, which moved no
-  kernel.
+  vertex colours, the material's and the mesh's rows, read again for what only the reads past the stack take, and in a
+  scene with a relief the layers' frame, made again (`resolve`, `research/2026-11-13-amd-integrated-register-tiers.md`).
+  A row is loaded whole where the GLSL reads it, and RADV sinks no such load toward its use
+  (`research/2026-11-15-radv-wave-tiers.md`). Refused: the frame made again in every tuple, which ran the bounce of a
+  scene with maps and no relief 6.6 to 9.5% longer; a relief site of five numbers for nine, which moved no kernel.
 - **The surface a pixel is the hit the trace stored**, 48 bytes resolved again by later stages (`storedSolidOf`), as
   Falcor's visibility buffer. Refused: tracing the eye's ray again; the resolved surface stored, about 80 bytes.
 - **Every water pixel splits on two checkerboard fields**, one the mirror and one the bed, as Quake II RTX's

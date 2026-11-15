@@ -59,9 +59,17 @@ void main()
     {
         // **The solid the trace found, resolved off the hit it stored** (`storedSolidOf`), and its
         // light worked out whole but for what its rays answer (`solidLightOf`): its lamps in two
-        // strata, by the list of the tile it stood in on the frame before (`lampListOf`).
-        const LampList list = lampListOf(pixel, imageLoad(motion, stored).xy);
-        const SolidLight light = solidLightOf(storedSolidOf(record, stored), pixel, list);
+        // strata, by the list of the tile it stood in on the frame before (`lampListOf`), read once the
+        // solid is resolved, so the resolve holds none of it.
+        const Surface solid = storedSolidOf(record, stored);
+        const SolidLight light = solidLightOf(solid, pixel, lampListOf(pixel, imageLoad(motion, stored).xy));
+
+        // **The solid's light no ray answers under the layers**, by what the media and the path let through, as
+        // the trace took the water's own light down (`visibility.comp`): written ahead of the rays, which then
+        // carry none of it.
+        const ivec2 directAt = channelAt(CHANNEL_DIRECT, ivec2(pixel), width, swap);
+        RTX_STORE_COUNTED(direct, directAt,
+            vec4(imageLoad(direct, directAt).rgb + light.mRest * imageLoad(stageThroughput, stored).rgb, 1.0))
 
         Passage skyFirst = openPassage();
         Passage skyOver = openPassage();
@@ -69,19 +77,20 @@ void main()
         Passage listedPassage = openPassage();
         [[dont_unroll]] for (uint turn = 0u; turn < DIRECT_RAYS; ++turn)
         {
-            // **A lamp's ray asked at its turn**, of the row its stratum keeps and the tile's draw read again,
-            // and not held through the traversals before it: two asks of a whole query each spilled the stage
-            // past its registers.
+            // **Each ray asked at its turn** (`GatherRays`), a lamp's of the row its stratum keeps, and the
+            // tile's draw read again, and none held through the traversals before it: two asks of a whole
+            // query each spilled the stage past its registers.
             RayAsk ask;
             if (turn == DIRECT_SKY)
-                ask = light.mSkyRay;
+                ask = skyLegAsk(light.mRays, unitPair(pixel, STREAM_SUN_DISC), false);
             else if (turn == DIRECT_SKY_OVER)
-                ask = light.mSkyOverRay;
+                ask = skyLegAsk(light.mRays, unitPair(pixel, STREAM_SUN_DISC), true);
             else if (turn == DIRECT_LAMP)
-                ask = heldLampRay(light.mRestLamps, light.mLeaving, light.mStep, unitPair(pixel, STREAM_LAMP_DISC));
-            else
                 ask = heldLampRay(
-                    light.mListedLamps, light.mLeaving, light.mStep, unitPair(pixel, STREAM_LAMP_DISC_LISTED));
+                    light.mRestLamps, light.mRays.mLeaving, light.mRays.mStep, unitPair(pixel, STREAM_LAMP_DISC));
+            else
+                ask = heldLampRay(light.mListedLamps, light.mRays.mLeaving, light.mRays.mStep,
+                    unitPair(pixel, STREAM_LAMP_DISC_LISTED));
 
             const Passage passage = passageAnswered(answerAsked(ask));
             if (turn == DIRECT_SKY)
@@ -94,19 +103,12 @@ void main()
                 listedPassage = passage;
         }
 
-        const SeenSolid seen = seenSolidOf(light,
-            light.mSkyBent ? joinedPassage(skyFirst, skyOver, light.mSkyPath, light.mSkySource.mLimb) : skyFirst,
-            lampPassage, listedPassage);
+        const SeenSolid seen = seenSolidOf(
+            light, pixel, skyLegsJoined(light.mRays, skyFirst, skyOver), lampPassage, listedPassage);
 
-        // **The solid's light under the layers**, by what the media and the path let through, as
-        // the trace took the water's own light down (`visibility.comp`); **its shadowed sources and
-        // its lobe by the layers' share as well**, which no stage lays over them.
+        // **Its shadowed sources and its lobe by the layers' share as well**, which no stage lays over them.
         const vec4 through = imageLoad(stageThroughput, stored);
         const vec3 transmittance = through.rgb * through.a;
-
-        const ivec2 directAt = channelAt(CHANNEL_DIRECT, ivec2(pixel), width, swap);
-        RTX_STORE_COUNTED(
-            direct, directAt, vec4(imageLoad(direct, directAt).rgb + seen.mLight.mRest * through.rgb, 1.0))
 
         sky = dimmed(seen.mLight.mSky, transmittance);
         lamps = dimmed(seen.mLight.mLamps, transmittance);

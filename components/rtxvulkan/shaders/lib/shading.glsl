@@ -111,6 +111,29 @@ SkyTerm joinedTerms(SkyTerm first, SkyTerm second, float scale)
         first.mSpecular + second.mSpecular * scale);
 }
 
+/// The rays a gather waits on, **in as few numbers as asking each at its turn takes**: where they leave from, the
+/// sky's drawn source by its id and how its passage is asked. A stage asks each ray at its turn of them
+/// (`skyLegAsk`, `lampRowAsk`) and holds no ask through the traversals before it: the sky's two legs held whole
+/// were sixteen numbers a lane, where a stage's registers peak under a sky
+/// (`docs/research/2026-11-15-radv-wave-tiers.md`).
+struct GatherRays
+{
+    /// Where the rays leave from, the shaded point lifted off its facet (`Surface::mLift`), and the step off
+    /// the triangle that stands on (`stepOf`).
+    vec3 mLeaving;
+    vec3 mStep;
+
+    /// The sky's drawn source (`skySourceAt`), the sun where none was drawn; whether its passage is asked at all;
+    /// and whether its occluder must be the nearest (`passageAsk`).
+    uint mSkyPicked;
+    bool mSkyAsked;
+    bool mSkyNearest;
+
+    /// The sequence the gather's hashed draws come from (`hashedGatherDraws`), for an asker that takes them and not
+    /// the tile's.
+    uint mSequence;
+};
+
 /// The *direct* light arriving at a point and turning back out of it: per unit albedo for the diffuse half,
 /// and whole for the specular.
 ///
@@ -122,8 +145,8 @@ SkyTerm joinedTerms(SkyTerm first, SkyTerm second, float scale)
 /// divides by the same chances the diffuse one does.
 ///
 /// **Everything but the rays' answers**, worked out before either ray (`startGather`): the sky's passage
-/// (`SkyPassageRun`) and the held lamp's ray (`gatherLampAsk`) are the caller's to trace and to finish the
-/// light with (`pathEndLightOf`, `solidLightOf`).
+/// (`skyLegAsk`) and the held lamp's ray (`lampRowAsk`) are the caller's to trace and to finish the light with
+/// (`pathEndLightOf`, `solidLightOf`).
 struct GatherRun
 {
     /// The pixel's own key, `pixelKey`, which every sequence here is drawn from with a `SEED_`
@@ -151,28 +174,28 @@ struct GatherRun
 
     /// The sky's sources as the start weighed them: unsplit, their estimate under the one ray; split, every
     /// source's light as though the ray got through — the diffuse half per unit albedo and net of the
-    /// lobe's share, and the lobe whole — the drawn source, and how far a penumbra on this surface
-    /// stretches toward it.
+    /// lobe's share, and the lobe whole — and how far a penumbra on this surface stretches toward the drawn
+    /// source (`GatherRays::mSkyPicked`).
     SkyTerm mSkyEstimate;
     vec3 mSkyDiffuse;
     vec3 mSkySpecular;
-    SkySource mSky;
     float mSkyStretch;
     float mSkyCarried;
     float mSkyWeight;
 
-    /// The lamp the reservoir held, the draw its ray takes on the source (`gatherLampAsk`), what the
-    /// darkening lamps take off, and how far a penumbra on this surface stretches toward the held
-    /// lamp. **Split, the lamps off the tile's list alone**, and the same of the lamps on it beside:
-    /// `weighLampStrata`. Unsplit, every lamp, and the listed reservoir weighs nothing.
+    /// The lamp the reservoir held, what the darkening lamps take off, and how far a penumbra on this
+    /// surface stretches toward the held lamp. **Split, the lamps off the tile's list alone**, and the
+    /// same of the lamps on it beside: `weighLampStrata`. Unsplit, every lamp, and the listed reservoir
+    /// weighs nothing.
     Reservoir mKept;
-    vec2 mLampDraw;
     vec3 mDarkening;
     float mLampStretch;
     Reservoir mListed;
     float mListedStretch;
-
     float mFootprint;
+
+    /// What its rays are asked of.
+    GatherRays mRays;
 };
 
 GatherRun gatherRunOf(uint key, uint lamps, uint path, bool split, bool blue)
@@ -186,18 +209,40 @@ GatherRun gatherRunOf(uint key, uint lamps, uint path, bool split, bool blue)
     run.mSkyEstimate = SkyTerm(vec3(0.0), vec3(0.0), vec3(0.0));
     run.mSkyDiffuse = vec3(0.0);
     run.mSkySpecular = vec3(0.0);
-    run.mSky = frame.mSun;
     run.mSkyStretch = 1.0;
     run.mSkyCarried = 0.0;
     run.mSkyWeight = 0.0;
     run.mKept = noLamps();
-    run.mLampDraw = vec2(0.0);
     run.mDarkening = vec3(0.0);
     run.mLampStretch = 1.0;
     run.mListed = noLamps();
     run.mListedStretch = 1.0;
     run.mFootprint = 0.0;
+    run.mRays = GatherRays(vec3(0.0), vec3(0.0), SKY_SOURCE_SUN, false, false, 0u);
     return run;
+}
+
+/// The draws a gather's rays take on their sources: a pair on the sky's disc, the number its source is picked
+/// by, and a pair on the held lamp's.
+struct GatherDraws
+{
+    vec2 mSun;
+    float mSkyPick;
+    vec2 mLamp;
+};
+
+/// The draws of the gather whose hashed sequence stands at `state`, which they step: **the same five numbers
+/// whoever asks**, the gather's start and a stage that asks a ray at its turn (`GatherRays::mSequence`).
+///
+/// **Where on a source a shadow ray leaves from is drawn before anything is weighed**, so it does not depend on
+/// how many lamps the cell held: the two pairs sit at a fixed place in the sequence and the reservoir's own
+/// draws follow them.
+GatherDraws hashedGatherDraws(inout uint state)
+{
+    const vec2 sun = vec2(randomNext(state), randomNext(state));
+    const float skyPick = randomNext(state);
+    const vec2 lamp = vec2(randomNext(state), randomNext(state));
+    return GatherDraws(sun, skyPick, lamp);
 }
 
 /// How far a penumbra on a surface facing `facing` at `position` stretches toward the lamp `kept` held, or one
@@ -213,9 +258,7 @@ float heldLampStretch(Reservoir kept, Facing facing, vec3 position)
 ///
 /// @param list the lamps the tile saw last frame, which a split gather draws its listed lamp from: none for an
 ///        unsplit one, and none where the tile has no list.
-/// @return whether the sky's ray was asked, `skyPassage` started for it.
-bool startGather(
-    inout GatherRun run, inout SkyPassageRun skyPassage, Surface surface, Gloss gloss, uvec2 pixel, LampList list)
+void startGather(inout GatherRun run, Surface surface, Gloss gloss, uvec2 pixel, LampList list)
 {
     const bool split = run.mSplit;
     const vec3 position = surface.mPosition;
@@ -225,20 +268,16 @@ bool startGather(
     // light delivers is weighed at the point shaded, the one the eye sees.
     const vec3 leaving = position + surface.mLift;
 
-    uint state = randomSeed(run.mKey + run.mLamps);
+    run.mRays.mLeaving = leaving;
+    run.mRays.mStep = stepOf(surface);
+    run.mRays.mSequence = run.mKey + run.mLamps;
 
-    // **Where on a source a shadow ray leaves from is drawn before anything is weighed**, so it does not
-    // depend on how many lamps the cell held: the two pairs sit at a fixed place in the sequence and the
-    // reservoir's own draws follow them.
-    //
-    // **The eye's own split hit takes the same three from the tile** (`STREAM_SUN_DISC`), and the sequence
-    // steps past the hashed ones all the same, so the reservoir's draws stay where they were.
-    const vec2 sunHashed = vec2(randomNext(state), randomNext(state));
-    const float skyHashed = randomNext(state);
-    const vec2 lampHashed = vec2(randomNext(state), randomNext(state));
-    const vec2 sunDraw = run.mBlue ? unitPair(pixel, STREAM_SUN_DISC) : sunHashed;
+    // **The eye's own split hit takes its draws from the tile**, the pick here (`STREAM_SKY_PICK`) and its rays'
+    // at their turns (`direct.comp`), and the sequence steps past the hashed ones all the same, so the
+    // reservoir's draws stay where they were.
+    uint state = randomSeed(run.mRays.mSequence);
+    const float skyHashed = hashedGatherDraws(state).mSkyPick;
     const float skyPick = run.mBlue ? randomAt(pixel, STREAM_SKY_PICK) : skyHashed;
-    const vec2 lampDraw = run.mBlue ? unitPair(pixel, STREAM_LAMP_DISC) : lampHashed;
 
     // **The lamps before the sky**, whose walk draws no number the sky's choice reads: the sky's terms and its
     // passage are then made after the walk and not held through it.
@@ -264,7 +303,6 @@ bool startGather(
     kept.mFrom = leaving;
     listed.mFrom = leaving;
     run.mKept = kept;
-    run.mLampDraw = lampDraw;
     run.mListed = listed;
 
     // **The lamps that take light away take it off the lamps' exact sum and no further**, floored at nought
@@ -304,8 +342,7 @@ bool startGather(
     // weight over every source's, the minor ones counted against it.
     run.mSkyCarried = 0.0;
     run.mSkyWeight = skyWeight;
-    const bool skyAsked = pick.mTotal > 0.0;
-    if (skyAsked)
+    if (pick.mTotal > 0.0)
     {
         const SkyChoice picked = pick.mIndex == 0u ? sun : (pick.mIndex == 1u ? masser : secunda);
         run.mSkyCarried = picked.mLight.mWeight;
@@ -313,9 +350,11 @@ bool startGather(
         // Split, the rays' own bit is handed back and the rest of the estimate is made as though they got
         // through: the product of the two is the estimate unsplit, and the bit is what a denoiser filters
         // in its place.
-        const SunUnderWater bent = sunUnderWater(picked.mSky.mDirection);
-        skyPassage = skyPassageRunOf(picked.mSky, leaving, stepOf(surface), bentPathAt(leaving, bent), sunDraw,
-            split && !drawnAmong(picked.mLight.mWeight, skyWeight));
+        //
+        // The pick's index is the source's id: `pickByWeight` was handed the three in their ids' order.
+        run.mRays.mSkyPicked = pick.mIndex;
+        run.mRays.mSkyAsked = true;
+        run.mRays.mSkyNearest = split && !drawnAmong(picked.mLight.mWeight, skyWeight);
 
         // **Each source's term whole, as the lamps' unshadowed sum is**: split, every source with a weight
         // is in the light the bit multiplies, so a pixel's hue is the sources' and not the pick's; unsplit,
@@ -330,7 +369,6 @@ bool startGather(
             const SkyTerm every = joinedTerms(joinedTerms(sunTerm, masserTerm, 1.0), secundaTerm, 1.0);
             run.mSkyDiffuse = every.mDiffuse - every.mTaken;
             run.mSkySpecular = every.mSpecular;
-            run.mSky = picked.mSky;
             run.mSkyStretch = receiverStretch(planeCosine(facing, picked.mSky.mDirection));
         }
         else
@@ -344,15 +382,36 @@ bool startGather(
     }
 
     run.mFootprint = surface.mFootprint;
-    return skyAsked;
 }
 
-/// The held lamp's shadow ray, or none where no lamp was held.
-RayAsk gatherLampAsk(GatherRun run, Surface surface)
+/// The sky's path to where `rays` leave from, bent at the water (`bentPathAt`).
+BentPath skyBentPath(GatherRays rays)
 {
-    return run.mKept.mWeight > 0.0
-        ? lampAsk(run.mKept, stepOf(surface), run.mLampDraw, run.mSplit && !drawnAmong(run.mKept.mWeight, run.mKept.mTotal))
-        : noRay();
+    return bentPathAt(rays.mLeaving, sunUnderWater(skySourceAt(rays.mSkyPicked).mDirection));
+}
+
+/// A leg of the sky's passage of `rays`, asked at its turn: the first, or the one over the water (`over`), as
+/// `SkyPassageRun` asks them. None where the gather asked no sky.
+///
+/// @param draw the gather's pair on the sky's disc (`GatherDraws::mSun`).
+RayAsk skyLegAsk(GatherRays rays, vec2 draw, bool over)
+{
+    if (!rays.mSkyAsked)
+        return noRay();
+
+    const SkyPassageRun passage = skyPassageRunOf(
+        skySourceAt(rays.mSkyPicked), rays.mLeaving, rays.mStep, skyBentPath(rays), draw, rays.mSkyNearest);
+    return over ? skyPassageOverAsk(passage) : skyPassageFirstAsk(passage);
+}
+
+/// The sky's passage of `rays` once its legs answered `first` and `over`: joined where it is bent at the water
+/// (`joinedPassage`), and the one leg's where it is not.
+Passage skyLegsJoined(GatherRays rays, Passage first, Passage over)
+{
+    const BentPath bent = skyBentPath(rays);
+    return rays.mSkyAsked && bent.mDepth > 0.0
+        ? joinedPassage(first, over, bent.mPath, skySourceAt(rays.mSkyPicked).mLimb)
+        : first;
 }
 
 /// Whether a gather a path's far end makes, keyed `key` and drawn from the sequence `seed`
@@ -604,15 +663,15 @@ SeenPane noPane()
     return SeenPane(vec3(0.0), vec3(0.0), vec3(0.0), noResponse());
 }
 
-/// The rays a path's end waits on: its occlusion ray, the sky's passage in its legs
-/// (`SkyPassageRun`), and the held lamp's. Any of them none, which lets everything through, as
+/// The rays a path's end waits on: its occlusion ray, and what its gather's are asked of at their turns
+/// (`GatherRays`) — the sky's passage in its legs, and the held lamp's by its row of the light table,
+/// `LAMP_LIST_NONE` where none was held. Any of them none, which lets everything through, as
 /// `passageAnswered` answers an untraced ray.
 struct PathEndRays
 {
     RayAsk mAmbient;
-    RayAsk mSky;
-    RayAsk mSkyOver;
-    RayAsk mLamp;
+    GatherRays mGather;
+    uint mLamp;
 };
 
 /// What each of a path end's rays let through (`throughAnswered`): the sky's the product of its
@@ -687,14 +746,13 @@ PathEndLight pathEndLightOf(Surface surface, uvec2 pixel, uint lamps, uint indir
     light.mSkySpecular = vec3(0.0);
     light.mLampDiffuse = vec3(0.0);
     light.mLampSpecular = vec3(0.0);
-    light.mRays.mSky = noRay();
-    light.mRays.mSkyOver = noRay();
-    light.mRays.mLamp = noRay();
 
     // **The rate drawn before anything else and out of a sequence of its own**: the ordering in
     // `startGather` is what keeps a lamp arriving in the next cell from moving the penumbra of the one
     // already there, and a draw taken from that sequence would move every one of them.
     GatherRun gather = gatherRunOf(key, lamps, path, false, false);
+    light.mRays.mGather = gather.mRays;
+    light.mRays.mLamp = LAMP_LIST_NONE;
     float rated = 1.0;
     if (path == PATH_INDIRECT && skyLights())
     {
@@ -705,12 +763,10 @@ PathEndLight pathEndLightOf(Surface surface, uvec2 pixel, uint lamps, uint indir
     }
 
     const Gloss gloss = glossOf(surface);
-    SkyPassageRun sky = skyPassageRunOf(
-        frame.mSun, vec3(0.0), vec3(0.0), BentPath(0.0, vec3(0.0), 0.0, vec2(0.0)), vec2(0.0), false);
-    if (startGather(gather, sky, surface, gloss, pixel, noLampList()))
+    startGather(gather, surface, gloss, pixel, noLampList());
+    light.mRays.mGather = gather.mRays;
+    if (gather.mRays.mSkyAsked)
     {
-        light.mRays.mSky = skyPassageFirstAsk(sky);
-        light.mRays.mSkyOver = skyPassageOverAsk(sky);
         const SkyTerm estimate = gather.mSkyEstimate;
         light.mSkyDiffuse = (estimate.mDiffuse - estimate.mTaken) * rated;
         light.mSkySpecular = estimate.mSpecular * rated;
@@ -727,26 +783,34 @@ PathEndLight pathEndLightOf(Surface surface, uvec2 pixel, uint lamps, uint indir
     const vec3 lampTaken = gloss.mGlossy ? lampArriving * kept.mFresnel : vec3(0.0);
     light.mLampDiffuse = (lampArriving - lampTaken) * rated;
     light.mLampSpecular = (gloss.mGlossy ? kept.mSpecular * held : vec3(0.0)) * rated;
-    light.mRays.mLamp = gatherLampAsk(gather, surface);
+    light.mRays.mLamp = kept.mWeight > 0.0 ? kept.mLamp : LAMP_LIST_NONE;
     return light;
 }
 
 /// What `rays` let through, traced in a fixed order, a turn each, at one traversal site: none of
 /// them waits on another's answer. The turn is the same in every lane, so which ray a turn traces is
 /// a branch the whole warp takes, and a lane with no such ray waits out that one traversal.
+///
+/// **The gather's rays asked at their turns** (`GatherRays`), each of the draws its start took, read off
+/// their sequence again: an unsplit gather's occluder need not be the nearest.
 PathEndSeen pathEndSeenOf(PathEndRays rays)
 {
     PathEndSeen seen = PathEndSeen(1.0, 1.0, 1.0);
     [[dont_unroll]] for (uint turn = 0u; turn < 4u; ++turn)
     {
-        RayAsk ask = rays.mLamp;
+        uint state = randomSeed(rays.mGather.mSequence);
+        const GatherDraws draws = hashedGatherDraws(state);
+        RayAsk ask;
         if (turn == 0u)
             ask = rays.mAmbient;
         else if (turn == 1u)
-            ask = rays.mSky;
+            ask = skyLegAsk(rays.mGather, draws.mSun, false);
         else if (turn == 2u)
-            ask = rays.mSkyOver;
-
+            ask = skyLegAsk(rays.mGather, draws.mSun, true);
+        else if (rays.mLamp != LAMP_LIST_NONE)
+            ask = lampRowAsk(rays.mLamp, rays.mGather.mLeaving, rays.mGather.mStep, draws.mLamp, false);
+        else
+            ask = noRay();
         const float through = throughAnswered(answerAsked(ask));
         if (turn == 0u)
             seen.mAmbient = through;
@@ -1007,8 +1071,7 @@ HeldLamps heldLampsOf(Reservoir kept, float stretch, vec3 darkening, vec3 unshad
 }
 
 /// The shadow ray of a stratum's held lamp, from `from` off the triangle `step` stands for, aimed by the eye's draw
-/// `draw` of the tile (`STREAM_LAMP_DISC`, `STREAM_LAMP_DISC_LISTED`, as `startGather` draws it): the nearest
-/// occluder's where its lamp carried all of its stratum's light, which the penumbra is made of. None where it held
+/// `draw` of the tile (`STREAM_LAMP_DISC`, `STREAM_LAMP_DISC_LISTED`): the nearest occluder's where its lamp carried all of its stratum's light, which the penumbra is made of. None where it held
 /// no lamp.
 RayAsk heldLampRay(HeldLamps lamps, vec3 from, vec3 step, vec2 draw)
 {
@@ -1083,33 +1146,21 @@ struct SolidLight
     vec3 mLamps;
 
     /// The lamps off the tile's list and the lamps on it (`weighLampStrata`), each as `HeldLamps` holds it, and
-    /// where their rays leave from and the step off the triangle that stands on (`stepOf`).
+    /// what their rays and the sky's are asked of at their turns (`heldLampRay`, `skyLegAsk`).
     HeldLamps mRestLamps;
     HeldLamps mListedLamps;
-    vec3 mLeaving;
-    vec3 mStep;
+    GatherRays mRays;
 
     /// The lobe's roughness, `SolidLook::mRoughness`.
     float mRoughness;
 
-    /// What the sky's bit's penumbra is made of, as `seenSolidOf` makes it of its ray's occluder: the sky's
-    /// source and how far a penumbra on this surface stretches toward it, and whether the bit is drawn among the
-    /// sky's sources (`drawnAmong`); and the surface's footprint every penumbra is counted in.
-    SkySource mSkySource;
+    /// What the sky's bit's penumbra is made of, as `seenSolidOf` makes it of its ray's occluder, beside the
+    /// sky's source (`GatherRays::mSkyPicked`): how far a penumbra on this surface stretches toward it, and
+    /// whether the bit is drawn among the sky's sources (`drawnAmong`); and the surface's footprint every
+    /// penumbra is counted in.
     float mSkyStretch;
     bool mSkyDrawn;
     float mFootprint;
-
-    /// The draw that decides whether the sky's bit passes what its ray's translucent surfaces let through
-    /// (`SEED_SHADOW_THROUGH`). The lamps take what theirs let through as it is, into their fraction.
-    float mSkyPassing;
-
-    /// The sky's passage, `SkyPassageRun`'s legs and whether it is bent, which joins them
-    /// (`joinedPassage`): either of them none, which `passageAnswered` answers open.
-    RayAsk mSkyRay;
-    RayAsk mSkyOverRay;
-    bool mSkyBent;
-    float mSkyPath;
 };
 
 /// `surface`'s light before its rays, the solid the eye found at `pixel`, its lamps drawn in two strata by `list`.
@@ -1118,16 +1169,10 @@ SolidLight solidLightOf(Surface surface, uvec2 pixel, LampList list)
     // A path the eye sees, which no rate draws (`GatherRun::mPath`).
     GatherRun gather = gatherRunOf(pixelKey(pixel), SEED_LAMPS_EYE, PATH_SEEN, true, true);
     const Gloss gloss = glossOf(surface);
-    SkyPassageRun sky = skyPassageRunOf(
-        frame.mSun, vec3(0.0), vec3(0.0), BentPath(0.0, vec3(0.0), 0.0, vec2(0.0)), vec2(0.0), false);
-    const bool skyAsked = startGather(gather, sky, surface, gloss, pixel, list);
+    startGather(gather, surface, gloss, pixel, list);
 
     SolidLight light;
-    light.mSkyRay = skyAsked ? skyPassageFirstAsk(sky) : noRay();
-    light.mSkyOverRay = skyAsked ? skyPassageOverAsk(sky) : noRay();
-    light.mSkyBent = skyAsked && skyPassageBent(sky);
-    light.mSkyPath = sky.mBent.mPath;
-
+    light.mRays = gather.mRays;
     // **Split, every lamp's light as though its ray got through, and each stratum's held lamp's bit**: Heitz et
     // al. 2018's ratio estimator a stratum, the unshadowed light exact and only its visibility drawn.
     light.mRest = litSurface(surface, vec3(0.0), vec3(0.0));
@@ -1140,39 +1185,39 @@ SolidLight solidLightOf(Surface surface, uvec2 pixel, LampList list)
     light.mListedLamps = heldLampsOf(
         gather.mListed, gather.mListedStretch, gather.mDarkening, unshadowed, surface, gloss, listedLight);
     light.mLamps = restLight + listedLight;
-    light.mLeaving = gather.mKept.mFrom;
-    light.mStep = stepOf(surface);
-
     light.mRoughness = solidLookOf(surface, gloss).mRoughness;
 
-    light.mSkySource = gather.mSky;
     light.mSkyStretch = gather.mSkyStretch;
     light.mSkyDrawn = drawnAmong(gather.mSkyCarried, gather.mSkyWeight);
     light.mFootprint = gather.mFootprint;
-
-    uint passing = randomSeed(gather.mKey + SEED_SHADOW_THROUGH);
-    light.mSkyPassing = randomNext(passing);
-
     // **The relief's own shadow on the sky's source's light** (`reliefLit`), as `heldLampsOf` lays it on each
     // stratum's.
     if (HAS_RELIEF && surface.mReliefSite.mMap != NO_TEXTURE)
-        light.mSky *= reliefLit(surface.mReliefSite, gather.mSky.mDirection, gather.mSky.mLimb);
+    {
+        const SkySource picked = skySourceAt(gather.mRays.mSkyPicked);
+        light.mSky *= reliefLit(surface.mReliefSite, picked.mDirection, picked.mLimb);
+    }
+
     return light;
 }
 
-/// What a solid sends back once its sky's passage answered `sky` and its strata's lamp rays `lamp` and `listed`.
+/// What the solid at `pixel` sends back once its sky's passage answered `sky` and its strata's lamp rays `lamp`
+/// and `listed`.
 ///
 /// **What the translucent surfaces let through is drawn into the sky's bit**, open where its ray got through and
-/// a draw falls under it: the bit's mean is then the open half times the through, and the shadow denoiser filters
-/// a pane's shadow as it filters a penumbra. The lamps' fraction takes it as it is (`shadowedLamps`).
+/// a draw of the pixel's falls under it (`SEED_SHADOW_THROUGH`), drawn here, past the rays: the bit's mean is then
+/// the open half times the through, and the shadow denoiser filters a pane's shadow as it filters a penumbra. The
+/// lamps' fraction takes it as it is (`shadowedLamps`).
 ///
 /// **Each penumbra in the surface's own footprints**, which the denoiser's reach is counted in, and the whole
 /// reach where the bit was drawn (its source carries less than all but the floor of its field's light), since
 /// that bit is noise however hard its shadow.
-SeenSolid seenSolidOf(SolidLight light, Passage sky, Passage lamp, Passage listed)
+SeenSolid seenSolidOf(SolidLight light, uvec2 pixel, Passage sky, Passage lamp, Passage listed)
 {
-    const bool skyPassed = light.mSkyPassing < sky.mThrough;
-    const float skyRadius = skyPenumbra(light.mSkySource, sky.mOccluder) * light.mSkyStretch;
+    uint passing = randomSeed(pixelKey(pixel) + SEED_SHADOW_THROUGH);
+    const bool skyPassed = randomNext(passing) < sky.mThrough;
+    const float skyRadius
+        = skyPenumbra(skySourceAt(light.mRays.mSkyPicked), sky.mOccluder) * light.mSkyStretch;
 
     SeenSolid seen;
     seen.mLight = SplitLight(light.mRest,
@@ -1278,12 +1323,6 @@ void startBounce(inout BounceRun run, Surface surface, Cone cone, uvec2 pixel, u
     run.mBounceRay
         = traceAsk(WorldRay(leaveSurface(surface.mPosition, stepOf(surface), drawn.mTowards), drawn.mTowards), 0.0,
             Cone(surface.mFootprint, drawn.mSpread), solidMask(frame.mRayMask), drawn.mSpecular);
-}
-
-/// The escape of a traced bounce that met nothing (`bounceEscape`).
-vec3 bounceMissed(BounceRun run)
-{
-    return bounceEscape(run.mPosition, run.mDrawn, run.mWeight);
 }
 
 /// What a bounce's landing sends back along it, by the bounce's `weight`, before any of its rays is

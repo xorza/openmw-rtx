@@ -39,9 +39,11 @@ namespace Rtx
         };
     }
 
-    PipelineCreation::PipelineCreation(const Device& device, const std::string_view name)
+    PipelineCreation::PipelineCreation(
+        const Device& device, const std::string_view name, const VkPipelineBindPoint point)
         : mDevice(device)
         , mName(name)
+        , mPoint(point)
         , mNoted("compiling the pipeline \"{}\"", name)
     {
     }
@@ -70,6 +72,6 @@ namespace Rtx
             };
 
         mDevice.setName(pipeline, mName);
-        mDevice.getPipelineReport().report(pipeline, mName, feedback);
+        mDevice.getPipelineReport().report(pipeline, mName, mPoint, feedback);
     }
 }

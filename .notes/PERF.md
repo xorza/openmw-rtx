@@ -1,3 +1,101 @@
+# perf-rtx-renderer-3 — the stages' waves on RADV, on the desk and the AMD handheld
+
+Target: the ray tracer's kernels under vanilla, the Fullrest Repack and the PBR stack, on the desk (a high-end
+NVIDIA laptop GPU, driver 620.70.06) and the AMD handheld (RADV, Mesa 26.2.0-devel, its clock held). Started from
+`9da862d673`. Every figure and table is `docs/research/2026-11-15-radv-wave-tiers.md`'s.
+
+## Hosts
+
+- **Desk**: `bench --window=false --seconds=10` at 1920x1080, the default suite, three legs a side in turn after a
+  warm-up leg a side, each run ending the turn. Shipped against source modules, three legs: frame within 1.2%, a
+  zone within 1% and its spread under 0.02 ms, the eye's stage 1.3 to 2.9% longer on the source modules outdoors.
+- **Handheld**: built in the release container and staged by `omw release remote`, then run under a script of the
+  remote's own shape, `bench --window=false --size=1280x800 --frames=300`, one leg a side after a 30-frame
+  warm-up. Shipped against source modules, two legs a side: every zone within 0.04 ms, the frame within 0.13.
+  The Repack's leg is 12 minutes there, its content read off a card.
+- **One binary, a shader set a side**: `--shader-source` reads the modules of a folder, which compile to the
+  shipped ones' code on both drivers, so a shader candidate is a folder and no build of the harness.
+- **RADV on the desk**: Mesa's `amdgpu` drm-shim built from a Mesa checkout into the session's own folder, nothing
+  installed, `AMDGPU_GPU_ID` naming the handheld's chip and SDL's offscreen driver: `bench --frames=1
+  --pipeline-code` compiles every pipeline for the handheld's card in six seconds. A liveness pass over ACO's IR
+  gives each kernel's peak and what rides each loop; its peak is ACO's `Pre-Sched VGPRs` on every kernel read.
+- **Build RAM peaks**: the release harness from nothing 16.6 GiB in 35 minutes on a cold compiler cache, 16.4 GiB
+  in 4 minutes on a warm one; the debug flavour with its tests 16.5 GiB in 7 minutes on a warm one; the
+  container's on its warm cache under 2 minutes. One build at a time.
+- **The kernel ceilings' test runs under the shim** in ten seconds, RADV's rows against Mesa 26.2.7.
+
+## Over the master that reads a mod's maps
+
+Landed on master over `c83efc723c` (`HAS_MOD_MAPS`), its reads past the ground stack taking the rows read again
+there. Under the shim the old tuples keep the code measured below (326 of 327 pipelines, the sprites' composite the
+one) and 328 of 574 pipelines hold a tier or two fewer registers than that commit alone, none more; no picture
+moved against it under the three contents; NVIDIA's eye stage took a row for its tuples with the maps and a mod's
+maps. The figures below are the branch's, measured before it: not timed again on either card.
+
+## Tip against the start
+
+Frame median ms; the handheld one leg a side, the desk three.
+
+| content | place | handheld | desk |
+|---|---|---|---|
+| vanilla | seyda-neen-ship | 86.89 → 81.97 (−5.7%) | 5.94 → 5.77 (−2.9%) |
+| vanilla | seyda-neen-ship-dawn | 101.13 → 94.84 (−6.2%) | 6.43 → 6.13 (−4.7%) |
+| vanilla | balmora-mages-guild | 54.98 → 53.04 (−3.5%) | 5.18 → 5.18 |
+| M[FR] | seyda-neen-ship | 118.47 → 113.56 (−4.2%) | 7.30 → 7.31 |
+| M[FR] | seyda-neen-ship-dawn | 133.83 → 130.42 (−2.5%) | 7.70 → 7.70 |
+| M[FR] | balmora-mages-guild | 80.53 → 76.04 (−5.6%) | 6.40 → 6.30 (−1.5%) |
+| PBR | seyda-neen-ship | 99.45 → 97.38 (−2.1%) | 6.79 → 6.79 |
+| PBR | seyda-neen-ship-dawn | 117.80 → 117.11 (−0.6%) | 7.33 → 7.27 (−0.7%) |
+| PBR | balmora-mages-guild | 66.08 → 64.61 (−2.2%) | 6.26 → 6.29 |
+
+What moved the other way past its spread, tip against start: on the handheld the Repack's `landing` at dawn +0.8%
+and the PBR stack's `bounce` +0.4 to +0.8%; on the desk the Repack's `bounce` +1.1 to +1.5% and `landing` +1.2 to
++1.7%, the PBR stack's room `direct` +4.6% and `landing` +2.3%, its `trace` outdoors +1.4 to +3.9% at a spread of
+3 to 4%, and `panes` +7% at the vanilla ship and the Repack's dawn (0.005 and 0.007 ms).
+
+## Ideas
+
+| idea | evidence | verdict |
+|---|---|---|
+| A gather's rays asked at their turns (`GatherRays`) | `direct` under a sky peaked inside its traversal on RADV, 111 live and 61 untouched through the loop, the sky's two legs sixteen of them | **kept**: handheld `direct` −13.1%, −14.3% at the vanilla ship and dawn (128 → 112 registers), with the sprites' move the frame −2.4%, −3.5%; desk `landing` −26%, `direct` −9%, −16% there, frame −3.4%, −4.9%; alone it ran the Repack's `direct` +1.0 to +1.8% on the handheld, which the rows below took back |
+| The sprites' walk past the eye's stores | the eye's stage peaked in the sprites' loop on RADV, 118 with 92 live into it | **kept**: handheld `trace` −7.0%, −6.8% at the vanilla ship and dawn (128 → 112); the desk inside its spread |
+| The material's and the mesh's rows read again past the ground stack; the lamp list and the bounce's hand-over read where used | RADV loads a row where the GLSL reads it, and fourteen registers of the material rode the stack's loop | **kept**: handheld vanilla `landing` −6% everywhere (112 → 96); the Repack's `bounce` −7.8%, `landing` −7.6%, `trace` −8.5%, `direct` −6 to −9%, its frame −4.3%, −2.5%, −5.6%; the PBR stack's `landing` −8%, `water` −9%, its room's `panes` −15.6%. Desk: the Repack's room `direct` −11%, `trace` −7.5%; its `direct` outdoors +5.1%, +11.0% until the row below |
+| The direct channel stored ahead of the rays, the sky bit's pass-through drawn past them | NVIDIA compiled `direct sun sea maps` to 96 registers and 3200 bytes of shared memory from 128 and 1664, and ran it longer | **kept**: desk the Repack's `direct` −5.5%, −5.1% outdoors against the start (96 registers and 2688 bytes); RADV's `direct` demand 92 → 89 |
+| The bounce's hand-over and record stored ahead of its ray, read back on a miss | the bounce peaked in its candidate's test, eight of its registers handed on untouched | **kept**: handheld vanilla `bounce` −10.2%, −9.0%, −11.3% (96 → 80 registers); desk −2.2 to −2.4% on vanilla and −8 to −10% on the PBR stack; where it gains no wave it costs its stores, the handheld's PBR `bounce` +0.8% |
+| The eye's peel weighs a layer by its opacity alone and resolves once, past its loop | the resolve inside the peel's loop held the peel's state and the traversal's stale hit, 28 registers | **kept** (Decisions) |
+| The placement's row read again past the stack | one field of it is read there | **refused**: a register more in the eye's stage on RADV (`visibility sea maps` 128 → 144), one less in `panes` |
+| The material's fields grouped by where a hit reads them | a load a group, sunk past the stack | **refused**: no kernel moved on RADV, the row is loaded whole where it is first read |
+| The landing resolved once, off whichever images hold its hit | two copies of `resolve` in its kernel (the journal below) | **refused**: RADV's instructions −35% and four registers more, its tuples with maps 112 → 128; NVIDIA's was 14 to 18% slower on the mapped contents in the session below |
+| The eye's hit stored ahead of its resolve and read back past it | the hit's words, the ray's start and the distance ride the resolve | **refused**: two registers and a room's tuples to 112 on RADV, and the handheld's `trace` 9.02 against 8.85 ms at the vanilla ship |
+| The eye's ray's start made again past the resolve | three registers | **refused**: the resolve moved into the branch that met a surface held 16 more through the stack's loop |
+| The layers' frame made again past the stack in every tuple with maps | six registers: the Repack's eye stage stands at a demand of 113 and its landing at dawn compiles to 128 from 108 | not tried: refused on 2026-11-13 for AMD's Windows driver, which this session has no host of |
+| The layers' stage weighing what its peel ends on by `layerOpacityOf` | it resolves the solid behind the layers to learn it is no layer | not tried |
+| A resolve's own registers with a relief | the PBR stack's `direct` at 128 on a demand of 118, its bounce at 112 on 100 | not tried |
+| The water's stage's scalar spills, the sprites' composite's four spilled registers | 65 to 70 `Spilled SGPRs` in every tuple; `Spilled VGPRs 4` | not tried: 1.5 to 2.4 ms and under 0.1 ms on the handheld |
+
+## Decisions
+
+- **The eye's peel weighs a layer by its opacity alone and resolves what it ends on once, past its loop**
+  (`layerOpacityOf`, `docs/architecture.md`). Spiked with the opacity read at the unshifted texel, which is exact
+  where no map shifts it: handheld `trace` 9.28 → 8.85 ms at the vanilla ship. Landed with the relief's shift
+  shared with `resolve` (`shiftToRelief`): handheld `trace` −4.7% at the vanilla ship and dawn and −2.8% in the
+  guild against the tip before it (112 → 96 registers), the PBR stack's −6.1% (144 → 128), the Repack's +1.3%
+  outdoors and +2.4% in its guild, where its 128 registers stand at a demand of 113 and the peel pays its own read;
+  desk the Repack's −1.3 to −1.8%, the PBR stack's inside its spread. No picture moved. The shape is a deferred
+  resolve behind a visibility test, as a visibility buffer shades once what its passes found. Refused with it:
+  the hit stored ahead of the resolve, which bought the Repack's guild a wave for 2% of the stage under every sky.
+- **A regression NVIDIA's compiler chooses is weighed by the frame**: with fewer live values it compiles a stage to
+  fewer registers and shared memory, and the PBR stack's room `direct` runs 4.6% longer for it (0.035 ms) while
+  its `bounce` runs 7.8% shorter; the frame there stands inside its spread, and no shape of the stage keeps both
+  drivers at their best.
+
+## Left standing
+
+- **Worktrees** `base`, `cand` and `spike` under `../openmw-perf/` on the desk, `base` at `9da862d673`; on the
+  handheld the staged builds under the same paths, with the shader sets under `runs/shaders/`.
+- **`../openmw-perf/mesa-shim/`**: the drm-shim's build folder. `../openmw-perf/runs/`: every leg, the oracle's
+  listings and code, the scripts (`bin/ab.py`, `oracle.sh`, `acolive.py`, `kstats.py`, `tiers.py`).
+
 # perf-rtx-renderer-2 — the maps tuples' registers, on the desk and the AMD integrated GPU
 
 Target: the ray tracer's kernels under vanilla, the Fullrest Repack and the PBR stack, on the desk (a high-end

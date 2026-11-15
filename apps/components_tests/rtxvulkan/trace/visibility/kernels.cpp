@@ -253,48 +253,63 @@ namespace Rtx
             // 4224 bytes a workgroup at 80 registers, 4992 at 96, 6272 at 128 — and what is over in a lane's
             // local memory, its scratch: one spill in two places, which it takes over more registers
             // (`docs/research/2026-11-14-nvidia-register-spills.md`). So a row holds a stage's scratch at what it
-            // is and not at none, and its registers at the count the compiler steps to, 96, 128 or 168. The maps
+            // is and not at none, and its registers at the count the compiler steps to, 80, 96 or 128. The maps
             // decide that count in most stages, and a tuple without them holds fewer registers and more shared
-            // memory: here a tuple with code taken out is not held by the tuple it was taken from.
+            // memory: here a tuple with code taken out is not held by the tuple it was taken from. Measured
+            // again once the stages carried less through their rays and their resolve
+            // (`docs/research/2026-11-15-radv-wave-tiers.md`): no stage stands at 168 registers, the eye's at 96
+            // in every tuple, and `panes` holds its 6272 bytes and up to 96 of a lane's local memory in all. With
+            // a mod's maps beside the others (`HAS_MOD_MAPS`) the eye's stage holds 120 to 124 registers and no
+            // shared memory in twelve tuples, under the moons or the sea with a relief.
             // `fog integrate` holds its column depths, floats a thread read at an index the tent's loop leaves
             // unrolled, which the compiler keeps in shared memory and not a lane's local memory. `lamp lists`
             // holds its tile's tables, three words a lamp a tile's rays can reach and the list,
             // `3 × 128 × 4 + 8 × 4` and the count.
-            constexpr std::array<Row, 22> sNvidia{ {
-                { "visibility", {}, { 0, 128, 3712 } },
-                { "visibility", { .mMaps = false }, { 0, 96, 2944 } },
-                { "visibility", { .mSea = true, .mMaps = true }, { 0, 128, 0 } },
-                { "water", {}, { 0, 128, 2944 } },
-                { "water", { .mMaps = true }, { 0, 128, 2688 } },
-                { "direct", {}, { 48, 128, 4992 } },
-                { "direct", { .mMaps = false }, { 48, 96, 4992 } },
-                { "direct", { .mRelief = true }, { 0, 128, 2688 } },
-                { "direct", { .mDarkAlpha = false, .mRelief = true }, { 0, 128, 2176 } },
+            constexpr std::array<Row, 18> sNvidia{ {
+                { "visibility", {}, { 0, 96, 2688 } },
+                { "visibility", { .mMaps = false }, { 0, 96, 0 } },
+                { "visibility", { .mMaps = true, .mModMaps = true }, { 0, 128, 2688 } },
+                { "water", {}, { 0, 128, 3200 } },
+                { "water", { .mDarkAlpha = false }, { 0, 128, 2176 } },
+                { "water", { .mMaps = false, .mDarkAlpha = false }, { 0, 128, 640 } },
+                { "direct", {}, { 0, 128, 4224 } },
+                { "direct", { .mMaps = false }, { 0, 96, 3968 } },
                 { "media", {}, { 16, 128, 6272 } },
                 { "media", { .mDarkAlpha = false }, { 0, 128, 5504 } },
-                { "panes", {}, { 112, 168, 6272 } },
-                { "panes", { .mSea = false }, { 96, 128, 6272 } },
-                { "panes", { .mSun = true, .mMoons = true, .mSea = true, .mMaps = true }, { 0, 168, 5504 } },
-                { "panes", { .mSun = true, .mMoons = true, .mSea = true, .mMaps = true, .mDarkAlpha = false },
-                    { 0, 168, 4992 } },
-                { "landing", { .mMaps = false }, { 0, 96, 3968 } },
-                { "landing", { .mMaps = true }, { 0, 128, 384 } },
-                { "landing", { .mMaps = true, .mRelief = true }, { 0, 128, 0 } },
-                { "bounce", { .mMaps = false }, { 0, 96, 384 } },
-                { "bounce", { .mMaps = true }, { 0, 128, 0 } },
+                { "panes", {}, { 96, 128, 6272 } },
+                { "landing", { .mMaps = false }, { 0, 96, 1664 } },
+                { "landing", { .mMaps = false, .mDarkAlpha = false }, { 0, 96, 384 } },
+                { "bounce", { .mMaps = false }, { 0, 80, 0 } },
+                { "bounce", { .mMaps = true }, { 0, 128, 896 } },
+                { "bounce", { .mMaps = true, .mRelief = false }, { 0, 128, 0 } },
                 { "fog integrate", {}, { 0, 128, 1792 } },
                 { "lamp lists", {}, { 0, 128, 1584 } },
             } };
-            // Measured on the handheld's integrated GPU under RADV, in the two tuples AMD's rows were.
-            // `visibility` at 144 and the landing under the rule since a sheet takes its span off the corners
-            // the hit carried (`docs/research/2026-11-09-sheet-span.md`).
-            constexpr std::array<Row, 6> sRadv{ {
-                { "visibility", {}, { 0, 144, 2048 } },
+            // Measured on the handheld's integrated GPU under RADV, Mesa 26.2.0, and compiled again by Mesa 26.2.7
+            // for the same card under its drm-shim, in every tuple: a row holds the more of the two. A stage's
+            // registers stand a step of sixteen under where they stood, and its waves one over, since its rays
+            // are asked at their turns, a hit's rows are read again past the ground stack, the bounce's
+            // hand-over is stored ahead of its ray and the eye's peel resolves once
+            // (`docs/research/2026-11-15-radv-wave-tiers.md`). `media` and `panes` at what they held. The tuples
+            // that read a mod's maps (`HAS_MOD_MAPS`) under the shim alone, where every row held them.
+            constexpr std::array<Row, 17> sRadv{ {
+                { "visibility", { .mMaps = false }, { 0, 96, 2048 } },
                 { "water", {}, { 0, 160, 2048 } },
-                { "direct", {}, { 0, 144, 2048 } },
+                { "water", { .mMaps = false, .mDarkAlpha = false }, { 0, 144, 2048 } },
+                { "water", { .mDarkAlpha = false, .mRelief = true }, { 0, 144, 2048 } },
+                { "direct", { .mRelief = false }, { 0, 112, 2048 } },
+                { "direct", { .mMaps = false, .mDarkAlpha = false }, { 0, 96, 2048 } },
                 { "media", {}, { 0, 176, 2048 } },
                 { "media", { .mDarkAlpha = true }, { 0, 192, 2048 } },
                 { "panes", {}, { 0, 256, 2048 } },
+                { "panes", { .mMaps = false }, { 0, 192, 2048 } },
+                { "panes", { .mSea = false, .mRelief = true }, { 0, 192, 2048 } },
+                { "bounce", { .mMaps = true }, { 0, 112, 2048 } },
+                { "bounce", { .mMaps = false }, { 0, 96, 2048 } },
+                { "bounce", { .mMaps = false, .mDarkAlpha = false }, { 0, 80, 2048 } },
+                { "landing", { .mMaps = false }, { 0, 112, 2048 } },
+                { "landing", { .mMaps = false, .mDarkAlpha = false }, { 0, 96, 2048 } },
+                { "unbounced", {}, { 0, 80, 2048 } },
             } };
             const std::array sDrivers{
                 DriverCeilings{ VK_DRIVER_ID_AMD_PROPRIETARY, { 0, 128, 2048 }, sAmd },

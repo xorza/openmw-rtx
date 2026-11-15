@@ -15,7 +15,10 @@ namespace Rtx
                         .mRegisters = "numUsedVgprs",
                         .mShared = "ldsUsageSizeInBytes" };
                 case VK_DRIVER_ID_MESA_RADV:
-                    return StatisticNames{ .mScratch = "Scratch size", .mRegisters = "VGPRs", .mShared = "LDS size" };
+                    return StatisticNames{ .mScratch = "Scratch size",
+                        .mRegisters = "VGPRs",
+                        .mShared = "LDS size",
+                        .mScratchScope = ScratchScope::Subgroup };
                 case VK_DRIVER_ID_NVIDIA_PROPRIETARY:
                     return StatisticNames{ .mScratch = "Local Memory Size",
                         .mRegisters = "Register Count",

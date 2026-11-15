@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <cstdint>
 #include <string_view>
 
@@ -7,6 +8,16 @@
 
 namespace Rtx
 {
+    /// What a driver's scratch figure counts the bytes of.
+    enum class ScratchScope
+    {
+        Lane,
+
+        /// Every lane of a subgroup together: RADV's `Scratch size`, "private memory in bytes per subgroup"
+        /// (Mesa's `src/util/shader_stats.xml`).
+        Subgroup,
+    };
+
     /// The names a driver reports a pipeline's use under (`CompiledUse`), empty where it reports none, and how
     /// its scratch figure is read.
     struct StatisticNames
@@ -20,6 +31,8 @@ namespace Rtx
         /// its low 32 bits are the bytes either way; every other driver's is the bytes.
         std::uint64_t mScratchBits = ~std::uint64_t{ 0 };
 
+        ScratchScope mScratchScope = ScratchScope::Lane;
+
         /// The most scratch a lane holds on the driver at no cost a bench showed, in bytes: a summary warns
         /// of a pipeline that holds more (`PipelineTally`). NVIDIA's compiler keeps what a kernel's registers
         /// do not hold in shared memory and what is over in a lane's local memory, its scratch, and 112 bytes
@@ -27,6 +40,15 @@ namespace Rtx
         /// (`docs/research/2026-11-14-nvidia-register-spills.md`); on every other driver scratch is a spill
         /// from its first byte.
         std::uint64_t mScratchFreeBytes = 0;
+
+        /// The scratch memory a lane uses, in bytes, of the figure the driver `reported` for an executable whose
+        /// subgroups hold `lanes` lanes: its bytes (`mScratchBits`), over the lanes where the driver counts a
+        /// subgroup's (`mScratchScope`).
+        constexpr std::uint64_t laneScratchBytes(const std::uint64_t reported, const std::uint32_t lanes) const
+        {
+            const std::uint64_t bytes = reported & mScratchBits;
+            return mScratchScope == ScratchScope::Subgroup ? bytes / std::max<std::uint32_t>(lanes, 1) : bytes;
+        }
     };
 
     /// What differs by the vendor and the driver of a device, read once off its identity: the one place

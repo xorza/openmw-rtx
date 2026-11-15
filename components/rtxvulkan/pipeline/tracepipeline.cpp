@@ -22,7 +22,7 @@ namespace Rtx
         const ShaderCode& code, const std::string_view raygen, const std::string_view name,
         const std::span<const std::uint32_t> specialization)
     {
-        PipelineCreation creation(device, name);
+        PipelineCreation creation(device, name, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR);
 
         // Kept until the pipeline is made, because the stage's info points into it: the module names
         // its word of the census.

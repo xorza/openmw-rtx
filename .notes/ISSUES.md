@@ -1,7 +1,11 @@
 # Open issues
 
 - Unscoped enums: `components/rtx/frame/framepast.hpp:40`, `apps/openmw/mwrender/rtx/worldmirror.cpp:163`, `components/crashcatcher/crashpadmonitor.cpp:376`.
-- `RtxVisibilityKernelsTest.noKernelSpillsPastItsCeiling` holds RADV's tuples at the figures of the two tuples measured there, the whole one and the one without a dark map's alpha: the other 46 have not been run under RADV.
+- `RtxVisibilityKernelsTest.noKernelSpillsPastItsCeiling` holds RADV's tuples that read a mod's maps (`HAS_MOD_MAPS`) at rows Mesa 26.2.7 compiled them under, for the handheld's card under the drm-shim: those tuples have not been run on the handheld's own Mesa.
+- `RtxVisibilityKernelsTest.noKernelSpillsPastItsCeiling` holds AMD's Windows driver's tuples at rows measured before the stages asked their rays at their turns, read a hit's rows again past the ground stack and resolved the eye's peel once: the test has not been run under that driver since.
 - `omw.tests.test_tidycache.DependenciesTest.test_every_prerequisite_made_plain_and_absolute_and_the_target_left_out` fails on Windows: `tidycache.dependencies` answers `C:\src\a.cpp` for a prerequisite `/src/a.cpp` where the test expects `\src\a.cpp`, so `omw gate` stops at the driver's tests.
-- `RtxVisibilityKernelsTest.noKernelSpillsPastItsCeiling` holds NVIDIA's tuples that read a mod's maps (`HAS_MOD_MAPS`) at rows measured before they existed: those tuples have not been run under NVIDIA's driver.
 - `omw gate`'s clang-tidy step fails over the whole tree on Windows: 283 findings in 207 sources, mostly `misc-include-cleaner` naming `<GL>` and `bugprone-exception-escape`.
+- Under the Repack's profile two `shot --views=all` runs of one binary do not agree: `seyda-neen-ship-armed`'s trace differs on every frame (worst 194 of 255 on 80% of the pixels), `addamasartus`'s by 3 of 255, and the scene differs at `arkngthand` (poses) and at `island-crossing` and `one-cell-walk` (sprites, emitters). Vanilla and the PBR stack repeat.
+- Under the PBR profile the tour refuses two textures, `textures/tx_b_n_argonian_m_n.dds` and `textures/tx_b_n_argonian_f_n.dds`: BC5 maps, which hold no colour, read where a colour is read, and `textures-readable` fails from the cell they arrive in (`leg-3-land--8,-9`).
+- Under the Repack's profile a stencil test is not read on two surfaces, `textures/mfr/r/s46972101.dds` and `textures/mfr/r/shock4.dds`.
+- A tour's worst frames are arrivals: under the PBR profile `place` took 171 ms of a 174 ms frame for 172 meshes (`leg-12-land-15,18`), under the Repack's `update` 185 ms of 197 for 95 meshes (`leg-36-land-40,5`), and under vanilla `update` 99 ms of 101 while the game loaded three cells (`leg-11-land--26,15`).

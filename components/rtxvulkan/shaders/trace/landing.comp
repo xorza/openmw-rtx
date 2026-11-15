@@ -44,14 +44,16 @@ void main()
 
     const ivec2 stored = storedAt(ivec2(pixel), frame.mEyes.mWorld.mWidth, fieldSwapOf(frame.mFrame));
     const StageRecord record = unpackStageRecord(imageLoad(stageRecord, stored));
-    const StoredBounce handed = storedBounceAt(stored);
 
-    const LandingLight light = landingLightOf(
-        storedLandingOf(record, stored, ray), record.mBounceLobe, pixel, handed.mWeight, bounceSeedsAt(ray));
+    // **What the bounce handed on read where each half is used**, the weight once the landing is resolved and
+    // the modulation past its rays, so neither the resolve nor a traversal holds what it does not read.
+    const Surface landing = storedLandingOf(record, stored, ray);
+    const LandingLight light
+        = landingLightOf(landing, record.mBounceLobe, pixel, storedBounceAt(stored).mWeight, bounceSeedsAt(ray));
 
     const PathEndSeen seen = pathEndSeenOf(light.mRays);
     const vec3 fill = light.mFill * seen.mAmbient;
     const vec3 whole = light.mGlow + fill + light.mSky * seen.mSky + light.mLamp * seen.mLamp;
 
-    storeBounced(pixel, record, Arriving(whole, fill), handed.mModulation, ray > 0u);
+    storeBounced(pixel, record, Arriving(whole, fill), storedBounceAt(stored).mModulation, ray > 0u);
 }
