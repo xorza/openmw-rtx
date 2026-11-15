@@ -208,7 +208,7 @@ def attachments_in(texts: list[str], limit: int = ATTACHMENTS) -> list[str]:
         for url in _ATTACHMENT.findall(text):
             if url not in found:
                 found.append(url)
-    return found[:limit + 1]
+    return found[:limit]
 
 
 @dataclass(frozen=True)
