@@ -192,7 +192,7 @@ namespace Resource
         void clearCache() override;
 
         /// Lets the caches go of `paths`, each a normalised path of a model or an image which nothing more
-        /// will ask for: its template, its NIF file and its image, and then the shared state no template uses
+        /// will ask for: its template, its NIF or SPT file and its image, and then the shared state no template uses
         /// any more. What the ray tracer's preparation asks once the last job reading a file ends
         /// (`Rtx::ContentPreparation`).
         void letGo(std::span<const std::string> paths);

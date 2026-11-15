@@ -1294,6 +1294,7 @@ namespace Resource
         {
             mCache->removeFromObjectCache(path);
             mNifFileManager->removeFromCache(path);
+            mSptFileManager->removeFromCache(path);
             mImageManager->removeFromCache(path);
         }
 

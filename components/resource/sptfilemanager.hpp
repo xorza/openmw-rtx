@@ -10,7 +10,7 @@ namespace Resource
     {
     public:
         SptFileManager(const VFS::Manager* vfs, double expiryDelay);
-        ~SptFileManager() = default;
+        ~SptFileManager() override = default;
 
         Spt::SPTFilePtr get(VFS::Path::NormalizedView name);
 

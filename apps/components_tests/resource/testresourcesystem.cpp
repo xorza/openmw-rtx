@@ -1,8 +1,11 @@
 #include <components/files/configurationmanager.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
+#include <components/resource/sptfilemanager.hpp>
 #include <components/sceneutil/material.hpp>
 #include <components/sceneutil/shadow.hpp>
+#include <components/spt/file.hpp>
+#include <components/testing/util.hpp>
 #include <components/toutf8/toutf8.hpp>
 #include <components/vfs/manager.hpp>
 
@@ -11,8 +14,11 @@
 #include <osg/Drawable>
 #include <osg/NodeVisitor>
 
+#include <cstdint>
 #include <map>
+#include <memory>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <vector>
 
@@ -76,6 +82,49 @@ namespace
         sceneManager->letGo(letGo);
         EXPECT_NE(sceneManager->getTemplate(first), loaded) << "loaded again";
         EXPECT_EQ(sceneManager->getTemplate(kept), keptLoaded) << "a path not named stays";
+    }
+
+    /// A SpeedTree file of a header and nothing after it, which `Spt::parse` reads: its opening section,
+    /// the version it takes, and the section that ends the header, each little-endian.
+    std::string headerOnlySpeedTree()
+    {
+        std::string bytes;
+        const auto append = [&bytes](std::uint32_t value) {
+            for (int shift = 0; shift < 32; shift += 8)
+                bytes.push_back(static_cast<char>((value >> shift) & 0xffu));
+        };
+        constexpr std::string_view version = "__IdvSpt_02_";
+        append(1000);
+        append(static_cast<std::uint32_t>(version.size()));
+        bytes += version;
+        append(1001);
+        return bytes;
+    }
+
+    /// **A SpeedTree file let go of is read again**: `letGo` drops the parsed `.spt` its path names, as it
+    /// drops a NIF file, so the preparation's memory does not keep every tree it read, while one another
+    /// path names stays.
+    TEST(ResourceResourceSystem, scenemanager_letgo_drops_the_speedtree_files_it_names)
+    {
+        TestingOpenMW::VFSTestFile firstFile(headerOnlySpeedTree());
+        TestingOpenMW::VFSTestFile keptFile(headerOnlySpeedTree());
+        constexpr VFS::Path::NormalizedView first("trees/first.spt");
+        constexpr VFS::Path::NormalizedView kept("trees/kept.spt");
+        const std::unique_ptr<VFS::Manager> vfs
+            = TestingOpenMW::createTestVFS({ { first, &firstFile }, { kept, &keptFile } });
+        const ToUTF8::Utf8Encoder encoder(ToUTF8::WINDOWS_1252);
+        Resource::ResourceSystem resourceSystem(vfs.get(), 1.0, &encoder.getStatelessEncoder());
+        Resource::SptFileManager& trees = *resourceSystem.getSptFileManager();
+
+        const Spt::SPTFilePtr read = trees.get(first);
+        const Spt::SPTFilePtr keptRead = trees.get(kept);
+        EXPECT_EQ(read->mHeader.mVersionId, "__IdvSpt_02_");
+        EXPECT_EQ(trees.get(first), read) << "the cache's own";
+
+        const std::vector<std::string> letGo{ std::string(first.value()) };
+        resourceSystem.getSceneManager()->letGo(letGo);
+        EXPECT_NE(trees.get(first), read) << "read again";
+        EXPECT_EQ(trees.get(kept), keptRead) << "a path not named stays";
     }
 
     /// Every `SceneUtil::Material` a scene's state sets hold, by its name.
