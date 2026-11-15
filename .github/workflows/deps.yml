@@ -1,11 +1,14 @@
 # The dependency sets: the libraries `vcpkg.json` names, built static by `omw deps-set` for each system and
 # published as the release `deps-<digest>`, whose archives `pins.py` names and every build downloads. A set
 # is built once for its inputs: a run whose digest is published already does nothing. Linux builds in
-# AlmaLinux 8, whose glibc is older than every system the set serves.
+# AlmaLinux 8, whose glibc is older than every system the set serves. On its own from master alone: a branch whose
+# set moved asks for it, `gh workflow run deps.yml --ref <branch>`, and a merge of master into a branch, whose diff
+# carries master's changes to the inputs, starts nothing.
 name: Dependency sets
 
 on:
   push:
+    branches: [master]
     paths:
       - vcpkg.json
       - vcpkg-configuration.json

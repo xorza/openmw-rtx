@@ -223,7 +223,8 @@ def vcpkg_set() -> Path:
             if digest != pins.VCPKG_SET.digest:
                 raise Refusal(f"vcpkg.json or its overlays moved since the set pins.py names "
                               f"(deps-{pins.VCPKG_SET.digest}): `omw deps-set` builds deps-{digest} here, and the "
-                              "Dependency sets workflow publishes it for pins.py")
+                              "Dependency sets workflow publishes it for pins.py, on master's push or a branch's "
+                              "dispatch")
             fetch.build_beside(waiting, _fill_set)
         _hold(waiting, digest)
     return held_set_dir() / TRIPLET
