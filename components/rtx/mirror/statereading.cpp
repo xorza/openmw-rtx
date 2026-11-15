@@ -13,6 +13,7 @@
 #include <osg/GL>
 #include <osg/Material>
 #include <osg/Matrixf>
+#include <osg/Multisample> // IWYU pragma: keep: the multisample enums, which Windows' GL headers lack
 #include <osg/PolygonMode>
 #include <osg/ShadeModel>
 #include <osg/StateAttribute>

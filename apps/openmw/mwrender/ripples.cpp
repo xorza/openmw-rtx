@@ -6,6 +6,7 @@
 #include <components/debug/debuglog.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
+#include <components/sceneutil/color.hpp> // IWYU pragma: keep: GL_RGBA16F, which Windows' GL headers lack
 #include <components/sceneutil/glextensions.hpp>
 #include <components/shader/shadermanager.hpp>
 

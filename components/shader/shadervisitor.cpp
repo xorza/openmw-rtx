@@ -10,6 +10,7 @@
 #include <osg/ColorMaski>
 #include <osg/GLExtensions>
 #include <osg/Geometry>
+#include <osg/Multisample> // IWYU pragma: keep: GL_SAMPLE_ALPHA_TO_COVERAGE_ARB, which Windows' GL headers lack
 #include <osg/Texture>
 
 #include <osgParticle/ParticleSystem>

@@ -38,6 +38,7 @@
 #include <components/esm/util.hpp>
 #include <components/esm3/loadcell.hpp>
 #include <components/esm3/loadcrea.hpp>
+#include <components/esm3/loaddoor.hpp>
 #include <components/esm3/transport.hpp>
 #include <components/loadinglistener/loadinglistener.hpp>
 #include <components/misc/constants.hpp>
