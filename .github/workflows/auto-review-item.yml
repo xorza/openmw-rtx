@@ -1,6 +1,9 @@
 # One item's read for `auto-review.yml`, whose header says why it is shaped so: gathered as data with no secret,
 # read by an agent that holds nothing worth stealing and can send nothing, and posted by a job that runs no agent.
 # A workflow of its own so that each item's three jobs run one after another while the matrix's items run apart.
+#
+# Every job checks out the workflow's own commit, which is master's but where a maintainer dispatches it on a
+# branch to try a change before it lands: only a writer can dispatch, and nothing of the item's is ever checked out.
 name: Auto review, one item
 
 on:
@@ -42,7 +45,6 @@ jobs:
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
               with:
-                  ref: master
                   # The merge base of a pull request's head, whose blobs come as `git diff` asks for them.
                   fetch-depth: 0
                   filter: blob:none
@@ -91,7 +93,6 @@ jobs:
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
               with:
-                  ref: master
                   persist-credentials: false
 
             - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
@@ -218,6 +219,32 @@ jobs:
                       --allowedTools "Read(./**),Grep,Glob,WebSearch,WebFetch"
                       --json-schema '${{ steps.schema.outputs.schema }}'
 
+            # The run's last message and every tool call the cage refused, in the log; the whole transcript as an
+            # artifact, which holds nothing secret, as the agent never sees a credential.
+            - name: What the agent reported
+              if: always() && steps.agent.outputs.execution_file != ''
+              env:
+                  EXECUTION_FILE: ${{ steps.agent.outputs.execution_file }}
+              run: |
+                  stop=$(cat /proc/sys/kernel/random/uuid)
+                  echo "::stop-commands::$stop"
+                  jq -r '.[] | select(.type == "result")
+                    | "\(.subtype): \(.num_turns) turns, $\(.total_cost_usd)",
+                      (.permission_denials[]?
+                        | "refused \(.tool_name): \(.tool_input.command // .tool_input.file_path // .tool_input.url // (.tool_input | tostring))")' \
+                    "$EXECUTION_FILE"
+                  echo "::$stop::"
+                  mkdir -p "$RUNNER_TEMP/transcript"
+                  cp "$EXECUTION_FILE" "$RUNNER_TEMP/transcript/transcript.json"
+
+            - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+              if: always() && steps.agent.outputs.execution_file != ''
+              with:
+                  name: review-transcript-${{ inputs.slug }}
+                  path: ${{ runner.temp }}/transcript
+                  if-no-files-found: error
+                  retention-days: 3
+
             - name: The answer
               if: steps.check.outputs.answered == 'false'
               env:
@@ -252,7 +279,6 @@ jobs:
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
               with:
-                  ref: master
                   persist-credentials: false
 
             - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0

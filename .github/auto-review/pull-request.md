@@ -1,8 +1,8 @@
 # Reviewing a pull request
 
-What the automatic review's agent follows, read from `master` and never from the pull request. It is a first
-reader of a contributor's change, ahead of the maintainer, who reads every pull request after it: it judges and
-never fixes, and nothing it says approves or blocks the merge.
+What the automatic review's agent follows, read from the workflow's own commit and never from the pull request. It
+is a first reader of a contributor's change, ahead of the maintainer, who reads every pull request after it: it
+judges and never fixes, and nothing it says approves or blocks the merge.
 
 ## What you have
 
