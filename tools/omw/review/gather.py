@@ -35,6 +35,8 @@ _UNREADABLE = (Refusal, OSError, zipfile.BadZipFile, zlib.error, EOFError, NotIm
 # Releases searched for the symbols of a crash, newest first, and the bytes of a symbols archive.
 RELEASES = 3
 SYMBOLS_BYTES = 400 << 20
+# What of each other issue's text the index of issues carries.
+INDEX_OPENING = 300
 # Files of a pull request written as it has them.
 FILES = 3000
 # The agent's turns: a floor, and one for each so many changed lines, to a ceiling.
@@ -328,14 +330,26 @@ def _attachments(github: GitHub, folder: Folder, texts: list[str], scratch: Path
     return tag
 
 
+def index(issues: list[dict[str, Any]]) -> str:
+    """Every other issue for the agent to find a duplicate among: its number, state and title, and the start of
+    what it says on one line, as a title alone often names a symptom and not the fault. Cut to what a reader sees,
+    and what was cut is not listed: an issue template's own comments stand in most of them, and the agent is to
+    report what this item hides, not what every other one does."""
+    lines = []
+    for issue in issues:
+        title = " ".join(visible(issue["title"]).text.split())
+        opening = " ".join(visible(issue.get("body") or "").text.split())[:INDEX_OPENING]
+        lines.append(f"#{issue['number']} [{issue['state']}] {title} — {opening}\n")
+    return "".join(lines)
+
+
 def gather_issue(github: GitHub, folder: Folder, key: Key, scratch: Path) -> str:
     raw = github.get(f"issues/{key.number}")
     _item(folder, raw, key, {})
     comments = _discussion(github, folder, key)
-    index = [issue for issue in github.pages("issues", 10, state="all") if "pull_request" not in issue]
-    titles = [(issue["number"], issue["state"], folder.text(f"the title of #{issue['number']}", issue["title"]))
-              for issue in index if issue["number"] != key.number]
-    folder.write("issues.txt", "".join(f"#{number} [{state}] {title}\n" for number, state, title in titles))
+    others = [issue for issue in github.pages("issues", 10, state="all")
+              if "pull_request" not in issue and issue["number"] != key.number]
+    folder.write("issues.txt", index(others))
     texts = [raw.get("body") or ""] + [comment.get("body") or "" for comment in comments]
     tag = _attachments(github, folder, texts, scratch)
     folder.write("release.txt", f"{tag}\n" if tag else "")

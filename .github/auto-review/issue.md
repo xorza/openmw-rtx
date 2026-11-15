@@ -10,7 +10,8 @@ In `.review/`, which the step before you wrote:
 
 - `item.json` and `body.md`: the issue and its author;
 - `discussion.md`: the comments on it, the latest;
-- `issues.txt`: every other issue's number, state and title, for duplicates;
+- `issues.txt`: every other issue's number, state, title and the start of its text, a line each, for
+  duplicates;
 - `attachments.txt` and `attachments/`: what the report attached, each looked at by its bytes: pictures you can
   look at, logs and texts as text;
 - `crash.txt`: each crash package's dumps, with the monitor's summary, its notes, and the stack of every thread

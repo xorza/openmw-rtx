@@ -117,8 +117,9 @@ jobs:
             fail-fast: false
             matrix:
                 item: ${{ fromJSON(needs.survey.outputs.items) }}
+        # What the item workflow's post takes, the most any of its jobs does.
         permissions:
-            contents: read
+            contents: write
             issues: write
             pull-requests: write
         uses: $/.github/workflows/auto-review-item.yml

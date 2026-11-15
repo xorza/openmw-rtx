@@ -8,7 +8,7 @@ from pathlib import Path
 from unittest import mock
 
 from omw import fetch
-from omw.review import answer, gather, post
+from omw.review import answer, gather, github, post
 from omw.review import diff as diffs
 from omw.review.item import BOT, NO_HEAD, Attempt, Item, Key, Marker, attempt_of, leg_name, markers
 from omw.review.survey import Limits, _items, select
@@ -344,6 +344,19 @@ class PostTest(unittest.TestCase):
         self.assertFalse(post.leaks(rendered, ""))
 
 
+class GitHubTest(unittest.TestCase):
+    def test_a_refusal_says_what_github_said(self):
+        refused = mock.Mock(returncode=1, stdout="",
+                            stderr="GraphQL: Resource not accessible by integration (resolveReviewThread)\n")
+        with mock.patch.object(github.subprocess, "run", return_value=refused), self.assertRaisesRegex(
+                Refusal, r"^GitHub refused graphql: GraphQL: Resource not accessible by integration "
+                         r"\(resolveReviewThread\)$"):
+            github.GitHub(REPO).graphql("mutation { x }")
+        answered = mock.Mock(returncode=0, stdout='{"data": {"a": 1}}', stderr="")
+        with mock.patch.object(github.subprocess, "run", return_value=answered):
+            self.assertEqual(github.GitHub(REPO).graphql("query { a }"), {"a": 1})
+
+
 class GatherTest(unittest.TestCase):
     def test_kind_by_bytes(self):
         self.assertEqual(gather.kind_of(b"\x89PNG\r\n"), "png")
@@ -392,6 +405,17 @@ class GatherTest(unittest.TestCase):
             self.assertEqual((folder.root / "attachments.txt").read_text(),
                              "https://github.com/user-attachments/files/1/c.zip: not read as a crash package, "
                              "File is not a zip file\n")
+
+    def test_the_index_carries_each_issues_opening(self):
+        issues = [{"number": 49, "state": "closed", "title": "Crashing  on\nstart", "body": "<!-- Drag the zip -->"
+                   "VK_ERROR_OUT_OF_DEVICE_MEMORY\n\nat start" + "x" * 400},
+                  {"number": 7, "state": "open", "title": "Purple", "body": None}]
+        lines = gather.index(issues).splitlines()
+        # Each on one line, the template's comment out, its opening cut at `INDEX_OPENING` characters after the
+        # spaces are folded.
+        self.assertEqual(lines[0], "#49 [closed] Crashing on start — "
+                         + ("VK_ERROR_OUT_OF_DEVICE_MEMORY at start" + "x" * 400)[:gather.INDEX_OPENING])
+        self.assertEqual(lines[1], "#7 [open] Purple — ")
 
     def test_a_download_stops_at_its_limit(self):
         out = io.BytesIO()
