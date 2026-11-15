@@ -93,7 +93,7 @@ jobs:
             ccache-size: 2000M
           - build: windows-msvc
             os: windows-2025-vs2026
-            ccache-size: 3000M
+            ccache-size: 3500M
     defaults:
       run:
         shell: bash
@@ -145,6 +145,7 @@ jobs:
     container: ${{ matrix.container }}
     permissions:
       contents: read
+      actions: write # the leg's old compiler cache deleted on master, the last step
     # A cold build, which a release always is, takes an hour and a half.
     timeout-minutes: 180
     strategy:
@@ -159,8 +160,9 @@ jobs:
           - name: windows-msvc
             os: windows-2025-vs2026
             flavour: debug
-            # At two gigabytes the objects filled the cache and a run hit nothing.
-            ccache-size: 3000M
+            # At two gigabytes the objects filled the cache and a run hit nothing; at three, one build's 2221 filled it
+            # to 99.96% and a cleanup a run evicted what the next would hit. Each holds its debug information (`/Z7`).
+            ccache-size: 3500M
           # ThreadSanitizer cannot share a build with AddressSanitizer. No GPU binary: under a
           # sanitizer it would never start here.
           - name: linux-asan
@@ -168,8 +170,8 @@ jobs:
             container: almalinux:8@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b
             flavour: asan
             build-flags: --without-device
-            # At one gigabyte the sanitized objects evicted 335 times a run.
-            ccache-size: 2000M
+            # At one gigabyte the sanitized objects evicted 335 times a run; at two, one build's came to 1.8 GB.
+            ccache-size: 2500M
           - name: linux-tsan
             os: ubuntu-26.04
             # On the runner itself, over Ubuntu's GCC 15's libstdc++, against the same set: ThreadSanitizer
@@ -177,7 +179,8 @@ jobs:
             # ("unexpected memory mapping" in the container).
             flavour: tsan
             build-flags: --without-device
-            ccache-size: 2000M
+            # Its objects come to 0.3 GB, where the other Linux legs' come to 1.6 and 1.8.
+            ccache-size: 500M
     defaults:
       run:
         # Git Bash on Windows, so every `run` is one script on every system.
@@ -247,3 +250,34 @@ jobs:
           name: logs-${{ matrix.name }}-${{ github.sha }}
           build: out/${{ matrix.flavour }}
           more: out/${{ matrix.flavour }}/integration_tests_output/**/*.cfg
+
+      # **A leg's compiler cache stands in one copy**: the one it restored is deleted as the job ends, and the ccache
+      # action's save, which runs after every step, puts the new one in its place. Saved beside it, the new copy took
+      # the repository past its 10 GB until the run ended, and eviction took a live cache of another leg's. Not after a
+      # cancel, which a push to master makes of the run before it: the old copy stays where the save may not follow.
+      - name: The compiler cache's old copy, deleted
+        if: ${{ !cancelled() && env.CI_CACHE == 'true' && github.ref == 'refs/heads/master' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LEG: ${{ matrix.name }}
+        run: python omw caches --ref=refs/heads/master --keep=0 "ccache-$LEG-"
+
+  # **Each cache's newest copy alone stays**: a tools' or an archives' key a pin moved, and a tidy store a later
+  # commit's replaced, each stood in the repository's 10 GB until eviction took a live one. The compiler caches are
+  # each leg's own to replace, and named here only for a leg whose deletion did not run; `deps.yml` keeps its sets'.
+  caches:
+    name: caches
+    needs: [tidy, build]
+    if: ${{ always() && github.ref == 'refs/heads/master' && format('{0}', inputs.cache) != 'false' }}
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+      actions: write # the superseded caches deleted
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 omw caches --ref=refs/heads/master --keep=1 ccache- tools- fetchcontent- tidy-clean-

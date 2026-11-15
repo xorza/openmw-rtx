@@ -121,27 +121,28 @@ jobs:
           path: out/deps/sets/vcpkg-x64-windows-openmw.tar.gz.*
           compression-level: 0
 
-  # One binary cache a system and branch. Each run saves its own, as a key is written once: a run cut off saves
-  # what it built, and the next resumes from it by prefix. Every older one is deleted here, or each set's copy (0.5
-  # to 0.8 GB Linux's, 2.7 GB Windows') stays in the repository's 10 GB until eviction takes master's compiler
-  # caches with it. By branch, as a branch restores its own caches and master's alone.
+  # One binary cache a system and branch, kept only while its set is unpublished. Each run saves its own, as a key is
+  # written once: a run cut off saves what it built, and the next resumes from it by prefix, so every older one is
+  # deleted here. Once the set is published none stays: a set's copy (0.5 to 0.8 GB Linux's, 2.7 GB Windows') does not
+  # fit in the repository's 10 GB beside CI's caches, and eviction took master's compiler caches for it. The next set
+  # whose inputs moved builds every port again. By branch, as a branch restores its own caches and master's alone.
   caches:
     name: caches
-    needs: [digest, linux, windows]
+    needs: [digest, linux, windows, publish]
     if: always() && needs.digest.outputs.published == 'false'
     runs-on: ubuntu-26.04
     permissions:
-      actions: write
+      contents: read
+      actions: write # the superseded binary caches deleted
     timeout-minutes: 5
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          for system in linux windows; do
-            gh cache list --repo "$GITHUB_REPOSITORY" --ref "$GITHUB_REF" --key "vcpkg-$system-" \
-                --sort created_at --order desc --limit 100 --json id --jq '.[1:][].id' \
-              | xargs -r -n1 gh cache delete --repo "$GITHUB_REPOSITORY"
-          done
+          KEPT: ${{ needs.publish.result == 'success' && '0' || '1' }}
+        run: python3 omw caches --ref="$GITHUB_REF" --keep="$KEPT" vcpkg-
 
   publish:
     name: publish

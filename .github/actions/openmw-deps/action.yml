@@ -6,7 +6,7 @@ inputs:
     description: Whether to restore and save the job's caches; false for a release.
     default: "true"
   cache-key:
-    description: The name of the job's caches, the driver's tools, the FetchContent archives and the compiler cache, which begins no other job's; none, and the job keeps none.
+    description: The name of the job's caches, the FetchContent archives and the compiler cache, which begins no other job's; none, and the job keeps none. The driver's tools are the image's, which every job on it shares.
     default: ""
   ccache-size:
     description: How large the compiler cache may grow.
@@ -49,19 +49,25 @@ runs:
     # A branch restores them, and saves nothing.
     - name: The driver's tools
       # The folders `omw` keeps its pinned tools in, each named after its pins: the key moves with a tool and
-      # with nothing else, not with a set pinned anew.
+      # with nothing else, not with a set pinned anew. One an image, which every leg on it fetches alike: the
+      # AlmaLinux legs share theirs, and each runner's own keeps one, as the cache action restores an archive only
+      # where the compression its image's tar offers is the one it was saved with.
       if: inputs.cache-key != '' && inputs.cache == 'true'
       id: tools
       shell: bash
       env:
-        CACHE_KEY: ${{ inputs.cache-key }}
+        SYSTEM: ${{ runner.os }}
       run: |
+        image="${SYSTEM,,}"
+        if [ -f /etc/almalinux-release ]; then
+          image=almalinux
+        fi
         folders="$(python omw bootstrap --cached-tools)"
         {
           echo "paths<<EOF"
           echo "$folders"
           echo "EOF"
-          echo "key=tools-$CACHE_KEY-$(echo "$folders" | sha256sum | cut -c1-16)"
+          echo "key=tools-$image-$(echo "$folders" | sha256sum | cut -c1-16)"
         } >> "$GITHUB_OUTPUT"
 
     - name: The driver's tools cache

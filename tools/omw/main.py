@@ -8,6 +8,7 @@ from dataclasses import dataclass
 
 from omw import (
     benchab,
+    caches,
     crash,
     deps,
     depsset,
@@ -104,6 +105,9 @@ omw [flavour] <verb> [args]: one grammar for every build, on the desk and in CI,
                                with --cached-tools, the folders of the tools CI caches, one a line; no flavour
   deps-set [--digest]          the libraries vcpkg.json names, built static for this system and packed
                                under out/deps/sets/, Linux's in AlmaLinux 8; with --digest, the set's name
+  caches --ref=<ref> --keep=<n> <prefix>...
+                               the GitHub Actions caches on a ref whose keys begin with a prefix, each
+                               family's newest n kept and the rest deleted, as CI holds them; no flavour
   help                         this page; no flavour
 
   flavour   directory       what it is
@@ -205,6 +209,7 @@ BUILDLESS_VERBS: dict[str, Callable[[list[str]], int]] = {
     "review": review.review,
     "bootstrap": _bootstrap,
     "deps-set": depsset.deps_set,
+    "caches": caches.caches,
 }
 
 

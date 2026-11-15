@@ -159,9 +159,12 @@ How the tree is configured, built, formatted and shipped, as decisions. The CMak
   (`env/release-base.Dockerfile`), which `omw lint workflows` holds every workflow to. The tsan leg runs on the runner
   itself, as Docker's seccomp refuses the `personality` ThreadSanitizer calls.
 - **CI's caches** are saved on master alone and restored on every branch: the compiler cache, the fetched archives, the
-  driver's tools by their pinned folders, vcpkg's binary cache by run, and `omw tidy`'s store, so a branch lints only
-  the sources whose reads its change moved. Each `tidy` leg restores its build leg's and saves none (`openmw-deps`'s
-  `save`), as its own would be the same objects twice over the repository's 10 GB.
+  driver's tools by their pinned folders and system, vcpkg's binary cache until its set is published, and `omw tidy`'s
+  store, so a branch lints only the sources whose reads its change moved. Each `tidy` leg restores its build leg's and
+  saves none (`openmw-deps`'s `save`), as its own would be the same objects twice over the repository's 10 GB. Each
+  cache stands in one copy (`omw caches`): a build leg deletes its old compiler cache as it ends, before the new one is
+  saved, and `ci.yml`'s `caches` what a pin or a commit superseded; a copy saved beside the one it replaced took the
+  repository past its 10 GB, and eviction took a live cache of another leg's.
 - **Master's CI checks the latest commit alone**: a push cancels the run before it, on master as on a branch, by the
   user's decision. Refused: every master run finishing, which spends the runners on commits a newer one superseded.
   The lint's store, which a whole tree's run takes an hour and more to fill, is written as the run goes
