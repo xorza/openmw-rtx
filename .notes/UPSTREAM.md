@@ -318,7 +318,8 @@ the lines each item names, which the merge resolves by keeping the seam:
   key covers the code by a version a test holds (`DetourNavigatorTileVersionTest`). `openmw-navmeshtool` writes the
   store the game reads, and loses `--remove-unused-tiles` and the vacuum; the launcher loses their controls, and
   `[Navigator]` loses `write to navmeshdb` and `max navmeshdb file size`. The cost is a conflict with every upstream
-  change to the navigator's database worker, its input serialization or `openmw-navmeshtool`. Recast is the
+  change to the navigator's database worker, its input serialization or `openmw-navmeshtool`, and `upstream.yml`
+  keeps SQLite's files and the navigator's database deleted. Recast is the
   commit `extern/` pins on every system, its headers included as a system's, since the tile version cannot
   follow a distribution's build.
   A tile is keyed on the triangles of its recast mesh, and `MeshSource`, which carried each model's file and transform

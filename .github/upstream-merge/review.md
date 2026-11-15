@@ -7,12 +7,12 @@ upstream's to change. It is the maintainer's own review of a change, scoped to w
 
 - **The resolutions**: every file in `.upstream-merge/edited.txt`, which the merge's resolver changed past what git
   merged on its own, read against its sides in `.upstream-merge/stages/` (`.base`, `.fork`, `.upstream`).
-- **What clang-tidy found**: every finding in `.upstream-merge/tidy.txt`, over the files the merge changed and
-  the files that include them. The tree is held to `.clang-tidy`, upstream's code as the fork's
-  (`.notes/UPSTREAM.md`), so a finding is fixed wherever it stands.
+- **What the merge adds** (`.upstream-merge/added.txt`) where it lands in code the fork removed or replaced: a
+  file there goes, by its path in `.upstream-merge/removed.txt`.
 - **Nothing else.** What upstream changed and git merged cleanly is upstream's and is not reviewed: `AGENTS.md`
-  says upstream code changes only on the maintainer's yes, and a finding outside the two lists above goes into
-  the report, unfixed.
+  says upstream code changes only on the maintainer's yes, and a finding outside the scope goes into the report,
+  unfixed. The pull request's CI builds, tests and lints the merge, clang-tidy included, and what it finds is
+  answered there.
 
 Fix every finding you can defend, in the working tree. A redesign that reaches past the merge: describe it in
 the report and change nothing.
@@ -44,4 +44,4 @@ On what pass one left, inside the scope:
 
 Write `UPSTREAM-REVIEW.md` at the root of the checkout, for the human who reads the pull request: the verdict on
 the resolutions first (structural or a patch, correct or not), then one line a finding under its pass, bugs
-first, each with what you changed or why you left it; then every clang-tidy finding you left, with why.
+first, each with what you changed or why you left it.

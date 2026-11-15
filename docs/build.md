@@ -150,8 +150,8 @@ How the tree is configured, built, formatted and shipped, as decisions. The CMak
   itself, as Docker's seccomp refuses the `personality` ThreadSanitizer calls.
 - **CI's caches** are saved on master alone and restored on every branch: the compiler cache, the fetched archives, the
   driver's tools by their pinned folders, vcpkg's binary cache by run, and `omw tidy`'s store, so a branch lints only
-  the sources whose reads its change moved. A job that builds what master does not hold, the upstream merge's lint,
-  restores them and saves none (`openmw-deps`'s `save`): every master build after it would read its objects.
+  the sources whose reads its change moved. `tidy` restores `linux-clang`'s and saves none (`openmw-deps`'s
+  `save`), as its own would be the same objects twice over the repository's 10 GB.
 - **One compiler and linker on Linux: the pinned Clang 23 and its lld**, kernel.org's build for glibc 2.28, over GCC
   15's libstdc++ (`--gcc-install-dir`, as libstdc++'s C++20 half keeps no ABI across majors). No contraction
   (`-ffp-contract=off`), so arithmetic rounds as written. Refused: GCC, whose link-time optimisation broke the Qt

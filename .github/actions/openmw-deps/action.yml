@@ -12,7 +12,7 @@ inputs:
     description: How large the compiler cache may grow.
     default: 1000M
   save:
-    description: Whether a run on master may save the caches it restored; false for a job that builds what master does not hold, whose objects every later master build would read.
+    description: Whether a run on master may save the caches it restored; false for a job that reads another job's, whose saving them would keep the same objects twice.
     default: "true"
 
 runs:
