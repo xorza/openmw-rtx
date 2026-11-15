@@ -65,6 +65,8 @@
 
 #include <components/nif/niffile.hpp>
 
+#include <components/sptosg/sptloader.hpp>
+
 #include <components/misc/algorithm.hpp>
 #include <components/misc/osguservalues.hpp>
 #include <components/misc/pathhelpers.hpp>
@@ -72,7 +74,6 @@
 #include <components/misc/strings/conversion.hpp>
 
 #include <components/vfs/manager.hpp>
-#include <components/vfs/pathutil.hpp>
 
 #include <components/sceneutil/clone.hpp>
 #include <components/sceneutil/controller.hpp>
@@ -101,6 +102,7 @@
 #include "niffilemanager.hpp"
 #include "objectcache.hpp"
 #include "resourcemanager.hpp"
+#include "sptfilemanager.hpp"
 
 namespace
 {
@@ -531,13 +533,15 @@ namespace Resource
     }
 
     SceneManager::SceneManager(const VFS::Manager* vfs, Resource::ImageManager* imageManager,
-        Resource::NifFileManager* nifFileManager, Resource::BgsmFileManager* bgsmFileManager, double expiryDelay)
+        Resource::NifFileManager* nifFileManager, Resource::BgsmFileManager* bgsmFileManager,
+        Resource::SptFileManager* sptFileManager, double expiryDelay)
         : NodeResourceManager<std::string>(vfs, expiryDelay)
         , mShaderManager(new Shader::ShaderManager)
         , mSharedStateManager(new SharedStateManager)
         , mImageManager(imageManager)
         , mNifFileManager(nifFileManager)
         , mBgsmFileManager(bgsmFileManager)
+        , mSptFileManager(sptFileManager)
         , mMinFilter(osg::Texture::LINEAR_MIPMAP_LINEAR)
         , mMagFilter(osg::Texture::LINEAR)
         , mMaxAnisotropy(1.f)
@@ -874,16 +878,17 @@ namespace Resource
 
         osg::ref_ptr<osg::Node> load(VFS::Path::NormalizedView normalizedFilename, const VFS::Manager* vfs,
             Resource::ImageManager* imageManager, Resource::NifFileManager* nifFileManager,
-            Resource::BgsmFileManager* materialMgr)
+            Resource::BgsmFileManager* materialMgr, Resource::SptFileManager* sptFileManager, unsigned int& nifVersion)
         {
             const std::string_view ext = Misc::getFileExtension(normalizedFilename.value());
             if (ext == "nif")
-                return NifOsg::Loader::load(*nifFileManager->get(normalizedFilename), imageManager, materialMgr);
-            else if (ext == "spt")
             {
-                Log(Debug::Warning) << "Ignoring SpeedTree data file " << normalizedFilename;
-                return new osg::Node();
+                const Nif::NIFFilePtr file = nifFileManager->get(normalizedFilename);
+                nifVersion = file->mVersion;
+                return NifOsg::Loader::load(*file, imageManager, materialMgr);
             }
+            else if (ext == "spt")
+                return SptOsg::Loader::load(*sptFileManager->get(normalizedFilename));
             else
                 return loadNonNif(normalizedFilename, *vfs->get(normalizedFilename), imageManager);
         }
@@ -931,14 +936,18 @@ namespace Resource
             }
         };
 
-        bool canOptimize(std::string_view filename)
+        bool canOptimize(
+            std::string_view filename, unsigned int nifVersion, const SceneManager::BlacklistModelSet& blacklist)
         {
+            if (blacklist.contains(filename))
+                return false;
+
             const std::string_view::size_type slashpos = filename.find_last_of('/');
             if (slashpos != std::string_view::npos && slashpos + 1 < filename.size())
             {
                 const std::string_view basename = filename.substr(slashpos + 1);
-                // xmesh.nif can not be optimized because there are keyframes added in post
-                if (!basename.empty() && basename[0] == 'x')
+                // TES3 only: xmesh.nif can not be optimized because there are keyframes added in post
+                if (nifVersion <= Nif::NIFFile::NIFVersion::VER_MW && !basename.empty() && basename[0] == 'x')
                     return false;
 
                 // NPC skeleton files can not be optimized because of keyframes added in post
@@ -1012,7 +1021,11 @@ namespace Resource
             {
                 path.changeExtension(meshType);
                 if (mVFS->exists(path))
-                    return load(path, mVFS, mImageManager, mNifFileManager, mBgsmFileManager);
+                {
+                    unsigned int nifVersion = 0;
+                    return load(
+                        path, mVFS, mImageManager, mNifFileManager, mBgsmFileManager, mSptFileManager, nifVersion);
+                }
             }
         }
         catch (const std::exception& e)
@@ -1050,9 +1063,11 @@ namespace Resource
             // What a crash while the model is read and readied names, on whichever thread loads it.
             const Crash::NoteScope noted("loading the model \"{}\"", path.value());
             osg::ref_ptr<osg::Node> loaded;
+            unsigned int nifVersion = 0;
             try
             {
-                loaded = load(path, mVFS, mImageManager, mNifFileManager, mBgsmFileManager);
+                loaded
+                    = load(path, mVFS, mImageManager, mNifFileManager, mBgsmFileManager, mSptFileManager, nifVersion);
             }
             catch (const std::exception& e)
             {
@@ -1078,7 +1093,7 @@ namespace Resource
                 loaded->accept(maps);
             }
 
-            if (canOptimize(path.value()))
+            if (canOptimize(path.value(), nifVersion, mOptimizerBlacklist))
             {
                 SceneUtil::Optimizer optimizer;
                 optimizer.setSharedStateManager(mSharedStateManager, &mSharedStateMutex);

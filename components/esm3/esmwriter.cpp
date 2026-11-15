@@ -1,6 +1,7 @@
 #include "esmwriter.hpp"
 
 #include <cassert>
+#include <cstring>
 #include <stdexcept>
 
 #include <components/esm3/cellid.hpp>
@@ -74,7 +75,6 @@ namespace ESM
         , mHeaderPos()
         , mEncoder(nullptr)
         , mRecordCount(0)
-        , mCounting(true)
         , mHeader()
     {
     }
@@ -131,7 +131,7 @@ namespace ESM
     {
         mRecordCount = 0;
         mRecords.clear();
-        mCounting = true;
+        mBuffer.clear();
         mStream = &file;
 
         startRecord("TES3", 0);
@@ -151,17 +151,13 @@ namespace ESM
     {
         mRecordCount++;
 
+        // Opened before the header is written: without an open record write() goes straight to the stream.
+        const std::size_t sizeOffset = mBuffer.size() + NAME::sCapacity;
+        mRecords.push_back({ name, sizeOffset, sizeOffset + 3 * sizeof(uint32_t) });
         writeName(name);
-        RecordData rec;
-        rec.name = name;
-        rec.position = mStream->tellp();
-        rec.size = 0;
         writeT<uint32_t>(0); // Size goes here
         writeT<uint32_t>(0); // Unused header?
         writeT(flags);
-        mRecords.push_back(rec);
-
-        assert(mRecords.back().size == 0);
     }
 
     void ESMWriter::startRecord(uint32_t name, uint32_t flags)
@@ -174,30 +170,27 @@ namespace ESM
         // Sub-record hierarchies are not properly supported in ESMReader. This should be fixed later.
         assert(mRecords.size() <= 1);
 
+        // Opened before the header is written, as in startRecord.
+        const std::size_t sizeOffset = mBuffer.size() + NAME::sCapacity;
+        mRecords.push_back({ name, sizeOffset, sizeOffset + sizeof(uint32_t) });
         writeName(name);
-        RecordData rec;
-        rec.name = name;
-        rec.position = mStream->tellp();
-        rec.size = 0;
         writeT<uint32_t>(0); // Size goes here
-        mRecords.push_back(rec);
-
-        assert(mRecords.back().size == 0);
     }
 
     void ESMWriter::endRecord(NAME name)
     {
-        RecordData rec = mRecords.back();
-        assert(rec.name == name);
+        const RecordData rec = mRecords.back();
+        assert(rec.mName == name);
         mRecords.pop_back();
 
-        mStream->seekp(rec.position);
+        const uint32_t size = static_cast<uint32_t>(mBuffer.size() - rec.mDataOffset);
+        std::memcpy(mBuffer.data() + rec.mSizeOffset, &size, sizeof(size));
 
-        mCounting = false;
-        write(reinterpret_cast<const char*>(&rec.size), sizeof(uint32_t));
-        mCounting = true;
-
-        mStream->seekp(0, std::ios::end);
+        if (mRecords.empty())
+        {
+            mStream->write(mBuffer.data(), static_cast<std::streamsize>(mBuffer.size()));
+            mBuffer.clear();
+        }
     }
 
     void ESMWriter::endRecord(uint32_t name)
@@ -328,13 +321,10 @@ namespace ESM
 
     void ESMWriter::write(const char* data, size_t size)
     {
-        if (mCounting && !mRecords.empty())
-        {
-            for (auto& record : mRecords)
-                record.size += static_cast<uint32_t>(size);
-        }
-
-        mStream->write(data, static_cast<std::streamsize>(size));
+        if (mRecords.empty())
+            mStream->write(data, static_cast<std::streamsize>(size));
+        else
+            mBuffer.insert(mBuffer.end(), data, data + size);
     }
 
     void ESMWriter::writeFormId(const FormId& formId, bool wide, NAME tag)

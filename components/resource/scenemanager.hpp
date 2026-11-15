@@ -1,10 +1,13 @@
 #pragma once
 
 #include <array>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <span>
 #include <string>
+#include <unordered_set>
+#include <utility>
 
 #include <osg/Texture>
 #include <osg/ref_ptr>
@@ -14,6 +17,7 @@
 #include <components/shader/automaps.hpp>
 
 #include <components/sceneutil/lightmanager.hpp>
+#include <components/vfs/pathutil.hpp>
 #include <filesystem>
 
 namespace VFS
@@ -35,6 +39,7 @@ namespace Resource
     class ImageManager;
     class NifFileManager;
     class BgsmFileManager;
+    class SptFileManager;
     class SharedStateManager;
 }
 
@@ -66,8 +71,11 @@ namespace Resource
     class SceneManager : public NodeResourceManager<std::string>
     {
     public:
+        using BlacklistModelSet = std::unordered_set<VFS::Path::Normalized, VFS::Path::Hash, std::equal_to<>>;
+
         explicit SceneManager(const VFS::Manager* vfs, Resource::ImageManager* imageManager,
-            Resource::NifFileManager* nifFileManager, Resource::BgsmFileManager* bgsmFileManager, double expiryDelay);
+            Resource::NifFileManager* nifFileManager, Resource::BgsmFileManager* bgsmFileManager,
+            Resource::SptFileManager* sptFileManager, double expiryDelay);
         ~SceneManager() override;
 
         Shader::ShaderManager& getShaderManager();
@@ -198,6 +206,8 @@ namespace Resource
 
         void setWeatherParticleOcclusion(bool value) { mWeatherParticleOcclusion = value; }
 
+        void setOptimizerBlacklist(BlacklistModelSet blacklist) { mOptimizerBlacklist = std::move(blacklist); }
+
         /// Whether a loaded model is given the shader programs the rasterizer draws it with. Omitted for
         /// a renderer that compiles no GLSL: the visitor runs createProgram on every drawable and
         /// moves the material into its removedState, and that state is what such a renderer reads
@@ -223,6 +233,7 @@ namespace Resource
         Resource::ImageManager* mImageManager;
         Resource::NifFileManager* mNifFileManager;
         Resource::BgsmFileManager* mBgsmFileManager;
+        Resource::SptFileManager* mSptFileManager;
         osg::ref_ptr<osgUtil::IncrementalCompileOperation> mIncrementalCompileOperation;
         mutable osg::ref_ptr<osg::Node> mErrorMarker;
         mutable std::once_flag mErrorMarkerFlag;
@@ -230,6 +241,8 @@ namespace Resource
         osg::Texture::FilterMode mMinFilter;
         osg::Texture::FilterMode mMagFilter;
         float mMaxAnisotropy;
+
+        BlacklistModelSet mOptimizerBlacklist;
 
         unsigned int mParticleSystemMask;
         bool mSupportsClusteredLighting = false;
