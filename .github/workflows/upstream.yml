@@ -913,6 +913,10 @@ jobs:
             # passed and GitHub refuses auto-merge on a pull request in clean status, with nothing left to wait for.
             # The ruleset still gates the merge itself. `--match-head-commit` is the commit CI passed, so a push
             # after it merges nothing.
+            #
+            # Whether a passed merge is a human's is read from its commit, not from the draft flag: the flag is set
+            # before the merge, so a merge that failed after it would read as handled, and a re-run would leave it
+            # unmerged. The flag says only that a human took a failed one over.
             - name: Ready and merged, or handed to the fix
               id: judge
               env:
@@ -939,10 +943,7 @@ jobs:
                     echo "pull request #$number moved past $HEAD, whose run this is"
                     exit 0
                   fi
-                  if [ "$(jq -r .isDraft <<< "$pull")" != true ]; then
-                    echo "pull request #$number is ready already"
-                    exit 0
-                  fi
+                  draft=$(jq -r .isDraft <<< "$pull")
 
                   # A run cancelled or skipped is one a later run stands in for: CI cancels a branch's run its next
                   # push begins.
@@ -955,6 +956,10 @@ jobs:
                   git fetch --quiet --no-tags origin "$HEAD"
 
                   if [ "$CONCLUSION" != success ]; then
+                    if [ "$draft" != true ]; then
+                      echo "CI ended $CONCLUSION on pull request #$number, which a human made ready and finishes"
+                      exit 0
+                    fi
                     # The fix's own commits count its rounds, so the bound holds across runs with no state kept.
                     round=$(git log --format=%s "origin/master..$HEAD" | grep -cxF "Answer CI on the upstream merge" \
                       || true)
@@ -983,13 +988,20 @@ jobs:
                     exit 1
                   fi
 
-                  gh pr ready "$number"
                   if [ -n "$held" ]; then
+                    if [ "$draft" != true ]; then
+                      echo "pull request #$number is held for a human already: $held"
+                      exit 0
+                    fi
+                    gh pr ready "$number"
                     gh pr comment "$number" --body "CI passed; not merged automatically: $held. A human reads this one."
                     echo "::warning::pull request #$number held for a human: $held"
                     exit 0
                   fi
 
+                  if [ "$draft" = true ]; then
+                    gh pr ready "$number"
+                  fi
                   gh pr merge "$number" --merge --match-head-commit "$HEAD"
                   echo "pull request #$number is ready and merged"
 
