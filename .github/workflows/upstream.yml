@@ -37,9 +37,10 @@ env:
     FIX_ROUNDS: 3
 
 # A half-resolved merge is worse than a late one. CI's answers queue by branch, and a newer one waiting
-# stands in for an older.
+# stands in for an older. The branch is keyed with its repository: a fork's pull request from a branch of
+# the same name would otherwise queue behind this one's and cancel its waiting answer.
 concurrency:
-    group: ${{ github.event_name == 'workflow_run' && format('upstream-ci-{0}', github.event.workflow_run.head_branch) || 'upstream-merge' }}
+    group: ${{ github.event_name == 'workflow_run' && format('upstream-ci-{0}:{1}', github.event.workflow_run.head_repository.full_name, github.event.workflow_run.head_branch) || 'upstream-merge' }}
     cancel-in-progress: false
 
 jobs:
@@ -921,11 +922,14 @@ jobs:
                   CONCLUSION: ${{ github.event.workflow_run.conclusion }}
                   RUN: ${{ github.event.workflow_run.html_url }}
               run: |
+                  # Opened by the app, as `publish` opens it: a writer's own branch of that name does not merge itself
+                  # unreviewed. No account's login can hold a slash.
                   pull=$(gh pr list --state open --head "$BRANCH" \
-                    --json number,id,headRefOid,isDraft,isCrossRepository,baseRefName \
-                    --jq '[.[] | select((.isCrossRepository | not) and .baseRefName == "master")] | first // empty')
+                    --json number,id,headRefOid,isDraft,isCrossRepository,baseRefName,author \
+                    --jq '[.[] | select((.isCrossRepository | not) and .baseRefName == "master"
+                      and .author.login == "app/claude")] | first // empty')
                   if [ -z "$pull" ]; then
-                    echo "no open pull request from $BRANCH"
+                    echo "no open pull request from $BRANCH opened by the Claude app"
                     exit 0
                   fi
                   number=$(jq -r .number <<< "$pull")
