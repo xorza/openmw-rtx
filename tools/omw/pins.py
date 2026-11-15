@@ -42,24 +42,6 @@ CLANG_FORMAT = {
     ),
 }
 
-# The clang-tidy every desk and CI lints with (`deps.clang_tidy`), by system: the PyPI wheels, about 45 MB with
-# their builtin headers, built for glibc 2.28 as the Linux legs' AlmaLinux 8 is. 23.1.4, a point behind the
-# compiler, as no 23.1.5 wheel is published yet; a build of our own at the compiler's version is in the to-do list.
-# The digests are PyPI's.
-CLANG_TIDY_VERSION = "23.1.4"
-CLANG_TIDY = {
-    "linux": Pin(
-        "https://files.pythonhosted.org/packages/80/85/9b483f300124a9245ec6da8975612f1841e26da13b27ad8d17f2006e13bd/"
-        f"clang_tidy-{CLANG_TIDY_VERSION}-py2.py3-none-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl",
-        "6bb31e4f319ecbe14acb75f23c3050d0f1d4b1d92ea1c66091bc76e4eac2c1ac",
-    ),
-    "windows": Pin(
-        "https://files.pythonhosted.org/packages/c0/49/b2adbdedbe430d0cce9b354a679d57e28692ce2fb59a575486784d438125/"
-        f"clang_tidy-{CLANG_TIDY_VERSION}-py2.py3-none-win_amd64.whl",
-        "8107e05930f53dc477dbb5fb8108d7c10464176fc95d3e58f4ee7317887aed59",
-    ),
-}
-
 # gersemi, the CMake files' formatter (`deps.gersemi`), by system and by the CPython it runs under: its
 # layout is computed in Rust, built into each wheel for one interpreter's ABI, so the wheel follows the
 # Python that runs the driver, 3.10 and later. The digests are PyPI's. Exact, as clang-format's is.
@@ -315,9 +297,11 @@ NINJA = {
 
 # Clang 23, every Linux build's compiler and linker (`deps.llvm`): kernel.org's slim build of LLVM's release, made
 # on Debian 10 so it runs on AlmaLinux 8's glibc 2.28, where LLVM's own Linux release asks a newer one. The digest is
-# the one kernel.org signs in `sha256sums.asc` beside it.
+# the one kernel.org signs in `sha256sums.asc` beside it. The set's clang-tidy port is built from the same release
+# (`vcpkg/ports/clang-tidy`), which a test holds to this version.
+LLVM_VERSION = "23.1.5"
 LLVM = Pin(
-    "https://www.kernel.org/pub/tools/llvm/files/llvm-23.1.5-x86_64.tar.xz",
+    f"https://www.kernel.org/pub/tools/llvm/files/llvm-{LLVM_VERSION}-x86_64.tar.xz",
     "b69433120ad62420d789f601c58a5472873c724be088c99a70b72fd30ca4af3c",
 )
 

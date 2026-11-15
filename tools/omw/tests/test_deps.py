@@ -1,6 +1,8 @@
 import io
+import json
 import os
 import shutil
+import subprocess
 import tarfile
 import tempfile
 import unittest
@@ -11,7 +13,7 @@ from unittest import mock
 from omw import deps, pins
 from omw.deps import pinned_folder
 from omw.pins import Pin
-from omw.system import DEPS, Refusal
+from omw.system import DEPS, ROOT, Refusal
 
 
 class PinnedFolderTest(unittest.TestCase):
@@ -177,37 +179,41 @@ class MypyTest(unittest.TestCase):
 
 
 class ClangTidyTest(unittest.TestCase):
-    def test_the_wheel_gives_its_programs_and_builtin_headers_as_llvm_lays_them_out_and_nothing_else(self):
+    def test_the_programs_are_the_sets_and_built_from_the_release_the_compiler_is(self):
         folder = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, folder)
-        pin = Pin("https://example.com/clang_tidy-test.whl", "f" * 64)
+        installed = folder / "installed" / deps.TRIPLET / "tools" / "clang-tidy"
+        installed.mkdir(parents=True)
+        for program in ("clang-tidy", "clang-apply-replacements"):
+            (installed / f"{program}{deps.EXE}").write_bytes(b"")
+        with mock.patch.object(deps, "vcpkg_set", return_value=folder):
+            self.assertEqual(deps.clang_tidy(), installed / f"clang-tidy{deps.EXE}")
+            self.assertEqual(deps.clang_apply_replacements(), installed / f"clang-apply-replacements{deps.EXE}")
+        port = json.loads((ROOT / "vcpkg/ports/clang-tidy/vcpkg.json").read_text(encoding="utf-8"))
+        self.assertEqual(port["version"], pins.LLVM_VERSION, "clang-tidy and the compiler are other releases")
 
-        def download(_pin: Pin, file: Path) -> None:
-            file.parent.mkdir(parents=True, exist_ok=True)
-            with zipfile.ZipFile(file, "w") as zipped:
-                zipped.writestr("clang_tidy/__init__.py", b"")
-                zipped.writestr("clang_tidy/data/bin/", b"")
-                zipped.writestr(f"clang_tidy/data/bin/clang-tidy{deps.EXE}", b"#!/bin/sh\n")
-                zipped.writestr(f"clang_tidy/data/bin/clang-apply-replacements{deps.EXE}", b"#!/bin/sh\n")
-                zipped.writestr("clang_tidy/data/bin/run-clang-tidy.py", b"")
-                zipped.writestr("clang_tidy/data/lib/clang/23/include/stddef.h", b"")
-                zipped.writestr("clang_tidy-0.dist-info/RECORD", b"")
-
-        with (mock.patch.object(deps, "DEPS", folder), mock.patch.dict(deps.pins.CLANG_TIDY, {deps.SYSTEM: pin}),
-              mock.patch.object(deps.fetch, "download_pin", side_effect=download) as fetched):
-            found = deps.clang_tidy()
-            root = deps.clang_tidy_dir()
-            self.assertEqual(found, root / "bin" / f"clang-tidy{deps.EXE}")
-            self.assertEqual(deps.clang_apply_replacements(), root / "bin" / f"clang-apply-replacements{deps.EXE}")
-            # The headers where clang-tidy looks for them, `../lib/clang/<major>` from its own path; the wheel's
-            # Python, its metadata and the scripts left behind.
-            self.assertEqual(sorted(path.relative_to(root).as_posix() for path in root.rglob("*") if path.is_file()),
-                             [f"bin/clang-apply-replacements{deps.EXE}", f"bin/clang-tidy{deps.EXE}",
-                              "lib/clang/23/include/stddef.h"])
-            if not deps.WINDOWS:
-                self.assertTrue(os.access(found, os.X_OK), "the program cannot run")
-            self.assertEqual(deps.clang_tidy(), found)
-            self.assertEqual(fetched.call_count, 1, "a clang-tidy already there was fetched again")
+    def test_the_digest_moves_with_the_port_alone(self):
+        root = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, root)
+        files = {"vcpkg/ports/clang-tidy/vcpkg.json": b"{}\n", "vcpkg/ports/clang-tidy/portfile.cmake": b"x()\n",
+                 "vcpkg/ports/zlib/portfile.cmake": b"z()\n", "vcpkg.json": b"{}\n"}
+        for name, text in files.items():
+            (root / name).parent.mkdir(parents=True, exist_ok=True)
+            (root / name).write_bytes(text)
+        subprocess.run(["git", "init", "-q", str(root)], check=True)
+        first = deps.clang_tidy_digest.__wrapped__(root)
+        self.assertEqual(len(first), 16)
+        # Another port, the manifest and a Windows clone's line endings are the same clang-tidy.
+        (root / "vcpkg/ports/zlib/portfile.cmake").write_bytes(b"z(1)\n")
+        (root / "vcpkg.json").write_bytes(b"[]\n")
+        (root / "vcpkg/ports/clang-tidy/portfile.cmake").write_bytes(b"x()\r\n")
+        self.assertEqual(deps.clang_tidy_digest.__wrapped__(root), first)
+        seen = {first}
+        for name in ("vcpkg/ports/clang-tidy/vcpkg.json", "vcpkg/ports/clang-tidy/portfile.cmake"):
+            (root / name).write_bytes((root / name).read_bytes() + b"# moved\n")
+            moved = deps.clang_tidy_digest.__wrapped__(root)
+            self.assertNotIn(moved, seen, f"{name} moved and the digest did not")
+            seen.add(moved)
 
 
 class PruneTest(unittest.TestCase):
@@ -218,7 +224,6 @@ class PruneTest(unittest.TestCase):
             kept = sorted(deps.pinned_names())
             # Every getter's folder, the formatters' among them, which a prune once took.
             self.assertIn(deps.clang_format_dir().name, kept)
-            self.assertIn(deps.clang_tidy_dir().name, kept)
             self.assertIn(deps.gersemi_dir().name, kept)
             # And the lint's, which a bootstrap after a lint would otherwise take.
             for lint_tool in (deps.ruff_dir(), deps.zizmor_dir(), deps.mypy_dir()):

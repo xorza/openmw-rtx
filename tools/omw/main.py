@@ -51,7 +51,7 @@ omw [flavour] <verb> [args]: one grammar for every build, on the desk and in CI,
   kernels [--against=<file>]   one digest per shader and tuple of its constants; against an earlier
                                listing, which tuples moved
   tidy [--fix] [--changed] [file...]
-                               the pinned clang-tidy under `.clang-tidy` over the sources of apps/ and
+                               the set's clang-tidy under `.clang-tidy` over the sources of apps/ and
                                components/ the build compiles, those the working tree changed and their
                                includers, or those the files named are or are included by; --fix
                                applies the fixes, then formats the changed files as build does; a

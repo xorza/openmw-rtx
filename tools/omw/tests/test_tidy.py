@@ -247,6 +247,40 @@ class RememberedTest(unittest.TestCase):
         tidy_run()
         self.assertEqual(tidy.tidycache.load(folder / "tidy-clean.json"), {})
 
+    def test_a_clean_run_stands_on_a_runner_that_fetches_the_clang_tidy_its_builtin_headers_stand_beside(self):
+        """CI's runner has no clang-tidy until the lint asks for one, and every run read its builtin headers: a store
+        held against the files before the fetch read them as gone, and missed on every source that read one."""
+        folder = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, folder)
+        source = written(folder, "a.cpp", "int a;")
+        builtin = folder / "clang-tidy" / "lib" / "stddef.h"
+        (folder / "compile_commands.json").write_text(json.dumps([
+            {"directory": str(folder), "file": str(source), "output": "a.o", "command": "c++ -c a.cpp"}]))
+        linted: list[Path] = []
+
+        def fetched() -> Path:
+            if not builtin.exists():
+                builtin.parent.mkdir(parents=True, exist_ok=True)
+                written(builtin.parent, builtin.name, "#pragma once")
+            return Path("clang-tidy")
+
+        def run(_tidy: Path, _build: object, ran: Source, _fixes: Path | None,
+                dependencies: Path) -> subprocess.CompletedProcess:
+            linted.append(ran.file)
+            dependencies.write_text(f"a.o: {ran.file} {builtin}\n", encoding="utf-8")
+            return subprocess.CompletedProcess([], 0, "", "")
+
+        for runner in ("the first", "a fresh"):
+            with self.subTest(runner=runner):
+                linted.clear()
+                # A runner of its own: the store is restored, and the clang-tidy is not there.
+                shutil.rmtree(builtin.parent.parent, ignore_errors=True)
+                with (mock.patch.object(tidy, "LINTED", (folder,)), mock.patch.object(tidy, "_run", side_effect=run),
+                      mock.patch.object(tidy.deps, "clang_tidy", side_effect=fetched),
+                      contextlib.redirect_stdout(io.StringIO())):
+                    self.assertEqual(tidy.tidy(mock.Mock(dir=folder), []), 0)
+                self.assertEqual(linted, [source] if runner == "the first" else [])
+
     def test_a_run_says_each_finding_once_as_it_is_met_and_how_far_it_is_at_each_checkpoint(self):
         folder = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, folder)

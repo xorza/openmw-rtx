@@ -66,8 +66,8 @@ class KeyTest(FolderTest):
         self.assertEqual(digests[a], "ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb")
 
         compile = Compile("/build", "c++ -c a.cpp")
-        # SHA-256 of "<the pinned clang-tidy's SHA-256>\n/build\nc++ -c a.cpp\n".
-        with mock.patch.dict(tidycache.pins.CLANG_TIDY, {tidycache.SYSTEM: mock.Mock(sha256="pin")}):
+        # SHA-256 of "<the digest of the port the clang-tidy is built from>\n/build\nc++ -c a.cpp\n".
+        with mock.patch.object(tidycache.deps, "clang_tidy_digest", return_value="pin"):
             self.assertEqual(tidycache.command_digest(compile),
                              "5ce5ddca420ba0a97aca33c6f0ea51a605fcdf86ef2101fe12db875d0c16c2a4")
             pinned = tidycache.command_digest(compile)

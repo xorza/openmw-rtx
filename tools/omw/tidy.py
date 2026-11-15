@@ -1,4 +1,4 @@
-"""`omw tidy [--fix] [--changed] [file...]`: the pinned clang-tidy under the tree's `.clang-tidy`, over the sources
+"""`omw tidy [--fix] [--changed] [file...]`: the set's clang-tidy under the tree's `.clang-tidy`, over the sources
 of `apps/` and `components/` the build's compile database holds: every one, those the working tree changed and
 those that include a changed header (`--changed`), or those the files named are or are included by. `--fix` applies
 the checks' fixes, then formats the working tree's changed files as `build` does. A source whose last run was
@@ -172,6 +172,9 @@ def tidy(build: Build, args: list[str]) -> int:
     if not sources:
         return 0
 
+    # Fetched before the store is held against the files: every run read the builtin headers beside it, and on a
+    # runner that had none yet they read as gone, so CI's store missed on every source that read one.
+    clang_tidy = deps.clang_tidy()
     store = build.dir / "tidy-clean.json"
     remembered = tidycache.load(store)
     compiles = {str(source.file): source.compile for source in sources}
@@ -191,7 +194,6 @@ def tidy(build: Build, args: list[str]) -> int:
     kept = {source: run for source, run in remembered.items()
             if (source in held and source not in compiles) or source in unchanged}
 
-    clang_tidy = deps.clang_tidy()
     print(f"tidy: linting {len(linted)} of {len(sources)} sources", flush=True)
     seen: dict[str, Finding] = {}
     failed = 0

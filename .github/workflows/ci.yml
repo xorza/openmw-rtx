@@ -78,7 +78,7 @@ jobs:
     container: almalinux:8@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b
     permissions:
       contents: read
-    # A store with nothing in it lints every source: a new pin or a `.clang-tidy` changed is that.
+    # A store with nothing in it lints every source: a clang-tidy port that moved or a `.clang-tidy` changed is that.
     timeout-minutes: 180
     defaults:
       run:
