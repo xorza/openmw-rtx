@@ -416,6 +416,12 @@ class GatherTest(unittest.TestCase):
         self.assertEqual(lines[0], "#49 [closed] Crashing on start — "
                          + ("VK_ERROR_OUT_OF_DEVICE_MEMORY at start" + "x" * 400)[:gather.INDEX_OPENING])
         self.assertEqual(lines[1], "#7 [open] Purple — ")
+        # Whole, past the opening the index cuts, where an error a report names often stands; the comment out.
+        self.assertEqual(gather.issue_text(issues[0]), "# #49 [closed] Crashing on start\n\n"
+                         "VK_ERROR_OUT_OF_DEVICE_MEMORY\n\nat start" + "x" * 400 + "\n")
+        with mock.patch.object(gather, "ISSUE_TEXT", 9):
+            self.assertEqual(gather.issue_text(issues[0]), "# #49 [closed] Crashing on start\n\nVK_ERROR_\n")
+        self.assertEqual(gather.issue_text(issues[1]), "# #7 [open] Purple\n\n\n")
 
     def test_a_download_stops_at_its_limit(self):
         out = io.BytesIO()

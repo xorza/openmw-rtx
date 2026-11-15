@@ -35,8 +35,9 @@ _UNREADABLE = (Refusal, OSError, zipfile.BadZipFile, zlib.error, EOFError, NotIm
 # Releases searched for the symbols of a crash, newest first, and the bytes of a symbols archive.
 RELEASES = 3
 SYMBOLS_BYTES = 400 << 20
-# What of each other issue's text the index of issues carries.
+# What of each other issue's text the index of issues carries, and what its own file under `issues/` does.
 INDEX_OPENING = 300
+ISSUE_TEXT = 20_000
 # Files of a pull request written as it has them.
 FILES = 3000
 # The agent's turns: a floor, and one for each so many changed lines, to a ceiling.
@@ -343,6 +344,14 @@ def index(issues: list[dict[str, Any]]) -> str:
     return "".join(lines)
 
 
+def issue_text(issue: dict[str, Any]) -> str:
+    """Another issue whole, for the agent to search for the error, the symbol or the place a report names, which
+    stands past the opening as often as in it: its title and its text as a reader sees them, to `ISSUE_TEXT`."""
+    body = visible(issue.get("body") or "").text[:ISSUE_TEXT]
+    title = " ".join(visible(issue["title"]).text.split())
+    return f"# #{issue['number']} [{issue['state']}] {title}\n\n{body}\n"
+
+
 def gather_issue(github: GitHub, folder: Folder, key: Key, scratch: Path) -> str:
     raw = github.get(f"issues/{key.number}")
     _item(folder, raw, key, {})
@@ -350,6 +359,8 @@ def gather_issue(github: GitHub, folder: Folder, key: Key, scratch: Path) -> str
     others = [issue for issue in github.pages("issues", 10, state="all")
               if "pull_request" not in issue and issue["number"] != key.number]
     folder.write("issues.txt", index(others))
+    for issue in others:
+        folder.write(f"issues/{issue['number']}.md", issue_text(issue))
     texts = [raw.get("body") or ""] + [comment.get("body") or "" for comment in comments]
     tag = _attachments(github, folder, texts, scratch)
     folder.write("release.txt", f"{tag}\n" if tag else "")
