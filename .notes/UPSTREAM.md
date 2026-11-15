@@ -39,6 +39,10 @@ the lines each item names, which the merge resolves by keeping the seam:
 
 **The rest of the tree.**
 
+- The wind held on a paused frame (`MWWorld::windSpeedAfter`), as upstream holds the thunder, by the user's decision:
+  `WeatherManager::update` computes the sky on a paused frame too and keeps none of the wind it steps, so the step's
+  draw used up the world's generator, which a save keeps, and shook the paused sky. The step is a free function the
+  three wind sites call, so a test reaches it. The cost is a conflict with an upstream edit to the wind's lines.
 - `NifOsg::BoxPlacer`, an `osgParticle::BoxPlacer` that draws from `Misc::Rng`, as `ParticleShooter` does, in place
   of osgParticle's at a NIF emitter (`nifloader.cpp`) and the sky's rain and snow (`sky.cpp`), by the user's
   decision: osgParticle's draws from the C library's `rand`, which NVIDIA's driver draws from too, inside

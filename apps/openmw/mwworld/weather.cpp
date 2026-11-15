@@ -783,14 +783,15 @@ namespace MWWorld
         }
     }
 
-    float WeatherManager::calculateWindSpeed(const Weather& weather, float currentSpeed) const
+    float windSpeedAfter(const Weather& weather, float currentSpeed, const bool paused, Misc::Rng::Generator& prng)
     {
         float targetSpeed = std::min(8.0f * weather.mWindSpeed, 70.f);
         if (currentSpeed == 0.f)
             currentSpeed = targetSpeed;
+        if (paused)
+            return currentSpeed;
 
         float multiplier = weather.mRainEffect.empty() ? 1.f : 0.5f;
-        auto& prng = MWBase::Environment::get().getWorld()->getPrng();
         float updatedSpeed = (Misc::Rng::rollClosedProbability(prng) - 0.5f) * multiplier * targetSpeed + currentSpeed;
 
         if (updatedSpeed > 0.5f * targetSpeed && updatedSpeed < 2.f * targetSpeed)
@@ -1263,14 +1264,14 @@ namespace MWWorld
             return result;
         if (Weather* next = mWeatherStore->search(mNextWeather))
         {
-            result = calculateTransitionResult(*current, *next, 1 - mTransitionFactor, gameHour);
+            result = calculateTransitionResult(*current, *next, 1 - mTransitionFactor, gameHour, isPaused);
             float currentFlash = current->calculateThunder(mTransitionFactor, elapsedSeconds, isPaused);
             float nextFlash = next->calculateThunder(1 - mTransitionFactor, elapsedSeconds, isPaused);
             flash = currentFlash + nextFlash;
         }
         else
         {
-            result = calculateResult(*current, gameHour);
+            result = calculateResult(*current, gameHour, isPaused);
             flash = current->calculateThunder(1.0f, elapsedSeconds, isPaused);
         }
         osg::Vec4f flashColor(flash, flash, flash, 0.0f);
@@ -1281,14 +1282,16 @@ namespace MWWorld
         return result;
     }
 
-    MWRender::WeatherResult WeatherManager::calculateResult(const Weather& current, const float gameHour) const
+    MWRender::WeatherResult WeatherManager::calculateResult(
+        const Weather& current, const float gameHour, const bool isPaused) const
     {
         MWRender::WeatherResult result;
 
         result.mCloudTexture = current.mCloudTexture;
         result.mCloudBlendFactor = 0;
         result.mNextWindSpeed = 0;
-        result.mWindSpeed = result.mCurrentWindSpeed = calculateWindSpeed(current, mWindSpeed);
+        result.mWindSpeed = result.mCurrentWindSpeed
+            = windSpeedAfter(current, mWindSpeed, isPaused, MWBase::Environment::get().getWorld()->getPrng());
         result.mBaseWindSpeed = current.mWindSpeed;
 
         result.mCloudSpeed = current.mCloudSpeed;
@@ -1341,11 +1344,11 @@ namespace MWWorld
         return result;
     }
 
-    MWRender::WeatherResult WeatherManager::calculateTransitionResult(
-        const Weather& currentWeather, const Weather& nextWeather, const float factor, const float gameHour) const
+    MWRender::WeatherResult WeatherManager::calculateTransitionResult(const Weather& currentWeather,
+        const Weather& nextWeather, const float factor, const float gameHour, const bool isPaused) const
     {
-        const MWRender::WeatherResult current = calculateResult(currentWeather, gameHour);
-        const MWRender::WeatherResult other = calculateResult(nextWeather, gameHour);
+        const MWRender::WeatherResult current = calculateResult(currentWeather, gameHour, isPaused);
+        const MWRender::WeatherResult other = calculateResult(nextWeather, gameHour, isPaused);
         MWRender::WeatherResult result;
 
         result.mStormDirection = current.mStormDirection;
@@ -1365,8 +1368,9 @@ namespace MWWorld
         result.mDLFogFactor = lerp(current.mDLFogFactor, other.mDLFogFactor, factor);
         result.mDLFogOffset = lerp(current.mDLFogOffset, other.mDLFogOffset, factor);
 
-        result.mCurrentWindSpeed = calculateWindSpeed(currentWeather, mCurrentWindSpeed);
-        result.mNextWindSpeed = calculateWindSpeed(nextWeather, mNextWindSpeed);
+        Misc::Rng::Generator& prng = MWBase::Environment::get().getWorld()->getPrng();
+        result.mCurrentWindSpeed = windSpeedAfter(currentWeather, mCurrentWindSpeed, isPaused, prng);
+        result.mNextWindSpeed = windSpeedAfter(nextWeather, mNextWindSpeed, isPaused, prng);
         result.mBaseWindSpeed = lerp(current.mBaseWindSpeed, other.mBaseWindSpeed, factor);
 
         result.mWindSpeed = lerp(result.mCurrentWindSpeed, result.mNextWindSpeed, factor);
