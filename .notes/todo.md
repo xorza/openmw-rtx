@@ -13,6 +13,7 @@
 ## Open questions
 
 - All I/O serial?
+- tidy not required in ci?
 
 ## Performance
 
