@@ -20,6 +20,7 @@
 #include <components/resource/imagemanager.hpp>
 #include <components/resource/niffilemanager.hpp>
 #include <components/resource/scenemanager.hpp>
+#include <components/resource/sptfilemanager.hpp>
 #include <components/rtx/environment/cloudmesh.hpp>
 #include <components/rtx/shaders/look.h>
 #include <components/rtx/world/cloudshell.hpp>
@@ -295,7 +296,8 @@ namespace Rtx
             Resource::ImageManager images(&vfs, 0);
             Resource::NifFileManager nifs(&vfs, nullptr);
             Resource::BgsmFileManager materials(&vfs, 0);
-            Resource::SceneManager scenes(&vfs, &images, &nifs, &materials, 0);
+            Resource::SptFileManager trees(&vfs, 0);
+            Resource::SceneManager scenes(&vfs, &images, &nifs, &materials, &trees, 0);
 
             const Result<CloudShell, std::string> shell
                 = readCloudShell(scenes, VFS::Path::NormalizedView("meshes/sky_clouds_01.nif"));

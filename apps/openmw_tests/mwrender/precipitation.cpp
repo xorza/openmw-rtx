@@ -13,6 +13,7 @@
 #include <components/resource/imagemanager.hpp>
 #include <components/resource/niffilemanager.hpp>
 #include <components/resource/scenemanager.hpp>
+#include <components/resource/sptfilemanager.hpp>
 #include <components/vfs/manager.hpp>
 #include <components/vfs/pathutil.hpp>
 
@@ -56,7 +57,8 @@ namespace MWRender
             Resource::ImageManager images(&vfs, 0);
             Resource::NifFileManager nifs(&vfs, nullptr);
             Resource::BgsmFileManager materials(&vfs, 0);
-            Resource::SceneManager scenes(&vfs, &images, &nifs, &materials, 0);
+            Resource::SptFileManager trees(&vfs, 0);
+            Resource::SceneManager scenes(&vfs, &images, &nifs, &materials, &trees, 0);
 
             // The box's shaders are the rasterizer's, and an empty archive holds none of them.
             scenes.setModelPrograms(Resource::ModelPrograms::Omitted);
