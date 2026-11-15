@@ -54,11 +54,14 @@
 namespace Debug
 {
 #ifdef _WIN32
-    bool isRedirected(DWORD nStdHandle)
+    namespace
     {
-        DWORD fileType = GetFileType(GetStdHandle(nStdHandle));
+        bool isRedirected(DWORD nStdHandle)
+        {
+            DWORD fileType = GetFileType(GetStdHandle(nStdHandle));
 
-        return (fileType == FILE_TYPE_DISK) || (fileType == FILE_TYPE_PIPE);
+            return (fileType == FILE_TYPE_DISK) || (fileType == FILE_TYPE_PIPE);
+        }
     }
 
     bool attachParentConsole()
@@ -265,7 +268,7 @@ namespace Debug
             if (std::getenv("NO_COLOR") != nullptr)
                 return false;
 
-            DWORD mode;
+            DWORD mode = 0;
             if (GetConsoleMode(GetStdHandle(STD_ERROR_HANDLE), &mode) && mode & ENABLE_VIRTUAL_TERMINAL_PROCESSING)
                 return true;
 

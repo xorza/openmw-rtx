@@ -1,5 +1,6 @@
 #include "cell.hpp"
 
+#include <ranges>
 #include <set>
 #include <utility>
 
@@ -429,9 +430,9 @@ void CSVRender::Cell::landTextureAdded(const QModelIndex& parent, int start, int
 
 void CSVRender::Cell::reloadAssets()
 {
-    for (std::map<std::string, Object*>::const_iterator iter(mObjects.begin()); iter != mObjects.end(); ++iter)
+    for (Object* object : mObjects | std::views::values)
     {
-        iter->second->reloadAssets();
+        object->reloadAssets();
     }
 
     if (mTerrain)
@@ -448,7 +449,7 @@ void CSVRender::Cell::setSelection(int elementMask, Selection mode)
 {
     if (elementMask & Mask_Reference)
     {
-        for (std::map<std::string, Object*>::const_iterator iter(mObjects.begin()); iter != mObjects.end(); ++iter)
+        for (Object* object : mObjects | std::views::values)
         {
             bool selected = false;
 
@@ -461,13 +462,13 @@ void CSVRender::Cell::setSelection(int elementMask, Selection mode)
                     selected = true;
                     break;
                 case Selection_Invert:
-                    selected = !iter->second->getSelected();
+                    selected = !object->getSelected();
                     break;
             }
 
-            iter->second->setSelected(selected);
+            object->setSelected(selected);
             if (selected)
-                mSelectionMarker->addToSelectionHistory(iter->second->getReferenceId(), false);
+                mSelectionMarker->addToSelectionHistory(object->getReferenceId(), false);
         }
         mSelectionMarker->updateSelectionMarker();
     }
@@ -498,18 +499,18 @@ void CSVRender::Cell::selectAllWithSameParentId(int elementMask)
 {
     std::set<std::string> ids;
 
-    for (std::map<std::string, Object*>::const_iterator iter(mObjects.begin()); iter != mObjects.end(); ++iter)
+    for (Object* object : mObjects | std::views::values)
     {
-        if (iter->second->getSelected())
-            ids.insert(iter->second->getReferenceableId());
+        if (object->getSelected())
+            ids.insert(object->getReferenceableId());
     }
 
-    for (std::map<std::string, Object*>::const_iterator iter(mObjects.begin()); iter != mObjects.end(); ++iter)
+    for (Object* object : mObjects | std::views::values)
     {
-        if (!iter->second->getSelected() && ids.contains(iter->second->getReferenceableId()))
+        if (!object->getSelected() && ids.contains(object->getReferenceableId()))
         {
-            iter->second->setSelected(true);
-            mSelectionMarker->addToSelectionHistory(iter->second->getReferenceId(), false);
+            object->setSelected(true);
+            mSelectionMarker->addToSelectionHistory(object->getReferenceId(), false);
         }
     }
     mSelectionMarker->updateSelectionMarker();
@@ -693,8 +694,8 @@ void CSVRender::Cell::setSubMode(int subMode, unsigned int elementMask)
 void CSVRender::Cell::reset(unsigned int elementMask)
 {
     if (elementMask & Mask_Reference)
-        for (std::map<std::string, Object*>::const_iterator iter(mObjects.begin()); iter != mObjects.end(); ++iter)
-            iter->second->reset();
+        for (Object* object : mObjects | std::views::values)
+            object->reset();
     if (mPathgrid && elementMask & Mask_Pathgrid)
         mPathgrid->resetIndicators();
 }

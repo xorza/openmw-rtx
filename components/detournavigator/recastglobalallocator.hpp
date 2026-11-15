@@ -56,7 +56,7 @@ namespace DetourNavigator
 
         static RecastTempAllocator& tempAllocator()
         {
-            static thread_local RecastTempAllocator value(1024ul * 1024ul);
+            static thread_local RecastTempAllocator value(std::size_t{ 1024 } * 1024);
             return value;
         }
 

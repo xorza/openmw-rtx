@@ -7,6 +7,8 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include <components/misc/nouniqueaddress.hpp>
+
 #include "result.hpp"
 
 namespace Rtx
@@ -94,7 +96,7 @@ namespace Rtx
         }
 
     private:
-        [[no_unique_address]] Ending mEnding{};
+        OMW_NO_UNIQUE_ADDRESS Ending mEnding{};
         Handle mHandle = VK_NULL_HANDLE;
     };
 

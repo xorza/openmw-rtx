@@ -54,6 +54,12 @@ _PROGRAM = re.compile(r'^\s*(?:"(?P<quoted>[^"]*)"|(?P<bare>\S+))')
 # warning the tree's checks make an error, and the run lints nothing.
 _MSVC_IN_CLANG = {"/arch:SSE4.2": "-march=x86-64-v2"}
 
+# The checks that misread MSVC's library, off for a compile under its driver. `bugprone-exception-escape` sees every
+# throw the library makes inline, where libstdc++ throws out of line and unseen, and takes its iostreams' bare `throw;`
+# for a rethrow of whatever the caller's handler caught: a destructor that catches and logs was a finding under MSVC
+# alone.
+_OFF_UNDER_MSVC = "-bugprone-exception-escape"
+
 # The digest of a file that is not there, which no SHA-256 spells.
 ABSENT = "-"
 
@@ -118,29 +124,39 @@ class Compile:
         """Whether the compile reads a file its dependency file may not name, so no key of its run is whole."""
         return _UNLISTED.search(self.command) is not None
 
-    def extra_args(self, path: Path) -> list[str]:
-        """What clang-tidy's run of the compile adds to its command: that it write its dependency file to `path`,
-        and under MSVC's driver, clang-cl, Clang's spelling of each flag of MSVC's it does not take
-        (`_MSVC_IN_CLANG`). The tooling strips every `-M` flag of a command, which `-Wp,` hides; clang-cl takes a
-        flag of Clang's own as `/clang:`, and ignores it bare without a word."""
-        # `-Wp,` splits its argument at each comma.
-        assert "," not in str(path)
+    @property
+    def _msvc(self) -> bool:
+        """Whether the compile runs under MSVC's driver, clang-cl to clang-tidy: Clang's own rule for its driver's
+        mode, the program's name, whichever system's separators its path has."""
         program = _PROGRAM.match(self.command)
         assert program is not None
-        # Clang's own rule for its driver's mode: the program's name, whichever system's separators its path has.
         name = re.split(r"[\\/]", program["quoted"] or program["bare"])[-1].lower().removesuffix(".exe")
-        msvc = name == "cl" or name.endswith("-cl") or "--driver-mode=cl" in self.command
-        if not msvc:
-            return [f"--extra-arg=-Wp,-MD,{path}"]
+        return name == "cl" or name.endswith("-cl") or "--driver-mode=cl" in self.command
+
+    def flags(self) -> list[str]:
+        """What clang-tidy's run of the compile adds to its command besides where its dependency file goes: under
+        MSVC's driver, Clang's spelling of each flag of MSVC's it does not take (`_MSVC_IN_CLANG`), and the checks
+        that misread MSVC's library off (`_OFF_UNDER_MSVC`)."""
+        if not self._msvc:
+            return []
         flags = self.command.split()
-        return [f"--extra-arg=/clang:-Wp,-MD,{path}",
-                *(f"--extra-arg=/clang:{clang}" for msvc_flag, clang in _MSVC_IN_CLANG.items() if msvc_flag in flags)]
+        return [*(f"--extra-arg=/clang:{clang}" for msvc_flag, clang in _MSVC_IN_CLANG.items() if msvc_flag in flags),
+                f"--checks={_OFF_UNDER_MSVC}"]
+
+    def extra_args(self, path: Path) -> list[str]:
+        """What clang-tidy's run of the compile adds to its command: that it write its dependency file to `path`, and
+        `flags`. The tooling strips every `-M` flag of a command, which `-Wp,` hides; clang-cl takes a flag of Clang's
+        own as `/clang:`, and ignores it bare without a word."""
+        # `-Wp,` splits its argument at each comma.
+        assert "," not in str(path)
+        return [f"--extra-arg={'/clang:' if self._msvc else ''}-Wp,-MD,{path}", *self.flags()]
 
 
 def command_digest(compile: Compile) -> str:
-    """What a remembered run keeps of how it ran, as a digest: the port the clang-tidy is built from, and the folder
-    and command of the source's compile."""
-    return hashlib.sha256(f"{deps.clang_tidy_digest()}\n{compile.directory}\n{compile.command}\n".encode()
+    """What a remembered run keeps of how it ran, as a digest: the port the clang-tidy is built from, the folder and
+    command of the source's compile, and what the run adds to it (`Compile.flags`)."""
+    flags = "".join(f"{flag}\n" for flag in compile.flags())
+    return hashlib.sha256(f"{deps.clang_tidy_digest()}\n{compile.directory}\n{compile.command}\n{flags}".encode()
                           ).hexdigest()
 
 

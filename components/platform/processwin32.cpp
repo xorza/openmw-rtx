@@ -84,7 +84,7 @@ namespace Platform::Process
             WideCharToMultiByte(CP_UTF8, 0, wide[i], -1, one.data(), size, nullptr, nullptr);
             arguments.push_back(std::move(one));
         }
-        LocalFree(wide);
+        LocalFree(static_cast<HLOCAL>(wide));
         return arguments;
     }
 

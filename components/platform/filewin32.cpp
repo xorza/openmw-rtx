@@ -12,23 +12,25 @@
 
 namespace Platform::File
 {
-
-    static auto getNativeHandle(Handle handle)
+    namespace
     {
-        assert(handle != Handle::Invalid);
+        auto getNativeHandle(Handle handle)
+        {
+            assert(handle != Handle::Invalid);
 
-        return reinterpret_cast<HANDLE>(static_cast<intptr_t>(handle));
-    }
+            return reinterpret_cast<HANDLE>(static_cast<intptr_t>(handle));
+        }
 
-    static int getNativeSeekType(SeekType seek)
-    {
-        if (seek == SeekType::Begin)
-            return FILE_BEGIN;
-        if (seek == SeekType::Current)
-            return FILE_CURRENT;
-        if (seek == SeekType::End)
-            return FILE_END;
-        return -1;
+        int getNativeSeekType(SeekType seek)
+        {
+            if (seek == SeekType::Begin)
+                return FILE_BEGIN;
+            if (seek == SeekType::Current)
+                return FILE_CURRENT;
+            if (seek == SeekType::End)
+                return FILE_END;
+            return -1;
+        }
     }
 
     Handle open(const std::filesystem::path& filename)

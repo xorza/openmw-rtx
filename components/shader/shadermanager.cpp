@@ -71,8 +71,8 @@ namespace
         {
             lineDirectivePosition = 0;
         }
-        lineNumber
-            += static_cast<int>(std::count(source.begin() + lineDirectivePosition, source.begin() + foundPos, '\n'));
+        lineNumber += static_cast<int>(
+            std::ranges::count(source.substr(lineDirectivePosition, foundPos - lineDirectivePosition), '\n'));
         return lineNumber;
     }
 

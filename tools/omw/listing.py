@@ -1,6 +1,7 @@
 """Every tracked source is one the build compiles, since a source no `CMakeLists.txt` names is never compiled and
 nothing else says so: the compile database read against the working tree after `omw build` and in the gate.
-Excused: a file for another system by its name's ending, `NOT_ON_WINDOWS` on Windows, and `ELSEWHERE`."""
+Excused: a file for another system by its name's ending, `NOT_ON_WINDOWS` on Windows, `ONLY_ON_WINDOWS` elsewhere,
+and `ELSEWHERE`."""
 
 import json
 import os
@@ -14,19 +15,24 @@ ELSEWHERE = {
     "components/toutf8/geniconv.cpp",
 }
 
-# Upstream's wizard unpacks the installer's archives with libunshield on every system but Windows,
-# whose players run the installer itself, and the files keep upstream's names.
+# Upstream's files for one system, which keep upstream's names: the wizard unpacks the installer's archives with
+# libunshield on every system but Windows, whose players run the installer itself; and where each system keeps a
+# user's files and the game's install, which `components/CMakeLists.txt` chooses.
 NOT_ON_WINDOWS = {
     "apps/wizard/installationpage.cpp",
     "apps/wizard/unshield/inisettings.cpp",
     "apps/wizard/unshield/unshieldworker.cpp",
+    "components/files/linuxpath.cpp",
+}
+ONLY_ON_WINDOWS = {
+    "components/files/windowspath.cpp",
 }
 
 
 def _other_system(name: str, windows: bool) -> bool:
     stem = PurePosixPath(name).stem
     others = ("posix", "linux") if windows else ("win32", "none")
-    return stem.endswith((*others, "stdio")) or (windows and name in NOT_ON_WINDOWS)
+    return stem.endswith((*others, "stdio")) or name in (NOT_ON_WINDOWS if windows else ONLY_ON_WINDOWS)
 
 
 def unlisted(tracked: list[str], compiled: set[str], windows: bool) -> list[str]:

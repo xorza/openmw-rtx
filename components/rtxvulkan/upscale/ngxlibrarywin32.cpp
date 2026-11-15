@@ -28,7 +28,7 @@ namespace Rtx::Dlss::Ngx
             for (const Key& key : sKeys)
             {
                 std::array<wchar_t, 1024> path{};
-                DWORD size = static_cast<DWORD>(path.size() * sizeof(wchar_t));
+                auto size = static_cast<DWORD>(path.size() * sizeof(wchar_t));
                 // `RRF_RT_REG_SZ` alone: it also takes a `REG_EXPAND_SZ` and expands it, where naming
                 // `RRF_RT_REG_EXPAND_SZ` without `RRF_NOEXPAND` fails every read as an invalid parameter.
                 if (RegGetValueW(HKEY_LOCAL_MACHINE, key.mKey, key.mValue, RRF_RT_REG_SZ, nullptr, path.data(), &size)

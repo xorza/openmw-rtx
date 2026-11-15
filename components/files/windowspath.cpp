@@ -1,10 +1,6 @@
 #include "windowspath.hpp"
 
-#if defined(_WIN32) || defined(__WINDOWS__)
-
 #include <algorithm>
-#include <array>
-#include <cstring>
 
 #define FAR
 #define NEAR
@@ -29,6 +25,10 @@ namespace Files
         {
             HKEY mKey = nullptr;
 
+            RegistryKey() = default;
+            RegistryKey(const RegistryKey&) = delete;
+            RegistryKey& operator=(const RegistryKey&) = delete;
+
             ~RegistryKey()
             {
                 if (mKey)
@@ -44,16 +44,17 @@ namespace Files
                 flags |= KEY_WOW64_32KEY;
             if (RegOpenKeyExW(HKEY_LOCAL_MACHINE, subKey, 0, flags, &key.mKey) == ERROR_SUCCESS)
             {
-                // Key existed, let's try to read the install dir
-                std::wstring buffer;
-                buffer.reserve(MAX_PATH);
-                DWORD len = static_cast<DWORD>(MAX_PATH * sizeof(wchar_t));
+                // Key existed, let's try to read the install dir: into the string's characters, which its size
+                // counts and its capacity alone does not.
+                std::wstring buffer(MAX_PATH, L'\0');
+                auto len = static_cast<DWORD>(buffer.size() * sizeof(wchar_t));
 
                 auto result = RegQueryValueExW(
                     key.mKey, valueName, nullptr, nullptr, reinterpret_cast<LPBYTE>(buffer.data()), &len);
                 if (result == ERROR_MORE_DATA)
                 {
-                    buffer.reserve(len / sizeof(wchar_t));
+                    buffer.resize(len / sizeof(wchar_t) + 1);
+                    len = static_cast<DWORD>(buffer.size() * sizeof(wchar_t));
                     result = RegQueryValueExW(
                         key.mKey, valueName, nullptr, nullptr, reinterpret_cast<LPBYTE>(buffer.data()), &len);
                 }
@@ -75,8 +76,8 @@ namespace Files
         }
     }
 
-    WindowsPath::WindowsPath(const std::string& application_name)
-        : mName(application_name)
+    WindowsPath::WindowsPath(const std::string& applicationName)
+        : mName(applicationName)
     {
     }
 
@@ -84,7 +85,7 @@ namespace Files
     {
         std::filesystem::path userPath = std::filesystem::current_path();
 
-        PWSTR cString;
+        PWSTR cString = nullptr;
         HRESULT result = SHGetKnownFolderPath(FOLDERID_Documents, 0, nullptr, &cString);
         if (SUCCEEDED(result))
             userPath = std::filesystem::path(cString);
@@ -180,5 +181,3 @@ namespace Files
     }
 
 } /* namespace Files */
-
-#endif /* defined(_WIN32) || defined(__WINDOWS__) */

@@ -19,9 +19,9 @@ namespace Files
         /**
          * \brief WindowsPath constructor.
          *
-         * \param [in] application_name - The name of the application.
+         * \param [in] applicationName - The name of the application.
          */
-        WindowsPath(const std::string& application_name);
+        explicit WindowsPath(const std::string& applicationName);
 
         /**
          * \brief Returns user path i.e.:

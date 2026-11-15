@@ -84,7 +84,7 @@ namespace MWLua
         {
             LuaUtil::LuaState state{ nullptr, nullptr };
             sol::state_view lua = state.unsafeState();
-            std::max_align_t storage;
+            std::max_align_t storage{};
 
             const sol::object first = push(lua, LCell{ asCell(storage) });
             const sol::object second = push(lua, LCell{ asCell(storage) });
@@ -96,7 +96,7 @@ namespace MWLua
         {
             LuaUtil::LuaState state{ nullptr, nullptr };
             sol::state_view lua = state.unsafeState();
-            std::max_align_t storage;
+            std::max_align_t storage{};
 
             const sol::object first = push(lua, GCell{ asCell(storage) });
             const sol::object second = push(lua, GCell{ asCell(storage) });
@@ -108,8 +108,8 @@ namespace MWLua
         {
             LuaUtil::LuaState state{ nullptr, nullptr };
             sol::state_view lua = state.unsafeState();
-            std::max_align_t storage;
-            std::max_align_t otherStorage;
+            std::max_align_t storage{};
+            std::max_align_t otherStorage{};
 
             const sol::object first = push(lua, LCell{ asCell(storage) });
             const sol::object second = push(lua, LCell{ asCell(otherStorage) });
@@ -121,7 +121,7 @@ namespace MWLua
         {
             LuaUtil::LuaState state{ nullptr, nullptr };
             sol::state_view lua = state.unsafeState();
-            std::max_align_t storage;
+            std::max_align_t storage{};
 
             const sol::object local = push(lua, LCell{ asCell(storage) });
             const sol::object global = push(lua, GCell{ asCell(storage) });
@@ -133,7 +133,7 @@ namespace MWLua
         {
             LuaUtil::LuaState state{ nullptr, nullptr };
             sol::state_view lua = state.unsafeState();
-            std::max_align_t storage;
+            std::max_align_t storage{};
 
             const sol::object before = push(lua, LCell{ asCell(storage) });
             clearObjectCaches(lua.lua_state());

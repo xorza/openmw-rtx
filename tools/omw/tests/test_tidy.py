@@ -27,14 +27,17 @@ def native(path: str) -> str:
 
 
 def written(folder: Path, name: str, text: str) -> Path:
-    """`text` into `name`, then the file system's clock past its change time, which the store keeps no source of a
-    read changed at or after a run's start for; a coarse clock tick is milliseconds."""
+    """`text` into `name`, then the file system's clock past its modification and change times, by which the store
+    keeps no source of a read touched at or after a run's start; a coarse clock tick is milliseconds. Both, as the
+    store reads them: Windows' change time is the file's creation, which a write over the file leaves behind."""
     path = folder / name
     path.write_text(text, encoding="utf-8")
+    stat = path.stat()
+    touched_ns = max(stat.st_mtime_ns, stat.st_ctime_ns)
     probe = folder / "probe"
     for _ in range(100_000):
         probe.touch()
-        if probe.stat().st_mtime_ns > path.stat().st_ctime_ns:
+        if probe.stat().st_mtime_ns > touched_ns:
             return path
     raise AssertionError("the file system's clock stood still")
 
@@ -368,9 +371,17 @@ class RememberedTest(unittest.TestCase):
         ]))
         store = folder / "tidy-clean.json"
         at_the_stop: list[str] = []
+        # What each write left in the store, as the writing thread saw it: the run's own thread reading the file
+        # while the driver replaces it is refused on Windows, which keeps a file open from being replaced.
+        written_names: list[list[str]] = [[]]
+        save = tidy.tidycache.save
 
         def names() -> list[str]:
             return sorted(Path(source).name for source in tidy.tidycache.load(store))
+
+        def saved(path: Path, remembered: dict) -> None:
+            save(path, remembered)
+            written_names.append(sorted(Path(source).name for source in remembered))
 
         def run(_tidy: Path, _build: object, source: Source, _fixes: Path | None,
                 dependencies: Path) -> subprocess.CompletedProcess:
@@ -378,15 +389,16 @@ class RememberedTest(unittest.TestCase):
                 # The driver takes in the second source's run while this one starts: a bounded wait for the
                 # checkpoint that follows it, where there is one.
                 for _ in range(1000):
-                    if names() == awaited:
+                    if written_names[-1] == awaited:
                         break
                     time.sleep(0.005)
-                at_the_stop.extend(names())
+                at_the_stop.extend(written_names[-1])
                 raise KeyboardInterrupt
             dependencies.write_text(f"{source.file.stem}.o: {source.file.name}\n", encoding="utf-8")
             return subprocess.CompletedProcess([], 0, "", "")
 
         with (mock.patch.object(tidy, "LINTED", (folder,)), mock.patch.object(tidy, "_run", side_effect=run),
+              mock.patch.object(tidy.tidycache, "save", side_effect=saved),
               mock.patch.object(tidy, "CHECKPOINT_S", checkpoint_s), mock.patch.object(tidy, "jobs", return_value=1),
               mock.patch.object(tidy.deps, "clang_tidy", return_value=Path("clang-tidy")),
               contextlib.redirect_stdout(io.StringIO()), self.assertRaises(KeyboardInterrupt)):

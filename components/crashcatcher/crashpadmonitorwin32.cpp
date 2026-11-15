@@ -116,6 +116,7 @@ namespace Crash::Monitor
     int runHandler(std::vector<std::string>& arguments, const HandlerParts& parts)
     {
         std::vector<char*> argv;
+        argv.reserve(arguments.size() + 1);
         for (std::string& argument : arguments)
             argv.push_back(argument.data());
         argv.push_back(nullptr);

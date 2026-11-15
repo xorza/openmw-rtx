@@ -139,7 +139,7 @@ namespace Rtx
             const std::size_t count = findUpdaters(node, found);
 
             if (count != held.mUpdaterCount
-                || !std::equal(found.begin(), found.begin() + count, held.mUpdaters.begin(),
+                || !std::equal(found.data(), found.data() + count, held.mUpdaters.begin(),
                     [](const SceneUtil::StateSetUpdater* probed, const osg::ref_ptr<SceneUtil::StateSetUpdater>& kept) {
                         return probed == kept.get();
                     }))

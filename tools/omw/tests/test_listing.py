@@ -19,21 +19,30 @@ class UnlistedTest(unittest.TestCase):
             "components/platform/filestdio.cpp",
             "components/toutf8/geniconv.cpp",
             "apps/wizard/installationpage.cpp",
+            "components/files/linuxpath.cpp",
+            "components/files/windowspath.cpp",
             "extern/oics/tinyxml.cpp",
         ]
         # A file nothing compiled is forgotten, a header is no source, and the generator and the other system's
-        # half of a pair are excused: `linux` against `none`, the wizard's unshield half on Windows.
+        # half of a pair are excused: `linux` against `none`, the wizard's unshield half on Windows, and the other
+        # system's upstream-named path file.
         forgotten = ["apps/opencs/main.cpp", "apps/openmw/forgotten.cpp", "components/misc/forgotten.cpp"]
         wizard = "apps/wizard/installationpage.cpp"
-        for windows, own, counts in ((False, "components/platform/processposix.cpp", "apps/openmw/countslinux.cpp"),
-                                     (True, "components/platform/processwin32.cpp", "apps/openmw/countsnone.cpp")):
+        for windows, own, counts, paths in (
+                (False, "components/platform/processposix.cpp", "apps/openmw/countslinux.cpp",
+                 "components/files/linuxpath.cpp"),
+                (True, "components/platform/processwin32.cpp", "apps/openmw/countsnone.cpp",
+                 "components/files/windowspath.cpp")):
             with self.subTest(windows=windows):
-                compiled = {"apps/openmw/engine.cpp", "apps/wizard/main.cpp", "components/misc/rng.cpp", own, counts}
+                compiled = {"apps/openmw/engine.cpp", "apps/wizard/main.cpp", "components/misc/rng.cpp", own, counts,
+                            paths}
                 unshield = [] if windows else [wizard]
                 self.assertEqual(unlisted(tracked, compiled, windows), sorted([*forgotten, *unshield]))
                 self.assertEqual(unlisted(tracked, compiled - {own}, windows), sorted([*forgotten, *unshield, own]))
                 self.assertEqual(unlisted(tracked, compiled - {counts}, windows),
                                  sorted([*forgotten, *unshield, counts]))
+                self.assertEqual(unlisted(tracked, compiled - {paths}, windows),
+                                 sorted([*forgotten, *unshield, paths]))
 
 
 class MisplacedChecksTest(unittest.TestCase):

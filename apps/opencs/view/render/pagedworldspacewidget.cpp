@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <memory>
+#include <ranges>
 #include <sstream>
 #include <string>
 
@@ -120,14 +121,13 @@ bool CSVRender::PagedWorldspaceWidget::adjustCells()
 
     if (modified)
     {
-        for (std::map<CSMWorld::CellCoordinates, Cell*>::const_iterator iter(mCells.begin()); iter != mCells.end();
-            ++iter)
+        for (Cell* cell : mCells | std::views::values)
         {
             int mask = 0;
 
             for (int i = CellArrow::Direction_North; i <= CellArrow::Direction_East; i *= 2)
             {
-                CSMWorld::CellCoordinates coordinates(iter->second->getCoordinates());
+                CSMWorld::CellCoordinates coordinates(cell->getCoordinates());
 
                 switch (i)
                 {
@@ -151,7 +151,7 @@ bool CSVRender::PagedWorldspaceWidget::adjustCells()
                     mask |= i;
             }
 
-            iter->second->setCellArrows(mask);
+            cell->setCellArrows(mask);
         }
     }
 

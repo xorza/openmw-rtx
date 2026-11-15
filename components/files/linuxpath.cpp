@@ -1,7 +1,5 @@
 #include "linuxpath.hpp"
 
-#if defined(__linux__)
-
 #include <array>
 #include <pwd.h>
 #include <unistd.h>
@@ -129,5 +127,3 @@ namespace Files
     }
 
 } /* namespace Files */
-
-#endif /* defined(__linux__) */

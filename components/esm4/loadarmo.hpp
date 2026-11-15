@@ -42,7 +42,7 @@ namespace ESM4
     struct Armor
     {
         // WARN: TES4 Armorflags still has the general flags high bits
-        enum ArmorFlags
+        enum ArmorFlags : std::uint32_t
         {
             TES4_Head = 0x00000001,
             TES4_Hair = 0x00000002,

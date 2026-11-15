@@ -775,10 +775,8 @@ target_sources(
         files/constrainedfilestreambuf.cpp
         files/conversion.cpp
         files/hash.cpp
-        files/linuxpath.cpp
         files/multidircollection.cpp
         files/openfile.cpp
-        files/windowspath.cpp
     PUBLIC
         FILE_SET HEADERS
             FILES
@@ -1002,6 +1000,7 @@ target_sources(
                 misc/messageformatparser.hpp
                 misc/monitor.hpp
                 misc/notnullptr.hpp
+                misc/nouniqueaddress.hpp
                 misc/objectpool.hpp
                 misc/osguservalues.hpp
                 misc/pathgridutils.hpp
@@ -1551,6 +1550,15 @@ else()
         "The DLSS library's download is stated for Windows and Linux alone: "
         "${CMAKE_SYSTEM_NAME} needs a file of its own in components/dlss"
     )
+endif()
+
+# Where the system keeps a user's files and the game's install, which `files/fixedpath.hpp` asks of one system's file.
+if(WIN32)
+    target_sources(openmw-components PRIVATE files/windowspath.cpp)
+elseif(LINUX)
+    target_sources(openmw-components PRIVATE files/linuxpath.cpp)
+else()
+    message(FATAL_ERROR "${CMAKE_SYSTEM_NAME} needs a file of its own in components/files, as fixedpath.hpp asks")
 endif()
 
 add_subdirectory(crashcatcher)

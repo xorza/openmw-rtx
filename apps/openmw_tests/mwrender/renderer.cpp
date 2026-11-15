@@ -201,8 +201,7 @@ namespace MWRender
             using Clock = std::chrono::steady_clock;
 
             RecordingRenderer renderer;
-            const Clock::duration limit
-                = std::chrono::duration_cast<Clock::duration>(std::chrono::duration<float>(1.0f / 200.0f));
+            const auto limit = std::chrono::duration_cast<Clock::duration>(std::chrono::duration<float>(1.0f / 200.0f));
 
             // The first frame after the limit was set, which nothing before it can have made late (a second
             // frame after a first had nothing left to sleep). Bounded by the clock read around the limiter's

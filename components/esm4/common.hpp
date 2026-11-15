@@ -26,6 +26,8 @@
 */
 #pragma once
 
+#include <cstdint>
+
 #include "components/esm/fourcc.hpp"
 
 namespace ESM4
@@ -176,7 +178,7 @@ namespace ESM4
     };
 
     // Based on http://www.uesp.net/wiki/Tes5Mod:Mod_File_Format#Records
-    enum RecordFlag
+    enum RecordFlag : std::uint32_t
     {
         Rec_ESM = 0x00000001, // (TES4 record only) Master (ESM) file.
         Rec_Deleted = 0x00000020, // Deleted

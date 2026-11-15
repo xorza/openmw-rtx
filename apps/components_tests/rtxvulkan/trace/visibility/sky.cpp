@@ -410,7 +410,7 @@ namespace Rtx::Testing
             std::array<std::uint8_t, 64> quadrants{};
             for (std::size_t y = 0; y < 4; ++y)
                 for (std::size_t x = 0; x < 4; ++x)
-                    std::copy_n(colours[(y / 2) * 2 + x / 2].begin(), 4, quadrants.begin() + (y * 4 + x) * 4);
+                    std::copy_n(colours[(y / 2) * 2 + x / 2].begin(), 4, quadrants.data() + (y * 4 + x) * 4);
             const MipLevel level{ 0, 4, 4 };
             const std::array<TextureData, 1> sheets{ TextureData{
                 .mFormat = TextureFormat::Rgba8Unorm,

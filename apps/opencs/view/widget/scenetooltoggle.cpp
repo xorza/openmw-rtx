@@ -21,15 +21,15 @@ void CSVWidget::SceneToolToggle::adjustToolTip()
 
     bool first = true;
 
-    for (std::map<PushButton*, ButtonDesc>::const_iterator iter(mButtons.begin()); iter != mButtons.end(); ++iter)
-        if (iter->first->isChecked())
+    for (const auto& [button, desc] : mButtons)
+        if (button->isChecked())
         {
             if (!first)
                 toolTip += ", ";
             else
                 first = false;
 
-            toolTip += iter->second.mName;
+            toolTip += desc.mName;
         }
 
     if (first)
@@ -53,12 +53,10 @@ void CSVWidget::SceneToolToggle::adjustIcon()
         {
             QPainter painter(&pixmap);
 
-            for (std::map<PushButton*, ButtonDesc>::const_iterator iter(mButtons.begin()); iter != mButtons.end();
-                ++iter)
-                if (iter->first->isChecked())
+            for (const auto& [button, desc] : mButtons)
+                if (button->isChecked())
                 {
-                    painter.drawImage(
-                        getIconBox(iter->second.mIndex), QImage(QString::fromUtf8(iter->second.mSmallIcon.c_str())));
+                    painter.drawImage(getIconBox(desc.mIndex), QImage(QString::fromUtf8(desc.mSmallIcon.c_str())));
                 }
         }
 

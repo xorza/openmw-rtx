@@ -8,6 +8,8 @@
 #include <QRegularExpression>
 
 #include <exception>
+#include <filesystem>
+#include <system_error>
 
 #include <boost/program_options/options_description.hpp>
 #include <boost/program_options/value_semantic.hpp>
@@ -99,8 +101,13 @@ CS::Editor::~Editor()
     mLockFile.unlock();
     mPidFile.close();
 
-    if (mServer && std::filesystem::exists(mPid))
-        std::filesystem::remove(mPid);
+    // An error code and no exception, which would end the editor from a destructor: the next start overwrites a pid
+    // file left behind.
+    if (mServer)
+    {
+        std::error_code ignored;
+        std::filesystem::remove(mPid, ignored);
+    }
 }
 
 boost::program_options::variables_map CS::Editor::readConfiguration()

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include "base.hpp"
 
 namespace Nif
@@ -104,7 +106,7 @@ namespace Nif
         ShaderType_NoLighting = 33
     };
 
-    enum BSShaderFlags1
+    enum BSShaderFlags1 : std::uint32_t
     {
         BSSFlag1_Specular = 0x00000001,
         BSSFlag1_Refraction = 0x00008000,

@@ -49,13 +49,16 @@ namespace Platform
         init();
     }
 
-    static QString getStyleSheetPath()
+    namespace
     {
-        QString qssPath(":/dark/dark_win10.qss");
-        if (QOperatingSystemVersion::current() >= QOperatingSystemVersion::Windows11)
-            qssPath = ":/dark/dark_win11.qss";
+        QString getStyleSheetPath()
+        {
+            QString qssPath(":/dark/dark_win10.qss");
+            if (QOperatingSystemVersion::current() >= QOperatingSystemVersion::Windows11)
+                qssPath = ":/dark/dark_win11.qss";
 
-        return qssPath;
+            return qssPath;
+        }
     }
 
     void Application::init()

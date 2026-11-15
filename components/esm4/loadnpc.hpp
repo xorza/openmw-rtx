@@ -80,7 +80,7 @@ namespace ESM4
         };
 
         // In FO4 flags seem to be the same.
-        enum ActorBaseFlagsTes5
+        enum ActorBaseFlagsTes5 : std::uint32_t
         {
             TES5_Female = 0x00000001,
             TES5_Essential = 0x00000002,

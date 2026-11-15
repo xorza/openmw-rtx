@@ -77,7 +77,8 @@ namespace Crash::Monitor
             const SnapshotStamp& stamp, const std::function<bool(const crashpad::ProcessSnapshot&)>& use) const;
 
     private:
-        std::uint32_t mId = 0;
+        // Read by the POSIX file alone: Windows reaches the process through its handle.
+        [[maybe_unused]] std::uint32_t mId = 0;
 
         /// What the system holds the process by, a handle or a descriptor, and -1 for nothing.
         struct Closing

@@ -42,7 +42,7 @@ namespace LuaUtil
         registerEngineHandlers({ &mUpdateHandlers });
         if (load)
         {
-            LoadedData& data = mData.emplace<LoadedData>();
+            auto& data = mData.emplace<LoadedData>();
             mLua.protectedCall([&](LuaView& view) {
                 data.mPublicInterfaces = sol::table(view.sol(), sol::create);
                 addPackage("openmw.interfaces", makeReadOnly(data.mPublicInterfaces));
@@ -542,7 +542,7 @@ namespace LuaUtil
             return *data;
         auto& unloadedData = std::get<UnloadedData>(mData);
         std::vector<ESM::LuaScript> savedScripts = std::move(unloadedData.mScripts);
-        LoadedData& data = mData.emplace<LoadedData>();
+        auto& data = mData.emplace<LoadedData>();
 
         const ScriptsConfiguration& cfg = mLua.getConfiguration();
 
@@ -638,7 +638,7 @@ namespace LuaUtil
         UnloadedData data;
         save(view, data);
         mAPI.erase("openmw.interfaces");
-        UnloadedData& out = mData.emplace<UnloadedData>(std::move(data));
+        auto& out = mData.emplace<UnloadedData>(std::move(data));
         for (auto& [_, handlers] : mEngineHandlers)
             handlers->mList.clear();
         mRequiredLoading = false;

@@ -576,6 +576,12 @@ the lines each item names, which the merge resolves by keeping the seam:
   and checks of style alone stay out, as their fixes would touch most of upstream's files for no fault. The cost is
   a conflict with an upstream edit to the lines the fixes touched, and upstream code a merge brings that the checks
   refuse, which `omw tidy` names.
+- What the checks found on Windows alone, by the user's request to fix it all, among it: the flag enums that hold
+  `0x80000000` typed `std::uint32_t`, which GCC gave them and MSVC's `int` did not; `Files::LinuxPath` and
+  `Files::WindowsPath` compiled on their own system, chosen by CMake as `dlss/` is; `openmw-iniimporter` reading its
+  arguments through `Platform::Process::commandLine` in place of its own `wmain`; `CS::Editor`'s destructor removing
+  its pid file through an error code; and the registry read in `windowspath.cpp` written into the string's size,
+  where it wrote past it into its capacity. The cost is a conflict with an upstream edit to those lines.
 - `Misc::ScalableIcon`'s copy, which `clone` makes, registered as the original is, by the user's decision to hold
   the tree to `cppcoreguidelines-special-member-functions`: its implicit copy left a clone out of the set
   `updateAllIcons` repaints on a theme change. The cost is a conflict with an upstream edit to the class's

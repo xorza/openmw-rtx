@@ -128,7 +128,7 @@ namespace Crash::Client
             std::wstring name(16384, L'\0');
             for (DWORD index = 0;; ++index)
             {
-                DWORD length = static_cast<DWORD>(name.size());
+                auto length = static_cast<DWORD>(name.size());
                 const LSTATUS read
                     = RegEnumValueW(key, index, name.data(), &length, nullptr, nullptr, nullptr, nullptr);
                 if (read != ERROR_SUCCESS)

@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <cstring>
 #include <initializer_list>
+#include <iterator>
 #include <span>
 #include <utility>
 #include <vector>
@@ -66,7 +67,7 @@ namespace Rtx
             std::initializer_list<std::uint8_t> bytes = {})
         {
             texture.mLevels.push_back(MipLevel{ static_cast<std::uint32_t>(texture.mBytes.size()), width, height });
-            if (bytes.size() > 0)
+            if (!std::empty(bytes))
                 texture.mBytes.insert(texture.mBytes.end(), bytes);
             else
                 texture.mBytes.resize(texture.mBytes.size() + std::size_t{ width } * height * 4);

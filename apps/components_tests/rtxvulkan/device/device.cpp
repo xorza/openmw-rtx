@@ -39,6 +39,10 @@ namespace Rtx
         /// suite these tests are reported under.
         using RtxDeviceTest = Testing::DeviceTest;
 
+        // An ending with nothing of its own takes no room beside its handle, under MSVC's ABI as under the others
+        // (`OMW_NO_UNIQUE_ADDRESS`).
+        static_assert(sizeof(Root<VkInstance, vkDestroyInstance>) == sizeof(VkInstance));
+
         /// **A wait for a value past every submit is a call out of its turn**, and not a device that
         /// stopped answering: nothing will signal it.
         TEST_F(RtxDeviceTest, aWaitForAValueNoSubmitSignalsIsAContractBroken)

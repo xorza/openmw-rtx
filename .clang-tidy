@@ -19,6 +19,7 @@
 # - `cppcoreguidelines-rvalue-reference-param-not-moved`: rvalue overloads beside their `const&` twins, and the holds
 #   a `drop` consumes by taking them;
 # - `cppcoreguidelines-no-malloc`: every `malloc` here is an allocator's own, Lua's, Recast's and the tests' count.
+# Under MSVC's driver `omw tidy` turns off the checks that misread MSVC's library (`tidycache._OFF_UNDER_MSVC`).
 Checks:
   - '-*'
   - 'bugprone-*'
@@ -80,18 +81,23 @@ Checks:
   - '-performance-for-range-copy'
   - '-performance-trivially-destructible'
 WarningsAsErrors: '*'
-HeaderFilterRegex: '(apps|components)/'
+# Either slash separates: clang-tidy matches these against a path as the system spells it, which on Windows joins an
+# include folder to what the directive names with a backslash.
+HeaderFilterRegex: '(apps|components)[/\\]'
 # Generated sources are their generator's, and the headers GLSL reads as well spell what GLSL can.
-ExcludeHeaderFilterRegex: '(_autogen/|/shaders/.*\.h$)'
+ExcludeHeaderFilterRegex: '(_autogen[/\\]|[/\\]shaders[/\\].*\.h$)'
 CheckOptions:
   # A product of constants is computed by the compiler, which refuses one that overflows.
   bugprone-implicit-widening-of-multiplication-result.IgnoreConstantIntExpr: true
   # A script that does not compile has reported why to the error handler before it throws.
   bugprone-empty-catch.AllowEmptyCatchForExceptions: 'Compiler::SourceException'
   # A source may lean on its own header for what that header's interface needs (AGENTS.md), which the missing
-  # half of the check does not know; and OSG's GL header brings the GL macros through the system's.
+  # half of the check does not know; and OSG's GL header brings the GL macros through the system's. MSVC's library
+  # and the Windows SDK declare each name in an inner header the check has no table of, as it has libstdc++'s, where
+  # their documentation names the header to include (`Windows.h` for `processthreadsapi.h`); `misc/windows.hpp` is
+  # the tree's way to `Windows.h`.
   misc-include-cleaner.MissingIncludes: false
-  misc-include-cleaner.IgnoreHeaders: 'osg/GL;GL/.*'
+  misc-include-cleaner.IgnoreHeaders: 'osg[/\\]GL;GL[/\\].*;misc[/\\]windows\.hpp;VC[/\\]Tools[/\\]MSVC[/\\].*;Windows Kits[/\\].*'
   # What a source keeps to itself goes in an unnamed namespace, never `static`, which the fix would write.
   misc-use-internal-linkage.FixMode: None
   cppcoreguidelines-init-variables.MathHeader: '<cmath>'
