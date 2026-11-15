@@ -67,6 +67,58 @@ jobs:
       - name: The workflows, audited
         run: python omw lint workflows
 
+  # The tree held to `.clang-tidy`, as the gate holds it (`omw tidy`), on CI's Linux system. A job of its own, so a
+  # finding is a check of its own. The build is `linux-clang`'s, whose caches it reads and never writes: its own
+  # compiler cache would be the same objects twice over the repository's 10 GB. What it keeps is the tidy cache,
+  # saved on master alone, so a branch lints only the sources whose reads its change moved (`tidycache.py`).
+  tidy:
+    name: tidy
+    runs-on: ubuntu-26.04
+    container: almalinux:8@sha256:2d0f2eb2a83cc09dbc2eb92fade4dbe8f709628149e81aa00aec70630406603b
+    permissions:
+      contents: read
+    # A store with nothing in it lints every source: a new pin or a `.clang-tidy` changed is that.
+    timeout-minutes: 180
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Git
+        run: |
+          dnf install -y git
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: $/.github/actions/openmw-deps
+        with:
+          cache: ${{ env.CI_CACHE }}
+          cache-key: linux-clang
+          ccache-size: 2000M
+          save: "false"
+
+      # The newest store master saved: its entries hold where every read is as it was.
+      - name: The tidy cache, restored
+        if: env.CI_CACHE == 'true'
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: out/debug/tidy-clean.json
+          key: tidy-clean-${{ github.sha }}
+          restore-keys: tidy-clean-
+
+      - name: clang-tidy
+        run: python omw tidy
+
+      # After findings too: the store holds the sources that came out clean, and only those.
+      - name: The tidy cache, saved
+        if: ${{ !cancelled() && env.CI_CACHE == 'true' && github.ref == 'refs/heads/master' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: out/debug/tidy-clean.json
+          key: tidy-clean-${{ github.sha }}
+
   build:
     # A leg's name is also its caches' key, and no key may begin another: the compiler cache's action
     # restores the newest cache whose name begins with the key.
