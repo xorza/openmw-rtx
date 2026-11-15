@@ -10,7 +10,8 @@ In `.review/`, which the step before you wrote:
 
 - `item.json` and `body.md`: the issue and its author;
 - `discussion.md`: the comments on it, the latest;
-- `issues.txt`: every other issue's number, state and title, for duplicates;
+- `issues.txt`: every other issue's number, state, title and the start of its text, a line each, and
+  `issues/<number>.md`, each one's whole text, for duplicates;
 - `attachments.txt` and `attachments/`: what the report attached, each looked at by its bytes: pictures you can
   look at, logs and texts as text;
 - `crash.txt`: each crash package's dumps, with the monitor's summary, its notes, and the stack of every thread
@@ -29,7 +30,8 @@ In `.review/`, which the step before you wrote:
 - **What it lacks** for the maintainer to act on it: the log, the crash package the game offers to make, the card
   and its driver, the content and its profile (`AGENTS.md` names the three the renderer is measured on), a place
   `files/rtx/views.cfg` could stand the camera at.
-- **Duplicates**, by number, from `issues.txt`, only where the same fault is plainly reported.
+- **Duplicates**, by number, only where the same fault is plainly reported. A title often names only a symptom:
+  search `issues/` for the error, the symbol or the place the report names, and read what you find.
 
 The web tools are for what the code cannot tell you: a driver's known fault, a specification's rule.
 

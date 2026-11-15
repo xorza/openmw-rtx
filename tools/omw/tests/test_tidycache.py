@@ -100,15 +100,25 @@ class KeyTest(FolderTest):
 
     def test_the_dependency_file_by_the_driver_s_mode_which_the_program_s_name_says(self):
         into = Path("/scratch/0.d")
-        gcc = f"--extra-arg=-Wp,-MD,{into}"
-        msvc = f"--extra-arg=/clang:-Wp,-MD,{into}"
+        gcc = [f"--extra-arg=-Wp,-MD,{into}"]
+        msvc = [f"--extra-arg=/clang:-Wp,-MD,{into}"]
         for command, wanted in (("/usr/bin/clang++ -c a.cpp", gcc), ("c++ -c a.cpp", gcc), ("g++ -c a.cpp", gcc),
                                 ("C:\\VS\\bin\\cl.exe /c a.cpp", msvc),
                                 ('"C:\\Program Files\\VS\\CL.EXE" /c a.cpp', msvc),
                                 ("C:/LLVM/bin/clang-cl.exe /c a.cpp", msvc), ("clang --driver-mode=cl /c a.cpp", msvc),
                                 ("/opt/cl/bin/clang++ -c a.cpp", gcc)):
             with self.subTest(command=command):
-                self.assertEqual(Compile("/b", command).dependency_file(into), wanted)
+                self.assertEqual(Compile("/b", command).extra_args(into), wanted)
+
+    def test_an_msvc_flag_clang_cl_does_not_take_is_said_as_clang_says_it(self):
+        into = Path("/scratch/0.d")
+        written = f"--extra-arg=/clang:-Wp,-MD,{into}"
+        self.assertEqual(Compile("/b", "cl.exe /O2 /arch:SSE4.2 /c a.cpp").extra_args(into),
+                         [written, "--extra-arg=/clang:-march=x86-64-v2"])
+        # Another `/arch:`, which clang-cl takes, and one GCC's driver is given, which is not MSVC's: as they are.
+        self.assertEqual(Compile("/b", "cl.exe /arch:AVX2 /c a.cpp").extra_args(into), [written])
+        self.assertEqual(Compile("/b", "clang++ /arch:SSE4.2 -c a.cpp").extra_args(into),
+                         [f"--extra-arg=-Wp,-MD,{into}"])
 
 
 class StoreTest(FolderTest):

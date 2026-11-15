@@ -45,6 +45,11 @@ _UNLISTED = re.compile(r"(?:^|\s)(?:-include-pch|[-/]Yu|@|-ivfsoverlay|--config|
 # The program that compiles, the first word of a command, quoted where its path has a space.
 _PROGRAM = re.compile(r'^\s*(?:"(?P<quoted>[^"]*)"|(?P<bare>\S+))')
 
+# MSVC's flags clang-cl does not take, each with what it means in Clang's own spelling. `/arch:SSE4.2`, which MSVC
+# 17.10 added and `vcpkg/flags.cmake` builds with, is x86-64-v2 (SSE4.2 and POPCNT); clang-cl ignores it with a
+# warning the tree's checks make an error, and the run lints nothing.
+_MSVC_IN_CLANG = {"/arch:SSE4.2": "-march=x86-64-v2"}
+
 # The digest of a file that is not there, which no SHA-256 spells.
 ABSENT = "-"
 
@@ -109,10 +114,11 @@ class Compile:
         """Whether the compile reads a file its dependency file may not name, so no key of its run is whole."""
         return _UNLISTED.search(self.command) is not None
 
-    def dependency_file(self, path: Path) -> str:
-        """The argument that has clang-tidy's run of the compile write its dependency file to `path`. The tooling
-        strips every `-M` flag of a command, which `-Wp,` hides; MSVC's driver, clang-cl, takes it as a flag of
-        Clang's own (`/clang:`), and ignores it bare without a word."""
+    def extra_args(self, path: Path) -> list[str]:
+        """What clang-tidy's run of the compile adds to its command: that it write its dependency file to `path`,
+        and under MSVC's driver, clang-cl, Clang's spelling of each flag of MSVC's it does not take
+        (`_MSVC_IN_CLANG`). The tooling strips every `-M` flag of a command, which `-Wp,` hides; clang-cl takes a
+        flag of Clang's own as `/clang:`, and ignores it bare without a word."""
         # `-Wp,` splits its argument at each comma.
         assert "," not in str(path)
         program = _PROGRAM.match(self.command)
@@ -120,7 +126,11 @@ class Compile:
         # Clang's own rule for its driver's mode: the program's name, whichever system's separators its path has.
         name = re.split(r"[\\/]", program["quoted"] or program["bare"])[-1].lower().removesuffix(".exe")
         msvc = name == "cl" or name.endswith("-cl") or "--driver-mode=cl" in self.command
-        return f"--extra-arg={'/clang:' if msvc else ''}-Wp,-MD,{path}"
+        if not msvc:
+            return [f"--extra-arg=-Wp,-MD,{path}"]
+        flags = self.command.split()
+        return [f"--extra-arg=/clang:-Wp,-MD,{path}",
+                *(f"--extra-arg=/clang:{clang}" for msvc_flag, clang in _MSVC_IN_CLANG.items() if msvc_flag in flags)]
 
 
 def key(compile: Compile, reads: Iterable[str], digests: Digests) -> str:

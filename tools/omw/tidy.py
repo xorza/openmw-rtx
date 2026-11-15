@@ -125,7 +125,7 @@ def plain_paths(fixes: str) -> str:
 def _run(clang_tidy: Path, build: Build, source: Source, fixes: Path | None,
          dependencies: Path) -> subprocess.CompletedProcess:
     """clang-tidy over `source`, its fixes written to `fixes` where it is named, and what it read to `dependencies`."""
-    line: list[str | Path] = [clang_tidy, "--quiet", f"-p={build.dir}", source.compile.dependency_file(dependencies),
+    line: list[str | Path] = [clang_tidy, "--quiet", f"-p={build.dir}", *source.compile.extra_args(dependencies),
                               source.file]
     if fixes is not None:
         line.append(f"--export-fixes={fixes}")

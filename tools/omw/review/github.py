@@ -4,11 +4,12 @@ names."""
 
 import json
 import os
+import subprocess
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from omw.system import Refusal, output, run
+from omw.system import Refusal, resolved
 
 PAGE = 100
 
@@ -34,7 +35,7 @@ class GitHub:
 
     def get(self, path: str, **params: str | int) -> Any:
         fields = [part for key, value in params.items() for part in ("-f", f"{key}={value}")]
-        return json.loads(output(["gh", "api", "--method", "GET", f"repos/{self.name}/{path}", *fields]))
+        return json.loads(_gh(path, ["--method", "GET", f"repos/{self.name}/{path}", *fields]))
 
     def pages(self, path: str, pages: int, key: str | None = None, **params: str | int) -> list[Any]:
         """Up to `pages` pages of a listing, oldest page first; `key` names the list inside an object a listing
@@ -50,17 +51,24 @@ class GitHub:
         return found
 
     def post(self, path: str, payload: dict[str, Any]) -> Any:
-        done = run(["gh", "api", "--method", "POST", f"repos/{self.name}/{path}", "--input", "-"],
-                   input=json.dumps(payload), capture_output=True, encoding="utf-8")
-        return json.loads(done.stdout)
+        return json.loads(_gh(path, ["--method", "POST", f"repos/{self.name}/{path}", "--input", "-"],
+                              json.dumps(payload)))
 
     def graphql(self, query: str, **variables: str | int) -> Any:
+        """The answer's data. `gh` exits non-zero for an answer that carries errors, and says them."""
         fields = [part for key, value in variables.items()
                   for part in (("-F" if isinstance(value, int) else "-f"), f"{key}={value}")]
-        answer = json.loads(output(["gh", "api", "graphql", "-f", f"query={query}", *fields]))
-        if answer.get("errors"):
-            raise Refusal(f"GitHub's GraphQL API refused the query: {answer['errors']}")
-        return answer["data"]
+        return json.loads(_gh("graphql", ["graphql", "-f", f"query={query}", *fields]))["data"]
+
+
+def _gh(what: str, args: list[str], stdin: str | None = None) -> str:
+    """`gh api` with `args`, its output, or a refusal naming `what` it asked and what GitHub said: `gh` prints that
+    on its error stream, which a failed call would otherwise drop for a bare exit status."""
+    done = subprocess.run(resolved(["gh", "api", *args], None), input=stdin, capture_output=True, encoding="utf-8",
+                          errors="replace", check=False)
+    if done.returncode != 0:
+        raise Refusal(f"GitHub refused {what}: {done.stderr.strip() or done.stdout.strip()}")
+    return done.stdout
 
 
 def write_output(name: str, value: str) -> None:

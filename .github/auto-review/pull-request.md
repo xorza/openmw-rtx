@@ -55,6 +55,9 @@ contributor, who may be new: plain, courteous, specific, each finding something 
   line in `pr-head/` and never one of `master`'s copy. It stands on that line in the pull request; a line
   `changes.txt` does not show, or a finding about the change as a whole with an empty path, stands in the review's
   body.
+- A finding that an open thread of `previous.json` already holds stays in that thread: write it again only where
+  the new head changed what it says, and otherwise say in the summary that it stands. Name in `answered` each
+  thread the new head answers, and only those.
 - At most 30 findings, most severe first; where there are more, the minor ones go unsaid.
 - Where the diff is too large to read whole, read what matters most and say in `coverage` what you read.
 - Name no tool, product or vendor of what wrote the review, and no person by a mention.

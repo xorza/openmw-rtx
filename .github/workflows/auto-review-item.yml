@@ -266,14 +266,15 @@ jobs:
                   retention-days: 3
 
     # The only job that writes, and it runs no agent and nothing the item carries. The agent's credential is here
-    # only to be searched for in what is posted.
+    # only to be searched for in what is posted. `contents: write` because GitHub refuses `resolveReviewThread` to
+    # an app's token without it, `pull-requests: write` alone or not; nothing here pushes.
     post:
         needs: [gather, read]
         if: needs.read.outputs.answered == 'false'
         runs-on: ubuntu-26.04
         timeout-minutes: 10
         permissions:
-            contents: read
+            contents: write
             issues: write
             pull-requests: write
         steps:

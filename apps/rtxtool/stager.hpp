@@ -17,11 +17,23 @@ namespace RtxTool
     /// opens, and what holds the world paused where a frame says it stood so.
     namespace Staging
     {
+        /// What `stage` holds a stop's world under until it stands whole, for `releaseHold` to let go of: its clock
+        /// stopped, the game's own pause, as a loading screen's, and its scripts, which run under a pause, as a menu's
+        /// script must. **A held clock alone is no hold**: the engine still updates the world every frame by a step
+        /// of nought, and the wind's walk, an armed player's weapon, an actor's idle line and a script's `Random`
+        /// each draw from the world's generator on such a frame, so a wait a frame longer left the stop's world and
+        /// its random stream elsewhere. Held, the frames of the wait run nothing.
+        struct Hold
+        {
+            /// The world's scripts ran when the hold began, and run again when it ends.
+            bool mScripts = false;
+        };
+
         /// Stages `stop` of `request`, and says why not where it cannot be: the content holds no cell or weapon of the
         /// name the stop gives, which the session passes over (`WhenAbsent`). Ends with
-        /// the navmesh built whole and the renderer's history let go of, so the first frame drawn
+        /// the navmesh built whole, the renderer's history let go of and the world held, so the first frame drawn
         /// after this is drawn at the stop and from nothing before it.
-        Result<void, std::string> stage(const Stop& stop, const SessionRequest& request);
+        Result<Hold, std::string> stage(const Stop& stop, const SessionRequest& request);
 
         /// The days passed a new game starts on: the content's own `DaysPassed` global, from which a
         /// stop's day is counted, 16 Last Seed in Morrowind.
@@ -37,13 +49,8 @@ namespace RtxTool
         /// post-processing window and a message box are no menus and stay (`describePause`).
         void closeMenus();
 
-        /// Ends the hold `stage` puts the world under, from the next frame on: the game's own pause, as a loading
-        /// screen's, beside the clock held still. **A held clock alone is no hold**: the engine still updates the
-        /// world every frame by a step of nought, and the wind's walk, an armed player's weapon and an actor's idle
-        /// line each draw from the world's generator on every such frame, so a wait two frames longer left the stop's
-        /// world and its random stream elsewhere. Paused, the frames of the wait update nothing. Ended once its world
-        /// stands whole, and by nothing else; a stop never staged was never held.
-        void releaseHold();
+        /// Ends `hold` from the next frame on, but the clock, which the session runs where the stop is not frozen.
+        void releaseHold(const Hold& hold);
 
         /// Whether anything but that hold pauses the world: what `describePause` names.
         bool pausedBeyondHold();
