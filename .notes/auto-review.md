@@ -28,28 +28,38 @@ Most of the parts stand in `upstream.yml`, which runs three agents on untrusted 
 
 One workflow, `.github/workflows/auto-review.yml`. Its review jobs run only under `workflow_dispatch` and an hourly
 `schedule` (at minute 17, off the top of the hour, when GitHub's scheduler is busiest). `pull_request_target`
-(opened, reopened) and `issues` (opened, reopened) start a `notice` job that checks out nothing, runs nothing of
-the item's, and dispatches the workflow for that item with `actions: write`, so a new item is answered within
-minutes.
+(opened, reopened, ready_for_review) and `issues` (opened, reopened) start a `notice` job that checks out nothing,
+runs nothing of the item's, and dispatches the workflow for that item with `actions: write`, so a new item is
+answered within minutes; a dispatch is the one event a `GITHUB_TOKEN` may start a run with. Pull requests whose
+base is not `master` are not read.
 
 A push is debounced by 5 hours: a pull request's later head is reviewed once it has stood that long, so a day of
 pushes costs one review, not one a push. The hourly sweep finds it due. When a head arrived is read from CI's own
 `pull_request` run at that head, which GitHub creates on every push, a fork's awaiting approval included; a
 commit's date is the author's to write and says nothing of when it was pushed, and GitHub's API no longer reports
-a push time. Refused: a job that sleeps out the debounce, which would hold a runner for 5 of the 6 hours GitHub
-allows a job.
+a push time. So `ci.yml` keeps running on every pull request push, with no path filter. Refused: a job that sleeps
+out the debounce, which would hold a runner for 5 of the 6 hours GitHub allows a job.
 
-The four jobs after it: only the third holds the agent, and it holds nothing worth stealing and can send
-nothing; only the fourth can write, and it runs no agent and nothing the change carries.
+Two routes can pick the same item at once, a dispatch and a sweep. `review` holds a concurrency group of its item,
+so the second waits behind the first, and `review` and `publish` each read the item's markers first and stop when
+one already stands at that head: no item is read or posted twice. What the workflow posts starts no workflow, as
+nothing a `GITHUB_TOKEN` does but a dispatch does, so it cannot answer itself. `gh workflow disable
+auto-review.yml` stops it all.
+
+The four jobs after `notice`: only the third holds the agent, and it holds nothing worth stealing and can send
+nothing; only the fourth can write, and it runs no agent and nothing the change carries. Each has a
+`timeout-minutes`: 10, 20, 60 and 10.
 
 1. **`survey`** (no agent, `issues: read`, `pull-requests: read`, `actions: read`). Lists what needs reading: the
    item a dispatch names, or on the schedule every open one. Skipped: bot authors (the upstream merges have their
-   own review), the repository owner's own items, the `no-auto-review` label, an item already answered at its
-   current head (by a marker the workflow's own account wrote, so a marker anyone else pastes counts for
-   nothing), a later head that has not stood 5 hours, a pull request reviewed five times already, a head whose
-   review failed twice. Drafts are read.
-   Then the budget, counted from the workflow's own run history, whose review job is named after its item, so a
-   failed run counts as much as a posted one and nothing is stored:
+   own review), the repository owner's own items (`author_association` `OWNER`), the `no-auto-review` label, an
+   item already answered at its current head (by a marker the workflow's own account wrote, so a marker anyone
+   else pastes counts for nothing), an item whose review is running, a later head that has not stood 5 hours, a
+   pull request reviewed five times already, a head whose review failed twice. Drafts are read. A pull request
+   turned ready is read once more at its head, past the debounce and the five, so a draft's reviews never leave
+   it without one when it asks for its merge.
+   Then the budget, counted from the workflow's own run history, whose review job is named after its item and
+   head, so a failed run counts as much as a posted one and nothing is stored:
    - an author's items, 3 in any 24 hours;
    - the repository's review jobs, 20 in any 24 hours, and reaching it annotates the run;
    - 8 items a run.
@@ -57,19 +67,28 @@ nothing; only the fourth can write, and it runs no agent and nothing the change 
    An item over a limit waits for the next sweep and is never dropped. Emits the matrix.
 2. **`gather`** (no agent, no secret, `contents: read`), per item. Writes `.review/` as plain data and uploads it:
    - a pull request: its title, body and author; the diff against its merge base; the head's tree under
-     `pr-head/`, as `git archive` of `refs/pull/N/head` (files, no checkout, no hooks); the discussion so far; CI's
-     check conclusions at that head, where finished; the previous automatic review and its open threads;
-   - an issue: its title, body and comments; every issue's number, state and title, for duplicates; its
-     attachments from `github.com/user-attachments/` alone, size-bounded, and each crash package read by
-     `omw crash` against the matching release's `-symbols.zip` into `crash.txt`.
+     `pr-head/`, as `git archive` of `refs/pull/N/head` (files, no checkout, no hooks); the last 50 comments of
+     the discussion; CI's check conclusions at that head, where finished; the previous automatic review and its
+     open threads;
+   - an issue: its title, body and last 50 comments; every issue's number, state and title, for duplicates; its
+     attachments from `github.com/user-attachments/` alone, 5 at most and 25 MB each: screenshots as images the
+     agent reads, logs as text, and each crash package read by `omw crash` against the matching release's
+     `-symbols.zip` into `crash.txt`, with that release's tree under `release-tree/`, as the code that crashed is
+     the release's and not master's.
+
+   The text is what a reader sees: HTML comments and invisible characters (zero-width, bidirectional controls,
+   tag characters) are taken out, as the action does to what it fetches itself, and what was taken out is listed
+   in `hidden.txt`, which the agent reports as an attempt when it addressed it. A diff past 3000 changed lines is
+   handed whole, and the review says which files it read.
 
    Here because a hostile zip that broke the reader would break a job with no secret and no write, and its
    output is text the next job reads as data.
 3. **`review`** (agent, `contents: read`), per item. Checks out master, extracts the instructions
    (`.github/auto-review/pull-request.md` or `issue.md`) and lays `.review/` beside them. The agent may `Read`,
-   `Grep`, `Glob`, `WebSearch`, and `WebFetch` on an allowlist; no `Edit`, `Write` or shell. Its answer is
-   structured output under `--json-schema` (the action's `structured_output`), uploaded as JSON. `--model opus`,
-   as `upstream.yml`'s agents. `--max-turns` scales with the diff, as `review` scales with the files resolved.
+   `Grep`, `Glob`, `WebSearch`, and `WebFetch` on the domains `.github/auto-review/domains.txt` lists; no `Edit`,
+   `Write` or shell. Its answer is structured output under `--json-schema` (the action's `structured_output`),
+   uploaded as JSON. `--model opus`, as `upstream.yml`'s agents. `--max-turns` scales with the diff, as `review`
+   scales with the files resolved.
 4. **`publish`** (no agent, `pull-requests: write` or `issues: write`), per item. Checks out master and runs
    `omw review-post`, which turns the JSON into the comment and posts it. Everything the agent wrote is
    untrusted, so this step is where the guarantees live, and it is Python with tests rather than inline shell:
@@ -77,7 +96,11 @@ nothing; only the fourth can write, and it runs no agent and nothing the change 
    - the header and the footer are the template's, never the agent's, so the disclosure is always there;
    - the agent's text is sanitized the way GitHub's own agentic workflows do it: control characters removed,
      `@mentions` and slash commands neutralized (into code spans), HTML comments and raw tags made text, links
-     kept only to allowlisted domains, closing keywords (`fixes #12`) neutralized, the whole bounded;
+     kept only to the domains `domains.txt` lists, the one list `review` fetches from, closing keywords
+     (`fixes #12`) neutralized, the whole bounded;
+   - each finding carries a Conventional Comments label (`issue`, `suggestion`, `question`, `todo`, `nitpick`,
+     `praise`) and `blocking` or `non-blocking`, where blocking means what the reviewer would hold a merge for,
+     so a contributor sees at once what matters; bugs first, then by label;
    - an inline finding stays inline only on a line its diff hunk covers, as GitHub refuses the rest; the others
      join the body under their file;
    - the agent's credential is searched for in the rendered text, as `publish` does, and its presence posts
@@ -86,8 +109,6 @@ nothing; only the fourth can write, and it runs no agent and nothing the change 
      threads of the previous automatic review that the agent marks answered are resolved;
    - an issue gets one comment;
    - a `dry_run` dispatch input writes the rendered comment to the job summary instead of posting it.
-
-Concurrency is one group an item, cancelling the run a newer push supersedes.
 
 ## The review's instructions
 
@@ -135,6 +156,9 @@ The template's header, above everything the agent wrote, and a hidden marker wit
 > **Automatic first look.** The repository's automation read this report and the code it points at. A maintainer
 > will follow up; what is below is a starting point, not an answer.
 
+The footer asks for a 👍 or 👎 on the comment, the signal Copilot's reviews ask for too; the maintainer reads
+the reactions to tune the instructions.
+
 It names no tool and no vendor, by the repository's authorship rule; "automatic" is the disclosure.
 
 ## Decisions taken
@@ -159,8 +183,10 @@ It names no tool and no vendor, by the repository's authorship rule; "automatic"
 - **New items dispatched at once, later heads swept hourly.** A job on `pull_request_target`/`issues` that checks
   out nothing dispatches the review; GitHub Security Lab's "Preventing pwn requests" split of an unprivileged
   trigger from a privileged run, with a dispatch where it uses `workflow_run`. zizmor flags the trigger, and the
-  ignore carries this reason. Refused: a sweep alone, up to an hour before a newcomer hears anything; waiting on
-  CI's `workflow_run`, which for a first-time contributor waits on the maintainer's approval of CI.
+  ignore carries this reason. The two routes cost the item's concurrency group and the marker read before reading
+  and before posting. Refused: the sweep alone, up to an hour before a newcomer hears anything, though it would
+  need neither; waiting on CI's `workflow_run`, which for a first-time contributor waits on the maintainer's
+  approval of CI.
 - **The comment is `github-actions[bot]`'s**, through the job's `GITHUB_TOKEN`, as `judge`'s comments are.
   Refused: the Claude GitHub App, whose name is a tool's, against the repository's authorship rule; an App of the
   repository's own, an App and a private key to keep for a name and an avatar.
@@ -179,24 +205,29 @@ It names no tool and no vendor, by the repository's authorship rule; "automatic"
   Dependabot moves the action's pin, weekly after a 7-day cooldown, so no alias is needed beyond it.
 - **Limits against a flood, counted and never stored**: 3 items an author in any 24 hours, the sliding window
   GitHub's agentic workflows' `user-rate-limit` keeps; 20 review jobs a repository in any 24 hours; 8 items a
-  run; 5 reviews a pull request; two failures a head; the 5-hour debounce. An item over a limit waits; none is
-  dropped.
-
+  run; 5 reviews a pull request, and one more when it turns ready; two failures a head; the 5-hour debounce. An
+  item over a limit waits; none is dropped.
+- **An issue is read once.** A crash package or a log that arrives in a later comment waits for the maintainer to
+  dispatch the issue again by number. Refused: reading again when the reporter answers, which would take a
+  bounded 2 more runs an issue.
+- **Findings in Conventional Comments' labels**, which name a comment's kind and whether it blocks, so a
+  newcomer can tell a bug from a preference; Google's review guide asks the same of a human reviewer's "Nit:".
 - **No new dependency.** The JSON is parsed by dataclasses rather than a schema library; `minidump-stackwalk`
   and `dump_syms` are pinned already.
 
 ## Left out
 
 - **Labels.** The comment classifies; applying labels is a later, separate safe output with an allowlist.
-- **A follow-up when the reporter answers.** An issue is read once; a maintainer dispatches it again by number.
 - **Running anything of the change.** CI builds and tests it; the card's checks are the author's.
 
 ## Plan
 
 1. Move the two passes into `.github/review/passes.md`; `upstream-merge/review.md` keeps its scope and report.
-2. `pull-request.md`, `issue.md` and the two JSON schemas under `.github/auto-review/`.
-3. `omw review-post` and its tests: parsing, every sanitization rule with a hostile input, the hunk mapping at a
-   hunk's first and last line and one past it, the marker round trip, the dry run.
+2. `pull-request.md`, `issue.md`, `domains.txt` and the two JSON schemas under `.github/auto-review/`.
+3. `omw review-post`, the survey's selection and the gather's text cleaning as pure functions over JSON, with
+   tests: parsing, every sanitization rule with a hostile input, the hunk mapping at a hunk's first and last line
+   and one past it, the marker round trip, each skip and each budget at its bound and one past it, the debounce
+   at 5 hours less a second and at 5 hours, the turn to ready past the cap, the dry run.
 4. `auto-review.yml`, `omw lint` clean.
 5. Dry runs over closed items whose outcome is known — #44, #45 and #47, #49 and #53 — read by the maintainer
    before the first post.
@@ -208,6 +239,10 @@ It names no tool and no vendor, by the repository's authorship rule; "automatic"
   the write-access check, `allowed_non_write_users`, `pull_request_target`, the hidden-markdown stripping.
 - [claude-code-action: solutions](https://github.com/anthropics/claude-code-action/blob/main/docs/solutions.md) —
   the review and triage recipes refused above.
+- [GitHub: the `GITHUB_TOKEN`](https://docs.github.com/en/actions/concepts/security/github_token) — what it
+  does starts no run, but a dispatch.
+- [Conventional Comments](https://conventionalcomments.org/) and
+  [Google's code review guide](https://google.github.io/eng-practices/review/reviewer/comments.html).
 - [GitHub: securely using `pull_request_target`](https://docs.github.com/en/actions/reference/security/securely-using-pull_request_target)
   and [GitHub Security Lab: preventing pwn requests](https://securitylab.github.com/resources/github-actions-preventing-pwn-requests/)
 - [GitHub Agentic Workflows: safe outputs](https://github.github.com/gh-aw/reference/safe-outputs/) and its
