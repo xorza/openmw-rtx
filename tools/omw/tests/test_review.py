@@ -13,7 +13,7 @@ from omw import fetch
 from omw.review import answer, gather, github, post, verb
 from omw.review import diff as diffs
 from omw.review.item import BOT, NO_HEAD, Attempt, Item, Key, Marker, attempt_of, leg_name, markers
-from omw.review.survey import Limits, _items, select
+from omw.review.survey import Limits, _attempts, _items, select
 from omw.review.text import REMOVED, TRUNCATED, cut, neutral, neutral_upstream, visible
 from omw.system import Refusal
 
@@ -212,6 +212,66 @@ class SurveyTest(unittest.TestCase):
         with self.assertRaisesRegex(Refusal, "#4 is a pull request: name it pr:4"):
             _items(GitHub(), Key("issue", 4))  # type: ignore[arg-type]
 
+    def test_attempts_ask_the_jobs_of_a_hundred_runs_a_call(self):
+        since = NOW - timedelta(days=1)
+        stamp = "2026-11-15T11:00:00Z"
+        read = leg_name(Key("pr", 1), HEAD, "alice") + " / read"
+
+        def run(number, event="workflow_dispatch"):
+            return {"id": number, "node_id": f"R{number}", "event": event, "created_at": stamp}
+
+        def jobs(*listed, more=False):
+            return {"checkSuite": {"checkRuns": {"pageInfo": {"hasNextPage": more}, "nodes": list(listed)}}}
+
+        def job(name, conclusion="SUCCESS", started="2026-11-15T11:05:00Z"):
+            return {"name": name, "conclusion": conclusion, "startedAt": started}
+
+        class GitHub:
+            def __init__(self, runs, nodes):
+                self.runs, self.nodes, self.asked = runs, nodes, []
+
+            def pages(self, path, pages, key=None, **params):
+                self.listed = (path, pages, key, params)
+                return self.runs
+
+            def graphql(self, query, ids):
+                self.asked.append(ids)
+                return {"nodes": [self.nodes.get(node, jobs()) for node in ids]}
+
+        # Run 1 read once and was skipped once, and began a read still queued; run 2 was a notice, which is never
+        # asked about; run 3 is listed twice, as a run created mid-listing moves it onto the next page; run 5's read
+        # began before the window.
+        runs = [run(1), run(2, event="issues"), run(3, event="schedule"), run(3, event="schedule"), run(5)]
+        nodes = {"R1": jobs(job("survey"), job(read), job(read, "SKIPPED"), job(read, None, None)),
+                 "R2": jobs(job(read)), "R3": jobs(job(read, "FAILURE")),
+                 "R5": jobs(job(read, started="2026-11-14T11:59:59Z"))}
+        fake = GitHub(runs, nodes)
+        found = _attempts(fake, "w.yml", since)  # type: ignore[arg-type]
+        self.assertEqual(fake.listed, ("actions/workflows/w.yml/runs", 5, "workflow_runs",
+                                       {"created": ">=2026-11-14T12:00:00Z"}))
+        self.assertEqual(fake.asked, [["R1", "R3", "R5"]])
+        at = datetime(2026, 11, 15, 11, 5, tzinfo=UTC)
+        # The queued read has no start of its own, and takes its run's creation, 11:00.
+        self.assertEqual(found, [Attempt(Key("pr", 1), HEAD, "alice", at, "SUCCESS"),
+                                 Attempt(Key("pr", 1), HEAD, "alice", NOW - timedelta(hours=1), None),
+                                 Attempt(Key("pr", 1), HEAD, "alice", at, "FAILURE")])
+
+        # 150 runs are two calls, of 100 and 50; their notices are asked of none.
+        many = GitHub([run(n) for n in range(150)] + [run(n, event="issues") for n in range(150, 300)], {})
+        self.assertEqual(_attempts(many, "w.yml", since), [])  # type: ignore[arg-type]
+        self.assertEqual([len(ids) for ids in many.asked], [100, 50])
+        self.assertEqual(many.asked[1][-1], "R149")
+
+        # A listing that fills its 5 pages of 100 may have left reads out; a run's jobs past a page would too.
+        full = GitHub([run(n) for n in range(500)], {})
+        with self.assertRaisesRegex(Refusal, "ran 500 times or more since 2026-11-14T12:00:00Z"):
+            _attempts(full, "w.yml", since)  # type: ignore[arg-type]
+        self.assertEqual(full.asked, [])
+        self.assertEqual(len(_attempts(GitHub([run(n) for n in range(499)], {}), "w.yml", since)), 0)  # type: ignore[arg-type]
+        long = GitHub([run(1)], {"R1": jobs(job(read), more=True)})
+        with self.assertRaisesRegex(Refusal, "run 1 of w.yml holds more jobs than a page"):
+            _attempts(long, "w.yml", since)  # type: ignore[arg-type]
+
     def test_drafts_are_read(self):
         self.assertEqual(self.choose([item(1, draft=True)])[0], [1])
 
@@ -387,6 +447,13 @@ class GitHubTest(unittest.TestCase):
         answered = mock.Mock(returncode=0, stdout='{"data": {"a": 1}}', stderr="")
         with mock.patch.object(github.subprocess, "run", return_value=answered):
             self.assertEqual(github.GitHub(REPO).graphql("query { a }"), {"a": 1})
+
+    def test_graphql_variables_as_gh_takes_them(self):
+        answered = mock.Mock(returncode=0, stdout='{"data": {}}', stderr="")
+        with mock.patch.object(github.subprocess, "run", return_value=answered) as ran:
+            github.GitHub(REPO).graphql("q", n=3, s="x", ids=["A", "B"])
+        args = ran.call_args.args[0]
+        self.assertEqual(args[args.index("query=q") + 1:], ["-F", "n=3", "-f", "s=x", "-f", "ids[]=A", "-f", "ids[]=B"])
 
 
 class GatherTest(unittest.TestCase):

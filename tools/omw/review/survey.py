@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
 
-from omw.review.github import GitHub, when, write_output, write_summary
+from omw.review.github import PAGE, GitHub, when, write_output, write_summary
 from omw.review.item import (
     BASE,
     NO_HEAD,
@@ -187,19 +187,53 @@ def answers_of(github: GitHub, key: Key) -> list[Marker]:
     return markers(((post["user"]["login"], post["body"]) for post in github.pages(path, 5)), key)
 
 
+# The events a run surveys and reads under: `notice`'s runs, under an item's own event, hold no read.
+_READING_EVENTS = frozenset({"schedule", "workflow_dispatch"})
+# The window's runs as one listing holds them. A listing that fills them may have left the oldest out, and a read
+# left out would be a read the budget does not count.
+_RUN_PAGES = 5
+# The most runs one GraphQL `nodes` takes.
+_RUNS_ASKED = 100
+# A run's jobs as GitHub lists them: a job is its run's check run, under the same name. One page holds a run's
+# survey, its notice and three for each of its items, which `Limits.run` bounds far under it.
+_JOBS = """query($ids: [ID!]!) {
+  nodes(ids: $ids) {
+    ... on WorkflowRun {
+      checkSuite { checkRuns(first: 100) { pageInfo { hasNextPage } nodes { name conclusion startedAt } } }
+    }
+  }
+}"""
+
+
 def _attempts(github: GitHub, workflow: str, since: datetime) -> list[Attempt]:
     """Every read of the window, from the jobs of the workflow's runs: a skipped job read nothing, and one still
-    queued, behind another read of its item, counts as running from when its run began."""
-    attempts = []
+    queued, behind another read of its item, counts as running from when its run began. The jobs are asked of
+    GraphQL a hundred runs a call: REST lists them a call a run, and every item of a burst dispatches a run that
+    surveys, so a burst of N items would ask about N² job lists."""
     stamp = since.strftime("%Y-%m-%dT%H:%M:%SZ")
-    for run in github.pages(f"actions/workflows/{workflow}/runs", 5, key="workflow_runs", created=f">={stamp}"):
-        for job in github.pages(f"actions/runs/{run['id']}/jobs", 2, key="jobs"):
-            if job["conclusion"] == "skipped":
-                continue
-            started = when(job.get("started_at") or run["created_at"])
-            attempt = attempt_of(job["name"], started, job["conclusion"])
-            if attempt is not None and attempt.started >= since:
-                attempts.append(attempt)
+    listed = github.pages(f"actions/workflows/{workflow}/runs", _RUN_PAGES, key="workflow_runs", created=f">={stamp}")
+    if len(listed) >= _RUN_PAGES * PAGE:
+        raise Refusal(f"{workflow} ran {len(listed)} times or more since {stamp}, past what the survey lists: "
+                      f"reads it left out would go uncounted")
+    # A run created while the listing is paged moves the rest down a place, and the next page lists one again.
+    runs = list({run["node_id"]: run for run in listed if run["event"] in _READING_EVENTS}.values())
+    attempts = []
+    for first in range(0, len(runs), _RUNS_ASKED):
+        batch = runs[first:first + _RUNS_ASKED]
+        nodes = github.graphql(_JOBS, ids=[run["node_id"] for run in batch])["nodes"]
+        # A run deleted since it was listed is no node, and `gh` refuses the whole answer for it, as REST refused its
+        # jobs: the next survey lists the window without it.
+        for run, node in zip(batch, nodes, strict=True):
+            jobs = node["checkSuite"]["checkRuns"]
+            if jobs["pageInfo"]["hasNextPage"]:
+                raise Refusal(f"run {run['id']} of {workflow} holds more jobs than a page, and the survey reads one")
+            for job in jobs["nodes"]:
+                if job["conclusion"] == "SKIPPED":
+                    continue
+                started = when(job["startedAt"] or run["created_at"])
+                attempt = attempt_of(job["name"], started, job["conclusion"])
+                if attempt is not None and attempt.started >= since:
+                    attempts.append(attempt)
     return attempts
 
 

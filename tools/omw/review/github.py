@@ -54,11 +54,19 @@ class GitHub:
         return json.loads(_gh(path, ["--method", "POST", f"repos/{self.name}/{path}", "--input", "-"],
                               json.dumps(payload)))
 
-    def graphql(self, query: str, **variables: str | int) -> Any:
+    def graphql(self, query: str, **variables: str | int | list[str]) -> Any:
         """The answer's data. `gh` exits non-zero for an answer that carries errors, and says them."""
-        fields = [part for key, value in variables.items()
-                  for part in (("-F" if isinstance(value, int) else "-f"), f"{key}={value}")]
+        fields = [part for key, value in variables.items() for part in _fields(key, value)]
         return json.loads(_gh("graphql", ["graphql", "-f", f"query={query}", *fields]))["data"]
+
+
+def _fields(key: str, value: str | int | list[str]) -> list[str]:
+    """A GraphQL variable as `gh api` takes it: an integer typed, a list an element at a time."""
+    if isinstance(value, list):
+        # `gh` has no spelling for an empty list: the variable would go missing.
+        assert value, key
+        return [part for element in value for part in ("-f", f"{key}[]={element}")]
+    return ["-F" if isinstance(value, int) else "-f", f"{key}={value}"]
 
 
 def _gh(what: str, args: list[str], stdin: str | None = None) -> str:
