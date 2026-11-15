@@ -11,6 +11,7 @@
 #include <system_error>
 #include <type_traits>
 #include <typeinfo>
+#include <utility>
 
 #include <components/files/istreamptr.hpp>
 #include <components/misc/endianness.hpp>
@@ -43,7 +44,8 @@ namespace Files
         void readArray(std::span<T, extent> dest)
         {
             static_assert(std::is_arithmetic_v<T>, "Buffer element type is not arithmetic");
-            mStream->read(reinterpret_cast<char*>(dest.data()), dest.size_bytes());
+            // An istream fills chars: the values' own bytes, which a char may alias.
+            mStream->read(reinterpret_cast<char*>(dest.data()), static_cast<std::streamsize>(dest.size_bytes()));
             if (mStream->fail())
                 throw std::runtime_error(std::format("Failed to read typed ({}) buffer of {} instances: {}",
                     typeid(T).name(), dest.size(), std::generic_category().message(errno)));
