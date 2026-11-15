@@ -171,13 +171,13 @@ namespace MWRender
         /// What each walk over the one extractor is anchored at: four roots the walk cannot tell apart by
         /// structure. The world's is nought, which `SceneExtractor::extract` calls a caller that walks one
         /// whole graph.
-        enum Anchor : std::size_t
+        namespace Anchor
         {
-            World = 0,
-            Sea = 1,
-            Rain = 2,
-            Effect = 3,
-        };
+            constexpr std::size_t World = 0;
+            constexpr std::size_t Sea = 1;
+            constexpr std::size_t Rain = 2;
+            constexpr std::size_t Effect = 3;
+        }
 
         /// What the world walk may see: `sWorldTraversal`, without the player or the actors where the eye's
         /// view mask leaves them out. Those two only, because the trace's ray mask hides every other class

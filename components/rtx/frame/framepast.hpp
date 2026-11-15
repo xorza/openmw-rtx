@@ -33,17 +33,27 @@ namespace Rtx
         /// The water's wake.
         bool mWaterLost = false;
 
-        /// Why, as bits of `Cause`: what the log says of a reset, which a picture that jumped is
-        /// read against.
-        std::uint8_t mCauses = 0;
-
-        enum Cause : std::uint8_t
+        /// Why, any of them at once: what the log says of a reset, which a picture that jumped is read
+        /// against.
+        struct Causes
         {
-            Cut = 1,
-            Worldspace = 2,
-            Resized = 4,
-            NewWorld = 8,
+            bool mCut = false;
+            bool mWorldspace = false;
+            bool mResized = false;
+            bool mNewWorld = false;
+
+            constexpr Causes& operator|=(const Causes& other)
+            {
+                mCut = mCut || other.mCut;
+                mWorldspace = mWorldspace || other.mWorldspace;
+                mResized = mResized || other.mResized;
+                mNewWorld = mNewWorld || other.mNewWorld;
+                return *this;
+            }
+
+            bool operator==(const Causes& other) const = default;
         };
+        Causes mCauses = {};
 
         /// What a loss the host told costs.
         static constexpr FramePast of(const HistoryLoss loss)
@@ -52,21 +62,24 @@ namespace Rtx
                 .mReprojectionLost = loss != HistoryLoss::None,
                 .mEyeLost = loss != HistoryLoss::None,
                 .mWaterLost = loss == HistoryLoss::Worldspace,
-                .mCauses = static_cast<std::uint8_t>(loss == HistoryLoss::Cut ? Cut
-                        : loss == HistoryLoss::Worldspace                     ? Worldspace
-                                                                              : 0),
+                .mCauses = { .mCut = loss == HistoryLoss::Cut, .mWorldspace = loss == HistoryLoss::Worldspace },
             };
         }
 
         /// What a new extent or upscale mode costs: the reprojection alone. An eye adapted to the
         /// picture at one size is adapted to it at another, so a mode changed in the menu does not
         /// snap the brightness.
-        static constexpr FramePast resized() { return FramePast{ .mReprojectionLost = true, .mCauses = Resized }; }
+        static constexpr FramePast resized()
+        {
+            return FramePast{ .mReprojectionLost = true, .mCauses = { .mResized = true } };
+        }
 
         /// What a new world costs, and the first frame a renderer traces: everything.
         static constexpr FramePast everything()
         {
-            return FramePast{ .mReprojectionLost = true, .mEyeLost = true, .mWaterLost = true, .mCauses = NewWorld };
+            return FramePast{
+                .mReprojectionLost = true, .mEyeLost = true, .mWaterLost = true, .mCauses = { .mNewWorld = true }
+            };
         }
 
         /// Whether any history is lost.
@@ -77,7 +90,7 @@ namespace Rtx
             mReprojectionLost = mReprojectionLost || other.mReprojectionLost;
             mEyeLost = mEyeLost || other.mEyeLost;
             mWaterLost = mWaterLost || other.mWaterLost;
-            mCauses = static_cast<std::uint8_t>(mCauses | other.mCauses);
+            mCauses |= other.mCauses;
             return *this;
         }
 

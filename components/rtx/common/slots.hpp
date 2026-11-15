@@ -82,10 +82,10 @@ namespace Rtx
     /// catches.
     class SlotSet
     {
-        /// What the byte says of a slot. A slot taken out stays on the list as `Removed` until
+        /// Where a slot stands. A slot taken out stays on the list as `Removed` until
         /// `compact`, so an `add` before then puts it back where it stood rather than listing it a
         /// second time, and a table may take a slot out and name it again inside one sweep.
-        enum State : std::uint8_t
+        enum class State : std::uint8_t
         {
             Absent,
             Listed,
@@ -97,8 +97,8 @@ namespace Rtx
         /// the bytes: a table emptied is exactly when the next is about to be filled.
         void grow(std::size_t count)
         {
-            if (count > mFlags.size())
-                mFlags.resize(count);
+            if (count > mStates.size())
+                mStates.resize(count);
         }
 
         /// The same, and room in the list for every one of them, so no `add` up to `count` goes to
@@ -112,15 +112,15 @@ namespace Rtx
         /// Puts `slot` in the set, once however many times it is named.
         void add(Index slot)
         {
-            assert(slot < mFlags.size() && "a slot the table has not grown to");
-            if (mFlags[slot] == Listed)
+            assert(slot < mStates.size() && "a slot the table has not grown to");
+            if (mStates[slot] == State::Listed)
                 return;
 
-            if (mFlags[slot] == Absent)
+            if (mStates[slot] == State::Absent)
                 mSlots.push_back(slot);
             else
                 --mRemoved;
-            mFlags[slot] = Listed;
+            mStates[slot] = State::Listed;
         }
 
         /// The same, for a caller that is told one slot at a time and never sees the table.
@@ -135,11 +135,11 @@ namespace Rtx
         /// will not answer while one is outstanding.
         void remove(Index slot)
         {
-            assert(slot < mFlags.size() && "a slot the table has not grown to");
-            if (mFlags[slot] != Listed)
+            assert(slot < mStates.size() && "a slot the table has not grown to");
+            if (mStates[slot] != State::Listed)
                 return;
 
-            mFlags[slot] = Removed;
+            mStates[slot] = State::Removed;
             ++mRemoved;
         }
 
@@ -148,8 +148,8 @@ namespace Rtx
         void compact();
 
         /// Whether `slot` is in the set. Answers while a `remove` is outstanding, where `getSlots`
-        /// will not: the flags are exact from the moment a slot is taken out.
-        bool has(Index slot) const { return slot < mFlags.size() && mFlags[slot] == Listed; }
+        /// will not: the states are exact from the moment a slot is taken out.
+        bool has(Index slot) const { return slot < mStates.size() && mStates[slot] == State::Listed; }
 
         std::span<const Index> getSlots() const
         {
@@ -168,7 +168,7 @@ namespace Rtx
 
         /// A `State` per slot of the table beside it: `Absent` for exactly the slots `mSlots` does
         /// not name.
-        std::vector<std::uint8_t> mFlags;
+        std::vector<State> mStates;
 
         /// How many of `mSlots` are `Removed`.
         std::size_t mRemoved = 0;

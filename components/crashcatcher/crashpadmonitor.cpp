@@ -163,16 +163,20 @@ namespace Crash
                 + (request.mDumped ? "A report of what it is doing is saved; the log names it:\n"
                                    : "No report of what it is doing could be saved; the log says why:\n")
                 + log + "\n\nWait for it, or end it?";
+            // The buttons' ids, which SDL takes and hands back as an `int`.
+            constexpr int waitButton = 0;
+            constexpr int endButton = 1;
             const std::array<SDL_MessageBoxButtonData, 2> buttons{ {
-                { SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT | SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 0, "Wait" },
-                { 0, 1, "End" },
+                { SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT | SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, waitButton,
+                    "Wait" },
+                { 0, endButton, "End" },
             } };
             const std::string title = monitor.mApplication + " is not responding";
             const SDL_MessageBoxData box{ SDL_MESSAGEBOX_WARNING, nullptr, title.c_str(), message.c_str(),
                 static_cast<int>(buttons.size()), buttons.data(), nullptr };
 
-            int chosen = 0;
-            return SDL_ShowMessageBox(&box, &chosen) && chosen == 1;
+            int chosen = waitButton;
+            return SDL_ShowMessageBox(&box, &chosen) && chosen == endButton;
         }
 
         /// What became of a question the game ended before: whether the player was asked or not, End was
@@ -372,20 +376,19 @@ namespace Crash
                 message += packaged ? "Sending it helps to fix it. Send it only to someone you trust with that."
                                     : "Sending them helps to fix it. Send them only to someone you trust with that.";
 
-            enum Button : int
-            {
-                Close,
-                Report,
-            };
+            // The buttons' ids, which SDL takes and hands back as an `int`.
+            constexpr int closeButton = 0;
+            constexpr int reportButton = 1;
             const std::array<SDL_MessageBoxButtonData, 2> buttons{ {
-                { 0, Report, issues ? "Report the crash" : "Open the folder" },
-                { SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT | SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, Close, "Close" },
+                { 0, reportButton, issues ? "Report the crash" : "Open the folder" },
+                { SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT | SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, closeButton,
+                    "Close" },
             } };
             const SDL_MessageBoxData box{ SDL_MESSAGEBOX_ERROR | SDL_MESSAGEBOX_BUTTONS_LEFT_TO_RIGHT, nullptr,
                 title.c_str(), message.c_str(), static_cast<int>(buttons.size()), buttons.data(), nullptr };
 
-            int chosen = Close;
-            if (!SDL_ShowMessageBox(&box, &chosen) || chosen != Report)
+            int chosen = closeButton;
+            if (!SDL_ShowMessageBox(&box, &chosen) || chosen != reportButton)
                 return;
             // A system that will not open an address as long as the one filled in gets the page with
             // its title alone, and the summary is in the package: Windows's `ShellExecute` refuses

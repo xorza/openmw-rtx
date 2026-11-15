@@ -150,8 +150,9 @@ namespace Rtx
         }
 
         /// **The caller is one of the hands**, so a batch never leaves the thread that asked for it
-        /// idle. Each index holds its hand a millisecond, and there are four for every hand, so
-        /// the caller cannot miss them all.
+        /// idle. Every other hand holds its first index until the caller has taken one, so the
+        /// others cannot run the batch out before the caller starts, however the system schedules
+        /// them: a hand held a millisecond an index left the caller none under a loaded machine.
         TEST(RtxParallelTest, theCallerIsOneOfTheHands)
         {
             const std::size_t count = 4 * Platform::Process::usableCpuCount();
@@ -162,8 +163,12 @@ namespace Rtx
                 "parallel", count, Hands::Every, std::stop_token{}, [] { return 0; },
                 [&](std::size_t) {
                     if (std::this_thread::get_id() == caller)
+                    {
                         ++byCaller;
-                    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                        return;
+                    }
+                    for (const Testing::WaitBound bound(Testing::sHandOverPatience); byCaller == 0 && !bound.passed();)
+                        std::this_thread::yield();
                 });
 
             EXPECT_GT(byCaller.load(), 0u);

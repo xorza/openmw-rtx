@@ -8,10 +8,10 @@ namespace Rtx
             return;
 
         std::erase_if(mSlots, [this](const Index slot) {
-            if (mFlags[slot] != Removed)
+            if (mStates[slot] != State::Removed)
                 return false;
 
-            mFlags[slot] = Absent;
+            mStates[slot] = State::Absent;
             return true;
         });
         mRemoved = 0;
@@ -20,7 +20,7 @@ namespace Rtx
     void SlotSet::clear()
     {
         for (const Index slot : mSlots)
-            mFlags[slot] = Absent;
+            mStates[slot] = State::Absent;
 
         mSlots.clear();
         mRemoved = 0;

@@ -30,8 +30,10 @@ class DependenciesTest(unittest.TestCase):
         text = ("a.o: /src/a.cpp /src/a.hpp \\\n"
                 "  ../../src/x/../b.hpp /src/with\\ space.hpp /src/hash\\#.hpp /src/dollar$$.hpp \\\n"
                 "  /usr/include/c++/v1/vector\n")
+        # Absolute as the system reads a rooted path: on Windows, on the drive of the folder it is named from, which
+        # here is the working folder's.
         self.assertEqual(tidycache.dependencies(text, directory),
-                         [os.path.normpath(path) for path in (
+                         [os.path.abspath(path) for path in (
                              "/src/a.cpp", "/src/a.hpp", directory / "../../src/b.hpp", "/src/with space.hpp",
                              "/src/hash#.hpp", "/src/dollar$.hpp", "/usr/include/c++/v1/vector")])
         # A target a drive's colon stands in, and Windows' line ends.

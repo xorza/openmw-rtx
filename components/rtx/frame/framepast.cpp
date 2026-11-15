@@ -35,10 +35,10 @@ namespace Rtx
             return {};
 
         const std::string causes = listed(std::array{
-            std::pair{ (past.mCauses & FramePast::Cut) != 0, std::string_view("a cut") },
-            std::pair{ (past.mCauses & FramePast::Worldspace) != 0, std::string_view("another worldspace") },
-            std::pair{ (past.mCauses & FramePast::Resized) != 0, std::string_view("a new extent") },
-            std::pair{ (past.mCauses & FramePast::NewWorld) != 0, std::string_view("a new world") },
+            std::pair{ past.mCauses.mCut, std::string_view("a cut") },
+            std::pair{ past.mCauses.mWorldspace, std::string_view("another worldspace") },
+            std::pair{ past.mCauses.mResized, std::string_view("a new extent") },
+            std::pair{ past.mCauses.mNewWorld, std::string_view("a new world") },
         });
         return (causes.empty() ? std::string("a loss nobody named") : causes) + ": "
             + listed(std::array{
