@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from omw.review import diff as diffs
 from omw.review.answer import LABELS, Finding, IssueAnswer, PullAnswer
 from omw.review.github import GitHub, write_output, write_summary
 from omw.review.item import NO_HEAD, Key, Marker
@@ -30,37 +31,6 @@ ISSUE_HEADER = ("**Automatic first look.** The repository's automation read this
 HELD = ("The automatic review stopped here: the {what} holds text addressed to the automation, which a maintainer "
         "will read.")
 FOOTER = "<sub>React with 👍 or 👎 to say whether this helped; the maintainer reads them to tune the review.</sub>"
-
-
-_HUNK = re.compile(r"@@ -\d+(?:,(\d+))? \+(\d+)(?:,(\d+))? @@")
-
-
-def hunks(diff: str) -> dict[str, frozenset[int]]:
-    """**The lines of each file GitHub takes an inline comment on**: those of the right side a hunk shows, added or
-    kept as context. A hunk is read by the counts its header gives, so a line it holds is never taken for a header,
-    as `+++ i` would be, the line `++ i` added. A file whose name git had to quote takes none, as a comment could
-    not name it; git ends the name of one with a space in it with a tab, which is not part of it."""
-    lines: dict[str, set[int]] = {}
-    current: set[int] | None = None
-    old = new = at = 0
-    for line in diff.splitlines():
-        if old > 0 or new > 0:
-            kind = line[:1]
-            if kind in (" ", "-"):
-                old -= 1
-            if kind in (" ", "+"):
-                new -= 1
-                if current is not None:
-                    current.add(at)
-                at += 1
-        elif line.startswith("+++ "):
-            name = line[4:].removesuffix("\t")
-            current = lines.setdefault(name[2:], set()) if name.startswith("b/") else None
-        elif found := _HUNK.match(line):
-            old = int(found[1] or 1)
-            at = int(found[2])
-            new = int(found[3] or 1)
-    return {name: frozenset(found) for name, found in lines.items()}
 
 
 @dataclass(frozen=True)
@@ -118,7 +88,7 @@ def render_pull(answer: PullAnswer, marker: Marker, diff: str, open_threads: set
     if answer.injections:
         return Rendered(f"{header}\n\n{_held(answer, 'pull request', repository)}{end}", [], [], held=True)
 
-    commentable = hunks(diff)
+    commentable = diffs.commentable(diffs.parse(diff))
     inline: list[Comment] = []
     elsewhere: list[Finding] = []
     for finding in sorted(answer.findings, key=_order):

@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from omw import crash, deps, fetch
+from omw.review import diff as diffs
 from omw.review.github import GitHub, write_output
 from omw.review.item import BOT, BOT_GRAPHQL, Key, markers
 from omw.review.text import visible
@@ -157,10 +158,11 @@ def gather_pull(github: GitHub, folder: Folder, key: Key) -> Pulled:
         cwd=ROOT)
     head = _git("rev-parse", "refs/review/head").strip()
     base = _git("merge-base", "origin/master", head).strip()
-    folder.write("diff.patch", _git("diff", "--no-color", "--no-ext-diff", "--no-textconv", "-M", base, head))
-    lines = sum(int(added) + int(removed) for added, removed, _ in
-                (line.split("\t", 2) for line in _git("diff", "--numstat", "-M", base, head).splitlines())
-                if added != "-")
+    patch = _git("diff", "--no-color", "--no-ext-diff", "--no-textconv", "-M", base, head)
+    parsed = diffs.parse(patch)
+    folder.write("diff.patch", patch)
+    folder.write("changes.txt", diffs.numbered(parsed))
+    lines = sum(line.kind in ("+", "-") for file in parsed for hunk in file.hunks for line in hunk.lines)
     files = _files(folder, base, head)
     _item(folder, raw, key, {"draft": bool(raw["draft"]), "base": raw["base"]["ref"], "head": head,
                              "merge_base": base, "files": files, "lines": lines})

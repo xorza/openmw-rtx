@@ -9,6 +9,7 @@ from unittest import mock
 
 from omw import fetch
 from omw.review import answer, gather, post
+from omw.review import diff as diffs
 from omw.review.item import BOT, NO_HEAD, Attempt, Item, Key, Marker, attempt_of, leg_name, markers
 from omw.review.survey import Limits, _items, select
 from omw.review.text import REMOVED, TRUNCATED, cut, neutral, visible
@@ -258,16 +259,41 @@ diff --git a/gone.cpp b/gone.cpp
 
 
 class PostTest(unittest.TestCase):
-    def test_hunks_are_the_right_sides_lines(self):
-        # Kept 10, added 11 and 12, kept 13: the removed line takes no number on the right.
-        self.assertEqual(post.hunks(DIFF), {"a.cpp": frozenset({10, 11, 12, 13})})
+    def test_commentable_lines_are_the_right_sides(self):
+        # Kept 10, added 11 and 12, kept 13: the removed line takes no number on the right. The deleted file takes
+        # none.
+        self.assertEqual(diffs.commentable(diffs.parse(DIFF)), {"a.cpp": frozenset({10, 11, 12, 13})})
+
+    def test_the_agent_reads_each_line_under_its_number(self):
+        self.assertEqual(diffs.numbered(diffs.parse(DIFF)), "\n".join([
+            "## a.cpp", "@@ -10,3 +10,4 @@ int f()",
+            "    10  kept", "       -removed", "    11 +added", "    12 +added too", "    13  kept", "",
+            "## a/gone.cpp b/gone.cpp",
+            "(no line of it takes a finding: deleted, renamed whole, its mode alone changed, binary, or a name git "
+            "quoted)",
+            "@@ -1,2 +0,0 @@", "       -a", "       -b", ""]))
 
     def test_hunks_read_by_their_counts(self):
         # The added line `++ i` reads `+++ i`, which a parser by prefixes takes for a file's header.
         diff = ("diff --git a/b.cpp b/b.cpp\n--- a/b.cpp\n+++ b/b.cpp\n@@ -5,2 +5,3 @@\n x\n+++ i\n x\n"
                 "\\ No newline at end of file\n"
                 "diff --git a/a b.cpp b/a b.cpp\n--- a/a b.cpp\t\n+++ b/a b.cpp\t\n@@ -1 +1 @@\n-old\n+new\n")
-        self.assertEqual(post.hunks(diff), {"b.cpp": frozenset({5, 6, 7}), "a b.cpp": frozenset({1})})
+        self.assertEqual(diffs.commentable(diffs.parse(diff)),
+                         {"b.cpp": frozenset({5, 6, 7}), "a b.cpp": frozenset({1})})
+
+    def test_files_no_line_of_takes_a_finding(self):
+        # A rename whole and a binary file carry no hunk and no `+++` line; a missing newline inside a hunk counts
+        # on neither side.
+        diff = ("diff --git a/old.cpp b/new.cpp\nsimilarity index 100%\nrename from old.cpp\nrename to new.cpp\n"
+                "diff --git a/p.png b/p.png\nBinary files a/p.png and b/p.png differ\n"
+                "diff --git a/c.cpp b/c.cpp\n--- a/c.cpp\n+++ b/c.cpp\n@@ -1 +1,2 @@\n"
+                "-x\n\\ No newline at end of file\n+x\n+y\n")
+        files = diffs.parse(diff)
+        self.assertEqual([file.path for file in files], [None, None, "c.cpp"])
+        self.assertEqual(diffs.commentable(files), {"c.cpp": frozenset({1, 2})})
+        # The note stands where git wrote it, under no number, so the agent reads the file's end as it is.
+        self.assertEqual(diffs.numbered(files[2:]).splitlines()[2:6],
+                         ["       -x", "       \\ No newline at end of file", "     1 +x", "     2 +y"])
 
     def test_a_finding_stands_inline_only_where_the_diff_shows_its_line(self):
         parsed = answer.parse(json.dumps(pull_answer(findings=[

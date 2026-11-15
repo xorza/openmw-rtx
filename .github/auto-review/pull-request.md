@@ -9,9 +9,11 @@ never fixes, and nothing it says approves or blocks the merge.
 In `.review/`, which the step before you wrote:
 
 - `item.json` and `body.md`: the pull request, its author, whether it is a draft, its head and merge base;
-- `diff.patch`: the change against its merge base with `master`;
-- `pr-head/`: every file the change adds or changes, as the pull request has it. Every other file is as
-  `master` has it in the tree you stand in; `skipped.txt` names links and submodules not written;
+- `changes.txt`: the change against its merge base with `master`, each line after the number it has in the
+  pull request's file, blank for a line the change removes; `diff.patch` is the same as git wrote it;
+- `pr-head/`: every file the change adds or changes, as the pull request has it. The tree you stand in is
+  `master` as it is now, which may have moved since the pull request's merge base: read a changed file in
+  `pr-head/`, never at its path in the tree. `skipped.txt` names links and submodules not written;
 - `discussion.md`: what people said on it, the latest of each kind;
 - `checks.txt`: CI's checks at the head, where they ran. CI builds, tests and lints the change, clang-tidy
   included; you run nothing, and a check only a machine with a card runs (`omw gate`, `repeat`, `shot`,
@@ -49,9 +51,10 @@ contributor, who may be new: plain, courteous, specific, each finding something 
 
 - Each finding takes a Conventional Comments label — `issue`, `todo`, `question`, `suggestion`, `nitpick`,
   `praise` — and `blocking` where you would hold the merge for it. A bug is an `issue`, blocking.
-- A finding about a line names its `path` and its `line` as the pull request has the file; it stands on that
-  line where the diff shows it, and in the review's body where it does not. A finding about the change as a whole
-  has an empty path.
+- A finding about a line names its `path` and its `line`, the number `changes.txt` shows beside it, which is the
+  line in `pr-head/` and never one of `master`'s copy. It stands on that line in the pull request; a line
+  `changes.txt` does not show, or a finding about the change as a whole with an empty path, stands in the review's
+  body.
 - At most 30 findings, most severe first; where there are more, the minor ones go unsaid.
 - Where the diff is too large to read whole, read what matters most and say in `coverage` what you read.
 - Name no tool, product or vendor of what wrote the review, and no person by a mention.
