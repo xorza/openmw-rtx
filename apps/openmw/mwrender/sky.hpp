@@ -22,6 +22,10 @@ namespace osg
 namespace osgParticle
 {
     class ParticleSystem;
+}
+
+namespace NifOsg
+{
     class BoxPlacer;
 }
 
@@ -214,7 +218,7 @@ namespace MWRender
 
         osg::ref_ptr<osg::Group> mRainNode;
         osg::ref_ptr<osgParticle::ParticleSystem> mRainParticleSystem;
-        osg::ref_ptr<osgParticle::BoxPlacer> mPlacer;
+        osg::ref_ptr<NifOsg::BoxPlacer> mPlacer;
         osg::ref_ptr<RainCounter> mCounter;
         osg::ref_ptr<RainShooter> mRainShooter;
 

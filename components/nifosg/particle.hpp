@@ -2,6 +2,7 @@
 
 #include <optional>
 
+#include <osgParticle/BoxPlacer>
 #include <osgParticle/Counter>
 #include <osgParticle/Emitter>
 #include <osgParticle/Operator>
@@ -96,6 +97,23 @@ namespace NifOsg
         float mVerticalAngle;
         float mLifetime;
         float mLifetimeRandom;
+    };
+
+    /// `osgParticle::BoxPlacer` drawing from `Misc::Rng`, as `ParticleShooter` does, and not from the C library's
+    /// `rand`, which a graphics driver draws from too, on the frame's thread and as often as it likes: a seeded run
+    /// would place every particle elsewhere from one run to the next.
+    class BoxPlacer : public osgParticle::BoxPlacer
+    {
+    public:
+        BoxPlacer() = default;
+        BoxPlacer(const BoxPlacer& copy, const osg::CopyOp& copyop = osg::CopyOp::SHALLOW_COPY);
+
+        BoxPlacer& operator=(const BoxPlacer&) = delete;
+        ~BoxPlacer() override = default;
+
+        META_Object(NifOsg, BoxPlacer)
+
+        void place(osgParticle::Particle* particle) const override;
     };
 
     class PlanarCollider : public osgParticle::Operator

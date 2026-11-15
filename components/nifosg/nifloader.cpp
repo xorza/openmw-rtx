@@ -27,7 +27,6 @@
 #include <components/resource/imagemanager.hpp>
 
 // particle
-#include <osgParticle/BoxPlacer>
 #include <osgParticle/ConstantRateCounter>
 #include <osgParticle/ModularProgram>
 #include <osgParticle/Operator>
@@ -1429,7 +1428,7 @@ namespace NifOsg
                 }
                 else
                 {
-                    auto* placer = new osgParticle::BoxPlacer;
+                    auto* placer = new BoxPlacer;
                     placer->setXRange(-partctrl->mEmitterDimensions.x() / 2.f, partctrl->mEmitterDimensions.x() / 2.f);
                     placer->setYRange(-partctrl->mEmitterDimensions.y() / 2.f, partctrl->mEmitterDimensions.y() / 2.f);
                     placer->setZRange(-partctrl->mEmitterDimensions.z() / 2.f, partctrl->mEmitterDimensions.z() / 2.f);

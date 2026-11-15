@@ -39,6 +39,11 @@ the lines each item names, which the merge resolves by keeping the seam:
 
 **The rest of the tree.**
 
+- `NifOsg::BoxPlacer`, an `osgParticle::BoxPlacer` that draws from `Misc::Rng`, as `ParticleShooter` does, in place
+  of osgParticle's at a NIF emitter (`nifloader.cpp`) and the sky's rain and snow (`sky.cpp`), by the user's
+  decision: osgParticle's draws from the C library's `rand`, which NVIDIA's driver draws from too, inside
+  `vkQueueSubmit2` on the frame's thread and as often as it likes, so two runs of one seed placed every particle
+  elsewhere. The cost is a conflict with an upstream edit to those two lines.
 - `SceneUtil::registerSerializers` called by `Resource::SceneManager` as it is made, and without its
   `skipGeometry` flag, by the user's decision: upstream's `SceneUtil::Material` wrapper was registered by the
   editor alone, so the game read the error marker and every `.osgt` model naming the class without its material

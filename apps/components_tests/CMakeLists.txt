@@ -71,6 +71,7 @@ target_sources(
         nifloader/testbulletnifloader.cpp
         nifosg/testcontroller.cpp
         nifosg/testnifloader.cpp
+        nifosg/testparticle.cpp
         platform/appendfile.cpp
         platform/folder.cpp
         platform/localtime.cpp

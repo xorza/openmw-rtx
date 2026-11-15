@@ -216,6 +216,23 @@ namespace NifOsg
             std::numeric_limits<float>::epsilon(), mLifetime + mLifetimeRandom * Misc::Rng::rollClosedProbability()));
     }
 
+    BoxPlacer::BoxPlacer(const BoxPlacer& copy, const osg::CopyOp& copyop)
+        : osgParticle::BoxPlacer(copy, copyop)
+    {
+    }
+
+    void BoxPlacer::place(osgParticle::Particle* particle) const
+    {
+        const auto draw = [](const osgParticle::rangef& range) {
+            return range.minimum + (range.maximum - range.minimum) * Misc::Rng::rollClosedProbability();
+        };
+        // One axis a statement, as a constructor's arguments are evaluated in no fixed order and the stream is shared.
+        const float x = draw(getXRange());
+        const float y = draw(getYRange());
+        const float z = draw(getZRange());
+        particle->setPosition(getCenter() + osg::Vec3f(x, y, z));
+    }
+
     GrowFadeAffector::GrowFadeAffector(float growTime, float fadeTime)
         : mGrowTime(growTime)
         , mFadeTime(fadeTime)

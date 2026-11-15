@@ -3,7 +3,6 @@
 #include <osg/Depth>
 #include <osg/PositionAttitudeTransform>
 
-#include <osgParticle/BoxPlacer>
 #include <osgParticle/ModularEmitter>
 #include <osgParticle/ModularProgram>
 #include <osgParticle/Operator>
@@ -427,7 +426,7 @@ namespace MWRender
         osg::ref_ptr<osgParticle::ModularEmitter> emitter = new osgParticle::ModularEmitter;
         emitter->setParticleSystem(mRainParticleSystem);
 
-        osg::ref_ptr<osgParticle::BoxPlacer> placer = new osgParticle::BoxPlacer;
+        osg::ref_ptr<NifOsg::BoxPlacer> placer = new NifOsg::BoxPlacer;
         placer->setXRange(-rainRange.x() / 2, rainRange.x() / 2);
         placer->setYRange(-rainRange.y() / 2, rainRange.y() / 2);
         placer->setZRange(-rainRange.z() / 2, rainRange.z() / 2);
