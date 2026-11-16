@@ -17,6 +17,7 @@
 #include <apps/rtxtool/harnessfolder.hpp>
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <apps/rtxtool/model/blockfile.hpp>
+#include <apps/rtxtool/model/expectations.hpp>
 #include <apps/rtxtool/model/viewfile.hpp>
 #include <apps/rtxtool/verbs.hpp>
 #include <components/files/conversion.hpp>
@@ -137,6 +138,11 @@ namespace RtxTool
                 for (const std::string& name : suite.mViews)
                     EXPECT_NE(findView(views, name), nullptr)
                         << "suite \"" << suite.mName << "\" names \"" << name << "\", which views.cfg has not got";
+
+            // And what each mod list's tour names as known (`--expected`), read whole: the repack's four, the PBR
+            // profile's three.
+            EXPECT_EQ(Expectations::load(expectationsFile("mfr")).getEntries().size(), 4u);
+            EXPECT_EQ(Expectations::load(expectationsFile("pbr")).getEntries().size(), 3u);
         }
     }
 

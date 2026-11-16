@@ -85,7 +85,7 @@ namespace RtxTool
 
         /// **A run's status tells "differed" from "failed"**: a run that only differed from its
         /// reference answers differed, one that failed answers failed whatever else differed, and
-        /// a failed check is a failure.
+        /// a failed check is a failure, but for a run that watches for findings, whose table judges it.
         TEST(RtxRunRecordTest, aRunThatDifferedIsToldApartFromOneThatFailed)
         {
             EXPECT_EQ(RunRecord().conclude(nullptr).mExitStatus, ExitStatus::Passed);
@@ -112,6 +112,15 @@ namespace RtxTool
             EXPECT_EQ(checked.conclude(nullptr).mExitStatus, ExitStatus::Failed);
             EXPECT_EQ(checked.takeFailedChecks(), (std::vector<Check>{ Check::GroundStands, Check::Finite }));
             EXPECT_TRUE(checked.takeFailedChecks().empty()) << "taken once";
+
+            // A tour's failed check is one of its findings, which the content may be known to meet.
+            SessionRequest touring;
+            touring.mWatching = SessionRequest::Watching{};
+            RunRecord watched;
+            watched.begin(touring);
+            watched.checked(Check::TexturesReadable, false);
+            EXPECT_EQ(watched.conclude(nullptr).mExitStatus, ExitStatus::Passed) << "the record judged a finding";
+            EXPECT_EQ(watched.takeFailedChecks(), (std::vector<Check>{ Check::TexturesReadable }));
 
             // **A stop passed over fails the run where somebody named it**, and not where it came of every view.
             RunRecord passed;

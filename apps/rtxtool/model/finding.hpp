@@ -7,12 +7,14 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include <components/rtx/world/weather.hpp>
 
 #include "benchrun.hpp"
 #include "exitstatus.hpp"
+#include "expectations.hpp"
 #include "findingkind.hpp"
 #include "measurewindow.hpp"
 
@@ -69,6 +71,9 @@ namespace RtxTool
         std::string mNote;
         std::uint32_t mCount = 0;
         double mWorstMs = 0.0;
+
+        /// Whether the content is known to meet it (`Expectations`), which fails no run.
+        bool mExpected = false;
     };
 
     /// What one meeting of a finding came to: its figure, how many times it is counted, and what it came to where
@@ -89,6 +94,14 @@ namespace RtxTool
     public:
         static constexpr std::size_t sMost = 2048;
 
+        FindingTable() = default;
+
+        /// A table that holds what `expected` names as the content's known findings, which fail no run.
+        explicit FindingTable(Expectations expected)
+            : mExpected(std::move(expected))
+        {
+        }
+
         /// Whether counting a finding of `kind` and `detail` with figure `ms` takes its place, which a caller asks
         /// before it takes one: one not held with room for it, or one placed at its worst that `ms` is worse than.
         bool takesPlace(FindingKind kind, std::string_view detail, double ms = 0.0) const;
@@ -106,14 +119,19 @@ namespace RtxTool
         /// How many findings of `kind` were met past the bound.
         std::uint32_t getDropped(FindingKind kind) const { return mDropped[static_cast<std::size_t>(kind)]; }
 
-        /// Failed where a fault was found or a cost `failOn` names, held or dropped, else passed.
+        /// Failed where a fault was found or a cost `failOn` names, held or dropped, that is not expected, else passed.
         ExitStatus statusUnder(std::span<const FindingKind> failOn) const;
+
+        /// What the content is known to meet that this run never met: an expectation gone stale, which the report
+        /// names so its file is kept to what the content still does.
+        std::vector<const Expectation*> getUnmet() const;
 
     private:
         const Finding* find(FindingKind kind, std::string_view detail) const;
         Finding* find(FindingKind kind, std::string_view detail);
         bool hasRoom(FindingKind kind) const;
 
+        Expectations mExpected;
         std::vector<Finding> mFindings;
         std::size_t mFaults = 0;
         std::array<std::uint32_t, static_cast<std::size_t>(FindingKind::Count)> mDropped{};

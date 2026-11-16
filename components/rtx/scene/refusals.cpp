@@ -1,6 +1,8 @@
 #include "refusals.hpp"
 
 #include <algorithm>
+#include <cstdint>
+#include <functional>
 #include <string>
 
 #include <components/debug/debuglog.hpp>
@@ -47,12 +49,13 @@ namespace Rtx
     void Refusals::refuse(Refused kind, std::string_view name, std::string_view why)
     {
         const Key key(kind, name, why);
-        constexpr KeyedLess<Key, KeyOf> less;
-        const auto at = std::lower_bound(mNamed.begin(), mNamed.end(), key, less);
-        if (at != mNamed.end() && !less(key, *at))
+        const auto keyAt = [&](const std::uint32_t at) { return KeyOf{}(mNamed[at]); };
+        const auto at = std::ranges::lower_bound(mSorted, key, std::less<>(), keyAt);
+        if (at != mSorted.end() && keyAt(*at) == key)
             return;
 
-        mNamed.insert(at, Refusal{ .mKind = kind, .mName = std::string(name), .mWhy = std::string(why) });
+        mSorted.insert(at, static_cast<std::uint32_t>(mNamed.size()));
+        mNamed.push_back(Refusal{ .mKind = kind, .mName = std::string(name), .mWhy = std::string(why) });
         ++mCounts[static_cast<std::size_t>(kind)];
 
         const Wording& wording = sWording[static_cast<std::size_t>(kind)];

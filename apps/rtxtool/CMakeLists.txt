@@ -33,7 +33,9 @@ target_sources(
         model/cameratrack.cpp
         model/cruise.cpp
         model/film.cpp
+        model/expectations.cpp
         model/finding.cpp
+        model/restreuse.cpp
         model/logtally.cpp
         model/measurewindow.cpp
         model/pictureshelf.cpp
@@ -86,7 +88,9 @@ target_sources(
                 model/cruise.hpp
                 model/exitstatus.hpp
                 model/film.hpp
+                model/expectations.hpp
                 model/finding.hpp
+                model/restreuse.hpp
                 model/findingkind.hpp
                 model/logtally.hpp
                 model/measurewindow.hpp
@@ -132,6 +136,16 @@ foreach(file IN ITEMS ${RTX_VIEWS_FILE} ${RTX_SUITES_FILE})
     configure_file("${PROJECT_SOURCE_DIR}/files/rtx/${file}" "${RTX_HARNESS_DIR}/${file}" COPYONLY)
 endforeach()
 
+# What each content is known to meet on a tour, by its name (`--expected`).
+set(RTX_EXPECTED_FOLDER expected)
+foreach(content IN ITEMS mfr pbr)
+    configure_file(
+        "${PROJECT_SOURCE_DIR}/files/rtx/expected/${content}.cfg"
+        "${RTX_HARNESS_DIR}/${RTX_EXPECTED_FOLDER}/${content}.cfg"
+        COPYONLY
+    )
+endforeach()
+
 # The keys a watched run answers to, as the harness's own data directory: `hosted.cpp` adds it
 # wherever there is a window, and the played game never does.
 set(RTX_KEYS_FOLDER vfs)
@@ -150,6 +164,7 @@ target_compile_definitions(
         OPENMW_RTX_VIEWS_FILE="${RTX_HARNESS_DIR}/${RTX_VIEWS_FILE}"
         OPENMW_RTX_SUITES_FILE="${RTX_HARNESS_DIR}/${RTX_SUITES_FILE}"
         OPENMW_RTX_KEYS_DIR="${RTX_HARNESS_DIR}/${RTX_KEYS_FOLDER}"
+        OPENMW_RTX_EXPECTED_DIR="${RTX_HARNESS_DIR}/${RTX_EXPECTED_FOLDER}"
         OPENMW_RTX_SPIRV_DIR="${RTX_SPIRV_DIR}"
         OPENMW_RTX_SPIRV_SOURCE_DIR="${RTX_SPIRV_SOURCE_DIR}"
         OPENMW_RTX_SPIRV_CENSUS_DIR="${RTX_SPIRV_CENSUS_DIR}"

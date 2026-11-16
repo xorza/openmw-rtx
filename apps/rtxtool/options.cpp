@@ -24,6 +24,7 @@
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <apps/rtxtool/model/benchspec.hpp>
 #include <apps/rtxtool/model/blockfile.hpp>
+#include <apps/rtxtool/model/expectations.hpp>
 #include <apps/rtxtool/model/film.hpp>
 #include <apps/rtxtool/model/finding.hpp>
 #include <apps/rtxtool/model/skycrossing.hpp>
@@ -40,6 +41,7 @@
 #include <components/rtx/world/weather.hpp>
 
 #include "framed.hpp"
+#include "harnessfolder.hpp"
 #include "noise.hpp"
 #include "numbervalue.hpp"
 #include "verbs.hpp"
@@ -816,6 +818,9 @@ namespace RtxTool
             "the costs that fail a tour beside its faults, comma separated: hitch, slow-frames, log-warning, growth. "
             "A fault always fails it: a store not finite, a refusal, a failed check, an error in the log, an outrun "
             "cell, a leg that failed");
+        option({ Verb::Tour }, "expected", bpo::value<std::string>()->default_value(""),
+            "the content whose known findings fail no tour, by name: rtxtool/expected/<name>.cfg, sections each naming "
+            "a finding's kind and its detail as the report spells them; a tour says which of them it never met");
         option({ Verb::Film }, "still", number(atLeast(0.0f, true))->default_value(pacing.mStillSeconds),
             "how long a key with no key either side of it stands, and a segment where nothing changes");
         option({ Verb::Film }, "cut-distance", number(atLeast(0.0f))->default_value(pacing.mCutDistance),
@@ -1100,6 +1105,8 @@ namespace RtxTool
                 throw std::runtime_error(std::format("--fail-on names no kind of finding called \"{}\"", kind));
             tour.mFailOn.push_back(*found);
         }
+        if (const std::string& expected = text("expected"); !expected.empty())
+            tour.mExpected = Expectations::load(expectationsFile(expected));
 
         ToolLine::Game& game = line.mGame;
         game.mContent = strings("content");

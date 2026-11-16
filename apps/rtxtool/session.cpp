@@ -48,7 +48,7 @@ namespace RtxTool
         if (mRequest.mStops.empty() && !mRequest.mPlanWhereTheWorldStands)
             mDone = true;
         if (mRequest.mWatching.has_value())
-            mWatch.emplace(worldStep(mRequest.mStep), mRequest.mWatching->mPaced);
+            mWatch.emplace(worldStep(mRequest.mStep), mRequest.mWatching->mPaced, mRequest.mWatching->mExpected);
     }
 
     Session::~Session()
@@ -126,7 +126,7 @@ namespace RtxTool
     {
         const SessionRequest::Watching& watching = *mRequest.mWatching;
         mWatch->drainLog();
-        std::string text = describeFindings(mWatch->getTable());
+        std::string text = describeFindings(mWatch->getTable()) + mWatch->getRestReuse().describe();
         text
             += std::format("\nflown through {}, stop {} of {}\n", currentStop().mName, mAt + 1, mRequest.mStops.size());
         if (const Result<void, std::string> written = writeReport(watching.mFindings, text); !written.isOk())
@@ -140,7 +140,7 @@ namespace RtxTool
             return;
         mWatch->drainLog();
         const FindingTable& table = mWatch->getTable();
-        mRecord.note(describeFindings(table));
+        mRecord.note(describeFindings(table) + mWatch->getRestReuse().describe());
         if (table.statusUnder(mRequest.mWatching->mFailOn) != ExitStatus::Passed)
             mRecord.fail();
     }

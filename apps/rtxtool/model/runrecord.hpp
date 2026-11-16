@@ -63,7 +63,9 @@ namespace RtxTool
         /// run fails at its end.
         void fail(const Stop& stop, std::string_view why);
 
-        /// Counts `check` and whether it held, keeping one that did not until `takeFailedChecks`.
+        /// Counts `check` and whether it held, keeping one that did not until `takeFailedChecks`. A check that did not
+        /// hold fails the run, unless the run watches for findings, whose table judges it as a finding
+        /// (`FindingKind::CheckFailed`), where the content may be known to meet it (`Expectations`).
         void checked(Check check, bool held);
 
         /// Writes the record as it stands where the request names one (`SessionRequest::mJson`), as a long run does
@@ -138,6 +140,9 @@ namespace RtxTool
         std::uint32_t mChecked = 0;
         std::uint32_t mFailed = 0;
         std::vector<Check> mFailedChecks;
+
+        /// Whether the run watches for findings (`SessionRequest::mWatching`), which judge its checks.
+        bool mChecksAreFindings = false;
 
         FrameHashes mHashes;
         FrameHashes mReference;

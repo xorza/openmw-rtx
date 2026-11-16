@@ -1,5 +1,8 @@
 #include "harnessfolder.hpp"
 
+#include <string>
+#include <string_view>
+
 #include <components/files/conversion.hpp>
 #include <components/rtxvulkan/createrenderer.hpp>
 
@@ -23,6 +26,12 @@ namespace RtxTool
     std::filesystem::path keysDirectory()
     {
         return std::filesystem::path(OPENMW_RTX_KEYS_DIR);
+    }
+
+    std::filesystem::path expectationsFile(const std::string_view name)
+    {
+        return std::filesystem::path(OPENMW_RTX_EXPECTED_DIR)
+            / Files::pathFromUnicodeString(std::string(name) + ".cfg");
     }
 
     HarnessShaders::HarnessShaders(const Verb verb, const bool source)

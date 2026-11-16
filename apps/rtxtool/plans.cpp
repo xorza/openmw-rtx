@@ -451,9 +451,10 @@ namespace RtxTool
         request.mSetup.mInterface = true;
         request.mWhenAStopFails = WhenAStopFails::GoesOn;
         request.mPlansOnly = line.mPlan;
-        request.mWatching = SessionRequest::Watching{
-            .mFailOn = line.mFailOn, .mPaced = line.mPaced, .mFindings = out / "findings.txt"
-        };
+        request.mWatching = SessionRequest::Watching{ .mFailOn = line.mFailOn,
+            .mPaced = line.mPaced,
+            .mFindings = out / "findings.txt",
+            .mExpected = line.mExpected };
         request.mJson = out / "tour.json";
         request.mHomePictures = out / "marks";
         request.mPlanWhereTheWorldStands = [pacing, line, profile, readMap = std::move(readMap),

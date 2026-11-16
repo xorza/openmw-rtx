@@ -24,6 +24,7 @@ namespace RtxTool
         mHeader.mMeasures = request.mMeasures;
         mHeader.mPlayed = request.mPlayed;
         mKeepsPictures = request.mKeepsPictures;
+        mChecksAreFindings = request.mWatching.has_value();
         mHeader.mHashed = std::any_of(
             request.mStops.begin(), request.mStops.end(), [](const Stop& stop) { return stop.mActions.mHash; });
         mHeader.mTurnsWeather = std::any_of(request.mStops.begin(), request.mStops.end(),
@@ -99,7 +100,8 @@ namespace RtxTool
             return;
         ++mFailed;
         mFailedChecks.push_back(check);
-        fail();
+        if (!mChecksAreFindings)
+            fail();
     }
 
     void RunRecord::skip(const Stop& stop, const std::string_view why)

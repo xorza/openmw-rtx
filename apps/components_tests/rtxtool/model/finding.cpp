@@ -1,6 +1,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <sstream>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -9,7 +11,9 @@
 #include <osg/Vec3f>
 
 #include <apps/rtxtool/model/benchrun.hpp>
+#include <apps/rtxtool/model/blockfile.hpp>
 #include <apps/rtxtool/model/exitstatus.hpp>
+#include <apps/rtxtool/model/expectations.hpp>
 #include <apps/rtxtool/model/finding.hpp>
 #include <apps/rtxtool/model/measurewindow.hpp>
 #include <components/rtx/renderer/framespend.hpp>
@@ -167,6 +171,52 @@ namespace RtxTool
             EXPECT_EQ(full.statusUnder(hitches), ExitStatus::Failed);
         }
 
+        /// **What the content is known to meet fails no run** (`Expectations`): a refusal named by its kind and detail
+        /// is known and passes, the same kind with another detail is a fault, and an expectation nothing met is unmet.
+        /// The file is refused where a section misses its detail, names a field it has not, a kind no finding has, or
+        /// a kind and detail an earlier section named.
+        TEST(RtxFindingTest, whatTheContentIsKnownToMeetFailsNoRun)
+        {
+            const auto read = [](const std::string& text) {
+                std::istringstream in(text);
+                return Expectations(BlockFile(in, "expected.cfg"));
+            };
+            const Expectations expected = read(
+                "[the neck's colour is a normal map]\n"
+                "kind = refused\n"
+                "detail = a texture \"textures/tx_neck.dds\"\n"
+                "[a blend no trace makes]\n"
+                "kind = refused\n"
+                "detail = a surface's state \"textures/well.dds\"\n");
+            ASSERT_EQ(expected.getEntries().size(), 2u);
+            EXPECT_EQ(expected.getEntries()[0].mName, "the neck's colour is a normal map");
+            EXPECT_TRUE(expected.expects(FindingKind::Refused, "a texture \"textures/tx_neck.dds\""));
+            EXPECT_FALSE(expected.expects(FindingKind::CheckFailed, "a texture \"textures/tx_neck.dds\""));
+
+            FindingTable table(expected);
+            table.add(FindingKind::Refused, "a texture \"textures/tx_neck.dds\"", placeAt("leg-1", 3));
+            EXPECT_EQ(table.statusUnder({}), ExitStatus::Passed);
+            ASSERT_EQ(table.getUnmet().size(), 1u);
+            EXPECT_EQ(table.getUnmet()[0]->mName, "a blend no trace makes");
+
+            const std::string known = describeFindings(table);
+            EXPECT_NE(known.find("tour findings: 0 faults, 0 costs and marks, 1 expected\n"), std::string::npos)
+                << known;
+            EXPECT_NE(known.find("UNMET [a blend no trace makes] refused: a surface's state \"textures/well.dds\"\n"),
+                std::string::npos)
+                << known;
+            EXPECT_NE(known.find("known refused: a texture \"textures/tx_neck.dds\"\n"), std::string::npos) << known;
+
+            table.add(FindingKind::Refused, "a texture \"textures/tx_other.dds\"", placeAt("leg-2", 0));
+            EXPECT_EQ(table.statusUnder({}), ExitStatus::Failed) << "another texture of the kind";
+
+            for (const std::string& broken : { std::string("[no detail]\nkind = refused\n"),
+                     std::string("[a field it has not]\nkind = refused\ndetail = a mesh\nwhy = x\n"),
+                     std::string("[no such kind]\nkind = refusal\ndetail = a mesh\n"),
+                     std::string("[one]\nkind = refused\ndetail = a mesh\n[two]\nkind = refused\ndetail = a mesh\n") })
+                EXPECT_THROW(read(broken), std::runtime_error) << broken;
+        }
+
         /// **The report puts the faults first and the costs worst first**, each once with its count and where it is
         /// placed, under its hour and the sky as it crossed where they are known, what it came to there, the block
         /// to stand there again, and what fell past the bound by kind.
@@ -197,8 +247,8 @@ namespace RtxTool
             ASSERT_NE(better, std::string::npos) << text;
             EXPECT_LT(fault, worse);
             EXPECT_LT(worse, better);
-            EXPECT_NE(
-                text.find("tour findings: 1 faults, 2048 costs and marks, past the table's bound: 3 log-warning\n"),
+            EXPECT_NE(text.find("tour findings: 1 faults, 2048 costs and marks, 0 expected, past the table's bound: 3 "
+                                "log-warning\n"),
                 std::string::npos)
                 << text;
             EXPECT_NE(text.find("  worst at leg-2-land-0,1 frame 40, day 3 18:30 under Rain to Snow 25%\n"

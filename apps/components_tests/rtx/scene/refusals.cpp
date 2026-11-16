@@ -46,6 +46,17 @@ namespace Rtx
             };
             refusals.refuse(held);
             EXPECT_EQ(refusals.count(Refused::Model), 2u) << "one new, and one already reported";
+
+            // **Each in the order it was met**, once, which is how a tour reads the new ones off the end.
+            std::vector<std::string> met;
+            for (const Refusal& refusal : refusals.getMet())
+                met.push_back(refusal.mName + ": " + refusal.mWhy);
+            EXPECT_EQ(met,
+                (std::vector<std::string>{ "Tri Shape 0: its triangles name vertex 4 of 4",
+                    "Tri Shape 0: it has 3 normals for 4 vertices", "Tri Shape 1: its triangles name vertex 4 of 4",
+                    "Tri Shape 0: its triangles name vertex 4 of 4", ": a number it is made of is not finite",
+                    "meshes/x.nif: its skin names vertex 9 of 8" }));
+            EXPECT_EQ(refusals.getMet()[3].mKind, Refused::Model) << "a model's, met after the meshes";
         }
 
         /// A refusal met again reaches the heap not at all, which is what lets a value refused on

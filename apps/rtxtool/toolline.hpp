@@ -11,6 +11,7 @@
 
 #include <apps/rtxtool/model/benchrun.hpp>
 #include <apps/rtxtool/model/benchspec.hpp>
+#include <apps/rtxtool/model/expectations.hpp>
 #include <apps/rtxtool/model/film.hpp>
 #include <apps/rtxtool/model/findingkind.hpp>
 #include <apps/rtxtool/model/tour.hpp>
@@ -214,6 +215,9 @@ namespace RtxTool
 
             /// The costs that fail the run beside the faults (`--fail-on`).
             std::vector<FindingKind> mFailOn;
+
+            /// What the content is known to meet (`--expected`), which fails no run.
+            Expectations mExpected;
 
             /// Whether the frames are held to the step, the world's second the wall's (`--pace=real`), or flown as
             /// fast as the card draws them.

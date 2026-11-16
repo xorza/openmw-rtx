@@ -11,9 +11,11 @@
 
 #include <apps/openmw/mwrender/rtx/framereport.hpp>
 #include <apps/rtxtool/model/benchrun.hpp>
+#include <apps/rtxtool/model/expectations.hpp>
 #include <apps/rtxtool/model/finding.hpp>
 #include <apps/rtxtool/model/logtally.hpp>
 #include <apps/rtxtool/model/measurewindow.hpp>
+#include <apps/rtxtool/model/restreuse.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/world/frameworld.hpp>
 
@@ -31,7 +33,8 @@ namespace RtxTool
     public:
         /// @param stepSeconds the run's step, which is the frame budget: a slow frame is over it.
         /// @param paced whether the frames are held to the step, where a slow frame is the limiter's.
-        TourWatch(float stepSeconds, bool paced);
+        /// @param expected what the content is known to meet, which fails no run (`--expected`).
+        TourWatch(float stepSeconds, bool paced, Expectations expected);
 
         /// A leg begins.
         void begin(const Stop& stop);
@@ -52,6 +55,9 @@ namespace RtxTool
 
         /// Where the watcher pressed Home.
         void mark(StandingNote& note);
+
+        /// How the textures came back from rest over the tour (`RestReuse`).
+        const RestReuse& getRestReuse() const { return mRestReuse; }
 
         /// What the log is heard by, from any thread.
         LogTally& getLog() { return mLog; }
@@ -86,8 +92,11 @@ namespace RtxTool
         std::vector<const void*> mActive;
         std::vector<const void*> mLastActive;
 
-        /// The refusals counted so far, by kind, so a frame's new ones are the difference.
-        std::array<std::uint32_t, Rtx::sRefusedKinds> mRefused{};
+        /// How many of the scene's refusals, in the order met, are counted so far, so a frame's new ones are the rest.
+        std::size_t mRefusalsRead = 0;
+
+        /// How the textures came back from rest over the tour.
+        RestReuse mRestReuse;
 
         /// The columns of the leg's cells a frame stood whole in while the player was there.
         std::vector<int> mCovered;

@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <format>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -35,9 +36,10 @@ namespace RtxTool
             "a sky layer", "a moon", "a lamp", "an emitter", "an emitter's sprites", "a surface's state" };
     }
 
-    TourWatch::TourWatch(const float stepSeconds, const bool paced)
+    TourWatch::TourWatch(const float stepSeconds, const bool paced, Expectations expected)
         : mBudgetMs(static_cast<double>(stepSeconds) * 1000.0)
         , mPaced(paced)
+        , mTable(std::move(expected))
     {
         // The active grid's cells, which the game keeps active at once, with room for a frame that holds an old grid
         // beside a new one.
@@ -107,14 +109,20 @@ namespace RtxTool
             for (const Rtx::NotFiniteStores& stores : report.mResult->mNotFinite.kernels())
                 add(FindingKind::NotFinite, stores.mKernel, note);
 
-        const Rtx::Refusals& refusals = context.mMirror.getScene().refusals();
-        for (std::size_t kind = 0; kind < Rtx::sRefusedKinds; ++kind)
+        // **Each new refusal by its kind and its name**, as the log names it, so an expected one is told apart from
+        // another of its kind (`Expectations`). A scene made again begins its record from nothing.
+        const std::span<const Rtx::Refusal> met = context.mMirror.getScene().refusals().getMet();
+        if (met.size() < mRefusalsRead)
+            mRefusalsRead = 0;
+        for (const Rtx::Refusal& refusal : met.subspan(mRefusalsRead))
         {
-            const std::uint32_t count = refusals.count(static_cast<Rtx::Refused>(kind));
-            if (count > mRefused[kind])
-                add(FindingKind::Refused, sRefusedNames[kind], note);
-            mRefused[kind] = count;
+            const std::string_view kind = sRefusedNames[static_cast<std::size_t>(refusal.mKind)];
+            add(FindingKind::Refused,
+                refusal.mName.empty() ? std::string(kind) : std::format("{} \"{}\"", kind, refusal.mName), note);
         }
+        mRefusalsRead = met.size();
+
+        mRestReuse.read(context.mMirror.getScene());
 
         // How many cells the game made active on this frame: its loads, which run on the frame's own thread.
         const MWWorld::Scene::CellStoreCollection& active

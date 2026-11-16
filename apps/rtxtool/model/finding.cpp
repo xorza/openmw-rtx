@@ -153,7 +153,8 @@ namespace RtxTool
             .mPlace = place,
             .mNote = std::string(met.mNote),
             .mCount = met.mTimes,
-            .mWorstMs = met.mMs });
+            .mWorstMs = met.mMs,
+            .mExpected = mExpected.expects(kind, detail) });
     }
 
     void FindingTable::count(const FindingKind kind, const std::string_view detail, const double ms)
@@ -173,12 +174,22 @@ namespace RtxTool
         for (const KindRow& row : sKinds)
         {
             const bool fails = row.mFault || std::ranges::find(failOn, row.mKind) != failOn.end();
-            const bool met = getDropped(row.mKind) > 0
-                || std::ranges::any_of(mFindings, [&](const Finding& finding) { return finding.mKind == row.mKind; });
+            const bool met = getDropped(row.mKind) > 0 || std::ranges::any_of(mFindings, [&](const Finding& finding) {
+                return finding.mKind == row.mKind && !finding.mExpected;
+            });
             if (fails && met)
                 return ExitStatus::Failed;
         }
         return ExitStatus::Passed;
+    }
+
+    std::vector<const Expectation*> FindingTable::getUnmet() const
+    {
+        std::vector<const Expectation*> unmet;
+        for (const Expectation& expected : mExpected.getEntries())
+            if (find(expected.mKind, expected.mDetail) == nullptr)
+                unmet.push_back(&expected);
+        return unmet;
     }
 
     void describeHitchKey(std::string& into, const std::string_view leg, const Rtx::FrameSpend& spend)
@@ -228,21 +239,33 @@ namespace RtxTool
 
     std::string describeFindings(const FindingTable& table)
     {
+        // What a finding is to the report: a fault, a cost, or one the content is known to meet, in that order.
+        const auto rank = [](const Finding& finding) {
+            if (finding.mExpected)
+                return 2;
+            return isFault(finding.mKind) ? 0 : 1;
+        };
+
         std::vector<const Finding*> ordered;
         for (const Finding& finding : table.getFindings())
             ordered.push_back(&finding);
-        // Faults first, by kind; then the costs, the worst first within a kind.
-        std::ranges::stable_sort(ordered, [](const Finding* a, const Finding* b) {
-            if (isFault(a->mKind) != isFault(b->mKind))
-                return isFault(a->mKind);
+        // Faults first, by kind; then the costs, the worst first within a kind; then the expected.
+        std::ranges::stable_sort(ordered, [&](const Finding* a, const Finding* b) {
+            if (rank(*a) != rank(*b))
+                return rank(*a) < rank(*b);
             if (a->mKind != b->mKind)
                 return a->mKind < b->mKind;
             return a->mWorstMs > b->mWorstMs;
         });
 
         std::size_t faults = 0;
+        std::size_t expected = 0;
         for (const Finding* finding : ordered)
-            faults += isFault(finding->mKind) ? 1 : 0;
+        {
+            faults += rank(*finding) == 0 ? 1 : 0;
+            expected += rank(*finding) == 2 ? 1 : 0;
+        }
+        const std::vector<const Expectation*> unmet = table.getUnmet();
 
         std::string dropped;
         for (const KindRow& row : sKinds)
@@ -250,12 +273,16 @@ namespace RtxTool
                 dropped
                     += std::format("{} {} {}", dropped.empty() ? ", past the table's bound:" : ",", count, row.mName);
 
-        std::string text = std::format(
-            "\ntour findings: {} faults, {} costs and marks{}\n", faults, ordered.size() - faults, dropped);
+        std::string text = std::format("\ntour findings: {} faults, {} costs and marks, {} expected{}\n", faults,
+            ordered.size() - faults - expected, expected, dropped);
+        for (const Expectation* stale : unmet)
+            text += std::format("\nUNMET [{}] {}: {}\n  expected and never met\n", stale->mName,
+                findingName(stale->mKind), stale->mDetail);
+        constexpr std::array<std::string_view, 3> sRanks{ "FAULT", "cost ", "known" };
         for (const Finding* finding : ordered)
         {
             const FindingPlace& place = finding->mPlace;
-            text += std::format("\n{} {}: {}{}{}\n  {} at {}\n", isFault(finding->mKind) ? "FAULT" : "cost ",
+            text += std::format("\n{} {}: {}{}{}\n  {} at {}\n", sRanks.at(static_cast<std::size_t>(rank(*finding))),
                 findingName(finding->mKind), finding->mDetail,
                 finding->mCount > 1 ? std::format(", {} times", finding->mCount) : "",
                 finding->mWorstMs > 0.0 ? std::format(", worst {:.1f} ms", finding->mWorstMs) : "",

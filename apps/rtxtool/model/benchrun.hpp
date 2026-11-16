@@ -25,6 +25,7 @@
 #include "benchspec.hpp"
 #include "cameratrack.hpp"
 #include "exitstatus.hpp"
+#include "expectations.hpp"
 #include "findingkind.hpp"
 #include "pictureshelf.hpp"
 
@@ -590,6 +591,9 @@ namespace RtxTool
             std::vector<FindingKind> mFailOn;
             bool mPaced = false;
             std::filesystem::path mFindings;
+
+            /// What the content is known to meet (`--expected`), which fails no run.
+            Expectations mExpected{};
         };
 
         /// Whether the run watches for findings (`TourWatch`), or nothing.

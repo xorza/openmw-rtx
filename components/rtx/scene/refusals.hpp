@@ -39,6 +39,10 @@ namespace Rtx
         /// How many distinct refusals of `kind` were reported.
         std::uint32_t count(Refused kind) const { return mCounts[static_cast<std::size_t>(kind)]; }
 
+        /// Every distinct refusal, in the order it was met: a reader that keeps how many it has read takes the new
+        /// ones off the end.
+        std::span<const Refusal> getMet() const { return mNamed; }
+
     private:
         /// What one refusal is told apart by: its kind, its name and its reason.
         using Key = std::tuple<Refused, std::string_view, std::string_view>;
@@ -48,11 +52,11 @@ namespace Rtx
             Key operator()(const Refusal& refusal) const { return Key(refusal.mKind, refusal.mName, refusal.mWhy); }
         };
 
-        /// Every distinct refusal met, sorted by its key and searched by one made of views, so a
-        /// repeat builds no string. A vector kept sorted by hand rather than a `flat_set`, which is
-        /// one, because this header reaches every file that includes the scene and Boost.Container
-        /// is the heaviest thing it would bring.
+        /// Every distinct refusal, in the order met, and its places in it sorted by key, searched by one made of views
+        /// so a repeat builds no string. A vector kept sorted by hand rather than a `flat_set`, because this header
+        /// reaches every file that includes the scene and Boost.Container is the heaviest thing it would bring.
         std::vector<Refusal> mNamed;
+        std::vector<std::uint32_t> mSorted;
         std::array<std::uint32_t, sRefusedKinds> mCounts{};
     };
 }

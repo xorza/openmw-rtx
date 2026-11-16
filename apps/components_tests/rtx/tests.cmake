@@ -125,6 +125,7 @@ target_sources(
         rtxtool/model/finding.cpp
         rtxtool/model/logtally.cpp
         rtxtool/model/measurewindow.cpp
+        rtxtool/model/restreuse.cpp
         rtxtool/model/runrecord.cpp
         rtxtool/model/skycrossing.cpp
         rtxtool/model/stopdescription.cpp

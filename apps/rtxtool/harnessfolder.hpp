@@ -28,6 +28,10 @@ namespace RtxTool
     /// does.
     std::filesystem::path keysDirectory();
 
+    /// What the content `name` is known to meet on a tour, `expected/<name>.cfg` in the harness's folder
+    /// (`--expected`), which a remote run carries with the folder.
+    std::filesystem::path expectationsFile(std::string_view name);
+
     /// The shaders `verb` reads, and what holds them: the ones the game compiles in, or one of the harness's
     /// other sets, read from its folder — the same modules compiled again with their source in them where
     /// `source` asks (for a profiler), and with the census where the verb's row asks for it (`VerbPolicy::mShaders`).
