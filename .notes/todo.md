@@ -9,7 +9,6 @@
 - Audit `#if`s, remove legacy.
 - Order includes canonically.
 - No upscaler.
-- actionlint and shellcheck over the workflows (`omw lint`), once an actionlint release reads `$/`: 1.7.11 does not say it does, and the fork jactionlint does.
 
 ## Open questions
 
@@ -23,7 +22,6 @@
 - Publish rgbcx.
 - AVX encoders.
 - Bake distant land into one mesh.
-- Optimize arrivals: a cell's load is a 70–250 ms frame (update, interface, place).
 
 ## Prompts
 
