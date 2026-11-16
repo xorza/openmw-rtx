@@ -495,8 +495,10 @@ namespace Rtx
     std::optional<ArrivalRoom> VulkanRenderer::getArrivalRoom(const SceneSlot slot) const
     {
         const DeviceScene& held = mScenes.at(slot);
+        const VideoBudget video = mDevice.getMemory().getVideoBudget();
         return ArrivalRoom{ .mFree = mDevice.getMemory().getRoom(MemoryUse::Texture),
-            .mBudget = mDevice.getMemory().getVideoBudget(),
+            .mBudget = video.mBudget,
+            .mHeld = video.mHeld,
             .mWanted = held.getWanted() };
     }
 

@@ -183,6 +183,14 @@ namespace Rtx
         MemoryUse mUse = MemoryUse::Essential;
     };
 
+    /// The video heap's budget for this process, which the driver states as what is free and what the process holds
+    /// together, and what the process holds of the heap and keeps (`MemoryAllocator::getVideoBudget`).
+    struct VideoBudget
+    {
+        VkDeviceSize mBudget = 0;
+        VkDeviceSize mHeld = 0;
+    };
+
     /// The extensions of the device's memory that were enabled, which the allocator works with.
     struct MemoryExtensions
     {
@@ -262,9 +270,11 @@ namespace Rtx
         /// `tryTake` has the last word.
         VkDeviceSize getRoom(MemoryUse use) const;
 
-        /// What the video heap's budget allows this process, as the driver states it and `limitBudget` holds it: what
-        /// the content's resting share is a share of (`ArrivalRoom::mBudget`).
-        VkDeviceSize getVideoBudget() const;
+        /// What the video heap's budget allows this process, as the driver states it and `limitBudget` holds it, and
+        /// what the process holds of the heap: the driver's usage less what content's blocks have free and what is
+        /// buried, both of which content takes again. What the content that rests keeps a share of the rest of
+        /// (`ArrivalRoom`).
+        VideoBudget getVideoBudget() const;
 
         /// What `use` holds on `heap`, the ranges and not the blocks around them.
         VkDeviceSize getHeld(std::uint32_t heap, MemoryUse use) const;
@@ -363,6 +373,9 @@ namespace Rtx
         /// the driver's own memory. Taken off the budget as well, it stood twice under the ceiling, and a
         /// 7680 by 2160 swapchain of three images held two hundred megabytes of content out for nothing.
         VkDeviceSize ceilingOf(std::uint32_t heap, MemoryUse use, VkDeviceSize budget) const;
+
+        /// What content's blocks on the video heap have free: ranges content takes again before a new block.
+        VkDeviceSize getContentFree() const;
 
         const Device& mDevice;
         const VkPhysicalDeviceMemoryProperties& mMemory;

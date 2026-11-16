@@ -349,7 +349,9 @@ order. The folders keep the core's rule, in this order, with `VulkanRenderer` an
 - **One residency policy for the content**, by the user's decision: textures and static meshes follow one rule. Content
   nothing names rests on the device whole and its next take is its slot; everything resting stands under one byte limit
   in one order, the oldest freed first, as D3D12's residency model and VMA's budget treat a card
-  (`research/2026-11-16-texture-uploads-and-host-memory.md`). Refused: textures alone; a limit per kind.
+  (`research/2026-11-16-texture-uploads-and-host-memory.md`). A mesh counts what its eviction gives back, its
+  structure: its geometry stands in storage the device keeps whole (`BlockedBuffer`), whose runs later meshes take, so
+  counted it read as room freed and use gone where neither was. Refused: textures alone; a limit per kind.
 - **The limit is derived from the budget**, by the user's decision: what rests may stand nine tenths of what the
   driver's budget leaves of what is in use, read at each hand-over; live content is bounded by the budget alone
   (`SceneUploader::restLimitOf`, `research/2026-11-16-rest-reuse-and-device-budgets.md`). In use is the driver's usage

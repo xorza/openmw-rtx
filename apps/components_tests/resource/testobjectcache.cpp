@@ -7,6 +7,7 @@
 #include <atomic>
 #include <chrono>
 #include <cstdint>
+#include <latch>
 #include <memory>
 #include <optional>
 #include <stdexcept>
@@ -478,6 +479,11 @@ namespace Resource
 
         /// **A load that throws answers every waiter with its exception and leaves nothing behind**: no entry, no
         /// load in flight, so the next ask loads again.
+        ///
+        /// **The loader holds its catch until the waiter is joined.** Both catch one exception object, which
+        /// `std::rethrow_exception` shares; the last to end its catch frees it, through a count in libstdc++, which is
+        /// built without ThreadSanitizer. Where the loader ended last, the free was ordered after the waiter's read by
+        /// that count alone, which the sanitizer cannot see, and it reported a race.
         TEST(ResourceGenericObjectCacheTest, getOrLoadAnswersAThrowingLoadToItsWaitersAndLoadsAgainAfter)
         {
             SharedCache cache;
@@ -489,7 +495,23 @@ namespace Resource
             };
 
             std::optional<std::string> waiterSaw;
-            std::jthread loader([&] { EXPECT_THROW(cache.getOrLoad(42, failing), std::runtime_error); });
+            bool loaderThrew = false;
+            std::latch waiterJoined(1);
+            std::jthread loader([&] {
+                try
+                {
+                    cache.getOrLoad(42, failing);
+                }
+                catch (const std::runtime_error&)
+                {
+                    loaderThrew = true;
+                    waiterJoined.wait();
+                }
+                catch (...)
+                {
+                    ADD_FAILURE() << "the load threw something other than its own exception";
+                }
+            });
             EXPECT_TRUE(awaitWithin([&] { return loads == 1; }));
             std::jthread waiter([&] {
                 try
@@ -501,9 +523,11 @@ namespace Resource
                     waiterSaw = error.what();
                 }
             });
-            loader.join();
             waiter.join();
+            waiterJoined.count_down();
+            loader.join();
 
+            EXPECT_TRUE(loaderThrew);
             EXPECT_EQ(waiterSaw, "unreadable");
             EXPECT_EQ(loads, 1);
             EXPECT_EQ(cache.getRefFromObjectCacheOrNone(42), std::nullopt);

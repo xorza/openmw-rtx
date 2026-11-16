@@ -95,8 +95,8 @@ namespace Rtx
         /// holds it before anything can drop it.
         Index find(const MeshKey& key);
 
-        /// What the device stands of `mesh` whole: its geometry, the table's own figure, and its bottom-level
-        /// structure's `structureBytes`, the device's answer. What lets a static mesh rest, and what its rest holds.
+        /// What the device stands of `mesh`'s bottom-level structure, `structureBytes`, the device's answer: what lets
+        /// a static mesh rest, and what its rest holds (`MeshRange::mStoodBytes`).
         void stand(Index mesh, std::uint64_t structureBytes);
 
         /// The meshes that rest, oldest first (`RestQueue`): what the scene frees across its tables.
@@ -144,9 +144,6 @@ namespace Rtx
 
         /// Files the meshes that came to rest since the last, by their slots, at the clock `compact` was last given.
         void settleResting() { mResting.settle(mClock, placeOf()); }
-
-        /// What the device stands of `range`'s geometry: its runs of every vertex buffer it fills, and its indices.
-        static std::uint64_t geometryBytesOf(const MeshRange& range);
 
         /// Makes the five vertex buffers as long as the vertex runs reach and writes `range`'s run
         /// of each, and says in `MeshRange::mTangents` whether any tangent word is not nought. Fills

@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cstdint>
-#include <limits>
 #include <span>
 #include <string>
 #include <utility>
@@ -26,6 +25,7 @@
 #include "meshtable.hpp"
 #include "placementtable.hpp"
 #include "refusals.hpp"
+#include "restqueue.hpp"
 #include "ripple.hpp"
 #include "rowhold.hpp"
 #include "sceneroom.hpp"
@@ -274,21 +274,19 @@ namespace Rtx
         /// hand-over, which orders the rests of every table as one.
         void compact();
 
-        /// **What everything that rests may stand on the device** (`docs/architecture.md`, "One residency policy
-        /// for the content"): set by the uploader from the measured limit and the device's budget. Unbounded until
-        /// set, for a scene no backend bounds.
-        void setRestLimit(std::uint64_t bytes) { mRestLimit = bytes; }
+        /// What everything that rests may stand, set by the uploader from the device's budget at each hand-over.
+        void setRestLimit(const RestLimit& limit) { mRestLimit = limit; }
 
-        /// Frees what rests, the oldest to rest first across the tables, until it stands under the limit and
-        /// `room` more is given back, and answers the bytes given back: each slot reported freed by its table, its
-        /// device image the backend's to drop.
+        /// Frees what rests, the oldest to rest first across the tables, until `room` is given back and then while it
+        /// stands past the limit, a step more at most and a row at least; answers the bytes given back: each slot
+        /// reported freed by its table, its device image the backend's to drop.
         std::uint64_t evictResting(std::uint64_t room = 0);
 
         /// The bytes everything that rests stands on the device.
         std::uint64_t getRestingBytes() const;
 
-        /// What the device stands of `mesh`'s bottom-level structure, the device's answer (`DeviceAnswer`), beside
-        /// its geometry: what lets a static mesh rest, and what its rest holds.
+        /// What the device stands of `mesh`'s bottom-level structure, the device's answer (`DeviceAnswer`): what lets a
+        /// static mesh rest, and what its rest holds.
         void standMesh(Index mesh, std::uint64_t structureBytes);
 
         /// Forgets what arrived and what was freed, which a hand-over does once it has read both.
@@ -357,7 +355,7 @@ namespace Rtx
         /// The scene's clock, one tick a `compact`, which the tables file their rests at; and the limit on what
         /// rests.
         std::uint64_t mRestClock = 0;
-        std::uint64_t mRestLimit = std::numeric_limits<std::uint64_t>::max();
+        RestLimit mRestLimit;
         DeformerTable mDeformers;
 
         /// Every mesh, and the shared buffers its triangles live in.

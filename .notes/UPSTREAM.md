@@ -85,7 +85,9 @@ that touches `components/resource`, `bsa`, `files` or `platform/file*` resolves 
 
 - One load a key in flight (`GenericObjectCache::getOrLoad`), which `SceneManager::getTemplate`, `NifFileManager::get`,
   `ImageManager::getImage`, `KeyframeManager::get` and `BulletShapeManager::getShape` load through, each load a private
-  function; `CacheStats` counts loads, waits and reloads. Two threads that missed one model both loaded it.
+  function; `CacheStats` counts loads, waits and reloads. Two threads that missed one model both loaded it. Its test of
+  a throwing load holds the loader's catch until the waiter is joined, since the exception both share is freed through
+  a count in libstdc++, which ThreadSanitizer cannot see.
 - An archive opened once and read by position (`Platform::File::readAt`): `Bsa::BSAFile` holds a `Files::SharedFile`,
   and each entry's `ConstrainedFileStreamBuf` keeps its own position, where each entry opened the archive again (18,082
   opens of `Morrowind.bsa` in 75 s); POSIX `pread`, Windows `ReadFile` at an `OVERLAPPED`'s offset, the file shared for

@@ -399,6 +399,7 @@ namespace Rtx
                     memory.getHeld(heap, MemoryUse::Structure), memory.getHeld(heap, MemoryUse::Texture) };
             };
             const std::array before = held();
+            const VkDeviceSize heldBefore = memory.getVideoBudget().mHeld;
 
             // What the driver asks for a megabyte, which is the size of the range the allocator hands
             // back for it: the allocator places at the requirement and never rounds the size.
@@ -410,6 +411,8 @@ namespace Rtx
 
             const std::array during = held();
             EXPECT_EQ(during[2] - before[2], requirements.size);
+            EXPECT_EQ(memory.getVideoBudget().mHeld - heldBefore, requirements.size)
+                << "the heap's held memory is not the range: a new block counted whole, or a free range as held";
             EXPECT_EQ(during[1], before[1]) << "a texture's range was counted as a structure's";
             EXPECT_EQ(during[0], before[0]) << "a texture's range was counted as the frame's";
 
@@ -417,13 +420,19 @@ namespace Rtx
                 = tryBind(getDevice(), 1 << 20, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, MemoryUse::Structure);
             ASSERT_TRUE(structure.has_value());
             EXPECT_EQ(held()[1] - before[1], requirements.size);
+            EXPECT_EQ(memory.getVideoBudget().mHeld - heldBefore, 2 * requirements.size);
 
-            // Let go, the range is buried and stays counted until the graveyard gives it back.
+            // Let go, the range is buried and stays counted until the graveyard gives it back. **The heap holds it no
+            // more**, buried or given back: what a rest freed is not use (`MemoryAllocator::getVideoBudget`).
             texture.reset();
             EXPECT_EQ(held()[2] - before[2], requirements.size) << "a range given back before any submit ran";
+            EXPECT_EQ(memory.getVideoBudget().mHeld - heldBefore, requirements.size)
+                << "a buried range was held beside the structure";
             getDevice().waitIdle();
             getDevice().collectIdle();
             EXPECT_EQ(held()[2], before[2]) << "a range given back was still counted";
+            EXPECT_EQ(memory.getVideoBudget().mHeld - heldBefore, requirements.size)
+                << "a range given back was held beside the structure";
         }
 
         /// Each use's room is what content's blocks have free and the whole blocks its ceiling leaves, and the ceiling

@@ -158,8 +158,10 @@ namespace Rtx
             scene.evictResting(std::numeric_limits<std::uint64_t>::max());
         else if (const std::optional<ArrivalRoom> room = scenes.getArrivalRoom(slot); room.has_value())
         {
-            // **And never past their limit** (`docs/architecture.md`, "One residency policy for the content").
-            scene.setRestLimit(restLimitOf(room->mBudget));
+            // **And never past their limit, coming down to it a step a hand-over** (`docs/architecture.md`, "One
+            // residency policy for the content").
+            scene.setRestLimit(
+                RestLimit{ .mBytes = restLimitOf(*room, scene.getRestingBytes()), .mStep = mLargestArrival });
             std::uint64_t waiting = 0;
             for (const TextureWait& wait : mTextureWaits)
                 waiting += wait.mBytes;

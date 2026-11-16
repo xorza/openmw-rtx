@@ -256,22 +256,10 @@ namespace Rtx
     {
         assert(isLive(mesh) && "a mesh stood that the table does not hold");
         MeshRange& range = rowAt(mesh);
-        const std::uint64_t bytes = geometryBytesOf(range) + structureBytes;
-        // A structure copied tight while its mesh rests: the rest holds the less.
-        if (range.mRest.mResting)
-            mResting.restate(range.mStoodBytes, bytes);
-        range.mStoodBytes = bytes;
-    }
-
-    std::uint64_t MeshTable::geometryBytesOf(const MeshRange& range)
-    {
-        // Every vertex buffer is as long as the vertex runs reach, whether this mesh filled it or not
-        // (`writeVertices`).
-        constexpr std::uint64_t vertex = sizeof(osg::Vec3f) + sizeof(std::uint32_t) + sizeof(std::uint32_t)
-            + sizeof(osg::Vec2f) + sizeof(Shaders::GpuVertexColour);
-        return std::uint64_t{ range.mVertices.mCount } * vertex
-            + std::uint64_t{ range.mSecondTexCoords.mCount } * sizeof(osg::Vec2f)
-            + std::uint64_t{ range.mIndices.mCount } * sizeof(std::uint32_t);
+        // A device builds what arrived or waited, and a rebuild comes after everything that rests is freed, so nothing
+        // resting is built: the rest's bytes stay what each mesh rested with.
+        assert(!range.mRest.mResting && "a resting mesh's structure was built");
+        range.mStoodBytes = structureBytes;
     }
 
     void MeshTable::drop(DeformerTable& deformers, const Index mesh)

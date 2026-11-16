@@ -774,8 +774,7 @@ namespace Rtx
             scene.drop(scene.holdTexture(texture));
             scene.compact();
 
-            constexpr std::uint64_t sQuadBytes = 4 * (12 + 4 + 4 + 8 + 8) + 6 * 4;
-            static_assert(sQuadBytes == 168);
+            // A mesh rests what its eviction gives back, its structure's 100 bytes, and not its geometry's.
             scene.standMesh(quad, 100);
             scene.clearArrivals();
             Testing::letGoMesh(scene, quad);
@@ -784,7 +783,7 @@ namespace Rtx
             EXPECT_TRUE(scene.meshes().isLive(quad)) << "a mesh the device stood whole was freed";
             EXPECT_TRUE(scene.meshes().getRows()[quad].mRest.mResting);
             EXPECT_FALSE(scene.meshes().isLive(other)) << "a mesh the device never stood rested";
-            EXPECT_EQ(scene.getRestingBytes(), 64u + sQuadBytes + 100u);
+            EXPECT_EQ(scene.getRestingBytes(), 64u + 100u);
 
             // Taken back: the same mesh, nothing arriving, nothing resting of it.
             scene.clearArrivals();
@@ -794,13 +793,14 @@ namespace Rtx
             Testing::letGoMesh(scene, quad);
             scene.compact();
 
-            // The texture rested on the earlier tick, so a limit that holds one of the two frees it first.
-            scene.setRestLimit(sQuadBytes + 100u);
+            // The texture rested on the earlier tick, so it goes first. **Paced**: past a limit of nought by a step of
+            // nought, a row goes and no more; the room an arrival needs goes whole all the same, a byte of it the whole
+            // mesh.
+            scene.setRestLimit(RestLimit{ .mBytes = 0, .mStep = 0 });
             EXPECT_EQ(scene.evictResting(), 64u);
             EXPECT_FALSE(scene.textures().isLive(texture));
             EXPECT_TRUE(scene.meshes().isLive(quad));
-            scene.setRestLimit(0);
-            EXPECT_EQ(scene.evictResting(), sQuadBytes + 100u);
+            EXPECT_EQ(scene.evictResting(1), 100u);
             EXPECT_FALSE(scene.meshes().isLive(quad));
             EXPECT_EQ(scene.getRestingBytes(), 0u);
 

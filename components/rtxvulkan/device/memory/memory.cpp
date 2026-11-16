@@ -466,12 +466,8 @@ namespace Rtx
         return heldTo > owed ? heldTo - owed : 0;
     }
 
-    VkDeviceSize MemoryAllocator::getRoom(const MemoryUse use) const
+    VkDeviceSize MemoryAllocator::getContentFree() const
     {
-        VmaBudget budgets[VK_MAX_MEMORY_HEAPS]{};
-        vmaGetHeapBudgets(mLibrary.get(), budgets);
-        const VmaBudget& budget = budgets[mContent.mHeap];
-
         // Every pool on the heap, because the library places each resource in whichever of
         // content's types its requirements allow: on RADV a structure and a texture stand in two.
         VkDeviceSize free = 0;
@@ -484,6 +480,15 @@ namespace Rtx
             vmaGetPoolStatistics(mLibrary.get(), mLibrary.poolOf(type), &content);
             free += content.blockBytes - content.allocationBytes;
         }
+        return free;
+    }
+
+    VkDeviceSize MemoryAllocator::getRoom(const MemoryUse use) const
+    {
+        VmaBudget budgets[VK_MAX_MEMORY_HEAPS]{};
+        vmaGetHeapBudgets(mLibrary.get(), budgets);
+        const VmaBudget& budget = budgets[mContent.mHeap];
+        const VkDeviceSize free = getContentFree();
 
         const VkDeviceSize ceiling = ceilingOf(mContent.mHeap, use, budget.budget);
         const VkDeviceSize above = ceiling > budget.usage ? ceiling - budget.usage : 0;
@@ -492,12 +497,20 @@ namespace Rtx
         return free + above / sBlockBytes * sBlockBytes;
     }
 
-    VkDeviceSize MemoryAllocator::getVideoBudget() const
+    VideoBudget MemoryAllocator::getVideoBudget() const
     {
         VmaBudget budgets[VK_MAX_MEMORY_HEAPS]{};
         vmaGetHeapBudgets(mLibrary.get(), budgets);
-        const VkDeviceSize budget = budgets[mContent.mHeap].budget;
-        return std::min(budget, mBudgetLimit.value_or(budget));
+        const VmaBudget& heap = budgets[mContent.mHeap];
+
+        // **What the process has let go of is not held**: the driver counts a block whole while a range in it is free,
+        // and a range buried until its frames are done, and content takes both again before any new block. Counted,
+        // a rest freed would read as use and lower its own limit at the next hand-over, freeing more.
+        const Graveyard& graveyard = mDevice.getGraveyard();
+        const VkDeviceSize letGo
+            = getContentFree() + graveyard.getBuried(MemoryUse::Structure) + graveyard.getBuried(MemoryUse::Texture);
+        return VideoBudget{ .mBudget = std::min(heap.budget, mBudgetLimit.value_or(heap.budget)),
+            .mHeld = heap.usage > letGo ? heap.usage - letGo : 0 };
     }
 
     VkDeviceSize MemoryAllocator::getHeld(const std::uint32_t heap, const MemoryUse use) const

@@ -4,6 +4,7 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <vector>
 
 #include <components/rtx/common/index.hpp>
@@ -23,6 +24,16 @@ namespace Rtx
 
         /// When it was filed, on the scene's clock, which orders the rests of every table as one (`SceneDesc`).
         std::uint64_t mFiledAt = 0;
+    };
+
+    /// **What everything that rests may stand on the device, and how fast it comes down to it**
+    /// (`docs/architecture.md`, "One residency policy for the content"): the bytes, and the most freed past the limit
+    /// in one eviction beside the room an arrival needs, a row at least, so a limit that drops is followed over several
+    /// hand-overs and not in one frame. Unbounded and unpaced by default, for a scene no backend bounds.
+    struct RestLimit
+    {
+        std::uint64_t mBytes = std::numeric_limits<std::uint64_t>::max();
+        std::uint64_t mStep = std::numeric_limits<std::uint64_t>::max();
     };
 
     /// **What rests of one table, oldest first**: the rows nothing names that still stand on the device, a list through
@@ -81,13 +92,6 @@ namespace Rtx
             assert(mBytes >= bytes && "a wake past the bytes that rest");
             --mCount;
             mBytes -= bytes;
-        }
-
-        /// A row at rest now stands `bytes` where it stood `before`: its structure copied tight while it rested.
-        void restate(const std::uint64_t before, const std::uint64_t bytes)
-        {
-            assert(mBytes >= before && "a rest restated past what rests");
-            mBytes = mBytes - before + bytes;
         }
 
         /// Files the batch at the end of the list, by slot, each stamped `clock`.

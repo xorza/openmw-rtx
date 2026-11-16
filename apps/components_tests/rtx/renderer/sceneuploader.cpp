@@ -228,13 +228,13 @@ namespace Rtx
             EXPECT_EQ(scene.refusals().count(Refused::Mesh), 1u);
             EXPECT_EQ(scene.refusals().count(Refused::Texture), 2u);
 
-            // And what each mesh's structure takes, which the scene stands the mesh on: its geometry, one triangle of
-            // three vertices at 36 bytes and three indices at 4, and a structure of 100.
+            // And what each mesh's structure takes, which the scene stands the mesh on: its structure of 100, and not
+            // its geometry, which an eviction gives the device none of.
             const Index mesh = scene.placements().getRows()[0].mInstance.mMesh;
             renderer.mStanding.push_back(StoodMesh{ .mMesh = mesh, .mStructureBytes = 100 });
             renderer.mRefusing.push_back(Refusal{ .mKind = Refused::Mesh, .mWhy = "no room is coming for it" });
             EXPECT_EQ(hand().mKind, SceneUpload::Kind::Placed);
-            EXPECT_EQ(scene.meshes().getRows()[mesh].mStoodBytes, 3u * 36u + 3u * 4u + 100u);
+            EXPECT_EQ(scene.meshes().getRows()[mesh].mStoodBytes, 100u);
             EXPECT_EQ(scene.refusals().count(Refused::Mesh), 2u) << "a placement's refusal was not taken";
 
             Testing::addModel(scene, VFS::Path::NormalizedView("textures/two.dds"));
@@ -545,11 +545,18 @@ namespace Rtx
                 << "a texture the rebuild stood was refused";
         }
 
-        /// **What rests stands under its limit, a share of the device's budget for content** (`sRestShare`), freed
-        /// oldest first though the room wants nothing: three files of 64 bytes rest, a budget of 400 holds them to 100,
-        /// and the two oldest go.
-        TEST(RtxSceneUploaderTest, whatRestsStandsUnderAShareOfTheBudget)
+        /// **What rests stands under nine tenths of what the budget leaves of what is in use** (`restLimitOf`), where
+        /// in use is the driver's usage less what rests, freed oldest first though the room wants nothing. A budget of
+        /// 6,000 with 4,000 used, 1,000 of it resting, has 3,000 in use and leaves 3,000, of which 3,000 - 300 = 2,700
+        /// may rest; with nothing resting, 2,000 left and 1,800; a usage past the budget nothing.
+        TEST(RtxSceneUploaderTest, whatRestsStandsUnderNineTenthsOfWhatTheBudgetLeaves)
         {
+            EXPECT_EQ(SceneUploader::restLimitOf(Rtx::ArrivalRoom{ .mBudget = 6000, .mHeld = 4000 }, 1000), 2700u);
+            EXPECT_EQ(SceneUploader::restLimitOf(Rtx::ArrivalRoom{ .mBudget = 6000, .mHeld = 4000 }, 0), 1800u);
+            EXPECT_EQ(SceneUploader::restLimitOf(Rtx::ArrivalRoom{ .mBudget = 6000, .mHeld = 7000 }, 0), 0u);
+            EXPECT_EQ(SceneUploader::restLimitOf(Rtx::ArrivalRoom{ .mBudget = 6000, .mHeld = 500 }, 1000), 5400u)
+                << "a usage under what rests is nothing in use";
+
             Rtx::SceneDesc scene;
             SceneUploader uploader;
             Testing::CountingRenderer renderer;
@@ -574,22 +581,61 @@ namespace Rtx
             }
             ASSERT_EQ(scene.textures().getResting().getBytes(), 192u);
 
-            // The limit: a quarter of the budget, up to the measured 2 GiB — the handheld's 6 GiB holds what rests to
-            // 1.5, the desk's 16 to 2.
-            constexpr std::uint64_t sGiB = std::uint64_t{ 1 } << 30;
-            EXPECT_EQ(SceneUploader::restLimitOf(6 * sGiB), 3 * sGiB / 2);
-            EXPECT_EQ(SceneUploader::restLimitOf(16 * sGiB), 2 * sGiB);
-            EXPECT_EQ(SceneUploader::restLimitOf(400), 100u);
+            // A usage of what rests alone is nothing in use: 300 left, 270 may rest.
+            renderer.mArrivalRoom = Rtx::ArrivalRoom{ .mFree = 1u << 20, .mBudget = 300, .mHeld = 192 };
+            EXPECT_EQ(hand().mDropped, 0u);
 
-            renderer.mArrivalRoom = Rtx::ArrivalRoom{ .mFree = 1u << 20, .mBudget = 4 * sGiB };
-            EXPECT_EQ(hand().mDropped, 0u) << "a quarter of 4 GiB is past 192 bytes";
+            // 108 in use beside it: 192 left, 173 may rest, and the oldest goes.
+            renderer.mArrivalRoom = Rtx::ArrivalRoom{ .mFree = 1u << 20, .mBudget = 300, .mHeld = 300 };
+            EXPECT_EQ(hand().mDropped, 1u);
+            EXPECT_EQ(scene.textures().getResting().getBytes(), 128u);
 
-            renderer.mArrivalRoom = Rtx::ArrivalRoom{ .mFree = 1u << 20, .mBudget = 400 };
-            EXPECT_EQ(hand().mDropped, 2u);
-            EXPECT_EQ(scene.textures().getResting().getBytes(), 64u);
+            // A budget of 100: 90 may rest.
+            renderer.mArrivalRoom = Rtx::ArrivalRoom{ .mFree = 1u << 20, .mBudget = 100, .mHeld = 128 };
+            EXPECT_EQ(hand().mDropped, 1u);
             EXPECT_FALSE(scene.textures().isLive(models[0].mTexture)) << "rested first";
             EXPECT_FALSE(scene.textures().isLive(models[1].mTexture));
             EXPECT_TRUE(scene.textures().isLive(models[2].mTexture)) << "rested last";
+        }
+
+        /// **What rests comes down to a limit that dropped a step a hand-over**, the most one extension handed the
+        /// device, and the room an arrival needs at once. Five files of 64 bytes, handed over one a hand-over, rest
+        /// 320 under a limit of nought: the first hand-over frees the 128 the room keeps (the largest arrival's 64 and
+        /// 64 a structure wants) and a step of 64 more, three files; each after it one.
+        TEST(RtxSceneUploaderTest, whatRestsComesDownToALimitThatDroppedAStepAHandOver)
+        {
+            Rtx::SceneDesc scene;
+            SceneUploader uploader;
+            Testing::CountingRenderer renderer;
+            const auto hand = [&] {
+                return uploader.hand(
+                    renderer, Rtx::SceneUploader::Handing{ .mSlot = Rtx::SceneSlot::world(), .mScene = scene });
+            };
+
+            std::vector<osg::ref_ptr<osg::Image>> images;
+            std::vector<Testing::Model> models;
+            for (const VFS::Path::NormalizedView path : { VFS::Path::NormalizedView("textures/tx_1.dds"),
+                     VFS::Path::NormalizedView("textures/tx_2.dds"), VFS::Path::NormalizedView("textures/tx_3.dds"),
+                     VFS::Path::NormalizedView("textures/tx_4.dds"), VFS::Path::NormalizedView("textures/tx_5.dds") })
+            {
+                images.push_back(sixtyFourBytes(path.value()));
+                models.push_back(Testing::addModel(scene, path, images.back().get()));
+                hand();
+            }
+            for (const Testing::Model& model : models)
+            {
+                scene.dropInstance(model.mPlacement, Stander::Walk);
+                hand();
+            }
+            ASSERT_EQ(scene.textures().getResting().getBytes(), 320u);
+
+            renderer.mArrivalRoom = Rtx::ArrivalRoom{ .mFree = 0, .mBudget = 0, .mWanted = 64 };
+            EXPECT_EQ(hand().mDropped, 3u);
+            renderer.mArrivalRoom = Rtx::ArrivalRoom{ .mFree = 1u << 20, .mBudget = 0 };
+            EXPECT_EQ(hand().mDropped, 1u);
+            EXPECT_EQ(hand().mDropped, 1u);
+            EXPECT_EQ(hand().mDropped, 0u);
+            EXPECT_EQ(scene.textures().getResting().getBytes(), 0u);
         }
 
         /// **A model's header is read on the service's thread, stands in until then, and is handed over once, the

@@ -340,7 +340,12 @@ namespace Rtx
         mTextures.settleResting();
         mMeshes.settleResting();
         std::uint64_t freed = 0;
-        while (getRestingBytes() > 0 && (freed < room || getRestingBytes() > mRestLimit))
+        // A row past the limit at least, so a step of nought still comes down to it.
+        const auto pastLimit = [&] {
+            const std::uint64_t beyondRoom = freed > room ? freed - room : 0;
+            return getRestingBytes() > mRestLimit.mBytes && (beyondRoom == 0 || beyondRoom < mRestLimit.mStep);
+        };
+        while (getRestingBytes() > 0 && (freed < room || pastLimit()))
         {
             const std::uint64_t before = getRestingBytes();
             const Index texture = mTextures.getResting().first();

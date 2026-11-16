@@ -66,14 +66,13 @@ namespace RtxTool
             // wakes needing only its own bytes.
             const Rtx::Index quad = Rtx::Testing::addQuadMesh(scene);
             scene.standMesh(quad, 10 * sMiB);
-            const std::uint64_t quadBytes = scene.meshes().getRows()[quad].mStoodBytes;
             Rtx::Testing::letGoMesh(scene, quad);
             scene.compact();
             reuse.read(scene);
             EXPECT_EQ(Rtx::Testing::addQuadMesh(scene), quad);
             reuse.read(scene);
-            EXPECT_EQ(reuse.getWoken(), 60 * sMiB + quadBytes);
-            EXPECT_EQ(reuse.keptUnder(32 * sMiB), 20 * sMiB + quadBytes);
+            EXPECT_EQ(reuse.getWoken(), 70 * sMiB);
+            EXPECT_EQ(reuse.keptUnder(32 * sMiB), 30 * sMiB);
         }
     }
 }

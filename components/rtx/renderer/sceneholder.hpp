@@ -39,9 +39,13 @@ namespace Rtx
         /// given room ahead of it, may take as well.
         std::uint64_t mFree = 0;
 
-        /// What the device's budget allows the content at all: what the content that rests may hold a share of
-        /// (`SceneUploader::sRestShare`).
+        /// What the device's budget allows the process, every slot's content, the frame and what rests together: what
+        /// is free and what the process holds, as the driver states it.
         std::uint64_t mBudget = 0;
+
+        /// What the process holds of that and keeps, what rests included and what it has let go of not: less what
+        /// rests, what is in use, and the content that rests keeps a share of the rest (`SceneUploader::restLimitOf`).
+        std::uint64_t mHeld = 0;
 
         /// What the structures the device had no room for want, each waiting while room is coming.
         std::uint64_t mWanted = 0;

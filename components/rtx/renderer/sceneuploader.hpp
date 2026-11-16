@@ -98,20 +98,20 @@ namespace Rtx
         /// compares frames waits for, beside the cells.
         std::size_t getPendingCount() const { return mPending.size(); }
 
-        /// **What everything that rests may stand on the device**, measured (`RestReuse`): on the desk's tours, a
-        /// least-recently-rested cache of 2 GiB kept 97.5% of what woke under the repack and 88.4% under the PBR
-        /// replacers, where doubling it bought 2.5 and 7.1 points more.
-        static constexpr std::uint64_t sRestMost = std::uint64_t{ 2 } << 30;
+        /// **One part in this many of what the budget leaves is other programs'**, the denominator: Windows lowers a
+        /// process's budget when another wants memory, and Linux tells no one, so this is what a browser or the
+        /// compositor finds free before the next reading sees their usage (`docs/architecture.md`, "The limit is
+        /// derived from the budget").
+        static constexpr std::uint64_t sOthersShare = 10;
 
-        /// And no more than this share of the device's budget for content, the denominator: the rest of it is the
-        /// live content's and the frame's, and on a handheld the system's.
-        static constexpr std::uint64_t sRestShare = 4;
-
-        /// What everything that rests may stand under a content budget of `budget`: the share, up to the measured
-        /// limit.
-        static constexpr std::uint64_t restLimitOf(const std::uint64_t budget)
+        /// **What everything that rests may stand**: what `room`'s budget leaves of what is in use, less other
+        /// programs' share, where in use is what the process holds less the `resting` bytes in it, so that what rests
+        /// does not shrink its own limit. Nought where use fills the budget.
+        static constexpr std::uint64_t restLimitOf(const ArrivalRoom& room, const std::uint64_t resting)
         {
-            return std::min(sRestMost, budget / sRestShare);
+            const std::uint64_t inUse = room.mHeld > resting ? room.mHeld - resting : 0;
+            const std::uint64_t left = room.mBudget > inUse ? room.mBudget - inUse : 0;
+            return left - left / sOthersShare;
         }
 
     private:
@@ -141,7 +141,8 @@ namespace Rtx
         std::vector<SceneTextures::Pending> mPending;
 
         /// The most bytes one extension has handed the device, of its arriving files and the structures it built: the
-        /// room what rests leaves free (`SceneDesc::evictResting`).
+        /// room what rests leaves free (`SceneDesc::evictResting`), and the step it comes down to its limit by
+        /// (`RestLimit::mStep`). Not a rebuild's, which hands over the whole world and would pace nothing.
         std::uint64_t mLargestArrival = 0;
 
         /// What the device made of a hand-over (`SceneHolder::takeAnswer`), refilled each time.
