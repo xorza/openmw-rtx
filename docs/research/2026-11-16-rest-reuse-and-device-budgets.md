@@ -31,17 +31,17 @@ with 2,981 MiB of its 3,545 MiB of textures resting.
   published.
 - **Windows.** The budget is the OS's and "can fluctuate noticeably as background processes wake-up and sleep; and
   fluctuate dramatically when the user switches away"; a process over it "will be intermittently frozen … and/or the
-  creation APIs will return failure"; even simple applications should "destroy unused API objects roughly once a
-  frame" ([D3D12 residency](https://learn.microsoft.com/en-us/windows/win32/direct3d12/residency),
+  creation APIs will return failure"; even simple applications should "destroy unused API objects roughly once a frame"
+  ([D3D12 residency](https://learn.microsoft.com/en-us/windows/win32/direct3d12/residency),
   [DXGI_QUERY_VIDEO_MEMORY_INFO](https://learn.microsoft.com/en-us/windows/win32/api/dxgi1_4/ns-dxgi1_4-dxgi_query_video_memory_info)).
-- **VMA** reads the budget inside `vmaSetCurrentFrameIndex`, to be called every frame; without the extension it
-  assumes 80% of each heap; `VMA_ALLOCATION_CREATE_WITHIN_BUDGET_BIT` is for non-essential resources
-  ([staying within budget](https://gpuopen-librariesandsdks.github.io/VulkanMemoryAllocator/html/staying_within_budget.html)).
+- **VMA** reads the budget inside `vmaSetCurrentFrameIndex`, to be called every frame; without the extension it assumes
+  80% of each heap; `VMA_ALLOCATION_CREATE_WITHIN_BUDGET_BIT` is for non-essential resources ([staying within
+  budget](https://gpuopen-librariesandsdks.github.io/VulkanMemoryAllocator/html/staying_within_budget.html)).
 - **Dawn** caps its budget at 95% of the OS's, less an external reservation, and evicts least recently used heaps only
   when making one resident would pass it
   ([ResidencyManagerD3D12](https://dawn.googlesource.com/dawn/+/f56f19059b12dd5dd358937b5af3d6394762c45e/src/dawn_native/d3d12/ResidencyManagerD3D12.cpp)).
-- **Unreal** sizes its texture streaming pool as a percentage of video memory (`r.Streaming.PoolSizeVRAMPercentage`,
-  70 by default) with a clamp, or as a fixed size
+- **Unreal** sizes its texture streaming pool as a percentage of video memory (`r.Streaming.PoolSizeVRAMPercentage`, 70
+  by default) with a clamp, or as a fixed size
   ([configuration](https://dev.epicgames.com/documentation/unreal-engine/texture-streaming-configuration-in-unreal-engine)).
 - **Metal** offers `recommendedMaxWorkingSetSize` and purgeable state: a volatile resource may be discarded by the
   system under pressure ([MTLPurgeableState](https://developer.apple.com/documentation/metal/mtlpurgeablestate.md)).

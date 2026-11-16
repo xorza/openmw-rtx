@@ -3,8 +3,7 @@
 2026-11-11. A high-end NVIDIA laptop GPU, NVIDIA's DLSS libraries at 310.9.16 with their default presets,
 a 1920×1080 output, release builds, a quiet desktop, back to back after a warm-up leg. The baseline is
 `895570968e` (DLSS Super Resolution after the renderer's own filter), the candidate `cf35536296` (DLSS
-Ray Reconstruction in place of both). The runs' reports, records and frame series stand in
-`build-release/baselines/2026-11-11-dlss-sr/` and `…-dlss-rr/`.
+Ray Reconstruction in place of both).
 
 ## Frame time, median and p99, ms
 
@@ -49,7 +48,7 @@ filter draws as it did wherever it runs.
 ## RR's inputs, A/B under Ray Reconstruction at quality
 
 `./omw release noise --ab=<switch> --upscaler=dlss --upscale=quality`, the strafe and the walk legs of
-150 units, noise mean / p99 and bias against the reference; runs in `build-release/baselines/2026-11-11-rr-ab/`.
+150 units, noise mean / p99 and bias against the reference.
 
 | switch, strafe | pier | pond | guild |
 |---|---|---|---|

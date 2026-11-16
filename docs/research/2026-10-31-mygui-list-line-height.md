@@ -35,24 +35,3 @@ MyGUI's master at 2026-09-16, and the fork at `ccd26efb99`. What
 - C++20 [temp.explicit]: the usual access checking rules do not apply to names used to specify an
   explicit instantiation, a template argument naming a private member among them. A friend the
   instantiated template defines hands the member's pointer out.
-
-## Where the font size is read, and when
-
-At `ccd26efb99`, `[GUI] font size` is read directly in 31 places:
-
-| reader | what it sizes | when |
-|---|---|---|
-| `FontLoader::loadTrueTypeFont` | every TrueType font's size | once, at load |
-| `FontLoader::overrideLineHeight` | every skin's `HeightLine` | once, as each skin loads |
-| `FontWrapper::setFontName` | the text height of `Gui::Button`, `TextBox`, `EditBox`, `NumericEditBox`, `SharedStateButton`, as a height of its own | as the font is set |
-| `Tracked::keepInterfaceHeight` | a text with no height of its own | as its font or height is set |
-| 12 windows' row builders | rows at the size and 2, and 3 for spell making's controller scroll | as each row is made |
-| `ItemWidget`'s count text | 3 digits or 4 | as the count is set |
-| `bookpage.cpp` | glyph scale, line height | as a book is typeset and drawn |
-| `JournalBooks` | the Cyrillic index's columns | as the index is typeset |
-| `Formatting::BookFormatter` | a book's line height | as a book or a scroll is formatted |
-| `ui._getDefaultFontSize` | `omw/mwui`'s text templates | as the scripts load |
-
-Of the windows, the service windows (travel, training, repair, spell buying, persuasion) lay their
-rows out as they open and close whenever the main menu opens; the stats, spell, inventory and
-settings windows and the character creation's dialogs keep theirs across it.

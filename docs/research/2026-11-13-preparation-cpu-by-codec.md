@@ -1,491 +1,12 @@
 # Where the preparation's CPU goes, by codec — 2026-11-13
 
-Measured on a high-end laptop CPU with the release build at `0011749652`: `scene --cell="Seyda Neen"` under
-SDL's offscreen driver, each content list into a fresh `--content-cache`, on 15 preparation threads under the
-harness's 16 CPUs. `perf record -e task-clock -F 249 --call-graph fp` over the whole run; a share is of the
-process's samples, the load ahead of the preparation among them.
+A high-end laptop CPU, release build, `scene --cell="Seyda Neen"` under SDL's offscreen driver, each content list
+into a fresh `--content-cache`, 15 preparation threads. `perf record -e task-clock --call-graph fp` over the whole
+run; a share is of the process's samples.
 
-## Cold
+## Cold, before and after
 
-| content | models and ground layers | preparation | its threads' CPU | store written |
-|---|---|---|---|---|
-| vanilla | 5,432 | 5.59 s | 47.1 s | 151 MiB |
-| Fullrest Repack | 46,103 | 331.6 s | 4,934 s | 8.1 GiB |
-| PBR replacers | 6,913 | 75.4 s | 1,118 s | 6.0 GiB |
-
-## Inclusive shares
-
-| function | vanilla | Fullrest Repack | PBR replacers |
-|---|---|---|---|
-| `ChainPass::run`, every chain | 23.6% | 96.7% | 95.0% |
-| `rgbcx::encode_bc1` | 18.4% | 73.3% | 30.7% |
-| `bc7enc_compress_block` | 1.1% | 5.7% | 40.0% |
-| `ChainBuild::build`, decode and box | 3.8% | 17.0% | 22.7% |
-| of it, `ChainBuild::delight` | 2.9% | 12.7% | 2.9% |
-| of it, `ChainBuild::buildNormals` | — | 0.3% | 14.7% |
-| `ShapePass::run` | 1.4% | 1.5% | 0.5% |
-
-Vanilla's run is 19.6 s of which the preparation is 5.6, so its shares are of a process that mostly loads:
-inside `ChainPass::run` the BC1 encoder is 78%.
-
-By the shares and the threads' CPU, BC1 encoding is about 3,610 s of the Fullrest Repack's preparation and 340 s
-of the PBR replacers', and BC7 encoding about 280 s and 450 s: BC1 is over five times BC7 across the two.
-
-## Inside the BC1 encoder
-
-Self time, of the process's samples:
-
-| function | Fullrest Repack | PBR replacers |
-|---|---|---|
-| `rgbcx::bc1_find_sels4` | 35.2% | 14.2% |
-| `rgbcx::encode_bc1` | 21.9% | 9.3% |
-| `rgbcx::bc1_find_sels3_fullerr` | 12.3% | 5.7% |
-| `rgbcx::bc1_get_block_colors4` | 1.9% | 0.8% |
-| `rgbcx::encode_bc1_pick_initial` | 1.5% | 0.7% |
-| `rgbcx::compute_least_squares_endpoints4_rgb` | 0.8% | — |
-
-The build's level, 10, is two least-squares passes and then the 20 likeliest total orderings of a four-colour
-block and the 8 of a three-colour one, each ordering's endpoints solved and its selectors found again
-(`rgbcx.cpp`, `encode_bc1`): `bc1_find_sels4` and `bc1_find_sels3_fullerr` are that search's inner loop, sixteen
-texels against four or three palette entries, a texel at a time. rgbcx holds no vector code, and the build
-compiles it for x86-64-v2.
-
-And inside BC7's, on the PBR replacers: `evaluate_solution` 18.4%, `encode_bc7_block` 6.6%,
-`color_cell_compression` 6.3%, `find_optimal_solution` 3.7%, `handle_alpha_block` 2.3%,
-`compute_least_squares_endpoints_rgb` 2.0%.
-
-## The benchmark's corpus
-
-`openmw_rtx_chain_encode_benchmark` on one core, the release build, `OPENMW_RTX_BENCH_TEXTURES` naming the
-Fullrest Repack's loose textures: 18 BC1 files the chain pass makes a painted chain of, drawn from 512 of its
-20,081 `.dds` files, 44.94 million texels over every level.
-
-| benchmark | an iteration | texels a second | runs |
-|---|---|---|---|
-| `encodePaintedBc1`, `ChainBuild::encode` alone | 5.28 to 5.30 s | 8.50 to 8.53 million | three |
-| `makePaintedChain`, `ChainPass::run` whole | 6.74 to 6.76 s | 6.66 to 6.68 million | three |
-
-What the encoding loses of that corpus, the made chain decoded against the delit texels it was made of, red,
-green and blue: a root mean square of 1.341 of 255, 45.58 dB. Of the made pictures: 1.326, 45.68 dB.
-
-The encoder is 78% of the pass on one core, as it is 76% of `ChainPass::run` over the Fullrest Repack's
-preparation. A run is 19 s with the corpus read and its chains made.
-
-The rate follows the files drawn: 7.2, 7.9 and 10.2 million texels a second encoded over corpora of 26, 68 and 6
-files of the same folder, drawn while the sampling was settled. So two encoders are compared over one corpus,
-whose digest the label carries, and a rate is quoted with its corpus.
-
-The three pictures the benchmark makes where no folder is named, 0.57 million texels: 6.2 to 6.3 million texels
-a second encoded, 5.1 to 5.3 through the pass; CTest's dry run of it in the debug build takes 0.5 s.
-
-## The encoder, a line at a time
-
-`perf record -e task-clock -F 1999` over `encodePaintedBc1` on that corpus, three iterations on one core, the
-corpus's making among the samples:
-
-| function | samples | where inside it |
-|---|---|---|
-| `rgbcx::bc1_find_sels4` | 42.3% | a texel's projection on the block's axis and its rounding 25%, the squares of its two nearest palette entries 38%, the axis's reciprocal 7% |
-| `rgbcx::encode_bc1` | 28.8% | spread: the sort of a block's texels along its axis 12%, each ordering's least-squares endpoints 12%, their rounding to 5:6:5 11%, by its lines over half a percent |
-| `rgbcx::bc1_find_sels3_fullerr` | 14.6% | three squared distances a texel |
-| `rgbcx::bc1_get_block_colors4` | 2.7% | |
-| `rgbcx::encode_bc1_pick_initial` | 2.0% | |
-
-The two selector searches are 57% of the run, each a loop over sixteen texels with an early exit once the
-block's error passes the best so far.
-
-## The corpus's blocks
-
-Counted, as the section after this one is measured, by code added to the benchmark for it and not kept.
-
-| of the blocks | finest levels, 2,106,688 | levels under, 702,261 |
-|---|---|---|
-| one colour throughout, which rgbcx encodes without a search | 21.3% | 11.3% |
-| delit to the file's own texels, every channel | 1.0% | 0.5% |
-| within one of them | 11.8% | 10.0% |
-| within two | 22.7% | 20.7% |
-| made as a three-colour block | 8.5% | 7.3% |
-| made as the file's own eight bytes | 13.2% | 14.4% |
-
-Of the finest levels' blocks 2.3% are three-colour in the file. Delight moves nearly every block, so a block
-copied where it did not is a hundredth of them.
-
-## The file's selectors kept, its endpoints fit again
-
-Each block of the levels the files carry, 2,808,949, of which 98.0% are four-colour in the file: rgbcx handed
-the file's selectors (`pForce_selectors`) with no search, so the endpoints alone are fit by least squares to
-the delit texels. All of them in 0.46 s on one core, their decoding and two error measures included, against
-5.25 s for the build's search.
-
-| encoding of the four-colour blocks | root mean square | signal to noise |
-|---|---|---|
-| the build's search, level 10 | 1.347 | 45.55 dB |
-| the file's selectors, endpoints fit again | 1.948 | 42.34 dB |
-
-The fit is no worse than the search on 59.8% of those blocks, and the loss is in the rest. The fit kept where
-its squares, summed over a block's 48 channels, stand at or under a limit, and the search run on the rest and on
-the three-colour blocks:
-
-| limit | blocks searched | every block's signal to noise |
-|---|---|---|
-| 0, every block searched but an exact fit | 95.2% | 45.580 dB |
-| 16 | 81.8% | 45.578 dB |
-| 32 | 71.3% | 45.566 dB |
-| 64 | 61.9% | 45.556 dB |
-| 96 | 52.4% | 45.519 dB |
-| 128 | 43.4% | 45.454 dB |
-| 192 | 26.6% | 45.200 dB |
-| 256 | 15.0% | 44.899 dB |
-
-A one-colour block whose fit stands over the limit counts among the searched and costs the search nothing: no
-count was taken of how many of the searched are one colour.
-
-## The search made faster, the blocks the same
-
-Three changes to `extern/rgbcx/rgbcx.cpp`, each making the bytes it made before:
-
-- the two selector searches walk a block four texels at a time (SSE4.1), each lane the scalar loop's arithmetic in
-  its order, with no early exit: every caller keeps a result only where the block's whole error is under the best;
-- a search over total orderings passes by endpoints it has tried: of the 45.4 million orderings the corpus's
-  four-colour blocks try, 67.2% round to endpoints tried before in the same search, a third of those the best so
-  far;
-- the texels' order along the axis by counting in place of a sort, and each ordering's least-squares fit and its
-  rounding to 5:6:5 with red, green and blue a lane.
-
-`openmw_rtx_chain_encode_benchmark` on the Fullrest Repack's corpus, one core, the digest of the made chains
-`98d02ccb015d1514da0cc2e444d4b970` at every step:
-
-| step | `encodePaintedBc1` | texels a second | `makePaintedChain` |
-|---|---|---|---|
-| before | 5.28 to 5.30 s | 8.5 million | 6.74 to 6.76 s |
-| the selector searches four texels at a time | 3.10 s | 14.5 million | 4.57 s |
-| and endpoints tried once | 2.57 s | 17.6 million | 4.03 s |
-| and the fit, the rounding and the order | 2.19 to 2.23 s | 20.2 to 20.6 million | 3.66 to 3.75 s |
-
-The encoder alone 2.4 times as fast and the pass 1.8 times; the encoder is 60% of the pass from 78%. The made
-pictures' corpus: 90.5 to 34.2 ms, its digest the same.
-
-Held the same by:
-
-- `RtxChainBuildTest.aChainsBlocksAreTheOnesTheSearchMadeATexelAtATime`, whose three digests were recorded off the
-  encoder as it stood before;
-- the two selector searches against the scalar ones over 40 million blocks and endpoints drawn at random, half
-  under an error limit: the same selectors and error wherever the limit kept the result, and no result kept that the
-  scalar loop refused;
-- 400,000 made blocks through the encoder as it stood and as it stands: the same bytes.
-
-Cold, as at the top of this note, with the first two of the three changes; the Fullrest Repack twice:
-
-| content | preparation | its threads' CPU |
-|---|---|---|
-| vanilla | 3.05 s → 4.09 s | 44.9 s → 30.6 s |
-| PBR replacers | 78.0 s → 67.3 s | 1,156 s → 1,000 s |
-| Fullrest Repack | 331.0 s → 210.8 s, 327.2 s → 211.0 s | 4,934 s → 3,138 s, 4,874 s → 3,147 s |
-
-Vanilla's 19,401 files and the PBR replacers' 32,027 the same byte for byte in both stores, the manifest aside.
-The Fullrest Repack's second pair of stores held 105,292 and 105,289 files: nine small entries in the first alone,
-six in the second alone, and every other the same byte for byte, the manifest aside; the first pair differed by
-five files the other way and was deleted unread. An entry is filed under a digest of what it is made from, so a
-store holds an entry the other lacks where its run met a file the other's did not, whatever encoded it.
-
-The encoder's profile after the three, of the benchmark's samples: the selector searches 24%, and the rest of
-`encode_bc1` 52% with no line over 5%, the rounding's midpoint lookups and the already-tried check its largest.
-
-## The build, its tables read inline
-
-`buildPaintedChain`, `ChainBuild::build` alone over the same corpus: its levels read, delit and boxed, 1.49 s an
-iteration, 30.3 million texels a second, which is 40% of the pass once the encoder is as above. Its samples, the
-corpus's making aside: `encodedByte` 26%, `delit` 23%, `paintedLight` 8%, `ChainBuild::build` 7%,
-`ChainBuild::delight` 6%, `toLinear` 4%, `ShadingMap` 3%, `ColourBlock::read` 2%. A texel of a painted level
-called eight functions of two other source files: the light's lookup, three decodes, the division and three
-encodes, the decode's and the encode's tables each behind a first-ask check. By line, the encode's search for its
-byte 12%, and in `delit` the greatest of three channels through `std::max`'s list, a call to `std::max_element`,
-10%.
-
-The same arithmetic with nothing between a texel and its tables (`DisplayCurve`, fetched once a loop), the
-light's lookup and the division in their header, the greatest of three as two comparisons, and the encoded byte
-one step past its bucket's start with no branch on the value, since no bucket holds two bytes' starts:
-
-| benchmark | before | after | runs |
-|---|---|---|---|
-| `buildPaintedChain` | 1.49 s | 0.78 s, 57.5 to 57.9 million texels a second | three |
-| `makePaintedChain` | 3.66 to 3.75 s | 2.99 to 3.01 s | three |
-
-The digest of the made chains the same, `98d02ccb015d1514da0cc2e444d4b970`, and the made pictures' the same. The
-pass whole from 6.75 s at the start of this note to 3.00 s; the encoder is 74% of it again.
-
-What the build's samples hold after: `ChainBuild::delight` 46% with the encode's two lines 24% of the run, where
-the division's wait is counted; `ChainBuild::build` 13%; `ShadingMap` 5%; `ColourBlock::read` 5%;
-`toLinear(osg::Vec3f)` 4%, the estimate's read of a block's two interpolated colours through `powf`.
-
-## A normal map's chain in BC7
-
-The benchmark reads a corpus a kind since: a folder's files named as normal maps (`_n`, `_nh`) are read as normal
-maps, whose chains the pass makes in BC7 a block in one mode, and the colours' corpus leaves the companion maps
-out, `_spec` with them. So the Fullrest Repack's colours are another draw, 63 files and 45.08 million texels,
-digest `b703d834d804669d1f211f7c46e4e214`: 0.77 s built, 2.68 s encoded, 3.45 s the pass.
-
-The PBR replacers' normal maps, by their headers: 2,762 BC1 `_n`, 1,269 BC3 `_nh`, 123 of four loose bytes, 4 BC3
-`_n` and 3 BC5; 5.45 thousand million texels at their finest levels, every one a format the build reads. The
-corpus drawn of them is 27 files, 44.74 million texels over every level, digest
-`0737a7a9e06ad6b30d2859f31f043be6`. On one core, three runs each:
-
-| benchmark | an iteration | texels a second |
-|---|---|---|
-| `buildNormalChain`, `ChainBuild::build` alone | 0.58 to 0.59 s | 77 million |
-| `encodeNormalBc7`, `ChainBuild::encodeBc7` alone | 1.55 s | 28.9 million |
-| `makeNormalChain`, `ChainPass::run` whole | 2.13 s | 21.0 million |
-
-A texel of a normal map is encoded in 0.57 of the time rgbcx's search takes one of the same folder's painted
-colours now (35 files, 49.73 million texels, 3.03 s). What the encoding loses, over a map's three channels and its height where it holds one: a root mean square of 3.13 of 255,
-38.23 dB, on the replacers' maps, and 5.03, 34.11 dB, on the Fullrest Repack's 45 (47.20 million texels, digest
-`33690e992e56c75f0302e70a8745a86c`).
-
-`perf record -e task-clock -F 1999` over `encodeNormalBc7`, the samples of the encoding alone:
-`evaluate_solution` 48.3%, `color_cell_compression` 17.1%, `encode_bc7_block` 13.0%, `handle_alpha_block` 7.6%,
-`find_optimal_solution` 6.6%, `compute_least_squares_endpoints_rgb` 4.5%, `ChainBuild::encodeBc7` 2.0%. By line:
-`evaluate_solution`'s walk of a cell a pixel at a time, a projection, two palette entries and two distances in
-64-bit sums, 30%; `set_block_bits`, a field written a byte at a time into the block, 7.5%; the rest sums of
-floats a channel at a time. A block is two calls of `evaluate_solution`, one off the cell's principal axis and one
-off the least squares of its selectors.
-
-### The encoder made faster, the blocks the same
-
-bc7enc with the vector instructions x86-64-v2 has, each step the same bytes over 1.12 million made blocks of
-twelve kinds under ten sets of parameters (a normal map's two modes, every mode in RGB(A) and in perceptual
-error, uber levels 1 and 4, other weights, mode 6's endpoints quantized, alpha forced), and over 3.36 million
-again at the end, with its asserts on and off. Time a block of the normal-map set on one core:
-
-| step | a block |
-|---|---|
-| as vendored | 516 to 527 ns |
-| a cell's selectors sixteen pixels at once: the palette a table a channel, a selector's colour a byte shuffle | 349 ns |
-| a block's fields into two 64-bit halves, its selectors packed into one field | 311 ns |
-| the cell's mean, covariance, projection and RGB least squares a lane a sum; mode 5's alphas sixteen at once | 257 to 264 ns |
-
-A sum of floats stays in the order it was added in, a lane a sum, since no reordering makes the same bytes; the
-projection's least and greatest are of the same numbers in another order, which differ by a zero's sign at most,
-and the mean they are added to drops it. The vector walk holds a weight's product in 16 signed bits, so the
-weights of an error are held to 128 each by an assert: bc7enc's own defaults are 128 at most, and the tree
-encodes with those and with one.
-
-The same corpus after, three runs:
-
-| benchmark | before | after |
-|---|---|---|
-| `encodeNormalBc7` | 1.55 s | 0.75 to 0.76 s, 59 to 60 million texels a second |
-| `makeNormalChain` | 2.13 s | 1.32 to 1.33 s |
-
-The digest the same, and the made pictures'. The Fullrest Repack's normal maps encode in 0.75 s. Every mode in
-RGB(A) error, a map of data's, goes from 4,866 to 4,187 ns a block in one run of the two, and a colour's, in
-perceptual error, from 5,609 to 5,451: its selector walk tries every palette entry and stays a pixel at a time.
-Either is sixteen to twenty times a normal map's block, and neither has a corpus here.
-
-The encoder's samples after: `color_cell_compression` 32%, `evaluate_solution` 27%, `find_optimal_solution` 13%,
-`encode_bc7_block` 12%, `handle_alpha_block` 9%, `ChainBuild::encodeBc7` 4%; no line over 4.3%, the largest the
-division inside the principal axis's three power iterations. What is left is chains of float additions and
-divisions whose order the bytes depend on. The build is 43% of a normal map's pass now, 0.58 of 1.32 s.
-
-## A normal map's build, a palette at a time
-
-`buildNormalChain`, `ChainBuild::build` alone over the PBR replacers' normal maps: 0.58 s an iteration, 77.8
-million texels a second, 43% of the pass once bc7enc is as above. Its samples: the laying of a texel 47.5%, the
-box of a level and its rows 31.3%, the finest level's decode 11.1%, the band read 3.0%, `ColourBlock::read` 2.8%,
-the alpha's decode 1.5%. By line, `unitByte` 40%, its product widened to a double and held by two branches, and
-the square root and three divisions of a unit normal 23%.
-
-Every texel was made a unit normal, made one again where it was laid and rounded a channel at a time: sixteen
-times a block, whose texels choose among four colours. And one normal at a time waits for the one before it:
-the build's scalar square root keeps the rest of the register it writes, which the normal before wrote last, so
-a turn's two square roots and six divisions ran end to end and were still 35% of the samples at a quarter as many
-turns.
-
-The same arithmetic over the same numbers, in four steps, the corpus's digest and the Fullrest Repack's and the
-made maps' the same at each:
-
-| step | PBR replacers' maps | the made loose maps |
-|---|---|---|
-| as it stood | 577 ms | 2.31 ms |
-| a block's palette turned and not its texels (`walkBand`); a ring texel four values, its height with it, so a tap of the box is one of four; a height's byte read off a table and not divided nine times a texel | 370 to 420 ms | 3.5 to 3.7 ms |
-| four normals worked together, a lane each: a palette, four loose texels of a row, four texels of a boxed row | 331 ms | 2.06 ms |
-| `unitByte` held by two choices and no branch, so twelve of them are worked as vectors | 287 ms | 1.63 ms |
-| a row's place in the ring and in the level found once a row | 241 ms | 1.49 ms |
-
-The second row's two figures are one source built twice: the turn stood in line in one build and out of it in
-the other. A loose map has no palette, so at that step it was turned a texel at a time inside one loop and
-slower than before, which the third step mends.
-
-After, three runs: `buildNormalChain` 0.24 s, 186 million texels a second, and `makeNormalChain` 0.98 s, from
-2.13 s at the start of the section above; bc7enc is 76% of the pass. The painted colours' cases are where they
-were. What the build's samples hold after: the directions of four normals and their bytes 41%, the finest
-level's walk, its unit normals and its laying 25%, the box 16%, `ColourBlock::read` 8%, the alpha's decode 4%.
-
-## Cold again, with every change above
-
-The tree at `0011749652` and the tree at `11cfa7cd7a`, back to back for each content list, as the first table
-was run but for the recording, which is of the new tree's runs alone:
-
-| content | preparation, before | after | its threads' CPU, before | after |
-|---|---|---|---|---|
-| vanilla | 3.05 s | 1.68 s | 44.9 s | 24.5 s |
-| Fullrest Repack | 327.6 s | 168.9 s | 4,886 s | 2,515 s |
-| PBR replacers | 76.1 s | 41.0 s | 1,128 s | 605 s |
-
-Every entry of the two stores is the same byte for byte, 19,401 files of vanilla's, 32,027 of the replacers' and
-105,289 of the Repack's; the manifest beside them differs, which files a run's stamps and its order; and the
-Repack's base store holds three small entries the new one lacks, as its two cold stores did before
-(`.notes/ISSUES.md`).
-
-Inclusive shares of the new runs' samples, the load ahead of the preparation among them:
-
-| function | vanilla | Fullrest Repack | PBR replacers |
-|---|---|---|---|
-| `ChainPass::run`, every chain | 77.0% | 94.0% | 90.3% |
-| `ChainBuild::encode`, rgbcx's BC1 | 53.2% | 62.2% | 26.7% |
-| `ChainBuild::encodeBc7`, bc7enc | 6.6% | 10.3% | 38.8% |
-| of it, `estimate_partition`, every mode's alone | 3.8% | 5.7% | — |
-| `ChainBuild::build` | 16.9% | 21.6% | 24.0% |
-| of it, `ChainBuild::delight` | 12.1% | 15.9% | 4.2% |
-| of it, `ChainBuild::buildNormals` | — | — | 10.3% |
-| `ShapePass::run` | 9.3% | 3.0% | 0.9% |
-
-BC1 is still three fifths of the Repack's run. A chain of every mode in BC7, a colour's or a map of data's, is
-a tenth of it, and over half of that is `estimate_partition`, which nothing above touched.
-
-## The file's selectors kept, on the encoder as it stands
-
-The trial of "The file's selectors kept, its endpoints fit again" built as a spike on `11cfa7cd7a` and not
-kept in the tree: a painted BC1 block of a level its file carries is made with the file's selectors and
-endpoints fit by least squares, through rgbcx's own entry with the selectors forced, and stands where its
-squares over the block's 48 channels are at or under a limit; a block of one colour, a three-colour block of
-the file's and every block over the limit are searched as before. The limit off, the made chains are the ones
-above, digest for digest.
-
-The benchmark's two corpora on one core, three runs a case:
-
-| limit | Repack, `encodePaintedBc1` | signal to noise | PBR replacers | signal to noise |
-|---|---|---|---|---|
-| none | 2,693 ms | 43.796 dB | 3,032 ms | 43.908 dB |
-| 32 | 2,887 ms | 43.796 dB | 3,271 ms | 43.909 dB |
-| 64 | 2,694 ms | 43.793 dB | 3,024 ms | 43.905 dB |
-| 96 | 2,412 ms | 43.777 dB | 2,693 ms | 43.885 dB |
-| 128 | 2,096 ms | 43.747 dB | 2,299 ms | 43.848 dB |
-| 192 | 1,435 ms | 43.619 dB | 1,527 ms | 43.669 dB |
-
-The fit is paid on every block and lost on each that fails, so a limit of 32 is slower than the search alone and
-64 its equal; the search being 2.4 times what it was when the trial was run, a kept block saves that much less.
-The spike's fit runs rgbcx's first guess at a block's endpoints, which forced selectors do not need.
-
-A file's own loss against the search, in decibels: at 96 a median of 0.010 over the Repack's 63 files and 0.011
-over the replacers' 35, the worst 0.23 (a glove of 0.01 million texels), 0.17 and 0.13, and 0.10 of the
-replacers'; at 128 a median of 0.024 and 0.025, the worst 0.39 and 0.20; at 192 a median of 0.106 and 0.143, the
-worst 0.98 and 0.77.
-
-The views' pictures, vanilla, the upscaler off, against the pictures at no limit: of 58 compared, 55 moved at 96
-and 56 at 128. A view's worst pixel is 9 of 255 at the median and 18 at the most at 96 (`seyda-neen-boulder`,
-3.9% of its pixels moved), 10 and 18 at 128; a map's is 3 or under. The run at no limit stopped at 29 places
-(`.notes/ISSUES.md`), so 16 pictures had nothing to stand against.
-
-Cold, 15 threads, one run each: the Repack's preparation 169.5 s and 2,526 s of CPU at no limit, 159.9 s and
-2,385 s at 96, 149.1 s and 2,225 s at 128, which is 5.6% and 11.9% of its CPU; its run at no limit in the
-section above was 2,515 s. The replacers' is not told apart: three runs at no limit were 497, 528 and 608 s of CPU, and
-three at 96 were 580, 578 and 579.
-
-## Every mode of BC7
-
-A painted colour BC1 cannot hold again, one with a cut, or loose, or small with no chain, is made in BC7 with
-every mode bc7enc has tried a block: a tenth of the Fullrest Repack's cold run above, over half of it
-`estimate_partition`. The benchmark reads a third corpus for it, the files read as painted that the pass makes in
-BC7, four million texels of finest levels at most: 12 of the Repack's files, 13.41 million texels, digest
-`58ad2798d4d098f552f2812af8149303`, and of the PBR replacers' one file of 5.59 million, which is no corpus. On one
-core, three runs: `encodePaintedBc7` 3.67 s, 3.66 million texels a second, a sixteenth of a normal map's rate,
-and `makePaintedBc7Chain` 3.89 s; a root mean square of 0.63 of 255, 52.14 dB, over its colour and its cut.
-
-A block's two-subset partition is chosen by an estimate of each of up to 64: the block's pixels gathered into
-the partition's two subsets, and for each subset its bounds, a palette between their corners, and each pixel's
-selector by thresholds and its error, a pixel at a time, stopped once the subset passes the best estimate so far.
-Counted over the harness's blocks: 25 partitions tried a block and 41 subsets estimated, a subset 8.5 pixels of
-which 7.5 are reached before it stops, a quarter of the subsets stopped. So the stop saves an eighth of the
-pixels.
-
-bc7enc with a partition's two subsets and its sixteen pixels estimated at once, no pixel gathered: a subset's
-bounds are the least and greatest of the pixels under its mask, each pixel takes its own subset's axis,
-thresholds and palette by that mask, and a block's luma and chroma are made once and not once a partition. A
-subset's sum past the best so far decides as the stopped sum did, which was past it too; but a partition of low
-frequency under a weight that is not one has its stopped sum scaled, and there the pixels' errors are summed in
-the walk's order and stopped where it stopped. And the selector walk in YCbCr, which tried every palette entry
-against a pixel and made the entry's luma and chroma again each time, tries an entry against sixteen pixels.
-
-The same bytes over fifteen sets of parameters, 2.24 million made blocks, and again with its asserts on: the ten
-sets of the section above, and partitions of low frequency weighed 0.5, 0.75 and 1.5, sixteen partitions with
-the filter bank off, and every partition with it off. Time a block on one core:
-
-| set | as vendored | before this | after |
-|---|---|---|---|
-| a map of data, every mode | 4,954 ns | 4,325 ns | 1,755 ns |
-| a colour, every mode | 5,704 ns | 5,632 ns | 2,243 ns |
-| a colour, uber level 4 | 21,287 ns | 21,113 ns | 10,429 ns |
-
-The benchmark's corpora after, the digests the same:
-
-| benchmark | before | after |
-|---|---|---|
-| `encodePaintedBc7`, the Repack's | 3.67 s | 1.57 s |
-| `makePaintedBc7Chain`, the Repack's | 3.89 s | 1.80 s |
-| `encodePaintedBc7`, the replacers' one file | 0.86 s | 0.41 s |
-
-The encoder's samples after, over the Repack's corpus: `estimate_partition` 56%, `evaluate_solution` 23%,
-`color_cell_compression` 9%, `find_optimal_solution` 7%. The estimate is still over half: seven thresholds
-compared against sixteen projections a partition, and its errors.
-
-## BC1's orderings, their endpoints before their searches
-
-`encodePaintedBc1` over the Repack's corpus as the tree stood at `f02873b972`, 2.69 s, its samples by what they
-are spent on: an ordering's endpoints 36% (their rounding to 5:6:5 13.4%, their fit 7.1%, the check for a pair
-tried before 5.7%, the loop's own lines 5.9%, the rounded lanes read out 3.6%), the four-colour selector search
-26%, the three-colour block's fit, search and least squares 14%, the first guess 5%, the texels' order 4%. A block
-is 954 ns, twenty orderings of four colours and eight of three.
-
-An ordering's fit and rounding wait on no other ordering's, but each stood behind a branch on whether the one
-before it had come to endpoints tried already, which two in three do and in no order a predictor learns. So the
-endpoints of every ordering are made first, thirty-two orderings at a time, with no branch among them; the pairs
-tried before are dropped in one pass, each pair weighed against the best so far and the pairs before it under a
-mask; and the pairs left are searched in the orderings' order, the first of the best kept as it was. Which pairs
-are passed by moves no byte: a pair searched twice comes to the same error, which is not under a best it was not
-under before.
-
-Counted on one core over the 400,000 made blocks of the first setting below, their making among the counts: 18
-branches guessed wrong a block before and 7 after, 953 branches and 735, 16,789 instructions and 17,230, and
-6,095 cycles and 5,262. So the gain is the guesses: more instructions, in fewer cycles.
-
-The same bytes as the vendored encoder over 1.42 million made blocks of ten kinds at nine settings, levels 5 to
-18, with three-colour blocks and without, with black's selector and without, and again with its asserts on.
-`RtxChainBuildTest` holds a digest more, recorded off the encoder as vendored: level 18, whose orderings are past
-thirty-two, over blocks no ordering fits whole. Time a block on one core:
-
-| setting | before | after |
-|---|---|---|
-| level 10 with three-colour blocks, as a chain is encoded | 1,028 ns | 868 ns |
-| level 10, four colours alone | 751 ns | 631 ns |
-| level 12 | 1,801 ns | 1,415 ns |
-| level 18, every ordering | 10,529 ns | 9,993 ns |
-
-The benchmark's corpora, the digests the same, three runs:
-
-| benchmark | before | after |
-|---|---|---|
-| `encodePaintedBc1`, the Repack's | 2.69 s | 2.13 s |
-| `makePaintedChain`, the Repack's | 3.47 s | 2.93 s |
-| `encodePaintedBc1`, the replacers' | 3.03 s | 2.45 s |
-| `makePaintedChain`, the replacers' | 3.88 s | 3.31 s |
-
-The corpora gain more than the made blocks, whose orderings come to the same endpoints less often. After, over
-the made blocks: the four-colour selector search 31%, an ordering's endpoints 19%, the three-colour block 12%.
-
-## Cold a third time, and what one core alone overstates
-
-The tree at `0011749652` and the tree at `2099a298be`, back to back for each content list, the recording of the
-new tree's runs alone:
+The tree at `0011749652` against `2099a298be`, back to back, every entry of both stores the same byte for byte.
 
 | content | preparation, before | after | its threads' CPU, before | after |
 |---|---|---|---|---|
@@ -493,27 +14,7 @@ new tree's runs alone:
 | Fullrest Repack | 329.1 s | 152.7 s | 4,895 s | 2,271 s |
 | PBR replacers | 77.7 s | 40.4 s | 1,145 s | 595 s |
 
-Every entry of the two stores the same byte for byte again, 19,401, 105,289 and 32,027 files, the manifest beside
-them aside; the Repack's two stores hold the same entries this time.
-
-Against the run of "Cold again", which was before every mode of BC7 and BC1's orderings: the Repack's CPU from
-2,515 s to 2,271 s. By the samples, BC7 from 263 s to 129 s, as its benchmark said, and delight 405 s and 410 s;
-but BC1 from 1,583 s to 1,462 s, 7.6% less, where the benchmark on one core said 21%.
-
-The orderings' gain is branches guessed wrong, and a core whose two hardware threads are both busy loses less to
-one: what one thread throws away, the other runs in. The made blocks of that section's first setting, the
-encoder before and after, a block:
-
-| | before | after | less |
-|---|---|---|---|
-| one thread on a core, the other idle | 1,028 ns | 865 ns | 15.9% |
-| both threads of the core encoding | 1,626 ns | 1,562 ns | 3.9% |
-
-The preparation runs a thread on every hardware thread it is given, so the second row is what a change of this
-kind is worth to it; the benchmark's one pinned core is the first. A change that removes instructions, as every
-mode of BC7's did, holds in both.
-
-Inclusive shares of the new runs' samples:
+Inclusive shares after:
 
 | function | vanilla | Fullrest Repack | PBR replacers |
 |---|---|---|---|
@@ -522,6 +23,37 @@ Inclusive shares of the new runs' samples:
 | `ChainBuild::encodeBc7`, bc7enc | 3.0% | 5.6% | 39.3% |
 | `ChainBuild::build` | 18.3% | 24.2% | 24.7% |
 | of it, `ChainBuild::delight` | 13.4% | 17.8% | 4.4% |
-| of it, `ChainBuild::buildNormals` | — | — | 10.6% |
 | `ShapePass::run` | 9.8% | 3.3% | 0.9% |
 
+Before, BC1 was over 70% of the Repack's run, BC7 40% of the replacers'. BC1 encoding at level 10 is two
+least-squares passes and then the likeliest total orderings of a block, each ordering's endpoints solved and its
+selectors searched: that search was the whole cost.
+
+## What made it faster, each the same bytes
+
+Each change is held by `RtxChainBuildTest`'s digests, recorded off the encoders as vendored, and by millions of made
+blocks compared against the vendored encoder under every setting the tree uses, asserts on and off.
+
+- **rgbcx's BC1**: the selector searches four texels at a time (SSE4.1), each lane the scalar arithmetic in its order;
+  an ordering whose endpoints were tried before skipped (two in three are); the texels' order by counting; and every
+  ordering's endpoints made first, with no branch among them. The encoder 2.4 times as fast on one core.
+- **The painted build**: the colour tables read inline and a texel's light lookup and division in their header; the
+  pass whole 6.75 → 3.00 s on the benchmark's corpus.
+- **bc7enc**: the vector instructions x86-64-v2 has, every float sum kept in the order it was added in, since no
+  reordering makes the same bytes; a partition's subsets and pixels estimated at once.
+- **A normal map's build** a palette entry at a time, not a texel at a time: 2.13 → 0.98 s for the pass.
+
+## What one core overstates
+
+A gain that comes from fewer mispredicted branches shrinks when both hardware threads of a core are busy, as the
+preparation keeps them: BC1's orderings change was 15.9% a block with the other thread idle and 3.9% with both
+encoding, and the cold Repack's BC1 fell 7.6% where the benchmark said 21%. A change that removes instructions holds
+in both. The benchmark (`openmw_rtx_chain_encode_benchmark`) is quoted with its corpus, whose digest the label
+carries: the rate moved 7–10 million texels a second between draws of one folder.
+
+## Refused: a painted block made with its file's own selectors
+
+A BC1 block kept with the file's selectors and its endpoints fit again by least squares, searched only where the fit's
+error passes a limit. On the encoder as it stands: at a limit of 96, 5.6% of the Repack's cold CPU saved and 11.9% at
+128, for files a median 0.01–0.02 dB worse; 55 of 58 vanilla views moved, a view's worst pixel by up to 18 of 255;
+the replacers' runs not told apart. Too little for every store made again and every picture moved.

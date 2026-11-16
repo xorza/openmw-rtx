@@ -7,11 +7,11 @@ in its place. The same driver's compile memory is in
 
 ## A ray query during a closest-hit shader fails on this driver
 
-With the traversal in a callable stage, and the launch compiling (`2026-10-19-amd-windows-trace-compile-memory.md`, "The traversal in a callable stage"), every frame of the game lost the device ("an invalid read", one stable
-address per build), and the GPU tests that cast a shadow from the hit shading failed: the floor
-under an occluder stayed lit (`theSunLightsWhatItFacesAndTheOccluderTakesItAway` and all four of
-`RtxPenumbraTest`). Core and synchronization validation reported nothing before the loss; GPU-AV's
-own submit failed with the device already lost.
+With the traversal in a callable stage, and the launch compiling (`2026-10-19-amd-windows-trace-compile-memory.md`, "The
+traversal in a callable stage"), every frame of the game lost the device ("an invalid read", one stable address per
+build), and the GPU tests that cast a shadow from the hit shading failed: the floor under an occluder stayed lit
+(`theSunLightsWhatItFacesAndTheOccluderTakesItAway` and all four of `RtxPenumbraTest`). Core and synchronization
+validation reported nothing before the loss; GPU-AV's own submit failed with the device already lost.
 
 - The callable stage receives the request whole and returns the answer whole: forced answers came
   back as written, and the mask arrived as the shadow ray's own, 0x39.
@@ -28,13 +28,13 @@ own submit failed with the device already lost.
 
 ## A ray generation stage draws the walk wrong (2026-10-20)
 
-The walk, one loop over every ray a pixel casts (`2026-10-19-amd-windows-trace-compile-memory.md`, "The walk: one traversal site").
-As a ray tracing pipeline the launch draws wrong pictures: `theSunLightsWhatItFacesAndTheOccluderTakesItAway`
-reads the lit wall right in its first frame and no hit at all in every later one, and the result
-moves from run to run. With the shading cut out of the module (the eye's hit answered flat, the
-compile 2.4 s) every frame hits. Not the cause: `maxPipelineRayRecursionDepth` 0 or 1; every lane
-running the query in every turn of the loop; the pipeline's stack size set at each launch from the
-group's own. The same module as a compute dispatch passes the sun test and the penumbra tests.
+The walk, one loop over every ray a pixel casts (`2026-10-19-amd-windows-trace-compile-memory.md`, "The walk: one
+traversal site"). As a ray tracing pipeline the launch draws wrong pictures:
+`theSunLightsWhatItFacesAndTheOccluderTakesItAway` reads the lit wall right in its first frame and no hit at all in
+every later one, and the result moves from run to run. With the shading cut out of the module (the eye's hit answered
+flat, the compile 2.4 s) every frame hits. Not the cause: `maxPipelineRayRecursionDepth` 0 or 1; every lane running the
+query in every turn of the loop; the pipeline's stack size set at each launch from the group's own. The same module as a
+compute dispatch passes the sun test and the penumbra tests.
 
 ## A confirmed triangle's committed corners (2026-10-20)
 

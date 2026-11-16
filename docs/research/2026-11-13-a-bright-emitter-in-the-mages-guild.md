@@ -17,8 +17,8 @@ on it (`landingLightOf`).
 | 10 | | 4.05 / 19.28 | 9.26 / 229.91 | 13.06 / 21.52 | 52.86 |
 | 100 | | 13.07 / 56.37 | 11.32 / 206.37 | 18.44 / 40.98 | 216.97 |
 
-At 100 the denoised frame is noisier than its 16 frames averaged, and two frames after a cut (`--cut=2`) its noise
-is 30.11 / 117.12, its bias 44.43 and 480.18 pixels a thousand are fireflies. The view from beside the ball, with the ball
+At 100 the denoised frame is noisier than its 16 frames averaged, and two frames after a cut (`--cut=2`) its noise is
+30.11 / 117.12, its bias 44.43 and 480.18 pixels a thousand are fireflies. The view from beside the ball, with the ball
 out of the frame, is clean at 100: 0.66 / 1.47, 0.03 fireflies a thousand.
 
 The frame at 100 shows blotches 10 to 30 pixels across over the whole wall and floor the ball lights, where the mean

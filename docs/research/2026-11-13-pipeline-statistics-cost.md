@@ -9,20 +9,8 @@ run found only what the pipeline cache file held. The figures are the device's s
 
 ## Cold, then warm on the cold run's file
 
-| run | statistics | made | compiled | from the pipeline cache | compiling, summed | a compiled pipeline |
-|---|---|---|---|---|---|---|
-| 1 cold | off | 109 | 106 | 3 | 17.62 s | 166 ms |
-| 1 warm | off | 117 | 8 | 109 | 3.00 s | — |
-| 1 cold | on | 102 | 99 | 3 | 15.37 s | 155 ms |
-| 1 warm | on | 111 | 9 | 102 | 2.71 s | — |
-| 2 cold | off | 105 | 102 | 3 | 16.56 s | 162 ms |
-| 2 warm | off | 113 | 8 | 105 | 2.33 s | — |
-| 2 cold | on | 105 | 102 | 3 | 16.65 s | 163 ms |
-| 2 warm | on | 115 | 10 | 105 | 3.18 s | — |
-| 3 cold | off | 111 | 108 | 3 | 18.43 s | 171 ms |
-| 3 warm | off | 119 | 8 | 111 | 2.95 s | — |
-| 3 cold | on | 106 | 103 | 3 | 16.80 s | 163 ms |
-| 3 warm | on | 115 | 9 | 106 | 3.04 s | — |
+Three rounds, statistics off and on in turn: a cold run compiled 99–108 pipelines at 155–163 ms each with statistics and
+162–171 ms without; a warm run on the cold run's file found every pipeline the cold run made, either way.
 
 - **The pipeline cache is kept**: with statistics on, every pipeline the cold run made was found in its file by
   the warm run, as with them off. The extension allows the flag to "disable pipeline caching or otherwise affect

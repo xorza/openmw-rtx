@@ -27,5 +27,5 @@ The host's side of the trace, where the trace's writes are recorded (`trace` row
   and every staged one is written twice, into staging and by the copy.
 - The worst frames are the present's and the arrivals' at both: no row of the report moved with the
   transport by more than the two runs of one transport moved apart.
-- **Measurable, so mapped writes stay**, a constant away (`sHostWrites`), for a build on a card with
-  resizable BAR that wants the 0.1 to 0.2 ms back. Staged writes ship, since they start on every card.
+- **Staged writes ship, since they start on every card**; the mapped path, kept a while behind a constant for a card
+  with resizable BAR, has since gone.

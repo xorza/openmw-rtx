@@ -60,6 +60,6 @@ ship 155.60, 155.57, 155.89, 155.91; guild 102.63, 102.61, 102.76, 102.77.
 
 ## Descriptors
 
-A change of anisotropy writes the eight samplers into each set, the four footprint samplers among
-them, where it wrote three descriptors for every slot. The pool is two arrays of sampled images and eight samplers, where it was
-three arrays of combined image samplers: under RADV a sampled image is 64 bytes and a combined one 96.
+A change of anisotropy writes the eight samplers into each set, the four footprint samplers among them, where it wrote
+three descriptors for every slot. The pool is two arrays of sampled images and eight samplers, where it was three arrays
+of combined image samplers: under RADV a sampled image is 64 bytes and a combined one 96.

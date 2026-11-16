@@ -43,25 +43,19 @@ opens the archive for every entry). The archive's index maps an offset to its en
   10 ms and 1 s.
 - 2,496 of the reads within 10 ms were by another thread than the read before: two threads that missed the
   same cache entry at once, each loading it.
-- By thread, a repeat named by the thread before it and its own: 33,926 the preloader's after the preloader's,
-  1,271 the preloader's after the ring's reader's, 1,184 the main thread's after the preloader's, 1,021 the main
-  thread's after its own, 721 the preloader's after the main thread's, 123 the reader's after either.
+- Nearly all repeats were the game's cell preloader reading again what it had read before.
 - **The preloader ran on 16 threads holding up to 50 cells**: the harness scales the game's preloader to a
   flight's speed (`apps/rtxtool/framed.cpp`, `CellPreload`: the shipped thread count times the speed over a run's,
   up to the ring's 16 cells or the processor less one, and the cache up to two grids with their rings), against
   the shipped 1 thread and 20 cells. Each of the 16 threads seeked into an archive 14,000 to 22,000 times, from 8
   to 140 s.
-- By archive and kind, in a run of 22,701 reads: `Morrowind.bsa` 17,017 reads of 5,142 entries (12,587 repeats),
-  nearly all `.nif` (16,544 reads of 3,966 models, four reads a model in 75 s); the replacers' loose `.dds` 4,466
-  reads, 26 repeats.
-- The most-read entries are the interiors' and the furniture's models (`in_velothismall_*`, `furn_de_*`), 15 to 19
-  reads each, by the preloader's thread and the main thread.
+- `Morrowind.bsa`'s models were read four times each in 75 s; the replacers' loose textures almost never twice.
 
 A stack for every archive read (`strace -k`, resolved with `addr2line`): 38% `NifFileManager::get` ←
 `SceneManager::getTemplate` ← `getInstance` on the main thread (cell insertion), 21% the same under the cell
 preloader, 13% under `Rtx::CellReader::readModel`, 3% `ImageManager::getImage` under MyGUI, 2% `KeyframeManager`.
 
-## Upstream's caches as they stand
+## Upstream's caches as they stood
 
 `Resource::GenericObjectCache` keeps an entry while anything outside it holds the value, and drops it `cache
 expiry delay` (5 s) after the last such hold (`objectcache.hpp`, `update`). A load takes no lock between the miss
