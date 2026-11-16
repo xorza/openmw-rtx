@@ -5,6 +5,7 @@
 
 #include <components/esm3/loadench.hpp>
 #include <components/esm3/loadmgef.hpp>
+#include <format>
 #include <utility>
 
 #include "../mwbase/environment.hpp"
@@ -98,7 +99,7 @@ namespace MWGui
                 std::string cost = std::to_string(MWMechanics::calcSpellCost(*spell));
                 std::string chance
                     = std::to_string(static_cast<int>(MWMechanics::getSpellSuccessChance(spell, mActor)));
-                newSpell.mCostColumn = cost + "/" + chance;
+                newSpell.mCostColumn = std::format("{}/{}", cost, chance);
             }
             else
                 newSpell.mType = Spell::Type_Power;
@@ -161,7 +162,7 @@ namespace MWGui
                 if (currentCharge == -1)
                     currentCharge = MWMechanics::getEnchantmentCharge(*enchant);
                 std::string charge = std::to_string(currentCharge);
-                newSpell.mCostColumn = cost + "/" + charge;
+                newSpell.mCostColumn = std::format("{}/{}", cost, charge);
 
                 newSpell.mActive = invStore.isEquipped(item);
             }

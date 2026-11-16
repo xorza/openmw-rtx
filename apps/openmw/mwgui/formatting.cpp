@@ -294,7 +294,7 @@ namespace MWGui::Formatting
                     if (inlineImageInserted)
                     {
                         pag.setCurrentTop(pag.getCurrentTop() - mTextStyle.mTextSize);
-                        plainText = "        " + plainText;
+                        plainText.insert(0, "        ");
                         inlineImageInserted = false;
                     }
                     TextElement elem(paper, pag, mBlockStyle, mTextStyle, plainText);

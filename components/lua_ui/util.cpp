@@ -1,5 +1,6 @@
 #include "util.hpp"
 
+#include <format>
 #include <ranges>
 #include <unordered_set>
 
@@ -94,7 +95,7 @@ namespace LuaUi
             {
                 if (!generateWarningStrings)
                     return true;
-                warnings.push_back("unused key '" + keyStr + "' in " + tableName);
+                warnings.push_back(std::format("unused key '{}' in {}", keyStr, tableName));
             }
         }
         return beginningSize != warnings.size();

@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <format>
 #include <fstream>
 #include <functional>
 #include <iterator>
@@ -739,8 +740,9 @@ namespace Rtx
                         if (!to.has_value())
                             found.push_back(relative + ": <" + included->mPath + "> is in no folder of the order");
                         else if (target != folder && *to > *from)
-                            found.push_back(relative + ": <" + included->mPath + "> comes after `" + folder
-                                + "/` — move the file where what it includes allows, or split it");
+                            found.push_back(std::format(
+                                "{}: <{}> comes after `{}/` — move the file where what it includes allows, or split it",
+                                relative, included->mPath, folder));
                     }
                 }
 

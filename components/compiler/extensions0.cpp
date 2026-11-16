@@ -1,5 +1,7 @@
 #include "extensions0.hpp"
 
+#include <format>
+
 #include "extensions.hpp"
 #include "opcodes.hpp"
 
@@ -420,8 +422,8 @@ namespace Compiler
                 extensions.registerInstruction(
                     modCurrent + dynamics[i], "f", opcodeModCurrentDynamic + i, opcodeModCurrentDynamicExplicit + i);
 
-                extensions.registerFunction(get + dynamics[i] + getRatio, 'f', "", opcodeGetDynamicGetRatio + i,
-                    opcodeGetDynamicGetRatioExplicit + i);
+                extensions.registerFunction(std::format("{}{}{}", get, dynamics[i], getRatio), 'f', "",
+                    opcodeGetDynamicGetRatio + i, opcodeGetDynamicGetRatioExplicit + i);
             }
 
             for (int i = 0; i < numberOfSkills; ++i)

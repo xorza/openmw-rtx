@@ -1,5 +1,6 @@
 #include "parser.hpp"
 
+#include <format>
 #include <sstream>
 
 #include <components/debug/debuglog.hpp>
@@ -80,7 +81,7 @@ void Settings::SettingsFileParser::loadSettingsFile(
         if (overrideExisting)
             settings[std::make_pair(currentCategory, setting)] = std::move(value);
         else if (settings.insert(std::make_pair(std::make_pair(currentCategory, setting), value)).second == false)
-            fail(std::string("duplicate setting: [" + currentCategory + "] " + setting));
+            fail(std::format("duplicate setting: [{}] {}", currentCategory, setting));
     }
 }
 

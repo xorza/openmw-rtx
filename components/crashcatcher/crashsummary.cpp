@@ -203,7 +203,7 @@ namespace Crash
                 + " found the note table full and noted nothing");
 
         for (const auto& [key, value] : facts.mAnnotations)
-            lines.push_back(kind + key + ": " + value);
+            lines.push_back(std::format("{}{}: {}", kind, key, value));
 
         if (facts.mDump.empty())
             lines.push_back(kind + "no dump was written");

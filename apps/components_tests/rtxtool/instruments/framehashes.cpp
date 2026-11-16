@@ -2,6 +2,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <format>
 #include <fstream>
 #include <optional>
 #include <span>
@@ -653,8 +654,8 @@ namespace RtxTool
             partialHash[pictureAt + pictureLength - 1] = 'g';
 
             for (const std::string& written : { partialFrame, partialHash })
-                EXPECT_EQ(
-                    Rtx::Testing::refusalOf([&] { FrameHashes::parse(header + '\n' + written + '\n', "hashes.csv"); }),
+                EXPECT_EQ(Rtx::Testing::refusalOf(
+                              [&] { FrameHashes::parse(std::format("{}\n{}\n", header, written), "hashes.csv"); }),
                     "cannot read hashes.csv: " + written);
         }
 
