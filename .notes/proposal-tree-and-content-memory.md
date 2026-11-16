@@ -1,41 +1,41 @@
-# Proposal: one spelling for the tree, then the content's memory
+# Proposal: one spelling for the tree, and the content's memory
 
-Two works in one run. **Part one**, items 1–7, gives the tree one spelling: the four `todo.md` items under Code (audit
-macros, `OPENMW_FFMPEG_5_OR_GREATER`, audit `#if`s, order includes) and "unsigned int to uint32", surveyed at
-`8c032f6e00` over `apps/` and `components/` (4,023 sources: 1,393 the fork's, 2,630 upstream's, by `fork_files`), and
-`extern/osg-ffmpeg-videoplayer` where it holds the FFmpeg macros. **Part two**, items 8–18, is how content gets from
-its files to the device, audited at `4b608db89f` by reading: the game's loaders (`components/resource`), the mirror
-and the cell ring, the scene's tables and the uploader, the content store and the texel path, and the device's memory.
-Nothing of part two was built or run, so a figure there is either one a dated note measured or is marked *inferred*;
-the lines its plan leans on were read twice. It takes in the open issues at the head of `.notes/ISSUES.md`.
+One plan of eighteen items. Items 1–7 give the tree one spelling: the four `todo.md` items under Code (audit macros,
+`OPENMW_FFMPEG_5_OR_GREATER`, audit `#if`s, order includes) and "unsigned int to uint32", surveyed at `8c032f6e00` over
+`apps/` and `components/` (4,023 sources: 1,393 the fork's, 2,630 upstream's, by `fork_files`), and
+`extern/osg-ffmpeg-videoplayer` where it holds the FFmpeg macros. Items 8–17 are how content gets from its files to
+the device, audited at `4b608db89f` by reading: the game's loaders (`components/resource`), the mirror and the cell
+ring, the scene's tables and the uploader, the content store and the texel path, and the device's memory. What the
+audit says of sizes is a dated note's measurement or is marked *inferred*; the lines the plan leans on were read twice,
+and the handheld's tours at `8c032f6e00` bear out its two largest claims. The plan takes in the open issues at the head
+of `.notes/ISSUES.md`.
 
-Written for `/execute-plan`: items in order, each a commit, `./omw gate` at the end. An item marked **yes** names an
-entry under **Yours to say** and is skipped while that entry has no answer. When the run lands, part two's decisions
-fold into `docs/architecture.md` ("Loading", "The content store", "Device and memory"), part one's into `AGENTS.md`
-and `UPSTREAM.md`, and this file is deleted.
+Written for `/execute-plan`: items in order, each a commit, `./omw gate` at the end. Every decision that was the
+user's to make is made and recorded under **Approved**. When the run lands, the decisions on the content fold into
+`docs/architecture.md` ("Loading", "The content store", "Device and memory"), those on the tree into `AGENTS.md` and
+`UPSTREAM.md`, and this file is deleted.
 
 ## Order
 
 Why the items stand in this order, each a reason a later item leans on:
 
-- **What moves no frame goes first, whole.** Every line part two writes is then written in the tree's final spelling,
-  under the lint and the checks that hold it, so nothing is fixed twice; and the baseline and every tour after it
-  differ only by changes that can move memory or a frame.
+- **What moves no frame goes first, whole** (items 1–7). Every line the later items write is then written in the tree's
+  final spelling, under the lint and the checks that hold it, so nothing is fixed twice; and the baseline and every
+  tour after it differ only by changes that can move memory or a frame.
 - **Dead code out before a tree-wide rewrite** (items 1–2 before 4–5), so the rewrites touch only what stays.
 - **The normalizer before the rules it applies** (item 3): the includes' quoted paths and the integers both run
   through it, and the merge driver needs it before the first tree-wide commit meets an upstream merge.
 - **Includes before integers** (item 4 before 5): the `<cstdint>` a rename adds lands in a block clang-format already
   forms.
-- **The checks before the code they would otherwise meet twice** (item 6 before part two), and **the platform's
-  branches last of part one** (item 7), the largest item and the most Windows CI.
+- **The checks before the code they would otherwise meet twice** (item 6 before item 8), and **the platform's
+  branches last of the seven** (item 7), the largest of them and the most Windows CI.
 - **The harness runs as the game before the baseline** (item 8), or every later figure is held against a run on huge
   pages with a door reach no player has.
-- **Small and independent before large** (items 9–10): the faults and the ceiling need no format change and no yes,
-  and end the handheld's refusals, so the tours that follow read clean.
-- **Every format change of the store and its manifest in one item** (item 11), so the stores are made again once.
-- **The mapping threshold chosen after the pool** (item 12 after 11): the buffers that drove the heap no longer reach
-  the allocator, so the value is picked for what is left. **The game's own holders with the budgets**, one round of
-  tours for both.
+- **The heap before anything measured on the handheld** (item 10): it ends its tours three gigabytes into swap, and a
+  tour that swaps takes an hour and moves from run to run.
+- **Small and independent before large** (items 9–11): the faults, the heap and the ceiling need no format change, and
+  end the handheld's refusals and its caches' thrash, so the tours that follow read clean.
+- **Every format change of the store and its manifest in one item** (item 12), so the stores are made again once.
 - **The planner before the geometry's host copy goes** (item 13 before 14): until no world is rebuilt for a reserve
   that moved, a rebuild reads that copy.
 - **Flat ring records before the ring's prefix** (item 14 before 15), so the prefix is written once, on the records
@@ -43,7 +43,7 @@ Why the items stand in this order, each a reason a later item leans on:
 - **Need after the planner, and streams after the geometry** (items 16–17): each is a policy or a layout over a
   mechanism an earlier item makes, and each may be declined on its own measurement without undoing one.
 
-## Findings: the tree
+## Findings
 
 **The fork's own code is already nearly clean.** Its 1,393 sources hold 10 `#define` lines, every one a library's switch
 (`VMA_IMPLEMENTATION`, `VOLK_IMPLEMENTATION`, `SPV_ENABLE_UTILITY_CODE`), a compiler's spelling (`OMW_NO_UNIQUE_ADDRESS`)
@@ -129,14 +129,14 @@ On both targets (x86-64 Linux, x64 Windows) `std::int32_t` is `int`, `std::uint3
 with no change of overload, ABI, format or behaviour. `long` is 64 bits on Linux and 32 on Windows, so each `long` is a
 choice of width, and `std::int64_t` is `long` on one and `long long` on the other.
 
-## Findings: the content's memory
-
 Where the memory stood when measured:
 
 | Run | Figure | Held by |
 |---|---|---|
 | handheld, PBR tour (`ee7852dc50`) | 5,581 MiB anonymous, 1,376 MiB of it swapped; the heap 2,008 MiB free of 5,690 MiB taken; 46,822 image loads on 9,552 files; 994.5 s against the desk's 89.6 | the texel path and the heap, below |
 | handheld, Repack tour (ahead of `3ab057cd39`) | 859 content takes refused with usage 0.9–1.7 GiB under a 6,144 MiB budget, 78–92 MiB free in pieces | the ceiling, then fragmentation, below |
+| handheld, Repack tour (`8c032f6e00`, `2026-11-17-handheld-tours-and-store-forms.md`) | 331 takes refused 1.1–2.1 GiB under the budget, beside 3 GiB of rest; at the end 6,085 MiB resident, 3,202 MiB swapped, the heap 4,642 MiB free of 9,364 MiB taken; 62 minutes | the ceiling, the room's arithmetic and the heap, below |
+| handheld, PBR tour (`8c032f6e00`, the same note) | aborted in leg 3 on a sprite light bake whose source did not stand; until then the texture pool full with the process 1.1 GiB under its budget | the ceiling, below; the abort is item 8's |
 | desk, Repack tour, heap peak 6.17 GiB (`2026-11-16-host-memory-holders-repack.md`) | 1,141 MiB cell stores, 943 MiB `MeshTable`, 443 MiB the mirror, 345 MiB Bullet shapes, 275 MiB the store's resident entries, 254 MiB navigation meshes, 171 MiB keyframes, 157 MiB `NifOsg::Loader` | the geometry and the game's own, below |
 
 **The texel path reads a texture's source file to find a chain the store already holds.**
@@ -186,18 +186,22 @@ Where the memory stood when measured:
 - **Content's ceiling keeps free a second copy of everything essential, and of every structure as well for textures**
   (`memory.cpp:455-469`). The stated reason, a table that grows by making itself again, holds for megabytes of tables;
   the geometry and the structures' blocks are appended, and a rebuild drains the old world first. Resting meshes'
-  structures lower the ceiling too. This is the 0.9–1.7 GiB the handheld stood under its budget; the split of that
-  gap by use is *inferred*, since a refusal does not log it.
+  structures lower the ceiling too. At `8c032f6e00` the handheld stood 1.1–2.1 GiB under its budget at every one of
+  373 refusals, under the replacers with its texture pool full; the split of that gap by use is *inferred*, since a
+  refusal does not log it.
 - **Since `84a60139e8` room is counted across two storages**: a structure block is 64 MiB of its own, outside
   `getContentFree` (`memory.cpp:471-486`), so an evicted mesh reads as use and lowers the rest limit by nine tenths of
   what it freed (`sceneuploader.hpp:110-115`), and an arrival's structures are sized against the texture pools' room
-  (`sceneuploader.cpp:93-97`).
+  (`sceneuploader.cpp:93-97`). The Repack tour at `8c032f6e00` refused content beside 3 GiB of rest.
+- **The texture pool is cut as well as capped**: under the Repack up to 337 MiB stood free in its blocks with no range
+  past 4.8 MiB while textures of 5.4 MiB were refused. Under the replacers it was simply full.
 - **A texture want never matches a resting texture of its own size**: the hole carries alignment margins the fit does
   not (`memory.hpp:118-121`, `texture.cpp:696`, `restqueue.hpp:204`). **A static mesh refused in the loose storage
   files no want** (`bottomlevelstore.cpp:359`).
 - **Geometry is essential, appended and never given back, and a resting mesh pins its runs** (`blockedbuffer.cpp:37-75`,
   `meshtable.cpp:283-295`); the rest counts a mesh's structure alone. *Inferred*: 0.5–0.9 GiB under the handheld's
-  7,000 resting meshes.
+  7,000 resting meshes. The Repack tour's first place, flown again at its end, held half as many vertices again in use
+  and 220 MiB more of live structures for the same instances.
 - **A texture's residency is its whole image, sized by the room and never by need** (`texture.cpp:358-493`). A move up
   is a new image and the whole chain read again, up to six tries (`sceneuploader.cpp:120-160`). The shaders already
   compute the level each sample reads (`texturing.glsl:275-299`); nothing records it.
@@ -214,10 +218,13 @@ Where the memory stood when measured:
 - **Nothing tunes the allocator in play.** Image buffers of 5–22 MiB are allocated on 25 or more threads and freed on
   another. glibc raises its mapping threshold to the first such block freed, up to 32 MiB
   ([`mallopt(3)`](https://manpages.debian.org/unstable/manpages-dev/mallopt.3.en.html)), after which they come from
-  arenas that give back only their tops. *Inferred* as the cause of the 2 GiB free; the arenas' figures the tour now
-  logs will say.
+  arenas that give back only their tops. The Repack tour at `8c032f6e00` ended with 4,642 MiB free of 9,364 MiB taken,
+  in 25 arenas of which the largest stood nine tenths free, and 3,202 MiB swapped out; that the threshold is the cause
+  is *inferred*.
 - **The caches' budget counts as taken what the heap holds free** (`cachebudget.cpp:9-15`), and an insertion evicts on
-  its own thread, the frame's included, destroying the value inside the budget's lock (`cachebudget.cpp:75`).
+  its own thread, the frame's included, destroying the value inside the budget's lock (`cachebudget.cpp:75`). On the
+  handheld's Repack tour at `8c032f6e00` the caches ended holding nothing of what they read: NIFs were parsed 125,678
+  times, 102,080 of them again, templates made 104,753 times and collision shapes 82,823.
 - **On unified memory nothing bounds the device by the system**: RADV's budget is its heap less the GPU's use
   ([`radv_physical_device.c`](https://gitlab.freedesktop.org/mesa/mesa/-/blob/main/src/amd/vulkan/radv_physical_device.c))
   and does not see the process's heap.
@@ -234,40 +241,40 @@ Where the memory stood when measured:
 (`rtxrenderer.cpp:342-346`), and it runs on huge pages the game does not ask for (`rtxtool/main.cpp:638`).
 
 **Checked and left as recorded**: defragmentation, 16-bit indices, textures shared across scenes, staged host writes,
-pageable device memory, one bottom level a template.
+pageable device memory, one bottom level a template, and one file an entry in the store, whose 86,640 small files cost
+a start 0.26–1.48 s.
 
-## Yours to say
+## Approved
 
-Part one's upstream changes are approved (see Plan). Part two's wait here:
+**Decided by the user, 2026-11-17**, each walked through with its options:
 
-- **The level planner (items 13 and 16)** may be what "a residency manager" was refused as; `architecture.md` records
-  no reason. New since: the handheld stood textures short beside 1.5 GiB of rest, and a move up costs up to six whole
-  reads.
-- **Texture memory by size class (item 16)** reopens "pools by size class, which … starve a class at the ceiling beside
-  another's room". New since: the PBR tour's largest free range was 0.2–0.8 MiB with 136 MiB free; the ceiling that
-  made the starvation bind goes in item 10; and a planner that moves levels multiplies the churn. It is taken only if
-  a tour after item 10 still refuses a texture with room in pieces.
-- **Your decisions this changes**: every store is made again, once (item 11, whose keys change); every stored chain
-  is whole, so the store grows by the finest levels of the data maps (item 11.3); a mesh counts its geometry as well
-  as its structure (item 14.6).
-- **Upstream's code**, each a change under `AGENTS.md`'s first rule:
+- **The stores are made again, once** (item 12): its keys and its entries' format change.
+- **Every stored chain is whole** (item 12.3), about 700 MiB more on the desk's three profiles.
+- **One planner moves a texture's level** (item 13), in place of the three mechanisms that size a texture today. It
+  stands where "a residency manager" was refused with no reason recorded.
+- **A resting mesh counts its structure and its geometry, and gives both back** (item 14.6), changing "a mesh counts
+  what its eviction gives back" (`a3d689826f`).
+- **Levels by need, a meter first** (item 16): declined past its meter if under a tenth of the handheld PBR tour's
+  texture bytes stand in levels no ray read.
+- **What the texture pool strands in pieces is moved, not classed** (item 16.4), only if a tour after item 11 still
+  refuses a texture with room in pieces. Lifts "Refused: defragmentation" for textures; "pools by size class" stays
+  refused.
+- **The NIF's hash pass stays** as upstream has it: some 15 µs a parse by the files' sizes, an estimate.
+- **Upstream's code**, each recorded in `UPSTREAM.md` under **How content is loaded** in the commit that makes it:
 
   | Change | Why | Cost to a merge |
   |---|---|---|
-  | `ConstrainedFileStreamBuf::xsgetn` reads a large request straight into the caller's buffer (item 11) | one read and one copy in place of thousands | a conflict with an edit to the stream buffer, already the fork's (`UPSTREAM.md`, "How content is loaded") |
-  | `ImageManager` tells one listener when a model image's texels are first read (item 11) | the digest and the facts are made there, not by reading the file again | the fork's own lines in upstream's file |
-  | `Scene` asks the preloader's budget before it loads a door's destination (item 12) | a skipped preload has still loaded the cell | a conflict with an edit to `preloadTeleportDoorDestinations` |
-  | `Nif::Reader::parse` no longer hashes the file; the two tools that print the hash make it (item 12) | a whole read a parse for a value the game never reads | conflicts in `niffile.cpp`, `bulletobjecttool`, `navmeshtool` |
-  | the navigator's tile cache stands under `Resource::CacheBudget` (item 12) | a fixed 256 MiB, full, outside the budget every other cache yields to | a conflict with an edit to `NavMeshTilesCache`'s size |
+  | `ImageManager::setModelImages` takes a `Resource::HeaderDeriver` with the `Headers` mode, and `getModelImage` hands it a file's texels and its new header (item 12.1) | the digest and the facts are made there, not by reading the file again | the fork's own lines in upstream's file |
+  | `ConstrainedFileStreamBuf::xsgetn` reads a request no smaller than its buffer straight into the caller's memory (item 12.5) | one read and one copy in place of thousands | a conflict with an edit to the stream buffer, already the fork's |
+  | `Scene::preloadTeleportDoorDestinations` asks the preloader's budget before `findCell` loads a door's destination (item 10.4) | a skipped preload has still loaded the cell | a conflict with an edit to that loop |
+  | `NavMeshTilesCache` stands under `Resource::CacheBudget`, and `max nav mesh tiles cache size` goes (item 10.5) | a fixed 256 MiB, full, outside the budget every other cache yields to | a conflict with an edit to `navmeshtilescache.{hpp,cpp}` or the setting |
 
   Not proposed, and noted only: unloading a cell store (its changes are a save's), Bullet's double precision, a NIF
   key's unused tangents.
-- **No dependency is proposed.** A second allocator (mimalloc) is proposed only if item 12's tour still shows the heap
-  holding what it freed.
+- **No dependency is approved or proposed.** A second allocator (mimalloc) is proposed only if item 10's tours still
+  show the heap holding what it freed.
 
 ## Decisions
-
-**The tree**
 
 - **Fixed-width spellings, `std::`-qualified, for every integer.** `std::int32_t`, `std::uint32_t` and their kin from
   `<cstdint>`; `std::size_t` and `std::ptrdiff_t` for sizes, counts, indices and differences; `char` for text, `bool`
@@ -290,53 +297,70 @@ Part one's upstream changes are approved (see Plan). Part two's wait here:
   `IncludeIsMainRegex` taking the `posix`/`win32` pairs, so `omw format` writes the order and the gate holds it; the
   merge driver regroups upstream's side. An include whose order matters stands after a comment saying why, which ends
   clang-format's block, as AGENTS.md asks. Refused: `llvm-include-order`, whose order is LLVM's and fixed.
-
-**The content's memory**
-
 - **Measured first, and an item its measurement does not bear out is declined.** Most magnitudes above are read off
-  code and one earlier run.
+  code and one earlier run; the tours of `2026-11-17-handheld-tours-and-store-forms.md` bear out the ceiling and the
+  heap.
 - **A file's digest is made once, where its texels are first read, and a key is made from digests**, as the Remote
   Execution API keys an action by its inputs' digests and never by their bytes again. The header keeps it for the
   session. Refused: a key remembered for each use of a file, which still hashes the file once a use; the preparation's
   stamp trusted in play, under which a lying stamp is a wrong picture where it is now a miss.
-- **What the renderer derives of a file is derived at that first read**, on the thread that read it: the facts the
-  store's memory does not hold are made then and filed. The frame's thread finds them on the header.
-- **Every chain the store keeps is whole, with a digest a level**: one entry is everything the device takes, and a
+- **What the renderer derives of a file is derived at that first read**, on the thread that read it, by a deriver the
+  image manager is given with its `Headers` mode, so none exists without it; as OpenSceneGraph hooks every read
+  through its registry's `ReadFileCallback`. The facts the store's memory does not hold are made then and filed, and
+  the frame's thread finds them on the header. Refused: the digest made by the header alone, under which a fact's first
+  ask still reads the file.
+- **A stream reads a large request straight into its caller's memory**, as libstdc++'s `basic_filebuf::xsgetn` reads
+  directly where the request is past its buffer. Refused: a larger buffer, still two copies of every byte; positioned
+  reads for the renderer beside the game's streams, two routes to one file.
+- **Every chain the store keeps is whole, with a digest a level**, by the user's decision: one entry is everything the
+  device takes, and a
   range of its levels can be read and checked alone, as KTX 2 indexes its levels for streaming
-  ([spec](https://registry.khronos.org/KTX/specs/2.0/ktxspec.v2.html)). Refused: the coarser form, a second file for
-  ever; one digest over the payload, which a ranged read cannot check.
+  ([spec](https://registry.khronos.org/KTX/specs/2.0/ktxspec.v2.html)). The coarser chains kept whole add about
+  700 MiB to the desk's three profiles, a twentieth of the store. Refused: the coarser form, a second file for ever;
+  one digest over the payload, which a ranged read cannot check.
 - **A texture's levels are read by position, from where they stand, into a buffer the reader owns**: the store's entry
   for a made chain; the file's own bytes for a block-compressed file that stands as shipped, through the stream the
   game opens it as. The buffers are a bounded pool by size class, so a hand-over allocates nothing and a reader waits
-  where the pool is empty, as DirectStorage reads into a bounded staging buffer
+  where the pool is empty, a worker only and never the frame's thread, as DirectStorage reads into a bounded staging
+  buffer
   ([guidance](https://github.com/microsoft/DirectStorage/blob/main/Docs/DeveloperGuidance.md)). Refused: a shipped
   file copied into the store, the disk twice; reading into staging, whose memory is write-combined and which the digest
   must read back; a map, since nothing is kept once staged.
 - **A read nobody waits for is cancelled**, and what is read and not yet handed over is a pool buffer, so it is bounded
   by the pool.
-- **Content's ceiling keeps what essential memory will grow by, not what it holds**: each owner states its next step
-  (a table's doubling, a stream's next block), and the ceiling is the budget less the frame's gap and their sum.
+- **Content's ceiling keeps what essential memory will grow by, not what it holds**: the two types essential memory
+  grows through, the doubling table and the blocked stream, state their own next step, so no owner can forget to, and
+  the ceiling is the budget less the frame's gap and their sum.
   Refused: the rule as it stands, a second copy of memory that is appended and never made again; no reserve, under
   which a table's growth could end the renderer.
 - **Room is counted where it can be taken**: free bytes a storage, a structure storage's own free runs among them, and
-  a want is met by a resting row of its own class. Corrects "what waits is given the resting row that surely leaves it
-  room", whose arithmetic predates the storages standing apart.
-- **A mesh is its structure and its geometry, counted and given back together**: a resting mesh counts both against
+  a want is met by a resting row whose own requirements hold it. Corrects "what waits is given the resting row that
+  surely leaves it room", whose arithmetic predates the storages standing apart.
+- **A mesh is its structure and its geometry, counted and given back together**, by the user's decision: a resting
+  mesh counts both against
   the limit, a stream's block no run touches goes back to the device, and geometry is taken as content, refused with
   its mesh. Changes "a mesh counts what its eviction gives back", whose reason holds for an evicted mesh and not for a
   resting one.
-- **A texture stands at a level, and one planner moves it**: down by a copy on the device, up by a read of the levels
-  it adds. RTX Remix makes a new image at the wanted levels and swaps the view
+- **A texture stands at a level, and one planner moves it**, by the user's decision: down by a copy on the device, up
+  by a read of the levels it adds. RTX Remix makes a new image at the wanted levels and swaps the view
   ([`rtx_texture_manager.cpp`](https://github.com/NVIDIAGameWorks/dxvk-remix/blob/main/src/dxvk/rtx_render/rtx_texture_manager.cpp)),
   and Unreal lowers a plan a level at a time until it fits
   ([streaming](https://dev.epicgames.com/documentation/en-us/unreal-engine/texture-streaming-overview-for-unreal-engine)).
   It replaces the side chosen at arrival, the short list and its retries, and the world rebuilt for a reserve that
   moved. Where the plan fits, everything stands whole, as now. Refused: sparse images, whose binds cost NVIDIA's Linux
   driver a quarter of a millisecond a page; `VK_EXT_image_view_min_lod`, which clamps a view and frees nothing.
-- **Under pressure the level wanted is the one rays sampled**: the trace records the finest level asked of each slot,
+- **Under pressure the level wanted is the one rays sampled**, by the user's decision and only past its meter: the
+  trace records the finest level asked of each slot,
   read back two frames late off the frame slot's own copy, its peak held and let go only under pressure, as Remix
   holds it sixty frames. What rests goes first, then what stands above its want, then a level below want, the largest
   first. Refused: distance to the eye, which says nothing of a reflection or a bounce.
+- **What the texture pool strands in pieces is moved, not classed**, by the user's decision: where a want finds no
+  hole, the allocator's incremental defragmentation names a bounded set of textures and the planner moves each at its
+  own level, as VMA spreads its passes across frames and leaves the recreating to the application
+  ([defragmentation](https://gpuopen-librariesandsdks.github.io/VulkanMemoryAllocator/html/defragmentation.html)).
+  Lifts "Refused: defragmentation" for textures: the move's cost is the planner's already, and no structure stands in
+  a texture pool since `84a60139e8`. Refused: pools by size class, which strand a class's free slots beside another's
+  want.
 - **The geometry has one host copy, for one hand-over**: the reader makes it in the device's form with its key and
   bounds, adoption copies it into the arrivals' store, and both let go, as Unity frees a mesh's system copy once
   uploaded ([`Mesh.UploadMeshData`](https://docs.unity3d.com/ScriptReference/Mesh.UploadMeshData.html)) and Unreal
@@ -352,16 +376,23 @@ Part one's upstream changes are approved (see Plan). Part two's wait here:
   reaches one band ahead, and further as the cell nears; a model's radius is the preparation's to state. Refused:
   reading everything in the disc, most of which stands only within a cell or two.
 - **A large buffer never reaches the allocator, and the mapping threshold is pinned**: pinning it turns glibc's own
-  adjustment off (`mallopt(3)`). Refused for now: an arena cap, which serialises the loaders; a trim on a timer, which
-  walks every arena for what the pool no longer frees.
+  adjustment off (`mallopt(3)`), so a block past it is mapped and given back whole, whichever thread frees it. Its
+  value, and whether an arena cap stands beside it, are item 10's tunables to say. Refused: a trim on a timer, which
+  walks every arena to give back what should never have entered one.
 - **The caches' budget counts what the heap holds free as room, and an evicted value dies off the lock and off the
   frame**, on the worker that derives the budget, where upstream had put its own expiry.
+- **A preload asks the budget before anything of it is loaded, and the navigator's tiles stand under the one budget**,
+  by the user's decisions: a door's destination is not loaded for a guess the budget skips, and the tile cache has no
+  cap of its own, its tiles being a read away in the tile store. Refused: a cap derived once at a start, the fixed
+  share the loading design refused. **The NIF's hash pass stays**, by the user's decision: its cost is some 15 µs a
+  parse, and the parsing again that multiplied it ends with the caches' thrash.
 - **On unified memory the device's budget is the lesser of the driver's and what the system can still back**, with a
   smaller reserve than the caches', so the caches stop first, as decided. Windows says of such an adapter that it has
   one pool ([residency](https://learn.microsoft.com/en-us/windows/win32/direct3d12/residency)). Refused: one order
-  across host and device, as before.
+  across host and device, as before; the kernel's pressure stall figures, which report a stall once it has happened.
 - **Every hand-over's device work has a stated bound**: what it stages. A world's build flushes at the bound, and an
-  arrival past it waits a hand-over, as content without room already does.
+  arrival past it waits a hand-over, as content without room already does. Not the arrival scheduler that was refused:
+  nothing is ordered or threaded, a hand-over stops at its bound.
 - **A run that reports memory runs as the game ships**: no huge pages, the shipped expiry, the shipped door reach.
   Timing runs keep theirs.
 - **Not now**: a model's parts and meshes kept in the store in the device's form, the cooked asset every engine ships,
@@ -370,11 +401,15 @@ Part one's upstream changes are approved (see Plan). Part two's wait here:
 
 ## Final shape
 
-Sketches of what part two leaves; names are the plan's to settle.
+Sketches of what items 8–17 leave; names are the plan's to settle.
 
 ```cpp
-// components/resource: a file's identity, beside its size and format on the header.
+// components/resource: a file's identity, beside its size and format on the header; and who derives from its texels.
 struct ImageDigest { std::uint64_t mLow = 0; std::uint64_t mHigh = 0; };
+struct HeaderDeriver        // handed to setModelImages with ModelImages::Headers; the renderer's makes the digest
+{                           // and the facts, on the loader's thread, the one time the texels are read for a model
+    virtual void derive(const osg::Image& texels, const ImageHeader& header) = 0;
+};
 
 // components/contentstore: an entry read in part. A chain's parts are its levels, finest first.
 struct PartRange { std::uint32_t mFirst = 0; std::uint32_t mCount = 0; };
@@ -398,7 +433,8 @@ struct PackedMesh           // spans in the device's form: positions, normal wor
 class MeshArrivals          // one flat buffer a stream, a start for each arrived slot, cleared after the hand-over,
                             // given back past its bound
 struct TextureLevels { std::uint8_t mStands; std::uint8_t mWanted; std::uint8_t mFloor; };   // on TextureRow
-class TexturePlan           // budget and wants in; a bounded list of moves out, a hand-over
+class TexturePlan           // budget and wants in; a bounded list of moves out, a hand-over; a defragmentation
+                            // pass's moves are its moves at the same level
 
 // components/rtx/mirror/cells: one RunBuffer each for the ring, a run a cell.
 struct HeldReference        // model, first part, place, RefNum, gate, radius, flags: what Placement repeated a part
@@ -408,7 +444,7 @@ struct HeldReference        // model, first part, place, RefNum, gate, radius, f
 enum class MemoryUse : std::uint8_t { Frame, Essential, Mesh, Texture };   // Mesh: structures and geometry
 class MemoryAllocator
 {
-    void oweGrowth(GrowthOwner owner, VkDeviceSize bytes);       // each essential owner's next step
+    void oweGrowth(GrowthOwner owner, VkDeviceSize bytes);       // called by GrowableBuffer and BlockedBuffer alone
     VkDeviceSize getFree(MemoryUse use) const;                   // the texture pools', or the structure storages'
 };
 ```
@@ -419,20 +455,19 @@ Gone: `PreparedImages::mEntries`' holds, `ChainForm::Coarser`, `ShortTexture`, `
 
 ## Plan
 
-**Part one's upstream changes are approved by the user (2026-11-16)**: items 1–5 and 7, `extern/osg-ffmpeg-videoplayer`
-and the unstarted rasterizer included; item 6's fixes to upstream's code fall under the standing approval of
-`.clang-tidy` over upstream's code in `UPSTREAM.md`. Each is recorded there under **One standard for the tree**, in the
-commit that makes it, with its reason and cost. Part two's upstream changes are the table under **Yours to say**, each
-recorded under **How content is loaded** when it is made. An upstream change the plan does not name is still proposed
-first. Windows-only lines (`_WIN32` branches, MSVC pragmas) are checked by Windows CI, which the branch's pushes start.
+**The upstream changes of items 1–5 and 7 are approved by the user (2026-11-16)**, `extern/osg-ffmpeg-videoplayer` and
+the unstarted rasterizer included; item 6's fixes to upstream's code fall under the standing approval of `.clang-tidy`
+over upstream's code in `UPSTREAM.md`. Each is recorded there under **One standard for the tree**, in the commit that
+makes it, with its reason and cost. **The upstream changes of items 10 and 12 are approved by the user (2026-11-17)**:
+the table under **Approved**, each recorded under **How content is loaded** when it is made. An upstream change the
+plan does not name is still proposed first. Windows-only lines (`_WIN32` branches, MSVC pragmas) are checked by
+Windows CI, which the branch's pushes start.
 
-**What each part owes.** No item of part one moves a frame, so `./omw gate` and CI are its check; `repeat`, `shot` and
-the benches are not owed. In part two a change to what a frame reads owes `./omw repeat --pairs=10` and `./omw shot
+**What an item owes.** Items 1–7 move no frame, so `./omw gate` and CI are their check; `repeat`, `shot` and the
+benches are not owed. From item 8 on, a change to what a frame reads owes `./omw repeat --pairs=10` and `./omw shot
 --views=all --map --upscale=off --against`; a shader change owes `./omw kernels --against` on the desk and under the
 drm-shim; a hot path owes its allocation test; each item ends with the tours it names. Vanilla's pictures do not move
 in any item.
-
-## Part one: one spelling for the tree
 
 ### 1. Legacy conditionals out
 
@@ -531,17 +566,17 @@ whole, or refused with its reason. Every check here finds a class of bug or stat
 ### 7. Platform branches behind `components/platform`
 
 Each caller of Findings' list asks `components/platform` (or a `…posix.cpp`/`…win32.cpp` pair CMake chooses), and
-`WIN32` goes; `openmw/main.cpp`'s `WinMain` becomes a `mainwin32.cpp`. The largest item of part one and the most
-Windows CI: last of it, so the rest lands without it. `./omw gate` and a green CI on every system close part one.
-
-## Part two: the content's memory
+`WIN32` goes; `openmw/main.cpp`'s `WinMain` becomes a `mainwin32.cpp`. The largest of the items that move no frame
+and the most Windows CI: last of them. `./omw gate` and a green CI on every system stand before item 8.
 
 ### 8. Meters, a harness that runs as the game, and a baseline
 
-No change to how content is held. First the harness, so the baseline is the game's:
+No change to how content is held. First what stands in a baseline's way:
 
-1. A tour and a `scene` run start as the game does, without huge pages; `bench` and `noise` keep them.
-2. The timer caches expire in a tour as they do in play, and its preload distance is the shipped one. What that does
+1. The handheld's PBR tour flies again: its abort in leg 3 on "a sprite light bake names a source that does not
+   stand" (`.notes/ISSUES.md`) is fixed where the source came to be empty, with its test.
+2. A tour and a `scene` run start as the game does, without huge pages; `bench` and `noise` keep them.
+3. The timer caches expire in a tour as they do in play, and its preload distance is the shipped one. What that does
    to a flight's worst frames is read off the baseline; a grid reach scaled apart from the doors' is proposed with
    that figure if a flight needs it.
 
@@ -556,8 +591,8 @@ Then the meters. A stop's end logs, and the report keeps the run's peak of:
 6. the reader's capacity against its content; loaded cell stores; the caches' "looks for room finding all in use".
 
 Then the baseline: tours of the three contents on the desk, the handheld and Windows, to `docs/research/`, which every
-later item is held against. One handheld PBR tour more as tours ran before (huge pages, the scaled reach, no expiry),
-so the issue log's figures can be told apart from the game's.
+later item is held against. One handheld tour more of each content as tours ran before (huge pages, the scaled reach,
+no expiry), so `2026-11-17-handheld-tours-and-store-forms.md`'s figures can be told apart from the game's.
 
 ### 9. What is plainly wrong
 
@@ -568,7 +603,21 @@ storage; a texture's fit compared as its image's requirements; the storages' fre
 flag cleared when the short list empties; `reservePicture` no cause for a rebuild; `noteRefused`'s walk once a
 hand-over; `CellPlacer::mMoved` bounded and skipped for actors; the stale comments the issue log names.
 
-### 10. The device uses its budget
+### 10. The heap, the budgets and the game's own holders
+
+1. The allocator's settings, by tunables and no code: handheld Repack tours under a pinned
+   `glibc.malloc.mmap_threshold` at 256 KiB, 1 MiB and 4 MiB, and the best of them again under `glibc.malloc.arena_max`
+   at 4. Then pinned in `components/platform` at the setting that leaves the arenas least free memory for the tour's
+   time, with its reason beside it.
+2. The budget counting the heap's free memory; evicted values destroyed on the deriving worker; `update`'s walk off the
+   cache's lock.
+3. The unified bound, asked as a capability of the device, never by vendor.
+4. `Scene` asks the preloader's budget before a door's destination is loaded.
+5. The navigator's tile cache under the byte budget; its setting and the setting's documentation go.
+6. Handheld tours of the three contents: nothing swapped out at a tour's end, and a NIF parsed about once. If the heap
+   still holds a fifth of what it took free, the allocator is proposed with those figures.
+
+### 11. The device uses its budget
 
 1. The ceiling from owed growth. A test: geometry and structures standing change no ceiling; a table about to double
    lowers it by its next size.
@@ -577,38 +626,25 @@ hand-over; `CellPlacer::mMoved` bounded and skipped for actors; the stale commen
 3. Staging bounded: a batch flushes at the kept size; the spread's means given back past a bound.
 4. Tours on the handheld, Repack and PBR: no refusal with room under the budget; item 8's figures again.
 
-### 11. One read a texture (**yes**: the stores are made again)
+### 12. One read a texture
 
 One bump of the store's version carries every format change of this plan, the manifest's among them, so the stores are
 made again once; a store made on the desk is the handheld's too, the key being the content.
 
-1. The header's digest and the listener (**yes**); every image pass keyed from it, with `RtxPassVersionsTest` holding
-   the new versions.
+1. The header's digest and the deriver, passed with the `Headers` mode; every image pass keyed from the digest, with
+   `RtxPassVersionsTest` holding the new versions.
 2. Facts made at the first read; `factOf` reads no file.
-3. A digest a level, `Store::open` and the ranged `read`; the kind in the entry's folder, so the start opens no file
-   to learn it; and every chain whole (**yes**), without which a coarser chain keeps reading its finest level from the
-   file.
+3. Every chain whole, with a digest a level; `Store::open` and the ranged `read`; the kind in the entry's folder, so
+   the start opens no file to learn it.
 4. The manifest states each model's radius and whether it gives light, which item 15 reads.
-5. `xsgetn` (**yes**); `LevelReader` and `BufferPool`; cancel; the uploader gives buffers back.
-6. Tests: a re-arrival opens one file; a level range read equals the decode's bytes for every block format; no
-   allocation a hand-over once warm; a cancelled job holds nothing.
-7. Handheld PBR tour: image loads at one a file, the tour's time, the heap's free share.
+5. `xsgetn`; `LevelReader` and `BufferPool`; cancel; the uploader gives buffers back.
+6. Tests: a re-arrival opens one file; a level range read equals the decode's bytes for every block format; a stream's
+   bytes the same through its buffer and past it, at every boundary; no allocation a hand-over once warm; a cancelled
+   job holds nothing.
+7. Handheld PBR tour: image loads at one a file, the tour's time, the heap's free share; and item 10's tunables once
+   more, now that the largest buffers are the pool's.
 
-### 12. The heap, the budgets and the game's own holders
-
-1. The mapping threshold, chosen now that the pool stands: handheld PBR tours under a pinned
-   `glibc.malloc.mmap_threshold` at 256 KiB, 1 MiB and 4 MiB, no code; then pinned in `components/platform` at the
-   value that leaves the arenas least free memory for the tour's time, with its reason beside it.
-2. The budget counting the heap's free memory; evicted values destroyed on the deriving worker; `update`'s walk off the
-   cache's lock.
-3. The unified bound, asked as a capability of the device, never by vendor.
-4. `Scene` asks the preloader's budget before a door's destination is loaded (**yes**).
-5. The NIF's hash made by the two tools that print it (**yes**).
-6. The navigator's tile cache under the byte budget (**yes**).
-7. Handheld tours of the three contents. If the heap still holds a fifth of what it took free, the allocator is
-   proposed with those figures.
-
-### 13. A texture stands at a level (**yes**)
+### 13. A texture stands at a level
 
 1. A move on the device: a new image at the level, the kept levels copied, the slot's descriptors written, the old
    image buried after; a move up reads only the levels it adds.
@@ -617,9 +653,6 @@ made again once; a store made on the desk is the handheld's too, the key being t
 3. The short list, the waits and the rebuild go. Tests: a change of mode keeps every structure and geometry buffer; a
    texture brought down and up again reads its top levels once; two runs plan alike.
 4. Tours of the three contents on the desk, the handheld and Windows.
-
-Skipped for want of its yes, item 14.2 waits with it: a world rebuilt for a reserve that moved reads the mesh table's
-copy of the geometry.
 
 ### 14. One copy of the geometry
 
@@ -630,7 +663,8 @@ copy of the geometry.
    key or asks the reader to fill it again.
 4. The ring's flat records; the cell pools go.
 5. The ground's indices as one run every cell's mesh names.
-6. On the device: `MemoryUse::Mesh`; a block no run touches given back; the rest counting geometry (**yes**).
+6. On the device: `MemoryUse::Mesh`; a block no run touches given back, runs taken lowest first so blocks empty; the
+   rest counting geometry.
 7. The shape digest made where the host asks for digests; `repeat --pairs=10` agrees.
 8. Tests: a crossing allocates nothing; the arrivals' bound. Tours: the host's peak against item 8's.
 
@@ -640,16 +674,18 @@ copy of the geometry.
    `CellRing` asks the reader to go further as a cell nears.
 2. Item 8's count again; `repeat` and `shot`, since a model must stand before the frame that first shows it.
 
-### 16. Levels by need (**yes**)
+### 16. Levels by need
 
 1. The feedback as a meter that moves nothing: a word a slot in the frame slot's tables, the minimum of the levels
-   asked. Kept in the trace's kernels only if no kernel changes tier on any of the three drivers and the benches stay
-   within their noise; else made by a pass of its own over the frame's hit records.
+   asked, an anisotropic read stating its shorter axis's. Kept in the trace's kernels only if no kernel changes tier on
+   any of the three drivers and the benches stay within their noise; else made by a pass of its own over the frame's
+   hit records.
 2. Its histogram over the tours: the share of texture bytes in levels no ray read. Under a tenth on the handheld's PBR
    tour, the rest of this item is declined.
 3. The plan's order under pressure, with the peak's hold; a floor every texture keeps.
-4. Size classes (**yes**), if a tour after item 10 still refused a texture with room in pieces: a pool a class, a want
-   met by the oldest resting row of its class.
+4. Defragmentation by the planner's move, if a tour after item 11 still refused a texture with room in pieces: one
+   pass where a want finds no hole, bounded by what a hand-over stages. A test: a pool cut into pieces takes the
+   texture it refused, and no frame that fits runs a pass.
 5. `noise` and `shot` under a budget held low; tours.
 
 ### 17. Streams a mesh brings
@@ -661,8 +697,8 @@ corners through position fetch, which would free the positions' 12 B a vertex.
 ### 18. Close
 
 `./omw gate`; `./omw release tour` of the three contents on the desk, the handheld and Windows, held against item 8's;
-`.notes/ISSUES.md` rewritten from them; part two's decisions folded into `docs/architecture.md`; the `todo.md` items
-part one closes struck; this file deleted.
+`.notes/ISSUES.md` rewritten from them; the decisions folded into `docs/architecture.md`, `AGENTS.md` and
+`UPSTREAM.md`; the `todo.md` items this closes struck; this file deleted.
 
 ## Changed
 
