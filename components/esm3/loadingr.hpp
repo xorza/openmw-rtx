@@ -25,15 +25,15 @@ namespace ESM
 
         struct IRDTstruct
         {
-            float mWeight;
-            int32_t mValue;
+            float mWeight{};
+            int32_t mValue{};
             RefId mEffectID[4]; // Effect, EmptyRefId means none
             RefId mSkills[4]; // SkillEnum related to effect
             RefId mAttributes[4]; // Attribute related to effect
         };
 
         IRDTstruct mData;
-        uint32_t mRecordFlags;
+        uint32_t mRecordFlags{};
         RefId mId, mScript;
         std::string mName;
         Path mModel;

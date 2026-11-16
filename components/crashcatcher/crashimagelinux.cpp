@@ -191,7 +191,7 @@ namespace Crash
     ProcessStat readProcessStat(const int descriptor) noexcept
     {
         // The kernel writes a few hundred bytes, so a text that fills the buffer is not one it wrote.
-        std::array<char, 4096> buffer;
+        std::array<char, 4096> buffer{};
         const Platform::KernelFile::Read read = Platform::KernelFile::readOpened(descriptor, buffer);
         if (read.mError != 0)
             return ProcessStat{ .mOutcome

@@ -51,20 +51,20 @@ namespace ESM4
         };
 
         ESM::FormId mId; // from the header
-        std::uint32_t mFlags; // from the header, see enum type RecordFlag for details
+        std::uint32_t mFlags{}; // from the header, see enum type RecordFlag for details
 
         std::string mEditorId;
         std::string mFullName;
         ESM::Path mModel;
         std::string mIcon; // inventory
 
-        float mBoundRadius;
+        float mBoundRadius{};
 
         std::vector<std::string> mScriptEffect; // FIXME: prob. should be in a struct
         ESM::FormId mScriptId;
-        ScriptEffect mEffect;
+        ScriptEffect mEffect{};
 
-        Data mData;
+        Data mData{};
 
         void load(ESM4::Reader& reader);
         // void save(ESM4::Writer& writer) const;

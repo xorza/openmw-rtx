@@ -103,7 +103,7 @@ namespace MWGui
         /// Returns True if taking mFocusObject would be crime
 
     private:
-        MyGUI::Widget* mDynamicToolTipBox;
+        MyGUI::Widget* mDynamicToolTipBox{};
 
         MWWorld::Ptr mFocusObject;
 

@@ -110,7 +110,7 @@ namespace MWWorld
 
     ESM::TimeStamp TimeStamp::toEsm() const
     {
-        ESM::TimeStamp ret;
+        ESM::TimeStamp ret{};
         ret.mDay = mDay;
         ret.mHour = mHour;
         return ret;

@@ -109,7 +109,7 @@ namespace ESM4
         };
 
         ESM::FormId mId; // from the header
-        std::uint32_t mFlags; // from the header, see enum type RecordFlag for details
+        std::uint32_t mFlags{}; // from the header, see enum type RecordFlag for details
         ESM::GameFormat mGameFormat = ESM::GameFormat::Unknown; // assumed per-file from context clues
 
         std::string mEditorId;
@@ -118,8 +118,8 @@ namespace ESM4
         ESM::Path mModelMale; // TES5 skeleton (in TES4 skeleton is found in npc_)
         ESM::Path mModelFemale; // TES5 skeleton (in TES4 skeleton is found in npc_)
 
-        AttributeValues mAttribMale;
-        AttributeValues mAttribFemale;
+        AttributeValues mAttribMale{};
+        AttributeValues mAttribFemale{};
         std::map<SkillIndex, std::uint8_t> mSkillBonus;
 
         // DATA
@@ -127,7 +127,7 @@ namespace ESM4
         float mHeightFemale = 1.0f;
         float mWeightMale = 1.0f;
         float mWeightFemale = 1.0f;
-        std::uint32_t mRaceFlags; // 0x0001 = playable?
+        std::uint32_t mRaceFlags{}; // 0x0001 = playable?
 
         std::vector<BodyPart> mHeadParts; // see HeadPartIndex
         std::vector<BodyPart> mHeadPartsFemale; // see HeadPartIndex
@@ -138,8 +138,8 @@ namespace ESM4
         std::vector<ESM::FormId> mEyeChoices; // texture only
         std::vector<ESM::FormId> mHairChoices; // not for TES5
 
-        float mFaceGenMainClamp;
-        float mFaceGenFaceClamp;
+        float mFaceGenMainClamp{};
+        float mFaceGenFaceClamp{};
         std::vector<float> mSymShapeModeCoefficients; // should be 50
         std::vector<float> mSymShapeModeCoeffFemale; // should be 50
         std::vector<float> mAsymShapeModeCoefficients; // should be 30
@@ -152,10 +152,10 @@ namespace ESM4
         std::array<ESM::FormId, 2> mVNAM; // don't know what these are; 1 or 2 RACE FormIds
         std::array<ESM::FormId, 2> mDefaultHair; // male/female (HAIR FormId for TES4)
 
-        std::uint32_t mNumKeywords;
+        std::uint32_t mNumKeywords{};
 
         ESM::FormId mSkin; // TES5
-        BodyTemplate mBodyTemplate; // TES5
+        BodyTemplate mBodyTemplate{}; // TES5
 
         // FIXME: there's no fixed order?
         // head, mouth, eyes, brow, hair

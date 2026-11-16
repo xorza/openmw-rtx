@@ -15,7 +15,7 @@ namespace ESM
     {
         RefId mId; /// \note must be lowercase
         Locals mLocals;
-        bool mRunning;
+        bool mRunning{};
         RefId mTargetId; // for targeted scripts
         RefNum mTargetRef;
 

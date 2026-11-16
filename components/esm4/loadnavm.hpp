@@ -73,8 +73,8 @@ namespace ESM4
 
         struct NVNMstruct
         {
-            std::uint32_t version;
-            std::uint32_t crc; // CRC hash of "PathingCell"
+            std::uint32_t version{};
+            std::uint32_t crc{}; // CRC hash of "PathingCell"
             ESM::FormId worldSpaceId;
             CellGrid cellGrid;
             std::vector<Vertex> verticies;
@@ -82,15 +82,15 @@ namespace ESM4
             std::vector<ExtConnection> extConns;
             std::vector<DoorTriangle> doorTriangles;
             std::vector<std::uint16_t> coverTriangles;
-            std::uint32_t divisor;
-            float maxXDist;
-            float maxYDist;
-            float minX;
-            float minY;
-            float minZ;
-            float maxX;
-            float maxY;
-            float maxZ;
+            std::uint32_t divisor{};
+            float maxXDist{};
+            float maxYDist{};
+            float minX{};
+            float minY{};
+            float minZ{};
+            float maxX{};
+            float maxY{};
+            float maxZ{};
             // there are divisor^2 segments, each segment is a vector of triangle indices
             std::vector<std::vector<std::uint16_t>> triSegments;
 
@@ -100,7 +100,7 @@ namespace ESM4
         std::vector<NVNMstruct> mData; // Up to 4 skywind cells in one Morrowind cell
 
         ESM::FormId mId; // from the header
-        std::uint32_t mFlags; // from the header, see enum type RecordFlag for details
+        std::uint32_t mFlags{}; // from the header, see enum type RecordFlag for details
         ESM::GameFormat mGameFormat = ESM::GameFormat::Unknown; // assumed per-file from context clues
 
         void load(ESM4::Reader& reader);

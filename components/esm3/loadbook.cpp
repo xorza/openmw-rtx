@@ -76,7 +76,7 @@ namespace ESM
                 {
                     if (esm.getFormatVersion() <= MaxFixedStatsFormatVersion)
                     {
-                        EsmBKDTstruct data;
+                        EsmBKDTstruct data{};
                         esm.getSubComposite(data);
                         fromBinary(data, mData);
                     }
@@ -129,7 +129,7 @@ namespace ESM
         esm.writeHNOCString("FNAM", mName);
         if (esm.getFormatVersion() <= MaxFixedStatsFormatVersion)
         {
-            EsmBKDTstruct data;
+            EsmBKDTstruct data{};
             toBinary(mData, data);
             esm.writeNamedComposite("BKDT", data);
         }

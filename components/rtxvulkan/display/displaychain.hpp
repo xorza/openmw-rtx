@@ -92,12 +92,12 @@ namespace Rtx
 
         /// Whether `mShown` is the upscaler's, reconstructed at the pixels' centres, and not the
         /// trace's own samples: `ToneConstants::mLiftOffset`.
-        bool mUpscaled;
+        bool mUpscaled{};
 
         /// How much of the shown frame the picture is, from its corner: the whole of a frame's,
         /// and a picture's own size inside an image that may be larger. The curve encodes as much
         /// of `mTarget` from its corner.
-        VkExtent2D mExtent;
+        VkExtent2D mExtent{};
 
         /// The camera the trace sampled, which the curve and the lines are told.
         const Shaders::VisibilityConstants& mSampled;

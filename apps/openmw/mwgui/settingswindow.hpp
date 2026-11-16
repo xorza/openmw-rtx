@@ -38,38 +38,38 @@ namespace MWGui
         bool onControllerButtonEvent(const SDL_GamepadButtonEvent& arg) override;
 
     protected:
-        MyGUI::TabControl* mSettingsTab;
-        MyGUI::Button* mOkButton;
+        MyGUI::TabControl* mSettingsTab{};
+        MyGUI::Button* mOkButton{};
 
         // graphics
-        MyGUI::ListBox* mResolutionList;
-        MyGUI::ComboBox* mWindowModeList;
-        MyGUI::ComboBox* mVSyncModeList;
-        MyGUI::Button* mWindowBorderButton;
-        MyGUI::ComboBox* mAnisotropy;
+        MyGUI::ListBox* mResolutionList{};
+        MyGUI::ComboBox* mWindowModeList{};
+        MyGUI::ComboBox* mVSyncModeList{};
+        MyGUI::Button* mWindowBorderButton{};
+        MyGUI::ComboBox* mAnisotropy{};
 
-        MyGUI::ComboBox* mPrimaryLanguage;
-        MyGUI::ComboBox* mSecondaryLanguage;
-        MyGUI::Button* mGmstOverridesL10n;
+        MyGUI::ComboBox* mPrimaryLanguage{};
+        MyGUI::ComboBox* mSecondaryLanguage{};
+        MyGUI::Button* mGmstOverridesL10n{};
 
-        MyGUI::ComboBox* mRayTracingUpscale;
-        MyGUI::ComboBox* mRayTracingUpscaler;
-        MyGUI::ScrollBar* mRayTracingBounceRays;
+        MyGUI::ComboBox* mRayTracingUpscale{};
+        MyGUI::ComboBox* mRayTracingUpscaler{};
+        MyGUI::ScrollBar* mRayTracingBounceRays{};
         std::span<const Rtx::UpscalerChoice> mUpscalers;
 
         // controls
-        MyGUI::ScrollView* mControlsBox;
-        MyGUI::Button* mResetControlsButton;
-        MyGUI::Button* mKeyboardSwitch;
-        MyGUI::Button* mControllerSwitch;
+        MyGUI::ScrollView* mControlsBox{};
+        MyGUI::Button* mResetControlsButton{};
+        MyGUI::Button* mKeyboardSwitch{};
+        MyGUI::Button* mControllerSwitch{};
         bool mKeyboardMode; // if true, setting up the keyboard. Otherwise, it's controller
 
-        MyGUI::EditBox* mScriptFilter;
-        MyGUI::ListBox* mScriptList;
-        MyGUI::Widget* mScriptBox;
-        MyGUI::Widget* mScriptDisabled;
-        MyGUI::ScrollView* mScriptView;
-        LuaUi::LuaAdapter* mScriptAdapter;
+        MyGUI::EditBox* mScriptFilter{};
+        MyGUI::ListBox* mScriptList{};
+        MyGUI::Widget* mScriptBox{};
+        MyGUI::Widget* mScriptDisabled{};
+        MyGUI::ScrollView* mScriptView{};
+        LuaUi::LuaAdapter* mScriptAdapter{};
         size_t mCurrentPage;
 
         void onTabChanged(MyGUI::TabControl* sender, size_t index);

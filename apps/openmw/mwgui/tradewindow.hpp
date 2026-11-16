@@ -51,33 +51,33 @@ namespace MWGui
     private:
         friend class InventoryWindow;
 
-        ItemView* mItemView;
+        ItemView* mItemView{};
         SortFilterItemModel* mSortModel;
         TradeItemModel* mTradeModel;
 
         static const float sBalanceChangeInitialPause; // in seconds
         static const float sBalanceChangeInterval; // in seconds
 
-        MyGUI::Button* mFilterAll;
-        MyGUI::Button* mFilterWeapon;
-        MyGUI::Button* mFilterApparel;
-        MyGUI::Button* mFilterMagic;
-        MyGUI::Button* mFilterMisc;
+        MyGUI::Button* mFilterAll{};
+        MyGUI::Button* mFilterWeapon{};
+        MyGUI::Button* mFilterApparel{};
+        MyGUI::Button* mFilterMagic{};
+        MyGUI::Button* mFilterMisc{};
 
-        MyGUI::EditBox* mFilterEdit;
+        MyGUI::EditBox* mFilterEdit{};
 
-        MyGUI::Button* mIncreaseButton;
-        MyGUI::Button* mDecreaseButton;
-        MyGUI::TextBox* mTotalBalanceLabel;
-        Gui::NumericEditBox* mTotalBalance;
+        MyGUI::Button* mIncreaseButton{};
+        MyGUI::Button* mDecreaseButton{};
+        MyGUI::TextBox* mTotalBalanceLabel{};
+        Gui::NumericEditBox* mTotalBalance{};
 
-        MyGUI::Widget* mBottomPane;
+        MyGUI::Widget* mBottomPane{};
 
-        MyGUI::Button* mMaxSaleButton;
-        MyGUI::Button* mCancelButton;
-        MyGUI::Button* mOfferButton;
-        MyGUI::TextBox* mPlayerGold;
-        MyGUI::TextBox* mMerchantGold;
+        MyGUI::Button* mMaxSaleButton{};
+        MyGUI::Button* mCancelButton{};
+        MyGUI::Button* mOfferButton{};
+        MyGUI::TextBox* mPlayerGold{};
+        MyGUI::TextBox* mMerchantGold{};
 
         int mItemToSell;
 

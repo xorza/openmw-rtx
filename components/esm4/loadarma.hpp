@@ -45,7 +45,7 @@ namespace ESM4
     struct ArmorAddon
     {
         ESM::FormId mId; // from the header
-        std::uint32_t mFlags; // from the header, see enum type RecordFlag for details
+        std::uint32_t mFlags{}; // from the header, see enum type RecordFlag for details
         ESM::GameFormat mGameFormat = ESM::GameFormat::Unknown; // assumed per-file from context clues
 
         std::string mEditorId;
@@ -59,7 +59,7 @@ namespace ESM4
         ESM::FormId mRacePrimary;
         std::vector<ESM::FormId> mRaces; // TES5 only
 
-        BodyTemplate mBodyTemplate; // TES5
+        BodyTemplate mBodyTemplate{}; // TES5
 
         std::uint8_t mMalePriority = 0;
         std::uint8_t mFemalePriority = 0;

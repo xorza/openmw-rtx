@@ -26,8 +26,8 @@ namespace ESM
         struct BKDTstruct
         {
             ESM::RefId mSkillId;
-            float mWeight;
-            int32_t mValue, mIsScroll, mEnchant;
+            float mWeight{};
+            int32_t mValue{}, mIsScroll{}, mEnchant{};
         };
 
         BKDTstruct mData;
@@ -35,7 +35,7 @@ namespace ESM
         Path mModel;
         Path mIcon;
         std::string mText;
-        uint32_t mRecordFlags;
+        uint32_t mRecordFlags{};
         RefId mId;
         RefId mScript, mEnchant;
 

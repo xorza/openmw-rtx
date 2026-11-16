@@ -17,7 +17,7 @@ namespace CSVDoc
     private:
         int mWidth;
         int mColumn;
-        QGridLayout* mLayout;
+        QGridLayout* mLayout{};
 
         QPushButton* addButton(const QString& label, const QString& icon);
 

@@ -38,7 +38,7 @@ namespace Nif
     // Abstract light source
     struct NiLight : NiDynamicEffect
     {
-        float mDimmer;
+        float mDimmer{};
         osg::Vec3f mAmbient;
         osg::Vec3f mDiffuse;
         osg::Vec3f mSpecular;
@@ -48,18 +48,18 @@ namespace Nif
 
     struct NiPointLight : public NiLight
     {
-        float mConstantAttenuation;
-        float mLinearAttenuation;
-        float mQuadraticAttenuation;
+        float mConstantAttenuation{};
+        float mLinearAttenuation{};
+        float mQuadraticAttenuation{};
 
         void read(NIFStream* nif) override;
     };
 
     struct NiSpotLight : public NiPointLight
     {
-        float mOuterSpotAngle;
+        float mOuterSpotAngle{};
         float mInnerSpotAngle{ 0.f };
-        float mExponent;
+        float mExponent{};
         void read(NIFStream* nif) override;
     };
 
@@ -84,13 +84,13 @@ namespace Nif
 
         Matrix3 mProjectionRotation;
         osg::Vec3f mProjectionPosition;
-        uint32_t mFilterMode;
+        uint32_t mFilterMode{};
         NiSourceTexturePtr mTexture;
         uint16_t mMaxAnisotropy{ 0 };
-        uint32_t mClampMode;
-        TextureType mTextureType;
-        CoordGenType mCoordGenType;
-        uint8_t mEnableClipPlane;
+        uint32_t mClampMode{};
+        TextureType mTextureType{};
+        CoordGenType mCoordGenType{};
+        uint8_t mEnableClipPlane{};
         osg::Plane mClipPlane;
 
         void read(NIFStream* nif) override;

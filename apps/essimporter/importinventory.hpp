@@ -28,8 +28,8 @@ namespace ESSImport
         struct InventoryItem : public ESM::CellRef
         {
             std::string mId;
-            int32_t mCount;
-            int32_t mRelativeEquipmentSlot;
+            int32_t mCount{};
+            int32_t mRelativeEquipmentSlot{};
             SCRI mSCRI;
         };
         std::vector<InventoryItem> mItems;

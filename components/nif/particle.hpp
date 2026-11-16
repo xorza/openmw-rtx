@@ -19,8 +19,8 @@ namespace Nif
 
     struct NiParticleGrowFade : NiParticleModifier
     {
-        float mGrowTime;
-        float mFadeTime;
+        float mGrowTime{};
+        float mFadeTime{};
 
         void read(NIFStream* nif) override;
     };
@@ -56,8 +56,8 @@ namespace Nif
     struct NiGravity : NiParticleModifier
     {
         float mDecay{ 0.f };
-        float mForce;
-        ForceType mType;
+        float mForce{};
+        ForceType mType{};
         osg::Vec3f mPosition;
         osg::Vec3f mDirection;
 
@@ -66,12 +66,12 @@ namespace Nif
 
     struct NiParticleBomb : NiParticleModifier
     {
-        float mRange;
-        float mDuration;
-        float mStrength;
-        float mStartTime;
-        DecayType mDecayType;
-        SymmetryType mSymmetryType;
+        float mRange{};
+        float mDuration{};
+        float mStrength{};
+        float mStartTime{};
+        DecayType mDecayType{};
+        SymmetryType mSymmetryType{};
         osg::Vec3f mPosition;
         osg::Vec3f mDirection;
 
@@ -80,7 +80,7 @@ namespace Nif
 
     struct NiParticleCollider : NiParticleModifier
     {
-        float mBounceFactor;
+        float mBounceFactor{};
         bool mSpawnOnCollision{ false };
         bool mDieOnCollision{ false };
 
@@ -94,14 +94,14 @@ namespace Nif
         osg::Vec3f mPosition;
         osg::Vec3f mXVector, mYVector;
         osg::Vec3f mPlaneNormal;
-        float mPlaneDistance;
+        float mPlaneDistance{};
 
         void read(NIFStream* nif) override;
     };
 
     struct NiSphericalCollider : NiParticleCollider
     {
-        float mRadius;
+        float mRadius{};
         osg::Vec3f mCenter;
 
         void read(NIFStream* nif) override;
@@ -109,9 +109,9 @@ namespace Nif
 
     struct NiParticleRotation : NiParticleModifier
     {
-        uint8_t mRandomInitialAxis;
+        uint8_t mRandomInitialAxis{};
         osg::Vec3f mInitialAxis;
-        float mRotationSpeed;
+        float mRotationSpeed{};
 
         void read(NIFStream* nif) override;
     };
@@ -119,7 +119,7 @@ namespace Nif
     struct NiParticlesData : NiGeometryData
     {
         uint16_t mNumParticles{ 0 };
-        uint16_t mActiveCount;
+        uint16_t mActiveCount{};
 
         std::vector<float> mRadii;
         std::vector<float> mSizes;
@@ -131,8 +131,8 @@ namespace Nif
         std::vector<osg::Vec4f> mSubtextureOffsets;
         float mAspectRatio{ 1.f };
         uint16_t mAspectFlags{ 0 };
-        float mAspectRatio2;
-        float mAspectSpeed, mAspectSpeed2;
+        float mAspectRatio2{};
+        float mAspectSpeed{}, mAspectSpeed2{};
 
         void read(NIFStream* nif) override;
     };
@@ -144,7 +144,7 @@ namespace Nif
 
     struct BSMasterParticleSystem : NiNode
     {
-        uint16_t mMaxEmitters;
+        uint16_t mMaxEmitters{};
         NiAVObjectList mParticleSystems;
 
         void read(NIFStream* nif) override;
@@ -154,9 +154,9 @@ namespace Nif
     struct NiParticleSystem : NiParticles
     {
         osg::BoundingSpheref mBoundingSphere;
-        std::array<float, 6> mBoundMinMax;
-        BSVertexDesc mVertDesc;
-        std::array<uint16_t, 4> mNearFar;
+        std::array<float, 6> mBoundMinMax{};
+        BSVertexDesc mVertDesc{};
+        std::array<uint16_t, 4> mNearFar{};
         bool mWorldSpace{ true };
         NiPSysModifierList mModifiers;
 
@@ -168,16 +168,16 @@ namespace Nif
     {
         std::vector<NiParticleInfo> mParticles;
         std::vector<float> mRotationSpeeds;
-        uint16_t mNumAddedParticles;
-        uint16_t mAddedParticlesBase;
+        uint16_t mNumAddedParticles{};
+        uint16_t mAddedParticlesBase{};
 
         void read(NIFStream* nif) override;
     };
 
     struct NiMeshPSysData : NiPSysData
     {
-        uint32_t mDefaultPoolSize;
-        bool mFillPoolsOnLoad;
+        uint32_t mDefaultPoolSize{};
+        bool mFillPoolsOnLoad{};
         std::vector<uint32_t> mGenerations;
         NiAVObjectPtr mParticleMeshes;
 
@@ -187,10 +187,10 @@ namespace Nif
 
     struct BSStripPSysData : NiPSysData
     {
-        uint16_t mMaxPointCount;
-        float mStartCapSize;
-        float mEndCapSize;
-        bool mDoZPrepass;
+        uint16_t mMaxPointCount{};
+        float mStartCapSize{};
+        float mEndCapSize{};
+        bool mDoZPrepass{};
 
         void read(NIFStream* nif) override;
     };
@@ -216,9 +216,9 @@ namespace Nif
         };
 
         std::string mName;
-        NiPSysModifierOrder mOrder;
+        NiPSysModifierOrder mOrder{};
         NiParticleSystemPtr mTarget;
-        bool mActive;
+        bool mActive{};
 
         void read(NIFStream* nif) override;
         void post(Reader& nif) override;
@@ -226,7 +226,7 @@ namespace Nif
 
     struct NiPSysAgeDeathModifier : NiPSysModifier
     {
-        bool mSpawnOnDeath;
+        bool mSpawnOnDeath{};
         NiPSysSpawnModifierPtr mSpawnModifier;
 
         void read(NIFStream* nif) override;
@@ -237,10 +237,10 @@ namespace Nif
     {
         NiAVObjectPtr mBombObject;
         osg::Vec3f mBombAxis;
-        float mRange;
-        float mStrength;
-        DecayType mDecayType;
-        SymmetryType mSymmetryType;
+        float mRange{};
+        float mStrength{};
+        DecayType mDecayType{};
+        SymmetryType mSymmetryType{};
 
         void read(NIFStream* nif) override;
         void post(Reader& nif) override;
@@ -248,7 +248,7 @@ namespace Nif
 
     struct NiPSysBoundUpdateModifier : NiPSysModifier
     {
-        uint16_t mUpdateSkip;
+        uint16_t mUpdateSkip{};
 
         void read(NIFStream* nif) override;
     };
@@ -265,9 +265,9 @@ namespace Nif
     {
         NiAVObjectPtr mDragObject;
         osg::Vec3f mDragAxis;
-        float mPercentage;
-        float mRange;
-        float mRangeFalloff;
+        float mPercentage{};
+        float mRange{};
+        float mRangeFalloff{};
 
         void read(NIFStream* nif) override;
         void post(Reader& nif) override;
@@ -277,12 +277,12 @@ namespace Nif
     {
         NiAVObjectPtr mGravityObject;
         osg::Vec3f mGravityAxis;
-        float mDecay;
-        float mStrength;
-        ForceType mForceType;
-        float mTurbulence;
-        float mTurbulenceScale;
-        bool mWorldAligned;
+        float mDecay{};
+        float mStrength{};
+        ForceType mForceType{};
+        float mTurbulence{};
+        float mTurbulenceScale{};
+        bool mWorldAligned{};
 
         void read(NIFStream* nif) override;
         void post(Reader& nif) override;
@@ -290,11 +290,11 @@ namespace Nif
 
     struct NiPSysGrowFadeModifier : NiPSysModifier
     {
-        float mGrowTime;
-        uint16_t mGrowGeneration;
-        float mFadeTime;
-        uint16_t mFadeGeneration;
-        float mBaseScale;
+        float mGrowTime{};
+        uint16_t mGrowGeneration{};
+        float mFadeTime{};
+        uint16_t mFadeGeneration{};
+        float mBaseScale{};
 
         void read(NIFStream* nif) override;
     };
@@ -309,12 +309,12 @@ namespace Nif
 
     struct NiPSysRotationModifier : NiPSysModifier
     {
-        float mRotationSpeed;
-        float mRotationSpeedVariation;
-        float mRotationAngle;
-        float mRotationAngleVariation;
-        bool mRandomRotSpeedSign;
-        bool mRandomAxis;
+        float mRotationSpeed{};
+        float mRotationSpeedVariation{};
+        float mRotationAngle{};
+        float mRotationAngleVariation{};
+        bool mRandomRotSpeedSign{};
+        bool mRandomAxis{};
         osg::Vec3f mAxis;
 
         void read(NIFStream* nif) override;
@@ -322,21 +322,21 @@ namespace Nif
 
     struct NiPSysSpawnModifier : NiPSysModifier
     {
-        uint16_t mNumSpawnGenerations;
-        float mPercentageSpawned;
-        uint16_t mMinNumToSpawn;
-        uint16_t mMaxNumToSpawn;
-        float mSpawnSpeedVariation;
-        float mSpawnDirVariation;
-        float mLifespan;
-        float mLifespanVariation;
+        uint16_t mNumSpawnGenerations{};
+        float mPercentageSpawned{};
+        uint16_t mMinNumToSpawn{};
+        uint16_t mMaxNumToSpawn{};
+        float mSpawnSpeedVariation{};
+        float mSpawnDirVariation{};
+        float mLifespan{};
+        float mLifespanVariation{};
 
         void read(NIFStream* nif) override;
     };
 
     struct BSParentVelocityModifier : NiPSysModifier
     {
-        float mDamping;
+        float mDamping{};
 
         void read(NIFStream* nif) override;
     };
@@ -352,9 +352,9 @@ namespace Nif
     struct BSPSysInheritVelocityModifier : NiPSysModifier
     {
         NiAVObjectPtr mInheritObject;
-        float mInheritChance;
-        float mVelocityMult;
-        float mVelcoityVariation;
+        float mInheritChance{};
+        float mVelocityMult{};
+        float mVelcoityVariation{};
 
         void read(NIFStream* nif) override;
         void post(Reader& nif) override;
@@ -362,10 +362,10 @@ namespace Nif
 
     struct BSPSysLODModifier : NiPSysModifier
     {
-        float mLODStartDistance;
-        float mLODEndDistance;
-        float mEndEmitScale;
-        float mEndSize;
+        float mLODStartDistance{};
+        float mLODEndDistance{};
+        float mEndEmitScale{};
+        float mEndSize{};
 
         void read(NIFStream* nif) override;
     };
@@ -389,12 +389,12 @@ namespace Nif
 
     struct BSPSysSimpleColorModifier : NiPSysModifier
     {
-        float mFadeInPercent;
-        float mFadeOutPercent;
-        float mColor1EndPercent;
-        float mColor1StartPercent;
-        float mColor2EndPercent;
-        float mColor2StartPercent;
+        float mFadeInPercent{};
+        float mFadeOutPercent{};
+        float mColor1EndPercent{};
+        float mColor1StartPercent{};
+        float mColor2EndPercent{};
+        float mColor2StartPercent{};
         std::vector<osg::Vec4f> mColors;
 
         void read(NIFStream* nif) override;
@@ -402,27 +402,27 @@ namespace Nif
 
     struct BSPSysStripUpdateModifier : NiPSysModifier
     {
-        float mUpdateDeltaTime;
+        float mUpdateDeltaTime{};
 
         void read(NIFStream* nif) override;
     };
 
     struct BSPSysSubTexModifier : NiPSysModifier
     {
-        float mStartFrame;
-        float mStartFrameFudge;
-        float mEndFrame;
-        float mLoopStartFrame;
-        float mLoopStartFrameFudge;
-        float mFrameCount;
-        float mFrameCountFudge;
+        float mStartFrame{};
+        float mStartFrameFudge{};
+        float mEndFrame{};
+        float mLoopStartFrame{};
+        float mLoopStartFrameFudge{};
+        float mFrameCount{};
+        float mFrameCountFudge{};
 
         void read(NIFStream* nif) override;
     };
 
     struct BSWindModifier : NiPSysModifier
     {
-        float mStrength;
+        float mStrength{};
 
         void read(NIFStream* nif) override;
     };
@@ -430,17 +430,17 @@ namespace Nif
     // Abstract
     struct NiPSysEmitter : NiPSysModifier
     {
-        float mSpeed;
-        float mSpeedVariation;
-        float mDeclination;
-        float mDeclinationVariation;
-        float mPlanarAngle;
-        float mPlanarAngleVariation;
+        float mSpeed{};
+        float mSpeedVariation{};
+        float mDeclination{};
+        float mDeclinationVariation{};
+        float mPlanarAngle{};
+        float mPlanarAngleVariation{};
         osg::Vec4f mInitialColor;
-        float mInitialRadius;
-        float mRadiusVariation;
-        float mLifespan;
-        float mLifespanVariation;
+        float mInitialRadius{};
+        float mRadiusVariation{};
+        float mLifespan{};
+        float mLifespanVariation{};
 
         void read(NIFStream* nif) override;
     };
@@ -456,17 +456,17 @@ namespace Nif
 
     struct NiPSysBoxEmitter : NiPSysVolumeEmitter
     {
-        float mWidth;
-        float mHeight;
-        float mDepth;
+        float mWidth{};
+        float mHeight{};
+        float mDepth{};
 
         void read(NIFStream* nif) override;
     };
 
     struct NiPSysCylinderEmitter : NiPSysVolumeEmitter
     {
-        float mRadius;
-        float mHeight;
+        float mRadius{};
+        float mHeight{};
 
         void read(NIFStream* nif) override;
     };
@@ -474,8 +474,8 @@ namespace Nif
     struct NiPSysMeshEmitter : NiPSysEmitter
     {
         NiAVObjectList mEmitterMeshes;
-        uint32_t mInitialVelocityType;
-        uint32_t mEmissionType;
+        uint32_t mInitialVelocityType{};
+        uint32_t mEmissionType{};
         osg::Vec3f mEmissionAxis;
 
         void read(NIFStream* nif) override;
@@ -484,7 +484,7 @@ namespace Nif
 
     struct NiPSysSphereEmitter : NiPSysVolumeEmitter
     {
-        float mRadius;
+        float mRadius{};
 
         void read(NIFStream* nif) override;
     };
@@ -532,7 +532,7 @@ namespace Nif
 
     struct BSPSysMultiTargetEmitterCtlr : NiPSysEmitterCtlr
     {
-        uint16_t mMaxEmitters;
+        uint16_t mMaxEmitters{};
         BSMasterParticleSystemPtr mMasterPSys;
 
         void read(NIFStream* nif) override;
@@ -549,9 +549,9 @@ namespace Nif
 
     struct NiPSysCollider : Record
     {
-        float mBounce;
-        bool mCollideSpawn;
-        bool mCollideDie;
+        float mBounce{};
+        bool mCollideSpawn{};
+        bool mCollideDie{};
         NiPSysSpawnModifierPtr mSpawnModifier;
         NiPSysColliderManagerPtr mParent;
         NiPSysColliderPtr mNextCollider;
@@ -571,8 +571,8 @@ namespace Nif
 
     struct NiPSysPlanarCollider : NiPSysCollider
     {
-        float mWidth;
-        float mHeight;
+        float mWidth{};
+        float mHeight{};
         osg::Vec3f mXAxis;
         osg::Vec3f mYAxis;
 
@@ -581,7 +581,7 @@ namespace Nif
 
     struct NiPSysSphericalCollider : NiPSysCollider
     {
-        float mRadius;
+        float mRadius{};
 
         void read(NIFStream* nif) override;
     };

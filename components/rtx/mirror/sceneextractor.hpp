@@ -418,7 +418,7 @@ namespace Rtx
         /// means the class is never stated, which is every caller that has not said otherwise.
         struct ClassMask
         {
-            InstanceClass mClass;
+            InstanceClass mClass{};
             osg::Node::NodeMask mMask = 0;
         };
         std::array<ClassMask, 3> mClassMasks{ ClassMask{ InstanceClass::Actor }, ClassMask{ InstanceClass::Effect },

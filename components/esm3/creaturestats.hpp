@@ -38,16 +38,16 @@ namespace ESM
 
         AiSequence::AiSequence mAiSequence;
 
-        bool mHasAiSettings;
+        bool mHasAiSettings{};
         std::array<StatState<int>, 4> mAiSettings;
 
         std::map<SummonKey, int> mSummonedCreatureMap;
         std::multimap<ESM::RefId, RefNum> mSummonedCreatures;
         std::vector<int> mSummonGraveyard;
 
-        TimeStamp mTradeTime;
-        int32_t mGoldPool;
-        int32_t mActorId;
+        TimeStamp mTradeTime{};
+        int32_t mGoldPool{};
+        int32_t mActorId{};
 
         enum Flags
         {
@@ -65,28 +65,28 @@ namespace ESM
             Block = 0x0800,
             RecalcDynamicStats = 0x1000
         };
-        bool mDead;
-        bool mDeathAnimationFinished;
-        bool mDied;
-        bool mMurdered;
-        bool mTalkedTo;
-        bool mAlarmed;
-        bool mAttacked;
-        bool mKnockdown;
-        bool mKnockdownOneFrame;
-        bool mKnockdownOverOneFrame;
-        bool mHitRecovery;
-        bool mBlock;
-        uint32_t mMovementFlags;
-        float mFallHeight;
+        bool mDead{};
+        bool mDeathAnimationFinished{};
+        bool mDied{};
+        bool mMurdered{};
+        bool mTalkedTo{};
+        bool mAlarmed{};
+        bool mAttacked{};
+        bool mKnockdown{};
+        bool mKnockdownOneFrame{};
+        bool mKnockdownOverOneFrame{};
+        bool mHitRecovery{};
+        bool mBlock{};
+        uint32_t mMovementFlags{};
+        float mFallHeight{};
         ESM::RefId mLastHitObject;
         ESM::RefId mLastHitAttemptObject;
-        bool mRecalcDynamicStats;
-        int32_t mDrawState;
-        int8_t mDeathAnimation;
-        TimeStamp mTimeOfDeath;
-        int32_t mLevel;
-        bool mMissingACDT;
+        bool mRecalcDynamicStats{};
+        int32_t mDrawState{};
+        int8_t mDeathAnimation{};
+        TimeStamp mTimeOfDeath{};
+        int32_t mLevel{};
+        bool mMissingACDT{};
 
         std::map<ESM::RefId, CorprusStats> mCorprusSpells;
         SpellState mSpells;

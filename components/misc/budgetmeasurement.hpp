@@ -8,8 +8,8 @@ namespace Misc
 
     class BudgetMeasurement
     {
-        std::array<float, 4> mBudgetHistory;
-        std::array<unsigned int, 4> mBudgetStepCount;
+        std::array<float, 4> mBudgetHistory{};
+        std::array<unsigned int, 4> mBudgetStepCount{};
 
     public:
         explicit BudgetMeasurement(const float defaultExpense)

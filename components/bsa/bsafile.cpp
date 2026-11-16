@@ -53,7 +53,7 @@ namespace
     // https://github.com/arviceblot/bsatool_rs/commit/67cb59ec3aaeedc0849222ea387f031c33e48c81
     BSAFile::Hash getHash(const std::string& name)
     {
-        BSAFile::Hash hash;
+        BSAFile::Hash hash{};
         unsigned l = (static_cast<unsigned>(name.size()) >> 1);
         unsigned sum = 0, off = 0, temp = 0, i = 0, n = 0;
 

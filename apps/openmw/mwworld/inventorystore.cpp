@@ -121,7 +121,7 @@ MWWorld::InventoryStore& MWWorld::InventoryStore::operator=(InventoryStore&& sto
     mUpdatesEnabled = store.mUpdatesEnabled;
     mFirstAutoEquip = store.mFirstAutoEquip;
     mSlots.clear();
-    std::array<std::ptrdiff_t, Slots> distances;
+    std::array<std::ptrdiff_t, Slots> distances{};
     for (int i = 0; i < Slots; ++i)
     {
         distances[i] = store.index(store.mSlots[i]);

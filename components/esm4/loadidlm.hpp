@@ -43,15 +43,15 @@ namespace ESM4
     struct IdleMarker
     {
         ESM::FormId mId; // from the header
-        std::uint32_t mFlags; // from the header, see enum type RecordFlag for details
+        std::uint32_t mFlags{}; // from the header, see enum type RecordFlag for details
         ESM::GameFormat mGameFormat = ESM::GameFormat::Unknown; // assumed per-file from context clues
 
         std::string mEditorId;
         ESM::Path mModel;
 
-        std::uint8_t mIdleFlags;
-        std::uint8_t mIdleCount;
-        float mIdleTimer;
+        std::uint8_t mIdleFlags{};
+        std::uint8_t mIdleCount{};
+        float mIdleTimer{};
         std::vector<ESM::FormId> mIdleAnim;
 
         void load(ESM4::Reader& reader);

@@ -19,7 +19,7 @@ namespace Files
             stream.exceptions(std::ios_base::badbit);
             while (stream)
             {
-                std::array<char, 4096> value;
+                std::array<char, 4096> value{};
                 stream.read(value.data(), value.size());
                 const std::streamsize read = stream.gcount();
                 if (read == 0)

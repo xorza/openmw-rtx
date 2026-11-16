@@ -126,8 +126,8 @@ namespace MWWorld
 
         typedef typename ContainerStoreTrait<PtrType, void>::type ContainerStoreType;
 
-        int mType;
-        int mMask;
+        int mType{};
+        int mMask{};
         ContainerStoreType mContainer;
         mutable PtrType mPtr;
 

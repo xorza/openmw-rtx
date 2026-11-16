@@ -80,7 +80,7 @@ namespace Nif
         };
 
         // Node flags. Interpretation depends on the record type.
-        uint32_t mFlags;
+        uint32_t mFlags{};
         NiTransform mTransform;
         osg::Vec3f mVelocity;
         NiPropertyList mProperties;
@@ -199,7 +199,7 @@ namespace Nif
 
     struct BSLODTriShape : NiTriShape
     {
-        std::array<uint32_t, 3> mLOD;
+        std::array<uint32_t, 3> mLOD{};
         void read(NIFStream* nif) override;
     };
 
@@ -207,11 +207,11 @@ namespace Nif
     {
         uint16_t mCameraFlags{ 0 };
         // Camera frustum
-        float mLeft, mRight, mTop, mBottom, mNearDist, mFarDist;
+        float mLeft{}, mRight{}, mTop{}, mBottom{}, mNearDist{}, mFarDist{};
         bool mOrthographic{ false };
         // Viewport
-        float mVLeft, mVRight, mVTop, mVBottom;
-        float mLODAdjust;
+        float mVLeft{}, mVRight{}, mVTop{}, mVBottom{};
+        float mLODAdjust{};
         NiAVObjectPtr mScene;
 
         void read(NIFStream* nif) override;
@@ -221,8 +221,8 @@ namespace Nif
     // A node used as the base to switch between child nodes, such as for LOD levels.
     struct NiSwitchNode : NiNode
     {
-        uint16_t mSwitchFlags;
-        uint32_t mInitialIndex;
+        uint16_t mSwitchFlags{};
+        uint32_t mInitialIndex{};
 
         void read(NIFStream* nif) override;
     };
@@ -250,7 +250,7 @@ namespace Nif
             Flag_Swing = 0x40
         };
 
-        float mDuration;
+        float mDuration{};
 
         void read(NIFStream* nif) override;
 
@@ -281,7 +281,7 @@ namespace Nif
             Subsort,
         };
 
-        SortingMode mMode;
+        SortingMode mMode{};
         NiAccumulatorPtr mSubSorter;
 
         void read(NIFStream* nif) override;
@@ -299,7 +299,7 @@ namespace Nif
             RigidFaceCenter = 4,
             BSRotateAboutUp = 5,
         };
-        BillboardMode mMode;
+        BillboardMode mMode{};
 
         void read(NIFStream* nif) override;
     };
@@ -333,7 +333,7 @@ namespace Nif
         };
 
         BSMultiBoundPtr mMultiBound;
-        BSCPCullingType mCullingType;
+        BSCPCullingType mCullingType{};
 
         void read(NIFStream* nif) override;
         void post(Reader& nif) override;
@@ -374,14 +374,14 @@ namespace Nif
     struct BSVertexData
     {
         osg::Vec4f mVertex; // Bitangent X is stored in the fourth component
-        std::array<Misc::float16_t, 4> mHalfVertex; // Ditto
-        std::array<Misc::float16_t, 2> mUV;
-        std::array<char, 4> mNormal; // Bitangent Y is stored in the fourth component
-        std::array<char, 4> mTangent; // Bitangent Z is stored in the fourth component
-        std::array<char, 4> mVertColor;
-        std::array<Misc::float16_t, 4> mBoneWeights;
-        std::array<char, 4> mBoneIndices;
-        float mEyeData;
+        std::array<Misc::float16_t, 4> mHalfVertex{}; // Ditto
+        std::array<Misc::float16_t, 2> mUV{};
+        std::array<char, 4> mNormal{}; // Bitangent Y is stored in the fourth component
+        std::array<char, 4> mTangent{}; // Bitangent Z is stored in the fourth component
+        std::array<char, 4> mVertColor{};
+        std::array<Misc::float16_t, 4> mBoneWeights{};
+        std::array<char, 4> mBoneIndices{};
+        float mEyeData{};
 
         void read(NIFStream* nif, uint16_t flags);
     };
@@ -389,16 +389,16 @@ namespace Nif
     struct BSTriShape : NiAVObject
     {
         osg::BoundingSpheref mBoundingSphere;
-        std::array<float, 6> mBoundMinMax;
+        std::array<float, 6> mBoundMinMax{};
         RecordPtrT<Record> mSkin;
         BSShaderPropertyPtr mShaderProperty;
         NiAlphaPropertyPtr mAlphaProperty;
-        BSVertexDesc mVertDesc;
-        uint32_t mDataSize;
-        uint16_t mNumVertices;
+        BSVertexDesc mVertDesc{};
+        uint32_t mDataSize{};
+        uint16_t mNumVertices{};
         std::vector<BSVertexData> mVertData;
         std::vector<unsigned short> mTriangles;
-        uint32_t mParticleDataSize;
+        uint32_t mParticleDataSize{};
         std::vector<Misc::float16_t> mParticleVerts;
         std::vector<Misc::float16_t> mParticleNormals;
         std::vector<unsigned short> mParticleTriangles;
@@ -409,7 +409,7 @@ namespace Nif
 
     struct BSDynamicTriShape : BSTriShape
     {
-        uint32_t mDynamicDataSize;
+        uint32_t mDynamicDataSize{};
         std::vector<osg::Vec4f> mDynamicData;
 
         void read(NIFStream* nif) override;
@@ -417,7 +417,7 @@ namespace Nif
 
     struct BSMeshLODTriShape : BSTriShape
     {
-        std::array<uint32_t, 3> mLOD;
+        std::array<uint32_t, 3> mLOD{};
 
         void read(NIFStream* nif) override;
     };
@@ -435,9 +435,9 @@ namespace Nif
 
         struct Segment
         {
-            uint32_t mStartIndex;
-            uint32_t mNumPrimitives;
-            uint32_t mParentArrayIndex;
+            uint32_t mStartIndex{};
+            uint32_t mNumPrimitives{};
+            uint32_t mParentArrayIndex{};
             std::vector<SubSegment> mSubSegments;
 
             void read(NIFStream* nif);
@@ -445,8 +445,8 @@ namespace Nif
 
         struct SubSegmentDataRecord
         {
-            uint32_t mUserSlotID;
-            uint32_t mMaterial;
+            uint32_t mUserSlotID{};
+            uint32_t mMaterial{};
             std::vector<float> mExtraData;
 
             void read(NIFStream* nif);
@@ -463,8 +463,8 @@ namespace Nif
 
         struct Segmentation
         {
-            uint32_t mNumPrimitives;
-            uint32_t mNumTotalSegments;
+            uint32_t mNumPrimitives{};
+            uint32_t mNumTotalSegments{};
             std::vector<Segment> mSegments;
             SubSegmentData mSubSegmentData;
 
@@ -485,8 +485,8 @@ namespace Nif
             Flag_UsePlayerAdjust = 0x2,
         };
 
-        uint32_t mValue;
-        uint8_t mValueFlags;
+        uint32_t mValue{};
+        uint8_t mValueFlags{};
 
         void read(NIFStream* nif) override;
     };
@@ -494,15 +494,15 @@ namespace Nif
     struct BSOrderedNode : NiNode
     {
         osg::Vec4f mAlphaSortBound;
-        bool mStaticBound;
+        bool mStaticBound{};
 
         void read(NIFStream* nif) override;
     };
 
     struct BSRangeNode : NiNode
     {
-        uint8_t mMin, mMax;
-        uint8_t mCurrent;
+        uint8_t mMin{}, mMax{};
+        uint8_t mCurrent{};
 
         void read(NIFStream* nif) override;
     };
@@ -518,7 +518,7 @@ namespace Nif
 
     struct BSDistantObjectInstance
     {
-        BSResourceID mResourceID;
+        BSResourceID mResourceID{};
         std::vector<osg::Matrixf> mTransforms;
 
         void read(NIFStream* nif);

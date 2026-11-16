@@ -72,14 +72,14 @@ void ESM4::Quest::load(ESM4::Reader& reader)
             {
                 if (subHdr.dataSize == 24) // TES4
                 {
-                    TargetCondition cond;
+                    TargetCondition cond{};
                     reader.get(&cond, 24);
                     cond.reference = 0; // unused in TES4 but keep it clean
                     mTargetConditions.push_back(cond);
                 }
                 else if (subHdr.dataSize == 28)
                 {
-                    TargetCondition cond;
+                    TargetCondition cond{};
                     reader.get(cond); // FO3/FNV
                     if (cond.reference)
                         reader.adjustFormId(cond.reference);

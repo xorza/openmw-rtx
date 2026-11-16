@@ -45,9 +45,9 @@ namespace ESM
             int32_t mFlags;
         };
 
-        uint32_t mRecordFlags;
+        uint32_t mRecordFlags{};
         RefId mId;
-        ENDTstruct mData;
+        ENDTstruct mData{};
         EffectList mEffects;
 
         void load(ESMReader& esm, bool& isDeleted);

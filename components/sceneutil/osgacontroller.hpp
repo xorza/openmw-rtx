@@ -14,8 +14,8 @@ namespace SceneUtil
 {
     struct EmulatedAnimation
     {
-        float mStartTime;
-        float mStopTime;
+        float mStartTime{};
+        float mStopTime{};
         std::string mName;
     };
 

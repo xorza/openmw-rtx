@@ -24,9 +24,9 @@ namespace Wizard
     public:
         struct Installation
         {
-            bool hasMorrowind;
-            bool hasTribunal;
-            bool hasBloodmoon;
+            bool hasMorrowind{};
+            bool hasTribunal{};
+            bool hasBloodmoon{};
 
             QString iniPath;
         };

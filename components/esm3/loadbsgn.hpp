@@ -22,7 +22,7 @@ namespace ESM
         /// Return a string descriptor for this record type. Currently used for debugging / error logs only.
         static std::string_view getRecordType() { return "BirthSign"; }
 
-        uint32_t mRecordFlags;
+        uint32_t mRecordFlags{};
         RefId mId;
         std::string mName, mDescription;
         Path mTexture;

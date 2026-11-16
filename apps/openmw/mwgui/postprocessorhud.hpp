@@ -83,19 +83,19 @@ namespace MWGui
 
         void layout();
 
-        ListWrapper* mActiveList;
-        ListWrapper* mInactiveList;
+        ListWrapper* mActiveList{};
+        ListWrapper* mInactiveList{};
 
-        Gui::AutoSizedButton* mButtonActivate;
-        Gui::AutoSizedButton* mButtonDeactivate;
-        Gui::AutoSizedButton* mButtonDown;
-        Gui::AutoSizedButton* mButtonUp;
+        Gui::AutoSizedButton* mButtonActivate{};
+        Gui::AutoSizedButton* mButtonDeactivate{};
+        Gui::AutoSizedButton* mButtonDown{};
+        Gui::AutoSizedButton* mButtonUp{};
 
-        MyGUI::ScrollView* mConfigLayout;
+        MyGUI::ScrollView* mConfigLayout{};
 
         MyGUI::Widget* mConfigArea;
 
-        MyGUI::EditBox* mFilter;
+        MyGUI::EditBox* mFilter{};
         Gui::AutoSizedEditBox* mShaderInfo;
 
         std::string mOverrideHint;

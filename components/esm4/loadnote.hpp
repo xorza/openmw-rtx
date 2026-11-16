@@ -41,14 +41,14 @@ namespace ESM4
     struct Note
     {
         ESM::FormId mId; // from the header
-        std::uint32_t mFlags; // from the header, see enum type RecordFlag for details
+        std::uint32_t mFlags{}; // from the header, see enum type RecordFlag for details
 
         std::string mEditorId;
         std::string mFullName;
         ESM::Path mModel;
         std::string mIcon;
 
-        float mBoundRadius;
+        float mBoundRadius{};
 
         ESM::FormId mPickUpSound;
         ESM::FormId mDropSound;

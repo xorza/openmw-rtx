@@ -41,7 +41,7 @@ namespace ESM
 
         RefId mId;
         std::string mStringId;
-        Type mType;
+        Type mType{};
         InfoContainer mInfo;
         InfoOrder<DialInfo> mInfoOrder;
 

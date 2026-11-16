@@ -16,7 +16,7 @@ namespace ESM4
         using Data = std::variant<std::monostate, bool, float, std::int32_t, std::string, std::uint32_t>;
 
         ESM::FormId mId; // from the header
-        std::uint32_t mFlags; // from the header, see enum type RecordFlag for details
+        std::uint32_t mFlags{}; // from the header, see enum type RecordFlag for details
         std::string mEditorId;
         Data mData;
 

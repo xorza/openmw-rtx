@@ -130,7 +130,7 @@ void ESM4::Land::load(ESM4::Reader& reader)
             }
             case ESM::fourCC("BTXT"):
             {
-                BTXT base;
+                BTXT base{};
                 if (reader.getExact(base))
                 {
                     if (base.quadrant >= 4)

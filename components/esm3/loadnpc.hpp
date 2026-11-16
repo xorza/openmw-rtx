@@ -81,30 +81,30 @@ namespace ESM
             std::map<ESM::RefId, unsigned char> mAttributes;
             // mSkill can grow up to 200, it must be unsigned
             std::map<ESM::RefId, unsigned char> mSkills;
-            int16_t mLevel;
+            int16_t mLevel{};
 
-            uint16_t mHealth, mMana, mFatigue;
-            unsigned char mDisposition, mReputation, mRank;
-            int32_t mGold;
+            uint16_t mHealth{}, mMana{}, mFatigue{};
+            unsigned char mDisposition{}, mReputation{}, mRank{};
+            int32_t mGold{};
 
             unsigned char getAttribute(ESM::RefId) const;
             unsigned char getSkill(ESM::RefId) const;
         }; // 52 bytes
 
-        unsigned char mNpdtType;
+        unsigned char mNpdtType{};
         // Worth noting when saving the struct:
         //  Although we might read a NPDTstruct12 in, we use NPDTstruct52 internally
         NPDTstruct52 mNpdt;
 
         int getFactionRank() const; /// wrapper for mNpdt*, -1 = no rank
 
-        int32_t mBloodType;
-        unsigned char mFlags;
+        int32_t mBloodType{};
+        unsigned char mFlags{};
 
         InventoryList mInventory;
         SpellList mSpells;
 
-        AIData mAiData;
+        AIData mAiData{};
 
         Transport mTransport;
 
@@ -112,7 +112,7 @@ namespace ESM
 
         AIPackageList mAiPackage;
 
-        uint32_t mRecordFlags;
+        uint32_t mRecordFlags{};
         RefId mId, mRace, mClass, mFaction, mScript;
         std::string mName;
         Path mModel;

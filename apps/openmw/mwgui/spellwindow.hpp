@@ -27,7 +27,7 @@ namespace MWGui
         std::string_view getWindowIdForLua() const override { return "Magic"; }
 
     protected:
-        MyGUI::Widget* mEffectBox;
+        MyGUI::Widget* mEffectBox{};
 
         ESM::RefId mSpellToDelete;
 
@@ -47,7 +47,7 @@ namespace MWGui
 
         SpellView* mSpellView;
         std::unique_ptr<SpellIcons> mSpellIcons;
-        MyGUI::EditBox* mFilterEdit;
+        MyGUI::EditBox* mFilterEdit{};
 
     private:
         float mUpdateTimer;

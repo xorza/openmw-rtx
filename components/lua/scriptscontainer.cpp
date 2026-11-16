@@ -12,7 +12,7 @@ namespace
     struct ScriptInfo
     {
         std::string_view mInitData;
-        const ESM::LuaScript* mSavedData;
+        const ESM::LuaScript* mSavedData{};
     };
 }
 

@@ -66,10 +66,10 @@ namespace MWClass
     class ESM4NpcCustomData : public MWWorld::TypedCustomData<ESM4NpcCustomData>
     {
     public:
-        const ESM4::Npc* mTraits;
-        const ESM4::Npc* mBaseData;
-        const ESM4::Race* mRace;
-        bool mIsFemale;
+        const ESM4::Npc* mTraits{};
+        const ESM4::Npc* mBaseData{};
+        const ESM4::Race* mRace{};
+        bool mIsFemale{};
 
         // TODO: Use InventoryStore instead (currently doesn't support ESM4 objects)
         std::vector<const ESM4::Armor*> mEquippedArmor;

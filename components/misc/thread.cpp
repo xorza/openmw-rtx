@@ -13,7 +13,7 @@ namespace Misc
 {
     void setCurrentThreadIdlePriority()
     {
-        sched_param param;
+        sched_param param{};
         param.sched_priority = 0;
         if (pthread_setschedparam(pthread_self(), SCHED_IDLE, &param) == 0)
             Log(Debug::Verbose) << "Using idle priority for thread=" << std::this_thread::get_id();

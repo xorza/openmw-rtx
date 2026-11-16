@@ -57,15 +57,15 @@ namespace MWGui
         int mInitialGoldLabelWidth;
         int mInitialMainWidgetWidth;
 
-        MyGUI::Button* mCancelButton;
-        MyGUI::Button* mAdmireButton;
-        MyGUI::Button* mIntimidateButton;
-        MyGUI::Button* mTauntButton;
-        MyGUI::Button* mBribe10Button;
-        MyGUI::Button* mBribe100Button;
-        MyGUI::Button* mBribe1000Button;
-        MyGUI::Widget* mActionsBox;
-        Gui::AutoSizedTextBox* mGoldLabel;
+        MyGUI::Button* mCancelButton{};
+        MyGUI::Button* mAdmireButton{};
+        MyGUI::Button* mIntimidateButton{};
+        MyGUI::Button* mTauntButton{};
+        MyGUI::Button* mBribe10Button{};
+        MyGUI::Button* mBribe100Button{};
+        MyGUI::Button* mBribe1000Button{};
+        MyGUI::Widget* mActionsBox{};
+        Gui::AutoSizedTextBox* mGoldLabel{};
 
         std::vector<MyGUI::Button*> mButtons;
         size_t mControllerFocus = 0;
@@ -205,12 +205,12 @@ namespace MWGui
 
         MWDialogue::KeywordSearch mKeywordSearch;
 
-        BookPage* mHistory;
-        Gui::MWList* mTopicsList;
-        MyGUI::ScrollBar* mScrollBar;
-        MyGUI::ProgressBar* mDispositionBar;
-        MyGUI::TextBox* mDispositionText;
-        MyGUI::Button* mGoodbyeButton;
+        BookPage* mHistory{};
+        Gui::MWList* mTopicsList{};
+        MyGUI::ScrollBar* mScrollBar{};
+        MyGUI::ProgressBar* mDispositionBar{};
+        MyGUI::TextBox* mDispositionText{};
+        MyGUI::Button* mGoodbyeButton{};
 
         PersuasionDialog mPersuasionDialog;
 

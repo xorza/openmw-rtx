@@ -75,7 +75,7 @@ namespace MWGui
         };
 
         std::array<ButtonWidgets, Button::Button_Max> mButtons;
-        Gui::HBox* mHBox;
+        Gui::HBox* mHBox{};
 
         void setIcon(MyGUI::ImageBox* image, const std::string& imagePath);
         int updateButton(Button button, const std::string& buttonStr);

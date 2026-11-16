@@ -46,20 +46,20 @@ namespace Sky
             return 0;
         }
 
-        float mRotationFromHorizon;
-        float mRotationFromNorth;
+        float mRotationFromHorizon{};
+        float mRotationFromNorth{};
         /// Unspecified until the weather has placed the moon, which is what a script's phase
         /// question gets as nought — the answer the rasterizer's unbuilt moon gave.
         Phase mPhase = Phase::Unspecified;
-        float mShadowBlend;
-        float mMoonAlpha;
+        float mShadowBlend{};
+        float mMoonAlpha{};
 
         /// What the hour alone fades the moon by, with no account of where it stands.
         ///
         /// **The half of `mMoonAlpha` that is about daylight** (`Moons_<name>_Fade_Out_*` and `Fade_In_*`);
         /// the other half hides a moon under `Moons_<name>_Fade_End_Angle`, the engine keeping a lit quad
         /// off its own fogged horizon. A renderer with air in it wants the first without the second.
-        float mDaylightFade;
+        float mDaylightFade{};
 
         /// The phase as a continuous count of eighths from full, nought to eight: `mPhase` plus how far the
         /// moon has run toward its next change. What a terminator drawn at any angle follows, where

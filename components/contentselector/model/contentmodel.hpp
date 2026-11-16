@@ -83,7 +83,7 @@ namespace ContentSelectorModel
 
         QString toolTip(const EsmFile* file) const;
 
-        const EsmFile* mGameFile;
+        const EsmFile* mGameFile{};
         ContentFileList mFiles;
         QStringList mNonUserContent;
         std::set<const EsmFile*> mCheckedFiles;

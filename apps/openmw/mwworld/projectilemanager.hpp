@@ -99,8 +99,8 @@ namespace MWWorld
             // MW-id of an arrow projectile
             ESM::RefId mIdArrow;
 
-            int mProjectileId;
-            bool mToDelete;
+            int mProjectileId{};
+            bool mToDelete{};
         };
 
         struct MagicBoltState : public State
@@ -112,7 +112,7 @@ namespace MWWorld
 
             ESM::EffectList mEffects;
 
-            float mSpeed;
+            float mSpeed{};
             // Refnum of the casting item
             ESM::RefNum mItem;
 
@@ -126,8 +126,8 @@ namespace MWWorld
             ESM::RefId mBowId;
 
             osg::Vec3f mVelocity;
-            float mAttackStrength;
-            float mAttackWindUp;
+            float mAttackStrength{};
+            float mAttackWindUp{};
         };
 
         std::vector<MagicBoltState> mMagicBolts;

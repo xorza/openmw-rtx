@@ -61,26 +61,26 @@ namespace ESSImport
 
     struct ActorData
     {
-        bool mHasACDT;
-        ACDT mACDT;
+        bool mHasACDT{};
+        ACDT mACDT{};
 
-        bool mHasACSC;
-        ACSC mACSC;
+        bool mHasACSC{};
+        ACSC mACSC{};
 
-        int mSkills[27][2]; // skills, base and modified
+        int mSkills[27][2]{}; // skills, base and modified
 
         // creature combat stats, base and modified
         // I think these can be ignored in the conversion, because it is not possible
         // to change them ingame
-        int mCombatStats[3][2];
+        int mCombatStats[3][2]{};
 
         ESM::RefId mSelectedSpell;
         ESM::RefId mSelectedEnchantItem;
 
         SCRI mSCRI;
 
-        bool mHasANIS;
-        ANIS mANIS; // scripted animation state
+        bool mHasANIS{};
+        ANIS mANIS{}; // scripted animation state
     };
 
 }

@@ -42,30 +42,30 @@ namespace MWGui
         EventHandle_Effect eventEffectRemoved;
 
     protected:
-        MyGUI::Button* mCancelButton;
-        MyGUI::Button* mOkButton;
-        MyGUI::Button* mDeleteButton;
+        MyGUI::Button* mCancelButton{};
+        MyGUI::Button* mOkButton{};
+        MyGUI::Button* mDeleteButton{};
 
-        MyGUI::Button* mRangeButton;
+        MyGUI::Button* mRangeButton{};
 
-        MyGUI::Widget* mDurationBox;
-        MyGUI::Widget* mMagnitudeBox;
-        MyGUI::Widget* mAreaBox;
+        MyGUI::Widget* mDurationBox{};
+        MyGUI::Widget* mMagnitudeBox{};
+        MyGUI::Widget* mAreaBox{};
 
-        MyGUI::TextBox* mMagnitudeMinValue;
-        MyGUI::TextBox* mMagnitudeMaxValue;
-        MyGUI::TextBox* mDurationValue;
-        MyGUI::TextBox* mAreaValue;
+        MyGUI::TextBox* mMagnitudeMinValue{};
+        MyGUI::TextBox* mMagnitudeMaxValue{};
+        MyGUI::TextBox* mDurationValue{};
+        MyGUI::TextBox* mAreaValue{};
 
-        MyGUI::ScrollBar* mMagnitudeMinSlider;
-        MyGUI::ScrollBar* mMagnitudeMaxSlider;
-        MyGUI::ScrollBar* mDurationSlider;
-        MyGUI::ScrollBar* mAreaSlider;
+        MyGUI::ScrollBar* mMagnitudeMinSlider{};
+        MyGUI::ScrollBar* mMagnitudeMaxSlider{};
+        MyGUI::ScrollBar* mDurationSlider{};
+        MyGUI::ScrollBar* mAreaSlider{};
 
-        MyGUI::TextBox* mAreaText;
+        MyGUI::TextBox* mAreaText{};
 
-        MyGUI::ImageBox* mEffectImage;
-        MyGUI::TextBox* mEffectName;
+        MyGUI::ImageBox* mEffectImage{};
+        MyGUI::TextBox* mEffectName{};
 
         bool mEditing;
 
@@ -183,13 +183,13 @@ namespace MWGui
 
         void notifyEffectsChanged() override;
 
-        MyGUI::EditBox* mNameEdit;
-        MyGUI::TextBox* mMagickaCost;
-        MyGUI::TextBox* mSuccessChance;
-        MyGUI::Button* mBuyButton;
-        MyGUI::Button* mCancelButton;
-        MyGUI::TextBox* mPriceLabel;
-        MyGUI::TextBox* mPlayerGold;
+        MyGUI::EditBox* mNameEdit{};
+        MyGUI::TextBox* mMagickaCost{};
+        MyGUI::TextBox* mSuccessChance{};
+        MyGUI::Button* mBuyButton{};
+        MyGUI::Button* mCancelButton{};
+        MyGUI::TextBox* mPriceLabel{};
+        MyGUI::TextBox* mPlayerGold{};
 
         ESM::Spell mSpell;
     };

@@ -153,7 +153,7 @@ namespace ESM
                     break;
                 case fourCC("WPDT"):
                 {
-                    EsmWPDTstruct data;
+                    EsmWPDTstruct data{};
                     esm.getSubComposite(data);
                     fromBinary(data, mData);
                     hasData = true;
@@ -194,7 +194,7 @@ namespace ESM
 
         esm.writeHNCString("MODL", mModel.getOriginal());
         esm.writeHNOCString("FNAM", mName);
-        EsmWPDTstruct data;
+        EsmWPDTstruct data{};
         toBinary(mData, data);
         esm.writeNamedComposite("WPDT", data);
         esm.writeHNOCRefId("SCRI", mScript);

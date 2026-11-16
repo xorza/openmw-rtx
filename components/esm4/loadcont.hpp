@@ -44,15 +44,15 @@ namespace ESM4
     struct Container
     {
         ESM::FormId mId; // from the header
-        std::uint32_t mFlags; // from the header, see enum type RecordFlag for details
+        std::uint32_t mFlags{}; // from the header, see enum type RecordFlag for details
 
         std::string mEditorId;
         std::string mFullName;
         ESM::Path mModel;
 
-        float mBoundRadius;
-        unsigned char mDataFlags;
-        float mWeight;
+        float mBoundRadius{};
+        unsigned char mDataFlags{};
+        float mWeight{};
 
         ESM::FormId mOpenSound;
         ESM::FormId mCloseSound;

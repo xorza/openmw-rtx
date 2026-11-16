@@ -57,7 +57,7 @@ namespace MWGui
             {
                 const int offset = sColumnOffsets[i / mPerCol];
                 const int row = static_cast<int>(i % mPerCol);
-                Widgets widgets;
+                Widgets widgets{};
                 widgets.mMultiplier = mAssignWidget->createWidget<MyGUI::TextBox>(
                     "SandTextVCenter", { offset, 20 * row, 100, 20 }, MyGUI::Align::Default);
                 auto* hbox = mAssignWidget->createWidget<Gui::HBox>(

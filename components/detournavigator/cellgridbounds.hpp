@@ -7,6 +7,6 @@ namespace DetourNavigator
     struct CellGridBounds
     {
         osg::Vec2i mCenter;
-        int mHalfSize;
+        int mHalfSize{};
     };
 }

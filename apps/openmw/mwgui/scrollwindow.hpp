@@ -34,9 +34,9 @@ namespace MWGui
         bool onControllerButtonEvent(const SDL_GamepadButtonEvent& arg) override;
 
     private:
-        Gui::ImageButton* mCloseButton;
-        Gui::ImageButton* mTakeButton;
-        MyGUI::ScrollView* mTextView;
+        Gui::ImageButton* mCloseButton{};
+        Gui::ImageButton* mTakeButton{};
+        MyGUI::ScrollView* mTextView{};
 
         MWWorld::Ptr mScroll;
 

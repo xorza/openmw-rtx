@@ -9,7 +9,7 @@ namespace Nif
     template <typename T>
     struct TypedExtra : public Extra
     {
-        T mData;
+        T mData{};
 
         void read(NIFStream* nif) override
         {
@@ -74,7 +74,7 @@ namespace Nif
     {
         struct TextKey
         {
-            float mTime;
+            float mTime{};
             std::string mText;
 
             void read(NIFStream* nif);
@@ -96,17 +96,17 @@ namespace Nif
         struct LegacyFurniturePosition
         {
             osg::Vec3f mOffset;
-            uint16_t mOrientation;
-            uint8_t mPositionRef;
+            uint16_t mOrientation{};
+            uint8_t mPositionRef{};
             void read(NIFStream* nif);
         };
 
         struct FurniturePosition
         {
             osg::Vec3f mOffset;
-            float mHeading;
-            uint16_t mType;
-            uint16_t mEntryPoint;
+            float mHeading{};
+            uint16_t mType{};
+            uint16_t mEntryPoint{};
             void read(NIFStream* nif);
         };
 
@@ -119,7 +119,7 @@ namespace Nif
     struct BSInvMarker : public Extra
     {
         osg::Quat mRotation;
-        float mScale;
+        float mScale{};
 
         void read(NIFStream* nif) override;
     };
@@ -127,7 +127,7 @@ namespace Nif
     struct BSBehaviorGraphExtraData : public Extra
     {
         std::string mFile;
-        bool mControlsBaseSkeleton;
+        bool mControlsBaseSkeleton{};
 
         void read(NIFStream* nif) override;
     };
@@ -136,7 +136,7 @@ namespace Nif
     {
         struct BoneLOD
         {
-            uint32_t mDistance;
+            uint32_t mDistance{};
             std::string mBone;
 
             void read(NIFStream* nif);
@@ -201,7 +201,7 @@ namespace Nif
 
         struct Children : NiExtraData
         {
-            bool mSkinned;
+            bool mSkinned{};
             std::vector<std::string> mPointNames;
 
             void read(NIFStream* nif) override;
@@ -210,7 +210,7 @@ namespace Nif
 
     struct BSPackedGeomDataCombined
     {
-        float mGrayscaleToPaletteScale;
+        float mGrayscaleToPaletteScale{};
         NiTransform mTransform;
         osg::BoundingSpheref mBoundingSphere;
 
@@ -227,27 +227,27 @@ namespace Nif
 
     struct BSPackedSharedGeomData
     {
-        uint32_t mNumVertices;
-        uint32_t mLODLevels;
-        uint32_t mLOD0TriCount;
-        uint32_t mLOD0TriOffset;
-        uint32_t mLOD1TriCount;
-        uint32_t mLOD1TriOffset;
-        uint32_t mLOD2TriCount;
-        uint32_t mLOD2TriOffset;
+        uint32_t mNumVertices{};
+        uint32_t mLODLevels{};
+        uint32_t mLOD0TriCount{};
+        uint32_t mLOD0TriOffset{};
+        uint32_t mLOD1TriCount{};
+        uint32_t mLOD1TriOffset{};
+        uint32_t mLOD2TriCount{};
+        uint32_t mLOD2TriOffset{};
         std::vector<BSPackedGeomDataCombined> mCombined;
-        BSVertexDesc mVertexDesc;
+        BSVertexDesc mVertexDesc{};
 
         void read(NIFStream* nif);
     };
 
     struct BSPackedCombinedSharedGeomDataExtra : NiExtraData
     {
-        BSVertexDesc mVertexDesc;
-        uint32_t mNumVertices;
-        uint32_t mNumTriangles;
-        uint32_t mFlags1;
-        uint32_t mFlags2;
+        BSVertexDesc mVertexDesc{};
+        uint32_t mNumVertices{};
+        uint32_t mNumTriangles{};
+        uint32_t mFlags1{};
+        uint32_t mFlags2{};
         std::vector<BSPackedGeomObject> mObjects;
         std::vector<BSPackedSharedGeomData> mObjectData;
 

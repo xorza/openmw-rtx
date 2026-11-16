@@ -67,7 +67,7 @@ namespace Rtx
         /// One light's animation, sampled.
         struct Lamp
         {
-            SceneUtil::LightController::LightType mType;
+            SceneUtil::LightController::LightType mType{};
             int mId = 1;
 
             float at(double seconds) const { return lightBrightness(mType, mId, seconds); }

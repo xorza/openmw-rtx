@@ -40,7 +40,7 @@ namespace ESM4
     struct TextureSet
     {
         ESM::FormId mId; // from the header
-        std::uint32_t mFlags; // from the header, see enum type RecordFlag for details
+        std::uint32_t mFlags{}; // from the header, see enum type RecordFlag for details
 
         std::string mEditorId;
         std::string mFilter;
@@ -56,7 +56,7 @@ namespace ESM4
         std::string mSmoothSpecular;
         std::string mLighting;
         std::string mFlow;
-        std::uint16_t mDataFlags;
+        std::uint16_t mDataFlags{};
         std::string mMaterial;
 
         void load(ESM4::Reader& reader);

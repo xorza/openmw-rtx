@@ -17,7 +17,7 @@ namespace Rtx
         FilterSwitches mFilters;
 
         /// The number of the frame the histories were written in (`TemporalTurns::Step`).
-        std::uint32_t mWrittenBefore;
+        std::uint32_t mWrittenBefore{};
 
         /// What the frame before was shown at, one float (`DisplayChain::getFrameExposure`).
         const Buffer& mExposure;

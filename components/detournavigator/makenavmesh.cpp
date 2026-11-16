@@ -572,7 +572,7 @@ namespace DetourNavigator
         const std::vector<unsigned char> offMeshConAreas = getOffMeshConAreas(offMeshConnections);
         const std::vector<unsigned short> offMeshConFlags = getOffMeshFlags(offMeshConnections);
 
-        dtNavMeshCreateParams params;
+        dtNavMeshCreateParams params{};
         params.verts = data.mPolyMesh.verts;
         params.vertCount = data.mPolyMesh.nverts;
         params.polys = data.mPolyMesh.polys;
@@ -616,7 +616,7 @@ namespace DetourNavigator
 
     void initEmptyNavMesh(const Settings& settings, dtNavMesh& navMesh)
     {
-        dtNavMeshParams params;
+        dtNavMeshParams params{};
         std::fill_n(params.orig, 3, 0.0f);
         params.tileWidth = static_cast<float>(settings.mRecast.mTileSize) * settings.mRecast.mCellSize;
         params.tileHeight = static_cast<float>(settings.mRecast.mTileSize) * settings.mRecast.mCellSize;

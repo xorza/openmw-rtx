@@ -89,7 +89,7 @@ namespace Bsa
 
         struct FileRecord
         {
-            std::uint64_t mHash;
+            std::uint64_t mHash{};
             std::vector<char> mName;
             std::uint32_t mSize{ 0u };
             std::uint32_t mOffset{ std::numeric_limits<uint32_t>::max() };
@@ -97,14 +97,14 @@ namespace Bsa
 
         struct FolderRecord
         {
-            std::uint32_t mCount;
-            std::int64_t mOffset;
+            std::uint32_t mCount{};
+            std::int64_t mOffset{};
             std::string mName;
             std::map<std::uint64_t, FileRecord> mFiles;
         };
 
     private:
-        Header mHeader;
+        Header mHeader{};
         std::map<std::uint64_t, FolderRecord> mFolders;
 
         FileRecord getFileRecord(std::string_view str) const;

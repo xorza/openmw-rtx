@@ -24,7 +24,7 @@ namespace ESM
             int32_t mMinX, mMaxX, mMinY, mMaxY;
         };
 
-        Bounds mBounds;
+        Bounds mBounds{};
 
         std::vector<char> mImageData;
 

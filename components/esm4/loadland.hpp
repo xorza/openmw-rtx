@@ -100,29 +100,29 @@ namespace ESM4
 
         struct TxtLayer
         {
-            ATXT texture;
+            ATXT texture{};
             std::vector<VTXT> data; // alpha data
         };
 
         struct Texture
         {
-            BTXT base;
+            BTXT base{};
             std::vector<TxtLayer> layers;
         };
 
         ESM::FormId mId; // from the header
-        std::uint32_t mFlags; // from the header, see enum type RecordFlag for details
+        std::uint32_t mFlags{}; // from the header, see enum type RecordFlag for details
         ESM::GameFormat mGameFormat = ESM::GameFormat::Unknown; // assumed per-file from context clues
 
-        std::uint32_t mLandFlags; // from DATA subrecord
+        std::uint32_t mLandFlags{}; // from DATA subrecord
 
         // FIXME: lazy loading not yet implemented
-        int mDataTypes; // which data types are loaded
+        int mDataTypes{}; // which data types are loaded
 
-        float mHeights[sVertsPerSide * sVertsPerSide]; // Float value of compressed Heightmap
-        std::int8_t mVertNorm[sVertsPerSide * sVertsPerSide * 3]; // from VNML subrecord
-        std::uint8_t mVertColr[sVertsPerSide * sVertsPerSide * 3]; // from VCLR subrecord
-        VHGT mHeightMap;
+        float mHeights[sVertsPerSide * sVertsPerSide]{}; // Float value of compressed Heightmap
+        std::int8_t mVertNorm[sVertsPerSide * sVertsPerSide * 3]{}; // from VNML subrecord
+        std::uint8_t mVertColr[sVertsPerSide * sVertsPerSide * 3]{}; // from VCLR subrecord
+        VHGT mHeightMap{};
         Texture mTextures[4]; // 0 = bottom left, 1 = bottom right, 2 = top left, 3 = top right
         std::vector<ESM::FormId> mIds; // land texture (LTEX) formids
         ESM::FormId mCell;

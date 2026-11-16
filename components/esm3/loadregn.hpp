@@ -44,13 +44,13 @@ namespace ESM
         struct SoundRef
         {
             ESM::RefId mSound;
-            uint8_t mChance;
+            uint8_t mChance{};
         };
 
         WEATstruct mData;
-        int32_t mMapColor; // RGBA
+        int32_t mMapColor{}; // RGBA
 
-        uint32_t mRecordFlags;
+        uint32_t mRecordFlags{};
         // sleepList refers to a leveled list of creatures you can meet if
         // you sleep outside in this region.
         RefId mId, mSleepList;

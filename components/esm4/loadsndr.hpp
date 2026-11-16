@@ -59,7 +59,7 @@ namespace ESM4
     struct SoundReference
     {
         ESM::FormId mId; // from the header
-        std::uint32_t mFlags; // from the header, see enum type RecordFlag for details
+        std::uint32_t mFlags{}; // from the header, see enum type RecordFlag for details
 
         std::string mEditorId;
 
@@ -69,10 +69,10 @@ namespace ESM4
         ESM::FormId mBaseDescriptor; // BNAM
 
         std::string mSoundFile;
-        LoopInfo mLoopInfo;
-        SoundInfo mData;
+        LoopInfo mLoopInfo{};
+        SoundInfo mData{};
 
-        TargetCondition mTargetCondition;
+        TargetCondition mTargetCondition{};
 
         void load(ESM4::Reader& reader);
         // void save(ESM4::Writer& writer) const;

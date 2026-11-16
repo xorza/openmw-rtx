@@ -40,20 +40,20 @@ namespace ESM4
     struct LandTexture
     {
         ESM::FormId mId; // from the header
-        std::uint32_t mFlags; // from the header, see enum type RecordFlag for details
+        std::uint32_t mFlags{}; // from the header, see enum type RecordFlag for details
 
         std::string mEditorId;
 
-        std::uint8_t mHavokFriction;
-        std::uint8_t mHavokRestitution;
+        std::uint8_t mHavokFriction{};
+        std::uint8_t mHavokRestitution{};
 
-        std::uint8_t mTextureSpecular; // default 30
+        std::uint8_t mTextureSpecular{}; // default 30
         std::vector<ESM::FormId> mGrass;
 
         // ------ TES4 only -----
 
         std::string mTextureFile;
-        std::uint8_t mHavokMaterial;
+        std::uint8_t mHavokMaterial{};
 
         // ------ TES5, FO4 -----
 
@@ -69,7 +69,7 @@ namespace ESM4
             Flag_IsSnow = 0x1,
         };
 
-        std::uint32_t mMaterialFlags;
+        std::uint32_t mMaterialFlags{};
 
         // ----------------------
 

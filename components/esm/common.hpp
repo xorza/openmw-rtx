@@ -38,7 +38,7 @@ namespace ESM
     struct MasterData
     {
         std::string name;
-        std::uint64_t size;
+        std::uint64_t size{};
     };
 
     inline std::string printName(const std::uint32_t typeId)

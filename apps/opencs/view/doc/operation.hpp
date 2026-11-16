@@ -15,9 +15,9 @@ namespace CSVDoc
 
         int mType;
         bool mStalling;
-        QProgressBar* mProgressBar;
-        QPushButton* mAbortButton;
-        QHBoxLayout* mLayout;
+        QProgressBar* mProgressBar{};
+        QPushButton* mAbortButton{};
+        QHBoxLayout* mLayout{};
 
         // not implemented
         Operation(const Operation&);

@@ -76,7 +76,7 @@ namespace MWLua
         {
             bool isPlayer = actor == MWBase::Environment::get().getWorld()->getPlayerPtr();
             MWWorld::InventoryStore& store = actor.getClass().getInventoryStore(actor);
-            std::array<bool, MWWorld::InventoryStore::Slots> usedSlots;
+            std::array<bool, MWWorld::InventoryStore::Slots> usedSlots{};
             std::fill(usedSlots.begin(), usedSlots.end(), false);
 
             auto tryEquipToSlot = [&store, &usedSlots, isPlayer](int slot, const EquipmentItem& item) -> bool {

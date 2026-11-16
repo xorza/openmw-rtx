@@ -227,10 +227,10 @@ namespace MWGui
         void onOkButtonClicked(MyGUI::Widget* sender);
         void onDeleteButtonClicked(MyGUI::Widget* sender);
 
-        MyGUI::TextBox* mTextEdit;
-        MyGUI::Button* mOkButton;
-        MyGUI::Button* mCancelButton;
-        MyGUI::Button* mDeleteButton;
+        MyGUI::TextBox* mTextEdit{};
+        MyGUI::Button* mOkButton{};
+        MyGUI::Button* mCancelButton{};
+        MyGUI::Button* mDeleteButton{};
 
         bool onControllerButtonEvent(const SDL_GamepadButtonEvent& arg) override;
         size_t mControllerFocus = 0;
@@ -309,9 +309,9 @@ namespace MWGui
         std::unique_ptr<MyGUI::ITexture> mGlobalMapTexture;
         MyGUI::ImageBox* mGlobalMapImage;
         MyGUI::ImageBox* mGlobalMapOverlay;
-        MyGUI::ImageBox* mPlayerArrowLocal;
-        MyGUI::ImageBox* mPlayerArrowGlobal;
-        MyGUI::Button* mButton;
+        MyGUI::ImageBox* mPlayerArrowLocal{};
+        MyGUI::ImageBox* mPlayerArrowGlobal{};
+        MyGUI::Button* mButton{};
         MyGUI::IntPoint mLastDragPos;
 
         MyGUI::IntCoord mLastScrollWindowCoordinates;

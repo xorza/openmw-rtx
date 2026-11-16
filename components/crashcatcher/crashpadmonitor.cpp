@@ -137,7 +137,7 @@ namespace Crash
             if (!written)
                 return false;
 
-            crashpad::UUID id;
+            crashpad::UUID id{};
             if (reports.FinishedWritingCrashReport(std::move(report), &id) != crashpad::CrashReportDatabase::kNoError)
                 return false;
             monitor.mReports.add(id, ReportKind::Hang);

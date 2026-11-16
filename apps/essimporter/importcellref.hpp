@@ -20,9 +20,9 @@ namespace ESSImport
 
         std::string mScript;
 
-        bool mEnabled;
+        bool mEnabled{};
 
-        bool mDeleted;
+        bool mDeleted{};
 
         ActorData mActorData;
 

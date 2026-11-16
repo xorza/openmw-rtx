@@ -163,7 +163,7 @@ namespace Crash
     std::unique_ptr<crashpad::MinidumpUserExtensionStreamDataSource> SummarySource::ProduceStreamData(
         crashpad::ProcessSnapshot* snapshot)
     {
-        crashpad::UUID report;
+        crashpad::UUID report{};
         snapshot->ReportID(&report);
         std::unique_ptr<crashpad::MinidumpUserExtensionStreamDataSource> summary
             = produce(*snapshot, ReportKind::Crash, 0);
@@ -180,7 +180,7 @@ namespace Crash
     std::unique_ptr<crashpad::MinidumpUserExtensionStreamDataSource> SummarySource::produce(
         const crashpad::ProcessSnapshot& snapshot, const ReportKind kind, const std::uint32_t stalledFor)
     {
-        crashpad::UUID report;
+        crashpad::UUID report{};
         snapshot.ReportID(&report);
 
         // **The dump is written whatever the summary comes to**: this runs inside Crashpad's

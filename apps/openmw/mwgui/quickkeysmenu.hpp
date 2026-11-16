@@ -62,8 +62,8 @@ namespace MWGui
         keyData* mSelected;
         keyData* mActivated;
 
-        MyGUI::EditBox* mInstructionLabel;
-        MyGUI::Button* mOkButton;
+        MyGUI::EditBox* mInstructionLabel{};
+        MyGUI::Button* mOkButton{};
 
         std::unique_ptr<QuickKeysMenuAssign> mAssignDialog;
         std::unique_ptr<ItemSelectionDialog> mItemSelectionDialog;
@@ -86,11 +86,11 @@ namespace MWGui
         explicit QuickKeysMenuAssign(QuickKeysMenu* parent);
 
     private:
-        MyGUI::TextBox* mLabel;
-        MyGUI::Button* mItemButton;
-        MyGUI::Button* mMagicButton;
-        MyGUI::Button* mUnassignButton;
-        MyGUI::Button* mCancelButton;
+        MyGUI::TextBox* mLabel{};
+        MyGUI::Button* mItemButton{};
+        MyGUI::Button* mMagicButton{};
+        MyGUI::Button* mUnassignButton{};
+        MyGUI::Button* mCancelButton{};
 
         QuickKeysMenu* mParent;
 
@@ -109,8 +109,8 @@ namespace MWGui
         void setActiveControllerWindow(bool active) override;
 
     private:
-        MyGUI::Button* mCancelButton;
-        SpellView* mMagicList;
+        MyGUI::Button* mCancelButton{};
+        SpellView* mMagicList{};
 
         QuickKeysMenu* mParent;
 

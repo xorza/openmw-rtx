@@ -65,11 +65,11 @@ namespace ESM
 
         struct AiWander : AiPackage
         {
-            AiWanderData mData;
-            AiWanderDuration mDurationData; // was TimeStamp mStartTime
+            AiWanderData mData{};
+            AiWanderDuration mDurationData{}; // was TimeStamp mStartTime
 
-            bool mStoredInitialActorPosition;
-            Vector3 mInitialActorPosition;
+            bool mStoredInitialActorPosition{};
+            Vector3 mInitialActorPosition{};
 
             /// \todo add more AiWander state
 
@@ -79,9 +79,9 @@ namespace ESM
 
         struct AiTravel : AiPackage
         {
-            AiTravelData mData;
-            bool mHidden;
-            bool mRepeat;
+            AiTravelData mData{};
+            bool mHidden{};
+            bool mRepeat{};
 
             void load(ESMReader& esm);
             void save(ESMWriter& esm) const;
@@ -89,13 +89,13 @@ namespace ESM
 
         struct AiEscort : AiPackage
         {
-            AiEscortData mData;
+            AiEscortData mData{};
 
             ESM::RefNum mTargetActor;
             ESM::RefId mTargetId;
             std::string mCellId;
-            float mRemainingDuration;
-            bool mRepeat;
+            float mRemainingDuration{};
+            bool mRepeat{};
 
             void load(ESMReader& esm);
             void save(ESMWriter& esm) const;
@@ -103,18 +103,18 @@ namespace ESM
 
         struct AiFollow : AiPackage
         {
-            AiEscortData mData;
+            AiEscortData mData{};
 
             ESM::RefNum mTargetActor;
             ESM::RefId mTargetId;
             std::string mCellId;
-            float mRemainingDuration;
+            float mRemainingDuration{};
 
-            bool mAlwaysFollow;
-            bool mCommanded;
+            bool mAlwaysFollow{};
+            bool mCommanded{};
 
-            bool mActive;
-            bool mRepeat;
+            bool mActive{};
+            bool mRepeat{};
 
             void load(ESMReader& esm);
             void save(ESMWriter& esm) const;
@@ -123,7 +123,7 @@ namespace ESM
         struct AiActivate : AiPackage
         {
             ESM::RefId mTargetId;
-            bool mRepeat;
+            bool mRepeat{};
 
             void load(ESMReader& esm);
             void save(ESMWriter& esm) const;
@@ -147,7 +147,7 @@ namespace ESM
 
         struct AiPackageContainer
         {
-            int32_t mType;
+            int32_t mType{};
 
             std::unique_ptr<AiPackage> mPackage;
         };

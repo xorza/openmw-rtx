@@ -15,7 +15,7 @@ namespace Platform
     std::optional<std::uint64_t> availableMemory()
     {
         // Each file is under a page, and 64 KiB is the largest page x86-64 and arm64 have.
-        std::array<char, 65536> buffer;
+        std::array<char, 65536> buffer{};
         const std::optional<std::string_view> meminfo = KernelFile::read("/proc/meminfo", buffer);
         if (!meminfo.has_value())
             return std::nullopt;

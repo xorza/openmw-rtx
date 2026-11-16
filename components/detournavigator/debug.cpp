@@ -276,7 +276,7 @@ namespace DetourNavigator
             throw std::system_error(errno, std::generic_category(), "Failed to open file to write navmesh: " + path);
         file.exceptions(std::ios::failbit | std::ios::badbit);
 
-        NavMeshSetHeader header;
+        NavMeshSetHeader header{};
         header.magic = navMeshSetMagic;
         header.version = navMeshSetVersion;
         header.numTiles = 0;
@@ -298,7 +298,7 @@ namespace DetourNavigator
             if (!tile || !tile->header || !tile->dataSize)
                 continue;
 
-            NavMeshTileHeader tileHeader;
+            NavMeshTileHeader tileHeader{};
             tileHeader.tileRef = navMesh.getTileRef(tile);
             tileHeader.dataSize = tile->dataSize;
 

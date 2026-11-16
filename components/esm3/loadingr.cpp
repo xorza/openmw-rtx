@@ -89,13 +89,13 @@ namespace ESM
                 {
                     if (esm.getFormatVersion() <= MaxIngredientIndexFormatVersion)
                     {
-                        EsmIRDTstruct bin;
+                        EsmIRDTstruct bin{};
                         esm.getSubComposite(bin);
                         fromBinary(bin, mData);
                     }
                     else
                     {
-                        ValueAndWeight bin;
+                        ValueAndWeight bin{};
                         esm.getSubComposite(bin);
                         mData.mWeight = bin.mWeight;
                         mData.mValue = bin.mValue;
@@ -171,7 +171,7 @@ namespace ESM
         esm.writeHNOCString("FNAM", mName);
         if (esm.getFormatVersion() <= MaxIngredientIndexFormatVersion)
         {
-            EsmIRDTstruct bin;
+            EsmIRDTstruct bin{};
             toBinary(mData, bin);
             esm.writeNamedComposite("IRDT", bin);
         }

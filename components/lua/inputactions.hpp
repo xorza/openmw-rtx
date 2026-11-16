@@ -23,12 +23,12 @@ namespace LuaUtil::InputAction
     struct Info
     {
         std::string mKey;
-        Type mType;
+        Type mType{};
         std::string mL10n;
         std::string mName;
         std::string mDescription;
         sol::main_object mDefaultValue;
-        bool mPersistent;
+        bool mPersistent{};
     };
 
     class MultiTree
@@ -101,7 +101,7 @@ namespace LuaUtil::InputTrigger
         std::string mL10n;
         std::string mName;
         std::string mDescription;
-        bool mPersistent;
+        bool mPersistent{};
     };
 
     class Registry

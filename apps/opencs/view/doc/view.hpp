@@ -42,18 +42,18 @@ namespace CSVDoc
         int mViewIndex;
         int mViewTotal;
         QList<SubView*> mSubViews;
-        QAction* mUndo;
-        QAction* mRedo;
-        QAction* mSave;
-        QAction* mVerify;
-        QAction* mShowStatusBar;
-        QAction* mStopDebug;
-        QAction* mMerge;
+        QAction* mUndo{};
+        QAction* mRedo{};
+        QAction* mSave{};
+        QAction* mVerify{};
+        QAction* mShowStatusBar{};
+        QAction* mStopDebug{};
+        QAction* mMerge{};
         std::vector<QAction*> mEditingActions;
         Operations* mOperations;
         SubViewFactoryManager mSubViewFactory;
         QMainWindow mSubViewWindow;
-        GlobalDebugProfileMenu* mGlobalDebugProfileMenu;
+        GlobalDebugProfileMenu* mGlobalDebugProfileMenu{};
         QScrollArea* mScroll;
         bool mScrollbarOnly;
 

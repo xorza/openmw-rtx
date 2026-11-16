@@ -59,8 +59,8 @@ namespace ESSImport
 
         struct ActiveSpell
         {
-            int32_t mIndex;
-            SPDT mSPDT;
+            int32_t mIndex{};
+            SPDT mSPDT{};
             std::string mTarget;
             std::vector<ActiveEffect> mActiveEffects;
         };

@@ -48,7 +48,7 @@ namespace Debug
         osg::Vec3f mDims;
         osg::Vec3f mColor;
 
-        DrawShape mDrawShape;
+        DrawShape mDrawShape{};
 
         static DrawCall cube(osg::Vec3f pos, osg::Vec3 dims = osg::Vec3(50., 50., 50.), osg::Vec3 color = colorWhite)
         {

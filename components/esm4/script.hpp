@@ -356,19 +356,19 @@ namespace ESM4
     struct ScriptLocalVariableData
     {
         // SLSD
-        std::uint32_t index;
-        std::uint32_t unknown1;
-        std::uint32_t unknown2;
-        std::uint32_t unknown3;
-        std::uint32_t type;
-        std::uint32_t unknown4;
+        std::uint32_t index{};
+        std::uint32_t unknown1{};
+        std::uint32_t unknown2{};
+        std::uint32_t unknown3{};
+        std::uint32_t type{};
+        std::uint32_t unknown4{};
         // SCVR
         std::string variableName;
     };
 
     struct ScriptDefinition
     {
-        ScriptHeader scriptHeader;
+        ScriptHeader scriptHeader{};
         // SDCA compiled source
         std::string scriptSource;
         std::vector<ScriptLocalVariableData> localVarData;

@@ -25,18 +25,18 @@ namespace MWGui
         std::string_view getWindowIdForLua() const override { return "Repair"; }
 
     protected:
-        ItemChargeView* mRepairBox;
+        ItemChargeView* mRepairBox{};
 
-        MyGUI::Widget* mToolBox;
+        MyGUI::Widget* mToolBox{};
 
-        ItemWidget* mToolIcon;
+        ItemWidget* mToolIcon{};
 
         std::unique_ptr<ItemSelectionDialog> mItemSelectionDialog;
 
-        MyGUI::TextBox* mUsesLabel;
-        MyGUI::TextBox* mQualityLabel;
+        MyGUI::TextBox* mUsesLabel{};
+        MyGUI::TextBox* mQualityLabel{};
 
-        MyGUI::Button* mCancelButton;
+        MyGUI::Button* mCancelButton{};
 
         MWMechanics::Repair mRepair;
 

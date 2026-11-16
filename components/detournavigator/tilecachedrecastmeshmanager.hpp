@@ -101,17 +101,17 @@ namespace DetourNavigator
 
         struct WaterData
         {
-            Water mWater;
+            Water mWater{};
             std::optional<TilesPositionsRange> mRange;
-            std::size_t mRevision;
+            std::size_t mRevision{};
         };
 
         struct HeightfieldData
         {
-            int mCellSize;
+            int mCellSize{};
             HeightfieldShape mShape;
             std::optional<TilesPositionsRange> mRange;
-            std::size_t mRevision;
+            std::size_t mRevision{};
         };
 
         struct CachedTile

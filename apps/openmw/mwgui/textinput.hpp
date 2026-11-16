@@ -29,6 +29,6 @@ namespace MWGui
         bool onControllerButtonEvent(const SDL_GamepadButtonEvent& arg) override;
 
     private:
-        MyGUI::EditBox* mTextEdit;
+        MyGUI::EditBox* mTextEdit{};
     };
 }

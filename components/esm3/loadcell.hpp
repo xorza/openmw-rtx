@@ -33,7 +33,7 @@ namespace ESM
         RefNum mRefNum;
 
         // Coordinates of target exterior cell
-        int32_t mTarget[2];
+        int32_t mTarget[2]{};
 
         // The content file format does not support moving objects to an interior cell.
         // The save game format does support moving to interior cells, but uses a different mechanism

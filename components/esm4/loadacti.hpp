@@ -42,7 +42,7 @@ namespace ESM4
     struct Activator
     {
         ESM::FormId mId; // from the header
-        std::uint32_t mFlags; // from the header, see enum type RecordFlag for details
+        std::uint32_t mFlags{}; // from the header, see enum type RecordFlag for details
         ESM::GameFormat mGameFormat = ESM::GameFormat::Unknown; // assumed per-file from context clues
 
         std::string mEditorId;
@@ -53,7 +53,7 @@ namespace ESM4
         ESM::FormId mLoopingSound; // SOUN
         ESM::FormId mActivationSound; // SOUN
 
-        float mBoundRadius;
+        float mBoundRadius{};
 
         ESM::FormId mRadioTemplate; // SOUN
         ESM::FormId mRadioStation; // TACT

@@ -43,16 +43,16 @@ namespace ESM4
     struct LevelledItem
     {
         ESM::FormId mId; // from the header
-        std::uint32_t mFlags; // from the header, see enum type RecordFlag for details
+        std::uint32_t mFlags{}; // from the header, see enum type RecordFlag for details
 
         std::string mEditorId;
 
-        std::int8_t mChanceNone;
+        std::int8_t mChanceNone{};
 
-        bool mHasLvlItemFlags;
-        std::uint8_t mLvlItemFlags;
+        bool mHasLvlItemFlags{};
+        std::uint8_t mLvlItemFlags{};
 
-        std::uint8_t mData;
+        std::uint8_t mData{};
 
         std::vector<LVLO> mLvlObject;
 

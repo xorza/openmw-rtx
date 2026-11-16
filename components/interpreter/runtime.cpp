@@ -55,14 +55,14 @@ namespace Interpreter
 
     void Runtime::push(Type_Integer value)
     {
-        Data data;
+        Data data{};
         data.mInteger = value;
         push(data);
     }
 
     void Runtime::push(Type_Float value)
     {
-        Data data;
+        Data data{};
         data.mFloat = value;
         push(data);
     }

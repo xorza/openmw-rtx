@@ -75,10 +75,10 @@ namespace ESM
         std::string mResultScript;
 
         // ONLY include this item the NPC is not part of any faction.
-        bool mFactionLess;
+        bool mFactionLess{};
 
         // Status of this quest item
-        QuestStatus mQuestStatus;
+        QuestStatus mQuestStatus{};
 
         // Hexadecimal versions of the various subrecord names.
         enum SubNames

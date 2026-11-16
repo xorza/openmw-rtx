@@ -33,8 +33,8 @@ namespace MWSound
         struct Item
         {
             VFS::Path::Normalized mPath;
-            bool mUrgent;
-            bool mWholeFile;
+            bool mUrgent{};
+            bool mWholeFile{};
         };
 
         void push(VFS::Path::Normalized path, bool urgent, bool wholeFile);

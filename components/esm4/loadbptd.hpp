@@ -102,7 +102,7 @@ namespace ESM4
             std::string mNodeName;
             std::string mVATSTarget;
             std::string mIKStartNode;
-            BPND mData;
+            BPND mData{};
             std::string mLimbReplacementModel;
             std::string mGoreEffectsTarget;
 
@@ -110,7 +110,7 @@ namespace ESM4
         };
 
         ESM::FormId mId; // from the header
-        std::uint32_t mFlags; // from the header, see enum type RecordFlag for details
+        std::uint32_t mFlags{}; // from the header, see enum type RecordFlag for details
 
         std::string mEditorId;
         std::string mFullName;

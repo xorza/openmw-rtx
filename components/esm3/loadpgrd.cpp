@@ -120,7 +120,7 @@ namespace ESM
                                 esm.fail("Not enough connections");
                             for (int i = 0; std::cmp_less(i, connectionNum); ++i)
                             {
-                                Edge edge;
+                                Edge edge{};
                                 edge.mV0 = pointIndex;
                                 edge.mV1 = *rawIt;
                                 ++rawIt;

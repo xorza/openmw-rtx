@@ -176,7 +176,7 @@ namespace Rtx
         {
             struct Made
             {
-                spv::Op mOp;
+                spv::Op mOp{};
                 std::vector<std::uint32_t> mOperands;
             };
 

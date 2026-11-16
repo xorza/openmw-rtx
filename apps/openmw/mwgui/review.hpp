@@ -86,10 +86,10 @@ namespace MWGui
         void addItem(const ESM::Spell* spell, MyGUI::IntCoord& coord1, MyGUI::IntCoord& coord2);
         void updateSkillArea();
 
-        MyGUI::TextBox *mNameWidget, *mRaceWidget, *mClassWidget, *mBirthSignWidget;
-        MyGUI::ScrollView* mSkillView;
+        MyGUI::TextBox *mNameWidget{}, *mRaceWidget{}, *mClassWidget{}, *mBirthSignWidget{};
+        MyGUI::ScrollView* mSkillView{};
 
-        Widgets::MWDynamicStatPtr mHealth, mMagicka, mFatigue;
+        Widgets::MWDynamicStatPtr mHealth{}, mMagicka{}, mFatigue{};
 
         std::map<ESM::RefId, Widgets::MWAttributePtr> mAttributeWidgets;
 

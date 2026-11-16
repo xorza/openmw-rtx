@@ -17,7 +17,7 @@ namespace ESSImport
     /// Other player data
     struct PCDT
     {
-        int32_t mBounty;
+        int32_t mBounty{};
         std::string mBirthsign;
 
         std::vector<std::string> mKnownDialogueTopics;
@@ -94,16 +94,16 @@ namespace ESSImport
         };
 
         std::vector<FNAM> mFactions;
-        PNAM mPNAM;
+        PNAM mPNAM{};
 
-        bool mHasMark;
+        bool mHasMark{};
         std::string mMNAM; // mark cell name; can also be sDefaultCellname or region name
 
-        bool mHasENAM;
-        ENAM mENAM; // last exterior cell
+        bool mHasENAM{};
+        ENAM mENAM{}; // last exterior cell
 
-        bool mHasAADT;
-        AADT mAADT;
+        bool mHasAADT{};
+        AADT mAADT{};
 
         void load(ESM::ESMReader& esm);
     };

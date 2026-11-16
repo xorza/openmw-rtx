@@ -46,8 +46,8 @@ namespace Rtx
     /// What one particle system's sprites are, as `SceneDesc::addEmitter` stands them.
     struct EmitterSpec
     {
-        Index mTexture;
-        BlendKind mBlend;
+        Index mTexture{};
+        BlendKind mBlend{};
 
         /// How wide the quads are against their own axis, per unit of `Sprite::mRadius`, or nought for sprites
         /// that face the eye. Every sprite carries an axis where this is set and none where it is not —

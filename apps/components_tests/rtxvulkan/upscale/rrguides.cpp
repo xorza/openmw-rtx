@@ -48,11 +48,11 @@ namespace Rtx
         struct Pixel
         {
             osg::Vec3f mNormal;
-            float mDistance;
+            float mDistance{};
             osg::Vec2f mMotion;
             osg::Vec3f mAlbedo;
             osg::Vec3f mLobeAlbedo;
-            float mRoughness;
+            float mRoughness{};
         };
 
         const std::array<Pixel, sWidth> sPixels{ {

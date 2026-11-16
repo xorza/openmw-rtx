@@ -649,7 +649,7 @@ namespace Rtx
             // The last chain's finest level again in every mode with an error weighed 3, 5, 7 and 11 a channel,
             // which no chain is encoded with and the selector search holds a lane's weight for.
             bc7enc_compress_block_init();
-            bc7enc_compress_block_params weighed;
+            bc7enc_compress_block_params weighed{};
             bc7enc_compress_block_params_init(&weighed);
             bc7enc_compress_block_params_init_linear_weights(&weighed);
             weighed.m_weights[0] = 3;
@@ -664,7 +664,7 @@ namespace Rtx
 
             // And as a colour, in every mode, the partitions of low frequency weighed a half: a weight that is
             // not one scales a partition's estimate where the walk a pixel at a time stopped summing it.
-            bc7enc_compress_block_params halved;
+            bc7enc_compress_block_params halved{};
             bc7enc_compress_block_params_init(&halved);
             halved.m_low_frequency_partition_weight = 0.5f;
             Misc::ByteBuffer madeHalved(256 * 16);

@@ -47,9 +47,9 @@ namespace MWGui
     private:
         void fitToText(MyGUI::TextBox* widget);
         void layoutVertically(MyGUI::Widget* widget, int margin);
-        MyGUI::Widget* mTextBox;
-        MyGUI::TextBox* mText;
-        MyGUI::Widget* mButtonBar;
+        MyGUI::Widget* mTextBox{};
+        MyGUI::TextBox* mText{};
+        MyGUI::Widget* mButtonBar{};
         std::vector<MyGUI::Button*> mButtons;
         size_t mControllerFocus = 0;
     };
@@ -98,10 +98,10 @@ namespace MWGui
         bool mOkButtonFocus = true;
 
     private:
-        MyGUI::ImageBox* mClassImage;
-        MyGUI::TextBox* mClassName;
-        MyGUI::Button* mBackButton;
-        MyGUI::Button* mOkButton;
+        MyGUI::ImageBox* mClassImage{};
+        MyGUI::TextBox* mClassName{};
+        MyGUI::Button* mBackButton{};
+        MyGUI::Button* mOkButton{};
 
         ESM::RefId mCurrentClassId;
     };
@@ -143,14 +143,14 @@ namespace MWGui
         void updateClasses();
         void updateStats();
 
-        MyGUI::ImageBox* mClassImage;
-        MyGUI::ListBox* mClassList;
-        MyGUI::TextBox* mSpecializationName;
-        MyGUI::Button* mBackButton;
-        MyGUI::Button* mOkButton;
-        Widgets::MWAttributePtr mFavoriteAttribute[2];
-        Widgets::MWSkillPtr mMajorSkill[5];
-        Widgets::MWSkillPtr mMinorSkill[5];
+        MyGUI::ImageBox* mClassImage{};
+        MyGUI::ListBox* mClassList{};
+        MyGUI::TextBox* mSpecializationName{};
+        MyGUI::Button* mBackButton{};
+        MyGUI::Button* mOkButton{};
+        Widgets::MWAttributePtr mFavoriteAttribute[2]{};
+        Widgets::MWSkillPtr mMajorSkill[5]{};
+        Widgets::MWSkillPtr mMinorSkill[5]{};
 
         ESM::RefId mCurrentClassId;
 
@@ -186,9 +186,9 @@ namespace MWGui
         bool onControllerButtonEvent(const SDL_GamepadButtonEvent& arg) override;
 
     private:
-        MyGUI::TextBox *mSpecialization0, *mSpecialization1, *mSpecialization2;
+        MyGUI::TextBox *mSpecialization0{}, *mSpecialization1{}, *mSpecialization2{};
 
-        ESM::Class::Specialization mSpecializationId;
+        ESM::Class::Specialization mSpecializationId{};
     };
 
     class SelectAttributeDialog : public WindowModal
@@ -281,7 +281,7 @@ namespace MWGui
         bool onControllerButtonEvent(const SDL_GamepadButtonEvent& arg) override;
 
     private:
-        MyGUI::EditBox* mTextEdit;
+        MyGUI::EditBox* mTextEdit{};
     };
 
     class CreateClassDialog : public WindowModal
@@ -333,12 +333,12 @@ namespace MWGui
         void update();
 
     private:
-        MyGUI::EditBox* mEditName;
-        MyGUI::TextBox* mSpecializationName;
+        MyGUI::EditBox* mEditName{};
+        MyGUI::TextBox* mSpecializationName{};
         std::vector<MyGUI::Button*> mButtons;
-        Widgets::MWAttributePtr mFavoriteAttribute0, mFavoriteAttribute1;
-        std::array<Widgets::MWSkillPtr, 5> mMajorSkill;
-        std::array<Widgets::MWSkillPtr, 5> mMinorSkill;
+        Widgets::MWAttributePtr mFavoriteAttribute0{}, mFavoriteAttribute1{};
+        std::array<Widgets::MWSkillPtr, 5> mMajorSkill{};
+        std::array<Widgets::MWSkillPtr, 5> mMinorSkill{};
         std::vector<Widgets::MWSkillPtr> mSkills;
         std::string mDescription;
 
@@ -347,7 +347,7 @@ namespace MWGui
         std::unique_ptr<SelectSkillDialog> mSkillDialog;
         std::unique_ptr<DescriptionDialog> mDescDialog;
 
-        ESM::Class::Specialization mSpecializationId;
+        ESM::Class::Specialization mSpecializationId{};
 
         Widgets::MWAttributePtr mAffectedAttribute;
         Widgets::MWSkillPtr mAffectedSkill;

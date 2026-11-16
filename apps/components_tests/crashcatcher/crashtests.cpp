@@ -553,7 +553,7 @@ namespace CrashTests
         {
             std::filesystem::path mFolder;
             std::optional<std::string> mWrong;
-            std::chrono::milliseconds mTook;
+            std::chrono::milliseconds mTook{};
         };
 
         Outcome runMode(const std::filesystem::path& self, const std::filesystem::path& root, const Mode& mode)

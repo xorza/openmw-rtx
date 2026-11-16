@@ -6,8 +6,8 @@ namespace LuaUtil
 {
     struct AsyncPackageId
     {
-        ScriptsContainer* mContainer;
-        int mScriptId;
+        ScriptsContainer* mContainer{};
+        int mScriptId{};
         sol::table mHiddenData;
     };
     sol::function getAsyncPackageInitializer(

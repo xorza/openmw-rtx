@@ -26,7 +26,7 @@ namespace CSVDoc
         bool mValid;
         std::filesystem::path mResultPath;
         ContentAction mAction;
-        bool mDoFilenameCheck;
+        bool mDoFilenameCheck{};
 
     public:
         explicit AdjusterWidget(QWidget* parent = nullptr);

@@ -45,12 +45,12 @@ namespace Launcher
         Q_OBJECT
 
         ContentSelectorView::ContentSelector* mSelector;
-        Ui::DataFilesPage ui;
+        Ui::DataFilesPage ui{};
         QDialog* mDirectoryPickerDialog;
-        Ui::SelectSubdirs mDirectoryPicker;
-        QMenu* mArchiveContextMenu;
-        QMenu* mDataFilesContextMenu;
-        QMenu* mDirectoryPickerMenu;
+        Ui::SelectSubdirs mDirectoryPicker{};
+        QMenu* mArchiveContextMenu{};
+        QMenu* mDataFilesContextMenu{};
+        QMenu* mDirectoryPickerMenu{};
 
     public:
         explicit DataFilesPage(const Files::ConfigurationManager& cfg, Config::GameSettings& gameSettings,

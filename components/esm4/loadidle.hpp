@@ -41,7 +41,7 @@ namespace ESM4
     struct IdleAnimation
     {
         ESM::FormId mId; // from the header
-        std::uint32_t mFlags; // from the header, see enum type RecordFlag for details
+        std::uint32_t mFlags{}; // from the header, see enum type RecordFlag for details
 
         std::string mEditorId;
         std::string mCollision;
@@ -51,7 +51,7 @@ namespace ESM4
         ESM::FormId mParent; // IDLE or AACT
         ESM::FormId mPrevious;
 
-        float mBoundRadius;
+        float mBoundRadius{};
 
         void load(ESM4::Reader& reader);
         // void save(ESM4::Writer& writer) const;

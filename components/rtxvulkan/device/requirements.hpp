@@ -233,7 +233,7 @@ namespace Rtx
     /// offers: a present fence rests on a swapchain, which a device with no window has none of.
     struct OptionalExtensions
     {
-        DeviceOption mOption;
+        DeviceOption mOption{};
         std::span<const char* const> mExtensions;
         std::span<const char* const> mNeeds;
 

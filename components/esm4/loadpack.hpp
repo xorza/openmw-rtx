@@ -60,15 +60,15 @@ namespace ESM4
         {
             std::int32_t type = 0xff; // 0 = near ref, 1 = in cell, 2 = current loc, 3 = editor loc, 4 = obj id, 5 = obj
                                       // type, 0xff = no location data
-            ESM::FormId32 location; // uint32_t if type = 5
-            std::int32_t radius;
+            ESM::FormId32 location{}; // uint32_t if type = 5
+            std::int32_t radius{};
         };
 
         struct PTDT // target
         {
             std::int32_t type = 0xff; // 0 = specific ref, 1 = obj id, 2 = obj type, 0xff = no target data
-            ESM::FormId32 target; // uint32_t if type = 2
-            std::int32_t distance;
+            ESM::FormId32 target{}; // uint32_t if type = 2
+            std::int32_t distance{};
         };
 
         // NOTE: param1/param2 can be FormId or number, but assume FormId so that adjustFormId
@@ -88,12 +88,12 @@ namespace ESM4
 #pragma pack(pop)
 
         ESM::FormId mId; // from the header
-        std::uint32_t mFlags; // from the header, see enum type RecordFlag for details
+        std::uint32_t mFlags{}; // from the header, see enum type RecordFlag for details
 
         std::string mEditorId;
 
-        PKDT mData;
-        PSDT mSchedule;
+        PKDT mData{};
+        PSDT mSchedule{};
         PLDT mLocation;
         PTDT mTarget;
         std::vector<CTDA> mConditions;

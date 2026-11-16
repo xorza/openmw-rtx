@@ -19,7 +19,7 @@ namespace MWGui
         void updateLuaProfile();
         void updateBulletProfile();
 
-        MyGUI::TabControl* mTabControl;
+        MyGUI::TabControl* mTabControl{};
         MyGUI::EditBox* mLogView;
         MyGUI::EditBox* mLuaProfiler;
         MyGUI::EditBox* mBulletProfilerEdit;

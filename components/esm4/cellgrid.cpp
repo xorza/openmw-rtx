@@ -7,7 +7,7 @@ void ESM4::readPathingCell(Reader& reader, ESM::FormId& worldSpaceId, CellGrid& 
     reader.getFormId(worldSpaceId);
     if (worldSpaceId.mIndex != 0)
     {
-        Grid grid;
+        Grid grid{};
         reader.get(grid.y); // NOTE: reverse order
         reader.get(grid.x);
         cellGrid = grid;

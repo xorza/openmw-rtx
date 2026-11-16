@@ -101,7 +101,7 @@ namespace L10n
 
         class GmstFormatParser : public Misc::MessageFormatParser
         {
-            std::array<char, 20> mBuffer;
+            std::array<char, 20> mBuffer{};
             std::string& mOut;
             std::span<const std::string> mVariableNames;
             std::size_t mVariableIndex;

@@ -28,17 +28,17 @@ namespace MWGui
         std::string_view getWindowIdForLua() const override { return "Recharge"; }
 
     protected:
-        ItemChargeView* mBox;
+        ItemChargeView* mBox{};
 
-        MyGUI::Widget* mGemBox;
+        MyGUI::Widget* mGemBox{};
 
-        ItemWidget* mGemIcon;
+        ItemWidget* mGemIcon{};
 
         std::unique_ptr<ItemSelectionDialog> mItemSelectionDialog;
 
-        MyGUI::TextBox* mChargeLabel;
+        MyGUI::TextBox* mChargeLabel{};
 
-        MyGUI::Button* mCancelButton;
+        MyGUI::Button* mCancelButton{};
 
         void updateView();
 

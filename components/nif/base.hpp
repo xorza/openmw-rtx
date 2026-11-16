@@ -34,9 +34,9 @@ namespace Nif
         };
 
         NiTimeControllerPtr mNext;
-        uint16_t mFlags;
-        float mFrequency, mPhase;
-        float mTimeStart, mTimeStop;
+        uint16_t mFlags{};
+        float mFrequency{}, mPhase{};
+        float mTimeStart{}, mTimeStop{};
         NiObjectNETPtr mTarget;
 
         void read(NIFStream* nif) override;

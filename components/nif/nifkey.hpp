@@ -34,14 +34,14 @@ namespace Nif
     template <typename T>
     struct TCBKey
     {
-        float mTime;
+        float mTime{};
         T mValue{};
         T mInTan{};
         T mOutTan{};
-        float mA; // Coefficients based on the TCB parameters
-        float mB; // Only used by tangent calculations
-        float mC;
-        float mD;
+        float mA{}; // Coefficients based on the TCB parameters
+        float mB{}; // Only used by tangent calculations
+        float mC{};
+        float mD{};
     };
 
     template <typename T, T (NIFStream::*getValue)()>
@@ -54,7 +54,7 @@ namespace Nif
         using KeyType = KeyT<T>;
 
         std::string mFrameName;
-        float mLegacyWeight;
+        float mLegacyWeight{};
         uint32_t mInterpolationType = InterpolationType_Unknown;
         MapType mKeys;
 

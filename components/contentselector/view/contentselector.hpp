@@ -22,11 +22,11 @@ namespace ContentSelectorView
     {
         Q_OBJECT
 
-        QMenu* mContextMenu;
+        QMenu* mContextMenu{};
 
     protected:
-        ContentSelectorModel::ContentModel* mContentModel;
-        QSortFilterProxyModel* mAddonProxyModel;
+        ContentSelectorModel::ContentModel* mContentModel{};
+        QSortFilterProxyModel* mAddonProxyModel{};
 
     public:
         explicit ContentSelector(QWidget* parent = nullptr, bool showOMWScripts = false);

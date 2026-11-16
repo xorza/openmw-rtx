@@ -72,8 +72,8 @@ namespace MWGui
         void onWindowResize(MyGUI::Window* window);
         void onMouseWheel(MyGUI::Widget* sender, int rel);
 
-        MyGUI::Widget* mLeftPane;
-        MyGUI::Widget* mRightPane;
+        MyGUI::Widget* mLeftPane{};
+        MyGUI::Widget* mRightPane{};
 
         MyGUI::ScrollView* mSkillView;
 

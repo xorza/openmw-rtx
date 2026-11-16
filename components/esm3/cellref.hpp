@@ -31,7 +31,7 @@ namespace ESM
 
         ESM::RefId mRefID; // ID of object being referenced
 
-        float mScale; // Scale applied to mesh
+        float mScale{}; // Scale applied to mesh
 
         // The NPC that owns this object (and will get angry if you steal it)
         ESM::RefId mOwner;
@@ -49,7 +49,7 @@ namespace ESM
         ESM::RefId mFaction;
 
         // PC faction rank required to use the item. Sometimes is -1, which means "any rank".
-        int32_t mFactionRank;
+        int32_t mFactionRank{};
 
         // For weapon or armor, this is the remaining item health.
         // For tools (lockpicks, probes, repair hammer) it is the remaining uses.
@@ -57,19 +57,19 @@ namespace ESM
         // This could be -1 if the charge was not touched yet (i.e. full).
         union
         {
-            int32_t mChargeInt; // Used by everything except lights
+            int32_t mChargeInt{}; // Used by everything except lights
             float mChargeFloat; // Used only by lights
         };
-        float mChargeIntRemainder; // Fractional part of mChargeInt
+        float mChargeIntRemainder{}; // Fractional part of mChargeInt
 
         // Remaining enchantment charge. This could be -1 if the charge was not touched yet (i.e. full).
-        float mEnchantmentCharge;
+        float mEnchantmentCharge{};
 
-        int32_t mCount;
+        int32_t mCount{};
 
         // For doors - true if this door teleports to somewhere else, false
         // if it should open through animation.
-        bool mTeleport;
+        bool mTeleport{};
 
         // Teleport location for the door, if this is a teleporting door.
         Position mDoorDest;
@@ -78,14 +78,14 @@ namespace ESM
         std::string mDestCell;
 
         // Lock level for doors and containers
-        int32_t mLockLevel;
+        int32_t mLockLevel{};
         bool mIsLocked{};
         ESM::RefId mKey, mTrap; // Key and trap ID names, if any
 
         // This corresponds to the "Reference Blocked" checkbox in the construction set,
         // which prevents editing that reference.
         // -1 is not blocked, otherwise it is blocked.
-        signed char mReferenceBlocked;
+        signed char mReferenceBlocked{};
 
         // Position and rotation of this object within the cell
         Position mPos;

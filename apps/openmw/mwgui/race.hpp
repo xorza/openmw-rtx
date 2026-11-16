@@ -87,16 +87,16 @@ namespace MWGui
         std::vector<ESM::RefId> mAvailableHeads;
         std::vector<ESM::RefId> mAvailableHairs;
 
-        MyGUI::ImageBox* mPreviewImage;
-        MyGUI::ListBox* mRaceList;
-        MyGUI::ScrollBar* mHeadRotate;
-        MyGUI::Button* mBackButton;
-        MyGUI::Button* mOkButton;
+        MyGUI::ImageBox* mPreviewImage{};
+        MyGUI::ListBox* mRaceList{};
+        MyGUI::ScrollBar* mHeadRotate{};
+        MyGUI::Button* mBackButton{};
+        MyGUI::Button* mOkButton{};
 
-        MyGUI::Widget* mSkillList;
+        MyGUI::Widget* mSkillList{};
         std::vector<MyGUI::Widget*> mSkillItems;
 
-        MyGUI::Widget* mSpellPowerList;
+        MyGUI::Widget* mSpellPowerList{};
         std::vector<MyGUI::Widget*> mSpellPowerItems;
 
         size_t mGenderIndex, mFaceIndex, mHairIndex;

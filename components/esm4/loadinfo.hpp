@@ -55,23 +55,23 @@ namespace ESM4
     struct DialogInfo
     {
         ESM::FormId mId; // from the header
-        std::uint32_t mFlags; // from the header, see enum type RecordFlag for details
+        std::uint32_t mFlags{}; // from the header, see enum type RecordFlag for details
 
         std::string mEditorId; // FIXME: no such record for INFO, but keep here to avoid extra work for now
 
         ESM::FormId mQuest;
         ESM::FormId mSound; // unused?
 
-        TargetResponseData mResponseData;
+        TargetResponseData mResponseData{};
         std::string mResponse;
         std::string mNotes;
         std::string mEdits;
 
-        std::uint8_t mDialType; // DialType
-        std::uint8_t mNextSpeaker;
-        std::uint16_t mInfoFlags; // see above enum
+        std::uint8_t mDialType{}; // DialType
+        std::uint8_t mNextSpeaker{};
+        std::uint16_t mInfoFlags{}; // see above enum
 
-        TargetCondition mTargetCondition;
+        TargetCondition mTargetCondition{};
         ESM::FormId mParam3; // TES5 only
 
         ScriptDefinition mScript; // FIXME: ignoring the second one after the NEXT sub-record

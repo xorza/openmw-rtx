@@ -87,7 +87,7 @@ namespace Rtx
         struct Input
         {
             const osg::Image& mImage;
-            TextureEncoding mEncoding;
+            TextureEncoding mEncoding{};
 
             /// How the slot addresses it past its edges, which a painted colour's estimate follows.
             TextureWrap mWrap = TextureWrap::Repeat;

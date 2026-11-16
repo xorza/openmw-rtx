@@ -19,8 +19,8 @@ namespace DetourNavigator
             return {};
 
         const unsigned options = 0;
-        std::array<dtPolyRef, 16> path;
-        dtRaycastHit hit;
+        std::array<dtPolyRef, 16> path{};
+        dtRaycastHit hit{};
         hit.path = path.data();
         hit.maxPath = static_cast<int>(path.size());
         if (dtStatus status = navMeshQuery.raycast(ref, start.ptr(), end.ptr(), &queryFilter, options, &hit);

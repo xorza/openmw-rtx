@@ -295,7 +295,7 @@ namespace MWSound
         private:
             ALuint mSource;
 
-            std::array<ALuint, 6> mBuffers;
+            std::array<ALuint, 6> mBuffers{};
             ALint mCurrentBufIdx;
 
             ALenum mFormat;

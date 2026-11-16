@@ -13,11 +13,11 @@ namespace ESM
 
     struct Data
     {
-        ESM::ESMVersion version;
-        int32_t type; // 0=esp, 1=esm, 32=ess (unused)
+        ESM::ESMVersion version{};
+        int32_t type{}; // 0=esp, 1=esm, 32=ess (unused)
         std::string author; // Author's name
         std::string desc; // File description
-        int32_t records; // Number of records
+        int32_t records{}; // Number of records
     };
 
     struct GMDT
@@ -38,15 +38,15 @@ namespace ESM
         struct MasterData
         {
             std::string name;
-            uint64_t size;
+            uint64_t size{};
         };
 
-        GMDT mGameData; // Used in .ess savegames only
+        GMDT mGameData{}; // Used in .ess savegames only
         std::vector<unsigned char> mSCRD; // Used in .ess savegames only, unknown
         std::vector<unsigned char> mSCRS; // Used in .ess savegames only, screenshot
 
         Data mData;
-        FormatVersion mFormatVersion;
+        FormatVersion mFormatVersion{};
         std::vector<MasterData> mMaster;
 
         void blank();

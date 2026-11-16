@@ -20,8 +20,8 @@ namespace ESM
     {
         RefId mId;
 
-        Vector3 mPosition;
-        Quaternion mOrientation;
+        Vector3 mPosition{};
+        Quaternion mOrientation{};
 
         RefNum mCaster;
 
@@ -32,7 +32,7 @@ namespace ESM
     struct MagicBoltState : public BaseProjectileState
     {
         RefId mSpellId;
-        float mSpeed;
+        float mSpeed{};
         RefNum mItem;
 
         // Hides the base's member on purpose: it is called through the derived type.
@@ -46,9 +46,9 @@ namespace ESM
     struct ProjectileState : public BaseProjectileState
     {
         RefId mBowId;
-        Vector3 mVelocity;
-        float mAttackStrength;
-        float mAttackWindUp;
+        Vector3 mVelocity{};
+        float mAttackStrength{};
+        float mAttackWindUp{};
 
         // Hides the base's member on purpose: it is called through the derived type.
         // NOLINTNEXTLINE(bugprone-derived-method-shadowing-base-method)

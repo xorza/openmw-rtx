@@ -124,8 +124,8 @@ namespace CSMWorld
         std::map<UniversalId::Type, QAbstractItemModel*> mModelIndex;
         ESM::ReadersCache mReaders;
         const ESM::Dialogue* mDialogue; // last loaded dialogue
-        bool mBase;
-        bool mProject;
+        bool mBase{};
+        bool mProject{};
         std::map<ESM::RefId, std::map<ESM::RefNum, unsigned int>> mRefLoadCache;
         std::size_t mReaderIndex;
 

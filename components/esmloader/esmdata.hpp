@@ -27,7 +27,7 @@ namespace EsmLoader
     struct RefIdWithType
     {
         ESM::RefId mId;
-        ESM::RecNameInts mType;
+        ESM::RecNameInts mType{};
     };
 
     struct EsmData

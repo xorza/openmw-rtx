@@ -68,7 +68,7 @@ namespace Nif
     {
         void readBSDistantObjectInstanceTransform(NIFStream& stream, osg::Matrixf& value)
         {
-            std::array<float, 16> mat;
+            std::array<float, 16> mat{};
             stream.readArray(mat);
             value.set(mat.data());
         }

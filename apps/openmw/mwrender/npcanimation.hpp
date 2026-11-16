@@ -47,7 +47,7 @@ namespace MWRender
 
         // Bounded Parts
         PartHolderPtr mObjectParts[ESM::PRT_Count];
-        std::array<MWSound::Sound*, ESM::PRT_Count> mSounds;
+        std::array<MWSound::Sound*, ESM::PRT_Count> mSounds{};
 
         const ESM::NPC* mNpc;
         VFS::Path::Normalized mHeadModel;
@@ -64,8 +64,8 @@ namespace MWRender
         };
         NpcType mNpcType;
 
-        int mPartslots[ESM::PRT_Count]; // Each part slot is taken by clothing, armor, or is empty
-        int mPartPriorities[ESM::PRT_Count];
+        int mPartslots[ESM::PRT_Count]{}; // Each part slot is taken by clothing, armor, or is empty
+        int mPartPriorities[ESM::PRT_Count]{};
 
         osg::Vec3f mFirstPersonOffset;
         // Field of view to use when rendering first person meshes

@@ -47,7 +47,7 @@ namespace MWMechanics
 
         struct Node // point
         {
-            int componentId;
+            int componentId{};
             std::vector<ConnectedPoint> edges; // neighbours
         };
 

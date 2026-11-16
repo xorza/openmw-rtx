@@ -45,16 +45,16 @@ namespace ESM4
     struct LevelledNpc
     {
         ESM::FormId mId; // from the header
-        std::uint32_t mFlags; // from the header, see enum type RecordFlag for details
+        std::uint32_t mFlags{}; // from the header, see enum type RecordFlag for details
         ESM::GameFormat mGameFormat = ESM::GameFormat::Unknown; // assumed per-file from context clues
 
         std::string mEditorId;
         ESM::Path mModel;
 
-        std::int8_t mChanceNone;
-        std::uint8_t mLvlActorFlags;
+        std::int8_t mChanceNone{};
+        std::uint8_t mLvlActorFlags{};
 
-        std::uint8_t mListCount;
+        std::uint8_t mListCount{};
         std::vector<LVLO> mLvlObject;
 
         inline bool calcAllLvlLessThanPlayer() const { return (mLvlActorFlags & 0x01) != 0; }

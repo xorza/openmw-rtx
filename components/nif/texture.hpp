@@ -43,12 +43,12 @@ namespace Nif
             AlphaFormat mAlphaFormat;
         };
 
-        char mExternal; // References external file
+        char mExternal{}; // References external file
 
         std::string mFile;
         NiPixelDataPtr mData;
 
-        FormatPrefs mPrefs;
+        FormatPrefs mPrefs{};
 
         char mIsStatic{ 1 };
         bool mDirectRendering{ true };

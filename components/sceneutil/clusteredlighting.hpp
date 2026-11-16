@@ -23,9 +23,9 @@ namespace SceneUtil
         osg::Vec4f mDiffuse;
         osg::Vec4f mAmbient;
         osg::Vec4f mSpecular;
-        float mConstant;
-        float mLinear;
-        float mQuadratic;
-        float mRadius;
+        float mConstant{};
+        float mLinear{};
+        float mQuadratic{};
+        float mRadius{};
     };
 }

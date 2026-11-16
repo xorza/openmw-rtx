@@ -121,11 +121,11 @@ namespace MWGui
 
         struct StyleImpl : BookTypesetter::Style
         {
-            MyGUI::IFont* mFont;
+            MyGUI::IFont* mFont{};
             MyGUI::Colour mHotColour;
             MyGUI::Colour mActiveColour;
             MyGUI::Colour mNormalColour;
-            InteractiveId mInteractiveId;
+            InteractiveId mInteractiveId{};
 
             bool match(MyGUI::IFont* tstFont, const MyGUI::Colour& tstHotColour, const MyGUI::Colour& tstActiveColour,
                 const MyGUI::Colour& tstNormalColour, InteractiveId tstInteractiveId) const
@@ -152,10 +152,10 @@ namespace MWGui
 
         struct Run
         {
-            StyleImpl* mStyle;
+            StyleImpl* mStyle{};
             Range mRange;
-            int mLeft, mRight;
-            int mPrintableChars;
+            int mLeft{}, mRight{};
+            int mPrintableChars{};
         };
 
         struct Line
@@ -929,8 +929,8 @@ namespace MWGui
     {
         MYGUI_RTTI_DERIVED(PageDisplay)
     protected:
-        bool mIsPageReset;
-        size_t mPage;
+        bool mIsPageReset{};
+        size_t mPage{};
 
         struct TextFormat : ISubWidget
         {

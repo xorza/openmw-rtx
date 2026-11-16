@@ -277,10 +277,10 @@ namespace Rtx
             // The two that cut nothing at their reference read as no test.
             const struct
             {
-                osg::AlphaFunc::ComparisonFunction mFunction;
-                float mReference;
+                osg::AlphaFunc::ComparisonFunction mFunction = osg::AlphaFunc::NEVER;
+                float mReference{};
                 AlphaTest mRead;
-                AlphaMode mMode;
+                AlphaMode mMode{};
             } functions[] = {
                 { osg::AlphaFunc::NEVER, 0.5f, { 0.5f, 0u }, AlphaMode::Cutout },
                 { osg::AlphaFunc::LESS, 0.5f, { 0.5f, Shaders::ALPHA_PASSES_BELOW }, AlphaMode::Cutout },

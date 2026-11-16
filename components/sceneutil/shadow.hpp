@@ -53,7 +53,7 @@ namespace SceneUtil
     protected:
         static ShadowManager* sInstance;
 
-        bool mEnableShadows;
+        bool mEnableShadows{};
 
         osg::ref_ptr<osgShadow::ShadowedScene> mShadowedScene;
         osg::ref_ptr<osgShadow::ShadowSettings> mShadowSettings;

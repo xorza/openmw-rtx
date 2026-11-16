@@ -73,15 +73,15 @@ namespace MWGui
 
         bool mShowWallpaper;
 
-        MyGUI::Widget* mLoadingBox;
+        MyGUI::Widget* mLoadingBox{};
 
-        MyGUI::TextBox* mLoadingText;
-        MyGUI::ScrollBar* mProgressBar;
-        MyGUI::Widget* mNoteBox;
-        MyGUI::EditBox* mNoteText;
+        MyGUI::TextBox* mLoadingText{};
+        MyGUI::ScrollBar* mProgressBar{};
+        MyGUI::Widget* mNoteBox{};
+        MyGUI::EditBox* mNoteText{};
         std::string mNote;
-        BackgroundImage* mSplashImage;
-        BackgroundImage* mSceneImage;
+        BackgroundImage* mSplashImage{};
+        BackgroundImage* mSceneImage{};
 
         std::vector<std::string> mSplashScreens;
 

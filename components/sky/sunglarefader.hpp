@@ -15,10 +15,10 @@ namespace Sky
         osg::Vec3f mColour;
 
         /// `_Max`: the most of the wash there is, looking straight at the sun.
-        float mMax;
+        float mMax{};
 
         /// `_Angle_Max` in radians, past which there is none.
-        float mAngleMax;
+        float mAngleMax{};
 
         /// The fader the fallback map sets.
         static SunGlareFader read();

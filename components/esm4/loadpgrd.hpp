@@ -73,11 +73,11 @@ namespace ESM4
         };
 
         ESM::FormId mId; // from the header
-        std::uint32_t mFlags; // from the header, see enum type RecordFlag for details
+        std::uint32_t mFlags{}; // from the header, see enum type RecordFlag for details
 
         std::string mEditorId; // FIXME: no such record for PGRD, but keep here to avoid extra work for now
 
-        std::int16_t mData; // number of nodes
+        std::int16_t mData{}; // number of nodes
         std::vector<PGRP> mNodes;
         std::vector<PGRR> mLinks;
         std::vector<PGRI> mForeign;

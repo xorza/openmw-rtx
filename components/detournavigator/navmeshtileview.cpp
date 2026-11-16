@@ -82,7 +82,7 @@ namespace DetourNavigator
 
         const unsigned char* ptr = data + headerSize;
 
-        NavMeshTileConstView view;
+        NavMeshTileConstView view{};
 
         view.mHeader = header;
         view.mVerts = dtGetThenAdvanceBufferPointer<const float>(ptr, vertsSize);
@@ -99,7 +99,7 @@ namespace DetourNavigator
 
     NavMeshTileConstView asNavMeshTileConstView(const dtMeshTile& tile)
     {
-        NavMeshTileConstView view;
+        NavMeshTileConstView view{};
 
         view.mHeader = tile.header;
         view.mPolys = tile.polys;

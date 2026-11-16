@@ -206,8 +206,8 @@ namespace Rtx
             struct Case
             {
                 std::span<const TextureData> mArrived;
-                VkDeviceSize mRoom;
-                std::uint32_t mFirst;
+                VkDeviceSize mRoom{};
+                std::uint32_t mFirst{};
             };
             const std::array cases{
                 Case{ alone, 21504, 0 },

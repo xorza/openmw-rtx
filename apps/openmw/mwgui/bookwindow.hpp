@@ -42,15 +42,15 @@ namespace MWGui
         typedef std::pair<int, int> Page;
         typedef std::vector<Page> Pages;
 
-        Gui::ImageButton* mCloseButton;
-        Gui::ImageButton* mTakeButton;
-        Gui::ImageButton* mNextPageButton;
-        Gui::ImageButton* mPrevPageButton;
+        Gui::ImageButton* mCloseButton{};
+        Gui::ImageButton* mTakeButton{};
+        Gui::ImageButton* mNextPageButton{};
+        Gui::ImageButton* mPrevPageButton{};
 
-        MyGUI::TextBox* mLeftPageNumber;
-        MyGUI::TextBox* mRightPageNumber;
-        MyGUI::Widget* mLeftPage;
-        MyGUI::Widget* mRightPage;
+        MyGUI::TextBox* mLeftPageNumber{};
+        MyGUI::TextBox* mRightPageNumber{};
+        MyGUI::Widget* mLeftPage{};
+        MyGUI::Widget* mRightPage{};
 
         unsigned int mCurrentPage; // 0 is first page
         Pages mPages;

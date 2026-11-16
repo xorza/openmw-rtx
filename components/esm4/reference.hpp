@@ -38,7 +38,7 @@ namespace ESM4
     struct EnableParent
     {
         ESM::FormId parent;
-        std::uint32_t flags;
+        std::uint32_t flags{};
 
         enum Flags
         {
@@ -51,6 +51,6 @@ namespace ESM4
     {
         ESM::FormId baseObj;
         ESM::Position placement;
-        float scale;
+        float scale{};
     };
 }

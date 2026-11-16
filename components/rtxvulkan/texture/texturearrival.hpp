@@ -72,10 +72,10 @@ namespace Rtx
     private:
         struct Upload
         {
-            const Image* mImage;
+            const Image* mImage{};
             StagingRun mStaged;
-            std::uint32_t mFirst;
-            std::uint32_t mCount;
+            std::uint32_t mFirst{};
+            std::uint32_t mCount{};
         };
 
         struct Spread

@@ -53,9 +53,9 @@ namespace ESM
 
             // The actual eye level height (in game units) is (probably) given
             // as 'height' times 128. This has not been tested yet.
-            float mMaleHeight, mFemaleHeight, mMaleWeight, mFemaleWeight;
+            float mMaleHeight{}, mFemaleHeight{}, mMaleWeight{}, mFemaleWeight{};
 
-            int32_t mFlags; // 0x1 - playable, 0x2 - beast race
+            int32_t mFlags{}; // 0x1 - playable, 0x2 - beast race
 
             int32_t getAttribute(ESM::RefId attribute, bool male) const;
             void setAttribute(ESM::RefId attribute, bool male, int32_t value);
@@ -67,7 +67,7 @@ namespace ESM
 
         RADTstruct mData;
 
-        uint32_t mRecordFlags;
+        uint32_t mRecordFlags{};
         std::string mName, mDescription;
         RefId mId;
         SpellList mPowers;

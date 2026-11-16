@@ -32,13 +32,13 @@ namespace Crash
         std::chrono::steady_clock::time_point mNow;
 
         /// Frames the game has drawn.
-        std::uint64_t mFrames;
+        std::uint64_t mFrames{};
 
         /// How long unchanged is a hang; nought turns the check off.
-        std::uint32_t mLimitSeconds;
+        std::uint32_t mLimitSeconds{};
 
         /// Something else holds the game still: a debugger, a stop from a shell, or Crashpad reading it.
-        bool mHeld;
+        bool mHeld{};
     };
 
     /// Nothing to say on this wake.

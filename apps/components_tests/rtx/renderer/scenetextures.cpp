@@ -71,7 +71,7 @@ namespace Rtx
 
             struct Case
             {
-                std::uint32_t mSide;
+                std::uint32_t mSide{};
                 std::optional<std::uint32_t> mFirst;
             };
             for (const Case& one : { Case{ 16, 0 }, Case{ 15, 1 }, Case{ 8, 1 }, Case{ 7, 2 }, Case{ 4, 2 },

@@ -73,7 +73,7 @@ void ESM4::Navigation::NavMeshInfo::loadFO3(ESM4::Reader& reader)
     reader.get(flags);
     reader.getFormId(formId);
     reader.getFormId(worldSpaceId); // the cell or worldspace
-    Grid grid;
+    Grid grid{};
     reader.get(grid.y); // NOTE: reverse order
     reader.get(grid.x);
     cellGrid = grid;

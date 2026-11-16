@@ -101,7 +101,7 @@ namespace MWRender
         float mBlinkStart;
         float mBlinkStop;
 
-        float mBlinkTimer;
+        float mBlinkTimer{};
 
         bool mEnabled;
 

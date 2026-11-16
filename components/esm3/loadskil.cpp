@@ -89,7 +89,7 @@ namespace ESM
                     break;
                 case fourCC("SKDT"):
                 {
-                    EsmSKDTstruct data;
+                    EsmSKDTstruct data{};
                     esm.getSubComposite(data);
                     hasData = true;
                     fromBinary(data, mData);
@@ -115,7 +115,7 @@ namespace ESM
     void Skill::save(ESMWriter& esm, bool /*isDeleted*/) const
     {
         esm.writeHNT("INDX", refIdToIndex(mId));
-        EsmSKDTstruct data;
+        EsmSKDTstruct data{};
         toBinary(mData, data);
         esm.writeNamedComposite("SKDT", data);
         esm.writeHNOString("DESC", mDescription);

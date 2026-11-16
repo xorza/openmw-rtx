@@ -36,11 +36,11 @@ namespace ESM
         struct CLDTstruct
         {
             std::array<ESM::RefId, 2> mAttribute; // Attributes that get class bonus
-            int32_t mSpecialization; // 0 = Combat, 1 = Magic, 2 = Stealth
+            int32_t mSpecialization{}; // 0 = Combat, 1 = Magic, 2 = Stealth
             std::array<ESM::RefId, 5> mMinorSkills;
             std::array<ESM::RefId, 5> mMajorSkills;
-            bool mIsPlayable; // Playable class
-            int32_t mServices;
+            bool mIsPlayable{}; // Playable class
+            int32_t mServices{};
 
             ESM::RefId& getSkill(int index, bool major);
             ///< Throws an exception for invalid values of \a index.
@@ -49,7 +49,7 @@ namespace ESM
             ///< Throws an exception for invalid values of \a index.
         }; // 60 bytes
 
-        uint32_t mRecordFlags;
+        uint32_t mRecordFlags{};
         std::string mName, mDescription;
         RefId mId;
         CLDTstruct mData;

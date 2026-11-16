@@ -108,7 +108,7 @@ namespace
 
     TEST(EsmFixedString, assign_should_truncate_and_set_last_element_to_zero)
     {
-        ESM::FixedString<17> value;
+        ESM::FixedString<17> value{};
         value.assign(std::string(20, 'a'));
         EXPECT_EQ(value, std::string(16, 'a'));
     }
@@ -181,7 +181,7 @@ namespace
 
     TEST(EsmFixedString, equality_operator_should_not_get_out_of_bounds)
     {
-        ESM::FixedString<5> value;
+        ESM::FixedString<5> value{};
         const char other[5] = { 'a', 'b', 'c', 'd', 'e' };
         std::memcpy(value.mData, other, sizeof(other));
         EXPECT_EQ(value, static_cast<const char*>(other));

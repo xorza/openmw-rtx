@@ -38,19 +38,19 @@ namespace ESM
 
         struct WPDTstruct
         {
-            float mWeight;
-            int32_t mValue;
+            float mWeight{};
+            int32_t mValue{};
             RefId mType;
-            uint16_t mHealth;
-            float mSpeed, mReach;
-            uint16_t mEnchant; // Enchantment points. The real value is mEnchant/10.f
-            std::array<unsigned char, 2> mChop, mSlash, mThrust; // Min and max
-            int32_t mFlags;
+            uint16_t mHealth{};
+            float mSpeed{}, mReach{};
+            uint16_t mEnchant{}; // Enchantment points. The real value is mEnchant/10.f
+            std::array<unsigned char, 2> mChop{}, mSlash{}, mThrust{}; // Min and max
+            int32_t mFlags{};
         }; // 32 bytes
 
         WPDTstruct mData;
 
-        uint32_t mRecordFlags;
+        uint32_t mRecordFlags{};
         RefId mId, mEnchant, mScript;
         std::string mName;
         Path mModel;

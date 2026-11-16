@@ -28,8 +28,8 @@ namespace ESM
             int32_t mUses;
         }; // Size = 16
 
-        Data mData;
-        uint32_t mRecordFlags;
+        Data mData{};
+        uint32_t mRecordFlags{};
         RefId mId, mScript;
         std::string mName;
         Path mModel;

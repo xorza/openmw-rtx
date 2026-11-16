@@ -50,7 +50,7 @@ namespace ESM4
         };
 
         ESM::FormId mId; // from the header
-        std::uint32_t mFlags; // from the header, see enum type RecordFlag for details
+        std::uint32_t mFlags{}; // from the header, see enum type RecordFlag for details
         ESM::GameFormat mGameFormat = ESM::GameFormat::Unknown; // assumed per-file from context clues
 
         std::string mEditorId;
@@ -59,11 +59,11 @@ namespace ESM4
         std::string mText;
         std::string mIcon; // inventory
 
-        float mBoundRadius;
+        float mBoundRadius{};
 
         ESM::FormId mScriptId;
 
-        Data mData;
+        Data mData{};
 
         void load(ESM4::Reader& reader);
         // void save(ESM4::Writer& writer) const;

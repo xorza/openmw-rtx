@@ -23,7 +23,7 @@ namespace DetourNavigator
 {
     struct RecastMeshTriangle
     {
-        AreaType mAreaType;
+        AreaType mAreaType{};
         std::array<osg::Vec3f, 3> mVertices;
 
         friend inline bool operator<(const RecastMeshTriangle& lhs, const RecastMeshTriangle& rhs)

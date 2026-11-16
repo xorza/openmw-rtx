@@ -50,12 +50,12 @@ namespace MWGui
         void updateBirths();
         void updateSpells();
 
-        MyGUI::ListBox* mBirthList;
-        MyGUI::ScrollView* mSpellArea;
-        MyGUI::ImageBox* mBirthImage;
+        MyGUI::ListBox* mBirthList{};
+        MyGUI::ScrollView* mSpellArea{};
+        MyGUI::ImageBox* mBirthImage{};
         std::vector<MyGUI::Widget*> mSpellItems;
-        MyGUI::Button* mBackButton;
-        MyGUI::Button* mOkButton;
+        MyGUI::Button* mBackButton{};
+        MyGUI::Button* mOkButton{};
 
         ESM::RefId mCurrentBirthId;
 

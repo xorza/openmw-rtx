@@ -53,7 +53,7 @@ namespace ESM4
     struct MediaLocationController
     {
         ESM::FormId mId; // from the header
-        std::uint32_t mFlags; // from the header, see enum type RecordFlag for details
+        std::uint32_t mFlags{}; // from the header, see enum type RecordFlag for details
 
         std::string mEditorId;
         std::string mFullName;
@@ -65,15 +65,15 @@ namespace ESM4
         std::vector<ESM::FormId> mFriendSets;
         std::vector<ESM::FormId> mAllySets;
 
-        MLC_Flags mMediaFlags;
+        MLC_Flags mMediaFlags{};
 
         ESM::FormId mConditionalFaction;
 
-        float mLocationDelay;
-        float mRetriggerDelay;
+        float mLocationDelay{};
+        float mRetriggerDelay{};
 
-        std::uint32_t mDayStart;
-        std::uint32_t mNightStart;
+        std::uint32_t mDayStart{};
+        std::uint32_t mNightStart{};
 
         void load(ESM4::Reader& reader);
         // void save(ESM4::Writer& writer) const;

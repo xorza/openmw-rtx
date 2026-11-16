@@ -49,9 +49,9 @@ namespace ESM4
 
     struct Header
     {
-        std::uint32_t mFlags; // 0x01 esm, 0x80 localised strings
+        std::uint32_t mFlags{}; // 0x01 esm, 0x80 localised strings
 
-        Data mData;
+        Data mData{};
         std::string mAuthor; // Author's name
         std::string mDesc; // File description
         std::vector<ESM::MasterData> mMaster;

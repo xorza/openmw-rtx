@@ -112,7 +112,7 @@ namespace SceneUtil
         }
 
     private:
-        DoubleBuffer<int> mIndex;
+        DoubleBuffer<int> mIndex{};
         DoubleBuffer<osg::ref_ptr<osg::Uniform>> mUniformBuffers;
         DoubleBuffer<osg::ref_ptr<osg::Uniform>> mUniformCount;
     };
@@ -224,13 +224,13 @@ namespace SceneUtil
     public:
         struct LightSourceTransform
         {
-            LightSource* mLightSource;
+            LightSource* mLightSource{};
             osg::Matrixf mWorldMatrix;
         };
 
         struct LightSourceViewBound
         {
-            LightSource* mLightSource;
+            LightSource* mLightSource{};
             osg::BoundingSphere mViewBound;
             bool mCulled = false;
         };
@@ -316,13 +316,13 @@ namespace SceneUtil
 
         std::shared_ptr<Light> mSun;
 
-        bool mClusteredLighting;
+        bool mClusteredLighting{};
 
         float mPointLightRadiusMultiplier;
         float mPointLightFadeEnd;
         float mPointLightFadeStart;
 
-        int mMaxLights;
+        int mMaxLights{};
 
         bool mSupportsClustered;
 

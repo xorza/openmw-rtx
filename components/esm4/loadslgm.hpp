@@ -49,20 +49,20 @@ namespace ESM4
 #pragma pack(pop)
 
         ESM::FormId mId; // from the header
-        std::uint32_t mFlags; // from the header, see enum type RecordFlag for details
+        std::uint32_t mFlags{}; // from the header, see enum type RecordFlag for details
 
         std::string mEditorId;
         std::string mFullName;
         ESM::Path mModel;
         std::string mIcon; // inventory
 
-        float mBoundRadius;
+        float mBoundRadius{};
 
         ESM::FormId mScriptId;
-        std::uint8_t mSoul; // 0 = None, 1 = Petty, 2 = Lesser, 3 = Common, 4 = Greater, 5 = Grand
-        std::uint8_t mSoulCapacity; // 0 = None, 1 = Petty, 2 = Lesser, 3 = Common, 4 = Greater, 5 = Grand
+        std::uint8_t mSoul{}; // 0 = None, 1 = Petty, 2 = Lesser, 3 = Common, 4 = Greater, 5 = Grand
+        std::uint8_t mSoulCapacity{}; // 0 = None, 1 = Petty, 2 = Lesser, 3 = Common, 4 = Greater, 5 = Grand
 
-        Data mData;
+        Data mData{};
 
         void load(ESM4::Reader& reader);
         // void save(ESM4::Writer& writer) const;

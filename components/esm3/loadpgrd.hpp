@@ -53,7 +53,7 @@ namespace ESM
         };
 
         ESM::RefId mCell; // Cell name
-        DATAstruct mData;
+        DATAstruct mData{};
 
         typedef std::vector<Point> PointList;
         PointList mPoints;

@@ -50,7 +50,7 @@ namespace DetourNavigator
         std::size_t mMaxNavMeshTilesCacheSize = 0;
         std::string mRecastMeshPathPrefix;
         std::string mNavMeshPathPrefix;
-        std::chrono::milliseconds mMinUpdateInterval;
+        std::chrono::milliseconds mMinUpdateInterval{};
     };
 
     Settings makeSettingsFromSettingsManager(Debug::Level maxLogLevel);

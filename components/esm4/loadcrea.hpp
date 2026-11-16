@@ -107,7 +107,7 @@ namespace ESM4
 #pragma pack(pop)
 
         ESM::FormId mId; // from the header
-        std::uint32_t mFlags; // from the header, see enum type RecordFlag for details
+        std::uint32_t mFlags{}; // from the header, see enum type RecordFlag for details
 
         std::string mEditorId;
         std::string mFullName;
@@ -117,22 +117,22 @@ namespace ESM4
         std::vector<ESM::FormId> mSpell;
         ESM::FormId mScriptId;
 
-        AIData mAIData;
+        AIData mAIData{};
         std::vector<ESM::FormId> mAIPackages;
-        ActorBaseConfig mBaseConfig;
-        ActorFaction mFaction;
-        Data mData;
+        ActorBaseConfig mBaseConfig{};
+        ActorFaction mFaction{};
+        Data mData{};
         ESM::FormId mCombatStyle;
         ESM::FormId mSoundBase;
         ESM::FormId mSound;
-        std::uint8_t mSoundChance;
-        float mBaseScale;
-        float mTurningSpeed;
-        float mFootWeight;
+        std::uint8_t mSoundChance{};
+        float mBaseScale{};
+        float mTurningSpeed{};
+        float mFootWeight{};
         std::string mBloodSpray;
         std::string mBloodDecal;
 
-        float mBoundRadius;
+        float mBoundRadius{};
         std::vector<std::string> mNif; // NIF filenames, get directory from mModel
         std::vector<std::string> mKf;
 

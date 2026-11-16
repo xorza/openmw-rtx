@@ -120,7 +120,7 @@ namespace MWWorld
 
     ESM::EpochTimeStamp DateTimeManager::getEpochTimeStamp() const
     {
-        ESM::EpochTimeStamp timeStamp;
+        ESM::EpochTimeStamp timeStamp{};
         timeStamp.mGameHour = mGameHour;
         timeStamp.mDay = mDay;
         timeStamp.mMonth = mMonth;

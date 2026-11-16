@@ -19,10 +19,10 @@ namespace ESM
     struct WeatherState
     {
         ESM::RefId mCurrentRegion;
-        float mTimePassed;
-        bool mFastForward;
-        float mWeatherUpdateTime;
-        float mTransitionFactor;
+        float mTimePassed{};
+        bool mFastForward{};
+        float mWeatherUpdateTime{};
+        float mTransitionFactor{};
         RefId mCurrentWeather;
         RefId mNextWeather;
         RefId mQueuedWeather;

@@ -97,7 +97,7 @@ namespace Rtx
             struct Layer
             {
                 GuiSlot mTexture;
-                std::uint32_t mColour;
+                std::uint32_t mColour{};
             };
 
             /// The layers in one call, the first lowest, which is how a frame's interface is drawn.
@@ -324,8 +324,8 @@ namespace Rtx
         {
             struct Written
             {
-                std::uint32_t mSide;
-                std::array<std::uint8_t, 4> mColour;
+                std::uint32_t mSide{};
+                std::array<std::uint8_t, 4> mColour{};
                 GuiSlot mSlot{};
             };
 

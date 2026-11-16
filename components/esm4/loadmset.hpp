@@ -40,7 +40,7 @@ namespace ESM4
     struct MediaSet
     {
         ESM::FormId mId; // from the header
-        std::uint32_t mFlags; // from the header, see enum type RecordFlag for details
+        std::uint32_t mFlags{}; // from the header, see enum type RecordFlag for details
 
         std::string mEditorId;
         std::string mFullName;
@@ -54,14 +54,14 @@ namespace ESM4
         std::int32_t mSetType = -1;
         // 0x01 day outer,   0x02 day middle,   0x04 day inner
         // 0x08 night outer, 0x10 night middle, 0x20 night inner
-        std::uint8_t mEnabled; // for location
+        std::uint8_t mEnabled{}; // for location
 
-        float mBoundaryDayOuter; // %
-        float mBoundaryDayMiddle; // %
-        float mBoundaryDayInner; // %
-        float mBoundaryNightOuter; // %
-        float mBoundaryNightMiddle; // %
-        float mBoundaryNightInner; // %
+        float mBoundaryDayOuter{}; // %
+        float mBoundaryDayMiddle{}; // %
+        float mBoundaryDayInner{}; // %
+        float mBoundaryNightOuter{}; // %
+        float mBoundaryNightMiddle{}; // %
+        float mBoundaryNightInner{}; // %
 
         // start at 2 to reduce confusion
         std::string mSet2; // NAM2
@@ -71,17 +71,17 @@ namespace ESM4
         std::string mSet6; // NAM6
         std::string mSet7; // NAM7
 
-        float mLevel8; // dB
-        float mLevel9; // dB
-        float mLevel0; // dB
-        float mLevelA; // dB
-        float mLevelB; // dB
-        float mLevelC; // dB
+        float mLevel8{}; // dB
+        float mLevel9{}; // dB
+        float mLevel0{}; // dB
+        float mLevelA{}; // dB
+        float mLevelB{}; // dB
+        float mLevelC{}; // dB
 
-        float mTime1;
-        float mTime2;
-        float mTime3;
-        float mTime4;
+        float mTime1{};
+        float mTime2{};
+        float mTime3{};
+        float mTime4{};
 
         ESM::FormId mSoundIntro; // HNAM
         ESM::FormId mSoundOutro; // INAM

@@ -29,8 +29,8 @@ namespace Rtx
         /// jitter cycles through, and how long since the last frame.
         struct Frame
         {
-            VkExtent2D mRender;
-            VkExtent2D mOutput;
+            VkExtent2D mRender{};
+            VkExtent2D mOutput{};
 
             /// The eye the trace sampled through, its jitter set: what the field of view is read off.
             Shaders::Camera mCamera;

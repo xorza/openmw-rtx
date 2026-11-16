@@ -14,7 +14,7 @@ namespace CSVPrefs
     {
         Q_OBJECT
 
-        QStackedWidget* mContent;
+        QStackedWidget* mContent{};
 
     private:
         void buildCategorySelector(QSplitter* main);

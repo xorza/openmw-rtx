@@ -61,8 +61,8 @@ namespace ESM
             unsigned char mType; // mesh type
         };
 
-        BYDTstruct mData;
-        uint32_t mRecordFlags;
+        BYDTstruct mData{};
+        uint32_t mRecordFlags{};
         RefId mId, mRace;
         Path mModel;
 

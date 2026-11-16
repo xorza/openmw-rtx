@@ -32,7 +32,7 @@ namespace MWSound
 
         AudioParams makeAudioParams(const MWWorld::Store<ESM::GameSetting>& settings)
         {
-            AudioParams params;
+            AudioParams params{};
             params.mAudioDefaultMinDistance = settings.find("fAudioDefaultMinDistance")->mValue.getFloat();
             params.mAudioDefaultMaxDistance = settings.find("fAudioDefaultMaxDistance")->mValue.getFloat();
             params.mAudioMinDistanceMult = settings.find("fAudioMinDistanceMult")->mValue.getFloat();

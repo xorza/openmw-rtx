@@ -610,7 +610,7 @@ End)mwscript";
                     EXPECT_EQ(d, context.getLocalShort(3));
                     EXPECT_EQ(e, context.getLocalShort(4));
                 }
-            } algorithm;
+            } algorithm{};
             TestInterpreterContext context;
             for (int i = 1; i < 1000; ++i)
             {

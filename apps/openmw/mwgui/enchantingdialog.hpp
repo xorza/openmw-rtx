@@ -53,22 +53,22 @@ namespace MWGui
 
         std::unique_ptr<ItemSelectionDialog> mItemSelectionDialog;
 
-        MyGUI::Widget* mChanceLayout;
+        MyGUI::Widget* mChanceLayout{};
 
-        MyGUI::Button* mCancelButton;
-        ItemWidget* mItemBox;
-        ItemWidget* mSoulBox;
+        MyGUI::Button* mCancelButton{};
+        ItemWidget* mItemBox{};
+        ItemWidget* mSoulBox{};
 
-        MyGUI::Button* mTypeButton;
-        MyGUI::Button* mBuyButton;
+        MyGUI::Button* mTypeButton{};
+        MyGUI::Button* mBuyButton{};
 
-        MyGUI::EditBox* mName;
-        MyGUI::TextBox* mEnchantmentPoints;
-        MyGUI::TextBox* mCastCost;
-        MyGUI::TextBox* mCharge;
-        MyGUI::TextBox* mSuccessChance;
-        MyGUI::TextBox* mPrice;
-        MyGUI::TextBox* mPriceText;
+        MyGUI::EditBox* mName{};
+        MyGUI::TextBox* mEnchantmentPoints{};
+        MyGUI::TextBox* mCastCost{};
+        MyGUI::TextBox* mCharge{};
+        MyGUI::TextBox* mSuccessChance{};
+        MyGUI::TextBox* mPrice{};
+        MyGUI::TextBox* mPriceText{};
 
         MWMechanics::Enchanting mEnchanting;
         ESM::EffectList mEffectList;

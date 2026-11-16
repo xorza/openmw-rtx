@@ -182,7 +182,7 @@ namespace ESM
         {
             ESM::RefId id = esm.getRefId();
 
-            CorprusStats stats;
+            CorprusStats stats{};
             esm.getHNT(stats.mWorsenings, "WORS");
             stats.mNextWorsening.load(esm);
 

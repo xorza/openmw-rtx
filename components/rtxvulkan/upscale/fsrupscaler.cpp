@@ -97,9 +97,9 @@ namespace Rtx
 
         struct Bind
         {
-            std::uint32_t mBinding;
-            Access mAccess;
-            Bound mBound;
+            std::uint32_t mBinding{};
+            Access mAccess{};
+            Bound mBound{};
             std::uint32_t mLevel = 0;
         };
 

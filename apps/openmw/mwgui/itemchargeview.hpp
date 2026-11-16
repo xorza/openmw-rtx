@@ -57,9 +57,9 @@ namespace MWGui
         struct Line
         {
             MWWorld::Ptr mItemPtr;
-            MyGUI::TextBox* mText;
-            ItemWidget* mIcon;
-            Widgets::MWDynamicStatPtr mCharge;
+            MyGUI::TextBox* mText{};
+            ItemWidget* mIcon{};
+            Widgets::MWDynamicStatPtr mCharge{};
         };
 
         void updateLine(const Line& line);

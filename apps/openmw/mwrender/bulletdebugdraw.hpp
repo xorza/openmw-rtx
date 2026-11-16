@@ -46,7 +46,7 @@ namespace MWRender
         osg::ref_ptr<osg::DrawArrays> mLinesDrawArrays;
         osg::ref_ptr<osg::DrawArrays> mTrisDrawArrays;
 
-        bool mDebugOn;
+        bool mDebugOn{};
 
         void createGeometry();
         void destroyGeometry();

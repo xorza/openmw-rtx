@@ -10,7 +10,7 @@ namespace ESM
 
     struct FogTexture
     {
-        int32_t mX, mY; // Only used for interior cells
+        int32_t mX{}, mY{}; // Only used for interior cells
         std::vector<char> mImageData;
 
         // Saves at or below MaxOldFogOfWarFormatVersion stored these as TGA, newer ones
@@ -24,16 +24,16 @@ namespace ESM
     struct FogState
     {
         // Only used for interior cells
-        float mNorthMarkerAngle;
+        float mNorthMarkerAngle{};
         struct Bounds
         {
             float mMinX;
             float mMinY;
             float mMaxX;
             float mMaxY;
-        } mBounds;
-        float mCenterX;
-        float mCenterY;
+        } mBounds{};
+        float mCenterX{};
+        float mCenterY{};
 
         std::vector<FogTexture> mFogTextures;
 

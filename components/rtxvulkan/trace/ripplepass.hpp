@@ -124,8 +124,8 @@ namespace Rtx
         std::vector<Shaders::GpuRippleImpulse> mImpulseScratch;
         struct Candidate
         {
-            float mDistance;
-            std::uint32_t mOrder;
+            float mDistance{};
+            std::uint32_t mOrder{};
             Shaders::GpuRippleImpulse mImpulse;
         };
         std::vector<Candidate> mCandidates;

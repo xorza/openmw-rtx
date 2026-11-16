@@ -260,7 +260,7 @@ namespace MWLua
                     return LuaUtil::toLuaIndex(static_cast<std::int64_t>(index));
             };
             layersTable["insertAfter"] = [context](std::string afterName, std::string name, const sol::object& opt) {
-                LuaUi::Layer::Options options;
+                LuaUi::Layer::Options options{};
                 options.mInteractive = LuaUtil::getValueOrDefault(LuaUtil::getFieldOrNil(opt, "interactive"), true);
                 context.mLuaManager->addAction(
                     [afterName = std::move(afterName), name = std::move(name), options]() {
@@ -273,7 +273,7 @@ namespace MWLua
                     "Insert after UI layer");
             };
             layersTable["insertBefore"] = [context](std::string beforeName, std::string name, const sol::object& opt) {
-                LuaUi::Layer::Options options;
+                LuaUi::Layer::Options options{};
                 options.mInteractive = LuaUtil::getValueOrDefault(LuaUtil::getFieldOrNil(opt, "interactive"), true);
                 context.mLuaManager->addAction(
                     [beforeName = std::move(beforeName), name = std::move(name), options]() {

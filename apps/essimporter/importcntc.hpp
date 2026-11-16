@@ -13,7 +13,7 @@ namespace ESSImport
     /// Changed container contents
     struct CNTC
     {
-        int32_t mIndex;
+        int32_t mIndex{};
 
         Inventory mInventory;
 

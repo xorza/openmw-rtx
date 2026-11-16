@@ -364,7 +364,7 @@ namespace Resource
         struct Item
         {
             ValueType mValue;
-            double mLastUsage;
+            double mLastUsage{};
 
             /// What the entry holds that no other entry of the cache counts.
             std::uint64_t mBytes = 0;

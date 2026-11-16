@@ -31,14 +31,14 @@ namespace ESM
         };
 
         RefId mEffectId;
-        float mMagnitude;
-        float mMinMagnitude;
-        float mMaxMagnitude;
+        float mMagnitude{};
+        float mMinMagnitude{};
+        float mMaxMagnitude{};
         std::variant<RefId, RefNum> mArg; // skill, attribute, or summon
-        float mDuration;
-        float mTimeLeft;
-        int32_t mEffectIndex;
-        int32_t mFlags;
+        float mDuration{};
+        float mTimeLeft{};
+        int32_t mEffectIndex{};
+        int32_t mFlags{};
 
         RefId getSkillOrAttribute() const;
         RefNum getActor() const;
@@ -49,6 +49,7 @@ namespace ESM
     {
         enum Flags : uint32_t
         {
+            Flag_None = 0,
             Flag_Temporary = 1 << 0, //!< Effect will end automatically once its duration ends.
             Flag_Equipment = 1 << 1, //!< Effect will end automatically if item is unequipped.
             Flag_SpellStore = 1 << 2, //!< Effect will end automatically if removed from the actor's spell store.
@@ -67,9 +68,9 @@ namespace ESM
             std::string mDisplayName;
             RefNum mCaster;
             RefNum mItem;
-            Flags mFlags;
-            int32_t mWorsenings;
-            TimeStamp mNextWorsening;
+            Flags mFlags{};
+            int32_t mWorsenings{};
+            TimeStamp mNextWorsening{};
         };
 
         std::vector<ActiveSpellParams> mSpells;

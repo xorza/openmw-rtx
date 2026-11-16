@@ -86,7 +86,7 @@ namespace Terrain
     private:
         QuadTreeNode* mParent;
 
-        QuadTreeNode* mNeighbours[4];
+        QuadTreeNode* mNeighbours[4]{};
 
         ChildDirection mDirection;
 

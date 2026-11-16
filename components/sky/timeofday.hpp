@@ -20,21 +20,21 @@ namespace Sky
     /// names stay as upstream spells them.
     struct TimeOfDaySettings
     {
-        float mNightStart;
-        float mNightEnd;
-        float mDayStart;
-        float mDayEnd;
+        float mNightStart{};
+        float mNightEnd{};
+        float mDayStart{};
+        float mDayEnd{};
 
         /// `Weather_Sunrise_Duration` as recorded, which is `mDayStart - mNightEnd` before that
         /// subtraction rounds: the disc's alpha ramps over half of it, and the weather manager
         /// reads the recorded number.
-        float mSunriseDuration;
+        float mSunriseDuration{};
 
         std::map<std::string, WeatherSetting> mSunriseTransitions;
 
-        float mStarsPostSunsetStart;
-        float mStarsPreSunriseFinish;
-        float mStarsFadingDuration;
+        float mStarsPostSunsetStart{};
+        float mStarsPreSunriseFinish{};
+        float mStarsFadingDuration{};
 
         WeatherSetting getSetting(const std::string& type) const
         {

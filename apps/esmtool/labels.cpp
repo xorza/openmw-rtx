@@ -257,6 +257,8 @@ std::string_view aiTypeLabel(ESM::AiPackageType type)
             return "Escort";
         case ESM::AI_Activate:
             return "Activate";
+        case ESM::AI_None:
+            break;
     }
     return "Invalid";
 }

@@ -32,10 +32,10 @@ namespace MWGui
         std::string_view getWindowIdForLua() const override { return "SpellBuying"; }
 
     protected:
-        MyGUI::Button* mCancelButton;
-        MyGUI::TextBox* mPlayerGold;
+        MyGUI::Button* mCancelButton{};
+        MyGUI::TextBox* mPlayerGold{};
 
-        MyGUI::ScrollView* mSpellsView;
+        MyGUI::ScrollView* mSpellsView{};
 
         std::map<MyGUI::Widget*, ESM::RefId> mSpellsWidgetMap;
         /// List of enabled/purchasable spells and their index in the full list.

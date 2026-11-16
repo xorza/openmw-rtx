@@ -45,7 +45,7 @@ namespace CSMPrefs
 
         bool mEditorActive;
         int mEditorPos;
-        int mEditorKeys[MaxKeys];
+        int mEditorKeys[MaxKeys]{};
 
     private slots:
 

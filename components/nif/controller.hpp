@@ -13,14 +13,14 @@ namespace Nif
         NiInterpolatorPtr mInterpolator;
         NiTimeControllerPtr mController;
         NiBlendInterpolatorPtr mBlendInterpolator;
-        uint16_t mBlendIndex;
-        uint8_t mPriority;
+        uint16_t mBlendIndex{};
+        uint8_t mPriority{};
         NiStringPalettePtr mStringPalette;
-        uint32_t mNodeNameOffset;
-        uint32_t mPropertyTypeOffset;
-        uint32_t mControllerTypeOffset;
-        uint32_t mControllerIdOffset;
-        uint32_t mInterpolatorIdOffset;
+        uint32_t mNodeNameOffset{};
+        uint32_t mPropertyTypeOffset{};
+        uint32_t mControllerTypeOffset{};
+        uint32_t mControllerIdOffset{};
+        uint32_t mInterpolatorIdOffset{};
         std::string mNodeName;
         std::string mPropertyType;
         std::string mControllerType;
@@ -37,7 +37,7 @@ namespace Nif
         std::string mName;
         std::string mAccumRootName;
         ExtraPtr mTextKeys;
-        uint32_t mArrayGrowBy;
+        uint32_t mArrayGrowBy{};
         std::vector<ControlledBlock> mControlledBlocks;
 
         void read(NIFStream* nif) override;
@@ -51,7 +51,7 @@ namespace Nif
         NiTimeController::ExtrapolationMode mExtrapolationMode{ NiTimeController::ExtrapolationMode::Constant };
         float mFrequency{ 1.f };
         float mPhase{ 1.f };
-        float mStartTime, mStopTime;
+        float mStartTime{}, mStopTime{};
         bool mPlayBackwards{ false };
         NiControllerManagerPtr mManager;
         NiStringPalettePtr mStringPalette;
@@ -98,11 +98,11 @@ namespace Nif
     {
         osg::Vec3f mVelocity;
         osg::Vec3f mRotationAxis;
-        float mAge;
-        float mLifespan;
-        float mLastUpdate;
-        uint16_t mSpawnGeneration;
-        uint16_t mCode;
+        float mAge{};
+        float mLifespan{};
+        float mLastUpdate{};
+        uint16_t mSpawnGeneration{};
+        uint16_t mCode{};
 
         void read(NIFStream* nif);
     };
@@ -122,35 +122,35 @@ namespace Nif
                                         // in the system (numParticles) is never exceeded.
         };
 
-        float mSpeed;
-        float mSpeedVariation;
-        float mDeclination;
-        float mDeclinationVariation;
-        float mPlanarAngle;
-        float mPlanarAngleVariation;
+        float mSpeed{};
+        float mSpeedVariation{};
+        float mDeclination{};
+        float mDeclinationVariation{};
+        float mPlanarAngle{};
+        float mPlanarAngleVariation{};
         osg::Vec3f mInitialNormal;
         osg::Vec4f mInitialColor;
-        float mInitialSize;
-        float mEmitStartTime;
-        float mEmitStopTime;
+        float mInitialSize{};
+        float mEmitStartTime{};
+        float mEmitStopTime{};
         bool mResetParticleSystem{ false };
-        float mBirthRate;
-        float mLifetime;
-        float mLifetimeVariation;
+        float mBirthRate{};
+        float mLifetime{};
+        float mLifetimeVariation{};
         uint16_t mEmitFlags{ 0 };
         osg::Vec3f mEmitterDimensions;
         NiAVObjectPtr mEmitter;
-        uint16_t mNumSpawnGenerations;
-        float mPercentageSpawned;
-        uint16_t mSpawnMultiplier;
-        float mSpawnSpeedChaos;
-        float mSpawnDirChaos;
-        uint16_t mNumParticles;
-        uint16_t mNumValid;
+        uint16_t mNumSpawnGenerations{};
+        float mPercentageSpawned{};
+        uint16_t mSpawnMultiplier{};
+        float mSpawnSpeedChaos{};
+        float mSpawnDirChaos{};
+        uint16_t mNumParticles{};
+        uint16_t mNumValid{};
         std::vector<NiParticleInfo> mParticles;
         NiParticleModifierPtr mModifier;
         NiParticleModifierPtr mCollider;
-        uint8_t mStaticTargetBound;
+        uint8_t mStaticTargetBound{};
 
         void read(NIFStream* nif) override;
         void post(Reader& nif) override;
@@ -205,11 +205,11 @@ namespace Nif
             Flag_FlipFollowAxis = 0x40,
         };
 
-        uint16_t mPathFlags;
-        int32_t mBankDirection;
-        float mMaxBankAngle;
-        float mSmoothing;
-        uint16_t mFollowAxis;
+        uint16_t mPathFlags{};
+        int32_t mBankDirection{};
+        float mMaxBankAngle{};
+        float mSmoothing{};
+        uint16_t mFollowAxis{};
         NiPosDataPtr mPathData;
         NiFloatDataPtr mPercentData;
 
@@ -236,7 +236,7 @@ namespace Nif
     struct NiUVController : public NiTimeController
     {
         NiUVDataPtr mData;
-        uint16_t mUvSet;
+        uint16_t mUvSet{};
 
         void read(NIFStream* nif) override;
         void post(Reader& nif) override;
@@ -296,8 +296,8 @@ namespace Nif
 
     struct NiFlipController : public NiFloatInterpController
     {
-        NiTexturingProperty::TextureType mTexSlot;
-        float mDelta; // Time between two flips. delta = (start_time - stop_time) / num_sources
+        NiTexturingProperty::TextureType mTexSlot{};
+        float mDelta{}; // Time between two flips. delta = (start_time - stop_time) / num_sources
         NiSourceTextureList mSources;
 
         void read(NIFStream* nif) override;
@@ -306,9 +306,9 @@ namespace Nif
 
     struct NiTextureTransformController : public NiFloatInterpController
     {
-        bool mShaderMap;
-        NiTexturingProperty::TextureType mTexSlot;
-        uint32_t mTransformMember;
+        bool mShaderMap{};
+        NiTexturingProperty::TextureType mTexSlot{};
+        uint32_t mTransformMember{};
         NiFloatDataPtr mData;
 
         void read(NIFStream* nif) override;
@@ -325,8 +325,8 @@ namespace Nif
             void read(NIFStream* nif);
         };
 
-        uint32_t mLOD;
-        uint32_t mNumNodeGroups;
+        uint32_t mLOD{};
+        uint32_t mNumNodeGroups{};
         std::vector<NiAVObjectList> mNodeGroups;
         std::vector<std::vector<SkinInfo>> mSkinnedShapeGroups;
         NiTriBasedGeomList mShapeGroups;
@@ -342,14 +342,14 @@ namespace Nif
 
     struct BSEffectShaderPropertyFloatController : public NiFloatInterpController
     {
-        uint32_t mControlledVariable;
+        uint32_t mControlledVariable{};
 
         void read(NIFStream* nif) override;
     };
 
     struct BSEffectShaderPropertyColorController : public NiPoint3InterpController
     {
-        uint32_t mControlledColor;
+        uint32_t mControlledColor{};
 
         void read(NIFStream* nif) override;
     };
@@ -364,9 +364,9 @@ namespace Nif
 
     struct BSLagBoneController : NiTimeController
     {
-        float mLinearVelocity;
-        float mLinearRotation;
-        float mMaximumDistance;
+        float mLinearVelocity{};
+        float mLinearRotation{};
+        float mMaximumDistance{};
 
         void read(NIFStream* nif) override;
     };
@@ -382,17 +382,17 @@ namespace Nif
         NiInterpolatorPtr mLengthVarInterp;
         NiInterpolatorPtr mWidthInterp;
         NiInterpolatorPtr mArcOffsetInterp;
-        uint16_t mSubdivisions;
-        uint16_t mNumBranches;
-        uint16_t mNumBranchesVar;
-        float mLength;
-        float mLengthVar;
-        float mWidth;
-        float mChildWidthMult;
-        float mArcOffset;
-        bool mFadeMainBolt;
-        bool mFadeChildBolts;
-        bool mAnimateArcOffset;
+        uint16_t mSubdivisions{};
+        uint16_t mNumBranches{};
+        uint16_t mNumBranchesVar{};
+        float mLength{};
+        float mLengthVar{};
+        float mWidth{};
+        float mChildWidthMult{};
+        float mArcOffset{};
+        bool mFadeMainBolt{};
+        bool mFadeChildBolts{};
+        bool mAnimateArcOffset{};
         BSShaderPropertyPtr mShaderProperty;
 
         void read(NIFStream* nif) override;
@@ -401,7 +401,7 @@ namespace Nif
 
     struct NiControllerManager : public NiTimeController
     {
-        bool mCumulative;
+        bool mCumulative{};
         NiControllerSequenceList mSequences;
         NiDefaultAVObjectPalettePtr mObjectPalette;
 
@@ -427,7 +427,7 @@ namespace Nif
 
     struct NiFloatsExtraDataController : NiExtraDataController
     {
-        int32_t mFloatsExtraDataIndex;
+        int32_t mFloatsExtraDataIndex{};
         NiFloatDataPtr mData;
 
         void read(NIFStream* nif) override;
@@ -436,7 +436,7 @@ namespace Nif
 
     struct NiFloatsExtraDataPoint3Controller : NiExtraDataController
     {
-        int32_t mFloatsExtraDataIndex;
+        int32_t mFloatsExtraDataIndex{};
 
         void read(NIFStream* nif) override;
     };
@@ -449,7 +449,7 @@ namespace Nif
     template <class T, class DataPtr>
     struct TypedNiInterpolator : public NiInterpolator
     {
-        T mDefaultValue;
+        T mDefaultValue{};
         DataPtr mData;
 
         void read(NIFStream* nif) override
@@ -470,11 +470,11 @@ namespace Nif
     struct NiPathInterpolator : public NiInterpolator
     {
         // Uses the same flags as NiPathController
-        uint16_t mFlags;
-        int32_t mBankDirection;
-        float mMaxBankAngle;
-        float mSmoothing;
-        uint16_t mFollowAxis;
+        uint16_t mFlags{};
+        int32_t mBankDirection{};
+        float mMaxBankAngle{};
+        float mSmoothing{};
+        uint16_t mFollowAxis{};
         NiPosDataPtr mPathData;
         NiFloatDataPtr mPercentData;
 
@@ -509,9 +509,9 @@ namespace Nif
         struct Item
         {
             NiInterpolatorPtr mInterpolator;
-            float mWeight, mNormalizedWeight;
-            int32_t mPriority;
-            float mEaseSpinner;
+            float mWeight{}, mNormalizedWeight{};
+            int32_t mPriority{};
+            float mEaseSpinner{};
 
             void read(NIFStream* nif);
             void post(Reader& nif);
@@ -519,13 +519,13 @@ namespace Nif
 
         uint8_t mFlags{ 0 };
         uint16_t mArrayGrowBy{ 0 };
-        float mWeightThreshold;
-        uint16_t mInterpCount;
-        uint16_t mSingleIndex;
-        int32_t mHighPriority, mNextHighPriority;
-        float mSingleTime;
-        float mHighWeightsSum, mNextHighWeightsSum;
-        float mHighEaseSpinner;
+        float mWeightThreshold{};
+        uint16_t mInterpCount{};
+        uint16_t mSingleIndex{};
+        int32_t mHighPriority{}, mNextHighPriority{};
+        float mSingleTime{};
+        float mHighWeightsSum{}, mNextHighWeightsSum{};
+        float mHighEaseSpinner{};
         std::vector<Item> mItems;
         NiInterpolatorPtr mSingleInterpolator;
 
@@ -536,7 +536,7 @@ namespace Nif
     template <typename T>
     struct TypedNiBlendInterpolator : public NiBlendInterpolator
     {
-        T mValue;
+        T mValue{};
 
         void read(NIFStream* nif) override
         {
@@ -568,8 +568,8 @@ namespace Nif
     // Abstract
     struct NiBSplineInterpolator : public NiInterpolator
     {
-        float mStartTime;
-        float mStopTime;
+        float mStartTime{};
+        float mStopTime{};
         NiBSplineDataPtr mSplineData;
         NiBSplineBasisDataPtr mBasisData;
 
@@ -580,16 +580,16 @@ namespace Nif
     // Abstract
     struct NiBSplineFloatInterpolator : public NiBSplineInterpolator
     {
-        float mValue;
-        uint32_t mHandle;
+        float mValue{};
+        uint32_t mHandle{};
 
         void read(NIFStream* nif) override;
     };
 
     struct NiBSplineCompFloatInterpolator : public NiBSplineFloatInterpolator
     {
-        float mOffset;
-        float mHalfRange;
+        float mOffset{};
+        float mHalfRange{};
 
         void read(NIFStream* nif) override;
     };
@@ -598,15 +598,15 @@ namespace Nif
     struct NiBSplinePoint3Interpolator : public NiBSplineInterpolator
     {
         osg::Vec3f mValue;
-        uint32_t mHandle;
+        uint32_t mHandle{};
 
         void read(NIFStream* nif) override;
     };
 
     struct NiBSplineCompPoint3Interpolator : public NiBSplinePoint3Interpolator
     {
-        float mOffset;
-        float mHalfRange;
+        float mOffset{};
+        float mHalfRange{};
 
         void read(NIFStream* nif) override;
     };
@@ -614,21 +614,21 @@ namespace Nif
     struct NiBSplineTransformInterpolator : public NiBSplineInterpolator
     {
         NiQuatTransform mValue;
-        uint32_t mTranslationHandle;
-        uint32_t mRotationHandle;
-        uint32_t mScaleHandle;
+        uint32_t mTranslationHandle{};
+        uint32_t mRotationHandle{};
+        uint32_t mScaleHandle{};
 
         void read(NIFStream* nif) override;
     };
 
     struct NiBSplineCompTransformInterpolator : public NiBSplineTransformInterpolator
     {
-        float mTranslationOffset;
-        float mTranslationHalfRange;
-        float mRotationOffset;
-        float mRotationHalfRange;
-        float mScaleOffset;
-        float mScaleHalfRange;
+        float mTranslationOffset{};
+        float mTranslationHalfRange{};
+        float mRotationOffset{};
+        float mRotationHalfRange{};
+        float mScaleOffset{};
+        float mScaleHalfRange{};
 
         void read(NIFStream* nif) override;
     };

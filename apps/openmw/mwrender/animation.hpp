@@ -96,9 +96,9 @@ namespace MWRender
     {
         std::string mModelName; // Just here so we don't add the same effect twice
         std::shared_ptr<EffectAnimationTime> mAnimTime;
-        float mMaxControllerLength;
+        float mMaxControllerLength{};
         std::string mEffectId;
-        bool mLoop;
+        bool mLoop{};
         std::string mBoneName;
     };
 

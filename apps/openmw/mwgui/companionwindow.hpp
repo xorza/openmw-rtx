@@ -43,7 +43,7 @@ namespace MWGui
         CompanionItemModel* getModel() { return mModel; }
 
     private:
-        ItemView* mItemView;
+        ItemView* mItemView{};
         SortFilterItemModel* mSortModel;
         CompanionItemModel* mModel;
         int mSelectedItem;
@@ -52,10 +52,10 @@ namespace MWGui
         Misc::NotNullPtr<DragAndDrop> mDragAndDrop;
         Misc::NotNullPtr<ItemTransfer> mItemTransfer;
 
-        MyGUI::Button* mCloseButton;
-        MyGUI::EditBox* mFilterEdit;
-        MyGUI::TextBox* mProfitLabel;
-        Widgets::MWDynamicStat* mEncumbranceBar;
+        MyGUI::Button* mCloseButton{};
+        MyGUI::EditBox* mFilterEdit{};
+        MyGUI::TextBox* mProfitLabel{};
+        Widgets::MWDynamicStat* mEncumbranceBar{};
         MessageBoxManager* mMessageBoxManager;
 
         void onItemSelected(int index);

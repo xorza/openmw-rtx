@@ -53,7 +53,7 @@ namespace MWWorld
             if (!spell)
                 continue;
 
-            ESM::CreatureStats::CorprusStats stats;
+            ESM::CreatureStats::CorprusStats stats{};
             stats.mNextWorsening = oldStats.mNextWorsening;
             stats.mWorsenings.fill(0);
 

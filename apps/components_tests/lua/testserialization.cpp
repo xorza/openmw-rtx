@@ -235,7 +235,7 @@ namespace
                 if (sizeof(TestStruct1) != binaryData.size())
                     throw std::runtime_error(
                         "Incorrect binaryData.size() for TestStruct1: " + std::to_string(binaryData.size()));
-                TestStruct1 t;
+                TestStruct1 t{};
                 std::memcpy(&t, binaryData.data(), sizeof(t));
                 t.a = Misc::fromLittleEndian(t.a);
                 t.b = Misc::fromLittleEndian(t.b);
@@ -247,7 +247,7 @@ namespace
                 if (sizeof(TestStruct2) != binaryData.size())
                     throw std::runtime_error(
                         "Incorrect binaryData.size() for TestStruct2: " + std::to_string(binaryData.size()));
-                TestStruct2 t;
+                TestStruct2 t{};
                 std::memcpy(&t, binaryData.data(), sizeof(t));
                 t.a = Misc::fromLittleEndian(t.a);
                 t.b = Misc::fromLittleEndian(t.b);

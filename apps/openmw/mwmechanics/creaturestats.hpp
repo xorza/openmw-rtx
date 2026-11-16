@@ -28,7 +28,7 @@ namespace MWMechanics
     {
         static constexpr int sWorseningPeriod = 24;
 
-        int mWorsenings[ESM::Attribute::Length];
+        int mWorsenings[ESM::Attribute::Length]{};
         MWWorld::TimeStamp mNextWorsening;
     };
 

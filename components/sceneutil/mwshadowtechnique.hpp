@@ -239,7 +239,7 @@ namespace SceneUtil {
             ShadowDataList              _shadowDataList;
             std::array<Uniforms, 2>     _uniforms;
 
-            unsigned int _numValidShadows;
+            unsigned int _numValidShadows{};
         };
 
         virtual ViewDependentData* createViewDependentData(osgUtil::CullVisitor* cv);

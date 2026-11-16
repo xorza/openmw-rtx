@@ -66,10 +66,10 @@ namespace ESM4
 
     struct RadioStationData
     {
-        float rangeRadius;
+        float rangeRadius{};
         // 0 radius, 1 everywhere, 2 worldspace and linked int, 3 linked int, 4 current cell only
-        std::uint32_t broadcastRange;
-        float staticPercentage;
+        std::uint32_t broadcastRange{};
+        float staticPercentage{};
         ESM::FormId posReference; // only used if broadcastRange == 0
     };
 
@@ -80,7 +80,7 @@ namespace ESM4
         ESM::RefId mParent; // cell FormId, from the loading sequence
                             // NOTE: for exterior cells it will be the dummy cell FormId
 
-        std::uint32_t mFlags; // from the header, see enum type RecordFlag for details
+        std::uint32_t mFlags{}; // from the header, see enum type RecordFlag for details
 
         std::string mEditorId;
         std::string mFullName;
@@ -93,7 +93,7 @@ namespace ESM4
         std::int32_t mFactionRank = -1;
 
         bool mIsMapMarker = false;
-        std::uint16_t mMapMarker;
+        std::uint16_t mMapMarker{};
 
         EnableParent mEsp;
 
@@ -104,8 +104,8 @@ namespace ESM4
         RadioStationData mRadio;
 
         TeleportDest mDoor;
-        bool mIsLocked;
-        std::int8_t mLockLevel;
+        bool mIsLocked{};
+        std::int8_t mLockLevel{};
         ESM::FormId mKey;
 
         ESM::FormId mTargetRef;

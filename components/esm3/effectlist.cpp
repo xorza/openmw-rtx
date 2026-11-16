@@ -105,13 +105,13 @@ namespace ESM
         ENAMstruct s;
         if (esm.getFormatVersion() <= MaxSerializeEffectRefIdFormatVersion)
         {
-            EsmENAMstruct bin;
+            EsmENAMstruct bin{};
             esm.getSubComposite(bin);
             fromBinary(bin, s);
         }
         else
         {
-            EffectParams p;
+            EffectParams p{};
             esm.getSubComposite(p);
             setEffectParams(p, s);
             s.mEffectID = esm.getHNRefId("ENID");
@@ -127,7 +127,7 @@ namespace ESM
         {
             if (esm.getFormatVersion() <= MaxSerializeEffectRefIdFormatVersion)
             {
-                EsmENAMstruct bin;
+                EsmENAMstruct bin{};
                 toBinary(enam.mData, bin);
                 esm.writeNamedComposite("ENAM", bin);
             }
@@ -135,7 +135,7 @@ namespace ESM
             {
                 if (enam.mData.mEffectID.empty())
                     throw std::runtime_error("Cannot serialize empty effect into ENAM.");
-                EffectParams p;
+                EffectParams p{};
                 setEffectParams(enam.mData, p);
                 esm.writeNamedComposite("ENAM", p);
                 esm.writeHNRefId("ENID", enam.mData.mEffectID);

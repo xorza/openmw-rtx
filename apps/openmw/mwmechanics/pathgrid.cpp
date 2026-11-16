@@ -177,7 +177,7 @@ namespace MWMechanics
         mGraph.resize(mPathgrid->mPoints.size());
         for (const auto& edge : mPathgrid->mEdges)
         {
-            ConnectedPoint neighbour;
+            ConnectedPoint neighbour{};
             neighbour.cost = costAStar(mPathgrid->mPoints[edge.mV0], mPathgrid->mPoints[edge.mV1]);
             // forward path of the edge
             neighbour.index = edge.mV1;

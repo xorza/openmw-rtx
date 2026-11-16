@@ -295,7 +295,7 @@ namespace ESM
 
     constexpr inline FixedString<6> getRecNameString(ESM::RecNameInts recName)
     {
-        ESM::FixedString<6> name;
+        ESM::FixedString<6> name{};
         name.mData[5] = '\0';
 
         ESM::NAME fourCCName(recName & ~ESM::sEsm4RecnameFlag);

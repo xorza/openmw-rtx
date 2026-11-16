@@ -75,7 +75,7 @@ namespace MWSound
         AVCodecContextPtr mCodecCtx;
         AVStream** mStream;
 
-        AVPacket mPacket;
+        AVPacket mPacket{};
         AVFramePtr mFrame;
 
         std::size_t mFrameSize;

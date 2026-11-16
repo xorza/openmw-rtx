@@ -53,7 +53,7 @@ namespace Rtx
         std::span<const float> getValues() const { return mValues; }
 
     private:
-        std::array<float, sCells> mValues;
+        std::array<float, sCells> mValues{};
     };
 
     /// Where a point stands along one axis of the map: the two cells it lies between, as indices the

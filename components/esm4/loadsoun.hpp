@@ -80,13 +80,13 @@ namespace ESM4
 #pragma pack(pop)
 
         ESM::FormId mId; // from the header
-        std::uint32_t mFlags; // from the header, see enum type RecordFlag for details
+        std::uint32_t mFlags{}; // from the header, see enum type RecordFlag for details
 
         std::string mEditorId;
 
         std::string mSoundFile;
-        SNDX mData;
-        SoundData mExtra;
+        SNDX mData{};
+        SoundData mExtra{};
 
         void load(ESM4::Reader& reader);
         // void save(ESM4::Writer& writer) const;

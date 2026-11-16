@@ -49,19 +49,19 @@ namespace MWWorld
         ESM::Position mPosition;
         ESM::AnimationState mAnimationState;
         std::unique_ptr<CustomData> mCustomData;
-        unsigned int mFlags;
+        unsigned int mFlags{};
 
         /// separate delete flag used for deletion by a content file
         /// @note not stored in the save game file.
-        bool mDeletedByContentFile : 1;
+        bool mDeletedByContentFile : 1 {};
 
-        bool mEnabled : 1;
+        bool mEnabled : 1 {};
 
     public:
-        bool mPhysicsPostponed : 1;
+        bool mPhysicsPostponed : 1 {};
 
     private:
-        bool mChanged : 1;
+        bool mChanged : 1 {};
 
         void copy(const RefData& refData);
 

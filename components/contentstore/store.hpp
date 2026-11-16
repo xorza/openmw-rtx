@@ -53,7 +53,7 @@ namespace ContentStore
     /// an owner whose every ask reaches the disk, with nothing loaded and nothing stamped.
     struct Policy
     {
-        std::uint32_t mKindCount;
+        std::uint32_t mKindCount{};
         std::optional<Holding> mHolding;
 
         /// The most bytes of payload the queue holds, past which a write waits or is dropped (`Store::write`). Tens of

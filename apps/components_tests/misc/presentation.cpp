@@ -15,13 +15,13 @@ namespace Misc
     {
         struct Expected
         {
-            const char* mCase;
+            const char* mCase{};
             osg::Vec2i mAsked;
             osg::Vec2i mDrawable;
             osg::Vec2i mFrame;
             osg::Vec2i mShownOrigin;
             osg::Vec2i mShownSize;
-            float mShownScale;
+            float mShownScale{};
         };
 
         /// Each by hand. A side fills the drawable when its ratio of drawable to frame is the
@@ -122,8 +122,8 @@ namespace Misc
             {
                 osg::Vec2i mAsked;
                 osg::Vec2i mWindow;
-                float mSetting;
-                float mScale;
+                float mSetting{};
+                float mScale{};
             } cases[] = {
                 { { 7680, 2160 }, window, 1.f, 1.5f },
                 { { 5120, 1440 }, window, 1.f, 1.f },

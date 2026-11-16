@@ -10,7 +10,7 @@ namespace ESSImport
     {
         while (esm.isNextSub("NPCO"))
         {
-            ContItem contItem;
+            ContItem contItem{};
             esm.getHT(contItem.mCount, contItem.mItem.mData);
 
             InventoryItem item;

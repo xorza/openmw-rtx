@@ -225,7 +225,7 @@ namespace Crash
         if (table.size() != sizeof(Table))
             return;
 
-        Table copy;
+        Table copy{};
         std::memcpy(&copy, table.data(), sizeof(Table));
         std::memcpy(into.mReason, copy.mReason, sNoteCapacity);
         into.mReason[sNoteCapacity - 1] = '\0';

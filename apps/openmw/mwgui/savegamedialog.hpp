@@ -54,17 +54,17 @@ namespace MWGui
         void fillSaveList();
 
         std::unique_ptr<MyGUI::ITexture> mScreenshotTexture;
-        MyGUI::ImageBox* mScreenshot;
+        MyGUI::ImageBox* mScreenshot{};
         bool mSaving;
 
-        MyGUI::ComboBox* mCharacterSelection;
-        MyGUI::EditBox* mCellName;
-        MyGUI::EditBox* mInfoText;
-        MyGUI::Button* mOkButton;
-        MyGUI::Button* mCancelButton;
-        MyGUI::Button* mDeleteButton;
-        MyGUI::ListBox* mSaveList;
-        MyGUI::EditBox* mSaveNameEdit;
+        MyGUI::ComboBox* mCharacterSelection{};
+        MyGUI::EditBox* mCellName{};
+        MyGUI::EditBox* mInfoText{};
+        MyGUI::Button* mOkButton{};
+        MyGUI::Button* mCancelButton{};
+        MyGUI::Button* mDeleteButton{};
+        MyGUI::ListBox* mSaveList{};
+        MyGUI::EditBox* mSaveNameEdit{};
 
         const MWState::Character* mCurrentCharacter;
         const MWState::Slot* mCurrentSlot;

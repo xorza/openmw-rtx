@@ -41,17 +41,17 @@ namespace ESM4
     struct AcousticSpace
     {
         ESM::FormId mId; // from the header
-        std::uint32_t mFlags; // from the header, see enum type RecordFlag for details
+        std::uint32_t mFlags{}; // from the header, see enum type RecordFlag for details
 
         std::string mEditorId;
 
-        std::uint32_t mEnvironmentType;
+        std::uint32_t mEnvironmentType{};
 
         // 0 Dawn (5:00 start), 1 Afternoon (8:00), 2 Dusk (18:00), 3 Night (20:00)
         std::vector<ESM::FormId> mAmbientLoopSounds;
         ESM::FormId mSoundRegion;
 
-        std::uint32_t mIsInterior; // if true only use mAmbientLoopSounds[0]
+        std::uint32_t mIsInterior{}; // if true only use mAmbientLoopSounds[0]
 
         void load(ESM4::Reader& reader);
         // void save(ESM4::Writer& writer) const;

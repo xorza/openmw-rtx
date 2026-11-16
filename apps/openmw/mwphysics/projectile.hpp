@@ -60,7 +60,7 @@ namespace MWPhysics
         bool mHitWater;
         std::atomic<bool> mActive;
         MWWorld::Ptr mCaster;
-        const btCollisionObject* mCasterColObj;
+        const btCollisionObject* mCasterColObj{};
         const btCollisionObject* mHitTarget;
         btVector3 mHitPosition;
         btVector3 mHitNormal;

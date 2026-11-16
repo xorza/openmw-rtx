@@ -20,7 +20,7 @@ namespace ESSImport
 
         std::map<ESM::RefId, int32_t> mKillCounter;
 
-        int32_t mWerewolfKills;
+        int32_t mWerewolfKills{};
     };
 
 }

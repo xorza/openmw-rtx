@@ -180,12 +180,12 @@ namespace MWRender
 
         struct RayResult
         {
-            bool mHit;
+            bool mHit{};
             osg::Vec3f mHitNormalWorld;
             osg::Vec3f mHitPointWorld;
             MWWorld::Ptr mHitObject;
             ESM::RefNum mHitRefnum;
-            float mRatio;
+            float mRatio{};
         };
 
         RayResult castRay(const osg::Vec3f& origin, const osg::Vec3f& dest, bool ignorePlayer,

@@ -29,7 +29,7 @@ namespace ESM
 
         VFS::Path::Normalized mScriptPath;
         std::string mInitializationData; // Serialized Lua table. It is a binary data. Can contain '\0'.
-        Flags mFlags; // bitwise OR of Flags.
+        Flags mFlags{}; // bitwise OR of Flags.
 
         // Auto attach as a local script to objects of specific types (i.e. Container, Door, Activator, etc.)
         std::vector<uint32_t> mTypes; // values are ESM::RecNameInts
@@ -37,7 +37,7 @@ namespace ESM
         // Auto attach as a local script to objects with specific recordIds (i.e. specific door type, or an unique NPC)
         struct PerRecordCfg
         {
-            bool mAttach; // true - attach, false - don't attach (overrides previous attach)
+            bool mAttach{}; // true - attach, false - don't attach (overrides previous attach)
             ESM::RefId mRecordId;
             // Initialization data for this specific record. If empty than LuaScriptCfg::mInitializationData is used.
             std::string mInitializationData;
@@ -48,9 +48,9 @@ namespace ESM
         // content file as this LuaScriptCfg or in one of its deps.
         struct PerRefCfg
         {
-            bool mAttach; // true - attach, false - don't attach (overrides previous attach)
-            uint32_t mRefnumIndex;
-            int32_t mRefnumContentFile;
+            bool mAttach{}; // true - attach, false - don't attach (overrides previous attach)
+            uint32_t mRefnumIndex{};
+            int32_t mRefnumContentFile{};
             // Initialization data for this specific refnum. If empty than LuaScriptCfg::mInitializationData is used.
             std::string mInitializationData;
         };
@@ -80,15 +80,15 @@ namespace ESM
             REAL_TIME = 2,
         };
 
-        Type mType;
-        double mTime;
+        Type mType{};
+        double mTime{};
         std::string mCallbackName;
         std::string mCallbackArgument; // Serialized Lua table. It is a binary data. Can contain '\0'.
     };
 
     struct LuaScript
     {
-        int32_t mScriptId;
+        int32_t mScriptId{};
         std::string mData; // Serialized Lua table. It is a binary data. Can contain '\0'.
         std::vector<LuaTimer> mTimers;
     };

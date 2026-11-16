@@ -69,7 +69,7 @@ void ESM4::Pathgrid::load(ESM4::Reader& reader)
             }
             case ESM::fourCC("PGRR"):
             {
-                PGRR link;
+                PGRR link{};
 
                 for (std::size_t i = 0; std::cmp_less(i, mData); ++i) // keep gcc quiet
                 {

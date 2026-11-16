@@ -94,25 +94,25 @@ namespace MWGui
 
         MWWorld::Ptr mPtr;
 
-        MWGui::ItemView* mItemView;
+        MWGui::ItemView* mItemView{};
         SortFilterItemModel* mSortModel;
         TradeItemModel* mTradeModel;
 
-        MyGUI::Widget* mAvatar;
-        MyGUI::ImageBox* mAvatarImage;
-        MyGUI::TextBox* mArmorRating;
-        Widgets::MWDynamicStat* mEncumbranceBar;
+        MyGUI::Widget* mAvatar{};
+        MyGUI::ImageBox* mAvatarImage{};
+        MyGUI::TextBox* mArmorRating{};
+        Widgets::MWDynamicStat* mEncumbranceBar{};
 
-        MyGUI::Widget* mLeftPane;
-        MyGUI::Widget* mRightPane;
+        MyGUI::Widget* mLeftPane{};
+        MyGUI::Widget* mRightPane{};
 
-        MyGUI::Button* mFilterAll;
-        MyGUI::Button* mFilterWeapon;
-        MyGUI::Button* mFilterApparel;
-        MyGUI::Button* mFilterMagic;
-        MyGUI::Button* mFilterMisc;
+        MyGUI::Button* mFilterAll{};
+        MyGUI::Button* mFilterWeapon{};
+        MyGUI::Button* mFilterApparel{};
+        MyGUI::Button* mFilterMagic{};
+        MyGUI::Button* mFilterMisc{};
 
-        MyGUI::EditBox* mFilterEdit;
+        MyGUI::EditBox* mFilterEdit{};
 
         GuiMode mGuiMode;
 

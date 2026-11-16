@@ -100,7 +100,7 @@ namespace ESM
         using LandData = ESM::LandRecordData;
 
         // low-LOD heightmap (used for rendering the global map)
-        std::array<std::int8_t, sGlobalMapLodSize> mWnam;
+        std::array<std::int8_t, sGlobalMapLodSize> mWnam{};
 
         mutable std::unique_ptr<LandData> mLandData;
 

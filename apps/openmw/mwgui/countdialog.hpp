@@ -22,12 +22,12 @@ namespace MWGui
         MyGUI::delegates::MultiDelegate<MyGUI::Widget*, std::size_t> eventOkClicked;
 
     private:
-        MyGUI::ScrollBar* mSlider;
-        Gui::NumericEditBox* mItemEdit;
-        MyGUI::TextBox* mItemText;
-        MyGUI::TextBox* mLabelText;
-        MyGUI::Button* mOkButton;
-        MyGUI::Button* mCancelButton;
+        MyGUI::ScrollBar* mSlider{};
+        Gui::NumericEditBox* mItemEdit{};
+        MyGUI::TextBox* mItemText{};
+        MyGUI::TextBox* mLabelText{};
+        MyGUI::Button* mOkButton{};
+        MyGUI::Button* mCancelButton{};
 
         void onCancelButtonClicked(MyGUI::Widget* sender);
         void onOkButtonClicked(MyGUI::Widget* sender);

@@ -34,9 +34,9 @@ namespace MWRender
     {
         MWWorld::ConstPtr mPtr;
         osg::Vec3f mLastEmitPosition;
-        float mScale;
-        float mForce;
-        float mTimer;
+        float mScale{};
+        float mForce{};
+        float mTimer{};
     };
 
     class RippleSimulation

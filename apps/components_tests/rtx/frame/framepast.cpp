@@ -17,10 +17,10 @@ namespace Rtx
             struct Row
             {
                 FramePast mPast;
-                bool mReprojection;
-                bool mEye;
-                bool mWater;
-                const char* mWhat;
+                bool mReprojection{};
+                bool mEye{};
+                bool mWater{};
+                const char* mWhat{};
             };
             const Row rows[] = {
                 { FramePast::of(HistoryLoss::None), false, false, false, "a frame that follows the last" },

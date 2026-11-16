@@ -90,10 +90,10 @@ namespace Launcher
 
         void closeEvent(QCloseEvent* event) override;
 
-        GraphicsPage* mGraphicsPage;
-        DataFilesPage* mDataFilesPage;
-        ImportPage* mImportPage;
-        SettingsPage* mSettingsPage;
+        GraphicsPage* mGraphicsPage{};
+        DataFilesPage* mDataFilesPage{};
+        ImportPage* mImportPage{};
+        SettingsPage* mSettingsPage{};
 
         Process::ProcessInvoker* mGameInvoker;
         Process::ProcessInvoker* mWizardInvoker;

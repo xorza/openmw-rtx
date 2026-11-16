@@ -37,9 +37,9 @@ namespace ESM
             int32_t mValue;
             int32_t mFlags;
         };
-        ALDTstruct mData;
+        ALDTstruct mData{};
 
-        uint32_t mRecordFlags;
+        uint32_t mRecordFlags{};
         RefId mId, mScript;
         std::string mName;
         Path mModel;

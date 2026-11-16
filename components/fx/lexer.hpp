@@ -29,7 +29,7 @@ namespace Fx
         public:
             struct Block
             {
-                std::size_t mLine;
+                std::size_t mLine{};
                 std::string_view mContent;
             };
 

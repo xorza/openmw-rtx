@@ -23,7 +23,7 @@ namespace ESM
 
         struct QuickKey
         {
-            Type mType;
+            Type mType{};
             RefId mId; // Spell or Item ID
         };
 

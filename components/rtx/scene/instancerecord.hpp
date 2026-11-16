@@ -34,12 +34,12 @@ namespace Rtx
     /// content and not about an API.
     struct InstanceRecord
     {
-        Transform3x4 mTransform;
+        Transform3x4 mTransform{};
 
         /// World space to the mesh's own: `mTransform`'s inverse, taken in double and rounded once,
         /// which every hit on the instance is resolved through (`GpuInstance::mToObject`). Nought for
         /// a placement shrunk to a scale of nought, which has no inverse and no area a ray can meet.
-        Transform3x4 mInverse;
+        Transform3x4 mInverse{};
 
         /// World space to where the surface this instance shows stood on the previous frame:
         /// `inverse(current) * previous`, so the shader multiplies once. The identity outright
@@ -49,7 +49,7 @@ namespace Rtx
         /// **Water's is its plane's alone** — its height and its turn. A water surface is shaded off
         /// its world position, so a placement stepping along its own plane moves nothing a pixel
         /// shows; the sea does that a cell at a time as the player's cell changes.
-        Transform3x4 mMotion;
+        Transform3x4 mMotion{};
 
         /// The mesh whose bottom-level structure this places.
         Index mMesh = sNoIndex;

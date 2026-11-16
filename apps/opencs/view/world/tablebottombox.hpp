@@ -37,7 +37,7 @@ namespace CSVWorld
         bool mShowStatusBar;
         QLabel* mStatus;
         QStatusBar* mStatusBar;
-        int mStatusCount[4];
+        int mStatusCount[4]{};
 
         EditMode mEditMode;
         Creator* mCreator;

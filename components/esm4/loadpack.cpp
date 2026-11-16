@@ -102,7 +102,7 @@ void ESM4::AIPackage::load(ESM4::Reader& reader)
                     break;
                 }
 
-                CTDA condition;
+                CTDA condition{};
                 reader.get(condition);
                 // FIXME: how to "unadjust" if not FormId?
                 // adjustFormId(condition.param1);

@@ -49,8 +49,8 @@ namespace MWRender
         struct Effect
         {
             std::string mEffectId;
-            float mMaxControllerLength;
-            bool mLoop;
+            float mMaxControllerLength{};
+            bool mLoop{};
             std::shared_ptr<EffectAnimationTime> mAnimTime;
             osg::ref_ptr<osg::PositionAttitudeTransform> mTransform;
         };

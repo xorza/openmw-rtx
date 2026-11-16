@@ -69,7 +69,7 @@ namespace ESSImport
         virtual void write(ESM::ESMWriter& esm) const {}
 
     protected:
-        Context* mContext;
+        Context* mContext{};
     };
 
     /// Default converter: simply reads the record and writes it unmodified to the output
@@ -480,7 +480,7 @@ namespace ESSImport
         void read(ESM::ESMReader& esm) override
         {
             std::string id = esm.getHNString("NAME");
-            DIAL dial;
+            DIAL dial{};
             dial.load(esm);
             if (dial.mIndex > 0)
                 mDials[id] = dial;

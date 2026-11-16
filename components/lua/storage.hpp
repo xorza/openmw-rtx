@@ -113,7 +113,7 @@ namespace LuaUtil
         struct SectionView
         {
             std::shared_ptr<Section> mSection;
-            bool mReadOnly;
+            bool mReadOnly{};
             bool mForMenuScripts = false;
         };
 

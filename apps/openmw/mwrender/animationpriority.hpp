@@ -37,6 +37,6 @@ namespace MWRender
             return false;
         }
 
-        int mPriority[sNumBlendMasks];
+        int mPriority[sNumBlendMasks]{};
     };
 }

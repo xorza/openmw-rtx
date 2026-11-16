@@ -61,12 +61,12 @@ namespace ESM4
 
         struct IslandInfo
         {
-            float minX;
-            float minY;
-            float minZ;
-            float maxX;
-            float maxY;
-            float maxZ;
+            float minX{};
+            float minY{};
+            float minZ{};
+            float maxX{};
+            float maxY{};
+            float maxZ{};
             std::vector<Triangle> triangles;
             std::vector<Vertex> verticies;
 
@@ -85,17 +85,17 @@ namespace ESM4
         struct NavMeshInfo
         {
             ESM::FormId formId;
-            std::uint32_t flags;
+            std::uint32_t flags{};
             // center point of the navmesh
-            float x;
-            float y;
-            float z;
-            float preferredPercent; // percent of triangles flagged "preferred"
+            float x{};
+            float y{};
+            float z{};
+            float preferredPercent{}; // percent of triangles flagged "preferred"
             std::vector<ESM::FormId> formIdMerged;
             std::vector<ESM::FormId> formIdPrefMerged;
             std::vector<DoorRef> linkedDoors;
             std::vector<IslandInfo> islandInfo;
-            std::uint32_t crc; // CRC hash of "PathingCell"
+            std::uint32_t crc{}; // CRC hash of "PathingCell"
             ESM::FormId worldSpaceId;
             CellGrid cellGrid;
 

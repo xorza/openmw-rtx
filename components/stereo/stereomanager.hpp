@@ -170,9 +170,9 @@ namespace Stereo
 
     struct Settings
     {
-        bool mMultiview;
-        bool mAllowDisplayListsForMultiview;
-        bool mSharedShadowMaps;
+        bool mMultiview{};
+        bool mAllowDisplayListsForMultiview{};
+        bool mSharedShadowMaps{};
         std::optional<CustomView> mCustomView;
         std::optional<osg::Vec2i> mEyeResolution;
     };

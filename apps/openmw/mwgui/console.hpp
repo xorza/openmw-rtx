@@ -25,13 +25,13 @@ namespace MWGui
         void setSelectedObject(const MWWorld::Ptr& object);
         MWWorld::Ptr getSelectedObject() const { return mPtr; }
 
-        MyGUI::EditBox* mCommandLine;
-        MyGUI::EditBox* mHistory;
-        MyGUI::EditBox* mSearchTerm;
-        MyGUI::Button* mNextButton;
-        MyGUI::Button* mPreviousButton;
-        MyGUI::Button* mCaseSensitiveToggleButton;
-        MyGUI::Button* mRegExSearchToggleButton;
+        MyGUI::EditBox* mCommandLine{};
+        MyGUI::EditBox* mHistory{};
+        MyGUI::EditBox* mSearchTerm{};
+        MyGUI::Button* mNextButton{};
+        MyGUI::Button* mPreviousButton{};
+        MyGUI::Button* mCaseSensitiveToggleButton{};
+        MyGUI::Button* mRegExSearchToggleButton{};
 
         typedef std::list<std::string> StringList;
 

@@ -22,13 +22,13 @@ namespace LuaUi
         const std::vector<std::string_view>& allUsedProperties() const override;
 
     private:
-        bool mHorizontal;
-        bool mAutoSized;
+        bool mHorizontal{};
+        bool mAutoSized{};
         MyGUI::IntSize mChildrenSize;
-        Alignment mAlign;
-        Alignment mArrange;
-        int mGap;
-        bool mWrap;
+        Alignment mAlign{};
+        Alignment mArrange{};
+        int mGap{};
+        bool mWrap{};
 
         template <typename T>
         T& primary(MyGUI::types::TPoint<T>& point) const

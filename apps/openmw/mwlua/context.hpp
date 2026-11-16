@@ -23,7 +23,7 @@ namespace MWLua
             Local,
             Load,
         };
-        Type mType;
+        Type mType{};
         LuaManager* mLuaManager = nullptr;
         LuaUtil::LuaState* mLua = nullptr;
         LuaUtil::UserdataSerializer* mSerializer = nullptr;

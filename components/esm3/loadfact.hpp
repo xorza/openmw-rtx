@@ -43,7 +43,7 @@ namespace ESM
         /// Return a string descriptor for this record type. Currently used for debugging / error logs only.
         static std::string_view getRecordType() { return "Faction"; }
 
-        uint32_t mRecordFlags;
+        uint32_t mRecordFlags{};
         std::string mName;
         RefId mId;
 
@@ -57,11 +57,11 @@ namespace ESM
             // Which attributes we like
             std::array<ESM::RefId, 2> mAttribute;
 
-            std::array<RankData, 10> mRankData;
+            std::array<RankData, 10> mRankData{};
 
             std::array<ESM::RefId, 7> mSkills; // IDs of skills this faction requires
 
-            int32_t mFlags; // 1 - hidden from player
+            int32_t mFlags{}; // 1 - hidden from player
 
             ESM::RefId& getSkill(size_t index, bool ignored = false);
             ///< Throws an exception for invalid values of \a index.

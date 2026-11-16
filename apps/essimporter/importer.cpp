@@ -119,14 +119,14 @@ namespace ESSImport
             struct Subrecord
             {
                 std::string mName;
-                size_t mFileOffset;
+                size_t mFileOffset{};
                 std::vector<unsigned char> mData;
             };
 
             struct Record
             {
                 std::string mName;
-                size_t mFileOffset;
+                size_t mFileOffset{};
                 std::vector<Subrecord> mSubrecords;
             };
 

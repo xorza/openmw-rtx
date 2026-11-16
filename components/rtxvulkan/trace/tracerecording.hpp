@@ -59,7 +59,7 @@ namespace Rtx
         /// Whether the camera has no past to reproject from: a picture never has one, and a frame
         /// after a jump no motion vector can describe has lost it. Then `mSampled` carries a basis
         /// of nothing, which is how every reprojection hears it.
-        bool mPastLost;
+        bool mPastLost{};
 
         /// Null where the run is not being timed, which a picture is not.
         GpuTimer* mTimer = nullptr;

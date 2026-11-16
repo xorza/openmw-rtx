@@ -9,9 +9,9 @@ namespace MWMechanics
     {
         // Desired movement. Direction is relative to the current orientation.
         // Length of the vector controls desired speed. 0 - stay, 0.5 - half-speed, 1.0 - max speed.
-        float mPosition[3];
+        float mPosition[3]{};
         // Desired rotation delta (euler angles).
-        float mRotation[3];
+        float mRotation[3]{};
 
         // Controlled by CharacterController, should not be changed from other places.
         // These fields can not be private fields in CharacterController, because Actor::getCurrentSpeed uses it.

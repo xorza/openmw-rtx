@@ -31,7 +31,7 @@ namespace
     /// but fails its read with `EISDIR`, which a stream would have thrown.
     TEST(RtxPlatformKernelFileTest, aTextIsReadToItsEndAndAFailureIsItsErrno)
     {
-        std::array<char, 4> buffer;
+        std::array<char, 4> buffer{};
         for (const auto& [text, error] : { std::pair{ std::string_view(""), 0 },
                  std::pair{ std::string_view("abc"), 0 }, std::pair{ std::string_view("abcd"), EFBIG } })
         {
@@ -62,8 +62,8 @@ namespace
         std::ofstream(folder / "fits") << "0-7\n";
         std::ofstream(folder / "fills") << "0-15";
 
-        std::array<char, 4> small;
-        std::array<char, 8> large;
+        std::array<char, 4> small{};
+        std::array<char, 8> large{};
         EXPECT_EQ(Platform::KernelFile::read((folder / "fits").c_str(), large), "0-7\n");
         EXPECT_EQ(Platform::KernelFile::read((folder / "fills").c_str(), small), std::nullopt);
         EXPECT_EQ(Platform::KernelFile::read((folder / "missing").c_str(), large), std::nullopt);

@@ -36,9 +36,9 @@ namespace ESM
             Key = 0x1 // Assigned as a key in the content file that defined the record
         };
 
-        MCDTstruct mData;
+        MCDTstruct mData{};
 
-        uint32_t mRecordFlags;
+        uint32_t mRecordFlags{};
         RefId mId, mScript;
         std::string mName;
         Path mModel;

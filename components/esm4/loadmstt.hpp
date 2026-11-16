@@ -40,13 +40,13 @@ namespace ESM4
     struct MovableStatic
     {
         ESM::FormId mId; // from the header
-        std::uint32_t mFlags; // from the header, see enum type RecordFlag for details
+        std::uint32_t mFlags{}; // from the header, see enum type RecordFlag for details
 
         std::string mEditorId;
         std::string mFullName;
         ESM::Path mModel;
 
-        std::int8_t mData;
+        std::int8_t mData{};
         ESM::FormId mLoopingSound;
 
         void load(ESM4::Reader& reader);

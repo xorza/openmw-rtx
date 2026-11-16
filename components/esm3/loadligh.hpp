@@ -48,9 +48,9 @@ namespace ESM
             int32_t mFlags;
         }; // Size = 24 bytes
 
-        LHDTstruct mData;
+        LHDTstruct mData{};
 
-        uint32_t mRecordFlags;
+        uint32_t mRecordFlags{};
         ESM::RefId mId, mSound, mScript;
         std::string mName;
         Path mModel;

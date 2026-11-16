@@ -20,17 +20,17 @@ namespace Nif
         };
 
         int32_t mGroupId{ 0 };
-        uint16_t mNumVertices;
+        uint16_t mNumVertices{};
         uint8_t mKeepFlags{ 0 };
         uint8_t mCompressFlags{ 0 };
         std::vector<osg::Vec3f> mVertices;
         uint16_t mDataFlags{ 0 };
-        uint32_t mMaterialHash;
+        uint32_t mMaterialHash{};
         std::vector<osg::Vec3f> mNormals, mTangents, mBitangents;
         osg::BoundingSpheref mBoundingSphere;
         std::vector<osg::Vec4f> mColors;
         std::vector<std::vector<osg::Vec2f>> mUVList;
-        uint16_t mConsistencyType;
+        uint16_t mConsistencyType{};
 
         void read(NIFStream* nif) override;
     };
@@ -38,7 +38,7 @@ namespace Nif
     // Abstract
     struct NiTriBasedGeomData : public NiGeometryData
     {
-        uint16_t mNumTriangles;
+        uint16_t mNumTriangles{};
 
         void read(NIFStream* nif) override;
     };
@@ -151,15 +151,15 @@ namespace Nif
         };
 
         Format mFormat{ Format::RGB };
-        std::array<uint32_t, 4> mColorMasks;
+        std::array<uint32_t, 4> mColorMasks{};
         uint32_t mBitsPerPixel{ 0 };
         uint32_t mPixelTiling{ 0 };
-        std::array<uint32_t, 2> mCompareBits;
+        std::array<uint32_t, 2> mCompareBits{};
         uint32_t mRendererHint{ 0 };
         uint32_t mExtraData{ 0 };
         uint8_t mFlags{ 0 };
         bool mUseSrgb{ false };
-        std::array<ChannelData, 4> mChannels;
+        std::array<ChannelData, 4> mChannels{};
 
         void read(NIFStream* nif);
     };
@@ -177,7 +177,7 @@ namespace Nif
 
         NiPixelFormat mPixelFormat;
         NiPalettePtr mPalette;
-        uint32_t mBytesPerPixel;
+        uint32_t mBytesPerPixel{};
         std::vector<Mipmap> mMipmaps;
         uint32_t mNumFaces{ 1 };
         std::vector<uint8_t> mData;
@@ -284,19 +284,19 @@ namespace Nif
             std::vector<std::vector<unsigned short>> mStrips;
             std::vector<unsigned short> mTriangles;
             std::vector<char> mBoneIndices;
-            BSVertexDesc mVertexDesc;
+            BSVertexDesc mVertexDesc{};
             std::vector<unsigned short> mTrueTriangles;
             std::vector<std::vector<unsigned short>> mTrueStrips;
-            uint8_t mLODLevel;
-            bool mGlobalVB;
+            uint8_t mLODLevel{};
+            bool mGlobalVB{};
 
             void read(NIFStream* nif);
         };
         std::vector<Partition> mPartitions;
 
-        uint32_t mDataSize;
-        uint32_t mVertexSize;
-        BSVertexDesc mVertexDesc;
+        uint32_t mDataSize{};
+        uint32_t mVertexSize{};
+        BSVertexDesc mVertexDesc{};
         std::vector<BSVertexData> mVertexData;
 
         void read(NIFStream* nif) override;
@@ -310,7 +310,7 @@ namespace Nif
             std::vector<osg::Vec3f> mVertices;
         };
 
-        uint8_t mRelativeTargets;
+        uint8_t mRelativeTargets{};
         std::vector<MorphData> mMorphs;
 
         void read(NIFStream* nif) override;
@@ -378,7 +378,7 @@ namespace Nif
 
     struct NiBSplineBasisData : public Record
     {
-        uint32_t mNumControlPoints;
+        uint32_t mNumControlPoints{};
 
         void read(NIFStream* nif) override;
     };
@@ -400,16 +400,16 @@ namespace Nif
 
         struct DataBlock
         {
-            bool mValid;
-            uint32_t mBlockSize;
+            bool mValid{};
+            uint32_t mBlockSize{};
             std::vector<uint32_t> mBlockOffsets;
             std::vector<uint32_t> mDataSizes;
             std::vector<char> mData;
-            uint32_t mShaderIndex;
-            uint32_t mTotalSize;
+            uint32_t mShaderIndex{};
+            uint32_t mTotalSize{};
         };
 
-        uint16_t mNumVertices;
+        uint16_t mNumVertices{};
         std::vector<DataStream> mBlockInfos;
         std::vector<DataBlock> mBlocks;
 
@@ -462,11 +462,11 @@ namespace Nif
             LookIK = 2,
         };
 
-        Type mType;
-        float mTime;
-        uint32_t mArm;
-        float mGain;
-        uint32_t mState;
+        Type mType{};
+        float mTime{};
+        uint32_t mArm{};
+        float mGain{};
+        uint32_t mState{};
 
         void read(NIFStream* nif) override;
     };

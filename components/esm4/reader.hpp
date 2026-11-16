@@ -125,8 +125,8 @@ namespace ESM4
         std::size_t fileRead; // number of bytes read, incl. the current record
 
         GroupStack groupStack; // keep track of bytes left to find when a group is done
-        RecordHeader recordHeader; // header of the current record or group being processed
-        SubRecordHeader subRecordHeader; // header of the current sub record being processed
+        RecordHeader recordHeader{}; // header of the current record or group being processed
+        SubRecordHeader subRecordHeader{}; // header of the current sub record being processed
         std::uint32_t recordRead; // bytes read from the sub records, incl. the current one
 
         ESM::FormId currWorld; // formId of current world - for grouping CELL records
@@ -147,16 +147,16 @@ namespace ESM4
 
     class Reader
     {
-        VFS::Manager const* mVFS;
+        VFS::Manager const* mVFS{};
         Header mHeader; // ESM4 header
         ESM::GameFormat mGameFormat = ESM::GameFormat::Unknown;
         std::optional<std::uint16_t> mHeaderFormVersion;
 
         ReaderContext mCtx;
 
-        const ToUTF8::StatelessUtf8Encoder* mEncoder;
+        const ToUTF8::StatelessUtf8Encoder* mEncoder{};
 
-        std::size_t mFileSize;
+        std::size_t mFileSize{};
 
         Files::IStreamPtr mStream;
         Files::IStreamPtr mSavedStream; // mStream is saved here while using deflated memory stream
@@ -348,7 +348,7 @@ namespace ESM4
         template <typename T>
         bool getSubRecord(const std::uint32_t type, T& t)
         {
-            ESM4::SubRecordHeader hdr;
+            ESM4::SubRecordHeader hdr{};
             if (!getExact(hdr) || (hdr.typeId != type) || (hdr.dataSize != sizeof(T)))
                 return false;
 

@@ -84,22 +84,22 @@ namespace ESM4
         };
 
         ESM::FormId mId; // from the header
-        std::uint32_t mFlags; // from the header, see enum type RecordFlag for details
+        std::uint32_t mFlags{}; // from the header, see enum type RecordFlag for details
         ESM::GameFormat mGameFormat = ESM::GameFormat::Unknown; // assumed per-file from context clues
 
         std::string mEditorId;
         std::string mFullName;
         ESM::Path mModel;
 
-        float mBoundRadius;
+        float mBoundRadius{};
 
         std::string mText;
         ESM::FormId mScriptId;
         std::string mIcon;
-        std::uint16_t mEnchantmentPoints;
+        std::uint16_t mEnchantmentPoints{};
         ESM::FormId mEnchantment;
 
-        Data mData;
+        Data mData{};
 
         ESM::FormId mPickUpSound;
         ESM::FormId mDropSound;

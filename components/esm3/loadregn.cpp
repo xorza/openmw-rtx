@@ -65,7 +65,7 @@ namespace ESM
                     esm.getSubHeader();
                     if (esm.getFormatVersion() <= ESM::MaxWeatherIndexFormatVersion)
                     {
-                        std::array<uint8_t, Weather::Length> probabilities;
+                        std::array<uint8_t, Weather::Length> probabilities{};
                         // Cold weather not included before 1.3
                         if (esm.getSubSize() == Weather::Length)
                         {
@@ -138,7 +138,7 @@ namespace ESM
 
         if (esm.getFormatVersion() <= ESM::MaxWeatherIndexFormatVersion)
         {
-            std::array<uint8_t, Weather::Length> probabilities;
+            std::array<uint8_t, Weather::Length> probabilities{};
             probabilities.fill(0);
             for (const auto& [id, chance] : mData.mProbabilities)
             {

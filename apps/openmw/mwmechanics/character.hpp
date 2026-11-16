@@ -133,13 +133,13 @@ namespace MWMechanics
         struct AnimationQueueEntry
         {
             std::string mGroup;
-            uint32_t mLoopCount;
-            float mTime;
-            bool mLooping;
-            bool mScripted;
+            uint32_t mLoopCount{};
+            float mTime{};
+            bool mLooping{};
+            bool mScripted{};
             std::string mStartKey;
             std::string mStopKey;
-            float mSpeed;
+            float mSpeed{};
         };
         typedef std::deque<AnimationQueueEntry> AnimationQueue;
         AnimationQueue mAnimQueue;

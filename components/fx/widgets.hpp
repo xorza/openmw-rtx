@@ -56,7 +56,7 @@ namespace Fx
 
         protected:
             std::shared_ptr<Fx::Types::UniformBase> mUniform;
-            Index mIndex;
+            Index mIndex{};
         };
 
         class EditBool : public EditBase, public MyGUI::Widget

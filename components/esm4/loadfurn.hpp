@@ -41,16 +41,16 @@ namespace ESM4
     struct Furniture
     {
         ESM::FormId mId; // from the header
-        std::uint32_t mFlags; // from the header, see enum type RecordFlag for details
+        std::uint32_t mFlags{}; // from the header, see enum type RecordFlag for details
 
         std::string mEditorId;
         std::string mFullName;
         ESM::Path mModel;
 
-        float mBoundRadius;
+        float mBoundRadius{};
 
         ESM::FormId mScriptId;
-        std::uint32_t mActiveMarkerFlags;
+        std::uint32_t mActiveMarkerFlags{};
 
         void load(ESM4::Reader& reader);
         // void save(ESM4::Writer& writer) const;

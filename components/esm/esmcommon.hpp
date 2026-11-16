@@ -187,22 +187,22 @@ namespace ESM
     struct ESM_Context
     {
         std::filesystem::path filename;
-        std::streamsize leftRec;
-        std::uint32_t leftSub;
-        std::streamsize leftFile;
-        NAME recName, subName;
+        std::streamsize leftRec{};
+        std::uint32_t leftSub{};
+        std::streamsize leftFile{};
+        NAME recName{}, subName{};
         // When working with multiple esX files, we will generate lists of all files that
         //  actually contribute to a specific cell. Therefore, we need to store the index
         //  of the file belonging to this contest. See CellStore::(list/load)refs for details.
-        int index;
+        int index{};
         std::vector<int> parentFileIndices;
 
         // True if subName has been read but not used.
-        bool subCached;
+        bool subCached{};
 
         // File position. Only used for stored contexts, not regularly
         // updated within the reader itself.
-        size_t filePos;
+        size_t filePos{};
     };
 
 }

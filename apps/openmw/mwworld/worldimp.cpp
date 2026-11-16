@@ -3431,8 +3431,8 @@ namespace MWWorld
         {
             std::vector<Ptr>& mOut;
             Ptr mDetector;
-            float mSquaredDist;
-            World::DetectionType mType;
+            float mSquaredDist{};
+            World::DetectionType mType{};
             const MWWorld::ESMStore& mStore;
 
             bool operator()(const MWWorld::Ptr& ptr)

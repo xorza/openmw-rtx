@@ -14,9 +14,9 @@ namespace MWPhysics
         osg::Vec3f mEndPos;
         osg::Vec3f mPlaneNormal;
         osg::Vec3f mHitPoint;
-        const btCollisionObject* mHitObject;
+        const btCollisionObject* mHitObject{};
 
-        float mFraction;
+        float mFraction{};
 
         void doTrace(const btCollisionObject* actor, const osg::Vec3f& start, const osg::Vec3f& end,
             const btCollisionWorld* world, bool attemptShortTrace = false);

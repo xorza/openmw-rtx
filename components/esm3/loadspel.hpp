@@ -43,8 +43,8 @@ namespace ESM
             int32_t mFlags; // Flags
         };
 
-        SPDTstruct mData;
-        uint32_t mRecordFlags;
+        SPDTstruct mData{};
+        uint32_t mRecordFlags{};
         std::string mName;
         RefId mId;
         EffectList mEffects;

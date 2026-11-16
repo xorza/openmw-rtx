@@ -136,7 +136,7 @@ namespace CSMWorld
         ESM::Pathgrid::EdgeList& edges = pathgrid.mEdges;
 
         // blank row
-        ESM::Pathgrid::Edge edge;
+        ESM::Pathgrid::Edge edge{};
         edge.mV0 = 0;
         edge.mV1 = 0;
 

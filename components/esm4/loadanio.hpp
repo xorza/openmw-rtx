@@ -41,12 +41,12 @@ namespace ESM4
     struct AnimObject
     {
         ESM::FormId mId; // from the header
-        std::uint32_t mFlags; // from the header, see enum type RecordFlag for details
+        std::uint32_t mFlags{}; // from the header, see enum type RecordFlag for details
 
         std::string mEditorId;
         ESM::Path mModel;
 
-        float mBoundRadius;
+        float mBoundRadius{};
 
         ESM::FormId mIdleAnim; // only in TES4
         std::string mUnloadEvent; // only in TES5

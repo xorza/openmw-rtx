@@ -22,7 +22,7 @@ namespace ESSImport
             unsigned char mReputation;
             unsigned char unknown2;
             int32_t mIndex;
-        } mNPDT;
+        } mNPDT{};
 
         Inventory mInventory;
         ESM::AIPackageList mAiPackages;

@@ -22,7 +22,7 @@ namespace MWGui
 
         float mFadeTimeRemaining;
 
-        MyGUI::ScrollBar* mProgressBar;
+        MyGUI::ScrollBar* mProgressBar{};
 
         void onJailProgressChanged(int cur, int total);
         void onJailFinished();

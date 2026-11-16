@@ -41,7 +41,7 @@ namespace ESM4
     struct Dialogue
     {
         ESM::FormId mId; // from the header
-        std::uint32_t mFlags; // from the header, see enum type RecordFlag for details
+        std::uint32_t mFlags{}; // from the header, see enum type RecordFlag for details
 
         std::string mEditorId;
         std::vector<ESM::FormId> mQuests;
@@ -50,11 +50,11 @@ namespace ESM4
 
         std::string mTextDumb; // FIXME: temp name
 
-        bool mDoAllBeforeRepeat; // TES5 only
-        std::uint8_t mDialType; // DialType
-        std::uint8_t mDialFlags; // FO3/FNV: 0x1 rumours, 0x2 top-level
+        bool mDoAllBeforeRepeat{}; // TES5 only
+        std::uint8_t mDialType{}; // DialType
+        std::uint8_t mDialFlags{}; // FO3/FNV: 0x1 rumours, 0x2 top-level
 
-        float mPriority;
+        float mPriority{};
 
         void load(ESM4::Reader& reader);
         // void save(ESM4::Writer& writer) const;

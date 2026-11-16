@@ -70,14 +70,14 @@ namespace ESM4
         struct REFRcoord
         {
             ESM::FormId formId;
-            std::int16_t unknown1;
-            std::int16_t unknown2;
+            std::int16_t unknown1{};
+            std::int16_t unknown2{};
         };
 
         struct RNAMstruct
         {
-            std::int16_t unknown1;
-            std::int16_t unknown2;
+            std::int16_t unknown1{};
+            std::int16_t unknown2{};
             std::vector<REFRcoord> refrs;
         };
 
@@ -96,33 +96,33 @@ namespace ESM4
         };
 
         ESM::FormId mId; // from the header
-        std::uint32_t mFlags; // from the header, see enum type RecordFlag for details
+        std::uint32_t mFlags{}; // from the header, see enum type RecordFlag for details
         ESM::GameFormat mGameFormat = ESM::GameFormat::Unknown; // assumed per-file from context clues
 
         std::string mEditorId;
         std::string mFullName;
         ESM::FormId mParent; // parent worldspace formid
-        std::uint8_t mWorldFlags;
+        std::uint8_t mWorldFlags{};
         ESM::FormId mClimate;
         ESM::FormId mWater;
-        float mLandLevel;
-        float mWaterLevel;
+        float mLandLevel{};
+        float mWaterLevel{};
 
-        Map mMap;
+        Map mMap{};
 
-        std::int32_t mMinX;
-        std::int32_t mMinY;
-        std::int32_t mMaxX;
-        std::int32_t mMaxY;
+        std::int32_t mMinX{};
+        std::int32_t mMinY{};
+        std::int32_t mMaxX{};
+        std::int32_t mMaxY{};
 
         // ------ TES4 only -----
 
-        std::int32_t mSound; // 0 = no record, 1 = Public, 2 = Dungeon
+        std::int32_t mSound{}; // 0 = no record, 1 = Public, 2 = Dungeon
         std::string mMapFile;
 
         // ------ TES5 only -----
 
-        Grid mCenterCell;
+        Grid mCenterCell{};
         RNAMstruct mData;
 
         // ----------------------

@@ -18,9 +18,9 @@ namespace MWGui
         std::string_view getWindowIdForLua() const override { return "MerchantRepair"; }
 
     private:
-        MyGUI::ScrollView* mList;
-        MyGUI::Button* mOkButton;
-        MyGUI::TextBox* mGoldLabel;
+        MyGUI::ScrollView* mList{};
+        MyGUI::Button* mOkButton{};
+        MyGUI::TextBox* mGoldLabel{};
         /// List of enabled/repairable items and their index in the full list.
         std::vector<std::pair<MyGUI::Button*, size_t>> mButtons;
 

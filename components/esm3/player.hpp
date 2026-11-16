@@ -19,15 +19,15 @@ namespace ESM
     {
         NpcState mObject;
         RefId mCellId;
-        float mLastKnownExteriorPosition[3];
-        unsigned char mHasMark;
-        bool mSetWerewolfAcrobatics;
+        float mLastKnownExteriorPosition[3]{};
+        unsigned char mHasMark{};
+        bool mSetWerewolfAcrobatics{};
         Position mMarkedPosition;
         RefId mMarkedCell;
         ESM::RefId mBirthsign;
 
-        int32_t mCurrentCrimeId;
-        int32_t mPaidCrimeId;
+        int32_t mCurrentCrimeId{};
+        int32_t mPaidCrimeId{};
 
         std::map<ESM::RefId, float> mSaveAttributes;
         std::map<ESM::RefId, float> mSaveSkills;

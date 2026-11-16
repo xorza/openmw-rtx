@@ -19,7 +19,7 @@ namespace CSMWorld
 
         ESM::RefId mId;
 
-        ESM::FormatVersion mFormatVersion;
+        ESM::FormatVersion mFormatVersion{};
         std::string mAuthor;
         std::string mDescription;
 

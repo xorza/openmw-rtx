@@ -34,7 +34,7 @@ namespace Nif
 
     struct Matrix3
     {
-        float mValues[3][3];
+        float mValues[3][3]{};
 
         Matrix3()
         {
@@ -68,7 +68,7 @@ namespace Nif
     {
         Matrix3 mRotation; // this can contain scale components too, including negative and nonuniform scales
         osg::Vec3f mTranslation;
-        float mScale;
+        float mScale{};
 
         osg::Matrixf toMatrix() const
         {
@@ -95,7 +95,7 @@ namespace Nif
     {
         osg::Vec3f mTranslation;
         osg::Quat mRotation;
-        float mScale;
+        float mScale{};
 
         osg::Matrixf toMatrix() const
         {

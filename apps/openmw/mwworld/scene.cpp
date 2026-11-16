@@ -502,7 +502,7 @@ namespace MWWorld
                     }
                     else
                     {
-                        DetourNavigator::HeightfieldSurface heights;
+                        DetourNavigator::HeightfieldSurface heights{};
                         heights.mHeights = data->getHeights().data();
                         heights.mSize = static_cast<std::size_t>(data->getLandSize());
                         heights.mMinHeight = data->getMinHeight();

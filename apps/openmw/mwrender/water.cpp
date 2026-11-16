@@ -322,9 +322,9 @@ namespace MWRender
 
         osg::ref_ptr<ClipCullNode> mClipCullNode;
         osg::ref_ptr<osg::Node> mScene;
-        osg::Node::NodeMask mNodeMask;
+        osg::Node::NodeMask mNodeMask{};
         osg::Matrix mViewMatrix{ osg::Matrix::identity() };
-        bool mInterior;
+        bool mInterior{};
     };
 
     namespace

@@ -10,8 +10,8 @@ namespace ESM
     // format 0, saved games only
     struct CustomMarker
     {
-        float mWorldX;
-        float mWorldY;
+        float mWorldX{};
+        float mWorldY{};
 
         RefId mCell;
 

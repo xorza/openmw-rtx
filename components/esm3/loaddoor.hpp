@@ -20,7 +20,7 @@ namespace ESM
         /// Return a string descriptor for this record type. Currently used for debugging / error logs only.
         static std::string_view getRecordType() { return "Door"; }
 
-        uint32_t mRecordFlags;
+        uint32_t mRecordFlags{};
         RefId mId, mScript, mOpenSound, mCloseSound;
         std::string mName;
         Path mModel;

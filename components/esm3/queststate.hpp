@@ -13,8 +13,8 @@ namespace ESM
     struct QuestState
     {
         ESM::RefId mTopic; // lower case id
-        int32_t mState;
-        unsigned char mFinished;
+        int32_t mState{};
+        unsigned char mFinished{};
 
         void load(ESMReader& esm);
         void save(ESMWriter& esm) const;

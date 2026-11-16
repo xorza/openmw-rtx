@@ -55,15 +55,15 @@ namespace MWGui
         Misc::NotNullPtr<DragAndDrop> mDragAndDrop;
         Misc::NotNullPtr<ItemTransfer> mItemTransfer;
 
-        MWGui::ItemView* mItemView;
+        MWGui::ItemView* mItemView{};
         SortFilterItemModel* mSortModel;
         ItemModel* mModel;
         int mSelectedItem;
         bool mUpdateNextFrame;
         bool mTreatNextOpenAsLoot;
-        MyGUI::Button* mDisposeCorpseButton;
-        MyGUI::Button* mTakeButton;
-        MyGUI::Button* mCloseButton;
+        MyGUI::Button* mDisposeCorpseButton{};
+        MyGUI::Button* mTakeButton{};
+        MyGUI::Button* mCloseButton{};
 
         void onItemSelected(int index);
         void onBackgroundSelected();

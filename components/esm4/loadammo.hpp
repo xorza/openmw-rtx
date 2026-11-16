@@ -57,7 +57,7 @@ namespace ESM4
         };
 
         ESM::FormId mId; // from the header
-        std::uint32_t mFlags; // from the header, see enum type RecordFlag for details
+        std::uint32_t mFlags{}; // from the header, see enum type RecordFlag for details
 
         std::string mEditorId;
         std::string mFullName;
@@ -71,9 +71,9 @@ namespace ESM4
         ESM::FormId mPickUpSound;
         ESM::FormId mDropSound;
 
-        float mBoundRadius;
+        float mBoundRadius{};
 
-        std::uint16_t mEnchantmentPoints;
+        std::uint16_t mEnchantmentPoints{};
         ESM::FormId mEnchantment;
 
         std::vector<ESM::FormId> mAmmoEffects;

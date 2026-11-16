@@ -40,19 +40,19 @@ namespace Compiler
 
         struct Function
         {
-            char mReturn;
+            char mReturn{};
             ScriptArgs mArguments;
-            int mCode;
-            int mCodeExplicit;
-            int mSegment;
+            int mCode{};
+            int mCodeExplicit{};
+            int mSegment{};
         };
 
         struct Instruction
         {
             ScriptArgs mArguments;
-            int mCode;
-            int mCodeExplicit;
-            int mSegment;
+            int mCode{};
+            int mCodeExplicit{};
+            int mSegment{};
         };
 
         int mNextKeywordIndex;

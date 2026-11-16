@@ -33,6 +33,6 @@ namespace LuaUi
         void initialize() override;
         void updateProperties() override;
         const std::vector<std::string_view>& allUsedProperties() const override;
-        LuaTileRect* mTileRect;
+        LuaTileRect* mTileRect{};
     };
 }

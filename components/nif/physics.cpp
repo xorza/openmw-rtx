@@ -669,7 +669,7 @@ namespace Nif
         mHavokMaterial.read(nif);
         nif->read(mRadius);
         nif->skip(8); // Unused
-        std::array<float, 16> mat;
+        std::array<float, 16> mat{};
         nif->readArray(mat);
         mTransform.set(mat.data());
     }
@@ -830,7 +830,7 @@ namespace Nif
         bhkShapePhantom::read(nif);
 
         nif->skip(8); // Unused
-        std::array<float, 16> mat;
+        std::array<float, 16> mat{};
         nif->readArray(mat);
         mTransform.set(mat.data());
     }

@@ -23,13 +23,13 @@ namespace MWGui
             MyGUI::TextBox* mValue;
             MyGUI::TextBox* mMultiplier;
         };
-        MyGUI::Button* mOkButton;
-        MyGUI::ImageBox* mClassImage;
-        MyGUI::TextBox* mLevelText;
-        MyGUI::EditBox* mLevelDescription;
+        MyGUI::Button* mOkButton{};
+        MyGUI::ImageBox* mClassImage{};
+        MyGUI::TextBox* mLevelText{};
+        MyGUI::EditBox* mLevelDescription{};
 
-        MyGUI::Widget* mCoinBox;
-        MyGUI::ScrollView* mAssignWidget;
+        MyGUI::Widget* mCoinBox{};
+        MyGUI::ScrollView* mAssignWidget{};
 
         std::map<ESM::RefId, Widgets> mAttributeWidgets;
         std::vector<MyGUI::ImageBox*> mCoins;

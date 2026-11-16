@@ -13,7 +13,7 @@ namespace Bgsm
         std::shared_ptr<Bgsm::MaterialFile> file;
         BGSMStream stream(std::move(inputStream));
 
-        std::array<char, 4> signature;
+        std::array<char, 4> signature{};
         stream.readArray(std::span(signature));
         std::string shaderType(signature.data(), 4);
         if (shaderType == "BGEM")

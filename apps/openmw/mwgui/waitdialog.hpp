@@ -17,8 +17,8 @@ namespace MWGui
         void setProgress(int cur, int total);
 
     protected:
-        MyGUI::ProgressBar* mProgressBar;
-        MyGUI::TextBox* mProgressText;
+        MyGUI::ProgressBar* mProgressBar{};
+        MyGUI::TextBox* mProgressText{};
     };
 
     class WaitDialog : public WindowBase
@@ -48,13 +48,13 @@ namespace MWGui
         ControllerButtons* getControllerButtons() override;
 
     protected:
-        MyGUI::TextBox* mDateTimeText;
-        MyGUI::TextBox* mRestText;
-        MyGUI::TextBox* mHourText;
-        MyGUI::Button* mUntilHealedButton;
-        MyGUI::Button* mWaitButton;
-        MyGUI::Button* mCancelButton;
-        MyGUI::ScrollBar* mHourSlider;
+        MyGUI::TextBox* mDateTimeText{};
+        MyGUI::TextBox* mRestText{};
+        MyGUI::TextBox* mHourText{};
+        MyGUI::Button* mUntilHealedButton{};
+        MyGUI::Button* mWaitButton{};
+        MyGUI::Button* mCancelButton{};
+        MyGUI::ScrollBar* mHourSlider{};
 
         TimeAdvancer mTimeAdvancer;
         bool mSleeping;

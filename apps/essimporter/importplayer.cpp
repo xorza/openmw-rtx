@@ -62,7 +62,7 @@ namespace ESSImport
 
         while (esm.isNextSub("FNAM"))
         {
-            FNAM fnam;
+            FNAM fnam{};
             esm.getHT(
                 fnam.mRank, fnam.mUnknown1, fnam.mReputation, fnam.mFlags, fnam.mUnknown2, fnam.mFactionName.mData);
             mFactions.push_back(fnam);

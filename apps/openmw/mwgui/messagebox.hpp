@@ -83,7 +83,7 @@ namespace MWGui
     protected:
         MessageBoxManager& mMessageBoxManager;
         std::string mMessage;
-        MyGUI::EditBox* mMessageWidget;
+        MyGUI::EditBox* mMessageWidget{};
         int mBottomPadding;
         int mNextBoxPadding;
     };
@@ -108,8 +108,8 @@ namespace MWGui
         void buttonActivated(MyGUI::Widget* widget);
 
         MessageBoxManager& mMessageBoxManager;
-        MyGUI::EditBox* mMessageWidget;
-        MyGUI::Widget* mButtonsWidget;
+        MyGUI::EditBox* mMessageWidget{};
+        MyGUI::Widget* mButtonsWidget{};
         std::vector<MyGUI::Button*> mButtons;
 
         int mButtonPressed;

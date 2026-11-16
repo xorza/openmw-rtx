@@ -49,13 +49,13 @@ namespace ESM4
     struct Colour
     {
         ESM::FormId mId; // from the header
-        std::uint32_t mFlags; // from the header, see enum type RecordFlag for details
+        std::uint32_t mFlags{}; // from the header, see enum type RecordFlag for details
 
         std::string mEditorId;
         std::string mFullName;
 
-        ColourRGB mColour;
-        std::uint32_t mPlayable;
+        ColourRGB mColour{};
+        std::uint32_t mPlayable{};
 
         void load(ESM4::Reader& reader);
         // void save(ESM4::Writer& writer) const;

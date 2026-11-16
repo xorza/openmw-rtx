@@ -20,9 +20,9 @@ namespace MWGui
         EventHandle_Void eventCancelClicked;
 
     private:
-        MyGUI::EditBox* mMessage;
-        MyGUI::Button* mOkButton;
-        MyGUI::Button* mCancelButton;
+        MyGUI::EditBox* mMessage{};
+        MyGUI::Button* mOkButton{};
+        MyGUI::Button* mCancelButton{};
 
         void onCancelButtonClicked(MyGUI::Widget* sender);
         void onOkButtonClicked(MyGUI::Widget* sender);

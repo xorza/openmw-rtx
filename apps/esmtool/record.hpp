@@ -23,7 +23,7 @@ namespace EsmTool
     protected:
         std::string mId;
         uint32_t mFlags;
-        ESM::NAME mType;
+        ESM::NAME mType{};
         bool mPrintPlain;
 
     public:

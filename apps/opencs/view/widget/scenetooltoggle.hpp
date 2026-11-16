@@ -23,10 +23,10 @@ namespace CSVWidget
 
         struct ButtonDesc
         {
-            unsigned int mMask;
+            unsigned int mMask{};
             std::string mSmallIcon;
             QString mName;
-            int mIndex;
+            int mIndex{};
         };
 
         std::string mEmptyIcon;

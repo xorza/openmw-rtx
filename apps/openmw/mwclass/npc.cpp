@@ -268,7 +268,7 @@ namespace MWClass
     const Npc::GMST& Npc::getGmst()
     {
         static const GMST staticGmst = [] {
-            GMST gmst;
+            GMST gmst{};
 
             const MWWorld::Store<ESM::GameSetting>& store
                 = MWBase::Environment::get().getESMStore()->get<ESM::GameSetting>();

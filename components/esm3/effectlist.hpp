@@ -23,8 +23,8 @@ namespace ESM
         ESM::RefId mSkill, mAttribute; // EmptyRefId if N/A
 
         // Other spell parameters
-        int32_t mRange; // 0 - self, 1 - touch, 2 - target (RangeType enum)
-        int32_t mArea, mDuration, mMagnMin, mMagnMax;
+        int32_t mRange{}; // 0 - self, 1 - touch, 2 - target (RangeType enum)
+        int32_t mArea{}, mDuration{}, mMagnMin{}, mMagnMax{};
     };
 
     struct IndexedENAMstruct
@@ -32,7 +32,7 @@ namespace ESM
         bool operator!=(const IndexedENAMstruct& rhs) const;
         bool operator==(const IndexedENAMstruct& rhs) const { return !(this->operator!=(rhs)); }
         ENAMstruct mData;
-        uint32_t mIndex;
+        uint32_t mIndex{};
     };
 
     /// EffectList, ENAM subrecord

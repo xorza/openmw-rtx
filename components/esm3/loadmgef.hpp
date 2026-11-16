@@ -25,7 +25,7 @@ namespace ESM
         /// Return a string descriptor for this record type. Currently used for debugging / error logs only.
         static std::string_view getRecordType() { return "MagicEffect"; }
 
-        uint32_t mRecordFlags;
+        uint32_t mRecordFlags{};
         RefId mId;
 
         enum Flags
@@ -73,14 +73,14 @@ namespace ESM
         struct MEDTstruct
         {
             RefId mSchool; // Skill id
-            float mBaseCost;
-            int32_t mFlags;
+            float mBaseCost{};
+            int32_t mFlags{};
             // Glow color for enchanted items with this effect
-            int32_t mRed, mGreen, mBlue;
+            int32_t mRed{}, mGreen{}, mBlue{};
 
-            float mUnknown1; // Called "Size X" in CS
-            float mSpeed; // Speed of fired projectile
-            float mUnknown2; // Called "Size Cap" in CS
+            float mUnknown1{}; // Called "Size X" in CS
+            float mSpeed{}; // Speed of fired projectile
+            float mUnknown2{}; // Called "Size Cap" in CS
         }; // 36 bytes
 
         /// Returns the effect that provides resistance against \a effect (or empty RefId if there's none)

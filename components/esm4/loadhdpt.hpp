@@ -42,15 +42,15 @@ namespace ESM4
     struct HeadPart
     {
         ESM::FormId mId; // from the header
-        std::uint32_t mFlags; // from the header, see enum type RecordFlag for details
-        std::uint64_t mExtraFlags2;
+        std::uint32_t mFlags{}; // from the header, see enum type RecordFlag for details
+        std::uint64_t mExtraFlags2{};
 
         std::string mEditorId;
         std::string mFullName;
         ESM::Path mModel;
 
-        std::uint8_t mData;
-        std::uint32_t mType;
+        std::uint8_t mData{};
+        std::uint32_t mType{};
 
         enum Type : std::uint32_t
         {

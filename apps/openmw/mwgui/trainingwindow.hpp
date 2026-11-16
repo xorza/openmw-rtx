@@ -45,9 +45,9 @@ namespace MWGui
         // otherwise returns the modified skill
         float getSkillForTraining(const MWMechanics::NpcStats& stats, ESM::RefId id) const;
 
-        MyGUI::Widget* mTrainingOptions;
-        MyGUI::Button* mCancelButton;
-        MyGUI::TextBox* mPlayerGold;
+        MyGUI::Widget* mTrainingOptions{};
+        MyGUI::Button* mCancelButton{};
+        MyGUI::TextBox* mPlayerGold{};
         std::vector<MyGUI::Button*> mTrainingButtons;
 
         WaitDialogProgressBar mProgressBar;

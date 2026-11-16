@@ -34,7 +34,7 @@ namespace MWGui
         SortFilterItemModel* getSortModel() { return mSortModel; }
 
     private:
-        ItemView* mItemView;
+        ItemView* mItemView{};
         SortFilterItemModel* mSortModel;
 
         void onSelectedItem(int index);

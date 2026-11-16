@@ -39,8 +39,8 @@ namespace
         std::filesystem::path addfile;
         std::filesystem::path outdir;
 
-        bool longformat;
-        bool fullpath;
+        bool longformat{};
+        bool fullpath{};
     };
 
     bool parseOptions(int argc, char** argv, Arguments& info)

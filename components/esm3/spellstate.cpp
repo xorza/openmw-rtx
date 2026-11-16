@@ -58,7 +58,7 @@ namespace ESM
                 if (!esm.isNextSub("EFID"))
                     break;
 
-                PermanentSpellEffectInfo info;
+                PermanentSpellEffectInfo info{};
                 esm.getHT(info.mId);
                 if (esm.isNextSub("BASE"))
                 {
@@ -79,7 +79,7 @@ namespace ESM
         {
             ESM::RefId id = esm.getRefId();
 
-            CorprusStats stats;
+            CorprusStats stats{};
             esm.getHNT(stats.mWorsenings, "WORS");
             stats.mNextWorsening.load(esm);
 

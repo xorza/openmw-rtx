@@ -216,7 +216,7 @@ namespace LuaUtil
 
         struct Handler
         {
-            int mScriptId;
+            int mScriptId{};
             sol::main_function mFn;
         };
 
@@ -279,9 +279,9 @@ namespace LuaUtil
         };
         struct Timer
         {
-            double mTime;
-            bool mSerializable;
-            int mScriptId;
+            double mTime{};
+            bool mSerializable{};
+            int mScriptId{};
             std::variant<std::string, int64_t> mCallback; // string if serializable, integer otherwise
             sol::main_object mArg;
             std::string mSerializedArg;

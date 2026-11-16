@@ -53,7 +53,7 @@ namespace Fx
         struct Choice
         {
             std::string mLabel;
-            T mValue;
+            T mValue{};
         };
 
         template <class T>

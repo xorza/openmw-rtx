@@ -75,7 +75,7 @@ namespace CSVRender
         CSMDoc::Document& mDocument;
         unsigned int mInteractionMask;
         CSVWidget::SceneToolMode* mEditMode;
-        CSVWidget::SceneToolMode* mCameraMode;
+        CSVWidget::SceneToolMode* mCameraMode{};
         bool mLocked;
         int mDragMode;
         bool mDragging;

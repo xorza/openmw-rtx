@@ -19,7 +19,7 @@ namespace ESM
 
         std::vector<std::string> mContentFiles;
         std::string mPlayerName;
-        int32_t mPlayerLevel;
+        int32_t mPlayerLevel{};
 
         // ID of class
         ESM::RefId mPlayerClassId;
@@ -28,8 +28,8 @@ namespace ESM
         std::string mPlayerClassName;
         // Name of the cell. Note that this is not an ID.
         std::string mPlayerCellName;
-        EpochTimeStamp mInGameTime;
-        double mTimePlayed;
+        EpochTimeStamp mInGameTime{};
+        double mTimePlayed{};
         std::string mDescription;
         std::vector<char> mScreenshot; // raw jpg-encoded data
 

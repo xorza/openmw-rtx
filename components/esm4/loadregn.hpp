@@ -70,19 +70,19 @@ namespace ESM4
 #pragma pack(pop)
 
         ESM::FormId mId; // from the header
-        std::uint32_t mFlags; // from the header, see enum type RecordFlag for details
+        std::uint32_t mFlags{}; // from the header, see enum type RecordFlag for details
 
         std::string mEditorId;
-        std::uint32_t mColour; // RGBA
+        std::uint32_t mColour{}; // RGBA
         ESM::FormId mWorldId; // worldspace formid
 
         std::string mShader; //?? ICON
         std::string mMapName;
 
-        std::uint32_t mEdgeFalloff;
+        std::uint32_t mEdgeFalloff{};
         std::vector<std::uint32_t> mRPLD; // unknown, point data?
 
-        RegionData mData;
+        RegionData mData{};
         std::vector<RegionSound> mSounds;
 
         void load(ESM4::Reader& reader);

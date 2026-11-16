@@ -17,10 +17,10 @@ namespace MWSound
 {
     struct WaterSoundUpdaterSettings
     {
-        int mNearWaterRadius;
-        int mNearWaterPoints;
-        float mNearWaterIndoorTolerance;
-        float mNearWaterOutdoorTolerance;
+        int mNearWaterRadius{};
+        int mNearWaterPoints{};
+        float mNearWaterIndoorTolerance{};
+        float mNearWaterOutdoorTolerance{};
         ESM::RefId mNearWaterIndoorID;
         ESM::RefId mNearWaterOutdoorID;
     };
@@ -28,7 +28,7 @@ namespace MWSound
     struct WaterSoundUpdate
     {
         ESM::RefId mId;
-        float mVolume;
+        float mVolume{};
     };
 
     class WaterSoundUpdater

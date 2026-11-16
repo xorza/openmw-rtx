@@ -52,7 +52,7 @@ namespace ESM4
     struct TalkingActivator
     {
         ESM::FormId mId; // from the header
-        std::uint32_t mFlags; // from the header, see above for details
+        std::uint32_t mFlags{}; // from the header, see above for details
 
         std::string mEditorId;
         std::string mFullName;

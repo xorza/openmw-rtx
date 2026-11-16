@@ -49,15 +49,15 @@ namespace ESM4
         };
 
         ESM::FormId mId; // from the header
-        std::uint32_t mFlags; // from the header, see enum type RecordFlag for details
+        std::uint32_t mFlags{}; // from the header, see enum type RecordFlag for details
 
         std::string mEditorId;
         std::string mFullName;
         ESM::Path mModel;
 
-        float mBoundRadius;
+        float mBoundRadius{};
 
-        std::uint8_t mDoorFlags;
+        std::uint8_t mDoorFlags{};
         ESM::FormId mScriptId;
         ESM::FormId mOpenSound; // SNDR for TES5, SOUN for others
         ESM::FormId mCloseSound; // SNDR for TES5, SOUN for others

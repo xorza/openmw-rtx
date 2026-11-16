@@ -17,13 +17,13 @@ namespace Rtx
 
         struct Frame
         {
-            bool mResetBefore;
+            bool mResetBefore{};
             TemporalFlags mRuns;
-            std::size_t mBefore;
-            std::size_t mNow;
+            std::size_t mBefore{};
+            std::size_t mNow{};
             TemporalFlags mFresh;
-            std::uint32_t mNumber;
-            std::uint32_t mWrittenBefore;
+            std::uint32_t mNumber{};
+            std::uint32_t mWrittenBefore{};
         };
 
         /// **The accumulator runs through a frame with no bounce, which writes it no fill**: the frame

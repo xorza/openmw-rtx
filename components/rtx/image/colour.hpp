@@ -68,12 +68,12 @@ namespace Rtx
 
         static constexpr std::size_t sBuckets = 4096;
 
-        std::array<float, 256> mLinear;
+        std::array<float, 256> mLinear{};
 
         /// The least float that encodes to each byte, and past the last an infinity no value reaches; and
         /// the byte each of `sBuckets` even steps of the unit range starts at.
-        std::array<float, 257> mLeast;
-        std::array<std::uint8_t, sBuckets> mBucket;
+        std::array<float, 257> mLeast{};
+        std::array<std::uint8_t, sBuckets> mBucket{};
     };
 
     /// `DisplayCurve::toLinear`, for a caller outside a loop.

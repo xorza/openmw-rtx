@@ -47,11 +47,11 @@ namespace ESM
             uint16_t mValue;
             uint16_t mEnchant;
         };
-        CTDTstruct mData;
+        CTDTstruct mData{};
 
         PartReferenceList mParts;
 
-        uint32_t mRecordFlags;
+        uint32_t mRecordFlags{};
         RefId mId, mEnchant, mScript;
         Path mModel;
         Path mIcon;

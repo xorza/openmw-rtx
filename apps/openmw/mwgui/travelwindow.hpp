@@ -21,12 +21,12 @@ namespace MWGui
         std::string_view getWindowIdForLua() const override { return "Travel"; }
 
     protected:
-        MyGUI::Button* mCancelButton;
-        MyGUI::TextBox* mPlayerGold;
+        MyGUI::Button* mCancelButton{};
+        MyGUI::TextBox* mPlayerGold{};
 
         std::vector<MyGUI::Button*> mDestinationButtons;
 
-        MyGUI::ScrollView* mDestinationsView;
+        MyGUI::ScrollView* mDestinationsView{};
 
         void onCancelButtonClicked(MyGUI::Widget* sender);
         void onTravelButtonClick(MyGUI::Widget* sender);

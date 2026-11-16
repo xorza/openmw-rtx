@@ -25,7 +25,7 @@ namespace ESM
         static std::string_view getRecordType() { return "LandTexture"; }
 
         RefId mId;
-        uint32_t mIndex;
+        uint32_t mIndex{};
         Path mTexture;
 
         void load(ESMReader& esm, bool& isDeleted);

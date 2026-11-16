@@ -73,7 +73,7 @@ namespace ESM
         mSkillIncrease.clear();
         if (esm.getFormatVersion() <= MaxFixedStatsFormatVersion)
         {
-            std::array<int32_t, ESM::Attribute::Length> increases;
+            std::array<int32_t, ESM::Attribute::Length> increases{};
             if (esm.getHNOT("INCR", increases))
             {
                 for (int i = 0; i < ESM::Attribute::Length; ++i)

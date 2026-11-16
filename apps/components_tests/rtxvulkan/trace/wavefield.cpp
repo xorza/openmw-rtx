@@ -73,8 +73,8 @@ namespace Rtx
         struct Sampled
         {
             osg::Vec2f mSlope;
-            float mSlopeSquared;
-            float mHeightSquared;
+            float mSlopeSquared{};
+            float mHeightSquared{};
 
             osg::Vec3f mCurve;
         };

@@ -177,7 +177,7 @@ namespace Nif
             values.reserve(count);
             for (Count i = 0; i < count; ++i)
             {
-                T value;
+                T value{};
                 read(*this, value);
                 values.push_back(std::move(value));
             }

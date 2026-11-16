@@ -46,21 +46,21 @@ namespace MWGui
 
         std::unique_ptr<ItemSelectionDialog> mItemSelectionDialog;
 
-        ItemView* mItemView;
+        ItemView* mItemView{};
         InventoryItemModel* mModel;
         SortFilterItemModel* mSortModel;
 
-        MyGUI::Button* mCreateButton;
-        MyGUI::Button* mCancelButton;
+        MyGUI::Button* mCreateButton{};
+        MyGUI::Button* mCancelButton{};
 
-        MyGUI::Widget* mEffectsBox;
+        MyGUI::Widget* mEffectsBox{};
 
-        MyGUI::Button* mIncreaseButton;
-        MyGUI::Button* mDecreaseButton;
-        Gui::AutoSizedButton* mFilterType;
-        MyGUI::ComboBox* mFilterValue;
-        MyGUI::EditBox* mNameEdit;
-        Gui::NumericEditBox* mBrewCountEdit;
+        MyGUI::Button* mIncreaseButton{};
+        MyGUI::Button* mDecreaseButton{};
+        Gui::AutoSizedButton* mFilterType{};
+        MyGUI::ComboBox* mFilterValue{};
+        MyGUI::EditBox* mNameEdit{};
+        Gui::NumericEditBox* mBrewCountEdit{};
 
         void onCancelButtonClicked(MyGUI::Widget* sender);
         void onCreateButtonClicked(MyGUI::Widget* sender);

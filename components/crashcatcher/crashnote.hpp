@@ -50,7 +50,7 @@ namespace Crash
         std::size_t mCount = 0;
 
         /// `mThread`'s first, then the rest in the table's order.
-        NoteCopy mNotes[sNoteThreads];
+        NoteCopy mNotes[sNoteThreads]{};
     };
 
     /// One thread's slot in the table, the note's file's own.
@@ -93,7 +93,7 @@ namespace Crash
         /// The slot the note went into, or null where the thread holds none.
         NoteSlot* mSlot = nullptr;
         std::size_t mFoundLength = 0;
-        char mFound[sNoteCapacity];
+        char mFound[sNoteCapacity]{};
     };
 
     /// What the calling thread's note says now — the path `NoteScope`s made, `outer > inner` — or

@@ -577,7 +577,7 @@ namespace ESM
                 .mServices = 5,
             };
 
-            AIData result;
+            AIData result{};
             saveAndLoadRecord(record, GetParam(), result);
 
             EXPECT_EQ(result.mHello, record.mHello);

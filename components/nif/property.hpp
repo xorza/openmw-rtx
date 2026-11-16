@@ -24,8 +24,8 @@ namespace Nif
 
         osg::Vec2f mOffset;
         osg::Vec2f mScale;
-        float mRotation;
-        Method mTransformMethod;
+        float mRotation{};
+        Method mTransformMethod{};
         osg::Vec2f mOrigin;
 
         void read(NIFStream* nif);
@@ -56,13 +56,13 @@ namespace Nif
         // A sub-texture
         struct Texture
         {
-            bool mEnabled;
+            bool mEnabled{};
             NiSourceTexturePtr mSourceTexture;
-            uint32_t mClamp;
-            uint32_t mFilter;
-            uint16_t mMaxAnisotropy;
-            uint32_t mUVSet;
-            bool mHasTransform;
+            uint32_t mClamp{};
+            uint32_t mFilter{};
+            uint16_t mMaxAnisotropy{};
+            uint32_t mUVSet{};
+            bool mHasTransform{};
             NiTextureTransform mTransform;
 
             void read(NIFStream* nif);
@@ -81,7 +81,7 @@ namespace Nif
 
         osg::Vec2f mEnvMapLumaBias;
         osg::Vec4f mBumpMapMatrix;
-        float mParallaxOffset;
+        float mParallaxOffset{};
 
         void read(NIFStream* nif) override;
         void post(Reader& nif) override;
@@ -197,7 +197,7 @@ namespace Nif
     struct SkyShaderProperty : BSShaderLightingProperty
     {
         std::string mFilename;
-        SkyObjectType mSkyObjectType;
+        SkyObjectType mSkyObjectType{};
 
         void read(NIFStream* nif) override;
     };
@@ -277,10 +277,10 @@ namespace Nif
 
     struct BSSPMLParallaxParams
     {
-        float mInnerLayerThickness;
-        float mRefractionScale;
+        float mInnerLayerThickness{};
+        float mRefractionScale{};
         osg::Vec2f mInnerLayerTextureScale;
-        float mEnvMapScale;
+        float mEnvMapScale{};
 
         void read(NIFStream* nif);
     };
@@ -288,10 +288,10 @@ namespace Nif
     struct BSSPTranslucencyParams
     {
         osg::Vec3f mSubsurfaceColor;
-        float mTransmissiveScale;
-        float mTurbulence;
-        bool mThickObject;
-        bool mMixAlbedo;
+        float mTransmissiveScale{};
+        float mTurbulence{};
+        bool mThickObject{};
+        bool mMixAlbedo{};
 
         void read(NIFStream* nif);
     };
@@ -304,25 +304,25 @@ namespace Nif
         std::string mRootMaterial;
         uint32_t mClamp{ 3 };
         float mAlpha{ 1.f };
-        float mRefractionStrength;
+        float mRefractionStrength{};
         float mGlossiness{ 80.f };
         float mSmoothness{ 1.f };
         osg::Vec3f mSpecular;
         float mSpecStrength{ 1.f };
-        std::array<float, 2> mLightingEffects;
-        float mSubsurfaceRolloff;
-        float mRimlightPower;
-        float mBacklightPower;
+        std::array<float, 2> mLightingEffects{};
+        float mSubsurfaceRolloff{};
+        float mRimlightPower{};
+        float mBacklightPower{};
         float mGrayscaleToPaletteScale{ 1.f };
         float mFresnelPower{ 5.f };
-        BSSPWetnessParams mWetness;
+        BSSPWetnessParams mWetness{};
         bool mDoTranslucency{ false };
         BSSPTranslucencyParams mTranslucency;
         std::vector<std::vector<std::string>> mTextureArrays;
-        BSSPLuminanceParams mLuminance;
+        BSSPLuminanceParams mLuminance{};
 
-        bool mUseSSR;
-        bool mWetnessUseSSR;
+        bool mUseSSR{};
+        bool mWetnessUseSSR{};
 
         osg::Vec3f mSkinTintColor;
         float mSkinTintAlpha{ 1.f };
@@ -332,7 +332,7 @@ namespace Nif
         BSSPMLParallaxParams mMultiLayerParallax;
         osg::Vec4f mSparkle;
 
-        float mCubeMapScale;
+        float mCubeMapScale{};
         osg::Vec3f mLeftEyeReflectionCenter;
         osg::Vec3f mRightEyeReflectionCenter;
 
@@ -349,24 +349,24 @@ namespace Nif
     struct BSEffectShaderProperty : BSShaderProperty
     {
         std::string mSourceTexture;
-        uint8_t mClamp;
-        uint8_t mLightingInfluence;
-        uint8_t mEnvMapMinLOD;
+        uint8_t mClamp{};
+        uint8_t mLightingInfluence{};
+        uint8_t mEnvMapMinLOD{};
         osg::Vec4f mFalloffParams;
-        float mRefractionPower;
+        float mRefractionPower{};
         osg::Vec4f mBaseColor;
-        float mBaseColorScale;
-        float mFalloffDepth;
+        float mBaseColorScale{};
+        float mFalloffDepth{};
         std::string mGreyscaleTexture;
         std::string mEnvMapTexture;
         std::string mNormalTexture;
         std::string mEnvMaskTexture;
-        float mEnvMapScale;
+        float mEnvMapScale{};
         std::string mReflectanceTexture;
         std::string mLightingTexture;
         osg::Vec3f mEmittanceColor;
         std::string mEmitGradientTexture;
-        BSSPLuminanceParams mLuminance;
+        BSSPLuminanceParams mLuminance{};
 
         void read(NIFStream* nif) override;
 
@@ -382,7 +382,7 @@ namespace Nif
     struct BSSkyShaderProperty : BSShaderProperty
     {
         std::string mFilename;
-        SkyObjectType mSkyObjectType;
+        SkyObjectType mSkyObjectType{};
 
         void read(NIFStream* nif) override;
     };
@@ -407,7 +407,7 @@ namespace Nif
             Flag_CubeMap = 0x2000,
         };
 
-        uint32_t mFlags;
+        uint32_t mFlags{};
 
         void read(NIFStream* nif) override;
     };
@@ -421,8 +421,8 @@ namespace Nif
             Flag_NoSorter = 0x2000,
         };
 
-        uint16_t mFlags;
-        uint8_t mThreshold;
+        uint16_t mFlags{};
+        uint8_t mThreshold{};
 
         void read(NIFStream* nif) override;
 
@@ -465,7 +465,7 @@ namespace Nif
 
     struct NiDitherProperty : NiProperty
     {
-        uint16_t mFlags;
+        uint16_t mFlags{};
 
         void read(NIFStream* nif) override;
     };
@@ -479,8 +479,8 @@ namespace Nif
             VertexAlpha = 0x10,
         };
 
-        uint16_t mFlags;
-        float mFogDepth;
+        uint16_t mFlags{};
+        float mFogDepth{};
         osg::Vec3f mColour;
 
         void read(NIFStream* nif) override;
@@ -506,7 +506,7 @@ namespace Nif
 
     struct NiSpecularProperty : NiProperty
     {
-        bool mEnable;
+        bool mEnable{};
 
         void read(NIFStream* nif) override;
     };
@@ -544,14 +544,14 @@ namespace Nif
         };
 
         uint16_t mFlags{ 0u };
-        bool mEnabled;
-        TestFunc mTestFunction;
-        uint32_t mStencilRef;
-        uint32_t mStencilMask;
-        Action mFailAction;
-        Action mZFailAction;
-        Action mPassAction;
-        DrawMode mDrawMode;
+        bool mEnabled{};
+        TestFunc mTestFunction{};
+        uint32_t mStencilRef{};
+        uint32_t mStencilMask{};
+        Action mFailAction{};
+        Action mZFailAction{};
+        Action mPassAction{};
+        DrawMode mDrawMode{};
 
         void read(NIFStream* nif) override;
     };
@@ -571,24 +571,24 @@ namespace Nif
             LightMode_EmiAmbDif = 1
         };
 
-        uint16_t mFlags;
-        VertexMode mVertexMode;
-        LightMode mLightingMode;
+        uint16_t mFlags{};
+        VertexMode mVertexMode{};
+        LightMode mLightingMode{};
 
         void read(NIFStream* nif) override;
     };
 
     struct NiWireframeProperty : NiProperty
     {
-        bool mEnable;
+        bool mEnable{};
 
         void read(NIFStream* nif) override;
     };
 
     struct NiZBufferProperty : NiProperty
     {
-        uint16_t mFlags;
-        uint32_t mTestFunction;
+        uint16_t mFlags{};
+        uint32_t mTestFunction{};
 
         void read(NIFStream* nif) override;
 

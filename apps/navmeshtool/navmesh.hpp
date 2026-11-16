@@ -39,13 +39,13 @@ namespace NavMeshTool
 
     struct GenerateTilesResult
     {
-        Status mStatus;
-        std::size_t mProvided;
+        Status mStatus{};
+        std::size_t mProvided{};
 
         /// Tiles the store held, tiles written to it, and writes that failed, which the store logged.
-        std::size_t mFound;
-        std::size_t mWritten;
-        std::size_t mUnwritten;
+        std::size_t mFound{};
+        std::size_t mWritten{};
+        std::size_t mUnwritten{};
         GenerateTilesStats mStats;
     };
 

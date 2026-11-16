@@ -23,15 +23,15 @@ namespace ESM
 
     struct LevelledListBase
     {
-        int32_t mFlags;
-        unsigned char mChanceNone; // Chance that none are selected (0-100)
-        uint32_t mRecordFlags;
+        int32_t mFlags{};
+        unsigned char mChanceNone{}; // Chance that none are selected (0-100)
+        uint32_t mRecordFlags{};
         RefId mId;
 
         struct LevelItem
         {
             RefId mId;
-            uint16_t mLevel;
+            uint16_t mLevel{};
         };
 
         std::vector<LevelItem> mList;

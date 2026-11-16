@@ -59,7 +59,7 @@ namespace Rtx
             const osg::Image& mPartner;
 
             /// `TextureEncoding::ConvertedColour` or `TextureEncoding::ConvertedSpecular`.
-            TextureEncoding mEncoding;
+            TextureEncoding mEncoding{};
 
             TextureWrap mWrap = TextureWrap::Repeat;
         };

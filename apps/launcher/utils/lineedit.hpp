@@ -31,7 +31,7 @@ private slots:
     void updateClearButton(const QString& text);
 
 protected:
-    QToolButton* mClearButton;
+    QToolButton* mClearButton{};
 
     void setupClearButton();
 };

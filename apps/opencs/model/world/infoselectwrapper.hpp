@@ -69,9 +69,9 @@ namespace CSMWorld
         template <typename Type1, typename Type2>
         bool conditionIsNeverTrue(std::pair<Type1, Type1> conditionRange, std::pair<Type2, Type2> validRange) const;
 
-        ComparisonType mComparisonType;
+        ComparisonType mComparisonType{};
 
-        bool mHasVariable;
+        bool mHasVariable{};
 
     private:
         const ESM::DialogueCondition& mConstSelect;

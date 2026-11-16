@@ -52,6 +52,8 @@ namespace ESM
 
     enum AiPackageType : std::uint32_t
     {
+        /// A package not read yet, which no file holds.
+        AI_None = 0,
         AI_Wander = 0x575f4941,
         AI_Travel = 0x545f4941,
         AI_Follow = 0x465f4941,
@@ -65,12 +67,12 @@ namespace ESM
     /// w/o manual memory allocation accordingly to policy standards
     struct AIPackage
     {
-        AiPackageType mType;
+        AiPackageType mType{};
 
         // Anonymous union
         union
         {
-            AIWander mWander;
+            AIWander mWander{};
             AITravel mTravel;
             AITarget mTarget;
             AIActivate mActivate;

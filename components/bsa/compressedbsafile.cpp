@@ -69,10 +69,10 @@ namespace Bsa
 
         struct FlatFolderRecord
         {
-            std::uint64_t mHash;
+            std::uint64_t mHash{};
             std::string mName;
-            std::uint32_t mCount;
-            std::int64_t mOffset;
+            std::uint32_t mCount{};
+            std::int64_t mOffset{};
         };
 
         std::vector<std::pair<FlatFolderRecord, std::vector<FileRecord>>> folders;

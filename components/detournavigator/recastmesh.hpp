@@ -80,14 +80,14 @@ namespace DetourNavigator
     struct Heightfield
     {
         osg::Vec2i mCellPosition;
-        int mCellSize;
-        std::uint8_t mLength;
-        float mMinHeight;
-        float mMaxHeight;
+        int mCellSize{};
+        std::uint8_t mLength{};
+        float mMinHeight{};
+        float mMaxHeight{};
         std::vector<float> mHeights;
-        std::size_t mOriginalSize;
-        std::uint8_t mMinX;
-        std::uint8_t mMinY;
+        std::size_t mOriginalSize{};
+        std::uint8_t mMinX{};
+        std::uint8_t mMinY{};
     };
 
     inline auto makeTuple(const Heightfield& v) noexcept
@@ -104,8 +104,8 @@ namespace DetourNavigator
     struct FlatHeightfield
     {
         osg::Vec2i mCellPosition;
-        int mCellSize;
-        float mHeight;
+        int mCellSize{};
+        float mHeight{};
     };
 
     inline bool operator<(const FlatHeightfield& lhs, const FlatHeightfield& rhs) noexcept

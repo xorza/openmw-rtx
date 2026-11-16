@@ -33,7 +33,7 @@ namespace CSVWorld
 
     struct Icon
     {
-        int mValue;
+        int mValue{};
         QIcon mIcon;
         QString mName;
     };

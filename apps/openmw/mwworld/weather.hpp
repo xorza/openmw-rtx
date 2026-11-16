@@ -100,54 +100,54 @@ namespace MWWorld
 
         osg::Vec3f mStormDirection;
         osg::Vec3f mStormParticleRotation;
-        int mScriptId;
+        int mScriptId{};
 
         // Used by scripts to animate signs, etc based on the wind (GetWindSpeed)
-        float mWindSpeed;
+        float mWindSpeed{};
 
         // Cloud animation speed multiplier
-        float mCloudSpeed;
+        float mCloudSpeed{};
 
         // Value between 0 and 1, defines the strength of the sun glare effect.
         // Also appears to modify how visible the sun, moons, and stars are for various weather effects.
-        float mGlareView;
+        float mGlareView{};
 
         // Fog factor and offset used with distant land rendering.
         struct
         {
             float FogFactor;
             float FogOffset;
-        } mDL;
+        } mDL{};
 
         // How fast does rain travel down?
         // In Morrowind.ini this is set globally, but we may want to change it per weather later.
-        float mRainSpeed;
+        float mRainSpeed{};
 
         // How often does a new rain mesh spawn?
-        float mRainEntranceSpeed;
+        float mRainEntranceSpeed{};
 
         // Maximum count of rain particles
-        int mRainMaxRaindrops;
+        int mRainMaxRaindrops{};
 
         // Radius of rain effect
-        float mRainDiameter;
+        float mRainDiameter{};
 
         // Transition threshold to spawn rain
-        float mRainThreshold;
+        float mRainThreshold{};
 
         // Height of rain particles spawn
-        float mRainMinHeight;
-        float mRainMaxHeight;
+        float mRainMinHeight{};
+        float mRainMaxHeight{};
 
-        float mCloudsMaximumPercent;
-        float mTransitionDelta;
+        float mCloudsMaximumPercent{};
+        float mTransitionDelta{};
 
         // Note: In MW, only thunderstorms support these attributes, but in the interest of making weather more
         // flexible, these settings are imported for all weather types. Only thunderstorms will normally have any
         // non-zero values.
-        float mThunderFrequency;
-        float mThunderThreshold;
-        float mFlashDecrement;
+        float mThunderFrequency{};
+        float mThunderThreshold{};
+        float mFlashDecrement{};
 
         // Note: For Weather Blight, there is a "Disease Chance" (=0.1) setting. But according to MWSFD this feature
         // is broken in the vanilla game and was disabled.
@@ -160,7 +160,7 @@ namespace MWWorld
         void blank();
 
     private:
-        float mFlashBrightness;
+        float mFlashBrightness{};
 
         void flashDecrement(const float elapsedSeconds);
         float thunderChance(const float transitionRatio, const float elapsedSeconds) const;
@@ -172,10 +172,10 @@ namespace MWWorld
         // - Characters will animate their hand to protect eyes from the storm when looking in its direction (idlestorm
         // animation)
         // - Slower movement when walking against the storm (fStromWalkMult)
-        bool mIsStorm;
-        bool mRipplesEnabled;
-        bool mUseTorches;
-        bool mOcclusionEnabled;
+        bool mIsStorm{};
+        bool mRipplesEnabled{};
+        bool mUseTorches{};
+        bool mOcclusionEnabled{};
     };
 
     /// The wind's speed a frame on from `currentSpeed` under `weather`: a step drawn from `prng` either way, kept where
@@ -251,7 +251,7 @@ namespace MWWorld
         float mFadeOutFinish;
         float mAxisOffset;
         float mSpeed;
-        float mDegreesPerHour;
+        float mDegreesPerHour{};
         float mDailyIncrement;
         float mFadeStartAngle;
         float mFadeEndAngle;

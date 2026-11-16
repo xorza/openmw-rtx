@@ -104,7 +104,7 @@ namespace Platform::Process
     std::optional<float> hugePageShare()
     {
         // The rollup is some twenty short lines.
-        std::array<char, 4096> buffer;
+        std::array<char, 4096> buffer{};
         const std::optional<std::string_view> rollup = KernelFile::read("/proc/self/smaps_rollup", buffer);
         if (!rollup.has_value())
             return std::nullopt;
@@ -114,7 +114,7 @@ namespace Platform::Process
     std::optional<std::uint64_t> compactionStalls()
     {
         // The counters are some hundred and fifty short lines.
-        std::array<char, 16384> buffer;
+        std::array<char, 16384> buffer{};
         const std::optional<std::string_view> vmstat = KernelFile::read("/proc/vmstat", buffer);
         if (!vmstat.has_value())
             return std::nullopt;
@@ -126,7 +126,7 @@ namespace Platform::Process
         // The kernel lists each core type apart only on a hybrid part, which is the one case there is
         // a choice to make. Sysfs writes less than a page, and 64 KiB is the largest page x86-64 and
         // arm64 have.
-        std::array<char, 65536> buffer;
+        std::array<char, 65536> buffer{};
         const std::optional<std::string_view> text = KernelFile::read("/sys/devices/cpu_core/cpus", buffer);
         if (!text.has_value())
             return 0;

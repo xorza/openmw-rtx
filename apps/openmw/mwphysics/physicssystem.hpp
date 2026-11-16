@@ -63,7 +63,7 @@ namespace MWPhysics
     {
         LOSRequest(const std::weak_ptr<Actor>& a1, const std::weak_ptr<Actor>& a2);
         std::array<std::weak_ptr<Actor>, 2> mActors;
-        std::array<const Actor*, 2> mRawActors;
+        std::array<const Actor*, 2> mRawActors{};
         bool mResult;
         bool mStale;
         int mAge;

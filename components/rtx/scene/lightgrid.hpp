@@ -140,9 +140,9 @@ namespace Rtx
         /// any enters, so two that trade places never crowd a run they are only passing through.
         struct Moved
         {
-            std::uint32_t mIndex;
+            std::uint32_t mIndex{};
             CellBox mFrom;
-            bool mTook;
+            bool mTook{};
         };
 
         /// Cleared and refilled by `rebuild`; never freed.

@@ -155,7 +155,7 @@ namespace ESM
             }
             if (mDataTypes & Land::DATA_VHGT)
             {
-                VHGT offsets;
+                VHGT offsets{};
                 offsets.mHeightOffset = mLandData->mHeights[0] / sHeightScale;
 
                 float prevY = mLandData->mHeights[0];
@@ -182,7 +182,7 @@ namespace ESM
             if (mDataTypes & Land::DATA_WNAM)
             {
                 // Generate WNAM record
-                std::array<std::int8_t, sGlobalMapLodSize> wnam;
+                std::array<std::int8_t, sGlobalMapLodSize> wnam{};
                 generateWnam(mLandData->mHeights, wnam);
                 esm.writeHNT("WNAM", wnam);
             }
@@ -313,7 +313,7 @@ namespace ESM
 
         if (reader.isNextSub("VHGT"))
         {
-            VHGT vhgt;
+            VHGT vhgt{};
             if (condLoad(reader, dataTypes, data.mDataLoaded, Land::DATA_VHGT, vhgt))
             {
                 data.mMinHeight = std::numeric_limits<float>::max();

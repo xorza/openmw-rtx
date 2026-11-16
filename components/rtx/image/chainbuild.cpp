@@ -106,7 +106,7 @@ namespace Rtx
         std::array<std::array<std::byte, 3>, 4> layDirections(const FourNormals& means)
         {
             const FourNormals directions = unitNormals(means);
-            std::array<std::array<std::byte, 3>, 4> laid;
+            std::array<std::array<std::byte, 3>, 4> laid{};
             for (std::size_t lane = 0; lane < 4; ++lane)
                 laid[lane] = { quantiseNormal(directions.mX[lane]), quantiseNormal(directions.mY[lane]),
                     quantiseNormal(directions.mZ[lane]) };
@@ -465,7 +465,7 @@ namespace Rtx
         struct Turned
         {
             osg::Vec3f mUnit;
-            std::array<std::byte, 3> mDirection;
+            std::array<std::byte, 3> mDirection{};
         };
         const auto turn = [](const FourNormals& decoded) {
             const FourNormals units = unitNormals(decoded);
@@ -575,7 +575,7 @@ namespace Rtx
     {
         initEncoders();
 
-        bc7enc_compress_block_params params;
+        bc7enc_compress_block_params params{};
         bc7enc_compress_block_params_init(&params);
         if (!isSrgb(bc7FormatOf(encoding)))
             bc7enc_compress_block_params_init_linear_weights(&params);

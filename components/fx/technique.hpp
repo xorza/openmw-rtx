@@ -276,20 +276,20 @@ namespace Fx
         std::string_view mVersion;
 
         std::unordered_set<std::string> mGLSLExtensions;
-        int mGLSLVersion;
+        int mGLSLVersion{};
         std::string mGLSLProfile;
 
-        FlagsType mFlags;
+        FlagsType mFlags{};
 
-        Status mStatus;
+        Status mStatus{};
 
-        bool mEnabled;
+        bool mEnabled{};
 
         std::filesystem::file_time_type mLastModificationTime;
-        bool mValid;
-        bool mHDR;
-        bool mNormals;
-        bool mLights;
+        bool mValid{};
+        bool mHDR{};
+        bool mNormals{};
+        bool mLights{};
         int mWidth;
         int mHeight;
 
@@ -301,7 +301,7 @@ namespace Fx
         std::unordered_map<std::string_view, std::shared_ptr<Pass>> mPassMap;
         std::vector<std::string_view> mPassKeys;
 
-        Pass::Type mLastAppliedType;
+        Pass::Type mLastAppliedType{};
 
         UniformMap mDefinedUniforms;
 

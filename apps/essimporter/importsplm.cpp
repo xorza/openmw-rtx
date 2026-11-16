@@ -17,7 +17,7 @@ namespace ESSImport
 
             while (esm.isNextSub("NPDT"))
             {
-                ActiveEffect effect;
+                ActiveEffect effect{};
                 esm.getHT(effect.mNPDT.mAffectedActorId.mData, effect.mNPDT.mUnknown, effect.mNPDT.mMagnitude,
                     effect.mNPDT.mSecondsActive, effect.mNPDT.mUnknown2);
 

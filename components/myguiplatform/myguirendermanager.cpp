@@ -215,7 +215,7 @@ namespace MyGUIPlatform
             // optional
             osg::ref_ptr<osg::StateSet> mStateSet;
 
-            size_t mVertexCount;
+            size_t mVertexCount{};
         };
 
         void addBatch(const Batch& batch) { mBatchVector[mWriteTo].push_back(batch); }
