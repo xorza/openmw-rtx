@@ -88,9 +88,10 @@ namespace Rtx
         {
             Testing::expectDies(
                 [] {
-                    std::fputs(Testing::getPipelineCacheSpec().mDirectory.empty() ? "a child keeps no cache\n"
-                                                                                  : "a child keeps a cache\n",
-                        stderr);
+                    static_cast<void>(
+                        std::fputs(Testing::getPipelineCacheSpec().mDirectory.empty() ? "a child keeps no cache\n"
+                                                                                      : "a child keeps a cache\n",
+                            stderr));
                     std::abort();
                 },
                 "a child keeps no cache");

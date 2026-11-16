@@ -44,7 +44,7 @@ namespace Crash
         [[noreturn]] void endBy(int signal)
         {
             prctl(PR_SET_DUMPABLE, 0);
-            std::signal(signal, SIG_DFL);
+            static_cast<void>(std::signal(signal, SIG_DFL));
             sigset_t raised;
             sigemptyset(&raised);
             sigaddset(&raised, signal);

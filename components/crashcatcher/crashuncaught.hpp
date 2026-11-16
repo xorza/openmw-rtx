@@ -11,7 +11,7 @@ namespace Crash
     /// install it.
     [[noreturn]] inline void abortUncaught(std::string_view reason)
     {
-        std::fprintf(stderr, "Fatal: %.*s\n", static_cast<int>(reason.size()), reason.data());
+        static_cast<void>(std::fprintf(stderr, "Fatal: %.*s\n", static_cast<int>(reason.size()), reason.data()));
         std::abort();
     }
 }

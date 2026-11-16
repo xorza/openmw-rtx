@@ -1459,9 +1459,9 @@ namespace MWScript
                     std::time_t currentTime = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
                     tm timeinfo{};
 #ifdef _WIN32
-                    gmtime_s(&timeinfo, &currentTime);
+                    static_cast<void>(gmtime_s(&timeinfo, &currentTime));
 #else
-                    gmtime_r(&currentTime, &timeinfo);
+                    static_cast<void>(gmtime_r(&currentTime, &timeinfo));
 #endif
                     msg << std::put_time(&timeinfo, "%Y.%m.%d %T UTC") << std::endl;
 

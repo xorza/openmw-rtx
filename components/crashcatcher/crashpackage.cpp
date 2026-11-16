@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <exception>
 #include <filesystem>
+#include <format>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -398,9 +399,8 @@ namespace Crash
     std::filesystem::path freePackagePath(
         const std::filesystem::path& folder, std::string_view application, const std::tm& local)
     {
-        char time[32];
-        std::strftime(time, sizeof(time), "%Y-%m-%d-%H%M%S", &local);
-        const std::string stem = std::string(application) + "-crash-" + time;
+        const std::string stem = std::format("{}-crash-{:04}-{:02}-{:02}-{:02}{:02}{:02}", application,
+            local.tm_year + 1900, local.tm_mon + 1, local.tm_mday, local.tm_hour, local.tm_min, local.tm_sec);
 
         std::filesystem::path path = folder / Files::pathFromUnicodeString(stem + ".zip");
         // A folder that cannot be looked in has the first name free, and the write then says why not.

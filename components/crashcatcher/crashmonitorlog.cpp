@@ -1,8 +1,8 @@
 #include "crashmonitorlog.hpp"
 
 #include <chrono>
-#include <cstdio>
 #include <ctime>
+#include <format>
 #include <system_error>
 #include <utility>
 
@@ -23,10 +23,8 @@ namespace Crash
             const std::tm local = Platform::localTime(std::chrono::system_clock::to_time_t(now)).value_or(std::tm{});
             const auto milliseconds
                 = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count() % 1000;
-            char text[32];
-            std::snprintf(text, sizeof(text), "[%02d:%02d:%02d.%03d E] ", local.tm_hour, local.tm_min, local.tm_sec,
+            return std::format("[{:02}:{:02}:{:02}.{:03} E] ", local.tm_hour, local.tm_min, local.tm_sec,
                 static_cast<int>(milliseconds));
-            return text;
         }
     }
 

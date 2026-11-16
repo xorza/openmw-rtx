@@ -80,28 +80,28 @@ namespace Debug
 
         if (AttachConsole(ATTACH_PARENT_PROCESS))
         {
-            fflush(stdout);
-            fflush(stderr);
+            static_cast<void>(fflush(stdout));
+            static_cast<void>(fflush(stderr));
             std::cout.flush();
             std::cerr.flush();
 
             // this looks dubious but is really the right way
             if (!inRedirected)
             {
-                _wfreopen(L"CON", L"r", stdin);
-                freopen("CON", "r", stdin);
+                static_cast<void>(_wfreopen(L"CON", L"r", stdin));
+                static_cast<void>(freopen("CON", "r", stdin));
                 std::cin.clear();
             }
             if (!outRedirected)
             {
-                _wfreopen(L"CON", L"w", stdout);
-                freopen("CON", "w", stdout);
+                static_cast<void>(_wfreopen(L"CON", L"w", stdout));
+                static_cast<void>(freopen("CON", "w", stdout));
                 std::cout.clear();
             }
             if (!errRedirected)
             {
-                _wfreopen(L"CON", L"w", stderr);
-                freopen("CON", "w", stderr);
+                static_cast<void>(_wfreopen(L"CON", L"w", stderr));
+                static_cast<void>(freopen("CON", "w", stderr));
                 std::cerr.clear();
             }
 

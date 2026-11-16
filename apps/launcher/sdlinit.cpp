@@ -12,7 +12,7 @@ bool initSDL()
     {
         return false;
     }
-    signal(SIGINT, SIG_DFL); // We don't want to use the SDL event loop in the launcher,
+    static_cast<void>(signal(SIGINT, SIG_DFL)); // We don't want to use the SDL event loop in the launcher,
     // so reset SIGINT which SDL wants to redirect to an SDL_Quit event.
 
     return true;

@@ -155,7 +155,7 @@ namespace CrashTests
                 "APPDIR", std::filesystem::read_symlink("/proc/self/exe").parent_path());
         }
         if (mode == "kept-ignoring-children")
-            signal(SIGCHLD, SIG_IGN);
+            static_cast<void>(signal(SIGCHLD, SIG_IGN));
         // Read-only where Crashpad writes: the database's own folder, which it cannot then make its
         // folders in, or the folder a new report is written to.
         if (mode == "folder-unopened" || mode == "report-unwritable")
@@ -224,7 +224,7 @@ namespace CrashTests
             using std::filesystem::perms;
             std::filesystem::permissions(fresh, perms::owner_write | perms::group_write | perms::others_write,
                 std::filesystem::perm_options::remove);
-            raise(SIGSEGV);
+            static_cast<void>(raise(SIGSEGV));
             return 3;
         }
         if (mode == "monitor-killed")
@@ -286,7 +286,7 @@ namespace CrashTests
                 Crash::heartbeat();
                 std::this_thread::sleep_for(std::chrono::milliseconds(100));
             }
-            raise(SIGKILL);
+            static_cast<void>(raise(SIGKILL));
         }
         if (mode == "stopped-past-limit")
         {
@@ -305,7 +305,7 @@ namespace CrashTests
             pid_t continuer = 0;
             if (posix_spawn(&continuer, "/bin/sh", nullptr, nullptr, arguments, environ) != 0)
                 return 3;
-            raise(SIGSTOP);
+            static_cast<void>(raise(SIGSTOP));
 
             for (int i = 0; i < 20; ++i)
             {

@@ -59,7 +59,7 @@ namespace Rtx::Testing
                 std::set_terminate([] {
                     char reason[Crash::sNoteCapacity];
                     const std::string_view said = Crash::terminateReason(reason);
-                    std::fprintf(stderr, "%.*s\n", static_cast<int>(said.size()), said.data());
+                    static_cast<void>(std::fprintf(stderr, "%.*s\n", static_cast<int>(said.size()), said.data()));
                     std::abort();
                 });
                 statement();

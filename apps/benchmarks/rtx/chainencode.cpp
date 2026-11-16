@@ -699,17 +699,17 @@ int main(int argc, char** argv)
     {
         if (!Rtx::runChains())
         {
-            std::fputs(
+            static_cast<void>(std::fputs(
                 "no file under OPENMW_RTX_BENCH_TEXTURES makes a painted chain in BC1 or BC7 or a normal map's in "
                 "BC7\n",
-                stderr);
+                stderr));
             return 1;
         }
         benchmark::Shutdown();
     }
     catch (const std::filesystem::filesystem_error& error)
     {
-        std::fprintf(stderr, "OPENMW_RTX_BENCH_TEXTURES: %s\n", error.what());
+        static_cast<void>(std::fprintf(stderr, "OPENMW_RTX_BENCH_TEXTURES: %s\n", error.what()));
         return 1;
     }
     return 0;

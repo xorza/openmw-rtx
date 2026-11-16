@@ -617,7 +617,8 @@ namespace Crash
             // hold, which returning would destroy under it. The log is finished.
             if (overdue)
             {
-                std::fflush(nullptr);
+                // Nothing is left to report a failed flush to.
+                static_cast<void>(std::fflush(nullptr));
                 std::_Exit(EXIT_FAILURE);
             }
             return result;

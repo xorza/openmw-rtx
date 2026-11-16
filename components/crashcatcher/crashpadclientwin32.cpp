@@ -208,7 +208,7 @@ namespace Crash::Client
     void hookEveryEnd()
     {
         _set_abort_behavior(0, _WRITE_ABORT_MSG | _CALL_REPORTFAULT);
-        std::signal(SIGABRT, onAbort);
+        static_cast<void>(std::signal(SIGABRT, onAbort));
         _set_purecall_handler(onPureCall);
         _set_invalid_parameter_handler(onInvalidParameter);
         systemState().mHooks = currentHooks();
