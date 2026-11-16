@@ -197,7 +197,7 @@ namespace CSMWorld
     }
 
     void ActorAdapter::ActorData::reset_data(
-        const ESM::RefId& id, const std::string& skeleton, bool isCreature, bool isFemale, RaceDataPtr raceData)
+        const ESM::RefId& id, const std::string& skeleton, bool isCreature, bool isFemale, const RaceDataPtr& raceData)
     {
         mId = id;
         mCreature = isCreature;
@@ -452,7 +452,7 @@ namespace CSMWorld
         return data;
     }
 
-    void ActorAdapter::setupActor(const ESM::RefId& id, ActorDataPtr data)
+    void ActorAdapter::setupActor(const ESM::RefId& id, const ActorDataPtr& data)
     {
         int index = mReferenceables.searchId(id);
         if (index == -1)
@@ -494,7 +494,7 @@ namespace CSMWorld
         }
     }
 
-    void ActorAdapter::setupRace(const ESM::RefId& id, RaceDataPtr data)
+    void ActorAdapter::setupRace(const ESM::RefId& id, const RaceDataPtr& data)
     {
         int index = mRaces.searchId(id);
         if (index == -1)
@@ -543,7 +543,7 @@ namespace CSMWorld
         }
     }
 
-    void ActorAdapter::setupNpc(const ESM::RefId& id, ActorDataPtr data)
+    void ActorAdapter::setupNpc(const ESM::RefId& id, const ActorDataPtr& data)
     {
         // Common setup, record is known to exist and is not deleted
         int index = mReferenceables.searchId(id);
@@ -647,7 +647,7 @@ namespace CSMWorld
         }
     }
 
-    void ActorAdapter::setupCreature(const ESM::RefId& id, ActorDataPtr data)
+    void ActorAdapter::setupCreature(const ESM::RefId& id, const ActorDataPtr& data)
     {
         // Record is known to exist and is not deleted
         int index = mReferenceables.searchId(id);

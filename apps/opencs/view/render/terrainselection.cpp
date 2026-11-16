@@ -117,7 +117,7 @@ void CSVRender::TerrainSelection::update()
     mSelectionNode->addChild(mGeometry);
 }
 
-void CSVRender::TerrainSelection::drawShapeSelection(const osg::ref_ptr<osg::Vec3Array> vertices)
+void CSVRender::TerrainSelection::drawShapeSelection(const osg::ref_ptr<osg::Vec3Array>& vertices)
 {
     if (!mSelection.empty())
     {
@@ -147,7 +147,7 @@ void CSVRender::TerrainSelection::drawShapeSelection(const osg::ref_ptr<osg::Vec
     }
 }
 
-void CSVRender::TerrainSelection::drawTextureSelection(const osg::ref_ptr<osg::Vec3Array> vertices)
+void CSVRender::TerrainSelection::drawTextureSelection(const osg::ref_ptr<osg::Vec3Array>& vertices)
 {
     if (!mSelection.empty())
     {

@@ -41,7 +41,7 @@ namespace
             else
             {
                 // ignoreObj->as throws if the type doesn't match, but an unchecked value.as crashes...
-                ignoreObj->as<sol::lua_table>().for_each([&](sol::object _, sol::object value) {
+                ignoreObj->as<sol::lua_table>().for_each([&](const sol::object& _, const sol::object& value) {
                     if (value.is<MWLua::LObject>())
                         ignore.push_back(value.as<MWLua::LObject>().ptr());
                     else

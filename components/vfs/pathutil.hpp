@@ -77,7 +77,7 @@ namespace VFS::Path
         return out;
     }
 
-    inline constexpr auto findSeparatorOrExtensionSeparator(auto begin, auto end)
+    inline constexpr auto findSeparatorOrExtensionSeparator(const auto& begin, const auto& end)
     {
         return std::find_if(begin, end, [](char v) { return v == extensionSeparator || v == separator; });
     }

@@ -1172,9 +1172,9 @@ namespace NifOsg
                     Misc::ResourceHelpers::correctTexturePath(path, *mImageManager->getVFS()));
             }
 
-            static osg::ref_ptr<osg::Texture2D> attachTexture(const std::string& name, osg::ref_ptr<osg::Image> image,
-                bool wrapS, bool wrapT, unsigned int uvSet, osg::StateSet* stateset,
-                std::vector<unsigned int>& boundTextures)
+            static osg::ref_ptr<osg::Texture2D> attachTexture(const std::string& name,
+                const osg::ref_ptr<osg::Image>& image, bool wrapS, bool wrapT, unsigned int uvSet,
+                osg::StateSet* stateset, std::vector<unsigned int>& boundTextures)
             {
                 osg::ref_ptr<osg::Texture2D> texture2d = new osg::Texture2D(image);
                 if (image)
@@ -2437,7 +2437,7 @@ namespace NifOsg
             }
 
             void handleShaderMaterialDrawableProperties(const Bgsm::MaterialFile* shaderMat,
-                osg::ref_ptr<SceneUtil::Material> mat, osg::Node& node, bool& hasSortAlpha) const
+                const osg::ref_ptr<SceneUtil::Material>& mat, osg::Node& node, bool& hasSortAlpha) const
             {
                 mat->setAlpha(shaderMat->mTransparency);
                 handleAlphaTesting(

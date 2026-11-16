@@ -69,8 +69,8 @@ namespace CSVRender
         Q_OBJECT
 
     public:
-        explicit RenderWidget(std::shared_ptr<Resource::ResourceSystem> resourceSystem, QWidget* parent = nullptr,
-            Qt::WindowFlags f = Qt::WindowFlags());
+        explicit RenderWidget(const std::shared_ptr<Resource::ResourceSystem>& resourceSystem,
+            QWidget* parent = nullptr, Qt::WindowFlags f = Qt::WindowFlags());
         ~RenderWidget() override;
 
         /// Initiates a request to redraw the view
@@ -118,7 +118,7 @@ namespace CSVRender
 
         void setExterior(bool isExterior);
 
-        void setSelectionMarkerRoot(osg::ref_ptr<osg::PositionAttitudeTransform> selectionMarker)
+        void setSelectionMarkerRoot(const osg::ref_ptr<osg::PositionAttitudeTransform>& selectionMarker)
         {
             mSelectionMarkerNode = selectionMarker;
         }

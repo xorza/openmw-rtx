@@ -138,7 +138,7 @@ namespace MWRender
     public:
         CloudUpdater();
 
-        void setTexture(osg::ref_ptr<osg::Texture2D> texture);
+        void setTexture(const osg::ref_ptr<osg::Texture2D>& texture);
 
         void setEmissionColor(const osg::Vec4f& emissionColor);
         void setOpacity(float opacity);

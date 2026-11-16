@@ -125,7 +125,7 @@ namespace SceneUtil
         stateset.addUniform(new osg::Uniform("shadowFadeStart", 0.0f));
     }
 
-    ShadowManager::ShadowManager(osg::ref_ptr<osg::Group> sceneRoot, osg::ref_ptr<osg::Group> rootNode,
+    ShadowManager::ShadowManager(const osg::ref_ptr<osg::Group>& sceneRoot, const osg::ref_ptr<osg::Group>& rootNode,
         unsigned int outdoorShadowCastingMask, unsigned int indoorShadowCastingMask, unsigned int worldMask,
         const Settings::ShadowsCategory& settings, Shader::ShaderManager& shaderManager)
         : mShadowedScene(new osgShadow::ShadowedScene)

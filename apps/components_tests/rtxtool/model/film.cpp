@@ -44,7 +44,8 @@ namespace RtxTool
             return Rtx::Testing::refusalOf([&] { read(text); });
         }
 
-        FilmKey keyAt(std::string name, std::string cell, osg::Vec3f eye, osg::Vec3f look = osg::Vec3f(0, 1e4f, 0))
+        FilmKey keyAt(
+            std::string name, const std::string& cell, osg::Vec3f eye, osg::Vec3f look = osg::Vec3f(0, 1e4f, 0))
         {
             return FilmKey{ .mStop = Stop{ .mName = std::move(name),
                                 .mStand = { .mCell = CellAddress(cell), .mEye = eye, .mLook = eye + look },

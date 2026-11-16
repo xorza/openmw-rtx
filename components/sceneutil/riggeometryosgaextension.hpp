@@ -40,7 +40,7 @@ namespace SceneUtil
 
         META_Object(SceneUtil, RigGeometryHolder)
 
-        void setSourceRigGeometry(osg::ref_ptr<OsgaRigGeometry> sourceRigGeometry);
+        void setSourceRigGeometry(const osg::ref_ptr<OsgaRigGeometry>& sourceRigGeometry);
         osg::ref_ptr<OsgaRigGeometry> getSourceRigGeometry() const;
 
         /// @brief Modified rig update, code based on osgAnimation::UpdateRigGeometry : public

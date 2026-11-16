@@ -180,7 +180,7 @@ namespace SceneUtil
         mEmulatedAnimations = emulatedAnimations;
     }
 
-    void OsgAnimationController::addMergedAnimationTrack(osg::ref_ptr<Resource::Animation> animationTrack)
+    void OsgAnimationController::addMergedAnimationTrack(const osg::ref_ptr<Resource::Animation>& animationTrack)
     {
         mMergedAnimationTracks.emplace_back(animationTrack);
     }

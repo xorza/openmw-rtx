@@ -63,7 +63,7 @@ namespace Shader
                 mAttributes.emplace(attribute->getTypeMemberPair());
             }
             template <typename T>
-            void setAttribute(osg::ref_ptr<T> attribute)
+            void setAttribute(const osg::ref_ptr<T>& attribute)
             {
                 setAttribute(attribute.get());
             }
@@ -75,7 +75,7 @@ namespace Shader
                 attribute->getModeUsage(helper);
             }
             template <typename T>
-            void setAttributeAndModes(osg::ref_ptr<T> attribute)
+            void setAttributeAndModes(const osg::ref_ptr<T>& attribute)
             {
                 setAttributeAndModes(attribute.get());
             }
@@ -240,7 +240,7 @@ namespace Shader
         }
     }
 
-    void ShaderVisitor::applyStateSet(osg::ref_ptr<osg::StateSet> stateset, osg::Node& node)
+    void ShaderVisitor::applyStateSet(const osg::ref_ptr<osg::StateSet>& stateset, osg::Node& node)
     {
         osg::StateSet* writableStateSet = nullptr;
         if (mAllowedToModifyStateSets)

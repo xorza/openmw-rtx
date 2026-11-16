@@ -24,7 +24,7 @@ namespace SceneUtil
         setSourceGeometry(copy.getSourceGeometry());
     }
 
-    void MorphGeometry::setSourceGeometry(osg::ref_ptr<osg::Geometry> sourceGeom)
+    void MorphGeometry::setSourceGeometry(const osg::ref_ptr<osg::Geometry>& sourceGeom)
     {
         for (auto& entry : mGeometry)
             entry = nullptr;

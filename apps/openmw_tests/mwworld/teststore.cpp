@@ -276,7 +276,7 @@ namespace
     /// Create an ESM file in-memory containing the specified record.
     /// @param deleted Write record with deleted flag?
     template <typename T>
-    std::unique_ptr<std::istream> getEsmFile(T record, bool deleted, ESM::FormatVersion formatVersion)
+    std::unique_ptr<std::istream> getEsmFile(const T& record, bool deleted, ESM::FormatVersion formatVersion)
     {
         ESM::ESMWriter writer;
         auto stream = std::make_unique<std::stringstream>();

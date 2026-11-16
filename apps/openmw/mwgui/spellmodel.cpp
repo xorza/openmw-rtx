@@ -43,7 +43,7 @@ namespace MWGui
     {
     }
 
-    bool SpellModel::matchingEffectExists(std::string filter, const ESM::EffectList& effects)
+    bool SpellModel::matchingEffectExists(const std::string& filter, const ESM::EffectList& effects)
     {
         const MWWorld::ESMStore& store = *MWBase::Environment::get().getESMStore();
 

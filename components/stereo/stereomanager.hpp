@@ -97,7 +97,7 @@ namespace Stereo
         void setUpdateViewCallback(std::shared_ptr<UpdateViewCallback> cb);
 
         //! Set the cull callback on the appropriate camera object
-        void setCullCallback(osg::ref_ptr<osg::NodeCallback> cb);
+        void setCullCallback(const osg::ref_ptr<osg::NodeCallback>& cb);
 
         osg::Matrixd computeEyeProjection(int view, bool reverseZ) const;
         osg::Matrixd computeEyeViewOffset(int view) const;

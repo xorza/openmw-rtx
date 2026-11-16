@@ -47,7 +47,7 @@ namespace
         return { tex, plugin };
     }
 
-    const ESM::RefId worldspaceAt(sol::object cellOrId)
+    ESM::RefId worldspaceAt(const sol::object& cellOrId)
     {
         const MWWorld::Cell* cell = nullptr;
         if (cellOrId.is<MWLua::GCell>())
@@ -75,12 +75,12 @@ namespace MWLua
         sol::state_view lua = context.sol();
         sol::table landApi(lua, sol::create);
 
-        landApi["getHeightAt"] = [](const osg::Vec3f& pos, sol::object cellOrId) {
+        landApi["getHeightAt"] = [](const osg::Vec3f& pos, const sol::object& cellOrId) {
             ESM::RefId worldspace = worldspaceAt(cellOrId);
             return MWBase::Environment::get().getWorld()->getTerrainHeightAt(pos, worldspace);
         };
 
-        landApi["getTextureAt"] = [lua = lua](const osg::Vec3f& pos, sol::object cellOrId) {
+        landApi["getTextureAt"] = [lua = lua](const osg::Vec3f& pos, const sol::object& cellOrId) {
             sol::variadic_results values;
             const MWWorld::ESMStore& store = *MWBase::Environment::get().getESMStore();
             const MWWorld::Store<ESM::Land>& landStore = store.get<ESM::Land>();

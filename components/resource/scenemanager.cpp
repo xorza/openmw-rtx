@@ -396,7 +396,7 @@ namespace Resource
             {
             }
 
-            osg::AlphaFunc::ComparisonFunction getTestMode(std::string mode)
+            osg::AlphaFunc::ComparisonFunction getTestMode(const std::string& mode)
             {
                 if (mode == "ALWAYS")
                     return osg::AlphaFunc::ALWAYS;
@@ -621,7 +621,7 @@ namespace Resource
     }
 
     void SceneManager::recreateShaders(
-        osg::ref_ptr<osg::Node> node, const std::string& shaderPrefix, const osg::Program* programTemplate)
+        const osg::ref_ptr<osg::Node>& node, const std::string& shaderPrefix, const osg::Program* programTemplate)
     {
         if (mPrograms == ModelPrograms::Omitted)
             return;
@@ -632,7 +632,7 @@ namespace Resource
         node->accept(*shaderVisitor);
     }
 
-    void SceneManager::reinstateRemovedState(osg::ref_ptr<osg::Node> node)
+    void SceneManager::reinstateRemovedState(const osg::ref_ptr<osg::Node>& node)
     {
         osg::ref_ptr<Shader::ReinstateRemovedStateVisitor> reinstateRemovedStateVisitor
             = new Shader::ReinstateRemovedStateVisitor(false);
@@ -1064,7 +1064,7 @@ namespace Resource
         }
     }
 
-    void SceneManager::shareState(osg::ref_ptr<osg::Node> node)
+    void SceneManager::shareState(const osg::ref_ptr<osg::Node>& node)
     {
         mSharedStateMutex.lock();
         mSharedStateManager->share(node.get());
@@ -1108,7 +1108,7 @@ namespace Resource
     }
 
     void SceneManager::loadSelectionMarker(
-        osg::ref_ptr<osg::Group> parentNode, const char* markerData, long long markerSize) const
+        const osg::ref_ptr<osg::Group>& parentNode, const char* markerData, long long markerSize) const
     {
         Files::IMemStream file(markerData, markerSize);
         constexpr VFS::Path::NormalizedView selectionMarker("selectionmarker.osgt");

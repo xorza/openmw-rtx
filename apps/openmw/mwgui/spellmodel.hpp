@@ -58,7 +58,7 @@ namespace MWGui
 
         std::string mFilter;
 
-        bool matchingEffectExists(std::string filter, const ESM::EffectList& effects);
+        bool matchingEffectExists(const std::string& filter, const ESM::EffectList& effects);
     };
 
 }

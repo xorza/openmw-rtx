@@ -83,7 +83,7 @@ namespace SceneUtil
         setSourceRigGeometry(std::move(rigGeometry));
     }
 
-    void RigGeometryHolder::setSourceRigGeometry(osg::ref_ptr<OsgaRigGeometry> sourceRigGeometry)
+    void RigGeometryHolder::setSourceRigGeometry(const osg::ref_ptr<OsgaRigGeometry>& sourceRigGeometry)
     {
         for (unsigned int i = 0; i < 2; ++i)
             mGeometry.at(i) = nullptr;

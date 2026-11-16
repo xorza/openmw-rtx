@@ -167,19 +167,19 @@ namespace MWLua
                 return completion;
             return sol::nullopt;
         };
-        api["getLoopCount"] = [](const LObject& object, std::string groupname) -> sol::optional<uint32_t> {
+        api["getLoopCount"] = [](const LObject& object, const std::string& groupname) -> sol::optional<uint32_t> {
             uint32_t loops = 0;
             if (getConstAnimationOrThrow(object)->getInfo(groupname, nullptr, nullptr, &loops))
                 return loops;
             return sol::nullopt;
         };
-        api["getSpeed"] = [](const LObject& object, std::string groupname) -> sol::optional<float> {
+        api["getSpeed"] = [](const LObject& object, const std::string& groupname) -> sol::optional<float> {
             float speed = 0.f;
             if (getConstAnimationOrThrow(object)->getInfo(groupname, nullptr, &speed, nullptr))
                 return speed;
             return sol::nullopt;
         };
-        api["setSpeed"] = [](const SelfObject& object, std::string groupname, const FiniteFloat speed) {
+        api["setSpeed"] = [](const SelfObject& object, const std::string& groupname, const FiniteFloat speed) {
             getMutableAnimationOrThrow(object)->adjustSpeedMult(groupname, speed);
         };
         api["getActiveGroup"] = [](const LObject& object, MWRender::BoneGroup boneGroup) -> std::string_view {

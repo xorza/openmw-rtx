@@ -299,7 +299,7 @@ namespace MWRender
         std::shared_ptr<AnimSource> addSingleAnimSource(VFS::Path::NormalizedView kfname, const std::string& baseModel);
 
         /** Adds an additional light to the given node using the specified ESM record. */
-        void addExtraLight(osg::ref_ptr<osg::Group> parent, const SceneUtil::LightCommon& light);
+        void addExtraLight(const osg::ref_ptr<osg::Group>& parent, const SceneUtil::LightCommon& light);
 
         void clearAnimSources();
 
@@ -314,7 +314,7 @@ namespace MWRender
 
         template <typename ControllerType>
         inline osg::Callback* handleBlendTransform(const osg::ref_ptr<osg::Node>& node,
-            osg::ref_ptr<SceneUtil::KeyframeController> keyframeController,
+            const osg::ref_ptr<SceneUtil::KeyframeController>& keyframeController,
             std::map<osg::ref_ptr<osg::Node>, osg::ref_ptr<ControllerType>>& blendControllers,
             const AnimBlendStateData& stateData, const std::shared_ptr<const SceneUtil::AnimBlendRules>& blendRules,
             const AnimState& active);

@@ -11,7 +11,7 @@
 
 namespace
 {
-    osg::ref_ptr<osg::Geometry> triangleWearing(osg::ref_ptr<osg::StateSet> state, float x)
+    osg::ref_ptr<osg::Geometry> triangleWearing(const osg::ref_ptr<osg::StateSet>& state, float x)
     {
         osg::ref_ptr<osg::Vec3Array> vertices = new osg::Vec3Array;
         vertices->push_back(osg::Vec3f(x, 0.0f, 0.0f));
@@ -70,7 +70,7 @@ namespace
     /// objects become one group holding both their children, and two wearing states that differ stay two.
     TEST(SceneUtilOptimizerTest, groupsMergeByWhatTheirStatesHold)
     {
-        const auto groupWearing = [](osg::ref_ptr<osg::StateSet> state, float x) {
+        const auto groupWearing = [](const osg::ref_ptr<osg::StateSet>& state, float x) {
             osg::ref_ptr<osg::Group> group = new osg::Group;
             group->setStateSet(state);
             group->addChild(triangleWearing(nullptr, x));

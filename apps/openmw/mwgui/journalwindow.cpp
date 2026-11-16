@@ -994,7 +994,7 @@ namespace
 
 // glue the implementation to the interface
 std::unique_ptr<MWGui::JournalWindow> MWGui::JournalWindow::create(
-    std::shared_ptr<JournalViewModel> model, bool questList, ToUTF8::FromType encoding)
+    const std::shared_ptr<JournalViewModel>& model, bool questList, ToUTF8::FromType encoding)
 {
     return std::make_unique<JournalWindowImpl>(model, questList, encoding);
 }

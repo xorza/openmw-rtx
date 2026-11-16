@@ -71,7 +71,7 @@ namespace SceneUtil
         void setEmulatedAnimations(const std::vector<EmulatedAnimation>& emulatedAnimations);
 
         /// @brief Adds an animation track to a model
-        void addMergedAnimationTrack(osg::ref_ptr<Resource::Animation> animationTrack);
+        void addMergedAnimationTrack(const osg::ref_ptr<Resource::Animation>& animationTrack);
 
     private:
         bool mNeedToLink = true;

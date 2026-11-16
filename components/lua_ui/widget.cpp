@@ -464,7 +464,7 @@ namespace LuaUi
         return widget()->getSize();
     }
 
-    void WidgetExtension::triggerEvent(std::string_view name, sol::object argument) const
+    void WidgetExtension::triggerEvent(std::string_view name, const sol::object& argument) const
     {
         auto it = mCallbacks.find(name);
         if (it != mCallbacks.end())

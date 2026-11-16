@@ -15,7 +15,7 @@ namespace Resource
             addChannel(channel.get()->clone());
     }
 
-    void Animation::addChannel(osg::ref_ptr<osgAnimation::Channel> pChannel)
+    void Animation::addChannel(const osg::ref_ptr<osgAnimation::Channel>& pChannel)
     {
         mChannels.push_back(pChannel);
     }

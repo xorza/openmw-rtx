@@ -249,8 +249,9 @@ namespace MWWorld
         mSwimHeightScale = mStore.get<ESM::GameSetting>().find("fSwimHeightScale")->mValue.getFloat();
     }
 
-    void World::init(Debug::Level maxRecastLogLevel, MWRender::Renderer& renderer, osg::ref_ptr<osg::Group> rootNode,
-        const std::shared_ptr<SceneUtil::WorkQueue>& workQueue, SceneUtil::UnrefQueue& unrefQueue)
+    void World::init(Debug::Level maxRecastLogLevel, MWRender::Renderer& renderer,
+        const osg::ref_ptr<osg::Group>& rootNode, const std::shared_ptr<SceneUtil::WorkQueue>& workQueue,
+        SceneUtil::UnrefQueue& unrefQueue)
     {
         mPhysics = std::make_unique<MWPhysics::PhysicsSystem>(
             mResourceSystem, std::make_unique<MWRender::DebugDrawer>(rootNode));

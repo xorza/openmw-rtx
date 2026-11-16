@@ -139,7 +139,7 @@ namespace Rtx::Testing
                 return wall;
             };
 
-            const auto modelWith = [&](osg::ref_ptr<osg::Node> beside) {
+            const auto modelWith = [&](const osg::ref_ptr<osg::Node>& beside) {
                 osg::ref_ptr<osg::Group> model = new osg::Group;
                 model->setUserValue(Misc::OsgUserValues::sFileHash, std::string("hash"));
                 model->addChild(floor);

@@ -16,7 +16,7 @@
 namespace MWPhysics
 {
     Object::Object(const MWWorld::Ptr& ptr, std::shared_ptr<Resource::BulletShapeInstance> shapeInstance,
-        osg::Quat rotation, int collisionType, PhysicsTaskScheduler* scheduler)
+        const osg::Quat& rotation, int collisionType, PhysicsTaskScheduler* scheduler)
         : PtrHolder(ptr, osg::Vec3f())
         , mShapeInstance(std::move(shapeInstance))
         , mSolid(true)
@@ -51,7 +51,7 @@ namespace MWPhysics
         mScaleUpdatePending = true;
     }
 
-    void Object::setRotation(osg::Quat quat)
+    void Object::setRotation(const osg::Quat& quat)
     {
         std::unique_lock<std::mutex> lock(mPositionMutex);
         mRotation = quat;

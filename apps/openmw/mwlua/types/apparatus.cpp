@@ -58,7 +58,7 @@ namespace MWLua
         }
     }
 
-    sol::table makeApparatusTypeTable(sol::state_view lua)
+    sol::table makeApparatusTypeTable(const sol::state_view& lua)
     {
         return LuaUtil::makeStrictReadOnly(LuaUtil::tableFromPairs<std::string_view, int>(lua,
             {

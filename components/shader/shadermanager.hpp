@@ -49,8 +49,8 @@ namespace Shader
         osg::ref_ptr<osg::Program> getProgram(const std::string& templateName, const DefineMap& defines = {},
             const osg::Program* programTemplate = nullptr, const SamplerBindingMap& samplers = {});
 
-        osg::ref_ptr<osg::Program> getProgram(osg::ref_ptr<osg::Shader> vertexShader,
-            osg::ref_ptr<osg::Shader> fragmentShader, const osg::Program* programTemplate = nullptr,
+        osg::ref_ptr<osg::Program> getProgram(const osg::ref_ptr<osg::Shader>& vertexShader,
+            const osg::ref_ptr<osg::Shader>& fragmentShader, const osg::Program* programTemplate = nullptr,
             const SamplerBindingMap& samplers = {});
 
         const osg::Program* getProgramTemplate() const { return mProgramTemplate; }
@@ -96,9 +96,9 @@ namespace Shader
     private:
         osg::ref_ptr<osg::Shader> getShaderInternal(std::string templateName, const DefineMap& defines = {},
             std::optional<osg::Shader::Type> type = std::nullopt);
-        void getLinkedShaders(osg::ref_ptr<osg::Shader> shader, const std::vector<std::string>& linkedShaderNames,
-            const DefineMap& defines);
-        void addLinkedShaders(osg::ref_ptr<osg::Shader> shader, osg::ref_ptr<osg::Program> program);
+        void getLinkedShaders(const osg::ref_ptr<osg::Shader>& shader,
+            const std::vector<std::string>& linkedShaderNames, const DefineMap& defines);
+        void addLinkedShaders(const osg::ref_ptr<osg::Shader>& shader, const osg::ref_ptr<osg::Program>& program);
 
         std::filesystem::path mPath;
 

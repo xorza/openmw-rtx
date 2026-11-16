@@ -347,7 +347,7 @@ namespace Stereo
         mUpdateViewCallback = std::move(cb);
     }
 
-    void Manager::setCullCallback(osg::ref_ptr<osg::NodeCallback> cb)
+    void Manager::setCullCallback(const osg::ref_ptr<osg::NodeCallback>& cb)
     {
         mMainCamera->setCullCallback(cb);
     }

@@ -465,7 +465,7 @@ namespace MWLua
                     { "Trespassing", MWBase::MechanicsManager::OffenseType::OT_Trespassing },
                     { "SleepingInOwnedBed", MWBase::MechanicsManager::OffenseType::OT_SleepingInOwnedBed },
                     { "Pickpocket", MWBase::MechanicsManager::OffenseType::OT_Pickpocket } }));
-        player["_runStandardCommitCrime"] = [](const Object& o, const sol::optional<Object> victim, int type,
+        player["_runStandardCommitCrime"] = [](const Object& o, const sol::optional<Object>& victim, int type,
                                                 std::string_view faction, int arg = 0, bool victimAware = false) {
             verifyPlayer(o);
             if (victim.has_value() && !victim->ptrOrEmpty().isEmpty())

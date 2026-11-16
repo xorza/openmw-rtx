@@ -77,7 +77,7 @@ namespace LuaUi
             root->updateCoord();
     }
 
-    bool warnUnused(std::vector<std::string>& warnings, sol::object object, const std::string& tableName,
+    bool warnUnused(std::vector<std::string>& warnings, const sol::object& object, const std::string& tableName,
         const std::vector<std::string_view>& usedKeys, bool generateWarningStrings)
     {
         auto beginningSize = warnings.size();

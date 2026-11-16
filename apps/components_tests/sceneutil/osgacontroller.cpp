@@ -10,8 +10,9 @@ namespace
     static const std::string ROOT_BONE_NAME = "bip01";
 
     // Creates a merged anim track with a single root channel with two start/end matrix transforms
-    osg::ref_ptr<Resource::Animation> createMergedAnimationTrack(std::string name, osg::Matrixf startTransform,
-        osg::Matrixf endTransform, float startTime = 0.0f, float endTime = 1.0f)
+    osg::ref_ptr<Resource::Animation> createMergedAnimationTrack(const std::string& name,
+        const osg::Matrixf& startTransform, const osg::Matrixf& endTransform, float startTime = 0.0f,
+        float endTime = 1.0f)
     {
         osg::ref_ptr<Resource::Animation> mergedAnimationTrack = new Resource::Animation;
         mergedAnimationTrack->setName(name);

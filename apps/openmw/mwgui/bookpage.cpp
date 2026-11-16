@@ -1150,7 +1150,7 @@ namespace MWGui
                 mRetypesetter->refit();
         }
 
-        void showPage(std::shared_ptr<TypesetBook> book, size_t newPage)
+        void showPage(const std::shared_ptr<TypesetBook>& book, size_t newPage)
         {
             std::shared_ptr<TypesetBookImpl> newBook = std::dynamic_pointer_cast<TypesetBookImpl>(book);
             assert((newBook == nullptr || mRetypesetter != nullptr)
@@ -1246,7 +1246,7 @@ namespace MWGui
             }
         };
 
-        void createActiveFormats(std::shared_ptr<TypesetBookImpl> newBook)
+        void createActiveFormats(const std::shared_ptr<TypesetBookImpl>& newBook)
         {
             newBook->visitRuns(0, 0x7FFFFFFF, CreateActiveFormat(this));
 

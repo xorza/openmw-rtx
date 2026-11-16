@@ -12,7 +12,7 @@ namespace
     using namespace testing;
 
     template <typename T>
-    T get(sol::state_view& lua, std::string luaCode)
+    T get(sol::state_view& lua, const std::string& luaCode)
     {
         return lua.safe_script("return " + luaCode).get<T>();
     }

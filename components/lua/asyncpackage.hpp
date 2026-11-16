@@ -11,7 +11,7 @@ namespace LuaUtil
         sol::table mHiddenData;
     };
     sol::function getAsyncPackageInitializer(
-        lua_State* state, std::function<double()> simulationTimeFn, std::function<double()> gameTimeFn);
+        lua_State* state, const std::function<double()>& simulationTimeFn, const std::function<double()>& gameTimeFn);
 
     // Wrapper for a Lua function.
     // Holds information about the script the function belongs to.
@@ -24,7 +24,8 @@ namespace LuaUtil
         static bool isLuaCallback(const sol::object&);
         static Callback fromLua(const sol::table&);
         static sol::table makeMetatable(lua_State* state);
-        static sol::table make(const AsyncPackageId& asyncId, sol::main_protected_function fn, sol::table metatable);
+        static sol::table make(
+            const AsyncPackageId& asyncId, const sol::main_protected_function& fn, const sol::table& metatable);
 
         bool isValid() const { return mHiddenData[ScriptsContainer::sScriptIdKey] != sol::nil; }
 

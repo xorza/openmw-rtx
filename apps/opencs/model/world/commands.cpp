@@ -409,7 +409,7 @@ void CSMWorld::CloneCommand::undo()
     mModel.removeRow(mModel.getModelIndex(mId, 0).row());
 }
 
-void CSMWorld::CloneCommand::setOverrideValue(int column, QVariant value)
+void CSMWorld::CloneCommand::setOverrideValue(int column, const QVariant& value)
 {
     mOverrideValues.emplace_back(std::make_pair(column, value));
 }

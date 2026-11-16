@@ -32,7 +32,7 @@ namespace Misc
         };
 
         /// Stores a weak pointer to the item.
-        void insert(Key key, StrongPtr value, bool prune = true);
+        void insert(Key key, const StrongPtr& value, bool shouldPrune = true);
 
         /// Retrieves the item associated with the key.
         /// \return An item or null.
@@ -93,7 +93,7 @@ namespace Misc
     }
 
     template <typename Key, typename T>
-    void WeakCache<Key, T>::insert(Key key, StrongPtr value, bool shouldPrune)
+    void WeakCache<Key, T>::insert(Key key, const StrongPtr& value, bool shouldPrune)
     {
         mData[key] = WeakPtr(value);
         if (shouldPrune)

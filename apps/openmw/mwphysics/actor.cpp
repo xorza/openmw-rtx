@@ -228,7 +228,7 @@ namespace MWPhysics
         return mPosition;
     }
 
-    void Actor::setRotation(osg::Quat quat)
+    void Actor::setRotation(const osg::Quat& quat)
     {
         std::scoped_lock lock(mPositionMutex);
         mRotation = quat;

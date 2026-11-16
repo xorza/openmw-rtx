@@ -215,16 +215,16 @@ namespace MWLua
                          getId(target.ptr()), cellNameId, gameHoursDuration, dest.x(), dest.y(), dest.z(), repeat),
                 ptr, cancelOther);
         };
-        selfAPI["_startAiWander"]
-            = [](SelfObject& self, int distance, int duration, sol::table luaIdle, bool repeat, bool cancelOther) {
-                  const MWWorld::Ptr& ptr = self.ptr();
-                  MWMechanics::AiSequence& ai = ptr.getClass().getCreatureStats(ptr).getAiSequence();
-                  std::vector<unsigned char> idle;
-                  // Lua index starts at 1
-                  for (size_t i = 1; i <= luaIdle.size(); i++)
-                      idle.emplace_back(luaIdle.get<unsigned char>(i));
-                  ai.stack(MWMechanics::AiWander(distance, duration, 0, idle, repeat), ptr, cancelOther);
-              };
+        selfAPI["_startAiWander"] = [](SelfObject& self, int distance, int duration, const sol::table& luaIdle,
+                                        bool repeat, bool cancelOther) {
+            const MWWorld::Ptr& ptr = self.ptr();
+            MWMechanics::AiSequence& ai = ptr.getClass().getCreatureStats(ptr).getAiSequence();
+            std::vector<unsigned char> idle;
+            // Lua index starts at 1
+            for (size_t i = 1; i <= luaIdle.size(); i++)
+                idle.emplace_back(luaIdle.get<unsigned char>(i));
+            ai.stack(MWMechanics::AiWander(distance, duration, 0, idle, repeat), ptr, cancelOther);
+        };
         selfAPI["_startAiTravel"] = [](SelfObject& self, const osg::Vec3f& target, bool repeat, bool cancelOther) {
             const MWWorld::Ptr& ptr = self.ptr();
             MWMechanics::AiSequence& ai = ptr.getClass().getCreatureStats(ptr).getAiSequence();

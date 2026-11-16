@@ -230,8 +230,9 @@ namespace MWWorld
             Loading::Listener* listener);
 
         // Must be called after `loadData`.
-        void init(Debug::Level maxRecastLogLevel, MWRender::Renderer& renderer, osg::ref_ptr<osg::Group> rootNode,
-            const std::shared_ptr<SceneUtil::WorkQueue>& workQueue, SceneUtil::UnrefQueue& unrefQueue);
+        void init(Debug::Level maxRecastLogLevel, MWRender::Renderer& renderer,
+            const osg::ref_ptr<osg::Group>& rootNode, const std::shared_ptr<SceneUtil::WorkQueue>& workQueue,
+            SceneUtil::UnrefQueue& unrefQueue);
 
         ~World() override;
 

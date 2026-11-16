@@ -170,7 +170,7 @@ Launcher::SettingsPage::SettingsPage(
     });
 }
 
-void Launcher::SettingsPage::loadCellsForAutocomplete(QStringList cellNames)
+void Launcher::SettingsPage::loadCellsForAutocomplete(const QStringList& cellNames)
 {
     // Update the list of suggestions for the "Start default character at" field
     mCellNameCompleterModel.setStringList(cellNames);
@@ -553,7 +553,7 @@ void Launcher::SettingsPage::saveSettings()
     }
 }
 
-void Launcher::SettingsPage::slotLoadedCellsChanged(QStringList cellNames)
+void Launcher::SettingsPage::slotLoadedCellsChanged(const QStringList& cellNames)
 {
     loadCellsForAutocomplete(std::move(cellNames));
 }

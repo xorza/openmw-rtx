@@ -145,14 +145,15 @@ namespace MWRender
 
         void resize();
 
-        Status enableTechnique(std::shared_ptr<Fx::Technique> technique, std::optional<int> location = std::nullopt);
+        Status enableTechnique(
+            const std::shared_ptr<Fx::Technique>& technique, std::optional<int> location = std::nullopt);
 
-        Status disableTechnique(std::shared_ptr<Fx::Technique> technique, bool dirty = true);
+        Status disableTechnique(const std::shared_ptr<Fx::Technique>& technique, bool dirty = true);
 
         bool getSupportsNormalsRT() const { return mNormalsSupported; }
 
         template <class T>
-        void setUniform(std::shared_ptr<Fx::Technique> technique, const std::string& name, const T& value)
+        void setUniform(const std::shared_ptr<Fx::Technique>& technique, const std::string& name, const T& value)
         {
             if (!isEnabled())
                 return;
@@ -171,7 +172,7 @@ namespace MWRender
             (*it)->setValue(value);
         }
 
-        std::optional<size_t> getUniformSize(std::shared_ptr<Fx::Technique> technique, const std::string& name)
+        std::optional<size_t> getUniformSize(const std::shared_ptr<Fx::Technique>& technique, const std::string& name)
         {
             auto it = technique->findUniform(name);
 

@@ -415,7 +415,7 @@ namespace MWRender
         {
             int asked = 0;
             const std::filesystem::path logs = "/home/player/logs";
-            const auto failing = [&asked](auto thrown) {
+            const auto failing = [&asked](const auto& thrown) {
                 return [&asked, thrown]() -> std::unique_ptr<Renderer> {
                     ++asked;
                     throw thrown;

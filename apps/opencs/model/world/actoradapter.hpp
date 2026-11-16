@@ -116,7 +116,7 @@ namespace CSMWorld
             void addOtherDependency(const ESM::RefId& id);
             /// Clears race, parts, and dependencies
             void reset_data(const ESM::RefId& actorId, const std::string& skeleton = "", bool isCreature = false,
-                bool female = true, RaceDataPtr raceData = nullptr);
+                bool female = true, const RaceDataPtr& raceData = nullptr);
 
         private:
             ESM::RefId mId;
@@ -163,13 +163,13 @@ namespace CSMWorld
 
         RaceDataPtr getRaceData(const ESM::RefId& raceId);
 
-        void setupActor(const ESM::RefId& id, ActorDataPtr data);
-        void setupRace(const ESM::RefId& id, RaceDataPtr data);
+        void setupActor(const ESM::RefId& id, const ActorDataPtr& data);
+        void setupRace(const ESM::RefId& id, const RaceDataPtr& data);
 
-        void setupNpc(const ESM::RefId& id, ActorDataPtr data);
+        void setupNpc(const ESM::RefId& id, const ActorDataPtr& data);
         void addNpcItem(const ESM::RefId& itemId, ActorDataPtr data);
 
-        void setupCreature(const ESM::RefId& id, ActorDataPtr data);
+        void setupCreature(const ESM::RefId& id, const ActorDataPtr& data);
 
         void markDirtyDependency(const ESM::RefId& dependency);
         void updateDirty();

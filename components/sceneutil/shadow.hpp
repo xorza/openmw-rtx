@@ -29,7 +29,7 @@ namespace SceneUtil
 
         static const ShadowManager& instance();
 
-        explicit ShadowManager(osg::ref_ptr<osg::Group> sceneRoot, osg::ref_ptr<osg::Group> rootNode,
+        explicit ShadowManager(const osg::ref_ptr<osg::Group>& sceneRoot, const osg::ref_ptr<osg::Group>& rootNode,
             unsigned int outdoorShadowCastingMask, unsigned int indoorShadowCastingMask, unsigned int worldMask,
             const Settings::ShadowsCategory& settings, Shader::ShaderManager& shaderManager);
         ~ShadowManager();

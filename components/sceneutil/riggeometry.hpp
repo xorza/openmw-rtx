@@ -55,7 +55,7 @@ namespace SceneUtil
 
         /// Initialize this geometry from the source geometry.
         /// @note The source geometry will not be modified.
-        void setSourceGeometry(osg::ref_ptr<osg::Geometry> sourceGeom);
+        void setSourceGeometry(const osg::ref_ptr<osg::Geometry>& sourceGeom);
 
         void setTransform(osg::Matrixf&& transform);
 

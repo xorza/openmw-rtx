@@ -71,9 +71,9 @@ namespace MWRender
         /// Request rendering a 2d quad onto mOverlayTexture.
         /// x, y, width and height are the destination coordinates (top-left coordinate origin)
         /// @param cpuCopy copy the resulting render onto mOverlayImage as well?
-        void requestOverlayTextureUpdate(int x, int y, int width, int height, osg::ref_ptr<osg::Texture2D> texture,
-            bool clear, bool cpuCopy, float srcLeft = 0.f, float srcTop = 0.f, float srcRight = 1.f,
-            float srcBottom = 1.f);
+        void requestOverlayTextureUpdate(int x, int y, int width, int height,
+            const osg::ref_ptr<osg::Texture2D>& texture, bool clear, bool cpuCopy, float srcLeft = 0.f,
+            float srcTop = 0.f, float srcRight = 1.f, float srcBottom = 1.f);
 
         void removeCamera(osg::Camera* cam);
 

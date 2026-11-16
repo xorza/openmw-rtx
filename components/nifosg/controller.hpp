@@ -78,7 +78,7 @@ namespace NifOsg
         }
 
         // NOLINTNEXTLINE(google-explicit-constructor)
-        ValueInterpolator(std::shared_ptr<const MapT> keys, ValueT defaultVal = ValueT())
+        ValueInterpolator(const std::shared_ptr<const MapT>& keys, const ValueT& defaultVal = ValueT())
             : mKeys(keys)
             , mDefaultVal(defaultVal)
         {

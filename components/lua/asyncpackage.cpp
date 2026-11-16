@@ -47,7 +47,8 @@ namespace LuaUtil
         callbackMeta["isCallback"] = true;
         return callbackMeta;
     }
-    sol::table Callback::make(const AsyncPackageId& asyncId, sol::main_protected_function fn, sol::table metatable)
+    sol::table Callback::make(
+        const AsyncPackageId& asyncId, const sol::main_protected_function& fn, const sol::table& metatable)
     {
         sol::table c = sol::table::create(fn.lua_state(), 2);
         c.raw_set(1, std::move(fn), 2, asyncId);
@@ -66,7 +67,7 @@ namespace LuaUtil
     }
 
     sol::function getAsyncPackageInitializer(
-        lua_State* state, std::function<double()> simulationTimeFn, std::function<double()> gameTimeFn)
+        lua_State* state, const std::function<double()>& simulationTimeFn, const std::function<double()>& gameTimeFn)
     {
         sol::state_view lua(state);
         using TimerType = ScriptsContainer::TimerType;
@@ -108,8 +109,9 @@ namespace LuaUtil
               };
 
         sol::table callbackMeta = Callback::makeMetatable(state);
-        api["callback"] = [callbackMeta](const AsyncPackageId& asyncId, sol::main_protected_function fn) -> sol::table {
-            return Callback::make(asyncId, std::move(fn), callbackMeta);
+        api["callback"]
+            = [callbackMeta](const AsyncPackageId& asyncId, const sol::main_protected_function& fn) -> sol::table {
+            return Callback::make(asyncId, fn, callbackMeta);
         };
 
         auto initializer = [](sol::table hiddenData) {

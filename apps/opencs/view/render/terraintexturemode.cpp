@@ -623,7 +623,7 @@ void CSVRender::TerrainTextureMode::selectTerrainTextures(
 }
 
 void CSVRender::TerrainTextureMode::pushEditToCommand(CSMWorld::LandTexturesColumn::DataType& newLandGrid,
-    CSMDoc::Document& document, CSMWorld::IdTable& landTable, std::string cellId)
+    CSMDoc::Document& document, CSMWorld::IdTable& landTable, const std::string& cellId)
 {
     CSMWorld::IdTable& ltexTable
         = dynamic_cast<CSMWorld::IdTable&>(*document.getData().getTableModel(CSMWorld::UniversalId::Type_LandTextures));

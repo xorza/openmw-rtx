@@ -27,7 +27,7 @@ namespace SceneUtil
         setNumChildrenRequiringUpdateTraversal(1);
     }
 
-    void RigGeometry::setSourceGeometry(osg::ref_ptr<osg::Geometry> sourceGeometry)
+    void RigGeometry::setSourceGeometry(const osg::ref_ptr<osg::Geometry>& sourceGeometry)
     {
         for (auto& entry : mGeometry)
             entry = nullptr;

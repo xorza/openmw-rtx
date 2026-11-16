@@ -39,7 +39,7 @@ namespace CSMWorld
         QModelIndex mIndexAtDragStart;
 
     public:
-        TableMimeData(UniversalId id, const CSMDoc::Document& document);
+        TableMimeData(const UniversalId& id, const CSMDoc::Document& document);
 
         TableMimeData(const std::vector<UniversalId>& id, const CSMDoc::Document& document);
 

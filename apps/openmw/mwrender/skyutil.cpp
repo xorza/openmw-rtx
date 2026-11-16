@@ -544,7 +544,7 @@ namespace MWRender
     {
     }
 
-    void CloudUpdater::setTexture(osg::ref_ptr<osg::Texture2D> texture)
+    void CloudUpdater::setTexture(const osg::ref_ptr<osg::Texture2D>& texture)
     {
         mTexture = texture;
     }

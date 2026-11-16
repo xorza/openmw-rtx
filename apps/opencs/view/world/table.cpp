@@ -856,7 +856,7 @@ void CSVWorld::Table::requestFocus(const std::string& id)
     }
 }
 
-void CSVWorld::Table::recordFilterChanged(std::shared_ptr<CSMFilter::Node> filter)
+void CSVWorld::Table::recordFilterChanged(const std::shared_ptr<CSMFilter::Node>& filter)
 {
     mProxyModel->setFilter(filter);
     tableSizeUpdate();

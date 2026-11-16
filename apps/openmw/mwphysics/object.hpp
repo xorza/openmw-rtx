@@ -30,12 +30,12 @@ namespace MWPhysics
     {
     public:
         Object(const MWWorld::Ptr& ptr, std::shared_ptr<Resource::BulletShapeInstance> shapeInstance,
-            osg::Quat rotation, int collisionType, PhysicsTaskScheduler* scheduler);
+            const osg::Quat& rotation, int collisionType, PhysicsTaskScheduler* scheduler);
         ~Object() override;
 
         const std::shared_ptr<Resource::BulletShapeInstance>& getShapeInstance() const;
         void setScale(float scale);
-        void setRotation(osg::Quat quat);
+        void setRotation(const osg::Quat& quat);
         void updatePosition();
         void commitPositionChange();
         btTransform getTransform() const;

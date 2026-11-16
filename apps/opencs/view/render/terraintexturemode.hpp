@@ -114,7 +114,7 @@ namespace CSVRender
 
         /// \brief Push texture edits to command macro
         void pushEditToCommand(CSMWorld::LandTexturesColumn::DataType& newLandGrid, CSMDoc::Document& document,
-            CSMWorld::IdTable& landTable, std::string cellId);
+            CSMWorld::IdTable& landTable, const std::string& cellId);
 
         /// \brief Create new cell and land if needed
         bool allowLandTextureEditing(const std::string& textureFileName);

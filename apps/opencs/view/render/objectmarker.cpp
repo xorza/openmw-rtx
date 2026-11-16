@@ -149,7 +149,7 @@ namespace CSVRender
         updateSelectionMarker();
     }
 
-    bool ObjectMarker::hitBehindMarker(const osg::Vec3d& hitPos, osg::ref_ptr<osg::Camera> camera)
+    bool ObjectMarker::hitBehindMarker(const osg::Vec3d& hitPos, const osg::ref_ptr<osg::Camera>& camera)
     {
         if (mSubMode != Object::Mode_Rotate)
             return false;

@@ -189,7 +189,7 @@ namespace MWLua
 
                 return seek(lua, self, std::ios_base::cur, off);
             });
-        fileHandle["lines"] = [](sol::this_main_state lua, sol::main_object self) {
+        fileHandle["lines"] = [](sol::this_main_state lua, const sol::main_object& self) {
             if (!self.is<FileHandle*>())
                 throw std::runtime_error("self should be a file handle");
             return sol::as_function([lua, self]() -> sol::object {

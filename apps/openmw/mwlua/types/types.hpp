@@ -53,7 +53,7 @@ namespace MWLua
     void addApparatusBindings(sol::table apparatus, const Context& context);
     ESM::Apparatus tableToApparatus(const sol::table& rec);
     void addMutableApparatusType(sol::state_view& lua);
-    sol::table makeApparatusTypeTable(sol::state_view lua);
+    sol::table makeApparatusTypeTable(const sol::state_view& lua);
     void addRepairBindings(sol::table repair, const Context& context);
     ESM::Repair tableToRepair(const sol::table& rec);
     void addMutableRepairType(sol::state_view& lua);

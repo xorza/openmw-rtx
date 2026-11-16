@@ -31,7 +31,7 @@ namespace Misc
 
             /// What a turn does with what it took, so a test can make one throw or hold on the
             /// stop. Handed the token `serve` hands the turn.
-            std::function<void(int, std::stop_token)> mTurn = [](int, std::stop_token) {};
+            std::function<void(int, std::stop_token)> mTurn = [](int, const std::stop_token&) {};
 
             /// **Last**, so it is joined before the members it reads go.
             std::jthread mWorker;
@@ -111,8 +111,9 @@ namespace Misc
             Rtx::Testing::expectDies(
                 [] {
                     Served served;
-                    served.mTurn
-                        = [](int one, std::stop_token) { throw std::runtime_error("turn " + std::to_string(one)); };
+                    served.mTurn = [](int one, const std::stop_token&) {
+                        throw std::runtime_error("turn " + std::to_string(one));
+                    };
                     served.start();
                     served.give(4);
                     served.awaitDone(1);
@@ -130,7 +131,7 @@ namespace Misc
             std::atomic<bool> running{ false };
 
             // Held until the stop is asked for, which is what puts the next two behind it.
-            served.mTurn = [&](int, std::stop_token stop) {
+            served.mTurn = [&](int, const std::stop_token& stop) {
                 running = true;
                 while (!stop.stop_requested())
                     std::this_thread::yield();
@@ -180,7 +181,7 @@ namespace Misc
             Served served;
             std::atomic<bool> turning{ false };
             std::atomic<bool> release{ false };
-            served.mTurn = [&](int, std::stop_token) {
+            served.mTurn = [&](int, const std::stop_token&) {
                 turning = true;
                 while (!release)
                     std::this_thread::yield();

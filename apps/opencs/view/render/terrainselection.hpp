@@ -55,8 +55,8 @@ namespace CSVRender
         void update();
 
     protected:
-        void drawShapeSelection(const osg::ref_ptr<osg::Vec3Array> vertices);
-        void drawTextureSelection(const osg::ref_ptr<osg::Vec3Array> vertices);
+        void drawShapeSelection(const osg::ref_ptr<osg::Vec3Array>& vertices);
+        void drawTextureSelection(const osg::ref_ptr<osg::Vec3Array>& vertices);
 
         int calculateLandHeight(int x, int y);
 

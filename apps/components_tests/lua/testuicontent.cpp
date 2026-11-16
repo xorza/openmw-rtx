@@ -18,7 +18,7 @@ namespace
             mNew = LuaUi::loadContentConstructor(&mLuaState);
         }
 
-        LuaUi::ContentView makeContent(sol::table source)
+        LuaUi::ContentView makeContent(const sol::table& source)
         {
             auto result = mNew.call(source);
             if (result.get_type() != sol::type::table)

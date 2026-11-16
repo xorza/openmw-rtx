@@ -22,7 +22,7 @@ namespace CSVWorld
         RegionMap* mRegionMap;
 
     public:
-        RegionMapSubView(CSMWorld::UniversalId universalId, CSMDoc::Document& document);
+        RegionMapSubView(const CSMWorld::UniversalId& universalId, CSMDoc::Document& document);
 
         void setEditLock(bool locked) override;
 

@@ -1099,7 +1099,7 @@ namespace MWRender
 
     template <typename ControllerType>
     inline osg::Callback* Animation::handleBlendTransform(const osg::ref_ptr<osg::Node>& node,
-        osg::ref_ptr<SceneUtil::KeyframeController> keyframeController,
+        const osg::ref_ptr<SceneUtil::KeyframeController>& keyframeController,
         std::map<osg::ref_ptr<osg::Node>, osg::ref_ptr<ControllerType>>& blendControllers,
         const AnimBlendStateData& stateData, const std::shared_ptr<const SceneUtil::AnimBlendRules>& blendRules,
         const AnimState& active)
@@ -1725,7 +1725,7 @@ namespace MWRender
         }
     }
 
-    void Animation::addExtraLight(osg::ref_ptr<osg::Group> parent, const SceneUtil::LightCommon& esmLight)
+    void Animation::addExtraLight(const osg::ref_ptr<osg::Group>& parent, const SceneUtil::LightCommon& esmLight)
     {
         bool exterior = mPtr.isInCell() && mPtr.getCell()->getCell()->isExterior();
 

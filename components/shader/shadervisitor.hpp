@@ -51,7 +51,7 @@ namespace Shader
         void apply(osg::Drawable& drawable) override;
         void apply(osg::Geometry& geometry) override;
 
-        void applyStateSet(osg::ref_ptr<osg::StateSet> stateset, osg::Node& node);
+        void applyStateSet(const osg::ref_ptr<osg::StateSet>& stateset, osg::Node& node);
 
         void pushRequirements(osg::Node& node);
         void popRequirements();

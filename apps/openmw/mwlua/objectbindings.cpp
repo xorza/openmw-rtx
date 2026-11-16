@@ -403,7 +403,8 @@ namespace MWLua
                     context.mLuaManager->addAction(
                         [object, scale] { MWBase::Environment::get().getWorld()->scaleObject(object.ptr(), scale); });
                 };
-                objectT["addScript"] = [context](const GObject& object, std::string_view path, sol::object initData) {
+                objectT["addScript"] = [context](
+                                           const GObject& object, std::string_view path, const sol::object& initData) {
                     const LuaUtil::ScriptsConfiguration& cfg = context.mLua->getConfiguration();
                     std::optional<int> scriptId = cfg.findId(VFS::Path::Normalized(path));
                     if (!scriptId)

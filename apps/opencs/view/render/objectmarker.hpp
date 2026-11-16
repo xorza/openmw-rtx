@@ -61,7 +61,7 @@ namespace CSVRender
 
         void toggleVisibility();
 
-        bool hitBehindMarker(const osg::Vec3d& hitPos, osg::ref_ptr<osg::Camera> camera);
+        bool hitBehindMarker(const osg::Vec3d& hitPos, const osg::ref_ptr<osg::Camera>& camera);
 
         void detachMarker();
 

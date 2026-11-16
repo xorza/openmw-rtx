@@ -742,17 +742,18 @@ namespace Rtx::Testing
                 long mChannel;
                 int mShown;
             };
-            const auto read = [&](const SceneDesc& scene, const Shaders::VisibilityConstants& camera, Shot shot) {
-                shoot(scene, {}, camera, size, shot);
+            const auto read
+                = [&](const SceneDesc& scene, const Shaders::VisibilityConstants& camera, const Shot& shot) {
+                      shoot(scene, {}, camera, size, shot);
 
-                std::vector<float> lifted;
-                mProbe.readChannel(Channel::Lift, lifted);
-                std::vector<std::uint8_t> pixels;
-                mRenderer.readPixels(pixels);
-                requireFrame(pixels, size);
+                      std::vector<float> lifted;
+                      mProbe.readChannel(Channel::Lift, lifted);
+                      std::vector<std::uint8_t> pixels;
+                      mRenderer.readPixels(pixels);
+                      requireFrame(pixels, size);
 
-                return Read{ std::lround(lifted[centre] * 255.0f), pixels[centre] };
-            };
+                      return Read{ std::lround(lifted[centre] * 255.0f), pixels[centre] };
+                  };
 
             const long floorByte = std::lround(Shaders::encodeSrgb(0.25f) * 255.0f);
             ASSERT_EQ(floorByte, 137);

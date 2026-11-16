@@ -19,7 +19,7 @@ namespace SceneUtil
 
         /// Initialize this geometry from the source geometry.
         /// @note The source geometry will not be modified.
-        void setSourceGeometry(osg::ref_ptr<osg::Geometry> sourceGeom);
+        void setSourceGeometry(const osg::ref_ptr<osg::Geometry>& sourceGeom);
 
         // Currently empty as this is difficult to implement. Technically we would need to compile both internal
         // geometries in separate frames but this method is only called once. Alternatively we could compile just the

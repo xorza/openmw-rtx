@@ -579,7 +579,7 @@ namespace Rtx
         };
 
         /// A patch of the dome ten degrees across, straight up, painted with `image`.
-        osg::ref_ptr<osg::Geometry> patchOf(osg::ref_ptr<osg::Image> image)
+        osg::ref_ptr<osg::Geometry> patchOf(const osg::ref_ptr<osg::Image>& image)
         {
             const float edge = std::sin(osg::DegreesToRadians(5.0f));
             osg::ref_ptr<osg::Vec3Array> vertices = new osg::Vec3Array;

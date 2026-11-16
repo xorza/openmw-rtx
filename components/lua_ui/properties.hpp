@@ -68,7 +68,8 @@ namespace LuaUi
     }
 
     template <typename T>
-    T parseProperty(sol::object props, sol::object templateProps, std::string_view field, const T& defaultValue)
+    T parseProperty(
+        const sol::object& props, const sol::object& templateProps, std::string_view field, const T& defaultValue)
     {
         auto propOptional = parseValue<T>(props, field, "Property");
         auto templateOptional = parseValue<T>(templateProps, field, "Template property");
@@ -82,7 +83,7 @@ namespace LuaUi
     }
 
     template <typename T>
-    T parseExternal(sol::object external, std::string_view field, const T& defaultValue)
+    T parseExternal(const sol::object& external, std::string_view field, const T& defaultValue)
     {
         auto optional = parseValue<T>(external, field, "External value");
 

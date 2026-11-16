@@ -89,14 +89,14 @@ namespace Resource
 
         /// Re-create shaders for this node, need to call this if alpha testing, texture stages or vertex color mode
         /// have changed.
-        void recreateShaders(osg::ref_ptr<osg::Node> node, const std::string& shaderPrefix = "objects",
+        void recreateShaders(const osg::ref_ptr<osg::Node>& node, const std::string& shaderPrefix = "objects",
             const osg::Program* programTemplate = nullptr);
 
         /// Applying shaders to a node may replace some fixed-function state.
         /// This restores it.
         /// When editing such state, it should be reinstated before the edits, and shaders should be recreated
         /// afterwards.
-        void reinstateRemovedState(osg::ref_ptr<osg::Node> node);
+        void reinstateRemovedState(const osg::ref_ptr<osg::Node>& node);
 
         /// Which companion maps a loaded model's diffuse maps lead to. Attached at load whether or not
         /// shaders are enabled: by the shader visitor, or by `Shader::MapVisitor` where shaders are
@@ -114,7 +114,7 @@ namespace Resource
         osg::ref_ptr<osg::Texture> getOpaqueColorTex(size_t frame);
 
         void loadSelectionMarker(
-            osg::ref_ptr<osg::Group> parentNode, const char* markerData, long long markerSize) const;
+            const osg::ref_ptr<osg::Group>& parentNode, const char* markerData, long long markerSize) const;
 
         enum class UBOBinding
         {
@@ -142,7 +142,7 @@ namespace Resource
         /// @note Thread safe.
         static osg::ref_ptr<osg::Node> cloneNode(const osg::Node* base);
 
-        void shareState(osg::ref_ptr<osg::Node> node);
+        void shareState(const osg::ref_ptr<osg::Node>& node);
 
         /// Clone osg::Node and adjust it according to SceneManager's settings.
         /// @note Thread safe.

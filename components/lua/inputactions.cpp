@@ -93,7 +93,7 @@ namespace LuaUtil
 
         namespace
         {
-            bool validateActionValue(sol::object value, Type type)
+            bool validateActionValue(const sol::object& value, Type type)
             {
                 switch (type)
                 {

@@ -46,13 +46,13 @@ namespace MWRender
 
         void setMask(bool underwater, bool exterior);
 
-        void setTextureScene(osg::ref_ptr<osg::Texture> tex) { mTextureScene = tex; }
+        void setTextureScene(const osg::ref_ptr<osg::Texture>& tex) { mTextureScene = tex; }
 
-        void setTextureDepth(osg::ref_ptr<osg::Texture> tex) { mTextureDepth = tex; }
+        void setTextureDepth(const osg::ref_ptr<osg::Texture>& tex) { mTextureDepth = tex; }
 
-        void setTextureNormals(osg::ref_ptr<osg::Texture> tex) { mTextureNormals = tex; }
+        void setTextureNormals(const osg::ref_ptr<osg::Texture>& tex) { mTextureNormals = tex; }
 
-        void setTextureDistortion(osg::ref_ptr<osg::Texture> tex) { mTextureDistortion = tex; }
+        void setTextureDistortion(const osg::ref_ptr<osg::Texture>& tex) { mTextureDistortion = tex; }
 
         void setCalculateAvgLum(bool enabled) { mAvgLum = enabled; }
 

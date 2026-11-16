@@ -97,7 +97,7 @@ namespace MWLua
             manager->saveGame(description, slot);
         };
 
-        auto getSaves = [](sol::state_view currentState, const MWState::Character& character) {
+        auto getSaves = [](const sol::state_view& currentState, const MWState::Character& character) {
             sol::table saves(currentState, sol::create);
             for (const MWState::Slot& slot : character)
             {

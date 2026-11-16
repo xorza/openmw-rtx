@@ -679,8 +679,8 @@ namespace Shader
         return getProgram(std::move(vert), std::move(frag), programTemplate, samplers);
     }
 
-    osg::ref_ptr<osg::Program> ShaderManager::getProgram(osg::ref_ptr<osg::Shader> vertexShader,
-        osg::ref_ptr<osg::Shader> fragmentShader, const osg::Program* programTemplate,
+    osg::ref_ptr<osg::Program> ShaderManager::getProgram(const osg::ref_ptr<osg::Shader>& vertexShader,
+        const osg::ref_ptr<osg::Shader>& fragmentShader, const osg::Program* programTemplate,
         const SamplerBindingMap& samplers)
     {
         std::scoped_lock lock(mMutex);
@@ -780,8 +780,8 @@ namespace Shader
         return true;
     }
 
-    void ShaderManager::getLinkedShaders(
-        osg::ref_ptr<osg::Shader> shader, const std::vector<std::string>& linkedShaderNames, const DefineMap& defines)
+    void ShaderManager::getLinkedShaders(const osg::ref_ptr<osg::Shader>& shader,
+        const std::vector<std::string>& linkedShaderNames, const DefineMap& defines)
     {
         mLinkedShaders.erase(shader);
         if (linkedShaderNames.empty())
@@ -795,7 +795,8 @@ namespace Shader
         }
     }
 
-    void ShaderManager::addLinkedShaders(osg::ref_ptr<osg::Shader> shader, osg::ref_ptr<osg::Program> program)
+    void ShaderManager::addLinkedShaders(
+        const osg::ref_ptr<osg::Shader>& shader, const osg::ref_ptr<osg::Program>& program)
     {
         auto linkedIt = mLinkedShaders.find(shader);
         if (linkedIt != mLinkedShaders.end())

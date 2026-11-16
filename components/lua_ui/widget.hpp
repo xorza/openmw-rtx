@@ -120,7 +120,7 @@ namespace LuaUi
             LuaUtil::protectedCall(mLua, std::forward<Lambda>(f));
         }
 
-        void triggerEvent(std::string_view name, sol::object argument) const;
+        void triggerEvent(std::string_view name, const sol::object& argument) const;
         template <class ArgFactory>
         void propagateEvent(std::string_view name, const ArgFactory& argumentFactory) const
         {

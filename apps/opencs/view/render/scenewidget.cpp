@@ -108,7 +108,7 @@ namespace CSVRender
 {
 
     RenderWidget::RenderWidget(
-        std::shared_ptr<Resource::ResourceSystem> resourceSystem, QWidget* parent, Qt::WindowFlags f)
+        const std::shared_ptr<Resource::ResourceSystem>& resourceSystem, QWidget* parent, Qt::WindowFlags f)
         : QWidget(parent, f)
         , mRootNode(nullptr)
     {

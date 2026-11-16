@@ -44,7 +44,7 @@ namespace Platform
     std::jthread startThread(std::string_view name, Work work)
     {
         return std::jthread([name = std::string(name), onTerminate = std::get_terminate(), work = std::move(work)](
-                                std::stop_token stop) mutable {
+                                const std::stop_token& stop) mutable {
             std::set_terminate(onTerminate);
             nameThisThread(name);
             if constexpr (std::is_invocable_v<Work&, std::stop_token>)

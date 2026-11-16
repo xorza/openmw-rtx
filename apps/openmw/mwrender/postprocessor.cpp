@@ -748,7 +748,7 @@ namespace MWRender
     }
 
     PostProcessor::Status PostProcessor::enableTechnique(
-        std::shared_ptr<Fx::Technique> technique, std::optional<int> location)
+        const std::shared_ptr<Fx::Technique>& technique, std::optional<int> location)
     {
         if (technique->getLocked() || (location.has_value() && location.value() < 0))
             return Status_Error;
@@ -763,7 +763,7 @@ namespace MWRender
         return Status_Toggled;
     }
 
-    PostProcessor::Status PostProcessor::disableTechnique(std::shared_ptr<Fx::Technique> technique, bool dirty)
+    PostProcessor::Status PostProcessor::disableTechnique(const std::shared_ptr<Fx::Technique>& technique, bool dirty)
     {
         if (technique->getLocked())
             return Status_Error;

@@ -133,7 +133,7 @@ namespace Rtx
         /// A frame traced from a block written whole: what `renderFrame` hands on once it has described
         /// the world, and what a test of one field traces directly. Every field `sampleFrame` writes is
         /// left at nought.
-        void traceFrame(const Shaders::VisibilityConstants& constants, const FrameOptions& options,
+        void traceFrame(const Shaders::VisibilityConstants& camera, const FrameOptions& options,
             const WorldOptions& described = {});
 
         /// The same, for a picture inside the interface, from a block the viewpoint's

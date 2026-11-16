@@ -105,7 +105,7 @@ namespace
     };
 
     /// A texture over `image`, clamped and filtered as every texture of the map is.
-    osg::ref_ptr<osg::Texture2D> textureOver(osg::ref_ptr<osg::Image> image)
+    osg::ref_ptr<osg::Texture2D> textureOver(const osg::ref_ptr<osg::Image>& image)
     {
         osg::ref_ptr<osg::Texture2D> texture(new osg::Texture2D);
         texture->setImage(image);
@@ -185,8 +185,8 @@ namespace MWRender
     }
 
     void GlMapOverlay::requestOverlayTextureUpdate(int x, int y, int width, int height,
-        osg::ref_ptr<osg::Texture2D> texture, bool clear, bool cpuCopy, float srcLeft, float srcTop, float srcRight,
-        float srcBottom)
+        const osg::ref_ptr<osg::Texture2D>& texture, bool clear, bool cpuCopy, float srcLeft, float srcTop,
+        float srcRight, float srcBottom)
     {
         osg::ref_ptr<osg::Camera> camera(new osg::Camera);
         camera->setNodeMask(Mask_RenderToTexture);

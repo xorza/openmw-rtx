@@ -83,7 +83,7 @@ namespace MWLua
         }
 
         template <class Factory>
-        sol::object cachePackage(std::string_view key, Factory factory) const
+        sol::object cachePackage(std::string_view key, const Factory& factory) const
         {
             sol::object cached = getCachedPackage(key);
             if (cached != sol::nil)

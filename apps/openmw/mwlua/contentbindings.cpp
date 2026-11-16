@@ -264,7 +264,7 @@ namespace MWLua
                     record.mId = id;
                     self.mStore.insertStatic(record);
                 },
-                [parseRecord](Store& self, std::string_view idString, sol::lua_table table) {
+                [parseRecord](Store& self, std::string_view idString, const sol::lua_table& table) {
                     ESM::RefId id = validateId(idString);
                     T record = parseRecord(table);
                     record.mId = id;

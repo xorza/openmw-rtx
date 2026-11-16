@@ -112,7 +112,7 @@ namespace
 {
     struct ScreenCaptureMessageBox
     {
-        void operator()(std::string filePath) const
+        void operator()(const std::string& filePath) const
         {
             if (filePath.empty())
             {
@@ -132,7 +132,7 @@ namespace
 
     struct IgnoreString
     {
-        void operator()(std::string) const {}
+        void operator()(const std::string&) const {}
     };
 
     class OsgFrameStats final : public Misc::FrameStats

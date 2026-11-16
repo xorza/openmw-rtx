@@ -42,7 +42,7 @@ namespace Rtx
     ///        What it throws is kept as a body's is, and that hand takes no index.
     template <class Equip, class Body>
     void runInParallel(std::string_view name, const std::size_t count, const Hands hands, const std::stop_token& stop,
-        Equip equip, Body body)
+        Equip equip, const Body& body)
     {
         if (count == 0)
             return;

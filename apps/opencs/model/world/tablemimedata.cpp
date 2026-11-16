@@ -9,7 +9,7 @@
 #include "columnbase.hpp"
 #include "universalid.hpp"
 
-CSMWorld::TableMimeData::TableMimeData(UniversalId id, const CSMDoc::Document& document)
+CSMWorld::TableMimeData::TableMimeData(const UniversalId& id, const CSMDoc::Document& document)
     : mDocument(document)
     , mTableOfDragStart(nullptr)
 {

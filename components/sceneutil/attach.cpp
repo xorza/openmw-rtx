@@ -115,8 +115,9 @@ namespace SceneUtil
         }
     }
 
-    osg::ref_ptr<osg::Node> attach(osg::ref_ptr<const osg::Node> toAttach, osg::Node* master, std::string_view filter,
-        osg::Group* attachNode, Resource::SceneManager* sceneManager, const osg::Quat* attitude)
+    osg::ref_ptr<osg::Node> attach(const osg::ref_ptr<const osg::Node>& toAttach, osg::Node* master,
+        std::string_view filter, osg::Group* attachNode, Resource::SceneManager* sceneManager,
+        const osg::Quat* attitude)
     {
         if (dynamic_cast<const SceneUtil::Skeleton*>(toAttach.get()))
         {

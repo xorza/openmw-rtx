@@ -25,7 +25,7 @@ namespace Terrain
             }
             Resource::SceneManager* mSceneManager;
 
-            void operator()(std::string, osg::Object* obj)
+            void operator()(const std::string&, osg::Object* obj)
             {
                 mSceneManager->applyFilterSettings(static_cast<osg::Texture2D*>(obj));
             }

@@ -21,7 +21,7 @@ namespace MWLua
 
         constexpr std::array properties = { "condition", "enchantmentCharge", "soul" };
 
-        void valueErr(std::string_view prop, std::string type)
+        void valueErr(std::string_view prop, const std::string& type)
         {
             throw std::logic_error("'" + std::string(prop) + "'" + " received invalid value type (" + type + ")");
         }

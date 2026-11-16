@@ -3093,7 +3093,7 @@ SceneUtil::MWShadowTechnique::DebugHUD::DebugHUD(int numberOfShadowMapsPerLight)
         addAnotherShadowMap();
 }
 
-void SceneUtil::MWShadowTechnique::DebugHUD::draw(osg::ref_ptr<osg::Texture2D> texture, unsigned int shadowMapNumber, const osg::Matrixd &matrix, osgUtil::CullVisitor& cv)
+void SceneUtil::MWShadowTechnique::DebugHUD::draw(const osg::ref_ptr<osg::Texture2D>& texture, unsigned int shadowMapNumber, const osg::Matrixd &matrix, osgUtil::CullVisitor& cv)
 {
     // It might be possible to change shadow settings at runtime
     if (shadowMapNumber > mDebugCameras.size())
@@ -3128,7 +3128,7 @@ void SceneUtil::MWShadowTechnique::DebugHUD::releaseGLObjects(osg::State* state)
         node->releaseGLObjects(state);
 }
 
-void SceneUtil::MWShadowTechnique::DebugHUD::setFrustumVertices(osg::ref_ptr<osg::Vec3Array> vertices, unsigned int traversalNumber)
+void SceneUtil::MWShadowTechnique::DebugHUD::setFrustumVertices(const osg::ref_ptr<osg::Vec3Array>& vertices, unsigned int traversalNumber)
 {
     mFrustumGeometries[traversalNumber % 2]->setVertexArray(vertices);
 }

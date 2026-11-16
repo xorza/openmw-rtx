@@ -26,7 +26,7 @@ namespace Launcher
         void saveSettings();
 
     public slots:
-        void slotLoadedCellsChanged(QStringList cellNames);
+        void slotLoadedCellsChanged(const QStringList& cellNames);
 
     private slots:
         void on_skipMenuCheckBox_stateChanged(int state);
@@ -49,6 +49,6 @@ namespace Launcher
          * Load the cells associated with the given content files for use in autocomplete
          * @param filePaths the file paths of the content files to be examined
          */
-        void loadCellsForAutocomplete(QStringList filePaths);
+        void loadCellsForAutocomplete(const QStringList& cellNames);
     };
 }

@@ -96,8 +96,8 @@ namespace SceneUtil
 
     bool hasUserDescription(const osg::Node* node, std::string_view pattern);
 
-    osg::ref_ptr<GlowUpdater> addEnchantedGlow(osg::ref_ptr<osg::Node> node, Resource::ResourceSystem* resourceSystem,
-        const osg::Vec4f& glowColor, float glowDuration = -1);
+    osg::ref_ptr<GlowUpdater> addEnchantedGlow(const osg::ref_ptr<osg::Node>& node,
+        Resource::ResourceSystem* resourceSystem, const osg::Vec4f& glowColor, float glowDuration = -1);
 
     // Alpha-to-coverage requires a multisampled framebuffer, so we need to set that up for RTTs
     void attachAlphaToCoverageFriendlyFramebufferToCamera(osg::Camera* camera, osg::Camera::BufferComponent buffer,

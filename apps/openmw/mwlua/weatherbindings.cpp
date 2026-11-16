@@ -129,7 +129,7 @@ namespace
     }
 
     template <class T>
-    void setInterpolatorFromTable(Sky::TimeOfDayInterpolator<T>& interpolator, const sol::object value)
+    void setInterpolatorFromTable(Sky::TimeOfDayInterpolator<T>& interpolator, const sol::object& value)
     {
         if (value == sol::nil)
             interpolator.blank();
@@ -150,7 +150,7 @@ namespace
         }
     }
 
-    void setThunderFromTable(MWWorld::Weather& weather, const sol::object value)
+    void setThunderFromTable(MWWorld::Weather& weather, const sol::object& value)
     {
         if (value == sol::nil)
             weather.mThunderSoundID.fill({});

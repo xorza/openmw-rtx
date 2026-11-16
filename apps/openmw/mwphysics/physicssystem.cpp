@@ -398,7 +398,7 @@ namespace MWPhysics
     }
 
     void PhysicsSystem::addObject(
-        const MWWorld::Ptr& ptr, VFS::Path::NormalizedView mesh, osg::Quat rotation, int collisionType)
+        const MWWorld::Ptr& ptr, VFS::Path::NormalizedView mesh, const osg::Quat& rotation, int collisionType)
     {
         if (ptr.mRef->mData.mPhysicsPostponed)
             return;
@@ -521,7 +521,7 @@ namespace MWPhysics
         }
     }
 
-    void PhysicsSystem::updateRotation(const MWWorld::Ptr& ptr, osg::Quat rotate)
+    void PhysicsSystem::updateRotation(const MWWorld::Ptr& ptr, const osg::Quat& rotate)
     {
         if (auto foundObject = mObjects.find(ptr.mRef); foundObject != mObjects.end())
         {

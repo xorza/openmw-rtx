@@ -282,27 +282,28 @@ namespace Shader
 
             /// The square under a node whose state set holds `diffuse`, with `normalMap` bound at
             /// unit one where it is named, and coordinates at unit one where `atOne` is not null.
-            const auto visited = [&](const AutoMapRules& rules, const std::string& diffuse,
-                                     const std::string& normalMap, bool mirrored, osg::ref_ptr<osg::Vec2Array> atOne) {
-                osg::ref_ptr<osg::Geode> geode = new osg::Geode;
-                osg::StateSet* const stateSet = geode->getOrCreateStateSet();
-                stateSet->setTextureAttributeAndModes(0, named(diffuse));
-                if (!normalMap.empty())
-                {
-                    stateSet->setTextureAttributeAndModes(1, named(normalMap));
-                    stateSet->setTextureAttribute(1, new SceneUtil::TextureType("normalMap"));
-                }
+            const auto visited
+                = [&](const AutoMapRules& rules, const std::string& diffuse, const std::string& normalMap,
+                      bool mirrored, const osg::ref_ptr<osg::Vec2Array>& atOne) {
+                      osg::ref_ptr<osg::Geode> geode = new osg::Geode;
+                      osg::StateSet* const stateSet = geode->getOrCreateStateSet();
+                      stateSet->setTextureAttributeAndModes(0, named(diffuse));
+                      if (!normalMap.empty())
+                      {
+                          stateSet->setTextureAttributeAndModes(1, named(normalMap));
+                          stateSet->setTextureAttribute(1, new SceneUtil::TextureType("normalMap"));
+                      }
 
-                osg::ref_ptr<osg::Geometry> square = makeSquare();
-                square->setTexCoordArray(0, squareCoordinates(mirrored));
-                if (atOne != nullptr)
-                    square->setTexCoordArray(1, atOne);
-                geode->addDrawable(square);
+                      osg::ref_ptr<osg::Geometry> square = makeSquare();
+                      square->setTexCoordArray(0, squareCoordinates(mirrored));
+                      if (atOne != nullptr)
+                          square->setTexCoordArray(1, atOne);
+                      geode->addDrawable(square);
 
-                MapVisitor visitor(rules, content.mImages);
-                geode->accept(visitor);
-                return tangentsOf(*square);
-            };
+                      MapVisitor visitor(rules, content.mImages);
+                      geode->accept(visitor);
+                      return tangentsOf(*square);
+                  };
 
             EXPECT_EQ(visited(sEverything, "textures/stone.dds", {}, false, nullptr), alongX);
             EXPECT_EQ(visited(sEverything, "textures/stone.dds", {}, true, nullptr), againstX);

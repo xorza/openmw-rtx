@@ -115,7 +115,7 @@ namespace MWLua
                 return GCell{ &MWBase::Environment::get().getWorldModel()->getCell(
                     ESM::RefId::deserializeText(stringId), /*forceLoad=*/false) };
             };
-            api["getExteriorCell"] = [](int x, int y, sol::object cellOrName) {
+            api["getExteriorCell"] = [](int x, int y, const sol::object& cellOrName) {
                 ESM::RefId worldspace;
                 if (cellOrName.is<GCell>())
                     worldspace = cellOrName.as<GCell>().mStore->getCell()->getWorldSpace();

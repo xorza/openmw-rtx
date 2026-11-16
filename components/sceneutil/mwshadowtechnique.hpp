@@ -319,11 +319,11 @@ namespace SceneUtil {
         public:
             explicit DebugHUD(int numberOfShadowMapsPerLight);
 
-            void draw(osg::ref_ptr<osg::Texture2D> texture, unsigned int shadowMapNumber, const osg::Matrixd &matrix, osgUtil::CullVisitor& cv);
+            void draw(const osg::ref_ptr<osg::Texture2D>& texture, unsigned int shadowMapNumber, const osg::Matrixd &matrix, osgUtil::CullVisitor& cv);
 
             void releaseGLObjects(osg::State* state = nullptr) const;
 
-            void setFrustumVertices(osg::ref_ptr<osg::Vec3Array> vertices, unsigned int traversalNumber);
+            void setFrustumVertices(const osg::ref_ptr<osg::Vec3Array>& vertices, unsigned int traversalNumber);
         protected:
             void addAnotherShadowMap();
 

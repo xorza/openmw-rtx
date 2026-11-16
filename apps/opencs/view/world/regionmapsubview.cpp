@@ -4,7 +4,7 @@
 
 #include "regionmap.hpp"
 
-CSVWorld::RegionMapSubView::RegionMapSubView(CSMWorld::UniversalId universalId, CSMDoc::Document& document)
+CSVWorld::RegionMapSubView::RegionMapSubView(const CSMWorld::UniversalId& universalId, CSMDoc::Document& document)
     : CSVDoc::SubView(universalId)
 {
     mRegionMap = new RegionMap(universalId, document, this);

@@ -175,7 +175,7 @@ namespace CSMWorld
 
         void undo() override;
 
-        void setOverrideValue(int column, QVariant value);
+        void setOverrideValue(int column, const QVariant& value);
     };
 
     class RevertCommand : public QUndoCommand

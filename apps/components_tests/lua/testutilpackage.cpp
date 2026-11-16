@@ -28,7 +28,7 @@ namespace
         return lua.safe_script("return " + luaCode).get<T>();
     }
 
-    std::string getAsString(sol::state_view& lua, std::string luaCode)
+    std::string getAsString(sol::state_view& lua, const std::string& luaCode)
     {
         return LuaUtil::toString(lua.safe_script("return " + luaCode));
     }
