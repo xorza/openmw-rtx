@@ -35,6 +35,7 @@ target_sources(
         model/film.cpp
         model/expectations.cpp
         model/finding.cpp
+        model/heapdescription.cpp
         model/restreuse.cpp
         model/logtally.cpp
         model/measurewindow.cpp
@@ -90,6 +91,7 @@ target_sources(
                 model/film.hpp
                 model/expectations.hpp
                 model/finding.hpp
+                model/heapdescription.hpp
                 model/restreuse.hpp
                 model/findingkind.hpp
                 model/logtally.hpp

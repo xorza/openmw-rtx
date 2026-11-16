@@ -21,6 +21,6 @@ namespace Platform
         summary.cb = sizeof(summary);
         if (HeapSummary(GetProcessHeap(), 0, &summary) == FALSE)
             return std::nullopt;
-        return HeapHeld{ .mTaken = summary.cbCommitted, .mInUse = summary.cbAllocated };
+        return HeapHeld{ .mTaken = summary.cbCommitted, .mInUse = summary.cbAllocated, .mArenas = {} };
     }
 }

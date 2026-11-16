@@ -17,6 +17,8 @@
 #include <components/rtx/common/asserts.hpp>
 #include <components/rtx/common/mebibytes.hpp>
 
+#include "heapdescription.hpp"
+
 namespace RtxTool
 {
     void RunRecord::begin(const SessionRequest& request)
@@ -96,13 +98,13 @@ namespace RtxTool
     }
 
     void RunRecord::noteHostMemory(const std::string_view stop, const Platform::Process::AnonymousMemory& anonymous,
-        const std::optional<Platform::HeapHeld> heap)
+        std::optional<Platform::HeapHeld> heap)
     {
         const auto held
             = [](const Platform::Process::AnonymousMemory& memory) { return memory.mResident + memory.mSwapped; };
         if (mHostPeak.has_value() && held(anonymous) <= held(mHostPeak->mAnonymous))
             return;
-        mHostPeak = HostPeak{ .mStop = std::string(stop), .mAnonymous = anonymous, .mHeap = heap };
+        mHostPeak = HostPeak{ .mStop = std::string(stop), .mAnonymous = anonymous, .mHeap = std::move(heap) };
     }
 
     void RunRecord::checked(const Check check, const bool held)
@@ -170,9 +172,7 @@ namespace RtxTool
                 Rtx::mebibytes(peak.mAnonymous.mResident + peak.mAnonymous.mSwapped),
                 Rtx::mebibytes(peak.mAnonymous.mSwapped), peak.mStop);
             if (peak.mHeap.has_value())
-                mReport += std::format("; the heap took {:.1f} MiB there, {:.1f} MiB of it free",
-                    Rtx::mebibytes(peak.mHeap->mTaken),
-                    Rtx::mebibytes(peak.mHeap->mTaken - std::min(peak.mHeap->mInUse, peak.mHeap->mTaken)));
+                mReport += "; there " + describeHeap(*peak.mHeap);
             mReport += '\n';
         }
 

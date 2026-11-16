@@ -45,6 +45,7 @@ endif()
 target_sources(
     openmw-components
     PRIVATE
+        glibctext.cpp
         platform.cpp
         thread.cpp
     PUBLIC
@@ -53,6 +54,7 @@ target_sources(
                 appendfile.hpp
                 fifo.hpp
                 file.hpp
+                glibctext.hpp
                 gpu.hpp
                 heap.hpp
                 library.hpp

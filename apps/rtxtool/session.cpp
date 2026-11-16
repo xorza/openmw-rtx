@@ -22,6 +22,7 @@
 #include <apps/rtxtool/instruments/reportfile.hpp>
 #include <apps/rtxtool/instruments/resourcecaches.hpp>
 #include <apps/rtxtool/model/finding.hpp>
+#include <apps/rtxtool/model/heapdescription.hpp>
 #include <apps/rtxtool/model/stopdescription.hpp>
 #include <components/crashcatcher/crash.hpp>
 #include <components/debug/debugging.hpp>
@@ -561,9 +562,7 @@ namespace RtxTool
                 "Host memory after stop {}: {:.1f} MiB anonymous resident, {:.1f} MiB "
                 "swapped out{}",
                 (mAt + 1), Rtx::mebibytes(anonymous->mResident), Rtx::mebibytes(anonymous->mSwapped),
-                heap.has_value() ? std::format("; the heap took {:.1f} MiB, {:.1f} MiB of it in use",
-                                       Rtx::mebibytes(heap->mTaken), Rtx::mebibytes(heap->mInUse))
-                                 : std::string());
+                heap.has_value() ? "; " + describeHeap(*heap) : std::string());
             mRecord.noteHostMemory(currentStop().mName, *anonymous, heap);
         }
 

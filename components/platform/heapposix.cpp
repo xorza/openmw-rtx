@@ -2,7 +2,10 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
+#include <cstdlib>
 #include <optional>
+#include <string_view>
 
 #include <dlfcn.h>
 
@@ -10,6 +13,8 @@
 #if defined(__GLIBC__)
 #include <malloc.h>
 #endif
+
+#include "glibctext.hpp"
 
 namespace Platform
 {
@@ -30,34 +35,25 @@ namespace Platform
         const auto mapped = reinterpret_cast<Figure>(dlsym(RTLD_DEFAULT, "__sanitizer_get_heap_size"));
         const auto allocated = reinterpret_cast<Figure>(dlsym(RTLD_DEFAULT, "__sanitizer_get_current_allocated_bytes"));
         if (mapped != nullptr && allocated != nullptr)
-            return HeapHeld{ .mTaken = std::uint64_t{ mapped() }, .mInUse = std::uint64_t{ allocated() } };
+            return HeapHeld{
+                .mTaken = std::uint64_t{ mapped() }, .mInUse = std::uint64_t{ allocated() }, .mArenas = {}
+            };
 
 #if defined(__GLIBC__)
-        // glibc's `struct mallinfo2`, field for field: the release builds compile against glibc 2.28, which
-        // declares neither it nor the call, so the call is found at run time and its result laid out here.
-        struct MallInfo2
-        {
-            std::size_t mArena;
-            std::size_t mOrdinaryChunks;
-            std::size_t mFastChunks;
-            std::size_t mMappedChunks;
-            std::size_t mMappedBytes;
-            std::size_t mUnusedMaximum;
-            std::size_t mFastFreeBytes;
-            std::size_t mInUseBytes;
-            std::size_t mFreeBytes;
-            std::size_t mTrimmable;
-        };
-        using Query = MallInfo2 (*)();
-        // A symbol `dlsym` hands back as data names a function here, as POSIX has it do.
-        const auto query = reinterpret_cast<Query>(dlsym(RTLD_DEFAULT, "mallinfo2"));
-        if (query == nullptr)
+        // **Its report, every arena apart**, which every glibc since 2.10 writes: the release builds run on glibc 2.28,
+        // which has no `mallinfo2`, and `mallinfo` counts in an `int`, past which a heap of gigabytes wraps.
+        char* text = nullptr;
+        std::size_t length = 0;
+        FILE* const stream = open_memstream(&text, &length);
+        if (stream == nullptr)
             return std::nullopt;
-        const MallInfo2 info = query();
-        // What the arenas took and the chunks mapped on their own; in use, what of the arenas' is handed out and
-        // every mapped chunk, which is freed back to the system the moment it is freed.
-        return HeapHeld{ .mTaken = std::uint64_t{ info.mArena } + std::uint64_t{ info.mMappedBytes },
-            .mInUse = std::uint64_t{ info.mInUseBytes } + std::uint64_t{ info.mMappedBytes } };
+        const bool written = malloc_info(0, stream) == 0;
+        // Closed before the text is read, which writes it out and its length.
+        const bool closed = std::fclose(stream) == 0;
+        std::optional<HeapHeld> held
+            = written && closed ? GlibcText::heapHeld(std::string_view(text, length)) : std::nullopt;
+        std::free(text);
+        return held;
 #else
         return std::nullopt;
 #endif
