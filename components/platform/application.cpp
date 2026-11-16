@@ -45,7 +45,7 @@ namespace Platform
             Graphite::apply();
             return;
         }
-#if defined(WIN32) && QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+#if defined(WIN32)
         init();
     }
 
@@ -123,7 +123,7 @@ namespace Platform
         {
             if (event->type() == QEvent::ThemeChange || event->type() == QEvent::PaletteChange)
             {
-#if defined(WIN32) && QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+#if defined(WIN32)
                 const auto* hints = QGuiApplication::styleHints();
                 const auto currentStyle = QApplication::style()->objectName();
                 bool isDark = hints->colorScheme() == Qt::ColorScheme::Dark;

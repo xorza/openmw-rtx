@@ -1,4 +1,5 @@
 #include "methodselectionpage.hpp"
+#include "installsfromdisc.hpp"
 #include "mainwizard.hpp"
 
 #include <components/misc/scalableicon.hpp>
@@ -17,10 +18,11 @@ Wizard::MethodSelectionPage::MethodSelectionPage(QWidget* parent)
     folderIcon->setIcon(Misc::ScalableIcon::load(":folder"));
     buyLinkButton->setIcon(Misc::ScalableIcon::load(":dollar"));
 
-#ifndef OPENMW_USE_UNSHIELD
-    retailDiscRadioButton->setEnabled(false);
-    existingLocationRadioButton->setChecked(true);
-#endif
+    if constexpr (!sInstallsFromDisc)
+    {
+        retailDiscRadioButton->setEnabled(false);
+        existingLocationRadioButton->setChecked(true);
+    }
 
     QFont font = existingLocationRadioButton->font();
     font.setBold(true);

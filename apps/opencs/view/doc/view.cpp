@@ -800,14 +800,7 @@ void CSVDoc::View::tutorial()
 void CSVDoc::View::infoAbout()
 {
     // Get current OpenMW version
-    QString versionInfo = (Version::getOpenmwVersionDescription() +
-#if defined(__x86_64__) || defined(_M_X64)
-        " (64-bit)")
-                              .c_str();
-#else
-        " (32-bit)")
-                              .c_str();
-#endif
+    QString versionInfo = (Version::getOpenmwVersionDescription() + " (64-bit)").c_str();
 
     // Get current year
     const auto copyrightInfo = Misc::timeToString(std::chrono::system_clock::now(), "Copyright © 2008-%Y OpenMW Team");

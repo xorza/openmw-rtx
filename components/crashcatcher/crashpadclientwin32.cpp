@@ -301,15 +301,9 @@ namespace Crash::Client
 }
 
 // The loader calls every pointer in `.CRT$XL*` at each thread's start. The two names keep the
-// linker from dropping the table and the entry, which nothing else refers to; a 32-bit build
-// spells a C name with a leading underscore.
-#if defined(_M_IX86)
-#pragma comment(linker, "/INCLUDE:__tls_used")
-#pragma comment(linker, "/INCLUDE:_openmwCrashThreadStart")
-#else
+// linker from dropping the table and the entry, which nothing else refers to.
 #pragma comment(linker, "/INCLUDE:_tls_used")
 #pragma comment(linker, "/INCLUDE:openmwCrashThreadStart")
-#endif
 #pragma section(".CRT$XLY", long, read)
 extern "C" __declspec(allocate(".CRT$XLY")) const PIMAGE_TLS_CALLBACK openmwCrashThreadStart
     = Crash::Client::onThreadStart;

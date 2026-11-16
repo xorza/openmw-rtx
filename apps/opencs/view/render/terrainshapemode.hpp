@@ -11,10 +11,8 @@
 
 #include <osg/Vec3d>
 
-#ifndef Q_MOC_RUN
 #include "../../model/world/columnimp.hpp"
 #include "../widget/brushshapes.hpp"
-#endif
 
 #include "brushdraw.hpp"
 

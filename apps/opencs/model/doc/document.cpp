@@ -29,9 +29,7 @@
 
 #include "../world/defaultgmsts.hpp"
 
-#ifndef Q_MOC_RUN
 #include <components/files/configurationmanager.hpp>
-#endif
 
 namespace CSMWorld
 {

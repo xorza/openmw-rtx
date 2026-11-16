@@ -1,8 +1,6 @@
 #include "luastate.hpp"
 
-#ifndef NO_LUAJIT
 #include <luajit.h>
-#endif // NO_LUAJIT
 
 #include <filesystem>
 #include <fstream>
@@ -196,9 +194,7 @@ namespace LuaUtil
             sol.open_libraries(sol::lib::base, sol::lib::coroutine, sol::lib::math, sol::lib::bit32, sol::lib::string,
                 sol::lib::table, sol::lib::os, sol::lib::debug);
 
-#ifndef NO_LUAJIT
             sol.open_libraries(sol::lib::jit);
-#endif // NO_LUAJIT
 
             mSeedRandom = sol["math"]["randomseed"];
             mSeedRandom(static_cast<unsigned>(std::time(nullptr)));
@@ -459,11 +455,7 @@ namespace LuaUtil
 
     std::string getLuaVersion()
     {
-#ifdef NO_LUAJIT
-        return LUA_RELEASE;
-#else
         return LUA_RELEASE " (" LUAJIT_VERSION ")";
-#endif
     }
 
     std::string toString(const sol::object& obj)

@@ -8,9 +8,7 @@
 
 #include <apps/opencs/model/doc/loader.hpp>
 
-#ifndef Q_MOC_RUN
 #include <components/files/configurationmanager.hpp>
-#endif
 
 #include "document.hpp"
 

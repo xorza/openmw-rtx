@@ -14,10 +14,6 @@
 
 #include <gtest/gtest.h>
 
-#ifndef OPENMW_DATA_DIR
-#error "OPENMW_DATA_DIR is not defined"
-#endif
-
 namespace
 {
     using namespace testing;

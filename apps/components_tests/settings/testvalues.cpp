@@ -8,10 +8,6 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#ifndef OPENMW_PROJECT_SOURCE_DIR
-#define OPENMW_PROJECT_SOURCE_DIR "."
-#endif
-
 namespace Settings
 {
     namespace

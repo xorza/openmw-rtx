@@ -2,15 +2,11 @@
 
 #include <QDialog>
 
-#ifndef Q_MOC_RUN
-
 #include "adjusterwidget.hpp"
 
 #ifndef CS_QT_STD_FILESYSTEM_PATH_DECLARED
 #define CS_QT_STD_FILESYSTEM_PATH_DECLARED
 Q_DECLARE_METATYPE(std::filesystem::path)
-#endif
-
 #endif
 
 #include <filesystem>

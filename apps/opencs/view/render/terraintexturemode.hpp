@@ -9,11 +9,9 @@
 
 #include <QWidget>
 
-#ifndef Q_MOC_RUN
 #include "../../model/world/columnimp.hpp"
 #include "../widget/brushshapes.hpp"
 #include "brushdraw.hpp"
-#endif
 
 #include <components/esm3/loadland.hpp>
 

@@ -1,12 +1,10 @@
 #pragma once
 
-#ifndef Q_MOC_RUN
 #include <components/process/processinvoker.hpp>
 
 #include <components/config/gamesettings.hpp>
 #include <components/config/launchersettings.hpp>
 
-#endif
 #include "ui_mainwindow.h"
 
 class QListWidgetItem;

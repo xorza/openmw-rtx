@@ -2,9 +2,6 @@
 
 #include <cstdint>
 
-#include <osg-ffmpeg-videoplayer/libavformatdefines.hpp>
-#include <osg-ffmpeg-videoplayer/libavutildefines.hpp>
-
 #if defined(_MSC_VER)
 #pragma warning(push)
 #pragma warning(disable : 4244)
@@ -85,11 +82,7 @@ namespace MWSound
 
         SwrContext* mSwr;
         enum AVSampleFormat mOutputSampleFormat;
-#if OPENMW_FFMPEG_5_OR_GREATER
         AVChannelLayout mOutputChannelLayout;
-#else
-        int64_t mOutputChannelLayout;
-#endif
         uint8_t* mDataBuf;
         uint8_t** mFrameData;
         int mDataBufLen;
@@ -117,11 +110,7 @@ namespace MWSound
         void applyArtShims();
 
         static int readPacket(void* userData, uint8_t* buf, int bufSize);
-#if OPENMW_FFMPEG_CONST_WRITEPACKET
         static int writePacket(void* userData, const uint8_t* buf, int bufSize);
-#else
-        static int writePacket(void* userData, uint8_t* buf, int bufSize);
-#endif
         static int64_t seek(void* userData, int64_t offset, int whence);
 
         bool getAVAudioData();

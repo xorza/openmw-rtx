@@ -141,30 +141,6 @@ namespace MWRender
         mLinesVertices->push_back(Misc::Convert::toOsg(to));
         mLinesColors->push_back({ 1, 1, 1, 1 });
         mLinesColors->push_back({ 1, 1, 1, 1 });
-
-#if BT_BULLET_VERSION < 317
-        size_t size = mLinesVertices->size();
-        if (size >= 6 && (*mLinesVertices)[size - 1] == (*mLinesVertices)[size - 6]
-            && (*mLinesVertices)[size - 2] == (*mLinesVertices)[size - 3]
-            && (*mLinesVertices)[size - 4] == (*mLinesVertices)[size - 5])
-        {
-            mTrisVertices->push_back(mLinesVertices->back());
-            mLinesVertices->pop_back();
-            mLinesColors->pop_back();
-            mTrisVertices->push_back(mLinesVertices->back());
-            mLinesVertices->pop_back();
-            mLinesColors->pop_back();
-            mLinesVertices->pop_back();
-            mLinesColors->pop_back();
-            mTrisVertices->push_back(mLinesVertices->back());
-            mLinesVertices->pop_back();
-            mLinesColors->pop_back();
-            mLinesVertices->pop_back();
-            mLinesColors->pop_back();
-            mLinesVertices->pop_back();
-            mLinesColors->pop_back();
-        }
-#endif
     }
 
     void DebugDrawer::drawTriangle(

@@ -20,7 +20,7 @@ namespace Platform
     public:
         Application(int& argc, char* argv[], Look look);
 
-#if defined(WIN32) && QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+#if defined(WIN32)
         void init();
 
     private slots:

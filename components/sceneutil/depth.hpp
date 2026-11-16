@@ -85,11 +85,7 @@ namespace SceneUtil
         {
             glDepthFunc(static_cast<GLenum>(AutoDepth::isReversed() ? getReversedDepthFunction() : getFunction()));
             glDepthMask(static_cast<GLboolean>(getWriteMask()));
-#if defined(OSG_GLES1_AVAILABLE) || defined(OSG_GLES2_AVAILABLE) || defined(OSG_GLES3_AVAILABLE)
-            glDepthRangef(getZNear(), getZFar());
-#else
             glDepthRange(getZNear(), getZFar());
-#endif
         }
 
         static void setReversed(bool reverseZ)

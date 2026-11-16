@@ -12,9 +12,7 @@
 #include <utility>
 #include <vector>
 
-#ifndef Q_MOC_RUN
 #include <components/files/configurationmanager.hpp>
-#endif
 
 #include <components/files/multidircollection.hpp>
 

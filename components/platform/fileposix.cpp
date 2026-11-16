@@ -36,13 +36,7 @@ namespace Platform::File
 
     Handle open(const std::filesystem::path& filename)
     {
-#ifdef O_BINARY
-        static const int openFlags = O_RDONLY | O_BINARY;
-#else
-        static const int openFlags = O_RDONLY;
-#endif
-
-        auto handle = ::open(filename.c_str(), openFlags, 0);
+        auto handle = ::open(filename.c_str(), O_RDONLY, 0);
         if (handle == -1)
         {
             throw std::system_error(errno, std::generic_category(),

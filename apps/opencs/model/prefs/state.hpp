@@ -6,9 +6,7 @@
 #include <QMutex>
 #include <QObject>
 
-#ifndef Q_MOC_RUN
 #include <components/files/configurationmanager.hpp>
-#endif
 
 #include "category.hpp"
 #include "enumsetting.hpp"

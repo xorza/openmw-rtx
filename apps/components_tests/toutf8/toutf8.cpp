@@ -6,10 +6,6 @@
 #include <filesystem>
 #include <fstream>
 
-#ifndef OPENMW_PROJECT_SOURCE_DIR
-#define OPENMW_PROJECT_SOURCE_DIR "."
-#endif
-
 namespace
 {
     using namespace testing;

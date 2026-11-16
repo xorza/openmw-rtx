@@ -22,8 +22,6 @@
 */
 #include "reader.hpp"
 
-#undef DEBUG_GROUPSTACK
-
 #include <algorithm>
 #include <iomanip>
 #include <iostream>
@@ -652,20 +650,9 @@ namespace ESM4
 
     void Reader::enterGroup()
     {
-#ifdef DEBUG_GROUPSTACK
-        std::string padding; // FIXME: debugging only
-        padding.insert(0, mCtx.groupStack.size() * 2, ' ');
-        std::cout << padding << "Starting record group "
-                  << printLabel(mCtx.recordHeader.group.label, mCtx.recordHeader.group.type) << std::endl;
-#endif
         // empty group if the group size is same as the header size
         if (mCtx.recordHeader.group.groupSize == static_cast<std::uint32_t>(mCtx.recHeaderSize))
         {
-#ifdef DEBUG_GROUPSTACK
-            std::cout << padding << "Ignoring record group " // FIXME: debugging only
-                      << printLabel(mCtx.recordHeader.group.label, mCtx.recordHeader.group.type) << " (empty)"
-                      << std::endl;
-#endif
             if (!mCtx.groupStack.empty()) // top group may be empty (e.g. HAIR in Skyrim)
             {
                 // don't put on the stack, exitGroupCheck() may not get called before recursing into this method
@@ -690,9 +677,6 @@ namespace ESM4
         std::uint32_t lastGroupSize = mCtx.groupStack.back().first.groupSize;
         while (mCtx.groupStack.back().second >= lastGroupSize)
         {
-#ifdef DEBUG_GROUPSTACK
-            GroupTypeHeader grp = mCtx.groupStack.back().first; // FIXME: grp is for debugging only
-#endif
             // try to correct any overshoot
             // TODO: not tested
             std::uint32_t overshoot = mCtx.groupStack.back().second - lastGroupSize;
@@ -703,11 +687,6 @@ namespace ESM4
             }
 
             mCtx.groupStack.pop_back();
-#ifdef DEBUG_GROUPSTACK
-            std::string padding; // FIXME: debugging only
-            padding.insert(0, mCtx.groupStack.size() * 2, ' ');
-            std::cout << padding << "Finished record group " << printLabel(grp.label, grp.type) << std::endl;
-#endif
             // if the previous group was the final one no need to do below
             if (mCtx.groupStack.empty())
                 return;
@@ -757,12 +736,6 @@ namespace ESM4
 
     void Reader::skipGroup()
     {
-#ifdef DEBUG_GROUPSTACK
-        std::string padding; // FIXME: debugging only
-        padding.insert(0, mCtx.groupStack.size() * 2, ' ');
-        std::cout << padding << "Skipping record group "
-                  << printLabel(mCtx.recordHeader.group.label, mCtx.recordHeader.group.type) << std::endl;
-#endif
         // subtract the size of header already read before skipping
         std::uint32_t skipSize = mCtx.recordHeader.group.groupSize - static_cast<std::uint32_t>(mCtx.recHeaderSize);
         mStream->ignore(skipSize);

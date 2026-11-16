@@ -326,9 +326,7 @@ namespace Resource
         osg::ref_ptr<osg::StateSet> stateset = mSwitch->getOrCreateStateSet();
         stateset->setMode(GL_BLEND, osg::StateAttribute::ON);
         stateset->setMode(GL_DEPTH_TEST, osg::StateAttribute::OFF);
-#ifdef OSG_GL1_AVAILABLE
         stateset->setAttribute(new osg::PolygonMode(), osg::StateAttribute::PROTECTED);
-#endif
 
         mCamera->getOrCreateStateSet()->setGlobalDefaults();
         osg::ref_ptr<osgViewer::Renderer> renderer = new osgViewer::Renderer(mCamera);

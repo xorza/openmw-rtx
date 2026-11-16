@@ -9,7 +9,13 @@
 #include <components/debug/debuglog.hpp>
 #include <components/toutf8/toutf8.hpp>
 
+#include "installsfromdisc.hpp"
 #include "mainwizard.hpp"
+
+QWizardPage* Wizard::makeInstallationPage(QWidget* parent, Config::GameSettings& gameSettings)
+{
+    return new InstallationPage(parent, gameSettings);
+}
 
 Wizard::InstallationPage::InstallationPage(QWidget* parent, Config::GameSettings& gameSettings)
     : QWizardPage(parent)

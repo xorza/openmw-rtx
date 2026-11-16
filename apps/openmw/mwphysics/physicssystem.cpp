@@ -12,7 +12,6 @@
 #include <BulletCollision/CollisionShapes/btStaticPlaneShape.h>
 
 #include <LinearMath/btIDebugDraw.h>
-#include <LinearMath/btQuickprof.h>
 #include <LinearMath/btVector3.h>
 
 #include <components/crashcatcher/crash.hpp>
@@ -706,11 +705,6 @@ namespace MWPhysics
         }
         for (auto& [_, object] : mObjects)
             object->resetCollisions();
-
-#ifndef BT_NO_PROFILE
-        CProfileManager::Reset();
-        CProfileManager::Increment_Frame_Counter();
-#endif
 
         mTimeAccum += dt;
 

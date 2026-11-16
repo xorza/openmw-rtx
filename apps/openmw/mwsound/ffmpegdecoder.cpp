@@ -9,12 +9,7 @@
 #include <components/debug/debuglog.hpp>
 #include <components/vfs/manager.hpp>
 
-#include <osg-ffmpeg-videoplayer/libavformatdefines.hpp>
-#include <osg-ffmpeg-videoplayer/libavutildefines.hpp>
-
-#if OPENMW_FFMPEG_5_OR_GREATER
 #include <libavutil/channel_layout.h>
-#endif
 
 #include "headcache.hpp"
 
@@ -68,11 +63,7 @@ namespace MWSound
         }
     }
 
-#if OPENMW_FFMPEG_CONST_WRITEPACKET
     int FFmpegDecoder::writePacket(void*, const uint8_t*, int)
-#else
-    int FFmpegDecoder::writePacket(void*, uint8_t*, int)
-#endif
     {
         Log(Debug::Error) << "can't write to read-only stream";
         return -1;
@@ -168,12 +159,8 @@ namespace MWSound
                 if (!mDataBuf || mDataBufLen < mFrame->nb_samples)
                 {
                     av_freep(static_cast<void*>(&mDataBuf));
-#if OPENMW_FFMPEG_5_OR_GREATER
-                    if (av_samples_alloc(&mDataBuf, nullptr, mOutputChannelLayout.nb_channels,
-#else
-                    if (av_samples_alloc(&mDataBuf, nullptr, av_get_channel_layout_nb_channels(mOutputChannelLayout),
-#endif
-                            mFrame->nb_samples, mOutputSampleFormat, 0)
+                    if (av_samples_alloc(&mDataBuf, nullptr, mOutputChannelLayout.nb_channels, mFrame->nb_samples,
+                            mOutputSampleFormat, 0)
                         < 0)
                         return false;
                     else
@@ -209,11 +196,7 @@ namespace MWSound
                 if (!getAVAudioData())
                     break;
                 mFramePos = 0;
-#if OPENMW_FFMPEG_5_OR_GREATER
                 mFrameSize = static_cast<std::size_t>(mFrame->nb_samples * mOutputChannelLayout.nb_channels)
-#else
-                mFrameSize = mFrame->nb_samples * av_get_channel_layout_nb_channels(mOutputChannelLayout)
-#endif
                     * static_cast<std::size_t>(av_get_bytes_per_sample(mOutputSampleFormat));
             }
 
@@ -245,11 +228,7 @@ namespace MWSound
         bool hasCompleteAudioParameters(const AVStream& stream)
         {
             const AVCodecParameters& par = *stream.codecpar;
-#if OPENMW_FFMPEG_5_OR_GREATER
             const int channels = par.ch_layout.nb_channels;
-#else
-            const int channels = par.channels;
-#endif
             return par.codec_id != AV_CODEC_ID_NONE && par.sample_rate > 0 && channels > 0;
         }
 
@@ -305,12 +284,7 @@ namespace MWSound
         }
 
         // avformat_open_input frees the user supplied AVFormatContext on failure
-#if OPENMW_FFMPEG_CONST_INPUTFORMAT
         if (avformat_open_input(&ctx, name, fmt, nullptr) != 0)
-#else
-        // FFmpeg 4 returns non-const input formats.
-        if (avformat_open_input(&ctx, name, const_cast<AVInputFormat*>(fmt), nullptr) != 0)
-#endif
             return false;
 
         formatCtx.reset(std::exchange(ctx, nullptr));
@@ -473,19 +447,11 @@ namespace MWSound
         else
             mOutputSampleFormat = AV_SAMPLE_FMT_S16;
 
-#if OPENMW_FFMPEG_5_OR_GREATER
         mOutputChannelLayout = (*stream)->codecpar->ch_layout; // sefault
         if (mOutputChannelLayout.u.mask == 0)
             av_channel_layout_default(&mOutputChannelLayout, codecCtxPtr->ch_layout.nb_channels);
 
         codecCtxPtr->ch_layout = mOutputChannelLayout;
-#else
-        mOutputChannelLayout = (*stream)->codecpar->channel_layout;
-        if (mOutputChannelLayout == 0)
-            mOutputChannelLayout = av_get_default_channel_layout(codecCtxPtr->channels);
-
-        codecCtxPtr->channel_layout = mOutputChannelLayout;
-#endif
 
         mIoCtx = std::move(ioCtx);
         mFrame = std::move(frame);
@@ -533,11 +499,7 @@ namespace MWSound
             *type = SampleType_Int16;
         }
 
-#if OPENMW_FFMPEG_5_OR_GREATER
         switch (mOutputChannelLayout.u.mask)
-#else
-        switch (mOutputChannelLayout)
-#endif
         {
             case AV_CH_LAYOUT_MONO:
                 *chans = ChannelConfig_Mono;
@@ -556,7 +518,6 @@ namespace MWSound
                 break;
             default:
                 char str[1024];
-#if OPENMW_FFMPEG_5_OR_GREATER
                 av_channel_layout_describe(&mCodecCtx->ch_layout, str, sizeof(str));
                 Log(Debug::Error) << "Unsupported channel layout: " << str;
 
@@ -570,41 +531,17 @@ namespace MWSound
                     mOutputChannelLayout = AV_CHANNEL_LAYOUT_STEREO;
                     *chans = ChannelConfig_Stereo;
                 }
-#else
-                av_get_channel_layout_string(str, sizeof(str), mCodecCtx->channels, mCodecCtx->channel_layout);
-                Log(Debug::Error) << "Unsupported channel layout: " << str;
-
-                if (mCodecCtx->channels == 1)
-                {
-                    mOutputChannelLayout = AV_CH_LAYOUT_MONO;
-                    *chans = ChannelConfig_Mono;
-                }
-                else
-                {
-                    mOutputChannelLayout = AV_CH_LAYOUT_STEREO;
-                    *chans = ChannelConfig_Stereo;
-                }
-#endif
                 break;
         }
 
         *samplerate = mCodecCtx->sample_rate;
-#if OPENMW_FFMPEG_5_OR_GREATER
         AVChannelLayout chLayout = mCodecCtx->ch_layout;
         if (chLayout.u.mask == 0)
             av_channel_layout_default(&chLayout, mCodecCtx->ch_layout.nb_channels);
 
         if (mOutputSampleFormat != mCodecCtx->sample_fmt || mOutputChannelLayout.u.mask != chLayout.u.mask)
-#else
-        int64_t ch_layout = mCodecCtx->channel_layout;
-        if (ch_layout == 0)
-            ch_layout = av_get_default_channel_layout(mCodecCtx->channels);
-
-        if (mOutputSampleFormat != mCodecCtx->sample_fmt || mOutputChannelLayout != ch_layout)
-#endif
 
         {
-#if OPENMW_FFMPEG_5_OR_GREATER
             swr_alloc_set_opts2(&mSwr, // SwrContext
                 &mOutputChannelLayout, // output ch layout
                 mOutputSampleFormat, // output sample format
@@ -614,17 +551,6 @@ namespace MWSound
                 mCodecCtx->sample_rate, // input sample rate
                 0, // logging level offset
                 nullptr); // log context
-#else
-            mSwr = swr_alloc_set_opts(mSwr, // SwrContext
-                mOutputChannelLayout, // output ch layout
-                mOutputSampleFormat, // output sample format
-                mCodecCtx->sample_rate, // output sample rate
-                ch_layout, // input ch layout
-                mCodecCtx->sample_fmt, // input sample format
-                mCodecCtx->sample_rate, // input sample rate
-                0, // logging level offset
-                nullptr); // log context
-#endif
             if (!mSwr)
                 throw std::runtime_error("Couldn't allocate SwrContext");
             int init = swr_init(mSwr);
@@ -653,11 +579,7 @@ namespace MWSound
 
         while (getAVAudioData())
         {
-#if OPENMW_FFMPEG_5_OR_GREATER
             size_t got = static_cast<std::size_t>(mFrame->nb_samples * mOutputChannelLayout.nb_channels)
-#else
-            size_t got = mFrame->nb_samples * av_get_channel_layout_nb_channels(mOutputChannelLayout)
-#endif
                 * static_cast<std::size_t>(av_get_bytes_per_sample(mOutputSampleFormat));
             const char* inbuf = reinterpret_cast<char*>(mFrameData[0]);
             output.insert(output.end(), inbuf, inbuf + got);
@@ -666,11 +588,7 @@ namespace MWSound
 
     size_t FFmpegDecoder::getSampleOffset()
     {
-#if OPENMW_FFMPEG_5_OR_GREATER
         std::size_t delay = (mFrameSize - mFramePos) / static_cast<std::size_t>(mOutputChannelLayout.nb_channels)
-#else
-        std::size_t delay = (mFrameSize - mFramePos) / av_get_channel_layout_nb_channels(mOutputChannelLayout)
-#endif
             / static_cast<std::size_t>(av_get_bytes_per_sample(mOutputSampleFormat));
         return static_cast<std::size_t>(mNextPts * mCodecCtx->sample_rate) - delay;
     }
@@ -683,11 +601,7 @@ namespace MWSound
         , mNextPts(0.0)
         , mSwr(nullptr)
         , mOutputSampleFormat(AV_SAMPLE_FMT_NONE)
-#if OPENMW_FFMPEG_5_OR_GREATER
         , mOutputChannelLayout({})
-#else
-        , mOutputChannelLayout(0)
-#endif
         , mDataBuf(nullptr)
         , mFrameData(nullptr)
         , mDataBufLen(0)

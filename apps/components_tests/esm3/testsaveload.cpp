@@ -848,10 +848,6 @@ namespace ESM
 
         TEST_P(Esm3SaveLoadRecordTest, creatureShouldNotChange)
         {
-#if !defined(__clang__) && defined(__GNUC__) && __GNUC__ <= 14
-            _Pragma("GCC diagnostic push");
-            _Pragma("GCC diagnostic ignored \"-Wmaybe-uninitialized\"");
-#endif
             Creature record = {
                 .mData = {
                     .mAttributes = {
@@ -897,9 +893,6 @@ namespace ESM
                 .mAiPackage{},
                 .mTransport{},
             };
-#if !defined(__clang__) && defined(__GNUC__) && __GNUC__ <= 14
-            _Pragma("GCC diagnostic pop");
-#endif
 
             Creature result;
             saveAndLoadRecord(record, GetParam(), result);
@@ -978,10 +971,6 @@ namespace ESM
 
         TEST_P(Esm3SaveLoadRecordTest, npcShouldNotChange)
         {
-#if !defined(__clang__) && defined(__GNUC__) && __GNUC__ <= 14
-            _Pragma("GCC diagnostic push");
-            _Pragma("GCC diagnostic ignored \"-Wmaybe-uninitialized\"");
-#endif
             NPC record = {
                 .mNpdtType = NPC::NPC_DEFAULT,
                 .mNpdt = {
@@ -1031,9 +1020,6 @@ namespace ESM
                 .mHair = generateRandomRefId(32),
                 .mHead = generateRandomRefId(32),
             };
-#if !defined(__clang__) && defined(__GNUC__) && __GNUC__ <= 14
-            _Pragma("GCC diagnostic pop");
-#endif
 
             NPC result;
             saveAndLoadRecord(record, GetParam(), result);
@@ -1069,10 +1055,6 @@ namespace ESM
 
         TEST_P(Esm3SaveLoadRecordTest, raceShouldNotChange)
         {
-#if !defined(__clang__) && defined(__GNUC__) && __GNUC__ <= 14
-            _Pragma("GCC diagnostic push");
-            _Pragma("GCC diagnostic ignored \"-Wmaybe-uninitialized\"");
-#endif
             Race record = {
                 .mData = {
                     .mBonus = { { { .mSkill = Skill::Athletics, .mBonus = 10 }, {}, {}, {}, {}, {}, {} } },
@@ -1089,9 +1071,6 @@ namespace ESM
                 .mId = generateRandomRefId(32),
                 .mPowers{},
             };
-#if !defined(__clang__) && defined(__GNUC__) && __GNUC__ <= 14
-            _Pragma("GCC diagnostic pop");
-#endif
 
             Race result;
             saveAndLoadRecord(record, GetParam(), result);

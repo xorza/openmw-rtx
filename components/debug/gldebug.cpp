@@ -49,7 +49,6 @@ namespace Debug
         void GL_APIENTRY debugCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length,
             const GLchar* message, const void* userParam)
         {
-#ifdef GL_DEBUG_OUTPUT
             std::string srcStr;
             switch (source)
             {
@@ -111,7 +110,6 @@ namespace Debug
             }
 
             Log(logSeverity) << "OpenGL " << typeStr << " [" << srcStr << "]: " << message;
-#endif
         }
 
         class PushDebugGroup
@@ -136,7 +134,6 @@ namespace Debug
 
     void EnableGLDebugOperation::operator()(osg::GraphicsContext* graphicsContext)
     {
-#ifdef GL_DEBUG_OUTPUT
         OpenThreads::ScopedLock<OpenThreads::Mutex> lock(mMutex);
 
         unsigned int contextID = graphicsContext->getState()->getContextID();
@@ -177,7 +174,6 @@ namespace Debug
             Log(Info) << "OpenGL debug callback attached.";
         }
         else
-#endif
             Log(Error) << "Unable to attach OpenGL debug callback.";
     }
 
@@ -195,11 +191,7 @@ namespace Debug
     }
 
     DebugGroup::DebugGroup(std::string message, GLuint id)
-#ifdef GL_DEBUG_OUTPUT
         : mSource(GL_DEBUG_SOURCE_APPLICATION)
-#else
-        : mSource(0x824A)
-#endif
         , mId(id)
         , mMessage(std::move(message))
     {

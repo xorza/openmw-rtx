@@ -266,6 +266,15 @@ and upstream's two Lua storage tests writing there.
 - Every header of `apps/` and `components/` guarded by `#pragma once`, upstream's 1,400 guards among them, held by `omw
   lint pragmas`; the headers GLSL reads keep their guards (`portable.h`). Cost: also a header upstream adds with a
   guard, which the lint names.
+- Every conditional the pinned set and the compiler floors decide, unwrapped or deleted (2026-11-17): FFmpeg 4's paths
+  and `osg-ffmpeg-videoplayer`'s two version headers; Bullet before 3.25's heightfield copy and debug lines; Qt before
+  6.7; MSVC before 19.44's `operator==` overloads; GCC's test workarounds; 32-bit Windows; `NO_LUAJIT`, `USE_OPENXR`'s
+  layout, `DEBUG_GROUPSTACK`, `O_BINARY`, and the physics profiler tab `BT_NO_PROFILE` never let a build show; OpenAL's
+  `ALC_ALL_DEVICES_SPECIFIER` fallback; the test path fallbacks to `"."`; Qt 4's `Q_MOC_RUN` guards; the rasterizer's
+  multiview, GLES and OSG 3.6.5 branches, the pinned OSG carrying OSG #1028's fix. `OPENMW_USE_UNSHIELD` is `0` or `1`
+  on every build, read into `Wizard::sInstallsFromDisc`, and the installation page made by
+  `Wizard::makeInstallationPage`, which a Windows build names only in a discarded branch. Cost: a conflict with an
+  upstream edit to a branch it unwrapped.
 
 **The build** (`docs/build.md`). Cost: a conflict with every upstream change to a CMake list, an option, a found package
 or the install, which the merge places in this layout:

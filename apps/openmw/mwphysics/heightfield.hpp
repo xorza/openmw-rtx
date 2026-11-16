@@ -1,9 +1,6 @@
 #pragma once
 
-#include <LinearMath/btScalar.h>
-
 #include <memory>
-#include <vector>
 
 class btCollisionObject;
 class btHeightfieldTerrainShape;
@@ -34,9 +31,6 @@ namespace MWPhysics
         std::unique_ptr<btHeightfieldTerrainShape> mShape;
         std::unique_ptr<btCollisionObject> mCollisionObject;
         std::shared_ptr<const ESMTerrain::LandObject> mHoldObject;
-#if BT_BULLET_VERSION < 310
-        std::vector<btScalar> mHeights;
-#endif
 
         PhysicsTaskScheduler* mTaskScheduler;
     };

@@ -27,10 +27,6 @@
 #include "sounddecoder.hpp"
 #include "soundmanagerimp.hpp"
 
-#ifndef ALC_ALL_DEVICES_SPECIFIER
-#define ALC_ALL_DEVICES_SPECIFIER 0x1013
-#endif
-
 namespace
 {
     // A sound's handle is a pointer wide and holds an OpenAL name, the integer itself and not an address.

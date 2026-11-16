@@ -5,10 +5,6 @@
 
 #include "openalutil.hpp"
 
-#ifndef ALC_ALL_DEVICES_SPECIFIER
-#define ALC_ALL_DEVICES_SPECIFIER 0x1013
-#endif
-
 std::vector<std::string> Launcher::enumerateOpenALDevices()
 {
     std::vector<std::string> devlist;

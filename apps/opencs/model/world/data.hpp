@@ -50,10 +50,8 @@
 #include "refcollection.hpp"
 #include "refidcollection.hpp"
 #include "resourcesmanager.hpp"
-#include "universalid.hpp"
-#ifndef Q_MOC_RUN
 #include "subcellcollection.hpp"
-#endif
+#include "universalid.hpp"
 
 class QAbstractItemModel;
 class QModelIndex;

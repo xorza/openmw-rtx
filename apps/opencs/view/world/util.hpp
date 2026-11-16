@@ -5,9 +5,7 @@
 #include <QAbstractTableModel>
 #include <QStyledItemDelegate>
 
-#ifndef Q_MOC_RUN
 #include "../../model/world/columnbase.hpp"
-#endif
 
 class QUndoStack;
 class QWidget;

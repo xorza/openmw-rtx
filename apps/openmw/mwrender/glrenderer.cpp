@@ -38,7 +38,6 @@
 #include <osg/Vec2f>
 #include <osg/Vec3>
 #include <osg/Vec4f>
-#include <osg/Version>
 #include <osg/Viewport>
 #include <osgGA/EventQueue>
 #include <osgGA/GUIEventAdapter>
@@ -289,13 +288,6 @@ namespace MWRender
 
         mViewer->realize();
         mMaxTextureUnits = identifyOp->getMaxTextureImageUnits();
-
-#if OSG_VERSION_LESS_THAN(3, 6, 6)
-        // hack fix for https://github.com/openscenegraph/OpenSceneGraph/issues/1028
-        osg::GLExtensions& exts = SceneUtil::getGLExtensions();
-        if (!osg::isGLExtensionSupported(exts.contextID, "NV_framebuffer_multisample_coverage"))
-            exts.glRenderbufferStorageMultisampleCoverageNV = nullptr;
-#endif
 
         mViewer->getEventQueue()->getCurrentEventState()->setWindowRectangle(
             0, 0, graphicsWindow.getTraits()->width, graphicsWindow.getTraits()->height);

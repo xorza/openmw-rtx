@@ -3,10 +3,8 @@
 #include <QFrame>
 #include <QGroupBox>
 
-#ifndef Q_MOC_RUN
 #include "brushshapes.hpp"
 #include "scenetool.hpp"
-#endif
 
 #include <components/esm/refid.hpp>
 

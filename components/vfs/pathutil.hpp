@@ -112,10 +112,6 @@ namespace VFS::Path
 
         friend constexpr bool operator==(const ExtensionView& lhs, const auto& rhs) { return lhs.mValue == rhs; }
 
-#if defined(_MSC_VER) && _MSC_VER <= 1935
-        friend constexpr bool operator==(const auto& lhs, const ExtensionView& rhs) { return lhs == rhs.mValue; }
-#endif
-
         friend constexpr bool operator<(const ExtensionView& lhs, const ExtensionView& rhs)
         {
             return lhs.mValue < rhs.mValue;
@@ -167,10 +163,6 @@ namespace VFS::Path
         friend constexpr bool operator==(const NormalizedView& lhs, const NormalizedView& rhs) = default;
 
         friend constexpr bool operator==(const NormalizedView& lhs, const auto& rhs) { return lhs.mValue == rhs; }
-
-#if defined(_MSC_VER) && _MSC_VER <= 1935
-        friend constexpr bool operator==(const auto& lhs, const NormalizedView& rhs) { return lhs == rhs.mValue; }
-#endif
 
         friend constexpr bool operator<(const NormalizedView& lhs, const NormalizedView& rhs)
         {
@@ -351,10 +343,6 @@ namespace VFS::Path
         friend bool operator==(const Normalized& lhs, const Normalized& rhs) = default;
 
         friend bool operator==(const Normalized& lhs, const auto& rhs) { return lhs.mValue == rhs; }
-
-#if defined(_MSC_VER) && _MSC_VER <= 1935
-        friend bool operator==(const auto& lhs, const Normalized& rhs) { return lhs == rhs.mValue; }
-#endif
 
         friend bool operator==(const Normalized& lhs, const NormalizedView& rhs) { return lhs.mValue == rhs.value(); }
 

@@ -103,16 +103,9 @@ namespace DetourNavigator
 
         constexpr int upAxis = 2;
         constexpr bool flipQuadEdges = false;
-#if BT_BULLET_VERSION < 310
-        std::vector<btScalar> heights(heightfield.mHeights.begin(), heightfield.mHeights.end());
-        btHeightfieldTerrainShape shape(static_cast<int>(heightfield.mHeights.size() / heightfield.mLength),
-            static_cast<int>(heightfield.mLength), heights.data(), 1, heightfield.mMinHeight, heightfield.mMaxHeight,
-            upAxis, PHY_FLOAT, flipQuadEdges);
-#else
         btHeightfieldTerrainShape shape(static_cast<int>(heightfield.mHeights.size() / heightfield.mLength),
             static_cast<int>(heightfield.mLength), heightfield.mHeights.data(), heightfield.mMinHeight,
             heightfield.mMaxHeight, upAxis, flipQuadEdges);
-#endif
         const float scale = getHeightfieldScale(heightfield.mCellSize, heightfield.mOriginalSize);
         shape.setLocalScaling(btVector3(scale, scale, 1));
         btVector3 aabbMin;

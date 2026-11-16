@@ -24,10 +24,6 @@
 #include <components/rtx/world/weather.hpp>
 #include <components/testing/util.hpp>
 
-#ifndef OPENMW_PROJECT_SOURCE_DIR
-#define OPENMW_PROJECT_SOURCE_DIR "."
-#endif
-
 namespace RtxTool
 {
     namespace

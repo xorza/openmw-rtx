@@ -60,11 +60,6 @@ namespace Files
         public: // Method required by eof_iterator
             void get();
 
-#if BOOST_WORKAROUND(_MSC_VER, <= 1900)
-            void decrement() {}
-            void advance(difference_type) {}
-#endif
-
         protected: // Stubs for derived classes
             // Obtains next line from the config file
             // Note: really, this design is a bit ugly

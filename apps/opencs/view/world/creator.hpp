@@ -5,12 +5,10 @@
 
 #include <QWidget>
 
-#ifndef Q_MOC_RUN
 #include "../../model/doc/document.hpp"
 
 #include "../../model/world/scope.hpp"
 #include "../../model/world/universalid.hpp"
-#endif
 
 namespace CSVWorld
 {

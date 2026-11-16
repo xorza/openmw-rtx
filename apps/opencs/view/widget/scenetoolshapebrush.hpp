@@ -5,10 +5,8 @@
 #include <QSlider>
 #include <QSpinBox>
 
-#ifndef Q_MOC_RUN
 #include "brushshapes.hpp"
 #include "scenetool.hpp"
-#endif
 
 class QComboBox;
 class QDragEnterEvent;
