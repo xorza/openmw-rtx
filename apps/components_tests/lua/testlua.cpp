@@ -190,24 +190,26 @@ return {
     TEST_F(LuaStateTest, Cast)
     {
         EXPECT_EQ(LuaUtil::cast<int>(sol::make_object(mLua.unsafeState(), 3.14)), 3);
-        EXPECT_ERROR(LuaUtil::cast<int>(sol::make_object(mLua.unsafeState(), "3.14")),
+        Testing::expectError([&] { return LuaUtil::cast<int>(sol::make_object(mLua.unsafeState(), "3.14")); },
             "Value \"\"3.14\"\" can not be casted to int");
-        EXPECT_ERROR(LuaUtil::cast<std::string_view>(sol::make_object(mLua.unsafeState(), sol::nil)),
+        Testing::expectError(
+            [&] { return LuaUtil::cast<std::string_view>(sol::make_object(mLua.unsafeState(), sol::nil)); },
             "Value \"nil\" can not be casted to string");
-        EXPECT_ERROR(LuaUtil::cast<std::string>(sol::make_object(mLua.unsafeState(), sol::nil)),
+        Testing::expectError([&] { return LuaUtil::cast<std::string>(sol::make_object(mLua.unsafeState(), sol::nil)); },
             "Value \"nil\" can not be casted to string");
-        EXPECT_ERROR(LuaUtil::cast<sol::table>(sol::make_object(mLua.unsafeState(), sol::nil)),
+        Testing::expectError([&] { return LuaUtil::cast<sol::table>(sol::make_object(mLua.unsafeState(), sol::nil)); },
             "Value \"nil\" can not be casted to sol::table");
-        EXPECT_ERROR(LuaUtil::cast<sol::function>(sol::make_object(mLua.unsafeState(), "3.14")),
+        Testing::expectError([&] { return LuaUtil::cast<sol::function>(sol::make_object(mLua.unsafeState(), "3.14")); },
             "Value \"\"3.14\"\" can not be casted to sol::function");
-        EXPECT_ERROR(LuaUtil::cast<sol::protected_function>(sol::make_object(mLua.unsafeState(), "3.14")),
+        Testing::expectError(
+            [&] { return LuaUtil::cast<sol::protected_function>(sol::make_object(mLua.unsafeState(), "3.14")); },
             "Value \"\"3.14\"\" can not be casted to sol::function");
     }
 
     TEST_F(LuaStateTest, ErrorHandling)
     {
         const VFS::Path::Normalized path("invalid.lua");
-        EXPECT_ERROR(mLua.runInNewSandbox(path), "[string \"invalid.lua\"]:1:");
+        Testing::expectError([&] { return mLua.runInNewSandbox(path); }, "[string \"invalid.lua\"]:1:");
     }
 
     TEST_F(LuaStateTest, CustomRequire)
@@ -226,7 +228,7 @@ return {
         }
         EXPECT_EQ(LuaUtil::call(script["useCounter"]).get<int>(), 45);
 
-        EXPECT_ERROR(LuaUtil::call(script["incorrectRequire"]), "module not found: counter");
+        Testing::expectError([&] { return LuaUtil::call(script["incorrectRequire"]); }, "module not found: counter");
     }
 
     TEST_F(LuaStateTest, ReadOnly)
@@ -238,10 +240,10 @@ return {
         EXPECT_EQ(LuaUtil::call(script["callRawset"]).get<int>(), 3);
 
         // but read-only object can not be modified even with rawset
-        EXPECT_ERROR(
-            LuaUtil::call(script["rawsetSystemLib"]), "bad argument #1 to 'rawset' (table expected, got userdata)");
-        EXPECT_ERROR(LuaUtil::call(script["modifySystemLib"]), "a userdata value");
-        EXPECT_ERROR(LuaUtil::call(script["modifySystemLib2"]), "a nil value");
+        Testing::expectError([&] { return LuaUtil::call(script["rawsetSystemLib"]); },
+            "bad argument #1 to 'rawset' (table expected, got userdata)");
+        Testing::expectError([&] { return LuaUtil::call(script["modifySystemLib"]); }, "a userdata value");
+        Testing::expectError([&] { return LuaUtil::call(script["modifySystemLib2"]); }, "a nil value");
 
         EXPECT_EQ(LuaUtil::getMutableFromReadOnly(LuaUtil::makeReadOnly(script)), script);
     }
@@ -295,7 +297,7 @@ return {
     {
         const VFS::Path::Normalized path("bbb/tests.lua");
         sol::table script = mLua.runInNewSandbox(path);
-        EXPECT_ERROR(LuaUtil::call(script["callLoadstring"]), "a nil value");
+        Testing::expectError([&] { return LuaUtil::call(script["callLoadstring"]); }, "a nil value");
     }
 
     TEST_F(LuaStateTest, ProvideAPI)
@@ -313,7 +315,7 @@ return {
 
             sol::table script2 = lua.runInNewSandbox(path, "", { { "test.api", api2 } });
 
-            EXPECT_ERROR(LuaUtil::call(script1["sqr"], 3), "module not found: sqrlib");
+            Testing::expectError([&] { return LuaUtil::call(script1["sqr"], 3); }, "module not found: sqrlib");
             EXPECT_EQ(LuaUtil::call(script2["sqr"], 3).get<int>(), 9);
 
             EXPECT_EQ(LuaUtil::call(script1["apiName"]).get<std::string>(), "api1");
@@ -351,6 +353,6 @@ return {
         const VFS::Path::Normalized path("metaIndexError.lua");
         sol::lua_table t = mLua.runInNewSandbox(path);
         // without safe get we crash here
-        EXPECT_ERROR(LuaUtil::safeGet(t, "any key"), "meta index error");
+        Testing::expectError([&] { return LuaUtil::safeGet(t, "any key"); }, "meta index error");
     }
 }

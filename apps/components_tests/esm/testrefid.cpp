@@ -45,7 +45,8 @@ namespace ESM
         TEST(ESMRefIdTest, FormIdRefIdMustHaveContentFile)
         {
             EXPECT_TRUE(RefId(FormId()).empty());
-            EXPECT_ERROR(RefId(FormId{ .mIndex = 1, .mContentFile = -1 }), "RefId can't be a generated FormId");
+            Testing::expectError(
+                [&] { return RefId(FormId{ .mIndex = 1, .mContentFile = -1 }); }, "RefId can't be a generated FormId");
         }
 
         TEST(ESMRefIdTest, defaultConstructedIsEqualToItself)

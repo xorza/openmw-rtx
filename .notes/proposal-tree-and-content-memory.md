@@ -483,35 +483,6 @@ benches are not owed. From item 8 on, a change to what a frame reads owes `./omw
 drm-shim; a hot path owes its allocation test; each item ends with the tours it names. Vanilla's pictures do not move
 in any item.
 
-### 1. Legacy conditionals out
-
-Each branch the pin decides is unwrapped or deleted, its comment with it.
-
-1. **FFmpeg**: the 34 sites; `libavutildefines.hpp` and `libavformatdefines.hpp` deleted; the FFmpeg 4 code paths
-   (`channel_layout`/`channels`) gone.
-2. **Bullet, Qt, compilers, architectures**: the version and compiler rows of the table. `testbsafile.cpp`'s
-   `#ifndef _MSC_VER` (MSVC's `streambuf` past 2³¹−1) is tried on Windows CI first and kept, with its reason, if MSVC
-   19.44 still fails it.
-3. **Switches nothing defines**: `NO_LUAJIT`, `USE_OPENXR` (the VR layout stays out), `DEBUG_GROUPSTACK`, `O_BINARY`,
-   `BT_NO_PROFILE` (the profiler tab, which no build can show), the `ALC_ALL_DEVICES_SPECIFIER` fallbacks.
-4. **Test fallbacks**: `#ifndef OPENMW_PROJECT_SOURCE_DIR` and `OPENMW_DATA_DIR` deleted, so a target that loses the
-   definition fails to compile instead of reading `"."`. Fork's two, upstream's four.
-5. **`Q_MOC_RUN`** guards deleted.
-6. **`OPENMW_USE_UNSHIELD`** defined `0` or `1` on every build, read into a `constexpr bool`, `if constexpr` where the
-   wizard branches, as `~/.claude/rules/cpp.md` asks of a build flag.
-7. **The rasterizer's dead branches**: `OSG_HAS_MULTIVIEW`, `OSG_GLES*`, `OSG_GL1_AVAILABLE`, `GL_DEBUG_OUTPUT`;
-   `OSG_VERSION_LESS_THAN(3, 6, 6)` only if the pinned `openmw-osg` commit has OSG #1028's fix.
-
-### 2. Macros
-
-1. **The vendored OpenAL headers** deleted for `<AL/alext.h>`, `<AL/efx.h>` and `<AL/efx-presets.h>`.
-2. **The GL fallbacks** deleted for Khronos's `<GL/glext.h>`, which the set ships, once both sets are checked to carry
-   it; `GL_SRGB_ALPHA8` becomes `GL_SRGB_ALPHA`.
-3. **The seven replaceable macros** of Findings become functions and templates, each with a test where the macro had
-   none.
-4. **`cppcoreguidelines-macro-usage` on**, `IgnoreCommandLineMacros: true`. Each macro that stays carries
-   `// NOLINTNEXTLINE(cppcoreguidelines-macro-usage): <why>`.
-
 ### 3. The normalizer
 
 Made before either rule it applies is run over the tree.

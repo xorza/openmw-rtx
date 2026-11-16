@@ -380,6 +380,7 @@ target_sources(
                 view/doc/newgame.hpp
                 view/doc/operation.hpp
                 view/doc/operations.hpp
+                view/doc/pathmetatype.hpp
                 view/doc/runlogsubview.hpp
                 view/doc/sizehint.hpp
                 view/doc/startup.hpp

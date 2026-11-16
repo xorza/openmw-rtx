@@ -2,31 +2,11 @@
 
 #include <osg/Depth>
 
+// After OpenSceneGraph's headers, which include the system's <GL/gl.h> that Khronos's extension header builds on:
+// Windows' names stop at GL 1.1.
+#include <GL/glext.h>
+
 #include "util.hpp"
-
-#ifndef GL_DEPTH32F_STENCIL8_NV
-#define GL_DEPTH32F_STENCIL8_NV 0x8DAC
-#endif
-
-#ifndef GL_DEPTH32F_STENCIL8
-#define GL_DEPTH32F_STENCIL8 0x8CAD
-#endif
-
-#ifndef GL_FLOAT_32_UNSIGNED_INT_24_8_REV
-#define GL_FLOAT_32_UNSIGNED_INT_24_8_REV 0x8DAD
-#endif
-
-#ifndef GL_DEPTH24_STENCIL8
-#define GL_DEPTH24_STENCIL8 0x88F0
-#endif
-
-#ifndef GL_DEPTH_STENCIL_EXT
-#define GL_DEPTH_STENCIL_EXT 0x84F9
-#endif
-
-#ifndef GL_UNSIGNED_INT_24_8_EXT
-#define GL_UNSIGNED_INT_24_8_EXT 0x84FA
-#endif
 
 namespace SceneUtil
 {

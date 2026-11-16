@@ -1,7 +1,8 @@
 #include <cstring>
 #include <vector>
 
-#include "apps/openmw/mwsound/alext.h"
+#include <AL/alc.h>
+#include <AL/alext.h>
 
 #include "openalutil.hpp"
 

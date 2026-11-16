@@ -8,6 +8,10 @@
 #include <osgUtil/CullVisitor>
 #include <osgUtil/RenderStage>
 
+// After OpenSceneGraph's headers, which include the system's <GL/gl.h> that Khronos's extension header builds on:
+// Windows' names stop at GL 1.1.
+#include <GL/glext.h>
+
 #include <components/debug/debuglog.hpp>
 #include <components/sceneutil/nodecallback.hpp>
 #include <components/stereo/stereomanager.hpp>
@@ -181,9 +185,6 @@ namespace Stereo
             // OSG should always give immutable storage to sized internal formats, but does not do so for depth formats.
             // Fortunately, we can just call glTexStorage3D here to make it immutable. This probably discards depth info
             // for that frame, but whatever.
-#ifndef GL_TEXTURE_IMMUTABLE_FORMAT
-#define GL_TEXTURE_IMMUTABLE_FORMAT 0x912F
-#endif
             // Store any current binding and re-apply it after so i don't mess with state.
             GLint oldBinding = 0;
             glGetIntegerv(GL_TEXTURE_BINDING_2D_ARRAY, &oldBinding);

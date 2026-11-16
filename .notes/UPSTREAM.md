@@ -275,6 +275,15 @@ and upstream's two Lua storage tests writing there.
   on every build, read into `Wizard::sInstallsFromDisc`, and the installation page made by
   `Wizard::makeInstallationPage`, which a Windows build names only in a discarded branch. Cost: a conflict with an
   upstream edit to a branch it unwrapped.
+- Macros a function or a template does (2026-11-17): the vendored OpenAL Soft 1.23 headers go for the set's
+  `<AL/alext.h>`, `<AL/efx.h>` and `<AL/efx-presets.h>`, whose event callback type is `noexcept`; the GL enum fallbacks
+  for Khronos's `<GL/glext.h>` after OSG's headers, which ends `GL_RGB10_A2` spelled as `GL_RGB10_A2UI`'s value and the
+  name `GL_SRGB_ALPHA8`, which is GL's `GL_SRGB_ALPHA`; `CONTROL` as a template on the member pointer;
+  `MATERIAL_FUNC` as function templates on the accessors, held by a round-trip test; `COMPARE_BINDING` as an ordered
+  comparison of the bindings, held by the optimizer's test; MyGUI's platform macros as functions that take the call
+  site as a `std::source_location`; `RUN_TEST_FOR_TYPES` as `forEachType`; `EXPECT_ERROR` as `Testing::expectError`;
+  the editor's hand guard around `Q_DECLARE_METATYPE(std::filesystem::path)` as one header. `cppcoreguidelines-macro-
+  usage` on. Cost: a conflict with an upstream edit to a macro's uses.
 
 **The build** (`docs/build.md`). Cost: a conflict with every upstream change to a CMake list, an option, a found package
 or the install, which the merge places in this layout:

@@ -6,11 +6,11 @@
 #include <string>
 #include <vector>
 
-#include <components/vfs/pathutil.hpp>
+#include <AL/al.h>
+#include <AL/alc.h>
+#include <AL/alext.h>
 
-#include "al.h"
-#include "alc.h"
-#include "alext.h"
+#include <components/vfs/pathutil.hpp>
 
 #include "soundoutput.hpp"
 
@@ -72,8 +72,9 @@ namespace MWSound
 
         float getTimeScaledPitch(SoundBase* sound);
 
-        static void eventCallback(
-            ALenum eventType, ALuint object, ALuint param, ALsizei length, const ALchar* message, void* userParam);
+        // `noexcept`, as OpenAL's callback type is: nothing may unwind into the library's thread.
+        static void eventCallback(ALenum eventType, ALuint object, ALuint param, ALsizei length, const ALchar* message,
+            void* userParam) noexcept;
 
         void onDisconnect();
 

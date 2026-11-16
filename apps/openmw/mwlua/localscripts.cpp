@@ -1,5 +1,8 @@
 #include "localscripts.hpp"
 
+#include <type_traits>
+#include <utility>
+
 #include "../mwbase/environment.hpp"
 #include "../mwbase/mechanicsmanager.hpp"
 #include "../mwmechanics/aicombat.hpp"
@@ -32,6 +35,23 @@ namespace sol
 
 namespace MWLua
 {
+    namespace
+    {
+        using ActorControls = MWBase::LuaManager::ActorControls;
+
+        /// A control's property: the field `member` read, and written with the controls marked changed.
+        template <auto member>
+        auto controlOf()
+        {
+            using Value = std::remove_cvref_t<decltype(std::declval<const ActorControls&>().*member)>;
+            return sol::property([](const ActorControls& controls) { return controls.*member; },
+                [](ActorControls& controls, const Value& value) {
+                    controls.*member = value;
+                    controls.mChanged = true;
+                });
+        }
+    }
+
     void SelfObject::cacheStat(LuaManager& manager, SelfObject::CachedStat key, sol::main_object value)
     {
         if (mStatsCache.empty())
@@ -50,24 +70,15 @@ namespace MWLua
     void LocalScripts::initializeSelfPackage(const Context& context)
     {
         auto lua = context.sol();
-        using ActorControls = MWBase::LuaManager::ActorControls;
         sol::usertype<ActorControls> controls = lua.new_usertype<ActorControls>("ActorControls");
-
-#define CONTROL(TYPE, FIELD)                                                                                           \
-    sol::property([](const ActorControls& c) { return c.FIELD; },                                                      \
-        [](ActorControls& c, const TYPE& v) {                                                                          \
-            c.FIELD = v;                                                                                               \
-            c.mChanged = true;                                                                                         \
-        })
-        controls["movement"] = CONTROL(float, mMovement);
-        controls["sideMovement"] = CONTROL(float, mSideMovement);
-        controls["pitchChange"] = CONTROL(float, mPitchChange);
-        controls["yawChange"] = CONTROL(float, mYawChange);
-        controls["run"] = CONTROL(bool, mRun);
-        controls["sneak"] = CONTROL(bool, mSneak);
-        controls["jump"] = CONTROL(bool, mJump);
-        controls["use"] = CONTROL(MWMechanics::AttackType, mUse);
-#undef CONTROL
+        controls["movement"] = controlOf<&ActorControls::mMovement>();
+        controls["sideMovement"] = controlOf<&ActorControls::mSideMovement>();
+        controls["pitchChange"] = controlOf<&ActorControls::mPitchChange>();
+        controls["yawChange"] = controlOf<&ActorControls::mYawChange>();
+        controls["run"] = controlOf<&ActorControls::mRun>();
+        controls["sneak"] = controlOf<&ActorControls::mSneak>();
+        controls["jump"] = controlOf<&ActorControls::mJump>();
+        controls["use"] = controlOf<&ActorControls::mUse>();
 
         sol::usertype<SelfObject> selfAPI
             = lua.new_usertype<SelfObject>("SelfObject", sol::base_classes, sol::bases<LObject, Object>());

@@ -26,7 +26,9 @@
 // function is looked up through, because no program links the loader: volk loads it, and its
 // pointers are not the prototypes the header's static path would name.
 #define VMA_IMPLEMENTATION
+// NOLINTNEXTLINE(cppcoreguidelines-macro-usage): the library reads its configuration as macros ahead of its code
 #define VMA_STATIC_VULKAN_FUNCTIONS 0
+// NOLINTNEXTLINE(cppcoreguidelines-macro-usage): as above
 #define VMA_DYNAMIC_VULKAN_FUNCTIONS 1
 #include <vk_mem_alloc.h>
 

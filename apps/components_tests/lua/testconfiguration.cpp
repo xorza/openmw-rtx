@@ -75,14 +75,16 @@ namespace
     TEST(LuaConfigurationTest, InvalidOMWScripts)
     {
         ESM::LuaScriptsCfg cfg;
-        EXPECT_ERROR(LuaUtil::parseOMWScripts(cfg, "GLOBAL: something"),
+        Testing::expectError([&] { return LuaUtil::parseOMWScripts(cfg, "GLOBAL: something"); },
             "Lua script should have suffix '.lua', got: GLOBAL: something");
-        EXPECT_ERROR(LuaUtil::parseOMWScripts(cfg, "something.lua"), "No flags found in: something.lua");
+        Testing::expectError(
+            [&] { return LuaUtil::parseOMWScripts(cfg, "something.lua"); }, "No flags found in: something.lua");
 
         cfg.mScripts.clear();
         EXPECT_NO_THROW(LuaUtil::parseOMWScripts(cfg, "GLOBAL, PLAYER: something.lua"));
         LuaUtil::ScriptsConfiguration conf;
-        EXPECT_ERROR(conf.init(std::move(cfg), false), "Global script can not have local flags");
+        Testing::expectError(
+            [&] { return conf.init(std::move(cfg), false); }, "Global script can not have local flags");
     }
 
     TEST(LuaConfigurationTest, ConfInit)
@@ -141,7 +143,7 @@ namespace
         ESM::LuaScriptCfg& script3 = cfg.mScripts.emplace_back();
         script3.mScriptPath = VFS::Path::Normalized("script1.lua");
         script3.mFlags = ESM::LuaScriptCfg::sGlobal;
-        EXPECT_ERROR(conf.init(cfg, false), "Flags mismatch for script1.lua");
+        Testing::expectError([&] { return conf.init(cfg, false); }, "Flags mismatch for script1.lua");
     }
 
     TEST(LuaConfigurationTest, Serialization)

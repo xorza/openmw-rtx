@@ -881,10 +881,7 @@ target_sources(
     PUBLIC
         FILE_SET HEADERS
             FILES
-                mwsound/alext.h
                 mwsound/constants.hpp
-                mwsound/efx.h
-                mwsound/efxpresets.h
                 mwsound/ffmpegdecoder.hpp
                 mwsound/headcache.hpp
                 mwsound/loudness.hpp

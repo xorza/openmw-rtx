@@ -34,6 +34,7 @@
 #include <osgUtil/MeshOptimizers>
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <numeric>
 
@@ -937,11 +938,6 @@ void Optimizer::RemoveRedundantNodesVisitor::removeRedundantNodes()
 // code to merge geometry object which share, state, and attribute bindings.
 ////////////////////////////////////////////////////////////////////////////
 
-#define COMPARE_BINDING(lhs, rhs) \
-        if (osg::getBinding(lhs)<osg::getBinding(rhs)) return true; \
-        if (osg::getBinding(rhs)<osg::getBinding(lhs)) return false;
-
-
 namespace
 {
 // States by what they hold and not by which object holds them, for every merge that asks whether two share
@@ -964,10 +960,15 @@ struct LessGeometry
         if (LessStateContent()(lhs->getStateSet(), rhs->getStateSet())) return true;
         if (LessStateContent()(rhs->getStateSet(), lhs->getStateSet())) return false;
 
-        COMPARE_BINDING(lhs->getNormalArray(), rhs->getNormalArray())
-        COMPARE_BINDING(lhs->getColorArray(), rhs->getColorArray())
-        COMPARE_BINDING(lhs->getSecondaryColorArray(), rhs->getSecondaryColorArray())
-        COMPARE_BINDING(lhs->getFogCoordArray(), rhs->getFogCoordArray())
+        // The arrays' bindings in order, the first that differs deciding.
+        const auto bindings = [](const osg::Geometry& geometry) {
+            return std::array{ osg::getBinding(geometry.getNormalArray()), osg::getBinding(geometry.getColorArray()),
+                osg::getBinding(geometry.getSecondaryColorArray()), osg::getBinding(geometry.getFogCoordArray()) };
+        };
+        const auto lhsBindings = bindings(*lhs);
+        const auto rhsBindings = bindings(*rhs);
+        if (lhsBindings != rhsBindings)
+            return lhsBindings < rhsBindings;
 
 
         if (lhs->getNumTexCoordArrays()<rhs->getNumTexCoordArrays()) return true;

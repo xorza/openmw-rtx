@@ -52,6 +52,6 @@ namespace
             )X");
             view.sol().collect_garbage();
         });
-        EXPECT_ERROR(mCb.call(), "COROUTINE CALLBACK");
+        Testing::expectError([&] { return mCb.call(); }, "COROUTINE CALLBACK");
     }
 }

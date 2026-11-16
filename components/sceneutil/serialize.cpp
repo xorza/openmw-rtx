@@ -16,28 +16,28 @@
 
 namespace
 {
-#define MATERIAL_FUNC(PROP, TYPE)                                                                                      \
-    static bool check##PROP(const SceneUtil::Material& attr)                                                           \
-    {                                                                                                                  \
-        return true;                                                                                                   \
-    }                                                                                                                  \
-    static bool read##PROP(osgDB::InputStream& is, SceneUtil::Material& attr)                                          \
-    {                                                                                                                  \
-        TYPE value;                                                                                                    \
-        is >> value;                                                                                                   \
-        attr.set##PROP(value);                                                                                         \
-        return true;                                                                                                   \
-    }                                                                                                                  \
-    static bool write##PROP(osgDB::OutputStream& os, const SceneUtil::Material& attr)                                  \
-    {                                                                                                                  \
-        os << attr.get##PROP();                                                                                        \
-        return true;                                                                                                   \
+    // A material's colour as `osgDB::UserSerializer` reads and writes one: a function each, which the serializer takes
+    // as a plain pointer, so the accessors are template arguments and not state.
+    bool hasColour(const SceneUtil::Material& /*material*/)
+    {
+        return true;
     }
 
-    MATERIAL_FUNC(Ambient, osg::Vec4f)
-    MATERIAL_FUNC(Diffuse, osg::Vec4f)
-    MATERIAL_FUNC(Specular, osg::Vec4f)
-    MATERIAL_FUNC(Emission, osg::Vec4f)
+    template <void (SceneUtil::Material::*set)(const osg::Vec4f&)>
+    bool readColour(osgDB::InputStream& is, SceneUtil::Material& material)
+    {
+        osg::Vec4f value;
+        is >> value;
+        (material.*set)(value);
+        return true;
+    }
+
+    template <osg::Vec4f (SceneUtil::Material::*get)() const>
+    bool writeColour(osgDB::OutputStream& os, const SceneUtil::Material& material)
+    {
+        os << (material.*get)();
+        return true;
+    }
 }
 
 namespace SceneUtil
@@ -192,17 +192,17 @@ namespace SceneUtil
                 : osgDB::ObjectWrapper(createInstanceFunc<SceneUtil::Material>, "SceneUtil::Material",
                       "osg::Object osg::StateAttribute SceneUtil::Material")
             {
-                addSerializer(new osgDB::UserSerializer<SceneUtil::Material>(
-                    "Ambient", &checkAmbient, &readAmbient, &writeAmbient));
+                addSerializer(new osgDB::UserSerializer<SceneUtil::Material>("Ambient", &hasColour,
+                    &readColour<&SceneUtil::Material::setAmbient>, &writeColour<&SceneUtil::Material::getAmbient>));
 
-                addSerializer(new osgDB::UserSerializer<SceneUtil::Material>(
-                    "Diffuse", &checkDiffuse, &readDiffuse, &writeDiffuse));
+                addSerializer(new osgDB::UserSerializer<SceneUtil::Material>("Diffuse", &hasColour,
+                    &readColour<&SceneUtil::Material::setDiffuse>, &writeColour<&SceneUtil::Material::getDiffuse>));
 
-                addSerializer(new osgDB::UserSerializer<SceneUtil::Material>(
-                    "Specular", &checkSpecular, &readSpecular, &writeSpecular));
+                addSerializer(new osgDB::UserSerializer<SceneUtil::Material>("Specular", &hasColour,
+                    &readColour<&SceneUtil::Material::setSpecular>, &writeColour<&SceneUtil::Material::getSpecular>));
 
-                addSerializer(new osgDB::UserSerializer<SceneUtil::Material>(
-                    "Emission", &checkEmission, &readEmission, &writeEmission));
+                addSerializer(new osgDB::UserSerializer<SceneUtil::Material>("Emission", &hasColour,
+                    &readColour<&SceneUtil::Material::setEmission>, &writeColour<&SceneUtil::Material::getEmission>));
 
                 addSerializer(new osgDB::PropByValSerializer<SceneUtil::Material, float>("Shininess", 0.f,
                                   &SceneUtil::Material::getShininess, &SceneUtil::Material::setShininess),

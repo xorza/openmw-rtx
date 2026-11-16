@@ -92,6 +92,7 @@ target_sources(
         sceneutil/osgacontroller.cpp
         sceneutil/optimizer.cpp
         sceneutil/paintedtexture.cpp
+        sceneutil/serialize.cpp
         sceneutil/userdata.cpp
         sdlutil/sdlcursormanager.cpp
         sdlutil/sdlinputwrapper.cpp

@@ -20,7 +20,8 @@
 #include <components/misc/thread.hpp>
 #include <components/settings/values.hpp>
 
-#include "efxpresets.h"
+#include <AL/efx-presets.h>
+
 #include "loudness.hpp"
 #include "openaloutput.hpp"
 #include "sound.hpp"
@@ -684,7 +685,7 @@ namespace MWSound
     }
 
     void OpenALOutput::eventCallback(
-        ALenum eventType, ALuint object, ALuint param, ALsizei length, const ALchar* message, void* userParam)
+        ALenum eventType, ALuint object, ALuint param, ALsizei length, const ALchar* message, void* userParam) noexcept
     {
         if (eventType == AL_EVENT_TYPE_DISCONNECTED_SOFT)
             static_cast<OpenALOutput*>(userParam)->onDisconnect();

@@ -1,9 +1,16 @@
 #include "myguirendermanager.hpp"
 
+#include <MyGUI_Exception.h>
 #include <MyGUI_FactoryManager.h>
+#include <MyGUI_LogManager.h>
 #include <MyGUI_Timer.h>
 
 #include <algorithm>
+#include <format>
+#include <source_location>
+#include <string>
+#include <string_view>
+
 #include <osg/Drawable>
 #include <osg/Texture2D>
 
@@ -17,32 +24,25 @@
 #include "additivelayer.hpp"
 #include "myguitexture.hpp"
 
-#define MYGUI_PLATFORM_LOG_SECTION "Platform"
-#define MYGUI_PLATFORM_LOG(level, text) MYGUI_LOGGING(MYGUI_PLATFORM_LOG_SECTION, level, text)
+namespace
+{
+    /// A line of the platform's section of MyGUI's log, which names the line of the tree that wrote it.
+    void logPlatform(MyGUI::LogLevel level, std::string_view message,
+        const std::source_location place = std::source_location::current())
+    {
+        MyGUI::LogManager::getInstance().log(
+            "Platform", level, message, place.file_name(), static_cast<int>(place.line()));
+    }
 
-// `dest` is a chain of stream insertions, which parentheses would make one expression.
-// NOLINTBEGIN(bugprone-macro-parentheses)
-#define MYGUI_PLATFORM_EXCEPT(dest)                                                                                    \
-    do                                                                                                                 \
-    {                                                                                                                  \
-        MYGUI_PLATFORM_LOG(Critical, dest);                                                                            \
-        std::ostringstream stream;                                                                                     \
-        stream << dest << "\n";                                                                                        \
-        MYGUI_BASE_EXCEPT(stream.str().c_str(), "MyGUI");                                                              \
-    } while (0)
-
-#define MYGUI_PLATFORM_ASSERT(exp, dest)                                                                               \
-    do                                                                                                                 \
-    {                                                                                                                  \
-        if (!(exp))                                                                                                    \
-        {                                                                                                              \
-            MYGUI_PLATFORM_LOG(Critical, dest);                                                                        \
-            std::ostringstream stream;                                                                                 \
-            stream << dest << "\n";                                                                                    \
-            MYGUI_BASE_EXCEPT(stream.str().c_str(), "MyGUI");                                                          \
-        }                                                                                                              \
-    } while (0)
-// NOLINTEND(bugprone-macro-parentheses)
+    /// A broken contract of the platform's: logged as critical, then thrown as MyGUI's own exception, as MyGUI's
+    /// asserts do.
+    [[noreturn]] void failPlatform(
+        const std::string& message, const std::source_location place = std::source_location::current())
+    {
+        logPlatform(MyGUI::LogLevel::Critical, message, place);
+        throw MyGUI::Exception(message + "\n", "MyGUI", place.file_name(), static_cast<long>(place.line()));
+    }
+}
 
 namespace MyGUIPlatform
 {
@@ -366,7 +366,8 @@ namespace MyGUIPlatform
 
     RenderManager::~RenderManager()
     {
-        MYGUI_PLATFORM_LOG(Info, "* Shutdown: " << getClassTypeName());
+        // Joined and not formatted, which a destructor may not throw from.
+        logPlatform(MyGUI::LogLevel::Info, std::string("* Shutdown: ").append(getClassTypeName()));
 
         if (mGuiRoot.valid())
             mSceneRoot->removeChild(mGuiRoot.get());
@@ -374,14 +375,15 @@ namespace MyGUIPlatform
         mSceneRoot = nullptr;
         mViewer = nullptr;
 
-        MYGUI_PLATFORM_LOG(Info, getClassTypeName() << " successfully shutdown");
+        logPlatform(MyGUI::LogLevel::Info, std::string(getClassTypeName()).append(" successfully shutdown"));
         mIsInitialise = false;
     }
 
     void RenderManager::initialise()
     {
-        MYGUI_PLATFORM_ASSERT(!mIsInitialise, getClassTypeName() << " initialised twice");
-        MYGUI_PLATFORM_LOG(Info, "* Initialise: " << getClassTypeName());
+        if (mIsInitialise)
+            failPlatform(std::format("{} initialised twice", getClassTypeName()));
+        logPlatform(MyGUI::LogLevel::Info, std::format("* Initialise: {}", getClassTypeName()));
 
         mVertexFormat = MyGUI::VertexColourType::ColourABGR;
 
@@ -405,7 +407,7 @@ namespace MyGUIPlatform
         osg::ref_ptr<osg::Viewport> vp = mViewer->getCamera()->getViewport();
         setViewSize(static_cast<int>(vp->width()), static_cast<int>(vp->height()));
 
-        MYGUI_PLATFORM_LOG(Info, getClassTypeName() << " successfully initialized");
+        logPlatform(MyGUI::LogLevel::Info, std::format("{} successfully initialized", getClassTypeName()));
         mIsInitialise = true;
     }
 
@@ -544,7 +546,8 @@ namespace MyGUIPlatform
             return;
 
         const auto item = mTextures.find(texture->getName());
-        MYGUI_PLATFORM_ASSERT(item != mTextures.end(), "Texture '" << texture->getName() << "' not found");
+        if (item == mTextures.end())
+            failPlatform(std::format("Texture '{}' not found", texture->getName()));
 
         mTextures.erase(item);
     }
@@ -574,7 +577,7 @@ namespace MyGUIPlatform
     void RenderManager::registerShader(const std::string& /*shaderName*/, const std::string& /*vertexProgramFile*/,
         const std::string& /*fragmentProgramFile*/)
     {
-        MYGUI_PLATFORM_LOG(Warning, "osgMyGUI::RenderManager::registerShader is not implemented");
+        logPlatform(MyGUI::LogLevel::Warning, "osgMyGUI::RenderManager::registerShader is not implemented");
     }
 
 }
