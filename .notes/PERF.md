@@ -13,7 +13,8 @@ commit.
   1280x800, 300 frames, one or two legs a side. A/A: frame and every zone within 0.1%, p99 within 2%.
 - **AMD iGPU** (a low-end integrated GPU, AMD's Windows driver): native MSVC release of the harness alone, in `base`
   and `cand` worktrees fed by `git push`. A run needs the logged-on session, so a job is a script a scheduled task
-  starts there; over SSH a run compiles its pipelines and logs their registers but makes no swapchain.
+  starts there; over SSH a run compiles its pipelines and logs their registers but makes no swapchain
+  (`docs/research/2026-11-01-windows-tests-over-ssh.md`).
   `bench --size=1280x720 --window=false --frames=200`, two rounds. A/A: frame within 0.3–0.8%. A shader set's cold
   compile is four minutes, a warm vanilla leg 55–85 s; a build beside a run moved a frame by 48%.
 - **One binary a host, a shader set a side**: `--shader-source` reads a folder's modules, which compile to the shipped
@@ -115,7 +116,8 @@ Each measured unless it says otherwise; not to be tried again without a new reas
   only where the scene has a relief.
 - **Stores ahead of a traversal that gain no wave**: the eye's hit ahead of its resolve, the eye's ray start made
   again past it, the placement's row read again past the stack, the material's fields grouped by where a hit reads
-  them, a relief site's axes made again at the lights — each a register or more, or no change.
+  them, a relief site's axes made again at the lights, a shadow ray held as a narrow record
+  (`docs/research/2026-11-09-passage-record.md`) — each a register or more, or no change.
 - **The direct stage handing the bounce its surface**, **the ambient ray as a fourth turn of the direct stage**, a
   surface kept apart for later rays, and every ray of a pixel in one dispatch: each costs the direct stage more than
   the bounce gains, or a landing slot a ray (130 MB at 1080p).
@@ -130,9 +132,12 @@ Each measured unless it says otherwise; not to be tried again without a new reas
 - **RADV's wave64 for the ray tracing launches** (`RADV_PERFTEST=rtwave64`): the handheld's dawn air 13.29 → 16.75 ms.
 - **A fence per acquire slot in the presenter**: the wait moved into `vkQueuePresentKHR`.
 - **One moon ray a froxel where the sun is down**: the moons fall under `FOG_SHAFT_FLOOR` at dawn already.
+- **Scene instances made by the cell preloader**: 3 ms off a crossing's worst frame for 650 MiB, where NPCs, which no
+  preloaded instance reaches, make the worst (`docs/research/2026-11-09-instance-preloading.md`).
 - **Capping the shadow ray's nearest search where the penumbra saturates** (analysis): an open ray then walks two
   traversals, and open sky rays are most of them at noon.
 - **Declined untried**: `FFX_HALF` in the upscaler (moved a still picture 0.30–0.58 px, `fsrcallbacks.glsl`); `fsr
   accumulate` under 112 registers (AMD's own code, kept as it came); the wavelet's divisions as reciprocals (a few per
   cent of a zone at most, and it rounds otherwise); sorting `SceneDesc::orderLights` (tens of microseconds, and the
-  order is the one the frame needs); `[[dont_unroll]]` on the clamp's square (the shared memory sets its waves).
+  order is the one the frame needs, `docs/research/2026-10-22-light-ordering-share.md`); `[[dont_unroll]]` on the
+  clamp's square (the shared memory sets its waves).

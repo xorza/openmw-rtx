@@ -48,7 +48,8 @@ the harness. OpenSceneGraph stays the content loader: the scene arrives as an `o
 `./omw [flavour] <verb>` is the one command line over the CMake presets (`build.md`).
 
 - **A shader's arithmetic is the build's**: every float operation the Vulkan specification leaves open is pinned and
-  nothing is fused (`spirv/spirvpin.hpp`), so every compile of a module computes the same frame. The structures both
+  nothing is fused (`spirv/spirvpin.hpp`), so every compile of a module computes the same frame, at about 4% of the
+  frame (`research/2026-10-22-pinned-arithmetic-cost.md`). The structures both
   languages read are headers that compile as C++ and GLSL, and each module's interface is held to the C++ beside it at
   load (`spirvinterface.hpp`).
 - **The game's shaders are compiled into it** as word arrays, as ANGLE compiles its internal Vulkan shaders in, so no
@@ -117,7 +118,8 @@ What the game reads from files (`components/resource`), changed for the handheld
 - **What the game builds from memory keeps the timer**: the land, the chunks, the physics instances, the materials.
 - **A model holds a texture's header, not its texels** (`Resource::ImageHeader`): where the renderer reads texels itself
   they are read through the header when wanted and let go of once the device has its copy, as Unity's textures that are
-  not readable drop their host copy. Refused: freeing a shared image's texels in place, which every reader would race.
+  not readable drop their host copy (`research/2026-11-16-texture-uploads-and-host-memory.md`). Refused: freeing a
+  shared image's texels in place, which every reader would race.
 - **A preload is a guess, skipped past the budget** (`CellPreloader`), and asked again later. Refused: waiting for room,
   which stalls the queue.
 
@@ -204,7 +206,8 @@ is part of it. `RtxSourceTreeTest` holds the order against this table.
 - **An `_nh` map's relief is marched, as RTX Remix marches it** (Tatarchuk 2006), at OpenMW's parallax depth, once by
   the trace and read back by every later stage, and is a plain shift where it crosses under a texel, so a far surface
   keeps its cost. Only the tuples with maps march, and no setting turns it off. Refused: a max-mip quadtree; true
-  displacement (`research/2026-11-08-parallax-occlusion-techniques.md`, `research/2026-11-08-relief-cost-and-noise.md`).
+  displacement (`research/2026-11-08-height-map-range.md`, `research/2026-11-08-parallax-occlusion-techniques.md`,
+  `research/2026-11-08-relief-cost-and-noise.md`).
 - **A mod's detail, decal, bump and gloss maps are read as `objects.frag` reads them**, under a constant and a row of
   their own (`HAS_MOD_MAPS`), so no other tuple's kernel and no other hit's read moves. Refused: under the normal maps'
   constant, which runs their kernels for one detail-mapped bottle; in the material's row, which moved every kernel; left
@@ -345,10 +348,23 @@ order. The folders keep the core's rule, in this order, with `VulkanRenderer` an
   level first, as Unreal's streamer does. Refused: one side for a whole arrival.
 - **One residency policy for the content**, by the user's decision: textures and static meshes follow one rule. Content
   nothing names rests on the device whole and its next take is its slot; everything resting stands under one byte limit
-  in one order, the oldest freed first, as D3D12's residency model and VMA's budget treat a card. The limit is measured
-  by stack distance (Mattson et al. 1970) and capped by a share of the device's budget
-  (`research/2026-11-16-rest-reuse-and-device-budgets.md`). Refused: textures alone; a limit per kind; a rest bounded
-  by the budget alone, which filled it.
+  in one order, the oldest freed first, as D3D12's residency model and VMA's budget treat a card
+  (`research/2026-11-16-texture-uploads-and-host-memory.md`). Refused: textures alone; a limit per kind.
+- **The limit is derived from the budget**, by the user's decision: what rests may stand nine tenths of what the
+  driver's budget leaves of what is in use, read at each hand-over; live content is bounded by the budget alone
+  (`SceneUploader::restLimitOf`, `research/2026-11-16-rest-reuse-and-device-budgets.md`). In use is the driver's usage
+  less what rests, what content's blocks have free and what is buried (`MemoryAllocator::getVideoBudget`): the driver
+  counts a block whole and a buried range until its frames are done, and a rest freed would otherwise read as use. The
+  tenth is other programs', which Linux, unlike Windows, does not ask room for. Refused: a measured limit, which missed
+  11.6% of the PBR tour's reuse; a measured ceiling beside it, a figure the content decides; Dawn's 95%.
+- **A limit that drops is followed a step a hand-over**, the most one extension handed the device and a row at least,
+  and the room an arrival needs at once (`RestLimit`), as Microsoft's guidance frees unused objects about once a frame.
+  Refused: all at once, one long frame per drop; a rebuild's size as the step, the whole world, which paces nothing.
+- **On a unified device the host's caches and the device's rest compete**, by the user's decision: the host's yield to
+  the device's memory by their own budget, and content resting on the device keeps no host copy. Refused: a fixed
+  split; one order across host and device.
+- **Not now: a resting allocation's priority lowered** (`VK_EXT_pageable_device_local_memory`): RADV lacks it, and it
+  reaches no content placed in a shared block.
 - **A static mesh is the one its content is**: filed under a digest of its arrays, so a resting mesh is found again by
   whatever reads the same geometry. A skinned or morphed mesh is a copy per instance. Refused: the drawable as the key,
   which matches only while its template lives.
