@@ -155,7 +155,8 @@ namespace Rtx
                 return Err{ "its format is " + std::string(nameOf(format)) + " ("
                     + std::to_string(image.getPixelFormat()) + "), which this renderer does not upload" };
 
-            if (!image.valid() || image.s() < 0 || image.t() < 0)
+            // Its size, not `osg::Image::valid`, which asks for texels a model's header does not hold.
+            if (image.s() <= 0 || image.t() <= 0 || image.r() <= 0)
                 return Err{ "it is " + std::to_string(image.s()) + " by " + std::to_string(image.t())
                     + " texels, which no device holds" };
 

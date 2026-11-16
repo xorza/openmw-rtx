@@ -526,7 +526,7 @@ namespace Rtx
 
         /// **A sheet a script names is opened once and drawn**, with its mean read off it, as the
         /// rasterizer loads a deck when the name changes. A 4 × 4 sheet, white at an alpha of 102: a
-        /// mean luminance of one over the alpha.
+        /// mean luminance of one over the alpha. Opened as the game opens it, a header holding no texels.
         TEST(RtxSkyBuilderTest, aSheetAScriptNamesIsOpenedOnceAndDrawn)
         {
             const std::unique_ptr<VFS::Manager> vfs = TestingOpenMW::createTestVFS(
@@ -536,6 +536,7 @@ namespace Rtx
             Resource::NifFileManager nifs(vfs.get(), budget, nullptr);
             Resource::BgsmFileManager materials(vfs.get(), 0);
             Resource::SptFileManager trees(vfs.get(), 0);
+            images.setModelImages(Resource::ModelImages::Headers);
             Resource::SceneManager scenes(vfs.get(), &images, &nifs, &materials, &trees, budget);
 
             osg::ref_ptr<osg::Image> sheet = Testing::makeImage("textures/tx_script_sky.dds", 4, 4);
