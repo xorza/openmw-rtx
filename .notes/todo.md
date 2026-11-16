@@ -9,10 +9,10 @@
 - Audit `#if`s, remove legacy.
 - Order includes canonically.
 - No upscaler.
+- total memory budget
 
 ## Open questions
 
-- All I/O serial?
 - automate memleak detection
 - Upstream merge's app token: the exchange is copied from claude-code-action and undocumented (`.github/actions/app-token`). An app of our own (`actions/create-github-app-token`), or CI dispatched with the workflow's token?
 
