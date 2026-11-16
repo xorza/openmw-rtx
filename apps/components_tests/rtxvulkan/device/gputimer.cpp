@@ -221,7 +221,11 @@ namespace Rtx
             // meshes' structures are recorded ahead of the placement and ride its submit, so without a
             // bracket of their own they are device time the frame's fence carries and no zone accounts
             // for.
-            Testing::addQuad(scene, sWallCorners, std::nullopt, osg::Matrixf::translate(0.0f, -50.0f, 0.0f));
+            // A wall nearer than the first, a mesh of its own: one geometry is one mesh (`SceneDesc::addMesh`).
+            const std::array<osg::Vec3f, 4> nearer{ osg::Vec3f(-500.0f, 150.0f, -500.0f),
+                osg::Vec3f(500.0f, 150.0f, -500.0f), osg::Vec3f(500.0f, 150.0f, 500.0f),
+                osg::Vec3f(-500.0f, 150.0f, 500.0f) };
+            Testing::addQuad(scene, nearer);
 
             mRenderer.extendScene(Rtx::SceneSlot::world(), scene, {});
             mRenderer.placeScene(Rtx::SceneSlot::world(), scene);

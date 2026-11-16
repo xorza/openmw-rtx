@@ -12,6 +12,7 @@
 
 #include <osg/Array>
 #include <osg/FrontFace>
+#include <osg/Geometry>
 #include <osg/Group>
 #include <osg/LOD>
 #include <osg/Math>
@@ -21,6 +22,7 @@
 #include <osg/Matrixf>
 #include <osg/Node>
 #include <osg/NodeVisitor>
+#include <osg/PolygonMode>
 #include <osg/Sequence>
 #include <osg/StateAttribute>
 #include <osg/StateSet>
@@ -57,7 +59,7 @@ namespace Rtx::Testing
         {
             osg::ref_ptr<osg::Group> root = new osg::Group;
             root->addChild(makeQuad());
-            root->addChild(makeQuad());
+            root->addChild(makeQuad(1.0f));
 
             const ExtractionStats stats = walk(*root);
 
@@ -67,13 +69,33 @@ namespace Rtx::Testing
             EXPECT_EQ(mScene.meshes().getTriangleCount(), 4u);
         }
 
+        /// **Two drawables of one geometry are one mesh**, placed twice (`SceneDesc::addMesh`): two clones of a model
+        /// the resource cache loaded twice, say, whose drawables are two objects. A third of another geometry is
+        /// another mesh.
+        TEST_F(RtxSceneExtractorTest, twoDrawablesOfOneGeometryAreOneMeshPlacedTwice)
+        {
+            osg::ref_ptr<osg::Group> root = new osg::Group;
+            root->addChild(makeQuad());
+            root->addChild(makeQuad());
+            root->addChild(makeQuad(1.0f));
+
+            const ExtractionStats stats = walk(*root);
+
+            EXPECT_EQ(stats.mInstances, 3u);
+            EXPECT_EQ(mScene.meshes().getLiveCount(), 2u) << "one geometry made two meshes";
+            EXPECT_EQ(mScene.meshes().getTriangleCount(), 4u);
+            EXPECT_EQ(
+                mScene.placements().getRows()[0].mInstance.mMesh, mScene.placements().getRows()[1].mInstance.mMesh);
+        }
+
         /// **What a content file describes and this renderer cannot take is refused per drawable, once, and the walk
         /// goes on.** The quad beside the refused mesh stands, and the walk after reads the drawable no more. A mesh
         /// past one block is one such, and a triangle naming a vertex its drawable does not have is another (read
         /// on, a read past the positions and a device fault).
         ///
         /// **And a heat haze is left out whole, and says so**: a branch `SceneUtil::setupDistortion` set up draws into
-        /// the rasterizer's distortion buffer alone, so its quad is no instance.
+        /// the rasterizer's distortion buffer alone, so its quad is no instance. So is a quad a wireframe draws as
+        /// lines, which have no width a ray can meet.
         TEST_F(RtxSceneExtractorTest, aMeshThisCannotBuildIsRefusedOnceAndTheWalkGoesOn)
         {
             osg::ref_ptr<osg::Group> haze = new osg::Group;
@@ -86,15 +108,19 @@ namespace Rtx::Testing
             root->addChild(makeIndexPastItsVertices());
             root->addChild(makeQuad());
             root->addChild(haze);
+            osg::ref_ptr<osg::Geometry> wire = makeQuad();
+            wire->getOrCreateStateSet()->setAttribute(
+                new osg::PolygonMode(osg::PolygonMode::FRONT_AND_BACK, osg::PolygonMode::LINE));
+            root->addChild(wire);
 
             const ExtractionStats first = walk(*root);
-            EXPECT_EQ(mScene.refusals().count(Refused::Mesh), 3u);
+            EXPECT_EQ(mScene.refusals().count(Refused::Mesh), 4u);
             EXPECT_EQ(first.mMeshesAdded, 1u);
             EXPECT_EQ(first.mInstances, 1u);
             mExtractor.retire();
 
             const ExtractionStats second = walk(*root);
-            EXPECT_EQ(mScene.refusals().count(Refused::Mesh), 3u) << "a refused drawable is refused once";
+            EXPECT_EQ(mScene.refusals().count(Refused::Mesh), 4u) << "a refused drawable is refused once";
             EXPECT_EQ(second.mMeshesAdded, 0u);
             EXPECT_EQ(second.mMeshesReused, 1u);
             EXPECT_EQ(second.mInstances, 1u);
@@ -225,7 +251,7 @@ namespace Rtx::Testing
             osg::ref_ptr<osg::MatrixTransform> day = new osg::MatrixTransform(osg::Matrix::translate(10.0, 0.0, 0.0));
             day->addChild(makeQuad());
             osg::ref_ptr<osg::MatrixTransform> night = new osg::MatrixTransform(osg::Matrix::translate(0.0, 20.0, 0.0));
-            night->addChild(makeQuad());
+            night->addChild(makeQuad(1.0f));
 
             osg::ref_ptr<osg::Switch> root = new osg::Switch;
             root->addChild(day);
@@ -521,7 +547,7 @@ namespace Rtx::Testing
         {
             osg::ref_ptr<osg::Group> root = new osg::Group;
             root->addChild(makeQuad());
-            root->addChild(makeQuad());
+            root->addChild(makeQuad(1.0f));
 
             const ExtractionStats first = walk(*root);
 

@@ -12,6 +12,7 @@
 #include "placing.hpp"
 #include "scenepasses.hpp"
 #include "skinpass.hpp"
+#include "whenroomless.hpp"
 
 namespace Rtx
 {
@@ -57,7 +58,7 @@ namespace Rtx
         for (std::uint32_t copy = 0; copy < mAcceleration.getPoses().count(); ++copy)
             mPasses.mSkin.record(batch.getCommands(), skinning(scene, FrameSlot{ copy }), uploads);
         mAcceleration.build(batch, uploads, scene, mEveryMesh, mRecords, mBuffers.getPositions(), mPasses.mTopLevelPack,
-            compaction, mRefusals);
+            compaction, mAnswer.mRefused);
 
         // **Waited on once more where the structures settled**: the last run's loose block went back
         // to the storage under the copies' submit, and its memory is buried under the next, which
@@ -65,7 +66,7 @@ namespace Rtx
         // a loose block nothing holds any more.
         if (compaction == BuildCompaction::Settled)
             batch.flush();
-        mTextures.write(batch, mPasses.mTextures, arrival, textures, mRefusals, nullptr);
+        mTextures.write(batch, mPasses.mTextures, arrival, textures, mAnswer, whenRoomless(device, scene), nullptr);
         mBuiltMeshes = scene.meshes().getRevision();
         mReleasedMeshes = scene.meshes().getFreedCount();
         mReleasedTextures = scene.textures().getFreedCount();
@@ -131,16 +132,20 @@ namespace Rtx
     }
 
     void DeviceScene::extend(Batch& batch, TextureArrival& arrival, const SceneDesc& scene,
-        std::span<const TextureData> arrived, GpuTimer* const timer)
+        std::span<const TextureData> arrived, const WhenRoomless whenRoomless, GpuTimer* const timer)
     {
         assert(scene.getIdentity() == mBuiltFrom && "an extension of a scene this slot was not built from");
 
-        mRefusals.clear();
         releaseFreed(scene);
 
-        if (scene.meshes().getRevision() != mBuiltMeshes)
-        {
+        // **The buffers stage both kinds of arrival**: a material's layer and mask runs arrive without a mesh where
+        // the mesh it stands on is one the scene holds already — a cell's flat ground, which one geometry is one mesh
+        // of (`SceneDesc::addMesh`).
+        const bool meshesArrived = scene.meshes().getRevision() != mBuiltMeshes;
+        if (meshesArrived || scene.materials().getRunRevision() != mBuiltStructure.mMaterialRuns)
             mBuffers.extend(batch, scene);
+        if (meshesArrived)
+        {
             mSkinTables.extend(batch, scene);
             mAcceleration.extend(batch, scene);
 
@@ -148,11 +153,11 @@ namespace Rtx
             // the build reads — and only the meshes that arrived, over the rows `SkinTables::extend`
             // staged. `SkinPass::recordArrived` says why it may not be every mesh the copy owes.
             mPasses.mSkin.recordArrived(batch.getCommands(), skinning(scene, FrameSlot{}), scene.meshes().getArrived());
-            mAcceleration.buildArrived(batch, scene, mBuffers.getPositions(), timer, mRefusals);
+            mAcceleration.buildArrived(batch, scene, mBuffers.getPositions(), timer, mAnswer.mRefused);
             mBuiltMeshes = scene.meshes().getRevision();
         }
 
-        mTextures.write(batch, mPasses.mTextures, arrival, arrived, mRefusals, timer);
+        mTextures.write(batch, mPasses.mTextures, arrival, arrived, mAnswer, whenRoomless, timer);
 
         mBuiltStructure = scene.getStructureRevision();
     }
@@ -179,6 +184,11 @@ namespace Rtx
         const bool posed
             = mPasses.mSkin.record(placing.mCommands, skinning(scene, placing.mSlot, placing.mTimer), placing.mUploads);
 
+        // What waited for room, built where the room is back, ahead of the refit and the top level that name it. The
+        // memory a burial gives back comes back a frame or two after the textures that rested went, so every
+        // placement asks again until it comes or is no longer coming.
+        mAcceleration.buildWaiting(placing.mWritten, scene, mBuffers.getPositions(), placing.mSlot, mAnswer.mRefused);
+
         const bool built = mAcceleration.place(scene, mRecords, mChangedRecords, mPasses.mTopLevelPack, placing);
 
         // Nothing to report, because nothing here is recorded into the placement: the tables are
@@ -194,6 +204,14 @@ namespace Rtx
         mCounts = scene.placements().getCounts();
 
         return posed || built || baked;
+    }
+
+    void DeviceScene::takeAnswer(DeviceAnswer& into)
+    {
+        into.mRefused.insert(into.mRefused.end(), mAnswer.mRefused.begin(), mAnswer.mRefused.end());
+        into.mRoomless.insert(into.mRoomless.end(), mAnswer.mRoomless.begin(), mAnswer.mRoomless.end());
+        mAnswer.clear();
+        mAcceleration.takeResized(into.mMeshes);
     }
 
     void DeviceScene::measureStars(Shaders::StarField& stars) const

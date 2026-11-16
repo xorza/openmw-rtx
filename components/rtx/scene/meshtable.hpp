@@ -5,6 +5,7 @@
 #include <span>
 #include <string>
 
+#include <boost/unordered/unordered_flat_map.hpp>
 #include <osg/BoundingBox>
 #include <osg/Vec2f>
 #include <osg/Vec3f>
@@ -17,6 +18,7 @@
 #include "deformertable.hpp"
 #include "foldedshape.hpp"
 #include "mesh.hpp"
+#include "restqueue.hpp"
 
 namespace Rtx
 {
@@ -41,6 +43,8 @@ namespace Rtx
             reserveRows(count);
             mChanges.reserve(count);
             mDeformed.reserve(count);
+            mKeyIndex.reserve(count);
+            mResting.reserve(count);
         }
 
         /// Whether `arrays` fits one block, and why not where it is longer: a run that straddled
@@ -82,12 +86,31 @@ namespace Rtx
         std::uint32_t getTriangleCount() const { return mTriangles; }
         std::size_t getGeometryBytes() const;
 
-        /// Settles what a drop took out of the posed and the arrived meshes, so they can be read.
-        void compact();
+        /// Settles what a drop took out of the posed and the arrived meshes, so they can be read, and files the
+        /// meshes that came to rest since the last at `clock`, the scene's.
+        void compact(std::uint64_t clock);
+
+        /// The static mesh filed under `key`, taken back where it rests, or `sNoIndex`: nothing described and nothing
+        /// uploaded. A mesh that stands is answered too, so two drawables of one geometry are one mesh. The caller
+        /// holds it before anything can drop it.
+        Index find(const MeshKey& key);
+
+        /// What the device stands of `mesh` whole: its geometry, the table's own figure, and its bottom-level
+        /// structure's `structureBytes`, the device's answer. What lets a static mesh rest, and what its rest holds.
+        void stand(Index mesh, std::uint64_t structureBytes);
+
+        /// The meshes that rest, oldest first (`RestQueue`): what the scene frees across its tables.
+        const RestQueue& getResting() const { return mResting; }
 
         void clearArrivals();
 
     private:
+        /// A row's place in the rest, for `RestQueue`.
+        auto placeOf()
+        {
+            return [this](const Index at) -> RestPlace& { return rowAt(at).mRest; };
+        }
+
         /// What `SceneDesc::holdMesh` and `SceneDesc::drop` stand on, so every hold on a mesh is
         /// taken and given back in one place, and every write that crosses into the deformers is
         /// made through the scene.
@@ -98,17 +121,32 @@ namespace Rtx
         /// `deformers`, which must hold it.
         Index add(DeformerTable& deformers, const MeshArrays& arrays, FoldedShape shape, Index deformer);
 
+        /// The same for a static mesh, filed under `key`, which `find` answers and it rests under.
+        Index add(DeformerTable& deformers, const MeshArrays& arrays, FoldedShape shape, const MeshKey& key);
+
         /// What a pose that changed does beside its rows: the reach, and the mesh named for the
         /// frame, once.
         void notePosed(Index mesh, const osg::BoundingBoxf& bounds);
 
         void hold(Index mesh) { holdRow(mesh); }
 
-        /// Gives one hold on `mesh` back, and frees it where that was the last: its geometry goes
-        /// back to the allocators and a deforming mesh's runs to `deformers`, which it stood on. The
-        /// slot stays where it is, because every index above it names a bottom-level acceleration
-        /// structure that would otherwise be built again.
+        /// Gives one hold on `mesh` back, and where that was the last, rests a static mesh the device stands whole
+        /// and frees anything else: its geometry goes back to the allocators and a deforming mesh's runs to
+        /// `deformers`, which it stood on. The slot stays where it is, because every index above it names a
+        /// bottom-level acceleration structure that would otherwise be built again.
         void drop(DeformerTable& deformers, Index mesh);
+
+        /// Frees `mesh`, which nothing holds, as `drop` frees it.
+        void release(DeformerTable& deformers, Index mesh);
+
+        /// Frees the mesh that has rested longest, which the scene asks for across its tables.
+        void releaseOldest(DeformerTable& deformers);
+
+        /// Files the meshes that came to rest since the last, by their slots, at the clock `compact` was last given.
+        void settleResting() { mResting.settle(mClock, placeOf()); }
+
+        /// What the device stands of `range`'s geometry: its runs of every vertex buffer it fills, and its indices.
+        static std::uint64_t geometryBytesOf(const MeshRange& range);
 
         /// Makes the five vertex buffers as long as the vertex runs reach and writes `range`'s run
         /// of each, and says in `MeshRange::mTangents` whether any tangent word is not nought. Fills
@@ -124,6 +162,12 @@ namespace Rtx
         /// five vertex buffers (`writeVertices`); the second texture coordinates are in runs of
         /// their own — `MeshRange::mSecondTexCoords`. In the device's blocks, which is what lets
         /// the host's buffers grow without moving either.
+        /// The static meshes by their key, one slot a key, which leaves with its slot; the meshes that rest; and the
+        /// scene's clock at the last `compact`.
+        boost::unordered_flat_map<MeshKey, Index, MeshKeyHash> mKeyIndex;
+        RestQueue mResting;
+        std::uint64_t mClock = 0;
+
         RunAllocator mVertexRuns{ sVertexBlock };
         RunAllocator mIndexRuns{ sIndexBlock };
         RunAllocator mSecondRuns{ sVertexBlock };

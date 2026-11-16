@@ -81,15 +81,16 @@ namespace Rtx::Testing
         paint(state, *image, role);
     }
 
-    /// A unit quad in the xy plane: four vertices, two triangles.
-    inline osg::ref_ptr<osg::Geometry> makeQuad()
+    /// A unit quad in the xy plane at height `z`: four vertices, two triangles. Two at one height are one mesh, as a
+    /// static mesh is the one its content is (`SceneDesc::addMesh`); at two heights, two.
+    inline osg::ref_ptr<osg::Geometry> makeQuad(const float z = 0.0f)
     {
         osg::ref_ptr<osg::Geometry> geometry = new osg::Geometry;
         geometry->setVertexArray(makePositions({
-            osg::Vec3f(0.0f, 0.0f, 0.0f),
-            osg::Vec3f(1.0f, 0.0f, 0.0f),
-            osg::Vec3f(1.0f, 1.0f, 0.0f),
-            osg::Vec3f(0.0f, 1.0f, 0.0f),
+            osg::Vec3f(0.0f, 0.0f, z),
+            osg::Vec3f(1.0f, 0.0f, z),
+            osg::Vec3f(1.0f, 1.0f, z),
+            osg::Vec3f(0.0f, 1.0f, z),
         }));
         geometry->addPrimitiveSet(makeTriangles({ 0, 1, 2, 0, 2, 3 }));
         return geometry;

@@ -99,7 +99,7 @@ namespace Rtx
 
         /// Builds the structures of the meshes that arrived: a body's over the first copy of the poses
         /// as `extend` and the pass left it, a static mesh's over `positions`, as `build` takes them.
-        /// A mesh the device has no room for is left out and appended to `refused`, as `build` does.
+        /// A mesh the device has no room for waits for it, or is left out and appended to `refused`, as `build` says.
         ///
         /// @param timer the frame the arrival lands in, so its builds are one zone of that frame's
         ///        report rather than device time nothing accounts for. Null for a picture inside the
@@ -109,6 +109,18 @@ namespace Rtx
 
         /// Destroys the structures of `meshes` and gives their storage back.
         void release(std::span<const Index> meshes) { mBottomLevel.release(meshes); }
+
+        /// Builds again, into `batch`, the structures that waited for room (`BottomLevelStore::buildWaiting`), each
+        /// that deforms over `slot`'s pose, which the slot's last frame wrote and nothing in flight still writes. A
+        /// structure built is a top level to build.
+        void buildWaiting(Batch& batch, const SceneDesc& scene, const BlockedBuffer& positions, FrameSlot slot,
+            std::vector<Refusal>& refused);
+
+        /// Appends what each structure built since the last take took at its build (`BottomLevelStore`).
+        void takeResized(std::vector<StoodMesh>& into) { mBottomLevel.takeResized(into); }
+
+        /// What the structures waiting for room want, and what the last build's took (`BottomLevelStore`).
+        VkDeviceSize getWanted() const { return mBottomLevel.getWanted(); }
 
         VkAccelerationStructureKHR getTopLevel() const { return mTopLevel.getHandle(); }
 

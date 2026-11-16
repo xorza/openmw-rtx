@@ -44,8 +44,17 @@ namespace Rtx
         return ++sIdentities;
     }
 
-    Index SceneDesc::addMesh(const MeshArrays& arrays, FoldedShape shape, Index deformer)
+    Index SceneDesc::addMesh(const MeshArrays& arrays, const FoldedShape shape)
     {
+        const MeshKey key = meshKeyOf(arrays, shape);
+        if (const Index known = mMeshes.find(key); known != sNoIndex)
+            return known;
+        return mMeshes.add(mDeformers, arrays, shape, key);
+    }
+
+    Index SceneDesc::addMesh(const MeshArrays& arrays, const FoldedShape shape, const Index deformer)
+    {
+        assert(deformer != sNoIndex && "a static mesh added on a deformer");
         return mMeshes.add(mDeformers, arrays, shape, deformer);
     }
 
@@ -246,7 +255,7 @@ namespace Rtx
     bool SceneDesc::isConsistent() const
     {
         for (Index slot = 0; slot < mMeshes.size(); ++slot)
-            if (mMeshes.isLive(slot) && mMeshes.getHolds(slot) == 0)
+            if (mMeshes.isLive(slot) && mMeshes.getHolds(slot) == 0 && !mMeshes.getRows()[slot].mRest.mResting)
                 return false;
 
         for (Index slot = 0; slot < mMaterials.size(); ++slot)
@@ -254,7 +263,7 @@ namespace Rtx
                 return false;
 
         for (Index slot = 0; slot < mTextures.getRows().size(); ++slot)
-            if (mTextures.isLive(slot) && mTextures.getHolds(slot) == 0 && !mTextures.getRows()[slot].mResting)
+            if (mTextures.isLive(slot) && mTextures.getHolds(slot) == 0 && !mTextures.getRows()[slot].mRest.mResting)
                 return false;
 
         for (Index slot = 0; slot < mDeformers.getRows().size(); ++slot)
@@ -266,8 +275,8 @@ namespace Rtx
 
     bool SceneDesc::isEmpty() const
     {
-        return mMeshes.getLiveCount() == 0 && mMaterials.getLiveCount() == 0
-            && mTextures.getLiveCount() == mTextures.getRestingCount() && mDeformers.getLiveCount() == 0
+        return mMeshes.getLiveCount() == mMeshes.getResting().getCount() && mMaterials.getLiveCount() == 0
+            && mTextures.getLiveCount() == mTextures.getResting().getCount() && mDeformers.getLiveCount() == 0
             && mPlacements.getCounts().mPlaced == 0;
     }
 
@@ -317,10 +326,45 @@ namespace Rtx
 
     void SceneDesc::compact()
     {
-        mMeshes.compact();
-        mTextures.compact();
+        ++mRestClock;
+        mMeshes.compact(mRestClock);
+        mTextures.compact(mRestClock);
         mDeformers.compact();
         mPlacements.compact();
+    }
+
+    std::uint64_t SceneDesc::evictResting(const std::uint64_t room)
+    {
+        // **One order across the tables**: the older of the two oldest, by when each was filed on the scene's
+        // clock, a texture first where both were filed at one tick. Filed first, so nothing waits unordered.
+        mTextures.settleResting();
+        mMeshes.settleResting();
+        std::uint64_t freed = 0;
+        while (getRestingBytes() > 0 && (freed < room || getRestingBytes() > mRestLimit))
+        {
+            const std::uint64_t before = getRestingBytes();
+            const Index texture = mTextures.getResting().first();
+            const Index mesh = mMeshes.getResting().first();
+            const bool textureFirst = mesh == sNoIndex
+                || (texture != sNoIndex
+                    && mTextures.getRows()[texture].mRest.mFiledAt <= mMeshes.getRows()[mesh].mRest.mFiledAt);
+            if (textureFirst)
+                mTextures.releaseOldest();
+            else
+                mMeshes.releaseOldest(mDeformers);
+            freed += before - getRestingBytes();
+        }
+        return freed;
+    }
+
+    std::uint64_t SceneDesc::getRestingBytes() const
+    {
+        return mTextures.getResting().getBytes() + mMeshes.getResting().getBytes();
+    }
+
+    void SceneDesc::standMesh(const Index mesh, const std::uint64_t structureBytes)
+    {
+        mMeshes.stand(mesh, structureBytes);
     }
 
     void SceneDesc::clearArrivals()

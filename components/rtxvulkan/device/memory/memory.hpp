@@ -262,6 +262,10 @@ namespace Rtx
         /// `tryTake` has the last word.
         VkDeviceSize getRoom(MemoryUse use) const;
 
+        /// What the video heap's budget allows this process, as the driver states it and `limitBudget` holds it: what
+        /// the content's resting share is a share of (`ArrivalRoom::mBudget`).
+        VkDeviceSize getVideoBudget() const;
+
         /// What `use` holds on `heap`, the ranges and not the blocks around them.
         VkDeviceSize getHeld(std::uint32_t heap, MemoryUse use) const;
 

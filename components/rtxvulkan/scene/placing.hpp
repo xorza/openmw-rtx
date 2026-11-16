@@ -6,6 +6,7 @@
 
 namespace Rtx
 {
+    class Batch;
     class GpuTimer;
     class Uploads;
 
@@ -27,5 +28,9 @@ namespace Rtx
         /// What writes `mSlot`'s copy of every host-written table, into a batch the caller defers
         /// ahead of `mCommands`' submit: what `mCommands` records after an `order` reads them.
         Uploads& mUploads;
+
+        /// The batch `mUploads` writes into: where a structure that waited for room is built once the room is back,
+        /// ahead of the refit and the top level `mCommands` records (`SceneAcceleration::buildWaiting`).
+        Batch& mWritten;
     };
 }

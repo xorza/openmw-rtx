@@ -584,6 +584,7 @@ target_sources(
                 scene/spritesource.hpp
                 scene/structurebuild.hpp
                 scene/toplevelpackpass.hpp
+                scene/whenroomless.hpp
                 shaders/shared/accumulate.h
                 shaders/shared/atrous.h
                 shaders/shared/bc7.h

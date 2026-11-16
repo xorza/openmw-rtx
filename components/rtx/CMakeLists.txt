@@ -130,6 +130,7 @@ openmw_rtx_layer(
         scene/instancerecord.cpp
         scene/lightgrid.cpp
         scene/materialtable.cpp
+        scene/mesh.cpp
         scene/meshtable.cpp
         scene/placementtable.cpp
         scene/refusals.cpp
@@ -138,6 +139,7 @@ openmw_rtx_layer(
     HEADERS
         scene/compositequeue.hpp
         scene/deformertable.hpp
+        scene/deviceanswer.hpp
         scene/foldedshape.hpp
         scene/instancerecord.hpp
         scene/light.hpp
@@ -149,6 +151,7 @@ openmw_rtx_layer(
         scene/placementtable.hpp
         scene/refusal.hpp
         scene/refusals.hpp
+        scene/restqueue.hpp
         scene/ripple.hpp
         scene/rowhold.hpp
         scene/scenedesc.hpp
@@ -270,6 +273,7 @@ openmw_rtx_layer(
         renderer/nullrenderer.hpp
         renderer/picturerenderer.hpp
         renderer/renderer.hpp
+        renderer/roomwaits.hpp
         renderer/sceneholder.hpp
         renderer/scenetextures.hpp
         renderer/sceneuploader.hpp

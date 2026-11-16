@@ -43,6 +43,7 @@ namespace Rtx
     void Graveyard::bury(DeviceMemory&& memory)
     {
         const std::scoped_lock lock(mLock);
+        mBuried.at(static_cast<std::size_t>(memory.mUse)) += memory.mSize;
         mHeld.hold(mDevice.getTimeline().getNext(), Burial(std::move(memory)));
     }
 
@@ -56,6 +57,12 @@ namespace Rtx
         assert(mDevice.getTimeline().isIdle() && "everything held destroyed under a submit still on the queue");
 
         freeThrough(std::numeric_limits<std::uint64_t>::max());
+    }
+
+    VkDeviceSize Graveyard::getBuried(const MemoryUse use) const
+    {
+        const std::scoped_lock lock(mLock);
+        return mBuried.at(static_cast<std::size_t>(use));
     }
 
     std::size_t Graveyard::getHeldCount() const
@@ -72,7 +79,13 @@ namespace Rtx
             if (auto* const buried = std::get_if<BuriedHandle>(&burial))
                 buried->mEnd(mDevice, buried->mHandle);
             else
-                std::get<DeviceMemory>(burial).releaseNow();
+            {
+                auto& memory = std::get<DeviceMemory>(burial);
+                VkDeviceSize& counted = mBuried.at(static_cast<std::size_t>(memory.mUse));
+                assert(counted >= memory.mSize && "memory given back that was never counted buried");
+                counted -= memory.mSize;
+                memory.releaseNow();
+            }
         });
     }
 }

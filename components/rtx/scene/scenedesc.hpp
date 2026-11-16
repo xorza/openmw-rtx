@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <limits>
 #include <span>
 #include <string>
 #include <utility>
@@ -103,10 +104,17 @@ namespace Rtx
         /// attribute but `MeshArrays::mPositions` may be empty; when one is not it must match the
         /// positions in length, `MeshArrays::mIndices` must be a whole number of triangles
         /// addressing only those vertices, and the mesh must fit a block (`MeshTable::checkFits`):
-        /// asserted, as a contract on the caller, which refuses what does not hold. A mesh that
-        /// deforms names the rig or the morph that poses it, whose vertex count must be this mesh's,
-        /// and hands over its bind pose, which stays in the shared buffers as long as the mesh does.
-        Index addMesh(const MeshArrays& arrays, FoldedShape shape = {}, Index deformer = sNoIndex);
+        /// asserted, as a contract on the caller, which refuses what does not hold.
+        ///
+        /// **A static mesh is the one its content is** (`meshKeyOf`): the mesh filed under the key these arrays
+        /// make, taken back where it rests, or a new one filed under it — so a mesh resting on the device costs
+        /// nothing to place again, and two drawables of one geometry are one mesh.
+        Index addMesh(const MeshArrays& arrays, FoldedShape shape = {});
+
+        /// A mesh that deforms, on `deformer`, the rig or the morph that poses it, whose vertex count must be this
+        /// mesh's: it hands over its bind pose, which stays in the shared buffers as long as the mesh does, and is a
+        /// copy per instance, filed under no key.
+        Index addMesh(const MeshArrays& arrays, FoldedShape shape, Index deformer);
 
         /// `addMesh` for a mesh that brings the skin or the targets that pose it. The deformer row
         /// and the mesh row are made in one call, so a deformer no mesh stands on cannot exist — a
@@ -262,8 +270,26 @@ namespace Rtx
 
         /// Settles every list the tables took a slot out of, once in a hand-over and before anything
         /// reads them: a sweep gives back thousands of slots, and a pass over a list for each was
-        /// what settling at every drop cost.
+        /// what settling at every drop cost. Files what came to rest at the scene's clock, one tick a
+        /// hand-over, which orders the rests of every table as one.
         void compact();
+
+        /// **What everything that rests may stand on the device** (`docs/architecture.md`, "One residency policy
+        /// for the content"): set by the uploader from the measured limit and the device's budget. Unbounded until
+        /// set, for a scene no backend bounds.
+        void setRestLimit(std::uint64_t bytes) { mRestLimit = bytes; }
+
+        /// Frees what rests, the oldest to rest first across the tables, until it stands under the limit and
+        /// `room` more is given back, and answers the bytes given back: each slot reported freed by its table, its
+        /// device image the backend's to drop.
+        std::uint64_t evictResting(std::uint64_t room = 0);
+
+        /// The bytes everything that rests stands on the device.
+        std::uint64_t getRestingBytes() const;
+
+        /// What the device stands of `mesh`'s bottom-level structure, the device's answer (`DeviceAnswer`), beside
+        /// its geometry: what lets a static mesh rest, and what its rest holds.
+        void standMesh(Index mesh, std::uint64_t structureBytes);
 
         /// Forgets what arrived and what was freed, which a hand-over does once it has read both.
         void clearArrivals();
@@ -327,6 +353,11 @@ namespace Rtx
         Stepped<Turn> mTurn{ Turn::Open };
 
         TextureTable mTextures;
+
+        /// The scene's clock, one tick a `compact`, which the tables file their rests at; and the limit on what
+        /// rests.
+        std::uint64_t mRestClock = 0;
+        std::uint64_t mRestLimit = std::numeric_limits<std::uint64_t>::max();
         DeformerTable mDeformers;
 
         /// Every mesh, and the shared buffers its triangles live in.

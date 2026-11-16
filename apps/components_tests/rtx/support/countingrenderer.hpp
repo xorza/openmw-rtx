@@ -90,11 +90,19 @@ namespace Rtx::Testing
         /// How long `slot`'s texture array stands: the highest slot written, plus one.
         std::uint32_t textureCountOf(Rtx::SceneSlot slot) const { return countAt(slot); }
 
-        /// What the device refused, which a test fills to be what the next hand-over answers.
-        std::span<const Rtx::Refusal> getRefusals(Rtx::SceneSlot) const override { return mRefusing; }
+        /// What the device refused, which a test fills to be what the next take answers, and empties.
+        void takeAnswer(Rtx::SceneSlot, Rtx::DeviceAnswer& into) override
+        {
+            into.mRefused.insert(into.mRefused.end(), mRefusing.begin(), mRefusing.end());
+            mRefusing.clear();
+            into.mMeshes.insert(into.mMeshes.end(), mStanding.begin(), mStanding.end());
+            mStanding.clear();
+            into.mRoomless.insert(into.mRoomless.end(), mRoomless.begin(), mRoomless.end());
+            mRoomless.clear();
+        }
 
         /// What the device has room for, which a test sets to be what the next hand-over reads.
-        std::optional<std::uint64_t> getTextureRoom() const override { return mTextureRoom; }
+        std::optional<Rtx::ArrivalRoom> getArrivalRoom(Rtx::SceneSlot) const override { return mArrivalRoom; }
 
         void setUpscale(Upscale upscale) override { mProfile.mUpscale = upscale; }
         Rtx::FrameExtents getExtents() const override { return mExtents; }
@@ -251,11 +259,14 @@ namespace Rtx::Testing
         std::uint64_t mFrames = 0;
         std::uint64_t mSkipped = 0;
 
-        /// What `getRefusals` answers, as a device short of room would after a hand-over.
+        /// What `takeAnswer` answers, as a device would after a hand-over: what it refused, and what each mesh's
+        /// structure takes.
         std::vector<Rtx::Refusal> mRefusing;
+        std::vector<Rtx::StoodMesh> mStanding;
+        std::vector<Rtx::Index> mRoomless;
 
-        /// What `getTextureRoom` answers: unbounded unless a test bounds it.
-        std::optional<std::uint64_t> mTextureRoom;
+        /// What `getArrivalRoom` answers: unbounded unless a test bounds it.
+        std::optional<Rtx::ArrivalRoom> mArrivalRoom;
 
         /// What `getProfile` answers, which a test sets to say what the run decided.
         Rtx::RenderProfile mProfile;

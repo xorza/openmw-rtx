@@ -21,6 +21,7 @@
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>
+#include <components/rtx/scene/deviceanswer.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/shaders/hosttypes.h>
 #include <components/rtx/shaders/scene.h>
@@ -76,8 +77,9 @@ namespace Rtx
             const std::array<std::uint8_t, 4> white{ 255, 255, 255, 255 };
             const TextureData arrived = Testing::describeTexel(white, 0);
             Batch arrival(pool);
-            std::vector<Refusal> refused;
-            textures.write(arrival, passes, rooms, std::span(&arrived, 1), refused, nullptr);
+            DeviceAnswer answer;
+            std::vector<Refusal>& refused = answer.mRefused;
+            textures.write(arrival, passes, rooms, std::span(&arrived, 1), answer, WhenRoomless::Refuses, nullptr);
             EXPECT_TRUE(refused.empty());
             arrival.flush();
             Testing::expectAssertDies([&] { static_cast<void>(textures.getSet(FrameSlot{ 0 })); },
@@ -94,7 +96,7 @@ namespace Rtx
             // write once that set is free. Deferred, so it rides ahead of the held submit.
             const TextureData second = Testing::describeTexel(white, 1);
             Batch secondArrival(pool);
-            textures.write(secondArrival, passes, rooms, std::span(&second, 1), refused, nullptr);
+            textures.write(secondArrival, passes, rooms, std::span(&second, 1), answer, WhenRoomless::Refuses, nullptr);
             EXPECT_TRUE(refused.empty());
             secondArrival.defer();
             const std::uint64_t bound = hold.submit(std::move(binding));
@@ -319,9 +321,11 @@ namespace Rtx
             EXPECT_EQ(firstOf(textures, first.mData, 44709), 0u);
             EXPECT_EQ(firstOf(textures, first.mData, 44708), 1u);
 
-            std::vector<Refusal> refused;
+            DeviceAnswer answer;
+
+            std::vector<Refusal>& refused = answer.mRefused;
             Batch arrival(getPool());
-            textures.write(arrival, passes, rooms, std::span(&first.mData, 1), refused, nullptr);
+            textures.write(arrival, passes, rooms, std::span(&first.mData, 1), answer, WhenRoomless::Refuses, nullptr);
             arrival.flush();
             ASSERT_TRUE(refused.empty());
 
@@ -373,9 +377,10 @@ namespace Rtx
             unread.mData.mSource = TextureSource::StandIn;
 
             const std::array arrived{ wide.mData, single.mData, unread.mData };
-            std::vector<Refusal> refused;
+            DeviceAnswer answer;
+            std::vector<Refusal>& refused = answer.mRefused;
             Batch arrival(getPool());
-            textures.write(arrival, passes, rooms, arrived, refused, nullptr);
+            textures.write(arrival, passes, rooms, arrived, answer, WhenRoomless::Refuses, nullptr);
             arrival.flush();
 
             ASSERT_EQ(refused.size(), 1u);
@@ -423,7 +428,8 @@ namespace Rtx
             };
             {
                 Batch again(getPool());
-                textures.write(again, passes, rooms, std::array{ lone.mData, bake }, refused, nullptr);
+                textures.write(
+                    again, passes, rooms, std::array{ lone.mData, bake }, answer, WhenRoomless::Refuses, nullptr);
                 again.flush();
             }
             const TexturesHeld bySource = textures.getHeld();
@@ -469,10 +475,13 @@ namespace Rtx
                 "block opener");
             ASSERT_TRUE(opener.isOk()) << "the image that opens the block";
 
-            std::vector<Refusal> refused;
+            DeviceAnswer answer;
+
+            std::vector<Refusal>& refused = answer.mRefused;
             {
                 Batch arrival(getPool());
-                textures.write(arrival, passes, rooms, std::span(&ladder.mData, 1), refused, nullptr);
+                textures.write(
+                    arrival, passes, rooms, std::span(&ladder.mData, 1), answer, WhenRoomless::Refuses, nullptr);
                 arrival.flush();
             }
             EXPECT_TRUE(refused.empty()) << "a texture with a level the device had room for was refused";
@@ -483,7 +492,8 @@ namespace Rtx
 
             {
                 Batch arrival(getPool());
-                textures.write(arrival, passes, rooms, std::span(&lone.mData, 1), refused, nullptr);
+                textures.write(
+                    arrival, passes, rooms, std::span(&lone.mData, 1), answer, WhenRoomless::Refuses, nullptr);
                 arrival.flush();
             }
             ASSERT_EQ(refused.size(), 1u);
@@ -495,11 +505,25 @@ namespace Rtx
             EXPECT_EQ(textures.getTexels(1), Shaders::TEXTURE_STANDS_IN | 16u) << "no room";
             EXPECT_EQ(textures.getExtent(0), Shaders::uvec2(1536u, 1536u)) << "the level the room took";
 
+            // **Where room is coming, the file waits rather than being refused**: named by its slot among those the
+            // core hands over again, drawing the stand-in meanwhile, and no refusal.
+            refused.clear();
+            {
+                Batch arrival(getPool());
+                textures.write(arrival, passes, rooms, std::span(&lone.mData, 1), answer, WhenRoomless::Waits, nullptr);
+                arrival.flush();
+            }
+            EXPECT_TRUE(refused.empty()) << "a file room is coming for was refused";
+            EXPECT_EQ(answer.mRoomless, (std::vector<Index>{ lone.mData.mSlot }));
+            EXPECT_EQ(textures.getTexels(1), Shaders::TEXTURE_STANDS_IN | 16u) << "a file that waits drew its own";
+            answer.mRoomless.clear();
+
             refused.clear();
             {
                 const Testing::BudgetLimit ample(memory, ~VkDeviceSize{ 0 });
                 Batch arrival(getPool());
-                textures.write(arrival, passes, rooms, std::span(&lone.mData, 1), refused, nullptr);
+                textures.write(
+                    arrival, passes, rooms, std::span(&lone.mData, 1), answer, WhenRoomless::Refuses, nullptr);
                 arrival.flush();
             }
             EXPECT_TRUE(refused.empty());
@@ -513,7 +537,8 @@ namespace Rtx
             {
                 const Testing::BudgetLimit ample(memory, ~VkDeviceSize{ 0 });
                 Batch arrival(getPool());
-                textures.write(arrival, passes, rooms, std::span(&ladder.mData, 1), refused, nullptr);
+                textures.write(
+                    arrival, passes, rooms, std::span(&ladder.mData, 1), answer, WhenRoomless::Refuses, nullptr);
                 arrival.flush();
             }
             EXPECT_TRUE(refused.empty());

@@ -14,9 +14,12 @@
 #include <apps/components_tests/rtxvulkan/support/device/memorylimits.hpp>
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/common/slots.hpp>
+#include <components/rtx/renderer/roomwaits.hpp>
+#include <components/rtx/scene/deviceanswer.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
+#include <components/rtx/scene/texturetable.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/rtxvulkan/device/commands.hpp>
 #include <components/rtxvulkan/device/device.hpp>
@@ -30,6 +33,7 @@
 #include <components/rtxvulkan/device/physicaldevice.hpp>
 #include <components/rtxvulkan/scene/bottomlevelstore.hpp>
 #include <components/rtxvulkan/scene/structurebuild.hpp>
+#include <components/vfs/pathutil.hpp>
 
 namespace Rtx
 {
@@ -245,7 +249,17 @@ namespace Rtx
             stage();
             build(store, late);
 
+            // **A structure is said at its build and not at its copy** (`takeResized`): the build's size is the same
+            // in every process, and the copy's lands whenever the device answers, so a rest bounded on it would free
+            // other rows in a process whose queue waits behind the host.
+            std::vector<StoodMesh> resized;
+            store.takeResized(resized);
+            EXPECT_EQ(resized.size(), late.size() + 1) << "the first grid and the three late ones, at their builds";
+            resized.clear();
+
             const SlotSet& moved = place(store);
+            store.takeResized(resized);
+            EXPECT_TRUE(resized.empty()) << "a copy made tight said its size";
             EXPECT_TRUE(moved.has(first)) << "a question lost with the pool it was asked through";
             for (const Index grid : late)
                 EXPECT_TRUE(moved.has(grid)) << "grid " << grid << " built beside the pool's growth";
@@ -260,20 +274,32 @@ namespace Rtx
             getDevice().collectIdle();
         }
 
-        /// A mesh the device has no room for is left out: its slot holds no structure, so a row placing it names none
-        /// and the top level skips it, and the meshes built before it stand.
+        /// A mesh the device has no room for, and no room coming for, is left out: its slot holds no structure, so a
+        /// row placing it names none and the top level skips it, and the meshes built before it stand.
         ///
         /// **Room for the frame's memory and none for content's**: the build's scratch and staged positions are the
         /// frame's and are made, and the structure's room is content's and is refused. The first grid's block was made
         /// to its size, so the second has nowhere to go but a block of its own.
+        ///
+        /// **Room that is coming is waited for**: a texture of 64 bytes rests, which the scene's owner gives back for
+        /// what waits, so the mesh refused then waits, wanting its structure's bytes, and is not refused; once the room
+        /// is there, `buildWaiting` stands it and it wants nothing; and where it is not there for `sMostRoomWaits`
+        /// placements, the mesh is refused.
         TEST_F(RtxBottomLevelStoreTest, aMeshTheDeviceHasNoRoomForIsLeftOutAndPlacesNothing)
         {
-            const std::array<Index, 2> grids{ addGrid(mScene, 64, 0.0f), addGrid(mScene, 64, 1.0f) };
+            const std::array<Index, 3> grids{ addGrid(mScene, 64, 0.0f), addGrid(mScene, 64, 1.0f),
+                addGrid(mScene, 64, 2.0f) };
             stage();
 
             BottomLevelStore store(getDevice());
             build(store, std::span(grids).subspan(0, 1));
             EXPECT_FALSE(store.wasRefusedRoom());
+
+            // Nothing resting and nothing buried: no room is coming.
+            getDevice().waitIdle();
+            getDevice().collectIdle();
+            ASSERT_EQ(getDevice().getGraveyard().getBuried(MemoryUse::Structure), 0u);
+            ASSERT_EQ(getDevice().getGraveyard().getBuried(MemoryUse::Texture), 0u);
 
             std::vector<Refusal> refused;
             {
@@ -294,9 +320,77 @@ namespace Rtx
             EXPECT_TRUE(store.stands(grids[0])) << "a mesh built before the device ran out was taken down";
             EXPECT_NE(store.getAddress(grids[0]), 0u);
 
+            EXPECT_EQ(store.getWanted(), 0u) << "a mesh no room is coming for waits for it";
+
             build(store, std::span(grids).subspan(1, 1));
             EXPECT_TRUE(store.stands(grids[1]));
             EXPECT_TRUE(store.wasRefusedRoom()) << "a refusal was forgotten once its mesh stood";
+
+            // Let go of, with a texture resting so room is coming, and refused again.
+            store.release(std::span(grids).subspan(1, 1));
+            const Index resting = mScene.textures().add(VFS::Path::NormalizedView("textures/tx_resting.dds"));
+            mScene.textures().stand(resting, 64, false);
+            mScene.drop(mScene.holdTexture(resting));
+            mScene.compact();
+            ASSERT_EQ(mScene.textures().getResting().getBytes(), 64u);
+            {
+                const Testing::NoRoomForContent full(getDevice());
+                Batch batch(getPool());
+                store.build(batch, mScene, std::span(grids).subspan(1, 1), mPoses.at(FrameSlot{}), mPositions, mIndices,
+                    0, BuildCompaction::Streamed, refused);
+                batch.flush();
+            }
+            EXPECT_EQ(refused.size(), 1u) << "a mesh room is coming for was refused";
+            EXPECT_FALSE(store.stands(grids[1]));
+            const VkDeviceSize wanted = store.getWanted();
+            EXPECT_GT(wanted, 0u);
+
+            {
+                Batch batch(getPool());
+                EXPECT_EQ(
+                    store.buildWaiting(batch, mScene, mPoses.at(FrameSlot{}), mPositions, mIndices, 0, refused), 1u);
+                batch.flush();
+            }
+            EXPECT_TRUE(store.stands(grids[1]));
+            EXPECT_EQ(store.getWanted(), 0u);
+            EXPECT_EQ(refused.size(), 1u);
+
+            // **What each structure takes is said once** (`takeResized`): the waiting grid's, its own size, among
+            // those built since the store began, and nothing at the next take.
+            std::vector<StoodMesh> resized;
+            store.takeResized(resized);
+            const auto waited = std::ranges::find(resized, grids[1], &StoodMesh::mMesh);
+            ASSERT_NE(waited, resized.end());
+            EXPECT_EQ(waited->mStructureBytes, wanted);
+            resized.clear();
+            store.takeResized(resized);
+            EXPECT_TRUE(resized.empty()) << "a structure's size said twice";
+
+            // **And for `sMostRoomWaits` placements at most**, the texture resting all the while: the third grid, which
+            // no structure let go of makes room for, waits for a room that does not come back, and is refused on the
+            // last.
+            {
+                const Testing::NoRoomForContent full(getDevice());
+                {
+                    Batch batch(getPool());
+                    store.build(batch, mScene, std::span(grids).subspan(2, 1), mPoses.at(FrameSlot{}), mPositions,
+                        mIndices, 0, BuildCompaction::Streamed, refused);
+                    batch.flush();
+                }
+                ASSERT_EQ(refused.size(), 1u) << "the third grid had room";
+                for (std::uint32_t placement = 1; placement <= sMostRoomWaits; ++placement)
+                {
+                    Batch batch(getPool());
+                    EXPECT_EQ(
+                        store.buildWaiting(batch, mScene, mPoses.at(FrameSlot{}), mPositions, mIndices, 0, refused),
+                        0u);
+                    batch.flush();
+                    EXPECT_EQ(refused.size(), placement < sMostRoomWaits ? 1u : 2u) << placement;
+                    EXPECT_EQ(store.getWanted() > 0, placement < sMostRoomWaits) << placement;
+                }
+            }
+            EXPECT_EQ(refused[1].mWhy, "no device memory is left for it");
+            EXPECT_FALSE(store.stands(grids[2]));
 
             // Before the store goes: a buried structure gives its room back to the store's storage.
             getDevice().waitIdle();

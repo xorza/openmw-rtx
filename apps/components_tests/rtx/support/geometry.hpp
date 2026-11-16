@@ -121,6 +121,14 @@ namespace Rtx::Testing
     }
 
     /// A mesh of one quad of `corners` and nothing else, unplaced.
+    /// The unit quad stood `z` up: one at each height is a mesh of its own, where one geometry is one mesh
+    /// (`SceneDesc::addMesh`).
+    inline std::array<osg::Vec3f, 4> unitQuadAt(const float z)
+    {
+        return { osg::Vec3f(0.0f, 0.0f, z), osg::Vec3f(1.0f, 0.0f, z), osg::Vec3f(1.0f, 1.0f, z),
+            osg::Vec3f(0.0f, 1.0f, z) };
+    }
+
     inline Index addQuadMesh(SceneDesc& scene, std::span<const osg::Vec3f, 4> corners = sUnitQuad)
     {
         return scene.addMesh(MeshArrays{ .mPositions = corners, .mIndices = sQuadIndices });
@@ -156,13 +164,15 @@ namespace Rtx::Testing
     };
 
     /// One triangle and one material naming `texture`, placed, so a mesh, a material and a texture
-    /// all arrive together the way a model does.
+    /// all arrive together the way a model does. The triangle stands as high as the meshes the scene has added, so
+    /// each model is a mesh of its own: one geometry is one mesh (`SceneDesc::addMesh`).
     ///
     /// The path is made up, and with no `image` the slot keeps none: `SceneTextures` answers it with the
     /// stand-in and counts it unreadable, the description a decision needs, with no content files.
     inline Model addModel(SceneDesc& scene, const VFS::Path::NormalizedView texture, const osg::Image* image = nullptr)
     {
-        const osg::Vec3f positions[3] = { { 0, 0, 0 }, { 1, 0, 0 }, { 0, 1, 0 } };
+        const auto z = static_cast<float>(scene.meshes().getRevision());
+        const osg::Vec3f positions[3] = { { 0, 0, z }, { 1, 0, z }, { 0, 1, z } };
         const osg::Vec3f normals[3] = { { 0, 0, 1 }, { 0, 0, 1 }, { 0, 0, 1 } };
         const osg::Vec2f uvs[3] = { { 0, 0 }, { 1, 0 }, { 0, 1 } };
         const std::uint32_t indices[3] = { 0, 1, 2 };

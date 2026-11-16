@@ -171,6 +171,18 @@ namespace Rtx
             mBuiltOverWrites.reset();
     }
 
+    void SceneAcceleration::buildWaiting(Batch& batch, const SceneDesc& scene, const BlockedBuffer& positions,
+        const FrameSlot slot, std::vector<Refusal>& refused)
+    {
+        if (mBottomLevel.buildWaiting(batch, scene, mPoses.at(slot), positions, mIndices, mPlacements + 1, refused)
+            == 0)
+            return;
+
+        sizeRefitScratch();
+        // A structure built is a top level to build, for the reason `buildArrived` gives.
+        mBuiltOverWrites.reset();
+    }
+
     void SceneAcceleration::sizeRefitScratch()
     {
         if (const VkDeviceSize bytes = mBottomLevel.getRefitScratchBytes(); bytes > 0)

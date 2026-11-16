@@ -22,8 +22,8 @@
 #include <components/rtx/image/textureformat.hpp>
 #include <components/rtx/renderer/slot.hpp>
 #include <components/rtx/scene/deformertable.hpp>
+#include <components/rtx/scene/deviceanswer.hpp>
 #include <components/rtx/scene/mesh.hpp>
-#include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/sprite.hpp>
 #include <components/rtx/scene/surface.hpp>
@@ -247,10 +247,10 @@ namespace Rtx::Testing
 
             // Held across the arrivals as a scene holds its own, and never written to: a device
             // with room refuses nothing.
-            std::vector<Refusal> refused;
+            DeviceAnswer answer;
             const auto arrive = [&](Batch& batch, std::uint32_t slot) {
                 const TextureData described = describe(slot);
-                array.write(batch, passes, rooms, std::span(&described, 1), refused, nullptr);
+                array.write(batch, passes, rooms, std::span(&described, 1), answer, WhenRoomless::Refuses, nullptr);
             };
 
             {

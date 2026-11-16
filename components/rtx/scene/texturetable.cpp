@@ -18,9 +18,9 @@ namespace Rtx
             return true;
 
         settleResting();
-        if (mRestedFirst != sNoIndex)
+        if (mResting.first() != sNoIndex)
         {
-            release(mRestedFirst);
+            releaseOldest();
             return true;
         }
 
@@ -57,7 +57,7 @@ namespace Rtx
         if (known != mPathIndex.end() && known->second[as][at] != sNoIndex)
         {
             const Index standing = known->second[as][at];
-            if (rowAt(standing).mResting)
+            if (rowAt(standing).mRest.mResting)
                 wake(standing, image, partner);
             return standing;
         }
@@ -198,28 +198,22 @@ namespace Rtx
     {
         TextureRow& row = rowAt(slot);
         assert(isLive(slot) && "a slot that stands no texture was stood");
-        assert(!row.mResting && "a slot that rests was described");
+        assert(!row.mRest.mResting && "a slot that rests was described");
         row.mStoodBytes = bytes;
         row.mStoodMade = made;
     }
 
-    std::uint64_t TextureTable::evictResting(const std::uint64_t bytes)
+    void TextureTable::releaseOldest()
     {
         settleResting();
-        std::uint64_t freed = 0;
-        while (freed < bytes && mRestedFirst != sNoIndex)
-        {
-            freed += rowAt(mRestedFirst).mStoodBytes;
-            release(mRestedFirst);
-        }
-        return freed;
+        assert(mResting.first() != sNoIndex && "the oldest freed where nothing rests");
+        release(mResting.first());
     }
 
     void TextureTable::rest(const Index slot)
     {
         TextureRow& row = rowAt(slot);
         assert(row.mKind == TextureKind::File && "only a file rests");
-        assert(!row.mResting && "a slot laid to rest twice");
 
         // The census counts what the host keeps, and the host keeps nothing of a slot that rests.
         if (row.mImage != nullptr)
@@ -227,43 +221,13 @@ namespace Rtx
         row.mImage = nullptr;
         row.mPartner = nullptr;
 
-        row.mResting = true;
-        row.mWaitingAt = static_cast<Index>(mRestingNow.size());
-        mRestingNow.push_back(slot);
-        ++mRestingCount;
-        mRestingBytes += row.mStoodBytes;
+        mResting.rest(slot, row.mStoodBytes, placeOf());
     }
 
     void TextureTable::wake(const Index slot, const osg::Image* const image, const osg::Image* const partner)
     {
         TextureRow& row = rowAt(slot);
-        assert(row.mResting && "a slot woken that does not rest");
-
-        if (row.mWaitingAt != sNoIndex)
-        {
-            // Out of the batch by the last in its place, which settling sorts anyway.
-            const Index last = mRestingNow.back();
-            mRestingNow[row.mWaitingAt] = last;
-            rowAt(last).mWaitingAt = row.mWaitingAt;
-            mRestingNow.pop_back();
-            row.mWaitingAt = sNoIndex;
-        }
-        else
-        {
-            if (row.mRestedBefore != sNoIndex)
-                rowAt(row.mRestedBefore).mRestedAfter = row.mRestedAfter;
-            else
-                mRestedFirst = row.mRestedAfter;
-            if (row.mRestedAfter != sNoIndex)
-                rowAt(row.mRestedAfter).mRestedBefore = row.mRestedBefore;
-            else
-                mRestedLast = row.mRestedBefore;
-        }
-        row.mResting = false;
-        row.mRestedBefore = sNoIndex;
-        row.mRestedAfter = sNoIndex;
-        --mRestingCount;
-        mRestingBytes -= row.mStoodBytes;
+        mResting.wake(slot, row.mStoodBytes, placeOf());
 
         // The taker's images, which a rebuild describes the slot from; the device stands them already.
         row.mImage = image;
@@ -274,26 +238,13 @@ namespace Rtx
 
     void TextureTable::settleResting()
     {
-        std::ranges::sort(mRestingNow);
-        for (const Index slot : mRestingNow)
-        {
-            TextureRow& row = rowAt(slot);
-            row.mWaitingAt = sNoIndex;
-            row.mRestedBefore = mRestedLast;
-            row.mRestedAfter = sNoIndex;
-            if (mRestedLast != sNoIndex)
-                rowAt(mRestedLast).mRestedAfter = slot;
-            else
-                mRestedFirst = slot;
-            mRestedLast = slot;
-        }
-        mRestingNow.clear();
+        mResting.settle(mClock, placeOf());
     }
 
     void TextureTable::release(const Index texture)
     {
         TextureRow& row = rowAt(texture);
-        if (row.mResting)
+        if (row.mRest.mResting)
         {
             // Out of the rest first, which leaves the census as a slot that rests left it.
             wake(texture, nullptr, nullptr);

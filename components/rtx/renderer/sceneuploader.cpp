@@ -13,17 +13,87 @@
 #include <components/rtx/common/clock.hpp>
 #include <components/rtx/preprocess/preparedimages.hpp>
 #include <components/rtx/scene/compositequeue.hpp>
+#include <components/rtx/scene/deviceanswer.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/refusals.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/texturetable.hpp>
 
 #include "framespend.hpp"
+#include "roomwaits.hpp"
 #include "sceneholder.hpp"
 #include "slot.hpp"
 
 namespace Rtx
 {
+    bool SceneUploader::isWaiting(const Index slot) const
+    {
+        return std::ranges::any_of(mTextureWaits, [&](const TextureWait& wait) { return wait.mSlot == slot; });
+    }
+
+    void SceneUploader::serveWaits(SceneDesc& scene, PreparedImages* const prepared, std::uint64_t free)
+    {
+        // **Each hand-over is a wait more**, whether the room came or not, so a room that never comes ends in a refusal
+        // and not in a stand-in for good. One that waited its most is refused, and draws the stand-in for as long as it
+        // stands; one whose slot the scene gave back, or gave another file, waits no more. Either lets go of what was
+        // read for it, which a wait kept for its next hand-over.
+        std::erase_if(mTextureWaits, [&](TextureWait& wait) {
+            const bool same
+                = scene.textures().isLive(wait.mSlot) && scene.textures().getRows()[wait.mSlot].mImage == wait.mSource;
+            const bool waitedMost = same && ++wait.mWaited >= sMostRoomWaits;
+            if (waitedMost)
+                scene.refusals().refuse(Refused::Texture, scene.textures().getRows()[wait.mSlot].getName(),
+                    "no device memory is left for it");
+            if (same && !waitedMost)
+                return false;
+            if (prepared != nullptr)
+                prepared->letGo(*wait.mSource);
+            return true;
+        });
+
+        // **Handed over again once the room is there**: what rested went for it a hand-over or more before, and its
+        // memory is back once the frames that held it are done.
+        for (const TextureWait& wait : mTextureWaits)
+            if (wait.mBytes <= free)
+            {
+                scene.textures().arriveAgain(wait.mSlot);
+                free -= wait.mBytes;
+            }
+    }
+
+    void SceneUploader::waitForRoom(const TextureTable& textures)
+    {
+        const auto roomless
+            = [&](const Index slot) { return std::ranges::find(mAnswer.mRoomless, slot) != mAnswer.mRoomless.end(); };
+        std::erase_if(mTextureWaits, [&](const TextureWait& wait) {
+            return !roomless(wait.mSlot)
+                && std::ranges::find(mTextures.getStood(), wait.mSlot, &SceneTextures::Stood::mSlot)
+                != mTextures.getStood().end();
+        });
+
+        // A new one waits from nothing, for the bytes it was handed in, with the file its slot holds.
+        for (const Index slot : mAnswer.mRoomless)
+        {
+            if (isWaiting(slot))
+                continue;
+            const auto stood = std::ranges::find(mTextures.getStood(), slot, &SceneTextures::Stood::mSlot);
+            assert(stood != mTextures.getStood().end() && "a slot waiting for room this hand-over did not describe");
+            const osg::Image* const file = textures.getRows()[slot].mImage.get();
+            assert(file != nullptr && "a slot waiting for room with no file to hand over again");
+            mTextureWaits.push_back(TextureWait{ .mSlot = slot, .mSource = file, .mBytes = stood->mBytes });
+        }
+    }
+
+    std::span<const Refusal> SceneUploader::takeAnswer(SceneHolder& scenes, const SceneSlot slot, SceneDesc& scene)
+    {
+        mAnswer.clear();
+        scenes.takeAnswer(slot, mAnswer);
+        scene.refusals().refuse(mAnswer.mRefused);
+        for (const StoodMesh& stood : mAnswer.mMeshes)
+            scene.standMesh(stood.mMesh, stood.mStructureBytes);
+        return mAnswer.mRefused;
+    }
+
     SceneUpload SceneUploader::hand(SceneHolder& scenes, const Handing& handing)
     {
         const SceneSlot slot = handing.mSlot;
@@ -80,14 +150,24 @@ namespace Rtx
 
         // **The textures that rest give their room back before anything arrives**: all of it ahead of a
         // rebuild, which describes every slot from the host's images and a slot that rests has none;
-        // otherwise as much as keeps room for an arrival as large as any so far, since the device takes
-        // a dropped image's memory back only once the frames that may name it are done, a frame or two
-        // after the drop, and an arrival that finds no room stands its files smaller.
+        // otherwise as much as keeps room for an arrival as large as any so far, textures and structures
+        // together, and for every structure that waits for room it found none for. The device takes a
+        // dropped image's memory back only once the frames that may name it are done, a frame or two
+        // after the drop: an arrival that finds no room stands its files smaller, and a structure waits.
         if (!mine)
-            scene.textures().evictResting(std::numeric_limits<std::uint64_t>::max());
-        else if (const std::optional<std::uint64_t> room = scenes.getTextureRoom();
-            room.has_value() && *room < mLargestArrival)
-            scene.textures().evictResting(mLargestArrival - *room);
+            scene.evictResting(std::numeric_limits<std::uint64_t>::max());
+        else if (const std::optional<ArrivalRoom> room = scenes.getArrivalRoom(slot); room.has_value())
+        {
+            // **And never past their limit** (`docs/architecture.md`, "One residency policy for the content").
+            scene.setRestLimit(restLimitOf(room->mBudget));
+            std::uint64_t waiting = 0;
+            for (const TextureWait& wait : mTextureWaits)
+                waiting += wait.mBytes;
+            const std::uint64_t kept = mLargestArrival + room->mWanted + waiting;
+            scene.evictResting(room->mFree < kept ? kept - room->mFree : 0);
+
+            serveWaits(scene, handing.mPrepared, room->mFree);
+        }
 
         // After the calls above, because they rewrite what the spans reach.
         scene.compact();
@@ -111,6 +191,9 @@ namespace Rtx
             done.mDropped = tables.textures().getFreed().size();
             scenes.placeScene(slot, tables);
 
+            // What a placement could not stand: a structure that waited for room it found is not coming.
+            takeAnswer(scenes, slot, scene);
+
             timed.at(Timing::Upload) = since(told, std::chrono::steady_clock::now());
             done.mKind = SceneUpload::Kind::Placed;
         }
@@ -125,15 +208,6 @@ namespace Rtx
             if (handing.mSettled)
                 assert(mTextures.getPending().empty() && "a settled hand-over left an image to be made");
             mPending.insert(mPending.end(), mTextures.getPending().begin(), mTextures.getPending().end());
-            // An extension's, and not a rebuild's, which hands over the whole table and is no arrival a
-            // crossing makes.
-            if (mine)
-            {
-                std::uint64_t arriving = 0;
-                for (const SceneTextures::Stood& stood : mTextures.getStood())
-                    arriving += stood.mBytes;
-                mLargestArrival = std::max(mLargestArrival, arriving);
-            }
             scene.refusals().refuse(mTextures.getRefusals());
 
             const std::chrono::steady_clock::time_point described = std::chrono::steady_clock::now();
@@ -161,25 +235,41 @@ namespace Rtx
 
             // What the device could not stand, reported as what the describe could not: the scene
             // is written here, and the backend holds it const.
-            const std::span<const Refusal> refused = scenes.getRefusals(slot);
-            scene.refusals().refuse(refused);
+            const std::span<const Refusal> refused = takeAnswer(scenes, slot, scene);
+            waitForRoom(scene.textures());
+
+            // An extension's, and not a rebuild's, which hands over the whole table and is no arrival a crossing
+            // makes: its textures and the structures the device built, as its answer says.
+            if (mine)
+            {
+                std::uint64_t arriving = 0;
+                for (const SceneTextures::Stood& stood : mTextures.getStood())
+                    arriving += stood.mBytes;
+                for (const StoodMesh& stood : mAnswer.mMeshes)
+                    arriving += stood.mStructureBytes;
+                mLargestArrival = std::max(mLargestArrival, arriving);
+            }
 
             // What the device now has of each slot described, which a slot that comes to rest keeps: nought
-            // for one it stood in for, and for every slot of an arrival the device refused a texture of, which it
-            // names and does not number, so that none rests and wakes as the stand-in it drew.
+            // for one it stood in for, for one that waits for room, and for every slot of an arrival the device
+            // refused a texture of, which it names and does not number, so that none rests and wakes as the stand-in
+            // it drew.
             const bool refusedTexture = std::ranges::any_of(
                 refused, [](const Refusal& refusal) { return refusal.mKind == Refused::Texture; });
             for (const SceneTextures::Stood& stood : mTextures.getStood())
-                scene.textures().stand(stood.mSlot, refusedTexture ? 0 : stood.mBytes, !refusedTexture && stood.mMade);
+            {
+                const bool stands = !refusedTexture && !isWaiting(stood.mSlot);
+                scene.textures().stand(stood.mSlot, stands ? stood.mBytes : 0, stands && stood.mMade);
+            }
 
             // **The host lets go of the texels and chains the device now holds**: what the descriptions held, and
             // what the service read and made of each file handed over whole, whose header's manager drops its
-            // texels too.
+            // texels too. A file that waits for room keeps them for its next hand-over.
             mTextures.letGo();
             if (handing.mPrepared != nullptr)
                 for (const SceneTextures::Stood& stood : mTextures.getStood())
                     if (const osg::Image* const file = scene.textures().getRows()[stood.mSlot].mImage.get();
-                        file != nullptr && stood.mBytes > 0)
+                        file != nullptr && stood.mBytes > 0 && !isWaiting(stood.mSlot))
                         handing.mPrepared->letGo(*file);
 
             timed.at(Timing::Upload) = since(described, std::chrono::steady_clock::now());

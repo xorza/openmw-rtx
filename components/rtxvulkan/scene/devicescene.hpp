@@ -79,10 +79,11 @@ namespace Rtx
         /// geometry at the same size. Into `batch`, which the caller defers or flushes.
         ///
         /// @param arrival the textures' arrival, as the constructor takes it.
+        /// @param whenRoomless what a texture the device has no room for does (`Rtx::whenRoomless`).
         /// @param timer where the arrived meshes' build and the arrived textures' making are timed, or
         ///        null for a picture's scene.
         void extend(Batch& batch, TextureArrival& arrival, const SceneDesc& scene, std::span<const TextureData> arrived,
-            GpuTimer* timer);
+            WhenRoomless whenRoomless, GpuTimer* timer);
 
         /// Everything a placement of this scene is, recorded and written where `placing` says. True
         /// where anything was recorded, which is whether its command buffer is worth submitting.
@@ -119,9 +120,13 @@ namespace Rtx
         /// room would stand more of it.
         bool wasHeldBack() const { return mTextures.wasHeldBack() || mAcceleration.wasRefusedRoom(); }
 
-        /// What the build or the last `extend` left out for want of room on the device, or for a
-        /// side the device does not take — `SceneHolder::getRefusals`.
-        std::span<const Refusal> getRefusals() const { return mRefusals; }
+        /// Appends what the build, an `extend` or a placement made of the scene since the last take, and forgets it:
+        /// what it left out, for want of room on the device or for a side the device does not take, and what each
+        /// mesh's structure took at its build — `SceneHolder::takeAnswer`.
+        void takeAnswer(DeviceAnswer& into);
+
+        /// What the structures waiting for room want, and what the last build's took (`BottomLevelStore`).
+        VkDeviceSize getWanted() const { return mAcceleration.getWanted(); }
 
         /// Reads all of `stats`: at every placement, a build and an extension. Every figure is a
         /// total kept as it changes, so a placement on the frame path reads them all.
@@ -222,6 +227,8 @@ namespace Rtx
         std::array<std::uint64_t, sFrameSlots> mPictureRides{};
 
         /// Filled by the build, refilled by every `extend`, and never freed.
-        std::vector<Refusal> mRefusals;
+        /// What the build, the extensions and the placements made of the scene since the last `takeAnswer`, but the
+        /// structures' sizes, which the acceleration keeps.
+        DeviceAnswer mAnswer;
     };
 }

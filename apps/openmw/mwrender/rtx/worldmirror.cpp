@@ -430,8 +430,8 @@ namespace MWRender
             .mOffsetEnd = count(deformers.getMorphOffsets()),
             .mPoseEnd = count(deformers.getPoses()),
             .mBindVertexEnd = deformers.getBindVertexCount(),
-            .mRestingTextures = static_cast<std::uint32_t>(mScene.textures().getRestingCount()),
-            .mRestingTextureBytes = mScene.textures().getRestingBytes(),
+            .mRestingTextures = static_cast<std::uint32_t>(mScene.textures().getResting().getCount()),
+            .mRestingTextureBytes = mScene.textures().getResting().getBytes(),
             .mReader = mRing.getReaderMemory(),
         };
     }

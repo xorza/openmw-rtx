@@ -190,7 +190,7 @@ namespace Rtx
             Released releasing;
 
             osg::ref_ptr<osg::Geometry> body = Testing::makeQuad();
-            osg::ref_ptr<osg::Geometry> shirt = Testing::makeQuad();
+            osg::ref_ptr<osg::Geometry> shirt = Testing::makeQuad(1.0f);
 
             osg::ref_ptr<osg::Group> subject = new osg::Group;
             subject->addChild(body);
@@ -214,7 +214,7 @@ namespace Rtx
 
             // The shirt comes off and a hat goes on — one part replaced, not moved.
             subject->removeChild(shirt);
-            osg::ref_ptr<osg::Geometry> hat = Testing::makeQuad();
+            osg::ref_ptr<osg::Geometry> hat = Testing::makeQuad(2.0f);
             subject->addChild(hat);
 
             ASSERT_TRUE(trace.rebuildSubject(*stampAt(2), releasing, true));
@@ -244,7 +244,7 @@ namespace Rtx
 
             // The hat comes off in turn, and what replaces it takes the room the sweep is holding.
             subject->removeChild(hat);
-            osg::ref_ptr<osg::Geometry> boots = Testing::makeQuad();
+            osg::ref_ptr<osg::Geometry> boots = Testing::makeQuad(3.0f);
             subject->addChild(boots);
 
             ASSERT_TRUE(trace.rebuildSubject(*stampAt(3), releasing, true));

@@ -15,6 +15,7 @@
 #include <osg/Vec3f>
 
 #include <apps/components_tests/rtx/support/geometry.hpp>
+#include <apps/components_tests/rtx/support/layers.hpp>
 #include <apps/components_tests/rtx/support/testcamera.hpp>
 #include <apps/components_tests/rtx/support/testtexture.hpp>
 #include <apps/components_tests/rtxvulkan/support/device/harness.hpp>
@@ -28,6 +29,7 @@
 #include <components/rtx/renderer/channel.hpp>
 #include <components/rtx/renderer/renderer.hpp>
 #include <components/rtx/renderer/slot.hpp>
+#include <components/rtx/scene/material.hpp>
 #include <components/rtx/scene/mesh.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/shaders/gbuffer.h>
@@ -156,6 +158,33 @@ namespace Rtx
 
             EXPECT_EQ(finishedHits(), sEveryPixel) << "the frame in flight lost its wall to the arrival";
             EXPECT_EQ(finishedHits(), 0u) << "the frame after the arrival kept the wall the arrival moved";
+        }
+
+        /// **A material's layers arrive without a mesh** where the mesh they stand on is one the scene holds already: a
+        /// cell's flat ground, which one geometry is one mesh of (`SceneDesc::addMesh`). The extension stages the runs
+        /// all the same, and the next frame's materials read them, where a stage taken only for arriving meshes left
+        /// the layer table behind its materials.
+        TEST_F(RtxFramesTest, aMaterialsLayersArrivingOnAMeshTheSceneHoldsAreStaged)
+        {
+            mProbe.traceFrame(ahead(), FrameOptions{});
+            const std::uint64_t meshesBefore = mScene.meshes().getRevision();
+
+            constexpr std::array<float, 1> sMask{ 1.0f };
+            const std::array layers{ Testing::layerOf(sNoIndex, mScene.materials().addMask(sMask), 1, 1) };
+            Material ground;
+            ground.mKind = MaterialKind::Terrain;
+            ground.mLayers = mScene.materials().addLayers(layers);
+            mScene.addInstance(MeshInstance{ .mMesh = mWall, .mMaterial = mScene.addMaterial(ground) });
+            ASSERT_EQ(mScene.meshes().getRevision(), meshesBefore) << "a mesh arrived, which stages the runs anyway";
+
+            mRenderer.extendScene(Rtx::SceneSlot::world(), mScene, {});
+            mRenderer.placeScene(Rtx::SceneSlot::world(), mScene);
+            mProbe.traceFrame(ahead(), FrameOptions{});
+
+            EXPECT_EQ(finishedHits(), sEveryPixel);
+            EXPECT_EQ(finishedHits(), sEveryPixel);
+            EXPECT_EQ(
+                mRenderer.describeHeld(Rtx::SceneSlot::world()).mStructureRevision, mScene.getStructureRevision());
         }
 
         /// A third frame waits for the first, whose slot it takes, and the first still reports.
@@ -646,8 +675,10 @@ namespace Rtx
                 const Testing::NoRoomForContent full(mProbe.getDevice());
                 mRenderer.setScene(Rtx::SceneSlot::world(), mScene, {});
             }
-            ASSERT_FALSE(mRenderer.getRefusals(Rtx::SceneSlot::world()).empty())
-                << "the device had room for the world, so nothing was held back";
+            Rtx::DeviceAnswer answer;
+            mRenderer.takeAnswer(Rtx::SceneSlot::world(), answer);
+            const std::vector<Rtx::Refusal>& refused = answer.mRefused;
+            ASSERT_FALSE(refused.empty()) << "the device had room for the world, so nothing was held back";
             EXPECT_EQ(runAt(Upscale::Off), alone);
             EXPECT_FALSE(worldHeld()) << "a reserve that shrank kept content held to less room than it has";
             EXPECT_EQ(contentHeld(), released) << "a world let go kept memory past its release";

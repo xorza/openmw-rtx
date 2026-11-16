@@ -20,8 +20,8 @@
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/image/colour.hpp>
 #include <components/rtx/image/texturedata.hpp>
+#include <components/rtx/scene/deviceanswer.hpp>
 #include <components/rtx/scene/material.hpp>
-#include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/scene/sceneroom.hpp>
 #include <components/rtx/shaders/scene.h>
@@ -106,8 +106,8 @@ namespace Rtx
                 const std::optional<Image> albedo = canvasFor(Shaders::GROUND_COMPOSITE_ALBEDO, false);
                 const std::optional<Image> gloss = canvasFor(Shaders::GROUND_COMPOSITE_GLOSS, true);
                 TextureArray array(device, setup, layout, passes, rooms, 2);
-                std::vector<Refusal> refused;
-                array.write(setup, passes, rooms, textures, refused, nullptr);
+                DeviceAnswer answer;
+                array.write(setup, passes, rooms, textures, answer, WhenRoomless::Refuses, nullptr);
                 Uploads uploads(setup);
                 array.sync(FrameSlot{}, uploads);
                 uploads.order();

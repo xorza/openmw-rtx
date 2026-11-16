@@ -163,9 +163,16 @@ namespace Rtx::Testing
         {
             constexpr SceneRoom room{ .mMeshes = 4, .mMaterials = 4 };
 
+            // Each quad at a height of its own, so each is a mesh (`SceneDesc::addMesh`).
             SceneDesc scene;
             SceneHolds holds(scene);
-            holds.mesh(addQuadMesh(scene));
+            float height = 0.0f;
+            const auto addRaised = [&] {
+                height += 1.0f;
+                const std::array<osg::Vec3f, 4> corners = Testing::unitQuadAt(height);
+                return addQuadMesh(scene, corners);
+            };
+            holds.mesh(addRaised());
 
             std::vector<Index> everyMesh;
             Batch setup(getPool());
@@ -177,7 +184,7 @@ namespace Rtx::Testing
             const auto arriveAndPlace = [&](std::uint32_t count) {
                 for (std::uint32_t at = 0; at < count; ++at)
                 {
-                    holds.mesh(addQuadMesh(scene));
+                    holds.mesh(addRaised());
                     holds.material(scene.addMaterial(Material{}));
                 }
                 Batch arrival(getPool());
@@ -226,14 +233,19 @@ namespace Rtx::Testing
             mRenderer.resize(size, size);
             const TextureData first = describeTexel(redTexel, 0);
             mRenderer.setScene(Rtx::SceneSlot::world(), scene, std::span(&first, 1));
-            EXPECT_TRUE(mRenderer.getRefusals(Rtx::SceneSlot::world()).empty());
+            DeviceAnswer answer;
+            mRenderer.takeAnswer(Rtx::SceneSlot::world(), answer);
+            const std::vector<Refusal>& refused = answer.mRefused;
+            EXPECT_TRUE(refused.empty());
 
             // Handed over, as `SceneUploader` ends every hand-over: what arrives next is only what
             // follows.
             scene.clearArrivals();
 
-            const Index near
-                = scene.addMesh(MeshArrays{ .mPositions = sWallQuad, .mTexCoords = sQuadUv, .mIndices = sQuadIndices });
+            // Its coordinates run the other way from the far wall's, so it is a mesh of its own; the blue is one texel.
+            const std::array<osg::Vec2f, 4> reversedUv{ sQuadUv[2], sQuadUv[3], sQuadUv[0], sQuadUv[1] };
+            const Index near = scene.addMesh(
+                MeshArrays{ .mPositions = sWallQuad, .mTexCoords = reversedUv, .mIndices = sQuadIndices });
             const Index blue = scene.addMaterial(
                 Material{ .mDiffuse = scene.textures().add(VFS::Path::NormalizedView("blue.dds")) });
             scene.addInstance(MeshInstance{
@@ -253,7 +265,7 @@ namespace Rtx::Testing
             mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
 
             // The meshes first, because the structures are stood before the textures.
-            const std::span<const Refusal> refused = mRenderer.getRefusals(Rtx::SceneSlot::world());
+            mRenderer.takeAnswer(Rtx::SceneSlot::world(), answer);
             ASSERT_EQ(refused.size(), 3u);
             for (const Refusal& one : refused)
                 EXPECT_EQ(one.mWhy, "no device memory is left for it");

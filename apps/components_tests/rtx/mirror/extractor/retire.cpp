@@ -345,7 +345,7 @@ namespace Rtx::Testing
             EXPECT_TRUE(mScene.textures().isLive(orphan));
             EXPECT_TRUE(mScene.isConsistent()) << "a texture that rests was taken for a row nothing can free";
             EXPECT_TRUE(mScene.isEmpty()) << "a texture that rests was taken for a row standing";
-            EXPECT_EQ(mScene.textures().evictResting(1), 64u);
+            EXPECT_EQ(mScene.evictResting(1), 64u);
             EXPECT_FALSE(mScene.textures().isLive(orphan));
             EXPECT_TRUE(mScene.isEmpty());
 
@@ -363,8 +363,8 @@ namespace Rtx::Testing
         TEST_F(RtxSceneExtractorTest, aSweepDropsWhatTheWalkNoLongerFindsAndCarriesTheRest)
         {
             osg::ref_ptr<osg::Geometry> stays = makeQuad();
-            osg::ref_ptr<osg::Geometry> goes = makeQuad();
-            osg::ref_ptr<osg::Geometry> alsoStays = makeQuad();
+            osg::ref_ptr<osg::Geometry> goes = makeQuad(1.0f);
+            osg::ref_ptr<osg::Geometry> alsoStays = makeQuad(2.0f);
 
             // Told apart by their vertices, so the survivors can be checked by what came out of them
             // rather than only by how many there are.
@@ -423,7 +423,7 @@ namespace Rtx::Testing
 
             // The freed slot goes to the next quad that turns up, which is the same size as the one
             // that left it.
-            osg::ref_ptr<osg::Geometry> arrives = makeQuad();
+            osg::ref_ptr<osg::Geometry> arrives = makeQuad(3.0f);
             osg::ref_ptr<osg::Group> more = new osg::Group;
             more->addChild(stays);
             more->addChild(alsoStays);

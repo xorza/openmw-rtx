@@ -130,6 +130,7 @@ namespace Rtx
             .mShape = shape,
             .mDeformer = deformer,
             .mBounds = boundsOf(positions),
+            .mKey = std::nullopt,
         };
 
         deformers.stand(range);
@@ -229,14 +230,83 @@ namespace Rtx
         return mIndices.in(range.mIndices);
     }
 
+    Index MeshTable::add(
+        DeformerTable& deformers, const MeshArrays& arrays, const FoldedShape shape, const MeshKey& key)
+    {
+        assert(!mKeyIndex.contains(key) && "a key filed twice, which `find` answers first");
+        const Index mesh = add(deformers, arrays, shape, sNoIndex);
+        rowAt(mesh).mKey = key;
+        mKeyIndex.emplace(key, mesh);
+        return mesh;
+    }
+
+    Index MeshTable::find(const MeshKey& key)
+    {
+        const auto known = mKeyIndex.find(key);
+        if (known == mKeyIndex.end())
+            return sNoIndex;
+
+        MeshRange& range = rowAt(known->second);
+        if (range.mRest.mResting)
+            mResting.wake(known->second, range.mStoodBytes, placeOf());
+        return known->second;
+    }
+
+    void MeshTable::stand(const Index mesh, const std::uint64_t structureBytes)
+    {
+        assert(isLive(mesh) && "a mesh stood that the table does not hold");
+        MeshRange& range = rowAt(mesh);
+        const std::uint64_t bytes = geometryBytesOf(range) + structureBytes;
+        // A structure copied tight while its mesh rests: the rest holds the less.
+        if (range.mRest.mResting)
+            mResting.restate(range.mStoodBytes, bytes);
+        range.mStoodBytes = bytes;
+    }
+
+    std::uint64_t MeshTable::geometryBytesOf(const MeshRange& range)
+    {
+        // Every vertex buffer is as long as the vertex runs reach, whether this mesh filled it or not
+        // (`writeVertices`).
+        constexpr std::uint64_t vertex = sizeof(osg::Vec3f) + sizeof(std::uint32_t) + sizeof(std::uint32_t)
+            + sizeof(osg::Vec2f) + sizeof(Shaders::GpuVertexColour);
+        return std::uint64_t{ range.mVertices.mCount } * vertex
+            + std::uint64_t{ range.mSecondTexCoords.mCount } * sizeof(osg::Vec2f)
+            + std::uint64_t{ range.mIndices.mCount } * sizeof(std::uint32_t);
+    }
+
     void MeshTable::drop(DeformerTable& deformers, const Index mesh)
     {
         if (!dropRow(mesh))
             return;
 
+        // **A static mesh the device stands whole rests** (`docs/architecture.md`, "One residency policy for the
+        // content"); anything else goes now, a mesh the device has not stood among them.
+        const MeshRange& range = rowAt(mesh);
+        if (range.mKey.has_value() && range.mStoodBytes > 0)
+            mResting.rest(mesh, range.mStoodBytes, placeOf());
+        else
+            release(deformers, mesh);
+    }
+
+    void MeshTable::releaseOldest(DeformerTable& deformers)
+    {
+        settleResting();
+        assert(mResting.first() != sNoIndex && "the oldest freed where nothing rests");
+        release(deformers, mResting.first());
+    }
+
+    void MeshTable::release(DeformerTable& deformers, const Index mesh)
+    {
+        MeshRange& range = rowAt(mesh);
+        if (range.mRest.mResting)
+            mResting.wake(mesh, range.mStoodBytes, placeOf());
+        if (range.mKey.has_value())
+            mKeyIndex.erase(*range.mKey);
+        range.mKey.reset();
+        range.mStoodBytes = 0;
+
         // The allocators merge the room with whatever it touches, so a cell leaves as the one hole
         // it came as.
-        MeshRange& range = rowAt(mesh);
         mVertexRuns.release(range.mVertices);
         mIndexRuns.release(range.mIndices);
         mSecondRuns.release(range.mSecondTexCoords);
@@ -269,10 +339,12 @@ namespace Rtx
             + std::size_t{ mIndices.size() } * sizeof(std::uint32_t);
     }
 
-    void MeshTable::compact()
+    void MeshTable::compact(const std::uint64_t clock)
     {
         mDeformed.compact();
         mChanges.compact();
+        mClock = clock;
+        settleResting();
     }
 
     void MeshTable::clearArrivals()

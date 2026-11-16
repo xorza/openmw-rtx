@@ -352,7 +352,8 @@ namespace Rtx
     }
 
     void TextureArray::write(Batch& batch, const TexturePasses& passes, TextureArrival& arrival,
-        std::span<const TextureData> arrived, std::vector<Refusal>& refused, GpuTimer* const timer)
+        std::span<const TextureData> arrived, DeviceAnswer& answer, const WhenRoomless whenRoomless,
+        GpuTimer* const timer)
     {
         if (arrived.empty())
             return;
@@ -391,16 +392,16 @@ namespace Rtx
         // `arrived` is what one cell brought.
         for (std::size_t at = 0; at < arrived.size(); ++at)
             if (arrived[at].mSource == TextureSource::File || arrived[at].mSource == TextureSource::StandIn)
-                stand(batch, arrival, arrived[at], mFirsts[at], refused);
+                stand(batch, arrival, arrived[at], mFirsts[at], answer, whenRoomless);
 
         for (std::size_t at = 0; at < arrived.size(); ++at)
             if (arrived[at].mSource == TextureSource::SpriteBake)
-                stand(batch, arrival, arrived[at], mFirsts[at], refused);
+                stand(batch, arrival, arrived[at], mFirsts[at], answer, whenRoomless);
 
         for (std::size_t at = 0; at < arrived.size(); ++at)
             if (arrived[at].mSource == TextureSource::GroundComposite
                 || arrived[at].mSource == TextureSource::GroundGloss)
-                stand(batch, arrival, arrived[at], mFirsts[at], refused);
+                stand(batch, arrival, arrived[at], mFirsts[at], answer, whenRoomless);
 
         arrival.record(batch, passes, timer);
     }
@@ -615,7 +616,7 @@ namespace Rtx
     }
 
     void TextureArray::stand(Batch& batch, TextureArrival& arrival, const TextureData& texture,
-        const std::uint32_t first, std::vector<Refusal>& refused)
+        const std::uint32_t first, DeviceAnswer& answer, const WhenRoomless whenRoomless)
     {
         assert(texture.mSlot < mSlots.size() && "a texture stood in a slot `write` did not reserve");
         Slot& slot = mSlots[texture.mSlot];
@@ -645,8 +646,12 @@ namespace Rtx
             const Result<void, MemoryRefusal> stood = make(batch, arrival, slot.mTexture, texture, first, name);
             if (!stood.isOk())
             {
-                why = describe(stood.error());
                 mRefusedRoom = true;
+                // A file the core can hand over again once the room is back: its slot draws the stand-in meanwhile.
+                if (whenRoomless == WhenRoomless::Waits && texture.mSource == TextureSource::File)
+                    answer.mRoomless.push_back(texture.mSlot);
+                else
+                    why = describe(stood.error());
             }
         }
 
@@ -658,7 +663,8 @@ namespace Rtx
         count(slot);
 
         if (!why.empty())
-            refused.push_back(Refusal{ .mKind = Refused::Texture, .mName = std::string(texture.mName), .mWhy = why });
+            answer.mRefused.push_back(
+                Refusal{ .mKind = Refused::Texture, .mName = std::string(texture.mName), .mWhy = why });
 
         if ((texture.mSource == TextureSource::GroundComposite || texture.mSource == TextureSource::GroundGloss)
             && !slot.mStandIn)

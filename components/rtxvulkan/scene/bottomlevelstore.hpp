@@ -9,6 +9,8 @@
 
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/common/slots.hpp>
+#include <components/rtx/renderer/roomwaits.hpp>
+#include <components/rtx/scene/deviceanswer.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtxvulkan/device/handles.hpp>
 #include <components/rtxvulkan/device/memory/accelerationstructure.hpp>
@@ -98,9 +100,11 @@ namespace Rtx
 
         /// Creates and records the build of a structure for each of `meshes`, taking storage for it.
         /// A slot that already holds one has it destroyed first: a slot the scene handed out again
-        /// carries different geometry. A mesh the device has no room for is left out and appended to
-        /// `refused`: its slot holds no structure, so every placement of it names none, which the
-        /// top level skips (`stands` says which).
+        /// carries different geometry. A mesh the device has no room for holds no structure, so every placement of
+        /// it names none, which the top level skips (`stands` says which). **It waits for room where room is
+        /// coming** — textures rest that the scene's owner gives back for it (`getWanted`), or memory the graveyard
+        /// holds is on its way back — and `buildWaiting` builds it once the room is there, for `sMostRoomWaits`
+        /// placements at most; otherwise it is left out and appended to `refused`.
         ///
         /// @param poses the first copy of the deforming vertices, which is what a deforming mesh's
         ///        structure is built over — `SkinPass` has written the pose into it.
@@ -118,8 +122,26 @@ namespace Rtx
 
         /// Destroys the structures of `meshes` and gives their storage back. Idempotent, because
         /// both the frame that places and the one that appends run it. The last frame's top level
-        /// still names them, which their burial covers.
+        /// still names them, which their burial covers. A mesh that waited for room waits no more.
         void release(std::span<const Index> meshes);
+
+        /// `build` again of every mesh waiting for room, each over `poses` where it deforms, once a placement: those
+        /// the room has come back for stand, and those it will not come back for, or has not in `sMostRoomWaits`
+        /// placements, are left out and appended to `refused`. Answers how many now stand.
+        std::size_t buildWaiting(Batch& batch, const SceneDesc& scene, const BlockedBuffer& poses,
+            const BlockedBuffer& positions, const BlockedBuffer& indices, std::uint64_t placement,
+            std::vector<Refusal>& refused);
+
+        /// What the structures waiting for room want: what the scene's owner gives back of the textures that rest
+        /// before anything else arrives.
+        VkDeviceSize getWanted() const;
+
+        /// Appends what each structure built since the last take takes, and forgets them: the device's half of what a
+        /// static mesh rests on (`MeshTable::stand`). **At its build and not at its copy made tight**: the build's size
+        /// is the driver's answer for the geometry, the same in every process, where the copy lands whenever the device
+        /// answers, so a rest bounded on it would free other rows in a process whose queue waits behind the host. What
+        /// rests is counted at most the slack compaction gives back.
+        void takeResized(std::vector<StoodMesh>& into);
 
         std::size_t size() const { return mRows.size(); }
 
@@ -293,6 +315,9 @@ namespace Rtx
             /// Whether the structure was built with `ALLOW_UPDATE`.
             bool mUpdatable = false;
 
+            /// Whether the mesh is one of `mWaiting`.
+            bool mWaiting = false;
+
             Compaction mCompaction;
         };
 
@@ -365,6 +390,26 @@ namespace Rtx
         VkDeviceSize mCompactableTight = 0;
 
         bool mRefusedRoom = false;
+
+        /// A mesh the device had no room for, waiting for room that is coming (`build`): what its structure takes, why
+        /// the device refused it, and how many placements it has waited.
+        struct Waiting
+        {
+            Index mMesh = 0;
+            VkDeviceSize mBytes = 0;
+            MemoryRefusal mWhy = MemoryRefusal::NoRoom;
+            std::uint32_t mWaited = 0;
+        };
+
+        /// The meshes waiting for room, one each at most (`Row::mWaiting`), so no more than the mesh rows; and what
+        /// `buildWaiting` builds again and the meshes of it, refilled each time.
+        std::vector<Waiting> mWaiting;
+        std::vector<Waiting> mRetrying;
+        std::vector<Index> mRetryingMeshes;
+
+        /// What each structure built since the last `takeResized` took at its build, in the order built; a slot built
+        /// twice is said twice, the later last.
+        std::vector<StoodMesh> mResized;
 
         /// What this placement copies, refilled each time. Kept so a compaction allocates nothing.
         std::vector<VkCopyAccelerationStructureInfoKHR> mCompactionCopies;

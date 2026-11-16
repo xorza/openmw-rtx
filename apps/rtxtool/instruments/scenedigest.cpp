@@ -200,13 +200,15 @@ namespace RtxTool
 
         /// Every field of one row, as one list: `digestParts` reads these whole, so a field not named would escape
         /// the gate, and one added and not named here does not compile. Whether the mesh brought tangents is left
-        /// out; the meshes column adds it where set, so a scene with none digests to the words on record.
+        /// out; the meshes column adds it where set, so a scene with none digests to the words on record. So are its
+        /// key, which its vertices make and the vertices column digests, and its place in the rest, which no frame
+        /// reads; whether it rests and what it stands are digested.
         auto fieldsOf(const Rtx::MeshRange& mesh)
         {
             const auto& [vertices, indices, secondTexCoords, unitStreams, tangents, shape, deformer, bindOffset,
-                poseOffset, posed, bounds] = mesh;
+                poseOffset, posed, bounds, key, stoodBytes, rest] = mesh;
             return std::tie(vertices, indices, secondTexCoords, unitStreams, shape, deformer, bindOffset, poseOffset,
-                posed, bounds);
+                posed, bounds, stoodBytes, rest.mResting);
         }
 
         auto fieldsOf(const Rtx::MeshInstance& instance)
@@ -568,8 +570,9 @@ namespace RtxTool
         Column textures(mScratch);
         for (const Rtx::TextureRow& row : scene.textures().getRows())
         {
-            const auto& [kind, path, groundOf, wrap, encoding, image, partner, format, stoodBytes, stoodMade, resting,
-                waitingAt, restedBefore, restedAfter] = row;
+            const auto& [kind, path, groundOf, wrap, encoding, image, partner, format, stoodBytes, stoodMade, rest]
+                = row;
+            const auto& [resting, waitingAt, restedBefore, restedAfter, filedAt] = rest;
             const std::string_view name = path.value();
             textures.add(std::span<const char>(name.data(), name.size()));
             textures.add(static_cast<std::uint32_t>(name.size()));
@@ -585,6 +588,7 @@ namespace RtxTool
             textures.add(static_cast<std::uint32_t>(waitingAt));
             textures.add(static_cast<std::uint32_t>(restedBefore));
             textures.add(static_cast<std::uint32_t>(restedAfter));
+            textures.add(filedAt);
             static_cast<void>(image);
             static_cast<void>(partner);
         }

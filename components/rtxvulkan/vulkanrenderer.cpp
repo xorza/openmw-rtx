@@ -64,6 +64,7 @@
 #include <components/rtxvulkan/present/surface.hpp>
 #include <components/rtxvulkan/scene/devicescene.hpp>
 #include <components/rtxvulkan/scene/placing.hpp>
+#include <components/rtxvulkan/scene/whenroomless.hpp>
 #include <components/rtxvulkan/texture/texture.hpp>
 #include <components/rtxvulkan/trace/tracerecording.hpp>
 #include <components/rtxvulkan/trace/visibilitypass.hpp>
@@ -467,7 +468,7 @@ namespace Rtx
         mDevice.getMemory().refreshBudget(mDevice.getTimeline().getNext());
 
         Batch setup(mDevice.getPool());
-        held.extend(setup, mArrival, scene, arrived, timer);
+        held.extend(setup, mArrival, scene, arrived, whenRoomless(mDevice, scene), timer);
         mHandedOver = true;
 
         // Deferred to the placement's submit, which the caller's `placeScene` makes ahead of the refit and
@@ -486,14 +487,17 @@ namespace Rtx
         return held != nullptr ? held->describe() : SceneHeld{};
     }
 
-    std::span<const Refusal> VulkanRenderer::getRefusals(const SceneSlot slot) const
+    void VulkanRenderer::takeAnswer(const SceneSlot slot, DeviceAnswer& into)
     {
-        return mScenes.at(slot).getRefusals();
+        mScenes.at(slot).takeAnswer(into);
     }
 
-    std::optional<std::uint64_t> VulkanRenderer::getTextureRoom() const
+    std::optional<ArrivalRoom> VulkanRenderer::getArrivalRoom(const SceneSlot slot) const
     {
-        return mDevice.getMemory().getRoom(MemoryUse::Texture);
+        const DeviceScene& held = mScenes.at(slot);
+        return ArrivalRoom{ .mFree = mDevice.getMemory().getRoom(MemoryUse::Texture),
+            .mBudget = mDevice.getMemory().getVideoBudget(),
+            .mWanted = held.getWanted() };
     }
 
     void VulkanRenderer::placeScene(const SceneSlot slot, const SceneDesc& scene)
@@ -529,6 +533,7 @@ namespace Rtx
                     .mCommands = placement.getCommands(),
                     .mSlot = into,
                     .mUploads = uploads,
+                    .mWritten = written,
                 });
             uploads.order();
             written.defer();
@@ -554,6 +559,7 @@ namespace Rtx
                 .mSlot = into,
                 .mTimer = &frame.mTimer,
                 .mUploads = uploads,
+                .mWritten = written,
             });
         uploads.order();
         written.defer();

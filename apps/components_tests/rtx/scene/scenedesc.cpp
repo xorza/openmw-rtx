@@ -141,8 +141,11 @@ namespace Rtx
         {
             SceneDesc scene;
 
+            // A quad, and one a unit above it: one geometry is one mesh (`SceneDesc::addMesh`).
+            const std::array<osg::Vec3f, 4> raised{ osg::Vec3f(0.0f, 0.0f, 1.0f), osg::Vec3f(1.0f, 0.0f, 1.0f),
+                osg::Vec3f(1.0f, 1.0f, 1.0f), osg::Vec3f(0.0f, 1.0f, 1.0f) };
             const Index first = Testing::addQuadMesh(scene);
-            const Index second = Testing::addQuadMesh(scene);
+            const Index second = Testing::addQuadMesh(scene, raised);
 
             EXPECT_EQ(first, 0u);
             EXPECT_EQ(second, 1u);
@@ -154,7 +157,7 @@ namespace Rtx
             EXPECT_EQ(scene.meshes().getRows()[1].mVertices.mOffset, 4u);
             EXPECT_EQ(scene.meshes().getRows()[1].mIndices.mOffset, 6u);
 
-            EXPECT_EQ(scene.meshes().getMeshPositions(second)[2], osg::Vec3f(1.0f, 1.0f, 0.0f));
+            EXPECT_EQ(scene.meshes().getMeshPositions(second)[2], osg::Vec3f(1.0f, 1.0f, 1.0f));
             EXPECT_EQ(scene.meshes().getMeshIndices(second)[5], 3u);
 
             // The box, read off the vertices as they arrive: a unit quad's runs from the origin
@@ -317,15 +320,15 @@ namespace Rtx
                 scene.compact();
             }
             EXPECT_EQ(textures.getLiveCount(), TextureTable::sCapacity);
-            EXPECT_EQ(textures.getRestingCount(), 2u);
-            EXPECT_EQ(textures.getRestingBytes(), 128u);
+            EXPECT_EQ(textures.getResting().getCount(), 2u);
+            EXPECT_EQ(textures.getResting().getBytes(), 128u);
 
             EXPECT_EQ(textures.add(VFS::Path::NormalizedView("textures/tx_a.dds")), 5u) << "the oldest to rest";
             EXPECT_EQ(textures.add(VFS::Path::NormalizedView("textures/tx_b.dds")), 3u);
             EXPECT_EQ(textures.add(VFS::Path::NormalizedView("textures/tx_c.dds")), sNoIndex) << "none rests now";
             EXPECT_EQ(textures.getRefused(), 3u);
-            EXPECT_EQ(textures.getRestingCount(), 0u);
-            EXPECT_EQ(textures.getRestingBytes(), 0u);
+            EXPECT_EQ(textures.getResting().getCount(), 0u);
+            EXPECT_EQ(textures.getResting().getBytes(), 0u);
             scene.compact();
             EXPECT_TRUE(textures.getFreed().empty()) << "each freed and taken over, which reads as an arrival";
             EXPECT_EQ(sorted(textures.getArrived()), (std::vector<Index>{ 3, 5 }));
@@ -366,11 +369,11 @@ namespace Rtx
             scene.drop(std::move(holds[4]));
 
             // One at a time, each the oldest to rest: 8 bytes asks for one.
-            EXPECT_EQ(textures.getRestingCount(), 4u);
+            EXPECT_EQ(textures.getResting().getCount(), 4u);
             std::vector<Index> order;
-            while (textures.getRestingCount() > 0)
+            while (textures.getResting().getCount() > 0)
             {
-                ASSERT_EQ(textures.evictResting(1), 8u);
+                ASSERT_EQ(scene.evictResting(1), 8u);
                 for (Index slot = 0; slot < 5; ++slot)
                     if (!textures.isLive(slot) && std::ranges::find(order, slot) == order.end())
                         order.push_back(slot);
@@ -382,9 +385,17 @@ namespace Rtx
 
         TEST(RtxSceneDescTest, theCountsAreWhatTheBuffersHold)
         {
+            // Three quads at three heights, each a mesh of its own: one geometry is one mesh (`SceneDesc::addMesh`).
+            const auto quadAtHeight = [](const float z) {
+                return std::array<osg::Vec3f, 4>{ osg::Vec3f(0.0f, 0.0f, z), osg::Vec3f(1.0f, 0.0f, z),
+                    osg::Vec3f(1.0f, 1.0f, z), osg::Vec3f(0.0f, 1.0f, z) };
+            };
+            const std::array<osg::Vec3f, 4> second = quadAtHeight(1.0f);
+            const std::array<osg::Vec3f, 4> third = quadAtHeight(2.0f);
+
             SceneDesc scene;
             Testing::addQuadMesh(scene);
-            Testing::addQuadMesh(scene);
+            Testing::addQuadMesh(scene, second);
 
             EXPECT_EQ(scene.meshes().getTriangleCount(), 4u);
             EXPECT_EQ(scene.meshes().getRows()[0].getTriangleCount(), 2u);
@@ -400,7 +411,7 @@ namespace Rtx
             scene.clearArrivals();
             Testing::letGoMesh(scene, 1);
             EXPECT_EQ(scene.meshes().getTriangleCount(), 2u) << "a freed mesh's triangles still counted";
-            Testing::addQuadMesh(scene);
+            Testing::addQuadMesh(scene, third);
             EXPECT_EQ(scene.meshes().getTriangleCount(), 4u);
         }
 
@@ -569,7 +580,7 @@ namespace Rtx
             Index addSkin() { return addQuad(mRig); }
 
             SceneDesc mScene;
-            Index mStill = addQuad(sNoIndex);
+            Index mStill = mScene.addMesh(quad());
             DeformedMesh mFirst = addFirstSkin();
             Index mRig = mFirst.mDeformer;
             Index mMoving = mFirst.mMesh;
@@ -737,6 +748,67 @@ namespace Rtx
             EXPECT_EQ(Testing::addOneBoneBody(scene, quad).mDeformer, second.mDeformer) << "then the one above it";
         }
 
+        /// **A static mesh is the one its content is, and rests as a texture does** (`docs/architecture.md`, "One
+        /// residency policy for the content"). Two quads of one geometry are one mesh; another shape is another.
+        /// A quad the device stood whole — its geometry, 4 vertices at 36 bytes and 6 indices at 4, 168 bytes, and a
+        /// structure of 100 — rests when nothing holds it, and the same geometry added again is that mesh, taken
+        /// back with nothing arriving; one the device never stood is freed. The rests of both tables are one order:
+        /// a texture that rested on an earlier hand-over goes before a mesh that rested on a later one, and the limit
+        /// frees the oldest first whatever its kind. A mesh that deforms is filed under no key.
+        TEST(RtxSceneDescTest, aStaticMeshIsItsContentAndRestsInOneOrderWithTheTextures)
+        {
+            SceneDesc scene;
+            const std::array<osg::Vec3f, 4> raised = Testing::unitQuadAt(1.0f);
+            const Index quad = Testing::addQuadMesh(scene);
+            EXPECT_EQ(Testing::addQuadMesh(scene), quad) << "one geometry made two meshes";
+            const Index other = Testing::addQuadMesh(scene, raised);
+            EXPECT_NE(other, quad);
+            const Index sheet
+                = scene.addMesh(MeshArrays{ .mPositions = Testing::sUnitQuad, .mIndices = Testing::sQuadIndices },
+                    FoldedShape{ .mSheet = true });
+            EXPECT_NE(sheet, quad) << "the shape is part of what a mesh is";
+
+            // A texture that rests first, on a hand-over of its own.
+            const Index texture = scene.textures().add(VFS::Path::NormalizedView("textures/tx_old.dds"));
+            scene.textures().stand(texture, 64, false);
+            scene.drop(scene.holdTexture(texture));
+            scene.compact();
+
+            constexpr std::uint64_t sQuadBytes = 4 * (12 + 4 + 4 + 8 + 8) + 6 * 4;
+            static_assert(sQuadBytes == 168);
+            scene.standMesh(quad, 100);
+            scene.clearArrivals();
+            Testing::letGoMesh(scene, quad);
+            Testing::letGoMesh(scene, other);
+            scene.compact();
+            EXPECT_TRUE(scene.meshes().isLive(quad)) << "a mesh the device stood whole was freed";
+            EXPECT_TRUE(scene.meshes().getRows()[quad].mRest.mResting);
+            EXPECT_FALSE(scene.meshes().isLive(other)) << "a mesh the device never stood rested";
+            EXPECT_EQ(scene.getRestingBytes(), 64u + sQuadBytes + 100u);
+
+            // Taken back: the same mesh, nothing arriving, nothing resting of it.
+            scene.clearArrivals();
+            EXPECT_EQ(Testing::addQuadMesh(scene), quad);
+            EXPECT_TRUE(scene.meshes().getArrived().empty()) << "a mesh taken back from rest arrived again";
+            EXPECT_EQ(scene.getRestingBytes(), 64u);
+            Testing::letGoMesh(scene, quad);
+            scene.compact();
+
+            // The texture rested on the earlier tick, so a limit that holds one of the two frees it first.
+            scene.setRestLimit(sQuadBytes + 100u);
+            EXPECT_EQ(scene.evictResting(), 64u);
+            EXPECT_FALSE(scene.textures().isLive(texture));
+            EXPECT_TRUE(scene.meshes().isLive(quad));
+            scene.setRestLimit(0);
+            EXPECT_EQ(scene.evictResting(), sQuadBytes + 100u);
+            EXPECT_FALSE(scene.meshes().isLive(quad));
+            EXPECT_EQ(scene.getRestingBytes(), 0u);
+
+            const DeformedMesh body = Testing::addOneBoneBody(
+                scene, MeshArrays{ .mPositions = Testing::sUnitQuad, .mIndices = Testing::sQuadIndices });
+            EXPECT_FALSE(scene.meshes().getRows()[body.mMesh].mKey.has_value()) << "a body was filed under a key";
+        }
+
         /// **Every table hands out its lowest free slot, however its slots were given back**
         /// (`Rtx::SlotRows`). A slot is the custom index a hit reads and the row a material is looked up
         /// in, and the top-level structure is built in slot order, so which free slot an arrival takes
@@ -768,15 +840,24 @@ namespace Rtx
                 return taken;
             };
 
+            // Each at a height of its own, so none is the same mesh as another (`SceneDesc::addMesh`).
             const auto meshes = [](const Order& order) {
                 SceneDesc scene;
+                float height = 0.0f;
+                const auto add = [&] {
+                    height += 1.0f;
+                    const std::array<osg::Vec3f, 4> corners{ osg::Vec3f(0.0f, 0.0f, height),
+                        osg::Vec3f(1.0f, 0.0f, height), osg::Vec3f(1.0f, 1.0f, height),
+                        osg::Vec3f(0.0f, 1.0f, height) };
+                    return Testing::addQuadMesh(scene, corners);
+                };
                 for (Index at = 0; at < sFilled; ++at)
-                    EXPECT_EQ(Testing::addQuadMesh(scene), at) << "a fresh table appends";
+                    EXPECT_EQ(add(), at) << "a fresh table appends";
                 for (const Index slot : order)
                     Testing::letGoMesh(scene, slot);
                 Taken taken{};
                 for (Index& slot : taken)
-                    slot = Testing::addQuadMesh(scene);
+                    slot = add();
                 return taken;
             };
 
@@ -1093,8 +1174,13 @@ namespace Rtx
         {
             SceneDesc scene;
             const Index mesh = Testing::addQuadMesh(scene);
-            const Index other = Testing::addQuadMesh(scene);
-            const Index unplaced = Testing::addQuadMesh(scene);
+            // Three meshes of their own, at three heights: one geometry is one mesh (`SceneDesc::addMesh`).
+            const std::array<osg::Vec3f, 4> raised{ osg::Vec3f(0.0f, 0.0f, 1.0f), osg::Vec3f(1.0f, 0.0f, 1.0f),
+                osg::Vec3f(1.0f, 1.0f, 1.0f), osg::Vec3f(0.0f, 1.0f, 1.0f) };
+            const std::array<osg::Vec3f, 4> higher{ osg::Vec3f(0.0f, 0.0f, 2.0f), osg::Vec3f(1.0f, 0.0f, 2.0f),
+                osg::Vec3f(1.0f, 1.0f, 2.0f), osg::Vec3f(0.0f, 1.0f, 2.0f) };
+            const Index other = Testing::addQuadMesh(scene, raised);
+            const Index unplaced = Testing::addQuadMesh(scene, higher);
             const Index glass = scene.addMaterial(Material{ .mOpacity = 0.5f, .mAlphaMode = AlphaMode::Blend });
             const Index stone = scene.addMaterial(Material{ .mAlphaMode = AlphaMode::Blend });
 
@@ -1522,21 +1608,30 @@ namespace Rtx
         {
             SceneDesc scene;
 
-            // Eight vertices and twelve indices, which is two quads' worth in one mesh.
-            std::vector<osg::Vec3f> big;
+            // Eight vertices and twelve indices, which is two quads' worth in one mesh; each somewhere of its own, as
+            // every mesh here is, since a static mesh is the one its content is (`SceneDesc::addMesh`).
+            std::vector<std::vector<osg::Vec3f>> bigs;
             std::vector<std::uint32_t> bigIndices;
-            for (int copy = 0; copy < 2; ++copy)
-            {
-                for (const osg::Vec3f& vertex : quadAt(static_cast<float>(copy)))
-                    big.push_back(vertex);
+            const auto big = [&](const float at) {
+                std::vector<osg::Vec3f>& positions = bigs.emplace_back();
+                bigIndices.clear();
+                for (int copy = 0; copy < 2; ++copy)
+                {
+                    for (const osg::Vec3f& vertex : quadAt(at + static_cast<float>(copy)))
+                        positions.push_back(vertex);
+                    for (const std::uint32_t index : Testing::sQuadIndices)
+                        bigIndices.push_back(index + static_cast<std::uint32_t>(copy) * 4u);
+                }
+                return scene.addMesh(MeshArrays{ .mPositions = positions, .mIndices = bigIndices });
+            };
+            const auto quad = [&](const float at) {
+                const std::array<osg::Vec3f, 4> corners = quadAt(at);
+                return Testing::addQuadMesh(scene, corners);
+            };
 
-                for (const std::uint32_t index : Testing::sQuadIndices)
-                    bigIndices.push_back(index + static_cast<std::uint32_t>(copy) * 4u);
-            }
-
-            const Index roomy = scene.addMesh(MeshArrays{ .mPositions = big, .mIndices = bigIndices });
-            const Index snug = Testing::addQuadMesh(scene);
-            const Index kept = Testing::addQuadMesh(scene);
+            const Index roomy = big(0.0f);
+            const Index snug = quad(10.0f);
+            const Index kept = quad(11.0f);
 
             ASSERT_EQ(scene.meshes().getRows()[roomy].mVertices.mOffset, 0u);
             ASSERT_EQ(scene.meshes().getRows()[snug].mVertices.mOffset, 8u);
@@ -1553,22 +1648,22 @@ namespace Rtx
             ASSERT_EQ(vertices, 16u);
 
             // The quad takes the front of the merged hole and leaves eight vertices behind it.
-            const Index quad = Testing::addQuadMesh(scene);
-            EXPECT_EQ(scene.meshes().getRows()[quad].mVertices.mOffset, 0u);
+            const Index front = quad(12.0f);
+            EXPECT_EQ(scene.meshes().getRows()[front].mVertices.mOffset, 0u);
 
             // **Which is what the eight-vertex mesh then fits into.** Unmerged, the two holes were
             // eight and four and the four had just been spent, so this would have appended.
-            const Index again = scene.addMesh(MeshArrays{ .mPositions = big, .mIndices = bigIndices });
+            const Index again = big(20.0f);
             EXPECT_EQ(scene.meshes().getRows()[again].mVertices.mOffset, 4u);
             EXPECT_EQ(scene.meshes().getPositions().size(), vertices) << "a mesh that fitted a hole appended anyway";
 
             // Both freed slots have been taken, the lower one first — `Rtx::SlotRows` says why a
             // table answers with the lowest and never with the last one given back.
-            EXPECT_EQ(quad, roomy);
+            EXPECT_EQ(front, roomy);
             EXPECT_EQ(again, snug);
 
             // Nothing fits now, so this one goes on the end.
-            EXPECT_EQ(scene.addMesh(MeshArrays{ .mPositions = big, .mIndices = bigIndices }), 3u);
+            EXPECT_EQ(big(30.0f), 3u);
             EXPECT_GT(scene.meshes().getPositions().size(), vertices);
         }
 

@@ -26,6 +26,8 @@
 #include <components/rtxvulkan/device/result.hpp>
 #include <components/rtxvulkan/device/timeline.hpp>
 
+#include "whenroomless.hpp"
+
 namespace Rtx
 {
     VkBuildAccelerationStructureFlagsKHR BottomLevelStore::buildFlagsOf(const StructureMotion motion)
@@ -120,6 +122,7 @@ namespace Rtx
 
         state.mTightness = Tightness::None;
         row.mStructure = AccelerationStructure();
+        row.mWaiting = false;
 
         if (mRefittable.has(slot))
             mRefittable.remove(slot);
@@ -138,6 +141,56 @@ namespace Rtx
         }
 
         mRefittable.compact();
+        std::erase_if(mWaiting, [&](const Waiting& waiting) { return !mRows[waiting.mMesh].mWaiting; });
+    }
+
+    std::size_t BottomLevelStore::buildWaiting(Batch& batch, const SceneDesc& scene, const BlockedBuffer& poses,
+        const BlockedBuffer& positions, const BlockedBuffer& indices, const std::uint64_t placement,
+        std::vector<Refusal>& refused)
+    {
+        if (mWaiting.empty())
+            return 0;
+
+        mRetrying.assign(mWaiting.begin(), mWaiting.end());
+        mRetryingMeshes.clear();
+        for (const Waiting& waiting : mRetrying)
+            mRetryingMeshes.push_back(waiting.mMesh);
+        build(batch, scene, mRetryingMeshes, poses, positions, indices, placement, BuildCompaction::Streamed, refused);
+
+        // What waits again has waited one placement more, and what has waited its most goes without. Searched sorted,
+        // as an arrival the device refused whole is thousands waiting.
+        std::ranges::sort(mRetrying, {}, &Waiting::mMesh);
+        for (Waiting& waiting : mWaiting)
+        {
+            const auto before = std::ranges::lower_bound(mRetrying, waiting.mMesh, {}, &Waiting::mMesh);
+            assert(before != mRetrying.end() && before->mMesh == waiting.mMesh && "a mesh waits that was not retried");
+            waiting.mWaited = before->mWaited + 1;
+            if (waiting.mWaited < sMostRoomWaits)
+                continue;
+            mRows[waiting.mMesh].mWaiting = false;
+            refused.push_back(Refusal{ .mKind = Refused::Mesh, .mWhy = std::string(describe(waiting.mWhy)) });
+        }
+        std::erase_if(mWaiting, [&](const Waiting& waiting) { return !mRows[waiting.mMesh].mWaiting; });
+
+        return static_cast<std::size_t>(
+            std::ranges::count_if(mRetryingMeshes, [&](const Index mesh) { return stands(mesh); }));
+    }
+
+    void BottomLevelStore::takeResized(std::vector<StoodMesh>& into)
+    {
+        // A slot let go of since its build stands nothing to say, and the mesh it stood for is gone.
+        for (const StoodMesh& built : mResized)
+            if (stands(built.mMesh))
+                into.push_back(built);
+        mResized.clear();
+    }
+
+    VkDeviceSize BottomLevelStore::getWanted() const
+    {
+        VkDeviceSize wanted = 0;
+        for (const Waiting& waiting : mWaiting)
+            wanted += waiting.mBytes;
+        return wanted;
     }
 
     void BottomLevelStore::build(Batch& batch, const SceneDesc& scene, std::span<const Index> meshes,
@@ -260,8 +313,9 @@ namespace Rtx
         }
 
         // Before the structures below are made: a slot retired above and refitted again is then
-        // named once.
+        // named once, and one that waited for room waits again only where the device refuses it again.
         mRefittable.compact();
+        std::erase_if(mWaiting, [&](const Waiting& waiting) { return !mRows[waiting.mMesh].mWaiting; });
 
         // **In runs whose scratch fits the build room**, each built over the room the run before used:
         // one run over every mesh held the sum of their scratch, which on a world's build is the
@@ -318,12 +372,21 @@ namespace Rtx
                     wantedLoose = 0;
                     wantedKept = 0;
                     mRefusedRoom = true;
-                    refused.push_back(Refusal{ .mKind = Refused::Mesh, .mWhy = std::string(describe(room.error())) });
+                    if (whenRoomless(mDevice, scene) == WhenRoomless::Waits)
+                    {
+                        row.mWaiting = true;
+                        mWaiting.push_back(
+                            Waiting{ .mMesh = slot, .mBytes = mBuilding[at].mSize, .mWhy = room.error() });
+                    }
+                    else
+                        refused.push_back(
+                            Refusal{ .mKind = Refused::Mesh, .mWhy = std::string(describe(room.error())) });
                     continue;
                 }
 
                 row.mStructure
                     = AccelerationStructure::bottomLevel(mDevice, storage, room.value(), mBuilding[at].mSize);
+                mResized.push_back(StoodMesh{ .mMesh = slot, .mStructureBytes = mBuilding[at].mSize });
                 wanted -= std::min(wanted, alignUp(mBuilding[at].mSize, StructureStorage::sAlignment));
 
                 mBuild.mBuilds[at].dstAccelerationStructure = row.mStructure.getHandle();

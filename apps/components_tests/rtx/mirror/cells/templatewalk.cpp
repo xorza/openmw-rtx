@@ -20,6 +20,7 @@
 #include <osg/MatrixTransform>
 #include <osg/Matrixf>
 #include <osg/Node>
+#include <osg/PolygonMode>
 #include <osg/PrimitiveSet>
 #include <osg/Sequence>
 #include <osg/StateSet>
@@ -271,6 +272,11 @@ namespace Rtx::Testing
             rope->setVertexArray(makePositions({ osg::Vec3f(0.0f, 0.0f, 0.0f), osg::Vec3f(1.0f, 0.0f, 0.0f) }));
             rope->addPrimitiveSet(new osg::DrawArrays(GL_LINES, 0, 2));
 
+            // **And faces a wireframe draws as lines**, the repack's test room's helper cubes, which the frame's walk
+            // leaves out for the same reason.
+            osg::ref_ptr<osg::Geometry> wire = makeQuad();
+            wire->getOrCreateStateSet()->setAttribute(
+                new osg::PolygonMode(osg::PolygonMode::FRONT_AND_BACK, osg::PolygonMode::LINE));
             // **And a part whose place in the model is not a number**, which the frame's walk refuses
             // at the top level and this one let through into every placement of it.
             osg::ref_ptr<osg::MatrixTransform> nowhere = new osg::MatrixTransform(
@@ -285,6 +291,8 @@ namespace Rtx::Testing
                         makeIndexPastItsVertices(), std::string("its triangles name vertex 4 of 4") },
                     std::pair<osg::ref_ptr<osg::Node>, std::string>{
                         rope, std::string("its lines and points have no width a ray can meet") },
+                    std::pair<osg::ref_ptr<osg::Node>, std::string>{
+                        wire, std::string("its lines and points have no width a ray can meet") },
                     std::pair<osg::ref_ptr<osg::Node>, std::string>{
                         nowhere, std::string("its place is not a finite number") } })
             {

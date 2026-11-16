@@ -18,6 +18,7 @@
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/textureformat.hpp>
 #include <components/rtx/image/texturewrap.hpp>
+#include <components/rtx/scene/deviceanswer.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/shaders/hosttypes.h>
 #include <components/rtx/shaders/scene.h>
@@ -187,15 +188,16 @@ namespace Rtx
         /// reason `chooseLevels` gives.
         ///
         /// Every file from the level `chooseLevels` gives it. A texture the room still cannot hold comes down a level
-        /// at a time; one with no level it can hold, or past the device's side at every level, draws the stand-in, and
-        /// each of those is appended to `refused`, saying why.
+        /// at a time; one with no level it can hold, or past the device's side at every level, draws the stand-in.
+        /// One past the side is refused into `answer`, saying why; one with no room is refused there where
+        /// `whenRoomless` refuses, and otherwise named among the slots that wait for room (`DeviceAnswer::mRoomless`).
         ///
         /// @param passes the renderer's, which every texture is made with as it arrives.
         /// @param arrival the renderer's, which the arrival is recorded through.
         /// @param timer where what the arrival is made with on the device is timed, or null where it
         ///        is not: a scene being built, which is a load and no frame's.
         void write(Batch& batch, const TexturePasses& passes, TextureArrival& arrival,
-            std::span<const TextureData> arrived, std::vector<Refusal>& refused, GpuTimer* timer);
+            std::span<const TextureData> arrived, DeviceAnswer& answer, WhenRoomless whenRoomless, GpuTimer* timer);
 
         /// Writes the descriptors `slot`'s set owes, and the texel words its copy owes through
         /// `uploads`. Before the placement that binds it, after `finishReads`: the bindings allow an
@@ -318,7 +320,7 @@ namespace Rtx
         /// source from its bytes, or a bake from its source, which must stand already — or the
         /// stand-in, where the texture cannot stand.
         void stand(Batch& batch, TextureArrival& arrival, const TextureData& texture, std::uint32_t first,
-            std::vector<Refusal>& refused);
+            DeviceAnswer& answer, WhenRoomless whenRoomless);
 
         /// Queues a write of `image` into `set` at `binding[slot]`, behind the image info the write
         /// names by address.

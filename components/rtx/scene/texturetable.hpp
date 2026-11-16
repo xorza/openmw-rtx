@@ -23,6 +23,8 @@
 #include <components/rtx/shaders/scene.h>
 #include <components/vfs/pathutil.hpp>
 
+#include "restqueue.hpp"
+
 #include "sceneroom.hpp"
 
 namespace Rtx
@@ -95,14 +97,8 @@ namespace Rtx
         /// every level under the finest, rather than the file's own.
         bool mStoodMade = false;
 
-        /// Whether nothing names the slot and it stands on the device until its room is needed
-        /// (`TextureTable::drop`); where it waits among the slots that came to rest since the list was last
-        /// settled, `sNoIndex` once it is on the list; and its neighbours on the list, the order the slots
-        /// came to rest in.
-        bool mResting = false;
-        Index mWaitingAt = sNoIndex;
-        Index mRestedBefore = sNoIndex;
-        Index mRestedAfter = sNoIndex;
+        /// Its place among the slots that rest (`TextureTable::drop`, `RestQueue`).
+        RestPlace mRest{};
 
         /// What a person reads the slot as, in a refusal or a legend: a file's path, and what a bake
         /// or a composite was made from.
@@ -114,12 +110,11 @@ namespace Rtx
     /// follows. Two ways in and one table: a slot is a file the content named or a key this renderer
     /// made for something it baked, never both. A slot that is freed keeps its index.
     ///
-    /// **A file the device stands whole rests when nothing names it, until its room is needed**
-    /// (`docs/architecture.md`, "A texture nothing names rests on the device"): it keeps its slot, its
-    /// path and the device's image, and lets go of the host's, so the next take of it is the slot it
-    /// had, with nothing described and nothing uploaded; the slot the oldest to rest goes first when
-    /// the array is full or the device's room is wanted (`evictResting`). A bake is freed the moment
-    /// nothing names it, since its source stands beside it.
+    /// **A file the device stands whole rests when nothing names it** (`docs/architecture.md`, "One residency policy
+    /// for the content"): it keeps its slot, its path and the device's image, and lets go of the host's, so the next
+    /// take of it is the slot it had, with nothing described and nothing uploaded. The scene frees what rests, the
+    /// oldest first across its tables (`SceneDesc::evictResting`), and this table its oldest where the array is full.
+    /// A bake is freed the moment nothing names it, since its source stands beside it.
     ///
     /// **A slot is a file, its wrap and its encoding.** The same file bound clamped and bound
     /// repeating is two slots, because the wrap is the sampler's and a sampler is per slot; the
@@ -140,7 +135,7 @@ namespace Rtx
             reserveRows(room.mTextures);
             mChanges.reserve(room.mTextures);
             mPathIndex.reserve(room.mTextures);
-            mRestingNow.reserve(room.mTextures);
+            mResting.reserve(room.mTextures);
         }
 
         /// The slot for `path` under `wrap` and `encoding`, taking one where this has not met the
@@ -186,14 +181,10 @@ namespace Rtx
         /// nothing names it, and what its rest holds of the device's room.
         void stand(Index slot, std::uint64_t bytes, bool made);
 
-        /// Frees the slots that rest, the oldest to rest first, until `bytes` of the device's room are
-        /// given back or none rests, and answers the bytes given back: each slot reported freed
-        /// (`getFreed`), its image the device's to drop.
-        std::uint64_t evictResting(std::uint64_t bytes);
-
-        /// How many slots rest, and the bytes they stand on the device.
-        std::size_t getRestingCount() const { return mRestingCount; }
-        std::uint64_t getRestingBytes() const { return mRestingBytes; }
+        /// The slots that rest, oldest first (`RestQueue`): how many, the bytes they stand on the device, and the
+        /// order, each row's `mRest.mAfter` carrying it on. What the scene frees across its tables
+        /// (`SceneDesc::evictResting`).
+        const RestQueue& getResting() const { return mResting; }
 
         std::span<const Index> getArrived() const { return mChanges.getArrived(); }
         std::span<const Index> getFreed() const { return mChanges.getFreed(); }
@@ -213,10 +204,11 @@ namespace Rtx
         }
 
         /// Settles what a drop took out of the arrivals, so they can be read, and files the slots that came
-        /// to rest since the last.
-        void compact()
+        /// to rest since the last at `clock`, the scene's.
+        void compact(const std::uint64_t clock)
         {
             mChanges.compact();
+            mClock = clock;
             settleResting();
         }
 
@@ -269,9 +261,18 @@ namespace Rtx
         /// Takes `slot` out of the lookups and the census, empties it and reports it freed.
         void release(Index texture);
 
-        /// Files the slots that came to rest since the last, by their slots, after every slot already on the
-        /// list.
+        /// Files the slots that came to rest since the last, by their slots, after every slot already filed, at the
+        /// clock `compact` was last given.
         void settleResting();
+
+        /// Frees the slot that has rested longest, which the scene asks for across its tables.
+        void releaseOldest();
+
+        /// A row's place in the rest, for `RestQueue`.
+        auto placeOf()
+        {
+            return [this](const Index at) -> RestPlace& { return rowAt(at).mRest; };
+        }
 
         /// Puts `row` in a free slot where there is one, in a new one otherwise, and counts the
         /// arrival.
@@ -295,16 +296,10 @@ namespace Rtx
         std::unordered_map<VFS::Path::Normalized, Index, VFS::Path::Hash, std::equal_to<>> mSpriteLightIndex;
         std::unordered_map<Index, GroundSlots> mGroundIndex;
 
-        /// The slots that rest, the oldest to rest and the latest: a list through the rows
-        /// (`TextureRow::mRestedBefore`), so a wake takes one out without a search. Those that came to
-        /// rest since it was last settled wait apart and are filed by their slots, since a sweep drops them in
-        /// the order an identity map hashed their objects, which is the allocator's and not the world's, as
-        /// `SlotPool` says: sorted once, where each filed in its place walked the batch.
-        Index mRestedFirst = sNoIndex;
-        Index mRestedLast = sNoIndex;
-        std::vector<Index> mRestingNow;
-        std::size_t mRestingCount = 0;
-        std::uint64_t mRestingBytes = 0;
+        /// The slots that rest (`RestQueue`), and the scene's clock at the last `compact`, which a slot filed
+        /// between two is filed at.
+        RestQueue mResting;
+        std::uint64_t mClock = 0;
 
         std::uint64_t mRevision = 0;
         std::uint32_t mRefused = 0;

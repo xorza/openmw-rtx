@@ -71,11 +71,15 @@ namespace Rtx::Testing
         /// **Not white, because a white tint is the answer a renderer that dropped it gives.** The
         /// three channels differ from each other so that a test cannot pass on a decode that
         /// swapped them.
-        static osg::Vec4ub colourAt(const int column, const int row)
+        /// Vertex (`column`, `row`)'s colour in `cell`: the blue tells the cells of a sixteen-cell square apart, so
+        /// every cell's ground is a mesh of its own, as a world's is, where one geometry is one mesh
+        /// (`SceneDesc::addMesh`); the origin's is a full blue.
+        static osg::Vec4ub colourAt(const int column, const int row, const osg::Vec2i& cell = osg::Vec2i())
         {
             const auto red = static_cast<unsigned char>(64 + column % 8);
             const auto green = static_cast<unsigned char>(128 + row % 8);
-            return osg::Vec4ub(red, green, 255, 255);
+            const auto blue = static_cast<unsigned char>(255 - (((cell.x() & 15) << 4) | (cell.y() & 15)));
+            return osg::Vec4ub(red, green, blue, 255);
         }
 
         bool hasData(const ESM::ExteriorCellLocation cell) override
@@ -110,13 +114,15 @@ namespace Rtx::Testing
             normals.resize(positions.size());
             colours.resize(positions.size());
 
+            const ESM::ExteriorCellLocation location = cellOf(centre, worldspace);
+            const osg::Vec2i cell(location.mX, location.mY);
             for (int column = 0; column < sVerts; ++column)
                 for (int row = 0; row < sVerts; ++row)
                 {
                     const std::size_t at = static_cast<std::size_t>(column) * sVerts + row;
                     positions[at] = positionAt(column, row);
                     normals[at] = osg::Vec3f(0.0f, 0.0f, 1.0f);
-                    colours[at] = colourAt(column, row);
+                    colours[at] = colourAt(column, row, cell);
                 }
         }
 

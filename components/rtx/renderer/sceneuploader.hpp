@@ -1,8 +1,13 @@
 #pragma once
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <span>
 #include <vector>
+
+#include <osg/Image>
+#include <osg/ref_ptr>
 
 #include <components/rtx/preprocess/preparedimages.hpp>
 
@@ -15,6 +20,7 @@ namespace Rtx
 {
     class CompositeQueue;
     class SceneDesc;
+    class TextureTable;
 
     /// What handing a mirrored scene to a renderer came to.
     struct SceneUpload
@@ -92,7 +98,40 @@ namespace Rtx
         /// compares frames waits for, beside the cells.
         std::size_t getPendingCount() const { return mPending.size(); }
 
+        /// **What everything that rests may stand on the device**, measured (`RestReuse`): on the desk's tours, a
+        /// least-recently-rested cache of 2 GiB kept 97.5% of what woke under the repack and 88.4% under the PBR
+        /// replacers, where doubling it bought 2.5 and 7.1 points more.
+        static constexpr std::uint64_t sRestMost = std::uint64_t{ 2 } << 30;
+
+        /// And no more than this share of the device's budget for content, the denominator: the rest of it is the
+        /// live content's and the frame's, and on a handheld the system's.
+        static constexpr std::uint64_t sRestShare = 4;
+
+        /// What everything that rests may stand under a content budget of `budget`: the share, up to the measured
+        /// limit.
+        static constexpr std::uint64_t restLimitOf(const std::uint64_t budget)
+        {
+            return std::min(sRestMost, budget / sRestShare);
+        }
+
     private:
+        /// Takes what the device made of a hand-over: reports what it could not stand with the scene's own refusals,
+        /// and stands each mesh's structure in the scene, which is written here and which the backend holds const.
+        /// Answers the refusals, valid until the next take.
+        std::span<const Refusal> takeAnswer(SceneHolder& scenes, SceneSlot slot, SceneDesc& scene);
+
+        /// Counts a hand-over against every texture that waits, refusing into `scene` those that waited their most and
+        /// forgetting those whose slot holds their file no more, letting `prepared` go of what it read of either, and
+        /// hands over again those `free` bytes of the device's room now hold.
+        void serveWaits(SceneDesc& scene, PreparedImages* prepared, std::uint64_t free);
+
+        /// Files the textures the last answer named waiting for room, and forgets those this hand-over described and
+        /// the device stood: a wait handed over again, or every one under a rebuild, which describes the whole table.
+        void waitForRoom(const TextureTable& textures);
+
+        /// Whether `slot` waits for room.
+        bool isWaiting(Index slot) const;
+
         /// What an arrival is described into, and the storage the descriptions point at. Held, so
         /// an arrival frame does not pay for the buffers; nothing reads them between calls.
         SceneTextures mTextures;
@@ -101,8 +140,26 @@ namespace Rtx
         /// stood once made (`TextureTable::prepare`).
         std::vector<SceneTextures::Pending> mPending;
 
-        /// The most bytes one extension has handed the device of its arriving files: the room the
-        /// textures that rest leave free (`TextureTable::evictResting`).
+        /// The most bytes one extension has handed the device, of its arriving files and the structures it built: the
+        /// room what rests leaves free (`SceneDesc::evictResting`).
         std::uint64_t mLargestArrival = 0;
+
+        /// What the device made of a hand-over (`SceneHolder::takeAnswer`), refilled each time.
+        DeviceAnswer mAnswer;
+
+        /// **A texture the device had no room for, waiting for it** (`DeviceAnswer::mRoomless`): its slot, which draws
+        /// the stand-in meanwhile, and the file it waits with, which the slot may give up or give another, as a pending
+        /// one does (`mPending`); the bytes it was handed in, which the room kept counts; and how many hand-overs it
+        /// has waited, up to `sMostRoomWaits`.
+        struct TextureWait
+        {
+            Index mSlot = sNoIndex;
+            osg::ref_ptr<const osg::Image> mSource;
+            std::uint64_t mBytes = 0;
+            std::uint32_t mWaited = 0;
+        };
+
+        /// The textures waiting for room, each slot once, so no more than the texture table's capacity.
+        std::vector<TextureWait> mTextureWaits;
     };
 }

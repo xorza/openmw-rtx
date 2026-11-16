@@ -3,9 +3,11 @@
 #include <cstdint>
 #include <optional>
 #include <span>
+#include <vector>
 
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/image/texturedata.hpp>
+#include <components/rtx/scene/deviceanswer.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/structurerevision.hpp>
 
@@ -27,6 +29,22 @@ namespace Rtx
 
         /// `SceneDesc::getStructureRevision` as it stood at the last `setScene` or `extendScene`.
         StructureRevision mStructureRevision;
+    };
+
+    /// What an arrival may take on the device, and what waits for room it does not have
+    /// (`SceneHolder::getArrivalRoom`).
+    struct ArrivalRoom
+    {
+        /// What a texture, the content given room last, may still take before the device refuses it: what a structure,
+        /// given room ahead of it, may take as well.
+        std::uint64_t mFree = 0;
+
+        /// What the device's budget allows the content at all: what the content that rests may hold a share of
+        /// (`SceneUploader::sRestShare`).
+        std::uint64_t mBudget = 0;
+
+        /// What the structures the device had no room for want, each waiting while room is coming.
+        std::uint64_t mWanted = 0;
     };
 
     /// What holds scenes in slots, builds and places them: the part of `Renderer` a scene's owner
@@ -57,17 +75,18 @@ namespace Rtx
         /// What this slot was last built from, and how far it has been extended since.
         virtual SceneHeld describeHeld(SceneSlot slot) const = 0;
 
-        /// What the last `setScene` or `extendScene` of `slot` could not stand for the device's sake —
-        /// a texture past the side it takes, a texture or a mesh it had no room for — for the scene's
-        /// owner to report with the rest of what content was refused (`SceneDesc::refusals`). A
-        /// texture refused draws the stand-in, and a mesh refused is left out. Valid until the next
-        /// call of either for `slot`.
-        virtual std::span<const Refusal> getRefusals(SceneSlot slot) const = 0;
+        /// Appends what the device made of `slot` since the last take, and forgets it (`DeviceAnswer`): what it could
+        /// not stand — a texture past the side it takes, a texture it had no room for, a mesh it had no room for and
+        /// none coming — for the scene's owner to report with the rest of what content was refused
+        /// (`SceneDesc::refusals`), and what each mesh's structure takes. A texture refused draws the stand-in, and a
+        /// mesh refused is left out. Taken after every `setScene`, `extendScene` and `placeScene`, since a placement
+        /// builds what waited for room and may find room is not coming.
+        virtual void takeAnswer(SceneSlot slot, DeviceAnswer& into) = 0;
 
-        /// What textures may still take on the device before an arrival is stood smaller than its files,
-        /// or nothing from a renderer whose textures take no room it bounds: what a texture that rests
-        /// gives its room back to (`TextureTable::evictResting`).
-        virtual std::optional<std::uint64_t> getTextureRoom() const = 0;
+        /// What an arrival in `slot` may take on the device and what is waiting for room, or nothing from a renderer
+        /// whose content takes no room it bounds: what the content that rests gives its room back to
+        /// (`SceneDesc::evictResting`).
+        virtual std::optional<ArrivalRoom> getArrivalRoom(SceneSlot slot) const = 0;
 
         /// The same scene with its instances and lights somewhere else and its actors in a new pose:
         /// rebuilds only what says where things are, plus the structure of each mesh `getDeformed`

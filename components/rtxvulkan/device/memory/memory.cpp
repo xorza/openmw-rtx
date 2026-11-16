@@ -492,6 +492,14 @@ namespace Rtx
         return free + above / sBlockBytes * sBlockBytes;
     }
 
+    VkDeviceSize MemoryAllocator::getVideoBudget() const
+    {
+        VmaBudget budgets[VK_MAX_MEMORY_HEAPS]{};
+        vmaGetHeapBudgets(mLibrary.get(), budgets);
+        const VkDeviceSize budget = budgets[mContent.mHeap].budget;
+        return std::min(budget, mBudgetLimit.value_or(budget));
+    }
+
     VkDeviceSize MemoryAllocator::getHeld(const std::uint32_t heap, const MemoryUse use) const
     {
         assert(heap < VK_MAX_MEMORY_HEAPS);

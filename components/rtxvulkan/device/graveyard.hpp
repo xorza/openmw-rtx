@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <mutex>
@@ -52,6 +53,10 @@ namespace Rtx
         /// that nothing is recorded is the caller's, through `Device::collectIdle`.
         void collectIdle();
 
+        /// The bytes of `use` held here to be given back: room a take finds once the timeline passes them, which a
+        /// content allocation the device refused waits for rather than going without (`BottomLevelStore`).
+        VkDeviceSize getBuried(MemoryUse use) const;
+
         // Read by the tests and by nothing else.
         std::size_t getHeldCount() const;
 
@@ -75,5 +80,8 @@ namespace Rtx
         mutable std::mutex mLock;
 
         Retiring<Burial> mHeld;
+
+        /// What each use's ranges in `mHeld` count, kept as they are buried and given back.
+        std::array<VkDeviceSize, sMemoryUses> mBuried{};
     };
 }
