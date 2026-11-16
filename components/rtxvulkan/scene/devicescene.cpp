@@ -210,8 +210,10 @@ namespace Rtx
     {
         into.mRefused.insert(into.mRefused.end(), mAnswer.mRefused.begin(), mAnswer.mRefused.end());
         into.mShort.insert(into.mShort.end(), mAnswer.mShort.begin(), mAnswer.mShort.end());
+        into.mWants.insert(into.mWants.end(), mAnswer.mWants.begin(), mAnswer.mWants.end());
+        into.mTextureFits.insert(into.mTextureFits.end(), mAnswer.mTextureFits.begin(), mAnswer.mTextureFits.end());
         mAnswer.clear();
-        mAcceleration.takeResized(into.mMeshes);
+        mAcceleration.takeAnswer(into);
     }
 
     void DeviceScene::measureStars(Shaders::StarField& stars) const

@@ -65,8 +65,9 @@ namespace Rtx
         // more before, back once the frames that held it are done.
         for (TextureWait& wait : mTextureWaits)
         {
+            // Not while what was evicted for it is coming back: handed over first, it stands short again.
             const std::uint64_t lacking = wait.getLacking();
-            if (!wait.mReading && lacking > free)
+            if (!wait.mReading && (lacking > free || isCooling(RestKind::Texture, wait.mSlot)))
                 continue;
             const TextureRow& row = scene.textures().getRows()[wait.mSlot];
             if (prepared != nullptr && !settled)
@@ -91,11 +92,29 @@ namespace Rtx
 
     void SceneUploader::evictForRoom(SceneDesc& scene, const ArrivalRoom& room, const std::uint64_t arriving)
     {
-        std::uint64_t lacking = 0;
-        for (const TextureWait& wait : mTextureWaits)
-            lacking += wait.getLacking();
-        const std::uint64_t kept = arriving + mLargestStructures + room.mWanted + lacking;
+        const std::uint64_t kept = arriving + mLargestStructures;
         scene.evictResting(room.mFree < kept ? kept - room.mFree : 0);
+    }
+
+    bool SceneUploader::isCooling(const RestKind kind, const Index slot) const
+    {
+        return std::ranges::any_of(
+            mCooling, [&](const WantCooling& cooling) { return cooling.mKind == kind && cooling.mSlot == slot; });
+    }
+
+    void SceneUploader::serveWants(SceneDesc& scene)
+    {
+        // The last answer's, served ahead of the placement that reports what goes, as the device reads freed slots
+        // there; its room comes back once the frames in flight past it are done, and the device asks again at the
+        // placement after that, whose answer the hand-over after reads.
+        for (const RoomWant& want : mAnswer.mWants)
+        {
+            if (isCooling(want.mKind, want.mSlot))
+                continue;
+            scene.evictFor(std::span(&want, 1));
+            mCooling.push_back(
+                WantCooling{ .mKind = want.mKind, .mSlot = want.mSlot, .mUntil = mHandOvers + sFramesInFlight + 1 });
+        }
     }
 
     void SceneUploader::waitForRoom(const TextureTable& textures)
@@ -158,6 +177,10 @@ namespace Rtx
                 scene.meshes().getResting().getCount(), mebibytes(scene.meshes().getResting().getBytes()));
         for (const StoodMesh& stood : mAnswer.mMeshes)
             scene.standMesh(stood.mMesh, stood.mStructureBytes);
+        for (const FitBytes& fit : mAnswer.mTextureFits)
+            scene.textures().fit(fit.mSlot, fit.mBytes);
+        for (const FitBytes& fit : mAnswer.mMeshFits)
+            scene.fitMesh(fit.mSlot, fit.mBytes);
         return mAnswer.mRefused;
     }
 
@@ -172,6 +195,10 @@ namespace Rtx
         // are written once each rather than guarded three times.
         FrameSpend unread;
         FrameSpend& timed = spend != nullptr ? *spend : unread;
+
+        // A hand-over more on the clock a want cools by, and a want whose room is the device's again cools no more.
+        ++mHandOvers;
+        std::erase_if(mCooling, [&](const WantCooling& cooling) { return cooling.mUntil <= mHandOvers; });
 
         // Whether the backend holds this scene in this slot: appending onto a slot something else
         // filled would begin the descriptions past the end of this scene's own table.
@@ -230,6 +257,7 @@ namespace Rtx
             // residency policy for the content").
             scene.setRestLimit(
                 RestLimit{ .mBytes = restLimitOf(*room, scene.getRestingBytes()), .mStep = mLargestArrival });
+            serveWants(scene);
             serveWaits(scene, handing.mPrepared, handing.mSettled, room->mFree);
         }
 

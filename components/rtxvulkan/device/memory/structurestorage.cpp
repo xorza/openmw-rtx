@@ -22,23 +22,25 @@ namespace Rtx
         }
     }
 
-    StructureStorage::StructureStorage(VkBufferUsageFlags usage, std::string name, const LastBlock last)
+    StructureStorage::StructureStorage(VkBufferUsageFlags usage, std::string name, const VkDeviceSize blockBytes)
         : mUsage(usage)
         , mName(std::move(name))
-        , mLast(last)
+        , mBlockBytes(blockBytes)
     {
+        assert(blockBytes % sAlignment == 0 && "a block that ends inside a unit");
     }
 
-    Result<StructureRoom, MemoryRefusal> StructureStorage::take(
-        const Device& device, VkDeviceSize bytes, VkDeviceSize least)
+    Result<StructureRoom, MemoryRefusal> StructureStorage::take(const Device& device, VkDeviceSize bytes)
     {
         assert(bytes > 0);
 
         reclaim(device.getTimeline().getKnownFinished());
 
-        // Every live block may hold a structure, so the list is asked for the first that fits,
-        // and a new block is as large as the caller asked or as the structure needs — as the
-        // structure needs and no more, where the device has no room for what the caller asked.
+        // **Every block one size, made apart from content's pool blocks**: a block sized to what a build had left
+        // to place cut ranges of every size out of the blocks textures stand in, and one that went back left them as
+        // holes no later structure or texture filled (`docs/architecture.md`, "A bottom level is built loose and copied
+        // out tight"). Larger only for one
+        // structure past it, which a block of its size holds.
         Result<StructureRoom, MemoryRefusal> taken = mBlocks.take(
             unitsFor(bytes), [](const Block&) { return true; },
             [&](const std::uint32_t units, const std::uint32_t slot) -> Result<Block, MemoryRefusal> {
@@ -48,19 +50,9 @@ namespace Rtx
                 if constexpr (sDebugNames)
                     name = mName + " " + std::to_string(slot);
 
-                const auto make = [&](const std::uint32_t capacity) {
-                    return Buffer::tryMake(MemoryUse::Structure, device, BufferKind::DeviceLocal,
-                        VkDeviceSize{ capacity } * sAlignment, mUsage, name);
-                };
-
-                std::uint32_t made = std::max(unitsFor(least), units);
-                Result<Buffer, MemoryRefusal> buffer = make(made);
-                if (!buffer.isOk() && made > units)
-                {
-                    made = units;
-                    buffer = make(made);
-                }
-
+                const std::uint32_t made = std::max(unitsFor(mBlockBytes), units);
+                Result<Buffer, MemoryRefusal> buffer = Buffer::tryMake(MemoryUse::Structure, device,
+                    BufferKind::DeviceLocal, VkDeviceSize{ made } * sAlignment, mUsage, name);
                 if (!buffer.isOk())
                     return Err{ buffer.error() };
 
@@ -94,13 +86,13 @@ namespace Rtx
         if (room.empty())
             return;
 
-        // A block that empties goes back to the device, one at a time and never a sweep, and the
-        // last one standing as `mLast` says. Asked only of a block that emptied, and what it
-        // answers yes to is retired.
+        // A block that empties goes back to the device, one at a time and never a sweep, but for the last one
+        // standing, which the next structure takes without asking the device. Asked only of a block that emptied,
+        // and what it answers yes to is retired.
         assert(mLiveUnits >= room.mRun.mCount && "a room given back that was never counted");
         mLiveUnits -= room.mRun.mCount;
         mBlocks.give(room, [&](const Block& block) {
-            if (mLast == LastBlock::Kept && mLiveBlocks <= 1)
+            if (mLiveBlocks <= 1)
                 return false;
 
             mBytes -= block.mBuffer.getSize();

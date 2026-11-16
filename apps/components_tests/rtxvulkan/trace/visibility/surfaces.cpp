@@ -205,14 +205,14 @@ namespace Rtx::Testing
         }
 
         /// An arrival the device has no room for is drawn without what it could not stand, and
-        /// says what that was: the wall that stood before still stands, and the nearer wall that
-        /// arrived — its mesh and its texture — and a body posed on a rig beside it are left out.
-        /// The frames after it pose the body again and place the scene as it stands.
+        /// says what that was: the nearer wall that arrived stands, its texture drawn as the
+        /// stand-in, and a body posed on a rig beside it stands and is posed again.
         ///
-        /// **Room for the frame's memory and none for content's.** Two structures and a texture
-        /// arrive, and each is content, so each is refused; a placement that refitted the body left
-        /// out would build over a structure that is not there, and a trace that met the wall would
-        /// draw it blue.
+        /// **Room for the frame's memory and none for content's, and the structures' blocks kept.**
+        /// Two structures and a texture arrive, and each is content: the structures stand in the
+        /// blocks the world's build made and kept (`StructureStorage`), and the texture, which needs
+        /// a range of the full pool, is refused. A trace that met the wall would draw it blue were
+        /// its texture stood, and the far wall's red were its structure left out; it draws the grey.
         TEST_F(RtxVisibilityTest, anArrivalTheDeviceHasNoRoomForIsLeftOutAndSaysSo)
         {
             constexpr std::uint32_t size = 32;
@@ -264,15 +264,11 @@ namespace Rtx::Testing
             }
             mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
 
-            // The meshes first, because the structures are stood before the textures.
             mRenderer.takeAnswer(Rtx::SceneSlot::world(), answer);
-            ASSERT_EQ(refused.size(), 3u);
-            for (const Refusal& one : refused)
-                EXPECT_EQ(one.mWhy, "no device memory is left for it");
-            EXPECT_EQ(refused[0].mKind, Refused::Mesh);
-            EXPECT_EQ(refused[1].mKind, Refused::Mesh);
-            EXPECT_EQ(refused[2].mKind, Refused::Texture);
-            EXPECT_EQ(refused[2].mName, "blue");
+            ASSERT_EQ(refused.size(), 1u) << "a structure the kept blocks held was refused";
+            EXPECT_EQ(refused[0].mWhy, "no device memory is left for it");
+            EXPECT_EQ(refused[0].mKind, Refused::Texture);
+            EXPECT_EQ(refused[0].mName, "blue");
 
             Testing::poseByOneBone(scene, body.mMesh, osg::Matrixf::translate(0.0f, 0.0f, 2.0f));
             mRenderer.placeScene(Rtx::SceneSlot::world(), scene);
@@ -281,8 +277,8 @@ namespace Rtx::Testing
             std::vector<std::uint8_t> shown;
             mRenderer.readPixels(shown);
             ASSERT_GT(shown.size(), centre + 2);
-            EXPECT_GT(shown[centre], 200) << "the wall that stood before the arrival is not what the frame shows";
-            EXPECT_LT(shown[centre + 2], 100) << "the wall the device had no room for was drawn";
+            EXPECT_LT(shown[centre], 200) << "the nearer wall was left out, and the far wall's red shows";
+            EXPECT_NEAR(shown[centre], shown[centre + 2], 8) << "the nearer wall is not drawn as the grey stand-in";
         }
 
         /// One renderer, three scenes, and the number of textures changing under it.

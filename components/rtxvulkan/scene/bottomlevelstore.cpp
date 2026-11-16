@@ -102,9 +102,12 @@ namespace Rtx
         }
     }
 
-    BottomLevelStore::BottomLevelStore(const Device& device, const VkDeviceSize buildRoom)
+    BottomLevelStore::BottomLevelStore(
+        const Device& device, const VkDeviceSize buildRoom, const VkDeviceSize blockBytes)
         : mDevice(device)
         , mBuildRoom(buildRoom)
+        , mStorage(sStructureStorageUsage, "bottom level structures", blockBytes)
+        , mLooseStorage(sStructureStorageUsage, "loose bottom level structures", blockBytes)
         , mScratch(device, BufferKind::DeviceLocal, sScratchUsage, "build scratch")
     {
     }
@@ -176,21 +179,22 @@ namespace Rtx
             std::ranges::count_if(mRetryingMeshes, [&](const Index mesh) { return stands(mesh); }));
     }
 
-    void BottomLevelStore::takeResized(std::vector<StoodMesh>& into)
+    void BottomLevelStore::takeAnswer(DeviceAnswer& into)
     {
-        // A slot let go of since its build stands nothing to say, and the mesh it stood for is gone.
+        // A slot let go of since its build stands nothing to say, and the mesh it stood for is gone; a copy said of a
+        // slot built again since stands no more, and a want met no more, built or let go of, waits no more.
         for (const StoodMesh& built : mResized)
             if (stands(built.mMesh))
-                into.push_back(built);
+                into.mMeshes.push_back(built);
+        for (const FitBytes& fit : mFits)
+            if (stands(fit.mSlot) && mRows[fit.mSlot].mCompaction.mTightness == Tightness::Tight)
+                into.mMeshFits.push_back(fit);
+        for (const RoomWant& want : mWants)
+            if (mRows[want.mSlot].mWaiting || mRows[want.mSlot].mCompaction.mTightness == Tightness::Answered)
+                into.mWants.push_back(want);
         mResized.clear();
-    }
-
-    VkDeviceSize BottomLevelStore::getWanted() const
-    {
-        VkDeviceSize wanted = 0;
-        for (const Waiting& waiting : mWaiting)
-            wanted += waiting.mBytes;
-        return wanted;
+        mFits.clear();
+        mWants.clear();
     }
 
     void BottomLevelStore::build(Batch& batch, const SceneDesc& scene, std::span<const Index> meshes,
@@ -211,13 +215,6 @@ namespace Rtx
         mLiveBuilds.reserve(meshes.size());
 
         const VkDeviceSize scratchAlignment = mDevice.getPhysicalDevice().getStructureScratchAlignment();
-
-        // Sized before anything is created, so a load's structures land in one storage block of
-        // each kind rather than one per mesh. What is still to place, which falls as each is placed:
-        // a block made after part of an arrival went into the holes a departed cell left covers the
-        // rest and not the whole arrival again.
-        VkDeviceSize wantedLoose = 0;
-        VkDeviceSize wantedKept = 0;
 
         // Every row at nought, which is what a mesh with no triangles is left at: nothing
         // describes it, nothing builds it, and the gate below reads that nought.
@@ -296,8 +293,6 @@ namespace Rtx
 
             mBuilding[at].mSize = sizes.accelerationStructureSize;
             mBuilding[at].mScratch = alignUp(sizes.buildScratchSize, scratchAlignment);
-            VkDeviceSize& wanted = mesh.deforms() ? wantedKept : wantedLoose;
-            wanted = alignUp(wanted + sizes.accelerationStructureSize, StructureStorage::sAlignment);
 
             // Kept so a refit of this one mesh does not have to ask the driver its size again. The
             // same geometry describes it, so the answer cannot have changed. The build's own scratch
@@ -336,17 +331,6 @@ namespace Rtx
         std::size_t begin = 0;
         for (const std::size_t end : mRunEnds)
         {
-            // **A settled build's loose block is its run's**, which every structure of the run
-            // leaves before the next run is built: one for the whole build would stand until the
-            // last run was copied, and the loose structures would peak at the whole build again.
-            if (compaction == BuildCompaction::Settled && wantedLoose > 0)
-            {
-                wantedLoose = 0;
-                for (std::size_t at = begin; at < end; ++at)
-                    if (!mRows[meshes[at]].mUpdatable && mBuilding[at].mSize > 0)
-                        wantedLoose = alignUp(wantedLoose + mBuilding[at].mSize, StructureStorage::sAlignment);
-            }
-
             mLiveBuilds.clear();
             mBuild.mRangePointers.clear();
             for (std::size_t at = begin; at < end; ++at)
@@ -356,27 +340,26 @@ namespace Rtx
 
                 const Index slot = meshes[at];
                 Row& row = mRows[slot];
-                StructureStorage& storage = row.mUpdatable ? mStorage : mLooseStorage;
-                VkDeviceSize& wanted = row.mUpdatable ? wantedKept : wantedLoose;
+                const bool kept = row.mUpdatable;
+                StructureStorage& storage = kept ? mStorage : mLooseStorage;
 
                 // Left out where the device has no room: the slot holds no structure and so nothing a
-                // refit or a rebuild reads, and the scratch it was counted into goes unread. A load's
-                // whole total is not asked for again once the device has refused it, and each structure
-                // after asks for its own room.
-                const Result<StructureRoom, MemoryRefusal> room = storage.take(mDevice, mBuilding[at].mSize, wanted);
+                // refit or a rebuild reads, and the scratch it was counted into goes unread.
+                const Result<StructureRoom, MemoryRefusal> room = storage.take(mDevice, mBuilding[at].mSize);
                 if (!room.isOk())
                 {
                     row.mUpdatable = false;
                     row.mUpdateScratch = 0;
                     row.mBuildScratch = 0;
-                    wantedLoose = 0;
-                    wantedKept = 0;
                     mRefusedRoom = true;
                     if (whenRoomless(mDevice, scene) == WhenRoomless::Waits)
                     {
                         row.mWaiting = true;
-                        mWaiting.push_back(
-                            Waiting{ .mMesh = slot, .mBytes = mBuilding[at].mSize, .mWhy = room.error() });
+                        mWaiting.push_back(Waiting{ .mMesh = slot, .mWhy = room.error() });
+                        if (kept)
+                            mWants.push_back(RoomWant{ .mKind = RestKind::Mesh,
+                                .mSlot = slot,
+                                .mHole = alignUp(mBuilding[at].mSize, StructureStorage::sAlignment) });
                     }
                     else
                         refused.push_back(
@@ -387,7 +370,6 @@ namespace Rtx
                 row.mStructure
                     = AccelerationStructure::bottomLevel(mDevice, storage, room.value(), mBuilding[at].mSize);
                 mResized.push_back(StoodMesh{ .mMesh = slot, .mStructureBytes = mBuilding[at].mSize });
-                wanted -= std::min(wanted, alignUp(mBuilding[at].mSize, StructureStorage::sAlignment));
 
                 mBuild.mBuilds[at].dstAccelerationStructure = row.mStructure.getHandle();
                 mBuild.mBuilds[at].scratchData.deviceAddress = scratchAddress + mBuilding[at].mScratchOffset;
@@ -631,9 +613,13 @@ namespace Rtx
             // a device that refuses the room leaves the answer to a later placement.
             const bool tight = shrinks(state);
             const VkDeviceSize size = tight ? state.mTightSize : state.mBuiltSize;
-            const Result<StructureRoom, MemoryRefusal> room = mStorage.take(mDevice, size, budget - taken);
+            const Result<StructureRoom, MemoryRefusal> room = mStorage.take(mDevice, size);
             if (!room.isOk())
+            {
+                mWants.push_back(RoomWant{
+                    .mKind = RestKind::Mesh, .mSlot = slot, .mHole = alignUp(size, StructureStorage::sAlignment) });
                 break;
+            }
 
             AccelerationStructure made = AccelerationStructure::bottomLevel(mDevice, mStorage, room.value(), size);
             mAnswered.pop(1);
@@ -663,6 +649,7 @@ namespace Rtx
 
             state.mBuiltSize = size;
             state.mTightness = Tightness::Tight;
+            mFits.push_back(FitBytes{ .mSlot = slot, .mBytes = alignUp(size, StructureStorage::sAlignment) });
 
             mMovedMeshes.addMakingRoom(slot);
             taken += alignUp(size, StructureStorage::sAlignment);

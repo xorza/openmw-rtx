@@ -30,7 +30,8 @@ namespace Rtx
         {
         };
 
-        /// Room is handed out in order, given back where it was, and taken up again by what fits.
+        /// Room is handed out in order, given back where it was, and taken up again by what fits; every block is the
+        /// storage's size, and one that empties goes back while another stands.
         ///
         /// **Hand-computed throughout.** A structure of 1,024 bytes is four units and one of 2,048 is eight, so the
         /// three below fill a sixteen-unit block exactly and the fourth has nowhere to go but a block of its own.
@@ -39,11 +40,11 @@ namespace Rtx
             const Device& device = getDevice();
             StructureStorage storage(
                 VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-                "test structures", StructureStorage::LastBlock::Kept);
+                "test structures", sBlock);
 
-            const StructureRoom first = storage.take(device, 1024, sBlock).value();
-            const StructureRoom second = storage.take(device, 2048, sBlock).value();
-            const StructureRoom third = storage.take(device, 1024, sBlock).value();
+            const StructureRoom first = storage.take(device, 1024).value();
+            const StructureRoom second = storage.take(device, 2048).value();
+            const StructureRoom third = storage.take(device, 1024).value();
 
             EXPECT_EQ(first.mBlock, 0u);
             EXPECT_EQ(second.mBlock, 0u);
@@ -57,7 +58,7 @@ namespace Rtx
             // The block is full to the last unit, so this one starts another — and the buffers
             // already handed out are untouched, which is the whole reason the list grows rather than
             // the buffer.
-            const StructureRoom fourth = storage.take(device, 256, sBlock).value();
+            const StructureRoom fourth = storage.take(device, 256).value();
             EXPECT_EQ(fourth.mBlock, 1u);
             EXPECT_EQ(storage.getOffset(fourth), 0u);
             EXPECT_EQ(storage.getBytes(), 2 * sBlock);
@@ -69,7 +70,7 @@ namespace Rtx
             // past the fourth, 256 bytes into the second block, because a frame in flight may still
             // trace what stood in the hole.
             storage.retire(second, device.getTimeline().getNext());
-            const StructureRoom early = storage.take(device, 2048, sBlock).value();
+            const StructureRoom early = storage.take(device, 2048).value();
             EXPECT_EQ(early.mBlock, 1u);
             EXPECT_EQ(storage.getOffset(early), 256u) << "a room was handed out under the submit it was retired for";
             EXPECT_EQ(storage.getLiveBytes(), sBlock + 256 + 2048) << "a room cooling is still a room";
@@ -77,7 +78,7 @@ namespace Rtx
             // Once a submit carrying that stamp has run, the next of exactly that size takes the
             // hole rather than being appended past everything.
             getPool().submitAndWait([](VkCommandBuffer) {});
-            const StructureRoom again = storage.take(device, 2048, sBlock).value();
+            const StructureRoom again = storage.take(device, 2048).value();
             EXPECT_EQ(again.mBlock, 0u);
             EXPECT_EQ(storage.getOffset(again), 1024u);
             EXPECT_EQ(storage.getBytes(), 2 * sBlock) << "reuse costs no new storage";
@@ -94,80 +95,79 @@ namespace Rtx
             EXPECT_EQ(storage.getLiveBytes(), sBlock);
         }
 
-        /// **The last block goes back once it empties where the storage gives it back, and stays
-        /// where it keeps it.** One structure of a block's size, given back and cooled, empties
-        /// the one block either storage has.
-        TEST_F(RtxStructureStorageTest, theLastBlockGoesBackOnlyWhereTheStorageGivesItBack)
-        {
-            const Device& device = getDevice();
-            const auto emptied = [&](const StructureStorage::LastBlock last) {
-                StructureStorage storage(
-                    VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-                    "test structures", last);
-                const StructureRoom room = storage.take(device, sBlock, sBlock).value();
-                EXPECT_EQ(storage.getBytes(), sBlock);
-                storage.retire(room, device.getTimeline().getNext());
-                getPool().submitAndWait([](VkCommandBuffer) {});
-                storage.reclaim(device.getTimeline().getKnownFinished());
-                EXPECT_EQ(storage.getLiveBytes(), 0u);
-                return storage.getBytes();
-            };
-
-            EXPECT_EQ(emptied(StructureStorage::LastBlock::GivenBack), 0u);
-            EXPECT_EQ(emptied(StructureStorage::LastBlock::Kept), sBlock);
-        }
-
-        /// A structure larger than the block a caller asked for gets a block that holds it.
-        ///
-        /// **A load knows its whole total and asks for it; an arrival does not.** So the size named is a floor, and a
-        /// single mesh larger than it cannot be refused for it.
-        TEST_F(RtxStructureStorageTest, aStructureLargerThanTheBlockAskedForGetsOneThatHoldsIt)
+        /// **The last block stays once it empties**, which the next structure takes without asking the device: one
+        /// structure of a block's size, given back and cooled, empties the one block the storage has.
+        TEST_F(RtxStructureStorageTest, theLastBlockStaysOnceItEmpties)
         {
             const Device& device = getDevice();
             StructureStorage storage(
                 VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-                "test structures", StructureStorage::LastBlock::Kept);
+                "test structures", sBlock);
+            const StructureRoom room = storage.take(device, sBlock).value();
+            EXPECT_EQ(storage.getBytes(), sBlock);
+            storage.retire(room, device.getTimeline().getNext());
+            getPool().submitAndWait([](VkCommandBuffer) {});
+            storage.reclaim(device.getTimeline().getKnownFinished());
+            EXPECT_EQ(storage.getLiveBytes(), 0u);
+            EXPECT_EQ(storage.getBytes(), sBlock);
 
-            const StructureRoom big = storage.take(device, 5 * sBlock, sBlock).value();
+            const StructureRoom again = storage.take(device, 1024).value();
+            EXPECT_EQ(again.mBlock, room.mBlock) << "the block kept was not the one taken";
+            EXPECT_EQ(storage.getBytes(), sBlock);
+        }
+
+        /// A structure larger than the storage's block gets a block that holds it, and the next block is the
+        /// storage's size again.
+        TEST_F(RtxStructureStorageTest, aStructureLargerThanTheBlockGetsOneThatHoldsIt)
+        {
+            const Device& device = getDevice();
+            StructureStorage storage(
+                VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+                "test structures", sBlock);
+
+            const StructureRoom big = storage.take(device, 5 * sBlock).value();
             EXPECT_EQ(big.mBlock, 0u);
             EXPECT_EQ(storage.getOffset(big), 0u);
             EXPECT_EQ(storage.getBytes(), 5 * sBlock);
 
-            // And it did not become the new floor: the next block is still the size asked for.
-            const StructureRoom after = storage.take(device, sBlock, sBlock).value();
+            const StructureRoom after = storage.take(device, 1024).value();
             EXPECT_EQ(after.mBlock, 1u);
             EXPECT_EQ(storage.getBytes(), 6 * sBlock);
         }
 
-        /// A structure the device has no room for is refused, and a block it has no room for is asked for again at the
-        /// structure's own size.
+        /// A structure the device has no room for is refused, and no smaller block is asked for in its place: a block
+        /// is the storage's size or none.
         ///
-        /// **No gap in any block of content's, and then room for one more block.** With the ceiling at nought the
-        /// structure has nowhere at all, and no block joins the list. A load asks for its whole total, here two
-        /// hundred megabytes, an allocation of its own past the room, and is given a block of the structure's four
-        /// units out of the one block content may open.
-        TEST_F(RtxStructureStorageTest, aBlockTheDeviceHasNoRoomForIsAskedForAgainAtTheStructuresSize)
+        /// **No gap in any block of content's, and then room for one block.** With the ceiling at nought the
+        /// structure has nowhere at all, and no block joins the list. Under room for a block of content's block size
+        /// and a megabyte, a storage of such blocks makes one, apart from the pools, which its next structures share;
+        /// a structure past what that block has left asks for a second, which the room does not hold.
+        TEST_F(RtxStructureStorageTest, aBlockIsTheStoragesSizeOrNone)
         {
             const Device& device = getDevice();
             MemoryAllocator& memory = device.getMemory();
             StructureStorage storage(
                 VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-                "test structures", StructureStorage::LastBlock::Kept);
+                "test structures", sContentBlockBytes);
+            {
+                const Testing::NoRoomForContent full(device);
+                const Result<StructureRoom, MemoryRefusal> none = storage.take(device, 1024);
+                ASSERT_FALSE(none.isOk());
+                EXPECT_EQ(none.error(), MemoryRefusal::NoRoom);
+                EXPECT_EQ(storage.getBytes(), 0u) << "a refused block joined the list";
+            }
 
-            const Testing::NoRoomForContent full(device);
+            const Testing::BudgetLimit oneBlock(memory,
+                Testing::budgetAbove(memory, MemoryUse::Structure, sContentBlockBytes + (VkDeviceSize{ 1 } << 20)));
+            const StructureRoom first = storage.take(device, 1024).value();
+            const StructureRoom second = storage.take(device, 1024).value();
+            EXPECT_EQ(first.mBlock, second.mBlock);
+            EXPECT_EQ(storage.getOffset(second), 1024u);
+            EXPECT_EQ(storage.getBytes(), sContentBlockBytes);
 
-            const Result<StructureRoom, MemoryRefusal> none = storage.take(device, 1024, 1024);
-            ASSERT_FALSE(none.isOk());
-            EXPECT_EQ(none.error(), MemoryRefusal::NoRoom);
-            EXPECT_EQ(storage.getBytes(), 0u) << "a refused block joined the list";
-
-            const Testing::BudgetLimit oneBlock(
-                memory, Testing::budgetAbove(memory, MemoryUse::Structure, VkDeviceSize{ 65 } << 20));
-
-            const Result<StructureRoom, MemoryRefusal> room = storage.take(device, 1024, VkDeviceSize{ 200 } << 20);
-            ASSERT_TRUE(room.isOk());
-            EXPECT_EQ(storage.getOffset(room.value()), 0u);
-            EXPECT_EQ(storage.getBytes(), 1024u) << "the block was not made at the structure's size";
+            const Result<StructureRoom, MemoryRefusal> past = storage.take(device, sContentBlockBytes);
+            ASSERT_FALSE(past.isOk()) << "a second block was made past the room";
+            EXPECT_EQ(storage.getBytes(), sContentBlockBytes);
         }
     }
 }

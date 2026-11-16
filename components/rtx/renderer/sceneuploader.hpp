@@ -116,19 +116,29 @@ namespace Rtx
 
     private:
         /// Takes what the device made of a hand-over: reports what it could not stand with the scene's own refusals,
-        /// and stands each mesh's structure in the scene, which is written here and which the backend holds const.
-        /// Answers the refusals, valid until the next take.
+        /// stands each mesh's structure in the scene, which is written here and which the backend holds const, and
+        /// files what each texture and tight copy gives back once it rests. Answers the refusals, valid until the next
+        /// take; what waits on room is served at the next hand-over (`serveWants`).
         std::span<const Refusal> takeAnswer(SceneHolder& scenes, SceneSlot slot, SceneDesc& scene);
 
         /// Counts a hand-over against every stand-in that waits, refusing into `scene` one that waited its most, and
         /// forgets a smaller side that tried its most and those whose slot holds their file no more; asks `prepared` to
-        /// read again the file of each the device's `free` bytes now hold, and hands over again each read — each at
-        /// once where nothing reads them or the hand-over is `settled`, whose description reads and waits.
+        /// read again the file of each the device's `free` bytes now hold and no eviction for it is coming back to
+        /// (`isCooling`), and hands over again each read — each at once where nothing reads them or the hand-over is
+        /// `settled`, whose description reads and waits.
         void serveWaits(SceneDesc& scene, PreparedImages* prepared, bool settled, std::uint64_t free);
 
         /// Frees what rests, the oldest first, until the device's room holds an arrival of `arriving` bytes of textures
-        /// beside the structures it may build, what waits for room and what every short texture lacks of its file.
+        /// beside the structures it may build.
         void evictForRoom(SceneDesc& scene, const ArrivalRoom& room, std::uint64_t arriving);
+
+        /// **Evicts for each want of the last answer what surely leaves it room** (`SceneDesc::evictFor`), once: a want
+        /// evicted for cools until the frames that may still read what went are done, the device has asked again, and
+        /// its answer is read, then is evicted for again if the device still waits, the room taken by another first.
+        void serveWants(SceneDesc& scene);
+
+        /// Whether a want of `kind` for `slot` was evicted for and its room is not yet the device's.
+        bool isCooling(RestKind kind, Index slot) const;
 
         /// Files the textures the last answer named stood short, and forgets those this hand-over described and the
         /// device stood whole: a wait handed over again, or every one under a rebuild, which describes the whole table.
@@ -182,5 +192,21 @@ namespace Rtx
 
         /// The textures waiting for room, each slot once, so no more than the texture table's capacity.
         std::vector<TextureWait> mTextureWaits;
+
+        /// A want evicted for (`serveWants`): whose, and the hand-over from which the room its eviction gave back is
+        /// the device's.
+        struct WantCooling
+        {
+            RestKind mKind = RestKind::Texture;
+            Index mSlot = sNoIndex;
+            std::uint64_t mUntil = 0;
+        };
+
+        /// The wants evicted for whose room is still coming, each kind and slot once: no more than the device waits on,
+        /// the textures' capacity and the meshes waiting.
+        std::vector<WantCooling> mCooling;
+
+        /// The hand-overs made, the clock a want cools by.
+        std::uint64_t mHandOvers = 0;
     };
 }

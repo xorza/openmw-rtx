@@ -17,14 +17,6 @@ arriving textures stood smaller than their files beside that rest. When this lan
   to have memory of its own, the memory type, the heap's budget and usage, each content pool's blocks, allocated
   bytes and largest free range, and what rests by kind. One handheld repack tour then names the cause of the mesh left
   out. As the allocator's essential refusals already name how full the card was.
-- **Then structures sub-allocate in the pools where evicted textures leave room, if the report shows the suspected
-  cause**: structure storage is made at most half a block (32 MiB), the size under which the allocator places a
-  resource in a pool's block and not in memory of its own (`MemoryAllocator::tryAllocate`), so ranges a texture's
-  eviction frees can hold it. Where the driver places structure buffers in a type textures cannot take (RADV lists a
-  buffer-only type), structure storage is held to the types textures take, so the two share pools. VMA's guidance:
-  sub-allocate in blocks, and memory of its own only for what blocks cannot hold. Refused: room counted by kind and
-  evicted for until there, which frees much for little, since a small texture's going rarely empties a block;
-  defragmentation, refused before (`research/2026-10-22-content-pool-after-a-long-walk.md`).
 - **An arrival frees what it needs, and a texture stood short is handed over again at its full side once the room
   is back, by the user's decision**: the eviction ahead of a hand-over is sized from the arrival at hand — its
   textures' full sides, and its structures as before — not from the largest arrival so far; what still does not fit
@@ -46,13 +38,13 @@ the run's peak in the report (`RunRecord::noteHostMemory`); the last refused con
 room (`RefusedTake`, `MemoryAllocator::getLastRefused`), logged when the device answers a fresh refusal, beside what
 rests of each kind; the textures the device stood short (`DeviceAnswer::mShort`, `ShortTexture`), waited on and read
 again before they are handed over whole (`SceneUploader::TextureWait`); the eviction sized from the arrival's
-descriptions, beside the most any arrival's structures took (`SceneUploader::evictForRoom`).
+descriptions, beside the most any arrival's structures took (`SceneUploader::evictForRoom`); the eviction for what the
+device waits on, and the structure storages' blocks of content's size, both in `docs/architecture.md` ("What waits is
+given the resting row that surely leaves it room", "A bottom level is built loose and copied out tight").
 
 ## Steps
 
-1. One handheld repack tour at the tip with both reports; the figures go to a dated research note, and the steps below
-   are taken or refused by them.
-2. If the report shows a structure refused for want of the heap's room beyond the blocks: structure storage held at
-   half a block, and to the types textures take; the bottom-level store's tests over the new bound.
-3. The host's mitigation the figures point at, proposed with them before it is made.
-4. Tours of the three contents on the desk, the handheld and Windows; `.notes/ISSUES.md` rewritten from them.
+1. Handheld repack and PBR tours with the eviction for what waits, which meet no refusal; the figures added to
+   `research/2026-11-16-handheld-content-pool-fragmentation.md`.
+2. The host's mitigation the figures point at, proposed with them before it is made.
+3. Tours of the three contents on the desk, the handheld and Windows; `.notes/ISSUES.md` rewritten from them.

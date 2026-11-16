@@ -99,6 +99,11 @@ namespace Rtx
         /// a static mesh rest, and what its rest holds (`MeshRange::mStoodBytes`).
         void stand(Index mesh, std::uint64_t structureBytes);
 
+        /// What `mesh`'s structure gives back of the storage its tight copy stands in, `bytes`, the device's answer
+        /// (`DeviceAnswer::mMeshFits`): the hole its eviction leaves for a structure the device waits on. Nought from
+        /// each build until its copy lands.
+        void fit(Index mesh, std::uint64_t bytes);
+
         /// The meshes that rest, oldest first (`RestQueue`): what the scene frees across its tables.
         const RestQueue& getResting() const { return mResting; }
 
@@ -141,6 +146,10 @@ namespace Rtx
 
         /// Frees the mesh that has rested longest, which the scene asks for across its tables.
         void releaseOldest(DeformerTable& deformers);
+
+        /// Frees the mesh that has rested longest of those whose eviction gives back at least `hole` where a structure
+        /// the device waits on can take it, and answers whether one did (`RestQueue::firstFitting`).
+        bool releaseFitting(DeformerTable& deformers, std::uint64_t hole);
 
         /// Files the meshes that came to rest since the last, by their slots, at the clock `compact` was last given.
         void settleResting() { mResting.settle(mClock, placeOf()); }

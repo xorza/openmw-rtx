@@ -45,8 +45,8 @@ namespace Rtx::Testing
 
         VkExtent2D getPictureRoom() const;
 
-        /// What `slot`'s loose bottom levels stand in, `BottomLevelStore::getLooseBytes`: nought
-        /// where the slot holds nothing.
+        /// What `slot`'s loose bottom levels occupy, `BottomLevelStore::getLooseLiveBytes`: nought
+        /// where none stands loose or the slot holds nothing.
         VkDeviceSize getLooseStructureBytes(SceneSlot slot) const;
 
         /// Reserves the frame's room as a renderer made with `modes` as its

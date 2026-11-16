@@ -249,17 +249,19 @@ namespace Rtx
             stage();
             build(store, late);
 
-            // **A structure is said at its build and not at its copy** (`takeResized`): the build's size is the same
+            // **A structure is said at its build and not at its copy** (`takeAnswer`): the build's size is the same
             // in every process, and the copy's lands whenever the device answers, so a rest bounded on it would free
             // other rows in a process whose queue waits behind the host.
-            std::vector<StoodMesh> resized;
-            store.takeResized(resized);
-            EXPECT_EQ(resized.size(), late.size() + 1) << "the first grid and the three late ones, at their builds";
-            resized.clear();
+            DeviceAnswer answer;
+            store.takeAnswer(answer);
+            EXPECT_EQ(answer.mMeshes.size(), late.size() + 1)
+                << "the first grid and the three late ones, at their builds";
+            EXPECT_TRUE(answer.mMeshFits.empty()) << "a structure standing loose gave back room a copy takes";
+            answer.clear();
 
             const SlotSet& moved = place(store);
-            store.takeResized(resized);
-            EXPECT_TRUE(resized.empty()) << "a copy made tight said its size";
+            store.takeAnswer(answer);
+            EXPECT_TRUE(answer.mMeshes.empty()) << "a copy made tight said its size";
             EXPECT_TRUE(moved.has(first)) << "a question lost with the pool it was asked through";
             for (const Index grid : late)
                 EXPECT_TRUE(moved.has(grid)) << "grid " << grid << " built beside the pool's growth";
@@ -268,6 +270,29 @@ namespace Rtx
 
             EXPECT_TRUE(place(store).empty()) << "something was copied twice";
             EXPECT_EQ(store.getCompactableBytes(), 0u) << "an answer outlived its copy";
+
+            // **What each copy gives back once it rests is its room**: the four copied, and nothing else, whose rooms
+            // are every unit the kept storage holds once the loose rooms are given back.
+            std::vector<Index> fitted;
+            VkDeviceSize fits = 0;
+            for (const FitBytes& fit : answer.mMeshFits)
+            {
+                fitted.push_back(fit.mSlot);
+                fits += fit.mBytes;
+                EXPECT_EQ(fit.mBytes % StructureStorage::sAlignment, 0u) << "a room not in the storage's units";
+            }
+            std::ranges::sort(fitted);
+            std::vector<Index> copied{ first, late[0], late[1], late[2] };
+            std::ranges::sort(copied);
+            EXPECT_EQ(fitted, copied);
+            getDevice().waitIdle();
+            getDevice().collectIdle();
+            EXPECT_TRUE(place(store).empty());
+            EXPECT_EQ(store.getLooseLiveBytes(), 0u);
+            EXPECT_EQ(store.getLiveBytes(), fits);
+            answer.clear();
+            store.takeAnswer(answer);
+            EXPECT_TRUE(answer.mMeshFits.empty()) << "a copy's room said twice";
 
             // Before the store goes: a buried structure gives its room back to the store's storage.
             getDevice().waitIdle();
@@ -278,20 +303,20 @@ namespace Rtx
         /// row placing it names none and the top level skips it, and the meshes built before it stand.
         ///
         /// **Room for the frame's memory and none for content's**: the build's scratch and staged positions are the
-        /// frame's and are made, and the structure's room is content's and is refused. The first grid's block was made
-        /// to its size, so the second has nowhere to go but a block of its own.
+        /// frame's and are made, and the structure's room is content's and is refused. The store's blocks are a unit,
+        /// so the first grid's block is its size and the second has nowhere to go but a block of its own.
         ///
         /// **Room that is coming is waited for**: a texture of 64 bytes rests, which the scene's owner gives back for
-        /// what waits, so the mesh refused then waits, wanting its structure's bytes, and is not refused; once the room
-        /// is there, `buildWaiting` stands it and it wants nothing; and where it is not there for `sMostRoomWaits`
-        /// placements, the mesh is refused.
+        /// what waits, so the mesh refused then waits and is not refused; a loose build waits for the copies, and wants
+        /// no resting mesh's room. Once the room is there, `buildWaiting` stands it and it waits no more; and where it
+        /// is not there for `sMostRoomWaits` placements, the mesh is refused.
         TEST_F(RtxBottomLevelStoreTest, aMeshTheDeviceHasNoRoomForIsLeftOutAndPlacesNothing)
         {
             const std::array<Index, 3> grids{ addGrid(mScene, 64, 0.0f), addGrid(mScene, 64, 1.0f),
                 addGrid(mScene, 64, 2.0f) };
             stage();
 
-            BottomLevelStore store(getDevice());
+            BottomLevelStore store(getDevice(), sStructureBuildRoom, StructureStorage::sAlignment);
             build(store, std::span(grids).subspan(0, 1));
             EXPECT_FALSE(store.wasRefusedRoom());
 
@@ -320,7 +345,7 @@ namespace Rtx
             EXPECT_TRUE(store.stands(grids[0])) << "a mesh built before the device ran out was taken down";
             EXPECT_NE(store.getAddress(grids[0]), 0u);
 
-            EXPECT_EQ(store.getWanted(), 0u) << "a mesh no room is coming for waits for it";
+            EXPECT_FALSE(store.isWaiting(grids[1])) << "a mesh no room is coming for waits for it";
 
             build(store, std::span(grids).subspan(1, 1));
             EXPECT_TRUE(store.stands(grids[1]));
@@ -342,8 +367,13 @@ namespace Rtx
             }
             EXPECT_EQ(refused.size(), 1u) << "a mesh room is coming for was refused";
             EXPECT_FALSE(store.stands(grids[1]));
-            const VkDeviceSize wanted = store.getWanted();
-            EXPECT_GT(wanted, 0u);
+            EXPECT_TRUE(store.isWaiting(grids[1]));
+            DeviceAnswer answer;
+            store.takeAnswer(answer);
+            EXPECT_TRUE(answer.mWants.empty()) << "a loose build wanted a resting mesh's room";
+            const auto firstBuilt = std::ranges::find(answer.mMeshes, grids[0], &StoodMesh::mMesh);
+            ASSERT_NE(firstBuilt, answer.mMeshes.end());
+            const std::uint64_t gridBytes = firstBuilt->mStructureBytes;
 
             {
                 Batch batch(getPool());
@@ -352,19 +382,19 @@ namespace Rtx
                 batch.flush();
             }
             EXPECT_TRUE(store.stands(grids[1]));
-            EXPECT_EQ(store.getWanted(), 0u);
+            EXPECT_FALSE(store.isWaiting(grids[1]));
             EXPECT_EQ(refused.size(), 1u);
 
-            // **What each structure takes is said once** (`takeResized`): the waiting grid's, its own size, among
-            // those built since the store began, and nothing at the next take.
-            std::vector<StoodMesh> resized;
-            store.takeResized(resized);
-            const auto waited = std::ranges::find(resized, grids[1], &StoodMesh::mMesh);
-            ASSERT_NE(waited, resized.end());
-            EXPECT_EQ(waited->mStructureBytes, wanted);
-            resized.clear();
-            store.takeResized(resized);
-            EXPECT_TRUE(resized.empty()) << "a structure's size said twice";
+            // **What each structure takes is said once** (`takeAnswer`): the waiting grid's, the first grid's size,
+            // whose geometry it shares but for its height, and nothing at the next take.
+            answer.clear();
+            store.takeAnswer(answer);
+            const auto waited = std::ranges::find(answer.mMeshes, grids[1], &StoodMesh::mMesh);
+            ASSERT_NE(waited, answer.mMeshes.end());
+            EXPECT_EQ(waited->mStructureBytes, gridBytes);
+            answer.clear();
+            store.takeAnswer(answer);
+            EXPECT_TRUE(answer.mMeshes.empty()) << "a structure's size said twice";
 
             // **And for `sMostRoomWaits` placements at most**, the texture resting all the while: the third grid, which
             // no structure let go of makes room for, waits for a room that does not come back, and is refused on the
@@ -386,11 +416,92 @@ namespace Rtx
                         0u);
                     batch.flush();
                     EXPECT_EQ(refused.size(), placement < sMostRoomWaits ? 1u : 2u) << placement;
-                    EXPECT_EQ(store.getWanted() > 0, placement < sMostRoomWaits) << placement;
+                    EXPECT_EQ(store.isWaiting(grids[2]), placement < sMostRoomWaits) << placement;
                 }
             }
             EXPECT_EQ(refused[1].mWhy, "no device memory is left for it");
             EXPECT_FALSE(store.stands(grids[2]));
+
+            // Before the store goes: a buried structure gives its room back to the store's storage.
+            getDevice().waitIdle();
+            getDevice().collectIdle();
+        }
+
+        /// **A copy the storage has no room for wants a resting mesh's room as large as its own** (`takeAnswer`). In a
+        /// store of blocks a unit long, two grids of sixty-four are copied into blocks of their own sizes, each giving
+        /// back its room once it rests; a third of the same geometry, its copy refused under no room for content, wants
+        /// a hole of that room, said while its copy is owed and once. A body built to be refitted stands in that
+        /// storage too, and refused while a texture rests, wants a hole of its build.
+        TEST_F(RtxBottomLevelStoreTest, aCopyTheStorageHasNoRoomForWantsARoomAsLargeAsItsOwn)
+        {
+            const std::array<Index, 3> grids{ addGrid(mScene, 64, 0.0f), addGrid(mScene, 64, 1.0f),
+                addGrid(mScene, 64, 2.0f) };
+            stage();
+
+            BottomLevelStore store(getDevice(), sStructureBuildRoom, StructureStorage::sAlignment);
+            build(store, std::span(grids).subspan(0, 2));
+            EXPECT_EQ(place(store).getSlots().size(), 2u);
+            DeviceAnswer answer;
+            store.takeAnswer(answer);
+            ASSERT_EQ(answer.mMeshFits.size(), 2u);
+            const std::uint64_t room = answer.mMeshFits[0].mBytes;
+            EXPECT_EQ(answer.mMeshFits[1].mBytes, room) << "one geometry copied to two sizes";
+            EXPECT_TRUE(answer.mWants.empty());
+
+            build(store, std::span(grids).subspan(2, 1));
+            {
+                const Testing::NoRoomForContent full(getDevice());
+                EXPECT_TRUE(place(store).empty()) << "a copy was made with no room for it";
+            }
+            answer.clear();
+            store.takeAnswer(answer);
+            EXPECT_EQ(answer.mWants,
+                (std::vector<RoomWant>{ RoomWant{ .mKind = RestKind::Mesh, .mSlot = grids[2], .mHole = room } }));
+            answer.clear();
+            store.takeAnswer(answer);
+            EXPECT_TRUE(answer.mWants.empty()) << "a want said twice";
+
+            EXPECT_TRUE(place(store).has(grids[2])) << "the copy owed was not made once the room was there";
+
+            const std::vector<osg::Vec3f> corners{ { 0, 0, 0 }, { 1, 0, 0 }, { 0, 1, 0 } };
+            const std::vector<osg::Vec3f> up(3, osg::Vec3f(0, 0, 1));
+            const std::vector<std::uint32_t> triangle{ 0, 1, 2 };
+            const Index body = Testing::addOneBoneBody(
+                mScene, MeshArrays{ .mPositions = corners, .mNormals = up, .mIndices = triangle })
+                                   .mMesh;
+            const Index resting = mScene.textures().add(VFS::Path::NormalizedView("textures/tx_resting.dds"));
+            mScene.textures().stand(resting, 64, false);
+            mScene.drop(mScene.holdTexture(resting));
+            mScene.compact();
+            stage();
+            std::vector<Refusal> refused;
+            {
+                const Testing::NoRoomForContent full(getDevice());
+                Batch batch(getPool());
+                store.build(batch, mScene, std::span(&body, 1), mPoses.at(FrameSlot{}), mPositions, mIndices, 0,
+                    BuildCompaction::Streamed, refused);
+                batch.flush();
+            }
+            EXPECT_TRUE(refused.empty()) << "a body room is coming for was refused";
+            answer.clear();
+            store.takeAnswer(answer);
+            ASSERT_EQ(answer.mWants.size(), 1u);
+            const RoomWant bodyWant = answer.mWants[0];
+            {
+                Batch batch(getPool());
+                EXPECT_EQ(
+                    store.buildWaiting(batch, mScene, mPoses.at(FrameSlot{}), mPositions, mIndices, 0, refused), 1u);
+                batch.flush();
+            }
+            answer.clear();
+            store.takeAnswer(answer);
+            const auto built = std::ranges::find(answer.mMeshes, body, &StoodMesh::mMesh);
+            ASSERT_NE(built, answer.mMeshes.end());
+            EXPECT_EQ(bodyWant,
+                (RoomWant{ .mKind = RestKind::Mesh,
+                    .mSlot = body,
+                    .mHole = alignUp(built->mStructureBytes, StructureStorage::sAlignment) }));
+            EXPECT_TRUE(answer.mWants.empty()) << "a body that stands wanted room";
 
             // Before the store goes: a buried structure gives its room back to the store's storage.
             getDevice().waitIdle();
@@ -428,7 +539,7 @@ namespace Rtx
         /// **Every structure leaves the loose storage, which then holds nothing**: a body built to be refitted is
         /// built where it stays, so building it takes no loose room, and two grids of sixty-four and one of a single
         /// quad, whose tight copy the driver may answer no smaller for, are each copied out, tight or as they stand,
-        /// and the loose block they were built in goes back to the device once the copies have run.
+        /// and the loose block they were built in holds nothing once the copies have run, and stays for the next.
         TEST_F(RtxBottomLevelStoreTest, everyStructureLeavesTheLooseStorageWhichThenHoldsNothing)
         {
             const std::vector<osg::Vec3f> corners{ { 0, 0, 0 }, { 1, 0, 0 }, { 0, 1, 0 } };
@@ -460,7 +571,8 @@ namespace Rtx
             getDevice().waitIdle();
             getDevice().collectIdle();
             EXPECT_TRUE(place(store).empty());
-            EXPECT_EQ(store.getLooseBytes(), 0u) << "a loose block outlived every structure in it";
+            EXPECT_EQ(store.getLooseLiveBytes(), 0u) << "a loose structure outlived its copy";
+            EXPECT_EQ(store.getLooseBytes(), sContentBlockBytes) << "the loose block was not kept";
 
             // Before the store goes: a buried structure gives its room back to the store's storage.
             getDevice().waitIdle();
@@ -511,7 +623,8 @@ namespace Rtx
 
         /// **A settled build returns with every structure copied out of the loose storage**, run by run: four grids of
         /// sixty-four under a room of a byte are four runs, each built, copied and given back before the next. Nothing
-        /// is left loose, so the first placement after copies nothing. Streamed, the same grids stand loose until a
+        /// is left loose, so the first placement after copies nothing, and the copies, each a block of its own size
+        /// in a store of blocks a unit long, leave no room between them. Streamed, the same grids stand loose until a
         /// placement copies them.
         TEST_F(RtxBottomLevelStoreTest, aSettledBuildReturnsWithEveryStructureCopiedOut)
         {
@@ -520,10 +633,11 @@ namespace Rtx
             stage();
 
             {
-                BottomLevelStore store(getDevice(), 1);
+                BottomLevelStore store(getDevice(), 1, StructureStorage::sAlignment);
                 build(store, grids, BuildCompaction::Settled);
-                EXPECT_EQ(store.getLooseBytes(), 0u) << "a loose structure outlived a settled build";
-                EXPECT_EQ(store.getLiveBytes(), store.getBytes()) << "copies left room between them";
+                EXPECT_EQ(store.getLooseLiveBytes(), 0u) << "a loose structure outlived a settled build";
+                EXPECT_EQ(store.getLiveBytes(), store.getBytes() - store.getLooseBytes())
+                    << "copies left room between them";
                 for (const Index grid : grids)
                 {
                     EXPECT_TRUE(store.stands(grid)) << "grid " << grid;
@@ -542,12 +656,10 @@ namespace Rtx
             getDevice().collectIdle();
         }
 
-        /// **A block made part way through an arrival covers what is still to place.** Two grids of sixty-four make
-        /// one block of `2s`, `s` a grid's aligned room; one goes, leaving a hole of `s`. An arrival of a small grid
-        /// and another of sixty-four puts the small one into the hole, and the large one then fits nowhere: its block
-        /// is `s`, the rest of the arrival, and the storage `3s`. A block of the whole arrival would be `s` plus the
-        /// small grid's room again, stranded in a block no structure fills.
-        TEST_F(RtxBottomLevelStoreTest, aBlockMadeMidArrivalCoversWhatIsStillToPlace)
+        /// **Every block is content's block size**, apart from the pools textures stand in: two grids of sixty-four
+        /// stand loose in one, one goes, and an arrival of a small grid and another of sixty-four takes the hole it
+        /// left and the block's rest, and no second block.
+        TEST_F(RtxBottomLevelStoreTest, everyBlockIsContentsBlockAndAnArrivalTakesItsHolesFirst)
         {
             const std::array<Index, 4> grids{ addGrid(mScene, 64, 0.0f), addGrid(mScene, 64, 1.0f),
                 addGrid(mScene, 8, 2.0f), addGrid(mScene, 64, 3.0f) };
@@ -555,9 +667,7 @@ namespace Rtx
 
             BottomLevelStore store(getDevice());
             build(store, std::span(grids).subspan(0, 2));
-            const VkDeviceSize pair = store.getBytes();
-            ASSERT_EQ(pair % 2, 0u);
-            const VkDeviceSize grid = pair / 2;
+            EXPECT_EQ(store.getBytes(), sContentBlockBytes);
 
             // The room comes back once the submit its structure was buried under has run.
             store.release(std::span(grids).subspan(0, 1));
@@ -566,8 +676,7 @@ namespace Rtx
             getDevice().collectIdle();
 
             build(store, std::span(grids).subspan(2, 2));
-            EXPECT_EQ(store.getBytes(), pair + grid)
-                << "the block made for the large grid held the small one's room too";
+            EXPECT_EQ(store.getBytes(), sContentBlockBytes) << "an arrival made a block beside the room it had";
 
             // Before the store goes: a buried structure gives its room back to the store's storage.
             getDevice().waitIdle();

@@ -503,14 +503,13 @@ namespace Rtx
         }
     }
 
-    std::optional<ArrivalRoom> VulkanRenderer::getArrivalRoom(const SceneSlot slot) const
+    std::optional<ArrivalRoom> VulkanRenderer::getArrivalRoom(SceneSlot /*slot*/) const
     {
-        const DeviceScene& held = mScenes.at(slot);
+        // The device's room, which every slot's content shares.
         const VideoBudget video = mDevice.getMemory().getVideoBudget();
-        return ArrivalRoom{ .mFree = mDevice.getMemory().getRoom(MemoryUse::Texture),
-            .mBudget = video.mBudget,
-            .mHeld = video.mHeld,
-            .mWanted = held.getWanted() };
+        return ArrivalRoom{
+            .mFree = mDevice.getMemory().getRoom(MemoryUse::Texture), .mBudget = video.mBudget, .mHeld = video.mHeld
+        };
     }
 
     void VulkanRenderer::placeScene(const SceneSlot slot, const SceneDesc& scene)

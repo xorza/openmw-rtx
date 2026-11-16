@@ -372,8 +372,20 @@ order. The folders keep the core's rule, in this order, with `VulkanRenderer` an
   which matches only while its template lives.
 - **Content the device has no room for waits while room is coming**, a bounded number of hand-overs, then is refused.
   Refused: headroom alone, which an arrival larger than any before outruns; a stand-in for good.
+- **What waits is given the resting row that surely leaves it room**, by the user's decision: each want the device
+  answers frees the oldest resting row of its kind that gives back at least the hole it needs where it can take it,
+  else the oldest until its bytes are given back, once until its room is the device's again (`SceneDesc::evictFor`,
+  `SceneUploader::serveWants`), as Microsoft's residency guidance and Dawn's residency manager free and try again. Room
+  counted in bytes says nothing of where a hole lands: the handheld refused a thousand small takes with a hundred
+  megabytes free in pieces (`research/2026-11-16-handheld-content-pool-fragmentation.md`). Refused: room counted by
+  the pools' ranges, a walk of every allocation VMA keeps for rare use; defragmentation, a texture's descriptor and a
+  structure's address rewritten at each move; pools by size class, which reduce fragmentation and starve a class at the
+  ceiling beside another's room.
 - **A bottom level is built loose and copied out tight**, as RTXMU does, and the world's build compacts before its
-  textures are made, as NVIDIA's `buildBlas` does.
+  textures are made, as NVIDIA's `buildBlas` does. **Both storages take blocks of content's block size, apart from the
+  pools textures stand in, and keep their last** (`StructureStorage`), by the user's decision, as NVIDIA pools
+  structures in large containers of their own: a block sized to what a build had left cut ranges of every size between
+  textures that stay. Refused: blocks sized to the build; the loose block given back, made again at the next arrival.
 - Refused, by the user's decision: textures shared across scenes; a residency manager; 16-bit indices; one bottom level
   per template (`research/2026-10-22-instances-per-placed-model.md`).
 - **The glossy lobe's images exist on every install**, by the user's decision, since a scan cannot see a map a model

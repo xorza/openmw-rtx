@@ -17,6 +17,7 @@
 #include <components/vfs/pathutil.hpp>
 
 #include "deformertable.hpp"
+#include "deviceanswer.hpp"
 #include "foldedshape.hpp"
 #include "light.hpp"
 #include "material.hpp"
@@ -282,12 +283,22 @@ namespace Rtx
         /// reported freed by its table, its device image the backend's to drop.
         std::uint64_t evictResting(std::uint64_t room = 0);
 
+        /// **Frees, for each of `wants`, what surely leaves it room** (`docs/architecture.md`, "What waits is given the
+        /// resting row that surely leaves it room"): the row
+        /// that has rested longest of its kind's that gives back at least its hole where it can take it, or, with
+        /// none, what rested longest across the tables until its hole is given back, holes that may join; answers the
+        /// bytes given back, each slot reported freed by its table.
+        std::uint64_t evictFor(std::span<const RoomWant> wants);
+
         /// The bytes everything that rests stands on the device.
         std::uint64_t getRestingBytes() const;
 
         /// What the device stands of `mesh`'s bottom-level structure, the device's answer (`DeviceAnswer`): what lets a
         /// static mesh rest, and what its rest holds.
         void standMesh(Index mesh, std::uint64_t structureBytes);
+
+        /// What the device's tight copy of `mesh`'s structure gives back once it rests (`MeshTable::fit`).
+        void fitMesh(Index mesh, std::uint64_t bytes);
 
         /// Forgets what arrived and what was freed, which a hand-over does once it has read both.
         void clearArrivals();
@@ -299,6 +310,10 @@ namespace Rtx
         void noteSwept();
 
     private:
+        /// Frees the row that has rested longest across the tables, a texture first where both were filed at one tick,
+        /// and answers the bytes it stood; something rests, filed.
+        std::uint64_t releaseOldestResting();
+
         /// Where the frame stands: open to the walks that fill its lists, walked and owing the
         /// sweep after it, or handed to a backend that has read them.
         ///

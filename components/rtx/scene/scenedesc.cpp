@@ -346,25 +346,49 @@ namespace Rtx
             return getRestingBytes() > mRestLimit.mBytes && (beyondRoom == 0 || beyondRoom < mRestLimit.mStep);
         };
         while (getRestingBytes() > 0 && (freed < room || pastLimit()))
-        {
-            const std::uint64_t before = getRestingBytes();
-            const Index texture = mTextures.getResting().first();
-            const Index mesh = mMeshes.getResting().first();
-            const bool textureFirst = mesh == sNoIndex
-                || (texture != sNoIndex
-                    && mTextures.getRows()[texture].mRest.mFiledAt <= mMeshes.getRows()[mesh].mRest.mFiledAt);
-            if (textureFirst)
-                mTextures.releaseOldest();
-            else
-                mMeshes.releaseOldest(mDeformers);
-            freed += before - getRestingBytes();
-        }
+            freed += releaseOldestResting();
         return freed;
+    }
+
+    std::uint64_t SceneDesc::releaseOldestResting()
+    {
+        const std::uint64_t before = getRestingBytes();
+        const Index texture = mTextures.getResting().first();
+        const Index mesh = mMeshes.getResting().first();
+        const bool textureFirst = mesh == sNoIndex
+            || (texture != sNoIndex
+                && mTextures.getRows()[texture].mRest.mFiledAt <= mMeshes.getRows()[mesh].mRest.mFiledAt);
+        if (textureFirst)
+            mTextures.releaseOldest();
+        else
+            mMeshes.releaseOldest(mDeformers);
+        return before - getRestingBytes();
+    }
+
+    std::uint64_t SceneDesc::evictFor(const std::span<const RoomWant> wants)
+    {
+        // Filed first, so nothing waits unordered; and nothing past the hole, the limit's pace being the arrivals'.
+        mTextures.settleResting();
+        mMeshes.settleResting();
+        const std::uint64_t before = getRestingBytes();
+        for (const RoomWant& want : wants)
+        {
+            const bool fitted = want.mKind == RestKind::Texture ? mTextures.releaseFitting(want.mHole)
+                                                                : mMeshes.releaseFitting(mDeformers, want.mHole);
+            for (std::uint64_t freed = 0; !fitted && freed < want.mHole && getRestingBytes() > 0;)
+                freed += releaseOldestResting();
+        }
+        return before - getRestingBytes();
     }
 
     std::uint64_t SceneDesc::getRestingBytes() const
     {
         return mTextures.getResting().getBytes() + mMeshes.getResting().getBytes();
+    }
+
+    void SceneDesc::fitMesh(const Index mesh, const std::uint64_t bytes)
+    {
+        mMeshes.fit(mesh, bytes);
     }
 
     void SceneDesc::standMesh(const Index mesh, const std::uint64_t structureBytes)

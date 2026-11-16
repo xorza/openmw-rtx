@@ -66,6 +66,10 @@ namespace Rtx
             const TextureData& data, std::uint32_t first, std::string_view name,
             std::vector<VkBufferImageCopy>& regions, MemoryUse use);
 
+        /// The image `standFile` makes of `data` from level `first` on: what a texture stood short asks of the room
+        /// to stand whole.
+        static ImageDescription describeFile(const TextureData& data, std::uint32_t first);
+
         /// Stands a sprite's light bake in this one, which is empty: shaped like `source`, made from its alpha, under
         /// the neutral map. `source` stands, uploaded in an earlier batch or in `arrival`'s run, which records every
         /// copy ahead of every bake.
@@ -322,6 +326,10 @@ namespace Rtx
         /// stand-in, where the texture cannot stand.
         void stand(Batch& batch, TextureArrival& arrival, const TextureData& texture, std::uint32_t first,
             DeviceAnswer& answer, WhenRoomless whenRoomless);
+
+        /// What a file the device stood short waits on (`RoomWant`): the hole its whole image at the side the device
+        /// allows needs in the pools textures stand in.
+        RoomWant wantOf(const TextureData& texture) const;
 
         /// Queues a write of `image` into `set` at `binding[slot]`, behind the image info the write
         /// names by address.

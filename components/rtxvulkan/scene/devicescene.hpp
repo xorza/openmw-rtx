@@ -125,9 +125,6 @@ namespace Rtx
         /// mesh's structure took at its build — `SceneHolder::takeAnswer`.
         void takeAnswer(DeviceAnswer& into);
 
-        /// What the structures waiting for room want, and what the last build's took (`BottomLevelStore`).
-        VkDeviceSize getWanted() const { return mAcceleration.getWanted(); }
-
         /// Reads all of `stats`: at every placement, a build and an extension. Every figure is a
         /// total kept as it changes, so a placement on the frame path reads them all.
         void readStats(SceneStats& stats) const;

@@ -203,6 +203,22 @@ namespace Rtx
         row.mStoodMade = made;
     }
 
+    void TextureTable::fit(const Index slot, const std::uint64_t bytes)
+    {
+        assert((isLive(slot) || rowAt(slot).mRest.mResting) && "a slot the table does not hold fitted");
+        mResting.fit(slot, bytes, placeOf());
+    }
+
+    bool TextureTable::releaseFitting(const std::uint64_t hole)
+    {
+        settleResting();
+        const Index fitting = mResting.firstFitting(hole, placeOf());
+        if (fitting == sNoIndex)
+            return false;
+        release(fitting);
+        return true;
+    }
+
     void TextureTable::releaseOldest()
     {
         settleResting();

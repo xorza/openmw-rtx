@@ -40,44 +40,29 @@ namespace Rtx
         /// block for — sums them in this unit.
         static constexpr VkDeviceSize sAlignment = sStructureOffsetAlignment;
 
-        /// What a storage does with its last block once that empties too.
-        enum class LastBlock : std::uint8_t
-        {
-            /// Kept, so a scene that empties and fills does not ask for it back on the next arrival.
-            Kept,
-
-            /// Given back like any other: a storage every structure leaves, whose kept block would
-            /// be the largest arrival's for as long as the scene stood.
-            GivenBack,
-        };
-
         /// @param usage what a block's buffer is created with, which is what says who may be placed
         ///        in it. What is stored this way is an opaque object the driver puts at a 256-byte
         ///        offset in a buffer the application owns.
         /// @param name what a block is called in a capture, numbered from there.
-        /// @param last what becomes of the last block once it empties.
-        StructureStorage(VkBufferUsageFlags usage, std::string name, LastBlock last);
+        /// @param blockBytes how large a block is made, and larger only for a structure past it.
+        StructureStorage(VkBufferUsageFlags usage, std::string name, VkDeviceSize blockBytes);
 
         /// Pinned: every structure placed here keeps a pointer to it, to give its room back.
         StructureStorage(const StructureStorage&) = delete;
         StructureStorage& operator=(const StructureStorage&) = delete;
         ~StructureStorage() = default;
 
-        /// Room for a structure of `bytes`, taken from the first block that has it, or why the
+        /// Room for a structure of `bytes`, taken from the first block that has it, else from a new block, or why the
         /// device has none: a block is memory a mesh can be left out for — `MemoryUse::Structure`.
-        ///
-        /// @param least how large to make a new block where none of the existing ones can hold it:
-        ///        what of the caller's build is still to place, this structure's room included. A
-        ///        device with no room for that much makes one only as large as the structure.
-        Result<StructureRoom, MemoryRefusal> take(const Device& device, VkDeviceSize bytes, VkDeviceSize least);
+        Result<StructureRoom, MemoryRefusal> take(const Device& device, VkDeviceSize bytes);
 
         /// Takes a structure's room back once the timeline passes `until`, which is the stamp its
         /// handle was buried with. `AccelerationStructure`'s end, and nothing else.
         void retire(const StructureRoom& room, std::uint64_t until);
 
         /// Hands out again every room whose stamp is at or below `finished`, and gives a block to
-        /// the device where that was the last room in it. Asked by `take`, and once a frame by the
-        /// store, so a block empties without waiting for an arrival.
+        /// the device where that was the last room in it and another block stands. Asked by `take`,
+        /// and once a frame by the store, so a block empties without waiting for an arrival.
         void reclaim(std::uint64_t finished);
 
         VkBuffer getBuffer(const StructureRoom& room) const { return mBlocks.at(room.mBlock).mBuffer.getHandle(); }
@@ -126,6 +111,6 @@ namespace Rtx
 
         VkBufferUsageFlags mUsage = 0;
         std::string mName;
-        LastBlock mLast;
+        VkDeviceSize mBlockBytes = 0;
     };
 }

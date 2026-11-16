@@ -99,6 +99,12 @@ namespace Rtx::Testing
             mStanding.clear();
             into.mShort.insert(into.mShort.end(), mShort.begin(), mShort.end());
             mShort.clear();
+            into.mWants.insert(into.mWants.end(), mWants.begin(), mWants.end());
+            mWants.clear();
+            into.mTextureFits.insert(into.mTextureFits.end(), mTextureFits.begin(), mTextureFits.end());
+            mTextureFits.clear();
+            into.mMeshFits.insert(into.mMeshFits.end(), mMeshFits.begin(), mMeshFits.end());
+            mMeshFits.clear();
         }
 
         /// What the device has room for, which a test sets to be what the next hand-over reads.
@@ -259,11 +265,15 @@ namespace Rtx::Testing
         std::uint64_t mFrames = 0;
         std::uint64_t mSkipped = 0;
 
-        /// What `takeAnswer` answers, as a device would after a hand-over: what it refused, and what each mesh's
-        /// structure takes.
+        /// What `takeAnswer` answers, as a device would after a hand-over: what it refused, what each mesh's structure
+        /// takes, what it stood short, what waits on room, and what each texture and tight copy gives back once it
+        /// rests.
         std::vector<Rtx::Refusal> mRefusing;
         std::vector<Rtx::StoodMesh> mStanding;
         std::vector<Rtx::ShortTexture> mShort;
+        std::vector<Rtx::RoomWant> mWants;
+        std::vector<Rtx::FitBytes> mTextureFits;
+        std::vector<Rtx::FitBytes> mMeshFits;
 
         /// What `getArrivalRoom` answers: unbounded unless a test bounds it.
         std::optional<Rtx::ArrivalRoom> mArrivalRoom;

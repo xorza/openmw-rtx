@@ -406,9 +406,11 @@ namespace Rtx
             const Testing::Model first = Testing::addModel(scene, VFS::Path::NormalizedView("textures/tx_first.dds"));
             EXPECT_EQ(hand(uploader, renderer).mKind, SceneUpload::Kind::Rebuilt);
             // The extension's structures take 8 bytes beside its three files' 192, which the room kept counts: the
-            // device's answer, said here of a mesh that stays.
+            // device's answer, said here of a mesh that stays. Each file's image gives back 64 once it rests.
             addThree();
             renderer.mStanding.push_back(StoodMesh{ .mMesh = first.mMesh, .mStructureBytes = 8 });
+            for (const Testing::Model& model : models)
+                renderer.mTextureFits.push_back(FitBytes{ .mSlot = model.mTexture, .mBytes = 64 });
             renderer.mArrivalRoom = Rtx::ArrivalRoom{ .mFree = 1u << 20, .mBudget = sBudget };
             const SceneUpload extended = hand(uploader, renderer);
             renderer.mArrivalRoom.reset();
@@ -444,10 +446,13 @@ namespace Rtx
                 << "the arrival takes the lowest slot given back";
             EXPECT_TRUE(scene.textures().isLive(models[2].mTexture));
 
-            // **A structure that waits for room is given it**: the last that rests goes for the 64 bytes it wants,
-            // beside the structures' 8.
-            renderer.mArrivalRoom = Rtx::ArrivalRoom{ .mFree = 71, .mBudget = sBudget, .mWanted = 64 };
-            EXPECT_EQ(hand(uploader, renderer).mDropped, 1u);
+            // **A texture that waits for room is given it**: the last that rests, whose 64 hold the 64 it wants, goes
+            // for it, the room holding the structures' 8.
+            renderer.mArrivalRoom = Rtx::ArrivalRoom{ .mFree = 71, .mBudget = sBudget };
+            renderer.mWants.push_back(RoomWant{ .mKind = RestKind::Texture, .mSlot = models[1].mTexture, .mHole = 64 });
+            EXPECT_EQ(hand(uploader, renderer).mDropped, 0u) << "a want served before the answer saying it was read";
+            EXPECT_TRUE(scene.textures().isLive(models[2].mTexture));
+            EXPECT_EQ(hand(uploader, renderer).mDropped, 1u) << "the want, served ahead of the next placement";
             EXPECT_FALSE(scene.textures().isLive(models[2].mTexture));
             renderer.mArrivalRoom.reset();
 
@@ -677,14 +682,95 @@ namespace Rtx
             }
             ASSERT_EQ(scene.textures().getResting().getBytes(), 320u);
 
-            renderer.mArrivalRoom = Rtx::ArrivalRoom{ .mFree = 0, .mBudget = 0, .mWanted = 64 };
-            EXPECT_EQ(hand().mDropped, 2u);
+            // The structure's want, which no resting mesh holds, frees the oldest by its 64 once the answer is taken.
+            renderer.mArrivalRoom = Rtx::ArrivalRoom{ .mFree = 0, .mBudget = 0 };
+            renderer.mWants.push_back(RoomWant{ .mKind = RestKind::Mesh, .mSlot = 0, .mHole = 64 });
+            EXPECT_EQ(hand().mDropped, 1u) << "the step";
             renderer.mArrivalRoom = Rtx::ArrivalRoom{ .mFree = 1u << 20, .mBudget = 0 };
-            EXPECT_EQ(hand().mDropped, 1u);
+            EXPECT_EQ(hand().mDropped, 2u) << "the want's, and the step";
             EXPECT_EQ(hand().mDropped, 1u);
             EXPECT_EQ(hand().mDropped, 1u);
             EXPECT_EQ(hand().mDropped, 0u);
             EXPECT_EQ(scene.textures().getResting().getBytes(), 0u);
+        }
+
+        /// **A want is served once, ahead of the placement after its answer, and again only once its room was the
+        /// device's to take** (`SceneUploader::serveWants`). Three files of 64 bytes rest, giving back 32, 128 and 64:
+        /// a texture's want of 64, answered once, frees the second at the next hand-over, the oldest that holds it.
+        /// Answered on each hand-over after, as a device asks while it waits, it frees nothing for the two that the
+        /// room takes to come back, and the third on the one after. A want of another slot is its own, and frees at
+        /// once what rested longest, as no row holds its 256. **A texture that waits is not handed over again while
+        /// what went for it comes back**: stood in with a want of its own and room to spare, it is handed over on the
+        /// third hand-over after the want was served, and not before.
+        TEST(RtxSceneUploaderTest, aWantIsServedOnceAndAgainOnlyOnceItsRoomCameBack)
+        {
+            Rtx::SceneDesc scene;
+            SceneUploader uploader;
+            Testing::CountingRenderer renderer;
+            renderer.mArrivalRoom = Rtx::ArrivalRoom{ .mFree = 1u << 20, .mBudget = std::uint64_t{ 4 } << 30 };
+            const auto hand = [&] {
+                return uploader.hand(
+                    renderer, Rtx::SceneUploader::Handing{ .mSlot = Rtx::SceneSlot::world(), .mScene = scene });
+            };
+
+            std::vector<osg::ref_ptr<osg::Image>> images;
+            std::vector<Testing::Model> models;
+            for (const VFS::Path::NormalizedView path : { VFS::Path::NormalizedView("textures/tx_1.dds"),
+                     VFS::Path::NormalizedView("textures/tx_2.dds"), VFS::Path::NormalizedView("textures/tx_3.dds") })
+            {
+                images.push_back(sixtyFourBytes(path.value()));
+                models.push_back(Testing::addModel(scene, path, images.back().get()));
+                hand();
+            }
+            constexpr std::array<std::uint64_t, 3> sFits{ 32, 128, 64 };
+            for (std::size_t at = 0; at < models.size(); ++at)
+                renderer.mTextureFits.push_back(FitBytes{ .mSlot = models[at].mTexture, .mBytes = sFits[at] });
+            hand();
+            for (const Testing::Model& model : models)
+            {
+                scene.dropInstance(model.mPlacement, Stander::Walk);
+                hand();
+            }
+            ASSERT_EQ(scene.textures().getResting().getCount(), 3u);
+
+            const auto live = [&] {
+                std::vector<bool> standing;
+                standing.reserve(models.size());
+                for (const Testing::Model& model : models)
+                    standing.push_back(scene.textures().isLive(model.mTexture));
+                return standing;
+            };
+            const RoomWant waiting{ .mKind = RestKind::Texture, .mSlot = 9, .mHole = 64 };
+            renderer.mWants.push_back(waiting);
+            EXPECT_EQ(hand().mDropped, 0u);
+            EXPECT_EQ(hand().mDropped, 1u);
+            EXPECT_EQ(live(), (std::vector<bool>{ true, false, true }));
+
+            for (const std::size_t dropped : { 0u, 0u, 1u })
+            {
+                renderer.mWants.push_back(waiting);
+                EXPECT_EQ(hand().mDropped, dropped);
+            }
+            EXPECT_EQ(live(), (std::vector<bool>{ true, false, false }));
+
+            renderer.mWants.push_back(RoomWant{ .mKind = RestKind::Texture, .mSlot = 9, .mHole = 64 });
+            renderer.mWants.push_back(RoomWant{ .mKind = RestKind::Texture, .mSlot = 10, .mHole = 256 });
+            hand();
+            EXPECT_EQ(hand().mDropped, 1u) << "the other slot's, the first slot's cooling";
+            EXPECT_EQ(live(), (std::vector<bool>{ false, false, false }));
+
+            constexpr VFS::Path::NormalizedView late("textures/tx_late.dds");
+            images.push_back(sixtyFourBytes(late.value()));
+            const Testing::Model waits = Testing::addModel(scene, late, images.back().get());
+            renderer.mShort.push_back(ShortTexture{ .mSlot = waits.mTexture, .mStoodBytes = 0 });
+            renderer.mWants.push_back(RoomWant{ .mKind = RestKind::Texture, .mSlot = waits.mTexture, .mHole = 64 });
+            hand();
+            renderer.mDescribedSlots.clear();
+            for (std::uint32_t cooling = 0; cooling < sFramesInFlight + 1; ++cooling)
+                hand();
+            EXPECT_TRUE(renderer.mDescribedSlots.empty()) << "handed over while what went for it was coming back";
+            hand();
+            EXPECT_EQ(renderer.mDescribedSlots, (std::vector<std::uint32_t>{ waits.mTexture }));
         }
 
         /// **A model's header is read on the service's thread, stands in until then, and is handed over once, the

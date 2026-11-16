@@ -199,6 +199,9 @@ namespace Rtx
         // Read by the tests and by nothing else.
         std::uint32_t getMipLevels() const { return mMipLevels; }
 
+        /// What the image's memory holds of the range it was placed in, nought for an image bound into an arena's.
+        VkDeviceSize getMemoryBytes() const { return mMemory.getSize(); }
+
     private:
         /// The handle alone, with no memory bound and no view: what the constructor and `tryMake`
         /// both begin with, before either knows whether there is room.

@@ -31,8 +31,7 @@ namespace Rtx
         StructureRevision mStructureRevision;
     };
 
-    /// What an arrival may take on the device, and what waits for room it does not have
-    /// (`SceneHolder::getArrivalRoom`).
+    /// What an arrival may take on the device, and what the budget leaves what rests (`SceneHolder::getArrivalRoom`).
     struct ArrivalRoom
     {
         /// What a texture, the content given room last, may still take before the device refuses it: what a structure,
@@ -46,9 +45,6 @@ namespace Rtx
         /// What the process holds of that and keeps, what rests included and what it has let go of not: less what
         /// rests, what is in use, and the content that rests keeps a share of the rest (`SceneUploader::restLimitOf`).
         std::uint64_t mHeld = 0;
-
-        /// What the structures the device had no room for want, each waiting while room is coming.
-        std::uint64_t mWanted = 0;
     };
 
     /// What holds scenes in slots, builds and places them: the part of `Renderer` a scene's owner
@@ -87,7 +83,7 @@ namespace Rtx
         /// builds what waited for room and may find room is not coming.
         virtual void takeAnswer(SceneSlot slot, DeviceAnswer& into) = 0;
 
-        /// What an arrival in `slot` may take on the device and what is waiting for room, or nothing from a renderer
+        /// What an arrival in `slot` may take on the device and what its budget leaves, or nothing from a renderer
         /// whose content takes no room it bounds: what the content that rests gives its room back to
         /// (`SceneDesc::evictResting`).
         virtual std::optional<ArrivalRoom> getArrivalRoom(SceneSlot slot) const = 0;

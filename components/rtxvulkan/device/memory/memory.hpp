@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <array>
 #include <atomic>
 #include <cstddef>
@@ -103,6 +104,22 @@ namespace Rtx
 
     inline constexpr std::size_t sMemoryUses = static_cast<std::size_t>(MemoryUse::Texture) + 1;
 
+    /// The block a content type is grown by: sixty-four megabytes, against the library's quarter of a gigabyte, so the
+    /// unused tail of a type's last block is a quarter of the library's. The content at the ship comes to some 6 blocks
+    /// on vanilla and 57 on the PBR replacers, far under any driver's count of allocations, and none of its 1526 and
+    /// 3464 allocations is past half a block (`docs/research/2026-11-14-device-layer-at-a-start.md`). Past half of
+    /// one, a resource is given memory of its own.
+    inline constexpr VkDeviceSize sContentBlockBytes = 64 * 1024 * 1024;
+
+    /// **The least a range let go of must hold to surely take a resource of `requirements` in a content pool**,
+    /// wherever the range starts (`RoomWant::mHole`): its size; what its alignment may leave unused at the start; and
+    /// what the library keeps between a buffer and an image on one page of `granularity` (`bufferImageGranularity`),
+    /// which a neighbour of the other kind may make it leave at the start, folded into the alignment, and at the end.
+    constexpr VkDeviceSize holeFor(const VkMemoryRequirements& requirements, const VkDeviceSize granularity)
+    {
+        return requirements.size + std::max(requirements.alignment, granularity) - 1 + (granularity - 1);
+    }
+
     /// What `use` is called in a message: "frame", "essential", "structure", "texture".
     std::string_view nameOf(MemoryUse use);
 
@@ -154,6 +171,9 @@ namespace Rtx
         VkDeviceMemory getHandle() const { return mHandle; }
 
         VkDeviceSize getOffset() const { return mOffset; }
+
+        /// How long the range is: what letting it go gives back where the library places another.
+        VkDeviceSize getSize() const { return mSize; }
 
         /// This range, mapped, or null where the memory is not host-visible. Mapped for as long as
         /// the range stands, and memory need not be unmapped before it is freed.

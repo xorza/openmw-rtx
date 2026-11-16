@@ -572,7 +572,8 @@ namespace RtxTool
         {
             const auto& [kind, path, groundOf, wrap, encoding, image, partner, format, stoodBytes, stoodMade, rest]
                 = row;
-            const auto& [resting, waitingAt, restedBefore, restedAfter, filedAt] = rest;
+            const auto& [resting, waitingAt, restedBefore, restedAfter, filedAt, order, fit, fitBefore, fitAfter]
+                = rest;
             const std::string_view name = path.value();
             textures.add(std::span<const char>(name.data(), name.size()));
             textures.add(static_cast<std::uint32_t>(name.size()));
@@ -589,8 +590,14 @@ namespace RtxTool
             textures.add(static_cast<std::uint32_t>(restedBefore));
             textures.add(static_cast<std::uint32_t>(restedAfter));
             textures.add(filedAt);
+            textures.add(order);
             static_cast<void>(image);
             static_cast<void>(partner);
+            // What the device says a slot gives back once it rests, and its class's neighbours by it, are its answers,
+            // landing whenever it answers: a want's eviction reads them, and the scene it leaves is what is bound.
+            static_cast<void>(fit);
+            static_cast<void>(fitBefore);
+            static_cast<void>(fitAfter);
         }
         take(ScenePart::Textures, textures.take());
 

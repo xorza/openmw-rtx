@@ -116,11 +116,9 @@ namespace Rtx
         void buildWaiting(Batch& batch, const SceneDesc& scene, const BlockedBuffer& positions, FrameSlot slot,
             std::vector<Refusal>& refused);
 
-        /// Appends what each structure built since the last take took at its build (`BottomLevelStore`).
-        void takeResized(std::vector<StoodMesh>& into) { mBottomLevel.takeResized(into); }
-
-        /// What the structures waiting for room want, and what the last build's took (`BottomLevelStore`).
-        VkDeviceSize getWanted() const { return mBottomLevel.getWanted(); }
+        /// Appends what each structure built since the last take took at its build, what each copy made tight gives
+        /// back and what waits on a resting mesh's room (`BottomLevelStore::takeAnswer`).
+        void takeAnswer(DeviceAnswer& into) { mBottomLevel.takeAnswer(into); }
 
         VkAccelerationStructureKHR getTopLevel() const { return mTopLevel.getHandle(); }
 

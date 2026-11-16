@@ -17,6 +17,7 @@
 #include <components/rtxvulkan/device/memory/blockedbuffer.hpp>
 #include <components/rtxvulkan/device/memory/bufferusage.hpp>
 #include <components/rtxvulkan/device/memory/growablebuffer.hpp>
+#include <components/rtxvulkan/device/memory/memory.hpp>
 #include <components/rtxvulkan/device/memory/structurestorage.hpp>
 
 #include "structurebuild.hpp"
@@ -96,13 +97,16 @@ namespace Rtx
 
         /// @param buildRoom what one run of `build` may work in: `sStructureBuildRoom`, and less for
         ///        a test that splits a few meshes into runs.
-        explicit BottomLevelStore(const Device& device, VkDeviceSize buildRoom = sStructureBuildRoom);
+        /// @param blockBytes how large a block of either storage is made: content's block, and a unit
+        ///        for a test whose every structure is a block of its own size.
+        explicit BottomLevelStore(const Device& device, VkDeviceSize buildRoom = sStructureBuildRoom,
+            VkDeviceSize blockBytes = sContentBlockBytes);
 
         /// Creates and records the build of a structure for each of `meshes`, taking storage for it.
         /// A slot that already holds one has it destroyed first: a slot the scene handed out again
         /// carries different geometry. A mesh the device has no room for holds no structure, so every placement of
         /// it names none, which the top level skips (`stands` says which). **It waits for room where room is
-        /// coming** — textures rest that the scene's owner gives back for it (`getWanted`), or memory the graveyard
+        /// coming** — meshes rest that the scene's owner gives back for it (`takeAnswer`), or memory the graveyard
         /// holds is on its way back — and `buildWaiting` builds it once the room is there, for `sMostRoomWaits`
         /// placements at most; otherwise it is left out and appended to `refused`.
         ///
@@ -132,16 +136,16 @@ namespace Rtx
             const BlockedBuffer& positions, const BlockedBuffer& indices, std::uint64_t placement,
             std::vector<Refusal>& refused);
 
-        /// What the structures waiting for room want: what the scene's owner gives back of the textures that rest
-        /// before anything else arrives.
-        VkDeviceSize getWanted() const;
-
         /// Appends what each structure built since the last take takes, and forgets them: the device's half of what a
-        /// static mesh rests on (`MeshTable::stand`). **At its build and not at its copy made tight**: the build's size
-        /// is the driver's answer for the geometry, the same in every process, where the copy lands whenever the device
-        /// answers, so a rest bounded on it would free other rows in a process whose queue waits behind the host. What
-        /// rests is counted at most the slack compaction gives back.
-        void takeResized(std::vector<StoodMesh>& into);
+        /// static mesh rests on (`MeshTable::stand`), into `into.mMeshes`; what each copy made tight gives back of the
+        /// storage once its mesh rests, into `into.mMeshFits`; and each structure the storage had no room for that a
+        /// resting mesh's eviction makes room for, into `into.mWants`: one built to be refitted, which stands in the
+        /// storage, or a copy owed. A loose build that waits waits for the copies, which give its block back. **At its
+        /// build and not at its copy made tight**: the build's size is the driver's answer for the geometry, the same
+        /// in every process, where the copy lands whenever the device answers, so a rest bounded on it would free other
+        /// rows in a process whose queue waits behind the host. What rests is counted at most the slack compaction
+        /// gives back.
+        void takeAnswer(DeviceAnswer& into);
 
         std::size_t size() const { return mRows.size(); }
 
@@ -201,6 +205,12 @@ namespace Rtx
         // Read by the tests and by nothing else.
         VkDeviceSize getScratchBytes() const { return mScratch.get().getSize(); }
         VkDeviceSize getLooseBytes() const { return mLooseStorage.getBytes(); }
+
+        /// What the loose structures still standing occupy of it.
+        VkDeviceSize getLooseLiveBytes() const { return mLooseStorage.getLiveBytes(); }
+
+        /// Whether `mesh` waits for room the device refused it (`buildWaiting`).
+        bool isWaiting(Index mesh) const { return mesh < mRows.size() && mRows[mesh].mWaiting; }
 
         /// What the structures still to be copied tight would come to, or nought where there are
         /// none and where the device would not say — what is left to save, falling to nothing over
@@ -325,11 +335,10 @@ namespace Rtx
         const VkDeviceSize mBuildRoom;
 
         // Before the rows, which give their rooms back to them as they go. The structures that
-        // stay — copied tight, or built to be refitted — and the loose ones until they are copied.
-        StructureStorage mStorage{ sStructureStorageUsage, "bottom level structures",
-            StructureStorage::LastBlock::Kept };
-        StructureStorage mLooseStorage{ sStructureStorageUsage, "loose bottom level structures",
-            StructureStorage::LastBlock::GivenBack };
+        // stay — copied tight, or built to be refitted — and the loose ones until they are copied,
+        // each in blocks of content's block size, apart from the pools textures stand in.
+        StructureStorage mStorage;
+        StructureStorage mLooseStorage;
 
         /// One row per mesh slot, grown with the mesh table.
         std::vector<Row> mRows;
@@ -396,7 +405,6 @@ namespace Rtx
         struct Waiting
         {
             Index mMesh = 0;
-            VkDeviceSize mBytes = 0;
             MemoryRefusal mWhy = MemoryRefusal::NoRoom;
             std::uint32_t mWaited = 0;
         };
@@ -407,9 +415,13 @@ namespace Rtx
         std::vector<Waiting> mRetrying;
         std::vector<Index> mRetryingMeshes;
 
-        /// What each structure built since the last `takeResized` took at its build, in the order built; a slot built
-        /// twice is said twice, the later last.
+        /// What each structure built since the last `takeAnswer` took at its build, in the order built; a slot built
+        /// twice is said twice, the later last. What each copy made since gives back of the storage, and each structure
+        /// the storage refused since that a resting mesh's eviction makes room for, said at the take while each still
+        /// stands or waits.
         std::vector<StoodMesh> mResized;
+        std::vector<FitBytes> mFits;
+        std::vector<RoomWant> mWants;
 
         /// What this placement copies, refilled each time. Kept so a compaction allocates nothing.
         std::vector<VkCopyAccelerationStructureInfoKHR> mCompactionCopies;

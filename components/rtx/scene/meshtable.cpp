@@ -260,6 +260,24 @@ namespace Rtx
         // resting is built: the rest's bytes stay what each mesh rested with.
         assert(!range.mRest.mResting && "a resting mesh's structure was built");
         range.mStoodBytes = structureBytes;
+        // Loose until its copy lands, which gives back nothing a waiting structure takes.
+        range.mRest.mFit = 0;
+    }
+
+    void MeshTable::fit(const Index mesh, const std::uint64_t bytes)
+    {
+        assert((isLive(mesh) || rowAt(mesh).mRest.mResting) && "a mesh the table does not hold fitted");
+        mResting.fit(mesh, bytes, placeOf());
+    }
+
+    bool MeshTable::releaseFitting(DeformerTable& deformers, const std::uint64_t hole)
+    {
+        settleResting();
+        const Index fitting = mResting.firstFitting(hole, placeOf());
+        if (fitting == sNoIndex)
+            return false;
+        release(deformers, fitting);
+        return true;
     }
 
     void MeshTable::drop(DeformerTable& deformers, const Index mesh)
@@ -292,6 +310,7 @@ namespace Rtx
             mKeyIndex.erase(*range.mKey);
         range.mKey.reset();
         range.mStoodBytes = 0;
+        range.mRest.mFit = 0;
 
         // The allocators merge the room with whatever it touches, so a cell leaves as the one hole
         // it came as.

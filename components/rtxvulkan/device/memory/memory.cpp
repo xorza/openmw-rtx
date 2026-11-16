@@ -34,13 +34,6 @@ namespace Rtx
 {
     namespace
     {
-        /// The block a memory type is grown by: sixty-four megabytes, against the library's quarter of a
-        /// gigabyte, so the unused tail of a type's last block is a quarter of the library's. The content
-        /// at the ship comes to some 6 blocks on vanilla and 57 on the PBR replacers, far under any
-        /// driver's count of allocations, and none of its 1526 and 3464 allocations is past half a
-        /// block (`docs/research/2026-11-14-device-layer-at-a-start.md`).
-        constexpr VkDeviceSize sBlockBytes = 64 * 1024 * 1024;
-
         /// A request for memory of `properties` in the types `memoryTypesFor` names on `memory`,
         /// for `use`. The priority is read only for an allocation of its own; one in a block has
         /// the block's, which `memoryPriorityOf` keeps equal to the use's.
@@ -141,7 +134,7 @@ namespace Rtx
         create.device = device.getHandle();
         create.instance = instance;
         create.vulkanApiVersion = sApiVersion;
-        create.preferredLargeHeapBlockSize = sBlockBytes;
+        create.preferredLargeHeapBlockSize = sContentBlockBytes;
         create.pVulkanFunctions = &functions;
 
         checkVk(device, vmaCreateAllocator(&create, &mAllocator), "vmaCreateAllocator");
@@ -160,7 +153,7 @@ namespace Rtx
     {
         const VmaPoolCreateInfo pool{ .memoryTypeIndex = type,
             .flags = 0,
-            .blockSize = sBlockBytes,
+            .blockSize = sContentBlockBytes,
             .minBlockCount = 0,
             .maxBlockCount = 0,
             .priority = memoryPriorityOf(MemoryUse::Texture),
@@ -390,7 +383,7 @@ namespace Rtx
         // Larger than half a block, an allocation of its own, as the library gives one outside a
         // pool: a block past half full with one resource is a block the next one does not fit.
         const VkDeviceSize size = requirements.mMemory.size;
-        const bool own = requirements.mOwn || size > sBlockBytes / 2;
+        const bool own = requirements.mOwn || size > sContentBlockBytes / 2;
 
         VmaAllocation allocation = nullptr;
         VmaAllocationInfo placed{};
@@ -418,7 +411,7 @@ namespace Rtx
         VmaBudget budgets[VK_MAX_MEMORY_HEAPS]{};
         vmaGetHeapBudgets(mLibrary.get(), budgets);
         const VmaBudget& budget = budgets[heap];
-        if (budget.usage + (own ? size : sBlockBytes) > ceilingOf(heap, use, budget.budget))
+        if (budget.usage + (own ? size : sContentBlockBytes) > ceilingOf(heap, use, budget.budget))
         {
             noteRefused(use, size, type, own);
             return Err{ MemoryRefusal::NoRoom };
@@ -503,7 +496,7 @@ namespace Rtx
         const VkDeviceSize above = ceiling > budget.usage ? ceiling - budget.usage : 0;
 
         // Whole blocks, because that is what the small resources `tryAllocate` places are placed in.
-        return free + above / sBlockBytes * sBlockBytes;
+        return free + above / sContentBlockBytes * sContentBlockBytes;
     }
 
     VideoBudget MemoryAllocator::getVideoBudget() const

@@ -168,13 +168,7 @@ namespace Rtx
         if (!companion.isOk())
             return Err{ companion.error() };
 
-        Result<Image, MemoryRefusal> image = Image::tryMake(use, device,
-            ImageDescription{ .mWidth = top.mWidth,
-                .mHeight = top.mHeight,
-                .mFormat = toVulkanFormat(data.mFormat),
-                .mUsage = sUploadedTextureUsage,
-                .mMipLevels = levels },
-            name);
+        Result<Image, MemoryRefusal> image = Image::tryMake(use, device, describeFile(data, first), name);
         if (!image.isOk())
             return Err{ image.error() };
 
@@ -195,6 +189,16 @@ namespace Rtx
 
         mBytes = priceFile(data, first).standing();
         return {};
+    }
+
+    ImageDescription Texture::describeFile(const TextureData& data, const std::uint32_t first)
+    {
+        const MipLevel& top = data.mLevels[first];
+        return ImageDescription{ .mWidth = top.mWidth,
+            .mHeight = top.mHeight,
+            .mFormat = toVulkanFormat(data.mFormat),
+            .mUsage = sUploadedTextureUsage,
+            .mMipLevels = static_cast<std::uint32_t>(data.mLevels.size()) - first };
     }
 
     Result<void, MemoryRefusal> Texture::standBake(const Device& device, TextureArrival& arrival, const Texture& source,
@@ -615,6 +619,16 @@ namespace Rtx
         Crash::fatal("a stand-in made rather than drawn as the one the array holds");
     }
 
+    RoomWant TextureArray::wantOf(const TextureData& texture) const
+    {
+        const std::optional<std::uint32_t> top = texture.firstLevelWithin(mSideLimit);
+        assert(top.has_value() && "a file past the device's side waits on no room");
+        const VkMemoryRequirements whole = Image::requirementsFor(mDevice, Texture::describeFile(texture, *top));
+        const VkDeviceSize granularity
+            = mDevice.getPhysicalDevice().getProperties().mProperties2.properties.limits.bufferImageGranularity;
+        return RoomWant{ .mKind = RestKind::Texture, .mSlot = texture.mSlot, .mHole = holeFor(whole, granularity) };
+    }
+
     void TextureArray::stand(Batch& batch, TextureArrival& arrival, const TextureData& texture,
         const std::uint32_t first, DeviceAnswer& answer, const WhenRoomless whenRoomless)
     {
@@ -649,7 +663,10 @@ namespace Rtx
                 mRefusedRoom = true;
                 // A file the core can hand over again once the room is back: its slot draws the stand-in meanwhile.
                 if (whenRoomless == WhenRoomless::Waits && texture.mSource == TextureSource::File)
+                {
                     answer.mShort.push_back(ShortTexture{ .mSlot = texture.mSlot, .mStoodBytes = 0 });
+                    answer.mWants.push_back(wantOf(texture));
+                }
                 else
                     why = describe(stood.error());
             }
@@ -666,9 +683,18 @@ namespace Rtx
         // level or the device came down from it, and is handed over whole again once the room is back; one the side
         // alone holds smaller stands as it can stand.
         if (texture.mSource == TextureSource::File && !made.isEmpty())
+        {
             if (const std::optional<std::uint32_t> top = texture.firstLevelWithin(mSideLimit);
                 top.has_value() && made.getImage().getWidth() < std::max(1u, texture.mWidth >> *top))
+            {
                 answer.mShort.push_back(ShortTexture{ .mSlot = texture.mSlot, .mStoodBytes = made.getBytes() });
+                answer.mWants.push_back(wantOf(texture));
+            }
+
+            // What its image gives back once it rests, the range the library placed it in.
+            answer.mTextureFits.push_back(
+                FitBytes{ .mSlot = texture.mSlot, .mBytes = made.getImage().getMemoryBytes() });
+        }
 
         if (!why.empty())
             answer.mRefused.push_back(

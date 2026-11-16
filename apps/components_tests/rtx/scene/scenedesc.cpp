@@ -809,6 +809,72 @@ namespace Rtx
             EXPECT_FALSE(scene.meshes().getRows()[body.mMesh].mKey.has_value()) << "a body was filed under a key";
         }
 
+        /// **A want frees the row of its kind that has rested longest of those that surely hold it, and else the oldest
+        /// until its hole is given back** (`SceneDesc::evictFor`). Five textures of 8 bytes rest a tick apart, giving
+        /// back 32, 1000, 100, 64 and nought where a texture can take it: a hole of 64 is held by the second, in a
+        /// class past the hole's, before the third and fourth of its own class, which it rested before; then by the
+        /// third, the older of its class that holds it; then by the fourth, 64 holding 64. Two meshes rested a tick
+        /// apart with nothing to give back until their tight copies landed, 300 each, the later's first: the earlier
+        /// still goes first for a structure's 200, filed back by when it rested, and the textures stay; and a hole of
+        /// 65 no texture holds frees what rested longest, the two left, 16 bytes, past which nothing rests.
+        TEST(RtxSceneDescTest, aWantFreesTheOldestRowOfItsKindThatSurelyHoldsItAndElseTheOldest)
+        {
+            SceneDesc scene;
+            std::vector<Index> slots;
+            for (const std::uint64_t fit : { 32u, 1000u, 100u, 64u, 0u })
+            {
+                const VFS::Path::Normalized name(std::format("textures/tx_{}.dds", slots.size()));
+                const Index slot = scene.textures().add(name);
+                scene.textures().stand(slot, 8, false);
+                if (fit > 0)
+                    scene.textures().fit(slot, fit);
+                scene.drop(scene.holdTexture(slot));
+                scene.compact();
+                slots.push_back(slot);
+            }
+
+            const Index quad = Testing::addQuadMesh(scene);
+            const Index raised = Testing::addQuadMesh(scene, Testing::unitQuadAt(1.0f));
+            scene.standMesh(quad, 100);
+            scene.standMesh(raised, 100);
+            scene.clearArrivals();
+            Testing::letGoMesh(scene, quad);
+            scene.compact();
+            Testing::letGoMesh(scene, raised);
+            scene.compact();
+            scene.fitMesh(raised, 300);
+            scene.fitMesh(quad, 300);
+            ASSERT_EQ(scene.getRestingBytes(), 5 * 8u + 200u);
+
+            const auto live = [&] {
+                std::vector<Index> standing;
+                for (const Index slot : slots)
+                    if (scene.textures().isLive(slot))
+                        standing.push_back(slot);
+                return standing;
+            };
+            const RoomWant texture64{ .mKind = RestKind::Texture, .mSlot = 0, .mHole = 64 };
+            EXPECT_EQ(scene.evictFor(std::span(&texture64, 1)), 8u);
+            EXPECT_EQ(live(), (std::vector<Index>{ slots[0], slots[2], slots[3], slots[4] }));
+            EXPECT_EQ(scene.evictFor(std::span(&texture64, 1)), 8u);
+            EXPECT_EQ(live(), (std::vector<Index>{ slots[0], slots[3], slots[4] }));
+            EXPECT_EQ(scene.evictFor(std::span(&texture64, 1)), 8u);
+            EXPECT_EQ(live(), (std::vector<Index>{ slots[0], slots[4] }));
+
+            const RoomWant structure{ .mKind = RestKind::Mesh, .mSlot = 0, .mHole = 200 };
+            EXPECT_EQ(scene.evictFor(std::span(&structure, 1)), 100u);
+            EXPECT_FALSE(scene.meshes().isLive(quad));
+            EXPECT_TRUE(scene.meshes().isLive(raised)) << "the mesh fitted first went first";
+            EXPECT_EQ(scene.evictFor(std::span(&structure, 1)), 100u);
+            EXPECT_FALSE(scene.meshes().isLive(raised));
+            EXPECT_EQ(live(), (std::vector<Index>{ slots[0], slots[4] })) << "a structure's want freed a texture";
+
+            const RoomWant texture65{ .mKind = RestKind::Texture, .mSlot = 0, .mHole = 65 };
+            EXPECT_EQ(scene.evictFor(std::span(&texture65, 1)), 16u);
+            EXPECT_TRUE(live().empty());
+            EXPECT_EQ(scene.getRestingBytes(), 0u);
+        }
+
         /// **Every table hands out its lowest free slot, however its slots were given back**
         /// (`Rtx::SlotRows`). A slot is the custom index a hit reads and the row a material is looked up
         /// in, and the top-level structure is built in slot order, so which free slot an arrival takes
