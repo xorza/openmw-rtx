@@ -67,7 +67,7 @@ namespace CSMWorld
 
         void setTableOfDragStart(const CSVWorld::DragRecordTable* const table) { mTableOfDragStart = table; }
 
-        const QModelIndex getIndexAtDragStart() const { return mIndexAtDragStart; }
+        QModelIndex getIndexAtDragStart() const { return mIndexAtDragStart; }
 
         const CSVWorld::DragRecordTable* getTableOfDragStart() const { return mTableOfDragStart; }
 

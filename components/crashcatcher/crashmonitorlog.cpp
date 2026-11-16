@@ -84,7 +84,7 @@ namespace Crash
 
     std::filesystem::path MonitorLog::path() const
     {
-        const std::filesystem::path named = pathOf(mPage.getLogPath());
+        std::filesystem::path named = pathOf(mPage.getLogPath());
         if (!named.empty())
             return named;
         const std::scoped_lock lock(mMutex);

@@ -100,7 +100,7 @@ VFS::Path::Normalized Misc::ResourceHelpers::correctResourcePath(
     if (needsPrefix)
         correctedPath = topLevelDirectories.front() / resPath;
 
-    const VFS::Path::Normalized origExt = correctedPath;
+    VFS::Path::Normalized origExt = correctedPath;
 
     // replace extension if `ext` is specified (used for .tga -> .dds, .wav -> .mp3)
     const bool isExtChanged = !ext.empty() && correctedPath.changeExtension(ext);

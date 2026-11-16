@@ -55,7 +55,7 @@ namespace Rtx
         std::optional<osg::Matrixf> finiteTransformOf(
             const Terrain::PagedCellRef& ref, const PreparedModel& model, std::vector<Refusal>& refusals)
         {
-            const osg::Matrixf transform = transformOf(ref);
+            osg::Matrixf transform = transformOf(ref);
             if (isFinite(transform))
                 return transform;
 

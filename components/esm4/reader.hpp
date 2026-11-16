@@ -211,9 +211,9 @@ namespace ESM4
         const std::vector<ESM::MasterData>& getGameFiles() const { return mHeader.mMaster; }
 
         inline int getRecordCount() const { return mHeader.mData.records; }
-        inline const std::string getAuthor() const { return mHeader.mAuthor; }
+        inline std::string getAuthor() const { return mHeader.mAuthor; }
         inline int getFormat() const { return 0; } // prob. not relevant for ESM4
-        inline const std::string getDesc() const { return mHeader.mDesc; }
+        inline std::string getDesc() const { return mHeader.mDesc; }
 
         inline std::filesystem::path getFileName() const { return mCtx.filename; } // not used
 

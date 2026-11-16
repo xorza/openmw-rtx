@@ -216,7 +216,7 @@ namespace Resource
 
         // Read outside the lock, once however many loaders ask at once (`getOrLoad`). The warning image is no file's,
         // and nothing reads it again.
-        const osg::ref_ptr<osg::Image> pixels = getImage(path);
+        osg::ref_ptr<osg::Image> pixels = getImage(path);
         if (pixels == mWarningImage)
             return pixels;
 
