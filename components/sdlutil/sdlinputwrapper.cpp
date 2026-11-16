@@ -57,8 +57,6 @@ namespace SDLUtil
         _setWindowScale();
     }
 
-    InputWrapper::~InputWrapper() = default;
-
     void InputWrapper::_setWindowScale()
     {
         mPixelDensity = pixelDensity(mSDLWindow);

@@ -13,7 +13,7 @@ namespace SDLUtil
     public:
         /// @param graphics whoever draws into the window, told the moments that are its own
         InputWrapper(SDL_Window* window, GraphicsListener& graphics, bool grab);
-        ~InputWrapper();
+        ~InputWrapper() = default;
 
         void setMouseEventCallback(MouseListener* listen) { mMouseListener = listen; }
         void setSensorEventCallback(SensorListener* listen) { mSensorListener = listen; }
