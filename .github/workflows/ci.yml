@@ -203,6 +203,7 @@ jobs:
           persist-credentials: false
 
       - uses: $/.github/actions/openmw-deps
+        id: deps
         with:
           cache: ${{ env.CI_CACHE }}
           cache-key: ${{ matrix.name }}
@@ -253,10 +254,11 @@ jobs:
 
       # **A leg's compiler cache stands in one copy**: the one it restored is deleted as the job ends, and the ccache
       # action's save, which runs after every step, puts the new one in its place. Saved beside it, the new copy took
-      # the repository past its 10 GB until the run ended, and eviction took a live cache of another leg's. Not after a
-      # cancel, which a push to master makes of the run before it: the old copy stays where the save may not follow.
+      # the repository past its 10 GB until the run ended, and eviction took a live cache of another leg's. Only where
+      # the action stands to save (`compiler-cache-saved`), and not after a cancel, which a push to master makes of the
+      # run before it: the old copy stays where no save may follow.
       - name: The compiler cache's old copy, deleted
-        if: ${{ !cancelled() && env.CI_CACHE == 'true' && github.ref == 'refs/heads/master' }}
+        if: ${{ !cancelled() && steps.deps.outputs.compiler-cache-saved == 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
           LEG: ${{ matrix.name }}

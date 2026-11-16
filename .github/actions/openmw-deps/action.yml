@@ -15,6 +15,11 @@ inputs:
     description: Whether a run on master may save the caches it restored; false for a job that reads another job's, whose saving them would keep the same objects twice.
     default: "true"
 
+outputs:
+  compiler-cache-saved:
+    description: Whether the ccache action stands to save the compiler cache as the job ends, which it does only where it restored it; "true" or "false".
+    value: ${{ steps.compiler-cache.outputs.saved == 'true' }}
+
 runs:
   using: composite
   steps:
@@ -123,3 +128,11 @@ runs:
         key: ${{ inputs.cache-key }}
         max-size: ${{ inputs.ccache-size }}
         save: ${{ github.ref == 'refs/heads/master' && inputs.save == 'true' }}
+
+    # Reached only where every step above succeeded, the ccache action's among them: a job told so may delete the copy
+    # it restored, which the action's save replaces. One whose packages failed restored nothing and saves nothing.
+    - name: The compiler cache's save, stated
+      id: compiler-cache
+      if: inputs.cache-key != '' && inputs.cache == 'true' && github.ref == 'refs/heads/master' && inputs.save == 'true'
+      shell: bash
+      run: echo "saved=true" >> "$GITHUB_OUTPUT"
