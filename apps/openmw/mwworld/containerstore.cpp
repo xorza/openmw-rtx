@@ -1,25 +1,23 @@
 #include "containerstore.hpp"
-#include "inventorystore.hpp"
 
 #include <cassert>
 #include <stdexcept>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/levelledlist.hpp>
+#include <apps/openmw/mwmechanics/recharge.hpp>
+#include <apps/openmw/mwmechanics/spellutil.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/inventorystate.hpp>
 #include <components/esm3/loadench.hpp>
 #include <components/esm3/loadlevlist.hpp>
 #include <components/sceneutil/positionattitudetransform.hpp> // IWYU pragma: keep: the transform whole, which the ref_ptr releasing it needs
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwmechanics/levelledlist.hpp"
-#include "../mwmechanics/recharge.hpp"
-#include "../mwmechanics/spellutil.hpp"
-
 #include "class.hpp"
 #include "esmstore.hpp"
+#include "inventorystore.hpp"
 #include "localscripts.hpp"
 #include "manualref.hpp"
 #include "player.hpp"

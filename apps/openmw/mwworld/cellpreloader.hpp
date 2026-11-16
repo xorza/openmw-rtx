@@ -1,12 +1,12 @@
 #pragma once
 
-#include "positioncellgrid.hpp"
-
-#include <components/sceneutil/workqueue.hpp>
-
 #include <map>
 #include <memory>
 #include <span>
+
+#include <components/sceneutil/workqueue.hpp>
+
+#include "positioncellgrid.hpp"
 
 namespace Misc
 {

@@ -11,28 +11,21 @@
 #include <osg/PositionAttitudeTransform>
 #include <osg/Transform>
 #include <osg/observer_ptr>
-
+#include <osgParticle/Particle>
 #include <osgUtil/CullVisitor>
 
-#include <osgParticle/Particle>
-
-#include <components/stereo/multiview.hpp>
-#include <components/stereo/stereomanager.hpp>
-
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwworld/weather.hpp>
+#include <components/fallback/fallback.hpp>
 #include <components/resource/imagemanager.hpp>
 #include <components/resource/scenemanager.hpp>
-
 #include <components/sceneutil/depth.hpp>
+#include <components/sceneutil/statesetupdater.hpp>
 #include <components/sceneutil/texmat.hpp>
 #include <components/sceneutil/texturetype.hpp>
-
-#include <components/fallback/fallback.hpp>
-
-#include <components/sceneutil/statesetupdater.hpp>
 #include <components/sky/vertexrules.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwworld/weather.hpp"
+#include <components/stereo/multiview.hpp>
+#include <components/stereo/stereomanager.hpp>
 
 #include "renderbin.hpp"
 #include "vismask.hpp"

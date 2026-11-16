@@ -14,17 +14,15 @@
 #include <osg/StateSet>
 #include <osg/Texture>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwworld/ptr.hpp>
 #include <components/esm3/loadarmo.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/sceneutil/positionattitudetransform.hpp>
 #include <components/sceneutil/util.hpp>
 #include <components/vfs/manager.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/ptr.hpp"
 
 #include "npcanimation.hpp"
 

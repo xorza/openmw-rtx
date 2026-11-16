@@ -1,12 +1,11 @@
 #pragma once
 
+#include <filesystem>
 #include <memory>
 
+#include <apps/openmw/mwbase/inputmanager.hpp>
 #include <components/sdlutil/events.hpp>
 #include <components/settings/settings.hpp>
-#include <filesystem>
-
-#include "../mwbase/inputmanager.hpp"
 
 #include "actions.hpp"
 

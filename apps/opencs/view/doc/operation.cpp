@@ -1,13 +1,12 @@
 #include "operation.hpp"
 
-#include <sstream>
-#include <string>
-
 #include <QHBoxLayout>
 #include <QProgressBar>
 #include <QPushButton>
+#include <sstream>
+#include <string>
 
-#include "../../model/doc/state.hpp"
+#include <apps/opencs/model/doc/state.hpp>
 
 void CSVDoc::Operation::updateLabel(int threads)
 {

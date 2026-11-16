@@ -1,7 +1,6 @@
 #pragma once
 
 #include <QMenu>
-
 #include <string>
 
 class QAction;

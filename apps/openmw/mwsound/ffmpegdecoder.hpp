@@ -23,11 +23,11 @@ extern "C"
 #pragma warning(pop)
 #endif
 
-#include <components/files/istreamptr.hpp>
-
 #include <string>
 #include <utility>
 #include <vector>
+
+#include <components/files/istreamptr.hpp>
 
 #include "sounddecoder.hpp"
 

@@ -1,3 +1,5 @@
+#include "projectile.hpp"
+
 #include <memory>
 
 #include <BulletCollision/CollisionShapes/btSphereShape.h>
@@ -8,7 +10,6 @@
 #include "collisiontype.hpp"
 #include "mtphysics.hpp"
 #include "object.hpp"
-#include "projectile.hpp"
 
 namespace MWPhysics
 {

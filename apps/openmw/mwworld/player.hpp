@@ -2,14 +2,13 @@
 
 #include <map>
 
-#include "../mwworld/livecellref.hpp"
-
-#include "../mwmechanics/drawstate.hpp"
-
+#include <apps/openmw/mwmechanics/drawstate.hpp>
 #include <components/esm/attr.hpp>
 #include <components/esm/refid.hpp>
 #include <components/esm3/loadnpc.hpp>
 #include <components/esm3/loadskil.hpp>
+
+#include "livecellref.hpp"
 
 namespace ESM
 {

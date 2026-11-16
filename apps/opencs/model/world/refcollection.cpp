@@ -4,19 +4,17 @@
 #include <string_view>
 #include <utility>
 
-#include <apps/opencs/model/world/collection.hpp>
-
+#include <apps/opencs/model/doc/messages.hpp>
 #include <components/esm3/cellref.hpp>
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/loadcell.hpp>
 #include <components/misc/strings/conversion.hpp>
 
 #include "cell.hpp"
+#include "collection.hpp"
 #include "record.hpp"
 #include "ref.hpp"
 #include "universalid.hpp"
-
-#include "../doc/messages.hpp"
 
 namespace CSMWorld
 {

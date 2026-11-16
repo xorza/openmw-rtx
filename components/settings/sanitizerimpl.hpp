@@ -1,14 +1,14 @@
 #pragma once
 
-#include "sanitizer.hpp"
-
-#include <osg/Vec3f>
-
 #include <cstdint>
 #include <initializer_list>
 #include <memory>
 #include <string>
 #include <string_view>
+
+#include <osg/Vec3f>
+
+#include "sanitizer.hpp"
 
 namespace Settings
 {

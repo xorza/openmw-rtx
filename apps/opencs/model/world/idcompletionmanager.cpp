@@ -2,18 +2,16 @@
 
 #include <QAbstractItemModel>
 #include <QCompleter>
-
 #include <stdexcept>
 #include <utility>
 
-#include <apps/opencs/model/world/columnbase.hpp>
-#include <apps/opencs/model/world/columns.hpp>
-#include <apps/opencs/model/world/universalid.hpp>
+#include <apps/opencs/view/widget/completerpopup.hpp>
 
-#include "../../view/widget/completerpopup.hpp"
-
+#include "columnbase.hpp"
+#include "columns.hpp"
 #include "data.hpp"
 #include "idtablebase.hpp"
+#include "universalid.hpp"
 
 class QAbstractItemView;
 

@@ -1,15 +1,15 @@
 #pragma once
 
+#include <cmath>
+#include <stdexcept>
+#include <type_traits>
+#include <utility>
+
 #include <osg/Vec2f>
 #include <osg/Vec3f>
 #include <osg/Vec4f>
 
 #include <components/lua/luastate.hpp>
-
-#include <cmath>
-#include <stdexcept>
-#include <type_traits>
-#include <utility>
 
 namespace Misc
 {

@@ -3,11 +3,9 @@
 #include <string>
 #include <vector>
 
-#include "../doc/stage.hpp"
-
-#include "../world/idcollection.hpp"
-#include "../world/refiddata.hpp"
-
+#include <apps/opencs/model/doc/stage.hpp>
+#include <apps/opencs/model/world/idcollection.hpp>
+#include <apps/opencs/model/world/refiddata.hpp>
 #include <components/esm3/loadbody.hpp>
 #include <components/esm3/loadclas.hpp>
 #include <components/esm3/loadfact.hpp>

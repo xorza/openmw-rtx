@@ -1,11 +1,10 @@
 #pragma once
 
-#include <string>
-
 #include <QAbstractProxyModel>
 #include <QModelIndex>
 #include <QString>
 #include <QVariant>
+#include <string>
 
 #include "columnbase.hpp"
 

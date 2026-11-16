@@ -3,10 +3,9 @@
 #include <vector>
 
 #include <osg/BoundingBox>
+#include <osg/Drawable>
 #include <osg/Matrix>
 #include <osg/NodeVisitor>
-
-#include <osg/Drawable>
 #include <osg/Transform>
 
 namespace SceneUtil

@@ -1,10 +1,9 @@
 #include "nestedcollection.hpp"
 
-#include <apps/opencs/model/world/columns.hpp>
-
 #include <stdexcept>
 
 #include "columnbase.hpp"
+#include "columns.hpp"
 
 int CSMWorld::NestedCollection::getNestedRowsCount(int row, int column) const
 {

@@ -2,8 +2,8 @@
 
 #include <string>
 
-#include <components/esm3/loadarmo.hpp>
-#include <components/esm3/loadbody.hpp>
+#include "loadarmo.hpp"
+#include "loadbody.hpp"
 
 namespace ESM
 {

@@ -1,6 +1,4 @@
 
-#include "components/esm/refid.hpp"
-
 #include <algorithm>
 #include <cstddef>
 #include <random>
@@ -8,6 +6,8 @@
 #include <vector>
 
 #include <benchmark/benchmark.h> // IWYU pragma: keep: the macros this source registers its benchmarks with
+
+#include <components/esm/refid.hpp>
 
 namespace
 {

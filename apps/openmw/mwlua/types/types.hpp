@@ -2,11 +2,10 @@
 
 #include <sol/sol.hpp>
 
+#include <apps/openmw/mwlua/context.hpp>
+#include <apps/openmw/mwlua/recordstore.hpp>
 #include <components/esm/defs.hpp>
 #include <components/lua/luastate.hpp>
-
-#include "../context.hpp"
-#include "../recordstore.hpp"
 
 namespace MWLua
 {

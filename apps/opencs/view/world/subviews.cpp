@@ -1,9 +1,13 @@
 #include "subviews.hpp"
 
-#include "../doc/subviewfactoryimp.hpp"
+#include <apps/opencs/model/world/scope.hpp>
+#include <apps/opencs/model/world/universalid.hpp>
+#include <apps/opencs/view/doc/subviewfactory.hpp>
+#include <apps/opencs/view/doc/subviewfactoryimp.hpp>
 
 #include "bodypartcreator.hpp"
 #include "cellcreator.hpp"
+#include "creator.hpp"
 #include "dialoguecreator.hpp"
 #include "dialoguesubview.hpp"
 #include "genericcreator.hpp"
@@ -19,11 +23,6 @@
 #include "scriptsubview.hpp"
 #include "startscriptcreator.hpp"
 #include "tablesubview.hpp"
-
-#include <apps/opencs/model/world/scope.hpp>
-#include <apps/opencs/model/world/universalid.hpp>
-#include <apps/opencs/view/doc/subviewfactory.hpp>
-#include <apps/opencs/view/world/creator.hpp>
 
 void CSVWorld::addSubViewFactories(CSVDoc::SubViewFactoryManager& manager)
 {

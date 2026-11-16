@@ -1,6 +1,6 @@
 #include "companionitemmodel.hpp"
 
-#include "../mwworld/class.hpp"
+#include <apps/openmw/mwworld/class.hpp>
 
 namespace
 {

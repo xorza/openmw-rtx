@@ -1,7 +1,14 @@
 #include "load.hpp"
-#include "esmdata.hpp"
-#include "lessbyid.hpp"
-#include "record.hpp"
+
+#include <algorithm>
+#include <cstddef>
+#include <map>
+#include <set>
+#include <sstream>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
 
 #include <components/debug/debuglog.hpp>
 #include <components/esm/defs.hpp>
@@ -21,15 +28,9 @@
 #include <components/misc/pathhelpers.hpp>
 #include <components/misc/resourcehelpers.hpp>
 
-#include <algorithm>
-#include <cstddef>
-#include <map>
-#include <set>
-#include <sstream>
-#include <string>
-#include <string_view>
-#include <utility>
-#include <vector>
+#include "esmdata.hpp"
+#include "lessbyid.hpp"
+#include "record.hpp"
 
 namespace EsmLoader
 {

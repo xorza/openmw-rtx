@@ -2,7 +2,7 @@
 
 #include <QLineEdit>
 
-#include "../../model/world/columnbase.hpp"
+#include <apps/opencs/model/world/columnbase.hpp>
 
 namespace CSMDoc
 {

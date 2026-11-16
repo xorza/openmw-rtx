@@ -1,11 +1,11 @@
 #include "loadrace.hpp"
 
+#include <components/esm/attr.hpp>
+#include <components/misc/concepts.hpp>
+
 #include "esmreader.hpp"
 #include "esmwriter.hpp"
-
-#include <components/esm/attr.hpp>
-#include <components/esm3/loadskil.hpp>
-#include <components/misc/concepts.hpp>
+#include "loadskil.hpp"
 
 namespace ESM
 {

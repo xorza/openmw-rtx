@@ -2,21 +2,17 @@
 
 #include <QObject>
 #include <QUndoStack>
-
 #include <filesystem>
 #include <memory>
 #include <string>
 #include <vector>
 
+#include <apps/opencs/model/tools/tools.hpp>
+#include <apps/opencs/model/world/data.hpp>
+#include <apps/opencs/model/world/idcompletionmanager.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
-
 #include <components/files/multidircollection.hpp>
 #include <components/toutf8/toutf8.hpp>
-
-#include "../world/data.hpp"
-#include "../world/idcompletionmanager.hpp"
-
-#include "../tools/tools.hpp"
 
 #include "operationholder.hpp"
 #include "runner.hpp"

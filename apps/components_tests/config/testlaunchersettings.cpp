@@ -1,10 +1,10 @@
-#include <components/config/launchersettings.hpp>
-
 #include <QString>
 #include <QStringList>
 #include <QTextStream>
 
 #include <gtest/gtest.h>
+
+#include <components/config/launchersettings.hpp>
 
 namespace
 {

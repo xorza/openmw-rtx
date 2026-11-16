@@ -1,8 +1,8 @@
 
-#include <components/detournavigator/recastmesh.hpp>
-#include <components/detournavigator/recastmeshbuilder.hpp>
+#include <array>
 
-#include "operators.hpp" // IWYU pragma: keep: the operators a test's matchers and messages call
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 #include <BulletCollision/CollisionDispatch/btCollisionObject.h>
 #include <BulletCollision/CollisionShapes/btBoxShape.h>
@@ -11,10 +11,10 @@
 #include <BulletCollision/CollisionShapes/btHeightfieldTerrainShape.h>
 #include <BulletCollision/CollisionShapes/btTriangleMesh.h>
 
-#include <gmock/gmock.h>
-#include <gtest/gtest.h>
+#include <components/detournavigator/recastmesh.hpp>
+#include <components/detournavigator/recastmeshbuilder.hpp>
 
-#include <array>
+#include "operators.hpp" // IWYU pragma: keep: the operators a test's matchers and messages call
 
 namespace DetourNavigator
 {

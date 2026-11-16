@@ -1,11 +1,11 @@
 #pragma once
 
-#include <osg/BoundingBox>
-#include <osg/Matrix>
-
 #include <array>
 #include <map>
 #include <memory>
+
+#include <osg/BoundingBox>
+#include <osg/Matrix>
 
 namespace osg
 {

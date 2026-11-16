@@ -1,21 +1,18 @@
 #include "summoning.hpp"
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwrender/animation.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/manualref.hpp>
+#include <apps/openmw/mwworld/worldmodel.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm/refid.hpp>
 #include <components/esm3/loadmgef.hpp>
 #include <components/esm3/loadstat.hpp>
 #include <components/misc/resourcehelpers.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/manualref.hpp"
-#include "../mwworld/worldmodel.hpp"
-
-#include "../mwrender/animation.hpp"
 
 #include "aifollow.hpp"
 #include "creaturestats.hpp"

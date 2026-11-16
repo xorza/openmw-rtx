@@ -2,6 +2,7 @@
 
 #include <memory>
 
+#include <apps/openmw/mwworld/ptr.hpp>
 #include <components/detournavigator/areatype.hpp>
 
 #include "aipackagetypeid.hpp"
@@ -9,8 +10,6 @@
 #include "aitimer.hpp"
 #include "obstacle.hpp"
 #include "pathfinding.hpp"
-
-#include "../mwworld/ptr.hpp"
 
 namespace ESM
 {

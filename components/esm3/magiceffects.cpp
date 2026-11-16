@@ -2,8 +2,7 @@
 
 #include "esmreader.hpp"
 #include "esmwriter.hpp"
-
-#include <components/esm3/loadmgef.hpp>
+#include "loadmgef.hpp"
 
 namespace ESM
 {

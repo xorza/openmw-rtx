@@ -1,12 +1,12 @@
 #pragma once
 
-#include <osg/Drawable>
-#include <osg/Vec3>
-#include <osg/ref_ptr>
-
 #include <array>
 #include <memory>
 #include <vector>
+
+#include <osg/Drawable>
+#include <osg/Vec3>
+#include <osg/ref_ptr>
 
 namespace osg
 {

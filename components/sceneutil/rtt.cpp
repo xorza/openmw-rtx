@@ -1,15 +1,16 @@
 #include "rtt.hpp"
-#include "util.hpp"
 
 #include <osg/Texture2D>
 #include <osg/Texture2DArray>
 #include <osgUtil/CullVisitor>
 
-#include <components/sceneutil/color.hpp>
-#include <components/sceneutil/depth.hpp>
-#include <components/sceneutil/nodecallback.hpp>
 #include <components/stereo/multiview.hpp>
 #include <components/stereo/stereomanager.hpp>
+
+#include "color.hpp"
+#include "depth.hpp"
+#include "nodecallback.hpp"
+#include "util.hpp"
 
 namespace SceneUtil
 {

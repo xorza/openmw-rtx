@@ -1,13 +1,13 @@
 #include "terrainstorage.hpp"
 
 #include <algorithm>
+
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/esm3/loadland.hpp>
 #include <components/esm4/loadltex.hpp>
 #include <components/esm4/loadtxst.hpp>
 #include <components/esm4/loadwrld.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwworld/esmstore.hpp"
 
 #include "landmanager.hpp"
 

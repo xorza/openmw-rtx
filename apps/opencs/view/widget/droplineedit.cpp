@@ -1,15 +1,12 @@
 #include "droplineedit.hpp"
 
+#include <QDropEvent>
 #include <string>
 
-#include <QDropEvent>
-
-#include "../../model/world/tablemimedata.hpp"
-#include "../../model/world/universalid.hpp"
-
 #include <apps/opencs/model/world/columnbase.hpp>
-
-#include "../world/dragdroputils.hpp"
+#include <apps/opencs/model/world/tablemimedata.hpp>
+#include <apps/opencs/model/world/universalid.hpp>
+#include <apps/opencs/view/world/dragdroputils.hpp>
 
 CSVWidget::DropLineEdit::DropLineEdit(CSMWorld::ColumnBase::Display type, QWidget* parent)
     : QLineEdit(parent)

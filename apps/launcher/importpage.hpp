@@ -2,9 +2,8 @@
 
 #include <components/process/processinvoker.hpp>
 
-#include "ui_importpage.h"
-
 #include "maindialog.hpp"
+#include "ui_importpage.h"
 
 namespace Files
 {

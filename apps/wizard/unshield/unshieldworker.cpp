@@ -6,7 +6,6 @@
 #include <QFileInfo>
 #include <QReadLocker>
 #include <QStringList>
-
 #include <fstream>
 
 #include <components/files/qtconversion.hpp>

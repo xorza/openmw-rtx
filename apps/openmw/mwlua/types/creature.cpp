@@ -1,12 +1,11 @@
-#include "types.hpp"
-
-#include "../stats.hpp"
-#include "actor.hpp"
-#include "modelproperty.hpp"
-
+#include <apps/openmw/mwlua/stats.hpp>
 #include <components/esm3/loadcrea.hpp>
 #include <components/lua/luastate.hpp>
 #include <components/misc/resourcehelpers.hpp>
+
+#include "actor.hpp"
+#include "modelproperty.hpp"
+#include "types.hpp"
 
 namespace
 {

@@ -2,9 +2,9 @@
 
 #include <QTableView>
 
-#include "../../model/world/data.hpp"
-#include "../../model/world/idtable.hpp"
-#include "../../model/world/tablemimedata.hpp"
+#include <apps/opencs/model/world/data.hpp>
+#include <apps/opencs/model/world/idtable.hpp>
+#include <apps/opencs/model/world/tablemimedata.hpp>
 
 CSVWorld::TableEditIdAction::TableEditIdAction(const QTableView& table, CSMWorld::Data& data, QWidget* parent)
     : QAction(parent)

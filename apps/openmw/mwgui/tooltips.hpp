@@ -1,8 +1,8 @@
 #pragma once
 
-#include "../mwworld/ptr.hpp"
-#include "layout.hpp"
+#include <apps/openmw/mwworld/ptr.hpp>
 
+#include "layout.hpp"
 #include "widgets.hpp"
 
 namespace ESM

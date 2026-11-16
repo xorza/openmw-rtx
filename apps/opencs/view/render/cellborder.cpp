@@ -9,11 +9,10 @@
 #include <osg/Vec3f>
 #include <osg/Vec4f>
 
+#include <apps/opencs/model/world/cellcoordinates.hpp>
 #include <components/esm3/loadland.hpp>
 
 #include "mask.hpp"
-
-#include "../../model/world/cellcoordinates.hpp"
 
 namespace
 {

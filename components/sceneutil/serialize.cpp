@@ -6,13 +6,13 @@
 #include <components/nifosg/autotransform.hpp>
 #include <components/nifosg/matrixtransform.hpp>
 
-#include <components/sceneutil/material.hpp>
-#include <components/sceneutil/morphgeometry.hpp>
-#include <components/sceneutil/positionattitudetransform.hpp>
-#include <components/sceneutil/riggeometry.hpp>
-#include <components/sceneutil/riggeometryosgaextension.hpp>
-#include <components/sceneutil/skeleton.hpp>
-#include <components/sceneutil/texturetype.hpp>
+#include "material.hpp"
+#include "morphgeometry.hpp"
+#include "positionattitudetransform.hpp"
+#include "riggeometry.hpp"
+#include "riggeometryosgaextension.hpp"
+#include "skeleton.hpp"
+#include "texturetype.hpp"
 
 namespace
 {

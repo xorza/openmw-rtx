@@ -3,9 +3,9 @@
 
 #include <QColor>
 #include <QMutexLocker>
+#include <utility>
 
 #include <components/settings/settingvalue.hpp>
-#include <utility>
 
 #include "category.hpp"
 #include "state.hpp"

@@ -1,11 +1,12 @@
 #include "pathgridutil.hpp"
 
+#include <limits>
+
 #include <osg/Geometry>
 
 #include <components/esm3/loadpgrd.hpp>
-#include <components/sceneutil/material.hpp>
 
-#include <limits>
+#include "material.hpp"
 
 namespace SceneUtil
 {

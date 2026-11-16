@@ -1,27 +1,24 @@
-#include "types.hpp"
-
-#include "actor.hpp"
-#include "modelproperty.hpp"
-#include "servicesoffered.hpp"
-
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwlua/classbindings.hpp>
+#include <apps/openmw/mwlua/localscripts.hpp>
+#include <apps/openmw/mwlua/luamanagerimp.hpp>
+#include <apps/openmw/mwlua/racebindings.hpp>
+#include <apps/openmw/mwlua/stats.hpp>
+#include <apps/openmw/mwmechanics/npcstats.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/esm3/loadfact.hpp>
 #include <components/esm3/loadnpc.hpp>
 #include <components/lua/luastate.hpp>
 #include <components/lua/util.hpp>
 #include <components/misc/resourcehelpers.hpp>
 
-#include "apps/openmw/mwbase/environment.hpp"
-#include "apps/openmw/mwbase/mechanicsmanager.hpp"
-#include "apps/openmw/mwbase/world.hpp"
-#include "apps/openmw/mwmechanics/npcstats.hpp"
-#include "apps/openmw/mwworld/class.hpp"
-#include "apps/openmw/mwworld/esmstore.hpp"
-
-#include "../classbindings.hpp"
-#include "../localscripts.hpp"
-#include "../luamanagerimp.hpp"
-#include "../racebindings.hpp"
-#include "../stats.hpp"
+#include "actor.hpp"
+#include "modelproperty.hpp"
+#include "servicesoffered.hpp"
+#include "types.hpp"
 
 namespace sol
 {

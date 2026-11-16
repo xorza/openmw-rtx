@@ -1,15 +1,13 @@
 #pragma once
 
-#include <string>
-#include <vector>
-
 #include <QObject>
 #include <QProcess>
 #include <QTextDocument>
+#include <filesystem>
+#include <string>
+#include <vector>
 
 #include <components/esm3/debugprofile.hpp>
-
-#include <filesystem>
 
 class QTemporaryFile;
 

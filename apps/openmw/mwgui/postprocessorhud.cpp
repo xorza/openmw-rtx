@@ -16,20 +16,16 @@
 #include <MyGUI_WidgetInput.h>
 #include <MyGUI_Window.h>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwrender/postprocessor.hpp>
 #include <components/files/configurationmanager.hpp>
 #include <components/fx/technique.hpp>
 #include <components/fx/widgets.hpp>
-
 #include <components/misc/utf8stream.hpp>
 #include <components/settings/settings.hpp>
-
 #include <components/widgets/box.hpp>
-
-#include "../mwrender/postprocessor.hpp"
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
 
 namespace MWGui
 {

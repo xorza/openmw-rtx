@@ -1,8 +1,7 @@
 
-#include "../../mwmechanics/spellutil.hpp"
-#include "../../mwworld/class.hpp"
-
-#include "../itemdata.hpp"
+#include <apps/openmw/mwlua/itemdata.hpp>
+#include <apps/openmw/mwmechanics/spellutil.hpp>
+#include <apps/openmw/mwworld/class.hpp>
 
 #include "types.hpp"
 

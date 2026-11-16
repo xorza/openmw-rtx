@@ -2,13 +2,10 @@
 
 #include <string>
 
+#include <apps/opencs/model/doc/stage.hpp>
+#include <apps/opencs/model/world/idcollection.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
-
 #include <components/esm3/loadsoun.hpp>
-
-#include "../world/idcollection.hpp"
-
-#include "../doc/stage.hpp"
 
 namespace CSMDoc
 {

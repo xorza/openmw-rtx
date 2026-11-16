@@ -1,6 +1,7 @@
 #pragma once
 
 #include <map>
+
 #include <osg/Group>
 
 #include <components/esm/refid.hpp>

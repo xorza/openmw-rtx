@@ -1,33 +1,30 @@
 #include "scriptsubview.hpp"
 
+#include <QSplitter>
+#include <QTimer>
 #include <istream>
 #include <vector>
 
-#include <QSplitter>
-#include <QTimer>
-
+#include <apps/opencs/model/doc/document.hpp>
 #include <apps/opencs/model/prefs/category.hpp>
 #include <apps/opencs/model/prefs/setting.hpp>
+#include <apps/opencs/model/prefs/state.hpp>
 #include <apps/opencs/model/world/columns.hpp>
 #include <apps/opencs/model/world/commanddispatcher.hpp>
+#include <apps/opencs/model/world/commands.hpp>
+#include <apps/opencs/model/world/data.hpp>
+#include <apps/opencs/model/world/idtable.hpp>
 #include <apps/opencs/model/world/record.hpp>
+#include <apps/opencs/model/world/universalid.hpp>
 #include <apps/opencs/view/doc/subview.hpp>
-#include <apps/opencs/view/world/creator.hpp>
-#include <apps/opencs/view/world/scripthighlighter.hpp>
-
 #include <components/debug/debuglog.hpp>
 
-#include "../../model/doc/document.hpp"
-#include "../../model/prefs/state.hpp"
-#include "../../model/world/commands.hpp"
-#include "../../model/world/data.hpp"
-#include "../../model/world/idtable.hpp"
-#include "../../model/world/universalid.hpp"
-
+#include "creator.hpp"
 #include "genericcreator.hpp"
 #include "recordbuttonbar.hpp"
 #include "scriptedit.hpp"
 #include "scripterrortable.hpp"
+#include "scripthighlighter.hpp"
 #include "tablebottombox.hpp"
 
 void CSVWorld::ScriptSubView::addButtonBar()

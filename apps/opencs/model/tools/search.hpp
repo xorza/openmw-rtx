@@ -1,10 +1,9 @@
 #pragma once
 
-#include <set>
-#include <string>
-
 #include <QMetaType>
 #include <QRegularExpression>
+#include <set>
+#include <string>
 
 class QModelIndex;
 

@@ -1,11 +1,9 @@
 #include "bodypart.hpp"
 
+#include <apps/openmw/mwrender/objects.hpp>
+#include <apps/openmw/mwrender/renderinginterface.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
 #include <components/esm3/loadbody.hpp>
-
-#include "../mwrender/objects.hpp"
-#include "../mwrender/renderinginterface.hpp"
-
-#include "../mwworld/cellstore.hpp"
 
 #include "classmodel.hpp"
 

@@ -1,9 +1,9 @@
 #pragma once
 
-#include <components/detournavigator/settings.hpp>
-
 #include <chrono>
 #include <limits>
+
+#include <components/detournavigator/settings.hpp>
 
 namespace DetourNavigator
 {

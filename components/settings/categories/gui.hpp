@@ -1,15 +1,14 @@
 #pragma once
 
-#include <components/settings/sanitizerimpl.hpp>
-#include <components/settings/settingvalue.hpp>
+#include <string_view>
 
+#include <MyGUI_Colour.h>
 #include <osg/Math>
 #include <osg/Vec2f>
 #include <osg/Vec3f>
 
-#include <MyGUI_Colour.h>
-
-#include <string_view>
+#include <components/settings/sanitizerimpl.hpp>
+#include <components/settings/settingvalue.hpp>
 
 namespace Settings
 {

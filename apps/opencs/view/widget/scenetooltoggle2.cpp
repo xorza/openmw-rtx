@@ -1,17 +1,15 @@
 #include "scenetooltoggle2.hpp"
 
-#include <sstream>
-#include <utility>
-
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QIcon>
-
-#include <apps/opencs/view/widget/scenetool.hpp>
+#include <sstream>
+#include <utility>
 
 #include <components/misc/scalableicon.hpp>
 
 #include "pushbutton.hpp"
+#include "scenetool.hpp"
 #include "scenetoolbar.hpp"
 
 void CSVWidget::SceneToolToggle2::adjustToolTip()

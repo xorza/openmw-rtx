@@ -1,20 +1,18 @@
 #include "gmstcheck.hpp"
 
 #include <sstream>
+
 #include <stddef.h>
 
 #include <apps/opencs/model/doc/messages.hpp>
 #include <apps/opencs/model/prefs/category.hpp>
 #include <apps/opencs/model/prefs/setting.hpp>
+#include <apps/opencs/model/prefs/state.hpp>
+#include <apps/opencs/model/world/defaultgmsts.hpp>
 #include <apps/opencs/model/world/idcollection.hpp>
 #include <apps/opencs/model/world/record.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
-
 #include <components/esm3/loadgmst.hpp>
-
-#include "../prefs/state.hpp"
-
-#include "../world/defaultgmsts.hpp"
 
 CSMTools::GmstCheckStage::GmstCheckStage(const CSMWorld::IdCollection<ESM::GameSetting>& gameSettings)
     : mGameSettings(gameSettings)

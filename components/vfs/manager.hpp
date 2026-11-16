@@ -1,12 +1,12 @@
 #pragma once
 
-#include <components/files/istreamptr.hpp>
-
 #include <filesystem>
 #include <memory>
 #include <string>
 #include <string_view>
 #include <vector>
+
+#include <components/files/istreamptr.hpp>
 
 #include "filemap.hpp"
 #include "pathutil.hpp"

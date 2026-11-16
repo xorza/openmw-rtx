@@ -8,11 +8,12 @@
 #include <osg/Vec3d>
 #include <osg/ref_ptr>
 
-#include "../../model/world/cellcoordinates.hpp"
-#include "instancedragmodes.hpp"
-#include "worldspacewidget.hpp"
+#include <apps/opencs/model/world/cellcoordinates.hpp>
 #include <components/esm/refid.hpp>
 #include <components/misc/algorithm.hpp>
+
+#include "instancedragmodes.hpp"
+#include "worldspacewidget.hpp"
 
 class QModelIndex;
 

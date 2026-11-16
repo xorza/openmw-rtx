@@ -1,9 +1,8 @@
 #pragma once
 
-#include "../world/idcollection.hpp"
-#include "../world/infocollection.hpp"
-
-#include "../doc/stage.hpp"
+#include <apps/opencs/model/doc/stage.hpp>
+#include <apps/opencs/model/world/idcollection.hpp>
+#include <apps/opencs/model/world/infocollection.hpp>
 
 namespace CSMDoc
 {

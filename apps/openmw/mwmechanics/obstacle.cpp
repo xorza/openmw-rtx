@@ -3,12 +3,11 @@
 #include <array>
 #include <span>
 
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/class.hpp>
 #include <components/esm3/loaddoor.hpp>
 #include <components/sceneutil/positionattitudetransform.hpp>
-
-#include "../mwbase/world.hpp"
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/class.hpp"
 
 #include "movement.hpp"
 

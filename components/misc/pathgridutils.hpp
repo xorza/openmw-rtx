@@ -1,12 +1,12 @@
 #pragma once
 
-#include "convert.hpp"
-
-#include <components/esm3/loadpgrd.hpp>
+#include <stdexcept>
 
 #include <osg/Vec3f>
 
-#include <stdexcept>
+#include <components/esm3/loadpgrd.hpp>
+
+#include "convert.hpp"
 
 namespace Misc
 {

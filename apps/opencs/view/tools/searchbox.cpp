@@ -1,12 +1,10 @@
 #include "searchbox.hpp"
 
+#include <QGridLayout>
 #include <stdexcept>
 
-#include <QGridLayout>
-
-#include "../../model/world/columns.hpp"
-
-#include "../../model/tools/search.hpp"
+#include <apps/opencs/model/tools/search.hpp>
+#include <apps/opencs/model/world/columns.hpp>
 
 void CSVTools::SearchBox::updateSearchButtons()
 {

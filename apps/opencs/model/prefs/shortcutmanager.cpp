@@ -1,10 +1,9 @@
 #include "shortcutmanager.hpp"
 
+#include <QStringList>
 #include <algorithm>
 #include <string>
 #include <utility>
-
-#include <QStringList>
 
 #include "shortcut.hpp"
 #include "shortcuteventhandler.hpp"

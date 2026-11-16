@@ -1,5 +1,3 @@
-#include <components/sdlutil/sdlinputwrapper.hpp>
-
 #include <utility>
 #include <vector>
 
@@ -13,6 +11,7 @@
 
 #include <components/sdlutil/events.hpp>
 #include <components/sdlutil/graphicslistener.hpp>
+#include <components/sdlutil/sdlinputwrapper.hpp>
 
 namespace SDLUtil
 {

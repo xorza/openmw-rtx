@@ -2,10 +2,9 @@
 
 #include <stdexcept>
 
-#include <apps/opencs/model/world/columns.hpp>
-#include <apps/opencs/model/world/universalid.hpp>
-
 #include "columnbase.hpp"
+#include "columns.hpp"
+#include "universalid.hpp"
 
 int CSMWorld::CollectionBase::getInsertIndex(const ESM::RefId& id, UniversalId::Type type, RecordBase* record) const
 {

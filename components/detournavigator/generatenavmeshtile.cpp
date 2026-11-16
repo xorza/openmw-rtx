@@ -1,17 +1,17 @@
 #include "generatenavmeshtile.hpp"
 
+#include <memory>
+
+#include <DetourNavMesh.h>
+#include <osg/io_utils> // IWYU pragma: keep: the vectors' operator<<, which a log line's template calls
+
+#include <components/debug/debuglog.hpp>
+
 #include "makenavmesh.hpp"
 #include "navmeshdata.hpp"
 #include "navmeshtilestore.hpp"
 #include "preparednavmeshdata.hpp"
 #include "settings.hpp"
-
-#include <components/debug/debuglog.hpp>
-
-#include <DetourNavMesh.h>
-#include <osg/io_utils> // IWYU pragma: keep: the vectors' operator<<, which a log line's template calls
-
-#include <memory>
 
 namespace DetourNavigator
 {

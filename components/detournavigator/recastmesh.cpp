@@ -1,7 +1,8 @@
 #include "recastmesh.hpp"
-#include "exceptions.hpp"
 
 #include <string>
+
+#include "exceptions.hpp"
 
 namespace DetourNavigator
 {

@@ -1,10 +1,10 @@
 #pragma once
 
+#include <QMetaType>
 #include <string>
 #include <variant>
 #include <vector>
 
-#include <QMetaType>
 #include <components/esm/refid.hpp>
 
 namespace CSMWorld

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../doc/subview.hpp"
 #include <apps/opencs/model/world/universalid.hpp>
+#include <apps/opencs/view/doc/subview.hpp>
 
 class QObject;
 

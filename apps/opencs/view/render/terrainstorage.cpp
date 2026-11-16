@@ -1,21 +1,21 @@
 #include "terrainstorage.hpp"
 
-#include <components/esmterrain/storage.hpp>
+#include <algorithm>
+#include <cmath>
+#include <iterator>
+#include <memory>
+#include <stdexcept>
+#include <string>
+
+#include <osg/Vec4ub>
+#include <stdlib.h>
 
 #include <apps/opencs/model/world/data.hpp>
 #include <apps/opencs/model/world/idcollection.hpp>
 #include <apps/opencs/model/world/land.hpp>
 #include <apps/opencs/model/world/record.hpp>
+#include <components/esmterrain/storage.hpp>
 #include <components/resource/resourcesystem.hpp> // IWYU pragma: keep: the resource system whole, which a shared pointer to it is read through
-
-#include <algorithm>
-#include <cmath>
-#include <iterator>
-#include <memory>
-#include <osg/Vec4ub>
-#include <stdexcept>
-#include <stdlib.h>
-#include <string>
 
 namespace CSVRender
 {

@@ -7,34 +7,27 @@
 
 #include <MyGUI_LanguageManager.h>
 
-#include <components/debug/debuglog.hpp>
-
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwmechanics/levelledlist.hpp>
+#include <apps/openmw/mwworld/action.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/containerstore.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/inventorystore.hpp>
+#include <apps/openmw/mwworld/manualref.hpp>
 #include <components/compiler/opcodes.hpp>
-
-#include <components/interpreter/interpreter.hpp>
-#include <components/interpreter/opcodes.hpp>
-
-#include <components/misc/strings/format.hpp>
-
+#include <components/debug/debuglog.hpp>
 #include <components/esm3/loadcrea.hpp>
 #include <components/esm3/loadlevlist.hpp>
 #include <components/esm3/loadskil.hpp>
 #include <components/interpreter/context.hpp>
+#include <components/interpreter/interpreter.hpp>
+#include <components/interpreter/opcodes.hpp>
 #include <components/interpreter/types.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/action.hpp"
-#include "../mwworld/class.hpp"
-#include "../mwworld/containerstore.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/inventorystore.hpp"
-#include "../mwworld/manualref.hpp"
-
-#include "../mwmechanics/actorutil.hpp"
-#include "../mwmechanics/levelledlist.hpp"
+#include <components/misc/strings/format.hpp>
 
 #include "ref.hpp"
 

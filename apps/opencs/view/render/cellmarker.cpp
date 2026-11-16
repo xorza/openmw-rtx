@@ -11,12 +11,12 @@
 #include <osg/Vec4f>
 #include <osgText/Text>
 
+#include <apps/opencs/model/world/cellcoordinates.hpp>
 #include <components/misc/constants.hpp>
 #include <components/sceneutil/material.hpp>
 
-#include <apps/opencs/model/world/cellcoordinates.hpp>
-#include <apps/opencs/view/render/mask.hpp>
-#include <apps/opencs/view/render/tagbase.hpp>
+#include "mask.hpp"
+#include "tagbase.hpp"
 
 CSVRender::CellMarkerTag::CellMarkerTag(CellMarker* marker)
     : TagBase(Mask_CellMarker)

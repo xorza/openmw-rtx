@@ -1,7 +1,7 @@
-#include <components/esmterrain/gridsampling.hpp>
-
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+
+#include <components/esmterrain/gridsampling.hpp>
 
 namespace ESMTerrain
 {

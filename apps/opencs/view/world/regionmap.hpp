@@ -1,11 +1,10 @@
 #pragma once
 
 #include <QModelIndexList>
-
 #include <string>
 #include <vector>
 
-#include "./dragrecordtable.hpp"
+#include "dragrecordtable.hpp"
 
 class QAction;
 class QContextMenuEvent;

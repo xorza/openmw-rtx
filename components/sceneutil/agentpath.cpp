@@ -1,11 +1,11 @@
 #include "agentpath.hpp"
 
-#include "detourdebugdraw.hpp"
+#include <algorithm>
 
 #include <components/detournavigator/recastparams.hpp>
 #include <components/detournavigator/settings.hpp>
 
-#include <algorithm>
+#include "detourdebugdraw.hpp"
 
 namespace
 {

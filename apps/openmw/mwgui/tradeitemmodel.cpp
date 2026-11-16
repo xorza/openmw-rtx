@@ -1,11 +1,11 @@
 #include "tradeitemmodel.hpp"
 
 #include <algorithm>
-#include <components/settings/values.hpp>
 
-#include "../mwworld/class.hpp"
-#include "../mwworld/containerstore.hpp"
-#include "../mwworld/inventorystore.hpp"
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/containerstore.hpp>
+#include <apps/openmw/mwworld/inventorystore.hpp>
+#include <components/settings/values.hpp>
 
 namespace MWGui
 {

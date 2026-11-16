@@ -1,15 +1,14 @@
 #pragma once
 
+#include <cstdint>
 #include <deque>
 #include <map>
 #include <string>
 #include <string_view>
 
-#include <cstdint>
-
-#include "../mwdialogue/journalentry.hpp"
-#include "../mwdialogue/quest.hpp"
-#include "../mwdialogue/topic.hpp"
+#include <apps/openmw/mwdialogue/journalentry.hpp>
+#include <apps/openmw/mwdialogue/quest.hpp>
+#include <apps/openmw/mwdialogue/topic.hpp>
 
 namespace Loading
 {

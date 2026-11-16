@@ -1,7 +1,12 @@
 #include "compilercontext.hpp"
 
-#include "../mwworld/esmstore.hpp"
-
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/scriptmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/manualref.hpp>
+#include <apps/openmw/mwworld/ptr.hpp>
 #include <components/compiler/locals.hpp>
 #include <components/esm/refid.hpp>
 #include <components/esm3/loadacti.hpp>
@@ -24,14 +29,6 @@
 #include <components/esm3/loadscpt.hpp>
 #include <components/esm3/loadstat.hpp>
 #include <components/esm3/loadweap.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/scriptmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/manualref.hpp"
-#include "../mwworld/ptr.hpp"
 
 namespace MWScript
 {

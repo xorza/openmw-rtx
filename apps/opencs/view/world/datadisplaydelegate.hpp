@@ -1,11 +1,11 @@
 #pragma once
 
-#include "enumdelegate.hpp"
-
 #include <algorithm>
 #include <string>
 #include <utility>
 #include <vector>
+
+#include "enumdelegate.hpp"
 
 class QModelIndex;
 class QObject;

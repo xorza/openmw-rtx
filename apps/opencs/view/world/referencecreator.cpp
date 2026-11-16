@@ -1,23 +1,20 @@
 #include "referencecreator.hpp"
 
 #include <QLabel>
-
 #include <memory>
 
+#include <apps/opencs/model/doc/document.hpp>
 #include <apps/opencs/model/world/columnbase.hpp>
+#include <apps/opencs/model/world/columns.hpp>
+#include <apps/opencs/model/world/commands.hpp>
+#include <apps/opencs/model/world/data.hpp>
 #include <apps/opencs/model/world/idcollection.hpp>
+#include <apps/opencs/model/world/idcompletionmanager.hpp>
+#include <apps/opencs/model/world/idtable.hpp>
 #include <apps/opencs/model/world/refcollection.hpp>
-#include <apps/opencs/view/world/genericcreator.hpp>
+#include <apps/opencs/view/widget/droplineedit.hpp>
 
-#include "../../model/doc/document.hpp"
-
-#include "../../model/world/columns.hpp"
-#include "../../model/world/commands.hpp"
-#include "../../model/world/data.hpp"
-#include "../../model/world/idcompletionmanager.hpp"
-#include "../../model/world/idtable.hpp"
-
-#include "../widget/droplineedit.hpp"
+#include "genericcreator.hpp"
 
 std::string CSVWorld::ReferenceCreator::getId() const
 {

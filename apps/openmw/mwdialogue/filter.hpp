@@ -3,7 +3,7 @@
 #include <utility>
 #include <vector>
 
-#include "../mwworld/ptr.hpp"
+#include <apps/openmw/mwworld/ptr.hpp>
 
 namespace ESM
 {

@@ -1,20 +1,18 @@
 #pragma once
 
-#include "../mwbase/dialoguemanager.hpp"
-
 #include <map>
 #include <optional>
 #include <set>
 #include <unordered_map>
 
+#include <apps/openmw/mwbase/dialoguemanager.hpp>
+#include <apps/openmw/mwscript/compilercontext.hpp>
+#include <apps/openmw/mwworld/ptr.hpp>
 #include <components/compiler/streamerrorhandler.hpp>
 #include <components/esm3/loadinfo.hpp>
 #include <components/interpreter/program.hpp>
 #include <components/misc/strings/algorithm.hpp>
 #include <components/translation/translation.hpp>
-
-#include "../mwscript/compilercontext.hpp"
-#include "../mwworld/ptr.hpp"
 
 #include "keywordsearch.hpp"
 

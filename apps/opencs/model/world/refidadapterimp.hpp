@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QVariant>
 #include <algorithm>
 #include <map>
 #include <stdexcept>
@@ -7,8 +8,6 @@
 #include <string_view>
 #include <utility>
 #include <vector>
-
-#include <QVariant>
 
 #include <components/esm/defs.hpp>
 #include <components/esm/esmcommon.hpp>

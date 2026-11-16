@@ -3,11 +3,10 @@
 #include <string_view>
 #include <utility>
 
+#include <apps/openmw/mwbase/luamanager.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
 #include <components/lua/luastate.hpp>
 #include <components/lua/scriptscontainer.hpp>
-
-#include "../mwbase/luamanager.hpp"
-#include "../mwmechanics/actorutil.hpp"
 
 #include "object.hpp"
 

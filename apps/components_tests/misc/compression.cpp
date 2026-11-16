@@ -1,8 +1,8 @@
-#include <components/misc/compression.hpp>
+#include <cstring>
 
 #include <gtest/gtest.h>
 
-#include <cstring>
+#include <components/misc/compression.hpp>
 
 namespace
 {

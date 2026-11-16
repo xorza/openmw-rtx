@@ -17,29 +17,26 @@
 #include <QTableWidget>
 #include <QVBoxLayout>
 #include <QWidget>
-
 #include <algorithm>
-
-#include "scenetool.hpp"
-
-#include <apps/opencs/model/prefs/category.hpp>
-#include <apps/opencs/model/prefs/setting.hpp>
-#include <apps/opencs/model/world/columns.hpp>
-#include <apps/opencs/model/world/commandmacro.hpp>
-#include <apps/opencs/model/world/record.hpp>
-#include <apps/opencs/view/widget/brushshapes.hpp>
-#include <apps/opencs/view/widget/pushbutton.hpp>
-
-#include <components/misc/scalableicon.hpp>
 #include <utility>
 
-#include "../../model/doc/document.hpp"
-#include "../../model/prefs/state.hpp"
-#include "../../model/world/commands.hpp"
-#include "../../model/world/data.hpp"
-#include "../../model/world/idcollection.hpp"
-#include "../../model/world/idtable.hpp"
-#include "../../model/world/universalid.hpp"
+#include <apps/opencs/model/doc/document.hpp>
+#include <apps/opencs/model/prefs/category.hpp>
+#include <apps/opencs/model/prefs/setting.hpp>
+#include <apps/opencs/model/prefs/state.hpp>
+#include <apps/opencs/model/world/columns.hpp>
+#include <apps/opencs/model/world/commandmacro.hpp>
+#include <apps/opencs/model/world/commands.hpp>
+#include <apps/opencs/model/world/data.hpp>
+#include <apps/opencs/model/world/idcollection.hpp>
+#include <apps/opencs/model/world/idtable.hpp>
+#include <apps/opencs/model/world/record.hpp>
+#include <apps/opencs/model/world/universalid.hpp>
+#include <components/misc/scalableicon.hpp>
+
+#include "brushshapes.hpp"
+#include "pushbutton.hpp"
+#include "scenetool.hpp"
 
 namespace CSVWidget
 {

@@ -1,17 +1,10 @@
 #include "scenewidget.hpp"
 
-#include <exception>
-#include <limits>
-
 #include <QLayout>
 #include <QMouseEvent>
 #include <QSurfaceFormat>
-
-#include <apps/opencs/model/prefs/category.hpp>
-#include <apps/opencs/model/prefs/setting.hpp>
-
-#include <osgQt/CompositeOsgRenderer.hpp>
-#include <osgQt/osgQOpenGLWidget.hpp>
+#include <exception>
+#include <limits>
 
 #include <osg/Array>
 #include <osg/Camera>
@@ -28,15 +21,20 @@
 #include <osg/Vec4>
 #include <osg/Vec4ub>
 #include <osg/Viewport>
-
 #include <osgGA/EventQueue>
 #include <osgGA/GUIEventAdapter>
-
+#include <osgQt/CompositeOsgRenderer.hpp>
+#include <osgQt/osgQOpenGLWidget.hpp>
 #include <osgViewer/GraphicsWindow>
 #include <osgViewer/View>
 #include <osgViewer/ViewerBase>
 #include <osgViewer/ViewerEventHandlers>
 
+#include <apps/opencs/model/prefs/category.hpp>
+#include <apps/opencs/model/prefs/setting.hpp>
+#include <apps/opencs/model/prefs/shortcut.hpp>
+#include <apps/opencs/model/prefs/state.hpp>
+#include <apps/opencs/view/widget/scenetoolmode.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/misc/constants.hpp>
 #include <components/resource/resourcesystem.hpp>
@@ -47,11 +45,6 @@
 #include <components/sceneutil/stateupdater.hpp>
 #include <components/sceneutil/texmat.hpp>
 #include <components/shader/removedalphafunc.hpp>
-
-#include "../widget/scenetoolmode.hpp"
-
-#include "../../model/prefs/shortcut.hpp"
-#include "../../model/prefs/state.hpp"
 
 #include "cameracontroller.hpp"
 #include "mask.hpp"

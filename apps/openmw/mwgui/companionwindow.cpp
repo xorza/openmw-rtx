@@ -6,12 +6,10 @@
 #include <MyGUI_EditBox.h>
 #include <MyGUI_InputManager.h>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwworld/class.hpp>
 #include <components/settings/values.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-
-#include "../mwworld/class.hpp"
 
 #include "companionitemmodel.hpp"
 #include "countdialog.hpp"

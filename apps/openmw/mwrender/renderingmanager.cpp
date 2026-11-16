@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <optional>
 #include <sstream>
+#include <utility>
 
 #include <osg/Camera>
 #include <osg/ComputeBoundsVisitor>
@@ -11,22 +12,25 @@
 #include <osg/Image>
 #include <osg/Matrix>
 #include <osg/Stats>
-
 #include <osgDB/Registry>
-
 #include <osgUtil/LineSegmentIntersector>
 
-#include <components/nifosg/nifloader.hpp>
-
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/groundcoverstore.hpp>
+#include <apps/openmw/mwworld/scene.hpp>
+#include <apps/openmw/mwworld/weather.hpp>
+#include <components/debug/debugdraw.hpp>
 #include <components/debug/debuglog.hpp>
-
+#include <components/detournavigator/navigator.hpp>
+#include <components/esm3/loadcell.hpp>
+#include <components/nifosg/nifloader.hpp>
 #include <components/resource/imagemanager.hpp>
 #include <components/resource/keyframemanager.hpp>
 #include <components/resource/resourcesystem.hpp>
-
-#include <components/settings/values.hpp>
-#include <components/sky/sundisc.hpp>
-
 #include <components/sceneutil/cullsafeboundsvisitor.hpp>
 #include <components/sceneutil/depth.hpp>
 #include <components/sceneutil/lightmanager.hpp>
@@ -39,26 +43,10 @@
 #include <components/sceneutil/userdata.hpp>
 #include <components/sceneutil/workqueue.hpp>
 #include <components/sceneutil/writescene.hpp>
-
+#include <components/settings/values.hpp>
+#include <components/sky/sundisc.hpp>
 #include <components/terrain/quadtreeworld.hpp>
 #include <components/terrain/terraingrid.hpp>
-
-#include <components/esm3/loadcell.hpp>
-
-#include <components/debug/debugdraw.hpp>
-#include <components/detournavigator/navigator.hpp>
-#include <utility>
-
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/class.hpp"
-#include "../mwworld/groundcoverstore.hpp"
-#include "../mwworld/scene.hpp"
-#include "../mwworld/weather.hpp"
-
-#include "../mwmechanics/actorutil.hpp"
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/world.hpp"
 
 #include "actorspaths.hpp"
 #include "camera.hpp"

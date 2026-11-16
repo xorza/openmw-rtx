@@ -4,6 +4,7 @@
 #include <set>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 
 #include <osg/AlphaFunc>
 #include <osg/BlendFunc>
@@ -12,7 +13,6 @@
 #include <osg/Geometry>
 #include <osg/Multisample> // IWYU pragma: keep: GL_SAMPLE_ALPHA_TO_COVERAGE_ARB, which Windows' GL headers lack
 #include <osg/Texture>
-
 #include <osgParticle/ParticleSystem>
 
 #include <components/debug/debuglog.hpp>
@@ -21,7 +21,6 @@
 #include <components/sceneutil/material.hpp>
 #include <components/sceneutil/util.hpp>
 #include <components/stereo/stereomanager.hpp>
-#include <utility>
 
 #include "automaps.hpp"
 #include "removedalphafunc.hpp"

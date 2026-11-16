@@ -1,14 +1,11 @@
 #include "spellresistance.hpp"
 
-#include <components/misc/rng.hpp>
-
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/esm3/loadmgef.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
+#include <components/misc/rng.hpp>
 
 #include "creaturestats.hpp"
 #include "spellutil.hpp"

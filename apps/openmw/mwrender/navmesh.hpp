@@ -1,16 +1,16 @@
 #pragma once
 
-#include <components/detournavigator/tileposition.hpp>
-#include <components/detournavigator/version.hpp>
-#include <components/misc/guarded.hpp>
-#include <components/settings/navmeshrendermode.hpp>
-
-#include <osg/ref_ptr>
-
 #include <cstddef>
 #include <map>
 #include <memory>
 #include <vector>
+
+#include <osg/ref_ptr>
+
+#include <components/detournavigator/tileposition.hpp>
+#include <components/detournavigator/version.hpp>
+#include <components/misc/guarded.hpp>
+#include <components/settings/navmeshrendermode.hpp>
 
 class dtNavMesh;
 

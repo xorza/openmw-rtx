@@ -1,11 +1,11 @@
 #pragma once
 
-#include <components/esm3/loadcell.hpp>
-#include <components/misc/algorithm.hpp>
-
 #include <algorithm>
 #include <utility>
 #include <vector>
+
+#include <components/esm3/loadcell.hpp>
+#include <components/misc/algorithm.hpp>
 
 namespace EsmLoader
 {

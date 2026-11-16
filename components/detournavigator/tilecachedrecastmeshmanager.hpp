@@ -1,5 +1,18 @@
 #pragma once
 
+#include <map>
+#include <memory>
+#include <mutex>
+#include <optional>
+#include <unordered_map>
+#include <vector>
+
+#include <LinearMath/btTransform.h>
+#include <boost/geometry/geometries/box.hpp>
+#include <boost/geometry/geometries/point.hpp>
+#include <boost/geometry/index/rtree.hpp>
+#include <osg/Vec2i>
+
 #include "areatype.hpp"
 #include "changetype.hpp"
 #include "commulativeaabb.hpp"
@@ -11,21 +24,6 @@
 #include "tileposition.hpp"
 #include "updateguard.hpp"
 #include "version.hpp"
-
-#include <boost/geometry/geometries/box.hpp>
-#include <boost/geometry/geometries/point.hpp>
-#include <boost/geometry/index/rtree.hpp>
-
-#include <LinearMath/btTransform.h>
-
-#include <osg/Vec2i>
-
-#include <map>
-#include <memory>
-#include <mutex>
-#include <optional>
-#include <unordered_map>
-#include <vector>
 
 namespace DetourNavigator
 {

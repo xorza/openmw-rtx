@@ -1,19 +1,17 @@
 #include "settingspage.hpp"
 
-#include <array>
-#include <string>
-
 #include <QCompleter>
 #include <QDesktopServices>
 #include <QFileDialog>
 #include <QMenu>
 #include <QString>
+#include <array>
+#include <string>
 
+#include <apps/launcher/utils/openalutil.hpp>
 #include <components/config/gamesettings.hpp>
 #include <components/files/qtconversion.hpp>
 #include <components/settings/values.hpp>
-
-#include "utils/openalutil.hpp"
 
 namespace
 {

@@ -3,15 +3,15 @@
 #include <map>
 #include <string>
 
-#include "aipackage.hpp"
-#include "loadcont.hpp"
-#include "spelllist.hpp"
-#include "transport.hpp"
-
 #include <components/esm/attr.hpp>
 #include <components/esm/defs.hpp>
 #include <components/esm/path.hpp>
 #include <components/esm/refid.hpp>
+
+#include "aipackage.hpp"
+#include "loadcont.hpp"
+#include "spelllist.hpp"
+#include "transport.hpp"
 
 namespace ESM
 {

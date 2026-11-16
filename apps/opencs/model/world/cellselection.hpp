@@ -1,10 +1,9 @@
 #pragma once
 
+#include <QMetaType>
 #include <set>
 
-#include <QMetaType>
-
-#include <apps/opencs/model/world/cellcoordinates.hpp>
+#include "cellcoordinates.hpp"
 
 namespace CSMWorld
 {

@@ -1,46 +1,42 @@
 #include "terraintexturemode.hpp"
 
-#include <cmath>
-#include <cstdlib>
-#include <string>
-
 #include <QDropEvent>
 #include <QIcon>
 #include <QSlider>
 #include <QWidget>
+#include <cmath>
+#include <cstdlib>
+#include <string>
 
 #include <osg/Vec2f>
 #include <osg/Vec3d>
 
+#include <apps/opencs/model/doc/document.hpp>
 #include <apps/opencs/model/prefs/category.hpp>
 #include <apps/opencs/model/prefs/setting.hpp>
+#include <apps/opencs/model/prefs/state.hpp>
 #include <apps/opencs/model/world/cellcoordinates.hpp>
 #include <apps/opencs/model/world/cellselection.hpp>
 #include <apps/opencs/model/world/columnimp.hpp>
 #include <apps/opencs/model/world/columns.hpp>
+#include <apps/opencs/model/world/commands.hpp>
+#include <apps/opencs/model/world/data.hpp>
 #include <apps/opencs/model/world/idcollection.hpp>
+#include <apps/opencs/model/world/idtable.hpp>
+#include <apps/opencs/model/world/idtree.hpp>
 #include <apps/opencs/model/world/record.hpp>
-#include <apps/opencs/view/render/terrainselection.hpp>
+#include <apps/opencs/model/world/tablemimedata.hpp>
+#include <apps/opencs/model/world/universalid.hpp>
 #include <apps/opencs/view/widget/scenetool.hpp>
-
+#include <apps/opencs/view/widget/scenetoolbar.hpp>
+#include <apps/opencs/view/widget/scenetooltexturebrush.hpp>
 #include <components/misc/scalableicon.hpp>
-
-#include "../widget/scenetoolbar.hpp"
-#include "../widget/scenetooltexturebrush.hpp"
-
-#include "../../model/doc/document.hpp"
-#include "../../model/prefs/state.hpp"
-#include "../../model/world/commands.hpp"
-#include "../../model/world/data.hpp"
-#include "../../model/world/idtable.hpp"
-#include "../../model/world/idtree.hpp"
-#include "../../model/world/tablemimedata.hpp"
-#include "../../model/world/universalid.hpp"
 
 #include "brushdraw.hpp"
 #include "editmode.hpp"
 #include "mask.hpp"
 #include "pagedworldspacewidget.hpp"
+#include "terrainselection.hpp"
 #include "worldspacewidget.hpp"
 
 CSVRender::TerrainTextureMode::TerrainTextureMode(

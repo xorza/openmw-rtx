@@ -1,8 +1,8 @@
 #pragma once
 
-#include "ui_intropage.h"
-
 #include <QWizard>
+
+#include "ui_intropage.h"
 
 namespace Wizard
 {

@@ -1,5 +1,10 @@
 #pragma once
 
+#include <map>
+#include <memory>
+
+#include <osg/Vec3f>
+
 #include "agentbounds.hpp"
 #include "asyncnavmeshupdater.hpp"
 #include "cellgridbounds.hpp"
@@ -7,11 +12,6 @@
 #include "offmeshconnectionsmanager.hpp"
 #include "recastmeshtiles.hpp"
 #include "waitconditiontype.hpp"
-
-#include <osg/Vec3f>
-
-#include <map>
-#include <memory>
 
 class dtNavMesh;
 

@@ -1,3 +1,19 @@
+#include <cstddef>
+#include <filesystem>
+#include <iomanip>
+#include <ios>
+#include <limits>
+#include <map>
+#include <ostream>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
+
+#include <boost/program_options/parsers.hpp>
+#include <boost/program_options/value_semantic.hpp>
+#include <boost/program_options/variables_map.hpp>
+
 #include <components/debug/debugging.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/loadcell.hpp>
@@ -23,22 +39,6 @@
 #include <components/version/version.hpp>
 #include <components/vfs/manager.hpp>
 #include <components/vfs/registerarchives.hpp>
-
-#include <cstddef>
-#include <filesystem>
-#include <iomanip>
-#include <ios>
-#include <limits>
-#include <map>
-#include <ostream>
-#include <string>
-#include <string_view>
-#include <utility>
-#include <vector>
-
-#include <boost/program_options/parsers.hpp>
-#include <boost/program_options/value_semantic.hpp>
-#include <boost/program_options/variables_map.hpp>
 
 namespace
 {

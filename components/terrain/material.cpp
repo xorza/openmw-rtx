@@ -1,5 +1,7 @@
 #include "material.hpp"
 
+#include <mutex>
+
 #include <osg/BlendFunc>
 #include <osg/Capability>
 #include <osg/Depth>
@@ -11,8 +13,6 @@
 #include <components/sceneutil/util.hpp>
 #include <components/shader/shadermanager.hpp>
 #include <components/stereo/stereomanager.hpp>
-
-#include <mutex>
 
 namespace
 {

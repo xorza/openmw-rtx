@@ -29,6 +29,7 @@
 #include <span>
 #include <sstream>
 #include <stdexcept>
+#include <utility>
 
 #include <zlib.h>
 
@@ -40,7 +41,6 @@
 #include <components/misc/strings/lower.hpp>
 #include <components/toutf8/toutf8.hpp>
 #include <components/vfs/manager.hpp>
-#include <utility>
 
 #include "grouptype.hpp"
 

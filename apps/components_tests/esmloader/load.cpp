@@ -1,3 +1,5 @@
+#include <gtest/gtest.h>
+
 #include <components/esm3/loadacti.hpp> // IWYU pragma: keep: the record whole, which the stores' templates instantiate
 #include <components/esm3/loadcell.hpp> // IWYU pragma: keep: the record whole, which the stores' templates instantiate
 #include <components/esm3/loadcont.hpp> // IWYU pragma: keep: the record whole, which the stores' templates instantiate
@@ -11,8 +13,6 @@
 #include <components/files/collections.hpp>
 #include <components/files/multidircollection.hpp>
 #include <components/toutf8/toutf8.hpp>
-
-#include <gtest/gtest.h>
 
 namespace
 {

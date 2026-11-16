@@ -1,7 +1,5 @@
 #include "launchersettings.hpp"
 
-#include <algorithm>
-
 #include <QDebug>
 #include <QDir>
 #include <QMultiMap>
@@ -9,9 +7,10 @@
 #include <QString>
 #include <QStringList>
 #include <QTextStream>
+#include <algorithm>
+#include <ranges>
 
 #include <components/debug/debuglog.hpp>
-#include <ranges>
 
 #include "gamesettings.hpp"
 

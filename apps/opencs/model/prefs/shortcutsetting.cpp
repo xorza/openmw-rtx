@@ -8,9 +8,8 @@
 #include <QString>
 #include <QWidget>
 
-#include <apps/opencs/model/prefs/category.hpp>
-#include <apps/opencs/model/prefs/setting.hpp>
-
+#include "category.hpp"
+#include "setting.hpp"
 #include "shortcutmanager.hpp"
 #include "state.hpp"
 

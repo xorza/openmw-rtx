@@ -1,13 +1,13 @@
 #include "filesystemarchive.hpp"
 
 #include <filesystem>
-
-#include "pathutil.hpp"
+#include <utility>
 
 #include <components/debug/debuglog.hpp>
 #include <components/files/constrainedfilestream.hpp>
 #include <components/files/conversion.hpp>
-#include <utility>
+
+#include "pathutil.hpp"
 
 namespace VFS
 {

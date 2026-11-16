@@ -1,29 +1,25 @@
 #pragma once
 
-#include <boost/program_options/variables_map.hpp>
-
 #include <QLockFile>
 #include <QObject>
 #include <QString>
-
 #include <filesystem>
 #include <fstream>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include <boost/program_options/variables_map.hpp>
+
+#include <apps/opencs/model/doc/documentmanager.hpp>
+#include <apps/opencs/model/prefs/state.hpp>
+#include <apps/opencs/view/doc/filedialog.hpp>
+#include <apps/opencs/view/doc/newgame.hpp>
+#include <apps/opencs/view/doc/startup.hpp>
+#include <apps/opencs/view/prefs/dialogue.hpp>
+#include <apps/opencs/view/tools/merge.hpp>
 #include <components/files/configurationmanager.hpp>
-
 #include <components/files/multidircollection.hpp>
-
-#include "model/doc/documentmanager.hpp"
-#include "model/prefs/state.hpp"
-
-#include "view/doc/filedialog.hpp"
-#include "view/doc/newgame.hpp"
-#include "view/doc/startup.hpp"
-#include "view/prefs/dialogue.hpp"
-#include "view/tools/merge.hpp"
 
 class QLocalServer;
 class QLocalSocket;

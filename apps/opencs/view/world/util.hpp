@@ -1,11 +1,10 @@
 #pragma once
 
-#include <map>
-
 #include <QAbstractTableModel>
 #include <QStyledItemDelegate>
+#include <map>
 
-#include "../../model/world/columnbase.hpp"
+#include <apps/opencs/model/world/columnbase.hpp>
 
 class QUndoStack;
 class QWidget;

@@ -1,9 +1,10 @@
 #include "recastcontext.hpp"
-#include "debug.hpp"
+
+#include <sstream>
 
 #include <components/debug/debuglog.hpp>
 
-#include <sstream>
+#include "debug.hpp"
 
 namespace DetourNavigator
 {

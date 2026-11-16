@@ -29,9 +29,10 @@
 #include <cstdint>
 #include <string>
 
-#include "script.hpp"
 #include <components/esm/defs.hpp>
 #include <components/esm/formid.hpp>
+
+#include "script.hpp"
 
 namespace ESM4
 {

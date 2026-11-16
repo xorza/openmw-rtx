@@ -1,10 +1,9 @@
-#include "types.hpp"
-
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/esm3/loadmisc.hpp>
 #include <components/esm3/loadspel.hpp>
 #include <components/misc/resourcehelpers.hpp>
 
-#include "apps/openmw/mwworld/esmstore.hpp"
+#include "types.hpp"
 
 namespace MWLua
 {

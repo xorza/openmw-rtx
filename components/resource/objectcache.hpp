@@ -19,12 +19,6 @@
 
 #pragma once
 
-#include "cachebudget.hpp"
-#include "cachestats.hpp"
-
-#include <osg/Node>
-#include <osg/ref_ptr>
-
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
@@ -39,6 +33,12 @@
 #include <type_traits>
 #include <utility>
 #include <vector>
+
+#include <osg/Node>
+#include <osg/ref_ptr>
+
+#include "cachebudget.hpp"
+#include "cachestats.hpp"
 
 namespace osg
 {

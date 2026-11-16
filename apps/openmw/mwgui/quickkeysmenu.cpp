@@ -6,26 +6,23 @@
 #include <MyGUI_ImageBox.h>
 #include <MyGUI_RenderManager.h>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwmechanics/creaturestats.hpp>
+#include <apps/openmw/mwmechanics/spellutil.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/inventorystore.hpp>
+#include <apps/openmw/mwworld/player.hpp>
 #include <components/esm3/esmwriter.hpp>
 #include <components/esm3/loadmgef.hpp>
 #include <components/esm3/quickkeys.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/settings/values.hpp>
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/inventorystore.hpp"
-#include "../mwworld/player.hpp"
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwmechanics/actorutil.hpp"
-#include "../mwmechanics/creaturestats.hpp"
-#include "../mwmechanics/spellutil.hpp"
 
 #include "itemselection.hpp"
 #include "itemwidget.hpp"

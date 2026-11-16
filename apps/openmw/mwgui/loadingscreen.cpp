@@ -5,14 +5,18 @@
 #include <cstddef>
 #include <string>
 
-#include <osg/FrameStamp>
-#include <osg/Stats>
-
 #include <MyGUI_EditBox.h>
 #include <MyGUI_ScrollBar.h>
 #include <MyGUI_TextBox.h>
 #include <MyGUI_Types.h>
+#include <osg/FrameStamp>
+#include <osg/Stats>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/inputmanager.hpp>
+#include <apps/openmw/mwbase/statemanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwrender/renderer.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/misc/pathhelpers.hpp>
 #include <components/misc/rng.hpp>
@@ -21,13 +25,6 @@
 #include <components/vfs/manager.hpp>
 #include <components/vfs/pathutil.hpp>
 #include <components/vfs/recursivedirectoryiterator.hpp> // IWYU pragma: keep: the range whole, which a call returns by value
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/inputmanager.hpp"
-#include "../mwbase/statemanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-
-#include "../mwrender/renderer.hpp"
 
 #include "backgroundimage.hpp"
 #include "mode.hpp"

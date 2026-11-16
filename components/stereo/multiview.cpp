@@ -10,13 +10,14 @@
 
 // After OpenSceneGraph's headers, which include the system's <GL/gl.h> that Khronos's extension header builds on:
 // Windows' names stop at GL 1.1.
+#include <algorithm>
+
 #include <GL/glext.h>
 
 #include <components/debug/debuglog.hpp>
 #include <components/sceneutil/nodecallback.hpp>
-#include <components/stereo/stereomanager.hpp>
 
-#include <algorithm>
+#include "stereomanager.hpp"
 
 namespace Stereo
 {

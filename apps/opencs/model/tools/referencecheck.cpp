@@ -2,13 +2,11 @@
 
 #include <string>
 
-#include "../prefs/state.hpp"
-
-#include "../../model/world/cell.hpp"
-
 #include <apps/opencs/model/doc/messages.hpp>
 #include <apps/opencs/model/prefs/category.hpp>
 #include <apps/opencs/model/prefs/setting.hpp>
+#include <apps/opencs/model/prefs/state.hpp>
+#include <apps/opencs/model/world/cell.hpp>
 #include <apps/opencs/model/world/idcollection.hpp>
 #include <apps/opencs/model/world/record.hpp>
 #include <apps/opencs/model/world/ref.hpp>
@@ -16,7 +14,6 @@
 #include <apps/opencs/model/world/refidcollection.hpp>
 #include <apps/opencs/model/world/refiddata.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
-
 #include <components/esm3/cellref.hpp>
 #include <components/esm3/loadbody.hpp>
 #include <components/esm3/loadfact.hpp>

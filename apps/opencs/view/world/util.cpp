@@ -1,27 +1,24 @@
 #include "util.hpp"
 
-#include <limits>
-#include <stdexcept>
-#include <utility>
-
 #include <QCheckBox>
 #include <QItemEditorFactory>
 #include <QLineEdit>
 #include <QPlainTextEdit>
 #include <QStyledItemDelegate>
 #include <QUndoStack>
+#include <limits>
+#include <stdexcept>
+#include <utility>
 
 #include <apps/opencs/model/doc/document.hpp>
 #include <apps/opencs/model/world/columnbase.hpp>
-#include <apps/opencs/view/world/scripthighlighter.hpp>
-
-#include "../../model/world/commanddispatcher.hpp"
-
-#include "../widget/coloreditor.hpp"
-#include "../widget/droplineedit.hpp"
+#include <apps/opencs/model/world/commanddispatcher.hpp>
+#include <apps/opencs/view/widget/coloreditor.hpp>
+#include <apps/opencs/view/widget/droplineedit.hpp>
 
 #include "dialoguespinbox.hpp"
 #include "scriptedit.hpp"
+#include "scripthighlighter.hpp"
 
 CSVWorld::NastyTableModelHack::NastyTableModelHack(QAbstractItemModel& model)
     : mModel(model)

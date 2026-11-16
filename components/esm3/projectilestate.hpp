@@ -3,9 +3,9 @@
 #include <osg/Quat>
 #include <osg/Vec3f>
 
-#include "components/esm/quaternion.hpp"
-#include "components/esm/refid.hpp"
-#include "components/esm/vector3.hpp"
+#include <components/esm/quaternion.hpp>
+#include <components/esm/refid.hpp>
+#include <components/esm/vector3.hpp>
 
 #include "refnum.hpp"
 

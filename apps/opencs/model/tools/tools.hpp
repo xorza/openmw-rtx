@@ -1,15 +1,12 @@
 #pragma once
 
+#include <QObject>
 #include <map>
 #include <memory>
 
+#include <apps/opencs/model/doc/operationholder.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
-
 #include <components/toutf8/toutf8.hpp>
-
-#include <QObject>
-
-#include "../doc/operationholder.hpp"
 
 namespace CSMWorld
 {

@@ -1,15 +1,13 @@
 #include "refdata.hpp"
 
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwlua/localscripts.hpp>
 #include <components/esm3/objectstate.hpp>
 #include <components/esm4/loadachr.hpp>
 #include <components/esm4/loadrefr.hpp>
 #include <components/sceneutil/positionattitudetransform.hpp>
 
 #include "customdata.hpp"
-
-#include "../mwbase/world.hpp"
-
-#include "../mwlua/localscripts.hpp"
 
 namespace
 {

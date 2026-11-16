@@ -1,7 +1,8 @@
 #include "unarynode.hpp"
 
-#include <apps/opencs/model/filter/node.hpp>
 #include <utility>
+
+#include "node.hpp"
 
 CSMFilter::UnaryNode::UnaryNode(std::shared_ptr<Node> child, std::string name)
     : mChild(std::move(child))

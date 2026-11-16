@@ -1,10 +1,12 @@
 #pragma once
 
-#include "creaturestats.hpp"
-#include <components/esm/refid.hpp>
 #include <map>
 #include <string>
 #include <vector>
+
+#include <components/esm/refid.hpp>
+
+#include "creaturestats.hpp"
 
 namespace ESM
 {

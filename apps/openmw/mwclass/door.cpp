@@ -3,36 +3,31 @@
 #include <MyGUI_TextIterator.h>
 #include <MyGUI_UString.h>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/soundmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwgui/tooltips.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwphysics/physicssystem.hpp>
+#include <apps/openmw/mwrender/animation.hpp>
+#include <apps/openmw/mwrender/objects.hpp>
+#include <apps/openmw/mwrender/renderinginterface.hpp>
+#include <apps/openmw/mwrender/vismask.hpp>
+#include <apps/openmw/mwworld/actiondoor.hpp>
+#include <apps/openmw/mwworld/actionteleport.hpp>
+#include <apps/openmw/mwworld/actiontrap.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/containerstore.hpp>
+#include <apps/openmw/mwworld/customdata.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/failedaction.hpp>
+#include <apps/openmw/mwworld/ptr.hpp>
+#include <apps/openmw/mwworld/worldmodel.hpp>
 #include <components/esm3/doorstate.hpp>
 #include <components/esm3/loaddoor.hpp>
 #include <components/esm3/loadmgef.hpp>
 #include <components/sceneutil/positionattitudetransform.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/soundmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwphysics/physicssystem.hpp"
-#include "../mwworld/actiondoor.hpp"
-#include "../mwworld/actionteleport.hpp"
-#include "../mwworld/actiontrap.hpp"
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/containerstore.hpp"
-#include "../mwworld/customdata.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/failedaction.hpp"
-#include "../mwworld/ptr.hpp"
-#include "../mwworld/worldmodel.hpp"
-
-#include "../mwgui/tooltips.hpp"
-
-#include "../mwrender/animation.hpp"
-#include "../mwrender/objects.hpp"
-#include "../mwrender/renderinginterface.hpp"
-#include "../mwrender/vismask.hpp"
-
-#include "../mwmechanics/actorutil.hpp"
 
 #include "classmodel.hpp"
 #include "nameorid.hpp"

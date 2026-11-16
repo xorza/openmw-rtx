@@ -1,8 +1,7 @@
 #pragma once
 
-#include <vector>
-
 #include <QDockWidget>
+#include <vector>
 
 class QVBoxLayout;
 

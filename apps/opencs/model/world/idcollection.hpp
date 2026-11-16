@@ -4,14 +4,13 @@
 #include <memory>
 #include <string>
 
-#include <apps/opencs/model/world/record.hpp>
-
 #include <components/esm/esmcommon.hpp>
 #include <components/esm3/loadland.hpp>
 
 #include "collection.hpp"
 #include "land.hpp"
 #include "pathgrid.hpp"
+#include "record.hpp"
 
 namespace ESM
 {

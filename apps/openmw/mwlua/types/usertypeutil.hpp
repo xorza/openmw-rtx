@@ -1,15 +1,14 @@
 #pragma once
 
-#include "../contentbindings.hpp"
-#include "modelproperty.hpp"
+#include <concepts>
 
-#include "apps/openmw/mwbase/environment.hpp"
-
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwlua/contentbindings.hpp>
 #include <components/esm/path.hpp>
 #include <components/misc/finitevalues.hpp>
 #include <components/resource/resourcesystem.hpp>
 
-#include <concepts>
+#include "modelproperty.hpp"
 
 namespace MWLua::Types
 {

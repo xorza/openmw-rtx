@@ -1,14 +1,15 @@
 
-#include <components/detournavigator/debug.hpp>
-#include <components/detournavigator/settingsutils.hpp>
-#include <components/detournavigator/tilecachedrecastmeshmanager.hpp>
 #include <memory>
+
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 #include <BulletCollision/CollisionShapes/btBoxShape.h>
 #include <osg/io_utils> // IWYU pragma: keep: the vectors' operator<<, which a test's message calls
 
-#include <gmock/gmock.h>
-#include <gtest/gtest.h>
+#include <components/detournavigator/debug.hpp>
+#include <components/detournavigator/settingsutils.hpp>
+#include <components/detournavigator/tilecachedrecastmeshmanager.hpp>
 
 namespace
 {

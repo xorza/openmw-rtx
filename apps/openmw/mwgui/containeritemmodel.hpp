@@ -3,9 +3,9 @@
 #include <utility>
 #include <vector>
 
-#include "itemmodel.hpp"
+#include <apps/openmw/mwworld/containerstore.hpp>
 
-#include "../mwworld/containerstore.hpp"
+#include "itemmodel.hpp"
 
 namespace MWGui
 {

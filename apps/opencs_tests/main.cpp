@@ -1,7 +1,7 @@
+#include <gtest/gtest.h>
+
 #include <components/debug/debugging.hpp>
 #include <components/testing/util.hpp>
-
-#include <gtest/gtest.h>
 
 // An exception here ends the process, which is what this function means.
 // NOLINTNEXTLINE(bugprone-exception-escape)

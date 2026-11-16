@@ -1,8 +1,8 @@
 #include "image.hpp"
 
-#include <MyGUI_RenderManager.h>
-
 #include <algorithm>
+
+#include <MyGUI_RenderManager.h>
 
 #include "resources.hpp"
 

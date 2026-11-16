@@ -1,6 +1,9 @@
 #include "object.hpp"
-#include "mtphysics.hpp"
+
 #include <memory>
+
+#include <BulletCollision/CollisionShapes/btCompoundShape.h>
+#include <LinearMath/btTransform.h>
 
 #include <components/bullethelpers/collisionobject.hpp>
 #include <components/debug/debuglog.hpp>
@@ -9,9 +12,7 @@
 #include <components/resource/bulletshape.hpp>
 #include <components/sceneutil/positionattitudetransform.hpp>
 
-#include <BulletCollision/CollisionShapes/btCompoundShape.h>
-
-#include <LinearMath/btTransform.h>
+#include "mtphysics.hpp"
 
 namespace MWPhysics
 {

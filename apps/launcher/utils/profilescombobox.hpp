@@ -1,9 +1,10 @@
 #pragma once
 
-#include "components/contentselector/view/combobox.hpp"
-#include "lineedit.hpp"
-
 #include <QWidget>
+
+#include <components/contentselector/view/combobox.hpp>
+
+#include "lineedit.hpp"
 
 class QString;
 

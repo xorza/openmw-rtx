@@ -3,7 +3,6 @@
 #include <memory>
 
 #include <components/esmterrain/storage.hpp>
-
 #include <components/resource/resourcesystem.hpp>
 
 namespace MWRender

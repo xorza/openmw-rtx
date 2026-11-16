@@ -1,14 +1,12 @@
 #include "animationbindings.hpp"
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/character.hpp>
 #include <components/lua/luastate.hpp>
 #include <components/lua/utilpackage.hpp>
 #include <components/misc/finitevalues.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwmechanics/character.hpp"
 
 #include "context.hpp"
 #include "luamanagerimp.hpp"

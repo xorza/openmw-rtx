@@ -1,8 +1,8 @@
 #pragma once
 
-#include "windowbase.hpp"
+#include <apps/openmw/mwworld/ptr.hpp>
 
-#include "../mwworld/ptr.hpp"
+#include "windowbase.hpp"
 
 namespace Gui
 {

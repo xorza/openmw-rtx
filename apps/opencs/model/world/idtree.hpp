@@ -1,14 +1,13 @@
 #pragma once
 
-#include "columns.hpp"
-#include "idtable.hpp"
-
 #include <QModelIndex>
 #include <QString>
 #include <QVariant>
-
 #include <string>
 #include <utility>
+
+#include "columns.hpp"
+#include "idtable.hpp"
 
 /*! \brief
  * Class for holding the model. Uses typical qt table abstraction/interface for granting access

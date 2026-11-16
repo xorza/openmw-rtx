@@ -8,6 +8,7 @@
 #include <osg/Referenced>
 #include <osg/ref_ptr>
 
+#include <components/contentstore/store.hpp>
 #include <components/resource/imageheader.hpp>
 #include <components/rtx/image/alpharange.hpp>
 #include <components/sceneutil/embeddedimage.hpp>
@@ -15,7 +16,6 @@
 
 #include "contentpreprocessor.hpp"
 #include "imagefactcache.hpp"
-#include <components/contentstore/store.hpp>
 
 namespace Rtx
 {

@@ -1,15 +1,13 @@
 #include "idtree.hpp"
 
-#include "nestedtablewrapper.hpp"
+#include <stdexcept>
 
 #include "collectionbase.hpp"
 #include "columnbase.hpp"
+#include "columns.hpp"
+#include "idtable.hpp"
 #include "nestedcollection.hpp"
-
-#include <apps/opencs/model/world/columns.hpp>
-#include <apps/opencs/model/world/idtable.hpp>
-
-#include <stdexcept>
+#include "nestedtablewrapper.hpp"
 
 // NOTE: parent class still needs idCollection
 CSMWorld::IdTree::IdTree(NestedCollection* nestedCollection, CollectionBase* idCollection, unsigned int features)

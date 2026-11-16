@@ -1,11 +1,10 @@
 #include "resourcesmanager.hpp"
 
-#include "resources.hpp"
-
-#include <apps/opencs/model/world/universalid.hpp>
-
 #include <stdexcept>
 #include <utility>
+
+#include "resources.hpp"
+#include "universalid.hpp"
 
 CSMWorld::ResourcesManager::ResourcesManager()
     : mVFS(nullptr)

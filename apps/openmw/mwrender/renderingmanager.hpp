@@ -1,5 +1,18 @@
 #pragma once
 
+#include <deque>
+#include <map>
+#include <memory>
+#include <span>
+#include <unordered_map>
+#include <vector>
+
+#include <osg/ref_ptr>
+#include <osgUtil/IncrementalCompileOperation>
+
+#include <components/settings/settings.hpp>
+#include <components/vfs/pathutil.hpp>
+
 #include "framedescriber.hpp"
 #include "ground.hpp"
 #include "objects.hpp"
@@ -7,20 +20,6 @@
 #include "renderer.hpp"
 #include "renderinginterface.hpp"
 #include "rendermode.hpp"
-
-#include <components/settings/settings.hpp>
-#include <components/vfs/pathutil.hpp>
-
-#include <osg/ref_ptr>
-
-#include <osgUtil/IncrementalCompileOperation>
-
-#include <deque>
-#include <map>
-#include <memory>
-#include <span>
-#include <unordered_map>
-#include <vector>
 
 namespace osg
 {

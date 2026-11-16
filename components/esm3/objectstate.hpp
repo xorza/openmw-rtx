@@ -5,10 +5,10 @@
 
 #include <components/esm/luascripts.hpp>
 #include <components/esm/position.hpp>
-#include <components/esm3/formatversion.hpp>
 
 #include "animationstate.hpp"
 #include "cellref.hpp"
+#include "formatversion.hpp"
 #include "locals.hpp"
 
 namespace ESM

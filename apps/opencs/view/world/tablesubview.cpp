@@ -10,21 +10,18 @@
 #include <QScreen>
 #include <QVBoxLayout>
 #include <QVariant>
-
 #include <utility>
 #include <variant>
 
+#include <apps/opencs/model/doc/document.hpp>
+#include <apps/opencs/model/world/tablemimedata.hpp>
+#include <apps/opencs/view/doc/sizehint.hpp>
 #include <apps/opencs/view/doc/subview.hpp>
-
+#include <apps/opencs/view/doc/view.hpp>
+#include <apps/opencs/view/filter/filterbox.hpp>
+#include <apps/opencs/view/filter/filterdata.hpp>
 #include <components/misc/scalableicon.hpp>
 
-#include "../../model/doc/document.hpp"
-#include "../../model/world/tablemimedata.hpp"
-
-#include "../doc/sizehint.hpp"
-#include "../doc/view.hpp"
-#include "../filter/filterbox.hpp"
-#include "../filter/filterdata.hpp"
 #include "table.hpp"
 #include "tablebottombox.hpp"
 

@@ -1,8 +1,8 @@
 #pragma once
 
-#include <components/misc/rng.hpp>
-
 #include <optional>
+
+#include <components/misc/rng.hpp>
 
 namespace ESM
 {

@@ -1,15 +1,12 @@
 #include "luaevents.hpp"
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwworld/worldmodel.hpp>
 #include <components/debug/debuglog.hpp>
-
 #include <components/esm/luascripts.hpp>
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/esmwriter.hpp>
-
 #include <components/lua/serialization.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwworld/worldmodel.hpp"
 
 #include "globalscripts.hpp"
 #include "localscripts.hpp"

@@ -2,15 +2,13 @@
 
 #include <algorithm>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/esm3/loadcrea.hpp>
 #include <components/esm3/loadnpc.hpp>
 #include <components/esm3/loadspel.hpp>
 
 #include "spells.hpp"
-
-#include "../mwbase/environment.hpp"
-
-#include "../mwworld/esmstore.hpp"
 
 namespace
 {

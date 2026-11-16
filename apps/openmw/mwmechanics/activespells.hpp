@@ -7,10 +7,9 @@
 #include <variant>
 #include <vector>
 
+#include <apps/openmw/mwworld/ptr.hpp>
+#include <apps/openmw/mwworld/timestamp.hpp>
 #include <components/esm3/activespells.hpp>
-
-#include "../mwworld/ptr.hpp"
-#include "../mwworld/timestamp.hpp"
 
 #include "spellcasting.hpp"
 

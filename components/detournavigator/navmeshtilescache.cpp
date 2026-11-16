@@ -1,7 +1,8 @@
 #include "navmeshtilescache.hpp"
-#include "stats.hpp"
 
 #include <cstring>
+
+#include "stats.hpp"
 
 namespace DetourNavigator
 {

@@ -1,17 +1,16 @@
 #pragma once
 
+#include <unordered_set>
+
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <components/misc/notnullptr.hpp>
+
 #include "inventorywindow.hpp"
 #include "itemmodel.hpp"
 #include "itemview.hpp"
 #include "windowmanagerimp.hpp"
 #include "worlditemmodel.hpp"
-
-#include <apps/openmw/mwbase/windowmanager.hpp>
-#include <apps/openmw/mwworld/class.hpp>
-
-#include <components/misc/notnullptr.hpp>
-
-#include <unordered_set>
 
 namespace MWGui
 {

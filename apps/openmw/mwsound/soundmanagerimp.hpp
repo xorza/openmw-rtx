@@ -6,12 +6,11 @@
 #include <unordered_map>
 #include <utility>
 
+#include <apps/openmw/mwbase/soundmanager.hpp>
 #include <components/fallback/fallback.hpp>
 #include <components/misc/objectpool.hpp>
 #include <components/misc/strings/algorithm.hpp>
 #include <components/settings/settings.hpp>
-
-#include "../mwbase/soundmanager.hpp"
 
 #include "regionsoundselector.hpp"
 #include "soundbuffer.hpp"

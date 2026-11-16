@@ -1,14 +1,13 @@
 #pragma once
 
+#include <QModelIndex>
+#include <QObject>
 #include <array>
 #include <map>
 #include <memory>
 #include <string>
 #include <unordered_set>
 #include <utility>
-
-#include <QModelIndex>
-#include <QObject>
 
 #include <components/esm3/loadarmo.hpp>
 #include <components/esm3/loadbody.hpp>

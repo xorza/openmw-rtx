@@ -3,20 +3,18 @@
 #include <array>
 #include <cstdint>
 
-#include <components/files/istreamptr.hpp>
-#include <components/files/utils.hpp>
-
-#include <components/vfs/manager.hpp>
-
 #include <osgAnimation/Animation>
 #include <osgAnimation/BasicAnimationManager>
 #include <osgAnimation/Channel>
 
 #include <components/debug/debuglog.hpp>
+#include <components/files/istreamptr.hpp>
+#include <components/files/utils.hpp>
 #include <components/misc/strings/conversion.hpp>
 #include <components/nifosg/nifloader.hpp>
 #include <components/sceneutil/keyframe.hpp>
 #include <components/sceneutil/osgacontroller.hpp>
+#include <components/vfs/manager.hpp>
 #include <components/vfs/pathutil.hpp>
 
 #include "animation.hpp"

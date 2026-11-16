@@ -7,7 +7,7 @@
 #include <osg/StateSet>
 #include <osgUtil/StateGraph>
 
-#include <components/sceneutil/material.hpp>
+#include "material.hpp"
 
 using namespace osgUtil;
 

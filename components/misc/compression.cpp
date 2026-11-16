@@ -1,13 +1,13 @@
 #include "compression.hpp"
 
-#include <lz4.h>
-
 #include <cstddef>
 #include <cstring>
 #include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
+
+#include <lz4.h>
 
 namespace Misc
 {

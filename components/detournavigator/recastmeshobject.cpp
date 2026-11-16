@@ -1,8 +1,8 @@
 #include "recastmeshobject.hpp"
 
-#include <BulletCollision/CollisionShapes/btCompoundShape.h>
-
 #include <cassert>
+
+#include <BulletCollision/CollisionShapes/btCompoundShape.h>
 
 namespace DetourNavigator
 {

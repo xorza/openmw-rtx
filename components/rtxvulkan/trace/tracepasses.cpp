@@ -1,8 +1,8 @@
-#include <components/rtxvulkan/frame/gbuffer.hpp>
-
 #include "tracepasses.hpp"
 
 #include <cassert>
+
+#include <components/rtxvulkan/frame/gbuffer.hpp>
 
 #include "fogvolume.hpp"
 

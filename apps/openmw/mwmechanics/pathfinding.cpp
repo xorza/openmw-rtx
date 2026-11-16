@@ -6,20 +6,17 @@
 
 #include <osg/io_utils> // IWYU pragma: keep: the vectors' operator<<, which a log line's template calls
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwphysics/raycasting.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/class.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/detournavigator/debug.hpp>
 #include <components/detournavigator/navigatorutils.hpp>
 #include <components/misc/coordinateconverter.hpp>
 #include <components/misc/math.hpp>
 #include <components/misc/pathgridutils.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwphysics/raycasting.hpp"
-
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/class.hpp"
 
 #include "actorutil.hpp"
 #include "pathgrid.hpp"

@@ -1,3 +1,7 @@
+#include <boost/program_options/variables_map.hpp>
+#include <osg/Notify>
+
+#include <apps/openmw/mwgui/debugwindow.hpp>
 #include <components/crashcatcher/crashinstall.hpp>
 #include <components/debug/debugging.hpp>
 #include <components/fallback/fallback.hpp>
@@ -7,13 +11,8 @@
 #include <components/settings/values.hpp>
 #include <components/version/version.hpp>
 
-#include "mwgui/debugwindow.hpp"
-
 #include "engine.hpp"
 #include "options.hpp"
-
-#include <boost/program_options/variables_map.hpp>
-#include <osg/Notify>
 
 #if defined(_WIN32)
 #include <components/misc/windows.hpp>

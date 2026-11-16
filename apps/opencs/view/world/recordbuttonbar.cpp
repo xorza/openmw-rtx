@@ -2,22 +2,19 @@
 
 #include <QHBoxLayout>
 #include <QToolButton>
-
-#include "../../model/world/commanddispatcher.hpp"
-#include "../../model/world/idtable.hpp"
-
-#include "../../model/prefs/state.hpp"
-
-#include "../world/tablebottombox.hpp"
-
-#include <components/misc/scalableicon.hpp>
+#include <utility>
 
 #include <apps/opencs/model/prefs/category.hpp>
 #include <apps/opencs/model/prefs/setting.hpp>
+#include <apps/opencs/model/prefs/state.hpp>
 #include <apps/opencs/model/world/columns.hpp>
+#include <apps/opencs/model/world/commanddispatcher.hpp>
+#include <apps/opencs/model/world/idtable.hpp>
 #include <apps/opencs/model/world/idtablebase.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
-#include <utility>
+#include <components/misc/scalableicon.hpp>
+
+#include "tablebottombox.hpp"
 
 void CSVWorld::RecordButtonBar::updateModificationButtons()
 {

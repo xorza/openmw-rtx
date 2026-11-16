@@ -1,10 +1,10 @@
 #pragma once
 
-#include "areatype.hpp"
+#include <tuple>
 
 #include <osg/Vec3f>
 
-#include <tuple>
+#include "areatype.hpp"
 
 namespace DetourNavigator
 {

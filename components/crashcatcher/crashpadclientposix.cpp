@@ -1,5 +1,3 @@
-#include "crashpadclientsystem.hpp"
-
 #include <array>
 #include <cerrno>
 #include <charconv>
@@ -12,16 +10,16 @@
 #include <utility>
 #include <vector>
 
+#include <client/crashpad_client.h>
 #include <fcntl.h>
 #include <poll.h>
 #include <sys/prctl.h>
 #include <unistd.h>
 
-#include <client/crashpad_client.h>
-
 #include <components/platform/wholefile.hpp>
 
 #include "crashnote.hpp"
+#include "crashpadclientsystem.hpp"
 
 namespace Crash::Client
 {

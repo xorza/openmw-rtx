@@ -2,13 +2,12 @@
 
 #include <apps/opencs/model/doc/document.hpp>
 #include <apps/opencs/model/world/columns.hpp>
+#include <apps/opencs/model/world/commands.hpp>
 #include <apps/opencs/model/world/data.hpp>
-#include <apps/opencs/view/world/genericcreator.hpp>
-
+#include <apps/opencs/model/world/idtable.hpp>
 #include <components/esm3/loaddial.hpp>
 
-#include "../../model/world/commands.hpp"
-#include "../../model/world/idtable.hpp"
+#include "genericcreator.hpp"
 
 class QUndoStack;
 

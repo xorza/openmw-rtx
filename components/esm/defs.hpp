@@ -1,11 +1,13 @@
 #pragma once
 
 #include <stdexcept>
+
 #include <stdint.h>
 
-#include <components/esm/esmcommon.hpp>
-#include <components/esm/fourcc.hpp>
 #include <components/esm4/common.hpp>
+
+#include "esmcommon.hpp"
+#include "fourcc.hpp"
 
 namespace ESM
 {

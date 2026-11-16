@@ -1,17 +1,18 @@
 
+#include "objectmarker.hpp"
+
 #include <QFile>
 
 #include <osg/ClipPlane>
 #include <osg/PositionAttitudeTransform>
 #include <osgUtil/CullVisitor>
 
+#include <apps/opencs/model/prefs/state.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/sceneutil/material.hpp>
 #include <components/sceneutil/visitor.hpp>
 
-#include "../../model/prefs/state.hpp"
-#include "objectmarker.hpp"
 #include "worldspacewidget.hpp"
 
 namespace

@@ -2,13 +2,12 @@
 
 #include <BulletCollision/CollisionShapes/btCylinderShape.h>
 
+#include <apps/openmw/mwmechanics/creaturestats.hpp>
+#include <apps/openmw/mwworld/class.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/misc/convert.hpp>
 #include <components/resource/bulletshape.hpp>
 #include <components/sceneutil/positionattitudetransform.hpp>
-
-#include "../mwmechanics/creaturestats.hpp"
-#include "../mwworld/class.hpp"
 
 #include "collisiontype.hpp"
 #include "mtphysics.hpp"

@@ -3,16 +3,14 @@
 #include <QModelIndex>
 #include <QObject>
 #include <QString>
-
-#include <apps/opencs/model/world/idtableproxymodel.hpp>
-#include <apps/opencs/model/world/universalid.hpp>
+#include <string>
 
 #include <components/misc/strings/lower.hpp>
 
-#include <string>
-
 #include "columns.hpp"
 #include "idtablebase.hpp"
+#include "idtableproxymodel.hpp"
+#include "universalid.hpp"
 
 namespace
 {

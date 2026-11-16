@@ -1,8 +1,8 @@
-#include <components/vfs/pathutil.hpp>
+#include <sstream>
 
 #include <gtest/gtest.h>
 
-#include <sstream>
+#include <components/vfs/pathutil.hpp>
 
 namespace VFS::Path
 {

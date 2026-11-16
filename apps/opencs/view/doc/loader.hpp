@@ -1,10 +1,9 @@
 #pragma once
 
-#include <map>
-#include <string>
-
 #include <QObject>
 #include <QWidget>
+#include <map>
+#include <string>
 
 class QCloseEvent;
 class QLabel;

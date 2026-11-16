@@ -17,7 +17,6 @@
 #include <boost/program_options/parsers.hpp>
 #include <boost/program_options/value_semantic.hpp>
 #include <boost/program_options/variables_map.hpp>
-
 #include <osg/Vec3f>
 
 #include <apps/rtxtool/instruments/wholenumber.hpp>

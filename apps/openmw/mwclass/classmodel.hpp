@@ -1,8 +1,7 @@
 #pragma once
 
-#include "../mwworld/livecellref.hpp"
-#include "../mwworld/ptr.hpp"
-
+#include <apps/openmw/mwworld/livecellref.hpp>
+#include <apps/openmw/mwworld/ptr.hpp>
 #include <components/esm/path.hpp>
 #include <components/esm4/loadligh.hpp>
 #include <components/vfs/pathutil.hpp>

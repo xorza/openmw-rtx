@@ -1,12 +1,13 @@
 #include "animblendcontroller.hpp"
-#include "rotatecontroller.hpp"
-
-#include <components/debug/debuglog.hpp>
-
-#include <osgAnimation/Bone>
 
 #include <cassert>
 #include <string>
+
+#include <osgAnimation/Bone>
+
+#include <components/debug/debuglog.hpp>
+
+#include "rotatecontroller.hpp"
 
 namespace MWRender
 {

@@ -1,10 +1,10 @@
 #pragma once
 
-#include <components/serialization/format.hpp>
-
 #include <cstdint>
 #include <type_traits>
 #include <utility>
+
+#include <components/serialization/format.hpp>
 
 namespace SerializationTesting
 {

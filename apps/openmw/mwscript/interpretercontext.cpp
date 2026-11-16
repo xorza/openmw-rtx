@@ -9,6 +9,16 @@
 #include <utility>
 #include <vector>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/inputmanager.hpp>
+#include <apps/openmw/mwbase/scriptmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/npcstats.hpp>
+#include <apps/openmw/mwworld/action.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <apps/openmw/mwworld/store.hpp>
 #include <components/compiler/locals.hpp>
 #include <components/debug/debuglog.hpp>
@@ -16,20 +26,6 @@
 #include <components/esm3/loadfact.hpp>
 #include <components/esm3/loadrace.hpp>
 #include <components/interpreter/types.hpp>
-
-#include "../mwworld/esmstore.hpp"
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/inputmanager.hpp"
-#include "../mwbase/scriptmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/action.hpp"
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/class.hpp"
-
-#include "../mwmechanics/npcstats.hpp"
 
 #include "globalscripts.hpp"
 #include "locals.hpp"

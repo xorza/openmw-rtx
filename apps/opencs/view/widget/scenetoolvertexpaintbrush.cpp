@@ -14,10 +14,10 @@
 #include <QWidget>
 #include <utility>
 
+#include <apps/opencs/model/prefs/state.hpp>
+
 #include "brushshapes.hpp"
 #include "scenetool.hpp"
-
-#include "../../model/prefs/state.hpp"
 
 CSVWidget::ColorButtonWidget::ColorButtonWidget(QWidget* parent)
     : QPushButton(parent)

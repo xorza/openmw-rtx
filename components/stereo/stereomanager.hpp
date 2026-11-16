@@ -1,13 +1,13 @@
 #pragma once
 
+#include <array>
+#include <memory>
+
 #include <osg/Camera>
 #include <osg/Matrix>
 #include <osg/StateSet>
 #include <osg/Vec3>
 #include <osgUtil/CullVisitor>
-
-#include <array>
-#include <memory>
 
 #include <components/shader/shadermanager.hpp>
 

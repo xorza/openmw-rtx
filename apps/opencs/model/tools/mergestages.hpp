@@ -5,14 +5,11 @@
 #include <string>
 
 #include <apps/opencs/model/doc/document.hpp>
+#include <apps/opencs/model/doc/stage.hpp>
+#include <apps/opencs/model/world/data.hpp>
 #include <apps/opencs/model/world/idcollection.hpp>
 #include <apps/opencs/model/world/record.hpp>
-
 #include <components/toutf8/toutf8.hpp>
-
-#include "../doc/stage.hpp"
-
-#include "../world/data.hpp"
 
 #include "mergestate.hpp"
 

@@ -1,18 +1,15 @@
 #include "journalimp.hpp"
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/esmwriter.hpp>
 #include <components/esm3/journalentry.hpp>
 #include <components/esm3/queststate.hpp>
-
 #include <components/misc/strings/algorithm.hpp>
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
 
 namespace MWDialogue
 {

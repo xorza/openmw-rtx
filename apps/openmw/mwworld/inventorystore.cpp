@@ -2,16 +2,14 @@
 
 #include <algorithm>
 #include <iterator>
-
-#include <components/esm3/inventorystate.hpp>
 #include <utility>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-
-#include "../mwmechanics/actorutil.hpp"
-#include "../mwmechanics/npcstats.hpp"
-#include "../mwmechanics/weapontype.hpp"
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwmechanics/npcstats.hpp>
+#include <apps/openmw/mwmechanics/weapontype.hpp>
+#include <components/esm3/inventorystate.hpp>
 
 #include "class.hpp"
 #include "esmstore.hpp"

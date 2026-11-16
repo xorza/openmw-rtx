@@ -4,14 +4,13 @@
 #include <memory>
 #include <optional>
 
-#include <osg/Vec2f>
-
 #include <MyGUI_ITexture.h>
-
-#include "windowpinnablebase.hpp"
+#include <osg/Vec2f>
 
 #include <components/esm3/custommarkerstate.hpp>
 #include <components/misc/constants.hpp>
+
+#include "windowpinnablebase.hpp"
 
 namespace MWRender
 {

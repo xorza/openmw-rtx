@@ -2,18 +2,14 @@
 
 #include <QDrag>
 #include <QDragEnterEvent>
-
 #include <algorithm>
 #include <string>
 
-#include "../../model/doc/document.hpp"
-
-#include "../../model/world/commands.hpp"
-#include "../../model/world/tablemimedata.hpp"
-
+#include <apps/opencs/model/doc/document.hpp>
 #include <apps/opencs/model/world/columnbase.hpp>
+#include <apps/opencs/model/world/commands.hpp>
+#include <apps/opencs/model/world/tablemimedata.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
-
 #include <components/misc/scalableicon.hpp>
 
 #include "dragdroputils.hpp"

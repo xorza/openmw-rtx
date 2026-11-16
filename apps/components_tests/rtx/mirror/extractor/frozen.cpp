@@ -23,7 +23,6 @@
 #include <osg/Vec3f>
 #include <osg/ref_ptr>
 
-#include <apps/components_tests/rtx/mirror/extractor/fixture.hpp>
 #include <apps/components_tests/rtx/support/graph.hpp>
 #include <components/rtx/mirror/cells/cellring.hpp>
 #include <components/rtx/mirror/cells/cellworld.hpp>
@@ -32,6 +31,8 @@
 #include <components/rtx/scene/placementtable.hpp>
 #include <components/rtx/scene/refusal.hpp>
 #include <components/rtx/scene/refusals.hpp>
+
+#include "fixture.hpp"
 
 namespace Rtx::Testing
 {

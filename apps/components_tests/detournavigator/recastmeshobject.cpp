@@ -1,11 +1,11 @@
 
-#include <components/detournavigator/recastmeshobject.hpp>
-#include <components/misc/convert.hpp>
+#include <gtest/gtest.h>
 
 #include <BulletCollision/CollisionShapes/btBoxShape.h>
 #include <BulletCollision/CollisionShapes/btCompoundShape.h>
 
-#include <gtest/gtest.h>
+#include <components/detournavigator/recastmeshobject.hpp>
+#include <components/misc/convert.hpp>
 
 namespace
 {

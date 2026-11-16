@@ -1,9 +1,9 @@
 #pragma once
 
+#include <cstddef>
+
 #include "itemmodel.hpp"
 #include "itemwidget.hpp"
-
-#include <cstddef>
 
 namespace MyGUI
 {

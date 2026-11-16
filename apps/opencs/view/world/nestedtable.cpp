@@ -4,18 +4,16 @@
 #include <QHeaderView>
 #include <QMenu>
 
-#include "../../model/prefs/shortcut.hpp"
-
-#include "../../model/world/commanddispatcher.hpp"
-#include "../../model/world/commandmacro.hpp"
-#include "../../model/world/commands.hpp"
-#include "../../model/world/nestedtableproxymodel.hpp"
-#include "../../model/world/universalid.hpp"
-
 #include <apps/opencs/model/doc/document.hpp>
+#include <apps/opencs/model/prefs/shortcut.hpp>
 #include <apps/opencs/model/world/columnbase.hpp>
-#include <apps/opencs/view/world/dragrecordtable.hpp>
+#include <apps/opencs/model/world/commanddispatcher.hpp>
+#include <apps/opencs/model/world/commandmacro.hpp>
+#include <apps/opencs/model/world/commands.hpp>
+#include <apps/opencs/model/world/nestedtableproxymodel.hpp>
+#include <apps/opencs/model/world/universalid.hpp>
 
+#include "dragrecordtable.hpp"
 #include "tableeditidaction.hpp"
 #include "util.hpp"
 

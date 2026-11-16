@@ -1,10 +1,10 @@
-#include <components/files/conversion.hpp>
-#include <components/shader/shadermanager.hpp>
-#include <components/testing/util.hpp>
-
 #include <fstream>
 
 #include <gtest/gtest.h>
+
+#include <components/files/conversion.hpp>
+#include <components/shader/shadermanager.hpp>
+#include <components/testing/util.hpp>
 
 namespace
 {

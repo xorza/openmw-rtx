@@ -1,17 +1,16 @@
 #include "racebindings.hpp"
 
+#include <format>
+
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwlua/types/usertypeutil.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/esm/attr.hpp>
 #include <components/esm3/loadrace.hpp>
 #include <components/lua/luastate.hpp>
 
-#include "../mwbase/environment.hpp"
-#include "../mwworld/esmstore.hpp"
-
 #include "idcollectionbindings.hpp"
 #include "recordstore.hpp"
-#include "types/usertypeutil.hpp"
-
-#include <format>
 
 namespace
 {

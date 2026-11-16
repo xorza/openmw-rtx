@@ -4,8 +4,9 @@
 #include <array>
 
 #include <components/debug/debuglog.hpp>
-#include <components/sceneutil/glextensions.hpp>
 #include <components/settings/values.hpp>
+
+#include "glextensions.hpp"
 
 namespace SceneUtil
 {

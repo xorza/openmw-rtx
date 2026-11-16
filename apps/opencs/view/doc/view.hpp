@@ -1,10 +1,9 @@
 #pragma once
 
-#include <string>
-#include <vector>
-
 #include <QList>
 #include <QMainWindow>
+#include <string>
+#include <vector>
 
 #include <apps/opencs/model/world/universalid.hpp>
 

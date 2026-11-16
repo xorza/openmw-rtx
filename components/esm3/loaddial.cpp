@@ -1,9 +1,9 @@
 #include "loaddial.hpp"
 
+#include <stdexcept>
+
 #include "esmreader.hpp"
 #include "esmwriter.hpp"
-
-#include <stdexcept>
 
 namespace ESM
 {

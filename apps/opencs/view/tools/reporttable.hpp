@@ -5,8 +5,7 @@
 #include <vector>
 
 #include <apps/opencs/model/world/universalid.hpp>
-
-#include "../world/dragrecordtable.hpp"
+#include <apps/opencs/view/world/dragrecordtable.hpp>
 
 class QAction;
 class QSortFilterProxyModel;

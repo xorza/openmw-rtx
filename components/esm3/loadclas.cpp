@@ -2,11 +2,11 @@
 
 #include <components/esm/attr.hpp>
 #include <components/esm/defs.hpp>
-#include <components/esm3/loadskil.hpp>
 #include <components/misc/concepts.hpp>
 
 #include "esmreader.hpp"
 #include "esmwriter.hpp"
+#include "loadskil.hpp"
 
 namespace ESM
 {

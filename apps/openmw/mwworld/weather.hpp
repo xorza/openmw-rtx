@@ -8,16 +8,14 @@
 
 #include <osg/Vec4f>
 
+#include <apps/openmw/mwbase/soundmanager.hpp>
+#include <apps/openmw/mwrender/skystate.hpp>
+#include <apps/openmw/mwrender/skyutil.hpp>
 #include <components/esm/refid.hpp>
 #include <components/fallback/fallback.hpp>
 #include <components/misc/rng.hpp>
 #include <components/sky/timeofday.hpp>
 #include <components/vfs/pathutil.hpp>
-
-#include "../mwbase/soundmanager.hpp"
-
-#include "../mwrender/skystate.hpp"
-#include "../mwrender/skyutil.hpp"
 
 namespace ESM
 {

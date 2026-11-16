@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstdint>
+#include <filesystem>
 #include <functional>
 #include <memory>
 #include <mutex>
@@ -13,13 +14,11 @@
 #include <osg/Texture>
 #include <osg/ref_ptr>
 
-#include "resourcemanager.hpp"
-
-#include <components/shader/automaps.hpp>
-
 #include <components/sceneutil/lightmanager.hpp>
+#include <components/shader/automaps.hpp>
 #include <components/vfs/pathutil.hpp>
-#include <filesystem>
+
+#include "resourcemanager.hpp"
 
 namespace VFS
 {

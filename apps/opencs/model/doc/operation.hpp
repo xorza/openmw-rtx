@@ -1,11 +1,10 @@
 #pragma once
 
+#include <QObject>
 #include <chrono>
 #include <optional>
 #include <utility>
 #include <vector>
-
-#include <QObject>
 
 #include "messages.hpp"
 #include "state.hpp"

@@ -3,17 +3,15 @@
 #include <algorithm>
 #include <type_traits>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/player.hpp>
 #include <components/esm3/actoridconverter.hpp>
 #include <components/esm3/creaturestats.hpp>
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/loadmgef.hpp>
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/player.hpp"
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/world.hpp"
 
 namespace MWMechanics
 {

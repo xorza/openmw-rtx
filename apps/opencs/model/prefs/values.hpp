@@ -1,18 +1,17 @@
 #pragma once
 
-#include "enumvalueview.hpp"
-
-#include <components/settings/sanitizer.hpp>
-#include <components/settings/settingvalue.hpp>
-
 #include <Qt>
 #include <QtGlobal>
-
 #include <array>
 #include <memory>
 #include <span>
 #include <string>
 #include <string_view>
+
+#include <components/settings/sanitizer.hpp>
+#include <components/settings/settingvalue.hpp>
+
+#include "enumvalueview.hpp"
 
 namespace CSMPrefs
 {

@@ -1,8 +1,5 @@
 #include "dialoguesubview.hpp"
 
-#include <stdexcept>
-#include <utility>
-
 #include <QAbstractItemModel>
 #include <QCheckBox>
 #include <QComboBox>
@@ -22,29 +19,28 @@
 #include <QVBoxLayout>
 #include <QVariant>
 #include <QWidget>
+#include <stdexcept>
+#include <utility>
 
+#include <apps/opencs/model/doc/document.hpp>
 #include <apps/opencs/model/prefs/category.hpp>
 #include <apps/opencs/model/prefs/setting.hpp>
+#include <apps/opencs/model/prefs/state.hpp>
+#include <apps/opencs/model/world/columnbase.hpp>
+#include <apps/opencs/model/world/columns.hpp>
 #include <apps/opencs/model/world/commanddispatcher.hpp>
 #include <apps/opencs/model/world/data.hpp>
 #include <apps/opencs/model/world/disabletag.hpp>
+#include <apps/opencs/model/world/idtable.hpp>
 #include <apps/opencs/model/world/idtablebase.hpp>
+#include <apps/opencs/model/world/idtree.hpp>
+#include <apps/opencs/model/world/nestedtableproxymodel.hpp>
+#include <apps/opencs/model/world/record.hpp>
+#include <apps/opencs/model/world/tablemimedata.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
 #include <apps/opencs/view/doc/subview.hpp>
-
-#include "../../model/doc/document.hpp"
-#include "../../model/world/columnbase.hpp"
-#include "../../model/world/columns.hpp"
-#include "../../model/world/idtable.hpp"
-#include "../../model/world/idtree.hpp"
-#include "../../model/world/nestedtableproxymodel.hpp"
-#include "../../model/world/record.hpp"
-#include "../../model/world/tablemimedata.hpp"
-
-#include "../../model/prefs/state.hpp"
-
-#include "../widget/coloreditor.hpp"
-#include "../widget/droplineedit.hpp"
+#include <apps/opencs/view/widget/coloreditor.hpp>
+#include <apps/opencs/view/widget/droplineedit.hpp>
 
 #include "nestedtable.hpp"
 #include "recordbuttonbar.hpp"

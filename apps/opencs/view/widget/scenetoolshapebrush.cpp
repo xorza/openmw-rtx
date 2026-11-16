@@ -15,18 +15,16 @@
 #include <QTableWidget>
 #include <QVBoxLayout>
 #include <QWidget>
-
-#include <components/misc/scalableicon.hpp>
+#include <utility>
 
 #include <apps/opencs/model/prefs/category.hpp>
 #include <apps/opencs/model/prefs/setting.hpp>
-#include <apps/opencs/view/widget/pushbutton.hpp>
-#include <utility>
+#include <apps/opencs/model/prefs/state.hpp>
+#include <components/misc/scalableicon.hpp>
 
 #include "brushshapes.hpp"
+#include "pushbutton.hpp"
 #include "scenetool.hpp"
-
-#include "../../model/prefs/state.hpp"
 
 namespace CSVWidget
 {

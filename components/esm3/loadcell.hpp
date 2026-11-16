@@ -4,10 +4,9 @@
 #include <string>
 #include <vector>
 
-#include "components/esm/defs.hpp"
-#include "components/esm/esmcommon.hpp"
-#include "components/esm/refid.hpp"
-
+#include <components/esm/defs.hpp>
+#include <components/esm/esmcommon.hpp>
+#include <components/esm/refid.hpp>
 #include <components/misc/constants.hpp>
 
 #include "cellref.hpp"

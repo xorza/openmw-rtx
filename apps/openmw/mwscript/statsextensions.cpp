@@ -1,31 +1,25 @@
 #include "statsextensions.hpp"
 
-#include <components/esm3/loadcrea.hpp>
-#include <components/esm3/loadnpc.hpp>
-
-#include "../mwworld/esmstore.hpp"
-
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/statemanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwmechanics/creaturestats.hpp>
+#include <apps/openmw/mwmechanics/npcstats.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/player.hpp>
 #include <components/compiler/opcodes.hpp>
 #include <components/debug/debuglog.hpp>
+#include <components/esm3/loadcrea.hpp>
 #include <components/esm3/loadfact.hpp>
+#include <components/esm3/loadmgef.hpp>
+#include <components/esm3/loadnpc.hpp>
 #include <components/interpreter/interpreter.hpp>
 #include <components/interpreter/opcodes.hpp>
 #include <components/interpreter/runtime.hpp>
-
-#include <components/esm3/loadmgef.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/statemanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/player.hpp"
-
-#include "../mwmechanics/actorutil.hpp"
-#include "../mwmechanics/creaturestats.hpp"
-#include "../mwmechanics/npcstats.hpp"
 
 #include "ref.hpp"
 

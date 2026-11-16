@@ -1,8 +1,8 @@
 #pragma once
 
-#include <components/misc/notnullptr.hpp>
-
 #include <memory>
+
+#include <components/misc/notnullptr.hpp>
 
 namespace Resource
 {

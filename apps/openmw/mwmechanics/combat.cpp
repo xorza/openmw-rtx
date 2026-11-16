@@ -2,29 +2,25 @@
 #include "combat.hpp"
 
 #include <array>
-
 #include <cmath>
-#include <components/misc/rng.hpp>
-#include <components/settings/values.hpp>
 
-#include <components/sceneutil/positionattitudetransform.hpp>
-
+#include <apps/openmw/mwbase/dialoguemanager.hpp>
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/luamanager.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/soundmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/globals.hpp>
+#include <apps/openmw/mwworld/inventorystore.hpp>
 #include <components/esm3/loadench.hpp>
 #include <components/esm3/loadmgef.hpp>
 #include <components/esm3/loadsoun.hpp>
-
-#include "../mwbase/dialoguemanager.hpp"
-#include "../mwbase/environment.hpp"
-#include "../mwbase/luamanager.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/soundmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/globals.hpp"
-#include "../mwworld/inventorystore.hpp"
+#include <components/misc/rng.hpp>
+#include <components/sceneutil/positionattitudetransform.hpp>
+#include <components/settings/values.hpp>
 
 #include "actorutil.hpp"
 #include "difficultyscaling.hpp"

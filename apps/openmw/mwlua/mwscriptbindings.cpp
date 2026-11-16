@@ -1,26 +1,25 @@
 #include "mwscriptbindings.hpp"
 
+#include <stdexcept>
+#include <utility>
+
+#include <apps/openmw/mwbase/dialoguemanager.hpp>
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/scriptmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwscript/globalscripts.hpp>
+#include <apps/openmw/mwscript/interpretercontext.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/worldimp.hpp>
 #include <components/compiler/locals.hpp>
 #include <components/lua/luastate.hpp>
 #include <components/lua/util.hpp>
 #include <components/misc/strings/lower.hpp>
 
-#include "../mwbase/dialoguemanager.hpp"
-#include "../mwbase/environment.hpp"
-#include "../mwbase/scriptmanager.hpp"
-#include "../mwbase/world.hpp"
-#include "../mwscript/globalscripts.hpp"
-#include "../mwscript/interpretercontext.hpp"
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/worldimp.hpp"
-
 #include "context.hpp"
 #include "luamanagerimp.hpp"
 #include "object.hpp"
-
-#include <stdexcept>
-#include <utility>
 
 namespace MWLua
 {

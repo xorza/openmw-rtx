@@ -21,6 +21,13 @@
 #include <MyGUI_Types.h>
 #include <MyGUI_UString.h>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwmechanics/spellutil.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <apps/openmw/mwworld/store.hpp>
 #include <components/esm3/loadbsgn.hpp>
 #include <components/esm3/loadclas.hpp>
@@ -36,19 +43,9 @@
 #include <components/vfs/pathutil.hpp>
 #include <components/widgets/box.hpp>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-
-#include "../mwmechanics/actorutil.hpp"
-#include "../mwmechanics/spellutil.hpp"
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
-
 #include "inventorywindow.hpp"
-#include "mapwindow.hpp"
-
 #include "itemmodel.hpp"
+#include "mapwindow.hpp"
 #include "mode.hpp"
 #include "widgets.hpp"
 

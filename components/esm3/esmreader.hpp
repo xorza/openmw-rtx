@@ -9,11 +9,10 @@
 #include <type_traits>
 #include <vector>
 
+#include <components/esm/decompose.hpp>
+#include <components/esm/esmcommon.hpp>
+#include <components/esm/refid.hpp>
 #include <components/toutf8/toutf8.hpp>
-
-#include "components/esm/decompose.hpp"
-#include "components/esm/esmcommon.hpp"
-#include "components/esm/refid.hpp"
 
 #include "loadtes3.hpp"
 

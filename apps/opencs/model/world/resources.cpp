@@ -2,16 +2,17 @@
 
 #include <algorithm>
 #include <sstream>
-#include <stddef.h>
 #include <stdexcept>
 #include <string_view>
 #include <utility>
 
-#include <apps/opencs/model/world/universalid.hpp>
+#include <stddef.h>
 
 #include <components/misc/strings/lower.hpp>
 #include <components/vfs/manager.hpp>
 #include <components/vfs/recursivedirectoryiterator.hpp> // IWYU pragma: keep: the range whole, which a call returns by value
+
+#include "universalid.hpp"
 
 CSMWorld::Resources::Resources(
     const VFS::Manager* vfs, std::string baseDirectory, UniversalId::Type type, const char* const* extensions)

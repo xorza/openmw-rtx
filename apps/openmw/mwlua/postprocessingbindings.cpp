@@ -1,22 +1,20 @@
 #include "postprocessingbindings.hpp"
 
-#include "MyGUI_LanguageManager.h"
+#include <format>
+#include <string_view>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwrender/postprocessor.hpp>
+#include <apps/openmw/mwrender/renderer.hpp>
+#include <apps/openmw/mwrender/renderingmanager.hpp>
+#include <apps/openmw/mwrender/rendersupport.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/lua/util.hpp>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/world.hpp"
-#include "../mwrender/postprocessor.hpp"
-#include "../mwrender/renderer.hpp"
-#include "../mwrender/renderingmanager.hpp"
-#include "../mwrender/rendersupport.hpp"
-
+#include "MyGUI_LanguageManager.h"
 #include "context.hpp"
 #include "luamanagerimp.hpp"
-
-#include <format>
-#include <string_view>
 
 namespace
 {

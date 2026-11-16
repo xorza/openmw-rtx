@@ -1,17 +1,17 @@
-#include <components/debug/debuglog.hpp>
-#include <components/esm3/loadlevlist.hpp>
+#include "levelledlist.hpp"
+
 #include <utility>
 
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/manualref.hpp"
-#include "../mwworld/ptr.hpp"
-
-#include "../mwbase/environment.hpp"
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/manualref.hpp>
+#include <apps/openmw/mwworld/ptr.hpp>
+#include <components/debug/debuglog.hpp>
+#include <components/esm3/loadlevlist.hpp>
 
 #include "actorutil.hpp"
 #include "creaturestats.hpp"
-#include "levelledlist.hpp"
 
 namespace MWMechanics
 {

@@ -6,9 +6,8 @@
 #include <set>
 #include <string>
 
-#include <osg/BoundingBox>
-
 #include <BulletCollision/CollisionShapes/btCompoundShape.h>
+#include <osg/BoundingBox>
 
 #include <components/debug/debuglog.hpp>
 #include <components/nif/niffile.hpp>

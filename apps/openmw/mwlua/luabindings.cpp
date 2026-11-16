@@ -1,11 +1,11 @@
 #include "luabindings.hpp"
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwlua/types/types.hpp>
+#include <apps/openmw/mwworld/datetimemanager.hpp>
 #include <components/lua/asyncpackage.hpp>
 #include <components/lua/utilpackage.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/world.hpp"
-#include "../mwworld/datetimemanager.hpp"
 
 #include "animationbindings.hpp"
 #include "camerabindings.hpp"
@@ -21,7 +21,6 @@
 #include "objectbindings.hpp"
 #include "postprocessingbindings.hpp"
 #include "soundbindings.hpp"
-#include "types/types.hpp"
 #include "uibindings.hpp"
 #include "vfsbindings.hpp"
 #include "worldbindings.hpp"

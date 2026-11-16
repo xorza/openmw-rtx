@@ -1,4 +1,14 @@
 #include "makenavmesh.hpp"
+
+#include <algorithm>
+#include <array>
+
+#include <DetourNavMesh.h>
+#include <DetourNavMeshBuilder.h>
+#include <Recast.h>
+
+#include <components/debug/debuglog.hpp>
+
 #include "debug.hpp"
 #include "exceptions.hpp"
 #include "flags.hpp"
@@ -11,15 +21,6 @@
 #include "recastparams.hpp"
 #include "settings.hpp"
 #include "settingsutils.hpp"
-
-#include "components/debug/debuglog.hpp"
-
-#include <DetourNavMesh.h>
-#include <DetourNavMeshBuilder.h>
-#include <Recast.h>
-
-#include <algorithm>
-#include <array>
 
 namespace DetourNavigator
 {

@@ -1,18 +1,19 @@
 #include "fifo.hpp"
-#include "file.hpp"
 
 #include <cerrno>
 #include <cstddef>
 #include <filesystem>
 #include <string>
 #include <system_error>
+#include <utility>
 
 #include <fcntl.h>
 #include <sys/types.h>
 #include <unistd.h>
 
 #include <components/files/conversion.hpp>
-#include <utility>
+
+#include "file.hpp"
 
 namespace Platform::Fifo
 {

@@ -1,9 +1,9 @@
 #pragma once
 
-#include "types.hpp"
-
 #include <string>
 #include <vector>
+
+#include "types.hpp"
 
 namespace Interpreter
 {

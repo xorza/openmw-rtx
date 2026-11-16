@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <stdexcept>
+#include <utility>
 
 #include <MyGUI_Button.h>
 #include <MyGUI_EditBox.h>
@@ -10,25 +11,20 @@
 #include <MyGUI_RenderManager.h>
 #include <MyGUI_Window.h>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/inputmanager.hpp>
+#include <apps/openmw/mwbase/luamanager.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwmechanics/npcstats.hpp>
+#include <apps/openmw/mwrender/characterpreview.hpp>
+#include <apps/openmw/mwrender/renderingmanager.hpp>
+#include <apps/openmw/mwworld/action.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/inventorystore.hpp>
 #include <components/settings/values.hpp>
-#include <utility>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/inputmanager.hpp"
-#include "../mwbase/luamanager.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwrender/characterpreview.hpp"
-#include "../mwrender/renderingmanager.hpp"
-
-#include "../mwworld/action.hpp"
-#include "../mwworld/class.hpp"
-#include "../mwworld/inventorystore.hpp"
-
-#include "../mwmechanics/actorutil.hpp"
-#include "../mwmechanics/npcstats.hpp"
 
 #include "companionwindow.hpp"
 #include "container.hpp"

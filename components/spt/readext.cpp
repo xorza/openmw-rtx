@@ -1,9 +1,8 @@
-#include "file.hpp"
-
 #include <algorithm>
 #include <format>
 #include <stdexcept>
 
+#include "file.hpp"
 #include "stream.hpp"
 
 namespace Spt

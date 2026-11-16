@@ -1,30 +1,11 @@
 #include "data.hpp"
 
+#include <QAbstractItemModel>
 #include <algorithm>
 #include <stdexcept>
 #include <utility>
 
-#include <QAbstractItemModel>
-
-#include <apps/opencs/model/world/actoradapter.hpp>
-#include <apps/opencs/model/world/cell.hpp>
-#include <apps/opencs/model/world/collectionbase.hpp>
-#include <apps/opencs/model/world/columnbase.hpp>
-#include <apps/opencs/model/world/idcollection.hpp>
-#include <apps/opencs/model/world/idtablebase.hpp>
-#include <apps/opencs/model/world/info.hpp>
-#include <apps/opencs/model/world/infocollection.hpp>
-#include <apps/opencs/model/world/land.hpp>
-#include <apps/opencs/model/world/metadata.hpp>
-#include <apps/opencs/model/world/nestedidcollection.hpp>
-#include <apps/opencs/model/world/nestedinfocollection.hpp>
-#include <apps/opencs/model/world/pathgrid.hpp>
-#include <apps/opencs/model/world/ref.hpp>
-#include <apps/opencs/model/world/refcollection.hpp>
-#include <apps/opencs/model/world/refidcollection.hpp>
-#include <apps/opencs/model/world/subcellcollection.hpp>
-#include <apps/opencs/model/world/universalid.hpp>
-
+#include <apps/opencs/model/doc/messages.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm/defs.hpp>
 #include <components/esm/esmcommon.hpp>
@@ -44,16 +25,32 @@
 #include <components/vfs/manager.hpp>
 #include <components/vfs/registerarchives.hpp>
 
-#include "../doc/messages.hpp"
-
+#include "actoradapter.hpp"
+#include "cell.hpp"
+#include "collectionbase.hpp"
+#include "columnbase.hpp"
 #include "columnimp.hpp"
 #include "columns.hpp"
+#include "idcollection.hpp"
 #include "idtable.hpp"
+#include "idtablebase.hpp"
 #include "idtree.hpp"
+#include "info.hpp"
+#include "infocollection.hpp"
+#include "land.hpp"
+#include "metadata.hpp"
 #include "nestedcoladapterimp.hpp"
+#include "nestedidcollection.hpp"
+#include "nestedinfocollection.hpp"
+#include "pathgrid.hpp"
+#include "ref.hpp"
+#include "refcollection.hpp"
+#include "refidcollection.hpp"
 #include "regionmap.hpp"
 #include "resourcesmanager.hpp"
 #include "resourcetable.hpp"
+#include "subcellcollection.hpp"
+#include "universalid.hpp"
 
 namespace CSMWorld
 {

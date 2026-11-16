@@ -32,11 +32,11 @@
 #include <fstream>
 #include <istream>
 #include <system_error>
+#include <utility>
 
 #include <components/esm/fourcc.hpp>
 #include <components/files/constrainedfilestream.hpp>
 #include <components/files/utils.hpp>
-#include <utility>
 
 using namespace Bsa;
 

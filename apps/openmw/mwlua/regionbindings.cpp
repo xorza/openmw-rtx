@@ -1,13 +1,13 @@
 #include "regionbindings.hpp"
-#include "recordstore.hpp"
 
 #include <algorithm>
 
+#include <apps/openmw/mwworld/weather.hpp>
 #include <components/esm3/loadregn.hpp>
 #include <components/lua/luastate.hpp>
 #include <components/misc/color.hpp>
 
-#include "../mwworld/weather.hpp"
+#include "recordstore.hpp"
 
 namespace sol
 {

@@ -1,10 +1,11 @@
 #include "runtime.hpp"
-#include "program.hpp"
 
 #include <cassert>
 #include <cstring>
 #include <stdexcept>
 #include <utility>
+
+#include "program.hpp"
 
 namespace Interpreter
 {

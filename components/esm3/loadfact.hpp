@@ -4,8 +4,8 @@
 #include <map>
 #include <string>
 
-#include "components/esm/defs.hpp"
-#include "components/esm/refid.hpp"
+#include <components/esm/defs.hpp>
+#include <components/esm/refid.hpp>
 
 namespace ESM
 {

@@ -1,17 +1,15 @@
 #pragma once
 
-#include <map>
-#include <string>
-
 #include <QString>
 #include <QSyntaxHighlighter>
 #include <QTextCharFormat>
+#include <map>
+#include <string>
 
+#include <apps/opencs/model/world/scriptcontext.hpp>
 #include <components/compiler/extensions.hpp>
 #include <components/compiler/nullerrorhandler.hpp>
 #include <components/compiler/parser.hpp>
-
-#include "../../model/world/scriptcontext.hpp"
 
 class QTextDocument;
 

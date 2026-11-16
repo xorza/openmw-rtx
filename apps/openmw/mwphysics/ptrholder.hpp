@@ -4,11 +4,10 @@
 #include <mutex>
 #include <utility>
 
+#include <BulletCollision/CollisionDispatch/btCollisionObject.h>
 #include <osg/Vec3d>
 
-#include <BulletCollision/CollisionDispatch/btCollisionObject.h>
-
-#include "../mwworld/ptr.hpp"
+#include <apps/openmw/mwworld/ptr.hpp>
 
 namespace MWPhysics
 {

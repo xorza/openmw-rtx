@@ -2,10 +2,10 @@
 
 #include <string>
 
-#include "variant.hpp"
+#include <components/esm/defs.hpp>
+#include <components/esm/refid.hpp>
 
-#include "components/esm/defs.hpp"
-#include "components/esm/refid.hpp"
+#include "variant.hpp"
 
 namespace ESM
 {

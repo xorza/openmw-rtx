@@ -7,11 +7,10 @@
 
 #include <gtest/gtest.h>
 
-#include <volk.h>
-
 #include <osg/Matrixf>
 #include <osg/Vec2f>
 #include <osg/Vec3f>
+#include <volk.h>
 
 #include <apps/components_tests/rtx/support/death.hpp>
 #include <apps/components_tests/rtx/support/geometry.hpp>

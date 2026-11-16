@@ -1,10 +1,10 @@
-#include <components/misc/strings/conversion.hpp>
-#include <components/toutf8/toutf8.hpp>
+#include <filesystem>
+#include <fstream>
 
 #include <gtest/gtest.h>
 
-#include <filesystem>
-#include <fstream>
+#include <components/misc/strings/conversion.hpp>
+#include <components/toutf8/toutf8.hpp>
 
 namespace
 {

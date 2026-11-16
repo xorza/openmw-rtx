@@ -1,8 +1,10 @@
 #include "vfsbindings.hpp"
 
 #include <algorithm>
+
 #include <sol/object.hpp>
 
+#include <apps/openmw/mwbase/environment.hpp>
 #include <components/files/istreamptr.hpp>
 #include <components/lua/luastate.hpp>
 #include <components/resource/resourcesystem.hpp>
@@ -10,8 +12,6 @@
 #include <components/vfs/manager.hpp>
 #include <components/vfs/pathutil.hpp>
 #include <components/vfs/recursivedirectoryiterator.hpp>
-
-#include "../mwbase/environment.hpp"
 
 #include "context.hpp"
 

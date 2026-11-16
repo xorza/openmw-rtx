@@ -1,11 +1,11 @@
 #pragma once
 
+#include <cstdint>
 #include <set>
 #include <string>
 #include <vector>
 
 #include <SDL3/SDL_gamepad.h>
-#include <cstdint>
 #include <osg/Vec2f>
 
 namespace Loading

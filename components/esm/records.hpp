@@ -41,7 +41,6 @@
 #include <components/esm3/loadsscr.hpp>
 #include <components/esm3/loadstat.hpp>
 #include <components/esm3/loadweap.hpp>
-
 #include <components/esm4/loadachr.hpp>
 #include <components/esm4/loadacti.hpp>
 #include <components/esm4/loadalch.hpp>
@@ -84,4 +83,4 @@
 #include <components/esm4/loadwrld.hpp>
 
 // Special records which are not loaded from ESM
-#include <components/esm/attr.hpp>
+#include "attr.hpp"

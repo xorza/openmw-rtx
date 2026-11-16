@@ -6,19 +6,16 @@
 
 #include <MyGUI_ImageBox.h>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwmechanics/creaturestats.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/esm3/loadmgef.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/settings/values.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
-
-#include "../mwmechanics/actorutil.hpp"
-#include "../mwmechanics/creaturestats.hpp"
 
 #include "tooltips.hpp"
 

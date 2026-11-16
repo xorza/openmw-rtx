@@ -2,7 +2,6 @@
 
 #include <QObject>
 #include <QThread>
-
 #include <filesystem>
 #include <string>
 #include <vector>

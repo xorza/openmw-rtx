@@ -1,9 +1,12 @@
+#include "openaloutput.hpp"
+
 #include <algorithm>
 #include <array>
 #include <atomic>
 #include <chrono>
 #include <cmath>
 #include <condition_variable>
+#include <cstdint>
 #include <cstring>
 #include <memory>
 #include <source_location>
@@ -12,7 +15,7 @@
 #include <utility>
 #include <vector>
 
-#include <cstdint>
+#include <AL/efx-presets.h>
 
 #include <components/debug/debuglog.hpp>
 #include <components/misc/constants.hpp>
@@ -20,10 +23,7 @@
 #include <components/misc/thread.hpp>
 #include <components/settings/values.hpp>
 
-#include <AL/efx-presets.h>
-
 #include "loudness.hpp"
-#include "openaloutput.hpp"
 #include "sound.hpp"
 #include "sounddecoder.hpp"
 #include "soundmanagerimp.hpp"

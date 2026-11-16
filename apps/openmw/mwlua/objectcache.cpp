@@ -1,6 +1,6 @@
-#include "object.hpp"
-
 #include <limits>
+
+#include "object.hpp"
 
 namespace MWLua
 {

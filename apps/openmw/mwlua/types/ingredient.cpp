@@ -1,13 +1,11 @@
-#include "types.hpp"
-
-#include "usertypeutil.hpp"
-
+#include <apps/openmw/mwmechanics/spellutil.hpp>
 #include <components/esm3/effectlist.hpp> // IWYU pragma: keep: the effect list whole, which sol's container traits read
 #include <components/esm3/loadingr.hpp>
 #include <components/lua/util.hpp>
 #include <components/misc/resourcehelpers.hpp>
 
-#include "../../mwmechanics/spellutil.hpp"
+#include "types.hpp"
+#include "usertypeutil.hpp"
 
 namespace
 {

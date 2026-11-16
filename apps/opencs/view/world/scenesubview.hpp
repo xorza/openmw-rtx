@@ -1,13 +1,11 @@
 #pragma once
 
 #include <QHBoxLayout>
-
 #include <string>
 #include <vector>
 
 #include <apps/opencs/model/world/universalid.hpp>
-
-#include "../doc/subview.hpp"
+#include <apps/opencs/view/doc/subview.hpp>
 
 namespace CSMWorld
 {

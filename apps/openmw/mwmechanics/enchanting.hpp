@@ -3,10 +3,9 @@
 #include <string>
 #include <vector>
 
+#include <apps/openmw/mwworld/ptr.hpp>
 #include <components/esm3/effectlist.hpp>
 #include <components/esm3/loadench.hpp>
-
-#include "../mwworld/ptr.hpp"
 
 namespace MWMechanics
 {

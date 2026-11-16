@@ -1,10 +1,10 @@
 #pragma once
 
+#include <algorithm>
+
 #include <BulletCollision/BroadphaseCollision/btBroadphaseInterface.h>
 #include <BulletCollision/CollisionDispatch/btCollisionObject.h>
 #include <LinearMath/btVector3.h>
-
-#include <algorithm>
 
 namespace MWPhysics
 {

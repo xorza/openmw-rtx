@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../widget/modebutton.hpp"
+#include <apps/opencs/view/widget/modebutton.hpp>
 
 namespace CSVRender
 {

@@ -3,12 +3,12 @@
 #include <memory>
 #include <mutex>
 
-#include "ptrholder.hpp"
+#include <osg/Quat>
+#include <osg/Vec3f>
 
 #include <components/detournavigator/collisionshapetype.hpp>
 
-#include <osg/Quat>
-#include <osg/Vec3f>
+#include "ptrholder.hpp"
 
 class btCollisionShape;
 class btCollisionWorld;

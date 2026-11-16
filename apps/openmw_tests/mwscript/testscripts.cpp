@@ -1,7 +1,7 @@
-#include <gtest/gtest.h>
-
 #include <array>
 #include <sstream>
+
+#include <gtest/gtest.h>
 
 #include "testutils.hpp"
 

@@ -1,17 +1,14 @@
 #include "inputmanagerimp.hpp"
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwrender/renderer.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/esmwriter.hpp>
 #include <components/sdlutil/sdlinputwrapper.hpp>
 #include <components/settings/values.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/esmstore.hpp"
-
-#include "../mwrender/renderer.hpp"
 
 #include "actionmanager.hpp"
 #include "bindingsmanager.hpp"

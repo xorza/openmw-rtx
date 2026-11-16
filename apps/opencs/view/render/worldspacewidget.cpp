@@ -1,8 +1,5 @@
 #include "worldspacewidget.hpp"
 
-#include <algorithm>
-#include <set>
-
 #include <QDragEnterEvent>
 #include <QDragMoveEvent>
 #include <QDropEvent>
@@ -11,18 +8,8 @@
 #include <QScreen>
 #include <QToolTip>
 #include <QWindow>
-
-#include <apps/opencs/model/doc/document.hpp>
-#include <apps/opencs/model/prefs/category.hpp>
-#include <apps/opencs/model/prefs/setting.hpp>
-#include <apps/opencs/model/world/columns.hpp>
-#include <apps/opencs/model/world/data.hpp>
-#include <apps/opencs/model/world/record.hpp>
-#include <apps/opencs/view/render/editmode.hpp>
-#include <apps/opencs/view/render/scenewidget.hpp>
-#include <apps/opencs/view/widget/modebutton.hpp>
-
-#include <components/misc/scalableicon.hpp>
+#include <algorithm>
+#include <set>
 
 #include <osg/Camera>
 #include <osg/Group>
@@ -30,27 +17,33 @@
 #include <osg/Node>
 #include <osg/Viewport>
 #include <osgUtil/IntersectionVisitor>
+#include <osgUtil/LineSegmentIntersector>
 #include <osgViewer/View>
 
-#include <osgUtil/LineSegmentIntersector>
-
-#include "../../model/world/idtable.hpp"
-#include "../../model/world/tablemimedata.hpp"
-#include "../../model/world/universalid.hpp"
-
-#include "../../model/prefs/shortcut.hpp"
-#include "../../model/prefs/state.hpp"
-
-#include "../render/orbitcameramode.hpp"
-
-#include "../widget/scenetoolmode.hpp"
-#include "../widget/scenetoolrun.hpp"
-#include "../widget/scenetooltoggle2.hpp"
+#include <apps/opencs/model/doc/document.hpp>
+#include <apps/opencs/model/prefs/category.hpp>
+#include <apps/opencs/model/prefs/setting.hpp>
+#include <apps/opencs/model/prefs/shortcut.hpp>
+#include <apps/opencs/model/prefs/state.hpp>
+#include <apps/opencs/model/world/columns.hpp>
+#include <apps/opencs/model/world/data.hpp>
+#include <apps/opencs/model/world/idtable.hpp>
+#include <apps/opencs/model/world/record.hpp>
+#include <apps/opencs/model/world/tablemimedata.hpp>
+#include <apps/opencs/model/world/universalid.hpp>
+#include <apps/opencs/view/widget/modebutton.hpp>
+#include <apps/opencs/view/widget/scenetoolmode.hpp>
+#include <apps/opencs/view/widget/scenetoolrun.hpp>
+#include <apps/opencs/view/widget/scenetooltoggle2.hpp>
+#include <components/misc/scalableicon.hpp>
 
 #include "cameracontroller.hpp"
+#include "editmode.hpp"
 #include "instancemode.hpp"
 #include "mask.hpp"
+#include "orbitcameramode.hpp"
 #include "pathgridmode.hpp"
+#include "scenewidget.hpp"
 
 CSVRender::WorldspaceWidget::WorldspaceWidget(CSMDoc::Document& document, QWidget* parent)
     : SceneWidget(document.getData().getResourceSystem(), parent, Qt::WindowFlags(), false)

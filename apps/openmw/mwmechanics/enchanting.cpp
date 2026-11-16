@@ -1,18 +1,17 @@
 #include "enchanting.hpp"
 
+#include <utility>
+
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/containerstore.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/esm3/loadcrea.hpp>
 #include <components/esm3/loadmgef.hpp>
 #include <components/misc/rng.hpp>
 #include <components/settings/values.hpp>
-#include <utility>
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/containerstore.hpp"
-#include "../mwworld/esmstore.hpp"
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/world.hpp"
 
 #include "actorutil.hpp"
 #include "creaturestats.hpp"

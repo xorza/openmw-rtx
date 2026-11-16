@@ -1,9 +1,8 @@
 #include "cameracontroller.hpp"
 
+#include <QWidget>
 #include <algorithm>
 #include <cmath>
-
-#include <QWidget>
 
 #include <osg/BoundingBox>
 #include <osg/Camera>
@@ -14,11 +13,10 @@
 #include <osg/Quat>
 #include <osg/Vec3>
 #include <osg/ref_ptr>
-
 #include <osgUtil/IntersectionVisitor>
 #include <osgUtil/LineSegmentIntersector>
 
-#include "../../model/prefs/shortcut.hpp"
+#include <apps/opencs/model/prefs/shortcut.hpp>
 
 namespace CSVRender
 {

@@ -1,5 +1,7 @@
 #include "levelupdialog.hpp"
 
+#include <algorithm>
+
 #include <MyGUI_Button.h>
 #include <MyGUI_EditBox.h>
 #include <MyGUI_ImageBox.h>
@@ -7,24 +9,19 @@
 #include <MyGUI_TextBox.h>
 #include <MyGUI_UString.h>
 
-#include <algorithm>
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/soundmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwmechanics/creaturestats.hpp>
+#include <apps/openmw/mwmechanics/npcstats.hpp>
+#include <apps/openmw/mwsound/constants.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/fallback/fallback.hpp>
 #include <components/settings/values.hpp>
 #include <components/widgets/box.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/soundmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
-
-#include "../mwmechanics/actorutil.hpp"
-#include "../mwmechanics/creaturestats.hpp"
-#include "../mwmechanics/npcstats.hpp"
-
-#include "../mwsound/constants.hpp"
 
 #include "class.hpp"
 

@@ -6,12 +6,12 @@
 #include <type_traits>
 #include <utility>
 
+#include <components/contentstore/key.hpp>
+#include <components/contentstore/store.hpp>
 #include <components/misc/bytebuffer.hpp>
 
 #include "contentcodec.hpp"
 #include "contentpass.hpp"
-#include <components/contentstore/key.hpp>
-#include <components/contentstore/store.hpp>
 
 namespace Rtx
 {

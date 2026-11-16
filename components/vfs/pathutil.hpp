@@ -1,13 +1,13 @@
 #pragma once
 
-#include <components/misc/strings/lower.hpp>
-
 #include <algorithm>
 #include <cassert>
 #include <ostream>
 #include <stdexcept>
 #include <string>
 #include <string_view>
+
+#include <components/misc/strings/lower.hpp>
 
 namespace VFS::Path
 {

@@ -7,14 +7,13 @@
 
 #include <osg/Vec4f>
 
-#include "doorstate.hpp"
-#include "ptr.hpp"
-
-#include "../mwmechanics/aisetting.hpp"
-#include "../mwmechanics/damagesourcetype.hpp"
-
+#include <apps/openmw/mwmechanics/aisetting.hpp>
+#include <apps/openmw/mwmechanics/damagesourcetype.hpp>
 #include <components/esm/refid.hpp>
 #include <components/vfs/pathutil.hpp>
+
+#include "doorstate.hpp"
+#include "ptr.hpp"
 
 namespace osg
 {

@@ -1,17 +1,16 @@
 #include "landcreator.hpp"
 
-#include <limits>
-
 #include <QLabel>
 #include <QSpinBox>
+#include <limits>
 
+#include <apps/opencs/model/world/commands.hpp>
 #include <apps/opencs/model/world/data.hpp>
 #include <apps/opencs/model/world/idcollection.hpp>
-#include <apps/opencs/view/world/genericcreator.hpp>
+#include <apps/opencs/model/world/idtable.hpp>
+#include <apps/opencs/model/world/land.hpp>
 
-#include "../../model/world/commands.hpp"
-#include "../../model/world/idtable.hpp"
-#include "../../model/world/land.hpp"
+#include "genericcreator.hpp"
 
 namespace CSVWorld
 {

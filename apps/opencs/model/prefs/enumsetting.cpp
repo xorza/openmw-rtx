@@ -4,12 +4,10 @@
 #include <QLabel>
 #include <QMutexLocker>
 #include <QString>
-
 #include <algorithm>
 
-#include <apps/opencs/model/prefs/setting.hpp>
-
 #include "category.hpp"
+#include "setting.hpp"
 #include "state.hpp"
 
 CSMPrefs::EnumSetting::EnumSetting(Category* parent, QMutex* mutex, std::string_view key, const QString& label,

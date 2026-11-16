@@ -2,8 +2,17 @@
 
 #include <stdexcept>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/luamanager.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/movement.hpp>
+#include <apps/openmw/mwmechanics/npcstats.hpp>
+#include <apps/openmw/mwmechanics/spellutil.hpp>
+#include <apps/openmw/mwrender/camera.hpp>
+#include <apps/openmw/mwrender/renderingmanager.hpp>
 #include <components/debug/debuglog.hpp>
-
 #include <components/esm/defs.hpp>
 #include <components/esm3/actoridconverter.hpp>
 #include <components/esm3/esmreader.hpp>
@@ -13,27 +22,13 @@
 #include <components/esm3/player.hpp>
 #include <components/fallback/fallback.hpp>
 
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/inventorystore.hpp"
-#include "../mwworld/magiceffects.hpp"
-#include "../mwworld/worldmodel.hpp"
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/luamanager.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwmechanics/movement.hpp"
-#include "../mwmechanics/npcstats.hpp"
-#include "../mwmechanics/spellutil.hpp"
-
-#include "../mwrender/camera.hpp"
-#include "../mwrender/renderingmanager.hpp"
-
 #include "cellstore.hpp"
 #include "class.hpp"
+#include "esmstore.hpp"
+#include "inventorystore.hpp"
+#include "magiceffects.hpp"
 #include "ptr.hpp"
+#include "worldmodel.hpp"
 
 namespace MWWorld
 {

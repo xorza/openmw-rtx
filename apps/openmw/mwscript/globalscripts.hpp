@@ -8,12 +8,11 @@
 #include <utility>
 #include <variant>
 
+#include <apps/openmw/mwworld/ptr.hpp>
 #include <components/esm/refid.hpp>
 #include <components/misc/algorithm.hpp>
 
 #include "locals.hpp"
-
-#include "../mwworld/ptr.hpp"
 
 namespace ESM
 {

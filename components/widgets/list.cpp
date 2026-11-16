@@ -1,10 +1,11 @@
 #include "list.hpp"
 
+#include <algorithm>
+
 #include <MyGUI_Button.h>
 #include <MyGUI_Gui.h>
 #include <MyGUI_ImageBox.h>
 
-#include <algorithm>
 #include <components/misc/strings/algorithm.hpp>
 
 namespace Gui

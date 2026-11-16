@@ -2,19 +2,16 @@
 
 #include <QHBoxLayout>
 
+#include <apps/opencs/model/doc/document.hpp>
 #include <apps/opencs/model/world/data.hpp>
 #include <apps/opencs/model/world/record.hpp>
 #include <apps/opencs/model/world/ref.hpp>
 #include <apps/opencs/model/world/refcollection.hpp>
 #include <apps/opencs/model/world/refidcollection.hpp>
 #include <apps/opencs/view/doc/subview.hpp>
-
-#include "../render/previewwidget.hpp"
-
-#include "../widget/scenetoolbar.hpp"
-#include "../widget/scenetoolmode.hpp"
-
-#include "../../model/doc/document.hpp"
+#include <apps/opencs/view/render/previewwidget.hpp>
+#include <apps/opencs/view/widget/scenetoolbar.hpp>
+#include <apps/opencs/view/widget/scenetoolmode.hpp>
 
 CSVWorld::PreviewSubView::PreviewSubView(const CSMWorld::UniversalId& id, CSMDoc::Document& document)
     : SubView(id)

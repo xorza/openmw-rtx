@@ -2,7 +2,6 @@
 
 #include <QDialog>
 #include <QMetaType>
-
 #include <filesystem>
 
 #include "pathmetatype.hpp"

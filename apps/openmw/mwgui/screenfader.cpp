@@ -1,10 +1,10 @@
 #include "screenfader.hpp"
 
-#include <MyGUI_Gui.h>
-#include <MyGUI_ImageBox.h>
-
 #include <algorithm>
 #include <memory>
+
+#include <MyGUI_Gui.h>
+#include <MyGUI_ImageBox.h>
 
 namespace MWGui
 {

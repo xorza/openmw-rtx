@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../mwworld/registeredclass.hpp"
+#include <apps/openmw/mwworld/registeredclass.hpp>
 
 namespace ESM
 {

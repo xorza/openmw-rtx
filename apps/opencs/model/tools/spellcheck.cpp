@@ -5,13 +5,11 @@
 #include <apps/opencs/model/doc/messages.hpp>
 #include <apps/opencs/model/prefs/category.hpp>
 #include <apps/opencs/model/prefs/setting.hpp>
+#include <apps/opencs/model/prefs/state.hpp>
 #include <apps/opencs/model/world/idcollection.hpp>
 #include <apps/opencs/model/world/record.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
-
 #include <components/esm3/loadspel.hpp>
-
-#include "../prefs/state.hpp"
 
 #include "effectlistcheck.hpp"
 

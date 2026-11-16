@@ -1,18 +1,16 @@
 #include "tablebottombox.hpp"
 
-#include <sstream>
-
 #include <QEvent>
 #include <QKeyEvent>
 #include <QLabel>
 #include <QStackedLayout>
 #include <QStatusBar>
+#include <sstream>
 
 #include <components/debug/debuglog.hpp>
 
-#include <apps/opencs/view/world/extendedcommandconfigurator.hpp>
-
 #include "creator.hpp"
+#include "extendedcommandconfigurator.hpp"
 #include "infocreator.hpp"
 
 namespace

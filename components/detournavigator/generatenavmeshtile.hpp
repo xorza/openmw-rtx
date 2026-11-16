@@ -1,19 +1,19 @@
 #pragma once
 
-#include "agentbounds.hpp"
-#include "preparednavmeshdata.hpp"
-#include "recastmeshprovider.hpp"
-#include "tileposition.hpp"
-
-#include <components/contentstore/key.hpp>
-#include <components/esm/refid.hpp>
-#include <components/sceneutil/workqueue.hpp>
-
 #include <cstdint>
 #include <memory>
 #include <optional>
 #include <string_view>
 #include <vector>
+
+#include <components/contentstore/key.hpp>
+#include <components/esm/refid.hpp>
+#include <components/sceneutil/workqueue.hpp>
+
+#include "agentbounds.hpp"
+#include "preparednavmeshdata.hpp"
+#include "recastmeshprovider.hpp"
+#include "tileposition.hpp"
 
 namespace DetourNavigator
 {

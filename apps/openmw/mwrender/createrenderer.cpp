@@ -1,12 +1,10 @@
-#include "renderer.hpp"
-
 #include <memory>
 
+#include <apps/openmw/mwrender/rtx/rtxrenderer.hpp>
 #include <components/crashcatcher/crash.hpp>
 
-#include <apps/openmw/mwrender/rtx/rtxrenderer.hpp>
-
 #include "glrenderer.hpp"
+#include "renderer.hpp"
 
 namespace MWRender
 {

@@ -1,81 +1,17 @@
 #include "animation.hpp"
 
 #include <algorithm>
-#include <limits>
-#include <optional>
-
-#include <osg/BlendFunc>
-#include <osg/Matrix>
-#include <osg/MatrixTransform>
-#include <osg/Switch>
-
-#include <osg/Vec4f>
-#include <osgParticle/ParticleProcessor>
-#include <osgParticle/ParticleSystem>
-
-#include <osg/Callback>
-#include <osg/Drawable>
-#include <osg/Geometry>
-#include <osg/NodeVisitor>
-#include <osg/Object>
-#include <osg/StateAttribute>
-#include <osg/StateSet>
-#include <osg/Transform>
-#include <osg/Uniform>
-#include <osg/Vec3f>
-#include <osg/ref_ptr>
-#include <osgAnimation/Bone>
-#include <osgAnimation/UpdateBone>
-
-#include <components/debug/debuglog.hpp>
-
-#include <components/resource/animblendrulesmanager.hpp>
-#include <components/resource/keyframemanager.hpp>
-#include <components/resource/scenemanager.hpp>
-
-#include <components/esm3/loadcont.hpp>
-#include <components/esm3/loadcrea.hpp>
-#include <components/esm3/loadnpc.hpp>
-#include <components/esm3/loadrace.hpp>
-#include <components/esm4/loadligh.hpp>
-
-#include <components/misc/constants.hpp>
-#include <components/misc/pathhelpers.hpp>
-#include <components/misc/resourcehelpers.hpp>
-
-#include <components/vfs/manager.hpp>
-#include <components/vfs/pathutil.hpp>
-
-#include <components/sceneutil/keyframe.hpp>
-#include <components/sceneutil/lightcommon.hpp>
-#include <components/sceneutil/lightmanager.hpp>
-#include <components/sceneutil/lightutil.hpp>
-#include <components/sceneutil/skeleton.hpp>
-#include <components/sceneutil/statesetupdater.hpp>
-#include <components/sceneutil/util.hpp>
-#include <components/sceneutil/visitor.hpp>
-
-#include <apps/openmw/mwworld/livecellref.hpp>
-#include <apps/openmw/mwworld/movementdirection.hpp>
 #include <cassert>
 #include <cmath>
-#include <components/misc/strings/algorithm.hpp>
-#include <components/misc/strings/lower.hpp>
-#include <components/nifosg/matrixtransform.hpp>
-#include <components/sceneutil/animblendrules.hpp>
-#include <components/sceneutil/controller.hpp>
-#include <components/sceneutil/nodecallback.hpp>
-#include <components/sceneutil/positionattitudetransform.hpp> // IWYU pragma: keep: the transform whole, which the ref_ptr releasing it needs
-#include <components/sceneutil/textkeymap.hpp>
-#include <components/settings/values.hpp>
-#include <components/vfs/recursivedirectoryiterator.hpp> // IWYU pragma: keep: the range whole, which a call returns by value
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <exception>
 #include <initializer_list>
+#include <limits>
 #include <map>
 #include <memory>
+#include <optional>
 #include <ranges>
 #include <span>
 #include <stdexcept>
@@ -84,16 +20,70 @@
 #include <utility>
 #include <vector>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/luamanager.hpp"
-#include "../mwbase/world.hpp"
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/class.hpp"
-#include "../mwworld/containerstore.hpp"
-#include "../mwworld/esmstore.hpp"
+#include <osg/BlendFunc>
+#include <osg/Callback>
+#include <osg/Drawable>
+#include <osg/Geometry>
+#include <osg/Matrix>
+#include <osg/MatrixTransform>
+#include <osg/NodeVisitor>
+#include <osg/Object>
+#include <osg/StateAttribute>
+#include <osg/StateSet>
+#include <osg/Switch>
+#include <osg/Transform>
+#include <osg/Uniform>
+#include <osg/Vec3f>
+#include <osg/Vec4f>
+#include <osg/ref_ptr>
+#include <osgAnimation/Bone>
+#include <osgAnimation/UpdateBone>
+#include <osgParticle/ParticleProcessor>
+#include <osgParticle/ParticleSystem>
 
-#include "../mwmechanics/character.hpp" // FIXME: for MWMechanics::Priority
-#include "../mwmechanics/weapontype.hpp"
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/luamanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/character.hpp> // FIXME: for MWMechanics::Priority
+#include <apps/openmw/mwmechanics/weapontype.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/containerstore.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/livecellref.hpp>
+#include <apps/openmw/mwworld/movementdirection.hpp>
+#include <components/debug/debuglog.hpp>
+#include <components/esm3/loadcont.hpp>
+#include <components/esm3/loadcrea.hpp>
+#include <components/esm3/loadnpc.hpp>
+#include <components/esm3/loadrace.hpp>
+#include <components/esm4/loadligh.hpp>
+#include <components/misc/constants.hpp>
+#include <components/misc/pathhelpers.hpp>
+#include <components/misc/resourcehelpers.hpp>
+#include <components/misc/strings/algorithm.hpp>
+#include <components/misc/strings/lower.hpp>
+#include <components/nifosg/matrixtransform.hpp>
+#include <components/resource/animblendrulesmanager.hpp>
+#include <components/resource/keyframemanager.hpp>
+#include <components/resource/scenemanager.hpp>
+#include <components/sceneutil/animblendrules.hpp>
+#include <components/sceneutil/controller.hpp>
+#include <components/sceneutil/keyframe.hpp>
+#include <components/sceneutil/lightcommon.hpp>
+#include <components/sceneutil/lightmanager.hpp>
+#include <components/sceneutil/lightutil.hpp>
+#include <components/sceneutil/nodecallback.hpp>
+#include <components/sceneutil/positionattitudetransform.hpp> // IWYU pragma: keep: the transform whole, which the ref_ptr releasing it needs
+#include <components/sceneutil/skeleton.hpp>
+#include <components/sceneutil/statesetupdater.hpp>
+#include <components/sceneutil/textkeymap.hpp>
+#include <components/sceneutil/util.hpp>
+#include <components/sceneutil/visitor.hpp>
+#include <components/settings/values.hpp>
+#include <components/vfs/manager.hpp>
+#include <components/vfs/pathutil.hpp>
+#include <components/vfs/recursivedirectoryiterator.hpp> // IWYU pragma: keep: the range whole, which a call returns by value
 
 #include "actorutil.hpp"
 #include "animblendcontroller.hpp"

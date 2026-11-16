@@ -1,30 +1,24 @@
 #include "scenesubview.hpp"
 
-#include <cassert>
-#include <sstream>
-
 #include <QHBoxLayout>
 #include <QMargins>
 #include <QVBoxLayout>
 #include <QWidget>
+#include <cassert>
+#include <sstream>
 
+#include <apps/opencs/model/doc/document.hpp>
 #include <apps/opencs/model/world/cellcoordinates.hpp>
+#include <apps/opencs/model/world/cellselection.hpp>
 #include <apps/opencs/view/doc/subview.hpp>
+#include <apps/opencs/view/filter/filterbox.hpp>
+#include <apps/opencs/view/render/pagedworldspacewidget.hpp>
+#include <apps/opencs/view/render/unpagedworldspacewidget.hpp>
 #include <apps/opencs/view/render/worldspacewidget.hpp>
-
-#include "../../model/doc/document.hpp"
-
-#include "../../model/world/cellselection.hpp"
-
-#include "../filter/filterbox.hpp"
-
-#include "../render/pagedworldspacewidget.hpp"
-#include "../render/unpagedworldspacewidget.hpp"
-
-#include "../widget/scenetoolbar.hpp"
-#include "../widget/scenetoolmode.hpp"
-#include "../widget/scenetoolrun.hpp"
-#include "../widget/scenetooltoggle2.hpp"
+#include <apps/opencs/view/widget/scenetoolbar.hpp>
+#include <apps/opencs/view/widget/scenetoolmode.hpp>
+#include <apps/opencs/view/widget/scenetoolrun.hpp>
+#include <apps/opencs/view/widget/scenetooltoggle2.hpp>
 
 #include "creator.hpp"
 #include "tablebottombox.hpp"

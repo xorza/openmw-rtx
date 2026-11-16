@@ -1,16 +1,16 @@
 #pragma once
 
-#include "objectid.hpp"
-#include "offmeshconnection.hpp"
-#include "settings.hpp"
-#include "tileposition.hpp"
-
-#include <components/misc/guarded.hpp>
-
 #include <map>
 #include <set>
 #include <unordered_set>
 #include <vector>
+
+#include <components/misc/guarded.hpp>
+
+#include "objectid.hpp"
+#include "offmeshconnection.hpp"
+#include "settings.hpp"
+#include "tileposition.hpp"
 
 namespace DetourNavigator
 {

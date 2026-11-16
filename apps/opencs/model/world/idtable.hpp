@@ -2,7 +2,6 @@
 
 #include <QModelIndex>
 #include <QVariant>
-
 #include <map>
 #include <memory>
 #include <string>

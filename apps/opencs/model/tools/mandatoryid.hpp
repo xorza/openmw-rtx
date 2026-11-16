@@ -3,8 +3,8 @@
 #include <string>
 #include <vector>
 
-#include "../doc/stage.hpp"
-#include "../world/universalid.hpp"
+#include <apps/opencs/model/doc/stage.hpp>
+#include <apps/opencs/model/world/universalid.hpp>
 #include <components/esm/refid.hpp>
 
 namespace CSMDoc

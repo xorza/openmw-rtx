@@ -1,8 +1,8 @@
 #pragma once
 
-#include <components/nif/niftypes.hpp>
-
 #include <osg/MatrixTransform>
+
+#include <components/nif/niftypes.hpp>
 
 namespace NifOsg
 {

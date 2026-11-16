@@ -1,11 +1,11 @@
 #pragma once
 
-#include "recasttempallocator.hpp"
+#include <cstdlib>
 
 #include <DetourAlloc.h>
 #include <RecastAlloc.h>
 
-#include <cstdlib>
+#include "recasttempallocator.hpp"
 
 namespace DetourNavigator
 {

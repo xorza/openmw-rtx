@@ -30,7 +30,6 @@
 #include <components/esm3/loadrepa.hpp>
 #include <components/esm3/loadstat.hpp>
 #include <components/esm3/loadweap.hpp>
-
 #include <components/misc/strings/algorithm.hpp>
 
 #include "record.hpp"

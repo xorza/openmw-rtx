@@ -1,11 +1,11 @@
 #include "settings.hpp"
 
-#include <components/misc/constants.hpp>
-#include <components/settings/values.hpp>
-
 #include <algorithm>
 #include <stdexcept>
 #include <string>
+
+#include <components/misc/constants.hpp>
+#include <components/settings/values.hpp>
 
 namespace DetourNavigator
 {

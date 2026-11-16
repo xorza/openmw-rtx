@@ -5,8 +5,9 @@
 #include <string>
 #include <vector>
 
-#include "components/esm/defs.hpp"
-#include "components/esm/refid.hpp"
+#include <components/esm/defs.hpp>
+#include <components/esm/refid.hpp>
+
 #include "timestamp.hpp"
 
 namespace ESM

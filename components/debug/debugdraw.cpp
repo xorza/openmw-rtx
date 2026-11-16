@@ -1,5 +1,4 @@
 #include "debugdraw.hpp"
-#include <components/shader/shadermanager.hpp>
 
 #include <osg/Array>
 #include <osg/Drawable>
@@ -8,6 +7,8 @@
 #include <osg/Program>
 #include <osg/Uniform>
 #include <osg/Vec3>
+
+#include <components/shader/shadermanager.hpp>
 
 namespace
 {

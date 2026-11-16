@@ -1,8 +1,9 @@
 #pragma once
 
+#include <components/esm/refid.hpp>
+
 #include "referenceinterface.hpp"
 #include "windowbase.hpp"
-#include <components/esm/refid.hpp>
 namespace ESM
 {
     struct Spell;

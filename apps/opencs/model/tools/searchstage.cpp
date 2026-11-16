@@ -1,9 +1,8 @@
 #include "searchstage.hpp"
 
-#include "../world/idtablebase.hpp"
+#include <apps/opencs/model/world/idtablebase.hpp>
 
-#include <apps/opencs/model/tools/search.hpp>
-
+#include "search.hpp"
 #include "searchoperation.hpp"
 
 namespace CSMDoc

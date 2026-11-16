@@ -1,6 +1,12 @@
 #include "esmdata.hpp"
 
-#include "lessbyid.hpp"
+#include <algorithm>
+#include <stdexcept>
+#include <string>
+#include <string_view>
+#include <type_traits>
+#include <utility>
+#include <vector>
 
 #include <components/esm/defs.hpp>
 #include <components/esm3/loadacti.hpp> // IWYU pragma: keep: the record whole, which the stores' templates instantiate
@@ -12,13 +18,7 @@
 #include <components/esm3/loadstat.hpp>
 #include <components/esm3/variant.hpp>
 
-#include <algorithm>
-#include <stdexcept>
-#include <string>
-#include <string_view>
-#include <type_traits>
-#include <utility>
-#include <vector>
+#include "lessbyid.hpp"
 
 namespace EsmLoader
 {

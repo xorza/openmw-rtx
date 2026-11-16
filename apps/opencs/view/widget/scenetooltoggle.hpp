@@ -1,9 +1,9 @@
 #pragma once
 
-#include "scenetool.hpp"
-
 #include <map>
 #include <string>
+
+#include "scenetool.hpp"
 
 class QHBoxLayout;
 class QRect;

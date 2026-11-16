@@ -2,7 +2,6 @@
 
 #include <QString>
 #include <QWidget>
-
 #include <string>
 
 class QLabel;

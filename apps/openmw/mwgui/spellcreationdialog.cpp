@@ -1,31 +1,28 @@
 #include "spellcreationdialog.hpp"
 
+#include <utility>
+
 #include <MyGUI_Button.h>
 #include <MyGUI_Gui.h>
 #include <MyGUI_ImageBox.h>
 #include <MyGUI_ScrollBar.h>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/inputmanager.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwmechanics/creaturestats.hpp>
+#include <apps/openmw/mwmechanics/spellutil.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/containerstore.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/store.hpp>
+#include <components/esm3/loadgmst.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/settings/values.hpp>
 #include <components/widgets/list.hpp>
-
-#include <components/esm3/loadgmst.hpp>
-#include <utility>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/inputmanager.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/containerstore.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/store.hpp"
-
-#include "../mwmechanics/actorutil.hpp"
-#include "../mwmechanics/creaturestats.hpp"
-#include "../mwmechanics/spellutil.hpp"
 
 #include "class.hpp"
 #include "textcolours.hpp"

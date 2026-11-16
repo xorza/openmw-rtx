@@ -4,10 +4,10 @@
 #include <memory>
 #include <vector>
 
+#include <components/esm3/loadnpc.hpp>
+
 #include "aipackagetypeid.hpp"
 #include "aistate.hpp"
-
-#include <components/esm3/loadnpc.hpp>
 
 namespace MWWorld
 {

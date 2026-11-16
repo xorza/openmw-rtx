@@ -3,15 +3,13 @@
 #include <cmath>
 #include <limits>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/esm/attr.hpp>
 #include <components/esm/refid.hpp>
 #include <components/esm3/loadmgef.hpp>
 #include <components/esm3/loadrace.hpp>
 #include <components/esm3/loadspel.hpp>
-
-#include "../mwworld/esmstore.hpp"
-
-#include "../mwbase/environment.hpp"
 
 #include "spellutil.hpp"
 

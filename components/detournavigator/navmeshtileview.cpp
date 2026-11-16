@@ -1,12 +1,13 @@
 #include "navmeshtileview.hpp"
-#include "ref.hpp"
-
-#include <DetourCommon.h>
-#include <DetourNavMesh.h>
 
 #include <cassert>
 #include <stdexcept>
 #include <tuple>
+
+#include <DetourCommon.h>
+#include <DetourNavMesh.h>
+
+#include "ref.hpp"
 
 // Found by argument-dependent lookup, which an unnamed namespace would hide.
 // NOLINTBEGIN(misc-use-anonymous-namespace)

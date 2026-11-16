@@ -1,10 +1,10 @@
-#include <components/esmloader/record.hpp>
+#include <array>
+#include <tuple>
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include <array>
-#include <tuple>
+#include <components/esmloader/record.hpp>
 
 namespace
 {

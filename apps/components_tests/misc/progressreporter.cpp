@@ -1,9 +1,9 @@
-#include <components/misc/progressreporter.hpp>
+#include <chrono>
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include <chrono>
+#include <components/misc/progressreporter.hpp>
 
 namespace
 {

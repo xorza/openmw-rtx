@@ -1,8 +1,8 @@
 #pragma once
 
-#include <osg/Referenced>
-
 #include <limits>
+
+#include <osg/Referenced>
 
 #include <components/sceneutil/nodecallback.hpp>
 

@@ -1,16 +1,15 @@
 #pragma once
 
-#include <components/misc/convert.hpp>
-
-#include <osg/Vec2f>
-#include <osg/Vec2i>
-
-#include <BulletCollision/CollisionShapes/btCollisionShape.h>
-#include <LinearMath/btTransform.h>
-
 #include <algorithm>
 #include <optional>
 #include <tuple>
+
+#include <BulletCollision/CollisionShapes/btCollisionShape.h>
+#include <LinearMath/btTransform.h>
+#include <osg/Vec2f>
+#include <osg/Vec2i>
+
+#include <components/misc/convert.hpp>
 
 namespace DetourNavigator
 {

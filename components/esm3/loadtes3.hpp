@@ -2,9 +2,10 @@
 
 #include <vector>
 
-#include "components/esm/common.hpp"
-#include "components/esm/esmcommon.hpp"
-#include "components/esm3/formatversion.hpp"
+#include <components/esm/common.hpp>
+#include <components/esm/esmcommon.hpp>
+
+#include "formatversion.hpp"
 
 namespace ESM
 {

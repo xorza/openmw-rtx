@@ -1,17 +1,17 @@
 #pragma once
 
-#include "extra.hpp"
-#include "niftypes.hpp"
-#include "record.hpp"
-#include "recordptr.hpp"
+#include <cstdint>
+#include <vector>
 
 #include <osg/Plane>
 #include <osg/Quat>
 #include <osg/Vec3f>
 #include <osg/Vec4f>
 
-#include <cstdint>
-#include <vector>
+#include "extra.hpp"
+#include "niftypes.hpp"
+#include "record.hpp"
+#include "recordptr.hpp"
 
 // This header contains certain record definitions
 // specific to Bethesda implementation of Havok physics

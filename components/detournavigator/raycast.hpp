@@ -1,10 +1,10 @@
 #pragma once
 
-#include "flags.hpp"
+#include <optional>
 
 #include <osg/Vec3f>
 
-#include <optional>
+#include "flags.hpp"
 
 class dtNavMeshQuery;
 

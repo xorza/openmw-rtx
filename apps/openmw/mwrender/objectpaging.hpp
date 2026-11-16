@@ -1,10 +1,10 @@
 #pragma once
 
+#include <mutex>
+
 #include <components/esm3/refnum.hpp>
 #include <components/resource/resourcemanager.hpp>
 #include <components/terrain/quadtreeworld.hpp>
-
-#include <mutex>
 
 namespace Resource
 {

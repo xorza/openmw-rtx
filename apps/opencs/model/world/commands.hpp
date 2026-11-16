@@ -1,19 +1,17 @@
 #pragma once
 
-#include "record.hpp"
-
+#include <QAbstractItemModel>
+#include <QModelIndex>
+#include <QUndoCommand>
+#include <QVariant>
 #include <map>
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include <QAbstractItemModel>
-#include <QModelIndex>
-#include <QUndoCommand>
-#include <QVariant>
-
 #include "columnimp.hpp"
+#include "record.hpp"
 #include "universalid.hpp"
 
 namespace CSMWorld

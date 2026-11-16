@@ -19,9 +19,8 @@
 
 #include "character.hpp"
 
-#include <array>
-
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -32,21 +31,26 @@
 #include <utility>
 #include <vector>
 
-#include <components/misc/mathutil.hpp>
-#include <components/misc/resourcehelpers.hpp>
-#include <components/misc/rng.hpp>
-#include <components/misc/strings/algorithm.hpp>
-#include <components/misc/strings/conversion.hpp>
 #include <osg/Math>
 
-#include <components/settings/values.hpp>
-
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/luamanager.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/soundmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
 #include <apps/openmw/mwgui/mode.hpp>
+#include <apps/openmw/mwrender/animation.hpp>
 #include <apps/openmw/mwrender/blendmask.hpp>
 #include <apps/openmw/mwrender/bonegroup.hpp>
 #include <apps/openmw/mwsound/type.hpp>
+#include <apps/openmw/mwworld/class.hpp>
 #include <apps/openmw/mwworld/containerstore.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/inventorystore.hpp>
 #include <apps/openmw/mwworld/movementdirection.hpp>
+#include <apps/openmw/mwworld/player.hpp>
+#include <apps/openmw/mwworld/spellcaststate.hpp>
 #include <apps/openmw/mwworld/store.hpp>
 #include <components/esm3/animationstate.hpp>
 #include <components/esm3/loadcrea.hpp>
@@ -54,24 +58,15 @@
 #include <components/esm3/loadrace.hpp>
 #include <components/esm3/loadsoun.hpp>
 #include <components/esm3/loadstat.hpp>
+#include <components/misc/mathutil.hpp>
+#include <components/misc/resourcehelpers.hpp>
+#include <components/misc/rng.hpp>
+#include <components/misc/strings/algorithm.hpp>
+#include <components/misc/strings/conversion.hpp>
 #include <components/sceneutil/positionattitudetransform.hpp>
 #include <components/sceneutil/textkeymap.hpp>
+#include <components/settings/values.hpp>
 #include <components/vfs/pathutil.hpp>
-
-#include "../mwrender/animation.hpp"
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/luamanager.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/soundmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/inventorystore.hpp"
-#include "../mwworld/player.hpp"
-#include "../mwworld/spellcaststate.hpp"
 
 #include "actorutil.hpp"
 #include "aicombataction.hpp"

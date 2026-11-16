@@ -1,15 +1,15 @@
-#include "generate.hpp"
+#include <random>
+
+#include <gtest/gtest.h>
+
+#include <osg/Vec3f>
 
 #include <components/detournavigator/navmeshtilescache.hpp>
 #include <components/detournavigator/preparednavmeshdata.hpp>
 #include <components/detournavigator/recast.hpp>
 #include <components/detournavigator/recastmesh.hpp>
 
-#include <osg/Vec3f>
-
-#include <gtest/gtest.h>
-
-#include <random>
+#include "generate.hpp"
 
 namespace
 {

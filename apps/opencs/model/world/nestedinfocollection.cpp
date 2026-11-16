@@ -3,12 +3,12 @@
 #include <memory>
 #include <stdexcept>
 
-#include <apps/opencs/model/world/collection.hpp>
-#include <apps/opencs/model/world/columnbase.hpp>
-#include <apps/opencs/model/world/info.hpp>
-#include <apps/opencs/model/world/nestedcolumnadapter.hpp>
-#include <apps/opencs/model/world/nestedtablewrapper.hpp>
-#include <apps/opencs/model/world/record.hpp>
+#include "collection.hpp"
+#include "columnbase.hpp"
+#include "info.hpp"
+#include "nestedcolumnadapter.hpp"
+#include "nestedtablewrapper.hpp"
+#include "record.hpp"
 
 namespace CSMWorld
 {

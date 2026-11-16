@@ -1,12 +1,11 @@
-#include <gtest/gtest.h>
-
 #include <cmath>
 
+#include <gtest/gtest.h>
+
+#include <apps/openmw/mwworld/timestamp.hpp>
+#include <apps/openmw/mwworld/weather.hpp>
 #include <components/misc/rng.hpp>
 #include <components/vfs/pathutil.hpp>
-
-#include "apps/openmw/mwworld/timestamp.hpp"
-#include "apps/openmw/mwworld/weather.hpp"
 
 namespace MWWorld
 {

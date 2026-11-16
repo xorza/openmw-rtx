@@ -34,9 +34,9 @@ either expressed or implied, of the FreeBSD Project.
 
 #include <cstdlib>
 #include <memory>
-
-#include <components/debug/debuglog.hpp>
 #include <utility>
+
+#include "debuglog.hpp"
 
 // OpenGL constants not provided by OSG:
 #include <SDL3/SDL_opengl_glext.h>

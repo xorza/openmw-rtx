@@ -4,9 +4,9 @@
 #include <cstring>
 #include <stdexcept>
 
-#include <components/esm3/cellid.hpp>
 #include <components/toutf8/toutf8.hpp>
 
+#include "cellid.hpp"
 #include "formatversion.hpp"
 
 namespace ESM

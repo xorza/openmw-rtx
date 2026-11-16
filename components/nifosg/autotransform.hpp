@@ -1,6 +1,6 @@
 #pragma once
 
-#include <components/nifosg/matrixtransform.hpp>
+#include "matrixtransform.hpp"
 
 namespace NifOsg
 {

@@ -1,12 +1,12 @@
 #pragma once
 
-#include "genericcreator.hpp"
-
 #include <memory>
 #include <string>
 #include <vector>
 
 #include <apps/opencs/model/world/universalid.hpp>
+
+#include "genericcreator.hpp"
 
 namespace CSMWorld
 {

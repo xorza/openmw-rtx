@@ -1,24 +1,20 @@
 #include "scripterrortable.hpp"
 
+#include <QHeaderView>
 #include <exception>
 #include <sstream>
 
-#include <QHeaderView>
-
+#include <apps/opencs/model/doc/document.hpp>
 #include <apps/opencs/model/doc/messages.hpp>
 #include <apps/opencs/model/prefs/category.hpp>
 #include <apps/opencs/model/prefs/setting.hpp>
+#include <apps/opencs/model/prefs/state.hpp>
 #include <apps/opencs/model/world/scriptcontext.hpp>
-
 #include <components/compiler/exception.hpp>
 #include <components/compiler/extensions0.hpp>
 #include <components/compiler/fileparser.hpp>
 #include <components/compiler/scanner.hpp>
 #include <components/compiler/tokenloc.hpp>
-
-#include "../../model/doc/document.hpp"
-
-#include "../../model/prefs/state.hpp"
 
 void CSVWorld::ScriptErrorTable::report(const std::string& message, const Compiler::TokenLoc& loc, Type type)
 {

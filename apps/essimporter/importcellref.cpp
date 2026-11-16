@@ -1,10 +1,10 @@
 #include "importcellref.hpp"
 
 #include <cmath>
+#include <cstdint>
+
 #include <components/esm3/esmreader.hpp>
 #include <components/misc/concepts.hpp>
-
-#include <cstdint>
 
 namespace ESSImport
 {

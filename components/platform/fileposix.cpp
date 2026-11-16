@@ -1,10 +1,11 @@
 #include "file.hpp"
 
 #include <cassert>
+#include <string>
+
 #include <errno.h>
 #include <fcntl.h>
 #include <string.h>
-#include <string>
 #include <sys/types.h>
 #include <unistd.h>
 

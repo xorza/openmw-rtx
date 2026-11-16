@@ -1,9 +1,8 @@
 #pragma once
 
-#include <fstream>
-
 #include <QHash>
 #include <QVariant>
+#include <fstream>
 
 #include <components/toutf8/toutf8.hpp>
 

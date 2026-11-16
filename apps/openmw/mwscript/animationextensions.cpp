@@ -3,14 +3,12 @@
 #include <limits>
 #include <stdexcept>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
 #include <components/compiler/opcodes.hpp>
-
 #include <components/interpreter/interpreter.hpp>
 #include <components/interpreter/opcodes.hpp>
 #include <components/interpreter/runtime.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
 
 #include "ref.hpp"
 

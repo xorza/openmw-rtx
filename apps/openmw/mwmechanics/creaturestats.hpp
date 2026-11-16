@@ -5,6 +5,10 @@
 #include <stdexcept>
 #include <string>
 
+#include <components/esm/attr.hpp>
+#include <components/esm/refid.hpp>
+#include <components/esm3/magiceffects.hpp>
+
 #include "activespells.hpp"
 #include "aisequence.hpp"
 #include "aisetting.hpp"
@@ -12,10 +16,6 @@
 #include "magiceffects.hpp"
 #include "spells.hpp"
 #include "stat.hpp"
-
-#include <components/esm/attr.hpp>
-#include <components/esm/refid.hpp>
-#include <components/esm3/magiceffects.hpp>
 
 namespace ESM
 {

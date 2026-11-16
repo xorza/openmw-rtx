@@ -1,5 +1,4 @@
 #include "record.hpp"
-#include "labels.hpp"
 
 #include <format>
 #include <iostream>
@@ -9,6 +8,8 @@
 
 #include <components/esm3/cellstate.hpp>
 #include <components/esm3/esmreader.hpp>
+
+#include "labels.hpp"
 
 namespace
 {

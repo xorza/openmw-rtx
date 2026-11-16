@@ -5,7 +5,6 @@
 #include <iterator>
 #include <numbers>
 #include <span>
-
 #include <vector>
 
 #include <gtest/gtest.h>

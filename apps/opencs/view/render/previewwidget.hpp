@@ -1,10 +1,9 @@
 #pragma once
 
-#include "scenewidget.hpp"
-
 #include <string>
 
 #include "object.hpp"
+#include "scenewidget.hpp"
 
 class QModelIndex;
 class QObject;

@@ -1,20 +1,18 @@
 #pragma once
 
-#include "editmode.hpp"
-
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include <apps/opencs/model/world/cellcoordinates.hpp>
-
 #include <osg/Vec3d>
 
-#include "../../model/world/columnimp.hpp"
-#include "../widget/brushshapes.hpp"
+#include <apps/opencs/model/world/cellcoordinates.hpp>
+#include <apps/opencs/model/world/columnimp.hpp>
+#include <apps/opencs/view/widget/brushshapes.hpp>
 
 #include "brushdraw.hpp"
+#include "editmode.hpp"
 
 class QDragMoveEvent;
 class QMouseEvent;

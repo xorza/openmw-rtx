@@ -5,12 +5,12 @@
 #include <string>
 #include <string_view>
 
+#include <osg/Vec4>
+
 #include <components/esm/defs.hpp>
 #include <components/esm/path.hpp>
 #include <components/esm/refid.hpp>
 #include <components/misc/strings/algorithm.hpp>
-
-#include <osg/Vec4>
 
 namespace ESM
 {

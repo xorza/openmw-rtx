@@ -1,13 +1,12 @@
 #pragma once
 
 #include <QObject>
+#include <filesystem>
 
 #include <components/toutf8/toutf8.hpp>
 
 #include "operation.hpp"
 #include "savingstate.hpp"
-
-#include <filesystem>
 
 namespace CSMDoc
 {

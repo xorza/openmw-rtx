@@ -1,8 +1,8 @@
 #include "saving.hpp"
 
-#include <apps/opencs/model/doc/operation.hpp>
+#include <apps/opencs/model/world/data.hpp>
+#include <apps/opencs/model/world/idcollection.hpp>
 #include <apps/opencs/model/world/scope.hpp>
-
 #include <components/esm3/debugprofile.hpp>
 #include <components/esm3/filter.hpp>
 #include <components/esm3/loadbody.hpp>
@@ -23,10 +23,8 @@
 #include <components/esm3/loadsscr.hpp>
 #include <components/esm3/selectiongroup.hpp>
 
-#include "../world/data.hpp"
-#include "../world/idcollection.hpp"
-
 #include "document.hpp"
+#include "operation.hpp"
 #include "savingstages.hpp"
 #include "state.hpp"
 

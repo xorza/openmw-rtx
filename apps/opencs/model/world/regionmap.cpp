@@ -6,19 +6,17 @@
 #include <QPalette>
 #include <QSize>
 #include <QVariant>
-
 #include <algorithm>
 #include <sstream>
 #include <stdexcept>
 
-#include <apps/opencs/model/world/cell.hpp>
-#include <apps/opencs/model/world/cellcoordinates.hpp>
-#include <apps/opencs/model/world/idcollection.hpp>
-#include <apps/opencs/model/world/record.hpp>
-
 #include <components/esm3/loadregn.hpp>
 
+#include "cell.hpp"
+#include "cellcoordinates.hpp"
 #include "data.hpp"
+#include "idcollection.hpp"
+#include "record.hpp"
 #include "universalid.hpp"
 
 namespace CSMWorld

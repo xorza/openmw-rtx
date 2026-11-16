@@ -1,13 +1,14 @@
 #pragma once
 
-#include "cellref.hpp"
-#include "components/esm/defs.hpp"
-#include "components/esm/refid.hpp"
-#include "timestamp.hpp"
-
 #include <string>
 #include <variant>
 #include <vector>
+
+#include <components/esm/defs.hpp>
+#include <components/esm/refid.hpp>
+
+#include "cellref.hpp"
+#include "timestamp.hpp"
 
 namespace ESM
 {

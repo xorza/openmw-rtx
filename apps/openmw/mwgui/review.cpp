@@ -8,16 +8,15 @@
 #include <MyGUI_ScrollView.h>
 #include <MyGUI_UString.h>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/autocalcspell.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/esm3/loadbsgn.hpp>
 #include <components/esm3/loadrace.hpp>
 #include <components/esm3/loadspel.hpp>
 #include <components/settings/values.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-#include "../mwmechanics/autocalcspell.hpp"
-#include "../mwworld/esmstore.hpp"
 
 #include "tooltips.hpp"
 

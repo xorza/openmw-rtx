@@ -13,10 +13,9 @@
 #include <osg/BoundingBox>
 #include <osg/Quat>
 
+#include <apps/openmw/mwworld/ptr.hpp>
 #include <components/misc/framestats.hpp>
 #include <components/vfs/pathutil.hpp>
-
-#include "../mwworld/ptr.hpp"
 
 #include "collisiontype.hpp"
 #include "raycasting.hpp"

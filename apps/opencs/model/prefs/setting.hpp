@@ -1,10 +1,9 @@
 #pragma once
 
-#include <string>
-#include <utility>
-
 #include <QMutexLocker>
 #include <QObject>
+#include <string>
+#include <utility>
 
 #include <components/settings/settingvalue.hpp>
 

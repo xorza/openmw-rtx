@@ -1,9 +1,9 @@
-#include <apps/openmw/mwworld/lowestpoints.hpp>
-
 #include <array>
 #include <limits>
 
 #include <gtest/gtest.h>
+
+#include <apps/openmw/mwworld/lowestpoints.hpp>
 
 namespace MWWorld
 {

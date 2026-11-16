@@ -3,11 +3,10 @@
 #include <utility>
 #include <vector>
 
-#include <apps/opencs/view/world/util.hpp>
-
 #include <components/esm3/variant.hpp>
 
 #include "enumdelegate.hpp"
+#include "util.hpp"
 
 namespace CSMDoc
 {

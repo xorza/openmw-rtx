@@ -1,12 +1,14 @@
 #include "navigatorimpl.hpp"
-#include "makenavmesh.hpp"
-#include "settingsutils.hpp"
-#include "stats.hpp"
+
+#include <utility>
 
 #include <components/esm3/loadpgrd.hpp>
 #include <components/misc/convert.hpp>
 #include <components/misc/coordinateconverter.hpp>
-#include <utility>
+
+#include "makenavmesh.hpp"
+#include "settingsutils.hpp"
+#include "stats.hpp"
 
 namespace DetourNavigator
 {

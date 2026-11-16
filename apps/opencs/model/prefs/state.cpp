@@ -2,26 +2,24 @@
 
 #include <QColor>
 #include <QKeySequence>
-
 #include <filesystem>
 #include <stdexcept>
 #include <utility>
 
-#include <apps/opencs/model/prefs/category.hpp>
-#include <apps/opencs/model/prefs/enumsetting.hpp>
-#include <apps/opencs/model/prefs/setting.hpp>
-#include <apps/opencs/model/prefs/shortcutmanager.hpp>
-#include <apps/opencs/model/prefs/subcategory.hpp>
-
 #include <components/settings/settings.hpp>
 
 #include "boolsetting.hpp"
+#include "category.hpp"
 #include "coloursetting.hpp"
 #include "doublesetting.hpp"
+#include "enumsetting.hpp"
 #include "intsetting.hpp"
 #include "modifiersetting.hpp"
+#include "setting.hpp"
+#include "shortcutmanager.hpp"
 #include "shortcutsetting.hpp"
 #include "stringsetting.hpp"
+#include "subcategory.hpp"
 #include "values.hpp"
 
 CSMPrefs::State* CSMPrefs::State::sThis = nullptr;

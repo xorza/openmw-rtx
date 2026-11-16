@@ -1,12 +1,12 @@
 #pragma once
 
-#include "lower.hpp"
-
 #include <algorithm>
 #include <cstdint>
 #include <functional>
 #include <string>
 #include <string_view>
+
+#include "lower.hpp"
 
 namespace Misc::StringUtils
 {

@@ -21,8 +21,8 @@
 #include <variant>
 #include <vector>
 
+#include <apps/openmw/mwmechanics/spelllist.hpp>
 #include <components/debug/debuglog.hpp>
-
 #include <components/esm/defs.hpp>
 #include <components/esm/esmcommon.hpp>
 #include <components/esm/luascripts.hpp>
@@ -42,7 +42,6 @@
 #include <components/lua/configuration.hpp>
 #include <components/misc/algorithm.hpp>
 
-#include "../mwmechanics/spelllist.hpp"
 #include "store.hpp"
 
 namespace

@@ -1,18 +1,18 @@
 #include "spellview.hpp"
 
+#include <utility>
+
 #include <MyGUI_FactoryManager.h>
 #include <MyGUI_Gui.h>
 #include <MyGUI_ImageBox.h>
 #include <MyGUI_ScrollView.h>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/inputmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
 #include <components/settings/values.hpp>
 #include <components/widgets/box.hpp>
 #include <components/widgets/sharedstatebutton.hpp>
-#include <utility>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/inputmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
 
 #include "tooltips.hpp"
 #include "windowbase.hpp"

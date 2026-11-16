@@ -1,25 +1,23 @@
+#include "bulletdebugdraw.hpp"
+
 #include <algorithm>
 
 #include <osg/Geometry>
 #include <osg/Group>
-
-#include <components/debug/debuglog.hpp>
-#include <components/misc/convert.hpp>
-#include <components/sceneutil/depth.hpp>
-#include <components/sceneutil/material.hpp>
-
 #include <osg/PolygonMode>
 #include <osg/PolygonOffset>
 #include <osg/ShapeDrawable>
 #include <osg/StateSet>
 
-#include "bulletdebugdraw.hpp"
-#include "vismask.hpp"
-
+#include <apps/openmw/mwbase/environment.hpp>
+#include <components/debug/debuglog.hpp>
+#include <components/misc/convert.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
+#include <components/sceneutil/depth.hpp>
+#include <components/sceneutil/material.hpp>
 
-#include "../mwbase/environment.hpp"
+#include "vismask.hpp"
 
 namespace MWRender
 {

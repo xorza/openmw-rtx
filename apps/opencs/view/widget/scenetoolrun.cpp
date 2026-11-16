@@ -1,18 +1,17 @@
 #include "scenetoolrun.hpp"
 
-#include <iterator>
-
 #include <QApplication>
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QTableWidget>
+#include <iterator>
+#include <utility>
 
 #include <components/misc/scalableicon.hpp>
 
-#include <apps/opencs/view/widget/pushbutton.hpp>
-#include <apps/opencs/view/widget/scenetool.hpp>
-#include <utility>
+#include "pushbutton.hpp"
+#include "scenetool.hpp"
 
 class QPoint;
 

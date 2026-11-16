@@ -1,10 +1,10 @@
 #pragma once
 
-#include "tileposition.hpp"
+#include <memory>
 
 #include <components/esm/refid.hpp>
 
-#include <memory>
+#include "tileposition.hpp"
 
 namespace DetourNavigator
 {

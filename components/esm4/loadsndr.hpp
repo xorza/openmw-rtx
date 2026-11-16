@@ -29,9 +29,10 @@
 #include <cstdint>
 #include <string>
 
-#include "script.hpp" // TargetCondition
 #include <components/esm/defs.hpp>
 #include <components/esm/formid.hpp>
+
+#include "script.hpp" // TargetCondition
 
 namespace ESM4
 {

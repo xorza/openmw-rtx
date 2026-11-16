@@ -1,25 +1,24 @@
 #include "race.hpp"
 
+#include <utility>
+
 #include <MyGUI_Gui.h>
 #include <MyGUI_ImageBox.h>
 #include <MyGUI_ListBox.h>
 #include <MyGUI_ScrollBar.h>
 #include <MyGUI_UString.h>
-
 #include <osg/Math>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwrender/characterpreview.hpp>
+#include <apps/openmw/mwrender/renderingmanager.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/loadbody.hpp>
 #include <components/esm3/loadrace.hpp>
 #include <components/settings/values.hpp>
-#include <utility>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-#include "../mwrender/characterpreview.hpp"
-#include "../mwrender/renderingmanager.hpp"
-#include "../mwworld/esmstore.hpp"
 
 #include "tooltips.hpp"
 

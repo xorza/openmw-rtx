@@ -5,12 +5,12 @@
 #include <osg/Image>
 #include <osg/ref_ptr>
 
-#include <components/esm3/esmreader.hpp>
-#include <components/esm3/esmwriter.hpp>
-
+#include <components/esm/refid.hpp>
 #include <components/esm3/cellstate.hpp>
 #include <components/esm3/custommarkerstate.hpp>
 #include <components/esm3/dialoguestate.hpp>
+#include <components/esm3/esmreader.hpp>
+#include <components/esm3/esmwriter.hpp>
 #include <components/esm3/globalscript.hpp>
 #include <components/esm3/loadbook.hpp>
 #include <components/esm3/loadcell.hpp>
@@ -23,13 +23,15 @@
 #include <components/esm3/queststate.hpp>
 #include <components/esm3/stolenitems.hpp>
 #include <components/esm3/weatherstate.hpp>
-
 #include <components/misc/strings/algorithm.hpp>
 
+#include "convertacdt.hpp"
+#include "convertnpcc.hpp"
+#include "convertplayer.hpp"
+#include "convertscpt.hpp"
+#include "importcellref.hpp"
 #include "importcntc.hpp"
 #include "importcrec.hpp"
-
-#include "importcellref.hpp"
 #include "importdial.hpp"
 #include "importercontext.hpp"
 #include "importgame.hpp"
@@ -40,12 +42,6 @@
 #include "importques.hpp"
 #include "importscpt.hpp"
 #include "importsplm.h"
-
-#include "convertacdt.hpp"
-#include "convertnpcc.hpp"
-#include "convertplayer.hpp"
-#include "convertscpt.hpp"
-#include <components/esm/refid.hpp>
 
 namespace ESSImport
 {

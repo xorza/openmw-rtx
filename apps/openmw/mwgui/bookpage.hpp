@@ -1,9 +1,5 @@
 #pragma once
 
-#include "MyGUI_Colour.h"
-#include "MyGUI_IFont.h"
-#include "MyGUI_Widget.h"
-
 #include <cstdint>
 #include <functional>
 #include <memory>
@@ -11,6 +7,10 @@
 #include <vector>
 
 #include <components/settings/values.hpp>
+
+#include "MyGUI_Colour.h"
+#include "MyGUI_IFont.h"
+#include "MyGUI_Widget.h"
 
 namespace Gui
 {

@@ -1,9 +1,9 @@
 #pragma once
 
-#include "typedaipackage.hpp"
-
 #include <string>
 #include <string_view>
+
+#include "typedaipackage.hpp"
 
 namespace ESM
 {

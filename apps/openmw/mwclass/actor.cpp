@@ -1,21 +1,17 @@
 #include "actor.hpp"
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/luamanager.hpp>
+#include <apps/openmw/mwbase/soundmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwmechanics/creaturestats.hpp>
+#include <apps/openmw/mwmechanics/magiceffects.hpp>
+#include <apps/openmw/mwmechanics/movement.hpp>
+#include <apps/openmw/mwphysics/physicssystem.hpp>
+#include <apps/openmw/mwworld/inventorystore.hpp>
+#include <apps/openmw/mwworld/worldmodel.hpp>
 #include <components/esm3/loadmgef.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/luamanager.hpp"
-#include "../mwbase/soundmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwmechanics/actorutil.hpp"
-#include "../mwmechanics/creaturestats.hpp"
-#include "../mwmechanics/magiceffects.hpp"
-#include "../mwmechanics/movement.hpp"
-
-#include "../mwphysics/physicssystem.hpp"
-
-#include "../mwworld/inventorystore.hpp"
-#include "../mwworld/worldmodel.hpp"
 
 namespace MWClass
 {

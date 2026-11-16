@@ -1,19 +1,19 @@
 #include "messagebox.hpp"
 
+#include <algorithm>
+
 #include <MyGUI_Button.h>
 #include <MyGUI_EditBox.h>
 #include <MyGUI_LanguageManager.h>
 #include <MyGUI_RenderManager.h>
 #include <MyGUI_UString.h>
 
-#include <algorithm>
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/inputmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/misc/strings/algorithm.hpp>
 #include <components/settings/values.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/inputmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
 
 namespace MWGui
 {

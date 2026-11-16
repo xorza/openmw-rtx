@@ -483,15 +483,6 @@ benches are not owed. From item 8 on, a change to what a frame reads owes `./omw
 drm-shim; a hot path owes its allocation test; each item ends with the tours it names. Vanilla's pictures do not move
 in any item.
 
-### 4. Includes
-
-1. **`.clang-format` regroups**: the categories of Decisions, LLVM's dropped, then `omw format` over the tree. Every
-   source compiled after it, as a reorder can break a header that leaned on an earlier include, which then includes
-   what it names.
-2. **Quoted paths outside the file's folder** rewritten from the root (`"../mwbase/world.hpp"` →
-   `<apps/openmw/mwbase/world.hpp>`), by the normalizer's rule, so `omw lint` holds it and the merge driver rewrites
-   upstream's side.
-
 ### 5. Integers
 
 1. **The fork's code normalized**, then **upstream's**.

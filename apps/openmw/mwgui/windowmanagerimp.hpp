@@ -6,6 +6,7 @@
    and retrieving information from the Gui.
 **/
 
+#include <filesystem>
 #include <functional>
 #include <map>
 #include <memory>
@@ -13,10 +14,12 @@
 #include <string_view>
 #include <vector>
 
+#include <MyGUI_Gui.h>
+#include <MyGUI_KeyCode.h>
+#include <MyGUI_Types.h>
 #include <osg/Vec2i>
 
-#include "../mwbase/windowmanager.hpp"
-
+#include <apps/openmw/mwbase/windowmanager.hpp>
 #include <components/misc/guarded.hpp>
 #include <components/myguiplatform/myguiplatform.hpp>
 #include <components/sdlutil/events.hpp>
@@ -36,11 +39,6 @@
 #include "textcolours.hpp"
 #include "tooltips.hpp"
 #include "windowbase.hpp"
-
-#include <MyGUI_Gui.h>
-#include <MyGUI_KeyCode.h>
-#include <MyGUI_Types.h>
-#include <filesystem>
 
 namespace MyGUI
 {

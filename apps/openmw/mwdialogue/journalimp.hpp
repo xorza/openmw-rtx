@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../mwbase/journal.hpp"
+#include <apps/openmw/mwbase/journal.hpp>
 
 #include "quest.hpp"
 

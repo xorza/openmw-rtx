@@ -1,9 +1,9 @@
 #pragma once
 
-#include <components/sceneutil/nodecallback.hpp>
-
 #include <array>
 #include <map>
+
+#include "nodecallback.hpp"
 
 namespace osgUtil
 {

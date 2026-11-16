@@ -5,6 +5,8 @@
 
 #include <gtest/gtest.h>
 
+#include <apps/openmw/mwclass/preloadmodels.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/esm3/loadarmo.hpp>
 #include <components/esm3/loadbody.hpp>
 #include <components/esm3/loadclot.hpp>
@@ -12,9 +14,6 @@
 #include <components/esm3/loadlevlist.hpp>
 #include <components/esm3/loadnpc.hpp>
 #include <components/vfs/pathutil.hpp>
-
-#include "apps/openmw/mwclass/preloadmodels.hpp"
-#include "apps/openmw/mwworld/esmstore.hpp"
 
 namespace MWClass
 {

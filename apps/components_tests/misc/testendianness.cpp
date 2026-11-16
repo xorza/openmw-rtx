@@ -1,7 +1,8 @@
-#include "components/misc/endianness.hpp"
+#include <cmath>
+
 #include <gtest/gtest.h>
 
-#include <cmath>
+#include <components/misc/endianness.hpp>
 
 namespace
 {

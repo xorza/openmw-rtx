@@ -2,26 +2,21 @@
 
 #include <limits>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/statemanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwworld/actionteleport.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/scene.hpp>
 #include <components/compiler/opcodes.hpp>
-
+#include <components/esm/util.hpp>
 #include <components/interpreter/context.hpp>
 #include <components/interpreter/interpreter.hpp>
 #include <components/interpreter/opcodes.hpp>
 #include <components/interpreter/runtime.hpp>
-
 #include <components/misc/strings/algorithm.hpp>
-
-#include <components/esm/util.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/statemanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-#include "../mwworld/actionteleport.hpp"
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/scene.hpp"
-
-#include "../mwmechanics/actorutil.hpp"
 
 namespace MWScript
 {

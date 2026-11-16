@@ -1,9 +1,9 @@
 #pragma once
 
-#include "categories.hpp"
-
 #include <filesystem>
 #include <string>
+
+#include "categories.hpp"
 
 namespace Settings
 {

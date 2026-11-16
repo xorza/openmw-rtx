@@ -1,8 +1,8 @@
-#include <gtest/gtest.h>
-
 #include <cmath>
 
-#include "apps/openmw/mwworld/duration.hpp"
+#include <gtest/gtest.h>
+
+#include <apps/openmw/mwworld/duration.hpp>
 
 namespace MWWorld
 {

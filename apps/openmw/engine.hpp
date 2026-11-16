@@ -6,6 +6,7 @@
 
 #include <osg/ref_ptr>
 
+#include <apps/openmw/mwbase/environment.hpp>
 #include <components/compiler/extensions.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm/refid.hpp>
@@ -13,8 +14,6 @@
 #include <components/misc/frameclock.hpp>
 #include <components/settings/settings.hpp>
 #include <components/translation/translation.hpp>
-
-#include "mwbase/environment.hpp"
 
 namespace Resource
 {

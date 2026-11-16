@@ -1,13 +1,13 @@
 #pragma once
 
-#include <components/esm/position.hpp>
-#include <components/esm3/loadpgrd.hpp>
-
 #include <LinearMath/btQuaternion.h>
 #include <LinearMath/btTransform.h>
 #include <LinearMath/btVector3.h>
 #include <osg/Quat>
 #include <osg/Vec3f>
+
+#include <components/esm/position.hpp>
+#include <components/esm3/loadpgrd.hpp>
 
 namespace Misc::Convert
 {

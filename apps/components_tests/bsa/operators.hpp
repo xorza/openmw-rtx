@@ -1,9 +1,9 @@
 #pragma once
 
-#include <components/bsa/bsafile.hpp>
-
 #include <ostream>
 #include <tuple>
+
+#include <components/bsa/bsafile.hpp>
 
 namespace Bsa
 {

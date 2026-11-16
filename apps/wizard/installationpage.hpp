@@ -1,11 +1,11 @@
 #pragma once
 
+#include <QWizardPage>
 #include <memory>
 
-#include <QWizardPage>
+#include <apps/wizard/unshield/unshieldworker.hpp>
 
 #include "ui_installationpage.h"
-#include "unshield/unshieldworker.hpp"
 
 namespace Config
 {

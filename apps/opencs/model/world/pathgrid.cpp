@@ -1,8 +1,9 @@
 #include "pathgrid.hpp"
-#include "cell.hpp"
-#include "idcollection.hpp"
 
 #include <sstream>
+
+#include "cell.hpp"
+#include "idcollection.hpp"
 
 void CSMWorld::Pathgrid::load(ESM::ESMReader& esm, bool& isDeleted, const IdCollection<Cell>& cells)
 {

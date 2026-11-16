@@ -1,11 +1,11 @@
+#include <array>
+
+#include <gtest/gtest.h>
+
 #include <components/esm/fourcc.hpp>
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/esmwriter.hpp>
 #include <components/esm3/variant.hpp>
-
-#include <gtest/gtest.h>
-
-#include <array>
 
 namespace
 {

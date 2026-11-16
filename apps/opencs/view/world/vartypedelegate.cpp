@@ -3,11 +3,11 @@
 #include <stdexcept>
 #include <string>
 
-#include <apps/opencs/view/world/enumdelegate.hpp>
+#include <apps/opencs/model/world/columns.hpp>
+#include <apps/opencs/model/world/commandmacro.hpp>
+#include <apps/opencs/model/world/commands.hpp>
 
-#include "../../model/world/columns.hpp"
-#include "../../model/world/commandmacro.hpp"
-#include "../../model/world/commands.hpp"
+#include "enumdelegate.hpp"
 
 namespace CSMDoc
 {

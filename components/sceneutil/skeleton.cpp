@@ -1,11 +1,11 @@
 #include "skeleton.hpp"
 
+#include <algorithm>
+
 #include <osg/MatrixTransform>
 
 #include <components/debug/debuglog.hpp>
 #include <components/misc/strings/lower.hpp>
-
-#include <algorithm>
 
 namespace SceneUtil
 {

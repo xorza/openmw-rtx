@@ -1,11 +1,11 @@
 #pragma once
 
+#include <memory>
+#include <set>
+
 #include <osg/Referenced>
 #include <osg/Vec3f>
 #include <osg/ref_ptr>
-
-#include <memory>
-#include <set>
 
 #include <components/esm/refid.hpp>
 

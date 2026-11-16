@@ -1,10 +1,10 @@
 #include "loadfact.hpp"
 
+#include <components/esm/attr.hpp>
+
 #include "esmreader.hpp"
 #include "esmwriter.hpp"
-
-#include <components/esm/attr.hpp>
-#include <components/esm3/loadskil.hpp>
+#include "loadskil.hpp"
 
 namespace ESM
 {

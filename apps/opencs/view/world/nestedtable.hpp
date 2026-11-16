@@ -1,9 +1,9 @@
 #pragma once
 
-#include "dragrecordtable.hpp"
-
 #include <string>
 #include <vector>
+
+#include "dragrecordtable.hpp"
 
 class QAction;
 class QContextMenuEvent;

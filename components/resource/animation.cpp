@@ -1,4 +1,4 @@
-#include <components/resource/animation.hpp>
+#include "animation.hpp"
 
 #include <osg/ref_ptr>
 #include <osgAnimation/Channel>

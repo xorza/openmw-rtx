@@ -1,12 +1,12 @@
 #include "luascripts.hpp"
 
+#include <utility>
+
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/esmwriter.hpp>
-
 #include <components/lua/configuration.hpp>
 #include <components/lua/luastateptr.hpp>
 #include <components/lua/serialization.hpp>
-#include <utility>
 
 // List of all records, that are related to Lua.
 //

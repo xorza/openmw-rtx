@@ -7,11 +7,10 @@
 #include <string_view>
 #include <vector>
 
-#include <apps/opencs/model/world/universalid.hpp>
-
 #include "collection.hpp"
 #include "record.hpp"
 #include "ref.hpp"
+#include "universalid.hpp"
 
 namespace ESM
 {

@@ -11,7 +11,6 @@
 #include <gtest/gtest.h>
 
 #include <osg/Vec3d>
-
 #include <volk.h>
 #include <vulkan/vulkan_core.h>
 

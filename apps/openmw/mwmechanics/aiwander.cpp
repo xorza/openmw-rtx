@@ -1,27 +1,24 @@
 #include "aiwander.hpp"
 
 #include <algorithm>
-
 #include <cmath>
+
 #include <osg/Matrixf>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwphysics/raycasting.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/datetimemanager.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/detournavigator/navigatorutils.hpp>
 #include <components/esm3/aisequence.hpp>
 #include <components/misc/coordinateconverter.hpp>
 #include <components/misc/pathgridutils.hpp>
 #include <components/misc/rng.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/class.hpp"
-#include "../mwworld/datetimemanager.hpp"
-#include "../mwworld/esmstore.hpp"
-
-#include "../mwphysics/raycasting.hpp"
 
 #include "actorutil.hpp"
 #include "character.hpp"

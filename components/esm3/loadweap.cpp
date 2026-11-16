@@ -1,14 +1,15 @@
 #include "loadweap.hpp"
 
+#include <array>
+#include <format>
+#include <stdexcept>
+#include <utility>
+
 #include <components/esm/defs.hpp>
 #include <components/misc/concepts.hpp>
 
 #include "esmreader.hpp"
 #include "esmwriter.hpp"
-#include <array>
-#include <format>
-#include <stdexcept>
-#include <utility>
 
 namespace ESM
 {

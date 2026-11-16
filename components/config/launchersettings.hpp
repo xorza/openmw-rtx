@@ -6,7 +6,6 @@
 #include <QSet>
 #include <QString>
 #include <QStringList>
-
 #include <map>
 
 class QTextStream;

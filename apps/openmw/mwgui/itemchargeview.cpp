@@ -1,22 +1,19 @@
 #include "itemchargeview.hpp"
 
-#include <SDL3/SDL_gamepad.h>
 #include <set>
 
 #include <MyGUI_FactoryManager.h>
 #include <MyGUI_Gui.h>
 #include <MyGUI_ScrollView.h>
+#include <SDL3/SDL_gamepad.h>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwmechanics/spellutil.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/esm3/loadench.hpp>
 #include <components/settings/values.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-
-#include "../mwmechanics/spellutil.hpp"
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
 
 #include "itemmodel.hpp"
 #include "itemwidget.hpp"

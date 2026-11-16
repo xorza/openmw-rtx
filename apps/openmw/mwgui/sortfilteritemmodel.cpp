@@ -1,5 +1,12 @@
 #include "sortfilteritemmodel.hpp"
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/alchemy.hpp>
+#include <apps/openmw/mwmechanics/spellutil.hpp>
+#include <apps/openmw/mwworld/action.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/loadalch.hpp>
 #include <components/esm3/loadappa.hpp>
@@ -16,16 +23,6 @@
 #include <components/esm3/loadrepa.hpp>
 #include <components/esm3/loadweap.hpp>
 #include <components/misc/utf8stream.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/action.hpp"
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
-
-#include "../mwmechanics/alchemy.hpp"
-#include "../mwmechanics/spellutil.hpp"
 
 namespace
 {

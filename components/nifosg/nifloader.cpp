@@ -12,7 +12,6 @@
 #include <osg/Sequence>
 #include <osg/Switch>
 #include <osg/ValueObject>
-
 #include <yaml-cpp/yaml.h>
 
 // resource
@@ -27,11 +26,7 @@
 #include <components/resource/imagemanager.hpp>
 
 // particle
-#include <osgParticle/ConstantRateCounter>
-#include <osgParticle/ModularProgram>
-#include <osgParticle/Operator>
-#include <osgParticle/ParticleSystem>
-#include <osgParticle/ParticleSystemUpdater>
+#include <utility>
 
 #include <osg/AlphaFunc>
 #include <osg/BlendFunc>
@@ -40,6 +35,11 @@
 #include <osg/PolygonOffset>
 #include <osg/Stencil>
 #include <osg/Texture2D>
+#include <osgParticle/ConstantRateCounter>
+#include <osgParticle/ModularProgram>
+#include <osgParticle/Operator>
+#include <osgParticle/ParticleSystem>
+#include <osgParticle/ParticleSystemUpdater>
 
 #include <components/bgsm/file.hpp>
 #include <components/nif/effect.hpp>
@@ -61,7 +61,6 @@
 #include <components/sceneutil/texmat.hpp>
 #include <components/sceneutil/texturetype.hpp>
 #include <components/sceneutil/userdata.hpp>
-#include <utility>
 
 #include "autotransform.hpp"
 #include "matrixtransform.hpp"

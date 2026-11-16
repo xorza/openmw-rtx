@@ -1,12 +1,12 @@
 #pragma once
 
-#include "windowbase.hpp"
-
 #include <MyGUI_ListBox.h>
 
 #include <components/files/configurationmanager.hpp>
 #include <components/settings/shadermanager.hpp>
 #include <components/vfs/pathutil.hpp>
+
+#include "windowbase.hpp"
 
 namespace MyGUI
 {

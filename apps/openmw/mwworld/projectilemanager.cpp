@@ -8,8 +8,25 @@
 #include <osg/PositionAttitudeTransform>
 #include <osg/Vec2f>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/luamanager.hpp>
+#include <apps/openmw/mwbase/soundmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwmechanics/combat.hpp>
+#include <apps/openmw/mwmechanics/creaturestats.hpp>
+#include <apps/openmw/mwmechanics/spellcasting.hpp>
+#include <apps/openmw/mwphysics/physicssystem.hpp>
+#include <apps/openmw/mwphysics/projectile.hpp>
+#include <apps/openmw/mwrender/animation.hpp>
+#include <apps/openmw/mwrender/renderingmanager.hpp>
+#include <apps/openmw/mwrender/util.hpp>
+#include <apps/openmw/mwrender/vismask.hpp>
+#include <apps/openmw/mwsound/sound.hpp>
 #include <components/debug/debuglog.hpp>
-
+#include <components/esm/quaternion.hpp>
+#include <components/esm/vector3.hpp>
 #include <components/esm3/actoridconverter.hpp>
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/esmwriter.hpp>
@@ -17,50 +34,22 @@
 #include <components/esm3/loadmgef.hpp>
 #include <components/esm3/loadrace.hpp>
 #include <components/esm3/projectilestate.hpp>
-
-#include <components/esm/quaternion.hpp>
-#include <components/esm/vector3.hpp>
-
 #include <components/misc/constants.hpp>
 #include <components/misc/convert.hpp>
 #include <components/misc/resourcehelpers.hpp>
-
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
-
 #include <components/sceneutil/controller.hpp>
 #include <components/sceneutil/lightmanager.hpp>
 #include <components/sceneutil/nodecallback.hpp>
 #include <components/sceneutil/visitor.hpp>
-
 #include <components/settings/values.hpp>
 
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/inventorystore.hpp"
-#include "../mwworld/manualref.hpp"
-#include "../mwworld/worldmodel.hpp"
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/luamanager.hpp"
-#include "../mwbase/soundmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwmechanics/actorutil.hpp"
-#include "../mwmechanics/combat.hpp"
-#include "../mwmechanics/creaturestats.hpp"
-#include "../mwmechanics/spellcasting.hpp"
-
-#include "../mwrender/animation.hpp"
-#include "../mwrender/renderingmanager.hpp"
-#include "../mwrender/util.hpp"
-#include "../mwrender/vismask.hpp"
-
-#include "../mwsound/sound.hpp"
-
-#include "../mwphysics/physicssystem.hpp"
-#include "../mwphysics/projectile.hpp"
+#include "class.hpp"
+#include "esmstore.hpp"
+#include "inventorystore.hpp"
+#include "manualref.hpp"
+#include "worldmodel.hpp"
 
 namespace
 {

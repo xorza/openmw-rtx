@@ -7,33 +7,25 @@
 #include <QScreen>
 #include <QScrollArea>
 #include <QScrollBar>
-
 #include <algorithm>
 #include <filesystem>
 #include <sstream>
 
-#include "../../model/doc/document.hpp"
-#include "../../model/doc/state.hpp"
-
-#include "../../model/prefs/shortcut.hpp"
-#include "../../model/prefs/state.hpp"
-
-#include "../../model/world/idtable.hpp"
-
-#include "../world/dialoguesubview.hpp"
-#include "../world/scenesubview.hpp"
-#include "../world/scriptsubview.hpp"
-#include "../world/subviews.hpp"
-#include "../world/tablesubview.hpp"
-
-#include "../tools/subviews.hpp"
-
+#include <apps/opencs/model/doc/document.hpp>
+#include <apps/opencs/model/doc/state.hpp>
 #include <apps/opencs/model/prefs/category.hpp>
 #include <apps/opencs/model/prefs/setting.hpp>
+#include <apps/opencs/model/prefs/shortcut.hpp>
 #include <apps/opencs/model/prefs/shortcutmanager.hpp>
+#include <apps/opencs/model/prefs/state.hpp>
 #include <apps/opencs/model/world/data.hpp>
-#include <apps/opencs/view/doc/subviewfactory.hpp>
-
+#include <apps/opencs/model/world/idtable.hpp>
+#include <apps/opencs/view/tools/subviews.hpp>
+#include <apps/opencs/view/world/dialoguesubview.hpp>
+#include <apps/opencs/view/world/scenesubview.hpp>
+#include <apps/opencs/view/world/scriptsubview.hpp>
+#include <apps/opencs/view/world/subviews.hpp>
+#include <apps/opencs/view/world/tablesubview.hpp>
 #include <components/files/conversion.hpp>
 #include <components/misc/helpviewer.hpp>
 #include <components/misc/scalableicon.hpp>
@@ -44,6 +36,7 @@
 #include "operations.hpp"
 #include "runlogsubview.hpp"
 #include "subview.hpp"
+#include "subviewfactory.hpp"
 #include "subviewfactoryimp.hpp"
 #include "viewmanager.hpp"
 

@@ -1,8 +1,8 @@
 #pragma once
 
-#include "apps/openmw/mwworld/movementdirection.hpp"
-
 #include <osg/Vec3f>
+
+#include <apps/openmw/mwworld/movementdirection.hpp>
 
 namespace MWWorld
 {

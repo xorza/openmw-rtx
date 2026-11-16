@@ -1,10 +1,9 @@
 #pragma once
 
-#include <yaml-cpp/yaml.h>
-
 #include <osg/Vec2f>
 #include <osg/Vec3f>
 #include <osg/Vec4f>
+#include <yaml-cpp/yaml.h>
 
 namespace Serialization
 {

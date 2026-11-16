@@ -3,13 +3,13 @@
 #include <algorithm>
 #include <limits>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwworld/class.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/actoridconverter.hpp>
 #include <components/esm3/aisequence.hpp>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwworld/class.hpp"
 #include "actorutil.hpp"
 #include "aiactivate.hpp"
 #include "aicombat.hpp"

@@ -1,10 +1,10 @@
 #pragma once
 
-#include "windowbase.hpp"
+#include <memory>
 
 #include <components/toutf8/toutf8.hpp>
 
-#include <memory>
+#include "windowbase.hpp"
 
 namespace MWBase
 {

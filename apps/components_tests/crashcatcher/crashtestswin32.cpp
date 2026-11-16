@@ -1,5 +1,3 @@
-#include "crashtestssystem.hpp"
-
 #include <cstring>
 #include <filesystem>
 #include <optional>
@@ -9,6 +7,8 @@
 #include <intrin.h>
 
 #include <components/misc/windows.hpp>
+
+#include "crashtestssystem.hpp"
 
 namespace CrashTests
 {

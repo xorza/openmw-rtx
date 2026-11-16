@@ -6,14 +6,47 @@
 #include <utility>
 #include <vector>
 
+#include <LinearMath/btAabbUtil2.h>
+#include <MyGUI_TextIterator.h>
 #include <osg/Group>
 
-#include <MyGUI_TextIterator.h>
-
-#include <LinearMath/btAabbUtil2.h>
-
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/luamanager.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/scriptmanager.hpp>
+#include <apps/openmw/mwbase/soundmanager.hpp>
+#include <apps/openmw/mwbase/statemanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwclass/door.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwmechanics/aiavoiddoor.hpp> //Used to tell actors to avoid doors
+#include <apps/openmw/mwmechanics/combat.hpp>
+#include <apps/openmw/mwmechanics/creaturestats.hpp>
+#include <apps/openmw/mwmechanics/levelledlist.hpp>
+#include <apps/openmw/mwmechanics/npcstats.hpp>
+#include <apps/openmw/mwmechanics/spellcasting.hpp>
+#include <apps/openmw/mwmechanics/spellutil.hpp>
+#include <apps/openmw/mwmechanics/summoning.hpp>
+#include <apps/openmw/mwphysics/actor.hpp>
+#include <apps/openmw/mwphysics/collisiontype.hpp>
+#include <apps/openmw/mwphysics/object.hpp>
+#include <apps/openmw/mwphysics/physicssystem.hpp>
+#include <apps/openmw/mwrender/animation.hpp>
+#include <apps/openmw/mwrender/bulletdebugdraw.hpp>
+#include <apps/openmw/mwrender/camera.hpp>
+#include <apps/openmw/mwrender/esm4npcanimation.hpp>
+#include <apps/openmw/mwrender/npcanimation.hpp>
+#include <apps/openmw/mwrender/renderingmanager.hpp>
+#include <apps/openmw/mwrender/skystate.hpp>
+#include <apps/openmw/mwrender/vismask.hpp>
+#include <apps/openmw/mwscript/globalscripts.hpp>
 #include <components/debug/debuglog.hpp>
-
+#include <components/detournavigator/agentbounds.hpp>
+#include <components/detournavigator/debug.hpp>
+#include <components/detournavigator/navigator.hpp>
+#include <components/detournavigator/settings.hpp>
+#include <components/detournavigator/stats.hpp>
+#include <components/detournavigator/updateguard.hpp>
 #include <components/esm3/cellref.hpp>
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/esmwriter.hpp>
@@ -29,83 +62,33 @@
 #include <components/esm4/loaddoor.hpp>
 #include <components/esm4/loadstat.hpp>
 #include <components/esm4/loadwrld.hpp>
-
+#include <components/files/collections.hpp>
+#include <components/files/conversion.hpp>
+#include <components/loadinglistener/loadinglistener.hpp>
 #include <components/misc/constants.hpp>
 #include <components/misc/convert.hpp>
 #include <components/misc/mathutil.hpp>
 #include <components/misc/pathhelpers.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/misc/rng.hpp>
-
-#include <components/files/collections.hpp>
-
 #include <components/resource/bulletshape.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
-
-#include <components/sceneutil/workqueue.hpp>
-
-#include <components/detournavigator/agentbounds.hpp>
-#include <components/detournavigator/debug.hpp>
-#include <components/detournavigator/navigator.hpp>
-#include <components/detournavigator/settings.hpp>
-#include <components/detournavigator/stats.hpp>
-#include <components/detournavigator/updateguard.hpp>
-
-#include <components/files/conversion.hpp>
-#include <components/loadinglistener/loadinglistener.hpp>
-
 #include <components/sceneutil/positionattitudetransform.hpp> // IWYU pragma: keep: the transform whole, which the ref_ptr releasing it needs
+#include <components/sceneutil/workqueue.hpp>
 #include <components/settings/values.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/luamanager.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/scriptmanager.hpp"
-#include "../mwbase/soundmanager.hpp"
-#include "../mwbase/statemanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-
-#include "../mwmechanics/actorutil.hpp"
-#include "../mwmechanics/aiavoiddoor.hpp" //Used to tell actors to avoid doors
-#include "../mwmechanics/combat.hpp"
-#include "../mwmechanics/creaturestats.hpp"
-#include "../mwmechanics/levelledlist.hpp"
-#include "../mwmechanics/npcstats.hpp"
-#include "../mwmechanics/spellcasting.hpp"
-#include "../mwmechanics/spellutil.hpp"
-#include "../mwmechanics/summoning.hpp"
-
-#include "../mwrender/animation.hpp"
-#include "../mwrender/bulletdebugdraw.hpp"
-#include "../mwrender/camera.hpp"
-#include "../mwrender/esm4npcanimation.hpp"
-#include "../mwrender/npcanimation.hpp"
-#include "../mwrender/renderingmanager.hpp"
-#include "../mwrender/skystate.hpp"
-#include "../mwrender/vismask.hpp"
-
-#include "../mwscript/globalscripts.hpp"
-
-#include "../mwclass/door.hpp"
-
-#include "../mwphysics/actor.hpp"
-#include "../mwphysics/collisiontype.hpp"
-#include "../mwphysics/object.hpp"
-#include "../mwphysics/physicssystem.hpp"
 
 #include "actionteleport.hpp"
 #include "cellstore.hpp"
 #include "containerstore.hpp"
+#include "contentloader.hpp"
 #include "datetimemanager.hpp"
+#include "esmloader.hpp"
 #include "inventorystore.hpp"
 #include "manualref.hpp"
 #include "player.hpp"
 #include "projectilemanager.hpp"
 #include "weather.hpp"
-
-#include "contentloader.hpp"
-#include "esmloader.hpp"
 
 namespace MWWorld
 {

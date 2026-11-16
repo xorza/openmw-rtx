@@ -1,11 +1,11 @@
 #pragma once
 
-#include <components/bullethelpers/heightfield.hpp>
+#include <cstddef>
+#include <variant>
 
 #include <osg/Vec2i>
 
-#include <cstddef>
-#include <variant>
+#include <components/bullethelpers/heightfield.hpp>
 
 namespace DetourNavigator
 {

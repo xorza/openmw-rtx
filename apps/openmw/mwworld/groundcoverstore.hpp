@@ -1,11 +1,11 @@
 #pragma once
 
-#include <components/esm/refid.hpp>
-#include <components/vfs/pathutil.hpp>
-
 #include <map>
 #include <string>
 #include <vector>
+
+#include <components/esm/refid.hpp>
+#include <components/vfs/pathutil.hpp>
 
 namespace ESM
 {

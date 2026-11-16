@@ -4,15 +4,14 @@
 #include <map>
 #include <set>
 
+#include <apps/openmw/mwbase/luamanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
 #include <components/lua/inputactions.hpp>
 #include <components/lua/luastate.hpp>
 #include <components/lua/scripttracker.hpp>
 #include <components/lua/storage.hpp>
 #include <components/lua_ui/resources.hpp>
 #include <components/misc/color.hpp>
-
-#include "../mwbase/luamanager.hpp"
-#include "../mwbase/windowmanager.hpp"
 
 #include "engineevents.hpp"
 #include "globalscripts.hpp"

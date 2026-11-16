@@ -1,10 +1,10 @@
+#include "profilescombobox.hpp"
+
 #include <QApplication>
 #include <QColor>
 #include <QString>
 
 #include <components/graphite/palette.hpp>
-
-#include "profilescombobox.hpp"
 
 ProfilesComboBox::ProfilesComboBox(QWidget* parent)
     : ContentSelectorView::ComboBox(parent)

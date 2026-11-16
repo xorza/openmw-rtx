@@ -1,5 +1,16 @@
 ﻿#include "worldspacedata.hpp"
 
+#include <algorithm>
+#include <memory>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
+
+#include <osg/Vec2i>
+
 #include <components/debug/debugging.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/detournavigator/debug.hpp>
@@ -20,17 +31,6 @@
 #include <components/navmeshtool/protocol.hpp>
 #include <components/resource/bulletshapemanager.hpp>
 #include <components/vfs/manager.hpp>
-
-#include <osg/Vec2i>
-
-#include <algorithm>
-#include <memory>
-#include <sstream>
-#include <stdexcept>
-#include <string>
-#include <string_view>
-#include <utility>
-#include <vector>
 
 namespace NavMeshTool
 {

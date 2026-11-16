@@ -1,7 +1,8 @@
 #include "openfile.hpp"
-#include "conversion.hpp"
 
 #include <fstream>
+
+#include "conversion.hpp"
 
 namespace Files
 {

@@ -1,9 +1,9 @@
 #include "narynode.hpp"
 
 #include <sstream>
-
-#include <apps/opencs/model/filter/node.hpp>
 #include <utility>
+
+#include "node.hpp"
 
 CSMFilter::NAryNode::NAryNode(const std::vector<std::shared_ptr<Node>>& nodes, std::string name)
     : mNodes(nodes)

@@ -1,8 +1,8 @@
 #include "tags.hpp"
 
-#include <components/fallback/fallback.hpp>
-
 #include <MyGUI_Colour.h>
+
+#include <components/fallback/fallback.hpp>
 
 namespace Gui
 {

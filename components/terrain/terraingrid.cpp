@@ -5,13 +5,13 @@
 #include <osg/ComputeBoundsVisitor>
 #include <osg/Group>
 
+#include <components/esm/util.hpp>
+#include <components/sceneutil/positionattitudetransform.hpp>
+
 #include "chunkmanager.hpp"
 #include "heightcull.hpp"
 #include "storage.hpp"
 #include "view.hpp"
-
-#include <components/esm/util.hpp>
-#include <components/sceneutil/positionattitudetransform.hpp>
 
 namespace Terrain
 {

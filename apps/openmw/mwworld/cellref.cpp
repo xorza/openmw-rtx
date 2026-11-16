@@ -3,16 +3,16 @@
 #include <algorithm>
 #include <cassert>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/spellutil.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm/refid.hpp>
 #include <components/esm3/loadcell.hpp>
 #include <components/esm3/objectstate.hpp>
 #include <components/esm4/loadrefr.hpp>
 
-#include "apps/openmw/mwbase/environment.hpp"
-#include "apps/openmw/mwbase/world.hpp"
-#include "apps/openmw/mwmechanics/spellutil.hpp"
-#include "apps/openmw/mwworld/esmstore.hpp"
+#include "esmstore.hpp"
 
 namespace MWWorld
 {

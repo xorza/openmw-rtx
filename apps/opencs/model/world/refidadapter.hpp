@@ -1,8 +1,9 @@
 #pragma once
 
-#include <components/esm/refid.hpp>
 #include <string>
 #include <vector>
+
+#include <components/esm/refid.hpp>
 
 /*! \brief
  * Adapters acts as indirection layer, abstracting details of the record types (in the wrappers) from the higher levels

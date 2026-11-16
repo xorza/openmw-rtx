@@ -1,8 +1,9 @@
 #include "types.hpp"
 
+#include <utility>
+
 #include <components/lua/luastate.hpp>
 #include <components/misc/resourcehelpers.hpp>
-#include <utility>
 
 namespace MWLua
 {

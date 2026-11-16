@@ -1,8 +1,9 @@
 #pragma once
 
-#include <components/sceneutil/nodecallback.hpp>
 #include <osg/Node>
 #include <osg/Vec4f>
+
+#include "nodecallback.hpp"
 
 namespace SceneUtil
 {

@@ -4,10 +4,9 @@
 #include <MyGUI_RenderManager.h>
 #include <MyGUI_ScrollBar.h>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
 #include <components/widgets/numericeditbox.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
 
 namespace MWGui
 {

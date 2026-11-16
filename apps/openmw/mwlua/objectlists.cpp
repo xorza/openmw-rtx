@@ -1,13 +1,10 @@
 #include "objectlists.hpp"
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwclass/container.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/worldmodel.hpp>
 #include <components/misc/resourcehelpers.hpp>
-
-#include "../mwbase/environment.hpp"
-
-#include "../mwclass/container.hpp"
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/worldmodel.hpp"
 
 namespace MWLua
 {

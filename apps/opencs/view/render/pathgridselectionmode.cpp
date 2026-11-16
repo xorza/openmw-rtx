@@ -2,19 +2,17 @@
 
 #include <QAction>
 #include <QMenu>
-
 #include <vector>
 
 #include <osg/ref_ptr>
 
-#include "../../model/world/commandmacro.hpp"
-
 #include <apps/opencs/model/doc/document.hpp>
-#include <apps/opencs/view/render/mask.hpp>
-#include <apps/opencs/view/render/selectionmode.hpp>
-#include <apps/opencs/view/render/tagbase.hpp>
+#include <apps/opencs/model/world/commandmacro.hpp>
 
+#include "mask.hpp"
 #include "pathgrid.hpp"
+#include "selectionmode.hpp"
+#include "tagbase.hpp"
 #include "worldspacewidget.hpp"
 
 namespace CSVWidget

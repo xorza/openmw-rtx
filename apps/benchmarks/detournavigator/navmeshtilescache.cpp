@@ -1,13 +1,13 @@
 
-#include <components/detournavigator/navmeshtilescache.hpp>
-#include <components/detournavigator/stats.hpp>
-#include <components/esm3/loadland.hpp>
-
 #include <algorithm>
 #include <iterator>
 #include <random>
 
 #include <benchmark/benchmark.h> // IWYU pragma: keep: the macros this source registers its benchmarks with
+
+#include <components/detournavigator/navmeshtilescache.hpp>
+#include <components/detournavigator/stats.hpp>
+#include <components/esm3/loadland.hpp>
 
 namespace
 {

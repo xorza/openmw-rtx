@@ -2,7 +2,8 @@
 
 #include <MyGUI_Gui.h>
 
-#include "components/settings/values.hpp"
+#include <components/settings/values.hpp>
+
 #include "content.hpp"
 #include "util.hpp"
 #include "widget.hpp"

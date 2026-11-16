@@ -6,7 +6,6 @@
 
 #include <components/misc/result.hpp>
 #include <components/rtxvulkan/device/memory/buffer.hpp>
-
 #include <components/rtxvulkan/device/memory/image.hpp>
 #include <components/rtxvulkan/pipeline/computepipeline.hpp>
 #include <components/rtxvulkan/shaders/shared/ground.h>

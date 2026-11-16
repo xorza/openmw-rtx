@@ -1,5 +1,15 @@
-#include "settings.hpp"
+#include <atomic>
+#include <chrono>
+#include <filesystem>
+#include <map>
 #include <memory>
+#include <optional>
+#include <string>
+
+#include <gtest/gtest.h>
+
+#include <BulletCollision/CollisionShapes/btBoxShape.h>
+#include <DetourNavMesh.h>
 
 #include <components/contentstore/key.hpp>
 #include <components/detournavigator/asyncnavmeshupdater.hpp>
@@ -11,18 +21,7 @@
 #include <components/loadinglistener/loadinglistener.hpp>
 #include <components/testing/util.hpp>
 
-#include <BulletCollision/CollisionShapes/btBoxShape.h>
-
-#include <DetourNavMesh.h>
-
-#include <gtest/gtest.h>
-
-#include <atomic>
-#include <chrono>
-#include <filesystem>
-#include <map>
-#include <optional>
-#include <string>
+#include "settings.hpp"
 
 namespace
 {

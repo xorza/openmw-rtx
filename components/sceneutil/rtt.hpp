@@ -1,9 +1,9 @@
 #pragma once
 
-#include <osg/Node>
-
 #include <map>
 #include <memory>
+
+#include <osg/Node>
 
 namespace osg
 {

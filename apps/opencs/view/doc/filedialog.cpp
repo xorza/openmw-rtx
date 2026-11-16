@@ -10,7 +10,6 @@
 
 #include "adjusterwidget.hpp"
 #include "filewidget.hpp"
-
 #include "ui_filedialog.h"
 
 CSVDoc::FileDialog::FileDialog(QWidget* parent)

@@ -1,13 +1,12 @@
 #pragma once
 
-#include <string>
-#include <vector>
-
 #include <QAbstractTableModel>
 #include <QModelIndex>
 #include <QVariant>
+#include <string>
+#include <vector>
 
-#include "../doc/messages.hpp"
+#include <apps/opencs/model/doc/messages.hpp>
 
 namespace CSMWorld
 {

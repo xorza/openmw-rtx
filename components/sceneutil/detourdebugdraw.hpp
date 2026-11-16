@@ -1,7 +1,6 @@
 #pragma once
 
 #include <DebugDraw.h>
-
 #include <osg/Geometry>
 
 namespace osg

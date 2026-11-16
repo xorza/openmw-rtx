@@ -1,8 +1,9 @@
 #pragma once
 
 #include <map>
-#include <sol/sol.hpp>
 #include <stdexcept>
+
+#include <sol/sol.hpp>
 
 #include "asyncpackage.hpp"
 #include "serialization.hpp"

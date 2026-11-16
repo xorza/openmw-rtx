@@ -1,15 +1,16 @@
 #include "movementsolver.hpp"
 
+#include <algorithm>
+#include <cmath>
+
 #include <BulletCollision/CollisionDispatch/btCollisionObject.h>
 #include <BulletCollision/CollisionDispatch/btCollisionWorld.h>
 #include <BulletCollision/CollisionShapes/btConvexShape.h>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/esm3/loadgmst.hpp>
 #include <components/misc/convert.hpp>
-
-#include "../mwbase/environment.hpp"
-
-#include "../mwworld/esmstore.hpp"
 
 #include "actor.hpp"
 #include "collisiontype.hpp"
@@ -21,9 +22,6 @@
 #include "projectileconvexcallback.hpp"
 #include "stepper.hpp"
 #include "trace.h"
-
-#include <algorithm>
-#include <cmath>
 
 namespace MWPhysics
 {

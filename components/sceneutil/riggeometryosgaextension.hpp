@@ -3,9 +3,8 @@
 #include <array>
 
 #include <osg/Drawable>
-#include <osgAnimation/RigGeometry>
-
 #include <osg/NodeVisitor>
+#include <osgAnimation/RigGeometry>
 
 namespace SceneUtil
 {

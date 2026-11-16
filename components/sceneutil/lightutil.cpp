@@ -1,13 +1,12 @@
 #include "lightutil.hpp"
 
 #include <osg/Group>
-
 #include <osgParticle/ParticleSystem>
 
 #include <components/fallback/fallback.hpp>
-#include <components/sceneutil/lightcommon.hpp>
 
 #include "lampbody.hpp"
+#include "lightcommon.hpp"
 #include "lightcontroller.hpp"
 #include "lightmanager.hpp"
 #include "visitor.hpp"

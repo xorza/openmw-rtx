@@ -4,7 +4,7 @@
 #include <stdexcept>
 #include <utility>
 
-#include "../world/idtablebase.hpp"
+#include <apps/opencs/model/world/idtablebase.hpp>
 
 CSMFilter::ValueNode::ValueNode(int columnId, Type lowerType, Type upperType, double lower, double upper)
     : mColumnId(columnId)

@@ -2,10 +2,10 @@
 
 #include <cmath>
 
+#include <components/esm/luascripts.hpp>
+
 #include "scripttracker.hpp"
 #include "util.hpp"
-
-#include <components/esm/luascripts.hpp>
 
 namespace
 {

@@ -1,17 +1,15 @@
 #include "aicombataction.hpp"
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwworld/actionequip.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/inventorystore.hpp>
 #include <components/esm3/loadench.hpp>
 #include <components/esm3/loadmgef.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/actionequip.hpp"
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/inventorystore.hpp"
 
 #include "actorutil.hpp"
 #include "combat.hpp"

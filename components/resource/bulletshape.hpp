@@ -3,10 +3,9 @@
 #include <map>
 #include <memory>
 
-#include <osg/Vec3f>
-
 #include <BulletCollision/CollisionShapes/btBvhTriangleMeshShape.h>
 #include <BulletCollision/CollisionShapes/btScaledBvhTriangleMeshShape.h>
+#include <osg/Vec3f>
 
 #include <components/vfs/pathutil.hpp>
 

@@ -1,15 +1,15 @@
 #include "columnimp.hpp"
 
-#include <apps/opencs/model/world/columnbase.hpp>
-#include <apps/opencs/model/world/columns.hpp>
-#include <apps/opencs/model/world/disabletag.hpp>
-#include <apps/opencs/model/world/land.hpp>
-#include <apps/opencs/model/world/record.hpp>
+#include <stdexcept>
 
 #include <components/esm3/loadland.hpp>
 #include <components/esm3/loadltex.hpp>
 
-#include <stdexcept>
+#include "columnbase.hpp"
+#include "columns.hpp"
+#include "disabletag.hpp"
+#include "land.hpp"
+#include "record.hpp"
 
 namespace CSMWorld
 {

@@ -1,7 +1,7 @@
+#include <fstream>
+
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
-
-#include <fstream>
 
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/esmwriter.hpp>

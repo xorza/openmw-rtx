@@ -3,12 +3,12 @@
 #include <osg/Geometry>
 #include <osg/PolygonMode>
 
-#include "world.hpp"
-
 #include <components/esm/util.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/sceneutil/material.hpp>
-#include <components/terrain/storage.hpp>
+
+#include "storage.hpp"
+#include "world.hpp"
 
 namespace Terrain
 {

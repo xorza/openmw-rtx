@@ -1,11 +1,10 @@
 #pragma once
 
+#include <QMetaType>
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
-
-#include <QMetaType>
 
 namespace CSMWorld
 {

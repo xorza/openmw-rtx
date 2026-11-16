@@ -4,26 +4,22 @@
 #include <sstream>
 #include <string>
 
+#include <apps/opencs/model/doc/document.hpp>
 #include <apps/opencs/model/doc/messages.hpp>
 #include <apps/opencs/model/prefs/category.hpp>
 #include <apps/opencs/model/prefs/setting.hpp>
+#include <apps/opencs/model/prefs/state.hpp>
+#include <apps/opencs/model/world/data.hpp>
 #include <apps/opencs/model/world/idcollection.hpp>
 #include <apps/opencs/model/world/record.hpp>
 #include <apps/opencs/model/world/scriptcontext.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
-
 #include <components/compiler/exception.hpp>
 #include <components/compiler/extensions0.hpp>
 #include <components/compiler/fileparser.hpp>
 #include <components/compiler/scanner.hpp>
 #include <components/compiler/tokenloc.hpp>
 #include <components/esm3/loadscpt.hpp>
-
-#include "../doc/document.hpp"
-
-#include "../world/data.hpp"
-
-#include "../prefs/state.hpp"
 
 CSMDoc::Message::Severity CSMTools::ScriptCheckStage::getSeverity(Type type)
 {

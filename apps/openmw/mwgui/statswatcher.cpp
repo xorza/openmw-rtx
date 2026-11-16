@@ -1,17 +1,14 @@
 #include "statswatcher.hpp"
 
+#include <string>
+
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwmechanics/npcstats.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/esm3/loadclas.hpp>
 #include <components/esm3/loadrace.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-
-#include "../mwmechanics/npcstats.hpp"
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
-
-#include <string>
 
 namespace MWGui
 {

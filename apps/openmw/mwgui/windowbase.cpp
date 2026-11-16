@@ -4,9 +4,8 @@
 #include <MyGUI_InputManager.h>
 #include <MyGUI_RenderManager.h>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
 #include <components/widgets/imagebutton.hpp>
 
 #include "draganddrop.hpp"

@@ -1,10 +1,10 @@
 #include "quadtreeworld.hpp"
 
+#include <limits>
+
 #include <osg/PolygonMode>
 #include <osg/ShapeDrawable>
 #include <osgUtil/CullVisitor>
-
-#include <limits>
 
 #include <components/esm/util.hpp>
 #include <components/loadinglistener/reporter.hpp>

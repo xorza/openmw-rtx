@@ -10,8 +10,7 @@
 
 #include <MyGUI_KeyCode.h>
 
-#include "../mwgui/mode.hpp"
-
+#include <apps/openmw/mwgui/mode.hpp>
 #include <components/sdlutil/events.hpp>
 
 namespace ESM

@@ -1,7 +1,8 @@
 #include "importinventory.hpp"
 
-#include <components/esm3/esmreader.hpp>
 #include <utility>
+
+#include <components/esm3/esmreader.hpp>
 
 namespace ESSImport
 {

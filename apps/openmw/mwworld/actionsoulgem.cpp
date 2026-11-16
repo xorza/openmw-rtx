@@ -1,14 +1,12 @@
 #include "actionsoulgem.hpp"
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/loadcrea.hpp>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-
-#include "../mwmechanics/actorutil.hpp"
-
-#include "../mwworld/esmstore.hpp"
+#include "esmstore.hpp"
 
 namespace MWWorld
 {

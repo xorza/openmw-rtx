@@ -1,12 +1,12 @@
 #pragma once
 
-#include "recastmesh.hpp"
-#include "tileposition.hpp"
+#include <memory>
+#include <span>
 
 #include <components/esm/refid.hpp>
 
-#include <memory>
-#include <span>
+#include "recastmesh.hpp"
+#include "tileposition.hpp"
 
 class dtNavMesh;
 struct rcConfig;

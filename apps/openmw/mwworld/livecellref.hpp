@@ -1,10 +1,9 @@
 #pragma once
 
-#include "cellref.hpp"
-
-#include "refdata.hpp"
-
 #include <stdexcept>
+
+#include "cellref.hpp"
+#include "refdata.hpp"
 
 namespace ESM
 {

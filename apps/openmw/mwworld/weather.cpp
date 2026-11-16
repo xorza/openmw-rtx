@@ -1,37 +1,8 @@
 #include "weather.hpp"
 
-#include <cassert>
-
-#include <cmath>
-#include <components/misc/resourcehelpers.hpp>
-
-#include <components/misc/rng.hpp>
-#include <components/sky/sundisc.hpp>
-
-#include <apps/openmw/mwbase/soundmanager.hpp>
-#include <apps/openmw/mwrender/skyutil.hpp>
-#include <apps/openmw/mwsound/sound.hpp> // IWYU pragma: keep: the sound whole, which its pointer converts to its base's
-#include <apps/openmw/mwsound/type.hpp>
-#include <components/esm/defs.hpp>
-#include <components/esm3/esmreader.hpp>
-#include <components/esm3/esmwriter.hpp>
-#include <components/esm3/loadregn.hpp>
-#include <components/esm3/weatherstate.hpp>
-#include <components/sky/timeofday.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/soundmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwmechanics/actorutil.hpp"
-
-#include "../mwrender/renderingmanager.hpp"
-
-#include "cellstore.hpp"
-#include "esmstore.hpp"
-#include "player.hpp"
-
 #include <algorithm>
+#include <cassert>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
@@ -41,6 +12,28 @@
 #include <vector>
 
 #include <osg/Vec4f>
+
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/soundmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwrender/renderingmanager.hpp>
+#include <apps/openmw/mwrender/skyutil.hpp>
+#include <apps/openmw/mwsound/sound.hpp> // IWYU pragma: keep: the sound whole, which its pointer converts to its base's
+#include <apps/openmw/mwsound/type.hpp>
+#include <components/esm/defs.hpp>
+#include <components/esm3/esmreader.hpp>
+#include <components/esm3/esmwriter.hpp>
+#include <components/esm3/loadregn.hpp>
+#include <components/esm3/weatherstate.hpp>
+#include <components/misc/resourcehelpers.hpp>
+#include <components/misc/rng.hpp>
+#include <components/sky/sundisc.hpp>
+#include <components/sky/timeofday.hpp>
+
+#include "cellstore.hpp"
+#include "esmstore.hpp"
+#include "player.hpp"
 
 namespace MWWorld
 {

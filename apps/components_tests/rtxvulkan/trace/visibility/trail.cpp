@@ -9,11 +9,12 @@
 #include <osg/Vec3f>
 
 #include <apps/components_tests/rtx/support/geometry.hpp>
-#include <apps/components_tests/rtxvulkan/trace/visibility/fixture.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
 #include <components/rtx/scene/scenedesc.hpp>
 #include <components/rtx/shaders/colour.h>
 #include <components/rtx/shaders/visibility.h>
+
+#include "fixture.hpp"
 
 namespace Rtx::Testing
 {

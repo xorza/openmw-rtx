@@ -1,8 +1,8 @@
 #pragma once
 
-#include <components/esm3/loadskil.hpp>
-
 #include <optional>
+
+#include <components/esm3/loadskil.hpp>
 
 namespace ESM
 {

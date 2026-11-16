@@ -1,14 +1,14 @@
 #pragma once
 
-#include <components/misc/guarded.hpp>
-
-#include <osg/ref_ptr>
-#include <osgViewer/ViewerEventHandlers>
-
 #include <filesystem>
 #include <memory>
 #include <string>
 #include <vector>
+
+#include <osg/ref_ptr>
+#include <osgViewer/ViewerEventHandlers>
+
+#include <components/misc/guarded.hpp>
 
 namespace osg
 {

@@ -1,8 +1,9 @@
 #pragma once
 
-#include <components/esm/esmcommon.hpp>
 #include <cstdint>
 #include <vector>
+
+#include <components/esm/esmcommon.hpp>
 
 namespace ESM
 {

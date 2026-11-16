@@ -1,6 +1,5 @@
 #include "postprocessor.hpp"
 
-#include <SDL3/SDL_opengl_glext.h>
 #include <algorithm>
 #include <chrono>
 #include <cstddef>
@@ -12,6 +11,7 @@
 #include <utility>
 #include <vector>
 
+#include <SDL3/SDL_opengl_glext.h>
 #include <osg/FrameBufferObject>
 #include <osg/GLExtensions>
 #include <osg/GraphicsContext>
@@ -28,6 +28,9 @@
 #include <osgUtil/CullVisitor>
 #include <osgUtil/RenderBin>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwgui/postprocessorhud.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/fx/stateupdater.hpp>
 #include <components/fx/technique.hpp>
@@ -43,11 +46,6 @@
 #include <components/stereo/types.hpp>
 #include <components/vfs/manager.hpp>
 #include <components/vfs/recursivedirectoryiterator.hpp> // IWYU pragma: keep: the range whole, which a call returns by value
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-
-#include "../mwgui/postprocessorhud.hpp"
 
 #include "distortion.hpp"
 #include "luminancecalculator.hpp"

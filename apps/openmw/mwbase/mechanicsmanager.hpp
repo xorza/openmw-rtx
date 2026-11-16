@@ -7,7 +7,7 @@
 #include <string_view>
 #include <vector>
 
-#include "../mwworld/ptr.hpp"
+#include <apps/openmw/mwworld/ptr.hpp>
 
 namespace osg
 {

@@ -1,17 +1,16 @@
 #include "effectmanager.hpp"
 
+#include <algorithm>
+
 #include <osg/PositionAttitudeTransform>
 
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
-
 #include <components/sceneutil/controller.hpp>
 
 #include "animation.hpp"
 #include "util.hpp"
 #include "vismask.hpp"
-
-#include <algorithm>
 
 namespace MWRender
 {

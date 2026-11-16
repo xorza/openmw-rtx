@@ -1,12 +1,11 @@
 #include "textinput.hpp"
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-
 #include <MyGUI_Button.h>
 #include <MyGUI_EditBox.h>
 #include <MyGUI_UString.h>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
 #include <components/esm/refid.hpp>
 
 namespace MWGui

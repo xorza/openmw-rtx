@@ -3,11 +3,10 @@
 #include <chrono>
 #include <vector>
 
+#include <LinearMath/btIDebugDraw.h>
 #include <osg/Array>
 #include <osg/PrimitiveSet>
 #include <osg/ref_ptr>
-
-#include <LinearMath/btIDebugDraw.h>
 
 namespace osg
 {

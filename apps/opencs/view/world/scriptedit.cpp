@@ -1,25 +1,23 @@
 #include "scriptedit.hpp"
 
-#include <vector>
-
 #include <QApplication>
 #include <QDragEnterEvent>
 #include <QMenu>
 #include <QPainter>
 #include <QString>
 #include <QTextDocumentFragment>
+#include <vector>
 
+#include <apps/opencs/model/doc/document.hpp>
 #include <apps/opencs/model/prefs/category.hpp>
 #include <apps/opencs/model/prefs/setting.hpp>
+#include <apps/opencs/model/prefs/shortcut.hpp>
+#include <apps/opencs/model/prefs/state.hpp>
 #include <apps/opencs/model/world/data.hpp>
-#include <apps/opencs/view/world/scripthighlighter.hpp>
+#include <apps/opencs/model/world/tablemimedata.hpp>
+#include <apps/opencs/model/world/universalid.hpp>
 
-#include "../../model/doc/document.hpp"
-
-#include "../../model/prefs/shortcut.hpp"
-#include "../../model/prefs/state.hpp"
-#include "../../model/world/tablemimedata.hpp"
-#include "../../model/world/universalid.hpp"
+#include "scripthighlighter.hpp"
 
 namespace
 {

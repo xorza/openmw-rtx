@@ -1,4 +1,10 @@
 #include "navmeshcacheitem.hpp"
+
+#include <ostream>
+#include <sstream>
+
+#include <DetourNavMesh.h>
+
 #include "debug.hpp"
 #include "makenavmesh.hpp"
 #include "navmeshdata.hpp"
@@ -6,11 +12,6 @@
 #include "navmeshtileview.hpp"
 #include "settings.hpp"
 #include "tileposition.hpp"
-
-#include <DetourNavMesh.h>
-
-#include <ostream>
-#include <sstream>
 
 namespace
 {

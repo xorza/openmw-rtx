@@ -9,12 +9,9 @@
 #include <vector>
 
 #include <osg/PolygonMode>
-
+#include <osgDB/Registry>
 #include <osgText/Font>
 #include <osgText/Text>
-
-#include <osgDB/Registry>
-
 #include <osgViewer/Renderer>
 #include <osgViewer/Viewer>
 

@@ -1,18 +1,15 @@
 #include "pickpocketitemmodel.hpp"
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwmechanics/creaturestats.hpp>
+#include <apps/openmw/mwmechanics/pickpocket.hpp>
+#include <apps/openmw/mwworld/class.hpp>
 #include <components/esm3/loadskil.hpp>
 #include <components/misc/rng.hpp>
-
-#include "../mwmechanics/actorutil.hpp"
-#include "../mwmechanics/creaturestats.hpp"
-#include "../mwmechanics/pickpocket.hpp"
-
-#include "../mwworld/class.hpp"
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
 
 namespace MWGui
 {

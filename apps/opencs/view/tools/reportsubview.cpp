@@ -1,11 +1,10 @@
 #include "reportsubview.hpp"
 
-#include "reporttable.hpp"
-
+#include <apps/opencs/model/doc/document.hpp>
+#include <apps/opencs/model/doc/state.hpp>
 #include <apps/opencs/view/doc/subview.hpp>
 
-#include "../../model/doc/document.hpp"
-#include "../../model/doc/state.hpp"
+#include "reporttable.hpp"
 
 CSVTools::ReportSubView::ReportSubView(const CSMWorld::UniversalId& id, CSMDoc::Document& document)
     : CSVDoc::SubView(id)

@@ -1,22 +1,19 @@
 #include "genericcreator.hpp"
 
-#include <memory>
-#include <utility>
-
 #include <QComboBox>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
 #include <QUndoStack>
+#include <memory>
+#include <utility>
 
+#include <apps/opencs/model/world/commands.hpp>
+#include <apps/opencs/model/world/data.hpp>
+#include <apps/opencs/model/world/idtable.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
-
 #include <components/misc/strings/lower.hpp>
-
-#include "../../model/world/commands.hpp"
-#include "../../model/world/data.hpp"
-#include "../../model/world/idtable.hpp"
 
 #include "idvalidator.hpp"
 

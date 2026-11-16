@@ -1,7 +1,15 @@
 #include "navmesh.hpp"
 
-#include "vismask.hpp"
+#include <algorithm>
+#include <limits>
+#include <utility>
 
+#include <DetourNavMesh.h>
+#include <osg/BlendFunc>
+#include <osg/LineWidth>
+#include <osg/StateSet>
+
+#include <apps/openmw/mwbase/environment.hpp>
 #include <components/detournavigator/guardednavmeshcacheitem.hpp>
 #include <components/detournavigator/navmeshcacheitem.hpp>
 #include <components/detournavigator/settings.hpp>
@@ -12,17 +20,7 @@
 #include <components/sceneutil/navmesh.hpp>
 #include <components/sceneutil/workqueue.hpp>
 
-#include <osg/BlendFunc>
-#include <osg/LineWidth>
-#include <osg/StateSet>
-
-#include <DetourNavMesh.h>
-
-#include "../mwbase/environment.hpp"
-
-#include <algorithm>
-#include <limits>
-#include <utility>
+#include "vismask.hpp"
 
 namespace MWRender
 {

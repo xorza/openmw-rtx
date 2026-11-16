@@ -3,10 +3,9 @@
 #include <MyGUI_Button.h>
 #include <MyGUI_EditBox.h>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
 #include <components/settings/values.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
 
 namespace MWGui
 {

@@ -1,12 +1,12 @@
 #pragma once
 
-#include "terraingrid.hpp"
-
 #include <atomic>
 #include <memory>
 #include <mutex>
 
 #include <components/esm/refid.hpp>
+
+#include "terraingrid.hpp"
 
 namespace osg
 {

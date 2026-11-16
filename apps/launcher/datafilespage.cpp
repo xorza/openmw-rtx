@@ -1,5 +1,4 @@
 #include "datafilespage.hpp"
-#include "maindialog.hpp"
 
 #include <QClipboard>
 #include <QComboBox>
@@ -12,31 +11,27 @@
 #include <QProgressDialog>
 #include <QPushButton>
 #include <QTimer>
-
 #include <algorithm>
 #include <mutex>
 #include <thread>
 #include <unordered_set>
 
 #include <apps/launcher/utils/cellnameloader.hpp>
-
-#include <components/files/configurationmanager.hpp>
-
-#include <components/contentselector/model/esmfile.hpp>
-#include <components/contentselector/view/contentselector.hpp>
-
+#include <apps/launcher/utils/profilescombobox.hpp>
+#include <apps/launcher/utils/textinputdialog.hpp>
+#include <components/bsa/bsafile.hpp>
 #include <components/config/gamesettings.hpp>
 #include <components/config/launchersettings.hpp>
-
-#include <components/bsa/bsafile.hpp>
+#include <components/contentselector/model/esmfile.hpp>
+#include <components/contentselector/view/contentselector.hpp>
 #include <components/debug/debuglog.hpp>
+#include <components/files/configurationmanager.hpp>
 #include <components/files/qtconversion.hpp>
 #include <components/misc/scalableicon.hpp>
 #include <components/navmeshtool/protocol.hpp>
 #include <components/vfs/qtconversion.hpp>
 
-#include "utils/profilescombobox.hpp"
-#include "utils/textinputdialog.hpp"
+#include "maindialog.hpp"
 
 const char* Launcher::DataFilesPage::mDefaultContentListName = "Default";
 

@@ -1,9 +1,8 @@
 #pragma once
 
-#include <components/process/processinvoker.hpp>
-
 #include <components/config/gamesettings.hpp>
 #include <components/config/launchersettings.hpp>
+#include <components/process/processinvoker.hpp>
 
 #include "ui_mainwindow.h"
 

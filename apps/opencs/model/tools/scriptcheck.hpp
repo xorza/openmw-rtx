@@ -2,14 +2,11 @@
 
 #include <string>
 
+#include <apps/opencs/model/doc/messages.hpp>
+#include <apps/opencs/model/doc/stage.hpp>
+#include <apps/opencs/model/world/scriptcontext.hpp>
 #include <components/compiler/errorhandler.hpp>
 #include <components/compiler/extensions.hpp>
-
-#include <apps/opencs/model/doc/messages.hpp>
-
-#include "../doc/stage.hpp"
-
-#include "../world/scriptcontext.hpp"
 
 namespace CSMDoc
 {

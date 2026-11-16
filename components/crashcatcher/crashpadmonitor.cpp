@@ -1,5 +1,3 @@
-#include "crashinstall.hpp"
-
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -42,6 +40,7 @@
 #include <components/platform/process.hpp>
 
 #include "crashhangwatch.hpp"
+#include "crashinstall.hpp"
 #include "crashmonitorarguments.hpp"
 #include "crashmonitorlog.hpp"
 #include "crashmonitorrequests.hpp"

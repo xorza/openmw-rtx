@@ -1,11 +1,10 @@
+#include <QColor>
+#include <QPalette>
+#include <QRgb>
 #include <string>
 #include <vector>
 
 #include <gtest/gtest.h>
-
-#include <QColor>
-#include <QPalette>
-#include <QRgb>
 
 #include <components/graphite/colour.hpp>
 #include <components/graphite/palette.hpp>

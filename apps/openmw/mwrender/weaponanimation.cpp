@@ -1,18 +1,15 @@
 #include "weaponanimation.hpp"
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/soundmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/combat.hpp>
+#include <apps/openmw/mwmechanics/weapontype.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/inventorystore.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/soundmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/inventorystore.hpp"
-
-#include "../mwmechanics/combat.hpp"
-#include "../mwmechanics/weapontype.hpp"
 
 #include "animation.hpp"
 #include "rotatecontroller.hpp"

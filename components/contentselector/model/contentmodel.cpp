@@ -1,11 +1,4 @@
 #include "contentmodel.hpp"
-#include "esmfile.hpp"
-
-#include <algorithm>
-#include <fstream>
-#include <memory>
-#include <stdexcept>
-#include <unordered_set>
 
 #include <QDataStream>
 #include <QDebug>
@@ -14,12 +7,19 @@
 #include <QFont>
 #include <QIODevice>
 #include <QProgressDialog>
+#include <algorithm>
+#include <fstream>
+#include <memory>
+#include <stdexcept>
+#include <unordered_set>
 
 #include <components/esm/format.hpp>
 #include <components/esm3/esmreader.hpp>
 #include <components/esm4/reader.hpp>
 #include <components/files/openfile.hpp>
 #include <components/files/qtconversion.hpp>
+
+#include "esmfile.hpp"
 
 ContentSelectorModel::ContentModel::ContentModel(
     QObject* parent, QIcon& warningIcon, QIcon& errorIcon, bool showOMWScripts)

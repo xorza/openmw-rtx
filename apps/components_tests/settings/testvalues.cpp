@@ -1,12 +1,11 @@
-#include "components/misc/strings/conversion.hpp"
-#include "components/settings/parser.hpp"
-#include "components/settings/values.hpp"
-
-#include <components/rtx/common/error.hpp>
-#include <components/rtx/frame/upscale.hpp>
-
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+
+#include <components/misc/strings/conversion.hpp>
+#include <components/rtx/common/error.hpp>
+#include <components/rtx/frame/upscale.hpp>
+#include <components/settings/parser.hpp>
+#include <components/settings/values.hpp>
 
 namespace Settings
 {

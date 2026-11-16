@@ -2,9 +2,9 @@
 
 #include <array>
 #include <memory>
+
 #include <osg/FrameBufferObject>
 #include <osg/StateSet>
-
 #include <osgUtil/RenderBin>
 
 namespace Shader

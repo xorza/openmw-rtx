@@ -1,16 +1,14 @@
-#include "types.hpp"
+#include <format>
+#include <variant>
 
-#include "usertypeutil.hpp"
-
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/levelledlist.hpp>
 #include <components/esm3/loadlevlist.hpp>
 #include <components/lua/util.hpp>
 
-#include "../../mwbase/environment.hpp"
-#include "../../mwbase/world.hpp"
-#include "../../mwmechanics/levelledlist.hpp"
-
-#include <format>
-#include <variant>
+#include "types.hpp"
+#include "usertypeutil.hpp"
 
 namespace
 {

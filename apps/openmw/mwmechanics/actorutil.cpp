@@ -1,15 +1,13 @@
 #include "actorutil.hpp"
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/player.hpp"
-
-#include "../mwmechanics/creaturestats.hpp"
-#include "../mwmechanics/magiceffects.hpp"
-
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/player.hpp>
 #include <components/esm3/loadmgef.hpp>
+
+#include "creaturestats.hpp"
+#include "magiceffects.hpp"
 
 namespace MWMechanics
 {

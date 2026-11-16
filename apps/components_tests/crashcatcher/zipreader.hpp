@@ -11,9 +11,9 @@
 #include <utility>
 #include <vector>
 
-#include <components/files/conversion.hpp>
-
 #include <zlib.h>
+
+#include <components/files/conversion.hpp>
 
 namespace CrashTests
 {

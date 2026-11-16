@@ -6,8 +6,7 @@
 #include <vector>
 
 #include <apps/opencs/model/world/cellcoordinates.hpp>
-
-#include "../../model/world/cellselection.hpp"
+#include <apps/opencs/model/world/cellselection.hpp>
 
 #include "cell.hpp"
 #include "instancedragmodes.hpp"

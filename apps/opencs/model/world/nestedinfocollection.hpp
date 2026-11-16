@@ -1,7 +1,6 @@
 #pragma once
 
 #include <QVariant>
-
 #include <map>
 #include <utility>
 

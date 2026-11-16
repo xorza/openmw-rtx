@@ -1,8 +1,7 @@
-#include "file.hpp"
-
 #include <format>
 #include <stdexcept>
 
+#include "file.hpp"
 #include "stream.hpp"
 
 namespace Spt

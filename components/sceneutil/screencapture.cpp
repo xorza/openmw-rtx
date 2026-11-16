@@ -1,14 +1,5 @@
 #include "screencapture.hpp"
 
-#include <components/debug/debuglog.hpp>
-#include <components/files/conversion.hpp>
-#include <components/sceneutil/workqueue.hpp>
-
-#include <osg/Image>
-#include <osg/ref_ptr>
-#include <osgDB/ReaderWriter>
-#include <osgDB/Registry>
-
 #include <atomic>
 #include <cassert>
 #include <filesystem>
@@ -17,6 +8,16 @@
 #include <sstream>
 #include <string>
 #include <utility>
+
+#include <osg/Image>
+#include <osg/ref_ptr>
+#include <osgDB/ReaderWriter>
+#include <osgDB/Registry>
+
+#include <components/debug/debuglog.hpp>
+#include <components/files/conversion.hpp>
+
+#include "workqueue.hpp"
 
 namespace
 {

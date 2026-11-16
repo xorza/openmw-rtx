@@ -1,8 +1,5 @@
 #include "startup.hpp"
 
-#include <algorithm>
-#include <components/misc/scalableicon.hpp>
-
 #include <QGridLayout>
 #include <QGuiApplication>
 #include <QHBoxLayout>
@@ -12,6 +9,9 @@
 #include <QRect>
 #include <QScreen>
 #include <QVBoxLayout>
+#include <algorithm>
+
+#include <components/misc/scalableicon.hpp>
 
 QPushButton* CSVDoc::StartupDialogue::addButton(const QString& label, const QString& icon)
 {

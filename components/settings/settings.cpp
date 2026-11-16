@@ -1,7 +1,4 @@
 #include "settings.hpp"
-#include "migration.hpp"
-#include "parser.hpp"
-#include "values.hpp"
 
 #include <filesystem>
 #include <optional>
@@ -13,6 +10,10 @@
 #include <components/files/configurationmanager.hpp>
 #include <components/misc/strings/algorithm.hpp>
 #include <components/misc/strings/conversion.hpp>
+
+#include "migration.hpp"
+#include "parser.hpp"
+#include "values.hpp"
 
 namespace Settings
 {

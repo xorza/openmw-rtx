@@ -1,21 +1,19 @@
 #include "stereomanager.hpp"
-#include "frustum.hpp"
-#include "multiview.hpp"
-
-#include <osg/DisplaySettings>
-
-#include <osgUtil/CullVisitor>
-
-#include <osgViewer/Renderer>
-#include <osgViewer/Viewer>
 
 #include <map>
 #include <string>
 
-#include <components/misc/constants.hpp>
+#include <osg/DisplaySettings>
+#include <osgUtil/CullVisitor>
+#include <osgViewer/Renderer>
+#include <osgViewer/Viewer>
 
+#include <components/misc/constants.hpp>
 #include <components/sceneutil/depth.hpp>
 #include <components/sceneutil/statesetupdater.hpp>
+
+#include "frustum.hpp"
+#include "multiview.hpp"
 
 namespace Stereo
 {

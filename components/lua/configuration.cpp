@@ -4,11 +4,11 @@
 #include <cassert>
 #include <format>
 #include <sstream>
+#include <utility>
 
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/esmwriter.hpp>
 #include <components/misc/strings/algorithm.hpp>
-#include <utility>
 
 namespace LuaUtil
 {

@@ -1,7 +1,5 @@
 #pragma once
 
-#include "rotationflags.hpp"
-
 #include <cstdint>
 #include <deque>
 #include <map>
@@ -11,17 +9,16 @@
 #include <string_view>
 #include <vector>
 
+#include <apps/openmw/mwmechanics/movingtarget.hpp>
+#include <apps/openmw/mwrender/rendermode.hpp>
+#include <apps/openmw/mwworld/doorstate.hpp>
+#include <apps/openmw/mwworld/globalvariablename.hpp>
+#include <apps/openmw/mwworld/ptr.hpp>
+#include <apps/openmw/mwworld/spellcaststate.hpp>
 #include <components/misc/rng.hpp>
 #include <components/vfs/pathutil.hpp>
 
-#include "../mwworld/doorstate.hpp"
-#include "../mwworld/globalvariablename.hpp"
-#include "../mwworld/ptr.hpp"
-#include "../mwworld/spellcaststate.hpp"
-
-#include "../mwmechanics/movingtarget.hpp"
-
-#include "../mwrender/rendermode.hpp"
+#include "rotationflags.hpp"
 
 namespace osg
 {

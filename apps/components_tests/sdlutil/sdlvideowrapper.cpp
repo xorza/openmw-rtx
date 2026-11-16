@@ -1,6 +1,6 @@
-#include <components/sdlutil/sdlvideowrapper.hpp>
-
 #include <gtest/gtest.h>
+
+#include <components/sdlutil/sdlvideowrapper.hpp>
 
 namespace SDLUtil
 {

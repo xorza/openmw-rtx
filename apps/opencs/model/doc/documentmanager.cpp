@@ -1,16 +1,14 @@
 #include "documentmanager.hpp"
 
 #include <QWaitCondition>
-
 #include <algorithm>
 #include <filesystem>
 #include <stdexcept>
 
-#include <apps/opencs/model/doc/loader.hpp>
-
 #include <components/files/configurationmanager.hpp>
 
 #include "document.hpp"
+#include "loader.hpp"
 
 CSMDoc::DocumentManager::DocumentManager(const Files::ConfigurationManager& configuration)
     : mConfiguration(configuration)

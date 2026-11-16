@@ -1,23 +1,20 @@
 #include "camera.hpp"
 
 #include <cmath>
+
 #include <osg/Camera>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/movement.hpp>
+#include <apps/openmw/mwphysics/raycasting.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/ptr.hpp>
+#include <apps/openmw/mwworld/refdata.hpp>
 #include <components/misc/mathutil.hpp>
 #include <components/sceneutil/nodecallback.hpp>
 #include <components/sceneutil/positionattitudetransform.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/ptr.hpp"
-#include "../mwworld/refdata.hpp"
-
-#include "../mwmechanics/movement.hpp"
-
-#include "../mwphysics/raycasting.hpp"
 
 #include "npcanimation.hpp"
 

@@ -1,6 +1,6 @@
-#include <gtest/gtest.h>
-
 #include <QRgb>
+
+#include <gtest/gtest.h>
 
 #include <components/graphite/colour.hpp>
 

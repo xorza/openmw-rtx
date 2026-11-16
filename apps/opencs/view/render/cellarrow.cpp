@@ -11,15 +11,13 @@
 #include <osg/Vec3f>
 #include <osg/Vec4f>
 
-#include "../../model/prefs/state.hpp"
-
 #include <apps/opencs/model/prefs/shortcutmanager.hpp>
+#include <apps/opencs/model/prefs/state.hpp>
 #include <apps/opencs/model/world/cellcoordinates.hpp>
-#include <apps/opencs/view/render/tagbase.hpp>
-
 #include <components/misc/constants.hpp>
 
 #include "mask.hpp"
+#include "tagbase.hpp"
 
 namespace CSVRender
 {

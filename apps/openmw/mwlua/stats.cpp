@@ -8,22 +8,20 @@
 #include <utility>
 #include <variant>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwlua/types/usertypeutil.hpp>
+#include <apps/openmw/mwmechanics/creaturestats.hpp>
+#include <apps/openmw/mwmechanics/npcstats.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/esm3/loadclas.hpp>
 #include <components/lua/luastate.hpp>
 #include <components/misc/resourcehelpers.hpp>
 
 #include "context.hpp"
 #include "localscripts.hpp"
-
-#include "../mwbase/environment.hpp"
-#include "../mwmechanics/creaturestats.hpp"
-#include "../mwmechanics/npcstats.hpp"
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
-
 #include "objectvariant.hpp"
 #include "recordstore.hpp"
-#include "types/usertypeutil.hpp"
 
 namespace
 {

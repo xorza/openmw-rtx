@@ -1,7 +1,8 @@
-#include <components/sceneutil/osgacontroller.hpp>
-
 #include <gtest/gtest.h>
+
 #include <osgAnimation/Channel>
+
+#include <components/sceneutil/osgacontroller.hpp>
 
 namespace
 {

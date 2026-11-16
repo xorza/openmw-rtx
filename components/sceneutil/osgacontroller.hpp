@@ -5,10 +5,10 @@
 #include <osg/ref_ptr>
 #include <osgAnimation/UpdateMatrixTransform>
 
+#include <components/resource/animation.hpp>
+
 #include "keyframe.hpp"
 #include "nodecallback.hpp"
-
-#include <components/resource/animation.hpp>
 
 namespace SceneUtil
 {

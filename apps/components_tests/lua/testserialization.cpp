@@ -9,10 +9,8 @@
 #include <components/lua/luastate.hpp>
 #include <components/lua/serialization.hpp>
 #include <components/lua/utilpackage.hpp>
-
 #include <components/misc/color.hpp>
 #include <components/misc/endianness.hpp>
-
 #include <components/testing/expecterror.hpp>
 
 namespace

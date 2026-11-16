@@ -38,9 +38,8 @@
 #include <components/platform/process.hpp>
 #include <components/platform/thread.hpp>
 
-#include "zipreader.hpp"
-
 #include "crashtestssystem.hpp"
+#include "zipreader.hpp"
 
 namespace CrashTests
 {

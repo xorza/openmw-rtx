@@ -8,21 +8,21 @@
 #include <format>
 #include <istream>
 #include <stdexcept>
-#include <stdint.h>
 #include <string>
 #include <system_error>
 #include <type_traits>
 #include <vector>
 
-#include <components/files/istreamptr.hpp>
-#include <components/files/utils.hpp>
-#include <components/misc/endianness.hpp>
-#include <components/misc/float16.hpp>
-
 #include <osg/BoundingSphere>
 #include <osg/Quat>
 #include <osg/Vec3f>
 #include <osg/Vec4f>
+#include <stdint.h>
+
+#include <components/files/istreamptr.hpp>
+#include <components/files/utils.hpp>
+#include <components/misc/endianness.hpp>
+#include <components/misc/float16.hpp>
 
 #include "niftypes.hpp"
 

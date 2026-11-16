@@ -3,7 +3,6 @@
 #include <map>
 
 #include <MyGUI_MouseButton.h>
-
 #include <SDL3/SDL_gamepad.h>
 #include <SDL3/SDL_mouse.h>
 

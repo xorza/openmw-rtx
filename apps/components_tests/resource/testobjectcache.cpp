@@ -1,8 +1,3 @@
-#include <components/resource/objectcache.hpp>
-
-#include <gmock/gmock.h>
-#include <gtest/gtest.h>
-
 #include <algorithm>
 #include <atomic>
 #include <chrono>
@@ -15,7 +10,12 @@
 #include <thread>
 #include <vector>
 
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
+
 #include <osg/Object>
+
+#include <components/resource/objectcache.hpp>
 
 namespace Resource
 {

@@ -4,7 +4,6 @@
 
 #include <SDL3/SDL_sensor.h>
 #include <SDL3/SDL_video.h>
-
 #include <osg/Matrixf>
 #include <osg/Vec3f>
 

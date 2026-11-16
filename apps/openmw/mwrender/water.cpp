@@ -8,33 +8,25 @@
 #include <osg/Geometry>
 #include <osg/Group>
 #include <osg/PositionAttitudeTransform>
-
 #include <osgUtil/CullVisitor>
 #include <osgUtil/IncrementalCompileOperation>
 
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <components/fallback/fallback.hpp>
+#include <components/misc/constants.hpp>
+#include <components/nifosg/controller.hpp>
 #include <components/resource/imagemanager.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
-
 #include <components/sceneutil/depth.hpp>
 #include <components/sceneutil/fog.hpp>
 #include <components/sceneutil/material.hpp>
 #include <components/sceneutil/rtt.hpp>
 #include <components/sceneutil/shadow.hpp>
 #include <components/sceneutil/waterutil.hpp>
-
-#include <components/misc/constants.hpp>
-#include <components/stereo/stereomanager.hpp>
-
-#include <components/nifosg/controller.hpp>
-
-#include <components/shader/shadermanager.hpp>
-
-#include <components/fallback/fallback.hpp>
-
 #include <components/settings/values.hpp>
-
-#include "../mwworld/cellstore.hpp"
+#include <components/shader/shadermanager.hpp>
+#include <components/stereo/stereomanager.hpp>
 
 #include "renderbin.hpp"
 #include "ripples.hpp"

@@ -4,15 +4,14 @@
 #include <SDL3/SDL_gamepad.h>
 #include <SDL3/SDL_mouse.h>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/inputmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwinput/actions.hpp>
 #include <components/lua/inputactions.hpp>
 #include <components/lua/luastate.hpp>
 #include <components/sdlutil/events.hpp>
 #include <components/settings/values.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/inputmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwinput/actions.hpp"
 
 #include "context.hpp"
 #include "luamanagerimp.hpp"

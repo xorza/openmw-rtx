@@ -28,11 +28,11 @@
 
 #include <cstdint>
 
-#include "reference.hpp" // EnableParent
-
 #include <components/esm/defs.hpp>
 #include <components/esm/position.hpp>
 #include <components/esm/refid.hpp>
+
+#include "reference.hpp" // EnableParent
 
 namespace ESM4
 {

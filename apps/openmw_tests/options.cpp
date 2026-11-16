@@ -1,7 +1,6 @@
-#include "apps/openmw/options.hpp"
-
-#include <components/files/configurationmanager.hpp>
-#include <components/files/conversion.hpp>
+#include <array>
+#include <string>
+#include <vector>
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -9,9 +8,9 @@
 #include <boost/program_options/options_description.hpp>
 #include <boost/program_options/variables_map.hpp>
 
-#include <array>
-#include <string>
-#include <vector>
+#include <apps/openmw/options.hpp>
+#include <components/files/configurationmanager.hpp>
+#include <components/files/conversion.hpp>
 
 namespace
 {

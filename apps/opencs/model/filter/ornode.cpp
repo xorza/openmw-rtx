@@ -1,7 +1,7 @@
 #include "ornode.hpp"
 
-#include <apps/opencs/model/filter/narynode.hpp>
-#include <apps/opencs/model/filter/node.hpp>
+#include "narynode.hpp"
+#include "node.hpp"
 
 namespace CSMWorld
 {

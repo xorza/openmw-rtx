@@ -4,27 +4,24 @@
 #include <MyGUI_Gui.h>
 #include <MyGUI_ScrollView.h>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwmechanics/creaturestats.hpp>
+#include <apps/openmw/mwworld/actionteleport.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/containerstore.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/store.hpp>
+#include <apps/openmw/mwworld/worldmodel.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/loadcrea.hpp>
 #include <components/esm3/loadgmst.hpp>
 #include <components/misc/strings/conversion.hpp>
 #include <components/settings/values.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/actionteleport.hpp"
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/class.hpp"
-#include "../mwworld/containerstore.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/store.hpp"
-#include "../mwworld/worldmodel.hpp"
-
-#include "../mwmechanics/actorutil.hpp"
-#include "../mwmechanics/creaturestats.hpp"
 
 namespace MWGui
 {

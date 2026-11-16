@@ -1,5 +1,9 @@
 #include "foreachbulletobject.hpp"
+
+#include <algorithm>
 #include <memory>
+#include <utility>
+#include <vector>
 
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/cellref.hpp>
@@ -10,12 +14,9 @@
 #include <components/esmloader/lessbyid.hpp>
 #include <components/esmloader/record.hpp>
 #include <components/misc/resourcehelpers.hpp>
-#include <components/resource/bulletshapemanager.hpp>
 #include <components/vfs/manager.hpp>
 
-#include <algorithm>
-#include <utility>
-#include <vector>
+#include "bulletshapemanager.hpp"
 
 namespace Resource
 {

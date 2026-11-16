@@ -1,15 +1,14 @@
 #pragma once
 
-#include "mode.hpp"
-#include "windowpinnablebase.hpp"
-
-#include "../mwworld/ptr.hpp"
-
-#include <components/misc/notnullptr.hpp>
+#include <memory>
 
 #include <osg/Vec2i>
 
-#include <memory>
+#include <apps/openmw/mwworld/ptr.hpp>
+#include <components/misc/notnullptr.hpp>
+
+#include "mode.hpp"
+#include "windowpinnablebase.hpp"
 
 namespace MWRender
 {

@@ -2,6 +2,9 @@
 
 #include <sol/sol.hpp>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwlua/context.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/esm/defs.hpp>
 #include <components/esm3/loadclas.hpp>
 #include <components/esm3/loadnpc.hpp>
@@ -9,11 +12,6 @@
 #include <components/lua/utilpackage.hpp>
 #include <components/misc/convert.hpp>
 #include <components/resource/resourcesystem.hpp>
-
-#include "apps/openmw/mwbase/environment.hpp"
-#include "apps/openmw/mwworld/esmstore.hpp"
-
-#include "../context.hpp"
 
 #include "servicesoffered.hpp"
 namespace MWLua

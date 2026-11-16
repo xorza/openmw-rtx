@@ -17,7 +17,6 @@
 #include <apps/opencs/model/world/idcollection.hpp>
 #include <apps/opencs/model/world/land.hpp>
 #include <apps/opencs/model/world/record.hpp>
-
 #include <components/esm3/loadland.hpp>
 
 #include "cell.hpp"

@@ -4,9 +4,8 @@
 #include <osg/Geometry>
 #include <osg/StateSet>
 
-#include <components/sceneutil/material.hpp>
-
 #include "depth.hpp"
+#include "material.hpp"
 
 namespace SceneUtil
 {

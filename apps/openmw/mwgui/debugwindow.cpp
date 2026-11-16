@@ -1,16 +1,15 @@
 #include "debugwindow.hpp"
 
+#include <mutex>
+
 #include <MyGUI_EditBox.h>
 #include <MyGUI_TabControl.h>
 #include <MyGUI_TabItem.h>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/luamanager.hpp>
 #include <components/debug/debugging.hpp>
 #include <components/settings/values.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/luamanager.hpp"
-
-#include <mutex>
 
 namespace MWGui
 {

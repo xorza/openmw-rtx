@@ -1,14 +1,13 @@
 #pragma once
 
+#include <array>
+
+#include <apps/openmw/mwworld/inventorystore.hpp>
+#include <components/vfs/pathutil.hpp>
+
 #include "actoranimation.hpp"
 #include "animation.hpp"
 #include "weaponanimation.hpp"
-
-#include <components/vfs/pathutil.hpp>
-
-#include "../mwworld/inventorystore.hpp"
-
-#include <array>
 
 namespace ESM
 {

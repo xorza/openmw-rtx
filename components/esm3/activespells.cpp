@@ -1,13 +1,13 @@
 #include "activespells.hpp"
 
+#include <cstdint>
+
+#include <components/esm/attr.hpp>
+
 #include "esmreader.hpp"
 #include "esmwriter.hpp"
 #include "loadmgef.hpp"
 #include "loadskil.hpp"
-
-#include <components/esm/attr.hpp>
-
-#include <cstdint>
 
 namespace ESM
 {

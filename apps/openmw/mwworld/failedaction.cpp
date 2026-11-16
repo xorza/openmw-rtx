@@ -1,9 +1,8 @@
 #include "failedaction.hpp"
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-
-#include "../mwmechanics/actorutil.hpp"
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
 
 namespace MWWorld
 {

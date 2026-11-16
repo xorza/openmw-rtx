@@ -1,9 +1,11 @@
 #pragma once
 
-#include "typedaipackage.hpp"
-#include <components/esm/refid.hpp>
 #include <string>
 #include <string_view>
+
+#include <components/esm/refid.hpp>
+
+#include "typedaipackage.hpp"
 
 namespace ESM
 {

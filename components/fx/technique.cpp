@@ -5,11 +5,10 @@
 #include <string>
 #include <utility>
 
+#include <SDL3/SDL_opengl_glext.h>
 #include <osg/Texture1D>
 #include <osg/Texture2D>
 #include <osg/Texture3D>
-
-#include <SDL3/SDL_opengl_glext.h>
 
 #include <components/debug/debuglog.hpp>
 #include <components/misc/strings/algorithm.hpp>

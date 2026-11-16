@@ -1,9 +1,10 @@
 #include "validate.hpp"
 
-#include <boost/any.hpp>
-#include <boost/program_options/errors.hpp>
 #include <set>
 #include <string>
+
+#include <boost/any.hpp>
+#include <boost/program_options/errors.hpp>
 
 static const std::set<std::string_view> allowedKeysInt
     = { "LightAttenuation_LinearMethod", "LightAttenuation_OutQuadInLin", "LightAttenuation_QuadraticMethod",

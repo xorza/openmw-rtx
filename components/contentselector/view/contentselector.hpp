@@ -1,11 +1,10 @@
 #pragma once
 
-#include <memory>
-
 #include <QComboBox>
 #include <QDialog>
 #include <QMenu>
 #include <QToolButton>
+#include <memory>
 
 #include <components/contentselector/model/contentmodel.hpp>
 

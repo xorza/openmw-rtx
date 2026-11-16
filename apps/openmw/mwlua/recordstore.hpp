@@ -10,12 +10,11 @@
 #include <sol/unsafe_function.hpp>
 #include <sol/usertype.hpp>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/store.hpp>
 #include <components/lua/util.hpp>
-
-#include "apps/openmw/mwbase/environment.hpp"
-#include "apps/openmw/mwbase/world.hpp"
-#include "apps/openmw/mwworld/esmstore.hpp"
-#include "apps/openmw/mwworld/store.hpp"
 
 #include "context.hpp"
 #include "object.hpp"

@@ -1,10 +1,10 @@
 #include "statesetupdater.hpp"
 
-#include <components/stereo/stereomanager.hpp>
-
 #include <osg/Node>
 #include <osg/NodeVisitor>
 #include <osgUtil/CullVisitor>
+
+#include <components/stereo/stereomanager.hpp>
 
 namespace SceneUtil
 {

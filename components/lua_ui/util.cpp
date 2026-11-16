@@ -8,14 +8,13 @@
 
 #include "adapter.hpp"
 #include "container.hpp"
+#include "element.hpp"
 #include "flex.hpp"
 #include "image.hpp"
 #include "text.hpp"
 #include "textedit.hpp"
 #include "widget.hpp"
 #include "window.hpp"
-
-#include "element.hpp"
 
 namespace LuaUi
 {

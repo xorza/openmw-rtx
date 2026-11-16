@@ -1,9 +1,9 @@
 #pragma once
 
-#include <osg/Group>
-
 #include <memory>
 #include <unordered_map>
+
+#include <osg/Group>
 
 namespace SceneUtil
 {

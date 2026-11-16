@@ -3,14 +3,11 @@
 #include <QDragEnterEvent>
 #include <QPoint>
 #include <QString>
-
 #include <algorithm>
 #include <cmath>
 #include <limits>
 #include <memory>
 #include <utility>
-
-#include "../../model/prefs/state.hpp"
 
 #include <osg/BoundingBox>
 #include <osg/Camera>
@@ -27,35 +24,32 @@
 #include <apps/opencs/model/doc/document.hpp>
 #include <apps/opencs/model/prefs/category.hpp>
 #include <apps/opencs/model/prefs/setting.hpp>
+#include <apps/opencs/model/prefs/shortcut.hpp>
+#include <apps/opencs/model/prefs/state.hpp>
 #include <apps/opencs/model/world/cellcoordinates.hpp>
 #include <apps/opencs/model/world/cellselection.hpp>
 #include <apps/opencs/model/world/columns.hpp>
+#include <apps/opencs/model/world/commandmacro.hpp>
+#include <apps/opencs/model/world/commands.hpp>
 #include <apps/opencs/model/world/data.hpp>
 #include <apps/opencs/model/world/idcollection.hpp>
+#include <apps/opencs/model/world/idtable.hpp>
+#include <apps/opencs/model/world/idtree.hpp>
 #include <apps/opencs/model/world/refcollection.hpp>
+#include <apps/opencs/model/world/tablemimedata.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
-#include <apps/opencs/view/render/editmode.hpp>
-#include <apps/opencs/view/render/instancedragmodes.hpp>
-#include <apps/opencs/view/render/tagbase.hpp>
-
+#include <apps/opencs/view/widget/scenetoolbar.hpp>
+#include <apps/opencs/view/widget/scenetoolmode.hpp>
 #include <components/misc/scalableicon.hpp>
 
-#include "../../model/prefs/shortcut.hpp"
-#include "../../model/world/commandmacro.hpp"
-#include "../../model/world/commands.hpp"
-#include "../../model/world/idtable.hpp"
-#include "../../model/world/idtree.hpp"
-#include "../../model/world/tablemimedata.hpp"
-
-#include "../widget/scenetoolbar.hpp"
-#include "../widget/scenetoolmode.hpp"
-
-#include "mask.hpp"
-
+#include "editmode.hpp"
+#include "instancedragmodes.hpp"
 #include "instancemovemode.hpp"
 #include "instanceselectionmode.hpp"
+#include "mask.hpp"
 #include "object.hpp"
 #include "pagedworldspacewidget.hpp"
+#include "tagbase.hpp"
 #include "worldspacewidget.hpp"
 
 int CSVRender::InstanceMode::getSubModeFromId(const std::string& id) const

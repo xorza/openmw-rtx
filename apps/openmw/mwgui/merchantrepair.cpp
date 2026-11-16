@@ -1,22 +1,19 @@
 #include "merchantrepair.hpp"
 
-#include <components/esm3/loadgmst.hpp>
-#include <components/settings/values.hpp>
-
 #include <MyGUI_Button.h>
 #include <MyGUI_Gui.h>
 #include <MyGUI_ScrollView.h>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-
-#include "../mwmechanics/actorutil.hpp"
-#include "../mwmechanics/creaturestats.hpp"
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/containerstore.hpp"
-#include "../mwworld/esmstore.hpp"
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwmechanics/creaturestats.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/containerstore.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <components/esm3/loadgmst.hpp>
+#include <components/settings/values.hpp>
 
 namespace MWGui
 {

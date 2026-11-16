@@ -1,21 +1,20 @@
-#include "apps/openmw/mwbase/environment.hpp"
-#include "apps/openmw/mwclass/esm4base.hpp"
-#include "apps/openmw/mwclass/npc.hpp"
-#include "apps/openmw/mwworld/cell.hpp"
-#include "apps/openmw/mwworld/cellstore.hpp"
-#include "apps/openmw/mwworld/esmstore.hpp"
-#include "apps/openmw/mwworld/livecellref.hpp"
-#include "apps/openmw/mwworld/ptr.hpp"
-#include "apps/openmw/mwworld/worldmodel.hpp"
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwclass/esm4base.hpp>
+#include <apps/openmw/mwclass/npc.hpp>
+#include <apps/openmw/mwworld/cell.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/livecellref.hpp>
+#include <apps/openmw/mwworld/ptr.hpp>
+#include <apps/openmw/mwworld/worldmodel.hpp>
 #include <components/esm3/loadnpc.hpp>
 #include <components/esm3/readerscache.hpp>
 #include <components/esm4/loadcell.hpp>
 #include <components/esm4/loadrefr.hpp>
 #include <components/esm4/loadstat.hpp>
-
-#include <gmock/gmock.h>
-#include <gtest/gtest.h>
 
 namespace MWWorld
 {

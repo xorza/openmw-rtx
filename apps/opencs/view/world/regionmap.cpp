@@ -1,10 +1,5 @@
 #include "regionmap.hpp"
 
-#include <algorithm>
-#include <iterator>
-#include <set>
-#include <sstream>
-
 #include <QAbstractItemModel>
 #include <QAction>
 #include <QBrush>
@@ -13,19 +8,22 @@
 #include <QItemSelectionModel>
 #include <QMenu>
 #include <QTableView>
+#include <algorithm>
+#include <iterator>
+#include <set>
+#include <sstream>
 
-#include <apps/opencs/view/world/dragrecordtable.hpp>
+#include <apps/opencs/model/doc/document.hpp>
+#include <apps/opencs/model/world/columns.hpp>
+#include <apps/opencs/model/world/commandmacro.hpp>
+#include <apps/opencs/model/world/commands.hpp>
+#include <apps/opencs/model/world/data.hpp>
+#include <apps/opencs/model/world/idtable.hpp>
+#include <apps/opencs/model/world/regionmap.hpp>
+#include <apps/opencs/model/world/tablemimedata.hpp>
+#include <apps/opencs/model/world/universalid.hpp>
 
-#include "../../model/doc/document.hpp"
-
-#include "../../model/world/columns.hpp"
-#include "../../model/world/commandmacro.hpp"
-#include "../../model/world/commands.hpp"
-#include "../../model/world/data.hpp"
-#include "../../model/world/idtable.hpp"
-#include "../../model/world/regionmap.hpp"
-#include "../../model/world/tablemimedata.hpp"
-#include "../../model/world/universalid.hpp"
+#include "dragrecordtable.hpp"
 
 void CSVWorld::RegionMap::contextMenuEvent(QContextMenuEvent* event)
 {

@@ -9,14 +9,12 @@
 #include <QSplitter>
 #include <QVBoxLayout>
 
+#include <apps/opencs/model/doc/document.hpp>
+#include <apps/opencs/model/doc/documentmanager.hpp>
+#include <apps/opencs/model/doc/state.hpp>
+#include <apps/opencs/view/doc/adjusterwidget.hpp>
+#include <apps/opencs/view/doc/filewidget.hpp>
 #include <components/files/qtconversion.hpp>
-
-#include "../../model/doc/document.hpp"
-#include "../../model/doc/documentmanager.hpp"
-#include "../../model/doc/state.hpp"
-
-#include "../doc/adjusterwidget.hpp"
-#include "../doc/filewidget.hpp"
 
 void CSVTools::Merge::keyPressEvent(QKeyEvent* event)
 {

@@ -10,12 +10,11 @@
 #include <osg/Quat>
 #include <osg/Vec3f>
 
+#include <apps/openmw/mwmechanics/attacktype.hpp>
+#include <apps/openmw/mwmechanics/damagesourcetype.hpp>
+#include <apps/openmw/mwrender/animationpriority.hpp>
 #include <components/esm3/refnum.hpp>
 #include <components/sdlutil/events.hpp>
-
-#include "../mwmechanics/attacktype.hpp"
-#include "../mwmechanics/damagesourcetype.hpp"
-#include "../mwrender/animationpriority.hpp"
 
 namespace MWWorld
 {

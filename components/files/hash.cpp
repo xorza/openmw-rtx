@@ -1,11 +1,11 @@
 #include "hash.hpp"
 
-#include <smhasher/MurmurHash3.h>
-
 #include <array>
 #include <cstdint>
 #include <istream>
 #include <string>
+
+#include <smhasher/MurmurHash3.h>
 
 namespace Files
 {

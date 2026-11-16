@@ -1,4 +1,15 @@
 
+#include <algorithm>
+#include <memory>
+#include <span>
+#include <type_traits>
+
+#include <gtest/gtest.h>
+
+#include <BulletCollision/CollisionShapes/btBoxShape.h>
+#include <BulletCollision/CollisionShapes/btCompoundShape.h>
+#include <BulletCollision/CollisionShapes/btTriangleMesh.h>
+
 #include <apps/components_tests/nif/node.hpp>
 #include <components/bullethelpers/processtrianglecallback.hpp>
 #include <components/misc/convert.hpp>
@@ -6,17 +17,6 @@
 #include <components/nif/extra.hpp>
 #include <components/nif/node.hpp>
 #include <components/nifbullet/bulletnifloader.hpp>
-
-#include <BulletCollision/CollisionShapes/btBoxShape.h>
-#include <BulletCollision/CollisionShapes/btCompoundShape.h>
-#include <BulletCollision/CollisionShapes/btTriangleMesh.h>
-
-#include <gtest/gtest.h>
-
-#include <algorithm>
-#include <memory>
-#include <span>
-#include <type_traits>
 
 namespace
 {

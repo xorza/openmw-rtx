@@ -5,10 +5,10 @@
 #include <istream>
 #include <limits>
 #include <stdexcept>
+#include <utility>
 
 #include <components/files/streamwithbuffer.hpp>
 #include <components/vfs/manager.hpp>
-#include <utility>
 
 namespace MWSound
 {

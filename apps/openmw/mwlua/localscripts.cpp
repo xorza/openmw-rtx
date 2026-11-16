@@ -3,20 +3,20 @@
 #include <type_traits>
 #include <utility>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwmechanics/aicombat.hpp"
-#include "../mwmechanics/aiescort.hpp"
-#include "../mwmechanics/aifollow.hpp"
-#include "../mwmechanics/aipackage.hpp"
-#include "../mwmechanics/aipursue.hpp"
-#include "../mwmechanics/aisequence.hpp"
-#include "../mwmechanics/aitravel.hpp"
-#include "../mwmechanics/aiwander.hpp"
-#include "../mwmechanics/attacktype.hpp"
-#include "../mwmechanics/creaturestats.hpp"
-#include "../mwworld/class.hpp"
-#include "../mwworld/ptr.hpp"
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwmechanics/aicombat.hpp>
+#include <apps/openmw/mwmechanics/aiescort.hpp>
+#include <apps/openmw/mwmechanics/aifollow.hpp>
+#include <apps/openmw/mwmechanics/aipackage.hpp>
+#include <apps/openmw/mwmechanics/aipursue.hpp>
+#include <apps/openmw/mwmechanics/aisequence.hpp>
+#include <apps/openmw/mwmechanics/aitravel.hpp>
+#include <apps/openmw/mwmechanics/aiwander.hpp>
+#include <apps/openmw/mwmechanics/attacktype.hpp>
+#include <apps/openmw/mwmechanics/creaturestats.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/ptr.hpp>
 
 #include "context.hpp"
 #include "luamanagerimp.hpp"

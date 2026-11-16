@@ -6,12 +6,10 @@
 #include <osg/PositionAttitudeTransform>
 #include <osg/ref_ptr>
 
+#include <apps/openmw/mwbase/soundmanager.hpp>
+#include <apps/openmw/mwmechanics/movingtarget.hpp>
 #include <components/esm3/effectlist.hpp>
 #include <components/vfs/pathutil.hpp>
-
-#include "../mwbase/soundmanager.hpp"
-
-#include "../mwmechanics/movingtarget.hpp"
 
 #include "ptr.hpp"
 

@@ -1,12 +1,11 @@
 #pragma once
 
-#include <map>
-#include <string>
-#include <utility>
-
 #include <QKeySequence>
 #include <QObject>
 #include <QString>
+#include <map>
+#include <string>
+#include <utility>
 
 namespace CSMPrefs
 {

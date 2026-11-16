@@ -1,14 +1,12 @@
-#include "types.hpp"
-
-#include "modelproperty.hpp"
-
+#include <apps/openmw/mwbase/environment.hpp>
 #include <components/esm3/loadclot.hpp>
 #include <components/lua/luastate.hpp>
 #include <components/misc/finitevalues.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/resource/resourcesystem.hpp>
 
-#include "apps/openmw/mwbase/environment.hpp"
+#include "modelproperty.hpp"
+#include "types.hpp"
 
 namespace sol
 {

@@ -1,5 +1,7 @@
 #include "esm4npc.hpp"
 
+#include <apps/openmw/mwworld/customdata.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/esm4/loadarmo.hpp>
 #include <components/esm4/loadclot.hpp>
 #include <components/esm4/loadlvli.hpp>
@@ -7,11 +9,7 @@
 #include <components/esm4/loadnpc.hpp>
 #include <components/esm4/loadotft.hpp>
 #include <components/esm4/loadrace.hpp>
-
 #include <components/misc/resourcehelpers.hpp>
-
-#include "../mwworld/customdata.hpp"
-#include "../mwworld/esmstore.hpp"
 
 #include "esm4base.hpp"
 

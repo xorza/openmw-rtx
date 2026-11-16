@@ -5,15 +5,15 @@
 #include <optional>
 #include <utility>
 
+#include <components/misc/utf8stream.hpp>
+#include <components/sceneutil/depth.hpp>
+#include <components/widgets/fontusers.hpp>
+
 #include "MyGUI_FactoryManager.h"
 #include "MyGUI_FontManager.h"
 #include "MyGUI_RenderItem.h"
 #include "MyGUI_RenderManager.h"
 #include "MyGUI_TextureUtility.h"
-
-#include <components/misc/utf8stream.hpp>
-#include <components/sceneutil/depth.hpp>
-#include <components/widgets/fontusers.hpp>
 
 namespace
 {

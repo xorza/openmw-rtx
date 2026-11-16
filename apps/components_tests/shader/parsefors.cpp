@@ -1,7 +1,8 @@
-#include <components/shader/shadermanager.hpp>
+#include <vector>
 
 #include <gtest/gtest.h>
-#include <vector>
+
+#include <components/shader/shadermanager.hpp>
 
 namespace
 {

@@ -1,14 +1,12 @@
 #pragma once
 
-#include "../mwbase/environment.hpp"
-
-#include "../mwworld/esmstore.hpp"
-
-#include <components/esm3/loadcont.hpp>
-#include <components/misc/strings/algorithm.hpp>
-
 #include <algorithm>
 #include <string_view>
+
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <components/esm3/loadcont.hpp>
+#include <components/misc/strings/algorithm.hpp>
 
 namespace MWMechanics
 {

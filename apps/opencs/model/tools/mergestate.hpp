@@ -1,11 +1,10 @@
 #pragma once
 
 #include <cstdint>
-
 #include <map>
 #include <memory>
 
-#include "../doc/document.hpp"
+#include <apps/opencs/model/doc/document.hpp>
 
 namespace CSMTools
 {

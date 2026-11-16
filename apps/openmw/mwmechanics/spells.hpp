@@ -5,8 +5,7 @@
 #include <string>
 #include <vector>
 
-#include "../mwworld/timestamp.hpp"
-
+#include <apps/openmw/mwworld/timestamp.hpp>
 #include <components/esm3/loadspel.hpp>
 
 #include "spelllist.hpp"

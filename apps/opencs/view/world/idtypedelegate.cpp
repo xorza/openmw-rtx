@@ -1,11 +1,11 @@
 #include "idtypedelegate.hpp"
 
-#include "../../model/world/universalid.hpp"
-
-#include <apps/opencs/view/world/datadisplaydelegate.hpp>
-#include <apps/opencs/view/world/util.hpp>
-
 #include <string>
+
+#include <apps/opencs/model/world/universalid.hpp>
+
+#include "datadisplaydelegate.hpp"
+#include "util.hpp"
 
 class QObject;
 

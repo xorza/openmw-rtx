@@ -1,11 +1,10 @@
 #include "objects.hpp"
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/loadcont.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
 
 #include "character.hpp"
 

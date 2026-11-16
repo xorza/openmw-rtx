@@ -5,10 +5,9 @@
 #include <MyGUI_ControllerManager.h>
 #include <MyGUI_Gui.h>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-
-#include "../mwworld/class.hpp"
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwworld/class.hpp>
 
 #include "controllers.hpp"
 #include "inventorywindow.hpp"

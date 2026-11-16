@@ -1,8 +1,7 @@
 #include "mechanicsmanagerimp.hpp"
 
-#include <cassert>
-
 #include <algorithm>
+#include <cassert>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -12,45 +11,42 @@
 #include <utility>
 #include <vector>
 
-#include <components/misc/framestats.hpp>
-#include <components/misc/rng.hpp>
 #include <osg/Math>
 
-#include <components/esm/refid.hpp>
-#include <components/esm3/esmwriter.hpp>
-#include <components/esm3/loadgmst.hpp>
-#include <components/esm3/loadmgef.hpp>
-#include <components/esm3/stolenitems.hpp>
-
+#include <apps/openmw/mwbase/dialoguemanager.hpp>
+#include <apps/openmw/mwbase/environment.hpp>
 #include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/soundmanager.hpp>
+#include <apps/openmw/mwbase/statemanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
 #include <apps/openmw/mwgui/mode.hpp>
 #include <apps/openmw/mwworld/cellref.hpp>
+#include <apps/openmw/mwworld/class.hpp>
 #include <apps/openmw/mwworld/containerstore.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/globals.hpp>
+#include <apps/openmw/mwworld/inventorystore.hpp>
 #include <apps/openmw/mwworld/livecellref.hpp>
+#include <apps/openmw/mwworld/player.hpp>
+#include <apps/openmw/mwworld/ptr.hpp>
 #include <apps/openmw/mwworld/store.hpp>
 #include <components/esm/defs.hpp>
+#include <components/esm/refid.hpp>
 #include <components/esm3/activespells.hpp>
+#include <components/esm3/esmwriter.hpp>
 #include <components/esm3/loadbsgn.hpp>
 #include <components/esm3/loadcrea.hpp>
+#include <components/esm3/loadgmst.hpp>
+#include <components/esm3/loadmgef.hpp>
 #include <components/esm3/loadrace.hpp>
 #include <components/esm3/refnum.hpp>
+#include <components/esm3/stolenitems.hpp>
+#include <components/misc/framestats.hpp>
+#include <components/misc/rng.hpp>
 #include <components/misc/strings/lower.hpp>
 #include <components/sceneutil/positionattitudetransform.hpp>
 #include <components/settings/categories.hpp>
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/globals.hpp"
-#include "../mwworld/inventorystore.hpp"
-#include "../mwworld/player.hpp"
-#include "../mwworld/ptr.hpp"
-
-#include "../mwbase/dialoguemanager.hpp"
-#include "../mwbase/environment.hpp"
-#include "../mwbase/soundmanager.hpp"
-#include "../mwbase/statemanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
 
 #include "actor.hpp"
 #include "actors.hpp"

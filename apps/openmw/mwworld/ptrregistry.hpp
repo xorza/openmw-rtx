@@ -1,10 +1,10 @@
 #pragma once
 
-#include "ptr.hpp"
-
-#include "components/esm3/cellref.hpp"
-
 #include <unordered_map>
+
+#include <components/esm3/cellref.hpp>
+
+#include "ptr.hpp"
 
 namespace MWWorld
 {

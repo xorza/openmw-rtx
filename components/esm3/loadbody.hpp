@@ -1,10 +1,10 @@
 #pragma once
 
+#include <cstdint>
+
 #include <components/esm/defs.hpp>
 #include <components/esm/path.hpp>
 #include <components/esm/refid.hpp>
-
-#include <cstdint>
 
 namespace ESM
 {

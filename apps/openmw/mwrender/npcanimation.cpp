@@ -1,21 +1,28 @@
 #include "npcanimation.hpp"
 
 #include <cmath>
+
 #include <osg/Depth>
 #include <osg/MatrixTransform>
-
 #include <osgUtil/CullVisitor>
 #include <osgUtil/RenderBin>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/soundmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwmechanics/npcstats.hpp>
+#include <apps/openmw/mwmechanics/weapontype.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/inventorystore.hpp>
 #include <components/debug/debuglog.hpp>
-
-#include <components/misc/rng.hpp>
-
-#include <components/misc/resourcehelpers.hpp>
-
 #include <components/esm3/loadbody.hpp>
 #include <components/esm3/loadmgef.hpp>
 #include <components/esm3/loadrace.hpp>
+#include <components/misc/resourcehelpers.hpp>
+#include <components/misc/rng.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/sceneutil/depth.hpp>
@@ -24,21 +31,7 @@
 #include <components/sceneutil/userdata.hpp>
 #include <components/sceneutil/visitor.hpp>
 #include <components/settings/values.hpp>
-
 #include <components/vfs/manager.hpp>
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/inventorystore.hpp"
-
-#include "../mwmechanics/actorutil.hpp"
-#include "../mwmechanics/npcstats.hpp"
-#include "../mwmechanics/weapontype.hpp"
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/soundmanager.hpp"
-#include "../mwbase/world.hpp"
 
 #include "actorutil.hpp"
 #include "postprocessor.hpp"

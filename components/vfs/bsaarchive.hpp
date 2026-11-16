@@ -1,19 +1,18 @@
 #pragma once
 
-#include "archive.hpp"
-#include "file.hpp"
-#include "pathutil.hpp"
+#include <algorithm>
+#include <memory>
+#include <stdexcept>
 
 #include <components/bsa/ba2dx10file.hpp>
 #include <components/bsa/ba2gnrlfile.hpp>
 #include <components/bsa/bsafile.hpp>
 #include <components/bsa/compressedbsafile.hpp>
-
 #include <components/toutf8/toutf8.hpp>
 
-#include <algorithm>
-#include <memory>
-#include <stdexcept>
+#include "archive.hpp"
+#include "file.hpp"
+#include "pathutil.hpp"
 
 namespace VFS
 {

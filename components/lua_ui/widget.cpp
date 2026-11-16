@@ -1,14 +1,15 @@
 #include "widget.hpp"
-#include "components/lua/utilpackage.hpp"
-#include "components/lua_ui/util.hpp"
-#include "element.hpp"
-#include "resources.hpp"
-
-#include <SDL3/SDL_events.h>
-#include <components/sdlutil/sdlmappings.hpp>
 
 #include <MyGUI_InputManager.h>
 #include <MyGUI_PointerManager.h>
+#include <SDL3/SDL_events.h>
+
+#include <components/lua/utilpackage.hpp>
+#include <components/sdlutil/sdlmappings.hpp>
+
+#include "element.hpp"
+#include "resources.hpp"
+#include "util.hpp"
 
 namespace
 {

@@ -1,3 +1,5 @@
+#include "spellcasting.hpp"
+
 #include <algorithm>
 #include <cmath>
 #include <map>
@@ -7,9 +9,16 @@
 #include <utility>
 #include <vector>
 
-#include "spellcasting.hpp"
-
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/luamanager.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/soundmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwrender/animation.hpp>
+#include <apps/openmw/mwworld/class.hpp>
 #include <apps/openmw/mwworld/containerstore.hpp> // IWYU pragma: keep: the store whole, which a Ptr hands out
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/esm/defs.hpp>
 #include <components/esm3/activespells.hpp>
 #include <components/esm3/loadalch.hpp>
@@ -23,18 +32,6 @@
 #include <components/misc/rng.hpp>
 #include <components/misc/strings/format.hpp>
 #include <components/vfs/pathutil.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/luamanager.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/soundmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
-
-#include "../mwrender/animation.hpp"
 
 #include "activespells.hpp"
 #include "actorutil.hpp"

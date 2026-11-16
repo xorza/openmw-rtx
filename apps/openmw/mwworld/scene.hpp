@@ -1,19 +1,19 @@
 #pragma once
 
-#include <osg/Vec2i>
-#include <osg/Vec4i>
-
-#include "lowestpoints.hpp"
-#include "positioncellgrid.hpp"
-#include "ptr.hpp"
-
 #include <memory>
 #include <optional>
 #include <set>
 #include <vector>
 
+#include <osg/Vec2i>
+#include <osg/Vec4i>
+
 #include <components/esm/exteriorcelllocation.hpp>
 #include <components/misc/constants.hpp>
+
+#include "lowestpoints.hpp"
+#include "positioncellgrid.hpp"
+#include "ptr.hpp"
 
 namespace osg
 {

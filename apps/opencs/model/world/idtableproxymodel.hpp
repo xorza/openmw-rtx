@@ -1,17 +1,16 @@
 #pragma once
 
+#include <QModelIndex>
+#include <QSortFilterProxyModel>
+#include <QString>
+#include <QTimer>
 #include <map>
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include <QModelIndex>
-#include <QSortFilterProxyModel>
-#include <QString>
-#include <QTimer>
-
-#include "../prefs/state.hpp"
+#include <apps/opencs/model/prefs/state.hpp>
 
 #include "columns.hpp"
 

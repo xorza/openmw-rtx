@@ -4,8 +4,8 @@
 #include <stack>
 #include <string_view>
 
-#include <components/files/collections.hpp>
-#include <components/files/fixedpath.hpp>
+#include "collections.hpp"
+#include "fixedpath.hpp"
 
 // NOLINTBEGIN(readability-identifier-naming)
 namespace boost::program_options

@@ -28,8 +28,9 @@
 
 #include <stdexcept>
 
-#include "reader.hpp"
 #include <components/esm/refid.hpp> // FIXME: for workaround
+
+#include "reader.hpp"
 // #include "writer.hpp"
 
 void ESM4::Road::load(ESM4::Reader& reader)

@@ -1,10 +1,10 @@
 #include "parser.hpp"
 
+#include <components/misc/strings/lower.hpp>
+
 #include "errorhandler.hpp"
 #include "exception.hpp"
 #include "scanner.hpp"
-
-#include <components/misc/strings/lower.hpp>
 
 namespace Compiler
 {

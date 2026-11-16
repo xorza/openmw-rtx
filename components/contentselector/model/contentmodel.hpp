@@ -1,12 +1,12 @@
 #pragma once
 
-#include "loadordererror.hpp"
 #include <QAbstractTableModel>
 #include <QIcon>
 #include <QSet>
 #include <QStringList>
-
 #include <set>
+
+#include "loadordererror.hpp"
 
 namespace ContentSelectorModel
 {

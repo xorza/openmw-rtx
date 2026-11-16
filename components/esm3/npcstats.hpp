@@ -1,14 +1,15 @@
 #pragma once
 
-#include "loadskil.hpp"
-#include "statstate.hpp"
-#include <components/esm/attr.hpp>
-#include <components/esm/refid.hpp>
-
 #include <array>
 #include <map>
 #include <string>
 #include <vector>
+
+#include <components/esm/attr.hpp>
+#include <components/esm/refid.hpp>
+
+#include "loadskil.hpp"
+#include "statstate.hpp"
 
 namespace ESM
 {

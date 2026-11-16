@@ -10,14 +10,13 @@
 #include <typeinfo>
 #include <vector>
 
-#include "cell.hpp"
-#include "cellreflist.hpp"
-#include "livecellref.hpp"
-
 #include <components/esm/refid.hpp>
 #include <components/esm3/fogstate.hpp>
 #include <components/misc/tuplemeta.hpp>
 
+#include "cell.hpp"
+#include "cellreflist.hpp"
+#include "livecellref.hpp"
 #include "ptr.hpp"
 #include "timestamp.hpp"
 

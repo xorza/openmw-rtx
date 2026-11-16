@@ -1,9 +1,9 @@
 #pragma once
 
-#include <sol/forward.hpp>
-
 #include <map>
 #include <string>
+
+#include <sol/forward.hpp>
 
 namespace MWLua
 {

@@ -1,14 +1,13 @@
 #pragma once
 
-#include "aitemporarybase.hpp"
-#include "typedaipackage.hpp"
-
 #include <string>
 #include <string_view>
 
+#include <apps/openmw/mwworld/ptr.hpp>
 #include <components/esm/defs.hpp>
 
-#include "../mwworld/ptr.hpp"
+#include "aitemporarybase.hpp"
+#include "typedaipackage.hpp"
 
 namespace ESM::AiSequence
 {

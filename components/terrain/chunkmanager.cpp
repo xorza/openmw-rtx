@@ -1,7 +1,6 @@
 #include "chunkmanager.hpp"
 
 #include <osg/Texture2D>
-
 #include <osgUtil/IncrementalCompileOperation>
 
 #include <components/esm/util.hpp>

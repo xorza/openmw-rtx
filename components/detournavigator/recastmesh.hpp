@@ -1,15 +1,15 @@
 #pragma once
 
-#include "areatype.hpp"
-#include "version.hpp"
-
-#include <osg/Vec2i>
-#include <osg/Vec3f>
-
 #include <cstdint>
 #include <numeric>
 #include <tuple>
 #include <vector>
+
+#include <osg/Vec2i>
+#include <osg/Vec3f>
+
+#include "areatype.hpp"
+#include "version.hpp"
 
 namespace DetourNavigator
 {

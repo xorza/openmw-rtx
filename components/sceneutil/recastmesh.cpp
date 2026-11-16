@@ -1,17 +1,16 @@
 #include "recastmesh.hpp"
 
-#include "detourdebugdraw.hpp"
+#include <algorithm>
+#include <vector>
+
+#include <RecastDebugDraw.h>
+#include <osg/Group>
 
 #include <components/detournavigator/recastmesh.hpp>
 #include <components/detournavigator/recastmeshbuilder.hpp>
 #include <components/detournavigator/settings.hpp>
 
-#include <RecastDebugDraw.h>
-
-#include <osg/Group>
-
-#include <algorithm>
-#include <vector>
+#include "detourdebugdraw.hpp"
 
 namespace
 {

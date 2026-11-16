@@ -3,45 +3,39 @@
 #include <algorithm>
 #include <array>
 
+#include <apps/openmw/mwbase/dialoguemanager.hpp>
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/luamanager.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/soundmanager.hpp>
+#include <apps/openmw/mwbase/statemanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwrender/vismask.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/datetimemanager.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/inventorystore.hpp>
+#include <apps/openmw/mwworld/player.hpp>
+#include <apps/openmw/mwworld/scene.hpp>
+#include <apps/openmw/mwworld/worldmodel.hpp>
+#include <components/debug/debuglog.hpp>
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/esmwriter.hpp>
-
-#include <components/debug/debuglog.hpp>
+#include <components/esm3/loadcrea.hpp>
+#include <components/esm3/loadgmst.hpp>
+#include <components/esm3/loadmgef.hpp>
+#include <components/esm3/loadstat.hpp>
 #include <components/misc/mathutil.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/misc/rng.hpp>
 #include <components/sceneutil/positionattitudetransform.hpp>
 #include <components/settings/values.hpp>
 
-#include <components/esm3/loadcrea.hpp>
-#include <components/esm3/loadgmst.hpp>
-#include <components/esm3/loadmgef.hpp>
-#include <components/esm3/loadstat.hpp>
-
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/class.hpp"
-#include "../mwworld/datetimemanager.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/inventorystore.hpp"
-#include "../mwworld/player.hpp"
-#include "../mwworld/scene.hpp"
-#include "../mwworld/worldmodel.hpp"
-
-#include "../mwbase/dialoguemanager.hpp"
-#include "../mwbase/environment.hpp"
-#include "../mwbase/luamanager.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/soundmanager.hpp"
-#include "../mwbase/statemanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwmechanics/aibreathe.hpp"
-
-#include "../mwrender/vismask.hpp"
-
 #include "actor.hpp"
 #include "actorutil.hpp"
+#include "aibreathe.hpp"
 #include "aicombataction.hpp"
 #include "aifollow.hpp"
 #include "aipursue.hpp"

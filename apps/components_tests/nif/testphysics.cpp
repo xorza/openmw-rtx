@@ -1,6 +1,6 @@
-#include <components/nif/physics.hpp>
-
 #include <gtest/gtest.h>
+
+#include <components/nif/physics.hpp>
 
 namespace Nif
 {

@@ -7,25 +7,21 @@
 #include <MyGUI_EditBox.h>
 #include <MyGUI_Gui.h>
 #include <MyGUI_InputManager.h>
+#include <MyGUI_Macros.h>
 #include <MyGUI_UString.h>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwmechanics/alchemy.hpp>
+#include <apps/openmw/mwmechanics/magiceffects.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/esm3/loadappa.hpp>
 #include <components/esm3/loadingr.hpp>
 #include <components/esm3/loadmgef.hpp>
 #include <components/settings/values.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwmechanics/actorutil.hpp"
-#include "../mwmechanics/alchemy.hpp"
-#include "../mwmechanics/magiceffects.hpp"
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
-
-#include <MyGUI_Macros.h>
 
 #include "inventoryitemmodel.hpp"
 #include "itemview.hpp"

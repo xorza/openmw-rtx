@@ -1,9 +1,9 @@
 #include "attr.hpp"
 
+#include <stdexcept>
+
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/esmwriter.hpp>
-
-#include <stdexcept>
 
 namespace ESM
 {

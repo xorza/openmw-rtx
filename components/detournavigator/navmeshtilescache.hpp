@@ -1,10 +1,5 @@
 #pragma once
 
-#include "agentbounds.hpp"
-#include "preparednavmeshdata.hpp"
-#include "recastmesh.hpp"
-#include "tileposition.hpp"
-
 #include <atomic>
 #include <cassert>
 #include <cstring>
@@ -13,6 +8,11 @@
 #include <memory>
 #include <mutex>
 #include <vector>
+
+#include "agentbounds.hpp"
+#include "preparednavmeshdata.hpp"
+#include "recastmesh.hpp"
+#include "tileposition.hpp"
 
 namespace DetourNavigator
 {

@@ -1,12 +1,11 @@
 #include "shortcuteventhandler.hpp"
 
-#include <algorithm>
-#include <cassert>
-
 #include <QEvent>
 #include <QKeyEvent>
 #include <QMouseEvent>
 #include <QWidget>
+#include <algorithm>
+#include <cassert>
 
 #include "shortcut.hpp"
 

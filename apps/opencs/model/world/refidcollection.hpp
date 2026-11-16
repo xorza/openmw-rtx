@@ -1,7 +1,6 @@
 #pragma once
 
 #include <QVariant>
-
 #include <deque>
 #include <map>
 #include <memory>
@@ -10,12 +9,11 @@
 #include <utility>
 #include <vector>
 
-#include <apps/opencs/model/world/universalid.hpp>
-
 #include "collectionbase.hpp"
 #include "columnbase.hpp"
 #include "nestedcollection.hpp"
 #include "refiddata.hpp"
+#include "universalid.hpp"
 
 namespace ESM
 {

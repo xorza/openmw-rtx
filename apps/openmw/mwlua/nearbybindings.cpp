@@ -1,24 +1,23 @@
 #include "nearbybindings.hpp"
 
+#include <utility>
+#include <vector>
+
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwphysics/raycasting.hpp>
+#include <apps/openmw/mwworld/cell.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/scene.hpp>
 #include <components/detournavigator/navigator.hpp>
 #include <components/detournavigator/navigatorutils.hpp>
 #include <components/lua/luastate.hpp>
 #include <components/misc/constants.hpp>
 #include <components/settings/values.hpp>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/world.hpp"
-#include "../mwphysics/raycasting.hpp"
-#include "../mwworld/cell.hpp"
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/scene.hpp"
-
 #include "context.hpp"
 #include "luamanagerimp.hpp"
 #include "objectlists.hpp"
-
-#include <utility>
-#include <vector>
 
 namespace
 {

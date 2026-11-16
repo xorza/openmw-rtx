@@ -1,5 +1,11 @@
 #include "navmeshmanager.hpp"
 
+#include <DetourNavMesh.h>
+#include <osg/io_utils> // IWYU pragma: keep: the vectors' operator<<, which a log line's template calls
+
+#include <components/debug/debuglog.hpp>
+#include <components/esm/util.hpp>
+
 #include "debug.hpp"
 #include "gettilespositions.hpp"
 #include "makenavmesh.hpp"
@@ -7,12 +13,6 @@
 #include "settings.hpp"
 #include "settingsutils.hpp"
 #include "waitconditiontype.hpp"
-
-#include <components/debug/debuglog.hpp>
-#include <components/esm/util.hpp>
-
-#include <DetourNavMesh.h>
-#include <osg/io_utils> // IWYU pragma: keep: the vectors' operator<<, which a log line's template calls
 
 namespace
 {

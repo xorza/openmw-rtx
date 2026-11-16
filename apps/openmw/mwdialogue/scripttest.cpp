@@ -1,14 +1,14 @@
 #include "scripttest.hpp"
 
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/manualref.hpp"
+#include <memory>
+#include <sstream>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/scriptmanager.hpp"
-
-#include "../mwscript/compilercontext.hpp"
-
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/scriptmanager.hpp>
+#include <apps/openmw/mwscript/compilercontext.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/manualref.hpp>
 #include <components/compiler/exception.hpp>
 #include <components/compiler/locals.hpp>
 #include <components/compiler/scanner.hpp>
@@ -19,9 +19,6 @@
 #include <components/esm3/loadnpc.hpp>
 
 #include "filter.hpp"
-
-#include <memory>
-#include <sstream>
 
 namespace
 {

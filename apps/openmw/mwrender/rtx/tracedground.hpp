@@ -2,10 +2,9 @@
 
 #include <cstdint>
 
+#include <apps/openmw/mwrender/ground.hpp>
 #include <components/esm/position.hpp>
 #include <components/esm/refid.hpp>
-
-#include <apps/openmw/mwrender/ground.hpp>
 
 #include "tracedterrain.hpp"
 

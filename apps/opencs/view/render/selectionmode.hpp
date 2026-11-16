@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../widget/scenetoolmode.hpp"
+#include <apps/opencs/view/widget/scenetoolmode.hpp>
 
 class QAction;
 

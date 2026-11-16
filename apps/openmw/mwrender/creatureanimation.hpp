@@ -1,6 +1,7 @@
 #pragma once
 
-#include "../mwworld/inventorystore.hpp"
+#include <apps/openmw/mwworld/inventorystore.hpp>
+
 #include "actoranimation.hpp"
 #include "weaponanimation.hpp"
 

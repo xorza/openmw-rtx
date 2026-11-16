@@ -7,16 +7,15 @@
 #include <limits>
 #include <sstream>
 
+#include <MyGUI_StringUtility.h>
+
+#include <components/lua/shapes/box.hpp>
 #include <components/misc/color.hpp>
 #include <components/misc/mathutil.hpp>
 #include <components/misc/strings/algorithm.hpp>
 
-#include <MyGUI_StringUtility.h>
-
 #include "luastate.hpp"
 #include "util.hpp"
-
-#include "shapes/box.hpp"
 
 namespace sol
 {

@@ -2,11 +2,10 @@
 
 #include <algorithm>
 
+#include <apps/openmw/mwworld/cell.hpp>
 #include <components/fallback/fallback.hpp>
 #include <components/sceneutil/util.hpp>
 #include <components/settings/values.hpp>
-
-#include "apps/openmw/mwworld/cell.hpp"
 
 namespace MWRender
 {

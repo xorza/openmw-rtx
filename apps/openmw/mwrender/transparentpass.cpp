@@ -1,10 +1,7 @@
 #include "transparentpass.hpp"
 
-#include "water.hpp"
-
 #include <osg/BlendFunc>
 #include <osg/Texture2D>
-
 #include <osgUtil/RenderStage>
 
 #include <components/sceneutil/depth.hpp>
@@ -14,6 +11,7 @@
 #include <components/stereo/stereomanager.hpp>
 
 #include "vismask.hpp"
+#include "water.hpp"
 
 namespace MWRender
 {

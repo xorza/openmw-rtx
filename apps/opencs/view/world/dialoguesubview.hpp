@@ -1,21 +1,19 @@
 #pragma once
 
+#include <QAbstractItemDelegate>
+#include <QObject>
+#include <QScrollArea>
+#include <QStyleOptionViewItem>
 #include <map>
 #include <memory>
 #include <set>
 #include <string>
 #include <vector>
 
-#include <QAbstractItemDelegate>
-#include <QObject>
-#include <QScrollArea>
-#include <QStyleOptionViewItem>
-
-#include "../doc/subview.hpp"
-
-#include "../../model/world/columnbase.hpp"
-#include "../../model/world/commanddispatcher.hpp"
-#include "../../model/world/universalid.hpp"
+#include <apps/opencs/model/world/columnbase.hpp>
+#include <apps/opencs/model/world/commanddispatcher.hpp>
+#include <apps/opencs/model/world/universalid.hpp>
+#include <apps/opencs/view/doc/subview.hpp>
 
 class QAbstractItemModel;
 class QAction;

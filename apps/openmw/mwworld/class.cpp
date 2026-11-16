@@ -2,27 +2,24 @@
 
 #include <stdexcept>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwgui/tooltips.hpp>
+#include <apps/openmw/mwmechanics/npcstats.hpp>
 #include <components/esm3/loadench.hpp>
 #include <components/esm3/loadmgef.hpp>
 #include <components/esm3/loadsoun.hpp>
 #include <components/misc/resourcehelpers.hpp>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-#include "../mwworld/esmstore.hpp"
-
 #include "actiontake.hpp"
 #include "containerstore.hpp"
+#include "esmstore.hpp"
 #include "failedaction.hpp"
 #include "inventorystore.hpp"
 #include "nullaction.hpp"
 #include "ptr.hpp"
 #include "worldmodel.hpp"
-
-#include "../mwgui/tooltips.hpp"
-
-#include "../mwmechanics/npcstats.hpp"
 
 namespace MWWorld
 {

@@ -7,6 +7,7 @@
 #include <optional>
 #include <utility>
 
+#include <components/contentstore/store.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/platform/memory.hpp>
 #include <components/resource/imageheader.hpp>
@@ -15,7 +16,6 @@
 #include <components/sceneutil/embeddedimage.hpp>
 
 #include "contentpreprocessor.hpp"
-#include <components/contentstore/store.hpp>
 
 namespace Rtx
 {

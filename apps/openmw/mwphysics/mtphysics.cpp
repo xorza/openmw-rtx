@@ -13,18 +13,15 @@
 #include <LinearMath/btIDebugDraw.h>
 #include <LinearMath/btThreads.h>
 
-#include "components/debug/debuglog.hpp"
-#include "components/misc/convert.hpp"
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwmechanics/creaturestats.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <components/debug/debuglog.hpp>
 #include <components/misc/barrier.hpp>
+#include <components/misc/convert.hpp>
 #include <components/settings/values.hpp>
-
-#include "../mwmechanics/actorutil.hpp"
-#include "../mwmechanics/creaturestats.hpp"
-
-#include "../mwworld/class.hpp"
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/world.hpp"
 
 #include "actor.hpp"
 #include "contacttestwrapper.h"

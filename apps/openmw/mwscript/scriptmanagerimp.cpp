@@ -9,20 +9,17 @@
 #include <string_view>
 #include <vector>
 
-#include <components/debug/debuglog.hpp>
-
-#include <components/esm/refid.hpp>
-#include <components/esm3/loadscpt.hpp>
-
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/journal.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/compiler/context.hpp>
 #include <components/compiler/exception.hpp>
 #include <components/compiler/quickfileparser.hpp>
 #include <components/compiler/scanner.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/journal.hpp"
-#include "../mwbase/world.hpp"
-#include "../mwworld/esmstore.hpp"
+#include <components/debug/debuglog.hpp>
+#include <components/esm/refid.hpp>
+#include <components/esm3/loadscpt.hpp>
 
 #include "extensions.hpp"
 #include "interpretercontext.hpp"

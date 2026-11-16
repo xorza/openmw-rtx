@@ -1,13 +1,13 @@
 #pragma once
 
-#include "navigator.hpp"
-#include "navmeshmanager.hpp"
-#include "updateguard.hpp"
-
 #include <map>
 #include <memory>
 #include <optional>
 #include <unordered_map>
+
+#include "navigator.hpp"
+#include "navmeshmanager.hpp"
+#include "updateguard.hpp"
 
 namespace DetourNavigator
 {

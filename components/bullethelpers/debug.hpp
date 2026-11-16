@@ -5,7 +5,6 @@
 #include <ostream>
 
 #include <BulletCollision/BroadphaseCollision/btBroadphaseProxy.h>
-
 #include <LinearMath/btVector3.h>
 
 inline std::ostream& operator<<(std::ostream& stream, const btVector3& value)

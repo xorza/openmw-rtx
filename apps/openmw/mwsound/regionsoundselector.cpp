@@ -1,11 +1,10 @@
 #include "regionsoundselector.hpp"
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/esm3/loadregn.hpp>
 #include <components/fallback/fallback.hpp>
 #include <components/misc/rng.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwworld/esmstore.hpp"
 
 namespace MWSound
 {

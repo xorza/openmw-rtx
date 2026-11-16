@@ -1,8 +1,8 @@
 #include "thread.hpp"
 
-#include <components/debug/debuglog.hpp>
-
 #include <thread>
+
+#include <components/debug/debuglog.hpp>
 
 #ifdef __linux__
 
@@ -25,7 +25,7 @@ namespace Misc
 
 #elif defined(WIN32)
 
-#include <components/misc/windows.hpp>
+#include "windows.hpp"
 
 namespace Misc
 {

@@ -34,10 +34,10 @@
 #include <components/esm/exteriorcelllocation.hpp>
 #include <components/esm/gameformat.hpp>
 #include <components/esm/refid.hpp>
-#include <components/esm4/reader.hpp>
 #include <components/misc/constants.hpp>
 
 #include "lighting.hpp"
+#include "reader.hpp"
 
 namespace ESM4
 {

@@ -1,7 +1,5 @@
 #include "datadisplaydelegate.hpp"
 
-#include "../../model/prefs/state.hpp"
-
 #include <QApplication>
 #include <QIcon>
 #include <QPainter>
@@ -9,14 +7,15 @@
 #include <QSize>
 #include <QString>
 #include <QStyle>
+#include <utility>
 
 #include <apps/opencs/model/prefs/category.hpp>
 #include <apps/opencs/model/prefs/setting.hpp>
-#include <apps/opencs/view/world/enumdelegate.hpp>
-#include <apps/opencs/view/world/util.hpp>
-
+#include <apps/opencs/model/prefs/state.hpp>
 #include <components/misc/scalableicon.hpp>
-#include <utility>
+
+#include "enumdelegate.hpp"
+#include "util.hpp"
 
 class QModelIndex;
 class QObject;

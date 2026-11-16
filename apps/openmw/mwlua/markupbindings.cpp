@@ -1,12 +1,11 @@
 #include "markupbindings.hpp"
 
+#include <apps/openmw/mwbase/environment.hpp>
 #include <components/lua/luastate.hpp>
 #include <components/lua/yamlloader.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/vfs/manager.hpp>
 #include <components/vfs/pathutil.hpp>
-
-#include "../mwbase/environment.hpp"
 
 #include "context.hpp"
 

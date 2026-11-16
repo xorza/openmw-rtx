@@ -1,6 +1,6 @@
 #include "unrefqueue.hpp"
 
-#include <components/sceneutil/workqueue.hpp>
+#include "workqueue.hpp"
 
 namespace SceneUtil
 {

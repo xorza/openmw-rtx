@@ -1,14 +1,14 @@
 #pragma once
 
-#include "settings.hpp"
-#include "tilebounds.hpp"
-#include "tileposition.hpp"
+#include <algorithm>
+#include <cmath>
 
 #include <osg/Vec2f>
 #include <osg/Vec3f>
 
-#include <algorithm>
-#include <cmath>
+#include "settings.hpp"
+#include "tilebounds.hpp"
+#include "tileposition.hpp"
 
 namespace DetourNavigator
 {

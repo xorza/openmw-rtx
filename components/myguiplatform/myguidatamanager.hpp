@@ -1,12 +1,12 @@
 #pragma once
 
-#include <MyGUI_DataManager.h>
-
 #include <functional>
 #include <map>
 #include <string>
 #include <string_view>
 #include <vector>
+
+#include <MyGUI_DataManager.h>
 
 #include <components/vfs/pathutil.hpp>
 

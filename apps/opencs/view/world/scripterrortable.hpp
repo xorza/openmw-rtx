@@ -1,14 +1,12 @@
 #pragma once
 
 #include <QTableWidget>
-
 #include <string>
 
+#include <apps/opencs/model/doc/messages.hpp>
+#include <apps/opencs/model/world/scriptcontext.hpp>
 #include <components/compiler/errorhandler.hpp>
 #include <components/compiler/extensions.hpp>
-
-#include "../../model/doc/messages.hpp"
-#include "../../model/world/scriptcontext.hpp"
 
 namespace Compiler
 {

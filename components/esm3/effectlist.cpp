@@ -1,14 +1,14 @@
 #include "effectlist.hpp"
 
-#include "esmreader.hpp"
-#include "esmwriter.hpp"
-
 #include <format>
 
 #include <components/esm/attr.hpp>
-#include <components/esm3/loadmgef.hpp>
-#include <components/esm3/loadskil.hpp>
 #include <components/misc/concepts.hpp>
+
+#include "esmreader.hpp"
+#include "esmwriter.hpp"
+#include "loadmgef.hpp"
+#include "loadskil.hpp"
 
 namespace ESM
 {

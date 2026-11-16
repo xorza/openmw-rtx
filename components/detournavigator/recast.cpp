@@ -1,10 +1,10 @@
 #include "recast.hpp"
 
-#include <Recast.h>
-#include <RecastAlloc.h>
-
 #include <cstring>
 #include <new>
+
+#include <Recast.h>
+#include <RecastAlloc.h>
 
 namespace DetourNavigator
 {

@@ -1,9 +1,18 @@
 #include "uibindings.hpp"
 
+#include <cmath>
+#include <format>
+#include <numbers>
 #include <unordered_map>
 #include <utility>
 #include <vector>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/inputmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwrender/renderer.hpp>
+#include <apps/openmw/mwrender/renderingmanager.hpp>
 #include <components/lua/util.hpp>
 #include <components/lua_ui/alignment.hpp>
 #include <components/lua_ui/content.hpp>
@@ -12,26 +21,13 @@
 #include <components/lua_ui/registerscriptsettings.hpp>
 #include <components/lua_ui/resources.hpp>
 #include <components/lua_ui/util.hpp>
-
 #include <components/misc/finitevalues.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/settings/values.hpp>
 #include <components/vfs/manager.hpp>
 
-#include <cmath>
-#include <numbers>
-
 #include "context.hpp"
 #include "luamanagerimp.hpp"
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/inputmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-#include "../mwrender/renderer.hpp"
-#include "../mwrender/renderingmanager.hpp"
-
-#include <format>
 
 namespace sol
 {

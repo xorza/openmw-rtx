@@ -1,14 +1,14 @@
 #include "protocol.hpp"
 
-#include <components/serialization/binaryreader.hpp>
-#include <components/serialization/binarywriter.hpp>
-#include <components/serialization/format.hpp>
-#include <components/serialization/sizeaccumulator.hpp>
-
 #include <iomanip>
 #include <sstream>
 #include <stdexcept>
 #include <string>
+
+#include <components/serialization/binaryreader.hpp>
+#include <components/serialization/binarywriter.hpp>
+#include <components/serialization/format.hpp>
+#include <components/serialization/sizeaccumulator.hpp>
 
 namespace NavMeshTool
 {

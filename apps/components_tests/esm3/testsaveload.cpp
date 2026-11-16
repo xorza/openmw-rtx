@@ -1,3 +1,14 @@
+#include <algorithm>
+#include <array>
+#include <iterator>
+#include <limits>
+#include <memory>
+#include <numeric>
+#include <random>
+
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
+
 #include <components/esm/fourcc.hpp>
 #include <components/esm3/aipackage.hpp>
 #include <components/esm3/aisequence.hpp>
@@ -20,17 +31,6 @@
 #include <components/esm3/loadweap.hpp>
 #include <components/esm3/player.hpp>
 #include <components/esm3/quickkeys.hpp>
-
-#include <gmock/gmock.h>
-#include <gtest/gtest.h>
-
-#include <algorithm>
-#include <array>
-#include <iterator>
-#include <limits>
-#include <memory>
-#include <numeric>
-#include <random>
 
 namespace ESM
 {

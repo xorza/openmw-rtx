@@ -1,8 +1,5 @@
 #include "editwidget.hpp"
 
-#include <sstream>
-#include <variant>
-
 #include <QAction>
 #include <QApplication>
 #include <QContextMenuEvent>
@@ -10,20 +7,20 @@
 #include <QRegularExpression>
 #include <QString>
 #include <QVariant>
-
-#include "filterdata.hpp"
+#include <sstream>
+#include <variant>
 
 #include <apps/opencs/model/filter/parser.hpp>
+#include <apps/opencs/model/prefs/shortcut.hpp>
+#include <apps/opencs/model/world/columns.hpp>
+#include <apps/opencs/model/world/data.hpp>
+#include <apps/opencs/model/world/idtablebase.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
-
 #include <components/debug/debuglog.hpp>
 #include <components/misc/helpviewer.hpp>
 #include <components/misc/scalableicon.hpp>
 
-#include "../../model/prefs/shortcut.hpp"
-#include "../../model/world/columns.hpp"
-#include "../../model/world/data.hpp"
-#include "../../model/world/idtablebase.hpp"
+#include "filterdata.hpp"
 
 CSVFilter::EditWidget::EditWidget(CSMWorld::Data& worldData, QWidget* parent)
     : QLineEdit(parent)

@@ -3,21 +3,18 @@
 #include <QModelIndex>
 #include <QRegularExpression>
 #include <QString>
-
 #include <sstream>
 #include <stdexcept>
 #include <utility>
 #include <vector>
 
+#include <apps/opencs/model/doc/document.hpp>
+#include <apps/opencs/model/doc/messages.hpp>
+#include <apps/opencs/model/world/columnbase.hpp>
 #include <apps/opencs/model/world/columns.hpp>
-
-#include "../doc/document.hpp"
-#include "../doc/messages.hpp"
-
-#include "../world/columnbase.hpp"
-#include "../world/commands.hpp"
-#include "../world/idtablebase.hpp"
-#include "../world/universalid.hpp"
+#include <apps/opencs/model/world/commands.hpp>
+#include <apps/opencs/model/world/idtablebase.hpp>
+#include <apps/opencs/model/world/universalid.hpp>
 
 void CSMTools::Search::searchTextCell(const CSMWorld::IdTableBase* model, const QModelIndex& index,
     const CSMWorld::UniversalId& id, bool writable, CSMDoc::Messages& messages) const

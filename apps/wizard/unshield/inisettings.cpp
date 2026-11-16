@@ -5,7 +5,6 @@
 #include <QRegularExpression>
 #include <QString>
 #include <QStringList>
-
 #include <fstream>
 
 #include <components/files/qtconversion.hpp>

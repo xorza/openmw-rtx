@@ -1,13 +1,14 @@
 #pragma once
 
-#include <components/esm/position.hpp>
-#include <components/resource/bulletshape.hpp>
+#include <functional>
 #include <memory>
+#include <vector>
 
 #include <osg/ref_ptr>
 
-#include <functional>
-#include <vector>
+#include <components/esm/position.hpp>
+
+#include "bulletshape.hpp"
 
 namespace ESM
 {

@@ -1,14 +1,14 @@
 #pragma once
 
-#include <components/settings/settingvalue.hpp>
+#include <cstdint>
+#include <string>
+#include <string_view>
 
 #include <osg/Math>
 #include <osg/Vec2f>
 #include <osg/Vec3f>
 
-#include <cstdint>
-#include <string>
-#include <string_view>
+#include <components/settings/settingvalue.hpp>
 
 namespace Settings
 {

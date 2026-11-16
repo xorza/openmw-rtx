@@ -4,14 +4,12 @@
 #include <string>
 #include <vector>
 
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwscript/compilercontext.hpp>
 #include <components/compiler/errorhandler.hpp>
 #include <components/compiler/extensions.hpp>
 #include <components/compiler/output.hpp>
 #include <components/files/configurationmanager.hpp>
-
-#include "../mwbase/windowmanager.hpp"
-
-#include "../mwscript/compilercontext.hpp"
 
 #include "referenceinterface.hpp"
 #include "windowbase.hpp"

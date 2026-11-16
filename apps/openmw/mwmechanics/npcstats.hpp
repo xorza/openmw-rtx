@@ -1,13 +1,15 @@
 #pragma once
 
-#include "creaturestats.hpp"
-#include <components/esm/refid.hpp>
-#include <components/esm3/loadclas.hpp>
-#include <components/esm3/loadskil.hpp>
 #include <map>
 #include <set>
 #include <string>
 #include <vector>
+
+#include <components/esm/refid.hpp>
+#include <components/esm3/loadclas.hpp>
+#include <components/esm3/loadskil.hpp>
+
+#include "creaturestats.hpp"
 
 namespace ESM
 {

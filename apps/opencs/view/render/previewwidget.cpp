@@ -1,13 +1,13 @@
 #include "previewwidget.hpp"
 
 #include <apps/opencs/model/world/columns.hpp>
+#include <apps/opencs/model/world/data.hpp>
+#include <apps/opencs/model/world/idtable.hpp>
 #include <apps/opencs/model/world/record.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
-#include <apps/opencs/view/render/object.hpp>
-#include <apps/opencs/view/render/scenewidget.hpp>
 
-#include "../../model/world/data.hpp"
-#include "../../model/world/idtable.hpp"
+#include "object.hpp"
+#include "scenewidget.hpp"
 
 class QWidget;
 

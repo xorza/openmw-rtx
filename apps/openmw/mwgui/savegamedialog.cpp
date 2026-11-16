@@ -9,6 +9,14 @@
 #include <MyGUI_LanguageManager.h>
 #include <MyGUI_UString.h>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/statemanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwstate/character.hpp>
+#include <apps/openmw/mwworld/datetimemanager.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/timestamp.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/loadclas.hpp>
 #include <components/files/conversion.hpp>
@@ -16,16 +24,6 @@
 #include <components/misc/timeconvert.hpp>
 #include <components/myguiplatform/myguitexture.hpp>
 #include <components/settings/values.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/statemanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-#include "../mwworld/datetimemanager.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/timestamp.hpp"
-
-#include "../mwstate/character.hpp"
 
 #include "confirmationdialog.hpp"
 

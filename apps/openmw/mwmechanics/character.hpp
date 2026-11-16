@@ -2,11 +2,9 @@
 
 #include <deque>
 
+#include <apps/openmw/mwrender/animation.hpp>
+#include <apps/openmw/mwworld/ptr.hpp>
 #include <components/esm3/loadweap.hpp>
-
-#include "../mwworld/ptr.hpp"
-
-#include "../mwrender/animation.hpp"
 
 namespace MWWorld
 {

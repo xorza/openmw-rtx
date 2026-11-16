@@ -1,12 +1,11 @@
 #include "mainwizard.hpp"
 
-#include <algorithm>
-
 #include <QDateTime>
 #include <QDebug>
 #include <QDir>
 #include <QMessageBox>
 #include <QProcess>
+#include <algorithm>
 
 #include <components/debug/debuglog.hpp>
 #include <components/files/qtconfigpath.hpp>

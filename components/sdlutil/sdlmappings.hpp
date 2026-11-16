@@ -3,7 +3,6 @@
 #include <string>
 
 #include <MyGUI_KeyCode.h>
-
 #include <SDL3/SDL_keycode.h>
 
 namespace MyGUI

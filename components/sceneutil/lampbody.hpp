@@ -8,7 +8,7 @@
 #include <osg/UserDataContainer>
 #include <osg/observer_ptr>
 
-#include <components/sceneutil/lightmanager.hpp>
+#include "lightmanager.hpp"
 
 namespace SceneUtil
 {

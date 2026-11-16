@@ -1,18 +1,16 @@
-#include <string_view>
-
 #include "security.hpp"
 
+#include <string_view>
+
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwworld/class.hpp>
 #include <apps/openmw/mwworld/containerstore.hpp> // IWYU pragma: keep: the store whole, which a Ptr hands out
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/esm3/loadlock.hpp>
 #include <components/esm3/loadprob.hpp>
 #include <components/misc/rng.hpp>
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/world.hpp"
 
 #include "creaturestats.hpp"
 #include "spellutil.hpp"

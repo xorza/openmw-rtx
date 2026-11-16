@@ -4,9 +4,8 @@
 
 #include <sol/sol.hpp>
 
+#include <apps/openmw/mwworld/ptr.hpp>
 #include <components/esm3/cellref.hpp>
-
-#include "../mwworld/ptr.hpp"
 
 namespace MWLua
 {

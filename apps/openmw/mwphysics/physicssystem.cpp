@@ -10,10 +10,18 @@
 #include <BulletCollision/CollisionDispatch/btDefaultCollisionConfiguration.h>
 #include <BulletCollision/CollisionShapes/btSphereShape.h>
 #include <BulletCollision/CollisionShapes/btStaticPlaneShape.h>
-
 #include <LinearMath/btIDebugDraw.h>
 #include <LinearMath/btVector3.h>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwmechanics/creaturestats.hpp>
+#include <apps/openmw/mwmechanics/movement.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/player.hpp>
 #include <components/crashcatcher/crash.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/loadgmst.hpp>
@@ -25,23 +33,9 @@
 #include <components/resource/resourcesystem.hpp>
 #include <components/settings/values.hpp>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwmechanics/actorutil.hpp"
-#include "../mwmechanics/creaturestats.hpp"
-#include "../mwmechanics/movement.hpp"
-
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/player.hpp"
-
-#include "../mwworld/class.hpp"
-
 #include "actor.hpp"
-#include "collisiontype.hpp"
-
 #include "closestnotmerayresultcallback.hpp"
+#include "collisiontype.hpp"
 #include "contacttestresultcallback.hpp"
 #include "hasspherecollisioncallback.hpp"
 #include "heightfield.hpp"

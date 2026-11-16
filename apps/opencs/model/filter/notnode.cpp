@@ -1,7 +1,7 @@
 #include "notnode.hpp"
 
-#include <apps/opencs/model/filter/node.hpp>
-#include <apps/opencs/model/filter/unarynode.hpp>
+#include "node.hpp"
+#include "unarynode.hpp"
 
 namespace CSMWorld
 {

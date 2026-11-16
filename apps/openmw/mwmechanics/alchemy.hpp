@@ -2,9 +2,8 @@
 
 #include <vector>
 
+#include <apps/openmw/mwworld/ptr.hpp>
 #include <components/esm3/effectlist.hpp>
-
-#include "../mwworld/ptr.hpp"
 
 namespace ESM
 {

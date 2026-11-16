@@ -1,10 +1,9 @@
 #pragma once
 
-#include <map>
-#include <string>
-
 #include <QMutex>
 #include <QObject>
+#include <map>
+#include <string>
 
 #include <components/files/configurationmanager.hpp>
 

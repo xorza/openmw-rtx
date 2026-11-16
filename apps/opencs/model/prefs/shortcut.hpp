@@ -1,10 +1,9 @@
 #pragma once
 
-#include <string>
-
 #include <QKeySequence>
 #include <QObject>
 #include <QString>
+#include <string>
 
 class QAction;
 class QWidget;

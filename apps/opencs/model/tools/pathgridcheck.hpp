@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <vector>
 
-#include "../doc/stage.hpp"
+#include <apps/opencs/model/doc/stage.hpp>
 
 namespace CSMDoc
 {

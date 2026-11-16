@@ -1,19 +1,17 @@
-#include "editor.hpp"
-
-#include <string>
-
 #include <QIcon>
 #include <QSurfaceFormat>
+#include <string>
 
 #include <osg/DisplaySettings>
 
+#include <apps/opencs/model/doc/messages.hpp>
+#include <apps/opencs/model/world/disabletag.hpp>
+#include <apps/opencs/model/world/universalid.hpp>
 #include <components/debug/debugging.hpp>
 #include <components/platform/application.hpp>
 #include <components/platform/platform.hpp>
 
-#include "model/doc/messages.hpp"
-#include "model/world/disabletag.hpp"
-#include "model/world/universalid.hpp"
+#include "editor.hpp"
 
 Q_DECLARE_METATYPE(std::string)
 

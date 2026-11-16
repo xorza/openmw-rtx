@@ -4,15 +4,14 @@
 
 #include <osg/ref_ptr>
 
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwphysics/raycasting.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/readerscache.hpp>
 #include <components/misc/framestats.hpp>
 #include <components/misc/rng.hpp>
 #include <components/settings/settings.hpp>
 #include <components/vfs/pathutil.hpp>
-
-#include "../mwbase/world.hpp"
-#include "../mwphysics/raycasting.hpp"
 
 #include "contentloader.hpp"
 #include "datetimemanager.hpp"

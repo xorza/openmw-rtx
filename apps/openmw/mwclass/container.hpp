@@ -1,8 +1,8 @@
 #pragma once
 
-#include "../mwworld/containerstore.hpp"
-#include "../mwworld/customdata.hpp"
-#include "../mwworld/registeredclass.hpp"
+#include <apps/openmw/mwworld/containerstore.hpp>
+#include <apps/openmw/mwworld/customdata.hpp>
+#include <apps/openmw/mwworld/registeredclass.hpp>
 
 namespace ESM
 {

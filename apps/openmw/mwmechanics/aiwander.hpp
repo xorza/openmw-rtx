@@ -1,14 +1,14 @@
 #pragma once
 
+#include <string_view>
+#include <vector>
+
+#include <components/esm3/loadpgrd.hpp>
+
 #include "aitemporarybase.hpp"
 #include "aitimer.hpp"
 #include "pathfinding.hpp"
 #include "typedaipackage.hpp"
-
-#include <components/esm3/loadpgrd.hpp>
-
-#include <string_view>
-#include <vector>
 
 namespace ESM
 {

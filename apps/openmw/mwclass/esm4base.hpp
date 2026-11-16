@@ -1,19 +1,16 @@
 #pragma once
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwgui/tooltips.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/registeredclass.hpp>
 #include <components/esm4/inventory.hpp>
 #include <components/esm4/loadstat.hpp>
 #include <components/esm4/loadtree.hpp>
 #include <components/misc/strings/algorithm.hpp>
 #include <components/vfs/pathutil.hpp>
-
-#include "../mwbase/environment.hpp"
-
-#include "../mwgui/tooltips.hpp"
-
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/registeredclass.hpp"
 
 #include "classmodel.hpp"
 

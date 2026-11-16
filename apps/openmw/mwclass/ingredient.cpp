@@ -3,23 +3,19 @@
 #include <MyGUI_TextIterator.h>
 #include <MyGUI_UString.h>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwgui/tooltips.hpp>
+#include <apps/openmw/mwrender/objects.hpp>
+#include <apps/openmw/mwrender/renderinginterface.hpp>
+#include <apps/openmw/mwworld/actioneat.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/nullaction.hpp>
+#include <apps/openmw/mwworld/ptr.hpp>
 #include <components/esm3/loadingr.hpp>
 #include <components/esm3/loadnpc.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/actioneat.hpp"
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/nullaction.hpp"
-#include "../mwworld/ptr.hpp"
-
-#include "../mwgui/tooltips.hpp"
-
-#include "../mwrender/objects.hpp"
-#include "../mwrender/renderinginterface.hpp"
 
 #include "classmodel.hpp"
 #include "nameorid.hpp"

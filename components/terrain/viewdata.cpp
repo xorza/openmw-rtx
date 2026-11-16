@@ -1,8 +1,8 @@
 #include "viewdata.hpp"
 
-#include "quadtreenode.hpp"
-
 #include <algorithm>
+
+#include "quadtreenode.hpp"
 
 namespace Terrain
 {

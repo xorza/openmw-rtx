@@ -5,10 +5,9 @@
 #include <MyGUI_Types.h>
 #include <osg/Vec2f>
 
+#include <apps/openmw/mwbase/inputmanager.hpp>
 #include <components/sdlutil/events.hpp>
 #include <components/settings/settings.hpp>
-
-#include "../mwbase/inputmanager.hpp"
 
 namespace SDLUtil
 {

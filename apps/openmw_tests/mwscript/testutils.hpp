@@ -13,12 +13,10 @@
 #include <components/compiler/fileparser.hpp>
 #include <components/compiler/opcodes.hpp>
 #include <components/compiler/scanner.hpp>
-
 #include <components/interpreter/context.hpp>
 #include <components/interpreter/installopcodes.hpp>
 #include <components/interpreter/interpreter.hpp>
 #include <components/interpreter/opcodes.hpp>
-
 #include <components/misc/strings/algorithm.hpp>
 
 namespace MWScriptTesting

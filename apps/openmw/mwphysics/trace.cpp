@@ -1,9 +1,9 @@
 #include "trace.h"
 
-#include <components/misc/convert.hpp>
-
 #include <BulletCollision/CollisionDispatch/btCollisionWorld.h>
 #include <BulletCollision/CollisionShapes/btConvexShape.h>
+
+#include <components/misc/convert.hpp>
 
 #include "actor.hpp"
 #include "actorconvexcallback.hpp"

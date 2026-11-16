@@ -4,10 +4,9 @@
 
 #include <osg/Vec3f>
 
+#include <apps/openmw/mwworld/cellstore.hpp>
 #include <components/esm3/cellref.hpp> // defines RefNum that is used as a unique id
 #include <components/lua/utilpackage.hpp>
-
-#include "../mwworld/cellstore.hpp"
 
 namespace MWLua
 {

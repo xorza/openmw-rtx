@@ -30,7 +30,8 @@
 #include <vector>
 
 #include <components/esm/formid.hpp>
-#include <components/esm4/reader.hpp>
+
+#include "reader.hpp"
 
 namespace ESM4
 {

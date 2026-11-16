@@ -14,8 +14,17 @@
 
 #include <osg/Matrixf>
 
+#include <apps/openmw/mwbase/environment.hpp>
 #include <apps/openmw/mwbase/soundmanager.hpp>
+#include <apps/openmw/mwbase/statemanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
 #include <apps/openmw/mwgui/mode.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwrender/animation.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <apps/openmw/mwworld/ptr.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/loadcrea.hpp>
@@ -32,19 +41,6 @@
 #include <components/vfs/manager.hpp>
 #include <components/vfs/pathutil.hpp>
 #include <components/vfs/recursivedirectoryiterator.hpp> // IWYU pragma: keep: the range whole, which a call returns by value
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/statemanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
-
-#include "../mwmechanics/actorutil.hpp"
-
-#include "../mwrender/animation.hpp"
 
 #include "constants.hpp"
 #include "ffmpegdecoder.hpp"

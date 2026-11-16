@@ -1,9 +1,9 @@
 #pragma once
 
-#include <BulletCollision/CollisionShapes/btTriangleCallback.h>
-
 #include <type_traits>
 #include <utility>
+
+#include <BulletCollision/CollisionShapes/btTriangleCallback.h>
 
 namespace BulletHelpers
 {

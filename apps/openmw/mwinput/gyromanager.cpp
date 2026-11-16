@@ -1,10 +1,9 @@
 #include "gyromanager.hpp"
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/inputmanager.hpp"
-#include "../mwbase/world.hpp"
-#include "../mwworld/player.hpp"
-
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/inputmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwworld/player.hpp>
 #include <components/settings/values.hpp>
 
 namespace MWInput

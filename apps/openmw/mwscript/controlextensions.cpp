@@ -1,23 +1,19 @@
-#include <string_view>
-
 #include "controlextensions.hpp"
 
-#include <components/compiler/opcodes.hpp>
+#include <string_view>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/inputmanager.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/creaturestats.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/ptr.hpp>
+#include <components/compiler/opcodes.hpp>
 #include <components/interpreter/context.hpp>
 #include <components/interpreter/interpreter.hpp>
 #include <components/interpreter/opcodes.hpp>
 #include <components/interpreter/runtime.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/inputmanager.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/ptr.hpp"
-
-#include "../mwmechanics/creaturestats.hpp"
 
 #include "ref.hpp"
 

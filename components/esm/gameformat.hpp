@@ -5,7 +5,7 @@
 #include <optional>
 #include <span>
 
-#include <components/esm/common.hpp>
+#include "common.hpp"
 
 namespace ESM
 {

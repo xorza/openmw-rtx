@@ -1,17 +1,18 @@
 #include "navmesh.hpp"
 
-#include "detourdebugdraw.hpp"
-
-#include <components/detournavigator/settings.hpp>
+#include <cmath>
+#include <cstddef>
+#include <utility>
 
 #include <DebugDraw.h>
 #include <DetourNavMesh.h>
 #include <DetourNavMeshQuery.h>
-#include <cmath>
-#include <cstddef>
 #include <osg/Group>
 #include <osg/ref_ptr>
-#include <utility>
+
+#include <components/detournavigator/settings.hpp>
+
+#include "detourdebugdraw.hpp"
 
 namespace
 {

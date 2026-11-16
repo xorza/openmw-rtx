@@ -2,7 +2,6 @@
 
 #include <QAbstractItemModel>
 #include <QModelIndex>
-
 #include <string>
 #include <utility>
 

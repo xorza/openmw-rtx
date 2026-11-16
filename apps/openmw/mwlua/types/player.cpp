@@ -1,22 +1,20 @@
-#include "types.hpp"
-
+#include <apps/openmw/mwbase/dialoguemanager.hpp>
+#include <apps/openmw/mwbase/inputmanager.hpp>
+#include <apps/openmw/mwbase/journal.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwlua/birthsignbindings.hpp>
+#include <apps/openmw/mwlua/luamanagerimp.hpp>
+#include <apps/openmw/mwmechanics/npcstats.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/globals.hpp>
+#include <apps/openmw/mwworld/player.hpp>
 #include <components/esm3/loadbsgn.hpp>
 #include <components/esm3/loadfact.hpp>
 #include <components/lua/util.hpp>
 
-#include "../birthsignbindings.hpp"
-#include "../luamanagerimp.hpp"
-
-#include "apps/openmw/mwbase/dialoguemanager.hpp"
-#include "apps/openmw/mwbase/inputmanager.hpp"
-#include "apps/openmw/mwbase/journal.hpp"
-#include "apps/openmw/mwbase/mechanicsmanager.hpp"
-#include "apps/openmw/mwbase/world.hpp"
-#include "apps/openmw/mwmechanics/npcstats.hpp"
-#include "apps/openmw/mwworld/class.hpp"
-#include "apps/openmw/mwworld/esmstore.hpp"
-#include "apps/openmw/mwworld/globals.hpp"
-#include "apps/openmw/mwworld/player.hpp"
+#include "types.hpp"
 
 namespace MWLua
 {

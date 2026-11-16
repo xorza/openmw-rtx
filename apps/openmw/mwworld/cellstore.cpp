@@ -1,10 +1,14 @@
 #include "cellstore.hpp"
-#include "magiceffects.hpp"
 
 #include <algorithm>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/creaturestats.hpp>
+#include <apps/openmw/mwmechanics/recharge.hpp>
+#include <apps/openmw/mwmechanics/spellutil.hpp>
 #include <components/debug/debuglog.hpp>
-
 #include <components/esm3/actoridconverter.hpp>
 #include <components/esm3/cellref.hpp>
 #include <components/esm3/cellstate.hpp>
@@ -39,16 +43,13 @@
 #include <components/esm3/npcstate.hpp>
 #include <components/esm3/objectstate.hpp>
 #include <components/esm3/readerscache.hpp>
-
 #include <components/esm4/loadachr.hpp>
-#include <components/esm4/loadcell.hpp>
-#include <components/esm4/loadrefr.hpp>
-
 #include <components/esm4/loadacti.hpp> // IWYU pragma: keep: the record whole, which the stores' templates instantiate
 #include <components/esm4/loadalch.hpp> // IWYU pragma: keep: the record whole, which the stores' templates instantiate
 #include <components/esm4/loadammo.hpp> // IWYU pragma: keep: the record whole, which the stores' templates instantiate
 #include <components/esm4/loadarmo.hpp> // IWYU pragma: keep: the record whole, which the stores' templates instantiate
 #include <components/esm4/loadbook.hpp> // IWYU pragma: keep: the record whole, which the stores' templates instantiate
+#include <components/esm4/loadcell.hpp>
 #include <components/esm4/loadclot.hpp> // IWYU pragma: keep: the record whole, which the stores' templates instantiate
 #include <components/esm4/loadcont.hpp> // IWYU pragma: keep: the record whole, which the stores' templates instantiate
 #include <components/esm4/loadcrea.hpp> // IWYU pragma: keep: the record whole, which the stores' templates instantiate
@@ -61,6 +62,7 @@
 #include <components/esm4/loadmisc.hpp> // IWYU pragma: keep: the record whole, which the stores' templates instantiate
 #include <components/esm4/loadmstt.hpp> // IWYU pragma: keep: the record whole, which the stores' templates instantiate
 #include <components/esm4/loadnpc.hpp> // IWYU pragma: keep: the record whole, which the stores' templates instantiate
+#include <components/esm4/loadrefr.hpp>
 #include <components/esm4/loadscol.hpp> // IWYU pragma: keep: the record whole, which the stores' templates instantiate
 #include <components/esm4/loadstat.hpp> // IWYU pragma: keep: the record whole, which the stores' templates instantiate
 #include <components/esm4/loadterm.hpp> // IWYU pragma: keep: the record whole, which the stores' templates instantiate
@@ -68,17 +70,10 @@
 #include <components/esm4/loadweap.hpp> // IWYU pragma: keep: the record whole, which the stores' templates instantiate
 #include <components/misc/tuplehelpers.hpp>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwmechanics/creaturestats.hpp"
-#include "../mwmechanics/recharge.hpp"
-#include "../mwmechanics/spellutil.hpp"
-
 #include "class.hpp"
 #include "containerstore.hpp"
 #include "esmstore.hpp"
+#include "magiceffects.hpp"
 #include "ptr.hpp"
 #include "worldmodel.hpp"
 

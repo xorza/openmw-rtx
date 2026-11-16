@@ -3,12 +3,11 @@
 #include <cassert>
 #include <mutex>
 
-#include <components/terrain/defs.hpp>
-#include <components/terrain/storage.hpp>
-
 #include <components/esm/esmterrain.hpp>
 #include <components/esm/exteriorcelllocation.hpp>
 #include <components/esm3/loadltex.hpp>
+#include <components/terrain/defs.hpp>
+#include <components/terrain/storage.hpp>
 
 namespace ESM4
 {

@@ -5,7 +5,7 @@
 #include <osg/Vec3f>
 #include <osg/Vec4f>
 
-#include <components/sceneutil/statesetupdater.hpp>
+#include "statesetupdater.hpp"
 
 namespace osg
 {

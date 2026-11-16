@@ -1,13 +1,4 @@
 
-#include <components/bsa/bsafile.hpp>
-#include <components/files/memorystream.hpp>
-#include <components/testing/util.hpp>
-
-#include "operators.hpp" // IWYU pragma: keep: the operators a test's matchers and messages call
-
-#include <gmock/gmock.h>
-#include <gtest/gtest.h>
-
 #include <array>
 #include <cstdint>
 #include <cstdlib>
@@ -22,6 +13,15 @@
 #include <string>
 #include <thread>
 #include <vector>
+
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
+
+#include <components/bsa/bsafile.hpp>
+#include <components/files/memorystream.hpp>
+#include <components/testing/util.hpp>
+
+#include "operators.hpp" // IWYU pragma: keep: the operators a test's matchers and messages call
 
 namespace Bsa
 {

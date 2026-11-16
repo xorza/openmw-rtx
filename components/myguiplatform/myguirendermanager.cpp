@@ -1,19 +1,17 @@
 #include "myguirendermanager.hpp"
 
-#include <MyGUI_Exception.h>
-#include <MyGUI_FactoryManager.h>
-#include <MyGUI_LogManager.h>
-#include <MyGUI_Timer.h>
-
 #include <algorithm>
 #include <format>
 #include <source_location>
 #include <string>
 #include <string_view>
 
+#include <MyGUI_Exception.h>
+#include <MyGUI_FactoryManager.h>
+#include <MyGUI_LogManager.h>
+#include <MyGUI_Timer.h>
 #include <osg/Drawable>
 #include <osg/Texture2D>
-
 #include <osgViewer/Viewer>
 
 #include <components/resource/imagemanager.hpp>

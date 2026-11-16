@@ -6,39 +6,34 @@
 #include <QMenu>
 #include <QMetaObject>
 #include <QString>
-
 #include <algorithm>
 #include <stdexcept>
 #include <utility>
 
+#include <apps/opencs/model/doc/document.hpp>
 #include <apps/opencs/model/prefs/category.hpp>
 #include <apps/opencs/model/prefs/setting.hpp>
+#include <apps/opencs/model/prefs/shortcut.hpp>
+#include <apps/opencs/model/prefs/state.hpp>
 #include <apps/opencs/model/world/columnbase.hpp>
 #include <apps/opencs/model/world/columns.hpp>
+#include <apps/opencs/model/world/commanddispatcher.hpp>
+#include <apps/opencs/model/world/commands.hpp>
 #include <apps/opencs/model/world/data.hpp>
 #include <apps/opencs/model/world/idcollection.hpp>
+#include <apps/opencs/model/world/idtable.hpp>
+#include <apps/opencs/model/world/idtablebase.hpp>
 #include <apps/opencs/model/world/idtableproxymodel.hpp>
+#include <apps/opencs/model/world/infotableproxymodel.hpp>
+#include <apps/opencs/model/world/landtexturetableproxymodel.hpp>
 #include <apps/opencs/model/world/record.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
-#include <apps/opencs/view/world/dragrecordtable.hpp>
-
 #include <components/debug/debuglog.hpp>
 #include <components/misc/helpviewer.hpp>
 #include <components/misc/scalableicon.hpp>
 #include <components/misc/strings/algorithm.hpp>
 
-#include "../../model/doc/document.hpp"
-
-#include "../../model/world/commanddispatcher.hpp"
-#include "../../model/world/commands.hpp"
-#include "../../model/world/idtable.hpp"
-#include "../../model/world/idtablebase.hpp"
-#include "../../model/world/infotableproxymodel.hpp"
-#include "../../model/world/landtexturetableproxymodel.hpp"
-
-#include "../../model/prefs/shortcut.hpp"
-#include "../../model/prefs/state.hpp"
-
+#include "dragrecordtable.hpp"
 #include "tableeditidaction.hpp"
 #include "tableheadermouseeventhandler.hpp"
 #include "util.hpp"

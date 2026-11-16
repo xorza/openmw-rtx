@@ -1,12 +1,12 @@
 #pragma once
 
-#include "importscri.hpp"
-
 #include <cstdint>
 
 #include <components/esm/esmcommon.hpp>
 #include <components/esm3/loadscpt.hpp>
 #include <components/esm3/refnum.hpp>
+
+#include "importscri.hpp"
 
 namespace ESM
 {

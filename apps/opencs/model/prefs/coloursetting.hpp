@@ -1,12 +1,11 @@
 #pragma once
 
-#include "setting.hpp"
-
 #include <QColor>
-
 #include <string>
 #include <string_view>
 #include <utility>
+
+#include "setting.hpp"
 
 class QMutex;
 class QObject;

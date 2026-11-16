@@ -1,17 +1,15 @@
 #include "factionbindings.hpp"
-#include "recordstore.hpp"
-#include "types/usertypeutil.hpp"
 
+#include <apps/openmw/mwbase/dialoguemanager.hpp>
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwlua/types/usertypeutil.hpp>
+#include <apps/openmw/mwworld/store.hpp>
 #include <components/esm3/loadfact.hpp>
 #include <components/lua/luastate.hpp>
 #include <components/lua/util.hpp>
 
-#include "../mwbase/dialoguemanager.hpp"
-#include "../mwbase/environment.hpp"
-
-#include "../mwworld/store.hpp"
-
 #include "idcollectionbindings.hpp"
+#include "recordstore.hpp"
 
 namespace
 {

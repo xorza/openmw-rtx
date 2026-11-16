@@ -1,12 +1,11 @@
 #include "look.hpp"
 
-#include <cassert>
-
 #include <QApplication>
 #include <QColor>
 #include <QFont>
 #include <QPalette>
 #include <QStyleHints>
+#include <cassert>
 
 #include "palette.hpp"
 #include "style.hpp"

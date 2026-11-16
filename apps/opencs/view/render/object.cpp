@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <exception>
-#include <stddef.h>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -10,20 +9,18 @@
 #include <osg/PolygonMode>
 #include <osg/PolygonOffset>
 #include <osg/ShapeDrawable>
+#include <stddef.h>
 
+#include <apps/opencs/model/world/cellcoordinates.hpp>
 #include <apps/opencs/model/world/columns.hpp>
+#include <apps/opencs/model/world/commandmacro.hpp>
+#include <apps/opencs/model/world/commands.hpp>
+#include <apps/opencs/model/world/data.hpp>
 #include <apps/opencs/model/world/record.hpp>
 #include <apps/opencs/model/world/ref.hpp>
 #include <apps/opencs/model/world/refcollection.hpp>
 #include <apps/opencs/model/world/refidcollection.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
-#include <apps/opencs/view/render/tagbase.hpp>
-
-#include "../../model/world/cellcoordinates.hpp"
-#include "../../model/world/commandmacro.hpp"
-#include "../../model/world/commands.hpp"
-#include "../../model/world/data.hpp"
-
 #include <components/debug/debuglog.hpp>
 #include <components/esm/esmbridge.hpp>
 #include <components/resource/resourcesystem.hpp>
@@ -35,6 +32,7 @@
 
 #include "actor.hpp"
 #include "mask.hpp"
+#include "tagbase.hpp"
 
 namespace CSVRender
 {

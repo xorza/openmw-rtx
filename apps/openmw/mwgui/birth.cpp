@@ -6,18 +6,16 @@
 #include <MyGUI_ScrollView.h>
 #include <MyGUI_UString.h>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/player.hpp>
 #include <components/esm3/loadbsgn.hpp>
 #include <components/esm3/loadspel.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/settings/values.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/player.hpp"
 
 #include "widgets.hpp"
 

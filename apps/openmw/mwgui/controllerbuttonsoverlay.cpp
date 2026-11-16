@@ -2,9 +2,9 @@
 
 #include <MyGUI_Window.h>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/inputmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/inputmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
 
 namespace MWGui
 {

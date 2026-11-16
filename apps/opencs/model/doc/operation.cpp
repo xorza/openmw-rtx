@@ -1,16 +1,13 @@
 #include "operation.hpp"
 
+#include <QCoreApplication>
 #include <exception>
 #include <vector>
 
-#include <QCoreApplication>
-
+#include <apps/opencs/model/world/universalid.hpp>
 #include <components/debug/debuglog.hpp>
 
-#include <apps/opencs/model/doc/messages.hpp>
-
-#include "../world/universalid.hpp"
-
+#include "messages.hpp"
 #include "stage.hpp"
 
 namespace CSMDoc

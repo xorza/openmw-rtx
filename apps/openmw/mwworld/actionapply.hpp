@@ -1,8 +1,10 @@
 #pragma once
 
-#include "action.hpp"
-#include <components/esm/refid.hpp>
 #include <string>
+
+#include <components/esm/refid.hpp>
+
+#include "action.hpp"
 
 namespace MWWorld
 {

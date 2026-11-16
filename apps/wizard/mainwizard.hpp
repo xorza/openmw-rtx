@@ -3,10 +3,9 @@
 #include <QProcess>
 #include <QWizard>
 
-#include <components/files/configurationmanager.hpp>
-
 #include <components/config/gamesettings.hpp>
 #include <components/config/launchersettings.hpp>
+#include <components/files/configurationmanager.hpp>
 
 namespace Process
 {

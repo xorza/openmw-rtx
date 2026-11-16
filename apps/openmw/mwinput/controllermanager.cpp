@@ -3,18 +3,17 @@
 #include <MyGUI_Button.h>
 #include <MyGUI_InputManager.h>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/inputmanager.hpp>
+#include <apps/openmw/mwbase/luamanager.hpp>
+#include <apps/openmw/mwbase/statemanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwgui/windowbase.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm/refid.hpp>
 #include <components/files/conversion.hpp>
 #include <components/sdlutil/sdlmappings.hpp>
 #include <components/settings/values.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/inputmanager.hpp"
-#include "../mwbase/luamanager.hpp"
-#include "../mwbase/statemanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwgui/windowbase.hpp"
 
 #include "actions.hpp"
 #include "bindingsmanager.hpp"

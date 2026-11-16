@@ -14,8 +14,6 @@
 #include <utility>
 #include <vector>
 
-#include <unicode/locid.h>
-
 #include <MyGUI_ComboBox.h>
 #include <MyGUI_Delegate.h>
 #include <MyGUI_Gui.h>
@@ -32,8 +30,15 @@
 #include <SDL3/SDL_events.h>
 #include <SDL3/SDL_gamepad.h>
 #include <unicode/fmtable.h>
+#include <unicode/locid.h>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/inputmanager.hpp>
 #include <apps/openmw/mwbase/luamanager.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/soundmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/files/configurationmanager.hpp>
 #include <components/l10n/manager.hpp>
@@ -55,13 +60,6 @@
 #include <components/vfs/recursivedirectoryiterator.hpp> // IWYU pragma: keep: the range whole, which a call returns by value
 #include <components/widgets/settlingscrollbar.hpp>
 #include <components/widgets/sharedstatebutton.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/inputmanager.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/soundmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
 
 #include "confirmationdialog.hpp"
 #include "weightedsearch.hpp"

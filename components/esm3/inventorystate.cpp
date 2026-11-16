@@ -1,9 +1,9 @@
 #include "inventorystate.hpp"
 
+#include <cmath>
+
 #include "esmreader.hpp"
 #include "esmwriter.hpp"
-
-#include <cmath>
 
 namespace ESM
 {

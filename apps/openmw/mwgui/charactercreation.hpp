@@ -1,10 +1,10 @@
 #pragma once
 
-#include <components/esm3/loadclas.hpp>
-
 #include <map>
 #include <memory>
 #include <vector>
+
+#include <components/esm3/loadclas.hpp>
 
 #include "mode.hpp"
 #include "statswatcher.hpp"

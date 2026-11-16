@@ -1,10 +1,10 @@
 #include "intropage.hpp"
 
-#include "mainwizard.hpp"
-
 #include <QObject>
 #include <QPixmap>
 #include <QWidget>
+
+#include "mainwizard.hpp"
 
 Wizard::IntroPage::IntroPage(QWidget* parent)
     : QWizardPage(parent)

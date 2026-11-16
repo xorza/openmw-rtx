@@ -2,11 +2,11 @@
 
 #include <algorithm>
 
-#include "statesetupdater.hpp"
-
 #include <osg/Drawable>
 #include <osg/Geometry>
 #include <osg/MatrixTransform>
+
+#include "statesetupdater.hpp"
 
 namespace SceneUtil
 {

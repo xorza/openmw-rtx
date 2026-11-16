@@ -3,15 +3,14 @@
 #include <memory>
 #include <utility>
 
-#include "referenceinterface.hpp"
-#include "windowbase.hpp"
+#include <MyGUI_Delegate.h>
+
+#include <apps/openmw/mwbase/dialoguemanager.hpp>
+#include <apps/openmw/mwdialogue/keywordsearch.hpp>
 
 #include "bookpage.hpp"
-
-#include "../mwbase/dialoguemanager.hpp"
-#include "../mwdialogue/keywordsearch.hpp"
-
-#include <MyGUI_Delegate.h>
+#include "referenceinterface.hpp"
+#include "windowbase.hpp"
 
 namespace Gui
 {

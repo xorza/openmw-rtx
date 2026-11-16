@@ -4,10 +4,6 @@
 #include <stdexcept>
 #include <string_view>
 
-#include <apps/opencs/model/world/columnbase.hpp>
-#include <apps/opencs/model/world/record.hpp>
-#include <apps/opencs/model/world/refiddata.hpp>
-
 #include <components/esm3/loadacti.hpp>
 #include <components/esm3/loadalch.hpp>
 #include <components/esm3/loadarmo.hpp>
@@ -23,11 +19,14 @@
 #include <components/esm3/loadstat.hpp>
 #include <components/esm3/loadweap.hpp>
 
+#include "columnbase.hpp"
 #include "columns.hpp"
 #include "nestedcoladapterimp.hpp" // IWYU pragma: keep: the adapters whole, which the collection's templates instantiate
 #include "nestedtablewrapper.hpp"
+#include "record.hpp"
 #include "refidadapter.hpp"
 #include "refidadapterimp.hpp"
+#include "refiddata.hpp"
 
 CSMWorld::RefIdColumn::RefIdColumn(int columnId, Display displayType, int flag, bool editable, bool userEditable)
     : NestableColumn(columnId, displayType, flag)

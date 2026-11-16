@@ -13,10 +13,10 @@
 #include <utility>
 #include <vector>
 
-#include <components/misc/windows.hpp>
-
 #include <psapi.h>
 #include <shellapi.h>
+
+#include <components/misc/windows.hpp>
 
 namespace Platform::Process
 {

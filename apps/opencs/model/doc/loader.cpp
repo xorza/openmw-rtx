@@ -1,20 +1,17 @@
 #include "loader.hpp"
 
+#include <QTimer>
 #include <exception>
 #include <filesystem>
 
-#include <apps/opencs/model/doc/messages.hpp>
+#include <apps/opencs/model/tools/reportmodel.hpp>
 #include <apps/opencs/model/world/data.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
-
 #include <components/debug/debuglog.hpp>
 #include <components/files/conversion.hpp>
 
-#include <QTimer>
-
-#include "../tools/reportmodel.hpp"
-
 #include "document.hpp"
+#include "messages.hpp"
 
 CSMDoc::Loader::Loader()
     : mShouldStop(false)

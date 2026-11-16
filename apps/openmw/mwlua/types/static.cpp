@@ -1,10 +1,9 @@
-#include "types.hpp"
-
-#include "../contentbindings.hpp"
-#include "usertypeutil.hpp"
-
+#include <apps/openmw/mwlua/contentbindings.hpp>
 #include <components/esm3/loadstat.hpp>
 #include <components/misc/resourcehelpers.hpp>
+
+#include "types.hpp"
+#include "usertypeutil.hpp"
 
 namespace sol
 {

@@ -5,13 +5,13 @@
 #include <vector>
 
 #if defined(__linux__)
-#include <components/files/linuxpath.hpp>
+#include "linuxpath.hpp"
 namespace Files
 {
     typedef LinuxPath TargetPathType;
 }
 #elif defined(__WIN32) || defined(__WINDOWS__) || defined(_WIN32)
-#include <components/files/windowspath.hpp>
+#include "windowspath.hpp"
 namespace Files
 {
     typedef WindowsPath TargetPathType;

@@ -6,42 +6,38 @@
 #include <sstream>
 #include <string>
 
-#include <apps/opencs/model/doc/document.hpp>
-#include <apps/opencs/model/world/cellselection.hpp>
-#include <apps/opencs/model/world/columns.hpp>
-#include <apps/opencs/model/world/data.hpp>
-#include <apps/opencs/model/world/idcollection.hpp>
-#include <apps/opencs/model/world/pathgrid.hpp>
-#include <apps/opencs/model/world/record.hpp>
-#include <apps/opencs/model/world/subcellcollection.hpp>
-#include <apps/opencs/model/world/universalid.hpp>
-#include <apps/opencs/view/render/cell.hpp>
-#include <apps/opencs/view/render/instancedragmodes.hpp>
-#include <apps/opencs/view/render/tagbase.hpp>
-#include <apps/opencs/view/render/worldspacewidget.hpp>
-
-#include <components/esm3/loadpgrd.hpp>
-#include <components/misc/constants.hpp>
-#include <components/misc/scalableicon.hpp>
-
 #include <osg/Camera>
 #include <osg/Vec3f>
 #include <osg/ref_ptr>
 #include <osgViewer/View>
 
-#include "../../model/prefs/shortcut.hpp"
+#include <apps/opencs/model/doc/document.hpp>
+#include <apps/opencs/model/prefs/shortcut.hpp>
+#include <apps/opencs/model/world/cellselection.hpp>
+#include <apps/opencs/model/world/columns.hpp>
+#include <apps/opencs/model/world/data.hpp>
+#include <apps/opencs/model/world/idcollection.hpp>
+#include <apps/opencs/model/world/idtable.hpp>
+#include <apps/opencs/model/world/pathgrid.hpp>
+#include <apps/opencs/model/world/record.hpp>
+#include <apps/opencs/model/world/subcellcollection.hpp>
+#include <apps/opencs/model/world/universalid.hpp>
+#include <apps/opencs/view/widget/scenetoolmode.hpp>
+#include <apps/opencs/view/widget/scenetooltoggle2.hpp>
+#include <components/esm3/loadpgrd.hpp>
+#include <components/misc/constants.hpp>
+#include <components/misc/scalableicon.hpp>
 
-#include "../../model/world/idtable.hpp"
-
-#include "../widget/scenetoolmode.hpp"
-#include "../widget/scenetooltoggle2.hpp"
-
+#include "cell.hpp"
 #include "cellarrow.hpp"
 #include "editmode.hpp"
+#include "instancedragmodes.hpp"
 #include "mask.hpp"
+#include "tagbase.hpp"
 #include "terrainshapemode.hpp"
 #include "terraintexturemode.hpp"
 #include "terrainvertexpaintmode.hpp"
+#include "worldspacewidget.hpp"
 
 class QWidget;
 

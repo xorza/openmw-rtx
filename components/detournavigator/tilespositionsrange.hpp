@@ -1,8 +1,8 @@
 #pragma once
 
-#include "tileposition.hpp"
-
 #include <tuple>
+
+#include "tileposition.hpp"
 
 namespace DetourNavigator
 {

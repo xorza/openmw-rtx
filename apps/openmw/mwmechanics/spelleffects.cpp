@@ -3,6 +3,20 @@
 #include <algorithm>
 #include <array>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/soundmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwrender/animation.hpp>
+#include <apps/openmw/mwworld/actionequip.hpp>
+#include <apps/openmw/mwworld/actionteleport.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/inventorystore.hpp>
+#include <apps/openmw/mwworld/player.hpp>
+#include <apps/openmw/mwworld/worldmodel.hpp>
 #include <components/esm3/loadcrea.hpp>
 #include <components/esm3/loadench.hpp>
 #include <components/esm3/loadmgef.hpp>
@@ -11,29 +25,12 @@
 #include <components/misc/rng.hpp>
 #include <components/settings/values.hpp>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/soundmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwmechanics/actorutil.hpp"
-#include "../mwmechanics/aifollow.hpp"
-#include "../mwmechanics/npcstats.hpp"
-#include "../mwmechanics/spellresistance.hpp"
-#include "../mwmechanics/spellutil.hpp"
-#include "../mwmechanics/summoning.hpp"
-
-#include "../mwrender/animation.hpp"
-
-#include "../mwworld/actionequip.hpp"
-#include "../mwworld/actionteleport.hpp"
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/inventorystore.hpp"
-#include "../mwworld/player.hpp"
-#include "../mwworld/worldmodel.hpp"
+#include "actorutil.hpp"
+#include "aifollow.hpp"
+#include "npcstats.hpp"
+#include "spellresistance.hpp"
+#include "spellutil.hpp"
+#include "summoning.hpp"
 
 namespace
 {

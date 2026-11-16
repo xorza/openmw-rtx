@@ -1,10 +1,10 @@
 #pragma once
 
+#include <memory>
+
 #include <BulletCollision/CollisionDispatch/btCollisionObject.h>
 #include <LinearMath/btQuaternion.h>
 #include <LinearMath/btTransform.h>
-
-#include <memory>
 
 namespace BulletHelpers
 {

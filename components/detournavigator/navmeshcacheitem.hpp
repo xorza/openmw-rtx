@@ -1,16 +1,16 @@
 #pragma once
 
-#include "navmeshdata.hpp"
-#include "navmeshtilescache.hpp"
-#include "tileposition.hpp"
-#include "version.hpp"
+#include <iosfwd>
+#include <map>
+#include <set>
 
 #include <DetourNavMesh.h>
 #include <DetourNavMeshQuery.h>
 
-#include <iosfwd>
-#include <map>
-#include <set>
+#include "navmeshdata.hpp"
+#include "navmeshtilescache.hpp"
+#include "tileposition.hpp"
+#include "version.hpp"
 
 struct dtMeshTile;
 

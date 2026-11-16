@@ -1,13 +1,13 @@
 #pragma once
 
-#include "tileposition.hpp"
+#include <string>
+
+#include <Recast.h>
 
 #include <components/debug/debuglog.hpp>
 #include <components/esm/refid.hpp>
 
-#include <string>
-
-#include <Recast.h>
+#include "tileposition.hpp"
 
 namespace DetourNavigator
 {

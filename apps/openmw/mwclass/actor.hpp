@@ -1,9 +1,7 @@
 #pragma once
 
-#include "../mwworld/class.hpp"
-
-#include "../mwmechanics/magiceffects.hpp"
-
+#include <apps/openmw/mwmechanics/magiceffects.hpp>
+#include <apps/openmw/mwworld/class.hpp>
 #include <components/esm3/loadmgef.hpp>
 #include <components/esm3/loadskil.hpp>
 

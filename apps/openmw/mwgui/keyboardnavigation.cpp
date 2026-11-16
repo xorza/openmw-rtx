@@ -5,10 +5,9 @@
 #include <MyGUI_WidgetManager.h>
 #include <MyGUI_Window.h>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
 #include <components/debug/debuglog.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
 
 namespace MWGui
 {

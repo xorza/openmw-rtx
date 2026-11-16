@@ -1,10 +1,9 @@
 #include "difficultyscaling.hpp"
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/ptr.hpp>
 #include <components/settings/values.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/ptr.hpp"
 
 #include "actorutil.hpp"
 

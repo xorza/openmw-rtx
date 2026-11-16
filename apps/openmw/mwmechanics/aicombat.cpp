@@ -1,5 +1,12 @@
 #include "aicombat.hpp"
 
+#include <apps/openmw/mwbase/dialoguemanager.hpp>
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwphysics/raycasting.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/detournavigator/navigatorutils.hpp>
 #include <components/esm3/aisequence.hpp>
 #include <components/misc/coordinateconverter.hpp>
@@ -7,16 +14,6 @@
 #include <components/misc/pathgridutils.hpp>
 #include <components/misc/rng.hpp>
 #include <components/sceneutil/positionattitudetransform.hpp>
-
-#include "../mwphysics/raycasting.hpp"
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
-
-#include "../mwbase/dialoguemanager.hpp"
-#include "../mwbase/environment.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/world.hpp"
 
 #include "actorutil.hpp"
 #include "aicombataction.hpp"

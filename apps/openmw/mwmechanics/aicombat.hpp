@@ -1,13 +1,12 @@
 #pragma once
 
+#include <apps/openmw/mwworld/cellstore.hpp> // for Doors
+#include <components/esm3/loadpgrd.hpp>
+
 #include "aitemporarybase.hpp"
 #include "aitimer.hpp"
 #include "movement.hpp"
 #include "typedaipackage.hpp"
-
-#include "../mwworld/cellstore.hpp" // for Doors
-
-#include <components/esm3/loadpgrd.hpp>
 
 namespace ESM
 {

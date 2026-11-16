@@ -1,13 +1,11 @@
 #include "controlswitch.hpp"
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/world.hpp>
 #include <components/esm3/controlsstate.hpp>
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/esmwriter.hpp>
-
 #include <components/loadinglistener/loadinglistener.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/world.hpp"
 
 namespace MWInput
 {

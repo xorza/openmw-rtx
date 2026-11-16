@@ -1,8 +1,10 @@
 #pragma once
 
-#include "importinventory.hpp"
-#include <components/esm3/aipackage.hpp>
 #include <cstdint>
+
+#include <components/esm3/aipackage.hpp>
+
+#include "importinventory.hpp"
 
 namespace ESM
 {

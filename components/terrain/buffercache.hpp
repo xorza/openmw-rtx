@@ -1,11 +1,11 @@
 #pragma once
 
+#include <map>
+#include <mutex>
+
 #include <osg/Array>
 #include <osg/PrimitiveSet>
 #include <osg/ref_ptr>
-
-#include <map>
-#include <mutex>
 
 namespace Terrain
 {

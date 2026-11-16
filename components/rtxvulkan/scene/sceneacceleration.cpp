@@ -4,6 +4,7 @@
 #include <cassert>
 #include <cstddef>
 #include <span>
+#include <utility>
 
 #include <components/crashcatcher/crash.hpp>
 #include <components/rtx/common/index.hpp>
@@ -23,7 +24,6 @@
 #include <components/rtxvulkan/pipeline/dispatch.hpp>
 #include <components/rtxvulkan/shaders/shared/toplevelpack.h>
 #include <components/rtxvulkan/shaders/shared/traceconstants.h>
-#include <utility>
 
 #include "placing.hpp"
 #include "toplevelpackpass.hpp"

@@ -1,36 +1,37 @@
 #pragma once
 
-#include "categories/camera.hpp"
-#include "categories/cells.hpp"
-#include "categories/fog.hpp"
-#include "categories/game.hpp"
-#include "categories/general.hpp"
-#include "categories/groundcover.hpp"
-#include "categories/gui.hpp"
-#include "categories/hud.hpp"
-#include "categories/input.hpp"
-#include "categories/lua.hpp"
-#include "categories/map.hpp"
-#include "categories/models.hpp"
-#include "categories/navigator.hpp"
-#include "categories/physics.hpp"
-#include "categories/postprocessing.hpp"
-#include "categories/rtx.hpp"
-#include "categories/saves.hpp"
-#include "categories/shaders.hpp"
-#include "categories/shadows.hpp"
-#include "categories/sound.hpp"
-#include "categories/stereo.hpp"
-#include "categories/stereoview.hpp"
-#include "categories/terrain.hpp"
-#include "categories/video.hpp"
-#include "categories/water.hpp"
-#include "categories/windows.hpp"
-#include "settingvalue.hpp"
-
 #include <cassert>
 #include <memory>
 #include <string_view>
+
+#include <components/settings/categories/camera.hpp>
+#include <components/settings/categories/cells.hpp>
+#include <components/settings/categories/fog.hpp>
+#include <components/settings/categories/game.hpp>
+#include <components/settings/categories/general.hpp>
+#include <components/settings/categories/groundcover.hpp>
+#include <components/settings/categories/gui.hpp>
+#include <components/settings/categories/hud.hpp>
+#include <components/settings/categories/input.hpp>
+#include <components/settings/categories/lua.hpp>
+#include <components/settings/categories/map.hpp>
+#include <components/settings/categories/models.hpp>
+#include <components/settings/categories/navigator.hpp>
+#include <components/settings/categories/physics.hpp>
+#include <components/settings/categories/postprocessing.hpp>
+#include <components/settings/categories/rtx.hpp>
+#include <components/settings/categories/saves.hpp>
+#include <components/settings/categories/shaders.hpp>
+#include <components/settings/categories/shadows.hpp>
+#include <components/settings/categories/sound.hpp>
+#include <components/settings/categories/stereo.hpp>
+#include <components/settings/categories/stereoview.hpp>
+#include <components/settings/categories/terrain.hpp>
+#include <components/settings/categories/video.hpp>
+#include <components/settings/categories/water.hpp>
+#include <components/settings/categories/windows.hpp>
+
+#include "settingvalue.hpp"
 
 namespace Settings
 {

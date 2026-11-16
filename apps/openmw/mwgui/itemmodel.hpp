@@ -2,7 +2,7 @@
 
 #include <memory>
 
-#include "../mwworld/ptr.hpp"
+#include <apps/openmw/mwworld/ptr.hpp>
 
 namespace MWGui
 {

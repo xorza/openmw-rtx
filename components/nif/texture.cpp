@@ -1,4 +1,5 @@
 #include "texture.hpp"
+
 #include "data.hpp" // IWYU pragma: keep: the records whole, which the record pointers' templates read
 
 namespace Nif

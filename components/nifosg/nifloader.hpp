@@ -1,8 +1,8 @@
 #pragma once
 
-#include <components/nif/niffile.hpp>
-
 #include <osg/ref_ptr>
+
+#include <components/nif/niffile.hpp>
 
 namespace SceneUtil
 {

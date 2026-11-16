@@ -1,17 +1,17 @@
 #include "serialization.hpp"
 
-#include "preparednavmeshdata.hpp"
-#include "recast.hpp"
+#include <cstddef>
+#include <cstring>
+#include <type_traits>
+#include <vector>
 
 #include <components/serialization/binaryreader.hpp>
 #include <components/serialization/binarywriter.hpp>
 #include <components/serialization/format.hpp>
 #include <components/serialization/sizeaccumulator.hpp>
 
-#include <cstddef>
-#include <cstring>
-#include <type_traits>
-#include <vector>
+#include "preparednavmeshdata.hpp"
+#include "recast.hpp"
 
 namespace DetourNavigator
 {

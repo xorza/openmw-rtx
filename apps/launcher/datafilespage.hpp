@@ -1,18 +1,17 @@
 #pragma once
 
-#include "ui_datafilespage.h"
-#include "ui_directorypicker.h"
-
-#include <components/process/processinvoker.hpp>
-
 #include <QDir>
 #include <QMenu>
 #include <QStringList>
 #include <QWidget>
-
 #include <condition_variable>
 #include <mutex>
 #include <thread>
+
+#include <components/process/processinvoker.hpp>
+
+#include "ui_datafilespage.h"
+#include "ui_directorypicker.h"
 
 class QSortFilterProxyModel;
 class QAbstractItemModel;

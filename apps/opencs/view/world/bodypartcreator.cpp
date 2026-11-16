@@ -2,10 +2,10 @@
 
 #include <QCheckBox>
 
-#include "../../model/world/data.hpp"
-#include "../../model/world/universalid.hpp"
+#include <apps/opencs/model/world/data.hpp>
+#include <apps/opencs/model/world/universalid.hpp>
 
-#include <apps/opencs/view/world/genericcreator.hpp>
+#include "genericcreator.hpp"
 
 std::string CSVWorld::BodyPartCreator::getId() const
 {

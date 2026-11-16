@@ -2,51 +2,43 @@
 
 #include <filesystem>
 #include <sstream>
+#include <utility>
 
 #include <SDL3/SDL_clipboard.h>
 
+#include <apps/openmw/mwbase/dialoguemanager.hpp>
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/inputmanager.hpp>
+#include <apps/openmw/mwbase/journal.hpp>
+#include <apps/openmw/mwbase/luamanager.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/scriptmanager.hpp>
+#include <apps/openmw/mwbase/soundmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwmechanics/npcstats.hpp>
+#include <apps/openmw/mwscript/globalscripts.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/datetimemanager.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/globals.hpp>
+#include <apps/openmw/mwworld/scene.hpp>
+#include <apps/openmw/mwworld/worldmodel.hpp>
 #include <components/crashcatcher/crash.hpp>
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/debug/debuglog.hpp>
-
 #include <components/esm3/actoridconverter.hpp>
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/esmwriter.hpp>
 #include <components/esm3/loadcell.hpp>
 #include <components/esm3/loadclas.hpp>
-
-#include <components/l10n/manager.hpp>
-
-#include <components/loadinglistener/loadinglistener.hpp>
-
 #include <components/files/conversion.hpp>
+#include <components/l10n/manager.hpp>
+#include <components/loadinglistener/loadinglistener.hpp>
 #include <components/platform/wholefile.hpp>
 #include <components/settings/values.hpp>
-#include <utility>
-
-#include "../mwbase/dialoguemanager.hpp"
-#include "../mwbase/environment.hpp"
-#include "../mwbase/inputmanager.hpp"
-#include "../mwbase/journal.hpp"
-#include "../mwbase/luamanager.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/scriptmanager.hpp"
-#include "../mwbase/soundmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/class.hpp"
-#include "../mwworld/datetimemanager.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/globals.hpp"
-#include "../mwworld/scene.hpp"
-#include "../mwworld/worldmodel.hpp"
-
-#include "../mwmechanics/actorutil.hpp"
-#include "../mwmechanics/npcstats.hpp"
-
-#include "../mwscript/globalscripts.hpp"
 
 #include "quicksavemanager.hpp"
 

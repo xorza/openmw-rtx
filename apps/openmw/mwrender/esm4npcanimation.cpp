@@ -1,5 +1,8 @@
 #include "esm4npcanimation.hpp"
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwclass/esm4npc.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/esm4/loadarma.hpp>
 #include <components/esm4/loadarmo.hpp>
 #include <components/esm4/loadclot.hpp>
@@ -8,14 +11,9 @@
 #include <components/esm4/loadhdpt.hpp>
 #include <components/esm4/loadnpc.hpp>
 #include <components/esm4/loadrace.hpp>
-
 #include <components/misc/resourcehelpers.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwclass/esm4npc.hpp"
-#include "../mwworld/esmstore.hpp"
 
 namespace MWRender
 {

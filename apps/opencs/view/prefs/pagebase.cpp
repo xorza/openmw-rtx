@@ -4,8 +4,8 @@
 #include <QContextMenuEvent>
 #include <QMenu>
 
-#include "../../model/prefs/category.hpp"
-#include "../../model/prefs/state.hpp"
+#include <apps/opencs/model/prefs/category.hpp>
+#include <apps/opencs/model/prefs/state.hpp>
 
 CSVPrefs::PageBase::PageBase(CSMPrefs::Category& category, QWidget* parent)
     : QScrollArea(parent)

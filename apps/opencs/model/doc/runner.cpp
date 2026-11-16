@@ -1,7 +1,5 @@
 #include "runner.hpp"
 
-#include <utility>
-
 #include <QCoreApplication>
 #include <QDir>
 #include <QMessageBox>
@@ -10,6 +8,7 @@
 #include <QStringList>
 #include <QTemporaryFile>
 #include <QTextStream>
+#include <utility>
 
 #include <components/debug/debuglog.hpp>
 #include <components/files/qtconversion.hpp>

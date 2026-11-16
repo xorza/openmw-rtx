@@ -1,13 +1,13 @@
 #pragma once
 
-#include "ui_graphicspage.h"
-
 #include <memory>
 #include <span>
 
 #include <components/dlss/dlss.hpp>
 #include <components/rtx/frame/upscale.hpp>
 #include <components/settings/windowmode.hpp>
+
+#include "ui_graphicspage.h"
 
 class QNetworkAccessManager;
 

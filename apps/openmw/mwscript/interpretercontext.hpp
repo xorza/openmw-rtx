@@ -3,12 +3,11 @@
 #include <memory>
 #include <stdexcept>
 
+#include <apps/openmw/mwworld/ptr.hpp>
 #include <components/esm/refid.hpp>
 #include <components/interpreter/context.hpp>
 
 #include "globalscripts.hpp"
-
-#include "../mwworld/ptr.hpp"
 
 namespace MWScript
 {

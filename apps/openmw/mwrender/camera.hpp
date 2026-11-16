@@ -8,7 +8,7 @@
 #include <osg/Vec3d>
 #include <osg/ref_ptr>
 
-#include "../mwworld/ptr.hpp"
+#include <apps/openmw/mwworld/ptr.hpp>
 
 namespace osg
 {

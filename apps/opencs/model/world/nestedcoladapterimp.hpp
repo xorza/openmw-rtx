@@ -2,7 +2,6 @@
 
 #include <QString>
 #include <QVariant>
-
 #include <algorithm>
 #include <stdexcept>
 #include <string>

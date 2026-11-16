@@ -1,3 +1,5 @@
+#include "creatureanimation.hpp"
+
 #include <exception>
 #include <memory>
 #include <string>
@@ -9,8 +11,8 @@
 #include <osg/Vec3f>
 #include <osg/ref_ptr>
 
-#include "creatureanimation.hpp"
-
+#include <apps/openmw/mwmechanics/weapontype.hpp>
+#include <apps/openmw/mwworld/class.hpp>
 #include <apps/openmw/mwworld/containerstore.hpp>
 #include <apps/openmw/mwworld/livecellref.hpp>
 #include <apps/openmw/mwworld/ptr.hpp>
@@ -28,9 +30,6 @@
 #include <components/settings/values.hpp>
 #include <components/vfs/pathutil.hpp>
 
-#include "../mwmechanics/weapontype.hpp"
-
-#include "../mwworld/class.hpp"
 #include "actoranimation.hpp"
 #include "animation.hpp"
 #include "weaponanimation.hpp"

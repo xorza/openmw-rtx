@@ -1,8 +1,8 @@
 #pragma once
 
-#include <components/vfs/pathutil.hpp>
-
 #include <osg/NodeCallback>
+
+#include <components/vfs/pathutil.hpp>
 
 namespace osg
 {

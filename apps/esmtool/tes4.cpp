@@ -1,6 +1,4 @@
 #include "tes4.hpp"
-#include "arguments.hpp"
-#include "labels.hpp"
 
 #include <array>
 #include <cstdint>
@@ -103,6 +101,9 @@
 #include <components/esm4/readerutils.hpp>
 #include <components/esm4/typetraits.hpp>
 #include <components/toutf8/toutf8.hpp>
+
+#include "arguments.hpp"
+#include "labels.hpp"
 
 namespace EsmTool
 {

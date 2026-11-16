@@ -1,12 +1,12 @@
+#include <filesystem>
+
+#include <gtest/gtest.h>
+
 #include <components/debug/debugging.hpp>
 #include <components/misc/strings/conversion.hpp>
 #include <components/settings/parser.hpp>
 #include <components/settings/values.hpp>
 #include <components/testing/util.hpp>
-
-#include <gtest/gtest.h>
-
-#include <filesystem>
 
 // An exception here ends the process, which is what this function means.
 // NOLINTNEXTLINE(bugprone-exception-escape)

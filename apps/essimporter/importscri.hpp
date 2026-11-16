@@ -1,9 +1,9 @@
 #pragma once
 
-#include <components/esm3/variant.hpp>
-
 #include <cstdint>
 #include <vector>
+
+#include <components/esm3/variant.hpp>
 
 namespace ESM
 {

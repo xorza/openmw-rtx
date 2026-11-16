@@ -14,7 +14,6 @@
 #include <osg/Vec3f>
 
 #include <components/misc/bytebuffer.hpp>
-
 #include <components/rtx/image/alpharange.hpp>
 #include <components/rtx/image/specularlayout.hpp>
 #include <components/rtx/image/texels.hpp>

@@ -1,9 +1,9 @@
 #pragma once
 
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/registeredclass.hpp"
-
 #include <MyGUI_TextIterator.h>
+
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/registeredclass.hpp>
 
 namespace MWClass
 {

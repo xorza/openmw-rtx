@@ -1,10 +1,10 @@
 #pragma once
 
-#include <osg/Drawable>
-
 #include <memory>
 #include <mutex>
 #include <set>
+
+#include <osg/Drawable>
 
 namespace osg
 {

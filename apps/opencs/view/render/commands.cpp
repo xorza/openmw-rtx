@@ -1,10 +1,9 @@
 #include "commands.hpp"
 
-#include <apps/opencs/view/render/editmode.hpp>
-#include <apps/opencs/view/render/terrainselection.hpp>
-
 #include <components/debug/debuglog.hpp>
 
+#include "editmode.hpp"
+#include "terrainselection.hpp"
 #include "terrainshapemode.hpp"
 #include "worldspacewidget.hpp"
 

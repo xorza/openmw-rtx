@@ -1,6 +1,7 @@
-#include "components/esm/defs.hpp"
-#include "components/esm/esmcommon.hpp"
 #include <gtest/gtest.h>
+
+#include <components/esm/defs.hpp>
+#include <components/esm/esmcommon.hpp>
 
 namespace
 {

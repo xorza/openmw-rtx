@@ -1,16 +1,15 @@
 #include "camerabindings.hpp"
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwphysics/raycasting.hpp>
+#include <apps/openmw/mwrender/camera.hpp>
+#include <apps/openmw/mwrender/renderer.hpp>
+#include <apps/openmw/mwrender/renderingmanager.hpp>
 #include <components/lua/luastate.hpp>
 #include <components/lua/utilpackage.hpp>
 #include <components/misc/finitevalues.hpp>
 #include <components/settings/values.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/world.hpp"
-#include "../mwphysics/raycasting.hpp"
-#include "../mwrender/camera.hpp"
-#include "../mwrender/renderer.hpp"
-#include "../mwrender/renderingmanager.hpp"
 
 namespace MWLua
 {

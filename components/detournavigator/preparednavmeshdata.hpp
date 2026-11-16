@@ -1,10 +1,10 @@
 #pragma once
 
-#include "recast.hpp"
+#include <cstddef>
 
 #include <Recast.h>
 
-#include <cstddef>
+#include "recast.hpp"
 
 namespace DetourNavigator
 {

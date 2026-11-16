@@ -3,15 +3,14 @@
 #include <osg/Group>
 #include <osg/Node>
 
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/ptr.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/misc/strings/algorithm.hpp>
 #include <components/sceneutil/positionattitudetransform.hpp>
 #include <components/sceneutil/stableidentity.hpp>
 #include <components/sceneutil/unrefqueue.hpp>
 #include <components/sceneutil/userdata.hpp>
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/ptr.hpp"
 
 #include "animation.hpp"
 #include "creatureanimation.hpp"

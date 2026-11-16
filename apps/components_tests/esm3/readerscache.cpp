@@ -1,8 +1,8 @@
+#include <gtest/gtest.h>
+
 #include <components/esm3/readerscache.hpp>
 #include <components/files/collections.hpp>
 #include <components/files/multidircollection.hpp>
-
-#include <gtest/gtest.h>
 
 namespace
 {

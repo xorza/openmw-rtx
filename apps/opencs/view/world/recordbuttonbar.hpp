@@ -2,7 +2,7 @@
 
 #include <QWidget>
 
-#include "../../model/world/universalid.hpp"
+#include <apps/opencs/model/world/universalid.hpp>
 
 class QToolButton;
 class QModelIndex;

@@ -1,20 +1,19 @@
 #include "keybindingpage.hpp"
 
-#include <cassert>
-#include <string>
-
 #include <QComboBox>
 #include <QGridLayout>
 #include <QLabel>
 #include <QPushButton>
 #include <QStackedLayout>
 #include <QVBoxLayout>
+#include <cassert>
+#include <string>
 
-#include <apps/opencs/view/prefs/pagebase.hpp>
+#include <apps/opencs/model/prefs/category.hpp>
+#include <apps/opencs/model/prefs/setting.hpp>
+#include <apps/opencs/model/prefs/state.hpp>
 
-#include "../../model/prefs/category.hpp"
-#include "../../model/prefs/setting.hpp"
-#include "../../model/prefs/state.hpp"
+#include "pagebase.hpp"
 
 namespace CSVPrefs
 {

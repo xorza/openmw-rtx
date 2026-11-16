@@ -1,11 +1,11 @@
 #pragma once
 
-#include "refid.hpp"
+#include <ostream>
+#include <tuple>
 
 #include <components/esm3/loadcell.hpp>
 
-#include <ostream>
-#include <tuple>
+#include "refid.hpp"
 
 namespace ESM
 {

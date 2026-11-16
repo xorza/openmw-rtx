@@ -6,13 +6,12 @@
 #include <MyGUI_ComboBox.h>
 #include <MyGUI_ControllerItem.h>
 
+#include <apps/openmw/mwmechanics/alchemy.hpp>
 #include <components/widgets/box.hpp>
 #include <components/widgets/numericeditbox.hpp>
 
 #include "itemselection.hpp"
 #include "windowbase.hpp"
-
-#include "../mwmechanics/alchemy.hpp"
 
 namespace MWGui
 {

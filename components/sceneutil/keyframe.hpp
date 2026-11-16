@@ -5,8 +5,8 @@
 
 #include <osg/Object>
 
-#include <components/sceneutil/controller.hpp>
-#include <components/sceneutil/textkeymap.hpp>
+#include "controller.hpp"
+#include "textkeymap.hpp"
 
 namespace SceneUtil
 {

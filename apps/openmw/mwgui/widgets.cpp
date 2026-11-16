@@ -8,6 +8,10 @@
 #include <MyGUI_ProgressBar.h>
 #include <MyGUI_UString.h>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwmechanics/magiceffects.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/esm/attr.hpp>
 #include <components/esm3/loadmgef.hpp>
 #include <components/esm3/loadspel.hpp>
@@ -15,13 +19,6 @@
 #include <components/resource/resourcesystem.hpp>
 
 #include "textcolours.hpp"
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-
-#include "../mwmechanics/magiceffects.hpp"
-
-#include "../mwworld/esmstore.hpp"
 
 namespace MWGui::Widgets
 {

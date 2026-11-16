@@ -1,12 +1,13 @@
 """**The tree's one spelling, made by rewriting and not by hand**: every integer type as `<cstdint>`'s fixed widths,
 `std::`-qualified, and every include of another folder spelled from the root, of the file's own folder quoted.
 Deterministic and idempotent, so `omw format` applies it, `omw format --check` fails a file it would change, and
-`omw merge-file` lays out the base and both sides with it before merging: an upstream edit arrives in the tree's spelling and conflicts only where it overlaps the
-fork's, as git's `merge.renormalize` does for line endings.
+`omw merge-file` lays out the base and both sides with it before merging: an upstream edit arrives in the tree's
+spelling and conflicts only where it overlaps the fork's, as git's `merge.renormalize` does for line endings.
 
 **Outside strings, comments and the headers GLSL reads**, which spell their own: a rewrite that reached a string would
 change what the program prints, and one that reached a comment what it says."""
 
+import itertools
 import re
 from collections.abc import Iterable
 from dataclasses import dataclass
@@ -16,7 +17,7 @@ from omw.system import ROOT
 
 # The rules the tree is held to, each switched on by the commit that first runs it over the tree, so that
 # `omw format --check` never fails a file no commit has rewritten yet.
-ENABLED: tuple[str, ...] = ()
+ENABLED: tuple[str, ...] = ("includes",)
 RULES = ("includes", "integers")
 
 # The headers GLSL reads as well, which spell C++ and GLSL alike (`shaders/portable.h`).
@@ -200,7 +201,7 @@ def _integers(name: str, text: str) -> str:
             raise Unnormalizable(f"{name}: names a type inside Q_ARG, SIGNAL or SLOT, which compare it as a string; "
                                  "spell the call with a function pointer or a lambda")
     code = [piece.text for piece in pieces if piece.code]
-    for before, after in zip(code, code[1:]):
+    for before, after in itertools.pairwise(code):
         if _ENDS_IN_KEYWORD.search(before) and _STARTS_WITH_KEYWORD.search(after):
             raise Unnormalizable(f"{name}: a comment parts an integer type's keywords; join them")
     kept = _kept_lines(text)

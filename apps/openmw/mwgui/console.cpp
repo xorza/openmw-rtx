@@ -1,14 +1,22 @@
 #include "console.hpp"
 
+#include <filesystem>
+#include <fstream>
+#include <regex>
+
 #include <MyGUI_Button.h>
 #include <MyGUI_EditBox.h>
 #include <MyGUI_InputManager.h>
 #include <MyGUI_LayerManager.h>
 
-#include <filesystem>
-#include <fstream>
-#include <regex>
-
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/luamanager.hpp>
+#include <apps/openmw/mwbase/scriptmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwscript/extensions.hpp>
+#include <apps/openmw/mwscript/interpretercontext.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/compiler/exception.hpp>
 #include <components/compiler/extensions0.hpp>
 #include <components/compiler/lineparser.hpp>
@@ -19,18 +27,7 @@
 #include <components/misc/utf8stream.hpp>
 #include <components/settings/values.hpp>
 
-#include "apps/openmw/mwgui/textcolours.hpp"
-
-#include "../mwscript/extensions.hpp"
-#include "../mwscript/interpretercontext.hpp"
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/luamanager.hpp"
-#include "../mwbase/scriptmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
+#include "textcolours.hpp"
 
 namespace
 {

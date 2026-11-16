@@ -4,16 +4,14 @@
 
 #include <MyGUI_LanguageManager.h>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/journal.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwdialogue/keywordsearch.hpp>
+#include <apps/openmw/mwworld/datetimemanager.hpp>
 #include <components/misc/strings/algorithm.hpp>
 #include <components/translation/translation.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/journal.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwdialogue/keywordsearch.hpp"
-#include "../mwworld/datetimemanager.hpp"
 
 namespace MWGui
 {

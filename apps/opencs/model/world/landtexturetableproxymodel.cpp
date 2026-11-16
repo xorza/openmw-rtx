@@ -1,6 +1,6 @@
 #include "landtexturetableproxymodel.hpp"
 
-#include <apps/opencs/model/world/idtableproxymodel.hpp>
+#include "idtableproxymodel.hpp"
 
 namespace CSMWorld
 {

@@ -1,10 +1,9 @@
 #include "shortcut.hpp"
 
-#include <cassert>
-#include <exception>
-
 #include <QAction>
 #include <QWidget>
+#include <cassert>
+#include <exception>
 
 #include <components/debug/debuglog.hpp>
 

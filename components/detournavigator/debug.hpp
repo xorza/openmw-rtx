@@ -1,5 +1,10 @@
 #pragma once
 
+#include <iosfwd>
+#include <string>
+
+#include <DetourStatus.h>
+
 #include "agentbounds.hpp"
 #include "areatype.hpp"
 #include "changetype.hpp"
@@ -7,11 +12,6 @@
 #include "recastmesh.hpp"
 #include "status.hpp"
 #include "tilebounds.hpp"
-
-#include <DetourStatus.h>
-
-#include <iosfwd>
-#include <string>
 
 class dtNavMesh;
 

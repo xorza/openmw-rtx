@@ -1,34 +1,29 @@
 #include "unpagedworldspacewidget.hpp"
 
 #include <sstream>
-
-#include <components/sceneutil/util.hpp>
-
-#include <apps/opencs/model/world/cell.hpp>
-#include <apps/opencs/model/world/cellcoordinates.hpp>
-#include <apps/opencs/model/world/columns.hpp>
-#include <apps/opencs/model/world/pathgrid.hpp>
-#include <apps/opencs/model/world/record.hpp>
-#include <apps/opencs/model/world/subcellcollection.hpp>
-#include <apps/opencs/view/render/cell.hpp>
-#include <apps/opencs/view/render/worldspacewidget.hpp>
-
-#include <components/esm3/loadcell.hpp>
+#include <utility>
 
 #include <osg/Camera>
 #include <osg/Vec4f>
 #include <osg/ref_ptr>
 #include <osgViewer/View>
-#include <utility>
 
-#include "../../model/doc/document.hpp"
-
-#include "../../model/world/data.hpp"
-#include "../../model/world/idtable.hpp"
-
-#include "../widget/scenetooltoggle2.hpp"
+#include <apps/opencs/model/doc/document.hpp>
+#include <apps/opencs/model/world/cell.hpp>
+#include <apps/opencs/model/world/cellcoordinates.hpp>
+#include <apps/opencs/model/world/columns.hpp>
+#include <apps/opencs/model/world/data.hpp>
+#include <apps/opencs/model/world/idtable.hpp>
+#include <apps/opencs/model/world/pathgrid.hpp>
+#include <apps/opencs/model/world/record.hpp>
+#include <apps/opencs/model/world/subcellcollection.hpp>
+#include <apps/opencs/view/widget/scenetooltoggle2.hpp>
+#include <components/esm3/loadcell.hpp>
+#include <components/sceneutil/util.hpp>
 
 #include "cameracontroller.hpp"
+#include "cell.hpp"
+#include "worldspacewidget.hpp"
 
 namespace CSVRender
 {

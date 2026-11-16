@@ -6,6 +6,8 @@
 #include <ranges>
 #include <stdexcept>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/luamanager.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm/defs.hpp>
 #include <components/esm3/cellid.hpp>
@@ -20,9 +22,6 @@
 
 #include "cellstore.hpp"
 #include "esmstore.hpp"
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/luamanager.hpp"
 
 namespace MWWorld
 {

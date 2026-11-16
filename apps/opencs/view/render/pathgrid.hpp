@@ -1,17 +1,18 @@
 #pragma once
 
+#include <QString>
 #include <algorithm>
 #include <string>
 #include <vector>
 
-#include <QString>
 #include <osg/Vec3d>
 #include <osg/ref_ptr>
 
-#include "../../model/world/cellcoordinates.hpp"
-#include "../../model/world/subcellcollection.hpp"
-#include "tagbase.hpp"
+#include <apps/opencs/model/world/cellcoordinates.hpp>
+#include <apps/opencs/model/world/subcellcollection.hpp>
 #include <components/esm/refid.hpp>
+
+#include "tagbase.hpp"
 
 namespace osg
 {

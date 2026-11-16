@@ -2,15 +2,15 @@
 
 #include <utility>
 
+#include <apps/opencs/model/doc/document.hpp>
 #include <apps/opencs/model/doc/operation.hpp>
-#include <apps/opencs/model/tools/mergestate.hpp>
+#include <apps/opencs/model/doc/state.hpp>
 #include <apps/opencs/model/world/cell.hpp>
 #include <apps/opencs/model/world/data.hpp>
 #include <apps/opencs/model/world/info.hpp>
 #include <apps/opencs/model/world/infocollection.hpp>
 #include <apps/opencs/model/world/pathgrid.hpp>
 #include <apps/opencs/model/world/subcellcollection.hpp>
-
 #include <components/esm3/debugprofile.hpp>
 #include <components/esm3/filter.hpp>
 #include <components/esm3/loadbody.hpp>
@@ -31,10 +31,8 @@
 #include <components/esm3/loadspel.hpp>
 #include <components/esm3/loadsscr.hpp>
 
-#include "../doc/document.hpp"
-#include "../doc/state.hpp"
-
 #include "mergestages.hpp"
+#include "mergestate.hpp"
 
 CSMTools::MergeOperation::MergeOperation(CSMDoc::Document& document, ToUTF8::FromType encoding)
     : CSMDoc::Operation(CSMDoc::State_Merging)

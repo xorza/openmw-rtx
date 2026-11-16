@@ -1,5 +1,3 @@
-#include "apps/openmw/mwsound/headcache.hpp"
-
 #include <cstddef>
 #include <filesystem>
 #include <ios>
@@ -10,6 +8,7 @@
 
 #include <gtest/gtest.h>
 
+#include <apps/openmw/mwsound/headcache.hpp>
 #include <components/files/istreamptr.hpp>
 #include <components/testing/util.hpp>
 #include <components/vfs/file.hpp>

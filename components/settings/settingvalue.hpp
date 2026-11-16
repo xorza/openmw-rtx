@@ -1,15 +1,5 @@
 #pragma once
 
-#include "gyroscopeaxis.hpp"
-#include "navmeshrendermode.hpp"
-#include "sanitizer.hpp"
-#include "settings.hpp"
-
-#include <components/debug/debuglog.hpp>
-#include <components/detournavigator/collisionshapetype.hpp>
-#include <components/rtx/frame/upscale.hpp>
-#include <components/vfs/pathutil.hpp>
-
 #include <map>
 #include <memory>
 #include <stdexcept>
@@ -17,6 +7,16 @@
 #include <string_view>
 #include <utility>
 #include <vector>
+
+#include <components/debug/debuglog.hpp>
+#include <components/detournavigator/collisionshapetype.hpp>
+#include <components/rtx/frame/upscale.hpp>
+#include <components/vfs/pathutil.hpp>
+
+#include "gyroscopeaxis.hpp"
+#include "navmeshrendermode.hpp"
+#include "sanitizer.hpp"
+#include "settings.hpp"
 
 namespace Settings
 {

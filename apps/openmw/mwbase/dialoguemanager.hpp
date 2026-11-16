@@ -1,12 +1,11 @@
 #pragma once
 
+#include <cstdint>
 #include <list>
 #include <map>
 #include <string>
 #include <string_view>
 #include <vector>
-
-#include <cstdint>
 
 namespace Loading
 {

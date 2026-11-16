@@ -4,9 +4,8 @@
 
 #include <osg/ref_ptr>
 
+#include <apps/openmw/mwworld/containerstore.hpp>
 #include <components/vfs/pathutil.hpp>
-
-#include "../mwworld/containerstore.hpp"
 
 #include "animation.hpp"
 

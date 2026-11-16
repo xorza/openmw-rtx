@@ -24,7 +24,6 @@
 #include <components/vfs/pathutil.hpp>
 
 #include "restqueue.hpp"
-
 #include "sceneroom.hpp"
 
 namespace Rtx

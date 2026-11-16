@@ -1,7 +1,8 @@
 #pragma once
 
-#include "windowbase.hpp"
 #include <components/esm/refid.hpp>
+
+#include "windowbase.hpp"
 
 namespace MWGui
 {

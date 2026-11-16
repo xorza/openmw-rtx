@@ -1,8 +1,7 @@
 #pragma once
 
+#include <apps/openmw/mwworld/registeredclass.hpp>
 #include <components/esm3/loaddoor.hpp>
-
-#include "../mwworld/registeredclass.hpp"
 
 namespace MWClass
 {

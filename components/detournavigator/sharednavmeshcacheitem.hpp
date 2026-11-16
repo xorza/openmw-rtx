@@ -1,8 +1,8 @@
 #pragma once
 
-#include "guardednavmeshcacheitem.hpp"
-
 #include <memory>
+
+#include "guardednavmeshcacheitem.hpp"
 
 namespace DetourNavigator
 {

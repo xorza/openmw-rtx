@@ -1,17 +1,10 @@
 #include "actoradapter.hpp"
 
 #include <QModelIndex>
-
 #include <string>
 #include <vector>
 
 #include <apps/opencs/model/prefs/state.hpp>
-#include <apps/opencs/model/world/columns.hpp>
-#include <apps/opencs/model/world/idcollection.hpp>
-#include <apps/opencs/model/world/record.hpp>
-#include <apps/opencs/model/world/refidcollection.hpp>
-#include <apps/opencs/model/world/universalid.hpp>
-
 #include <components/esm3/loadarmo.hpp>
 #include <components/esm3/loadclot.hpp>
 #include <components/esm3/loadcont.hpp>
@@ -20,7 +13,12 @@
 #include <components/esm3/loadrace.hpp>
 #include <components/esm3/mappings.hpp>
 
+#include "columns.hpp"
 #include "data.hpp"
+#include "idcollection.hpp"
+#include "record.hpp"
+#include "refidcollection.hpp"
+#include "universalid.hpp"
 
 namespace CSMWorld
 {

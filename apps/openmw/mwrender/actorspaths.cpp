@@ -1,22 +1,20 @@
 #include "actorspaths.hpp"
 
-#include "vismask.hpp"
+#include <algorithm>
 
+#include <osg/LineWidth>
+#include <osg/StateSet>
+
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/world.hpp>
 #include <components/detournavigator/settings.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/sceneutil/agentpath.hpp>
 #include <components/sceneutil/detourdebugdraw.hpp>
-
-#include <osg/LineWidth>
-#include <osg/StateSet>
-
 #include <components/sceneutil/material.hpp>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/world.hpp"
-
-#include <algorithm>
+#include "vismask.hpp"
 
 namespace MWRender
 {

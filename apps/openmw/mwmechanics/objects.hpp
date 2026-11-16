@@ -1,11 +1,11 @@
 #pragma once
 
-#include "character.hpp"
-
 #include <list>
 #include <map>
 #include <string>
 #include <vector>
+
+#include "character.hpp"
 
 namespace osg
 {

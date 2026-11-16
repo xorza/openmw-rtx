@@ -17,6 +17,11 @@
 #include <osgParticle/ParticleSystemUpdater>
 #include <osgUtil/IncrementalCompileOperation>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/scriptmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwclass/esm4base.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/esm/path.hpp>
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/loadacti.hpp>
@@ -48,12 +53,6 @@
 #include <components/sceneutil/util.hpp>
 #include <components/settings/values.hpp>
 #include <components/vfs/manager.hpp>
-
-#include "apps/openmw/mwbase/environment.hpp"
-#include "apps/openmw/mwbase/scriptmanager.hpp"
-#include "apps/openmw/mwbase/world.hpp"
-#include "apps/openmw/mwclass/esm4base.hpp"
-#include "apps/openmw/mwworld/esmstore.hpp"
 
 #include "objectstorage.hpp"
 #include "vismask.hpp"

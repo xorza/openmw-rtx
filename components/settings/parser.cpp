@@ -1,17 +1,16 @@
 #include "parser.hpp"
 
+#include <filesystem>
 #include <format>
+#include <fstream>
 #include <sstream>
+
+#include <Base64.h>
 
 #include <components/debug/debuglog.hpp>
 #include <components/files/conversion.hpp>
 #include <components/misc/strings/algorithm.hpp>
 #include <components/platform/wholefile.hpp>
-
-#include <filesystem>
-#include <fstream>
-
-#include <Base64.h>
 
 void Settings::SettingsFileParser::loadSettingsFile(
     const std::filesystem::path& file, CategorySettingValueMap& settings, bool base64Encoded, bool overrideExisting)

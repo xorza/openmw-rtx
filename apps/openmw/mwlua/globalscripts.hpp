@@ -1,10 +1,10 @@
 #pragma once
 
+#include <osg/Vec3f>
+
 #include <components/lua/luastate.hpp>
 #include <components/lua/scriptscontainer.hpp>
 #include <components/lua/utilpackage.hpp>
-
-#include <osg/Vec3f>
 
 #include "object.hpp"
 

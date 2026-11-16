@@ -1,5 +1,9 @@
 #include "contentbindings.hpp"
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwlua/types/types.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/weather.hpp>
 #include <components/esm3/loadacti.hpp>
 #include <components/esm3/loadalch.hpp>
 #include <components/esm3/loadappa.hpp>
@@ -29,12 +33,7 @@
 #include "racebindings.hpp"
 #include "soundbindings.hpp"
 #include "stats.hpp"
-#include "types/types.hpp"
 #include "weatherbindings.hpp"
-
-#include "../mwbase/environment.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/weather.hpp"
 
 namespace
 {

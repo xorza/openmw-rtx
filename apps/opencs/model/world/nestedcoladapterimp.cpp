@@ -1,13 +1,9 @@
 #include "nestedcoladapterimp.hpp"
 
 #include <map>
-#include <stdint.h>
 #include <utility>
 
-#include <apps/opencs/model/world/cell.hpp>
-#include <apps/opencs/model/world/disabletag.hpp>
-#include <apps/opencs/model/world/nestedtablewrapper.hpp>
-#include <apps/opencs/model/world/record.hpp>
+#include <stdint.h>
 
 #include <components/esm/attr.hpp>
 #include <components/esm3/loadcell.hpp>
@@ -16,9 +12,13 @@
 #include <components/esm3/loadrace.hpp>
 #include <components/esm3/loadregn.hpp>
 
+#include "cell.hpp"
+#include "disabletag.hpp"
 #include "info.hpp"
 #include "infoselectwrapper.hpp"
+#include "nestedtablewrapper.hpp"
 #include "pathgrid.hpp"
+#include "record.hpp"
 
 namespace CSMWorld
 {

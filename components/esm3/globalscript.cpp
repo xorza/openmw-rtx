@@ -1,9 +1,9 @@
 #include "globalscript.hpp"
 
+#include <cstdint>
+
 #include "esmreader.hpp"
 #include "esmwriter.hpp"
-
-#include <cstdint>
 
 namespace ESM
 {

@@ -1,11 +1,10 @@
-#include "types.hpp"
-
-#include "usertypeutil.hpp"
-
 #include <components/esm3/loadligh.hpp>
 #include <components/misc/color.hpp>
 #include <components/misc/finitevalues.hpp>
 #include <components/misc/resourcehelpers.hpp>
+
+#include "types.hpp"
+#include "usertypeutil.hpp"
 
 namespace sol
 {

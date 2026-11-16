@@ -1,16 +1,15 @@
 #pragma once
 
-#include "recastmesh.hpp"
-#include "tilebounds.hpp"
-
-#include <osg/Vec3f>
-
-#include <LinearMath/btTransform.h>
-
 #include <array>
 #include <memory>
 #include <tuple>
 #include <vector>
+
+#include <LinearMath/btTransform.h>
+#include <osg/Vec3f>
+
+#include "recastmesh.hpp"
+#include "tilebounds.hpp"
 
 class btBoxShape;
 class btCollisionShape;

@@ -2,22 +2,21 @@
 
 #include <QModelIndex>
 #include <QVariant>
-
 #include <cstdint>
 #include <map>
-#include <stddef.h>
 #include <stdexcept>
 
-#include <apps/opencs/model/world/columns.hpp>
-#include <apps/opencs/model/world/idcollection.hpp>
-#include <apps/opencs/model/world/idtablebase.hpp>
-#include <apps/opencs/model/world/record.hpp>
-#include <apps/opencs/model/world/universalid.hpp>
+#include <stddef.h>
 
 #include <components/esm3/loadcell.hpp>
 
 #include "collectionbase.hpp"
 #include "columnbase.hpp"
+#include "columns.hpp"
+#include "idcollection.hpp"
+#include "idtablebase.hpp"
+#include "record.hpp"
+#include "universalid.hpp"
 
 CSMWorld::IdTable::IdTable(CollectionBase* idCollection, unsigned int features)
     : IdTableBase(features)

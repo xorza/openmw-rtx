@@ -1,5 +1,13 @@
 #include "tilecachedrecastmeshmanager.hpp"
+
+#include <algorithm>
+#include <limits>
 #include <memory>
+
+#include <boost/geometry/geometry.hpp> // IWYU pragma: keep: the strategies the R-tree's queries instantiate
+
+#include <components/bullethelpers/aabb.hpp>
+#include <components/misc/convert.hpp>
 
 #include "changetype.hpp"
 #include "gettilespositions.hpp"
@@ -7,14 +15,6 @@
 #include "settingsutils.hpp"
 #include "stats.hpp"
 #include "updateguard.hpp"
-
-#include <components/bullethelpers/aabb.hpp>
-#include <components/misc/convert.hpp>
-
-#include <algorithm>
-#include <limits>
-
-#include <boost/geometry/geometry.hpp> // IWYU pragma: keep: the strategies the R-tree's queries instantiate
 
 namespace DetourNavigator
 {

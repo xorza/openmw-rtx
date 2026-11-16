@@ -17,7 +17,6 @@
 #include <components/esm3/loadprob.hpp>
 #include <components/esm3/loadrepa.hpp>
 #include <components/esm3/loadweap.hpp>
-
 #include <components/misc/rng.hpp>
 
 #include "cellreflist.hpp"

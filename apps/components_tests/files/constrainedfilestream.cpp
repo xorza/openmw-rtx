@@ -1,5 +1,3 @@
-#include <components/files/constrainedfilestream.hpp>
-
 #include <cstddef>
 #include <filesystem>
 #include <fstream>
@@ -10,6 +8,7 @@
 
 #include <gtest/gtest.h>
 
+#include <components/files/constrainedfilestream.hpp>
 #include <components/files/constrainedfilestreambuf.hpp>
 #include <components/testing/util.hpp>
 

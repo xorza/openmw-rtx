@@ -8,7 +8,6 @@
 
 #include <components/esm3/containerstate.hpp>
 #include <components/esm3/creaturestate.hpp>
-
 #include <components/misc/constants.hpp>
 
 #include "convertcntc.hpp"

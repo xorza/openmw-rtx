@@ -1,9 +1,9 @@
 #include "refiddata.hpp"
 
-#include <apps/opencs/model/world/record.hpp>
-#include <apps/opencs/model/world/universalid.hpp>
-
 #include <memory>
+
+#include "record.hpp"
+#include "universalid.hpp"
 
 namespace ESM
 {

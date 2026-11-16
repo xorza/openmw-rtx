@@ -1,22 +1,21 @@
 #pragma once
 
-#include "areatype.hpp"
-#include "flags.hpp"
-#include "settings.hpp"
-#include "settingsutils.hpp"
-#include "status.hpp"
-
-#include <DetourCommon.h>
-#include <DetourNavMesh.h>
-#include <DetourNavMeshQuery.h>
-
-#include <osg/Vec3f>
-
 #include <cassert>
 #include <functional>
 #include <iterator>
 #include <span>
 #include <vector>
+
+#include <DetourCommon.h>
+#include <DetourNavMesh.h>
+#include <DetourNavMeshQuery.h>
+#include <osg/Vec3f>
+
+#include "areatype.hpp"
+#include "flags.hpp"
+#include "settings.hpp"
+#include "settingsutils.hpp"
+#include "status.hpp"
 
 namespace DetourNavigator
 {

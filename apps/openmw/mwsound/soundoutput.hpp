@@ -4,10 +4,9 @@
 #include <string>
 #include <vector>
 
+#include <apps/openmw/mwbase/soundmanager.hpp>
 #include <components/settings/hrtfmode.hpp>
 #include <components/vfs/pathutil.hpp>
-
-#include "../mwbase/soundmanager.hpp"
 
 namespace MWSound
 {

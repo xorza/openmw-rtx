@@ -1,9 +1,9 @@
 #include "doorstate.hpp"
 
+#include <components/debug/debuglog.hpp>
+
 #include "esmreader.hpp"
 #include "esmwriter.hpp"
-
-#include <components/debug/debuglog.hpp>
 
 namespace ESM
 {

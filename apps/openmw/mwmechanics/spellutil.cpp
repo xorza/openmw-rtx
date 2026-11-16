@@ -3,16 +3,14 @@
 #include <cmath>
 #include <limits>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/esm3/loadalch.hpp>
 #include <components/esm3/loadench.hpp>
 #include <components/esm3/loadingr.hpp>
 #include <components/esm3/loadmgef.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
 
 #include "actorutil.hpp"
 #include "creaturestats.hpp"

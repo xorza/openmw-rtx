@@ -1,7 +1,8 @@
 #pragma once
 
-#include <MyGUI_UString.h>
 #include <string_view>
+
+#include <MyGUI_UString.h>
 
 namespace Gui
 {

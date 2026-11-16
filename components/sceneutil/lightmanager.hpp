@@ -16,9 +16,10 @@
 
 #include <components/misc/constants.hpp>
 #include <components/resource/resourcesystem.hpp>
-#include <components/sceneutil/clusteredlighting.hpp>
-#include <components/sceneutil/lightcontroller.hpp>
-#include <components/sceneutil/nodecallback.hpp>
+
+#include "clusteredlighting.hpp"
+#include "lightcontroller.hpp"
+#include "nodecallback.hpp"
 
 namespace SceneUtil
 {

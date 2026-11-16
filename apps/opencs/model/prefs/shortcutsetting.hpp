@@ -1,10 +1,9 @@
 #pragma once
 
+#include <QKeySequence>
 #include <string>
 #include <string_view>
 #include <utility>
-
-#include <QKeySequence>
 
 #include "setting.hpp"
 

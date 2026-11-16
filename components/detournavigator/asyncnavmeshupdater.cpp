@@ -1,13 +1,4 @@
 #include "asyncnavmeshupdater.hpp"
-#include "debug.hpp"
-#include "makenavmesh.hpp"
-#include "navmeshtilestore.hpp"
-#include "settings.hpp"
-#include "version.hpp"
-
-#include <components/debug/debuglog.hpp>
-#include <components/loadinglistener/loadinglistener.hpp>
-#include <components/misc/thread.hpp>
 
 #include <algorithm>
 #include <format>
@@ -18,6 +9,16 @@
 
 #include <boost/geometry.hpp> // IWYU pragma: keep: the strategies the R-tree's queries instantiate
 #include <osg/io_utils> // IWYU pragma: keep: the vectors' operator<<, which a log line's template calls
+
+#include <components/debug/debuglog.hpp>
+#include <components/loadinglistener/loadinglistener.hpp>
+#include <components/misc/thread.hpp>
+
+#include "debug.hpp"
+#include "makenavmesh.hpp"
+#include "navmeshtilestore.hpp"
+#include "settings.hpp"
+#include "version.hpp"
 
 namespace DetourNavigator
 {

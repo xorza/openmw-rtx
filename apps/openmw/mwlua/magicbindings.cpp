@@ -2,6 +2,20 @@
 
 #include <format>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/activespells.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwmechanics/creaturestats.hpp>
+#include <apps/openmw/mwmechanics/magiceffects.hpp>
+#include <apps/openmw/mwmechanics/spellutil.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/datetimemanager.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/inventorystore.hpp>
+#include <apps/openmw/mwworld/worldmodel.hpp>
 #include <components/esm3/activespells.hpp>
 #include <components/esm3/loadalch.hpp>
 #include <components/esm3/loadarmo.hpp>
@@ -15,21 +29,6 @@
 #include <components/lua/luastate.hpp>
 #include <components/lua/util.hpp>
 #include <components/misc/resourcehelpers.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-#include "../mwmechanics/activespells.hpp"
-#include "../mwmechanics/actorutil.hpp"
-#include "../mwmechanics/creaturestats.hpp"
-#include "../mwmechanics/magiceffects.hpp"
-#include "../mwmechanics/spellutil.hpp"
-#include "../mwworld/class.hpp"
-#include "../mwworld/datetimemanager.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/inventorystore.hpp"
-#include "../mwworld/worldmodel.hpp"
 
 #include "localscripts.hpp"
 #include "luamanagerimp.hpp"

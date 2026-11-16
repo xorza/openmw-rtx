@@ -1,8 +1,8 @@
 #pragma once
 
-#include <osg/Math>
-
 #include <algorithm>
+
+#include <osg/Math>
 
 namespace MWWorld
 {

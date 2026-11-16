@@ -1,9 +1,9 @@
 #pragma once
 
-#include <components/debug/debuglog.hpp>
-
 #include <chrono>
 #include <string>
+
+#include <components/debug/debuglog.hpp>
 
 namespace DetourNavigator
 {

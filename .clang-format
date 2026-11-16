@@ -55,15 +55,22 @@ ForEachMacros:
   - foreach
   - Q_FOREACH
   - BOOST_FOREACH
-IncludeBlocks:   Preserve
+# AGENTS.md's five blocks after the file's own header: the standard library, GoogleTest, other libraries, the tree's
+# own from the root, and the file's folder's quoted. A block a comment opens stays where it stands.
+IncludeBlocks:   Regroup
 IncludeCategories:
-  - Regex:           '^"(llvm|llvm-c|clang|clang-c)/'
+  - Regex:           '^<(gtest|gmock)/'
     Priority:        2
-  - Regex:           '^(<|"(gtest|gmock|isl|json)/)'
-    Priority:        3
-  - Regex:           '.*'
+  - Regex:           '^<[a-z_0-9]+>$'
     Priority:        1
-IncludeIsMainRegex: '(Test)?$'
+  - Regex:           '^<(components|apps)/'
+    Priority:        4
+  - Regex:           '^<'
+    Priority:        3
+  - Regex:           '^"'
+    Priority:        5
+# A system's half of a pair (`fileposix.cpp`, `filewin32.cpp`) takes `file.hpp` as its own header.
+IncludeIsMainRegex: '(Test|posix|win32|linux|stdio)?$'
 IndentCaseLabels: true
 IndentExternBlock: AfterExternBlock
 IndentPPDirectives: None

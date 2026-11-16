@@ -1,10 +1,8 @@
 #include "riggeometryosgaextension.hpp"
 
-#include <osgAnimation/RigGeometry>
-
 #include <osg/Drawable>
 #include <osg/NodeVisitor>
-
+#include <osgAnimation/RigGeometry>
 #include <osgUtil/CullVisitor>
 
 #include <components/crashcatcher/crash.hpp>

@@ -1,24 +1,21 @@
 #include "dialogue.hpp"
 
-#include <exception>
-#include <utility>
-
 #include <QApplication>
 #include <QListWidgetItem>
 #include <QScreen>
 #include <QSplitter>
 #include <QStackedWidget>
-
-#include <components/debug/debuglog.hpp>
+#include <exception>
+#include <utility>
 
 #include <apps/opencs/model/prefs/category.hpp>
-#include <apps/opencs/view/prefs/pagebase.hpp>
-
-#include "../../model/prefs/state.hpp"
+#include <apps/opencs/model/prefs/state.hpp>
+#include <components/debug/debuglog.hpp>
 
 #include "contextmenulist.hpp"
 #include "keybindingpage.hpp"
 #include "page.hpp"
+#include "pagebase.hpp"
 
 void CSVPrefs::Dialogue::buildCategorySelector(QSplitter* main)
 {

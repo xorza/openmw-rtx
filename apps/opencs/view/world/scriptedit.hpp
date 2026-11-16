@@ -6,10 +6,9 @@
 #include <QTimer>
 #include <QVector>
 #include <QWidget>
-
 #include <string>
 
-#include "../../model/world/universalid.hpp"
+#include <apps/opencs/model/world/universalid.hpp>
 
 #include "scripthighlighter.hpp"
 

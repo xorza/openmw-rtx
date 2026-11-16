@@ -1,13 +1,13 @@
 #pragma once
 
-#include "ptrholder.hpp"
+#include <map>
 #include <memory>
+#include <mutex>
 
 #include <LinearMath/btTransform.h>
 #include <osg/Node>
 
-#include <map>
-#include <mutex>
+#include "ptrholder.hpp"
 
 namespace Resource
 {

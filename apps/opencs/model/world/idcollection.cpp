@@ -3,12 +3,12 @@
 #include <memory>
 #include <utility>
 
-#include <apps/opencs/model/world/collection.hpp>
-#include <apps/opencs/model/world/pathgrid.hpp>
-#include <apps/opencs/model/world/record.hpp>
-
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/loadpgrd.hpp>
+
+#include "collection.hpp"
+#include "pathgrid.hpp"
+#include "record.hpp"
 
 namespace ESM
 {

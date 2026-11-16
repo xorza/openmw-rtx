@@ -1,10 +1,9 @@
 #pragma once
 
+#include <QMetaType>
 #include <iosfwd>
 #include <string>
 #include <utility>
-
-#include <QMetaType>
 
 namespace osg
 {

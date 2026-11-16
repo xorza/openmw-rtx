@@ -1,29 +1,26 @@
 #include "filter.hpp"
 
+#include <apps/openmw/mwbase/dialoguemanager.hpp>
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/journal.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/scriptmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwmechanics/combat.hpp>
+#include <apps/openmw/mwmechanics/creaturestats.hpp>
+#include <apps/openmw/mwmechanics/magiceffects.hpp>
+#include <apps/openmw/mwmechanics/npcstats.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/inventorystore.hpp>
 #include <components/compiler/locals.hpp>
 #include <components/esm/refid.hpp>
 #include <components/esm3/loadcrea.hpp>
 #include <components/esm3/loadfact.hpp>
 #include <components/esm3/loadmgef.hpp>
 #include <components/esm3/loadskil.hpp>
-
-#include "../mwbase/dialoguemanager.hpp"
-#include "../mwbase/environment.hpp"
-#include "../mwbase/journal.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/scriptmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/inventorystore.hpp"
-
-#include "../mwmechanics/actorutil.hpp"
-#include "../mwmechanics/combat.hpp"
-#include "../mwmechanics/creaturestats.hpp"
-#include "../mwmechanics/magiceffects.hpp"
-#include "../mwmechanics/npcstats.hpp"
 
 #include "selectwrapper.hpp"
 

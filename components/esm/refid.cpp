@@ -1,12 +1,12 @@
 #include "refid.hpp"
 
-#include "serializerefid.hpp"
-
-#include "components/misc/strings/lower.hpp"
-
 #include <sstream>
 #include <stdexcept>
 #include <variant>
+
+#include <components/misc/strings/lower.hpp>
+
+#include "serializerefid.hpp"
 
 namespace ESM
 {

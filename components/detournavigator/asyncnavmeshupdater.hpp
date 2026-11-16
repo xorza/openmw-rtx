@@ -1,5 +1,23 @@
 #pragma once
 
+#include <atomic>
+#include <chrono>
+#include <condition_variable>
+#include <deque>
+#include <iosfwd>
+#include <list>
+#include <memory>
+#include <mutex>
+#include <optional>
+#include <set>
+#include <thread>
+#include <tuple>
+
+#include <boost/geometry/geometries/point.hpp>
+#include <boost/geometry/index/rtree.hpp>
+
+#include <components/contentstore/key.hpp>
+
 #include "agentbounds.hpp"
 #include "changetype.hpp"
 #include "clock.hpp"
@@ -13,24 +31,6 @@
 #include "tilecachedrecastmeshmanager.hpp"
 #include "tileposition.hpp"
 #include "waitconditiontype.hpp"
-
-#include <components/contentstore/key.hpp>
-
-#include <boost/geometry/geometries/point.hpp>
-#include <boost/geometry/index/rtree.hpp>
-
-#include <atomic>
-#include <chrono>
-#include <condition_variable>
-#include <deque>
-#include <iosfwd>
-#include <list>
-#include <memory>
-#include <mutex>
-#include <optional>
-#include <set>
-#include <thread>
-#include <tuple>
 
 class dtNavMesh;
 

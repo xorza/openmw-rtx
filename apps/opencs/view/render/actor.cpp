@@ -5,9 +5,9 @@
 #include <osg/Vec3d>
 
 #include <apps/opencs/model/world/actoradapter.hpp>
+#include <apps/opencs/model/world/data.hpp>
 #include <apps/opencs/model/world/idcollection.hpp>
 #include <apps/opencs/model/world/record.hpp>
-
 #include <components/esm3/loadbody.hpp>
 #include <components/esm3/mappings.hpp>
 #include <components/misc/resourcehelpers.hpp>
@@ -15,8 +15,6 @@
 #include <components/resource/scenemanager.hpp>
 #include <components/sceneutil/attach.hpp>
 #include <components/sceneutil/skeleton.hpp>
-
-#include "../../model/world/data.hpp"
 
 namespace CSVRender
 {

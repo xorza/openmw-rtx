@@ -11,7 +11,6 @@
 
 #include <sol/object.hpp>
 #include <sol/state_view.hpp>
-
 #include <yaml-cpp/yaml.h>
 
 #include <components/misc/strings/algorithm.hpp>

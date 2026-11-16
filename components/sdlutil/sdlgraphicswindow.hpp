@@ -1,7 +1,6 @@
 #pragma once
 
 #include <SDL3/SDL_video.h>
-
 #include <osgViewer/GraphicsWindow>
 
 #include "vsyncmode.hpp"

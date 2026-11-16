@@ -3,8 +3,8 @@
 #include <string>
 #include <vector>
 
-#include "components/esm/esmcommon.hpp"
-#include "components/misc/concepts.hpp"
+#include <components/esm/esmcommon.hpp>
+#include <components/misc/concepts.hpp>
 
 namespace ESM
 {

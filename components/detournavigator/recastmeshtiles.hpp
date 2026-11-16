@@ -1,9 +1,9 @@
 #pragma once
 
-#include "tileposition.hpp"
-
 #include <map>
 #include <memory>
+
+#include "tileposition.hpp"
 
 namespace DetourNavigator
 {

@@ -1,11 +1,10 @@
 #include "menuscripts.hpp"
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/statemanager.hpp>
+#include <apps/openmw/mwstate/character.hpp>
 #include <components/lua/util.hpp>
 #include <components/misc/strings/lower.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/statemanager.hpp"
-#include "../mwstate/character.hpp"
 
 #include "context.hpp"
 #include "luamanagerimp.hpp"

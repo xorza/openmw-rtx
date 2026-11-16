@@ -1,10 +1,10 @@
 #pragma once
 
-#include <components/misc/framestats.hpp>
-
 #include <cstddef>
 #include <string>
 #include <utility>
+
+#include <components/misc/framestats.hpp>
 
 namespace OMW
 {

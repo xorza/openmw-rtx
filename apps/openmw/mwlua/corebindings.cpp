@@ -2,6 +2,11 @@
 
 #include <stdexcept>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/statemanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwworld/datetimemanager.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/lua/l10n.hpp>
 #include <components/lua/luastate.hpp>
@@ -11,12 +16,6 @@
 #include <components/misc/strings/lower.hpp>
 #include <components/settings/values.hpp>
 #include <components/version/version.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/statemanager.hpp"
-#include "../mwbase/world.hpp"
-#include "../mwworld/datetimemanager.hpp"
-#include "../mwworld/esmstore.hpp"
 
 #include "context.hpp"
 #include "coremwscriptbindings.hpp"

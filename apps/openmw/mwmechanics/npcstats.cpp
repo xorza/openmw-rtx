@@ -3,17 +3,15 @@
 #include <cassert>
 #include <cmath>
 #include <format>
+#include <utility>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/esm3/loadclas.hpp>
 #include <components/esm3/loadfact.hpp>
 #include <components/esm3/loadgmst.hpp>
 #include <components/esm3/npcstats.hpp>
-#include <utility>
-
-#include "../mwworld/esmstore.hpp"
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
 
 MWMechanics::NpcStats::NpcStats()
     : mDisposition(0)

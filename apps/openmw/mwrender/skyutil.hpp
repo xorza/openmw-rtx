@@ -4,7 +4,6 @@
 #include <osg/Texture2D>
 #include <osg/Transform>
 #include <osg/Vec4f>
-
 #include <osgParticle/ConstantRateCounter>
 #include <osgParticle/Shooter>
 

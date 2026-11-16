@@ -1,14 +1,12 @@
 #pragma once
 
+#include <QWidget>
 #include <memory>
 #include <string>
 
-#include <QWidget>
-
-#include "../../model/doc/document.hpp"
-
-#include "../../model/world/scope.hpp"
-#include "../../model/world/universalid.hpp"
+#include <apps/opencs/model/doc/document.hpp>
+#include <apps/opencs/model/world/scope.hpp>
+#include <apps/opencs/model/world/universalid.hpp>
 
 namespace CSVWorld
 {

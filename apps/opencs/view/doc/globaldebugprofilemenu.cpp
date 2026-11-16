@@ -1,17 +1,15 @@
 #include "globaldebugprofilemenu.hpp"
 
-#include <algorithm>
-#include <vector>
-
 #include <QAction>
 #include <QActionGroup>
 #include <QMenu>
 #include <QModelIndex>
+#include <algorithm>
+#include <vector>
 
 #include <apps/opencs/model/world/columns.hpp>
-
-#include "../../model/world/idtable.hpp"
-#include "../../model/world/record.hpp"
+#include <apps/opencs/model/world/idtable.hpp>
+#include <apps/opencs/model/world/record.hpp>
 
 class QWidget;
 

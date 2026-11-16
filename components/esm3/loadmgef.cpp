@@ -1,10 +1,10 @@
 #include "loadmgef.hpp"
 
+#include <components/misc/strings/algorithm.hpp>
+
 #include "esmreader.hpp"
 #include "esmwriter.hpp"
 #include "loadskil.hpp"
-
-#include <components/misc/strings/algorithm.hpp>
 
 namespace ESM
 {

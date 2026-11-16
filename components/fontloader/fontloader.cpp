@@ -13,10 +13,6 @@
 #include <utility>
 #include <vector>
 
-#include <osg/Image>
-
-#include <osgDB/WriteFile>
-
 #include <MyGUI_FactoryManager.h>
 #include <MyGUI_FontData.h>
 #include <MyGUI_RenderManager.h>
@@ -25,16 +21,14 @@
 #include <MyGUI_ResourceTrueTypeFont.h>
 #include <MyGUI_Version.h>
 #include <MyGUI_XmlDocument.h>
+#include <osg/Image>
+#include <osgDB/WriteFile>
 
 #include <components/debug/debuglog.hpp>
-
 #include <components/fallback/fallback.hpp>
-
-#include <components/vfs/manager.hpp>
-
 #include <components/misc/strings/algorithm.hpp>
-
 #include <components/myguiplatform/scalinglayer.hpp>
+#include <components/vfs/manager.hpp>
 
 namespace
 {

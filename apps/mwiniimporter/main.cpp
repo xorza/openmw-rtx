@@ -1,5 +1,3 @@
-#include "importer.hpp"
-
 #include <exception>
 #include <filesystem>
 #include <fstream>
@@ -17,6 +15,8 @@
 #include <components/files/conversion.hpp>
 #include <components/platform/process.hpp>
 #include <components/toutf8/toutf8.hpp>
+
+#include "importer.hpp"
 
 namespace bpo = boost::program_options;
 

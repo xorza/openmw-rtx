@@ -1,9 +1,9 @@
 #include "creator.hpp"
 
+#include <stdexcept>
+
 #include <apps/opencs/model/world/scope.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
-
-#include <stdexcept>
 
 namespace CSMDoc
 {

@@ -16,13 +16,25 @@
 #include <vector>
 
 #include <BulletCollision/CollisionDispatch/btCollisionObject.h>
-
 #include <LinearMath/btTransform.h>
 #include <osg/Vec2f>
 #include <osg/Vec4i>
 #include <osg/ref_ptr>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/luamanager.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/soundmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwphysics/actor.hpp>
 #include <apps/openmw/mwphysics/collisiontype.hpp>
+#include <apps/openmw/mwphysics/heightfield.hpp>
+#include <apps/openmw/mwphysics/object.hpp>
+#include <apps/openmw/mwphysics/physicssystem.hpp>
+#include <apps/openmw/mwrender/camera.hpp>
+#include <apps/openmw/mwrender/landmanager.hpp>
+#include <apps/openmw/mwrender/renderingmanager.hpp>
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/detournavigator/agentbounds.hpp>
@@ -52,24 +64,7 @@
 #include <components/terrain/terraingrid.hpp>
 #include <components/vfs/pathutil.hpp>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/luamanager.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/soundmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwrender/camera.hpp"
-#include "../mwrender/landmanager.hpp"
-#include "../mwrender/renderingmanager.hpp"
-
-#include "../mwphysics/actor.hpp"
-#include "../mwphysics/heightfield.hpp"
-#include "../mwphysics/object.hpp"
-#include "../mwphysics/physicssystem.hpp"
-
-#include "../mwworld/actionteleport.hpp"
-
+#include "actionteleport.hpp"
 #include "cellpreloader.hpp"
 #include "cellreflist.hpp"
 #include "cellstore.hpp"

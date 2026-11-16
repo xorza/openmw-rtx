@@ -2,14 +2,19 @@
 
 #include <osg/Depth>
 #include <osg/PositionAttitudeTransform>
-
 #include <osgParticle/ModularEmitter>
 #include <osgParticle/ModularProgram>
 #include <osgParticle/Operator>
 #include <osgParticle/ParticleSystemUpdater>
 
-#include <components/settings/values.hpp>
-
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwworld/datetimemanager.hpp>
+#include <apps/openmw/mwworld/weather.hpp>
+#include <components/misc/resourcehelpers.hpp>
+#include <components/nifosg/particle.hpp>
+#include <components/resource/imagemanager.hpp>
+#include <components/resource/scenemanager.hpp>
 #include <components/sceneutil/controller.hpp>
 #include <components/sceneutil/depth.hpp>
 #include <components/sceneutil/material.hpp>
@@ -17,24 +22,10 @@
 #include <components/sceneutil/shadow.hpp>
 #include <components/sceneutil/texturetype.hpp>
 #include <components/sceneutil/visitor.hpp>
-
-#include <components/resource/imagemanager.hpp>
-#include <components/resource/scenemanager.hpp>
-
-#include <components/vfs/manager.hpp>
-
-#include <components/misc/resourcehelpers.hpp>
-#include <components/stereo/stereomanager.hpp>
-
-#include <components/nifosg/particle.hpp>
-
+#include <components/settings/values.hpp>
 #include <components/sky/skyclock.hpp>
-
-#include "../mwworld/datetimemanager.hpp"
-#include "../mwworld/weather.hpp"
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/world.hpp"
+#include <components/stereo/stereomanager.hpp>
+#include <components/vfs/manager.hpp>
 
 #include "renderbin.hpp"
 #include "skystate.hpp"

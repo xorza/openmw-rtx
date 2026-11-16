@@ -2,14 +2,13 @@
 
 #include <algorithm>
 
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/esm3/loadarmo.hpp>
 #include <components/esm3/loadbody.hpp>
 #include <components/esm3/loadclot.hpp>
 #include <components/esm3/loadcrea.hpp>
 #include <components/esm3/loadlevlist.hpp>
 #include <components/esm3/loadnpc.hpp>
-
-#include "../mwworld/esmstore.hpp"
 
 namespace MWClass
 {

@@ -5,7 +5,6 @@
 #include <osg/Vec2>
 #include <osg/Vec3>
 #include <osg/Vec4>
-
 #include <sol/sol.hpp>
 
 namespace LuaUtil

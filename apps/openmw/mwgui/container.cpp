@@ -1,3 +1,5 @@
+#include "container.hpp"
+
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
@@ -5,31 +7,25 @@
 #include <stdexcept>
 #include <utility>
 
-#include "container.hpp"
-
 #include <MyGUI_Button.h>
 #include <MyGUI_Delegate.h>
 #include <MyGUI_InputManager.h>
 #include <SDL3/SDL_events.h>
 #include <SDL3/SDL_gamepad.h>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/scriptmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
 #include <apps/openmw/mwmechanics/aipackage.hpp> // IWYU pragma: keep: the package whole, which a shared pointer to it is read through
+#include <apps/openmw/mwmechanics/creaturestats.hpp>
+#include <apps/openmw/mwmechanics/summoning.hpp>
+#include <apps/openmw/mwscript/interpretercontext.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/inventorystore.hpp>
 #include <components/esm/defs.hpp>
 #include <components/settings/values.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/scriptmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/inventorystore.hpp"
-
-#include "../mwmechanics/creaturestats.hpp"
-#include "../mwmechanics/summoning.hpp"
-
-#include "../mwscript/interpretercontext.hpp"
 
 #include "containeritemmodel.hpp"
 #include "countdialog.hpp"

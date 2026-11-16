@@ -1,10 +1,9 @@
 #pragma once
 
-#include "windowbase.hpp"
-
-#include "../mwworld/ptr.hpp"
-
+#include <apps/openmw/mwworld/ptr.hpp>
 #include <components/widgets/imagebutton.hpp>
+
+#include "windowbase.hpp"
 
 namespace MWGui
 {

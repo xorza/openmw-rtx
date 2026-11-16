@@ -27,10 +27,11 @@
 #include "loadpgrd.hpp"
 
 #include <stdexcept>
+#include <utility>
+
+#include <components/esm/refid.hpp> // FIXME: for mEditorId workaround
 
 #include "reader.hpp"
-#include <components/esm/refid.hpp> // FIXME: for mEditorId workaround
-#include <utility>
 // #include "writer.hpp"
 
 void ESM4::Pathgrid::load(ESM4::Reader& reader)

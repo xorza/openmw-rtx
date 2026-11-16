@@ -1,5 +1,20 @@
-#include "navmesh.hpp"
-#include "worldspacedata.hpp"
+#include <algorithm>
+#include <cstddef>
+#include <filesystem>
+#include <iostream>
+#include <map>
+#include <regex>
+#include <string>
+#include <string_view>
+#include <thread>
+#include <unordered_map>
+#include <utility>
+#include <vector>
+
+#include <boost/program_options/options_description.hpp>
+#include <boost/program_options/parsers.hpp>
+#include <boost/program_options/value_semantic.hpp>
+#include <boost/program_options/variables_map.hpp>
 
 #include <components/debug/debugging.hpp>
 #include <components/debug/debuglog.hpp>
@@ -32,23 +47,8 @@
 #include <components/vfs/manager.hpp>
 #include <components/vfs/registerarchives.hpp>
 
-#include <algorithm>
-#include <cstddef>
-#include <filesystem>
-#include <iostream>
-#include <map>
-#include <regex>
-#include <string>
-#include <string_view>
-#include <thread>
-#include <unordered_map>
-#include <utility>
-#include <vector>
-
-#include <boost/program_options/options_description.hpp>
-#include <boost/program_options/parsers.hpp>
-#include <boost/program_options/value_semantic.hpp>
-#include <boost/program_options/variables_map.hpp>
+#include "navmesh.hpp"
+#include "worldspacedata.hpp"
 
 #ifdef WIN32
 #include <fcntl.h>

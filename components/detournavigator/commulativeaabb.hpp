@@ -1,8 +1,8 @@
 #pragma once
 
-#include <BulletCollision/Gimpact/btBoxCollision.h>
-
 #include <cstddef>
+
+#include <BulletCollision/Gimpact/btBoxCollision.h>
 
 namespace DetourNavigator
 {

@@ -1,10 +1,8 @@
 #pragma once
 
+#include <apps/opencs/model/doc/stage.hpp>
+#include <apps/opencs/model/world/idcollection.hpp>
 #include <components/esm3/loadscpt.hpp>
-
-#include "../doc/stage.hpp"
-
-#include "../world/idcollection.hpp"
 
 namespace CSMDoc
 {

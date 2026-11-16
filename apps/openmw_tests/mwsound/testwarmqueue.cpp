@@ -1,7 +1,3 @@
-#include "apps/openmw/mwsound/warmqueue.hpp"
-
-#include "apps/openmw/mwsound/headcache.hpp"
-
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
@@ -11,6 +7,8 @@
 
 #include <gtest/gtest.h>
 
+#include <apps/openmw/mwsound/headcache.hpp>
+#include <apps/openmw/mwsound/warmqueue.hpp>
 #include <components/testing/util.hpp>
 #include <components/vfs/pathutil.hpp>
 

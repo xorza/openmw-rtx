@@ -1,9 +1,10 @@
 #pragma once
 
-#include <components/esm/refid.hpp>
 #include <string>
 #include <string_view>
 #include <vector>
+
+#include <components/esm/refid.hpp>
 
 namespace Interpreter
 {

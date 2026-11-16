@@ -284,6 +284,10 @@ and upstream's two Lua storage tests writing there.
   site as a `std::source_location`; `RUN_TEST_FOR_TYPES` as `forEachType`; `EXPECT_ERROR` as `Testing::expectError`;
   the editor's hand guard around `Q_DECLARE_METATYPE(std::filesystem::path)` as one header. `cppcoreguidelines-macro-
   usage` on. Cost: a conflict with an upstream edit to a macro's uses.
+- Includes in AGENTS.md's five blocks, which clang-format forms (`IncludeBlocks: Regroup`, 2026-11-17), and every
+  quoted path of another folder spelled from the root (`"../mwbase/world.hpp"` is `<apps/openmw/mwbase/world.hpp>`),
+  which `omw format` writes and `omw merge-file` writes on upstream's side too: 1,528 sources. Cost: a merge's
+  conflicts stay where the edits overlap, as the merge driver lays out both sides first.
 
 **The build** (`docs/build.md`). Cost: a conflict with every upstream change to a CMake list, an option, a found package
 or the install, which the merge places in this layout:

@@ -1,6 +1,7 @@
 #include "imagemanager.hpp"
 
 #include <cassert>
+
 #include <osgDB/Registry>
 
 #include <components/debug/debuglog.hpp>

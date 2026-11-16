@@ -1,9 +1,8 @@
 #pragma once
 
+#include <QWidget>
 #include <string>
 #include <vector>
-
-#include <QWidget>
 
 #include <apps/opencs/model/world/universalid.hpp>
 

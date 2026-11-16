@@ -4,16 +4,15 @@
 #include <QModelIndex>
 #include <QSortFilterProxyModel>
 #include <QString>
-
 #include <string_view>
 #include <type_traits>
 #include <utility>
 #include <vector>
 
 #include <apps/opencs/model/filter/node.hpp>
-#include <apps/opencs/model/world/columns.hpp>
 
 #include "columnbase.hpp"
+#include "columns.hpp"
 #include "idtablebase.hpp"
 
 class QObject;

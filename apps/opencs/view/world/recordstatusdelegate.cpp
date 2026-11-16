@@ -1,13 +1,13 @@
 #include "recordstatusdelegate.hpp"
 
-#include "../../model/world/columns.hpp"
-
-#include <apps/opencs/view/world/datadisplaydelegate.hpp>
-#include <apps/opencs/view/world/util.hpp>
-
 #include <string>
 #include <utility>
 #include <vector>
+
+#include <apps/opencs/model/world/columns.hpp>
+
+#include "datadisplaydelegate.hpp"
+#include "util.hpp"
 
 class QObject;
 

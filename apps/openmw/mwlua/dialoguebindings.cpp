@@ -1,16 +1,15 @@
 #include "dialoguebindings.hpp"
 
-#include "context.hpp"
-
-#include "apps/openmw/mwbase/environment.hpp"
-#include "apps/openmw/mwworld/esmstore.hpp"
-#include "apps/openmw/mwworld/store.hpp"
-
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/store.hpp>
 #include <components/esm3/loaddial.hpp>
 #include <components/lua/luastate.hpp>
 #include <components/lua/util.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/vfs/pathutil.hpp>
+
+#include "context.hpp"
 
 namespace
 {

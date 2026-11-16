@@ -1,9 +1,5 @@
 #include "style.hpp"
 
-#include <algorithm>
-#include <array>
-#include <tuple>
-
 #include <QAbstractItemView>
 #include <QAbstractSpinBox>
 #include <QColor>
@@ -20,6 +16,9 @@
 #include <QStyleFactory>
 #include <QStyleOption>
 #include <QTabBar>
+#include <algorithm>
+#include <array>
+#include <tuple>
 
 #include "glyphs.hpp"
 #include "palette.hpp"

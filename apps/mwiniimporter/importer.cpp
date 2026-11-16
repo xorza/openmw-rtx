@@ -1,12 +1,13 @@
 #include "importer.hpp"
 
+#include <filesystem>
+#include <fstream>
+#include <iostream>
+
 #include <components/esm3/esmreader.hpp>
 #include <components/files/conversion.hpp>
 #include <components/misc/strings/algorithm.hpp>
 #include <components/misc/timeconvert.hpp>
-#include <filesystem>
-#include <fstream>
-#include <iostream>
 
 namespace
 {

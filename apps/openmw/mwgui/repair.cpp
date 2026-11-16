@@ -2,15 +2,12 @@
 
 #include <iomanip>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwworld/class.hpp>
 #include <components/esm3/loadrepa.hpp>
 #include <components/widgets/box.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-
-#include "../mwmechanics/actorutil.hpp"
-
-#include "../mwworld/class.hpp"
 
 #include "inventoryitemmodel.hpp"
 #include "itemchargeview.hpp"

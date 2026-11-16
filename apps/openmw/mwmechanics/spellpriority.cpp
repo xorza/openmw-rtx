@@ -1,25 +1,23 @@
 #include "spellpriority.hpp"
-#include "weaponpriority.hpp"
 
 #include <algorithm>
 #include <cmath>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/inventorystore.hpp>
 #include <components/esm3/loadench.hpp>
 #include <components/esm3/loadmgef.hpp>
 #include <components/esm3/loadrace.hpp>
 #include <components/esm3/loadspel.hpp>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/inventorystore.hpp"
-
 #include "creaturestats.hpp"
 #include "spellresistance.hpp"
 #include "spellutil.hpp"
 #include "summoning.hpp"
+#include "weaponpriority.hpp"
 #include "weapontype.hpp"
 
 namespace

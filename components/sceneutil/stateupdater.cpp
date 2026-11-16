@@ -2,14 +2,14 @@
 
 #include <osg/PolygonMode>
 
-#include "depth.hpp"
-#include "rtt.hpp"
-#include "statesetupdater.hpp"
-
 #include <components/resource/scenemanager.hpp>
-#include <components/sceneutil/fog.hpp>
 #include <components/stereo/multiview.hpp>
 #include <components/stereo/stereomanager.hpp>
+
+#include "depth.hpp"
+#include "fog.hpp"
+#include "rtt.hpp"
+#include "statesetupdater.hpp"
 
 namespace SceneUtil
 {

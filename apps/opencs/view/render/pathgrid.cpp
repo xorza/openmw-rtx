@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <functional>
 #include <set>
-#include <stddef.h>
 
 #include <osg/Array>
 #include <osg/Callback>
@@ -18,27 +17,27 @@
 #include <osg/StateSet>
 #include <osg/Vec3f>
 #include <osg/Vec4f>
+#include <stddef.h>
 
 #include <apps/opencs/model/world/cell.hpp>
 #include <apps/opencs/model/world/cellcoordinates.hpp>
 #include <apps/opencs/model/world/columns.hpp>
+#include <apps/opencs/model/world/commandmacro.hpp>
+#include <apps/opencs/model/world/commands.hpp>
+#include <apps/opencs/model/world/data.hpp>
 #include <apps/opencs/model/world/idcollection.hpp>
+#include <apps/opencs/model/world/idtree.hpp>
 #include <apps/opencs/model/world/pathgrid.hpp>
 #include <apps/opencs/model/world/record.hpp>
 #include <apps/opencs/model/world/subcellcollection.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
-#include <apps/opencs/view/render/mask.hpp>
-#include <apps/opencs/view/render/tagbase.hpp>
-
 #include <components/esm3/loadcell.hpp>
 #include <components/esm3/loadland.hpp>
 #include <components/esm3/loadpgrd.hpp>
 #include <components/sceneutil/pathgridutil.hpp>
 
-#include "../../model/world/commandmacro.hpp"
-#include "../../model/world/commands.hpp"
-#include "../../model/world/data.hpp"
-#include "../../model/world/idtree.hpp"
+#include "mask.hpp"
+#include "tagbase.hpp"
 #include "worldspacewidget.hpp"
 
 namespace osg

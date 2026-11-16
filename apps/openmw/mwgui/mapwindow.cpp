@@ -1,5 +1,8 @@
 #include "mapwindow.hpp"
 
+#include <cmath>
+#include <numeric>
+
 #include <MyGUI_Button.h>
 #include <MyGUI_FactoryManager.h>
 #include <MyGUI_Gui.h>
@@ -12,27 +15,21 @@
 #include <MyGUI_TextIterator.h>
 #include <MyGUI_Window.h>
 
-#include <cmath>
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwrender/globalmap.hpp>
+#include <apps/openmw/mwrender/localmap.hpp>
+#include <apps/openmw/mwrender/offscreenview.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/player.hpp>
+#include <apps/openmw/mwworld/worldmodel.hpp>
 #include <components/esm3/esmwriter.hpp>
 #include <components/esm3/globalmap.hpp>
 #include <components/settings/values.hpp>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/player.hpp"
-#include "../mwworld/worldmodel.hpp"
-
-#include "../mwrender/globalmap.hpp"
-#include "../mwrender/localmap.hpp"
-#include "../mwrender/offscreenview.hpp"
-
 #include "confirmationdialog.hpp"
-
-#include <numeric>
 
 namespace
 {

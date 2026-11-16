@@ -2,6 +2,12 @@
 
 #include <algorithm>
 #include <memory>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+#include <utility>
+#include <vector>
+
 #include <osg/Image>
 #include <osg/Texture2D>
 #include <osg/Texture>
@@ -9,34 +15,22 @@
 #include <osg/ref_ptr>
 #include <osgDB/ReaderWriter>
 #include <osgDB/Registry>
-#include <sstream>
-#include <stdexcept>
-#include <string>
-#include <utility>
-#include <vector>
 
-#include <components/files/memorystream.hpp>
-#include <components/myguiplatform/guirendermanager.hpp>
-#include <components/settings/values.hpp>
-
-#include <components/debug/debuglog.hpp>
-
-#include <components/resource/imagemanager.hpp>
-#include <components/resource/resourcesystem.hpp>
-
-#include <components/sceneutil/imageregion.hpp>
-#include <components/sceneutil/workqueue.hpp>
-
-#include <components/vfs/pathutil.hpp>
-
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <apps/openmw/mwworld/store.hpp>
+#include <components/debug/debuglog.hpp>
 #include <components/esm3/globalmap.hpp>
 #include <components/esm3/loadland.hpp>
+#include <components/files/memorystream.hpp>
 #include <components/misc/constants.hpp>
-
-#include "../mwbase/environment.hpp"
-
-#include "../mwworld/esmstore.hpp"
+#include <components/myguiplatform/guirendermanager.hpp>
+#include <components/resource/imagemanager.hpp>
+#include <components/resource/resourcesystem.hpp>
+#include <components/sceneutil/imageregion.hpp>
+#include <components/sceneutil/workqueue.hpp>
+#include <components/settings/values.hpp>
+#include <components/vfs/pathutil.hpp>
 
 #include "localmap.hpp"
 #include "mapoverlay.hpp"

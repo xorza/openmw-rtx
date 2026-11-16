@@ -7,18 +7,16 @@
 #include <QListWidget>
 #include <QProgressBar>
 #include <QVBoxLayout>
-
-#include <apps/opencs/model/world/data.hpp>
-
-#include <components/debug/debuglog.hpp>
-#include <components/files/qtconversion.hpp>
-
 #include <filesystem>
-#include <stddef.h>
 #include <utility>
 #include <vector>
 
-#include "../../model/doc/document.hpp"
+#include <stddef.h>
+
+#include <apps/opencs/model/doc/document.hpp>
+#include <apps/opencs/model/world/data.hpp>
+#include <components/debug/debuglog.hpp>
+#include <components/files/qtconversion.hpp>
 
 void CSVDoc::LoadingDocument::closeEvent(QCloseEvent* event)
 {

@@ -1,10 +1,10 @@
+#include "openalutil.hpp"
+
 #include <cstring>
 #include <vector>
 
 #include <AL/alc.h>
 #include <AL/alext.h>
-
-#include "openalutil.hpp"
 
 std::vector<std::string> Launcher::enumerateOpenALDevices()
 {

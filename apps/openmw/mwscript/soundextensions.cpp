@@ -1,19 +1,16 @@
 #include "soundextensions.hpp"
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/soundmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/inventorystore.hpp>
 #include <components/compiler/opcodes.hpp>
-
 #include <components/interpreter/interpreter.hpp>
 #include <components/interpreter/opcodes.hpp>
 #include <components/interpreter/runtime.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/settings/values.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/soundmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/inventorystore.hpp"
 
 #include "interpretercontext.hpp"
 #include "ref.hpp"

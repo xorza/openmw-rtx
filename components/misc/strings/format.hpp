@@ -1,6 +1,5 @@
 #pragma once
 
-#include <MyGUI_UString.h>
 #include <cerrno>
 #include <cstdio>
 #include <cstring>
@@ -9,6 +8,8 @@
 #include <string_view>
 #include <system_error>
 #include <vector>
+
+#include <MyGUI_UString.h>
 
 namespace Misc::StringUtils
 {

@@ -4,7 +4,6 @@
 #include <span>
 
 #include <MyGUI_ITexture.h>
-
 #include <osg/ref_ptr>
 
 namespace osg

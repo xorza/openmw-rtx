@@ -1,11 +1,10 @@
 #pragma once
 
-#include "../mwmechanics/stat.hpp"
-
 #include <MyGUI_Delegate.h>
 #include <MyGUI_TextBox.h>
 #include <MyGUI_Widget.h>
 
+#include <apps/openmw/mwmechanics/stat.hpp>
 #include <components/esm/attr.hpp>
 #include <components/esm/refid.hpp>
 #include <components/esm3/effectlist.hpp>

@@ -1,11 +1,11 @@
 #include "classbindings.hpp"
 
+#include <apps/openmw/mwlua/types/usertypeutil.hpp>
 #include <components/esm3/loadclas.hpp>
 #include <components/lua/luastate.hpp>
 
 #include "idcollectionbindings.hpp"
 #include "recordstore.hpp"
-#include "types/usertypeutil.hpp"
 
 namespace
 {

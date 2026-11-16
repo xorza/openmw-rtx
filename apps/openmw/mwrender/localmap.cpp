@@ -29,6 +29,9 @@
 #include <osgDB/ReaderWriter>
 #include <osgDB/Registry>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
 #include <apps/openmw/mwworld/ptr.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/fogstate.hpp>
@@ -40,11 +43,6 @@
 #include <components/sceneutil/paintedtexture.hpp>
 #include <components/settings/values.hpp>
 #include <components/terrain/storage.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-
-#include "../mwworld/cellstore.hpp"
 
 #include "offscreenview.hpp"
 #include "pixels.hpp"

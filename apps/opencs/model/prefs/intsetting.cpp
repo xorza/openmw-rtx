@@ -1,15 +1,13 @@
 
 #include "intsetting.hpp"
 
-#include <limits>
-
 #include <QLabel>
 #include <QMutexLocker>
 #include <QSpinBox>
-
-#include <apps/opencs/model/prefs/setting.hpp>
+#include <limits>
 
 #include "category.hpp"
+#include "setting.hpp"
 #include "state.hpp"
 
 CSMPrefs::IntSetting::IntSetting(

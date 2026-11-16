@@ -1,9 +1,5 @@
 #include "reporttable.hpp"
 
-#include <algorithm>
-#include <ranges>
-#include <utility>
-
 #include <QAction>
 #include <QContextMenuEvent>
 #include <QHeaderView>
@@ -13,19 +9,19 @@
 #include <QSortFilterProxyModel>
 #include <QStyledItemDelegate>
 #include <QTextDocument>
+#include <algorithm>
+#include <ranges>
+#include <utility>
 
 #include <apps/opencs/model/doc/document.hpp>
 #include <apps/opencs/model/prefs/category.hpp>
 #include <apps/opencs/model/prefs/setting.hpp>
+#include <apps/opencs/model/prefs/shortcut.hpp>
+#include <apps/opencs/model/prefs/state.hpp>
+#include <apps/opencs/model/tools/reportmodel.hpp>
 #include <apps/opencs/view/world/dragrecordtable.hpp>
+#include <apps/opencs/view/world/idtypedelegate.hpp>
 #include <apps/opencs/view/world/util.hpp>
-
-#include "../../model/tools/reportmodel.hpp"
-
-#include "../../model/prefs/shortcut.hpp"
-#include "../../model/prefs/state.hpp"
-
-#include "../../view/world/idtypedelegate.hpp"
 
 namespace CSVTools
 {

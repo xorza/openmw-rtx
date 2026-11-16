@@ -1,22 +1,22 @@
 #include "debug.hpp"
-#include "recastmesh.hpp"
-#include "settings.hpp"
-#include "settingsutils.hpp"
-#include "tilespositionsrange.hpp"
-#include "version.hpp"
-
-#include <components/debug/writeflags.hpp>
-
-#include <DetourNavMesh.h>
-#include <DetourStatus.h>
-
-#include <osg/io_utils>
 
 #include <array>
 #include <filesystem>
 #include <fstream>
 #include <ostream>
 #include <system_error>
+
+#include <DetourNavMesh.h>
+#include <DetourStatus.h>
+#include <osg/io_utils>
+
+#include <components/debug/writeflags.hpp>
+
+#include "recastmesh.hpp"
+#include "settings.hpp"
+#include "settingsutils.hpp"
+#include "tilespositionsrange.hpp"
+#include "version.hpp"
 
 namespace DetourNavigator
 {

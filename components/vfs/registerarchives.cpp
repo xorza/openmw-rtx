@@ -6,9 +6,9 @@
 
 #include <components/debug/debuglog.hpp>
 
-#include <components/vfs/bsaarchive.hpp>
-#include <components/vfs/filesystemarchive.hpp>
-#include <components/vfs/manager.hpp>
+#include "bsaarchive.hpp"
+#include "filesystemarchive.hpp"
+#include "manager.hpp"
 
 namespace VFS
 {

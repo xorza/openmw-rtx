@@ -14,7 +14,6 @@
 #include <osg/Image>
 #include <osg/Texture> // IWYU pragma: keep: the S3TC and RGTC formats, which Windows's gl.h lacks
 #include <osg/ref_ptr>
-
 #include <rgbcx/bc7enc.h>
 #include <rgbcx/rgbcx.h>
 

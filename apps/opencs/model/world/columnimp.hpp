@@ -1,14 +1,17 @@
 #pragma once
 
+#include <QString>
+#include <QVariant>
+#include <QVector>
 #include <cassert>
 #include <cstdint>
+#include <optional>
 #include <sstream>
 #include <stdexcept>
 #include <string>
 
 #include <osg/Math>
 
-#include <apps/opencs/model/world/cell.hpp>
 #include <components/esm/attr.hpp>
 #include <components/esm/defs.hpp>
 #include <components/esm3/loadbody.hpp>
@@ -21,12 +24,7 @@
 #include <components/esm3/selectiongroup.hpp>
 #include <components/esm3/variant.hpp>
 
-#include <optional>
-
-#include <QString>
-#include <QVariant>
-#include <QVector>
-
+#include "cell.hpp"
 #include "columnbase.hpp"
 #include "columns.hpp"
 #include "info.hpp"

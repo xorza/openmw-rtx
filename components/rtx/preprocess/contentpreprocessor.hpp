@@ -2,6 +2,8 @@
 
 #include <vector>
 
+#include <components/contentstore/key.hpp>
+#include <components/contentstore/store.hpp>
 #include <components/rtx/image/alpharange.hpp>
 #include <components/rtx/image/chainbuild.hpp>
 #include <components/rtx/image/texels.hpp>
@@ -14,8 +16,6 @@
 #include "contentcache.hpp"
 #include "contentpass.hpp"
 #include "contentstats.hpp"
-#include <components/contentstore/key.hpp>
-#include <components/contentstore/store.hpp>
 
 namespace osg
 {

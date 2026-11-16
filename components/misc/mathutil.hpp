@@ -1,13 +1,13 @@
 #pragma once
 
+#include <cmath>
+#include <type_traits>
+
 #include <osg/Math>
 #include <osg/Matrixf>
 #include <osg/Quat>
 #include <osg/Vec2f>
 #include <osg/Vec3f>
-
-#include <cmath>
-#include <type_traits>
 
 namespace Misc
 {

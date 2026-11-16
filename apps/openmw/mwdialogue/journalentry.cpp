@@ -2,17 +2,13 @@
 
 #include <stdexcept>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwscript/interpretercontext.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/globals.hpp>
 #include <components/esm3/journalentry.hpp>
-
 #include <components/interpreter/defines.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/globals.hpp"
-
-#include "../mwscript/interpretercontext.hpp"
 
 namespace MWDialogue
 {

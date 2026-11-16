@@ -1,32 +1,26 @@
 #include "activespells.hpp"
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/luamanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwrender/animation.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/inventorystore.hpp>
+#include <apps/openmw/mwworld/worldmodel.hpp>
 #include <components/debug/debuglog.hpp>
-
-#include <components/misc/resourcehelpers.hpp>
-
 #include <components/esm3/actoridconverter.hpp>
 #include <components/esm3/loadench.hpp>
 #include <components/esm3/loadmgef.hpp>
 #include <components/esm3/loadstat.hpp>
-
+#include <components/misc/resourcehelpers.hpp>
 #include <components/settings/values.hpp>
 
 #include "actorutil.hpp"
 #include "creaturestats.hpp"
 #include "spellcasting.hpp"
 #include "spelleffects.hpp"
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/luamanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwrender/animation.hpp"
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/inventorystore.hpp"
-#include "../mwworld/worldmodel.hpp"
 
 namespace
 {

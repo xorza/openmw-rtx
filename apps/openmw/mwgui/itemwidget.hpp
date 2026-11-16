@@ -1,8 +1,8 @@
 #pragma once
 
-#include <components/vfs/pathutil.hpp>
-
 #include <MyGUI_Widget.h>
+
+#include <components/vfs/pathutil.hpp>
 
 namespace MWWorld
 {

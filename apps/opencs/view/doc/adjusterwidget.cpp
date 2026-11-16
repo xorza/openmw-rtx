@@ -3,7 +3,6 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QStyle>
-
 #include <filesystem>
 #include <stdexcept>
 

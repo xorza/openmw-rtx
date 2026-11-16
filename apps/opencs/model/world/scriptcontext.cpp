@@ -3,11 +3,6 @@
 #include <algorithm>
 #include <sstream>
 
-#include <apps/opencs/model/world/columns.hpp>
-#include <apps/opencs/model/world/idcollection.hpp>
-#include <apps/opencs/model/world/record.hpp>
-#include <apps/opencs/model/world/refidcollection.hpp>
-
 #include <components/compiler/nullerrorhandler.hpp>
 #include <components/compiler/quickfileparser.hpp>
 #include <components/compiler/scanner.hpp>
@@ -16,7 +11,11 @@
 #include <components/esm3/variant.hpp>
 #include <components/misc/strings/lower.hpp>
 
+#include "columns.hpp"
 #include "data.hpp"
+#include "idcollection.hpp"
+#include "record.hpp"
+#include "refidcollection.hpp"
 
 CSMWorld::ScriptContext::ScriptContext(const Data& data)
     : mData(data)

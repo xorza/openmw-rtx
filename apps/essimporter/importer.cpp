@@ -22,33 +22,28 @@
 #include <osgDB/Registry>
 
 #include <components/esm/defs.hpp>
+#include <components/esm/esmcommon.hpp>
+#include <components/esm/fourcc.hpp>
+#include <components/esm3/cellid.hpp>
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/esmwriter.hpp>
-
-#include <components/esm3/player.hpp>
-#include <components/esm3/savedgame.hpp>
-
-#include <components/esm3/cellid.hpp>
+#include <components/esm3/formatversion.hpp>
 #include <components/esm3/loadalch.hpp>
 #include <components/esm3/loadarmo.hpp>
+#include <components/esm3/loadcell.hpp>
 #include <components/esm3/loadclot.hpp>
 #include <components/esm3/loadench.hpp>
 #include <components/esm3/loadlevlist.hpp>
 #include <components/esm3/loadspel.hpp>
-#include <components/esm3/loadweap.hpp>
-
-#include <components/misc/constants.hpp>
-
-#include <components/esm/esmcommon.hpp>
-#include <components/esm/fourcc.hpp>
-#include <components/esm3/formatversion.hpp>
-#include <components/esm3/loadcell.hpp>
 #include <components/esm3/loadtes3.hpp>
+#include <components/esm3/loadweap.hpp>
+#include <components/esm3/player.hpp>
+#include <components/esm3/savedgame.hpp>
+#include <components/misc/constants.hpp>
 #include <components/toutf8/toutf8.hpp>
 
-#include "importercontext.hpp"
-
 #include "converter.hpp"
+#include "importercontext.hpp"
 
 namespace
 {

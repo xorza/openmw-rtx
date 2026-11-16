@@ -1,10 +1,10 @@
 #pragma once
 
+#include <components/misc/notnullptr.hpp>
+
 #include "itemmodel.hpp"
 #include "referenceinterface.hpp"
 #include "windowbase.hpp"
-
-#include <components/misc/notnullptr.hpp>
 
 namespace MyGUI
 {

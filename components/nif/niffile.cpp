@@ -1,13 +1,13 @@
 #include "niffile.hpp"
 
-#include <components/debug/debuglog.hpp>
-#include <components/files/hash.hpp>
-
 #include <algorithm>
 #include <array>
 #include <limits>
 #include <map>
 #include <sstream>
+
+#include <components/debug/debuglog.hpp>
+#include <components/files/hash.hpp>
 
 #include "controller.hpp"
 #include "data.hpp"

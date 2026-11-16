@@ -21,15 +21,14 @@
 #include <oics/ICSInputControlSystem.h>
 #include <oics/ICSPrerequisites.h>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/inputmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
 #include <components/crashcatcher/crash.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/files/conversion.hpp>
 #include <components/sdlutil/events.hpp>
 #include <components/sdlutil/sdlmappings.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/inputmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
 
 #include "actions.hpp"
 

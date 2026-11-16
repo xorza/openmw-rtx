@@ -5,8 +5,9 @@
 #include <string>
 #include <vector>
 
-#include "../../model/world/columnbase.hpp"
-#include "../../model/world/universalid.hpp"
+#include <apps/opencs/model/world/columnbase.hpp>
+#include <apps/opencs/model/world/universalid.hpp>
+
 #include "dragrecordtable.hpp"
 
 class QAction;

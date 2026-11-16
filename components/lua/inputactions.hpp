@@ -7,9 +7,10 @@
 
 #include <sol/sol.hpp>
 
-#include <components/lua/asyncpackage.hpp>
-#include <components/lua/scriptscontainer.hpp>
 #include <components/misc/algorithm.hpp>
+
+#include "asyncpackage.hpp"
+#include "scriptscontainer.hpp"
 
 namespace LuaUtil::InputAction
 {

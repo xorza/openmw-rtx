@@ -1,13 +1,13 @@
 #include "node.hpp"
 
 #include <cstdint>
+#include <ranges>
 
 #include <BulletCollision/CollisionShapes/btTriangleMesh.h>
 
 #include <components/misc/convert.hpp>
 #include <components/misc/strings/algorithm.hpp>
 #include <components/resource/bulletshape.hpp>
-#include <ranges>
 
 #include "data.hpp"
 #include "exception.hpp"

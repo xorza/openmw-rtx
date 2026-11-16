@@ -1,5 +1,3 @@
-#include "crashtestssystem.hpp"
-
 #include <charconv>
 #include <chrono>
 #include <csignal>
@@ -21,6 +19,8 @@
 #include <components/crashcatcher/crashinstall.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/platform/process.hpp>
+
+#include "crashtestssystem.hpp"
 
 namespace CrashTests
 {

@@ -10,6 +10,8 @@
 #include <string_view>
 #include <utility>
 
+#include <apps/openmw/mwrender/objectstorage.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/compiler/context.hpp>
 #include <components/compiler/errorhandler.hpp>
 #include <components/compiler/exception.hpp>
@@ -25,9 +27,6 @@
 #include <components/esm3/loadscpt.hpp>
 #include <components/interpreter/types.hpp>
 #include <components/misc/strings/lower.hpp>
-
-#include "../mwrender/objectstorage.hpp"
-#include "../mwworld/esmstore.hpp"
 
 namespace MWScript
 {

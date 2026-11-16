@@ -1,10 +1,8 @@
 #pragma once
 
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwworld/ptr.hpp>
 #include <components/settings/settings.hpp>
-
-#include "../mwbase/mechanicsmanager.hpp"
-
-#include "../mwworld/ptr.hpp"
 
 #include "actors.hpp"
 #include "npcstats.hpp"

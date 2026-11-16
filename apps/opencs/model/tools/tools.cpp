@@ -4,7 +4,9 @@
 #include <utility>
 #include <vector>
 
-#include "../doc/document.hpp"
+#include <apps/opencs/model/doc/document.hpp>
+#include <apps/opencs/model/doc/operationholder.hpp>
+#include <apps/opencs/model/world/refidcollection.hpp>
 
 #include "birthsigncheck.hpp"
 #include "bodypartcheck.hpp"
@@ -30,9 +32,6 @@
 #include "spellcheck.hpp"
 #include "startscriptcheck.hpp"
 #include "topicinfocheck.hpp"
-
-#include <apps/opencs/model/doc/operationholder.hpp>
-#include <apps/opencs/model/world/refidcollection.hpp>
 
 namespace CSMDoc
 {

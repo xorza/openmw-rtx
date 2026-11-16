@@ -1,13 +1,10 @@
 #include "instanceselectionmode.hpp"
 
+#include <QAction>
+#include <QMenu>
+#include <QPoint>
 #include <cmath>
 #include <vector>
-
-#include <apps/opencs/model/doc/document.hpp>
-#include <apps/opencs/model/world/data.hpp>
-#include <apps/opencs/model/world/universalid.hpp>
-#include <apps/opencs/view/render/mask.hpp>
-#include <apps/opencs/view/render/selectionmode.hpp>
 
 #include <osg/Array>
 #include <osg/GL>
@@ -23,15 +20,16 @@
 #include <osg/Vec4f>
 #include <osg/ref_ptr>
 
-#include <QAction>
-#include <QMenu>
-#include <QPoint>
-
-#include "../../model/world/commands.hpp"
-#include "../../model/world/idtable.hpp"
+#include <apps/opencs/model/doc/document.hpp>
+#include <apps/opencs/model/world/commands.hpp>
+#include <apps/opencs/model/world/data.hpp>
+#include <apps/opencs/model/world/idtable.hpp>
+#include <apps/opencs/model/world/universalid.hpp>
 
 #include "instancedragmodes.hpp"
+#include "mask.hpp"
 #include "object.hpp"
+#include "selectionmode.hpp"
 #include "worldspacewidget.hpp"
 
 namespace CSVWidget

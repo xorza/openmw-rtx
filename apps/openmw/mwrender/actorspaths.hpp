@@ -1,11 +1,11 @@
 #pragma once
 
-#include "apps/openmw/mwworld/ptr.hpp"
+#include <deque>
+#include <map>
 
 #include <osg/ref_ptr>
 
-#include <deque>
-#include <map>
+#include <apps/openmw/mwworld/ptr.hpp>
 
 namespace osg
 {

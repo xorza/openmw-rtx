@@ -1,9 +1,8 @@
 #include "ref.hpp"
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/world.hpp>
 #include <components/interpreter/runtime.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/world.hpp"
 
 #include "interpretercontext.hpp"
 

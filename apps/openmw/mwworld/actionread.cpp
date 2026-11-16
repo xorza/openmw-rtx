@@ -1,13 +1,11 @@
 #include "actionread.hpp"
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/luamanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwmechanics/npcstats.hpp>
 #include <components/esm3/loadbook.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/luamanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-
-#include "../mwmechanics/actorutil.hpp"
-#include "../mwmechanics/npcstats.hpp"
 
 #include "class.hpp"
 #include "esmstore.hpp"

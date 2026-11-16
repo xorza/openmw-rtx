@@ -1,18 +1,17 @@
 #include "cellcreator.hpp"
 
-#include <limits>
-#include <sstream>
-
 #include <QComboBox>
 #include <QLabel>
 #include <QSpinBox>
+#include <limits>
+#include <sstream>
 
 #include <apps/opencs/model/world/columns.hpp>
+#include <apps/opencs/model/world/commands.hpp>
 #include <apps/opencs/model/world/data.hpp>
-#include <apps/opencs/view/world/genericcreator.hpp>
+#include <apps/opencs/model/world/idtree.hpp>
 
-#include "../../model/world/commands.hpp"
-#include "../../model/world/idtree.hpp"
+#include "genericcreator.hpp"
 
 class QUndoStack;
 

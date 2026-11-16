@@ -1,16 +1,16 @@
 #pragma once
 
+#include <memory>
+#include <string>
+
+#include <osg/ref_ptr>
+
+#include <apps/openmw/mwscript/locals.hpp>
 #include <components/esm/position.hpp>
 #include <components/esm/refid.hpp>
 #include <components/esm3/animationstate.hpp>
 
-#include "../mwscript/locals.hpp"
-#include "../mwworld/customdata.hpp"
-
-#include <osg/ref_ptr>
-
-#include <memory>
-#include <string>
+#include "customdata.hpp"
 
 namespace SceneUtil
 {

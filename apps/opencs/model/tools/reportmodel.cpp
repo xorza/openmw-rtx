@@ -4,9 +4,8 @@
 #include <stdexcept>
 
 #include <apps/opencs/model/doc/messages.hpp>
+#include <apps/opencs/model/world/columns.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
-
-#include "../world/columns.hpp"
 
 CSMTools::ReportModel::ReportModel(bool fieldColumn, bool severityColumn)
     : mColumnField(-1)

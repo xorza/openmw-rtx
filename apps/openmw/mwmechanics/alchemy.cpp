@@ -1,26 +1,22 @@
 #include "alchemy.hpp"
 
+#include <algorithm>
 #include <cassert>
 #include <cmath>
-
-#include <algorithm>
 #include <format>
 #include <stdexcept>
+#include <utility>
 
-#include <components/misc/rng.hpp>
-
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/containerstore.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/esm3/loadappa.hpp>
 #include <components/esm3/loadgmst.hpp>
 #include <components/esm3/loadmgef.hpp>
 #include <components/esm3/loadskil.hpp>
-#include <utility>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/containerstore.hpp"
-#include "../mwworld/esmstore.hpp"
+#include <components/misc/rng.hpp>
 
 #include "creaturestats.hpp"
 #include "magiceffects.hpp"

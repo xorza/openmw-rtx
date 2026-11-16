@@ -9,8 +9,9 @@
 #include <QIconEngine>
 #include <QPainter>
 #include <QPalette>
-#include <QtSvg/QSvgRenderer>
 #include <utility>
+
+#include <QtSvg/QSvgRenderer>
 
 namespace Misc
 {

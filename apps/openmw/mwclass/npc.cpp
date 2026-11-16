@@ -1,71 +1,63 @@
 ﻿#include "npc.hpp"
 
-#include <MyGUI_TextIterator.h>
-#include <MyGUI_UString.h>
-
 #include <cmath>
 #include <format>
 #include <memory>
 #include <stdexcept>
 
-#include <components/misc/constants.hpp>
-#include <components/misc/resourcehelpers.hpp>
-#include <components/misc/rng.hpp>
+#include <MyGUI_TextIterator.h>
+#include <MyGUI_UString.h>
 
+#include <apps/openmw/mwbase/dialoguemanager.hpp>
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/luamanager.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/soundmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwgui/tooltips.hpp>
+#include <apps/openmw/mwlua/localscripts.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwmechanics/aisetting.hpp>
+#include <apps/openmw/mwmechanics/autocalcspell.hpp>
+#include <apps/openmw/mwmechanics/combat.hpp>
+#include <apps/openmw/mwmechanics/creaturecustomdataresetter.hpp>
+#include <apps/openmw/mwmechanics/creaturestats.hpp>
+#include <apps/openmw/mwmechanics/difficultyscaling.hpp>
+#include <apps/openmw/mwmechanics/disease.hpp>
+#include <apps/openmw/mwmechanics/inventory.hpp>
+#include <apps/openmw/mwmechanics/movement.hpp>
+#include <apps/openmw/mwmechanics/npcstats.hpp>
+#include <apps/openmw/mwmechanics/setbaseaisetting.hpp>
+#include <apps/openmw/mwmechanics/spellcasting.hpp>
+#include <apps/openmw/mwmechanics/weapontype.hpp>
+#include <apps/openmw/mwrender/npcanimation.hpp>
+#include <apps/openmw/mwrender/objects.hpp>
+#include <apps/openmw/mwrender/renderinginterface.hpp>
+#include <apps/openmw/mwworld/actionopen.hpp>
+#include <apps/openmw/mwworld/actiontalk.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/customdata.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/failedaction.hpp>
+#include <apps/openmw/mwworld/inventorystore.hpp>
+#include <apps/openmw/mwworld/localscripts.hpp>
+#include <apps/openmw/mwworld/ptr.hpp>
+#include <apps/openmw/mwworld/worldmodel.hpp>
 #include <components/esm3/loadbody.hpp>
 #include <components/esm3/loadclas.hpp>
 #include <components/esm3/loadmgef.hpp>
 #include <components/esm3/loadnpc.hpp>
 #include <components/esm3/loadrace.hpp>
 #include <components/esm3/npcstate.hpp>
+#include <components/misc/constants.hpp>
+#include <components/misc/resourcehelpers.hpp>
+#include <components/misc/rng.hpp>
 #include <components/settings/values.hpp>
 #include <components/vfs/pathutil.hpp>
 
-#include "../mwbase/dialoguemanager.hpp"
-#include "../mwbase/environment.hpp"
-#include "../mwbase/luamanager.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/soundmanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwlua/localscripts.hpp"
-
-#include "../mwmechanics/actorutil.hpp"
-#include "../mwmechanics/aisetting.hpp"
-#include "../mwmechanics/autocalcspell.hpp"
-#include "../mwmechanics/combat.hpp"
-#include "../mwmechanics/creaturecustomdataresetter.hpp"
-#include "../mwmechanics/creaturestats.hpp"
-#include "../mwmechanics/difficultyscaling.hpp"
-#include "../mwmechanics/disease.hpp"
-#include "../mwmechanics/inventory.hpp"
-#include "../mwmechanics/movement.hpp"
-#include "../mwmechanics/npcstats.hpp"
-#include "../mwmechanics/setbaseaisetting.hpp"
-#include "../mwmechanics/spellcasting.hpp"
-#include "../mwmechanics/weapontype.hpp"
-
-#include "../mwworld/actionopen.hpp"
-#include "../mwworld/actiontalk.hpp"
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/customdata.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/failedaction.hpp"
-#include "../mwworld/inventorystore.hpp"
-#include "../mwworld/localscripts.hpp"
-#include "../mwworld/ptr.hpp"
-#include "../mwworld/worldmodel.hpp"
-
-#include "preloadmodels.hpp"
-
-#include "../mwrender/npcanimation.hpp"
-#include "../mwrender/objects.hpp"
-#include "../mwrender/renderinginterface.hpp"
-
-#include "../mwgui/tooltips.hpp"
-
 #include "nameorid.hpp"
+#include "preloadmodels.hpp"
 
 namespace
 {

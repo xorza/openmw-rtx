@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../doc/stage.hpp"
+#include <apps/opencs/model/doc/stage.hpp>
 
 #include "search.hpp"
 

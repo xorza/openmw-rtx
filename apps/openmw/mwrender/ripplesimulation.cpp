@@ -10,6 +10,9 @@
 #include <osgParticle/ParticleSystem>
 #include <osgParticle/ParticleSystemUpdater>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
 #include <components/fallback/fallback.hpp>
 #include <components/misc/rng.hpp>
 #include <components/nifosg/controller.hpp>
@@ -21,11 +24,6 @@
 
 #include "ripplerules.hpp"
 #include "vismask.hpp"
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwmechanics/actorutil.hpp"
 
 namespace
 {

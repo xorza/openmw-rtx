@@ -5,7 +5,7 @@
 
 #include <MyGUI_Widget.h>
 
-#include "../mwworld/ptr.hpp"
+#include <apps/openmw/mwworld/ptr.hpp>
 
 #include "widgets.hpp"
 

@@ -1,10 +1,11 @@
 #include "file.hpp"
 
 #include <cassert>
-#include <errno.h>
 #include <stdexcept>
-#include <string.h>
 #include <string>
+
+#include <errno.h>
+#include <string.h>
 
 #include <components/files/conversion.hpp>
 

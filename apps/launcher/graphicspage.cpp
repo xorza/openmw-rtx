@@ -1,17 +1,5 @@
 #include "graphicspage.hpp"
 
-#include "sdlinit.hpp"
-
-#include <components/dlss/dlss.hpp>
-#include <components/files/qtconversion.hpp>
-#include <components/misc/display.hpp>
-#include <components/misc/presentation.hpp>
-#include <components/platform/gpu.hpp>
-#include <components/rtx/common/menu.hpp>
-#include <components/rtx/frame/upscale.hpp>
-#include <components/sdlutil/sdldisplay.hpp>
-#include <components/settings/values.hpp>
-
 #include <QCheckBox>
 #include <QCoreApplication>
 #include <QCryptographicHash>
@@ -26,9 +14,6 @@
 #include <QScreen>
 #include <QStandardItemModel>
 #include <QtGlobal>
-
-#include <SDL3/SDL_video.h>
-
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -41,6 +26,20 @@
 #include <string_view>
 #include <system_error>
 #include <utility>
+
+#include <SDL3/SDL_video.h>
+
+#include <components/dlss/dlss.hpp>
+#include <components/files/qtconversion.hpp>
+#include <components/misc/display.hpp>
+#include <components/misc/presentation.hpp>
+#include <components/platform/gpu.hpp>
+#include <components/rtx/common/menu.hpp>
+#include <components/rtx/frame/upscale.hpp>
+#include <components/sdlutil/sdldisplay.hpp>
+#include <components/settings/values.hpp>
+
+#include "sdlinit.hpp"
 
 namespace
 {

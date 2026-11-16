@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QVariant>
 #include <algorithm>
 #include <cctype>
 #include <functional>
@@ -10,8 +11,6 @@
 #include <string_view>
 #include <unordered_set>
 #include <vector>
-
-#include <QVariant>
 
 #include <components/esm3/loaddial.hpp>
 #include <components/esm3/loadmgef.hpp>

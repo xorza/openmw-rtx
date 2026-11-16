@@ -4,7 +4,7 @@
 #include <set>
 #include <vector>
 
-#include "components/esm/defs.hpp"
+#include <components/esm/defs.hpp>
 
 namespace ESM
 {

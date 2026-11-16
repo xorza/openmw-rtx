@@ -1,7 +1,8 @@
 #pragma once
 
-#include <MyGUI_Colour.h>
 #include <map>
+
+#include <MyGUI_Colour.h>
 
 #include <components/widgets/box.hpp>
 

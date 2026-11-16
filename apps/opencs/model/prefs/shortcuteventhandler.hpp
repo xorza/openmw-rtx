@@ -1,9 +1,8 @@
 #pragma once
 
+#include <QObject>
 #include <map>
 #include <vector>
-
-#include <QObject>
 
 class QEvent;
 class QWidget;

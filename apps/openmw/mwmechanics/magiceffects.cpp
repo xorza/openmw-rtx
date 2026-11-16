@@ -2,16 +2,14 @@
 
 #include <stdexcept>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/esm/attr.hpp>
 #include <components/esm3/effectlist.hpp>
 #include <components/esm3/loadmgef.hpp>
 #include <components/esm3/loadskil.hpp>
 #include <components/esm3/magiceffects.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-
-#include "../mwworld/esmstore.hpp"
 
 namespace
 {

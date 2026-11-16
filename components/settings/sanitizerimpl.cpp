@@ -1,7 +1,5 @@
 #include "sanitizerimpl.hpp"
 
-#include <osg/Vec3f>
-
 #include <algorithm>
 #include <cassert>
 #include <cmath>
@@ -10,6 +8,8 @@
 #include <stdexcept>
 #include <type_traits>
 #include <vector>
+
+#include <osg/Vec3f>
 
 namespace Settings
 {

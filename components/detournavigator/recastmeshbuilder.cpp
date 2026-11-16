@@ -1,11 +1,12 @@
 #include "recastmeshbuilder.hpp"
-#include "exceptions.hpp"
-#include <memory>
 
-#include <components/bullethelpers/heightfield.hpp>
-#include <components/bullethelpers/processtrianglecallback.hpp>
-#include <components/bullethelpers/transformboundingbox.hpp>
-#include <components/misc/convert.hpp>
+#include <algorithm>
+#include <array>
+#include <cassert>
+#include <cmath>
+#include <memory>
+#include <sstream>
+#include <vector>
 
 #include <BulletCollision/CollisionShapes/btBoxShape.h>
 #include <BulletCollision/CollisionShapes/btCompoundShape.h>
@@ -14,12 +15,12 @@
 #include <LinearMath/btAabbUtil2.h>
 #include <LinearMath/btTransform.h>
 
-#include <algorithm>
-#include <array>
-#include <cassert>
-#include <cmath>
-#include <sstream>
-#include <vector>
+#include <components/bullethelpers/heightfield.hpp>
+#include <components/bullethelpers/processtrianglecallback.hpp>
+#include <components/bullethelpers/transformboundingbox.hpp>
+#include <components/misc/convert.hpp>
+
+#include "exceptions.hpp"
 
 namespace DetourNavigator
 {

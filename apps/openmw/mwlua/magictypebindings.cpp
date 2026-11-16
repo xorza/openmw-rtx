@@ -1,19 +1,17 @@
 #include "magictypebindings.hpp"
 
+#include <format>
+#include <variant>
+
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwlua/types/usertypeutil.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/esm3/loadalch.hpp>
 #include <components/esm3/loadench.hpp>
 #include <components/esm3/loadmgef.hpp>
 #include <components/esm3/loadspel.hpp>
 #include <components/lua/util.hpp>
 #include <components/misc/color.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwworld/esmstore.hpp"
-
-#include "types/usertypeutil.hpp"
-
-#include <format>
-#include <variant>
 
 namespace
 {

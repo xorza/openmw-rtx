@@ -1,12 +1,11 @@
 #include "landmanager.hpp"
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/esm4/loadwrld.hpp>
 #include <components/resource/objectcache.hpp>
 #include <components/settings/values.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/world.hpp"
-#include "../mwworld/esmstore.hpp"
 
 namespace MWRender
 {

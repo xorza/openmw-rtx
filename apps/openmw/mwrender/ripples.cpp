@@ -3,16 +3,14 @@
 #include <osg/Geometry>
 #include <osg/Texture2D>
 
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwworld/ptr.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/sceneutil/color.hpp> // IWYU pragma: keep: GL_RGBA16F, which Windows' GL headers lack
 #include <components/sceneutil/glextensions.hpp>
 #include <components/shader/shadermanager.hpp>
-
-#include "../mwworld/ptr.hpp"
-
-#include "../mwmechanics/actorutil.hpp"
 
 #include "vismask.hpp"
 

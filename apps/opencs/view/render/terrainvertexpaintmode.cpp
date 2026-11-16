@@ -1,33 +1,29 @@
 #include "terrainvertexpaintmode.hpp"
 
-#include <algorithm>
-#include <cmath>
-#include <memory>
-#include <string>
-
 #include <QComboBox>
 #include <QDropEvent>
 #include <QEvent>
 #include <QIcon>
+#include <algorithm>
+#include <cmath>
+#include <memory>
+#include <string>
 
 #include <apps/opencs/model/doc/document.hpp>
 #include <apps/opencs/model/prefs/state.hpp>
 #include <apps/opencs/model/world/cellselection.hpp>
 #include <apps/opencs/model/world/columnimp.hpp>
 #include <apps/opencs/model/world/columns.hpp>
+#include <apps/opencs/model/world/commands.hpp>
 #include <apps/opencs/model/world/data.hpp>
 #include <apps/opencs/model/world/idtable.hpp>
+#include <apps/opencs/model/world/idtree.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
 #include <apps/opencs/view/widget/brushshapes.hpp>
 #include <apps/opencs/view/widget/scenetool.hpp>
-
+#include <apps/opencs/view/widget/scenetoolbar.hpp>
+#include <apps/opencs/view/widget/scenetoolvertexpaintbrush.hpp>
 #include <components/esm3/loadland.hpp>
-
-#include "../widget/scenetoolbar.hpp"
-#include "../widget/scenetoolvertexpaintbrush.hpp"
-
-#include "../../model/world/commands.hpp"
-#include "../../model/world/idtree.hpp"
 
 #include "brushdraw.hpp"
 #include "commands.hpp"

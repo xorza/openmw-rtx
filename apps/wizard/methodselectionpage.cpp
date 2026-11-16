@@ -1,11 +1,12 @@
 #include "methodselectionpage.hpp"
-#include "installsfromdisc.hpp"
-#include "mainwizard.hpp"
-
-#include <components/misc/scalableicon.hpp>
 
 #include <QDesktopServices>
 #include <QUrl>
+
+#include <components/misc/scalableicon.hpp>
+
+#include "installsfromdisc.hpp"
+#include "mainwizard.hpp"
 
 Wizard::MethodSelectionPage::MethodSelectionPage(QWidget* parent)
     : QWizardPage(parent)

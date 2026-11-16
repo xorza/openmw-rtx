@@ -1,10 +1,10 @@
 #pragma once
 
-#include "narynode.hpp"
-
 #include <map>
 #include <memory>
 #include <vector>
+
+#include "narynode.hpp"
 
 namespace CSMWorld
 {

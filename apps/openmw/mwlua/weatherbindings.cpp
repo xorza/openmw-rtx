@@ -5,6 +5,13 @@
 
 #include <osg/Vec4f>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwlua/types/usertypeutil.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/scene.hpp>
+#include <apps/openmw/mwworld/weather.hpp>
 #include <components/esm3/loadregn.hpp>
 #include <components/lua/util.hpp>
 #include <components/misc/color.hpp>
@@ -13,17 +20,9 @@
 #include <components/resource/resourcesystem.hpp>
 #include <components/sky/timeofday.hpp>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/world.hpp"
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/scene.hpp"
-#include "../mwworld/weather.hpp"
-
 #include "context.hpp"
 #include "object.hpp"
 #include "recordstore.hpp"
-#include "types/usertypeutil.hpp"
 
 namespace
 {

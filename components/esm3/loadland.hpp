@@ -4,10 +4,9 @@
 #include <cstdint>
 #include <memory>
 
+#include <components/esm/defs.hpp>
+#include <components/esm/esmcommon.hpp>
 #include <components/misc/constants.hpp>
-
-#include "components/esm/defs.hpp"
-#include "components/esm/esmcommon.hpp"
 
 #include "landrecorddata.hpp"
 

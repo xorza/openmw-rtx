@@ -2,9 +2,8 @@
 
 #include <SDL3/SDL_events.h>
 
+#include <apps/openmw/mwbase/luamanager.hpp>
 #include <components/sdlutil/events.hpp>
-
-#include "../mwbase/luamanager.hpp"
 
 namespace MWLua
 {

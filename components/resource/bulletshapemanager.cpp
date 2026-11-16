@@ -3,26 +3,24 @@
 #include <cstdint>
 #include <memory>
 
-#include <osg/Drawable>
-#include <osg/NodeVisitor>
-#include <osg/Transform>
-#include <osg/TriangleFunctor>
-
 #include <BulletCollision/BroadphaseCollision/btBroadphaseProxy.h>
 #include <BulletCollision/CollisionShapes/btCompoundShape.h>
 #include <BulletCollision/CollisionShapes/btScaledBvhTriangleMeshShape.h>
 #include <BulletCollision/CollisionShapes/btStridingMeshInterface.h>
 #include <BulletCollision/CollisionShapes/btTriangleMesh.h>
 #include <BulletCollision/CollisionShapes/btTriangleMeshShape.h>
+#include <osg/Drawable>
+#include <osg/NodeVisitor>
+#include <osg/Transform>
+#include <osg/TriangleFunctor>
 
 #include <components/misc/convert.hpp>
 #include <components/misc/osguservalues.hpp>
 #include <components/misc/pathhelpers.hpp>
+#include <components/nifbullet/bulletnifloader.hpp>
 #include <components/sceneutil/visitor.hpp>
 #include <components/vfs/manager.hpp>
 #include <components/vfs/pathutil.hpp>
-
-#include <components/nifbullet/bulletnifloader.hpp>
 
 #include "bulletshape.hpp"
 #include "multiobjectcache.hpp"

@@ -5,10 +5,12 @@
 #include <apps/opencs/model/doc/messages.hpp>
 #include <apps/opencs/model/prefs/category.hpp>
 #include <apps/opencs/model/prefs/setting.hpp>
+#include <apps/opencs/model/prefs/state.hpp>
 #include <apps/opencs/model/world/idcollection.hpp>
+#include <apps/opencs/model/world/record.hpp>
 #include <apps/opencs/model/world/refiddata.hpp>
 #include <apps/opencs/model/world/resources.hpp>
-
+#include <apps/opencs/model/world/universalid.hpp>
 #include <components/esm3/aipackage.hpp>
 #include <components/esm3/loadacti.hpp>
 #include <components/esm3/loadalch.hpp>
@@ -30,11 +32,6 @@
 #include <components/esm3/loadstat.hpp>
 #include <components/esm3/loadweap.hpp>
 #include <components/misc/resourcehelpers.hpp>
-
-#include "../prefs/state.hpp"
-
-#include "../world/record.hpp"
-#include "../world/universalid.hpp"
 
 #include "effectlistcheck.hpp"
 

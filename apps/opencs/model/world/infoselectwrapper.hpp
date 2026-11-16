@@ -1,12 +1,12 @@
 #pragma once
 
-#include <stddef.h>
+#include <QVariant>
 #include <string>
 #include <utility>
 
-#include <components/esm3/loadinfo.hpp>
+#include <stddef.h>
 
-#include <QVariant>
+#include <components/esm3/loadinfo.hpp>
 
 namespace CSMWorld
 {

@@ -2,15 +2,14 @@
 
 #include <memory>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <components/misc/timer.hpp>
+
 #include "character.hpp"
 #include "creaturestats.hpp"
 #include "greetingstate.hpp"
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/world.hpp"
-#include "../mwworld/class.hpp"
-
-#include <components/misc/timer.hpp>
 
 namespace MWRender
 {

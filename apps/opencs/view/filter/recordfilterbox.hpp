@@ -1,13 +1,12 @@
 #pragma once
 
+#include <QVariant>
+#include <QWidget>
 #include <memory>
 #include <string>
 #include <utility>
 #include <variant>
 #include <vector>
-
-#include <QVariant>
-#include <QWidget>
 
 #include "filterdata.hpp"
 

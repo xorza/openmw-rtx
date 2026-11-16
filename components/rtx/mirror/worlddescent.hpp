@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <utility>
 
 #include <osg/Group>
 #include <osg/LOD>
@@ -8,7 +9,6 @@
 #include <osg/NodeVisitor>
 #include <osg/Sequence>
 #include <osg/Switch>
-#include <utility>
 
 #include "nodekind.hpp"
 

@@ -1,9 +1,9 @@
 #include "raycast.hpp"
 
+#include <array>
+
 #include <DetourNavMesh.h>
 #include <DetourNavMeshQuery.h>
-
-#include <array>
 
 namespace DetourNavigator
 {

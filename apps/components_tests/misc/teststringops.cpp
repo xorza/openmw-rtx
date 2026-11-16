@@ -1,18 +1,17 @@
-#include <gtest/gtest.h>
-
-#include <components/misc/strings/algorithm.hpp>
-#include <components/misc/strings/conversion.hpp>
-#include <components/misc/strings/format.hpp>
-#include <components/misc/strings/lower.hpp>
-
-#include <components/misc/algorithm.hpp>
-
 #include <cmath>
 #include <optional>
 #include <string>
 #include <string_view>
 #include <type_traits>
 #include <utility>
+
+#include <gtest/gtest.h>
+
+#include <components/misc/algorithm.hpp>
+#include <components/misc/strings/algorithm.hpp>
+#include <components/misc/strings/conversion.hpp>
+#include <components/misc/strings/format.hpp>
+#include <components/misc/strings/lower.hpp>
 
 namespace
 {

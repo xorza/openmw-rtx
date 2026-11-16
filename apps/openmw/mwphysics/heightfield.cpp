@@ -1,12 +1,12 @@
 #include "heightfield.hpp"
-#include "mtphysics.hpp"
-
-#include <components/bullethelpers/heightfield.hpp>
 
 #include <BulletCollision/CollisionDispatch/btCollisionObject.h>
 #include <BulletCollision/CollisionShapes/btHeightfieldTerrainShape.h>
-
 #include <LinearMath/btTransform.h>
+
+#include <components/bullethelpers/heightfield.hpp>
+
+#include "mtphysics.hpp"
 
 namespace MWPhysics
 {

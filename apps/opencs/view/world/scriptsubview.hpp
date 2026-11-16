@@ -1,14 +1,11 @@
 #pragma once
 
 #include <QVBoxLayout>
-
 #include <string>
 
+#include <apps/opencs/model/world/commanddispatcher.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
-
-#include "../../model/world/commanddispatcher.hpp"
-
-#include "../doc/subview.hpp"
+#include <apps/opencs/view/doc/subview.hpp>
 
 class QModelIndex;
 class QObject;

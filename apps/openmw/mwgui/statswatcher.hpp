@@ -4,12 +4,10 @@
 #include <set>
 #include <span>
 
+#include <apps/openmw/mwmechanics/stat.hpp>
+#include <apps/openmw/mwworld/ptr.hpp>
 #include <components/esm/attr.hpp>
 #include <components/esm3/loadskil.hpp>
-
-#include "../mwmechanics/stat.hpp"
-
-#include "../mwworld/ptr.hpp"
 
 namespace MWGui
 {

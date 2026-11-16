@@ -1,14 +1,13 @@
 #include "detourdebugdraw.hpp"
 
-#include "depth.hpp"
-#include "util.hpp"
+#include <algorithm>
 
 #include <osg/Group>
 #include <osg/PolygonOffset>
 
-#include <algorithm>
-
-#include <components/sceneutil/material.hpp>
+#include "depth.hpp"
+#include "material.hpp"
+#include "util.hpp"
 
 namespace
 {

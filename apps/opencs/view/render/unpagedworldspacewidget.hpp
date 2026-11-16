@@ -4,12 +4,12 @@
 #include <string>
 #include <vector>
 
-#include <apps/opencs/model/world/universalid.hpp>
-#include <apps/opencs/view/render/instancedragmodes.hpp>
-
 #include <osg/Vec3d>
 
+#include <apps/opencs/model/world/universalid.hpp>
+
 #include "cell.hpp"
+#include "instancedragmodes.hpp"
 #include "worldspacewidget.hpp"
 
 class QModelIndex;

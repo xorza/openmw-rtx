@@ -1,8 +1,8 @@
 #include "esmloader.hpp"
-#include "esmstore.hpp"
 
 #include <fstream>
 
+#include <apps/openmw/mwbase/environment.hpp>
 #include <components/esm/format.hpp>
 #include <components/esm/gameformat.hpp>
 #include <components/esm3/esmreader.hpp>
@@ -13,7 +13,7 @@
 #include <components/misc/strings/lower.hpp>
 #include <components/resource/resourcesystem.hpp>
 
-#include "../mwbase/environment.hpp"
+#include "esmstore.hpp"
 
 namespace MWWorld
 {

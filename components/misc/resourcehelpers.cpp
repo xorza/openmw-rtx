@@ -5,12 +5,11 @@
 
 #include <components/esm/gameformat.hpp>
 #include <components/esm/refid.hpp>
-
-#include <components/misc/pathhelpers.hpp>
 #include <components/misc/strings/algorithm.hpp>
-
 #include <components/vfs/manager.hpp>
 #include <components/vfs/pathutil.hpp>
+
+#include "pathhelpers.hpp"
 
 namespace
 {

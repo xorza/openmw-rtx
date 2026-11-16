@@ -1,14 +1,14 @@
-#include <components/esm/refid.hpp>
-#include <components/esm3/esmreader.hpp>
-#include <components/esm3/esmwriter.hpp>
-#include <components/testing/expecterror.hpp>
+#include <functional>
+#include <map>
+#include <string>
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include <functional>
-#include <map>
-#include <string>
+#include <components/esm/refid.hpp>
+#include <components/esm3/esmreader.hpp>
+#include <components/esm3/esmwriter.hpp>
+#include <components/testing/expecterror.hpp>
 
 namespace
 {

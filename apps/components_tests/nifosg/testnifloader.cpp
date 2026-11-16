@@ -1,4 +1,17 @@
 
+#include <array>
+#include <limits>
+#include <memory>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+#include <string_view>
+
+#include <gtest/gtest.h>
+
+#include <osgDB/Registry>
+#include <osgParticle/ParticleSystem>
+
 #include <apps/components_tests/nif/node.hpp>
 #include <components/nif/controller.hpp>
 #include <components/nif/data.hpp>
@@ -11,19 +24,6 @@
 #include <components/sceneutil/serialize.hpp>
 #include <components/sceneutil/visitor.hpp>
 #include <components/vfs/manager.hpp>
-
-#include <gtest/gtest.h>
-
-#include <osgDB/Registry>
-#include <osgParticle/ParticleSystem>
-
-#include <array>
-#include <limits>
-#include <memory>
-#include <sstream>
-#include <stdexcept>
-#include <string>
-#include <string_view>
 
 namespace
 {

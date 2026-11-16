@@ -2,9 +2,8 @@
 
 #include <memory>
 
-#include "components/esm3/quickkeys.hpp"
-
-#include "../mwworld/manualref.hpp"
+#include <apps/openmw/mwworld/manualref.hpp>
+#include <components/esm3/quickkeys.hpp>
 
 #include "itemselection.hpp"
 #include "spellmodel.hpp"

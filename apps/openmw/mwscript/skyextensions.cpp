@@ -2,19 +2,16 @@
 
 #include <algorithm>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/weather.hpp>
 #include <components/compiler/opcodes.hpp>
-
 #include <components/esm3/loadregn.hpp>
 #include <components/interpreter/context.hpp>
 #include <components/interpreter/interpreter.hpp>
 #include <components/interpreter/opcodes.hpp>
 #include <components/interpreter/runtime.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/weather.hpp"
 
 namespace MWScript
 {

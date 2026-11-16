@@ -2,11 +2,9 @@
 
 #include <string>
 
+#include <apps/opencs/model/doc/stage.hpp>
+#include <apps/opencs/model/world/idcollection.hpp>
 #include <components/esm3/variant.hpp>
-
-#include "../world/idcollection.hpp"
-
-#include "../doc/stage.hpp"
 
 namespace CSMDoc
 {

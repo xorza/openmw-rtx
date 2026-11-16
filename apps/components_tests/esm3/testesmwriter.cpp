@@ -1,9 +1,9 @@
-#include <components/esm3/esmwriter.hpp>
+#include <algorithm>
+#include <random>
 
 #include <gtest/gtest.h>
 
-#include <algorithm>
-#include <random>
+#include <components/esm3/esmwriter.hpp>
 
 namespace ESM
 {

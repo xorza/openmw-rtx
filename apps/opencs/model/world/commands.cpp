@@ -1,25 +1,23 @@
 #include "commands.hpp"
 
+#include <QAbstractItemModel>
+#include <QAbstractProxyModel>
 #include <cmath>
 #include <sstream>
-
-#include <apps/opencs/model/world/columns.hpp>
-#include <apps/opencs/model/world/land.hpp>
-#include <apps/opencs/model/world/record.hpp>
-#include <apps/opencs/model/world/universalid.hpp>
+#include <utility>
 
 #include <components/esm3/loadpgrd.hpp>
 #include <components/misc/constants.hpp>
 
-#include <QAbstractItemModel>
-#include <QAbstractProxyModel>
-#include <utility>
-
 #include "cellcoordinates.hpp"
+#include "columns.hpp"
 #include "idtable.hpp"
 #include "idtree.hpp"
+#include "land.hpp"
 #include "nestedtablewrapper.hpp"
 #include "pathgrid.hpp"
+#include "record.hpp"
+#include "universalid.hpp"
 
 CSMWorld::TouchCommand::TouchCommand(IdTable& table, std::string id, QUndoCommand* parent)
     : QUndoCommand(parent)

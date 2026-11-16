@@ -4,6 +4,7 @@
 #include <charconv>
 #include <optional>
 #include <string_view>
+#include <utility>
 
 #include <osg/AlphaFunc>
 #include <osg/BlendEquation>
@@ -26,7 +27,6 @@
 #include <components/sceneutil/material.hpp>
 #include <components/sceneutil/texturetype.hpp>
 #include <components/sceneutil/util.hpp>
-#include <utility>
 
 #include "surfacedescription.hpp"
 

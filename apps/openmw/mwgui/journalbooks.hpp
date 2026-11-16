@@ -1,9 +1,9 @@
 #pragma once
 
+#include <components/toutf8/toutf8.hpp>
+
 #include "bookpage.hpp"
 #include "journalviewmodel.hpp"
-
-#include <components/toutf8/toutf8.hpp>
 
 namespace MWGui
 {

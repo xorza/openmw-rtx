@@ -1,12 +1,12 @@
 #pragma once
 
-#include "preparednavmeshdata.hpp"
-#include "recast.hpp"
-#include "ref.hpp"
+#include <tuple>
 
 #include <Recast.h>
 
-#include <tuple>
+#include "preparednavmeshdata.hpp"
+#include "recast.hpp"
+#include "ref.hpp"
 
 inline bool operator==(const rcPolyMesh& lhs, const rcPolyMesh& rhs) noexcept
 {

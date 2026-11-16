@@ -1,13 +1,13 @@
 #pragma once
 
-#include <components/bullethelpers/operators.hpp>
-#include <components/detournavigator/debug.hpp>
-
 #include <deque>
 #include <iomanip>
 #include <limits>
 
 #include <gtest/gtest.h>
+
+#include <components/bullethelpers/operators.hpp>
+#include <components/detournavigator/debug.hpp>
 
 namespace DetourNavigatorTesting
 {

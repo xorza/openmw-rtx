@@ -1,27 +1,25 @@
-#include "types.hpp"
-
 #include <array>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwlua/localscripts.hpp>
+#include <apps/openmw/mwlua/luamanagerimp.hpp>
+#include <apps/openmw/mwlua/magicbindings.hpp>
+#include <apps/openmw/mwlua/stats.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwmechanics/creaturestats.hpp>
+#include <apps/openmw/mwmechanics/drawstate.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/inventorystore.hpp>
+#include <apps/openmw/mwworld/worldmodel.hpp>
 #include <components/detournavigator/agentbounds.hpp>
 #include <components/lua/luastate.hpp>
 #include <components/misc/finitevalues.hpp>
 #include <components/settings/values.hpp>
 
-#include "apps/openmw/mwbase/environment.hpp"
-#include "apps/openmw/mwbase/mechanicsmanager.hpp"
-#include "apps/openmw/mwbase/windowmanager.hpp"
-#include "apps/openmw/mwbase/world.hpp"
-#include "apps/openmw/mwmechanics/actorutil.hpp"
-#include "apps/openmw/mwmechanics/creaturestats.hpp"
-#include "apps/openmw/mwmechanics/drawstate.hpp"
-#include "apps/openmw/mwworld/class.hpp"
-#include "apps/openmw/mwworld/inventorystore.hpp"
-#include "apps/openmw/mwworld/worldmodel.hpp"
-
-#include "../localscripts.hpp"
-#include "../luamanagerimp.hpp"
-#include "../magicbindings.hpp"
-#include "../stats.hpp"
+#include "types.hpp"
 
 namespace MWLua
 {

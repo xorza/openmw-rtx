@@ -1,14 +1,14 @@
 #include "contentselector.hpp"
 
-#include "ui_contentselector.h"
-
-#include <components/contentselector/model/esmfile.hpp>
-
 #include <QClipboard>
 #include <QMenu>
 #include <QModelIndex>
 #include <QProgressDialog>
 #include <QSortFilterProxyModel>
+
+#include <components/contentselector/model/esmfile.hpp>
+
+#include "ui_contentselector.h"
 
 ContentSelectorView::ContentSelector::ContentSelector(QWidget* parent, bool showOMWScripts)
     : QObject(parent)

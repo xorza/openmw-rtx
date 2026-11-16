@@ -2,18 +2,16 @@
 
 #include <QPoint>
 #include <QTimer>
+#include <string>
+#include <vector>
 
 #include <osg/Vec3d>
 #include <osg/ref_ptr>
 
-#include <string>
-#include <vector>
-
-#include <apps/opencs/view/render/tagbase.hpp>
-
 #include "instancedragmodes.hpp"
 #include "objectmarker.hpp"
 #include "scenewidget.hpp"
+#include "tagbase.hpp"
 
 class QDragEnterEvent;
 class QDragMoveEvent;

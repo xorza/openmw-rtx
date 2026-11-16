@@ -1,8 +1,8 @@
 #pragma once
 
-#include <DetourAlloc.h>
-
 #include <memory>
+
+#include <DetourAlloc.h>
 
 namespace DetourNavigator
 {

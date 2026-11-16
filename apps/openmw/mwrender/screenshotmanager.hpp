@@ -1,7 +1,6 @@
 #pragma once
 
 #include <osg/ref_ptr>
-
 #include <osgViewer/Viewer>
 
 namespace MWRender

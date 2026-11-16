@@ -3,10 +3,10 @@
 #include <QFrame>
 #include <QGroupBox>
 
+#include <components/esm/refid.hpp>
+
 #include "brushshapes.hpp"
 #include "scenetool.hpp"
-
-#include <components/esm/refid.hpp>
 
 class QTableWidget;
 class QDragEnterEvent;

@@ -3,7 +3,7 @@
 #include <osg/Vec3d>
 #include <osg/ref_ptr>
 
-#include "../widget/brushshapes.hpp"
+#include <apps/opencs/view/widget/brushshapes.hpp>
 
 namespace osg
 {

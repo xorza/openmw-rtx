@@ -1,6 +1,3 @@
-#include <gmock/gmock.h>
-#include <gtest/gtest.h>
-
 #include <algorithm>
 #include <array>
 #include <cstddef>
@@ -21,6 +18,9 @@
 #include <utility>
 #include <vector>
 
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
+
 #include <boost/program_options/options_description.hpp>
 #include <boost/program_options/value_semantic.hpp>
 #include <boost/program_options/variables_map.hpp>
@@ -39,6 +39,7 @@
 #include <components/testing/util.hpp>
 // Every record type whole, which the type lists below detect a member of: one left incomplete would drop out of the
 // lists unseen.
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/esm/path.hpp>
 #include <components/esm/records.hpp> // IWYU pragma: keep
 #include <components/esm/stringrefid.hpp>
@@ -55,8 +56,6 @@
 #include <components/esm3/variant.hpp>
 #include <components/files/collections.hpp>
 #include <components/files/multidircollection.hpp>
-
-#include "apps/openmw/mwworld/esmstore.hpp"
 
 namespace
 {

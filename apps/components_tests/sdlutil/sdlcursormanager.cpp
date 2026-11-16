@@ -1,6 +1,6 @@
-#include <components/sdlutil/sdlcursormanager.hpp>
-
 #include <gtest/gtest.h>
+
+#include <components/sdlutil/sdlcursormanager.hpp>
 
 namespace SDLUtil
 {

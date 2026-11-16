@@ -1,5 +1,3 @@
-#include "crashpadmonitorsystem.hpp"
-
 #include <array>
 #include <cerrno>
 #include <charconv>
@@ -17,10 +15,6 @@
 #include <utility>
 #include <vector>
 
-#include <poll.h>
-#include <sys/syscall.h>
-#include <unistd.h>
-
 #include <base/files/file_path.h>
 #include <base/logging.h>
 #include <client/crash_report_database.h>
@@ -28,13 +22,17 @@
 #include <handler/linux/crash_report_exception_handler.h>
 #include <handler/linux/exception_handler_server.h>
 #include <handler/prune_crash_reports_thread.h>
+#include <poll.h>
 #include <snapshot/exception_snapshot.h>
 #include <snapshot/linux/process_snapshot_linux.h>
+#include <sys/syscall.h>
+#include <unistd.h>
 #include <util/file/file_io.h>
 #include <util/linux/direct_ptrace_connection.h>
 
 #include <components/platform/wholefile.hpp>
 
+#include "crashpadmonitorsystem.hpp"
 #include "crashsummary.hpp"
 
 namespace Crash::Monitor

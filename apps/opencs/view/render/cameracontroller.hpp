@@ -1,8 +1,7 @@
 #pragma once
 
-#include <vector>
-
 #include <QObject>
+#include <vector>
 
 #include <osg/Vec3d>
 

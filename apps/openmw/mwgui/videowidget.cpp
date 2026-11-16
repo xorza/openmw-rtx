@@ -1,16 +1,13 @@
 #include "videowidget.hpp"
 
-#include <osg-ffmpeg-videoplayer/videoplayer.hpp>
-
 #include <MyGUI_RenderManager.h>
-
+#include <osg-ffmpeg-videoplayer/videoplayer.hpp>
 #include <osg/Texture2D>
 
+#include <apps/openmw/mwsound/movieaudiofactory.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/myguiplatform/guirendermanager.hpp>
 #include <components/vfs/manager.hpp>
-
-#include "../mwsound/movieaudiofactory.hpp"
 
 namespace MWGui
 {

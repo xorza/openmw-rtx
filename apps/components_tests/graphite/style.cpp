@@ -1,9 +1,3 @@
-#include <algorithm>
-#include <functional>
-#include <vector>
-
-#include <gtest/gtest.h>
-
 #include <QAbstractItemView>
 #include <QAbstractSpinBox>
 #include <QApplication>
@@ -20,6 +14,11 @@
 #include <QRgb>
 #include <QStyleOption>
 #include <QTabBar>
+#include <algorithm>
+#include <functional>
+#include <vector>
+
+#include <gtest/gtest.h>
 
 #include <components/graphite/palette.hpp>
 #include <components/graphite/style.hpp>

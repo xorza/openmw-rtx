@@ -1,18 +1,17 @@
-#include "apps/opencs/model/world/infocollection.hpp"
-
-#include "components/esm3/esmreader.hpp"
-#include "components/esm3/esmwriter.hpp"
-#include "components/esm3/formatversion.hpp"
-#include "components/esm3/loaddial.hpp"
-#include "components/esm3/loadinfo.hpp"
-
-#include <gmock/gmock.h>
-#include <gtest/gtest.h>
-
 #include <algorithm>
 #include <array>
 #include <sstream>
 #include <vector>
+
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
+
+#include <apps/opencs/model/world/infocollection.hpp>
+#include <components/esm3/esmreader.hpp>
+#include <components/esm3/esmwriter.hpp>
+#include <components/esm3/formatversion.hpp>
+#include <components/esm3/loaddial.hpp>
+#include <components/esm3/loadinfo.hpp>
 
 namespace CSMWorld
 {

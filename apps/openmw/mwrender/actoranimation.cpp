@@ -1,39 +1,34 @@
 #include "actoranimation.hpp"
+
 #include <utility>
 
 #include <osg/Group>
 #include <osg/Node>
 #include <osg/Vec4f>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwmechanics/creaturestats.hpp>
+#include <apps/openmw/mwmechanics/drawstate.hpp>
+#include <apps/openmw/mwmechanics/weapontype.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/inventorystore.hpp>
+#include <apps/openmw/mwworld/ptr.hpp>
 #include <components/esm3/loadbody.hpp>
 #include <components/esm3/loadcell.hpp>
 #include <components/esm3/loadligh.hpp>
-
+#include <components/misc/resourcehelpers.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
-
 #include <components/sceneutil/attach.hpp>
 #include <components/sceneutil/lightcommon.hpp>
 #include <components/sceneutil/lightmanager.hpp>
 #include <components/sceneutil/lightutil.hpp>
 #include <components/sceneutil/visitor.hpp>
-
-#include <components/misc/resourcehelpers.hpp>
-
 #include <components/settings/values.hpp>
-
 #include <components/vfs/manager.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwmechanics/actorutil.hpp"
-#include "../mwmechanics/creaturestats.hpp"
-#include "../mwmechanics/drawstate.hpp"
-#include "../mwmechanics/weapontype.hpp"
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/inventorystore.hpp"
-#include "../mwworld/ptr.hpp"
 
 #include "actorutil.hpp"
 #include "vismask.hpp"

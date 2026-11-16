@@ -2,10 +2,11 @@
 
 #include <array>
 
+#include <osg/ref_ptr>
+
 #include <components/esm3/loadland.hpp>
 #include <components/esm3/loadltex.hpp>
 #include <components/esmterrain/storage.hpp>
-#include <osg/ref_ptr>
 
 namespace CSMWorld
 {

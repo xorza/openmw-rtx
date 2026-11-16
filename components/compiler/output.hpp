@@ -1,11 +1,11 @@
 #pragma once
 
-#include "literals.hpp"
-
 #include <vector>
 
 #include <components/interpreter/program.hpp>
 #include <components/interpreter/types.hpp>
+
+#include "literals.hpp"
 
 namespace Compiler
 {

@@ -1,11 +1,10 @@
 #pragma once
 
+#include <QModelIndex>
+#include <QObject>
 #include <string>
 
 #include <osg/ref_ptr>
-
-#include <QModelIndex>
-#include <QObject>
 
 class QModelIndex;
 

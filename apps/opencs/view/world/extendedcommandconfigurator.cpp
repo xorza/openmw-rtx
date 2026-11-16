@@ -1,18 +1,15 @@
 #include "extendedcommandconfigurator.hpp"
 
-#include <algorithm>
-#include <utility>
-
 #include <QCheckBox>
 #include <QGroupBox>
 #include <QLayout>
 #include <QPushButton>
+#include <algorithm>
+#include <utility>
 
-#include "../../model/doc/document.hpp"
-
-#include "../../model/world/commanddispatcher.hpp"
-#include "../../model/world/data.hpp"
-
+#include <apps/opencs/model/doc/document.hpp>
+#include <apps/opencs/model/world/commanddispatcher.hpp>
+#include <apps/opencs/model/world/data.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
 
 CSVWorld::ExtendedCommandConfigurator::ExtendedCommandConfigurator(

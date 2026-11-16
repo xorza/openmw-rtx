@@ -1,16 +1,16 @@
 #pragma once
 
+#include <QAbstractTableModel>
+#include <QModelIndex>
+#include <QVariant>
 #include <map>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include <QAbstractTableModel>
-#include <QModelIndex>
-#include <QVariant>
+#include <components/esm/refid.hpp>
 
 #include "cellcoordinates.hpp"
-#include <components/esm/refid.hpp>
 
 class QObject;
 

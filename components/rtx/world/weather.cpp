@@ -1,10 +1,11 @@
 #include "weather.hpp"
 
+#include <utility>
+
 #include <components/crashcatcher/crash.hpp>
 #include <components/esm/refid.hpp>
 #include <components/esm/stringrefid.hpp>
 #include <components/esm3/loadregn.hpp>
-#include <utility>
 
 namespace Rtx
 {

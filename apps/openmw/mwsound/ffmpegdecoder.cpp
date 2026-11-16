@@ -6,10 +6,10 @@
 #include <stdexcept>
 #include <utility>
 
+#include <libavutil/channel_layout.h>
+
 #include <components/debug/debuglog.hpp>
 #include <components/vfs/manager.hpp>
-
-#include <libavutil/channel_layout.h>
 
 #include "headcache.hpp"
 

@@ -2,9 +2,8 @@
 
 #include <stdexcept>
 
-#include <apps/opencs/model/world/idtablebase.hpp>
-
 #include "columnbase.hpp"
+#include "idtablebase.hpp"
 #include "resources.hpp"
 #include "universalid.hpp"
 

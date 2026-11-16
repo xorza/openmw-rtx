@@ -2,7 +2,7 @@
 
 #include <memory>
 
-#include <components/l10n/messagebundles.hpp>
+#include "messagebundles.hpp"
 
 namespace VFS
 {

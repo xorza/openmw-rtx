@@ -29,9 +29,12 @@
 #include "creature.hpp"
 #include "creaturelevlist.hpp"
 #include "door.hpp"
+#include "esm4base.hpp"
+#include "esm4npc.hpp"
 #include "ingredient.hpp"
 #include "itemlevlist.hpp"
 #include "light.hpp"
+#include "light4.hpp"
 #include "lockpick.hpp"
 #include "misc.hpp"
 #include "npc.hpp"
@@ -40,10 +43,6 @@
 #include "repair.hpp"
 #include "static.hpp"
 #include "weapon.hpp"
-
-#include "esm4base.hpp"
-#include "esm4npc.hpp"
-#include "light4.hpp"
 
 namespace MWClass
 {

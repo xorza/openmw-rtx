@@ -1,9 +1,9 @@
 #pragma once
 
-#include "setting.hpp"
-
 #include <string>
 #include <utility>
+
+#include "setting.hpp"
 
 namespace CSMPrefs
 {

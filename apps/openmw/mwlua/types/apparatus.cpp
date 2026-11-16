@@ -1,10 +1,9 @@
-#include "types.hpp"
-
-#include "usertypeutil.hpp"
-
 #include <components/esm3/loadappa.hpp>
 #include <components/lua/luastate.hpp>
 #include <components/misc/resourcehelpers.hpp>
+
+#include "types.hpp"
+#include "usertypeutil.hpp"
 
 namespace sol
 {

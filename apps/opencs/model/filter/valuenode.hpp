@@ -1,12 +1,12 @@
 #pragma once
 
-#include "leafnode.hpp"
-
-#include <apps/opencs/model/world/idtablebase.hpp>
-
 #include <map>
 #include <string>
 #include <vector>
+
+#include <apps/opencs/model/world/idtablebase.hpp>
+
+#include "leafnode.hpp"
 
 namespace CSMFilter
 {

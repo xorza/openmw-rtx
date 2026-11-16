@@ -1,14 +1,12 @@
 #pragma once
 
 #include <QString>
-
 #include <memory>
 #include <string>
 #include <vector>
 
 #include <apps/opencs/model/world/scope.hpp>
-
-#include "../../model/world/universalid.hpp"
+#include <apps/opencs/model/world/universalid.hpp>
 
 #include "creator.hpp"
 

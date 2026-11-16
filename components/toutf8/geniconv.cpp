@@ -1,8 +1,8 @@
 // This program generates the file tablesgen.hpp
 
+#include <cassert>
 #include <iostream>
 
-#include <cassert>
 #include <iconv.h>
 
 void tab()

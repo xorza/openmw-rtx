@@ -1,18 +1,17 @@
 #pragma once
 
 #include <array>
+#include <filesystem>
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <utility>
 #include <vector>
 
-#include <filesystem>
-
 #include <osg/Camera>
 #include <osg/FrameBufferObject>
 #include <osg/Group>
 #include <osg/Texture2D>
-
 #include <osgViewer/Viewer>
 
 #include <components/debug/debuglog.hpp>
@@ -23,8 +22,6 @@
 #include "opaqueblit.hpp"
 #include "pingpongcanvas.hpp"
 #include "transparentpass.hpp"
-
-#include <memory>
 
 namespace osgViewer
 {

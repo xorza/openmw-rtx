@@ -5,6 +5,7 @@
 #include <span>
 #include <stdexcept>
 #include <string>
+#include <utility>
 
 #include <MyGUI_IRenderTarget.h>
 #include <MyGUI_ITexture.h>
@@ -19,7 +20,6 @@
 #include <components/files/memorystream.hpp>
 #include <components/resource/imagemanager.hpp>
 #include <components/vfs/pathutil.hpp>
-#include <utility>
 
 #include "guirendermanager.hpp"
 

@@ -1,3 +1,23 @@
+#include <array>
+#include <cstdint>
+#include <map>
+#include <memory>
+#include <string>
+#include <string_view>
+#include <thread>
+#include <vector>
+
+#include <gtest/gtest.h>
+
+#include <osg/Array>
+#include <osg/Drawable>
+#include <osg/Geometry>
+#include <osg/Group>
+#include <osg/Image>
+#include <osg/NodeVisitor>
+#include <osg/PrimitiveSet>
+#include <osg/Texture2D>
+
 #include <apps/components_tests/rtx/support/ddsfile.hpp>
 #include <components/files/configurationmanager.hpp>
 #include <components/resource/cachebudget.hpp>
@@ -13,26 +33,6 @@
 #include <components/testing/util.hpp>
 #include <components/toutf8/toutf8.hpp>
 #include <components/vfs/manager.hpp>
-
-#include <gtest/gtest.h>
-
-#include <osg/Array>
-#include <osg/Drawable>
-#include <osg/Geometry>
-#include <osg/Group>
-#include <osg/Image>
-#include <osg/NodeVisitor>
-#include <osg/PrimitiveSet>
-#include <osg/Texture2D>
-
-#include <array>
-#include <cstdint>
-#include <map>
-#include <memory>
-#include <string>
-#include <string_view>
-#include <thread>
-#include <vector>
 
 namespace
 {

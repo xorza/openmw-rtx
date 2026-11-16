@@ -1,16 +1,18 @@
 #include "document.hpp"
 
-#include "state.hpp"
+#include <filesystem>
+#include <fstream>
+#include <memory>
+#include <stdexcept>
+#include <utility>
 
-#include <apps/opencs/model/doc/messages.hpp>
-#include <apps/opencs/model/doc/operationholder.hpp>
-#include <apps/opencs/model/doc/runner.hpp>
-#include <apps/opencs/model/doc/saving.hpp>
+#include <stddef.h>
+
 #include <apps/opencs/model/tools/tools.hpp>
 #include <apps/opencs/model/world/data.hpp>
+#include <apps/opencs/model/world/defaultgmsts.hpp>
 #include <apps/opencs/model/world/idcollection.hpp>
 #include <apps/opencs/model/world/record.hpp>
-
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/loaddial.hpp>
 #include <components/esm3/loadglob.hpp>
@@ -18,18 +20,14 @@
 #include <components/esm3/loadmgef.hpp>
 #include <components/esm3/loadskil.hpp>
 #include <components/esm3/variant.hpp>
+#include <components/files/configurationmanager.hpp>
 #include <components/files/conversion.hpp>
 
-#include <filesystem>
-#include <fstream>
-#include <memory>
-#include <stddef.h>
-#include <stdexcept>
-#include <utility>
-
-#include "../world/defaultgmsts.hpp"
-
-#include <components/files/configurationmanager.hpp>
+#include "messages.hpp"
+#include "operationholder.hpp"
+#include "runner.hpp"
+#include "saving.hpp"
+#include "state.hpp"
 
 namespace CSMWorld
 {

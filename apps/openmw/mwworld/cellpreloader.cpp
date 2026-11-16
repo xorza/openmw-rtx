@@ -5,6 +5,7 @@
 #include <limits>
 #include <span>
 
+#include <apps/openmw/mwrender/landmanager.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/loadinglistener/reporter.hpp>
 #include <components/misc/constants.hpp>
@@ -19,8 +20,6 @@
 #include <components/terrain/view.hpp>
 #include <components/terrain/world.hpp>
 #include <components/vfs/manager.hpp>
-
-#include "../mwrender/landmanager.hpp"
 
 #include "cellstore.hpp"
 #include "class.hpp"

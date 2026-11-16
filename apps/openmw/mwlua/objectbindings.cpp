@@ -1,5 +1,19 @@
 #include "objectbindings.hpp"
 
+#include <utility>
+
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwlua/types/types.hpp>
+#include <apps/openmw/mwmechanics/creaturestats.hpp>
+#include <apps/openmw/mwrender/renderingmanager.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/containerstore.hpp>
+#include <apps/openmw/mwworld/localscripts.hpp>
+#include <apps/openmw/mwworld/player.hpp>
+#include <apps/openmw/mwworld/scene.hpp>
+#include <apps/openmw/mwworld/worldmodel.hpp>
 #include <components/esm3/loadfact.hpp>
 #include <components/esm3/loadnpc.hpp>
 #include <components/lua/luastate.hpp>
@@ -8,26 +22,9 @@
 #include <components/lua/utilpackage.hpp>
 #include <components/misc/convert.hpp>
 #include <components/misc/mathutil.hpp>
-#include <utility>
-
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/class.hpp"
-#include "../mwworld/containerstore.hpp"
-#include "../mwworld/localscripts.hpp"
-#include "../mwworld/player.hpp"
-#include "../mwworld/scene.hpp"
-#include "../mwworld/worldmodel.hpp"
-
-#include "../mwrender/renderingmanager.hpp"
-
-#include "../mwmechanics/creaturestats.hpp"
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/world.hpp"
 
 #include "luaevents.hpp"
 #include "luamanagerimp.hpp"
-#include "types/types.hpp"
 
 namespace sol
 {

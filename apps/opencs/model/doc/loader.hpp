@@ -1,14 +1,13 @@
 #pragma once
 
+#include <QMutex>
+#include <QObject>
+#include <QWaitCondition>
 #include <chrono>
 #include <optional>
 #include <string>
 #include <utility>
 #include <vector>
-
-#include <QMutex>
-#include <QObject>
-#include <QWaitCondition>
 
 class QTimer;
 

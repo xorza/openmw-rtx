@@ -1,9 +1,9 @@
 #include "luastate.hpp"
 
-#include <luajit.h>
-
 #include <filesystem>
 #include <fstream>
+
+#include <luajit.h>
 
 #include <components/debug/debuglog.hpp>
 #include <components/files/conversion.hpp>

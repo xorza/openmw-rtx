@@ -3,10 +3,9 @@
 #include <condition_variable>
 #include <mutex>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/world.hpp>
 #include <components/stereo/stereomanager.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/world.hpp"
 
 #include "postprocessor.hpp"
 

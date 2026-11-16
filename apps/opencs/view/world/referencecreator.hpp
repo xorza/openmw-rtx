@@ -2,10 +2,10 @@
 
 #include <string>
 
-#include "genericcreator.hpp"
-
 #include <apps/opencs/model/world/universalid.hpp>
-#include <apps/opencs/view/world/creator.hpp>
+
+#include "creator.hpp"
+#include "genericcreator.hpp"
 
 class QObject;
 class QUndoStack;

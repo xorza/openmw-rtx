@@ -1,12 +1,12 @@
 #pragma once
 
+#include <array>
+#include <memory>
+
 #include <osg/Camera>
 #include <osg/FrameBufferObject>
 #include <osg/GL>
 #include <osg/ref_ptr>
-
-#include <array>
-#include <memory>
 
 namespace osg
 {

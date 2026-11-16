@@ -18,29 +18,20 @@
 #include <vector>
 
 #include <osg/AlphaFunc>
-#include <osg/Capability>
-#include <osg/ColorMaski>
-#include <osg/Group>
-#include <osg/Material>
-#include <osg/Node>
-#include <osg/UserDataContainer>
-
-#include <osgAnimation/BasicAnimationManager>
-#include <osgAnimation/RigGeometry>
-
-#include <osgParticle/ParticleSystem>
-
-#include <osgUtil/IncrementalCompileOperation>
-
 #include <osg/Array>
 #include <osg/BoundingBox>
 #include <osg/BoundingSphere>
 #include <osg/Callback>
+#include <osg/Capability>
+#include <osg/ColorMaski>
 #include <osg/Depth>
 #include <osg/Drawable>
 #include <osg/Geometry>
+#include <osg/Group>
+#include <osg/Material>
 #include <osg/MatrixTransform>
 #include <osg/Matrixf>
+#include <osg/Node>
 #include <osg/NodeVisitor>
 #include <osg/PrimitiveSet>
 #include <osg/StateAttribute>
@@ -49,10 +40,13 @@
 #include <osg/Texture>
 #include <osg/Transform>
 #include <osg/Uniform>
+#include <osg/UserDataContainer>
 #include <osg/ref_ptr>
 #include <osgAnimation/Animation>
 #include <osgAnimation/AnimationUpdateCallback>
+#include <osgAnimation/BasicAnimationManager>
 #include <osgAnimation/Channel>
+#include <osgAnimation/RigGeometry>
 #include <osgAnimation/Skeleton>
 #include <osgAnimation/VertexInfluence>
 #include <osgDB/Callbacks>
@@ -60,29 +54,28 @@
 #include <osgDB/ReaderWriter>
 #include <osgDB/Registry>
 #include <osgDB/SharedStateManager>
+#include <osgParticle/ParticleSystem>
+#include <osgUtil/IncrementalCompileOperation>
 
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/debug/debuglog.hpp>
-
-#include <components/nifosg/controller.hpp>
-#include <components/nifosg/nifloader.hpp>
-
-#include <components/nif/niffile.hpp>
-
-#include <components/sptosg/sptloader.hpp>
-
+#include <components/files/conversion.hpp>
+#include <components/files/hash.hpp>
+#include <components/files/memorystream.hpp>
 #include <components/misc/algorithm.hpp>
 #include <components/misc/osguservalues.hpp>
 #include <components/misc/pathhelpers.hpp>
 #include <components/misc/strings/algorithm.hpp>
 #include <components/misc/strings/conversion.hpp>
-
-#include <components/vfs/manager.hpp>
-
+#include <components/nif/niffile.hpp>
+#include <components/nifosg/controller.hpp>
+#include <components/nifosg/nifloader.hpp>
 #include <components/sceneutil/clone.hpp>
 #include <components/sceneutil/controller.hpp>
 #include <components/sceneutil/depth.hpp>
+#include <components/sceneutil/material.hpp>
 #include <components/sceneutil/morphgeometry.hpp>
+#include <components/sceneutil/nodecallback.hpp>
 #include <components/sceneutil/optimizer.hpp>
 #include <components/sceneutil/riggeometry.hpp>
 #include <components/sceneutil/riggeometryosgaextension.hpp>
@@ -90,16 +83,11 @@
 #include <components/sceneutil/templateref.hpp>
 #include <components/sceneutil/util.hpp>
 #include <components/sceneutil/visitor.hpp>
-
+#include <components/shader/automaps.hpp>
 #include <components/shader/shadermanager.hpp>
 #include <components/shader/shadervisitor.hpp>
-
-#include <components/files/conversion.hpp>
-#include <components/files/hash.hpp>
-#include <components/files/memorystream.hpp>
-#include <components/sceneutil/material.hpp>
-#include <components/sceneutil/nodecallback.hpp>
-#include <components/shader/automaps.hpp>
+#include <components/sptosg/sptloader.hpp>
+#include <components/vfs/manager.hpp>
 
 #include "bgsmfilemanager.hpp"
 #include "cachestats.hpp"

@@ -1,7 +1,6 @@
 #include "savingstages.hpp"
 
 #include <QUndoStack>
-
 #include <filesystem>
 #include <sstream>
 #include <stdexcept>
@@ -9,8 +8,8 @@
 #include <utility>
 #include <vector>
 
-#include <apps/opencs/model/doc/savingstate.hpp>
 #include <apps/opencs/model/world/cell.hpp>
+#include <apps/opencs/model/world/cellcoordinates.hpp>
 #include <apps/opencs/model/world/data.hpp>
 #include <apps/opencs/model/world/idcollection.hpp>
 #include <apps/opencs/model/world/info.hpp>
@@ -23,7 +22,6 @@
 #include <apps/opencs/model/world/refidcollection.hpp>
 #include <apps/opencs/model/world/refiddata.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
-
 #include <components/esm/esmcommon.hpp>
 #include <components/esm3/cellref.hpp>
 #include <components/esm3/esmwriter.hpp>
@@ -33,9 +31,8 @@
 #include <components/esm3/loadpgrd.hpp>
 #include <components/files/conversion.hpp>
 
-#include "../world/cellcoordinates.hpp"
-
 #include "document.hpp"
+#include "savingstate.hpp"
 
 CSMDoc::OpenSaveStage::OpenSaveStage(Document& document, SavingState& state, bool projectFile)
     : mDocument(document)

@@ -1,8 +1,7 @@
 #include "journalbooks.hpp"
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
 #include <components/misc/utf8stream.hpp>
 
 #include "textcolours.hpp"

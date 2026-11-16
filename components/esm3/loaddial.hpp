@@ -4,10 +4,10 @@
 #include <map>
 #include <string>
 
-#include "components/esm/defs.hpp"
-#include "components/esm/refid.hpp"
-#include "components/esm3/infoorder.hpp"
+#include <components/esm/defs.hpp>
+#include <components/esm/refid.hpp>
 
+#include "infoorder.hpp"
 #include "loadinfo.hpp"
 
 namespace ESM

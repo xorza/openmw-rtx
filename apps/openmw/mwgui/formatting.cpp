@@ -1,11 +1,15 @@
 #include "formatting.hpp"
 
 #include <charconv>
+#include <utility>
 
 #include <MyGUI_EditText.h>
 #include <MyGUI_Gui.h>
 #include <MyGUI_ImageBox.h>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwscript/interpretercontext.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/fontloader/fontloader.hpp>
 #include <components/interpreter/defines.hpp>
@@ -13,11 +17,6 @@
 #include <components/misc/strings/algorithm.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/vfs/manager.hpp>
-#include <utility>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwscript/interpretercontext.hpp"
 
 namespace MWGui::Formatting
 {

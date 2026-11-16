@@ -1,5 +1,8 @@
 #include "viewmanager.hpp"
 
+#include <QApplication>
+#include <QMessageBox>
+#include <QPushButton>
 #include <algorithm>
 #include <filesystem>
 #include <map>
@@ -7,31 +10,23 @@
 #include <utility>
 #include <vector>
 
+#include <apps/opencs/model/doc/document.hpp>
+#include <apps/opencs/model/doc/documentmanager.hpp>
 #include <apps/opencs/model/prefs/category.hpp>
 #include <apps/opencs/model/prefs/setting.hpp>
+#include <apps/opencs/model/prefs/state.hpp>
 #include <apps/opencs/model/world/columnbase.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
-#include <apps/opencs/view/doc/loader.hpp>
-
+#include <apps/opencs/view/world/colordelegate.hpp>
+#include <apps/opencs/view/world/enumdelegate.hpp>
+#include <apps/opencs/view/world/idcompletiondelegate.hpp>
+#include <apps/opencs/view/world/idtypedelegate.hpp>
+#include <apps/opencs/view/world/recordstatusdelegate.hpp>
+#include <apps/opencs/view/world/vartypedelegate.hpp>
 #include <components/esm3/variant.hpp>
 #include <components/files/qtconversion.hpp>
 
-#include <QApplication>
-#include <QMessageBox>
-#include <QPushButton>
-
-#include "../../model/doc/document.hpp"
-#include "../../model/doc/documentmanager.hpp"
-
-#include "../../model/prefs/state.hpp"
-
-#include "../world/colordelegate.hpp"
-#include "../world/enumdelegate.hpp"
-#include "../world/idcompletiondelegate.hpp"
-#include "../world/idtypedelegate.hpp"
-#include "../world/recordstatusdelegate.hpp"
-#include "../world/vartypedelegate.hpp"
-
+#include "loader.hpp"
 #include "view.hpp"
 
 void CSVDoc::ViewManager::updateIndices()

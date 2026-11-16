@@ -1,17 +1,15 @@
 #include "globalscripts.hpp"
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/scriptmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/worldmodel.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/esmwriter.hpp>
 #include <components/esm3/globalscript.hpp>
 #include <components/esm3/loadscpt.hpp>
 #include <components/esm3/loadsscr.hpp>
-
-#include "../mwworld/esmstore.hpp"
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/scriptmanager.hpp"
-#include "../mwbase/world.hpp"
-#include "../mwworld/worldmodel.hpp"
 
 #include "interpretercontext.hpp"
 

@@ -5,16 +5,14 @@
 #include <MyGUI_RenderManager.h>
 #include <MyGUI_TextBox.h>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwworld/class.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/settings/values.hpp>
 #include <components/vfs/manager.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-
-#include "../mwworld/class.hpp"
 
 namespace
 {

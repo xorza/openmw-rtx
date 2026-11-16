@@ -1,8 +1,9 @@
 #pragma once
 
 #include <array>
-#include <components/esm3/loadnpc.hpp>
 #include <string_view>
+
+#include <components/esm3/loadnpc.hpp>
 
 namespace MWLua
 {

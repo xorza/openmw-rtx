@@ -1,8 +1,8 @@
 #include "morphgeometry.hpp"
 
-#include <osgUtil/CullVisitor>
-
 #include <cassert>
+
+#include <osgUtil/CullVisitor>
 
 namespace SceneUtil
 {

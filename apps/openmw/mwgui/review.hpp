@@ -1,9 +1,10 @@
 #pragma once
 
-#include "widgets.hpp"
-#include "windowbase.hpp"
 #include <components/esm/refid.hpp>
 #include <components/esm3/loadclas.hpp>
+
+#include "widgets.hpp"
+#include "windowbase.hpp"
 
 namespace ESM
 {

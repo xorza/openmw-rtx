@@ -16,12 +16,11 @@
 #include <MyGUI_InputManager.h>
 #include <MyGUI_TextBox.h>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/journal.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
 #include <components/widgets/imagebutton.hpp>
 #include <components/widgets/list.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/journal.hpp"
-#include "../mwbase/windowmanager.hpp"
 
 #include "bookpage.hpp"
 #include "journalbooks.hpp"

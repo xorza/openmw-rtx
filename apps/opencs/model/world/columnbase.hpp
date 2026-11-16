@@ -1,10 +1,9 @@
 #pragma once
 
+#include <QVariant>
 #include <stdexcept>
 #include <string>
 #include <vector>
-
-#include <QVariant>
 
 namespace CSMWorld
 {

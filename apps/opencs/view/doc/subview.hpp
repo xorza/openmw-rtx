@@ -1,10 +1,9 @@
 #pragma once
 
-#include "../../model/world/universalid.hpp"
-
 #include <QDockWidget>
-
 #include <string>
+
+#include <apps/opencs/model/world/universalid.hpp>
 
 class QCloseEvent;
 class QEvent;

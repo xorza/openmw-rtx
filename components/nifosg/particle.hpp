@@ -11,7 +11,6 @@
 #include <osgParticle/Shooter>
 
 #include <components/nif/particle.hpp> // NiGravity::ForceType
-
 #include <components/sceneutil/nodecallback.hpp>
 
 #include "controller.hpp" // ValueInterpolator

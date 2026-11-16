@@ -1,11 +1,11 @@
 #include "dialoguecondition.hpp"
 
+#include <components/debug/debuglog.hpp>
+#include <components/misc/strings/conversion.hpp>
+
 #include "esmreader.hpp"
 #include "esmwriter.hpp"
 #include "variant.hpp"
-
-#include <components/debug/debuglog.hpp>
-#include <components/misc/strings/conversion.hpp>
 
 namespace ESM
 {

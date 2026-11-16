@@ -2,10 +2,10 @@
 
 #include <memory>
 
+#include <apps/openmw/mwmechanics/enchanting.hpp>
+
 #include "itemselection.hpp"
 #include "spellcreationdialog.hpp"
-
-#include "../mwmechanics/enchanting.hpp"
 
 namespace MWGui
 {

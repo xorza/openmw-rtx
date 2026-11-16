@@ -1,34 +1,29 @@
 #include "pathgridmode.hpp"
 
 #include <QIcon>
-
-#include <components/misc/scalableicon.hpp>
-#include <components/sceneutil/pathgridutil.hpp>
-
-#include "../../model/prefs/state.hpp"
-
-#include "../../model/world/commandmacro.hpp"
-
-#include "../widget/scenetoolbar.hpp"
-
-#include "cell.hpp"
-#include "mask.hpp"
-#include "pathgrid.hpp"
-#include "pathgridselectionmode.hpp"
-#include "worldspacewidget.hpp"
-
-#include <apps/opencs/model/doc/document.hpp>
-#include <apps/opencs/model/prefs/category.hpp>
-#include <apps/opencs/model/prefs/setting.hpp>
-#include <apps/opencs/view/render/editmode.hpp>
-#include <apps/opencs/view/render/tagbase.hpp>
+#include <vector>
 
 #include <osg/Camera>
 #include <osg/Matrixd>
 #include <osg/Vec3d>
 #include <osg/ref_ptr>
 
-#include <vector>
+#include <apps/opencs/model/doc/document.hpp>
+#include <apps/opencs/model/prefs/category.hpp>
+#include <apps/opencs/model/prefs/setting.hpp>
+#include <apps/opencs/model/prefs/state.hpp>
+#include <apps/opencs/model/world/commandmacro.hpp>
+#include <apps/opencs/view/widget/scenetoolbar.hpp>
+#include <components/misc/scalableicon.hpp>
+#include <components/sceneutil/pathgridutil.hpp>
+
+#include "cell.hpp"
+#include "editmode.hpp"
+#include "mask.hpp"
+#include "pathgrid.hpp"
+#include "pathgridselectionmode.hpp"
+#include "tagbase.hpp"
+#include "worldspacewidget.hpp"
 
 class QPoint;
 class QUndoStack;

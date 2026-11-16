@@ -1,8 +1,9 @@
 #pragma once
 
-#include <components/esm/refid.hpp>
 #include <string>
 #include <vector>
+
+#include <components/esm/refid.hpp>
 
 namespace ESM
 {

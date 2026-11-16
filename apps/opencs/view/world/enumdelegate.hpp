@@ -1,10 +1,9 @@
 #pragma once
 
+#include <QString>
 #include <string>
 #include <utility>
 #include <vector>
-
-#include <QString>
 
 #include <apps/opencs/model/world/columnbase.hpp>
 

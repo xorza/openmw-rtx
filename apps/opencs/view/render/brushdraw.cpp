@@ -12,14 +12,13 @@
 #include <osg/StateAttribute>
 #include <osg/StateSet>
 #include <osg/Vec4f>
-
 #include <osgUtil/IntersectionVisitor>
 #include <osgUtil/LineSegmentIntersector>
 
+#include <apps/opencs/model/world/cellcoordinates.hpp>
+#include <apps/opencs/view/widget/brushshapes.hpp>
 #include <components/esm3/loadland.hpp>
 
-#include "../../model/world/cellcoordinates.hpp"
-#include "../widget/brushshapes.hpp"
 #include "mask.hpp"
 
 CSVRender::BrushDraw::BrushDraw(osg::ref_ptr<osg::Group> parentNode, bool textureMode)

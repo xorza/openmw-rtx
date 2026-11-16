@@ -1,12 +1,12 @@
 #include "loadskil.hpp"
 
-#include "esmreader.hpp"
-#include "esmwriter.hpp"
+#include <cstdint>
 
 #include <components/esm/attr.hpp>
 #include <components/misc/concepts.hpp>
 
-#include <cstdint>
+#include "esmreader.hpp"
+#include "esmwriter.hpp"
 
 namespace ESM
 {

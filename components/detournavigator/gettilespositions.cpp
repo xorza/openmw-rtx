@@ -1,12 +1,13 @@
 #include "gettilespositions.hpp"
+
+#include <BulletCollision/CollisionShapes/btCollisionShape.h>
+
+#include <components/misc/convert.hpp>
+
 #include "settings.hpp"
 #include "settingsutils.hpp"
 #include "tilebounds.hpp"
 #include "tileposition.hpp"
-
-#include <components/misc/convert.hpp>
-
-#include <BulletCollision/CollisionShapes/btCollisionShape.h>
 
 namespace DetourNavigator
 {

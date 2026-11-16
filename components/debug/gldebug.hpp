@@ -1,7 +1,8 @@
 #pragma once
 
-#include <osgViewer/ViewerEventHandlers>
 #include <utility>
+
+#include <osgViewer/ViewerEventHandlers>
 
 namespace Debug
 {

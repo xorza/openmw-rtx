@@ -1,10 +1,9 @@
 #pragma once
 
+#include <QRegularExpression>
 #include <map>
 #include <string>
 #include <vector>
-
-#include <QRegularExpression>
 
 #include <apps/opencs/model/world/idtablebase.hpp>
 

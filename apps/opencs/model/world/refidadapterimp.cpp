@@ -2,19 +2,18 @@
 
 #include <stdexcept>
 
-#include <apps/opencs/model/world/columnbase.hpp>
-#include <apps/opencs/model/world/disabletag.hpp>
-#include <apps/opencs/model/world/record.hpp>
-#include <apps/opencs/model/world/refiddata.hpp>
-#include <apps/opencs/model/world/universalid.hpp>
-
 #include <components/esm/attr.hpp>
 #include <components/esm3/loadcont.hpp>
 #include <components/esm3/loadmgef.hpp>
 #include <components/esm3/loadskil.hpp>
 
+#include "columnbase.hpp"
+#include "disabletag.hpp"
 #include "idcollection.hpp"
 #include "nestedtablewrapper.hpp"
+#include "record.hpp"
+#include "refiddata.hpp"
+#include "universalid.hpp"
 
 CSMWorld::PotionColumns::PotionColumns(const InventoryColumns& columns)
     : InventoryColumns(columns)

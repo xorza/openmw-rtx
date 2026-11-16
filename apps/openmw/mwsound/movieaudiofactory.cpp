@@ -3,8 +3,8 @@
 #include <osg-ffmpeg-videoplayer/audiodecoder.hpp>
 #include <osg-ffmpeg-videoplayer/videostate.hpp>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/soundmanager.hpp"
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/soundmanager.hpp>
 
 #include "sounddecoder.hpp"
 

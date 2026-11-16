@@ -7,9 +7,8 @@
 #include <string>
 #include <string_view>
 
-#include <components/misc/cstringview.hpp>
-
 #include <apps/openmw/mwrender/framesaside.hpp>
+#include <components/misc/cstringview.hpp>
 
 namespace MWRender
 {

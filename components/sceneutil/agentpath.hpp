@@ -1,8 +1,8 @@
 #pragma once
 
-#include <osg/ref_ptr>
-
 #include <deque>
+
+#include <osg/ref_ptr>
 
 namespace osg
 {

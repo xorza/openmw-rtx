@@ -10,6 +10,7 @@
 #include <osg/VertexAttribDivisor>
 #include <osgUtil/CullVisitor>
 
+#include <apps/openmw/mwworld/groundcoverstore.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/loadland.hpp>
@@ -21,8 +22,6 @@
 #include <components/settings/values.hpp>
 #include <components/shader/shadermanager.hpp>
 #include <components/terrain/quadtreenode.hpp>
-
-#include "../mwworld/groundcoverstore.hpp"
 
 #include "groundcoverdensity.hpp"
 #include "groundcovershapes.hpp"

@@ -4,9 +4,7 @@
 #include <cassert>
 #include <cmath>
 #include <filesystem>
-
-#include <osg/Image>
-#include <osg/ref_ptr>
+#include <utility>
 
 #include <MyGUI_ClipboardManager.h>
 #include <MyGUI_FactoryManager.h>
@@ -16,68 +14,51 @@
 #include <MyGUI_PointerManager.h>
 #include <MyGUI_RenderManager.h>
 #include <MyGUI_UString.h>
-
 #include <SDL3/SDL_clipboard.h>
 #include <SDL3/SDL_keyboard.h>
 #include <SDL3/SDL_video.h>
+#include <osg/Image>
+#include <osg/ref_ptr>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/inputmanager.hpp>
+#include <apps/openmw/mwbase/luamanager.hpp>
+#include <apps/openmw/mwbase/soundmanager.hpp>
+#include <apps/openmw/mwbase/statemanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwmechanics/npcstats.hpp>
+#include <apps/openmw/mwrender/localmap.hpp>
+#include <apps/openmw/mwrender/postprocessor.hpp>
+#include <apps/openmw/mwrender/renderer.hpp>
+#include <apps/openmw/mwrender/renderingmanager.hpp>
+#include <apps/openmw/mwrender/rendersupport.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/globals.hpp>
+#include <apps/openmw/mwworld/player.hpp>
 #include <components/debug/debuglog.hpp>
-
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/esmwriter.hpp>
-
 #include <components/fontloader/interfacefonts.hpp>
-
+#include <components/l10n/manager.hpp>
+#include <components/lua_ui/util.hpp>
+#include <components/lua_ui/widget.hpp>
 #include <components/misc/presentation.hpp>
-
-#include <components/resource/imagemanager.hpp>
-#include <components/resource/resourcesystem.hpp>
-#include <components/resource/scenemanager.hpp>
-
-#include <components/sceneutil/workqueue.hpp>
-
-#include <components/translation/translation.hpp>
-
 #include <components/myguiplatform/guirendermanager.hpp>
 #include <components/myguiplatform/myguiplatform.hpp>
 #include <components/myguiplatform/scalinglayer.hpp>
-
-#include <components/vfs/manager.hpp>
-
-#include <components/widgets/tags.hpp>
-#include <components/widgets/widgets.hpp>
-
-#include <components/l10n/manager.hpp>
-
-#include <components/lua_ui/util.hpp>
-#include <components/lua_ui/widget.hpp>
-
+#include <components/resource/imagemanager.hpp>
+#include <components/resource/resourcesystem.hpp>
+#include <components/resource/scenemanager.hpp>
+#include <components/sceneutil/workqueue.hpp>
 #include <components/settings/values.hpp>
 #include <components/terrain/world.hpp>
-#include <utility>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/inputmanager.hpp"
-#include "../mwbase/luamanager.hpp"
-#include "../mwbase/soundmanager.hpp"
-#include "../mwbase/statemanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwrender/localmap.hpp"
-#include "../mwrender/renderer.hpp"
-#include "../mwrender/renderingmanager.hpp"
-#include "../mwrender/rendersupport.hpp"
-
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/globals.hpp"
-#include "../mwworld/player.hpp"
-
-#include "../mwmechanics/actorutil.hpp"
-#include "../mwmechanics/npcstats.hpp"
-
-#include "../mwrender/postprocessor.hpp"
+#include <components/translation/translation.hpp>
+#include <components/vfs/manager.hpp>
+#include <components/widgets/tags.hpp>
+#include <components/widgets/widgets.hpp>
 
 #include "alchemywindow.hpp"
 #include "backgroundimage.hpp"

@@ -7,9 +7,9 @@
 #include <osg/Timer>
 #include <osg/ref_ptr>
 
-#include "windowbase.hpp"
-
 #include <components/loadinglistener/loadinglistener.hpp>
+
+#include "windowbase.hpp"
 
 namespace MWRender
 {

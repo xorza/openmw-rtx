@@ -1,10 +1,10 @@
 #pragma once
 
+#include <string>
+
 #include <components/settings/hrtfmode.hpp>
 #include <components/settings/sanitizerimpl.hpp>
 #include <components/settings/settingvalue.hpp>
-
-#include <string>
 
 namespace Settings
 {

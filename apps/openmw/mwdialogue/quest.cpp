@@ -2,12 +2,10 @@
 
 #include <algorithm>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/luamanager.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/esm3/queststate.hpp>
-
-#include "../mwbase/luamanager.hpp"
-#include "../mwworld/esmstore.hpp"
-
-#include "../mwbase/environment.hpp"
 
 namespace MWDialogue
 {

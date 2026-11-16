@@ -1,10 +1,10 @@
 #include "watersoundupdater.hpp"
 
-#include "../mwbase/world.hpp"
-#include "../mwworld/cellstore.hpp"
-#include "../mwworld/ptr.hpp"
-
 #include <osg/Vec3f>
+
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwworld/cellstore.hpp>
+#include <apps/openmw/mwworld/ptr.hpp>
 
 namespace MWSound
 {

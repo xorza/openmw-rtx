@@ -14,6 +14,9 @@
 #include <gtest/gtest.h>
 
 #include <apps/components_tests/rtx/support/allocations.hpp>
+#include <apps/openmw/mwscript/visibilitygates.hpp>
+#include <apps/openmw/mwscript/visibilityrun.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/compiler/context.hpp>
 #include <components/compiler/extensions.hpp>
 #include <components/compiler/extensions0.hpp>
@@ -29,10 +32,6 @@
 #include <components/misc/strings/algorithm.hpp>
 #include <components/misc/strings/lower.hpp>
 #include <components/terrain/pagedcellref.hpp>
-
-#include "apps/openmw/mwscript/visibilitygates.hpp"
-#include "apps/openmw/mwscript/visibilityrun.hpp"
-#include "apps/openmw/mwworld/esmstore.hpp"
 
 #include "testutils.hpp"
 

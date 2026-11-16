@@ -1,15 +1,13 @@
 #pragma once
 
 #include <memory>
-#include <osg/ref_ptr>
 
 #include <osg/PositionAttitudeTransform>
+#include <osg/ref_ptr>
 
+#include <apps/openmw/mwworld/ptr.hpp>
 #include <components/esm3/loadnpc.hpp>
-
 #include <components/resource/resourcesystem.hpp>
-
-#include "../mwworld/ptr.hpp"
 
 #include "offscreenview.hpp"
 

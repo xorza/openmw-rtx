@@ -1,13 +1,12 @@
 #include "effectlistcheck.hpp"
 
+#include <apps/opencs/model/doc/messages.hpp>
+#include <apps/opencs/model/world/universalid.hpp>
 #include <components/esm/attr.hpp>
 #include <components/esm3/effectlist.hpp>
 #include <components/esm3/loadingr.hpp>
 #include <components/esm3/loadmgef.hpp>
 #include <components/esm3/loadskil.hpp>
-
-#include <apps/opencs/model/doc/messages.hpp>
-#include <apps/opencs/model/world/universalid.hpp>
 
 namespace CSMTools
 {

@@ -6,11 +6,10 @@
 #include <unordered_map>
 #include <vector>
 
-#include <yaml-cpp/yaml.h>
-
 #include <osg/Vec2f>
 #include <osg/Vec3f>
 #include <osg/Vec4f>
+#include <yaml-cpp/yaml.h>
 
 #include <components/debug/debuglog.hpp>
 #include <components/files/conversion.hpp>

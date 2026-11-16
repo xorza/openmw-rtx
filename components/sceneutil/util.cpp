@@ -12,8 +12,9 @@
 
 #include <components/resource/imagemanager.hpp>
 #include <components/resource/scenemanager.hpp>
-#include <components/sceneutil/texturetype.hpp>
 #include <components/vfs/pathutil.hpp>
+
+#include "texturetype.hpp"
 
 namespace SceneUtil
 {

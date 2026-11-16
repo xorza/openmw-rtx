@@ -1,11 +1,11 @@
 #pragma once
 
-#include <osg/Geometry>
-#include <osg/Matrixf>
-
 #include <memory>
 #include <span>
 #include <string_view>
+
+#include <osg/Geometry>
+#include <osg/Matrixf>
 
 namespace SceneUtil
 {

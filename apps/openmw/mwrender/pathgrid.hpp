@@ -1,8 +1,7 @@
 #pragma once
 
-#include <utility>
-
 #include <map>
+#include <utility>
 #include <vector>
 
 #include <osg/ref_ptr>

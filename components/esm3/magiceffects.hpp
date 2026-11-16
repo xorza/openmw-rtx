@@ -1,10 +1,10 @@
 #pragma once
 
-#include <components/esm/refid.hpp>
-
 #include <map>
 #include <string>
 #include <tuple>
+
+#include <components/esm/refid.hpp>
 
 namespace ESM
 {

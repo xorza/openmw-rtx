@@ -1,10 +1,9 @@
 #pragma once
 
 #include <QTableView>
-
 #include <vector>
 
-#include "../../model/world/columnbase.hpp"
+#include <apps/opencs/model/world/columnbase.hpp>
 
 class QDragEnterEvent;
 class QDragMoveEvent;

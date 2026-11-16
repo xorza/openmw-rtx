@@ -2,13 +2,12 @@
 
 #include <sstream>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/luamanager.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/loadcrea.hpp>
 #include <components/esm3/loadscpt.hpp>
 #include <components/esm3/objectstate.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/luamanager.hpp"
 
 #include "class.hpp"
 #include "esmstore.hpp"

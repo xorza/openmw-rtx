@@ -1,10 +1,10 @@
 #pragma once
 
-#include <components/esm/esmcommon.hpp>
-#include <components/esm/vector3.hpp>
-
 #include <cstdint>
 #include <vector>
+
+#include <components/esm/esmcommon.hpp>
+#include <components/esm/vector3.hpp>
 
 namespace ESM
 {

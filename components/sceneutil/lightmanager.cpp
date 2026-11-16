@@ -9,11 +9,11 @@
 #include <components/debug/debuglog.hpp>
 #include <components/misc/constants.hpp>
 #include <components/resource/scenemanager.hpp>
-#include <components/sceneutil/glextensions.hpp>
-#include <components/sceneutil/util.hpp>
 #include <components/shader/shadermanager.hpp>
 
+#include "glextensions.hpp"
 #include "memorybarrier.hpp"
+#include "util.hpp"
 
 namespace
 {

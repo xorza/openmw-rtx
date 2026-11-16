@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../../model/doc/document.hpp"
+#include <apps/opencs/model/doc/document.hpp>
 
 #include "subviewfactory.hpp"
 

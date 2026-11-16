@@ -1,5 +1,17 @@
 #include "worldbindings.hpp"
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/mechanicsmanager.hpp>
+#include <apps/openmw/mwbase/statemanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwworld/action.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/datetimemanager.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/manualref.hpp>
+#include <apps/openmw/mwworld/store.hpp>
+#include <apps/openmw/mwworld/worldmodel.hpp>
 #include <components/esm3/loadacti.hpp>
 #include <components/esm3/loadalch.hpp>
 #include <components/esm3/loadarmo.hpp>
@@ -21,24 +33,10 @@
 #include <components/lua/luastate.hpp>
 #include <components/misc/finitevalues.hpp>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/mechanicsmanager.hpp"
-#include "../mwbase/statemanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-#include "../mwworld/action.hpp"
-#include "../mwworld/class.hpp"
-#include "../mwworld/datetimemanager.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/manualref.hpp"
-#include "../mwworld/store.hpp"
-#include "../mwworld/worldmodel.hpp"
-
-#include "luamanagerimp.hpp"
-
 #include "animationbindings.hpp"
 #include "context.hpp"
 #include "corebindings.hpp"
+#include "luamanagerimp.hpp"
 #include "mwscriptbindings.hpp"
 
 namespace MWLua

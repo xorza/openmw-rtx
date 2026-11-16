@@ -6,44 +6,36 @@
 #include <functional>
 
 #include <MyGUI_InputManager.h>
-
 #include <sol/object.hpp>
 #include <sol/table.hpp>
 #include <sol/types.hpp>
 
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwlua/types/types.hpp>
+#include <apps/openmw/mwrender/bonegroup.hpp>
+#include <apps/openmw/mwrender/renderer.hpp>
+#include <apps/openmw/mwrender/renderingmanager.hpp>
+#include <apps/openmw/mwworld/datetimemanager.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/player.hpp>
+#include <apps/openmw/mwworld/ptr.hpp>
+#include <apps/openmw/mwworld/scene.hpp>
+#include <apps/openmw/mwworld/worldmodel.hpp>
 #include <components/debug/debuglog.hpp>
-
 #include <components/esm/luascripts.hpp>
 #include <components/esm3/effectlist.hpp>
 #include <components/esm3/esmreader.hpp>
 #include <components/esm3/esmwriter.hpp>
-
-#include <components/misc/framestats.hpp>
-#include <components/settings/values.hpp>
-
 #include <components/l10n/manager.hpp>
-
 #include <components/lua/util.hpp>
 #include <components/lua_ui/registerscriptsettings.hpp>
 #include <components/lua_ui/util.hpp>
-
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwrender/bonegroup.hpp"
-#include "../mwrender/renderer.hpp"
-#include "../mwrender/renderingmanager.hpp"
-
-#include "../mwworld/datetimemanager.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/player.hpp"
-#include "../mwworld/ptr.hpp"
-#include "../mwworld/scene.hpp"
-#include "../mwworld/worldmodel.hpp"
+#include <components/misc/framestats.hpp>
+#include <components/settings/values.hpp>
 
 #include "luabindings.hpp"
 #include "playerscripts.hpp"
-#include "types/types.hpp"
 #include "userdataserializer.hpp"
 
 namespace MWLua

@@ -1,7 +1,6 @@
 #pragma once
 
 #include <QString>
-
 #include <string>
 #include <vector>
 
@@ -11,10 +10,11 @@
 #include <osg/Vec3>
 #include <osg/ref_ptr>
 
-#include "editmode.hpp"
-#include "instancedragmodes.hpp"
 #include <apps/opencs/model/world/idtable.hpp>
 #include <components/esm3/selectiongroup.hpp>
+
+#include "editmode.hpp"
+#include "instancedragmodes.hpp"
 
 class QDragEnterEvent;
 class QDropEvent;

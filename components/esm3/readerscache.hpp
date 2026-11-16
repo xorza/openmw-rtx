@@ -1,12 +1,12 @@
 #pragma once
 
-#include "esmreader.hpp"
-
 #include <cstddef>
 #include <list>
 #include <map>
 #include <optional>
 #include <string>
+
+#include "esmreader.hpp"
 
 namespace ESM
 {

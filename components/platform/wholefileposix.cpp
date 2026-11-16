@@ -1,5 +1,3 @@
-#include "wholefilesystem.hpp"
-
 #include <algorithm>
 #include <cerrno>
 #include <cstdio>
@@ -9,6 +7,7 @@
 #include <unistd.h>
 
 #include "uniquehold.hpp"
+#include "wholefilesystem.hpp"
 
 namespace Platform::WholeFileSystem
 {

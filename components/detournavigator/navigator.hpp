@@ -5,6 +5,9 @@
 #include <memory>
 #include <optional>
 
+#include <components/esm/refid.hpp>
+#include <components/resource/bulletshape.hpp>
+
 #include "cellgridbounds.hpp"
 #include "heightfieldshape.hpp"
 #include "objectid.hpp"
@@ -12,9 +15,6 @@
 #include "sharednavmeshcacheitem.hpp"
 #include "updateguard.hpp"
 #include "waitconditiontype.hpp"
-
-#include <components/esm/refid.hpp>
-#include <components/resource/bulletshape.hpp>
 
 namespace ESM
 {

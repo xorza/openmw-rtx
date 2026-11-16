@@ -5,7 +5,6 @@
 #include <QString>
 #include <QStringList>
 #include <QTextStream>
-
 #include <filesystem>
 
 namespace Files

@@ -1,9 +1,5 @@
 #pragma once
 
-#include <osg/Matrixf>
-#include <osg/Vec2f>
-#include <osg/Vec4f>
-
 #include <array>
 #include <cstdint>
 #include <cstring>
@@ -11,6 +7,10 @@
 #include <string_view>
 #include <tuple>
 #include <type_traits>
+
+#include <osg/Matrixf>
+#include <osg/Vec2f>
+#include <osg/Vec4f>
 
 namespace Std140
 {

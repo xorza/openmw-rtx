@@ -1,17 +1,17 @@
 #include "locals.hpp"
-#include "globalscripts.hpp"
 
+#include <utility>
+
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/scriptmanager.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
 #include <components/compiler/locals.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/loadscpt.hpp>
 #include <components/esm3/locals.hpp>
 #include <components/esm3/variant.hpp>
-#include <utility>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/scriptmanager.hpp"
-
-#include "../mwworld/esmstore.hpp"
+#include "globalscripts.hpp"
 
 namespace MWScript
 {

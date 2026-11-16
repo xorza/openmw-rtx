@@ -1,5 +1,3 @@
-#include "crashpadclientsystem.hpp"
-
 #include <array>
 #include <csignal>
 #include <cstdint>
@@ -18,6 +16,7 @@
 #include <components/misc/windows.hpp>
 
 #include "crashnote.hpp"
+#include "crashpadclientsystem.hpp"
 #include "crashsummary.hpp"
 
 namespace Crash::Client

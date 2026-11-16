@@ -1,13 +1,13 @@
 #pragma once
 
-#include <components/misc/mathutil.hpp>
-
 #include <cassert>
 #include <cmath>
 #include <cstddef>
 #include <stdexcept>
 #include <string>
 #include <utility>
+
+#include <components/misc/mathutil.hpp>
 
 namespace ESMTerrain
 {

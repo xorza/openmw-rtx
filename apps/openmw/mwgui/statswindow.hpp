@@ -1,9 +1,10 @@
 #pragma once
 
-#include "statswatcher.hpp"
-#include "windowpinnablebase.hpp"
 #include <components/esm/attr.hpp>
 #include <components/esm/refid.hpp>
+
+#include "statswatcher.hpp"
+#include "windowpinnablebase.hpp"
 
 namespace MWGui
 {

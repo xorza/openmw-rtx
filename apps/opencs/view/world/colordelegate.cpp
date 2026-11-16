@@ -5,7 +5,7 @@
 #include <QPainter>
 #include <QRect>
 
-#include <apps/opencs/view/world/util.hpp>
+#include "util.hpp"
 
 namespace CSMDoc
 {

@@ -1,13 +1,12 @@
 #include "textnode.hpp"
 
+#include <QRegularExpression>
 #include <sstream>
 #include <stdexcept>
 #include <utility>
 
-#include <QRegularExpression>
-
-#include "../world/columns.hpp"
-#include "../world/idtablebase.hpp"
+#include <apps/opencs/model/world/columns.hpp>
+#include <apps/opencs/model/world/idtablebase.hpp>
 
 CSMFilter::TextNode::TextNode(int columnId, std::string text)
     : mColumnId(columnId)

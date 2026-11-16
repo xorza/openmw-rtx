@@ -2,7 +2,8 @@
 
 #include <components/debug/debuglog.hpp>
 #include <components/l10n/manager.hpp>
-#include <components/lua/luastate.hpp>
+
+#include "luastate.hpp"
 
 namespace
 {

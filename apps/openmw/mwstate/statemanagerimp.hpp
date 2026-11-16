@@ -4,7 +4,7 @@
 #include <map>
 #include <utility>
 
-#include "../mwbase/statemanager.hpp"
+#include <apps/openmw/mwbase/statemanager.hpp>
 
 #include "charactermanager.hpp"
 

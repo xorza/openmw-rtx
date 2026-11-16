@@ -3,16 +3,15 @@
 #include <QLineEdit>
 #include <QPalette>
 #include <QVariant>
-
 #include <memory>
 #include <string>
 #include <utility>
 #include <variant>
 #include <vector>
 
-#include "filterdata.hpp"
+#include <apps/opencs/model/filter/parser.hpp>
 
-#include "../../model/filter/parser.hpp"
+#include "filterdata.hpp"
 
 class QModelIndex;
 class QAction;

@@ -26,7 +26,7 @@
 */
 #pragma once
 
-#include "components/esm/fourcc.hpp"
+#include <components/esm/fourcc.hpp>
 
 namespace ESM4
 {

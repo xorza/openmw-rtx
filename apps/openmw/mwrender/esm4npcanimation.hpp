@@ -1,11 +1,11 @@
 #pragma once
 
-#include "animation.hpp"
-
 #include <functional>
 #include <unordered_set>
 
 #include <components/vfs/pathutil.hpp>
+
+#include "animation.hpp"
 
 namespace ESM4
 {

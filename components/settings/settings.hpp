@@ -1,26 +1,25 @@
 #pragma once
 
-#include "categories.hpp"
-#include "gyroscopeaxis.hpp"
-#include "hrtfmode.hpp"
-#include "navmeshrendermode.hpp"
-#include "windowmode.hpp"
-
-#include <components/detournavigator/collisionshapetype.hpp>
-#include <components/rtx/frame/upscale.hpp>
-#include <components/sdlutil/vsyncmode.hpp>
-#include <components/vfs/pathutil.hpp>
-
 #include <filesystem>
 #include <set>
 #include <string>
 #include <string_view>
 #include <vector>
 
+#include <MyGUI_Colour.h>
 #include <osg/Vec2f>
 #include <osg/Vec3f>
 
-#include <MyGUI_Colour.h>
+#include <components/detournavigator/collisionshapetype.hpp>
+#include <components/rtx/frame/upscale.hpp>
+#include <components/sdlutil/vsyncmode.hpp>
+#include <components/vfs/pathutil.hpp>
+
+#include "categories.hpp"
+#include "gyroscopeaxis.hpp"
+#include "hrtfmode.hpp"
+#include "navmeshrendermode.hpp"
+#include "windowmode.hpp"
 
 namespace Files
 {

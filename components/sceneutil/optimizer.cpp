@@ -41,7 +41,7 @@
 #include <iterator>
 #include <cassert>
 
-#include <components/sceneutil/depth.hpp>
+#include "depth.hpp"
 
 // NOLINTBEGIN(readability-identifier-naming)
 

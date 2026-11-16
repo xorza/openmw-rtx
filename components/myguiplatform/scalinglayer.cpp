@@ -1,7 +1,8 @@
 #include "scalinglayer.hpp"
 
-#include <MyGUI_RenderManager.h>
 #include <algorithm>
+
+#include <MyGUI_RenderManager.h>
 
 namespace MyGUIPlatform
 {

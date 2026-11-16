@@ -1,12 +1,12 @@
-#include <components/sceneutil/userdata.hpp>
-
-#include <osg/Group>
-#include <osg/Node>
-
 #include <string>
 #include <vector>
 
 #include <gtest/gtest.h>
+
+#include <osg/Group>
+#include <osg/Node>
+
+#include <components/sceneutil/userdata.hpp>
 
 namespace
 {

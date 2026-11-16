@@ -1,16 +1,15 @@
 #pragma once
 
-#include "itemmodel.hpp"
-
-#include <apps/openmw/mwbase/environment.hpp>
-#include <apps/openmw/mwbase/world.hpp>
-
-#include <components/esm/refid.hpp>
+#include <stdexcept>
 
 #include <MyGUI_InputManager.h>
 #include <MyGUI_RenderManager.h>
 
-#include <stdexcept>
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <components/esm/refid.hpp>
+
+#include "itemmodel.hpp"
 
 namespace MWGui
 {

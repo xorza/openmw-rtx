@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <string_view>
+#include <utility>
 
 #include <osg/Geometry>
 #include <osg/Group>
@@ -13,22 +14,19 @@
 #include <osg/Vec3d>
 #include <osg/Vec3f>
 
+#include <apps/opencs/model/world/cell.hpp>
+#include <apps/opencs/model/world/cellcoordinates.hpp>
 #include <apps/opencs/model/world/collection.hpp>
+#include <apps/opencs/model/world/data.hpp>
 #include <apps/opencs/model/world/idcollection.hpp>
 #include <apps/opencs/model/world/record.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
-
 #include <components/esm3/loadland.hpp>
 #include <components/fallback/fallback.hpp>
 #include <components/resource/imagemanager.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/sceneutil/waterutil.hpp>
-#include <utility>
-
-#include "../../model/world/cell.hpp"
-#include "../../model/world/cellcoordinates.hpp"
-#include "../../model/world/data.hpp"
 
 #include "mask.hpp"
 

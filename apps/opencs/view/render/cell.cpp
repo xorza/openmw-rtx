@@ -10,13 +10,23 @@
 #include <osg/NodeVisitor>
 #include <osg/Referenced>
 
+#include <apps/opencs/model/doc/document.hpp>
+#include <apps/opencs/model/world/cell.hpp>
+#include <apps/opencs/model/world/cellcoordinates.hpp>
+#include <apps/opencs/model/world/columns.hpp>
+#include <apps/opencs/model/world/commands.hpp>
+#include <apps/opencs/model/world/data.hpp>
+#include <apps/opencs/model/world/idcollection.hpp>
+#include <apps/opencs/model/world/idtable.hpp>
+#include <apps/opencs/model/world/land.hpp>
+#include <apps/opencs/model/world/record.hpp>
+#include <apps/opencs/model/world/ref.hpp>
+#include <apps/opencs/model/world/refcollection.hpp>
+#include <apps/opencs/model/world/universalid.hpp>
 #include <components/esm3/loadcell.hpp>
 #include <components/esm3/loadland.hpp>
 #include <components/misc/strings/lower.hpp>
 #include <components/terrain/terraingrid.hpp>
-
-#include "../../model/doc/document.hpp"
-#include "../../model/world/idtable.hpp"
 
 #include "cellarrow.hpp"
 #include "cellborder.hpp"
@@ -26,21 +36,9 @@
 #include "mask.hpp"
 #include "objectmarker.hpp"
 #include "pathgrid.hpp"
+#include "tagbase.hpp"
 #include "terrainstorage.hpp"
 #include "worldspacewidget.hpp"
-
-#include <apps/opencs/model/world/cell.hpp>
-#include <apps/opencs/model/world/cellcoordinates.hpp>
-#include <apps/opencs/model/world/columns.hpp>
-#include <apps/opencs/model/world/commands.hpp>
-#include <apps/opencs/model/world/data.hpp>
-#include <apps/opencs/model/world/idcollection.hpp>
-#include <apps/opencs/model/world/land.hpp>
-#include <apps/opencs/model/world/record.hpp>
-#include <apps/opencs/model/world/ref.hpp>
-#include <apps/opencs/model/world/refcollection.hpp>
-#include <apps/opencs/model/world/universalid.hpp>
-#include <apps/opencs/view/render/tagbase.hpp>
 
 namespace CSVRender
 {

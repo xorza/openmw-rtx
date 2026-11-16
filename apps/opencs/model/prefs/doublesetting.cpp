@@ -1,15 +1,13 @@
 
 #include "doublesetting.hpp"
 
-#include <limits>
-
 #include <QDoubleSpinBox>
 #include <QLabel>
 #include <QMutexLocker>
-
-#include <apps/opencs/model/prefs/setting.hpp>
+#include <limits>
 
 #include "category.hpp"
+#include "setting.hpp"
 #include "state.hpp"
 
 CSMPrefs::DoubleSetting::DoubleSetting(

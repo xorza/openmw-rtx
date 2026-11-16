@@ -1,10 +1,10 @@
 #include "creaturestats.hpp"
-#include "esmreader.hpp"
-#include "esmwriter.hpp"
-
-#include <components/esm3/loadmgef.hpp>
 
 #include <limits>
+
+#include "esmreader.hpp"
+#include "esmwriter.hpp"
+#include "loadmgef.hpp"
 
 namespace ESM
 {

@@ -1,6 +1,6 @@
-#include <mutex>
-
 #include "contacttestwrapper.h"
+
+#include <mutex>
 
 namespace MWPhysics
 {

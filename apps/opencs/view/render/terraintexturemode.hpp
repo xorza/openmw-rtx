@@ -1,19 +1,17 @@
 #pragma once
 
-#include "editmode.hpp"
-
+#include <QWidget>
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include <QWidget>
-
-#include "../../model/world/columnimp.hpp"
-#include "../widget/brushshapes.hpp"
-#include "brushdraw.hpp"
-
+#include <apps/opencs/model/world/columnimp.hpp>
+#include <apps/opencs/view/widget/brushshapes.hpp>
 #include <components/esm3/loadland.hpp>
+
+#include "brushdraw.hpp"
+#include "editmode.hpp"
 
 class QDragMoveEvent;
 class QDropEvent;

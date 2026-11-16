@@ -1,16 +1,12 @@
 #pragma once
 
 #include <QObject>
-
 #include <filesystem>
 #include <map>
 #include <memory>
 #include <string>
 #include <variant>
 #include <vector>
-
-#include <apps/opencs/model/world/collection.hpp>
-#include <apps/opencs/model/world/record.hpp>
 
 #include <components/esm3/debugprofile.hpp>
 #include <components/esm3/filter.hpp>
@@ -40,6 +36,7 @@
 #include <components/toutf8/toutf8.hpp>
 
 #include "cell.hpp"
+#include "collection.hpp"
 #include "idcollection.hpp"
 #include "infocollection.hpp"
 #include "land.hpp"
@@ -47,6 +44,7 @@
 #include "nestedidcollection.hpp"
 #include "nestedinfocollection.hpp"
 #include "pathgrid.hpp"
+#include "record.hpp"
 #include "refcollection.hpp"
 #include "refidcollection.hpp"
 #include "resourcesmanager.hpp"

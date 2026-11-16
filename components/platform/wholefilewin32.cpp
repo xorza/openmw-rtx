@@ -1,11 +1,10 @@
-#include "wholefilesystem.hpp"
-
 #include <algorithm>
 #include <cstdint>
 
 #include <components/misc/windows.hpp>
 
 #include "uniquehold.hpp"
+#include "wholefilesystem.hpp"
 
 namespace Platform::WholeFileSystem
 {

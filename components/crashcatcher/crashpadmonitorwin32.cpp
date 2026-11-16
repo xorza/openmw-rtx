@@ -1,5 +1,3 @@
-#include "crashpadmonitorsystem.hpp"
-
 #include <algorithm>
 #include <array>
 #include <cstdint>
@@ -18,6 +16,7 @@
 
 #include <components/misc/windows.hpp>
 
+#include "crashpadmonitorsystem.hpp"
 #include "crashsummary.hpp"
 
 namespace Crash::Monitor

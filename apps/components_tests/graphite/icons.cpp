@@ -1,9 +1,3 @@
-#include <filesystem>
-#include <string>
-#include <vector>
-
-#include <gtest/gtest.h>
-
 #include <QColor>
 #include <QFile>
 #include <QIcon>
@@ -11,6 +5,11 @@
 #include <QPixmap>
 #include <QRegularExpression>
 #include <QString>
+#include <filesystem>
+#include <string>
+#include <vector>
+
+#include <gtest/gtest.h>
 
 #include <components/files/conversion.hpp>
 #include <components/graphite/look.hpp>

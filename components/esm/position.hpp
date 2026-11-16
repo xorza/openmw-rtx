@@ -1,8 +1,10 @@
 #pragma once
 
-#include <components/misc/concepts.hpp>
-#include <osg/Vec3f>
 #include <tuple>
+
+#include <osg/Vec3f>
+
+#include <components/misc/concepts.hpp>
 
 namespace ESM
 {

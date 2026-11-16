@@ -1,16 +1,14 @@
 #include "referenceablecreator.hpp"
 
-#include <vector>
-
 #include <QComboBox>
 #include <QLabel>
+#include <vector>
 
-#include <apps/opencs/view/world/genericcreator.hpp>
-
+#include <apps/opencs/model/world/commands.hpp>
+#include <apps/opencs/model/world/universalid.hpp>
 #include <components/misc/scalableicon.hpp>
 
-#include "../../model/world/commands.hpp"
-#include "../../model/world/universalid.hpp"
+#include "genericcreator.hpp"
 
 class QUndoStack;
 

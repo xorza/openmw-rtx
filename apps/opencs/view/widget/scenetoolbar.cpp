@@ -2,7 +2,7 @@
 
 #include <QVBoxLayout>
 
-#include "../../model/prefs/shortcut.hpp"
+#include <apps/opencs/model/prefs/shortcut.hpp>
 
 #include "scenetool.hpp"
 

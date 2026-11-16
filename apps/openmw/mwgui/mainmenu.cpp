@@ -1,23 +1,22 @@
 #include "mainmenu.hpp"
 
+#include <algorithm>
+
 #include <MyGUI_Gui.h>
 #include <MyGUI_InputManager.h>
 #include <MyGUI_RenderManager.h>
 #include <MyGUI_TextBox.h>
 
-#include <algorithm>
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/statemanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwworld/globals.hpp>
 #include <components/misc/frameratelimiter.hpp>
 #include <components/settings/values.hpp>
 #include <components/vfs/manager.hpp>
 #include <components/vfs/pathutil.hpp>
 #include <components/widgets/imagebutton.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/statemanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/globals.hpp"
 
 #include "backgroundimage.hpp"
 #include "confirmationdialog.hpp"

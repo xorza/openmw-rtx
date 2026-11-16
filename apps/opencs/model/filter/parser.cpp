@@ -7,14 +7,12 @@
 #include <utility>
 #include <vector>
 
+#include <apps/opencs/model/world/columns.hpp>
+#include <apps/opencs/model/world/data.hpp>
 #include <apps/opencs/model/world/idcollection.hpp>
 #include <apps/opencs/model/world/record.hpp>
-
 #include <components/esm3/filter.hpp>
 #include <components/misc/strings/lower.hpp>
-
-#include "../world/columns.hpp"
-#include "../world/data.hpp"
 
 #include "andnode.hpp"
 #include "booleannode.hpp"

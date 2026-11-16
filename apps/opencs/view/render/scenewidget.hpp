@@ -1,17 +1,15 @@
 #pragma once
 
-#include <memory>
-#include <string>
-
 #include <QColor>
 #include <QObject>
 #include <QTimer>
 #include <QWidget>
+#include <memory>
+#include <string>
 
 #include <osg/PositionAttitudeTransform>
 #include <osg/Vec4f>
 #include <osg/ref_ptr>
-
 #include <osgViewer/CompositeViewer>
 
 class QMouseEvent;

@@ -2,15 +2,16 @@
 
 #include <fstream>
 #include <map>
-
-#include <components/debug/debuglog.hpp>
-#include <components/fallback/validate.hpp>
-#include <components/files/configfileparser.hpp>
-#include <components/misc/strings/conversion.hpp>
+#include <ranges>
 
 #include <boost/program_options/options_description.hpp>
 #include <boost/program_options/variables_map.hpp>
-#include <ranges>
+
+#include <components/debug/debuglog.hpp>
+#include <components/fallback/validate.hpp>
+#include <components/misc/strings/conversion.hpp>
+
+#include "configfileparser.hpp"
 
 /**
  * \namespace Files

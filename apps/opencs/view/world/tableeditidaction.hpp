@@ -2,11 +2,10 @@
 
 #include <QAction>
 #include <QString>
-
 #include <utility>
 
-#include "../../model/world/columnbase.hpp"
-#include "../../model/world/universalid.hpp"
+#include <apps/opencs/model/world/columnbase.hpp>
+#include <apps/opencs/model/world/universalid.hpp>
 
 class QTableView;
 

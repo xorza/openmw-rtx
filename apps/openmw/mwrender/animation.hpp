@@ -1,13 +1,15 @@
 #pragma once
 
-#include "animationpriority.hpp"
-#include "animblendcontroller.hpp"
-#include "blendmask.hpp"
-#include "bonegroup.hpp"
+#include <map>
+#include <optional>
+#include <span>
+#include <string>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
 
-#include "../mwworld/movementdirection.hpp"
-#include "../mwworld/ptr.hpp"
-
+#include <apps/openmw/mwworld/movementdirection.hpp>
+#include <apps/openmw/mwworld/ptr.hpp>
 #include <components/misc/strings/algorithm.hpp>
 #include <components/sceneutil/animblendrules.hpp>
 #include <components/sceneutil/controller.hpp>
@@ -16,13 +18,10 @@
 #include <components/sceneutil/util.hpp>
 #include <components/vfs/pathutil.hpp>
 
-#include <map>
-#include <optional>
-#include <span>
-#include <string>
-#include <unordered_map>
-#include <unordered_set>
-#include <vector>
+#include "animationpriority.hpp"
+#include "animblendcontroller.hpp"
+#include "blendmask.hpp"
+#include "bonegroup.hpp"
 
 namespace ESM
 {

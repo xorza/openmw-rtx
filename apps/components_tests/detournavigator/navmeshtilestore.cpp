@@ -1,5 +1,3 @@
-#include "settings.hpp"
-
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -36,6 +34,8 @@
 #include <components/misc/bytebuffer.hpp>
 #include <components/resource/bulletshape.hpp>
 #include <components/testing/util.hpp>
+
+#include "settings.hpp"
 
 namespace DetourNavigator
 {

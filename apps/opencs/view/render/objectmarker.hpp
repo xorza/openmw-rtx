@@ -1,5 +1,12 @@
 #pragma once
 
+#include <string>
+#include <unordered_map>
+
+#include <osg/Node>
+#include <osg/Vec3d>
+#include <osg/ref_ptr>
+
 #include "object.hpp"
 
 namespace osg

@@ -1,12 +1,3 @@
-#include <filesystem>
-#include <memory>
-#include <set>
-#include <string>
-#include <utility>
-#include <vector>
-
-#include <gtest/gtest.h>
-
 #include <QAbstractSpinBox>
 #include <QApplication>
 #include <QCheckBox>
@@ -21,6 +12,14 @@
 #include <QToolButton>
 #include <QUiLoader>
 #include <QWidget>
+#include <filesystem>
+#include <memory>
+#include <set>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include <gtest/gtest.h>
 
 #include <components/files/conversion.hpp>
 #include <components/graphite/look.hpp>

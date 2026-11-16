@@ -2,15 +2,14 @@
 
 #include <algorithm>
 #include <cmath>
-
-#include <components/l10n/manager.hpp>
 #include <utility>
 
-#include "../mwbase/environment.hpp"
-#include "../mwbase/soundmanager.hpp"
-#include "../mwbase/statemanager.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/soundmanager.hpp>
+#include <apps/openmw/mwbase/statemanager.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <components/l10n/manager.hpp>
 
 #include "duration.hpp"
 #include "globals.hpp"

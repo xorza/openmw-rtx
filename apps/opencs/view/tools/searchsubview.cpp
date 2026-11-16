@@ -1,22 +1,20 @@
 #include "searchsubview.hpp"
 
 #include <QVBoxLayout>
+#include <ranges>
 
-#include "../../model/doc/document.hpp"
-#include "../../model/doc/state.hpp"
-#include "../../model/prefs/state.hpp"
-#include "../../model/tools/reportmodel.hpp"
-#include "../../model/tools/search.hpp"
-#include "../../model/world/idtablebase.hpp"
-
-#include "../world/creator.hpp"
-#include "../world/tablebottombox.hpp"
-
+#include <apps/opencs/model/doc/document.hpp>
+#include <apps/opencs/model/doc/state.hpp>
 #include <apps/opencs/model/prefs/category.hpp>
 #include <apps/opencs/model/prefs/setting.hpp>
+#include <apps/opencs/model/prefs/state.hpp>
+#include <apps/opencs/model/tools/reportmodel.hpp>
+#include <apps/opencs/model/tools/search.hpp>
 #include <apps/opencs/model/world/data.hpp>
+#include <apps/opencs/model/world/idtablebase.hpp>
 #include <apps/opencs/view/doc/subview.hpp>
-#include <ranges>
+#include <apps/opencs/view/world/creator.hpp>
+#include <apps/opencs/view/world/tablebottombox.hpp>
 
 #include "reporttable.hpp"
 #include "searchbox.hpp"

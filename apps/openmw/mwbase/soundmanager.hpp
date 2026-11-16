@@ -5,10 +5,9 @@
 #include <string>
 #include <string_view>
 
+#include <apps/openmw/mwsound/type.hpp>
+#include <apps/openmw/mwworld/ptr.hpp>
 #include <components/vfs/pathutil.hpp>
-
-#include "../mwsound/type.hpp"
-#include "../mwworld/ptr.hpp"
 
 namespace MWWorld
 {

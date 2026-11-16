@@ -2,8 +2,7 @@
 
 #include <QMenu>
 
-#include "../../model/prefs/shortcut.hpp"
-
+#include <apps/opencs/model/prefs/shortcut.hpp>
 #include <apps/opencs/view/widget/modebutton.hpp>
 
 #include "worldspacewidget.hpp"

@@ -7,17 +7,15 @@
 #include <osg/Matrixf>
 #include <osg/PositionAttitudeTransform>
 
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwmechanics/weapontype.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/inventorystore.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/fallback/fallback.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/sceneutil/nodecallback.hpp>
 #include <components/sceneutil/offscreenframing.hpp>
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/inventorystore.hpp"
-
-#include "../mwmechanics/actorutil.hpp"
-#include "../mwmechanics/weapontype.hpp"
 
 #include "npcanimation.hpp"
 #include "offscreenview.hpp"

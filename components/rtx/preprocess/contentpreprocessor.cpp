@@ -3,13 +3,12 @@
 #include <chrono>
 #include <utility>
 
+#include <components/contentstore/key.hpp>
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/rtx/common/clock.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>
 #include <components/sceneutil/embeddedimage.hpp>
-
-#include <components/contentstore/key.hpp>
 
 namespace Rtx
 {

@@ -6,7 +6,6 @@
 #include <QLocalSocket>
 #include <QMessageBox>
 #include <QRegularExpression>
-
 #include <exception>
 #include <filesystem>
 #include <system_error>
@@ -27,6 +26,7 @@
 #include <components/misc/windows.hpp>
 #endif
 
+#include <apps/opencs/view/doc/viewmanager.hpp>
 #include <components/debug/debugging.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/esm3/esmreader.hpp>
@@ -38,8 +38,6 @@
 #include <components/nifosg/nifloader.hpp>
 #include <components/settings/settings.hpp>
 #include <components/toutf8/toutf8.hpp>
-
-#include "view/doc/viewmanager.hpp"
 
 CS::Editor::Editor(int argc, char** argv)
     : mConfigVariables(readConfiguration())

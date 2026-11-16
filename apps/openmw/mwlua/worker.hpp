@@ -1,11 +1,11 @@
 #pragma once
 
-#include <components/misc/framestats.hpp>
-
 #include <condition_variable>
 #include <mutex>
 #include <optional>
 #include <thread>
+
+#include <components/misc/framestats.hpp>
 
 namespace MWLua
 {

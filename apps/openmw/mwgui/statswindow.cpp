@@ -12,26 +12,21 @@
 #include <MyGUI_TextIterator.h>
 #include <MyGUI_Window.h>
 
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwbase/windowmanager.hpp>
+#include <apps/openmw/mwbase/world.hpp>
+#include <apps/openmw/mwmechanics/actorutil.hpp>
+#include <apps/openmw/mwmechanics/npcstats.hpp>
+#include <apps/openmw/mwworld/class.hpp>
+#include <apps/openmw/mwworld/esmstore.hpp>
+#include <apps/openmw/mwworld/player.hpp>
 #include <components/debug/debuglog.hpp>
-
 #include <components/esm3/loadbsgn.hpp>
 #include <components/esm3/loadclas.hpp>
 #include <components/esm3/loadfact.hpp>
 #include <components/esm3/loadgmst.hpp>
 #include <components/esm3/loadrace.hpp>
-
 #include <components/settings/values.hpp>
-
-#include "../mwbase/environment.hpp"
-#include "../mwbase/windowmanager.hpp"
-#include "../mwbase/world.hpp"
-
-#include "../mwworld/class.hpp"
-#include "../mwworld/esmstore.hpp"
-#include "../mwworld/player.hpp"
-
-#include "../mwmechanics/actorutil.hpp"
-#include "../mwmechanics/npcstats.hpp"
 
 #include "tooltips.hpp"
 

@@ -14,10 +14,6 @@
 #include <vector>
 
 #include <components/debug/debuglog.hpp>
-
-#include <components/esm3/esmreader.hpp>
-#include <components/esm3/esmwriter.hpp>
-
 #include <components/esm/attr.hpp>
 #include <components/esm/defs.hpp>
 #include <components/esm/esmbridge.hpp>
@@ -28,6 +24,8 @@
 #include <components/esm/path.hpp>
 #include <components/esm/refid.hpp>
 #include <components/esm3/cellref.hpp>
+#include <components/esm3/esmreader.hpp>
+#include <components/esm3/esmwriter.hpp>
 #include <components/esm3/loadacti.hpp>
 #include <components/esm3/loadalch.hpp>
 #include <components/esm3/loadappa.hpp>
@@ -111,7 +109,7 @@
 #include <components/loadinglistener/loadinglistener.hpp>
 #include <components/misc/rng.hpp>
 
-#include "../mwworld/cell.hpp"
+#include "cell.hpp"
 
 namespace
 {

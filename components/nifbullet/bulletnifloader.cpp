@@ -1,7 +1,7 @@
 #include "bulletnifloader.hpp"
-#include <memory>
 
 #include <cassert>
+#include <memory>
 #include <tuple>
 #include <vector>
 

@@ -6,16 +6,13 @@
 #include <apps/opencs/model/doc/messages.hpp>
 #include <apps/opencs/model/prefs/category.hpp>
 #include <apps/opencs/model/prefs/setting.hpp>
+#include <apps/opencs/model/prefs/state.hpp>
+#include <apps/opencs/model/world/idcollection.hpp>
+#include <apps/opencs/model/world/pathgrid.hpp>
 #include <apps/opencs/model/world/record.hpp>
-
+#include <apps/opencs/model/world/subcellcollection.hpp>
+#include <apps/opencs/model/world/universalid.hpp>
 #include <components/esm3/loadpgrd.hpp>
-
-#include "../prefs/state.hpp"
-
-#include "../world/idcollection.hpp"
-#include "../world/pathgrid.hpp"
-#include "../world/subcellcollection.hpp"
-#include "../world/universalid.hpp"
 
 CSMTools::PathgridCheckStage::PathgridCheckStage(const CSMWorld::SubCellCollection<CSMWorld::Pathgrid>& pathgrids)
     : mPathgrids(pathgrids)

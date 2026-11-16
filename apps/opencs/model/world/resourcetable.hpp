@@ -1,14 +1,12 @@
 #pragma once
 
-#include "idtablebase.hpp"
-
 #include <QModelIndex>
 #include <QVariant>
-
 #include <string>
 #include <utility>
 
-#include <apps/opencs/model/world/columns.hpp>
+#include "columns.hpp"
+#include "idtablebase.hpp"
 
 namespace CSMWorld
 {

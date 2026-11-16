@@ -2,9 +2,9 @@
 
 #include <memory>
 
+#include <components/spt/file.hpp>
 #include <components/vfs/manager.hpp>
 
-#include "components/spt/file.hpp"
 #include "objectcache.hpp"
 
 namespace Resource

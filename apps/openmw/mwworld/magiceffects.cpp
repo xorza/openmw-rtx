@@ -1,3 +1,5 @@
+#include "magiceffects.hpp"
+
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
@@ -5,9 +7,8 @@
 #include <string>
 #include <utility>
 
-#include "esmstore.hpp"
-#include "magiceffects.hpp"
-
+#include <apps/openmw/mwbase/environment.hpp>
+#include <apps/openmw/mwmechanics/magiceffects.hpp>
 #include <components/esm/defs.hpp>
 #include <components/esm/refid.hpp>
 #include <components/esm3/activespells.hpp>
@@ -22,10 +23,8 @@
 #include <components/esm3/npcstats.hpp>
 #include <components/esm3/objectstate.hpp>
 
-#include "../mwbase/environment.hpp"
-#include "../mwworld/worldmodel.hpp"
-
-#include "../mwmechanics/magiceffects.hpp"
+#include "esmstore.hpp"
+#include "worldmodel.hpp"
 
 namespace
 {

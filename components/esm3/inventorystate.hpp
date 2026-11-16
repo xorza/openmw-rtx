@@ -3,8 +3,9 @@
 #include <map>
 #include <optional>
 
-#include "objectstate.hpp"
 #include <components/esm/refid.hpp>
+
+#include "objectstate.hpp"
 
 namespace ESM
 {

@@ -2,9 +2,8 @@
 
 #include <sol/forward.hpp>
 
+#include <apps/openmw/mwworld/store.hpp>
 #include <components/esm/refid.hpp>
-
-#include "../mwworld/store.hpp"
 
 namespace MWLua
 {

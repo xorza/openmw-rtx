@@ -7,15 +7,12 @@
 #include <utility>
 #include <vector>
 
+#include <apps/openmw/mwbase/scriptmanager.hpp>
 #include <components/compiler/fileparser.hpp>
 #include <components/compiler/streamerrorhandler.hpp>
-
+#include <components/esm/refid.hpp>
 #include <components/interpreter/interpreter.hpp>
 #include <components/interpreter/types.hpp>
-
-#include <components/esm/refid.hpp>
-
-#include "../mwbase/scriptmanager.hpp"
 
 #include "globalscripts.hpp"
 #include "visibilitygates.hpp"

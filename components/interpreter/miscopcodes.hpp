@@ -5,11 +5,11 @@
 #include <string>
 #include <vector>
 
+#include <components/misc/messageformatparser.hpp>
+
 #include "defines.hpp"
 #include "opcodes.hpp"
 #include "runtime.hpp"
-
-#include <components/misc/messageformatparser.hpp>
 
 namespace Interpreter
 {

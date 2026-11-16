@@ -1,13 +1,11 @@
 #pragma once
 
 #include <QDialog>
-
-#include "adjusterwidget.hpp"
-
-#include "pathmetatype.hpp"
-
 #include <filesystem>
 #include <vector>
+
+#include "adjusterwidget.hpp"
+#include "pathmetatype.hpp"
 
 class QModelIndex;
 

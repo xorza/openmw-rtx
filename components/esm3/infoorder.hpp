@@ -1,12 +1,12 @@
 #pragma once
 
-#include "components/esm/refid.hpp"
-
 #include <iterator>
 #include <list>
 #include <type_traits>
 #include <unordered_map>
 #include <utility>
+
+#include <components/esm/refid.hpp>
 
 namespace ESM
 {

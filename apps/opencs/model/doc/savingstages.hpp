@@ -1,16 +1,15 @@
 #pragma once
 
-#include "stage.hpp"
-
 #include <deque>
 #include <unordered_map>
 
-#include "../world/idcollection.hpp"
-#include "../world/infocollection.hpp"
-#include "../world/record.hpp"
-#include "../world/scope.hpp"
+#include <apps/opencs/model/world/idcollection.hpp>
+#include <apps/opencs/model/world/infocollection.hpp>
+#include <apps/opencs/model/world/record.hpp>
+#include <apps/opencs/model/world/scope.hpp>
 
 #include "savingstate.hpp"
+#include "stage.hpp"
 
 namespace ESM
 {

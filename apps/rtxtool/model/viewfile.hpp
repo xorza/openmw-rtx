@@ -7,7 +7,6 @@
 #include <vector>
 
 #include "benchrun.hpp"
-
 #include "blockfile.hpp"
 
 namespace RtxTool

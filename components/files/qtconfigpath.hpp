@@ -1,9 +1,9 @@
 #pragma once
 
+#include <QString>
+
 #include "configurationmanager.hpp"
 #include "qtconversion.hpp"
-
-#include <QString>
 
 namespace Files
 {
