@@ -108,7 +108,8 @@ namespace MWRender
             const std::string build = Rtx::sValidationByDefault ? "" : "never ";
             EXPECT_EQ(describe(played),
                 "backend vulkan, window shown, validation off, markers on, checkpoints off, upscale off by fsr, "
-                "kernels drawing, content store off, video memory as the device states it, a build that "
+                "kernels drawing, content store off, video memory as the device states it, resource caches as the "
+                "system's memory leaves them, a build that "
                     + build + "validates by default");
 
             RunSetup measured = played;
@@ -123,10 +124,11 @@ namespace MWRender
             measured.mKernels = Rtx::KernelSet::Every;
             measured.mContentStore = std::filesystem::path("cache");
             measured.mRun.mMemoryBudget = std::uint64_t{ 4 } << 30;
+            measured.mCacheBudget = std::uint64_t{ 512 } << 20;
             EXPECT_EQ(describe(measured),
                 "backend null, window hidden, validation sync with every submit watched, markers off, checkpoints "
                 "on, upscale quality by dlss, kernels every, content store on, video memory held to 4294967296 "
-                "bytes, a build that "
+                "bytes, resource caches held to 536870912 bytes, a build that "
                     + build + "validates by default");
         }
     }

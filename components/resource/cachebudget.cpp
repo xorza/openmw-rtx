@@ -60,8 +60,14 @@ namespace Resource
 
     void CacheBudget::setBytes(std::uint64_t bytes)
     {
-        mBytes.store(bytes, std::memory_order_relaxed);
+        mBytes.store(std::min(bytes, mLimit.load(std::memory_order_relaxed)), std::memory_order_relaxed);
         makeRoom();
+    }
+
+    void CacheBudget::limit(std::optional<std::uint64_t> bytes)
+    {
+        mLimit.store(bytes.value_or(sUnbounded), std::memory_order_relaxed);
+        setBytes(getBytes());
     }
 
     void CacheBudget::evictToBudget()

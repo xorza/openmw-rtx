@@ -87,6 +87,9 @@ namespace RtxTool
             /// `--memory-budget`, in bytes.
             std::optional<std::uint64_t> mMemoryBudget;
 
+            /// `--cache-budget`, in bytes.
+            std::optional<std::uint64_t> mCacheBudget;
+
             std::filesystem::path mPipelineCode;
 
             /// `--content-cache`.

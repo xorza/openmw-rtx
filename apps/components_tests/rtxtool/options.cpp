@@ -211,6 +211,9 @@ namespace RtxTool
             EXPECT_FALSE(plain.mFrame.mUpscale.mNamed);
             EXPECT_FALSE(plain.mFrame.mBouncesNamed.mIndirect);
             EXPECT_FALSE(plain.mFrame.mBouncesNamed.mBounceRays);
+            EXPECT_EQ(plain.mFrame.mCacheBudget, std::nullopt);
+            EXPECT_EQ(lineOf(options, { "--cache-budget=64" }, Verb::Bench).mFrame.mCacheBudget,
+                std::optional<std::uint64_t>(std::uint64_t{ 64 } << 20));
 
             // Each named apart, so a window takes the other from the player's settings.
             const ToolLine rays = lineOf(options, { "--bounce-rays=3" }, Verb::View);

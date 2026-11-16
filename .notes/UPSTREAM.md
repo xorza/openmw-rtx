@@ -95,8 +95,9 @@ that touches `components/resource`, `bsa`, `files` or `platform/file*` resolves 
   four archive kinds open an entry's stream.
 - The caches kept by a byte budget in one least-recently-used order (`Resource::CacheBudget`, owned by `ResourceSystem`)
   in place of `cache expiry delay`; each load states its bytes (`Resource::Loaded`), and `navmeshtool` and
-  `bulletobjecttool` hand a budget of nought. Cost: also a conflict with an edit to the managers' constructors,
-  `ResourceSystem`'s, or the physics system's shape manager.
+  `bulletobjecttool` hand a budget of nought. A run may hold it under a limit (`CacheBudget::limit`, the harness's
+  `--cache-budget`), so the desk loads as a machine short of memory does. Cost: also a conflict with an edit to the
+  managers' constructors, `ResourceSystem`'s, or the physics system's shape manager.
 - `CellPreloader::preload` skips a cell while the caches stand past their budget with everything in use, counted as
   `CellPreloader Skipped`: a preload is a guess, and past the budget it holds memory the frame needs.
 - A model's texture holds the file's header and not its texels where the renderer reads texels itself

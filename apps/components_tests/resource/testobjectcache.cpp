@@ -706,7 +706,8 @@ namespace Resource
         }
 
         /// **What a cache lets go of leaves the budget**, removed, cleared or gone with the cache, and a budget
-        /// made smaller makes room at once.
+        /// made smaller makes room at once. **A limit holds it under the system's figure** (`CacheBudget::limit`):
+        /// limited to 50, the 70 held goes at once and a figure of 1000 stands at 50; lifted, the next figure stands.
         TEST(ResourceGenericObjectCacheTest, whatACacheLetsGoLeavesItsBudget)
         {
             CacheBudget budget(1000);
@@ -729,6 +730,17 @@ namespace Resource
                 budget.setBytes(1000);
                 cache.getOrLoad(4, loadOf(70));
                 EXPECT_EQ(budget.getHeld(), 70);
+
+                budget.limit(50);
+                EXPECT_EQ(budget.getBytes(), 50);
+                EXPECT_EQ(budget.getHeld(), 0) << "the limit made no room";
+                budget.setBytes(1000);
+                EXPECT_EQ(budget.getBytes(), 50) << "the system's figure passed the limit";
+                budget.setBytes(30);
+                EXPECT_EQ(budget.getBytes(), 30) << "a figure under the limit stands";
+                budget.limit(std::nullopt);
+                budget.setBytes(1000);
+                EXPECT_EQ(budget.getBytes(), 1000);
             }
             EXPECT_EQ(budget.getHeld(), 0) << "the cache's own went with it";
         }

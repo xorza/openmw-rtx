@@ -97,12 +97,18 @@ namespace Resource
         std::size_t getStarvedLooks() const { return mStarvedLooks.load(std::memory_order_relaxed); }
         void setBytes(std::uint64_t bytes);
 
+        /// Holds the budget to `bytes` where the system would leave more, every `setBytes` after it included, or
+        /// lets it follow the system again from the next `setBytes`: what a run that asks how a machine short of
+        /// memory loads does (`MWRender::RunSetup::mCacheBudget`). Makes room at once.
+        void limit(std::optional<std::uint64_t> bytes);
+
     private:
         void evictToBudget();
 
         std::atomic<std::uint64_t> mHeld = 0;
         std::atomic<std::uint64_t> mStamp = 0;
         std::atomic<std::uint64_t> mBytes;
+        std::atomic<std::uint64_t> mLimit = sUnbounded;
 
         /// Over the members and the evictions, so that two threads past the budget do not both evict for one
         /// insertion. Taken before a member's own lock, never after.

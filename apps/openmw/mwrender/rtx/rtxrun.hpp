@@ -60,6 +60,10 @@ namespace MWRender
         /// the game's carry neither.
         std::optional<Rtx::ShaderSet> mShaders{};
 
+        /// What the game's resource caches may hold at most, where the run states it (`Resource::CacheBudget::limit`):
+        /// how a machine short of memory loads, on one that is not. Nothing to let them follow the system's memory.
+        std::optional<std::uint64_t> mCacheBudget{};
+
         /// Where the content store stands (`ContentStore::Store`), or nothing for none: a played session's
         /// under the user's cache directory, the harness's where `--content-cache` says.
         std::optional<std::filesystem::path> mContentStore{};

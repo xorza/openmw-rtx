@@ -471,6 +471,10 @@ namespace MWRender
         /// which `configureResources` weighs against the frame clock's stated step.
         std::optional<bool> mSettled;
 
+        /// What the run holds the game's resource caches to, where it says — `RunSetup::mCacheBudget` — which
+        /// `configureResources` hands the resource system.
+        std::optional<std::uint64_t> mCacheBudget;
+
         /// Whether a camera the builder refused has already been reported (`refuseEye`).
         bool mComplained = false;
     };

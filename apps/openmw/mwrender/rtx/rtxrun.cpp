@@ -33,7 +33,7 @@ namespace MWRender
         const Rtx::ValidationOptions& validation = run.mValidation;
         return std::format(
             "backend {}, window {}, validation {}{}, markers {}, checkpoints {}, upscale {} by {}, "
-            "kernels {}, content store {}, video memory {}, a build that {}validates by default",
+            "kernels {}, content store {}, video memory {}, resource caches {}, a build that {}validates by default",
             sRtxBackendNames.name(setup.mBackend), setup.mHeadless ? "hidden" : "shown",
             Rtx::sValidationNames.name(validation.mLevel), validation.mWatchSubmits ? " with every submit watched" : "",
             validation.mMarkers ? "on" : "off", validation.mCheckpoints ? "on" : "off",
@@ -42,6 +42,8 @@ namespace MWRender
             setup.mContentStore.has_value() ? "on" : "off",
             run.mMemoryBudget.has_value() ? std::format("held to {} bytes", *run.mMemoryBudget)
                                           : std::string("as the device states it"),
+            setup.mCacheBudget.has_value() ? std::format("held to {} bytes", *setup.mCacheBudget)
+                                           : std::string("as the system's memory leaves them"),
             Rtx::sValidationByDefault ? "" : "never ");
     }
 

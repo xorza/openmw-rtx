@@ -158,6 +158,7 @@ namespace MWRender
         , mMirror(setup.mMirror, mContentStore.get(), mPrepared.get())
     {
         mSettled = setup.mSettled;
+        mCacheBudget = setup.mCacheBudget;
 
         // **Made here, because there is no viewer to make them.** Every renderer needs the four and
         // one built on `osgViewer` gets them already wired together.
@@ -320,6 +321,8 @@ namespace MWRender
         // processes drew four different frames after half a second of warming). A run timing the streaming
         // path overrides it, since waiting is most of what that path measures (`RunSetup::mSettled`).
         mMirror.getRing().setSettled(mSettled.value_or(stated.has_value()));
+
+        resources.getCacheBudget().limit(mCacheBudget);
 
         Resource::SceneManager& scene = *resources.getSceneManager();
         scene.setModelPrograms(Resource::ModelPrograms::Omitted);

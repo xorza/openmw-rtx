@@ -85,13 +85,13 @@ namespace RtxTool
                                R"("exposure": {}, "exposureHeld": {}, "variants": {}, "holdMs": {},)"
                                "\n"
                                R"(  "landCells": {}, "viewingDistance": {}, "distantStatics": {}, "step": {}, )"
-                               R"("settled": {}, "memoryBudget": {},)",
+                               R"("settled": {}, "memoryBudget": {}, "cacheBudget": {},)",
                 profile.mReconstruction.mDenoise, profile.mReconstruction.mJitter, jsonNumber(profile.mGamma, 3),
                 Rtx::sSurfaceViewNames.name(profile.mShow), asJson(fixedScaleOf(profile.mExposure)),
                 std::holds_alternative<Rtx::HeldExposure>(profile.mExposure), profile.mSpecializeKernels,
                 jsonNumber(profile.mStressOverlapMs, 3), jsonNumber(mirror.mReach.mCells, 1),
                 jsonNumber(mirror.mReach.mViewingDistance, 1), mirror.mDistantStatics, asJson(step),
-                asJson(setup.mSettled), asJson(setup.mRun.mMemoryBudget));
+                asJson(setup.mSettled), asJson(setup.mRun.mMemoryBudget), asJson(setup.mCacheBudget));
         }
 
         /// Null where nothing looked, for the same reason; in the record at all because a run another process drew
@@ -426,10 +426,11 @@ namespace RtxTool
             profile.mStressOverlapMs > 0.0 ? std::format("{:.1f} ms", profile.mStressOverlapMs) : std::string("none"));
         out += std::format(
             "     land {:.1f} cells, viewing distance {:.0f}, distant statics {}, maps {}, step {}, walks {}, "
-            "memory budget {}, host pages {}\n",
+            "memory budget {}, cache budget {}, host pages {}\n",
             mirror.mReach.mCells, mirror.mReach.mViewingDistance, mirror.mDistantStatics ? "on" : "off",
             describeMaps(header.mPlayed), describeStep(header.mStep), describeSettled(header.mSetup.mSettled),
-            describeBudget(header.mSetup.mRun.mMemoryBudget), describeHugePages(header.mHugePageShare));
+            describeBudget(header.mSetup.mRun.mMemoryBudget), describeBudget(header.mSetup.mCacheBudget),
+            describeHugePages(header.mHugePageShare));
         return out;
     }
 

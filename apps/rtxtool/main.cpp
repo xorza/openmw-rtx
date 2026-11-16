@@ -137,6 +137,7 @@ namespace RtxTool
             framed.mSetup.mShaders = command.mShaders;
             framed.mSetup.mKernels = Rtx::KernelSet::Every;
             framed.mSetup.mRun.mMemoryBudget = line.mMemoryBudget;
+            framed.mSetup.mCacheBudget = line.mCacheBudget;
             framed.mSetup.mRun.mPipelineCode = line.mPipelineCode;
             framed.mSetup.mContentStore = std::visit(
                 [&](const auto& choice) -> std::optional<std::filesystem::path> {

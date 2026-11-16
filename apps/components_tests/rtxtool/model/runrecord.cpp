@@ -164,6 +164,7 @@ namespace RtxTool
             request.mStep = 0.0625f;
             request.mSetup.mSettled = false;
             request.mSetup.mRun.mMemoryBudget = 512ull * 1024 * 1024;
+            request.mSetup.mCacheBudget = 256ull * 1024 * 1024;
             request.mPlayed = true;
 
             RunRecord record;
@@ -201,7 +202,7 @@ namespace RtxTool
                   "dither off, water interleave on\n"
                   "     gamma 2.20, show albedo, exposure fixed at 1.500, variants off, hold 8.0 ms\n"
                   "     land 4.0 cells, viewing distance 7168, distant statics off, maps player, step 0.0625 s, "
-                  "walks streamed, memory budget 512.0 MiB, host pages ";
+                  "walks streamed, memory budget 512.0 MiB, cache budget 256.0 MiB, host pages ";
             EXPECT_EQ(record.getReport().substr(0, expected.size()), expected) << record.getReport();
 
             // **This process's own share**, read as the first place is added: a share in whole per
@@ -232,7 +233,7 @@ namespace RtxTool
                   R"("exposure": 1.5000, "exposureHeld": false, "variants": false, "holdMs": 8.000,)";
             constexpr std::string_view mirror = R"(  "landCells": 4.0, "viewingDistance": 7168.0, )"
                                                 R"("distantStatics": false, "step": 0.0625, "settled": false, )"
-                                                R"("memoryBudget": 536870912,)";
+                                                R"("memoryBudget": 536870912, "cacheBudget": 268435456,)";
             EXPECT_NE(json.find(premises), std::string::npos) << json;
             EXPECT_NE(json.find(setup), std::string::npos) << json;
             EXPECT_NE(json.find(mirror), std::string::npos) << json;

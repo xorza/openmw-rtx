@@ -523,6 +523,12 @@ namespace RtxTool
             "not fit is refused and reported as the card would refuse it. What the frame itself "
             "holds is never refused. Not given, the card's own budget");
 
+        option(sFramed, "cache-budget",
+            number(between<std::uint64_t>(1, std::numeric_limits<std::uint64_t>::max() >> 20)),
+            "hold the game's resource caches to this many MiB, where the system's memory would leave "
+            "them more: how a machine short of memory loads, its models and images let go and read "
+            "again, on one that is not. Not given, what the system leaves them less a GiB");
+
         option(sFramed, "pipeline-code", bpo::value<std::string>()->default_value(""),
             "write what the driver compiled each pipeline to, as text, to <dir>/<pipeline>.txt, "
             "numbered where pipelines share a name: on "
@@ -957,6 +963,8 @@ namespace RtxTool
             frame.mGamma = real("gamma");
         if (named("memory-budget"))
             frame.mMemoryBudget = variables["memory-budget"].as<std::uint64_t>() * 1024 * 1024;
+        if (named("cache-budget"))
+            frame.mCacheBudget = variables["cache-budget"].as<std::uint64_t>() * 1024 * 1024;
         frame.mPipelineCode = text("pipeline-code");
         if (const std::string& store = text("content-cache"); store == "off")
             frame.mContentCache = NoContentCache{};
