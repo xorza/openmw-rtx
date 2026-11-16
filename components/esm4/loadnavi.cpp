@@ -64,12 +64,6 @@ void ESM4::Navigation::IslandInfo::load(ESM4::Reader& reader)
         for (auto& verticie : verticies)
         {
             reader.get(verticie);
-// FIXME: debugging only
-#if 0
-            std::string padding;
-            padding.insert(0, reader.stackSize()*2, ' ');
-            std::cout << padding << "NVMI vert " << std::dec << (*it).x << ", " << (*it).y << ", " << (*it).z << std::endl;
-#endif
         }
     }
 }
@@ -118,20 +112,6 @@ void ESM4::Navigation::NavMeshInfo::loadTES5(ESM4::Reader& reader)
     reader.get(x);
     reader.get(y);
     reader.get(z);
-
-// FIXME: for debugging only
-#if 0
-    std::string padding;
-    if (flags & FLG_Unmodified)
-        padding.insert(0, 4, '.');
-    else
-        padding.insert(0, 2, '-');
-
-    padding.insert(0, reader.stackSize()*2, ' ');
-    std::cout << padding << "NVMI formId: 0x" << std::hex << formId << std::endl;
-    std::cout << padding << "NVMI flags: " << std::hex << flags << std::endl;
-    std::cout << padding << "NVMI center: " << std::dec << x << ", " << y << ", " << z << std::endl;
-#endif
 
     reader.get(preferredPercent);
 

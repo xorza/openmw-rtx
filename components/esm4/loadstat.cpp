@@ -64,11 +64,6 @@ void ESM4::Static::load(ESM4::Reader& reader)
                 for (unsigned char& it : mMODT)
                 {
                     reader.get(it);
-#if 0
-                    std::string padding;
-                    padding.insert(0, reader.stackSize()*2, ' ');
-                    std::cout << padding  << "MODT: " << std::hex << *it << std::endl;
-#endif
                 }
                 break;
             }

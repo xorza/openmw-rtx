@@ -994,23 +994,6 @@ namespace CSMWorld
                     return; // return without saving
                 break;
             }
-#if 0
-            // redundant since this flag is shown in the main table as "Interior Sky"
-            // keep here for documenting the logic based on vanilla
-            case 7:
-            {
-                if (isInterior)
-                {
-                    if (value.toBool())
-                        cell.mData.mFlags |= ESM::Cell::QuasiEx;
-                    else
-                        cell.mData.mFlags &= ~ESM::Cell::QuasiEx;
-                }
-                else
-                    return; // return without saving
-                break;
-            }
-#endif
             default:
                 throw std::runtime_error("Cell subcolumn index out of range");
         }

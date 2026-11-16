@@ -80,11 +80,6 @@ void ESM4::Cell::load(ESM4::Reader& reader)
             {
                 if (!reader.getZString(mEditorId))
                     throw std::runtime_error("CELL EDID data read error");
-#if 0
-                std::string padding;
-                padding.insert(0, reader.stackSize()*2, ' ');
-                std::cout << padding << "CELL Editor ID: " << mEditorId << std::endl;
-#endif
                 break;
             }
             case ESM::fourCC("XCLC"):
@@ -135,11 +130,6 @@ void ESM4::Cell::load(ESM4::Reader& reader)
                 for (auto& eachRegion : mRegions)
                 {
                     reader.getFormId(eachRegion);
-#if 0
-                    std::string padding;
-                    padding.insert(0, reader.stackSize()*2, ' ');
-                    std::cout << padding  << "region: " << std::hex << *it << std::endl;
-#endif
                 }
                 break;
             }

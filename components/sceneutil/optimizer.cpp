@@ -1505,7 +1505,6 @@ bool Optimizer::MergeGeometryVisitor::mergeGroup(osg::Group& group)
                 osg::getBinding(geom->getFogCoordArray())!=osg::Array::BIND_PER_PRIMITIVE_SET)
             {
 
-#if 1
                 bool doneCombine = false;
 
                 std::set<osg::PrimitiveSet*> toremove;
@@ -1580,7 +1579,6 @@ bool Optimizer::MergeGeometryVisitor::mergeGroup(osg::Group& group)
                     }
                 }
 
-    #if 1
                 if (doneCombine)
                 {
                     // now need to clean up primitiveset so it no longer contains the rhs combined primitives.
@@ -1594,70 +1592,7 @@ bool Optimizer::MergeGeometryVisitor::mergeGroup(osg::Group& group)
                         if (!toremove.contains(oldPrimitive)) primitives.push_back(oldPrimitive);
                     }
                 }
-    #endif
 
-#else
-
-                osg::Geometry::PrimitiveSetList& primitives = geom->getPrimitiveSetList();
-                unsigned int primNo=0;
-                while(primNo+1<primitives.size())
-                {
-                    osg::PrimitiveSet* lhs = primitives[primNo].get();
-                    osg::PrimitiveSet* rhs = primitives[primNo+1].get();
-
-                    bool combine = false;
-
-                    if (lhs->getType()==rhs->getType() &&
-                        lhs->getMode()==rhs->getMode())
-                    {
-
-                        switch(lhs->getMode())
-                        {
-                        case(osg::PrimitiveSet::POINTS):
-                        case(osg::PrimitiveSet::LINES):
-                        case(osg::PrimitiveSet::TRIANGLES):
-                        case(osg::PrimitiveSet::QUADS):
-                            combine = true;
-                            break;
-                        }
-
-                    }
-
-                    if (combine)
-                    {
-
-                        switch(lhs->getType())
-                        {
-                        case(osg::PrimitiveSet::DrawArraysPrimitiveType):
-                            combine = mergePrimitive(*(static_cast<osg::DrawArrays*>(lhs)),*(static_cast<osg::DrawArrays*>(rhs)));
-                            break;
-                        case(osg::PrimitiveSet::DrawArrayLengthsPrimitiveType):
-                            combine = mergePrimitive(*(static_cast<osg::DrawArrayLengths*>(lhs)),*(static_cast<osg::DrawArrayLengths*>(rhs)));
-                            break;
-                        case(osg::PrimitiveSet::DrawElementsUBytePrimitiveType):
-                            combine = mergePrimitive(*(static_cast<osg::DrawElementsUByte*>(lhs)),*(static_cast<osg::DrawElementsUByte*>(rhs)));
-                            break;
-                        case(osg::PrimitiveSet::DrawElementsUShortPrimitiveType):
-                            combine = mergePrimitive(*(static_cast<osg::DrawElementsUShort*>(lhs)),*(static_cast<osg::DrawElementsUShort*>(rhs)));
-                            break;
-                        case(osg::PrimitiveSet::DrawElementsUIntPrimitiveType):
-                            combine = mergePrimitive(*(static_cast<osg::DrawElementsUInt*>(lhs)),*(static_cast<osg::DrawElementsUInt*>(rhs)));
-                            break;
-                        default:
-                            break;
-                        }
-                    }
-                    if (combine)
-                    {
-                        primitives.erase(primitives.begin()+primNo+1);
-                    }
-
-                    if (!combine)
-                    {
-                        primNo++;
-                    }
-                }
-#endif
                 if (doneCombine && !geom->containsSharedArrays() && !containsSharedPrimitives(geom))
                 {
                     // prefer to use vbo for merged geometries as vbo uses less memory than display lists.

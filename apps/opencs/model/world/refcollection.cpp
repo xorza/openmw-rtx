@@ -189,24 +189,6 @@ void CSMWorld::RefCollection::load(ESM::ESMReader& reader, int cellIndex, bool b
         {
             // old reference -> merge
             int index = getIntIndex(iter->second);
-#if 0
-            // ref.mRefNum.mIndex     : the key
-            // iter->second           : previously cached idNum for the key
-            // index                  : position of the record for that idNum
-            // getRecord(index).get() : record in the index position
-            assert(iter->second != getRecord(index).get().mIdNum); // sanity check
-
-            // check if the plugin used the same RefNum index for a different record
-            if (ref.mRefID != getRecord(index).get().mRefID)
-            {
-                CSMWorld::UniversalId id(CSMWorld::UniversalId::Type_Cell, mCells.getId(cellIndex));
-                messages.add(id,
-                    "RefNum renamed from RefID \"" + getRecord(index).get().mRefID + "\" to \""
-                    + ref.mRefID + "\" (RefNum index " + std::to_string(ref.mRefNum.mIndex) + ")",
-                    /*hint*/"",
-                    CSMDoc::Message::Severity_Info);
-            }
-#endif
             ref.mId = getRecord(index).get().mId;
             ref.mIdNum = extractIdNum(ref.mId.getRefIdString());
 

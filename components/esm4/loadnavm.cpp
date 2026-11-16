@@ -67,11 +67,6 @@ void ESM4::NavMesh::NVNMstruct::load(ESM4::Reader& reader)
         for (auto& verticie : verticies)
         {
             reader.get(verticie);
-// FIXME: debugging only
-#if 0
-            //if (reader.hdr().record.id == 0x2004ecc) // FIXME
-            std::cout << "nvnm vert " << (*it).x << ", " << (*it).y << ", " << (*it).z << std::endl;
-#endif
         }
     }
 
@@ -92,10 +87,6 @@ void ESM4::NavMesh::NVNMstruct::load(ESM4::Reader& reader)
         for (auto& extConn : extConns)
         {
             reader.get(extConn);
-// FIXME: debugging only
-#if 0
-            std::cout << "nvnm ext 0x" << std::hex << (*it).navMesh << std::endl;
-#endif
         }
     }
 
@@ -147,11 +138,6 @@ void ESM4::NavMesh::NVNMstruct::load(ESM4::Reader& reader)
     }
     if (triSegments.size() != static_cast<std::size_t>(divisor) * divisor)
         throw std::runtime_error("Triangle segments size is not the square of divisor");
-#if 0
-    if (triSegments.size() != divisor*divisor)
-        std::cout << "divisor " << std::dec << divisor << ", segments " << triSegments.size() << //std::endl;
-        "this 0x" << this << std::endl;
-#endif
 }
 
 void ESM4::NavMesh::load(ESM4::Reader& reader)
@@ -162,13 +148,6 @@ void ESM4::NavMesh::load(ESM4::Reader& reader)
 
     // std::cout << "NavMesh 0x" << std::hex << this << std::endl; // FIXME
 
-// FIXME: debugging only
-#if 0
-    std::string padding;
-    padding.insert(0, reader.stackSize()*2, ' ');
-    std::cout << padding << "NAVM flags 0x" << std::hex << reader.hdr().record.flags << std::endl;
-    std::cout << padding << "NAVM id 0x" << std::hex << reader.hdr().record.id << std::endl;
-#endif
     while (reader.getSubRecordHeader())
     {
         const ESM4::SubRecordHeader& subHdr = reader.subRecordHeader();

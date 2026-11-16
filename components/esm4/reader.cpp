@@ -895,14 +895,6 @@ namespace ESM4
                     if (ch != '\0')
                         throw std::runtime_error("ESM4::Reader::getString string is not terminated with a null");
                 }
-#if 0
-            else
-            {
-                // NOTE: normal ESMs don't but omwsave has locals or spells with null terminator
-                assert (str[newSize - 1] != '\0'
-                        && "ESM4::Reader::getString string is unexpectedly terminated with a null");
-            }
-#endif
                 return true;
             }
         }

@@ -121,27 +121,7 @@ void ESM4::Pathgrid::load(ESM4::Reader& reader)
             }
             case ESM::fourCC("PGAG"):
             {
-#if 0
-                std::vector<unsigned char> mDataBuf(subHdr.dataSize);
-                reader.get(mDataBuf.data(), subHdr.dataSize);
-
-                std::ostringstream ss;
-                ss << mEditorId << " " << ESM::printName(subHdr.typeId) << ":size " << subHdr.dataSize << "\n";
-                for (std::size_t i = 0; i < subHdr.dataSize; ++i)
-                {
-                    //if (mDataBuf[i] > 64 && mDataBuf[i] < 91) // looks like printable ascii char
-                        //ss << (char)(mDataBuf[i]) << " ";
-                    //else
-                        ss << std::setfill('0') << std::setw(2) << std::hex << (int)(mDataBuf[i]);
-                    if ((i & 0x000f) == 0xf) // wrap around
-                        ss << "\n";
-                    else if (i < subHdr.dataSize-1)
-                        ss << " ";
-                }
-                std::cout << ss.str() << std::endl;
-#else
                 reader.skipSubRecordData();
-#endif
                 break;
             }
             default:

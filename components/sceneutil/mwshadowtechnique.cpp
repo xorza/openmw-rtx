@@ -46,19 +46,6 @@ constexpr double sDoubleMost = std::numeric_limits<double>::max();
 //////////////////////////////////////////////////////////////////
 // fragment shader
 //
-#if 0
-static const char fragmentShaderSource_withBaseTexture[] =
-        "uniform sampler2D baseTexture;                                          \n"
-        "uniform sampler2DShadow shadowTexture;                                  \n"
-        "                                                                        \n"
-        "void main(void)                                                         \n"
-        "{                                                                       \n"
-        "  vec4 colorAmbientEmissive = gl_FrontLightModelProduct.sceneColor;     \n"
-        "  vec4 color = texture2D( baseTexture, gl_TexCoord[0].xy );                                            \n"
-        "  color *= mix( colorAmbientEmissive, gl_Color, shadow2DProj( shadowTexture, gl_TexCoord[1] ).r );     \n"
-        "  gl_FragColor = color;                                                                                \n"
-        "} \n";
-#else
 static const char fragmentShaderSource_withBaseTexture[] =
         "uniform sampler2D baseTexture;                                          \n"
         "uniform int baseTextureUnit;                                            \n"
@@ -90,7 +77,6 @@ static const char fragmentShaderSource_withBaseTexture_twoShadowMaps[] =
         "  color *= mix( colorAmbientEmissive, gl_Color, shadow0*shadow1 );                     \n"
         "  gl_FragColor = color;                                                                \n"
         "} \n";
-#endif
 
 std::string debugVertexShaderSource = "void main(void){gl_Position = gl_Vertex; gl_TexCoord[0]=gl_MultiTexCoord0;}";
 std::string debugFragmentShaderSource =
@@ -98,7 +84,6 @@ std::string debugFragmentShaderSource =
         "                                                                        \n"
         "void main(void)                                                         \n"
         "{                                                                       \n"
-#if 1
         "    float f = texture2D(texture, gl_TexCoord[0].xy).r;                  \n"
         "                                                                        \n"
         "    f = 256.0 * f;                                                      \n"
@@ -125,9 +110,6 @@ std::string debugFragmentShaderSource =
         "    vec3 color = fMax * rgb;                                            \n"
         "                                                                        \n"
         "    gl_FragColor =  vec4( fS + fH * color, 1 );                         \n"
-#else
-        "    gl_FragColor = texture2D(texture, gl_TexCoord[0].xy);               \n"
-#endif
         "}                                                                       \n";
 
 std::string debugFrustumVertexShaderSource = "varying float depth; uniform mat4 transform; void main(void){gl_Position = transform * gl_Vertex; depth = gl_Position.z / gl_Position.w;}";
@@ -136,7 +118,6 @@ std::string debugFrustumFragmentShaderSource =
         "                                                                        \n"
         "void main(void)                                                         \n"
         "{                                                                       \n"
-#if 1
         "    float f = depth;                                                    \n"
         "                                                                        \n"
         "    f = 256.0 * f;                                                      \n"
@@ -163,9 +144,6 @@ std::string debugFrustumFragmentShaderSource =
         "    vec3 color = fMax * rgb;                                            \n"
         "                                                                        \n"
         "    gl_FragColor =  vec4( fS + fH * color, 1 );                         \n"
-#else
-        "    gl_FragColor = vec4(0.0, 0.0, 1.0, 0.0);                            \n"
-#endif
         "}                                                                       \n";
 
 
@@ -261,7 +239,6 @@ void VDSMCameraCullCallback::operator()(osg::Node* node, osg::NodeVisitor* nv)
     osg::Camera* camera = node->asCamera();
     OSG_INFO<<"VDSMCameraCullCallback::operator()(osg::Node* "<<camera<<", osg::NodeVisitor* "<<cv<<")"<<std::endl;
 
-#if 1
     if (!_polytope.empty())
     {
         OSG_INFO<<"Pushing custom Polytope"<<std::endl;
@@ -272,7 +249,6 @@ void VDSMCameraCullCallback::operator()(osg::Node* node, osg::NodeVisitor* nv)
 
         cv->pushCullingSet();
     }
-#endif
     // bin has to go inside camera cull or the rendertexture stage will override it
     cv->pushStateSet(_vdsm->getOrCreateShadowsBinStateSet());
     if (_vdsm->getShadowedScene())
@@ -280,13 +256,11 @@ void VDSMCameraCullCallback::operator()(osg::Node* node, osg::NodeVisitor* nv)
         _vdsm->getShadowedScene()->osg::Group::traverse(*nv);
     }
     cv->popStateSet();
-#if 1
     if (!_polytope.empty())
     {
         OSG_INFO<<"Popping custom Polytope"<<std::endl;
         cv->popCullingSet();
     }
-#endif
 
     _renderStage = cv->getCurrentRenderBin()->getStage();
 
@@ -499,25 +473,6 @@ void MWShadowTechnique::LightData::setLightData(osg::RefMatrix* lm, std::shared_
             OSG_INFO<<"   new LightDir ="<<lightDir<<std::endl;
         }
     }
-#if 0
-    else
-    {
-        OSG_INFO<<"   Positional light, lightPos="<<lightPos<<std::endl;
-        lightDir = light->getDirection();
-        lightDir.normalize();
-        if (lightMatrix.valid())
-        {
-            OSG_INFO<<"   Light matrix "<<*lightMatrix<<std::endl;
-            osg::Matrix lightToLocalMatrix(*lightMatrix * osg::Matrix::inverse(modelViewMatrix) );
-            lightPos = lightPos * lightToLocalMatrix;
-            lightDir = osg::Matrix::transform3x3( lightDir, lightToLocalMatrix );
-            lightDir.normalize();
-            OSG_INFO<<"   new LightPos ="<<lightPos<<std::endl;
-            OSG_INFO<<"   new LightDir ="<<lightDir<<std::endl;
-        }
-        lightPos3.set(lightPos.x()/lightPos.w(), lightPos.y()/lightPos.w(), lightPos.z()/lightPos.w());
-    }
-#endif
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -1300,13 +1255,8 @@ void MWShadowTechnique::cull(osgUtil::CullVisitor& cv)
             {
                 // OSG_NOTICE<<"Need to clamp projection matrix"<<std::endl;
 
-#if 1
                 double xMid = (clsb._bb.xMin()+clsb._bb.xMax())*0.5f;
                 double xRange = clsb._bb.xMax()-clsb._bb.xMin();
-#else
-                double xMid = 0.0;
-                double xRange = 2.0;
-#endif
                 double yMid = (clsb._bb.yMin()+clsb._bb.yMax())*0.5f;
                 double yRange = (clsb._bb.yMax()-clsb._bb.yMin());
 
@@ -1336,42 +1286,6 @@ void MWShadowTechnique::cull(osgUtil::CullVisitor& cv)
 
         }
 
-#if 0
-        double splitPoint = 0.0;
-
-        if (numShadowMapsPerLight>1)
-        {
-            osg::Vec3d eye_v = frustum.eye * viewMatrix;
-            osg::Vec3d center_v = frustum.center * viewMatrix;
-            osg::Vec3d viewdir_v = center_v-eye_v; viewdir_v.normalize();
-            osg::Vec3d lightdir(0.0,0.0,-1.0);
-
-            double dotProduct_v = lightdir * viewdir_v;
-            double angle = acosf(dotProduct_v);
-
-            osg::Vec3d eye_ls = eye_v * projectionMatrix;
-
-            OSG_INFO<<"Angle between view vector and eye "<<osg::RadiansToDegrees(angle)<<std::endl;
-            OSG_INFO<<"eye_ls="<<eye_ls<<std::endl;
-
-            if (eye_ls.y()>=-1.0 && eye_ls.y()<=1.0)
-            {
-                OSG_INFO<<"Eye point inside light space clip region   "<<std::endl;
-                splitPoint = 0.0;
-            }
-            else
-            {
-                double n = -1.0-eye_ls.y();
-                double f = 1.0-eye_ls.y();
-                double sqrt_nf = sqrt(n*f);
-                double mid = eye_ls.y()+sqrt_nf;
-                double ratioOfMidToUseForSplit = 0.8;
-                splitPoint = mid * ratioOfMidToUseForSplit;
-
-                OSG_INFO<<"  n="<<n<<", f="<<f<<", sqrt_nf="<<sqrt_nf<<" mid="<<mid<<std::endl;
-            }
-        }
-#endif
 
         const bool debug = settings->getDebugDraw();
 
@@ -1423,15 +1337,6 @@ void MWShadowTechnique::cull(osgUtil::CullVisitor& cv)
             if (numShadowMapsPerLight>1)
             {
                 // compute the start and end range in non-dimensional coords
-#if 0
-                double r_start = (sm_i==0) ? -1.0 : (double(sm_i)/double(numShadowMapsPerLight)*2.0-1.0);
-                double r_end = (sm_i+1==numShadowMapsPerLight) ? 1.0 : (double(sm_i+1)/double(numShadowMapsPerLight)*2.0-1.0);
-#elif 0
-
-                // hardwired for 2 splits
-                double r_start = (sm_i==0) ? -1.0 : splitPoint;
-                double r_end = (sm_i+1==numShadowMapsPerLight) ? 1.0 : splitPoint;
-#else
                 double r_start = NAN, r_end = NAN;
 
                 // split system based on the original Parallel Split Shadow Maps paper.
@@ -1470,7 +1375,6 @@ void MWShadowTechnique::cull(osgUtil::CullVisitor& cv)
                     osg::Vec3d lightSpacePos = worldSpacePos * viewMatrix * projectionMatrix;
                     r_end = lightSpacePos.y();
                 }
-#endif
                 // for all by the last shadowmap shift the r_end so that it overlaps slightly with the next shadowmap
                 // to prevent a seam showing through between the shadowmaps
                 if (sm_i+1<numShadowMapsPerLight) r_end+=0.01;
@@ -1931,11 +1835,6 @@ bool MWShadowTechnique::computeShadowCameraSettings(Frustum& frustum, LightData&
 
     osg::Vec3d lightUp = lightSide ^ positionedLight.lightDir;
 
-#if 0
-    OSG_NOTICE<<"positionedLight.lightDir="<<positionedLight.lightDir<<std::endl;
-    OSG_NOTICE<<"lightSide="<<lightSide<<std::endl;
-    OSG_NOTICE<<"lightUp="<<lightUp<<std::endl;
-#endif
 
 
     if (positionedLight.directionalLight)
@@ -2023,11 +1922,7 @@ bool MWShadowTechnique::computeShadowCameraSettings(Frustum& frustum, LightData&
         double minRatio = 0.0001;
         double zMin=zMax*minRatio;
 
-#if 0
-        double fov = positionedLight.light->getSpotCutoff() * 2.0;
-#else
         double fov = 180.0;
-#endif
         if(fov < 180.0)   // spotlight
         {
             projectionMatrix.makePerspective(fov, 1.0, zMin, zMax);
@@ -2771,13 +2666,6 @@ bool MWShadowTechnique::adjustPerspectiveShadowMapCameraSettings(osgUtil::Render
     convexHull.clip(osg::Plane(frustum.frustumCenterLine, nearDist));
     convexHull.clip(osg::Plane(-frustum.frustumCenterLine, farDist));
 
-#if 0
-    OSG_NOTICE<<"ws ConvexHull xMin="<<convexHull.min(0)<<", xMax="<<convexHull.max(0)<<std::endl;
-    OSG_NOTICE<<"ws ConvexHull yMin="<<convexHull.min(1)<<", yMax="<<convexHull.max(1)<<std::endl;
-    OSG_NOTICE<<"ws ConvexHull zMin="<<convexHull.min(2)<<", zMax="<<convexHull.max(2)<<std::endl;
-
-    convexHull.output(osg::notify(osg::NOTICE));
-#endif
 
     convexHull.transform(light_vp);
 
@@ -2797,96 +2685,9 @@ bool MWShadowTechnique::adjustPerspectiveShadowMapCameraSettings(osgUtil::Render
         convexHullUnextended.clip(osg::Plane(0.0,1.0,0.0,1.0));
     }
 
-#if 0
-    convexHull.output(osg::notify(osg::NOTICE));
 
-    OSG_NOTICE<<"ls ConvexHull xMin="<<convexHull.min(0)<<", xMax="<<convexHull.max(0)<<std::endl;
-    OSG_NOTICE<<"ls ConvexHull yMin="<<convexHull.min(1)<<", yMax="<<convexHull.max(1)<<std::endl;
-    OSG_NOTICE<<"ls ConvexHull zMin="<<convexHull.min(2)<<", zMax="<<convexHull.max(2)<<std::endl;
-#endif
 
-#if 0
-    // only applicable when the light space contains the whole model contained in the view frustum.
-    {
-        convexHull.clip(osg::Plane(0.0,0.0,1,1.0)); // clip by near plane of light space.
-        convexHull.clip(osg::Plane(0.0,0.0,-1,1.0));  // clip by far plane of light space.
-    }
-#endif
 
-#if 0
-    if (renderStage)
-    {
-#if 1
-        osg::ElapsedTime timer;
-#endif
-
-        RenderLeafTraverser<RenderLeafBounds> rli;
-        rli.set(light_p);
-        rli.traverse(renderStage);
-
-        if (rli.numRenderLeaf==0)
-        {
-            return false;
-        }
-#if 0
-        OSG_NOTICE<<"New Time for RenderLeafTraverser "<<timer.elapsedTime_m()<<"ms, number of render leaves "<<rli.numRenderLeaf<<std::endl;
-        OSG_NOTICE<<"   scene bounds min_x="<<rli.min_x<<", max_x="<<rli.max_x<<std::endl;
-        OSG_NOTICE<<"   scene bounds min_y="<<rli.min_y<<", max_y="<<rli.max_y<<std::endl;
-        OSG_NOTICE<<"   scene bounds min_z="<<rli.min_z<<", max_z="<<rli.max_z<<std::endl;
-#endif
-
-#if 0
-        double widest_x = osg::maximum(fabs(rli.min_x), fabs(rli.max_x));
-        double widest_y = osg::maximum(fabs(rli.min_y), fabs(rli.max_y));
-        double widest_z = osg::maximum(fabs(rli.min_z), fabs(rli.max_z));
-#endif
-
-#if 1
-#if 1
-        convexHull.clip(osg::Plane(1.0,0.0,0.0,-rli.min_x));
-        convexHull.clip(osg::Plane(-1.0,0.0,0.0,rli.max_x));
-
-        convexHullUnextended.clip(osg::Plane(1.0, 0.0, 0.0, -rli.min_x));
-        convexHullUnextended.clip(osg::Plane(-1.0, 0.0, 0.0, rli.max_x));
-#else
-        convexHull.clip(osg::Plane(1.0,0.0,0.0,widest_x));
-        convexHull.clip(osg::Plane(-1.0,0.0,0.0,widest_x));
-#endif
-#if 1
-        convexHull.clip(osg::Plane(0.0,1.0,0.0,-rli.min_y));
-        convexHull.clip(osg::Plane(0.0,-1.0,0.0,rli.max_y));
-
-        convexHullUnextended.clip(osg::Plane(0.0, 1.0, 0.0, -rli.min_y));
-        convexHullUnextended.clip(osg::Plane(0.0, -1.0, 0.0, rli.max_y));
-#endif
-#endif
-
-#if 1
-        convexHull.clip(osg::Plane(0.0,0.0,1.0,-rli.min_z));
-        convexHull.clip(osg::Plane(0.0,0.0,-1.0,rli.max_z));
-
-        convexHullUnextended.clip(osg::Plane(0.0, 0.0, 1.0, -rli.min_z));
-        convexHullUnextended.clip(osg::Plane(0.0, 0.0, -1.0, rli.max_z));
-#elif 0
-        convexHull.clip(osg::Plane(0.0,0.0,1.0,1.0));
-        convexHull.clip(osg::Plane(0.0,0.0,-1.0,1.0));
-#endif
-
-#if 0
-        OSG_NOTICE<<"widest_x = "<<widest_x<<std::endl;
-        OSG_NOTICE<<"widest_y = "<<widest_y<<std::endl;
-        OSG_NOTICE<<"widest_z = "<<widest_z<<std::endl;
-#endif
-    }
-#endif
-
-#if 0
-    convexHull.output(osg::notify(osg::NOTICE));
-
-    OSG_NOTICE<<"after clipped ls ConvexHull xMin="<<convexHull.min(0)<<", xMax="<<convexHull.max(0)<<std::endl;
-    OSG_NOTICE<<"after clipped ls ConvexHull yMin="<<convexHull.min(1)<<", yMax="<<convexHull.max(1)<<std::endl;
-    OSG_NOTICE<<"after clipped ls ConvexHull zMin="<<convexHull.min(2)<<", zMax="<<convexHull.max(2)<<std::endl;
-#endif
 
     double xMin=-1.0, xMax=1.0;
     double yMin=-1.0, yMax=1.0;
@@ -2907,13 +2708,7 @@ bool MWShadowTechnique::adjustPerspectiveShadowMapCameraSettings(osgUtil::Render
         convexHull.transform(light_vp);
     }
 
-#if 0
-    OSG_NOTICE<<"xMin = "<<xMin<<", \txMax = "<<xMax<<std::endl;
-    OSG_NOTICE<<"yMin = "<<yMin<<", \tyMax = "<<yMax<<std::endl;
-    OSG_NOTICE<<"zMin = "<<zMin<<", \tzMax = "<<zMax<<std::endl;
-#endif
 
-#if 1
     // we always want the lightspace to include the computed near plane.
     zMin = -1.0;
     if (xMin!=-1.0 || yMin!=-1.0 || zMin!=-1.0 ||
@@ -2933,14 +2728,9 @@ bool MWShadowTechnique::adjustPerspectiveShadowMapCameraSettings(osgUtil::Render
         light_p.postMult(m);
         light_vp = light_v * light_p;
 
-#if 0
-        OSG_NOTICE<<"Adjusting projection matrix "<<m<<std::endl;
-        convexHull.output(osg::notify(osg::NOTICE));
-#endif
         camera->setProjectionMatrix(light_p);
     }
 
-#endif
 
     osg::Vec3d eye_v = frustum.eye * light_v;
     //osg::Vec3d centerNearPlane_v = frustum.centerNearPlane * light_v;
@@ -2960,13 +2750,6 @@ bool MWShadowTechnique::adjustPerspectiveShadowMapCameraSettings(osgUtil::Render
     //OSG_NOTICE<<"viewdir_v="<<viewdir_v<<std::endl;
 
     osg::Vec3d eye_ls = frustum.eye * light_vp;
-#if 0
-    if (eye_ls.y()>-1.0)
-    {
-        OSG_NOTICE<<"Eye point within light space - use standard shadow map."<<std::endl;
-        return true;
-    }
-#endif
 
     //osg::Vec3d centerNearPlane_ls = frustum.centerNearPlane * light_vp;
     //osg::Vec3d centerFarPlane_ls = frustum.centerFarPlane * light_vp;
@@ -3003,11 +2786,6 @@ bool MWShadowTechnique::adjustPerspectiveShadowMapCameraSettings(osgUtil::Render
     osg::Matrixd lightView;
     lightView.makeLookAt(virtual_eye, virtual_eye+lightdir, up);
 
-#if 0
-    OSG_NOTICE<<"n = "<<n<<", f="<<f<<std::endl;
-    OSG_NOTICE<<"eye_ls = "<<eye_ls<<", virtual_eye="<<virtual_eye<<std::endl;
-    OSG_NOTICE<<"frustum.eyes="<<frustum.eye<<std::endl;
-#endif
 
     double min_x_ratio = 0.0;
     double max_x_ratio = 0.0;
@@ -3025,58 +2803,11 @@ bool MWShadowTechnique::adjustPerspectiveShadowMapCameraSettings(osgUtil::Render
         max_z_ratio = convexHullUnextended.maxRatio(virtual_eye, 2);
     }
 
-#if 0
-    OSG_NOTICE<<"convexHull min_x_ratio = "<<min_x_ratio<<std::endl;
-    OSG_NOTICE<<"convexHull max_x_ratio = "<<max_x_ratio<<std::endl;
-    OSG_NOTICE<<"convexHull min_z_ratio = "<<min_z_ratio<<std::endl;
-    OSG_NOTICE<<"convexHull max_z_ratio = "<<max_z_ratio<<std::endl;
-#endif
 
-    #if 0
-    if (renderStage)
-    {
-#if 1
-        osg::ElapsedTime timer;
-#endif
-
-        RenderLeafTraverser<RenderLeafBounds> rli;
-        rli.set(light_p, virtual_eye, n);
-        rli.traverse(renderStage);
-
-        if (rli.numRenderLeaf==0)
-        {
-            return false;
-        }
-
-#if 0
-        OSG_NOTICE<<"Time for RenderLeafTraverser "<<timer.elapsedTime_m()<<"ms, number of render leaves "<<rli.numRenderLeaf<<std::endl;
-        OSG_NOTICE<<"scene bounds min_x="<<rli.min_x<<", max_x="<<rli.max_x<<std::endl;
-        OSG_NOTICE<<"scene bounds min_y="<<rli.min_y<<", max_y="<<rli.max_y<<std::endl;
-        OSG_NOTICE<<"scene bounds min_z="<<rli.min_z<<", max_z="<<rli.max_z<<std::endl;
-        OSG_NOTICE<<"min_x_ratio="<<rli.min_x_ratio<<", max_x_ratio="<<rli.max_x_ratio<<std::endl;
-        OSG_NOTICE<<"min_z_ratio="<<rli.min_z_ratio<<", max_z_ratio="<<rli.max_z_ratio<<std::endl;
-#endif
-        if (rli.min_x_ratio>min_x_ratio) min_x_ratio = rli.min_x_ratio;
-        if (rli.max_x_ratio<max_x_ratio) max_x_ratio = rli.max_x_ratio;
-
-        if (min_z_ratio == sDoubleMost || rli.min_z_ratio > min_z_ratio)
-            min_z_ratio = rli.min_z_ratio;
-        if (max_z_ratio == -sDoubleMost || rli.max_z_ratio < max_z_ratio)
-            max_z_ratio = rli.max_z_ratio;
-    }
-#endif
     double best_x_ratio = osg::maximum(fabs(min_x_ratio),fabs(max_x_ratio));
     double best_z_ratio = osg::maximum(fabs(min_z_ratio),fabs(max_z_ratio));
 
     //best_z_ratio = osg::maximum(1.0, best_z_ratio);
-#if 0
-    OSG_NOTICE<<"min_x_ratio = "<<min_x_ratio<<std::endl;
-    OSG_NOTICE<<"max_x_ratio = "<<max_x_ratio<<std::endl;
-    OSG_NOTICE<<"best_x_ratio = "<<best_x_ratio<<std::endl;
-    OSG_NOTICE<<"min_z_ratio = "<<min_z_ratio<<std::endl;
-    OSG_NOTICE<<"max_z_ratio = "<<max_z_ratio<<std::endl;
-    OSG_NOTICE<<"best_z_ratio = "<<best_z_ratio<<std::endl;
-#endif
 
     //best_z_ratio *= 10.0;
 
@@ -3111,12 +2842,6 @@ bool MWShadowTechnique::adjustPerspectiveShadowMapCameraSettings(osgUtil::Render
         }
     }
 
-#if 0
-    OSG_NOTICE<<"light_p = "<<light_p<<std::endl;
-    OSG_NOTICE<<"lightView = "<<lightView<<std::endl;
-    OSG_NOTICE<<"lightPerspective = "<<lightPerspective<<std::endl;
-    OSG_NOTICE<<"light_persp result = "<<light_persp<<std::endl;
-#endif
     camera->setProjectionMatrix(light_persp);
 
     return true;

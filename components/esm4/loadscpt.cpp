@@ -49,26 +49,7 @@ void ESM4::Script::load(ESM4::Reader& reader)
             case ESM::fourCC("SCHR"):
             {
                 // For debugging only
-#if 0
-                unsigned char mDataBuf[256/*bufSize*/];
-                reader.get(mDataBuf, subHdr.dataSize);
-
-                std::ostringstream ss;
-                for (unsigned int i = 0; i < subHdr.dataSize; ++i)
-                {
-                    //if (mDataBuf[i] > 64 && mDataBuf[i] < 91)
-                        //ss << (char)(mDataBuf[i]) << " ";
-                    //else
-                        ss << std::setfill('0') << std::setw(2) << std::hex << (int)(mDataBuf[i]);
-                    if ((i & 0x000f) == 0xf)
-                        ss << "\n";
-                    else if (i < 256/*bufSize*/-1)
-                        ss << " ";
-                }
-                std::cout << ss.str() << std::endl;
-#else
                 reader.get(mScript.scriptHeader);
-#endif
                 break;
             }
             case ESM::fourCC("SCTX"):
@@ -79,35 +60,7 @@ void ESM4::Script::load(ESM4::Reader& reader)
             case ESM::fourCC("SCDA"): // compiled script data
             {
                 // For debugging only
-#if 0
-                if (subHdr.dataSize >= 4096)
-                {
-                    std::cout << "Skipping " << mEditorId << std::endl;
-                    reader.skipSubRecordData();
-                    break;
-                }
-
-                std::cout << mEditorId << std::endl;
-
-                unsigned char mDataBuf[4096/*bufSize*/];
-                reader.get(mDataBuf, subHdr.dataSize);
-
-                std::ostringstream ss;
-                for (unsigned int i = 0; i < subHdr.dataSize; ++i)
-                {
-                    //if (mDataBuf[i] > 64 && mDataBuf[i] < 91)
-                        //ss << (char)(mDataBuf[i]) << " ";
-                    //else
-                        ss << std::setfill('0') << std::setw(2) << std::hex << (int)(mDataBuf[i]);
-                    if ((i & 0x000f) == 0xf)
-                        ss << "\n";
-                    else if (i < 4096/*bufSize*/-1)
-                        ss << " ";
-                }
-                std::cout << ss.str() << std::endl;
-#else
                 reader.skipSubRecordData();
-#endif
                 break;
             }
             case ESM::fourCC("SCRO"):

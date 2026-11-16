@@ -102,34 +102,15 @@ void ESM4::Race::load(ESM4::Reader& reader)
                 break;
             case ESM::fourCC("DATA"): // ?? different length for TES5
             {
-// DATA:size 128
-// 0f 0f ff 00 ff 00 ff 00 ff 00 ff 00 ff 00 00 00
-// 9a 99 99 3f 00 00 80 3f 00 00 80 3f 00 00 80 3f
-// 48 89 10 00 00 00 40 41 00 00 00 00 00 00 48 43
-// 00 00 48 43 00 00 80 3f 9a 99 19 3f 00 00 00 40
-// 01 00 00 00 ff ff ff ff ff ff ff ff 00 00 00 00
-// ff ff ff ff 00 00 00 00 00 00 20 41 00 00 a0 40
-// 00 00 a0 40 00 00 80 42 ff ff ff ff 00 00 00 00
-// 00 00 00 00 9a 99 99 3e 00 00 a0 40 02 00 00 00
-#if 0
-                unsigned char mDataBuf[256/*bufSize*/];
-                reader.get(mDataBuf, subHdr.dataSize);
-
-                std::ostringstream ss;
-                ss << ESM::printName(subHdr.typeId) << ":size " << subHdr.dataSize << "\n";
-                for (unsigned int i = 0; i < subHdr.dataSize; ++i)
-                {
-                    //if (mDataBuf[i] > 64 && mDataBuf[i] < 91)
-                        //ss << (char)(mDataBuf[i]) << " ";
-                    //else
-                        ss << std::setfill('0') << std::setw(2) << std::hex << (int)(mDataBuf[i]);
-                    if ((i & 0x000f) == 0xf)
-                        ss << "\n";
-                    else if (i < 256/*bufSize*/-1)
-                        ss << " ";
-                }
-                std::cout << ss.str() << std::endl;
-#else
+                // DATA:size 128
+                // 0f 0f ff 00 ff 00 ff 00 ff 00 ff 00 ff 00 00 00
+                // 9a 99 99 3f 00 00 80 3f 00 00 80 3f 00 00 80 3f
+                // 48 89 10 00 00 00 40 41 00 00 00 00 00 00 48 43
+                // 00 00 48 43 00 00 80 3f 9a 99 19 3f 00 00 00 40
+                // 01 00 00 00 ff ff ff ff ff ff ff ff 00 00 00 00
+                // ff ff ff ff 00 00 00 00 00 00 20 41 00 00 a0 40
+                // 00 00 a0 40 00 00 80 42 ff ff ff ff 00 00 00 00
+                // 00 00 00 00 9a 99 99 3e 00 00 a0 40 02 00 00 00
                 if (subHdr.dataSize == 36) // TES4/FO3/FNV
                 {
                     std::uint8_t skill = 0;
@@ -212,7 +193,6 @@ void ESM4::Race::load(ESM4::Reader& reader)
                     // std::cout << "RACE " << ESM::printName(subHdr.typeId) << " skipping..." << subHdr.dataSize <<
                     // std::endl;
                 }
-#endif
                 break;
             }
             case ESM::fourCC("DNAM"):

@@ -86,11 +86,6 @@ void ESM4::Header::load(ESM4::Reader& reader)
                     if (!reader.getExact(v))
                         throw std::runtime_error("TES4 ONAM data read error");
                     mOverride = ESM::FormId::fromUint32(v);
-#if 0
-                    std::string padding;
-                    padding.insert(0, reader.stackSize()*2, ' ');
-                    std::cout << padding  << "ESM4::Header::ONAM overrides: " << formIdToString(mOverride) << std::endl;
-#endif
                 }
                 break;
             }
