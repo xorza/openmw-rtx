@@ -107,7 +107,7 @@ namespace Rtx
         TEST(RtxResultTest, anEnumerationOfNothingAsksForNothing)
         {
             bool filled = false;
-            const auto empty = [&](std::uint32_t* count, int* into) {
+            const auto empty = [&](std::uint32_t* count, const int* into) {
                 filled = filled || into != nullptr;
                 *count = 0;
                 return VK_SUCCESS;

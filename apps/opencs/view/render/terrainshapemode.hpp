@@ -155,7 +155,8 @@ namespace CSVRender
 
         /// Limit steepness based on either X or Y and return false if steepness is limited
         void compareAndLimit(const CSMWorld::CellCoordinates& cellCoords, int inCellX, int inCellY,
-            float* limitedAlteredHeightXAxis, float* limitedAlteredHeightYAxis, bool* steepnessIsWithinLimits);
+            const float* limitedAlteredHeightXAxis, const float* limitedAlteredHeightYAxis,
+            bool* steepnessIsWithinLimits);
 
         /// Check that the edit doesn't break save format limits, fix if necessary, return true if slope steepness is
         /// within limits

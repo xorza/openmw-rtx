@@ -1058,7 +1058,7 @@ void CSVRender::TerrainShapeMode::updateKeyHeightValues(const CSMWorld::CellCoor
 }
 
 void CSVRender::TerrainShapeMode::compareAndLimit(const CSMWorld::CellCoordinates& cellCoords, int inCellX, int inCellY,
-    float* limitedAlteredHeightXAxis, float* limitedAlteredHeightYAxis, bool* steepnessIsWithinLimits)
+    const float* limitedAlteredHeightXAxis, const float* limitedAlteredHeightYAxis, bool* steepnessIsWithinLimits)
 {
     if (limitedAlteredHeightXAxis)
     {
