@@ -82,7 +82,7 @@ class KeyTest(FolderTest):
         with mock.patch.object(tidycache.deps, "clang_tidy_digest", return_value="pin"):
             self.assertEqual(tidycache.command_digest(msvc), hashlib.sha256(
                 b"pin\n/build\ncl.exe /arch:SSE4.2 /c a.cpp\n--extra-arg=/clang:-march=x86-64-v2\n"
-                b"--checks=-bugprone-exception-escape\n").hexdigest())
+                b"--checks=-bugprone-exception-escape,-readability-inconsistent-declaration-parameter-name\n").hexdigest())
 
     def test_a_read_the_dependency_file_may_miss_by_either_driver_s_spelling(self):
         for command in ("clang++ -Xclang -include-pch -Xclang cmake_pch.hxx.pch -c a.cpp",
@@ -99,7 +99,8 @@ class KeyTest(FolderTest):
     def test_the_dependency_file_by_the_driver_s_mode_which_the_program_s_name_says(self):
         into = Path("/scratch/0.d")
         gcc = [f"--extra-arg=-Wp,-MD,{into}"]
-        msvc = [f"--extra-arg=/clang:-Wp,-MD,{into}", "--checks=-bugprone-exception-escape"]
+        msvc = [f"--extra-arg=/clang:-Wp,-MD,{into}",
+                "--checks=-bugprone-exception-escape,-readability-inconsistent-declaration-parameter-name"]
         for command, wanted in (("/usr/bin/clang++ -c a.cpp", gcc), ("c++ -c a.cpp", gcc), ("g++ -c a.cpp", gcc),
                                 ("C:\\VS\\bin\\cl.exe /c a.cpp", msvc),
                                 ('"C:\\Program Files\\VS\\CL.EXE" /c a.cpp', msvc),
@@ -111,7 +112,7 @@ class KeyTest(FolderTest):
     def test_an_msvc_flag_clang_cl_does_not_take_is_said_as_clang_says_it(self):
         into = Path("/scratch/0.d")
         written = f"--extra-arg=/clang:-Wp,-MD,{into}"
-        off = "--checks=-bugprone-exception-escape"
+        off = "--checks=-bugprone-exception-escape,-readability-inconsistent-declaration-parameter-name"
         self.assertEqual(Compile("/b", "cl.exe /O2 /arch:SSE4.2 /c a.cpp").extra_args(into),
                          [written, "--extra-arg=/clang:-march=x86-64-v2", off])
         # Another `/arch:`, which clang-cl takes, and one GCC's driver is given, which is not MSVC's: as they are.

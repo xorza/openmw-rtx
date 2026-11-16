@@ -18,7 +18,23 @@
 #   copy;
 # - `cppcoreguidelines-rvalue-reference-param-not-moved`: rvalue overloads beside their `const&` twins, and the holds
 #   a `drop` consumes by taking them;
-# - `cppcoreguidelines-no-malloc`: every `malloc` here is an allocator's own, Lua's, Recast's and the tests' count.
+# - `cppcoreguidelines-no-malloc`: every `malloc` here is an allocator's own, Lua's, Recast's and the tests' count;
+# - `cppcoreguidelines-virtual-class-destructor`: OpenSceneGraph's referenced classes and gtest's fixtures keep their
+#   destructors protected and virtual by design, and every declaration of one is a finding;
+# - `cppcoreguidelines-pro-type-reinterpret-cast`, `-pro-type-const-cast`: AGENTS.md allows each with a comment
+#   saying why, which the checks cannot read, and each of the 330 is a byte buffer, a C API or OSG's;
+# - `misc-static-assert`: it takes a run-time `assert` of a member call for a constant one;
+# - `cert-msc51-cpp`: a seed fixed on purpose, so two runs draw the same world (`--random-seed`);
+# - `cert-env33-c`: `Platform::Process::runShell` is the one place a command is handed to the shell, by design;
+# - `readability-suspicious-call-argument`: each of its 27 was an order meant, a transpose, a door both ways, an
+#   observer and the observed, a symmetry a test asserts;
+# - `cppcoreguidelines-missing-std-forward`: each of its 164 a callable or a visitor called more than once, which a
+#   forward at a call would move from before the next;
+# - and checks of style alone, whose fixes would touch most of upstream's files for no fault: `misc-const-correctness`,
+#   `readability-implicit-bool-conversion`, `-qualified-auto`, `-redundant-member-init`, `-use-anyofallof`,
+#   `-simplify-boolean-expr`, `-static-accessed-through-instance`, `-redundant-smartptr-get`,
+#   `modernize-use-default-member-init`, `-use-using`, `-avoid-c-arrays`, `-use-equals-default`, `-use-emplace`,
+#   `cppcoreguidelines-prefer-member-initializer`, `-use-enum-class`, `-avoid-goto`.
 # Under MSVC's driver `omw tidy` turns off the checks that misread MSVC's library (`tidycache._OFF_UNDER_MSVC`).
 Checks:
   - '-*'
@@ -37,13 +53,10 @@ Checks:
   - cppcoreguidelines-special-member-functions
   - 'cppcoreguidelines-noexcept-*'
   - cppcoreguidelines-init-variables
-  # - cppcoreguidelines-use-enum-class
-  # - cppcoreguidelines-pro-type-reinterpret-cast
-  # - cppcoreguidelines-pro-type-const-cast
+  - cppcoreguidelines-pro-type-member-init
   - google-explicit-constructor
   - google-global-names-in-headers
   - google-build-namespaces
-  # - modernize-avoid-c-arrays
   - modernize-avoid-c-style-cast
   - modernize-use-override
   - modernize-use-integer-sign-comparison
@@ -55,6 +68,10 @@ Checks:
   - modernize-use-starts-ends-with
   - modernize-use-std-bit
   - modernize-use-std-numbers
+  - modernize-use-nullptr
+  - modernize-use-noexcept
+  - modernize-use-equals-delete
+  - modernize-pass-by-value
   - misc-throw-by-value-catch-by-reference
   - misc-use-anonymous-namespace
   - misc-use-internal-linkage
@@ -63,23 +80,41 @@ Checks:
   - misc-redundant-expression
   - misc-definitions-in-headers
   - misc-include-cleaner
+  - misc-misleading-bidirectional
+  - misc-misleading-identifier
+  - misc-confusable-identifiers
+  - misc-uniqueptr-reset-release
+  - misc-new-delete-overloads
+  - misc-non-copyable-objects
+  - misc-unconventional-assign-operator
+  - misc-header-include-cycle
   - readability-container-contains
   - readability-container-size-empty
   - readability-container-data-pointer
   - readability-redundant-string-cstr
   - readability-redundant-casting
-  # - readability-use-anyofallof
   - readability-use-std-min-max
   - readability-duplicate-include
   - readability-misleading-indentation
   - readability-identifier-naming
-  # Not yet applied, each until its fixes land: the checks commented out above, and these of the families above.
-  - '-performance-unnecessary-value-param'
-  - '-performance-inefficient-string-concatenation'
-  - '-performance-no-automatic-move'
-  - '-performance-use-std-move'
-  - '-performance-for-range-copy'
-  - '-performance-trivially-destructible'
+  - readability-inconsistent-declaration-parameter-name
+  - readability-avoid-unconditional-preprocessor-if
+  - readability-const-return-type
+  - readability-non-const-parameter
+  - readability-string-compare
+  - readability-uniqueptr-delete-release
+  - readability-misplaced-array-index
+  - readability-reference-to-constructed-temporary
+  - readability-redundant-declaration
+  - concurrency-mt-unsafe
+  - cert-dcl50-cpp
+  - cert-err33-c
+  - cert-err34-c
+  - cert-flp30-c
+  - cert-msc50-cpp
+  - cert-oop57-cpp
+  - hicpp-exception-baseclass
+  - hicpp-multiway-paths-covered
 WarningsAsErrors: '*'
 # Either slash separates: clang-tidy matches these against a path as the system spells it, which on Windows joins an
 # include folder to what the directive names with a backslash.
@@ -103,6 +138,9 @@ CheckOptions:
   cppcoreguidelines-init-variables.MathHeader: '<cmath>'
   # Only a literal that is the constant to a float's precision: 0.435 is not log10(e), however near.
   modernize-use-std-numbers.DiffThreshold: '0.000001'
+  # What glibc's manual marks unsafe among threads: `getenv` is safe beside no `setenv`, which nothing calls once the
+  # game's threads start.
+  concurrency-mt-unsafe.FunctionSet: glibc
   # A class that declares its destructor or a copy declares all three; one that declares a move, both. Its moves
   # may stay undeclared: a class with deleted copies is then not movable either, and a copyable one copies an rvalue
   # (Hinnant's table; Chromium's C++ Dos and Don'ts), which a deleted move would refuse.

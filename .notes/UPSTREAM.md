@@ -616,6 +616,17 @@ than offered upstream, so a merge that touches `components/resource`, `component
   arguments through `Platform::Process::commandLine` in place of its own `wmain`; `CS::Editor`'s destructor removing
   its pid file through an error code; and the registry read in `windowspath.cpp` written into the string's size,
   where it wrote past it into its capacity. The cost is a conflict with an upstream edit to those lines.
+- The checks the user widened the lint to, over upstream's code as over the fork's, each check whole or refused
+  (`.clang-tidy` names the refused and why): every member a constructor leaves unset given a value, the enum
+  members whose type names no zero given its zero (`ESM::AI_None`, `ESM::ActiveSpells::Flag_None`); parameters copied
+  and only read taken by `const&`, and kept ones by value and moved; deleted copies public; a declaration's
+  parameters named as its definition's; `#if 0` blocks deleted and `#if 1` unwrapped (`mwshadowtechnique.cpp`,
+  `optimizer.cpp`, the ESM4 loaders); strings built once with `std::format` where a loop concatenated them; the
+  C library's results the code cannot act on discarded explicitly; `pthread_sigmask` in place of `sigprocmask` in the
+  crash image's handlers, as POSIX leaves the latter unspecified with threads; `Files::LinuxPath` asking
+  `Platform::userHome`, which reads the password database reentrantly, in place of its own `getpwuid`; and
+  `Crash::runMonitorIfAsked` answering the monitor's exit code for `main` to return, in place of `std::exit`. The
+  cost is a conflict with an upstream edit to the lines the fixes touched.
 - `Misc::ScalableIcon`'s copy, which `clone` makes, registered as the original is, by the user's decision to hold
   the tree to `cppcoreguidelines-special-member-functions`: its implicit copy left a clone out of the set
   `updateAllIcons` repaints on a theme change. The cost is a conflict with an upstream edit to the class's

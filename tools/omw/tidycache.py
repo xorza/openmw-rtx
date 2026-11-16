@@ -57,8 +57,10 @@ _MSVC_IN_CLANG = {"/arch:SSE4.2": "-march=x86-64-v2"}
 # The checks that misread MSVC's library, off for a compile under its driver. `bugprone-exception-escape` sees every
 # throw the library makes inline, where libstdc++ throws out of line and unseen, and takes its iostreams' bare `throw;`
 # for a rethrow of whatever the caller's handler caught: a destructor that catches and logs was a finding under MSVC
-# alone.
-_OFF_UNDER_MSVC = "-bugprone-exception-escape"
+# alone. `readability-inconsistent-declaration-parameter-name` reads the replaceable allocation functions MSVC's
+# `<vcruntime_new.h>` declares with reserved names (`_Size`, `_Block`), which a replacement may not spell: sixteen
+# findings in the allocation counter the tests link, none in the tree's own declarations.
+_OFF_UNDER_MSVC = "-bugprone-exception-escape,-readability-inconsistent-declaration-parameter-name"
 
 # The digest of a file that is not there, which no SHA-256 spells.
 ABSENT = "-"
