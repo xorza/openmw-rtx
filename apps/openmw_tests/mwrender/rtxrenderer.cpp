@@ -24,7 +24,7 @@
 #include <apps/openmw/mwrender/rtx/rtxrenderer.hpp>
 #include <apps/openmw/mwrender/sceneframe.hpp>
 #include <apps/openmw/mwworld/ptr.hpp>
-#include <components/resource/imagemanager.hpp>
+#include <components/resource/bgsmfilemanager.hpp>
 #include <components/resource/objectcache.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
@@ -139,9 +139,8 @@ namespace MWRender
             EXPECT_EQ(fixture.mWorld->mReached, 0u);
         }
 
-        /// **A stepped run keeps what it loaded, and a run on the wall keeps the setting.** The
-        /// scene's cache and the images' are where a model and its textures are found again; both
-        /// start at the setting's five seconds.
+        /// **A stepped run keeps what it built, and a run on the wall keeps the setting**, in the caches kept by
+        /// time, which start at the setting's five seconds; the materials' is one.
         TEST(RtxRendererTest, aSteppedRunNeverExpiresWhatItLoadedAndARunOnTheWallKeepsTheSetting)
         {
             constexpr double sSetting = 5.0;
@@ -150,13 +149,11 @@ namespace MWRender
 
             Resource::ResourceSystem stepped(vfs.get(), sSetting, nullptr);
             RtxRenderer::setResourceExpiry(stepped, 1.0f / 60.0f);
-            EXPECT_EQ(stepped.getSceneManager()->getExpiryDelay(), sForever);
-            EXPECT_EQ(stepped.getImageManager()->getExpiryDelay(), sForever);
+            EXPECT_EQ(stepped.getBgsmFileManager()->getExpiryDelay(), sForever);
 
             Resource::ResourceSystem walled(vfs.get(), sSetting, nullptr);
             RtxRenderer::setResourceExpiry(walled, std::nullopt);
-            EXPECT_EQ(walled.getSceneManager()->getExpiryDelay(), sSetting);
-            EXPECT_EQ(walled.getImageManager()->getExpiryDelay(), sSetting);
+            EXPECT_EQ(walled.getBgsmFileManager()->getExpiryDelay(), sSetting);
         }
 
         /// **The companion maps are found whatever the rasterizer's switches say**, both off here,

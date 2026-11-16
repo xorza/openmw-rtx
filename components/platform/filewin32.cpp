@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cstdint>
 #include <format>
 #include <limits>
 #include <stdexcept>
@@ -35,7 +36,9 @@ namespace Platform::File
 
     Handle open(const std::filesystem::path& filename)
     {
-        HANDLE handle = CreateFileW(filename.c_str(), GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
+        // Shared as a POSIX system shares it: an archive held open for its entries' reads is written by its own tool.
+        HANDLE handle = CreateFileW(filename.c_str(), GENERIC_READ,
+            FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, 0, OPEN_EXISTING, 0, 0);
         if (handle == INVALID_HANDLE_VALUE)
         {
             throw std::runtime_error(std::format(
@@ -81,6 +84,26 @@ namespace Platform::File
             throw std::runtime_error(std::format("Failed to get file offset: {}", GetLastError()));
 
         return static_cast<size_t>(li.QuadPart);
+    }
+
+    size_t readAt(Handle handle, size_t offset, void* data, size_t size)
+    {
+        const auto nativeHandle = getNativeHandle(handle);
+
+        // A handle opened without `FILE_FLAG_OVERLAPPED` reads at the structure's offset and returns once it has.
+        OVERLAPPED at{};
+        at.Offset = static_cast<DWORD>(offset & 0xFFFFFFFFu);
+        at.OffsetHigh = static_cast<DWORD>(static_cast<std::uint64_t>(offset) >> 32);
+        DWORD bytesRead{};
+        size = std::min<size_t>(size, std::numeric_limits<DWORD>::max());
+        if (!ReadFile(nativeHandle, data, static_cast<DWORD>(size), &bytesRead, &at))
+        {
+            const DWORD error = GetLastError();
+            if (error == ERROR_HANDLE_EOF)
+                return 0;
+            throw std::runtime_error(std::format("A read at {} on a file failed: {}", offset, error));
+        }
+        return bytesRead;
     }
 
     size_t read(Handle handle, void* data, size_t size)

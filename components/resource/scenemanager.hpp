@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <mutex>
@@ -65,6 +66,12 @@ namespace Resource
         Omitted,
     };
 
+    /// What `node`'s geometry holds, the bytes a template is kept by: every array and index list of each drawable,
+    /// skinned and morphed ones by their source and their targets, and not the arrays a skinned one writes its pose
+    /// into, which it makes as it is given its source; not its images, which the image cache counts once however many
+    /// templates share one.
+    std::uint64_t geometryBytes(osg::Node& node);
+
     /// @brief Handles loading and caching of scenes, e.g. .nif files or .osg files
     /// @note Some methods of the scene manager can be used from any thread, see the methods documentation for more
     /// details.
@@ -75,7 +82,7 @@ namespace Resource
 
         explicit SceneManager(const VFS::Manager* vfs, Resource::ImageManager* imageManager,
             Resource::NifFileManager* nifFileManager, Resource::BgsmFileManager* bgsmFileManager,
-            Resource::SptFileManager* sptFileManager, double expiryDelay);
+            Resource::SptFileManager* sptFileManager, CacheBudget& budget);
         ~SceneManager() override;
 
         Shader::ShaderManager& getShaderManager();
@@ -217,6 +224,9 @@ namespace Resource
         void setModelPrograms(ModelPrograms programs) { mPrograms = programs; }
 
     private:
+        /// The template at `path` read from the files and readied, or the error marker: `getTemplate`'s one load.
+        osg::ref_ptr<osg::Node> loadTemplate(VFS::Path::NormalizedView path, bool compile);
+
         osg::ref_ptr<Shader::ShaderVisitor> createShaderVisitor(const std::string& shaderPrefix = "objects");
         osg::ref_ptr<osg::Node> loadErrorMarker();
         osg::ref_ptr<osg::Node> cloneErrorMarker();

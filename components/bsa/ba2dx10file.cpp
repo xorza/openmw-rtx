@@ -9,7 +9,7 @@
 #include <zlib.h>
 
 #include <components/esm/fourcc.hpp>
-#include <components/files/constrainedfilestream.hpp>
+#include <components/files/streamwithbuffer.hpp>
 #include <components/files/utils.hpp>
 #include <components/vfs/pathutil.hpp>
 
@@ -631,7 +631,7 @@ namespace Bsa
         for (const auto& c : fileRecord.mTextureChunks)
         {
             const uint32_t inputSize = c.mPackedSize != 0 ? c.mPackedSize : c.mSize;
-            Files::IStreamPtr streamPtr = Files::openConstrainedFileStream(mFilepath, c.mOffset, inputSize);
+            Files::IStreamPtr streamPtr = openRange(c.mOffset, inputSize);
             if (c.mPackedSize != 0)
             {
                 streamPtr->read(inputBuffer.data(), c.mPackedSize);

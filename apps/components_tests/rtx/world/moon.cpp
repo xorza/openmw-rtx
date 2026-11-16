@@ -81,7 +81,8 @@ namespace Rtx
             // Masser's face opens and Secunda's does not: the one keeps the image the upload reads,
             // and the other is refused as a sky layer and takes no slot.
             VFS::Manager vfs;
-            Testing::HeldImages images(&vfs, 0);
+            Resource::CacheBudget budget(Resource::CacheBudget::sUnbounded);
+            Testing::HeldImages images(&vfs, budget);
             const osg::ref_ptr<osg::Image> portrait = Testing::makeImage("", 2, 2);
             for (std::size_t texel = 0; texel < 4; ++texel)
             {

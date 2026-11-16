@@ -90,8 +90,7 @@ namespace MWPhysics
     PhysicsSystem::PhysicsSystem(Resource::ResourceSystem* resourceSystem, std::unique_ptr<btIDebugDraw> debugDrawer)
         : mPhysicsDt(1.f / 60.f)
         , mShapeManager(std::make_unique<Resource::BulletShapeManager>(resourceSystem->getVFS(),
-              resourceSystem->getSceneManager(), resourceSystem->getNifFileManager(),
-              Settings::cells().mCacheExpiryDelay))
+              resourceSystem->getSceneManager(), resourceSystem->getNifFileManager(), resourceSystem->getCacheBudget()))
         , mResourceSystem(resourceSystem)
         , mDebugDrawEnabled(false)
         , mTimeAccum(0.0f)

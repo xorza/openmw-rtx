@@ -129,11 +129,12 @@ namespace MWRender
         struct Making
         {
             VFS::Manager mVfs;
-            Resource::ImageManager mImages{ &mVfs, 0 };
-            Resource::NifFileManager mNifs{ &mVfs, nullptr };
+            Resource::CacheBudget mBudget{ Resource::CacheBudget::sUnbounded };
+            Resource::ImageManager mImages{ &mVfs, mBudget };
+            Resource::NifFileManager mNifs{ &mVfs, mBudget, nullptr };
             Resource::BgsmFileManager mMaterials{ &mVfs, 0 };
             Resource::SptFileManager mTrees{ &mVfs, 0 };
-            Resource::SceneManager mScenes{ &mVfs, &mImages, &mNifs, &mMaterials, &mTrees, 0 };
+            Resource::SceneManager mScenes{ &mVfs, &mImages, &mNifs, &mMaterials, &mTrees, mBudget };
             Rtx::Testing::FakeLand mLand;
             osg::ref_ptr<osg::Group> mSceneRoot = new osg::Group;
             osg::ref_ptr<osg::Group> mWorldRoot = new osg::Group;

@@ -1,8 +1,11 @@
 #include <components/files/configurationmanager.hpp>
+#include <components/resource/cachebudget.hpp>
+#include <components/resource/imagemanager.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/resource/sptfilemanager.hpp>
 #include <components/sceneutil/material.hpp>
+#include <components/sceneutil/riggeometry.hpp>
 #include <components/sceneutil/shadow.hpp>
 #include <components/spt/file.hpp>
 #include <components/testing/util.hpp>
@@ -11,8 +14,14 @@
 
 #include <gtest/gtest.h>
 
+#include <osg/Array>
 #include <osg/Drawable>
+#include <osg/Geometry>
+#include <osg/Group>
+#include <osg/Image>
 #include <osg/NodeVisitor>
+#include <osg/PrimitiveSet>
+#include <osg/Texture2D>
 
 #include <cstdint>
 #include <map>
@@ -82,6 +91,63 @@ namespace
         sceneManager->letGo(letGo);
         EXPECT_NE(sceneManager->getTemplate(first), loaded) << "loaded again";
         EXPECT_EQ(sceneManager->getTemplate(kept), keptLoaded) << "a path not named stays";
+    }
+
+    /// **An image is kept by its pixels' bytes**: a 2 by 2 TGA of 32-bit pixels holds 2 * 2 * 4 = 16, which its
+    /// cache and the budget count.
+    TEST(ResourceResourceSystem, an_image_is_kept_by_its_pixels_bytes)
+    {
+        // 18 bytes of header (type 2, uncompressed true colour; 2 by 2; 32 bits, 8 of them alpha), then the pixels.
+        std::string tga(18, '\0');
+        tga[2] = 2;
+        tga[12] = 2;
+        tga[14] = 2;
+        tga[16] = 32;
+        tga[17] = 8;
+        tga.append(16, '\x7f');
+        TestingOpenMW::VFSTestFile file(tga);
+        constexpr VFS::Path::NormalizedView path("textures/two.tga");
+        const std::unique_ptr<VFS::Manager> vfs = TestingOpenMW::createTestVFS({ { path, &file } });
+        const ToUTF8::Utf8Encoder encoder(ToUTF8::WINDOWS_1252);
+        Resource::ResourceSystem resources(vfs.get(), 1.0, &encoder.getStatelessEncoder());
+
+        const osg::ref_ptr<osg::Image> image = resources.getImageManager()->getImage(path);
+        ASSERT_NE(image.get(), resources.getImageManager()->getWarningImage());
+        EXPECT_EQ(image->getTotalSizeInBytesIncludingMipmaps(), 16u);
+        EXPECT_EQ(resources.getCacheBudget().getHeld(), 16u);
+    }
+
+    /// **A template is kept by its geometry's bytes and not its images'**, which the image cache counts once
+    /// however many templates share one: three vertices (36 bytes), their normals (36) and one set of coordinates
+    /// (24), three 16-bit indices (6), and a range of indices (none) come to 102; a skinned drawable adds its
+    /// source's four vertices (48), 150; the 16 bytes of its texture's image add nothing.
+    TEST(ResourceResourceSystem, a_template_is_kept_by_its_geometry_alone)
+    {
+        osg::ref_ptr<osg::Image> image = new osg::Image;
+        image->allocateImage(2, 2, 1, GL_RGBA, GL_UNSIGNED_BYTE);
+        ASSERT_EQ(image->getTotalSizeInBytesIncludingMipmaps(), 16u);
+
+        osg::ref_ptr<osg::Geometry> geometry = new osg::Geometry;
+        geometry->setVertexArray(new osg::Vec3Array(3));
+        geometry->setNormalArray(new osg::Vec3Array(3), osg::Array::BIND_PER_VERTEX);
+        geometry->setTexCoordArray(0, new osg::Vec2Array(3));
+        osg::ref_ptr<osg::DrawElementsUShort> triangle = new osg::DrawElementsUShort(GL_TRIANGLES);
+        for (const unsigned short index : { 0, 1, 2 })
+            triangle->push_back(index);
+        geometry->addPrimitiveSet(triangle);
+        geometry->addPrimitiveSet(new osg::DrawArrays(GL_TRIANGLES, 0, 3));
+        geometry->getOrCreateStateSet()->setTextureAttributeAndModes(0, new osg::Texture2D(image));
+
+        osg::ref_ptr<osg::Group> root = new osg::Group;
+        root->addChild(geometry);
+        EXPECT_EQ(Resource::geometryBytes(*root), 102u);
+
+        osg::ref_ptr<osg::Geometry> source = new osg::Geometry;
+        source->setVertexArray(new osg::Vec3Array(4));
+        osg::ref_ptr<SceneUtil::RigGeometry> skinned = new SceneUtil::RigGeometry;
+        skinned->setSourceGeometry(source);
+        root->addChild(skinned);
+        EXPECT_EQ(Resource::geometryBytes(*root), 150u);
     }
 
     /// A SpeedTree file of a header and nothing after it, which `Spt::parse` reads: its opening section,

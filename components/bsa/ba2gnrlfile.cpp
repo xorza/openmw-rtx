@@ -6,7 +6,7 @@
 #include <zlib.h>
 
 #include <components/esm/fourcc.hpp>
-#include <components/files/constrainedfilestream.hpp>
+#include <components/files/streamwithbuffer.hpp>
 #include <components/files/utils.hpp>
 #include <components/vfs/pathutil.hpp>
 
@@ -176,7 +176,7 @@ namespace Bsa
     Files::IStreamPtr BA2GNRLFile::getFile(const FileRecord& fileRecord)
     {
         const uint32_t inputSize = fileRecord.mPackedSize ? fileRecord.mPackedSize : fileRecord.mSize;
-        Files::IStreamPtr streamPtr = Files::openConstrainedFileStream(mFilepath, fileRecord.mOffset, inputSize);
+        Files::IStreamPtr streamPtr = openRange(fileRecord.mOffset, inputSize);
         auto memoryStreamPtr = std::make_unique<MemoryInputStream>(fileRecord.mSize);
         if (fileRecord.mPackedSize)
         {

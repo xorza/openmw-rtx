@@ -21,6 +21,7 @@ target_sources(
         instruments/perfcontrol.cpp
         instruments/png.cpp
         instruments/reportfile.cpp
+        instruments/resourcecaches.cpp
         instruments/scenedigest.cpp
         instruments/scenereport.cpp
         instruments/threadcounters.cpp

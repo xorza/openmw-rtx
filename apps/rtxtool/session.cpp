@@ -20,12 +20,16 @@
 #include <apps/openmw/mwworld/globals.hpp>
 #include <apps/openmw/mwworld/ptr.hpp>
 #include <apps/rtxtool/instruments/reportfile.hpp>
+#include <apps/rtxtool/instruments/resourcecaches.hpp>
 #include <apps/rtxtool/model/finding.hpp>
 #include <apps/rtxtool/model/stopdescription.hpp>
 #include <components/crashcatcher/crash.hpp>
 #include <components/debug/debugging.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/misc/result.hpp>
+#include <components/resource/cachebudget.hpp>
+#include <components/resource/resourcesystem.hpp>
+#include <components/rtx/common/mebibytes.hpp>
 
 namespace RtxTool
 {
@@ -536,6 +540,16 @@ namespace RtxTool
 
     void Session::advance()
     {
+        // What the game's resource caches read so far, at every stop's end: a run cut short still says it.
+        Resource::ResourceSystem& resources = *MWBase::Environment::get().getResourceSystem();
+        const Resource::CacheBudget& budget = resources.getCacheBudget();
+        Log(Debug::Info) << "Resource caches after stop " << (mAt + 1) << ": "
+                         << describeResourceCaches(readResourceCaches(resources))
+                         << std::format(
+                                "; together {:.1f} MiB of a budget of {:.1f} MiB, {} looks for room finding all in use",
+                                Rtx::mebibytes(budget.getHeld()), Rtx::mebibytes(budget.getBytes()),
+                                budget.getStarvedLooks());
+
         mStarted = false;
         ++mAt;
 

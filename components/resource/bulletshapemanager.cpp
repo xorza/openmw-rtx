@@ -1,4 +1,6 @@
 #include "bulletshapemanager.hpp"
+
+#include <cstdint>
 #include <memory>
 
 #include <osg/Drawable>
@@ -6,7 +8,12 @@
 #include <osg/Transform>
 #include <osg/TriangleFunctor>
 
+#include <BulletCollision/BroadphaseCollision/btBroadphaseProxy.h>
+#include <BulletCollision/CollisionShapes/btCompoundShape.h>
+#include <BulletCollision/CollisionShapes/btScaledBvhTriangleMeshShape.h>
+#include <BulletCollision/CollisionShapes/btStridingMeshInterface.h>
 #include <BulletCollision/CollisionShapes/btTriangleMesh.h>
+#include <BulletCollision/CollisionShapes/btTriangleMeshShape.h>
 
 #include <components/misc/convert.hpp>
 #include <components/misc/osguservalues.hpp>
@@ -28,6 +35,59 @@ namespace Resource
 
     namespace
     {
+        /// The bytes of `shape`'s triangles, its vertices and its indices, in every part of it; not its bounding
+        /// volume tree, which Bullet builds beside them and states no size of.
+        std::uint64_t meshBytes(const btCollisionShape& shape)
+        {
+            switch (shape.getShapeType())
+            {
+                case COMPOUND_SHAPE_PROXYTYPE:
+                {
+                    const auto& compound = static_cast<const btCompoundShape&>(shape);
+                    std::uint64_t bytes = 0;
+                    for (int child = 0; child < compound.getNumChildShapes(); ++child)
+                        bytes += meshBytes(*compound.getChildShape(child));
+                    return bytes;
+                }
+                case SCALED_TRIANGLE_MESH_SHAPE_PROXYTYPE:
+                    return meshBytes(*static_cast<const btScaledBvhTriangleMeshShape&>(shape).getChildShape());
+                case TRIANGLE_MESH_SHAPE_PROXYTYPE:
+                {
+                    const btStridingMeshInterface& mesh
+                        = *static_cast<const btTriangleMeshShape&>(shape).getMeshInterface();
+                    std::uint64_t bytes = 0;
+                    for (int part = 0; part < mesh.getNumSubParts(); ++part)
+                    {
+                        const unsigned char* vertices = nullptr;
+                        int vertexCount = 0;
+                        PHY_ScalarType vertexType{};
+                        int vertexStride = 0;
+                        const unsigned char* indices = nullptr;
+                        int indexStride = 0;
+                        int triangleCount = 0;
+                        PHY_ScalarType indexType{};
+                        mesh.getLockedReadOnlyVertexIndexBase(&vertices, vertexCount, vertexType, vertexStride,
+                            &indices, indexStride, triangleCount, indexType, part);
+                        bytes += static_cast<std::uint64_t>(vertexCount) * static_cast<std::uint64_t>(vertexStride)
+                            + static_cast<std::uint64_t>(triangleCount) * static_cast<std::uint64_t>(indexStride);
+                        mesh.unLockReadOnlyVertexBase(part);
+                    }
+                    return bytes;
+                }
+                default:
+                    return 0;
+            }
+        }
+
+        std::uint64_t shapeBytes(const BulletShape& shape)
+        {
+            std::uint64_t bytes = 0;
+            for (const CollisionShapePtr* part : { &shape.mCollisionShape, &shape.mAvoidCollisionShape })
+                if (*part != nullptr)
+                    bytes += meshBytes(**part);
+            return bytes;
+        }
+
         struct GetTriangleFunctor
         {
             GetTriangleFunctor()
@@ -100,8 +160,8 @@ namespace Resource
     }
 
     BulletShapeManager::BulletShapeManager(
-        const VFS::Manager* vfs, SceneManager* sceneMgr, NifFileManager* nifFileManager, double expiryDelay)
-        : ResourceManager(vfs, expiryDelay)
+        const VFS::Manager* vfs, SceneManager* sceneMgr, NifFileManager* nifFileManager, CacheBudget& budget)
+        : ResourceManager(vfs, budget)
         , mInstanceCache(std::make_unique<MultiObjectCache<std::shared_ptr<BulletShapeInstance>>>())
         , mSceneManager(sceneMgr)
         , mNifFileManager(nifFileManager)
@@ -112,9 +172,11 @@ namespace Resource
 
     std::shared_ptr<const BulletShape> BulletShapeManager::getShape(VFS::Path::NormalizedView name)
     {
-        if (std::shared_ptr<const BulletShape> cached = mCache->getRefFromObjectCache(name))
-            return cached;
+        return mCache->getOrLoad(name.value(), [&] { return load(name); });
+    }
 
+    Loaded<std::shared_ptr<const BulletShape>> BulletShapeManager::load(VFS::Path::NormalizedView name)
+    {
         std::shared_ptr<BulletShape> shape;
 
         if (Misc::getFileExtension(name.value()) == "nif")
@@ -152,7 +214,7 @@ namespace Resource
                 node->accept(visitor);
                 shape = visitor.getShape();
                 if (!shape)
-                    return std::shared_ptr<BulletShape>();
+                    return {};
             }
 
             if (shape != nullptr)
@@ -162,9 +224,8 @@ namespace Resource
             }
         }
 
-        mCache->addEntryToObjectCache(name.value(), shape);
-
-        return shape;
+        const std::uint64_t bytes = shape == nullptr ? 0 : shapeBytes(*shape);
+        return { .mValue = std::move(shape), .mBytes = bytes };
     }
 
     std::shared_ptr<BulletShapeInstance> BulletShapeManager::cacheInstance(VFS::Path::NormalizedView name)

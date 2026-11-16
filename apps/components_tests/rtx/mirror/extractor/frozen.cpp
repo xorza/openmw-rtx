@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cstddef>
 #include <functional>
 #include <limits>
 #include <stdexcept>
@@ -7,6 +8,7 @@
 
 #include <gtest/gtest.h>
 
+#include <boost/unordered/unordered_flat_map.hpp> // IWYU pragma: keep: the whole table, credited to its forward header
 #include <osg/Callback>
 #include <osg/Group>
 #include <osg/LOD>
@@ -324,6 +326,139 @@ namespace Rtx::Testing
             addReference(osg::Vec3f(10.0f, 0.0f, 0.0f));
             EXPECT_EQ(frame().mInstances, 1u);
             EXPECT_EQ(frame().mPassedFrozen, 1u) << "the walk after the throw recorded nothing";
+        }
+
+        /// **A reference a walk froze before it threw is filed once, and lets go of all it held**: the walk after
+        /// meets it again, and the two freezes of it file as one; taken off the graph, nothing of it stays.
+        TEST_F(RtxFrozenSubtreeTest, aReferenceFrozenBeforeAThrowFilesOnceAndLetsGoOfEverything)
+        {
+            const osg::ref_ptr<osg::MatrixTransform> kept = addReference(osg::Vec3f(10.0f, 0.0f, 0.0f));
+            const osg::ref_ptr<osg::MatrixTransform> broken = addReference(osg::Vec3f());
+            broken->addChild(new Throwing);
+            EXPECT_THROW(frame(), std::runtime_error);
+
+            mCell->removeChild(broken);
+            EXPECT_EQ(frame().mMeshesReused, 1u) << "frozen before the throw, and walked again";
+            const ExtractionStats passed = frame();
+            EXPECT_EQ(passed.mPassedFrozen, 1u) << "filed once and frozen";
+            EXPECT_EQ(passed.mMeshesReused, 0u);
+            EXPECT_EQ(mScene.placements().getCounts().mPlaced, 1u);
+
+            mCell->removeChild(kept);
+            frame();
+            EXPECT_EQ(mScene.placements().getCounts().mPlaced, 0u) << "a hold of the throw's freeze outlived it";
+            EXPECT_EQ(mExtractor.countPastRoom(), 0u);
+        }
+
+        /// A world whose frozen roots have room for sixteen, which the table rounds up to what a table reserved alike
+        /// holds.
+        class RtxFrozenRootsRoomTest : public testing::Test
+        {
+        protected:
+            static constexpr std::size_t sRoom = 16;
+
+            RtxFrozenRootsRoomTest()
+            {
+                mExtractor.setStampDepth(2);
+                mRoot->addChild(mCell);
+            }
+
+            ~RtxFrozenRootsRoomTest() override
+            {
+                mRing.follow(WorldAround{});
+                mExtractor.detach(mRing);
+            }
+
+            static ExtractorRoom room()
+            {
+                ExtractorRoom world = sWorldExtractorRoom;
+                world.mFrozen = sRoom;
+                return world;
+            }
+
+            /// How many roots the table holds before a new one moves every entry.
+            static std::size_t tableRoom()
+            {
+                boost::unordered_flat_map<int, int> alike;
+                alike.reserve(sRoom);
+                return alike.max_load();
+            }
+
+            ExtractionStats walk()
+            {
+                mScene.clearPlacement();
+                mRing.follow(WorldAround{});
+                const ExtractionStats stats = mExtractor.extractWorld(*mRoot, 0, mFrame++, mRing);
+                mExtractor.retire();
+                return stats;
+            }
+
+            /// One more reference, apart from every other, holding one quad of its own.
+            osg::ref_ptr<osg::MatrixTransform> addReference(float x)
+            {
+                osg::ref_ptr<osg::MatrixTransform> reference = new osg::MatrixTransform(
+                    osg::Matrix::translate(x, static_cast<float>(mCell->getNumChildren()), 0.0f));
+                reference->addChild(makeQuad());
+                mCell->addChild(reference);
+                return reference;
+            }
+
+            WalkContext mContext{};
+            SceneDesc mScene;
+            SceneExtractor mExtractor{ mScene, mContext, room() };
+            CellRing mRing{ mExtractor };
+            osg::ref_ptr<osg::Group> mRoot = new osg::Group;
+            osg::ref_ptr<osg::Group> mCell = new osg::Group;
+            std::size_t mFrame = 1;
+        };
+
+        /// **A walk that replaces every reference keeps the frozen roots in their room**: the roots it left are
+        /// thawed before the ones it met are filed, so the map holds one grid and never two. Sixteen references in
+        /// a room of sixteen, which the table rounds up to 29; sixteen others in their place on one walk, 32 with
+        /// the grid they replaced, arrive past none of it, and freeze.
+        TEST_F(RtxFrozenRootsRoomTest, aWalkThatReplacesEveryReferenceKeepsTheFrozenRootsInTheirRoom)
+        {
+            ASSERT_LT(tableRoom(), 2 * sRoom) << "two grids fit the table, and the walk proves nothing";
+            const auto fill = [&](float x) {
+                mCell->removeChildren(0, mCell->getNumChildren());
+                for (std::size_t at = 0; at < sRoom; ++at)
+                    addReference(x);
+            };
+
+            fill(0.0f);
+            walk();
+            EXPECT_EQ(walk().mPassedFrozen, sRoom) << "the first grid froze";
+            fill(100.0f);
+            walk();
+            EXPECT_EQ(mExtractor.countPastRoom(), 0u) << "the grid left and the grid met were held at once";
+            EXPECT_EQ(walk().mPassedFrozen, sRoom) << "the second grid froze";
+            EXPECT_EQ(mScene.placements().getCounts().mPlaced, sRoom);
+        }
+
+        /// **A root filed twice takes no room the second time**: frozen by a walk that threw and again by the walk
+        /// after, it files once, and its second filing adds no key, so it moves nothing even where the table
+        /// stands full once the first is in.
+        TEST_F(RtxFrozenRootsRoomTest, aRootFiledTwiceIntoATableItFillsIsNotPastItsRoom)
+        {
+            // One root short of full, no more than the room's worth arriving a walk.
+            const std::size_t full = tableRoom();
+            while (mCell->getNumChildren() + 1 < full)
+            {
+                const std::size_t arriving = std::min(sRoom, full - 1 - mCell->getNumChildren());
+                for (std::size_t at = 0; at < arriving; ++at)
+                    addReference(0.0f);
+                walk();
+            }
+
+            addReference(0.0f);
+            const osg::ref_ptr<osg::MatrixTransform> broken = addReference(0.0f);
+            broken->addChild(new Throwing);
+            EXPECT_THROW(walk(), std::runtime_error);
+
+            mCell->removeChild(broken);
+            walk();
+            EXPECT_EQ(mExtractor.countPastRoom(), 0u) << "the second filing of one root was counted as a new key";
+            EXPECT_EQ(walk().mPassedFrozen, full) << "every root filed, the last of them once";
         }
 
         /// **A view that sees another part of the world walks every reference again**: a mask

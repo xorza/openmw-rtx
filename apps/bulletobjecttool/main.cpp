@@ -169,13 +169,15 @@ namespace
             = EsmLoader::loadEsmData(query, contentFiles, fileCollections, readers, &encoder);
 
         constexpr double expiryDelay = 0;
-        Resource::ImageManager imageManager(&vfs, expiryDelay);
-        Resource::NifFileManager nifFileManager(&vfs, &encoder.getStatelessEncoder());
+        // Keeps nothing that nothing holds, as the delay of nought keeps nothing.
+        Resource::CacheBudget cacheBudget(0);
+        Resource::ImageManager imageManager(&vfs, cacheBudget);
+        Resource::NifFileManager nifFileManager(&vfs, cacheBudget, &encoder.getStatelessEncoder());
         Resource::BgsmFileManager bgsmFileManager(&vfs, expiryDelay);
         Resource::SptFileManager sptFileManager(&vfs, expiryDelay);
         Resource::SceneManager sceneManager(
-            &vfs, &imageManager, &nifFileManager, &bgsmFileManager, &sptFileManager, expiryDelay);
-        Resource::BulletShapeManager bulletShapeManager(&vfs, &sceneManager, &nifFileManager, expiryDelay);
+            &vfs, &imageManager, &nifFileManager, &bgsmFileManager, &sptFileManager, cacheBudget);
+        Resource::BulletShapeManager bulletShapeManager(&vfs, &sceneManager, &nifFileManager, cacheBudget);
 
         Resource::forEachBulletObject(
             readers, vfs, bulletShapeManager, esmData, [](const ESM::Cell& cell, const Resource::BulletObject& object) {

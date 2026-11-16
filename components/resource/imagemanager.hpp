@@ -21,7 +21,7 @@ namespace Resource
     class ImageManager : public ResourceManager<osg::ref_ptr<osg::Image>>
     {
     public:
-        explicit ImageManager(const VFS::Manager* vfs, double expiryDelay);
+        explicit ImageManager(const VFS::Manager* vfs, CacheBudget& budget);
         ~ImageManager() override;
 
         /// Create or retrieve an Image
@@ -33,6 +33,9 @@ namespace Resource
         void reportStats(unsigned int frameNumber, osg::Stats* stats) const override;
 
     private:
+        /// The image at `path` read from the files, or the warning image where none reads: `getImage`'s one load.
+        osg::ref_ptr<osg::Image> readImage(VFS::Path::NormalizedView path, bool disableFlip);
+
         osg::ref_ptr<osg::Image> mWarningImage;
         osg::ref_ptr<osgDB::Options> mOptions;
 

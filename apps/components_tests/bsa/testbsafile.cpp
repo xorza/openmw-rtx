@@ -8,14 +8,19 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include <array>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
 #include <format>
 #include <fstream>
+#include <iterator>
+#include <latch>
 #include <memory>
 #include <sstream>
+#include <string>
+#include <thread>
 #include <vector>
 
 namespace Bsa
@@ -287,6 +292,121 @@ namespace Bsa
                         .mNameSize = 1,
                         .mNamesBuffer = &namesBuffer,
                     }));
+        }
+
+        /// **Entries read at once through the archive's one handle each read their own bytes**, and an entry's stream
+        /// reads on after its archive is closed and gone.
+        TEST(BSAFileTest, entriesReadAtOnceEachReadTheirOwnBytes)
+        {
+            constexpr std::size_t entryCount = 8;
+            // Each past the stream's 8 KiB buffer, and each a different length.
+            const auto entrySize = [](std::size_t entry) { return 9000 + 1111 * entry; };
+            const auto byteOf = [](std::size_t entry, std::size_t at) {
+                return static_cast<char>((entry * 31 + at * 7 + at / 253) & 0xFF);
+            };
+            const auto entryBytes = [&](std::size_t entry) {
+                std::string bytes(entrySize(entry), '\0');
+                for (std::size_t at = 0; at < bytes.size(); ++at)
+                    bytes[at] = byteOf(entry, at);
+                return bytes;
+            };
+
+            const std::filesystem::path path = makeOutputPath();
+            {
+                std::ofstream stream;
+                stream.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+                stream.open(path, std::ios::binary);
+
+                Archive archive{
+                    // A directory of 12 bytes an entry and its two-byte name.
+                    .mHeader = { .mFormat = static_cast<std::uint32_t>(BsaVersion::Uncompressed),
+                        .mDirSize = static_cast<std::uint32_t>(entryCount * (12 + 2)),
+                        .mFileCount = static_cast<std::uint32_t>(entryCount) },
+                    .mOffsets = std::vector<std::uint32_t>(3 * entryCount),
+                    .mStringBuffer = {},
+                    .mHashes = {},
+                    .mTailSize = 0,
+                };
+                std::size_t offset = 0;
+                for (std::size_t entry = 0; entry < entryCount; ++entry)
+                {
+                    archive.mOffsets[2 * entry] = static_cast<std::uint32_t>(entrySize(entry));
+                    archive.mOffsets[2 * entry + 1] = static_cast<std::uint32_t>(offset);
+                    archive.mOffsets[2 * entryCount + entry] = static_cast<std::uint32_t>(2 * entry);
+                    archive.mStringBuffer.push_back(static_cast<char>('a' + entry));
+                    archive.mStringBuffer.push_back('\0');
+                    archive.mHashes.push_back(BSAFile::Hash{
+                        .mLow = static_cast<std::uint32_t>(entry), .mHigh = static_cast<std::uint32_t>(entry) });
+                    offset += entrySize(entry);
+                }
+                writeArchive(archive, stream);
+                for (std::size_t entry = 0; entry < entryCount; ++entry)
+                {
+                    const std::string bytes = entryBytes(entry);
+                    stream.write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
+                }
+            }
+
+            auto archive = std::make_unique<BSAFile>();
+            archive->open(path);
+            ASSERT_EQ(archive->getList().size(), entryCount);
+
+            std::vector<Files::IStreamPtr> streams;
+            for (const BSAFile::FileStruct& entry : archive->getList())
+                streams.push_back(archive->getFile(&entry));
+            std::vector<std::size_t> entries;
+            for (const BSAFile::FileStruct& entry : archive->getList())
+                entries.push_back(static_cast<std::size_t>(entry.name()[0] - 'a'));
+
+            // Each thread reads a few bytes at a time, so the reads interleave.
+            std::vector<std::string> read(entryCount);
+            std::latch start(entryCount);
+            {
+                std::vector<std::jthread> threads;
+                threads.reserve(entryCount);
+                for (std::size_t index = 0; index < entryCount; ++index)
+                    threads.emplace_back([&, index] {
+                        start.arrive_and_wait();
+                        std::array<char, 97> chunk{};
+                        while (streams[index]->read(chunk.data(), chunk.size()) || streams[index]->gcount() > 0)
+                            read[index].append(chunk.data(), static_cast<std::size_t>(streams[index]->gcount()));
+                    });
+            }
+            for (std::size_t index = 0; index < entryCount; ++index)
+                EXPECT_EQ(read[index], entryBytes(entries[index])) << "entry " << entries[index];
+
+            const Files::IStreamPtr afterwards = archive->getFile(&archive->getList().back());
+            const std::size_t lastEntry = entries.back();
+            archive.reset();
+            EXPECT_EQ(std::string(std::istreambuf_iterator<char>(*afterwards), std::istreambuf_iterator<char>()),
+                entryBytes(lastEntry));
+        }
+
+        /// **An archive is written while it is held open for its entries' reads**, as the archive tool adds to one,
+        /// and an entry added reads at once and after the archive is opened again.
+        TEST(BSAFileTest, entriesAddedToAnOpenArchiveRead)
+        {
+            const std::filesystem::path path = makeOutputPath();
+            std::filesystem::remove(path);
+            const auto read = [](BSAFile& archive) {
+                const Files::IStreamPtr stream = archive.getFile(&archive.getList().front());
+                return std::string(std::istreambuf_iterator<char>(*stream), std::istreambuf_iterator<char>());
+            };
+
+            {
+                BSAFile archive;
+                archive.open(path);
+                std::istringstream entry("hello");
+                archive.addFile("a", entry);
+                ASSERT_EQ(archive.getList().size(), 1);
+                EXPECT_EQ(read(archive), "hello");
+            }
+
+            BSAFile archive;
+            archive.open(path);
+            ASSERT_EQ(archive.getList().size(), 1);
+            EXPECT_EQ(archive.getList().front().name(), "a");
+            EXPECT_EQ(read(archive), "hello");
         }
 
         TEST(BSAFileTest, shouldHandleSomewhatLargeFiles)

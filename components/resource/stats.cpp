@@ -104,6 +104,7 @@ namespace Resource
                 "CellPreloader Evicted",
                 "CellPreloader Loaded",
                 "CellPreloader Expired",
+                "CellPreloader Skipped",
             };
 
             constexpr std::string_view navMesh[] = {

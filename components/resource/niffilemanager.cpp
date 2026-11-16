@@ -1,5 +1,10 @@
 #include "niffilemanager.hpp"
 
+#include <cstdint>
+#include <ios>
+
+#include <components/files/istreamptr.hpp>
+#include <components/files/utils.hpp>
 #include <components/vfs/manager.hpp>
 
 #include "objectcache.hpp"
@@ -7,10 +12,9 @@
 namespace Resource
 {
 
-    NifFileManager::NifFileManager(const VFS::Manager* vfs, const ToUTF8::StatelessUtf8Encoder* encoder)
-        // NIF files aren't needed any more once the converted objects are cached in SceneManager / BulletShapeManager,
-        // so no point in using an expiry delay.
-        : ResourceManager(vfs, 0)
+    NifFileManager::NifFileManager(
+        const VFS::Manager* vfs, CacheBudget& budget, const ToUTF8::StatelessUtf8Encoder* encoder)
+        : ResourceManager(vfs, budget)
         , mEncoder(encoder)
     {
     }
@@ -19,14 +23,15 @@ namespace Resource
 
     Nif::NIFFilePtr NifFileManager::get(VFS::Path::NormalizedView name)
     {
-        if (Nif::NIFFilePtr cached = mCache->getRefFromObjectCache(name))
-            return cached;
-
-        auto file = std::make_shared<Nif::NIFFile>(name);
-        Nif::Reader reader(*file, mEncoder);
-        reader.parse(mVFS->get(name));
-        mCache->addEntryToObjectCache(name.value(), file);
-        return file;
+        return mCache->getOrLoad(name.value(), [&] {
+            auto file = std::make_shared<Nif::NIFFile>(name);
+            Nif::Reader reader(*file, mEncoder);
+            Files::IStreamPtr stream = mVFS->get(name);
+            // What the file parses into is its records, near enough its own bytes, which nothing else counts.
+            const std::streamsize bytes = Files::getStreamSizeLeft(*stream);
+            reader.parse(std::move(stream));
+            return Loaded<Nif::NIFFilePtr>{ .mValue = std::move(file), .mBytes = static_cast<std::uint64_t>(bytes) };
+        });
     }
 
     void NifFileManager::reportStats(unsigned int frameNumber, osg::Stats* stats) const

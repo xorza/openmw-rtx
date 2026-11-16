@@ -90,7 +90,7 @@ namespace Rtx::Testing
     }
 
     GuiInstance::GuiInstance(GuiSetup setup)
-        : mImages(&mVfs, 0.0)
+        : mImages(&mVfs, mBudget)
     {
         mVfs.addArchive(
             std::make_unique<CountedArchive>(std::filesystem::path{ OPENMW_PROJECT_SOURCE_DIR } / "files" / "data",

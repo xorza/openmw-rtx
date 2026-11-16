@@ -282,6 +282,7 @@ void BSAFile::open(const std::filesystem::path& file)
         writeHeader();
         mIsLoaded = true;
     }
+    mFile = Files::openSharedFile(mFilepath);
 }
 
 /// Close the archive, write the updated headers to the file
@@ -292,12 +293,19 @@ void Bsa::BSAFile::close()
 
     mFiles.clear();
     mStringBuf.clear();
+    mFile.reset();
     mIsLoaded = false;
 }
 
 Files::IStreamPtr Bsa::BSAFile::getFile(const FileStruct* file)
 {
-    return Files::openConstrainedFileStream(mFilepath, file->mOffset, file->mFileSize);
+    return openRange(file->mOffset, file->mFileSize);
+}
+
+Files::IStreamPtr Bsa::BSAFile::openRange(std::uint64_t offset, std::size_t size) const
+{
+    assert(mFile != nullptr);
+    return Files::openConstrainedFileStream(mFile, offset, size);
 }
 
 void Bsa::BSAFile::addFile(const std::string& filename, std::istream& file)

@@ -29,6 +29,12 @@ namespace Platform::File
 
     size_t read(Handle handle, void* data, size_t size);
 
+    /// Reads up to `size` bytes at `offset` into `data`, whatever the handle's own position: what any number of
+    /// threads may do at once through one handle (POSIX `pread`, Windows `ReadFile` with the offset in an
+    /// `OVERLAPPED`). Where the handle's position stands after is the system's, which Windows moves and POSIX
+    /// leaves, so a handle read at an offset is read no other way. Fewer bytes than asked only at the file's end.
+    size_t readAt(Handle handle, size_t offset, void* data, size_t size);
+
     class ScopedHandle
     {
         Handle mHandle{ Handle::Invalid };

@@ -19,7 +19,7 @@ namespace Resource
         const ToUTF8::StatelessUtf8Encoder* mEncoder;
 
     public:
-        NifFileManager(const VFS::Manager* vfs, const ToUTF8::StatelessUtf8Encoder* encoder);
+        NifFileManager(const VFS::Manager* vfs, CacheBudget& budget, const ToUTF8::StatelessUtf8Encoder* encoder);
         ~NifFileManager() override;
 
         /// Retrieve a NIF file from the cache, or load it from the VFS if not cached yet.

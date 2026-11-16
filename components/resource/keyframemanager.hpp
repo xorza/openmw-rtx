@@ -50,7 +50,7 @@ namespace Resource
     class KeyframeManager : public ResourceManager<std::shared_ptr<const SceneUtil::KeyframeHolder>>
     {
     public:
-        explicit KeyframeManager(const VFS::Manager* vfs, SceneManager* sceneManager, double expiryDelay,
+        explicit KeyframeManager(const VFS::Manager* vfs, SceneManager* sceneManager, CacheBudget& budget,
             const ToUTF8::StatelessUtf8Encoder* encoder);
         ~KeyframeManager() override = default;
 
@@ -61,6 +61,9 @@ namespace Resource
         void reportStats(unsigned int frameNumber, osg::Stats* stats) const override;
 
     private:
+        /// The keyframes at `name` read from the files: `get`'s one load.
+        Loaded<std::shared_ptr<const SceneUtil::KeyframeHolder>> load(VFS::Path::NormalizedView name);
+
         SceneManager* mSceneManager;
         const ToUTF8::StatelessUtf8Encoder* mEncoder;
     };

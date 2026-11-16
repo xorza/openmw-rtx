@@ -144,6 +144,7 @@ namespace
     struct TechniqueTest : Test
     {
         std::unique_ptr<VFS::Manager> mVFS;
+        Resource::CacheBudget mBudget{ Resource::CacheBudget::sUnbounded };
         Resource::ImageManager mImageManager;
         std::unique_ptr<Technique> mTechnique;
 
@@ -160,7 +161,7 @@ namespace
                   { invalidNumberHexFloatPath, &invalidNumberHexFloat },
                   { invalidNumberDoublePath, &invalidNumberDouble },
               }))
-            , mImageManager(mVFS.get(), 0)
+            , mImageManager(mVFS.get(), mBudget)
         {
         }
 

@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <span>
+#include <utility>
 
 #include <osg/Group>
 
@@ -138,15 +139,20 @@ namespace Rtx
             holders.mMaterials.hold(key.mMaterial);
         }
 
-        mPastRoom += known == mFrozen.end() && fillsRoom(mFrozen) ? 1u : 0u;
-        Frozen& held = known != mFrozen.end()
-            ? known->second
-            : mFrozen.emplace(osg::ref_ptr<const osg::Node>(&root), Frozen{}).first->second;
+        // A root no walk froze before waits apart until the walk ends, and the roots it left are
+        // thawed first (`thawUnmet`).
+        if (known == mFrozen.end())
+        {
+            mPastRoom += mArrived.size() == mArrived.capacity() ? 1u : 0u;
+            mArrived.emplace_back(osg::ref_ptr<const osg::Node>(&root), Frozen{});
+        }
+        Frozen& held = known != mFrozen.end() ? known->second : mArrived.back().second;
         held.mFace.become(face, holders.mReleased);
         held.mKeys = mKeys.allocate(std::span<const Key>(mRecorded));
         held.mInstances = instances - mRecordedFrom;
         held.mHolding = true;
-        meet(held, walk);
+        if (known != mFrozen.end())
+            meet(held, walk);
     }
 
     void FrozenRoots::thaw(Frozen& frozen, const Holders holders)
@@ -164,31 +170,52 @@ namespace Rtx
         frozen.mKeys = Run{};
     }
 
+    void FrozenRoots::letGo(const osg::ref_ptr<const osg::Node>& root, Frozen& frozen, const Holders holders)
+    {
+        thaw(frozen, holders);
+        frozen.mFace.release(holders.mReleased);
+        holders.mReleased.keep(root);
+    }
+
     void FrozenRoots::thawUnmet(const unsigned int walk, const Holders holders)
     {
-        if (mMetBy == walk && mMet == mFrozen.size())
-            return;
+        if (mMetBy != walk || mMet != mFrozen.size())
+            boost::unordered::erase_if(mFrozen, [&](auto& frozen) {
+                if (frozen.second.mMet == walk)
+                    return false;
 
-        boost::unordered::erase_if(mFrozen, [&](auto& frozen) {
-            if (frozen.second.mMet == walk)
-                return false;
+                letGo(frozen.first, frozen.second, holders);
+                return true;
+            });
 
-            thaw(frozen.second, holders);
-            frozen.second.mFace.release(holders.mReleased);
-            holders.mReleased.keep(frozen.first);
-            return true;
-        });
+        // Now that what the walk left is gone, what it froze first. What a walk that threw left here files with
+        // them, and the next walk thaws any of it that this one did not meet. `try_emplace` moves nothing where
+        // the root is filed already.
+        for (auto& [root, arrived] : mArrived)
+        {
+            const bool full = fillsRoom(mFrozen);
+            const auto [filed, fresh] = mFrozen.try_emplace(std::move(root), std::move(arrived));
+            // One root met twice, as a walk that threw left it and the walk after met it again, files once,
+            // and the other's holds go back: no new key, which is what takes room.
+            if (!fresh)
+            {
+                letGo(root, arrived, holders);
+                continue;
+            }
+            mPastRoom += full ? 1u : 0u;
+            meet(filed->second, walk);
+        }
+        mArrived.clear();
     }
 
     void FrozenRoots::thawAll(const Holders holders)
     {
-        for (auto& frozen : mFrozen)
-        {
-            thaw(frozen.second, holders);
-            frozen.second.mFace.release(holders.mReleased);
-            holders.mReleased.keep(frozen.first);
-        }
+        for (auto& [root, frozen] : mFrozen)
+            letGo(root, frozen, holders);
+        for (auto& [root, frozen] : mArrived)
+            letGo(root, frozen, holders);
         mFrozen.clear();
+        mArrived.clear();
         mMet = 0;
     }
 }

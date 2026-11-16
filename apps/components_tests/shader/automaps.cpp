@@ -89,7 +89,8 @@ namespace Shader
                 { VFS::Path::NormalizedView("textures/stone_spec.dds"), &mFile },
                 { VFS::Path::NormalizedView("textures/wood_n.dds"), &mFile },
             });
-            Resource::ImageManager mImages{ mVfs.get(), 0 };
+            Resource::CacheBudget mBudget{ Resource::CacheBudget::sUnbounded };
+            Resource::ImageManager mImages{ mVfs.get(), mBudget };
         };
 
         /// A texture over an image that only carries `name`, which is all the rule reads of it.

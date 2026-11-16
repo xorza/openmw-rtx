@@ -33,8 +33,8 @@
 #include <lz4frame.h>
 #include <zlib.h>
 
-#include <components/files/constrainedfilestream.hpp>
 #include <components/files/conversion.hpp>
+#include <components/files/streamwithbuffer.hpp>
 #include <components/files/utils.hpp>
 #include <components/misc/pathhelpers.hpp>
 #include <components/vfs/pathutil.hpp>
@@ -265,7 +265,7 @@ namespace Bsa
     {
         size_t size = fileRecord.mSize & (~FileSizeFlag_Compression);
         size_t resultSize = size;
-        Files::IStreamPtr streamPtr = Files::openConstrainedFileStream(mFilepath, fileRecord.mOffset, size);
+        Files::IStreamPtr streamPtr = openRange(fileRecord.mOffset, size);
         bool compressed = (fileRecord.mSize != size) == ((mHeader.mFlags & ArchiveFlag_Compress) == 0);
         if ((mHeader.mFlags & ArchiveFlag_EmbeddedNames) != 0)
         {

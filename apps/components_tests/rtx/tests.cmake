@@ -110,6 +110,7 @@ target_sources(
         rtxtool/instruments/frametimes.cpp
         rtxtool/instruments/gpuclock.cpp
         rtxtool/instruments/png.cpp
+        rtxtool/instruments/resourcecaches.cpp
         rtxtool/instruments/scenedigest.cpp
         rtxtool/instruments/scenereport.cpp
         rtxtool/instruments/threadcounters.cpp

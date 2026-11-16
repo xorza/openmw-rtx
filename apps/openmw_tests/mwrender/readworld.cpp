@@ -90,11 +90,12 @@ namespace MWRender
         struct Falling
         {
             VFS::Manager mVfs;
-            Resource::ImageManager mImages{ &mVfs, 0 };
-            Resource::NifFileManager mNifs{ &mVfs, nullptr };
+            Resource::CacheBudget mBudget{ Resource::CacheBudget::sUnbounded };
+            Resource::ImageManager mImages{ &mVfs, mBudget };
+            Resource::NifFileManager mNifs{ &mVfs, mBudget, nullptr };
             Resource::BgsmFileManager mMaterials{ &mVfs, 0 };
             Resource::SptFileManager mTrees{ &mVfs, 0 };
-            Resource::SceneManager mScenes{ &mVfs, &mImages, &mNifs, &mMaterials, &mTrees, 0 };
+            Resource::SceneManager mScenes{ &mVfs, &mImages, &mNifs, &mMaterials, &mTrees, mBudget };
             osg::ref_ptr<osg::Group> mRoot = new osg::Group;
             osg::ref_ptr<osg::Camera> mCamera = new osg::Camera;
             Precipitation mPrecipitation{ mRoot, mCamera, &mScenes };

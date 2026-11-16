@@ -107,6 +107,44 @@ machine every entry point asserts.
 - **A played session's frame times are a histogram** of 0.1 to 250 ms (`Rtx::FrameTimeHistogram`), the worst kept
   exactly, logged at each cut and at the end.
 
+## Loading
+
+What the game reads from files (`components/resource`), which the fork changed for the handheld's memory and the
+preloader's re-reads (`research/2026-11-15-content-reads-and-host-memory.md`), kept in the fork by the user's
+decision (`.notes/UPSTREAM.md`).
+
+- **One load a key in flight** (`GenericObjectCache::getOrLoad`): the first thread to miss loads on its own stack,
+  and every thread that asks before it ends takes that load's value or its exception, as Go's `singleflight` does
+  ([docs](https://pkg.go.dev/golang.org/x/sync/singleflight)). Loads nest by kind alone, so none waits on itself.
+  Refused: a lock over the whole load, which serialises every thread behind the slowest file.
+- **An archive is opened once and read by position** (`Platform::File::readAt`: `pread`, or `ReadFile` at an
+  `OVERLAPPED`'s offset), each entry's stream keeping its own position over the shared handle, which outlives the
+  archive. Windows reads one handle a read at a time
+  ([Raymond Chen](https://devblogs.microsoft.com/oldnewthing/20150121-00/?p=44863)), a copy of 8 KiB at most from
+  the system's cache. Refused: a memory map, whose file-backed pages count against a handheld's used memory.
+- **What is read from files is kept by a byte budget, least recently used first** (`Resource::CacheBudget`): an entry
+  anything holds stays; past the budget, the unheld entry used longest ago goes, whichever of the template, NIF,
+  image, shape and keyframe caches holds it, evicted by the thread whose insertion passed it. Refused: a longer
+  `cache expiry delay`, still unbounded; a fixed share a cache, as Unreal splits its pools, which is wrong for some
+  content.
+- **The budget is derived, by the user's decision, and again every second**: what the caches hold and what the
+  system leaves the process beside them, less 1 GiB, so whatever else takes the memory — the rest of the process, an
+  integrated device's textures, another program — leaves the caches that much less, as a browser's memory-pressure
+  signal does. No setting, so no default that is wrong on some machine. Refused: a figure read once at startup less
+  the device's heap budget, which left the rest of the process 1 GiB where it took 4.5 on the handheld.
+- **An entry states its own bytes**: an image its levels', a template its geometry's, a shape its triangles', a NIF
+  or `.kf` file its own; shared bytes in the one cache that owns them, as Unreal's `Exclusive` resource size counts
+  ([`EResourceSizeMode`](https://docs.unrealengine.com/4.27/API/Runtime/Core/ProfilingDebugging/EResourceSizeMode__Type/index.html)).
+- **The order of use is a stamp, the held moved to the front**: eviction compares the caches' tails; a held entry met
+  there, and every held entry at the once-a-second update, is stamped as used, the clock algorithm's second chance.
+  Past a budget all in use, an insertion looks once and then not until the next update.
+- **What the game builds from memory keeps the timer**: the land, the chunks, the physics instances, the materials
+  and the blend rules, whose job is dropping what is cheap to build again.
+- **A stepped run is held to the budget too** (`RtxRenderer::setResourceExpiry` keeps only the built caches for the
+  run): no suite on the desk passes it, and a handheld's tour that does has no memory to keep more.
+- **A preload is a guess, skipped past the budget** (`CellPreloader`, `CellPreloader Skipped`), and asked again on a
+  later frame; `preload cell cache max` stays a cap beside it. Refused: waiting for room, which stalls the queue.
+
 ## The interface
 
 MyGUI draws the whole interface, as upstream; only its backend changes. `MyGUIPlatform::GuiRenderManager` is the seam,

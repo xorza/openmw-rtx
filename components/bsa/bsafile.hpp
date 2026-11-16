@@ -29,6 +29,7 @@
 #include <string>
 #include <vector>
 
+#include <components/files/constrainedfilestreambuf.hpp>
 #include <components/files/conversion.hpp>
 #include <components/files/istreamptr.hpp>
 
@@ -91,12 +92,18 @@ namespace Bsa
         /// Used for error messages
         std::filesystem::path mFilepath;
 
+        /// Opened with the archive, and read by position by every entry's stream, which keeps it open past the archive.
+        Files::SharedFile mFile;
+
         /// Error handling
         [[noreturn]] void fail(const std::string& msg) const;
 
         /// Read header information from the input source
         virtual void readHeader(std::istream& input);
         virtual void writeHeader();
+
+        /// A stream over `size` bytes of the archive from `offset`.
+        Files::IStreamPtr openRange(std::uint64_t offset, std::size_t size) const;
 
     public:
         /* -----------------------------------

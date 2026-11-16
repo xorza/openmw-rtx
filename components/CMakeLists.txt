@@ -1135,6 +1135,7 @@ target_sources(
         resource/bgsmfilemanager.cpp
         resource/bulletshape.cpp
         resource/bulletshapemanager.cpp
+        resource/cachebudget.cpp
         resource/cachestats.cpp
         resource/errormarker.cpp
         resource/foreachbulletobject.cpp

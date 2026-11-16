@@ -32,13 +32,17 @@
 
 #include <osgUtil/IncrementalCompileOperation>
 
+#include <osg/Array>
 #include <osg/BoundingBox>
 #include <osg/BoundingSphere>
 #include <osg/Callback>
 #include <osg/Depth>
+#include <osg/Drawable>
+#include <osg/Geometry>
 #include <osg/MatrixTransform>
 #include <osg/Matrixf>
 #include <osg/NodeVisitor>
+#include <osg/PrimitiveSet>
 #include <osg/StateAttribute>
 #include <osg/StateSet>
 #include <osg/Texture2D>
@@ -78,7 +82,9 @@
 #include <components/sceneutil/clone.hpp>
 #include <components/sceneutil/controller.hpp>
 #include <components/sceneutil/depth.hpp>
+#include <components/sceneutil/morphgeometry.hpp>
 #include <components/sceneutil/optimizer.hpp>
+#include <components/sceneutil/riggeometry.hpp>
 #include <components/sceneutil/riggeometryosgaextension.hpp>
 #include <components/sceneutil/serialize.hpp>
 #include <components/sceneutil/templateref.hpp>
@@ -243,6 +249,62 @@ namespace Resource
 
     namespace
     {
+        /// `geometryBytes`'s walk.
+        class ArrayBytesVisitor final : public osg::NodeVisitor
+        {
+        public:
+            ArrayBytesVisitor()
+                : osg::NodeVisitor(TRAVERSE_ALL_CHILDREN)
+            {
+                setNodeMaskOverride(~0u);
+            }
+
+            void apply(osg::Drawable& drawable) override
+            {
+                if (const osg::Geometry* const geometry = drawable.asGeometry())
+                    add(*geometry);
+                else if (const auto* const rig = dynamic_cast<const SceneUtil::RigGeometry*>(&drawable))
+                    addSource(rig->getSourceGeometry());
+                else if (const auto* const morph = dynamic_cast<const SceneUtil::MorphGeometry*>(&drawable))
+                {
+                    addSource(morph->getSourceGeometry());
+                    for (const SceneUtil::MorphGeometry::MorphTarget& target : morph->getMorphTargetList())
+                        addArray(target.getOffsets());
+                }
+            }
+
+            std::uint64_t mBytes = 0;
+
+        private:
+            void addSource(const osg::ref_ptr<osg::Geometry>& source)
+            {
+                if (source != nullptr)
+                    add(*source);
+            }
+
+            void addArray(const osg::Array* array)
+            {
+                if (array != nullptr)
+                    mBytes += array->getTotalDataSize();
+            }
+
+            void add(const osg::Geometry& geometry)
+            {
+                addArray(geometry.getVertexArray());
+                addArray(geometry.getNormalArray());
+                addArray(geometry.getColorArray());
+                addArray(geometry.getSecondaryColorArray());
+                addArray(geometry.getFogCoordArray());
+                for (const osg::ref_ptr<osg::Array>& array : geometry.getTexCoordArrayList())
+                    addArray(array.get());
+                for (const osg::ref_ptr<osg::Array>& array : geometry.getVertexAttribArrayList())
+                    addArray(array.get());
+                for (const osg::ref_ptr<osg::PrimitiveSet>& primitives : geometry.getPrimitiveSetList())
+                    if (const osg::DrawElements* const elements = primitives->getDrawElements())
+                        mBytes += elements->getTotalDataSize();
+            }
+        };
+
         /// Set texture filtering settings on textures contained in a FlipController.
         class SetFilterSettingsControllerVisitor : public SceneUtil::ControllerVisitor
         {
@@ -532,10 +594,17 @@ namespace Resource
         };
     }
 
+    std::uint64_t geometryBytes(osg::Node& node)
+    {
+        ArrayBytesVisitor visitor;
+        node.accept(visitor);
+        return visitor.mBytes;
+    }
+
     SceneManager::SceneManager(const VFS::Manager* vfs, Resource::ImageManager* imageManager,
         Resource::NifFileManager* nifFileManager, Resource::BgsmFileManager* bgsmFileManager,
-        Resource::SptFileManager* sptFileManager, double expiryDelay)
-        : NodeResourceManager<std::string>(vfs, expiryDelay)
+        Resource::SptFileManager* sptFileManager, CacheBudget& budget)
+        : NodeResourceManager<std::string>(vfs, budget)
         , mShaderManager(new Shader::ShaderManager)
         , mSharedStateManager(new SharedStateManager)
         , mImageManager(imageManager)
@@ -1055,68 +1124,67 @@ namespace Resource
 
     osg::ref_ptr<const osg::Node> SceneManager::getTemplate(VFS::Path::NormalizedView path, bool compile)
     {
-        osg::ref_ptr<osg::Object> obj = mCache->getRefFromObjectCache(path);
-        if (obj)
-            return osg::ref_ptr<const osg::Node>(static_cast<osg::Node*>(obj.get()));
+        return mCache->getOrLoad(path.value(), [&] {
+            osg::ref_ptr<osg::Node> loaded = loadTemplate(path, compile);
+            const std::uint64_t bytes = geometryBytes(*loaded);
+            return Loaded<osg::ref_ptr<osg::Node>>{ .mValue = std::move(loaded), .mBytes = bytes };
+        });
+    }
+
+    osg::ref_ptr<osg::Node> SceneManager::loadTemplate(VFS::Path::NormalizedView path, bool compile)
+    {
+        // What a crash while the model is read and readied names, on whichever thread loads it.
+        const Crash::NoteScope noted("loading the model \"{}\"", path.value());
+        osg::ref_ptr<osg::Node> loaded;
+        unsigned int nifVersion = 0;
+        try
+        {
+            loaded = load(path, mVFS, mImageManager, mNifFileManager, mBgsmFileManager, mSptFileManager, nifVersion);
+        }
+        catch (const std::exception& e)
+        {
+            Log(Debug::Error) << "Failed to load '" << path << "': " << e.what() << ", using marker_error instead";
+            loaded = cloneErrorMarker();
+        }
+
+        // set filtering settings
+        SetFilterSettingsVisitor setFilterSettingsVisitor(mMinFilter, mMagFilter, mMaxAnisotropy);
+        loaded->accept(setFilterSettingsVisitor);
+        SetFilterSettingsControllerVisitor setFilterSettingsControllerVisitor(mMinFilter, mMagFilter, mMaxAnisotropy);
+        loaded->accept(setFilterSettingsControllerVisitor);
+
+        if (mPrograms == ModelPrograms::Rasterized)
+        {
+            osg::ref_ptr<Shader::ShaderVisitor> shaderVisitor(createShaderVisitor());
+            loaded->accept(*shaderVisitor);
+        }
         else
         {
-            // What a crash while the model is read and readied names, on whichever thread loads it.
-            const Crash::NoteScope noted("loading the model \"{}\"", path.value());
-            osg::ref_ptr<osg::Node> loaded;
-            unsigned int nifVersion = 0;
-            try
-            {
-                loaded
-                    = load(path, mVFS, mImageManager, mNifFileManager, mBgsmFileManager, mSptFileManager, nifVersion);
-            }
-            catch (const std::exception& e)
-            {
-                Log(Debug::Error) << "Failed to load '" << path << "': " << e.what() << ", using marker_error instead";
-                loaded = cloneErrorMarker();
-            }
-
-            // set filtering settings
-            SetFilterSettingsVisitor setFilterSettingsVisitor(mMinFilter, mMagFilter, mMaxAnisotropy);
-            loaded->accept(setFilterSettingsVisitor);
-            SetFilterSettingsControllerVisitor setFilterSettingsControllerVisitor(
-                mMinFilter, mMagFilter, mMaxAnisotropy);
-            loaded->accept(setFilterSettingsControllerVisitor);
-
-            if (mPrograms == ModelPrograms::Rasterized)
-            {
-                osg::ref_ptr<Shader::ShaderVisitor> shaderVisitor(createShaderVisitor());
-                loaded->accept(*shaderVisitor);
-            }
-            else
-            {
-                Shader::MapVisitor maps(mAutoMaps, *mImageManager);
-                loaded->accept(maps);
-            }
-
-            if (canOptimize(path.value(), nifVersion, mOptimizerBlacklist))
-            {
-                SceneUtil::Optimizer optimizer;
-                optimizer.setSharedStateManager(mSharedStateManager, &mSharedStateMutex);
-                optimizer.setIsOperationPermissibleForObjectCallback(new CanOptimizeCallback);
-
-                static const unsigned int options
-                    = getOptimizationOptions() | SceneUtil::Optimizer::SHARE_DUPLICATE_STATE;
-
-                optimizer.optimize(loaded, options);
-            }
-            else
-                shareState(loaded);
-
-            if (compile && mIncrementalCompileOperation)
-                mIncrementalCompileOperation->add(loaded);
-            else
-                loaded->getBound();
-
-            // The file it was read from, on its root beside its hash, so what reads the scene can name the model.
-            loaded->setUserValue(Misc::OsgUserValues::sFilePath, std::string(path.value()));
-            mCache->addEntryToObjectCache(path.value(), loaded);
-            return loaded;
+            Shader::MapVisitor maps(mAutoMaps, *mImageManager);
+            loaded->accept(maps);
         }
+
+        if (canOptimize(path.value(), nifVersion, mOptimizerBlacklist))
+        {
+            SceneUtil::Optimizer optimizer;
+            optimizer.setSharedStateManager(mSharedStateManager, &mSharedStateMutex);
+            optimizer.setIsOperationPermissibleForObjectCallback(new CanOptimizeCallback);
+
+            static const unsigned int options = getOptimizationOptions() | SceneUtil::Optimizer::SHARE_DUPLICATE_STATE;
+
+            optimizer.optimize(loaded, options);
+        }
+        else
+            shareState(loaded);
+
+        if (compile && mIncrementalCompileOperation)
+            mIncrementalCompileOperation->add(loaded);
+        else
+            loaded->getBound();
+
+        // The file it was read from, on its root beside its hash, so what reads the scene can name the model.
+        loaded->setUserValue(Misc::OsgUserValues::sFilePath, std::string(path.value()));
+        return loaded;
     }
 
     osg::ref_ptr<osg::Node> SceneManager::getInstance(VFS::Path::NormalizedView path)

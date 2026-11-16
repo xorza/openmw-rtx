@@ -93,6 +93,19 @@ namespace Platform::File
         return position;
     }
 
+    size_t readAt(Handle handle, size_t offset, void* data, size_t size)
+    {
+        const auto nativeHandle = getNativeHandle(handle);
+
+        const ssize_t amount = ::pread(nativeHandle, data, size, static_cast<off_t>(offset));
+        if (amount == -1)
+        {
+            throw std::system_error(errno, std::generic_category(),
+                "An attempt to read " + std::to_string(size) + " bytes at " + std::to_string(offset) + " failed");
+        }
+        return static_cast<size_t>(amount);
+    }
+
     size_t read(Handle handle, void* data, size_t size)
     {
         auto nativeHandle = getNativeHandle(handle);

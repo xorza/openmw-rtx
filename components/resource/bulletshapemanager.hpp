@@ -25,7 +25,7 @@ namespace Resource
     {
     public:
         BulletShapeManager(
-            const VFS::Manager* vfs, SceneManager* sceneMgr, NifFileManager* nifFileManager, double expiryDelay);
+            const VFS::Manager* vfs, SceneManager* sceneMgr, NifFileManager* nifFileManager, CacheBudget& budget);
         ~BulletShapeManager() override;
 
         /// @note May return a null pointer if the object has no shape.
@@ -48,6 +48,9 @@ namespace Resource
         void reportStats(unsigned int frameNumber, osg::Stats* stats) const override;
 
     private:
+        /// The shape at `name` built from its file, or null where it has none: `getShape`'s one load.
+        Loaded<std::shared_ptr<const BulletShape>> load(VFS::Path::NormalizedView name);
+
         std::shared_ptr<BulletShapeInstance> createInstance(VFS::Path::NormalizedView name);
 
         std::unique_ptr<MultiObjectCache<std::shared_ptr<BulletShapeInstance>>> mInstanceCache;

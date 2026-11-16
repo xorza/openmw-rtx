@@ -2,6 +2,8 @@
 
 #include <algorithm>
 
+#include <components/platform/memory.hpp>
+
 #include "animblendrulesmanager.hpp"
 #include "bgsmfilemanager.hpp"
 #include "imagemanager.hpp"
@@ -15,15 +17,16 @@ namespace Resource
 
     ResourceSystem::ResourceSystem(
         const VFS::Manager* vfs, double expiryDelay, const ToUTF8::StatelessUtf8Encoder* encoder)
-        : mVFS(vfs)
+        : mCacheBudget(CacheBudget::derive(Platform::availableMemory(), 0))
+        , mVFS(vfs)
     {
-        mNifFileManager = std::make_unique<NifFileManager>(vfs, encoder);
+        mNifFileManager = std::make_unique<NifFileManager>(vfs, mCacheBudget, encoder);
         mBgsmFileManager = std::make_unique<BgsmFileManager>(vfs, expiryDelay);
         mSptFileManager = std::make_unique<SptFileManager>(vfs, expiryDelay);
-        mImageManager = std::make_unique<ImageManager>(vfs, expiryDelay);
+        mImageManager = std::make_unique<ImageManager>(vfs, mCacheBudget);
         mSceneManager = std::make_unique<SceneManager>(vfs, mImageManager.get(), mNifFileManager.get(),
-            mBgsmFileManager.get(), mSptFileManager.get(), expiryDelay);
-        mKeyframeManager = std::make_unique<KeyframeManager>(vfs, mSceneManager.get(), expiryDelay, encoder);
+            mBgsmFileManager.get(), mSptFileManager.get(), mCacheBudget);
+        mKeyframeManager = std::make_unique<KeyframeManager>(vfs, mSceneManager.get(), mCacheBudget, encoder);
         mAnimBlendRulesManager = std::make_unique<AnimBlendRulesManager>(vfs, expiryDelay);
 
         addResourceManager(mNifFileManager.get());
@@ -82,16 +85,15 @@ namespace Resource
     {
         for (auto& resourceManager : mResourceManagers)
             resourceManager->setExpiryDelay(expiryDelay);
-
-        // NIF files aren't needed any more once the converted objects are cached in SceneManager / BulletShapeManager,
-        // so no point in using an expiry delay
-        mNifFileManager->setExpiryDelay(0.0);
     }
 
     void ResourceSystem::updateCache(double referenceTime)
     {
         for (auto& resourceManager : mResourceManagers)
             resourceManager->updateCache(referenceTime);
+        // After the caches stamped what is in use: one read of the system's figure and one look for room, off the
+        // frame, on the preloader's worker once a second and on the scene's thread as a cell changes.
+        mCacheBudget.setBytes(CacheBudget::derive(Platform::availableMemory(), mCacheBudget.getHeld()));
     }
 
     void ResourceSystem::clearCache()

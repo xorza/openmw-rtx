@@ -422,7 +422,8 @@ namespace Rtx
         {
             SceneDesc scene;
             VFS::Manager vfs;
-            Testing::HeldImages images(&vfs, 0);
+            Resource::CacheBudget budget(Resource::CacheBudget::sUnbounded);
+            Testing::HeldImages images(&vfs, budget);
             for (const Moon moon : { Moon::Masser, Moon::Secunda })
             {
                 const osg::ref_ptr<osg::Image> portrait = Testing::makeImage("", 2, 2);
@@ -482,11 +483,12 @@ namespace Rtx
         {
             const std::unique_ptr<VFS::Manager> vfs
                 = TestingOpenMW::createTestVFS({ { VFS::Path::NormalizedView("textures/tx_sky_clear.dds"), nullptr } });
-            Testing::HeldImages images(vfs.get(), 0);
-            Resource::NifFileManager nifs(vfs.get(), nullptr);
+            Resource::CacheBudget budget(Resource::CacheBudget::sUnbounded);
+            Testing::HeldImages images(vfs.get(), budget);
+            Resource::NifFileManager nifs(vfs.get(), budget, nullptr);
             Resource::BgsmFileManager materials(vfs.get(), 0);
             Resource::SptFileManager trees(vfs.get(), 0);
-            Resource::SceneManager scenes(vfs.get(), &images, &nifs, &materials, &trees, 0);
+            Resource::SceneManager scenes(vfs.get(), &images, &nifs, &materials, &trees, budget);
 
             osg::ref_ptr<osg::Image> rgb
                 = Testing::makeImage("textures/tx_sky_clear.dds", 4, 4, GL_RGB, GL_UNSIGNED_BYTE_3_3_2);
@@ -529,11 +531,12 @@ namespace Rtx
         {
             const std::unique_ptr<VFS::Manager> vfs = TestingOpenMW::createTestVFS(
                 { { VFS::Path::NormalizedView("textures/tx_script_sky.dds"), nullptr } });
-            Testing::HeldImages images(vfs.get(), 0);
-            Resource::NifFileManager nifs(vfs.get(), nullptr);
+            Resource::CacheBudget budget(Resource::CacheBudget::sUnbounded);
+            Testing::HeldImages images(vfs.get(), budget);
+            Resource::NifFileManager nifs(vfs.get(), budget, nullptr);
             Resource::BgsmFileManager materials(vfs.get(), 0);
             Resource::SptFileManager trees(vfs.get(), 0);
-            Resource::SceneManager scenes(vfs.get(), &images, &nifs, &materials, &trees, 0);
+            Resource::SceneManager scenes(vfs.get(), &images, &nifs, &materials, &trees, budget);
 
             osg::ref_ptr<osg::Image> sheet = Testing::makeImage("textures/tx_script_sky.dds", 4, 4);
             for (std::size_t texel = 0; texel < 16; ++texel)
@@ -567,7 +570,10 @@ namespace Rtx
 
             void hold(VFS::Path::NormalizedView path, osg::ref_ptr<osg::Node> node)
             {
-                mCache->addEntryToObjectCache(std::string(path.value()), node);
+                // In place of what the key held, as a load of a key let go of would.
+                mCache->removeFromObjectCache(path.value());
+                mCache->getOrLoad(path.value(),
+                    [&] { return Resource::Loaded<osg::ref_ptr<osg::Node>>{ .mValue = std::move(node) }; });
             }
         };
 
@@ -598,11 +604,12 @@ namespace Rtx
         {
             constexpr VFS::Path::NormalizedView dome("meshes/sky_night_02.nif");
             const std::unique_ptr<VFS::Manager> vfs = TestingOpenMW::createTestVFS({ { dome, nullptr } });
-            Resource::ImageManager images(vfs.get(), 0);
-            Resource::NifFileManager nifs(vfs.get(), nullptr);
+            Resource::CacheBudget budget(Resource::CacheBudget::sUnbounded);
+            Resource::ImageManager images(vfs.get(), budget);
+            Resource::NifFileManager nifs(vfs.get(), budget, nullptr);
             Resource::BgsmFileManager materials(vfs.get(), 0);
             Resource::SptFileManager trees(vfs.get(), 0);
-            HeldScenes scenes(vfs.get(), &images, &nifs, &materials, &trees, 0);
+            HeldScenes scenes(vfs.get(), &images, &nifs, &materials, &trees, budget);
 
             osg::ref_ptr<osg::Image> rgb
                 = Testing::makeImage("textures/star_rgb.dds", 4, 4, GL_RGB, GL_UNSIGNED_BYTE_3_3_2);
@@ -643,11 +650,12 @@ namespace Rtx
         TEST(RtxSkyBuilderTest, aSkyMeshTheArchivesDoNotHoldIsNamedAndTheSkyGoesOnWithoutIt)
         {
             VFS::Manager vfs;
-            Resource::ImageManager images(&vfs, 0);
-            Resource::NifFileManager nifs(&vfs, nullptr);
+            Resource::CacheBudget budget(Resource::CacheBudget::sUnbounded);
+            Resource::ImageManager images(&vfs, budget);
+            Resource::NifFileManager nifs(&vfs, budget, nullptr);
             Resource::BgsmFileManager materials(&vfs, 0);
             Resource::SptFileManager trees(&vfs, 0);
-            Resource::SceneManager scenes(&vfs, &images, &nifs, &materials, &trees, 0);
+            Resource::SceneManager scenes(&vfs, &images, &nifs, &materials, &trees, budget);
             SceneDesc scene;
             ThreadContent thread;
             std::vector<TextureHold> holds;

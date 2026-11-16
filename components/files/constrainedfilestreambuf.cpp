@@ -2,23 +2,24 @@
 
 #include <algorithm>
 #include <filesystem>
-#include <limits>
+#include <memory>
 #include <utility>
 
 namespace Files
 {
     namespace File = Platform::File;
 
-    ConstrainedFileStreamBuf::ConstrainedFileStreamBuf(
-        const std::filesystem::path& fname, std::size_t start, std::size_t length)
-        : mOrigin(start)
+    SharedFile openSharedFile(const std::filesystem::path& path)
     {
-        mFile = File::open(fname);
-        mSize = length != std::numeric_limits<std::size_t>::max() ? length : File::size(mFile) - start;
+        File::ScopedHandle handle = File::open(path);
+        return std::make_shared<const File::ScopedHandle>(std::move(handle));
+    }
 
-        if (start != 0)
-            File::seek(mFile, start);
-
+    ConstrainedFileStreamBuf::ConstrainedFileStreamBuf(SharedFile file, std::size_t start, std::size_t length)
+        : mFile(std::move(file))
+        , mOrigin(start)
+        , mSize(length)
+    {
         setg(nullptr, nullptr, nullptr);
     }
 
@@ -26,11 +27,11 @@ namespace Files
     {
         if (gptr() == egptr())
         {
-            const std::size_t toRead = std::min((mOrigin + mSize) - (File::tell(mFile)), sizeof(mBuffer));
-            // Read in the next chunk of data, and set the read pointers on success
-            // Failure will throw exception.
-            const std::size_t got = File::read(mFile, mBuffer, toRead);
-            setg(mBuffer, mBuffer, mBuffer + got);
+            const std::size_t toRead = std::min(mSize - mPosition, mBuffer.size());
+            // A file cut short since the entry was indexed reads as the entry's end.
+            const std::size_t got = toRead == 0 ? 0 : File::readAt(*mFile, mOrigin + mPosition, mBuffer.data(), toRead);
+            mPosition += got;
+            setg(mBuffer.data(), mBuffer.data(), mBuffer.data() + got);
         }
         if (gptr() == egptr())
             return traits_type::eof();
@@ -41,51 +42,34 @@ namespace Files
     std::streambuf::pos_type ConstrainedFileStreamBuf::seekoff(
         off_type offset, std::ios_base::seekdir whence, std::ios_base::openmode mode)
     {
-        if ((mode & std::ios_base::out) || !(mode & std::ios_base::in))
-            return traits_type::eof();
-
-        // new file position, relative to mOrigin
-        size_t newPos = 0;
         switch (whence)
         {
             case std::ios_base::beg:
-                newPos = offset;
-                break;
+                return seekTo(offset, mode);
             case std::ios_base::cur:
-                newPos = (File::tell(mFile) - mOrigin - (egptr() - gptr())) + offset;
-                break;
+                return seekTo(static_cast<std::streamoff>(mPosition) - (egptr() - gptr()) + offset, mode);
             case std::ios_base::end:
-                newPos = mSize + offset;
-                break;
+                return seekTo(static_cast<std::streamoff>(mSize) + offset, mode);
             default:
-                return traits_type::eof();
+                return static_cast<pos_type>(static_cast<off_type>(-1));
         }
-
-        if (newPos > mSize)
-            return traits_type::eof();
-
-        File::seek(mFile, mOrigin + newPos);
-
-        // Clear read pointers so underflow() gets called on the next read attempt.
-        setg(nullptr, nullptr, nullptr);
-
-        return static_cast<std::streamoff>(newPos);
     }
 
     std::streambuf::pos_type ConstrainedFileStreamBuf::seekpos(pos_type pos, std::ios_base::openmode mode)
     {
-        if ((mode & std::ios_base::out) || !(mode & std::ios_base::in))
-            return traits_type::eof();
+        return seekTo(pos, mode);
+    }
 
+    std::streambuf::pos_type ConstrainedFileStreamBuf::seekTo(std::streamoff position, std::ios_base::openmode mode)
+    {
         // A position before the start is refused as one past the end is.
-        const std::streamoff offset = pos;
-        if (offset < 0 || std::cmp_greater(offset, mSize))
-            return traits_type::eof();
+        if ((mode & std::ios_base::out) || !(mode & std::ios_base::in) || position < 0
+            || std::cmp_greater(position, mSize))
+            return static_cast<pos_type>(static_cast<off_type>(-1));
 
-        File::seek(mFile, mOrigin + pos);
-
-        // Clear read pointers so underflow() gets called on the next read attempt.
+        mPosition = static_cast<std::size_t>(position);
+        // The next read fetches from the new position.
         setg(nullptr, nullptr, nullptr);
-        return pos;
+        return position;
     }
 }

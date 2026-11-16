@@ -24,6 +24,10 @@ namespace Resource
             "Get",
             "Hit",
             "Expired",
+            "Loaded",
+            "Coalesced",
+            "Reloaded",
+            "Bytes",
         };
 
         for (std::string_view suffix : suffixes)
@@ -36,5 +40,9 @@ namespace Resource
         dst.setAttribute(frameNumber, makeAttribute(prefix, "Get"), static_cast<double>(src.mGet));
         dst.setAttribute(frameNumber, makeAttribute(prefix, "Hit"), static_cast<double>(src.mHit));
         dst.setAttribute(frameNumber, makeAttribute(prefix, "Expired"), static_cast<double>(src.mExpired));
+        dst.setAttribute(frameNumber, makeAttribute(prefix, "Loaded"), static_cast<double>(src.mLoaded));
+        dst.setAttribute(frameNumber, makeAttribute(prefix, "Coalesced"), static_cast<double>(src.mCoalesced));
+        dst.setAttribute(frameNumber, makeAttribute(prefix, "Reloaded"), static_cast<double>(src.mReloaded));
+        dst.setAttribute(frameNumber, makeAttribute(prefix, "Bytes"), static_cast<double>(src.mBytes));
     }
 }

@@ -1,6 +1,10 @@
 #include "keyframemanager.hpp"
 
 #include <array>
+#include <cstdint>
+
+#include <components/files/istreamptr.hpp>
+#include <components/files/utils.hpp>
 
 #include <components/vfs/manager.hpp>
 
@@ -197,9 +201,9 @@ namespace Resource
         traverse(node);
     }
 
-    KeyframeManager::KeyframeManager(const VFS::Manager* vfs, SceneManager* sceneManager, double expiryDelay,
+    KeyframeManager::KeyframeManager(const VFS::Manager* vfs, SceneManager* sceneManager, CacheBudget& budget,
         const ToUTF8::StatelessUtf8Encoder* encoder)
-        : ResourceManager(vfs, expiryDelay)
+        : ResourceManager(vfs, budget)
         , mSceneManager(sceneManager)
         , mEncoder(encoder)
     {
@@ -207,16 +211,23 @@ namespace Resource
 
     std::shared_ptr<const SceneUtil::KeyframeHolder> KeyframeManager::get(VFS::Path::NormalizedView name)
     {
-        if (std::shared_ptr<const SceneUtil::KeyframeHolder> cached = mCache->getRefFromObjectCache(name))
-            return cached;
+        return mCache->getOrLoad(name.value(), [&] { return load(name); });
+    }
 
+    Loaded<std::shared_ptr<const SceneUtil::KeyframeHolder>> KeyframeManager::load(VFS::Path::NormalizedView name)
+    {
         auto loaded = std::make_shared<SceneUtil::KeyframeHolder>();
+        // What a `.kf` file's keys come to, near enough its own bytes; an animation read off a model shares the
+        // model's, which the template cache counts.
+        std::uint64_t bytes = 0;
         constexpr VFS::Path::ExtensionView kf("kf");
         if (name.extension() == kf)
         {
             auto file = std::make_shared<Nif::NIFFile>(name);
             Nif::Reader reader(*file, mEncoder);
-            reader.parse(mVFS->get(name));
+            Files::IStreamPtr stream = mVFS->get(name);
+            bytes = static_cast<std::uint64_t>(Files::getStreamSizeLeft(*stream));
+            reader.parse(std::move(stream));
             NifOsg::Loader::loadKf(*file, *loaded);
         }
         else
@@ -230,8 +241,7 @@ namespace Resource
                 scene->accept(rav);
             }
         }
-        mCache->addEntryToObjectCache(name.value(), loaded);
-        return loaded;
+        return { .mValue = std::move(loaded), .mBytes = bytes };
     }
 
     void KeyframeManager::reportStats(unsigned int frameNumber, osg::Stats* stats) const

@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <utility>
 #include <vector>
 
 #include <boost/unordered/unordered_flat_map.hpp>
@@ -109,8 +110,12 @@ namespace Rtx
             Released& mReleased;
         };
 
-        /// Room for `budget` roots, made once.
-        void reserve(std::size_t budget) { mFrozen.reserve(budget); }
+        /// Room for `budget` roots, and for as many first frozen in one walk, made once.
+        void reserve(std::size_t budget)
+        {
+            mFrozen.reserve(budget);
+            mArrived.reserve(budget);
+        }
 
         /// `Kept::getPastRoom`, of the roots.
         std::uint32_t getPastRoom() const { return mPastRoom; }
@@ -144,7 +149,9 @@ namespace Rtx
 
         /// Thaws every root the world walk `walk` did not meet — gone from the graph, or masked out —
         /// ahead of the sweep, which would otherwise keep its rows for ever; the root goes to
-        /// `Holders::mReleased`. Nothing where the walk met every run, which a world standing still does.
+        /// `Holders::mReleased`. Then files the roots the walk froze for the first time, which wait
+        /// apart until here: filed as they froze, a walk that replaced the grid would hold the roots it
+        /// left and the ones it met at once, twice the grid, past the room of one.
         void thawUnmet(unsigned int walk, Holders holders);
 
         /// Thaws every root, into `Holders::mReleased`.
@@ -174,12 +181,18 @@ namespace Rtx
         /// Gives a frozen subtree's holds back, as the walk that thaws it or a sweep that missed it.
         void thaw(Frozen& frozen, Holders holders);
 
+        /// Thaws `frozen` and lets go of its face and `root` into `Holders::mReleased`: a root the
+        /// table forgets.
+        void letGo(const osg::ref_ptr<const osg::Node>& root, Frozen& frozen, Holders holders);
+
         /// By their roots, held so a root the game freed cannot be mistaken for the one built where
-        /// it stood; their keys in one buffer, a run a subtree; and what the root being walked has
-        /// resolved so far. Reserved and kept, never freed.
+        /// it stood; the roots this walk froze that no walk had before, until `thawUnmet` files them;
+        /// their keys in one buffer, a run a subtree; and what the root being walked has resolved so
+        /// far. Reserved and kept, never freed.
         boost::unordered_flat_map<osg::ref_ptr<const osg::Node>, Frozen, ByAddress<const osg::Node>,
             ByAddress<const osg::Node>>
             mFrozen;
+        std::vector<std::pair<osg::ref_ptr<const osg::Node>, Frozen>> mArrived;
         RunBuffer<Key> mKeys;
         std::vector<Key> mRecorded;
 

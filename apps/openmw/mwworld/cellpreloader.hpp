@@ -131,6 +131,7 @@ namespace MWWorld
         double mLoadedTerrainTimestamp;
         std::size_t mEvicted = 0;
         std::size_t mAdded = 0;
+        std::size_t mSkipped = 0;
         std::size_t mExpired = 0;
         std::size_t mLoaded = 0;
     };

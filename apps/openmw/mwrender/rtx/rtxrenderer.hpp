@@ -208,11 +208,12 @@ namespace MWRender
         /// camera carrying no callback is left alone.
         static void updateEye(osg::Camera& camera, osgUtil::UpdateVisitor& visitor);
 
-        /// Keeps everything a stepped run loads for as long as the run lasts, and leaves a run on the wall to
+        /// Keeps everything a stepped run builds for as long as the run lasts, and leaves a run on the wall to
         /// `[Cells] cache expiry delay`. An expiry is decided on a loading thread and keeps what is
         /// referenced at that moment, which the other loading threads change: behind the PBR mods' textures
         /// two runs of one build dropped different models and laid the scene out two ways from
-        /// `island-crossing` on. Never expiring costs 7.7 GiB resident at a PBR shot's peak against 6.8.
+        /// `island-crossing` on. What is read from files is kept by the caches' budget instead, which a stepped
+        /// run is held to as well: no run on the desk passes it, and one that does has no memory to keep more.
         static void setResourceExpiry(Resource::ResourceSystem& resources, const std::optional<float>& step);
 
         /// Has `scene` look for every model's `_n` and `_spec` maps whatever `[Shaders] auto use object normal

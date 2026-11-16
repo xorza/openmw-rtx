@@ -37,6 +37,33 @@ the lines each item names, which the merge resolves by keeping the seam:
   one size whichever renderer draws. A settings file from upstream, which kept the window's size
   there, has it moved to the window on the first start.
 
+**How content is loaded**, by the user's decision (`docs/architecture.md`, "Loading"), kept in the fork rather
+than offered upstream, so a merge that touches `components/resource`, `components/bsa`, `components/files` or
+`components/platform/file*` resolves against it:
+
+- One load a key in flight (`GenericObjectCache::getOrLoad`), which `SceneManager::getTemplate`,
+  `NifFileManager::get`, `ImageManager::getImage`, `KeyframeManager::get` and `BulletShapeManager::getShape` load
+  through, each load moved to a private function of its manager; and `CacheStats` counting loads, waits on a load
+  in flight and loads of a key let go before. Two threads that missed one model both loaded it, and the preloader
+  read a model again seconds after the cache let it go. The cost is a conflict with an upstream edit to those five
+  functions or to the cache's insertion.
+- An archive opened once and read by position (`Platform::File::readAt`: POSIX `pread`, Windows `ReadFile` at an
+  `OVERLAPPED`'s offset): `Bsa::BSAFile` holds a `Files::SharedFile` from its `open`, and every entry's
+  `ConstrainedFileStreamBuf` keeps its own position over it, where each entry opened the archive again (18,082 opens
+  of `Morrowind.bsa` in 75 s). Windows opens a file shared for writing and deletion as a POSIX system does, so the
+  archive tool writes an archive it holds open. The cost is a conflict with an upstream edit to the stream buffer,
+  to `BSAFile::open`/`close`, or to the lines of the four archive kinds that open an entry's stream.
+- The caches of what is read from files kept by a byte budget and one least-recently-used order
+  (`Resource::CacheBudget`, owned by `ResourceSystem`) in place of `cache expiry delay`: `GenericObjectCache` keeps
+  by a budget where it is made with one, and by time otherwise; the template, NIF file, image, keyframe and shape
+  managers take the budget in place of a delay, and each load states its bytes (`Resource::Loaded`). The NIF
+  manager's own delay of nought goes, and `navmeshtool` and `bulletobjecttool` hand their managers a budget of
+  nought. The cost is a conflict with an upstream edit to the cache, to those managers' constructors and loads,
+  to `ResourceSystem`'s constructor, or to the physics system's shape manager.
+- The cell preloader skips a cell while the caches stand past their budget with everything in use, counted as
+  `CellPreloader Skipped`: a preload is a guess, and past the budget it holds memory the frame needs. The cost is a
+  conflict with an upstream edit to the start of `CellPreloader::preload` or to its stats.
+
 **The rest of the tree.**
 
 - The wind held on a paused frame (`MWWorld::windSpeedAfter`), as upstream holds the thunder, by the user's decision:

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <string>
+#include <utility>
 
 #include <osg/ref_ptr>
 
@@ -28,7 +28,10 @@ namespace Rtx::Testing
 
         void hold(VFS::Path::NormalizedView path, osg::ref_ptr<osg::Image> image)
         {
-            mCache->addEntryToObjectCache(std::string(path.value()), image);
+            // In place of what the key held, as a load of a key let go of would.
+            mCache->removeFromObjectCache(path.value());
+            mCache->getOrLoad(
+                path.value(), [&] { return Resource::Loaded<osg::ref_ptr<osg::Image>>{ .mValue = std::move(image) }; });
         }
     };
 }

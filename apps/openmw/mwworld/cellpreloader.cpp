@@ -12,6 +12,7 @@
 #include <components/misc/pathhelpers.hpp>
 #include <components/misc/resourcehelpers.hpp>
 #include <components/resource/bulletshapemanager.hpp>
+#include <components/resource/cachebudget.hpp>
 #include <components/resource/keyframemanager.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
@@ -259,6 +260,14 @@ namespace MWWorld
             return;
         }
 
+        // A preload is a guess, dropped where the caches are past their budget with everything in use, and asked
+        // again on a later frame as the scene asks; the cell loads when the player arrives if the guess never fits.
+        if (!mResourceSystem->getCacheBudget().hasRoom())
+        {
+            ++mSkipped;
+            return;
+        }
+
         while (mPreloadCells.size() >= mMaxCacheSize)
         {
             // throw out oldest cell to make room
@@ -475,5 +484,6 @@ namespace MWWorld
         stats.setAttribute(frameNumber, "CellPreloader Evicted", static_cast<double>(mEvicted));
         stats.setAttribute(frameNumber, "CellPreloader Loaded", static_cast<double>(mLoaded));
         stats.setAttribute(frameNumber, "CellPreloader Expired", static_cast<double>(mExpired));
+        stats.setAttribute(frameNumber, "CellPreloader Skipped", static_cast<double>(mSkipped));
     }
 }

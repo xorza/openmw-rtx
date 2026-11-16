@@ -7,6 +7,7 @@
 
 #include <components/vfs/pathutil.hpp>
 
+#include "cachebudget.hpp"
 #include "objectcache.hpp"
 
 namespace VFS
@@ -47,6 +48,14 @@ namespace Resource
             : mVFS(vfs)
             , mCache(std::make_unique<CacheType>())
             , mExpiryDelay(expiryDelay)
+        {
+        }
+
+        /// A manager of what is read from files, whose cache `budget` keeps rather than time.
+        explicit GenericResourceManager(const VFS::Manager* vfs, CacheBudget& budget)
+            : mVFS(vfs)
+            , mCache(std::make_unique<CacheType>(budget))
+            , mExpiryDelay(0.0)
         {
         }
 
@@ -94,6 +103,11 @@ namespace Resource
     public:
         explicit ResourceManager(const VFS::Manager* vfs, double expiryDelay)
             : GenericResourceManager<std::string, ValueType>(vfs, expiryDelay)
+        {
+        }
+
+        explicit ResourceManager(const VFS::Manager* vfs, CacheBudget& budget)
+            : GenericResourceManager<std::string, ValueType>(vfs, budget)
         {
         }
 

@@ -85,7 +85,8 @@ namespace Rtx
         struct RtxNifSurfaceTest : Test
         {
             VFS::Manager mVfs;
-            Resource::ImageManager mImageManager{ &mVfs, 0 };
+            Resource::CacheBudget mBudget{ Resource::CacheBudget::sUnbounded };
+            Resource::ImageManager mImageManager{ &mVfs, mBudget };
             Resource::BgsmFileManager mMaterialManager{ &mVfs, 0 };
 
             /// What one triangle carrying `properties` describes as, read off the state the loader

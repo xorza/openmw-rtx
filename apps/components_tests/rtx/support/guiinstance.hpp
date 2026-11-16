@@ -93,6 +93,7 @@ namespace Rtx::Testing
 
         std::uint32_t mVfsReads = 0;
         VFS::Manager mVfs;
+        Resource::CacheBudget mBudget{ Resource::CacheBudget::sUnbounded };
         Resource::ImageManager mImages;
         CountingRenderer mRenderer;
         MyGUIRtx::RenderManager* mRenderManager = nullptr;

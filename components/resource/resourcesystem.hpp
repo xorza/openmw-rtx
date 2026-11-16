@@ -3,6 +3,8 @@
 #include <memory>
 #include <vector>
 
+#include "cachebudget.hpp"
+
 namespace VFS
 {
     class Manager;
@@ -68,6 +70,10 @@ namespace Resource
         /// How long to keep objects in cache after no longer being referenced.
         void setExpiryDelay(double expiryDelay);
 
+        /// What keeps the caches of what is read from files, derived from the memory the system leaves the process
+        /// (`CacheBudget::derive`) as the resource system is made and at every `updateCache`.
+        CacheBudget& getCacheBudget() { return mCacheBudget; }
+
         /// @note May be called from any thread.
         const VFS::Manager* getVFS() const;
 
@@ -77,6 +83,9 @@ namespace Resource
         void releaseGLObjects(osg::State* state);
 
     private:
+        /// Before every manager: a budget outlives the caches held to it.
+        CacheBudget mCacheBudget;
+
         std::unique_ptr<SceneManager> mSceneManager;
         std::unique_ptr<ImageManager> mImageManager;
         std::unique_ptr<BgsmFileManager> mBgsmFileManager;

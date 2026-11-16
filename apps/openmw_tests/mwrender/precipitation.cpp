@@ -54,11 +54,12 @@ namespace MWRender
         TEST(RtxPrecipitationTest, nothingFallsWhileTheSkyIsOffOrTheEyeIsUnderTheWater)
         {
             VFS::Manager vfs;
-            Resource::ImageManager images(&vfs, 0);
-            Resource::NifFileManager nifs(&vfs, nullptr);
+            Resource::CacheBudget budget(Resource::CacheBudget::sUnbounded);
+            Resource::ImageManager images(&vfs, budget);
+            Resource::NifFileManager nifs(&vfs, budget, nullptr);
             Resource::BgsmFileManager materials(&vfs, 0);
             Resource::SptFileManager trees(&vfs, 0);
-            Resource::SceneManager scenes(&vfs, &images, &nifs, &materials, &trees, 0);
+            Resource::SceneManager scenes(&vfs, &images, &nifs, &materials, &trees, budget);
 
             // The box's shaders are the rasterizer's, and an empty archive holds none of them.
             scenes.setModelPrograms(Resource::ModelPrograms::Omitted);
