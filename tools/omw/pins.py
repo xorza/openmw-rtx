@@ -44,14 +44,9 @@ CLANG_FORMAT = {
 
 # gersemi, the CMake files' formatter (`deps.gersemi`), by system and by the CPython it runs under: its
 # layout is computed in Rust, built into each wheel for one interpreter's ABI, so the wheel follows the
-# Python that runs the driver, 3.10 and later. The digests are PyPI's. Exact, as clang-format's is.
+# Python that runs the driver, 3.11 and later. The digests are PyPI's. Exact, as clang-format's is.
 GERSEMI_VERSION = "0.29.2"
 GERSEMI = {
-    ("linux", "cp310"): Pin(
-        "https://files.pythonhosted.org/packages/d7/d6/25dfffc7f8f6dbca98cf76059efaa0525d7ab1b3f97de5ec9e42afc298e1/"
-        f"gersemi-{GERSEMI_VERSION}-cp310-cp310-manylinux_2_28_x86_64.whl",
-        "f26b4cb7c1d9b9ab21109c9ebe226616f7c9e2ae9773056769d5421207e21e3d",
-    ),
     ("linux", "cp311"): Pin(
         "https://files.pythonhosted.org/packages/76/73/771113af6c910d6d2b2fcb6b5acda563093cca54b72ff86666e77700f253/"
         f"gersemi-{GERSEMI_VERSION}-cp311-cp311-manylinux_2_28_x86_64.whl",
@@ -71,11 +66,6 @@ GERSEMI = {
         "https://files.pythonhosted.org/packages/04/53/f2815b34359959172a6931932adde8e631de727a697a858265690030b55b/"
         f"gersemi-{GERSEMI_VERSION}-cp314-cp314-manylinux_2_28_x86_64.whl",
         "a8a851f3af50e185beff001e4666b24f4bb24b3f2810671eb4d04b30fff7066c",
-    ),
-    ("windows", "cp310"): Pin(
-        "https://files.pythonhosted.org/packages/0b/ab/6ba9db916104b7de493d450a513735ab024892079185b71177b295245774/"
-        f"gersemi-{GERSEMI_VERSION}-cp310-cp310-win_amd64.whl",
-        "5f5b7c1e66d13caea2810fe39ce11493e769beb236fd435925e9fa5a80d4e3ab",
     ),
     ("windows", "cp311"): Pin(
         "https://files.pythonhosted.org/packages/b0/41/8552036195824b40ee18ec208227f8aeb7c2c2289116df5b36317512b129/"

@@ -1,5 +1,5 @@
 {
-  "file_scan_exclusions": ["...", "**/.mypy_cache", "**/.ruff_cache"],
+  "file_scan_exclusions": ["...", "**/.mypy_cache", "**/.ruff_cache", "**/.cache"],
   // Preambles in memory: on disk, clangd leaves one in /tmp for every file each time it is killed.
   "lsp": {
     "clangd": {

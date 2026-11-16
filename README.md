@@ -1,16 +1,22 @@
-OpenMW RTX
-==========
+# OpenMW RTX
 
-A fork of [OpenMW](https://openmw.org) that makes Morrowind work your GPU hard again:
-ray-traced lighting and path-traced indirect light.
+A fork of [OpenMW](https://openmw.org) that makes Morrowind work your GPU hard again: ray-traced lighting and
+path-traced indirect light. The goal is a 2002 game made to look astonishing on current hardware, with its content as
+it stands and new light transport.
 
-This tree is OpenMW 0.53 with a ray tracer in place of its renderer. What the engine itself is, the
-data path and the command line are in the
-[upstream README](https://gitlab.com/OpenMW/openmw/-/blob/master/README.md). This file covers
+This tree is OpenMW 0.53 with a ray tracer in place of its renderer. What the engine itself is, the data path and the
+command line are in the [upstream README](https://gitlab.com/OpenMW/openmw/-/blob/master/README.md). This file covers
 only what the fork adds, and how to get it and build it, which differ from upstream.
 
-Screenshots
------------
+## Thanks
+
+Huge kudos to the OpenMW developers, and to everyone who has contributed to OpenMW since 2008. Their engine inspired
+me to contribute to open source and to start this project, and everything here stands on their work. The full list of
+contributors is in [AUTHORS.md](AUTHORS.md).
+
+— xxorza
+
+## Screenshots
 
 <img width="2560" height="1366" alt="screenshot017" src="https://github.com/user-attachments/assets/d99644a6-2395-4a9b-a095-53a54c7a27b2" />
 <img width="2560" height="1366" alt="screenshot016" src="https://github.com/user-attachments/assets/cc181eb8-713c-41f2-a093-2aea60d71c2a" />
@@ -20,99 +26,66 @@ Screenshots
 <img width="2560" height="1366" alt="screenshot003" src="https://github.com/user-attachments/assets/7ecbd7a4-37f5-4761-8596-79a2870a3a75" />
 <img width="2560" height="1366" alt="screenshot001" src="https://github.com/user-attachments/assets/2a5855df-bc04-4b08-929a-51edee2c4fcc" />
 
-
-Demo video
-----------
-
 [Watch the demo on YouTube](https://youtu.be/2_a1KQA44-I)
 
+## What the fork is
 
-What the fork is
-----------------
+Upstream OpenMW stays the host engine: cells, references, physics, scripts, animation, weather and the GUI. It no
+longer owns the picture. The ray tracer draws the whole image: primary visibility, shadows, direct and indirect light,
+sky, water and fog are ray traced on the GPU.
 
-Upstream OpenMW stays the host engine: cells, references, physics, scripts, animation, weather
-and the GUI. It no longer owns the picture. The ray tracer draws the whole image: primary
-visibility, shadows, direct and indirect light, sky, water and fog are ray traced on the GPU.
+The ray tracer is the one renderer the game starts. No setting, launcher page or fallback reaches upstream's OpenGL
+renderer, which stays in the build only so that upstream's code merges as it stands.
 
-The ray tracer is the one renderer the game starts. No setting, launcher page or fallback reaches
-upstream's OpenGL renderer, which stays in the build only so that upstream's code merges as it
-stands.
+Vanilla content and the PBR replacers made for OpenMW are read as they are. Morrowind's textures are pre-lit, so the
+renderer estimates the painted light and divides it out to recover materials the new light transport can use. What a
+replacer's companion maps add reaches the trace.
 
-Vanilla content and the PBR replacers made for OpenMW are read as they are. Morrowind's textures
-are pre-lit, so the renderer estimates the painted light and divides it out to recover materials
-the new light transport can use. What a replacer's companion maps add reaches the trace.
+## Requirements
 
-Changes to upstream
--------------------
+- **An NVIDIA RTX card**, Turing (RTX 20 series) or later, which is what the renderer is written and tested for. An
+  AMD card, RDNA 2 (RX 6000 series) or later, starts too and draws right on a low-end AMD integrated GPU, but far too
+  slowly there to play yet.
+- **Vulkan 1.4** with ray tracing pipelines, ray queries and position fetch. On a machine without them the game does
+  not start, and its error box says what is missing and where the log is. No other renderer takes its place.
 
-* SDL3 in place of SDL2, for display scaling on high-density and Wayland desktops.
-* `[Video] resolution` sets the frame size, and the frame is scaled into the window.
-* The settings window and the launcher offer only what the ray tracer honours, with `[RTX]` pages
-  in place of the rasterizer's.
-* The interface scale and the font size apply while the game runs.
-* A Light bolt that strikes no actor lights the surface it struck.
-* A crash reporter of its own, built on Crashpad.
-* Three fixes to upstream's picture that the ray tracer needed: the optimizer's merge order, the
-  land of a map tile, and a groundcover plant's transforms.
+As of November 2026 it is measured on a high-end NVIDIA laptop GPU, an AMD handheld under RADV, and a low-end AMD
+integrated GPU under AMD's Windows driver. On a slow GPU, `[RTX] indirect lighting` off saves the most.
 
-[AGENTS.md](AGENTS.md#accepted-diff) lists every change and the reason for it.
+## Getting it
 
-Goal
-----
+Each [release](https://github.com/xorza/openmw-rtx/releases) holds the game, with the launcher and the installation
+wizard, as an AppImage for Linux and a zipped portable folder for Windows. Releases after v0.4.5 also carry the tools
+(`bsatool`, `esmtool`, `niftest`, the save importer and the collision object tool), as a `.tar.gz` for Linux and a zip
+for Windows. The editor, OpenMW-CS, is upstream's to download.
 
-A 2002 game made to look astonishing on current hardware: the content as it stands, new light
-transport.
+An NVIDIA RTX card may use **DLSS Ray Reconstruction** instead of FSR, which denoises and upscales in one pass in place
+of the renderer's own denoisers. No NVIDIA code is built into or shipped with the game: the driver's NGX core is
+loaded at run time, and the player supplies the DLSS feature library. The launcher's **Download DLSS** button links to
+NVIDIA's licence beside it, fetches the library from NVIDIA's release and checks its SHA-256; a copy placed beside the
+executable also works. `[RTX] upscaler = auto | fsr | dlss` chooses, and `auto` falls back to FSR when the library is
+absent.
 
-Requirements
-------------
+## When it crashes
 
-* An NVIDIA RTX card, Turing (RTX 20 series) or later, which is what the renderer is written and
-  tested for. An AMD card, RDNA 2 (RX 6000 series) or later, starts too and draws right on a
-  low-end AMD integrated GPU, but far too slowly there to play yet.
-* Vulkan 1.4 with ray tracing pipelines, ray queries and position fetch. On a machine without them
-  the game does not start, and its error box says what is missing and where the log is. No other
-  renderer takes its place.
-* An NVIDIA RTX card may use DLSS Ray Reconstruction instead of FSR, which denoises and upscales in
-  one pass in place of the renderer's own denoisers. No NVIDIA code is built into or shipped with
-  the game: the driver's NGX core is loaded at run time, and the DLSS feature library is supplied by
-  the player. The launcher's **Download DLSS** button links to
-  NVIDIA's licence beside it, fetches the library from NVIDIA's release and checks its SHA-256; a
-  copy placed beside the executable also works. `[RTX] upscaler = auto | fsr | dlss` chooses, and
-  `auto` falls back to FSR when that library is absent.
+The game writes a report of every crash, and of every hang longer than 20 seconds. Once the game is gone, the log and
+every dump of the session go into one file, `OpenMW-crash-<time>.zip` under `crashes` in the user data folder, and a
+dialog names it. Its **Report the crash** button opens a [new issue](https://github.com/xorza/openmw-rtx/issues)
+filled in with the crash, and the folder, so the file can be dragged into the issue. Inside it:
 
-Measured so far on a high-end NVIDIA laptop GPU, an AMD handheld under RADV, and a low-end AMD
-integrated GPU under AMD's Windows driver. On a slow GPU, `[RTX] indirect lighting` off saves the
-most.
+- `openmw.log`. Its last lines, which begin `Crash:` or `Hang:`, say what happened and what the game was doing.
+- The dump: every thread's stack.
 
-Getting it
-----------
+Each release publishes its symbols, `-symbols.zip`, beside its archive, and `./omw crash <dump> <symbols>` reads a
+dump, or the package, against them. `[General] crash hang seconds` sets the hang limit, and
+`OPENMW_DISABLE_CRASH_CATCHER=1` turns the catcher off.
 
-Each [release](https://github.com/xorza/openmw-rtx/releases) holds the game, with the launcher and the
-installation wizard, as an AppImage for Linux and a zipped portable folder for Windows; and beside it the tools
-(`bsatool`, `esmtool`, `niftest`, the save importer and the collision object tool) as a `.tar.gz` for Linux and a
-zip for Windows. The editor, OpenMW-CS, is upstream's to download.
+## Building and running
 
-Building and running
---------------------
-
-`./omw` is the one way to build, on Linux and on Windows (`omw.cmd`), and needs Python 3.11 or later.
-Every library comes from the dependency set the driver fetches, built static by vcpkg (`vcpkg.json`); the
-system keeps what the programs open at run time, whose development files `sudo env/install_ubuntu_deps.sh`
-installs on Ubuntu 26.04 and `env/install_almalinux_deps.sh` on AlmaLinux 8. On Windows MSVC is all it needs.
-
-What differs from upstream's build:
-
-* **Two compilers**: on Linux the pinned Clang 23 and its lld, which the driver fetches, over GCC 15's
-  libstdc++; on Windows MSVC from Visual Studio 2026. GCC is not supported as a compiler, and a configure
-  refuses it.
-* **Pinned tools**: CMake, Ninja, clang-format and the dependency set are the driver's own, fetched into
-  `out/deps/` at the versions `tools/omw/pins.py` names, so every desk and CI build alike.
-* **Flavours, not build types**: `debug`, `release`, `asan` and `tsan`, each a preset of
-  `CMakePresets.json` in `out/<flavour>`. Warnings are errors in every one.
-* **Releases**: link-time optimisation where `OMW_LTO=ON` (ThinLTO, and MSVC's `/GL`), and the Linux
-  AppImage built on AlmaLinux 8, in a container of it on any other system.
-
-Details and the reasons behind them are in [the build](docs/build.md).
+`./omw` is the one way to build, on Linux and on Windows (`omw.cmd`), and needs Python 3.11 or later. Every library
+comes from the dependency set the driver fetches, built static by vcpkg (`vcpkg.json`); the system keeps what the
+programs open at run time, whose development files `sudo env/install_ubuntu_deps.sh` installs on Ubuntu 26.04 and
+`env/install_almalinux_deps.sh` on AlmaLinux 8. On Windows, Visual Studio is all it needs.
 
 ```
 ./omw bootstrap                          # the pinned dependency set and CMake, into out/deps/
@@ -121,33 +94,42 @@ Details and the reasons behind them are in [the build](docs/build.md).
 ./omw release exec ./openmw
 ```
 
-`./omw help` lists the rest: the flavours, the tests, and the harness that checks and measures the
-renderer without a window.
+`./omw help` lists the rest: the flavours, the tests, and the harness that checks and measures the renderer without a
+window.
 
-* [Architecture](docs/architecture.md) — the seam, the layers, who owns whom, the order a
-  frame is computed in
-* [The launcher's look](docs/look.md) — the palette and the style the launcher and the wizard wear
-* [Settings](docs/settings.md) — every `[RTX]` setting, the upstream settings the fork changes, and what
-  the ray tracer declines of upstream's
+What differs from upstream's build:
 
-When it crashes
----------------
+- **Two compilers**: on Linux the pinned Clang 23 and its lld, which the driver fetches, over GCC 15's libstdc++; on
+  Windows MSVC from Visual Studio 2026. GCC is not supported as a compiler, and a configure refuses it.
+- **Pinned tools**: CMake, Ninja, clang-format and the dependency set are the driver's own, fetched into `out/deps/`
+  at the versions `tools/omw/pins.py` names, so every desk and CI build alike.
+- **Flavours, not build types**: `debug`, `release`, `asan` and `tsan`, each a preset of `CMakePresets.json` in
+  `out/<flavour>`. Warnings are errors in every one.
+- **Releases**: link-time optimisation where `OMW_LTO=ON` (ThinLTO, and MSVC's `/GL`), and the Linux AppImage built
+  on AlmaLinux 8, in a container of it on any other system.
 
-The game writes a report of every crash, and of every hang longer than 20 seconds. Once the game
-is gone, the log and every dump of the session go into one file, `OpenMW-crash-<time>.zip` under
-`crashes` in the user data folder, and a dialog names it. Its **Report the crash** button opens a
-[new issue](https://github.com/xorza/openmw-rtx/issues) filled in with the crash, and the folder,
-so the file can be dragged into the issue. Inside it:
+### Documentation
 
-* `openmw.log`. Its last lines, which begin `Crash:` or `Hang:`, say what happened and what the
-  game was doing.
-* The dump: every thread's stack.
+- [The build](docs/build.md): the details above and the reasons behind them
+- [Architecture](docs/architecture.md): the seam, the layers, who owns whom, the order a frame is computed in
+- [Settings](docs/settings.md): every `[RTX]` setting, the upstream settings the fork changes, and what the ray tracer
+  declines of upstream's
+- [The launcher's look](docs/look.md): the palette and the style the launcher and the wizard wear
 
-Each release publishes its symbols, `-symbols.zip`, beside its archive, and
-`./omw crash <dump> <symbols>` reads a dump, or the package, against them. `[General] crash hang seconds`
-sets the hang limit, and `OPENMW_DISABLE_CRASH_CATCHER=1` turns the catcher off.
+## Changes to upstream
 
-License
--------
+- SDL3 in place of SDL2, for display scaling on high-density and Wayland desktops.
+- `[Video] resolution` sets the frame size, and the frame is scaled into the window.
+- The settings window and the launcher offer only what the ray tracer honours, with `[RTX]` pages in place of the
+  rasterizer's.
+- The interface scale and the font size apply while the game runs.
+- A Light bolt that strikes no actor lights the surface it struck.
+- A crash reporter of its own, built on Crashpad.
+- Three fixes to upstream's picture that the ray tracer needed: the optimizer's merge order, the land of a map tile,
+  and a groundcover plant's transforms.
+
+[`.notes/UPSTREAM.md`](.notes/UPSTREAM.md) lists every change and the reason for it.
+
+## License
 
 GPLv3, as upstream. See [LICENSE](LICENSE).
