@@ -13,8 +13,8 @@
 #include <volk.h>
 
 #include <apps/components_tests/rtx/support/death.hpp>
-#include <apps/components_tests/rtx/support/testplatform.hpp>
 #include <apps/components_tests/rtxvulkan/support/device/harness.hpp>
+#include <components/platform/process.hpp>
 #include <components/rtx/renderer/verticalsync.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/instance.hpp>
@@ -87,11 +87,11 @@ namespace Rtx
         };
 
         /// A hidden window to present to, **on the session's display, and skipped without one**
-        /// (`TestPlatform::showsADesktop`): NVIDIA's driver presents nothing to a `VK_EXT_headless_surface` surface, so
-        /// SDL's offscreen video gives no swapchain to test on every card. A window SDL refuses on a display it did
-        /// start is a failure. The device is the test's own to make: a death test makes it inside its statement, as a
-        /// death test's child runs the test again from its start, which Windows cannot fork past, so a device made
-        /// ahead of the statement is made twice.
+        /// (`Platform::Process::showsADesktop`): NVIDIA's driver presents nothing to a `VK_EXT_headless_surface`
+        /// surface, so SDL's offscreen video gives no swapchain to test on every card. A window SDL refuses on a
+        /// display it did start is a failure. The device is the test's own to make: a death test makes it inside its
+        /// statement, as a death test's child runs the test again from its start, which Windows cannot fork past, so a
+        /// device made ahead of the statement is made twice.
         class RtxPresenterDeathTest : public ::testing::Test
         {
         protected:
@@ -99,7 +99,7 @@ namespace Rtx
             {
                 if (!mVideo.mStarted)
                     GTEST_SKIP() << "no display to open the test's window on: " << mVideo.mWhyNot;
-                if (!Testing::TestPlatform::showsADesktop())
+                if (!Platform::Process::showsADesktop())
                     GTEST_SKIP() << "the session shows no desktop to present to: a service's, as SSH's is";
                 ASSERT_NE(mVideo.mWindow, nullptr) << SDL_GetError();
             }

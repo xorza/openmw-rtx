@@ -49,6 +49,13 @@ namespace
         EXPECT_TRUE(Platform::Process::runShell("[ " + word + " = \"it's here \\$HOME\" ]").succeeded());
     }
 
+    /// **Linux shows a desktop wherever it is asked**: whether a display server is there is SDL's to find, so a
+    /// presenting run goes on to the swapchain and says what failed there.
+    TEST(RtxPlatformProcessTest, aDesktopIsShownWhateverTheSession)
+    {
+        EXPECT_TRUE(Platform::Process::showsADesktop());
+    }
+
     /// **How a command ended, as the shell ran it**: an exit code, and apart from it the signal that
     /// ended a command which did not exit. 9 is `SIGKILL` on every POSIX system.
     TEST(RtxPlatformProcessTest, aCommandEndsWithItsExitCodeOrItsSignal)

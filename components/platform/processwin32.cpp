@@ -119,6 +119,16 @@ namespace Platform::Process
         return false;
     }
 
+    bool showsADesktop()
+    {
+        USEROBJECTFLAGS flags{};
+        DWORD needed = 0;
+        // Where the station cannot be asked, a presenting run goes on and says what failed.
+        if (!GetUserObjectInformationW(GetProcessWindowStation(), UOI_FLAGS, &flags, sizeof(flags), &needed))
+            return true;
+        return (flags.dwFlags & WSF_VISIBLE) != 0;
+    }
+
     std::string shellWord(std::string_view text)
     {
         // `cmd` expands `%NAME%` inside double quotes, and a quote inside ends the word: neither has

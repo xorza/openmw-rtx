@@ -184,6 +184,11 @@ namespace Platform::Process
         return isatty(STDIN_FILENO) != 0;
     }
 
+    bool showsADesktop()
+    {
+        return true;
+    }
+
     std::string shellWord(std::string_view text)
     {
         std::string word = "'";

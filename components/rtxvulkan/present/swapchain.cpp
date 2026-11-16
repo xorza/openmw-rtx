@@ -14,6 +14,7 @@
 #include <components/crashcatcher/crash.hpp>
 #include <components/crashcatcher/crashnote.hpp>
 #include <components/debug/debuglog.hpp>
+#include <components/platform/process.hpp>
 #include <components/rtx/common/error.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/result.hpp>
@@ -195,6 +196,14 @@ namespace Rtx
         const VkResult result = vkCreateSwapchainKHR(mDevice.getHandle(), &create, nullptr, &made);
         if (result == VK_ERROR_SURFACE_LOST_KHR)
             return false;
+        // A session with no desktop is the cause, not the format the driver names: an AMD driver answers
+        // `VK_ERROR_FORMAT_NOT_SUPPORTED` there, for any format and any size.
+        if (result != VK_SUCCESS && !Platform::Process::showsADesktop())
+            throw Unsupported(
+                std::format("vkCreateSwapchainKHR answered {}: this process's session shows no "
+                            "desktop to present to, as a service's does, an SSH server's among "
+                            "them; start it in the signed-in user's session",
+                    resultName(result)));
         checkVk(mDevice, result, "vkCreateSwapchainKHR");
         mHandle = Immediate<VkSwapchainKHR, vkDestroySwapchainKHR>(mDevice.getHandle(), made);
         mPassed = 0;

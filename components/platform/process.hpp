@@ -61,6 +61,13 @@ namespace Platform::Process
     /// boxes however it was started, as upstream's fatal error does.
     bool startedFromTerminal();
 
+    /// Whether this process's session shows a desktop, which a swapchain is presented to. **A Windows
+    /// session a service starts shows none**, an SSH server's among them: its window station is not visible
+    /// (`WSF_VISIBLE`), though a window opens there, and an AMD driver refuses a swapchain on it with
+    /// `VK_ERROR_FORMAT_NOT_SUPPORTED`. Elsewhere true: whether a display server is there is SDL's to find as
+    /// it starts its video.
+    bool showsADesktop();
+
     /// `text` as one word of the system's shell: in single quotes for a POSIX one, where nothing
     /// inside them is expanded, a quote inside closed, escaped and opened again; in double quotes
     /// for `cmd`, which has no others. Throws `std::invalid_argument` on Windows for a text that
