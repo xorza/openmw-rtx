@@ -1,639 +1,342 @@
 # Upstream changes
 
-The fork's changes to upstream code that stay, each approved by the user and kept for the reason
-given. A change to upstream code that is not here is held to `AGENTS.md`'s first rule: proposed, and
-made only on the user's explicit yes, after which it is added here.
+The fork's changes to upstream code that stay, each approved by the user, with its reason. A change to upstream code
+that is not here is held to `AGENTS.md`'s first rule: proposed, made only on the user's explicit yes, then added here.
 
-**The seam**, `MWRender::Renderer`, which both renderers stand behind (`AGENTS.md`), so the game owns no
-OpenSceneGraph viewer and the ray tracer can draw the picture. The cost is a conflict with any upstream edit to
-the lines each item names, which the merge resolves by keeping the seam:
+Unless an item names another, its cost is a conflict with an upstream edit to the lines it names. `upstream.yml` keeps
+every path deleted here deleted, so an upstream edit to one holds no merge.
+
+**The seam**, `MWRender::Renderer`, which both renderers stand behind, so the game owns no OpenSceneGraph viewer. A
+conflict here resolves by keeping the seam:
 
 - `OMW::Engine` loses `createWindow`, its `osgViewer::Viewer`, `Stereo::Manager`, `Resource::Profiler`, the
-  `StatsHandler` and `OPENMW_OSG_STATS_FILE`: the renderer the host makes owns the window and its frame, and hands
-  the content to prepare to `Renderer::prepareContent`, which reaches no game manager for it.
+  `StatsHandler` and `OPENMW_OSG_STATS_FILE`: the renderer owns the window and its frame, and takes the content to
+  prepare through `Renderer::prepareContent`.
 - `MWWorld::World::init`, `RenderingManager` and `MWGui::WindowManager` take the `Renderer`; `SDLUtil::InputWrapper`
-  takes a `SDLUtil::GraphicsListener`, which the engine makes a `MWInput::RendererKeys` over the renderer, so a key
-  whose request the renderer declines (F3 and F4's overlays) is told to the player by the game.
-- `CharacterPreview`, `LocalMap` and `GlobalMap` stand on the renderer's `OffscreenView` and `MapOverlay`, and the
-  post-processor's exterior flag is set from `GlWorld`.
-
-**What a crash report says**, which upstream's code is the only place to say:
-
-- A crash note (`Crash::NoteScope`) where the game's own work starts: `Resource::SceneManager::getTemplate`'s load
-  of a model, on whichever thread, `StateManager::loadGame`'s save and each of its records, and the cell changes
-  of `Scene::changeCellGrid` and `Scene::changeToInteriorCell`. The save's name is a report's annotation from its
-  load on. The cost is a conflict with an upstream edit to those lines.
-- The model's VFS path on its root beside its hash (`Misc::OsgUserValues::sFilePath`, set in `getTemplate`), so a
-  refused mesh and a crash note name the file. The cost is a conflict with an upstream edit to that line.
+  takes a `SDLUtil::GraphicsListener` (`MWInput::RendererKeys`), so a key whose request the renderer declines (F3, F4)
+  is told to the player.
+- `CharacterPreview`, `LocalMap` and `GlobalMap` stand on the renderer's `OffscreenView` and `MapOverlay`; the
+  post-processor's exterior flag comes from `GlWorld`.
+- `Renderer::support`, asked where the console, Lua and F2 would toggle what does nothing under the renderer, and
+  `ToggleBorders` under the ray tracer; a script's post-processing shader under a renderer that declines the chain loads
+  by name and draws nothing, where it stopped at the null post-processor, and the chain lists empty
+  (`RenderSupport::declinedSetting`; `load` and `getChain` in `postprocessingbindings.cpp`).
+- MyGUI's backend behind `MyGUIPlatform::GuiRenderManager` (`components/myguiplatform`), which `myguirtx` implements
+  beside OSG's, and `VideoWidget`'s texture through `MyGUIPlatform::shareTexture` (`videowidget.cpp`).
 
 **The rasterizer's picture**, each moved where the ray tracer needed it and upstream's was wrong:
 
 - the optimizer merges in child order, not address order;
 - an exterior map tile keeps its land where the quad tree did not build the chunk yet;
-- a groundcover plant stands under its model's own transforms, as every other reference does, and
-  not inside them (`GroundcoverShapes`);
-- the seam's: both renderers draw at `[Video] resolution x/y` and show it scaled into the window
-  with black beside it (`Misc::Presentation`), so the GUI, the projection, the pointer and Lua read
-  one size whichever renderer draws. A settings file from upstream, which kept the window's size
-  there, has it moved to the window on the first start.
+- a groundcover plant stands under its model's own transforms, not inside them (`GroundcoverShapes`);
+- both renderers draw at `[Video] resolution x/y`, shown scaled into the window (`Misc::Presentation`), so the GUI, the
+  projection, the pointer and Lua read one size; an upstream settings file's window size moves to the window on the
+  first start.
 
-**How content is loaded**, by the user's decision (`docs/architecture.md`, "Loading"), kept in the fork rather
-than offered upstream, so a merge that touches `components/resource`, `components/bsa`, `components/files` or
-`components/platform/file*` resolves against it:
+**One rule both renderers read**, moved out of the rasterizer's code into a header or a helper:
 
-- One load a key in flight (`GenericObjectCache::getOrLoad`), which `SceneManager::getTemplate`,
-  `NifFileManager::get`, `ImageManager::getImage`, `KeyframeManager::get` and `BulletShapeManager::getShape` load
-  through, each load moved to a private function of its manager; and `CacheStats` counting loads, waits on a load
-  in flight and loads of a key let go before. Two threads that missed one model both loaded it, and the preloader
-  read a model again seconds after the cache let it go. The cost is a conflict with an upstream edit to those five
-  functions or to the cache's insertion.
-- An archive opened once and read by position (`Platform::File::readAt`: POSIX `pread`, Windows `ReadFile` at an
-  `OVERLAPPED`'s offset): `Bsa::BSAFile` holds a `Files::SharedFile` from its `open`, and every entry's
-  `ConstrainedFileStreamBuf` keeps its own position over it, where each entry opened the archive again (18,082 opens
-  of `Morrowind.bsa` in 75 s). Windows opens a file shared for writing and deletion as a POSIX system does, so the
-  archive tool writes an archive it holds open. The cost is a conflict with an upstream edit to the stream buffer,
-  to `BSAFile::open`/`close`, or to the lines of the four archive kinds that open an entry's stream.
-- The caches of what is read from files kept by a byte budget and one least-recently-used order
-  (`Resource::CacheBudget`, owned by `ResourceSystem`) in place of `cache expiry delay`: `GenericObjectCache` keeps
-  by a budget where it is made with one, and by time otherwise; the template, NIF file, image, keyframe and shape
-  managers take the budget in place of a delay, and each load states its bytes (`Resource::Loaded`). The NIF
-  manager's own delay of nought goes, and `navmeshtool` and `bulletobjecttool` hand their managers a budget of
-  nought. The cost is a conflict with an upstream edit to the cache, to those managers' constructors and loads,
-  to `ResourceSystem`'s constructor, or to the physics system's shape manager.
-- The cell preloader skips a cell while the caches stand past their budget with everything in use, counted as
-  `CellPreloader Skipped`: a preload is a guess, and past the budget it holds memory the frame needs. The cost is a
-  conflict with an upstream edit to the start of `CellPreloader::preload` or to its stats.
+- the cloud shell's and the star dome's fade (`components/sky/vertexrules.hpp`, read by `ModVertexAlphaVisitor`); the
+  sky's clocks (time of day, cloud scroll, star roll) in `components/sky`, with `SkyManager` split from `Precipitation`;
+  the moon's phase continuous in game time (`MWWorld::MoonModel::phaseEighths`), which the ray tracer draws down to the
+  horizon;
+- the ripple's and the sea's rules (`ripplerules.hpp`: `isWading`, `strikesWater`; `searules.hpp`), which
+  `RippleSimulation` reads in place of its emission lines (`ripplesimulation.cpp`);
+- the grass's density (`DensityCalculator` in `groundcoverdensity.hpp`, out of `groundcover.cpp`);
+- the auto normal and specular maps (`components/shader/automaps`, `Shader::AutoMapRules`, `setAutoMaps` in place of the
+  five pattern setters, read by `Shader::attachAutoMaps` and the shader visitor `getTemplate` runs), which also fixes
+  upstream's: in `recreateShaders` the specular map took the normal map's unit, and unit 7, which holds the tangents,
+  stood in for unit 0's coordinates;
+- the reference walk `ObjectPaging` hands the ray tracer (`visitESM3References`, `visitESM4References` into a sink,
+  `Terrain::RefKinds`, `Terrain::PagedCellRef`), filtered by what each renderer takes (`typeFilter`).
+
+**What the ray tracer reads of the game**, each an accessor, a stamp or a hook on state upstream already keeps:
+
+- `Terrain::World::getActiveGrid`; `LightController`'s type and colour; `LightSource`'s controller, source radius and
+  const light; `RigGeometry`'s skeleton, influences, bones, skin matrix and `hasSkeleton`; `Skeleton::markReached`;
+  `PaintedTexture`, `ImageRegion` and `OffscreenFraming`; `Animation`'s glow fade and the glow light's radius;
+  `World::getStormDirection`; the projection offset beside the projection; `Precipitation::isShown` and its occlusion
+  setting; and the terrain's height solved in double, so both grounds agree on every OSG build.
+- Stamps: `SceneUtil::StableIdentity` on every cell and reference root (`Objects::cellRootOf`), so the mirror tells
+  roots apart without addresses; `SceneUtil::LampBody` on a light's group, so a lamp's model adds no glow its light
+  already delivers; `SceneUtil::EmbeddedImage` on an image a NIF carries inside it, which has no file to key by.
+- `SceneUtil::StateSetUpdater::getGeneration`, which `reset` bumps, so the mirror's copy of a glow follows a reset.
+- The pose hook in `RenderingManager`'s intersection visitor (`Renderer::poseForIntersection`): the ray tracer culls no
+  world, so the crosshair met every actor in its bind pose.
+- `LocalMap::requestMap` asks again for a tile the renderer gave up (`OffscreenView::isAbandoned`).
+- The visibility gates (`MWScript::VisibilityGates` and what feeds them): without them distance stands scripted stages
+  the game keeps down.
+- `~Engine` joins the Lua worker first and drops the world before the script manager: a frame the ray tracer left on
+  purpose left the worker in its update, and the cell reader marks gates through the script manager.
+- One step the histories must hear: a reference moved with its physics placed outright is a jump (`World::moveObject`,
+  `notifyJumped`), and the clock moved past the frame's step is a cut (`MWWorld::HourWatch`, once a frame where the
+  weather updates). A rest or a wait is a cut (`RenderingManager::notifyTimeJumped`) where `World::advanceTime` told it
+  as a change of worldspace.
+- The loading screen's preparation (`Rtx::ContentPreparation` in `Renderer::prepareContent`):
+  `ESMTerrain::Storage::getLayerInfo` public and `Store<ESM::LandTexture>`'s `begin` and `end`
+  (`MWRender::contentLayers`), the `PreparingContent` label in six languages, and a note above it
+  (`Loading::Listener::setNote`, `PreparingContentNote`): a cold start with a large mod list waits minutes there.
+- `Resource::SceneManager::setModelPrograms` (`ModelPrograms::Omitted`), so a renderer that compiles no GLSL loads
+  models without programs; `SceneManager::letGo` and `GenericResourceManager::removeFromCache`, so the preparation lets
+  go of a model, its NIF, its images and their shared state as the last job reading them ends.
+- `components/settings` naming the core's `Upscale` and `MAX_BOUNCE_RAYS`, which `[RTX]` stores and sanitizes.
+
+**How content is loaded** (`docs/architecture.md`, "Loading"), kept in the fork rather than offered upstream; a merge
+that touches `components/resource`, `bsa`, `files` or `platform/file*` resolves against it:
+
+- One load a key in flight (`GenericObjectCache::getOrLoad`), which `SceneManager::getTemplate`, `NifFileManager::get`,
+  `ImageManager::getImage`, `KeyframeManager::get` and `BulletShapeManager::getShape` load through, each load a private
+  function; `CacheStats` counts loads, waits and reloads. Two threads that missed one model both loaded it.
+- An archive opened once and read by position (`Platform::File::readAt`): `Bsa::BSAFile` holds a `Files::SharedFile`,
+  and each entry's `ConstrainedFileStreamBuf` keeps its own position, where each entry opened the archive again (18,082
+  opens of `Morrowind.bsa` in 75 s); POSIX `pread`, Windows `ReadFile` at an `OVERLAPPED`'s offset, the file shared for
+  writing and deletion. Cost: a conflict with an edit to the stream buffer, `BSAFile::open` and `close`, or where the
+  four archive kinds open an entry's stream.
+- The caches kept by a byte budget in one least-recently-used order (`Resource::CacheBudget`, owned by `ResourceSystem`)
+  in place of `cache expiry delay`; each load states its bytes (`Resource::Loaded`), and `navmeshtool` and
+  `bulletobjecttool` hand a budget of nought. Cost: also a conflict with an edit to the managers' constructors,
+  `ResourceSystem`'s, or the physics system's shape manager.
+- `CellPreloader::preload` skips a cell while the caches stand past their budget with everything in use, counted as
+  `CellPreloader Skipped`: a preload is a guess, and past the budget it holds memory the frame needs.
 - A model's texture holds the file's header and not its texels where the renderer reads texels itself
-  (`Resource::ModelImages::Headers`, `Resource::ImageHeader`), by the user's decision: the loaders of a model's
-  textures ask `ImageManager::getModelImage` in place of `getImage` — the NIF loader's `getTextureImage`, the
-  companion maps (`Shader::attachAutoMaps`) and the scene manager's image reader — and a header's texels are its
-  manager's to read again (`Resource::texelsOf`) and to let go of (`releaseTexels`). Cached models held every texel
-  they named, 7.6 GiB of the 8.1 the image cache held under the PBR replacers, while the device stood 2.2. The cost is
-  a conflict with an upstream edit to those three calls or to `ImageManager`'s interface.
+  (`ImageManager::getModelImage` in place of `getImage` in the NIF loader's `getTextureImage`, `attachAutoMaps` and the
+  scene manager's image reader; `Resource::ModelImages::Headers`, `Resource::ImageHeader`, `Resource::texelsOf`,
+  `releaseTexels`): cached models held 7.6 GiB of texels under the PBR replacers while the device held 2.2.
+- The navigator's tiles in the content store (`DetourNavigator::NavMeshTileStore`) in place of its SQLite database,
+  which leaves the build: one store for what the fork derives from the content, shared across profiles, its key
+  versioned (`DetourNavigatorTileVersionTest`). A tile is keyed on its recast mesh's triangles, so `MeshSource` and
+  `ObjectTransform` go, from `ObjectShapes`, `DoorShapes`, `CollisionShape` and `RecastMeshObject` too: a key of file
+  and transform read one pose of an animated part back for every pose. `openmw-navmeshtool` loses
+  `--remove-unused-tiles` and the vacuum, `[Navigator]` loses `write to navmeshdb` and `max navmeshdb file size`, and
+  Recast is the commit `extern/` pins, as the tile version cannot follow a distribution's build. Cost: a conflict with
+  every upstream change to the database worker, the input serialization, `openmw-navmeshtool`, the signatures of
+  `RecastMesh` and `RecastMeshBuilder::addObject`, `TileCachedRecastMeshManager::makeMesh`, and the navigator's calls in
+  `MWWorld::Scene::addObject` and `World::updateNavigatorObject`.
 
-**The rest of the tree.**
+**Runs that repeat**: two runs of one seed must draw the same frames (`./omw repeat`), and each of these broke it:
 
-- The wind held on a paused frame (`MWWorld::windSpeedAfter`), as upstream holds the thunder, by the user's decision:
-  `WeatherManager::update` computes the sky on a paused frame too and keeps none of the wind it steps, so the step's
-  draw used up the world's generator, which a save keeps, and shook the paused sky. The step is a free function the
-  three wind sites call, so a test reaches it. The cost is a conflict with an upstream edit to the wind's lines.
-- `NifOsg::BoxPlacer`, an `osgParticle::BoxPlacer` that draws from `Misc::Rng`, as `ParticleShooter` does, in place
-  of osgParticle's at a NIF emitter (`nifloader.cpp`) and the sky's rain and snow (`sky.cpp`), by the user's
-  decision: osgParticle's draws from the C library's `rand`, which NVIDIA's driver draws from too, inside
-  `vkQueueSubmit2` on the frame's thread and as often as it likes, so two runs of one seed placed every particle
-  elsewhere. The cost is a conflict with an upstream edit to those two lines.
-- `SceneUtil::registerSerializers` called by `Resource::SceneManager` as it is made, and without its
-  `skipGeometry` flag, by the user's decision: upstream's `SceneUtil::Material` wrapper was registered by the
-  editor alone, so the game read the error marker and every `.osgt` model naming the class without its material
-  (`InputStream::readObject(): Unsupported wrapper class SceneUtil::Material`); and the flag, kept by whichever
-  caller came first, swapped `osg::Geometry`'s wrapper for an empty one that every later read took. A
-  `showSceneGraph` dump now writes the geometry's data, and the editor's own call goes. The cost is a conflict with
-  an upstream edit to `registerSerializers`, `SceneManager`'s constructor or the editor's `RenderWidget`.
-- The `[RTX]` settings pages and their translations, and a settings window and a launcher that offer
-  only what the ray tracer honours (`RtxSupportTest`): the rasterizer's pages and controls are
-  removed with their strings, and the launcher's Distant Land is Distant Objects, `object paging`
-  alone. The keys stay in `settings-default.cfg`, which the rasterizer's code reads.
-- `components/crashcatcher`, replaced whole by a Crashpad monitor process, with the calls that set it
-  up from the configuration, and the keeper `wrapApplication` forks first under an AppImage
-  (`Crash::keepImageMounted`): the runtime unmounts the image once no process holds its keepalive
-  pipe, which a monitor, outliving its client, does not. And each line of the log written in one
-  write, its stamp with it (`DebugOutputBase::write`): the monitor appends its summaries to the log
-  from a process of its own, and one that landed between a stamp and its text split the line.
-- The fork's name, OpenMW RTX, where a player tells it from an installed upstream OpenMW: the launcher's and the
-  wizard's window titles, with each translation of them renamed in step, and the menu entry's `Name`. The cost is
-  a conflict with an upstream edit to those lines or those translations.
-- The fork's own `README.md`, `env/` (upstream's `CI/`, renamed for what it holds, the systems a build runs
-  on) and workflows, and the root tooling: `CMakePresets.json`, `.clangd`, `.zed/`, `omw`, `omw.cmd`,
-  `.claude/skills/`, `.gitattributes` and `.gitignore`.
-- The build the presets and Crashpad need: the raised CMake minimum, which reads the presets'
-  `$comment`s; the raised Boost minimum, whose flat maps the scene identities are; no scan for modules,
-  which preprocessed every file twice for modules the tree has none of; the ccache fallback, so a
-  runner without it builds; MSVC's embedded debug information, since ccache caches no compile that
-  writes a shared PDB; and `$<COMPILE_LANGUAGE:C,CXX>`, which keeps the C++ flags off Crashpad's MASM.
-- `install_fork_licenses` and `files/licenses/`: the licences of the third-party code the fork
-  ships, which ask to be shipped with it.
-- `InstallRequiredSystemLibraries` in the Windows install: the fork ships a portable folder and not
-  upstream's installer, which ran the C++ runtime's redistributable.
-- `SceneUtil::CopyRigVisitor` (`attach.cpp`) adds a skinned part's pieces to the skeleton in the order it
-  met them, where a `std::set` of pointers added them in address order: an equipped gauntlet's five pieces
-  stood in another order each run, and with them the ray tracer's scene layout under the PBR stack and the
-  Fullrest Repack, which `shot --against` reported as a scene that differed. A candidate to offer upstream.
-- The optimizer merges drawables (`LessGeometry`) and groups (`MergeGroupsVisitor`) whose states hold the same
-  (`LessStateContent`), not only those that share one state object: whether two equal states are one object is the shared state cache's history, which every
-  loading thread and every prune moves, so a model merged one way in one process and another in the next,
-  and two cold preparations wrote different stores.
-- `MWWorld::Scene::CellStoreCollection` a `std::vector` in the order the cells loaded, and
-  `World::getActiveCells` with it, where a `std::set` of pointers ran in the order of their addresses:
-  a cell change unloaded its cells in another order each run, and everything an unload drives with them
-  (the physics, the navigator, the local scripts, the renderer's frees), so no two runs of one place could
-  be held to one another. A candidate to offer upstream.
-- The visibility gates (`MWScript::VisibilityGates` and the calls that feed them): without them the
-  distance stands scripted stages the game keeps down.
-- The order in `~Engine`: the Lua worker joins first, and the world goes before the script manager.
-  A frame the ray tracer threw out of on purpose left the worker inside its update, and the ray
-  tracer's cell reader marks the visibility gates through the script manager until the world's
-  renderer lets it go.
-- The stamp `NifOsg::Loader` puts on an image a model carries inside it (`SceneUtil::EmbeddedImage`):
-  the ray tracer keys a texture by what names it, and such an image has no file. Vanilla's
-  `tx_crystal_02.nif` is one.
-- `LocalMap::requestMap` asks again for a tile the renderer gave up (`OffscreenView::isAbandoned`):
-  the ray tracer draws a tile frames after it is asked, and one whose scene the game left before
-  then is not drawn over the wrong world.
-- The `SceneUtil::StableIdentity` stamps `MWRender::Objects` puts on every cell root and every
-  reference root, through one maker of a cell root (`Objects::cellRootOf`): the mirror tells roots
-  apart by the stamp and not by their address or their place under the scene root.
-- The lamp body marker (`SceneUtil::LampBody`) that `SceneUtil::addLight` leaves on a light's group:
-  the bounce takes no glow from a lamp's own model, whose light already delivers it, and the
-  rasterizer never reads it.
-- The pose hook in `RenderingManager`'s intersection visitor (`Renderer::poseForIntersection`): a
-  skinned body answers a CPU ray with the pose its last cull left, and the ray tracer culls no
-  world, so the crosshair met every actor in its bind pose. And `SceneUtil::RigGeometry::hasSkeleton`, which the
-  hook asks: a part attached in a frame's logic binds its skeleton in that frame's update, and
-  posed before it the rig logged that it had none.
-- `components/sky/vertexrules.hpp`, which `ModVertexAlphaVisitor` reads: both renderers fade the
-  cloud shell and the star dome by one rule each.
-- `SceneUtil::StateSetUpdater::getGeneration`, which `reset` bumps: the mirror applies an updater to
-  a state set of its own, and a glow that `reset` ended or recoloured left the mirror's copy stale.
-- `MWWorld::MoonModel::phaseEighths`, a phase continuous in game time: the ray tracer draws the moon
-  down to the horizon, where the engine's discrete phase would jump a quarter in plain view.
-- The port to SDL3, through the input, the GUI and the window code: the presentation reads a
-  window's pixel density and display scale, which a fractionally scaled Wayland desktop sets and
-  SDL2 cannot report. What the port changes:
-  - SDL3 has no gamma ramp, so `[Video] gamma` is the renderers' own: the rasterizer's last draw
-    (`PingPongCanvas`) and the ray tracer's tone pass. `[Video] contrast` went with the ramp: it had
-    no menu control, applied on Windows alone, and the tone pass has a contrast grade of its own.
-  - A controller's buttons are bound by place (`SDL_GAMEPAD_BUTTON_SOUTH`), not by Xbox's labels.
-  - A Lua cursor is sized in the frame's pixels, as upstream sized it in the window's, so it is
-    scaled by `Presentation::shownScale` alone.
-  - Where Wayland refuses relative mouse mode and pointer warps, the pointer goes unwrapped and stops
-    at the window's edge (`InputWrapper::mWarpMovesPointer`): each failed warp turned the camera.
-  - A window that is hidden, minimized or occluded draws nothing and pauses, as upstream pauses a
-    minimized one, read from SDL's window flags and not from its events (`SDLUtil::isWindowShown`):
-    KWin minimizes a window by suspending it, which SDL reports as occluded and never as minimized,
-    so the game drew on behind it. KWin suspends a window minimized, on another desktop or behind a
-    locked screen, and not one another window covers (KDE bug 492924).
-  - `[Video] window width/height` hold the window in the desktop's unit, `SDL_GetWindowSize`'s, and
-    a resize stores what the window reports in it (`WindowListener::windowSized`): a size in pixels
-    went through two densities on a Wayland desktop whose displays differ in scale, and shrank at
-    every start. The harness states its window in pixels (`RunSetup::mWindowPixels`).
-- One set of checks for every file, on every compiler: the checks `cmake/Checks.cmake` adds to
-  upstream's, and the hunks in upstream code that keep it clean under them, the patches to
-  `extern/sol3` included. MSVC's `4244` and `4267` are off, since `-Wall -Wextra` leave `-Wconversion`
-  out. `-Wsuggest-override` and `-Wzero-as-null-pointer-constant` hold for upstream's sources as for the
-  fork's, so the eleven sources and six headers in OpenSceneGraph's style (a null pointer spelled `0`, an
-  override left unmarked) carry the edits that keep them clean, decided 2026-11-14: one set of checks with no
-  list of exempt files, against those lines' conflicts with an upstream edit to them. What GCC alone asked, which left with
-  it on 2026-11-12, is upstream's again: the casts `-Wdouble-promotion` asked in 50 files and the 34
-  `Crash::notNull` its flow-sensitive null check asked; an ESM4 group label's cast stays, which `-Wcast-qual`
-  asks. The cost is a conflict with an upstream edit to a hunk that keeps a current check clean.
-- A post-processing technique's integer is held to `int`'s range before it is converted
-  (`fx::Lexer::scanNumber`): a double past it converts to no int, which upstream's check read back after the
-  conversion, and Clang, which builds the fork, folded that check away, so `18446744073709551615` parsed.
-- Base64 encodes a string shorter than one block (`extern/Base64`): its loop ran while `i < in_len - 2`, which
-  wrapped for an empty or one-byte string and read past it; `i + 2 < in_len` is the same bound without the wrap.
-  Approved 2026-11-14.
-- MurmurHash3 reads its blocks through bytes (`extern/smhasher`): it cast a key at any address to
-  `const uint64_t*`, which Clang's undefined-behaviour check stopped on as a misaligned pointer.
-- `CSMWorldUniversalIdTest.shouldFailToConstructFromNoneWithInvalidType` builds its unknown type one past
-  the last, inside the enumeration's range, where `INT_MAX` was outside it and so no value of the type,
-  which Clang's undefined-behaviour check stopped on.
-- A number read from text is finite (`Misc::StringUtils::toNumeric`, which the settings read
-  through): `std::from_chars` reads `inf` and `nan`. And floats are read by `from_chars` alone, which every
-  toolchain the fork builds with reads them through (a `static_assert` says so): upstream's stream for Clang
-  read `1.5x` and `0x10` otherwise than the others did.
-- The test support the fork's suites run under (`components/testing/util.hpp`,
-  `apps/components_tests/main.cpp`): death tests in the `threadsafe` style, since ThreadSanitizer
-  refuses a forked child of a process with threads; a run's output folder keyed on the process as
-  well as the clock, since CTest starts the suites and the GPU shards together; each test's folder
-  emptied at its start (`FreshTestDirs`), so a repeated pass starts from nothing; and upstream's two
-  Lua storage tests (`lua/teststorage.cpp`) writing there and not under a fixed name in the temp
-  directory.
-- What the game does in one step and the ray tracer's histories must hear: a reference the world
-  moves with its physics placed outright is a jump (`World::moveObject`, `notifyJumped`), and a
-  move of the clock past the frame's own step is a cut, found once a frame where the weather is
-  updated (`MWWorld::HourWatch`): a Lua global script writes the hour from the Lua worker while the
-  frame draws. A rest or a wait, which `World::advanceTime` told as a change of worldspace, is a cut
-  (`RenderingManager::notifyTimeJumped`), which keeps the effect manager's clear the old notice made: the
-  renderer keeps the eye's adaptation and the wake across a rest, as across any other cut.
-- What the harness holds of the game through `OMW::EngineHost`, which the game alone asks nothing
-  of: a sky between two weathers for one update (`WeatherManager::holdWeather`), since a filmed
-  frame must name its sky; a game hour the host stated (`holdsGameClock`); a content script's
-  message box logged rather than shown (`showsScriptMessageBoxes`), since a box pauses the world;
-  and a saves folder of the run's own (`getSavesFolder`), since a run's world is god mode and the
-  harness's scripts.
-- The scripts' `math.random` seeded where the harness seeds the world's generators
-  (`LuaUtil::LuaState::seedRandom`): seeded from the clock, the fish `cellhandlers.lua` spawns stood
-  elsewhere in every run.
-- What the loading screen's preparation reads of the content (`Rtx::ContentPreparation`, run inside
-  `Renderer::prepareContent`): `ESMTerrain::Storage::getLayerInfo` made public and `Store<ESM::LandTexture>`'s
-  `begin` and `end`, which list the ground layers as the ground reader finds them (`MWRender::contentLayers`), and
-  the `PreparingContent` label in each of the engine's six languages. And the note the loading screen shows above
-  its label while the preparation runs (`Loading::Listener::setNote`, `PreparingContentNote`): a cold start with a
-  large mod list waits minutes there, and a player told nothing takes it for a hang.
-- What the ray tracer reads of the rasterizer's own state: the projection offset `SceneFrame` is
-  handed beside the projection, and `Precipitation::isShown` and its occlusion setting, so neither
-  renderer draws rain the other hides.
-- `Renderer::support`, asked where the console, Lua and F2 would otherwise
-  toggle what does nothing under the renderer, and `ToggleBorders` under the ray tracer.
-- A Light bolt that strikes no actor stands its light off the surface it struck, for the effect's
-  duration (`files/data-mw/scripts/omw/surfacelight/`), as the user asked: vanilla lit only the
-  actor a bolt struck, and a bolt that struck a wall lit nothing. Built-in scripts, so it is on in
-  every game, through upstream's own projectile hit handler and no engine code.
-- The launcher's DLSS download, into the folder `getUserLocalDataPath` names on each of the two
-  path classes (`LinuxPath`, `WindowsPath`): NVIDIA's feature library is the player's to install, and a per-user folder is one
-  the game may write to on every system.
-- The sky's clocks in `components/sky` (the time of day, the clouds' scroll, the stars' roll) and
-  `SkyManager` split from `Precipitation`: the ray tracer lights an hour and draws the rain with no
-  rasterizer standing, and each reads the one rule the rasterizer reads.
-- The small hooks the mirror reads the game's state through, each an accessor or a stamp of state
-  upstream already keeps: `Terrain::World::getActiveGrid`; `LightController`'s type and colour and
-  `LightSource`'s controller, source radius and const light; `RigGeometry`'s skeleton, influences,
-  bones and skin matrix; `Skeleton::markReached`, which the mirror's pose walk stamps as a cull would;
-  `PaintedTexture`, `ImageRegion` and `OffscreenFraming`, a map tile's picture as both renderers paint
-  it; `Animation`'s glow fade and the glow light's source radius; `World::getStormDirection`; and the
-  terrain's height solved in double, so the ray tracer's ground and the game's agree on every build of
-  OSG.
-- `components/settings` naming the core's `Upscale` and `MAX_BOUNCE_RAYS`, which its `[RTX]` category
-  stores and sanitizes.
-- Faults the user approved fixing:
-  - `Files::LinuxPath` took a failed `read_symlink` for the executable's path (`ec.value() != -1`
-    holds for every error);
-  - `SettingsFileParser::saveSettingsFile` and `StateManager::saveGame` wrote `settings.cfg` and a save in place,
-    so a crash or a full disk during the write left a part of either: both now write through
-    `Platform::writeWhole`, synced, which the platform's I/O library holds (`openmw-platform-io`);
-  - the SDL3 port truncated a window's size over its pixel density, where `SDLUtil::windowPoints`
-    rounds;
-  - `SDLUtil::InputWrapper` logged an unhandled event's type in hex without `std::dec` after it,
-    which left every later number in the log in hex;
-  - `openmw_settings_window.layout` gave the `ScriptBox` widget its `name` attribute twice, which an
-    XML parser refuses;
-  - `Debug::wrapApplication`'s fatal error box read only whether a terminal started the game, not
-    `OPENMW_CRASH_DIALOG` as the crash dialog does, and showed before the error was logged: a start
-    that failed under a harness waited for a click, with nothing in the log.
-  - `Resource::SceneManager` handed OSG's COLLADA reader a model as a stream, which the reader copies
-    into a buffer of its length and parses as a C string, on into whatever the heap held past it: which
-    models loaded followed the order the game read them in, and a renderer that read in another order
-    lost other statics, and four of upstream's integration tests the navigation mesh they stand on. A
-    nought now ends the bytes (`aColladaModelLoadsWhateverWasReadBeforeIt`).
-  - the moon phase a script reads (`GetMasserPhase`, `GetSecundaPhase`) before the weather ran
-    outdoors: upstream gave a new moon until the sky dome existed, so a game started in the prison
-    ship or a save loaded indoors read nought; it is now the date's phase, and the last exterior's
-    after that, as vanilla answers indoors (`WeatherManager::getMoonPhase`);
-  - `Resource::SceneManager` deep-copied a COLLADA rig's state set down to its textures' images, and then
-    put the source's own state set on the copy: on Windows, whose OpenSceneGraph counts a block-compressed
-    image with no chain at four bytes a pixel, the image's copy read past its buffer and ended the game as
-    it loaded the example suite's player body. The rig is copied with its state set shared;
-  - the void reset in `Scene::playerMoved` measured against a point every interior lowered and only
-    `Scene::clear` started over, so a visit to a deep interior left the player under a shallower one's
-    floor; and no collision object moved, rotated, scaled or removed after it was added changed that
-    point, so a lowered platform reset a player standing on it. `MWWorld::LowestPoints` holds the point
-    of each object in the active interior, which `World::collisionObjectChanged` keeps, and
-    `PhysicsSystem::updateScale` scales an object at once, since a shape holds its own scale and the
-    bounds are read next (`void reset in an interior reads that interior alone`, `void reset follows a
-    collision object after it was added`);
-  - the cell preloader was never asked for what inserting an actor builds: `Npc::getModelsToPreload` now
-    lists the worn parts of an NPC the game never met out of its record's inventory (`MWClass::appendRecordWornParts`,
-    `anUnmetNpcListsThePartsItsRecordWears`), and `CreatureLevList::getModelsToPreload` every creature the list may
-    spawn, which made up to 57 of the 293 ms of a crossing's slow frames on a large content list;
-  - the navmesh updater's queue took a delayed job only once no other update was queued, and moved due ones by
-    their distance to the player only when the player's tile changed: a tile near the player changed twice within
-    `min update interval ms` waited behind every farther tile, the whole navmesh after a new game on a slow
-    machine, so a placed object stayed out of the mesh for half a minute. `JobQueue::pop` now ranks a due delayed
-    job with the rest (`pop_should_return_ready_delayed_nearer_to_player_before_farther_updating`);
-  - the navmesh updater read the steady clock wherever it timed a delay, so
-    `repeated_tile_updates_should_be_delayed` raced the wall: posted again once the first batch was built, its tiles
-    stood within the update interval only where that batch built in less, and under ThreadSanitizer on a busy
-    runner none was delayed. The updater now takes the clock it times by (`DetourNavigator::Clock`, the steady
-    one unless a test hands its own), and the job queue takes the time it is asked at from its caller alone;
-  - the launcher showed the language `launcher.cfg` named, or English where it named none, and wrote that
-    language's encoding over the one `openmw.cfg` held at every Play: a Russian profile's first Play turned
-    `win1251` into `win1252`, and the game drew its Cyrillic as Latin-1. The box now shows a language that
-    reads the game's encoding (`Config::languageForEncoding`), and the launcher and the wizard read one
-    table of a language's encoding (`Config::encodingOfLanguage`);
-  - `Scene::addPostponedPhysicsObjects` gave a script's placed object its physics and not its place in the
-    navigation mesh, so actors planned their paths through it until its cell loaded again. It now takes the
-    one route every other collision object takes (`addObject`), which the suite `test_script_placed` holds.
-- `Resource::SceneManager::letGo` and `GenericResourceManager::removeFromCache`: the ray tracer's preparation has
-  the loader's caches let go of a model or an image as the last job reading it ends, its template, its NIF or
-  SpeedTree file, its image and the shared state no template uses (`docs/architecture.md`, "The preparation's memory is
-  dispatched"), where clearing them once a second held a second of walks.
-- The interface's fonts rasterized again while the game runs (`docs/architecture.md`, "A live
-  scale and font size"): `Gui::FontLoader` keeps the TrueType fonts it makes and rasterizes them in
-  place (`FontLoader::fit`), each the one way, the load's included, so a code point a face lacks
-  draws the font's stated substitute after the load as after a fit; each font file's bytes are held
-  in `MyGUIPlatform::DataManager::hold`, so a rasterization reads nothing and sets no resource path;
-  `ScalingLayer::getScaleFactor` takes a stated view; and every text sub-widget is the fork's
-  (`Gui::FontUsers`, `Gui::TrackedText`), standing in MyGUI's factories, so a rasterization reaches
-  every text, and a text with no height of its own takes `[GUI] font size` rather than its font's
-  raster height. A book page is a font user too, which drops its book on a refit and has its owner
-  typeset it again (`BookPage::adviseRetypeset`): the dialogue history through `updateHistory`, and
-  the journal through what it now keeps of how each book on its stack was typeset.
-  `Gui::InterfaceFonts` owns the fonts and both registries and refits them as one, which
-  `WindowManager::layOut` asks of it at every layout (`WindowManager::fitFonts`), in place of the
-  raster the constructor fixed. What else held the scale follows it: `MouseManager` keeps the cursor
-  in the frame's pixels, every window is held inside the view after a layout, the local map
-  describes a tile at the raster of the moment and draws the player's cell again where it moved, and
-  the inventory places itself and sizes its preview on a layout. `[GUI] scaling factor` applies
-  live, from a slider in the Video page that writes it where the player leaves it
-  (`Gui::SettlingScrollBar`).
-- `[GUI] font size` held by the fonts' owner and read from it alone (the same section): the fit is
-  the setting's one reader (`FontFit::mFontSize`), and every size the interface computes from it
-  asks `MWBase::WindowManager::getFontSize`, which a source scan holds to. A fit to another size
-  sets the fonts at it in place and has every text, list and page follow: a text with no height of
-  its own takes its registry's (`FontUsers::getTextHeight`), so `FontWrapper`, which stamped the
-  size into each widget as a height of its own, is gone, and four files that took `Settings` through
-  it include it; every list is the fork's (`Gui::ListBox`), standing in MyGUI's factory, whose lines
-  stand a line of text high and follow, in place of the line height the font loader wrote into every
-  skin as it loaded; a book is typeset at a stated size and drawn at it (`BookTypesetter::create`);
-  and a window that keeps rows sized by it lays them out again (`WindowBase::refitText`), the
-  character creation's dialogs included. `omw/mwui`'s templates follow through an internal handler
-  (`_onFontSizeChanged`), and the setting applies live, from a settling slider in the Video page
-  under the interface scale.
-- The auto normal and specular maps upstream's shader visitor added, moved into one helper both
-  renderers read (`components/shader/automaps`): in the `recreateShaders` path upstream put the
-  specular map on the normal map's unit, which lost the normal map, and took unit 7, which holds
-  the tangents it writes, as a fallback for unit 0's coordinates. Both faults are gone from both.
-- `RenderingManager::getFieldOfView`, which returned the override flag, 1°, wherever a field of
-  view was overridden; and the local map's view built in double, as the ray tracer's map tile reads
-  it.
-- The navigator's tiles in the content store (`DetourNavigator::NavMeshTileStore`), and SQLite out of the build: the
-  fork keeps what it derives from the content in one store, every profile shares the tiles they share, and the store's
-  key covers the code by a version a test holds (`DetourNavigatorTileVersionTest`). `openmw-navmeshtool` writes the
-  store the game reads, and loses `--remove-unused-tiles` and the vacuum; the launcher loses their controls, and
-  `[Navigator]` loses `write to navmeshdb` and `max navmeshdb file size`. The cost is a conflict with every upstream
-  change to the navigator's database worker, its input serialization or `openmw-navmeshtool`, and `upstream.yml`
-  keeps SQLite's files and the navigator's database deleted. Recast is the
-  commit `extern/` pins on every system, its headers included as a system's, since the tile version cannot
-  follow a distribution's build.
-  A tile is keyed on the triangles of its recast mesh, and `MeshSource`, which carried each model's file and transform
-  into upstream's database key, is gone with the source arguments of `RecastMesh` and `RecastMeshBuilder::addObject`:
-  a key of the file and the transform read a tile built in one pose of an animated part back for every pose. The cost
-  is a conflict with an upstream edit to those signatures or to `TileCachedRecastMeshManager::makeMesh`.
-  `ObjectTransform` is gone with it, an object's position and scale that only that key read: `ObjectShapes`,
-  `DoorShapes`, `CollisionShape` and `RecastMeshObject` carry none, and the scene, the world and `openmw-navmeshtool`
-  build none. The cost is a conflict with an upstream edit to the navigator's calls in `MWWorld::Scene`'s
-  `addObject` and `World::updateNavigatorObject`, or to the navmeshtool's objects.
-- GitLab's pipeline, macOS and Android, out of the tree: the fork's CI is GitHub's and it builds
-  Linux and Windows alone. `.gitlab-ci.yml`, `.gitlab/`, every `CI/` script only that pipeline ran,
-  `docker/generic-linux`, and the groups of `CI/install_debian_deps.sh` only it installed go;
-  `omw integration` pins the example suite's revision itself (`EXAMPLE_SUITE_REVISION`), which
-  `upstream.yml` copies from upstream's pipeline at each merge. macOS's bundle, its files under
-  `files/mac`, `cmake/SignMacApplications.cmake`, `Files::MacOsPath`, and every `APPLE`, `__APPLE__`
-  and `Q_OS_MAC` branch go; so do Android's entry (`androidmain.cpp`), `Files::AndroidPath`, its
-  ICU cross-build, gl4es's manual start (`OPENMW_GL4ES_MANUAL_INIT`) with the GLES context it asked
-  for, and every `ANDROID` branch. `upstream.yml` keeps every deleted path deleted, so an upstream
-  change to one holds no merge; the cost is a conflict with every upstream change inside a macOS or
-  Android branch of a file the fork keeps. What only those builds and GitLab's generic Linux build
-  used goes with them: OpenSceneGraph, MyGUI, Bullet and ICU built from source, every static link
-  of them (`OSG_STATIC`, `MYGUI_STATIC`, `BULLET_STATIC`, `QT_STATIC`, `cmake/WholeArchive.cmake`),
-  so each comes from the system on Linux and from vcpkg on Windows; and the FreeBSD, OpenBSD and
-  MinGW branches.
-- CMake 4.4 at least (`cmake_minimum_required`), and every check for an older one gone: `omw`
-  builds with Kitware's 4.4.5 on every system, which GitHub's runners and Ubuntu do not carry. The
-  cost is a conflict with an upstream change to the lines around the checks.
-- clang-format 23.1.5 in place of 14, with upstream's `.clang-format`, over upstream's sources as over
-  the fork's, with C++ LF on every clone: one formatter for one tree, the same on every system. The
-  cost is a reformat of 294 sources where 23 lays upstream's style out otherwise, and a table written
-  in rows that loses its trailing comma, which 23 reads as one element a line; `omw merge-file` takes
-  the layout out of each merge, as the merge workflow lays out the base and both sides with the pinned
-  clang-format before git merges them.
-- Upstream's project files and scripts the fork has no use for: `.resubmitted_merge_requests.txt`
-  (GitLab's bookkeeping), `.readthedocs.yaml` (upstream's published manual), `CONTRIBUTING.md`
-  (upstream's merge requests; the fork's rules are `AGENTS.md`), and under `scripts/` the Teal
-  declarations and preprocessed-size scripts only GitLab's pipeline ran, with `osg_stats.py` and
-  `HOWTO-benchmark.md` for the rasterizer's OSG statistics, where `omw bench` measures the ray tracer.
-  And upstream's `docs/`: its user manual (`docs/source`), which the fork publishes nowhere and upstream's online
-  manual stands for, the Docker image and scripts that build it, the Doxygen API reference nothing built with the
-  `doc.hpp` files that held only its groups, and the
-  post-1.0 roadmap (`openmw-stage1.md`); and `manual/`, the LaTeX manual of OpenMW-CS, which the fork does not ship;
-  `docs/` holds the fork's own, and what the fork wrote in the manual, the
-  `[RTX]` settings and its changes to upstream's, is `docs/settings.md`.
-  `upstream.yml` keeps them deleted. `.editorconfig` covers the ray tracer's shaders and the headers
-  GLSL and C++ share (`.h`, `.rgen`), LF as `.gitattributes` holds C++, and loses the stages the tree has
-  no file of.
-- AlmaLinux 8 with gcc-toolset-15 for CI's Linux builds, the vcpkg set and the release image, from
-  `env/install_almalinux_deps.sh`, in place of upstream's Ubuntu 24.04: the AppImage runs on glibc 2.28. A desk on
-  Ubuntu 26.04 installs the same system headers from `env/install_ubuntu_deps.sh`, with upstream's
-  `install_debian_deps.sh` folded into it, and so does CI's tsan job, which runs on the runner itself. Both build with
-  the pinned Clang over GCC 15's libstdc++, in place of upstream's GCC. The cost is a conflict with upstream's edits to
-  its package lists.
-- `components/CMakeLists.txt` as `openmw-components` and `openmw-components-qt`, each folder's files
-  named in a `target_sources` list and its headers as a file set, in place of the stem macros
-  (`add_component_dir`, `add_component_qt_dir`) and the hand-made unity build (`enable_unity_build`,
-  `OPENMW_UNITY_BUILD`), with no unity build in their place; without upstream's nested
-  `project (Components)`; the platform folder's lists in `components/platform/CMakeLists.txt`, for Windows
-  and Linux alone, so upstream's other Unix and `filestdio.cpp` branches go; every app linking the new names. The cost is a conflict with every upstream change to a component's list,
-  which the merge resolves by naming the file in its folder's list.
-- Every app's `CMakeLists.txt` in the same form: files named in `target_sources` lists in place of
-  `add_openmw_dir`, `opencs_units` and `opencs_hdrs`, `add_executable` and `qt_add_executable` in place of
-  upstream's wrappers, Qt's resources through `AUTORCC`, and `openmw-navmeshtool` without its library. The cost is a conflict with every upstream change
-  to an app's list, which the merge resolves by naming the file in its list.
-- The test binaries and benchmarks in the same form: files named in `target_sources` lists in place of
-  `file(GLOB)` over names, links in the keyword form. The cost is a conflict with every upstream change to a
-  test list, which the merge resolves by naming the file in its list.
-- The fork's benchmarks beside upstream's: `add_subdirectory(rtx)` in `apps/benchmarks/CMakeLists.txt`, for
-  `apps/benchmarks/rtx`, where Google Benchmark binaries live and CTest runs each one's dry run. The cost is a
-  conflict with an upstream benchmark added on the same line.
-- The top-level `CMakeLists.txt` split by responsibility: options and the install layout in
-  `cmake/Options.cmake`, every `find_package` in `cmake/Dependencies.cmake`, the install rules in
-  `cmake/Install.cmake`, the vendored libraries in `extern/CMakeLists.txt`, the resource files in
-  `files/CMakeLists.txt`, the Qt translations in `files/lang/CMakeLists.txt`; the version from `project(VERSION)`. CPack and the NSIS installer go, with the
-  `vcredist` bundling, the Visual Studio generator's compiler override and the branches for compilers below
-  the floor. The cost is a conflict with every upstream change to the root, which the merge places in the
-  file that now holds it.
-- Every setting on a target: the found packages as imported targets carrying their headers and the
-  definitions those need, sol3 a target in `extern/`, and Windows's header trims and MSVC's options an
-  interface target every tree-built target links, in place of the directory-wide `include_directories`,
-  `add_compile_definitions` and `add_compile_options`; `OPENMW_MP_BUILD`, which only the Visual Studio
-  generator read, goes. The cost is a conflict with an upstream change to a link list or a found package.
-- Every CMake option and cache entry named `OPENMW_*`, upstream's `BUILD_*`, `USE_*` and bare names
-  renamed (`BUILD_OPENMW` is `OPENMW_BUILD_GAME`, `BUILD_OPENCS` `OPENMW_BUILD_CS`): one style for one
-  tree, since GitLab's pipeline, the names' only outside reader, is gone. The cost is a conflict with an
-  upstream change that adds or reads an option, which the merge renames.
-- Every CMake file laid out by gersemi 0.29.2 (`.gersemirc`), upstream's among them, as clang-format lays out
-  the C++; `omw lint cmake`, upstream's tab check, goes, since
-  the layout holds it. The cost is a conflict with every upstream change to a CMake file, which the rewrite of
-  every one already costs.
-- `components/stereo/multiview.cpp`'s `sMultiview`, written twice and never read, gone: Clang 23's
-  `-Wunused-but-set-global` stopped the build on it. The call that caches and logs whether multiview
-  stands stays. The cost is a conflict with an upstream edit to `configureExtensions`.
-- One build in place of upstream's switches (`docs/build.md`): every configuration's flags in `cmake/Flags.cmake`,
-  read through `CMAKE_USER_MAKE_RULES_OVERRIDE`, with line tables and frame pointers in Release too and a PDB on every
-  MSVC link; warnings as errors by CMake's `CMAKE_COMPILE_WARNING_AS_ERROR` in place of `OPENMW_CXX_FLAGS` and
-  `OPENMW_MSVC_WERROR`, and link-time optimisation by `CMAKE_INTERPROCEDURAL_OPTIMIZATION` in place of `OPENMW_LTO`.
-  Gone with their branches: every program's switch (`OPENMW_BUILD_*`), as every flavour builds every program, the
-  tests and benchmarks behind CMake's own `BUILD_TESTING`; plain Lua (`OPENMW_LUAJIT`; the sources' `NO_LUAJIT` branches stay, as upstream wrote them), the system's
-  TinyXML (`OPENMW_SYSTEM_TINYXML`, `cmake/FindTinyXML.cmake`), coverage, every precompiled header
-  (`OPENMW_MSVC_PRECOMPILED_HEADERS`), since ccache caches through none, and the console option, the console fixed to
-  Debug and RelWithDebInfo as its default had it. One portable install layout on every system, every file beside the
-  programs and the libraries in `lib/`, so the system-install branch goes: `OPENMW_LOCAL_INSTALL`, the suffixes, the
-  icon folder, the `GLOBAL_*` cache entries, which `Files::LinuxPath` reads as empty, and the global
-  `files/openmw.cfg`. Every generator single-config, so `get_generator_is_multi_config` and the per-configuration
-  resource folders go. One Windows manifest for every program, `files/windows/openmw.manifest`, which `openmw-system`
-  adds to each executable: the game's `openmw.exe.manifest` and its line in `openmw.rc` go, and the game gains the
-  per-monitor DPI awareness and long paths the other programs had. The cost is a conflict with every upstream change
-  to an option, a precompiled header list or a manifest line, which the merge drops.
-- Every third-party library from the vcpkg set, static (`vcpkg.json`, `docs/build.md`), in place of the system's
-  on Linux and upstream's prebuilt set on Windows, whose tags `CI/deps_versions.msvc.sh` held and which goes:
-  `cmake/Dependencies.cmake` finds each package by its own CMake files or pkg-config's, with no version floors, and
-  every fetched project is built from its pinned archive alone, never a system's (`FIND_PACKAGE_ARGS`). The finders
-  the set's own files replace go (`FindFFmpeg`, `FindLZ4`, `FindMyGUI`, `FindOSGPlugins`, `FindLIBUNSHIELD`,
-  `FindLuaJit` with `LibFindMacros` and `COPYING-CMAKE-SCRIPTS`, the licence of finders gone before, and the unused
-  `FindSphinx`), and so do `CheckBulletPrecision`, as the set's Bullet states its precision, and
-  `CheckLuaCustomAllocator`, a warning about the one LuaJIT the set pins. OpenSceneGraph's plugins are linked static
-  and registered in one generated file every program takes (`components/resource/osgplugins.cpp.in`), as upstream's
-  static builds did in `imagemanager.cpp`; upstream's run-time check that they can be loaded
-  (`Misc::checkRequiredOSGPluginsArePresent`, its call in `apps/openmw/main.cpp`) goes, since the link now holds them.
-  The cost is a conflict with an upstream change to a found package, a plugin or the check.
-- `docker/`, upstream's Ubuntu build in a container (OpenMW's PPA, SDL2, Qt 5, `cmake` and `make`), which cannot
-  build a tree that takes its libraries from the vcpkg set and builds through `omw`: the release's container is
-  `env/release-base.Dockerfile`. `upstream.yml` keeps the folder deleted, which drops an upstream edit to it at
-  the merge.
-- Dead CMake gone: `cmake/escape_regex_control_characters.cmake`, which
-  nothing called; the commit date the root read with `git log` at every configure, which only the AppStream
-  metadata's release date read; the
-  `OPENMW_RESOURCES_ROOT` guards atop `files/data`, `files/data-mw`, `files/shaders` and `files/lua_api`,
-  which the root always sets first; the install components, which nothing installs by since CPack went; the
-  empty `CMAKE_CXX_CLANG_TIDY` in `extern/`; and `mwmechanics/character.cpp`'s `-Wno-maybe-uninitialized`,
-  a flag of GCC's, which builds nothing of the tree. The cost is a conflict with an upstream edit to those lines.
-- What the pinned set makes constant, no longer tested:
-  `cmake/CheckOsgMultiview.cmake`'s `try_compile`, as OpenMW's OSG at the pinned commit has no multiview, so
-  `OSG_HAS_MULTIVIEW` is never defined and the sources' multiview branches stay unbuilt, as they were;
-  `files/data-mw`'s configure dependency for every generator but Ninja, which is every preset's; and
-  `OPENMW_USE_UNSHIELD`, the tree's own spelling of `NOT WIN32`, which the wizard's list and the unshield search
-  now read directly (the wizard's source keeps its definition). The cost is a conflict with an upstream edit to
-  those lines.
-- Resources through `configure_file` itself: `copy_resource_file`,
-  `configure_resource_file` and `copy_all_resource_files`, which joined a path and called it, go from
-  `cmake/OpenMWMacros.cmake`, and `GitVersion.cmake` no longer includes that file. The runtime folder has one
-  name, CMake's `CMAKE_RUNTIME_OUTPUT_DIRECTORY`, where `OPENMW_RESOURCES_ROOT` and `PROJECT_BINARY_DIR` named
-  it too. The cost is a conflict with an upstream change to a resource list's loop.
-- The version filled once: a build is of a Git clone, which a configure
-  without `.git` refuses, so `GIT_CHECKOUT` and the configure-time fallback with empty hashes go. The version
-  files are configured once with everything but the commit, its date and the latest tag, and
-  `cmake/GitVersion.cmake` fills the commit and the latest tag at every build. The templates read `PROJECT_VERSION*`, so the
-  `OPENMW_VERSION_*` copies of it go. The cost is a conflict with an upstream edit to the version's templates
-  or its target.
-- Each dependency found one way: libunshield by its header and archive, as
-  MyGUI and LuaJIT are, in place of pkg-config, which no other package needs; Boost in one `find_package`; and
-  Google Test and Google Benchmark under one `BUILD_TESTING`. The cost is a conflict with an upstream edit to
-  those finds.
-- Third-party code in one style and quiet: the vendored projects under
-  `extern/` (`osgQt`, `oics`, `osg-ffmpeg-videoplayer`, `smhasher`, `rgbcx`) named and listed as the tree's own
-  targets are, with keyword links and `osgQt` through `AUTOMOC` in place of `qt_wrap_cpp`, and their warnings
-  off from `extern/`'s directory flags in place of `rgbcx`'s own branch. The cost is a conflict with an upstream
-  edit to one of those lists.
-- Tests and smoke runs: the test binaries' `-Og` an interface target each
-  links where it is defined, in place of a property `openmw_add_test` set once a binary; the system's half of the
-  test support one object library the three binaries that read it link, in place of a choice in each; and the
-  benchmarks CTest tests that run Google Benchmark's dry run, in place of CI's step that ran them. The cost is a
-  conflict with an upstream edit to a test binary's link list.
-- Translations: the `translations` and `purge-obsolete-translations`
-  targets go for `omw translations [--purge]`, which reads the one source list `omw lint translations` checks
-  against; the `.qm` files through `qt_add_lrelease` in place of the deprecated `qt_add_translation`; Qt's own
-  translations from `QT6_INSTALL_TRANSLATIONS` in place of `qmake -query`, `qtbase_` alone, as every language
-  has it. The cost is a conflict with an upstream edit to those targets.
-- Install and Windows properties: each installed program's own PDB, by
-  `$<TARGET_PDB_FILE>`, in place of every `.pdb` in the build's root folder less 14 named folders, which also
-  carried the tests' and the harness's; the game's console by `WIN32_EXECUTABLE` set to `$<CONFIG:Release>` in
-  place of an MSVC branch around `/SUBSYSTEM`. The cost is a conflict with an upstream edit to those lines.
-- `/cgthreads1` gone from its 8 files: upstream's, for a runner with 8 GB,
-  where the fork's public repository's Windows runners have 16 GB; held by three Windows runs without it. The
-  cost is a conflict with an upstream edit to those lists.
-- One set of flags, the set's code generation shared: the sanitizers,
-  MSVC's runtime and debug information format, and position-independent programs in `cmake/Flags.cmake`, out of
-  `cmake/Options.cmake` and the root; the build types narrowed to the two `cmake/Flags.cmake` defines,
-  `RelWithDebInfo` and `Release`. The cost is a conflict with an upstream edit to those lines.
-- The build files in one layout: the installed programs named once in
-  `cmake/Install.cmake`, in place of an `install(TARGETS)` in each app's
-  folder; the CS's console as the game's, by `WIN32_EXECUTABLE` set to `$<CONFIG:Release>`, where upstream opens
-  one in every configuration; the set's libraries without CMake targets imported by one function; `pack_resource_file`
-  written out in `files/`, its one caller, and `openmw_qt_platforms` beside Qt's `find_package`, so
-  `cmake/OpenMWMacros.cmake` and `CMAKE_MODULE_PATH` go. The cost is a conflict with an upstream edit to an app's
-  install line, the CS's executable, or those finds.
-- What an archive carries, by name: the programs, `LICENSE` and the licences, the configuration, the settings'
-  defaults, the controller mappings, and the resource folders a program reads at run time, the virtual file
-  system without the post-processing shaders and the water's normal map only the rasterizer reads; the menu entry
-  and its icon on Linux. Gone from the install: `README.md`, `AUTHORS.md` and the changelog, the rasterizer's
-  `resources/shaders`, the modders' `resources/lua_api`, the editor's `defaultfilters`, the PDBs, which a release
-  publishes apart, and the AppStream metadata (`files/openmw.appdata.xml`), which an AppImage does not need, with
-  the commit date only its release date read. `upstream.yml` keeps the metadata deleted. The cost is a conflict
-  with an upstream edit to the install rules or the version's templates.
-- `openmw-lib` an object library rather than a static one: under MSVC's link-time code generation its archive
-  came to 3.6 GB of the 4 GB `lib.exe` writes (LNK1248), and the three programs that link it, the game, the
-  harness and `openmw-tests`, take its objects directly. The cost is a conflict with an upstream edit to that line.
-- The launcher's and the wizard's look (`docs/look.md`): `Platform::Application` takes a `Platform::Look`,
-  and for `Graphite` dresses the program in the fork's palette and style and skips upstream's Windows dark
-  mode, which the editor keeps; the launcher and the wizard no longer build upstream's Windows dark sheet in.
-  The cost is a conflict with an upstream edit to the application's constructor or to those three calls.
-- The launcher's glyphs and error ink (`docs/look.md`): its toolbar's pages drawn from Lucide's icons in
-  code rather than Oxygen's PNGs in `mainwindow.ui`, which leave the tree, its fallback icon theme always taken
-  and redrawn from Lucide, and an invalid profile name in the look's error ink rather than `Qt::red`. The
-  cost is a conflict with an upstream edit to those icons or to the two lines that colour a name.
-- The launcher's contains-data mark from Lucide through `Misc::ScalableIcon` rather than Oxygen's
-  `openmw-plugin.png`, which leaves the tree, and the wizard's four icons redrawn from Lucide in place
-  (`docs/look.md`). The cost is a conflict with an upstream edit to that line or to those icons.
-- The launcher's window 900 by 760 at first and with no minimum of its own (`mainwindow.ui`), by the user's
-  decision, so Qt holds it to what its pages need: a stated 775 by 635 overrode that, and a window restored
-  shorter than a page squeezed the page's nested rows below a row's height. The cost is a conflict with an
-  upstream edit to the window's size.
-- The content selector's game file list a third of its row and the search field two (`horizLayout`'s
-  stretch in `contentselector.ui`), by the user's decision, where the list hugged its longest name and its
-  chevron. The cost is a conflict with an upstream edit to that layout.
-- The reference walk `ObjectPaging` hands the ray tracer (`visitESM3References` and `visitESM4References` into a
-  sink, `Terrain::RefKinds`, `Terrain::PagedCellRef`): the ray tracer stands the statics and the lights of the cells
-  past the active grid from the walk the rasterizer's paging reads, filtered by what each renderer takes. The cost
-  is a conflict with an upstream edit to the two walks or to `typeFilter`.
-- MyGUI's backend behind `MyGUIPlatform::GuiRenderManager` (`components/myguiplatform`), which `myguirtx`
-  implements beside OSG's, and `VideoWidget` sharing its texture through `MyGUIPlatform::shareTexture`: the
-  interface draws through whichever renderer the game started. The cost is a conflict with an upstream edit to the
-  platform's files or to `videowidget.cpp`'s texture.
-- The rules a ripple and the sea are made by, each in a header both renderers read: `ripplerules.hpp`
-  (`isWading`, `strikesWater`, the ripple's size), which `RippleSimulation` reads in place of its own lines, and
-  `searules.hpp`, the sea's plane and its centre under a cell. The cost is a conflict with an upstream edit to
-  `ripplesimulation.cpp`'s emission lines.
-- `Resource::SceneManager::setModelPrograms` (`ModelPrograms::Omitted`), `setAutoMaps` in place of the five
-  pattern setters, and `letGo`: a renderer that compiles no GLSL loads models without their programs, both
-  renderers find a model's companion maps by one rule (`Shader::AutoMapRules`), and the ray tracer's preparation
-  lets go of what it read. The cost is a conflict with an upstream edit to those setters or to the shader
-  visitor `getTemplate` runs.
-- A script's post-processing shader under a renderer that declines the chain (`postprocessingbindings.cpp`) loads
-  by name and draws nothing, and the chain lists empty, asked of the seam as every other caller asks it
-  (`RenderSupport::declinedSetting`): a mod's script that loaded one stopped at the null post-processor. The cost
-  is a conflict with an upstream edit to the shader's methods or to `load` and `getChain`.
-- `DensityCalculator` in a header of its own (`groundcoverdensity.hpp`), which the ray tracer's groundcover
-  reads: both renderers thin the grass by one rule. The cost is a conflict with an upstream edit to the class,
-  which no longer stands in `groundcover.cpp`.
-- The tree held to `.clang-tidy` (`omw tidy`), by the user's decision: the classes of bug clang-tidy finds, and the
-  rules `AGENTS.md` states where a check states them, over upstream's code as over the fork's, each check's fixes
-  in a commit of its own. Upstream's own `.clang-tidy` is replaced; its naming stays at the kinds upstream enforces,
-  and checks of style alone stay out, as their fixes would touch most of upstream's files for no fault. The cost is
-  a conflict with an upstream edit to the lines the fixes touched, and upstream code a merge brings that the checks
-  refuse, which `omw tidy` names.
-- What the checks found on Windows alone, by the user's request to fix it all, among it: the flag enums that hold
-  `0x80000000` typed `std::uint32_t`, which GCC gave them and MSVC's `int` did not; `Files::LinuxPath` and
-  `Files::WindowsPath` compiled on their own system, chosen by CMake as `dlss/` is; `openmw-iniimporter` reading its
-  arguments through `Platform::Process::commandLine` in place of its own `wmain`; `CS::Editor`'s destructor removing
-  its pid file through an error code; and the registry read in `windowspath.cpp` written into the string's size,
-  where it wrote past it into its capacity. The cost is a conflict with an upstream edit to those lines.
-- The checks the user widened the lint to, over upstream's code as over the fork's, each check whole or refused
-  (`.clang-tidy` names the refused and why): every member a constructor leaves unset given a value, the enum
-  members whose type names no zero given its zero (`ESM::AI_None`, `ESM::ActiveSpells::Flag_None`); parameters copied
-  and only read taken by `const&`, and kept ones by value and moved; deleted copies public; a declaration's
-  parameters named as its definition's; `#if 0` blocks deleted and `#if 1` unwrapped (`mwshadowtechnique.cpp`,
-  `optimizer.cpp`, the ESM4 loaders); strings built once with `std::format` where a loop concatenated them; the
-  C library's results the code cannot act on discarded explicitly; `pthread_sigmask` in place of `sigprocmask` in the
-  crash image's handlers, as POSIX leaves the latter unspecified with threads; `Files::LinuxPath` asking
-  `Platform::userHome`, which reads the password database reentrantly, in place of its own `getpwuid`; and
-  `Crash::runMonitorIfAsked` answering the monitor's exit code for `main` to return, in place of `std::exit`. The
-  cost is a conflict with an upstream edit to the lines the fixes touched.
-- `Misc::ScalableIcon`'s copy, which `clone` makes, registered as the original is, by the user's decision to hold
-  the tree to `cppcoreguidelines-special-member-functions`: its implicit copy left a clone out of the set
-  `updateAllIcons` repaints on a theme change. The cost is a conflict with an upstream edit to the class's
-  constructors.
-- Every header of `apps/` and `components/` guarded by `#pragma once`, upstream's 1,400 include guards among them,
-  by the user's decision: one spelling of a guard across the tree, as `AGENTS.md` writes the fork's, which
-  `omw lint pragmas` holds and CI's checks job runs. The headers GLSL reads as well keep their guards, for the
-  reason `portable.h` gives, and the UTF-8 tables' generator writes the pragma. The cost is a conflict with an
-  upstream edit to a header's first or last lines, and a header upstream adds arriving with a guard, which the
-  lint names.
+- the wind held on a paused frame (`MWWorld::windSpeedAfter`, called at the three wind sites), as upstream holds the
+  thunder: `WeatherManager::update`'s paused step drew from the world's generator, which a save keeps;
+- `NifOsg::BoxPlacer` drawing from `Misc::Rng`, as `ParticleShooter` does, in place of `osgParticle::BoxPlacer`, whose
+  `rand` NVIDIA's driver also draws from inside `vkQueueSubmit2` (`nifloader.cpp`, `sky.cpp`);
+- `SceneUtil::CopyRigVisitor` (`attach.cpp`) adds a skinned part's pieces in the order met, where a `std::set` of
+  pointers added them by address (a candidate for upstream);
+- the optimizer merges drawables (`LessGeometry`) and groups (`MergeGroupsVisitor`) whose states hold the same
+  (`LessStateContent`), not only those sharing one state object, which the shared state cache's history decides;
+- `MWWorld::Scene::CellStoreCollection` a `std::vector` in load order, and `World::getActiveCells` with it, where a set
+  of pointers unloaded cells in address order (a candidate for upstream);
+- the scripts' `math.random` seeded where the harness seeds the world (`LuaUtil::LuaState::seedRandom`).
+
+**What a crash report says**:
+
+- `components/crashcatcher` replaced by a Crashpad monitor process, with the keeper `wrapApplication` forks under an
+  AppImage (`Crash::keepImageMounted`), since a monitor outlives the pipe that keeps the image mounted.
+- Each log line written in one write with its stamp (`DebugOutputBase::write`), as the monitor appends to the log from
+  another process.
+- A crash note (`Crash::NoteScope`) at `SceneManager::getTemplate`'s load, `StateManager::loadGame`'s save and records,
+  and `Scene::changeCellGrid` and `Scene::changeToInteriorCell`; a model's VFS path on its root
+  (`Misc::OsgUserValues::sFilePath`), so a refusal and a note name the file.
+- `Debug::wrapApplication`'s fatal error box reads `OPENMW_CRASH_DIALOG` as the crash dialog does, and shows after the
+  error is logged: under a harness it waited for a click with nothing in the log.
+
+**What the harness holds of the game** (`OMW::EngineHost`, which the game alone asks nothing of): a sky between two
+weathers for one update (`WeatherManager::holdWeather`), a stated game hour (`holdsGameClock`), a script's message box
+logged rather than shown (`showsScriptMessageBoxes`), and a saves folder of the run's own (`getSavesFolder`). And the
+test support (`components/testing/util.hpp`, `apps/components_tests/main.cpp`): death tests in the `threadsafe` style
+for ThreadSanitizer, a run's folder keyed on the process too, each test's folder emptied at its start (`FreshTestDirs`),
+and upstream's two Lua storage tests writing there.
+
+**The interface**:
+
+- The `[RTX]` settings pages and their translations; the settings window and the launcher offer only what the ray tracer
+  honours (`RtxSupportTest`), the rasterizer's pages removed with their strings and Distant Land made Distant Objects.
+  The keys stay in `settings-default.cfg`, which the rasterizer reads.
+- The fork's name, OpenMW RTX, in the launcher's and the wizard's titles, their translations and the menu entry.
+- The port to SDL3, for the pixel density and display scale a fractionally scaled Wayland desktop sets:
+  - `[Video] gamma` is the renderers' own (`PingPongCanvas`, the tone pass), as SDL3 has no gamma ramp, and `[Video]
+    contrast` goes with it;
+  - a controller's buttons are bound by place (`SDL_GAMEPAD_BUTTON_SOUTH`);
+  - a Lua cursor is sized in the frame's pixels (`Presentation::shownScale`);
+  - where Wayland refuses relative mode and warps, the pointer goes unwrapped (`InputWrapper::mWarpMovesPointer`);
+  - a hidden, minimized or occluded window draws nothing and pauses, read from the window's flags
+    (`SDLUtil::isWindowShown`), as KWin suspends a minimized window and reports it occluded (KDE bug 492924);
+  - `[Video] window width/height` hold the desktop's unit (`WindowListener::windowSized`), and only a restored window's
+    size is stored (`SDLUtil::isRestoredSize`), where a size in pixels shrank at every start and a maximized size opened
+    the next start's window that large.
+- The fonts rasterized again while the game runs (`docs/architecture.md`, "A live scale and font size"):
+  `Gui::FontLoader` keeps its TrueType fonts and refits them in place (`FontLoader::fit`); each font file's bytes are
+  held (`MyGUIPlatform::DataManager::hold`); every text sub-widget and list is the fork's (`Gui::FontUsers`,
+  `Gui::TrackedText`, `Gui::ListBox`) in MyGUI's factories; a book page drops its book on a refit and its owner typesets
+  it again (`BookPage::adviseRetypeset`); `Gui::InterfaceFonts` owns fonts and registries and refits them at every
+  layout (`WindowManager::fitFonts`). The cursor, the windows, the local map and the inventory follow the scale, and
+  `[GUI] scaling factor` applies live from a settling slider (`Gui::SettlingScrollBar`).
+- `[GUI] font size` read from the fonts' owner alone (`FontFit::mFontSize`, `MWBase::WindowManager::getFontSize`, held
+  by a source scan): `FontWrapper` goes, a book is typeset at a stated size (`BookTypesetter::create`), a window with
+  rows sized by it lays them out again (`WindowBase::refitText`), and `omw/mwui` follows (`_onFontSizeChanged`). It
+  applies live from a slider under the interface scale.
+- The launcher's look (`docs/look.md`): `Platform::Application` takes a `Platform::Look`, and `Graphite` dresses the
+  launcher and the wizard in the fork's palette, skipping upstream's Windows dark mode, which the editor keeps; the
+  toolbar's pages, the fallback icon theme, the contains-data mark and the wizard's four icons drawn from Lucide in
+  place of Oxygen's PNGs, which leave the tree; an invalid profile name in the look's error ink.
+- The launcher's window 900 by 760 at first with no minimum of its own, so Qt holds it to what its pages need; the
+  content selector's game file list a third of its row and the search field two.
+- The launcher's DLSS download, into `getUserLocalDataPath` (`LinuxPath`, `WindowsPath`): NVIDIA's feature library is
+  the player's to install, and that folder is writable on every system.
+- A Light bolt that strikes no actor lights the surface it struck for the effect's duration
+  (`files/data-mw/scripts/omw/surfacelight/`), as the user asked: built-in scripts through upstream's projectile hit
+  handler, no engine code.
+
+**Faults fixed**:
+
+- `Files::LinuxPath` took a failed `read_symlink` for the executable's path (`ec.value() != -1` holds for every error).
+- `SettingsFileParser::saveSettingsFile` and `StateManager::saveGame` wrote in place, so a crash or a full disk left
+  part of either: both write through `Platform::writeWhole`, synced (`openmw-platform-io`), and a save the system could
+  not confirm on the disk is a warning.
+- The SDL3 port truncated a window's size over its pixel density (`SDLUtil::windowPoints` rounds).
+- `SDLUtil::InputWrapper` logged an event type in hex without `std::dec`, which left every later number in hex.
+- `openmw_settings_window.layout` gave `ScriptBox` its `name` twice, which an XML parser refuses.
+- OSG's COLLADA reader was handed a stream it parses as a C string, past the model into the heap: a nought now ends the
+  bytes (`aColladaModelLoadsWhateverWasReadBeforeIt`). And a COLLADA rig's state set was deep-copied down to its images,
+  which read past a block-compressed image's buffer on Windows; the rig is copied with its state set shared.
+- `GetMasserPhase` and `GetSecundaPhase` read a new moon until the sky dome existed; they read the date's phase, and the
+  last exterior's after that (`WeatherManager::getMoonPhase`).
+- The void reset in `Scene::playerMoved` measured against a point every interior lowered and no moved object changed:
+  `MWWorld::LowestPoints` holds the active interior's, kept by `World::collisionObjectChanged`, and
+  `PhysicsSystem::updateScale` scales at once (`void reset in an interior reads that interior alone`).
+- The cell preloader missed what inserting an actor builds: `Npc::getModelsToPreload` lists an unmet NPC's worn parts
+  (`MWClass::appendRecordWornParts`), and `CreatureLevList::getModelsToPreload` every creature the list may spawn: up to
+  57 of a crossing's 293 ms slow frames on a large content list.
+- The navmesh job queue ranks a due delayed job with the rest (`JobQueue::pop`), where a near tile changed twice waited
+  behind every farther one; the updater takes its clock (`DetourNavigator::Clock`), so a delay test no longer races the
+  wall.
+- The launcher wrote its shown language's encoding over `openmw.cfg`'s at every Play, turning `win1251` into `win1252`:
+  it shows a language that reads the game's encoding (`Config::languageForEncoding`), from one table
+  (`Config::encodingOfLanguage`).
+- `Scene::addPostponedPhysicsObjects` gave a script's placed object physics and no navmesh place; it now takes
+  `addObject`, as every collision object does (`test_script_placed`).
+- `SceneUtil::registerSerializers` is called by `SceneManager` as it is made, without `skipGeometry`: the game read
+  `SceneUtil::Material` models without the wrapper the editor alone registered, and the flag swapped `osg::Geometry`'s
+  wrapper for an empty one. The editor's own call in `RenderWidget` goes.
+- `RenderingManager::getFieldOfView` returned the override flag, 1°, wherever a field of view was overridden; the local
+  map's view is built in double, as the ray tracer reads it.
+- A post-processing integer is held to `int`'s range before conversion (`fx::Lexer::scanNumber`): Clang folded the check
+  after it away.
+- `Misc::StringUtils::toNumeric` refuses `inf` and `nan`, and reads floats by `from_chars` alone (a `static_assert`
+  holds every toolchain to it): upstream's stream for Clang read `1.5x` and `0x10` otherwise.
+- Base64 encodes a string shorter than a block (`extern/Base64`, `i + 2 < in_len`, approved 2026-11-14); MurmurHash3
+  reads its blocks through bytes (`extern/smhasher`), not a misaligned `const uint64_t*`.
+- `CSMWorldUniversalIdTest.shouldFailToConstructFromNoneWithInvalidType` builds its unknown type inside the enum's
+  range, where `INT_MAX` was no value of it.
+- `components/stereo/multiview.cpp`'s `sMultiview`, written and never read, goes: Clang 23's `-Wunused-but-set-global`
+  stopped the build. The call in `configureExtensions` that logs multiview stays.
+
+**One standard for the tree**, upstream's code held as the fork's:
+
+- One set of warnings on every compiler (`cmake/Checks.cmake`), with the hunks that keep upstream's code clean, the
+  `extern/sol3` patches included; MSVC's `4244` and `4267` off. `-Wsuggest-override` and
+  `-Wzero-as-null-pointer-constant` hold everywhere, so eleven sources and six headers in OSG's style carry edits
+  (2026-11-14). GCC's own asks (`-Wdouble-promotion`'s casts, the 34 `Crash::notNull`) left with GCC on 2026-11-12, but
+  for an ESM4 group label's cast, which `-Wcast-qual` asks.
+- clang-format 23.1.5 with upstream's `.clang-format`, C++ LF on every clone: 294 sources reformatted, and a table in
+  rows loses its trailing comma. `omw merge-file`, the merge driver, takes the layout out of each merge.
+- Every CMake file laid out by gersemi 0.29.2 (`.gersemirc`), and upstream's tab check goes. Cost: a conflict with every
+  upstream change to a CMake file, which the rewrite already costs.
+- `.clang-tidy` (`omw tidy`) over upstream's code as over the fork's, each check whole or refused with its reason in the
+  file, its fixes a commit each; upstream's `.clang-tidy` is replaced, its naming kept at the kinds upstream enforces.
+  Fixes beyond the mechanical: members a constructor left unset given values, and enums given a zero (`ESM::AI_None`,
+  `ESM::ActiveSpells::Flag_None`); `#if 0` deleted and `#if 1` unwrapped (`mwshadowtechnique.cpp`, `optimizer.cpp`, the
+  ESM4 loaders); `pthread_sigmask` for `sigprocmask` in the crash image's handlers; `Files::LinuxPath` through
+  `Platform::userHome` for `getpwuid`; `Crash::runMonitorIfAsked` returning the monitor's exit code for `std::exit`;
+  `Misc::ScalableIcon`'s copy registered as the original is, which `updateAllIcons` missed. On Windows: flag enums
+  holding `0x80000000` typed `std::uint32_t`; `LinuxPath` and `WindowsPath` compiled on their own system;
+  `openmw-iniimporter` through `Platform::Process::commandLine` for its own `wmain`; `CS::Editor`'s pid file removed
+  through an error code; `windowspath.cpp`'s registry read held to the string's size. Cost: a conflict with an upstream
+  edit to the lines the fixes touched, and upstream code a merge brings that the checks refuse, which `omw tidy` names.
+- Every header of `apps/` and `components/` guarded by `#pragma once`, upstream's 1,400 guards among them, held by `omw
+  lint pragmas`; the headers GLSL reads keep their guards (`portable.h`). Cost: also a header upstream adds with a
+  guard, which the lint names.
+
+**The build** (`docs/build.md`). Cost: a conflict with every upstream change to a CMake list, an option, a found package
+or the install, which the merge places in this layout:
+
+- `CMakePresets.json` and CMake 4.4 at least, every check for an older one gone; the raised Boost minimum; no module
+  scan; the ccache fallback; MSVC's embedded debug information; `$<COMPILE_LANGUAGE:C,CXX>`, which keeps the C++ flags
+  off Crashpad's MASM.
+- Every library from the static vcpkg set (`vcpkg.json`), in place of the system's on Linux and upstream's prebuilt set
+  on Windows (`CI/deps_versions.msvc.sh` goes): packages found by their own CMake files or pkg-config, no version
+  floors, fetched projects from their pinned archives alone. The finders the set replaces go (`FindFFmpeg`, `FindLZ4`,
+  `FindMyGUI`, `FindOSGPlugins`, `FindLIBUNSHIELD`, `FindLuaJit` with `LibFindMacros` and `COPYING-CMAKE-SCRIPTS`,
+  `FindGMock`, `FindSphinx`), with `CheckBulletPrecision` and `CheckLuaCustomAllocator`. OSG's plugins link static,
+  registered in one generated file (`osgplugins.cpp.in`), so `Misc::checkRequiredOSGPluginsArePresent` goes. libunshield
+  found by header and archive, Boost in one `find_package`, Google Test and Benchmark under one `BUILD_TESTING`.
+- AlmaLinux 8 with gcc-toolset-15 for CI's Linux builds, the set and the release image
+  (`env/install_almalinux_deps.sh`), so the AppImage runs on glibc 2.28; Ubuntu 26.04 for a desk and the tsan job
+  (`env/install_ubuntu_deps.sh`, with `install_debian_deps.sh` folded in). Both build with the pinned Clang over GCC
+  15's libstdc++.
+- The top-level `CMakeLists.txt` split by responsibility (`cmake/Options.cmake`, `Dependencies.cmake`, `Install.cmake`,
+  `Flags.cmake`, `extern/`, `files/`, `files/lang/`), the version from `project(VERSION)`; CPack, NSIS, `vcredist` and
+  the branches below the compiler floor go.
+- `openmw-components` and `openmw-components-qt`, every app, test and benchmark naming its files in `target_sources`
+  lists with headers as file sets, in place of the stem macros (`add_component_dir`, `add_openmw_dir`, `opencs_units`,
+  `openmw_add_test`), `file(GLOB)` and the hand-made unity build (`enable_unity_build`, `OPENMW_UNITY_BUILD`); keyword
+  links; Qt's resources through `AUTORCC`; `openmw-navmeshtool` without its library; the platform folder's own list for
+  Windows and Linux alone. `add_subdirectory(rtx)` adds the fork's benchmarks beside upstream's.
+- Every setting on a target: imported targets carrying headers and definitions, sol3 a target, Windows's trims and
+  MSVC's options one interface target, in place of directory-wide includes, definitions and options.
+- Every option and cache entry named `OPENMW_*` (`BUILD_OPENMW` is `OPENMW_BUILD_GAME`): GitLab's pipeline, the names'
+  only outside reader, is gone.
+- One build in place of upstream's switches: each configuration's flags in `cmake/Flags.cmake`
+  (`CMAKE_USER_MAKE_RULES_OVERRIDE`) with the sanitizers, MSVC's runtime and position-independent programs; only
+  `RelWithDebInfo` and `Release`; line tables and frame pointers in Release; warnings as errors by
+  `CMAKE_COMPILE_WARNING_AS_ERROR` for `OPENMW_CXX_FLAGS` and `OPENMW_MSVC_WERROR`; LTO by
+  `CMAKE_INTERPROCEDURAL_OPTIMIZATION` for `OPENMW_LTO`. Gone: every `OPENMW_BUILD_*`, plain Lua (`OPENMW_LUAJIT`; the
+  sources' `NO_LUAJIT` branches stay), the system's TinyXML (`OPENMW_SYSTEM_TINYXML`), coverage, precompiled headers
+  (`OPENMW_MSVC_PRECOMPILED_HEADERS`), `OPENMW_MP_BUILD`, the console option, `/cgthreads1` (the fork's Windows runners
+  have 16 GB), and the system-install layout (`OPENMW_LOCAL_INSTALL`, `GLOBAL_*`, the global `files/openmw.cfg`): one
+  portable layout everywhere, and single-config generators (`get_generator_is_multi_config` goes). One Windows manifest
+  for every program (`files/windows/openmw.manifest`).
+- Dead or constant CMake gone: `escape_regex_control_characters.cmake`; the configure-time commit date; the
+  `OPENMW_RESOURCES_ROOT` guards; the install components; `extern/`'s empty `CMAKE_CXX_CLANG_TIDY`; GCC's
+  `-Wno-maybe-uninitialized`; `CheckOsgMultiview.cmake` (the pinned OSG has none); `files/data-mw`'s non-Ninja configure
+  dependency; `OPENMW_USE_UNSHIELD`; `copy_resource_file` and its kin for `configure_file`; one runtime folder name;
+  `cmake/OpenMWMacros.cmake` and `CMAKE_MODULE_PATH`, its last helpers (`pack_resource_file`, `openmw_qt_platforms`)
+  written out at their one caller.
+- The version filled once: a build needs a Git clone, so `GIT_CHECKOUT` and the empty-hash fallback go; the templates
+  read `PROJECT_VERSION*`, and `cmake/GitVersion.cmake` fills the commit and the tag at every build.
+- `extern/`'s vendored projects (`osgQt`, `oics`, `osg-ffmpeg-videoplayer`, `smhasher`, `rgbcx`) as the tree's own
+  targets, their warnings off from the directory's flags.
+- The test binaries' `-Og` an interface target; the system's test support one object library; CTest runs each
+  benchmark's dry run in place of CI's step.
+- `omw translations [--purge]` in place of the `translations` and `purge-obsolete-translations` targets; `.qm` files by
+  `qt_add_lrelease` for the deprecated `qt_add_translation`; Qt's own translations from `QT6_INSTALL_TRANSLATIONS`,
+  `qtbase_` alone.
+- The install: programs named once in `cmake/Install.cmake`; each program's own PDB (`$<TARGET_PDB_FILE>`); the game's
+  and the CS's console by `WIN32_EXECUTABLE` on `$<CONFIG:Release>`; `install_fork_licenses` and `files/licenses/`;
+  `InstallRequiredSystemLibraries`, as the fork ships a portable folder and no installer. An archive carries the
+  programs, the licences, the configuration, the settings' defaults, the controller mappings and the run-time resources,
+  without `README.md`, `AUTHORS.md`, the changelog, the rasterizer's `resources/shaders`, the post-processing shaders,
+  the water's normal map, `resources/lua_api`, `defaultfilters`, the PDBs (published apart) and the AppStream metadata
+  (`files/openmw.appdata.xml`, kept deleted), which an AppImage does not need.
+- `openmw-lib` an object library: under MSVC's LTCG its archive reached 3.6 of the 4 GB `lib.exe` writes (LNK1248).
+
+**Out of the tree**:
+
+- GitLab's pipeline, macOS and Android: `.gitlab-ci.yml`, `.gitlab/`, the `CI/` scripts only it ran,
+  `docker/generic-linux`, macOS's bundle (`files/mac`, `SignMacApplications.cmake`, `Files::MacOsPath`, every `APPLE`,
+  `__APPLE__` and `Q_OS_MAC` branch), Android's entry (`androidmain.cpp`), `Files::AndroidPath`, its ICU cross-build,
+  gl4es's manual start (`OPENMW_GL4ES_MANUAL_INIT`) and every `ANDROID` branch; with them the from-source and static
+  builds of OSG, MyGUI, Bullet and ICU (`OSG_STATIC`, `MYGUI_STATIC`, `BULLET_STATIC`, `QT_STATIC`,
+  `WholeArchive.cmake`) and the FreeBSD, OpenBSD and MinGW branches. `omw integration` pins the example suite's revision
+  (`EXAMPLE_SUITE_REVISION`), which `upstream.yml` copies from upstream's pipeline. Cost: also a conflict with every
+  upstream change inside a macOS or Android branch of a kept file.
+- `docker/`, upstream's Ubuntu build, which cannot build through `omw`; the release container is
+  `env/release-base.Dockerfile`.
+- Upstream's project files with no use here: `.resubmitted_merge_requests.txt`, `.readthedocs.yaml`, `CONTRIBUTING.md`
+  (the fork's rules are `AGENTS.md`), the Teal declarations and size scripts GitLab ran, `osg_stats.py` and
+  `HOWTO-benchmark.md`; upstream's `docs/` (the user manual, its Docker build, the Doxygen reference and the `doc.hpp`
+  files, `openmw-stage1.md`) and `manual/`. `docs/` holds the fork's own, the manual's `[RTX]` part in
+  `docs/settings.md`; `.editorconfig` covers the fork's shaders and loses stages with no file.
+
+**The fork's own files**: `README.md`; `env/`, upstream's `CI/` renamed for what it holds; the workflows; the root
+tooling (`CMakePresets.json`, `.clangd`, `.zed/`, `omw`, `omw.cmd`, `.claude/skills/`, `.gitattributes`, `.gitignore`);
+and `AUTHORS.md` rewritten as Markdown, every list sorted, the fork's section first, no name dropped. Cost: a conflict
+with every upstream edit to `AUTHORS.md`, which the merge resolves by adding the name to its list.
