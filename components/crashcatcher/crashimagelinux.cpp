@@ -48,8 +48,8 @@ namespace Crash
             sigset_t raised;
             sigemptyset(&raised);
             sigaddset(&raised, signal);
-            sigprocmask(SIG_UNBLOCK, &raised, nullptr);
-            raise(signal);
+            static_cast<void>(pthread_sigmask(SIG_UNBLOCK, &raised, nullptr));
+            static_cast<void>(raise(signal));
             _exit(128 + signal);
         }
 
@@ -227,7 +227,7 @@ namespace Crash
         for (const int signal : { SIGCHLD, SIGTERM, SIGINT, SIGHUP, SIGQUIT })
             sigaddset(&waited, signal);
         sigset_t previous;
-        sigprocmask(SIG_BLOCK, &waited, &previous);
+        static_cast<void>(pthread_sigmask(SIG_BLOCK, &waited, &previous));
 
         // **The keeper's own disposition of `SIGCHLD`**: one inherited as ignored has the kernel reap
         // every child itself and send no `SIGCHLD`, and the keeper, waiting for one, would outlive the
@@ -243,7 +243,7 @@ namespace Crash
             keep(application, waited);
 
         sigaction(SIGCHLD, &inherited, nullptr);
-        sigprocmask(SIG_SETMASK, &previous, nullptr);
+        static_cast<void>(pthread_sigmask(SIG_SETMASK, &previous, nullptr));
         if (application == -1)
         {
             // Or the application would adopt its own monitor, and leave it a zombie.

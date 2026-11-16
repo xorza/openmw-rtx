@@ -65,7 +65,8 @@ static int runApplication(int argc, char* argv[])
 
     CS::Editor editor(argc, argv);
 #ifdef __linux__
-    setlocale(LC_NUMERIC, "C");
+    // Before any thread starts; a locale the system lacks leaves the one it had.
+    static_cast<void>(setlocale(LC_NUMERIC, "C")); // NOLINT(concurrency-mt-unsafe): the editor's first act
 #endif
 
     if (!editor.makeIPCServer())

@@ -33,18 +33,18 @@ namespace Platform::Process
         if (std::getenv(name) != nullptr)
             return false;
 
-        setenv(name, value, 0);
+        setenv(name, value, 0); // NOLINT(concurrency-mt-unsafe): before any thread starts, as the header says
         return true;
     }
 
     void setEnvironment(const char* name, const char* value)
     {
-        setenv(name, value, 1);
+        setenv(name, value, 1); // NOLINT(concurrency-mt-unsafe): before any thread starts, as the header says
     }
 
     void setEnvironmentPath(const char* name, const std::filesystem::path& value)
     {
-        setenv(name, value.c_str(), 1);
+        setenv(name, value.c_str(), 1); // NOLINT(concurrency-mt-unsafe): before any thread starts, as the header says
     }
 
     std::optional<std::filesystem::path> environmentPath(const char* name)
@@ -98,7 +98,7 @@ namespace Platform::Process
         // the environment as it was: a tunable glibc read none of is not one to hand on.
         if (const std::optional<std::filesystem::path> self = executable())
             execv(self->c_str(), argv);
-        unsetenv("GLIBC_TUNABLES");
+        unsetenv("GLIBC_TUNABLES"); // NOLINT(concurrency-mt-unsafe): the process's first act, before any thread
     }
 
     std::optional<float> hugePageShare()

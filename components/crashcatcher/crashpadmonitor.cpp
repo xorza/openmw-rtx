@@ -625,9 +625,10 @@ namespace Crash
         }
     }
 
-    void runMonitorIfAsked(int argc, char** argv)
+    std::optional<int> runMonitorIfAsked(int argc, char** argv)
     {
         if (std::any_of(argv, argv + argc, [](const char* one) { return std::string_view(one) == sMonitorSwitch; }))
-            std::exit(runMonitor(argc, argv));
+            return runMonitor(argc, argv);
+        return std::nullopt;
     }
 }

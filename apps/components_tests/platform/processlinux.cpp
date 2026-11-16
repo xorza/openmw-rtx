@@ -154,7 +154,7 @@ namespace
                 done = true;
                 before.join();
                 after.join();
-                std::exit(failure);
+                std::_Exit(failure);
             },
             ::testing::ExitedWithCode(0), "");
     }

@@ -471,7 +471,8 @@ namespace Debug
         int (*innerApplication)(int argc, char* argv[]), int argc, char* argv[], std::string_view appName)
     {
         // Before anything else, because a monitor is this executable doing nothing but that.
-        Crash::runMonitorIfAsked(argc, argv);
+        if (const std::optional<int> monitored = Crash::runMonitorIfAsked(argc, argv))
+            return *monitored;
 
         // The image is kept for a monitor, so only where one will start.
         const char* const disable = std::getenv("OPENMW_DISABLE_CRASH_CATCHER");

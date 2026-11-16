@@ -645,7 +645,8 @@ namespace CrashTests
 
 int main(int argc, char* argv[])
 {
-    Crash::runMonitorIfAsked(argc, argv);
+    if (const std::optional<int> monitored = Crash::runMonitorIfAsked(argc, argv))
+        return *monitored;
 
     if (argc == 3 && std::string_view(argv[1]) == "--matrix")
         return CrashTests::matrix(std::filesystem::absolute(argv[0]), std::filesystem::absolute(argv[2]));

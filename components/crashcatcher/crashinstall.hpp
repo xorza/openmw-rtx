@@ -3,6 +3,7 @@
 #include <chrono>
 #include <cstdint>
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -44,9 +45,9 @@ namespace Crash
         std::vector<std::string_view> mWithout;
     };
 
-    /// Runs the monitor and ends the process, where this process was started as one; returns
-    /// otherwise. Called first in `main`, before anything else starts.
-    void runMonitorIfAsked(int argc, char** argv);
+    /// Runs the monitor where this process was started as one, and answers its exit code, which `main` returns;
+    /// nothing otherwise. Called first in `main`, before anything else starts.
+    std::optional<int> runMonitorIfAsked(int argc, char** argv);
 
     /// **Under an AppImage, keeps the image mounted while a process it started runs a program from
     /// it**, the monitors among them: this process forks, and returns in the child, which goes on as

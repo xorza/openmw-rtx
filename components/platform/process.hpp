@@ -14,6 +14,9 @@
 /// `#ifdef` anywhere the ray tracer asks these questions.
 namespace Platform::Process
 {
+    /// The three below write the process's environment, which a read on another thread races: each is called
+    /// before the process starts a thread, as a program's settings of its own libraries are.
+
     /// Gives `name` the value `value` in this process's environment unless the shell already gave
     /// it one: a default the program states, and never a word over the shell's. Answers whether
     /// the default took, so a program whose promise rests on it can say when the shell's word

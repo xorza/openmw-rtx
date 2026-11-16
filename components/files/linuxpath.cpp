@@ -1,28 +1,18 @@
 #include "linuxpath.hpp"
 
 #include <array>
-#include <pwd.h>
-#include <unistd.h>
+#include <utility>
+
+#include <components/platform/userhome.hpp>
 
 #include "wineutils.hpp"
 
 namespace
 {
+    /// The platform's, which reads the password database reentrantly where the environment names no home.
     std::filesystem::path getUserHome()
     {
-        const char* dir = getenv("HOME");
-        if (dir == nullptr)
-        {
-            struct passwd* pwd = getpwuid(getuid());
-            if (pwd != nullptr)
-            {
-                dir = pwd->pw_dir;
-            }
-        }
-        if (dir == nullptr)
-            return {};
-        else
-            return dir;
+        return Platform::userHome().value_or(std::filesystem::path());
     }
 
     std::filesystem::path getEnv(const std::string& envVariable, const std::filesystem::path& fallback)
