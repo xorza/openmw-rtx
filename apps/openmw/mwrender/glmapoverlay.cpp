@@ -278,8 +278,7 @@ namespace MWRender
         // Upstream's GlobalMap::exploreCell, handed the local map's texture: a tile this renderer
         // made is a GlTileView, whose texture is the one upstream's `getMapTexture` answered with.
         osg::ref_ptr<osg::Texture2D> texture = &static_cast<GlTileView&>(*tile).getColorTexture();
-        requestOverlayTextureUpdate(
-            destination.mX, top, destination.mWidth, destination.mHeight, std::move(texture), false, true);
+        requestOverlayTextureUpdate(destination.mX, top, destination.mWidth, destination.mHeight, texture, false, true);
     }
 
     void GlMapOverlay::paintImage(
@@ -293,8 +292,8 @@ namespace MWRender
         const float srcTop = (imageHeight - static_cast<float>(source.mY + source.mHeight)) / imageHeight;
         const float srcBottom = (imageHeight - static_cast<float>(source.mY)) / imageHeight;
 
-        requestOverlayTextureUpdate(destination.mX, top, destination.mWidth, destination.mHeight,
-            textureOver(std::move(image)), true, true, static_cast<float>(source.mX) / imageWidth, srcTop,
+        requestOverlayTextureUpdate(destination.mX, top, destination.mWidth, destination.mHeight, textureOver(image),
+            true, true, static_cast<float>(source.mX) / imageWidth, srcTop,
             static_cast<float>(source.mX + source.mWidth) / imageWidth, srcBottom);
     }
 
@@ -303,7 +302,7 @@ namespace MWRender
         // Upstream's GlobalMap::read, where the save's size matches.
         mOverlayImage = image;
 
-        requestOverlayTextureUpdate(0, 0, mWidth, mHeight, textureOver(std::move(image)), true, false);
+        requestOverlayTextureUpdate(0, 0, mWidth, mHeight, textureOver(image), true, false);
     }
 
     void GlMapOverlay::clear()

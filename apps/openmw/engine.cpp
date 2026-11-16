@@ -674,7 +674,7 @@ void OMW::Engine::prepareEngine()
     if (mRenderer->groundReadsGates())
         mScriptManager->buildVisibilityGates();
 
-    mWorld->init(mMaxRecastLogLevel, *mRenderer, std::move(rootNode), mWorkQueue, *mUnrefQueue);
+    mWorld->init(mMaxRecastLogLevel, *mRenderer, rootNode, mWorkQueue, *mUnrefQueue);
     mEnvironment.setWorldScene(mWorld->getWorldScene());
     mWorld->setupPlayer();
     mWorld->setRandomSeed(mRandomSeed);

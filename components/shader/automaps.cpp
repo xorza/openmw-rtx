@@ -177,7 +177,7 @@ namespace Shader
         {
             osg::ref_ptr<osg::Geometry> source = rig->getSourceGeometry();
             if (source != nullptr && adjust(*source))
-                rig->setSourceGeometry(std::move(source));
+                rig->setSourceGeometry(source);
             return true;
         }
 
@@ -185,7 +185,7 @@ namespace Shader
         {
             osg::ref_ptr<osg::Geometry> source = morph->getSourceGeometry();
             if (source != nullptr && adjust(*source))
-                morph->setSourceGeometry(std::move(source));
+                morph->setSourceGeometry(source);
             return true;
         }
 
@@ -196,7 +196,7 @@ namespace Shader
             if (source != nullptr && adjust(*source))
             {
                 rigged->setSourceGeometry(std::move(source));
-                holder->setSourceRigGeometry(std::move(rigged));
+                holder->setSourceRigGeometry(rigged);
             }
             return true;
         }

@@ -577,7 +577,7 @@ namespace Shader
 
         auto program = mShaderManager.getProgram(shaderPrefix, defineMap, mProgramTemplate, samplers);
         writableStateSet->setAttributeAndModes(program, osg::StateAttribute::ON);
-        addedState->setAttributeAndModes(std::move(program));
+        addedState->setAttributeAndModes(program);
 
         if (!addedState->empty())
         {

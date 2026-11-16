@@ -102,7 +102,7 @@ namespace MWRender
                 templateNode, mObjectRoot, bonefilter, found->second, mResourceSystem->getSceneManager(), &rotation);
         }
         return SceneUtil::attach(
-            std::move(templateNode), mObjectRoot, bonefilter, found->second, mResourceSystem->getSceneManager());
+            templateNode, mObjectRoot, bonefilter, found->second, mResourceSystem->getSceneManager());
     }
 
     VFS::Path::Normalized ActorAnimation::getShieldMesh(const MWWorld::ConstPtr& shield, bool female) const
@@ -483,7 +483,7 @@ namespace MWRender
             osg::ref_ptr<osg::Group> arrowNode = ammoNode->getChild(i)->asGroup();
             osg::ref_ptr<osg::Node> arrow = mResourceSystem->getSceneManager()->getInstance(model, arrowNode);
             if (!ammo->getClass().getEnchantment(*ammo).empty())
-                mGlowUpdater = SceneUtil::addEnchantedGlow(std::move(arrow), mResourceSystem, glowColor);
+                mGlowUpdater = SceneUtil::addEnchantedGlow(arrow, mResourceSystem, glowColor);
         }
     }
 

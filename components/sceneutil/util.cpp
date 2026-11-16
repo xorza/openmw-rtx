@@ -230,7 +230,7 @@ namespace SceneUtil
         writableStateSet->setTextureAttribute(texUnit, textures.front(), osg::StateAttribute::ON);
         writableStateSet->setTextureAttribute(texUnit, new TextureType("envMap"), osg::StateAttribute::ON);
         writableStateSet->addUniform(new osg::Uniform("envMapColor", glowColor));
-        resourceSystem->getSceneManager()->recreateShaders(std::move(node));
+        resourceSystem->getSceneManager()->recreateShaders(node);
 
         return glowUpdater;
     }

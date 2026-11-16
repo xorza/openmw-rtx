@@ -145,7 +145,7 @@ namespace Resource
                     mergedAnimationTrack->addChannel(channel.get()->clone());
                 }
 
-                callback->addMergedAnimationTrack(std::move(mergedAnimationTrack));
+                callback->addMergedAnimationTrack(mergedAnimationTrack);
 
                 auto startTime = static_cast<float>(animation->getStartTime());
                 auto stopTime = static_cast<float>(startTime + animation->getDuration());

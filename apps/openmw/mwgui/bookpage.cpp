@@ -1390,10 +1390,7 @@ namespace MWGui
         {
         }
 
-        void showPage(std::shared_ptr<TypesetBook> book, size_t page) override
-        {
-            mPageDisplay->showPage(std::move(book), page);
-        }
+        void showPage(std::shared_ptr<TypesetBook> book, size_t page) override { mPageDisplay->showPage(book, page); }
 
         void adviseLinkClicked(std::function<void(TypesetBook::InteractiveId)> linkClicked) override
         {

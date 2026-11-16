@@ -752,7 +752,7 @@ namespace MWRender
             cloudTex->setWrap(osg::Texture::WRAP_S, osg::Texture::REPEAT);
             cloudTex->setWrap(osg::Texture::WRAP_T, osg::Texture::REPEAT);
 
-            mCloudUpdater->setTexture(std::move(cloudTex));
+            mCloudUpdater->setTexture(cloudTex);
         }
 
         if (mStormDirection != weather.mStormDirection)
@@ -772,7 +772,7 @@ namespace MWRender
                 cloudTex->setWrap(osg::Texture::WRAP_S, osg::Texture::REPEAT);
                 cloudTex->setWrap(osg::Texture::WRAP_T, osg::Texture::REPEAT);
 
-                mNextCloudUpdater->setTexture(std::move(cloudTex));
+                mNextCloudUpdater->setTexture(cloudTex);
                 mNextStormDirection = weather.mStormDirection;
             }
         }

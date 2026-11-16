@@ -477,13 +477,13 @@ namespace CSMWorld
         if (type == UniversalId::Type_Creature)
         {
             // Valid creature record
-            setupCreature(id, std::move(data));
+            setupCreature(id, data);
             emit actorChanged(id);
         }
         else if (type == UniversalId::Type_Npc)
         {
             // Valid npc record
-            setupNpc(id, std::move(data));
+            setupNpc(id, data);
             emit actorChanged(id);
         }
         else
@@ -550,7 +550,7 @@ namespace CSMWorld
         auto& npc = dynamic_cast<const Record<ESM::NPC>&>(mReferenceables.getRecord(index)).get();
 
         RaceDataPtr raceData = getRaceData(npc.mRace);
-        data->reset_data(id, "", false, !npc.isMale(), std::move(raceData));
+        data->reset_data(id, "", false, !npc.isMale(), raceData);
 
         // Add head and hair
         data->setPart(ESM::PRT_Head, npc.mHead, 0);
@@ -678,7 +678,7 @@ namespace CSMWorld
             RaceDataPtr data = mCachedRaces.get(race);
             if (data)
             {
-                setupRace(race, std::move(data));
+                setupRace(race, data);
                 // Race was changed. Need to mark actor dependencies as dirty.
                 // Cannot use markDirtyDependency because that would invalidate
                 // the current iterator.
@@ -696,7 +696,7 @@ namespace CSMWorld
             ActorDataPtr data = mCachedActors.get(actor);
             if (data)
             {
-                setupActor(actor, std::move(data));
+                setupActor(actor, data);
             }
         }
         mDirtyActors.clear();

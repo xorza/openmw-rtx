@@ -51,7 +51,7 @@ namespace LuaUtil
         const AsyncPackageId& asyncId, const sol::main_protected_function& fn, const sol::table& metatable)
     {
         sol::table c = sol::table::create(fn.lua_state(), 2);
-        c.raw_set(1, std::move(fn), 2, asyncId);
+        c.raw_set(1, fn, 2, asyncId);
         c[sol::metatable_key] = metatable;
         return c;
     }

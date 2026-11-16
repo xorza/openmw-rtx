@@ -1902,7 +1902,7 @@ namespace NifOsg
                     && bsTriShape->mVertDesc.mFlags & Nif::BSVertexDesc::VertexAttribute::Skinned)
                 {
                     osg::ref_ptr<SceneUtil::RigGeometry> rig(new SceneUtil::RigGeometry);
-                    rig->setSourceGeometry(std::move(geometry));
+                    rig->setSourceGeometry(geometry);
 
                     const auto* skin = static_cast<const Nif::BSSkinInstance*>(bsTriShape->mSkin.getPtr());
                     const Nif::BSSkinBoneData* data = skin->mData.getPtr();

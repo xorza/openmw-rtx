@@ -676,7 +676,7 @@ namespace Shader
         if (!vert || !frag)
             throw std::runtime_error("failed initializing shader: " + templateName);
 
-        return getProgram(std::move(vert), std::move(frag), programTemplate, samplers);
+        return getProgram(vert, frag, programTemplate, samplers);
     }
 
     osg::ref_ptr<osg::Program> ShaderManager::getProgram(const osg::ref_ptr<osg::Shader>& vertexShader,

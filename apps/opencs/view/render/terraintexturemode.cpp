@@ -520,7 +520,7 @@ void CSVRender::TerrainTextureMode::editTerrainTextureGrid(const WorldspaceHitRe
                         auto newTerrainOtherCell = landTable.data(landTable.getModelIndex(cellId, textureColumn))
                                                        .value<CSMWorld::LandTexturesColumn::DataType>();
                         newTerrainOtherCell[yInOtherCell * landTextureSize + xInOtherCell] = brushInt;
-                        pushEditToCommand(newTerrainOtherCell, document, landTable, std::move(cellId));
+                        pushEditToCommand(newTerrainOtherCell, document, landTable, cellId);
                     }
                 }
             }

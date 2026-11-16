@@ -110,8 +110,8 @@ namespace MWRender
             return;
         }
 
-        mProgramBlobber = shaderManager.getProgram(vertex, std::move(blobber));
-        mProgramSimulation = shaderManager.getProgram(std::move(vertex), std::move(simulate));
+        mProgramBlobber = shaderManager.getProgram(vertex, blobber);
+        mProgramSimulation = shaderManager.getProgram(vertex, simulate);
     }
 
     void RipplesSurface::setupComputePipeline()
@@ -128,8 +128,8 @@ namespace MWRender
             return;
         }
 
-        mProgramBlobber = shaderManager.getProgram(nullptr, std::move(blobber));
-        mProgramSimulation = shaderManager.getProgram(nullptr, std::move(simulate));
+        mProgramBlobber = shaderManager.getProgram(nullptr, blobber);
+        mProgramSimulation = shaderManager.getProgram(nullptr, simulate);
     }
 
     void RipplesSurface::updateState(const osg::FrameStamp& frameStamp, State& state)
