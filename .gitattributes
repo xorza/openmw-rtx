@@ -1,28 +1,31 @@
-# Line endings a file has to have whatever a clone's `core.autocrlf` says. Git for Windows installs
-# with it on, and bash reads a carriage return as part of the line: a bash driver stopped at
-# `set -euo pipefail` with "invalid option name", and every value a sourced file set carried one.
-# `omw` is started through its first line, where a carriage return would name another program.
-# A batch file is cmd's, which reads its lines as CR LF.
-omw text eol=lf
+# Line endings a file needs whatever a clone's `core.autocrlf` says, which Git for Windows installs on. A later line
+# overrides an earlier one, so the exceptions come last.
+
+# Bash reads a carriage return as part of the line (`set -euo pipefail` failed with "invalid option name"), and so
+# does a shebang, which would name another program. cmd reads CR LF.
+/omw text eol=lf
 *.sh text eol=lf
 *.cmd text eol=crlf
-# The integration suites' data is read back byte for byte: `test_lua_api`'s `vfs` test reads
-# `lines.txt` as `1`, `2`, ``, `4`, and on a clone that converts it reads `1` and a carriage return.
-scripts/data/integration_tests/** -text
-# C++ is LF on every clone, as `.clang-format`'s `LineEnding` writes it, so a Windows clone formats
-# byte for byte as a Linux one. A merge lays out the base and both sides with the pinned clang-format
-# first (`omw merge-file`, which `upstream.yml` sets as the driver), so an upstream edit to a file the
-# fork reformatted conflicts only where the edit does; a clone with no such driver merges as git does.
+
+# C++ is LF everywhere, as `.clang-format` writes it, so a Windows clone formats byte for byte as a Linux one. The
+# merge driver (`omw merge-file`, which `upstream.yml` sets) lays out the base and both sides with the pinned
+# clang-format first, so an upstream edit to a file the fork reformatted conflicts only where the edit does; a clone
+# without the driver merges as git does.
 *.cpp text eol=lf merge=clang-format
-*.hpp text eol=lf merge=clang-format
 *.h text eol=lf merge=clang-format
-# GLSL too: a module compiled with its source (`--shader-source`) carries the file's bytes.
-*.glsl text eol=lf
-*.vert text eol=lf
-*.frag text eol=lf
+*.hpp text eol=lf merge=clang-format
+
+# GLSL: a module compiled with its source (`--shader-source`) carries the file's bytes.
 *.comp text eol=lf
+*.frag text eol=lf
+*.glsl text eol=lf
 *.rgen text eol=lf
-# Vendored code keeps what its project wrote, and so do the vcpkg ports copied from their registries, whose
-# patches git applies byte for byte: a Windows clone's carriage returns corrupted them.
-extern/** !text !eol !merge
+*.vert text eol=lf
+
+# Read byte for byte: `test_lua_api`'s `vfs` test reads `lines.txt` line by line, and git applies the vcpkg ports'
+# patches, which a carriage return corrupted.
+scripts/data/integration_tests/** -text
 vcpkg/ports/** -text
+
+# Vendored code is out of the fork's C++ rules, and its line endings are the clone's, as upstream leaves them.
+extern/** !text !eol !merge
