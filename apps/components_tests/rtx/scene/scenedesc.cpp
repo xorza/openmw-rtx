@@ -274,7 +274,8 @@ namespace Rtx
         /// **A table with every slot standing refuses the next texture, and takes it once a slot
         /// goes.** The array holds `sCapacity` beside its neutral texel, and a world past that is
         /// content drawn neutral rather than a frame that stops. A texture already standing takes
-        /// no slot and is still answered, and a bake is refused as a file is.
+        /// no slot and is still answered, and a bake is refused as a file is. **A slot that rests is
+        /// freed for the next, the oldest to rest first**, before anything is refused.
         TEST(RtxSceneDescTest, aFullTextureTableRefusesTheNextTextureAndCountsIt)
         {
             SceneDesc scene;
@@ -307,6 +308,76 @@ namespace Rtx
             scene.clearArrivals();
             EXPECT_EQ(textures.getRefusedArrivals(), 0u);
             EXPECT_EQ(textures.getRefused(), 2u) << "the count since the table began";
+
+            // 5 comes to rest a batch before 3, each stood whole, and the full table stays full.
+            for (const Index resting : { Index{ 5 }, Index{ 3 } })
+            {
+                textures.stand(resting, 64, false);
+                scene.drop(scene.holdTexture(resting));
+                scene.compact();
+            }
+            EXPECT_EQ(textures.getLiveCount(), TextureTable::sCapacity);
+            EXPECT_EQ(textures.getRestingCount(), 2u);
+            EXPECT_EQ(textures.getRestingBytes(), 128u);
+
+            EXPECT_EQ(textures.add(VFS::Path::NormalizedView("textures/tx_a.dds")), 5u) << "the oldest to rest";
+            EXPECT_EQ(textures.add(VFS::Path::NormalizedView("textures/tx_b.dds")), 3u);
+            EXPECT_EQ(textures.add(VFS::Path::NormalizedView("textures/tx_c.dds")), sNoIndex) << "none rests now";
+            EXPECT_EQ(textures.getRefused(), 3u);
+            EXPECT_EQ(textures.getRestingCount(), 0u);
+            EXPECT_EQ(textures.getRestingBytes(), 0u);
+            scene.compact();
+            EXPECT_TRUE(textures.getFreed().empty()) << "each freed and taken over, which reads as an arrival";
+            EXPECT_EQ(sorted(textures.getArrived()), (std::vector<Index>{ 3, 5 }));
+
+            // The room made by freeing the file's own slot under another wrap, which took the file out of the
+            // lookup the take then files it under.
+            textures.stand(9, 64, false);
+            scene.drop(scene.holdTexture(9));
+            EXPECT_EQ(textures.add(names[9], TextureWrap::Clamp), 9u);
+            EXPECT_EQ(textures.findFile(names[9]), 9u);
+            EXPECT_EQ(textures.add(names[9], TextureWrap::Clamp), 9u) << "filed under the wrap it was taken under";
+            EXPECT_EQ(textures.add(names[9], TextureWrap::Repeat), sNoIndex) << "the slot it rested in is gone";
+        }
+
+        /// **The slots that rest are filed by their slots within one batch**, whatever order a sweep dropped
+        /// them in, so two processes agree on which goes first; a later batch goes after; one woken before its
+        /// batch is filed leaves it.
+        TEST(RtxSceneDescTest, theSlotsThatRestAreFiledBySlotWithinABatch)
+        {
+            SceneDesc scene;
+            TextureTable& textures = scene.textures();
+            std::vector<TextureHold> holds;
+            for (const VFS::Path::NormalizedView name : { VFS::Path::NormalizedView("textures/tx_0.dds"),
+                     VFS::Path::NormalizedView("textures/tx_1.dds"), VFS::Path::NormalizedView("textures/tx_2.dds"),
+                     VFS::Path::NormalizedView("textures/tx_3.dds"), VFS::Path::NormalizedView("textures/tx_4.dds") })
+            {
+                const Index slot = textures.add(name);
+                textures.stand(slot, 8, false);
+                holds.push_back(scene.holdTexture(slot));
+            }
+
+            // 2, 0, 3 and 1 dropped in that order, and 3 taken again before the batch is filed.
+            for (const std::size_t going : { 2u, 0u, 3u, 1u })
+                scene.drop(std::move(holds[going]));
+            EXPECT_EQ(textures.add(VFS::Path::NormalizedView("textures/tx_3.dds")), 3u);
+            holds[3] = scene.holdTexture(3);
+            scene.compact();
+            scene.drop(std::move(holds[4]));
+
+            // One at a time, each the oldest to rest: 8 bytes asks for one.
+            EXPECT_EQ(textures.getRestingCount(), 4u);
+            std::vector<Index> order;
+            while (textures.getRestingCount() > 0)
+            {
+                ASSERT_EQ(textures.evictResting(1), 8u);
+                for (Index slot = 0; slot < 5; ++slot)
+                    if (!textures.isLive(slot) && std::ranges::find(order, slot) == order.end())
+                        order.push_back(slot);
+            }
+            EXPECT_EQ(order, (std::vector<Index>{ 0, 1, 2, 4 }));
+            EXPECT_TRUE(textures.isLive(3)) << "taken again, and no rest of it";
+            scene.drop(std::move(holds[3]));
         }
 
         TEST(RtxSceneDescTest, theCountsAreWhatTheBuffersHold)

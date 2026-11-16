@@ -20,6 +20,7 @@
 
 #include <components/crashcatcher/crash.hpp>
 #include <components/crashcatcher/crashnote.hpp>
+#include <components/resource/imageheader.hpp>
 #include <components/resource/imagemanager.hpp>
 #include <components/rtx/common/halffloat.hpp>
 #include <components/sceneutil/embeddedimage.hpp>
@@ -171,10 +172,12 @@ namespace Rtx
     Result<osg::ref_ptr<const osg::Image>, std::string> openImage(
         Resource::ImageManager& images, const VFS::Path::NormalizedView path)
     {
+        // A model's image, as every texture the scene takes: its header where the host keeps no texels, which the
+        // service reads (`PreparedImages`).
         osg::ref_ptr<const osg::Image> image;
         try
         {
-            image = images.getImage(path);
+            image = images.getModelImage(path);
         }
         catch (const std::exception& failed)
         {
@@ -266,6 +269,8 @@ namespace Rtx
             // in one names the file.
             const std::string_view name = SceneUtil::EmbeddedImage::nameOf(image);
             const Crash::NoteScope noted("describing the texture \"{}\"", name);
+            // A header's texels are its manager's, read through `Resource::texelsOf` before anything describes them.
+            Crash::contract(!Resource::isHeader(image), "a texture's header described as if it held its texels");
 
             if (const Result<void, std::string> uploadable = checkFormat(image, format); !uploadable.isOk())
                 return Err{ uploadable.error() };

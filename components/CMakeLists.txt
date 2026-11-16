@@ -1139,6 +1139,7 @@ target_sources(
         resource/cachestats.cpp
         resource/errormarker.cpp
         resource/foreachbulletobject.cpp
+        resource/imageheader.cpp
         resource/imagemanager.cpp
         resource/keyframemanager.cpp
         resource/niffilemanager.cpp
@@ -1157,6 +1158,7 @@ target_sources(
                 resource/cachestats.hpp
                 resource/errormarker.hpp
                 resource/foreachbulletobject.hpp
+                resource/imageheader.hpp
                 resource/imagemanager.hpp
                 resource/keyframemanager.hpp
                 resource/multiobjectcache.hpp

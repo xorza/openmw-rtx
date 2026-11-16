@@ -1168,7 +1168,7 @@ namespace NifOsg
                 if (!mImageManager)
                     return nullptr;
 
-                return mImageManager->getImage(
+                return mImageManager->getModelImage(
                     Misc::ResourceHelpers::correctTexturePath(path, *mImageManager->getVFS()));
             }
 

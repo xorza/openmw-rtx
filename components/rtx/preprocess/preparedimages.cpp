@@ -3,11 +3,13 @@
 #include <algorithm>
 #include <cassert>
 #include <format>
+#include <iterator>
 #include <optional>
 #include <utility>
 
 #include <components/debug/debuglog.hpp>
 #include <components/platform/memory.hpp>
+#include <components/resource/imageheader.hpp>
 #include <components/rtx/common/mebibytes.hpp>
 #include <components/rtx/image/textureformat.hpp>
 #include <components/sceneutil/embeddedimage.hpp>
@@ -63,15 +65,17 @@ namespace Rtx
     PreparedImage PreparedImages::find(
         const osg::Image& file, const TextureEncoding encoding, const TextureWrap wrap, const osg::Image* const partner)
     {
-        assert(prepares(file, encoding) && "a colour's own chain asked to be made again");
+        const bool makes = prepares(file, encoding);
         assert((partner != nullptr) == isConverted(encoding) && "a converted slot is two files, and no other slot is");
+        assert((partner == nullptr || makes) && "a converted slot's chain is made");
 
-        PreparedImage answer;
+        // A file that holds its texels and has no chain made is what the upload reads, as it stands.
+        if (!makes && !Resource::isHeader(file))
+            return PreparedImage{ .mFile = &file };
+
+        PreparedImage found;
         mMonitor.give([&] {
-            // The wrap only where it decides what is made: a painted colour's estimate follows it, and a
-            // converted slot's delit diffuse.
-            const bool delit = encoding == TextureEncoding::Painted || isConverted(encoding);
-            const Key key{ &file, encoding, delit ? wrap : TextureWrap::Repeat, partner };
+            const Key key = keyOf(file, encoding, wrap, partner);
             auto entry = mEntries.find(key);
             if (entry != mEntries.end() && isGone(*entry))
             {
@@ -83,43 +87,85 @@ namespace Rtx
             {
                 sweep();
                 mEntries.emplace(key, Entry{ .mFile = &file, .mPartner = partner });
-                mQueue.push_back(Job{ .mKey = key, .mFile = &file, .mPartner = partner });
-                answer = PreparedImage{ .mPending = true };
+                mQueue.push_back(Job{ .mKey = key, .mFile = &file, .mPartner = partner, .mMakes = makes });
+                found = PreparedImage{ .mPending = true };
                 return true;
             }
 
-            Entry& found = entry->second;
-            if (!found.mMade)
+            if (!entry->second.mMade)
             {
-                answer = PreparedImage{ .mPending = true };
+                found = PreparedImage{ .mPending = true };
                 return false;
             }
 
-            if (found.mHeld != nullptr)
-            {
-                answer = PreparedImage{ .mImage = found.mHeld };
-                found.mWatched = found.mHeld;
-                found.mHeld = nullptr;
-                return false;
-            }
-
-            osg::ref_ptr<const MadeImage> image;
-            if (found.mWatched.lock(image))
-            {
-                answer = PreparedImage{ .mImage = image };
-                return false;
-            }
-            if (found.mStands)
-                return false;
-
-            // Made once and let go of by every texture since: made again, from the store.
-            found.mMade = false;
-            mQueue.push_back(Job{ .mKey = key, .mFile = &file, .mPartner = partner });
-            answer = PreparedImage{ .mPending = true };
-            return true;
+            found = answer(key, entry->second);
+            return found.mPending;
         });
 
-        return answer;
+        return found;
+    }
+
+    PreparedImages::Key PreparedImages::keyOf(
+        const osg::Image& file, const TextureEncoding encoding, const TextureWrap wrap, const osg::Image* const partner)
+    {
+        // A painted colour's estimate follows the wrap, and a converted slot's delit diffuse.
+        const bool delit = encoding == TextureEncoding::Painted || isConverted(encoding);
+        return Key{ &file, encoding, delit ? wrap : TextureWrap::Repeat, partner };
+    }
+
+    bool PreparedImages::isReady(
+        const osg::Image& file, const TextureEncoding encoding, const TextureWrap wrap, const osg::Image* const partner)
+    {
+        return mMonitor.under([&] {
+            const auto entry = mEntries.find(keyOf(file, encoding, wrap, partner));
+            return entry != mEntries.end() && entry->second.mMade;
+        });
+    }
+
+    PreparedImage PreparedImages::answer(const Key& key, Entry& entry)
+    {
+        const osg::Image& file = *std::get<0>(key);
+        const auto take = [](auto& held, auto& watched, auto& into) {
+            if (held != nullptr)
+            {
+                into = held;
+                watched = held;
+                held = nullptr;
+                return true;
+            }
+            return watched.lock(into);
+        };
+
+        PreparedImage found;
+        const bool chainStands = entry.mStands || take(entry.mHeld, entry.mWatched, found.mImage);
+        const bool fileStands
+            = !entry.mReadsFile || !Resource::isHeader(file) || take(entry.mFileHeld, entry.mFileWatched, found.mFile);
+        if (entry.mReadsFile && found.mFile == nullptr && fileStands)
+            found.mFile = &file;
+        if (chainStands && fileStands)
+            return found;
+
+        // Read or made once and let go of by every texture since: read or made again, from the store.
+        entry.mMade = false;
+        mQueue.push_back(Job{
+            .mKey = key, .mFile = &file, .mPartner = std::get<3>(key), .mMakes = prepares(file, std::get<1>(key)) });
+        return PreparedImage{ .mPending = true };
+    }
+
+    void PreparedImages::letGo(const osg::Image& file)
+    {
+        mMonitor.give([&] {
+            // Every slot's entry of the file that has handed out what it read and made, whatever it was read as.
+            // One in flight, or holding what a slot that stood in has yet to be handed, stays.
+            const auto handed = [](const Entry& entry) {
+                return entry.mMade && entry.mHeld == nullptr && entry.mFileHeld == nullptr;
+            };
+            auto entry = mEntries.lower_bound(Key{ &file, TextureEncoding{}, TextureWrap{}, nullptr });
+            while (entry != mEntries.end() && std::get<0>(entry->first) == &file)
+                entry = handed(entry->second) ? mEntries.erase(entry) : std::next(entry);
+            return false;
+        });
+        Resource::releaseTexels(file);
     }
 
     bool PreparedImages::isIdle()
@@ -196,14 +242,17 @@ namespace Rtx
                 ++mInFlight;
             },
             [&](const std::stop_token&) {
-                const osg::Image& file = *job.mFile;
+                // Through the header a model holds, from its manager's cache or the file again.
+                osg::ref_ptr<const osg::Image> pixels = Resource::texelsOf(*job.mFile);
+                const osg::Image& file = *pixels;
                 const auto [image, encoding, wrap, partner] = job.mKey;
 
                 std::optional<MadeLayout> layout;
-                if (job.mPartner != nullptr)
+                if (job.mMakes && job.mPartner != nullptr)
                 {
+                    const osg::ref_ptr<const osg::Image> partnerPixels = Resource::texelsOf(*job.mPartner);
                     const ConversionPass::Input input{
-                        .mImage = file, .mPartner = *job.mPartner, .mEncoding = encoding, .mWrap = wrap
+                        .mImage = file, .mPartner = *partnerPixels, .mEncoding = encoding, .mWrap = wrap
                     };
                     if (admits(ConversionPass::scratchOf(input), file))
                     {
@@ -211,7 +260,7 @@ namespace Rtx
                         layout = ConversionPass::madeLayout(input, hand.mChain.mForm);
                     }
                 }
-                else
+                else if (job.mMakes)
                 {
                     const ChainPass::Input input{ .mImage = file, .mEncoding = encoding, .mWrap = wrap };
                     if (admits(ChainPass::scratchOf(input), file))
@@ -244,12 +293,19 @@ namespace Rtx
                     const auto entry = mEntries.find(job.mKey);
                     if (entry != mEntries.end())
                     {
+                        // The file's texels where the upload reads any of its levels, held where they are not the
+                        // file's own image, which its holder keeps.
+                        const bool readsFile = made == nullptr || !made->getWholeFormat().has_value();
                         entry->second.mMade = true;
                         entry->second.mStands = made == nullptr;
+                        entry->second.mReadsFile = readsFile;
                         entry->second.mHeld = made;
                         entry->second.mWatched = nullptr;
+                        entry->second.mFileHeld = readsFile && pixels.get() != job.mFile.get() ? pixels : nullptr;
+                        entry->second.mFileWatched = nullptr;
                     }
                     made = nullptr;
+                    pixels = nullptr;
                     job = Job{};
                 });
             });

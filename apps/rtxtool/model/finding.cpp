@@ -201,7 +201,8 @@ namespace RtxTool
             .mIndicesUsed = place.mContent.mIndicesUsed,
             .mInstances = place.mScene.mInstances.mPlaced,
             .mStructureLiveBytes = place.mScene.mStructureLiveBytes,
-            .mTextureBytes = place.mScene.mTextureBytes,
+            .mTextures
+            = place.mScene.mTextureCount - std::min(place.mScene.mTextureCount, place.mContent.mRestingTextures),
             .mMedianMs = place.at(Rtx::Timing::Frame).mMedian };
     }
 
@@ -211,19 +212,17 @@ namespace RtxTool
         if (!grew(first.mVerticesUsed, again.mVerticesUsed) && !grew(first.mIndicesUsed, again.mIndicesUsed)
             && !grew(first.mInstances, again.mInstances)
             && !grew(static_cast<double>(first.mStructureLiveBytes), static_cast<double>(again.mStructureLiveBytes))
-            && !grew(static_cast<double>(first.mTextureBytes), static_cast<double>(again.mTextureBytes))
-            && !grew(first.mMedianMs, again.mMedianMs))
+            && !grew(first.mTextures, again.mTextures) && !grew(first.mMedianMs, again.mMedianMs))
             return std::nullopt;
 
         constexpr double mebibyte = 1024.0 * 1024.0;
         return std::format(
             "the first leg again came to {} vertices in use against {}, {} indices against {}, {} instances against "
-            "{}, {:.1f} MiB of live structures against {:.1f}, {:.1f} MiB of textures against {:.1f}, and a {:.2f} ms "
+            "{}, {:.1f} MiB of live structures against {:.1f}, {} textures named against {}, and a {:.2f} ms "
             "median frame against {:.2f}",
             again.mVerticesUsed, first.mVerticesUsed, again.mIndicesUsed, first.mIndicesUsed, again.mInstances,
             first.mInstances, static_cast<double>(again.mStructureLiveBytes) / mebibyte,
-            static_cast<double>(first.mStructureLiveBytes) / mebibyte,
-            static_cast<double>(again.mTextureBytes) / mebibyte, static_cast<double>(first.mTextureBytes) / mebibyte,
+            static_cast<double>(first.mStructureLiveBytes) / mebibyte, again.mTextures, first.mTextures,
             again.mMedianMs, first.mMedianMs);
     }
 

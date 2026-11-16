@@ -11,6 +11,7 @@
 #include <osg/ref_ptr>
 
 #include <components/crashcatcher/crash.hpp>
+#include <components/resource/imageheader.hpp>
 #include <components/rtx/image/imagedescription.hpp>
 #include <components/rtx/image/textureformat.hpp>
 #include <components/rtx/preprocess/preparedimages.hpp>
@@ -24,15 +25,19 @@ namespace Rtx
 {
     namespace
     {
-        /// The image `row`'s chain is made from, or null where nothing is to be made of it: a file
-        /// whose made image its slot does not hold yet, of a kind the service makes
-        /// (`PreparedImages::prepares`).
-        const osg::Image* toPrepare(const TextureRow& row)
+        /// What the upload reads of `row`, a file's slot: what the service read and made of it (`PreparedImages`),
+        /// or, with none, the slot's own image as it stands, which holds its texels.
+        PreparedImage findUpload(const TextureRow& row, PreparedImages* const prepared)
         {
-            return row.mKind == TextureKind::File && row.mPrepared == nullptr && row.mImage != nullptr
-                    && PreparedImages::prepares(*row.mImage, row.mEncoding)
-                ? row.mImage.get()
-                : nullptr;
+            if (prepared != nullptr)
+                return prepared->find(*row.mImage, row.mEncoding, row.mWrap, row.mPartner.get());
+            assert(!Resource::isHeader(*row.mImage) && "a header described with no service to read its texels");
+            return PreparedImage{ .mFile = row.mImage };
+        }
+
+        bool isFile(const TextureRow& row)
+        {
+            return row.mKind == TextureKind::File && row.mImage != nullptr;
         }
     }
 
@@ -45,24 +50,15 @@ namespace Rtx
         const SceneDesc& scene, std::span<const Index> slots, PreparedImages* const prepared, const bool settled)
     {
         mPending.clear();
-        mMade.clear();
+        mStood.clear();
 
-        // **Every image the slots need asked for first, and waited for**, where the caller is settled:
-        // asked one at a time and each waited for, they would be made one after another.
+        // **Every file the slots need asked for first, and waited for**, where the caller is settled:
+        // asked one at a time and each waited for, they would be read and made one after another.
         if (settled && prepared != nullptr)
         {
             for (const Index slot : slots)
-            {
-                if (!scene.textures().isLive(slot))
-                    continue;
-                const TextureRow& row = scene.textures().getRows()[slot];
-                if (const osg::Image* const source = toPrepare(row))
-                {
-                    const PreparedImage found = prepared->find(*source, row.mEncoding, row.mWrap, row.mPartner.get());
-                    if (found.mImage != nullptr)
-                        mFound.push_back(found.mImage);
-                }
-            }
+                if (scene.textures().isLive(slot) && isFile(scene.textures().getRows()[slot]))
+                    mFound.push_back(findUpload(scene.textures().getRows()[slot], prepared));
             prepared->flush();
         }
         mLevels.clear();
@@ -87,39 +83,38 @@ namespace Rtx
             const TextureRow& row = scene.textures().getRows()[slot];
             Kept kept{ .mSlot = slot, .mEncoding = row.mEncoding };
 
-            // The image the adder held, and never the file opened again: this runs on the frame an
-            // arrival lands on, and a path is a lock and a disk read.
-            // **A normal or a data map's image with its chain made again**, where it is made; its file
-            // as it stands while it is, and the slot named for its owner to stand again.
-            const osg::Image* const source = toPrepare(row);
-            const PreparedImage made = source != nullptr && prepared != nullptr
-                ? prepared->find(*source, row.mEncoding, row.mWrap, row.mPartner.get())
-                : PreparedImage{ .mImage = row.mPrepared };
+            // **What the service read and made of a file**, never the file opened here: this runs on the
+            // frame an arrival lands on, and a read is a lock and a disk. While it reads and makes, the slot
+            // is named for its owner to stand again.
+            const bool file = isFile(row);
+            const PreparedImage made = file ? findUpload(row, prepared) : PreparedImage{};
             if (made.mPending)
                 mPending.push_back(Pending{ .mSlot = slot,
-                    .mSource = source,
+                    .mSource = row.mImage,
                     .mEncoding = row.mEncoding,
                     .mWrap = row.mWrap,
                     .mPartner = row.mPartner });
-            if (made.mImage != nullptr && row.mPrepared == nullptr)
-                mMade.push_back(Made{ .mSlot = slot, .mImage = made.mImage });
 
-            // **A widened file stands in while its chain is made**, which is the whole of it in BC7
-            // (`ChainPass`): read as it stands, it would be widened here, on the frame an arrival lands
-            // on, into a copy nothing keeps.
+            // **A file stands in while it is read and its chain made**, and is handed to the device once, as
+            // the image it keeps: stood as it is meanwhile, it was handed over twice, and a widened one was
+            // widened here, on the frame an arrival lands on, into a copy nothing keeps. A whole chain is
+            // named by the slot's image and needs none of its texels.
             if (made.mImage != nullptr)
             {
-                kept.mImage = row.mImage;
+                const bool whole = made.mImage->getWholeFormat().has_value();
+                assert((whole || made.mFile != nullptr) && "coarser levels handed over without their file's finest");
+                kept.mImage = whole ? row.mImage : made.mFile;
                 kept.mFormat = row.mFormat;
                 kept.mMade = made.mImage;
             }
-            else if (row.mKind == TextureKind::File && row.mImage != nullptr
-                && (row.mEncoding == TextureEncoding::ConvertedSpecular || (made.mPending && isWidened(row.mFormat))
+            else if (file
+                && (row.mEncoding == TextureEncoding::ConvertedSpecular || made.mPending
                     || (row.mEncoding == TextureEncoding::Normal && row.mFormat == TextureFormat::Bc5Unorm)))
                 kept.mStandsIn = true;
-            else if (row.mKind == TextureKind::File && row.mImage != nullptr)
+            else if (file)
             {
-                kept.mImage = row.mImage;
+                assert(made.mFile != nullptr && "a file handed over without its texels");
+                kept.mImage = made.mFile;
                 kept.mFormat = row.mFormat;
             }
             else if (row.mKind == TextureKind::File)
@@ -180,6 +175,13 @@ namespace Rtx
 
             data.mSlot = kept.mSlot;
             data.mWrap = row.mWrap;
+            if (row.mKind == TextureKind::File)
+            {
+                const bool whole = described.isOk() && data.mSource == TextureSource::File && !kept.mStandsIn;
+                mStood.push_back(Stood{ .mSlot = kept.mSlot,
+                    .mBytes = whole ? data.mBytes.size() + data.mCoarser.size() : 0,
+                    .mMade = whole && kept.mMade != nullptr });
+            }
             mDescriptions.push_back(data);
         }
 
@@ -187,6 +189,12 @@ namespace Rtx
 
         Crash::contract(mLevels.capacity() == reserved, "the level table grew while descriptions spanned it");
         Crash::contract(mTexels.capacity() == reservedTexels, "the laid texels grew while descriptions spanned them");
+    }
+
+    void SceneTextures::letGo()
+    {
+        mKept.clear();
+        mFound.clear();
     }
 
     Result<TextureData, std::string> SceneTextures::describeKept(const Kept& kept)

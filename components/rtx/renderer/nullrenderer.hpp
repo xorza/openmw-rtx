@@ -44,6 +44,7 @@ namespace Rtx
         void extendScene(SceneSlot slot, const SceneDesc& scene, std::span<const TextureData> arrived) override;
         SceneHeld describeHeld(SceneSlot slot) const override;
         std::span<const Refusal> getRefusals(SceneSlot) const override { return {}; }
+        std::optional<std::uint64_t> getTextureRoom() const override { return std::nullopt; }
         void placeScene(SceneSlot slot, const SceneDesc& scene) override;
         SceneSlot addViewScene() override;
         void dropViewScene(SceneSlot slot) override;

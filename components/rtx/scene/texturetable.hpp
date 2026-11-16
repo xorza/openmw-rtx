@@ -8,11 +8,10 @@
 #include <span>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 #include <osg/Image>
 #include <osg/ref_ptr>
-
-#include <components/rtx/image/madeimage.hpp>
 
 #include <components/rtx/common/index.hpp>
 #include <components/rtx/common/slots.hpp>
@@ -84,14 +83,26 @@ namespace Rtx
         /// beside a metal-roughness map. Null for every other slot.
         osg::ref_ptr<const osg::Image> mPartner{};
 
-        /// The file's chain made again (`PreparedImages`), which the upload reads in place of both
-        /// above once it is made; null until then, and for every other slot. Held here, so the slot
-        /// decides how long it stays.
-        osg::ref_ptr<const MadeImage> mPrepared{};
-
         /// `mImage`'s format as `mEncoding` reads it, read once when the slot is taken.
         /// `TextureFormat::Unnamed` where there is no image.
         TextureFormat mFormat = TextureFormat::Unnamed;
+
+        /// The bytes the device stands of a file whose whole image it was handed (`TextureTable::stand`), and
+        /// nought until then: what a slot that rests holds of the device's room, and whether it may rest.
+        std::uint64_t mStoodBytes = 0;
+
+        /// Whether what the device was handed is the file's chain made again (`PreparedImages`), which moves
+        /// every level under the finest, rather than the file's own.
+        bool mStoodMade = false;
+
+        /// Whether nothing names the slot and it stands on the device until its room is needed
+        /// (`TextureTable::drop`); where it waits among the slots that came to rest since the list was last
+        /// settled, `sNoIndex` once it is on the list; and its neighbours on the list, the order the slots
+        /// came to rest in.
+        bool mResting = false;
+        Index mWaitingAt = sNoIndex;
+        Index mRestedBefore = sNoIndex;
+        Index mRestedAfter = sNoIndex;
 
         /// What a person reads the slot as, in a refusal or a legend: a file's path, and what a bake
         /// or a composite was made from.
@@ -99,11 +110,16 @@ namespace Rtx
     };
 
     /// Every texture the scene names, what still names each one, and which slots changed. A slot
-    /// is live from its take, before anything names it, reference counted from the hold that
-    /// follows, and given back the moment nothing names it, because waiting for a sweep would keep
-    /// a region's images alive across the crossing that left it. Two ways in and one table: a slot
-    /// is a file the content named or a key this renderer made for something it baked, never both.
-    /// A slot that is freed keeps its index.
+    /// is live from its take, before anything names it, and reference counted from the hold that
+    /// follows. Two ways in and one table: a slot is a file the content named or a key this renderer
+    /// made for something it baked, never both. A slot that is freed keeps its index.
+    ///
+    /// **A file the device stands whole rests when nothing names it, until its room is needed**
+    /// (`docs/architecture.md`, "A texture nothing names rests on the device"): it keeps its slot, its
+    /// path and the device's image, and lets go of the host's, so the next take of it is the slot it
+    /// had, with nothing described and nothing uploaded; the slot the oldest to rest goes first when
+    /// the array is full or the device's room is wanted (`evictResting`). A bake is freed the moment
+    /// nothing names it, since its source stands beside it.
     ///
     /// **A slot is a file, its wrap and its encoding.** The same file bound clamped and bound
     /// repeating is two slots, because the wrap is the sampler's and a sampler is per slot; the
@@ -124,6 +140,7 @@ namespace Rtx
             reserveRows(room.mTextures);
             mChanges.reserve(room.mTextures);
             mPathIndex.reserve(room.mTextures);
+            mRestingNow.reserve(room.mTextures);
         }
 
         /// The slot for `path` under `wrap` and `encoding`, taking one where this has not met the
@@ -164,6 +181,20 @@ namespace Rtx
         /// under every wrap and in both encodings, and the bake names the file and not the slot.
         Index findFile(VFS::Path::NormalizedView path) const;
 
+        /// Says what the device was last handed of `slot`: the whole of its image, `bytes` of it, its chain
+        /// made again or not, or nought where it stood in or drew the stand-in. What lets a file rest once
+        /// nothing names it, and what its rest holds of the device's room.
+        void stand(Index slot, std::uint64_t bytes, bool made);
+
+        /// Frees the slots that rest, the oldest to rest first, until `bytes` of the device's room are
+        /// given back or none rests, and answers the bytes given back: each slot reported freed
+        /// (`getFreed`), its image the device's to drop.
+        std::uint64_t evictResting(std::uint64_t bytes);
+
+        /// How many slots rest, and the bytes they stand on the device.
+        std::size_t getRestingCount() const { return mRestingCount; }
+        std::uint64_t getRestingBytes() const { return mRestingBytes; }
+
         std::span<const Index> getArrived() const { return mChanges.getArrived(); }
         std::span<const Index> getFreed() const { return mChanges.getFreed(); }
 
@@ -172,20 +203,22 @@ namespace Rtx
         /// has to read as a change.
         std::uint64_t getRevision() const { return mRevision; }
 
-        /// Gives `slot`, a live file's slot, its image with its chain made again (`TextureRow::mPrepared`),
-        /// and where it stood without it, has it arrive again, so the next hand-over stands it with it.
-        void prepare(Index slot, osg::ref_ptr<const MadeImage> image, bool stood)
+        /// Has `slot`, a live file's slot that stood in while its texels were read and its chain made, arrive
+        /// again, so the next hand-over hands it over.
+        void arriveAgain(Index slot)
         {
-            assert(isLive(slot) && "a slot that stands no texture was prepared");
-            rowAt(slot).mPrepared = std::move(image);
-            if (!stood)
-                return;
+            assert(isLive(slot) && "a slot that stands no texture arrived again");
             mChanges.note(slot, SlotNews::Arrived);
             ++mRevision;
         }
 
-        /// Settles what a drop took out of the arrivals, so they can be read.
-        void compact() { mChanges.compact(); }
+        /// Settles what a drop took out of the arrivals, so they can be read, and files the slots that came
+        /// to rest since the last.
+        void compact()
+        {
+            mChanges.compact();
+            settleResting();
+        }
 
         void clearArrivals()
         {
@@ -223,8 +256,22 @@ namespace Rtx
         void hold(Index texture);
         void drop(Index texture);
 
-        /// Whether a new slot may be taken, counting and reporting the refusal where it may not.
+        /// Whether a new slot may be taken, freeing the oldest to rest where the array is full, and
+        /// counting and reporting the refusal where none rests.
         bool hasRoom();
+
+        /// Lays `slot`, a file nothing names, to rest, letting go of its host images.
+        void rest(Index slot);
+
+        /// Takes `slot` back from its rest for a take of it, with the images the taker holds.
+        void wake(Index slot, const osg::Image* image, const osg::Image* partner);
+
+        /// Takes `slot` out of the lookups and the census, empties it and reports it freed.
+        void release(Index slot);
+
+        /// Files the slots that came to rest since the last, by their slots, after every slot already on the
+        /// list.
+        void settleResting();
 
         /// Puts `row` in a free slot where there is one, in a new one otherwise, and counts the
         /// arrival.
@@ -247,6 +294,17 @@ namespace Rtx
         std::unordered_map<VFS::Path::Normalized, FileSlots, VFS::Path::Hash, std::equal_to<>> mPathIndex;
         std::unordered_map<VFS::Path::Normalized, Index, VFS::Path::Hash, std::equal_to<>> mSpriteLightIndex;
         std::unordered_map<Index, GroundSlots> mGroundIndex;
+
+        /// The slots that rest, the oldest to rest and the latest: a list through the rows
+        /// (`TextureRow::mRestedBefore`), so a wake takes one out without a search. Those that came to
+        /// rest since it was last settled wait apart and are filed by their slots, since a sweep drops them in
+        /// the order an identity map hashed their objects, which is the allocator's and not the world's, as
+        /// `SlotPool` says: sorted once, where each filed in its place walked the batch.
+        Index mRestedFirst = sNoIndex;
+        Index mRestedLast = sNoIndex;
+        std::vector<Index> mRestingNow;
+        std::size_t mRestingCount = 0;
+        std::uint64_t mRestingBytes = 0;
 
         std::uint64_t mRevision = 0;
         std::uint32_t mRefused = 0;

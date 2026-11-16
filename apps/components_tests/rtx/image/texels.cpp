@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <iterator>
+#include <memory>
 #include <random>
 #include <string_view>
 #include <tuple>
@@ -17,8 +18,12 @@
 #include <osg/ref_ptr>
 
 #include <apps/components_tests/rtx/support/allocations.hpp>
+#include <apps/components_tests/rtx/support/ddsfile.hpp>
 #include <apps/components_tests/rtx/support/death.hpp>
 #include <apps/components_tests/rtx/support/image.hpp>
+#include <components/resource/cachebudget.hpp>
+#include <components/resource/imageheader.hpp>
+#include <components/resource/imagemanager.hpp>
 #include <components/rtx/image/colour.hpp>
 #include <components/rtx/image/texels.hpp>
 #include <components/rtx/image/texturedata.hpp>
@@ -28,6 +33,9 @@
 #include <components/rtx/preprocess/contentpreprocessor.hpp>
 #include <components/rtx/preprocess/contentstats.hpp>
 #include <components/rtx/preprocess/threadcontent.hpp>
+#include <components/testing/util.hpp>
+#include <components/vfs/manager.hpp>
+#include <components/vfs/pathutil.hpp>
 
 namespace Rtx
 {
@@ -212,6 +220,36 @@ namespace Rtx
 
             EXPECT_EQ(empty.mAlpha, 0.0f);
             EXPECT_EQ(empty.opaque(), osg::Vec3f());
+        }
+
+        /// **A fact one thread read of a header's texels is every thread's**, kept with the header, so a second
+        /// thread asks no texel once the manager let them go: the solid reach of a DXT1 file of 8 by 8 in three
+        /// levels, 48 bytes, read on one thread, is found on another with nothing read; its mean, which no thread
+        /// has read, reads the texels again.
+        TEST(RtxImageFactCacheTest, aFactAThreadReadOfAHeaderIsEveryThreads)
+        {
+            TestingOpenMW::VFSTestFile file(Testing::ddsDxt1(8, 8, 3, 0x55));
+            constexpr VFS::Path::NormalizedView path("textures/tx_eight.dds");
+            const std::unique_ptr<VFS::Manager> vfs = TestingOpenMW::createTestVFS({ { path, &file } });
+            Resource::CacheBudget budget(Resource::CacheBudget::sUnbounded);
+            Resource::ImageManager images(vfs.get(), budget);
+            images.setModelImages(Resource::ModelImages::Headers);
+            const osg::ref_ptr<osg::Image> header = images.getModelImage(path);
+
+            ThreadContent first;
+            ThreadContent second;
+            const bool solid = first.reachesSolid(first.factsOf(*header), *header);
+            EXPECT_EQ(first.mPreprocessor.takeStats().at(ContentPassId::SolidReach).mAsked, 1u);
+            Resource::releaseTexels(*header);
+            ASSERT_EQ(budget.getHeld(), 0u);
+
+            EXPECT_EQ(second.reachesSolid(second.factsOf(*header), *header), solid);
+            EXPECT_EQ(second.mPreprocessor.takeStats().at(ContentPassId::SolidReach).mAsked, 0u) << "read again";
+            EXPECT_EQ(budget.getHeld(), 0u) << "the texels read again for a fact another thread read";
+
+            second.meanOf(*header);
+            EXPECT_EQ(second.mPreprocessor.takeStats().at(ContentPassId::TexelMean).mAsked, 1u);
+            EXPECT_EQ(budget.getHeld(), 48u) << "a fact no thread read, off the texels read again";
         }
 
         /// A file is read once for the process and found by its name after: two images of one

@@ -129,16 +129,18 @@ namespace RtxTool
     std::string describeHitch(const ClosedSpan& span, double lastMs, std::size_t loaded);
 
     /// What a soak's two passes are held to each other by: what the place has in use — the content's vertices and
-    /// indices, the instances placed, the structures' live bytes and the textures' — and the median frame. Never
-    /// what the renderer holds room for: a table keeps the room the flight's peak took (`PlacementTable`'s slots,
-    /// the content's run ends), which the closing pass inherits from the whole tour and which no leak is.
+    /// indices, the instances placed, the structures' live bytes and the textures something names — and the median
+    /// frame. Never what the renderer holds room for: a table keeps the room the flight's peak took (`PlacementTable`'s
+    /// slots, the content's run ends), and the device the textures that rest (`TextureTable`), which the closing pass
+    /// inherits from the whole tour and which no leak is. The textures by their count, which the scene and the
+    /// content both state exactly, where the bytes of a texture that rests are the host's figure and not the device's.
     struct SoakFigures
     {
         std::uint32_t mVerticesUsed = 0;
         std::uint32_t mIndicesUsed = 0;
         std::uint32_t mInstances = 0;
         std::uint64_t mStructureLiveBytes = 0;
-        std::uint64_t mTextureBytes = 0;
+        std::uint32_t mTextures = 0;
         double mMedianMs = 0.0;
 
         static SoakFigures of(const BenchPlace& place);

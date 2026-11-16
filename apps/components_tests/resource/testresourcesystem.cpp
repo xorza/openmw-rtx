@@ -1,5 +1,7 @@
+#include <apps/components_tests/rtx/support/ddsfile.hpp>
 #include <components/files/configurationmanager.hpp>
 #include <components/resource/cachebudget.hpp>
+#include <components/resource/imageheader.hpp>
 #include <components/resource/imagemanager.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
@@ -115,6 +117,54 @@ namespace
         ASSERT_NE(image.get(), resources.getImageManager()->getWarningImage());
         EXPECT_EQ(image->getTotalSizeInBytesIncludingMipmaps(), 16u);
         EXPECT_EQ(resources.getCacheBudget().getHeld(), 16u);
+    }
+
+    /// **A model's image is its header where the renderer reads texels itself**: the file's size, format, levels and
+    /// name, no texel, one object however often a model names the file, and read once; its texels its manager's,
+    /// from the cache while it holds them and from the file once let go of, a reload. The image itself where models
+    /// keep their texels, and the warning image for a file there is none of.
+    TEST(ResourceResourceSystem, a_models_image_is_its_header_whose_texels_its_manager_reads)
+    {
+        // 8 by 8 in DXT1, three levels: 4 blocks, 1 and 1, 8 bytes each, 48.
+        TestingOpenMW::VFSTestFile file(Rtx::Testing::ddsDxt1(8, 8, 3, 0x55));
+        constexpr VFS::Path::NormalizedView path("textures/eight.dds");
+        const std::unique_ptr<VFS::Manager> vfs = TestingOpenMW::createTestVFS({ { path, &file } });
+        const ToUTF8::Utf8Encoder encoder(ToUTF8::WINDOWS_1252);
+        Resource::ResourceSystem resources(vfs.get(), 1.0, &encoder.getStatelessEncoder());
+        Resource::ImageManager& images = *resources.getImageManager();
+
+        const osg::ref_ptr<osg::Image> texels = images.getModelImage(path);
+        EXPECT_FALSE(Resource::isHeader(*texels)) << "texels, where models keep them";
+        EXPECT_EQ(texels->getTotalSizeInBytesIncludingMipmaps(), 48u);
+
+        images.setModelImages(Resource::ModelImages::Headers);
+        const osg::ref_ptr<osg::Image> header = images.getModelImage(path);
+        ASSERT_TRUE(Resource::isHeader(*header));
+        EXPECT_EQ(header->data(), nullptr);
+        EXPECT_EQ(header->s(), 8);
+        EXPECT_EQ(header->t(), 8);
+        EXPECT_EQ(header->getPixelFormat(), texels->getPixelFormat());
+        EXPECT_EQ(header->getInternalTextureFormat(), texels->getInternalTextureFormat());
+        EXPECT_EQ(header->getNumMipmapLevels(), 3u);
+        EXPECT_EQ(header->getFileName(), path.value());
+        EXPECT_EQ(images.getModelImage(path), header) << "one header a file";
+
+        EXPECT_EQ(Resource::texelsOf(*header), texels) << "the texels the cache holds";
+        EXPECT_EQ(Resource::texelsOf(*texels), texels) << "an image that holds its texels is its own";
+        EXPECT_EQ(resources.getCacheBudget().getHeld(), 48u);
+
+        // Let go of: the cache drops them, what holds them keeps them, and a model's next ask reads nothing.
+        Resource::releaseTexels(*header);
+        EXPECT_EQ(resources.getCacheBudget().getHeld(), 0u);
+        EXPECT_EQ(texels->getTotalSizeInBytesIncludingMipmaps(), 48u);
+        EXPECT_EQ(images.getModelImage(path), header);
+        EXPECT_EQ(resources.getCacheBudget().getHeld(), 0u) << "the header asked again, and no texel read";
+        const osg::ref_ptr<const osg::Image> again = Resource::texelsOf(*header);
+        EXPECT_NE(again, texels) << "read again from the file";
+        EXPECT_EQ(again->getTotalSizeInBytesIncludingMipmaps(), 48u);
+        EXPECT_EQ(resources.getCacheBudget().getHeld(), 48u);
+
+        EXPECT_EQ(images.getModelImage(VFS::Path::NormalizedView("textures/none.dds")), images.getWarningImage());
     }
 
     /// **A template is kept by its geometry's bytes and not its images'**, which the image cache counts once

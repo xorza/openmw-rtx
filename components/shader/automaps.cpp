@@ -114,7 +114,7 @@ namespace Shader
                 = companionPath(diffuseImage->getFileName(), rules.mNormalHeightMapPattern);
             if (vfs.exists(normalHeightPath))
             {
-                image = images.getImage(normalHeightPath);
+                image = images.getModelImage(normalHeightPath);
                 normalHeight = true;
             }
             else
@@ -122,7 +122,7 @@ namespace Shader
                 const VFS::Path::Normalized normalPath
                     = companionPath(diffuseImage->getFileName(), rules.mNormalMapPattern);
                 if (vfs.exists(normalPath))
-                    image = images.getImage(normalPath);
+                    image = images.getModelImage(normalPath);
             }
 
             // A normal map already bound as the bump map is the same file, and probably not a
@@ -154,7 +154,7 @@ namespace Shader
                 = companionPath(diffuseImage->getFileName(), rules.mSpecularMapPattern);
             if (vfs.exists(specularPath))
             {
-                osg::ref_ptr<osg::Image> image(images.getImage(specularPath));
+                osg::ref_ptr<osg::Image> image(images.getModelImage(specularPath));
                 osg::ref_ptr<osg::Texture2D> texture = companionTexture(*image, diffuseMap);
 
                 // After the normal map, which the state set written to now lists.

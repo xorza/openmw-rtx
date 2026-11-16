@@ -181,13 +181,14 @@ namespace Rtx
         /// took on its mesh and its material.
         void dropInstance(Index slot, Stander by);
 
-        /// Whether every live row of every table is held — what a caller that took a slot and forgot
-        /// to hold it breaks: a row nothing can ever free. The extractor asks this at the end of
-        /// every retire.
+        /// Whether every live row of every table is held, or is a texture that rests until its room is
+        /// needed — what a caller that took a slot and forgot to hold it breaks: a row nothing can ever
+        /// free. The extractor asks this at the end of every retire.
         bool isConsistent() const;
 
-        /// Whether nothing stands: no live mesh, material, texture or deformer, and no placement.
-        /// What a detached world is, and what a mirror asserts of its scene at teardown.
+        /// Whether nothing stands: no live mesh, material, texture or deformer, and no placement, a
+        /// texture that rests aside, which nothing names and the next world may take again. What a
+        /// detached world is, and what a mirror asserts of its scene at teardown.
         bool isEmpty() const;
 
         /// Appends one particle system's live sprites, and the emitter `spec` says they are. The sphere

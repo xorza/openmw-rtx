@@ -142,6 +142,14 @@ decision (`.notes/UPSTREAM.md`).
   and the blend rules, whose job is dropping what is cheap to build again.
 - **A stepped run is held to the budget too** (`RtxRenderer::setResourceExpiry` keeps only the built caches for the
   run): no suite on the desk passes it, and a handheld's tour that does has no memory to keep more.
+- **A model holds a texture's header, not its texels**, by the user's decision (`Resource::ImageHeader`): where the
+  renderer reads texels itself, a model's textures hold the file's size, format and levels, the file read once a
+  session for them, and the texels are read through the header (`Resource::texelsOf`) when a fact or the device wants
+  them, on the service's threads for an upload (`Rtx::PreparedImages`), and let go of once the device has its copy.
+  Asset metadata beside bulk data streamed by the renderer, as Unity's textures that are not readable drop their
+  host copy ([Unity](https://unity.com/blog/engine-platform/accessing-texture-data-efficiently)). Refused: freeing a
+  shared image's texels in place, which every thread reading it would race; a header read without the texels, as
+  OpenSceneGraph's DDS reader tells a DXT1 file's alpha from its blocks.
 - **A preload is a guess, skipped past the budget** (`CellPreloader`, `CellPreloader Skipped`), and asked again on a
   later frame; `preload cell cache max` stays a cap beside it. Refused: waiting for room, which stalls the queue.
 
@@ -329,7 +337,9 @@ screen (`research/2026-11-08-normal-map-chains.md`).
 - **One specular layout, a classic map converted**, by the user's decisions: a `_spec` map whose channels spread less
   than 0.1 is classic (`SpecularKind`), and it and its diffuse are converted per texel as Khronos converts
   specular-glossiness (`ConversionPass`). Refused: the layout as a setting; every map read as metal-roughness.
-- **A chain is built on a worker**, never on the frame or the reader: a slot draws its file until its chain lands.
+- **A file is read and its chain built on a worker** (`PreparedImages`), never on the frame or the reader: a slot
+  stands in until both land, so the device is handed the file once, as the image it keeps. Refused: the file drawn as
+  it stands meanwhile, handed over a second time when the chain lands.
 - **The store is filled on the loading screen, in the game's own process** (`Rtx::ContentPreparation`, inside
   `Renderer::prepareContent`), by the user's decision: every model and land texture the content list names and the
   siblings the game loads by its own rule, walked as the cell reader walks them, on every CPU but one. Refused: a child
@@ -425,6 +435,14 @@ them.
   - A texture's side is chosen from the room left when it arrives, the file standing the most bytes coming down a level
     first, as Unreal's streamer does (`TextureArray::chooseLevels`). Refused: one side for a whole arrival, which left
     1344 MiB unused.
+  - **A texture nothing names rests on the device**, by the user's decision (`TextureTable`): a file the device stood
+    whole keeps its slot and its image when its last holder goes, and the next take of it is that slot, nothing
+    described and nothing uploaded. The oldest to rest is freed first: when the array is full, and where the device's
+    room is short of an extension as large as any so far, ahead of it, since a dropped image's memory comes back only
+    once the frames that may name it are done; a rebuild frees them all. The host keeps nothing of what rests, nor the
+    chain made again of what stands, which a rebuild finds in the store. Over the PBR tour it handed the device
+    8.1 GiB where freeing at once handed 51.9, each file six times
+    (`research/2026-11-16-texture-uploads-and-host-memory.md`). Refused: a grace period, a figure no content decides.
   - A bottom level is built loose in storage of its own and copied out tight, so that storage empties whole, as RTXMU
     does (`BottomLevelStore`); the world's build compacts before its textures are made (`BuildCompaction`), as NVIDIA's
     `buildBlas` does.

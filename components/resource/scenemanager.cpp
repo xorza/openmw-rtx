@@ -731,7 +731,7 @@ namespace Resource
                 try
                 {
                     return osgDB::ReaderWriter::ReadResult(
-                        mImageManager->getImage(VFS::Path::toNormalized(Files::pathToUnicodeString(filePath))),
+                        mImageManager->getModelImage(VFS::Path::toNormalized(Files::pathToUnicodeString(filePath))),
                         osgDB::ReaderWriter::ReadResult::FILE_LOADED);
                 }
                 catch (std::exception& e)

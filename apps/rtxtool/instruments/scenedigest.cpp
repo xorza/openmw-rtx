@@ -563,11 +563,13 @@ namespace RtxTool
         // means. A file and a sprite's bake name their file, a ground its material; the kind tells them apart, and
         // each path ends with its length so two laid end to end cannot read as one. Every other field is bound whole,
         // as `forEachMaterialField` does: the wrap and encoding reach the sampler and the decode. The image and
-        // partner are files' bytes, which the path names; of the prepared image only whether there is one.
+        // partner are files' bytes, which the path names; of what the device stands its bytes and whether it is the
+        // chain made again, which moves every level under the finest.
         Column textures(mScratch);
         for (const Rtx::TextureRow& row : scene.textures().getRows())
         {
-            const auto& [kind, path, groundOf, wrap, encoding, image, partner, prepared, format] = row;
+            const auto& [kind, path, groundOf, wrap, encoding, image, partner, format, stoodBytes, stoodMade, resting,
+                waitingAt, restedBefore, restedAfter] = row;
             const std::string_view name = path.value();
             textures.add(std::span<const char>(name.data(), name.size()));
             textures.add(static_cast<std::uint32_t>(name.size()));
@@ -577,8 +579,12 @@ namespace RtxTool
             textures.add(static_cast<std::uint32_t>(wrap));
             textures.add(static_cast<std::uint32_t>(encoding));
             textures.add(static_cast<std::uint32_t>(format));
-            // Whether the slot reads its chain made again, which moves every level under the finest.
-            textures.add(static_cast<std::uint32_t>(prepared != nullptr ? 1 : 0));
+            textures.add(stoodBytes);
+            textures.add(static_cast<std::uint32_t>(stoodMade ? 1 : 0));
+            textures.add(static_cast<std::uint32_t>(resting ? 1 : 0));
+            textures.add(static_cast<std::uint32_t>(waitingAt));
+            textures.add(static_cast<std::uint32_t>(restedBefore));
+            textures.add(static_cast<std::uint32_t>(restedAfter));
             static_cast<void>(image);
             static_cast<void>(partner);
         }

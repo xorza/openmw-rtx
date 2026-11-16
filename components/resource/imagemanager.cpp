@@ -9,6 +9,7 @@
 #include <components/vfs/manager.hpp>
 #include <components/vfs/pathutil.hpp>
 
+#include "imageheader.hpp"
 #include "objectcache.hpp"
 
 namespace
@@ -200,6 +201,30 @@ namespace Resource
         }
 
         return image;
+    }
+
+    osg::ref_ptr<osg::Image> ImageManager::getModelImage(VFS::Path::NormalizedView path)
+    {
+        if (mModelImages == ModelImages::Texels)
+            return getImage(path);
+
+        {
+            const std::scoped_lock lock(mHeadersMutex);
+            if (const auto known = mHeaders.find(path); known != mHeaders.end())
+                return known->second;
+        }
+
+        // Read outside the lock, once however many loaders ask at once (`getOrLoad`). The warning image is no file's,
+        // and nothing reads it again.
+        const osg::ref_ptr<osg::Image> pixels = getImage(path);
+        if (pixels == mWarningImage)
+            return pixels;
+
+        const std::scoped_lock lock(mHeadersMutex);
+        osg::ref_ptr<osg::Image>& header = mHeaders[VFS::Path::Normalized(path)];
+        if (header == nullptr)
+            header = new ImageHeader(*pixels, *this);
+        return header;
     }
 
     osg::Image* ImageManager::getWarningImage()

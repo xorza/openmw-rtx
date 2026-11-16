@@ -1,0 +1,77 @@
+#pragma once
+
+#include <cassert>
+#include <mutex>
+
+#include <osg/CopyOp>
+#include <osg/Image>
+#include <osg/Object>
+#include <osg/Referenced>
+#include <osg/ref_ptr>
+
+namespace Resource
+{
+    class ImageManager;
+
+    /// **A file's image without its texels**: its name, its size, its format and its levels' layout, for a model whose
+    /// renderer reads a texture's texels itself and keeps them only until the device has its copy (`ModelImages`,
+    /// `docs/architecture.md`, "A model holds a texture's header, not its texels"). The texels are its manager's to
+    /// read again (`texelsOf`), the handle's server as an asset handle names it. Asked of only while its manager
+    /// lives, which the resource system that owns both sees to.
+    class ImageHeader final : public osg::Image
+    {
+    public:
+        /// The header of `pixels`, a file's image as its manager read it, whose texels `source` reads again.
+        ImageHeader(const osg::Image& pixels, ImageManager& source);
+
+        ImageHeader() = default;
+
+        /// The copy `META_Object`'s `clone` makes, as OpenSceneGraph copies every object; not assigned, as no
+        /// referenced object is.
+        ImageHeader(const ImageHeader& copy, const osg::CopyOp& op = osg::CopyOp::SHALLOW_COPY);
+        ImageHeader& operator=(const ImageHeader&) = delete;
+
+        META_Object(Resource, ImageHeader)
+
+        /// The file's image with its texels: its manager's, from its cache or read again.
+        osg::ref_ptr<const osg::Image> readTexels() const;
+
+        /// Tells the manager the caller is done with the texels: its cache lets go of them, and what still holds
+        /// them keeps them.
+        void releaseTexels() const;
+
+        /// What a reader derived from the file's texels, kept with the header so every thread that meets the file
+        /// finds it rather than reading the texels again once they are let go of: made the first time any thread
+        /// asks, and the same object after. One kind a header; `Derived` guards what it holds itself.
+        template <class Derived>
+        Derived& derived() const
+        {
+            const std::scoped_lock lock(mDerivedMutex);
+            if (mDerived == nullptr)
+                mDerived = new Derived;
+            assert(
+                dynamic_cast<Derived*>(mDerived.get()) != nullptr && "a header asked for two kinds of what it keeps");
+            return static_cast<Derived&>(*mDerived);
+        }
+
+    protected:
+        ~ImageHeader() override = default;
+
+    private:
+        ImageManager* mSource = nullptr;
+
+        mutable std::mutex mDerivedMutex;
+        mutable osg::ref_ptr<osg::Referenced> mDerived;
+    };
+
+    /// Whether `image` is a header (`ImageHeader`), whose texels its manager reads: asked without reading them.
+    bool isHeader(const osg::Image& image);
+
+    /// `image`'s texels: `image` itself where it holds them, and its manager's where it is a header (`ImageHeader`),
+    /// which may read the file. The one way to the texels of a model's texture.
+    osg::ref_ptr<const osg::Image> texelsOf(const osg::Image& image);
+
+    /// Tells the manager of a header the caller is done with its texels (`ImageHeader::releaseTexels`); nothing for an
+    /// image that holds its own, which its holders keep.
+    void releaseTexels(const osg::Image& image);
+}

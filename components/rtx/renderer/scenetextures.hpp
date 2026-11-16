@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <optional>
 #include <span>
 #include <string>
@@ -15,11 +16,11 @@
 #include <components/rtx/image/texturedata.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/textureformat.hpp>
+#include <components/rtx/preprocess/preparedimages.hpp>
 #include <components/rtx/scene/refusal.hpp>
 
 namespace Rtx
 {
-    class PreparedImages;
     class SceneDesc;
 
     /// Every live texture a scene names, described, and the storage those descriptions point into.
@@ -43,8 +44,8 @@ namespace Rtx
         /// of room.
         ///
         /// @param prepared where a normal or a data map's image with its chain made again is found
-        ///        (`PreparedImages`), or null for none: a file whose image is still being made is
-        ///        described as it stands, and named in `getPending`.
+        ///        (`PreparedImages`), or null for none: a file whose image is still being made stands
+        ///        in, and is named in `getPending`.
         /// @param settled whether to wait for the images the slots need before describing them, so none
         ///        is pending.
         void describeAll(const SceneDesc& scene, PreparedImages* prepared, bool settled);
@@ -54,8 +55,9 @@ namespace Rtx
         /// sits.
         void describe(const SceneDesc& scene, std::span<const Index> slots, PreparedImages* prepared, bool settled);
 
-        /// A slot the last `describe` described as its file stands, while its image with its chain
-        /// made again is made: the file the image is made of, which the slot's owner asks after.
+        /// A slot the last `describe` stood in for while its image with its chain made again is made: the
+        /// file the image is made of, which the slot's owner asks after. Stood in for and not stood as its
+        /// file, so the device is handed each file once, the image it keeps.
         struct Pending
         {
             Index mSlot;
@@ -67,15 +69,19 @@ namespace Rtx
 
         std::span<const Pending> getPending() const { return mPending; }
 
-        /// A slot the last `describe` described with its image made, which its owner gives the slot
-        /// to hold (`TextureTable::prepare`).
-        struct Made
+        /// A file slot the last `describe` described, and the bytes of the whole image it handed the device,
+        /// its own or its chain made again: nought where it stood in, or drew the stand-in. What its owner
+        /// tells the slot (`TextureTable::stand`), so the slot is said to stand what it was last handed.
+        struct Stood
         {
             Index mSlot;
-            osg::ref_ptr<const MadeImage> mImage;
+            std::uint64_t mBytes;
+
+            /// Whether it is the file's chain made again.
+            bool mMade;
         };
 
-        std::span<const Made> getMade() const { return mMade; }
+        std::span<const Stood> getStood() const { return mStood; }
 
         /// What the last `describe` found, each carrying the slot it goes to in `TextureData::mSlot`.
         std::span<const TextureData> getDescriptions() const { return mDescriptions; }
@@ -83,6 +89,10 @@ namespace Rtx
         /// What the last `describe` refused, for whoever owns the scene to report: the scene is
         /// read here, because a read-only caller describes it too.
         std::span<const Refusal> getRefusals() const { return mRefusals; }
+
+        /// Lets go of the texels and chains the last `describe` held for its descriptions, once the backend
+        /// has read them: until the next arrival they would keep a cell's texels on the host.
+        void letGo();
 
     private:
         /// The chunk a composite slot flattens, and which of its two layers the slot holds.
@@ -134,11 +144,11 @@ namespace Rtx
         /// no longer one per entry of what it was asked for.
         std::vector<Kept> mKept;
         std::vector<Pending> mPending;
-        std::vector<Made> mMade;
+        std::vector<Stood> mStood;
 
-        /// What a settled describe's first asks found made, held until each slot's own ask: an image
-        /// the service hands out once and then only watches, which nothing else held between the two.
-        std::vector<osg::ref_ptr<const MadeImage>> mFound;
+        /// What a settled describe's first asks found, held until each slot's own ask: what the service
+        /// hands out once and then only watches, which nothing else held between the two.
+        std::vector<PreparedImage> mFound;
 
         /// Every image's levels, back to back. One table rather than one vector each: a cell reaches
         /// a couple of hundred textures, and the descriptions want a span into something stable.

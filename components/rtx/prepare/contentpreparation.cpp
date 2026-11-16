@@ -20,6 +20,7 @@
 #include <components/misc/result.hpp>
 #include <components/platform/heap.hpp>
 #include <components/platform/thread.hpp>
+#include <components/resource/imageheader.hpp>
 #include <components/rtx/image/specularlayout.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/textureformat.hpp>
@@ -395,16 +396,20 @@ namespace Rtx
     {
         hand.mKeys.clear();
         hand.mContent.mPreprocessor.collectKeys(&hand.mKeys);
+        // The texels through the header a model holds, for the make alone: let go of as it ends.
+        const osg::ref_ptr<const osg::Image> image = Resource::texelsOf(*queued.mImage);
         if (queued.mPartner != nullptr)
-            hand.mContent.mPreprocessor.convert(ConversionPass::Input{ .mImage = *queued.mImage,
-                                                    .mPartner = *queued.mPartner,
-                                                    .mEncoding = queued.mEncoding,
-                                                    .mWrap = queued.mWrap },
+        {
+            const osg::ref_ptr<const osg::Image> partner = Resource::texelsOf(*queued.mPartner);
+            hand.mContent.mPreprocessor.convert(
+                ConversionPass::Input{
+                    .mImage = *image, .mPartner = *partner, .mEncoding = queued.mEncoding, .mWrap = queued.mWrap },
                 hand.mChain, ContentAsk::Stored);
+        }
         else
             hand.mContent.mPreprocessor.chain(
-                ChainPass::Input{ .mImage = *queued.mImage, .mEncoding = queued.mEncoding, .mWrap = queued.mWrap },
-                hand.mChain, ContentAsk::Stored);
+                ChainPass::Input{ .mImage = *image, .mEncoding = queued.mEncoding, .mWrap = queued.mWrap }, hand.mChain,
+                ContentAsk::Stored);
         hand.mContent.mPreprocessor.collectKeys(nullptr);
     }
 

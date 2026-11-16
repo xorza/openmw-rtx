@@ -27,6 +27,11 @@ namespace Rtx
         std::uint32_t mPoseEnd = 0;
         std::uint32_t mBindVertexEnd = 0;
 
+        /// The textures nothing names that rest on the device until their room is needed (`TextureTable`), and the
+        /// bytes they were handed over in: what the scene's own figure of textures counts with the ones named.
+        std::uint32_t mRestingTextures = 0;
+        std::uint64_t mRestingTextureBytes = 0;
+
         ReaderMemory mReader;
     };
 }

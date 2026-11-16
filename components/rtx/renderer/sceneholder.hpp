@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
 #include <span>
 
 #include <components/rtx/common/index.hpp>
@@ -62,6 +63,11 @@ namespace Rtx
         /// texture refused draws the stand-in, and a mesh refused is left out. Valid until the next
         /// call of either for `slot`.
         virtual std::span<const Refusal> getRefusals(SceneSlot slot) const = 0;
+
+        /// What textures may still take on the device before an arrival is stood smaller than its files,
+        /// or nothing from a renderer whose textures take no room it bounds: what a texture that rests
+        /// gives its room back to (`TextureTable::evictResting`).
+        virtual std::optional<std::uint64_t> getTextureRoom() const = 0;
 
         /// The same scene with its instances and lights somewhere else and its actors in a new pose:
         /// rebuilds only what says where things are, plus the structure of each mesh `getDeformed`

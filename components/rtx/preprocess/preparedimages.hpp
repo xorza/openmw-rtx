@@ -36,16 +36,22 @@ namespace Rtx
         /// nothing is made of it.
         osg::ref_ptr<const MadeImage> mImage{};
 
-        /// Whether it is being made, so the caller describes the file as it stands for now and asks
-        /// again: false where it is made, or where its own chain stands.
+        /// The file's texels, which the upload reads the levels nothing made of: every level where
+        /// nothing is made, the finest where the made levels are coarser; null where the made image is
+        /// whole, or pending.
+        osg::ref_ptr<const osg::Image> mFile{};
+
+        /// Whether it is being read or made, so the caller stands it in for now and asks again.
         bool mPending = false;
     };
 
-    /// Files with their chains made again from their finest levels (`ChainPass`), on threads of their own
-    /// (`docs/architecture.md`, "A chain is built on a worker"): a slot draws its file as it stands
-    /// until its image is made, and is then made again. A made image is held until it is first handed
-    /// out, and watched after it, so the texture that holds it decides how long it stays. One for a
-    /// process, shared by every thread that asks. Pinned: the threads reach every member.
+    /// **What the device is handed of a file, read and made on threads of their own**: its texels, read
+    /// through its header where a model holds one (`Resource::ImageHeader`), and its chain made again
+    /// from its finest level where it has one (`ChainPass`, `docs/architecture.md`, "A file is read and its
+    /// chain built on a worker"). A slot stands in until it is ready, and is handed over once. What is read or made is
+    /// held until it is first handed out, and watched after it, so the texture that holds it decides how
+    /// long it stays, until the device has its copy (`letGo`). One for a process, shared by every thread
+    /// that asks. Pinned: the threads reach every member.
     class PreparedImages
     {
     public:
@@ -70,12 +76,22 @@ namespace Rtx
         PreparedImages(const PreparedImages&) = delete;
         PreparedImages& operator=(const PreparedImages&) = delete;
 
-        /// `file`, read as `encoding` by a slot that addresses it as `wrap`, with its chain made again:
-        /// made, or queued and pending, or nothing made of it. `prepares(encoding)` holds. Never waits.
+        /// What the device is handed of `file`, read as `encoding` by a slot that addresses it as `wrap`:
+        /// its texels and its chain made again where `prepares` says, ready, or queued and pending. A file
+        /// whose texels it holds and that has no chain made is answered at once. Never waits.
         /// @param partner a converted slot's other file (`TextureRow::mPartner`), and null for every
         ///        other slot.
         PreparedImage find(
             const osg::Image& file, TextureEncoding encoding, TextureWrap wrap, const osg::Image* partner = nullptr);
+
+        /// Whether what `find` queued for `file` as it was asked is read and made, so the slot that stood in
+        /// arrives again to be handed it. Hands nothing out.
+        bool isReady(const osg::Image& file, TextureEncoding encoding, TextureWrap wrap, const osg::Image* partner);
+
+        /// Lets go of what was read and made of `file` for every slot, the device having its copy, and
+        /// tells a header's manager its texels may go (`Resource::releaseTexels`): a later ask reads it
+        /// again. What a job reading it holds goes as the job ends.
+        void letGo(const osg::Image& file);
 
         /// Whether nothing is queued or being made: what a run that compares frames waits for, so
         /// every frame it compares draws the made chains.
@@ -109,12 +125,20 @@ namespace Rtx
 
             bool mMade = false;
 
-            /// Made, and nothing made of it: its own chain stands (`ChainPass`'s empty output).
+            /// Made, and nothing made of it: its own chain stands (`ChainPass`'s empty output), and for a
+            /// file `prepares` refuses.
             bool mStands = false;
 
-            /// Held until first handed out, watched after it.
+            /// Whether the upload reads the file's texels: where nothing is made, or the made levels are
+            /// coarser.
+            bool mReadsFile = false;
+
+            /// Held until first handed out, watched after it: the made chain, and the file's texels
+            /// read through its header.
             osg::ref_ptr<const MadeImage> mHeld{};
             osg::observer_ptr<const MadeImage> mWatched{};
+            osg::ref_ptr<const osg::Image> mFileHeld{};
+            osg::observer_ptr<const osg::Image> mFileWatched{};
         };
 
         struct Job
@@ -122,7 +146,17 @@ namespace Rtx
             Key mKey;
             osg::ref_ptr<const osg::Image> mFile;
             osg::ref_ptr<const osg::Image> mPartner{};
+
+            /// Whether its chain is made again (`prepares`), or its texels alone read.
+            bool mMakes = false;
         };
+
+        /// The entry `file` is found under as a slot asks for it: the wrap only where it decides what is made.
+        static Key keyOf(const osg::Image& file, TextureEncoding encoding, TextureWrap wrap, const osg::Image* partner);
+
+        /// What `entry` answers, made: its chain and its texels as the upload reads them, or pending where
+        /// what it held was let go of by every texture and is queued to be read or made again.
+        PreparedImage answer(const Key& key, Entry& entry);
 
         struct Hand;
 

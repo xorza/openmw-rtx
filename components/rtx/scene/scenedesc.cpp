@@ -254,7 +254,7 @@ namespace Rtx
                 return false;
 
         for (Index slot = 0; slot < mTextures.getRows().size(); ++slot)
-            if (mTextures.isLive(slot) && mTextures.getHolds(slot) == 0)
+            if (mTextures.isLive(slot) && mTextures.getHolds(slot) == 0 && !mTextures.getRows()[slot].mResting)
                 return false;
 
         for (Index slot = 0; slot < mDeformers.getRows().size(); ++slot)
@@ -266,8 +266,9 @@ namespace Rtx
 
     bool SceneDesc::isEmpty() const
     {
-        return mMeshes.getLiveCount() == 0 && mMaterials.getLiveCount() == 0 && mTextures.getLiveCount() == 0
-            && mDeformers.getLiveCount() == 0 && mPlacements.getCounts().mPlaced == 0;
+        return mMeshes.getLiveCount() == 0 && mMaterials.getLiveCount() == 0
+            && mTextures.getLiveCount() == mTextures.getRestingCount() && mDeformers.getLiveCount() == 0
+            && mPlacements.getCounts().mPlaced == 0;
     }
 
     void SceneDesc::noteWalked()

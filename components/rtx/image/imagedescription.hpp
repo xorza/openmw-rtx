@@ -69,9 +69,9 @@ namespace Rtx
     Result<TextureData, std::string> describeFinestLevel(
         const osg::Image& image, std::vector<MipLevel>& levels, std::vector<std::byte>& texels);
 
-    /// The image at `path`, or why nothing reads there — an error and not an exception, because a
-    /// live scene graph names textures that were never files and a renderer that fell over on one
-    /// would fall over on a cell. Never null.
+    /// The image at `path` as a model holds it (`Resource::ImageManager::getModelImage`), its header where the host
+    /// keeps no texels, or why nothing reads there — an error and not an exception, because a live scene graph names
+    /// textures that were never files and a renderer that fell over on one would fall over on a cell. Never null.
     Result<osg::ref_ptr<const osg::Image>, std::string> openImage(
         Resource::ImageManager& images, VFS::Path::NormalizedView path);
 }

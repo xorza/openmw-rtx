@@ -97,8 +97,12 @@ namespace Rtx
         /// an arrival frame does not pay for the buffers; nothing reads them between calls.
         SceneTextures mTextures;
 
-        /// The slots described as their files stand, whose images are being made: asked after at
-        /// every hand-over, and stood again once made (`TextureTable::prepare`).
+        /// The slots stood in for while their images are made: asked after at every hand-over, and
+        /// stood once made (`TextureTable::prepare`).
         std::vector<SceneTextures::Pending> mPending;
+
+        /// The most bytes one extension has handed the device of its arriving files: the room the
+        /// textures that rest leave free (`TextureTable::evictResting`).
+        std::uint64_t mLargestArrival = 0;
     };
 }

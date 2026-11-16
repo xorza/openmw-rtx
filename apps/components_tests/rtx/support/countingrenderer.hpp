@@ -93,6 +93,9 @@ namespace Rtx::Testing
         /// What the device refused, which a test fills to be what the next hand-over answers.
         std::span<const Rtx::Refusal> getRefusals(Rtx::SceneSlot) const override { return mRefusing; }
 
+        /// What the device has room for, which a test sets to be what the next hand-over reads.
+        std::optional<std::uint64_t> getTextureRoom() const override { return mTextureRoom; }
+
         void setUpscale(Upscale upscale) override { mProfile.mUpscale = upscale; }
         Rtx::FrameExtents getExtents() const override { return mExtents; }
         Rtx::FrameTraced renderFrame(const Rtx::FrameRequest&) override
@@ -190,9 +193,14 @@ namespace Rtx::Testing
         {
             mDescribedSlots.clear();
             mDescribedSecondTexels.clear();
+            mDescribedBytes.clear();
             for (const Rtx::TextureData& texture : described)
             {
                 mDescribedSlots.push_back(texture.mSlot);
+                mDescribedBytes.push_back(texture.mBytes.size() + texture.mCoarser.size());
+                if (texture.mSlot >= mDescribedSources.size())
+                    mDescribedSources.resize(std::size_t{ texture.mSlot } + 1, Rtx::TextureSource::StandIn);
+                mDescribedSources[texture.mSlot] = texture.mSource;
                 mDescribedSecondTexels.push_back(
                     texture.mLevels.size() > 1 ? firstTexelOf(texture.mFormat, texture.bytesOf(1)) : Texel{});
             }
@@ -206,6 +214,12 @@ namespace Rtx::Testing
         /// The first texel of each described texture's second level, beside `mDescribedSlots`, or
         /// nought for one of one level: what says which chain a slot was described with.
         std::vector<Texel> mDescribedSecondTexels;
+
+        /// The bytes each described texture hands the device, beside `mDescribedSlots`.
+        std::vector<std::uint64_t> mDescribedBytes;
+
+        /// What each slot was last described as, by slot, across every hand-over.
+        std::vector<Rtx::TextureSource> mDescribedSources;
 
         /// Which slots the last hand-over described, in the order it described them.
         ///
@@ -239,6 +253,9 @@ namespace Rtx::Testing
 
         /// What `getRefusals` answers, as a device short of room would after a hand-over.
         std::vector<Rtx::Refusal> mRefusing;
+
+        /// What `getTextureRoom` answers: unbounded unless a test bounds it.
+        std::optional<std::uint64_t> mTextureRoom;
 
         /// What `getProfile` answers, which a test sets to say what the run decided.
         Rtx::RenderProfile mProfile;

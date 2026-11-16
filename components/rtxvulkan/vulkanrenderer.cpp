@@ -491,6 +491,11 @@ namespace Rtx
         return mScenes.at(slot).getRefusals();
     }
 
+    std::optional<std::uint64_t> VulkanRenderer::getTextureRoom() const
+    {
+        return mDevice.getMemory().getRoom(MemoryUse::Texture);
+    }
+
     void VulkanRenderer::placeScene(const SceneSlot slot, const SceneDesc& scene)
     {
         DeviceScene& held = mScenes.at(slot);

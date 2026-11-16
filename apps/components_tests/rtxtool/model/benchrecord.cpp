@@ -280,6 +280,8 @@ namespace RtxTool
                 .mOffsetEnd = 29,
                 .mPoseEnd = 30,
                 .mBindVertexEnd = 31,
+                .mRestingTextures = 38,
+                .mRestingTextureBytes = 39,
                 .mReader = Rtx::ReaderMemory{ .mLentModels = 32,
                     .mSpareModels = 33,
                     .mFiledModels = 34,
@@ -310,7 +312,8 @@ namespace RtxTool
             constexpr std::string_view content
                 = R"("content": {"vertexEnd": 21, "verticesUsed": 22, "indexEnd": 23, "indicesUsed": 24, )"
                   R"("layerEnd": 25, "maskEnd": 26, "rigRunEnd": 27, "influenceEnd": 28, "offsetEnd": 29, )"
-                  R"("poseEnd": 30, "bindVertexEnd": 31, "reader": {"lentModels": 32, "spareModels": 33, )"
+                  R"("poseEnd": 30, "bindVertexEnd": 31, "restingTextures": 38, "restingTextureBytes": 39, )"
+                  R"("reader": {"lentModels": 32, "spareModels": 33, )"
                   R"("filedModels": 34, "lentBytes": 35, "spareBytes": 36, "filedBytes": 37}})";
             EXPECT_NE(json.find(scene), std::string::npos) << json;
             EXPECT_NE(json.find(memory), std::string::npos) << json;

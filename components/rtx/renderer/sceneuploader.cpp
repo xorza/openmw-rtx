@@ -1,8 +1,11 @@
 #include "sceneuploader.hpp"
 
+#include <algorithm>
 #include <cassert>
 #include <chrono>
 #include <cstdint>
+#include <limits>
+#include <optional>
 #include <span>
 #include <string>
 #include <vector>
@@ -56,23 +59,35 @@ namespace Rtx
         const std::chrono::steady_clock::time_point gathered = std::chrono::steady_clock::now();
         timed.at(Timing::Bake) = since(began, gathered);
 
-        // **A slot whose image was made since it stood its file arrives again**, before the
-        // arrivals are read, so this hand-over describes it with its image.
+        // **A slot whose texels were read and chain made since it stood in arrives again**, before the
+        // arrivals are read, so this hand-over hands it over. One the scene gave back, or gave another file,
+        // lets go of what was read for it.
         if (handing.mPrepared != nullptr)
             std::erase_if(mPending, [&](const SceneTextures::Pending& pending) {
-                if (!scene.textures().isLive(pending.mSlot))
+                const bool same = scene.textures().isLive(pending.mSlot)
+                    && scene.textures().getRows()[pending.mSlot].mImage == pending.mSource;
+                if (!same)
+                {
+                    handing.mPrepared->letGo(*pending.mSource);
                     return true;
-                const TextureRow& row = scene.textures().getRows()[pending.mSlot];
-                if (row.mImage != pending.mSource)
-                    return true;
-                const PreparedImage made = handing.mPrepared->find(
-                    *pending.mSource, pending.mEncoding, pending.mWrap, pending.mPartner.get());
-                if (made.mPending)
+                }
+                if (!handing.mPrepared->isReady(
+                        *pending.mSource, pending.mEncoding, pending.mWrap, pending.mPartner.get()))
                     return false;
-                if (made.mImage != nullptr)
-                    scene.textures().prepare(pending.mSlot, made.mImage, true);
+                scene.textures().arriveAgain(pending.mSlot);
                 return true;
             });
+
+        // **The textures that rest give their room back before anything arrives**: all of it ahead of a
+        // rebuild, which describes every slot from the host's images and a slot that rests has none;
+        // otherwise as much as keeps room for an arrival as large as any so far, since the device takes
+        // a dropped image's memory back only once the frames that may name it are done, a frame or two
+        // after the drop, and an arrival that finds no room stands its files smaller.
+        if (!mine)
+            scene.textures().evictResting(std::numeric_limits<std::uint64_t>::max());
+        else if (const std::optional<std::uint64_t> room = scenes.getTextureRoom();
+            room.has_value() && *room < mLargestArrival)
+            scene.textures().evictResting(mLargestArrival - *room);
 
         // After the calls above, because they rewrite what the spans reach.
         scene.compact();
@@ -110,8 +125,15 @@ namespace Rtx
             if (handing.mSettled)
                 assert(mTextures.getPending().empty() && "a settled hand-over left an image to be made");
             mPending.insert(mPending.end(), mTextures.getPending().begin(), mTextures.getPending().end());
-            for (const SceneTextures::Made& made : mTextures.getMade())
-                scene.textures().prepare(made.mSlot, made.mImage, false);
+            // An extension's, and not a rebuild's, which hands over the whole table and is no arrival a
+            // crossing makes.
+            if (mine)
+            {
+                std::uint64_t arriving = 0;
+                for (const SceneTextures::Stood& stood : mTextures.getStood())
+                    arriving += stood.mBytes;
+                mLargestArrival = std::max(mLargestArrival, arriving);
+            }
             scene.refusals().refuse(mTextures.getRefusals());
 
             const std::chrono::steady_clock::time_point described = std::chrono::steady_clock::now();
@@ -139,7 +161,26 @@ namespace Rtx
 
             // What the device could not stand, reported as what the describe could not: the scene
             // is written here, and the backend holds it const.
-            scene.refusals().refuse(scenes.getRefusals(slot));
+            const std::span<const Refusal> refused = scenes.getRefusals(slot);
+            scene.refusals().refuse(refused);
+
+            // What the device now has of each slot described, which a slot that comes to rest keeps: nought
+            // for one it stood in for, and for every slot of an arrival the device refused a texture of, which it
+            // names and does not number, so that none rests and wakes as the stand-in it drew.
+            const bool refusedTexture = std::ranges::any_of(
+                refused, [](const Refusal& refusal) { return refusal.mKind == Refused::Texture; });
+            for (const SceneTextures::Stood& stood : mTextures.getStood())
+                scene.textures().stand(stood.mSlot, refusedTexture ? 0 : stood.mBytes, !refusedTexture && stood.mMade);
+
+            // **The host lets go of the texels and chains the device now holds**: what the descriptions held, and
+            // what the service read and made of each file handed over whole, whose header's manager drops its
+            // texels too.
+            mTextures.letGo();
+            if (handing.mPrepared != nullptr)
+                for (const SceneTextures::Stood& stood : mTextures.getStood())
+                    if (const osg::Image* const file = scene.textures().getRows()[stood.mSlot].mImage.get();
+                        file != nullptr && stood.mBytes > 0)
+                        handing.mPrepared->letGo(*file);
 
             timed.at(Timing::Upload) = since(described, std::chrono::steady_clock::now());
         }

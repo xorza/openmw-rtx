@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <memory>
 #include <span>
 #include <vector>
 
@@ -13,10 +14,14 @@
 #include <osg/Texture> // IWYU pragma: keep: the S3TC and RGTC formats, which Windows's gl.h lacks
 #include <osg/ref_ptr>
 
+#include <apps/components_tests/rtx/support/ddsfile.hpp>
 #include <apps/components_tests/rtx/support/firsttexel.hpp>
 #include <apps/components_tests/rtx/support/image.hpp>
 #include <components/contentstore/key.hpp>
 #include <components/contentstore/store.hpp>
+#include <components/resource/cachebudget.hpp>
+#include <components/resource/imageheader.hpp>
+#include <components/resource/imagemanager.hpp>
 #include <components/rtx/image/chainbuild.hpp>
 #include <components/rtx/image/madeimage.hpp>
 #include <components/rtx/image/textureencoding.hpp>
@@ -30,6 +35,8 @@
 #include <components/rtx/preprocess/texture/conversionpass.hpp>
 #include <components/rtx/shaders/scene.h>
 #include <components/testing/util.hpp>
+#include <components/vfs/manager.hpp>
+#include <components/vfs/pathutil.hpp>
 
 namespace Rtx
 {
@@ -337,6 +344,64 @@ namespace Rtx
             };
             EXPECT_EQ(keyOf(*chained(128, 9)), keyOf(*chained(128, 200))) << "the second level is not read";
             EXPECT_NE(keyOf(*chained(128, 9)), keyOf(*chained(129, 9)));
+        }
+
+        /// **A header's texels are read on the service's thread and handed out until let go of**: a DXT1 colour
+        /// carrying its chain, 8 by 8 in three levels of 4, 1 and 1 blocks, 48 bytes, has nothing made, and is pending
+        /// while its texels are read from the file; then they are handed out with no chain, and the manager's cache
+        /// holds them until the device has its copy. As a map of data its chain is made again, coarser levels beside
+        /// the file's finest, whose texels come with them. An image that holds its texels and has no chain made is
+        /// answered at once.
+        TEST(RtxPreparedImagesTest, aHeadersTexelsAreReadOnAThreadAndHandedOutUntilLetGo)
+        {
+            TestingOpenMW::VFSTestFile file(Testing::ddsDxt1(8, 8, 3, 0x55));
+            constexpr VFS::Path::NormalizedView path("textures/tx_eight.dds");
+            const std::unique_ptr<VFS::Manager> vfs = TestingOpenMW::createTestVFS({ { path, &file } });
+            Resource::CacheBudget budget(Resource::CacheBudget::sUnbounded);
+            Resource::ImageManager images(vfs.get(), budget);
+            images.setModelImages(Resource::ModelImages::Headers);
+            const osg::ref_ptr<osg::Image> header = images.getModelImage(path);
+            ASSERT_TRUE(Resource::isHeader(*header));
+            Resource::releaseTexels(*header);
+            ASSERT_EQ(budget.getHeld(), 0u);
+
+            PreparedImages prepared(nullptr, 1);
+            EXPECT_TRUE(prepared.find(*header, TextureEncoding::Colour, TextureWrap::Repeat).mPending);
+            prepared.flush();
+            EXPECT_TRUE(prepared.isReady(*header, TextureEncoding::Colour, TextureWrap::Repeat, nullptr));
+            PreparedImage read = prepared.find(*header, TextureEncoding::Colour, TextureWrap::Repeat);
+            EXPECT_FALSE(read.mPending);
+            EXPECT_EQ(read.mImage, nullptr) << "a block colour's own chain stands";
+            ASSERT_NE(read.mFile, nullptr);
+            EXPECT_FALSE(Resource::isHeader(*read.mFile));
+            EXPECT_EQ(read.mFile->getTotalSizeInBytesIncludingMipmaps(), 48u);
+            EXPECT_EQ(budget.getHeld(), 48u) << "read through the manager, whose cache holds it";
+            EXPECT_EQ(prepared.find(*header, TextureEncoding::Colour, TextureWrap::Repeat).mFile, read.mFile)
+                << "held by what holds it";
+
+            const PreparedImage data = [&] {
+                EXPECT_TRUE(prepared.find(*header, TextureEncoding::Data, TextureWrap::Repeat).mPending);
+                prepared.flush();
+                return prepared.find(*header, TextureEncoding::Data, TextureWrap::Repeat);
+            }();
+            ASSERT_NE(data.mImage, nullptr);
+            EXPECT_FALSE(data.mImage->getWholeFormat().has_value()) << "coarser levels, in the file's format";
+            EXPECT_EQ(data.mFile, read.mFile) << "beside the file's finest, the same texels";
+
+            prepared.letGo(*header);
+            EXPECT_EQ(budget.getHeld(), 0u) << "the manager let go of the texels the device has";
+            EXPECT_FALSE(prepared.isReady(*header, TextureEncoding::Colour, TextureWrap::Repeat, nullptr))
+                << "forgotten, so a later ask reads it again";
+
+            // 4 by 4 in DXT1 with its chain: three levels of a block each, 24 bytes.
+            const osg::ref_ptr<osg::Image> texels = new osg::Image;
+            texels->setImage(4, 4, 1, GL_COMPRESSED_RGB_S3TC_DXT1_EXT, GL_COMPRESSED_RGB_S3TC_DXT1_EXT,
+                GL_UNSIGNED_BYTE, new unsigned char[24]{}, osg::Image::USE_NEW_DELETE);
+            texels->setMipmapLevels(osg::Image::MipmapDataType{ 8, 16 });
+            texels->setFileName("textures/tx_held.dds");
+            const PreparedImage held = prepared.find(*texels, TextureEncoding::Colour, TextureWrap::Repeat);
+            EXPECT_FALSE(held.mPending);
+            EXPECT_EQ(held.mFile, texels);
         }
 
         /// **A file whose chain stands answers nothing made**: a BC5 map of data, whose two channels no

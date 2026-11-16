@@ -998,8 +998,8 @@ namespace Rtx
         /// **A whole chain made in BC7 is described as it was made, under its file's name**: a 4x4
         /// RGBA8 colour of one level, every byte 128, is three BC7 levels, 3 × 16 = 48 bytes, none of
         /// them the file's, its last within BC7's step of 128 in every channel. A widened RGB file is
-        /// made the same way, its second level the box of its one magenta, and stands in while it is
-        /// made, where the colour of four bytes a texel is read as it stands.
+        /// made the same way, its second level the box of its one magenta. **Each stands in while it is
+        /// made**, so the device is handed the file once, as the chain it keeps.
         TEST(RtxSceneTexturesTest, aWholeChainMadeInBc7IsDescribedAsItWasMade)
         {
             constexpr VFS::Path::NormalizedView path("textures/tx_read.dds");
@@ -1023,9 +1023,11 @@ namespace Rtx
             SceneTextures described;
             described.describeAll(scene, &prepared, false);
             ASSERT_EQ(described.getDescriptions().size(), 2u);
-            EXPECT_EQ(described.getDescriptions()[0].mSource, TextureSource::File);
-            EXPECT_EQ(described.getDescriptions()[0].mFormat, TextureFormat::Rgba8Srgb) << "read as it stands";
+            EXPECT_EQ(described.getDescriptions()[0].mSource, TextureSource::StandIn) << "a file pending";
             EXPECT_EQ(described.getDescriptions()[1].mSource, TextureSource::StandIn) << "a widened file pending";
+            ASSERT_EQ(described.getStood().size(), 2u);
+            EXPECT_EQ(described.getStood()[0].mBytes, 0u) << "a slot standing in has nothing whole on the device";
+            EXPECT_EQ(described.getStood()[1].mBytes, 0u);
             prepared.flush();
 
             described.describeAll(scene, &prepared, true);
@@ -1045,6 +1047,16 @@ namespace Rtx
             const TextureData& laid = described.getDescriptions()[1];
             EXPECT_EQ(laid.mFormat, TextureFormat::Bc7Srgb);
             ASSERT_EQ(laid.mLevels.size(), 2u);
+
+            // Stood whole, each as its chain made again: 48 bytes, and the widened file's two BC7 levels of a
+            // block each, 2 × 16 = 32.
+            ASSERT_EQ(described.getStood().size(), 2u);
+            EXPECT_EQ(described.getStood()[0].mSlot, made.mSlot);
+            EXPECT_EQ(described.getStood()[0].mBytes, 48u);
+            EXPECT_TRUE(described.getStood()[0].mMade);
+            EXPECT_EQ(described.getStood()[1].mSlot, laid.mSlot);
+            EXPECT_EQ(described.getStood()[1].mBytes, 32u);
+            EXPECT_TRUE(described.getStood()[1].mMade);
             EXPECT_TRUE(Testing::isNear(Testing::firstTexelOf(laid.mFormat, laid.bytesOf(1)), { 255, 0, 255, 255 }, 2))
                 << "the made second level";
         }

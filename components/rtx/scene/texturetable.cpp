@@ -17,6 +17,13 @@ namespace Rtx
         if (getLiveCount() < sCapacity)
             return true;
 
+        settleResting();
+        if (mRestedFirst != sNoIndex)
+        {
+            release(mRestedFirst);
+            return true;
+        }
+
         // Counted and not reported: a table does not reach the scene's `Refusals`, and
         // `SceneUploader` reports the limit on the hand-over that met it.
         ++mRefused;
@@ -48,10 +55,19 @@ namespace Rtx
 
         auto known = mPathIndex.find(path);
         if (known != mPathIndex.end() && known->second[as][at] != sNoIndex)
-            return known->second[as][at];
+        {
+            const Index standing = known->second[as][at];
+            if (rowAt(standing).mResting)
+                wake(standing, image, partner);
+            return standing;
+        }
 
         if (!hasRoom())
             return sNoIndex;
+
+        // Found again: the room may have been made by freeing a slot that rested, the path's own under
+        // another wrap or encoding among them, which takes the path's entry out of the lookup.
+        known = mPathIndex.find(path);
 
         const TextureFormat format = image != nullptr ? readFormat(*image, encoding) : TextureFormat::Unnamed;
         const Index index = takeSlot(TextureRow{
@@ -169,7 +185,119 @@ namespace Rtx
         if (!dropRow(texture))
             return;
 
+        // A file the device stands whole rests; anything else, a file the device has not stood yet among
+        // them, goes now, since nothing would take its rest back to the device.
+        const TextureRow& row = rowAt(texture);
+        if (row.mKind == TextureKind::File && row.mStoodBytes > 0)
+            rest(texture);
+        else
+            release(texture);
+    }
+
+    void TextureTable::stand(const Index slot, const std::uint64_t bytes, const bool made)
+    {
+        TextureRow& row = rowAt(slot);
+        assert(isLive(slot) && "a slot that stands no texture was stood");
+        assert(!row.mResting && "a slot that rests was described");
+        row.mStoodBytes = bytes;
+        row.mStoodMade = made;
+    }
+
+    std::uint64_t TextureTable::evictResting(const std::uint64_t bytes)
+    {
+        settleResting();
+        std::uint64_t freed = 0;
+        while (freed < bytes && mRestedFirst != sNoIndex)
+        {
+            freed += rowAt(mRestedFirst).mStoodBytes;
+            release(mRestedFirst);
+        }
+        return freed;
+    }
+
+    void TextureTable::rest(const Index slot)
+    {
+        TextureRow& row = rowAt(slot);
+        assert(row.mKind == TextureKind::File && "only a file rests");
+        assert(!row.mResting && "a slot laid to rest twice");
+
+        // The census counts what the host keeps, and the host keeps nothing of a slot that rests.
+        if (row.mImage != nullptr)
+            mFormats.discount(row.mFormat, row.mImage->getNumMipmapLevels() > 1);
+        row.mImage = nullptr;
+        row.mPartner = nullptr;
+
+        row.mResting = true;
+        row.mWaitingAt = static_cast<Index>(mRestingNow.size());
+        mRestingNow.push_back(slot);
+        ++mRestingCount;
+        mRestingBytes += row.mStoodBytes;
+    }
+
+    void TextureTable::wake(const Index slot, const osg::Image* const image, const osg::Image* const partner)
+    {
+        TextureRow& row = rowAt(slot);
+        assert(row.mResting && "a slot woken that does not rest");
+
+        if (row.mWaitingAt != sNoIndex)
+        {
+            // Out of the batch by the last in its place, which settling sorts anyway.
+            const Index last = mRestingNow.back();
+            mRestingNow[row.mWaitingAt] = last;
+            rowAt(last).mWaitingAt = row.mWaitingAt;
+            mRestingNow.pop_back();
+            row.mWaitingAt = sNoIndex;
+        }
+        else
+        {
+            if (row.mRestedBefore != sNoIndex)
+                rowAt(row.mRestedBefore).mRestedAfter = row.mRestedAfter;
+            else
+                mRestedFirst = row.mRestedAfter;
+            if (row.mRestedAfter != sNoIndex)
+                rowAt(row.mRestedAfter).mRestedBefore = row.mRestedBefore;
+            else
+                mRestedLast = row.mRestedBefore;
+        }
+        row.mResting = false;
+        row.mRestedBefore = sNoIndex;
+        row.mRestedAfter = sNoIndex;
+        --mRestingCount;
+        mRestingBytes -= row.mStoodBytes;
+
+        // The taker's images, which a rebuild describes the slot from; the device stands them already.
+        row.mImage = image;
+        row.mPartner = partner;
+        if (image != nullptr)
+            mFormats.count(row.mFormat, image->getNumMipmapLevels() > 1, image->getPixelFormat());
+    }
+
+    void TextureTable::settleResting()
+    {
+        std::ranges::sort(mRestingNow);
+        for (const Index slot : mRestingNow)
+        {
+            TextureRow& row = rowAt(slot);
+            row.mWaitingAt = sNoIndex;
+            row.mRestedBefore = mRestedLast;
+            row.mRestedAfter = sNoIndex;
+            if (mRestedLast != sNoIndex)
+                rowAt(mRestedLast).mRestedAfter = slot;
+            else
+                mRestedFirst = slot;
+            mRestedLast = slot;
+        }
+        mRestingNow.clear();
+    }
+
+    void TextureTable::release(const Index texture)
+    {
         TextureRow& row = rowAt(texture);
+        if (row.mResting)
+        {
+            // Out of the rest first, which leaves the census as a slot that rests left it.
+            wake(texture, nullptr, nullptr);
+        }
 
         // The name leaves the lookup with the slot, or the next reference to it resolves to a slot
         // nothing is standing in.

@@ -63,6 +63,13 @@ than offered upstream, so a merge that touches `components/resource`, `component
 - The cell preloader skips a cell while the caches stand past their budget with everything in use, counted as
   `CellPreloader Skipped`: a preload is a guess, and past the budget it holds memory the frame needs. The cost is a
   conflict with an upstream edit to the start of `CellPreloader::preload` or to its stats.
+- A model's texture holds the file's header and not its texels where the renderer reads texels itself
+  (`Resource::ModelImages::Headers`, `Resource::ImageHeader`), by the user's decision: the loaders of a model's
+  textures ask `ImageManager::getModelImage` in place of `getImage` — the NIF loader's `getTextureImage`, the
+  companion maps (`Shader::attachAutoMaps`) and the scene manager's image reader — and a header's texels are its
+  manager's to read again (`Resource::texelsOf`) and to let go of (`releaseTexels`). Cached models held every texel
+  they named, 7.6 GiB of the 8.1 the image cache held under the PBR replacers, while the device stood 2.2. The cost is
+  a conflict with an upstream edit to those three calls or to `ImageManager`'s interface.
 
 **The rest of the tree.**
 

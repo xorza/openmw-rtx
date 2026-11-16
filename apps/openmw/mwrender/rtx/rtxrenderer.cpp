@@ -51,6 +51,7 @@
 #include <components/myguiplatform/myguiplatform.hpp>
 #include <components/myguirtx/rendermanager.hpp>
 #include <components/platform/process.hpp>
+#include <components/resource/imagemanager.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/rtx/common/clock.hpp>
@@ -322,6 +323,8 @@ namespace MWRender
 
         Resource::SceneManager& scene = *resources.getSceneManager();
         scene.setModelPrograms(Resource::ModelPrograms::Omitted);
+        // The device keeps a texture's copy, and the host its texels only until the device has it.
+        resources.getImageManager()->setModelImages(Resource::ModelImages::Headers);
         setAutoMaps(scene);
     }
 

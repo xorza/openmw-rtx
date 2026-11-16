@@ -1,10 +1,14 @@
 #pragma once
 
+#include <mutex>
+#include <optional>
 #include <string>
 
 #include <osg/Image>
+#include <osg/Referenced>
 #include <osg/ref_ptr>
 
+#include <components/resource/imageheader.hpp>
 #include <components/rtx/image/alpharange.hpp>
 #include <components/sceneutil/embeddedimage.hpp>
 #include <components/vfs/pathutil.hpp>
@@ -44,7 +48,8 @@ namespace Rtx
         bool reachesSolid(ImageFacts& facts, const osg::Image& image)
         {
             if (!facts.mReachesSolid.has_value())
-                facts.mReachesSolid = mPreprocessor.reachesSolid(image);
+                facts.mReachesSolid = factOf(image, &ImageFacts::mReachesSolid,
+                    [&](const osg::Image& texels) { return mPreprocessor.reachesSolid(texels); });
             return *facts.mReachesSolid;
         }
 
@@ -52,7 +57,8 @@ namespace Rtx
         bool fallsBelowSolid(ImageFacts& facts, const osg::Image& image)
         {
             if (!facts.mFallsBelowSolid.has_value())
-                facts.mFallsBelowSolid = mPreprocessor.fallsBelowSolid(image);
+                facts.mFallsBelowSolid = factOf(image, &ImageFacts::mFallsBelowSolid,
+                    [&](const osg::Image& texels) { return mPreprocessor.fallsBelowSolid(texels); });
             return *facts.mFallsBelowSolid;
         }
 
@@ -60,7 +66,8 @@ namespace Rtx
         AlphaRange alphaRangeOf(ImageFacts& facts, const osg::Image& image)
         {
             if (!facts.mAlphaRange.has_value())
-                facts.mAlphaRange = mPreprocessor.alphaRange(image);
+                facts.mAlphaRange = factOf(image, &ImageFacts::mAlphaRange,
+                    [&](const osg::Image& texels) { return mPreprocessor.alphaRange(texels); });
             return *facts.mAlphaRange;
         }
 
@@ -68,7 +75,8 @@ namespace Rtx
         SpecularLayout specularLayoutOf(ImageFacts& facts, const osg::Image& image)
         {
             if (!facts.mSpecularLayout.has_value())
-                facts.mSpecularLayout = mPreprocessor.specularLayout(image);
+                facts.mSpecularLayout = factOf(image, &ImageFacts::mSpecularLayout,
+                    [&](const osg::Image& texels) { return mPreprocessor.specularLayout(texels); });
             return *facts.mSpecularLayout;
         }
 
@@ -76,12 +84,43 @@ namespace Rtx
         const MeanTexel& meanOf(ImageFacts& facts, const osg::Image& image)
         {
             if (!facts.mMean.has_value())
-                facts.mMean = mPreprocessor.meanTexel(image);
+                facts.mMean = factOf(image, &ImageFacts::mMean,
+                    [&](const osg::Image& texels) { return mPreprocessor.meanTexel(texels); });
             return *facts.mMean;
         }
 
         /// The same, for a caller that keeps no entry.
         const MeanTexel& meanOf(const osg::Image& image) { return meanOf(factsOf(image), image); }
+
+        /// What every thread derived of a header's texels (`Resource::ImageHeader::derived`): the facts read so far,
+        /// each by whichever thread asked first.
+        struct SharedFacts : osg::Referenced
+        {
+            std::mutex mMutex;
+            ImageFacts mFacts;
+        };
+
+        /// The fact `member` of `image`: where it is a header, as any thread read it already, and read off its texels
+        /// and kept for every thread where none has, so a thread meeting a file the others read reads no texel
+        /// again once they are let go of; read off `image` itself where it holds its texels.
+        template <class Fact, class Read>
+        Fact factOf(const osg::Image& image, std::optional<Fact> ImageFacts::* member, Read read)
+        {
+            const auto* const header = dynamic_cast<const Resource::ImageHeader*>(&image);
+            if (header == nullptr)
+                return read(image);
+
+            auto& shared = header->derived<SharedFacts>();
+            {
+                const std::scoped_lock lock(shared.mMutex);
+                if (const std::optional<Fact>& known = shared.mFacts.*member; known.has_value())
+                    return *known;
+            }
+            const Fact made = read(*Resource::texelsOf(image));
+            const std::scoped_lock lock(shared.mMutex);
+            shared.mFacts.*member = made;
+            return made;
+        }
 
         /// `image`'s name (`SceneUtil::EmbeddedImage::nameOf`) normalised as the texture table
         /// normalises it, in a scratch kept and refilled, so taking a texture by its name reaches

@@ -177,12 +177,13 @@ namespace RtxTool
             return std::format(R"({{"vertexEnd": {}, "verticesUsed": {}, "indexEnd": {}, "indicesUsed": {}, )"
                                R"("layerEnd": {}, "maskEnd": {}, "rigRunEnd": {}, "influenceEnd": {}, )"
                                R"("offsetEnd": {}, "poseEnd": {}, "bindVertexEnd": {}, )"
+                               R"("restingTextures": {}, "restingTextureBytes": {}, )"
                                R"("reader": {{"lentModels": {}, "spareModels": {}, "filedModels": {}, )"
                                R"("lentBytes": {}, "spareBytes": {}, "filedBytes": {}}}}})",
                 content.mVertexEnd, content.mVerticesUsed, content.mIndexEnd, content.mIndicesUsed, content.mLayerEnd,
                 content.mMaskEnd, content.mRigRunEnd, content.mInfluenceEnd, content.mOffsetEnd, content.mPoseEnd,
-                content.mBindVertexEnd, reader.mLentModels, reader.mSpareModels, reader.mFiledModels, reader.mLentBytes,
-                reader.mSpareBytes, reader.mFiledBytes);
+                content.mBindVertexEnd, content.mRestingTextures, content.mRestingTextureBytes, reader.mLentModels,
+                reader.mSpareModels, reader.mFiledModels, reader.mLentBytes, reader.mSpareBytes, reader.mFiledBytes);
         }
 
         std::string asJson(const Arrivals& arrivals)
@@ -386,12 +387,12 @@ namespace RtxTool
             "  host  vertices {:.2f} M used of {:.2f} M reached   indices {:.2f} M of {:.2f} M   "
             "reader {:.1f} MiB lent in {} models, {:.1f} MiB spare in {}, {:.1f} MiB filed unlent in {}\n"
             "  runs  layers {}   masks {}   rig runs {}   influences {}   offsets {}   pose words {}   "
-            "bind vertices {}\n",
+            "bind vertices {}   resting textures {}, {:.1f} MiB\n",
             content.mVerticesUsed / 1e6, content.mVertexEnd / 1e6, content.mIndicesUsed / 1e6, content.mIndexEnd / 1e6,
             Rtx::mebibytes(reader.mLentBytes), reader.mLentModels, Rtx::mebibytes(reader.mSpareBytes),
             reader.mSpareModels, Rtx::mebibytes(reader.mFiledBytes), reader.mFiledModels, content.mLayerEnd,
             content.mMaskEnd, content.mRigRunEnd, content.mInfluenceEnd, content.mOffsetEnd, content.mPoseEnd,
-            content.mBindVertexEnd);
+            content.mBindVertexEnd, content.mRestingTextures, Rtx::mebibytes(content.mRestingTextureBytes));
     }
 
     std::string describeHeader(const BenchHeader& header)
