@@ -483,19 +483,6 @@ benches are not owed. From item 8 on, a change to what a frame reads owes `./omw
 drm-shim; a hot path owes its allocation test; each item ends with the tours it names. Vanilla's pictures do not move
 in any item.
 
-### 3. The normalizer
-
-Made before either rule it applies is run over the tree.
-
-1. **The integers' rule in AGENTS.md's Conventions**, as Decisions states it.
-2. **The normalizer** in `tools/omw`, with its tests in `tools/omw/tests`: a table of `before → after` for every
-   integer spelling and for a quoted path outside the file's folder; strings, comments, raw strings, `int main` and
-   the GLSL-shared headers untouched; idempotence; and the `#include <cstdint>` (or `<cstddef>`) it adds to a file that
-   names a type it introduced. Wired into `format`, `lint` and `merge-file`, each rule switched on by the item that
-   runs it over the tree, so `lint` never fails a file no commit has yet rewritten.
-3. **The premise asserted once**: `static_assert(std::is_same_v<std::int32_t, int>)` and its kin in
-   `components/platform`, so a target where the rename changes a type stops the build.
-
 ### 4. Includes
 
 1. **`.clang-format` regroups**: the categories of Decisions, LLVM's dropped, then `omw format` over the tree. Every
@@ -707,5 +694,9 @@ A condition that fails is worked, not logged: its cause is found and fixed, or t
 `docs/architecture.md`, `AGENTS.md` and `UPSTREAM.md`; the `todo.md` items this closes struck; this file deleted.
 
 ## Changed
+
+- **3. The normalizer**: `omw format --check` fails a file the rules would change, where the plan named `omw lint`, so
+  the check CI's checks job and the gate already run holds it with no second step; it also quotes an own-folder
+  include spelled from the root, and refuses a file whose Qt string-compared macro names an integer type.
 
 ## Declined

@@ -64,6 +64,20 @@ class MergeFileTest(unittest.TestCase):
         self.assertEqual(formatting.formatted_text(self.formatter, b"refuse(  1 )\n", "x.cpp"), b"refuse(  1 )\n")
         self.assertEqual(formatting.formatted_text(self.formatter, b"keep(  1 )\n", "x.cpp"), b"keep(1)\n")
 
+    @unittest.skipIf(sys.platform == "win32", "the stand-in formatter is a shell script")
+    def test_an_upstream_side_in_the_old_spellings_merges_with_the_forks_rewrite(self):
+        # The fork rewrote the integers and changed the first line; upstream changed the third in the old spelling.
+        base = "int a(  1 );\nint b(  2 );\nunsigned c(  3 );\n"
+        ours = "std::int32_t a(10);\nstd::int32_t b(2);\nstd::uint32_t c(3);\n"
+        theirs = "int a(  1 );\nint b(  2 );\nunsigned c(  30 );\n"
+        paths = self.sides(base, ours, theirs)
+        with (mock.patch.object(formatting.deps, "clang_format", return_value=self.formatter),
+              mock.patch.object(formatting.normalize, "ENABLED", ("integers",))):
+            code = formatting.merge_file([*map(str, paths), "7", "apps/x/a.cpp"])
+        self.assertEqual(code, 0)
+        self.assertEqual(paths[1].read_text(),
+                         "std::int32_t a(10);\nstd::int32_t b(2);\nstd::uint32_t c(30);\n")
+
     def test_the_driver_is_handed_five_arguments(self):
         with self.assertRaises(formatting.Refusal):
             formatting.merge_file(["base", "ours", "theirs", "7"])

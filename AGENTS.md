@@ -130,6 +130,10 @@ writes, with the additions below, which win where the two differ; upstream's cod
 - **Includes in five blocks** a blank line apart: the file's own header, the C++ standard library, `<gtest/...>`,
   other libraries, `<components/...>` and `<apps/...>`, then quoted local headers — of the file's own folder only, any
   other folder spelled from the root. A block out of order carries a comment saying why.
+- **Fixed-width integers, `std::`-qualified, and never a change of signedness**: `std::int32_t`, `std::uint8_t` and their
+  kin, `std::size_t` and `std::ptrdiff_t` for sizes, counts, indices and differences; `char` for text, `int main`, and
+  a library's own typedef where the value is its. `long` is chosen by its width, each by hand. `omw format` writes it,
+  and a keyword kept on purpose carries `NOLINT(google-runtime-int)` with its reason.
 - **The headers GLSL reads as well** are the one exception to `#pragma once` and the place the preprocessor still
   switches, and `shaders/portable.h` says why.
 - **A general system fact lives in `components/platform`.** A test of an `assert` calls `Testing::expectAssertDies`.
