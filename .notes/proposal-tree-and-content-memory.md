@@ -463,6 +463,20 @@ the table under **Approved**, each recorded under **How content is loaded** when
 plan does not name is still proposed first. Windows-only lines (`_WIN32` branches, MSVC pragmas) are checked by
 Windows CI, which the branch's pushes start.
 
+**Where it runs.** Three machines, each named once here:
+
+- **The desk**, where the run works and builds.
+- **The handheld**, `deck@192.168.0.31`: `./omw release remote deck@192.168.0.31 <verb>` builds in the release
+  container, stages the tree at its own path there and brings the run's files back. Its kernel gives huge pages to
+  every mapping (`transparent_hugepage` is `always`; the desk's is `madvise`), which a report's `hugePageShare` states.
+- **The Windows machine**, `192.168.0.8`, over SSH: its tree at `%USERPROFILE%\Projects\openmw` takes the commit under
+  test, `omw.cmd` is the driver, and a run that draws is started in the logged-on session by an interactive scheduled
+  task, since a process SSH starts has no surface (`research/2026-11-01-windows-tests-over-ssh.md`). It holds the three
+  contents' profiles and a release build of `8c032f6e00`, its gate clean there.
+
+A machine that does not answer is waited on for an hour, then its leg is recorded as not flown and the item goes on;
+item 18 does not close without all three.
+
 **What an item owes.** Items 1–7 move no frame, so `./omw gate` and CI are their check; `repeat`, `shot` and the
 benches are not owed. From item 8 on, a change to what a frame reads owes `./omw repeat --pairs=10` and `./omw shot
 --views=all --map --upscale=off --against`; a shader change owes `./omw kernels --against` on the desk and under the
@@ -573,10 +587,15 @@ and the most Windows CI: last of them. `./omw gate` and a green CI on every syst
 
 No change to how content is held. First what stands in a baseline's way:
 
-1. The handheld's PBR tour flies again: its abort in leg 3 on "a sprite light bake names a source that does not
+1. A run on either machine is one verb. `omw remote` takes the Windows machine as it takes a Linux one: the commit
+   fetched into its tree, the verb started through an interactive scheduled task, its exit line waited on within a
+   bound, its files brought back. It forwards the environment a run names, `GLIBC_TUNABLES` first, which item 10's
+   tunables need. The scheduled tasks left there (`omw-tour`, `omw-run-tours`) name scripts that are gone and are
+   replaced by the verb's own. `./omw lint driver` and the driver's tests hold it.
+2. The handheld's PBR tour flies again: its abort in leg 3 on "a sprite light bake names a source that does not
    stand" (`.notes/ISSUES.md`) is fixed where the source came to be empty, with its test.
-2. A tour and a `scene` run start as the game does, without huge pages; `bench` and `noise` keep them.
-3. The timer caches expire in a tour as they do in play, and its preload distance is the shipped one. What that does
+3. A tour and a `scene` run start as the game does, asking for no huge pages; `bench` and `noise` keep them.
+4. The timer caches expire in a tour as they do in play, and its preload distance is the shipped one. What that does
    to a flight's worst frames is read off the baseline; a grid reach scaled apart from the doors' is proposed with
    that figure if a flight needs it.
 
@@ -591,8 +610,14 @@ Then the meters. A stop's end logs, and the report keeps the run's peak of:
 6. the reader's capacity against its content; loaded cell stores; the caches' "looks for room finding all in use".
 
 Then the baseline: tours of the three contents on the desk, the handheld and Windows, to `docs/research/`, which every
-later item is held against. One handheld tour more of each content as tours ran before (huge pages, the scaled reach,
-no expiry), so `2026-11-17-handheld-tours-and-store-forms.md`'s figures can be told apart from the game's.
+later item is held against, each flown twice, so a leg's worst frame has its own spread beside it. The note keeps
+every leg's worst frame with what led it, and every outrun. One handheld tour more of each content as tours ran
+before (huge pages, the scaled reach, no expiry), so `2026-11-17-handheld-tours-and-store-forms.md`'s figures can be
+told apart from the game's.
+
+Then the baseline's longest frames are explained: the ten longest on the handheld, a content each, are profiled
+(`perf` beside the run, as `./omw profile` does on the desk) until each names what led it. One an item of this plan
+causes or cures is that item's to show gone; one that is upstream's is proposed with its profile.
 
 ### 9. What is plainly wrong
 
@@ -608,7 +633,9 @@ hand-over; `CellPlacer::mMoved` bounded and skipped for actors; the stale commen
 1. The allocator's settings, by tunables and no code: handheld Repack tours under a pinned
    `glibc.malloc.mmap_threshold` at 256 KiB, 1 MiB and 4 MiB, and the best of them again under `glibc.malloc.arena_max`
    at 4. Then pinned in `components/platform` at the setting that leaves the arenas least free memory for the tour's
-   time, with its reason beside it.
+   time, with its reason beside it. One tour more with the process's transparent huge pages off, behind a switch of
+   the harness (`PR_SET_THP_DISABLE`): what the handheld's kernel adds to the heap's free memory is a figure before it
+   is anyone's decision.
 2. The budget counting the heap's free memory; evicted values destroyed on the deriving worker; `update`'s walk off the
    cache's lock.
 3. The unified bound, asked as a capability of the device, never by vendor.
@@ -672,7 +699,8 @@ made again once; a store made on the desk is the handheld's too, the key being t
 
 1. A cell's references read as a prefix by radius, one band ahead of the size rule, the radius the manifest's;
    `CellRing` asks the reader to go further as a cell nears.
-2. Item 8's count again; `repeat` and `shot`, since a model must stand before the frame that first shows it.
+2. Item 8's count again; `repeat` and `shot`, since a model must stand before the frame that first shows it; and no
+   outrun on the legs the baseline outran.
 
 ### 16. Levels by need
 
@@ -696,9 +724,16 @@ corners through position fetch, which would free the positions' 12 B a vertex.
 
 ### 18. Close
 
-`./omw gate`; `./omw release tour` of the three contents on the desk, the handheld and Windows, held against item 8's;
-`.notes/ISSUES.md` rewritten from them; the decisions folded into `docs/architecture.md`, `AGENTS.md` and
-`UPSTREAM.md`; the `todo.md` items this closes struck; this file deleted.
+`./omw gate`; `./omw release tour` of the three contents on the desk, the handheld and Windows, held against item 8's.
+They pass where:
+
+1. no tour meets a fault, an outrun among them;
+2. no leg's worst frame is longer than that leg's at the baseline by more than the baseline's own spread;
+3. each of the baseline's ten longest frames on the handheld is gone, or stands proposed with its profile.
+
+A condition that fails is worked, not logged: its cause is found and fixed, or the item that owed it is moved to
+**Declined** with what was found. Then `.notes/ISSUES.md` is rewritten from the tours; the decisions folded into
+`docs/architecture.md`, `AGENTS.md` and `UPSTREAM.md`; the `todo.md` items this closes struck; this file deleted.
 
 ## Changed
 
