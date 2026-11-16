@@ -196,6 +196,8 @@ and upstream's two Lua storage tests writing there.
   not confirm on the disk is a warning.
 - The SDL3 port truncated a window's size over its pixel density (`SDLUtil::windowPoints` rounds).
 - `SDLUtil::InputWrapper` logged an event type in hex without `std::dec`, which left every later number in hex.
+- `CSVRender::SceneWidget`'s background gradient gave its colours an alpha of 1 of 255, the `1.0f` of the floats they
+  were before they became bytes: opaque now.
 - `openmw_settings_window.layout` gave `ScriptBox` its `name` twice, which an XML parser refuses.
 - OSG's COLLADA reader was handed a stream it parses as a C string, past the model into the heap: a nought now ends the
   bytes (`aColladaModelLoadsWhateverWasReadBeforeIt`). And a COLLADA rig's state set was deep-copied down to its images,

@@ -1,6 +1,7 @@
 #include "scenewidget.hpp"
 
 #include <exception>
+#include <limits>
 
 #include <QLayout>
 #include <QMouseEvent>
@@ -330,15 +331,16 @@ namespace CSVRender
 
         geometry->addPrimitiveSet(primitives);
 
+        // Opaque, as the 1.0f the colours were written with before they became bytes meant, and not 1 of 255.
+        const auto opaqueBytes = [](const QColor& colour) {
+            return osg::Vec4ub(static_cast<unsigned char>(colour.red()), static_cast<unsigned char>(colour.green()),
+                static_cast<unsigned char>(colour.blue()), std::numeric_limits<unsigned char>::max());
+        };
         osg::ref_ptr<osg::Vec4ubArray> colours = new osg::Vec4ubArray;
-        const osg::Vec4ub gradientColourBytes(static_cast<unsigned char>(gradientColour.red()),
-            static_cast<unsigned char>(gradientColour.green()), static_cast<unsigned char>(gradientColour.blue()), 1);
-        colours->push_back(gradientColourBytes);
-        colours->push_back(gradientColourBytes);
-        const osg::Vec4ub bgColourBytes(static_cast<unsigned char>(bgColour.red()),
-            static_cast<unsigned char>(bgColour.green()), static_cast<unsigned char>(bgColour.blue()), 1);
-        colours->push_back(bgColourBytes);
-        colours->push_back(bgColourBytes);
+        colours->push_back(opaqueBytes(gradientColour));
+        colours->push_back(opaqueBytes(gradientColour));
+        colours->push_back(opaqueBytes(bgColour));
+        colours->push_back(opaqueBytes(bgColour));
 
         geometry->setColorArray(colours, osg::Array::BIND_PER_VERTEX);
 
