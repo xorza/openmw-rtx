@@ -10,6 +10,7 @@
 - Order includes canonically.
 - No upscaler.
 - total memory budget
+- unsigned int to uint32, etc
 
 ## Open questions
 
