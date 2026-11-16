@@ -112,8 +112,8 @@ omw [flavour] <verb> [args]: one grammar for every build, on the desk and in CI,
 
   flavour   directory       what it is
   debug     out/debug       -O2 -g1 with every assert: the everyday build, the default, CI's and the gate's
-  release   out/release     -O3 -DNDEBUG, line tables and frame pointers: the build a number is quoted from
-                            and the archive is installed from, with link-time optimisation where OMW_LTO=ON
+  release   out/release     -O3 -DNDEBUG, ThinLTO, line tables and frame pointers: the build a number is
+                            quoted from and the archive is installed from
   asan      out/asan        debug under AddressSanitizer and UndefinedBehaviorSanitizer; Linux only
   tsan      out/tsan        debug under ThreadSanitizer; Linux only
 """

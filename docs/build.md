@@ -74,9 +74,12 @@ How the tree is configured, built, formatted and shipped, as decisions. The CMak
   needs a GPU CI lacks.
 - **No precompiled headers**: 14 to 19% off a clean build, 5 s onto a cached rebuild, and an `#include` a file forgot
   compiling anyway (`research/2026-11-11-precompiled-headers.md`).
-- **Link-time optimisation for what ships alone** (`OMW_LTO=ON` on a tagged release): ThinLTO on Linux. Refused: full
-  LTO, 3% fewer instructions in as many cycles for a link of 200 s and 7.1 GB against 33 s and 3.8 GB
-  (`research/2026-11-12-full-lto-against-thinlto.md`).
+- **Link-time optimisation in every release build**, the desk's and the archive's, so a number is quoted from the
+  program that ships: ThinLTO on Linux, its native code kept in lld's cache (`--thinlto-cache-dir`), so a relink
+  compiles again only the modules a change reached. The cache holds 7 GB, twice what every release program weighed
+  together (3.2 GB, 2026-11-16): the build as it stands and the one before it. Refused: link-time optimisation for
+  the archive alone, which measured a program nobody runs; full LTO, 3% fewer instructions in as many cycles for a
+  link of 200 s and 7.1 GB against 33 s and 3.8 GB (`research/2026-11-12-full-lto-against-thinlto.md`).
 - **The test binaries' own files at `-Og`** (`-O1` on Clang): 30% faster to build
   (`research/2026-11-11-test-binaries-at-og.md`).
 - **A smoke run prints on failure alone**: the benchmarks are CTest dry runs, and CI's integration run prints the

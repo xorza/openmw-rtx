@@ -5,8 +5,8 @@
 #
 # - RelWithDebInfo, which debug, asan and tsan build: optimised, with every assert, the standard library's among them.
 # - Release, the build a number is quoted from and the release ships: CMake's own -O3 and NDEBUG, with identical
-#   functions folded at the link (`/OPT:ICF`, `--icf=safe`), which a debugger would name one for another. A tagged
-#   release adds link-time optimisation (`CMAKE_INTERPROCEDURAL_OPTIMIZATION`): ThinLTO, and MSVC's `/GL`.
+#   functions folded at the link (`/OPT:ICF`, `--icf=safe`), which a debugger would name one for another, and
+#   link-time optimisation (`CMAKE_INTERPROCEDURAL_OPTIMIZATION`, the preset's): ThinLTO, and MSVC's `/GL`.
 #
 # On MSVC the debug information is embedded in each object (`/Z7`), which ccache can cache, except under link-time
 # code generation, and every program links a PDB; the C runtime is linked in, as the set's libraries have it
@@ -25,7 +25,8 @@ if(CMAKE_C_COMPILER_ID STREQUAL "MSVC" OR CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     endif()
     # Under link-time code generation the debug information goes to each target's PDB (`/Zi`) instead: an object
     # then carries its intermediate code beside its debug information, which took `openmw-lib`'s archive past the
-    # 4 GB a COFF archive holds (LNK1248). A tagged release, which alone asks for it, builds cold.
+    # 4 GB a COFF archive holds (LNK1248), and ccache caches no such object, so Release, which alone asks for it,
+    # compiles without the cache.
     if(CMAKE_INTERPROCEDURAL_OPTIMIZATION)
         set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT ProgramDatabase)
     else()
@@ -70,7 +71,7 @@ foreach(language C CXX)
 endforeach()
 
 # **Linux compiles with the pinned Clang and links with its lld, the set and the tree alike** (`vcpkg/linux.cmake`),
-# whose flags name the libstdc++ every compile and link takes. lld for every link, since a tagged release's ThinLTO
+# whose flags name the libstdc++ every compile and link takes. lld for every link, since a release's ThinLTO
 # needs a linker that reads LLVM's bitcode, which mold does only through `LLVMgold.so`, which the pinned LLVM lacks.
 # Static libraries are thin archives (LLVM's `ar T`, as it indexes bitcode members), which name their objects rather
 # than copy them: copying the game's objects cost every relink seconds. GCC's C++ runtime is linked in, as every
@@ -90,7 +91,9 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     endif()
     foreach(kind EXE SHARED)
         set(CMAKE_${kind}_LINKER_FLAGS_INIT "${openmw_link_flags}")
-        set(CMAKE_${kind}_LINKER_FLAGS_RELEASE_INIT "-Wl,--icf=safe")
+        set(CMAKE_${kind}_LINKER_FLAGS_RELEASE_INIT
+            "-Wl,--icf=safe -Wl,--thinlto-cache-dir=${CMAKE_BINARY_DIR}/thinlto-cache -Wl,--thinlto-cache-policy=cache_size_bytes=7g"
+        )
     endforeach()
     foreach(language C CXX)
         # Every compile and link, CMake's own checks of the compiler included: a link passes the flags too.

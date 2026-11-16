@@ -50,8 +50,7 @@ set(CMAKE_AUTOGEN_PARALLEL 1)
 
 # What `cmake/Flags.cmake` asks of the compiler, refused here by name where it has none: position-independent
 # programs, which MSVC's always are (`/DYNAMICBASE`) and CMake has no flag of its for, and link-time optimisation
-# where a configure asks for it with CMake's own `CMAKE_INTERPROCEDURAL_OPTIMIZATION` (the package preset, which a
-# tagged release builds).
+# where a configure asks for it with CMake's own `CMAKE_INTERPROCEDURAL_OPTIMIZATION`, as the release preset does.
 if(NOT MSVC)
     include(CheckPIESupported)
     check_pie_supported(OUTPUT_VARIABLE pie_output)

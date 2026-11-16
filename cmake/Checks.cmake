@@ -85,8 +85,9 @@ else()
             -pedantic
             -Wnon-virtual-dtor
             -Wshadow
-            # Beyond upstream's. Rejected: `-Wfloat-equal`, for deliberate sentinels, and `-Wold-style-cast`, which
-            # fires inside OpenSceneGraph's and MyGUI's headers.
+            # Beyond upstream's. Rejected: `-Wfloat-equal`, for deliberate sentinels; `-Wold-style-cast`, which
+            # fires inside OpenSceneGraph's and MyGUI's headers; and `-Wdouble-promotion`, which on Clang takes every
+            # implicit promotion, not arithmetic's only, and fired 614 times in a tree GCC's passed.
             -Wnull-dereference
             -Wcast-qual
             $<$<COMPILE_LANGUAGE:CXX>:-Wsuggest-override>

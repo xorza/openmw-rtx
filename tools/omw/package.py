@@ -138,8 +138,6 @@ def container_command(docker: str, command: list[str], user: str, flavour: str) 
     desk's."""
     return [docker, "run", "--rm", "--user", user, "--env", "HOME=/tmp",
             "--env", f"CCACHE_DIR={CONTAINER_DIR / 'ccache'}",
-            # Link-time optimisation where the caller asks for it, as a release does.
-            "--env", "OMW_LTO",
             "--volume", f"{ROOT}:{ROOT}",
             *(word for repository in _repository_beside() for word in ("--volume", f"{repository}:{repository}")),
             "--volume", f"{CONTAINER_DIR / flavour}:{build_dir(flavour)}",

@@ -67,14 +67,14 @@
             "name": "release",
             "hidden": true,
             "$comment": [
-                "`-O3 -DNDEBUG` with line tables and frame pointers (`cmake/Flags.cmake`): the build a number is quoted",
-                "from and the archive is installed from. Link-time optimisation where OMW_LTO says `ON`, as a tagged",
-                "release does, and a desk that measures what ships."
+                "`-O3 -DNDEBUG` with line tables and frame pointers (`cmake/Flags.cmake`), and link-time",
+                "optimisation: the build a number is quoted from and the archive is installed from, so what is",
+                "measured is what ships."
             ],
             "binaryDir": "${sourceDir}/out/release",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
-                "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "$env{OMW_LTO}"
+                "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "ON"
             }
         },
         {

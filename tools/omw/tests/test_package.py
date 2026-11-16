@@ -77,9 +77,8 @@ class ReleaseBaseTest(unittest.TestCase):
                 self.assertEqual(command[command.index("--user") + 1], "1000:1000")
                 volumes = [command[at + 1] for at, word in enumerate(command) if word == "--volume"]
                 self.assertEqual(volumes, expected)
-                # The caller's OMW_LTO by name, so a release's link-time optimisation reaches the build inside.
                 self.assertEqual([command[at + 1] for at, word in enumerate(command) if word == "--env"],
-                                 ["HOME=/tmp", f"CCACHE_DIR={CONTAINER_DIR / 'ccache'}", "OMW_LTO"])
+                                 ["HOME=/tmp", f"CCACHE_DIR={CONTAINER_DIR / 'ccache'}"])
                 self.assertEqual(command[command.index("--workdir") + 1], str(ROOT))
                 self.assertEqual(command[-5:], [RELEASE_IMAGE, "python3", "omw", "archive", "v1"])
 

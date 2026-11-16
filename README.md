@@ -105,8 +105,8 @@ What differs from upstream's build:
   at the versions `tools/omw/pins.py` names, so every desk and CI build alike.
 - **Flavours, not build types**: `debug`, `release`, `asan` and `tsan`, each a preset of `CMakePresets.json` in
   `out/<flavour>`. Warnings are errors in every one.
-- **Releases**: link-time optimisation where `OMW_LTO=ON` (ThinLTO, and MSVC's `/GL`), and the Linux AppImage built
-  on AlmaLinux 8, in a container of it on any other system.
+- **Releases**: the release flavour, with link-time optimisation (ThinLTO, and MSVC's `/GL`), and the Linux AppImage
+  built on AlmaLinux 8, in a container of it on any other system.
 
 ### Documentation
 
