@@ -37,7 +37,7 @@ namespace MWGui
     class SpellModel
     {
     public:
-        SpellModel(const MWWorld::Ptr& actor, const std::string& filter);
+        SpellModel(const MWWorld::Ptr& actor, std::string filter);
         explicit SpellModel(const MWWorld::Ptr& actor);
 
         typedef int ModelIndex;

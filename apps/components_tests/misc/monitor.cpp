@@ -6,6 +6,7 @@
 #include <stdexcept>
 #include <string>
 #include <thread>
+#include <utility>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -47,7 +48,7 @@ namespace Misc
                             mPending.pop_front();
                         },
                         [&](std::stop_token turn) {
-                            mTurn(took, turn);
+                            mTurn(took, std::move(turn));
                             mMonitor.hand([&] { mDone.push_back(took); });
                         });
                 });

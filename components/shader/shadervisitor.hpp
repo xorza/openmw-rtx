@@ -25,7 +25,7 @@ namespace Shader
     {
     public:
         ShaderVisitor(
-            ShaderManager& shaderManager, Resource::ImageManager& imageManager, const std::string& defaultShaderPrefix);
+            ShaderManager& shaderManager, Resource::ImageManager& imageManager, std::string defaultShaderPrefix);
 
         void setProgramTemplate(const osg::Program* programTemplate) { mProgramTemplate = programTemplate; }
 

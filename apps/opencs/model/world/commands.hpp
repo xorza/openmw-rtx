@@ -25,7 +25,7 @@ namespace CSMWorld
     class TouchCommand : public QUndoCommand
     {
     public:
-        TouchCommand(IdTable& model, const std::string& id, QUndoCommand* parent = nullptr);
+        TouchCommand(IdTable& table, std::string id, QUndoCommand* parent = nullptr);
 
         void redo() override;
         void undo() override;
@@ -77,8 +77,8 @@ namespace CSMWorld
     class CopyLandTexturesCommand : public ImportLandTexturesCommand
     {
     public:
-        CopyLandTexturesCommand(IdTable& landTable, IdTable& ltexTable, const std::string& origin,
-            const std::string& dest, QUndoCommand* parent = nullptr);
+        CopyLandTexturesCommand(IdTable& landTable, IdTable& ltexTable, std::string origin, std::string dest,
+            QUndoCommand* parent = nullptr);
 
     private:
         const std::string& getOriginId() const override;
@@ -97,7 +97,7 @@ namespace CSMWorld
     class TouchLandCommand : public ImportLandTexturesCommand
     {
     public:
-        TouchLandCommand(IdTable& landTable, IdTable& ltexTable, const std::string& id, QUndoCommand* parent = nullptr);
+        TouchLandCommand(IdTable& landTable, IdTable& ltexTable, std::string id, QUndoCommand* parent = nullptr);
 
     private:
         const std::string& getOriginId() const override;
@@ -124,8 +124,8 @@ namespace CSMWorld
         CSMWorld::RecordBase::State mOldRecordState;
 
     public:
-        explicit ModifyCommand(QAbstractItemModel& model, const QModelIndex& index, const QVariant& newValue,
-            QUndoCommand* parent = nullptr);
+        explicit ModifyCommand(
+            QAbstractItemModel& model, const QModelIndex& index, QVariant newValue, QUndoCommand* parent = nullptr);
 
         void redo() override;
 

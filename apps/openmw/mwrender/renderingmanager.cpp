@@ -47,6 +47,7 @@
 
 #include <components/debug/debugdraw.hpp>
 #include <components/detournavigator/navigator.hpp>
+#include <utility>
 
 #include "../mwworld/cellstore.hpp"
 #include "../mwworld/class.hpp"
@@ -123,7 +124,7 @@ namespace MWRender
         DetourNavigator::Navigator& navigator, const MWWorld::GroundcoverStore& groundcoverStore,
         SceneUtil::UnrefQueue& unrefQueue)
         : mRenderer(renderer)
-        , mRootNode(rootNode)
+        , mRootNode(std::move(std::move(rootNode)))
         , mResourceSystem(resourceSystem)
         , mWorkQueue(workQueue)
         , mNavigator(navigator)

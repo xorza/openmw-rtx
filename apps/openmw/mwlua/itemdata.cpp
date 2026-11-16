@@ -2,6 +2,7 @@
 
 #include <components/esm3/loadcrea.hpp>
 #include <components/esm3/loadench.hpp>
+#include <utility>
 
 #include "context.hpp"
 #include "objectvariant.hpp"
@@ -30,8 +31,8 @@ namespace MWLua
             ObjectVariant mObject;
 
         public:
-            explicit ItemData(const ObjectVariant& object)
-                : mObject(object)
+            explicit ItemData(ObjectVariant object)
+                : mObject(std::move(object))
             {
             }
 

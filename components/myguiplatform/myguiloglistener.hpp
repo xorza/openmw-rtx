@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <utility>
 
 #include <MyGUI_ConsoleLogListener.h>
 #include <MyGUI_ILogListener.h>
@@ -18,8 +19,8 @@ namespace MyGUIPlatform
     class CustomLogListener : public MyGUI::ILogListener
     {
     public:
-        explicit CustomLogListener(const std::filesystem::path& name)
-            : mFileName(name)
+        explicit CustomLogListener(std::filesystem::path name)
+            : mFileName(std::move(name))
         {
         }
 

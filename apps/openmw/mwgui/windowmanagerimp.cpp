@@ -54,6 +54,7 @@
 
 #include <components/settings/values.hpp>
 #include <components/terrain/world.hpp>
+#include <utility>
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/inputmanager.hpp"
@@ -152,7 +153,7 @@ namespace MWGui
     WindowManager::WindowManager(MWRender::Renderer& renderer, Resource::ResourceSystem* resourceSystem,
         const std::shared_ptr<SceneUtil::WorkQueue>& workQueue, const std::filesystem::path& logpath,
         bool consoleOnlyScripts, Translation::Storage& translationDataStorage, ToUTF8::FromType encoding,
-        bool exportFonts, const std::string& versionDescription, Files::ConfigurationManager& cfgMgr)
+        bool exportFonts, std::string versionDescription, Files::ConfigurationManager& cfgMgr)
         : mStore(nullptr)
         , mResourceSystem(resourceSystem)
         , mWorkQueue(workQueue)
@@ -201,7 +202,7 @@ namespace MWGui
         , mAllowed(GW_ALL)
         , mRestAllowed(true)
         , mEncoding(encoding)
-        , mVersionDescription(versionDescription)
+        , mVersionDescription(std::move(versionDescription))
         , mWindowVisible(true)
         , mCfgMgr(cfgMgr)
     {

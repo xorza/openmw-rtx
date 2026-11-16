@@ -1,6 +1,7 @@
 #pragma once
 
 #include <osgViewer/ViewerEventHandlers>
+#include <utility>
 
 namespace Debug
 {
@@ -41,14 +42,14 @@ namespace Debug
         {
         }
 
-        DebugGroup(GLenum source, GLuint id, const std::string& message)
+        DebugGroup(GLenum source, GLuint id, std::string message)
             : mSource(source)
             , mId(id)
-            , mMessage(message)
+            , mMessage(std::move(message))
         {
         }
 
-        explicit DebugGroup(const std::string& message, GLuint id = 0);
+        explicit DebugGroup(std::string message, GLuint id = 0);
 
         DebugGroup(const DebugGroup& debugGroup, const osg::CopyOp& copyop = osg::CopyOp::SHALLOW_COPY);
         DebugGroup& operator=(const DebugGroup&) = delete;

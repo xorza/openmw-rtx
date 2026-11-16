@@ -1,5 +1,7 @@
 #pragma once
 
+#include <utility>
+
 namespace CSMWorld
 {
     struct NestedTableWrapperBase
@@ -14,8 +16,8 @@ namespace CSMWorld
     {
         NestedTable mNestedTable;
 
-        explicit NestedTableWrapper(const NestedTable& nestedTable)
-            : mNestedTable(nestedTable)
+        explicit NestedTableWrapper(NestedTable nestedTable)
+            : mNestedTable(std::move(nestedTable))
         {
         }
 

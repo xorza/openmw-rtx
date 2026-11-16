@@ -14,8 +14,8 @@
 #include <components/vfs/recursivedirectoryiterator.hpp> // IWYU pragma: keep: the range whole, which a call returns by value
 
 CSMWorld::Resources::Resources(
-    const VFS::Manager* vfs, const std::string& baseDirectory, UniversalId::Type type, const char* const* extensions)
-    : mBaseDirectory(baseDirectory)
+    const VFS::Manager* vfs, std::string baseDirectory, UniversalId::Type type, const char* const* extensions)
+    : mBaseDirectory(std::move(baseDirectory))
     , mType(type)
 {
     recreate(vfs, extensions);

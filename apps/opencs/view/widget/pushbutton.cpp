@@ -5,6 +5,7 @@
 
 #include <apps/opencs/model/prefs/category.hpp>
 #include <apps/opencs/model/prefs/setting.hpp>
+#include <utility>
 
 #include "../../model/prefs/shortcutmanager.hpp"
 #include "../../model/prefs/state.hpp"
@@ -77,11 +78,11 @@ void CSVWidget::PushButton::mouseReleaseEvent(QMouseEvent* event)
     QPushButton::mouseReleaseEvent(event);
 }
 
-CSVWidget::PushButton::PushButton(const QIcon& icon, Type type, const QString& tooltip, QWidget* parent)
+CSVWidget::PushButton::PushButton(const QIcon& icon, Type type, QString tooltip, QWidget* parent)
     : QPushButton(icon, "", parent)
     , mKeepOpen(false)
     , mType(type)
-    , mToolTip(tooltip)
+    , mToolTip(std::move(tooltip))
 {
     if (type == Type_Mode || type == Type_Toggle)
     {
@@ -95,11 +96,11 @@ CSVWidget::PushButton::PushButton(const QIcon& icon, Type type, const QString& t
     connect(&CSMPrefs::State::get(), &CSMPrefs::State::settingChanged, this, &PushButton::settingChanged);
 }
 
-CSVWidget::PushButton::PushButton(Type type, const QString& tooltip, QWidget* parent)
+CSVWidget::PushButton::PushButton(Type type, QString tooltip, QWidget* parent)
     : QPushButton(parent)
     , mKeepOpen(false)
     , mType(type)
-    , mToolTip(tooltip)
+    , mToolTip(std::move(tooltip))
 {
     setCheckable(type == Type_Mode || type == Type_Toggle);
     processShortcuts();

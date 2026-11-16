@@ -17,6 +17,7 @@
 #include <apps/opencs/model/world/columns.hpp>
 #include <apps/opencs/model/world/idtablebase.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
+#include <utility>
 
 void CSVWorld::RecordButtonBar::updateModificationButtons()
 {
@@ -54,10 +55,10 @@ void CSVWorld::RecordButtonBar::updatePrevNextButtons()
     }
 }
 
-CSVWorld::RecordButtonBar::RecordButtonBar(const CSMWorld::UniversalId& id, CSMWorld::IdTable& table,
+CSVWorld::RecordButtonBar::RecordButtonBar(CSMWorld::UniversalId id, CSMWorld::IdTable& table,
     TableBottomBox* bottomBox, CSMWorld::CommandDispatcher* commandDispatcher, QWidget* parent)
     : QWidget(parent)
-    , mId(id)
+    , mId(std::move(id))
     , mTable(table)
     , mBottom(bottomBox)
     , mCommandDispatcher(commandDispatcher)

@@ -111,12 +111,12 @@ QRect CSVWidget::SceneToolToggle::getIconBox(int index) const
     return QRect((iconXSize + xBorder) * x + xBorder, (iconYSize + yBorder) * y + yBorder, iconXSize, iconYSize);
 }
 
-CSVWidget::SceneToolToggle::SceneToolToggle(SceneToolbar* parent, const QString& toolTip, const std::string& emptyIcon)
+CSVWidget::SceneToolToggle::SceneToolToggle(SceneToolbar* parent, QString toolTip, std::string emptyIcon)
     : SceneTool(parent)
-    , mEmptyIcon(emptyIcon)
+    , mEmptyIcon(std::move(emptyIcon))
     , mButtonSize(parent->getButtonSize())
     , mIconSize(parent->getIconSize())
-    , mToolTip(toolTip)
+    , mToolTip(std::move(toolTip))
     , mFirst(nullptr)
 {
     mPanel = new QFrame(this, Qt::Popup);

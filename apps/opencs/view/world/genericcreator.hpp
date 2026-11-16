@@ -96,8 +96,8 @@ namespace CSVWorld
         void addScope(const QString& name, CSMWorld::Scope scope, const QString& tooltip);
 
     public:
-        explicit GenericCreator(CSMWorld::Data& worldData, QUndoStack& undoStack, const CSMWorld::UniversalId& id,
-            bool relaxedIdRules = false);
+        explicit GenericCreator(
+            CSMWorld::Data& worldData, QUndoStack& undoStack, CSMWorld::UniversalId id, bool relaxedIdRules = false);
 
         void setEditLock(bool locked) override;
 

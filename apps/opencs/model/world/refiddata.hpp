@@ -181,11 +181,11 @@ namespace CSMWorld
                 appendRecord(record.mId, base);
                 if (base)
                 {
-                    mContainer.back()->mBase = record;
+                    mContainer.back()->mBase = std::move(record);
                 }
                 else
                 {
-                    mContainer.back()->mModified = record;
+                    mContainer.back()->mModified = std::move(record);
                 }
             }
             else if (!base)

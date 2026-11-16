@@ -66,11 +66,11 @@ void CSVWidget::SceneToolMode::setButton(std::map<ModeButton*, std::string>::ite
     emit modeChanged(iter->second);
 }
 
-CSVWidget::SceneToolMode::SceneToolMode(SceneToolbar* parent, const QString& toolTip)
+CSVWidget::SceneToolMode::SceneToolMode(SceneToolbar* parent, QString toolTip)
     : SceneTool(parent)
     , mButtonSize(parent->getButtonSize())
     , mIconSize(parent->getIconSize())
-    , mToolTip(toolTip)
+    , mToolTip(std::move(toolTip))
     , mFirst(nullptr)
     , mCurrent(nullptr)
     , mToolbar(parent)

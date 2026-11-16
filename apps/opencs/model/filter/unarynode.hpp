@@ -14,7 +14,7 @@ namespace CSMFilter
         std::string mName;
 
     public:
-        UnaryNode(std::shared_ptr<Node> child, const std::string& name);
+        UnaryNode(std::shared_ptr<Node> child, std::string name);
 
         const Node& getChild() const;
 

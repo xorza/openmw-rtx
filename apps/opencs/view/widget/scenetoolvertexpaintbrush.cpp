@@ -12,6 +12,7 @@
 #include <QSlider>
 #include <QVBoxLayout>
 #include <QWidget>
+#include <utility>
 
 #include "brushshapes.hpp"
 #include "scenetool.hpp"
@@ -176,9 +177,9 @@ void CSVWidget::VertexPaintBrushWindow::setBrushShape()
 }
 
 CSVWidget::SceneToolVertexPaintBrush::SceneToolVertexPaintBrush(
-    SceneToolbar* parent, const QString& toolTip, CSMDoc::Document& document)
+    SceneToolbar* parent, QString toolTip, CSMDoc::Document& document)
     : SceneTool(parent, Type_TopAction)
-    , mToolTip(toolTip)
+    , mToolTip(std::move(toolTip))
     , mDocument(document)
     , mVertexPaintBrushWindow(new VertexPaintBrushWindow(document, this))
 {

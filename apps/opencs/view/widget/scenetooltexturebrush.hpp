@@ -111,7 +111,7 @@ namespace CSVWidget
         void adjustToolTips();
 
     public:
-        SceneToolTextureBrush(SceneToolbar* parent, const QString& toolTip, CSMDoc::Document& document);
+        SceneToolTextureBrush(SceneToolbar* parent, QString toolTip, CSMDoc::Document& document);
 
         void showPanel(const QPoint& position) override;
         void updatePanel();

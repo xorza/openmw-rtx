@@ -49,7 +49,7 @@ namespace MWGui
                 Event_PageBreak,
             };
 
-            BookTextParser(const std::string& text, bool shrinkTextAtLastTag);
+            BookTextParser(std::string text, bool shrinkTextAtLastTag);
 
             Events next();
 
@@ -152,7 +152,7 @@ namespace MWGui
         class TextElement : public GraphicElement
         {
         public:
-            TextElement(MyGUI::Widget* parent, Paginator& pag, const BlockStyle& blockStyle, const TextStyle& textStyle,
+            TextElement(MyGUI::Widget* parent, Paginator& pag, const BlockStyle& blockStyle, TextStyle textStyle,
                 const std::string& text);
             int getHeight() override;
             int pageSplit() override;

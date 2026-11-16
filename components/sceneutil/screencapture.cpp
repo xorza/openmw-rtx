@@ -16,6 +16,7 @@
 #include <iomanip>
 #include <sstream>
 #include <string>
+#include <utility>
 
 namespace
 {
@@ -101,10 +102,10 @@ namespace SceneUtil
         return lastFileName;
     }
 
-    WriteScreenshotToFileOperation::WriteScreenshotToFileOperation(const std::filesystem::path& screenshotPath,
-        const std::string& screenshotFormat, std::function<void(std::string)> callback)
-        : mScreenshotPath(screenshotPath)
-        , mScreenshotFormat(screenshotFormat)
+    WriteScreenshotToFileOperation::WriteScreenshotToFileOperation(
+        std::filesystem::path screenshotPath, std::string screenshotFormat, std::function<void(std::string)> callback)
+        : mScreenshotPath(std::move(screenshotPath))
+        , mScreenshotFormat(std::move(screenshotFormat))
         , mCallback(std::move(callback))
     {
     }

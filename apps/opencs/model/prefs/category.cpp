@@ -2,14 +2,15 @@
 #include "category.hpp"
 
 #include <stdexcept>
+#include <utility>
 
 #include "setting.hpp"
 #include "state.hpp"
 #include "subcategory.hpp"
 
-CSMPrefs::Category::Category(State* parent, const std::string& key)
+CSMPrefs::Category::Category(State* parent, std::string key)
     : mParent(parent)
-    , mKey(key)
+    , mKey(std::move(key))
 {
 }
 

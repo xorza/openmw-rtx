@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <utility>
 
 #include "referenceinterface.hpp"
 #include "windowbase.hpp"
@@ -85,8 +86,8 @@ namespace MWGui
     struct Topic : Link
     {
         MyGUI::delegates::MultiDelegate<const std::string&> eventTopicActivated;
-        explicit Topic(const std::string& id)
-            : mTopicId(id)
+        explicit Topic(std::string id)
+            : mTopicId(std::move(id))
         {
         }
         std::string mTopicId;

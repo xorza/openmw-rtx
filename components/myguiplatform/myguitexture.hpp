@@ -38,7 +38,7 @@ namespace MyGUIPlatform
         int mHeight;
 
     public:
-        OSGTexture(const std::string& name, Resource::ImageManager* imageManager);
+        OSGTexture(std::string name, Resource::ImageManager* imageManager);
         explicit OSGTexture(osg::Texture2D* texture, osg::StateSet* injectState = nullptr);
         ~OSGTexture() override;
         OSGTexture(const OSGTexture&) = default;

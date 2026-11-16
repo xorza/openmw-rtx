@@ -16,7 +16,7 @@ namespace Files
      */
     struct LinuxPath
     {
-        explicit LinuxPath(const std::string& applicationName);
+        explicit LinuxPath(std::string applicationName);
 
         /**
          * \brief Return path to the user directory.

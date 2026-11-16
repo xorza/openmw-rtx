@@ -31,6 +31,7 @@
 #include <apps/opencs/view/widget/pushbutton.hpp>
 
 #include <components/misc/scalableicon.hpp>
+#include <utility>
 
 #include "../../model/doc/document.hpp"
 #include "../../model/prefs/state.hpp"
@@ -213,9 +214,9 @@ void CSVWidget::TextureBrushWindow::setBrushShape()
 void CSVWidget::SceneToolTextureBrush::adjustToolTips() {}
 
 CSVWidget::SceneToolTextureBrush::SceneToolTextureBrush(
-    SceneToolbar* parent, const QString& toolTip, CSMDoc::Document& document)
+    SceneToolbar* parent, QString toolTip, CSMDoc::Document& document)
     : SceneTool(parent, Type_TopAction)
-    , mToolTip(toolTip)
+    , mToolTip(std::move(toolTip))
     , mDocument(document)
     , mTextureBrushWindow(new TextureBrushWindow(document, this))
 {

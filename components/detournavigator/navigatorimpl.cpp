@@ -6,11 +6,12 @@
 #include <components/esm3/loadpgrd.hpp>
 #include <components/misc/convert.hpp>
 #include <components/misc/coordinateconverter.hpp>
+#include <utility>
 
 namespace DetourNavigator
 {
-    NavigatorImpl::NavigatorImpl(const Settings& settings, std::unique_ptr<NavMeshTileStore>&& store)
-        : mSettings(settings)
+    NavigatorImpl::NavigatorImpl(Settings settings, std::unique_ptr<NavMeshTileStore>&& store)
+        : mSettings(std::move(settings))
         , mNavMeshManager(mSettings, std::move(store))
     {
     }

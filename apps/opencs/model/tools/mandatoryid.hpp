@@ -27,7 +27,7 @@ namespace CSMTools
         std::vector<ESM::RefId> mIds;
 
     public:
-        MandatoryIdStage(const CSMWorld::CollectionBase& idCollection, const CSMWorld::UniversalId& collectionId,
+        MandatoryIdStage(const CSMWorld::CollectionBase& idCollection, CSMWorld::UniversalId collectionId,
             const std::vector<ESM::RefId>& ids);
 
         int setup() override;

@@ -150,10 +150,10 @@ void CSVWorld::GenericCreator::addScope(const QString& name, CSMWorld::Scope sco
 }
 
 CSVWorld::GenericCreator::GenericCreator(
-    CSMWorld::Data& worldData, QUndoStack& undoStack, const CSMWorld::UniversalId& id, bool relaxedIdRules)
+    CSMWorld::Data& worldData, QUndoStack& undoStack, CSMWorld::UniversalId id, bool relaxedIdRules)
     : mData(worldData)
     , mUndoStack(undoStack)
-    , mListId(id)
+    , mListId(std::move(id))
     , mLocked(false)
     , mClonedType(CSMWorld::UniversalId::Type_None)
     , mScopes(CSMWorld::Scope_Content)

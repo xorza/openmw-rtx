@@ -5,6 +5,7 @@
 #include <QMutexLocker>
 
 #include <components/settings/settingvalue.hpp>
+#include <utility>
 
 #include "category.hpp"
 #include "state.hpp"
@@ -14,13 +15,12 @@ QMutex* CSMPrefs::Setting::getMutex()
     return mMutex;
 }
 
-CSMPrefs::Setting::Setting(
-    Category* parent, QMutex* mutex, std::string_view key, const QString& label, Settings::Index& index)
+CSMPrefs::Setting::Setting(Category* parent, QMutex* mutex, std::string_view key, QString label, Settings::Index& index)
     : QObject(parent->getState())
     , mParent(parent)
     , mMutex(mutex)
     , mKey(key)
-    , mLabel(label)
+    , mLabel(std::move(label))
     , mIndex(index)
 {
 }

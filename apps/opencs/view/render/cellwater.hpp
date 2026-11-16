@@ -35,8 +35,8 @@ namespace CSVRender
         Q_OBJECT
 
     public:
-        CellWater(CSMWorld::Data& data, osg::Group* cellNode, const std::string& id,
-            const CSMWorld::CellCoordinates& cellCoords);
+        CellWater(
+            CSMWorld::Data& data, osg::Group* cellNode, std::string id, const CSMWorld::CellCoordinates& cellCoords);
 
         ~CellWater() override;
 

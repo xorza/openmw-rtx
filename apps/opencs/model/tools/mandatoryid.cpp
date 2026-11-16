@@ -6,11 +6,12 @@
 
 #include <apps/opencs/model/doc/messages.hpp>
 #include <apps/opencs/model/world/universalid.hpp>
+#include <utility>
 
 CSMTools::MandatoryIdStage::MandatoryIdStage(const CSMWorld::CollectionBase& idCollection,
-    const CSMWorld::UniversalId& collectionId, const std::vector<ESM::RefId>& ids)
+    CSMWorld::UniversalId collectionId, const std::vector<ESM::RefId>& ids)
     : mIdCollection(idCollection)
-    , mCollectionId(collectionId)
+    , mCollectionId(std::move(collectionId))
     , mIds(ids)
 {
 }

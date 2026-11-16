@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <charconv>
 #include <cmath>
+#include <utility>
 #include <vector>
 
 #include <osg/Group>
@@ -200,8 +201,8 @@ namespace MWWorld
 
     // The same sequence each run, on purpose.
     // NOLINTNEXTLINE(bugprone-random-generator-seed)
-    World::World(Resource::ResourceSystem* resourceSystem, int activationDistanceOverride, const std::string& startCell,
-        const std::filesystem::path& userDataPath, const std::filesystem::path& cachePath)
+    World::World(Resource::ResourceSystem* resourceSystem, int activationDistanceOverride, std::string startCell,
+        std::filesystem::path userDataPath, std::filesystem::path cachePath)
         : mResourceSystem(resourceSystem)
         , mLocalScripts(mStore)
         , mWorldModel(mStore, mReaders)
@@ -211,10 +212,10 @@ namespace MWWorld
         , mGodMode(false)
         , mScriptsEnabled(true)
         , mDiscardMovements(true)
-        , mUserDataPath(userDataPath)
-        , mCachePath(cachePath)
+        , mUserDataPath(std::move(userDataPath))
+        , mCachePath(std::move(cachePath))
         , mActivationDistanceOverride(activationDistanceOverride)
-        , mStartCell(startCell)
+        , mStartCell(std::move(startCell))
         , mSwimHeightScale(0.f)
         , mDistanceToFocusObject(-1.f)
         , mTeleportEnabled(true)

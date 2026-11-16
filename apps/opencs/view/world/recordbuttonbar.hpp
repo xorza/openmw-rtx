@@ -54,7 +54,7 @@ namespace CSVWorld
         void updatePrevNextButtons();
 
     public:
-        RecordButtonBar(const CSMWorld::UniversalId& id, CSMWorld::IdTable& table, TableBottomBox* bottomBox = nullptr,
+        RecordButtonBar(CSMWorld::UniversalId id, CSMWorld::IdTable& table, TableBottomBox* bottomBox = nullptr,
             CSMWorld::CommandDispatcher* commandDispatcher = nullptr, QWidget* parent = nullptr);
 
         void setEditLock(bool locked);

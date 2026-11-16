@@ -1,6 +1,7 @@
 #include "windowspath.hpp"
 
 #include <algorithm>
+#include <utility>
 
 #define FAR
 #define NEAR
@@ -76,8 +77,8 @@ namespace Files
         }
     }
 
-    WindowsPath::WindowsPath(const std::string& applicationName)
-        : mName(applicationName)
+    WindowsPath::WindowsPath(std::string applicationName)
+        : mName(std::move(applicationName))
     {
     }
 

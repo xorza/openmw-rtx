@@ -104,11 +104,10 @@ namespace
 namespace ESSImport
 {
 
-    Importer::Importer(
-        const std::filesystem::path& essfile, const std::filesystem::path& outfile, const std::string& encoding)
-        : mEssFile(essfile)
-        , mOutFile(outfile)
-        , mEncoding(encoding)
+    Importer::Importer(std::filesystem::path essfile, std::filesystem::path outfile, std::string encoding)
+        : mEssFile(std::move(essfile))
+        , mOutFile(std::move(outfile))
+        , mEncoding(std::move(encoding))
     {
     }
 

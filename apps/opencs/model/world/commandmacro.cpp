@@ -3,10 +3,11 @@
 
 #include <QUndoCommand>
 #include <QUndoStack>
+#include <utility>
 
-CSMWorld::CommandMacro::CommandMacro(QUndoStack& undoStack, const QString& description)
+CSMWorld::CommandMacro::CommandMacro(QUndoStack& undoStack, QString description)
     : mUndoStack(undoStack)
-    , mDescription(description)
+    , mDescription(std::move(description))
     , mStarted(false)
 {
 }

@@ -16,6 +16,7 @@
 #include <apps/opencs/view/world/util.hpp>
 
 #include <components/misc/scalableicon.hpp>
+#include <utility>
 
 class QModelIndex;
 class QObject;
@@ -30,12 +31,12 @@ namespace CSMWorld
     class CommandDispatcher;
 }
 
-CSVWorld::DataDisplayDelegate::DataDisplayDelegate(const ValueList& values, const IconList& icons,
+CSVWorld::DataDisplayDelegate::DataDisplayDelegate(const ValueList& values, IconList icons,
     CSMWorld::CommandDispatcher* dispatcher, CSMDoc::Document& document, const std::string& pageName,
     const std::string& settingName, QObject* parent)
     : EnumDelegate(values, dispatcher, document, parent)
     , mDisplayMode(Mode_TextOnly)
-    , mIcons(icons)
+    , mIcons(std::move(icons))
     , mIconSize(QSize(16, 16))
     , mHorizontalMargin(QApplication::style()->pixelMetric(QStyle::PM_FocusFrameHMargin) + 1)
     , mTextLeftOffset(8)

@@ -49,12 +49,12 @@ namespace Rtx
     }
 
     Device::Device(const Instance& instance, PhysicalDevice&& physicalDevice, const ShaderSet& shaders,
-        const PipelineCacheSpec& cache, const DeviceReport& report)
+        const PipelineCacheSpec& cache, DeviceReport report)
         : mPhysicalDevice(std::move(physicalDevice))
         , mInstance(instance.getHandle())
         , mWatchesSubmits(instance.watchesSubmits())
         , mShaders(shaders)
-        , mReport(report)
+        , mReport(std::move(report))
     {
         const Crash::NoteScope noted("making the device");
         // `ShaderSet::find` and the census's words both read the modules in name order, each name once.

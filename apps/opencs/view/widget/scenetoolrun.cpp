@@ -12,6 +12,7 @@
 
 #include <apps/opencs/view/widget/pushbutton.hpp>
 #include <apps/opencs/view/widget/scenetool.hpp>
+#include <utility>
 
 class QPoint;
 
@@ -56,11 +57,11 @@ void CSVWidget::SceneToolRun::updatePanel()
 }
 
 CSVWidget::SceneToolRun::SceneToolRun(
-    SceneToolbar* parent, const QString& toolTip, const QString& icon, const std::vector<std::string>& profiles)
+    SceneToolbar* parent, QString toolTip, const QString& icon, const std::vector<std::string>& profiles)
     : SceneTool(parent, Type_TopAction)
     , mProfiles(profiles.begin(), profiles.end())
     , mSelected(mProfiles.begin())
-    , mToolTip(toolTip)
+    , mToolTip(std::move(toolTip))
 {
     setIcon(Misc::ScalableIcon::load(icon));
     updateIcon();

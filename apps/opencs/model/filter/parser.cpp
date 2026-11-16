@@ -4,6 +4,7 @@
 #include <cmath>
 #include <sstream>
 #include <stdexcept>
+#include <utility>
 #include <vector>
 
 #include <apps/opencs/model/world/idcollection.hpp>
@@ -68,11 +69,11 @@ namespace CSMFilter
         // NOLINTNEXTLINE(google-explicit-constructor)
         Token(Type type = Type_None);
 
-        Token(Type type, const std::string& string);
+        Token(Type type, std::string string);
         ///< Non-string type that can also be interpreted as a string.
 
         // NOLINTNEXTLINE(google-explicit-constructor)
-        Token(const std::string& string);
+        Token(std::string string);
 
         // NOLINTNEXTLINE(google-explicit-constructor)
         Token(double number);
@@ -88,16 +89,16 @@ namespace CSMFilter
     {
     }
 
-    Token::Token(Type type, const std::string& string)
+    Token::Token(Type type, std::string string)
         : mType(type)
-        , mString(string)
+        , mString(std::move(string))
         , mNumber(0.0)
     {
     }
 
-    Token::Token(const std::string& string)
+    Token::Token(std::string string)
         : mType(Type_String)
-        , mString(string)
+        , mString(std::move(string))
         , mNumber(0.0)
     {
     }

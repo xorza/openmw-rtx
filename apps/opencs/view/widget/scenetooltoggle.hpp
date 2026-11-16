@@ -45,7 +45,7 @@ namespace CSVWidget
         QRect getIconBox(int index) const;
 
     public:
-        SceneToolToggle(SceneToolbar* parent, const QString& toolTip, const std::string& emptyIcon);
+        SceneToolToggle(SceneToolbar* parent, QString toolTip, std::string emptyIcon);
 
         void showPanel(const QPoint& position) override;
 

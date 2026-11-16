@@ -1,17 +1,17 @@
 #include "messages.hpp"
 
 #include <apps/opencs/model/world/universalid.hpp>
+#include <utility>
 
 CSMDoc::Message::Message()
     : mSeverity(Severity_Default)
 {
 }
 
-CSMDoc::Message::Message(
-    const CSMWorld::UniversalId& id, const std::string& message, const std::string& hint, Severity severity)
-    : mId(id)
-    , mMessage(message)
-    , mHint(hint)
+CSMDoc::Message::Message(CSMWorld::UniversalId id, std::string message, std::string hint, Severity severity)
+    : mId(std::move(id))
+    , mMessage(std::move(message))
+    , mHint(std::move(hint))
     , mSeverity(severity)
 {
 }

@@ -19,14 +19,15 @@
 #include <components/files/memorystream.hpp>
 #include <components/resource/imagemanager.hpp>
 #include <components/vfs/pathutil.hpp>
+#include <utility>
 
 #include "guirendermanager.hpp"
 
 namespace MyGUIPlatform
 {
 
-    OSGTexture::OSGTexture(const std::string& name, Resource::ImageManager* imageManager)
-        : mName(name)
+    OSGTexture::OSGTexture(std::string name, Resource::ImageManager* imageManager)
+        : mName(std::move(name))
         , mImageManager(imageManager)
         , mFormat(MyGUI::PixelFormat::Unknow)
         , mUsage(MyGUI::TextureUsage::Default)

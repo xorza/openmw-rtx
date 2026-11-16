@@ -422,9 +422,9 @@ namespace
     {
         using std::exception::exception;
 
-        SaveFormatVersionError(ESM::FormatVersion savegameFormat, const std::string& message)
+        SaveFormatVersionError(ESM::FormatVersion savegameFormat, std::string message)
             : mSavegameFormat(savegameFormat)
-            , mErrorMessage(message)
+            , mErrorMessage(std::move(message))
         {
         }
 

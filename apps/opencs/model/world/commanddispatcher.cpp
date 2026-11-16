@@ -20,6 +20,7 @@
 
 #include <components/esm3/loaddial.hpp>
 #include <components/misc/constants.hpp>
+#include <utility>
 
 #include "../doc/document.hpp"
 
@@ -95,12 +96,11 @@ std::vector<std::string> CSMWorld::CommandDispatcher::getRevertableRecords() con
     return result;
 }
 
-CSMWorld::CommandDispatcher::CommandDispatcher(
-    CSMDoc::Document& document, const CSMWorld::UniversalId& id, QObject* parent)
+CSMWorld::CommandDispatcher::CommandDispatcher(CSMDoc::Document& document, CSMWorld::UniversalId id, QObject* parent)
     : QObject(parent)
     , mLocked(false)
     , mDocument(document)
-    , mId(id)
+    , mId(std::move(id))
 {
 }
 

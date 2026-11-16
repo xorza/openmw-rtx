@@ -22,6 +22,7 @@
 
 #include <algorithm>
 #include <limits>
+#include <utility>
 
 namespace MWRender
 {
@@ -81,14 +82,14 @@ namespace MWRender
         explicit CreateNavMeshTileGroups(std::size_t id, DetourNavigator::Version version,
             std::weak_ptr<DetourNavigator::GuardedNavMeshCacheItem> navMesh,
             const osg::ref_ptr<osg::StateSet>& groupStateSet, const osg::ref_ptr<osg::StateSet>& debugDrawStateSet,
-            const DetourNavigator::Settings& settings, const std::map<DetourNavigator::TilePosition, Tile>& tiles,
+            DetourNavigator::Settings settings, const std::map<DetourNavigator::TilePosition, Tile>& tiles,
             Settings::NavMeshRenderMode mode)
             : mId(id)
             , mVersion(version)
             , mNavMesh(std::move(navMesh))
             , mGroupStateSet(groupStateSet)
             , mDebugDrawStateSet(debugDrawStateSet)
-            , mSettings(settings)
+            , mSettings(std::move(settings))
             , mTiles(tiles)
             , mMode(mode)
         {

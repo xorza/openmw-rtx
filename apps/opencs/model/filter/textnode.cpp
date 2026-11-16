@@ -9,9 +9,9 @@
 #include "../world/columns.hpp"
 #include "../world/idtablebase.hpp"
 
-CSMFilter::TextNode::TextNode(int columnId, const std::string& text)
+CSMFilter::TextNode::TextNode(int columnId, std::string text)
     : mColumnId(columnId)
-    , mText(text)
+    , mText(std::move(text))
     , mRegExp(QRegularExpression::anchoredPattern(QString::fromUtf8(mText.c_str())),
           QRegularExpression::CaseInsensitiveOption)
 {

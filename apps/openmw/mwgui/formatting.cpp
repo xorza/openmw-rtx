@@ -13,6 +13,7 @@
 #include <components/misc/strings/algorithm.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/vfs/manager.hpp>
+#include <utility>
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/windowmanager.hpp"
@@ -21,9 +22,9 @@
 namespace MWGui::Formatting
 {
     /* BookTextParser */
-    BookTextParser::BookTextParser(const std::string& text, bool shrinkTextAtLastTag)
+    BookTextParser::BookTextParser(std::string text, bool shrinkTextAtLastTag)
         : mIndex(0)
-        , mText(text)
+        , mText(std::move(text))
         , mIgnoreNewlineTags(true)
         , mIgnoreLineEndings(true)
         , mClosingTag(false)
@@ -470,10 +471,10 @@ namespace MWGui::Formatting
     }
 
     /* TextElement */
-    TextElement::TextElement(MyGUI::Widget* parent, Paginator& pag, const BlockStyle& blockStyle,
-        const TextStyle& textStyle, const std::string& text)
+    TextElement::TextElement(MyGUI::Widget* parent, Paginator& pag, const BlockStyle& blockStyle, TextStyle textStyle,
+        const std::string& text)
         : GraphicElement(parent, pag, blockStyle)
-        , mTextStyle(textStyle)
+        , mTextStyle(std::move(textStyle))
     {
         auto* box = parent->createWidget<Gui::EditBox>("NormalText",
             MyGUI::IntCoord(0, pag.getCurrentTop(), pag.getPageWidth(), 0), MyGUI::Align::Left | MyGUI::Align::Top,

@@ -26,7 +26,7 @@ namespace SceneUtil
     class WriteScreenshotToFileOperation : public osgViewer::ScreenCaptureHandler::CaptureOperation
     {
     public:
-        WriteScreenshotToFileOperation(const std::filesystem::path& screenshotPath, const std::string& screenshotFormat,
+        WriteScreenshotToFileOperation(std::filesystem::path screenshotPath, std::string screenshotFormat,
             std::function<void(std::string)> callback);
 
         void operator()(const osg::Image& image, unsigned int contextId) override;

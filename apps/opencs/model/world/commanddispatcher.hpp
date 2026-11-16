@@ -35,7 +35,7 @@ namespace CSMWorld
         std::vector<std::string> getRevertableRecords() const;
 
     public:
-        CommandDispatcher(CSMDoc::Document& document, const CSMWorld::UniversalId& id, QObject* parent = nullptr);
+        CommandDispatcher(CSMDoc::Document& document, CSMWorld::UniversalId id, QObject* parent = nullptr);
         ///< \param id ID of the table the commands should operate on primarily.
 
         void setEditLock(bool locked);

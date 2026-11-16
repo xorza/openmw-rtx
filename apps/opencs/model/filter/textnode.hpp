@@ -19,7 +19,7 @@ namespace CSMFilter
         QRegularExpression mRegExp;
 
     public:
-        TextNode(int columnId, const std::string& text);
+        TextNode(int columnId, std::string text);
 
         bool test(const CSMWorld::IdTableBase& table, int row, const std::map<int, int>& columns) const override;
         ///< \return Can the specified table row pass through to filter?

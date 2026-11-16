@@ -114,7 +114,7 @@ namespace CSVWidget
         VertexPaintBrushWindow* mVertexPaintBrushWindow;
 
     public:
-        SceneToolVertexPaintBrush(SceneToolbar* parent, const QString& toolTip, CSMDoc::Document& document);
+        SceneToolVertexPaintBrush(SceneToolbar* parent, QString toolTip, CSMDoc::Document& document);
 
         void showPanel(const QPoint& position) override;
 

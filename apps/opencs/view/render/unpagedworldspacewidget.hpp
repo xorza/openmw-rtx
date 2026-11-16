@@ -56,7 +56,7 @@ namespace CSVRender
         void update();
 
     public:
-        UnpagedWorldspaceWidget(const std::string& cellId, CSMDoc::Document& document, QWidget* parent);
+        UnpagedWorldspaceWidget(std::string cellId, CSMDoc::Document& document, QWidget* parent);
 
         DropRequirements getDropRequirements(DropType type) const override;
 

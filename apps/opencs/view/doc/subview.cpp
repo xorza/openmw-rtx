@@ -4,6 +4,7 @@
 #include <QKeyEvent>
 
 #include <apps/opencs/model/world/universalid.hpp>
+#include <utility>
 
 bool CSVDoc::SubView::event(QEvent* event)
 {
@@ -19,8 +20,8 @@ bool CSVDoc::SubView::event(QEvent* event)
     return QDockWidget::event(event);
 }
 
-CSVDoc::SubView::SubView(const CSMWorld::UniversalId& id)
-    : mUniversalId(id)
+CSVDoc::SubView::SubView(CSMWorld::UniversalId id)
+    : mUniversalId(std::move(id))
 {
     /// \todo  add a button to the title bar that clones this sub view
 

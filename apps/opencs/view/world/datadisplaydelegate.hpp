@@ -67,7 +67,7 @@ namespace CSVWorld
         std::string mSettingKey;
 
     public:
-        DataDisplayDelegate(const ValueList& values, const IconList& icons, CSMWorld::CommandDispatcher* dispatcher,
+        DataDisplayDelegate(const ValueList& values, IconList icons, CSMWorld::CommandDispatcher* dispatcher,
             CSMDoc::Document& document, const std::string& pageName, const std::string& settingName, QObject* parent);
 
         ~DataDisplayDelegate() override = default;

@@ -661,7 +661,7 @@ namespace Resource
 
     void SceneManager::setOpaqueDepthTex(osg::ref_ptr<osg::Texture> texturePing, osg::ref_ptr<osg::Texture> texturePong)
     {
-        mOpaqueDepthTex = { texturePing, texturePong };
+        mOpaqueDepthTex = { std::move(texturePing), std::move(texturePong) };
     }
 
     osg::ref_ptr<osg::Texture> SceneManager::getOpaqueDepthTex(size_t frame)
@@ -671,7 +671,7 @@ namespace Resource
 
     void SceneManager::setOpaqueColorTex(osg::ref_ptr<osg::Texture> texturePing, osg::ref_ptr<osg::Texture> texturePong)
     {
-        mOpaqueColorTex = { texturePing, texturePong };
+        mOpaqueColorTex = { std::move(texturePing), std::move(texturePong) };
     }
 
     osg::ref_ptr<osg::Texture> SceneManager::getOpaqueColorTex(size_t frame)

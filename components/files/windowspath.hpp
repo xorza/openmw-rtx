@@ -21,7 +21,7 @@ namespace Files
          *
          * \param [in] applicationName - The name of the application.
          */
-        explicit WindowsPath(const std::string& applicationName);
+        explicit WindowsPath(std::string applicationName);
 
         /**
          * \brief Returns user path i.e.:

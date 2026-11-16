@@ -24,7 +24,7 @@ namespace CSVDoc
         bool event(QEvent* event) override;
 
     public:
-        explicit SubView(const CSMWorld::UniversalId& id);
+        explicit SubView(CSMWorld::UniversalId id);
         ~SubView() override = default;
         SubView(const SubView&) = delete;
         SubView& operator=(const SubView&) = delete;

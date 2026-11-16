@@ -13,6 +13,7 @@
 
 #include <QAbstractItemModel>
 #include <QAbstractProxyModel>
+#include <utility>
 
 #include "cellcoordinates.hpp"
 #include "idtable.hpp"
@@ -20,10 +21,10 @@
 #include "nestedtablewrapper.hpp"
 #include "pathgrid.hpp"
 
-CSMWorld::TouchCommand::TouchCommand(IdTable& table, const std::string& id, QUndoCommand* parent)
+CSMWorld::TouchCommand::TouchCommand(IdTable& table, std::string id, QUndoCommand* parent)
     : QUndoCommand(parent)
     , mTable(table)
-    , mId(id)
+    , mId(std::move(id))
     , mOld(nullptr)
     , mChanged(false)
 {
@@ -131,10 +132,10 @@ void CSMWorld::ImportLandTexturesCommand::undo()
 }
 
 CSMWorld::CopyLandTexturesCommand::CopyLandTexturesCommand(
-    IdTable& landTable, IdTable& ltexTable, const std::string& origin, const std::string& dest, QUndoCommand* parent)
+    IdTable& landTable, IdTable& ltexTable, std::string origin, std::string dest, QUndoCommand* parent)
     : ImportLandTexturesCommand(landTable, ltexTable, parent)
-    , mOriginId(origin)
-    , mDestId(dest)
+    , mOriginId(std::move(origin))
+    , mDestId(std::move(dest))
 {
 }
 
@@ -149,9 +150,9 @@ const std::string& CSMWorld::CopyLandTexturesCommand::getDestinationId() const
 }
 
 CSMWorld::TouchLandCommand::TouchLandCommand(
-    IdTable& landTable, IdTable& ltexTable, const std::string& id, QUndoCommand* parent)
+    IdTable& landTable, IdTable& ltexTable, std::string id, QUndoCommand* parent)
     : ImportLandTexturesCommand(landTable, ltexTable, parent)
-    , mId(id)
+    , mId(std::move(id))
     , mOld(nullptr)
     , mChanged(false)
 {
@@ -184,11 +185,11 @@ void CSMWorld::TouchLandCommand::onUndo()
 }
 
 CSMWorld::ModifyCommand::ModifyCommand(
-    QAbstractItemModel& model, const QModelIndex& index, const QVariant& newValue, QUndoCommand* parent)
+    QAbstractItemModel& model, const QModelIndex& index, QVariant newValue, QUndoCommand* parent)
     : QUndoCommand(parent)
     , mModel(&model)
     , mIndex(index)
-    , mNew(newValue)
+    , mNew(std::move(newValue))
     , mHasRecordState(false)
     , mOldRecordState(CSMWorld::RecordBase::State_BaseOnly)
 {

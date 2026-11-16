@@ -7,12 +7,13 @@
 #include <components/debug/debuglog.hpp>
 #include <components/files/constrainedfilestream.hpp>
 #include <components/files/conversion.hpp>
+#include <utility>
 
 namespace VFS
 {
 
-    FileSystemArchive::FileSystemArchive(const std::filesystem::path& path)
-        : mPath(path)
+    FileSystemArchive::FileSystemArchive(std::filesystem::path path)
+        : mPath(std::move(path))
     {
         const auto str = mPath.u8string();
         std::size_t prefix = str.size();
@@ -72,8 +73,8 @@ namespace VFS
 
     // ----------------------------------------------------------------------------------
 
-    FileSystemArchiveFile::FileSystemArchiveFile(const std::filesystem::path& path)
-        : mPath(path)
+    FileSystemArchiveFile::FileSystemArchiveFile(std::filesystem::path path)
+        : mPath(std::move(path))
     {
     }
 

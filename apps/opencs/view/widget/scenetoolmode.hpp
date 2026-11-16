@@ -53,7 +53,7 @@ namespace CSVWidget
         bool event(QEvent* event) override;
 
     public:
-        SceneToolMode(SceneToolbar* parent, const QString& toolTip);
+        SceneToolMode(SceneToolbar* parent, QString toolTip);
 
         void showPanel(const QPoint& position) override;
 

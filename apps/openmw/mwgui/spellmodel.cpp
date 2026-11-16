@@ -32,9 +32,9 @@ namespace
 namespace MWGui
 {
 
-    SpellModel::SpellModel(const MWWorld::Ptr& actor, const std::string& filter)
+    SpellModel::SpellModel(const MWWorld::Ptr& actor, std::string filter)
         : mActor(actor)
-        , mFilter(filter)
+        , mFilter(std::move(filter))
     {
     }
 

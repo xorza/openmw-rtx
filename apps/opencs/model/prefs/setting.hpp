@@ -59,8 +59,7 @@ namespace CSMPrefs
         }
 
     public:
-        explicit Setting(
-            Category* parent, QMutex* mutex, std::string_view key, const QString& label, Settings::Index& index);
+        explicit Setting(Category* parent, QMutex* mutex, std::string_view key, QString label, Settings::Index& index);
 
         ~Setting() override = default;
 

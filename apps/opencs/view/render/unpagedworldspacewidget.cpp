@@ -19,6 +19,7 @@
 #include <osg/Vec4f>
 #include <osg/ref_ptr>
 #include <osgViewer/View>
+#include <utility>
 
 #include "../../model/doc/document.hpp"
 
@@ -58,10 +59,10 @@ void CSVRender::UnpagedWorldspaceWidget::update()
 }
 
 CSVRender::UnpagedWorldspaceWidget::UnpagedWorldspaceWidget(
-    const std::string& cellId, CSMDoc::Document& document, QWidget* parent)
+    std::string cellId, CSMDoc::Document& document, QWidget* parent)
     : WorldspaceWidget(document, parent)
     , mDocument(document)
-    , mCellId(cellId)
+    , mCellId(std::move(cellId))
 {
     mCellsModel
         = &dynamic_cast<CSMWorld::IdTable&>(*document.getData().getTableModel(CSMWorld::UniversalId::Type_Cells));

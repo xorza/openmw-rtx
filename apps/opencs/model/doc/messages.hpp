@@ -29,8 +29,7 @@ namespace CSMDoc
 
         Message();
 
-        Message(
-            const CSMWorld::UniversalId& id, const std::string& message, const std::string& hint, Severity severity);
+        Message(CSMWorld::UniversalId id, std::string message, std::string hint, Severity severity);
 
         static std::string toString(Severity severity);
     };

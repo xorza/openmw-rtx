@@ -24,6 +24,7 @@
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/sceneutil/waterutil.hpp>
+#include <utility>
 
 #include "../../model/world/cell.hpp"
 #include "../../model/world/cellcoordinates.hpp"
@@ -36,9 +37,9 @@ namespace CSVRender
     const int CellWater::CellSize = ESM::Land::REAL_SIZE;
 
     CellWater::CellWater(
-        CSMWorld::Data& data, osg::Group* cellNode, const std::string& id, const CSMWorld::CellCoordinates& cellCoords)
+        CSMWorld::Data& data, osg::Group* cellNode, std::string id, const CSMWorld::CellCoordinates& cellCoords)
         : mData(data)
-        , mId(id)
+        , mId(std::move(id))
         , mParentNode(cellNode)
         , mWaterTransform(nullptr)
         , mWaterGroup(nullptr)

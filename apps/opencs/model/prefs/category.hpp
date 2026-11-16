@@ -24,7 +24,7 @@ namespace CSMPrefs
         std::unordered_map<std::string, Setting*> mIndex;
 
     public:
-        Category(State* parent, const std::string& key);
+        Category(State* parent, std::string key);
 
         const std::string& getKey() const;
 

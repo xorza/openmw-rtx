@@ -21,7 +21,7 @@ namespace CSMWorld
 
     public:
         /// If \a description is empty, the description of the first command is used.
-        explicit CommandMacro(QUndoStack& undoStack, const QString& description = "");
+        explicit CommandMacro(QUndoStack& undoStack, QString description = "");
 
         ~CommandMacro();
 

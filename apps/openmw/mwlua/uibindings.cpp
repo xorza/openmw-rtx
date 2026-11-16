@@ -177,7 +177,7 @@ namespace MWLua
 
             api["create"] = [luaManager = context.mLuaManager, menu](
                                 const sol::table& layout, sol::optional<sol::table> options) {
-                auto element = LuaUi::Element::make(layout, menu, options);
+                auto element = LuaUi::Element::make(layout, menu, std::move(options));
                 luaManager->addAction([element] { element->create(); }, "Create UI");
                 return element;
             };

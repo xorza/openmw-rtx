@@ -127,9 +127,9 @@ CSMTools::Search::Search()
 {
 }
 
-CSMTools::Search::Search(Type type, bool caseSensitive, const std::string& value)
+CSMTools::Search::Search(Type type, bool caseSensitive, std::string value)
     : mType(type)
-    , mText(value)
+    , mText(std::move(value))
     , mValue(0)
     , mCase(caseSensitive)
     , mIdColumn(0)
@@ -141,9 +141,9 @@ CSMTools::Search::Search(Type type, bool caseSensitive, const std::string& value
         throw std::logic_error("Invalid search parameter (string)");
 }
 
-CSMTools::Search::Search(Type type, bool caseSensitive, const QRegularExpression& value)
+CSMTools::Search::Search(Type type, bool caseSensitive, QRegularExpression value)
     : mType(type)
-    , mRegExp(value)
+    , mRegExp(std::move(value))
     , mValue(0)
     , mCase(caseSensitive)
     , mIdColumn(0)

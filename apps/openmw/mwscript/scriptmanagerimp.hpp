@@ -4,6 +4,7 @@
 #include <set>
 #include <span>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <components/compiler/fileparser.hpp>
@@ -51,9 +52,9 @@ namespace MWScript
             Compiler::Locals mLocals;
             std::set<ESM::RefId> mInactive;
 
-            explicit CompiledScript(Interpreter::Program&& program, const Compiler::Locals& locals)
+            explicit CompiledScript(Interpreter::Program&& program, Compiler::Locals locals)
                 : mProgram(std::move(program))
-                , mLocals(locals)
+                , mLocals(std::move(locals))
             {
             }
         };

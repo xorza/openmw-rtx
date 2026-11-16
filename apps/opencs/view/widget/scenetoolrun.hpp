@@ -34,8 +34,8 @@ namespace CSVWidget
         void updatePanel();
 
     public:
-        SceneToolRun(SceneToolbar* parent, const QString& toolTip, const QString& icon,
-            const std::vector<std::string>& profiles);
+        SceneToolRun(
+            SceneToolbar* parent, QString toolTip, const QString& icon, const std::vector<std::string>& profiles);
 
         void showPanel(const QPoint& position) override;
 

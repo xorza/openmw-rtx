@@ -132,7 +132,7 @@ namespace Rtx
         ///        pipeline is compiled from source every run.
         /// @param report what the pipelines are made to say of themselves (`PipelineReport`).
         Device(const Instance& instance, PhysicalDevice&& physicalDevice, const ShaderSet& shaders,
-            const PipelineCacheSpec& cache, const DeviceReport& report);
+            const PipelineCacheSpec& cache, DeviceReport report);
         ~Device();
 
         /// Pinned: every resource holds it by reference, and its allocator its physical device's heaps.

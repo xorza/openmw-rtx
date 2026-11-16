@@ -3,6 +3,7 @@
 
 #include <components/misc/strings/algorithm.hpp>
 #include <ranges>
+#include <utility>
 
 namespace Files
 {
@@ -12,8 +13,8 @@ namespace Files
     {
     }
 
-    Collections::Collections(const Files::PathContainer& directories)
-        : mDirectories(directories)
+    Collections::Collections(Files::PathContainer directories)
+        : mDirectories(std::move(directories))
         , mCollections()
     {
     }

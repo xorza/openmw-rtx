@@ -262,9 +262,9 @@ namespace MWScriptTesting
         Interpreter::Program mProgram;
         Compiler::Locals mLocals;
 
-        CompiledScript(Interpreter::Program&& program, const Compiler::Locals& locals)
+        CompiledScript(Interpreter::Program&& program, Compiler::Locals locals)
             : mProgram(std::move(program))
-            , mLocals(locals)
+            , mLocals(std::move(locals))
         {
         }
     };

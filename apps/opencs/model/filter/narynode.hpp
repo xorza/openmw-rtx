@@ -14,7 +14,7 @@ namespace CSMFilter
         std::string mName;
 
     public:
-        NAryNode(const std::vector<std::shared_ptr<Node>>& nodes, const std::string& name);
+        NAryNode(const std::vector<std::shared_ptr<Node>>& nodes, std::string name);
 
         int getSize() const;
 

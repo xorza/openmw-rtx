@@ -130,7 +130,7 @@ int CSMWorld::Data::count(RecordBase::State state, const CollectionBase& collect
     return number;
 }
 
-CSMWorld::Data::Data(ToUTF8::FromType encoding, const Files::PathContainer& dataPaths,
+CSMWorld::Data::Data(ToUTF8::FromType encoding, Files::PathContainer dataPaths,
     const std::vector<std::string>& archives, const std::filesystem::path& resDir)
     : mEncoder(encoding)
     , mPathgrids(mCells)
@@ -138,7 +138,7 @@ CSMWorld::Data::Data(ToUTF8::FromType encoding, const Files::PathContainer& data
     , mRefs(mCells)
     , mDialogue(nullptr)
     , mReaderIndex(0)
-    , mDataPaths(dataPaths)
+    , mDataPaths(std::move(dataPaths))
     , mArchives(archives)
     , mVFS(std::make_unique<VFS::Manager>())
 {

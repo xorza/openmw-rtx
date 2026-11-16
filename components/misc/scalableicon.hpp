@@ -26,7 +26,7 @@ namespace Misc
         static QIcon load(const QString& fileName);
 
     private:
-        explicit ScalableIcon(const QByteArray& svgContent);
+        explicit ScalableIcon(QByteArray svgContent);
 
         void update();
 

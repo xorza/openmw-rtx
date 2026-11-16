@@ -21,6 +21,7 @@
 #include <apps/opencs/model/prefs/category.hpp>
 #include <apps/opencs/model/prefs/setting.hpp>
 #include <apps/opencs/view/widget/pushbutton.hpp>
+#include <utility>
 
 #include "brushshapes.hpp"
 #include "scenetool.hpp"
@@ -165,10 +166,9 @@ void CSVWidget::ShapeBrushWindow::setBrushShape()
 
 void CSVWidget::SceneToolShapeBrush::adjustToolTips() {}
 
-CSVWidget::SceneToolShapeBrush::SceneToolShapeBrush(
-    SceneToolbar* parent, const QString& toolTip, CSMDoc::Document& document)
+CSVWidget::SceneToolShapeBrush::SceneToolShapeBrush(SceneToolbar* parent, QString toolTip, CSMDoc::Document& document)
     : SceneTool(parent, Type_TopAction)
-    , mToolTip(toolTip)
+    , mToolTip(std::move(toolTip))
     , mDocument(document)
     , mShapeBrushWindow(new ShapeBrushWindow(document, this))
 {

@@ -27,7 +27,7 @@ namespace Launcher
     public:
         /// @param dlss where the DLSS library is looked for and downloaded to, as the configuration
         ///        names the folders.
-        explicit GraphicsPage(const DlssLibrary::Folders& dlss, QWidget* parent = nullptr);
+        explicit GraphicsPage(DlssLibrary::Folders dlss, QWidget* parent = nullptr);
         ~GraphicsPage() override;
 
         void saveSettings();

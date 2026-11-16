@@ -4,6 +4,7 @@
 
 #include <cstddef>
 #include <string>
+#include <utility>
 
 namespace OMW
 {
@@ -14,8 +15,8 @@ namespace OMW
         const std::string mEnd;
         const std::string mTaken;
 
-        explicit UserStats(const std::string& label, const std::string& prefix)
-            : mLabel(label)
+        explicit UserStats(std::string label, const std::string& prefix)
+            : mLabel(std::move(label))
             , mBegin(prefix + "_time_begin")
             , mEnd(prefix + "_time_end")
             , mTaken(prefix + "_time_taken")

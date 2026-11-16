@@ -20,6 +20,7 @@
 #include "object.hpp"
 
 #include <stdexcept>
+#include <utility>
 
 namespace MWLua
 {
@@ -211,10 +212,10 @@ namespace MWLua
             return true;
         };
         api["pauseLocalScript"] = [context](const GObject& obj, sol::optional<GObject> player) -> bool {
-            return setLocalScriptEnabled(context, obj, player, false);
+            return setLocalScriptEnabled(context, obj, std::move(player), false);
         };
         api["resumeLocalScript"] = [context](const GObject& obj, sol::optional<GObject> player) -> bool {
-            return setLocalScriptEnabled(context, obj, player, true);
+            return setLocalScriptEnabled(context, obj, std::move(player), true);
         };
 
         // In multiplayer it will be possible to have several instances (per player) of a single script,

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QString>
+#include <utility>
 
 namespace ContentSelectorModel
 {
@@ -20,9 +21,9 @@ namespace ContentSelectorModel
             : mErrorCode(ErrorCode_None)
         {
         }
-        inline LoadOrderError(ErrorCode errorCode, const QString& fileName)
+        inline LoadOrderError(ErrorCode errorCode, QString fileName)
             : mErrorCode(errorCode)
-            , mFileName(fileName)
+            , mFileName(std::move(fileName))
         {
         }
         inline ErrorCode errorCode() const { return mErrorCode; }

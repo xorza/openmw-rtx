@@ -2,6 +2,7 @@
 
 #include <components/lua/luastate.hpp>
 #include <components/misc/resourcehelpers.hpp>
+#include <utility>
 
 namespace MWLua
 {
@@ -188,7 +189,7 @@ namespace MWLua
                 baseMeta[sol::meta_function::index] = LuaUtil::getMutableFromReadOnly(types[*base]);
                 table[sol::metatable_key] = baseMeta;
             }
-            table["objectIsInstance"] = [types = recTypes](const Object& o) {
+            table["objectIsInstance"] = [types = std::move(recTypes)](const Object& o) {
                 unsigned int type = getLiveCellRefType(o.ptr().mRef);
                 for (ESM::RecNameInts t : types)
                     if (t == type)

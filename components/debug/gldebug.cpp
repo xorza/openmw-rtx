@@ -36,6 +36,7 @@ either expressed or implied, of the FreeBSD Project.
 #include <memory>
 
 #include <components/debug/debuglog.hpp>
+#include <utility>
 
 // OpenGL constants not provided by OSG:
 #include <SDL3/SDL_opengl_glext.h>
@@ -193,14 +194,14 @@ namespace Debug
             && str.find("NO") == std::string::npos;
     }
 
-    DebugGroup::DebugGroup(const std::string& message, GLuint id)
+    DebugGroup::DebugGroup(std::string message, GLuint id)
 #ifdef GL_DEBUG_OUTPUT
         : mSource(GL_DEBUG_SOURCE_APPLICATION)
 #else
         : mSource(0x824A)
 #endif
         , mId(id)
-        , mMessage(message)
+        , mMessage(std::move(message))
     {
     }
 

@@ -75,9 +75,9 @@ namespace
     }
 }
 
-Launcher::GraphicsPage::GraphicsPage(const DlssLibrary::Folders& dlss, QWidget* parent)
+Launcher::GraphicsPage::GraphicsPage(DlssLibrary::Folders dlss, QWidget* parent)
     : QWidget(parent)
-    , mDlssFolders(dlss)
+    , mDlssFolders(std::move(dlss))
 {
     setObjectName("GraphicsPage");
     setupUi(this);

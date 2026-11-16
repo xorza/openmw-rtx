@@ -21,6 +21,7 @@
 #include <components/sceneutil/material.hpp>
 #include <components/sceneutil/util.hpp>
 #include <components/stereo/stereomanager.hpp>
+#include <utility>
 
 #include "automaps.hpp"
 #include "removedalphafunc.hpp"
@@ -162,7 +163,7 @@ namespace Shader
     }
 
     ShaderVisitor::ShaderVisitor(
-        ShaderManager& shaderManager, Resource::ImageManager& imageManager, const std::string& defaultShaderPrefix)
+        ShaderManager& shaderManager, Resource::ImageManager& imageManager, std::string defaultShaderPrefix)
         : osg::NodeVisitor(TRAVERSE_ALL_CHILDREN)
         , mAllowedToModifyStateSets(true)
         , mConvertAlphaTestToAlphaToCoverage(false)
@@ -170,7 +171,7 @@ namespace Shader
         , mSupportsNormalsRT(false)
         , mShaderManager(shaderManager)
         , mImageManager(imageManager)
-        , mDefaultShaderPrefix(defaultShaderPrefix)
+        , mDefaultShaderPrefix(std::move(defaultShaderPrefix))
     {
     }
 

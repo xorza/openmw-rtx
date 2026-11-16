@@ -10,6 +10,7 @@
 #include <QPainter>
 #include <QPalette>
 #include <QtSvg/QSvgRenderer>
+#include <utility>
 
 namespace Misc
 {
@@ -17,8 +18,8 @@ namespace Misc
     // NOLINTNEXTLINE(misc-use-anonymous-namespace)
     Q_GLOBAL_STATIC(QSet<ScalableIcon*>, ScalableIconInstances)
 
-    ScalableIcon::ScalableIcon(const QByteArray& svgContent)
-        : mTemplate(svgContent)
+    ScalableIcon::ScalableIcon(QByteArray svgContent)
+        : mTemplate(std::move(svgContent))
     {
         update();
         ScalableIconInstances->insert(this);

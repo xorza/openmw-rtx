@@ -96,8 +96,8 @@ void MWState::Character::addSlot(const ESM::SavedGame& profile)
     mSlots.push_back(std::move(slot));
 }
 
-MWState::Character::Character(const std::filesystem::path& saves, const std::string& game)
-    : mPath(saves)
+MWState::Character::Character(std::filesystem::path saves, const std::string& game)
+    : mPath(std::move(saves))
 {
     if (!std::filesystem::is_directory(mPath))
     {

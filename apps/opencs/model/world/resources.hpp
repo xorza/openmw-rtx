@@ -23,7 +23,7 @@ namespace CSMWorld
 
     public:
         /// \param type Type of resources in this table.
-        Resources(const VFS::Manager* vfs, const std::string& baseDirectory, UniversalId::Type type,
+        Resources(const VFS::Manager* vfs, std::string baseDirectory, UniversalId::Type type,
             const char* const* extensions = nullptr);
 
         void recreate(const VFS::Manager* vfs, const char* const* extensions = nullptr);

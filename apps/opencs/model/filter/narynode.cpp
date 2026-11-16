@@ -3,10 +3,11 @@
 #include <sstream>
 
 #include <apps/opencs/model/filter/node.hpp>
+#include <utility>
 
-CSMFilter::NAryNode::NAryNode(const std::vector<std::shared_ptr<Node>>& nodes, const std::string& name)
+CSMFilter::NAryNode::NAryNode(const std::vector<std::shared_ptr<Node>>& nodes, std::string name)
     : mNodes(nodes)
-    , mName(name)
+    , mName(std::move(name))
 {
 }
 

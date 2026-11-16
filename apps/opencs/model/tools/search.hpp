@@ -63,9 +63,9 @@ namespace CSMTools
     public:
         Search();
 
-        Search(Type type, bool caseSensitive, const std::string& value);
+        Search(Type type, bool caseSensitive, std::string value);
 
-        Search(Type type, bool caseSensitive, const QRegularExpression& value);
+        Search(Type type, bool caseSensitive, QRegularExpression value);
 
         Search(Type type, bool caseSensitive, int value);
 

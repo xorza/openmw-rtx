@@ -50,8 +50,7 @@ namespace CSVWidget
         ///
         /// The icon for individual toggle buttons is signleIcon + bitmask for button (in
         /// decimal)
-        SceneToolToggle2(SceneToolbar* parent, const QString& toolTip, const std::string& compositeIcon,
-            const std::string& singleIcon);
+        SceneToolToggle2(SceneToolbar* parent, QString toolTip, std::string compositeIcon, std::string singleIcon);
 
         void showPanel(const QPoint& position) override;
 

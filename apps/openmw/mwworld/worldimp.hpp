@@ -222,8 +222,8 @@ namespace MWWorld
         void addContainerScripts(const Ptr& reference, CellStore* cell) override;
         void removeContainerScripts(const Ptr& reference) override;
 
-        World(Resource::ResourceSystem* resourceSystem, int activationDistanceOverride, const std::string& startCell,
-            const std::filesystem::path& userDataPath, const std::filesystem::path& cachePath);
+        World(Resource::ResourceSystem* resourceSystem, int activationDistanceOverride, std::string startCell,
+            std::filesystem::path userDataPath, std::filesystem::path cachePath);
 
         void loadData(const Files::Collections& fileCollections, const std::vector<std::string>& contentFiles,
             const std::vector<std::string>& groundcoverFiles, ToUTF8::Utf8Encoder* encoder,

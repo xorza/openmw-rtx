@@ -83,7 +83,7 @@ namespace MWRender
             , mMaxY(maxY)
             , mCellSize(cellSize)
             , mLandStore(landStore)
-            , mColorLut(colorLut)
+            , mColorLut(std::move(std::move(colorLut)))
         {
         }
 

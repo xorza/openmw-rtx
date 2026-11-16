@@ -61,6 +61,7 @@
 #include <components/sceneutil/texmat.hpp>
 #include <components/sceneutil/texturetype.hpp>
 #include <components/sceneutil/userdata.hpp>
+#include <utility>
 
 #include "autotransform.hpp"
 #include "matrixtransform.hpp"
@@ -324,9 +325,8 @@ namespace NifOsg
         {
         public:
             /// @param filename used for warning messages.
-            LoaderImpl(
-                const VFS::Path::Normalized& filename, unsigned int ver, unsigned int userver, unsigned int bethver)
-                : mFilename(filename)
+            LoaderImpl(VFS::Path::Normalized filename, unsigned int ver, unsigned int userver, unsigned int bethver)
+                : mFilename(std::move(filename))
                 , mVersion(ver)
                 , mUserVersion(userver)
                 , mBethVersion(bethver)
