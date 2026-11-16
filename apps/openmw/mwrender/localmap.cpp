@@ -106,7 +106,7 @@ namespace MWRender
 
     LocalMap::~LocalMap() = default;
 
-    const osg::Vec2f LocalMap::rotatePoint(const osg::Vec2f& point, const osg::Vec2f& center, const float angle) const
+    osg::Vec2f LocalMap::rotatePoint(const osg::Vec2f& point, const osg::Vec2f& center, const float angle) const
     {
         return osg::Vec2f(
             std::cos(angle) * (point.x() - center.x()) - std::sin(angle) * (point.y() - center.y()) + center.x(),

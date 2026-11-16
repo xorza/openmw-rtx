@@ -242,7 +242,7 @@ namespace MWRender
 
     namespace
     {
-        const NpcAnimation::PartBoneMap createPartListMap()
+        NpcAnimation::PartBoneMap createPartListMap()
         {
             return { { ESM::PRT_Head, "Head" },
                 { ESM::PRT_Hair, "Head" }, // note it uses "Head" as attach bone, but "Hair" as filter

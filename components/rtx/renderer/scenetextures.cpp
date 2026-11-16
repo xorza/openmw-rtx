@@ -223,7 +223,7 @@ namespace Rtx
                     .mName = SceneUtil::EmbeddedImage::nameOf(*image) };
             }
 
-            const Result<TextureData, std::string> read
+            Result<TextureData, std::string> read
                 = describeImage(*image, kept.mFormat, kept.mEncoding, mLevels, mTexels);
             if (!read.isOk() || kept.mMade == nullptr)
                 return read;

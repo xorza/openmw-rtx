@@ -100,7 +100,7 @@ namespace MWMechanics
         };
     }
 
-    const MWWorld::Ptr getNearbyDoor(const MWWorld::Ptr& actor, float minDist)
+    MWWorld::Ptr getNearbyDoor(const MWWorld::Ptr& actor, float minDist)
     {
         GetNearbyDoorVisitor visitor(actor, minDist);
         actor.getCell()->forEachType<ESM::Door>(visitor);

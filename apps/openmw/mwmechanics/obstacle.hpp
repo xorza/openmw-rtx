@@ -19,7 +19,7 @@ namespace MWMechanics
 
     /// Returns door pointer within range. No guarantee is given as to which one
     /** \return Pointer to the door, or empty pointer if none exists **/
-    const MWWorld::Ptr getNearbyDoor(const MWWorld::Ptr& actor, float minDist);
+    MWWorld::Ptr getNearbyDoor(const MWWorld::Ptr& actor, float minDist);
 
     class ObstacleCheck
     {
