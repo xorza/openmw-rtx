@@ -56,6 +56,8 @@ namespace MWRender
         osg::Group& cellRootOf(const MWWorld::CellStore* cell);
 
     public:
+        void operator=(const Objects&) = delete;
+        Objects(const Objects&) = delete;
         Objects(Resource::ResourceSystem* resourceSystem, const osg::ref_ptr<osg::Group>& rootNode,
             SceneUtil::UnrefQueue& unrefQueue);
         ~Objects();
@@ -81,7 +83,5 @@ namespace MWRender
         void updatePtr(const MWWorld::Ptr& old, const MWWorld::Ptr& cur);
 
     private:
-        void operator=(const Objects&);
-        Objects(const Objects&);
     };
 }

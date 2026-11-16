@@ -145,8 +145,6 @@ namespace MWWorld
         bool mIdsRebuilt{};
 
         // not implemented
-        World(const World&) = delete;
-        World& operator=(const World&) = delete;
 
         void updateWeather(float duration, bool paused = false);
 
@@ -215,6 +213,8 @@ namespace MWWorld
         MWWorld::ConstPtr getClosestMarkerFromExteriorPosition(const osg::Vec3f& worldPos, const ESM::RefId& id);
 
     public:
+        World(const World&) = delete;
+        World& operator=(const World&) = delete;
         WorldModel& getWorldModel() { return mWorldModel; }
         Scene& getWorldScene() { return *mWorldScene; }
 

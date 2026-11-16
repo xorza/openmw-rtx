@@ -25,6 +25,8 @@ namespace MWPhysics
     class Projectile final : public PtrHolder
     {
     public:
+        Projectile(const Projectile&) = delete;
+        Projectile& operator=(const Projectile&) = delete;
         Projectile(const MWWorld::Ptr& caster, const osg::Vec3f& position, float radius,
             PhysicsTaskScheduler* scheduler, PhysicsSystem* physicssystem);
         ~Projectile() override;
@@ -71,9 +73,6 @@ namespace MWPhysics
 
         PhysicsSystem* mPhysics;
         PhysicsTaskScheduler* mTaskScheduler;
-
-        Projectile(const Projectile&);
-        Projectile& operator=(const Projectile&);
     };
 
 }

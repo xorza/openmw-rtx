@@ -100,13 +100,13 @@ namespace MWBase
     /// \brief Interface for widnow manager (implemented in MWGui)
     class WindowManager : public SDLUtil::WindowListener
     {
-        WindowManager(const WindowManager&);
         ///< not implemented
 
-        WindowManager& operator=(const WindowManager&);
         ///< not implemented
 
     public:
+        WindowManager(const WindowManager&) = delete;
+        WindowManager& operator=(const WindowManager&) = delete;
         typedef std::vector<int> SkillList;
 
         WindowManager() {}

@@ -31,13 +31,13 @@ namespace MWBase
     /// \brief Interface for script manager (implemented in MWScript)
     class ScriptManager
     {
-        ScriptManager(const ScriptManager&);
         ///< not implemented
 
-        ScriptManager& operator=(const ScriptManager&);
         ///< not implemented
 
     public:
+        ScriptManager(const ScriptManager&) = delete;
+        ScriptManager& operator=(const ScriptManager&) = delete;
         ScriptManager() {}
 
         virtual ~ScriptManager() {}

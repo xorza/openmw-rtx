@@ -39,6 +39,8 @@ namespace Resource
     class ResourceSystem
     {
     public:
+        ResourceSystem(const ResourceSystem&) = delete;
+        void operator=(const ResourceSystem&) = delete;
         explicit ResourceSystem(
             const VFS::Manager* vfs, double expiryDelay, const ToUTF8::StatelessUtf8Encoder* encoder);
         ~ResourceSystem();
@@ -99,9 +101,6 @@ namespace Resource
         std::vector<BaseResourceManager*> mResourceManagers;
 
         const VFS::Manager* mVFS;
-
-        ResourceSystem(const ResourceSystem&);
-        void operator=(const ResourceSystem&);
     };
 
 }

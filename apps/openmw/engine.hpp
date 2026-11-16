@@ -219,8 +219,6 @@ namespace OMW
         Files::ConfigurationManager& mCfgMgr;
 
         // not implemented
-        Engine(const Engine&);
-        Engine& operator=(const Engine&);
 
         void executeLocalScripts();
 
@@ -232,6 +230,8 @@ namespace OMW
         void setWindowIcon();
 
     public:
+        Engine(const Engine&) = delete;
+        Engine& operator=(const Engine&) = delete;
         explicit Engine(Files::ConfigurationManager& configurationManager);
         virtual ~Engine();
 

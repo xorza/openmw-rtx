@@ -70,10 +70,10 @@ namespace CSVWorld
 
     private:
         // not implemented
-        CommandDelegateFactoryCollection(const CommandDelegateFactoryCollection&);
-        CommandDelegateFactoryCollection& operator=(const CommandDelegateFactoryCollection&);
 
     public:
+        CommandDelegateFactoryCollection(const CommandDelegateFactoryCollection&) = delete;
+        CommandDelegateFactoryCollection& operator=(const CommandDelegateFactoryCollection&) = delete;
         CommandDelegateFactoryCollection();
 
         ~CommandDelegateFactoryCollection();

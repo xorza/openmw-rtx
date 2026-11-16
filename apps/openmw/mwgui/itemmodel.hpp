@@ -42,6 +42,8 @@ namespace MWGui
     class ItemModel
     {
     public:
+        ItemModel(const ItemModel&) = delete;
+        ItemModel& operator=(const ItemModel&) = delete;
         ItemModel();
         virtual ~ItemModel() = default;
 
@@ -80,8 +82,6 @@ namespace MWGui
         friend class ProxyItemModel;
 
     private:
-        ItemModel(const ItemModel&);
-        ItemModel& operator=(const ItemModel&);
     };
 
     /// @brief A proxy item model can be used to filter or rearrange items from a source model (or even add new items to

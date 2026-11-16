@@ -117,13 +117,13 @@ namespace MWBase
     /// \brief Interface for the World (implemented in MWWorld)
     class World
     {
-        World(const World&);
         ///< not implemented
 
-        World& operator=(const World&);
         ///< not implemented
 
     public:
+        World(const World&) = delete;
+        World& operator=(const World&) = delete;
         struct DoorMarker
         {
             std::string name;

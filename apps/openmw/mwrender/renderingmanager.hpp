@@ -107,6 +107,8 @@ namespace MWRender
     class RenderingManager : public MWRender::RenderingInterface
     {
     public:
+        void operator=(const RenderingManager&) = delete;
+        RenderingManager(const RenderingManager&) = delete;
         RenderingManager(Renderer& renderer, osg::ref_ptr<osg::Group> rootNode,
             Resource::ResourceSystem* resourceSystem, const std::shared_ptr<SceneUtil::WorkQueue>& workQueue,
             DetourNavigator::Navigator& navigator, const MWWorld::GroundcoverStore& groundcoverStore,
@@ -396,9 +398,6 @@ namespace MWRender
 
         /// Last, so a constructor that throws after the attach detaches before anything above goes.
         WorldAttachment mAttachment;
-
-        void operator=(const RenderingManager&);
-        RenderingManager(const RenderingManager&);
     };
 
 }

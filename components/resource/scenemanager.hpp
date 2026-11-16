@@ -78,6 +78,8 @@ namespace Resource
     class SceneManager : public NodeResourceManager<std::string>
     {
     public:
+        SceneManager(const SceneManager&) = delete;
+        void operator=(const SceneManager&) = delete;
         using BlacklistModelSet = std::unordered_set<VFS::Path::Normalized, VFS::Path::Hash, std::equal_to<>>;
 
         explicit SceneManager(const VFS::Manager* vfs, Resource::ImageManager* imageManager,
@@ -262,8 +264,5 @@ namespace Resource
         bool mWeatherParticleOcclusion = false;
         ModelPrograms mPrograms = ModelPrograms::Rasterized;
         bool mUnRefImageDataAfterApply = false;
-
-        SceneManager(const SceneManager&) = delete;
-        void operator=(const SceneManager&) = delete;
     };
 }

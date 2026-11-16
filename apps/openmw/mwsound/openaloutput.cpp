@@ -310,12 +310,11 @@ namespace MWSound
 
             std::atomic<bool> mIsFinished;
 
-            OpenAL_SoundStream(const OpenAL_SoundStream& rhs);
-            OpenAL_SoundStream& operator=(const OpenAL_SoundStream& rhs);
-
             friend class MWSound::OpenALOutput;
 
         public:
+            OpenAL_SoundStream(const OpenAL_SoundStream& rhs) = delete;
+            OpenAL_SoundStream& operator=(const OpenAL_SoundStream& rhs) = delete;
             OpenAL_SoundStream(ALuint src, DecoderPtr decoder);
             ~OpenAL_SoundStream();
 
@@ -410,6 +409,9 @@ namespace MWSound
     class OpenALOutput::DefaultDeviceThread
     {
     public:
+        DefaultDeviceThread(const DefaultDeviceThread&) = delete;
+        DefaultDeviceThread& operator=(const DefaultDeviceThread&) = delete;
+
         std::basic_string<ALCchar> mCurrentName;
 
     private:
@@ -419,9 +421,6 @@ namespace MWSound
         std::mutex mMutex;
         std::condition_variable mCondVar;
         std::thread mThread;
-
-        DefaultDeviceThread(const DefaultDeviceThread&) = delete;
-        DefaultDeviceThread& operator=(const DefaultDeviceThread&) = delete;
 
         void run()
         {

@@ -36,13 +36,13 @@ namespace MWBase
     /// \brief Interface for input manager (implemented in MWInput)
     class InputManager
     {
-        InputManager(const InputManager&);
         ///< not implemented
 
-        InputManager& operator=(const InputManager&);
         ///< not implemented
 
     public:
+        InputManager(const InputManager&) = delete;
+        InputManager& operator=(const InputManager&) = delete;
         InputManager() {}
 
         /// Clear all savegame-specific data

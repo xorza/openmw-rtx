@@ -185,10 +185,10 @@ namespace CSMWorld
         std::unique_ptr<RecordBase> mOld;
 
         // not implemented
-        RevertCommand(const RevertCommand&);
-        RevertCommand& operator=(const RevertCommand&);
 
     public:
+        RevertCommand(const RevertCommand&) = delete;
+        RevertCommand& operator=(const RevertCommand&) = delete;
         RevertCommand(IdTable& model, const std::string& id, QUndoCommand* parent = nullptr);
 
         ~RevertCommand() override = default;
@@ -206,10 +206,10 @@ namespace CSMWorld
         UniversalId::Type mType;
 
         // not implemented
-        DeleteCommand(const DeleteCommand&);
-        DeleteCommand& operator=(const DeleteCommand&);
 
     public:
+        DeleteCommand(const DeleteCommand&) = delete;
+        DeleteCommand& operator=(const DeleteCommand&) = delete;
         DeleteCommand(IdTable& model, const std::string& id, UniversalId::Type type = UniversalId::Type_None,
             QUndoCommand* parent = nullptr);
 

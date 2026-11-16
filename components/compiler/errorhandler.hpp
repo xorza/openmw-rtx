@@ -73,12 +73,12 @@ namespace Compiler
         ErrorHandler& mHandler;
 
         /// not implemented
-        ErrorDowngrade(const ErrorDowngrade&);
 
         /// not implemented
-        ErrorDowngrade& operator=(const ErrorDowngrade&);
 
     public:
+        ErrorDowngrade(const ErrorDowngrade&) = delete;
+        ErrorDowngrade& operator=(const ErrorDowngrade&) = delete;
         explicit ErrorDowngrade(ErrorHandler& handler);
 
         ~ErrorDowngrade();

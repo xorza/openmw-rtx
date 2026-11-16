@@ -27,13 +27,13 @@ namespace MWBase
     /// \brief Interface for the player's journal (implemented in MWDialogue)
     class Journal
     {
-        Journal(const Journal&);
         ///< not implemented
 
-        Journal& operator=(const Journal&);
         ///< not implemented
 
     public:
+        Journal(const Journal&) = delete;
+        Journal& operator=(const Journal&) = delete;
         typedef std::deque<MWDialogue::StampedJournalEntry> TEntryContainer;
         typedef std::map<ESM::RefId, MWDialogue::Quest> TQuestContainer; // topic, quest
         typedef std::map<ESM::RefId, MWDialogue::Topic> TTopicContainer; // topic-id, topic-content

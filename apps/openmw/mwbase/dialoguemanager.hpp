@@ -30,13 +30,13 @@ namespace MWBase
     /// \brief Interface for dialogue manager (implemented in MWDialogue)
     class DialogueManager
     {
-        DialogueManager(const DialogueManager&);
         ///< not implemented
 
-        DialogueManager& operator=(const DialogueManager&);
         ///< not implemented
 
     public:
+        DialogueManager(const DialogueManager&) = delete;
+        DialogueManager& operator=(const DialogueManager&) = delete;
         class ResponseCallback
         {
         public:

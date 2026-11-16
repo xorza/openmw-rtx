@@ -16,8 +16,6 @@ namespace MWWorld
         Ptr mTarget;
 
         // not implemented
-        Action(const Action& action);
-        Action& operator=(const Action& action);
 
         virtual void executeImp(const Ptr& actor) = 0;
 
@@ -25,6 +23,8 @@ namespace MWWorld
         void setTarget(const Ptr&);
 
     public:
+        Action(const Action& action) = delete;
+        Action& operator=(const Action& action) = delete;
         const Ptr& getTarget() const;
 
         explicit Action(bool keepSound = false, const Ptr& target = Ptr());

@@ -137,10 +137,9 @@ namespace MWSound
         void readAll(std::vector<char>& output) override;
         size_t getSampleOffset() override;
 
-        FFmpegDecoder& operator=(const FFmpegDecoder& rhs);
-        FFmpegDecoder(const FFmpegDecoder& rhs);
-
     public:
+        FFmpegDecoder& operator=(const FFmpegDecoder& rhs) = delete;
+        FFmpegDecoder(const FFmpegDecoder& rhs) = delete;
         explicit FFmpegDecoder(const VFS::Manager* vfs, HeadCache* headCache, bool recordHead);
 
         ~FFmpegDecoder() override;

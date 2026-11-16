@@ -138,9 +138,6 @@ namespace CSMWorld
         InfoOrderByTopic mJournalInfoOrder;
         InfoOrderByTopic mTopicInfoOrder;
 
-        Data(const Data&) = delete;
-        Data& operator=(const Data&) = delete;
-
         void addModel(QAbstractItemModel* model, UniversalId::Type type, bool update = true);
 
         static void appendIds(std::vector<ESM::RefId>& ids, const CollectionBase& collection, bool listDeleted);
@@ -151,7 +148,9 @@ namespace CSMWorld
         void loadFallbackEntries();
 
     public:
-        Data(ToUTF8::FromType encoding, const Files::PathContainer& dataPaths, const std::vector<std::string>& archives,
+        Data(const Data&) = delete;
+        Data& operator=(const Data&) = delete;
+        Data(ToUTF8::FromType encoding, Files::PathContainer dataPaths, const std::vector<std::string>& archives,
             const std::filesystem::path& resDir);
 
         ~Data() override;

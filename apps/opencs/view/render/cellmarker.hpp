@@ -37,8 +37,6 @@ namespace CSVRender
         bool mExists;
 
         // Not implemented.
-        CellMarker(const CellMarker&);
-        CellMarker& operator=(const CellMarker&);
 
         /// \brief Build marker containing cell's coordinates.
         void buildMarker();
@@ -47,6 +45,8 @@ namespace CSVRender
         void positionMarker();
 
     public:
+        CellMarker(const CellMarker&) = delete;
+        CellMarker& operator=(const CellMarker&) = delete;
         /// \brief Constructor.
         /// \param cellNode Cell to create marker for.
         /// \param coordinates Coordinates of cell.

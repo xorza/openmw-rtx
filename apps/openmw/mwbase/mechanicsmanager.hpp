@@ -49,13 +49,13 @@ namespace MWBase
     /// \brief Interface for game mechanics manager (implemented in MWMechanics)
     class MechanicsManager
     {
-        MechanicsManager(const MechanicsManager&);
         ///< not implemented
 
-        MechanicsManager& operator=(const MechanicsManager&);
         ///< not implemented
 
     public:
+        MechanicsManager(const MechanicsManager&) = delete;
+        MechanicsManager& operator=(const MechanicsManager&) = delete;
         MechanicsManager() {}
 
         virtual ~MechanicsManager() {}

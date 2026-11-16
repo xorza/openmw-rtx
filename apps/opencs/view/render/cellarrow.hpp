@@ -34,6 +34,8 @@ namespace CSVRender
     class CellArrow
     {
     public:
+        CellArrow(const CellArrow&) = delete;
+        CellArrow& operator=(const CellArrow&) = delete;
         enum Direction
         {
             Direction_North = 1,
@@ -44,8 +46,6 @@ namespace CSVRender
 
     private:
         // not implemented
-        CellArrow(const CellArrow&);
-        CellArrow& operator=(const CellArrow&);
 
         Direction mDirection;
         osg::Group* mParentNode;

@@ -32,6 +32,8 @@ namespace MWRender
     class CharacterPreview
     {
     public:
+        CharacterPreview(const CharacterPreview&) = delete;
+        CharacterPreview& operator=(const CharacterPreview&) = delete;
         CharacterPreview(Renderer& renderer, Resource::ResourceSystem* resourceSystem, const MWWorld::Ptr& character,
             int sizeX, int sizeY, const osg::Vec3f& position, const osg::Vec3f& lookAt);
         virtual ~CharacterPreview();
@@ -49,9 +51,6 @@ namespace MWRender
         OffscreenView& getView() { return *mView; }
 
     private:
-        CharacterPreview(const CharacterPreview&);
-        CharacterPreview& operator=(const CharacterPreview&);
-
     protected:
         virtual bool renderHeadOnly() { return false; }
         void setBlendMode();

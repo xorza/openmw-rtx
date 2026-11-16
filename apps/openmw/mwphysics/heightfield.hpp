@@ -20,6 +20,8 @@ namespace MWPhysics
     class HeightField
     {
     public:
+        void operator=(const HeightField&) = delete;
+        HeightField(const HeightField&) = delete;
         HeightField(const float* heights, int x, int y, int size, int verts, float minH, float maxH,
             std::shared_ptr<const ESMTerrain::LandObject> holdObject, PhysicsTaskScheduler* scheduler);
         ~HeightField();
@@ -37,8 +39,5 @@ namespace MWPhysics
 #endif
 
         PhysicsTaskScheduler* mTaskScheduler;
-
-        void operator=(const HeightField&);
-        HeightField(const HeightField&);
     };
 }

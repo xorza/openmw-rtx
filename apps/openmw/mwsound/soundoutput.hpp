@@ -69,9 +69,6 @@ namespace MWSound
         virtual void pauseActiveDevice() = 0;
         virtual void resumeActiveDevice() = 0;
 
-        SoundOutput& operator=(const SoundOutput& rhs);
-        SoundOutput(const SoundOutput& rhs);
-
     protected:
         bool mInitialized;
 
@@ -82,6 +79,8 @@ namespace MWSound
         }
 
     public:
+        SoundOutput& operator=(const SoundOutput& rhs) = delete;
+        SoundOutput(const SoundOutput& rhs) = delete;
         virtual ~SoundOutput() {}
 
         bool isInitialized() const { return mInitialized; }

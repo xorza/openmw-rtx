@@ -1112,10 +1112,10 @@ namespace CSMWorld
         UniversalId::Type mType;
 
         // not implemented
-        EffectsRefIdAdapter(const EffectsRefIdAdapter&);
-        EffectsRefIdAdapter& operator=(const EffectsRefIdAdapter&);
 
     public:
+        EffectsRefIdAdapter(const EffectsRefIdAdapter&) = delete;
+        EffectsRefIdAdapter& operator=(const EffectsRefIdAdapter&) = delete;
         EffectsRefIdAdapter(UniversalId::Type type, const IdCollection<ESM::MagicEffect>& magicEffects)
             : EffectsListAdapter<ESXRecordT>(magicEffects)
             , mType(type)
@@ -1189,10 +1189,10 @@ namespace CSMWorld
         UniversalId::Type mType;
 
         // not implemented
-        NestedInventoryRefIdAdapter(const NestedInventoryRefIdAdapter&);
-        NestedInventoryRefIdAdapter& operator=(const NestedInventoryRefIdAdapter&);
 
     public:
+        NestedInventoryRefIdAdapter(const NestedInventoryRefIdAdapter&) = delete;
+        NestedInventoryRefIdAdapter& operator=(const NestedInventoryRefIdAdapter&) = delete;
         explicit NestedInventoryRefIdAdapter(UniversalId::Type type)
             : mType(type)
         {
@@ -1325,10 +1325,10 @@ namespace CSMWorld
         UniversalId::Type mType;
 
         // not implemented
-        NestedSpellRefIdAdapter(const NestedSpellRefIdAdapter&);
-        NestedSpellRefIdAdapter& operator=(const NestedSpellRefIdAdapter&);
 
     public:
+        NestedSpellRefIdAdapter(const NestedSpellRefIdAdapter&) = delete;
+        NestedSpellRefIdAdapter& operator=(const NestedSpellRefIdAdapter&) = delete;
         explicit NestedSpellRefIdAdapter(UniversalId::Type type)
             : mType(type)
         {
@@ -1447,10 +1447,10 @@ namespace CSMWorld
         UniversalId::Type mType;
 
         // not implemented
-        NestedTravelRefIdAdapter(const NestedTravelRefIdAdapter&);
-        NestedTravelRefIdAdapter& operator=(const NestedTravelRefIdAdapter&);
 
     public:
+        NestedTravelRefIdAdapter(const NestedTravelRefIdAdapter&) = delete;
+        NestedTravelRefIdAdapter& operator=(const NestedTravelRefIdAdapter&) = delete;
         explicit NestedTravelRefIdAdapter(UniversalId::Type type)
             : mType(type)
         {
@@ -1616,10 +1616,10 @@ namespace CSMWorld
         UniversalId::Type mType;
 
         // not implemented
-        ActorAiRefIdAdapter(const ActorAiRefIdAdapter&);
-        ActorAiRefIdAdapter& operator=(const ActorAiRefIdAdapter&);
 
     public:
+        ActorAiRefIdAdapter(const ActorAiRefIdAdapter&) = delete;
+        ActorAiRefIdAdapter& operator=(const ActorAiRefIdAdapter&) = delete;
         explicit ActorAiRefIdAdapter(UniversalId::Type type)
             : mType(type)
         {
@@ -1972,10 +1972,10 @@ namespace CSMWorld
         UniversalId::Type mType;
 
         // not implemented
-        BodyPartRefIdAdapter(const BodyPartRefIdAdapter&);
-        BodyPartRefIdAdapter& operator=(const BodyPartRefIdAdapter&);
 
     public:
+        BodyPartRefIdAdapter(const BodyPartRefIdAdapter&) = delete;
+        BodyPartRefIdAdapter& operator=(const BodyPartRefIdAdapter&) = delete;
         explicit BodyPartRefIdAdapter(UniversalId::Type type)
             : mType(type)
         {
@@ -2173,10 +2173,10 @@ namespace CSMWorld
         UniversalId::Type mType;
 
         // not implemented
-        NestedListLevListRefIdAdapter(const NestedListLevListRefIdAdapter&);
-        NestedListLevListRefIdAdapter& operator=(const NestedListLevListRefIdAdapter&);
 
     public:
+        NestedListLevListRefIdAdapter(const NestedListLevListRefIdAdapter&) = delete;
+        NestedListLevListRefIdAdapter& operator=(const NestedListLevListRefIdAdapter&) = delete;
         explicit NestedListLevListRefIdAdapter(UniversalId::Type type)
             : mType(type)
         {
@@ -2330,10 +2330,10 @@ namespace CSMWorld
         UniversalId::Type mType;
 
         // not implemented
-        NestedLevListRefIdAdapter(const NestedLevListRefIdAdapter&);
-        NestedLevListRefIdAdapter& operator=(const NestedLevListRefIdAdapter&);
 
     public:
+        NestedLevListRefIdAdapter(const NestedLevListRefIdAdapter&) = delete;
+        NestedLevListRefIdAdapter& operator=(const NestedLevListRefIdAdapter&) = delete;
         explicit NestedLevListRefIdAdapter(UniversalId::Type type)
             : mType(type)
         {

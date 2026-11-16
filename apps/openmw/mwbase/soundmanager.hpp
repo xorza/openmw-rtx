@@ -90,10 +90,8 @@ namespace MWBase
     /// \brief Interface for sound manager (implemented in MWSound)
     class SoundManager
     {
-        SoundManager(const SoundManager&);
         ///< not implemented
 
-        SoundManager& operator=(const SoundManager&);
         ///< not implemented
 
     protected:
@@ -103,6 +101,8 @@ namespace MWBase
         float mSimulationTimeScale = 1.0;
 
     public:
+        SoundManager(const SoundManager&) = delete;
+        SoundManager& operator=(const SoundManager&) = delete;
         SoundManager() {}
         virtual ~SoundManager() {}
 

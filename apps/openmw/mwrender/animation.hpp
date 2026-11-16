@@ -75,6 +75,8 @@ namespace MWRender
     class PartHolder
     {
     public:
+        void operator=(const PartHolder&) = delete;
+        PartHolder(const PartHolder&) = delete;
         PartHolder(osg::ref_ptr<osg::Node> node, VFS::Path::NormalizedView model);
 
         ~PartHolder();
@@ -86,9 +88,6 @@ namespace MWRender
     private:
         osg::ref_ptr<osg::Node> mNode;
         VFS::Path::Normalized mModel;
-
-        void operator=(const PartHolder&);
-        PartHolder(const PartHolder&);
     };
     using PartHolderPtr = std::unique_ptr<PartHolder>;
 
@@ -105,6 +104,8 @@ namespace MWRender
     class Animation
     {
     public:
+        Animation(const Animation&) = delete;
+        void operator=(Animation&) = delete;
         using BlendMask = MWRender::BlendMask;
         using BoneGroup = MWRender::BoneGroup;
         using AnimPriority = MWRender::AnimPriority;
@@ -506,8 +507,6 @@ namespace MWRender
         virtual void removeFromScene();
 
     private:
-        Animation(const Animation&);
-        void operator=(Animation&);
     };
 
     class ObjectAnimation : public Animation

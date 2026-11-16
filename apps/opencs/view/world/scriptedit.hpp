@@ -48,10 +48,9 @@ namespace CSVWorld
         {
             ScriptEdit& mEdit;
 
-            ChangeLock(const ChangeLock&);
-            ChangeLock& operator=(const ChangeLock&);
-
         public:
+            ChangeLock(const ChangeLock&) = delete;
+            ChangeLock& operator=(const ChangeLock&) = delete;
             explicit ChangeLock(ScriptEdit& edit);
             ~ChangeLock();
         };

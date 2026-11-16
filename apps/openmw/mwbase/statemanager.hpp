@@ -16,6 +16,8 @@ namespace MWBase
     class StateManager
     {
     public:
+        StateManager(const StateManager&) = delete;
+        StateManager& operator=(const StateManager&) = delete;
         enum State
         {
             State_NoGame,
@@ -26,10 +28,8 @@ namespace MWBase
         typedef std::list<MWState::Character>::const_iterator CharacterIterator;
 
     private:
-        StateManager(const StateManager&);
         ///< not implemented
 
-        StateManager& operator=(const StateManager&);
         ///< not implemented
 
     public:

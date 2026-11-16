@@ -14,12 +14,12 @@ namespace CSMWorld
         bool mStarted;
 
         /// not implemented
-        CommandMacro(const CommandMacro&);
 
         /// not implemented
-        CommandMacro& operator=(const CommandMacro&);
 
     public:
+        CommandMacro(const CommandMacro&) = delete;
+        CommandMacro& operator=(const CommandMacro&) = delete;
         /// If \a description is empty, the description of the first command is used.
         explicit CommandMacro(QUndoStack& undoStack, QString description = "");
 

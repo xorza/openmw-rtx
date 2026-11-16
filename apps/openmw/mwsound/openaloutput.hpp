@@ -72,15 +72,14 @@ namespace MWSound
 
         float getTimeScaledPitch(SoundBase* sound);
 
-        OpenALOutput& operator=(const OpenALOutput& rhs);
-        OpenALOutput(const OpenALOutput& rhs);
-
         static void eventCallback(
             ALenum eventType, ALuint object, ALuint param, ALsizei length, const ALchar* message, void* userParam);
 
         void onDisconnect();
 
     public:
+        OpenALOutput& operator=(const OpenALOutput& rhs) = delete;
+        OpenALOutput(const OpenALOutput& rhs) = delete;
         std::vector<std::string> enumerate() override;
         bool init(const std::string& devname, const std::string& hrtfname, HrtfMode hrtfmode) override;
         void deinit() override;

@@ -35,6 +35,8 @@ namespace Resource
     class ImageManager : public ResourceManager<osg::ref_ptr<osg::Image>>
     {
     public:
+        ImageManager(const ImageManager&) = delete;
+        void operator=(const ImageManager&) = delete;
         explicit ImageManager(const VFS::Manager* vfs, CacheBudget& budget);
         ~ImageManager() override;
 
@@ -67,9 +69,6 @@ namespace Resource
         /// every texture of one file names one header, as it named one image.
         std::mutex mHeadersMutex;
         std::unordered_map<VFS::Path::Normalized, osg::ref_ptr<osg::Image>, VFS::Path::Hash, std::equal_to<>> mHeaders;
-
-        ImageManager(const ImageManager&);
-        void operator=(const ImageManager&);
     };
 
 }

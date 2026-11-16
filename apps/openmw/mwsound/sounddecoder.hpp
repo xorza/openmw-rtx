@@ -35,6 +35,9 @@ namespace MWSound
 
     struct SoundDecoder
     {
+    public:
+        SoundDecoder(const SoundDecoder& rhs) = delete;
+        SoundDecoder& operator=(const SoundDecoder& rhs) = delete;
         const VFS::Manager* mResourceMgr;
 
         virtual void open(VFS::Path::NormalizedView fname) = 0;
@@ -54,7 +57,5 @@ namespace MWSound
         virtual ~SoundDecoder() {}
 
     private:
-        SoundDecoder(const SoundDecoder& rhs);
-        SoundDecoder& operator=(const SoundDecoder& rhs);
     };
 }
