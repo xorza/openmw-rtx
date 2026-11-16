@@ -3,8 +3,11 @@
 #include <MyGUI_FontManager.h>
 #include <MyGUI_Gui.h>
 #include <MyGUI_IFont.h>
+#include <MyGUI_IVertexBuffer.h>
+#include <MyGUI_RenderManager.h>
 #include <MyGUI_TextBox.h>
 
+#include <apps/components_tests/rtx/support/allocations.hpp>
 #include <apps/components_tests/rtx/support/guiinstance.hpp>
 #include <components/myguirtx/slottexture.hpp>
 
@@ -34,6 +37,27 @@ namespace MyGUIRtx
             EXPECT_EQ(drawn.mBatches[0].mTexture, atlas->getSlot());
             EXPECT_EQ(drawn.mBatches[0].mVertexCount, 18u);
             EXPECT_EQ(drawn.mVertices.size(), 18u);
+        }
+
+        /// **A vertex buffer holds no vertices until a draw fills it**: sized for a thousand, it takes nothing from
+        /// the heap and says the thousand; locked, it holds them, and the lock is the one allocation.
+        TEST(RtxGuiVertexBufferTest, holdsNoVerticesUntilADrawFillsIt)
+        {
+            Rtx::Testing::GuiInstance gui;
+            MyGUI::RenderManager& render = MyGUI::RenderManager::getInstance();
+            MyGUI::IVertexBuffer* const buffer = render.createVertexBuffer();
+
+            EXPECT_EQ(Rtx::Testing::allocationsIn([&] { buffer->setVertexCount(1000); }), 0u)
+                << "a buffer sized and never drawn took its vertices";
+            EXPECT_EQ(buffer->getVertexCount(), 1000u);
+
+            MyGUI::Vertex* vertices = nullptr;
+            EXPECT_EQ(Rtx::Testing::allocationsIn([&] { vertices = buffer->lock(); }), 1u);
+            ASSERT_NE(vertices, nullptr);
+            vertices[999] = MyGUI::Vertex{};
+            buffer->unlock();
+
+            render.destroyVertexBuffer(buffer);
         }
     }
 }

@@ -34,13 +34,21 @@ namespace MyGUIRtx
         /// **No double buffering, unlike the other backend's.** That one hands its arrays to a draw
         /// thread that runs a frame behind; here the whole frame is gathered, copied and submitted
         /// between `collectDrawCalls` and its return, so there is never a second reader.
+        ///
+        /// **Made at the size MyGUI states when a draw fills it**, as the other backend makes its arrays: MyGUI
+        /// sizes a buffer for every render item it makes, and the map window's entries made 40,718 of them, 369 MiB,
+        /// hidden nearly always (`research/2026-11-16-host-memory-holders-repack.md`).
         class VertexBuffer final : public MyGUI::IVertexBuffer
         {
         public:
-            void setVertexCount(size_t count) override { mVertices.resize(count); }
-            size_t getVertexCount() const override { return mVertices.size(); }
+            void setVertexCount(size_t count) override { mCount = count; }
+            size_t getVertexCount() const override { return mCount; }
 
-            MyGUI::Vertex* lock() override { return mVertices.data(); }
+            MyGUI::Vertex* lock() override
+            {
+                mVertices.resize(mCount);
+                return mVertices.data();
+            }
             void unlock() override {}
 
             std::span<const MyGUI::Vertex> get(size_t count) const
@@ -49,6 +57,7 @@ namespace MyGUIRtx
             }
 
         private:
+            size_t mCount = 0;
             std::vector<MyGUI::Vertex> mVertices;
         };
     }
