@@ -10,12 +10,14 @@
 
 #include <boost/unordered/unordered_flat_map.hpp> // IWYU pragma: keep: the whole table, credited to its forward header
 #include <osg/Callback>
+#include <osg/Geometry>
 #include <osg/Group>
 #include <osg/LOD>
 #include <osg/Matrix>
 #include <osg/MatrixTransform>
 #include <osg/Matrixf>
 #include <osg/Node>
+#include <osg/PolygonMode>
 #include <osg/StateSet>
 #include <osg/Switch>
 #include <osg/Vec3f>
@@ -147,6 +149,32 @@ namespace Rtx::Testing
                 EXPECT_EQ(passed.mPassedFrozen, 1u) << "the reference did not freeze";
                 EXPECT_EQ(mScene.placements().getCounts().mPlaced, 1u);
                 EXPECT_EQ(standing(), osg::Vec3f(10.0f, 0.0f, 0.0f));
+                EXPECT_EQ(mScene.refusals().count(Refused::Mesh), 1u);
+            }
+
+            mCell->removeChild(reference);
+            frame();
+            EXPECT_EQ(mScene.placements().getCounts().mPlaced, 0u);
+        }
+
+        /// **A reference whose quad a wireframe draws as lines freezes, the quad refused once by the mesh reader**,
+        /// its two keys passed from the second frame on — the quad beside it, which stands, and the refused drawable,
+        /// whose refusal the resolver keeps and the frozen root holds, where a T_Test_PC cube under the repack refused
+        /// past the resolver left the root holding a mesh nothing had resolved.
+        TEST_F(RtxFrozenSubtreeTest, aReferenceWithAWireframeQuadFreezesWithTheQuadRefusedOnce)
+        {
+            const osg::ref_ptr<osg::MatrixTransform> reference = addReference(osg::Vec3f(10.0f, 0.0f, 0.0f));
+            osg::ref_ptr<osg::Geometry> wire = makeQuad();
+            wire->getOrCreateStateSet()->setAttribute(
+                new osg::PolygonMode(osg::PolygonMode::FRONT_AND_BACK, osg::PolygonMode::LINE));
+            reference->addChild(wire);
+
+            EXPECT_EQ(frame().mInstances, 1u);
+            for (int again = 0; again < 3; ++again)
+            {
+                const ExtractionStats passed = frame();
+                EXPECT_EQ(passed.mPassedFrozen, 2u) << "the reference did not freeze";
+                EXPECT_EQ(mScene.placements().getCounts().mPlaced, 1u);
                 EXPECT_EQ(mScene.refusals().count(Refused::Mesh), 1u);
             }
 

@@ -42,8 +42,6 @@ namespace Rtx
                 return "a blend equation other than addition is drawn as addition";
             case UnreadState::CulledFront:
                 return "a cull of the front faces is drawn as a cull of the back";
-            case UnreadState::PolygonMode:
-                return "lines or points are drawn as faces";
             case UnreadState::Fog:
                 return "a fog of its own is not read; the air along the ray is";
             case UnreadState::Stencil:

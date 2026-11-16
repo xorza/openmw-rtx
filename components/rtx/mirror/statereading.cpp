@@ -14,10 +14,10 @@
 #include <osg/Material>
 #include <osg/Matrixf>
 #include <osg/Multisample> // IWYU pragma: keep: the multisample enums, which Windows' GL headers lack
-#include <osg/PolygonMode>
 #include <osg/ShadeModel>
 #include <osg/StateAttribute>
 #include <osg/StateSet>
+#include <osg/Stencil>
 #include <osg/Texture>
 #include <osg/Uniform>
 #include <osg/Vec4f>
@@ -139,6 +139,9 @@ namespace Rtx
                 // shows the right face of. A content file's own clockwise front looks the same from here, and the
                 // placement carries it (`Shading::mClockwise`).
                 case osg::StateAttribute::FRONTFACE:
+                // Lines or points in place of the faces, which leave the placement out where a ray has no width to
+                // meet (`Shading::mLines`).
+                case osg::StateAttribute::POLYGONMODE:
                 // Of the raster pipeline: what is written where, in what order, through what
                 // program, at what precision. A ray meets the surface whatever these say.
                 case osg::StateAttribute::DEPTH:
@@ -176,7 +179,6 @@ namespace Rtx
                 case osg::StateAttribute::BLENDFUNC:
                 case osg::StateAttribute::BLENDEQUATION:
                 case osg::StateAttribute::CULLFACE:
-                case osg::StateAttribute::POLYGONMODE:
                 case osg::StateAttribute::COLORMASK:
                 case osg::StateAttribute::SHADEMODEL:
                 case osg::StateAttribute::FOG:
@@ -233,6 +235,9 @@ namespace Rtx
                 case GL_RESCALE_NORMAL:
                 case GL_MULTISAMPLE_ARB:
                 case GL_SAMPLE_ALPHA_TO_COVERAGE_ARB:
+                // Its test is the stencil attribute's to judge, which states the function; enabled with
+                // none, the test is OpenGL's default, which passes everywhere.
+                case GL_STENCIL_TEST:
                     return StateRole::Raster;
                 default:
                     return StateRole::Examined;
@@ -261,11 +266,6 @@ namespace Rtx
                     material.markUnread(UnreadState::CulledFront,
                         static_cast<const osg::CullFace&>(attribute).getMode() != osg::CullFace::BACK);
                     return;
-                case osg::StateAttribute::POLYGONMODE:
-                    material.markUnread(UnreadState::PolygonMode,
-                        static_cast<const osg::PolygonMode&>(attribute).getMode(osg::PolygonMode::FRONT)
-                            != osg::PolygonMode::FILL);
-                    return;
                 case osg::StateAttribute::COLORMASK:
                 {
                     const auto& mask = static_cast<const osg::ColorMask&>(attribute);
@@ -281,7 +281,11 @@ namespace Rtx
                     material.markUnread(UnreadState::Fog, true);
                     return;
                 case osg::StateAttribute::STENCIL:
-                    material.markUnread(UnreadState::Stencil, true);
+                    // **A test that passes everywhere is no state**: it rejects no fragment, and what it writes
+                    // matters only to a surface whose own test reads the buffer, which that test's function says.
+                    // The repack's storm atronach enables one at `ALWAYS` keeping every value, for its draw mode.
+                    material.markUnread(UnreadState::Stencil,
+                        static_cast<const osg::Stencil&>(attribute).getFunction() != osg::Stencil::ALWAYS);
                     return;
                 case osg::StateAttribute::TEXENV:
                 case osg::StateAttribute::TEXGEN:
@@ -304,9 +308,6 @@ namespace Rtx
             {
                 case GL_FOG:
                     material.markUnread(UnreadState::Fog, true);
-                    return;
-                case GL_STENCIL_TEST:
-                    material.markUnread(UnreadState::Stencil, true);
                     return;
                 default:
                     material.markUnread(UnreadState::Unknown, true);

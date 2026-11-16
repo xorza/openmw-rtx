@@ -1,6 +1,7 @@
 #include "shading.hpp"
 
 #include <osg/FrontFace>
+#include <osg/PolygonMode>
 #include <osg/StateAttribute>
 #include <osg/StateSet>
 #include <osg/Uniform>
@@ -37,6 +38,8 @@ namespace Rtx
             .mAnimatedThrough = animated || (above != nullptr && above->mAnimatedThrough),
             .mClockwise = above != nullptr && above->mClockwise,
             .mClockwiseLocked = above != nullptr && above->mClockwiseLocked,
+            .mLines = above != nullptr && above->mLines,
+            .mLinesLocked = above != nullptr && above->mLinesLocked,
             .mStates = states,
             .mMaterialKey = key,
         };
@@ -47,6 +50,14 @@ namespace Rtx
             link.mClockwise
                 = static_cast<const osg::FrontFace*>(front->first.get())->getMode() == osg::FrontFace::CLOCKWISE;
             link.mClockwiseLocked = link.mClockwiseLocked || (front->second & osg::StateAttribute::OVERRIDE) != 0;
+        }
+
+        if (const osg::StateSet::RefAttributePair* mode = stateSet.getAttributePair(osg::StateAttribute::POLYGONMODE);
+            mode != nullptr && (!link.mLinesLocked || (mode->second & osg::StateAttribute::PROTECTED) != 0))
+        {
+            link.mLines = static_cast<const osg::PolygonMode*>(mode->first.get())->getMode(osg::PolygonMode::FRONT)
+                != osg::PolygonMode::FILL;
+            link.mLinesLocked = link.mLinesLocked || (mode->second & osg::StateAttribute::OVERRIDE) != 0;
         }
 
         return link;

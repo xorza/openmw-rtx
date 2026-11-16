@@ -13,7 +13,6 @@
 #include <osg/GL>
 #include <osg/Image>
 #include <osg/Matrixf>
-#include <osg/PolygonMode>
 #include <osg/PolygonOffset>
 #include <osg/StateAttribute>
 #include <osg/StateSet>
@@ -484,13 +483,25 @@ namespace Rtx
             EXPECT_EQ(unreadOf(*multiply), bit(UnreadState::BlendPair));
 
             osg::ref_ptr<osg::StateSet> wire = new osg::StateSet;
-            wire->setAttributeAndModes(new osg::PolygonMode(osg::PolygonMode::FRONT_AND_BACK, osg::PolygonMode::LINE));
             wire->setAttributeAndModes(new osg::Fog);
-            wire->setAttributeAndModes(new osg::Stencil);
+            osg::ref_ptr<osg::Stencil> stencil = new osg::Stencil;
+            stencil->setFunction(osg::Stencil::EQUAL, 1, ~0u);
+            wire->setAttributeAndModes(stencil);
             wire->setAttributeAndModes(new osg::CullFace(osg::CullFace::FRONT));
-            EXPECT_EQ(unreadOf(*wire),
-                bit(UnreadState::PolygonMode) | bit(UnreadState::Fog) | bit(UnreadState::Stencil)
-                    | bit(UnreadState::CulledFront));
+            EXPECT_EQ(
+                unreadOf(*wire), bit(UnreadState::Fog) | bit(UnreadState::Stencil) | bit(UnreadState::CulledFront));
+
+            // A stencil test that passes everywhere, which the repack's storm atronach enables for its draw mode,
+            // rejects nothing whatever it writes; so does the mode alone, whose test is OpenGL's default.
+            osg::ref_ptr<osg::StateSet> passing = new osg::StateSet;
+            osg::ref_ptr<osg::Stencil> always = new osg::Stencil;
+            always->setFunction(osg::Stencil::ALWAYS, 1, ~0u);
+            always->setOperation(osg::Stencil::KEEP, osg::Stencil::KEEP, osg::Stencil::REPLACE);
+            passing->setAttributeAndModes(always);
+            EXPECT_EQ(unreadOf(*passing), 0u);
+            osg::ref_ptr<osg::StateSet> modeAlone = new osg::StateSet;
+            modeAlone->setMode(GL_STENCIL_TEST, osg::StateAttribute::ON);
+            EXPECT_EQ(unreadOf(*modeAlone), 0u);
 
             // The four maps a mod's surfaces bind beside the diffuse are read, and say nothing unread.
             osg::ref_ptr<osg::StateSet> layered = new osg::StateSet;
@@ -501,17 +512,6 @@ namespace Rtx
                 layered->setTextureAttribute(unit, new SceneUtil::TextureType(name));
             }
             EXPECT_EQ(unreadOf(*layered), 0u);
-
-            // Folded: a parent's lines, and a child that fills again.
-            osg::ref_ptr<osg::StateSet> filled = new osg::StateSet;
-            filled->setAttributeAndModes(
-                new osg::PolygonMode(osg::PolygonMode::FRONT_AND_BACK, osg::PolygonMode::FILL));
-            SurfaceDescription folded;
-            SurfaceLocks locks;
-            describeStateSet(*wire, folded, locks);
-            describeStateSet(*filled, folded, locks);
-            EXPECT_FALSE(folded.isUnread(UnreadState::PolygonMode)) << "the child fills";
-            EXPECT_TRUE(folded.isUnread(UnreadState::Fog)) << "and the parent's fog still stands";
 
             for (const UnreadState state : sUnreadStates)
                 EXPECT_FALSE(whyUnread(state).empty());

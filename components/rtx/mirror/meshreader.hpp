@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <span>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include <boost/unordered/unordered_flat_map.hpp>
@@ -22,6 +23,7 @@
 #include <components/rtx/scene/mesh.hpp>
 
 #include "nodekind.hpp"
+#include "shading.hpp"
 
 namespace osg
 {
@@ -43,19 +45,28 @@ namespace Rtx
     /// from, and what poses it. A skinned body's geometry is its source — the bind pose, which a
     /// pose is computed from on the device — and so is a morphed face's, with the base target for
     /// its positions. Neither is the double-buffered copy a cull writes, which nothing runs here.
+    /// Why a drawable of lines or points stands nothing: an `NiLines`, or faces a wireframe draws as lines
+    /// (`linesThrough`). The rasterizer draws them, and a ray has no width of theirs to meet.
+    inline constexpr std::string_view sNoWidth = "its lines and points have no width a ray can meet";
+
     struct DrawableRead
     {
         const osg::Geometry* mGeometry = nullptr;
         Deform mDeform = Deform::None;
         const SceneUtil::RigGeometry* mRig = nullptr;
         const SceneUtil::MorphGeometry* mMorph = nullptr;
+
+        /// Whether the chain that shows it draws its faces as lines or points (`linesThrough`), which a ray meets no
+        /// width of: read as an `NiLines` is, refused for `sNoWidth`.
+        bool mLines = false;
     };
 
     /// Reads what a drawable is, in one virtual call for nearly everything in a cell. A skinned body and a morphed face
     /// are an `osg::Drawable` over a source geometry, and the source is what this reads. A rig no update traversal
     /// resolved is read as it stands, as the rasterizer draws it in its bind pose. A morph with no target past its base
-    /// is a static mesh whose positions are the base.
-    DrawableRead readDrawable(const osg::Drawable& drawable, NodeKind kind);
+    /// is a static mesh whose positions are the base. Under `shading`, the chain that shows it, which says whether its
+    /// faces are lines.
+    DrawableRead readDrawable(const osg::Drawable& drawable, NodeKind kind, std::span<const Shading> shading);
 
     /// A morph's base target, which `MorphGeometry::cull` reads its positions from.
     std::span<const osg::Vec3f> morphBase(const SceneUtil::MorphGeometry& morph);

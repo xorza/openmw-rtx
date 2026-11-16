@@ -41,9 +41,6 @@ namespace Rtx
         /// A cull of the front faces.
         CulledFront = 1u << 3,
 
-        /// Lines or points in place of faces.
-        PolygonMode = 1u << 4,
-
         /// A fog of the surface's own, an `NiFogProperty`.
         Fog = 1u << 5,
 
@@ -59,8 +56,8 @@ namespace Rtx
     };
 
     inline constexpr std::array sUnreadStates{ UnreadState::BlendPair, UnreadState::BlendEquation,
-        UnreadState::CulledFront, UnreadState::PolygonMode, UnreadState::Fog, UnreadState::Stencil,
-        UnreadState::ColourMask, UnreadState::FlatShading, UnreadState::TextureState, UnreadState::Unknown };
+        UnreadState::CulledFront, UnreadState::Fog, UnreadState::Stencil, UnreadState::ColourMask,
+        UnreadState::FlatShading, UnreadState::TextureState, UnreadState::Unknown };
 
     /// Why the trace draws a surface that states `state` otherwise: the reason its refusal gives.
     std::string_view whyUnread(UnreadState state);

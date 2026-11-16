@@ -254,7 +254,7 @@ namespace MWRender
             Rtx::MeshReader reader;
             Rtx::MeshReading reading;
             [[maybe_unused]] const Result<Rtx::MeshRead, std::string> read
-                = reader.read(content, Rtx::readDrawable(sea, Rtx::NodeKind::Other), nullptr, reading);
+                = reader.read(content, Rtx::readDrawable(sea, Rtx::NodeKind::Other, {}), nullptr, reading);
             assert(read.isOk() && "the sea's own plane does not read");
             assert(read.value() == Rtx::MeshRead::Triangles && "the sea's own plane holds no triangle");
             return content.takeStats();

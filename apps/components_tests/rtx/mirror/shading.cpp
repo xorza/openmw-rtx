@@ -4,6 +4,7 @@
 
 #include <gtest/gtest.h>
 
+#include <osg/PolygonMode>
 #include <osg/StateSet>
 #include <osg/Uniform>
 #include <osg/ref_ptr>
@@ -48,6 +49,46 @@ namespace Rtx
             EXPECT_FALSE(below.mAnimated) << "a link was animated for its controller above";
             EXPECT_TRUE(below.mAnimatedThrough) << "what stands under a controller is not animated by it";
             EXPECT_EQ(below.mFade.mPlacement, 0.25f) << "the fade above was not carried down";
+        }
+
+        /// **A wireframe's faces are lines all the way down the chain**, as OpenGL resolves the nearest
+        /// `osg::PolygonMode` (`linesThrough`): a parent's lines reach a child that states nothing, a child that
+        /// fills again is faces, a parent's `OVERRIDE` holds against that child, and a `PROTECTED` child fills
+        /// through it. Points are no faces either; a back drawn as lines leaves the front a face.
+        TEST(RtxShadingTest, aWireframeIsLinesDownTheChainAsOpenGLResolvesIt)
+        {
+            const auto stating = [](osg::PolygonMode::Mode front, osg::StateAttribute::OverrideValue flags) {
+                osg::ref_ptr<osg::StateSet> state = new osg::StateSet;
+                osg::ref_ptr<osg::PolygonMode> mode = new osg::PolygonMode;
+                mode->setMode(osg::PolygonMode::FRONT, front);
+                state->setAttribute(mode, flags);
+                return state;
+            };
+            const auto through = [](std::initializer_list<const osg::StateSet*> chain) {
+                std::vector<Shading> links;
+                for (const osg::StateSet* state : chain)
+                    links.push_back(Shading::under(links, *state, false, nullptr));
+                return linesThrough(links);
+            };
+            const osg::ref_ptr<osg::StateSet> bare = new osg::StateSet;
+            const osg::ref_ptr<osg::StateSet> lines = stating(osg::PolygonMode::LINE, osg::StateAttribute::ON);
+            const osg::ref_ptr<osg::StateSet> points = stating(osg::PolygonMode::POINT, osg::StateAttribute::ON);
+            const osg::ref_ptr<osg::StateSet> fill = stating(osg::PolygonMode::FILL, osg::StateAttribute::ON);
+            const osg::ref_ptr<osg::StateSet> forced = stating(osg::PolygonMode::LINE, osg::StateAttribute::OVERRIDE);
+            const osg::ref_ptr<osg::StateSet> kept = stating(osg::PolygonMode::FILL, osg::StateAttribute::PROTECTED);
+
+            EXPECT_FALSE(through({ bare.get() }));
+            EXPECT_FALSE(linesThrough({}));
+            EXPECT_TRUE(through({ lines.get() }));
+            EXPECT_TRUE(through({ points.get() }));
+            EXPECT_TRUE(through({ lines.get(), bare.get() })) << "a child stating nothing";
+            EXPECT_FALSE(through({ lines.get(), fill.get() })) << "a child that fills again";
+            EXPECT_TRUE(through({ forced.get(), fill.get() })) << "an override above";
+            EXPECT_FALSE(through({ forced.get(), kept.get() })) << "a protected child under an override";
+
+            osg::ref_ptr<osg::StateSet> backLines = new osg::StateSet;
+            backLines->setAttribute(new osg::PolygonMode(osg::PolygonMode::BACK, osg::PolygonMode::LINE));
+            EXPECT_FALSE(through({ backLines.get() })) << "the back drawn as lines";
         }
 
         /// **A chain is keyed by every link that states anything** (`ChainKeys`). Two parents that

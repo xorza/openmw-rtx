@@ -346,7 +346,7 @@ namespace Rtx::Testing
         {
             RiggedQuad rigged;
             rigged.mBone->setMatrix(osg::Matrix::translate(0.0, 0.0, 5.0));
-            EXPECT_EQ(Rtx::readDrawable(*rigged.mRig, Rtx::NodeKind::RigGeometry).mDeform, Rtx::Deform::Rig)
+            EXPECT_EQ(Rtx::readDrawable(*rigged.mRig, Rtx::NodeKind::RigGeometry, {}).mDeform, Rtx::Deform::Rig)
                 << "a rig no update reached";
 
             const ExtractionStats stats = walk(*rigged.mSkeleton);
@@ -361,7 +361,7 @@ namespace Rtx::Testing
                 << "the bind pose, where it stands";
 
             rigged.update(1);
-            EXPECT_EQ(Rtx::readDrawable(*rigged.mRig, Rtx::NodeKind::RigGeometry).mDeform, Rtx::Deform::Rig);
+            EXPECT_EQ(Rtx::readDrawable(*rigged.mRig, Rtx::NodeKind::RigGeometry, {}).mDeform, Rtx::Deform::Rig);
             const ExtractionStats skinned = walk(*rigged.mSkeleton);
 
             EXPECT_EQ(skinned.mMeshesReused, 1u) << "the rig's slot, posed by its skeleton now";

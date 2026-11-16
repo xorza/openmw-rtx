@@ -60,6 +60,14 @@ namespace Rtx
         /// may change.
         bool mClockwiseLocked = false;
 
+        /// Whether the front faces are drawn as lines or points here, the nearest `osg::PolygonMode` on the chain
+        /// unless one above it overrides: a wireframe `NiWireframeProperty` states it. A placement's and not a
+        /// material's, as the winding is, because it says whether there are faces for a ray to meet.
+        bool mLines = false;
+
+        /// Whether an `osg::PolygonMode` above stated `OVERRIDE`, which only a `PROTECTED` one below may change.
+        bool mLinesLocked = false;
+
         /// Whether this state set holds anything `describeStateSet` reads (`describesAnything`):
         /// what a key is made of, and what a reading keeps for the frame to key it by
         /// (`MaterialResolver::chainOf`).
@@ -101,6 +109,13 @@ namespace Rtx
     inline bool clockwiseThrough(std::span<const Shading> shading)
     {
         return !shading.empty() && shading.back().mClockwise;
+    }
+
+    /// Whether a placement shown through `shading` draws its faces as lines or points — `Shading::mLines` at the near
+    /// end, which both walks ask before a mesh, so the frame's and the cell ring's leave the same drawables out.
+    inline bool linesThrough(std::span<const Shading> shading)
+    {
+        return !shading.empty() && shading.back().mLines;
     }
 
     /// What the content said this surface is, folded out of the chain of state sets in force at it,

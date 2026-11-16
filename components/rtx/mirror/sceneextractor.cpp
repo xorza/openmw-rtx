@@ -887,7 +887,7 @@ namespace Rtx
             return true;
         }
 
-        const DrawableRead read = readDrawable(drawable, kind);
+        const DrawableRead read = readDrawable(drawable, kind, shading);
         if (read.mGeometry == nullptr)
         {
             ++stats.mSkippedUnknown;

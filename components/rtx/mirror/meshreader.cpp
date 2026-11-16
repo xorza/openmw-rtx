@@ -44,12 +44,11 @@ namespace Rtx
         }
 
         /// What a drawable with no triangle reads as: nothing to place, or, where it draws lines or
-        /// points, a refusal saying so — the rasterizer draws them, an `NiLines`, and a ray has no
-        /// width of theirs to meet.
+        /// points, a refusal saying so (`sNoWidth`).
         Result<MeshRead, std::string> noTriangle(const osg::Geometry& geometry)
         {
             if (drawsLines(geometry))
-                return Err{ std::string("its lines and points have no width a ray can meet") };
+                return Err{ std::string(sNoWidth) };
             return MeshRead::Empty;
         }
 
@@ -300,10 +299,12 @@ namespace Rtx
         }
     }
 
-    DrawableRead readDrawable(const osg::Drawable& drawable, const NodeKind kind)
+    DrawableRead readDrawable(
+        const osg::Drawable& drawable, const NodeKind kind, const std::span<const Shading> shading)
     {
+        const bool lines = linesThrough(shading);
         if (const osg::Geometry* geometry = drawable.asGeometry())
-            return DrawableRead{ .mGeometry = geometry };
+            return DrawableRead{ .mGeometry = geometry, .mLines = lines };
 
         if (const auto* rig = as<const SceneUtil::RigGeometry>(kind, NodeKind::RigGeometry, drawable))
         {
@@ -312,7 +313,8 @@ namespace Rtx
             const bool skinned = rig->getInfluenceData() != nullptr;
             return DrawableRead{ .mGeometry = rig->getSourceGeometry().get(),
                 .mDeform = skinned ? Deform::Rig : Deform::None,
-                .mRig = rig };
+                .mRig = rig,
+                .mLines = lines };
         }
 
         if (const auto* morph = as<const SceneUtil::MorphGeometry>(kind, NodeKind::MorphGeometry, drawable))
@@ -320,7 +322,8 @@ namespace Rtx
             const bool moving = morph->getMorphTargetList().size() > 1;
             return DrawableRead{ .mGeometry = morph->getSourceGeometry().get(),
                 .mDeform = moving ? Deform::Morph : Deform::None,
-                .mMorph = morph };
+                .mMorph = morph,
+                .mLines = lines };
         }
 
         return DrawableRead{};
@@ -524,6 +527,9 @@ namespace Rtx
     Result<MeshRead, std::string> MeshReader::read(
         ContentPreprocessor& content, const DrawableRead& read, const osg::Node* const model, MeshReading& into)
     {
+        if (read.mLines)
+            return Err{ std::string(sNoWidth) };
+
         const osg::Geometry& geometry = *read.mGeometry;
 
         const Result<VertexArrays, std::string> vertices = readVertices(geometry, mReadNormalScratch);

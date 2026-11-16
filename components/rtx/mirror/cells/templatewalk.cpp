@@ -146,7 +146,7 @@ namespace Rtx
     {
         // Under the model's own note, so a fault in a part's read, fold or split names the part.
         const Crash::NoteScope noted("reading the part \"{}\"", drawable.getName());
-        const DrawableRead read = readDrawable(drawable, mKinds.of(drawable));
+        const DrawableRead read = readDrawable(drawable, mKinds.of(drawable), mShading);
         if (read.mGeometry == nullptr)
             return;
 
