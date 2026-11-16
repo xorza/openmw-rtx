@@ -89,7 +89,8 @@ namespace Rtx
             void drawQuad(GuiSlot texture, float left, float top, float right, float bottom, std::uint32_t colour)
             {
                 const std::array<GuiVertex, 6> quad = Testing::makeGuiQuad(left, top, right, bottom, colour);
-                const std::array<GuiBatch, 1> batches{ GuiBatch{ texture, 0, quad.size() } };
+                const std::array<GuiBatch, 1> batches{ GuiBatch{
+                    texture, 0, static_cast<std::uint32_t>(quad.size()) } };
                 mRenderer.drawGui(quad, batches);
             }
 
@@ -108,8 +109,8 @@ namespace Rtx
                 for (const Layer& layer : layers)
                 {
                     const std::array<GuiVertex, 6> quad = Testing::makeGuiQuad(-1.0f, 1.0f, 1.0f, -1.0f, layer.mColour);
-                    batches.push_back(
-                        GuiBatch{ layer.mTexture, static_cast<std::uint32_t>(vertices.size()), quad.size() });
+                    batches.push_back(GuiBatch{ layer.mTexture, static_cast<std::uint32_t>(vertices.size()),
+                        static_cast<std::uint32_t>(quad.size()) });
                     vertices.insert(vertices.end(), quad.begin(), quad.end());
                 }
                 mRenderer.drawGui(vertices, batches);

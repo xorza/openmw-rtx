@@ -154,7 +154,8 @@ namespace Rtx
 
             const std::array<GuiVertex, 6> quad
                 = Testing::makeGuiQuad(-1.0f, 1.0f, 0.0f, -1.0f, Testing::packColour(255, 0, 0, 128));
-            const std::array<GuiDraw, 1> draws{ GuiDraw{ texture.getView(), 0, quad.size() } };
+            const std::array<GuiDraw, 1> draws{ GuiDraw{
+                texture.getView(), 0, static_cast<std::uint32_t>(quad.size()) } };
 
             std::vector<std::uint8_t> pixels;
             ASSERT_NO_FATAL_FAILURE(drawAndRead(quad, draws, pixels));
@@ -183,7 +184,8 @@ namespace Rtx
                 for (GuiVertex& vertex : quad)
                     vertex.mZ = depth;
 
-                const std::array<GuiDraw, 1> draws{ GuiDraw{ texture.getView(), 0, quad.size() } };
+                const std::array<GuiDraw, 1> draws{ GuiDraw{
+                    texture.getView(), 0, static_cast<std::uint32_t>(quad.size()) } };
 
                 std::vector<std::uint8_t> pixels;
                 ASSERT_NO_FATAL_FAILURE(drawAndRead(quad, draws, pixels));
@@ -229,7 +231,8 @@ namespace Rtx
             // The whole frame, opaque white so the texture passes through the multiply unchanged.
             const std::array<GuiVertex, 6> quad
                 = Testing::makeGuiQuad(-1.0f, 1.0f, 1.0f, -1.0f, Testing::packColour(255, 255, 255, 255));
-            const std::array<GuiDraw, 1> draws{ GuiDraw{ texture.getView(), 0, quad.size() } };
+            const std::array<GuiDraw, 1> draws{ GuiDraw{
+                texture.getView(), 0, static_cast<std::uint32_t>(quad.size()) } };
 
             std::vector<std::uint8_t> pixels;
             ASSERT_NO_FATAL_FAILURE(drawAndRead(quad, draws, pixels));
@@ -263,8 +266,9 @@ namespace Rtx
             std::copy(right.begin(), right.end(), vertices.begin() + left.size());
 
             const std::array<GuiDraw, 2> draws{
-                GuiDraw{ whiteTexture.getView(), 0, left.size() },
-                GuiDraw{ greenTexture.getView(), left.size(), right.size() },
+                GuiDraw{ whiteTexture.getView(), 0, static_cast<std::uint32_t>(left.size()) },
+                GuiDraw{ greenTexture.getView(), static_cast<std::uint32_t>(left.size()),
+                    static_cast<std::uint32_t>(right.size()) },
             };
 
             std::vector<std::uint8_t> pixels;
@@ -297,8 +301,9 @@ namespace Rtx
             std::copy(right.begin(), right.end(), vertices.begin() + left.size());
 
             const std::array<GuiDraw, 2> draws{
-                GuiDraw{ texture.getView(), 0, left.size(), Blend::Additive },
-                GuiDraw{ texture.getView(), left.size(), right.size(), Blend::Over },
+                GuiDraw{ texture.getView(), 0, static_cast<std::uint32_t>(left.size()), Blend::Additive },
+                GuiDraw{ texture.getView(), static_cast<std::uint32_t>(left.size()),
+                    static_cast<std::uint32_t>(right.size()), Blend::Over },
             };
 
             std::vector<std::uint8_t> pixels;

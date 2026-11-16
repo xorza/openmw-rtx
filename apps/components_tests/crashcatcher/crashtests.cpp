@@ -286,7 +286,7 @@ namespace CrashTests
                 // as the late End waits, past the two seconds of them before it, so it still finds the
                 // game drawing.
                 stopUntilHangLogged(folder);
-                frames(20 + sLateEnd / std::chrono::milliseconds(100));
+                frames(20 + static_cast<int>(sLateEnd / std::chrono::milliseconds(100)));
                 return livedOn();
             }
             if (mode == "ended-at-once")

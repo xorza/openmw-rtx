@@ -1148,7 +1148,7 @@ namespace Rtx::Testing
             const auto standing = [this] {
                 std::vector<std::pair<std::size_t, float>> slots;
                 mScene.placements().forEachPlaced([&](Index slot, const PlacementRow& row) {
-                    slots.emplace_back(slot, row.mInstance.mTransform.getTrans().z());
+                    slots.emplace_back(slot, static_cast<float>(row.mInstance.mTransform.getTrans().z()));
                 });
                 return slots;
             };
