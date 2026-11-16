@@ -267,7 +267,7 @@ namespace Rtx
         void wake(Index slot, const osg::Image* image, const osg::Image* partner);
 
         /// Takes `slot` out of the lookups and the census, empties it and reports it freed.
-        void release(Index slot);
+        void release(Index texture);
 
         /// Files the slots that came to rest since the last, by their slots, after every slot already on the
         /// list.

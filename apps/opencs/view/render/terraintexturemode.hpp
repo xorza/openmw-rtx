@@ -117,7 +117,7 @@ namespace CSVRender
             CSMWorld::IdTable& landTable, const std::string& cellId);
 
         /// \brief Create new cell and land if needed
-        bool allowLandTextureEditing(const std::string& textureFileName);
+        bool allowLandTextureEditing(const std::string& cellId);
 
         std::string mCellId;
         ESM::RefId mBrushTexture;
@@ -141,6 +141,6 @@ namespace CSVRender
         void handleDropEvent(QDropEvent* event);
         void setBrushSize(int brushSize);
         void setBrushShape(CSVWidget::BrushShape brushShape);
-        void setBrushTexture(ESM::RefId brushShape);
+        void setBrushTexture(ESM::RefId brushTexture);
     };
 }

@@ -32,7 +32,7 @@ namespace SceneUtil
 
         const std::vector<BlendRule>& getRules() const { return mRules; }
 
-        static std::shared_ptr<AnimBlendRules> fromFile(const VFS::Manager* vfs, VFS::Path::NormalizedView yamlpath);
+        static std::shared_ptr<AnimBlendRules> fromFile(const VFS::Manager* vfs, VFS::Path::NormalizedView configPath);
 
     private:
         std::vector<BlendRule> mRules;

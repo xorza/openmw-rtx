@@ -36,7 +36,7 @@ namespace ESM
         // otherwise this data will be left uninitialized.
         void setVersion(unsigned int ver = 0x3fa66666);
         void setType(int type);
-        void setEncoder(ToUTF8::Utf8Encoder* encoding);
+        void setEncoder(ToUTF8::Utf8Encoder* encoder);
         void setAuthor(std::string_view author);
         void setDescription(std::string_view desc);
         void setHeader(const Header& value) { mHeader = value; }
@@ -186,11 +186,11 @@ namespace ESM
 
         void writeMaybeFixedSizeRefId(RefId value, std::size_t size);
 
-        void writeHRefId(RefId refId);
+        void writeHRefId(RefId value);
 
-        void writeHCRefId(RefId refId);
+        void writeHCRefId(RefId value);
 
-        void writeName(NAME data);
+        void writeName(NAME name);
 
         void write(const char* data, size_t size);
 

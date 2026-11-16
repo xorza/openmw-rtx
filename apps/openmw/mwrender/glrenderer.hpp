@@ -171,7 +171,7 @@ namespace MWRender
         void applyViewMask() override;
         void applyWorldShown() override;
         bool toggleOwnRenderMode(RenderMode mode) override;
-        void applyChangedSettings(const Settings::CategorySettingVector& honoured) override;
+        void applyChangedSettings(const Settings::CategorySettingVector& changed) override;
         void applyLoadingBudget(double targetFrameRate) override;
 
         /// The post-processor at the frame's size, the frame remade where its size moved, and the

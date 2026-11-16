@@ -26,7 +26,7 @@ namespace MWMechanics
         unsigned int mObjectType;
         ESM::RefId mWeaponType;
 
-        const ESM::Enchantment* getRecord(const ESM::Enchantment& newEnchantment) const;
+        const ESM::Enchantment* getRecord(const ESM::Enchantment& toFind) const;
         int getBaseCastCost() const; // To be saved in the enchantment's record
         int getEnchantItemsCount() const;
         float getTypeMultiplier() const;

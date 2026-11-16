@@ -102,69 +102,69 @@ namespace Nif
     }
 
     template <>
-    void NIFStream::read<osg::Vec2f>(osg::Vec2f& vec)
+    void NIFStream::read<osg::Vec2f>(osg::Vec2f& data)
     {
-        readBufferOfType(mStream, vec._v);
+        readBufferOfType(mStream, data._v);
     }
 
     template <>
-    void NIFStream::read<osg::Vec3f>(osg::Vec3f& vec)
+    void NIFStream::read<osg::Vec3f>(osg::Vec3f& data)
     {
-        readBufferOfType(mStream, vec._v);
+        readBufferOfType(mStream, data._v);
     }
 
     template <>
-    void NIFStream::read<osg::Vec4f>(osg::Vec4f& vec)
+    void NIFStream::read<osg::Vec4f>(osg::Vec4f& data)
     {
-        readBufferOfType(mStream, vec._v);
+        readBufferOfType(mStream, data._v);
     }
 
     template <>
-    void NIFStream::read<Matrix3>(Matrix3& mat)
+    void NIFStream::read<Matrix3>(Matrix3& data)
     {
-        readBufferOfType<9>(mStream, reinterpret_cast<float*>(&mat.mValues));
+        readBufferOfType<9>(mStream, reinterpret_cast<float*>(&data.mValues));
     }
 
     template <>
-    void NIFStream::read<osg::Quat>(osg::Quat& quat)
+    void NIFStream::read<osg::Quat>(osg::Quat& data)
     {
-        std::array<float, 4> data;
-        readArray(data);
-        quat.w() = data[0];
-        quat.x() = data[1];
-        quat.y() = data[2];
-        quat.z() = data[3];
+        std::array<float, 4> parts{};
+        readArray(parts);
+        data.w() = parts[0];
+        data.x() = parts[1];
+        data.y() = parts[2];
+        data.z() = parts[3];
     }
 
     template <>
-    void NIFStream::read<osg::BoundingSpheref>(osg::BoundingSpheref& sphere)
+    void NIFStream::read<osg::BoundingSpheref>(osg::BoundingSpheref& data)
     {
-        read(sphere.center());
-        read(sphere.radius());
+        read(data.center());
+        read(data.radius());
     }
 
     template <>
-    void NIFStream::read<NiTransform>(NiTransform& transform)
+    void NIFStream::read<NiTransform>(NiTransform& data)
     {
-        read(transform.mRotation);
-        read(transform.mTranslation);
-        read(transform.mScale);
+        read(data.mRotation);
+        read(data.mTranslation);
+        read(data.mScale);
     }
 
     template <>
-    void NIFStream::read<NiQuatTransform>(NiQuatTransform& transform)
+    void NIFStream::read<NiQuatTransform>(NiQuatTransform& data)
     {
-        read(transform.mTranslation);
-        read(transform.mRotation);
-        read(transform.mScale);
+        read(data.mTranslation);
+        read(data.mRotation);
+        read(data.mScale);
         if (getVersion() >= generateVersion(10, 1, 0, 110))
             return;
         if (!get<bool>())
-            transform.mTranslation = osg::Vec3f();
+            data.mTranslation = osg::Vec3f();
         if (!get<bool>())
-            transform.mRotation = osg::Quat();
+            data.mRotation = osg::Quat();
         if (!get<bool>())
-            transform.mScale = 1.f;
+            data.mScale = 1.f;
     }
 
     template <>
@@ -177,12 +177,12 @@ namespace Nif
     }
 
     template <>
-    void NIFStream::read<std::string>(std::string& str)
+    void NIFStream::read<std::string>(std::string& data)
     {
         if (getVersion() < generateVersion(20, 1, 0, 1))
-            str = getSizedString();
+            data = getSizedString();
         else
-            str = mReader.getString(get<uint32_t>());
+            data = mReader.getString(get<uint32_t>());
     }
 
     template <>

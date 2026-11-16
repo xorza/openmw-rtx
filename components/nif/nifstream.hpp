@@ -212,25 +212,25 @@ namespace Nif
     }
 
     template <>
-    void NIFStream::read<osg::Vec2f>(osg::Vec2f& vec);
+    void NIFStream::read<osg::Vec2f>(osg::Vec2f& data);
     template <>
-    void NIFStream::read<osg::Vec3f>(osg::Vec3f& vec);
+    void NIFStream::read<osg::Vec3f>(osg::Vec3f& data);
     template <>
-    void NIFStream::read<osg::Vec4f>(osg::Vec4f& vec);
+    void NIFStream::read<osg::Vec4f>(osg::Vec4f& data);
     template <>
-    void NIFStream::read<Matrix3>(Matrix3& mat);
+    void NIFStream::read<Matrix3>(Matrix3& data);
     template <>
-    void NIFStream::read<osg::Quat>(osg::Quat& quat);
+    void NIFStream::read<osg::Quat>(osg::Quat& data);
     template <>
-    void NIFStream::read<osg::BoundingSpheref>(osg::BoundingSpheref& sphere);
+    void NIFStream::read<osg::BoundingSpheref>(osg::BoundingSpheref& data);
     template <>
-    void NIFStream::read<NiTransform>(NiTransform& transform);
+    void NIFStream::read<NiTransform>(NiTransform& data);
     template <>
-    void NIFStream::read<NiQuatTransform>(NiQuatTransform& transform);
+    void NIFStream::read<NiQuatTransform>(NiQuatTransform& data);
     template <>
     void NIFStream::read<bool>(bool& data);
     template <>
-    void NIFStream::read<std::string>(std::string& str);
+    void NIFStream::read<std::string>(std::string& data);
 
     template <>
     void NIFStream::read<osg::Vec2f>(osg::Vec2f* dest, size_t size);

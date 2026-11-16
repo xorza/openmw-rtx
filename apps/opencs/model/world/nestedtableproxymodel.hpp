@@ -26,7 +26,7 @@ namespace CSMWorld
         std::string mId;
 
     public:
-        NestedTableProxyModel(const QModelIndex& parent, ColumnBase::Display displayType, IdTree* parentModel);
+        NestedTableProxyModel(const QModelIndex& parent, ColumnBase::Display columnId, IdTree* parentModel);
         // parent is the parent of columns to work with. Columnid provides information about the column
 
         std::string getParentId() const;
@@ -39,7 +39,7 @@ namespace CSMWorld
 
         QModelIndex mapToSource(const QModelIndex& proxyIndex) const override;
 
-        int rowCount(const QModelIndex& parent) const override;
+        int rowCount(const QModelIndex& index) const override;
 
         int columnCount(const QModelIndex& parent) const override;
 

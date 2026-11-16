@@ -264,7 +264,7 @@ namespace MWGui
         public:
             MWDynamicStat();
 
-            void setValue(int value, int max);
+            void setValue(int cur, int max);
             void setTitle(std::string_view text);
 
             int getValue() const { return mValue; }

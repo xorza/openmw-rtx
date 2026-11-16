@@ -65,7 +65,7 @@ namespace MWMechanics
         void setPlayerName(const std::string& name) override;
         ///< Set player name.
 
-        void setPlayerRace(const ESM::RefId& id, bool male, const ESM::RefId& head, const ESM::RefId& hair) override;
+        void setPlayerRace(const ESM::RefId& race, bool male, const ESM::RefId& head, const ESM::RefId& hair) override;
         ///< Set player race.
 
         void setPlayerBirthsign(const ESM::RefId& id) override;
@@ -107,7 +107,7 @@ namespace MWMechanics
         void startCombat(
             const MWWorld::Ptr& ptr, const MWWorld::Ptr& target, const std::set<MWWorld::Ptr>* targetAllies) override;
 
-        void stopCombat(const MWWorld::Ptr& ptr) override;
+        void stopCombat(const MWWorld::Ptr& actor) override;
 
         /**
          * @note victim may be empty
@@ -116,10 +116,10 @@ namespace MWMechanics
          *                    If this parameter is false, it will be determined by a line-of-sight and awareness check.
          * @return was the crime seen?
          */
-        bool commitCrime(const MWWorld::Ptr& ptr, const MWWorld::Ptr& victim, OffenseType type,
+        bool commitCrime(const MWWorld::Ptr& player, const MWWorld::Ptr& victim, OffenseType type,
             const ESM::RefId& factionId = ESM::RefId(), int arg = 0, bool victimAware = false) override;
         /// @return false if the attack was considered a "friendly hit" and forgiven
-        bool actorAttacked(const MWWorld::Ptr& victim, const MWWorld::Ptr& attacker) override;
+        bool actorAttacked(const MWWorld::Ptr& target, const MWWorld::Ptr& attacker) override;
 
         /// Notify that actor was killed, add a murder bounty if applicable
         /// @note No-op for non-player attackers
@@ -199,7 +199,7 @@ namespace MWMechanics
 
         void castSpell(const MWWorld::Ptr& ptr, const ESM::RefId& spellId, bool scriptedSpell = false) override;
 
-        void processChangedSettings(const Settings::CategorySettingVector& settings) override;
+        void processChangedSettings(const Settings::CategorySettingVector& changed) override;
 
         void notifyDied(const MWWorld::Ptr& actor) override;
 
@@ -241,11 +241,11 @@ namespace MWMechanics
         void fastForwardAi() const override;
 
     private:
-        bool canCommitCrimeAgainst(const MWWorld::Ptr& victim, const MWWorld::Ptr& attacker);
+        bool canCommitCrimeAgainst(const MWWorld::Ptr& target, const MWWorld::Ptr& attacker);
         bool canReportCrime(
             const MWWorld::Ptr& actor, const MWWorld::Ptr& victim, std::set<MWWorld::Ptr>& playerFollowers);
 
-        bool reportCrime(const MWWorld::Ptr& ptr, const MWWorld::Ptr& victim, OffenseType type,
+        bool reportCrime(const MWWorld::Ptr& player, const MWWorld::Ptr& victim, OffenseType type,
             const ESM::RefId& factionId, int arg = 0);
     };
 }

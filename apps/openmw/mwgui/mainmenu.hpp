@@ -33,7 +33,7 @@ namespace MWGui
 
     public:
         explicit MenuVideo(const VFS::Manager* vfs);
-        void resize(int w, int h);
+        void resize(int screenWidth, int screenHeight);
         void commitFrame();
         ~MenuVideo();
     };

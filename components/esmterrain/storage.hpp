@@ -151,7 +151,7 @@ namespace ESMTerrain
         inline void fixNormal(
             osg::Vec3f& normal, ESM::ExteriorCellLocation cellLocation, int col, int row, LandCache& cache);
         inline void fixColour(
-            osg::Vec4ub& colour, ESM::ExteriorCellLocation cellLocation, int col, int row, LandCache& cache);
+            osg::Vec4ub& color, ESM::ExteriorCellLocation cellLocation, int col, int row, LandCache& cache);
         inline void averageNormal(
             osg::Vec3f& normal, ESM::ExteriorCellLocation cellLocation, int col, int row, LandCache& cache);
 

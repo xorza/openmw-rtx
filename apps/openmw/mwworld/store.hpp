@@ -394,7 +394,7 @@ namespace MWWorld
         typedef SharedIterator<ESM::Cell> iterator;
 
         const ESM::Cell* search(const ESM::RefId& id) const;
-        const ESM::Cell* search(std::string_view id) const;
+        const ESM::Cell* search(std::string_view name) const;
         const ESM::Cell* search(int x, int y) const;
         const ESM::Cell* searchStatic(int x, int y) const;
         const ESM::Cell* searchOrCreate(int x, int y);

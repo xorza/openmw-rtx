@@ -150,7 +150,7 @@ namespace DetourNavigator
 
         inline static IndexBox makeIndexBox(const TilesPositionsRange& range);
 
-        inline static ObjectIndexValue makeObjectIndexValue(const TilesPositionsRange& range, ObjectData* data);
+        inline static ObjectIndexValue makeObjectIndexValue(const TilesPositionsRange& range, ObjectData* id);
 
         inline static WaterIndexValue makeWaterIndexValue(
             const TilesPositionsRange& range, std::map<osg::Vec2i, WaterData>::const_iterator it);

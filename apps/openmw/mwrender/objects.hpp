@@ -66,10 +66,10 @@ namespace MWRender
         std::uint64_t takeIdentity() { return mNextIdentity++; }
 
         /// @param allowLight If false, no lights will be created, and particles systems will be removed.
-        void insertModel(const MWWorld::Ptr& ptr, const std::string& model, bool allowLight = true);
+        void insertModel(const MWWorld::Ptr& ptr, const std::string& mesh, bool allowLight = true);
 
         void insertNPC(const MWWorld::Ptr& ptr);
-        void insertCreature(const MWWorld::Ptr& ptr, const std::string& model, bool weaponsShields);
+        void insertCreature(const MWWorld::Ptr& ptr, const std::string& mesh, bool weaponsShields);
 
         Animation* getAnimation(const MWWorld::Ptr& ptr);
         const Animation* getAnimation(const MWWorld::ConstPtr& ptr) const;

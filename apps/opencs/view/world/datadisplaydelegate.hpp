@@ -77,7 +77,7 @@ namespace CSVWorld
         QSize sizeHint(const QStyleOptionViewItem& option, const QModelIndex& index) const override;
 
         /// pass a QSize defining height / width of icon. Default is QSize (16,16).
-        void setIconSize(const QSize& icon);
+        void setIconSize(const QSize& size);
 
         /// offset the horizontal position of the text from the right edge of the icon.  Default is 8 pixels.
         void setTextLeftOffset(int offset);

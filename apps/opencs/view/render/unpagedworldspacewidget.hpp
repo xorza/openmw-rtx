@@ -110,13 +110,13 @@ namespace CSVRender
 
         void referenceableAboutToBeRemoved(const QModelIndex& parent, int start, int end) override;
 
-        void referenceableAdded(const QModelIndex& index, int start, int end) override;
+        void referenceableAdded(const QModelIndex& parent, int start, int end) override;
 
         void referenceDataChanged(const QModelIndex& topLeft, const QModelIndex& bottomRight) override;
 
         void referenceAboutToBeRemoved(const QModelIndex& parent, int start, int end) override;
 
-        void referenceAdded(const QModelIndex& index, int start, int end) override;
+        void referenceAdded(const QModelIndex& parent, int start, int end) override;
 
         void pathgridDataChanged(const QModelIndex& topLeft, const QModelIndex& bottomRight) override;
 

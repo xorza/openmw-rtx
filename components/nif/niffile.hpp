@@ -157,7 +157,7 @@ namespace Nif
         /// Get the Bethesda version of the NIF format used
         std::uint32_t getBethVersion() const { return mBethVersion; }
 
-        static void setWriteNifDebugLog(bool load);
+        static void setWriteNifDebugLog(bool value);
     };
     using NIFFilePtr = std::shared_ptr<const Nif::NIFFile>;
 

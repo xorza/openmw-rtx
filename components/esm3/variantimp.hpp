@@ -7,17 +7,17 @@
 
 namespace ESM
 {
-    void readESMVariantValue(ESMReader& reader, Variant::Format format, VarType type, std::string& value);
+    void readESMVariantValue(ESMReader& esm, Variant::Format format, VarType type, std::string& out);
 
-    void readESMVariantValue(ESMReader& reader, Variant::Format format, VarType type, float& value);
+    void readESMVariantValue(ESMReader& esm, Variant::Format format, VarType type, float& out);
 
-    void readESMVariantValue(ESMReader& reader, Variant::Format format, VarType type, int32_t& value);
+    void readESMVariantValue(ESMReader& esm, Variant::Format format, VarType type, int32_t& out);
 
-    void writeESMVariantValue(ESMWriter& writer, Variant::Format format, VarType type, const std::string& value);
+    void writeESMVariantValue(ESMWriter& esm, Variant::Format format, VarType type, const std::string& in);
 
-    void writeESMVariantValue(ESMWriter& writer, Variant::Format format, VarType type, float value);
+    void writeESMVariantValue(ESMWriter& esm, Variant::Format format, VarType type, float in);
 
-    void writeESMVariantValue(ESMWriter& writer, Variant::Format format, VarType type, int32_t value);
+    void writeESMVariantValue(ESMWriter& esm, Variant::Format format, VarType type, int32_t in);
 
     struct ReadESMVariantValue
     {

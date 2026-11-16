@@ -47,7 +47,7 @@ namespace Rtx
         /// @param extraExtensions what a feature needs besides, such as NGX's: each enabled where
         ///        the loader offers it and left out where it does not, so `auto` can fall back to
         ///        the other upscaler; the feature then refuses where it is created, naming why.
-        Instance(const ValidationOptions& validation, std::span<const char* const> surfaceExtensions,
+        Instance(const ValidationOptions& options, std::span<const char* const> surfaceExtensions,
             std::span<const std::string> extraExtensions = {});
 
         /// The version the Vulkan loader offers, loading it into the process the first time it is

@@ -191,7 +191,7 @@ namespace MWSound
         bool isMusicPlaying() override;
         ///< Returns true if music is playing
 
-        void say(const MWWorld::ConstPtr& reference, VFS::Path::NormalizedView filename) override;
+        void say(const MWWorld::ConstPtr& ptr, VFS::Path::NormalizedView filename) override;
         ///< Make an actor say some text.
         /// \param filename name of a sound file in the VFS
 
@@ -199,16 +199,16 @@ namespace MWSound
         ///< Say some text, without an actor ref
         /// \param filename name of a sound file in the VFS
 
-        bool sayActive(const MWWorld::ConstPtr& reference = MWWorld::ConstPtr()) const override;
+        bool sayActive(const MWWorld::ConstPtr& ptr = MWWorld::ConstPtr()) const override;
         ///< Is actor not speaking?
 
-        bool sayDone(const MWWorld::ConstPtr& reference = MWWorld::ConstPtr()) const override;
+        bool sayDone(const MWWorld::ConstPtr& ptr = MWWorld::ConstPtr()) const override;
         ///< For scripting backward compatibility
 
-        void stopSay(const MWWorld::ConstPtr& reference = MWWorld::ConstPtr()) override;
+        void stopSay(const MWWorld::ConstPtr& ptr = MWWorld::ConstPtr()) override;
         ///< Stop an actor speaking
 
-        float getSaySoundLoudness(const MWWorld::ConstPtr& reference) const override;
+        float getSaySoundLoudness(const MWWorld::ConstPtr& ptr) const override;
         ///< Check the currently playing say sound for this actor
         /// and get an average loudness value (scale [0,1]) at the current time position.
         /// If the actor is not saying anything, returns 0.
@@ -234,14 +234,14 @@ namespace MWSound
         ///< Play a sound, independently of 3D-position
         ///< @param offset Number of seconds into the sound to start playback.
 
-        Sound* playSound3D(const MWWorld::ConstPtr& reference, const ESM::RefId& soundId, float volume, float pitch,
+        Sound* playSound3D(const MWWorld::ConstPtr& ptr, const ESM::RefId& soundId, float volume, float pitch,
             Type type = Type::Sfx, PlayMode mode = PlayMode::Normal, float offset = 0) override;
         ///< Play a 3D sound attached to an MWWorld::Ptr. Will be updated automatically with the Ptr's position, unless
         ///< Play_NoTrack is specified.
         ///< @param offset Number of seconds into the sound to start playback.
 
-        Sound* playSound3D(const MWWorld::ConstPtr& reference, VFS::Path::NormalizedView fileName, float volume,
-            float pitch, Type type = Type::Sfx, PlayMode mode = PlayMode::Normal, float offset = 0) override;
+        Sound* playSound3D(const MWWorld::ConstPtr& ptr, VFS::Path::NormalizedView fileName, float volume, float pitch,
+            Type type = Type::Sfx, PlayMode mode = PlayMode::Normal, float offset = 0) override;
         ///< Play a 3D sound attached to an MWWorld::Ptr. Will be updated automatically with the Ptr's position, unless
         ///< Play_NoTrack is specified.
         ///< @param offset Number of seconds into the sound to start playback.
@@ -256,28 +256,28 @@ namespace MWSound
         ///< Stop the given sound from playing
         /// @note no-op if \a sound is null
 
-        void stopSound3D(const MWWorld::ConstPtr& reference, const ESM::RefId& soundId) override;
+        void stopSound3D(const MWWorld::ConstPtr& ptr, const ESM::RefId& soundId) override;
         ///< Stop the given object from playing the given sound.
 
-        void stopSound3D(const MWWorld::ConstPtr& reference, VFS::Path::NormalizedView fileName) override;
+        void stopSound3D(const MWWorld::ConstPtr& ptr, VFS::Path::NormalizedView fileName) override;
         ///< Stop the given object from playing the given sound.
 
-        void stopSound3D(const MWWorld::ConstPtr& reference) override;
+        void stopSound3D(const MWWorld::ConstPtr& ptr) override;
         ///< Stop the given object from playing all sounds.
 
         void stopSound(const MWWorld::CellStore* cell) override;
         ///< Stop all sounds for the given cell.
 
-        void fadeOutSound3D(const MWWorld::ConstPtr& reference, const ESM::RefId& soundId, float duration) override;
+        void fadeOutSound3D(const MWWorld::ConstPtr& ptr, const ESM::RefId& soundId, float duration) override;
         ///< Fade out given sound (that is already playing) of given object
         ///< @param reference Reference to object, whose sound is faded out
         ///< @param soundId ID of the sound to fade out.
         ///< @param duration Time until volume reaches 0.
 
-        bool getSoundPlaying(const MWWorld::ConstPtr& reference, const ESM::RefId& soundId) const override;
+        bool getSoundPlaying(const MWWorld::ConstPtr& ptr, const ESM::RefId& soundId) const override;
         ///< Is the given sound currently playing on the given object?
 
-        bool getSoundPlaying(const MWWorld::ConstPtr& reference, VFS::Path::NormalizedView fileName) const override;
+        bool getSoundPlaying(const MWWorld::ConstPtr& ptr, VFS::Path::NormalizedView fileName) const override;
         ///< Is the given sound currently playing on the given object?
 
         void pauseSounds(MWSound::BlockerType blocker, int types = static_cast<int>(Type::Mask)) override;

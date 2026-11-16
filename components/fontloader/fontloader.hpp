@@ -100,7 +100,7 @@ namespace Gui
         std::vector<TrueTypeFace> mFaces;
 
         void loadFonts();
-        void loadFont(FontId fontId, std::string_view fontName);
+        void loadFont(FontId fontId, std::string_view fileName);
 
         void loadBitmapFont(FontId fontId, const VFS::Path::Normalized& path, std::istream& stream);
         void loadTrueTypeFont(FontId fontId, const VFS::Path::Normalized& path, std::istream& stream);

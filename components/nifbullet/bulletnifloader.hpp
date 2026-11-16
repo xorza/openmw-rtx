@@ -43,7 +43,7 @@ namespace NifBullet
             abort();
         }
 
-        std::shared_ptr<Resource::BulletShape> load(Nif::FileView file);
+        std::shared_ptr<Resource::BulletShape> load(Nif::FileView nif);
 
     private:
         bool findBoundingBox(const Nif::NiAVObject& node);
@@ -60,7 +60,7 @@ namespace NifBullet
 
         void handleRoot(Nif::FileView nif, const Nif::NiAVObject& node, HandleNodeArgs args);
         void handleNode(const Nif::NiAVObject& node, const Nif::Parent* parent, HandleNodeArgs args);
-        void handleGeometry(const Nif::NiGeometry& nifNode, const Nif::Parent* parent, HandleNodeArgs args);
+        void handleGeometry(const Nif::NiGeometry& niGeometry, const Nif::Parent* parent, HandleNodeArgs args);
 
         std::unique_ptr<btCompoundShape, Resource::DeleteCollisionShape> mCompoundShape;
         std::unique_ptr<btCompoundShape, Resource::DeleteCollisionShape> mAvoidCompoundShape;

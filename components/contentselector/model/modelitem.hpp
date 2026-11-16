@@ -24,7 +24,7 @@ namespace ContentSelectorModel
         int childRow(ModelItem* child) const;
         ModelItem* child(int row);
 
-        void appendChild(ModelItem* child);
+        void appendChild(ModelItem* item);
         void removeChild(int row);
 
         bool hasFormat(const QString& mimetype) const override;

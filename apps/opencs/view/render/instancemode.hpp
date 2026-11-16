@@ -55,7 +55,7 @@ namespace CSVRender
         QString getTooltip();
         int getSubModeFromId(const std::string& id) const;
 
-        osg::Vec3 quatToEuler(const osg::Quat& quat) const;
+        osg::Vec3 quatToEuler(const osg::Quat& rot) const;
         osg::Quat eulerToQuat(const osg::Vec3& euler) const;
 
         float roundFloatToMult(const float val, const double mult) const;

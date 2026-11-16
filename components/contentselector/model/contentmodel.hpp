@@ -36,8 +36,8 @@ namespace ContentSelectorModel
         Qt::ItemFlags flags(const QModelIndex& index) const override;
         bool setData(const QModelIndex& index, const QVariant& value, int role = Qt::EditRole) override;
 
-        bool insertRows(int position, int rows, const QModelIndex& index = QModelIndex()) override;
-        bool removeRows(int position, int rows, const QModelIndex& index = QModelIndex()) override;
+        bool insertRows(int position, int rows, const QModelIndex& parent = QModelIndex()) override;
+        bool removeRows(int position, int rows, const QModelIndex& parent = QModelIndex()) override;
 
         Qt::DropActions supportedDropActions() const override;
         QStringList mimeTypes() const override;
@@ -59,9 +59,9 @@ namespace ContentSelectorModel
 
         bool isChecked(const EsmFile* file) const;
         bool isEnabled(const QModelIndex& index) const;
-        bool setCheckState(const EsmFile* file, bool isChecked);
+        bool setCheckState(const EsmFile* file, bool checkState);
         bool isNew(const QString& filepath) const;
-        void setNew(const EsmFile* file, bool isChecked);
+        void setNew(const EsmFile* file, bool isNew);
         void setNonUserContent(const QStringList& fileList);
         void setContentList(const QStringList& fileList, bool orderOnly = false);
 

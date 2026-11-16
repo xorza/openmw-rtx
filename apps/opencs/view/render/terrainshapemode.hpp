@@ -193,7 +193,7 @@ namespace CSVRender
 
         /// Create new cell and land if needed, only user tools may ask for opening new cells (useTool == false is for
         /// automated land changes)
-        bool allowLandShapeEditing(const std::string& textureFileName, bool useTool = true);
+        bool allowLandShapeEditing(const std::string& cellId, bool useTool = true);
 
         /// Bind the edging vertice to the values of the adjancent cells
         void fixEdges(CSMWorld::CellCoordinates cellCoords);

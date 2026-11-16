@@ -23,7 +23,7 @@ namespace MWRender
         PingPongCull(const PingPongCull&) = delete;
         PingPongCull& operator=(const PingPongCull&) = delete;
 
-        void operator()(osg::Node* node, osgUtil::CullVisitor* nv);
+        void operator()(osg::Node* node, osgUtil::CullVisitor* cv);
 
     private:
         std::array<osg::Matrixf, 2> mLastViewMatrix;

@@ -58,7 +58,7 @@ namespace MWGui
 
     protected:
         void onPreviewScroll(MyGUI::Widget* sender, int delta);
-        void onHeadRotate(MyGUI::ScrollBar* sender, size_t position);
+        void onHeadRotate(MyGUI::ScrollBar* scroll, size_t position);
 
         void onSelectPreviousGender(MyGUI::Widget* sender);
         void onSelectNextGender(MyGUI::Widget* sender);

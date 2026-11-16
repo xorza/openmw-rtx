@@ -80,7 +80,7 @@ namespace Rtx
         /// it needs where `bound` is not already it. The mesh deforms and has vertices, which the
         /// caller asked first. `into`, `normalsInto` and `tangentsInto` are `what`'s three tables at
         /// its own slot, taken once by the caller rather than per mesh.
-        void pose(VkCommandBuffer commands, const Skinning& what, Index mesh, BlockedBuffer& into,
+        void pose(VkCommandBuffer commands, const Skinning& what, Index index, BlockedBuffer& into,
             BlockedBuffer& normalsInto, BlockedBuffer& tangentsInto, const Pipeline*& bound) const;
 
         ComputePipeline<Shaders::SkinConstants> mSkin;

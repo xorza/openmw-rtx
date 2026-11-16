@@ -856,24 +856,24 @@ namespace MWWorld
     }
 
     template <>
-    const ESM::Cell* ESMStore::insert<ESM::Cell>(const ESM::Cell& cell)
+    const ESM::Cell* ESMStore::insert<ESM::Cell>(const ESM::Cell& x)
     {
-        return getWritable<ESM::Cell>().insert(cell);
+        return getWritable<ESM::Cell>().insert(x);
     }
 
     template <>
-    const ESM::NPC* ESMStore::insert<ESM::NPC>(const ESM::NPC& npc)
+    const ESM::NPC* ESMStore::insert<ESM::NPC>(const ESM::NPC& x)
     {
 
         auto& npcs = getWritable<ESM::NPC>();
-        if (npc.mId == "Player")
+        if (x.mId == "Player")
         {
-            return npcs.insert(npc);
+            return npcs.insert(x);
         }
         const ESM::RefId id = ESM::RefId::generated(mDynamicCount++);
         if (npcs.search(id) != nullptr)
             throw std::runtime_error("Try to override existing record: " + id.toDebugString());
-        ESM::NPC record = npc;
+        ESM::NPC record = x;
 
         record.mId = id;
 

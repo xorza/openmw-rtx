@@ -39,7 +39,7 @@ namespace MWMechanics
 
         void remove(const ESM::Spell* spell);
 
-        void removeAll(const std::vector<ESM::RefId>& spells);
+        void removeAll(const std::vector<ESM::RefId>& ids);
 
         void clear();
         ///< Remove all spells of all types.

@@ -30,7 +30,7 @@ namespace MWMechanics
         // cells) coordinates
         //
         // NOTE: if start equals end an empty path is returned
-        std::deque<ESM::Pathgrid::Point> aStarSearch(const size_t start, const size_t end) const;
+        std::deque<ESM::Pathgrid::Point> aStarSearch(const size_t start, const size_t goal) const;
 
         static const PathgridGraph sEmpty;
 

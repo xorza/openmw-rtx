@@ -22,8 +22,8 @@ namespace ESM
             return mNote == other.mNote && mCell == other.mCell && mWorldX == other.mWorldX && mWorldY == other.mWorldY;
         }
 
-        void load(ESMReader& reader);
-        void save(ESMWriter& writer) const;
+        void load(ESMReader& esm);
+        void save(ESMWriter& esm) const;
     };
 
 }

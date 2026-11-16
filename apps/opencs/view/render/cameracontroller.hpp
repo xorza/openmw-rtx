@@ -74,7 +74,7 @@ namespace CSVRender
         Q_OBJECT
 
     public:
-        explicit FreeCameraController(QWidget* parent);
+        explicit FreeCameraController(QWidget* widget);
 
         double getLinearSpeed() const;
         double getRotationalSpeed() const;
@@ -129,14 +129,14 @@ namespace CSVRender
         Q_OBJECT
 
     public:
-        explicit OrbitCameraController(QWidget* parent);
+        explicit OrbitCameraController(QWidget* widget);
 
         osg::Vec3d getCenter() const;
         double getOrbitSpeed() const;
         double getOrbitSpeedMultiplier() const;
         unsigned int getPickingMask() const;
 
-        void setCenter(const osg::Vec3d& center);
+        void setCenter(const osg::Vec3d& value);
         void setOrbitSpeed(double value);
         void setOrbitSpeedMultiplier(double value);
         void setPickingMask(unsigned int value);

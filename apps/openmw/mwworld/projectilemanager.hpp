@@ -137,8 +137,8 @@ namespace MWWorld
         void cleanupMagicBolt(MagicBoltState& state);
         void periodicCleanup(float dt);
 
-        void moveProjectiles(float dt);
-        void moveMagicBolts(float dt);
+        void moveProjectiles(float duration);
+        void moveMagicBolts(float duration);
 
         void createModel(State& state, VFS::Path::NormalizedView model, const osg::Vec3f& pos, const osg::Quat& orient,
             bool rotate, bool createLight, osg::Vec4 lightDiffuseColor, VFS::Path::NormalizedView texture = {});

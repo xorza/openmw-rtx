@@ -275,7 +275,7 @@ namespace SceneUtil
 
         std::map<std::string, std::string> getLightDefines() const;
 
-        void processChangedSettings(float lightBoundsMultiplier, float maximumLightDistance, float lightFadeStart);
+        void processChangedSettings(float lightRadiusMultiplier, float maximumLightDistance, float lightFadeStart);
 
         /// Not thread safe, it is the responsibility of the caller to stop/start threading on the viewer
         void updateMaxLights(int maxLights);
@@ -299,7 +299,7 @@ namespace SceneUtil
         void initPerObjectUniform(int targetLights);
         void initClustered();
 
-        void updateSettings(float lightBoundsMultiplier, float maximumLightDistance, float lightFadeStart);
+        void updateSettings(float lightRadiusMultiplier, float maximumLightDistance, float lightFadeStart);
 
         void setMaxLights(int value);
 
@@ -397,9 +397,9 @@ namespace SceneUtil
 
         META_Object(SceneUtil, LightListCallback)
 
-        void operator()(osg::Node* node, osgUtil::CullVisitor* nv);
+        void operator()(osg::Node* node, osgUtil::CullVisitor* cv);
 
-        bool pushLightState(osg::Node* node, osgUtil::CullVisitor* nv);
+        bool pushLightState(osg::Node* node, osgUtil::CullVisitor* cv);
 
         std::set<SceneUtil::LightSource*>& getIgnoredLightSources() { return mIgnoredLightSources; }
 

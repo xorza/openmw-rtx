@@ -148,9 +148,9 @@ namespace MWWorld
 
         void updateWeather(float duration, bool paused = false);
 
-        void initObjectInCell(const Ptr& ptr, CellStore& cell, bool adjustPos);
-        Ptr moveObjectToCell(const Ptr& ptr, CellStore* cell, ESM::Position pos, bool adjustPos);
-        Ptr copyObjectToCell(const ConstPtr& ptr, CellStore* cell, ESM::Position pos, int count, bool adjustPos);
+        void initObjectInCell(const Ptr& object, CellStore& cell, bool adjustPos);
+        Ptr moveObjectToCell(const Ptr& object, CellStore* cell, ESM::Position pos, bool adjustPos);
+        Ptr copyObjectToCell(const ConstPtr& object, CellStore* cell, ESM::Position pos, int count, bool adjustPos);
 
         void updateSoundListener();
 
@@ -330,9 +330,9 @@ namespace MWWorld
         void fixPosition() override;
         ///< Attempt to fix position so that the player is not stuck inside the geometry.
 
-        void enable(const Ptr& ptr) override;
+        void enable(const Ptr& reference) override;
 
-        void disable(const Ptr& ptr) override;
+        void disable(const Ptr& reference) override;
 
         void advanceTime(double hours, bool incremental = false) override;
         ///< Advance in-game time.
@@ -524,16 +524,16 @@ namespace MWWorld
             const MWWorld::ConstPtr& object) override; ///< @return true if the player is colliding with \a object
         bool getActorCollidingWith(
             const MWWorld::ConstPtr& object) override; ///< @return true if any actor is colliding with \a object
-        void hurtStandingActors(const MWWorld::ConstPtr& object, float dmgPerSecond) override;
+        void hurtStandingActors(const MWWorld::ConstPtr& object, float healthPerSecond) override;
         ///< Apply a health difference to any actors standing on \a object.
         /// To hurt actors, healthPerSecond should be a positive value. For a negative value, actors will be healed.
-        void hurtCollidingActors(const MWWorld::ConstPtr& object, float dmgPerSecond) override;
+        void hurtCollidingActors(const MWWorld::ConstPtr& object, float healthPerSecond) override;
         ///< Apply a health difference to any actors colliding with \a object.
         /// To hurt actors, healthPerSecond should be a positive value. For a negative value, actors will be healed.
 
         float getWindSpeed() const override;
 
-        void getContainersOwnedBy(const MWWorld::ConstPtr& npc, std::vector<MWWorld::Ptr>& out) override;
+        void getContainersOwnedBy(const MWWorld::ConstPtr& owner, std::vector<MWWorld::Ptr>& out) override;
         ///< get all containers in active cells owned by this Npc
         void getItemsOwnedBy(const MWWorld::ConstPtr& npc, std::vector<MWWorld::Ptr>& out) override;
         ///< get all items in active cells owned by this Npc
@@ -598,7 +598,7 @@ namespace MWWorld
          * @brief Cast the actual spell, should be called mid-animation
          * @param actor
          */
-        void castSpell(const MWWorld::Ptr& actor, bool manualSpell = false) override;
+        void castSpell(const MWWorld::Ptr& actor, bool scriptedSpell = false) override;
 
         void launchMagicBolt(const ESM::RefId& spellId, const MWWorld::Ptr& caster, const osg::Vec3f& fallbackDirection,
             ESM::RefNum item, const std::optional<MWMechanics::MovingTarget>& movingTarget) override;
@@ -677,7 +677,7 @@ namespace MWWorld
         void setVisibilityGate(std::uint32_t gate, Terrain::GateState state) override;
 
         /// Return physical or rendering half extents of the given actor.
-        osg::Vec3f getHalfExtents(const MWWorld::ConstPtr& actor, bool rendering = false) const override;
+        osg::Vec3f getHalfExtents(const MWWorld::ConstPtr& object, bool rendering = false) const override;
 
         /// Export scene graph to a file and return the filename.
         /// \param ptr object to export scene graph for (if empty, export entire scene graph)

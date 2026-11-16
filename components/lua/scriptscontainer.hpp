@@ -154,7 +154,7 @@ namespace LuaUtil
 
         // Removes all scripts; starts scripts according to `autoStartMode` and
         // loads the savedScripts. Runs "onLoad" for each script.
-        void load(const ESM::LuaScripts& savedScripts);
+        void load(const ESM::LuaScripts& data);
 
         // Callbacks for serializable timers should be registered in advance.
         // The script with the given path should already present in the container.
@@ -340,7 +340,7 @@ namespace LuaUtil
         // state. The serialized data is automatically restored to the Lua state as required. Unloading and reloading
         // the container is functionally equivalent to saving and loading the game, meaning the appropriate engine
         // handlers are invoked.
-        UnloadedData& ensureUnloaded(LuaView& lua);
+        UnloadedData& ensureUnloaded(LuaView& view);
         LoadedData& ensureLoaded();
 
         EngineHandlerList mUpdateHandlers{ "onUpdate" };

@@ -31,7 +31,7 @@ namespace Terrain
     public:
         QuadTreeWorld(osg::Group* parent, osg::Group* compileRoot, Resource::ResourceSystem* resourceSystem,
             Storage* storage, unsigned int nodeMask, unsigned int preCompileMask, unsigned int borderMask,
-            int compMapResolution, float comMapLevel, float lodFactor, int vertexLodMod, float maxCompGeometrySize,
+            int compMapResolution, float compMapLevel, float lodFactor, int vertexLodMod, float maxCompGeometrySize,
             bool debugChunks, ESM::RefId worldspace, double expiryDelay);
 
         ~QuadTreeWorld() override;
@@ -49,7 +49,7 @@ namespace Terrain
         void unloadCell(int x, int y) override;
 
         std::unique_ptr<View> createView() override;
-        void preload(View* view, const osg::Vec3f& eyePoint, const osg::Vec4i& cellgrid, std::atomic<bool>& abort,
+        void preload(View* view, const osg::Vec3f& viewPoint, const osg::Vec4i& cellgrid, std::atomic<bool>& abort,
             Loading::Reporter& reporter) override;
         void rebuildViews() override;
 

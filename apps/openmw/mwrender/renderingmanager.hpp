@@ -158,8 +158,7 @@ namespace MWRender
 
         void configureAmbient(const MWWorld::Cell& cell);
         void configureFog(const MWWorld::Cell& cell);
-        void configureFog(
-            float fogDepth, float underwaterFog, float dlFactor, float dlOffset, const osg::Vec4f& colour);
+        void configureFog(float fogDepth, float underwaterFog, float dlFactor, float dlOffset, const osg::Vec4f& color);
 
         void addCell(const MWWorld::CellStore* store);
         void removeCell(const MWWorld::CellStore* store);
@@ -175,7 +174,7 @@ namespace MWRender
         void removeObject(const MWWorld::Ptr& ptr);
 
         void setWaterEnabled(bool enabled);
-        void setWaterHeight(float level);
+        void setWaterHeight(float height);
 
         /// Take a screenshot of w*h, not including the GUI, encoded as JPEG. Empty on failure.
         std::vector<char> screenshot(int w, int h);
@@ -263,7 +262,7 @@ namespace MWRender
 
         void rebuildPtr(const MWWorld::Ptr& ptr);
 
-        void processChangedSettings(const Settings::CategorySettingVector& settings);
+        void processChangedSettings(const Settings::CategorySettingVector& changed);
 
         float getNearClipDistance() const { return mNearClip; }
         float getViewDistance() const { return mViewDistance; }

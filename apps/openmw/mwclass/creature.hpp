@@ -97,7 +97,7 @@ namespace MWClass
 
         int getServices(const MWWorld::ConstPtr& actor) const override;
 
-        bool isPersistent(const MWWorld::ConstPtr& ptr) const override;
+        bool isPersistent(const MWWorld::ConstPtr& actor) const override;
 
         ESM::RefId getSoundIdFromSndGen(const MWWorld::Ptr& ptr, std::string_view name) const override;
 

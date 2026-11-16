@@ -22,7 +22,7 @@ namespace MWDialogue
             std::map<char, Entry> mChildren;
         };
 
-        void buildTrie(std::string_view keyword, std::string_view value, std::size_t depth, Entry& entry);
+        void buildTrie(std::string_view keyword, std::string_view topicId, std::size_t depth, Entry& entry);
         Entry mRoot;
 
     public:

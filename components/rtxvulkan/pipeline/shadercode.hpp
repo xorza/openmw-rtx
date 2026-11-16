@@ -40,7 +40,7 @@ namespace Rtx
     /// rounding of a block that ends in a 64-bit address to a multiple of eight (`hosttypes.h`).
     /// Nothing where they agree, and nothing for a module that reads no push.
     std::optional<std::string> pushDisagreement(
-        std::optional<std::uint32_t> end, const VkPushConstantRange& range, VkShaderStageFlagBits stage);
+        std::optional<std::uint32_t> end, const VkPushConstantRange& declared, VkShaderStageFlagBits stage);
 
     /// The first input of a vertex module that `attributes` — the pipeline's description of a
     /// vertex — do not feed, in words: one at a location no attribute names, or one whose

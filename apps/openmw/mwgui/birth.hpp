@@ -17,7 +17,7 @@ namespace MWGui
         };
 
         const ESM::RefId& getBirthId() const { return mCurrentBirthId; }
-        void setBirthId(const ESM::RefId& raceId);
+        void setBirthId(const ESM::RefId& birthId);
 
         void setNextButtonShow(bool shown);
         void onOpen() override;

@@ -44,7 +44,7 @@ namespace CSVDoc
     public:
         explicit LoadingDocument(CSMDoc::Document* document);
 
-        void nextStage(const std::string& name, int totalRecords);
+        void nextStage(const std::string& name, int fileRecords);
 
         void nextRecord(int records);
 
@@ -88,7 +88,7 @@ namespace CSVDoc
 
         void loadingStopped(CSMDoc::Document* document, bool completed, const std::string& error);
 
-        void nextStage(CSMDoc::Document* document, const std::string& name, int totalRecords);
+        void nextStage(CSMDoc::Document* document, const std::string& name, int fileRecords);
 
         void nextRecord(CSMDoc::Document* document, int records);
 

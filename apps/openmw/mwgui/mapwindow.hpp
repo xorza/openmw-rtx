@@ -301,7 +301,7 @@ namespace MWGui
         float getMarkerSize(size_t agregatedWeight) const;
         void resizeGlobalMap();
         void shiftMap(int dx, int dy);
-        void worldPosToGlobalMapImageSpace(float x, float z, float& imageX, float& imageY) const;
+        void worldPosToGlobalMapImageSpace(float x, float y, float& imageX, float& imageY) const;
         MyGUI::IntCoord createMarkerCoords(float x, float y, float agregatedWeight) const;
         MyGUI::Widget* createMarker(const std::string& name, float x, float y, float agregatedWeight);
 

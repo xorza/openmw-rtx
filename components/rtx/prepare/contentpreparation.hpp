@@ -181,7 +181,7 @@ namespace Rtx
 
         /// Walks job `at`, unless it stands as the last preparation found it, and queues the chains it
         /// claimed.
-        void walkJob(Hand& hand, std::size_t at);
+        void walkJob(Hand& hand, std::size_t next);
 
         /// Makes `queued`, which the caller took out of `mChains` under the lock.
         void makeChain(Hand& hand, const QueuedChain& queued);

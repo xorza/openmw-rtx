@@ -309,7 +309,7 @@ namespace NifOsg
         double mStartingTime{ 0 };
 
     public:
-        explicit RollController(const Nif::NiRollController* interpolator);
+        explicit RollController(const Nif::NiRollController* ctrl);
         RollController() = default;
         RollController(const RollController& copy, const osg::CopyOp& copyop);
 

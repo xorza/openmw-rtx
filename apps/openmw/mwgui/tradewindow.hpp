@@ -114,7 +114,7 @@ namespace MWGui
         void onIncreaseButtonTriggered();
         void onDecreaseButtonTriggered();
 
-        void addOrRemoveGold(int gold, const MWWorld::Ptr& actor);
+        void addOrRemoveGold(int amount, const MWWorld::Ptr& actor);
 
         void updateLabels();
 

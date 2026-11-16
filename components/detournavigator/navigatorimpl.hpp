@@ -85,7 +85,7 @@ namespace DetourNavigator
 
         inline void updateAvoidShapeId(const ObjectId id, const ObjectId avoidId, const UpdateGuard* guard);
 
-        inline void updateId(const ObjectId id, const ObjectId waterId, std::unordered_map<ObjectId, ObjectId>& ids,
+        inline void updateId(const ObjectId id, const ObjectId updateId, std::unordered_map<ObjectId, ObjectId>& ids,
             const UpdateGuard* guard);
 
         inline void removeUnusedNavMeshes();

@@ -27,12 +27,12 @@ namespace MWRender
     {
     public:
         AnimBlendController(const osg::ref_ptr<SceneUtil::KeyframeController>& keyframeTrack,
-            const AnimBlendStateData& animState, const std::shared_ptr<const SceneUtil::AnimBlendRules>& blendRules);
+            const AnimBlendStateData& newState, const std::shared_ptr<const SceneUtil::AnimBlendRules>& blendRules);
 
         AnimBlendController();
 
         void setKeyframeTrack(const osg::ref_ptr<SceneUtil::KeyframeController>& kft,
-            const AnimBlendStateData& animState, const std::shared_ptr<const SceneUtil::AnimBlendRules>& blendRules);
+            const AnimBlendStateData& newState, const std::shared_ptr<const SceneUtil::AnimBlendRules>& blendRules);
 
         bool getBlendTrigger() const { return mBlendTrigger; }
 
@@ -60,7 +60,7 @@ namespace MWRender
     {
     public:
         NifAnimBlendController(const osg::ref_ptr<SceneUtil::KeyframeController>& keyframeTrack,
-            const AnimBlendStateData& animState, const std::shared_ptr<const SceneUtil::AnimBlendRules>& blendRules);
+            const AnimBlendStateData& newState, const std::shared_ptr<const SceneUtil::AnimBlendRules>& blendRules);
 
         NifAnimBlendController() {}
 
@@ -86,7 +86,7 @@ namespace MWRender
     {
     public:
         BoneAnimBlendController(const osg::ref_ptr<SceneUtil::KeyframeController>& keyframeTrack,
-            const AnimBlendStateData& animState, const std::shared_ptr<const SceneUtil::AnimBlendRules>& blendRules);
+            const AnimBlendStateData& newState, const std::shared_ptr<const SceneUtil::AnimBlendRules>& blendRules);
 
         BoneAnimBlendController() {}
 
@@ -95,8 +95,8 @@ namespace MWRender
         {
         }
 
-        void gatherRecursiveBoneTransforms(osgAnimation::Bone* parent, bool isRoot = true);
-        void applyBoneBlend(osgAnimation::Bone* parent);
+        void gatherRecursiveBoneTransforms(osgAnimation::Bone* bone, bool isRoot = true);
+        void applyBoneBlend(osgAnimation::Bone* bone);
 
         META_Object(MWRender, BoneAnimBlendController)
 

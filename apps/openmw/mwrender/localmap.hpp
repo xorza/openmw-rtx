@@ -160,7 +160,7 @@ namespace MWRender
         struct MapSegment
         {
             void initFogOfWar();
-            void loadFogOfWar(const ESM::FogTexture& fog);
+            void loadFogOfWar(const ESM::FogTexture& esm);
             void saveFogOfWar(ESM::FogTexture& fog) const;
 
             /// Makes `image` the fog: into the texture's own image where there is one, so what is

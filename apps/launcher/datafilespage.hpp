@@ -143,7 +143,7 @@ namespace Launcher
         QTimer* mReloadCellsTimer;
 
         void addArchive(const QString& name, Qt::CheckState selected, int row = -1);
-        void addArchivesFromDir(const QString& dir);
+        void addArchivesFromDir(const QString& path);
         void buildView();
         void buildArchiveContextMenu();
         void buildDataFilesContextMenu();

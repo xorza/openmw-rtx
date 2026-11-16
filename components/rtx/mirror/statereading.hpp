@@ -66,10 +66,10 @@ namespace Rtx
     ///
     /// @return whether the state set carried a material or a texture: what tells a surface from a node that only sets a
     ///        mode or a uniform on the way down.
-    bool describeStateSet(const osg::StateSet& stateSet, SurfaceDescription& into, SurfaceLocks& locks);
+    bool describeStateSet(const osg::StateSet& stateSet, SurfaceDescription& material, SurfaceLocks& locks);
 
     /// One state set on its own, under no lock.
-    bool describeStateSet(const osg::StateSet& stateSet, SurfaceDescription& into);
+    bool describeStateSet(const osg::StateSet& stateSet, SurfaceDescription& material);
 
     /// Whether `stateSet` holds anything `describeStateSet` reads into a description: an attribute
     /// or a mode it carries or reports unread, a texture, or a uniform. One that holds only the

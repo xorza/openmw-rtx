@@ -83,6 +83,6 @@ namespace MWClass
 
         /// Get the effective armor rating, factoring in the actor's skills, for the given armor.
         float getSkillAdjustedArmorRating(
-            const MWWorld::ConstPtr& armor, const MWWorld::Ptr& actor, bool useLuaInterfaceIfAvailable) const override;
+            const MWWorld::ConstPtr& ptr, const MWWorld::Ptr& actor, bool useLuaInterfaceIfAvailable) const override;
     };
 }

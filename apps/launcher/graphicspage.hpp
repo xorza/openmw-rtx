@@ -37,7 +37,7 @@ namespace Launcher
         void screenChanged(int screen);
 
     private slots:
-        void slotFullScreenChanged(int state);
+        void slotFullScreenChanged(int mode);
         void slotStandardToggled(bool checked);
         void slotFramerateLimitToggled(bool checked);
         void downloadDlss();
@@ -70,6 +70,6 @@ namespace Launcher
         static QRect getMaximumResolution();
 
         bool setupSDL();
-        void handleWindowModeChange(Settings::WindowMode state);
+        void handleWindowModeChange(Settings::WindowMode mode);
     };
 }

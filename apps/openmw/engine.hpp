@@ -222,7 +222,7 @@ namespace OMW
 
         void executeLocalScripts();
 
-        bool frame(unsigned frameNumber, float dt);
+        bool frame(unsigned frameNumber, float frametime);
 
         /// Prepare engine for game play
         void prepareEngine();

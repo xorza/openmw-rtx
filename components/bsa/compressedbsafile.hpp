@@ -110,7 +110,7 @@ namespace Bsa
         FileRecord getFileRecord(std::string_view str) const;
 
         /// \brief Normalizes given filename or folder and generates format-compatible hash.
-        static std::uint64_t generateHash(std::string_view stem, std::string_view extension);
+        static std::uint64_t generateHash(std::string_view str, std::string_view extension);
         Files::IStreamPtr getFile(const FileRecord& fileRecord);
 
     public:

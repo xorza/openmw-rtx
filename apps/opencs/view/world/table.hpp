@@ -178,6 +178,6 @@ namespace CSVWorld
 
         void jumpAfterModChanged(int state);
 
-        void queuedScrollTo(int state);
+        void queuedScrollTo(int row);
     };
 }

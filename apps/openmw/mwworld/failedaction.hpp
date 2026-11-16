@@ -12,6 +12,6 @@ namespace MWWorld
         void executeImp(const Ptr& actor) override;
 
     public:
-        explicit FailedAction(std::string_view message = {}, const Ptr& target = Ptr());
+        explicit FailedAction(std::string_view msg = {}, const Ptr& target = Ptr());
     };
 }

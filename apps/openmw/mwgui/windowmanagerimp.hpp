@@ -442,7 +442,7 @@ namespace MWGui
 
         std::map<MyGUI::Window*, WindowSettingValues> mTrackedWindows;
         void trackWindow(Layout* layout, const WindowSettingValues& settings);
-        void onWindowChangeCoord(MyGUI::Window* sender);
+        void onWindowChangeCoord(MyGUI::Window* window);
 
         ESM::RefId mSelectedSpell;
         MWWorld::Ptr mSelectedEnchantItem;

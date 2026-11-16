@@ -225,7 +225,7 @@ namespace MWWorld
         void validateDynamic();
 
         void load(ESM::ESMReader& esm, Loading::Listener* listener, ESM::Dialogue*& dialogue);
-        void loadESM4(ESM4::Reader& esm, Loading::Listener* listener);
+        void loadESM4(ESM4::Reader& reader, Loading::Listener* listener);
 
         template <class T>
         const Store<T>& get() const
@@ -316,10 +316,10 @@ namespace MWWorld
         std::pair<std::shared_ptr<MWMechanics::SpellList>, bool> getSpellList(ESM::RefId id, bool autoCalc) const;
     };
     template <>
-    const ESM::Cell* ESMStore::insert<ESM::Cell>(const ESM::Cell& cell);
+    const ESM::Cell* ESMStore::insert<ESM::Cell>(const ESM::Cell& x);
 
     template <>
-    const ESM::NPC* ESMStore::insert<ESM::NPC>(const ESM::NPC& npc);
+    const ESM::NPC* ESMStore::insert<ESM::NPC>(const ESM::NPC& x);
 
     template <class T>
     concept HasRecordId = requires { T::sRecordId; };

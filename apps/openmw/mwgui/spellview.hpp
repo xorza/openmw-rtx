@@ -107,7 +107,7 @@ namespace MWGui
         void onSpellSelected(MyGUI::Widget* sender);
         void onMouseWheelMoved(MyGUI::Widget* sender, int rel);
 
-        SpellModel::ModelIndex getSpellModelIndex(MyGUI::Widget* sender);
+        SpellModel::ModelIndex getSpellModelIndex(MyGUI::Widget* widget);
     };
 
 }

@@ -132,7 +132,7 @@ namespace Resource
         void setShaderPath(const std::filesystem::path& path);
 
         /// Check if a given scene is loaded and if so, update its usage timestamp to prevent it from being unloaded
-        bool checkLoaded(VFS::Path::NormalizedView name, double referenceTime);
+        bool checkLoaded(VFS::Path::NormalizedView name, double timeStamp);
 
         /// Get a read-only copy of this scene "template"
         /// @note If the given filename does not exist or fails to load, an error marker mesh will be used instead.
