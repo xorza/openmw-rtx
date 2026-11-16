@@ -46,6 +46,13 @@ How the tree is configured, built, formatted and shipped, as decisions. The CMak
 - **The standard library's assertions in every flavour but release**: libstdc++'s `_GLIBCXX_ASSERTIONS` and the MSVC
   STL's `_MSVC_STL_HARDENING`, which change no layout, so the set built without them links beside them. Refused:
   `_GLIBCXX_DEBUG` and `_ITERATOR_DEBUG_LEVEL`, which do; libc++, a set and a runtime of its own.
+- **Hardened as
+  [OpenSSF](https://best.openssf.org/Compiler-Hardening-Guides/Compiler-Options-Hardening-Guide-for-C-and-C++.html)
+  lists, the set and the tree alike, in every flavour** (`vcpkg/flags.cmake`): the stack protector, stack-clash
+  probes, CET's markings and `_FORTIFY_SOURCE=3`, since the set's libraries parse most of the untrusted files the game
+  reads, and the tests run the code that ships; every symbol bound at load (`-z now`). Checked calls are off under a
+  sanitizer, which does not support them
+  ([AddressSanitizer FAQ](https://github.com/google/sanitizers/wiki/AddressSanitizer#faq)).
 - **CMake 4.4.5, the driver's own**, fetched into `out/deps/` for every desk, CI and the release image.
 
 ## Presets and the driver

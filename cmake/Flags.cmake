@@ -52,10 +52,14 @@ else()
     set(openmw_flags_common "${openmw_codegen_gnu} ${openmw_codegen_linux} -fno-math-errno")
     # UndefinedBehaviorSanitizer beside AddressSanitizer, its first finding the end of the process however the
     # program was started, where `UBSAN_OPTIONS=halt_on_error=1` stops it only under the test presets.
+    # glibc's checked calls off under either, which no sanitizer supports (the AddressSanitizer FAQ).
     if(OPENMW_SANITIZER STREQUAL "address")
-        string(APPEND openmw_flags_common " -fsanitize=address,undefined -fno-sanitize-recover=undefined")
+        string(
+            APPEND openmw_flags_common
+            " -fsanitize=address,undefined -fno-sanitize-recover=undefined -U_FORTIFY_SOURCE"
+        )
     elseif(OPENMW_SANITIZER STREQUAL "thread")
-        string(APPEND openmw_flags_common " -fsanitize=thread")
+        string(APPEND openmw_flags_common " -fsanitize=thread -U_FORTIFY_SOURCE")
     elseif(OPENMW_SANITIZER)
         message(FATAL_ERROR "OPENMW_SANITIZER is address, thread or empty, not ${OPENMW_SANITIZER}")
     endif()
@@ -80,10 +84,11 @@ endforeach()
 # shared libstdc++ alone. A sanitizer's runtime is the shared one, found beside the pinned Clang: linked in, it sits
 # ahead of what wraps its interceptors, and Crashpad's `pthread_create`, which calls on the next definition
 # (`RTLD_NEXT`), went past it to the C library's, whose threads AddressSanitizer did not know when they were joined.
-# Folding is `safe`, which leaves alone what may have its address compared.
+# Folding is `safe`, which leaves alone what may have its address compared. Every symbol is bound at load
+# (`-z now`), so lld's default RELRO makes the whole GOT read-only, beside its default non-executable stack.
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     set(CMAKE_LINKER_TYPE LLD)
-    set(openmw_link_flags "-Wl,--gc-sections")
+    set(openmw_link_flags "-Wl,--gc-sections -Wl,-z,now")
     if(OPENMW_SANITIZER)
         string(APPEND openmw_link_flags " -shared-libsan -frtlib-add-rpath")
     else()

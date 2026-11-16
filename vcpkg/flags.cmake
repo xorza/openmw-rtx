@@ -9,11 +9,15 @@
 # - Each function and global in a section of its own, which the link drops where nothing reaches it, inside the
 #   set's archives too (GCC's sections and `--gc-sections`; MSVC's `/Gy`, which `/O2` implies, `/Gw` and
 #   `/OPT:REF`). `/Zc:inline` drops an unreferenced inline function before the object is written.
-# - The stack protector GCC's distributions and MSVC (`/GS`) default to, against the untrusted files the game
-#   reads; the release base's GCC has it off unless asked.
+# - OpenSSF's hardening, against the untrusted files the game reads, most of which the set's libraries parse: the
+#   stack protector GCC's distributions and MSVC (`/GS`) default to, which the release base's GCC has off unless
+#   asked; stack-clash probes; CET's branch and return markings, inert until the system asks for them (glibc
+#   enables no shadow stack unless a tunable does, and Linux has no IBT for programs), and dropped by lld from a
+#   program where any object lacks them; and glibc's checked calls at level 3, which AlmaLinux 8's glibc 2.28, the
+#   release base's, caps at 2. Its `-U` first, as a toolchain may define a level of its own.
 # - No semantic interposition: vcpkg compiles every Linux port with `-fPIC`, under which GCC would otherwise
 #   inline no exported function of a library into another, for a program that links all of them statically.
 set(openmw_codegen_gnu
-    "-g1 -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -march=x86-64-v2 -ffunction-sections -fdata-sections -fstack-protector-strong -fno-semantic-interposition"
+    "-g1 -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -march=x86-64-v2 -ffunction-sections -fdata-sections -fstack-protector-strong -fstack-clash-protection -fcf-protection=full -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 -fno-semantic-interposition"
 )
 set(openmw_codegen_msvc "/Oy- /arch:SSE4.2 /Gw /Zc:inline")
