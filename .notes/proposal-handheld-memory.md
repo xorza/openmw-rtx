@@ -40,123 +40,19 @@ arriving textures stood smaller than their files beside that rest. When this lan
 
 ## Final shape
 
-### What the process holds (`components/platform`)
-
-```cpp
-namespace Platform
-{
-    /// What the heap's allocator holds of the process's memory, where it says: what it took from the system, and what
-    /// of that is in use; the rest is free memory it keeps until a trim (`trimHeap`). glibc's `mallinfo2`, found at
-    /// run time, since the release builds compile against glibc 2.28, which lacks it.
-    struct HeapHeld
-    {
-        std::uint64_t mTaken = 0;
-        std::uint64_t mInUse = 0;
-    };
-
-    /// What this process holds of the system's memory, as the system counts it: its anonymous memory resident and
-    /// swapped out (Linux's `RssAnon` and `VmSwap`; Windows' private bytes and what of them the pagefile holds), and
-    /// the heap's figures where the allocator states them.
-    struct ProcessMemory
-    {
-        std::uint64_t mResident = 0;
-        std::uint64_t mSwapped = 0;
-        std::optional<HeapHeld> mHeap;
-    };
-
-    /// Nothing where the system does not say. `memorylinux.cpp` and `memorywin32.cpp`, beside `availableMemory`.
-    std::optional<ProcessMemory> processMemory();
-}
-```
-
-The harness logs it at every stop's end beside the resource caches (`Session::advance`), and a tour's report says
-its peak: the resident and swapped memory at the stop that held most, and the heap's free memory there.
-
-### A refused content take (`components/rtxvulkan/device/memory`)
-
-```cpp
-/// One content pool's room, as the library counts it (`vmaCalculatePoolStatistics`): the blocks it took, what is
-/// allocated in them, and the largest free range, the largest resource it places without a block of its own.
-struct PoolRoom
-{
-    std::uint32_t mType = 0;
-    VkDeviceSize mBlocks = 0;
-    VkDeviceSize mAllocated = 0;
-    VkDeviceSize mLargestFree = 0;
-};
-
-/// What a content take the allocator refused asked, and how the heap stood: logged once a refusal, beside the
-/// refusal the scene reports.
-struct RefusedTake
-{
-    MemoryUse mUse = MemoryUse::Texture;
-    VkDeviceSize mBytes = 0;
-    std::uint32_t mType = 0;
-    bool mOwn = false;
-    VideoBudget mVideo;
-    std::array<PoolRoom, VK_MAX_MEMORY_TYPES> mPools{};
-    std::uint32_t mPoolCount = 0;
-};
-```
-
-The uploader's report of the refusal adds what rests of each kind (`TextureTable::getResting`,
-`MeshTable::getResting`) and the buried content (`Graveyard::getBuried`).
-
-### What the device stood short (`components/rtx/scene/deviceanswer.hpp`)
-
-```cpp
-/// A texture the device stood short of its file for want of room: the bytes it stood — nought for the stand-in, a
-/// smaller side otherwise — of the file's whole.
-struct ShortTexture
-{
-    Index mSlot = sNoIndex;
-    std::uint64_t mStoodBytes = 0;
-};
-
-struct DeviceAnswer
-{
-    std::vector<Refusal> mRefused;
-    std::vector<StoodMesh> mMeshes;
-
-    /// Each texture stood short this hand-over, once: what `mRoomless` was, with the smaller sides beside the
-    /// stand-ins, since both are handed over again once the room holds the file.
-    std::vector<ShortTexture> mShort;
-};
-```
-
-### What the uploader waits on (`SceneUploader`)
-
-```cpp
-/// A texture stood short, waiting for the room its whole file takes: its slot and the file it waits with; the
-/// file's bytes and what it stands now, whose difference the room kept counts; how many hand-overs a stand-in has
-/// waited, up to `sMostRoomWaits`, past which it is refused — a smaller side waits on, since it draws its texture;
-/// and whether its texels are being read again for the hand-over (`PreparedImages::find`).
-struct TextureWait
-{
-    Index mSlot = sNoIndex;
-    osg::ref_ptr<const osg::Image> mSource;
-    std::uint64_t mFileBytes = 0;
-    std::uint64_t mStoodBytes = 0;
-    std::uint32_t mWaited = 0;
-    bool mReading = false;
-};
-```
-
-`mLargestArrival` stays the structures' figure alone; the textures' share of the room kept is the arrival's own,
-summed from its descriptions' whole sides once they are described and before the hand-over.
+Landed: the process's anonymous memory (`Platform::Process::anonymousMemory`) and the heap's figures
+(`Platform::heapHeld`, glibc's `mallinfo2` found at run time, Windows' process heap), logged at every stop's end with
+the run's peak in the report (`RunRecord::noteHostMemory`); the last refused content take with every content pool's
+room (`RefusedTake`, `MemoryAllocator::getLastRefused`), logged when the device answers a fresh refusal, beside what
+rests of each kind; the textures the device stood short (`DeviceAnswer::mShort`, `ShortTexture`), waited on and read
+again before they are handed over whole (`SceneUploader::TextureWait`); the eviction sized from the arrival's
+descriptions, beside the most any arrival's structures took (`SceneUploader::evictForRoom`).
 
 ## Steps
 
-1. `Platform::processMemory` with its Linux and Windows files, tested against a `/proc/self/status` text as
-   `availableMemory` is (`linuxtext`); the harness's per-stop line and the tour's peak line.
-2. `RefusedTake` logged at a content refusal, tested on a GPU device with a budget held under one block
-   (`Testing::BudgetLimit`): the pool's figures exact, the largest free range shown to matter.
-3. One handheld repack tour at the tip with both reports, flown through `./omw release remote`; the figures go to a
-   dated research note, and the steps below are taken or refused by them.
-4. If the report shows a structure refused for want of the heap's room beyond the blocks: structure storage held at
+1. One handheld repack tour at the tip with both reports; the figures go to a dated research note, and the steps below
+   are taken or refused by them.
+2. If the report shows a structure refused for want of the heap's room beyond the blocks: structure storage held at
    half a block, and to the types textures take; the bottom-level store's tests over the new bound.
-5. The eviction sized from the arrival's descriptions; `DeviceAnswer::mShort` from the texture array's chosen levels;
-   `TextureWait` handing a smaller side over again once read; tests for each through the uploader's counting
-   renderer, with exact bytes, and the texture array's GPU test standing a smaller side short.
-6. The host's mitigation the figures point at, proposed with them before it is made.
-7. Tours of the three contents on the desk, the handheld and Windows; `.notes/ISSUES.md` rewritten from them.
+3. The host's mitigation the figures point at, proposed with them before it is made.
+4. Tours of the three contents on the desk, the handheld and Windows; `.notes/ISSUES.md` rewritten from them.

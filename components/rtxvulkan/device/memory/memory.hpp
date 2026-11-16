@@ -4,6 +4,7 @@
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
+#include <mutex>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -191,6 +192,33 @@ namespace Rtx
         VkDeviceSize mHeld = 0;
     };
 
+    /// One content pool's room, as the library counts it: the blocks it took, what is allocated in them, and the
+    /// largest free range, the largest resource it places without memory of its own.
+    struct PoolRoom
+    {
+        std::uint32_t mType = 0;
+        VkDeviceSize mBlocks = 0;
+        VkDeviceSize mAllocated = 0;
+        VkDeviceSize mLargestFree = 0;
+    };
+
+    /// What a content take the allocator refused for room asked, and how the heap stood: the use, the bytes, the
+    /// memory type, whether it was to have memory of its own; the video heap's budget and what the process held; and
+    /// every content pool (`MemoryAllocator::getLastRefused`).
+    struct RefusedTake
+    {
+        MemoryUse mUse = MemoryUse::Texture;
+        VkDeviceSize mBytes = 0;
+        std::uint32_t mType = 0;
+        bool mOwn = false;
+        VideoBudget mVideo;
+        std::array<PoolRoom, VK_MAX_MEMORY_TYPES> mPools{};
+        std::uint32_t mPoolCount = 0;
+    };
+
+    /// A refused take as one log line says it.
+    std::string describe(const RefusedTake& refused);
+
     /// The extensions of the device's memory that were enabled, which the allocator works with.
     struct MemoryExtensions
     {
@@ -327,6 +355,11 @@ namespace Rtx
         /// is left.
         MemoryReport report() const;
 
+        /// The last content take refused for room, and how many have been: what a caller that refuses content
+        /// for good reads to say why, beside the refusal (`DeviceScene`).
+        std::optional<RefusedTake> getLastRefused() const;
+        std::uint64_t getRefusedCount() const { return mRefusedCount.load(std::memory_order_relaxed); }
+
     private:
         friend class DeviceMemory;
 
@@ -426,5 +459,12 @@ namespace Rtx
 
         /// What `holdOutside` was last told.
         VkDeviceSize mHeldOutside = 0;
+
+        /// The last content take refused for room and the count of them, under their lock: a take is reached from
+        /// several threads.
+        void noteRefused(MemoryUse use, VkDeviceSize bytes, std::uint32_t type, bool own);
+        mutable std::mutex mRefusedMutex;
+        std::optional<RefusedTake> mLastRefused;
+        std::atomic<std::uint64_t> mRefusedCount = 0;
     };
 }

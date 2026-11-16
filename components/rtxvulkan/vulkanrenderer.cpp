@@ -489,7 +489,18 @@ namespace Rtx
 
     void VulkanRenderer::takeAnswer(const SceneSlot slot, DeviceAnswer& into)
     {
+        const std::size_t refusedBefore = into.mRefused.size();
         mScenes.at(slot).takeAnswer(into);
+
+        // **A refusal says how the heap stood**, once each time the allocator refused content anew: what the take
+        // asked and every content pool's room, the figures a mesh left out beside resting textures is read by.
+        const MemoryAllocator& memory = mDevice.getMemory();
+        if (into.mRefused.size() > refusedBefore && memory.getRefusedCount() > mRefusedTakesSaid)
+        {
+            mRefusedTakesSaid = memory.getRefusedCount();
+            if (const std::optional<RefusedTake> refused = memory.getLastRefused(); refused.has_value())
+                Log(Debug::Warning) << "Ray tracing had " << describe(*refused);
+        }
     }
 
     std::optional<ArrivalRoom> VulkanRenderer::getArrivalRoom(const SceneSlot slot) const

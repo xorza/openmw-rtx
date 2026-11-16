@@ -1,8 +1,11 @@
 #include <algorithm>
 #include <array>
+#include <bit>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <span>
+#include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
@@ -372,14 +375,38 @@ namespace Rtx
         /// **Both ways content comes to new memory**: forty megabytes, more than half a block, is an allocation of its
         /// own, and four kilobytes is a range of a block, which with every gap filled and every ceiling at nought has
         /// nowhere to go. The same forty megabytes as the frame's are made where the ceilings say there is nothing.
+        /// **Each refusal is the last refused take**, its use, its bytes and its own memory or a block as asked, with
+        /// every content pool's figures beside it, none allocating past its blocks.
         TEST_F(RtxMemoryTest, withNoRoomContentIsRefusedAndTheFramesOwnMemoryIsMade)
         {
             const Testing::NoRoomForContent full(getDevice());
+            MemoryAllocator& memory = getDevice().getMemory();
+            VkPhysicalDeviceMemoryProperties properties{};
+            vkGetPhysicalDeviceMemoryProperties(getDevice().getPhysicalDevice().getHandle(), &properties);
+            const auto contentTypes = static_cast<std::uint32_t>(std::popcount(contentTypesOf(properties).mTypes));
 
             for (const VkDeviceSize size : { VkDeviceSize{ 40 } << 20, VkDeviceSize{ 4096 } })
                 for (const MemoryUse use : { MemoryUse::Structure, MemoryUse::Texture })
+                {
+                    const std::uint64_t refusedBefore = memory.getRefusedCount();
                     EXPECT_FALSE(tryBind(getDevice(), size, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, use).has_value())
                         << size << " bytes were placed with no room for them";
+                    EXPECT_EQ(memory.getRefusedCount(), refusedBefore + 1);
+                    const std::optional<RefusedTake> refused = memory.getLastRefused();
+                    ASSERT_TRUE(refused.has_value());
+                    EXPECT_EQ(refused->mUse, use);
+                    EXPECT_GE(refused->mBytes, size) << "the driver's requirement is the size or past it";
+                    EXPECT_EQ(refused->mOwn, size > (VkDeviceSize{ 32 } << 20));
+                    EXPECT_EQ(refused->mPoolCount, contentTypes);
+                    for (const PoolRoom& pool : std::span(refused->mPools).first(refused->mPoolCount))
+                    {
+                        EXPECT_LE(pool.mAllocated, pool.mBlocks) << pool.mType;
+                        EXPECT_LE(pool.mLargestFree, pool.mBlocks - pool.mAllocated) << pool.mType;
+                    }
+                    EXPECT_NE(
+                        describe(*refused).find(std::string("no device memory for a ") + std::string(nameOf(use))),
+                        std::string::npos);
+                }
 
             const Bound essential = bind(getDevice(), VkDeviceSize{ 40 } << 20, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
             EXPECT_NE(essential.mMemory.getHandle(), VK_NULL_HANDLE);

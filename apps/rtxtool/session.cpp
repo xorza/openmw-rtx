@@ -27,6 +27,8 @@
 #include <components/debug/debugging.hpp>
 #include <components/debug/debuglog.hpp>
 #include <components/misc/result.hpp>
+#include <components/platform/heap.hpp>
+#include <components/platform/process.hpp>
 #include <components/resource/cachebudget.hpp>
 #include <components/resource/resourcesystem.hpp>
 #include <components/rtx/common/mebibytes.hpp>
@@ -549,6 +551,21 @@ namespace RtxTool
                                 "; together {:.1f} MiB of a budget of {:.1f} MiB, {} looks for room finding all in use",
                                 Rtx::mebibytes(budget.getHeld()), Rtx::mebibytes(budget.getBytes()),
                                 budget.getStarvedLooks());
+
+        // And what the process holds of the system's memory beside them, whose peak the report says.
+        if (const std::optional<Platform::Process::AnonymousMemory> anonymous = Platform::Process::anonymousMemory();
+            anonymous.has_value())
+        {
+            const std::optional<Platform::HeapHeld> heap = Platform::heapHeld();
+            Log(Debug::Info) << std::format(
+                "Host memory after stop {}: {:.1f} MiB anonymous resident, {:.1f} MiB "
+                "swapped out{}",
+                (mAt + 1), Rtx::mebibytes(anonymous->mResident), Rtx::mebibytes(anonymous->mSwapped),
+                heap.has_value() ? std::format("; the heap took {:.1f} MiB, {:.1f} MiB of it in use",
+                                       Rtx::mebibytes(heap->mTaken), Rtx::mebibytes(heap->mInUse))
+                                 : std::string());
+            mRecord.noteHostMemory(currentStop().mName, *anonymous, heap);
+        }
 
         mStarted = false;
         ++mAt;

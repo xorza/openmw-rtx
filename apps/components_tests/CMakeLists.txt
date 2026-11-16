@@ -75,6 +75,7 @@ target_sources(
         nifosg/testparticle.cpp
         platform/appendfile.cpp
         platform/folder.cpp
+        platform/heap.cpp
         platform/localtime.cpp
         platform/sharedmemory.cpp
         platform/thread.cpp

@@ -131,4 +131,16 @@ namespace Platform::Process
     /// beside its frames, since a heap the kernel compacts for one stalls the frame that asked.
     /// Nothing on a system that is not Linux, or where the counters cannot be read.
     std::optional<std::uint64_t> compactionStalls();
+
+    /// What a process holds of anonymous memory, as the system counts it: resident, and swapped out — on Windows the
+    /// private memory committed and not in its working set, which the pagefile holds or nothing has touched yet.
+    struct AnonymousMemory
+    {
+        std::uint64_t mResident = 0;
+        std::uint64_t mSwapped = 0;
+    };
+
+    /// `AnonymousMemory` of this process, now: what a run on a machine short of memory reads at every stop, since
+    /// what it holds the system takes from everything else. Nothing where the system does not say.
+    std::optional<AnonymousMemory> anonymousMemory();
 }

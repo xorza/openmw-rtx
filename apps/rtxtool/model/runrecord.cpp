@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <filesystem>
 #include <format>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -14,6 +15,7 @@
 #include <components/platform/folder.hpp>
 #include <components/platform/process.hpp>
 #include <components/rtx/common/asserts.hpp>
+#include <components/rtx/common/mebibytes.hpp>
 
 namespace RtxTool
 {
@@ -93,6 +95,16 @@ namespace RtxTool
         mReport += describePlace(mPlaces.back(), mHeader.mMeasures);
     }
 
+    void RunRecord::noteHostMemory(const std::string_view stop, const Platform::Process::AnonymousMemory& anonymous,
+        const std::optional<Platform::HeapHeld> heap)
+    {
+        const auto held
+            = [](const Platform::Process::AnonymousMemory& memory) { return memory.mResident + memory.mSwapped; };
+        if (mHostPeak.has_value() && held(anonymous) <= held(mHostPeak->mAnonymous))
+            return;
+        mHostPeak = HostPeak{ .mStop = std::string(stop), .mAnonymous = anonymous, .mHeap = heap };
+    }
+
     void RunRecord::checked(const Check check, const bool held)
     {
         ++mChecked;
@@ -145,6 +157,24 @@ namespace RtxTool
                 "\nthe kernel compacted memory {} times during the run, each a stalled allocation: "
                 "a worst frame may be one\n",
                 *stalls - *mCompactionStalls);
+
+        // **What the process held of the system's memory at its peak**: on a machine short of memory what it holds
+        // the system takes from everything else, and the heap's free share says whether it is data or what the
+        // allocator kept of what was freed.
+        if (mHostPeak.has_value())
+        {
+            const HostPeak& peak = *mHostPeak;
+            mReport += std::format(
+                "\nthe process held at most {:.1f} MiB of anonymous memory, {:.1f} MiB of it swapped out, "
+                "at {}",
+                Rtx::mebibytes(peak.mAnonymous.mResident + peak.mAnonymous.mSwapped),
+                Rtx::mebibytes(peak.mAnonymous.mSwapped), peak.mStop);
+            if (peak.mHeap.has_value())
+                mReport += std::format("; the heap took {:.1f} MiB there, {:.1f} MiB of it free",
+                    Rtx::mebibytes(peak.mHeap->mTaken),
+                    Rtx::mebibytes(peak.mHeap->mTaken - std::min(peak.mHeap->mInUse, peak.mHeap->mTaken)));
+            mReport += '\n';
+        }
 
         // **What a `check` run came to, in one line.** A suite asks every check at each of several
         // places, so the verdict is otherwise something a reader counts by hand.

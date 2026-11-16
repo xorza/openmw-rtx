@@ -121,6 +121,16 @@ namespace Platform::Process
         return LinuxText::compactionStalls(*vmstat);
     }
 
+    std::optional<AnonymousMemory> anonymousMemory()
+    {
+        // The status is some sixty short lines.
+        std::array<char, 8192> buffer{};
+        const std::optional<std::string_view> status = KernelFile::read("/proc/self/status", buffer);
+        if (!status.has_value())
+            return std::nullopt;
+        return LinuxText::anonymousMemory(*status);
+    }
+
     std::size_t keepToPerformanceCores()
     {
         // The kernel lists each core type apart only on a hybrid part, which is the one case there is

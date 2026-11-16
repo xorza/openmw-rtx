@@ -15,6 +15,7 @@
 
 #include <components/misc/windows.hpp>
 
+#include <psapi.h>
 #include <shellapi.h>
 
 namespace Platform::Process
@@ -166,6 +167,19 @@ namespace Platform::Process
     std::optional<std::uint64_t> compactionStalls()
     {
         return std::nullopt;
+    }
+
+    std::optional<AnonymousMemory> anonymousMemory()
+    {
+        PROCESS_MEMORY_COUNTERS_EX2 counters{};
+        counters.cb = sizeof(counters);
+        // The `EX2` layout is the call's own, asked for by its size, which the call reads through the base type.
+        if (!GetProcessMemoryInfo(
+                GetCurrentProcess(), reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&counters), sizeof(counters)))
+            return std::nullopt;
+        const std::uint64_t resident = counters.PrivateWorkingSetSize;
+        const std::uint64_t committed = counters.PrivateUsage;
+        return AnonymousMemory{ .mResident = resident, .mSwapped = committed - std::min(resident, committed) };
     }
 
     std::size_t keepToPerformanceCores()

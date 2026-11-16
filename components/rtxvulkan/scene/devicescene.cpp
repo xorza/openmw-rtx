@@ -209,7 +209,7 @@ namespace Rtx
     void DeviceScene::takeAnswer(DeviceAnswer& into)
     {
         into.mRefused.insert(into.mRefused.end(), mAnswer.mRefused.begin(), mAnswer.mRefused.end());
-        into.mRoomless.insert(into.mRoomless.end(), mAnswer.mRoomless.begin(), mAnswer.mRoomless.end());
+        into.mShort.insert(into.mShort.end(), mAnswer.mShort.begin(), mAnswer.mShort.end());
         mAnswer.clear();
         mAcceleration.takeResized(into.mMeshes);
     }

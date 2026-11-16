@@ -25,23 +25,32 @@ namespace Rtx
         std::uint64_t mStructureBytes = 0;
     };
 
+    /// A texture the device stood short of its file for want of room: the bytes it stood — nought for the stand-in, a
+    /// smaller side otherwise — which the scene's owner hands over again once the room holds the file
+    /// (`SceneUploader`): the device keeps no texels to stand it whole later.
+    struct ShortTexture
+    {
+        Index mSlot = sNoIndex;
+        std::uint64_t mStoodBytes = 0;
+
+        bool operator==(const ShortTexture& other) const = default;
+    };
+
     /// **What the device made of what it was handed, since the last take** (`SceneHolder::takeAnswer`): what it could
     /// not stand, what each mesh's structure took at its build, which a static mesh rests on (`MeshTable::stand`), and
-    /// the textures it had no room for. One answer, so one call carries everything the device says of an arrival.
+    /// each texture it stood short for want of room. One answer, so one call carries everything the device says of an
+    /// arrival.
     struct DeviceAnswer
     {
         std::vector<Refusal> mRefused;
         std::vector<StoodMesh> mMeshes;
-
-        /// The texture slots the device had no room for while room is coming, which draw the stand-in until the
-        /// scene's owner hands them over again (`SceneUploader`): the device keeps no texels to stand one later.
-        std::vector<Index> mRoomless;
+        std::vector<ShortTexture> mShort;
 
         void clear()
         {
             mRefused.clear();
             mMeshes.clear();
-            mRoomless.clear();
+            mShort.clear();
         }
     };
 }

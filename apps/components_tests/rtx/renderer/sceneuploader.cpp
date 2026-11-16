@@ -371,13 +371,13 @@ namespace Rtx
             EXPECT_EQ(woke.mDescribed, 0u) << "and the device stands the texture already";
         }
 
-        /// **The textures that rest give the device room back, the oldest to rest first**, as much as keeps
-        /// room for an extension as large as any so far: three files of 64 bytes arrived at once, 192, and
-        /// rest in the order their models go. Room for 192 frees none; room for 100 frees the first two to
-        /// rest, 128 bytes, the fewest that make the 92 short; unbounded, as a renderer that says none, frees
-        /// none either. **A rebuild frees every one**, as it describes from the host's images, which a slot
-        /// that rests has let go of, **and is no arrival**: the same three built from nothing and let go of
-        /// rest under no room at all.
+        /// **The textures that rest give the device room back, the oldest to rest first**, as much as keeps room
+        /// for the arrival at hand — its textures' whole files, as described — beside the most any arrival's structures
+        /// took, and what waits: three files of 64 bytes arrived at once beside 8 bytes of structures, and rest in the
+        /// order their models go. Nothing arriving keeps the 8; a file of 64 arriving keeps 64 + 8 = 72; a structure
+        /// waiting for 64 keeps 8 + 64 = 72. Unbounded, as a renderer that says none, frees none. **A rebuild frees
+        /// every one**, as it describes from the host's images, which a slot that rests has let go of, **and is no
+        /// arrival**: the same three built from nothing and let go of rest under no room at all.
         TEST(RtxSceneUploaderTest, theTexturesThatRestGiveTheDeviceRoomOldestFirst)
         {
             // A budget whose share, a quarter of 4 GiB, is past anything these rest, so the room alone frees them.
@@ -424,21 +424,29 @@ namespace Rtx
             EXPECT_EQ(scene.textures().getResting().getCount(), 3u);
             EXPECT_EQ(scene.textures().getResting().getBytes(), 192u);
 
-            renderer.mArrivalRoom = Rtx::ArrivalRoom{ .mFree = 200, .mBudget = sBudget };
-            EXPECT_EQ(hand(uploader, renderer).mDropped, 0u) << "room for the largest arrival, 192 + 8";
-            renderer.mArrivalRoom = Rtx::ArrivalRoom{ .mFree = 199, .mBudget = sBudget };
+            renderer.mArrivalRoom = Rtx::ArrivalRoom{ .mFree = 8, .mBudget = sBudget };
+            EXPECT_EQ(hand(uploader, renderer).mDropped, 0u) << "room for the structures' 8, nothing arriving";
+            renderer.mArrivalRoom = Rtx::ArrivalRoom{ .mFree = 7, .mBudget = sBudget };
             EXPECT_EQ(hand(uploader, renderer).mDropped, 1u) << "the structures' 8 bytes were not kept";
-            renderer.mArrivalRoom = Rtx::ArrivalRoom{ .mFree = 140, .mBudget = sBudget };
-            EXPECT_EQ(hand(uploader, renderer).mDropped, 1u) << "60 short, the next oldest's 64";
+
+            // A file of 64 arriving, one byte short of its 64 and the structures' 8: the next oldest goes for it.
+            constexpr VFS::Path::NormalizedView arriving("textures/tx_arriving.dds");
+            images.push_back(sixtyFourBytes(arriving.value()));
+            Testing::addModel(scene, arriving, images.back().get());
+            renderer.mArrivalRoom = Rtx::ArrivalRoom{ .mFree = 71, .mBudget = sBudget };
+            const SceneUpload arrival = hand(uploader, renderer);
+            EXPECT_EQ(arrival.mKind, SceneUpload::Kind::Extended);
+            EXPECT_EQ(arrival.mDropped, 1u) << "the arrival's 64 and the structures' 8, 72, in 71";
             EXPECT_EQ(renderer.mDropped, (std::vector<std::uint32_t>{ models[1].mTexture, models[0].mTexture }));
             EXPECT_EQ(scene.textures().getResting().getCount(), 1u);
             EXPECT_EQ(scene.textures().getResting().getBytes(), 64u);
-            EXPECT_FALSE(scene.textures().isLive(models[1].mTexture));
+            EXPECT_EQ(scene.textures().getRows()[models[1].mTexture].mPath, arriving)
+                << "the arrival takes the lowest slot given back";
             EXPECT_TRUE(scene.textures().isLive(models[2].mTexture));
 
             // **A structure that waits for room is given it**: the last that rests goes for the 64 bytes it wants,
-            // where the largest arrival alone had room.
-            renderer.mArrivalRoom = Rtx::ArrivalRoom{ .mFree = 200, .mBudget = sBudget, .mWanted = 64 };
+            // beside the structures' 8.
+            renderer.mArrivalRoom = Rtx::ArrivalRoom{ .mFree = 71, .mBudget = sBudget, .mWanted = 64 };
             EXPECT_EQ(hand(uploader, renderer).mDropped, 1u);
             EXPECT_FALSE(scene.textures().isLive(models[2].mTexture));
             renderer.mArrivalRoom.reset();
@@ -448,13 +456,13 @@ namespace Rtx
             EXPECT_EQ(hand(fresh, other).mKind, SceneUpload::Kind::Rebuilt);
             EXPECT_EQ(scene.textures().getResting().getCount(), 0u);
             EXPECT_FALSE(scene.textures().isLive(models[2].mTexture));
-            EXPECT_EQ(other.mDescribedSlots.size(), 1u) << "the first model's, which a texture names";
+            EXPECT_EQ(other.mDescribedSlots.size(), 2u) << "the first model's and the arrival's, which textures name";
 
             addThree();
             SceneUploader built;
             Testing::CountingRenderer roomless;
             roomless.mArrivalRoom = Rtx::ArrivalRoom{ .mBudget = sBudget };
-            EXPECT_EQ(hand(built, roomless).mDescribed, 4u);
+            EXPECT_EQ(hand(built, roomless).mDescribed, 5u);
             for (const Testing::Model& model : models)
                 scene.dropInstance(model.mPlacement, Stander::Walk);
             EXPECT_EQ(hand(built, roomless).mDropped, 0u) << "a rebuild taken for an arrival";
@@ -482,7 +490,7 @@ namespace Rtx
             hand();
             const std::uint32_t refusedBefore = scene.refusals().count(Refused::Texture);
             const Testing::Model model = Testing::addModel(scene, path, image.get());
-            renderer.mRoomless.push_back(model.mTexture);
+            renderer.mShort.push_back(ShortTexture{ .mSlot = model.mTexture, .mStoodBytes = 0 });
             renderer.mArrivalRoom = Rtx::ArrivalRoom{ .mFree = 0, .mBudget = sBudget };
             EXPECT_EQ(hand().mKind, SceneUpload::Kind::Extended);
             EXPECT_EQ(scene.textures().getRows()[model.mTexture].mStoodBytes, 0u) << "a texture that waits stood";
@@ -499,11 +507,51 @@ namespace Rtx
             EXPECT_EQ(renderer.mDescribedSlots, (std::vector<std::uint32_t>{ model.mTexture }));
             EXPECT_EQ(scene.textures().getRows()[model.mTexture].mStoodBytes, 64u);
 
+            // **A smaller side waits on and is never refused**, and is handed over again once the room holds what it
+            // lacks of its file: 16 of 64 stood, so 48, which 47 does not hold.
+            constexpr VFS::Path::NormalizedView smaller("textures/tx_smaller.dds");
+            const osg::ref_ptr<osg::Image> smallerImage = sixtyFourBytes(smaller.value());
+            const Testing::Model held = Testing::addModel(scene, smaller, smallerImage.get());
+            renderer.mShort.push_back(ShortTexture{ .mSlot = held.mTexture, .mStoodBytes = 16 });
+            renderer.mArrivalRoom = Rtx::ArrivalRoom{ .mFree = 47, .mBudget = sBudget };
+            hand();
+            EXPECT_EQ(scene.textures().getRows()[held.mTexture].mStoodBytes, 0u) << "a smaller side rests on nothing";
+            renderer.mDescribedSlots.clear();
+            for (std::uint32_t waited = 0; waited <= sMostRoomWaits; ++waited)
+                hand();
+            EXPECT_TRUE(renderer.mDescribedSlots.empty()) << "handed over without room for what it lacks";
+            EXPECT_EQ(scene.refusals().count(Refused::Texture), refusedBefore) << "a smaller side was refused";
+            renderer.mArrivalRoom = Rtx::ArrivalRoom{ .mFree = 48, .mBudget = sBudget };
+            hand();
+            EXPECT_EQ(renderer.mDescribedSlots, (std::vector<std::uint32_t>{ held.mTexture }));
+            EXPECT_EQ(scene.textures().getRows()[held.mTexture].mStoodBytes, 64u);
+
+            // **A smaller side the device stands short every time it is handed over stands as it is** after
+            // `sMostRoomWaits` tries, and is handed over no more.
+            constexpr VFS::Path::NormalizedView tries("textures/tx_tries.dds");
+            const osg::ref_ptr<osg::Image> triesImage = sixtyFourBytes(tries.value());
+            const Testing::Model trying = Testing::addModel(scene, tries, triesImage.get());
+            renderer.mShort.push_back(ShortTexture{ .mSlot = trying.mTexture, .mStoodBytes = 16 });
+            hand();
+            for (std::uint32_t tried = 0; tried < sMostRoomWaits; ++tried)
+            {
+                renderer.mDescribedSlots.clear();
+                renderer.mShort.push_back(ShortTexture{ .mSlot = trying.mTexture, .mStoodBytes = 16 });
+                hand();
+                EXPECT_EQ(renderer.mDescribedSlots, (std::vector<std::uint32_t>{ trying.mTexture })) << tried;
+            }
+            renderer.mShort.clear();
+            renderer.mDescribedSlots.clear();
+            hand();
+            hand();
+            EXPECT_TRUE(renderer.mDescribedSlots.empty()) << "handed over past its tries";
+            EXPECT_EQ(scene.refusals().count(Refused::Texture), refusedBefore) << "a smaller side was refused";
+
             // Another whose room never comes: refused once the bound is reached, and not before.
             constexpr VFS::Path::NormalizedView never("textures/tx_never.dds");
             const osg::ref_ptr<osg::Image> neverImage = sixtyFourBytes(never.value());
             const Testing::Model stranded = Testing::addModel(scene, never, neverImage.get());
-            renderer.mRoomless.push_back(stranded.mTexture);
+            renderer.mShort.push_back(ShortTexture{ .mSlot = stranded.mTexture, .mStoodBytes = 0 });
             renderer.mArrivalRoom = Rtx::ArrivalRoom{ .mFree = 0, .mBudget = sBudget };
             hand();
             for (std::uint32_t waited = 1; waited < sMostRoomWaits; ++waited)
@@ -519,7 +567,7 @@ namespace Rtx
             constexpr VFS::Path::NormalizedView gone("textures/tx_gone.dds");
             const osg::ref_ptr<osg::Image> goneImage = sixtyFourBytes(gone.value());
             const Testing::Model going = Testing::addModel(scene, gone, goneImage.get());
-            renderer.mRoomless.push_back(going.mTexture);
+            renderer.mShort.push_back(ShortTexture{ .mSlot = going.mTexture, .mStoodBytes = 0 });
             hand();
             scene.dropInstance(going.mPlacement, Stander::Walk);
             for (std::uint32_t waited = 0; waited <= sMostRoomWaits; ++waited)
@@ -532,7 +580,7 @@ namespace Rtx
             constexpr VFS::Path::NormalizedView rebuilt("textures/tx_rebuilt.dds");
             const osg::ref_ptr<osg::Image> rebuiltImage = sixtyFourBytes(rebuilt.value());
             const Testing::Model rebuilding = Testing::addModel(scene, rebuilt, rebuiltImage.get());
-            renderer.mRoomless.push_back(rebuilding.mTexture);
+            renderer.mShort.push_back(ShortTexture{ .mSlot = rebuilding.mTexture, .mStoodBytes = 0 });
             hand();
             renderer.heldAt(Rtx::SceneSlot::world()).mIdentity = 0;
             EXPECT_EQ(hand().mKind, SceneUpload::Kind::Rebuilt);
@@ -600,8 +648,8 @@ namespace Rtx
 
         /// **What rests comes down to a limit that dropped a step a hand-over**, the most one extension handed the
         /// device, and the room an arrival needs at once. Five files of 64 bytes, handed over one a hand-over, rest
-        /// 320 under a limit of nought: the first hand-over frees the 128 the room keeps (the largest arrival's 64 and
-        /// 64 a structure wants) and a step of 64 more, three files; each after it one.
+        /// 320 under a limit of nought: the first hand-over frees the 64 a structure wants and a step of 64 more, two
+        /// files; each after it one.
         TEST(RtxSceneUploaderTest, whatRestsComesDownToALimitThatDroppedAStepAHandOver)
         {
             Rtx::SceneDesc scene;
@@ -630,8 +678,9 @@ namespace Rtx
             ASSERT_EQ(scene.textures().getResting().getBytes(), 320u);
 
             renderer.mArrivalRoom = Rtx::ArrivalRoom{ .mFree = 0, .mBudget = 0, .mWanted = 64 };
-            EXPECT_EQ(hand().mDropped, 3u);
+            EXPECT_EQ(hand().mDropped, 2u);
             renderer.mArrivalRoom = Rtx::ArrivalRoom{ .mFree = 1u << 20, .mBudget = 0 };
+            EXPECT_EQ(hand().mDropped, 1u);
             EXPECT_EQ(hand().mDropped, 1u);
             EXPECT_EQ(hand().mDropped, 1u);
             EXPECT_EQ(hand().mDropped, 0u);
@@ -696,10 +745,11 @@ namespace Rtx
             prepared.flush();
         }
 
-        /// **A header that waits for room keeps its texels for its next hand-over, and lets go of them once refused**:
-        /// the DXT1 of 8 by 8 in three levels, 32 + 8 + 8 = 48 bytes, read, handed over and named roomless holds them
-        /// in the manager's cache until it has waited `sMostRoomWaits` hand-overs, and holds nothing after.
-        TEST(RtxSceneUploaderTest, aHeaderWaitingForRoomKeepsItsTexelsUntilRefused)
+        /// **A header stood short lets go of its texels, and is read again once the room comes back**: the DXT1 of 8 by
+        /// 8 in three levels, 32 + 8 + 8 = 48 bytes, read, handed over and named short holds nothing in the manager's
+        /// cache after; with room for its 48 bytes it is read again, handed over again when read, and holds nothing
+        /// once stood. A stand-in whose room never comes is refused after `sMostRoomWaits` hand-overs.
+        TEST(RtxSceneUploaderTest, aHeaderStoodShortLetsGoOfItsTexelsAndIsReadAgainForTheRoom)
         {
             TestingOpenMW::VFSTestFile file(Testing::ddsDxt1(8, 8, 3, 0x55));
             constexpr VFS::Path::NormalizedView path("textures/tx_waiting.dds");
@@ -722,16 +772,55 @@ namespace Rtx
             renderer.mArrivalRoom = Rtx::ArrivalRoom{ .mFree = 0, .mBudget = std::uint64_t{ 4 } << 30 };
             hand();
             prepared.flush();
-            renderer.mRoomless.push_back(model.mTexture);
+            renderer.mShort.push_back(ShortTexture{ .mSlot = model.mTexture, .mStoodBytes = 0 });
             hand();
             EXPECT_EQ(renderer.mDescribedBytes, (std::vector<std::uint64_t>{ 48 }));
-            EXPECT_EQ(budget.getHeld(), 48u) << "a header that waits let go of its texels";
+            EXPECT_EQ(budget.getHeld(), 0u) << "a header stood short kept its texels";
+            EXPECT_EQ(scene.textures().getRows()[model.mTexture].mStoodBytes, 0u) << "a short texture rests on nothing";
 
+            // The room for its 48: read again, nothing handed over until it is read.
+            renderer.mArrivalRoom = Rtx::ArrivalRoom{ .mFree = 48, .mBudget = std::uint64_t{ 4 } << 30 };
+            renderer.mDescribedSlots.clear();
+            hand();
+            EXPECT_TRUE(renderer.mDescribedSlots.empty()) << "handed over before it was read";
+            prepared.flush();
+            hand();
+            EXPECT_EQ(renderer.mDescribedSlots, (std::vector<Index>{ model.mTexture }));
+            EXPECT_EQ(scene.textures().getRows()[model.mTexture].mStoodBytes, 48u);
+            EXPECT_EQ(budget.getHeld(), 0u) << "a header stood whole kept its texels";
+
+            // **A settled hand-over hands it over on the hand-over the room comes**, its description reading and
+            // waiting for the texels, so two runs agree on the frame it lands.
+            renderer.mShort.push_back(ShortTexture{ .mSlot = model.mTexture, .mStoodBytes = 0 });
+            scene.textures().arriveAgain(model.mTexture);
+            hand();
+            renderer.mDescribedSlots.clear();
+            uploader.hand(renderer,
+                Rtx::SceneUploader::Handing{
+                    .mSlot = Rtx::SceneSlot::world(), .mScene = scene, .mPrepared = &prepared, .mSettled = true });
+            EXPECT_EQ(renderer.mDescribedSlots, (std::vector<Index>{ model.mTexture }))
+                << "a settled hand-over waited for a read of its own";
+            EXPECT_EQ(scene.textures().getRows()[model.mTexture].mStoodBytes, 48u);
+
+            // Another whose room never comes: refused once it waited its most, and not before.
+            TestingOpenMW::VFSTestFile otherFile(Testing::ddsDxt1(8, 8, 3, 0x66));
+            constexpr VFS::Path::NormalizedView otherPath("textures/tx_never_room.dds");
+            const std::unique_ptr<VFS::Manager> otherVfs = TestingOpenMW::createTestVFS({ { otherPath, &otherFile } });
+            Resource::ImageManager otherImages(otherVfs.get(), budget);
+            otherImages.setModelImages(Resource::ModelImages::Headers);
+            const osg::ref_ptr<osg::Image> otherHeader = otherImages.getModelImage(otherPath);
+            const Testing::Model stranded = Testing::addModel(scene, otherPath, otherHeader.get());
+            renderer.mArrivalRoom = Rtx::ArrivalRoom{ .mFree = 0, .mBudget = std::uint64_t{ 4 } << 30 };
+            hand();
+            prepared.flush();
+            renderer.mShort.push_back(ShortTexture{ .mSlot = stranded.mTexture, .mStoodBytes = 0 });
+            hand();
             const std::uint32_t refusedBefore = scene.refusals().count(Refused::Texture);
-            for (std::uint32_t waited = 0; waited < sMostRoomWaits; ++waited)
+            for (std::uint32_t waited = 1; waited < sMostRoomWaits; ++waited)
                 hand();
+            EXPECT_EQ(scene.refusals().count(Refused::Texture), refusedBefore);
+            hand();
             EXPECT_EQ(scene.refusals().count(Refused::Texture), refusedBefore + 1);
-            EXPECT_EQ(budget.getHeld(), 0u) << "a header refused kept its texels";
             prepared.flush();
         }
 

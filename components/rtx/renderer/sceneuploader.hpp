@@ -120,13 +120,18 @@ namespace Rtx
         /// Answers the refusals, valid until the next take.
         std::span<const Refusal> takeAnswer(SceneHolder& scenes, SceneSlot slot, SceneDesc& scene);
 
-        /// Counts a hand-over against every texture that waits, refusing into `scene` those that waited their most and
-        /// forgetting those whose slot holds their file no more, letting `prepared` go of what it read of either, and
-        /// hands over again those `free` bytes of the device's room now hold.
-        void serveWaits(SceneDesc& scene, PreparedImages* prepared, std::uint64_t free);
+        /// Counts a hand-over against every stand-in that waits, refusing into `scene` one that waited its most, and
+        /// forgets a smaller side that tried its most and those whose slot holds their file no more; asks `prepared` to
+        /// read again the file of each the device's `free` bytes now hold, and hands over again each read — each at
+        /// once where nothing reads them or the hand-over is `settled`, whose description reads and waits.
+        void serveWaits(SceneDesc& scene, PreparedImages* prepared, bool settled, std::uint64_t free);
 
-        /// Files the textures the last answer named waiting for room, and forgets those this hand-over described and
-        /// the device stood: a wait handed over again, or every one under a rebuild, which describes the whole table.
+        /// Frees what rests, the oldest first, until the device's room holds an arrival of `arriving` bytes of textures
+        /// beside the structures it may build, what waits for room and what every short texture lacks of its file.
+        void evictForRoom(SceneDesc& scene, const ArrivalRoom& room, std::uint64_t arriving);
+
+        /// Files the textures the last answer named stood short, and forgets those this hand-over described and the
+        /// device stood whole: a wait handed over again, or every one under a rebuild, which describes the whole table.
         void waitForRoom(const TextureTable& textures);
 
         /// Whether `slot` waits for room.
@@ -145,19 +150,34 @@ namespace Rtx
         /// (`RestLimit::mStep`). Not a rebuild's, which hands over the whole world and would pace nothing.
         std::uint64_t mLargestArrival = 0;
 
+        /// The same of the structures alone: the room an arrival's structures may take, which only the device knows
+        /// once it built them, beside its textures, which the descriptions say before (`evictForRoom`).
+        std::uint64_t mLargestStructures = 0;
+
         /// What the device made of a hand-over (`SceneHolder::takeAnswer`), refilled each time.
         DeviceAnswer mAnswer;
 
-        /// **A texture the device had no room for, waiting for it** (`DeviceAnswer::mRoomless`): its slot, which draws
-        /// the stand-in meanwhile, and the file it waits with, which the slot may give up or give another, as a pending
-        /// one does (`mPending`); the bytes it was handed in, which the room kept counts; and how many hand-overs it
-        /// has waited, up to `sMostRoomWaits`.
+        /// **A texture the device stood short, waiting for the room its whole file takes** (`DeviceAnswer::mShort`):
+        /// its slot, and the file it waits with, which the slot may give up or give another, as a pending one does
+        /// (`mPending`); the file's bytes and what the device stands of it, whose difference the room kept counts; how
+        /// many hand-overs a stand-in has waited, or how many times a smaller side was handed over and stood short
+        /// again, up to `sMostRoomWaits`, past which a stand-in is refused and a smaller side stands as it is; and
+        /// whether its texels are being read again for the hand-over.
+        /// A wait the hand-over stood whole goes, and with it what was read.
         struct TextureWait
         {
             Index mSlot = sNoIndex;
             osg::ref_ptr<const osg::Image> mSource;
-            std::uint64_t mBytes = 0;
+            std::uint64_t mFileBytes = 0;
+            std::uint64_t mStoodBytes = 0;
             std::uint32_t mWaited = 0;
+            bool mReading = false;
+
+            /// What the read handed back where it was ready at once, held until the hand-over describes it.
+            PreparedImage mRead;
+
+            /// What the device's room has to hold for it to stand whole: what it lacks of its file.
+            std::uint64_t getLacking() const { return mFileBytes - std::min(mStoodBytes, mFileBytes); }
         };
 
         /// The textures waiting for room, each slot once, so no more than the texture table's capacity.

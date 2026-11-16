@@ -5,6 +5,8 @@
 #include <string_view>
 #include <vector>
 
+#include "process.hpp"
+
 /// Text the Linux kernel writes about a process and its machine, read on every system: what reads
 /// it from the kernel is Linux's own (`processlinux.cpp`), and what it says is plain text a test
 /// on any machine can hand it.
@@ -30,6 +32,11 @@ namespace Platform::LinuxText
     /// The bytes the kernel estimates it can hand out without swapping, from `/proc/meminfo`
     /// (`MemAvailable`, in kilobytes), or nothing where it names none.
     std::optional<std::uint64_t> availableMemory(std::string_view meminfo);
+
+    /// What a process holds of anonymous memory, from its status as `/proc/<pid>/status` writes it: resident
+    /// (`RssAnon`) and swapped out (`VmSwap`), in bytes, or nothing where either field is missing or not a number of
+    /// kilobytes.
+    std::optional<Process::AnonymousMemory> anonymousMemory(std::string_view status);
 
     /// The process's cgroup v2, from `/proc/self/cgroup` (its `0::` line), as a path under the cgroup
     /// file system's root, `/` for the root itself; nothing where it is in no v2 group.

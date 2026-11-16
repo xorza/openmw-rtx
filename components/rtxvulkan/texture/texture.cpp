@@ -649,7 +649,7 @@ namespace Rtx
                 mRefusedRoom = true;
                 // A file the core can hand over again once the room is back: its slot draws the stand-in meanwhile.
                 if (whenRoomless == WhenRoomless::Waits && texture.mSource == TextureSource::File)
-                    answer.mRoomless.push_back(texture.mSlot);
+                    answer.mShort.push_back(ShortTexture{ .mSlot = texture.mSlot, .mStoodBytes = 0 });
                 else
                     why = describe(stood.error());
             }
@@ -661,6 +661,14 @@ namespace Rtx
         slot.mReduced = texture.mSource == TextureSource::File && !made.isEmpty()
             && (made.getImage().getWidth() < texture.mWidth || made.getImage().getHeight() < texture.mHeight);
         count(slot);
+
+        // **A file stood smaller than the device's side allows is short of the room**, whether the room chose the
+        // level or the device came down from it, and is handed over whole again once the room is back; one the side
+        // alone holds smaller stands as it can stand.
+        if (texture.mSource == TextureSource::File && !made.isEmpty())
+            if (const std::optional<std::uint32_t> top = texture.firstLevelWithin(mSideLimit);
+                top.has_value() && made.getImage().getWidth() < std::max(1u, texture.mWidth >> *top))
+                answer.mShort.push_back(ShortTexture{ .mSlot = texture.mSlot, .mStoodBytes = made.getBytes() });
 
         if (!why.empty())
             answer.mRefused.push_back(

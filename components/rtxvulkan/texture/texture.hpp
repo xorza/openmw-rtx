@@ -190,7 +190,8 @@ namespace Rtx
         /// Every file from the level `chooseLevels` gives it. A texture the room still cannot hold comes down a level
         /// at a time; one with no level it can hold, or past the device's side at every level, draws the stand-in.
         /// One past the side is refused into `answer`, saying why; one with no room is refused there where
-        /// `whenRoomless` refuses, and otherwise named among the slots that wait for room (`DeviceAnswer::mRoomless`).
+        /// `whenRoomless` refuses, and otherwise named among the textures stood short (`DeviceAnswer::mShort`), as is
+        /// every file stood smaller than the side allows.
         ///
         /// @param passes the renderer's, which every texture is made with as it arrives.
         /// @param arrival the renderer's, which the arrival is recorded through.

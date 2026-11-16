@@ -97,8 +97,8 @@ namespace Rtx::Testing
             mRefusing.clear();
             into.mMeshes.insert(into.mMeshes.end(), mStanding.begin(), mStanding.end());
             mStanding.clear();
-            into.mRoomless.insert(into.mRoomless.end(), mRoomless.begin(), mRoomless.end());
-            mRoomless.clear();
+            into.mShort.insert(into.mShort.end(), mShort.begin(), mShort.end());
+            mShort.clear();
         }
 
         /// What the device has room for, which a test sets to be what the next hand-over reads.
@@ -263,7 +263,7 @@ namespace Rtx::Testing
         /// structure takes.
         std::vector<Rtx::Refusal> mRefusing;
         std::vector<Rtx::StoodMesh> mStanding;
-        std::vector<Rtx::Index> mRoomless;
+        std::vector<Rtx::ShortTexture> mShort;
 
         /// What `getArrivalRoom` answers: unbounded unless a test bounds it.
         std::optional<Rtx::ArrivalRoom> mArrivalRoom;

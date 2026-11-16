@@ -1629,7 +1629,8 @@ target_link_libraries(
         ZLIB::ZLIB
         yaml-cpp::yaml-cpp
         Bullet::Bullet
-        # `dlopen` for `platform/libraryposix.cpp`, on the C libraries that keep it out of libc.
+        # `dlopen` for `platform/libraryposix.cpp` and `dlsym` for `platform/heapposix.cpp`, on the C libraries that
+        # keep them out of libc.
         ${CMAKE_DL_LIBS}
         # `shm_open` for `platform/sharedmemoryposix.cpp`, in librt before glibc 2.34: the release base's is 2.28.
         $<$<PLATFORM_ID:Linux>:rt>

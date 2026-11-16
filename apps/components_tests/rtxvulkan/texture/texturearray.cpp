@@ -489,6 +489,11 @@ namespace Rtx
             EXPECT_EQ(textures.getHeld().mBytes, VkDeviceSize{ 1536 } * 1536 * 4);
             EXPECT_EQ(textures.getHeld().mReduced, 1u);
             EXPECT_TRUE(textures.wasHeldBack()) << "a texture stood smaller than its file and held nothing back";
+            EXPECT_EQ(answer.mShort,
+                (std::vector<ShortTexture>{
+                    { .mSlot = ladder.mData.mSlot, .mStoodBytes = VkDeviceSize{ 1536 } * 1536 * 4 } }))
+                << "a texture the room held smaller was not named short, with the bytes it stands";
+            answer.mShort.clear();
 
             {
                 Batch arrival(getPool());
@@ -514,9 +519,9 @@ namespace Rtx
                 arrival.flush();
             }
             EXPECT_TRUE(refused.empty()) << "a file room is coming for was refused";
-            EXPECT_EQ(answer.mRoomless, (std::vector<Index>{ lone.mData.mSlot }));
+            EXPECT_EQ(answer.mShort, (std::vector<ShortTexture>{ { .mSlot = lone.mData.mSlot, .mStoodBytes = 0 } }));
             EXPECT_EQ(textures.getTexels(1), Shaders::TEXTURE_STANDS_IN | 16u) << "a file that waits drew its own";
-            answer.mRoomless.clear();
+            answer.mShort.clear();
 
             refused.clear();
             {

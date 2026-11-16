@@ -75,6 +75,20 @@ namespace
         EXPECT_EQ(Platform::LinuxText::availableMemory("MemAvailable: 2 MB\n"), std::nullopt);
     }
 
+    /// **The anonymous memory is `RssAnon` and `VmSwap`, in bytes**, from a status's tab-separated lines: 2 kB
+    /// resident is 2048 bytes and 3 kB swapped 3072; nothing where either is missing or not in kilobytes.
+    TEST(RtxPlatformLinuxTextTest, theAnonymousMemoryIsRssAnonAndVmSwapInBytes)
+    {
+        const std::optional<Platform::Process::AnonymousMemory> memory = Platform::LinuxText::anonymousMemory(
+            "Name:\topenmw\nVmRSS:\t     9000 kB\nRssAnon:\t       2 kB\nRssFile:\t     100 kB\nVmSwap:\t       3 "
+            "kB\n");
+        ASSERT_TRUE(memory.has_value());
+        EXPECT_EQ(memory->mResident, 2048u);
+        EXPECT_EQ(memory->mSwapped, 3072u);
+        EXPECT_EQ(Platform::LinuxText::anonymousMemory("RssAnon:\t2 kB\n"), std::nullopt) << "no swap line";
+        EXPECT_EQ(Platform::LinuxText::anonymousMemory("RssAnon:\t2 MB\nVmSwap:\t3 kB\n"), std::nullopt);
+    }
+
     /// **The cgroup is the v2 line's path, and its bytes a number or no limit**: `/user.slice/app` from a
     /// list with a v1 line before it, the root as `/`, and nothing where no `0::` line names a path; a
     /// limit of 1073741824 with its line break, nothing for `max`, an empty file or a word.

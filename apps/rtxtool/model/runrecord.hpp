@@ -11,6 +11,8 @@
 
 #include <apps/rtxtool/instruments/framehashes.hpp>
 #include <components/misc/result.hpp>
+#include <components/platform/heap.hpp>
+#include <components/platform/process.hpp>
 
 #include "benchrecord.hpp"
 #include "benchrun.hpp"
@@ -115,6 +117,11 @@ namespace RtxTool
         /// Notes the extents the renderer made, which the result carries.
         void noteTraced(const Rtx::FrameExtents& traced) { mTraced = traced; }
 
+        /// Notes what the process held of the system's memory as `stop` ended, and what of it the heap's allocator
+        /// held, where it says: a run's peak, by what is resident and swapped together, which `finish` reports.
+        void noteHostMemory(std::string_view stop, const Platform::Process::AnonymousMemory& anonymous,
+            std::optional<Platform::HeapHeld> heap);
+
     private:
         /// Whether `written` holds; where not, says why in the report and fails the run.
         bool wrote(const Result<void, std::string>& written);
@@ -129,6 +136,16 @@ namespace RtxTool
         /// The kernel's compaction stalls when the first place loaded (`Platform::Process::compactionStalls`):
         /// a run on huge pages whose count rose has frames a compaction stalled.
         std::optional<std::uint64_t> mCompactionStalls;
+
+        /// The stop the process held most anonymous memory at, resident and swapped together, what it held, and what
+        /// the heap held there (`noteHostMemory`).
+        struct HostPeak
+        {
+            std::string mStop;
+            Platform::Process::AnonymousMemory mAnonymous;
+            std::optional<Platform::HeapHeld> mHeap;
+        };
+        std::optional<HostPeak> mHostPeak;
 
         ExitStatus mStatus = ExitStatus::Passed;
 

@@ -5,7 +5,9 @@
 #include <cassert>
 #include <cstdint>
 #include <format>
+#include <mutex>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -14,6 +16,7 @@
 
 #include <components/crashcatcher/crash.hpp>
 #include <components/rtx/common/error.hpp>
+#include <components/rtx/common/mebibytes.hpp>
 #include <components/rtxvulkan/device/device.hpp>
 #include <components/rtxvulkan/device/graveyard.hpp>
 #include <components/rtxvulkan/device/requirements.hpp>
@@ -416,13 +419,19 @@ namespace Rtx
         vmaGetHeapBudgets(mLibrary.get(), budgets);
         const VmaBudget& budget = budgets[heap];
         if (budget.usage + (own ? size : sBlockBytes) > ceilingOf(heap, use, budget.budget))
+        {
+            noteRefused(use, size, type, own);
             return Err{ MemoryRefusal::NoRoom };
+        }
 
         // A driver refusing what its budget said it had is the same answer, and the one `tryTake`
         // exists to give.
         const VkResult result = allocate(create, &allocation, &placed);
         if (result == VK_ERROR_OUT_OF_DEVICE_MEMORY)
+        {
+            noteRefused(use, size, type, own);
             return Err{ MemoryRefusal::NoRoom };
+        }
 
         checkTaken(result, properties, requirements.mMemory.size, use, name);
         return hold(
@@ -511,6 +520,47 @@ namespace Rtx
             = getContentFree() + graveyard.getBuried(MemoryUse::Structure) + graveyard.getBuried(MemoryUse::Texture);
         return VideoBudget{ .mBudget = std::min(heap.budget, mBudgetLimit.value_or(heap.budget)),
             .mHeld = heap.usage > letGo ? heap.usage - letGo : 0 };
+    }
+
+    void MemoryAllocator::noteRefused(
+        const MemoryUse use, const VkDeviceSize bytes, const std::uint32_t type, const bool own)
+    {
+        RefusedTake refused{ .mUse = use, .mBytes = bytes, .mType = type, .mOwn = own, .mVideo = getVideoBudget() };
+        for (std::uint32_t at = 0; at < mMemory.memoryTypeCount; ++at)
+        {
+            if ((mContent.mTypes & (1u << at)) == 0)
+                continue;
+            VmaDetailedStatistics pool{};
+            vmaCalculatePoolStatistics(mLibrary.get(), mLibrary.poolOf(at), &pool);
+            refused.mPools[refused.mPoolCount++] = PoolRoom{ .mType = at,
+                .mBlocks = pool.statistics.blockBytes,
+                .mAllocated = pool.statistics.allocationBytes,
+                .mLargestFree = pool.unusedRangeCount > 0 ? pool.unusedRangeSizeMax : 0 };
+        }
+        const std::scoped_lock lock(mRefusedMutex);
+        mLastRefused = refused;
+        mRefusedCount.fetch_add(1, std::memory_order_relaxed);
+    }
+
+    std::optional<RefusedTake> MemoryAllocator::getLastRefused() const
+    {
+        const std::scoped_lock lock(mRefusedMutex);
+        return mLastRefused;
+    }
+
+    std::string describe(const RefusedTake& refused)
+    {
+        std::string out = std::format(
+            "no device memory for a {} of {:.1f} MiB, {} in type {}: the heap's budget "
+            "{:.1f} MiB, the process holding {:.1f} MiB of it",
+            nameOf(refused.mUse), mebibytes(refused.mBytes), refused.mOwn ? "memory of its own" : "a block",
+            refused.mType, mebibytes(refused.mVideo.mBudget), mebibytes(refused.mVideo.mHeld));
+        for (const PoolRoom& pool : std::span(refused.mPools).first(refused.mPoolCount))
+            out += std::format(
+                "; pool of type {}: {:.1f} MiB in blocks, {:.1f} MiB allocated, the largest range free "
+                "{:.1f} MiB",
+                pool.mType, mebibytes(pool.mBlocks), mebibytes(pool.mAllocated), mebibytes(pool.mLargestFree));
+        return out;
     }
 
     VkDeviceSize MemoryAllocator::getHeld(const std::uint32_t heap, const MemoryUse use) const

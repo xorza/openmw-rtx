@@ -7,6 +7,32 @@
 
 namespace Platform::LinuxText
 {
+    namespace
+    {
+        /// The bytes a field of the kernel's `<name>:  <number> kB` lines states, or nothing where no line names
+        /// it, or its value is not a number of kilobytes.
+        std::optional<std::uint64_t> kilobytesField(std::string_view text, std::string_view field)
+        {
+            for (std::string_view rest = text; !rest.empty();)
+            {
+                const std::size_t end = rest.find('\n');
+                std::string_view line = rest.substr(0, end);
+                rest = end == std::string_view::npos ? std::string_view() : rest.substr(end + 1);
+                if (!line.starts_with(field))
+                    continue;
+
+                line.remove_prefix(field.size());
+                line.remove_prefix(std::min(line.find_first_not_of(" \t"), line.size()));
+                std::uint64_t kilobytes = 0;
+                const std::from_chars_result read = std::from_chars(line.data(), line.data() + line.size(), kilobytes);
+                if (read.ec != std::errc{} || std::string_view(read.ptr, line.data() + line.size()) != " kB")
+                    return std::nullopt;
+                return kilobytes * 1024;
+            }
+            return std::nullopt;
+        }
+    }
+
     std::optional<float> hugePageShare(std::string_view rollup)
     {
         const auto kilobytes = [&](std::string_view field) -> std::optional<std::uint64_t> {
@@ -98,24 +124,16 @@ namespace Platform::LinuxText
 
     std::optional<std::uint64_t> availableMemory(std::string_view meminfo)
     {
-        constexpr std::string_view field = "MemAvailable:";
-        for (std::string_view rest = meminfo; !rest.empty();)
-        {
-            const std::size_t end = rest.find('\n');
-            std::string_view line = rest.substr(0, end);
-            rest = end == std::string_view::npos ? std::string_view() : rest.substr(end + 1);
-            if (!line.starts_with(field))
-                continue;
+        return kilobytesField(meminfo, "MemAvailable:");
+    }
 
-            line.remove_prefix(field.size());
-            line.remove_prefix(std::min(line.find_first_not_of(' '), line.size()));
-            std::uint64_t kilobytes = 0;
-            const std::from_chars_result read = std::from_chars(line.data(), line.data() + line.size(), kilobytes);
-            if (read.ec != std::errc{} || std::string_view(read.ptr, line.data() + line.size()) != " kB")
-                return std::nullopt;
-            return kilobytes * 1024;
-        }
-        return std::nullopt;
+    std::optional<Process::AnonymousMemory> anonymousMemory(std::string_view status)
+    {
+        const std::optional<std::uint64_t> resident = kilobytesField(status, "RssAnon:");
+        const std::optional<std::uint64_t> swapped = kilobytesField(status, "VmSwap:");
+        if (!resident.has_value() || !swapped.has_value())
+            return std::nullopt;
+        return Process::AnonymousMemory{ .mResident = *resident, .mSwapped = *swapped };
     }
 
     std::optional<std::string_view> unifiedCgroup(std::string_view cgroup)

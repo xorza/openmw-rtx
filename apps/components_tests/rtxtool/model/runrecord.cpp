@@ -18,6 +18,7 @@
 #include <apps/rtxtool/model/pictureshelf.hpp>
 #include <apps/rtxtool/model/runrecord.hpp>
 #include <components/files/conversion.hpp>
+#include <components/platform/heap.hpp>
 #include <components/rtx/common/asserts.hpp>
 #include <components/rtx/frame/frameextents.hpp>
 #include <components/rtx/frame/reconstruction.hpp>
@@ -221,7 +222,19 @@ namespace RtxTool
             unplayed.add(BenchPlace{});
             EXPECT_NE(unplayed.getReport().find(", maps shipped, "), std::string::npos) << unplayed.getReport();
 
+            // **The process's peak, resident and swapped together**: 1000 + 200 = 1200 MiB at the first stop over the
+            // second's 900 + 100 = 1000, with the heap there 300 MiB taken and 250 in use, 50 free.
+            constexpr std::uint64_t sMiB = std::uint64_t{ 1 } << 20;
+            record.noteHostMemory("first", { .mResident = 1000 * sMiB, .mSwapped = 200 * sMiB },
+                Platform::HeapHeld{ .mTaken = 300 * sMiB, .mInUse = 250 * sMiB });
+            record.noteHostMemory("second", { .mResident = 900 * sMiB, .mSwapped = 100 * sMiB }, std::nullopt);
+
             record.finish(request);
+            EXPECT_NE(
+                record.getReport().find("\nthe process held at most 1200.0 MiB of anonymous memory, 200.0 MiB of it "
+                                        "swapped out, at first; the heap took 300.0 MiB there, 50.0 MiB of it free\n"),
+                std::string::npos)
+                << record.getReport();
             std::ostringstream read;
             read << std::ifstream(request.mJson).rdbuf();
 
