@@ -1,152 +1,193 @@
-# The checks every source of apps/ and components/ is held to (`omw tidy`): the classes of bug clang-tidy finds,
-# and the rules AGENTS.md states where a check states them. A check that reports style alone, or whose findings
-# in this tree were mostly what the code means, is left out:
-# - `portability-avoid-pragma-once`: `#pragma once` is the fork's rule;
-# - the static analyzer: every finding it made on the fork's sources was one it could not follow (a span's size
-#   after an assert, a moved-from `shared_ptr`, a bound `std::find` keeps), and it is half a run's time;
-# - `bugprone-easily-swappable-parameters`: every function of two parameters of one type, which only new types
-#   across the APIs would answer;
-# - `bugprone-signed-bitwise`: bit operations on Vulkan's and OSG's flags, which their APIs type as signed;
-# - `bugprone-unchecked-optional-access`: blind to `Crash::contract` and gtest's `ASSERT_TRUE`;
-# - `bugprone-throwing-static-initialization`: every constant string and table at namespace scope, whose failure
-#   to allocate at startup ends the process either way;
-# - `performance-enum-size`, `-no-int-to-ptr`, `-avoid-endl`: an enum's width is its API's, a Vulkan handle is an
-#   integer, and `std::endl` is style;
-# - `readability-make-member-function-const`: it makes `const` what changes state through a pointer it holds, a
-#   widget's `setText` among them, and once a pair whose overloads then differed in their return type alone;
-# - `cppcoreguidelines-slicing`: a base copied on purpose, a Lua self as the object it is, a store's base in its
-#   copy;
-# - `cppcoreguidelines-rvalue-reference-param-not-moved`: rvalue overloads beside their `const&` twins, and the holds
-#   a `drop` consumes by taking them;
-# - `cppcoreguidelines-no-malloc`: every `malloc` here is an allocator's own, Lua's, Recast's and the tests' count;
-# - `cppcoreguidelines-virtual-class-destructor`: OpenSceneGraph's referenced classes and gtest's fixtures keep their
-#   destructors protected and virtual by design, and every declaration of one is a finding;
-# - `cppcoreguidelines-pro-type-reinterpret-cast`, `-pro-type-const-cast`: AGENTS.md allows each with a comment
-#   saying why, which the checks cannot read, and each of the 330 is a byte buffer, a C API or OSG's;
-# - `misc-static-assert`: it takes a run-time `assert` of a member call for a constant one;
-# - `cert-msc51-cpp`: a seed fixed on purpose, so two runs draw the same world (`--random-seed`);
-# - `cert-env33-c`: `Platform::Process::runShell` is the one place a command is handed to the shell, by design;
-# - `readability-suspicious-call-argument`: each of its 27 was an order meant, a transpose, a door both ways, an
-#   observer and the observed, a symmetry a test asserts;
-# - `cppcoreguidelines-missing-std-forward`: each of its 164 a callable or a visitor called more than once, which a
-#   forward at a call would move from before the next;
-# - and checks of style alone, whose fixes would touch most of upstream's files for no fault: `misc-const-correctness`,
-#   `readability-implicit-bool-conversion`, `-qualified-auto`, `-redundant-member-init`, `-use-anyofallof`,
-#   `-simplify-boolean-expr`, `-static-accessed-through-instance`, `-redundant-smartptr-get`,
-#   `modernize-use-default-member-init`, `-use-using`, `-avoid-c-arrays`, `-use-equals-default`, `-use-emplace`,
-#   `cppcoreguidelines-prefer-member-initializer`, `-use-enum-class`, `-avoid-goto`.
-# Under MSVC's driver `omw tidy` turns off the checks that misread MSVC's library (`tidycache._OFF_UNDER_MSVC`).
+# What `omw tidy` holds every source of apps/ and components/ to: the classes of bug clang-tidy finds, and AGENTS.md's
+# rules where a check states one. A refused check is a `-` entry with its reason; a check of style alone is left out.
+# Under MSVC's driver `omw tidy` also turns off the checks that misread MSVC's library (`tidycache._OFF_UNDER_MSVC`).
 Checks:
   - '-*'
+  # Every finding it made on the fork's sources was one it could not follow (a span's size after an assert, a
+  # moved-from `shared_ptr`), and it is half a run's time.
+  - '-clang-analyzer-*'
+
   - 'bugprone-*'
+  # Every function of two parameters of one type, which only new types across the APIs would answer.
   - '-bugprone-easily-swappable-parameters'
+  # Vulkan's and OSG's flags, which their APIs type as signed.
   - '-bugprone-signed-bitwise'
-  - '-bugprone-unchecked-optional-access'
+  # Every constant string and table at namespace scope, whose failure to allocate at startup ends the process anyway.
   - '-bugprone-throwing-static-initialization'
+  # Blind to `Crash::contract` and gtest's `ASSERT_TRUE`.
+  - '-bugprone-unchecked-optional-access'
+
   - 'performance-*'
-  - '-performance-enum-size'
-  - '-performance-no-int-to-ptr'
+  # `std::endl` is style.
   - '-performance-avoid-endl'
+  # An enum's width is its API's.
+  - '-performance-enum-size'
+  # A Vulkan handle is an integer.
+  - '-performance-no-int-to-ptr'
+
   - 'portability-*'
+  # `#pragma once` is the fork's rule.
   - '-portability-avoid-pragma-once'
+  # Upstream's: `Settings::Sanitizer`'s pure virtual member, which no compiler has a problem with.
   - '-portability-template-virtual-member-function'
-  - cppcoreguidelines-special-member-functions
+
+  - 'cert-dcl50-cpp'
+  - 'cert-err33-c'
+  - 'cert-err34-c'
+  - 'cert-flp30-c'
+  - 'cert-msc50-cpp'
+  - 'cert-oop57-cpp'
+  # `Platform::Process::runShell` is the one place a command is handed to the shell, by design.
+  - '-cert-env33-c'
+  # A seed fixed on purpose, so two runs draw the same world (`--random-seed`).
+  - '-cert-msc51-cpp'
+
+  - 'concurrency-mt-unsafe'
+
+  - 'cppcoreguidelines-init-variables'
   - 'cppcoreguidelines-noexcept-*'
-  - cppcoreguidelines-init-variables
-  - cppcoreguidelines-pro-type-member-init
-  - google-explicit-constructor
-  - google-global-names-in-headers
-  - google-build-namespaces
-  - modernize-avoid-c-style-cast
-  - modernize-use-override
-  - modernize-use-integer-sign-comparison
-  - modernize-use-scoped-lock
-  - modernize-make-unique
-  - modernize-make-shared
-  - modernize-use-auto
-  - modernize-loop-convert
-  - modernize-use-starts-ends-with
-  - modernize-use-std-bit
-  - modernize-use-std-numbers
-  - modernize-use-nullptr
-  - modernize-use-noexcept
-  - modernize-use-equals-delete
-  - modernize-pass-by-value
-  - misc-throw-by-value-catch-by-reference
-  - misc-use-anonymous-namespace
-  - misc-use-internal-linkage
-  - misc-unused-using-decls
-  - misc-unused-alias-decls
-  - misc-redundant-expression
-  - misc-definitions-in-headers
-  - misc-include-cleaner
-  - misc-misleading-bidirectional
-  - misc-misleading-identifier
-  - misc-confusable-identifiers
-  - misc-uniqueptr-reset-release
-  - misc-new-delete-overloads
-  - misc-non-copyable-objects
-  - misc-unconventional-assign-operator
-  - misc-header-include-cycle
-  - readability-container-contains
-  - readability-container-size-empty
-  - readability-container-data-pointer
-  - readability-redundant-string-cstr
-  - readability-redundant-casting
-  - readability-use-std-min-max
-  - readability-duplicate-include
-  - readability-misleading-indentation
-  - readability-identifier-naming
-  - readability-inconsistent-declaration-parameter-name
-  - readability-avoid-unconditional-preprocessor-if
-  - readability-const-return-type
-  - readability-non-const-parameter
-  - readability-string-compare
-  - readability-uniqueptr-delete-release
-  - readability-misplaced-array-index
-  - readability-reference-to-constructed-temporary
-  - readability-redundant-declaration
-  - concurrency-mt-unsafe
-  - cert-dcl50-cpp
-  - cert-err33-c
-  - cert-err34-c
-  - cert-flp30-c
-  - cert-msc50-cpp
-  - cert-oop57-cpp
-  - hicpp-exception-baseclass
-  - hicpp-multiway-paths-covered
+  - 'cppcoreguidelines-pro-type-member-init'
+  - 'cppcoreguidelines-special-member-functions'
+  # Each of its 164 a callable or a visitor called more than once, which a forward would move from before the next.
+  - '-cppcoreguidelines-missing-std-forward'
+  # Every `malloc` here is an allocator's own: Lua's, Recast's and the tests' counting one.
+  - '-cppcoreguidelines-no-malloc'
+  # AGENTS.md allows each with a comment saying why, which the checks cannot read; each of the 330 is a byte buffer,
+  # a C API or OSG's.
+  - '-cppcoreguidelines-pro-type-const-cast'
+  - '-cppcoreguidelines-pro-type-reinterpret-cast'
+  # Rvalue overloads beside their `const&` twins, and the holds a `drop` consumes by taking them.
+  - '-cppcoreguidelines-rvalue-reference-param-not-moved'
+  # A base copied on purpose, a Lua self as the object it is, a store's base in its copy.
+  - '-cppcoreguidelines-slicing'
+  # OSG's referenced classes and gtest's fixtures keep their destructors protected and virtual by design.
+  - '-cppcoreguidelines-virtual-class-destructor'
+
+  - 'google-build-namespaces'
+  - 'google-explicit-constructor'
+  - 'google-global-names-in-headers'
+
+  - 'hicpp-exception-baseclass'
+  - 'hicpp-multiway-paths-covered'
+
+  - 'misc-confusable-identifiers'
+  - 'misc-definitions-in-headers'
+  - 'misc-header-include-cycle'
+  - 'misc-include-cleaner'
+  - 'misc-misleading-bidirectional'
+  - 'misc-misleading-identifier'
+  - 'misc-new-delete-overloads'
+  - 'misc-non-copyable-objects'
+  - 'misc-redundant-expression'
+  - 'misc-throw-by-value-catch-by-reference'
+  - 'misc-unconventional-assign-operator'
+  - 'misc-uniqueptr-reset-release'
+  - 'misc-unused-alias-decls'
+  - 'misc-unused-using-decls'
+  - 'misc-use-anonymous-namespace'
+  - 'misc-use-internal-linkage'
+  # It takes a run-time `assert` of a member call for a constant one.
+  - '-misc-static-assert'
+
+  - 'modernize-avoid-c-style-cast'
+  - 'modernize-loop-convert'
+  - 'modernize-make-shared'
+  - 'modernize-make-unique'
+  - 'modernize-pass-by-value'
+  - 'modernize-use-auto'
+  - 'modernize-use-equals-delete'
+  - 'modernize-use-integer-sign-comparison'
+  - 'modernize-use-noexcept'
+  - 'modernize-use-nullptr'
+  - 'modernize-use-override'
+  - 'modernize-use-scoped-lock'
+  - 'modernize-use-starts-ends-with'
+  - 'modernize-use-std-bit'
+  - 'modernize-use-std-numbers'
+
+  - 'readability-avoid-unconditional-preprocessor-if'
+  - 'readability-const-return-type'
+  - 'readability-container-contains'
+  - 'readability-container-data-pointer'
+  - 'readability-container-size-empty'
+  - 'readability-duplicate-include'
+  - 'readability-identifier-naming'
+  - 'readability-inconsistent-declaration-parameter-name'
+  - 'readability-misleading-indentation'
+  - 'readability-misplaced-array-index'
+  - 'readability-non-const-parameter'
+  - 'readability-redundant-casting'
+  - 'readability-redundant-declaration'
+  - 'readability-redundant-string-cstr'
+  - 'readability-reference-to-constructed-temporary'
+  - 'readability-string-compare'
+  - 'readability-uniqueptr-delete-release'
+  - 'readability-use-std-min-max'
+  # It makes `const` what changes state through a pointer it holds, a widget's `setText` among them.
+  - '-readability-make-member-function-const'
+  # Each of its 27 an order meant: a transpose, a door both ways, an observer and the observed.
+  - '-readability-suspicious-call-argument'
+
+  # Style alone, whose fixes would touch most of upstream's files for no fault.
+  - '-cppcoreguidelines-avoid-goto'
+  - '-cppcoreguidelines-prefer-member-initializer'
+  - '-cppcoreguidelines-use-enum-class'
+  - '-misc-const-correctness'
+  - '-modernize-avoid-c-arrays'
+  - '-modernize-use-default-member-init'
+  - '-modernize-use-emplace'
+  - '-modernize-use-equals-default'
+  - '-modernize-use-using'
+  - '-readability-implicit-bool-conversion'
+  - '-readability-qualified-auto'
+  - '-readability-redundant-member-init'
+  - '-readability-redundant-smartptr-get'
+  - '-readability-simplify-boolean-expr'
+  - '-readability-static-accessed-through-instance'
+  - '-readability-use-anyofallof'
+
+  # Candidates, off until `omw tidy` has counted what each finds. These should find little or nothing:
+  # - 'cppcoreguidelines-interfaces-global-init'
+  # - 'misc-misplaced-const'
+  # - 'misc-static-initialization-cycle'
+  # - 'readability-ambiguous-smartptr-reset-call'
+  # - 'readability-enum-initial-value'
+  # - 'readability-redundant-preprocessor'
+  # - 'readability-static-definition-in-anonymous-namespace'
+  # These will find some, mostly in upstream's code:
+  # - 'cppcoreguidelines-avoid-non-const-global-variables'
+  # - 'cppcoreguidelines-misleading-capture-default-by-value'
+  # - 'google-default-arguments'
+  # - 'misc-override-with-different-visibility'
 WarningsAsErrors: '*'
-# Either slash separates: clang-tidy matches these against a path as the system spells it, which on Windows joins an
-# include folder to what the directive names with a backslash.
+# Either slash separates: on Windows, clang-tidy joins an include folder to the directive's path with a backslash.
 HeaderFilterRegex: '(apps|components)[/\\]'
 # Generated sources are their generator's, and the headers GLSL reads as well spell what GLSL can.
 ExcludeHeaderFilterRegex: '(_autogen[/\\]|[/\\]shaders[/\\].*\.h$)'
 CheckOptions:
-  # A product of constants is computed by the compiler, which refuses one that overflows.
-  bugprone-implicit-widening-of-multiplication-result.IgnoreConstantIntExpr: true
   # A script that does not compile has reported why to the error handler before it throws.
   bugprone-empty-catch.AllowEmptyCatchForExceptions: 'Compiler::SourceException'
-  # A source may lean on its own header for what that header's interface needs (AGENTS.md), which the missing
-  # half of the check does not know; and OSG's GL header brings the GL macros through the system's. MSVC's library
-  # and the Windows SDK declare each name in an inner header the check has no table of, as it has libstdc++'s, where
-  # their documentation names the header to include (`Windows.h` for `processthreadsapi.h`); `misc/windows.hpp` is
-  # the tree's way to `Windows.h`.
-  misc-include-cleaner.MissingIncludes: false
-  misc-include-cleaner.IgnoreHeaders: 'osg[/\\]GL;GL[/\\].*;misc[/\\]windows\.hpp;VC[/\\]Tools[/\\]MSVC[/\\].*;Windows Kits[/\\].*'
-  # What a source keeps to itself goes in an unnamed namespace, never `static`, which the fix would write.
-  misc-use-internal-linkage.FixMode: None
-  cppcoreguidelines-init-variables.MathHeader: '<cmath>'
-  # Only a literal that is the constant to a float's precision: 0.435 is not log10(e), however near.
-  modernize-use-std-numbers.DiffThreshold: '0.000001'
+  # A product of constants is computed by the compiler, which refuses one that overflows.
+  bugprone-implicit-widening-of-multiplication-result.IgnoreConstantIntExpr: true
   # What glibc's manual marks unsafe among threads: `getenv` is safe beside no `setenv`, which nothing calls once the
   # game's threads start.
   concurrency-mt-unsafe.FunctionSet: glibc
-  # A class that declares its destructor or a copy declares all three; one that declares a move, both. Its moves
-  # may stay undeclared: a class with deleted copies is then not movable either, and a copyable one copies an rvalue
-  # (Hinnant's table; Chromium's C++ Dos and Don'ts), which a deleted move would refuse.
+  cppcoreguidelines-init-variables.MathHeader: '<cmath>'
+  # A class that declares its destructor or a copy declares all three; one that declares a move, both. Its moves may
+  # stay undeclared: a class with deleted copies is then not movable either, and a copyable one copies an rvalue
+  # (Hinnant's table), which a deleted move would refuse.
   cppcoreguidelines-special-member-functions.AllowSoleDefaultDtor: true
   cppcoreguidelines-special-member-functions.AllowImplicitlyDeletedCopyOrMove: true
   cppcoreguidelines-special-member-functions.AllowMissingMoveFunctions: true
+  # A source may lean on its own header for what that header's interface needs (AGENTS.md), which the missing half
+  # does not know. OSG's GL header brings the GL macros through the system's, and MSVC's library and the Windows SDK
+  # declare each name in an inner header the check has no table of; `misc/windows.hpp` is the tree's `Windows.h`.
+  misc-include-cleaner.MissingIncludes: false
+  misc-include-cleaner.IgnoreHeaders: 'osg[/\\]GL;GL[/\\].*;misc[/\\]windows\.hpp;VC[/\\]Tools[/\\]MSVC[/\\].*;Windows Kits[/\\].*'
+  # A source keeps to itself in an unnamed namespace, never `static`, which the fix would write.
+  misc-use-internal-linkage.FixMode: None
+  # Only a literal that is the constant to a float's precision: 0.435 is not log10(e), however near.
+  modernize-use-std-numbers.DiffThreshold: '0.000001'
   readability-identifier-naming.ConceptCase: CamelCase
   readability-identifier-naming.EnumCase: CamelCase
   readability-identifier-naming.LocalVariableCase: camelBack
