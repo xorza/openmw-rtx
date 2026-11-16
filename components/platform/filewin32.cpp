@@ -38,7 +38,7 @@ namespace Platform::File
     {
         // Shared as a POSIX system shares it: an archive held open for its entries' reads is written by its own tool.
         HANDLE handle = CreateFileW(filename.c_str(), GENERIC_READ,
-            FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, 0, OPEN_EXISTING, 0, 0);
+            FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, 0, nullptr);
         if (handle == INVALID_HANDLE_VALUE)
         {
             throw std::runtime_error(std::format(
