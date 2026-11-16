@@ -95,16 +95,18 @@ void MWMechanics::Alchemy::applyTools(int flags, float& value) const
 
     int setup = 0;
 
-    if (!mTools[tool].isEmpty() && !mTools[ESM::Apparatus::Calcinator].isEmpty())
+    if (!mTools[static_cast<std::size_t>(tool)].isEmpty() && !mTools[ESM::Apparatus::Calcinator].isEmpty())
         setup = 1;
-    else if (!mTools[tool].isEmpty())
+    else if (!mTools[static_cast<std::size_t>(tool)].isEmpty())
         setup = 2;
     else if (!mTools[ESM::Apparatus::Calcinator].isEmpty())
         setup = 3;
     else
         return;
 
-    float toolQuality = setup == 1 || setup == 2 ? mTools[tool].get<ESM::Apparatus>()->mBase->mData.mQuality : 0;
+    float toolQuality = setup == 1 || setup == 2
+        ? mTools[static_cast<std::size_t>(tool)].get<ESM::Apparatus>()->mBase->mData.mQuality
+        : 0;
     float calcinatorQuality = setup == 1 || setup == 3
         ? mTools[ESM::Apparatus::Calcinator].get<ESM::Apparatus>()->mBase->mData.mQuality
         : 0;
@@ -406,17 +408,19 @@ void MWMechanics::Alchemy::setAlchemist(const MWWorld::Ptr& npc)
         if (type < 0 || std::cmp_greater_equal(type, mTools.size()))
             throw std::runtime_error("invalid apparatus type");
 
-        if (prevTools[type] == *iter)
-            mTools[type] = *iter; // prefer the previous tool if still in the container
+        if (prevTools[static_cast<std::size_t>(type)] == *iter)
+            mTools[static_cast<std::size_t>(type)] = *iter; // prefer the previous tool if still in the container
 
-        if (!mTools[type].isEmpty() && !prevTools[type].isEmpty() && mTools[type] == prevTools[type])
+        if (!mTools[static_cast<std::size_t>(type)].isEmpty() && !prevTools[static_cast<std::size_t>(type)].isEmpty()
+            && mTools[static_cast<std::size_t>(type)] == prevTools[static_cast<std::size_t>(type)])
             continue;
 
-        if (!mTools[type].isEmpty())
-            if (ref->mBase->mData.mQuality <= mTools[type].get<ESM::Apparatus>()->mBase->mData.mQuality)
+        if (!mTools[static_cast<std::size_t>(type)].isEmpty())
+            if (ref->mBase->mData.mQuality
+                <= mTools[static_cast<std::size_t>(type)].get<ESM::Apparatus>()->mBase->mData.mQuality)
                 continue;
 
-        mTools[type] = *iter;
+        mTools[static_cast<std::size_t>(type)] = *iter;
     }
 }
 
@@ -459,7 +463,7 @@ int MWMechanics::Alchemy::addIngredient(const MWWorld::Ptr& ingredient)
     int slot = -1;
 
     for (int i = 0; std::cmp_less(i, mIngredients.size()); ++i)
-        if (mIngredients[i].isEmpty())
+        if (mIngredients[static_cast<std::size_t>(i)].isEmpty())
         {
             slot = i;
             break;
@@ -472,7 +476,7 @@ int MWMechanics::Alchemy::addIngredient(const MWWorld::Ptr& ingredient)
         if (!eachIngredient.isEmpty() && ingredient.getCellRef().getRefId() == eachIngredient.getCellRef().getRefId())
             return -1;
 
-    mIngredients[slot] = ingredient;
+    mIngredients[static_cast<std::size_t>(slot)] = ingredient;
 
     updateEffects();
 
@@ -492,7 +496,7 @@ void MWMechanics::Alchemy::addApparatus(const MWWorld::Ptr& apparatus)
 {
     int32_t slot = apparatus.get<ESM::Apparatus>()->mBase->mData.mType;
 
-    mTools[slot] = apparatus;
+    mTools[static_cast<std::size_t>(slot)] = apparatus;
 
     updateEffects();
 }

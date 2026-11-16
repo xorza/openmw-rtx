@@ -168,7 +168,7 @@ namespace MWWorld
             std::string prefix = "month";
             std::vector<std::string> months;
             int count = 12;
-            months.reserve(count);
+            months.reserve(static_cast<std::size_t>(count));
             for (int i = 1; i <= count; ++i)
                 months.push_back(calendarL10n->formatMessage(prefix + std::to_string(i), {}, {}));
             return months;
@@ -184,7 +184,7 @@ namespace MWWorld
         if (month < 0 || std::cmp_greater_equal(month, months.size()))
             return {};
         else
-            return months[month];
+            return months[static_cast<std::size_t>(month)];
     }
 
     std::string DateTimeManager::formatTimeOfDay(float hour) const

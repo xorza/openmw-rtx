@@ -46,7 +46,8 @@ namespace
             clothing.mEnchant = ESM::RefId::deserializeText(enchantId);
         }
         if (rec["enchantCapacity"] != sol::nil)
-            clothing.mData.mEnchant = static_cast<int16_t>(std::round(rec["enchantCapacity"].get<float>() * 10));
+            clothing.mData.mEnchant = static_cast<std::uint16_t>(
+                static_cast<int16_t>(std::round(rec["enchantCapacity"].get<float>() * 10)));
         if (rec["weight"] != sol::nil)
             clothing.mData.mWeight = rec["weight"].get<Misc::FiniteFloat>();
         if (rec["value"] != sol::nil)

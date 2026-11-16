@@ -77,7 +77,7 @@ namespace
             if (persistent)
                 crea.mRecordFlags |= ESM::FLAG_Persistent;
             else
-                crea.mRecordFlags &= ~ESM::FLAG_Persistent;
+                crea.mRecordFlags &= static_cast<std::uint32_t>(~ESM::FLAG_Persistent);
         }
 
         if (rec["bloodType"] != sol::nil)

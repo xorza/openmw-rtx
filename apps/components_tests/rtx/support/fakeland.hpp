@@ -119,7 +119,7 @@ namespace Rtx::Testing
             for (int column = 0; column < sVerts; ++column)
                 for (int row = 0; row < sVerts; ++row)
                 {
-                    const std::size_t at = static_cast<std::size_t>(column) * sVerts + row;
+                    const std::size_t at = static_cast<std::size_t>(column) * sVerts + static_cast<std::size_t>(row);
                     positions[at] = positionAt(column, row);
                     normals[at] = osg::Vec3f(0.0f, 0.0f, 1.0f);
                     colours[at] = colourAt(column, row, cell);
@@ -172,7 +172,7 @@ namespace Rtx::Testing
 
             for (int row = 0; row < sMaskSide; ++row)
             {
-                unsigned char* along = image->data(0, row);
+                unsigned char* along = image->data(0, static_cast<unsigned int>(row));
                 for (int column = 0; column < sMaskSide; ++column)
                     along[column] = (column < sMaskSide / 2) == western ? 255 : 0;
             }

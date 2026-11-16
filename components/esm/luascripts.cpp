@@ -103,7 +103,7 @@ void ESM::LuaScriptsCfg::adjustRefNums(const ESMReader& esm)
         if (contentFile == 0)
             return esm.getIndex();
         else if (contentFile > 0 && std::cmp_less_equal(contentFile, esm.getParentFileIndices().size()))
-            return esm.getParentFileIndices()[contentFile - 1];
+            return esm.getParentFileIndices()[static_cast<std::size_t>(contentFile - 1)];
         else
             throw std::runtime_error("Incorrect contentFile index");
     };

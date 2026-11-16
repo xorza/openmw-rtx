@@ -9,7 +9,6 @@
 #include <unistd.h>
 
 #include <components/files/conversion.hpp>
-#include <utility>
 
 namespace Platform::File
 {
@@ -85,12 +84,12 @@ namespace Platform::File
     {
         auto nativeHandle = getNativeHandle(handle);
 
-        size_t position = ::lseek(nativeHandle, 0, SEEK_CUR);
-        if (std::cmp_equal(position, -1))
+        const off_t position = ::lseek(nativeHandle, 0, SEEK_CUR);
+        if (position == -1)
         {
             throw std::system_error(errno, std::generic_category(), "An lseek() call failed");
         }
-        return position;
+        return static_cast<size_t>(position);
     }
 
     size_t readAt(Handle handle, size_t offset, void* data, size_t size)
@@ -116,7 +115,7 @@ namespace Platform::File
             throw std::system_error(
                 errno, std::generic_category(), "An attempt to read " + std::to_string(size) + " bytes failed");
         }
-        return amount;
+        return static_cast<std::size_t>(amount);
     }
 
 }

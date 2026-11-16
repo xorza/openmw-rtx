@@ -64,10 +64,14 @@ namespace SceneUtil
 
     void configureStateSetSunOverride(const Light* light, osg::StateSet* stateset, int mode)
     {
-        stateset->addUniform(new osg::Uniform("sun.position", light->getPosition()), mode);
-        stateset->addUniform(new osg::Uniform("sun.diffuse", light->getDiffuse()), mode);
-        stateset->addUniform(new osg::Uniform("sun.ambient", light->getAmbient()), mode);
-        stateset->addUniform(new osg::Uniform("sun.specular", light->getSpecular()), mode);
+        stateset->addUniform(new osg::Uniform("sun.position", light->getPosition()),
+            static_cast<osg::StateAttribute::OverrideValue>(mode));
+        stateset->addUniform(new osg::Uniform("sun.diffuse", light->getDiffuse()),
+            static_cast<osg::StateAttribute::OverrideValue>(mode));
+        stateset->addUniform(new osg::Uniform("sun.ambient", light->getAmbient()),
+            static_cast<osg::StateAttribute::OverrideValue>(mode));
+        stateset->addUniform(new osg::Uniform("sun.specular", light->getSpecular()),
+            static_cast<osg::StateAttribute::OverrideValue>(mode));
     }
 
     void configureSunAmbientOverride(const osg::Vec4f& ambient, osg::StateSet* stateset)
@@ -251,7 +255,8 @@ namespace SceneUtil
 
                 const int maxLightIndices = mMaxLightsPerCluster * mNumClusters;
 
-                osg::ref_ptr<osg::UByteArray> clusterData = new osg::UByteArray(sizeof(Cluster) * mNumClusters);
+                osg::ref_ptr<osg::UByteArray> clusterData = new osg::UByteArray(
+                    static_cast<unsigned int>(sizeof(Cluster) * static_cast<std::size_t>(mNumClusters)));
                 clusterData->setBufferObject(new osg::ShaderStorageBufferObject);
                 cache.mClusterSSBB
                     = new osg::ShaderStorageBufferBinding(1, clusterData, 0, clusterData->getTotalDataSize());
@@ -264,12 +269,14 @@ namespace SceneUtil
                     cache.mPointLightSSBB[i] = new osg::ShaderStorageBufferBinding(
                         2, cache.mGPULights[i], 0, cache.mGPULights[i]->getTotalDataSize());
 
-                    osg::ref_ptr<osg::UIntArray> gridData = new osg::UIntArray(mNumClusters * 2);
+                    osg::ref_ptr<osg::UIntArray> gridData
+                        = new osg::UIntArray(static_cast<unsigned int>(mNumClusters * 2));
                     gridData->setBufferObject(new osg::ShaderStorageBufferObject);
                     cache.mLightGridSSBB[i]
                         = new osg::ShaderStorageBufferBinding(3, gridData, 0, gridData->getTotalDataSize());
 
-                    osg::ref_ptr<osg::UIntArray> indexData = new osg::UIntArray(maxLightIndices);
+                    osg::ref_ptr<osg::UIntArray> indexData
+                        = new osg::UIntArray(static_cast<unsigned int>(maxLightIndices));
                     indexData->setBufferObject(new osg::ShaderStorageBufferObject);
                     cache.mLightIndexListSSBB[i]
                         = new osg::ShaderStorageBufferBinding(4, indexData, 0, indexData->getTotalDataSize());
@@ -753,7 +760,7 @@ namespace SceneUtil
                     mLightList.push_back(&light);
             }
 
-            const size_t maxLights = mLightManager->getMaxLights();
+            const auto maxLights = static_cast<std::size_t>(mLightManager->getMaxLights());
 
             if (mLightList.size() > maxLights)
             {

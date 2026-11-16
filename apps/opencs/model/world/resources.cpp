@@ -66,7 +66,7 @@ int CSMWorld::Resources::getSize() const
 
 std::string CSMWorld::Resources::getId(int index) const
 {
-    return mFiles.at(index);
+    return mFiles.at(static_cast<std::size_t>(index));
 }
 
 int CSMWorld::Resources::getIndex(const std::string& id) const

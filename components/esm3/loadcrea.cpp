@@ -31,7 +31,7 @@ namespace ESM
             for (int i = 0; i < ESM::Attribute::Length; ++i)
             {
                 const ESM::RefId id = ESM::Attribute::indexToRefId(i);
-                dst.mAttributes[i] = src.getAttribute(id);
+                dst.mAttributes[static_cast<std::size_t>(i)] = src.getAttribute(id);
             }
             dst.mHealth = src.mHealth;
             dst.mMana = src.mMana;
@@ -53,7 +53,7 @@ namespace ESM
             for (int i = 0; i < ESM::Attribute::Length; ++i)
             {
                 const ESM::RefId id = ESM::Attribute::indexToRefId(i);
-                dst.mAttributes.emplace(id, src.mAttributes[i]);
+                dst.mAttributes.emplace(id, src.mAttributes[static_cast<std::size_t>(i)]);
             }
             dst.mHealth = src.mHealth;
             dst.mMana = src.mMana;

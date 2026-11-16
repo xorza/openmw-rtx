@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -63,7 +64,7 @@ namespace Rtx
         released.keep(key);
     }
 
-    inline void keepKey(Released&, std::size_t) {}
+    void keepKey(Released&, std::integral auto) {}
 
     /// A map of what the mirror knows, and how much of it the walk in progress has reached. The count is what lets a
     /// sweep be skipped rather than run over tens of thousands of entries to find nothing: a world that stands still

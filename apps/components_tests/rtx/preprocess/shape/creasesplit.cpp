@@ -186,7 +186,7 @@ namespace Rtx
                 for (std::uint32_t side = 0; std::cmp_less(side, sides); ++side)
                 {
                     const std::uint32_t low = 2 * side;
-                    const std::uint32_t next = 2 * ((side + 1) % sides);
+                    const std::uint32_t next = 2 * ((side + 1) % static_cast<std::uint32_t>(sides));
                     triangles.insert(triangles.end(), { low, next, next + 1, low, next + 1, low + 1 });
                 }
 

@@ -129,7 +129,7 @@ namespace MyGUIRtx
         {
             constexpr int width = 3;
             constexpr int height = 2;
-            const std::array formats{ GL_RGBA, GL_BGRA, GL_RGB, GL_BGR, GL_LUMINANCE, GL_LUMINANCE_ALPHA };
+            const std::array<GLenum, 6> formats{ GL_RGBA, GL_BGRA, GL_RGB, GL_BGR, GL_LUMINANCE, GL_LUMINANCE_ALPHA };
             for (const GLenum format : formats)
             {
                 osg::ref_ptr<osg::Image> image = new osg::Image;
@@ -141,9 +141,11 @@ namespace MyGUIRtx
                 for (int y = 0; y < height; ++y)
                     for (int x = 0; x < width; ++x)
                     {
-                        const osg::Vec4f colour = image->getColor(x, y);
+                        const osg::Vec4f colour
+                            = image->getColor(static_cast<unsigned int>(x), static_cast<unsigned int>(y));
                         for (int channel = 0; channel < 4; ++channel)
-                            read.push_back(static_cast<std::uint8_t>(std::lround(colour[channel] * 255.0f)));
+                            read.push_back(static_cast<std::uint8_t>(
+                                std::lround(colour[static_cast<unsigned int>(channel)] * 255.0f)));
                     }
 
                 Rtx::Testing::CountingRenderer renderer;

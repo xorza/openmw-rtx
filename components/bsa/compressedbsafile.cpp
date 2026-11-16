@@ -61,7 +61,7 @@ namespace Bsa
             fail("Unrecognized compressed BSA version");
 
         if (mHeader.mVersion == Version_TES4)
-            mHeader.mFlags &= (~ArchiveFlag_EmbeddedNames);
+            mHeader.mFlags &= (static_cast<std::uint32_t>(~ArchiveFlag_EmbeddedNames));
 
         input.seekg(mHeader.mFoldersOffset);
         if (input.fail())
@@ -165,7 +165,7 @@ namespace Bsa
                     if (mHeader.mFileNamesLength < input.gcount())
                         fail("Failed to read file names: " + std::to_string(mHeader.mFileNamesLength) + " < "
                             + std::to_string(input.gcount()));
-                    name.resize(input.gcount());
+                    name.resize(static_cast<std::size_t>(input.gcount()));
                     if (name.back() != '\0')
                         fail("Failed to read a filename: filename is too long");
                     mHeader.mFileNamesLength -= static_cast<std::uint32_t>(input.gcount());
@@ -196,7 +196,7 @@ namespace Bsa
             for (auto& [fileHash, fileRecord] : folderRecord.mFiles)
             {
                 FileStruct fileStruct{};
-                fileStruct.mFileSize = fileRecord.mSize & (~FileSizeFlag_Compression);
+                fileStruct.mFileSize = fileRecord.mSize & (static_cast<std::uint32_t>(~FileSizeFlag_Compression));
                 fileStruct.mOffset = fileRecord.mOffset;
                 fileStruct.mNameOffset = 0;
                 fileStruct.mNameSize
@@ -263,7 +263,7 @@ namespace Bsa
 
     Files::IStreamPtr CompressedBSAFile::getFile(const FileRecord& fileRecord)
     {
-        size_t size = fileRecord.mSize & (~FileSizeFlag_Compression);
+        size_t size = fileRecord.mSize & (static_cast<std::uint32_t>(~FileSizeFlag_Compression));
         size_t resultSize = size;
         Files::IStreamPtr streamPtr = openRange(fileRecord.mOffset, size);
         bool compressed = (fileRecord.mSize != size) == ((mHeader.mFlags & ArchiveFlag_Compress) == 0);
@@ -334,12 +334,12 @@ namespace Bsa
             const char c = str[i];
             if (c == '/')
                 return '\\';
-            return c;
+            return static_cast<unsigned char>(c);
         };
         const size_t len = str.length();
         uint64_t result = at(len - 1);
         if (len >= 3)
-            result |= at(len - 2) << 8;
+            result |= static_cast<std::uint64_t>(at(len - 2) << 8);
         result |= len << 16;
         result |= static_cast<uint32_t>(at(0) << 24);
         if (len >= 4)
@@ -360,8 +360,8 @@ namespace Bsa
         else if (extension == ".wav")
             result |= 0x80000000;
         uint32_t hash = 0;
-        for (unsigned char c : extension)
-            hash = hash * 0x1003f + c;
+        for (const char c : extension)
+            hash = hash * 0x1003f + static_cast<unsigned char>(c);
         result += static_cast<uint64_t>(hash) << 32;
         return result;
     }

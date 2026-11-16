@@ -101,7 +101,7 @@ void CSMWorld::InfoCollection::load(
 void CSMWorld::InfoCollection::sort(const InfoOrderByTopic& infoOrders)
 {
     std::vector<int> order;
-    order.reserve(getSize());
+    order.reserve(static_cast<std::size_t>(getSize()));
     for (const auto& [topicId, infoOrder] : infoOrders)
         for (const OrderedInfo& info : infoOrder.getOrderedInfo())
             order.push_back(getIndex(makeCompositeInfoRefId(topicId, info.mId)));

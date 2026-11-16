@@ -194,7 +194,7 @@ namespace
     {
         const ESM::Class* npcClass = MWBase::Environment::get().getESMStore()->get<ESM::Class>().find(npc->mClass);
 
-        unsigned int level = npcStats.getLevel();
+        auto level = static_cast<unsigned int>(npcStats.getLevel());
 
         for (const auto& id : npcClass->mData.mMinorSkills)
         {

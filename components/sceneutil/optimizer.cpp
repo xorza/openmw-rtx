@@ -587,7 +587,7 @@ bool CollectLowestTransformsVisitor::removeTransforms(osg::Node* nodeWeCannotRem
 
                 for(int i2=static_cast<int>(transform->getNumParents()-1);i2>=0;--i2)
                 {
-                    transform->getParent(i2)->replaceChild(transform.get(),group.get());
+                    transform->getParent(static_cast<unsigned int>(i2))->replaceChild(transform.get(),group.get());
                 }
             }
             else

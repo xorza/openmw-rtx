@@ -84,7 +84,7 @@ namespace
         size_t i = 0;
         unsigned long unicode = 0;
         size_t numbytes = 0;
-        unsigned char ch = utf8[i++];
+        auto ch = static_cast<unsigned char>(utf8[i++]);
         if (ch <= 0x7F)
         {
             unicode = ch;
@@ -118,7 +118,7 @@ namespace
         // NOLINTEND(bugprone-branch-clone)
         for (size_t j = 0; j < numbytes; ++j)
         {
-            ch = utf8[i++];
+            ch = static_cast<unsigned char>(utf8[i++]);
             if (ch < 0x80 || ch > 0xBF)
                 throw std::logic_error("not a UTF-8 string");
             unicode <<= 6;

@@ -80,7 +80,7 @@ namespace Rtx
             if (shown >= 0 && std::cmp_less(shown, frames->getNumChildren()))
             {
                 enterChild(static_cast<unsigned int>(shown));
-                frames->getChild(shown)->accept(visitor);
+                frames->getChild(static_cast<unsigned int>(shown))->accept(visitor);
             }
 
             return;

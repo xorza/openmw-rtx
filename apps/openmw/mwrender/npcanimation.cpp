@@ -691,7 +691,7 @@ namespace MWRender
         {
             if (mPartPriorities[part] < 1)
             {
-                if (const ESM::BodyPart* bodypart = parts[part])
+                if (const ESM::BodyPart* bodypart = parts[static_cast<std::size_t>(part)])
                     addOrReplaceIndividualPart(static_cast<ESM::PartReferenceType>(part), -1, 1,
                         Misc::ResourceHelpers::correctMeshPath(bodypart->mModel.getNormalized()));
             }

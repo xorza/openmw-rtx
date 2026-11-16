@@ -155,9 +155,10 @@ Launcher::SettingsPage::SettingsPage(
             for (qsizetype i = 0; i < openFileActions.size(); ++i)
             {
                 if (configsList->currentItem()->data(0, Role_IsMainUserConfigDirectory).toBool()
-                    || configDirectoryFiles[i].showInAllConfigDirectories)
+                    || configDirectoryFiles[static_cast<std::size_t>(i)].showInAllConfigDirectories)
                 {
-                    QVariant fileUrl = configsList->currentItem()->data(0, configDirectoryFiles[i].itemDataRole);
+                    QVariant fileUrl = configsList->currentItem()->data(
+                        0, configDirectoryFiles[static_cast<std::size_t>(i)].itemDataRole);
                     bool fileExists = fileUrl.isValid();
                     openFileActions[i]->setEnabled(fileExists);
                     openFileActions[i]->setVisible(topLevel || fileExists);
@@ -487,7 +488,7 @@ void Launcher::SettingsPage::saveSettings()
             Settings::HrtfMode::Disable,
             Settings::HrtfMode::Enable,
         };
-        Settings::sound().mHrtfEnable.set(hrtfModes[enableHRTFComboBox->currentIndex()]);
+        Settings::sound().mHrtfEnable.set(hrtfModes[static_cast<std::size_t>(enableHRTFComboBox->currentIndex())]);
 
         if (hrtfProfileSelectorComboBox->currentIndex() != 0)
             Settings::sound().mHrtf.set(hrtfProfileSelectorComboBox->currentText().toStdString());

@@ -709,7 +709,7 @@ namespace MWGui
 
         std::shared_ptr<TypesetBook> book = typesetter->complete();
         mHistory->showPage(book, 0);
-        size_t viewHeight = mHistory->getParent()->getHeight();
+        auto viewHeight = static_cast<std::size_t>(mHistory->getParent()->getHeight());
         if (!scrollbar && book->getSize().second > viewHeight)
             updateHistory(true);
         else if (scrollbar)
@@ -804,8 +804,8 @@ namespace MWGui
 
             dispositionVisible = true;
             mDispositionBar->setProgressRange(100);
-            mDispositionBar->setProgressPosition(
-                MWBase::Environment::get().getMechanicsManager()->getDerivedDisposition(mPtr));
+            mDispositionBar->setProgressPosition(static_cast<std::size_t>(
+                MWBase::Environment::get().getMechanicsManager()->getDerivedDisposition(mPtr)));
             mDispositionText->setCaption(
                 MyGUI::utility::toString(MWBase::Environment::get().getMechanicsManager()->getDerivedDisposition(mPtr))
                 + std::string("/100"));
@@ -922,7 +922,7 @@ namespace MWGui
             int offset = 0;
             for (int i = 6; std::cmp_less(i, index); i++)
             {
-                const std::string& keyword = mTopicsList->getItemNameAt(i);
+                const std::string& keyword = mTopicsList->getItemNameAt(static_cast<std::size_t>(i));
                 if (keyword.empty())
                     offset += 18 + sVerticalPadding * 2;
                 else
@@ -941,7 +941,7 @@ namespace MWGui
                 if (mChoices.size() == 1)
                     onChoiceActivated(mChoices[0].second);
                 else if (mControllerChoice >= 0 && std::cmp_less(mControllerChoice, mChoices.size()))
-                    onChoiceActivated(mChoices[mControllerChoice].second);
+                    onChoiceActivated(mChoices[static_cast<std::size_t>(mControllerChoice)].second);
             }
             else if (mControllerFocus == mTopicsList->getItemCount())
                 onGoodbyeActivated();
@@ -959,7 +959,7 @@ namespace MWGui
             {
                 // In-dialogue choice (red text)
                 mControllerChoice = std::clamp(mControllerChoice - 1, 0, static_cast<int>(mChoices.size()) - 1);
-                mHistory->setFocusItem(mChoiceStyles.at(mControllerChoice));
+                mHistory->setFocusItem(mChoiceStyles.at(static_cast<std::size_t>(mControllerChoice)));
             }
             else
             {
@@ -980,7 +980,7 @@ namespace MWGui
             {
                 // In-dialogue choice (red text)
                 mControllerChoice = std::clamp(mControllerChoice + 1, 0, static_cast<int>(mChoices.size()) - 1);
-                mHistory->setFocusItem(mChoiceStyles.at(mControllerChoice));
+                mHistory->setFocusItem(mChoiceStyles.at(static_cast<std::size_t>(mControllerChoice)));
             }
             else
             {

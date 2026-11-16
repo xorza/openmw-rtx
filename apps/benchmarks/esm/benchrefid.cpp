@@ -105,7 +105,7 @@ namespace
         // The same sequence each run, on purpose.
         // NOLINTNEXTLINE(bugprone-random-generator-seed)
         std::minstd_rand random;
-        std::vector<ESM::RefId> refIds = generateStringRefIds(state.range(0), random);
+        std::vector<ESM::RefId> refIds = generateStringRefIds(static_cast<std::size_t>(state.range(0)), random);
         std::size_t i = 0;
         for ([[maybe_unused]] auto _ : state)
         {
@@ -120,8 +120,8 @@ namespace
         // The same sequence each run, on purpose.
         // NOLINTNEXTLINE(bugprone-random-generator-seed)
         std::minstd_rand random;
-        std::vector<std::string> serializedRefIds
-            = generateSerializedStringRefIds(state.range(0), random, [](ESM::RefId v) { return v.serialize(); });
+        std::vector<std::string> serializedRefIds = generateSerializedStringRefIds(
+            static_cast<std::size_t>(state.range(0)), random, [](ESM::RefId v) { return v.serialize(); });
         std::size_t i = 0;
         for ([[maybe_unused]] auto _ : state)
         {
@@ -136,7 +136,7 @@ namespace
         // The same sequence each run, on purpose.
         // NOLINTNEXTLINE(bugprone-random-generator-seed)
         std::minstd_rand random;
-        std::vector<ESM::RefId> refIds = generateStringRefIds(state.range(0), random);
+        std::vector<ESM::RefId> refIds = generateStringRefIds(static_cast<std::size_t>(state.range(0)), random);
         std::size_t i = 0;
         for ([[maybe_unused]] auto _ : state)
         {
@@ -151,8 +151,8 @@ namespace
         // The same sequence each run, on purpose.
         // NOLINTNEXTLINE(bugprone-random-generator-seed)
         std::minstd_rand random;
-        std::vector<std::string> serializedRefIds
-            = generateSerializedStringRefIds(state.range(0), random, [](ESM::RefId v) { return v.serializeText(); });
+        std::vector<std::string> serializedRefIds = generateSerializedStringRefIds(
+            static_cast<std::size_t>(state.range(0)), random, [](ESM::RefId v) { return v.serializeText(); });
         std::size_t i = 0;
         for ([[maybe_unused]] auto _ : state)
         {

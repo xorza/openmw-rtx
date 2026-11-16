@@ -137,14 +137,16 @@ namespace Compiler
                 if (optionalArguments >= 256)
                     throw std::logic_error("number of optional arguments is too large for segment 3");
 
-                code.push_back(Generator::segment3(
-                    id.empty() ? iter->second.mCode : iter->second.mCodeExplicit, optionalArguments));
+                code.push_back(Generator::segment3(id.empty() ? static_cast<unsigned int>(iter->second.mCode)
+                                                              : static_cast<unsigned int>(iter->second.mCodeExplicit),
+                    static_cast<unsigned int>(optionalArguments)));
 
                 break;
 
             case 5:
 
-                code.push_back(Generator::segment5(id.empty() ? iter->second.mCode : iter->second.mCodeExplicit));
+                code.push_back(Generator::segment5(id.empty() ? static_cast<unsigned int>(iter->second.mCode)
+                                                              : static_cast<unsigned int>(iter->second.mCodeExplicit)));
 
                 break;
 
@@ -182,14 +184,16 @@ namespace Compiler
                 if (optionalArguments >= 256)
                     throw std::logic_error("number of optional arguments is too large for segment 3");
 
-                code.push_back(Generator::segment3(
-                    id.empty() ? iter->second.mCode : iter->second.mCodeExplicit, optionalArguments));
+                code.push_back(Generator::segment3(id.empty() ? static_cast<unsigned int>(iter->second.mCode)
+                                                              : static_cast<unsigned int>(iter->second.mCodeExplicit),
+                    static_cast<unsigned int>(optionalArguments)));
 
                 break;
 
             case 5:
 
-                code.push_back(Generator::segment5(id.empty() ? iter->second.mCode : iter->second.mCodeExplicit));
+                code.push_back(Generator::segment5(id.empty() ? static_cast<unsigned int>(iter->second.mCode)
+                                                              : static_cast<unsigned int>(iter->second.mCodeExplicit)));
 
                 break;
 

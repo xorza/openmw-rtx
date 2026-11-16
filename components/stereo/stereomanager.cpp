@@ -336,7 +336,7 @@ namespace Stereo
         std::array<osg::Matrix, 2> projectionMatrices;
 
         for (int view : { 0, 1 })
-            projectionMatrices[view]
+            projectionMatrices[static_cast<std::size_t>(view)]
                 = computeEyeViewOffset(view) * computeEyeProjection(view, SceneUtil::AutoDepth::isReversed());
 
         Stereo::setMultiviewMatrices(stateset, projectionMatrices, true);
@@ -354,12 +354,13 @@ namespace Stereo
 
     osg::Matrixd Manager::computeEyeProjection(int view, bool reverseZ) const
     {
-        return reverseZ ? mProjectionMatrixReverseZ[view] : mProjectionMatrix[view];
+        return reverseZ ? mProjectionMatrixReverseZ[static_cast<std::size_t>(view)]
+                        : mProjectionMatrix[static_cast<std::size_t>(view)];
     }
 
     osg::Matrixd Manager::computeEyeViewOffset(int view) const
     {
-        return mViewOffsetMatrix[view];
+        return mViewOffsetMatrix[static_cast<std::size_t>(view)];
     }
 
     Eye Manager::getEye(const osgUtil::CullVisitor* cv) const

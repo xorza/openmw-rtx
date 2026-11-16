@@ -268,6 +268,7 @@ bool ContentSelectorModel::ContentModel::setData(const QModelIndex& index, const
                 return isChecked(file) || setCheckState(file, true);
             if (checkValue == Qt::Unchecked)
                 return !isChecked(file) || setCheckState(file, false);
+            break;
         }
         default:
             break;

@@ -108,7 +108,7 @@ namespace
             if (persistent)
                 npc.mRecordFlags |= ESM::FLAG_Persistent;
             else
-                npc.mRecordFlags &= ~ESM::FLAG_Persistent;
+                npc.mRecordFlags &= static_cast<std::uint32_t>(~ESM::FLAG_Persistent);
         }
 
         if (rec["isAutocalc"] != sol::nil)
@@ -318,14 +318,14 @@ namespace MWLua
                 if (npcStats.isInFaction(factionId))
                 {
                     int factionRank = npcStats.getFactionRank(factionId);
-                    return LuaUtil::toLuaIndex(factionRank);
+                    return static_cast<std::size_t>(LuaUtil::toLuaIndex(factionRank));
                 }
             }
             else
             {
                 ESM::RefId primaryFactionId = ptr.getClass().getPrimaryFaction(ptr);
                 if (factionId == primaryFactionId)
-                    return LuaUtil::toLuaIndex(ptr.getClass().getPrimaryFactionRank(ptr));
+                    return static_cast<std::size_t>(LuaUtil::toLuaIndex(ptr.getClass().getPrimaryFactionRank(ptr)));
             }
             return 0;
         };

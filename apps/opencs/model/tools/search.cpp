@@ -80,7 +80,7 @@ void CSMTools::Search::searchRecordStateCell(const CSMWorld::IdTableBase* model,
             = CSMWorld::Columns::getEnums(CSMWorld::Columns::ColumnId_Modification);
 
         const std::string hint = "r: " + std::to_string(model->getColumnId(index.column()));
-        messages.add(id, states.at(data).second, hint);
+        messages.add(id, states.at(static_cast<std::size_t>(data)).second, hint);
     }
 }
 
@@ -285,8 +285,8 @@ void CSMTools::Search::replace(CSMDoc::Document& document, CSMWorld::IdTableBase
 
         std::string text = model->data(index).toString().toUtf8().constData();
 
-        std::string before = text.substr(0, pos);
-        std::string after = text.substr(pos + length);
+        std::string before = text.substr(0, static_cast<std::size_t>(pos));
+        std::string after = text.substr(static_cast<std::size_t>(pos) + static_cast<std::size_t>(length));
 
         std::string newText = before + replaceText + after;
 

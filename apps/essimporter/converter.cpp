@@ -151,9 +151,10 @@ namespace ESSImport
             for (int x = 0; x < cellSize; ++x)
                 for (int y = 0; y < cellSize; ++y)
                 {
-                    unsigned int col
-                        = *reinterpret_cast<unsigned int*>(mGlobalMapImage->data(imageLeftSrc + x, imageTopSrc + y, 0));
-                    *reinterpret_cast<unsigned int*>(image2->data(imageLeftDst + x, imageTopDst + y, 0)) = col;
+                    unsigned int col = *reinterpret_cast<unsigned int*>(mGlobalMapImage->data(
+                        static_cast<unsigned int>(imageLeftSrc + x), static_cast<unsigned int>(imageTopSrc + y), 0));
+                    *reinterpret_cast<unsigned int*>(image2->data(static_cast<unsigned int>(imageLeftDst + x),
+                        static_cast<unsigned int>(imageTopDst + y), 0)) = col;
                 }
         }
 
@@ -261,8 +262,8 @@ namespace ESSImport
             // Converting the interior markers correctly could be rather tricky, but is probably similar logic
             // as used for the FoW texture placement, which we need to figure out anyway
             notepos[1] += 31.f;
-            notepos[0] += 0.5;
-            notepos[1] += 0.5;
+            notepos[0] += static_cast<float>(0.5);
+            notepos[1] += static_cast<float>(0.5);
             notepos[0] = Constants::CellSizeInUnits * notepos[0] / 32.f;
             notepos[1] = Constants::CellSizeInUnits * notepos[1] / 32.f;
             if (cell.isExterior())

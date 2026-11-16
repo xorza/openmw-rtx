@@ -96,9 +96,9 @@ namespace SceneUtil
 
             i *= 3;
 
-            mUniformBuffers[frameId]->setElement(i + 0, light->getPosition());
-            mUniformBuffers[frameId]->setElement(i + 1, light->getDiffuse());
-            mUniformBuffers[frameId]->setElement(i + 2,
+            mUniformBuffers[frameId]->setElement(static_cast<unsigned int>(i + 0), light->getPosition());
+            mUniformBuffers[frameId]->setElement(static_cast<unsigned int>(i + 1), light->getDiffuse());
+            mUniformBuffers[frameId]->setElement(static_cast<unsigned int>(i + 2),
                 osg::Vec4f(light->getConstantAttenuation(), light->getLinearAttenuation(),
                     light->getQuadraticAttenuation(), radius));
 

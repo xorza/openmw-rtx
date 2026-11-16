@@ -39,7 +39,7 @@ namespace MWClass
     ContainerCustomData::ContainerCustomData(const ESM::Container& container, MWWorld::CellStore* cell)
     {
         auto& prng = MWBase::Environment::get().getWorld()->getPrng();
-        unsigned int seed = Misc::Rng::rollDice(std::numeric_limits<int>::max(), prng);
+        auto seed = static_cast<unsigned int>(Misc::Rng::rollDice(std::numeric_limits<int>::max(), prng));
         // setting ownership not needed, since taking items from a container inherits the
         // container's owner automatically
         mStore.fillNonRandom(container.mInventory, ESM::RefId(), seed);

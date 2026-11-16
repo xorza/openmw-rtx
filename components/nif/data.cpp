@@ -272,7 +272,7 @@ namespace Nif
             if (nif->getVersion() >= NIFStream::generateVersion(20, 3, 0, 4))
                 nif->read(mUseSrgb);
             for (int i = 0; i < 4; i++)
-                mChannels[i].read(nif);
+                mChannels[static_cast<std::size_t>(i)].read(nif);
         }
     }
 

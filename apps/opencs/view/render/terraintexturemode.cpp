@@ -355,7 +355,7 @@ void CSVRender::TerrainTextureMode::editTerrainTextureGrid(const WorldspaceHitRe
 
         if (allowLandTextureEditing(mCellId))
         {
-            newTerrain[yHitInCell * landTextureSize + xHitInCell] = brushInt;
+            newTerrain[yHitInCell * landTextureSize + xHitInCell] = static_cast<unsigned short>(brushInt);
             pushEditToCommand(newTerrain, document, landTable, mCellId);
         }
     }
@@ -392,7 +392,7 @@ void CSVRender::TerrainTextureMode::editTerrainTextureGrid(const WorldspaceHitRe
 
                             if (iCell == cellX && jCell == cellY && abs(i - xHitInCell) < r && abs(j - yHitInCell) < r)
                             {
-                                newTerrain[j * landTextureSize + i] = brushInt;
+                                newTerrain[j * landTextureSize + i] = static_cast<unsigned short>(brushInt);
                             }
                             else
                             {
@@ -411,7 +411,7 @@ void CSVRender::TerrainTextureMode::editTerrainTextureGrid(const WorldspaceHitRe
                                 if (jCell == cellY)
                                     distanceY = abs(j - yHitInCell);
                                 if (distanceX < r && distanceY < r)
-                                    newTerrain[j * landTextureSize + i] = brushInt;
+                                    newTerrain[j * landTextureSize + i] = static_cast<unsigned short>(brushInt);
                             }
                         }
                     }
@@ -458,7 +458,7 @@ void CSVRender::TerrainTextureMode::editTerrainTextureGrid(const WorldspaceHitRe
                                     = static_cast<float>(std::round(sqrt(pow(distanceX, 2) + pow(distanceY, 2))));
                                 float rf = static_cast<float>(mBrushSize) / 2;
                                 if (distance < rf)
-                                    newTerrain[j * landTextureSize + i] = brushInt;
+                                    newTerrain[j * landTextureSize + i] = static_cast<unsigned short>(brushInt);
                             }
                             else
                             {
@@ -480,7 +480,7 @@ void CSVRender::TerrainTextureMode::editTerrainTextureGrid(const WorldspaceHitRe
                                     = static_cast<float>(std::round(sqrt(pow(distanceX, 2) + pow(distanceY, 2))));
                                 float rf = static_cast<float>(mBrushSize) / 2;
                                 if (distance < rf)
-                                    newTerrain[j * landTextureSize + i] = brushInt;
+                                    newTerrain[j * landTextureSize + i] = static_cast<unsigned short>(brushInt);
                             }
                         }
                     }
@@ -502,14 +502,15 @@ void CSVRender::TerrainTextureMode::editTerrainTextureGrid(const WorldspaceHitRe
                 if (yHitInCell + value.second >= 0 && yHitInCell + value.second <= 15 && xHitInCell + value.first >= 0
                     && xHitInCell + value.first <= 15)
                 {
-                    newTerrain[(yHitInCell + value.second) * landTextureSize + xHitInCell + value.first] = brushInt;
+                    newTerrain[(yHitInCell + value.second) * landTextureSize + xHitInCell + value.first]
+                        = static_cast<unsigned short>(brushInt);
                 }
                 else
                 {
-                    int cellXDifference = std::floor(
-                        1.0f * static_cast<float>((xHitInCell + value.first)) / static_cast<float>(landTextureSize));
-                    int cellYDifference = std::floor(
-                        1.0f * static_cast<float>((yHitInCell + value.second)) / static_cast<float>(landTextureSize));
+                    int cellXDifference = static_cast<int>(std::floor(
+                        1.0f * static_cast<float>((xHitInCell + value.first)) / static_cast<float>(landTextureSize)));
+                    int cellYDifference = static_cast<int>(std::floor(
+                        1.0f * static_cast<float>((yHitInCell + value.second)) / static_cast<float>(landTextureSize)));
                     int xInOtherCell = xHitInCell + value.first - cellXDifference * landTextureSize;
                     int yInOtherCell = yHitInCell + value.second - cellYDifference * landTextureSize;
 
@@ -519,7 +520,8 @@ void CSVRender::TerrainTextureMode::editTerrainTextureGrid(const WorldspaceHitRe
                     {
                         auto newTerrainOtherCell = landTable.data(landTable.getModelIndex(cellId, textureColumn))
                                                        .value<CSMWorld::LandTexturesColumn::DataType>();
-                        newTerrainOtherCell[yInOtherCell * landTextureSize + xInOtherCell] = brushInt;
+                        newTerrainOtherCell[yInOtherCell * landTextureSize + xInOtherCell]
+                            = static_cast<unsigned short>(brushInt);
                         pushEditToCommand(newTerrainOtherCell, document, landTable, cellId);
                     }
                 }

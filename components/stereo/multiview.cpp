@@ -218,10 +218,11 @@ namespace Stereo
                     sourceTextureObject->_profile._height, 2);
                 state.checkGLErrors("after Texture2DViewSubloadCallback::load()::glTexStorage3D");
             }
-            glBindTexture(GL_TEXTURE_2D_ARRAY, oldBinding);
+            glBindTexture(GL_TEXTURE_2D_ARRAY, static_cast<GLuint>(oldBinding));
         }
 
-        gl->glTextureView(targetId, GL_TEXTURE_2D, sourceId, internalFormat, 0, levels, mLayer, 1);
+        gl->glTextureView(targetId, GL_TEXTURE_2D, sourceId, internalFormat, 0, static_cast<GLuint>(levels),
+            static_cast<GLuint>(mLayer), 1);
         state.checkGLErrors("after Texture2DViewSubloadCallback::load()::glTextureView");
         glBindTexture(GL_TEXTURE_2D, targetId);
     }
@@ -568,7 +569,8 @@ namespace Stereo
             {
                 if (mSamples > 1)
                     mLayerMsaaFbo[i]->setAttachment(osg::Camera::COLOR_BUFFER,
-                        osg::FrameBufferAttachment(new osg::RenderBuffer(mWidth, mHeight, internalFormat, mSamples)));
+                        osg::FrameBufferAttachment(
+                            new osg::RenderBuffer(mWidth, mHeight, static_cast<GLenum>(internalFormat), mSamples)));
                 mColorTexture[i] = createTexture(sourceFormat, sourceType, internalFormat);
                 mLayerFbo[i]->setAttachment(osg::Camera::COLOR_BUFFER, osg::FrameBufferAttachment(mColorTexture[i]));
             }
@@ -598,7 +600,8 @@ namespace Stereo
             {
                 if (mSamples > 1)
                     mLayerMsaaFbo[i]->setAttachment(osg::Camera::PACKED_DEPTH_STENCIL_BUFFER,
-                        osg::FrameBufferAttachment(new osg::RenderBuffer(mWidth, mHeight, internalFormat, mSamples)));
+                        osg::FrameBufferAttachment(
+                            new osg::RenderBuffer(mWidth, mHeight, static_cast<GLenum>(internalFormat), mSamples)));
                 mDepthTexture[i] = createTexture(sourceFormat, sourceType, internalFormat);
                 mLayerFbo[i]->setAttachment(
                     osg::Camera::PACKED_DEPTH_STENCIL_BUFFER, osg::FrameBufferAttachment(mDepthTexture[i]));
@@ -613,12 +616,12 @@ namespace Stereo
 
     osg::FrameBufferObject* MultiviewFramebuffer::layerFbo(int i)
     {
-        return mLayerFbo[i];
+        return mLayerFbo[static_cast<std::size_t>(i)];
     }
 
     osg::FrameBufferObject* MultiviewFramebuffer::layerMsaaFbo(int i)
     {
-        return mLayerMsaaFbo[i];
+        return mLayerMsaaFbo[static_cast<std::size_t>(i)];
     }
 
     osg::Texture2DArray* MultiviewFramebuffer::multiviewColorBuffer()
@@ -633,12 +636,12 @@ namespace Stereo
 
     osg::Texture2D* MultiviewFramebuffer::layerColorBuffer(int i)
     {
-        return mColorTexture[i];
+        return mColorTexture[static_cast<std::size_t>(i)];
     }
 
     osg::Texture2D* MultiviewFramebuffer::layerDepthBuffer(int i)
     {
-        return mDepthTexture[i];
+        return mDepthTexture[static_cast<std::size_t>(i)];
     }
     void MultiviewFramebuffer::attachTo(osg::Camera* camera)
     {
@@ -694,8 +697,8 @@ namespace Stereo
     {
         auto* texture = new osg::Texture2D;
         texture->setTextureSize(mWidth, mHeight);
-        texture->setSourceFormat(sourceFormat);
-        texture->setSourceType(sourceType);
+        texture->setSourceFormat(static_cast<GLenum>(sourceFormat));
+        texture->setSourceType(static_cast<GLenum>(sourceType));
         texture->setInternalFormat(internalFormat);
         texture->setFilter(osg::Texture::MIN_FILTER, osg::Texture::LINEAR);
         texture->setFilter(osg::Texture::MAG_FILTER, osg::Texture::LINEAR);
@@ -710,8 +713,8 @@ namespace Stereo
     {
         auto* textureArray = new osg::Texture2DArray;
         textureArray->setTextureSize(mWidth, mHeight, 2);
-        textureArray->setSourceFormat(sourceFormat);
-        textureArray->setSourceType(sourceType);
+        textureArray->setSourceFormat(static_cast<GLenum>(sourceFormat));
+        textureArray->setSourceType(static_cast<GLenum>(sourceType));
         textureArray->setInternalFormat(internalFormat);
         textureArray->setFilter(osg::Texture::MIN_FILTER, osg::Texture::LINEAR);
         textureArray->setFilter(osg::Texture::MAG_FILTER, osg::Texture::LINEAR);
@@ -729,7 +732,8 @@ namespace Stereo
             osg::Texture* tex = attachment.getTexture();
 
             if (tex->getTextureTarget() == GL_TEXTURE_2D_ARRAY)
-                return osg::FrameBufferAttachment(static_cast<osg::Texture2DArray*>(tex), layer, 0);
+                return osg::FrameBufferAttachment(
+                    static_cast<osg::Texture2DArray*>(tex), static_cast<unsigned int>(layer), 0);
 
 #ifdef OSG_HAS_MULTIVIEW
             if (tex->getTextureTarget() == GL_TEXTURE_2D_MULTISAMPLE_ARRAY)
@@ -773,8 +777,10 @@ namespace Stereo
 
         for (int view : { 0, 1 })
         {
-            mResolveLayers[view]->apply(state, osg::FrameBufferObject::BindTarget::DRAW_FRAMEBUFFER);
-            mMsaaLayers[view]->apply(state, osg::FrameBufferObject::BindTarget::READ_FRAMEBUFFER);
+            mResolveLayers[static_cast<std::size_t>(view)]->apply(
+                state, osg::FrameBufferObject::BindTarget::DRAW_FRAMEBUFFER);
+            mMsaaLayers[static_cast<std::size_t>(view)]->apply(
+                state, osg::FrameBufferObject::BindTarget::READ_FRAMEBUFFER);
             ext->glBlitFramebuffer(0, 0, mWidth, mHeight, 0, 0, mWidth, mHeight, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
         }
     }

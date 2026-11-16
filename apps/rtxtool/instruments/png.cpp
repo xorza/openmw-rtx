@@ -106,8 +106,8 @@ namespace RtxTool
         const osg::ref_ptr<osg::Image> image = new osg::Image;
         image->allocateImage(static_cast<int>(width), static_cast<int>(height), 1, GL_RGBA, GL_UNSIGNED_SHORT);
         for (std::uint32_t y = 0; y < height; ++y)
-            std::memcpy(image->data(0, static_cast<int>(height - 1 - y)), samples.data() + row * y,
-                row * sizeof(std::uint16_t));
+            std::memcpy(image->data(0, static_cast<unsigned int>(static_cast<int>(height - 1 - y))),
+                samples.data() + row * y, row * sizeof(std::uint16_t));
         return writeImage(path, *image, description);
     }
 
@@ -131,7 +131,8 @@ namespace RtxTool
         // Back the way `writePng` sent them: OSG's first row is the bottom one.
         for (std::uint32_t y = 0; y < read.mHeight; ++y)
         {
-            const unsigned char* row = image->data(0, static_cast<int>(read.mHeight - 1 - y));
+            const unsigned char* row
+                = image->data(0, static_cast<unsigned int>(static_cast<int>(read.mHeight - 1 - y)));
             std::uint16_t* into = read.mSamples.data() + std::size_t{ y } * read.mWidth * 4;
 
             for (std::uint32_t x = 0; x < read.mWidth; ++x)

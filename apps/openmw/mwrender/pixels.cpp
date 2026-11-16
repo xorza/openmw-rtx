@@ -40,10 +40,13 @@ namespace MWRender
             const int bottom = area.mY + clamped(flooredV, area.mHeight);
             const int top = area.mY + clamped(flooredV + 1.0f, area.mHeight);
 
-            const std::uint8_t* lowerLeft = image.data(left, bottom);
-            const std::uint8_t* lowerRight = image.data(right, bottom);
-            const std::uint8_t* upperLeft = image.data(left, top);
-            const std::uint8_t* upperRight = image.data(right, top);
+            const std::uint8_t* lowerLeft
+                = image.data(static_cast<unsigned int>(left), static_cast<unsigned int>(bottom));
+            const std::uint8_t* lowerRight
+                = image.data(static_cast<unsigned int>(right), static_cast<unsigned int>(bottom));
+            const std::uint8_t* upperLeft = image.data(static_cast<unsigned int>(left), static_cast<unsigned int>(top));
+            const std::uint8_t* upperRight
+                = image.data(static_cast<unsigned int>(right), static_cast<unsigned int>(top));
 
             for (int channel = 0; channel < 4; ++channel)
             {
@@ -101,14 +104,16 @@ namespace MWRender
 
         bool changed = false;
         for (int y = 0; y < height && !changed; ++y)
-            changed = std::memcmp(into.data(destination.mX, destination.mY + y),
+            changed = std::memcmp(into.data(static_cast<unsigned int>(destination.mX),
+                                      static_cast<unsigned int>(destination.mY + y)),
                           scratch.data() + static_cast<std::size_t>(y) * stride, stride)
                 != 0;
         if (!changed)
             return false;
 
         for (int y = 0; y < height; ++y)
-            std::memcpy(into.data(destination.mX, destination.mY + y),
+            std::memcpy(
+                into.data(static_cast<unsigned int>(destination.mX), static_cast<unsigned int>(destination.mY + y)),
                 scratch.data() + static_cast<std::size_t>(y) * stride, stride);
 
         return true;
@@ -130,7 +135,8 @@ namespace MWRender
             {
                 const float u = (static_cast<float>(x) + 0.5f) * acrossU - 0.5f;
 
-                filterTexel(from, source, u, v, into.data(target.mX + x, target.mY + y));
+                filterTexel(from, source, u, v,
+                    into.data(static_cast<unsigned int>(target.mX + x), static_cast<unsigned int>(target.mY + y)));
             }
         }
     }
@@ -145,7 +151,8 @@ namespace MWRender
 
         for (int y = 0; y < image->t(); ++y)
             for (int x = 0; x < image->s(); ++x)
-                converted->setColor(image->getColor(x, y), x, y);
+                converted->setColor(image->getColor(static_cast<unsigned int>(x), static_cast<unsigned int>(y)),
+                    static_cast<unsigned int>(x), static_cast<unsigned int>(y));
 
         return converted;
     }

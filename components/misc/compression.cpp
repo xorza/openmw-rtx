@@ -15,7 +15,7 @@ namespace Misc
     {
         const std::size_t originalSize = data.size();
         std::vector<std::byte> result(
-            static_cast<std::size_t>(LZ4_compressBound(static_cast<int>(originalSize)) + sizeof(originalSize)));
+            static_cast<std::size_t>(LZ4_compressBound(static_cast<int>(originalSize))) + sizeof(originalSize));
         const int size = LZ4_compress_default(reinterpret_cast<const char*>(data.data()),
             reinterpret_cast<char*>(result.data()) + sizeof(originalSize), static_cast<int>(data.size()),
             static_cast<int>(result.size() - sizeof(originalSize)));

@@ -119,8 +119,8 @@ namespace CSMPrefs
 
         for (int i = 0; i < sequence.count(); ++i)
         {
-            int mods = static_cast<int>(sequence[i].keyboardModifiers());
-            int key = sequence[i].key();
+            int mods = static_cast<int>(sequence[static_cast<uint>(i)].keyboardModifiers());
+            int key = sequence[static_cast<uint>(i)].key();
 
             if (key)
             {
@@ -129,17 +129,17 @@ namespace CSMPrefs
                 {
                     if (mods && i == 0)
                     {
-                        if (mods & Qt::ControlModifier)
+                        if (static_cast<unsigned int>(mods) & Qt::ControlModifier)
                             result.append("Ctrl+");
-                        if (mods & Qt::ShiftModifier)
+                        if (static_cast<unsigned int>(mods) & Qt::ShiftModifier)
                             result.append("Shift+");
-                        if (mods & Qt::AltModifier)
+                        if (static_cast<unsigned int>(mods) & Qt::AltModifier)
                             result.append("Alt+");
-                        if (mods & Qt::MetaModifier)
+                        if (static_cast<unsigned int>(mods) & Qt::MetaModifier)
                             result.append("Meta+");
-                        if (mods & Qt::KeypadModifier)
+                        if (static_cast<unsigned int>(mods) & Qt::KeypadModifier)
                             result.append("Keypad+");
-                        if (mods & Qt::GroupSwitchModifier)
+                        if (static_cast<unsigned int>(mods) & Qt::GroupSwitchModifier)
                             result.append("GroupSwitch+");
                     }
                     else if (i > 0)

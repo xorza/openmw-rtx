@@ -43,7 +43,7 @@ CSVWorld::RecordStatusDelegateFactory::RecordStatusDelegateFactory()
 
     for (int i = 0; sIcons[i]; ++i)
     {
-        auto& enumPair = enums.at(i);
+        auto& enumPair = enums.at(static_cast<std::size_t>(i));
         add(enumPair.first, enumPair.second.c_str(), sIcons[i]);
     }
 }

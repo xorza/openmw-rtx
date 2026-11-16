@@ -159,7 +159,7 @@ namespace Rtx
                             const double truth
                                 = integral([&](double t) { return extinction * std::exp(-extinction * rising * t); },
                                     static_cast<double>(path));
-                            EXPECT_NEAR(static_cast<double>(gathered[channel]), truth, truth * 5e-6)
+                            EXPECT_NEAR(static_cast<double>(gathered[static_cast<int>(channel)]), truth, truth * 5e-6)
                                 << "over " << path << " toward " << direction[2] << " at a slant of " << slant
                                 << ", channel " << channel;
                         }

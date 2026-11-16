@@ -113,19 +113,19 @@ namespace CSMWorld
     template <typename RecordT>
     const RecordBase& RefIdDataContainer<RecordT>::getRecord(int index) const
     {
-        return *mContainer.at(index);
+        return *mContainer.at(static_cast<std::size_t>(index));
     }
 
     template <typename RecordT>
     RecordBase& RefIdDataContainer<RecordT>::getRecord(int index)
     {
-        return *mContainer.at(index);
+        return *mContainer.at(static_cast<std::size_t>(index));
     }
 
     template <typename RecordT>
     unsigned int RefIdDataContainer<RecordT>::getRecordFlags(int index) const
     {
-        return mContainer.at(index)->get().mRecordFlags;
+        return mContainer.at(static_cast<std::size_t>(index))->get().mRecordFlags;
     }
 
     template <typename RecordT>
@@ -154,7 +154,7 @@ namespace CSMWorld
         int numRecords = static_cast<int>(mContainer.size());
         for (; index < numRecords; ++index)
         {
-            if ((mContainer[index]->get().mId == record.mId))
+            if ((mContainer[static_cast<std::size_t>(index)]->get().mId == record.mId))
             {
                 break;
             }
@@ -172,7 +172,7 @@ namespace CSMWorld
 
             // Flag the record as Deleted even for a base content file.
             // RefIdData is responsible for its erasure.
-            mContainer[index]->mState = RecordBase::State_Deleted;
+            mContainer[static_cast<std::size_t>(index)]->mState = RecordBase::State_Deleted;
         }
         else
         {
@@ -190,13 +190,13 @@ namespace CSMWorld
             }
             else if (!base)
             {
-                mContainer[index]->setModified(record);
+                mContainer[static_cast<std::size_t>(index)]->setModified(record);
             }
             else
             {
                 // Overwrite
-                mContainer[index]->setModified(record);
-                mContainer[index]->merge();
+                mContainer[static_cast<std::size_t>(index)]->setModified(record);
+                mContainer[static_cast<std::size_t>(index)]->merge();
             }
         }
 
@@ -215,13 +215,13 @@ namespace CSMWorld
     template <typename RecordT>
     ESM::RefId RefIdDataContainer<RecordT>::getId(int index) const
     {
-        return mContainer.at(index)->get().mId;
+        return mContainer.at(static_cast<std::size_t>(index))->get().mId;
     }
 
     template <typename RecordT>
     void RefIdDataContainer<RecordT>::save(int index, ESM::ESMWriter& writer) const
     {
-        const Record<RecordT>& record = *mContainer.at(index);
+        const Record<RecordT>& record = *mContainer.at(static_cast<std::size_t>(index));
 
         if (record.isModified() || record.mState == RecordBase::State_Deleted)
         {

@@ -718,7 +718,7 @@ namespace Nif
             nif.read(idx);
             if (idx >= 0 && static_cast<std::size_t>(idx) < mRecords.size())
             {
-                mRoots.push_back(mRecords[idx].get());
+                mRoots.push_back(mRecords[static_cast<std::size_t>(idx)].get());
             }
             else
             {

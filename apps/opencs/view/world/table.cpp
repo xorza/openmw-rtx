@@ -540,11 +540,11 @@ void CSVWorld::Table::moveUpRecord()
             if (row2 <= row)
                 throw std::runtime_error("Inconsistent row order");
 
-            std::vector<int> newOrder(row2 - row + 1);
+            std::vector<int> newOrder(static_cast<std::size_t>(row2 - row + 1));
             newOrder[0] = row2 - row;
-            newOrder[row2 - row] = 0;
+            newOrder[static_cast<std::size_t>(row2 - row)] = 0;
             for (int i = 1; i < row2 - row; ++i)
-                newOrder[i] = i;
+                newOrder[static_cast<std::size_t>(i)] = i;
 
             mDocument.getUndoStack().push(
                 new CSMWorld::ReorderRowsCommand(dynamic_cast<CSMWorld::IdTable&>(*mModel), row, newOrder));
@@ -573,11 +573,11 @@ void CSVWorld::Table::moveDownRecord()
             if (row2 <= row)
                 throw std::runtime_error("Inconsistent row order");
 
-            std::vector<int> newOrder(row2 - row + 1);
+            std::vector<int> newOrder(static_cast<std::size_t>(row2 - row + 1));
             newOrder[0] = row2 - row;
-            newOrder[row2 - row] = 0;
+            newOrder[static_cast<std::size_t>(row2 - row)] = 0;
             for (int i = 1; i < row2 - row; ++i)
-                newOrder[i] = i;
+                newOrder[static_cast<std::size_t>(i)] = i;
 
             mDocument.getUndoStack().push(
                 new CSMWorld::ReorderRowsCommand(dynamic_cast<CSMWorld::IdTable&>(*mModel), row, newOrder));
@@ -606,11 +606,11 @@ void CSVWorld::Table::moveRecords(QDropEvent* event)
         baseRow = std::min(thisRow - 1, baseRow);
     }
 
-    std::vector<int> newOrder(highestDifference + 1);
+    std::vector<int> newOrder(static_cast<std::size_t>(highestDifference + 1));
 
     for (int i = 0; i <= highestDifference; ++i)
     {
-        newOrder[i] = i;
+        newOrder[static_cast<std::size_t>(i)] = i;
     }
 
     if (selectedRows.size() > 1)
@@ -640,14 +640,14 @@ void CSVWorld::Table::moveRecords(QDropEvent* event)
         {
             for (int i = targetRow - baseRow - 1; i < originRow - baseRow - 1; ++i)
             {
-                ++newOrder[i];
+                ++newOrder[static_cast<std::size_t>(i)];
             }
         }
         else
         {
             for (int i = originRow - baseRow; i <= targetRow - baseRow - 1; ++i)
             {
-                --newOrder[i];
+                --newOrder[static_cast<std::size_t>(i)];
             }
         }
     }

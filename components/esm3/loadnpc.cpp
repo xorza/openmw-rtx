@@ -30,9 +30,9 @@ namespace ESM
         {
             dst.mLevel = src.mLevel;
             for (int i = 0; i < Attribute::Length; ++i)
-                dst.mAttributes[i] = src.getAttribute(ESM::Attribute::indexToRefId(i));
+                dst.mAttributes[static_cast<std::size_t>(i)] = src.getAttribute(ESM::Attribute::indexToRefId(i));
             for (int i = 0; i < Skill::Length; ++i)
-                dst.mSkills[i] = src.getSkill(ESM::Skill::indexToRefId(i));
+                dst.mSkills[static_cast<std::size_t>(i)] = src.getSkill(ESM::Skill::indexToRefId(i));
             dst.mHealth = src.mHealth;
             dst.mMana = src.mMana;
             dst.mFatigue = src.mFatigue;
@@ -47,9 +47,9 @@ namespace ESM
             dst.mLevel = src.mLevel;
             dst.mAttributes.clear();
             for (int i = 0; i < Attribute::Length; ++i)
-                dst.mAttributes.emplace(ESM::Attribute::indexToRefId(i), src.mAttributes[i]);
+                dst.mAttributes.emplace(ESM::Attribute::indexToRefId(i), src.mAttributes[static_cast<std::size_t>(i)]);
             for (int i = 0; i < Skill::Length; ++i)
-                dst.mSkills.emplace(ESM::Skill::indexToRefId(i), src.mSkills[i]);
+                dst.mSkills.emplace(ESM::Skill::indexToRefId(i), src.mSkills[static_cast<std::size_t>(i)]);
             dst.mHealth = src.mHealth;
             dst.mMana = src.mMana;
             dst.mFatigue = src.mFatigue;

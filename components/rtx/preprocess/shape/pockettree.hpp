@@ -64,7 +64,10 @@ namespace Rtx
             std::uint32_t mCount = 0;
         };
 
-        const osg::Vec3f& corner(std::uint32_t t, int which) const { return mPositions[mIndices[3 * t + which]]; }
+        const osg::Vec3f& corner(std::uint32_t t, int which) const
+        {
+            return mPositions[mIndices[3 * t + static_cast<std::uint32_t>(which)]];
+        }
 
         std::span<const osg::Vec3f> mPositions;
         std::span<const std::uint32_t> mIndices;

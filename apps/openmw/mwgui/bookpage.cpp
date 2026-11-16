@@ -956,7 +956,7 @@ namespace MWGui
                 if (mTexture != nullptr)
                 {
                     mRenderItem = node->addToRenderItem(mTexture, false, false);
-                    mRenderItem->addDrawItem(this, mCountVertex);
+                    mRenderItem->addDrawItem(this, static_cast<std::size_t>(mCountVertex));
                 }
             }
 
@@ -1347,7 +1347,7 @@ namespace MWGui
 
             mBook->visitRuns(visitTop, visitBottom, textFormat.mFont, RenderRun(this, glyphStream));
 
-            textFormat.mRenderItem->setLastVertexCount(glyphStream.end() - vertices);
+            textFormat.mRenderItem->setLastVertexCount(static_cast<std::size_t>(glyphStream.end() - vertices));
         }
 
         // ISubWidget should not necessarily be a drawitem

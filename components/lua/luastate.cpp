@@ -122,8 +122,8 @@ namespace LuaUtil
                 return nullptr;
             }
         }
-        self->mTotalMemoryUsage += smallAllocDelta + bigAllocDelta;
-        self->mSmallAllocMemoryUsage += smallAllocDelta;
+        self->mTotalMemoryUsage += static_cast<std::uint64_t>(smallAllocDelta + bigAllocDelta);
+        self->mSmallAllocMemoryUsage += static_cast<std::uint64_t>(smallAllocDelta);
 
         if (bigAllocDelta != 0)
         {
@@ -145,8 +145,8 @@ namespace LuaUtil
             if (id.mIndex >= 0)
             {
                 if (static_cast<size_t>(id.mIndex) >= self->mMemoryUsage.size())
-                    self->mMemoryUsage.resize(id.mIndex + 1);
-                self->mMemoryUsage[id.mIndex] += bigAllocDelta;
+                    self->mMemoryUsage.resize(static_cast<std::size_t>(id.mIndex) + 1);
+                self->mMemoryUsage[static_cast<std::size_t>(id.mIndex)] += bigAllocDelta;
             }
             if (id.mContainer)
             {

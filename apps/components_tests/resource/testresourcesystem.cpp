@@ -25,6 +25,7 @@
 #include <osg/PrimitiveSet>
 #include <osg/Texture2D>
 
+#include <array>
 #include <cstdint>
 #include <map>
 #include <memory>
@@ -182,7 +183,7 @@ namespace
         geometry->setNormalArray(new osg::Vec3Array(3), osg::Array::BIND_PER_VERTEX);
         geometry->setTexCoordArray(0, new osg::Vec2Array(3));
         osg::ref_ptr<osg::DrawElementsUShort> triangle = new osg::DrawElementsUShort(GL_TRIANGLES);
-        for (const unsigned short index : { 0, 1, 2 })
+        for (const unsigned short index : std::array<unsigned short, 3>{ 0, 1, 2 })
             triangle->push_back(index);
         geometry->addPrimitiveSet(triangle);
         geometry->addPrimitiveSet(new osg::DrawArrays(GL_TRIANGLES, 0, 3));

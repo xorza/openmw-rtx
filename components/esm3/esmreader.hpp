@@ -105,7 +105,7 @@ namespace ESM
         void openRaw(const std::filesystem::path& filename);
 
         /// Get the current position in the file. Make sure that the file has been opened!
-        size_t getFileOffset() const { return mEsm->tellg(); }
+        size_t getFileOffset() const { return static_cast<std::size_t>(mEsm->tellg()); }
 
         // This is a quick hack for multiple esm/esp files. Each plugin introduces its own
         //  terrain palette, but ESMReader does not pass a reference to the correct plugin

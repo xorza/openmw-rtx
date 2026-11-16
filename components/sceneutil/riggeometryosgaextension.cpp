@@ -211,7 +211,7 @@ namespace SceneUtil
 
     OsgaRigGeometry* RigGeometryHolder::getGeometry(int geometry)
     {
-        return mGeometry.at(geometry).get();
+        return mGeometry.at(static_cast<std::size_t>(geometry)).get();
     }
 
     void RigGeometryHolder::updateBackToOriginTransform(OsgaRigGeometry* geometry)

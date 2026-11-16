@@ -39,8 +39,9 @@ namespace MWLua
 
             const auto getScroll
                 = [](const T& rec) -> bool { return Types::RecordType<T>::asRecord(rec).mData.mIsScroll; };
-            const auto getEnchant
-                = [](const T& rec) -> float { return Types::RecordType<T>::asRecord(rec).mData.mEnchant * 0.1f; };
+            const auto getEnchant = [](const T& rec) -> float {
+                return static_cast<float>(Types::RecordType<T>::asRecord(rec).mData.mEnchant) * 0.1f;
+            };
             if constexpr (Types::RecordType<T>::isMutable)
             {
                 record["isScroll"] = sol::property(

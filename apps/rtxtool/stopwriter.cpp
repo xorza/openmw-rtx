@@ -237,8 +237,8 @@ namespace RtxTool
         mPixels.resize(stride * static_cast<std::size_t>(height));
 
         for (int row = 0; row < height; ++row)
-            std::memcpy(
-                mPixels.data() + stride * static_cast<std::size_t>(row), drawn.data(0, height - 1 - row), stride);
+            std::memcpy(mPixels.data() + stride * static_cast<std::size_t>(row),
+                drawn.data(0, static_cast<unsigned int>(height - 1 - row)), stride);
 
         if (!writePicture(into, file, static_cast<std::uint32_t>(width), static_cast<std::uint32_t>(height), mPixels))
             return;

@@ -78,7 +78,7 @@ namespace CSMPrefs
         {
             auto* mouseEvent = static_cast<QMouseEvent*>(event);
             int mod = static_cast<int>(mouseEvent->modifiers());
-            int button = mouseEvent->button();
+            int button = static_cast<int>(mouseEvent->button());
 
             return handleEvent(target, mod, button);
         }

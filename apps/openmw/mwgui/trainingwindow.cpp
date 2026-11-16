@@ -122,7 +122,8 @@ namespace MWGui
             auto* button = mTrainingOptions->createWidget<MyGUI::Button>(price <= playerGold
                     ? "SandTextButton"
                     : "SandTextButtonDisabled", // can't use setEnabled since that removes tooltip
-                MyGUI::IntCoord(4, static_cast<int>(3 + i * lineHeight), mTrainingOptions->getWidth() - 10, lineHeight),
+                MyGUI::IntCoord(4, static_cast<int>(3 + i * static_cast<std::size_t>(lineHeight)),
+                    mTrainingOptions->getWidth() - 10, lineHeight),
                 MyGUI::Align::Default);
 
             button->setUserData(skills[i].first);

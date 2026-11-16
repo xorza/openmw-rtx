@@ -106,7 +106,7 @@ namespace RtxTool
             for (int quarter = 1; quarter <= 3; ++quarter)
             {
                 crossing.advance(0.25f);
-                EXPECT_FLOAT_EQ(crossing.getCrossed(), 0.25f * quarter);
+                EXPECT_FLOAT_EQ(crossing.getCrossed(), 0.25f * static_cast<float>(quarter));
                 EXPECT_EQ(crossing.getWeather(), sClear);
             }
             crossing.advance(0.25f);

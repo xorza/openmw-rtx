@@ -148,10 +148,10 @@ namespace NifOsg
                     const float b2 = -2.f * t3 + 3.f * t2;
                     const float b3 = t3 - 2.f * t2 + t;
                     const float b4 = t3 - t2;
-                    return a.mValue * b1 + b.mValue * b2 + a.mOutTan * b3 + b.mInTan * b4;
+                    return static_cast<ValueType>(a.mValue * b1 + b.mValue * b2 + a.mOutTan * b3 + b.mInTan * b4);
                 }
                 default:
-                    return a.mValue + ((b.mValue - a.mValue) * fraction);
+                    return static_cast<ValueType>(a.mValue + ((b.mValue - a.mValue) * fraction));
             }
         }
         osg::Quat interpolate(

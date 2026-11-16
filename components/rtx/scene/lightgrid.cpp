@@ -80,9 +80,11 @@ namespace
             const double low = (from - double{ reach }) * double{ inverseCell };
             const double high = (from + double{ reach }) * double{ inverseCell };
 
-            const auto span = static_cast<double>(size[axis]);
-            box.mLow[axis] = static_cast<std::uint32_t>(std::clamp(std::floor(low), 0.0, span));
-            box.mHigh[axis] = static_cast<std::uint32_t>(std::clamp(std::floor(high) + 1.0, 0.0, span));
+            const auto span = static_cast<double>(size[static_cast<unsigned int>(axis)]);
+            box.mLow[static_cast<unsigned int>(axis)]
+                = static_cast<std::uint32_t>(std::clamp(std::floor(low), 0.0, span));
+            box.mHigh[static_cast<unsigned int>(axis)]
+                = static_cast<std::uint32_t>(std::clamp(std::floor(high) + 1.0, 0.0, span));
         }
         return box;
     }
@@ -166,7 +168,8 @@ namespace Rtx
             const double from = double{ light.mPosition[axis] } - double{ mOrigin[axis] };
             // Asked so a number that is not one answers no, and the grid is made again around it.
             if (!(from - double{ light.mReach } >= 0.0
-                    && from + double{ light.mReach } <= static_cast<double>(mSize[axis]) * cell))
+                    && from + double{ light.mReach }
+                        <= static_cast<double>(mSize[static_cast<unsigned int>(axis)]) * cell))
                 return false;
         }
         return true;
@@ -214,7 +217,7 @@ namespace Rtx
                 const double reached
                     = std::clamp(std::ceil(extent[axis] / cell), 1.0, static_cast<double>(sMaxCells + 1));
                 reachedCells *= static_cast<std::size_t>(reached);
-                mSize[axis] = static_cast<std::uint32_t>(reached + 2.0 * spare);
+                mSize[static_cast<unsigned int>(axis)] = static_cast<std::uint32_t>(reached + 2.0 * spare);
                 // Held inside the float range, because a lamp near its end reaches past it and a cast
                 // from past it is undefined. Such a lamp reaches out of the grid on that side, and is
                 // binned into the cells it reaches inside it.

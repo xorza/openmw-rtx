@@ -96,7 +96,8 @@ void CSMDoc::Loader::load()
 
         if (iter->second.mFile < size) // start loading the files
         {
-            const std::filesystem::path& path = document->getContentFiles()[iter->second.mFile];
+            const std::filesystem::path& path
+                = document->getContentFiles()[static_cast<std::size_t>(iter->second.mFile)];
 
             int steps = document->getData().startLoading(path, iter->second.mFile != editedIndex, /*project*/ false);
             iter->second.mRecordsLeft = true;

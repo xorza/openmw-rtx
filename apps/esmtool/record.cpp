@@ -1201,7 +1201,7 @@ namespace EsmTool
         std::cout << "  Specialization: " << specializationLabel(mData.mData.mSpecialization) << " ("
                   << mData.mData.mSpecialization << ")" << std::endl;
         for (int i = 0; i != 4; i++)
-            std::cout << "  UseValue[" << i << "]:" << mData.mData.mUseValue[i] << std::endl;
+            std::cout << "  UseValue[" << i << "]:" << mData.mData.mUseValue[static_cast<std::size_t>(i)] << std::endl;
     }
 
     template <>

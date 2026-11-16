@@ -222,7 +222,7 @@ namespace MWGui
                     const int value = Settings::get<int>(getSettingCategory(current), getSettingName(current));
                     argNames.emplace_back("value");
                     args.emplace_back(value);
-                    scroll->setScrollPosition(value);
+                    scroll->setScrollPosition(static_cast<std::size_t>(value));
                 }
                 if (init)
                 {
@@ -821,7 +821,7 @@ namespace MWGui
         for (size_t i = 0; i < mControlsBox->getChildCount(); i++)
         {
             MyGUI::Widget* widget = mControlsBox->getChildAt(i);
-            widget->setCoord(0, static_cast<int>(i / noWidgetsInRow * h), w, h);
+            widget->setCoord(0, static_cast<int>(i / noWidgetsInRow * static_cast<std::size_t>(h)), w, h);
         }
 
         // Canvas size must be expressed with VScroll disabled, otherwise MyGUI would expand the scroll area when the

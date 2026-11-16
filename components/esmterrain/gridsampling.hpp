@@ -138,8 +138,9 @@ namespace ESMTerrain
     {
         const int cellMin = (cell - minCell) * textureSize;
         const int cellMax = cellMin + textureSize - 1;
-        const std::size_t begin = min > cellMin ? min - cellMin : 0;
-        const std::size_t end = cellMax < max ? textureSize : max - cellMin + 1;
+        const std::size_t begin = min > cellMin ? static_cast<std::size_t>(min - cellMin) : 0;
+        const std::size_t end
+            = cellMax < max ? static_cast<std::size_t>(textureSize) : static_cast<std::size_t>(max - cellMin + 1);
         assert(begin < end);
         assert(std::cmp_less_equal(end, textureSize));
         return { begin, end };

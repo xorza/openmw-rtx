@@ -40,7 +40,8 @@ namespace
         assert(startX < ESM::Land::LAND_TEXTURE_SIZE);
         assert(startY < ESM::Land::LAND_TEXTURE_SIZE);
 
-        const std::uint16_t tex = landData[startY * ESM::Land::LAND_TEXTURE_SIZE + startX];
+        const std::uint16_t tex = landData[static_cast<std::size_t>(startY) * ESM::Land::LAND_TEXTURE_SIZE
+            + static_cast<std::size_t>(startX)];
         if (tex == 0)
             return { 0, 0 }; // vtex 0 is always the base texture, regardless of plugin
 
@@ -91,8 +92,9 @@ namespace MWLua
 
             const int cellSize = ESM::getCellSize(worldspace);
             // A whole-number division on purpose.
-            // NOLINTNEXTLINE(bugprone-integer-division)
-            const float offset = static_cast<float>((cellSize / ESM::LandRecordData::sLandTextureSize)) * 0.25f;
+            const unsigned int unitsPerTexel
+                = static_cast<unsigned int>(cellSize) / ESM::LandRecordData::sLandTextureSize;
+            const float offset = static_cast<float>(unitsPerTexel) * 0.25f;
             const osg::Vec3f correctedPos = pos + osg::Vec3f{ -offset, +offset, 0.0f };
 
             const ESM::Land* land = nullptr;
@@ -126,7 +128,8 @@ namespace MWLua
             values.push_back(sol::make_object<std::string>(lua, texturePath->getOriginal()));
             const std::vector<std::string>& contentList = MWBase::Environment::get().getWorld()->getContentFiles();
             if (textureId.second >= 0 && static_cast<size_t>(textureId.second) < contentList.size())
-                values.push_back(sol::make_object<std::string>(lua, contentList[textureId.second]));
+                values.push_back(
+                    sol::make_object<std::string>(lua, contentList[static_cast<std::size_t>(textureId.second)]));
 
             return values;
         };

@@ -146,7 +146,7 @@ void CSVWorld::ExtendedCommandConfigurator::setupCheckBoxes(const std::vector<CS
     {
         if (counter < numTypes)
         {
-            CSMWorld::UniversalId type = types[counter];
+            CSMWorld::UniversalId type = types[static_cast<std::size_t>(counter)];
             current->first->setText(QString::fromUtf8(type.getTypeName().c_str()));
             current->first->setChecked(true);
             current->second = std::move(type);
@@ -225,9 +225,9 @@ void CSVWorld::ExtendedCommandConfigurator::dataIdListChanged()
     bool idsRemoved = false;
     for (int i = 0; std::cmp_less(i, mSelectedIds.size()); ++i)
     {
-        if (!mData.hasId(mSelectedIds[i]))
+        if (!mData.hasId(mSelectedIds[static_cast<std::size_t>(i)]))
         {
-            std::swap(mSelectedIds[i], mSelectedIds.back());
+            std::swap(mSelectedIds[static_cast<std::size_t>(i)], mSelectedIds.back());
             mSelectedIds.pop_back();
             idsRemoved = true;
             --i;

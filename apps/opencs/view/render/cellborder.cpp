@@ -120,7 +120,7 @@ void CSVRender::CellBorder::buildShape(const ESM::Land& esmLand)
 
 size_t CSVRender::CellBorder::landIndex(int x, int y)
 {
-    return static_cast<size_t>(y) * ESM::Land::LAND_SIZE + x;
+    return static_cast<size_t>(y) * ESM::Land::LAND_SIZE + static_cast<std::size_t>(x);
 }
 
 float CSVRender::CellBorder::scaleToWorld(int value)

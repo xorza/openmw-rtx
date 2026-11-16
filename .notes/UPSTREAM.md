@@ -235,10 +235,17 @@ and upstream's two Lua storage tests writing there.
 **One standard for the tree**, upstream's code held as the fork's:
 
 - One set of warnings on every compiler (`cmake/Checks.cmake`), with the hunks that keep upstream's code clean, the
-  `extern/sol3` patches included; MSVC's `4244` and `4267` off. `-Wsuggest-override` and
+  `extern/sol3` patches included. `-Wsuggest-override` and
   `-Wzero-as-null-pointer-constant` hold everywhere, so eleven sources and six headers in OSG's style carry edits
   (2026-11-14). GCC's own asks (`-Wdouble-promotion`'s casts, the 34 `Crash::notNull`) left with GCC on 2026-11-12, but
   for an ESM4 group label's cast, which `-Wcast-qual` asks.
+- `-Wconversion` and `-Wimplicit-fallthrough` on Clang, MSVC's `4244` and `4267` back on (2026-11-16): each implicit
+  conversion is a `static_cast` to its destination, spelled `decltype` of the member where a template's record types
+  differ, and a mixed comparison template (`ConstInfoSelectWrapper`'s ranges, the dialogue's `selectCompareImp`)
+  compares in `std::common_type_t`; a braced list a range-`for` converts is a `std::array` of the element's type.
+  `ESM::Class::CLDTstruct::getSkill` takes a `std::size_t` index, as `ESM::Faction`'s does; `Platform::File::tell`
+  tests `lseek`'s `-1` before the conversion, where the comparison after it never held. The five cases that fell into
+  `default: break;` end in a `break`. `extern/Base64` comes in as `SYSTEM`, as every other vendored project does.
 - clang-format 23.1.5 with upstream's `.clang-format`, C++ LF on every clone: 294 sources reformatted, and a table in
   rows loses its trailing comma. `omw merge-file`, the merge driver, takes the layout out of each merge.
 - Every CMake file laid out by gersemi 0.29.2 (`.gersemirc`), and upstream's tab check goes. Cost: a conflict with every

@@ -309,7 +309,8 @@ namespace MWPhysics
         {
             auto broad = std::make_unique<btDbvtBroadphase>();
             assert(BT_MAX_THREAD_COUNT > 0);
-            return std::min<unsigned>(broad->m_rayTestStacks.size(), BT_MAX_THREAD_COUNT - 1);
+            return std::min<unsigned>(
+                static_cast<unsigned int>(broad->m_rayTestStacks.size()), BT_MAX_THREAD_COUNT - 1);
         }
 
         LockingPolicy detectLockingPolicy()
@@ -694,7 +695,7 @@ namespace MWPhysics
         int numLOS = static_cast<int>(mLOSCache.size());
         while ((job = mNextLOS.fetch_add(1, std::memory_order_relaxed)) < numLOS)
         {
-            auto& req = mLOSCache[job];
+            auto& req = mLOSCache[static_cast<std::size_t>(job)];
             auto actorPtr1 = req.mActors[0].lock();
             auto actorPtr2 = req.mActors[1].lock();
 
@@ -782,7 +783,7 @@ namespace MWPhysics
             const Visitors::Move impl{ mPhysicsDt, mCollisionWorld, *mWorldFrameData };
             const Visitors::WithLockedPtr<Visitors::Move, MaybeLock> vis{ impl, mCollisionWorldMutex, mLockingPolicy };
             while ((job = mNextJob.fetch_add(1, std::memory_order_relaxed)) < mNumJobs)
-                std::visit(vis, (*mSimulations)[job]);
+                std::visit(vis, (*mSimulations)[static_cast<std::size_t>(job)]);
 
             mPostStepBarrier->wait([this] { afterPostStep(); });
         }

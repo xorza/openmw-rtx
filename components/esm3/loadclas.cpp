@@ -70,14 +70,14 @@ namespace ESM
     }
     // NOLINTEND(misc-use-anonymous-namespace)
 
-    ESM::RefId& Class::CLDTstruct::getSkill(int index, bool major)
+    ESM::RefId& Class::CLDTstruct::getSkill(std::size_t index, bool major)
     {
         if (major)
             return mMajorSkills.at(index);
         return mMinorSkills.at(index);
     }
 
-    ESM::RefId Class::CLDTstruct::getSkill(int index, bool major) const
+    ESM::RefId Class::CLDTstruct::getSkill(std::size_t index, bool major) const
     {
         if (major)
             return mMajorSkills.at(index);

@@ -344,8 +344,9 @@ namespace MWLua
             Types::addProperty(record, "baseCost", &ESM::MagicEffect::mData, &ESM::MagicEffect::MEDTstruct::mBaseCost);
             const auto getColor = [](const T& rec) -> Misc::Color {
                 const ESM::MagicEffect& effect = Types::RecordType<T>::asRecord(rec);
-                return Misc::Color(
-                    effect.mData.mRed / 255.f, effect.mData.mGreen / 255.f, effect.mData.mBlue / 255.f, 1.f);
+                return Misc::Color(static_cast<float>(effect.mData.mRed) / 255.f,
+                    static_cast<float>(effect.mData.mGreen) / 255.f, static_cast<float>(effect.mData.mBlue) / 255.f,
+                    1.f);
             };
             if constexpr (Types::RecordType<T>::isMutable)
             {

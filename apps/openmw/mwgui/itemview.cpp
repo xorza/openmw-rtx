@@ -65,7 +65,7 @@ namespace MWGui
 
         for (int i = 0; i < mItemCount; ++i)
         {
-            MyGUI::Widget* w = dragArea->getChildAt(i);
+            MyGUI::Widget* w = dragArea->getChildAt(static_cast<std::size_t>(i));
 
             w->setPosition(x, y);
 
@@ -220,7 +220,7 @@ namespace MWGui
                 if (mControllerFocus >= 0 && mControllerFocus < mItemCount)
                 {
                     MyGUI::Widget* dragArea = mScrollView->getChildAt(0);
-                    onSelectedItem(dragArea->getChildAt(mControllerFocus));
+                    onSelectedItem(dragArea->getChildAt(static_cast<std::size_t>(mControllerFocus)));
                 }
                 break;
             case SDL_GAMEPAD_BUTTON_RIGHT_STICK:
@@ -273,14 +273,14 @@ namespace MWGui
 
         if (prevFocus >= 0 && prevFocus < mItemCount)
         {
-            auto* prev = static_cast<ItemWidget*>(dragArea->getChildAt(prevFocus));
+            auto* prev = static_cast<ItemWidget*>(dragArea->getChildAt(static_cast<std::size_t>(prevFocus)));
             if (prev)
                 prev->setControllerFocus(false);
         }
 
         if (mControllerActiveWindow && newFocus >= 0 && newFocus < mItemCount)
         {
-            auto* focused = static_cast<ItemWidget*>(dragArea->getChildAt(newFocus));
+            auto* focused = static_cast<ItemWidget*>(dragArea->getChildAt(static_cast<std::size_t>(newFocus)));
             if (focused)
             {
                 focused->setControllerFocus(true);

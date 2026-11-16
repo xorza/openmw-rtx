@@ -44,7 +44,7 @@ namespace MWLua
             [](const StoreT& self, size_t index) -> const T* {
                 if (index == 0 || index > self.getSize())
                     return nullptr;
-                return self.at(LuaUtil::fromLuaIndex(static_cast<std::int64_t>(index)));
+                return self.at(static_cast<std::size_t>(LuaUtil::fromLuaIndex(static_cast<std::int64_t>(index))));
             },
             [](const StoreT& self, std::string_view id) -> const T* {
                 return self.search(ESM::RefId::deserializeText(id));

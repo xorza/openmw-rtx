@@ -87,7 +87,7 @@ namespace Nif
                 mPtr = nullptr;
             else
             {
-                Record* const r = nif.getRecord(mIndex);
+                Record* const r = nif.getRecord(static_cast<std::size_t>(mIndex));
                 if (r == nullptr)
                     throw std::runtime_error(std::format("Record at {} is nullptr", mIndex));
 

@@ -52,11 +52,12 @@ namespace MWGui
 
         for (int i = 0; i < 10; ++i)
         {
-            mKey[i].index = i + 1;
-            getWidget(mKey[i].button, "QuickKey" + MyGUI::utility::toString(i + 1));
-            mKey[i].button->eventMouseButtonClick += MyGUI::newDelegate(this, &QuickKeysMenu::onQuickKeyButtonClicked);
+            mKey[static_cast<std::size_t>(i)].index = i + 1;
+            getWidget(mKey[static_cast<std::size_t>(i)].button, "QuickKey" + MyGUI::utility::toString(i + 1));
+            mKey[static_cast<std::size_t>(i)].button->eventMouseButtonClick
+                += MyGUI::newDelegate(this, &QuickKeysMenu::onQuickKeyButtonClicked);
 
-            unassign(&mKey[i]);
+            unassign(&mKey[static_cast<std::size_t>(i)]);
         }
 
         if (Settings::gui().mControllerMenus)
@@ -72,7 +73,7 @@ namespace MWGui
 
         for (int i = 0; i < 10; ++i)
         {
-            unassign(&mKey[i]);
+            unassign(&mKey[static_cast<std::size_t>(i)]);
         }
 
         mTemp.clear();
@@ -82,7 +83,7 @@ namespace MWGui
     {
         MWWorld::Ptr player = MWMechanics::getPlayer();
         MWWorld::InventoryStore& store = player.getClass().getInventoryStore(player);
-        switch (mKey[index].type)
+        switch (mKey[static_cast<std::size_t>(index)].type)
         {
             case ESM::QuickKeys::Type::Unassigned:
             case ESM::QuickKeys::Type::HandToHand:
@@ -91,15 +92,15 @@ namespace MWGui
             case ESM::QuickKeys::Type::Item:
             case ESM::QuickKeys::Type::MagicItem:
             {
-                MWWorld::Ptr item = *mKey[index].button->getUserData<MWWorld::Ptr>();
+                MWWorld::Ptr item = *mKey[static_cast<std::size_t>(index)].button->getUserData<MWWorld::Ptr>();
                 // Make sure the item is available
                 if (item.isEmpty() || item.getCellRef().getCount() < 1)
                 {
                     // Try searching for a compatible replacement
-                    item = store.findReplacement(mKey[index].id);
+                    item = store.findReplacement(mKey[static_cast<std::size_t>(index)].id);
 
                     if (!item.isEmpty())
-                        mKey[index].button->setUserData(MWWorld::Ptr(item));
+                        mKey[static_cast<std::size_t>(index)].button->setUserData(MWWorld::Ptr(item));
 
                     break;
                 }
@@ -175,7 +176,8 @@ namespace MWGui
         int index = -1;
         for (int i = 0; i < 10; ++i)
         {
-            if (sender == mKey[i].button || sender->getParent() == mKey[i].button)
+            if (sender == mKey[static_cast<std::size_t>(i)].button
+                || sender->getParent() == mKey[static_cast<std::size_t>(i)].button)
             {
                 index = i;
                 break;
@@ -188,7 +190,7 @@ namespace MWGui
             return;
         }
 
-        mSelected = &mKey[index];
+        mSelected = &mKey[static_cast<std::size_t>(index)];
 
         // prevent reallocation of zero key from ESM::QuickKeys::Type::HandToHand
         if (mSelected->index == 10)
@@ -358,7 +360,7 @@ namespace MWGui
     {
         assert(index >= 1 && index <= 10);
 
-        keyData* key = &mKey[index - 1];
+        keyData* key = &mKey[static_cast<std::size_t>(index - 1)];
 
         MWWorld::Ptr player = MWMechanics::getPlayer();
         MWWorld::InventoryStore& store = player.getClass().getInventoryStore(player);
@@ -581,9 +583,9 @@ namespace MWGui
         // NB: The quick key with index 9 always has Hand-to-Hand type and must not be saved
         for (int i = 0; i < 9; ++i)
         {
-            ItemWidget* button = mKey[i].button;
+            ItemWidget* button = mKey[static_cast<std::size_t>(i)].button;
 
-            const ESM::QuickKeys::Type type = mKey[i].type;
+            const ESM::QuickKeys::Type type = mKey[static_cast<std::size_t>(i)].type;
 
             ESM::QuickKeys::QuickKey key;
             key.mType = type;
@@ -638,7 +640,7 @@ namespace MWGui
             if (i >= 9)
                 return;
 
-            mSelected = &mKey[i];
+            mSelected = &mKey[static_cast<std::size_t>(i)];
 
             switch (quickKey.mType)
             {

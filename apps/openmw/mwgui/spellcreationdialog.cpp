@@ -182,10 +182,10 @@ namespace MWGui
 
         mDeleteButton->setVisible(true);
 
-        mMagnitudeMinSlider->setScrollPosition(effect.mMagnMin - 1);
-        mMagnitudeMaxSlider->setScrollPosition(effect.mMagnMax - 1);
-        mAreaSlider->setScrollPosition(effect.mArea);
-        mDurationSlider->setScrollPosition(effect.mDuration - 1);
+        mMagnitudeMinSlider->setScrollPosition(static_cast<std::size_t>(effect.mMagnMin - 1));
+        mMagnitudeMaxSlider->setScrollPosition(static_cast<std::size_t>(effect.mMagnMax - 1));
+        mAreaSlider->setScrollPosition(static_cast<std::size_t>(effect.mArea));
+        mDurationSlider->setScrollPosition(static_cast<std::size_t>(effect.mDuration - 1));
 
         if (mEffect.mRange == ESM::RT_Self)
             mRangeButton->setCaptionWithReplacing("#{sRangeSelf}");
@@ -194,10 +194,10 @@ namespace MWGui
         else if (mEffect.mRange == ESM::RT_Touch)
             mRangeButton->setCaptionWithReplacing("#{sRangeTouch}");
 
-        onMagnitudeMinChanged(mMagnitudeMinSlider, effect.mMagnMin - 1);
-        onMagnitudeMaxChanged(mMagnitudeMinSlider, effect.mMagnMax - 1);
-        onAreaChanged(mAreaSlider, effect.mArea);
-        onDurationChanged(mDurationSlider, effect.mDuration - 1);
+        onMagnitudeMinChanged(mMagnitudeMinSlider, static_cast<std::size_t>(effect.mMagnMin - 1));
+        onMagnitudeMaxChanged(mMagnitudeMinSlider, static_cast<std::size_t>(effect.mMagnMax - 1));
+        onAreaChanged(mAreaSlider, static_cast<std::size_t>(effect.mArea));
+        onDurationChanged(mDurationSlider, static_cast<std::size_t>(effect.mDuration - 1));
         eventEffectModified(mEffect);
 
         if (Settings::gui().mControllerMenus)
@@ -351,11 +351,11 @@ namespace MWGui
     void EditEffectDialog::onMagnitudeMaxChanged(MyGUI::ScrollBar* sender, size_t pos)
     {
         // make sure the max value is actually larger or equal than the min value
-        size_t magnMin
-            = std::abs(mEffect.mMagnMin); // should never be < 0, this is just here to avoid the compiler warning
+        auto magnMin = static_cast<std::size_t>(
+            std::abs(mEffect.mMagnMin)); // should never be < 0, this is just here to avoid the compiler warning
         if (pos + 1 < magnMin)
         {
-            pos = mEffect.mMagnMin - 1;
+            pos = static_cast<std::size_t>(mEffect.mMagnMin - 1);
             sender->setScrollPosition(pos);
         }
 
@@ -385,7 +385,7 @@ namespace MWGui
     {
         int prevFocus = mControllerFocus;
         mControllerFocus = std::clamp(mControllerFocus, 0, static_cast<int>(mButtons.size()) - 1);
-        MyGUI::TextBox* button = mButtons[mControllerFocus];
+        MyGUI::TextBox* button = mButtons[static_cast<std::size_t>(mControllerFocus)];
 
         if (arg.button == SDL_GAMEPAD_BUTTON_SOUTH)
         {
@@ -549,7 +549,7 @@ namespace MWGui
 
         if (prevFocus >= 0 && std::cmp_less(prevFocus, mButtons.size()))
         {
-            MyGUI::TextBox* button = mButtons[prevFocus];
+            MyGUI::TextBox* button = mButtons[static_cast<std::size_t>(prevFocus)];
             if (button == mMagnitudeMinValue || button == mMagnitudeMaxValue || button == mDurationValue
                 || button == mAreaValue)
             {
@@ -563,7 +563,7 @@ namespace MWGui
 
         if (newFocus >= 0 && std::cmp_less(newFocus, mButtons.size()))
         {
-            MyGUI::TextBox* button = mButtons[newFocus];
+            MyGUI::TextBox* button = mButtons[static_cast<std::size_t>(newFocus)];
             if (button == mMagnitudeMinValue || button == mMagnitudeMaxValue || button == mDurationValue
                 || button == mAreaValue)
             {
@@ -940,7 +940,7 @@ namespace MWGui
 
     void EffectEditorBase::onEffectModified(ESM::ENAMstruct effect)
     {
-        mEffects[mSelectedEffect] = effect;
+        mEffects[static_cast<std::size_t>(mSelectedEffect)] = effect;
 
         updateEffectsView();
     }
@@ -1018,7 +1018,7 @@ namespace MWGui
 
         mSelectedEffect = id;
 
-        mAddEffectDialog.editEffect(mEffects[id]);
+        mAddEffectDialog.editEffect(mEffects[static_cast<std::size_t>(id)]);
         mAddEffectDialog.setVisible(true);
     }
 

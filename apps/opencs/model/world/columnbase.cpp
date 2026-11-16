@@ -122,7 +122,7 @@ const CSMWorld::ColumnBase& CSMWorld::NestableColumn::nestedColumn(int subColumn
     if (mNestedColumns.empty())
         throw std::logic_error("Tried to access nested column of the non-nest column");
 
-    return *mNestedColumns.at(subColumn);
+    return *mNestedColumns.at(static_cast<std::size_t>(subColumn));
 }
 
 CSMWorld::NestableColumn::NestableColumn(int columnId, CSMWorld::ColumnBase::Display displayType, int flag)

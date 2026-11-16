@@ -91,7 +91,7 @@ namespace RtxTool
                             const std::uint8_t shade = (x / sCheckerSide + y / sCheckerSide) % 2 == 0 ? 32 : 96;
                             const std::size_t at = (std::size_t{ top + y } * width + left + offset + x) * 4;
                             for (int channel = 0; channel < 3; ++channel)
-                                drawn.mPixels[at + channel] = shade;
+                                drawn.mPixels[at + static_cast<std::size_t>(channel)] = shade;
                         }
                 continue;
             }
@@ -129,7 +129,7 @@ namespace RtxTool
                     const auto place = [&](std::uint32_t offset, const osg::Vec3f& colour) {
                         const std::size_t at = (std::size_t{ top + y } * width + left + offset + x) * 4;
                         for (int channel = 0; channel < 3; ++channel)
-                            drawn.mPixels[at + channel] = static_cast<std::uint8_t>(
+                            drawn.mPixels[at + static_cast<std::size_t>(channel)] = static_cast<std::uint8_t>(
                                 std::lround(std::clamp(colour[channel], 0.0f, 1.0f) * 255.0f));
                     };
 

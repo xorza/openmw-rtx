@@ -189,7 +189,7 @@ namespace Terrain
         int vertexCount = static_cast<int>(numVerts * numVerts);
 
         osg::ref_ptr<osg::Vec2Array> uvs(new osg::Vec2Array(osg::Array::BIND_PER_VERTEX));
-        uvs->reserve(vertexCount);
+        uvs->reserve(static_cast<std::size_t>(vertexCount));
 
         for (unsigned int col = 0; col < numVerts; ++col)
         {

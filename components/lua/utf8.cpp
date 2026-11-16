@@ -35,7 +35,7 @@ namespace
     inline void relativePosition(int64_t& pos, const size_t len)
     {
         if (pos < 0)
-            pos = std::max<int64_t>(0, static_cast<long>(pos + len + 1));
+            pos = std::max<int64_t>(0, static_cast<long>(static_cast<std::size_t>(pos) + len + 1));
     }
 
     inline void codepointToUTF8(char32_t codepoint, std::string& str)
@@ -70,7 +70,7 @@ namespace
     std::pair<int64_t, int64_t> decodeNextUTF8Character(std::string_view s, std::vector<int64_t>& posByte)
     {
         const int64_t pos = posByte.back() - 1;
-        const auto ch = static_cast<unsigned char>(s[pos]);
+        const auto ch = static_cast<unsigned char>(s[static_cast<std::size_t>(pos)]);
         int64_t codepoint = -1;
         size_t byteSize = 0;
 
@@ -99,17 +99,19 @@ namespace
         for (size_t i = 1; i < byteSize; ++i)
         {
             // if not a continuation byte
-            if ((pos + i) >= s.size() || (static_cast<unsigned char>(s[pos + i]) & 0b11000000) != 0b10000000)
+            if ((static_cast<std::size_t>(pos) + i) >= s.size()
+                || (static_cast<unsigned char>(s[static_cast<std::size_t>(pos) + i]) & 0b11000000) != 0b10000000)
             {
                 return std::make_pair(0, -1);
             }
-            codepoint = (codepoint << 6) | (static_cast<unsigned char>(s[pos + i]) & 0b00111111);
+            codepoint
+                = (codepoint << 6) | (static_cast<unsigned char>(s[static_cast<std::size_t>(pos) + i]) & 0b00111111);
         }
 
         std::pair<size_t, int64_t> res = std::make_pair(posByte.back(), codepoint);
 
-        posByte.push_back(
-            static_cast<long>(posByte.back() + byteSize)); /* the next character (if exists) starts at this byte */
+        posByte.push_back(static_cast<long>(static_cast<std::size_t>(posByte.back())
+            + byteSize)); /* the next character (if exists) starts at this byte */
 
         return res;
     }

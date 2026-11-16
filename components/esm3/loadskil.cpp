@@ -190,7 +190,7 @@ namespace ESM
     {
         if (index < 0 || index >= Length)
             return {};
-        return sMagicSchools[index];
+        return sMagicSchools[static_cast<std::size_t>(index)];
     }
 
     int MagicSchool::skillRefIdToIndex(RefId id)

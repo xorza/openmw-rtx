@@ -114,17 +114,21 @@ namespace MWRender
                             int lutIndex = 0;
                             // Converting [-128; 127] WNAM range to [0; 255] index
                             if (land != nullptr && (land->mDataTypes & ESM::Land::DATA_WNAM))
-                                lutIndex = static_cast<int>(land->mWnam[vertexY * 9 + vertexX]) + 128;
+                                lutIndex = static_cast<int>(land->mWnam[static_cast<std::size_t>(vertexY) * 9
+                                               + static_cast<std::size_t>(vertexX)])
+                                    + 128;
 
                             // Use getColor to handle all pixel format conversions automatically
-                            osg::Vec4 color = mColorLut->getColor(lutIndex, 0);
+                            osg::Vec4 color = mColorLut->getColor(static_cast<unsigned int>(lutIndex), 0);
 
                             // Use setColor to write to output images
-                            image->setColor(color, texelX, texelY);
+                            image->setColor(
+                                color, static_cast<unsigned int>(texelX), static_cast<unsigned int>(texelY));
 
                             // Set alpha based on lutIndex threshold
                             osg::Vec4 alpha(0.0f, 0.0f, 0.0f, lutIndex < 128 ? 0.0f : 1.0f);
-                            alphaImage->setColor(alpha, texelX, texelY);
+                            alphaImage->setColor(
+                                alpha, static_cast<unsigned int>(texelX), static_cast<unsigned int>(texelY));
                         }
                     }
                 }

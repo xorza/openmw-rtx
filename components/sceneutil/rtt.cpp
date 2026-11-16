@@ -115,13 +115,13 @@ namespace SceneUtil
         textureArray->setInternalFormat(internalFormat);
         GLenum sourceFormat = 0;
         GLenum sourceType = 0;
-        if (SceneUtil::isDepthFormat(internalFormat))
+        if (SceneUtil::isDepthFormat(static_cast<GLenum>(internalFormat)))
         {
-            SceneUtil::getDepthFormatSourceFormatAndType(internalFormat, sourceFormat, sourceType);
+            SceneUtil::getDepthFormatSourceFormatAndType(static_cast<GLenum>(internalFormat), sourceFormat, sourceType);
         }
         else
         {
-            SceneUtil::getColorFormatSourceFormatAndType(internalFormat, sourceFormat, sourceType);
+            SceneUtil::getColorFormatSourceFormatAndType(static_cast<GLenum>(internalFormat), sourceFormat, sourceType);
         }
         textureArray->setSourceFormat(sourceFormat);
         textureArray->setSourceType(sourceType);
@@ -140,13 +140,13 @@ namespace SceneUtil
         texture->setInternalFormat(internalFormat);
         GLenum sourceFormat = 0;
         GLenum sourceType = 0;
-        if (SceneUtil::isDepthFormat(internalFormat))
+        if (SceneUtil::isDepthFormat(static_cast<GLenum>(internalFormat)))
         {
-            SceneUtil::getDepthFormatSourceFormatAndType(internalFormat, sourceFormat, sourceType);
+            SceneUtil::getDepthFormatSourceFormatAndType(static_cast<GLenum>(internalFormat), sourceFormat, sourceType);
         }
         else
         {
-            SceneUtil::getColorFormatSourceFormatAndType(internalFormat, sourceFormat, sourceType);
+            SceneUtil::getColorFormatSourceFormatAndType(static_cast<GLenum>(internalFormat), sourceFormat, sourceType);
         }
         texture->setSourceFormat(sourceFormat);
         texture->setSourceType(sourceType);
@@ -258,10 +258,10 @@ namespace SceneUtil
             if (mSamples > 1 || mAddMSAAIntermediateTarget)
             {
                 camera->getBufferAttachmentMap()[osg::Camera::COLOR_BUFFER]._internalFormat
-                    = mColorBufferInternalFormat;
+                    = static_cast<GLenum>(mColorBufferInternalFormat);
                 camera->getBufferAttachmentMap()[osg::Camera::COLOR_BUFFER]._mipMapGeneration = mGenerateMipmaps;
                 camera->getBufferAttachmentMap()[osg::Camera::PACKED_DEPTH_STENCIL_BUFFER]._internalFormat
-                    = mDepthBufferInternalFormat;
+                    = static_cast<GLenum>(mDepthBufferInternalFormat);
                 camera->getBufferAttachmentMap()[osg::Camera::PACKED_DEPTH_STENCIL_BUFFER]._mipMapGeneration
                     = mGenerateMipmaps;
             }

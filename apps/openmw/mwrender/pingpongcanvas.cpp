@@ -268,7 +268,8 @@ namespace MWRender
 
             attachment.mTarget->setTextureSize(w, h);
             if (attachment.mMipMap)
-                attachment.mTarget->setNumMipmapLevels(osg::Image::computeNumberOfMipmapLevels(w, h));
+                attachment.mTarget->setNumMipmapLevels(
+                    static_cast<unsigned int>(osg::Image::computeNumberOfMipmapLevels(w, h)));
             attachment.mTarget->dirtyTextureObject();
 
             osg::ref_ptr<osg::FrameBufferObject> fbo = new osg::FrameBufferObject;
@@ -324,7 +325,7 @@ namespace MWRender
                     pass.mStateSet->setTextureAttribute(PostProcessor::Unit_LastShader, mTextureScene);
                 else
                     pass.mStateSet->setTextureAttribute(PostProcessor::Unit_LastShader,
-                        const_cast<osg::Texture*>(mFbos[lastShader - GL_COLOR_ATTACHMENT0_EXT]
+                        const_cast<osg::Texture*>(mFbos[static_cast<std::size_t>(lastShader - GL_COLOR_ATTACHMENT0_EXT)]
                                 ->getAttachment(osg::Camera::COLOR_BUFFER0)
                                 .getTexture()));
 
@@ -332,7 +333,7 @@ namespace MWRender
                     pass.mStateSet->setTextureAttribute(PostProcessor::Unit_LastPass, mTextureScene);
                 else
                     pass.mStateSet->setTextureAttribute(PostProcessor::Unit_LastPass,
-                        const_cast<osg::Texture*>(mFbos[lastDraw - GL_COLOR_ATTACHMENT0_EXT]
+                        const_cast<osg::Texture*>(mFbos[static_cast<std::size_t>(lastDraw - GL_COLOR_ATTACHMENT0_EXT)]
                                 ->getAttachment(osg::Camera::COLOR_BUFFER0)
                                 .getTexture()));
 
@@ -355,19 +356,21 @@ namespace MWRender
                     resolved = resolved || (pass.mResolve && index == filtered.back());
                     lastDraw = buffer[0];
                     lastShader = buffer[0];
-                    mFbos[buffer[0] - GL_COLOR_ATTACHMENT0_EXT]->apply(state, osg::FrameBufferObject::DRAW_FRAMEBUFFER);
-                    buffer = buffers[lastShader - GL_COLOR_ATTACHMENT0_EXT];
+                    mFbos[static_cast<std::size_t>(buffer[0] - GL_COLOR_ATTACHMENT0_EXT)]->apply(
+                        state, osg::FrameBufferObject::DRAW_FRAMEBUFFER);
+                    buffer = buffers[static_cast<std::size_t>(lastShader - GL_COLOR_ATTACHMENT0_EXT)];
 
-                    lastApplied = mFbos[buffer[0] - GL_COLOR_ATTACHMENT0_EXT]->getHandle(cid);
+                    lastApplied = mFbos[static_cast<std::size_t>(buffer[0] - GL_COLOR_ATTACHMENT0_EXT)]->getHandle(cid);
                 }
                 else
                 {
                     resolved = resolved || (pass.mResolve && index == filtered.back());
-                    mFbos[buffer[0] - GL_COLOR_ATTACHMENT0_EXT]->apply(state, osg::FrameBufferObject::DRAW_FRAMEBUFFER);
+                    mFbos[static_cast<std::size_t>(buffer[0] - GL_COLOR_ATTACHMENT0_EXT)]->apply(
+                        state, osg::FrameBufferObject::DRAW_FRAMEBUFFER);
                     lastDraw = buffer[0];
                     std::swap(buffer[0], buffer[1]);
 
-                    lastApplied = mFbos[buffer[0] - GL_COLOR_ATTACHMENT0_EXT]->getHandle(cid);
+                    lastApplied = mFbos[static_cast<std::size_t>(buffer[0] - GL_COLOR_ATTACHMENT0_EXT)]->getHandle(cid);
                 }
 
                 state.pushStateSet(pass.mStateSet);
@@ -400,8 +403,10 @@ namespace MWRender
             resolveViewport->apply(state);
             state.pushStateSet(resolveStateSet(false));
             state.apply();
-            state.applyTextureAttribute(
-                0, mFbos[lastDraw - GL_COLOR_ATTACHMENT0_EXT]->getAttachment(osg::Camera::COLOR_BUFFER0).getTexture());
+            state.applyTextureAttribute(0,
+                mFbos[static_cast<std::size_t>(lastDraw - GL_COLOR_ATTACHMENT0_EXT)]
+                    ->getAttachment(osg::Camera::COLOR_BUFFER0)
+                    .getTexture());
 
             drawGeometry(renderInfo);
 

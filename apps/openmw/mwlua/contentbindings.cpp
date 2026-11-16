@@ -95,7 +95,8 @@ namespace MWLua
                 [=](const Store& self, size_t index, sol::this_state state) -> LuaType {
                     if (index == 0 || index > self.mStore.getSize())
                         return mapper(nullptr, state);
-                    const Record* rec = self.mStore.at(LuaUtil::fromLuaIndex(static_cast<std::int64_t>(index)));
+                    const Record* rec = self.mStore.at(
+                        static_cast<std::size_t>(LuaUtil::fromLuaIndex(static_cast<std::int64_t>(index))));
                     return mapper(rec, state);
                 },
                 [=](const Store& self, std::string_view id, sol::this_state state) -> LuaType {
@@ -249,7 +250,9 @@ namespace MWLua
                     if (index == 0 || index > self.mStore.getSize())
                         return {};
                     return MutableRecord<T>{ self.mStore,
-                        self.mStore.at(LuaUtil::fromLuaIndex(static_cast<std::int64_t>(index)))->mId };
+                        self.mStore
+                            .at(static_cast<std::size_t>(LuaUtil::fromLuaIndex(static_cast<std::int64_t>(index))))
+                            ->mId };
                 },
                 [](const Store& self, std::string_view id) -> std::optional<MutableRecord<T>> {
                     const auto* record = self.mStore.search(ESM::RefId::deserializeText(id));

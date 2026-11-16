@@ -222,7 +222,7 @@ namespace MWGui
     {
         // skip expensive update if there isn't enough visible progress
         if (mProgressBar->getWidth() <= 0
-            || value - mProgress < mProgressBar->getScrollRange() / mProgressBar->getWidth())
+            || value - mProgress < mProgressBar->getScrollRange() / static_cast<std::size_t>(mProgressBar->getWidth()))
             return;
         value = std::min(value, mProgressBar->getScrollRange() - 1);
         mProgress = value;

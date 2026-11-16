@@ -138,7 +138,7 @@ namespace Fx
 
         unsigned char Lexer::head()
         {
-            return *mHead;
+            return static_cast<unsigned char>(*mHead);
         }
 
         bool Lexer::peekChar(char c)

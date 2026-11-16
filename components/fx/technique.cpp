@@ -313,9 +313,9 @@ namespace Fx
             else if (key == "internal_format")
                 rt.mTarget->setInternalFormat(parseInternalFormat());
             else if (key == "source_type")
-                rt.mTarget->setSourceType(parseSourceType());
+                rt.mTarget->setSourceType(static_cast<GLenum>(parseSourceType()));
             else if (key == "source_format")
-                rt.mTarget->setSourceFormat(parseSourceFormat());
+                rt.mTarget->setSourceFormat(static_cast<GLenum>(parseSourceFormat()));
             else if (key == "mipmaps")
                 rt.mMipMap = parseBool();
             else if (key == "clear_color")
@@ -476,9 +476,9 @@ namespace Fx
         if (proxy.mInternalFormat.has_value())
             sampler->setInternalFormat(proxy.mInternalFormat.value());
         if (proxy.mSourceType.has_value())
-            sampler->setSourceType(proxy.mSourceType.value());
+            sampler->setSourceType(static_cast<GLenum>(proxy.mSourceType.value()));
         if (proxy.mInternalFormat.has_value())
-            sampler->setSourceFormat(proxy.mInternalFormat.value());
+            sampler->setSourceFormat(static_cast<GLenum>(proxy.mInternalFormat.value()));
         sampler->setName(std::string{ mBlockName });
         sampler->setResizeNonPowerOfTwoHint(false);
 
@@ -548,7 +548,7 @@ namespace Fx
                 {
                     int size = parseInteger();
                     if (size > 1)
-                        data.mArray = std::vector<SrcT>(size);
+                        data.mArray = std::vector<SrcT>(static_cast<std::size_t>(size));
                 }
             }
             else if (key == "min")
@@ -1097,7 +1097,7 @@ namespace Fx
 
         for (int i = 0; i < OSGVec::num_components; ++i)
         {
-            value[i] = parseFloat();
+            value.ptr()[i] = parseFloat();
 
             if (i < OSGVec::num_components - 1)
                 expect<Lexer::Comma>();

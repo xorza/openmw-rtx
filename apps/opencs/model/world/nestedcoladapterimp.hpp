@@ -206,7 +206,7 @@ namespace CSMWorld
             if (subRowIndex < 0 || std::cmp_greater_equal(subRowIndex, spells.size()))
                 throw std::runtime_error("index out of range");
 
-            ESM::RefId spell = spells[subRowIndex];
+            ESM::RefId spell = spells[static_cast<std::size_t>(subRowIndex)];
             switch (subColIndex)
             {
                 case 0:
@@ -225,7 +225,7 @@ namespace CSMWorld
             if (subRowIndex < 0 || std::cmp_greater_equal(subRowIndex, spells.size()))
                 throw std::runtime_error("index out of range");
 
-            ESM::RefId spell = spells[subRowIndex];
+            ESM::RefId spell = spells[static_cast<std::size_t>(subRowIndex)];
             switch (subColIndex)
             {
                 case 0:
@@ -235,7 +235,7 @@ namespace CSMWorld
                     throw std::runtime_error("Spells subcolumn index out of range");
             }
 
-            raceOrBthSgn.mPowers.mList[subRowIndex] = spell;
+            raceOrBthSgn.mPowers.mList[static_cast<std::size_t>(subRowIndex)] = spell;
 
             record.setModified(raceOrBthSgn);
         }
@@ -267,7 +267,7 @@ namespace CSMWorld
 
             // blank row
             ESM::IndexedENAMstruct effect;
-            effect.mIndex = position;
+            effect.mIndex = static_cast<std::uint32_t>(position);
             effect.mData.mEffectID = ESM::MagicEffect::WaterBreathing;
             effect.mData.mRange = 0;
             effect.mData.mArea = 0;
@@ -321,7 +321,7 @@ namespace CSMWorld
             if (subRowIndex < 0 || std::cmp_greater_equal(subRowIndex, effectsList.size()))
                 throw std::runtime_error("index out of range");
 
-            ESM::ENAMstruct effect = effectsList[subRowIndex].mData;
+            ESM::ENAMstruct effect = effectsList[static_cast<std::size_t>(subRowIndex)].mData;
             bool targetSkill = false, targetAttribute = false;
 
             int recordIndex = mMagicEffects.searchId(effect.mEffectID);
@@ -374,7 +374,7 @@ namespace CSMWorld
             if (subRowIndex < 0 || std::cmp_greater_equal(subRowIndex, effectsList.size()))
                 throw std::runtime_error("index out of range");
 
-            ESM::ENAMstruct effect = effectsList[subRowIndex].mData;
+            ESM::ENAMstruct effect = effectsList[static_cast<std::size_t>(subRowIndex)].mData;
             switch (subColIndex)
             {
                 case 0:
@@ -425,7 +425,7 @@ namespace CSMWorld
                     throw std::runtime_error("Magic Effects subcolumn index out of range");
             }
 
-            magic.mEffects.mList[subRowIndex].mData = effect;
+            magic.mEffects.mList[static_cast<std::size_t>(subRowIndex)].mData = effect;
 
             record.setModified(magic);
         }

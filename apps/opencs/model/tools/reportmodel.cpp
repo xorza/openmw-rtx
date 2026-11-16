@@ -49,13 +49,13 @@ QVariant CSMTools::ReportModel::data(const QModelIndex& index, int role) const
         case Column_Type:
 
             if (role == Qt::UserRole)
-                return QString::fromUtf8(mRows.at(index.row()).mId.getTypeName().c_str());
+                return QString::fromUtf8(mRows.at(static_cast<std::size_t>(index.row())).mId.getTypeName().c_str());
             else
-                return static_cast<int>(mRows.at(index.row()).mId.getType());
+                return static_cast<int>(mRows.at(static_cast<std::size_t>(index.row())).mId.getType());
 
         case Column_Id:
         {
-            CSMWorld::UniversalId id = mRows.at(index.row()).mId;
+            CSMWorld::UniversalId id = mRows.at(static_cast<std::size_t>(index.row())).mId;
 
             switch (id.getArgumentType())
             {
@@ -74,19 +74,19 @@ QVariant CSMTools::ReportModel::data(const QModelIndex& index, int role) const
 
         case Column_Hint:
 
-            return QString::fromUtf8(mRows.at(index.row()).mHint.c_str());
+            return QString::fromUtf8(mRows.at(static_cast<std::size_t>(index.row())).mHint.c_str());
         default:
             break;
     }
 
     if (index.column() == mColumnDescription)
-        return QString::fromUtf8(mRows.at(index.row()).mMessage.c_str());
+        return QString::fromUtf8(mRows.at(static_cast<std::size_t>(index.row())).mMessage.c_str());
 
     if (index.column() == mColumnField)
     {
         std::string field;
 
-        std::istringstream stream(mRows.at(index.row()).mHint);
+        std::istringstream stream(mRows.at(static_cast<std::size_t>(index.row())).mHint);
 
         char type = 0, ignore = 0;
         int fieldIndex = 0;
@@ -101,7 +101,8 @@ QVariant CSMTools::ReportModel::data(const QModelIndex& index, int role) const
 
     if (index.column() == mColumnSeverity)
     {
-        return QString::fromUtf8(CSMDoc::Message::toString(mRows.at(index.row()).mSeverity).c_str());
+        return QString::fromUtf8(
+            CSMDoc::Message::toString(mRows.at(static_cast<std::size_t>(index.row())).mSeverity).c_str());
     }
 
     return QVariant();
@@ -165,7 +166,7 @@ void CSMTools::ReportModel::add(const CSMDoc::Message& message)
 
 void CSMTools::ReportModel::flagAsReplaced(int index)
 {
-    CSMDoc::Message& line = mRows.at(index);
+    CSMDoc::Message& line = mRows.at(static_cast<std::size_t>(index));
     std::string hint = line.mHint;
 
     if (hint.empty() || hint[0] != 'R')
@@ -180,12 +181,12 @@ void CSMTools::ReportModel::flagAsReplaced(int index)
 
 const CSMWorld::UniversalId& CSMTools::ReportModel::getUniversalId(int row) const
 {
-    return mRows.at(row).mId;
+    return mRows.at(static_cast<std::size_t>(row)).mId;
 }
 
 std::string CSMTools::ReportModel::getHint(int row) const
 {
-    return mRows.at(row).mHint;
+    return mRows.at(static_cast<std::size_t>(row)).mHint;
 }
 
 void CSMTools::ReportModel::clear()

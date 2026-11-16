@@ -96,8 +96,8 @@ namespace
     {
         if (usage == Usage::RENDER_BUFFER && !Stereo::getMultiview())
         {
-            osg::ref_ptr<osg::RenderBuffer> attachment
-                = new osg::RenderBuffer(width, height, textureTemplate->getInternalFormat(), samples);
+            osg::ref_ptr<osg::RenderBuffer> attachment = new osg::RenderBuffer(
+                width, height, static_cast<GLenum>(textureTemplate->getInternalFormat()), samples);
             return osg::FrameBufferAttachment(attachment);
         }
 
@@ -643,11 +643,14 @@ namespace MWRender
             for (const osg::Texture* texture : technique->getTextures())
             {
                 if (const auto* tex1D = dynamic_cast<const osg::Texture1D*>(texture))
-                    node.mRootStateSet->setTextureAttribute(texUnit, new osg::Texture1D(*tex1D));
+                    node.mRootStateSet->setTextureAttribute(
+                        static_cast<unsigned int>(texUnit), new osg::Texture1D(*tex1D));
                 else if (const auto* tex2D = dynamic_cast<const osg::Texture2D*>(texture))
-                    node.mRootStateSet->setTextureAttribute(texUnit, new osg::Texture2D(*tex2D));
+                    node.mRootStateSet->setTextureAttribute(
+                        static_cast<unsigned int>(texUnit), new osg::Texture2D(*tex2D));
                 else if (const auto* tex3D = dynamic_cast<const osg::Texture3D*>(texture))
-                    node.mRootStateSet->setTextureAttribute(texUnit, new osg::Texture3D(*tex3D));
+                    node.mRootStateSet->setTextureAttribute(
+                        static_cast<unsigned int>(texUnit), new osg::Texture3D(*tex3D));
 
                 node.mRootStateSet->addUniform(new osg::Uniform(texture->getName().c_str(), texUnit++));
             }
@@ -686,7 +689,8 @@ namespace MWRender
 
                     if (subPass.mMipMap)
                     {
-                        subPass.mRenderTexture->setNumMipmapLevels(osg::Image::computeNumberOfMipmapLevels(w, h));
+                        subPass.mRenderTexture->setNumMipmapLevels(
+                            static_cast<unsigned int>(osg::Image::computeNumberOfMipmapLevels(w, h)));
                     }
                     else
                     {
@@ -715,7 +719,7 @@ namespace MWRender
                     }
 
                     auto& renderTarget = technique->getRenderTargetsMap()[name];
-                    subPass.mStateSet->setTextureAttribute(subTexUnit, renderTarget.mTarget);
+                    subPass.mStateSet->setTextureAttribute(static_cast<unsigned int>(subTexUnit), renderTarget.mTarget);
                     subPass.mStateSet->addUniform(new osg::Uniform(name.c_str(), subTexUnit));
 
                     if (std::find_if(attachmentsToDirty.cbegin(), attachmentsToDirty.cend(),
@@ -755,7 +759,9 @@ namespace MWRender
 
         disableTechnique(technique, false);
 
-        size_t pos = std::min(location.value_or(mTechniques.size()) + mInternalTechniques.size(), mTechniques.size());
+        size_t pos
+            = std::min(static_cast<std::size_t>(location.value_or(mTechniques.size())) + mInternalTechniques.size(),
+                mTechniques.size());
 
         mTechniques.insert(mTechniques.begin() + static_cast<std::ptrdiff_t>(pos), technique);
         dirtyTechniques(Settings::ShaderManager::get().getMode() == Settings::ShaderManager::Mode::Debug);

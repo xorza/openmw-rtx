@@ -237,7 +237,7 @@ namespace
             mIndexRowCount = 13;
             bool isRussian = (mEncoding == ToUTF8::WINDOWS_1251);
             if (isRussian) // Cyrillic is either (10 + 10 + 10) or (15 + 15)
-                mIndexRowCount = MWGui::getCyrillicIndexPageCount();
+                mIndexRowCount = static_cast<std::size_t>(MWGui::getCyrillicIndexPageCount());
 
             mControllerButtons.mA = "#{Interface:Select}";
             mControllerButtons.mX = "#{OMWEngine:JournalQuests}";
@@ -799,7 +799,8 @@ namespace
                 if (offset < 0)
                     offset += numChars;
 
-                mSelectedIndex = (mSelectedIndex + offset) % numChars;
+                mSelectedIndex
+                    = (mSelectedIndex + static_cast<std::size_t>(offset)) % static_cast<std::size_t>(numChars);
             }
 
             setIndexControllerFocus(true);
@@ -834,7 +835,8 @@ namespace
                     if (mSelectedIndex >= 27)
                         russianOffset++; // 27, not 28, because of skipping char 26
                     bool isRussian = (mEncoding == ToUTF8::WINDOWS_1251);
-                    size_t ch = isRussian ? mSelectedIndex + russianOffset : mSelectedIndex + 'A';
+                    size_t ch
+                        = isRussian ? mSelectedIndex + static_cast<std::size_t>(russianOffset) : mSelectedIndex + 'A';
                     notifyIndexLinkClicked(static_cast<Utf8Stream::UnicodeChar>(ch));
                 }
             }
@@ -985,7 +987,7 @@ namespace
                 auto* list = getWidget<Gui::MWList>(mQuestMode ? QuestsList : TopicsList);
                 int offset = 0;
                 for (int i = 4; std::cmp_less(i, mSelectedQuest); i++)
-                    offset += mButtons[i]->getHeight();
+                    offset += mButtons[static_cast<std::size_t>(i)]->getHeight();
                 list->setViewOffset(-offset);
             }
         }

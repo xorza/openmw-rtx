@@ -32,7 +32,7 @@ namespace MWMechanics
                 // This is applied to the whole spell cost for each effect when
                 // creating spells, but is only applied on the effect itself in TES:CS.
                 if (effect.mData.mRange == ESM::RT_Target)
-                    effectCost *= 1.5;
+                    effectCost *= static_cast<float>(1.5);
 
                 cost += effectCost;
             }

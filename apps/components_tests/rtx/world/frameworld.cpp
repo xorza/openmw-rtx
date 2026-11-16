@@ -476,7 +476,7 @@ namespace Rtx
                 {
                     const long double turned = moved[axis] / tile;
                     const long double expected = turned - std::floor(turned);
-                    EXPECT_NEAR(far[scale][static_cast<unsigned>(axis)], static_cast<float>(expected), 1e-6f)
+                    EXPECT_NEAR(far[scale][static_cast<int>(axis)], static_cast<float>(expected), 1e-6f)
                         << "scale " << scale << ", axis " << axis;
                 }
             }

@@ -278,7 +278,7 @@ namespace RtxTool
                     = wholeNumber<std::uint64_t>(field.substr(static_cast<std::size_t>(half) * 16, 16), 16);
                 if (!word.has_value())
                     return false;
-                into[half] = *word;
+                into[static_cast<std::size_t>(half)] = *word;
             }
 
             return true;

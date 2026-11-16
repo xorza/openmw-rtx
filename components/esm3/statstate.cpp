@@ -64,13 +64,13 @@ namespace ESM
         if (mMod != 0)
             esm.writeHNT("STMO", mMod);
 
-        if (mCurrent)
+        if (mCurrent != 0)
             esm.writeHNT("STCU", mCurrent);
 
-        if (mDamage)
+        if (mDamage != 0)
             esm.writeHNT("STDF", mDamage);
 
-        if (mProgress)
+        if (mProgress != 0)
             esm.writeHNT("STPR", mProgress);
     }
 

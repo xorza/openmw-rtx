@@ -47,7 +47,7 @@ namespace CSVRender
 
     void TerrainStorage::setAlteredHeight(int inCellX, int inCellY, float height)
     {
-        mAlteredHeight[inCellY * ESM::Land::LAND_SIZE + inCellX]
+        mAlteredHeight[static_cast<std::size_t>(inCellY) * ESM::Land::LAND_SIZE + static_cast<std::size_t>(inCellX)]
             = static_cast<float>(height - fmod(height, 8)); // Limit to divisible by 8 to avoid cell seam breakage
     }
 
@@ -66,13 +66,17 @@ namespace CSVRender
             return height;
 
         const ESM::Land::LandData* landData = mData.getLand().getRecord(index).get().getLandData(ESM::Land::DATA_VHGT);
-        height = landData->mHeights[inCellY * ESM::Land::LAND_SIZE + inCellX];
-        return mAlteredHeight[inCellY * ESM::Land::LAND_SIZE + inCellX] + height;
+        height = landData->mHeights[static_cast<std::size_t>(inCellY) * ESM::Land::LAND_SIZE
+            + static_cast<std::size_t>(inCellX)];
+        return mAlteredHeight[static_cast<std::size_t>(inCellY) * ESM::Land::LAND_SIZE
+                   + static_cast<std::size_t>(inCellX)]
+            + height;
     }
 
     float* TerrainStorage::getAlteredHeight(int inCellX, int inCellY)
     {
-        return &mAlteredHeight[inCellY * ESM::Land::LAND_SIZE + inCellX];
+        return &mAlteredHeight[static_cast<std::size_t>(inCellY) * ESM::Land::LAND_SIZE
+            + static_cast<std::size_t>(inCellX)];
     }
 
     void TerrainStorage::getBounds(float& minX, float& maxX, float& minY, float& maxY, ESM::RefId worldspace)
@@ -83,31 +87,35 @@ namespace CSVRender
 
     int TerrainStorage::getThisHeight(int col, int row, std::span<const float> heightData) const
     {
-        return static_cast<int>(heightData[col * ESM::Land::LAND_SIZE + row]
+        return static_cast<int>(
+            heightData[static_cast<std::size_t>(col) * ESM::Land::LAND_SIZE + static_cast<std::size_t>(row)]
             + mAlteredHeight[static_cast<unsigned int>(col * ESM::Land::LAND_SIZE + row)]);
     }
 
     int TerrainStorage::getLeftHeight(int col, int row, std::span<const float> heightData) const
     {
-        return static_cast<int>(heightData[(col)*ESM::Land::LAND_SIZE + row - 1]
+        return static_cast<int>(heightData[static_cast<std::size_t>((col)*ESM::Land::LAND_SIZE + row - 1)]
             + mAlteredHeight[static_cast<unsigned int>((col)*ESM::Land::LAND_SIZE + row - 1)]);
     }
 
     int TerrainStorage::getRightHeight(int col, int row, std::span<const float> heightData) const
     {
-        return static_cast<int>(heightData[col * ESM::Land::LAND_SIZE + row + 1]
+        return static_cast<int>(
+            heightData[static_cast<std::size_t>(col) * ESM::Land::LAND_SIZE + static_cast<std::size_t>(row) + 1]
             + mAlteredHeight[static_cast<unsigned int>(col * ESM::Land::LAND_SIZE + row + 1)]);
     }
 
     int TerrainStorage::getUpHeight(int col, int row, std::span<const float> heightData) const
     {
-        return static_cast<int>(heightData[(col - 1) * ESM::Land::LAND_SIZE + row]
+        return static_cast<int>(
+            heightData[(static_cast<std::size_t>(col) - 1) * ESM::Land::LAND_SIZE + static_cast<std::size_t>(row)]
             + mAlteredHeight[static_cast<unsigned int>((col - 1) * ESM::Land::LAND_SIZE + row)]);
     }
 
     int TerrainStorage::getDownHeight(int col, int row, std::span<const float> heightData) const
     {
-        return static_cast<int>(heightData[(col + 1) * ESM::Land::LAND_SIZE + row]
+        return static_cast<int>(
+            heightData[(static_cast<std::size_t>(col) + 1) * ESM::Land::LAND_SIZE + static_cast<std::size_t>(row)]
             + mAlteredHeight[static_cast<unsigned int>((col + 1) * ESM::Land::LAND_SIZE + row)]);
     }
 

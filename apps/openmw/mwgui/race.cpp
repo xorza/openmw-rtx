@@ -397,7 +397,7 @@ namespace MWGui
         {
             mRaceList->addItem(item.second, item.first);
             if (item.first == mCurrentRaceId)
-                mRaceList->setIndexSelected(index);
+                mRaceList->setIndexSelected(static_cast<std::size_t>(index));
             ++index;
         }
     }

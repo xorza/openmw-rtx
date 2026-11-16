@@ -254,7 +254,8 @@ namespace MWRender
                 if (const auto* sq = dynamic_cast<const osg::Sequence*>(node))
                 {
                     auto* n = new osg::Group;
-                    n->addChild(operator()(sq->getChild(sq->getValue() != -1 ? sq->getValue() : 0)));
+                    n->addChild(operator()(
+                        sq->getChild(sq->getValue() != -1 ? static_cast<unsigned int>(sq->getValue()) : 0)));
                     n->setDataVariance(osg::Object::STATIC);
                     return n;
                 }
@@ -371,7 +372,7 @@ namespace MWRender
                 }
                 if (auto* sq = dynamic_cast<osg::Sequence*>(&node))
                 {
-                    traverse(*sq->getChild(sq->getValue() != -1 ? sq->getValue() : 0));
+                    traverse(*sq->getChild(sq->getValue() != -1 ? static_cast<unsigned int>(sq->getValue()) : 0));
                     return;
                 }
 
@@ -775,8 +776,9 @@ namespace MWRender
                 else
                     model = mLODNameCache
                                 .emplace_hint(found, std::move(key),
-                                    Misc::ResourceHelpers::getLODMeshName(world.getGameFormats()[refNum.mContentFile],
-                                        model, *mSceneManager->getVFS(), lod))
+                                    Misc::ResourceHelpers::getLODMeshName(
+                                        world.getGameFormats()[static_cast<std::size_t>(refNum.mContentFile)], model,
+                                        *mSceneManager->getVFS(), lod))
                                 ->second;
             }
 
@@ -922,7 +924,7 @@ namespace MWRender
                     int mode = osgUtil::GLObjectsVisitor::COMPILE_STATE_ATTRIBUTES;
                     if (!merge)
                         mode |= osgUtil::GLObjectsVisitor::COMPILE_DISPLAY_LISTS;
-                    stateToCompile._mode = mode;
+                    stateToCompile._mode = static_cast<osgUtil::GLObjectsVisitor::Mode>(mode);
                     const_cast<osg::Node*>(cnode)->accept(stateToCompile);
                 }
             }

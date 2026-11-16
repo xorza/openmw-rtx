@@ -59,7 +59,7 @@ namespace ESM
         const auto r = std::to_chars(out.data() + shift, out.data() + out.size(), value, 10);
         if (r.ec != std::errc())
             throw std::system_error(std::make_error_code(r.ec), "Failed to serialize ESM::RefId dec integral value");
-        return r.ptr - out.data();
+        return static_cast<std::size_t>(r.ptr - out.data());
     }
 
     template <class T>

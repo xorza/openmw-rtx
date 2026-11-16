@@ -158,8 +158,8 @@ namespace MWGui
         out << val << "/" << max;
         setText(tname, out.str());
 
-        pt->setProgressRange(std::max(0, max));
-        pt->setProgressPosition(std::max(0, val));
+        pt->setProgressRange(static_cast<std::size_t>(std::max(0, max)));
+        pt->setProgressPosition(static_cast<std::size_t>(std::max(0, val)));
     }
 
     void StatsWindow::setPlayerName(const std::string& playerName)
@@ -526,17 +526,21 @@ namespace MWGui
 
             for (int i = 0; i < 2; ++i)
             {
-                mSkillWidgets[mSkillWidgets.size() - 1 - i]->setUserString("ToolTipType", "Layout");
-                mSkillWidgets[mSkillWidgets.size() - 1 - i]->setUserString("ToolTipLayout", "SkillToolTip");
-                mSkillWidgets[mSkillWidgets.size() - 1 - i]->setUserString(
+                mSkillWidgets[mSkillWidgets.size() - 1 - static_cast<std::size_t>(i)]->setUserString(
+                    "ToolTipType", "Layout");
+                mSkillWidgets[mSkillWidgets.size() - 1 - static_cast<std::size_t>(i)]->setUserString(
+                    "ToolTipLayout", "SkillToolTip");
+                mSkillWidgets[mSkillWidgets.size() - 1 - static_cast<std::size_t>(i)]->setUserString(
                     "Caption_SkillName", MyGUI::TextIterator::toTagsString(skill->mName));
-                mSkillWidgets[mSkillWidgets.size() - 1 - i]->setUserString(
+                mSkillWidgets[mSkillWidgets.size() - 1 - static_cast<std::size_t>(i)]->setUserString(
                     "Caption_SkillDescription", skill->mDescription);
-                mSkillWidgets[mSkillWidgets.size() - 1 - i]->setUserString("Caption_SkillAttribute",
+                mSkillWidgets[mSkillWidgets.size() - 1 - static_cast<std::size_t>(i)]->setUserString(
+                    "Caption_SkillAttribute",
                     "#{sGoverningAttribute}: " + MyGUI::TextIterator::toTagsString(attr->mName));
-                mSkillWidgets[mSkillWidgets.size() - 1 - i]->setUserString(
+                mSkillWidgets[mSkillWidgets.size() - 1 - static_cast<std::size_t>(i)]->setUserString(
                     "ImageTexture_SkillImage", skill->mIcon.getNormalized());
-                mSkillWidgets[mSkillWidgets.size() - 1 - i]->setUserString("Range_SkillProgress", "100");
+                mSkillWidgets[mSkillWidgets.size() - 1 - static_cast<std::size_t>(i)]->setUserString(
+                    "Range_SkillProgress", "100");
             }
 
             setValue(skill->mId, skillValue->second);
@@ -695,9 +699,12 @@ namespace MWGui
 
         for (int i = 0; i < 2; ++i)
         {
-            mSkillWidgets[mSkillWidgets.size() - 1 - i]->setUserString("ToolTipType", "Layout");
-            mSkillWidgets[mSkillWidgets.size() - 1 - i]->setUserString("ToolTipLayout", "TextToolTip");
-            mSkillWidgets[mSkillWidgets.size() - 1 - i]->setUserString("Caption_Text", "#{sSkillsMenuReputationHelp}");
+            mSkillWidgets[mSkillWidgets.size() - 1 - static_cast<std::size_t>(i)]->setUserString(
+                "ToolTipType", "Layout");
+            mSkillWidgets[mSkillWidgets.size() - 1 - static_cast<std::size_t>(i)]->setUserString(
+                "ToolTipLayout", "TextToolTip");
+            mSkillWidgets[mSkillWidgets.size() - 1 - static_cast<std::size_t>(i)]->setUserString(
+                "Caption_Text", "#{sSkillsMenuReputationHelp}");
         }
 
         addValueItem(MWBase::Environment::get().getWindowManager()->getGameSettingString("sBounty", "Bounty"),
@@ -705,9 +712,12 @@ namespace MWGui
 
         for (int i = 0; i < 2; ++i)
         {
-            mSkillWidgets[mSkillWidgets.size() - 1 - i]->setUserString("ToolTipType", "Layout");
-            mSkillWidgets[mSkillWidgets.size() - 1 - i]->setUserString("ToolTipLayout", "TextToolTip");
-            mSkillWidgets[mSkillWidgets.size() - 1 - i]->setUserString("Caption_Text", "#{sCrimeHelp}");
+            mSkillWidgets[mSkillWidgets.size() - 1 - static_cast<std::size_t>(i)]->setUserString(
+                "ToolTipType", "Layout");
+            mSkillWidgets[mSkillWidgets.size() - 1 - static_cast<std::size_t>(i)]->setUserString(
+                "ToolTipLayout", "TextToolTip");
+            mSkillWidgets[mSkillWidgets.size() - 1 - static_cast<std::size_t>(i)]->setUserString(
+                "Caption_Text", "#{sCrimeHelp}");
         }
 
         // Canvas size must be expressed with VScroll disabled, otherwise MyGUI would expand the scroll area when the

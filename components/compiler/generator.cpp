@@ -11,7 +11,7 @@ namespace
 {
     void opPushInt(Compiler::Generator::CodeContainer& code, int value)
     {
-        code.push_back(Compiler::Generator::segment0(0, value));
+        code.push_back(Compiler::Generator::segment0(0, static_cast<unsigned int>(value)));
     }
 
     void opFetchIntLiteral(Compiler::Generator::CodeContainer& code)
@@ -111,7 +111,7 @@ namespace
 
     void opMessageBox(Compiler::Generator::CodeContainer& code, int buttons)
     {
-        code.push_back(Compiler::Generator::segment3(0, buttons));
+        code.push_back(Compiler::Generator::segment3(0, static_cast<unsigned int>(buttons)));
     }
 
     void opReport(Compiler::Generator::CodeContainer& code)
@@ -136,12 +136,12 @@ namespace
 
     void opJumpForward(Compiler::Generator::CodeContainer& code, int offset)
     {
-        code.push_back(Compiler::Generator::segment0(1, offset));
+        code.push_back(Compiler::Generator::segment0(1, static_cast<unsigned int>(offset)));
     }
 
     void opJumpBackward(Compiler::Generator::CodeContainer& code, int offset)
     {
-        code.push_back(Compiler::Generator::segment0(2, offset));
+        code.push_back(Compiler::Generator::segment0(2, static_cast<unsigned int>(offset)));
     }
 
     /*

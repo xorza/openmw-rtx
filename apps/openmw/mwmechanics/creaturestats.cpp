@@ -476,7 +476,7 @@ namespace MWMechanics
         if (state)
             mMovementFlags |= flag;
         else
-            mMovementFlags &= ~flag;
+            mMovementFlags &= static_cast<unsigned int>(~flag);
     }
 
     bool CreatureStats::getStance(Stance flag) const

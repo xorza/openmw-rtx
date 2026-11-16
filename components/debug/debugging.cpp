@@ -165,8 +165,8 @@ namespace Debug
                     char levelLetter = " EWIVD*"[static_cast<int>(level)];
                     const auto ms
                         = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
-                    prefixSize += snprintf(prefix + prefixSize, sizeof(prefix) - prefixSize, ".%03u %c] ",
-                        static_cast<unsigned>(ms % 1000), levelLetter);
+                    prefixSize += static_cast<std::size_t>(snprintf(prefix + prefixSize, sizeof(prefix) - prefixSize,
+                        ".%03u %c] ", static_cast<unsigned>(ms % 1000), levelLetter));
                 }
 
                 while (!msg.empty())
@@ -337,7 +337,7 @@ namespace Debug
             {
                 while (mBuffer.size() >= mCapacity)
                     mBuffer.pop_front();
-                mBuffer.push_back(Record{ std::string(str, size), debugLevel });
+                mBuffer.push_back(Record{ std::string(str, static_cast<std::size_t>(size)), debugLevel });
             }
 
         private:

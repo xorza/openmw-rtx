@@ -35,8 +35,9 @@ namespace Bsa
     uint32_t generateHash(std::string_view name)
     {
         uint32_t result = 0;
-        for (unsigned char c : name)
+        for (const char character : name)
         {
+            auto c = static_cast<unsigned char>(character);
             if (c > 127)
                 continue;
             if (c == '/')
@@ -50,7 +51,7 @@ namespace Bsa
     {
         uint32_t result = 0;
         for (size_t i = 0; i < 4 && i < extension.size(); i++)
-            result |= static_cast<uint8_t>(extension[i]) << (8 * i);
+            result |= static_cast<std::uint32_t>(static_cast<uint8_t>(extension[i]) << (8 * i));
         return result;
     }
 

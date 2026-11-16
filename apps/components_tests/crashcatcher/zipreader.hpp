@@ -48,7 +48,8 @@ namespace CrashTests
                 inside = false;
                 return 0;
             }
-            return static_cast<unsigned char>(bytes[at]) | static_cast<unsigned char>(bytes[at + 1]) << 8;
+            return static_cast<std::uint32_t>(
+                static_cast<unsigned char>(bytes[at]) | static_cast<unsigned char>(bytes[at + 1]) << 8);
         };
         const auto u32 = [&](std::size_t at) { return u16(at) | u16(at + 2) << 16; };
 

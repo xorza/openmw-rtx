@@ -126,22 +126,22 @@ namespace MWGui
         std::string valStr = MyGUI::utility::toString(current) + " / " + MyGUI::utility::toString(modified);
         if (id == "HBar")
         {
-            mHealth->setProgressRange(std::max(0, modified));
-            mHealth->setProgressPosition(std::max(0, current));
+            mHealth->setProgressRange(static_cast<std::size_t>(std::max(0, modified)));
+            mHealth->setProgressPosition(static_cast<std::size_t>(std::max(0, current)));
             getWidget(w, "HealthFrame");
             w->setUserString("Caption_HealthDescription", "#{sHealthDesc}\n" + valStr);
         }
         else if (id == "MBar")
         {
-            mMagicka->setProgressRange(std::max(0, modified));
-            mMagicka->setProgressPosition(std::max(0, current));
+            mMagicka->setProgressRange(static_cast<std::size_t>(std::max(0, modified)));
+            mMagicka->setProgressPosition(static_cast<std::size_t>(std::max(0, current)));
             getWidget(w, "MagickaFrame");
             w->setUserString("Caption_HealthDescription", "#{sMagDesc}\n" + valStr);
         }
         else if (id == "FBar")
         {
-            mStamina->setProgressRange(std::max(0, modified));
-            mStamina->setProgressPosition(std::max(0, current));
+            mStamina->setProgressRange(static_cast<std::size_t>(std::max(0, modified)));
+            mStamina->setProgressPosition(static_cast<std::size_t>(std::max(0, current)));
             getWidget(w, "FatigueFrame");
             w->setUserString("Caption_HealthDescription", "#{sFatDesc}\n" + valStr);
         }
@@ -348,7 +348,7 @@ namespace MWGui
         }
 
         mSpellStatus->setProgressRange(100);
-        mSpellStatus->setProgressPosition(successChancePercent);
+        mSpellStatus->setProgressPosition(static_cast<std::size_t>(successChancePercent));
 
         mSpellBox->setUserString("ToolTipType", "Spell");
         mSpellBox->setUserString("Spell", spellId.serialize());
@@ -379,7 +379,7 @@ namespace MWGui
         }
 
         mSpellStatus->setProgressRange(100);
-        mSpellStatus->setProgressPosition(chargePercent);
+        mSpellStatus->setProgressPosition(static_cast<std::size_t>(chargePercent));
 
         mSpellBox->setUserString("ToolTipType", "ItemPtr");
         mSpellBox->setUserData(MWWorld::Ptr(item));
@@ -403,7 +403,7 @@ namespace MWGui
         mWeapBox->setUserData(MWWorld::Ptr(item));
 
         mWeapStatus->setProgressRange(100);
-        mWeapStatus->setProgressPosition(durabilityPercent);
+        mWeapStatus->setProgressPosition(static_cast<std::size_t>(durabilityPercent));
 
         mWeapImage->setItem(item);
     }

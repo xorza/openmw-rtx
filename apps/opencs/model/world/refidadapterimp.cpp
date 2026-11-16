@@ -683,7 +683,7 @@ QVariant CSMWorld::LightRefIdAdapter::getData(const RefIdColumn* column, const R
     auto iter = mColumns.mFlags.find(column);
 
     if (iter != mColumns.mFlags.end())
-        return (record.get().mData.mFlags & iter->second) != 0;
+        return (static_cast<unsigned int>(record.get().mData.mFlags) & iter->second) != 0;
 
     return InventoryRefIdAdapter<ESM::Light>::getData(column, data, index);
 }
@@ -701,7 +701,7 @@ void CSMWorld::LightRefIdAdapter::setData(
     else if (column == mColumns.mRadius)
         light.mData.mRadius = value.toInt();
     else if (column == mColumns.mColor)
-        light.mData.mColor = value.toInt();
+        light.mData.mColor = static_cast<std::uint32_t>(value.toInt());
     else if (column == mColumns.mSound)
         light.mSound = ESM::RefId::stringRefId(value.toString().toUtf8().constData());
     else if (column == mColumns.mEmitterType)
@@ -1176,13 +1176,13 @@ void CSMWorld::NpcMiscRefIdAdapter::setNestedData(
             case 3:
                 return;
             case 4:
-                npc.mNpdt.mDisposition = static_cast<signed char>(value.toInt());
+                npc.mNpdt.mDisposition = static_cast<unsigned char>(static_cast<signed char>(value.toInt()));
                 break;
             case 5:
-                npc.mNpdt.mReputation = static_cast<signed char>(value.toInt());
+                npc.mNpdt.mReputation = static_cast<unsigned char>(static_cast<signed char>(value.toInt()));
                 break;
             case 6:
-                npc.mNpdt.mRank = static_cast<signed char>(value.toInt());
+                npc.mNpdt.mRank = static_cast<unsigned char>(static_cast<signed char>(value.toInt()));
                 break;
             case 7:
                 npc.mNpdt.mGold = value.toInt();
@@ -1206,13 +1206,13 @@ void CSMWorld::NpcMiscRefIdAdapter::setNestedData(
                 npc.mNpdt.mFatigue = static_cast<unsigned short>(value.toInt());
                 break;
             case 4:
-                npc.mNpdt.mDisposition = static_cast<signed char>(value.toInt());
+                npc.mNpdt.mDisposition = static_cast<unsigned char>(static_cast<signed char>(value.toInt()));
                 break;
             case 5:
-                npc.mNpdt.mReputation = static_cast<signed char>(value.toInt());
+                npc.mNpdt.mReputation = static_cast<unsigned char>(static_cast<signed char>(value.toInt()));
                 break;
             case 6:
-                npc.mNpdt.mRank = static_cast<signed char>(value.toInt());
+                npc.mNpdt.mRank = static_cast<unsigned char>(static_cast<signed char>(value.toInt()));
                 break;
             case 7:
                 npc.mNpdt.mGold = value.toInt();
@@ -1557,19 +1557,19 @@ QVariant CSMWorld::WeaponRefIdAdapter::getData(const RefIdColumn* column, const 
     for (int i = 0; i < 2; ++i)
     {
         if (column == mColumns.mChop[i])
-            return record.get().mData.mChop[i];
+            return record.get().mData.mChop[static_cast<std::size_t>(i)];
 
         if (column == mColumns.mSlash[i])
-            return record.get().mData.mSlash[i];
+            return record.get().mData.mSlash[static_cast<std::size_t>(i)];
 
         if (column == mColumns.mThrust[i])
-            return record.get().mData.mThrust[i];
+            return record.get().mData.mThrust[static_cast<std::size_t>(i)];
     }
 
     auto iter = mColumns.mFlags.find(column);
 
     if (iter != mColumns.mFlags.end())
-        return (record.get().mData.mFlags & iter->second) != 0;
+        return (static_cast<unsigned int>(record.get().mData.mFlags) & iter->second) != 0;
 
     return EnchantableRefIdAdapter<ESM::Weapon>::getData(column, data, index);
 }
@@ -1585,23 +1585,23 @@ void CSMWorld::WeaponRefIdAdapter::setData(
     if (column == mColumns.mType)
         weapon.mData.mType = ESM::Weapon::indexToRefId(value.toInt());
     else if (column == mColumns.mHealth)
-        weapon.mData.mHealth = value.toInt();
+        weapon.mData.mHealth = static_cast<std::uint16_t>(value.toInt());
     else if (column == mColumns.mSpeed)
         weapon.mData.mSpeed = value.toFloat();
     else if (column == mColumns.mReach)
         weapon.mData.mReach = value.toFloat();
     else if (column == mColumns.mChop[0])
-        weapon.mData.mChop[0] = value.toInt();
+        weapon.mData.mChop[0] = static_cast<unsigned char>(value.toInt());
     else if (column == mColumns.mChop[1])
-        weapon.mData.mChop[1] = value.toInt();
+        weapon.mData.mChop[1] = static_cast<unsigned char>(value.toInt());
     else if (column == mColumns.mSlash[0])
-        weapon.mData.mSlash[0] = value.toInt();
+        weapon.mData.mSlash[0] = static_cast<unsigned char>(value.toInt());
     else if (column == mColumns.mSlash[1])
-        weapon.mData.mSlash[1] = value.toInt();
+        weapon.mData.mSlash[1] = static_cast<unsigned char>(value.toInt());
     else if (column == mColumns.mThrust[0])
-        weapon.mData.mThrust[0] = value.toInt();
+        weapon.mData.mThrust[0] = static_cast<unsigned char>(value.toInt());
     else if (column == mColumns.mThrust[1])
-        weapon.mData.mThrust[1] = value.toInt();
+        weapon.mData.mThrust[1] = static_cast<unsigned char>(value.toInt());
     else
     {
         auto iter = mColumns.mFlags.find(column);

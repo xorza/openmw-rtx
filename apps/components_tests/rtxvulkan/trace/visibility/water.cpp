@@ -340,8 +340,8 @@ namespace Rtx::Testing
             {
                 const float kept = std::exp(-2.0f * Shaders::WATER_EXTINCTION[static_cast<int>(channel)] * depth);
                 EXPECT_NEAR(bedded[channel],
-                    encodeSrgb(
-                        Shaders::WATER_SCATTER_SHIPPED[channel] * 0.5f * (1.0f - kept) * (1.0f - Shaders::WATER_F0)),
+                    encodeSrgb(Shaders::WATER_SCATTER_SHIPPED[static_cast<int>(channel)] * 0.5f * (1.0f - kept)
+                        * (1.0f - Shaders::WATER_F0)),
                     1)
                     << "channel " << channel << " over the bed";
             }
@@ -352,7 +352,9 @@ namespace Rtx::Testing
             const std::array<int, 3> bottomless = look(makeOpenWater(4000.0f));
             for (std::size_t channel = 0; channel < 3; ++channel)
                 EXPECT_NEAR(bottomless[channel],
-                    encodeSrgb(Shaders::WATER_SCATTER_SHIPPED[channel] * 0.5f * (1.0f - Shaders::WATER_F0)), 1)
+                    encodeSrgb(
+                        Shaders::WATER_SCATTER_SHIPPED[static_cast<int>(channel)] * 0.5f * (1.0f - Shaders::WATER_F0)),
+                    1)
                     << "channel " << channel << " over water with no bottom";
 
             // And the bed at 2000 units still stops the column in the channel it is not deep for, 60

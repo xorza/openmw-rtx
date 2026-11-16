@@ -346,10 +346,12 @@ namespace MWInput
                     mInputBinder->addKeyBinding(control, defaultKeyBindings[i], ICS::Control::INCREASE);
                 }
                 else if (defaultMouseButtonBindings.contains(i)
-                    && (force || !mInputBinder->isMouseButtonBound(defaultMouseButtonBindings[i])))
+                    && (force
+                        || !mInputBinder->isMouseButtonBound(static_cast<unsigned int>(defaultMouseButtonBindings[i]))))
                 {
                     control->setInitialValue(0.0f);
-                    mInputBinder->addMouseButtonBinding(control, defaultMouseButtonBindings[i], ICS::Control::INCREASE);
+                    mInputBinder->addMouseButtonBinding(
+                        control, static_cast<unsigned int>(defaultMouseButtonBindings[i]), ICS::Control::INCREASE);
                 }
                 else if (defaultMouseWheelBindings.contains(i)
                     && (force || !mInputBinder->isMouseWheelBound(defaultMouseWheelBindings[i])))
@@ -430,14 +432,18 @@ namespace MWInput
                 clearAllControllerBindings(mInputBinder.get(), control);
 
                 if (defaultButtonBindings.contains(i)
-                    && (force || !mInputBinder->isJoystickButtonBound(sFakeDeviceId, defaultButtonBindings[i])))
+                    && (force
+                        || !mInputBinder->isJoystickButtonBound(
+                            sFakeDeviceId, static_cast<unsigned int>(defaultButtonBindings[i]))))
                 {
                     control->setInitialValue(0.0f);
-                    mInputBinder->addJoystickButtonBinding(
-                        control, sFakeDeviceId, defaultButtonBindings[i], ICS::Control::INCREASE);
+                    mInputBinder->addJoystickButtonBinding(control, sFakeDeviceId,
+                        static_cast<unsigned int>(defaultButtonBindings[i]), ICS::Control::INCREASE);
                 }
                 else if (defaultAxisBindings.contains(i)
-                    && (force || !mInputBinder->isJoystickAxisBound(sFakeDeviceId, defaultAxisBindings[i])))
+                    && (force
+                        || !mInputBinder->isJoystickAxisBound(
+                            sFakeDeviceId, static_cast<unsigned int>(defaultAxisBindings[i]))))
                 {
                     control->setValue(0.5f);
                     control->setInitialValue(0.5f);

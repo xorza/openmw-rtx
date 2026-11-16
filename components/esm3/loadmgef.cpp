@@ -807,7 +807,7 @@ namespace ESM
         int index = refIdToIndex(effectId);
         if (index < 0 || index >= Length)
             return {};
-        return sGmstEffectIds[index];
+        return sGmstEffectIds[static_cast<std::size_t>(index)];
     }
 
     RefId MagicEffect::effectGmstIdToRefId(std::string_view gmstId)
@@ -815,14 +815,14 @@ namespace ESM
         auto it = sGmstEffectIdToIndexMap.find(gmstId);
         if (it == sGmstEffectIdToIndexMap.end())
             return {};
-        return sMagicEffectIds[it->second];
+        return sMagicEffectIds[static_cast<std::size_t>(it->second)];
     }
 
     RefId MagicEffect::indexToRefId(int index)
     {
         if (index < 0 || index >= Length)
             return {};
-        return sMagicEffectIds[index];
+        return sMagicEffectIds[static_cast<std::size_t>(index)];
     }
 
     int MagicEffect::refIdToIndex(RefId effectId)
@@ -837,6 +837,6 @@ namespace ESM
     {
         if (index < 0 || index >= Length)
             return {};
-        return sMagicEffectIds[index].getRefIdString();
+        return sMagicEffectIds[static_cast<std::size_t>(index)].getRefIdString();
     }
 }

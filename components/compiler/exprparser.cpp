@@ -65,7 +65,7 @@ namespace Compiler
         assert(!mOperands.empty());
         assert(index >= 0);
         assert(std::cmp_less(index, mOperands.size()));
-        return mOperands[mOperands.size() - 1 - index];
+        return mOperands[mOperands.size() - 1 - static_cast<std::size_t>(index)];
     }
 
     char ExprParser::getOperator() const

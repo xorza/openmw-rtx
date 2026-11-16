@@ -58,7 +58,7 @@ namespace MWLua
             auto newPos = file->tellg();
             file->seekg(oldPos, std::ios_base::beg);
 
-            return newPos - oldPos;
+            return static_cast<std::size_t>(newPos - oldPos);
         }
 
         void printLargeDataMessage(FileHandle& file, size_t size)
@@ -288,7 +288,7 @@ namespace MWLua
                 else if (args[static_cast<std::ptrdiff_t>(i)].is<int>())
                 {
                     int number = args[static_cast<std::ptrdiff_t>(i)].as<int>();
-                    auto result = readCharactersFromFile(lua, self, number);
+                    auto result = readCharactersFromFile(lua, self, static_cast<std::size_t>(number));
                     values.push_back(result);
                     if (result == sol::nil)
                         success = false;

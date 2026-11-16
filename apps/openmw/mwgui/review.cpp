@@ -394,7 +394,8 @@ namespace MWGui
 
             for (int i = 0; i < 2; ++i)
             {
-                ToolTips::createSkillToolTip(mSkillWidgets[mSkillWidgets.size() - 1 - i], skill->mId);
+                ToolTips::createSkillToolTip(
+                    mSkillWidgets[mSkillWidgets.size() - 1 - static_cast<std::size_t>(i)], skill->mId);
             }
 
             mSkillWidgetMap[skill->mId] = widget;

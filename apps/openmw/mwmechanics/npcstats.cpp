@@ -118,7 +118,7 @@ void MWMechanics::NpcStats::setFactionRank(const ESM::RefId& faction, int newRan
             // Does the new rank exist?
             // The step inside the test is the loop it means.
             // NOLINTNEXTLINE(bugprone-inc-dec-in-conditions)
-            while (newRank > 0 && factionPtr->mRanks[newRank--].empty());
+            while (newRank > 0 && factionPtr->mRanks[static_cast<std::size_t>(newRank--)].empty());
     }
 }
 
@@ -344,7 +344,7 @@ bool MWMechanics::NpcStats::hasSkillsForRank(const ESM::RefId& factionId, int ra
 {
     const ESM::Faction& faction = *MWBase::Environment::get().getESMStore()->get<ESM::Faction>().find(factionId);
 
-    const ESM::RankData& rankData = faction.mData.mRankData.at(rank);
+    const ESM::RankData& rankData = faction.mData.mRankData.at(static_cast<std::size_t>(rank));
 
     std::vector<int> skills;
 

@@ -31,7 +31,7 @@ namespace
             osg::Vec3f normal = e0 ^ e1;
             normal.normalize();
             for (int j = 0; j < 3; ++j)
-                result[i + j] = normal[j];
+                result[i + static_cast<std::size_t>(j)] = normal[j];
         }
         return result;
     }

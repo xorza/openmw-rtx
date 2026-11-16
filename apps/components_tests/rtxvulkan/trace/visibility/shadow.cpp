@@ -270,7 +270,8 @@ namespace Rtx::Testing
                 for (std::size_t pixel = 0; pixel < shadowed.size() / 4; ++pixel)
                 {
                     for (std::size_t channel = 0; channel < 3; ++channel)
-                        EXPECT_NEAR(shadowed[pixel * 4 + channel], sum[channel], sum[channel] * 1e-5f)
+                        EXPECT_NEAR(shadowed[pixel * 4 + channel], sum[static_cast<int>(channel)],
+                            sum[static_cast<int>(channel)] * 1e-5f)
                             << "pixel " << pixel << ", channel " << channel;
                     EXPECT_TRUE(Testing::shadowOpen(shadowed[pixel * 4 + 3])) << "pixel " << pixel;
                 }

@@ -275,13 +275,16 @@ namespace CSMWorld
         {
         }
 
-        QVariant get(const Record<ESXRecordT>& record) const override { return record.get().mData.mUseValue[mIndex]; }
+        QVariant get(const Record<ESXRecordT>& record) const override
+        {
+            return record.get().mData.mUseValue[static_cast<std::size_t>(mIndex)];
+        }
 
         void set(Record<ESXRecordT>& record, const QVariant& data) override
         {
             ESXRecordT record2 = record.get();
 
-            record2.mData.mUseValue[mIndex] = data.toFloat();
+            record2.mData.mUseValue[static_cast<std::size_t>(mIndex)] = data.toFloat();
 
             record.setModified(record2);
         }
@@ -377,14 +380,14 @@ namespace CSMWorld
 
         QVariant get(const Record<ESXRecordT>& record) const override
         {
-            return ESM::Attribute::refIdToIndex(record.get().mData.mAttribute[mIndex]);
+            return ESM::Attribute::refIdToIndex(record.get().mData.mAttribute[static_cast<std::size_t>(mIndex)]);
         }
 
         void set(Record<ESXRecordT>& record, const QVariant& data) override
         {
             ESXRecordT record2 = record.get();
 
-            record2.mData.mAttribute[mIndex] = ESM::Attribute::indexToRefId(data.toInt());
+            record2.mData.mAttribute[static_cast<std::size_t>(mIndex)] = ESM::Attribute::indexToRefId(data.toInt());
 
             record.setModified(record2);
         }
@@ -410,7 +413,8 @@ namespace CSMWorld
 
         QVariant get(const Record<ESXRecordT>& record) const override
         {
-            return QString::fromStdString(record.get().mData.getSkill(mIndex, mMajor).getRefIdString());
+            return QString::fromStdString(
+                record.get().mData.getSkill(static_cast<std::size_t>(mIndex), mMajor).getRefIdString());
         }
 
         void set(Record<ESXRecordT>& record, const QVariant& data) override
@@ -419,7 +423,8 @@ namespace CSMWorld
             {
                 ESXRecordT record2 = record.get();
 
-                record2.mData.getSkill(mIndex, mMajor) = ESM::Skill::indexToRefId(static_cast<int>(*index));
+                record2.mData.getSkill(static_cast<std::size_t>(mIndex), mMajor)
+                    = ESM::Skill::indexToRefId(static_cast<int>(*index));
 
                 record.setModified(record2);
             }
@@ -510,7 +515,7 @@ namespace CSMWorld
             if ((data.toInt() != 0) != mInverted)
                 flags |= mMask;
 
-            record2.mData.mFlags = flags;
+            record2.mData.mFlags = static_cast<decltype(record2.mData.mFlags)>(flags);
 
             record.setModified(record2);
         }
@@ -533,7 +538,7 @@ namespace CSMWorld
 
         QVariant get(const Record<ESXRecordT>& record) const override
         {
-            bool flag = (record.get().mFlags & mMask) != 0;
+            bool flag = (static_cast<int>(record.get().mFlags) & mMask) != 0;
 
             if (mInverted)
                 flag = !flag;
@@ -545,12 +550,12 @@ namespace CSMWorld
         {
             ESXRecordT record2 = record.get();
 
-            int flags = record2.mFlags & ~mMask;
+            int flags = static_cast<int>(record2.mFlags) & ~mMask;
 
             if ((data.toInt() != 0) != mInverted)
                 flags |= mMask;
 
-            record2.mFlags = flags;
+            record2.mFlags = static_cast<decltype(record2.mFlags)>(flags);
 
             record.setModified(record2);
         }
@@ -1717,7 +1722,7 @@ namespace CSMWorld
         {
             ESXRecordT record2 = record.get();
 
-            record2.mData.mGender = data.toInt();
+            record2.mData.mGender = static_cast<decltype(record2.mData.mGender)>(data.toInt());
 
             record.setModified(record2);
         }
@@ -1864,7 +1869,7 @@ namespace CSMWorld
         {
             ESXRecordT record2 = record.get();
 
-            record2.mData.mVampire = data.toInt();
+            record2.mData.mVampire = static_cast<decltype(record2.mData.mVampire)>(data.toInt());
 
             record.setModified(record2);
         }
@@ -1889,7 +1894,7 @@ namespace CSMWorld
         {
             ESXRecordT record2 = record.get();
 
-            record2.mData.mPart = data.toInt();
+            record2.mData.mPart = static_cast<decltype(record2.mData.mPart)>(data.toInt());
 
             record.setModified(record2);
         }
@@ -1914,7 +1919,7 @@ namespace CSMWorld
         {
             ESXRecordT record2 = record.get();
 
-            record2.mData.mType = data.toInt();
+            record2.mData.mType = static_cast<decltype(record2.mData.mType)>(data.toInt());
 
             record.setModified(record2);
         }
@@ -1991,7 +1996,7 @@ namespace CSMWorld
         {
             ESXRecordT record2 = record.get();
 
-            record2.mRefNum.mIndex = data.toInt();
+            record2.mRefNum.mIndex = static_cast<decltype(record2.mRefNum.mIndex)>(data.toInt());
 
             record.setModified(record2);
         }

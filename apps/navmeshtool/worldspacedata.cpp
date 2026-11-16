@@ -97,7 +97,7 @@ namespace NavMeshTool
             for (std::size_t i = 0; i < cell.mContextList.size(); i++)
             {
                 ESM::ReadersCache::BusyItem reader = readers.get(static_cast<std::size_t>(cell.mContextList[i].index));
-                cell.restore(*reader, static_cast<int>(i));
+                cell.restore(*reader, static_cast<std::size_t>(static_cast<int>(i)));
                 ESM::CellRef cellRef;
                 bool deleted = false;
                 while (ESM::Cell::getNextRef(*reader, cellRef, deleted))
@@ -280,8 +280,8 @@ namespace NavMeshTool
                 ++cellRefsPerComponent[positionToComponent.at(v.mRange.mBegin)];
 
             const std::size_t largestComponent
-                = std::max_element(cellRefsPerComponent.begin(), cellRefsPerComponent.end())
-                - cellRefsPerComponent.begin();
+                = static_cast<std::size_t>(std::max_element(cellRefsPerComponent.begin(), cellRefsPerComponent.end())
+                    - cellRefsPerComponent.begin());
 
             for (const AddedCellRef& v : cellRefs)
             {

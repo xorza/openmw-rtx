@@ -377,10 +377,10 @@ void CSMWorld::ReorderRowsCommand::redo()
 void CSMWorld::ReorderRowsCommand::undo()
 {
     int size = static_cast<int>(mNewOrder.size());
-    std::vector<int> reverse(size);
+    std::vector<int> reverse(static_cast<std::size_t>(size));
 
     for (int i = 0; i < size; ++i)
-        reverse.at(mNewOrder[i]) = i;
+        reverse.at(static_cast<std::size_t>(mNewOrder[static_cast<std::size_t>(i)])) = i;
 
     mModel.reorderRows(mBaseIndex, reverse);
 }
@@ -458,8 +458,8 @@ void CSMWorld::UpdateCellCommand::redo()
 
         QModelIndex yIndex = mModel.index(mRow, mModel.findColumnIndex(Columns::ColumnId_PositionYPos));
 
-        int x = std::floor(mModel.data(xIndex).toFloat() / Constants::CellSizeInUnits);
-        int y = std::floor(mModel.data(yIndex).toFloat() / Constants::CellSizeInUnits);
+        int x = static_cast<int>(std::floor(mModel.data(xIndex).toFloat() / Constants::CellSizeInUnits));
+        int y = static_cast<int>(std::floor(mModel.data(yIndex).toFloat() / Constants::CellSizeInUnits));
 
         std::ostringstream stream;
 

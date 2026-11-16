@@ -301,7 +301,7 @@ namespace Rtx
             // **A spare byte is no alpha**: an X8 file, whose fourth byte the header gave no mask,
             // is opaque wherever its byte reads, nought included, as GL samples the `GL_RGB`
             // OpenSceneGraph states it in.
-            for (const GLenum order : { GL_RGBA, GL_BGRA })
+            for (const GLenum order : std::array<GLenum, 2>{ GL_RGBA, GL_BGRA })
             {
                 const osg::ref_ptr<osg::Image> spare = makeAlphaImage({ 0, 0, 0, 0 });
                 spare->setPixelFormat(order);

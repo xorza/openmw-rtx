@@ -173,7 +173,8 @@ namespace MWLua
             listT[sol::meta_function::length] = [](const ListT& list) { return list.mIds->size(); };
             listT[sol::meta_function::index] = [](const ListT& list, size_t index) -> sol::optional<ObjectT> {
                 if (index > 0 && index <= list.mIds->size())
-                    return ObjectT((*list.mIds)[LuaUtil::fromLuaIndex(static_cast<std::int64_t>(index))]);
+                    return ObjectT((
+                        *list.mIds)[static_cast<std::size_t>(LuaUtil::fromLuaIndex(static_cast<std::int64_t>(index)))]);
                 else
                     return sol::nullopt;
             };
@@ -286,7 +287,7 @@ namespace MWLua
                 const std::vector<std::string>& contentList = MWBase::Environment::get().getWorld()->getContentFiles();
                 if (contentFileIndex < 0 || std::cmp_greater_equal(contentFileIndex, contentList.size()))
                     return sol::nullopt;
-                return Misc::StringUtils::lowerCase(contentList[contentFileIndex]);
+                return Misc::StringUtils::lowerCase(contentList[static_cast<std::size_t>(contentFileIndex)]);
             });
             objectT["isValid"] = [](const ObjectT& o) { return !o.ptrOrEmpty().isEmpty(); };
             objectT["recordId"] = sol::readonly_property(
@@ -409,7 +410,7 @@ namespace MWLua
                     std::optional<int> scriptId = cfg.findId(VFS::Path::Normalized(path));
                     if (!scriptId)
                         throw std::runtime_error("Unknown script: " + std::string(path));
-                    if (!(cfg[*scriptId].mFlags & ESM::LuaScriptCfg::sCustom))
+                    if (!(cfg[static_cast<std::size_t>(*scriptId)].mFlags & ESM::LuaScriptCfg::sCustom))
                         throw std::runtime_error(
                             "Script without CUSTOM tag can not be added dynamically: " + std::string(path));
                     if (object.ptr().getType() == ESM::REC_STAT)
@@ -419,7 +420,7 @@ namespace MWLua
                             LuaUtil::serialize(LuaUtil::cast<sol::table>(initData), context.mSerializer));
                     else
                         context.mLuaManager->addCustomLocalScript(
-                            object.ptr(), *scriptId, cfg[*scriptId].mInitializationData);
+                            object.ptr(), *scriptId, cfg[static_cast<std::size_t>(*scriptId)].mInitializationData);
                 };
                 objectT["hasScript"] = [lua = context.mLua](const GObject& object, std::string_view path) {
                     const LuaUtil::ScriptsConfiguration& cfg = lua->getConfiguration();

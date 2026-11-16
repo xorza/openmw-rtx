@@ -85,13 +85,13 @@ namespace MWScript
         switch (locals.getType(var))
         {
             case 's':
-                return mShorts.at(index);
+                return mShorts.at(static_cast<std::size_t>(index));
 
             case 'l':
-                return mLongs.at(index);
+                return mLongs.at(static_cast<std::size_t>(index));
 
             case 'f':
-                return mFloats.at(index);
+                return mFloats.at(static_cast<std::size_t>(index));
             default:
                 return 0;
         }
@@ -108,15 +108,15 @@ namespace MWScript
         switch (locals.getType(var))
         {
             case 's':
-                mShorts.at(index) = static_cast<Interpreter::Type_Short>(val);
+                mShorts.at(static_cast<std::size_t>(index)) = static_cast<Interpreter::Type_Short>(val);
                 break;
 
             case 'l':
-                mLongs.at(index) = static_cast<Interpreter::Type_Integer>(val);
+                mLongs.at(static_cast<std::size_t>(index)) = static_cast<Interpreter::Type_Integer>(val);
                 break;
 
             case 'f':
-                mFloats.at(index) = static_cast<Interpreter::Type_Float>(val);
+                mFloats.at(static_cast<std::size_t>(index)) = static_cast<Interpreter::Type_Float>(val);
                 break;
             default:
                 break;
@@ -166,21 +166,21 @@ namespace MWScript
                 {
                     case 0:
                         value.setType(ESM::VT_Int);
-                        value.setInteger(mShorts.at(i2));
+                        value.setInteger(mShorts.at(static_cast<std::size_t>(i2)));
                         break;
                     case 1:
                         value.setType(ESM::VT_Int);
-                        value.setInteger(mLongs.at(i2));
+                        value.setInteger(mLongs.at(static_cast<std::size_t>(i2)));
                         break;
                     case 2:
                         value.setType(ESM::VT_Float);
-                        value.setFloat(mFloats.at(i2));
+                        value.setFloat(mFloats.at(static_cast<std::size_t>(i2)));
                         break;
                     default:
                         break;
                 }
 
-                locals.mVariables.emplace_back(names[i2], value);
+                locals.mVariables.emplace_back(names[static_cast<std::size_t>(i2)], value);
             }
         }
 
@@ -211,11 +211,12 @@ namespace MWScript
                 try
                 {
                     if (index >= numshorts + numlongs)
-                        mFloats.at(index - (numshorts + numlongs)) = value.getFloat();
+                        mFloats.at(static_cast<std::size_t>(index - (numshorts + numlongs))) = value.getFloat();
                     else if (index >= numshorts)
-                        mLongs.at(index - numshorts) = value.getInteger();
+                        mLongs.at(static_cast<std::size_t>(index - numshorts)) = value.getInteger();
                     else
-                        mShorts.at(index) = static_cast<Interpreter::Type_Short>(value.getInteger());
+                        mShorts.at(static_cast<std::size_t>(index))
+                            = static_cast<Interpreter::Type_Short>(value.getInteger());
                 }
                 catch (std::exception& e)
                 {
@@ -238,13 +239,14 @@ namespace MWScript
                     switch (type)
                     {
                         case 's':
-                            mShorts.at(index2) = static_cast<Interpreter::Type_Short>(value.getInteger());
+                            mShorts.at(static_cast<std::size_t>(index2))
+                                = static_cast<Interpreter::Type_Short>(value.getInteger());
                             break;
                         case 'l':
-                            mLongs.at(index2) = value.getInteger();
+                            mLongs.at(static_cast<std::size_t>(index2)) = value.getInteger();
                             break;
                         case 'f':
-                            mFloats.at(index2) = value.getFloat();
+                            mFloats.at(static_cast<std::size_t>(index2)) = value.getFloat();
                             break;
                         default:
                             break;

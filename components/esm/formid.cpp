@@ -26,7 +26,7 @@ std::string ESM::FormId::toString(std::string_view prefix) const
     const auto r = std::to_chars(buf, res.data() + res.size(), value, 16);
     if (r.ec != std::errc())
         throw std::system_error(std::make_error_code(r.ec), "ESM::FormId::toString failed");
-    res.resize(r.ptr - res.data());
+    res.resize(static_cast<std::size_t>(r.ptr - res.data()));
     return res;
 }
 
@@ -36,5 +36,5 @@ uint32_t ESM::FormId::toUint32() const
         throw std::runtime_error("Generated FormId can not be converted to 32bit format");
     if (mContentFile > 0xfe)
         throw std::runtime_error("FormId with mContentFile > 0xFE can not be converted to 32bit format");
-    return (mIndex & 0xffffff) | ((hasContentFile() ? mContentFile : 0xff) << 24);
+    return (mIndex & 0xffffff) | (static_cast<std::uint32_t>((hasContentFile() ? mContentFile : 0xff) << 24));
 }

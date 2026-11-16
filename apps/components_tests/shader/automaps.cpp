@@ -1,3 +1,4 @@
+#include <array>
 #include <cstdint>
 #include <initializer_list>
 #include <memory>
@@ -221,7 +222,7 @@ namespace Shader
             positions->push_back(osg::Vec3f(0.0f, 1.0f, 0.0f));
 
             osg::ref_ptr<osg::DrawElementsUShort> triangles = new osg::DrawElementsUShort(GL_TRIANGLES);
-            for (const unsigned short index : { 0, 1, 2, 0, 2, 3 })
+            for (const unsigned short index : std::array<unsigned short, 6>{ 0, 1, 2, 0, 2, 3 })
                 triangles->push_back(index);
 
             osg::ref_ptr<osg::Vec3Array> normals = new osg::Vec3Array;

@@ -513,8 +513,8 @@ namespace MWGui::Widgets
 
         if (mBarWidget)
         {
-            mBarWidget->setProgressRange(std::max(0, mMax));
-            mBarWidget->setProgressPosition(std::max(0, mValue));
+            mBarWidget->setProgressRange(static_cast<std::size_t>(std::max(0, mMax)));
+            mBarWidget->setProgressPosition(static_cast<std::size_t>(std::max(0, mValue)));
         }
 
         if (mBarTextWidget)

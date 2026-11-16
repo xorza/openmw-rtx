@@ -137,7 +137,7 @@ namespace MWWorld
         // was derived by setting the Flash Decrement to 0.1 and measuring how long each value took to decay to 0.
         // TODO: Determine the distribution of each distance to see if it's evenly weighted.
         auto& prng = MWBase::Environment::get().getWorld()->getPrng();
-        unsigned int distance = Misc::Rng::rollDice(4, prng);
+        auto distance = static_cast<unsigned int>(Misc::Rng::rollDice(4, prng));
         // Flash brightness appears additive, since if multiple strikes occur, it takes longer for it to decay to 0.
         mFlashBrightness += 1 - (static_cast<float>(distance) * 0.25f);
         MWBase::Environment::get().getSoundManager()->playSound(mThunderSoundID[distance], 1.0, 1.0);
@@ -1331,7 +1331,8 @@ namespace MWWorld
             result.mSunDiscColor
                 = result.mSunDiscColor + osg::componentMultiply(result.mSunDiscColor, result.mAmbientColor);
             for (int i = 0; i < 3; ++i)
-                result.mSunDiscColor[i] = std::min(1.f, result.mSunDiscColor[i]);
+                result.mSunDiscColor[static_cast<unsigned int>(i)]
+                    = std::min(1.f, result.mSunDiscColor[static_cast<unsigned int>(i)]);
         }
         else
             result.mSunDiscColor = osg::Vec4f(1, 1, 1, 1);

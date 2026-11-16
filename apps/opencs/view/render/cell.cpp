@@ -447,7 +447,7 @@ void CSVRender::Cell::reloadAssets()
 
 void CSVRender::Cell::setSelection(int elementMask, Selection mode)
 {
-    if (elementMask & Mask_Reference)
+    if (static_cast<unsigned int>(elementMask) & Mask_Reference)
     {
         for (Object* object : mObjects | std::views::values)
         {
@@ -472,7 +472,7 @@ void CSVRender::Cell::setSelection(int elementMask, Selection mode)
         }
         mSelectionMarker->updateSelectionMarker();
     }
-    if (mPathgrid && elementMask & Mask_Pathgrid)
+    if (mPathgrid && static_cast<unsigned int>(elementMask) & Mask_Pathgrid)
     {
         // Only one pathgrid may be selected, so some operations will only have an effect
         // if the pathgrid is already focused

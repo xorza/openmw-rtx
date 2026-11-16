@@ -568,8 +568,8 @@ namespace MWGui
         // If regex match is found in text, set new current occurrence values
         if (match != end)
         {
-            mCurrentOccurrenceIndex = match->position() + firstIndex;
-            mCurrentOccurrenceLength = match->length();
+            mCurrentOccurrenceIndex = static_cast<std::size_t>(match->position()) + firstIndex;
+            mCurrentOccurrenceLength = static_cast<std::size_t>(match->length());
         }
         else
         {
@@ -634,7 +634,7 @@ namespace MWGui
         }
 
         mHistory->setTextSelection(textPosition, textPosition + length);
-        mHistory->setVScrollPosition(mHistory->getFontHeight() * lineNumber);
+        mHistory->setVScrollPosition(static_cast<std::size_t>(mHistory->getFontHeight()) * lineNumber);
     }
 
     std::string Console::complete(std::string input, std::vector<std::string>& matches)

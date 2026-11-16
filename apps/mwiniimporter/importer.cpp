@@ -337,8 +337,8 @@ MwIniImporter::multistrmap MwIniImporter::loadIniFile(const std::filesystem::pat
             continue;
         }
 
-        std::string key(section + ":" + std::string(utf8.substr(0, pos)));
-        const std::string_view value(utf8.substr(pos + 1));
+        std::string key(section + ":" + std::string(utf8.substr(0, static_cast<std::size_t>(pos))));
+        const std::string_view value(utf8.substr(static_cast<std::size_t>(pos) + 1));
         if (value.empty())
         {
             std::cout << "Warning: ignored empty value for key '" << key << "'." << std::endl;
@@ -383,8 +383,8 @@ MwIniImporter::multistrmap MwIniImporter::loadCfgFile(const std::filesystem::pat
             continue;
         }
 
-        std::string key(line.substr(0, pos));
-        std::string value(line.substr(pos + 1));
+        std::string key(line.substr(0, static_cast<std::size_t>(pos)));
+        std::string value(line.substr(static_cast<std::size_t>(pos) + 1));
         key = trim_ws(key);
         value = trim_ws(value);
 
@@ -610,8 +610,8 @@ void MwIniImporter::importGameFiles(
 
         if (bloodmoonIter != sortedFiles.end() && tribunalIter != sortedFiles.end())
         {
-            size_t bloodmoonIndex = std::distance(sortedFiles.begin(), bloodmoonIter);
-            size_t tribunalIndex = std::distance(sortedFiles.begin(), tribunalIter);
+            auto bloodmoonIndex = static_cast<std::size_t>(std::distance(sortedFiles.begin(), bloodmoonIter));
+            auto tribunalIndex = static_cast<std::size_t>(std::distance(sortedFiles.begin(), tribunalIter));
             if (bloodmoonIndex < tribunalIndex)
                 tribunalIndex++;
             sortedFiles.insert(bloodmoonIter, *tribunalIter);

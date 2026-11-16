@@ -51,7 +51,7 @@ namespace ESM
                     }
                     else
                     {
-                        esm.skip(size);
+                        esm.skip(static_cast<std::size_t>(size));
                         mType = Unknown;
                     }
                     break;

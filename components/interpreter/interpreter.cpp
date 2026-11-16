@@ -129,7 +129,7 @@ namespace Interpreter
 
             while (mRuntime.getPC() >= 0 && static_cast<std::size_t>(mRuntime.getPC()) < program.mInstructions.size())
             {
-                const Type_Code instruction = program.mInstructions[mRuntime.getPC()];
+                const Type_Code instruction = program.mInstructions[static_cast<std::size_t>(mRuntime.getPC())];
                 mRuntime.setPC(mRuntime.getPC() + 1);
                 execute(instruction);
             }

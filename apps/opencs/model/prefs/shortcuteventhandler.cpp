@@ -164,7 +164,7 @@ namespace CSMPrefs
                 int pos = shortcut->getPosition();
                 int lastPos = shortcut->getLastPosition();
                 MatchResult result = match(keyCombination.keyboardModifiers(), keyCombination.key(),
-                    shortcut->getSequence()[pos].toCombined());
+                    static_cast<unsigned int>(shortcut->getSequence()[static_cast<uint>(pos)].toCombined()));
 
                 if (result == Matches_WithMod || result == Matches_NoMod)
                 {
@@ -224,7 +224,8 @@ namespace CSMPrefs
                     used = true;
 
                 int pos = shortcut->getPosition();
-                MatchResult result = match(0, keyCombination.key(), shortcut->getSequence()[pos].key());
+                MatchResult result
+                    = match(0, keyCombination.key(), shortcut->getSequence()[static_cast<uint>(pos)].key());
 
                 if (result != Matches_Not)
                 {
@@ -259,7 +260,8 @@ namespace CSMPrefs
             || shortcut->getModifierStatus() == activate)
             return false;
 
-        MatchResult result = match(keyCombination.keyboardModifiers(), keyCombination.key(), shortcut->getModifier());
+        MatchResult result = match(keyCombination.keyboardModifiers(), keyCombination.key(),
+            static_cast<unsigned int>(shortcut->getModifier()));
         bool used = false;
 
         if (result != Matches_Not)

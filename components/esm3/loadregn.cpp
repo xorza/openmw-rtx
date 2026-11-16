@@ -37,7 +37,7 @@ namespace ESM
         ESM::RefId indexToRefId(int index)
         {
             if (index >= 0 && static_cast<size_t>(index) < sWeatherIds.size())
-                return sWeatherIds[index];
+                return sWeatherIds[static_cast<std::size_t>(index)];
             return {};
         }
     }
@@ -82,8 +82,9 @@ namespace ESM
                         }
                         for (int i = 0; i < Weather::Length; ++i)
                         {
-                            if (probabilities[i] != 0)
-                                mData.mProbabilities[Weather::indexToRefId(i)] = probabilities[i];
+                            if (probabilities[static_cast<std::size_t>(i)] != 0)
+                                mData.mProbabilities[Weather::indexToRefId(i)]
+                                    = probabilities[static_cast<std::size_t>(i)];
                         }
                     }
                     else
@@ -144,7 +145,7 @@ namespace ESM
             {
                 const int index = Weather::refIdToIndex(id);
                 if (index >= 0)
-                    probabilities[index] = chance;
+                    probabilities[static_cast<std::size_t>(index)] = chance;
             }
             if (esm.getVersion() == VER_120)
                 esm.writeHNT("WEAT", probabilities, probabilities.size() - 2);

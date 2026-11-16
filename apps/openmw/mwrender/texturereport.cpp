@@ -145,7 +145,7 @@ namespace MWRender
             const auto* part = npcAnimation->getPart(static_cast<ESM::PartReferenceType>(type));
             if (!part)
                 continue;
-            msg << sPartNames[type] << " part: " << part->getModel().value() << std::endl;
+            msg << sPartNames[static_cast<std::size_t>(type)] << " part: " << part->getModel().value() << std::endl;
             const std::string partArchive = vfs->getArchive(part->getModel());
             if (!partArchive.empty())
                 msg << "(" << partArchive << ")" << std::endl;

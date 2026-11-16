@@ -92,7 +92,7 @@ void CSVWorld::NotEditableSubDelegate::setEditorData(QWidget* editor, const QMod
         int data = v.toInt();
         std::vector<std::pair<int, std::string>> enumNames(CSMWorld::Columns::getEnums(columnId));
 
-        label->setText(QString::fromUtf8(enumNames.at(data).second.c_str()));
+        label->setText(QString::fromUtf8(enumNames.at(static_cast<std::size_t>(data)).second.c_str()));
     }
     else
     {

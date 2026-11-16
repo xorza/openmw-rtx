@@ -254,7 +254,8 @@ namespace MWMechanics
 
             for (int i = 0; std::cmp_less(i, iter->mEffects.mList.size()); ++i)
             {
-                if (iter->mEffects.mList[i] != toFind.mEffects.mList[i])
+                if (iter->mEffects.mList[static_cast<std::size_t>(i)]
+                    != toFind.mEffects.mList[static_cast<std::size_t>(i)])
                 {
                     mismatch = true;
                     break;

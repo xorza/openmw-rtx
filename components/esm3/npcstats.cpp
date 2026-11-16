@@ -77,7 +77,7 @@ namespace ESM
             if (esm.getHNOT("INCR", increases))
             {
                 for (int i = 0; i < ESM::Attribute::Length; ++i)
-                    mSkillIncrease[ESM::Attribute::indexToRefId(i)] = increases[i];
+                    mSkillIncrease[ESM::Attribute::indexToRefId(i)] = increases[static_cast<std::size_t>(i)];
             }
         }
         else

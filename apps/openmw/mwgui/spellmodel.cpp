@@ -195,7 +195,7 @@ namespace MWGui
     {
         if (index < 0 || std::cmp_greater_equal(index, mSpells.size()))
             throw std::runtime_error("invalid spell index supplied");
-        return mSpells[index];
+        return mSpells[static_cast<std::size_t>(index)];
     }
 
 }

@@ -906,7 +906,7 @@ namespace Rtx::Testing
             walk(*node, 0, 73);
             mExtractor.retire();
 
-            for (std::size_t slot = 0; slot < 33; ++slot)
+            for (Index slot = 0; slot < 33; ++slot)
                 EXPECT_FALSE(mScene.textures().isLive(slot)) << "slot " << slot << " outlived the material";
         }
 

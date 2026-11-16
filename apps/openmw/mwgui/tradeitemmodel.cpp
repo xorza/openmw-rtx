@@ -27,7 +27,7 @@ namespace MWGui
             throw std::runtime_error("Invalid index supplied");
         if (mItems.size() <= static_cast<size_t>(index))
             throw std::runtime_error("Item index out of range");
-        return mItems[index];
+        return mItems[static_cast<std::size_t>(index)];
     }
 
     size_t TradeItemModel::getItemCount()
@@ -118,7 +118,7 @@ namespace MWGui
         auto update = [](std::vector<ItemStack>& list) {
             for (auto it = list.begin(); it != list.end();)
             {
-                size_t actualCount = it->mBase.getCellRef().getCount();
+                auto actualCount = static_cast<std::size_t>(it->mBase.getCellRef().getCount());
                 it->mCount = std::min(actualCount, it->mCount);
                 if (it->mCount == 0)
                     it = list.erase(it);

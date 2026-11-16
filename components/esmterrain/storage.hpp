@@ -142,7 +142,8 @@ namespace ESMTerrain
             const int landSize = data->getLandSize();
             assert(x < landSize);
             assert(y < landSize);
-            return data->getHeights()[y * landSize + x];
+            return data->getHeights()[static_cast<std::size_t>(y) * static_cast<std::size_t>(landSize)
+                + static_cast<std::size_t>(x)];
         }
 
     private:

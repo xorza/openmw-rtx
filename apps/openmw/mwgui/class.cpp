@@ -277,11 +277,11 @@ namespace MWGui
             if (mCurrentClassId.empty())
             {
                 mCurrentClassId = id;
-                mClassList->setIndexSelected(index);
+                mClassList->setIndexSelected(static_cast<std::size_t>(index));
             }
             else if (id == mCurrentClassId)
             {
-                mClassList->setIndexSelected(index);
+                mClassList->setIndexSelected(static_cast<std::size_t>(index));
             }
             ++index;
         }
@@ -547,7 +547,7 @@ namespace MWGui
             "MajorSkillT", MWBase::Environment::get().getWindowManager()->getGameSettingString("sSkillClassMajor", {}));
         setText(
             "MinorSkillT", MWBase::Environment::get().getWindowManager()->getGameSettingString("sSkillClassMinor", {}));
-        for (char i = 0; i < 5; i++)
+        for (std::size_t i = 0; i < 5; i++)
         {
             char theIndex = static_cast<char>('0' + i);
             getWidget(mMajorSkill[i], std::string("MajorSkill").append(1, theIndex));
@@ -617,8 +617,10 @@ namespace MWGui
     {
         for (int i = 0; i < 5; ++i)
         {
-            ToolTips::createSkillToolTip(mMajorSkill[i], mMajorSkill[i]->getSkillId());
-            ToolTips::createSkillToolTip(mMinorSkill[i], mMinorSkill[i]->getSkillId());
+            ToolTips::createSkillToolTip(
+                mMajorSkill[static_cast<std::size_t>(i)], mMajorSkill[static_cast<std::size_t>(i)]->getSkillId());
+            ToolTips::createSkillToolTip(
+                mMinorSkill[static_cast<std::size_t>(i)], mMinorSkill[static_cast<std::size_t>(i)]->getSkillId());
         }
 
         ToolTips::createAttributeToolTip(mFavoriteAttribute0, mFavoriteAttribute0->getAttributeId());
@@ -1037,7 +1039,7 @@ namespace MWGui
         }
         for (const ESM::Skill& skill : MWBase::Environment::get().getESMStore()->get<ESM::Skill>())
         {
-            auto& [widget, coord] = specializations[skill.mData.mSpecialization];
+            auto& [widget, coord] = specializations[static_cast<std::size_t>(skill.mData.mSpecialization)];
             auto* skillWidget
                 = widget->createWidget<Widgets::MWSkill>("MW_StatNameButton", coord, MyGUI::Align::Default);
             coord.top += coord.height;
@@ -1045,7 +1047,7 @@ namespace MWGui
             skillWidget->eventClicked += MyGUI::newDelegate(this, &SelectSkillDialog::onSkillClicked);
             ToolTips::createSkillToolTip(skillWidget, skill.mId);
             mSkillButtons.emplace_back(skillWidget);
-            mNumSkillsPerSpecialization[skill.mData.mSpecialization]++;
+            mNumSkillsPerSpecialization[static_cast<std::size_t>(skill.mData.mSpecialization)]++;
         }
         for (const auto& [widget, coord] : specializations)
         {

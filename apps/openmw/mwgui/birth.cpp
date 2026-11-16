@@ -180,12 +180,12 @@ namespace MWGui
             mBirthList->addItem(birthsignPair.second->mName, birthsignPair.first);
             if (mCurrentBirthId.empty())
             {
-                mBirthList->setIndexSelected(index);
+                mBirthList->setIndexSelected(static_cast<std::size_t>(index));
                 mCurrentBirthId = birthsignPair.first;
             }
             else if (birthsignPair.first == mCurrentBirthId)
             {
-                mBirthList->setIndexSelected(index);
+                mBirthList->setIndexSelected(static_cast<std::size_t>(index));
             }
 
             index++;

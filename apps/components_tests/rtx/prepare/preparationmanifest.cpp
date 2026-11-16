@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -297,7 +298,7 @@ namespace Rtx
             EXPECT_EQ(manifest.size(), 4u);
             stamps.mStamp = 100;
             EXPECT_FALSE(manifest.standingDigest("meshes/m.nif", stamps, store, scratch).has_value());
-            for (const std::uint64_t standing : { 300, 400, 500, 600 })
+            for (const std::uint64_t standing : std::array<std::uint64_t, 4>{ 300, 400, 500, 600 })
             {
                 stamps.mStamp = standing;
                 EXPECT_TRUE(manifest.standingDigest("meshes/m.nif", stamps, store, scratch).has_value()) << standing;

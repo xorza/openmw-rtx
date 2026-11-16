@@ -488,7 +488,7 @@ namespace MWWorld
             else if (!ESM::isEsm4Ext(worldspace))
             {
                 static const std::vector<float> defaultHeight(
-                    static_cast<std::size_t>(verts) * verts, ESM::Land::DEFAULT_HEIGHT);
+                    static_cast<std::size_t>(verts) * static_cast<std::size_t>(verts), ESM::Land::DEFAULT_HEIGHT);
                 mPhysics->addHeightField(defaultHeight.data(), cellX, cellY, worldsize, verts,
                     ESM::Land::DEFAULT_HEIGHT, ESM::Land::DEFAULT_HEIGHT, std::move(land));
             }
@@ -940,8 +940,8 @@ namespace MWWorld
             rendering.getTerrain(), rendering.getLandManager());
         mPreloader->setWorkQueue(mRendering.getWorkQueue());
         mPreloader->setExpiryDelay(Settings::cells().mPreloadCellExpiryDelay);
-        mPreloader->setMinCacheSize(Settings::cells().mPreloadCellCacheMin);
-        mPreloader->setMaxCacheSize(Settings::cells().mPreloadCellCacheMax);
+        mPreloader->setMinCacheSize(static_cast<std::size_t>(Settings::cells().mPreloadCellCacheMin));
+        mPreloader->setMaxCacheSize(static_cast<std::size_t>(Settings::cells().mPreloadCellCacheMax));
         mPreloader->setPreloadInstances(Settings::cells().mPreloadInstances);
     }
 

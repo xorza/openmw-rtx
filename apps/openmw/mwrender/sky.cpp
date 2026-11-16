@@ -210,7 +210,8 @@ namespace
     {
     public:
         SkyRTT(osg::Vec2f size, osg::Group* earlyRenderBinRoot)
-            : RTTNode(static_cast<int>(size.x()), static_cast<int>(size.y()), 0, false, 1, StereoAwareness::Aware,
+            : RTTNode(static_cast<std::uint32_t>(static_cast<int>(size.x())),
+                  static_cast<std::uint32_t>(static_cast<int>(size.y())), 0, false, 1, StereoAwareness::Aware,
                   MWRender::shouldAddMSAAIntermediateTarget())
             , mEarlyRenderBinRoot(earlyRenderBinRoot)
         {

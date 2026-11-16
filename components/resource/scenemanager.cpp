@@ -1110,7 +1110,7 @@ namespace Resource
     void SceneManager::loadSelectionMarker(
         const osg::ref_ptr<osg::Group>& parentNode, const char* markerData, long long markerSize) const
     {
-        Files::IMemStream file(markerData, markerSize);
+        Files::IMemStream file(markerData, static_cast<std::size_t>(markerSize));
         constexpr VFS::Path::NormalizedView selectionMarker("selectionmarker.osgt");
         parentNode->addChild(loadNonNif(selectionMarker, file, mImageManager));
     }

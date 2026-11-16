@@ -346,7 +346,7 @@ namespace MWGui
             throw std::runtime_error("Invalid index supplied");
         if (mItems.size() <= static_cast<size_t>(index))
             throw std::runtime_error("Item index out of range");
-        return mItems[index];
+        return mItems[static_cast<std::size_t>(index)];
     }
 
     size_t SortFilterItemModel::getItemCount()

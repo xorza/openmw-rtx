@@ -71,28 +71,38 @@ namespace DetourNavigator
         // Similar code to
         // https://github.com/recastnavigation/recastnavigation/blob/c5cbd53024c8a9d8d097a4371215e3342d2fdc87/Detour/Source/DetourNavMesh.cpp#L978-L996
         const int headerSize = dtAlign4(sizeof(dtMeshHeader));
-        const int vertsSize = dtAlign4(static_cast<int>(sizeof(float) * 3 * header->vertCount));
-        const int polysSize = dtAlign4(static_cast<int>(sizeof(dtPoly) * header->polyCount));
-        const int linksSize = dtAlign4(static_cast<int>(sizeof(dtLink) * (header->maxLinkCount)));
-        const int detailMeshesSize = dtAlign4(static_cast<int>(sizeof(dtPolyDetail) * header->detailMeshCount));
-        const int detailVertsSize = dtAlign4(static_cast<int>(sizeof(float) * 3 * header->detailVertCount));
-        const int detailTrisSize = dtAlign4(static_cast<int>(sizeof(unsigned char) * 4 * header->detailTriCount));
-        const int bvtreeSize = dtAlign4(static_cast<int>(sizeof(dtBVNode) * header->bvNodeCount));
-        const int offMeshLinksSize = dtAlign4(static_cast<int>(sizeof(dtOffMeshConnection) * header->offMeshConCount));
+        const int vertsSize
+            = dtAlign4(static_cast<int>(sizeof(float) * 3 * static_cast<std::size_t>(header->vertCount)));
+        const int polysSize = dtAlign4(static_cast<int>(sizeof(dtPoly) * static_cast<std::size_t>(header->polyCount)));
+        const int linksSize
+            = dtAlign4(static_cast<int>(sizeof(dtLink) * static_cast<std::size_t>(header->maxLinkCount)));
+        const int detailMeshesSize
+            = dtAlign4(static_cast<int>(sizeof(dtPolyDetail) * static_cast<std::size_t>(header->detailMeshCount)));
+        const int detailVertsSize
+            = dtAlign4(static_cast<int>(sizeof(float) * 3 * static_cast<std::size_t>(header->detailVertCount)));
+        const int detailTrisSize
+            = dtAlign4(static_cast<int>(sizeof(unsigned char) * 4 * static_cast<std::size_t>(header->detailTriCount)));
+        const int bvtreeSize
+            = dtAlign4(static_cast<int>(sizeof(dtBVNode) * static_cast<std::size_t>(header->bvNodeCount)));
+        const int offMeshLinksSize = dtAlign4(
+            static_cast<int>(sizeof(dtOffMeshConnection) * static_cast<std::size_t>(header->offMeshConCount)));
 
         const unsigned char* ptr = data + headerSize;
 
         NavMeshTileConstView view{};
 
         view.mHeader = header;
-        view.mVerts = dtGetThenAdvanceBufferPointer<const float>(ptr, vertsSize);
-        view.mPolys = dtGetThenAdvanceBufferPointer<const dtPoly>(ptr, polysSize);
+        view.mVerts = dtGetThenAdvanceBufferPointer<const float>(ptr, static_cast<std::size_t>(vertsSize));
+        view.mPolys = dtGetThenAdvanceBufferPointer<const dtPoly>(ptr, static_cast<std::size_t>(polysSize));
         ptr += linksSize;
-        view.mDetailMeshes = dtGetThenAdvanceBufferPointer<const dtPolyDetail>(ptr, detailMeshesSize);
-        view.mDetailVerts = dtGetThenAdvanceBufferPointer<const float>(ptr, detailVertsSize);
-        view.mDetailTris = dtGetThenAdvanceBufferPointer<const unsigned char>(ptr, detailTrisSize);
-        view.mBvTree = dtGetThenAdvanceBufferPointer<const dtBVNode>(ptr, bvtreeSize);
-        view.mOffMeshCons = dtGetThenAdvanceBufferPointer<const dtOffMeshConnection>(ptr, offMeshLinksSize);
+        view.mDetailMeshes
+            = dtGetThenAdvanceBufferPointer<const dtPolyDetail>(ptr, static_cast<std::size_t>(detailMeshesSize));
+        view.mDetailVerts = dtGetThenAdvanceBufferPointer<const float>(ptr, static_cast<std::size_t>(detailVertsSize));
+        view.mDetailTris
+            = dtGetThenAdvanceBufferPointer<const unsigned char>(ptr, static_cast<std::size_t>(detailTrisSize));
+        view.mBvTree = dtGetThenAdvanceBufferPointer<const dtBVNode>(ptr, static_cast<std::size_t>(bvtreeSize));
+        view.mOffMeshCons
+            = dtGetThenAdvanceBufferPointer<const dtOffMeshConnection>(ptr, static_cast<std::size_t>(offMeshLinksSize));
 
         return view;
     }

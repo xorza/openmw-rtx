@@ -42,7 +42,7 @@ namespace Nif
         static_assert(
             std::is_arithmetic_v<T> || std::is_same_v<T, Misc::float16_t>, "Buffer element type is not arithmetic");
         static_assert(!std::is_same_v<T, bool>, "Buffer element type is boolean");
-        pIStream->read(reinterpret_cast<char*>(dest), numInstances * sizeof(T));
+        pIStream->read(reinterpret_cast<char*>(dest), static_cast<std::streamsize>(numInstances * sizeof(T)));
         if (pIStream->fail())
             throw std::runtime_error(std::format("Failed to read typed ({}) dynamic buffer of {} instances: {}",
                 typeid(T).name(), numInstances, std::generic_category().message(errno)));
@@ -63,7 +63,7 @@ namespace Nif
         static_assert(
             std::is_arithmetic_v<T> || std::is_same_v<T, Misc::float16_t>, "Buffer element type is not arithmetic");
         static_assert(!std::is_same_v<T, bool>, "Buffer element type is boolean");
-        pIStream->read(reinterpret_cast<char*>(dest), numInstances * sizeof(T));
+        pIStream->read(reinterpret_cast<char*>(dest), static_cast<std::streamsize>(numInstances * sizeof(T)));
         if (pIStream->fail())
             throw std::runtime_error(std::format("Failed to read typed ({}) dynamic buffer of {} instances: {}",
                 typeid(T).name(), numInstances, std::generic_category().message(errno)));
@@ -104,7 +104,7 @@ namespace Nif
         /// Convert human-readable version numbers into a number that can be compared.
         static constexpr uint32_t generateVersion(uint8_t major, uint8_t minor, uint8_t patch, uint8_t rev)
         {
-            return (major << 24) + (minor << 16) + (patch << 8) + rev;
+            return static_cast<std::uint32_t>((major << 24) + (minor << 16) + (patch << 8) + rev);
         }
 
         void skip(size_t size) { mStream->ignore(static_cast<std::streamsize>(size)); }

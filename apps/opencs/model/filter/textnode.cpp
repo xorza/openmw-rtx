@@ -46,7 +46,7 @@ bool CSMFilter::TextNode::test(const CSMWorld::IdTableBase& table, int row, cons
             = CSMWorld::Columns::getEnums(static_cast<CSMWorld::Columns::ColumnId>(mColumnId));
 
         if (value >= 0 && std::cmp_less(value, enums.size()))
-            string = QString::fromUtf8(enums[value].second.c_str());
+            string = QString::fromUtf8(enums[static_cast<std::size_t>(value)].second.c_str());
     }
     else if (data.typeId() == QMetaType::Bool)
     {

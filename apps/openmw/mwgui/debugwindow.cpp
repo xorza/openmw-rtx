@@ -163,7 +163,7 @@ namespace MWGui
             std::scoped_lock lock(sBufferMutex);
             const auto bufSize = static_cast<int64_t>(sLogCircularBuffer.size());
             auto addChar = [&](char c) {
-                sLogCircularBuffer[sLogEndIndex++] = c;
+                sLogCircularBuffer[static_cast<std::size_t>(sLogEndIndex++)] = c;
                 if (sLogEndIndex == bufSize)
                     sLogEndIndex = 0;
                 bufferOverflow = bufferOverflow || sLogEndIndex == sLogStartIndex;
@@ -204,11 +204,13 @@ namespace MWGui
         const auto bufSize = static_cast<int64_t>(sLogCircularBuffer.size());
         {
             if (sLogStartIndex < sLogEndIndex)
-                addition = std::string(sLogCircularBuffer.data() + sLogStartIndex, sLogEndIndex - sLogStartIndex);
+                addition = std::string(sLogCircularBuffer.data() + sLogStartIndex,
+                    static_cast<std::size_t>(sLogEndIndex - sLogStartIndex));
             else
             {
-                addition = std::string(sLogCircularBuffer.data() + sLogStartIndex, bufSize - sLogStartIndex);
-                addition.append(sLogCircularBuffer.data(), sLogEndIndex);
+                addition = std::string(
+                    sLogCircularBuffer.data() + sLogStartIndex, static_cast<std::size_t>(bufSize - sLogStartIndex));
+                addition.append(sLogCircularBuffer.data(), static_cast<std::size_t>(sLogEndIndex));
             }
             sLogStartIndex = sLogEndIndex;
         }
@@ -217,7 +219,7 @@ namespace MWGui
         bool scrolledToTheEnd = scrollPos + 1 >= mLogView->getVScrollRange();
         auto newSizeEstimation = static_cast<int64_t>(mLogView->getTextLength() + addition.size());
         if (newSizeEstimation > bufSize)
-            mLogView->eraseText(0, newSizeEstimation - bufSize);
+            mLogView->eraseText(0, static_cast<std::size_t>(newSizeEstimation - bufSize));
         mLogView->addText(addition);
         if (scrolledToTheEnd && mLogView->getVScrollRange() > 0)
             mLogView->setVScrollPosition(mLogView->getVScrollRange() - 1);

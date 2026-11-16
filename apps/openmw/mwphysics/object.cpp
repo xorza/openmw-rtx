@@ -124,7 +124,7 @@ namespace MWPhysics
             auto nodePathFound = mRecordIndexToNodePath.find(recordIndex);
             if (nodePathFound == mRecordIndexToNodePath.end())
             {
-                NifOsg::FindGroupByRecordIndex visitor(recordIndex);
+                NifOsg::FindGroupByRecordIndex visitor(static_cast<unsigned int>(recordIndex));
                 mPtr.getRefData().getBaseNode()->accept(visitor);
                 if (!visitor.mFound)
                 {

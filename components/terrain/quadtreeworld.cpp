@@ -303,7 +303,7 @@ namespace Terrain
         , mMinSize(ESM::isEsm4Ext(worldspace) ? 1 / 2.f : 1 / 8.f)
         , mDebugTerrainChunks(debugChunks)
     {
-        mChunkManager->setCompositeMapSize(compMapResolution);
+        mChunkManager->setCompositeMapSize(static_cast<unsigned int>(compMapResolution));
         mChunkManager->setCompositeMapLevel(
             ESM::isEsm4Ext(worldspace) ? compMapLevel * 2 /*because cells are twice smaller*/ : compMapLevel);
         mChunkManager->setMaxCompositeGeometrySize(maxCompGeometrySize);
@@ -340,7 +340,7 @@ namespace Terrain
                     size *= 2;
                     vertexLodMod = std::min(0, vertexLodMod + 1);
                 }
-                vertexLod += std::abs(vertexLodMod);
+                vertexLod += static_cast<unsigned int>(std::abs(vertexLodMod));
             }
             return vertexLod;
         }

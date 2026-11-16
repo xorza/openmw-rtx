@@ -18,7 +18,7 @@ QString Files::pathToQString(std::filesystem::path&& path)
 
 std::filesystem::path Files::pathFromQString(QStringView path)
 {
-    return std::filesystem::path(std::u16string_view(path.utf16(), path.size()));
+    return std::filesystem::path(std::u16string_view(path.utf16(), static_cast<std::size_t>(path.size())));
 }
 
 std::filesystem::path Files::pathFromQString(QString&& path)

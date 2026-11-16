@@ -235,10 +235,10 @@ namespace DetourNavigator
             = [&](float v, float offset) { return (v - offset + static_cast<float>(halfCellSize)) / stepSize; };
         const auto index
             = [&](float v, int add) { return std::clamp<int>(static_cast<int>(v) + add, 0, static_cast<int>(size)); };
-        const std::size_t minX = index(std::round(local(intersection->mMin.x(), shift.x())), -1);
-        const std::size_t minY = index(std::round(local(intersection->mMin.y(), shift.y())), -1);
-        const std::size_t maxX = index(std::round(local(intersection->mMax.x(), shift.x())), 1);
-        const std::size_t maxY = index(std::round(local(intersection->mMax.y(), shift.y())), 1);
+        const auto minX = static_cast<std::size_t>(index(std::round(local(intersection->mMin.x(), shift.x())), -1));
+        const auto minY = static_cast<std::size_t>(index(std::round(local(intersection->mMin.y(), shift.y())), -1));
+        const auto maxX = static_cast<std::size_t>(index(std::round(local(intersection->mMax.x(), shift.x())), 1));
+        const auto maxY = static_cast<std::size_t>(index(std::round(local(intersection->mMax.y(), shift.y())), 1));
         const std::size_t endX = std::min(maxX + 1, size);
         const std::size_t endY = std::min(maxY + 1, size);
         const std::size_t sliceSize = (endX - minX) * (endY - minY);

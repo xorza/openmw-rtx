@@ -338,8 +338,8 @@ bool CSVRender::TerrainSelection::isLandLoaded(const std::string& cellId)
 
 int CSVRender::TerrainSelection::calculateLandHeight(int x, int y) // global vertex coordinates
 {
-    int cellX = std::floor(static_cast<float>(x) / (ESM::Land::LAND_SIZE - 1));
-    int cellY = std::floor(static_cast<float>(y) / (ESM::Land::LAND_SIZE - 1));
+    int cellX = static_cast<int>(std::floor(static_cast<float>(x) / (ESM::Land::LAND_SIZE - 1)));
+    int cellY = static_cast<int>(std::floor(static_cast<float>(y) / (ESM::Land::LAND_SIZE - 1)));
     int localX = x - cellX * (ESM::Land::LAND_SIZE - 1);
     int localY = y - cellY * (ESM::Land::LAND_SIZE - 1);
 
@@ -359,7 +359,8 @@ int CSVRender::TerrainSelection::calculateLandHeight(int x, int y) // global ver
                                                   .getRecord(ESM::RefId::stringRefId(cellId))
                                                   .get()
                                                   .getLandData(ESM::Land::DATA_VHGT);
-        return static_cast<int>(landData->mHeights[localY * ESM::Land::LAND_SIZE + localX]);
+        return static_cast<int>(landData
+                ->mHeights[static_cast<std::size_t>(localY) * ESM::Land::LAND_SIZE + static_cast<std::size_t>(localX)]);
     }
 
     return static_cast<int>(landHeight);

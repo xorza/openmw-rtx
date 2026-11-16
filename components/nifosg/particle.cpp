@@ -509,7 +509,7 @@ namespace NifOsg
             }
 
             // we could use a map here for faster lookup
-            FindGroupByRecordIndex visitor(recordIndex);
+            FindGroupByRecordIndex visitor(static_cast<unsigned int>(recordIndex));
             getParent(0)->accept(visitor);
 
             if (!visitor.mFound)

@@ -34,15 +34,15 @@ namespace SceneUtil
         if (mSkyRTT && nv->getVisitorType() == osg::NodeVisitor::CULL_VISITOR)
         {
             osg::Texture* skyTexture = mSkyRTT->getColorTexture(static_cast<osgUtil::CullVisitor*>(nv));
-            stateset->setTextureAttribute(
-                mSkyTextureUnit, skyTexture, osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
+            stateset->setTextureAttribute(static_cast<unsigned int>(mSkyTextureUnit), skyTexture,
+                osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
         }
 
         if (mOpaqueTextureUnit > 0)
-            stateset->setTextureAttribute(mOpaqueTextureUnit,
+            stateset->setTextureAttribute(static_cast<unsigned int>(mOpaqueTextureUnit),
                 mSceneManager->getOpaqueDepthTex(nv->getTraversalNumber()), osg::StateAttribute::ON);
         if (mOpaqueColorTextureUnit > 0)
-            stateset->setTextureAttribute(mOpaqueColorTextureUnit,
+            stateset->setTextureAttribute(static_cast<unsigned int>(mOpaqueColorTextureUnit),
                 mSceneManager->getOpaqueColorTex(nv->getTraversalNumber()), osg::StateAttribute::ON);
     }
 

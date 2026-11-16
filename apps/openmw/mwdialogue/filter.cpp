@@ -253,11 +253,11 @@ bool MWDialogue::Filter::testFunctionLocal(const MWDialogue::SelectWrapper& sele
     switch (type)
     {
         case 's':
-            return select.selectCompare(static_cast<int>(locals.mShorts[index]));
+            return select.selectCompare(static_cast<int>(locals.mShorts[static_cast<std::size_t>(index)]));
         case 'l':
-            return select.selectCompare(locals.mLongs[index]);
+            return select.selectCompare(locals.mLongs[static_cast<std::size_t>(index)]);
         case 'f':
-            return select.selectCompare(locals.mFloats[index]);
+            return select.selectCompare(locals.mFloats[static_cast<std::size_t>(index)]);
         default:
             break;
     }
@@ -698,9 +698,9 @@ bool MWDialogue::Filter::hasFactionRankSkillRequirements(
     MWMechanics::CreatureStats& stats = actor.getClass().getCreatureStats(actor);
 
     return stats.getAttribute(faction.mData.mAttribute[0]).getBase()
-        >= static_cast<float>(faction.mData.mRankData[rank].mAttribute1)
+        >= static_cast<float>(faction.mData.mRankData[static_cast<std::size_t>(rank)].mAttribute1)
         && stats.getAttribute(faction.mData.mAttribute[1]).getBase()
-        >= static_cast<float>(faction.mData.mRankData[rank].mAttribute2);
+        >= static_cast<float>(faction.mData.mRankData[static_cast<std::size_t>(rank)].mAttribute2);
 }
 
 bool MWDialogue::Filter::hasFactionRankReputationRequirements(
@@ -710,7 +710,8 @@ bool MWDialogue::Filter::hasFactionRankReputationRequirements(
 
     const ESM::Faction& faction = *MWBase::Environment::get().getESMStore()->get<ESM::Faction>().find(factionId);
 
-    return stats.getFactionReputation(factionId) >= faction.mData.mRankData.at(rank).mFactReputation;
+    return stats.getFactionReputation(factionId)
+        >= faction.mData.mRankData.at(static_cast<std::size_t>(rank)).mFactReputation;
 }
 
 MWDialogue::Filter::Filter(const MWWorld::Ptr& actor, int choice, bool talkedToPlayer)

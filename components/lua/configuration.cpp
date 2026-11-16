@@ -65,7 +65,7 @@ namespace LuaUtil
         std::vector<bool> skip(cfg.mScripts.size(), false);
         for (int i = 0; std::cmp_less(i, cfg.mScripts.size()); ++i)
         {
-            const ESM::LuaScriptCfg& script = cfg.mScripts[i];
+            const ESM::LuaScriptCfg& script = cfg.mScripts[static_cast<std::size_t>(i)];
             bool global = script.mFlags & ESM::LuaScriptCfg::sGlobal;
             if (global && (script.mFlags & ~ESM::LuaScriptCfg::sMerge) != ESM::LuaScriptCfg::sGlobal)
                 throw std::runtime_error(
@@ -76,7 +76,7 @@ namespace LuaUtil
             auto [it, inserted] = mPathToIndex.emplace(script.mScriptPath, i);
             if (inserted)
                 continue;
-            ESM::LuaScriptCfg& oldScript = cfg.mScripts[it->second];
+            ESM::LuaScriptCfg& oldScript = cfg.mScripts[static_cast<std::size_t>(it->second)];
             if (global != static_cast<bool>(oldScript.mFlags & ESM::LuaScriptCfg::sGlobal))
                 throw std::runtime_error(std::string("Flags mismatch for ") + script.mScriptPath.value());
             if (script.mFlags & ESM::LuaScriptCfg::sMerge)
@@ -87,10 +87,10 @@ namespace LuaUtil
                 oldScript.mTypes.insert(oldScript.mTypes.end(), script.mTypes.begin(), script.mTypes.end());
                 oldScript.mRecords.insert(oldScript.mRecords.end(), script.mRecords.begin(), script.mRecords.end());
                 oldScript.mRefs.insert(oldScript.mRefs.end(), script.mRefs.begin(), script.mRefs.end());
-                skip[i] = true;
+                skip[static_cast<std::size_t>(i)] = true;
             }
             else
-                skip[it->second] = true;
+                skip[static_cast<std::size_t>(it->second)] = true;
         }
 
         // Filter duplicates
@@ -107,7 +107,7 @@ namespace LuaUtil
         mScriptsPerRefNum.clear();
         for (int i = 0; std::cmp_less(i, mScripts.size()); ++i)
         {
-            const ESM::LuaScriptCfg& s = mScripts[i];
+            const ESM::LuaScriptCfg& s = mScripts[static_cast<std::size_t>(i)];
             mPathToIndex[s.mScriptPath] = i; // Stored paths are case sensitive.
             for (uint32_t t : s.mTypes)
                 mScriptsPerType[t].push_back(i);
@@ -163,7 +163,7 @@ namespace LuaUtil
         auto typeIt = mScriptsPerType.find(type);
         if (typeIt != mScriptsPerType.end())
             for (int scriptId : typeIt->second)
-                res[scriptId] = mScripts[scriptId].mInitializationData;
+                res[scriptId] = mScripts[static_cast<std::size_t>(scriptId)].mInitializationData;
         auto recordIt = mScriptsPerRecordId.find(recordId);
         if (recordIt != mScriptsPerRecordId.end())
         {

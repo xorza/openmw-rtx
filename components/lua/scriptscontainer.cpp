@@ -486,9 +486,10 @@ namespace LuaUtil
             if (it != scripts.end())
                 it->second.mSavedData = &s;
             else if (cfg.isCustomScript(*scriptId))
-                scripts[*scriptId] = { cfg[*scriptId].mInitializationData, &s };
+                scripts[*scriptId] = { cfg[static_cast<std::size_t>(*scriptId)].mInitializationData, &s };
             else
-                Log(Debug::Verbose) << "Ignoring " << mNamePrefix << "[" << cfg[*scriptId].mScriptPath
+                Log(Debug::Verbose) << "Ignoring " << mNamePrefix << "["
+                                    << cfg[static_cast<std::size_t>(*scriptId)].mScriptPath
                                     << "]; this script is not allowed here";
         }
 
@@ -555,7 +556,7 @@ namespace LuaUtil
             if (it != scripts.end())
                 it->second.mSavedData = &s;
             else if (cfg.isCustomScript(s.mScriptId))
-                scripts[s.mScriptId] = { cfg[s.mScriptId].mInitializationData, &s };
+                scripts[s.mScriptId] = { cfg[static_cast<std::size_t>(s.mScriptId)].mInitializationData, &s };
         }
 
         mLua.protectedCall([&](LuaView& view) {
@@ -857,12 +858,12 @@ namespace LuaUtil
         {
             for (auto& [id, script] : data->mScripts)
             {
-                stats[id].mAvgInstructionCount += decayedInstructionCount(script);
-                stats[id].mMemoryUsage += script.mStats.mMemoryUsage;
+                stats[static_cast<std::size_t>(id)].mAvgInstructionCount += decayedInstructionCount(script);
+                stats[static_cast<std::size_t>(id)].mMemoryUsage += script.mStats.mMemoryUsage;
             }
         }
         for (auto& [id, mem] : mRemovedScriptsMemoryUsage)
-            stats[id].mMemoryUsage += mem;
+            stats[static_cast<std::size_t>(id)].mMemoryUsage += mem;
     }
 
     ScriptsContainerWeakPtr ScriptsContainer::getWeakPointer() const

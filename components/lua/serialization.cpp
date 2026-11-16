@@ -250,7 +250,7 @@ namespace LuaUtil
         {
             if (binaryData.empty())
                 throw std::runtime_error("Unexpected end of serialized data.");
-            unsigned char type = binaryData[0];
+            auto type = static_cast<unsigned char>(binaryData[0]);
             binaryData = binaryData.substr(1);
             if (type & (CUSTOM_COMPACT_FLAG | CUSTOM_FULL_FLAG))
             {

@@ -39,9 +39,9 @@ namespace SceneUtil
 
         const int numberOfShadowMapsPerLight = settings.mNumberOfShadowMaps;
 
-        mShadowSettings->setNumShadowMapsPerLight(numberOfShadowMapsPerLight);
-        mShadowSettings->setBaseShadowTextureUnit(shaderManager.reserveGlobalTextureUnits(
-            Shader::ShaderManager::Slot::ShadowMaps, numberOfShadowMapsPerLight));
+        mShadowSettings->setNumShadowMapsPerLight(static_cast<unsigned int>(numberOfShadowMapsPerLight));
+        mShadowSettings->setBaseShadowTextureUnit(static_cast<unsigned int>(shaderManager.reserveGlobalTextureUnits(
+            Shader::ShaderManager::Slot::ShadowMaps, numberOfShadowMapsPerLight)));
 
         const float maximumShadowMapDistance = settings.mMaximumShadowMapDistance;
         if (maximumShadowMapDistance > 0)

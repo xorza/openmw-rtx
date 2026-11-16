@@ -80,7 +80,7 @@ namespace Interpreter
         if (index < 0 || std::cmp_greater_equal(index, mStack.size()))
             throw std::runtime_error("stack index out of range");
 
-        return mStack[mStack.size() - index - 1];
+        return mStack[mStack.size() - static_cast<std::size_t>(index) - 1];
     }
 
     Context& Runtime::getContext()

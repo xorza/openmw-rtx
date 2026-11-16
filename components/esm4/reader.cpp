@@ -188,7 +188,7 @@ namespace ESM4
 
         mCtx.fileRead = 0;
         mStream->seekg(0, mStream->end);
-        mFileSize = mStream->tellg();
+        mFileSize = static_cast<std::size_t>(mStream->tellg());
         mStream->seekg(20); // go to the start but skip the "TES4" record header
 
         mSavedStream.reset();
@@ -274,7 +274,7 @@ namespace ESM4
         mCtx.filename = filename;
         mCtx.fileRead = 0;
         mStream->seekg(0, mStream->end);
-        mFileSize = mStream->tellg();
+        mFileSize = static_cast<std::size_t>(mStream->tellg());
         mStream->seekg(0, mStream->beg);
     }
 
@@ -617,7 +617,7 @@ namespace ESM4
             // TODO: not tested
             std::uint32_t overshoot = mCtx.recordRead - mCtx.recordHeader.record.dataSize;
 
-            std::size_t pos = mStream->tellg();
+            std::size_t pos = static_cast<std::size_t>(mStream->tellg());
             mStream->seekg(static_cast<std::streamoff>(pos - overshoot));
 
             return false;
@@ -698,7 +698,7 @@ namespace ESM4
             std::uint32_t overshoot = mCtx.groupStack.back().second - lastGroupSize;
             if (overshoot > 0)
             {
-                std::size_t pos = mStream->tellg();
+                std::size_t pos = static_cast<std::size_t>(mStream->tellg());
                 mStream->seekg(static_cast<std::streamoff>(pos - overshoot));
             }
 
@@ -720,7 +720,8 @@ namespace ESM4
 
             // #if 0
             if (mCtx.groupStack.back().second > lastGroupSize) // FIXME: debugging only
-                std::cerr << printLabel(mCtx.groupStack.back().first.label, mCtx.groupStack.back().first.type)
+                std::cerr << printLabel(
+                    mCtx.groupStack.back().first.label, static_cast<std::uint32_t>(mCtx.groupStack.back().first.type))
                           << " read more records than available" << std::endl;
             // #endif
         }
@@ -790,7 +791,7 @@ namespace ESM4
             // locate the position of the dependency in already loaded files
             auto it = fileToModIndex.find(Misc::StringUtils::lowerCase(mHeader.mMaster[i].name));
             if (it != fileToModIndex.end())
-                mCtx.parentFileIndices[i] = it->second;
+                mCtx.parentFileIndices[i] = static_cast<std::uint32_t>(it->second);
             else
                 throw std::runtime_error(
                     "ESM4::Reader::updateModIndices required dependency '" + mHeader.mMaster[i].name + "' not found");
@@ -810,7 +811,7 @@ namespace ESM4
     void Reader::adjustFormId(FormId& id) const
     {
         if (id.hasContentFile() && std::cmp_less(id.mContentFile, mCtx.parentFileIndices.size()))
-            id.mContentFile = static_cast<int32_t>(mCtx.parentFileIndices[id.mContentFile]);
+            id.mContentFile = static_cast<int32_t>(mCtx.parentFileIndices[static_cast<std::size_t>(id.mContentFile)]);
         else
             id.mContentFile = static_cast<int32_t>(mCtx.modIndex);
     }

@@ -100,7 +100,7 @@ namespace MWSound
                     if (mPos < headSize)
                     {
                         const std::streamsize take = std::min<std::streamsize>(n - done, headSize - mPos);
-                        std::memcpy(s + done, mBuffer->mHead.data() + mPos, take);
+                        std::memcpy(s + done, mBuffer->mHead.data() + mPos, static_cast<std::size_t>(take));
                         done += take;
                         mPos += take;
                         continue;
@@ -112,7 +112,7 @@ namespace MWSound
                             n - done, static_cast<std::streamoff>(mBuffer->mSuffix.size()) - inSuffix);
                         if (take <= 0)
                             break;
-                        std::memcpy(s + done, mBuffer->mSuffix.data() + inSuffix, take);
+                        std::memcpy(s + done, mBuffer->mSuffix.data() + inSuffix, static_cast<std::size_t>(take));
                         done += take;
                         mPos += take;
                         continue;

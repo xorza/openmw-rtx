@@ -80,7 +80,7 @@ namespace MWGui
             throw std::runtime_error("Invalid index supplied");
         if (mItems.size() <= static_cast<size_t>(index))
             throw std::runtime_error("Item index out of range");
-        return mItems[index];
+        return mItems[static_cast<std::size_t>(index)];
     }
 
     size_t ContainerItemModel::getItemCount()
@@ -178,7 +178,7 @@ namespace MWGui
                     if (stacks(*it, itemStack.mBase))
                     {
                         // we already have an item stack of this kind, add to it
-                        itemStack.mCount += it->getCellRef().getCount();
+                        itemStack.mCount += static_cast<std::size_t>(it->getCellRef().getCount());
                         found = true;
                         break;
                     }
@@ -187,7 +187,7 @@ namespace MWGui
                 if (!found)
                 {
                     // no stack yet, create one
-                    ItemStack newItem(*it, this, it->getCellRef().getCount());
+                    ItemStack newItem(*it, this, static_cast<std::size_t>(it->getCellRef().getCount()));
                     mItems.push_back(newItem);
                 }
             }
@@ -200,7 +200,7 @@ namespace MWGui
                 if (stacks(source, itemStack.mBase))
                 {
                     // we already have an item stack of this kind, add to it
-                    itemStack.mCount += source.getCellRef().getCount();
+                    itemStack.mCount += static_cast<std::size_t>(source.getCellRef().getCount());
                     found = true;
                     break;
                 }
@@ -209,7 +209,7 @@ namespace MWGui
             if (!found)
             {
                 // no stack yet, create one
-                ItemStack newItem(source, this, source.getCellRef().getCount());
+                ItemStack newItem(source, this, static_cast<std::size_t>(source.getCellRef().getCount()));
                 mItems.push_back(newItem);
             }
         }

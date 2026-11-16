@@ -345,8 +345,8 @@ void CSVWidget::SceneToolTextureBrush::clicked(const QModelIndex& index)
 {
     if (index.column() == 0 || index.column() == 1)
     {
-        ESM::RefId brushTexture = mBrushHistory[index.row()];
-        std::swap(mBrushHistory[index.row()], mBrushHistory[0]);
+        ESM::RefId brushTexture = mBrushHistory[static_cast<std::size_t>(index.row())];
+        std::swap(mBrushHistory[static_cast<std::size_t>(index.row())], mBrushHistory[0]);
         mTextureBrushWindow->setBrushTexture(brushTexture);
         emit passTextureId(brushTexture);
         updatePanel();

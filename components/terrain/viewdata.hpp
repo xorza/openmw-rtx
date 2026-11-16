@@ -74,7 +74,10 @@ namespace Terrain
         }
 
         unsigned int getWorldUpdateRevision() const { return mWorldUpdateRevision; }
-        void setWorldUpdateRevision(int updateRevision) { mWorldUpdateRevision = updateRevision; }
+        void setWorldUpdateRevision(int updateRevision)
+        {
+            mWorldUpdateRevision = static_cast<unsigned int>(updateRevision);
+        }
 
         void buildNodeIndex();
 

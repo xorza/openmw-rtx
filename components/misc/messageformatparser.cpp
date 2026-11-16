@@ -11,7 +11,7 @@ namespace
             const char* start = m.data() + i;
             int parsed = 0;
             auto [ptr, ec] = std::from_chars(start, m.data() + m.size(), parsed);
-            i += ptr - start;
+            i += static_cast<std::size_t>(ptr - start);
             if (ec == std::errc())
                 return parsed;
         }

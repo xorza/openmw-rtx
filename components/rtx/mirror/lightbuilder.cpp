@@ -231,8 +231,10 @@ namespace Rtx
         bool takes = false;
         for (int channel = 0; channel < 3; ++channel)
         {
-            gives = gives || diffuse[channel] > 0.0f || ambient[channel] > 0.0f;
-            takes = takes || diffuse[channel] < 0.0f || ambient[channel] < 0.0f;
+            gives = gives || diffuse[static_cast<unsigned int>(channel)] > 0.0f
+                || ambient[static_cast<unsigned int>(channel)] > 0.0f;
+            takes = takes || diffuse[static_cast<unsigned int>(channel)] < 0.0f
+                || ambient[static_cast<unsigned int>(channel)] < 0.0f;
         }
         return gives && !takes;
     }

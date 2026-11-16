@@ -349,6 +349,7 @@ namespace MWGui
                 break;
             case ReviewDialog::BIRTHSIGN_DIALOG:
                 MWBase::Environment::get().getWindowManager()->pushGuiMode(GM_Birth);
+                break;
             default:
                 break;
         };

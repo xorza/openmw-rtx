@@ -88,7 +88,8 @@ std::map<int, int> MWState::StateManager::buildContentFileIndexMap(const ESM::ES
     for (int iPrev = 0; std::cmp_less(iPrev, prev.size()); ++iPrev)
     {
         for (int iCurrent = 0; std::cmp_less(iCurrent, current.size()); ++iCurrent)
-            if (Misc::StringUtils::ciEqual(prev[iPrev].name, current[iCurrent]))
+            if (Misc::StringUtils::ciEqual(
+                    prev[static_cast<std::size_t>(iPrev)].name, current[static_cast<std::size_t>(iCurrent)]))
             {
                 map.insert(std::make_pair(iPrev, iCurrent));
                 break;
@@ -382,7 +383,7 @@ void MWState::StateManager::quickSave(std::string name)
     }
 
     Character* currentCharacter = getCurrentCharacter(); // Get current character
-    QuickSaveManager saveFinder(name, Settings::saves().mMaxQuicksaves);
+    QuickSaveManager saveFinder(name, static_cast<unsigned int>(Settings::saves().mMaxQuicksaves));
 
     if (currentCharacter)
     {
@@ -605,7 +606,7 @@ void MWState::StateManager::loadGame(const Character* character, const std::file
                 = static_cast<int>(static_cast<float>(reader.getFileOffset()) / static_cast<float>(total) * 100);
             if (progressPercent > currentPercent)
             {
-                listener.increaseProgress(progressPercent - currentPercent);
+                listener.increaseProgress(static_cast<std::size_t>(progressPercent - currentPercent));
                 currentPercent = progressPercent;
             }
         }

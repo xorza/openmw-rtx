@@ -37,7 +37,7 @@ namespace Rtx
 
                 for (int row = 0; row < image.t(); ++row)
                 {
-                    const unsigned char* along = image.data(0, row);
+                    const unsigned char* along = image.data(0, static_cast<unsigned int>(row));
                     for (int column = 0; column < image.s(); ++column)
                         weights.push_back(static_cast<float>(along[column]) * perByte);
                 }
@@ -46,7 +46,8 @@ namespace Rtx
 
             for (int row = 0; row < image.t(); ++row)
                 for (int column = 0; column < image.s(); ++column)
-                    weights.push_back(image.getColor(column, row).a());
+                    weights.push_back(
+                        image.getColor(static_cast<unsigned int>(column), static_cast<unsigned int>(row)).a());
         }
     }
 

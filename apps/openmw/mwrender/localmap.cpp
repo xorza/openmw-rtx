@@ -153,7 +153,8 @@ namespace MWRender
             fog->mCenterX = mCenter.x();
             fog->mCenterY = mCenter.y();
 
-            fog->mFogTextures.reserve(static_cast<std::size_t>(segments.first) * segments.second);
+            fog->mFogTextures.reserve(
+                static_cast<std::size_t>(segments.first) * static_cast<std::size_t>(segments.second));
 
             for (int x = 0; x < segments.first; ++x)
             {
@@ -354,7 +355,7 @@ namespace MWRender
         osg::Vec2f origCenter(bounds.center().x(), bounds.center().y());
         osg::Vec3f origCorners[8];
         for (int i = 0; i < 8; ++i)
-            origCorners[i] = mBounds.corner(i);
+            origCorners[i] = mBounds.corner(static_cast<unsigned int>(i));
 
         for (auto corner : origCorners)
         {

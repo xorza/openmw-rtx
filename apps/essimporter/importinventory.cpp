@@ -20,7 +20,7 @@ namespace ESSImport
             item.mLockLevel = 0;
             item.mChargeIntRemainder = 0;
 
-            unsigned int itemCount = std::abs(item.mCount);
+            auto itemCount = static_cast<unsigned int>(std::abs(item.mCount));
             bool separateStacks = false;
             for (unsigned int i = 0; i < itemCount; ++i)
             {
@@ -70,7 +70,7 @@ namespace ESSImport
             int32_t slotIndex = 0;
             esm.getT(slotIndex);
 
-            mItems[itemIndex].mRelativeEquipmentSlot = slotIndex;
+            mItems[static_cast<std::size_t>(itemIndex)].mRelativeEquipmentSlot = slotIndex;
         }
     }
 

@@ -20,11 +20,11 @@ namespace MWSound
 
         std::size_t segment = 0;
         std::size_t sample = 0;
-        while (segment < numSamples / samplesPerSegment)
+        while (segment < numSamples / static_cast<std::size_t>(samplesPerSegment))
         {
             float sum = 0;
             int samplesAdded = 0;
-            while (sample < numSamples && sample < (segment + 1) * samplesPerSegment)
+            while (sample < numSamples && sample < (segment + 1) * static_cast<std::size_t>(samplesPerSegment))
             {
                 // get sample on a scale from -1 to 1
                 float value = 0;

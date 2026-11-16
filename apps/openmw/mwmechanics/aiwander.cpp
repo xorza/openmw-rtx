@@ -993,7 +993,7 @@ namespace MWMechanics
         wander->mDurationData.mRemainingDuration = remainingDuration;
         assert(mIdle.size() == 8);
         for (int i = 0; i < 8; ++i)
-            wander->mData.mIdle[i] = mIdle[i];
+            wander->mData.mIdle[i] = mIdle[static_cast<std::size_t>(i)];
         wander->mData.mShouldRepeat = mOptions.mRepeat;
         wander->mStoredInitialActorPosition = mStoredInitialActorPosition;
         if (mStoredInitialActorPosition)

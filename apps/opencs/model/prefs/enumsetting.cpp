@@ -44,9 +44,9 @@ CSMPrefs::SettingWidgets CSMPrefs::EnumSetting::makeWidgets(QWidget* parent)
     }
 
     const std::string value = getValue();
-    const std::size_t index = std::find_if(mValues.begin(), mValues.end(), [&](const EnumValueView& v) {
-        return v.mValue == value;
-    }) - mValues.begin();
+    const std::size_t index = static_cast<std::size_t>(
+        std::find_if(mValues.begin(), mValues.end(), [&](const EnumValueView& v) { return v.mValue == value; })
+        - mValues.begin());
 
     mWidget->setCurrentIndex(static_cast<int>(index));
 
@@ -72,6 +72,6 @@ void CSMPrefs::EnumSetting::valueChanged(int value)
     if (value < 0 || static_cast<std::size_t>(value) >= mValues.size())
         throw std::logic_error("Invalid enum setting \"" + getKey() + "\" value index: " + std::to_string(value));
 
-    setValue(std::string(mValues[value].mValue));
+    setValue(std::string(mValues[static_cast<std::size_t>(value)].mValue));
     getParent()->getState()->update(*this);
 }

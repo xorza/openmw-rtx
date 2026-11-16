@@ -43,8 +43,8 @@ namespace MWGui
 
     void WaitDialogProgressBar::setProgress(int cur, int total)
     {
-        mProgressBar->setProgressRange(total);
-        mProgressBar->setProgressPosition(cur);
+        mProgressBar->setProgressRange(static_cast<std::size_t>(total));
+        mProgressBar->setProgressPosition(static_cast<std::size_t>(cur));
         mProgressText->setCaption(std::format("{}/{}", cur, total));
     }
 
@@ -242,7 +242,8 @@ namespace MWGui
             mHourSlider->setScrollPosition(
                 std::min(mHourSlider->getScrollPosition() + 1, mHourSlider->getScrollRange() - 1));
         else if (key == MyGUI::KeyCode::ArrowDown)
-            mHourSlider->setScrollPosition(std::max(static_cast<int>(mHourSlider->getScrollPosition()) - 1, 0));
+            mHourSlider->setScrollPosition(
+                static_cast<std::size_t>(std::max(static_cast<int>(mHourSlider->getScrollPosition()) - 1, 0)));
         else
             return;
         onHourSliderChangedPosition(mHourSlider, mHourSlider->getScrollPosition());

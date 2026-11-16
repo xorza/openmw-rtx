@@ -92,7 +92,7 @@ namespace
         mRecastMeshManager.setWorldspace(mWorldspace, nullptr);
         addHeightFieldPlane(mRecastMeshManager);
         AsyncNavMeshUpdater updater(mSettings, mRecastMeshManager, mOffMeshConnectionsManager, nullptr);
-        const auto navMeshCacheItem = std::make_shared<GuardedNavMeshCacheItem>(1, mSettings);
+        const auto navMeshCacheItem = std::make_shared<GuardedNavMeshCacheItem>(std::size_t{ 1 }, mSettings);
         const std::map<TilePosition, ChangeType> changedTiles{ { TilePosition{ 0, 0 }, ChangeType::add } };
         updater.post(mAgentBounds, navMeshCacheItem, mPlayerTile, mWorldspace, changedTiles);
         updater.wait(WaitConditionType::allJobsDone, &mListener);
@@ -113,7 +113,7 @@ namespace
         mRecastMeshManager.setWorldspace(mWorldspace, nullptr);
         addHeightFieldPlane(mRecastMeshManager);
         AsyncNavMeshUpdater updater(mSettings, mRecastMeshManager, mOffMeshConnectionsManager, nullptr);
-        const auto navMeshCacheItem = std::make_shared<GuardedNavMeshCacheItem>(1, mSettings);
+        const auto navMeshCacheItem = std::make_shared<GuardedNavMeshCacheItem>(std::size_t{ 1 }, mSettings);
 
         updater.post(mAgentBounds, navMeshCacheItem, mPlayerTile, mWorldspace, { { mPlayerTile, ChangeType::add } });
         updater.wait(WaitConditionType::allJobsDone, &mListener);
@@ -142,7 +142,7 @@ namespace
         mRecastMeshManager.setWorldspace(mWorldspace, nullptr);
         addHeightFieldPlane(mRecastMeshManager);
         AsyncNavMeshUpdater updater(mSettings, mRecastMeshManager, mOffMeshConnectionsManager, nullptr);
-        const auto navMeshCacheItem = std::make_shared<GuardedNavMeshCacheItem>(1, mSettings);
+        const auto navMeshCacheItem = std::make_shared<GuardedNavMeshCacheItem>(std::size_t{ 1 }, mSettings);
         const std::map<TilePosition, ChangeType> changedTiles{ { TilePosition{ 0, 0 }, ChangeType::add } };
         updater.post(mAgentBounds, navMeshCacheItem, mPlayerTile, mWorldspace, changedTiles);
         updater.wait(WaitConditionType::allJobsDone, &mListener);
@@ -165,7 +165,7 @@ namespace
         mRecastMeshManager.setWorldspace(mWorldspace, nullptr);
         addHeightFieldPlane(mRecastMeshManager);
         AsyncNavMeshUpdater updater(mSettings, mRecastMeshManager, mOffMeshConnectionsManager, nullptr);
-        const auto navMeshCacheItem = std::make_shared<GuardedNavMeshCacheItem>(1, mSettings);
+        const auto navMeshCacheItem = std::make_shared<GuardedNavMeshCacheItem>(std::size_t{ 1 }, mSettings);
         const std::map<TilePosition, ChangeType> changedTiles{ { TilePosition{ 0, 0 }, ChangeType::update } };
         updater.post(mAgentBounds, navMeshCacheItem, mPlayerTile, mWorldspace, changedTiles);
         updater.wait(WaitConditionType::allJobsDone, &mListener);
@@ -199,7 +199,7 @@ namespace
             {
                 AsyncNavMeshUpdater updater(mSettings, recastMeshManager, mOffMeshConnectionsManager,
                     std::make_unique<NavMeshTileStore>(folder));
-                const auto navMeshCacheItem = std::make_shared<GuardedNavMeshCacheItem>(1, mSettings);
+                const auto navMeshCacheItem = std::make_shared<GuardedNavMeshCacheItem>(std::size_t{ 1 }, mSettings);
                 const std::map<TilePosition, ChangeType> changedTiles{ { tilePosition, ChangeType::add } };
                 updater.post(mAgentBounds, navMeshCacheItem, mPlayerTile, mWorldspace, changedTiles);
                 updater.wait(WaitConditionType::allJobsDone, &mListener);
@@ -226,7 +226,7 @@ namespace
         auto store = std::make_unique<NavMeshTileStore>(TestingOpenMW::currentTestDirPath() / "navmesh");
         NavMeshTileStore* const storePtr = store.get();
         AsyncNavMeshUpdater updater(mSettings, mRecastMeshManager, mOffMeshConnectionsManager, std::move(store));
-        const auto navMeshCacheItem = std::make_shared<GuardedNavMeshCacheItem>(1, mSettings);
+        const auto navMeshCacheItem = std::make_shared<GuardedNavMeshCacheItem>(std::size_t{ 1 }, mSettings);
         const std::map<TilePosition, ChangeType> changedTiles{ { TilePosition{ 0, 0 }, ChangeType::add } };
         updater.post(mAgentBounds, navMeshCacheItem, mPlayerTile, mWorldspace, changedTiles);
         updater.wait(WaitConditionType::allJobsDone, &mListener);
@@ -259,7 +259,7 @@ namespace
         mRecastMeshManager.setWorldspace(mWorldspace, nullptr);
         addHeightFieldPlane(mRecastMeshManager);
         AsyncNavMeshUpdater updater(mSettings, mRecastMeshManager, mOffMeshConnectionsManager, nullptr);
-        const auto navMeshCacheItem = std::make_shared<GuardedNavMeshCacheItem>(1, mSettings);
+        const auto navMeshCacheItem = std::make_shared<GuardedNavMeshCacheItem>(std::size_t{ 1 }, mSettings);
         const std::map<TilePosition, ChangeType> changedTilesAdd{ { TilePosition{ 0, 0 }, ChangeType::add } };
         updater.post(mAgentBounds, navMeshCacheItem, mPlayerTile, mWorldspace, changedTilesAdd);
         updater.wait(WaitConditionType::allJobsDone, &mListener);
@@ -283,7 +283,7 @@ namespace
 
         ManualClock clock;
         AsyncNavMeshUpdater updater(mSettings, mRecastMeshManager, mOffMeshConnectionsManager, nullptr, clock);
-        const auto navMeshCacheItem = std::make_shared<GuardedNavMeshCacheItem>(1, mSettings);
+        const auto navMeshCacheItem = std::make_shared<GuardedNavMeshCacheItem>(std::size_t{ 1 }, mSettings);
 
         std::map<TilePosition, ChangeType> changedTiles;
 
@@ -335,7 +335,7 @@ namespace
         mSettings.mRecastMeshPathPrefix = Files::pathToUnicodeString(dir) + "/";
         Log(Debug::Verbose) << mSettings.mRecastMeshPathPrefix;
         AsyncNavMeshUpdater updater(mSettings, mRecastMeshManager, mOffMeshConnectionsManager, nullptr);
-        const auto navMeshCacheItem = std::make_shared<GuardedNavMeshCacheItem>(1, mSettings);
+        const auto navMeshCacheItem = std::make_shared<GuardedNavMeshCacheItem>(std::size_t{ 1 }, mSettings);
         const std::map<TilePosition, ChangeType> changedTiles{ { TilePosition{ 0, 0 }, ChangeType::add } };
         updater.post(mAgentBounds, navMeshCacheItem, mPlayerTile, mWorldspace, changedTiles);
         updater.wait(WaitConditionType::allJobsDone, &mListener);
@@ -352,7 +352,7 @@ namespace
         mSettings.mRecastMeshPathPrefix = Files::pathToUnicodeString(dir) + "/";
         Log(Debug::Verbose) << mSettings.mRecastMeshPathPrefix;
         AsyncNavMeshUpdater updater(mSettings, mRecastMeshManager, mOffMeshConnectionsManager, nullptr);
-        const auto navMeshCacheItem = std::make_shared<GuardedNavMeshCacheItem>(1, mSettings);
+        const auto navMeshCacheItem = std::make_shared<GuardedNavMeshCacheItem>(std::size_t{ 1 }, mSettings);
         const std::map<TilePosition, ChangeType> changedTiles{ { TilePosition{ 0, 0 }, ChangeType::add } };
         updater.post(mAgentBounds, navMeshCacheItem, mPlayerTile, mWorldspace, changedTiles);
         updater.wait(WaitConditionType::allJobsDone, &mListener);
@@ -368,7 +368,7 @@ namespace
         mSettings.mRecastMeshPathPrefix = Files::pathToUnicodeString(dir) + "/";
         Log(Debug::Verbose) << mSettings.mRecastMeshPathPrefix;
         AsyncNavMeshUpdater updater(mSettings, mRecastMeshManager, mOffMeshConnectionsManager, nullptr);
-        const auto navMeshCacheItem = std::make_shared<GuardedNavMeshCacheItem>(1, mSettings);
+        const auto navMeshCacheItem = std::make_shared<GuardedNavMeshCacheItem>(std::size_t{ 1 }, mSettings);
         const std::map<TilePosition, ChangeType> changedTiles{ { TilePosition{ 0, 0 }, ChangeType::add } };
         updater.post(mAgentBounds, navMeshCacheItem, mPlayerTile, mWorldspace, changedTiles);
         updater.wait(WaitConditionType::allJobsDone, &mListener);
@@ -385,7 +385,7 @@ namespace
         mSettings.mNavMeshPathPrefix = Files::pathToUnicodeString(dir) + "/";
         Log(Debug::Verbose) << mSettings.mRecastMeshPathPrefix;
         AsyncNavMeshUpdater updater(mSettings, mRecastMeshManager, mOffMeshConnectionsManager, nullptr);
-        const auto navMeshCacheItem = std::make_shared<GuardedNavMeshCacheItem>(1, mSettings);
+        const auto navMeshCacheItem = std::make_shared<GuardedNavMeshCacheItem>(std::size_t{ 1 }, mSettings);
         const std::map<TilePosition, ChangeType> changedTiles{ { TilePosition{ 0, 0 }, ChangeType::add } };
         updater.post(mAgentBounds, navMeshCacheItem, mPlayerTile, mWorldspace, changedTiles);
         updater.wait(WaitConditionType::allJobsDone, &mListener);
@@ -402,7 +402,7 @@ namespace
         mSettings.mNavMeshPathPrefix = Files::pathToUnicodeString(dir) + "/";
         Log(Debug::Verbose) << mSettings.mRecastMeshPathPrefix;
         AsyncNavMeshUpdater updater(mSettings, mRecastMeshManager, mOffMeshConnectionsManager, nullptr);
-        const auto navMeshCacheItem = std::make_shared<GuardedNavMeshCacheItem>(1, mSettings);
+        const auto navMeshCacheItem = std::make_shared<GuardedNavMeshCacheItem>(std::size_t{ 1 }, mSettings);
         const std::map<TilePosition, ChangeType> changedTiles{ { TilePosition{ 0, 0 }, ChangeType::add } };
         updater.post(mAgentBounds, navMeshCacheItem, mPlayerTile, mWorldspace, changedTiles);
         updater.wait(WaitConditionType::allJobsDone, &mListener);
@@ -418,7 +418,7 @@ namespace
         mSettings.mNavMeshPathPrefix = Files::pathToUnicodeString(dir) + "/";
         Log(Debug::Verbose) << mSettings.mRecastMeshPathPrefix;
         AsyncNavMeshUpdater updater(mSettings, mRecastMeshManager, mOffMeshConnectionsManager, nullptr);
-        const auto navMeshCacheItem = std::make_shared<GuardedNavMeshCacheItem>(1, mSettings);
+        const auto navMeshCacheItem = std::make_shared<GuardedNavMeshCacheItem>(std::size_t{ 1 }, mSettings);
         const std::map<TilePosition, ChangeType> changedTiles{ { TilePosition{ 0, 0 }, ChangeType::add } };
         updater.post(mAgentBounds, navMeshCacheItem, mPlayerTile, mWorldspace, changedTiles);
         updater.wait(WaitConditionType::allJobsDone, &mListener);

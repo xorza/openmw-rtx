@@ -161,11 +161,13 @@ void CSVWorld::DataDisplayDelegate::paintIcon(QPainter* painter, const QStyleOpt
         textRect.setLeft(iconRect.right() + mTextLeftOffset);
         textRect.setRight(option.rect.right() - mHorizontalMargin);
 
-        QString text = option.fontMetrics.elidedText(mValues.at(index).second, option.textElideMode, textRect.width());
+        QString text = option.fontMetrics.elidedText(
+            mValues.at(static_cast<std::size_t>(index)).second, option.textElideMode, textRect.width());
         QApplication::style()->drawItemText(
             painter, textRect, Qt::AlignLeft | Qt::AlignVCenter, option.palette, true, text);
     }
-    QApplication::style()->drawItemPixmap(painter, iconRect, Qt::AlignCenter, mPixmaps.at(index).second);
+    QApplication::style()->drawItemPixmap(
+        painter, iconRect, Qt::AlignCenter, mPixmaps.at(static_cast<std::size_t>(index)).second);
 }
 
 void CSVWorld::DataDisplayDelegate::updateDisplayMode(const std::string& mode)

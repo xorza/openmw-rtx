@@ -203,8 +203,8 @@ namespace MWMechanics
                     weakestSpell = &spell;
                     minCost = MWMechanics::calcSpellCost(*weakestSpell);
                 }
-                static const unsigned int iAutoPCSpellMax
-                    = esmStore.get<ESM::GameSetting>().find("iAutoPCSpellMax")->mValue.getInteger();
+                static const auto iAutoPCSpellMax = static_cast<unsigned int>(
+                    esmStore.get<ESM::GameSetting>().find("iAutoPCSpellMax")->mValue.getInteger());
                 if (selectedSpells.size() == iAutoPCSpellMax)
                     reachedLimit = true;
             }

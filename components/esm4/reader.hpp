@@ -221,7 +221,10 @@ namespace ESM4
 
         // Methods added for updating loading progress bars
         inline std::size_t getFileSize() const { return mFileSize; }
-        inline std::size_t getFileOffset() const { return mSavedStream ? mSavedStream->tellg() : mStream->tellg(); }
+        inline std::size_t getFileOffset() const
+        {
+            return static_cast<std::size_t>(mSavedStream ? mSavedStream->tellg() : mStream->tellg());
+        }
 
         // Methods added for saving/restoring context
         ReaderContext getContext(); // WARN: must be called immediately after reading the record header
@@ -256,7 +259,7 @@ namespace ESM4
 
         inline unsigned int esmVersion() const { return mHeader.mData.version.ui; }
         inline float esmVersionF() const { return mHeader.mData.version.f; }
-        inline unsigned int numRecords() const { return mHeader.mData.records; }
+        inline unsigned int numRecords() const { return static_cast<unsigned int>(mHeader.mData.records); }
 
         inline bool hasFormVersion() const { return mCtx.recHeaderSize == sizeof(RecordHeader); }
         inline unsigned int formVersion() const { return mCtx.recordHeader.record.version; }

@@ -210,7 +210,7 @@ namespace MWWorld
     {
         // remove the dynamic part of mShared
         assert(mShared.size() >= mStatic.size());
-        mShared.erase(mShared.begin() + mStatic.size(), mShared.end());
+        mShared.erase(mShared.begin() + static_cast<std::ptrdiff_t>(mStatic.size()), mShared.end());
         mDynamic.clear();
     }
 
@@ -386,7 +386,7 @@ namespace MWWorld
         {
             // delete from the static part of mShared
             auto sharedIter = mShared.begin();
-            auto end = sharedIter + mStatic.size();
+            auto end = sharedIter + static_cast<std::ptrdiff_t>(mStatic.size());
 
             while (sharedIter != mShared.end() && sharedIter != end)
             {
@@ -411,7 +411,7 @@ namespace MWWorld
 
         // have to reinit the whole shared part
         assert(mShared.size() >= mStatic.size());
-        mShared.erase(mShared.begin() + mStatic.size(), mShared.end());
+        mShared.erase(mShared.begin() + static_cast<std::ptrdiff_t>(mStatic.size()), mShared.end());
         for (auto it = mDynamic.begin(); it != mDynamic.end(); ++it)
         {
             mShared.push_back(&it->second);

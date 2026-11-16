@@ -89,11 +89,11 @@ namespace MWSound
 
         if (whence == AVSEEK_SIZE)
         {
-            size_t prev = stream.tellg();
+            size_t prev = static_cast<std::size_t>(stream.tellg());
             stream.seekg(0, std::ios_base::end);
-            size_t size = stream.tellg();
+            size_t size = static_cast<std::size_t>(stream.tellg());
             stream.seekg(static_cast<std::streamoff>(prev), std::ios_base::beg);
-            return static_cast<int64_t>(size - self.mStreamBase);
+            return static_cast<int64_t>(size - static_cast<std::size_t>(self.mStreamBase));
         }
 
         if (whence == SEEK_SET)
@@ -214,7 +214,7 @@ namespace MWSound
 #else
                 mFrameSize = mFrame->nb_samples * av_get_channel_layout_nb_channels(mOutputChannelLayout)
 #endif
-                    * av_get_bytes_per_sample(mOutputSampleFormat);
+                    * static_cast<std::size_t>(av_get_bytes_per_sample(mOutputSampleFormat));
             }
 
             /* Get the amount of bytes remaining to be written, and clamp to
@@ -658,7 +658,7 @@ namespace MWSound
 #else
             size_t got = mFrame->nb_samples * av_get_channel_layout_nb_channels(mOutputChannelLayout)
 #endif
-                * av_get_bytes_per_sample(mOutputSampleFormat);
+                * static_cast<std::size_t>(av_get_bytes_per_sample(mOutputSampleFormat));
             const char* inbuf = reinterpret_cast<char*>(mFrameData[0]);
             output.insert(output.end(), inbuf, inbuf + got);
         }
@@ -667,11 +667,11 @@ namespace MWSound
     size_t FFmpegDecoder::getSampleOffset()
     {
 #if OPENMW_FFMPEG_5_OR_GREATER
-        std::size_t delay = (mFrameSize - mFramePos) / mOutputChannelLayout.nb_channels
+        std::size_t delay = (mFrameSize - mFramePos) / static_cast<std::size_t>(mOutputChannelLayout.nb_channels)
 #else
         std::size_t delay = (mFrameSize - mFramePos) / av_get_channel_layout_nb_channels(mOutputChannelLayout)
 #endif
-            / av_get_bytes_per_sample(mOutputSampleFormat);
+            / static_cast<std::size_t>(av_get_bytes_per_sample(mOutputSampleFormat));
         return static_cast<std::size_t>(mNextPts * mCodecCtx->sample_rate) - delay;
     }
 

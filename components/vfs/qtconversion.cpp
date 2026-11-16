@@ -15,11 +15,11 @@ QString VFS::Path::normalizedToQString(Normalized&& path)
 VFS::Path::Normalized VFS::Path::normalizedFromQString(QStringView path)
 {
     const QByteArray tmp = path.toUtf8();
-    return Normalized(std::string_view(tmp.constData(), tmp.size()));
+    return Normalized(std::string_view(tmp.constData(), static_cast<std::size_t>(tmp.size())));
 }
 
 VFS::Path::Normalized VFS::Path::normalizedFromQString(QString&& path)
 {
     const QByteArray tmp = std::move(path).toUtf8();
-    return Normalized(std::string_view(tmp.constData(), tmp.size()));
+    return Normalized(std::string_view(tmp.constData(), static_cast<std::size_t>(tmp.size())));
 }

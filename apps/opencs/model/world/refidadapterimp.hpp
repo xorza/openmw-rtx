@@ -143,7 +143,7 @@ namespace CSMWorld
             if (value.toInt() != 0)
                 record2.mRecordFlags |= ESM::FLAG_Blocked;
             else
-                record2.mRecordFlags &= ~ESM::FLAG_Blocked;
+                record2.mRecordFlags &= static_cast<decltype(record2.mRecordFlags)>(~ESM::FLAG_Blocked);
 
             record.setModified(record2);
         }
@@ -229,7 +229,7 @@ namespace CSMWorld
             if (value.toInt() != 0)
                 record2.mRecordFlags |= ESM::FLAG_Persistent;
             else
-                record2.mRecordFlags &= ~ESM::FLAG_Persistent;
+                record2.mRecordFlags &= static_cast<decltype(record2.mRecordFlags)>(~ESM::FLAG_Persistent);
         }
         else
         {
@@ -379,7 +379,7 @@ namespace CSMWorld
         else if (column == mInventory.mWeight)
             record2.mData.mWeight = value.toFloat();
         else if (column == mInventory.mValue)
-            record2.mData.mValue = value.toInt();
+            record2.mData.mValue = static_cast<decltype(record2.mData.mValue)>(value.toInt());
         else
         {
             NameRefIdAdapter<RecordT>::setData(column, data, index, value);
@@ -530,7 +530,7 @@ namespace CSMWorld
         if (column == mEnchantable.mEnchantment)
             record2.mEnchant = ESM::RefId::stringRefId(value.toString().toUtf8().constData());
         else if (column == mEnchantable.mEnchantmentPoints)
-            record2.mData.mEnchant = value.toInt();
+            record2.mData.mEnchant = static_cast<decltype(record2.mData.mEnchant)>(value.toInt());
         else
         {
             InventoryRefIdAdapter<RecordT>::setData(column, data, index, value);
@@ -692,7 +692,7 @@ namespace CSMWorld
         auto iter = mActors.mServices.find(column);
 
         if (iter != mActors.mServices.end())
-            return (record.get().mAiData.mServices & iter->second) != 0;
+            return (static_cast<unsigned int>(record.get().mAiData.mServices) & iter->second) != 0;
 
         return NameRefIdAdapter<RecordT>::getData(column, data, index);
     }
@@ -706,13 +706,13 @@ namespace CSMWorld
 
         RecordT record2 = record.get();
         if (column == mActors.mHello)
-            record2.mAiData.mHello = value.toInt();
+            record2.mAiData.mHello = static_cast<std::uint16_t>(value.toInt());
         else if (column == mActors.mFlee) // Flee, Fight and Alarm ratings are probabilities.
-            record2.mAiData.mFlee = std::min(100, value.toInt());
+            record2.mAiData.mFlee = static_cast<unsigned char>(std::min(100, value.toInt()));
         else if (column == mActors.mFight)
-            record2.mAiData.mFight = std::min(100, value.toInt());
+            record2.mAiData.mFight = static_cast<unsigned char>(std::min(100, value.toInt()));
         else if (column == mActors.mAlarm)
-            record2.mAiData.mAlarm = std::min(100, value.toInt());
+            record2.mAiData.mAlarm = static_cast<unsigned char>(std::min(100, value.toInt()));
         else
         {
             auto iter = mActors.mServices.find(column);
@@ -1267,7 +1267,7 @@ namespace CSMWorld
             if (subRowIndex < 0 || std::cmp_greater_equal(subRowIndex, list.size()))
                 throw std::runtime_error("index out of range");
 
-            const ESM::ContItem& content = list.at(subRowIndex);
+            const ESM::ContItem& content = list.at(static_cast<std::size_t>(subRowIndex));
 
             switch (subColIndex)
             {
@@ -1294,11 +1294,12 @@ namespace CSMWorld
             switch (subColIndex)
             {
                 case 0:
-                    list.at(subRowIndex).mItem = ESM::RefId::stringRefId(value.toString().toUtf8().constData());
+                    list.at(static_cast<std::size_t>(subRowIndex)).mItem
+                        = ESM::RefId::stringRefId(value.toString().toUtf8().constData());
                     break;
 
                 case 1:
-                    list.at(subRowIndex).mCount = value.toInt();
+                    list.at(static_cast<std::size_t>(subRowIndex)).mCount = value.toInt();
                     break;
 
                 default:
@@ -1403,7 +1404,7 @@ namespace CSMWorld
             if (subRowIndex < 0 || std::cmp_greater_equal(subRowIndex, list.size()))
                 throw std::runtime_error("index out of range");
 
-            const ESM::RefId& content = list.at(subRowIndex);
+            const ESM::RefId& content = list.at(static_cast<std::size_t>(subRowIndex));
 
             if (subColIndex == 0)
                 return QString::fromUtf8(content.getRefIdString().c_str());
@@ -1423,7 +1424,8 @@ namespace CSMWorld
                 throw std::runtime_error("index out of range");
 
             if (subColIndex == 0)
-                list.at(subRowIndex) = ESM::RefId::stringRefId(value.toString().toUtf8().constData());
+                list.at(static_cast<std::size_t>(subRowIndex))
+                    = ESM::RefId::stringRefId(value.toString().toUtf8().constData());
             else
                 throw std::runtime_error("Trying to access non-existing column in the nested table!");
 
@@ -1535,7 +1537,7 @@ namespace CSMWorld
             if (subRowIndex < 0 || std::cmp_greater_equal(subRowIndex, list.size()))
                 throw std::runtime_error("index out of range");
 
-            const ESM::Transport::Dest& content = list.at(subRowIndex);
+            const ESM::Transport::Dest& content = list.at(static_cast<std::size_t>(subRowIndex));
 
             switch (subColIndex)
             {
@@ -1572,25 +1574,25 @@ namespace CSMWorld
             switch (subColIndex)
             {
                 case 0:
-                    list.at(subRowIndex).mCellName = value.toString().toUtf8().constData();
+                    list.at(static_cast<std::size_t>(subRowIndex)).mCellName = value.toString().toUtf8().constData();
                     break;
                 case 1:
-                    list.at(subRowIndex).mPos.pos[0] = value.toFloat();
+                    list.at(static_cast<std::size_t>(subRowIndex)).mPos.pos[0] = value.toFloat();
                     break;
                 case 2:
-                    list.at(subRowIndex).mPos.pos[1] = value.toFloat();
+                    list.at(static_cast<std::size_t>(subRowIndex)).mPos.pos[1] = value.toFloat();
                     break;
                 case 3:
-                    list.at(subRowIndex).mPos.pos[2] = value.toFloat();
+                    list.at(static_cast<std::size_t>(subRowIndex)).mPos.pos[2] = value.toFloat();
                     break;
                 case 4:
-                    list.at(subRowIndex).mPos.rot[0] = value.toFloat();
+                    list.at(static_cast<std::size_t>(subRowIndex)).mPos.rot[0] = value.toFloat();
                     break;
                 case 5:
-                    list.at(subRowIndex).mPos.rot[1] = value.toFloat();
+                    list.at(static_cast<std::size_t>(subRowIndex)).mPos.rot[1] = value.toFloat();
                     break;
                 case 6:
-                    list.at(subRowIndex).mPos.rot[2] = value.toFloat();
+                    list.at(static_cast<std::size_t>(subRowIndex)).mPos.rot[2] = value.toFloat();
                     break;
                 default:
                     throw std::runtime_error("Trying to access non-existing column in the nested table!");
@@ -1705,7 +1707,7 @@ namespace CSMWorld
             if (subRowIndex < 0 || std::cmp_greater_equal(subRowIndex, list.size()))
                 throw std::runtime_error("index out of range");
 
-            const ESM::AIPackage& content = list.at(subRowIndex);
+            const ESM::AIPackage& content = list.at(static_cast<std::size_t>(subRowIndex));
 
             switch (subColIndex)
             {
@@ -1818,7 +1820,7 @@ namespace CSMWorld
             if (subRowIndex < 0 || std::cmp_greater_equal(subRowIndex, list.size()))
                 throw std::runtime_error("index out of range");
 
-            ESM::AIPackage& content = list.at(subRowIndex);
+            ESM::AIPackage& content = list.at(static_cast<std::size_t>(subRowIndex));
 
             switch (subColIndex)
             {
@@ -1898,7 +1900,8 @@ namespace CSMWorld
                     if (content.mType == ESM::AI_Activate)
                     {
                         const QByteArray name = value.toString().toUtf8();
-                        content.mActivate.mName.assign(std::string_view(name.constData(), name.size()));
+                        content.mActivate.mName.assign(
+                            std::string_view(name.constData(), static_cast<std::size_t>(name.size())));
                     }
                     else
                         return; // return without saving
@@ -1908,7 +1911,8 @@ namespace CSMWorld
                     if (content.mType == ESM::AI_Follow || content.mType == ESM::AI_Escort)
                     {
                         const QByteArray id = value.toString().toUtf8();
-                        content.mTarget.mId.assign(std::string_view(id.constData(), id.size()));
+                        content.mTarget.mId.assign(
+                            std::string_view(id.constData(), static_cast<std::size_t>(id.size())));
                     }
                     else
                         return; // return without saving
@@ -2054,7 +2058,7 @@ namespace CSMWorld
             if (subRowIndex < 0 || std::cmp_greater_equal(subRowIndex, list.size()))
                 throw std::runtime_error("index out of range");
 
-            const ESM::PartReference& content = list.at(subRowIndex);
+            const ESM::PartReference& content = list.at(static_cast<std::size_t>(subRowIndex));
 
             switch (subColIndex)
             {
@@ -2088,13 +2092,15 @@ namespace CSMWorld
             switch (subColIndex)
             {
                 case 0:
-                    list.at(subRowIndex).mPart = static_cast<unsigned char>(value.toInt());
+                    list.at(static_cast<std::size_t>(subRowIndex)).mPart = static_cast<unsigned char>(value.toInt());
                     break;
                 case 1:
-                    list.at(subRowIndex).mMale = ESM::RefId::stringRefId(value.toString().toStdString());
+                    list.at(static_cast<std::size_t>(subRowIndex)).mMale
+                        = ESM::RefId::stringRefId(value.toString().toStdString());
                     break;
                 case 2:
-                    list.at(subRowIndex).mFemale = ESM::RefId::stringRefId(value.toString().toStdString());
+                    list.at(static_cast<std::size_t>(subRowIndex)).mFemale
+                        = ESM::RefId::stringRefId(value.toString().toStdString());
                     break;
                 default:
                     throw std::runtime_error("Trying to access non-existing column in the nested table!");
@@ -2412,7 +2418,7 @@ namespace CSMWorld
             if (subRowIndex < 0 || std::cmp_greater_equal(subRowIndex, list.size()))
                 throw std::runtime_error("index out of range");
 
-            const ESM::LevelledListBase::LevelItem& content = list.at(subRowIndex);
+            const ESM::LevelledListBase::LevelItem& content = list.at(static_cast<std::size_t>(subRowIndex));
 
             switch (subColIndex)
             {
@@ -2439,10 +2445,11 @@ namespace CSMWorld
             switch (subColIndex)
             {
                 case 0:
-                    list.at(subRowIndex).mId = ESM::RefId::stringRefId(value.toString().toStdString());
+                    list.at(static_cast<std::size_t>(subRowIndex)).mId
+                        = ESM::RefId::stringRefId(value.toString().toStdString());
                     break;
                 case 1:
-                    list.at(subRowIndex).mLevel = static_cast<short>(value.toInt());
+                    list.at(static_cast<std::size_t>(subRowIndex)).mLevel = static_cast<std::uint16_t>(value.toInt());
                     break;
                 default:
                     throw std::runtime_error("Trying to access non-existing column in the nested table!");

@@ -30,8 +30,8 @@ namespace Rtx
                 palette[2][channel] = (2 * c0[channel] + c1[channel]) / 3;
                 palette[3][channel] = (c0[channel] + 2 * c1[channel]) / 3;
             }
-            const std::uint32_t indices
-                = bits[4] | (bits[5] << 8) | (bits[6] << 16) | (static_cast<std::uint32_t>(bits[7]) << 24);
+            const std::uint32_t indices = static_cast<std::uint32_t>(bits[4] | (bits[5] << 8) | (bits[6] << 16))
+                | (static_cast<std::uint32_t>(bits[7]) << 24);
             for (std::size_t texel = 0; texel < 16; ++texel)
                 for (std::size_t channel = 0; channel < 3; ++channel)
                     into[texel * 4 + channel]

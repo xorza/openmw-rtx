@@ -23,9 +23,9 @@ namespace ESSImport
         for (int i = 0; i < 3; ++i)
         {
             int writeIndex = translateDynamicIndex(i);
-            cStats.mDynamic[writeIndex].mBase = acdt.mDynamic[i][1];
-            cStats.mDynamic[writeIndex].mMod = 0.f;
-            cStats.mDynamic[writeIndex].mCurrent = acdt.mDynamic[i][0];
+            cStats.mDynamic[static_cast<std::size_t>(writeIndex)].mBase = acdt.mDynamic[i][1];
+            cStats.mDynamic[static_cast<std::size_t>(writeIndex)].mMod = 0.f;
+            cStats.mDynamic[static_cast<std::size_t>(writeIndex)].mCurrent = acdt.mDynamic[i][0];
         }
         for (int i = 0; i < ESM::Attribute::Length; ++i)
         {

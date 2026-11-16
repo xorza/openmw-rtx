@@ -110,24 +110,24 @@ namespace SDLUtil
         // Use intermediate to avoid signed/unsigned mismatch
         int intermediateLocation = 0;
         SDL_GL_GetAttribute(SDL_GL_RED_SIZE, &intermediateLocation);
-        _traits->red = intermediateLocation;
+        _traits->red = static_cast<unsigned int>(intermediateLocation);
         SDL_GL_GetAttribute(SDL_GL_GREEN_SIZE, &intermediateLocation);
-        _traits->green = intermediateLocation;
+        _traits->green = static_cast<unsigned int>(intermediateLocation);
         SDL_GL_GetAttribute(SDL_GL_BLUE_SIZE, &intermediateLocation);
-        _traits->blue = intermediateLocation;
+        _traits->blue = static_cast<unsigned int>(intermediateLocation);
         SDL_GL_GetAttribute(SDL_GL_ALPHA_SIZE, &intermediateLocation);
-        _traits->alpha = intermediateLocation;
+        _traits->alpha = static_cast<unsigned int>(intermediateLocation);
         SDL_GL_GetAttribute(SDL_GL_DEPTH_SIZE, &intermediateLocation);
-        _traits->depth = intermediateLocation;
+        _traits->depth = static_cast<unsigned int>(intermediateLocation);
         SDL_GL_GetAttribute(SDL_GL_STENCIL_SIZE, &intermediateLocation);
-        _traits->stencil = intermediateLocation;
+        _traits->stencil = static_cast<unsigned int>(intermediateLocation);
 
         SDL_GL_GetAttribute(SDL_GL_DOUBLEBUFFER, &intermediateLocation);
         _traits->doubleBuffer = intermediateLocation;
         SDL_GL_GetAttribute(SDL_GL_MULTISAMPLEBUFFERS, &intermediateLocation);
-        _traits->sampleBuffers = intermediateLocation;
+        _traits->sampleBuffers = static_cast<unsigned int>(intermediateLocation);
         SDL_GL_GetAttribute(SDL_GL_MULTISAMPLESAMPLES, &intermediateLocation);
-        _traits->samples = intermediateLocation;
+        _traits->samples = static_cast<unsigned int>(intermediateLocation);
 
         SDL_GL_MakeCurrent(oldWin, oldCtx);
 

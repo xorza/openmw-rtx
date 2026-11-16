@@ -162,7 +162,10 @@ namespace Resource
                 for (int s = 0; s < image->s(); ++s)
                     for (int t = 0; t < image->t(); ++t)
                         for (int r = 0; r < image->r(); ++r)
-                            newImage->setColor(image->getColor(s, t, r), s, t, r);
+                            newImage->setColor(image->getColor(static_cast<unsigned int>(s),
+                                                   static_cast<unsigned int>(t), static_cast<unsigned int>(r)),
+                                static_cast<unsigned int>(s), static_cast<unsigned int>(t),
+                                static_cast<unsigned int>(r));
                 image = newImage;
             }
         }
@@ -176,7 +179,9 @@ namespace Resource
             for (int s = 0; s < image->s(); ++s)
                 for (int t = 0; t < image->t(); ++t)
                     for (int r = 0; r < image->r(); ++r)
-                        newImage->setColor(image->getColor(s, t, r), s, t, r);
+                        newImage->setColor(image->getColor(static_cast<unsigned int>(s), static_cast<unsigned int>(t),
+                                               static_cast<unsigned int>(r)),
+                            static_cast<unsigned int>(s), static_cast<unsigned int>(t), static_cast<unsigned int>(r));
             image = newImage;
         }
 

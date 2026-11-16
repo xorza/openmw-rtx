@@ -109,7 +109,7 @@ namespace MyGUIRtx
 
     void SlotTexture::fillWith(const osg::Image& image, std::uint8_t* into) const
     {
-        const std::size_t bytes = static_cast<std::size_t>(mWidth) * mHeight * 4;
+        const std::size_t bytes = static_cast<std::size_t>(mWidth) * static_cast<std::size_t>(mHeight) * 4;
         const Rtx::TextureFormat format = Rtx::readFormat(image, Rtx::TextureEncoding::Colour);
         if (format == Rtx::TextureFormat::Rgba8Srgb && image.isDataContiguous() && image.getTotalSizeInBytes() == bytes)
             std::memcpy(into, image.data(), bytes);
@@ -119,7 +119,7 @@ namespace MyGUIRtx
             // conversion through floats a pixel, half a second for the global map's 33 million.
             for (int y = 0; y < mHeight; ++y)
             {
-                const std::uint8_t* from = image.data(0, y);
+                const std::uint8_t* from = image.data(0, static_cast<unsigned int>(y));
                 for (int x = 0; x < mWidth; ++x, into += 4, from += layout->mBytes)
                     for (std::size_t channel = 0; channel < 4; ++channel)
                         into[channel] = layout->mFrom[channel] < 0 ? 0xFF : from[layout->mFrom[channel]];
@@ -164,7 +164,8 @@ namespace MyGUIRtx
             for (int y = 0; y < mHeight; ++y)
                 for (int x = 0; x < mWidth; ++x, into += 4)
                 {
-                    const osg::Vec4f colour = image.getColor(x, y);
+                    const osg::Vec4f colour
+                        = image.getColor(static_cast<unsigned int>(x), static_cast<unsigned int>(y));
                     into[0] = static_cast<std::uint8_t>(std::lround(std::clamp(colour.r(), 0.f, 1.f) * 255.f));
                     into[1] = static_cast<std::uint8_t>(std::lround(std::clamp(colour.g(), 0.f, 1.f) * 255.f));
                     into[2] = static_cast<std::uint8_t>(std::lround(std::clamp(colour.b(), 0.f, 1.f) * 255.f));

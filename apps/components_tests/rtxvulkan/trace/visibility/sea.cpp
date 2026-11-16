@@ -411,8 +411,9 @@ namespace Rtx::Testing
                 for (int y = sweep; y < static_cast<int>(size) - sweep; ++y)
                     for (int x = sweep; x < static_cast<int>(size) - sweep; ++x)
                     {
-                        const float gap = later[static_cast<std::size_t>(y + down) * size + (x + across)]
-                            - shallow[static_cast<std::size_t>(y) * size + x];
+                        const float gap
+                            = later[static_cast<std::size_t>(y + down) * size + (static_cast<std::size_t>(x + across))]
+                            - shallow[static_cast<std::size_t>(y) * size + static_cast<std::size_t>(x)];
                         apart += gap * gap;
                     }
 

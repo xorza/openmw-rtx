@@ -137,8 +137,8 @@ namespace Shader
                 if (!writable)
                     writable = getWritableStateSet(node);
                 const int unit = nextFreeUnit(units, *writable);
-                writable->setTextureAttribute(unit, texture, osg::StateAttribute::ON);
-                writable->setTextureAttribute(unit,
+                writable->setTextureAttribute(static_cast<unsigned int>(unit), texture, osg::StateAttribute::ON);
+                writable->setTextureAttribute(static_cast<unsigned int>(unit),
                     new SceneUtil::TextureType(normalHeight ? "normalHeightMap" : "normalMap"),
                     osg::StateAttribute::ON);
 
@@ -161,8 +161,9 @@ namespace Shader
                 if (!writable)
                     writable = getWritableStateSet(node);
                 const int unit = nextFreeUnit(units, *writable);
-                writable->setTextureAttribute(unit, texture, osg::StateAttribute::ON);
-                writable->setTextureAttribute(unit, new SceneUtil::TextureType("specularMap"), osg::StateAttribute::ON);
+                writable->setTextureAttribute(static_cast<unsigned int>(unit), texture, osg::StateAttribute::ON);
+                writable->setTextureAttribute(static_cast<unsigned int>(unit),
+                    new SceneUtil::TextureType("specularMap"), osg::StateAttribute::ON);
 
                 attached.mSpecularUnit = unit;
             }

@@ -913,7 +913,7 @@ namespace Rtx::Testing
             const osg::Vec3f seen = air(shoot(scene, {}, eye(step, 0.0f, sHaze), size,
                 Shot{ .mFrames = 1, .mAverage = false, .mFirstFrame = settled + turned, .mSetScene = false }));
 
-            for (std::size_t channel = 0; channel < 3; ++channel)
+            for (int channel = 0; channel < 3; ++channel)
             {
                 EXPECT_NEAR(expected[channel] / (0.5f * sHaze[channel]), 1.0f, 0.05f)
                     << "the air of the run the other is held against, channel " << channel;

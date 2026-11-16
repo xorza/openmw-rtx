@@ -106,7 +106,7 @@ namespace MWLua
         {
             for (int32_t i = ESM::Class::Combat; i <= ESM::Class::Stealth; ++i)
             {
-                if (ESM::Class::specializationIndexToLuaId[i] == id)
+                if (ESM::Class::specializationIndexToLuaId[static_cast<std::size_t>(i)] == id)
                     return i;
             }
             throw std::runtime_error("invalid specialization");
@@ -149,7 +149,8 @@ namespace MWLua
                 record["minorSkills"] = addStatArray(sMinorSkillCount, getMinorSkill);
                 record["specialization"] = sol::property(
                     [](const MutableRecord<ESM::Class>& rec) -> std::string_view {
-                        return ESM::Class::specializationIndexToLuaId.at(rec.find().mData.mSpecialization);
+                        return ESM::Class::specializationIndexToLuaId.at(
+                            static_cast<std::size_t>(rec.find().mData.mSpecialization));
                     },
                     [](MutableRecord<ESM::Class>& rec, std::string_view value) {
                         ESM::Class& cls = rec.find();
@@ -168,7 +169,8 @@ namespace MWLua
                     return createReadOnlyRefIdTable(lua, rec.mData.mMinorSkills);
                 });
                 record["specialization"] = sol::readonly_property([](const ESM::Class& rec) -> std::string_view {
-                    return ESM::Class::specializationIndexToLuaId.at(rec.mData.mSpecialization);
+                    return ESM::Class::specializationIndexToLuaId.at(
+                        static_cast<std::size_t>(rec.mData.mSpecialization));
                 });
             }
         }

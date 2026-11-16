@@ -467,12 +467,12 @@ namespace MWLua
                 {
                     if (!entry.is<sol::table>())
                     {
-                        enams.push_back(effectList.mList.at(LuaUtil::cast<int32_t>(entry)));
+                        enams.push_back(effectList.mList.at(static_cast<std::size_t>(LuaUtil::cast<int32_t>(entry))));
                         continue;
                     }
                     sol::table params = entry.as<sol::table>();
-                    ESM::IndexedENAMstruct& enam
-                        = enams.emplace_back(effectList.mList.at(LuaUtil::cast<int32_t>(params["index"])));
+                    ESM::IndexedENAMstruct& enam = enams.emplace_back(
+                        effectList.mList.at(static_cast<std::size_t>(LuaUtil::cast<int32_t>(params["index"]))));
                     applyEffectParams(enam.mData, params);
                 }
                 return enams;
@@ -502,7 +502,7 @@ namespace MWLua
                             throw std::runtime_error("Ingredient effects must be specified as tables");
                         sol::table params = entry.as<sol::table>();
                         int32_t index = LuaUtil::cast<int32_t>(params["index"]);
-                        auto effect = MWMechanics::getIngredientEffect(ingredient, index);
+                        auto effect = MWMechanics::getIngredientEffect(ingredient, static_cast<std::uint32_t>(index));
                         if (!effect)
                             throw std::runtime_error("Ingredient has no effect at index " + std::to_string(index));
                         applyEffectParams(effect->mData, params);
@@ -639,7 +639,8 @@ namespace MWLua
             [](const ActorSpells& spells, size_t index) -> const ESM::Spell* {
                 if (auto* store = spells.getStore())
                     if (index <= store->count() && index > 0)
-                        return store->at(LuaUtil::fromLuaIndex(static_cast<std::int64_t>(index)));
+                        return store->at(
+                            static_cast<std::size_t>(LuaUtil::fromLuaIndex(static_cast<std::int64_t>(index))));
                 return nullptr;
             },
             [spellStore](const ActorSpells& spells, std::string_view spellId) -> const ESM::Spell* {

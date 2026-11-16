@@ -102,8 +102,10 @@ namespace Rtx
 
             return trilinear(f, [&](int dx, int dy, int dz) {
                 const std::size_t index
-                    = (static_cast<std::size_t>(wrapped(z0 + dz, size)) * size + wrapped(y0 + dy, size)) * size
-                    + wrapped(x0 + dx, size);
+                    = (static_cast<std::size_t>(wrapped(z0 + dz, size)) * static_cast<std::size_t>(size)
+                          + static_cast<std::size_t>(wrapped(y0 + dy, size)))
+                        * static_cast<std::size_t>(size)
+                    + static_cast<std::size_t>(wrapped(x0 + dx, size));
                 return field[index];
             });
         }
@@ -147,7 +149,8 @@ namespace Rtx
         {
             const int size = sizeAt(level);
             const int half = sizeAt(level + 1);
-            std::vector<float> out(static_cast<std::size_t>(half) * half * half, 0.0f);
+            std::vector<float> out(
+                static_cast<std::size_t>(half) * static_cast<std::size_t>(half) * static_cast<std::size_t>(half), 0.0f);
 
             for (int z = 0; z < half; ++z)
                 for (int y = 0; y < half; ++y)
@@ -156,14 +159,18 @@ namespace Rtx
                         float total = 0.0f;
                         for (int corner = 0; corner < 8; ++corner)
                         {
-                            const std::size_t at = (static_cast<std::size_t>(2 * z + ((corner >> 2) & 1)) * size
-                                                       + std::size_t{ 2 } * y + ((corner >> 1) & 1))
-                                    * size
-                                + std::size_t{ 2 } * x + (corner & 1);
+                            const std::size_t at
+                                = (static_cast<std::size_t>(2 * z + ((corner >> 2) & 1))
+                                          * static_cast<std::size_t>(size)
+                                      + std::size_t{ 2 } * static_cast<std::size_t>(y) + ((corner >> 1) & 1))
+                                    * static_cast<std::size_t>(size)
+                                + std::size_t{ 2 } * static_cast<std::size_t>(x) + (corner & 1);
                             total += field[at];
                         }
 
-                        out[(static_cast<std::size_t>(z) * half + y) * half + x] = total * 0.125f;
+                        out[(static_cast<std::size_t>(z) * static_cast<std::size_t>(half) + static_cast<std::size_t>(y))
+                                * static_cast<std::size_t>(half)
+                            + static_cast<std::size_t>(x)] = total * 0.125f;
                     }
 
             return out;
@@ -192,7 +199,8 @@ namespace Rtx
                         // Four texels a cell and one octave. A lattice finer than that aliases
                         // into the level it is drawn at, and the chain then averages a mistake rather
                         // than the field; a second octave is what `fogShape`'s scales are for.
-                        channels[channel][(static_cast<std::size_t>(z) * sSize + y) * sSize + x]
+                        channels[channel][(static_cast<std::size_t>(z) * sSize + static_cast<std::size_t>(y)) * sSize
+                            + static_cast<std::size_t>(x)]
                             = noiseAt(unit * static_cast<float>(sCells), sCells, 0x9e3779b9u * (channel + 1u));
                     }
         }
@@ -206,7 +214,8 @@ namespace Rtx
             for (auto& channel : channels)
                 normalise(channel, sizeAt(level));
 
-            const std::size_t count = static_cast<std::size_t>(sizeAt(level)) * sizeAt(level) * sizeAt(level);
+            const std::size_t count = static_cast<std::size_t>(sizeAt(level)) * static_cast<std::size_t>(sizeAt(level))
+                * static_cast<std::size_t>(sizeAt(level));
             for (std::size_t at = 0; at < count; ++at)
                 for (const auto& channel : channels)
                     noise.push_back(static_cast<std::uint8_t>(std::lround(channel[at] * 255.0f)));

@@ -82,7 +82,7 @@ namespace Shader
 
             void setTextureAttribute(int unit, osg::StateAttribute::TypeMemberPair typeMemberPair)
             {
-                mTextureAttributes[unit].emplace(typeMemberPair);
+                mTextureAttributes[static_cast<unsigned int>(unit)].emplace(typeMemberPair);
             }
 
             void setTextureAttribute(unsigned int unit, const osg::StateAttribute* attribute)
@@ -333,6 +333,7 @@ namespace Shader
                     {
                         mRequirements.back().mReconstructNormalZ = true;
                         mRequirements.back().mNormalHeight = false;
+                        break;
                     }
                     default:
                         break;
@@ -611,9 +612,10 @@ namespace Shader
 
             for (const auto& [unit, name] : reqs.mTextures)
             {
-                if (sourceGeometry.getTexCoordArray(unit) == nullptr)
+                if (sourceGeometry.getTexCoordArray(static_cast<unsigned int>(unit)) == nullptr)
                 {
-                    sourceGeometry.setTexCoordArray(unit, sourceGeometry.getTexCoordArray(0));
+                    sourceGeometry.setTexCoordArray(
+                        static_cast<unsigned int>(unit), sourceGeometry.getTexCoordArray(0));
                     changed = true;
                 }
             }

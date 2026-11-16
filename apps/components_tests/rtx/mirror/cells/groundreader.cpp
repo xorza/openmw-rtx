@@ -37,7 +37,7 @@ namespace Rtx::Testing
         {
             ASSERT_EQ(read.size(), built.getNumIndices());
             for (std::size_t at = 0; at < read.size(); ++at)
-                ASSERT_EQ(read[at], built.index(at)) << "index " << at;
+                ASSERT_EQ(read[at], built.index(static_cast<unsigned int>(at))) << "index " << at;
         }
 
         /// A cell with a land record is the storage's own grid, cut the way `Terrain::BufferCache`
@@ -209,8 +209,8 @@ namespace Rtx::Testing
 
                 for (int row = 0; row < 16; ++row)
                 {
-                    unsigned char* alphaRow = mAlpha->data(0, row);
-                    unsigned char* rgbaRow = mRgba->data(0, row);
+                    unsigned char* alphaRow = mAlpha->data(0, static_cast<unsigned int>(row));
+                    unsigned char* rgbaRow = mRgba->data(0, static_cast<unsigned int>(row));
 
                     for (int column = 0; column < 16; ++column)
                     {
@@ -263,7 +263,8 @@ namespace Rtx::Testing
                 const std::span<const float> weights = layer.mWeights.in(std::span<const float>(ground.mWeights));
                 for (int row = 0; row < 16; ++row)
                     for (int column = 0; column < 16; ++column)
-                        ASSERT_EQ(weights[static_cast<std::size_t>(row) * 16 + column], image.getColor(column, row).a())
+                        ASSERT_EQ(weights[static_cast<std::size_t>(row * 16 + column)],
+                            image.getColor(static_cast<unsigned int>(column), static_cast<unsigned int>(row)).a())
                             << "texel " << column << ", " << row << " of " << image.getPixelFormat();
             };
 

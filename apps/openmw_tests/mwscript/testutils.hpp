@@ -156,17 +156,20 @@ namespace MWScriptTesting
 
         ESM::RefId getTarget() const override { return ESM::RefId(); }
 
-        int getLocalShort(int index) const override { return mLocals.getShort(index); }
+        int getLocalShort(int index) const override { return mLocals.getShort(static_cast<std::size_t>(index)); }
 
-        int getLocalLong(int index) const override { return mLocals.getLong(index); }
+        int getLocalLong(int index) const override { return mLocals.getLong(static_cast<std::size_t>(index)); }
 
-        float getLocalFloat(int index) const override { return mLocals.getFloat(index); }
+        float getLocalFloat(int index) const override { return mLocals.getFloat(static_cast<std::size_t>(index)); }
 
-        void setLocalShort(int index, int value) override { mLocals.setShort(index, value); }
+        void setLocalShort(int index, int value) override { mLocals.setShort(static_cast<std::size_t>(index), value); }
 
-        void setLocalLong(int index, int value) override { mLocals.setLong(index, value); }
+        void setLocalLong(int index, int value) override { mLocals.setLong(static_cast<std::size_t>(index), value); }
 
-        void setLocalFloat(int index, float value) override { mLocals.setFloat(index, value); }
+        void setLocalFloat(int index, float value) override
+        {
+            mLocals.setFloat(static_cast<std::size_t>(index), value);
+        }
 
         void messageBox(std::string_view message, const std::vector<std::string>& buttons) override
         {

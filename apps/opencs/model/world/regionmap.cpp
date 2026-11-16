@@ -462,7 +462,7 @@ void CSMWorld::RegionMap::regionsInserted(const QModelIndex& parent, int start, 
         {
             update.push_back(region.get().mId);
 
-            addRegion(region.get().mId, region.get().mMapColor);
+            addRegion(region.get().mId, static_cast<unsigned int>(region.get().mMapColor));
         }
     }
 
@@ -485,7 +485,7 @@ void CSMWorld::RegionMap::regionsChanged(const QModelIndex& topLeft, const QMode
         update.push_back(region.get().mId);
 
         if (!region.isDeleted())
-            addRegion(region.get().mId, region.get().mMapColor);
+            addRegion(region.get().mId, static_cast<unsigned int>(region.get().mMapColor));
         else
             removeRegion(region.get().mId);
     }

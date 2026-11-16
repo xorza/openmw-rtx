@@ -1474,7 +1474,9 @@ namespace MWScript
                         std::vector<std::string> contentFiles
                             = MWBase::Environment::get().getWorld()->getContentFiles();
 
-                        msg << " [" << contentFiles.at(ptr.getCellRef().getRefNum().mContentFile) << "]" << std::endl;
+                        msg << " ["
+                            << contentFiles.at(static_cast<std::size_t>(ptr.getCellRef().getRefNum().mContentFile))
+                            << "]" << std::endl;
                     }
 
                     msg << "RefNum: " << ptr.getCellRef().getRefNum().mIndex << std::endl;

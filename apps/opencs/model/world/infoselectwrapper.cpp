@@ -3,6 +3,7 @@
 #include <limits>
 #include <sstream>
 #include <stdexcept>
+#include <type_traits>
 
 const char* CSMWorld::ConstInfoSelectWrapper::FunctionEnumStrings[] = {
     "Faction Reaction Low",
@@ -574,24 +575,31 @@ std::pair<float, float> CSMWorld::ConstInfoSelectWrapper::getValidFloatRange() c
 template <typename T1, typename T2>
 bool CSMWorld::ConstInfoSelectWrapper::rangeContains(T1 value, std::pair<T2, T2> range) const
 {
-    return (value >= range.first && value <= range.second);
+    using Common = std::common_type_t<T1, T2>;
+    const auto common = static_cast<Common>(value);
+    return common >= static_cast<Common>(range.first) && common <= static_cast<Common>(range.second);
 }
 
 template <typename T1, typename T2>
 bool CSMWorld::ConstInfoSelectWrapper::rangeFullyContains(
     std::pair<T1, T1> containingRange, std::pair<T2, T2> testRange) const
 {
-    return (containingRange.first <= testRange.first) && (testRange.second <= containingRange.second);
+    using Common = std::common_type_t<T1, T2>;
+    return static_cast<Common>(containingRange.first) <= static_cast<Common>(testRange.first)
+        && static_cast<Common>(testRange.second) <= static_cast<Common>(containingRange.second);
 }
 
 template <typename T1, typename T2>
 bool CSMWorld::ConstInfoSelectWrapper::rangesOverlap(std::pair<T1, T1> range1, std::pair<T2, T2> range2) const
 {
+    using Common = std::common_type_t<T1, T2>;
+    const auto first1 = static_cast<Common>(range1.first);
+    const auto second1 = static_cast<Common>(range1.second);
+    const auto first2 = static_cast<Common>(range2.first);
+    const auto second2 = static_cast<Common>(range2.second);
     // One of the bounds of either range should fall within the other range
-    return (range1.first <= range2.first && range2.first <= range1.second)
-        || (range1.first <= range2.second && range2.second <= range1.second)
-        || (range2.first <= range1.first && range1.first <= range2.second)
-        || (range2.first <= range1.second && range1.second <= range2.second);
+    return (first1 <= first2 && first2 <= second1) || (first1 <= second2 && second2 <= second1)
+        || (first2 <= first1 && first1 <= second2) || (first2 <= second1 && second1 <= second2);
 }
 
 template <typename T1, typename T2>

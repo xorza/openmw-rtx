@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <string>
 
@@ -42,10 +43,10 @@ namespace ESM
             bool mIsPlayable{}; // Playable class
             int32_t mServices{};
 
-            ESM::RefId& getSkill(int index, bool major);
+            ESM::RefId& getSkill(std::size_t index, bool major);
             ///< Throws an exception for invalid values of \a index.
 
-            ESM::RefId getSkill(int index, bool major) const;
+            ESM::RefId getSkill(std::size_t index, bool major) const;
             ///< Throws an exception for invalid values of \a index.
         }; // 60 bytes
 

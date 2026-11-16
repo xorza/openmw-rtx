@@ -89,7 +89,7 @@ namespace Rtx
         TEST(RtxChainBuildTest, everyLevelBuiltIsTheBoxOfTheOneAboveIt)
         {
             Testing::TestTexture four;
-            for (const std::uint8_t value : { 100, 200, 100, 200, 0, 40, 0, 40 })
+            for (const std::uint8_t value : std::array<std::uint8_t, 8>{ 100, 200, 100, 200, 0, 40, 0, 40 })
                 for (int twice = 0; twice < 2; ++twice)
                     for (const std::uint8_t byte : { value, value, value, std::uint8_t{ 255 } })
                         four.mBytes.push_back(byte);
@@ -150,7 +150,7 @@ namespace Rtx
         TEST(RtxChainBuildTest, anOddExtentIsHalvedByTheBoxOfItsOwnWidth)
         {
             Testing::TestTexture line;
-            for (const std::uint8_t value : { 0, 0, 0, 0, 250 })
+            for (const std::uint8_t value : std::array<std::uint8_t, 5>{ 0, 0, 0, 0, 250 })
                 for (const std::uint8_t byte : { value, value, value, std::uint8_t{ 255 } })
                     line.mBytes.push_back(byte);
             line.mLevels.push_back(MipLevel{ 0, 5, 1 });

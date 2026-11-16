@@ -124,7 +124,7 @@ namespace MWWorld
         // which will result in permanently suppressed activation if the reference script is removed.
         // This occurred when removing the animated containers mod, and the fix in MCP is to reset UseEnabled to true on
         // loading a game."
-        mFlags &= (~Flag_SuppressActivate);
+        mFlags &= (static_cast<unsigned int>(~Flag_SuppressActivate));
     }
 
     RefData::RefData(const RefData& refData)
@@ -134,7 +134,7 @@ namespace MWWorld
         try
         {
             copy(refData);
-            mFlags &= ~(Flag_SuppressActivate | Flag_OnActivate | Flag_ActivationBuffered);
+            mFlags &= static_cast<unsigned int>(~(Flag_SuppressActivate | Flag_OnActivate | Flag_ActivationBuffered));
         }
         catch (...)
         {
@@ -236,7 +236,7 @@ namespace MWWorld
             return;
         mChanged = true;
         if (enabled)
-            mFlags &= ~Flag_LocalScriptDisabled;
+            mFlags &= static_cast<unsigned int>(~Flag_LocalScriptDisabled);
         else
             mFlags |= Flag_LocalScriptDisabled;
     }
@@ -304,7 +304,7 @@ namespace MWWorld
     bool RefData::activateByScript()
     {
         bool ret = (mFlags & Flag_ActivationBuffered);
-        mFlags &= ~(Flag_SuppressActivate | Flag_OnActivate);
+        mFlags &= static_cast<unsigned int>(~(Flag_SuppressActivate | Flag_OnActivate));
         return ret;
     }
 
@@ -325,7 +325,7 @@ namespace MWWorld
     {
         bool ret = mFlags & Flag_OnActivate;
         mFlags |= Flag_SuppressActivate;
-        mFlags &= (~Flag_OnActivate);
+        mFlags &= (static_cast<unsigned int>(~Flag_OnActivate));
         return ret;
     }
 

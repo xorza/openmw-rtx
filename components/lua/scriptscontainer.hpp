@@ -305,7 +305,7 @@ namespace LuaUtil
 
         const VFS::Path::Normalized& scriptPath(int scriptId) const
         {
-            return mLua.getConfiguration()[scriptId].mScriptPath;
+            return mLua.getConfiguration()[static_cast<std::size_t>(scriptId)].mScriptPath;
         }
 
         void callOnInit(LuaView& view, int scriptId, const sol::function& onInit, std::string_view data);

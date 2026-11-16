@@ -373,26 +373,26 @@ namespace CSVRender
             {
                 if (i * resolution * 2 + j > static_cast<int>(vertices->size()) - 1)
                     continue;
-                primitives->push_back(i * resolution * 2 + j);
+                primitives->push_back(static_cast<unsigned short>(i * resolution * 2 + j));
             }
             if (i * resolution * 2 > static_cast<int>(vertices->size()) - 1)
                 continue;
-            primitives->push_back(i * resolution * 2);
-            primitives->push_back(i * resolution * 2 + 1);
+            primitives->push_back(static_cast<unsigned short>(i * resolution * 2));
+            primitives->push_back(static_cast<unsigned short>(i * resolution * 2 + 1));
 
             // Odd
             for (int j = 1; j < resolution * 2 - 2; j += 2)
             {
                 if ((i + 1) * resolution * 2 + j - 1 > static_cast<int>(vertices->size()) - 1)
                     continue;
-                primitives->push_back((i + 1) * resolution * 2 + j - 1);
-                primitives->push_back(i * resolution * 2 + j + 2);
+                primitives->push_back(static_cast<unsigned short>((i + 1) * resolution * 2 + j - 1));
+                primitives->push_back(static_cast<unsigned short>(i * resolution * 2 + j + 2));
             }
             if ((i + 2) * resolution * 2 - 2 > static_cast<int>(vertices->size()) - 1)
                 continue;
-            primitives->push_back((i + 2) * resolution * 2 - 2);
-            primitives->push_back(i * resolution * 2 + 1);
-            primitives->push_back((i + 1) * resolution * 2);
+            primitives->push_back(static_cast<unsigned short>((i + 2) * resolution * 2 - 2));
+            primitives->push_back(static_cast<unsigned short>(i * resolution * 2 + 1));
+            primitives->push_back(static_cast<unsigned short>((i + 1) * resolution * 2));
         }
 
         geometry->addPrimitiveSet(primitives);

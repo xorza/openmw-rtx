@@ -21,7 +21,7 @@ namespace Spt
                     return map;
                 if (section < 70002 || section > 70008)
                     throw std::runtime_error(std::format("Unknown section {} in texture map", section));
-                map.mLayers[section - 70002] = stream.readIntString();
+                map.mLayers[static_cast<std::size_t>(section - 70002)] = stream.readIntString();
             }
         }
 

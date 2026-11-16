@@ -248,6 +248,7 @@ void CSVWorld::ScriptSubView::useHint(const std::string& hint)
         case 'l':
             if (!(stream >> c >> line >> column))
                 return;
+            break;
         default:
             break;
     }

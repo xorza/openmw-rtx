@@ -128,7 +128,8 @@ namespace MWGui
     void LevelupDialog::resetCoins()
     {
         constexpr int coinSpacing = 33;
-        int curX = static_cast<int>(mCoinBox->getWidth() / 2 - (coinSpacing * (mCoinCount - 1) + 16 * mCoinCount) / 2);
+        int curX = static_cast<int>(static_cast<unsigned int>(mCoinBox->getWidth() / 2)
+            - (coinSpacing * (mCoinCount - 1) + 16 * mCoinCount) / 2);
         for (unsigned int i = 0; i < sMaxCoins; ++i)
         {
             MyGUI::ImageBox* image = mCoins[i];

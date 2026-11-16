@@ -60,7 +60,8 @@ namespace MWWorld
             for (auto& effect : spell->mEffects.mList)
             {
                 if (effect.mData.mEffectID == ESM::MagicEffect::DrainAttribute)
-                    stats.mWorsenings[ESM::Attribute::refIdToIndex(effect.mData.mAttribute)] = oldStats.mWorsenings;
+                    stats.mWorsenings[static_cast<std::size_t>(ESM::Attribute::refIdToIndex(effect.mData.mAttribute))]
+                        = oldStats.mWorsenings;
             }
             creatureStats.mCorprusSpells[id] = stats;
         }
@@ -73,7 +74,7 @@ namespace MWWorld
             ESM::ActiveSpells::ActiveSpellParams params;
             params.mSourceSpellId = id;
             params.mDisplayName = spell->mName;
-            params.mCaster.mIndex = creatureStats.mActorId;
+            params.mCaster.mIndex = static_cast<std::uint32_t>(creatureStats.mActorId);
             if (spell->mData.mType == ESM::Spell::ST_Ability)
                 params.mFlags = ESM::Compatibility::ActiveSpells::Type_Ability_Flags;
             else
@@ -151,7 +152,7 @@ namespace MWWorld
             ESM::ActiveSpells::ActiveSpellParams params;
             params.mSourceSpellId = id;
             params.mDisplayName = std::move(name);
-            params.mCaster.mIndex = creatureStats.mActorId;
+            params.mCaster.mIndex = static_cast<std::uint32_t>(creatureStats.mActorId);
             params.mFlags = ESM::Compatibility::ActiveSpells::Type_Enchantment_Flags;
             params.mWorsenings = -1;
             params.mNextWorsening = ESM::TimeStamp();

@@ -746,7 +746,7 @@ namespace MWGui
                 if (cellref.getFactionRank() >= 0)
                 {
                     int rank = cellref.getFactionRank();
-                    const std::string& rankName = fact->mRanks[rank];
+                    const std::string& rankName = fact->mRanks[static_cast<std::size_t>(rank)];
                     if (rankName.empty())
                         ret += getValueString(cellref.getFactionRank(), "Rank");
                     else

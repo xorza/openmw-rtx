@@ -28,7 +28,10 @@ namespace LuaUtil
         std::optional<int> findId(VFS::Path::NormalizedView path) const;
         std::optional<int> mapId(int savedId) const;
 
-        bool isCustomScript(int id) const { return mScripts[id].mFlags & ESM::LuaScriptCfg::sCustom; }
+        bool isCustomScript(int id) const
+        {
+            return mScripts[static_cast<std::size_t>(id)].mFlags & ESM::LuaScriptCfg::sCustom;
+        }
 
         ScriptIdsWithInitializationData getMenuConf() const { return getConfByFlag(ESM::LuaScriptCfg::sMenu); }
         ScriptIdsWithInitializationData getGlobalConf() const { return getConfByFlag(ESM::LuaScriptCfg::sGlobal); }

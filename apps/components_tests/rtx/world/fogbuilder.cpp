@@ -39,7 +39,11 @@ namespace Rtx
             const auto wrap = [size](int v) { return ((v % size) + size) % size; };
 
             const std::size_t at = fogFieldOffsetAt(static_cast<std::uint32_t>(level))
-                + 2 * ((static_cast<std::size_t>(wrap(z)) * size + wrap(y)) * size + wrap(x));
+                + 2
+                    * ((static_cast<std::size_t>(wrap(z)) * static_cast<std::size_t>(size)
+                           + static_cast<std::size_t>(wrap(y)))
+                            * static_cast<std::size_t>(size)
+                        + static_cast<std::size_t>(wrap(x)));
 
             return osg::Vec2f(static_cast<float>(noise[at]) / 255.0f, static_cast<float>(noise[at + 1]) / 255.0f);
         }

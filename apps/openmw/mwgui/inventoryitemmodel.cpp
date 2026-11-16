@@ -28,7 +28,7 @@ namespace MWGui
             throw std::runtime_error("Invalid index supplied");
         if (mItems.size() <= static_cast<size_t>(index))
             throw std::runtime_error("Item index out of range");
-        return mItems[index];
+        return mItems[static_cast<std::size_t>(index)];
     }
 
     size_t InventoryItemModel::getItemCount()
@@ -119,7 +119,7 @@ namespace MWGui
             if (!item.getClass().showsInInventory(item))
                 continue;
 
-            ItemStack newItem(item, this, item.getCellRef().getCount());
+            ItemStack newItem(item, this, static_cast<std::size_t>(item.getCellRef().getCount()));
 
             if (mActor.getClass().hasInventoryStore(mActor))
             {

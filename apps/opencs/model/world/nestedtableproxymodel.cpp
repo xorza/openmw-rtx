@@ -15,7 +15,7 @@ CSMWorld::NestedTableProxyModel::NestedTableProxyModel(
 
     const QByteArray utf8 = parentModel->index(parentRow, 0).data().toString().toUtf8();
 
-    mId = std::string(utf8.constData(), utf8.size());
+    mId = std::string(utf8.constData(), static_cast<std::size_t>(utf8.size()));
 
     QAbstractProxyModel::setSourceModel(parentModel);
 

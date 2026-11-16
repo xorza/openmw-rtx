@@ -76,7 +76,7 @@ namespace CSMWorld
 
     QVariant PathgridPointListAdapter::getData(const Record<Pathgrid>& record, int subRowIndex, int subColIndex) const
     {
-        ESM::Pathgrid::Point point = record.get().mPoints[subRowIndex];
+        ESM::Pathgrid::Point point = record.get().mPoints[static_cast<std::size_t>(subRowIndex)];
         switch (subColIndex)
         {
             case 0:
@@ -96,7 +96,7 @@ namespace CSMWorld
         Record<Pathgrid>& record, const QVariant& value, int subRowIndex, int subColIndex) const
     {
         Pathgrid pathgrid = record.get();
-        ESM::Pathgrid::Point point = pathgrid.mPoints[subRowIndex];
+        ESM::Pathgrid::Point point = pathgrid.mPoints[static_cast<std::size_t>(subRowIndex)];
         switch (subColIndex)
         {
             case 0:
@@ -114,7 +114,7 @@ namespace CSMWorld
                 throw std::runtime_error("Pathgrid point subcolumn index out of range");
         }
 
-        pathgrid.mPoints[subRowIndex] = point;
+        pathgrid.mPoints[static_cast<std::size_t>(subRowIndex)] = point;
 
         record.setModified(pathgrid);
     }
@@ -186,7 +186,7 @@ namespace CSMWorld
         if (subRowIndex < 0 || std::cmp_greater_equal(subRowIndex, pathgrid.mEdges.size()))
             throw std::runtime_error("index out of range");
 
-        ESM::Pathgrid::Edge edge = pathgrid.mEdges[subRowIndex];
+        ESM::Pathgrid::Edge edge = pathgrid.mEdges[static_cast<std::size_t>(subRowIndex)];
         switch (subColIndex)
         {
             case 0:
@@ -208,22 +208,22 @@ namespace CSMWorld
         if (subRowIndex < 0 || std::cmp_greater_equal(subRowIndex, pathgrid.mEdges.size()))
             throw std::runtime_error("index out of range");
 
-        ESM::Pathgrid::Edge edge = pathgrid.mEdges[subRowIndex];
+        ESM::Pathgrid::Edge edge = pathgrid.mEdges[static_cast<std::size_t>(subRowIndex)];
         switch (subColIndex)
         {
             case 0:
                 return; // return without saving
             case 1:
-                edge.mV0 = value.toInt();
+                edge.mV0 = static_cast<std::size_t>(value.toInt());
                 break;
             case 2:
-                edge.mV1 = value.toInt();
+                edge.mV1 = static_cast<std::size_t>(value.toInt());
                 break;
             default:
                 throw std::runtime_error("Pathgrid edge subcolumn index out of range");
         }
 
-        pathgrid.mEdges[subRowIndex] = edge;
+        pathgrid.mEdges[static_cast<std::size_t>(subRowIndex)] = edge;
 
         record.setModified(pathgrid);
     }
@@ -418,7 +418,7 @@ namespace CSMWorld
         if (subRowIndex < 0 || index >= soundList.size())
             throw std::runtime_error("index out of range");
 
-        const ESM::Region::SoundRef& soundRef = soundList[subRowIndex];
+        const ESM::Region::SoundRef& soundRef = soundList[static_cast<std::size_t>(subRowIndex)];
         switch (subColIndex)
         {
             case 0:
@@ -451,7 +451,7 @@ namespace CSMWorld
         if (subRowIndex < 0 || std::cmp_greater_equal(subRowIndex, soundList.size()))
             throw std::runtime_error("index out of range");
 
-        ESM::Region::SoundRef soundRef = soundList[subRowIndex];
+        ESM::Region::SoundRef soundRef = soundList[static_cast<std::size_t>(subRowIndex)];
         switch (subColIndex)
         {
             case 0:
@@ -464,7 +464,7 @@ namespace CSMWorld
                 throw std::runtime_error("Region sounds subcolumn index out of range");
         }
 
-        region.mSoundList[subRowIndex] = soundRef;
+        region.mSoundList[static_cast<std::size_t>(subRowIndex)] = soundRef;
 
         record.setModified(region);
     }
@@ -585,7 +585,7 @@ namespace CSMWorld
         if (subRowIndex < 0 || std::cmp_greater_equal(subRowIndex, conditions.size()))
             throw std::runtime_error("index out of range");
 
-        ConstInfoSelectWrapper infoSelectWrapper(conditions[subRowIndex]);
+        ConstInfoSelectWrapper infoSelectWrapper(conditions[static_cast<std::size_t>(subRowIndex)]);
 
         switch (subColIndex)
         {
@@ -623,7 +623,7 @@ namespace CSMWorld
         if (subRowIndex < 0 || std::cmp_greater_equal(subRowIndex, conditions.size()))
             throw std::runtime_error("index out of range");
 
-        InfoSelectWrapper infoSelectWrapper(conditions[subRowIndex]);
+        InfoSelectWrapper infoSelectWrapper(conditions[static_cast<std::size_t>(subRowIndex)]);
         bool conversionResult = false;
 
         switch (subColIndex)
@@ -813,9 +813,10 @@ namespace CSMWorld
         switch (subColIndex)
         {
             case 0:
-                return ESM::Skill::refIdToIndex(race.mData.mBonus[subRowIndex].mSkill); // can be -1
+                return ESM::Skill::refIdToIndex(
+                    race.mData.mBonus[static_cast<std::size_t>(subRowIndex)].mSkill); // can be -1
             case 1:
-                return race.mData.mBonus[subRowIndex].mBonus;
+                return race.mData.mBonus[static_cast<std::size_t>(subRowIndex)].mBonus;
             default:
                 throw std::runtime_error("Race skill bonus subcolumn index out of range");
         }
@@ -832,10 +833,11 @@ namespace CSMWorld
         switch (subColIndex)
         {
             case 0:
-                race.mData.mBonus[subRowIndex].mSkill = ESM::Skill::indexToRefId(value.toInt());
+                race.mData.mBonus[static_cast<std::size_t>(subRowIndex)].mSkill
+                    = ESM::Skill::indexToRefId(value.toInt());
                 break; // can be -1
             case 1:
-                race.mData.mBonus[subRowIndex].mBonus = value.toInt();
+                race.mData.mBonus[static_cast<std::size_t>(subRowIndex)].mBonus = value.toInt();
                 break;
             default:
                 throw std::runtime_error("Race skill bonus subcolumn index out of range");
@@ -935,7 +937,7 @@ namespace CSMWorld
             {
                 if (isInterior && !behaveLikeExterior)
                 {
-                    cell.mAmbi.mAmbient = static_cast<int32_t>(value.toInt());
+                    cell.mAmbi.mAmbient = static_cast<ESM::Color>(value.toInt());
                     cell.setHasAmbient(true);
                 }
                 else
@@ -946,7 +948,7 @@ namespace CSMWorld
             {
                 if (isInterior && !behaveLikeExterior)
                 {
-                    cell.mAmbi.mSunlight = static_cast<int32_t>(value.toInt());
+                    cell.mAmbi.mSunlight = static_cast<ESM::Color>(value.toInt());
                     cell.setHasAmbient(true);
                 }
                 else
@@ -957,7 +959,7 @@ namespace CSMWorld
             {
                 if (isInterior && !behaveLikeExterior)
                 {
-                    cell.mAmbi.mFog = static_cast<int32_t>(value.toInt());
+                    cell.mAmbi.mFog = static_cast<ESM::Color>(value.toInt());
                     cell.setHasAmbient(true);
                 }
                 else
@@ -1107,12 +1109,12 @@ namespace CSMWorld
     {
         const ESM::Faction& faction = record.get();
 
-        const auto& rankData = faction.mData.mRankData.at(subRowIndex);
+        const auto& rankData = faction.mData.mRankData.at(static_cast<std::size_t>(subRowIndex));
 
         switch (subColIndex)
         {
             case 0:
-                return QString(faction.mRanks[subRowIndex].c_str());
+                return QString(faction.mRanks[static_cast<std::size_t>(subRowIndex)].c_str());
             case 1:
                 return rankData.mAttribute1;
             case 2:
@@ -1133,12 +1135,12 @@ namespace CSMWorld
     {
         ESM::Faction faction = record.get();
 
-        auto& rankData = faction.mData.mRankData.at(subRowIndex);
+        auto& rankData = faction.mData.mRankData.at(static_cast<std::size_t>(subRowIndex));
 
         switch (subColIndex)
         {
             case 0:
-                faction.mRanks[subRowIndex] = value.toString().toUtf8().constData();
+                faction.mRanks[static_cast<std::size_t>(subRowIndex)] = value.toString().toUtf8().constData();
                 break;
             case 1:
                 rankData.mAttribute1 = value.toInt();

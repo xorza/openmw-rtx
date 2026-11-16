@@ -102,13 +102,14 @@ namespace Fx
                 else
                 {
                     auto uvalue = mUniform->template getValue<UType>();
-                    uvalue[mIndex] = mValue;
+                    uvalue.ptr()[mIndex] = mValue;
                     mUniform->template setValue<UType>(uvalue);
-                    range = mUniform->template getMax<UType>()[mIndex] - mUniform->template getMin<UType>()[mIndex];
-                    min = mUniform->template getMin<UType>()[mIndex];
+                    range = mUniform->template getMax<UType>().ptr()[mIndex]
+                        - mUniform->template getMin<UType>().ptr()[mIndex];
+                    min = mUniform->template getMin<UType>().ptr()[mIndex];
                 }
 
-                float fill = (range == 0.f) ? 1.f : (mValue - min) / range;
+                float fill = (range == 0.f) ? 1.f : (static_cast<float>(mValue) - min) / range;
                 mFill->setRealSize(fill, 1.0);
             }
 
@@ -119,7 +120,7 @@ namespace Fx
                 if constexpr (std::is_fundamental_v<UType>)
                     value = mUniform->template getValue<UType>();
                 else
-                    value = mUniform->template getValue<UType>()[mIndex];
+                    value = mUniform->template getValue<UType>().ptr()[mIndex];
 
                 setValue(value);
             }
@@ -129,7 +130,7 @@ namespace Fx
                 if constexpr (std::is_fundamental_v<UType>)
                     setValue(mUniform->template getDefault<UType>());
                 else
-                    setValue(mUniform->template getDefault<UType>()[mIndex]);
+                    setValue(mUniform->template getDefault<UType>().ptr()[mIndex]);
             }
 
         private:
@@ -201,8 +202,9 @@ namespace Fx
                     setValue(std::clamp<T>(mUniform->template getValue<UType>() + step,
                         mUniform->template getMin<UType>(), mUniform->template getMax<T>()));
                 else
-                    setValue(std::clamp<T>(mUniform->template getValue<UType>()[mIndex] + step,
-                        mUniform->template getMin<UType>()[mIndex], mUniform->template getMax<UType>()[mIndex]));
+                    setValue(std::clamp<T>(mUniform->template getValue<UType>().ptr()[mIndex] + step,
+                        mUniform->template getMin<UType>().ptr()[mIndex],
+                        mUniform->template getMax<UType>().ptr()[mIndex]));
             }
 
             void notifyButtonClicked(MyGUI::Widget* sender)

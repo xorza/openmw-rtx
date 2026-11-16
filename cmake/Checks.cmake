@@ -69,8 +69,6 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
             /wd4127 # Conditional expression is constant
             /wd4996 # Function was declared deprecated
             /wd5054 # Deprecated operations between enumerations of different types caused by Qt headers
-            /wd4244 # Implicit narrowing between arithmetic types (-Wconversion, which -Wall -Wextra leave out)
-            /wd4267 # Implicit narrowing of a size_t (the same)
             /w14855 # implicit capture of 'this' via '[=]' is deprecated in 'version'
     )
 else()
@@ -86,10 +84,15 @@ else()
             -Wnon-virtual-dtor
             -Wshadow
             # Beyond upstream's. Rejected: `-Wfloat-equal`, for deliberate sentinels; `-Wold-style-cast`, which
-            # fires inside OpenSceneGraph's and MyGUI's headers; and `-Wdouble-promotion`, which on Clang takes every
-            # implicit promotion, not arithmetic's only, and fired 614 times in a tree GCC's passed.
+            # fires inside OpenSceneGraph's and MyGUI's headers; `-Wdouble-promotion`, which on Clang takes every
+            # implicit promotion, not arithmetic's only, and fired 614 times in a tree GCC's passed; and
+            # `-Wformat=2`, whose one addition on Clang, `-Wformat-nonliteral`, fires only inside
+            # `Misc::StringUtils::format`, which hands its caller's format on, while a `format` attribute that would
+            # check the callers instead refuses the `std::string` they pass for `%s`.
             -Wnull-dereference
             -Wcast-qual
+            -Wconversion
+            -Wimplicit-fallthrough
             $<$<COMPILE_LANGUAGE:CXX>:-Wsuggest-override>
             $<$<COMPILE_LANGUAGE:CXX>:-Wzero-as-null-pointer-constant>
             -Wno-potentially-evaluated-expression

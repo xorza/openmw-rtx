@@ -168,7 +168,8 @@ namespace Resource
             {
                 auto kwEnd = std::find(kwBegin, kwList.end(), ';');
 
-                const auto kw = kwList.substr(std::distance(kwList.begin(), kwBegin), std::distance(kwBegin, kwEnd));
+                const auto kw = kwList.substr(static_cast<std::size_t>(std::distance(kwList.begin(), kwBegin)),
+                    static_cast<std::size_t>(std::distance(kwBegin, kwEnd)));
 
                 if (kw == "gpu")
                     collectStatGPU = true;

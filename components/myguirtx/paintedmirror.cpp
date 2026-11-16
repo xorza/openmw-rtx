@@ -45,7 +45,8 @@ namespace MyGUIRtx
             const std::size_t rowBytes = static_cast<std::size_t>(region.mWidth) * 4;
             for (int row = 0; row < region.mHeight; ++row)
                 std::memcpy(into.data() + rowBytes * static_cast<std::size_t>(row),
-                    image.data(region.mX, region.mY + row), rowBytes);
+                    image.data(static_cast<unsigned int>(region.mX), static_cast<unsigned int>(region.mY + row)),
+                    rowBytes);
         });
         mSent = true;
     }

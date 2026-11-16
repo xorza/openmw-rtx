@@ -515,7 +515,7 @@ namespace MWWorld
 
     void ESMStore::setIdType(const ESM::RefId& id, ESM::RecNameInts type)
     {
-        mStoreImp->mIds[id] = type;
+        mStoreImp->mIds[id] = static_cast<int>(type);
     }
 
     ESM::LuaScriptsCfg ESMStore::getLuaScriptsCfg() const
@@ -570,12 +570,12 @@ namespace MWWorld
         mStoreImp->mIds.clear();
         for (const auto& [recordType, store] : mStoreImp->mRecNameToStore)
         {
-            if (isCacheableRecord(recordType))
+            if (isCacheableRecord(static_cast<int>(recordType)))
             {
                 std::vector<ESM::RefId> identifiers;
                 store->listIdentifier(identifiers);
                 for (auto& record : identifiers)
-                    mStoreImp->mIds[record] = recordType;
+                    mStoreImp->mIds[record] = static_cast<int>(recordType);
             }
         }
     }

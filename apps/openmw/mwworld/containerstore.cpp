@@ -51,7 +51,7 @@ namespace
         for (const MWWorld::LiveCellRef<T>& liveCellRef : cellRefList.mList)
         {
             if (const int count = liveCellRef.mRef.getCount(); count > 0)
-                sum += count * liveCellRef.mBase->mData.mWeight;
+                sum += static_cast<float>(count) * liveCellRef.mBase->mData.mWeight;
         }
 
         return sum;

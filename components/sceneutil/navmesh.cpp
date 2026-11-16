@@ -89,7 +89,8 @@ namespace
                 // This is really slow.
                 for (int k = 0; std::cmp_less(k, pd->triCount); ++k)
                 {
-                    const unsigned char* t = &tile->detailTris[(static_cast<std::size_t>(pd->triBase + k) * 4)];
+                    const unsigned char* t
+                        = &tile->detailTris[(static_cast<std::size_t>(pd->triBase + static_cast<unsigned int>(k)) * 4)];
                     const float* tv[3];
                     for (int m = 0; m < 3; ++m)
                     {
@@ -184,7 +185,8 @@ namespace
 
             for (int j = 0; std::cmp_less(j, pd->triCount); ++j)
             {
-                const unsigned char* t = &tile->detailTris[(static_cast<std::size_t>(pd->triBase + j) * 4)];
+                const unsigned char* t
+                    = &tile->detailTris[(static_cast<std::size_t>(pd->triBase + static_cast<unsigned int>(j)) * 4)];
                 for (int k = 0; k < 3; ++k)
                 {
                     if (t[k] < p->vertCount)

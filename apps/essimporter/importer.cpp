@@ -69,10 +69,10 @@ namespace
         {
             for (int x = 0; x < 128; ++x)
             {
-                assert(image->data(x, y));
-                *(image->data(x, y) + 2) = *it++;
-                *(image->data(x, y) + 1) = *it++;
-                *image->data(x, y) = *it++;
+                assert(image->data(static_cast<unsigned int>(x), static_cast<unsigned int>(y)));
+                *(image->data(static_cast<unsigned int>(x), static_cast<unsigned int>(y)) + 2) = *it++;
+                *(image->data(static_cast<unsigned int>(x), static_cast<unsigned int>(y)) + 1) = *it++;
+                *image->data(static_cast<unsigned int>(x), static_cast<unsigned int>(y)) = *it++;
                 ++it; // skip alpha
             }
         }

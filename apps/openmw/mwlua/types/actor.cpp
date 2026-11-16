@@ -92,8 +92,8 @@ namespace MWLua
                     = std::find(allowedSlots.begin(), allowedSlots.end(), slot) != allowedSlots.end();
                 if (!requestedSlotIsAllowed)
                 {
-                    auto firstAllowed
-                        = std::find_if(allowedSlots.begin(), allowedSlots.end(), [&](int s) { return !usedSlots[s]; });
+                    auto firstAllowed = std::find_if(allowedSlots.begin(), allowedSlots.end(),
+                        [&](int s) { return !usedSlots[static_cast<std::size_t>(s)]; });
                     if (firstAllowed == allowedSlots.end())
                     {
                         Log(Debug::Warning) << "No suitable slot for " << itemPtr.toString();
@@ -133,7 +133,7 @@ namespace MWLua
                     continue;
                 }
                 if (tryEquipToSlot(slot, newIt->second))
-                    usedSlots[slot] = true;
+                    usedSlots[static_cast<std::size_t>(slot)] = true;
             }
             for (const auto& [slot, item] : equipment)
                 if (slot >= MWWorld::InventoryStore::Slots)

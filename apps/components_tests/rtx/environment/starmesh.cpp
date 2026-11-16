@@ -1,3 +1,4 @@
+#include <array>
 #include <cmath>
 #include <string>
 #include <utility>
@@ -51,7 +52,7 @@ namespace Rtx
             patch->setVertexArray(vertices);
             patch->setTexCoordArray(0, coords, osg::Array::BIND_PER_VERTEX);
             osg::ref_ptr<osg::DrawElementsUShort> triangles = new osg::DrawElementsUShort(GL_TRIANGLES);
-            for (const unsigned short index : { 0, 1, 2, 0, 2, 3 })
+            for (const unsigned short index : std::array<unsigned short, 6>{ 0, 1, 2, 0, 2, 3 })
                 triangles->push_back(index);
             patch->addPrimitiveSet(triangles);
             return patch;

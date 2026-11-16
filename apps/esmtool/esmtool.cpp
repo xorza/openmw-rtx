@@ -407,7 +407,7 @@ namespace
                     continue;
                 }
 
-                record->setFlags(static_cast<int>(flags));
+                record->setFlags(static_cast<std::uint32_t>(static_cast<int>(flags)));
                 record->setPrintPlain(info.plain_given);
                 record->load(esm);
 
@@ -534,7 +534,7 @@ namespace
         for (std::pair<int, int> stat : data.mRecordStats)
         {
             ESM::NAME name;
-            name = stat.first;
+            name = static_cast<std::uint32_t>(stat.first);
             int amount = stat.second;
             std::cout << std::setw(digitCount) << amount << " " << name.toStringView() << "  ";
             if (++i % 3 == 0)

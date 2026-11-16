@@ -113,7 +113,7 @@ void CSMTools::MergeReferencesStage::perform(int stage, CSMDoc::Messages& messag
 
         ref.mOriginalCell = ref.mCell;
 
-        ref.mRefNum.mIndex = mIndex[ref.mCell]++;
+        ref.mRefNum.mIndex = static_cast<std::uint32_t>(mIndex[ref.mCell]++);
         ref.mRefNum.mContentFile = -1;
         ref.mNew = false;
 

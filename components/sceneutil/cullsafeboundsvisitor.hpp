@@ -54,7 +54,7 @@ namespace SceneUtil
             else if (bbox.valid())
             {
                 for (int i = 0; i < 8; ++i)
-                    mBoundingBox.expandBy(bbox.corner(i) * mMatrixStack.back());
+                    mBoundingBox.expandBy(bbox.corner(static_cast<unsigned int>(i)) * mMatrixStack.back());
             }
         }
 

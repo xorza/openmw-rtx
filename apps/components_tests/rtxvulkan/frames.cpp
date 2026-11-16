@@ -498,7 +498,7 @@ namespace Rtx
             EXPECT_NEAR(toward.mByInstance.z(), 9.9992f, 0.01f) << "the surface came ten units nearer";
 
             for (const Moved& moved : { across, toward })
-                for (std::size_t axis = 0; axis < 3; ++axis)
+                for (int axis = 0; axis < 3; ++axis)
                     EXPECT_NEAR(moved.mByPose[axis], moved.mByInstance[axis], 1e-3f)
                         << "axis " << axis << ": a pose and an instance moved the same step";
 

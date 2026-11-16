@@ -78,7 +78,7 @@ namespace Terrain
         stateSet->setAttributeAndModes(polygonmode, osg::StateAttribute::ON);
 
         sceneManager->recreateShaders(borderGroup, "debug");
-        borderGroup->setNodeMask(mask);
+        borderGroup->setNodeMask(static_cast<osg::Node::NodeMask>(mask));
 
         return borderGroup;
     }

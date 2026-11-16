@@ -28,7 +28,7 @@ namespace
     inline void accumulateModeState(const osg::StateSet* ss, bool& currentValue, bool& isOverride, int mode)
     {
         const osg::StateSet::ModeList& l = ss->getModeList();
-        auto mf = l.find(mode);
+        auto mf = l.find(static_cast<osg::StateAttribute::GLMode>(mode));
         if (mf == l.end())
             return;
         unsigned int flags = mf->second;

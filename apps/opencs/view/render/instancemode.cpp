@@ -895,9 +895,9 @@ void CSVRender::InstanceMode::drag(const QPoint& pos, int diffX, int diffY, doub
                 float addToX = mousePos.x() - mDragStart.x();
                 float addToY = mousePos.y() - mDragStart.y();
                 float addToZ = mousePos.z() - mDragStart.z();
-                position.pos[0] = mObjectsAtDragStart[i].x() + addToX;
-                position.pos[1] = mObjectsAtDragStart[i].y() + addToY;
-                position.pos[2] = mObjectsAtDragStart[i].z() + addToZ;
+                position.pos[0] = mObjectsAtDragStart[static_cast<std::size_t>(i)].x() + addToX;
+                position.pos[1] = mObjectsAtDragStart[static_cast<std::size_t>(i)].y() + addToY;
+                position.pos[2] = mObjectsAtDragStart[static_cast<std::size_t>(i)].z() + addToZ;
 
                 if (mDragMode == DragMode_Move_Snap)
                 {
@@ -908,8 +908,9 @@ void CSVRender::InstanceMode::drag(const QPoint& pos, int diffX, int diffY, doub
                         osg::Vec3 translation(addToX, addToY, addToZ);
 
                         auto snapTargetPosition = snapTarget->mObject->getPosition();
-                        auto newPosition = calculateSnapPositionRelativeToTarget(mObjectsAtDragStart[i],
-                            snapTargetPosition.asVec3(), snapTargetPosition.asRotationVec3(), translation, snap);
+                        auto newPosition
+                            = calculateSnapPositionRelativeToTarget(mObjectsAtDragStart[static_cast<std::size_t>(i)],
+                                snapTargetPosition.asVec3(), snapTargetPosition.asRotationVec3(), translation, snap);
 
                         position.pos[0] = newPosition[0];
                         position.pos[1] = newPosition[1];
@@ -929,7 +930,7 @@ void CSVRender::InstanceMode::drag(const QPoint& pos, int diffX, int diffY, doub
                     for (int j = 0; j < 3; ++j)
                     {
                         if (j != mDragAxis)
-                            position.pos[j] = mObjectsAtDragStart[i][j];
+                            position.pos[j] = mObjectsAtDragStart[static_cast<std::size_t>(i)][j];
                     }
                 }
 
@@ -1157,7 +1158,7 @@ void CSVRender::InstanceMode::dragWheel(int diff, double speedFactor)
                 osg::Vec3f thisPoint(position.pos[0], position.pos[1], position.pos[2]);
                 mDragStart = getMousePlaneCoords(
                     getWorldspaceWidget().mapFromGlobal(QCursor::pos()), getProjectionSpaceCoords(thisPoint));
-                mObjectsAtDragStart[j] = thisPoint;
+                mObjectsAtDragStart[static_cast<std::size_t>(j)] = thisPoint;
             }
         }
     }
@@ -1387,7 +1388,7 @@ void CSVRender::InstanceMode::dropToCollision()
     for (const osg::ref_ptr<TagBase>& tag : selection)
         if (auto* objectTag = dynamic_cast<CSVRender::ObjectTag*>(tag.get()))
         {
-            float objectHeight = dropObjectDataHandler.mObjectHeights[counter++];
+            float objectHeight = dropObjectDataHandler.mObjectHeights[static_cast<std::size_t>(counter++)];
             float dropHeight = calculateDropHeight(objectTag->mObject, objectHeight);
             dropInstance(objectTag->mObject, dropHeight);
             objectTag->mObject->apply(macro);
@@ -1430,7 +1431,7 @@ CSVRender::DropObjectHeightHandler::~DropObjectHeightHandler()
         if (auto* objectTag = dynamic_cast<CSVRender::ObjectTag*>(tag.get()))
         {
             osg::ref_ptr<osg::Group> objectNodeWithGUI = objectTag->mObject->getRootNode();
-            objectNodeWithGUI->setNodeMask(mOldMasks[counter]);
+            objectNodeWithGUI->setNodeMask(mOldMasks[static_cast<std::size_t>(counter)]);
             counter++;
         }
     }

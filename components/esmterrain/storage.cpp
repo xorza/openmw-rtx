@@ -142,7 +142,8 @@ namespace ESMTerrain
             {
                 for (int col = startColumn; col < endColumn; ++col)
                 {
-                    float h = data->getHeights()[col * landSize + row];
+                    float h = data->getHeights()[static_cast<std::size_t>(col) * static_cast<std::size_t>(landSize)
+                        + static_cast<std::size_t>(row)];
                     max = std::max(h, max);
                     min = std::min(h, min);
                 }
@@ -185,9 +186,17 @@ namespace ESMTerrain
         const ESM::LandData* data = land ? land->getData(ESM::Land::DATA_VNML) : nullptr;
         if (data)
         {
-            normal.x() = data->getNormals()[col * landSize * 3 + row * 3];
-            normal.y() = data->getNormals()[col * landSize * 3 + row * 3 + 1];
-            normal.z() = data->getNormals()[col * landSize * 3 + row * 3 + 2];
+            normal.x() = data->getNormals()[(static_cast<std::size_t>(col) * static_cast<std::size_t>(landSize)
+                                                + static_cast<std::size_t>(row))
+                * 3];
+            normal.y() = data->getNormals()[(static_cast<std::size_t>(col) * static_cast<std::size_t>(landSize)
+                                                + static_cast<std::size_t>(row))
+                    * 3
+                + 1];
+            normal.z() = data->getNormals()[(static_cast<std::size_t>(col) * static_cast<std::size_t>(landSize)
+                                                + static_cast<std::size_t>(row))
+                    * 3
+                + 2];
             normal.normalize();
         }
         else
@@ -226,9 +235,17 @@ namespace ESMTerrain
         const ESM::LandData* data = land ? land->getData(ESM::Land::DATA_VCLR) : nullptr;
         if (data)
         {
-            color.r() = data->getColors()[col * landSize * 3 + row * 3];
-            color.g() = data->getColors()[col * landSize * 3 + row * 3 + 1];
-            color.b() = data->getColors()[col * landSize * 3 + row * 3 + 2];
+            color.r() = data->getColors()[(static_cast<std::size_t>(col) * static_cast<std::size_t>(landSize)
+                                              + static_cast<std::size_t>(row))
+                * 3];
+            color.g() = data->getColors()[(static_cast<std::size_t>(col) * static_cast<std::size_t>(landSize)
+                                              + static_cast<std::size_t>(row))
+                    * 3
+                + 1];
+            color.b() = data->getColors()[(static_cast<std::size_t>(col) * static_cast<std::size_t>(landSize)
+                                              + static_cast<std::size_t>(row))
+                    * 3
+                + 2];
         }
         else
         {
@@ -443,7 +460,7 @@ namespace ESMTerrain
                 quad = sample.mSrcCol == 0 ? 0 : 2;
             else
                 quad = sample.mSrcCol == 0 ? 1 : 3;
-            const ESM4::Land::Texture& ltex = ldata->getEsm4Texture(quad);
+            const ESM4::Land::Texture& ltex = ldata->getEsm4Texture(static_cast<std::size_t>(quad));
 
             unsigned char* const baseBlendmap = getOrCreateBlendmap(ESM::FormId::fromUint32(ltex.base.formId));
             int starty = (static_cast<int>(sample.mDstCol) - 1) * quadSize;
@@ -495,7 +512,7 @@ namespace ESMTerrain
         const osg::Vec2f origin = chunkCenter - osg::Vec2f(chunkSize, chunkSize) * 0.5f;
         const int startCellX = static_cast<int>(std::floor(origin.x()));
         const int startCellY = static_cast<int>(std::floor(origin.y()));
-        const std::size_t blendmapSize = getBlendmapSize(chunkSize, ESM::Land::LAND_TEXTURE_SIZE);
+        const auto blendmapSize = static_cast<std::size_t>(getBlendmapSize(chunkSize, ESM::Land::LAND_TEXTURE_SIZE));
         // We need to upscale the blendmap 2x with nearest neighbor sampling to look like Vanilla
         constexpr std::size_t imageScaleFactor = 2;
         const std::size_t blendmapImageSize = blendmapSize * imageScaleFactor;

@@ -72,7 +72,7 @@ namespace
                 {
                     return nullptr;
                 }
-                return store.at(LuaUtil::fromLuaIndex(static_cast<std::int64_t>(index)));
+                return store.at(static_cast<std::size_t>(LuaUtil::fromLuaIndex(static_cast<std::int64_t>(index))));
             },
             [](const StoreT& store, std::string_view id) -> const ESM::Dialogue* {
                 return store.search(ESM::RefId::deserializeText(id));

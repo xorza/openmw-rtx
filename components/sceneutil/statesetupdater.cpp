@@ -25,10 +25,10 @@ namespace SceneUtil
         {
             for (int i = 0; i < 2; ++i)
             {
-                mStateSetsUpdate[i] = new osg::StateSet(*node->getOrCreateStateSet(),
+                mStateSetsUpdate[static_cast<std::size_t>(i)] = new osg::StateSet(*node->getOrCreateStateSet(),
                     osg::CopyOp::SHALLOW_COPY); // Using SHALLOW_COPY for StateAttributes, if users want to modify it is
                                                 // their responsibility to set a non-shared one first in setDefaults
-                setDefaults(mStateSetsUpdate[i]);
+                setDefaults(mStateSetsUpdate[static_cast<std::size_t>(i)]);
             }
         }
 

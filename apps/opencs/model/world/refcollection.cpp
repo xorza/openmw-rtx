@@ -171,7 +171,7 @@ void CSMWorld::RefCollection::load(ESM::ESMReader& reader, int cellIndex, bool b
         if (iter == cache.end())
         {
             // new reference
-            ref.mIdNum = mNextId; // FIXME: fragile
+            ref.mIdNum = static_cast<unsigned int>(mNextId); // FIXME: fragile
             ref.mId = ESM::RefId::stringRefId(getNewId());
 
             if (!base && ref.mRefNum.mIndex > mHighestUsedRefNum)

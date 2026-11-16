@@ -148,7 +148,7 @@ CSMFilter::Token CSMFilter::Parser::getStringToken()
 
     for (; mIndex < size; ++mIndex)
     {
-        char c = mInput[mIndex];
+        char c = mInput[static_cast<std::size_t>(mIndex)];
 
         if (isAlpha(c) || c == ':' || c == '_' || (!string.empty() && isDigit(c)) || c == '"'
             || (!string.empty() && string[0] == '"'))
@@ -195,7 +195,7 @@ CSMFilter::Token CSMFilter::Parser::getNumberToken()
 
     for (; mIndex < size; ++mIndex)
     {
-        char c = mInput[mIndex];
+        char c = mInput[static_cast<std::size_t>(mIndex)];
 
         if (isDigit(c))
         {
@@ -256,7 +256,7 @@ CSMFilter::Token CSMFilter::Parser::getNextToken()
 
     for (; mIndex < size; ++mIndex)
     {
-        c = mInput[mIndex];
+        c = mInput[static_cast<std::size_t>(mIndex)];
 
         if (c != ' ')
             break;

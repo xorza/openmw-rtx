@@ -808,7 +808,7 @@ namespace Shader
     {
         // TODO: Reuse units when count increase forces reallocation
         // TODO: Warn if trampling on the ~8 units needed by model textures
-        auto unit = mReservedTextureUnitsBySlot[static_cast<int>(slot)];
+        auto unit = mReservedTextureUnitsBySlot[static_cast<std::size_t>(static_cast<int>(slot))];
         if (unit.index >= 0 && unit.count >= count)
             return unit.index;
 
@@ -819,7 +819,7 @@ namespace Shader
         unit.index = mMaxTextureUnits - mReservedTextureUnits;
         unit.count = count;
 
-        mReservedTextureUnitsBySlot[static_cast<int>(slot)] = unit;
+        mReservedTextureUnitsBySlot[static_cast<std::size_t>(static_cast<int>(slot))] = unit;
 
         std::string_view slotDescr;
         switch (slot)

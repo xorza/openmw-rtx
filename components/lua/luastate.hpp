@@ -176,7 +176,7 @@ namespace LuaUtil
         uint64_t getSmallAllocMemoryUsage() const { return mSmallAllocMemoryUsage; }
         uint64_t getMemoryUsageByScriptIndex(unsigned id) const
         {
-            return id < mMemoryUsage.size() ? mMemoryUsage[id] : 0;
+            return id < mMemoryUsage.size() ? static_cast<std::uint64_t>(mMemoryUsage[id]) : 0;
         }
 
         const LuaStateSettings& getSettings() const { return mSettings; }

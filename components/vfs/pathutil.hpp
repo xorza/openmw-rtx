@@ -280,7 +280,7 @@ namespace VFS::Path
             if (it == mValue.rend() || *it == separator)
                 return false;
             const std::string::difference_type pos = mValue.rend() - it;
-            mValue.replace(pos, mValue.size(), extension.value());
+            mValue.replace(static_cast<std::size_t>(pos), mValue.size(), extension.value());
             return true;
         }
 
@@ -310,7 +310,7 @@ namespace VFS::Path
             const auto [begin, end]
                 = normalizeFilenameInPlace(mValue.begin() + static_cast<std::ptrdiff_t>(offset), mValue.end());
             std::copy(begin, end, mValue.begin() + static_cast<std::ptrdiff_t>(offset));
-            mValue.resize(offset + (end - begin));
+            mValue.resize(offset + (static_cast<std::size_t>(end - begin)));
         }
 
         void append(const std::string& value) { append(std::string_view(value)); }

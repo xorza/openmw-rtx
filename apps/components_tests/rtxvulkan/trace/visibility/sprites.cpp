@@ -1213,11 +1213,11 @@ namespace Rtx::Testing
             // Level nought is white and level one is red, so the green channel says which was read.
             TestTexture layered;
             for (std::uint32_t texel = 0; texel < 4 * 4; ++texel)
-                for (const std::uint8_t byte : { 255, 255, 255, 255 })
+                for (const std::uint8_t byte : std::array<std::uint8_t, 4>{ 255, 255, 255, 255 })
                     layered.mBytes.push_back(byte);
 
             for (std::uint32_t texel = 0; texel < 2 * 2; ++texel)
-                for (const std::uint8_t byte : { 255, 0, 0, 255 })
+                for (const std::uint8_t byte : std::array<std::uint8_t, 4>{ 255, 0, 0, 255 })
                     layered.mBytes.push_back(byte);
 
             layered.mLevels.push_back(MipLevel{ .mOffset = 0, .mWidth = 4, .mHeight = 4 });

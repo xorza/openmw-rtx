@@ -548,7 +548,7 @@ std::string enchantmentFlags(int flags)
         properties += "[None] ";
     if (flags & ESM::Enchantment::Autocalc)
         properties += "Autocalc ";
-    if (flags & (0xFFFFFFFF ^ ESM::Enchantment::Autocalc))
+    if (static_cast<unsigned int>(flags) & (0xFFFFFFFF ^ ESM::Enchantment::Autocalc))
         properties += "Invalid ";
     properties += std::format("(0x{:08X})", flags);
     return properties;
@@ -578,7 +578,7 @@ std::string landFlags(std::uint32_t flags)
         properties += "Textures ";
     int unused = static_cast<int>(
         0xFFFFFFFF ^ (ESM::Land::Flag_HeightsNormals | ESM::Land::Flag_Colors | ESM::Land::Flag_Textures));
-    if (flags & unused)
+    if (flags & static_cast<std::uint32_t>(unused))
         properties += "Invalid ";
     properties += std::format("(0x{:08X})", flags);
     return properties;
@@ -688,7 +688,7 @@ std::string magicEffectFlags(int flags)
     if (flags & ESM::MagicEffect::NegativeLight)
         properties += "NegativeLight ";
 
-    if (flags & 0xFFFC0000)
+    if (static_cast<unsigned int>(flags) & 0xFFFC0000)
         properties += "Invalid ";
     properties += std::format("(0x{:08X})", flags);
     return properties;
@@ -788,7 +788,7 @@ std::string recordFlags(uint32_t flags)
     if (flags & ESM::FLAG_Blocked)
         properties += "Blocked ";
     int unused = ~(ESM::FLAG_Deleted | ESM::FLAG_Persistent | ESM::FLAG_Ignored | ESM::FLAG_Blocked);
-    if (flags & unused)
+    if (flags & static_cast<std::uint32_t>(unused))
         properties += "Invalid ";
     properties += std::format("(0x{:08X})", flags);
     return properties;
@@ -801,7 +801,7 @@ std::string potionFlags(int flags)
         properties += "[None] ";
     if (flags & ESM::Potion::Autocalc)
         properties += "Autocalc ";
-    if (flags & (0xFFFFFFFF ^ ESM::Enchantment::Autocalc))
+    if (static_cast<unsigned int>(flags) & (0xFFFFFFFF ^ ESM::Enchantment::Autocalc))
         properties += "Invalid ";
     properties += std::format("(0x{:08X})", flags);
     return properties;

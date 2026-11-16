@@ -32,7 +32,7 @@ namespace Rtx
         std::vector<std::uint8_t> makeFrame(int width, int height, int step = 1)
         {
             std::vector<std::uint8_t> pixels;
-            pixels.reserve(static_cast<std::size_t>(width) * height * 4);
+            pixels.reserve(static_cast<std::size_t>(width) * static_cast<std::size_t>(height) * 4);
 
             for (int y = 0; y < height; ++y)
                 for (int x = 0; x < width; ++x)
@@ -46,7 +46,7 @@ namespace Rtx
         /// The red and green of one texel of a result, at whichever stride its format has.
         std::pair<std::uint8_t, std::uint8_t> at(const osg::Image& image, int x, int y)
         {
-            const std::uint8_t* row = image.data(0, y);
+            const std::uint8_t* row = image.data(0, static_cast<unsigned int>(y));
             const int stride = image.getPixelFormat() == GL_RGB ? 3 : 4;
             return { row[static_cast<std::ptrdiff_t>(x * stride)], row[x * stride + 1] };
         }
@@ -141,7 +141,8 @@ namespace Rtx
                             (std::pair<std::uint8_t, std::uint8_t>{
                                 static_cast<std::uint8_t>(10 * x), static_cast<std::uint8_t>(10 * row) }))
                             << "texel " << x << ", " << y;
-                        EXPECT_EQ(whole->data(0, y)[x * 3 + 2], 0) << "blue of texel " << x << ", " << y;
+                        EXPECT_EQ(whole->data(0, static_cast<unsigned int>(y))[x * 3 + 2], 0)
+                            << "blue of texel " << x << ", " << y;
                     }
             }
 

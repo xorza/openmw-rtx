@@ -34,7 +34,7 @@ namespace Compiler
 
         static int getCharLength(const char ch)
         {
-            unsigned char c = ch;
+            auto c = static_cast<unsigned char>(ch);
             if (c <= 127)
                 return 0;
             else if ((c & 0xE0) == 0xC0)
@@ -170,7 +170,7 @@ namespace Compiler
         std::string data() const
         {
             // NB: mLength is the number of the last element in the array
-            return std::string(mData, mLength + 1);
+            return std::string(mData, static_cast<std::size_t>(mLength + 1));
         }
 
     private:

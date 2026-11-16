@@ -102,7 +102,7 @@ namespace MyGUIRtx
         if (mNumElemBytes == 4 && !getSlot().isNone())
             return mRenderer.lendGuiTexture(getSlot(), whole()).data();
 
-        mPixels.assign(static_cast<std::size_t>(getWidth()) * getHeight() * mNumElemBytes, 0);
+        mPixels.assign(static_cast<std::size_t>(getWidth()) * static_cast<std::size_t>(getHeight()) * mNumElemBytes, 0);
         return mPixels.data();
     }
 
@@ -128,7 +128,7 @@ namespace MyGUIRtx
         // MyGUI asked for fewer channels than the table holds, so they are widened here rather than
         // by giving the table a second format to know about: a font atlas is written once and this
         // is the only place that knows what its bytes meant.
-        const std::size_t count = static_cast<std::size_t>(getWidth()) * getHeight();
+        const std::size_t count = static_cast<std::size_t>(getWidth()) * static_cast<std::size_t>(getHeight());
         std::uint8_t* const into = mRenderer.lendGuiTexture(getSlot(), whole()).data();
 
         // One loop a format, the format chosen once and not at every pixel.

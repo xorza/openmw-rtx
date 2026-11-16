@@ -833,7 +833,7 @@ namespace MWMechanics
                 // play until the Loop Stop key 2 to 5 times, then play until the Stop key
                 // this replicates original engine behavior for the "Idle1h" 1st-person animation
                 auto& prng = MWBase::Environment::get().getWorld()->getPrng();
-                numLoops = 1 + Misc::Rng::rollDice(4, prng);
+                numLoops = 1 + static_cast<std::size_t>(Misc::Rng::rollDice(4, prng));
             }
         }
 

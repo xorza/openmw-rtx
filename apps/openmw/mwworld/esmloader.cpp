@@ -55,7 +55,8 @@ namespace MWWorld
                 + ", but it is not available or has been loaded in the wrong order. "
                   "Please run the launcher to fix this issue.");
 
-                mGameFormats[index] = ESM::getGameFormat(reader->getVer(), std::nullopt);
+                mGameFormats[static_cast<std::size_t>(index)]
+                    = ESM::getGameFormat(static_cast<std::uint32_t>(reader->getVer()), std::nullopt);
                 mStore.load(*reader, listener, mDialogue);
 
                 if (!mMasterFileFormat.has_value()
@@ -69,17 +70,18 @@ namespace MWWorld
                 ESM4::Reader reader(std::move(stream), filepath,
                     MWBase::Environment::get().getResourceSystem()->getVFS(),
                     mEncoder != nullptr ? &mEncoder->getStatelessEncoder() : nullptr);
-                reader.setModIndex(index);
+                reader.setModIndex(static_cast<std::uint32_t>(index));
                 reader.updateModIndices(mNameToIndex);
 
                 // Collect previously-loaded masters' game formats to help detect this one
                 std::vector<ESM::GameFormat> masterFormats;
                 for (const ESM::MasterData& master : reader.getGameFiles())
-                    masterFormats.push_back(mGameFormats[mNameToIndex.at(Misc::StringUtils::lowerCase(master.name))]);
+                    masterFormats.push_back(mGameFormats[static_cast<std::size_t>(
+                        mNameToIndex.at(Misc::StringUtils::lowerCase(master.name)))]);
 
                 reader.setGameFormat(ESM::getGameFormat(
                     reader.esmVersion(), reader.headerFormVersion(), reader.getGameFiles(), masterFormats));
-                mGameFormats[index] = reader.gameFormat();
+                mGameFormats[static_cast<std::size_t>(index)] = reader.gameFormat();
                 mStore.loadESM4(reader, listener);
                 break;
             }

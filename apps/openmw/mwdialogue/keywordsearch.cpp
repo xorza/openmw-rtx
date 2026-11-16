@@ -57,7 +57,8 @@ namespace MWDialogue
                 if (!current->mKeyword.empty())
                 {
                     std::string_view remainingText(it + 1, end);
-                    std::string_view remainingKeyword = std::string_view(current->mKeyword).substr(it + 1 - i);
+                    std::string_view remainingKeyword
+                        = std::string_view(current->mKeyword).substr(static_cast<std::size_t>(it + 1 - i));
                     if (Misc::StringUtils::ciStartsWith(remainingText, remainingKeyword))
                         matches.emplace_back(
                             i, i + static_cast<std::ptrdiff_t>(current->mKeyword.size()), current->mTopicId);
@@ -71,7 +72,7 @@ namespace MWDialogue
             auto longestKeyword = matches.begin();
             for (auto it = matches.begin(); it != matches.end(); ++it)
             {
-                std::size_t size = it->mEnd - it->mBeg;
+                auto size = static_cast<std::size_t>(it->mEnd - it->mBeg);
                 if (size > longestKeywordSize)
                 {
                     longestKeywordSize = size;

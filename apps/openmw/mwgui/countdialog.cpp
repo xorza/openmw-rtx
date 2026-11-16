@@ -40,7 +40,7 @@ namespace MWGui
 
         MyGUI::IntSize viewSize = MyGUI::RenderManager::getInstance().getViewSize();
 
-        mSlider->setScrollRange(maxCount);
+        mSlider->setScrollRange(static_cast<std::size_t>(maxCount));
         mItemText->setCaptionWithReplacing(item);
 
         int width = std::max(mItemText->getTextSize().width + 160, 320);
@@ -50,7 +50,7 @@ namespace MWGui
         // by default, the text edit field has the focus of the keyboard
         MWBase::Environment::get().getWindowManager()->setKeyFocusWidget(mItemEdit);
 
-        mSlider->setScrollPosition(maxCount - 1);
+        mSlider->setScrollPosition(static_cast<std::size_t>(maxCount - 1));
 
         mItemEdit->setMinValue(1);
         mItemEdit->setMaxValue(maxCount);
@@ -60,7 +60,7 @@ namespace MWGui
     void CountDialog::setCount(int count)
     {
         count = std::clamp(count, 1, static_cast<int>(mSlider->getScrollRange()));
-        mSlider->setScrollPosition(count - 1);
+        mSlider->setScrollPosition(static_cast<std::size_t>(count - 1));
         mItemEdit->setValue(count);
     }
 
@@ -88,7 +88,7 @@ namespace MWGui
 
     void CountDialog::onEditValueChanged(int value)
     {
-        mSlider->setScrollPosition(value - 1);
+        mSlider->setScrollPosition(static_cast<std::size_t>(value - 1));
     }
 
     void CountDialog::onSliderMoved(MyGUI::ScrollBar* sender, size_t position)

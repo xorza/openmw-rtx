@@ -631,7 +631,7 @@ namespace Bsa
         for (const auto& c : fileRecord.mTextureChunks)
         {
             const uint32_t inputSize = c.mPackedSize != 0 ? c.mPackedSize : c.mSize;
-            Files::IStreamPtr streamPtr = openRange(c.mOffset, inputSize);
+            Files::IStreamPtr streamPtr = openRange(static_cast<std::uint64_t>(c.mOffset), inputSize);
             if (c.mPackedSize != 0)
             {
                 streamPtr->read(inputBuffer.data(), c.mPackedSize);

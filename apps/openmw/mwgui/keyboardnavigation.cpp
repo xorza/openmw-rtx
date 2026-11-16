@@ -247,11 +247,12 @@ namespace MWGui
         std::ptrdiff_t index{ found - keyFocusList.begin() };
         index = forward ? (index + 1) : (index - 1);
         if (wrap)
-            index = static_cast<std::ptrdiff_t>((index + keyFocusList.size()) % keyFocusList.size());
+            index = static_cast<std::ptrdiff_t>(
+                (static_cast<std::size_t>(index) + keyFocusList.size()) % keyFocusList.size());
         else
             index = std::clamp<std::ptrdiff_t>(index, 0, static_cast<long>(keyFocusList.size() - 1));
 
-        MyGUI::Widget* next = keyFocusList[index];
+        MyGUI::Widget* next = keyFocusList[static_cast<std::size_t>(index)];
         int vertdiff = next->getTop() - focus->getTop();
         int horizdiff = next->getLeft() - focus->getLeft();
         bool isVertical = std::abs(vertdiff) > std::abs(horizdiff);
@@ -267,7 +268,7 @@ namespace MWGui
             return false;
         // NOLINTEND(bugprone-branch-clone)
 
-        MWBase::Environment::get().getWindowManager()->setKeyFocusWidget(keyFocusList[index]);
+        MWBase::Environment::get().getWindowManager()->setKeyFocusWidget(keyFocusList[static_cast<std::size_t>(index)]);
         return true;
     }
 

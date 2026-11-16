@@ -252,6 +252,7 @@ namespace Terrain
                             {
                                 reconstructNormalZ = true;
                                 parallax = false;
+                                break;
                             }
                             default:
                                 break;

@@ -159,7 +159,7 @@ namespace MWScript
         if (!mLocals)
             throw std::runtime_error("local variables not available in this context");
 
-        return mLocals->mShorts.at(index);
+        return mLocals->mShorts.at(static_cast<std::size_t>(index));
     }
 
     int InterpreterContext::getLocalLong(int index) const
@@ -167,7 +167,7 @@ namespace MWScript
         if (!mLocals)
             throw std::runtime_error("local variables not available in this context");
 
-        return mLocals->mLongs.at(index);
+        return mLocals->mLongs.at(static_cast<std::size_t>(index));
     }
 
     float InterpreterContext::getLocalFloat(int index) const
@@ -175,7 +175,7 @@ namespace MWScript
         if (!mLocals)
             throw std::runtime_error("local variables not available in this context");
 
-        return mLocals->mFloats.at(index);
+        return mLocals->mFloats.at(static_cast<std::size_t>(index));
     }
 
     void InterpreterContext::setLocalShort(int index, int value)
@@ -183,7 +183,7 @@ namespace MWScript
         if (!mLocals)
             throw std::runtime_error("local variables not available in this context");
 
-        mLocals->mShorts.at(index) = static_cast<Interpreter::Type_Short>(value);
+        mLocals->mShorts.at(static_cast<std::size_t>(index)) = static_cast<Interpreter::Type_Short>(value);
     }
 
     void InterpreterContext::setLocalLong(int index, int value)
@@ -191,7 +191,7 @@ namespace MWScript
         if (!mLocals)
             throw std::runtime_error("local variables not available in this context");
 
-        mLocals->mLongs.at(index) = value;
+        mLocals->mLongs.at(static_cast<std::size_t>(index)) = value;
     }
 
     void InterpreterContext::setLocalFloat(int index, float value)
@@ -199,7 +199,7 @@ namespace MWScript
         if (!mLocals)
             throw std::runtime_error("local variables not available in this context");
 
-        mLocals->mFloats.at(index) = value;
+        mLocals->mFloats.at(static_cast<std::size_t>(index)) = value;
     }
 
     void InterpreterContext::messageBox(std::string_view message, const std::vector<std::string>& buttons)
@@ -349,7 +349,7 @@ namespace MWScript
                                 << " in faction " << factionId;
             return "%";
         }
-        return faction->mRanks[rank];
+        return faction->mRanks[static_cast<std::size_t>(rank)];
     }
 
     std::string_view InterpreterContext::getPCName() const
@@ -401,7 +401,7 @@ namespace MWScript
         if (rank < 0 || rank > 9) // there are only 10 ranks
             return {};
 
-        return faction->mRanks[rank];
+        return faction->mRanks[static_cast<std::size_t>(rank)];
     }
 
     std::string_view InterpreterContext::getPCNextRank() const
@@ -433,7 +433,7 @@ namespace MWScript
         if (rank < 0)
             return {};
 
-        return faction->mRanks[rank];
+        return faction->mRanks[static_cast<std::size_t>(rank)];
     }
 
     int InterpreterContext::getPCBounty() const
@@ -463,42 +463,43 @@ namespace MWScript
     {
         const Locals& locals = getMemberLocals(global, id);
 
-        return locals.mShorts[findLocalVariableIndex(id, name, 's')];
+        return locals.mShorts[static_cast<std::size_t>(findLocalVariableIndex(id, name, 's'))];
     }
 
     int InterpreterContext::getMemberLong(ESM::RefId id, std::string_view name, bool global) const
     {
         const Locals& locals = getMemberLocals(global, id);
 
-        return locals.mLongs[findLocalVariableIndex(id, name, 'l')];
+        return locals.mLongs[static_cast<std::size_t>(findLocalVariableIndex(id, name, 'l'))];
     }
 
     float InterpreterContext::getMemberFloat(ESM::RefId id, std::string_view name, bool global) const
     {
         const Locals& locals = getMemberLocals(global, id);
 
-        return locals.mFloats[findLocalVariableIndex(id, name, 'f')];
+        return locals.mFloats[static_cast<std::size_t>(findLocalVariableIndex(id, name, 'f'))];
     }
 
     void InterpreterContext::setMemberShort(ESM::RefId id, std::string_view name, int value, bool global)
     {
         Locals& locals = getMemberLocals(global, id);
 
-        locals.mShorts[findLocalVariableIndex(id, name, 's')] = static_cast<Interpreter::Type_Short>(value);
+        locals.mShorts[static_cast<std::size_t>(findLocalVariableIndex(id, name, 's'))]
+            = static_cast<Interpreter::Type_Short>(value);
     }
 
     void InterpreterContext::setMemberLong(ESM::RefId id, std::string_view name, int value, bool global)
     {
         Locals& locals = getMemberLocals(global, id);
 
-        locals.mLongs[findLocalVariableIndex(id, name, 'l')] = value;
+        locals.mLongs[static_cast<std::size_t>(findLocalVariableIndex(id, name, 'l'))] = value;
     }
 
     void InterpreterContext::setMemberFloat(ESM::RefId id, std::string_view name, float value, bool global)
     {
         Locals& locals = getMemberLocals(global, id);
 
-        locals.mFloats[findLocalVariableIndex(id, name, 'f')] = value;
+        locals.mFloats[static_cast<std::size_t>(findLocalVariableIndex(id, name, 'f'))] = value;
     }
 
     MWWorld::Ptr InterpreterContext::getReference(bool required) const

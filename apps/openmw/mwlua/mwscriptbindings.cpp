@@ -334,7 +334,7 @@ namespace MWLua
             [](const GlobalStore& store, size_t index) -> sol::optional<float> {
                 if (index < 1 || store.getSize() < index)
                     return sol::nullopt;
-                auto g = store.at(LuaUtil::fromLuaIndex(static_cast<std::int64_t>(index)));
+                auto g = store.at(static_cast<std::size_t>(LuaUtil::fromLuaIndex(static_cast<std::int64_t>(index))));
                 if (g == nullptr)
                     return sol::nullopt;
                 std::string globalId = g->mId.serializeText();
@@ -350,7 +350,7 @@ namespace MWLua
             [](const GlobalStore& store, size_t index, float val) {
                 if (index < 1 || store.getSize() < index)
                     return;
-                auto g = store.at(LuaUtil::fromLuaIndex(static_cast<std::int64_t>(index)));
+                auto g = store.at(static_cast<std::size_t>(LuaUtil::fromLuaIndex(static_cast<std::int64_t>(index))));
                 if (g == nullptr)
                     return;
                 std::string globalId = g->mId.serializeText();

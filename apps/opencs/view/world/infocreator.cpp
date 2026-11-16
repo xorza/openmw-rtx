@@ -45,7 +45,7 @@ std::string CSVWorld::InfoCreator::getId() const
         end = start + 20; // 2^64 is a 20 digit number
         result = std::to_chars(start, end, gen64);
     }
-    id.resize(result.ptr - id.data());
+    id.resize(static_cast<std::size_t>(result.ptr - id.data()));
     return id;
 }
 

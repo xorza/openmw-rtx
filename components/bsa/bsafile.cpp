@@ -148,14 +148,14 @@ void BSAFile::readHeader(std::istream& input)
         fail("Directory information larger than entire archive");
 
     // Read the offset info into a temporary buffer
-    std::vector<uint32_t> offsets(3 * filenum);
+    std::vector<uint32_t> offsets(static_cast<std::size_t>(3 * filenum));
     input.read(reinterpret_cast<char*>(offsets.data()), 12 * filenum);
 
     if (input.fail())
         fail(std::format("Failed to read offsets: {}", std::generic_category().message(errno)));
 
     // Read the string table
-    mStringBuf.resize(dirsize - 12 * filenum);
+    mStringBuf.resize(static_cast<std::size_t>(dirsize - 12 * filenum));
     input.read(mStringBuf.data(), static_cast<std::streamsize>(mStringBuf.size()));
 
     if (input.fail())
@@ -163,7 +163,7 @@ void BSAFile::readHeader(std::istream& input)
 
     // Check our position
     assert(input.tellg() == std::streampos(12 + dirsize));
-    std::vector<Hash> hashes(filenum);
+    std::vector<Hash> hashes(static_cast<std::size_t>(filenum));
     static_assert(sizeof(Hash) == 8);
     input.read(reinterpret_cast<char*>(hashes.data()), 8 * filenum);
 
@@ -176,12 +176,13 @@ void BSAFile::readHeader(std::istream& input)
     const std::streamsize fileDataOffset = 12 + dirsize + 8 * filenum;
 
     // Set up the the FileStruct table
-    mFiles.reserve(filenum);
+    mFiles.reserve(static_cast<std::size_t>(filenum));
     size_t endOfNameBuffer = 0;
     for (std::streamsize i = 0; i < filenum; i++)
     {
-        const uint32_t fileSize = offsets[i * 2];
-        const std::streamsize offset = static_cast<std::streamsize>(offsets[i * 2 + 1]) + fileDataOffset;
+        const uint32_t fileSize = offsets[static_cast<std::size_t>(i * 2)];
+        const std::streamsize offset
+            = static_cast<std::streamsize>(offsets[static_cast<std::size_t>(i * 2 + 1)]) + fileDataOffset;
 
         if (fileSize + offset > fsize)
             fail(std::format("Archive contains offsets outside itself: {} + {} > {}", fileSize, offset, fsize));
@@ -190,7 +191,7 @@ void BSAFile::readHeader(std::istream& input)
             fail(std::format(
                 "Absolute file {} offset is too large: {} > {}", i, offset, std::numeric_limits<uint32_t>::max()));
 
-        const uint32_t nameOffset = offsets[2 * filenum + i];
+        const uint32_t nameOffset = offsets[static_cast<std::size_t>(2 * filenum + i)];
 
         if (nameOffset >= mStringBuf.size())
             fail("Archive contains names offset outside itself");
@@ -201,13 +202,13 @@ void BSAFile::readHeader(std::istream& input)
         if (end == nullptr)
             fail("Archive contains non-zero terminated string");
 
-        const std::size_t nameSize = end - begin;
+        const auto nameSize = static_cast<std::size_t>(end - begin);
 
         FileStruct fs;
 
         fs.mFileSize = fileSize;
         fs.mOffset = static_cast<uint32_t>(offset);
-        fs.mHash = hashes[i];
+        fs.mHash = hashes[static_cast<std::size_t>(i)];
         fs.mNameOffset = nameOffset;
         fs.mNameSize = static_cast<uint32_t>(nameSize);
         fs.mNamesBuffer = &mStringBuf;

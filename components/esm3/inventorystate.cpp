@@ -84,7 +84,7 @@ namespace ESM
             esm.getT(equipIndex);
             int32_t slot = 0;
             esm.getT(slot);
-            mEquipmentSlots[equipIndex] = slot;
+            mEquipmentSlots[static_cast<uint32_t>(equipIndex)] = slot;
         }
 
         if (esm.isNextSub("EQIP"))
@@ -98,7 +98,7 @@ namespace ESM
                 esm.getT(equipIndex);
                 int32_t slot = 0;
                 esm.getT(slot);
-                mEquipmentSlots[equipIndex] = slot;
+                mEquipmentSlots[static_cast<uint32_t>(equipIndex)] = slot;
             }
         }
 

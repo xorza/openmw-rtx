@@ -130,7 +130,7 @@ std::string_view StatelessUtf8Encoder::getUtf8(
 
     // Translate
     for (auto it = input.begin(); it != input.end() && *it != 0; ++it)
-        copyFromArray(*it, out);
+        copyFromArray(static_cast<unsigned char>(*it), out);
 
     // Make sure that we wrote the correct number of bytes
     assert((out - buffer.data()) == (int)outlen);
@@ -204,13 +204,14 @@ std::pair<std::size_t, bool> StatelessUtf8Encoder::getLength(std::string_view in
     if (it == input.end() || *it == 0)
         return { it - input.begin(), true };
 
-    std::size_t len = it - input.begin();
+    auto len = static_cast<std::size_t>(it - input.begin());
 
     do
     {
         // Find the translated length of this character in the
         // lookup table.
-        len += mTranslationArray[static_cast<std::size_t>(static_cast<unsigned char>(*it)) * 6];
+        len += static_cast<std::size_t>(
+            mTranslationArray[static_cast<std::size_t>(static_cast<unsigned char>(*it)) * 6]);
         ++it;
     } while (it != input.end() && *it != 0);
 
@@ -230,7 +231,7 @@ void StatelessUtf8Encoder::copyFromArray(unsigned char ch, char*& out) const
 
     const signed char* in = &mTranslationArray[static_cast<std::size_t>(ch) * 6];
     const int len = static_cast<unsigned char>(*(in++));
-    memcpy(out, in, len);
+    memcpy(out, in, static_cast<std::size_t>(len));
     out += len;
 }
 
@@ -246,7 +247,7 @@ std::pair<std::size_t, bool> StatelessUtf8Encoder::getLengthLegacyEnc(std::strin
     if (it == input.end() || *it == 0)
         return { it - input.begin(), true };
 
-    std::size_t len = it - input.begin();
+    auto len = static_cast<std::size_t>(it - input.begin());
     std::size_t symbolLen = 0;
 
     do
@@ -285,7 +286,7 @@ std::pair<std::size_t, bool> StatelessUtf8Encoder::getLengthLegacyEnc(std::strin
 void StatelessUtf8Encoder::copyFromArrayLegacyEnc(
     std::string_view::iterator& chp, std::string_view::iterator end, char*& out) const
 {
-    unsigned char ch = *(chp++);
+    auto ch = static_cast<unsigned char>(*(chp++));
     // Optimize for ASCII values
     if (ch < 128)
     {
@@ -323,19 +324,20 @@ void StatelessUtf8Encoder::copyFromArrayLegacyEnc(
     if (chp == end)
         return;
 
-    unsigned char ch2 = *(chp++);
+    auto ch2 = static_cast<unsigned char>(*(chp++));
     unsigned char ch3 = '\0';
     if (len == 3)
     {
         if (chp == end)
             return;
-        ch3 = *(chp++);
+        ch3 = static_cast<unsigned char>(*(chp++));
     }
 
     for (int i = 128; i < 256; i++)
     {
-        unsigned char b1 = mTranslationArray[i * 6 + 1], b2 = mTranslationArray[i * 6 + 2],
-                      b3 = mTranslationArray[i * 6 + 3];
+        auto b1 = static_cast<unsigned char>(mTranslationArray[static_cast<std::size_t>(i) * 6 + 1]),
+             b2 = static_cast<unsigned char>(mTranslationArray[static_cast<std::size_t>(i) * 6 + 2]),
+             b3 = static_cast<unsigned char>(mTranslationArray[static_cast<std::size_t>(i) * 6 + 3]);
         if (b1 == ch && b2 == ch2 && (len != 3 || b3 == ch3))
         {
             *(out++) = static_cast<char>(i);

@@ -899,7 +899,8 @@ namespace MWGui
         }
         else
         {
-            mDragAndDrop->startDrag(static_cast<int>(i), mSortModel, mTradeModel, mItemView, count);
+            mDragAndDrop->startDrag(
+                static_cast<int>(i), mSortModel, mTradeModel, mItemView, static_cast<std::size_t>(count));
         }
 
         MWBase::Environment::get().getWindowManager()->updateSpellWindow();
@@ -940,7 +941,8 @@ namespace MWGui
         for (size_t i = 0; i < model.getItemCount(); ++i)
         {
             cycled += incr;
-            cycled = static_cast<ItemModel::ModelIndex>((cycled + model.getItemCount()) % model.getItemCount());
+            cycled = static_cast<ItemModel::ModelIndex>(
+                (static_cast<std::size_t>(cycled) + model.getItemCount()) % model.getItemCount());
 
             MWWorld::Ptr item = model.getItem(cycled).mBase;
 

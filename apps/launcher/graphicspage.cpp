@@ -238,7 +238,8 @@ void Launcher::GraphicsPage::downloadDlss()
     QProgressDialog* const progress = download->mProgress;
     const std::uint64_t pinned = feature.mBytes;
     connect(download->mReply, &QNetworkReply::downloadProgress, progress, [progress, pinned](const qint64 received) {
-        progress->setValue(static_cast<int>(std::min<std::uint64_t>(received, pinned) * 100 / pinned));
+        progress->setValue(
+            static_cast<int>(std::min<std::uint64_t>(static_cast<unsigned long>(received), pinned) * 100 / pinned));
     });
     connect(progress, &QProgressDialog::canceled, download->mReply, &QNetworkReply::abort);
     connect(download->mReply, &QNetworkReply::readyRead, this, &GraphicsPage::readDlssDownload);

@@ -636,7 +636,7 @@ void SceneUtil::MWShadowTechnique::Frustum::init()
         // Add corners in the same order OSG expects them
         for (int i : {0, 1, 5, 4, 2, 3, 7, 6})
         {
-            corners.push_back(customClipSpace.corner(i));
+            corners.push_back(customClipSpace.corner(static_cast<unsigned int>(i)));
         }
     }
     else
@@ -911,7 +911,7 @@ void SceneUtil::MWShadowTechnique::setupCastingShader(Shader::ShaderManager & sh
     std::string useGPUShader4 = SceneUtil::getGLExtensions().isGpuShader4Supported ? "1" : "0";
     for (int alphaFunc = GL_NEVER; alphaFunc <= GL_ALWAYS; ++alphaFunc)
     {
-        auto& program = _castingPrograms[alphaFunc - GL_NEVER];
+        auto& program = _castingPrograms[static_cast<std::size_t>(alphaFunc - GL_NEVER)];
         program = shaderManager.getProgram(castingVertexShader,
             shaderManager.getShader("shadowcasting.frag",
                 { { "alphaFunc", std::to_string(alphaFunc) }, { "alphaToCoverage", "0" }, { "adjustCoverage", "1" },
@@ -1015,10 +1015,10 @@ void MWShadowTechnique::cull(osgUtil::CullVisitor& cv)
 
             ShadowSettings* settings = getShadowedScene()->getShadowSettings();
             int baseUnit = static_cast<int>(settings->getBaseShadowTextureUnit());
-            int endUnit = static_cast<int>(baseUnit + settings->getNumShadowMapsPerLight());
+            int endUnit = static_cast<int>(static_cast<unsigned int>(baseUnit) + settings->getNumShadowMapsPerLight());
             for (int i = baseUnit; i < endUnit; ++i)
             {
-                dummyState->setTextureAttribute(i, _fallbackShadowMapTexture, osg::StateAttribute::ON);
+                dummyState->setTextureAttribute(static_cast<unsigned int>(i), _fallbackShadowMapTexture, osg::StateAttribute::ON);
                 dummyState->addUniform(new osg::Uniform(("shadowTexture" + std::to_string(i - baseUnit)).c_str(), i));
             }
 

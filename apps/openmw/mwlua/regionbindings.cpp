@@ -44,8 +44,9 @@ namespace MWLua
             = [](const ESM::Region& rec) -> std::string { return "ESM3_Region[" + rec.mId.toDebugString() + "]"; };
         regionT["id"] = sol::readonly_property([](const ESM::Region& rec) { return rec.mId.serializeText(); });
         regionT["name"] = sol::readonly_property([](const ESM::Region& rec) -> std::string_view { return rec.mName; });
-        regionT["mapColor"] = sol::readonly_property(
-            [](const ESM::Region& rec) -> Misc::Color { return Misc::Color::fromRGB(rec.mMapColor); });
+        regionT["mapColor"] = sol::readonly_property([](const ESM::Region& rec) -> Misc::Color {
+            return Misc::Color::fromRGB(static_cast<unsigned int>(rec.mMapColor));
+        });
         regionT["sleepList"]
             = sol::readonly_property([](const ESM::Region& rec) -> ESM::RefId { return rec.mSleepList; });
 

@@ -259,8 +259,8 @@ namespace Rtx
             for (const auto& [spelling, name] : { std::pair{ GL_COMPRESSED_RED_GREEN_RGTC2_EXT, "BC5 (ATI2, linear)" },
                      std::pair{ GL_COMPRESSED_RED_RGTC1_EXT, "BC4 (ATI1, linear)" } })
             {
-                osg::ref_ptr<osg::Image> channels
-                    = Testing::makeImage("textures/tx_b_n_argonian_m_n.dds", 4, 4, spelling, GL_UNSIGNED_BYTE);
+                osg::ref_ptr<osg::Image> channels = Testing::makeImage(
+                    "textures/tx_b_n_argonian_m_n.dds", 4, 4, static_cast<GLenum>(spelling), GL_UNSIGNED_BYTE);
                 const Result<Rtx::TextureData, std::string> asColour
                     = describeImage(*channels, Rtx::TextureEncoding::Colour, levels, texels);
                 ASSERT_FALSE(asColour.isOk()) << name;

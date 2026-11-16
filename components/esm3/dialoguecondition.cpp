@@ -27,7 +27,7 @@ namespace ESM
         }
         DialogueCondition condition;
         if (rule[0] >= '0' && rule[0] <= '9')
-            condition.mIndex = rule[0] - '0';
+            condition.mIndex = static_cast<std::uint8_t>(rule[0] - '0');
         else
         {
             Log(Debug::Info) << "Found invalid SCVR index " << static_cast<int>(rule[0]) << " in INFO " << context;

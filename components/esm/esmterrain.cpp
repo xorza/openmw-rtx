@@ -55,7 +55,7 @@ ESM::LandData::LandData(const ESM4::Land& land, int /*loadFlags*/)
         rowOffset += static_cast<float>(land.mHeightMap.gradientData[static_cast<std::ptrdiff_t>(y * mLandSize)]);
 
         const float heightY = rowOffset * ESM4::Land::sHeightScale;
-        mHeightsData[static_cast<std::size_t>(y) * mLandSize] = heightY;
+        mHeightsData[static_cast<std::size_t>(y) * static_cast<std::size_t>(mLandSize)] = heightY;
         mMinHeight = std::min(mMinHeight, heightY);
         mMaxHeight = std::max(mMaxHeight, heightY);
 
@@ -66,14 +66,15 @@ ESM::LandData::LandData(const ESM4::Land& land, int /*loadFlags*/)
             const float heightX = colOffset * ESM4::Land::sHeightScale;
             mMinHeight = std::min(mMinHeight, heightX);
             mMaxHeight = std::max(mMaxHeight, heightX);
-            mHeightsData[x + y * mLandSize] = heightX;
+            mHeightsData[static_cast<std::size_t>(x)
+                + static_cast<std::size_t>(y) * static_cast<std::size_t>(mLandSize)] = heightX;
         }
     }
 
     mHeights = mHeightsData;
 
     for (int i = 0; i < 4; ++i)
-        mEsm4Textures[i] = land.mTextures[i];
+        mEsm4Textures[static_cast<std::size_t>(i)] = land.mTextures[i];
 }
 
 namespace ESM

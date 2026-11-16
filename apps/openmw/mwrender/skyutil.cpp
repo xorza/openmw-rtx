@@ -74,7 +74,7 @@ namespace
         geom->setColorArray(colors, osg::Array::BIND_OVERALL);
 
         for (int i = 0; i < numUvSets; ++i)
-            geom->setTexCoordArray(i, texcoords, osg::Array::BIND_PER_VERTEX);
+            geom->setTexCoordArray(static_cast<unsigned int>(i), texcoords, osg::Array::BIND_PER_VERTEX);
 
         geom->addPrimitiveSet(new osg::DrawArrays(osg::PrimitiveSet::QUADS, 0, 4));
 
@@ -340,7 +340,7 @@ namespace MWRender
             // INI settings, only the red component gets clamped, so the resulting color looks more orange than red.
             mColor *= 2;
             for (int i = 0; i < 3; ++i)
-                mColor[i] = std::min(1.f, mColor[i]);
+                mColor[static_cast<unsigned int>(i)] = std::min(1.f, mColor[static_cast<unsigned int>(i)]);
         }
 
         void operator()(osg::Node* node, osgUtil::CullVisitor* cv)
@@ -614,7 +614,7 @@ namespace MWRender
                         for (int col : { 0, 1, 2 })
                             viewOffsetMatrix(3, col) = 0;
 
-                        projectionMatrices[view] = viewOffsetMatrix * projectionMatrix;
+                        projectionMatrices[static_cast<std::size_t>(view)] = viewOffsetMatrix * projectionMatrix;
                     }
 
                     Stereo::setMultiviewMatrices(stateset, projectionMatrices);

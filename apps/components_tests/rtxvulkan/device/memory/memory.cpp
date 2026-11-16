@@ -101,7 +101,8 @@ namespace Rtx
             const Device& device = getDevice();
             VkPhysicalDeviceMemoryProperties none = device.getPhysicalDevice().getProperties().mMemory;
             for (std::uint32_t type = 0; type < none.memoryTypeCount; ++type)
-                none.memoryTypes[type].propertyFlags &= ~VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+                none.memoryTypes[type].propertyFlags
+                    &= static_cast<VkMemoryPropertyFlags>(~VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
             EXPECT_THROW(MemoryAllocator(device, mHarness.mInstance->getHandle(),
                              device.getPhysicalDevice().getHandle(), none, MemoryExtensions{}),

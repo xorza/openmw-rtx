@@ -314,7 +314,8 @@ namespace MWGui
 
     void AlchemyWindow::onIngredientSelected(MyGUI::Widget* sender)
     {
-        size_t i = std::distance(mIngredients.begin(), std::find(mIngredients.begin(), mIngredients.end(), sender));
+        auto i = static_cast<std::size_t>(
+            std::distance(mIngredients.begin(), std::find(mIngredients.begin(), mIngredients.end(), sender)));
         mAlchemy->removeIngredient(i);
         update();
     }
@@ -324,7 +325,7 @@ namespace MWGui
         mItemSelectionDialog->setVisible(false);
 
         int32_t index = item.get<ESM::Apparatus>()->mBase->mData.mType;
-        const auto& widget = mApparatus[index];
+        const auto& widget = mApparatus[static_cast<std::size_t>(index)];
 
         widget->setItem(item);
 
@@ -350,7 +351,8 @@ namespace MWGui
 
     void AlchemyWindow::onApparatusSelected(MyGUI::Widget* sender)
     {
-        size_t i = std::distance(mApparatus.begin(), std::find(mApparatus.begin(), mApparatus.end(), sender));
+        auto i = static_cast<std::size_t>(
+            std::distance(mApparatus.begin(), std::find(mApparatus.begin(), mApparatus.end(), sender)));
         if (sender->getUserData<MWWorld::Ptr>()->isEmpty()) // if this apparatus slot is empty
         {
             std::string title;
@@ -424,7 +426,7 @@ namespace MWGui
         auto it = mAlchemy->beginIngredients();
         for (int i = 0; i < 4; ++i)
         {
-            ItemWidget* ingredient = mIngredients[i];
+            ItemWidget* ingredient = mIngredients[static_cast<std::size_t>(i)];
 
             MWWorld::Ptr item;
             if (it != mAlchemy->endIngredients())
@@ -434,7 +436,7 @@ namespace MWGui
             }
 
             if (!item.isEmpty())
-                mSortModel->addDragItem(item, item.getCellRef().getCount());
+                mSortModel->addDragItem(item, static_cast<std::size_t>(item.getCellRef().getCount()));
 
             if (ingredient->getChildCount())
                 MyGUI::Gui::getInstance().destroyWidget(ingredient->getChildAt(0));

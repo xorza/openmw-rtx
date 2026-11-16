@@ -81,7 +81,7 @@ namespace CSMWorld
         if (land.isDataLoaded(Land::DATA_VNML))
         {
             for (int i = 0; i < size; ++i)
-                values[i] = land.getLandData()->mNormals[i];
+                values[i] = land.getLandData()->mNormals[static_cast<std::size_t>(i)];
         }
 
         QVariant variant;
@@ -101,7 +101,7 @@ namespace CSMWorld
 
         for (int i = 0; i < values.size(); ++i)
         {
-            copy.getLandData()->mNormals[i] = values[i];
+            copy.getLandData()->mNormals[static_cast<std::size_t>(i)] = values[i];
         }
 
         record.setModified(copy);
@@ -128,7 +128,7 @@ namespace CSMWorld
         if (land.isDataLoaded(Land::DATA_VHGT))
         {
             for (int i = 0; i < size; ++i)
-                values[i] = land.getLandData()->mHeights[i];
+                values[i] = land.getLandData()->mHeights[static_cast<std::size_t>(i)];
         }
 
         QVariant variant;
@@ -148,7 +148,7 @@ namespace CSMWorld
 
         for (int i = 0; i < values.size(); ++i)
         {
-            copy.getLandData()->mHeights[i] = values[i];
+            copy.getLandData()->mHeights[static_cast<std::size_t>(i)] = values[i];
         }
 
         copy.mFlags |= Land::Flag_HeightsNormals;
@@ -180,7 +180,7 @@ namespace CSMWorld
         if (land.isDataLoaded(Land::DATA_VCLR))
         {
             for (int i = 0; i < size; ++i)
-                values[i] = land.getLandData()->mColours[i];
+                values[i] = land.getLandData()->mColours[static_cast<std::size_t>(i)];
         }
 
         QVariant variant;
@@ -200,7 +200,7 @@ namespace CSMWorld
 
         for (int i = 0; i < values.size(); ++i)
         {
-            copy.getLandData()->mColours[i] = values[i];
+            copy.getLandData()->mColours[static_cast<std::size_t>(i)] = values[i];
         }
 
         copy.mFlags |= Land::Flag_Colors;
@@ -229,7 +229,7 @@ namespace CSMWorld
         if (land.isDataLoaded(Land::DATA_VTEX))
         {
             for (int i = 0; i < size; ++i)
-                values[i] = land.getLandData()->mTextures[i];
+                values[i] = land.getLandData()->mTextures[static_cast<std::size_t>(i)];
         }
 
         QVariant variant;
@@ -249,7 +249,7 @@ namespace CSMWorld
 
         for (int i = 0; i < values.size(); ++i)
         {
-            copy.getLandData()->mTextures[i] = values[i];
+            copy.getLandData()->mTextures[static_cast<std::size_t>(i)] = values[i];
         }
 
         copy.mFlags |= Land::Flag_Textures;

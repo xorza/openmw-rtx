@@ -441,7 +441,7 @@ namespace MWRender
 
         if (Settings::water().mShader)
         {
-            const unsigned int rttSize = Settings::water().mRttSize;
+            const auto rttSize = static_cast<unsigned int>(Settings::water().mRttSize);
 
             mReflection = new Reflection(rttSize, mInterior);
             mReflection->setWaterLevel(mTop);
@@ -569,10 +569,10 @@ namespace MWRender
             {
                 auto* cv = static_cast<osgUtil::CullVisitor*>(nv);
                 stateset->setTextureAttribute(1, mReflection->getColorTexture(cv), osg::StateAttribute::ON);
-                stateset->setTextureAttribute(mOpaqueColorTextureUnit,
+                stateset->setTextureAttribute(static_cast<unsigned int>(mOpaqueColorTextureUnit),
                     mResourceSystem->getSceneManager()->getOpaqueColorTex(cv->getTraversalNumber()),
                     osg::StateAttribute::ON);
-                stateset->setTextureAttribute(mOpaqueDepthTextureUnit,
+                stateset->setTextureAttribute(static_cast<unsigned int>(mOpaqueDepthTextureUnit),
                     mResourceSystem->getSceneManager()->getOpaqueDepthTex(cv->getTraversalNumber()),
                     osg::StateAttribute::ON);
 

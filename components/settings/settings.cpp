@@ -105,7 +105,7 @@ namespace Settings
         // settings.
         for (int i = 0; i < static_cast<int>(paths.size()) - 1; ++i)
         {
-            const auto additionalDefaults = paths[i] / userSettingsFile;
+            const auto additionalDefaults = paths[static_cast<std::size_t>(i)] / userSettingsFile;
             if (std::filesystem::exists(additionalDefaults))
                 parser.loadSettingsFile(additionalDefaults, mDefaultSettings, false, true);
         }

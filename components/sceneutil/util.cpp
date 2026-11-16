@@ -87,7 +87,7 @@ namespace SceneUtil
 
     void GlowUpdater::removeTexture(osg::StateSet* stateset)
     {
-        stateset->removeTextureAttribute(mTexUnit, osg::StateAttribute::TEXTURE);
+        stateset->removeTextureAttribute(static_cast<unsigned int>(mTexUnit), osg::StateAttribute::TEXTURE);
         stateset->removeUniform("envMapColor");
 
         osg::StateSet::TextureAttributeList& list = stateset->getTextureAttributeList();
@@ -111,9 +111,9 @@ namespace SceneUtil
             mStartingTime = nv->getFrameStamp()->getSimulationTime();
 
         double time = nv->getFrameStamp()->getSimulationTime();
-        int index = static_cast<int>(static_cast<int>(time * 16) % mTextures.size());
-        stateset->setTextureAttribute(
-            mTexUnit, mTextures[index], osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
+        int index = static_cast<int>(static_cast<std::size_t>(static_cast<int>(time * 16)) % mTextures.size());
+        stateset->setTextureAttribute(static_cast<unsigned int>(mTexUnit), mTextures[static_cast<std::size_t>(index)],
+            osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
 
         if ((mDuration >= 0)
             && (time - mStartingTime > mDuration)) // If this is a temporary glow and it has finished its duration
@@ -227,8 +227,10 @@ namespace SceneUtil
             writableStateSet = new osg::StateSet(*node->getStateSet(), osg::CopyOp::SHALLOW_COPY);
             node->setStateSet(writableStateSet);
         }
-        writableStateSet->setTextureAttribute(texUnit, textures.front(), osg::StateAttribute::ON);
-        writableStateSet->setTextureAttribute(texUnit, new TextureType("envMap"), osg::StateAttribute::ON);
+        writableStateSet->setTextureAttribute(
+            static_cast<unsigned int>(texUnit), textures.front(), osg::StateAttribute::ON);
+        writableStateSet->setTextureAttribute(
+            static_cast<unsigned int>(texUnit), new TextureType("envMap"), osg::StateAttribute::ON);
         writableStateSet->addUniform(new osg::Uniform("envMapColor", glowColor));
         resourceSystem->getSceneManager()->recreateShaders(node);
 

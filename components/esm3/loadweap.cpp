@@ -116,7 +116,7 @@ namespace ESM
     {
         if (index < 0 || std::cmp_greater_equal(index, sWeaponTypeIds.size()))
             return {};
-        return sWeaponTypeIds[index];
+        return sWeaponTypeIds[static_cast<std::size_t>(index)];
     }
 
     int Weapon::refIdToIndex(RefId id)

@@ -23,6 +23,8 @@ int CSMTools::MandatoryIdStage::setup()
 
 void CSMTools::MandatoryIdStage::perform(int stage, CSMDoc::Messages& messages)
 {
-    if (mIdCollection.searchId(mIds.at(stage)) == -1 || mIdCollection.getRecord(mIds.at(stage)).isDeleted())
-        messages.add(mCollectionId, "Missing mandatory record: " + mIds.at(stage).toDebugString());
+    if (mIdCollection.searchId(mIds.at(static_cast<std::size_t>(stage))) == -1
+        || mIdCollection.getRecord(mIds.at(static_cast<std::size_t>(stage))).isDeleted())
+        messages.add(
+            mCollectionId, "Missing mandatory record: " + mIds.at(static_cast<std::size_t>(stage)).toDebugString());
 }

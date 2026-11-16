@@ -374,7 +374,7 @@ namespace NifOsg
         if (hasInput())
         {
             bool vis = calculate(getInputValue(nv));
-            node->setNodeMask(vis ? ~0 : mMask);
+            node->setNodeMask(vis ? static_cast<unsigned int>(~0) : mMask);
         }
         traverse(node, nv);
     }
@@ -562,10 +562,13 @@ namespace NifOsg
         {
             int curTexture = 0;
             if (mDelta != 0)
-                curTexture = static_cast<int>(static_cast<int>(getInputValue(nv) / mDelta) % mTextures.size());
+                curTexture = static_cast<int>(
+                    static_cast<std::size_t>(static_cast<int>(getInputValue(nv) / mDelta)) % mTextures.size());
             else
-                curTexture = static_cast<int>(static_cast<int>(mData.interpKey(getInputValue(nv))) % mTextures.size());
-            stateset->setTextureAttribute(mTexSlot, mTextures[curTexture]);
+                curTexture = static_cast<int>(
+                    static_cast<std::size_t>(static_cast<int>(mData.interpKey(getInputValue(nv)))) % mTextures.size());
+            stateset->setTextureAttribute(
+                static_cast<unsigned int>(mTexSlot), mTextures[static_cast<std::size_t>(curTexture)]);
         }
     }
 

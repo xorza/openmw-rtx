@@ -121,7 +121,7 @@ namespace
         osg::ref_ptr<osg::DrawElementsUShort> indices
             = new osg::DrawElementsUShort(osg::DrawElementsUShort::TRIANGLES, 0);
         int vertexCount = subdiv * 4 + 2; // 2 discs + top and bottom + 2 center
-        indices->reserve(vertexCount);
+        indices->reserve(static_cast<std::size_t>(vertexCount));
         int iVertex = 0;
 
         int beginTop = iVertex;
@@ -228,10 +228,10 @@ namespace
         osg::ref_ptr<osg::DrawElementsUShort> indices
             = new osg::DrawElementsUShort(osg::DrawElementsUShort::TRIANGLES, 0);
         int vertexCount = segments * (rings + 1);
-        vertices->reserve(vertexCount);
-        normals->reserve(vertexCount);
+        vertices->reserve(static_cast<std::size_t>(vertexCount));
+        normals->reserve(static_cast<std::size_t>(vertexCount));
         int indexCount = segments * rings * 2 * 3;
-        indices->reserve(indexCount);
+        indices->reserve(static_cast<std::size_t>(indexCount));
 
         for (int i = 0; i <= rings; ++i)
         {
@@ -431,12 +431,12 @@ Debug::DebugDrawer::DebugDrawer(Shader::ShaderManager& shaderManager)
 void Debug::DebugDrawer::traverse(osg::NodeVisitor& nv)
 {
     mCurrentFrame = nv.getTraversalNumber();
-    mCustomDebugDrawer[getIndexBufferReadFromFrame(mCurrentFrame)]->accept(nv);
+    mCustomDebugDrawer[static_cast<std::size_t>(getIndexBufferReadFromFrame(mCurrentFrame))]->accept(nv);
 }
 
 void Debug::DebugDrawer::drawCube(osg::Vec3f mPosition, osg::Vec3f mDims, osg::Vec3f mColor)
 {
-    mCustomDebugDrawer[getIndexBufferWriteFromFrame(mCurrentFrame)]->mShapesToDraw.push_back(
+    mCustomDebugDrawer[static_cast<std::size_t>(getIndexBufferWriteFromFrame(mCurrentFrame))]->mShapesToDraw.push_back(
         { mPosition, mDims, mColor, DrawShape::Cube });
 }
 
@@ -449,19 +449,20 @@ void Debug::DebugDrawer::drawCubeMinMax(osg::Vec3f min, osg::Vec3f max, osg::Vec
 
 void Debug::DebugDrawer::drawSphere(osg::Vec3f position, float radius, osg::Vec3f color)
 {
-    mCustomDebugDrawer[getIndexBufferWriteFromFrame(mCurrentFrame)]->mShapesToDraw.push_back(
+    mCustomDebugDrawer[static_cast<std::size_t>(getIndexBufferWriteFromFrame(mCurrentFrame))]->mShapesToDraw.push_back(
         { position, osg::Vec3f(radius, radius, radius) * 2, color, DrawShape::Sphere });
 }
 
 void Debug::DebugDrawer::addDrawCall(const DrawCall& draw)
 {
-    mCustomDebugDrawer[getIndexBufferWriteFromFrame(mCurrentFrame)]->mShapesToDraw.push_back(draw);
+    mCustomDebugDrawer[static_cast<std::size_t>(getIndexBufferWriteFromFrame(mCurrentFrame))]->mShapesToDraw.push_back(
+        draw);
 }
 
 void Debug::DebugDrawer::addLine(const osg::Vec3& start, const osg::Vec3& end, const osg::Vec3 color)
 {
     const int indexWrite = getIndexBufferWriteFromFrame(mCurrentFrame);
-    const auto& lines = mCustomDebugDrawer[indexWrite]->mLinesToDraw;
+    const auto& lines = mCustomDebugDrawer[static_cast<std::size_t>(indexWrite)]->mLinesToDraw;
     auto vertices = static_cast<osg::Vec3Array*>(lines->getVertexArray());
     auto colors = static_cast<osg::Vec3Array*>(lines->getNormalArray());
     auto primitive = static_cast<osg::DrawArrays*>(lines->getPrimitiveSet(0));

@@ -47,7 +47,7 @@ std::vector<std::string> Launcher::enumerateOpenALDevicesHrtf()
             memcpy(static_cast<void*>(&alcGetStringiSOFT), static_cast<const void*>(&funcPtr), sizeof(funcPtr));
             ALCint numHrtf = 0;
             alcGetIntegerv(device, ALC_NUM_HRTF_SPECIFIERS_SOFT, 1, &numHrtf);
-            ret.reserve(numHrtf);
+            ret.reserve(static_cast<std::size_t>(numHrtf));
             for (ALCint i = 0; i < numHrtf; ++i)
             {
                 const ALCchar* entry = alcGetStringiSOFT(device, ALC_HRTF_SPECIFIER_SOFT, i);

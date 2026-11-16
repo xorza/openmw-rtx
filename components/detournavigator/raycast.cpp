@@ -28,8 +28,8 @@ namespace DetourNavigator
             return {};
 
         osg::Vec3f hitPosition;
-        if (dtStatus status
-            = navMeshQuery.closestPointOnPoly(path[hit.pathCount - 1], end.ptr(), hitPosition.ptr(), nullptr);
+        if (dtStatus status = navMeshQuery.closestPointOnPoly(
+                path[static_cast<std::size_t>(hit.pathCount - 1)], end.ptr(), hitPosition.ptr(), nullptr);
             dtStatusFailed(status))
             return {};
 

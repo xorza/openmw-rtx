@@ -502,10 +502,12 @@ namespace MWGui::Formatting
     {
         // split lines
         const int lineHeight = MWBase::Environment::get().getWindowManager()->getFontSize();
-        unsigned int lastLine = (mPaginator.getStartTop() + mPaginator.getPageHeight() - mPaginator.getCurrentTop());
+        unsigned int lastLine = (static_cast<unsigned int>(
+            mPaginator.getStartTop() + mPaginator.getPageHeight() - mPaginator.getCurrentTop()));
         if (lineHeight > 0)
-            lastLine /= lineHeight;
-        int ret = static_cast<int>(mPaginator.getCurrentTop() + lastLine * lineHeight);
+            lastLine /= static_cast<unsigned int>(lineHeight);
+        int ret = static_cast<int>(
+            static_cast<unsigned int>(mPaginator.getCurrentTop()) + lastLine * static_cast<unsigned int>(lineHeight));
 
         // first empty lines that would go to the next page should be ignored
         mPaginator.setIgnoreLeadingEmptyLines(true);

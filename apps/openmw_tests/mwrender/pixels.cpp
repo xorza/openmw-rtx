@@ -20,7 +20,8 @@ namespace MWRender
         /// The first byte of the texel at (x, y), of an image the test gave pixels.
         std::uint8_t& texelAt(osg::Image& image, int x, int y)
         {
-            return *Crash::notNull(image.data(x, y), "a test image with no pixels");
+            return *Crash::notNull(
+                image.data(static_cast<unsigned int>(x), static_cast<unsigned int>(y)), "a test image with no pixels");
         }
 
         /// A grey picture `width` by `height`, with `value(x, y)` in every channel of every pixel.
@@ -32,7 +33,7 @@ namespace MWRender
             {
                 for (int x = 0; x < width; ++x)
                 {
-                    std::uint8_t* texel = image->data(x, y);
+                    std::uint8_t* texel = image->data(static_cast<unsigned int>(x), static_cast<unsigned int>(y));
                     for (int channel = 0; channel < 4; ++channel)
                         texel[channel] = static_cast<std::uint8_t>(value(x, y));
                 }

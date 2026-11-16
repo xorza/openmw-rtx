@@ -26,7 +26,7 @@ namespace
         {
             return {};
         }
-        return values[index].second;
+        return values[static_cast<std::size_t>(index)].second;
     }
 }
 

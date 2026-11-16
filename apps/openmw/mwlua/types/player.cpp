@@ -210,7 +210,7 @@ namespace MWLua
 
                 if (index == 0 || index > topic.size())
                     return nullptr;
-                index = LuaUtil::fromLuaIndex(static_cast<std::int64_t>(index));
+                index = static_cast<std::size_t>(LuaUtil::fromLuaIndex(static_cast<std::int64_t>(index)));
                 return &topic[index];
             };
             topicEntriesBindingsClass[sol::meta_function::ipairs] = lua["ipairsForArray"].template get<sol::function>();
@@ -246,7 +246,7 @@ namespace MWLua
                 = [journal](const MWLua::JournalEntries&, size_t index) -> const MWDialogue::StampedJournalEntry* {
                 if (index == 0 || index > journal->getEntries().size())
                     return nullptr;
-                index = LuaUtil::fromLuaIndex(static_cast<std::int64_t>(index));
+                index = static_cast<std::size_t>(LuaUtil::fromLuaIndex(static_cast<std::int64_t>(index)));
                 return &journal->getEntries()[index];
             };
             journalEntriesBindingsClass[sol::meta_function::ipairs]

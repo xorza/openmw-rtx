@@ -130,15 +130,15 @@ int CSMWorld::CellCoordinates::vertexGlobalToInCellCoords(int vertexGlobal)
 
 std::string CSMWorld::CellCoordinates::textureGlobalToCellId(const std::pair<int, int>& textureGlobal)
 {
-    int x = std::floor(static_cast<float>(textureGlobal.first) / ESM::Land::LAND_TEXTURE_SIZE);
-    int y = std::floor(static_cast<float>(textureGlobal.second) / ESM::Land::LAND_TEXTURE_SIZE);
+    int x = static_cast<int>(std::floor(static_cast<float>(textureGlobal.first) / ESM::Land::LAND_TEXTURE_SIZE));
+    int y = static_cast<int>(std::floor(static_cast<float>(textureGlobal.second) / ESM::Land::LAND_TEXTURE_SIZE));
     return generateId(x, y);
 }
 
 std::string CSMWorld::CellCoordinates::vertexGlobalToCellId(const std::pair<int, int>& vertexGlobal)
 {
-    int x = std::floor(static_cast<float>(vertexGlobal.first) / (ESM::Land::LAND_SIZE - 1));
-    int y = std::floor(static_cast<float>(vertexGlobal.second) / (ESM::Land::LAND_SIZE - 1));
+    int x = static_cast<int>(std::floor(static_cast<float>(vertexGlobal.first) / (ESM::Land::LAND_SIZE - 1)));
+    int y = static_cast<int>(std::floor(static_cast<float>(vertexGlobal.second) / (ESM::Land::LAND_SIZE - 1)));
     return generateId(x, y);
 }
 

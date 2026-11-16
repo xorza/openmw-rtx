@@ -571,7 +571,7 @@ namespace MWLua
         {
             for (int32_t i = ESM::Class::Combat; i <= ESM::Class::Stealth; ++i)
             {
-                if (ESM::Class::specializationIndexToLuaId[i] == id)
+                if (ESM::Class::specializationIndexToLuaId[static_cast<std::size_t>(i)] == id)
                     return i;
             }
             throw std::runtime_error("invalid specialization");
@@ -644,7 +644,8 @@ namespace MWLua
             {
                 record["specialization"] = sol::property(
                     [](const MutableRecord<ESM::Skill>& rec) -> std::string_view {
-                        return ESM::Class::specializationIndexToLuaId.at(rec.find().mData.mSpecialization);
+                        return ESM::Class::specializationIndexToLuaId.at(
+                            static_cast<std::size_t>(rec.find().mData.mSpecialization));
                     },
                     [](MutableRecord<ESM::Skill>& rec, std::string_view value) {
                         ESM::Skill& skill = rec.find();
@@ -689,7 +690,8 @@ namespace MWLua
             else
             {
                 record["specialization"] = sol::readonly_property([](const ESM::Skill& rec) -> std::string_view {
-                    return ESM::Class::specializationIndexToLuaId.at(rec.mData.mSpecialization);
+                    return ESM::Class::specializationIndexToLuaId.at(
+                        static_cast<std::size_t>(rec.mData.mSpecialization));
                 });
                 record["school"] = sol::readonly_property([](const ESM::Skill& rec) -> const ESM::MagicSchool* {
                     if (!rec.mSchool)
@@ -780,7 +782,7 @@ namespace MWLua
             = lua.new_usertype<SkillIncreasesForSpecializationStats>("skillIncreasesForSpecializationStats");
         for (int i = 0; i < 3; i++)
         {
-            std::string_view index = ESM::Class::specializationIndexToLuaId.at(i);
+            std::string_view index = ESM::Class::specializationIndexToLuaId.at(static_cast<std::size_t>(i));
             skillIncreasesForSpecializationStatsT[index]
                 = sol::property([=](const SkillIncreasesForSpecializationStats& stat) { return stat.get(context, i); },
                     [=](const SkillIncreasesForSpecializationStats& stat, const sol::object& value) {

@@ -89,7 +89,7 @@ namespace
             if (CSMPrefs::get()["Rendering"]["scene-day-night-switch-nodes"].isTrue())
             {
                 if (switchNode.getName() == Constants::NightDayLabel)
-                    switchNode.setSingleChildOn(mIndex);
+                    switchNode.setSingleChildOn(static_cast<unsigned int>(mIndex));
             }
             else if (initialIndex != noIndex)
             {
@@ -331,10 +331,14 @@ namespace CSVRender
         geometry->addPrimitiveSet(primitives);
 
         osg::ref_ptr<osg::Vec4ubArray> colours = new osg::Vec4ubArray;
-        colours->push_back(osg::Vec4ub(gradientColour.red(), gradientColour.green(), gradientColour.blue(), 1.0f));
-        colours->push_back(osg::Vec4ub(gradientColour.red(), gradientColour.green(), gradientColour.blue(), 1.0f));
-        colours->push_back(osg::Vec4ub(bgColour.red(), bgColour.green(), bgColour.blue(), 1.0f));
-        colours->push_back(osg::Vec4ub(bgColour.red(), bgColour.green(), bgColour.blue(), 1.0f));
+        const osg::Vec4ub gradientColourBytes(static_cast<unsigned char>(gradientColour.red()),
+            static_cast<unsigned char>(gradientColour.green()), static_cast<unsigned char>(gradientColour.blue()), 1);
+        colours->push_back(gradientColourBytes);
+        colours->push_back(gradientColourBytes);
+        const osg::Vec4ub bgColourBytes(static_cast<unsigned char>(bgColour.red()),
+            static_cast<unsigned char>(bgColour.green()), static_cast<unsigned char>(bgColour.blue()), 1);
+        colours->push_back(bgColourBytes);
+        colours->push_back(bgColourBytes);
 
         geometry->setColorArray(colours, osg::Array::BIND_PER_VERTEX);
 

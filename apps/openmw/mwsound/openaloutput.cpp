@@ -555,7 +555,8 @@ namespace MWSound
         {
             ALint queued = 0;
             alGetSourcei(mSource, AL_BUFFERS_QUEUED, &queued);
-            auto inqueue = static_cast<ALint>(mBufferSize / mFrameSize * queued - offset);
+            auto inqueue = static_cast<ALint>(
+                mBufferSize / mFrameSize * static_cast<ALuint>(queued) - static_cast<ALuint>(offset));
             d = static_cast<double>(inqueue) / static_cast<double>(mSampleRate);
         }
 
@@ -575,8 +576,10 @@ namespace MWSound
         {
             ALint queued = 0;
             alGetSourcei(mSource, AL_BUFFERS_QUEUED, &queued);
-            auto inqueue = static_cast<ALint>(mBufferSize / mFrameSize * queued - offset);
-            t = static_cast<float>((mDecoder->getSampleOffset() - inqueue)) / static_cast<float>(mSampleRate);
+            auto inqueue = static_cast<ALint>(
+                mBufferSize / mFrameSize * static_cast<ALuint>(queued) - static_cast<ALuint>(offset));
+            t = static_cast<float>((mDecoder->getSampleOffset() - static_cast<std::size_t>(inqueue)))
+                / static_cast<float>(mSampleRate);
         }
         else
         {
@@ -652,10 +655,11 @@ namespace MWSound
                     if (mLoudnessAnalyzer.get())
                         mLoudnessAnalyzer->analyzeLoudness(data);
 
-                    ALuint bufid = mBuffers[mCurrentBufIdx];
+                    ALuint bufid = mBuffers[static_cast<std::size_t>(mCurrentBufIdx)];
                     alBufferData(bufid, mFormat, data.data(), static_cast<ALsizei>(data.size()), mSampleRate);
                     alSourceQueueBuffers(mSource, 1, &bufid);
-                    mCurrentBufIdx = static_cast<ALint>((mCurrentBufIdx + 1) % mBuffers.size());
+                    mCurrentBufIdx
+                        = static_cast<ALint>((static_cast<std::size_t>(mCurrentBufIdx + 1)) % mBuffers.size());
                 }
             }
         }
@@ -851,7 +855,7 @@ namespace MWSound
             maxtotal = 256;
         else
         {
-            maxtotal = std::min<ALCuint>(maxmono + maxstereo, 256);
+            maxtotal = std::min<ALCuint>(static_cast<unsigned int>(maxmono + maxstereo), 256);
             if (maxtotal == 0) // workaround for broken implementations
                 maxtotal = 256;
         }
@@ -1030,7 +1034,7 @@ namespace MWSound
 
         ALCint numHrtf = 0;
         alcGetIntegerv(mDevice, ALC_NUM_HRTF_SPECIFIERS_SOFT, 1, &numHrtf);
-        ret.reserve(numHrtf);
+        ret.reserve(static_cast<std::size_t>(numHrtf));
         for (ALCint i = 0; i < numHrtf; ++i)
         {
             const ALCchar* entry = alcGetStringiSOFT(mDevice, ALC_HRTF_SPECIFIER_SOFT, i);
@@ -1114,7 +1118,7 @@ namespace MWSound
         alGetBufferi(buffer, AL_SIZE, &size);
         alDeleteBuffers(1, &buffer);
         getALError();
-        return size;
+        return static_cast<std::size_t>(size);
     }
 
     void OpenALOutput::initCommon2D(

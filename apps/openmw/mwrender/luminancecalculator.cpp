@@ -77,12 +77,13 @@ namespace MWRender
         for (auto& buffer : mBuffers)
         {
             buffer.mipmappedSceneLuminanceTex->setTextureSize(mWidth, mHeight);
-            buffer.mipmappedSceneLuminanceTex->setNumMipmapLevels(mipmapLevels);
+            buffer.mipmappedSceneLuminanceTex->setNumMipmapLevels(static_cast<unsigned int>(mipmapLevels));
             buffer.mipmappedSceneLuminanceTex->dirtyTextureObject();
 
             buffer.resolveSceneLumFbo = new osg::FrameBufferObject;
             buffer.resolveSceneLumFbo->setAttachment(osg::FrameBufferObject::BufferComponent::COLOR_BUFFER0,
-                osg::FrameBufferAttachment(buffer.mipmappedSceneLuminanceTex, mipmapLevels - 1));
+                osg::FrameBufferAttachment(
+                    buffer.mipmappedSceneLuminanceTex, static_cast<unsigned int>(mipmapLevels - 1)));
 
             buffer.sceneLumFbo = new osg::FrameBufferObject;
             buffer.sceneLumFbo->setAttachment(osg::FrameBufferObject::BufferComponent::COLOR_BUFFER0,

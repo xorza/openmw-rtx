@@ -207,7 +207,7 @@ void MWWorld::WorldModel::writeCell(ESM::ESMWriter& writer, CellStore& cell) con
 MWWorld::WorldModel::WorldModel(MWWorld::ESMStore& store, ESM::ReadersCache& readers)
     : mStore(store)
     , mReaders(readers)
-    , mIdCache(Settings::cells().mPointersCacheSize, { ESM::RefId(), nullptr })
+    , mIdCache(static_cast<std::size_t>(Settings::cells().mPointersCacheSize), { ESM::RefId(), nullptr })
 {
     mDraftCell.mId = draftCellId;
 }
@@ -502,7 +502,8 @@ std::vector<MWWorld::Ptr> MWWorld::WorldModel::getAll(ESM::RefId id, ESM::RefId 
 
 size_t MWWorld::WorldModel::countSavedGameRecords() const
 {
-    return std::count_if(mCells.begin(), mCells.end(), [](const auto& v) { return v.second.hasState(); });
+    return static_cast<std::size_t>(
+        std::count_if(mCells.begin(), mCells.end(), [](const auto& v) { return v.second.hasState(); }));
 }
 
 void MWWorld::WorldModel::write(ESM::ESMWriter& writer, Loading::Listener& progress) const

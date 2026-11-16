@@ -238,7 +238,7 @@ bool CSMTools::TopicInfoCheckStage::verifyFactionRank(
     int limit = 0;
     for (; limit < 10; ++limit)
     {
-        if (faction.mRanks[limit].empty())
+        if (faction.mRanks[static_cast<std::size_t>(limit)].empty())
             break;
     }
 

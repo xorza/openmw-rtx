@@ -83,7 +83,8 @@ namespace MWRender
 
         // draw transparent post-pass to populate a postprocess friendly depth texture with alpha-clipped geometry
 
-        unsigned int numToPop = previous ? osgUtil::StateGraph::numToPop(previous->_parent) : 0;
+        unsigned int numToPop
+            = previous ? static_cast<unsigned int>(osgUtil::StateGraph::numToPop(previous->_parent)) : 0;
         if (numToPop > 1)
             numToPop--;
         unsigned int insertStateSetPosition = state.getStateSetStackSize() - numToPop;

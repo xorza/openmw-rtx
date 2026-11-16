@@ -13,7 +13,7 @@ namespace Serialization
     {
         YAML::Node node;
         for (int i = 0; i < OSGVec::num_components; ++i)
-            node.push_back(rhs[i]);
+            node.push_back(rhs.ptr()[i]);
 
         return node;
     }
@@ -25,7 +25,7 @@ namespace Serialization
             return false;
 
         for (int i = 0; i < OSGVec::num_components; ++i)
-            rhs[i] = node[i].as<typename OSGVec::value_type>();
+            rhs.ptr()[i] = node[i].as<typename OSGVec::value_type>();
 
         return true;
     }

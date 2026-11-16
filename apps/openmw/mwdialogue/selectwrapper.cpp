@@ -1,14 +1,18 @@
 #include "selectwrapper.hpp"
 
 #include <stdexcept>
+#include <type_traits>
 
 #include <components/misc/strings/lower.hpp>
 
 namespace
 {
     template <typename T1, typename T2>
-    bool selectCompareImp(ESM::DialogueCondition::Comparison comp, T1 value1, T2 value2)
+    bool selectCompareImp(ESM::DialogueCondition::Comparison comp, T1 first, T2 second)
     {
+        using Common = std::common_type_t<T1, T2>;
+        const auto value1 = static_cast<Common>(first);
+        const auto value2 = static_cast<Common>(second);
         switch (comp)
         {
             case ESM::DialogueCondition::Comp_Eq:

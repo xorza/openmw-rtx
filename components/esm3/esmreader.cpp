@@ -34,7 +34,7 @@ namespace ESM
     ESM_Context ESMReader::getContext()
     {
         // Update the file position before returning
-        mCtx.filePos = mEsm->tellg();
+        mCtx.filePos = static_cast<std::size_t>(mEsm->tellg());
         return mCtx;
     }
 
@@ -138,7 +138,7 @@ namespace ESM
         mEsm = std::move(stream);
         mCtx.filename = name;
         mEsm->seekg(0, mEsm->end);
-        mCtx.leftFile = static_cast<std::streamsize>(mFileSize = mEsm->tellg());
+        mCtx.leftFile = static_cast<std::streamsize>(mFileSize = static_cast<std::size_t>(mEsm->tellg()));
         mEsm->seekg(0, mEsm->beg);
     }
 
@@ -382,7 +382,7 @@ namespace ESM
 
     void ESMReader::skipRecord()
     {
-        skip(mCtx.leftRec);
+        skip(static_cast<std::size_t>(mCtx.leftRec));
         mCtx.leftRec = 0;
         mCtx.subCached = false;
     }
@@ -401,7 +401,7 @@ namespace ESM
 
         // Check that sizes add up
         if (mCtx.leftFile < mCtx.leftRec)
-            reportSubSizeMismatch(mCtx.leftFile, mCtx.leftRec);
+            reportSubSizeMismatch(static_cast<std::size_t>(mCtx.leftFile), static_cast<std::size_t>(mCtx.leftRec));
 
         // Adjust number of bytes mCtx.left in file
         mCtx.leftFile -= mCtx.leftRec;

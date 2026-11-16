@@ -1689,7 +1689,7 @@ namespace NifOsg
                         uvSet = 0;
                     }
 
-                    geometry->setTexCoordArray(textureStage,
+                    geometry->setTexCoordArray(static_cast<unsigned int>(textureStage),
                         new osg::Vec2Array(static_cast<unsigned>(uvlist[uvSet].size()), uvlist[uvSet].data()),
                         osg::Array::BIND_PER_VERTEX);
                 }
@@ -1843,7 +1843,7 @@ namespace NifOsg
                             frac16 <<= 1;
                         } while ((frac16 & 0x400) != 0x400);
                         frac16 &= 0x3ff;
-                        bits |= (0x71 - offset) << 23;
+                        bits |= static_cast<std::uint32_t>((0x71 - offset) << 23);
                     }
                     bits |= frac16 << 13;
 
@@ -1873,8 +1873,9 @@ namespace NifOsg
                                 halfToFloat(elem.mHalfVertex[2]));
                     }
                     if (hasNormals)
-                        normals.emplace_back(normbyteToFloat(elem.mNormal[0]), normbyteToFloat(elem.mNormal[1]),
-                            normbyteToFloat(elem.mNormal[2]));
+                        normals.emplace_back(normbyteToFloat(static_cast<std::uint8_t>(elem.mNormal[0])),
+                            normbyteToFloat(static_cast<std::uint8_t>(elem.mNormal[1])),
+                            normbyteToFloat(static_cast<std::uint8_t>(elem.mNormal[2])));
                     if (hasColors)
                         colors.emplace_back(
                             elem.mVertColor[0], elem.mVertColor[1], elem.mVertColor[2], elem.mVertColor[3]);
@@ -1923,7 +1924,8 @@ namespace NifOsg
                     {
                         const Nif::BSVertexData& vertData = bsTriShape->mVertData[i];
                         for (int j = 0; j < 4; j++)
-                            influences[i].emplace_back(vertData.mBoneIndices[j], halfToFloat(vertData.mBoneWeights[j]));
+                            influences[i].emplace_back(vertData.mBoneIndices[static_cast<std::size_t>(j)],
+                                halfToFloat(vertData.mBoneWeights[static_cast<std::size_t>(j)]));
                     }
                     rig->setBoneInfo(std::move(boneInfo));
                     rig->setInfluences(influences);
@@ -2180,15 +2182,16 @@ namespace NifOsg
                         // into real colors using the palette.
                         const auto& palette = pixelData->mPalette->mColors;
                         const int numChannels = pixelformat == GL_RGBA ? 4 : 3;
-                        auto* data = new unsigned char[pixels.size() * numChannels];
+                        auto* data = new unsigned char[pixels.size() * static_cast<std::size_t>(numChannels)];
                         unsigned char* pixel = data;
                         for (unsigned char index : pixels)
                         {
-                            memcpy(pixel, &palette[index], sizeof(unsigned char) * numChannels);
+                            memcpy(
+                                pixel, &palette[index], sizeof(unsigned char) * static_cast<std::size_t>(numChannels));
                             pixel += numChannels;
                         }
                         for (unsigned int& offset : mipmapOffsets)
-                            offset *= numChannels;
+                            offset *= static_cast<unsigned int>(numChannels);
                         image->setImage(width, height, 1, static_cast<GLint>(pixelformat), pixelformat,
                             GL_UNSIGNED_BYTE, data, osg::Image::USE_NEW_DELETE, packing);
                         break;

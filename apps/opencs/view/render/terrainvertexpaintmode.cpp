@@ -335,9 +335,9 @@ void CSVRender::TerrainVertexPaintMode::alterColour(
     const int blue = mRestoreMode ? 255 : mVertexPaintEditToolColor.blue();
 
     // TODO: handle different smoothing/blend types with different tools, right now this expects Replace
-    landColorsNew[(inCellY * ESM::Land::LAND_SIZE + inCellX) * 3 + 0] = red;
-    landColorsNew[(inCellY * ESM::Land::LAND_SIZE + inCellX) * 3 + 1] = green;
-    landColorsNew[(inCellY * ESM::Land::LAND_SIZE + inCellX) * 3 + 2] = blue;
+    landColorsNew[(inCellY * ESM::Land::LAND_SIZE + inCellX) * 3 + 0] = static_cast<unsigned char>(red);
+    landColorsNew[(inCellY * ESM::Land::LAND_SIZE + inCellX) * 3 + 1] = static_cast<unsigned char>(green);
+    landColorsNew[(inCellY * ESM::Land::LAND_SIZE + inCellX) * 3 + 2] = static_cast<unsigned char>(blue);
 }
 
 void CSVRender::TerrainVertexPaintMode::pushEditToCommand(const CSMWorld::LandColoursColumn::DataType& newLandColours,

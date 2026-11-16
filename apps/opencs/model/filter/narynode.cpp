@@ -18,7 +18,7 @@ int CSMFilter::NAryNode::getSize() const
 
 const CSMFilter::Node& CSMFilter::NAryNode::operator[](int index) const
 {
-    return *mNodes.at(index);
+    return *mNodes.at(static_cast<std::size_t>(index));
 }
 
 std::vector<int> CSMFilter::NAryNode::getReferencedColumns() const

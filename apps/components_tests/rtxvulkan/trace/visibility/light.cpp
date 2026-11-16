@@ -3042,7 +3042,7 @@ namespace Rtx::Testing
                 const auto [mean, spread] = measure(converged, channel);
                 const float range = zenith[static_cast<int>(channel)] - horizon[static_cast<int>(channel)];
 
-                EXPECT_NEAR(mean, 0.5f * (horizon[channel] + range * 0.5f), 0.0002f)
+                EXPECT_NEAR(mean, 0.5f * (horizon[static_cast<int>(channel)] + range * 0.5f), 0.0002f)
                     << "channel " << channel << " keeps its mean when averaged";
 
                 const float alone = 0.5f * std::abs(range) * 0.188144f;

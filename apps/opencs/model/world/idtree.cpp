@@ -41,7 +41,7 @@ QVariant CSMWorld::IdTree::data(const QModelIndex& index, int role) const
 
     if (index.internalId() != 0)
     {
-        std::pair<int, int> parentAddress(unfoldIndexAddress(index.internalId()));
+        std::pair<int, int> parentAddress(unfoldIndexAddress(static_cast<unsigned int>(index.internalId())));
         const NestableColumn* parentColumn = mNestedCollection->getNestableColumn(parentAddress.second);
 
         if (role == ColumnBase::Role_Display)
@@ -95,7 +95,7 @@ bool CSMWorld::IdTree::setData(const QModelIndex& index, const QVariant& value, 
     {
         if (idCollection()->getColumn(parent(index).column()).isEditable() && role == Qt::EditRole)
         {
-            const std::pair<int, int>& parentAddress(unfoldIndexAddress(index.internalId()));
+            const std::pair<int, int>& parentAddress(unfoldIndexAddress(static_cast<unsigned int>(index.internalId())));
 
             mNestedCollection->setNestedData(
                 parentAddress.first, parentAddress.second, value, index.row(), index.column());
@@ -124,7 +124,7 @@ Qt::ItemFlags CSMWorld::IdTree::flags(const QModelIndex& index) const
 
     if (index.internalId() != 0)
     {
-        std::pair<int, int> parentAddress(unfoldIndexAddress(index.internalId()));
+        std::pair<int, int> parentAddress(unfoldIndexAddress(static_cast<unsigned int>(index.internalId())));
 
         Qt::ItemFlags flags = Qt::ItemIsSelectable | Qt::ItemIsEnabled;
 
@@ -200,7 +200,7 @@ QModelIndex CSMWorld::IdTree::parent(const QModelIndex& index) const
     if (index.internalId() == 0) // 0 is used for indexs with invalid parent (top level data)
         return QModelIndex();
 
-    unsigned int id = index.internalId();
+    auto id = static_cast<unsigned int>(index.internalId());
     const std::pair<int, int>& address(unfoldIndexAddress(id));
 
     if (address.first >= this->rowCount() || address.second >= this->columnCount())
@@ -211,8 +211,8 @@ QModelIndex CSMWorld::IdTree::parent(const QModelIndex& index) const
 
 unsigned int CSMWorld::IdTree::foldIndexAddress(const QModelIndex& index) const
 {
-    unsigned int out = index.row() * this->columnCount();
-    out += index.column();
+    unsigned int out = static_cast<unsigned int>(index.row() * this->columnCount());
+    out += static_cast<unsigned int>(index.column());
     return ++out;
 }
 
@@ -222,8 +222,8 @@ std::pair<int, int> CSMWorld::IdTree::unfoldIndexAddress(unsigned int id) const
         throw std::runtime_error("Attempt to unfold index id of the top level data cell");
 
     --id;
-    int row = static_cast<int>(id / this->columnCount());
-    int column = static_cast<int>(id - row * this->columnCount());
+    int row = static_cast<int>(id / static_cast<unsigned int>(this->columnCount()));
+    int column = static_cast<int>(id - static_cast<unsigned int>(row * this->columnCount()));
     return std::make_pair(row, column);
 }
 

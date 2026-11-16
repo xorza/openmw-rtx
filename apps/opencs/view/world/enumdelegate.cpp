@@ -18,7 +18,7 @@ int CSVWorld::EnumDelegate::getValueIndex(const QModelIndex& index, int role) co
         int size = static_cast<int>(mValues.size());
         for (int i = 0; i < size; ++i)
         {
-            if (value == mValues.at(i).first)
+            if (value == mValues.at(static_cast<std::size_t>(i)).first)
             {
                 return i;
             }
@@ -107,7 +107,7 @@ void CSVWorld::EnumDelegate::paint(
     if (valueIndex != -1)
     {
         QStyleOptionViewItem itemOption(option);
-        itemOption.text = mValues.at(valueIndex).second;
+        itemOption.text = mValues.at(static_cast<std::size_t>(valueIndex)).second;
         QApplication::style()->drawControl(QStyle::CE_ItemViewItem, &itemOption, painter);
     }
 }
@@ -125,7 +125,7 @@ QSize CSVWorld::EnumDelegate::sizeHint(const QStyleOptionViewItem& option, const
         itemOption.rect = option.rect;
         itemOption.state = option.state;
 
-        const QString& valueText = mValues.at(valueIndex).second;
+        const QString& valueText = mValues.at(static_cast<std::size_t>(valueIndex)).second;
         QSize valueSize = QSize(itemOption.fontMetrics.horizontalAdvance(valueText), itemOption.fontMetrics.height());
         itemOption.currentText = valueText;
         return QApplication::style()->sizeFromContents(QStyle::CT_ComboBox, &itemOption, valueSize);
@@ -153,7 +153,7 @@ CSVWorld::EnumDelegateFactory::EnumDelegateFactory(
     int size = static_cast<int>(names.size());
 
     for (int i = 0; i < size; ++i)
-        add(names[i].first, names[i].second.c_str());
+        add(names[static_cast<std::size_t>(i)].first, names[static_cast<std::size_t>(i)].second.c_str());
 }
 
 CSVWorld::CommandDelegate* CSVWorld::EnumDelegateFactory::makeDelegate(
