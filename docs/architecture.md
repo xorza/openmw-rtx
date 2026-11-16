@@ -283,6 +283,14 @@ Content the renderer cannot use is never an assert and never the end of a frame:
 every refusal is reported once to `Rtx::Refusals`, a refused texture draws as a stand-in, and anything else refused is
 left out.
 
+- **State is read by what it does, not by its presence** (`statereading.cpp`): a stencil test at `ALWAYS` rejects
+  nothing, and what it writes matters only to a surface whose own test reads it, so only a test that can reject is
+  unread. The repack's storm atronach enables one for its draw mode.
+- **Faces a wireframe draws are lines, left out as an `NiLines` is** (`Shading::mLines`, `sNoWidth`), by the user's
+  decision: a ray meets no width of a line. Folded down the chain as the winding is, read with the drawable
+  (`DrawableRead::mLines`) and refused by the mesh reader, so both walks' resolvers keep the refusal. Refused: thin
+  ribbons, geometry a frame for two helper cubes in one test room; faces, a filled sheet where OpenGL draws lines.
+
 ### The content store
 
 What the preprocessor makes of the content is kept across sessions in `ContentStore::Store`, filled on the loading
@@ -435,14 +443,38 @@ them.
   - A texture's side is chosen from the room left when it arrives, the file standing the most bytes coming down a level
     first, as Unreal's streamer does (`TextureArray::chooseLevels`). Refused: one side for a whole arrival, which left
     1344 MiB unused.
-  - **A texture nothing names rests on the device**, by the user's decision (`TextureTable`): a file the device stood
-    whole keeps its slot and its image when its last holder goes, and the next take of it is that slot, nothing
-    described and nothing uploaded. The oldest to rest is freed first: when the array is full, and where the device's
-    room is short of an extension as large as any so far, ahead of it, since a dropped image's memory comes back only
-    once the frames that may name it are done; a rebuild frees them all. The host keeps nothing of what rests, nor the
-    chain made again of what stands, which a rebuild finds in the store. Over the PBR tour it handed the device
-    8.1 GiB where freeing at once handed 51.9, each file six times
-    (`research/2026-11-16-texture-uploads-and-host-memory.md`). Refused: a grace period, a figure no content decides.
+  - **One residency policy for the content**, by the user's decision: textures and static meshes, a mesh's geometry
+    and its bottom-level structure together, follow one rule. Content nothing names rests on the device whole, and the
+    next take of it is its slot, nothing described and nothing uploaded; everything that rests stands under one byte
+    limit, in one order across the tables (`RestQueue`, filed on the scene's clock, `SceneDesc::evictResting`), the
+    oldest freed first — past the limit, where the room is short of an arrival as large as any so far, textures and
+    structures together, and where the texture array is full; a rebuild frees it all. As D3D12's residency model and
+    VMA's budget treat a card: one budget, the least recently used evicted first. Refused: textures alone, which left
+    the meshes outside the bound; a limit per kind, a second figure where one suffices; a rest bounded by the budget
+    alone, which filled it — the handheld ended its repack tour with 2,981 of 3,545 MiB of textures resting, taking
+    the share of the compositor, the other programs and on the handheld the system.
+  - **The limit is measured** (`SceneUploader::restLimitOf`): 2 GiB, where on the desk's tours a least-recently-rested
+    cache kept 97.5% of what woke under the repack and 88.4% under the PBR replacers and a doubling bought less than a
+    tenth more (`RestReuse`, Mattson et al. 1970's stack distance, every cache size in one tour), and no more than a
+    quarter of the device's budget for content. Refused: a share of the budget alone, as Unreal sizes its pool, a
+    figure no measurement sets; no rest, under which the PBR tour handed the device 51.9 GiB where resting handed 8.1
+    (`research/2026-11-16-texture-uploads-and-host-memory.md`).
+  - **A static mesh is the one its content is** (`meshKeyOf`, `SceneDesc::addMesh`): filed under a digest of its arrays
+    and its shape, so a mesh resting on the device is found again by whatever reads the same geometry — its model loaded
+    again after the resource cache let it go, another model shipping it — and two drawables of one geometry are one
+    mesh. A skinned or morphed mesh is a copy per instance and is filed under none. Refused: the drawable as the key,
+    which matches only while the model's template lives and holds its host geometry alive; the model's file hash and
+    the drawable's place in it, an enumeration of the model nothing else makes, and no match across models.
+  - **What the device stands of a row is its answer** (`DeviceAnswer`, `SceneHolder::takeAnswer`), one a hand-over:
+    what it refused, what each structure took at its build, and the textures it had no room for. The
+    geometry's bytes are the core's own.
+  - **Content the device has no room for waits while room is coming**, `sMostRoomWaits` hand-overs at most, then is
+    refused; room is coming where something rests or the graveyard holds content (`whenRoomless`). A structure waits
+    on the device, which holds its geometry and builds it again at each placement (`BottomLevelStore::buildWaiting`);
+    a texture waits in the uploader, which alone can describe it again, and is handed over again once the room holds
+    it (`SceneUploader::serveWaits`). Both count in the room kept. Refused: headroom alone, which an arrival larger
+    than any before still outruns; a stand-in for good, which the handheld's repack tour drew for a texture where
+    3.1 GiB rested.
   - A bottom level is built loose in storage of its own and copied out tight, so that storage empties whole, as RTXMU
     does (`BottomLevelStore`); the world's build compacts before its textures are made (`BuildCompaction`), as NVIDIA's
     `buildBlas` does.
@@ -766,6 +798,11 @@ run visits and records, and includes the instruments, never the reverse.
   long the world took to arrive moves nothing a stop shows. Refused: counting from the stop's first frame, under which
   two runs of one binary under the Fullrest Repack waited 183 and 185 frames at one place and drew it differently.
 - **Every waiting loop of a test has a bound** (`Testing::WaitBound`), past which it fails naming what it waited for.
+- **A content's known findings fail no tour** (`Expectations`, `files/rtx/expected/`), by the user's decision: a tour
+  named `--expected=<content>` passes what the file names by kind and detail, a refusal by its name, and reports each
+  entry nothing met, so the file holds what the content still does. As web-platform-tests' and Chromium's expectation
+  files. Refused: refusals the content causes as costs, which a renderer's limit met every run would still fail; every
+  refusal a fault, under which no mod list's tour could pass and a new fault stood among the old.
 - **The GPU suite keeps its own pipeline cache** in its build folder (`OPENMW_RTX_TEST_PIPELINE_CACHE_DIR`).
 - **Qt's painting pool is off under ThreadSanitizer** (`QT_NO_GUI_THREADPOOL`), since Qt is built without the
   sanitizer. Refused: a suppressions file, which hides a race rather than the pool.
