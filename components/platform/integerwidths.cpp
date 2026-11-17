@@ -1,5 +1,3 @@
-#include "platform.hpp"
-
 #include <cstdint>
 #include <type_traits>
 

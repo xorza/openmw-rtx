@@ -46,7 +46,7 @@ target_sources(
     openmw-components
     PRIVATE
         glibctext.cpp
-        platform.cpp
+        integerwidths.cpp
         thread.cpp
     PUBLIC
         FILE_SET HEADERS

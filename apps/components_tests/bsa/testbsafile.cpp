@@ -435,6 +435,9 @@ namespace Bsa
                 }));
         }
 
+// std::streambuf in MSVC does not support buffers larger than 2**31 - 1:
+// https://developercommunity.visualstudio.com/t/stdbasic-stringbuf-is-broken/290124
+#ifndef _MSC_VER
         TEST(BSAFileTest, shouldHandleSingleFileAtTheEndOfLargeFile)
         {
             constexpr std::uint32_t maxUInt32 = std::numeric_limits<std::uint32_t>::max();
@@ -474,5 +477,6 @@ namespace Bsa
 
             EXPECT_THAT(file.getList(), IsEmpty());
         }
+#endif
     }
 }
