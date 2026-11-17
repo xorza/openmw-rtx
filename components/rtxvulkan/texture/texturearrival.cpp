@@ -171,7 +171,7 @@ namespace Rtx
             mSpreads.size(), mMeansRoom,
             [&](const std::size_t at) { return std::optional<std::uint64_t>(bytesOf(mSpreads[at])); },
             [](std::size_t, std::uint64_t) {}, mGroupEnds);
-        mMeans.growTo(largestGroup);
+        mMeans.growTo(meansGrownTo(mMeans.get().getSize(), largestGroup, mMeansRoom));
         const Buffer& means = mMeans.get();
 
         // What one level of a group reads of the level before, and what a group's first level

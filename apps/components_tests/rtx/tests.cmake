@@ -182,6 +182,7 @@ target_sources(
         rtxvulkan/spirv/spirvfile.cpp
         rtxvulkan/spirv/spirvinterface.cpp
         rtxvulkan/spirv/spirvpin.cpp
+        rtxvulkan/texture/meansgrownto.cpp
         rtxvulkan/trace/tuplequeue.cpp
         rtxvulkan/upscale/fsrframe.cpp
         rtxvulkan/upscale/upscaler.cpp

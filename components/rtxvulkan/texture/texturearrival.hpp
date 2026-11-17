@@ -30,6 +30,18 @@ namespace Rtx
     ///
     /// Work names its images by address, so an image stays where it is from the call that names it to `record`. Kept
     /// and refilled per run, so what it holds settles at the busiest run so far.
+    /// **What the spreads' means are made at for a run whose largest group needs `largest`**, where they hold `held`:
+    /// `held` where it holds the group; else twice `held`, held to `room`, or the group where it is larger. Doubling
+    /// within the room, so a session's runs make them again a few times, each a device allocation the kernel clears,
+    /// rather than once each time a run's group outgrows the last (`docs/research/2026-11-17-longest-frames.md`).
+    constexpr VkDeviceSize meansGrownTo(const VkDeviceSize held, const VkDeviceSize largest, const VkDeviceSize room)
+    {
+        if (held >= largest)
+            return held;
+        const VkDeviceSize doubled = 2 * held < room ? 2 * held : room;
+        return largest > doubled ? largest : doubled;
+    }
+
     class TextureArrival
     {
     public:

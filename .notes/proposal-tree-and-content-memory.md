@@ -576,6 +576,19 @@ that an arrival whose largest group fits what the means already hold makes no ne
 handheld's PBR tour, none of the ten longest frames is led by `vkAllocateMemory`, and the means and the ring are gone
 from its callers.
 
+**Written** (the commit after `f61cb7c291`):
+
+- **The means grow by doubling within the room** (`meansGrownTo`), so a session makes them a few times. Before, they
+  were made at each run's largest group exactly. A map past the room still gets means of its own, given back after its
+  run, as the room bounds what the means hold for the session.
+- **A spare staging block is given back only once it has stood unused for `sStagingIdleSubmits`**, 600 submits. That
+  is jemalloc's decay rule for unused pages (`dirty_decay_ms`, ten seconds by default). Before, a block shed a frame
+  after the crossing that grew it was made again at the next.
+- **The content pools' new blocks are left as they are**: they are growth, not churn. The library keeps one empty
+  block before it frees another, and item 16's standing by want shrinks what they hold.
+
+Its tours are flown with items 20 and 23–25's.
+
 ### 23. Fix: a bake waits for room as a file does, and a refusal is counted once
 
 **Closes**: "a texture the device has no room for draws the stand-in for good", and the cascade in the Repack entry's

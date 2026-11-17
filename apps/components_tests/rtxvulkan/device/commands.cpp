@@ -309,21 +309,31 @@ namespace Rtx
             stage({ sStagingBlock, sStagingBlock, sStagingBlock });
             EXPECT_EQ(blocks(), 3u) << "a third block was not made, or not into a place let go of";
 
-            // **A shed lets go of one free block a call, the largest, while the ring holds more
-            // than it keeps.** Three standard blocks and a twenty-megabyte one, against two
-            // standard blocks kept: the large one goes first, then one standard block, and the two
-            // left are what is kept, which a shed leaves.
+            // **A shed lets go of one free block a call, the largest, once it has cooled, while the
+            // ring holds more than it keeps.** Three standard blocks and a twenty-megabyte one,
+            // against two standard blocks kept: nothing goes while they are freshly given back;
+            // cooled, the large one goes first, then one standard block, and the two left are what
+            // is kept, which a shed leaves.
             pool.getStaging().trim(0);
             stage({ sStagingBlock, sStagingBlock, sStagingBlock, 20 << 20 });
             ASSERT_EQ(blocks(), 4u);
-            pool.getStaging().shed(2 * sStagingBlock);
+            getDevice().waitIdle();
+            getDevice().collectIdle();
+            const std::uint64_t now = getDevice().getTimeline().getKnownFinished();
+            pool.getStaging().shed(2 * sStagingBlock, now);
+            EXPECT_EQ(blocks(), 4u) << "a block shed before it cooled";
+            const std::uint64_t cooled = now + sStagingIdleSubmits;
+            pool.getStaging().shed(2 * sStagingBlock, cooled);
             EXPECT_EQ(blocks(), 3u) << "a shed let go of more or less than one block";
             stage({ 20 << 20 });
             EXPECT_EQ(blocks(), 4u) << "a run past the blocks left made one of its own";
-            pool.getStaging().shed(2 * sStagingBlock);
-            pool.getStaging().shed(2 * sStagingBlock);
+            getDevice().waitIdle();
+            getDevice().collectIdle();
+            const std::uint64_t later = getDevice().getTimeline().getKnownFinished() + sStagingIdleSubmits;
+            pool.getStaging().shed(2 * sStagingBlock, later);
+            pool.getStaging().shed(2 * sStagingBlock, later);
             EXPECT_EQ(blocks(), 2u);
-            pool.getStaging().shed(2 * sStagingBlock);
+            pool.getStaging().shed(2 * sStagingBlock, later);
             EXPECT_EQ(blocks(), 2u) << "a shed let go of what the ring keeps";
         }
     }

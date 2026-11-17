@@ -793,7 +793,7 @@ namespace Rtx
         // A frame that handed nothing over gives the ring a block back where an arrival grew it past what
         // it keeps (`StagingRing::shed`).
         if (!std::exchange(mHandedOver, false))
-            mDevice.getPool().getStaging().shed(sStagingKept);
+            mDevice.getPool().getStaging().shed(sStagingKept, mDevice.getTimeline().getKnownFinished());
 
         const DeviceScene* const held = mScenes.find(SceneSlot::world());
         assert(held != nullptr && "renderFrame before setScene");
