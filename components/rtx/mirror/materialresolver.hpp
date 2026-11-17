@@ -65,6 +65,10 @@ namespace Rtx
         /// heights its relief spans.
         std::optional<ImageFacts> mNormalFacts{};
 
+        /// What the `_spec` map's texels say, for a surface that wears one: what its channels mean
+        /// (`SpecularLayout`), which binds the surface's maps.
+        std::optional<ImageFacts> mSpecularFacts{};
+
         /// Whether the reader laid upstream's groundcover override over `mDescribed`
         /// (`CellReader::readModel`), which no state set of the chain states: the frame keys it
         /// apart, since the same chain read as a static wears another material.

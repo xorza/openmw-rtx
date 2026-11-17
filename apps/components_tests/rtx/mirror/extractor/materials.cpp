@@ -41,6 +41,7 @@
 #include <components/resource/resourcesystem.hpp>
 #include <components/resource/scenemanager.hpp>
 #include <components/rtx/common/index.hpp>
+#include <components/rtx/image/specularlayout.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 #include <components/rtx/image/texturewrap.hpp>
 #include <components/rtx/mirror/cells/prepared.hpp>
@@ -754,6 +755,35 @@ namespace Rtx::Testing
             const auto [cut, cutRows] = extractOne(grey, TextureRole::NormalHeight, true);
             EXPECT_TRUE(cut.isCutout());
             EXPECT_FALSE(cut.mRelief.has_value()) << "a cutout, shifted where it shades and not where it is cut";
+
+            // **The reader answers what the `_spec` map means**, so the frame reads none of its texels: grey is
+            // classic, and a surface with none reads nothing of it.
+            const auto readSpecular = [](std::optional<std::array<std::uint8_t, 4>> texel) {
+                osg::ref_ptr<osg::Geometry> quad = makeQuad();
+                osg::StateSet& state = *quad->getOrCreateStateSet();
+                paint(state, "textures/tx_a_steel.dds");
+                if (texel.has_value())
+                {
+                    osg::ref_ptr<osg::Image> specularMap = Testing::makeImage("", 2, 2);
+                    for (std::size_t at = 0; at < 4; ++at)
+                        std::copy(texel->begin(), texel->end(), specularMap->data() + at * 4);
+                    specularMap->setFileName("textures/tx_a_steel_spec.dds");
+                    paint(state, *specularMap, TextureRole::Specular);
+                }
+                PreparedModel model;
+                ThreadContent content;
+                TemplateWalk walk(nullptr);
+                walk.read(*quad, ~0u, model, content);
+                EXPECT_EQ(model.mParts.size(), 1u);
+                return model.mParts.empty() ? std::optional<ImageFacts>() : model.mParts[0].mMaterial.mSpecularFacts;
+            };
+            const std::optional<ImageFacts> classicRead = readSpecular(grey);
+            ASSERT_TRUE(classicRead.has_value());
+            EXPECT_EQ(classicRead->mSpecularLayout, std::optional<SpecularLayout>(SpecularLayout::Classic));
+            const std::optional<ImageFacts> metalRead = readSpecular(metalRough);
+            ASSERT_TRUE(metalRead.has_value());
+            EXPECT_EQ(metalRead->mSpecularLayout, std::optional<SpecularLayout>(SpecularLayout::MetalRoughness));
+            EXPECT_FALSE(readSpecular(std::nullopt).has_value()) << "no specular map, nothing read of one";
         }
 
         /// **A diffuse paired with two classic `_spec` maps is two base colours**, one a pair: two quads

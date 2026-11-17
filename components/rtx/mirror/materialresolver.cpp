@@ -288,6 +288,15 @@ namespace Rtx
             reading.mNormalFacts = known;
         }
 
+        // And what the `_spec` map's channels mean, which every surface wearing one binds its maps by.
+        if (const osg::Image* const specular = described.getTexture(SurfaceMap::Specular);
+            specular != nullptr && !SceneUtil::EmbeddedImage::nameOf(*specular).empty())
+        {
+            ImageFacts& known = thread.factsOf(*specular);
+            thread.specularLayoutOf(known, *specular);
+            reading.mSpecularFacts = known;
+        }
+
         return reading;
     }
 
@@ -540,10 +549,14 @@ namespace Rtx
         const osg::Image* const diffuse = described->getTexture(SurfaceMap::Diffuse);
 
         // **What the `_spec` map means, measured on it** (`specularLayoutOf`): a classic map makes, with
-        // its diffuse, a base colour and a metal-roughness map, each slot keyed by both files.
+        // its diffuse, a base colour and a metal-roughness map, each slot keyed by both files. The reader's answer
+        // where it made one, so the frame reads no texel of it.
         const osg::Image* const specular = described->getTexture(SurfaceMap::Specular);
+        std::optional<ImageFacts> readSpecular = reading.mSpecularFacts;
+        assert((!readSpecular.has_value() || readSpecular->mSpecularLayout.has_value())
+            && "a reading that read another fact than its material wants");
         const SpecularLayout layout = specular != nullptr && !SceneUtil::EmbeddedImage::nameOf(*specular).empty()
-            ? mThread.specularLayoutOf(mThread.factsOf(*specular), *specular)
+            ? mThread.specularLayoutOf(readSpecular.has_value() ? *readSpecular : mThread.factsOf(*specular), *specular)
             : SpecularLayout::MetalRoughness;
 
         // Every map bound by the surface's one rule (`encodingOf`, `partnerOf`), which the loading
