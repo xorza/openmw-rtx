@@ -202,9 +202,9 @@ namespace RtxTool
         request.mStops = std::move(stops);
         request.mSetup = std::move(framed.mSetup);
         // A tour's stops are planned once the world stands, and hash as the verb does.
-        request.mSetup.mMirror.mMeshDigests = policy.mHashes
-            || std::ranges::any_of(
-                request.mStops, [](const Stop& stop) { return stop.mActions.mHash || stop.mActions.mDigest; });
+        request.mSetup.mMirror.mDigests = policy.mHashes || std::ranges::any_of(request.mStops, [](const Stop& stop) {
+            return stop.mActions.mHash || stop.mActions.mDigest;
+        });
         // The frame at the window's size, so the frame is shown pixel for pixel.
         request.mSetup.mWindowPixels = osg::Vec2i(
             static_cast<std::int32_t>(framed.mWindow.mWidth), static_cast<std::int32_t>(framed.mWindow.mHeight));

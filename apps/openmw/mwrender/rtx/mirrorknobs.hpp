@@ -32,8 +32,8 @@ namespace MWRender
         /// `[Groundcover] point lighting`: whether the lamps light a plant.
         bool mGroundcoverLampLit = true;
 
-        /// Whether each mesh is digested as it arrives (`Rtx::MeshTable::keepDigests`): a harness run's that hashes or
-        /// describes the scene, and never the game's, which pays nothing for a digest nobody reads.
-        bool mMeshDigests = false;
+        /// Whether each mesh and mask is digested as it arrives (`Rtx::SceneDesc::keepDigests`): a harness run's that
+        /// hashes or describes the scene, and never the game's, which pays nothing for a digest nobody reads.
+        bool mDigests = false;
     };
 }

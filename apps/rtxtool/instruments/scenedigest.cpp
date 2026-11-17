@@ -1,5 +1,6 @@
 #include "scenedigest.hpp"
 
+#include <algorithm>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -179,7 +180,9 @@ namespace RtxTool
                 addTexture(digest, scene, layer.mDiffuse);
                 digest.add(layer.mDiffuseTransform);
                 digest.add(layer.mMaskTransform);
-                digest.add(Rtx::maskOf(layer).in(scene.materials().getMasks()));
+                // A layer that covers its chunk whole has no mask.
+                const Rtx::Run mask = Rtx::maskOf(layer);
+                digest.add(mask.empty() ? Misc::DigestWords{} : scene.materials().getMaskDigest(mask));
 
                 // Only where a layer has them, each behind its tag, as a material's companion maps.
                 if (layer.mNormal != Rtx::sNoIndex)
@@ -464,7 +467,16 @@ namespace RtxTool
                 layers.addFields(std::tuple(std::uint8_t{ 2 }, flags));
         }
         take(ScenePart::Layers, layers.take());
-        take(ScenePart::Masks, wordsOf(scene.materials().getMasks()));
+        // Each standing mask's digest from its arrival, by where it stands, since the host keeps no weights past a
+        // hand-over.
+        mMaskOffsets.clear();
+        for (const auto& [offset, words] : scene.materials().getMaskDigests())
+            mMaskOffsets.push_back(offset);
+        std::ranges::sort(mMaskOffsets);
+        Column masks(mScratch);
+        for (const std::uint32_t offset : mMaskOffsets)
+            masks.addFields(std::tuple(offset, scene.materials().getMaskDigests().at(offset)));
+        take(ScenePart::Masks, masks.take());
 
         // By names and slots both, unlike the content: which slot a texture landed in is what a material's index
         // means. A file and a sprite's bake name their file, a ground its material; the kind tells them apart, and

@@ -2066,10 +2066,10 @@ namespace Rtx::Testing
             scene.placements().advance();
 
             const std::size_t layersBefore = scene.materials().getLayers().size();
-            const std::size_t masksBefore = scene.materials().getMasks().size();
+            const std::size_t masksBefore = scene.materials().getMaskRuns().getEnd();
             const Index arrived = addChunk(green);
             ASSERT_EQ(scene.materials().getLayers().size(), layersBefore + 1);
-            ASSERT_EQ(scene.materials().getMasks().size(), masksBefore + 1);
+            ASSERT_EQ(scene.materials().getMaskRuns().getEnd(), masksBefore + 1);
             // With a mesh of its own, as a chunk arrives: an extend is what stages the runs.
             std::array<osg::Vec3f, 4> nearer{};
             for (std::size_t at = 0; at < nearer.size(); ++at)

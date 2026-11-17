@@ -26,6 +26,7 @@
 #include <apps/components_tests/rtx/support/layers.hpp>
 #include <apps/components_tests/rtx/support/sceneholds.hpp>
 #include <components/misc/digestwords.hpp>
+#include <components/misc/hashstate.hpp>
 #include <components/misc/result.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/image/textureencoding.hpp>
@@ -57,6 +58,15 @@ namespace Rtx
         std::vector<Rtx::Run> runs(std::span<const Rtx::Run> spans)
         {
             return std::vector<Rtx::Run>(spans.begin(), spans.end());
+        }
+
+        /// The runs of masks that arrived, in the order they did.
+        std::vector<Rtx::Run> runs(std::span<const Rtx::ArrivedMask> masks)
+        {
+            std::vector<Rtx::Run> out;
+            for (const Rtx::ArrivedMask& mask : masks)
+                out.push_back(mask.mRun);
+            return out;
         }
 
         /// What a news list names, sorted, so a set can be compared without depending on the order
@@ -145,7 +155,7 @@ namespace Rtx
         TEST(RtxSceneDescTest, meshesThatShareTheirIndicesNameOneRunOfThem)
         {
             SceneDesc scene;
-            scene.meshes().keepDigests();
+            scene.keepDigests();
             const std::array<osg::Vec3f, 4> raised{ osg::Vec3f(0.0f, 0.0f, 1.0f), osg::Vec3f(1.0f, 0.0f, 1.0f),
                 osg::Vec3f(1.0f, 1.0f, 1.0f), osg::Vec3f(0.0f, 1.0f, 1.0f) };
             const std::array<osg::Vec3f, 4> higher{ osg::Vec3f(0.0f, 0.0f, 2.0f), osg::Vec3f(1.0f, 0.0f, 2.0f),
@@ -1919,7 +1929,7 @@ namespace Rtx
                 mKept = mScene.addMaterial(Material{ .mKind = MaterialKind::Terrain, .mLayers = keptRun });
 
                 mLayersBefore = mScene.materials().getLayers().size();
-                mMasksBefore = mScene.materials().getMasks().size();
+                mMasksBefore = mScene.materials().getMaskRuns().getEnd();
 
                 Testing::letGoMaterial(mScene, mDropped);
                 mReleased = !mScene.materials().isLive(mDropped);
@@ -1947,7 +1957,7 @@ namespace Rtx
 
             EXPECT_EQ(scene.materials().getLayers().size(), terrain.mLayersBefore)
                 << "the tables never shrink, they are reused in place";
-            EXPECT_EQ(scene.materials().getMasks().size(), terrain.mMasksBefore);
+            EXPECT_EQ(scene.materials().getMaskRuns().getEnd(), terrain.mMasksBefore);
             EXPECT_EQ(scene.materials().getLayers()[1].mDiffuse, terrain.mSand);
             EXPECT_EQ(scene.materials().getLayers()[2].mDiffuse, terrain.mMoss);
 
@@ -1962,7 +1972,7 @@ namespace Rtx
             EXPECT_EQ(arrivingRun, (Rtx::Run{ .mOffset = 0, .mCount = 1 })) << "the freed layer run";
             EXPECT_EQ(scene.materials().getLayers().size(), terrain.mLayersBefore)
                 << "the layer table grew past a hole that fitted";
-            EXPECT_EQ(scene.materials().getMasks().size(), terrain.mMasksBefore)
+            EXPECT_EQ(scene.materials().getMaskRuns().getEnd(), terrain.mMasksBefore)
                 << "the mask table grew past a hole that fitted";
 
             // The freed slot goes to the next material asked for, whatever size it is: a material is
@@ -2070,6 +2080,13 @@ namespace Rtx
             EXPECT_EQ(mask, (Rtx::Run{ .mOffset = 0, .mCount = 4 }));
             EXPECT_EQ(runs(scene.materials().getArrivedRuns().mMasks),
                 (std::vector<Rtx::Run>{ Rtx::Run{ .mOffset = 0, .mCount = 4 } }));
+            {
+                const ArrivedRuns& arrived = scene.materials().getArrivedRuns();
+                EXPECT_EQ(std::vector<float>(
+                              arrived.weightsOf(arrived.mMasks[0]).begin(), arrived.weightsOf(arrived.mMasks[0]).end()),
+                    (std::vector<float>{ 1.0f, 0.0f, 0.0f, 1.0f }))
+                    << "the weights the hand-over stages, the host's one copy";
+            }
 
             const std::array layers{
                 Testing::layerOf(sNoIndex, mask, 2, 2),
@@ -2109,6 +2126,49 @@ namespace Rtx
                 << "the freed run was not the one handed out";
             EXPECT_EQ(runs(scene.materials().getArrivedRuns().mMasks),
                 (std::vector<Rtx::Run>{ Rtx::Run{ .mOffset = 0, .mCount = 4 } }));
+
+            // **A mask let go of before its hand-over is staged by none**: its room is the next arrival's, which two
+            // copies into one range would race for.
+            const std::array again{ Testing::layerOf(sNoIndex, Rtx::Run{ .mOffset = 0, .mCount = 4 }, 2, 2) };
+            const Index gone = scene.addMaterial(
+                Material{ .mKind = MaterialKind::Terrain, .mLayers = scene.materials().addLayers(again) });
+            Testing::letGoMaterial(scene, gone);
+            EXPECT_TRUE(scene.materials().getArrivedRuns().mMasks.empty()) << "a mask let go of was left to be staged";
+            const std::array<float, 4> other{ 0.25f, 0.25f, 0.25f, 0.25f };
+            EXPECT_EQ(scene.materials().addMask(other), (Rtx::Run{ .mOffset = 0, .mCount = 4 }));
+            const ArrivedRuns& arrived = scene.materials().getArrivedRuns();
+            ASSERT_EQ(arrived.mMasks.size(), 1u);
+            EXPECT_EQ(arrived.weightsOf(arrived.mMasks[0])[0], 0.25f)
+                << "the arrival in the hole staged another's weights";
+        }
+
+        /// **A layer that covers its chunk whole has no mask**, a run of nothing at the offset nought a mask may stand
+        /// at: a material of one let go of gives back no other's mask, its room or its digest.
+        TEST(RtxSceneDescTest, aLayerWithNoMaskGivesBackNoOthersMask)
+        {
+            SceneDesc scene;
+            scene.keepDigests();
+            const std::array<float, 4> weights{ 1.0f, 0.0f, 0.0f, 1.0f };
+            const Rtx::Run mask = scene.materials().addMask(weights);
+            ASSERT_EQ(mask.mOffset, 0u);
+            const std::array masked{ Testing::layerOf(sNoIndex, mask, 2, 2) };
+            const Index kept = scene.addMaterial(
+                Material{ .mKind = MaterialKind::Terrain, .mLayers = scene.materials().addLayers(masked) });
+            const std::array whole{ Testing::layerOf(sNoIndex) };
+            ASSERT_TRUE(maskOf(whole[0]).empty());
+            ASSERT_EQ(maskOf(whole[0]).mOffset, 0u);
+            const Index bare = scene.addMaterial(
+                Material{ .mKind = MaterialKind::Terrain, .mLayers = scene.materials().addLayers(whole) });
+
+            Testing::letGoMaterial(scene, bare);
+            EXPECT_EQ(scene.materials().getMaskDigests().size(), 1u) << "a maskless layer took another's digest";
+            EXPECT_EQ(scene.materials().getMaskRuns().getUsed(), 4u) << "a maskless layer gave back another's room";
+            EXPECT_EQ(scene.materials().getArrivedRuns().mMasks.size(), 1u);
+            Misc::HashState expected;
+            expected.add(std::span<const float>(weights));
+            EXPECT_EQ(scene.materials().getMaskDigest(mask), expected.getWords());
+            Testing::letGoMaterial(scene, kept);
+            EXPECT_TRUE(scene.materials().getMaskDigests().empty());
         }
 
         /// **A placement holds what it stands on.** The mesh and the material a walk's identity let go of

@@ -180,7 +180,7 @@ namespace Rtx
         // At the room or what the scene reaches, so the first stage copies nothing.
         mLayers.growTo(
             std::max<VkDeviceSize>(room.mLayers, scene.materials().getLayers().size()) * sizeof(Shaders::GpuLayer));
-        mMasks.growTo(std::max<VkDeviceSize>(room.mMasks, scene.materials().getMasks().size()) * sizeof(float));
+        mMasks.growTo(std::max<VkDeviceSize>(room.mMasks, scene.materials().getMaskRuns().getEnd()) * sizeof(float));
         writeMeshes(batch, scene, everyMesh);
         writeMaterialRuns(batch, scene, Runs::Whole);
         orderStagedWrites(batch);
@@ -343,30 +343,28 @@ namespace Rtx
     void SceneBuffers::writeMaterialRuns(Batch& batch, const SceneDesc& scene, const Runs runs)
     {
         const std::span<const MaterialLayer> layers = scene.materials().getLayers();
-        const std::span<const float> masks = scene.materials().getMasks();
+        const ArrivedRuns& arrived = scene.materials().getArrivedRuns();
 
         // On the queue, run by run: a run an arrival was given may still be read by a frame in
         // flight, and the copy recorded here runs behind that frame. A growth keeps what the table
         // holds, copied on the queue, so what is staged is what arrived and not megabytes of masks
-        // on a crossing frame. A table a scene is made with is staged whole, since the arrivals
-        // since the last clear are not every run a rebuilt world holds.
+        // on a crossing frame. A table a scene is made with stages its layers whole, since the
+        // arrivals since the last clear are not every layer run a world holds; its masks are its
+        // arrivals however it is made, the host's one copy of them, and a scene's first hand-over
+        // has every mask among them.
         mLayers.outgrowKeeping(batch, layers.size() * sizeof(Shaders::GpuLayer));
-        mMasks.outgrowKeeping(batch, masks.size() * sizeof(float));
+        mMasks.outgrowKeeping(batch, VkDeviceSize{ scene.materials().getMaskRuns().getEnd() } * sizeof(float));
 
         if (runs == Runs::Whole)
         {
             if (!layers.empty())
                 stageInto(batch, mLayers.get(), 0, std::as_bytes(layers));
-            if (!masks.empty())
-                stageInto(batch, mMasks.get(), 0, std::as_bytes(masks));
         }
         else
-        {
-            for (const Run run : scene.materials().getArrivedRuns().mLayers)
+            for (const Run run : arrived.mLayers)
                 stageInto(batch, mLayers.get(), run.mOffset * sizeof(Shaders::GpuLayer), std::as_bytes(run.in(layers)));
-            for (const Run run : scene.materials().getArrivedRuns().mMasks)
-                stageInto(batch, mMasks.get(), run.mOffset * sizeof(float), std::as_bytes(run.in(masks)));
-        }
+        for (const ArrivedMask& mask : arrived.mMasks)
+            stageInto(batch, mMasks.get(), mask.mRun.mOffset * sizeof(float), std::as_bytes(arrived.weightsOf(mask)));
 
         mStagedRuns = scene.materials().getRunRevision();
     }

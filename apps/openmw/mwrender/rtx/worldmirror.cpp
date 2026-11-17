@@ -199,8 +199,8 @@ namespace MWRender
         , mTraversal(worldTraversal(~0u))
     {
         mRing.setMinSize(knobs.mMinSize);
-        if (knobs.mMeshDigests)
-            mScene.meshes().keepDigests();
+        if (knobs.mDigests)
+            mScene.keepDigests();
         // The sky is not mirrored: the engine rebuilds it every frame, so walking it churns the identity maps
         // and makes every frame a full rebuild. The simple water is the local map's copy of the sea, which
         // would be placed twice. Only the one hidden bit is excluded, so the update traversal still reaches a
@@ -429,7 +429,7 @@ namespace MWRender
             .mRestingIndices = meshes.getRestingGeometry().mIndices,
             .mGeometryBytes = meshes.getGeometryBytes(),
             .mLayerEnd = count(mScene.materials().getLayers()),
-            .mMaskEnd = count(mScene.materials().getMasks()),
+            .mMaskEnd = mScene.materials().getMaskRuns().getEnd(),
             .mRigRunEnd = count(deformers.getRuns()),
             .mInfluenceEnd = count(deformers.getInfluences()),
             .mOffsetEnd = count(deformers.getMorphOffsets()),

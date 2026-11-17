@@ -98,7 +98,7 @@ namespace RtxTool
             const bool mirroredFirst, const float lift, const float aside, const bool shuffled = false)
         {
             Rtx::SceneDesc scene;
-            scene.meshes().keepDigests();
+            scene.keepDigests();
             fillBoxes(scene, mirroredFirst, lift, aside, shuffled);
             return spellHash(digestScene(digestParts(scene)));
         }
@@ -107,7 +107,7 @@ namespace RtxTool
             const bool mirroredFirst, const float lift, const float aside, const bool shuffled = false)
         {
             Rtx::SceneDesc scene;
-            scene.meshes().keepDigests();
+            scene.keepDigests();
             fillBoxes(scene, mirroredFirst, lift, aside, shuffled);
             return spellHash(digestLayout(digestParts(scene)));
         }
@@ -162,7 +162,7 @@ namespace RtxTool
         std::pair<std::string, std::string> digestsOfMaterial(void (*change)(Rtx::Material&))
         {
             Rtx::SceneDesc scene;
-            scene.meshes().keepDigests();
+            scene.keepDigests();
 
             Rtx::Material material;
             material.mDiffuse = scene.textures().add(VFS::Path::NormalizedView("textures/box.dds"));
@@ -256,7 +256,7 @@ namespace RtxTool
         std::pair<std::string, ScenePartDigests> digestsOfTangents(std::span<const osg::Vec4f> tangents)
         {
             Rtx::SceneDesc scene;
-            scene.meshes().keepDigests();
+            scene.keepDigests();
             Rtx::MeshInstance instance;
             instance.mMesh = addBox(scene, false, 0.0f, false, tangents);
             scene.addInstance(instance);
@@ -303,7 +303,7 @@ namespace RtxTool
         ScenePartDigests partsOfPlume(const bool additive, const bool falls)
         {
             Rtx::SceneDesc scene;
-            scene.meshes().keepDigests();
+            scene.keepDigests();
             const Rtx::Index texture = scene.textures().add(VFS::Path::NormalizedView("textures/puff.dds"));
             const std::array sprites{ Rtx::Sprite{ .mPosition = osg::Vec3f(1.0f, 2.0f, 3.0f),
                 .mRadius = 4.0f,
@@ -342,7 +342,7 @@ namespace RtxTool
         ScenePartDigests partsOfSkin(const float weight, const float up)
         {
             Rtx::SceneDesc scene;
-            scene.meshes().keepDigests();
+            scene.keepDigests();
 
             const std::array<std::uint32_t, 4> runs{ 1u, 1u, 1u, 1u };
             const std::array influences{ Rtx::Shaders::GpuInfluence{ .mBone = 0, .mWeight = weight } };
@@ -393,7 +393,7 @@ namespace RtxTool
         std::string contentOfMotion(const bool jumped, const bool rippled)
         {
             Rtx::SceneDesc scene;
-            scene.meshes().keepDigests();
+            scene.keepDigests();
             Rtx::MeshInstance instance;
             instance.mMesh = addBox(scene, false);
             const Rtx::Index slot = scene.addInstance(instance);
@@ -434,7 +434,7 @@ namespace RtxTool
         ScenePartDigests partsWith(const Field field)
         {
             Rtx::SceneDesc scene;
-            scene.meshes().keepDigests();
+            scene.keepDigests();
             Rtx::MeshInstance instance;
             instance.mMesh = addBox(scene, false);
             instance.mClockwise = field == Field::Clockwise;
@@ -506,7 +506,7 @@ namespace RtxTool
         TEST(RtxSceneDigestTest, theGeometrysPartsOutliveTheArrivalsTheyWereMadeFrom)
         {
             Rtx::SceneDesc scene;
-            scene.meshes().keepDigests();
+            scene.keepDigests();
             fillBoxes(scene, false, 0.0f, 0.0f);
 
             SceneDigester digester;

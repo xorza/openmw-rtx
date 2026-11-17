@@ -17,7 +17,7 @@ namespace RtxTool
         TEST(RtxSceneReportTest, aSecondWalkAndTheStoreAreSaidOnlyWhereThereWasOne)
         {
             Rtx::SceneDesc scene;
-            scene.meshes().keepDigests();
+            scene.keepDigests();
             MWRender::WalkReport walked;
             walked.mFound.mDistantStatics = 7;
             walked.mFound.mGroundCells = 25;

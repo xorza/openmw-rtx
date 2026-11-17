@@ -305,6 +305,14 @@ namespace Rtx
         /// Forgets what arrived and what was freed, which a hand-over does once it has read both.
         void clearArrivals();
 
+        /// Makes a digest of each mesh and each mask as it arrives (`MeshTable::keepDigests`,
+        /// `MaterialTable::keepDigests`), which nothing reads but the harness: asked before anything arrives.
+        void keepDigests()
+        {
+            mMeshes.keepDigests();
+            mMaterials.keepDigests();
+        }
+
         /// Says a walk is placing into this scene, and that the sweep after it has run: the
         /// extractor's two calls, at every walk and at every `retire`. What they keep is the turn
         /// below, which is what refuses a hand-over of a scene a walk left unswept.

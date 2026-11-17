@@ -5,6 +5,9 @@
 #include <span>
 #include <vector>
 
+#include <boost/unordered/unordered_flat_map.hpp>
+
+#include <components/misc/digestwords.hpp>
 #include <components/rtx/common/runs.hpp>
 #include <components/rtx/common/slots.hpp>
 
@@ -14,17 +17,39 @@
 
 namespace Rtx
 {
-    /// The runs a material table has placed since the last `clearArrivals`. Two lists and not a
-    /// `SlotSet`, because a run is an offset and a count rather than a slot.
+    /// A mask placed since the last `clearArrivals`: its run, and where its weights start in `ArrivedRuns::mWeights`.
+    struct ArrivedMask
+    {
+        Run mRun;
+        std::uint32_t mStart = 0;
+    };
+
+    /// The runs a material table has placed since the last `clearArrivals`, and the masks' weights: the host's one
+    /// copy of them, kept for one hand-over (`docs/architecture.md`, "The geometry has one host copy, for one
+    /// hand-over"). Lists and not a `SlotSet`, because a run is an offset and a count rather than a slot.
     struct ArrivedRuns
     {
+        /// What the weights keep of their capacity past `clear`, so a crossing's masks allocate nothing: a world's
+        /// first hand-over, its every land cell's, is given back.
+        static constexpr std::size_t sKeptBytes = std::size_t{ 1 } << 20;
+
         std::vector<Run> mLayers;
-        std::vector<Run> mMasks;
+        std::vector<ArrivedMask> mMasks;
+        std::vector<float> mWeights;
+
+        std::span<const float> weightsOf(const ArrivedMask& mask) const
+        {
+            return std::span<const float>(mWeights).subspan(mask.mStart, mask.mRun.mCount);
+        }
 
         void clear()
         {
             mLayers.clear();
             mMasks.clear();
+            if (mWeights.capacity() * sizeof(float) > sKeptBytes)
+                mWeights = std::vector<float>();
+            else
+                mWeights.clear();
         }
     };
 
@@ -43,11 +68,11 @@ namespace Rtx
             reserveRows(room.mMaterials);
             mWritten.reserve(room.mMaterials);
             mLayers.reserve(room.mLayers);
-            mMasks.reserve(room.mMasks);
         }
 
-        /// Copies `weights` into the shared mask table and returns where they landed. One float per
-        /// weight rather than the byte the source holds: a cell's worth is tens of kilobytes.
+        /// Takes a run of the device's mask table for `weights`, files them with the arrivals until the next hand-over
+        /// and returns the run. One float per weight rather than the byte the source holds: a cell's worth is tens of
+        /// kilobytes.
         Run addMask(std::span<const float> weights);
 
         /// Copies a material's layers into the shared layer table and returns where they landed —
@@ -55,7 +80,22 @@ namespace Rtx
         Run addLayers(std::span<const MaterialLayer> layers);
 
         std::span<const MaterialLayer> getLayers() const { return mLayers.getAll(); }
-        std::span<const float> getMasks() const { return mMasks.getAll(); }
+
+        /// Where the masks' runs are handed out: how far the device's mask table reaches.
+        const RunAllocator& getMaskRuns() const { return mMaskRuns; }
+
+        /// Makes a digest of each mask as it arrives, which nothing reads but the harness: asked of a table that holds
+        /// nothing yet, so every mask has one.
+        void keepDigests();
+
+        /// What the standing mask at `run` digested to as it arrived (`keepDigests`).
+        const Misc::DigestWords& getMaskDigest(Run run) const;
+
+        /// Every standing mask's digest, by its run's offset, in no order (`keepDigests`).
+        const boost::unordered_flat_map<std::uint32_t, Misc::DigestWords>& getMaskDigests() const
+        {
+            return mMaskDigests;
+        }
 
         std::span<const Index> getWritten() const { return mWritten.getSlots(); }
         const ArrivedRuns& getArrivedRuns() const { return mArrived; }
@@ -122,6 +162,10 @@ namespace Rtx
         /// A material's layers, and the weights a layer places — runs and not slots, because a
         /// terrain chunk's layer run is as long as the ground types under it.
         RunBuffer<MaterialLayer> mLayers;
-        RunBuffer<float> mMasks;
+        RunAllocator mMaskRuns;
+
+        /// Each standing mask's digest by its run's offset, where `keepDigests` asked for them.
+        boost::unordered_flat_map<std::uint32_t, Misc::DigestWords> mMaskDigests;
+        bool mKeepsDigests = false;
     };
 }

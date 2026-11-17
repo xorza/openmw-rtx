@@ -566,7 +566,6 @@ made again once; a store made on the desk is the handheld's too, the key being t
 ### 14. One copy of the geometry
 
 1. The reader packs, keys and bounds; `MeshTable::add` takes a `PackedMesh`; split normals stay words.
-2. The masks' host copy goes as the geometry's did.
 3. `PreparedModel` lets go of its arrays once adopted, on the reader's thread; a second adoption finds its meshes by
    key or asks the reader to fill it again.
 4. The ring's flat records; the cell pools go.
@@ -620,8 +619,8 @@ A condition that fails is worked, not logged: its cause is found and fixed, or t
 - **14.2 and 14.7, the geometry. One host copy, for one hand-over, and digests where the host asks**: ahead of 14.1,
   since the arrivals take the table's packing as it stands and the reader's packing moves it later without touching
   them. Every stream's digest is made with the triangles' (`MeshDigest`), so `repeat` still names the stream a
-  difference landed in. A run of shared indices is brought by the arrival that made it. The masks' host copy is its own
-  part, 14.2 as it now reads.
+  difference landed in. A run of shared indices is brought by the arrival that made it. The ground's masks follow in a
+  commit of their own, a mask let go of before its hand-over staged by none.
 
 - **13, its first part. A texture that stands moves down**: `TextureArray::makeRoom` copies a level down on the
   device for an arrival the room does not hold whole and for a reserve a change of mode grows past content, in place of

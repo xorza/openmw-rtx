@@ -1,8 +1,12 @@
 #include "materialtable.hpp"
 
 #include <cassert>
+#include <cstdint>
+#include <span>
+#include <vector>
 
 #include <components/crashcatcher/crash.hpp>
+#include <components/misc/hashstate.hpp>
 #include <components/rtx/image/textureencoding.hpp>
 
 #include "texturetable.hpp"
@@ -69,10 +73,33 @@ namespace Rtx
 
     Run MaterialTable::addMask(std::span<const float> weights)
     {
-        const Run run = mMasks.allocate(weights);
-        mArrived.mMasks.push_back(run);
+        assert(!weights.empty() && "a mask of nothing is not a run");
+        const Run run = mMaskRuns.allocate(static_cast<std::uint32_t>(weights.size()));
+        mArrived.mMasks.push_back(
+            ArrivedMask{ .mRun = run, .mStart = static_cast<std::uint32_t>(mArrived.mWeights.size()) });
+        mArrived.mWeights.insert(mArrived.mWeights.end(), weights.begin(), weights.end());
+        if (mKeepsDigests)
+        {
+            Misc::HashState digest;
+            digest.add(weights);
+            mMaskDigests.insert_or_assign(run.mOffset, digest.getWords());
+        }
         ++mRunRevision;
         return run;
+    }
+
+    void MaterialTable::keepDigests()
+    {
+        assert(size() == 0 && mMaskRuns.getEnd() == 0 && "digests asked of a table that holds masks without one");
+        mKeepsDigests = true;
+    }
+
+    const Misc::DigestWords& MaterialTable::getMaskDigest(const Run run) const
+    {
+        assert(mKeepsDigests && "a digest asked of a table that keeps none");
+        const auto found = mMaskDigests.find(run.mOffset);
+        assert(found != mMaskDigests.end() && "the digest of a mask that does not stand");
+        return found->second;
     }
 
     Run MaterialTable::addLayers(std::span<const MaterialLayer> layers)
@@ -99,8 +126,18 @@ namespace Rtx
         // terrain chunk, so without this what accumulates is a blend map per chunk walked past; the
         // runs are variable length, which is why they are given back to an allocator rather than to
         // a list of slots.
+        // A mask given back before its hand-over is staged by none: its room may be the next arrival's, which two
+        // copies into one range would race for.
+        // A layer that covers its chunk whole has no mask, a run of nothing at whatever offset it holds.
         for (const MaterialLayer& layer : going.mLayers.in(getLayers()))
-            mMasks.release(maskOf(layer));
+        {
+            const Run mask = maskOf(layer);
+            if (mask.empty())
+                continue;
+            mMaskRuns.release(mask);
+            std::erase_if(mArrived.mMasks, [&](const ArrivedMask& arrived) { return arrived.mRun == mask; });
+            mMaskDigests.erase(mask.mOffset);
+        }
 
         mLayers.release(going.mLayers);
 

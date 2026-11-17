@@ -138,8 +138,10 @@ namespace RtxTool
         std::vector<Misc::DigestWords> mShapes;
         std::optional<std::uint64_t> mShapesRevision;
 
-        /// A column's rows laid end to end, hashed once. Cleared and refilled, never freed.
+        /// A column's rows laid end to end, hashed once, and the standing masks' offsets in order. Cleared and
+        /// refilled, never freed.
         std::vector<std::byte> mScratch;
+        std::vector<std::uint32_t> mMaskOffsets;
     };
 
     /// The one-off form `scene` and `shot` report with: a digester made and used once.
